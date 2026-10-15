@@ -26,6 +26,7 @@ import type { SocialDraftsService } from '../../../social/social-drafts.service'
 import type { SocialQueueService } from '../../../social/social-queue.service';
 import type { SocialSnippetsService } from '../../../social/social-snippets.service';
 import type { SocialImportService } from '../../../social/social-import.service';
+import type { SocialRecurrenceService } from '../../../social/social-recurrence.service';
 import type { FacebookCommentsService } from '../../../facebook/facebook-comments.service';
 import type { FacebookChatLinksService } from '../../../facebook/facebook-chat-links.service';
 import type { FacebookFlowsService } from '../../../facebook/facebook-flows.service';
@@ -65,7 +66,7 @@ export interface McpDeps {
   extensions?: ExtensionsService;
   extRuntime?: ExtensionsRuntime;
   /** Đăng đa kênh (Facebook Page…): kênh đã liên kết + bài/lịch đăng + bài nháp; chỉ có khi module được nối. */
-  social?: { posts: SocialPostsService; accounts: SocialAccountsService; drafts: SocialDraftsService; queue: SocialQueueService; snippets: SocialSnippetsService; importer: SocialImportService };
+  social?: { posts: SocialPostsService; accounts: SocialAccountsService; drafts: SocialDraftsService; queue: SocialQueueService; snippets: SocialSnippetsService; importer: SocialImportService; recurrences: SocialRecurrenceService };
   /** Bình luận Fanpage + luật tự xử lý (chỉ đọc); chỉ có khi module Facebook được nối. */
   facebookComments?: FacebookCommentsService;
   facebookChatLinks?: FacebookChatLinksService;

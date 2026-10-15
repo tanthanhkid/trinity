@@ -69,7 +69,7 @@ describe('registry', () => {
       expect(by(n).permissions).toEqual([]);
       expect(by(n).annotations?.readOnlyHint).toBe(false);
     }
-    expect(ACTION_TOOLS.length).toBe(28);
+    expect(ACTION_TOOLS.length).toBe(31);
   });
   it('mô tả bảo model gọi describe_schema trước; input hợp lệ theo zod', () => {
     const { z } = loadMcpSdk();

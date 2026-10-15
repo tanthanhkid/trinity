@@ -5,6 +5,16 @@ All notable changes to Trinity are documented here. The format follows [Keep a C
 ## Unreleased
 
 ### Added
+- **Recurring posts**: repeat a post daily, weekly or monthly (Vietnam time) with an end date or count. Trinity always keeps one upcoming scheduled post, skips a run it missed by more than an hour, and pauses the schedule with the reason if a channel needs re-linking. Manage them in Calendar › Bài lặp lại or with the `list_recurring_posts`, `create_recurring_post`, `update_recurring_post` and `set_recurring_post_active` MCP tools (public posts need the user's approval; there is no delete tool).
+
+### Upgrade notes
+- New migration `0015_social_recurrences` (additive: one new table). Run `prisma migrate deploy`; `docker compose up -d --build` does this through the `migrate` job.
+
+## 0.2.0 — 2026-10-15
+
+First release of the fresh public history.
+
+### Added
 - **Multi-channel posting**
   - Drafts: save incomplete posts, reopen them in the composer, and publish them. Publishing is atomic, so the same draft cannot be posted twice and approval binds to the exact version the user reviewed.
   - Weekly posting queue: set time slots, then pick "add to queue" and the post goes to the next free slot. An approved post whose slot is gone moves to the next free slot.
@@ -14,7 +24,6 @@ All notable changes to Trinity are documented here. The format follows [Keep a C
   - YouTube options (description, tags, category, made for kids, thumbnail, playlist) and a Facebook first comment.
   - Editing and rescheduling of scheduled posts, and cancelling them (status only, nothing is deleted).
   - Bulk import from CSV (Calendar › Import CSV, and the `import_social_posts` MCP tool): check every row first, then create drafts or scheduled posts. An import never publishes immediately, queue rows get distinct slots, and the import is refused if the data changed since the preview.
-  - Recurring posts: repeat a post daily, weekly or monthly (Vietnam time) with an end date or count. Trinity always keeps one upcoming scheduled post, skips a run it missed by more than an hour, and pauses the schedule with the reason if a channel needs re-linking. Manage them in Calendar › Bài lặp lại or with the `list_recurring_posts`, `create_recurring_post`, `update_recurring_post` and `set_recurring_post_active` MCP tools (public posts need the user's approval; there is no delete tool).
 - **Facebook Page**: comment rules (test or live mode, hide comments with phone numbers), editing Messenger flows, and editing or cancelling pending broadcasts.
 - **Inbox**: read every Messenger and Zalo OA conversation; list and reply to Google reviews (once Google grants API access).
 - **AI assistant (MCP)**: tools for everything above. New write tools that publish or message customers need the user's approval (`confirmed_by_user`). See the full tool index in `docs/integrations/mcp.md`.
@@ -24,7 +33,7 @@ All notable changes to Trinity are documented here. The format follows [Keep a C
 - Dependency security fixes within the same major versions: `sharp` 0.35.5 and `pnpm` overrides. The unused `xlsx` package was removed.
 
 ### Upgrade notes
-- New migrations `0012_social_drafts`, `0013_social_queue_slots`, `0014_social_snippets` and `0015_social_recurrences`. They are additive only: new tables plus one nullable or defaulted column. Run `prisma migrate deploy`; `docker compose up -d --build` does this through the `migrate` job.
+- New migrations `0012_social_drafts`, `0013_social_queue_slots` and `0014_social_snippets`. They are additive only: new tables plus one nullable or defaulted column. Run `prisma migrate deploy`; `docker compose up -d --build` does this through the `migrate` job.
 
 ## 0.1.1 — 2026-10-15
 

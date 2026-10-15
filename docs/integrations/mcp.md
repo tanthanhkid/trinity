@@ -125,7 +125,7 @@ Scope comes from the user's real grants (`own` = own · `team` = self + direct r
 
 ## Full tool index
 
-Every tool the server exposes (99), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
+Every tool the server exposes (103), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
 
 ### Multi-channel posting
 
@@ -134,9 +134,11 @@ Every tool the server exposes (99), generated from the tool registry. "write" to
 | `cancel_scheduled_post` | write · preview → `confirmed_by_user` | Cancel a scheduled post |
 | `create_social_post` | write · preview → `confirmed_by_user` | Create social post |
 | `get_social_post` | read | Get social post |
+| `create_recurring_post` | write · preview → `confirmed_by_user` | Create a recurring post (daily / weekly / monthly, Vietnam time) |
 | `get_social_post_stats` | read | Social post stats |
 | `import_social_posts` | write · `schedule` mode: preview → `confirmed_by_user` | Bulk-create drafts or scheduled posts from up to 50 rows |
 | `list_queue_slots` | read | List queue slots |
+| `list_recurring_posts` | read | List recurring posts with their next 3 run times |
 | `list_social_accounts` | read | List social accounts |
 | `list_social_drafts` | read | List social drafts |
 | `list_social_media` | read | List social media library |
@@ -151,6 +153,8 @@ Every tool the server exposes (99), generated from the tool registry. "write" to
 | `save_social_draft` | write | Save social draft |
 | `save_social_snippet` | write | Save social snippet |
 | `set_queue_slots` | write | Set queue slots |
+| `set_recurring_post_active` | write · pause: direct · resume: preview → `confirmed_by_user` | Pause or resume a recurring post |
+| `update_recurring_post` | write · preview → `confirmed_by_user` | Update a recurring post (future posts only) |
 | `update_scheduled_post` | write · preview → `confirmed_by_user` | Update scheduled post |
 | `upload_social_media` | write | Upload social media |
 

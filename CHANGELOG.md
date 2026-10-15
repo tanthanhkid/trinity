@@ -4,6 +4,8 @@ All notable changes to Trinity are documented here. The format follows [Keep a C
 
 ## Unreleased
 
+## 0.3.0 — 2026-10-15
+
 ### Added
 - **Recurring posts**: repeat a post daily, weekly or monthly (Vietnam time) with an end date or count. Trinity always keeps one upcoming scheduled post, skips a run it missed by more than an hour, and pauses the schedule with the reason if a channel needs re-linking. Manage them in Calendar › Bài lặp lại or with the `list_recurring_posts`, `create_recurring_post`, `update_recurring_post` and `set_recurring_post_active` MCP tools (public posts need the user's approval; there is no delete tool).
 

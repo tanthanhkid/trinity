@@ -1,0 +1,7 @@
+export * from "./use-permissions"
+export * from "./can"
+export * from "./forbidden"
+export type { Permission, Scope, Grants } from "@trinity/rbac"
+export { can, scopeOf, PERMISSIONS, PERMISSION_GROUPS } from "@trinity/rbac"
+export * from "./use-role-names"
+export * from "./permission-gate"

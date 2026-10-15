@@ -1,0 +1,34 @@
+{
+  "name": "@trinity/prisma",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "generate": "prisma generate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "migrate:status": "prisma migrate status",
+    "seed": "ts-node prisma/seed.ts",
+    "studio": "prisma studio",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10",
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2",
+    "@types/node": "^22",
+    "prisma": "^6.19.3",
+    "ts-node": "^10",
+    "typescript": "^5"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "prisma/schema.prisma",
+    "prisma/migrations"
+  ]
+}

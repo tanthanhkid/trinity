@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "types": ["jest", "node"]
+  },
+  "include": [
+    "**/*",
+    "../../src/**/*",
+    "../../../../services/auth/src/**/*",
+    "../../../../services/crm/src/**/*",
+    "../../../../services/commerce/src/**/*",
+    "../../../../services/payroll/src/**/*",
+    "../../../../services/notification/src/**/*"
+  ]
+}

@@ -1,0 +1,358 @@
+/* ============================================================================
+   SIDEBAR — theo demo giao diện mới (`trinity-giao-dien-demo`, `.side`/`.nav`)
+   ----------------------------------------------------------------------------
+   Bố cục: logo + "Trinity" → ô "Tìm hoặc ra lệnh ⌘K" → menu chính → Bảng tuỳ
+   chỉnh → Đã ghim → Khách gần đây → chân: Cài đặt + người dùng + nút sáng/tối.
+   Dáng: nền panel, viền phải 1px, mục cao ~35px bo 8px, chữ 14px `--sidebar-foreground`
+   (= --ink-2), icon 18px; mục đang mở = nền `--sidebar-primary` (= --sunken) + chữ
+   --ink + viền trong 1px. Màu đọc token (`app-tokens.css`, có bản tối) — sửa
+   dáng ở ĐÂY, sửa MÀU ở đó.
+
+   PHẠM VI: mọi selector đều dưới `html:root[data-ui="app"]`.
+   SPECIFICITY: `html:root[data-ui="app"] [data-slot="…"]` = (0,3,1), vượt hẳn
+   utility Tailwind, và KHÔNG nằm trong `@layer` nào nên luôn thắng utility v4.
+   ⚠️ 2 chỗ shadcn đặt `!important` khi thu gọn (`group-data-[collapsible=icon]:size-8!`,
+   `:p-2!`) — chỉ 2 chỗ đó mới cần `!important` đối ứng, đã ghi chú tại chỗ.
+   ========================================================================== */
+
+/* ---- vỏ sidebar ------------------------------------------------------- */
+html:root[data-ui="app"] [data-slot="sidebar-inner"] {
+  padding: 14px 10px 8px;
+  background: var(--sidebar);
+}
+
+/* ---- khối workspace: hàng ngang logo + tên · vai trò + chevron, KHÔNG
+   căn giữa (khác brand-block cũ của bản) ---------------------------- */
+html:root[data-ui="app"] [data-slot="sidebar-header"] {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  text-align: left;
+}
+
+/* ---- logo + tên workspace (demo `.ws`) ---------------------------------- */
+html:root[data-ui="app"] .app-side-ws {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 12px;
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ---- ô "Tìm hoặc ra lệnh ⌘K" (demo `.search`) ---------------------------- */
+html:root[data-ui="app"] .app-side-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--color-app-line);
+  border-radius: 8px;
+  background: var(--color-app-surface-2);
+  color: var(--color-app-sidebar-muted);
+  font-size: 14px;
+  text-align: left;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+html:root[data-ui="app"] .app-side-search:hover {
+  border-color: var(--color-app-sidebar-edge);
+}
+html:root[data-ui="app"] .app-side-search kbd {
+  margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid var(--color-app-sidebar-edge);
+  border-radius: 5px;
+  background: var(--sidebar);
+  color: var(--color-app-sidebar-muted);
+  font: 500 14px/1.3 var(--font-app);
+}
+html:root[data-ui="app"] [data-slot="sidebar"][data-collapsible="icon"] .app-side-search {
+  justify-content: center;
+  padding: 7px 0;
+}
+
+/* ---- chân: người dùng + nút sáng/tối (demo `.me` / `.theme`) ------------ */
+html:root[data-ui="app"] .app-side-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--sidebar-border);
+}
+html:root[data-ui="app"] .app-side-theme {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 30px;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 8px;
+  background: var(--sidebar);
+  color: var(--color-app-ink-2);
+  transition: background-color 0.15s;
+}
+html:root[data-ui="app"] .app-side-theme:hover {
+  background: var(--sidebar-accent);
+}
+
+/* ---- vùng cuộn ----------------------------------------------------------
+   Thanh cuộn trên nền SÁNG nên thumb là lớp ĐEN MỜ, đậm dần khi rê vào
+   sidebar (đảo cực từ bản tối  — thumb TRẮNG mờ trên nền tối). */
+html:root[data-ui="app"] [data-slot="sidebar-content"] {
+  gap: 0;
+  overflow-x: hidden;
+  padding-right: 2px;
+  overscroll-behavior: contain;
+}
+html:root[data-ui="app"] [data-slot="sidebar-content"]::-webkit-scrollbar {
+  width: 9px;
+  background: transparent;
+}
+html:root[data-ui="app"] [data-slot="sidebar-content"]::-webkit-scrollbar-track {
+  background: transparent;
+}
+html:root[data-ui="app"] [data-slot="sidebar-content"]::-webkit-scrollbar-thumb {
+  min-height: 40px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+html:root[data-ui="app"] [data-slot="sidebar-container"]:hover
+  [data-slot="sidebar-content"]::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--foreground) 22%, transparent);
+  background-clip: padding-box;
+}
+html:root[data-ui="app"] [data-slot="sidebar-content"]::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--foreground) 36%, transparent);
+  background-clip: padding-box;
+}
+html:root[data-ui="app"] [data-slot="sidebar-content"]::-webkit-scrollbar-thumb:active {
+  background: color-mix(in srgb, var(--foreground) 48%, transparent);
+  background-clip: padding-box;
+}
+/* thu gọn còn icon thì giấu hẳn thanh cuộn cho sạch */
+html:root[data-ui="app"]
+  [data-slot="sidebar"][data-collapsible="icon"]
+  [data-slot="sidebar-content"]::-webkit-scrollbar {
+  width: 0;
+}
+@supports not selector(::-webkit-scrollbar) {
+  html:root[data-ui="app"] [data-slot="sidebar-content"] {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--foreground) 14%, transparent) transparent;
+    transition: scrollbar-color 0.2s ease;
+  }
+  html:root[data-ui="app"] [data-slot="sidebar-container"]:hover [data-slot="sidebar-content"] {
+    scrollbar-color: color-mix(in srgb, var(--foreground) 30%, transparent) transparent;
+  }
+  html:root[data-ui="app"]
+    [data-slot="sidebar"][data-collapsible="icon"]
+    [data-slot="sidebar-content"] {
+    scrollbar-width: none;
+  }
+}
+
+/* ---- nhóm menu ----------------------------------------------------------
+   Tiêu đề nhóm (ĐÃ GHIM/KHÁCH GẦN ĐÂY/TẤT CẢ) tự dựng ở component
+   (`sidebar-group-label.tsx` + nút toggle trong `sidebar.tsx`) — KHÔNG dùng
+   `SidebarGroupLabel` gốc của shadcn nên không cần rule riêng ở đây. */
+html:root[data-ui="app"] [data-slot="sidebar-group"] {
+  margin-top: 0;
+  padding: 0;
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu"] {
+  gap: 1px;
+}
+
+/* ---- 1 mục menu: cao 32px, bo 7px, chữ tối trên nền sáng ----------------- */
+html:root[data-ui="app"] [data-slot="sidebar-menu-button"] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 35px;
+  height: 35px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  color: var(--sidebar-foreground);
+  font-size: 14px;
+  font-weight: 400;
+  white-space: nowrap;
+  position: relative;
+  transition: background 0.15s, color 0.15s;
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu-button"]:hover {
+  background: var(--sidebar-accent);
+  color: var(--sidebar-foreground);
+}
+
+/* icon mục menu — 16px, xám, đậm hơn khi hover/đang mở. Màu qua
+   `--color-app-sidebar-muted` (`app-tokens.css`) — trước hardcode
+   `#787774` trần, cùng hex tại nút "Tìm"/"Thêm khách" từng đo 4,47:1 trên
+   trắng (dưới AA chữ, dù đạt AA đồ hoạ 3:1 cho icon thuần) — gom về 1 token
+   để không lặp lại con số rời rạc. */
+html:root[data-ui="app"] [data-slot="sidebar-menu-button"] > svg:first-child {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  opacity: 1;
+  color: var(--color-app-sidebar-muted);
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu-button"]:hover > svg:first-child {
+  color: var(--sidebar-foreground);
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu-button"][data-active] > svg:first-child {
+  color: var(--sidebar-primary-foreground);
+}
+/* Mục đang mở dạng pill xanh nhạt, chữ xanh đậm, đậm hơn một bậc. */
+html:root[data-ui="app"] [data-slot="sidebar-menu-button"][data-active] {
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px var(--sidebar-border);
+}
+
+/* nhãn đếm/"Mới" cạnh mục menu */
+html:root[data-ui="app"] .app-nav-tag {
+  margin-left: auto;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-app-sidebar-muted);
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 20px;
+}
+/* nút ghim (absolute, right 6px, ~16px) hiện khi rê chuột / focus
+   bàn phím / mục đã ghim; nhãn "Mới" dịch sang trái chừa đúng chỗ đó thay vì
+   bị đè. `margin-right` chứ KHÔNG đổi `margin-left:auto` để vẫn dính mép phải. */
+html:root[data-ui="app"] .app-nav-tag {
+  transition: margin-right 0.15s;
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu-item"]:hover .app-nav-tag,
+html:root[data-ui="app"] [data-slot="sidebar-menu-item"]:has(> button:focus-visible) .app-nav-tag,
+html:root[data-ui="app"] [data-slot="sidebar-menu-item"][data-pinned] .app-nav-tag {
+  margin-right: 22px;
+}
+/* nhãn chữ ("Mới") — chip nhấn nhạt như `.chip.ai` của demo */
+html:root[data-ui="app"] .app-nav-tag[data-tone="label"] {
+  border-radius: 6px;
+  background: var(--color-app-primary-soft);
+  color: var(--color-app-primary-ink);
+}
+html:root[data-ui="app"] .app-nav-tag[data-tone="new"],
+
+html:root[data-ui="app"] .app-nav-tag[data-tone="hot"] {
+  background: #fdeed6;
+  color: #a15c00;
+}
+
+/* mũi tên nhóm con — LUÔN mũi xuống, xoay 180° khi mở */
+html:root[data-ui="app"] .app-nav-chev {
+  margin-left: auto;
+  width: 12px;
+  height: 12px;
+  opacity: 0.6;
+  transition: transform 0.2s;
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu-item"][data-open] .app-nav-chev {
+  transform: rotate(180deg);
+}
+
+/* ---- menu con -------------------------------------------------------- */
+html:root[data-ui="app"] [data-slot="sidebar-menu-sub"] {
+  position: relative;
+  margin: 1px 0 3px;
+  padding: 0 0 0 20px;
+  gap: 1px;
+  border-left: none;
+  transform: none;
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu-sub"]::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--sidebar-border);
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu-sub-button"] {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: var(--sidebar-foreground);
+  font-size: 14px;
+  transform: none;
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu-sub-button"]:hover {
+  background: var(--sidebar-accent);
+  color: var(--sidebar-foreground);
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu-sub-button"][data-active] {
+  background: var(--sidebar-primary);
+  border: none;
+  box-shadow: inset 0 0 0 1px var(--sidebar-border);
+  color: var(--sidebar-primary-foreground);
+  font-weight: 500;
+}
+
+/* icon mục con — CÙNG nguồn lucide 16px của mục cha (xem
+   `sidebar-items.tsx` `NavIcon`), chỉ đổi tông cho khớp chữ nhạt hơn của
+   hàng con. Không có rule này thì `[&>svg]:size-4` của Tailwind (base
+   `sidebar.tsx`) vẫn ra đúng 16px, nhưng KHÔNG đổi màu theo active/hover —
+   phải khai tường minh như mục cha (đặc tả specificity ở đầu file). */
+html:root[data-ui="app"] [data-slot="sidebar-menu-sub-button"] > svg:first-child {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--color-app-sidebar-muted);
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu-sub-button"]:hover > svg:first-child {
+  color: var(--sidebar-foreground);
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu-sub-button"][data-active] > svg:first-child {
+  color: var(--sidebar-primary-foreground);
+}
+
+/* ---- chân sidebar ("Cài đặt" ghim cố định) ---------------------------- */
+html:root[data-ui="app"] [data-slot="sidebar-footer"] {
+  padding: 4px 0 0;
+  gap: 0;
+}
+
+/* ---- mini rail (thu gọn còn icon) ----------------------------------------
+   🔴 `!important` BẮT BUỘC ở đúng 2 dòng dưới: shadcn ép
+   `group-data-[collapsible=icon]:size-8!` + `:p-2!` (32×32, padding 8px) —
+   khớp SẴN với item cao 32px của thiết kế mới nên chỉ cần ép width 100% +
+   bỏ padding/gap, không cần đổi chiều cao như bản 42px cũ. */
+html:root[data-ui="app"]
+  [data-slot="sidebar"][data-collapsible="icon"]
+  [data-slot="sidebar-menu-button"] {
+  width: 100% !important;
+  justify-content: center;
+  padding: 0 !important;
+  gap: 0;
+}
+html:root[data-ui="app"]
+  [data-slot="sidebar"][data-collapsible="icon"]
+  [data-slot="sidebar-menu-button"] > span,
+html:root[data-ui="app"]
+  [data-slot="sidebar"][data-collapsible="icon"]
+  .app-nav-tag,
+html:root[data-ui="app"]
+  [data-slot="sidebar"][data-collapsible="icon"]
+  .app-side-me > button > span:last-child,
+html:root[data-ui="app"]
+  [data-slot="sidebar"][data-collapsible="icon"]
+  .app-nav-chev {
+  display: none;
+}

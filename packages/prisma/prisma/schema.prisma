@@ -1,0 +1,2668 @@
+generator client {
+  provider      = "prisma-client-js"
+  // "native" = máy dev/server; "rhel-openssl-3.0.x" = Vercel (Amazon Linux 2023, Node 20+).
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // KHÔNG khai `directUrl = env("DIRECT_URL")` — Prisma 6 coi env thiếu là LỖI P1012 (validate/migrate/generate
+  // đều chết) nên sẽ làm hỏng môi trường dev/CI không có DIRECT_URL. Với pooler (vd Neon): app dùng DATABASE_URL = pooled;
+  // khi migrate thì chạy với DATABASE_URL = URL direct.
+}
+
+// ==================== AUTH (4 tables) ====================
+
+model User {
+  id                  Int       @id @default(autoincrement())
+  email               String    @unique
+  password_hash       String
+  // Mốc lần ghi password_hash gần nhất — nullable, KHÔNG backfill dữ liệu cũ.
+  // Ghi ở MỌI đường set password (self change/reset, admin reset, tạo user, tạo/tái dùng nhân viên).
+  password_updated_at DateTime? @db.Timestamptz(3)
+  // Refresh token cấp TRƯỚC mốc này (theo `iat`) bị từ chối. Đặt = now() khi đổi/reset mật khẩu (mọi đường).
+  tokens_valid_after  DateTime? @db.Timestamptz(3)
+  full_name           String
+  phone               String?
+  avatar_url          String?
+  team_id             Int?
+  manager_id          Int? // Soft hierarchy: sales.manager_id -> team_lead, team_lead.manager_id -> sales_manager
+  status              String    @default("active") // active, locked
+  deleted_at          DateTime? @db.Timestamptz(3) // Soft delete: user bị super_admin "xoá vĩnh viễn" → ẩn khỏi UI quản trị
+  created_at          DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at          DateTime  @updatedAt @db.Timestamptz(3)
+  // Sidebar Notion-style — key menu user tự ghim, đồng bộ liên máy.
+  // Prisma KHÔNG hỗ trợ scalar list nullable (`String[]?` không hợp lệ) nên
+  // dùng default `[]` làm trạng thái "chưa tuỳ chỉnh" — khớp đúng nghĩa nghiệp
+  // vụ "chưa ghim gì → FE tự hiện mặc định theo role" (không cần cột NULL).
+  // Validate key thuộc KNOWN_MENU_KEYS ở tầng DTO (services/auth), KHÔNG kiểm
+  // role được thấy — FE luôn lọc lại qua isItemVisible/isChildVisible.
+  pinned_menu_keys    String[]  @default([])
+
+  team                           Team?                 @relation(fields: [team_id], references: [id])
+  manager                        User?                 @relation("UserManager", fields: [manager_id], references: [id], onDelete: SetNull)
+  managed_users                  User[]                @relation("UserManager")
+  user_roles                     UserRole[]
+  contacts                       Contact[]             @relation("AssignedContacts")
+  created_contacts               Contact[]             @relation("CreatedContacts")
+  employee                       Employee?
+  notification_logs              NotificationLog[]
+  audit_logs                     AuditLog[]
+  created_projects               Project[]             @relation("ProjectCreator")
+  newsfeed_posts                 NewsfeedPost[]        @relation("NewsfeedPostAuthor")
+  newsfeed_likes                 NewsfeedPostLike[]
+  newsfeed_comments              NewsfeedPostComment[] @relation("NewsfeedCommentAuthor")
+  created_deals                  Deal[]                @relation("DealCreator")
+  assigned_deals                 Deal[]                @relation("DealAssignee")
+  // Attendance relations
+  attendance_qr_sessions_created AttendanceQrSession[] @relation("AttendanceQrCreator")
+  attendance_records             AttendanceRecord[]    @relation("AttendanceUser")
+  attendance_requests            AttendanceRequest[]   @relation("AttendanceRequestUser")
+  reviewed_attendance_requests   AttendanceRequest[]   @relation("AttendanceRequestReviewer")
+
+  @@index([team_id, status])
+  @@index([manager_id])
+  @@index([deleted_at])
+  @@map("users")
+}
+
+// 🔴 RBAC "quyền + phạm vi" — vai trò do admin đặt tên, gộp quyền
+// `nhóm.hành_động` (packages/rbac) + phạm vi own|team|subtree|all. `permissions`
+// (Json) cũ đã bỏ.
+// `is_system=true` CHỈ vai trò
+// "Quản trị" (mọi quyền, scope `all`, không sửa/xoá được).
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // tên hiển thị do admin đặt; "Quản trị" là vai trò hệ thống
+  description String?
+  is_system   Boolean  @default(false)
+  created_at  DateTime @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+
+  user_roles UserRole[]
+  grants     RolePermission[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id      Int @id @default(autoincrement())
+  user_id Int
+  role_id Int
+
+  user User @relation(fields: [user_id], references: [id])
+  role Role @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, role_id])
+  @@map("user_roles")
+}
+
+/// Quyền cụ thể của 1 vai trò. `permission` là khoá trong danh mục
+/// `@trinity/rbac` (khoá lạ bị bỏ qua khi đọc — xem `normalizeGrant`).
+/// `scope` = own|team|subtree|all, NULL với quyền không `scoped`.
+model RolePermission {
+  role_id    Int
+  permission String
+  scope      String?
+  role       Role    @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@id([role_id, permission])
+  @@map("role_permissions")
+}
+
+/// Dấu vết mọi thay đổi vai trò/quyền/gán người ("Có dấu vết").
+model RbacAuditLog {
+  id          BigInt   @id @default(autoincrement())
+  actor_id    Int
+  action      String // role.create | role.update | role.delete | role.grants | user.roles
+  target_type String // role | user
+  target_id   Int
+  before      Json?
+  after       Json?
+  created_at  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([target_type, target_id], map: "rbac_audit_log_target_idx")
+  @@index([created_at], map: "rbac_audit_log_created_idx")
+  @@map("rbac_audit_log")
+}
+
+model Team {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique // Nhóm A, Nhóm B
+  description  String?
+  department   String? // Phòng ban (nhãn từ Cài đặt → Phòng ban). 1 phòng ban có nhiều team.
+  team_lead_id Int? // soft FK to users.id — no @relation to avoid circular User↔Team dependency. 1 trưởng nhóm = 1 team (enforce app-level).
+  color        String?  @db.VarChar(20) // Màu nhận diện team (hex "#3b82f6") — cấu hình tại Cài đặt → Team, dùng cho biểu đồ/badge. Null = FE fallback palette.
+  created_at   DateTime @default(now()) @db.Timestamptz(3)
+
+  users    User[]
+  contacts Contact[]
+
+  @@map("teams")
+}
+
+// Danh sách ÁP DỤNG (opt-in enforcement) cho "Đăng nhập theo wifi
+// văn phòng". SCOPE-based (KHÔNG snapshot user_id) — chọn "phòng"/"team" thì áp
+// dụng cho CẢ thành viên tương lai của phòng/team đó, không chỉ ai đang có mặt
+// lúc cấu hình (xem AuthService.checkLoginWifi + login-wifi-check-targets.helper.ts).
+//
+// ⚠️ Bảng RỖNG (trong khi công tắc `login_wifi_check_enabled` đang BẬT) = "ĐÃ cấu
+// hình xong xuôi, chủ đích không chọn ai" → KHÔNG ai bị kiểm tra IP — đây là
+// fail-open CỐ Ý ("người nào không được chọn thì
+// không sao"), KHÔNG phải lỗi cần sửa lại thành fail-closed.
+model LoginWifiCheckTarget {
+  id             Int      @id @default(autoincrement())
+  // 'department' (DEPT_HEAD, áp dụng subtree 2 cấp) | 'team' (team_lead, áp dụng
+  // subtree 1 cấp) | 'user' (đúng 1 nhân viên, bất kỳ role nào).
+  scope_type     String   @db.VarChar(20)
+  // Tuỳ `scope_type`: id của DEPT_HEAD, hoặc team_lead, hoặc 1 nhân viên bất kỳ.
+  target_user_id Int
+  created_at     DateTime @default(now())
+  created_by     Int?
+
+  @@unique([scope_type, target_user_id])
+  @@index([target_user_id])
+  @@map("login_wifi_check_targets")
+}
+
+// ==================== CRM (9 tables) ====================
+
+model Contact {
+  id                 Int       @id @default(autoincrement())
+  /// Mã chung KH001… — DB cấp lúc INSERT (trigger `trinity_contacts_code`, migration `0000_init`).
+  code               String?   @db.VarChar(24)
+  phone              String // cho phép trùng (nhiều bản ghi cùng số)
+  phone_2            String? // Số điện thoại 2 (dự phòng, optional)
+  zalo_account       String? // Tài khoản Zalo của khách (optional)
+  full_name          String?
+  // Dynamic dropdown (SettingOption) — thay thế cột enum cũ.
+  source_id          Int? // group_key='contact_source' (LOCK sau khi tạo)
+  // true = nguồn do hệ thống gán → không cho sửa source_id.
+  // false = tạo thủ công → cho sale/admin chọn/đổi nguồn.
+  source_locked      Boolean   @default(false)
+  stage_id  Int? // group_key='contact_stage' (chọn tay, mặc định = "new")
+  contact_status_id  Int? // group_key='contact_detail_status' (chọn tay)
+  reminder_at        DateTime? @db.Timestamptz(3)
+  reminder_notes     String? // notes for the next reminder
+  birthday           DateTime? @db.Timestamptz(3)
+  job_title          String?
+  assigned_to        Int?
+  team_id            Int?
+  // User tạo contact (nullable để tương thích backward với records cũ không có).
+  // Dùng để marketing thấy contacts họ tạo kể cả sau khi gán cho sale.
+  created_by_id      Int?
+  // Thông tin cá nhân
+  gender             String? // nam, nu
+  current_address    String? // Dia chi hien tai
+  company_name       String? // Ten cong ty
+  email              String? // Email
+  // Custom fields do owner/super_admin tao tren tung ho so (JSON array).
+  // Shape: { id, label, type, value, section, created_at }. Max 20 fields/contact.
+  custom_fields      Json      @default("[]")
+  // Dự án của khách (nullable), dùng để lọc + hiển thị badge trên danh bạ.
+  project_id         Int?
+  // Sản phẩm khách quan tâm (soft-FK -> products.id), nullable.
+  product_id         Int?
+  // Avatar URL từ Zalo CDN — sync từ Zalo OA khi khách nhắn tin.
+  // Chỉ lưu link CDN, không tải file về. Nullable — chỉ có khi contact đã chat qua Zalo OA.
+  avatar_url         String?   @db.Text
+  created_at         DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at         DateTime  @updatedAt @db.Timestamptz(3)
+  // Soft-delete (super_admin only). NULL = active; NOT NULL = đã xoá.
+  // Hard delete bị chặn vì quan hệ RESTRICT từ các bảng con và Activity.contact SET NULL
+  // (mất liên kết lịch sử hoạt động).
+  deleted_at         DateTime? @db.Timestamp(3)
+  // Chấm điểm lead nóng (0–100) — NULLABLE, chưa chấm = NULL. Do module lead-scoring ghi.
+  lead_score         Int?
+  lead_label         String?   @db.VarChar(8) // hot | warm | cold
+  lead_score_reasons Json? // [{ key, label, points, max }] — giải thích điểm
+  lead_scored_at     DateTime? @db.Timestamptz(3)
+
+  assigned_user  User?          @relation("AssignedContacts", fields: [assigned_to], references: [id])
+  creator        User?          @relation("CreatedContacts", fields: [created_by_id], references: [id], onDelete: SetNull)
+  team           Team?          @relation(fields: [team_id], references: [id])
+  source         SettingOption? @relation("ContactSource", fields: [source_id], references: [id], onDelete: SetNull)
+  stage SettingOption? @relation("ContactStage", fields: [stage_id], references: [id], onDelete: SetNull)
+  contact_status SettingOption? @relation("ContactDetailStatus", fields: [contact_status_id], references: [id], onDelete: SetNull)
+  project        Project?       @relation("ContactProject", fields: [project_id], references: [id], onDelete: SetNull)
+  activities     Activity[]
+  deals          Deal[]
+
+  // NOTE: bỏ `@@index([assigned_to])` (tên runtime `contacts_assigned_to_idx`)
+  // — dư thừa khi đã có composite `idx_contacts_assigned_to_created_at_id` cover
+  // prefix `assigned_to`.
+  @@index([team_id])
+  @@index([reminder_at])
+  @@index([birthday])
+  @@index([phone])
+  @@index([source_id])
+  @@index([stage_id])
+  @@index([contact_status_id])
+  @@index([project_id])
+  // Lọc danh bạ theo sản phẩm quan tâm.
+  @@index([product_id])
+  @@index([deleted_at])
+  @@index([created_by_id], map: "idx_contacts_created_by_id")
+  @@index([created_at(sort: Desc), id(sort: Desc)], map: "idx_contacts_created_at_id_desc")
+  @@index([assigned_to, created_at(sort: Desc), id(sort: Desc)], map: "idx_contacts_assigned_to_created_at_id")
+  @@map("contacts")
+}
+
+// "KHÁCH GẦN ĐÂY" ở sidebar — ghi lúc user mở trang chi tiết
+// khách hàng. Soft-FK thuần (KHÔNG @relation) — mirror pattern các bảng nhỏ
+// khác trong repo (vd `marketing_targets.marketing_user_id`), tránh N+1 khi
+// đọc và không ràng buộc cứng vòng đời `users`/`contacts`. RBAC đọc lại tại
+// THỜI ĐIỂM ĐỌC qua `canAccessContact` (contact có thể đã đổi chủ/bị xoá sau
+// khi ghi) — KHÔNG tin trực tiếp bảng này là nguồn quyền xem.
+model ContactRecentView {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  contact_id Int
+  viewed_at  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([user_id, contact_id], name: "user_id_contact_id")
+  @@index([user_id, viewed_at(sort: Desc)])
+  @@map("contact_recent_views")
+}
+
+model Activity {
+  id         Int      @id @default(autoincrement())
+  contact_id Int?
+  action     String // note, stage_change, ...
+  details    Json? // structured activity details
+  metadata   Json? // additional metadata (e.g., stageFrom, stageTo)
+  created_by Int?
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  contact Contact? @relation(fields: [contact_id], references: [id])
+
+  @@index([contact_id, created_at])
+  // countStageEntryToday queries WHERE action='stage_change' AND created_at >= today
+  // trên bảng lớn. Index này tránh full-scan mỗi lần tải dashboard.
+  @@index([action, created_at(sort: Desc)], map: "idx_activities_action_created_at")
+  @@map("activities")
+}
+
+model Deal {
+  id          Int      @id @default(autoincrement())
+  /// Mã chung DL001… — DB cấp lúc INSERT (trigger, migration `0000_init`).
+  code        String?  @db.VarChar(24)
+  title       String
+  description String?
+  value       BigInt? // Gia tri thuong vu (VND)
+  status      String   @default("open") // open, won, lost
+  note        String?
+  assigned_to Int // Sale duoc gan (required)
+  created_by  Int // Admin_ops tao thuong vu
+  contact_id  Int? // Lien ket contact (optional)
+  /// Thời điểm chuyển sang `won` (NULL = chưa thắng, hoặc deal thắng từ trước khi có cột — khi đó dùng updated_at).
+  won_at      DateTime? @db.Timestamptz(3)
+  created_at  DateTime @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime @updatedAt @db.Timestamptz(3)
+
+  assignee User     @relation("DealAssignee", fields: [assigned_to], references: [id])
+  creator  User     @relation("DealCreator", fields: [created_by], references: [id])
+  contact  Contact? @relation(fields: [contact_id], references: [id])
+
+  @@index([assigned_to, status])
+  @@index([created_by])
+  @@index([created_at])
+  @@index([status, won_at])
+  @@map("deals")
+}
+
+// ==================== PROJECTS ====================
+
+model Project {
+  id               Int           @id @default(autoincrement())
+  name             String        @db.VarChar(255)
+  code             String        @unique @db.VarChar(100)
+  color            String?       @db.VarChar(50)
+  is_active        Boolean       @default(true)
+  created_by       Int?
+  created_at       DateTime      @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime      @updatedAt @db.Timestamptz(6)
+
+  creator  User?     @relation("ProjectCreator", fields: [created_by], references: [id])
+  contacts Contact[] @relation("ContactProject")
+
+  @@map("projects")
+}
+
+// ==================== PAYROLL (7 tables) ====================
+
+model JobTitle {
+  id                       Int      @id @default(autoincrement())
+  category                 String // "Nhân viên" | "Trưởng nhóm" | "Trưởng phòng" | "Giám đốc khối"
+  rank_code                String   @unique
+  name                     String
+  symbol                   String
+  base_salary              BigInt   @default(0)
+  standard_target          BigInt   @default(0)
+  default_insurance_salary BigInt? // mức đóng BHXH mặc định theo chức vụ (null/0 = chưa cấu hình → fallback base_salary)
+  review_cycle_months      Int
+  is_active                Boolean  @default(true)
+  sort_order               Int      @default(0)
+  created_at               DateTime @default(now()) @db.Timestamptz(3)
+  updated_at               DateTime @updatedAt @db.Timestamptz(3)
+
+  employees Employee[]
+
+  @@index([category])
+  @@index([is_active])
+  @@map("job_titles")
+}
+
+model Employee {
+  id                 Int       @id @default(autoincrement())
+  user_id            Int       @unique
+  employee_code      String?   @db.VarChar(50) // Mã nhân viên nhập tay. Null → fallback NV<id> ở mapEmployee. KHÔNG unique DB (giữ tương thích data cũ null).
+  position           String // sales, team_lead, operations, marketing, accountant, hr
+  department         String? // Sales, Marketing, HR, Operations, Accounting
+  gender             String? // M | F — giới tính (hiển thị trong Quản lý hợp đồng)
+  team_id            Int? // FK to teams for KPI aggregation
+  salary_rule_id     Int? // FK to salary_rules for payslip calculation
+  job_title_id       Int? // FK to job_titles — chức danh chính thức
+  insurance_salary   BigInt? // lương đóng BH (lương HĐ, có thể ≠ lương thực); null → fallback base_salary
+  dependents_count   Int       @default(0) // P2 số người phụ thuộc (giảm trừ thuế TNCN)
+  status             String    @default("active") // active, on_leave, probation, waiting, resigned
+  resigned_at        DateTime? @db.Timestamptz(3) // Mốc NGÀY nghỉ việc. Set cùng lúc users.status='locked' + employees.status='resigned'. NULL = đang làm việc. Dùng để loại NV khỏi chấm công KỂ TỪ ngày này, giữ lịch sử trước đó.
+  education_level    String? // dai_hoc_tro_len | cao_dang | trung_cap | thpt_12 | thcs | khac
+  recruitment_source String? // hr | internal
+  deleted_at         DateTime? @db.Timestamptz(3) // Soft-delete nhân viên: chỉ ẩn khỏi danh sách, user account giữ nguyên
+  joined_at          DateTime  @default(now()) @db.Timestamptz(3)
+  created_at         DateTime  @default(now()) @db.Timestamptz(3)
+
+  // Chấm công theo IP văn phòng + token thiết bị
+  office_id            Int?
+  registered_device_id String?   @db.VarChar(255)
+  device_registered_at DateTime? @db.Timestamptz(3)
+
+  // Hồ sơ nhân sự cá nhân (mở rộng quản lý nhân viên): ngày sinh, CCCD, chỗ ở, tài khoản ngân hàng
+  birth_date           DateTime? @db.Timestamptz(3) // Ngày sinh
+  id_card_number       String?   @db.VarChar(20) // Số CCCD/CMND
+  id_card_issued_date  DateTime? @db.Timestamptz(3) // Ngày cấp CCCD
+  id_card_issued_place String?   @db.Text // Nơi cấp CCCD
+  permanent_address    String?   @db.Text // Hộ khẩu thường trú
+  current_address      String?   @db.Text // Chỗ ở hiện tại
+  bank_account_number  String?   @db.VarChar(30) // Số tài khoản ngân hàng
+  bank_name            String?   @db.Text // Tên ngân hàng
+  bank_account_holder  String?   @db.Text // Tên chủ tài khoản
+
+  user               User               @relation(fields: [user_id], references: [id])
+  office             AttendanceOffice?  @relation(fields: [office_id], references: [id], onDelete: SetNull)
+  jobTitle           JobTitle?          @relation(fields: [job_title_id], references: [id])
+  kpi_results        KpiResult[]
+  payslips           Payslip[]
+  contracts          EmployeeContract[]
+  attendance_records AttendanceRecord[] @relation("AttendanceEmployee")
+
+  @@index([job_title_id])
+  @@index([office_id])
+  @@index([deleted_at])
+  @@map("employees")
+}
+
+// Hợp đồng lao động nhân viên — quản lý ngày ký/kết thúc + cảnh báo hết hạn.
+// Trạng thái (còn hiệu lực / sắp hết hạn / đã hết hạn / đã chấm dứt) + số ngày còn lại được TÍNH (không lưu).
+model EmployeeContract {
+  id            Int       @id @default(autoincrement())
+  employee_id   Int
+  contract_type String    @default("co_thoi_han") // thu_viec | chinh_thuc | co_thoi_han | khong_thoi_han
+  signed_date   DateTime  @db.Timestamptz(3) // Ngày ký hợp đồng
+  end_date      DateTime? @db.Timestamptz(3) // Ngày kết thúc (null = không thời hạn)
+  file_url      String?   @db.Text // File hợp đồng (tuỳ chọn)
+  notes         String?   @db.Text
+  is_terminated Boolean   @default(false) // đã chấm dứt hợp đồng trước hạn
+  terminated_at DateTime? @db.Timestamptz(3)
+  created_at    DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at    DateTime  @updatedAt @db.Timestamptz(3)
+
+  employee Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@index([employee_id])
+  @@index([end_date])
+  @@map("employee_contracts")
+}
+
+// Hồ sơ mẫu hợp đồng — file mẫu CHUNG (Quy chế lương, Phụ lục HĐLĐ,
+// HĐLĐ mẫu...) cho nhân viên tải xuống. KHÔNG gắn employee. Upload/xoá: super_admin + hr;
+// tải: LIST_ROLES (super_admin/hr/accountant/chief_accountant). Bytes lưu MinIO (storage_key).
+model ContractTemplate {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.Text // Tên hiển thị (originalname hoặc user đặt)
+  storage_key String   @db.Text // MinIO object key
+  mime        String
+  size        Int
+  uploaded_by Int? // users.id người upload (không FK — giữ đơn giản)
+  created_at  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([created_at(sort: Desc)])
+  @@map("contract_templates")
+}
+
+// Module Tuyển dụng — ứng viên + giai đoạn + quyết định + chi phí.
+model RecruitmentCandidate {
+  id               Int       @id @default(autoincrement())
+  full_name        String
+  phone            String?   @db.VarChar(20)
+  email            String?
+  position         String? // vị trí ứng tuyển
+  department       String?
+  source           String? // nguồn: website | facebook | gioi_thieu | ...
+  stage            String    @default("applied") // applied|sent_manager|interview|test|offer|hired
+  decision         String    @default("pending") // pending|hired|rejected
+  recruitment_type String    @default("external") // internal | external
+  applied_date     DateTime? @db.Date
+  cost             Int? // chi phí tuyển (VNĐ)
+  note             String?   @db.Text
+  gender           String? // M | F
+  interview_date   DateTime? @db.Date // ngày phỏng vấn
+  interview_time   String?   @db.VarChar(5) // giờ phỏng vấn HH:mm
+  recruiter_id     Int? // users.id người tuyển dụng phụ trách (soft-FK, resolve qua map)
+  created_by       Int?
+  created_at       DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at       DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([stage])
+  @@index([source])
+  @@index([applied_date(sort: Desc)])
+  @@map("recruitment_candidates")
+}
+
+// Module Tuyển dụng — vị trí/nhu cầu tuyển dụng (Vị trí tuyển dụng).
+// Độc lập với RecruitmentCandidate (không liên kết FK). recruiter_id là soft-FK → users.id.
+model RecruitmentPosition {
+  id                  Int       @id @default(autoincrement())
+  job_code            String // Mã công việc (KHÔNG unique — admin tự quản, như employee_code)
+  department          String // Phòng ban (dropdown cố định)
+  team                String? // Team (nếu có)
+  position_title      String // Vị trí công việc
+  headcount           Int       @default(1) // Số lượng tuyển
+  recruiter_id        Int? // users.id phụ trách (soft-FK, resolve qua map)
+  opened_date         DateTime? @db.Date // Ngày mở đơn
+  expected_start_date DateTime? @db.Date // Ngày dự kiến bắt đầu làm việc
+  description         String?   @db.Text // Mô tả công việc
+  requirements        String?   @db.Text // Yêu cầu công việc
+  recruitment_cost    Int? // Chi phí tuyển dụng (VNĐ)
+  status              String    @default("open") // open | closed
+  created_by          Int?
+  created_at          DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at          DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([status])
+  @@index([department])
+  @@index([opened_date(sort: Desc)])
+  @@map("recruitment_positions")
+}
+
+model SalaryRule {
+  id          Int     @id @default(autoincrement())
+  position    String
+  name        String
+  description String?
+
+  details SalaryRuleDetail[]
+
+  @@map("salary_rules")
+}
+
+model SalaryRuleDetail {
+  id             Int     @id @default(autoincrement())
+  salary_rule_id Int
+  component      String // base, kpi_bonus, allowance
+  amount         BigInt?
+  formula        String?
+  params         Json? // additional params for formula evaluation
+  order          Int     @default(0) // evaluation order
+
+  rule SalaryRule @relation(fields: [salary_rule_id], references: [id])
+
+  @@map("salary_rule_details")
+}
+
+// Cấu hình "Thành phần lương" (config-driven, UI-editable super_admin + kế toán).
+// component_type: allowance (phụ cấp) | bonus (thưởng) | deduction (khấu trừ cố định).
+// calc_method: fixed (số tiền cố định) | percent_base (% của lương cơ bản đã resolve).
+// effective_from/to dạng 'YYYY-MM' (giờ VN) — luật VN đổi thì tạo dòng config mới, KHÔNG sửa code.
+// applies_to: 'all' | 'rank:<rank_code>'. Stacking 'all' + 'rank:X' là CÓ CHỦ ĐÍCH (component khác nhau).
+model SalaryComponent {
+  id             Int      @id @default(autoincrement())
+  name           String
+  code           String   @unique
+  component_type String // allowance | bonus | deduction
+  calc_method    String   @default("fixed") // fixed | percent_base
+  fixed_amount   BigInt?  @default(0)
+  percent_value  Decimal? @db.Decimal(5, 2)
+  applies_to     String   @default("all") // all | rank:<rank_code>
+  is_taxable     Boolean  @default(true) // P2 phụ cấp/thưởng có chịu thuế TNCN? false = miễn (boolean, không partial)
+  effective_from String // 'YYYY-MM'
+  effective_to   String? // 'YYYY-MM'
+  is_active      Boolean  @default(true)
+  sort_order     Int      @default(0)
+  description    String?
+  created_by     Int?
+  created_at     DateTime @default(now()) @db.Timestamptz(3)
+  updated_at     DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([component_type, is_active])
+  @@map("salary_components")
+}
+
+// Cấu hình bảo hiểm NLĐ đóng (BHXH/BHYT/BHTN), config-driven UI-editable.
+// amount = min(lương đóng BH, base_cap) × employee_rate%. effective-dated 'YYYY-MM'.
+// Luật VN đổi tỷ lệ/trần → tạo dòng config mới effective_from, KHÔNG sửa code.
+model InsuranceSetting {
+  id             Int      @id @default(autoincrement())
+  name           String
+  code           String // bhxh | bhyt | bhtn
+  employee_rate  Decimal  @db.Decimal(5, 2)
+  base_cap       BigInt? // trần lương đóng BH (null = không trần)
+  effective_from String // 'YYYY-MM'
+  effective_to   String? // 'YYYY-MM'
+  is_active      Boolean  @default(true)
+  sort_order     Int      @default(0)
+  created_by     Int?
+  created_at     DateTime @default(now()) @db.Timestamptz(3)
+  updated_at     DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([is_active])
+  @@map("insurance_settings")
+}
+
+// Biểu thuế TNCN lũy tiến TỪNG PHẦN (lower/upper trên thu nhập tính thuế/tháng), config-driven.
+// upper_bound null = bậc cao nhất. Engine: min(remaining, upper-lower) × rate, cộng dồn.
+model TaxBracket {
+  id             Int      @id @default(autoincrement())
+  bracket_order  Int
+  lower_bound    BigInt
+  upper_bound    BigInt?
+  rate           Decimal  @db.Decimal(5, 2)
+  effective_from String // 'YYYY-MM'
+  effective_to   String? // 'YYYY-MM'
+  is_active      Boolean  @default(true)
+  created_by     Int?
+  created_at     DateTime @default(now()) @db.Timestamptz(3)
+  updated_at     DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([is_active, bracket_order])
+  @@map("tax_brackets")
+}
+
+// Giảm trừ gia cảnh TNCN (bản thân + người phụ thuộc), effective-dated, config-driven.
+model PayrollTaxSetting {
+  id                  Int      @id @default(autoincrement())
+  personal_deduction  BigInt
+  dependent_deduction BigInt
+  effective_from      String // 'YYYY-MM'
+  effective_to        String? // 'YYYY-MM'
+  is_active           Boolean  @default(true)
+  created_by          Int?
+  created_at          DateTime @default(now()) @db.Timestamptz(3)
+  updated_at          DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([is_active])
+  @@map("payroll_tax_settings")
+}
+
+model KpiConfig {
+  id                     Int      @id @default(autoincrement())
+  role                   String
+  metric_name            String // revenue, deals_won, leads, conversion, processing_time
+  target                 Decimal  @db.Decimal(15, 2)
+  unit                   String? // VND, count, minutes, percent, hours
+  weight                 Decimal? @db.Decimal(5, 2) // weight in overall KPI score
+  working_days_per_month Int      @default(24)
+
+  @@map("kpi_configs")
+}
+
+model KpiResult {
+  id               Int      @id @default(autoincrement())
+  employee_id      Int
+  month            String // 2026-03
+  metric_name      String
+  actual_value     Decimal  @db.Decimal(15, 2)
+  target_value     Decimal  @db.Decimal(15, 2)
+  achievement_rate Decimal? @db.Decimal(5, 2) // actual/target * 100
+  achieved         Boolean  @default(false)
+  is_locked        Boolean  @default(false) // locked after monthly closure
+  created_at       DateTime @default(now()) @db.Timestamptz(3)
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@unique([employee_id, month, metric_name])
+  @@map("kpi_results")
+}
+
+model Payslip {
+  id                    Int       @id @default(autoincrement())
+  employee_id           Int
+  month                 String // 2026-03
+  base_salary           BigInt    @default(0)
+  kpi_bonus             BigInt    @default(0)
+  deductions            BigInt    @default(0)
+  total                 BigInt    @default(0)
+  components_json       Json? // snapshot [{code,name,component_type,calc_method,amount}] phụ cấp/thưởng/khấu trừ đã áp
+  insurance_json        Json? // snapshot [{code,name,rate,base,amount}] BHXH/BHYT/BHTN đã khấu trừ
+  insurance_base        BigInt    @default(0) // mức đóng BHXH thực dùng (authoritative); phụ cấp xăng xe = base_salary − insurance_base
+  tax_json              Json? // snapshot thuế TNCN {taxable_income,personal,dependents,brackets[],tax}
+  // --- Phiếu lương theo mẫu kế toán — các dòng nhập tay/điền sẵn, kế toán sửa ---
+  working_days          Decimal?  @db.Decimal(5, 1) // ngày công thực tế (autofill từ chấm công, sửa được)
+  standard_working_days Int       @default(24) // ngày công chuẩn để prorate thực lĩnh LCB (mặc định 24)
+  base_salary_actual    BigInt    @default(0) // Thực lĩnh LCB (1) = base_salary × working_days / standard
+  training_salary       BigInt    @default(0) // Lương học việc — nhập tay (tách khỏi phụ cấp học việc). Cộng vào I. Cộng LCB
+  probation_allowance   BigInt    @default(0) // Phụ cấp học việc (2) — nhập tay (điền sẵn = config phụ cấp)
+  sales_personal        BigInt    @default(0) // Doanh số cá nhân (tham chiếu, FE điền)
+  bonus_rate            Decimal?  @db.Decimal(7, 4) // Hệ số % bonus DS cá nhân — nhập tay (vd 0.4 = 0.4%). Passthrough: gợi ý bonus = sales_personal × rate/100
+  kpi_percent           Decimal?  @db.Decimal(5, 2) // Tỷ lệ KPI đạt được (%) — nhập tay. Passthrough: KHÔNG ảnh hưởng total, chỉ lưu + hiển thị
+  bonus_sales_personal  BigInt    @default(0) // Bonus DS cá nhân (nhập tay)
+  sales_team            BigInt    @default(0) // Doanh số Team (tham chiếu, dành quản lý)
+  bonus_cskh_team       BigInt    @default(0) // Thưởng CSKH / Bonus Team (điền sẵn = config thưởng)
+  bonus_milestone       BigInt    @default(0) // Thưởng mốc cá nhân / Vượt mốc (điền sẵn = KPI bonus)
+  bonus_referral        BigInt    @default(0) // Thưởng giới thiệu ứng viên / Contest — nhập tay
+  holiday_bonus         BigInt    @default(0) // Thưởng Lễ (5) — nhập tay; cộng vào II. Cộng DS & thưởng → total
+  advances              BigInt    @default(0) // Các khoản đã chi lĩnh trước — nhập tay
+  training_days         Decimal?  @db.Decimal(5, 1) // Ngày học việc — passthrough, KHÔNG vào total
+  personal_income_tax   BigInt    @default(0) // Thuế TNCN nhập tay — TRỪ VÀO total
+  notes                 String?   @db.Text // Ghi chú phiếu lương
+  status                String    @default("draft") // draft, pending_tl, pending_accountant, approved, paid
+  tl_approved_by        Int? // team_lead approval (step 1)
+  tl_approved_at        DateTime? @db.Timestamptz(3)
+  approved_by           Int? // accountant approval (step 2)
+  approved_at           DateTime? @db.Timestamptz(3)
+  deleted_at            DateTime? @db.Timestamptz(3) // soft-delete: loại khỏi kỳ lương (ẩn danh sách + generate bỏ qua); NULL = đang trong kỳ
+  deleted_by            Int? // user đã loại phiếu khỏi kỳ (audit)
+  created_at            DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at            DateTime  @updatedAt @db.Timestamptz(3)
+
+  employee Employee @relation(fields: [employee_id], references: [id])
+
+  @@unique([employee_id, month])
+  @@index([month, deleted_at])
+  @@map("payslips")
+}
+
+// ==================== NOTIFICATION (2 tables) ====================
+
+model NotificationTemplate {
+  id              Int      @id @default(autoincrement())
+  name            String   @unique
+  event_type      String? // contact.stage.changed, task.overdue, etc. — routes events to templates
+  channel         String // push, in_app, webhook
+  subject         String?
+  body            String   @db.Text // Handlebars template
+  recipients_rule Json? // reserved: stored but not yet used for auto-routing (e.g., { roles: ["sales"], fields: ["assignedTo"] })
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz(3)
+  updated_at      DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("notification_templates")
+}
+
+model NotificationLog {
+  id           Int       @id @default(autoincrement())
+  recipient_id Int // FK to users.id
+  template_id  Int? // FK to notification_templates.id
+  event_type   String? // event that triggered this notification
+  channel      String // push, in_app
+  title        String?
+  body         String?
+  status       String    @default("sent") // pending, sent, failed, read
+  retry_count  Int       @default(0)
+  is_read      Boolean   @default(false)
+  read_at      DateTime? @db.Timestamptz(3)
+  error        String? // error message if failed
+  scheduled_at DateTime? @db.Timestamptz(3) // for timezone-aware scheduling
+  action_url   String? // URL to navigate when notification is clicked
+  sent_at      DateTime? @db.Timestamptz(3)
+  /// URL đích của kênh `webhook` — giữ lại khi hẹn giờ để lúc gửi vẫn có. KHÔNG trả ra API.
+  webhook_url  String?   @db.Text
+  /// Lúc dòng được claim sang `processing` — reaper dùng để trả lại các dòng kẹt.
+  claimed_at   DateTime? @db.Timestamptz(3)
+  created_at   DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [recipient_id], references: [id])
+
+  @@index([recipient_id, created_at])
+  @@index([status, scheduled_at])
+  @@index([event_type, recipient_id, created_at])
+  @@map("notification_logs")
+}
+
+/// Phiên đăng nhập đã đăng xuất (id phiên = claim `jti` của refresh token). Soft-FK `user_id`; dọn theo `expires_at`.
+model RevokedSession {
+  session_id String   @id @db.VarChar(64)
+  user_id    Int
+  expires_at DateTime @db.Timestamptz(3)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([expires_at])
+  @@index([user_id])
+  @@map("revoked_sessions")
+}
+
+// ==================== SYSTEM ====================
+
+model Setting {
+  key        String   @id
+  value      String   @db.Text
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+  updated_by Int?
+
+  @@map("settings")
+}
+
+/// Điểm "ý định mua" (0–1) của một khách do AGENT AI CỦA KHÁCH chấm qua MCP (`set_lead_intent`) — Trinity không tự gọi AI.
+/// Chú thích phái sinh, KHÔNG phải dữ liệu nghiệp vụ; `contact_id` soft ref (KHÔNG FK, như nhóm tích hợp).
+model LeadAiIntent {
+  contact_id Int      @id
+  intent     Float
+  reason     String?  @db.VarChar(300)
+  client_id  String?  @db.VarChar(120) // ứng dụng AI (client OAuth) đã chấm
+  user_id    Int? // người dùng đã kết nối agent
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@map("lead_ai_intents")
+}
+
+// Dynamic options store for groups of settings (contact_source,
+// contact_stage, contact_detail_status...).
+// `is_system=true` rows are seeded + protected from hard delete.
+model SettingOption {
+  id         Int      @id @default(autoincrement())
+  group_key  String // vd: "contact_source", "contact_stage"...
+  value      String // code noi bo, a-z0-9_
+  label      String // hien thi tieng Viet co dau
+  sort_order Int      @default(0)
+  is_active  Boolean  @default(true)
+  is_system  Boolean  @default(false) // TRUE = khong cho xoa cung
+  metadata   Json? // tuy chon: vd retry_policy
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+  updated_by Int?
+
+  contacts_source         Contact[] @relation("ContactSource")
+  contacts_stage Contact[] @relation("ContactStage")
+  contacts_status         Contact[] @relation("ContactDetailStatus")
+
+  @@unique([group_key, value])
+  @@index([group_key, sort_order])
+  @@index([group_key, is_active])
+  @@map("setting_options")
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  user_id     Int?
+  action      String // create, update, delete, login, logout
+  resource    String // contacts, deals, users, etc.
+  resource_id Int?
+  metadata    Json?
+  ip_address  String?
+  created_at  DateTime @default(now()) @db.Timestamptz(3)
+
+  user User? @relation(fields: [user_id], references: [id])
+
+  @@index([user_id, created_at])
+  @@index([resource, created_at])
+  @@map("audit_logs")
+}
+
+// API keys cấp cho bên thứ 3 — chỉ super_admin được tạo qua Settings.
+// Key hiển thị nguyên bản DUY NHẤT 1 lần khi tạo/xoay. DB chỉ lưu
+// SHA-256 hash + prefix (hiển thị dạng masked).
+// Scopes (string[]): subset của {auth:login, contacts:create, leads:create}.
+// owner_user_id là user dùng làm `assigned_to` khi tạo contact/lead qua API key.
+model ApiKey {
+  id            Int       @id @default(autoincrement())
+  name          String    @db.VarChar(120) // mô tả: "Landing page", "Đối tác ABC"
+  prefix        String    @unique @db.VarChar(32) // "trinity_xxxx" hiển thị cho identify
+  key_hash      String    @unique @db.VarChar(128) // SHA-256 hex của full key
+  scopes        String[]  @default([])
+  owner_user_id Int
+  created_by    Int
+  last_used_at  DateTime? @db.Timestamptz(3)
+  last_used_ip  String?
+  expires_at    DateTime? @db.Timestamptz(3)
+  revoked_at    DateTime? @db.Timestamptz(3)
+  created_at    DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at    DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([owner_user_id])
+  @@index([revoked_at])
+  @@map("api_keys")
+}
+
+// ==================== NEWSFEED ====================
+// Bảng tin nội bộ kiểu Facebook: 3 nhóm chủ đề (announcements, training, PR).
+// Quyền đăng/xoá bài = quyền `newsfeed.*` của RBAC..
+
+model NewsfeedPost {
+  id         Int       @id @default(autoincrement())
+  category   String // announcement | training | pr
+  author_id  Int
+  content    String    @db.Text
+  image_url  String? // deprecated — giữ cho backward compat, dùng images relation thay thế
+  edited_at  DateTime? @db.Timestamptz(3)
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at DateTime  @updatedAt @db.Timestamptz(3)
+
+  author   User                  @relation("NewsfeedPostAuthor", fields: [author_id], references: [id])
+  likes    NewsfeedPostLike[]
+  comments NewsfeedPostComment[]
+  images   NewsfeedPostImage[]
+
+  @@index([category, id(sort: Desc)])
+  @@index([author_id])
+  @@map("newsfeed_posts")
+}
+
+enum NewsfeedMediaType {
+  image
+  video
+}
+
+model NewsfeedPostImage {
+  id         Int               @id @default(autoincrement())
+  post_id    Int
+  image_url  String // S3/MinIO key (ảnh HOẶC video — tên field giữ backward-compat)
+  media_type NewsfeedMediaType @default(image)
+  sort_order Int               @default(0)
+  created_at DateTime          @default(now()) @db.Timestamptz(3)
+
+  post NewsfeedPost @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@index([post_id, sort_order])
+  @@map("newsfeed_post_images")
+}
+
+model NewsfeedPostLike {
+  id         Int      @id @default(autoincrement())
+  post_id    Int
+  user_id    Int
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  post NewsfeedPost @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [user_id], references: [id])
+
+  @@unique([post_id, user_id])
+  @@index([post_id])
+  @@map("newsfeed_post_likes")
+}
+
+model NewsfeedPostComment {
+  id         Int      @id @default(autoincrement())
+  post_id    Int
+  user_id    Int
+  content    String   @db.Text
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  post NewsfeedPost @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  user User         @relation("NewsfeedCommentAuthor", fields: [user_id], references: [id])
+
+  // Query comments dùng orderBy: { id: 'asc' } + cursor by id.
+  @@index([post_id, id])
+  @@map("newsfeed_post_comments")
+}
+
+// ==================== ATTENDANCE ====================
+
+/// Văn phòng chấm công — danh sách IP public tĩnh hợp lệ của từng địa điểm.
+/// Nhân viên chấm công được khi IP của họ khớp với office được gán.
+model AttendanceOffice {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  ips         String[]
+  is_active   Boolean  @default(true)
+  /// Văn phòng demo: chỉ super_admin dùng được, bỏ qua kiểm tra IP
+  is_demo     Boolean  @default(false)
+  created_at  DateTime @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime @updatedAt @db.Timestamptz(3)
+
+  employees Employee[]
+
+  @@map("attendance_offices")
+}
+
+/// QR session dùng để chấm công — super_admin tạo, nhân viên scan để check-in/check-out.
+/// TTL: 120 giây mỗi session. Chỉ 1 session active tại 1 thời điểm (atomic create trong transaction).
+model AttendanceQrSession {
+  id         Int      @id @default(autoincrement())
+  token      String   @unique
+  created_by Int
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  expires_at DateTime @db.Timestamptz(3)
+  is_active  Boolean  @default(true)
+
+  creator User @relation("AttendanceQrCreator", fields: [created_by], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([is_active, expires_at])
+  @@map("attendance_qr_sessions")
+}
+
+/// Bản ghi chấm công theo ngày của từng nhân viên.
+/// UNIQUE(user_id, work_date) đảm bảo mỗi nhân viên chỉ có 1 bản ghi/ngày.
+/// Proof photos lưu trên MinIO — stream qua BE proxy, không dùng presigned URL.
+model AttendanceRecord {
+  id                  Int       @id @default(autoincrement())
+  user_id             Int
+  employee_id         Int?
+  work_date           DateTime  @db.Date
+  check_in_at         DateTime? @db.Timestamptz(3)
+  check_out_at        DateTime? @db.Timestamptz(3)
+  check_in_proof_key  String?
+  check_out_proof_key String?
+  check_in_lat        Float?
+  check_in_lng        Float?
+  check_out_lat       Float?
+  check_out_lng       Float?
+  check_in_note       String?
+  check_out_note      String?
+  total_hours         Float?
+  overtime_hours      Float?
+  late_minutes        Int?
+  /// incomplete | present | late | half_day
+  status              String    @default("incomplete")
+  check_in_ip         String?
+  check_out_ip        String?
+  /// VĂN PHÒNG khớp IP lúc chấm công — KHÔNG FK (mirror pattern assigned_admin_id),
+  /// resolve tên qua attendance_offices khi hiển thị chi tiết. NULL = bản ghi cũ trước khi có trường này.
+  check_in_office_id  Int?
+  check_out_office_id Int?
+  device_id           String?
+  created_at          DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at          DateTime  @updatedAt @db.Timestamptz(3)
+
+  user     User      @relation("AttendanceUser", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  employee Employee? @relation("AttendanceEmployee", fields: [employee_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([user_id, work_date])
+  @@index([work_date])
+  @@index([user_id, work_date])
+  @@map("attendance_records")
+}
+
+/// Đơn chấm công (attendance adjustment requests) — nhân viên gửi khi quên check-in/check-out,
+/// đi muộn có lý do, nghỉ phép, nghỉ thai sản. HR (super_admin/hr) duyệt/từ chối.
+/// Khi duyệt (approved), hệ thống tự động cập nhật attendance_records tương ứng.
+model AttendanceRequest {
+  id                  Int       @id @default(autoincrement())
+  user_id             Int
+  work_date           DateTime  @db.Date
+  /// forgot_check_in | forgot_check_out | late_arrival | early_leave | leave | maternity
+  type                String
+  /// HH:MM VN — dùng khi type=forgot_check_in
+  requested_check_in  String?
+  /// HH:MM VN — dùng khi type=forgot_check_out
+  requested_check_out String?
+  reason              String
+  /// pending | approved | rejected
+  status              String    @default("pending")
+  reviewed_by         Int?
+  reviewed_at         DateTime? @db.Timestamptz(3)
+  review_note         String?
+  created_at          DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at          DateTime  @updatedAt @db.Timestamptz(3)
+
+  user     User  @relation("AttendanceRequestUser", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  reviewer User? @relation("AttendanceRequestReviewer", fields: [reviewed_by], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([user_id, work_date(sort: Desc)])
+  @@index([status])
+  @@map("attendance_requests")
+}
+
+// ===== Sản phẩm =====
+// Danh mục sản phẩm / dịch vụ (đa ngành). Thuộc tính động theo `ProductCategory`.
+model Product {
+  id          Int              @id @default(autoincrement())
+  /// Mã sản phẩm. UNIQUE, không đổi sau khi tạo.
+  code        String           @unique @db.VarChar(64)
+  name        String           @db.VarChar(255)
+  /// Dự án chứa sản phẩm (tuỳ chọn). NULL = không thuộc dự án nào.
+  project_id  Int?
+  /// Tên thương hiệu / đối tác hiển thị trên thẻ sản phẩm.
+  brand       String?          @db.VarChar(255)
+  /// Màu thương hiệu dạng hex `#00753c` — chỉ để render badge.
+  color       String?          @db.VarChar(32)
+  /// Nhãn phân loại tự do.
+  tags        String[]         @default([])
+  /// Sản phẩm nổi bật (sort lên đầu danh mục).
+  is_featured Boolean          @default(false)
+  /// Ảnh của thẻ sản phẩm. Text vì có thể là URL dài/data URI.
+  image_url   String?          @db.Text
+  /// Danh mục/ngành sản phẩm — NULL = chưa phân loại. Quyết định bộ
+  /// thuộc tính động hiển thị/validate cho sản phẩm này (`ProductAttributeDef`
+  /// của category). Xoá category KHÔNG kéo theo xoá sản phẩm (`onDelete: SetNull`).
+  category_id Int?
+  category    ProductCategory? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  /// Giá trị thuộc tính động theo `ProductAttributeDef` của `category_id` — object phẳng `{ [attribute_def.key]: value }`. BE validate kiểu/bắt
+  /// buộc/option hợp lệ bằng hàm TS whitelist (`validateProductAttributes`),
+  /// KHÔNG nội suy tên cột/raw SQL. `category_id = NULL` ⇒ attributes PHẢI rỗng
+  /// `{}` (không có def nào để gán giá trị).
+  attributes  Json             @default("{}")
+  /// Mô tả sản phẩm dạng văn bản tự do — khung chung mọi ngành.
+  description String?          @db.Text
+  /// Giá bán (VND). Null = chưa nhập giá.
+  price       BigInt?
+  /// Ẩn/hiện (mirror `projects.is_active`) qua PATCH. Từ `DELETE /products/:id` xoá HẲN khi chưa có `pos_order_items`/`contacts` trỏ tới (409 nếu còn) — các tham chiếu là soft-FK nên chặn ở `product-delete.helper.ts`.
+  is_active   Boolean          @default(true)
+  created_by  Int?
+  created_at  DateTime         @default(now()) @db.Timestamptz(6)
+  /// ⚠️ PHẢI có `@default(now())` kèm `@updatedAt`: cột là `NOT NULL DEFAULT
+  /// CURRENT_TIMESTAMP`; bảng do `prisma db push` tạo sẽ vỡ `NOT NULL` khi
+  /// `updated_at` không được truyền tường minh.
+  updated_at  DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([project_id])
+  @@index([is_active])
+  @@index([category_id])
+  // CỐ Ý KHÔNG thêm `@@index([code])`: `@unique` ở trên đã tạo btree
+  // `products_code_key` phục vụ cả uniqueness lẫn lookup/prefix theo `code`.
+  // Index thứ 2 trên cùng 1 cột là phí ghi + phí đĩa thuần — tránh lập chỉ mục dư.
+  @@map("products")
+}
+
+/// Danh mục/ngành sản phẩm — khung khai báo chung đa ngành.
+/// VD: "Bán lẻ", "Dịch vụ", "Giáo dục".
+model ProductCategory {
+  id          Int      @id @default(autoincrement())
+  /// Mã danh mục, dùng làm slug ổn định (không đổi ý nghĩa khi đổi `name`).
+  code        String   @unique @db.VarChar(64)
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  /// Soft-delete/tắt hiển thị (mirror `products.is_active`) — KHÔNG xoá cứng vì
+  /// sản phẩm đang gắn category (`onDelete: SetNull` chỉ áp khi HARD delete).
+  is_active   Boolean  @default(true)
+  /// Thứ tự hiển thị trong danh sách danh mục (nhỏ trước).
+  sort_order  Int      @default(0)
+  created_by  Int?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  attribute_defs ProductAttributeDef[]
+  products       Product[]
+
+  @@index([is_active, sort_order])
+  @@map("product_categories")
+}
+
+/// Định nghĩa 1 thuộc tính động của 1 danh mục sản phẩm — VD danh
+/// mục "Quần áo" có thuộc tính `size` (label "Kích cỡ", type=select).
+/// Đây là NGUỒN CHÂN LÝ cho `validateProductAttributes()` — BE validate giá trị
+/// `Product.attributes[key]` theo đúng field `type`/`is_required`/`options` ở
+/// đây, KHÔNG hardcode field theo ngành trong code.
+model ProductAttributeDef {
+  id          Int             @id @default(autoincrement())
+  category_id Int
+  category    ProductCategory @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  /// Khoá kỹ thuật — key trong `Product.attributes` JSON. Chữ/số/gạch dưới,
+  /// KHÔNG phải tên cột SQL thật (giá trị lưu trong JSONB, không nội suy DDL).
+  key         String          @db.VarChar(64)
+  label       String          @db.VarChar(255)
+  /// text | number | currency | percent | date | select | multiselect | textarea | boolean
+  /// — whitelist cố định, validate ở DTO (`@IsIn`) + service.
+  type        String          @db.VarChar(32)
+  /// Danh sách lựa chọn cho type=select|multiselect: `[{value, label}, ...]`.
+  /// NULL với type khác — service bỏ qua, không validate options nếu type không cần.
+  options     Json?
+  is_required Boolean         @default(false)
+  sort_order  Int             @default(0)
+  created_at  DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([category_id, key])
+  @@index([category_id, sort_order])
+  @@map("product_attribute_defs")
+}
+
+// ==================== KANBAN — bảng công việc đa board tuỳ biến ====================
+//
+// Mỗi công ty tự định nghĩa quy trình riêng (board + cột + trường tuỳ biến),
+// KHÔNG hardcode nghiệp vụ cố định . Tiền lệ "khai báo
+// thuộc tính theo cấu hình" = Sản phẩm (`product_attribute_defs` +
+// `attributes` jsonb + validator TS thuần) — Kanban tái dùng đúng cách làm.
+//
+// 🔴 Liên kết tới `User`/`Contact` (created_by/assignee_id/actor_id/contact_id)
+// CỐ Ý là SOFT-FK (Int thuần, KHÔNG Prisma relation, KHÔNG DB FK constraint) —
+// mirror `RecruitmentPosition.recruiter_id`,
+// `Contact.product_id`. Lý do: giữ 2 model trung tâm gọn, không cần cascade xoá
+// cứng (contact/user xoá là SOFT DELETE, giữ nguyên lịch sử/áp dụng RBAC ở
+// tầng service qua các helper `loadTeamLeadSubordinateIds`/`loadDeptHeadAllowedUserIds`
+// có sẵn, KHÔNG viết filter riêng).
+
+model KanbanBoard {
+  id                  Int       @id @default(autoincrement())
+  name                String    @db.VarChar(255)
+  description         String?   @db.Text
+  icon                String?   @db.VarChar(64)
+  color               String?   @db.VarChar(32)
+  is_active           Boolean   @default(true)
+  /// Vai trò (id động, admin tự tạo) nào THẤY board này — rỗng `{}` = MỌI vai
+  /// trò thấy. Người có quyền `kanban.boards` luôn thấy bất kể mảng này (xem
+  /// `kanban-rbac.helper.ts`). Thay cột `visibility_roles` cũ (mã vai trò cố định, đã bỏ).
+  visibility_role_ids Int[]     @default([])
+  /// Tiền tố mã card hiển thị (vd "CV-") — thuần trang trí, KHÔNG unique DB.
+  card_prefix         String?   @db.VarChar(16)
+  /// Cấu hình mở rộng tự do cho board (vd màu cột mặc định, tuỳ chọn UI) — KHÔNG
+  /// đọc field nghiệp vụ nào từ đây ở BE ngoài phạm vi hiển thị.
+  settings            Json      @default("{}")
+  /// Registry nhãn màu dùng chung của board — `[{id,name,color}]`.
+  /// `KanbanCard.labels` lưu MẢNG id tham chiếu vào đây (KHÔNG đổi kiểu cột
+  /// card — vẫn `String[]`, chỉ đổi Ý NGHĨA giá trị từ "text tự do" (v1) sang
+  /// "id nhãn"). Quản lý (tạo/sửa/xoá) mở cho MỌI role thấy board — đây là tài
+  /// nguyên cộng tác kiểu Trello, KHÁC cấu hình cột/field (super_admin only).
+  label_defs          Json      @default("[]")
+  created_by          Int?
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  /// Soft-delete (super_admin only) — board xoá vẫn giữ cột/card/lịch sử để audit,
+  /// chỉ ẩn khỏi danh sách.
+  deleted_at          DateTime? @db.Timestamptz(6)
+
+  columns    KanbanColumn[]
+  field_defs KanbanFieldDef[]
+  cards      KanbanCard[]
+
+  @@index([is_active, deleted_at])
+  @@map("kanban_boards")
+}
+
+model KanbanColumn {
+  id          Int         @id @default(autoincrement())
+  board_id    Int
+  board       KanbanBoard @relation(fields: [board_id], references: [id], onDelete: Cascade)
+  name        String      @db.VarChar(255)
+  color       String?     @db.VarChar(32)
+  /// Float — cho phép chèn giữa 2 cột mà không phải đánh lại số cả board.
+  position    Float
+  /// Chỉ CẢNH BÁO khi vượt —  KHÔNG chặn tạo/chuyển card.
+  wip_limit   Int?
+  /// Cột "Hoàn thành" — card chuyển vào cột này được set `completed_at`.
+  is_done     Boolean     @default(false)
+  is_archived Boolean     @default(false)
+  created_at  DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
+
+  cards KanbanCard[]
+
+  @@index([board_id, position])
+  @@index([board_id, is_archived])
+  @@map("kanban_columns")
+}
+
+model KanbanFieldDef {
+  id           Int         @id @default(autoincrement())
+  board_id     Int
+  board        KanbanBoard @relation(fields: [board_id], references: [id], onDelete: Cascade)
+  /// Khoá kỹ thuật trong `KanbanCard.attributes` JSON — KHÔNG phải tên cột SQL
+  /// thật (mirror `ProductAttributeDef.key`).
+  key          String      @db.VarChar(64)
+  label        String      @db.VarChar(255)
+  /// text | number | money | date | select | multi_select | user | checkbox | url
+  /// — whitelist cố định (`kanban-field.validator.ts`), KHÔNG phải Prisma enum
+  /// để tránh migration khi cần thêm loại mới trong tương lai (giống ProductAttributeDef).
+  type         String      @db.VarChar(32)
+  /// `[{value,label}]` cho type=select|multi_select. NULL khi type khác không cần.
+  options      Json?
+  required     Boolean     @default(false)
+  /// Hiện field này trên mặt trước card (Kanban view) hay chỉ trong dialog chi tiết.
+  show_on_card Boolean     @default(false)
+  position     Float       @default(0)
+  created_at   DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@unique([board_id, key])
+  @@index([board_id, position])
+  @@map("kanban_field_defs")
+}
+
+model KanbanCard {
+  id               Int          @id @default(autoincrement())
+  /// Mã chung CV001… — DB cấp lúc INSERT (trigger, migration `0000_init`).
+  code             String?      @db.VarChar(24)
+  board_id         Int
+  board            KanbanBoard  @relation(fields: [board_id], references: [id], onDelete: Cascade)
+  column_id        Int
+  column           KanbanColumn @relation(fields: [column_id], references: [id], onDelete: Restrict)
+  /// Float — vị trí trong CỘT (chèn giữa không đánh lại thứ tự cả cột).
+  position         Float
+  title            String       @db.VarChar(500)
+  description      String?      @db.Text
+  /// Soft-FK → `contacts.id` (v1: tối đa 1 khách/card). Người tạo/gắn PHẢI có
+  /// quyền xem contact đó (`assertCanAccessContactOrNotFound`) — enforce ở
+  /// service, KHÔNG ở DB.
+  contact_id       Int?
+  /// Soft-FK → `users.id`.
+  assignee_id      Int?
+  /// Soft-FK → `users.id`. Người tạo card — quyết định phạm vi xem của `sale`
+  /// và các role "chỉ thấy card của mình".
+  created_by       Int
+  due_at           DateTime?    @db.Timestamptz(6)
+  /// low | normal | high | urgent — whitelist cố định (`kanban-cards.constants.ts`).
+  priority         String?      @db.VarChar(16)
+  labels           String[]     @default([])
+  /// Giá trị field tuỳ biến theo `KanbanFieldDef` của board — validate ở BE
+  /// (`kanban-field.validator.ts`, mirror `validateProductAttributes`). Giá trị
+  /// của field ĐÃ XOÁ vẫn giữ nguyên trong JSON (không crash khi render), chỉ
+  /// không hiển thị/không validate nữa.
+  attributes       Json         @default("{}")
+  completed_at     DateTime?    @db.Timestamptz(6)
+  /// Đánh dấu hoàn thành HẠN XỬ LÝ — ĐỘC LẬP với `completed_at` (cột đó gắn
+  /// với việc chuyển card vào cột `is_done`, cột này gắn với checkbox "Đánh
+  /// dấu hoàn thành" cạnh hạn, mirror Trello due-date-complete)..
+  due_completed_at DateTime?    @db.Timestamptz(6)
+  created_at       DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
+  /// Soft-delete — giữ lịch sử/audit, chỉ ẩn khỏi board/list.
+  deleted_at       DateTime?    @db.Timestamptz(6)
+
+  activities      KanbanCardActivity[]
+  /// Người phụ trách BỔ SUNG (ngoài `assignee_id` = primary, giữ cho tương
+  /// thích ngược RBAC hiện có) — "nhiều thành viên nếu hợp lý".
+  assignees       KanbanCardAssignee[]
+  checklist_items KanbanChecklistItem[]
+  attachments     KanbanCardAttachment[]
+
+  @@index([board_id, column_id, position])
+  @@index([created_by, board_id])
+  @@index([assignee_id])
+  @@index([contact_id])
+  @@index([board_id, deleted_at])
+  @@map("kanban_cards")
+}
+
+/// Người phụ trách BỔ SUNG của 1 card — `assignee_id` trên
+/// `KanbanCard` vẫn là "primary" (giữ RBAC/hiển thị cũ 0-diff); bảng này là
+/// TẬP ĐẦY ĐỦ mọi người phụ trách (bao gồm cả primary, ghi trùng có chủ đích
+/// để RBAC chỉ cần OR thêm 1 điều kiện `assignees.some`, KHÔNG phải hợp 2
+/// nguồn). Soft-FK → `users.id`, KHÔNG Prisma relation (mirror pattern
+/// `recruiter_id`).
+model KanbanCardAssignee {
+  id         Int        @id @default(autoincrement())
+  card_id    Int
+  card       KanbanCard @relation(fields: [card_id], references: [id], onDelete: Cascade)
+  user_id    Int
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+
+  @@unique([card_id, user_id])
+  @@index([user_id])
+  @@map("kanban_card_assignees")
+}
+
+/// Checklist phẳng (KHÔNG nhóm) của 1 card — tiến độ x/y tính từ
+/// `is_done`. `position` Float — cùng cơ chế fractional-indexing với card/cột.
+model KanbanChecklistItem {
+  id         Int        @id @default(autoincrement())
+  card_id    Int
+  card       KanbanCard @relation(fields: [card_id], references: [id], onDelete: Cascade)
+  text       String     @db.VarChar(500)
+  is_done    Boolean    @default(false)
+  position   Float
+  /// Soft-FK → `users.id`. NULL cho item tạo trước khi field này tồn tại.
+  created_by Int?
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([card_id, position])
+  @@map("kanban_checklist_items")
+}
+
+/// Đính kèm DẠNG LINK (không cần object storage): hiện chỉ nhận URL,
+/// chưa hỗ trợ upload file. Soft-FK → `users.id`.
+model KanbanCardAttachment {
+  id         Int        @id @default(autoincrement())
+  card_id    Int
+  card       KanbanCard @relation(fields: [card_id], references: [id], onDelete: Cascade)
+  url        String     @db.Text
+  title      String?    @db.VarChar(255)
+  created_by Int
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+
+  @@index([card_id])
+  @@map("kanban_card_attachments")
+}
+
+model KanbanCardActivity {
+  id         Int        @id @default(autoincrement())
+  card_id    Int
+  card       KanbanCard @relation(fields: [card_id], references: [id], onDelete: Cascade)
+  /// Soft-FK → `users.id`. NULL cho hành động hệ thống (hiện chưa có nguồn nào
+  /// ghi NULL — mọi hành động Kanban v1 đều do 1 user thao tác).
+  actor_id   Int?
+  /// created | moved | updated | comment | assigned | contact_linked |
+  /// contact_unlinked | deleted | restored — whitelist cố định.
+  action     String     @db.VarChar(32)
+  payload    Json       @default("{}")
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+
+  @@index([card_id, created_at(sort: Desc)])
+  @@map("kanban_card_activities")
+}
+
+// ===== POS bán hàng tại quầy (quán cà phê / nhà hàng) =====
+//
+// Chỉ bảng MỚI `pos_*`. Tiền = BIGINT VND (KHÔNG float). Liên kết RA NGOÀI
+// (users, products) là SOFT REF (Int thuần) — dòng đơn snapshot tên/giá nên đổi
+// hoặc xoá món KHÔNG làm lệch hoá đơn cũ.
+// ⚠️ Index unique TỪNG PHẦN `pos_shifts_one_open_per_user` (mỗi user tối đa 1 ca
+// `open`) chỉ tồn tại trong migration SQL — Prisma không khai được partial index.
+
+/// Cấu hình quán — singleton (id = 1).
+model PosSettings {
+  id                Int      @id @default(1)
+  store_name        String   @default("Quán của tôi") @db.VarChar(255)
+  address           String?  @db.VarChar(500)
+  phone             String?  @db.VarChar(32)
+  receipt_footer    String?  @db.VarChar(500)
+  /// Ngân hàng nhận QR: BIN 6 số (VD Vietcombank 970436), STK, tên chủ tài khoản.
+  bank_bin          String?  @db.VarChar(8)
+  bank_account_no   String?  @db.VarChar(32)
+  bank_account_name String?  @db.VarChar(255)
+  /// Rỗng = menu POS lấy mọi sản phẩm đang bán có giá; có giá trị = chỉ các danh mục này.
+  menu_category_ids Int[]    @default([])
+  updated_at        DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@map("pos_settings")
+}
+
+model PosArea {
+  id         Int        @id @default(autoincrement())
+  name       String     @unique @db.VarChar(100)
+  sort_order Int        @default(0)
+  is_active  Boolean    @default(true)
+  created_at DateTime   @default(now()) @db.Timestamptz(6)
+  tables     PosTable[]
+
+  @@map("pos_areas")
+}
+
+model PosTable {
+  id         Int      @id @default(autoincrement())
+  area_id    Int
+  area       PosArea  @relation(fields: [area_id], references: [id], onDelete: Cascade)
+  name       String   @db.VarChar(50)
+  sort_order Int      @default(0)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([area_id, name])
+  @@map("pos_tables")
+}
+
+/// Tuỳ chọn món dùng chung (Size / Đá / Đường / Topping). `price_delta` có thể âm.
+model PosModifier {
+  id          Int      @id @default(autoincrement())
+  group_name  String   @db.VarChar(100)
+  name        String   @db.VarChar(100)
+  price_delta BigInt   @default(0)
+  sort_order  Int      @default(0)
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([group_name, name])
+  @@map("pos_modifiers")
+}
+
+model PosShift {
+  id                   Int          @id @default(autoincrement())
+  opened_by            Int
+  opened_at            DateTime     @default(now()) @db.Timestamptz(6)
+  opening_cash         BigInt       @default(0)
+  /// 'open' | 'closed'
+  status               String       @default("open") @db.VarChar(16)
+  closed_by            Int?
+  closed_at            DateTime?    @db.Timestamptz(6)
+  closing_cash_counted BigInt?
+  expected_cash        BigInt?
+  cash_diff            BigInt?
+  note                 String?      @db.VarChar(500)
+  orders               PosOrder[]
+  payments             PosPayment[]
+
+  @@index([opened_by, status])
+  @@index([opened_at])
+  @@map("pos_shifts")
+}
+
+model PosOrder {
+  id              Int            @id @default(autoincrement())
+  /// YYYYMMDD-NNNN (giờ VN), UNIQUE.
+  code            String         @unique @db.VarChar(20)
+  shift_id        Int
+  shift           PosShift       @relation(fields: [shift_id], references: [id])
+  table_id        Int?
+  /// 'dine_in' | 'takeaway'
+  order_type      String         @default("dine_in") @db.VarChar(16)
+  /// 'open' | 'paid' | 'void'
+  status          String         @default("open") @db.VarChar(16)
+  note            String?        @db.VarChar(500)
+  subtotal        BigInt         @default(0)
+  /// 'none' | 'percent' | 'amount'
+  discount_type   String         @default("none") @db.VarChar(16)
+  discount_value  BigInt         @default(0)
+  discount_amount BigInt         @default(0)
+  total           BigInt         @default(0)
+  created_by      Int
+  created_at      DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
+  paid_by         Int?
+  paid_at         DateTime?      @db.Timestamptz(6)
+  voided_by       Int?
+  voided_at       DateTime?      @db.Timestamptz(6)
+  void_reason     String?        @db.VarChar(500)
+  items           PosOrderItem[]
+  payments        PosPayment[]
+
+  @@index([shift_id])
+  @@index([status, created_at])
+  @@index([table_id, status])
+  @@index([paid_at])
+  @@map("pos_orders")
+}
+
+model PosOrderItem {
+  id           Int      @id @default(autoincrement())
+  order_id     Int
+  order        PosOrder @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  /// Soft ref tới products.id (snapshot bên dưới là nguồn hiển thị/báo cáo).
+  product_id   Int
+  product_name String   @db.VarChar(255)
+  unit_price   BigInt
+  quantity     Int
+  /// Snapshot `[{id, group_name, name, price_delta}]`.
+  options      Json     @default("[]")
+  note         String?  @db.VarChar(255)
+  line_total   BigInt
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([order_id])
+  @@index([product_id])
+  @@map("pos_order_items")
+}
+
+model PosPayment {
+  id         Int      @id @default(autoincrement())
+  order_id   Int
+  order      PosOrder @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  shift_id   Int
+  shift      PosShift @relation(fields: [shift_id], references: [id])
+  /// 'cash' | 'bank_transfer'
+  method     String   @db.VarChar(16)
+  /// Số tiền tính vào đơn.
+  amount     BigInt
+  /// Tiền khách đưa (chỉ tiền mặt) và tiền thối.
+  tendered   BigInt?
+  change     BigInt   @default(0)
+  reference  String?  @db.VarChar(100)
+  created_by Int
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([order_id])
+  @@index([shift_id, method])
+  @@map("pos_payments")
+}
+
+// ==================== INTEGRATIONS (webhook / MCP) ====================
+
+/// Nhật ký tích hợp (MCP, webhook ra/vào). KHÔNG FK (ghi best-effort, không được làm hỏng caller);
+/// `metadata` đã lọc — KHÔNG chứa SĐT đầy đủ/secret (xem `IntegrationAuditService`).
+model IntegrationAuditLog {
+  id          BigInt   @id @default(autoincrement())
+  created_at  DateTime @default(now()) @db.Timestamptz(3)
+  /// 'mcp' | 'webhook_out' | 'webhook_in'
+  channel     String   @db.VarChar(16)
+  client_id   String?  @db.VarChar(255)
+  user_id     Int?
+  /// Tên tool / sự kiện / hành động.
+  action      String   @db.VarChar(128)
+  resource    String?  @db.VarChar(64)
+  resource_id String?  @db.VarChar(64)
+  /// 'ok' | 'denied' | 'error'
+  status      String   @db.VarChar(16)
+  http_status Int?
+  duration_ms Int?
+  error       String?  @db.VarChar(500)
+  metadata    Json     @default("{}")
+
+  @@index([created_at(sort: Desc)], map: "integration_audit_logs_created_idx")
+  @@index([channel, created_at(sort: Desc)], map: "integration_audit_logs_channel_created_idx")
+  @@index([user_id, created_at(sort: Desc)], map: "integration_audit_logs_user_created_idx")
+  @@map("integration_audit_logs")
+}
+
+/// Outbox sự kiện nghiệp vụ (transactional outbox): ghi TRONG cùng transaction với dữ liệu nghiệp vụ,
+/// worker đọc `dispatched_at IS NULL`. KHÔNG FK (cố ý — lỗi outbox = lỗi ghi nên giữ đơn giản).
+/// `payload` là dữ liệu THÔ; che SĐT làm ở bước gửi theo quyền người tạo endpoint.
+model IntegrationEvent {
+  id            BigInt    @id @default(autoincrement())
+  event_type    String    @db.VarChar(64)
+  resource      String    @db.VarChar(32)
+  resource_id   String    @db.VarChar(64)
+  payload       Json
+  actor_user_id Int?
+  created_at    DateTime  @default(now()) @db.Timestamptz(3)
+  dispatched_at DateTime? @db.Timestamptz(3)
+
+  @@index([dispatched_at, id], map: "integration_events_dispatch_idx")
+  @@index([created_at], map: "integration_events_created_idx")
+  @@map("integration_events")
+}
+
+/// Webhook RA: endpoint bên ngoài nhận sự kiện. `secret_enc` = AES-256-GCM
+/// (khoá env INTEGRATIONS_SECRET_KEY) — KHÔNG BAO GIỜ trả ra API sau lần tạo/tạo lại secret.
+/// `created_by` = "chủ thể" quyết định quyền che SĐT + phạm vi xem dữ liệu của payload; không FK (user bị xoá
+/// thì endpoint ngừng gửi chứ không bị cascade).
+model WebhookEndpoint {
+  id                   Int       @id @default(autoincrement())
+  name                 String    @db.VarChar(100)
+  url                  String    @db.VarChar(2048)
+  secret_enc           String    @db.Text
+  events               String[]
+  is_active            Boolean   @default(true)
+  /// Lý do tự tắt ('consecutive_failures' | 'creator_unauthorized' | …) — null khi bật.
+  disabled_reason      String?   @db.VarChar(64)
+  created_by           Int
+  created_at           DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at           DateTime  @updatedAt @db.Timestamptz(3)
+  last_success_at      DateTime? @db.Timestamptz(3)
+  last_failure_at      DateTime? @db.Timestamptz(3)
+  consecutive_failures Int       @default(0)
+
+  @@index([is_active])
+  @@index([created_by])
+  @@map("webhook_endpoints")
+}
+
+/// Mỗi dòng = 1 sự kiện gửi tới 1 endpoint. `payload` đã che theo quyền chủ thể lúc tạo (và che lại lúc gửi).
+/// `event_id` null chỉ cho 'ping'. UNIQUE (endpoint_id, event_id): hai dispatcher chạy trùng không tạo đôi.
+model WebhookDelivery {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  endpoint_id      Int
+  event_id         BigInt?
+  event_type       String    @db.VarChar(64)
+  payload          Json
+  /// 'pending' | 'success' | 'failed' (đã thử, chờ thử lại) | 'dead'
+  status           String    @default("pending") @db.VarChar(16)
+  attempts         Int       @default(0)
+  next_attempt_at  DateTime  @default(now()) @db.Timestamptz(3)
+  last_status_code Int?
+  last_error       String?   @db.VarChar(255)
+  created_at       DateTime  @default(now()) @db.Timestamptz(3)
+  delivered_at     DateTime? @db.Timestamptz(3)
+
+  @@unique([endpoint_id, event_id], map: "webhook_deliveries_endpoint_event_uniq")
+  @@index([status, next_attempt_at], map: "webhook_deliveries_status_next_idx")
+  @@index([endpoint_id, created_at(sort: Desc)], map: "webhook_deliveries_endpoint_created_idx")
+  @@map("webhook_deliveries")
+}
+
+/// Webhook VÀO: nguồn bên ngoài đẩy khách vào CRM qua `POST /hooks/in/:token`.
+/// Token chỉ lưu SHA-256 (hiện 1 lần lúc tạo). `signing_secret_enc` (tuỳ chọn, AES-256-GCM như webhook ra) ⇒ bắt buộc
+/// `X-Trinity-Signature`. `default_assignee_id` = owner của khách tạo ra. Không FK (cùng quy ước nhóm tích hợp).
+model WebhookInboundSource {
+  id                  Int       @id @default(autoincrement())
+  name                String    @db.VarChar(100)
+  token_hash          String    @unique @db.VarChar(64)
+  token_prefix        String    @db.VarChar(16)
+  signing_secret_enc  String?   @db.Text
+  default_assignee_id Int
+  /// `setting_options.id` thuộc group `contact_source`.
+  contact_source_id   Int
+  project_id          Int?
+  is_active           Boolean   @default(true)
+  created_by          Int
+  created_at          DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at          DateTime  @updatedAt @db.Timestamptz(3)
+  last_received_at    DateTime? @db.Timestamptz(3)
+
+  @@index([created_by])
+  @@map("webhook_inbound_sources")
+}
+
+/// Idempotency của webhook vào: (source, external_id) đã nhận ⇒ không tạo lại. Ghi TRONG transaction tạo khách.
+model WebhookInboundReceipt {
+  id          BigInt   @id @default(autoincrement())
+  source_id   Int
+  external_id String   @db.VarChar(128)
+  contact_id  Int?
+  created_at  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([source_id, external_id], map: "webhook_inbound_receipts_source_ext_uniq")
+  @@index([created_at], map: "webhook_inbound_receipts_created_idx")
+  @@map("webhook_inbound_receipts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// — OAuth 2.1 Authorization Server + MCP.
+// Không FK (cùng quy ước nhóm tích hợp). Mọi secret chỉ lưu SHA-256, KHÔNG BAO GIỜ lưu giá trị gốc.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Client OAuth. `kind='dcr'`: đăng ký qua POST /oauth/register (RFC 7591). `kind='cimd'`: `client_id` là URL https tới
+/// Client ID Metadata Document, ta tải + kiểm + cache (`metadata_*`). `client_secret_hash` chỉ có khi DCR xin `client_secret_post`.
+model OauthClient {
+  id                         Int       @id @default(autoincrement())
+  client_id                  String    @unique @db.VarChar(512)
+  kind                       String    @db.VarChar(8)
+  name                       String    @db.VarChar(200)
+  redirect_uris              String[]
+  logo_uri                   String?   @db.VarChar(1024)
+  client_uri                 String?   @db.VarChar(1024)
+  /// 'none' (public client + PKCE) | 'client_secret_post'
+  token_endpoint_auth_method String    @default("none") @db.VarChar(32)
+  client_secret_hash         String?   @db.VarChar(64)
+  /// Metadata gốc đã lọc (CIMD: bản tải về; DCR: bản đăng ký).
+  metadata                   Json      @default("{}")
+  /// CIMD: lần tải gần nhất + hạn cache (theo Cache-Control, kẹp 5 phút … 24 giờ).
+  metadata_fetched_at        DateTime? @db.Timestamptz(3)
+  metadata_expires_at        DateTime? @db.Timestamptz(3)
+  created_at                 DateTime  @default(now()) @db.Timestamptz(3)
+  last_used_at               DateTime? @db.Timestamptz(3)
+
+  @@index([kind, created_at], map: "oauth_clients_kind_created_idx")
+  @@map("oauth_clients")
+}
+
+/// Mã uỷ quyền dùng-một-lần (hạn 60 giây). `family_id` nối mã → mọi token sinh ra từ nó (dùng lại mã ⇒ thu hồi chuỗi).
+model OauthAuthorizationCode {
+  id             BigInt    @id @default(autoincrement())
+  code_hash      String    @unique @db.VarChar(64)
+  client_id      String    @db.VarChar(512)
+  user_id        Int
+  redirect_uri   String    @db.VarChar(2048)
+  /// PKCE S256 — luôn có (không chấp nhận `plain`/thiếu).
+  code_challenge String    @db.VarChar(128)
+  scopes         String[]
+  /// Audience (RFC 8707) — URL MCP chuẩn tắc.
+  resource       String    @db.VarChar(512)
+  family_id      String    @db.VarChar(36)
+  expires_at     DateTime  @db.Timestamptz(3)
+  used_at        DateTime? @db.Timestamptz(3)
+  created_at     DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([expires_at], map: "oauth_codes_expires_idx")
+  @@map("oauth_authorization_codes")
+}
+
+/// Cặp access + refresh. Mỗi lần refresh sinh DÒNG MỚI cùng `family_id`; dòng cũ đánh dấu `refresh_used_at`.
+/// Dùng lại refresh cũ (đã dùng/đã thu hồi) ⇒ `revoked_at` cho CẢ family.
+model OauthToken {
+  id                 BigInt    @id @default(autoincrement())
+  access_hash        String    @unique @db.VarChar(64)
+  refresh_hash       String    @unique @db.VarChar(64)
+  client_id          String    @db.VarChar(512)
+  user_id            Int
+  scopes             String[]
+  resource           String    @db.VarChar(512)
+  family_id          String    @db.VarChar(36)
+  access_expires_at  DateTime  @db.Timestamptz(3)
+  refresh_expires_at DateTime  @db.Timestamptz(3)
+  refresh_used_at    DateTime? @db.Timestamptz(3)
+  revoked_at         DateTime? @db.Timestamptz(3)
+  created_at         DateTime  @default(now()) @db.Timestamptz(3)
+  last_used_at       DateTime? @db.Timestamptz(3)
+
+  @@index([user_id, revoked_at], map: "oauth_tokens_user_revoked_idx")
+  @@index([family_id], map: "oauth_tokens_family_idx")
+  @@index([refresh_expires_at], map: "oauth_tokens_refresh_exp_idx")
+  @@map("oauth_tokens")
+}
+
+/// Đề xuất thao tác do AI (MCP, scope `crm.write`) tạo khi bật chế độ duyệt (`ai_require_approval`, mặc định TẮT — mặc định AI ghi thẳng theo quyền người kết nối): chờ CHÍNH chủ nháp duyệt trên web.
+/// `params` = tham số đã chuẩn hoá theo DTO của service nghiệp vụ (có thể chứa SĐT đầy đủ — KHÔNG bao giờ trả ra API);
+/// `summary`/`details` = văn bản tiếng Việt cho người đọc, đã che SĐT. Không FK (như các bảng tích hợp khác).
+model AiActionDraft {
+  id         Int       @id @default(autoincrement())
+  user_id    Int
+  client_id  String    @db.VarChar(512)
+  tool       String    @db.VarChar(64)
+  params     Json
+  summary    String    @db.VarChar(1000)
+  /// [{label, value}] — chi tiết tham số dạng dễ đọc (văn bản thuần, đã che SĐT, cắt độ dài).
+  details    Json      @default("[]")
+  /// 'pending' | 'approved' | 'executed' | 'rejected' | 'expired' | 'failed' — 'executed' = AI ghi thẳng (mặc định), 'pending'/'approved' = chế độ duyệt
+  status     String    @default("pending") @db.VarChar(16)
+  result     Json?
+  error      String?   @db.VarChar(1000)
+  /// Ảnh hưởng của đổi cấu trúc `{affected_records, confirm_label, lines[], tables[]}` — có `confirm_label` thì phải gõ đúng mới duyệt được.
+  impact     Json?
+  created_at DateTime  @default(now()) @db.Timestamptz(3)
+  decided_at DateTime? @db.Timestamptz(3)
+  expires_at DateTime  @db.Timestamptz(3)
+
+  @@index([user_id, status, created_at], map: "ai_action_drafts_user_status_idx")
+  @@index([status, expires_at], map: "ai_action_drafts_status_exp_idx")
+  @@map("ai_action_drafts")
+}
+
+// ── Thực thể tuỳ biến (custom objects) ──────────────────────────
+// Người dùng tự thêm "tính năng" (Học sinh, Hoá đơn…) ở Cài đặt > Tính năng; hiện trên menu,
+// dữ liệu nằm ở `custom_records.data` (JSONB, khoá = `custom_fields.key`). CHỈ bảng MỚI.
+// Liên kết ra ngoài (users, contacts, roles) là SOFT REF (Int thuần, không FK).
+// ⚠️ Các index unique TỪNG PHẦN (`custom_objects_key_live_uq`, `custom_fields_object_key_live_uq`,
+// `custom_fields_one_title_uq`) chỉ nằm trong migration SQL.
+
+/// Định nghĩa 1 thực thể tuỳ biến. `key` là slug bất biến sau khi tạo (URL `/x/<key>`).
+model CustomObject {
+  id                  Int       @id @default(autoincrement())
+  key                 String    @db.VarChar(48)
+  label               String    @db.VarChar(100)
+  label_plural        String    @db.VarChar(100)
+  /// Tên icon lucide trong whitelist (`custom-objects/field-types.ts`).
+  icon                String?   @db.VarChar(48)
+  description         String?   @db.VarChar(500)
+  show_in_nav         Boolean   @default(true)
+  nav_order           Int       @default(0)
+  /// Vai trò (id động) nào THẤY thực thể — rỗng `{}` = mọi người có `custom_records.view`. Người giữ
+  /// `custom_objects.manage` luôn thấy. CHỈ thu hẹp, không bao giờ cấp thêm quyền.
+  visible_role_ids    Int[]     @default([])
+  is_active           Boolean   @default(true)
+  /// Tiền tố mã bản ghi (HS → HS001). DB tự sinh lúc tạo bảng (trigger, migration `0000_init`),
+  /// duy nhất toàn hệ thống kể cả `code_prefix_aliases` và tiền tố bảng lõi KH/DL/CV.
+  code_prefix         String?   @db.VarChar(8)
+  /// Tiền tố CŨ (đã đổi) — vẫn tra được `@HS001` cũ, không bảng nào khác lấy lại.
+  code_prefix_aliases String[]  @default([]) @db.VarChar(8)
+  /// Số kế tiếp sẽ cấp — chỉ tăng (mã đã xoá không dùng lại). Trigger `custom_records` tự tăng.
+  next_code_seq       Int?
+  created_by          Int?
+  created_at          DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at          DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+  deleted_at          DateTime? @db.Timestamptz(3)
+
+  fields  CustomField[]
+  records CustomRecord[]
+  views   CustomView[]
+
+  @@index([deleted_at, show_in_nav, nav_order], map: "custom_objects_nav_idx")
+  @@map("custom_objects")
+}
+
+/// Định nghĩa 1 trường. `type` ∈ text, long_text, number, currency, percent, date, datetime, boolean, select,
+/// multi_select, email, phone, url, relation, user, formula. `options` theo kiểu (choices / target / expression).
+model CustomField {
+  id           Int          @id @default(autoincrement())
+  object_id    Int
+  object       CustomObject @relation(fields: [object_id], references: [id], onDelete: Cascade)
+  key          String       @db.VarChar(48)
+  label        String       @db.VarChar(100)
+  type         String       @db.VarChar(16)
+  required     Boolean      @default(false)
+  is_unique    Boolean      @default(false)
+  /// Đúng 1 trường tiêu đề / thực thể — cache vào `custom_records.title`.
+  is_title     Boolean      @default(false)
+  show_in_list Boolean      @default(true)
+  sort_order   Int          @default(0)
+  options      Json         @default("{}")
+  help_text    String?      @db.VarChar(300)
+  created_at   DateTime     @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime     @default(now()) @updatedAt @db.Timestamptz(3)
+  deleted_at   DateTime?    @db.Timestamptz(3)
+
+  @@index([object_id, deleted_at, sort_order], map: "custom_fields_object_idx")
+  @@map("custom_fields")
+}
+
+/// 1 bản ghi. `data` = { field_key: giá trị } (trường công thức KHÔNG lưu, tính lúc đọc).
+model CustomRecord {
+  id         Int          @id @default(autoincrement())
+  object_id  Int
+  object     CustomObject @relation(fields: [object_id], references: [id], onDelete: Cascade)
+  data       Json         @default("{}")
+  /// Cache từ trường tiêu đề (≤200 ký tự) — để tìm/hiển thị/sắp xếp.
+  title      String?      @db.VarChar(200)
+  /// Mã chung (HS001) — DB cấp lúc INSERT (trigger), không đổi khi sửa tên; đổi tiền tố bảng thì đổi theo.
+  code       String?      @db.VarChar(24)
+  code_seq   Int?
+  /// Người phụ trách — cùng `created_by` quyết định phạm vi (own/team/subtree).
+  owner_id   Int?
+  created_by Int?
+  created_at DateTime     @default(now()) @db.Timestamptz(3)
+  updated_at DateTime     @default(now()) @updatedAt @db.Timestamptz(3)
+  deleted_at DateTime?    @db.Timestamptz(3)
+
+  @@unique([object_id, code_seq], map: "custom_records_object_code_seq_uq")
+  @@index([object_id, deleted_at, id(sort: Desc)], map: "custom_records_object_idx")
+  @@index([object_id, owner_id], map: "custom_records_owner_idx")
+  @@index([object_id, created_by], map: "custom_records_creator_idx")
+  @@map("custom_records")
+}
+
+/// Màn xem của bảng tuỳ biến: danh sách / kanban (lịch để sau). `config` theo kiểu:
+/// list `{columns?: string[], sort?: {field, dir}, filter?: {}}`; kanban `{group_by: <khoá trường select>, card_fields?: string[], filter?: {}}`.
+/// Hiện ở menu khi `show_in_nav` (thứ tự chung với bảng qua `nav_order`). Unique (object_id, key) khi còn sống — chỉ trong migration SQL.
+model CustomView {
+  id               Int          @id @default(autoincrement())
+  object_id        Int
+  object           CustomObject @relation(fields: [object_id], references: [id], onDelete: Cascade)
+  key              String       @db.VarChar(48)
+  label            String       @db.VarChar(100)
+  type             String       @db.VarChar(16)
+  config           Json         @default("{}")
+  icon             String?      @db.VarChar(48)
+  show_in_nav      Boolean      @default(false)
+  nav_order        Int          @default(0)
+  visible_role_ids Int[]        @default([])
+  created_by       Int?
+  created_at       DateTime     @default(now()) @db.Timestamptz(3)
+  updated_at       DateTime     @default(now()) @updatedAt @db.Timestamptz(3)
+  deleted_at       DateTime?    @db.Timestamptz(3)
+
+  @@index([object_id, deleted_at], map: "custom_views_object_idx")
+  @@index([deleted_at, show_in_nav, nav_order], map: "custom_views_nav_idx")
+  @@map("custom_views")
+}
+
+/// Liên kết bản ghi ↔ bản ghi (gắn thẻ @ trong ô chữ dài + trường kiểu "Liên kết"), mọi bảng, KHÔNG ràng buộc (không FK).
+/// Loại: `record` (custom_records) | `contact` | `deal` | `task` (kanban_cards). Ghi lại toàn bộ cạnh của (nguồn, trường) mỗi lần lưu.
+/// Đọc (truy ngược "Được nhắc tới ở") luôn lọc theo quyền xem nguồn + nguồn chưa xoá. Migration `0000_init`.
+model RecordLink {
+  id           Int      @id @default(autoincrement())
+  source_type  String   @db.VarChar(16)
+  source_id    Int
+  source_field String   @db.VarChar(48)
+  target_type  String   @db.VarChar(16)
+  target_id    Int
+  created_by   Int?
+  created_at   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([source_type, source_id, source_field, target_type, target_id], map: "record_links_edge_uq")
+  @@index([target_type, target_id], map: "record_links_target_idx")
+  @@map("record_links")
+}
+
+/// Phiên bản cấu trúc: ảnh chụp TOÀN BỘ bảng tuỳ biến + trường + view + menu (+ cấu hình tính năng) ngay TRƯỚC mỗi lần
+/// duyệt đổi cấu trúc — để quay lui (restore_structure_version). Không chứa dữ liệu bản ghi.
+model CustomSchemaVersion {
+  id         Int      @id @default(autoincrement())
+  draft_id   Int?
+  tool       String   @db.VarChar(64)
+  summary    String   @db.VarChar(1000)
+  snapshot   Json
+  created_by Int?
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([created_at(sort: Desc)], map: "custom_schema_versions_created_idx")
+  @@map("custom_schema_versions")
+}
+
+/// Kết nối Zalo OA chính thức.
+/// Token lưu mã hoá AES-256-GCM (INTEGRATIONS_SECRET_KEY); KHÔNG BAO GIỜ trả ra API. Mỗi OA một dòng.
+model ZaloOaConnection {
+  id                 Int       @id @default(autoincrement())
+  oa_id              String    @unique @db.VarChar(64)
+  access_token_enc   String    @db.Text
+  refresh_token_enc  String    @db.Text
+  access_expires_at  DateTime  @db.Timestamptz(3)
+  refresh_expires_at DateTime? @db.Timestamptz(3)
+  /// 'active' | 'needs_reauth' (refresh hỏng/hết hạn — phải cấp quyền lại)
+  status             String    @default("active") @db.VarChar(16)
+  last_error         String?   @db.VarChar(300)
+  last_refreshed_at  DateTime? @db.Timestamptz(3)
+  connected_by       Int
+  created_at         DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at         DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@map("zalo_oa_connections")
+}
+
+/// Trạng thái dở dang của luồng cấp quyền (state chống CSRF + PKCE verifier mã hoá), dùng một lần, hạn 10 phút.
+model ZaloOaOauthState {
+  state             String   @id @db.VarChar(64)
+  code_verifier_enc String   @db.Text
+  user_id           Int
+  expires_at        DateTime @db.Timestamptz(3)
+  created_at        DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([expires_at])
+  @@map("zalo_oa_oauth_states")
+}
+
+/// Hội thoại OA ↔ một người dùng Zalo. `contact_id` soft-ref (không FK) tới contacts.
+model ZaloOaThread {
+  id                   Int             @id @default(autoincrement())
+  oa_id                String          @db.VarChar(64)
+  zalo_user_id         String          @db.VarChar(64)
+  display_name         String?         @db.VarChar(200)
+  avatar_url           String?         @db.VarChar(500)
+  phone                String?         @db.VarChar(20)
+  contact_id           Int?
+  last_message_preview String?         @db.VarChar(200)
+  last_message_at      DateTime?       @db.Timestamptz(3)
+  /// Tin gần nhất của KHÁCH — cửa sổ tư vấn 48h tính từ đây.
+  last_inbound_at      DateTime?       @db.Timestamptz(3)
+  unread_count         Int             @default(0)
+  created_at           DateTime        @default(now()) @db.Timestamptz(3)
+  updated_at           DateTime        @updatedAt @db.Timestamptz(3)
+  messages             ZaloOaMessage[]
+
+  @@unique([oa_id, zalo_user_id])
+  @@index([last_message_at(sort: Desc)], map: "zalo_oa_threads_last_msg_idx")
+  @@index([contact_id])
+  @@map("zalo_oa_threads")
+}
+
+model ZaloOaMessage {
+  id         BigInt       @id @default(autoincrement())
+  thread_id  Int
+  thread     ZaloOaThread @relation(fields: [thread_id], references: [id], onDelete: Cascade)
+  /// 'in' (khách → OA) | 'out' (OA → khách)
+  direction  String       @db.VarChar(3)
+  /// 'text' | 'attachment' | 'zns'
+  kind       String       @db.VarChar(16)
+  /// id tin phía Zalo (khử trùng webhook gửi lại). Null được phép (nhiều NULL không đụng unique).
+  msg_id     String?      @db.VarChar(64)
+  text       String?
+  payload    Json         @default("{}")
+  /// 'received' | 'sent' | 'failed'
+  status     String       @db.VarChar(12)
+  error      String?      @db.VarChar(300)
+  sent_by    Int?
+  created_at DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@unique([thread_id, msg_id])
+  @@index([thread_id, id(sort: Desc)], map: "zalo_oa_messages_thread_idx")
+  @@map("zalo_oa_messages")
+}
+
+// ==================== GOOGLE SHEETS ====================
+// Kết nối Google Sheet hai chiều. Token OAuth mã hoá AES-256-GCM (INTEGRATIONS_SECRET_KEY), KHÔNG BAO GIỜ trả ra API.
+// Liên kết ra ngoài (users, custom_objects) là soft ref, KHÔNG FK. Chỉ bảng MỚI.
+
+/// Kết nối Google của tổ chức (1 tài khoản Google ủy quyền). `status`: active | revoked | error.
+model GoogleConnection {
+  id                Int       @id @default(autoincrement())
+  google_email      String?   @db.VarChar(255)
+  refresh_token_enc String    @db.Text
+  access_token_enc  String?   @db.Text
+  token_expires_at  DateTime? @db.Timestamptz(3)
+  scopes            String[]  @default([])
+  status            String    @default("active") @db.VarChar(16)
+  last_error        String?   @db.VarChar(500)
+  created_by        Int
+  created_at        DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@index([status])
+  @@map("google_connections")
+}
+
+/// Một cấu hình đồng bộ: nhập (Sheet → CRM) hoặc xuất (CRM → Sheet) cho một tab của một Sheet.
+/// `target_kind`: 'contact' | 'custom_object' (khi đó `target_object_key` = khoá thực thể). `column_map`: { khoá trường CRM: tên cột }.
+model GoogleSheetSync {
+  id                Int       @id @default(autoincrement())
+  name              String    @db.VarChar(100)
+  direction         String    @db.VarChar(8)
+  connection_id     Int
+  spreadsheet_id    String    @db.VarChar(128)
+  sheet_title       String    @db.VarChar(200)
+  target_kind       String    @db.VarChar(16)
+  target_object_key String?   @db.VarChar(48)
+  column_map        Json      @default("{}")
+  /// Khoá trường dùng khử trùng khi nhập ('phone' | 'email' | khoá trường tuỳ biến).
+  dedupe_key        String    @db.VarChar(48)
+  /// Nhập: người nhận khách / chủ bản ghi + tác nhân ghi. Xuất: người tạo cấu hình.
+  actor_user_id     Int
+  contact_source_id Int?
+  /// Chu kỳ tự chạy (phút); null = chỉ chạy tay.
+  schedule_minutes  Int?
+  is_active         Boolean   @default(true)
+  /// Xuất: id `integration_events` đã xử lý đến đâu (không đụng `dispatched_at` của webhook).
+  export_cursor     BigInt    @default(0)
+  last_run_at       DateTime? @db.Timestamptz(3)
+  last_status       String?   @db.VarChar(16)
+  last_error        String?   @db.VarChar(500)
+  created_by        Int
+  created_at        DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+  deleted_at        DateTime? @db.Timestamptz(3)
+
+  runs GoogleSheetSyncRun[]
+
+  @@index([is_active, deleted_at], map: "google_sheet_syncs_active_idx")
+  @@map("google_sheet_syncs")
+}
+
+/// Nhật ký mỗi lần chạy đồng bộ (không chứa SĐT/dữ liệu dòng — chỉ số đếm + lỗi tóm tắt).
+model GoogleSheetSyncRun {
+  id          BigInt          @id @default(autoincrement())
+  sync_id     Int
+  sync        GoogleSheetSync @relation(fields: [sync_id], references: [id], onDelete: Cascade)
+  trigger     String          @db.VarChar(16)
+  started_at  DateTime        @default(now()) @db.Timestamptz(3)
+  finished_at DateTime?       @db.Timestamptz(3)
+  status      String          @default("running") @db.VarChar(16)
+  stats       Json            @default("{}")
+  error       String?         @db.VarChar(500)
+
+  @@index([sync_id, started_at(sort: Desc)], map: "google_sheet_sync_runs_sync_idx")
+  @@map("google_sheet_sync_runs")
+}
+
+// ==================== BẢN TIN SÁNG/CHIỀU ====================
+// Mỗi người nhận có MỘT bản tin mỗi (slot, ngày VN) — unique chống gửi trùng khi cron chạy lặp/nhiều instance.
+// Soft-FK `user_id` → users.id (không @relation, tránh sửa model User dùng chung).
+model Briefing {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  slot       String   @db.VarChar(16) // morning | evening
+  day        String   @db.VarChar(10) // YYYY-MM-DD theo giờ VN
+  title      String   @db.VarChar(200)
+  text       String   @db.Text
+  data       Json // số liệu thô đã tổng hợp theo phạm vi quyền của người nhận
+  channels   Json     @default("[]") // kênh đã gửi thành công: ["in_app","email"]
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([user_id, slot, day])
+  @@index([user_id, created_at(sort: Desc)])
+  @@map("briefings")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fanpage Facebook: Messenger + Lead Ads. Không FK (cùng quy ước nhóm tích hợp).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 1 Fanpage đã kết nối. `token_enc` = page access token mã hoá AES-256-GCM (khoá INTEGRATIONS_SECRET_KEY) — KHÔNG trả ra API.
+model FacebookPage {
+  id                     Int       @id @default(autoincrement())
+  page_id                String    @unique @db.VarChar(40)
+  name                   String    @db.VarChar(200)
+  token_enc              String    @db.Text
+  /// 'active' | 'expired' | 'invalid' | 'unknown' — kết quả kiểm gần nhất (debug_token).
+  token_status           String    @default("unknown") @db.VarChar(16)
+  token_checked_at       DateTime? @db.Timestamptz(3)
+  /// Hạn token (null = không hết hạn).
+  token_expires_at       DateTime? @db.Timestamptz(3)
+  data_access_expires_at DateTime? @db.Timestamptz(3)
+  /// Đã đăng ký webhook (subscribed_apps: messages + leadgen) thành công chưa.
+  subscribed             Boolean   @default(false)
+  /// Sale nhận khách từ lead form (cùng khái niệm `default_assignee_id` của webhook vào).
+  default_assignee_id    Int
+  /// `setting_options.id` thuộc group `contact_source`.
+  contact_source_id      Int
+  project_id             Int?
+  is_active              Boolean   @default(true)
+  connected_by           Int
+  created_at             DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at             DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@map("facebook_pages")
+}
+
+/// Hội thoại Messenger = (Page, PSID). `last_inbound_at` quyết định cửa sổ trả lời 24h.
+model FacebookConversation {
+  id                   Int       @id @default(autoincrement())
+  page_id              String    @db.VarChar(40)
+  psid                 String    @db.VarChar(40)
+  customer_name        String?   @db.VarChar(200)
+  contact_id           Int?
+  last_inbound_at      DateTime? @db.Timestamptz(3)
+  last_message_at      DateTime  @default(now()) @db.Timestamptz(3)
+  last_message_preview String?   @db.VarChar(200)
+  unread_count         Int       @default(0)
+  /// Link/QR mở chat đầu tiên đưa khách vào (FacebookChatLink.id) — nguồn khách. null = tự nhắn vào Page.
+  entry_link_id        Int?
+  created_at           DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@unique([page_id, psid], map: "facebook_conversations_page_psid_uniq")
+  @@index([last_message_at(sort: Desc)], map: "facebook_conversations_last_idx")
+  @@map("facebook_conversations")
+}
+
+/// Gửi tin hàng loạt qua Messenger. Chỉ gửi tới khách còn trong cửa sổ 24h (Meta cấm nhắn chủ động ngoài cửa sổ) — tính lại lúc gửi từng người.
+/// Danh sách người nhận chốt lúc bắt đầu gửi (`FacebookBroadcastRecipient`).
+model FacebookBroadcast {
+  id           Int       @id @default(autoincrement())
+  name         String    @db.VarChar(120)
+  page_id      String    @db.VarChar(40)
+  /// Nội dung; `{ten}` thay bằng tên khách.
+  text         String    @db.Text
+  /// Lọc người nhận: {source_ids?: number[], chat_link_ids?: number[]} (rỗng = mọi khách còn trong 24h).
+  audience     Json      @default("{}")
+  /// 'draft' | 'scheduled' | 'sending' | 'done' | 'cancelled'
+  status       String    @default("draft") @db.VarChar(16)
+  scheduled_at DateTime? @db.Timestamptz(3)
+  total        Int       @default(0)
+  sent         Int       @default(0)
+  failed       Int       @default(0)
+  skipped      Int       @default(0)
+  /// 'web' | 'mcp'
+  source       String    @default("web") @db.VarChar(20)
+  created_by   Int
+  started_at   DateTime? @db.Timestamptz(3)
+  finished_at  DateTime? @db.Timestamptz(3)
+  created_at   DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@index([status, scheduled_at], map: "facebook_broadcasts_status_idx")
+  @@map("facebook_broadcasts")
+}
+
+/// Một người nhận của lượt gửi hàng loạt. `sending` quá lâu ⇒ báo lỗi, không gửi lại (tránh gửi trùng).
+model FacebookBroadcastRecipient {
+  id              Int       @id @default(autoincrement())
+  broadcast_id    Int
+  conversation_id Int
+  /// 'queued' | 'sending' | 'sent' | 'failed' | 'skipped'
+  status          String    @default("queued") @db.VarChar(16)
+  note            String?   @db.VarChar(300)
+  claimed_at      DateTime? @db.Timestamptz(3)
+  sent_at         DateTime? @db.Timestamptz(3)
+
+  @@unique([broadcast_id, conversation_id], map: "facebook_broadcast_recipients_uniq")
+  @@index([broadcast_id, status], map: "facebook_broadcast_recipients_status_idx")
+  @@map("facebook_broadcast_recipients")
+}
+
+/// Tin nhắn. `mid` UNIQUE = khử trùng (Meta gửi lại webhook khi lỗi).
+model FacebookMessage {
+  id              BigInt   @id @default(autoincrement())
+  conversation_id Int
+  mid             String   @unique @db.VarChar(255)
+  /// 'in' (khách) | 'out' (Page — gồm cả tin gửi từ Inbox Facebook, qua echo)
+  direction       String   @db.VarChar(3)
+  text            String?  @db.Text
+  sent_by_user_id Int?
+  sent_at         DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([conversation_id, sent_at(sort: Desc)], map: "facebook_messages_conv_idx")
+  @@map("facebook_messages")
+}
+
+/// Bình luận trên bài của Page (webhook `feed`, item=comment, verb=add). `comment_id` UNIQUE = khử trùng (Meta gửi lại).
+model FacebookComment {
+  id              BigInt    @id @default(autoincrement())
+  comment_id      String    @unique @db.VarChar(80)
+  page_id         String    @db.VarChar(40)
+  post_id         String    @db.VarChar(80)
+  parent_id       String?   @db.VarChar(80)
+  /// Người bình luận (id Facebook theo app) — Meta có thể để trống khi app chưa có quyền đọc đủ.
+  from_id         String?   @db.VarChar(40)
+  from_name       String?   @db.VarChar(200)
+  message         String?   @db.Text
+  commented_at    DateTime  @default(now()) @db.Timestamptz(3)
+  contact_id      Int?
+  /// SĐT Việt Nam tìm thấy trong bình luận (dạng 0xxxxxxxxx).
+  phone           String?   @db.VarChar(20)
+  rule_id         Int?
+  /// 'received' (không luật nào khớp) | 'done' | 'test' (luật ở chế độ thử, chỉ ghi lại) | 'skipped' | 'failed'
+  status          String    @default("received") @db.VarChar(12)
+  /// Lý do bỏ qua / lỗi (lời cho người dùng).
+  note            String?   @db.VarChar(500)
+  /// Việc đã làm hoặc sẽ làm (chế độ thử): { public_reply?, private_reply?, hide? , ...id trả về }.
+  actions         Json      @default("{}")
+  hidden          Boolean   @default(false)
+  created_at      DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([page_id, created_at(sort: Desc)], map: "facebook_comments_page_idx")
+  @@index([post_id, from_id], map: "facebook_comments_post_from_idx")
+  @@map("facebook_comments")
+}
+
+/// Luật tự xử lý bình luận (kiểu ManyChat Comment Automation): khớp từ khoá ⇒ trả lời công khai + nhắn riêng (Private Reply).
+model FacebookCommentRule {
+  id               Int       @id @default(autoincrement())
+  name             String    @db.VarChar(120)
+  /// null = mọi Page đã kết nối.
+  page_id          String?   @db.VarChar(40)
+  /// null = mọi bài; có giá trị = chỉ bài này (id dạng <page>_<post>).
+  post_id          String?   @db.VarChar(80)
+  /// Khớp nếu bình luận chứa MỘT trong các từ (không phân biệt hoa thường, dấu). Rỗng = mọi bình luận.
+  keywords         String[]  @default([])
+  /// Có một trong các từ này thì KHÔNG xử lý.
+  exclude_keywords String[]  @default([])
+  /// Các câu trả lời công khai — chọn ngẫu nhiên một câu. Rỗng = không trả lời công khai.
+  public_replies   String[]  @default([])
+  /// Tin nhắn riêng gửi qua Messenger (Private Reply: 1 tin/bình luận, trong 7 ngày). Rỗng = không nhắn.
+  private_reply    String?   @db.Text
+  /// Bình luận có SĐT thì ẩn đi (khách khác không thấy số).
+  hide_if_phone    Boolean   @default(false)
+  /// Mỗi người chỉ được xử lý một lần cho mỗi bài.
+  once_per_user    Boolean   @default(true)
+  /// 'test' = chỉ ghi lại việc sẽ làm, KHÔNG gửi ra Facebook | 'live' = gửi thật.
+  mode             String    @default("test") @db.VarChar(8)
+  is_active        Boolean   @default(true)
+  /// Số nhỏ xét trước.
+  position         Int       @default(0)
+  created_by       Int
+  created_at       DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at       DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@map("facebook_comment_rules")
+}
+
+/// Idempotency của Lead Ads: `leadgen_id` đã xử lý ⇒ không tạo khách lại.
+model FacebookLeadReceipt {
+  id         BigInt   @id @default(autoincrement())
+  leadgen_id String   @unique @db.VarChar(40)
+  page_id    String   @db.VarChar(40)
+  form_id    String?  @db.VarChar(40)
+  contact_id Int?
+  /// 'created' | 'duplicate' | 'no_contact_info'
+  result     String   @db.VarChar(20)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([created_at], map: "facebook_lead_receipts_created_idx")
+  @@map("facebook_lead_receipts")
+}
+
+// ── Chương trình con (agent của khách tự mở rộng hệ thống) ───────────────────
+// Mã do agent viết chạy CÁCH LY trên Deno (module extensions của CRM). Chỉ BẢNG MỚI; liên kết người dùng là SOFT REF (Int, không FK).
+// Mỗi lần sửa = MỘT dòng `extension_versions` mới (không bao giờ ghi đè); chỉ phiên bản đã được NGƯỜI duyệt mới deploy/quay lui tới được.
+model Extension {
+  id                   Int       @id @default(autoincrement())
+  /// Mã ngắn a-z0-9 và gạch ngang (≤40) — dùng làm tên tool/đường dẫn nên hạn chế ký tự. Duy nhất trong số còn sống: index từng phần `extensions_key_live_uq` (chỉ ở migration SQL, Prisma không biểu diễn được).
+  key                  String    @db.VarChar(40)
+  /// 'job' | 'api' | 'tool'
+  kind                 String    @db.VarChar(8)
+  name                 String    @db.VarChar(120)
+  description          String    @default("") @db.VarChar(1000)
+  /// 'draft' | 'approved' | 'active' | 'disabled'
+  status               String    @default("draft") @db.VarChar(12)
+  /// Phiên bản ĐANG chạy (null khi chưa deploy).
+  active_version_id    Int?
+  /// Số hiệu phiên bản mới nhất (1, 2, 3…).
+  latest_version       Int       @default(0)
+  disabled_reason      String?   @db.VarChar(1000)
+  /// Số lần lỗi liên tiếp / tổng — cầu dao tự tắt khi lỗi liên tục.
+  consecutive_failures Int       @default(0)
+  created_by           Int
+  created_at           DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at           DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+  deleted_at           DateTime? @db.Timestamptz(3)
+
+  versions ExtensionVersion[]
+  runs     ExtensionRun[]
+
+  @@index([status, kind], map: "extensions_status_kind_idx")
+  @@map("extensions")
+}
+
+model ExtensionVersion {
+  id            Int       @id @default(autoincrement())
+  extension_id  Int
+  version       Int
+  /// Mã nguồn TypeScript.
+  code          String    @db.Text
+  /// {net[], tables:{read[],write[]}, schedule?, input_schema?, limits?} — đã kiểm ở BE.
+  manifest      Json
+  note          String?   @db.VarChar(500)
+  /// 'draft' | 'approved' | 'rejected'
+  review_status String    @default("draft") @db.VarChar(10)
+  review_note   String?   @db.VarChar(1000)
+  created_by    Int
+  reviewed_by   Int?
+  reviewed_at   DateTime? @db.Timestamptz(3)
+  created_at    DateTime  @default(now()) @db.Timestamptz(3)
+
+  extension Extension @relation(fields: [extension_id], references: [id], onDelete: Cascade)
+
+  @@unique([extension_id, version], map: "extension_versions_ext_ver_uq")
+  @@map("extension_versions")
+}
+
+model ExtensionRun {
+  id           Int      @id @default(autoincrement())
+  extension_id Int
+  version_id   Int?
+  /// 'dry_run' | 'schedule' | 'manual' | 'tool_call'
+  mode         String   @db.VarChar(10)
+  /// 'ok' | 'error' | 'timeout' | 'oom' | 'permission_denied' | 'disabled'
+  outcome      String   @db.VarChar(20)
+  duration_ms  Int      @default(0)
+  peak_rss_kb  Int?
+  /// Log (stdout/stderr đã che SĐT, cắt độ dài).
+  log          String   @default("") @db.Text
+  result       Json?
+  started_at   DateTime @default(now()) @db.Timestamptz(3)
+
+  extension Extension @relation(fields: [extension_id], references: [id], onDelete: Cascade)
+
+  @@index([extension_id, id(sort: Desc)], map: "extension_runs_ext_idx")
+  @@map("extension_runs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Đăng đa kênh (Facebook Page, YouTube, TikTok; X giữ chỗ): soạn 1 lần → đăng ngay/hẹn giờ ra nhiều kênh.
+// Không FK (cùng quy ước nhóm tích hợp).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// 1 kênh đã liên kết (1 Fanpage / 1 kênh YouTube / 1 tài khoản TikTok). Token mã hoá AES-256-GCM (INTEGRATIONS_SECRET_KEY) — KHÔNG trả ra API.
+model SocialAccount {
+  id                Int       @id @default(autoincrement())
+  /// 'facebook' | 'youtube' | 'tiktok' | 'x'
+  network           String    @db.VarChar(16)
+  external_id       String    @db.VarChar(64)
+  name              String    @db.VarChar(200)
+  avatar_url        String?   @db.Text
+  access_token_enc  String    @db.Text
+  refresh_token_enc String?   @db.Text
+  /// Hạn access token (null = không hết hạn, vd page token Facebook dài hạn).
+  token_expires_at  DateTime? @db.Timestamptz(3)
+  scopes            String    @default("") @db.Text
+  /// 'active' | 'reauth' (cần liên kết lại) | 'disabled'
+  status            String    @default("active") @db.VarChar(16)
+  last_error        String?   @db.VarChar(500)
+  connected_by      Int
+  created_at        DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@unique([network, external_id], map: "social_accounts_network_external_uniq")
+  @@map("social_accounts")
+}
+
+/// 1 bài soạn chung. `media` = [{key, type:'image'|'video', content_type, size}] (khoá StorageService).
+model SocialPost {
+  id           Int       @id @default(autoincrement())
+  content      String    @db.Text
+  media        Json      @default("[]")
+  /// null = đăng ngay.
+  scheduled_at DateTime? @db.Timestamptz(3)
+  /// 'scheduled' | 'publishing' | 'published' | 'partial' | 'failed' | 'cancelled' — tổng hợp từ các đích.
+  status       String    @default("scheduled") @db.VarChar(16)
+  /// 'web' | 'mcp:<tên ứng dụng>'
+  source       String    @default("web") @db.VarChar(80)
+  created_by   Int
+  created_at   DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@index([scheduled_at], map: "social_posts_scheduled_idx")
+  @@index([created_at(sort: Desc)], map: "social_posts_created_idx")
+  @@map("social_posts")
+}
+
+/// Bài nháp đăng đa kênh (web + AI): có thể thiếu kênh/nội dung/giờ. Đăng nháp = tạo SocialPost mới rồi gán `post_id` (nháp ẩn, không xoá).
+model SocialDraft {
+  id           Int       @id @default(autoincrement())
+  title        String?   @db.VarChar(120)
+  content      String    @default("") @db.Text
+  /// [{key, type:'image'|'video', content_type, size, name?}]
+  media        Json      @default("[]")
+  /// [{account_id, caption?, options?}]
+  targets      Json      @default("[]")
+  scheduled_at DateTime? @db.Timestamptz(3)
+  /// Đăng vào khung trống gần nhất của hàng đợi (thay cho scheduled_at).
+  use_queue    Boolean   @default(false)
+  /// Trạng thái ô soạn của web để mở lại đúng như cũ — server không đọc.
+  ui           Json?
+  /// Đã đăng thành bài nào (null = còn là nháp).
+  post_id      Int?
+  /// Lúc giữ chỗ để đăng (post_id = -1); giữ chỗ quá 10 phút (tiến trình chết giữa chừng) thì lấy lại được.
+  publishing_at DateTime? @db.Timestamptz(3)
+  /// 'web' | 'mcp:<tên ứng dụng>'
+  source       String    @default("web") @db.VarChar(80)
+  created_by   Int
+  created_at   DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@index([created_by, updated_at(sort: Desc)], map: "social_drafts_user_updated_idx")
+  @@map("social_drafts")
+}
+
+/// Khung giờ đăng hàng đợi hằng tuần (giờ Việt Nam, UTC+7, không có giờ mùa hè). "Vào hàng đợi" = hẹn bài vào khung trống gần nhất.
+model SocialQueueSlot {
+  id         Int      @id @default(autoincrement())
+  /// 0 = Chủ nhật … 6 = Thứ bảy (theo giờ Việt Nam).
+  weekday    Int
+  /// Số phút từ 00:00 giờ Việt Nam (0–1439).
+  minute     Int
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([weekday, minute], map: "social_queue_slots_weekday_minute_key")
+  @@map("social_queue_slots")
+}
+
+/// Mẫu chữ dùng lại khi soạn bài: bộ hashtag ('hashtags') và chữ ký cuối bài ('signature'). Tối đa một chữ ký mặc định, tự điền vào bài mới ở web.
+model SocialSnippet {
+  id         Int      @id @default(autoincrement())
+  kind       String   @db.VarChar(16)
+  name       String   @db.VarChar(80)
+  content    String   @db.Text
+  is_default Boolean  @default(false)
+  position   Int      @default(0)
+  created_by Int
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([kind, position], map: "social_snippets_kind_position_idx")
+  @@map("social_snippets")
+}
+
+/// Thư viện ảnh/video đăng bài dùng chung trong công ty: mỗi tệp đã tải lên (web hoặc AI) một dòng, chọn lại cho bài sau.
+/// Ẩn khỏi thư viện (`hidden_at`) không xoá tệp — bài cũ vẫn trỏ tới khoá đó.
+model SocialMediaAsset {
+  id           Int       @id @default(autoincrement())
+  /// Khoá StorageService `social/u<userId>_<ts>_<rand><ext>`.
+  key          String    @unique @db.VarChar(200)
+  /// 'image' | 'video'
+  type         String    @db.VarChar(8)
+  content_type String    @db.VarChar(60)
+  size         Int
+  name         String    @db.VarChar(200)
+  /// 'web' | 'mcp'
+  source       String    @default("web") @db.VarChar(20)
+  uploaded_by  Int
+  hidden_at    DateTime? @db.Timestamptz(3)
+  created_at   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([created_at(sort: Desc)], map: "social_media_assets_created_idx")
+  @@map("social_media_assets")
+}
+
+/// 1 bài × 1 kênh: caption + tuỳ chọn riêng, trạng thái riêng, thử lại riêng.
+model SocialPostTarget {
+  id               Int       @id @default(autoincrement())
+  post_id          Int
+  account_id       Int
+  network          String    @db.VarChar(16)
+  /// null = dùng nội dung chung của bài.
+  caption          String?   @db.Text
+  /// Tuỳ chọn riêng mạng (vd YouTube {title, privacy}, TikTok {privacy_level}).
+  options          Json      @default("{}")
+  /// 'queued' | 'publishing' | 'published' | 'failed' | 'cancelled'
+  status           String    @default("queued") @db.VarChar(16)
+  attempts         Int       @default(0)
+  next_attempt_at  DateTime  @default(now()) @db.Timestamptz(3)
+  claimed_at       DateTime? @db.Timestamptz(3)
+  external_post_id String?   @db.VarChar(120)
+  url              String?   @db.Text
+  last_error       String?   @db.VarChar(500)
+  published_at     DateTime? @db.Timestamptz(3)
+  /// Số liệu bài đã đăng lấy từ mạng: {views, reactions, comments, shares} (null = mạng không cho lấy số đó).
+  metrics          Json?
+  /// Lần lấy số gần nhất (cả khi lỗi — tránh gọi mạng dồn dập).
+  metrics_at       DateTime? @db.Timestamptz(3)
+  created_at       DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at       DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@unique([post_id, account_id], map: "social_post_targets_post_account_uniq")
+  @@index([status, next_attempt_at], map: "social_post_targets_status_next_idx")
+  @@map("social_post_targets")
+}
+
+/// Link/QR mở Messenger của Page kèm mã nguồn (`m.me/<page>?ref=<code>`): khách vào chat qua link nào thì ghi nguồn khách theo link đó.
+/// Link công khai đi qua Trinity (`/api/v1/facebook/go/<code>`) để đếm lượt mở rồi chuyển sang Messenger.
+model FacebookChatLink {
+  id         Int      @id @default(autoincrement())
+  /// Mã ngắn trong link và trong `ref` Meta gửi về webhook.
+  code       String   @unique @db.VarChar(32)
+  name       String   @db.VarChar(120)
+  page_id    String   @db.VarChar(40)
+  /// Nguồn khách gán cho khách mới vào qua link (group_key='contact_source'); null = nguồn mặc định của Page.
+  source_id  Int?
+  is_active  Boolean  @default(true)
+  /// Lượt mở link (qua Trinity) và số hội thoại Meta báo là vào từ link.
+  clicks     Int      @default(0)
+  chats      Int      @default(0)
+  created_by Int
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  updated_at DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([page_id], map: "facebook_chat_links_page_idx")
+  @@map("facebook_chat_links")
+}
+
+/// Kịch bản nhắn riêng nhiều bước trên Messenger (kiểu ManyChat). Bước nằm trong `steps` (JSON, xem `FlowStep` ở facebook-flows.service).
+model FacebookFlow {
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(120)
+  page_id      String   @db.VarChar(40)
+  /// 'keyword' (tin khách chứa từ khoá) | 'chat_link' (khách vào qua link/QR) | 'first_message' (tin đầu tiên của khách mới)
+  trigger      String   @db.VarChar(16)
+  keywords     String[] @default([])
+  chat_link_id Int?
+  steps        Json
+  is_active    Boolean  @default(false)
+  /// Số lượt chạy và số lượt đi hết kịch bản.
+  starts       Int      @default(0)
+  completes    Int      @default(0)
+  created_by   Int
+  created_at   DateTime @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([page_id, is_active], map: "facebook_flows_page_idx")
+  @@map("facebook_flows")
+}
+
+/// Một lượt chạy kịch bản cho một hội thoại.
+model FacebookFlowRun {
+  id              Int       @id @default(autoincrement())
+  flow_id         Int
+  conversation_id Int
+  /// Bước đang đứng (`FlowStep.id`); null khi đã kết thúc.
+  step_id         String?   @db.VarChar(16)
+  /// 'waiting_button' | 'waiting_answer' | 'scheduled' | 'done' | 'stopped' | 'expired' | 'failed'
+  status          String    @db.VarChar(16)
+  due_at          DateTime? @db.Timestamptz(3)
+  note            String?   @db.VarChar(300)
+  started_at      DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at      DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([conversation_id, status], map: "facebook_flow_runs_conv_idx")
+  @@index([status, due_at], map: "facebook_flow_runs_due_idx")
+  @@index([flow_id, started_at(sort: Desc)], map: "facebook_flow_runs_flow_idx")
+  @@map("facebook_flow_runs")
+}
+
+/// Kết nối tới dịch vụ ngoài (SePay, VNPay, MoMo, KiotViet…) — mỗi nhà cung cấp một dòng. Khoá do khách dán, lưu mã hoá.
+model ConnectorAccount {
+  id              Int       @id @default(autoincrement())
+  /// 'sepay' | 'vnpay' | 'momo' | …
+  provider        String    @unique @db.VarChar(32)
+  /// 'active' | 'error' | 'disconnected'
+  status          String    @default("active") @db.VarChar(16)
+  /// JSON khoá bí mật (api key, secret…) đã mã hoá bằng INTEGRATIONS_SECRET_KEY
+  credentials_enc String    @db.Text
+  /// Cấu hình không bí mật (số tài khoản, mã ngân hàng, tiền tố mã thanh toán…)
+  settings        Json      @default("{}")
+  last_error      String?   @db.VarChar(300)
+  last_event_at   DateTime? @db.Timestamptz(3)
+  connected_by    Int
+  created_at      DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at      DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@map("connector_accounts")
+}
+
+/// Sự kiện nhận từ dịch vụ ngoài (giao dịch ngân hàng, IPN…). Unique (provider, external_id) ⇒ nhận trùng không xử lý hai lần.
+model ConnectorEvent {
+  id                Int       @id @default(autoincrement())
+  provider          String    @db.VarChar(32)
+  external_id       String    @db.VarChar(100)
+  kind              String    @db.VarChar(32)
+  /// Số tiền (VND) — âm với tiền ra
+  amount            BigInt?
+  content           String?   @db.VarChar(500)
+  reference         String?   @db.VarChar(100)
+  /// 'matched' | 'unmatched' | 'ignored'
+  status            String    @db.VarChar(16)
+  payment_intent_id Int?
+  raw               Json      @default("{}")
+  occurred_at       DateTime? @db.Timestamptz(3)
+  created_at        DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@unique([provider, external_id])
+  @@index([status, created_at])
+  @@map("connector_events")
+}
+
+/// Yêu cầu thanh toán: mã duy nhất khách ghi vào nội dung chuyển khoản (SePay) hoặc mã đơn gửi cổng (VNPay/MoMo).
+model PaymentIntent {
+  id           Int       @id @default(autoincrement())
+  code         String    @unique @db.VarChar(32)
+  amount       BigInt
+  description  String?   @db.VarChar(200)
+  /// 'pending' | 'paid' | 'cancelled' | 'expired'
+  status       String    @default("pending") @db.VarChar(16)
+  /// 'manual' | 'deal' | 'pos_order' | 'store_order'
+  source_type  String    @default("manual") @db.VarChar(20)
+  source_id    Int?
+  contact_id   Int?
+  paid_amount  BigInt?
+  /// 'sepay' | 'vnpay' | 'momo'
+  paid_via     String?   @db.VarChar(32)
+  paid_at      DateTime? @db.Timestamptz(3)
+  expires_at   DateTime? @db.Timestamptz(3)
+  created_by   Int?
+  created_at   DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([status, created_at])
+  @@index([source_type, source_id])
+  @@map("payment_intents")
+}
+
+/// Bản ghi đồng bộ từ phần mềm bán hàng / sàn (KiotViet, Sapo, WooCommerce…): khách, đơn, hoá đơn, hàng hoá.
+/// Unique (provider, kind, external_id) ⇒ webhook/đồng bộ lặp chỉ cập nhật, không nhân đôi.
+model ConnectorRecord {
+  id                  Int       @id @default(autoincrement())
+  provider            String    @db.VarChar(32)
+  /// Tài khoản/gian hàng nguồn (vd tên gian hàng KiotViet) — id chỉ duy nhất trong một gian hàng
+  account             String    @default("") @db.VarChar(80)
+  /// 'customer' | 'order' | 'invoice' | 'product'
+  kind                String    @db.VarChar(16)
+  external_id         String    @db.VarChar(64)
+  code                String?   @db.VarChar(64)
+  name                String?   @db.VarChar(255)
+  /// Khách CRM đã ghép (theo SĐT)
+  contact_id          Int?
+  /// Tổng tiền (VND) với đơn/hoá đơn; giá bán với hàng hoá
+  amount              BigInt?
+  status              String?   @db.VarChar(40)
+  data                Json      @default("{}")
+  external_updated_at DateTime? @db.Timestamptz(3)
+  created_at          DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at          DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@unique([provider, account, kind, external_id])
+  @@index([kind, external_updated_at])
+  @@index([contact_id])
+  @@map("connector_records")
+}
+
+/// Đơn đặt từ trang bán hàng online (/s/:slug). Khách CRM ghép theo SĐT; chuyển khoản thì có yêu cầu thanh toán (SePay tự khớp).
+model StoreOrder {
+  id                Int       @id @default(autoincrement())
+  /// Mã đơn hiển thị cho khách, vd DH-7K2QXM
+  code              String    @unique @db.VarChar(20)
+  /// 'new' | 'confirmed' | 'paid' | 'shipped' | 'done' | 'cancelled'
+  status            String    @default("new") @db.VarChar(16)
+  customer_name     String    @db.VarChar(120)
+  customer_phone    String    @db.VarChar(20)
+  customer_address  String?   @db.VarChar(300)
+  note              String?   @db.VarChar(500)
+  /// [{ product_id, name, price, quantity }]
+  items             Json      @default("[]")
+  total             BigInt
+  /// 'cod' | 'bank_transfer'
+  payment_method    String    @db.VarChar(16)
+  payment_intent_id Int?
+  contact_id        Int?
+  created_at        DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at        DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([status, created_at])
+  @@map("store_orders")
+}

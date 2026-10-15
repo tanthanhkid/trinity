@@ -1,0 +1,113 @@
+{
+  "name": "Trinity — Đơn online mới → Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Đơn online mới → Google Sheets\n1. Kích hoạt workflow, chép **Production URL** của nút *Trinity gửi đơn mới*.\n2. Trinity: Cài đặt › Kết nối › Webhook ra › Thêm endpoint, dán URL, chọn sự kiện **Trang bán hàng: có đơn mới**. Chép secret `whsec_…` vào nút Code.\n3. Sheet cần hàng tiêu đề: ma_don, thoi_gian, khach, sdt, dia_chi, san_pham, tong_tien, thanh_toan, delivery_id.\n4. Chọn credential Google ở nút cuối, dán link Sheet.",
+        "height": 260,
+        "width": 420
+      },
+      "id": "408d2cb0-4bd1-4b59-a822-7b79044b27f4",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "trinity-don-moi",
+        "responseMode": "onReceived",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "b12e3ad3-fff2-45aa-b6be-0cb6a23e0874",
+      "name": "Trinity gửi đơn mới",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "c7d86162-4cac-406b-b09c-8cb7f9b6b0a2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Kiểm chữ ký X-Trinity-Signature (HMAC-SHA256 trên body THÔ) và lọc đúng loại sự kiện.\n// Dán secret whsec_… (hiện một lần khi tạo endpoint ở Trinity: Cài đặt › Kết nối › Webhook ra).\nconst SECRET = 'whsec_DAN_SECRET_CUA_BAN_VAO_DAY';\nconst WANT = 'store_order.created';\nconst crypto = require('crypto');\n\nconst item = $input.first();\nconst headers = item.json.headers ?? {};\nconst sig = String(headers['x-trinity-signature'] ?? '');\nconst parts = Object.fromEntries(sig.split(',').map((p) => p.split('=')));\nconst t = Number(parts.t);\nif (!t || Math.abs(Date.now() / 1000 - t) > 300) throw new Error('Chữ ký Trinity hết hạn hoặc thiếu');\nconst raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8');\nconst expected = crypto.createHmac('sha256', SECRET).update(`${t}.${raw}`).digest('hex');\nconst got = String(parts.v1 ?? '');\nif (got.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(got), Buffer.from(expected))) throw new Error('Sai chữ ký Trinity');\n\nconst evt = JSON.parse(raw);\nif (evt.type === 'ping') return [];          // nút \"Gửi thử\" của Trinity\nif (evt.type !== WANT) return [];            // endpoint có thể nhận nhiều loại sự kiện\nreturn [{ json: { delivery_id: evt.id, ...{\n  ma_don: evt.data.order.code,\n  thoi_gian: evt.data.order.created_at,\n  khach: evt.data.order.customer_name,\n  sdt: evt.data.order.customer_phone,\n  dia_chi: evt.data.order.customer_address ?? '',\n  san_pham: evt.data.order.items.map((i) => `${i.name} x${i.quantity}`).join(', '),\n  tong_tien: evt.data.order.total,\n  thanh_toan: evt.data.order.payment_method === 'cod' ? 'COD' : 'Chuyển khoản',\n} } }];\n"
+      },
+      "id": "8334f36d-2cbb-49b8-8a48-c435d161ddc7",
+      "name": "Kiểm chữ ký + lấy dữ liệu đơn",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "https://docs.google.com/spreadsheets/d/DAN_ID_SHEET/edit"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Don hang"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "30a89b5b-9bf9-461e-8c95-116fa273fb4b",
+      "name": "Thêm dòng vào Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        480,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Trinity gửi đơn mới": {
+      "main": [
+        [
+          {
+            "node": "Kiểm chữ ký + lấy dữ liệu đơn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kiểm chữ ký + lấy dữ liệu đơn": {
+      "main": [
+        [
+          {
+            "node": "Thêm dòng vào Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

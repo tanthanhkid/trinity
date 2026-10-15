@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "../..",
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": [
+    "src/**/*",
+    "../../services/auth/src/**/*",
+    "../../services/crm/src/**/*",
+    "../../services/commerce/src/**/*",
+    "../../services/payroll/src/**/*",
+    "../../services/notification/src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/__tests__/**",
+    "../../services/*/src/**/*.spec.ts",
+    "../../services/*/src/**/__tests__/**",
+    "../../services/*/src/**/__mocks__/**",
+    "src/**/__tests__/**"
+  ]
+}

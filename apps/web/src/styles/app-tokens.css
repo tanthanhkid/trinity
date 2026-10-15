@@ -1,0 +1,757 @@
+/* ==========================================================================
+   Giao diện v2 — remap token shadcn sang palette của app.
+
+   ## Vì sao selector là `html:root[data-ui="app"]`
+
+   `@import` bắt buộc nằm ở ĐẦU file CSS, nên khối này luôn đứng TRƯỚC `:root`
+   và `:root[data-ds="…"]` của `globals.css` trong source order. `:root`
+   là (0,1,0) — thắng được bằng specificity, nhưng `:root[data-ds="…"]` là
+   (0,2,0) BẰNG với `:root[data-ui="app"]` ⇒ khi cả 2 attribute cùng có mặt thì
+   khối design-system thắng nhờ đứng sau. Thêm type selector `html` đưa khối này lên
+   (0,2,1) ⇒ LUÔN thắng, không phụ thuộc thứ tự khai báo.
+
+   ## Vì sao GIỮ HEX, không quy sang oklch
+
+   Giá trị dưới đây giữ nguyên hex của bảng màu thiết kế. Quy hex→oklch bằng mắt
+   dễ sai (`oklch(0.985 0 0)` không phải trắng, contrast tụt dưới AA mà
+   không ai thấy). Giữ hex ⇒ đối chiếu được 1:1 với bảng màu, không có bước
+   chuyển đổi nào để sai. Tailwind v4 xử lý hex trong `@theme inline` bình
+   thường (opacity modifier đi qua `color-mix`).
+
+   ## Attribute `data-ui` đặt trên <html>, KHÔNG trên div bọc
+
+   Dialog/Select/Popover của Base-UI portal ra `document.body` — scope token ở
+   div bọc thì overlay thoát khỏi scope và giữ màu v1. Xem `useV2DocumentTheme`
+   (`hooks/use-app-shell.ts`), gọi từ `app/(dashboard)/layout.tsx`.
+   ========================================================================== */
+
+/* ==========================================================================
+   Giao diện mới (10/2026) — bảng màu theo demo đã duyệt `trinity-giao-dien-demo`:
+   tối giản, nền trắng/xám rất nhạt, viền 1px, bo 10px, chữ Inter, nhấn xanh
+   logo lục giác #3f7fb3 (tối #7fb2da). Token demo → token ở đây:
+     --bg #fbfbfa → --background · --panel #fff → --card/--sidebar
+     --sunken #f5f5f3 → --muted/--secondary/--accent · --line #ebebe8 → --border
+     --ink #17181c → --foreground · --ink-2 #4a4d57 → --color-app-ink-2
+     --ink-3 #6b6f7b → --muted-foreground · --accent #3f7fb3 → --ring/--color-app-blue
+     --accent-ink #285f8c → --color-app-primary-ink · --accent-soft #e9f2f9 → -primary-soft
+   Hai chỗ CỐ Ý lệch demo vì contrast (test `contrast.test.ts` tự tính WCAG):
+     · nền nút chính #3a75a6 thay #3f7fb3 — chữ trắng trên #3f7fb3 chỉ 4,29:1, #3a75a6 = 4,91:1
+     · viền ô nhập `--input` #8a8d96 thay #dcdcd8 — ô nhập cần 3:1 (1.4.11), #dcdcd8 chỉ ~1,4:1
+   Bản tối: khối `html:root[data-ui="app"].dark` ở dưới (class `dark` do `lib/theme.ts` gắn).
+   ========================================================================== */
+html:root[data-ui="app"] {
+  /* ---- token shadcn: nền / chữ ---------------------------------------- */
+  --background: #fbfbfa;
+  --foreground: #17181c;
+  --card: #ffffff;
+  --card-foreground: #17181c;
+  --popover: #ffffff;
+  --popover-foreground: #17181c;
+
+  /* ---- HÀNH ĐỘNG = xanh logo (nút chính, thanh tiến độ) ---------------- */
+  --primary: #3a75a6;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f5f5f3;
+  --secondary-foreground: #17181c;
+  --muted: #f5f5f3;
+  --muted-foreground: #6b6f7b;
+
+  /* ---- accent shadcn = nền hover/mục đang chọn (demo `--sunken`), KHÔNG phải
+     màu nhấn: tab/ô chọn/mục menu sáng lên bằng nền xám nhạt + viền 1px. */
+  --accent: #f5f5f3;
+  --accent-foreground: #17181c;
+
+  --destructive: #c2413b;
+  --border: #ebebe8;
+  --input: #8a8d96; /* viền ô nhập: 3,20:1 trên nền app, 3,32:1 trên thẻ (WCAG 1.4.11) */
+  --ring: #3f7fb3;
+
+  /* ---- chart: bảng categorical (đã qua validator) ---------------------- */
+  --chart-1: #0e9c93;
+  --chart-2: #c47f00;
+  --chart-3: #0f62f5;
+  --chart-4: #a13bc4;
+  --chart-5: #159e57;
+
+  /* ---- shape: theme dùng radius 14/10/8/18; `@theme inline` của globals
+     suy --radius-sm/md/lg từ --radius nên chỉ cần đặt gốc ---------------- */
+  --radius: 10px;
+  --shadow-card: 0 1px 2px rgba(20, 22, 30, 0.04);
+  --shadow-field: 0 1px 2px rgba(20, 22, 30, 0.05); /* ô nhập/nút viền — viền vẫn là --input */
+  --shadow-pop: 0 1px 2px rgba(20, 22, 30, 0.04), 0 8px 24px -8px rgba(20, 22, 30, 0.12);
+  --shadow-brand-glow: none;
+
+  /* ---- sidebar kiểu Notion — nền sáng ấm, KHÔNG dùng
+     gradient tối. Mục "đang mở" là nền phẳng
+     `--sidebar-primary` + chữ/icon `--sidebar-primary-foreground` — 2 giá trị
+     này CỐ Ý trùng `--color-app-primary-soft`/`--color-app-primary-ink` (đo
+     AA sẵn có, xem `contrast.test.ts`), KHÔNG khai lại số đo riêng. ---- */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #4a4d57;
+  --sidebar-primary: #f5f5f3;
+  --sidebar-primary-foreground: #17181c;
+  --sidebar-accent: #f5f5f3;
+  --sidebar-accent-foreground: #17181c;
+  --sidebar-border: #ebebe8;
+  --sidebar-ring: #3f7fb3;
+
+  /* Chữ mờ + viền tương tác của sidebar — TÁCH khỏi
+     `--sidebar-foreground`/`--sidebar-border` vì 2 token đó phục vụ DÁNG
+     (chữ mục đang mở, viền phải toàn khối sidebar), không phải tiêu đề
+     nhóm/nút nhanh. Đo bằng axe-core 4.11 + đo tay —
+     convert hex→sRGB tuyến tính rồi áp công thức WCAG, KHÔNG ước lượng):
+       --color-app-sidebar-muted  #9b9a95→#6b6a66  2,62:1 trên `--sidebar`
+                                   (#f7f7f5) → 5,05:1; và #787774→cùng giá trị
+                                   4,47:1 trên trắng (`--card`) → 5,41:1.
+                                   1 token DUY NHẤT phủ cả 2 nền vì #6b6a66 tự
+                                   đạt AA ở CẢ HAI, không cần 2 hex riêng.
+       --color-app-sidebar-edge   #ebebe8→#8a8984  viền nút Tìm/Thêm khách
+                                   ~1,1:1 trên `--sidebar` → 3,27:1 (chuẩn ĐỒ
+                                   HOẠ 1.4.11, KHÔNG phải chuẩn chữ 4,5:1).
+     Test khoá: `__tests__/app-shell/contrast.test.ts`. */
+  --color-app-sidebar-muted: #6b6f7b;
+  --color-app-sidebar-edge: #8a8d96;
+
+  /* ---- font: Inter (subset vietnamese) nạp qua next/font ở lib/app-font.ts; biến
+     `--font-app-brand` do class của next/font gắn lên <html> định nghĩa. Fallback
+     trong var() để 1 nhịp trước khi effect chạy không mất font-family ----- */
+  --font-app: var(--font-app-brand, "Inter"), -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+
+  /* ======================================================================
+     Token RIÊNG của v2 — màu/số đo của theme KHÔNG có ô tương ứng trong
+     shadcn. Dùng qua arbitrary value: `text-[var(--color-app-blue)]`.
+     ====================================================================== */
+
+  /* HÀNH ĐỘNG (teal) — 4 bậc + nền khung.
+
+     4 bậc này là bộ màu THƯƠNG HIỆU của giao diện v2, dùng thay cho hex brand
+     cũ. Bảng quy đổi 1-1:
+
+       v1 `#198754` làm MẢNG NỀN/VIỀN  → `--color-app-primary`       #098577
+       v1 `#146c43` làm NỀN KHI HOVER   → `--color-app-primary-deep`  #08766a
+       v1 `#198754`/`#146c43` làm CHỮ   → `--color-app-primary-ink`   #046b60
+       v1 `#E7F3E0` nền chip nhạt       → `--color-app-primary-soft`  #dcf6f3
+       v1 `#F5F5F5` nền khung app       → `--color-app-bg`            #f4f9fc
+
+     ⚠️ Tách vai trò "ink" khỏi "fill" là ĐIỀU KIỆN contrast, không phải thẩm
+     mỹ. Đo thật (convert hex→sRGB rồi áp công thức WCAG, KHÔNG ước
+     lượng): chữ `#0cae9b` trên nền trắng chỉ **2,78:1** (v1 `#198754` là
+     4,53:1), và chip "nền soft + chữ brand" tụt 3,95:1 → **2,46:1**. Với
+     `#046b60`: **6,41:1** trên trắng và **5,65:1** trên `#dcf6f3`. Vì vậy mọi
+     `text-*`/`fill-*` phải trỏ `--color-app-primary-ink`, mọi `bg-*`/`border-*`
+     /`ring-*` trỏ `--color-app-primary`. Test khoá cả 2 chiều. */
+  --color-app-primary: #3a75a6;
+  /* 🔴 HẠ SÁNG 5 token cho đạt AA.
+     Số đo WCAG THẬT (convert hex→sRGB rồi áp công thức, KHÔNG ước lượng);
+     test `__tests__/app-shell/contrast.test.ts`
+     TỰ TÍNH LẠI mỗi lần chạy nên đổi màu mà tụt chuẩn là ĐỎ ngay:
+       --primary                    #0cae9b → #098577   chữ trắng 2,78 → 4,53
+       --destructive                #eb4d5c → #d14452   chữ trắng 3,65 → 4,51
+       --muted-foreground           #6b7489 → #636b7f   trên --muted 4,07 → 4,64
+     🔴 Bậc #656d81 tuy ĐẠT trên `--muted`
+     (4,501 — đạt nhờ 0,001) nhưng chỉ 4,409 trên `--accent`, mà cặp
+     `text-muted-foreground` + `hover:bg-accent` được dùng ở 6 chỗ (combobox /
+     picker / dialog). Nay #636b7f đạt trên CẢ BỐN nền: --muted 4,64 ·
+     --accent 4,54 · --background 5,03 · --card 5,33. Bài học: chọn màu chữ
+     phải đo trên MỌI nền nó có thể nằm lên, kể cả nền chỉ xuất hiện lúc
+     hover — không chỉ nền "chính".
+       --sidebar-primary            #0cae9b → #098577   + foreground #eafeff → #ffffff (2,67 → 4,53)
+       --color-app-primary           #0cae9b → #098577   (cùng giá trị --primary, giữ 1 nguồn)
+       --color-app-primary-deep      #09917f → #08766a   giữ thang ĐƠN ĐIỆU nền<hover<chữ (4,53 < 5,51 < 6,41)
+       .app-nav-active gradient      3 chặng × 0,620     chặng sáng nhất 1,86 → 4,54
+     Chặng sáng nhất của gradient mục-menu-đang-mở trước đây chỉ **1,86:1** — chữ
+     gần như không đọc được ở nửa cuối pill. Đổi chữ sang navy đậm chỉ đạt tối đa
+     4,03 nên KHÔNG cứu được; phải hạ sáng cả gradient. Pill vì vậy đậm hơn ảnh
+     mẫu — đây là đánh đổi đã được chấp nhận.
+
+     ⚠️ 8 token dưới đây là **CHỈ DÙNG LÀM NỀN/VIỀN — TUYỆT ĐỐI KHÔNG làm CHỮ**:
+     green · amber · red · violet · pink · faint · gold · sky.
+     Đo trên nền `-soft`/trắng tương ứng chúng chỉ 1,90–4,12:1. Hiện KHÔNG chỗ nào
+     dùng chúng làm chữ (đã grep: amber/red chỉ `bg-`, 6 token còn lại chưa dùng),
+     nên đây là RÀO CHẶN TRƯỚC chứ không phải lỗi đang có. Cần chữ cùng tông thì
+     thêm bậc `-ink` mới rồi ĐO, đúng cách `--color-app-primary-ink` đã làm.
+     `contrast.test.ts` chặn `text-[var(--color-app-<8 token này>)]`. */
+
+  /* Mọi comment phía trên phải đóng đúng chỗ: nếu thiếu dấu đóng, các khai báo
+     bên dưới bị coi là chú thích và trình duyệt không nhận token. Guard:
+     `v2-token-effective.test.ts` (gỡ comment trước rồi mới tìm token). */
+  --color-app-primary-deep: #2f6690;
+  --color-app-primary-soft: #e9f2f9;
+  --color-app-primary-ink: #285f8c;
+  --color-app-bg: #fbfbfa;
+  --color-app-sea: #3f7fb3;
+
+  /* ĐIỀU HƯỚNG & LỰA CHỌN (xanh dương hoàng gia) */
+  --color-app-blue: #3f7fb3;
+  --color-app-blue-deep: #285f8c;
+  --color-app-blue-soft: #e9f2f9;
+  --color-app-azure: #3f7fb3;
+  --color-app-azure-deep: #285f8c;
+  --color-app-azure-soft: #e9f2f9;
+  --color-app-sky: #1ea5f7;
+  --color-app-sky-soft: #e2f2fd;
+
+  /* Bộ nhận diện: vàng champagne + xanh glow */
+  --color-app-gold: #ddb26d;
+  --color-app-gold-bright: #f1bc0c;
+  --color-app-glow: #24ecfb;
+  --color-app-glow-2: #1af9e1;
+  --color-app-coral: #f97d7f;
+  --color-app-coral-deep: #ff4158;
+
+  /* Trạng thái — mỗi màu 1 bậc đặc + 1 bậc soft (nền chip) */
+  --color-app-green: #17a877;
+  --color-app-green-soft: #e3f7ee;
+  --color-app-amber: #ef9f2b;
+  --color-app-amber-soft: #fdeed6;
+  --color-app-red: #eb4d5c;
+  --color-app-red-soft: #fde8ea;
+  --color-app-violet: #6b5ce7;
+  --color-app-violet-soft: #eceafd;
+  --color-app-pink: #e6399b;
+  --color-app-pink-soft: #fdeaf5;
+  --color-app-zalo: #0068ff;
+
+  /* Chữ + đường kẻ + nền phụ */
+  --color-app-navy: #17181c;
+  --color-app-ink-2: #4a4d57;
+  --color-app-faint: #8d919c;
+  --color-app-line: #ebebe8;
+  --color-app-line-2: #f5f5f3;
+  --color-app-surface-2: #f5f5f3;
+  --color-app-surface-3: #f1f1ef;
+  --color-app-chart-grid: #eaf1f4;
+
+  /* ---- Bảng màu BIỂU ĐỒ (biến `PAL`/`SEQ`/`STATUS`) -------------------
+     Bộ 6 màu danh mục đã được kiểm mù màu trên nền sáng và **thứ tự là một phần của kết quả** — teal đứng
+     đầu, 4 màu đầu PASS cả chế độ `--pairs all`. Vì vậy:
+
+       · Gán theo ĐÚNG thứ tự 1→6, KHÔNG xoay vòng, KHÔNG chèn màu mới vào giữa.
+       · Quá 4 series thì GỘP phần đuôi thành "Khác" (yêu cầu của kit) thay vì
+         dùng tới cặp 5–6 (validator còn 1 WARN ở cặp đó).
+
+     `-seq-*` là dải MỘT SẮC teal: chỉ dùng cho ĐỘ LỚN (thanh xếp hạng, heatmap),
+     KHÔNG dùng cho danh mục — dải tuần tự làm màu danh mục thì người đọc suy ra
+     thứ hạng không có thật.
+
+     `-good/-warn/-bad` là màu TRẠNG THÁI, dành riêng, KHÔNG bao giờ làm màu series.
+
+     🔴 Cả 3 nhóm là màu TÔ (fill của thanh/cung tròn) — nhãn chữ của biểu đồ đi
+     qua `--color-app-ink-2` / `--color-app-navy` như mọi chữ khác. Chúng nằm trong
+     `FILL_ONLY_TOKENS` của `contrast.test.ts` nên dùng làm chữ sẽ ĐỎ test. */
+  --color-app-chart-1: #0e9c93;
+  --color-app-chart-2: #c47f00;
+  --color-app-chart-3: #0f62f5;
+  --color-app-chart-4: #a13bc4;
+  --color-app-chart-5: #159e57;
+  --color-app-chart-6: #d13a86;
+  --color-app-chart-seq-1: #d2efeb;
+  --color-app-chart-seq-2: #a9e0da;
+  --color-app-chart-seq-3: #77cec4;
+  --color-app-chart-seq-4: #42b8ac;
+  --color-app-chart-seq-5: #0e9c93;
+  --color-app-chart-seq-6: #0a7f78;
+  --color-app-chart-seq-7: #065c57;
+  --color-app-chart-good: #12833f;
+  --color-app-chart-warn: #a15c00;
+  --color-app-chart-bad: #b3261e;
+
+  /* ---- Badge "Giai đoạn" ở danh bạ -----------------
+     Chỉ dùng bởi `lib/contact-stage-badge.ts`.
+
+     ⚠️ ĐO WCAG THẬT (sRGB tuyến tính → độ chói, KHÔNG ước lượng):
+       Mới        #e3f7ee / #2f8b1e = 3,89:1  ← DƯỚI AA 4,5:1
+       Theo dõi 2 #d6fbfa / #2f7170 = 5,12:1  ← đạt AA
+       Theo dõi 3 #fbe8ca / #b86a12 = 3,43:1  ← DƯỚI AA 4,5:1
+     Badge là chữ 12px (`text-xs`) nên chuẩn áp dụng là 4,5:1, KHÔNG phải 3:1
+     của chữ lớn ⇒ 2/3 cặp chưa đạt. Giữ nguyên màu hiện tại và ghi số đo ở đây
+     để thấy đánh đổi; 2 cặp đó CỐ Ý KHÔNG đưa vào
+     `__tests__/app-shell/contrast.test.ts` (test đó enforce AA và sẽ đỏ).
+     Muốn đạt AA mà giữ nền: đậm phần CHỮ (vd #2f8b1e → #1f6b14,
+     #b86a12 → #8a4f0a). */
+  --color-app-stage-new-bg: #e3f7ee;
+  --color-app-stage-new-ink: #2f8b1e;
+  --color-app-stage-follow2-bg: #d6fbfa;
+  --color-app-stage-follow2-ink: #2f7170;
+  --color-app-stage-follow3-bg: #fbe8ca;
+  --color-app-stage-follow3-ink: #b86a12;
+
+  /* ---- Trạng thái HOVER dạng ĐẶC (không alpha) cho nút -------------------
+     🔴 Vì sao phải có nhóm này: `button-variants.ts` (DÙNG CHUNG với v1) đặt
+     hover bằng ALPHA — `bg-primary/80`, `bg-secondary/80`, `bg-destructive/20`.
+     Alpha pha với thứ NẰM SAU nút, nên màu nền lúc hover không nằm trong bảng
+     token và `contrast.test.ts` (so theo CẶP token) không thể thấy: nút chính
+     nền `--color-app-primary` 4,53:1 với chữ trắng, hover thành primary-80% trên
+     thẻ trắng ⇒ nền sáng hơn, tỉ lệ tụt xuống ~3,3:1. Alpha là 1 trong 3 nguồn hụt
+     tương phản sống NGOÀI bảng token.
+
+     Cách chữa: token hover ĐẶC, đo được, và thang vẫn ĐƠN ĐIỆU (hover đậm hơn
+     nền). Đo: trắng/primary-deep 5,51 · primary-ink/primary-soft-hover 5,18 ·
+     #b13442/red-soft-hover 4,54 · trắng/red-deep 5,26 · trắng/red-deep-hover 6,59.
+     `--color-app-red` (#eb4d5c) CHỦ ĐÍCH không dùng làm nền chữ trắng: 3,65:1. */
+  --color-app-primary-soft-hover: #dcebf6;
+  --color-app-red-deep: #c9313f;
+  --color-app-red-deep-hover: #b02734;
+  --color-app-red-soft-hover: #fbd5d9;
+
+  /* ---- Nhãn `.badge` của theme — 8 tông, mỗi tông 1 CẶP nền + chữ ----------
+     (`.badge` + 8 lớp bổ nghĩa màu). Dùng ở nhãn bước pipeline / trạng thái.
+
+     🔴 5/8 cặp CHỮ mặc định KHÔNG đạt AA — đo trên chính cặp nền/chữ nó
+     khai (công thức WCAG, không ước lượng):
+
+       blue   #2d72b6 / #dcedf9 = 4,18   →  #1f5f9e = 5,50 ✅
+       green  #2f8b1e / #e3f7ee = 3,89   →  #277619 = 5,09 ✅
+       amber  #b86a12 / #fbe8ca = 3,43   →  #8a4f0d = 5,46 ✅
+       violet #6b5ce7 / #eceafd = 4,12   →  #5a4bd0 = 5,30 ✅
+       pink   #e6399b / #fdeaf5 = 3,37   →  #ad2472 = 5,58 ✅
+       red    #b13442 / #fde8ea = 5,21 ✅ · teal #2f7170 / #d6fbfa = 5,12 ✅
+       slate  #5c6a85 / #e9eef4 = 4,67 ✅   (3 cặp này GIỮ nguyên giá trị theme)
+
+     Chỉ hạ sáng phần CHỮ, giữ nguyên NỀN của thiết kế — diện mạo bảng nhãn gần
+     như không đổi mà chữ đọc được. `pink` đi thẳng tới #ad2472 vì bậc trước đó
+     (#c62a83) đo đúng 4,50 — sát ngưỡng, đúng ca đã phải sửa lại một lần ở nhãn
+     "Hoàn thành" (4,49 vs 4,50).
+
+     Cặp được khoá trong `contrast.test.ts`; `-bg` nằm trong `FILL_ONLY_TOKENS`. */
+  --color-app-tag-blue-bg: #dcedf9;
+  --color-app-tag-blue-ink: #1f5f9e;
+  --color-app-tag-green-bg: #e3f7ee;
+  --color-app-tag-green-ink: #277619;
+  --color-app-tag-amber-bg: #fbe8ca;
+  --color-app-tag-amber-ink: #8a4f0d;
+  --color-app-tag-red-bg: #fde8ea;
+  --color-app-tag-red-ink: #b13442;
+  --color-app-tag-violet-bg: #eceafd;
+  --color-app-tag-violet-ink: #5a4bd0;
+  --color-app-tag-teal-bg: #d6fbfa;
+  --color-app-tag-teal-ink: #2f7170;
+  --color-app-tag-slate-bg: #e9eef4;
+  --color-app-tag-slate-ink: #5c6a85;
+  --color-app-tag-pink-bg: #fdeaf5;
+  --color-app-tag-pink-ink: #ad2472;
+
+  /* ---- Ảnh đại diện chữ-cái (`.avatar` + `.g1..g6` của theme) --------------
+     Bản thiết kế dùng 6 gradient SÁNG với chữ trắng. Đo ra con số không dùng
+     được: chữ trắng trên chặng sáng nhất của từng dải chỉ
+     1,58 · 1,70 · 1,80 · 2,23 · 2,91 (g3 vàng #ffc45c tệ nhất — gần như mất chữ).
+     Đây đúng lớp bẫy "chữ trên nền màu-theo-dữ-liệu": tên khách quyết định dải
+     màu, nên KHÔNG có cách chọn chữ nào cứu được cả 6 dải.
+
+     Giữ ĐÚNG 6 sắc (xanh lá · tím · hổ phách · lam ngọc · hồng · xanh dương) và
+     6 gradient, nhưng hạ hẳn về bậc ĐẬM để chữ trắng đạt AA ở CẢ HAI chặng —
+     chặng sáng nhất là chặng phải đo, không phải chặng trung bình:
+
+       1 #1c8050→#0d6b3e = 4,94 / 6,58      4 #0d7a94→#075d72 = 4,97 / 7,45
+       2 #5b45c9→#3f2fa3 = 6,69 / 9,78      5 #b3246e→#8e1a56 = 6,19 / 8,63
+       3 #9a6008→#7a4a05 = 5,18 / 7,48      6 #1e63c4→#0f4a9c = 5,77 / 8,47
+
+     `--color-app-ava-ink` là màu chữ của cả 6 dải, khai tường minh để test đo
+     được (mọi cặp trong test đọc token, không nhận hằng viết tay). */
+  --color-app-ava-ink: #ffffff;
+  --color-app-ava-1-a: #1c8050;
+  --color-app-ava-1-b: #0d6b3e;
+  --color-app-ava-2-a: #5b45c9;
+  --color-app-ava-2-b: #3f2fa3;
+  --color-app-ava-3-a: #9a6008;
+  --color-app-ava-3-b: #7a4a05;
+  --color-app-ava-4-a: #0d7a94;
+  --color-app-ava-4-b: #075d72;
+  --color-app-ava-5-a: #b3246e;
+  --color-app-ava-5-b: #8e1a56;
+  --color-app-ava-6-a: #1e63c4;
+  --color-app-ava-6-b: #0f4a9c;
+
+  /* Số đo layout kiểu Notion — sidebar rộng 256px, thu gọn còn
+     64px (chỉ icon). `--color-app-sidebar-grad` (gradient tối  cũ) đã GỠ
+     — nền sidebar nay PHẲNG, đọc thẳng từ `--sidebar` qua `bg-sidebar` mặc
+     định của shadcn, không cần lớp `background-image` ghi đè riêng nữa. */
+  --color-app-sidebar-w: 232px;
+  --color-app-sidebar-mini: 64px;
+  --color-app-topbar-h: 58px;
+  --color-app-rail-w: 310px;
+}
+
+/* ==========================================================================
+   BẢN TỐI — class `dark` trên <html> do `lib/theme.ts` gắn (nút mặt trăng ở chân
+   sidebar + lệnh "Đổi sang giao diện tối" trong ⌘K; script chống nháy trong
+   `app/layout.tsx`). Selector có thêm `.dark` ⇒ (0,3,1) > khối sáng (0,2,1),
+   không phụ thuộc thứ tự. Bảng màu tối của demo:
+     --bg #0d0e11 · --panel #131418 · --sunken #18191e · --gray-soft #1d1f24
+     --line #23252b · --line-strong #30333a · --ink #eceef2 · --ink-2 #b4b8c2
+     --ink-3 #8d919c · --accent #7fb2da · --accent-soft #1b2733 · --accent-ink #a6cbe8
+   Số đo (WCAG, sRGB tuyến tính): chữ mờ #8d919c trên --muted 5,57 · trên --accent
+   5,23 · trên thẻ 5,84; chữ #0d0e11 trên nút chính #7fb2da 8,53; viền ô nhập
+   #676b75 trên thẻ 3,45 / nền 3,62; chữ trắng trên nền đặc #3a75a6 4,91.
+   ========================================================================== */
+html:root[data-ui="app"].dark {
+  color-scheme: dark;
+  --background: #0d0e11;
+  --foreground: #eceef2;
+  --card: #131418;
+  --card-foreground: #eceef2;
+  --popover: #131418;
+  --popover-foreground: #eceef2;
+  --primary: #7fb2da;
+  --primary-foreground: #0d0e11;
+  --secondary: #18191e;
+  --secondary-foreground: #eceef2;
+  --muted: #18191e;
+  --muted-foreground: #8d919c;
+  --accent: #1d1f24;
+  --accent-foreground: #eceef2;
+  --destructive: #c2413b;
+  --border: #23252b;
+  --input: #676b75;
+  --ring: #7fb2da;
+  --shadow-card: none;
+  --shadow-field: none;
+  --shadow-pop: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+  --shadow-brand-glow: none;
+
+  --sidebar: #131418;
+  --sidebar-foreground: #b4b8c2;
+  --sidebar-primary: #1d1f24;
+  --sidebar-primary-foreground: #eceef2;
+  --sidebar-accent: #18191e;
+  --sidebar-accent-foreground: #eceef2;
+  --sidebar-border: #23252b;
+  --sidebar-ring: #7fb2da;
+  --color-app-sidebar-muted: #8d919c;
+  --color-app-sidebar-edge: #676b75;
+
+  /* nền ĐẶC có chữ trắng giữ tông sáng (4,91:1); chữ/viền nhấn chuyển sang bậc sáng */
+  --color-app-primary: #3a75a6;
+  --color-app-primary-deep: #2f6690;
+  --color-app-primary-soft: #1b2733;
+  --color-app-primary-soft-hover: #223244;
+  --color-app-primary-ink: #a6cbe8;
+  --color-app-bg: #0d0e11;
+  --color-app-sea: #7fb2da;
+  --color-app-blue: #7fb2da;
+  --color-app-blue-deep: #a6cbe8;
+  --color-app-blue-soft: #1b2733;
+  --color-app-azure: #7fb2da;
+  --color-app-azure-deep: #a6cbe8;
+  --color-app-azure-soft: #1b2733;
+  --color-app-sky-soft: #172530;
+  --color-app-navy: #eceef2;
+  --color-app-ink-2: #b4b8c2;
+  --color-app-faint: #6b6f7b;
+  --color-app-line: #23252b;
+  --color-app-line-2: #18191e;
+  --color-app-surface-2: #18191e;
+  --color-app-surface-3: #1d1f24;
+  --color-app-chart-grid: #23252b;
+
+  --color-app-green-soft: #15261d;
+  --color-app-amber-soft: #2a2114;
+  --color-app-red-soft: #2c1716;
+  --color-app-red-soft-hover: #3a1d1b;
+  --color-app-violet-soft: #221d3a;
+  --color-app-pink-soft: #2c1724;
+
+  --color-app-tag-blue-bg: #1b2733;
+  --color-app-tag-blue-ink: #a6cbe8;
+  --color-app-tag-green-bg: #15261d;
+  --color-app-tag-green-ink: #7fd3a2;
+  --color-app-tag-amber-bg: #2a2114;
+  --color-app-tag-amber-ink: #e0a24a;
+  --color-app-tag-red-bg: #2c1716;
+  --color-app-tag-red-ink: #f08b85;
+  --color-app-tag-violet-bg: #221d3a;
+  --color-app-tag-violet-ink: #b3a8f5;
+  --color-app-tag-teal-bg: #10282a;
+  --color-app-tag-teal-ink: #7fd1cc;
+  --color-app-tag-slate-bg: #1d1f24;
+  --color-app-tag-slate-ink: #b4b8c2;
+  --color-app-tag-pink-bg: #2c1724;
+  --color-app-tag-pink-ink: #f08cc3;
+
+  --color-app-stage-new-bg: #15261d;
+  --color-app-stage-new-ink: #7fd3a2;
+  --color-app-stage-follow2-bg: #10282a;
+  --color-app-stage-follow2-ink: #7fd1cc;
+  --color-app-stage-follow3-bg: #2a2114;
+  --color-app-stage-follow3-ink: #e0a24a;
+}
+
+/* Màn cũ còn ~40 chỗ viết cứng nền trắng/xám nhạt (`bg-white`, `bg-slate-50`…).
+   Ở bản tối, quy chúng về token thay vì sửa từng màn (cùng cách khối "QUY ĐỔI HEX"
+   bên dưới). Không nằm trong `@layer` ⇒ thắng utility Tailwind. */
+html:root[data-ui="app"].dark .bg-white,
+html:root[data-ui="app"].dark .bg-\[\#fff\],
+html:root[data-ui="app"].dark .bg-\[\#ffffff\] { background-color: var(--card); }
+html:root[data-ui="app"].dark .bg-white\/85,
+html:root[data-ui="app"].dark .bg-white\/90,
+html:root[data-ui="app"].dark .bg-white\/80 { background-color: color-mix(in srgb, var(--card) 85%, transparent); }
+html:root[data-ui="app"].dark .bg-slate-50,
+html:root[data-ui="app"].dark .bg-gray-50,
+html:root[data-ui="app"].dark .bg-slate-100,
+html:root[data-ui="app"].dark .bg-gray-100 { background-color: var(--muted); }
+html:root[data-ui="app"].dark .text-slate-900,
+html:root[data-ui="app"].dark .text-gray-900,
+html:root[data-ui="app"].dark .text-slate-800,
+html:root[data-ui="app"].dark .text-gray-800 { color: var(--foreground); }
+html:root[data-ui="app"].dark .text-slate-700,
+html:root[data-ui="app"].dark .text-gray-700,
+html:root[data-ui="app"].dark .text-slate-600,
+html:root[data-ui="app"].dark .text-gray-600 { color: var(--color-app-ink-2); }
+html:root[data-ui="app"].dark .border-slate-200,
+html:root[data-ui="app"].dark .border-gray-200 { border-color: var(--border); }
+/* Nền pastel `bg-<màu>-50/100` + chữ `text-<màu>-600/700/800` của các màn cũ: ở bản tối pha
+   nền về sắc tối (16% màu trên nền thẻ) và đẩy chữ lên bậc sáng — tránh mảng trắng chói
+   và chữ đậm trên nền tối. Hex = bảng màu chuẩn Tailwind (bậc 500 / 300). */
+html:root[data-ui="app"].dark .bg-amber-50, html:root[data-ui="app"].dark .bg-amber-100 { background-color: color-mix(in srgb, #f59e0b 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-amber-600, html:root[data-ui="app"].dark .text-amber-700, html:root[data-ui="app"].dark .text-amber-800 { color: #fcd34d; }
+html:root[data-ui="app"].dark .border-amber-100, html:root[data-ui="app"].dark .border-amber-200 { border-color: color-mix(in srgb, #f59e0b 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-emerald-50, html:root[data-ui="app"].dark .bg-emerald-100 { background-color: color-mix(in srgb, #10b981 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-emerald-600, html:root[data-ui="app"].dark .text-emerald-700, html:root[data-ui="app"].dark .text-emerald-800 { color: #6ee7b7; }
+html:root[data-ui="app"].dark .border-emerald-100, html:root[data-ui="app"].dark .border-emerald-200 { border-color: color-mix(in srgb, #10b981 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-red-50, html:root[data-ui="app"].dark .bg-red-100 { background-color: color-mix(in srgb, #ef4444 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-red-600, html:root[data-ui="app"].dark .text-red-700, html:root[data-ui="app"].dark .text-red-800 { color: #fca5a5; }
+html:root[data-ui="app"].dark .border-red-100, html:root[data-ui="app"].dark .border-red-200 { border-color: color-mix(in srgb, #ef4444 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-rose-50, html:root[data-ui="app"].dark .bg-rose-100 { background-color: color-mix(in srgb, #f43f5e 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-rose-600, html:root[data-ui="app"].dark .text-rose-700, html:root[data-ui="app"].dark .text-rose-800 { color: #fda4af; }
+html:root[data-ui="app"].dark .border-rose-100, html:root[data-ui="app"].dark .border-rose-200 { border-color: color-mix(in srgb, #f43f5e 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-purple-50, html:root[data-ui="app"].dark .bg-purple-100 { background-color: color-mix(in srgb, #a855f7 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-purple-600, html:root[data-ui="app"].dark .text-purple-700, html:root[data-ui="app"].dark .text-purple-800 { color: #d8b4fe; }
+html:root[data-ui="app"].dark .border-purple-100, html:root[data-ui="app"].dark .border-purple-200 { border-color: color-mix(in srgb, #a855f7 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-sky-50, html:root[data-ui="app"].dark .bg-sky-100 { background-color: color-mix(in srgb, #0ea5e9 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-sky-600, html:root[data-ui="app"].dark .text-sky-700, html:root[data-ui="app"].dark .text-sky-800 { color: #7dd3fc; }
+html:root[data-ui="app"].dark .border-sky-100, html:root[data-ui="app"].dark .border-sky-200 { border-color: color-mix(in srgb, #0ea5e9 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-pink-50, html:root[data-ui="app"].dark .bg-pink-100 { background-color: color-mix(in srgb, #ec4899 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-pink-600, html:root[data-ui="app"].dark .text-pink-700, html:root[data-ui="app"].dark .text-pink-800 { color: #f9a8d4; }
+html:root[data-ui="app"].dark .border-pink-100, html:root[data-ui="app"].dark .border-pink-200 { border-color: color-mix(in srgb, #ec4899 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-orange-50, html:root[data-ui="app"].dark .bg-orange-100 { background-color: color-mix(in srgb, #f97316 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-orange-600, html:root[data-ui="app"].dark .text-orange-700, html:root[data-ui="app"].dark .text-orange-800 { color: #fdba74; }
+html:root[data-ui="app"].dark .border-orange-100, html:root[data-ui="app"].dark .border-orange-200 { border-color: color-mix(in srgb, #f97316 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-blue-50, html:root[data-ui="app"].dark .bg-blue-100 { background-color: color-mix(in srgb, #3b82f6 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-blue-600, html:root[data-ui="app"].dark .text-blue-700, html:root[data-ui="app"].dark .text-blue-800 { color: #93c5fd; }
+html:root[data-ui="app"].dark .border-blue-100, html:root[data-ui="app"].dark .border-blue-200 { border-color: color-mix(in srgb, #3b82f6 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-green-50, html:root[data-ui="app"].dark .bg-green-100 { background-color: color-mix(in srgb, #22c55e 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-green-600, html:root[data-ui="app"].dark .text-green-700, html:root[data-ui="app"].dark .text-green-800 { color: #86efac; }
+html:root[data-ui="app"].dark .border-green-100, html:root[data-ui="app"].dark .border-green-200 { border-color: color-mix(in srgb, #22c55e 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-yellow-50, html:root[data-ui="app"].dark .bg-yellow-100 { background-color: color-mix(in srgb, #eab308 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-yellow-600, html:root[data-ui="app"].dark .text-yellow-700, html:root[data-ui="app"].dark .text-yellow-800 { color: #fde047; }
+html:root[data-ui="app"].dark .border-yellow-100, html:root[data-ui="app"].dark .border-yellow-200 { border-color: color-mix(in srgb, #eab308 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-cyan-50, html:root[data-ui="app"].dark .bg-cyan-100 { background-color: color-mix(in srgb, #06b6d4 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-cyan-600, html:root[data-ui="app"].dark .text-cyan-700, html:root[data-ui="app"].dark .text-cyan-800 { color: #67e8f9; }
+html:root[data-ui="app"].dark .border-cyan-100, html:root[data-ui="app"].dark .border-cyan-200 { border-color: color-mix(in srgb, #06b6d4 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-violet-50, html:root[data-ui="app"].dark .bg-violet-100 { background-color: color-mix(in srgb, #8b5cf6 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-violet-600, html:root[data-ui="app"].dark .text-violet-700, html:root[data-ui="app"].dark .text-violet-800 { color: #c4b5fd; }
+html:root[data-ui="app"].dark .border-violet-100, html:root[data-ui="app"].dark .border-violet-200 { border-color: color-mix(in srgb, #8b5cf6 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-indigo-50, html:root[data-ui="app"].dark .bg-indigo-100 { background-color: color-mix(in srgb, #6366f1 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-indigo-600, html:root[data-ui="app"].dark .text-indigo-700, html:root[data-ui="app"].dark .text-indigo-800 { color: #a5b4fc; }
+html:root[data-ui="app"].dark .border-indigo-100, html:root[data-ui="app"].dark .border-indigo-200 { border-color: color-mix(in srgb, #6366f1 35%, var(--card)); }
+html:root[data-ui="app"].dark .bg-teal-50, html:root[data-ui="app"].dark .bg-teal-100 { background-color: color-mix(in srgb, #14b8a6 16%, var(--card)); }
+html:root[data-ui="app"].dark .text-teal-600, html:root[data-ui="app"].dark .text-teal-700, html:root[data-ui="app"].dark .text-teal-800 { color: #5eead4; }
+html:root[data-ui="app"].dark .border-teal-100, html:root[data-ui="app"].dark .border-teal-200 { border-color: color-mix(in srgb, #14b8a6 35%, var(--card)); }
+
+/* Viền phải sidebar dùng ĐÚNG `--sidebar-border` (#ebebe8) — mặc định
+   `border-r` của `components/ui/sidebar` không gắn màu riêng nên rơi về
+   `--border` chung của app; ghi đè ở đây để khớp kiểu Notion. */
+html:root[data-ui="app"] [data-slot="sidebar-container"] {
+  border-color: var(--sidebar-border);
+}
+
+/* Mục menu đang mở: nền PHẲNG `--sidebar-primary` (#e8f4f2) +
+   chữ/icon `--sidebar-primary-foreground` (#046b60, trùng `--color-app-primary-ink`
+   đã đo AA — xem `contrast.test.ts`). Thay cho gradient chéo + glow của bản
+   sidebar tối  cũ. */
+html:root[data-ui="app"] .app-nav-active {
+  background-color: var(--sidebar-primary);
+  color: var(--sidebar-primary-foreground);
+  border-color: transparent;
+  box-shadow: none;
+}
+html:root[data-ui="app"] .app-nav-active svg {
+  color: var(--color-app-primary);
+}
+
+/* ============================================================================
+   QUY ĐỔI HEX BRAND v1 → TOKEN v2, chỉ trong phạm vi `[data-ui="app"]`
+   ----------------------------------------------------------------------------
+   Vì sao cần khối này: các component dùng chung còn mang hex brand `#198754` /
+   `#146c43` (xanh Bootstrap) nằm cạnh teal của giao diện app trong cùng khung
+   nhìn. Không sửa màu trong từng component dùng chung — ghi đè ở tầng CSS,
+   phạm vi đúng bằng attribute `data-ui="app"` trên <html>.
+
+   Specificity: `html:root[data-ui="app"] .bg-\[\#198754\]` = (0,3,1) vượt hẳn
+   `.bg-\[\#198754\]` = (0,1,0) của Tailwind. Ngoài ra khối này KHÔNG nằm trong
+   `@layer` nào, còn utility của Tailwind v4 ở `@layer utilities` — CSS không
+   phân lớp luôn thắng CSS phân lớp bất kể thứ tự, nên không phụ thuộc vị trí
+   `@import`.
+
+   ⚠️ Bảng quy đổi PHẢI trùng bảng vai trò ở đầu file (fill vs ink):
+   `text-*`/`fill-*` → `-ink` (đủ AA khi làm CHỮ), `bg-*`/`border-*`/`ring-*`
+   → `-primary`. Đừng "gộp cho gọn" về một token — đó chính là lỗi contrast mà
+   việc tách ink/fill được dựng ra để tránh.
+
+   ⚠️ Danh sách này bám theo hex ĐANG CÓ THẬT trong nguồn (số lượng lúc đếm:
+   text 332 · bg 183 · bg-deep 136 · soft 121 · border 69 · text-deep 28 ·
+   ring 7 · bg-F5F5F5 4 · accent 4 · fill-deep 2 · from 1). Thêm biến thể mới
+   ở component dùng chung thì thêm dòng tương ứng vào đây.
+   ============================================================================ */
+
+/* nền / viền / ring / accent → fill */
+html:root[data-ui="app"] .bg-\[\#198754\] { background-color: var(--color-app-primary); }
+html:root[data-ui="app"] .hover\:bg-\[\#198754\]:hover { background-color: var(--color-app-primary); }
+html:root[data-ui="app"] .bg-\[\#146c43\] { background-color: var(--color-app-primary-deep); }
+html:root[data-ui="app"] .hover\:bg-\[\#146c43\]:hover { background-color: var(--color-app-primary-deep); }
+html:root[data-ui="app"] .border-\[\#198754\] { border-color: var(--color-app-primary); }
+html:root[data-ui="app"] .ring-\[\#198754\] { --tw-ring-color: var(--color-app-primary); }
+html:root[data-ui="app"] .accent-\[\#198754\] { accent-color: var(--color-app-primary); }
+html:root[data-ui="app"] .from-\[\#198754\] { --tw-gradient-from: var(--color-app-primary); }
+
+/* chữ / icon tô đặc → ink (bậc đậm hơn, đạt AA khi làm chữ) */
+html:root[data-ui="app"] .text-\[\#198754\] { color: var(--color-app-primary-ink); }
+html:root[data-ui="app"] .hover\:text-\[\#198754\]:hover { color: var(--color-app-primary-ink); }
+html:root[data-ui="app"] .text-\[\#146c43\] { color: var(--color-app-primary-ink); }
+html:root[data-ui="app"] .fill-\[\#146c43\] { fill: var(--color-app-primary-ink); }
+
+/* chip nhạt + nền khung của v1 */
+html:root[data-ui="app"] .bg-\[\#E7F3E0\],
+html:root[data-ui="app"] .bg-\[\#e7f3e0\] { background-color: var(--color-app-primary-soft); }
+html:root[data-ui="app"] .bg-\[\#F5F5F5\],
+html:root[data-ui="app"] .bg-\[\#f5f5f5\] { background-color: var(--color-app-bg); }
+
+/* ============================================================================
+   2 SỬA TƯƠNG PHẢN Ở TẦNG THÀNH PHẦN (đo trên DOM đã render)
+   ----------------------------------------------------------------------------
+   `__tests__/app-shell/contrast.test.ts` chỉ khoá CÁC CẶP TOKEN do ta tự chọn.
+   Nó xanh trong khi thành phần thật tự pha ra cặp màu khác và tụt dưới AA —
+   đo bằng canvas trên trang thật (quy mọi color space về sRGB, không tự parse
+   chuỗi) thấy 6/10 màn có điểm dưới AA. Hai nguồn gốc rễ:
+
+   (1) `text-foreground/60` của `TabsTrigger` (`components/ui/tabs.tsx`).
+       Alpha 60% pha chữ về phía nền ⇒ nhãn tab KHÔNG active chỉ đo được
+       **4,26:1** trên rãnh tab `#e8f0f9` (cần 4,5). File đó DÙNG CHUNG với v1
+       nên không sửa trực tiếp; ghi đè bằng token `--muted-foreground` (đã được
+       test khoá: 5,03 trên `--background`, 4,64 trên `--muted`) ở alpha ĐẦY ĐỦ.
+
+   (2) `.text-primary` = `--primary` (#098577) dùng làm CHỮ trên nền tint
+       `bg-primary/10` ⇒ **3,98:1** ở mục nav đang chọn của màn Cài đặt, và
+       **4,25:1** ở nhãn nhóm. Bảng vai trò ở đầu file đã quy định: làm CHỮ thì
+       phải là bậc `-ink`. Đây chính là lớp lỗi mà việc tách ink/fill được dựng
+       ra để tránh — nay áp cho cả utility `text-primary` của shadcn.
+
+   Cả 2 đều phạm vi `[data-ui="app"]` ⇒ v1 không đổi một pixel.
+   ============================================================================ */
+/* `:not(:hover)` là BẮT BUỘC: selector này (0,4,1) không nằm trong `@layer` nào
+   nên nó đè cả `hover:text-foreground` của `components/ui/tabs.tsx` (utility ở
+   `@layer utilities`) ⇒ thiếu nó là tab chưa chọn MẤT phản hồi khi rê chuột. */
+html:root[data-ui="app"] [data-slot="tabs-trigger"]:not([data-active]):not(:hover) {
+  color: var(--muted-foreground);
+}
+html:root[data-ui="app"] .text-primary { color: var(--color-app-primary-ink); }
+
+/* ===========================================================================
+ * NÚT của giao diện v2 — chuẩn hoá hover.
+ *
+ * 🔴 Vấn đề: một số nút hover vào bị hỏng. Nguyên nhân đo được trong `components/ui/button-variants.ts` (file DÙNG CHUNG với v1, KHÔNG
+ * sửa được):
+ *
+ *   default     `[a]:hover:bg-primary/80`   → biến thể `[a]:` chỉ khớp khi nút
+ *               LÀ thẻ `<a>` ⇒ `<button>` **không có hover nào**; còn nút-là-link
+ *               thì hover sang primary ở 80% ALPHA — pha với nền thẻ trắng nên
+ *               nền SÁNG LÊN, chữ trắng tụt từ 4,53:1 xuống ~3,3:1.
+ *   secondary   `hover:bg-secondary/80`     → cùng lớp lỗi alpha.
+ *   destructive `hover:bg-destructive/20`   → cùng lớp lỗi alpha.
+ *
+ * Alpha là 1 trong 3 nguồn hụt tương phản sống NGOÀI bảng token, nên
+ * `contrast.test.ts` (so theo CẶP token) không thể bắt được.
+ *
+ * 4 rule dưới chỉ áp trong phạm vi `[data-ui="app"]` ⇒ v1 không đổi.
+ *
+ * 🔴 Vì sao `default` phải loại trừ nhiều thứ mà 3 biến thể kia thì không:
+ * ĐÃ QUÉT 842 chỗ gọi `<Button>` trong 216 file v2 (kết quả khoá trong
+ * `v2-button-theme.test.ts` — quét lại mỗi lần chạy test, phát sinh mẫu MỚI là
+ * ĐỎ, không im lặng trôi):
+ *   · `outline` 405 · `ghost` 164 · `destructive` 34 → gần như KHÔNG chỗ nào tự
+ *     đặt màu nền ⇒ chuẩn hoá được toàn bộ, không đụng ý định của ai.
+ *   · `default` 239 thì 126 chỗ TỰ đặt nền: 101 chỗ là nền brand
+ *     (`bg-[var(--color-app-primary)]`…) và 27 chỗ là màu NGỮ NGHĨA
+ *     (`bg-red-600` xoá, `bg-amber-600` cảnh báo, `bg-destructive`…). 27 chỗ đó
+ *     ĐÃ tự khai `hover:` đúng cặp của nó — đè lên là làm nút "Xoá" hover ra
+ *     màu teal. Vì vậy loại trừ theo đúng 4 dấu hiệu đo được: nền arbitrary
+ *     `bg-[`, bậc palette `-500`/`-600`, và `destructive`.
+ * Nút dựng bằng `V2Button` mang `data-v2-btn` và tự có hover đặc → loại trừ hẳn.
+ * ======================================================================== */
+html:root[data-ui="app"]
+  [data-slot="button"][data-variant="default"]:not([data-v2-btn]):not([class*="bg-["]):not([class*="-500"]):not([class*="-600"]):not([class*="destructive"]):hover {
+  background-color: var(--color-app-primary-deep);
+  color: #fff;
+}
+/* 🔴 ĐÃ GỠ rule hover cho `outline`/`ghost` (đã ĐO LẠI). Hai lý do, cái thứ hai mới là cái nặng:
+ *
+ * 1. KHÔNG CẦN: chỉ 3 biến thể `default`/`secondary`/`destructive` đặt hover
+ *    bằng ALPHA. `outline`/`ghost` vốn đã là `hover:bg-muted` — màu ĐẶC, và
+ *    `--muted` trong v2 chính là `--surface-3` của theme. Rule kia thuần thẩm mỹ
+ *    ("đổi chữ sang lam như theme"), không sửa lỗi nào.
+ * 2. GÂY HẠI: nó ghi cả `color` + `border-color`, lại nằm NGOÀI `@layer` nên
+ *    THẮNG mọi utility Tailwind bất kể specificity ⇒ **57 nút ghost/outline tự
+ *    đặt màu chữ ngữ nghĩa bị đảo ý nghĩa lúc hover** (đếm bằng parser trên cây
+ *    v2): nút "Thất bại" `text-red-600 hover:bg-red-50`
+ *    (trang chi tiết khách), nút xoá tài liệu,
+ *    "Vô hiệu hoá" ở `edit-user-dialog`… rê chuột vào đều ra **xanh lam**.
+ *    KHÔNG loại trừ được bằng `:not([class*="text-"])`: chính chuỗi class của
+ *    biến thể `outline` đã chứa `hover:text-foreground` ⇒ điều kiện luôn đúng,
+ *    rule sẽ không bao giờ chạy.
+ *
+ * Muốn nút mang đúng hover của theme (nền surface-2 + chữ lam) thì dùng
+ * `V2Button` — nó tự khai, không phải đoán từ bên ngoài.
+ */
+html:root[data-ui="app"]
+  [data-slot="button"][data-variant="destructive"]:not([data-v2-btn]):not([class*="bg-["]):hover {
+  background-color: var(--color-app-red-soft-hover);
+  color: var(--color-app-tag-red-ink);
+}
+/* Nút-là-link: `buttonVariants()` gọi như hàm thuần cho `<Link>` (Base-UI Button không có `asChild`) nên KHÔNG có `data-variant`. 35 chỗ trong
+ * v2, hầu hết `outline`/`ghost`; nhận diện qua đúng class của biến thể. */
+html:root[data-ui="app"] a[class*="bg-primary"]:not([class*="bg-primary/10"]):not([class*="bg-["]):hover {
+  background-color: var(--color-app-primary-deep);
+  color: #fff;
+}
+/* Nút-là-link dạng `outline` KHÔNG có rule — cùng lý do đã gỡ rule `outline`
+ * của `<button>` ở trên: biến thể đó vốn hover bằng màu ĐẶC (`hover:bg-muted`),
+ * và ghi đè `color`/`border-color` từ bên ngoài là đường đảo ý nghĩa của chỗ
+ * gọi. Riêng nút-là-link dạng CHÍNH (rule ngay trên) thì PHẢI có: biến thể
+ * `default` đặt hover là `[a]:hover:bg-primary/80` — biến thể `[a]:` chỉ khớp
+ * khi nút LÀ thẻ `<a>`, nên đây đúng là nhóm duy nhất thực sự ăn hover ALPHA.
+ * loại `bg-primary/…` (biến thể `soft` tông nhạt) — nếu không, link dạng
+ * soft rê chuột sẽ biến thành nền đặc + chữ trắng, đúng thứ C3 cấm. */
+
+/* ============================================================================
+   Giao diện mới — bước 4b: khung chung cho các màn còn lại (Báo cáo, Cài đặt,
+   Quản lý, Chấm công, Lương, POS, Sản phẩm, bảng tuỳ biến…).
+
+   Các màn này dựng bằng `Card`/`Table` của shadcn (file DÙNG CHUNG). Đổi ở tầng
+   thành phần thay vì sửa ~300 chỗ gọi: mọi khung về dáng `.box` của demo — viền 1px
+   `--border`, bo `--radius` (10px), bóng rất nhẹ; tiêu đề cột bảng chữ phụ, nền trong.
+
+   · Card: shadcn vẽ viền bằng `ring-1 ring-black/5` (gần như vô hình) + bo `rounded-xl`
+     (14px). Chỉ đổi MÀU ring (giữ đúng 1px, không đụng layout) — trừ thẻ tự đặt ring
+     riêng (`ring-2`, `ring-primary`, `ring-[…]`: thẻ đang chọn ở POS/Sản phẩm).
+   · Rule nằm NGOÀI `@layer` nên thắng utility — đúng ý: đồng bộ cả thẻ tự đặt
+     `rounded-2xl`/`rounded-3xl`. `rounded-none`/`rounded-full` (cố ý) được loại trừ.
+   ============================================================================ */
+html:root[data-ui="app"] [data-slot="card"]:not([class*="rounded-none"]):not([class*="rounded-full"]) {
+  border-radius: var(--radius);
+}
+html:root[data-ui="app"] [data-slot="card"]:not([class*="ring-2"]):not([class*="ring-primary"]):not([class*="ring-["]) {
+  --tw-ring-color: var(--border);
+}
+html:root[data-ui="app"] [data-slot="table-header"] {
+  background-color: transparent;
+}
+html:root[data-ui="app"] [data-slot="table-head"] {
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+html:root[data-ui="app"] [data-slot="table-row"],
+html:root[data-ui="app"] [data-slot="table-header"] tr {
+  border-color: var(--border);
+}

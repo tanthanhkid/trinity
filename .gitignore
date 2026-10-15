@@ -1,0 +1,31 @@
+
+# rác sinh ra bởi test run
+nonexistent-test-*.json
+
+# Ảnh sản phẩm người dùng tải lên (POST /products/upload-image)
+apps/monolith/uploads/
+
+# build / deps / local
+node_modules/
+dist/
+build/
+.next/
+coverage/
+test-results/
+e2e-results/
+*.log
+.env
+.env.local
+.DS_Store
+*.tsbuildinfo
+
+# agent skills dropped by `vercel integration add`
+.agents/
+.claude/
+skills-lock.json
+.vercel
+
+# Mọi biến thể .env (vd .env.production.local, file do `vercel env pull` tạo) — chỉ giữ file mẫu
+.env.*
+!.env.example
+!.env.*.example

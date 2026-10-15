@@ -1,0 +1,144 @@
+# Trinity — run the whole stack locally:
+#
+#   ./install.sh --up         # creates .env with random secrets (never overwrites an existing one), then
+#                             # runs `docker compose up --build -d`
+#   (manual alternative: cp .env.example .env, replace every change-me-* value, docker compose up --build)
+#
+# Web UI:   http://localhost:3000        API: http://localhost:4000/api/v1  (Swagger at /docs when SWAGGER_ENABLED=true)
+# First admin: SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD from .env (if the password is empty, a random one is
+# printed once in: docker compose logs migrate)
+#
+# Services
+#   postgres   PostgreSQL 16
+#   redis      Redis 7
+#   migrate    one-shot job: applies Prisma migrations + seeds (admin, options, optional demo data when SEED_DEMO_DATA=true)
+#   api        NestJS monolith (auth, crm, commerce, payroll, notification). Deno is built into
+#              this image — sandboxed add-ons run as child processes (EXTENSIONS_ENABLED=true).
+#   web        Next.js UI
+
+name: trinity
+
+x-api-env: &api-env
+  NODE_ENV: production
+  DATABASE_URL: postgresql://${POSTGRES_USER:-trinity}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-trinity}
+  REDIS_URL: redis://redis:6379/0
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+  SERVICE_SECRET: ${SERVICE_SECRET:?set SERVICE_SECRET in .env}
+  INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-${SERVICE_SECRET}}
+  CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+  STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+  STORAGE_LOCAL_ROOT: /var/lib/trinity/storage
+  INTEGRATIONS_WEBHOOKS_ENABLED: ${INTEGRATIONS_WEBHOOKS_ENABLED:-false}
+  INTEGRATIONS_MCP_ENABLED: ${INTEGRATIONS_MCP_ENABLED:-false}
+  INTEGRATIONS_PUBLIC_BASE_URL: ${INTEGRATIONS_PUBLIC_BASE_URL:-}
+  INTEGRATIONS_SECRET_KEY: ${INTEGRATIONS_SECRET_KEY:-}
+  EXTENSIONS_ENABLED: ${EXTENSIONS_ENABLED:-false}
+  SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+  # Connector cần app đối tác của Trinity (để trống = dòng connector hiện "Máy chủ chưa cấu hình").
+  MISA_APP_ID: ${MISA_APP_ID:-}
+  SHOPEE_PARTNER_ID: ${SHOPEE_PARTNER_ID:-}
+  SHOPEE_PARTNER_KEY: ${SHOPEE_PARTNER_KEY:-}
+  SHOPEE_SANDBOX: ${SHOPEE_SANDBOX:-}
+  LAZADA_APP_KEY: ${LAZADA_APP_KEY:-}
+  LAZADA_APP_SECRET: ${LAZADA_APP_SECRET:-}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-trinity}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-trinity}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build:
+      context: .
+      target: api
+    restart: "no"
+    environment:
+      <<: *api-env
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+    command:
+      - sh
+      - -c
+      - >-
+        pnpm --filter @trinity/prisma migrate:deploy &&
+        pnpm --filter @trinity/prisma seed
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+      PORT: "4000"
+    volumes:
+      - storage:/var/lib/trinity/storage
+      - uploads:/app/uploads
+    ports:
+      # Chỉ cổng loopback: web gọi api qua mạng compose (http://api:4000), nên không cần mở ra internet.
+      - "127.0.0.1:${API_PORT:-4000}:4000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        # Browser -> same origin; Next proxies /api/v1/* to the API container.
+        NEXT_PUBLIC_API_URL: /api/v1
+        # Where /.well-known/* (OAuth/MCP discovery) is forwarded; baked in at build time.
+        MONOLITH_INTERNAL_URL: http://api:4000
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      BACKEND_URL: http://api:4000
+      MONOLITH_INTERNAL_URL: http://api:4000
+      AUTH_SERVICE_URL: http://api:4000
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
+  storage:
+  uploads:

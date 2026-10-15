@@ -1,0 +1,385 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+/* Giao diện v2 — token `html:root[data-ui="app"]`, INERT khi
+   <html> không có attribute đó. @import bắt buộc ở đầu file nên khối v2 nằm
+   TRƯỚC `:root` bên dưới; specificity (0,2,1) của nó vẫn luôn thắng — lý do
+   chi tiết trong chính file được import. */
+@import "../styles/app-tokens.css";
+/* Dáng cây menu trái v2 — port nguyên CSS sidebar của bản demo (xem đầu file đó). */
+@import "../styles/app-sidebar.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Cỡ chữ tối thiểu 14px (giao diện mới, theo demo `trinity-giao-dien-demo`):
+   `text-xs` mặc định Tailwind là 12px và đang được dùng ~670 chỗ — nâng ở
+   TẦNG TOKEN để mọi chỗ cùng đổi, không sửa từng màn. */
+@theme {
+  --text-xs: 0.875rem;
+  --text-xs--line-height: calc(1.25 / 0.875);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-app);
+  --font-mono: var(--font-app);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: #fbfbfa;
+  --foreground: #17181c;
+  --card: #ffffff;
+  --card-foreground: #17181c;
+  --popover: #ffffff;
+  --popover-foreground: #17181c;
+  --primary: #3a75a6;
+  /* Bảng màu theo demo giao diện mới — cùng giá trị khối `html:root[data-ui="app"]`
+     của `styles/app-tokens.css` để trang ngoài dashboard (đăng nhập…) cùng kiểu. */
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f3;
+  --secondary-foreground: #17181c;
+  --muted: #f5f5f3;
+  --muted-foreground: #6b6f7b;
+  --accent: #f5f5f3;
+  --accent-foreground: #17181c;
+  --destructive: #c2413b;
+  --border: #ebebe8;
+  --input: #8a8d96;
+  --ring: #3f7fb3;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  /* --radius mặc định 0.75rem. Bật ds-v2 (0.83rem) qua khối `:root[data-ds="v2"]`
+     bên dưới — attribute gắn bởi app/layout.tsx theo cờ NEXT_PUBLIC_DS_V2. */
+  --radius: 10px;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #4a4d57;
+  --sidebar-primary: #f5f5f3;
+  --sidebar-primary-foreground: #17181c;
+  --sidebar-accent: #f5f5f3;
+  --sidebar-accent-foreground: #17181c;
+  --sidebar-border: #ebebe8;
+  --sidebar-ring: #3f7fb3;
+  /* Design system ds-v2: primary #198754, hover #146c43, active #0f5132 */
+  --brand-green-900: #0f5132;
+  --brand-green-800: #146c43;
+  --brand-green-700: #198754;
+  --brand-green-600: #3EA154;
+  --brand-green-500: #4DA75A;
+  --brand-green-400: #2bb368;
+  --brand-green-300: #9FE870;
+  --surface-green-50: #E7F3E0;
+  --brand-red: #E02020;
+  /* Giá trị shadow MẶC ĐỊNH (khi cờ ds-v2 tắt). `--shadow-card` khớp `.shadow-card` utility
+     (dùng ở not-found.tsx/error.tsx) + card:hover bên dưới; `--shadow-pop` khớp card:hover.
+     `--shadow-brand-glow: none` — không có tác dụng hình ảnh khi cờ tắt. */
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.06);
+  /* Ô nhập/nút viền: bóng rất nhẹ cho cảm giác "nổi" — viền vẫn là --input (≥ 3:1). */
+  --shadow-field: 0 1px 2px rgba(20, 22, 30, 0.05);
+  --shadow-pop: 0 6px 24px rgba(0, 0, 0, 0.10);
+  --shadow-brand-glow: none;
+}
+
+/* Design system ds-v2 — CHỈ áp khi cờ môi trường NEXT_PUBLIC_DS_V2=true. Attribute
+   `data-ds="v2"` gắn trên <html> bởi app/layout.tsx. Cờ tắt → rơi về khối `:root`
+   phía trên. Specificity `:root[data-ds="v2"]` (0,2,0) > `:root` (0,1,0) nên LUÔN thắng
+   khi có mặt, không phụ thuộc thứ tự khai báo trong file. */
+:root[data-ds="v2"] {
+  /* ds-v2: 0.75rem → 0.83rem để scale --radius-sm cascade (input 8px, card 12-20px, dialog ~20px). */
+  --radius: 0.83rem;
+  /* Hệ shadow ds-v2: card 0 5px 10px, popover/dialog 0 10px 24px; shadow brand-glow nhuộm
+     màu primary green cho phần tử nhấn. */
+  --shadow-card: 0 5px 10px rgba(15, 23, 42, 0.08);
+  --shadow-pop: 0 10px 24px rgba(15, 23, 42, 0.12);
+  --shadow-brand-glow: 0 0 0 1px rgba(21, 113, 71, 0.15), 0 4px 14px rgba(21, 113, 71, 0.35);
+}
+
+.dark {
+  --background: #0d0e11;
+  --foreground: #eceef2;
+  --card: #131418;
+  --card-foreground: #eceef2;
+  --popover: #131418;
+  --popover-foreground: #eceef2;
+  --primary: #7fb2da;
+  --primary-foreground: #0d0e11;
+  --secondary: #18191e;
+  --secondary-foreground: #eceef2;
+  --muted: #18191e;
+  --muted-foreground: #8d919c;
+  --accent: #1d1f24;
+  --accent-foreground: #eceef2;
+  --destructive: #c2413b;
+  --border: #23252b;
+  --input: #676b75;
+  --shadow-field: none;
+  --ring: #7fb2da;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: #131418;
+  --sidebar-foreground: #b4b8c2;
+  --sidebar-primary: #1d1f24;
+  --sidebar-primary-foreground: #eceef2;
+  --sidebar-accent: #18191e;
+  --sidebar-accent-foreground: #eceef2;
+  --sidebar-border: #23252b;
+  --sidebar-ring: #7fb2da;
+  /* KHÔNG override --shadow-card/pop/brand-glow ở đây — dark mode dùng chung giá trị
+     mặc định đã khai ở `:root`. Bật ds-v2 → xem `.dark[data-ds="v2"]` bên dưới. */
+}
+
+/* ds-v2 dark mode shadow — CHỈ áp khi cờ MỞ (xem
+   `:root[data-ds="v2"]` phía trên). */
+.dark[data-ds="v2"] {
+  /* Dark: shadow đen mờ vô hình trên nền tối → tăng alpha, KHÔNG dùng chung giá trị
+     light (contrast chữ không đổi — chỉ box-shadow, không phải text-on-bg). */
+  --shadow-card: 0 5px 14px rgba(0, 0, 0, 0.45);
+  --shadow-pop: 0 12px 28px rgba(0, 0, 0, 0.55);
+  --shadow-brand-glow: 0 0 0 1px rgba(46, 179, 104, 0.25), 0 4px 16px rgba(46, 179, 104, 0.30);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv11", "ss01", "ss03", "cv02";
+    text-rendering: optimizeLegibility;
+  }
+  html {
+    @apply font-sans;
+  }
+  h1, h2, h3 {
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .shadow-pop {
+    box-shadow: var(--shadow-pop);
+  }
+  .shadow-brand-glow {
+    box-shadow: var(--shadow-brand-glow);
+  }
+  .text-brand { color: var(--brand-green-700); }
+  .bg-brand { background-color: var(--brand-green-700); }
+  .bg-brand-hover { background-color: var(--brand-green-800); }
+  .bg-surface-green { background-color: var(--surface-green-50); }
+  .border-brand { border-color: var(--brand-green-700); }
+}
+
+/* ── Micro-animation & Reduced-motion ────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Sidebar nav item hover/active transitions */
+[data-slot="sidebar-menu-button"] {
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+/* Card hover elevation micro-lift — dùng token --shadow-pop nên tự đổi theo
+   cờ ds-v2. */
+[data-slot="card"] {
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+[data-slot="card"]:hover {
+  box-shadow: var(--shadow-pop);
+}
+
+/* Icon hover color shift in nav items */
+[data-slot="sidebar-menu-button"] svg {
+  transition: color 150ms ease, transform 150ms ease;
+}
+[data-slot="sidebar-menu-button"]:hover svg {
+  transform: scale(1.10);
+}
+
+/* Active button micro-press */
+[data-slot="button"]:active:not(:disabled) {
+  transform: scale(0.97);
+}
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.hide-placeholders input::placeholder,
+.hide-placeholders textarea::placeholder {
+  color: transparent !important;
+  opacity: 0 !important;
+}
+.hide-placeholders input::-webkit-input-placeholder,
+.hide-placeholders textarea::-webkit-input-placeholder {
+  color: transparent !important;
+  opacity: 0 !important;
+}
+/* Ngoại lệ: ô tìm nhanh không có nhãn riêng ⇒ cần chữ gợi ý (thanh công cụ Khách hàng). */
+.hide-placeholders input[data-show-placeholder]::placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 1 !important;
+}
+.hide-placeholders [data-placeholder] {
+  color: transparent !important;
+}
+.hide-placeholders [data-slot="select-value"][data-placeholder]::before,
+.hide-placeholders [data-slot="select-value"][data-placeholder]::after {
+  content: none !important;
+}
+.hide-placeholders input:not(:disabled),
+.hide-placeholders textarea:not(:disabled),
+.hide-placeholders [data-slot="select-trigger"]:not([disabled]):not([data-disabled]) {
+  /* nền ô nhập = token thẻ (trắng ở bản sáng, tối ở bản tối) — trước viết cứng #ffffff */
+  background-color: var(--card) !important;
+}
+
+/* ==========================================================================
+   Vùng chạm ≥ 44px (thumb-zone):
+   (a) điện thoại < 640px; (b) thiết bị cảm ứng ≥ 640px (iPad) `(pointer: coarse)`.
+   Đặt ở globals.css (không phải app-tokens.css: file đó bị test khoá mọi selector phải
+   bắt đầu bằng html:root[data-ui="app"])
+
+   Nằm trong `@layer components` để utility của màn (`absolute`, `min-h-*`) vẫn thắng.
+   (a) `@media (max-width: 639px)`: đổi cả min-height lẫn `::after` như dưới.
+   (b) `@media (pointer: coarse) and (min-width: 640px)`: CHỈ `::after` trong suốt
+   (không đổi bố cục bảng/thanh lọc/topbar của iPad), cho MỌI nút. Máy dùng chuột
+   (`pointer: fine`) KHÔNG đổi 1 pixel. Hai nút cạnh nhau cách < 8px thì vùng
+   `::after` chồng nhau vài px (nút ở trên DOM sau thắng) — chấp nhận được khi
+   khoảng cách >= 8px (gap-2); nút sát nhau hơn nên được gom vào menu.
+   - `Button` thường: min-height 44px; nút icon thêm min-width 44px.
+   - Nút nhỏ (`xs`/`icon-xs`), `link`, nút TRONG input-group, nút đóng của
+     dialog/sheet: KHÔNG đổi layout (đổi sẽ vỡ ô nhập / header) — mở rộng vùng
+     chạm bằng `::after` trong suốt (tối thiểu 44px). `position: relative`
+     nằm ở layer components nên `absolute`/`fixed`/`sticky` của màn vẫn thắng.
+   - Switch: `::after` đặt trong `components/ui/switch.tsx`; Checkbox (input
+     native, không có pseudo-element): phóng 20px bằng `max-sm:size-5` trong
+     `components/ui/checkbox.tsx` — vùng chạm 44px do `<label>` bọc của màn.
+   Nút là `render` của Trigger (DropdownMenu/Popover…) mất `data-slot=button`
+   (trigger ghi đè) nhưng giữ `data-variant`+`data-size` của Button → khớp bằng `:is(...)`.
+   Tab trigger: `max-sm:min-h-11` nằm trong `components/ui/tabs.tsx`.
+   ========================================================================== */
+@layer components {
+@media (max-width: 639px) {
+  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size]):not([data-size="xs"]):not([data-size="icon-xs"]):not([data-variant="link"]):not([data-slot="input-group"] :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])):not([data-slot="dialog-close"]):not([data-slot="sheet-close"]) {
+    min-height: 44px;
+  }
+  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])[data-size^="icon"]:not([data-size="icon-xs"]):not([data-slot="input-group"] :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])):not([data-slot="dialog-close"]):not([data-slot="sheet-close"]) {
+    min-width: 44px;
+  }
+  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])[data-size="xs"],
+  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])[data-size="icon-xs"],
+  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])[data-variant="link"],
+  [data-slot="input-group"] :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size]),
+  [data-slot="dialog-close"],
+  [data-slot="sheet-close"] {
+    position: relative;
+  }
+  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])[data-size="xs"]::after,
+  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])[data-size="icon-xs"]::after,
+  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])[data-variant="link"]::after,
+  [data-slot="input-group"] :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])::after,
+  [data-slot="dialog-close"]::after,
+  [data-slot="sheet-close"]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* (b) iPad / màn cảm ứng >= 640px: chỉ mở rộng vùng chạm bằng ::after, không đổi layout. */
+@media (pointer: coarse) and (min-width: 640px) {
+  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size]),
+  [data-slot="dialog-close"],
+  [data-slot="sheet-close"] {
+    position: relative;
+  }
+  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])::after,
+  [data-slot="dialog-close"]::after,
+  [data-slot="sheet-close"]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+
+  /*  (+ link dáng nút `buttonVariants` — `a.group/button`): nút/tab THÔ (không phải `Button`: topbar, chuông, menu tài khoản, chip lọc, tab Kanban…)
+     cũng được mở vùng chạm 44px bằng `::after` — MỘT chỗ dùng chung thay vì sửa từng nút.
+     Bỏ qua phần tử đã tự dùng `after:` (Switch, thanh gạch chân tab…) để không phá pseudo của nó.
+     Nút `Button` khớp cả hai khối nhưng khai báo GIỐNG HỆT nên không xung đột. `position: relative` ở layer
+     components nên `absolute/fixed/sticky` của màn vẫn thắng. */
+  :is(button, [role="button"], [role="tab"], a[class*="group/button"]):not([class*="after:"]),
+  .touch-target {
+    position: relative;
+  }
+  :is(button, [role="button"], [role="tab"], a[class*="group/button"]):not([class*="after:"])::after,
+  .touch-target::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+}

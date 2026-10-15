@@ -1,0 +1,100 @@
+{
+  "name": "Trinity — Khách mới → Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Khách mới → Telegram\n1. Kích hoạt workflow, chép **Production URL** của nút đầu.\n2. Trinity: Webhook ra › Thêm endpoint, chọn **Tạo khách hàng**. Chép secret vào nút Code.\n3. Tạo bot với @BotFather, thêm credential Telegram, điền chat id ở nút cuối.\nMuốn báo Slack: thay nút cuối bằng nút Slack, giữ nguyên hai nút đầu.\nSĐT bị che `***123` nếu người tạo endpoint không có quyền xem SĐT đầy đủ.",
+        "height": 260,
+        "width": 420
+      },
+      "id": "4c0ec347-f94a-474a-8a65-d5d0e1860e1b",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "trinity-khach-moi",
+        "responseMode": "onReceived",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "58e10dca-43eb-4cd4-af11-92f5b79ccc67",
+      "name": "Trinity gửi khách mới",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "d6b7a292-ba32-4f36-be11-efaf0ae6dbc0"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Kiểm chữ ký X-Trinity-Signature (HMAC-SHA256 trên body THÔ) và lọc đúng loại sự kiện.\n// Dán secret whsec_… (hiện một lần khi tạo endpoint ở Trinity: Cài đặt › Kết nối › Webhook ra).\nconst SECRET = 'whsec_DAN_SECRET_CUA_BAN_VAO_DAY';\nconst WANT = 'contact.created';\nconst crypto = require('crypto');\n\nconst item = $input.first();\nconst headers = item.json.headers ?? {};\nconst sig = String(headers['x-trinity-signature'] ?? '');\nconst parts = Object.fromEntries(sig.split(',').map((p) => p.split('=')));\nconst t = Number(parts.t);\nif (!t || Math.abs(Date.now() / 1000 - t) > 300) throw new Error('Chữ ký Trinity hết hạn hoặc thiếu');\nconst raw = (await this.helpers.getBinaryDataBuffer(0, 'data')).toString('utf8');\nconst expected = crypto.createHmac('sha256', SECRET).update(`${t}.${raw}`).digest('hex');\nconst got = String(parts.v1 ?? '');\nif (got.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(got), Buffer.from(expected))) throw new Error('Sai chữ ký Trinity');\n\nconst evt = JSON.parse(raw);\nif (evt.type === 'ping') return [];          // nút \"Gửi thử\" của Trinity\nif (evt.type !== WANT) return [];            // endpoint có thể nhận nhiều loại sự kiện\nreturn [{ json: { delivery_id: evt.id, ...{\n  ten: evt.data.contact.full_name,\n  sdt: evt.data.contact.phone,\n  email: evt.data.contact.email,\n  nguon: evt.data.origin ?? '',\n  contact_id: evt.data.contact.id,\n} } }];\n"
+      },
+      "id": "76cad108-3e9d-43f2-81cd-a3122ef9ff9e",
+      "name": "Kiểm chữ ký + lấy dữ liệu khách",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "DAN_CHAT_ID",
+        "text": "=Khách mới trên Trinity: {{ $json.ten }} — {{ $json.sdt }}{{ $json.email ? ' — ' + $json.email : '' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "df5c31d8-c50a-47be-b1d4-8a47f90ebb61",
+      "name": "Báo vào Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Trinity gửi khách mới": {
+      "main": [
+        [
+          {
+            "node": "Kiểm chữ ký + lấy dữ liệu khách",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kiểm chữ ký + lấy dữ liệu khách": {
+      "main": [
+        [
+          {
+            "node": "Báo vào Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

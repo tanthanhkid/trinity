@@ -1,0 +1,99 @@
+{
+  "name": "trinity",
+  "description": "Trinity — The open-source AI-native CRM",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://phanmemtrinity.com",
+  "bugs": "https://github.com/tanthanhkid/trinity/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tanthanhkid/trinity.git"
+  },
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "dev:all": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "build:web": "pnpm --filter web build",
+    "build:vercel": "pnpm db:generate && bash scripts/vercel/db-setup.sh && pnpm --filter \"./packages/*\" build && pnpm --filter @trinity/monolith build && bash scripts/vercel/prepare-nest-package.sh && TRINITY_RUNTIME=serverless NEXT_PUBLIC_REALTIME_MODE=poll pnpm --filter web build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "typecheck": "pnpm -r typecheck",
+    "db:generate": "pnpm --filter @trinity/prisma generate",
+    "db:migrate": "pnpm --filter @trinity/prisma migrate:dev",
+    "db:seed": "pnpm --filter @trinity/prisma seed",
+    "db:studio": "pnpm --filter @trinity/prisma studio",
+    "clean": "pnpm -r exec rm -rf dist .next node_modules"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@10.6.5",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "bcrypt",
+      "esbuild",
+      "sharp"
+    ],
+    "ignoredBuiltDependencies": [
+      "@nestjs/core",
+      "msw",
+      "unrs-resolver"
+    ],
+    "overrides": {
+      "@aws-sdk/xml-builder@^3.972": "3.972.30",
+      "@babel/core@^7": "^7.29.6",
+      "@hono/node-server@^1": "^1.19.15",
+      "@humanfs/node@^0.16": "^0.16.8",
+      "@modelcontextprotocol/sdk@^1": "^1.31.0",
+      "@opentelemetry/core@^2": "^2.8.0",
+      "ajv@^8": "^8.18.0",
+      "axios@^1": "^1.20.0",
+      "baseline-browser-mapping@^2": "^2.11.28",
+      "body-parser@^1": "^1.20.6",
+      "body-parser@^2": "^2.3.0",
+      "brace-expansion@^1": "^1.1.20",
+      "brace-expansion@^2": "^2.1.6",
+      "brace-expansion@^5": "^5.0.11",
+      "browserslist@^4": "^4.28.7",
+      "defu@^6": "^6.1.5",
+      "engine.io@^6": "^6.6.10",
+      "esbuild@^0.28": "^0.28.1",
+      "fast-uri@^3": "^3.1.7",
+      "fast-xml-builder@^1": "^1.1.7",
+      "fflate@^0.8": "^0.8.3",
+      "form-data@^4": "^4.0.6",
+      "glob@^10": "^10.5.0",
+      "handlebars@^4": "^4.7.10",
+      "hono@^4": "^4.12.25",
+      "ip-address@^10": "^10.3.1",
+      "js-yaml@^3": "^3.15.2",
+      "js-yaml@^4": "^4.3.2",
+      "lodash@^4": "^4.18.0",
+      "multer@^2": "^2.3.0",
+      "nanoid@^3": "^3.3.18",
+      "nanoid@^5": "^5.1.16",
+      "picomatch@^4": "^4.0.4",
+      "postcss-selector-parser@^7": "^7.1.6",
+      "postcss@^8": "^8.5.18",
+      "proxy-addr@^2": "^2.0.8",
+      "qs@^6": "^6.16.0",
+      "socket.io-parser@^4": "^4.2.7",
+      "source-map-js@^1": "^1.2.2",
+      "tmp@^0.2": "^0.2.6",
+      "undici@^6": "^6.28.1",
+      "uuid@^11": "^11.1.1",
+      "webpack@^5": "^5.104.1",
+      "ws@^8": "^8.21.0"
+    }
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}

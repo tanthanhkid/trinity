@@ -1,0 +1,166 @@
+{
+  "name": "Trinity — Tạo đơn + việc từ n8n",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Gửi đơn + việc vào Trinity\n1. Trinity: Cài đặt › Khoá API › Tạo khoá, chọn **Tạo thương vụ / đơn** và **Tạo việc** (thêm **Tạo khách hàng** nếu muốn tạo khách mới theo SĐT).\n2. n8n: credential **Header Auth**, Name `X-API-Key`, Value = khoá `trinity_live_…`; chọn nó ở hai nút HTTP.\n3. Điền `trinity_url` và `column_id` (lấy từ GET /api/v1/public/tasks/columns).\n4. Thay nút *Chạy thử* bằng trigger của bạn (form, Google Sheets, Shopify…).",
+        "height": 260,
+        "width": 420
+      },
+      "id": "ebf8584c-4da5-4f31-acd3-4d5f8dad4029",
+      "name": "Hướng dẫn",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -320
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "50813796-5f53-4c04-adb6-1ea5c237dc48",
+      "name": "Chạy thử",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d7a8a6e3-f6a4-483b-8ff7-b25e695a0025",
+              "name": "trinity_url",
+              "value": "https://crm.example.com",
+              "type": "string"
+            },
+            {
+              "id": "3a301ea9-e198-44a3-83da-141572d6b623",
+              "name": "column_id",
+              "value": 1,
+              "type": "number"
+            },
+            {
+              "id": "cf63fdfc-c727-483b-873b-3326ae525816",
+              "name": "ten_khach",
+              "value": "Nguyễn Văn A",
+              "type": "string"
+            },
+            {
+              "id": "3c7dabd8-e38b-4e5d-bd7b-429c147c0f01",
+              "name": "sdt",
+              "value": "0912345678",
+              "type": "string"
+            },
+            {
+              "id": "5b31dcdf-f009-44d3-aa47-7c97f4386442",
+              "name": "ten_don",
+              "value": "Đơn website #1001",
+              "type": "string"
+            },
+            {
+              "id": "a04a57ee-9b1c-4b89-9154-6f82d280e632",
+              "name": "gia_tri",
+              "value": 1500000,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "28d0df83-ace6-4324-a07e-821281b3b01a",
+      "name": "Dữ liệu vào (thay bằng form/sheet của bạn)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Dữ liệu vào (thay bằng form/sheet của bạn)').item.json.trinity_url }}/api/v1/public/deals",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": {{ JSON.stringify($('Dữ liệu vào (thay bằng form/sheet của bạn)').item.json.ten_don) }},\n  \"value\": {{ $('Dữ liệu vào (thay bằng form/sheet của bạn)').item.json.gia_tri }},\n  \"contact_phone\": {{ JSON.stringify($('Dữ liệu vào (thay bằng form/sheet của bạn)').item.json.sdt) }},\n  \"contact_name\": {{ JSON.stringify($('Dữ liệu vào (thay bằng form/sheet của bạn)').item.json.ten_khach) }}\n}",
+        "options": {}
+      },
+      "id": "cd082782-13b1-4188-aa99-5f8140d88984",
+      "name": "Tạo đơn trên Trinity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Dữ liệu vào (thay bằng form/sheet của bạn)').item.json.trinity_url }}/api/v1/public/tasks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"column_id\": {{ $('Dữ liệu vào (thay bằng form/sheet của bạn)').item.json.column_id }},\n  \"title\": {{ JSON.stringify('Gọi xác nhận ' + $('Dữ liệu vào (thay bằng form/sheet của bạn)').item.json.ten_don) }},\n  \"contact_phone\": {{ JSON.stringify($('Dữ liệu vào (thay bằng form/sheet của bạn)').item.json.sdt) }},\n  \"priority\": \"high\",\n  \"labels\": [\"n8n\"]\n}",
+        "options": {}
+      },
+      "id": "b1d2494f-8fa4-4a08-9f10-7c36d96330b2",
+      "name": "Tạo việc gọi lại khách",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Chạy thử": {
+      "main": [
+        [
+          {
+            "node": "Dữ liệu vào (thay bằng form/sheet của bạn)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dữ liệu vào (thay bằng form/sheet của bạn)": {
+      "main": [
+        [
+          {
+            "node": "Tạo đơn trên Trinity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tạo đơn trên Trinity": {
+      "main": [
+        [
+          {
+            "node": "Tạo việc gọi lại khách",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

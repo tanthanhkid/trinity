@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 108" width="96" height="108" role="img" aria-label="Trợ lý Trinity AI">
+  <title>Trinity AI</title>
+  <defs>
+    <filter id="trinity-mascot-glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="3.2" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- antenna -->
+  <line x1="48" y1="4" x2="48" y2="17" stroke="#24ecfb" stroke-width="4" stroke-linecap="round" />
+  <circle cx="48" cy="6" r="5" fill="#24ecfb" filter="url(#trinity-mascot-glow)" />
+
+  <!-- head -->
+  <rect x="14" y="16" width="68" height="54" rx="20" fill="#098577" stroke="#24ecfb" stroke-opacity="0.35" stroke-width="2" />
+
+  <!-- side sensors -->
+  <rect x="6" y="36" width="8" height="16" rx="4" fill="#08766a" />
+  <rect x="82" y="36" width="8" height="16" rx="4" fill="#08766a" />
+
+  <!-- visor + eyes -->
+  <rect x="24" y="37" width="48" height="17" rx="8.5" fill="#eafffb" />
+  <circle cx="35" cy="45.5" r="3.4" fill="#101b46" />
+  <circle cx="61" cy="45.5" r="3.4" fill="#101b46" />
+
+  <!-- smile -->
+  <path d="M40 61 Q48 66 56 61" fill="none" stroke="#046b60" stroke-width="3" stroke-linecap="round" opacity="0.6" />
+
+  <!-- body -->
+  <path d="M23 70 H73 L81 99 Q81 104 76 104 H20 Q15 104 15 99 Z" fill="#08766a" />
+  <circle cx="48" cy="87" r="5.5" fill="#24ecfb" filter="url(#trinity-mascot-glow)" />
+</svg>

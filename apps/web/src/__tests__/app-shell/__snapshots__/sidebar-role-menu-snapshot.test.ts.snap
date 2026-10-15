@@ -1,0 +1,67 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Tập menu hiển thị theo tổ hợp quyền — snapshot chống drift > Chỉ Báo cáo 1`] = `
+[
+  "dashboard",
+  "reports",
+  "newsfeed",
+  "attendance",
+  "settings",
+]
+`;
+
+exports[`Tập menu hiển thị theo tổ hợp quyền — snapshot chống drift > Chỉ Khách hàng + Deal 1`] = `
+[
+  "dashboard",
+  "contacts",
+  "newsfeed",
+  "attendance",
+  "settings",
+]
+`;
+
+exports[`Tập menu hiển thị theo tổ hợp quyền — snapshot chống drift > Không có quyền gì 1`] = `
+[
+  "dashboard",
+  "newsfeed",
+  "attendance",
+  "settings",
+]
+`;
+
+exports[`Tập menu hiển thị theo tổ hợp quyền — snapshot chống drift > Nhân sự + Lương 1`] = `
+[
+  "dashboard",
+  "newsfeed",
+  "attendance",
+  "payroll",
+  "management>management_employees",
+  "management>management_contracts",
+  "management>management_recruitment",
+  "management>management_workdays",
+  "settings",
+]
+`;
+
+exports[`Tập menu hiển thị theo tổ hợp quyền — snapshot chống drift > Quản trị (mọi quyền) 1`] = `
+[
+  "dashboard",
+  "inbox",
+  "products",
+  "pos",
+  "ai_actions",
+  "contacts",
+  "reports",
+  "newsfeed",
+  "kanban",
+  "social",
+  "attendance",
+  "payroll",
+  "management>management_employees",
+  "management>management_contracts",
+  "management>management_job_titles",
+  "management>management_recruitment",
+  "management>management_workdays",
+  "settings",
+]
+`;

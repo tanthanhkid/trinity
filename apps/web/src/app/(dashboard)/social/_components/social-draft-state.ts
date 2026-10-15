@@ -2,6 +2,7 @@ import type { SocialDraft, SocialMediaItem } from "@/hooks/use-social"
 import { youtubeChoiceFrom, type YoutubeChoice } from "./youtube-post-options"
 import type { TiktokChoice } from "./tiktok-post-options"
 import { utmChoiceFromTargets, type UtmChoice } from "./social-utm"
+import type { RecurrenceForm } from "./social-recurrence-rules"
 
 /** Trạng thái ô soạn của web, lưu nguyên vào `ui` của nháp để mở lại đúng như cũ (máy chủ không đọc). */
 export interface ComposerState {
@@ -18,6 +19,9 @@ export interface ComposerState {
   useQueue?: boolean
   /** Gắn UTM vào liên kết. */
   utm?: UtmChoice
+  /** Chọn "Lặp lại" và cấu hình lặp (chỉ lưu trong trạng thái ô soạn — nháp không phải lịch lặp). */
+  recurOn?: boolean
+  recur?: RecurrenceForm
   /** Tệp đã tải xong (kèm tên hiển thị). */
   uploads: Array<{ name: string; item: SocialMediaItem; libId?: number }>
 }

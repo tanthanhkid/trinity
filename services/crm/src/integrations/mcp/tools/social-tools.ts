@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { wrapData } from '../ai-output';
 import { activityRange, vnIso } from './ai-activity-tool';
 import { ActionUserError } from '../actions/action-types';
+import { describeRule, recurrenceStatus } from '../actions/action-recurring-tools';
 import { VN_WEEKDAYS, captionsParam, mergeOptions, optionsFromCaption, parseScheduledAt, utmFromArgs, utmParams, vnWhen } from '../actions/action-social-tools';
 import { ToolUserError, clampLimit, optInt, rejectDigitProbe, type McpDeps, type ToolDef } from './tool-types';
 
@@ -627,7 +628,43 @@ export const refreshSocialPostMetricsTool: ToolDef = {
   },
 };
 
-export const SOCIAL_READ_TOOLS: readonly ToolDef[] = [listSocialAccountsTool, listSocialPostsTool, getSocialPostTool, getSocialPostStatsTool, listSocialMediaTool, listYoutubePlaylistsTool, listSocialDraftsTool, listQueueSlotsTool, listSocialSnippetsTool, previewSocialPostTool];
+export const listRecurringPostsTool: ToolDef = {
+  name: 'list_recurring_posts',
+  title: 'Bài đăng lặp lại / List recurring posts',
+  description:
+    'Các lịch đăng lặp lại của công ty (hằng ngày / tuần / tháng, giờ Việt Nam): tên, nội dung, kênh, luật lặp, trạng thái (active = đang chạy, paused = tạm dừng, finished = đã hết), số bài đã tạo, 3 lần đăng tới (tính ra theo giờ Việt Nam), lỗi nếu lịch bị tạm dừng tự động (vd kênh cần liên kết lại) và vài bài gần nhất của lịch. recurrence_id dùng cho update_recurring_post / set_recurring_post_active. Chỉ đọc. / ' +
+    'The company\'s recurring post schedules (daily / weekly / monthly, Vietnam time): name, text, channels, rule, status (active, paused, finished), posts created so far, the next 3 run times (computed, Vietnam time), the error if it was paused automatically (e.g. a channel needs re-linking) and its latest posts. Use recurrence_id with update_recurring_post / set_recurring_post_active. Read-only.',
+  permissions: ['social.post'],
+  input: () => ({}),
+  output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
+  async run(_args, { deps }) {
+    const s = await socialDeps(deps);
+    const rows = await s.recurrences.list();
+    const out = wrapData({
+      timezone: 'Asia/Ho_Chi_Minh',
+      recurrences: rows.map((r) => ({
+        recurrence_id: r.id,
+        title: r.title,
+        status: recurrenceStatus(r),
+        rule: describeRule(r.rule),
+        content: r.template.content,
+        account_ids: r.template.targets.map((t) => t.account_id),
+        media_count: r.template.media_keys.length,
+        utm_campaign: r.template.utm?.campaign ?? null,
+        starts_on: r.starts_on,
+        ends_on: r.ends_on,
+        max_count: r.max_count,
+        posts_created: r.count,
+        next_times: r.next_times.map((t) => vnWhen(new Date(t))),
+        last_error: r.last_error,
+        recent_posts: r.posts.map((p) => ({ post_id: p.id, status: p.status, scheduled_at: vnIso(p.scheduled_at) })),
+      })),
+    });
+    return { structured: out, text: JSON.stringify(out) };
+  },
+};
+
+export const SOCIAL_READ_TOOLS: readonly ToolDef[] = [listSocialAccountsTool, listSocialPostsTool, getSocialPostTool, getSocialPostStatsTool, listSocialMediaTool, listYoutubePlaylistsTool, listSocialDraftsTool, listQueueSlotsTool, listSocialSnippetsTool, previewSocialPostTool, listRecurringPostsTool];
 
 /** Ghi (lưu số liệu mới) ⇒ cần crm.write. */
 export const SOCIAL_METRICS_TOOLS: readonly ToolDef[] = [refreshSocialPostMetricsTool, saveSocialDraftTool, setQueueSlotsTool, saveSocialSnippetTool];

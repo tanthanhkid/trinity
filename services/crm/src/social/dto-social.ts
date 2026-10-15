@@ -141,3 +141,28 @@ export class SocialImportPlanDto {
 export class SocialImportDto extends SocialImportPlanDto {
   @ApiProperty({ description: 'plan_hash của bản kiểm tra người dùng đã xem; khác bản kiểm lại ⇒ 409' }) @IsString() @Length(64, 64) plan_hash!: string;
 }
+
+export class SocialRecurrenceRuleDto {
+  @ApiPropertyOptional({ enum: ['daily', 'weekly', 'monthly'] }) @IsOptional() @IsIn(['daily', 'weekly', 'monthly'], { message: 'freq phải là daily, weekly hoặc monthly' }) freq?: 'daily' | 'weekly' | 'monthly';
+  @ApiPropertyOptional({ description: 'Mỗi N ngày/tuần/tháng (1–12, mặc định 1)' }) @IsOptional() @IsInt() @Min(1) @Max(12) interval?: number;
+  @ApiPropertyOptional({ type: [Number], description: 'Chỉ weekly: 0 = Chủ nhật … 6; bỏ trống = đúng thứ của ngày bắt đầu' })
+  @IsOptional() @IsArray() @ArrayMaxSize(7) @IsInt({ each: true }) @Min(0, { each: true }) @Max(6, { each: true }) weekdays?: number[];
+  @ApiPropertyOptional({ description: 'Chỉ monthly: ngày 1–31 (tháng ngắn lấy ngày cuối tháng)' }) @IsOptional() @IsInt() @Min(1) @Max(31) month_day?: number;
+  @ApiPropertyOptional({ example: '09:00', description: 'HH:mm giờ Việt Nam' }) @IsOptional() @IsString() @MaxLength(5) time?: string;
+}
+
+export class SocialRecurrenceTemplateDto {
+  @ApiPropertyOptional({ description: 'Nội dung chung' }) @IsOptional() @IsString() @MaxLength(70_000) content?: string;
+  @ApiPropertyOptional({ type: [String] }) @IsOptional() @IsArray() @ArrayMaxSize(10) @IsString({ each: true }) @MaxLength(200, { each: true }) media_keys?: string[];
+  @ApiPropertyOptional({ type: [SocialTargetDto] }) @IsOptional() @IsArray() @ArrayMinSize(1) @ArrayMaxSize(20) @ValidateNested({ each: true }) @Type(() => SocialTargetDto) targets?: SocialTargetDto[];
+  @ApiPropertyOptional({ type: SocialUtmDto, nullable: true }) @IsOptional() @ValidateNested() @Type(() => SocialUtmDto) utm?: SocialUtmDto | null;
+}
+
+export class SocialRecurrenceDto {
+  @ApiPropertyOptional({ description: 'Tên gợi nhớ 1–120 ký tự (bắt buộc khi tạo)' }) @IsOptional() @IsString() @MaxLength(200) title?: string;
+  @ApiPropertyOptional({ type: SocialRecurrenceTemplateDto, description: 'Bài sẽ đăng mỗi lần (bắt buộc khi tạo; khi sửa chỉ trường có gửi)' }) @IsOptional() @ValidateNested() @Type(() => SocialRecurrenceTemplateDto) template?: SocialRecurrenceTemplateDto;
+  @ApiPropertyOptional({ type: SocialRecurrenceRuleDto, description: 'Luật lặp (bắt buộc khi tạo; khi sửa chỉ trường có gửi)' }) @IsOptional() @ValidateNested() @Type(() => SocialRecurrenceRuleDto) rule?: SocialRecurrenceRuleDto;
+  @ApiPropertyOptional({ example: '2026-10-20', description: 'Ngày bắt đầu YYYY-MM-DD (giờ Việt Nam; bắt buộc khi tạo)' }) @IsOptional() @IsString() @MaxLength(10) starts_on?: string;
+  @ApiPropertyOptional({ nullable: true, description: 'Ngày kết thúc YYYY-MM-DD; null = không kết thúc' }) @IsOptional() @IsString() @MaxLength(10) ends_on?: string | null;
+  @ApiPropertyOptional({ nullable: true, description: 'Dừng sau N bài (1–1000); null = không giới hạn' }) @IsOptional() @IsInt() @Min(1) @Max(1000) max_count?: number | null;
+}

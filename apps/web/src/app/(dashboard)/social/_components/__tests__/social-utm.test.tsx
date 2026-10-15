@@ -22,6 +22,7 @@ vi.mock("@/hooks/use-social", async (orig) => ({
   useTiktokCreatorInfos: () => ({}),
   useSocialMutations: () => ({
     create: { isPending: false, mutateAsync: state.create },
+    createRecurrence: { isPending: false, mutateAsync: vi.fn() },
     saveDraft: { isPending: false, mutate: state.saveDraft, mutateAsync: vi.fn() },
     publishDraft: { isPending: false, mutateAsync: vi.fn() },
   }),

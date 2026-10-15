@@ -247,6 +247,50 @@ export function useQueueNext(count = 1, enabled = true) {
   })
 }
 
+/** Bài lặp lại — khớp `RecurrenceView` phía BE. */
+export interface SocialRecurrence {
+  id: number
+  title: string
+  template: { content: string; media_keys: string[]; targets: Array<{ account_id: number; caption?: string | null; options?: Record<string, unknown> }>; utm?: { campaign: string; content?: string } | null }
+  rule: { freq: "daily" | "weekly" | "monthly"; interval: number; weekdays?: number[]; month_day?: number; time: string }
+  starts_on: string
+  ends_on: string | null
+  max_count: number | null
+  count: number
+  next_run_at: string | null
+  active: boolean
+  last_error: string | null
+  /** 3 lần đăng tới (ISO, máy chủ tính). */
+  next_times: string[]
+  posts: Array<{ id: number; status: SocialPost["status"]; scheduled_at: string | null }>
+}
+
+export interface CreateRecurrenceBody {
+  title: string
+  template: { content: string; media_keys: string[]; targets: Array<{ account_id: number; caption: string | null; options?: Record<string, unknown> }>; utm?: { campaign: string; content?: string } | null }
+  rule: SocialRecurrence["rule"]
+  starts_on: string
+  ends_on: string | null
+  max_count: number | null
+}
+
+export function useSocialRecurrences() {
+  return useQuery({
+    queryKey: [...KEY, "recurrences"],
+    queryFn: async () => (await apiClient.get<{ data: SocialRecurrence[] }>("/social/recurrences")).data.data,
+  })
+}
+
+export function useRecurrenceMutations() {
+  const qc = useQueryClient()
+  const refresh = () => qc.invalidateQueries({ queryKey: KEY })
+  return {
+    pause: useMutation({ mutationFn: async (id: number) => (await apiClient.post<{ data: SocialRecurrence }>(`/social/recurrences/${id}/pause`)).data.data, onSuccess: refresh }),
+    resume: useMutation({ mutationFn: async (id: number) => (await apiClient.post<{ data: SocialRecurrence }>(`/social/recurrences/${id}/resume`)).data.data, onSuccess: refresh }),
+    remove: useMutation({ mutationFn: (id: number) => apiClient.delete(`/social/recurrences/${id}`), onSuccess: refresh }),
+  }
+}
+
 export function useSocialDrafts() {
   return useQuery({
     queryKey: [...KEY, "drafts"],
@@ -416,6 +460,8 @@ export function useSocialMutations() {
     }),
     disconnect: useMutation({ mutationFn: (id: number) => apiClient.delete(`/social/accounts/${id}`), onSuccess: refresh }),
     create: useMutation({ mutationFn: async (body: CreateSocialPostBody) => (await apiClient.post<SocialPost>("/social/posts", body)).data, onSuccess: refresh }),
+    /** Tạo bài lặp lại (thay cho tạo bài): máy chủ giữ đúng một bài hẹn sắp tới. */
+    createRecurrence: useMutation({ mutationFn: async (body: CreateRecurrenceBody) => (await apiClient.post<{ data: SocialRecurrence }>("/social/recurrences", body)).data.data, onSuccess: refresh }),
     update: useMutation({ mutationFn: async ({ id, body }: { id: number; body: CreateSocialPostBody }) => (await apiClient.patch<SocialPost>(`/social/posts/${id}`, body)).data, onSuccess: refresh }),
     /** Lưu nháp: có `id` thì sửa nháp đó, không thì tạo mới. */
     saveDraft: useMutation({

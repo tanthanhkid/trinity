@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { CalendarClock, ImagePlus, Images, ListPlus, Loader2, Save, Send, X } from "lucide-react"
+import { CalendarClock, ImagePlus, Images, ListPlus, Loader2, Repeat, Save, Send, X } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -34,6 +34,9 @@ import { queueWhenLabel } from "./social-queue"
 import { SnippetMenu, SocialSnippetsDialog, insertSnippet, signaturePrefill } from "./social-snippets"
 import { EMPTY_UTM_CHOICE, defaultCampaign, firstLinkWithUtm, utmPayload, withUtm, type UtmChoice } from "./social-utm"
 import { composerStateFrom, type ComposerState } from "./social-draft-state"
+import { RecurrenceFields } from "./social-recurrence"
+import { emptyRecurrence, recurrenceError, recurrenceSchedule } from "./social-recurrence-rules"
+import { todayVn } from "@/lib/format"
 import { EMPTY_YOUTUBE_CHOICE, YoutubePostOptions, youtubeOptionsOf, type YoutubeChoice } from "./youtube-post-options"
 import { EMPTY_TIKTOK_CHOICE, TIKTOK_BRANDED_URL, TIKTOK_MUSIC_URL, TiktokPostOptions, tiktokBlocker, tiktokOptionsOf, type TiktokChoice } from "./tiktok-post-options"
 
@@ -91,9 +94,9 @@ function Counter({ text, limit }: { text: string; limit: number }) {
 }
 
 /** Soạn một lần, chọn kênh, sửa nội dung riêng từng kênh, đăng ngay. */
-export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, draft }: { onCreated: () => void; onGoChannels: () => void; onGoCalendar?: () => void; preset?: { at: string; n: number }; draft?: SocialDraft }) {
+export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, draft }: { onCreated: (kind?: "recurring") => void; onGoChannels: () => void; onGoCalendar?: () => void; preset?: { at: string; n: number }; draft?: SocialDraft }) {
   const { data: accounts = [], isLoading } = useSocialAccounts()
-  const { create, saveDraft, publishDraft } = useSocialMutations()
+  const { create, saveDraft, publishDraft, createRecurrence } = useSocialMutations()
   // Mở từ một nháp: khôi phục trạng thái ô soạn một lần lúc dựng (đổi nháp ⇒ màn cha dựng lại bằng `key`).
   const [init] = useState<ComposerState | null>(() => (draft ? composerStateFrom(draft) : null))
   /** Nháp đang mở / vừa lưu: lưu tiếp thì sửa nháp này; đăng xong thì xoá nháp. */
@@ -140,8 +143,12 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
   const [side, setSide] = useState<"channels" | "preview">("channels")
   const nextQ = useQueueNext(1, useQueue || (slotsQ.data?.length ?? 0) > 0)
   const nextSlot = nextQ.data?.[0]
-  const mode: "now" | "schedule" | "queue" = useQueue ? "queue" : scheduleOn ? "schedule" : "now"
-  const pickMode = (m: "now" | "schedule" | "queue") => {
+  /** "Lặp lại": tạo lịch lặp (không tạo bài ngay); máy chủ tự hẹn từng bài kế tiếp. */
+  const [recurOn, setRecurOn] = useState(init?.recurOn ?? false)
+  const [recur, setRecur] = useState(() => init?.recur ?? emptyRecurrence(todayVn()))
+  const mode: "now" | "schedule" | "queue" | "recurring" = recurOn ? "recurring" : useQueue ? "queue" : scheduleOn ? "schedule" : "now"
+  const pickMode = (m: "now" | "schedule" | "queue" | "recurring") => {
+    setRecurOn(m === "recurring")
     setUseQueue(m === "queue")
     setScheduleOn(m === "schedule")
     if (m === "schedule" && !scheduleAt) setScheduleAt(toLocalInput(new Date(Date.now() + 60 * 60_000)))
@@ -240,7 +247,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
   const draftBody = () => {
     const at = scheduleOn && !useQueue && scheduleAt ? new Date(scheduleAt) : null
     const ui: ComposerState = {
-      content, selected, captions, openCaption, ytChoice, fbFirst, ttChoice, scheduleOn, scheduleAt, useQueue, utm,
+      content, selected, captions, openCaption, ytChoice, fbFirst, ttChoice, scheduleOn, scheduleAt, useQueue, utm, recurOn, recur,
       uploads: uploads.flatMap((u) => (u.item ? [{ name: u.name, item: u.item, libId: u.libId }] : [])),
     }
     return {
@@ -267,7 +274,32 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
     )
   }
 
+  const submitRecurring = () => {
+    const title = content.trim().replace(/\s+/g, " ").slice(0, 60) || "Bài lặp lại"
+    createRecurrence.mutateAsync({ title, template: { content, media_keys: media.map((m) => m.key), targets: buildTargets(), ...(utmCfg ? { utm: utmCfg } : {}) }, ...recurrenceSchedule(recur) }).then(
+      (r) => {
+        toast.success(`Đã tạo bài lặp lại "${r.title}".`, { description: r.last_error ?? "Quản lý ở tab Lịch › Bài lặp lại." })
+        setRecurOn(false)
+        setContent("")
+        setSelected([])
+        setCaptions({})
+        setOpenCaption({})
+        setYtChoice({})
+        setFbFirst({})
+        setTtChoice({})
+        setUtm(EMPTY_UTM_CHOICE)
+        setUploads([])
+        setRecur(emptyRecurrence(todayVn()))
+        prefilled.current = false
+        setRefill((n) => n + 1)
+        onCreated("recurring")
+      },
+      (err) => toast.error(getApiErrorMessage(err, "Không tạo được bài lặp lại")),
+    )
+  }
+
   const submit = () => {
+    if (recurOn) return submitRecurring()
     const scheduledAt = scheduleOn && !useQueue ? new Date(scheduleAt).toISOString() : null
     // Đang mở một nháp: lưu bản đang thấy rồi đăng QUA nháp (máy chủ giữ chỗ ⇒ hai người mở cùng nháp không đăng hai lần,
     // và chỉ đăng đúng bản vừa lưu). Không có nháp thì tạo bài như thường.
@@ -329,8 +361,9 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
   // Nháp được thiếu mọi thứ — chỉ cần có gì đó để lưu, không bị chặn bởi lỗi kiểm tra.
   const canSaveDraft = !saveDraft.isPending && !uploading && (Boolean(typed) || uploads.some((u) => u.item) || selected.length > 0)
   const schedErr = mode === "schedule" ? scheduleError(scheduleAt) : null
+  const recurErr = mode === "recurring" ? recurrenceError(recur) : null
   const queueBlock = mode === "queue" && (noSlots || (nextQ.isSuccess && !nextSlot))
-  const disabled = create.isPending || saveDraft.isPending || publishDraft.isPending || uploading || chosen.length === 0 || empty || tooLong || Boolean(schedErr) || queueBlock || Boolean(ttBlock)
+  const disabled = create.isPending || createRecurrence.isPending || saveDraft.isPending || publishDraft.isPending || uploading || chosen.length === 0 || empty || tooLong || Boolean(schedErr) || queueBlock || Boolean(ttBlock) || Boolean(recurErr)
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -384,7 +417,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
 
           <div className="space-y-2">
             <div role="radiogroup" aria-label="Thời điểm đăng" className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              {([["now", "Đăng ngay"], ["schedule", "Hẹn giờ"], ["queue", "Vào hàng đợi"]] as const).map(([m, label]) => {
+              {([["now", "Đăng ngay"], ["schedule", "Hẹn giờ"], ["queue", "Vào hàng đợi"], ["recurring", "Lặp lại"]] as const).map(([m, label]) => {
                 const off = m === "queue" && noSlots
                 return (
                   <label key={m} className={cn("flex items-center gap-1.5", off ? "cursor-not-allowed opacity-60" : "cursor-pointer")}>
@@ -405,6 +438,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
                 {nextQ.isLoading ? "Đang tìm khung trống…" : nextSlot ? `Khung trống gần nhất: ${queueWhenLabel(nextSlot)}` : "Không còn khung trống trong 90 ngày tới."}
               </p>
             )}
+            {mode === "recurring" && <RecurrenceFields value={recur} onChange={setRecur} />}
             {mode === "schedule" && (
               <div className="space-y-1">
                 <Input
@@ -484,8 +518,8 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
               Lưu nháp
             </Button>
             <Button onClick={submit} disabled={disabled} className="max-sm:w-full">
-              {create.isPending || publishDraft.isPending ? <Loader2 className="size-4 animate-spin" /> : mode === "queue" ? <ListPlus className="size-4" /> : mode === "schedule" ? <CalendarClock className="size-4" /> : <Send className="size-4" />}
-              {mode === "queue" ? "Thêm vào hàng đợi" : mode === "schedule" ? "Hẹn đăng" : "Đăng ngay"}{chosen.length > 0 ? ` (${chosen.length} kênh)` : ""}
+              {create.isPending || publishDraft.isPending || createRecurrence.isPending ? <Loader2 className="size-4 animate-spin" /> : mode === "recurring" ? <Repeat className="size-4" /> : mode === "queue" ? <ListPlus className="size-4" /> : mode === "schedule" ? <CalendarClock className="size-4" /> : <Send className="size-4" />}
+              {mode === "recurring" ? "Tạo bài lặp lại" : mode === "queue" ? "Thêm vào hàng đợi" : mode === "schedule" ? "Hẹn đăng" : "Đăng ngay"}{chosen.length > 0 ? ` (${chosen.length} kênh)` : ""}
             </Button>
             </div>
           </div>

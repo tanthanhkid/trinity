@@ -5,6 +5,7 @@ import { SocialDraftsService } from '../../../social/social-drafts.service';
 import { SocialQueueService } from '../../../social/social-queue.service';
 import { SocialSnippetsService } from '../../../social/social-snippets.service';
 import { SocialImportService } from '../../../social/social-import.service';
+import { SocialRecurrenceService } from '../../../social/social-recurrence.service';
 import { Prisma, type AiActionDraft } from '@prisma/client';
 import { IntegrationAuditService, PrismaService } from '@trinity/prisma';
 import { can } from '@trinity/rbac';
@@ -101,8 +102,9 @@ export class AiActionsService {
     @Optional() socialQueue?: SocialQueueService,
     @Optional() socialSnippets?: SocialSnippetsService,
     @Optional() socialImport?: SocialImportService,
+    @Optional() socialRecurrence?: SocialRecurrenceService,
   ) {
-    const social = socialPosts && socialAccounts && socialDrafts && socialQueue && socialSnippets && socialImport ? { posts: socialPosts, accounts: socialAccounts, drafts: socialDrafts, queue: socialQueue, snippets: socialSnippets, importer: socialImport } : undefined;
+    const social = socialPosts && socialAccounts && socialDrafts && socialQueue && socialSnippets && socialImport && socialRecurrence ? { posts: socialPosts, accounts: socialAccounts, drafts: socialDrafts, queue: socialQueue, snippets: socialSnippets, importer: socialImport, recurrences: socialRecurrence } : undefined;
     this.deps = { prisma, scope, contacts, cards, activities, transfer, records, validator, deals, objects, fields, templates, views, menu, orgFeatures, setup, versions, refs, links, social };
   }
 

@@ -25,6 +25,7 @@ import type { SocialDraftsService } from '../../../social/social-drafts.service'
 import type { SocialQueueService } from '../../../social/social-queue.service';
 import type { SocialSnippetsService } from '../../../social/social-snippets.service';
 import type { SocialImportService } from '../../../social/social-import.service';
+import type { SocialRecurrenceService } from '../../../social/social-recurrence.service';
 
 /** Service nghiệp vụ mà đề xuất của AI sẽ chạy qua khi người dùng duyệt (đúng service của giao diện web). */
 export interface ActionDeps {
@@ -55,7 +56,7 @@ export interface ActionDeps {
   refs: RecordRefsService;
   links: RecordLinksService;
   /** Đăng đa kênh (Facebook Page…): kênh đã liên kết + bài/lịch đăng; chỉ có khi module được nối. */
-  social?: { posts: SocialPostsService; accounts: SocialAccountsService; drafts: SocialDraftsService; queue: SocialQueueService; snippets: SocialSnippetsService; importer: SocialImportService };
+  social?: { posts: SocialPostsService; accounts: SocialAccountsService; drafts: SocialDraftsService; queue: SocialQueueService; snippets: SocialSnippetsService; importer: SocialImportService; recurrences: SocialRecurrenceService };
 }
 
 export interface ActionCtx {

@@ -13,6 +13,7 @@ import { SocialChannels } from "./social-channels"
 import { SocialComposer } from "./social-composer"
 import { SocialDraftsList } from "./social-drafts-list"
 import { SocialLibrary } from "./social-library"
+import { SocialRecurrenceList } from "./social-recurrence"
 import { SocialPostsList } from "./social-posts-list"
 import { SocialStats } from "./social-stats"
 
@@ -68,13 +69,14 @@ export function SocialScreen() {
           ))}
         </TabsList>
         <TabsContent value="compose">
-          <SocialComposer key={draft?.id ?? "new"} draft={draft} onCreated={() => { setDraft(undefined); setTab("posts") }} onGoChannels={() => setTab("channels")} onGoCalendar={() => setTab("calendar")} preset={preset} />
+          <SocialComposer key={draft?.id ?? "new"} draft={draft} onCreated={(kind) => { setDraft(undefined); setTab(kind === "recurring" ? "calendar" : "posts") }} onGoChannels={() => setTab("channels")} onGoCalendar={() => setTab("calendar")} preset={preset} />
         </TabsContent>
         <TabsContent value="drafts">
           <SocialDraftsList highlight={draftParam} onOpen={(d) => { setDraft(d); setTab("compose") }} onCompose={() => setTab("compose")} />
         </TabsContent>
-        <TabsContent value="calendar">
+        <TabsContent value="calendar" className="space-y-4">
           <SocialCalendar onOpen={openPost} onSchedule={(at) => { setPreset((p) => ({ at, n: (p?.n ?? 0) + 1 })); setTab("compose") }} />
+          <SocialRecurrenceList />
         </TabsContent>
         <TabsContent value="posts">
           <SocialPostsList highlight={highlight} onCompose={() => setTab("compose")} />

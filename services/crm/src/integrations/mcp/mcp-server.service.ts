@@ -5,6 +5,7 @@ import { SocialDraftsService } from '../../social/social-drafts.service';
 import { SocialQueueService } from '../../social/social-queue.service';
 import { SocialSnippetsService } from '../../social/social-snippets.service';
 import { SocialImportService } from '../../social/social-import.service';
+import { SocialRecurrenceService } from '../../social/social-recurrence.service';
 import { FacebookCommentsService } from '../../facebook/facebook-comments.service';
 import { FacebookChatLinksService } from '../../facebook/facebook-chat-links.service';
 import { FacebookFlowsService } from '../../facebook/facebook-flows.service';
@@ -107,8 +108,9 @@ export class McpServerService {
     @Optional() socialQueue?: SocialQueueService,
     @Optional() socialSnippets?: SocialSnippetsService,
     @Optional() socialImport?: SocialImportService,
+    @Optional() socialRecurrence?: SocialRecurrenceService,
   ) {
-    const social = socialPosts && socialAccounts && socialDrafts && socialQueue && socialSnippets && socialImport ? { posts: socialPosts, accounts: socialAccounts, drafts: socialDrafts, queue: socialQueue, snippets: socialSnippets, importer: socialImport } : undefined;
+    const social = socialPosts && socialAccounts && socialDrafts && socialQueue && socialSnippets && socialImport && socialRecurrence ? { posts: socialPosts, accounts: socialAccounts, drafts: socialDrafts, queue: socialQueue, snippets: socialSnippets, importer: socialImport, recurrences: socialRecurrence } : undefined;
     this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, extensions, extRuntime, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, payments };
   }
 

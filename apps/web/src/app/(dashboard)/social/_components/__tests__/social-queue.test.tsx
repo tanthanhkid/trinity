@@ -21,6 +21,7 @@ vi.mock("@/hooks/use-social", async (orig) => ({
   useTiktokCreatorInfos: () => ({}),
   useSocialMutations: () => ({
     create: { isPending: false, mutateAsync: state.create },
+    createRecurrence: { isPending: false, mutateAsync: vi.fn() },
     saveDraft: { isPending: false, mutate: vi.fn(), mutateAsync: vi.fn(async () => ({ id: 9, updated_at: "2026-10-15T00:00:00Z" })) },
     publishDraft: { isPending: false, mutateAsync: state.publishDraft },
     setQueueSlots: { isPending: false, mutate: state.setSlots },
@@ -86,9 +87,9 @@ describe("ô soạn: Vào hàng đợi", () => {
     fireEvent.change(screen.getByLabelText("Nội dung bài đăng"), { target: { value: "Xin chào" } })
     fireEvent.click(screen.getByRole("checkbox", { name: /Fanpage/ }))
   }
-  it("hiện ba lựa chọn; chọn hàng đợi ⇒ nêu khung trống gần nhất và gửi use_queue", async () => {
+  it("hiện bốn lựa chọn; chọn hàng đợi ⇒ nêu khung trống gần nhất và gửi use_queue", async () => {
     render(<SocialComposer onCreated={vi.fn()} onGoChannels={vi.fn()} />)
-    expect(screen.getAllByRole("radio").map((r) => r.parentElement?.textContent)).toEqual(["Đăng ngay", "Hẹn giờ", "Vào hàng đợi"])
+    expect(screen.getAllByRole("radio").map((r) => r.parentElement?.textContent)).toEqual(["Đăng ngay", "Hẹn giờ", "Vào hàng đợi", "Lặp lại"])
     fill()
     fireEvent.click(screen.getByRole("radio", { name: "Vào hàng đợi" }))
     expect(screen.getByTestId("queue-next")).toHaveTextContent("Khung trống gần nhất: 09:00 Thứ Ba 20/10")

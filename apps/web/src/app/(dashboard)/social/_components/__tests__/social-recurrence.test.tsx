@@ -162,12 +162,11 @@ describe("Bài lặp lại ở tab Lịch", () => {
   })
   it("Xoá hỏi xác nhận rồi gọi remove", () => {
     state.list = [rec()]
-    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true)
     render(<SocialRecurrenceList />)
     fireEvent.click(screen.getByRole("button", { name: "Xoá Chào tuần mới" }))
+    // Mở hộp xác nhận, chưa xoá
     expect(state.remove).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole("button", { name: "Xoá Chào tuần mới" }))
+    fireEvent.click(screen.getByRole("button", { name: "Xoá lịch lặp" }))
     expect(state.remove.mock.calls[0][0]).toBe(4)
-    confirm.mockRestore()
   })
 })

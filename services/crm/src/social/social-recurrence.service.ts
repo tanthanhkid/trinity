@@ -326,6 +326,8 @@ export class SocialRecurrenceService {
 
   async resume(id: number): Promise<RecurrenceView> {
     const r = await this.row(id);
+    // Cùng giới hạn như lúc tạo: tạm dừng hàng loạt, tạo thêm rồi tiếp tục cũng không vượt được.
+    if (!r.active && (await this.prisma.socialRecurrence.count({ where: { active: true } })) >= MAX_RECURRENCES) throw bad(`Tối đa ${MAX_RECURRENCES} bài lặp lại đang chạy — tạm dừng bớt lịch khác trước.`);
     await this.cancelPending(id);
     const fresh = await this.row(id);
     const next = this.firstRun(asRule(r.rule), dateOnly(r.starts_on)!, dateOnly(r.ends_on), r.max_count, fresh.count, Date.now());
@@ -395,10 +397,18 @@ export class SocialRecurrenceService {
     return out;
   }
 
+  /**
+   * Tạo ngay bài kế tiếp sau khi lưu/sửa/tiếp tục. Lịch đã lưu xong nên lỗi hạ tầng ở đây KHÔNG được thành lỗi 500
+   * (người dùng thử lại sẽ tạo lịch thứ hai) — ghi log, lượt chạy nền sau sẽ tạo bài.
+   */
   private async materializeOne(id: number, now = Date.now()): Promise<void> {
-    const r = await this.row(id);
-    if (!r.active || !r.next_run_at) return;
-    await this.runOne(r, now);
+    try {
+      const r = await this.row(id);
+      if (!r.active || !r.next_run_at) return;
+      await this.runOne(r, now);
+    } catch (err) {
+      this.logger.error(`Bài lặp lại #${id}: chưa tạo được bài kế tiếp, lượt chạy nền sẽ thử lại — ${(err as Error)?.message}`);
+    }
   }
 
   /** Dời `next_run_at` từ `from` sang lần kế (hoặc null khi hết), kèm `count` tăng `inc`. Trả true nếu CHÍNH lượt này dời được. */

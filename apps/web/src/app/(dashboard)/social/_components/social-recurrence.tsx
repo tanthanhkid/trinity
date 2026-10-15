@@ -1,8 +1,10 @@
 "use client"
 
+import { useState } from "react"
 import { CalendarClock, Loader2, Pause, Play, Repeat, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { getApiErrorMessage } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
@@ -98,10 +100,15 @@ function Row({ r, names }: { r: SocialRecurrence; names: Map<number, string> }) 
   const finished = r.active && !r.next_run_at && r.next_times.length === 0
   const channels = r.template.targets.map((t) => names.get(t.account_id) ?? `#${t.account_id}`).join(", ")
   const run = (m: typeof pause | typeof resume, ok: string) => m.mutate(r.id, { onSuccess: () => toast.success(ok), onError: (e) => toast.error(getApiErrorMessage(e, "Không thực hiện được")) })
-  const del = () => {
-    if (!window.confirm(`Xoá lịch lặp "${r.title}"? Bài hẹn đang chờ sẽ bị huỷ; bài đã đăng giữ nguyên.`)) return
-    remove.mutate(r.id, { onSuccess: () => toast.success("Đã xoá lịch lặp."), onError: (e) => toast.error(getApiErrorMessage(e, "Không xoá được")) })
-  }
+  const [confirmDel, setConfirmDel] = useState(false)
+  const del = () =>
+    remove.mutate(r.id, {
+      onSuccess: () => {
+        setConfirmDel(false)
+        toast.success("Đã xoá lịch lặp.")
+      },
+      onError: (e) => toast.error(getApiErrorMessage(e, "Không xoá được")),
+    })
   return (
     <li className="space-y-1.5 py-3" data-testid="recurrence-row">
       <div className="flex flex-wrap items-center gap-2">
@@ -114,9 +121,18 @@ function Row({ r, names }: { r: SocialRecurrence; names: Map<number, string> }) 
         ) : (
           <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => run(resume, "Đã tiếp tục.")}><Play className="size-3.5" /> Tiếp tục</Button>
         )}
-        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={del} aria-label={`Xoá ${r.title}`}>
+        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => setConfirmDel(true)} aria-label={`Xoá ${r.title}`}>
           {remove.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />} Xoá
         </Button>
+        <ConfirmDialog
+          open={confirmDel}
+          onOpenChange={setConfirmDel}
+          title={`Xoá lịch lặp "${r.title}"?`}
+          description="Bài hẹn đang chờ của lịch này sẽ bị huỷ; bài đã đăng giữ nguyên."
+          confirmLabel="Xoá lịch lặp"
+          pending={remove.isPending}
+          onConfirm={del}
+        />
       </div>
       <p className="text-xs text-muted-foreground">{ruleText(r.rule)} · {channels || "chưa có kênh"} · đã tạo {r.count}{r.max_count ? `/${r.max_count}` : ""} bài{r.ends_on ? ` · đến hết ${r.ends_on}` : ""}</p>
       {r.template.content.trim() && <p className="line-clamp-2 text-sm">{r.template.content}</p>}

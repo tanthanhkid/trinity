@@ -144,8 +144,8 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
   const nextQ = useQueueNext(1, useQueue || (slotsQ.data?.length ?? 0) > 0)
   const nextSlot = nextQ.data?.[0]
   /** "Lặp lại": tạo lịch lặp (không tạo bài ngay); máy chủ tự hẹn từng bài kế tiếp. */
-  const [recurOn, setRecurOn] = useState(false)
-  const [recur, setRecur] = useState(() => emptyRecurrence(todayVn()))
+  const [recurOn, setRecurOn] = useState(init?.recurOn ?? false)
+  const [recur, setRecur] = useState(() => init?.recur ?? emptyRecurrence(todayVn()))
   const mode: "now" | "schedule" | "queue" | "recurring" = recurOn ? "recurring" : useQueue ? "queue" : scheduleOn ? "schedule" : "now"
   const pickMode = (m: "now" | "schedule" | "queue" | "recurring") => {
     setRecurOn(m === "recurring")
@@ -247,7 +247,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
   const draftBody = () => {
     const at = scheduleOn && !useQueue && scheduleAt ? new Date(scheduleAt) : null
     const ui: ComposerState = {
-      content, selected, captions, openCaption, ytChoice, fbFirst, ttChoice, scheduleOn, scheduleAt, useQueue, utm,
+      content, selected, captions, openCaption, ytChoice, fbFirst, ttChoice, scheduleOn, scheduleAt, useQueue, utm, recurOn, recur,
       uploads: uploads.flatMap((u) => (u.item ? [{ name: u.name, item: u.item, libId: u.libId }] : [])),
     }
     return {

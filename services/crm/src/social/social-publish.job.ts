@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { isSecretKeyConfigured } from '../integrations/webhooks/secret-crypto';
+import { SocialRecurrenceService } from './social-recurrence.service';
 import { SocialPostsService } from './social-posts.service';
 
 const INTERVAL_MS = 60_000;
@@ -17,13 +18,21 @@ export class SocialPublishJob implements OnModuleInit, OnModuleDestroy {
   private timer: ReturnType<typeof setInterval> | null = null;
   private metricsTimer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(private readonly posts: SocialPostsService) {}
+  constructor(
+    private readonly posts: SocialPostsService,
+    private readonly recurrences: SocialRecurrenceService,
+  ) {}
 
   onModuleInit(): void {
     cronRegistry.register({
       name: 'social.publish',
       budgetMs: 40_000,
-      run: async () => (isSecretKeyConfigured() ? this.posts.runDue(40_000) : { skipped: 'no-secret-key' }),
+      run: async () => {
+        if (!isSecretKeyConfigured()) return { skipped: 'no-secret-key' };
+        // Lịch lặp tạo bài kế tiếp trước, rồi mới đăng các bài đến hạn.
+        const recurring = await this.recurrences.materialize().catch(() => null);
+        return { ...(await this.posts.runDue(40_000)), recurring };
+      },
     });
     cronRegistry.register({
       name: 'social.metrics',
@@ -47,6 +56,7 @@ export class SocialPublishJob implements OnModuleInit, OnModuleDestroy {
   private async tick(): Promise<void> {
     if (!isSecretKeyConfigured()) return;
     try {
+      await this.recurrences.materialize();
       await this.posts.runDue(50_000);
     } catch (err) {
       this.logger.error(`Job đăng bài lỗi: ${(err as Error)?.message}`);

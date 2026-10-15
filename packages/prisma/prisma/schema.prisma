@@ -2401,6 +2401,32 @@ model SocialDraft {
   @@map("social_drafts")
 }
 
+/// Bài lặp lại (hằng ngày/tuần/tháng, giờ Việt Nam). Luôn giữ đúng MỘT bài hẹn giờ sắp tới do lịch này tạo (source `recur:<id>:<giờ ISO>`).
+model SocialRecurrence {
+  id          Int       @id @default(autoincrement())
+  title       String    @db.VarChar(120)
+  /// Đầu vào tạo bài đã chuẩn hoá: {content, media_keys, targets:[{account_id, caption?, options?}], utm?}
+  template    Json
+  /// {freq:'daily'|'weekly'|'monthly', interval:1–12, weekdays?:0–6[], month_day?:1–31, time:'HH:mm' (giờ VN)}
+  rule        Json
+  starts_on   DateTime  @db.Date
+  ends_on     DateTime? @db.Date
+  max_count   Int?
+  /// Số bài đã tạo.
+  count       Int       @default(0)
+  /// Lần đăng kế tiếp CHƯA có bài; null = đã kết thúc.
+  next_run_at DateTime? @db.Timestamptz(3)
+  active      Boolean   @default(true)
+  /// Lý do tạm dừng tự động (kênh gỡ liên kết, tệp mất…).
+  last_error  String?   @db.Text
+  created_by  Int
+  created_at  DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@index([active, next_run_at], map: "social_recurrences_active_next_idx")
+  @@map("social_recurrences")
+}
+
 /// Khung giờ đăng hàng đợi hằng tuần (giờ Việt Nam, UTC+7, không có giờ mùa hè). "Vào hàng đợi" = hẹn bài vào khung trống gần nhất.
 model SocialQueueSlot {
   id         Int      @id @default(autoincrement())

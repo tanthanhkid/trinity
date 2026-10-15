@@ -24,13 +24,14 @@ import type { Response } from 'express';
 import { diskStorage } from 'multer';
 import { Can, CurrentUser, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
-import { CreateSocialPostDto, SocialDraftDto, SocialDraftPublishDto, SocialQueueSlotsDto, SocialSnippetDto, GoogleReviewReplyDto, SocialRescheduleDto, SocialConnectDto, SocialMediaRegisterDto, SocialUploadTokenDto, SocialImportDto, SocialImportPlanDto } from './dto-social';
+import { CreateSocialPostDto, SocialDraftDto, SocialDraftPublishDto, SocialQueueSlotsDto, SocialSnippetDto, GoogleReviewReplyDto, SocialRescheduleDto, SocialConnectDto, SocialMediaRegisterDto, SocialUploadTokenDto, SocialImportDto, SocialImportPlanDto, SocialRecurrenceDto } from './dto-social';
 import { MAX_VIDEO_BYTES } from './social.config';
 import { SocialAccountsService } from './social-accounts.service';
 import { SocialDraftsService } from './social-drafts.service';
 import { SocialImportService } from './social-import.service';
 import { SocialMediaService } from './social-media.service';
 import { SocialPostsService } from './social-posts.service';
+import { SocialRecurrenceService } from './social-recurrence.service';
 import { SocialQueueService } from './social-queue.service';
 import { SocialSnippetsService } from './social-snippets.service';
 
@@ -51,6 +52,7 @@ export class SocialController {
     private readonly queue: SocialQueueService,
     private readonly snippets: SocialSnippetsService,
     private readonly importer: SocialImportService,
+    private readonly recurrences: SocialRecurrenceService,
   ) {}
 
   @Get('networks')
@@ -276,6 +278,51 @@ export class SocialController {
     return this.snippets.remove(id);
   }
 
+  @Get('recurrences')
+  @Can('social.post')
+  @ApiOperation({ summary: 'Bài lặp lại kèm 3 lần đăng tới (tính ra) và các bài đã tạo' })
+  async listRecurrences() {
+    return { data: await this.recurrences.list() };
+  }
+
+  @Post('recurrences')
+  @Can('social.post')
+  @ApiOperation({ summary: 'Tạo bài lặp lại (hằng ngày/tuần/tháng, giờ Việt Nam); máy chủ luôn giữ đúng một bài hẹn sắp tới' })
+  async createRecurrence(@Body() dto: SocialRecurrenceDto, @CurrentUser() user: AuthUser) {
+    return { data: await this.recurrences.create(user, dto) };
+  }
+
+  @Patch('recurrences/:id')
+  @Can('social.post')
+  @ApiOperation({ summary: 'Sửa bài lặp lại (chỉ trường có gửi); chỉ áp cho bài sau — bài hẹn đang chờ bị huỷ và tạo lại' })
+  async updateRecurrence(@Param('id', ParseIntPipe) id: number, @Body() dto: SocialRecurrenceDto, @CurrentUser() user: AuthUser) {
+    return { data: await this.recurrences.update(user, id, dto) };
+  }
+
+  @Post('recurrences/:id/pause')
+  @HttpCode(HttpStatus.OK)
+  @Can('social.post')
+  @ApiOperation({ summary: 'Tạm dừng: huỷ bài hẹn đang chờ (không xoá)' })
+  async pauseRecurrence(@Param('id', ParseIntPipe) id: number) {
+    return { data: await this.recurrences.pause(id) };
+  }
+
+  @Post('recurrences/:id/resume')
+  @HttpCode(HttpStatus.OK)
+  @Can('social.post')
+  @ApiOperation({ summary: 'Tiếp tục: tính lại lần đăng kế tiếp từ bây giờ' })
+  async resumeRecurrence(@Param('id', ParseIntPipe) id: number) {
+    return { data: await this.recurrences.resume(id) };
+  }
+
+  @Delete('recurrences/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Can('social.post')
+  @ApiOperation({ summary: 'Xoá lịch lặp (huỷ bài chờ; bài đã đăng giữ nguyên)' })
+  removeRecurrence(@Param('id', ParseIntPipe) id: number) {
+    return this.recurrences.remove(id);
+  }
+
   @Get('queue/slots')
   @Can('social.post')
   @ApiOperation({ summary: 'Khung giờ đăng hàng đợi hằng tuần (giờ Việt Nam)' })
@@ -303,6 +350,8 @@ export class SocialController {
   @Can('social.post')
   @ApiOperation({ summary: 'Đăng các bài đã đến giờ hẹn / đến lượt thử lại (web gọi định kỳ khi không có job nền)' })
   async tick() {
+    // Tạo bài tiếp theo của các lịch lặp trước, để bài vừa tạo cũng được tính vào "đến hạn".
+    await this.recurrences.materialize().catch(() => undefined);
     const [r, next] = await Promise.all([this.posts.kickIfDue(), this.posts.nextDueAt()]);
     return { due: r.due, next_at: next ? next.toISOString() : null };
   }

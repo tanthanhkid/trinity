@@ -11,6 +11,7 @@ import { SocialDraftsService } from './social-drafts.service';
 import { SocialImportService } from './social-import.service';
 import { SocialMediaService } from './social-media.service';
 import { SocialSnippetsService } from './social-snippets.service';
+import { SocialRecurrenceService } from './social-recurrence.service';
 import { SocialQueueService } from './social-queue.service';
 import { SocialPostsService } from './social-posts.service';
 import { SocialPublishJob } from './social-publish.job';
@@ -21,7 +22,7 @@ import { SocialPublicController } from './social-public.controller';
 @Module({
   imports: [PrismaModule],
   controllers: [SocialController, SocialPublicController],
-  providers: [FacebookSocialProvider, InstagramSocialProvider, YoutubeSocialProvider, TiktokSocialProvider, GoogleBusinessSocialProvider, SocialProviderRegistry, SocialAccountsService, SocialMediaService, SocialPostsService, SocialDraftsService, SocialQueueService, SocialSnippetsService, SocialImportService, SocialPublishJob],
-  exports: [SocialAccountsService, SocialPostsService, SocialDraftsService, SocialQueueService, SocialSnippetsService, SocialImportService],
+  providers: [FacebookSocialProvider, InstagramSocialProvider, YoutubeSocialProvider, TiktokSocialProvider, GoogleBusinessSocialProvider, SocialProviderRegistry, SocialAccountsService, SocialMediaService, SocialPostsService, SocialDraftsService, SocialQueueService, SocialSnippetsService, SocialImportService, SocialRecurrenceService, SocialPublishJob],
+  exports: [SocialAccountsService, SocialPostsService, SocialDraftsService, SocialQueueService, SocialSnippetsService, SocialImportService, SocialRecurrenceService],
 })
 export class SocialModule {}

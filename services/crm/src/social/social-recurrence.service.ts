@@ -157,6 +157,9 @@ export interface RecurrenceView {
   posts: Array<{ id: number; status: string; scheduled_at: string | null }>;
 }
 
+/** Lịch đổi (tạm dừng / sửa / xoá) giữa lúc đọc và lúc tạo bài ⇒ huỷ transaction tạo bài. */
+class RecurrenceChanged extends Error {}
+
 @Injectable()
 export class SocialRecurrenceService {
   private readonly logger = new Logger(SocialRecurrenceService.name);
@@ -291,6 +294,8 @@ export class SocialRecurrenceService {
   async update(user: AuthUser, id: number, input: RecurrenceInput): Promise<RecurrenceView> {
     const base = await this.row(id);
     const v = await this.normalized(user, input, base);
+    // Ngắt lần chạy đang chờ TRƯỚC (next_run_at = null) rồi mới huỷ bài chờ — lượt chạy nền chen vào sẽ bỏ bài.
+    await this.prisma.socialRecurrence.update({ where: { id }, data: { next_run_at: null } });
     await this.cancelPending(id);
     const fresh = await this.row(id);
     const next = this.firstRun(v.rule, v.startsOn, v.endsOn, v.maxCount, fresh.count, Date.now());
@@ -313,8 +318,9 @@ export class SocialRecurrenceService {
 
   async pause(id: number): Promise<RecurrenceView> {
     await this.row(id);
-    await this.cancelPending(id);
+    // Tắt TRƯỚC rồi mới huỷ bài chờ: lượt chạy nền đang dở sẽ thấy lịch đã tắt (kiểm trong transaction tạo bài) và bỏ bài.
     await this.prisma.socialRecurrence.update({ where: { id }, data: { active: false } });
+    await this.cancelPending(id);
     return this.get(id);
   }
 
@@ -331,6 +337,7 @@ export class SocialRecurrenceService {
   /** Web: tạm dừng (huỷ bài chờ) rồi xoá lịch. Bài đã đăng giữ nguyên. */
   async remove(id: number): Promise<void> {
     await this.row(id);
+    await this.prisma.socialRecurrence.update({ where: { id }, data: { active: false, next_run_at: null } });
     await this.cancelPending(id);
     await this.prisma.socialRecurrence.delete({ where: { id } });
   }
@@ -351,6 +358,8 @@ export class SocialRecurrenceService {
       if (e instanceof HttpException && e.getStatus() < 500) return; // đã bắt đầu đăng / đã huỷ
       throw e;
     }
+    // Bài huỷ trả lại khoá chống lặp (source): lần tạo lại cùng giờ (sửa / tạm dừng rồi tiếp tục) không bị coi là trùng mà mất bài.
+    await this.prisma.$executeRaw`UPDATE social_posts SET source = LEFT('cancelled:' || source, 80) WHERE id = ${pending.id} AND source LIKE ${RECUR_SOURCE_PREFIX + '%'}`;
     await this.prisma.$executeRaw`UPDATE social_recurrences SET count = GREATEST(count - 1, 0) WHERE id = ${id}`;
   }
 
@@ -434,8 +443,16 @@ export class SocialRecurrenceService {
     // Giờ hẹn phải cách bây giờ ≥ 1 phút (trễ ít thì đăng trong vài phút tới).
     const scheduled = new Date(Math.max(at.getTime(), now + 2 * MINUTE));
     try {
-      await this.posts.create(creatorOf(r.created_by), this.postInput(asTemplate(r.template), scheduled.toISOString()), { dedupeSource: key(at) });
+      await this.posts.create(creatorOf(r.created_by), this.postInput(asTemplate(r.template), scheduled.toISOString()), {
+        dedupeSource: key(at),
+        // Kiểm lại NGAY TRONG transaction tạo bài (khoá dòng lịch): vừa bị tạm dừng / sửa / xoá thì bỏ bài, không đăng.
+        inTx: async (tx) => {
+          const still = await tx.$queryRaw<Array<{ id: number }>>`SELECT id FROM social_recurrences WHERE id = ${r.id} AND active AND next_run_at = ${at} FOR UPDATE`;
+          if (still.length === 0) throw new RecurrenceChanged();
+        },
+      });
     } catch (err) {
+      if (err instanceof RecurrenceChanged) return 'skipped';
       if (err instanceof ConflictException) {
         await this.advance(r, at, after(at, count + 1), 1); // bài đã có (tick khác tạo) — chỉ dời nốt
         return 'skipped';

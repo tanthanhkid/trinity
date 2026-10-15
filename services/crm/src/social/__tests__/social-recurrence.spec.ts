@@ -91,10 +91,20 @@ function setup(over: Record<string, unknown> = {}, pending: { id: number; source
       update: jest.fn(async ({ data }: any) => Object.assign(row, data)),
     },
     socialPost: { findFirst: jest.fn(async () => pending) },
+    $executeRaw: jest.fn(async () => 1),
   };
-  const posts = { create: jest.fn(async () => ({ id: 100 })), cancel: jest.fn(), validate: jest.fn() };
+  // Giống create thật: chạy inTx trong "transaction"; tx.$queryRaw trả dòng lịch nếu còn bật + đúng giờ chạy.
+  const tx = { $queryRaw: jest.fn(async (_s: unknown, ...vals: any[]) => (row.active && row.next_run_at?.getTime() === vals[1]?.getTime?.() ? [{ id: row.id }] : [])) };
+  const posts = {
+    create: jest.fn(async (_u: unknown, _i: unknown, opts: any = {}) => {
+      if (opts.inTx) await opts.inTx(tx, 100);
+      return { id: 100 };
+    }),
+    cancel: jest.fn(),
+    validate: jest.fn(),
+  };
   const svc = new SocialRecurrenceService(prisma as never, posts as never);
-  return { svc, row, prisma, posts };
+  return { svc, row, prisma, posts, tx };
 }
 
 describe('SocialRecurrenceService.materialize', () => {
@@ -154,7 +164,7 @@ describe('SocialRecurrenceService.materialize', () => {
   it('trễ quá 1 giờ ⇒ nhảy tới lần kế tiếp ở tương lai, không đăng muộn', async () => {
     const { svc, row, posts } = setup({ next_run_at: vn('2026-10-15T09:00:00') });
     await svc.materialize(NOW);
-    expect((posts.create.mock.calls[0] as any[])[2]).toEqual({ dedupeSource: `recur:7:${at('2026-10-20T09:00:00')}` });
+    expect((posts.create.mock.calls[0] as any[])[2]).toMatchObject({ dedupeSource: `recur:7:${at('2026-10-20T09:00:00')}`, inTx: expect.any(Function) });
     expect(row.count).toBe(1);
     expect(iso(row.next_run_at)).toBe(at('2026-10-21T09:00:00'));
   });
@@ -204,6 +214,33 @@ describe('SocialRecurrenceService.materialize', () => {
     const { svc, posts } = setup({ next_run_at: vn('2027-03-01T09:00:00') });
     expect(await svc.materialize(NOW)).toMatchObject({ created: 0, skipped: 1 });
     expect(posts.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('SocialRecurrenceService — tạm dừng / sửa chen ngang lượt chạy nền', () => {
+  it('lịch bị tạm dừng đúng lúc đang tạo bài ⇒ transaction tạo bài bỏ, không đếm, không dời', async () => {
+    const { svc, row, posts } = setup();
+    posts.create.mockImplementationOnce(async (_u: unknown, _i: unknown, opts: any) => {
+      row.active = false; // người dùng bấm Tạm dừng giữa lúc đọc và lúc tạo
+      await opts.inTx({ $queryRaw: async () => [] }, 100);
+      return { id: 100 };
+    });
+    await svc.materialize(NOW);
+    expect(row.count).toBe(0);
+    expect(iso(row.next_run_at)).toBe(at('2026-10-20T09:00:00'));
+  });
+
+  it('tạm dừng: tắt lịch TRƯỚC rồi mới huỷ bài chờ; bài huỷ trả lại khoá chống lặp (source)', async () => {
+    const { svc, row, prisma, posts } = setup({}, { id: 55, source: `recur:7:${at('2026-10-20T09:00:00')}` });
+    const order: string[] = [];
+    prisma.socialRecurrence.update.mockImplementation(async ({ data }: any) => { order.push(`update:${JSON.stringify(data)}`); return Object.assign(row, data); });
+    posts.cancel.mockImplementation(async () => { order.push('cancel'); });
+    jest.spyOn(svc as any, 'get').mockResolvedValue({});
+    await svc.pause(7);
+    expect(order[0]).toBe('update:{"active":false}');
+    expect(order[1]).toBe('cancel');
+    const sql = prisma.$executeRaw.mock.calls.map((c: any[]) => (c[0] as string[]).join('?'));
+    expect(sql.some((q: string) => /SET source = LEFT\('cancelled:'/.test(q))).toBe(true);
   });
 });
 

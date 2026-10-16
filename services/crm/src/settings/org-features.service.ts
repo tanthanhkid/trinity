@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, InternalServerErrorException, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '@trinity/prisma';
+import { trackProductEvent } from '@trinity/logger';
 import {
   BLANK_SYSTEM_FEATURES,
   ORG_FEATURE_KEYS,
@@ -96,6 +97,7 @@ export class OrgFeaturesService {
       });
     });
     this.logger.log(`Org plan ${from} -> ${plan} (${source}, user ${userId ?? '-'})`);
+    trackProductEvent('plan_changed', userId, { plan });
     return plan;
   }
 
@@ -136,6 +138,9 @@ export class OrgFeaturesService {
         create: { key: KEY, value, updated_by: userId },
       });
       this.logger.log(`Org features updated by user ${userId}: ${value}`);
+      for (const key of ORG_FEATURE_KEYS) {
+        if (dto[key] !== undefined) trackProductEvent('feature_toggled', userId, { feature: key, enabled: dto[key] === true });
+      }
       return this.withLocks(applyPlanToFeatures(next, plan));
     } catch (err) {
       this.logger.error(`updateOrgFeatures failed (user=${userId}): ${(err as Error)?.message}`);

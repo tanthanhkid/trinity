@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@trinity/prisma';
+import { trackProductEvent } from '@trinity/logger';
 import { can, type Grants } from '@trinity/rbac';
 import { oauthEnabled } from '../integrations/oauth/oauth-config';
 import { OrgFeaturesService } from '../settings/org-features.service';
@@ -181,7 +182,7 @@ export class OnboardingWizardService {
   }
 
   /** "Tôi đã làm xong": kiểm lại bước; đạt và mọi bước đã qua ⇒ ghi xong wizard. */
-  async confirm(userId: number, grants: Grants, step: WizardStepKey): Promise<ConfirmResult> {
+  async confirm(userId: number, grants: Grants, step: WizardStepKey, skipped = false): Promise<ConfirmResult> {
     let wizard = await this.view(userId, grants);
     const s = wizard.steps.find((x) => x.key === step);
     if (!s) throw new BadRequestException('Bước này không có trong phần bắt đầu của công ty bạn.');
@@ -190,6 +191,7 @@ export class OnboardingWizardService {
       const base = step === 'ai' && checks?.ai_granted ? MISSING_AI_IDLE : MISSING[step];
       return { ok: false, message: base + (s.needs_admin ? NEED_ADMIN : ''), wizard };
     }
+    trackProductEvent('onboarding_step', userId, { step, action: skipped ? 'skip' : 'confirm' });
     if (!wizard.completed && wizard.current === null) {
       await this.writeSetting(wizardDoneKey(userId), new Date().toISOString(), userId);
       this.logger.log(`user ${userId} xong wizard bắt đầu`);
@@ -203,6 +205,6 @@ export class OnboardingWizardService {
     if (!cfg.skippable.includes(step)) throw new BadRequestException('Bước này bắt buộc, không bỏ qua được.');
     const cur = await this.skipped(userId);
     if (!cur.includes(step)) await this.writeSetting(wizardSkipKey(userId), JSON.stringify([...cur, step]), userId);
-    return this.confirm(userId, grants, step);
+    return this.confirm(userId, grants, step, true);
   }
 }

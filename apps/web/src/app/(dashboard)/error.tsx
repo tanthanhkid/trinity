@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { AlertTriangle, RotateCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { logFrontendError } from '@/lib/fe-logger'
+import { reportClientError } from '@/lib/monitoring'
 
 function isChunkLoadError(error: Error): boolean {
   return /loading chunk|failed to load chunk|dynamically imported module/i.test(error.message)
@@ -26,6 +27,7 @@ export default function DashboardError({
       }
       sessionStorage.removeItem('chunk-reload')
     }
+    reportClientError(error)
     logFrontendError(error, { component: 'error-boundary-dashboard', extra: { digest: error.digest } })
   }, [error])
 

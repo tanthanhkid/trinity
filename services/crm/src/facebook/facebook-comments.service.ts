@@ -1,6 +1,7 @@
 import { Optional, BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { FacebookCommentRule, FacebookPage } from '@prisma/client';
 import { Prisma, PrismaService, publishIntegrationEvent } from '@trinity/prisma';
+import { trackProductEvent } from '@trinity/logger';
 import { publishMessengerEvent } from './facebook-events';
 import { FacebookPagesService } from './facebook-pages.service';
 import { findVnPhone } from './facebook-messenger.service';
@@ -18,6 +19,16 @@ export interface FeedChange {
   from?: { id?: string; name?: string };
   message?: string;
   created_time?: number | string;
+}
+
+/** Sự kiện sản phẩm khi lưu luật: chỉ đếm số hành động, không gửi tên luật hay nội dung trả lời. */
+export function trackCommentRuleSaved(
+  rule: Pick<FacebookCommentRule, 'public_replies' | 'private_reply' | 'hide_if_phone'>,
+  created: boolean,
+  userId: number | null,
+): void {
+  const actions = (rule?.public_replies?.length ? 1 : 0) + (rule?.private_reply?.trim() ? 1 : 0) + (rule?.hide_if_phone ? 1 : 0);
+  trackProductEvent('comment_rule_saved', userId, { created, actions });
 }
 
 export type CommentRuleInput = {
@@ -436,7 +447,9 @@ export class FacebookCommentsService {
   }
 
   async createRule(input: CommentRuleInput, userId: number) {
-    return this.prisma.facebookCommentRule.create({ data: { ...this.sanitize(input, true), created_by: userId } as Prisma.FacebookCommentRuleUncheckedCreateInput });
+    const rule = await this.prisma.facebookCommentRule.create({ data: { ...this.sanitize(input, true), created_by: userId } as Prisma.FacebookCommentRuleUncheckedCreateInput });
+    trackCommentRuleSaved(rule, true, userId);
+    return rule;
   }
 
   async updateRule(id: number, input: Partial<CommentRuleInput>) {

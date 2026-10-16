@@ -7,6 +7,7 @@ import axios from 'axios'
 import { useAuthStore } from '@/store/auth'
 import { getAccessToken, getRefreshToken } from '@/lib/token-storage'
 import { initGlobalErrorHandlers, logFrontendError } from '@/lib/fe-logger'
+import { bootMonitoring, identifyMonitoringUser } from '@/lib/monitoring'
 import { forceLogout } from '@/lib/api-client'
 import { BuildIdWatcher } from '@/components/build-id-watcher'
 import { ChunkErrorWatcher } from '@/components/chunk-error-watcher'
@@ -75,6 +76,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   // Init global frontend error handlers → send to /api/fe-logging → ELK
   useEffect(() => { initGlobalErrorHandlers() }, [])
+
+  // Giám sát (Sentry/PostHog): tắt mặc định, máy chủ trả config null thì không nạp gì. Đăng nhập sau thì gắn mã băm.
+  useEffect(() => {
+    void bootMonitoring()
+    return useAuthStore.subscribe((s, prev) => {
+      if (s.accessToken && !prev.accessToken) void identifyMonitoringUser()
+    })
+  }, [])
 
   // Sync tokens from localStorage into Zustand store if store is empty after hydration
   // This handles the case where tokens exist in localStorage (set by api-client refresh)

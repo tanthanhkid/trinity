@@ -32,6 +32,7 @@ import { StaleWorkModule } from './stale-work/stale-work.module';
 import { FacebookModule } from './facebook/facebook.module';
 import { SocialModule } from './social/social.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
 import { BriefingsModule } from './briefings/briefings.module';
 import { RedisModule } from './common/redis.module';
 import { HealthController } from './health/health.controller';
@@ -49,6 +50,7 @@ import { SecurityHeadersMiddleware } from './common/middleware/security-headers.
     StorageModule, // Global — MinIO S3 storage
     RedisModule, // Global — REDIS_CLIENT token
     ElkLoggerModule.forRoot({ service: 'crm' }),
+    TelemetryModule,
     ContactsModule,
     ActivitiesModule,
     ReportsModule,

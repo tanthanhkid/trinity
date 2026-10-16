@@ -27,3 +27,22 @@ describe('ElkExceptionFilter', () => {
     expect(r.body).not.toHaveProperty('errors')
   })
 })
+
+describe('ElkExceptionFilter → server error reporter', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { setServerErrorReporter } = require('./server-error-reporter')
+  afterEach(() => setServerErrorReporter(null))
+  it('5xx gọi reporter; 4xx thì không', () => {
+    const fn = jest.fn()
+    setServerErrorReporter(fn)
+    run(new BadRequestException('x'))
+    expect(fn).not.toHaveBeenCalled()
+    run(new Error('boom'))
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(fn.mock.calls[0][1]).toMatchObject({ status: 500, method: 'POST', url: '/x' })
+  })
+  it('reporter ném lỗi vẫn trả response bình thường', () => {
+    setServerErrorReporter(() => { throw new Error('down') })
+    expect(run(new Error('boom')).status).toBe(500)
+  })
+})

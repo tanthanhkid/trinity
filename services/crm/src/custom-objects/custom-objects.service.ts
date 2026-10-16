@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@trinity/prisma';
+import { trackProductEvent } from '@trinity/logger';
 import type { AuthUser } from '@trinity/rbac-nest';
 import {
   isObjectVisible, loadObjectAccess, loadVisibleObject, presentObject, toFieldDef, type ObjectDef,
@@ -117,6 +118,7 @@ export class CustomObjectsService {
         },
       });
       this.logger.log(`custom_object ${obj.key} tạo bởi user ${user.userId}`);
+      trackProductEvent('table_created', user.userId, { fields: 0 });
       return presentObject({ obj, fields: [] });
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException(`Mã “${dto.key}” đã được dùng`);
@@ -141,6 +143,7 @@ export class CustomObjectsService {
     if (dto.code_prefix !== undefined) await renamePrefix(this.prisma, def.obj.id, dto.code_prefix);
     const obj = await this.prisma.customObject.update({ where: { id: def.obj.id }, data });
     this.logger.log(`custom_object ${key} sửa bởi user ${user.userId}: ${[...Object.keys(data), ...(dto.code_prefix !== undefined ? ['code_prefix'] : [])].join(',')}`);
+    trackProductEvent('table_updated', user.userId, { fields: def.fields.length });
     return presentObject({ obj, fields: def.fields });
   }
 

@@ -4,7 +4,7 @@ import { Can, CurrentUser, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
 import { BroadcastDto, BroadcastPreviewDto, BroadcastSendDto, ChatLinkDto, CommentDryRunDto, CommentReplyDto, CommentRuleDto, FacebookReplyDto, FlowDto, UpdateFacebookPageDto } from './dto-facebook';
 import { FacebookChatLinksService } from './facebook-chat-links.service';
-import { FacebookCommentsService, normalizePostId } from './facebook-comments.service';
+import { FacebookCommentsService, normalizePostId, trackCommentRuleSaved } from './facebook-comments.service';
 import { FacebookFlowsService } from './facebook-flows.service';
 import { FacebookBroadcastsService } from './facebook-broadcasts.service';
 import { FacebookMessengerService } from './facebook-messenger.service';
@@ -132,8 +132,10 @@ export class FacebookController {
   @Patch('comment-rules/:id')
   @Can('integrations.webhooks')
   @ApiOperation({ summary: 'Sửa luật' })
-  updateRule(@Param('id', ParseIntPipe) id: number, @Body() dto: CommentRuleDto) {
-    return this.comments.updateRule(id, dto);
+  async updateRule(@Param('id', ParseIntPipe) id: number, @Body() dto: CommentRuleDto, @CurrentUser() user: AuthUser) {
+    const rule = await this.comments.updateRule(id, dto);
+    trackCommentRuleSaved(rule, false, user.userId);
+    return rule;
   }
 
   @Delete('comment-rules/:id')

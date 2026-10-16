@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, HttpException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService, publishIntegrationEvent } from '@trinity/prisma';
+import { trackProductEvent } from '@trinity/logger';
 import { isServerless, runInBackground, type AuthUser } from '@trinity/rbac-nest';
 import type { Prisma, SocialPost, SocialPostTarget } from '@prisma/client';
 import { SocialProviderRegistry } from './providers/provider.registry';
@@ -434,6 +435,11 @@ export class SocialPostsService {
       });
       if (opts.inTx) await opts.inTx(tx, p.id);
       return p;
+    });
+    trackProductEvent('post_published', user.userId, {
+      networks: [...new Set(v.targets.map((t) => String(t.account.network)))].sort().join(','),
+      scheduled: Boolean(v.scheduledAt),
+      source: post.source.startsWith('mcp') ? 'mcp' : post.source.startsWith('csv') ? 'csv' : 'web',
     });
     if (!v.scheduledAt) this.kick();
     return this.get(post.id);

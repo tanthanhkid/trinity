@@ -1,7 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { wrapData } from '../ai-output';
 import { isUserConfirmation } from '../actions/user-confirmation';
-import { cleanList, normalizePostId, postLink, type CommentRuleInput } from '../../../facebook/facebook-comments.service';
+import { cleanList, normalizePostId, postLink, trackCommentRuleSaved, type CommentRuleInput } from '../../../facebook/facebook-comments.service';
 import { activityRange, vnIso } from './ai-activity-tool';
 import { ToolUserError, clampLimit, type McpDeps, type ToolDef } from './tool-types';
 
@@ -258,7 +258,7 @@ export const updateCommentRuleTool: ToolDef = {
     confirmed_by_user: z.string().max(300).optional().describe(CONFIRM_PARAM_DESC),
   }),
   output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
-  async run(args, { deps, baseUrl }) {
+  async run(args, { deps, baseUrl, principal }) {
     const svc = await commentsDeps(deps);
     const id = Number(args.rule_id);
     const cur = (await svc.listRules()).find((r) => r.id === id);
@@ -289,6 +289,7 @@ export const updateCommentRuleTool: ToolDef = {
     if (goesLive(final) && !cosmetic && !isUserConfirmation(args.confirmed_by_user)) return needApproval({ rule_id: id, current: ruleForAi(cur, await pageNames(deps)), changes: input });
     try {
       const r = await svc.updateRule(id, input);
+      trackCommentRuleSaved(r, false, principal.user.userId);
       const out = wrapData({ saved: true, rule: ruleForAi(r, await pageNames(deps)), manage_url: `${baseUrl}${RULES_URL}` });
       return { structured: out, text: JSON.stringify(out) };
     } catch (err) {

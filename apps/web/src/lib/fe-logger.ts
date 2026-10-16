@@ -63,6 +63,8 @@ function safeExtra(
 
 export function logFrontendError(error: unknown, extra?: Record<string, unknown>) {
   const err = error instanceof Error ? error : new Error(String(error))
+  // Dynamic import: tránh vòng phụ thuộc với api-client và không kéo giám sát vào bundle chính.
+  if (typeof window !== 'undefined') void import('./monitoring').then((m) => m.reportClientError(err)).catch(() => undefined)
   send({
     ...safeExtra(extra),
     level: 'error',

@@ -108,14 +108,19 @@ function RuleDialog({ open, onOpenChange, rule, pages }: { open: boolean; onOpen
     if (page && pages.some((p) => p.page_id === page)) setPageId(page)
   }
 
+  function failEarly(msg: string) { setError(msg); toast.error(msg) }
+
   function save() {
     setError(null)
     const postRaw = post.trim()
     // Dán link bài mà để "Mọi Fanpage": tự chọn Page khi đoán được (link có sẵn <page>_<post>, hoặc chỉ có một Page).
     let effectivePage = pageId === ALL ? null : pageId
+    // Link có sẵn id Page (<page>_<post>): Page đó phải đã nối và trùng Page đã chọn, không thì luật lưu được mà không bao giờ chạy.
+    const fromLink = postRaw.match(/(\d{5,})_\d{5,}/)?.[1] ?? null
+    if (fromLink && !pages.some((p) => p.page_id === fromLink)) return failEarly("Bài này thuộc một Fanpage chưa nối với Trinity. Nối Fanpage đó trước, hoặc dán link bài của Fanpage đã nối.")
+    if (fromLink && effectivePage && fromLink !== effectivePage) return failEarly("Bài này thuộc Fanpage khác với Fanpage đã chọn. Chọn lại ô \"Áp cho Fanpage\" hoặc dán đúng link bài.")
     if (postRaw && !effectivePage) {
-      const fromLink = postRaw.match(/(\d{5,})_\d{5,}/)?.[1]
-      const guess = fromLink && pages.some((p) => p.page_id === fromLink) ? fromLink : pages.length === 1 ? pages[0].page_id : null
+      const guess = fromLink ?? (pages.length === 1 ? pages[0].page_id : null)
       if (guess) { effectivePage = guess; setPageId(guess) }
     }
     const body: CommentRuleInput = {

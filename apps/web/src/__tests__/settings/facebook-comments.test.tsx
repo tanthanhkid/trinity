@@ -79,6 +79,17 @@ describe("FacebookComments", () => {
     expect(screen.getByRole("button", { name: "Lưu luật" })).toBeTruthy()
   })
 
+  it("link có id Page chưa nối ⇒ báo lỗi trong hộp thoại, không gửi", async () => {
+    setup()
+    fireEvent.click(await screen.findByRole("button", { name: /Thêm luật/ }))
+    fireEvent.change(await screen.findByLabelText(/Tên luật/), { target: { value: "Sai page" } })
+    fireEvent.change(screen.getByLabelText(/Chỉ bài này/), { target: { value: "https://www.facebook.com/999999_123456" } })
+    fireEvent.change(screen.getByLabelText(/Nhắn riêng qua Messenger/), { target: { value: "Chào" } })
+    fireEvent.click(screen.getByRole("button", { name: "Lưu luật" }))
+    expect((await screen.findByTestId("rule-form-error")).textContent).toMatch(/chưa nối/)
+    expect(mockPost).not.toHaveBeenCalled()
+  })
+
   it("không có thuật ngữ kỹ thuật", async () => {
     const { container } = setup()
     await screen.findByText("Giá sao ạ")

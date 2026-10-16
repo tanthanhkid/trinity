@@ -105,7 +105,7 @@ export class FacebookMessengerService implements MessagingChannel {
         await tx.facebookMessage.create({ data: { conversation_id: conv.id, mid: m.mid as string, direction: echo ? 'out' : 'in', text, sent_at: at } });
         if (name && conv.contact_id) await this.renamePlaceholder(tx, conv.contact_id, psid, name);
         const contactId = echo ? conv.contact_id : await this.linkContact(tx, ctx.page, conv, text);
-        if (!echo) notice = { convId: conv.id, contactId: contactId ?? conv.contact_id, created: !conv.contact_id && !!contactId };
+        if (!echo) notice = { convId: conv.id, contactId: contactId ?? conv.contact_id, created: false };
         await publishMessengerEvent(tx, { ...conv, page_id: pageId, contact_id: contactId ?? conv.contact_id }, echo ? 'out' : 'in', echo ? 'page' : 'customer');
         if (contactId) {
           const who = echo ? `Page "${ctx.page.name}" trả lời qua Messenger` : `Khách nhắn Page "${ctx.page.name}" qua Messenger`;
@@ -128,7 +128,7 @@ export class FacebookMessengerService implements MessagingChannel {
       const nn = notice as { convId: number; contactId: number | null; created: boolean };
       await this.notices?.notify({
         event: 'messenger.message_received', channelName: ctx.page.name, defaultAssignee: ctx.page.default_assignee_id, contactId: nn.contactId,
-        contactCreated: nn.created, fromName: name, text, actionUrl: '/inbox?kenh=facebook', threadKey: `fb:${nn.convId}`,
+        contactCreated: nn.created, fromName: name, text, actionUrl: `/inbox?kenh=facebook&hoi_thoai=${nn.convId}`, threadKey: `fb:${nn.convId}`,
       });
     }
     return true;

@@ -86,7 +86,7 @@ export class ZaloOaThreadsService {
       if (m.direction === 'in' && m.status !== 'failed') {
         await this.notices?.notify({
           event: 'zalo_oa.message_received', channelName: 'Zalo OA', contactId: thread.contact_id, fromName: thread.display_name,
-          text: m.text ?? (m.kind !== 'text' ? `[${m.kind}]` : null), actionUrl: '/inbox?kenh=zalo', threadKey: `zalo:${m.threadId}`,
+          text: m.text ?? (m.kind !== 'text' ? `[${m.kind}]` : null), actionUrl: `/inbox?kenh=zalo&hoi_thoai=${m.threadId}`, threadKey: `zalo:${m.threadId}`,
         });
       }
       return saved;

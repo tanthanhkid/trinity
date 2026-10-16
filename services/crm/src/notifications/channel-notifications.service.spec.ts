@@ -32,6 +32,7 @@ describe('ChannelNotificationsService', () => {
     await svc.notify({ event: 'messenger.message_received', channelName: 'AiiLab', fromName: 'Lan', text: 'alo', actionUrl: '/inbox?kenh=facebook', threadKey: 'fb:3' });
     expect(prisma.notificationLog.findMany.mock.calls[0][0].where.created_at.gte.getTime()).toBeGreaterThan(Date.now() - THROTTLE_MS - 1000);
     expect(notifications.createPendingLogs.mock.calls[0][0]).toEqual([2]);
+    expect(prisma.notificationLog.findMany.mock.calls[0][0].where.action_url).toBe('/inbox?kenh=facebook');
   });
 
   it('không ai nhận ⇒ không tạo; lỗi ⇒ nuốt, không làm hỏng việc nhận tin', async () => {

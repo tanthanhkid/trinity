@@ -17,7 +17,7 @@ export interface ChannelNotice {
   /** Một dòng kết quả luật tự xử lý (bình luận), vd "đã trả lời công khai, đã nhắn riêng". */
   autoResult?: string | null;
   actionUrl: string;
-  /** Khoá gộp: cùng hội thoại trong THROTTLE_MS chỉ báo một lần (tin nhắn liên tiếp). Bỏ trống = luôn báo. */
+  /** Có giá trị ⇒ tin liên tiếp cùng hội thoại trong THROTTLE_MS chỉ báo một lần. Gộp theo actionUrl, nên actionUrl phải RIÊNG cho từng hội thoại. */
   threadKey?: string;
 }
 

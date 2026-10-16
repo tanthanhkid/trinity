@@ -83,3 +83,17 @@ describe("ChannelsHub", () => {
     expect(within(screen.getByTestId("channels-empty")).getByRole("link")).toHaveAttribute("href", "/settings?tab=features")
   })
 })
+
+describe("groupPostingChannels", () => {
+  it("gộp kênh đăng bài cùng mạng thành một dòng, cộng số bài, trạng thái xấu nhất", async () => {
+    const { groupPostingChannels } = await import("@/app/(dashboard)/dashboard/_components/home-ai-hub")
+    const post = (id: number, name: string, state: "ok" | "attention", n: number) => ({ key: `social:${id}`, kind: "social" as const, network: "facebook", name, state, note: "", today: { label: "bài đã đăng", value: n }, href: "/social?tab=channels" })
+    const out = groupPostingChannels([
+      post(1, "A", "ok", 1), post(2, "B", "attention", 2),
+      { key: "facebook_page:1", kind: "facebook_page", network: "facebook", name: "A", state: "ok", note: "Đang nhận tin", today: null, href: "/x" },
+      { key: "social:9", kind: "social", network: "youtube", name: "YT", state: "ok", note: "", today: { label: "bài đã đăng", value: 0 }, href: "/social?tab=channels" },
+    ])
+    expect(out.map((c) => c.key)).toEqual(["facebook_page:1", "social:facebook", "social:9"])
+    expect(out[1]).toMatchObject({ name: "Đăng bài · 2 Fanpage", state: "attention", note: "1 kênh cần liên kết lại", today: { value: 3 } })
+  })
+})

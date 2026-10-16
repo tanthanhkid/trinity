@@ -170,8 +170,39 @@ export function ChannelMark({ c }: { c: Pick<HomeChannel, 'kind' | 'network'> })
   return <span className={cn(base, 'bg-[var(--muted)] text-[var(--foreground)]')} aria-hidden><Icon className="size-4" /></span>
 }
 
+const POST_NETWORK_LABELS: Record<string, string> = { facebook: 'Fanpage', youtube: 'kênh YouTube', tiktok: 'kênh TikTok' }
+const STATE_RANK: Record<ChannelState, number> = { ok: 0, off: 1, attention: 2 }
+
+/**
+ * Kênh đăng bài gộp theo mạng thành MỘT dòng ("Đăng bài · 6 Fanpage"): công ty nối nhiều Page để đăng thì danh sách
+ * vẫn gọn, và Page vừa nhận tin vừa đăng bài không hiện như hai kênh giống hệt nhau. Trạng thái = trạng thái xấu nhất.
+ */
+export function groupPostingChannels(list: HomeChannel[]): HomeChannel[] {
+  const out: HomeChannel[] = []
+  const groups = new Map<string, HomeChannel[]>()
+  for (const c of list) {
+    if (c.kind !== 'social') { out.push(c); continue }
+    groups.set(c.network, [...(groups.get(c.network) ?? []), c])
+  }
+  for (const [network, items] of groups) {
+    if (items.length === 1) { out.push(items[0]); continue }
+    const worst = items.reduce((a, b) => (STATE_RANK[b.state] > STATE_RANK[a.state] ? b : a))
+    const bad = items.filter((c) => c.state === 'attention').length
+    const label = POST_NETWORK_LABELS[network] ?? `kênh ${network}`
+    out.push({
+      key: `social:${network}`, kind: 'social', network, href: items[0].href,
+      name: `Đăng bài · ${items.length.toLocaleString('vi-VN')} ${label}`,
+      state: worst.state,
+      note: bad ? `${bad.toLocaleString('vi-VN')} kênh cần liên kết lại` : items.map((c) => c.name).join(', '),
+      today: { label: 'bài đã đăng', value: items.reduce((n, c) => n + (c.today?.value ?? 0), 0) },
+    })
+  }
+  const order = ['facebook_page', 'zalo_oa', 'social', 'payment', 'store', 'commerce']
+  return out.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))
+}
+
 export function ChannelsHub({ loading, error, data }: { loading: boolean; error: boolean; data: HomeChannels | undefined }) {
-  const channels = data?.channels ?? []
+  const channels = groupPostingChannels(data?.channels ?? [])
   const available = data?.available ?? []
   const okCount = channels.filter((c) => c.state === 'ok').length
   return (
@@ -199,9 +230,9 @@ export function ChannelsHub({ loading, error, data }: { loading: boolean; error:
                 <ChannelMark c={c} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[14px] font-medium text-[var(--foreground)]">{c.name}</span>
-                  <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-                    <span aria-hidden className={cn('size-2 rounded-full', STATE_DOT[c.state])} />
-                    {c.note}
+                  <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+                    <span aria-hidden className={cn('size-2 shrink-0 rounded-full', STATE_DOT[c.state])} />
+                    <span className="truncate">{c.note}</span>
                   </span>
                 </span>
                 {c.today && (

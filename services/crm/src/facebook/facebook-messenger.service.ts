@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { Optional, BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { FacebookPage } from '@prisma/client';
 import { Prisma, PrismaService } from '@trinity/prisma';
 import { publishMessengerEvent } from './facebook-events';
@@ -6,6 +6,7 @@ import type { AuthUser } from '@trinity/rbac-nest';
 import { isWithinMessagingWindow, type ChannelSendResult, type MessagingChannel } from './channel';
 import { FacebookPagesService } from './facebook-pages.service';
 import { GraphApiError, GraphClient } from './graph-client';
+import { ChannelNotificationsService } from '../notifications/channel-notifications.service';
 import { PublicApiService } from '../public-api/public-api.service';
 
 interface Referral {
@@ -72,6 +73,7 @@ export class FacebookMessengerService implements MessagingChannel {
     private readonly graph: GraphClient,
     private readonly pages: FacebookPagesService,
     private readonly publicApi: PublicApiService,
+    @Optional() private readonly notices?: ChannelNotificationsService,
   ) {}
 
   /** Lưu 1 sự kiện tin nhắn. Trùng `mid` ⇒ bỏ qua (Meta gửi lại khi lỗi). Trả true nếu có ghi mới. */
@@ -87,6 +89,7 @@ export class FacebookMessengerService implements MessagingChannel {
     const text = (m.text ?? (m.attachments?.length ? '[Tệp đính kèm]' : null))?.slice(0, 5000) ?? null;
     const at = ev.timestamp ? new Date(ev.timestamp) : new Date();
     const name = echo ? null : await this.nameFor(pageId, psid, ctx.token);
+    let notice: { convId: number; contactId: number | null; created: boolean } | null = null;
     try {
       await this.prisma.$transaction(async (tx) => {
         const conv = await tx.facebookConversation.upsert({
@@ -102,6 +105,7 @@ export class FacebookMessengerService implements MessagingChannel {
         await tx.facebookMessage.create({ data: { conversation_id: conv.id, mid: m.mid as string, direction: echo ? 'out' : 'in', text, sent_at: at } });
         if (name && conv.contact_id) await this.renamePlaceholder(tx, conv.contact_id, psid, name);
         const contactId = echo ? conv.contact_id : await this.linkContact(tx, ctx.page, conv, text);
+        if (!echo) notice = { convId: conv.id, contactId: contactId ?? conv.contact_id, created: !conv.contact_id && !!contactId };
         await publishMessengerEvent(tx, { ...conv, page_id: pageId, contact_id: contactId ?? conv.contact_id }, echo ? 'out' : 'in', echo ? 'page' : 'customer');
         if (contactId) {
           const who = echo ? `Page "${ctx.page.name}" trả lời qua Messenger` : `Khách nhắn Page "${ctx.page.name}" qua Messenger`;
@@ -119,6 +123,13 @@ export class FacebookMessengerService implements MessagingChannel {
     } catch (err) {
       if ((err as { code?: string }).code === 'P2002') return false; // đua với echo của tin ta vừa gửi
       throw err;
+    }
+    if (notice) {
+      const nn = notice as { convId: number; contactId: number | null; created: boolean };
+      await this.notices?.notify({
+        event: 'messenger.message_received', channelName: ctx.page.name, defaultAssignee: ctx.page.default_assignee_id, contactId: nn.contactId,
+        contactCreated: nn.created, fromName: name, text, actionUrl: '/inbox?kenh=facebook', threadKey: `fb:${nn.convId}`,
+      });
     }
     return true;
   }

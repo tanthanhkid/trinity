@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Optional, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService, publishIntegrationEvent } from '@trinity/prisma';
 import type { Prisma, ZaloOaMessage, ZaloOaThread } from '@prisma/client';
+import { ChannelNotificationsService } from '../notifications/channel-notifications.service';
 import { ZaloOaContactLinker } from './zalo-oa-contact-linker.service';
 import { toZaloPhone } from './zalo-oa.config';
 
@@ -26,6 +27,7 @@ export class ZaloOaThreadsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly linker: ZaloOaContactLinker,
+    @Optional() private readonly notices?: ChannelNotificationsService,
   ) {}
 
   upsertThread(oaId: string, zaloUserId: string): Promise<ZaloOaThread> {
@@ -55,7 +57,7 @@ export class ZaloOaThreadsService {
     const thread = await this.get(m.threadId);
     const assignedTo = await this.linker.assignedTo(thread.contact_id);
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const saved = await this.prisma.$transaction(async (tx) => {
         const row = await tx.zaloOaMessage.create({
           data: {
             thread_id: m.threadId, direction: m.direction, kind: m.kind, msg_id: m.msgId, text: m.text,
@@ -81,6 +83,13 @@ export class ZaloOaThreadsService {
         }
         return row;
       });
+      if (m.direction === 'in' && m.status !== 'failed') {
+        await this.notices?.notify({
+          event: 'zalo_oa.message_received', channelName: 'Zalo OA', contactId: thread.contact_id, fromName: thread.display_name,
+          text: m.text ?? (m.kind !== 'text' ? `[${m.kind}]` : null), actionUrl: '/inbox?kenh=zalo', threadKey: `zalo:${m.threadId}`,
+        });
+      }
+      return saved;
     } catch (err) {
       if ((err as { code?: string }).code === 'P2002') return null;
       throw err;

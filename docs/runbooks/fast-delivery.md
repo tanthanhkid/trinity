@@ -14,7 +14,7 @@ How the maintainers ship. The goal is a short loop: a fix is live minutes after 
 |---|---|---|
 | Secret scan (gitleaks) | every PR | ~10 s |
 | CLA | every PR | ~10 s |
-| Typecheck and tests (changed packages) | every PR; only packages changed against the base branch | < 1 min |
+| Typecheck and tests (changed packages) | every PR; typecheck covers changed packages and their dependents, unit tests run in the changed packages only | 1–2 min |
 | SQL on Postgres | its steps run only when migrations, `schema.prisma`, `*.pg.spec.ts` or `$queryRaw`/`$executeRaw` code changed | ~20 s when skipped |
 
 Nothing runs on push to `main`. Lint and the full web/api builds are not part of CI; the deploy build catches build errors.

@@ -48,12 +48,12 @@ jobs:
       - name: Build shared packages
         run: pnpm --filter "./packages/*" build
 
-      # Chỉ package bị đổi và các package phụ thuộc vào nó (pnpm "...[origin/main]").
+      # Typecheck: package bị đổi + package phụ thuộc ("...[base]"). Test: chỉ package bị đổi ("[base]") để job dưới 2 phút.
       - name: Typecheck (changed packages)
         run: pnpm --filter "...[origin/${{ github.base_ref }}]" --if-present typecheck
 
       - name: Unit tests (changed packages)
-        run: pnpm --filter "...[origin/${{ github.base_ref }}]" --if-present test
+        run: pnpm --filter "[origin/${{ github.base_ref }}]" --if-present test
 
   sql-postgres:
     # Câu SQL raw / transaction chạy trên Postgres THẬT — unit test dùng mock không bắt được lỗi kiểu

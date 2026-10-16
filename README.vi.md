@@ -7,7 +7,7 @@
 
 Tác giả: **Trần Tấn Thành** · [X @trntnthnh](https://x.com/trntnthnh) · [YouTube](https://www.youtube.com/@ltvaicom) · [TikTok](https://www.tiktok.com/@laptrinhvoiai)
 
-[English](README.md) · [Website](https://phanmemtrinity.com) · [Triển khai](#triển-khai) · [Bản Cloud](#trinity-cloud) · [Dịch vụ](COMMERCIAL.md) · [Lộ trình](ROADMAP.md) · [Đóng góp](CONTRIBUTING.md)
+[English](README.md) · [Website](https://phanmemtrinity.com) · [Triển khai](#triển-khai) · [Lộ trình](ROADMAP.md) · [Đóng góp](CONTRIBUTING.md)
 
 </div>
 
@@ -25,13 +25,13 @@ Phần mềm quản lý nào cũng bắt bạn học menu. Trinity làm ngược
 - **"Chiến dịch quý 3 so với quý 2 thế nào?"** Trợ lý đọc dữ liệu, trả lời kèm biểu đồ.
 - **"Sáng nào cũng lấy đơn mới từ Google Sheet của tôi vào."** Trinity tự tạo một tiện ích nhỏ cho việc đó. Tiện ích chạy tách riêng, lỗi cũng không ảnh hưởng hệ thống chính.
 
-**Bắt đầu trống, lớn lên cùng doanh nghiệp.** Không phải cấu hình module. Lần đầu kết nối, AI hỏi về công việc của bạn, nhận file Excel/Google Sheet, rồi dựng quy trình và màn hình bạn cần.
+**Mở ra gọn, lớn lên cùng doanh nghiệp.** Lần đầu kết nối, AI hỏi về công việc của bạn, nhận file Excel/Google Sheet, rồi dựng quy trình và màn hình bạn cần. Bộ cơ bản (Tổng quan, Khách hàng, Công việc, Báo cáo, Hộp thư) bật sẵn; phần còn lại là công tắc ở Cài đặt › Tính năng, menu chỉ hiện thứ đang bật. AI bật giúp đúng tính năng cho ngành của bạn được.
 
 **Làm cho doanh nghiệp Việt trước tiên.** Zalo, VietQR, giao diện và định dạng dữ liệu tiếng Việt có sẵn. Đây là những thứ CRM nước ngoài không có.
 
 ## Cách hoạt động
 
-Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextprotocol.io)) đăng nhập bằng OAuth. Trợ lý AI nào hỗ trợ MCP cũng kết nối được và nhận bộ công cụ thao tác bản ghi, quy trình, báo cáo, tiện ích, theo đúng quyền của người kết nối. Máy chủ Trinity không tự gọi AI và không giữ khoá AI nào: trí tuệ đến từ trợ lý của chính bạn.
+Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextprotocol.io)) đăng nhập bằng OAuth. Trong app, màn *Bắt đầu* hỏi bạn dùng trợ lý AI nào (ChatGPT, Claude, Claude Code, Antigravity, Gemini CLI, Cursor, Codex CLI, VS Code Copilot…) rồi chép sẵn một prompt: dán vào là trợ lý tự gắn máy chủ, mở trang đăng nhập và bắt đầu dựng hệ thống. Trợ lý AI nào hỗ trợ MCP cũng kết nối được và nhận bộ công cụ thao tác bản ghi, quy trình, báo cáo, tiện ích, theo đúng quyền của người kết nối. Máy chủ Trinity không tự gọi AI và không giữ khoá AI nào: trí tuệ đến từ trợ lý của chính bạn.
 
 ## Tính năng
 
@@ -39,17 +39,26 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 |---|---|
 | **Điều khiển bằng AI (MCP)** | MCP server có sẵn: kết nối ChatGPT, Claude, Gemini, Cursor, OpenClaw hay bất kỳ trợ lý nào hỗ trợ MCP; đọc và ghi dữ liệu trực tiếp trong phạm vi quyền của người đã kết nối (ghi cần scope `crm.write`; mọi thao tác hiện ở mục Hoạt động AI). Có tuỳ chọn *Yêu cầu duyệt thay đổi do AI*: bật lên thì AI chỉ soạn nháp, người duyệt |
 | **Tự mở rộng** | Nhờ AI làm tiện ích đồng bộ, quy trình riêng, tích hợp mới; mỗi tiện ích chạy cô lập, tự tắt khi lỗi lặp lại |
+| **Tổng quan kiểu AI** | Trang đầu cho thấy trợ lý AI nào đang kết nối và đang làm việc, hôm nay AI đã làm gì, và mọi kênh đã nối (Fanpage, Zalo OA, YouTube, thanh toán, trang bán hàng) kèm trạng thái và số liệu hôm nay. Chưa nối AI thì hướng dẫn nối từng bước |
+| **Bật/tắt tính năng** | Cài đặt › Tính năng: thẻ chia nhóm (cơ bản, kênh & hộp thư, bán hàng, nhân sự, nâng cao), mỗi tính năng một công tắc. Tắt thì ẩn với mọi người, dữ liệu vẫn giữ. AI cũng xem và bật/tắt được (tắt cần bạn đồng ý) |
 | **Hộp thư chung** | Tin Messenger và Zalo OA ở một chỗ, có ô tìm và bộ lọc "Chưa trả lời"; trả lời đúng khung thời gian mỗi nền tảng cho phép |
 | **Tự động hoá Fanpage** | Tự trả lời bình luận, ẩn bình luận có số điện thoại, nhắn riêng; link và mã QR mở thẳng cuộc chat; kịch bản Messenger; gửi tin hàng loạt trong cửa sổ 24 giờ |
 | **Đăng đa kênh** | Soạn một lần, đăng ngay hoặc hẹn giờ lên Fanpage Facebook và YouTube; có lịch nội dung, thư viện ảnh/video, số liệu bài. Lưu nháp, hàng đợi theo khung giờ cố định mỗi tuần, bộ hashtag và chữ ký dùng lại, tự gắn UTM vào liên kết, xem trước bài trên từng kênh. Mọi việc cũng làm được qua trợ lý AI |
 | **Thanh toán** | Yêu cầu thanh toán kèm mã VietQR, SePay tự khớp khi tiền về; link thanh toán VNPay, MoMo |
 | **Kết nối bán hàng** | KiotViet, Sapo, WooCommerce, MISA, Shopee, Lazada: đồng bộ về CRM những gì API từng bên cho (khách, đơn và/hoặc hàng hoá); khách được ghép theo số điện thoại khi nền tảng cung cấp (Shopee che số người mua). Phạm vi từng connector ở [status.md](docs/integrations/status.md) |
 | **Trang bán hàng** | Trang bán online `/s/<tên>` (hoặc tên miền phụ), 3 giao diện, giỏ hàng, COD hoặc chuyển khoản QR; đơn và người mua vào thẳng CRM. Mặc định tắt |
-| **CRM** | Danh bạ, Kanban, mã bản ghi chung và gắn thẻ `@` giữa các màn, bảng tin |
-| **Bán hàng** | Sản phẩm, dự án, POS |
+| **CRM** | Danh bạ với nguồn, giai đoạn, trạng thái do bạn tự đặt, Kanban, mã bản ghi chung và gắn thẻ `@` giữa các màn, bảng tin |
+| **Bán hàng** | Sản phẩm, POS |
 | **Nhân sự** | Hồ sơ, chấm công, lương |
 | **Báo cáo** | Dashboard, báo cáo |
 | **Phân quyền** | Vai trò và phạm vi dữ liệu |
+
+### Đã thử tới đâu
+
+- **Thử trọn vòng trên bản cài mới** (nút Vercel, cơ sở dữ liệu Postgres mới): đăng nhập lần đầu, nối trợ lý AI, dựng bảng bằng chat, nhập dữ liệu, các tool AI.
+- **Thử với tài khoản thật**: đăng ngay và hẹn giờ lên Fanpage và YouTube, tin nhắn Messenger.
+- **Mới thử với dữ liệu mẫu**: hàng đợi đăng bài, bài lặp lại, nhập CSV, dashboard và báo cáo, Tổng quan kiểu AI, bật/tắt tính năng, POS, nhân sự, chấm công, lương, trang bán hàng (cửa hàng mẫu).
+- Các mảng này có test tự động; connector ở bảng dưới.
 
 ### Connector và mức đã thử
 
@@ -144,7 +153,7 @@ vercel deploy --prod
 Rồi mở URL production và đăng nhập bằng tài khoản admin ở trên. Lưu ý:
 
 - Admin đầu tiên chỉ được tạo khi chưa tồn tại; deploy lại không bao giờ ghi đè mật khẩu.
-- Workspace mới cố ý bắt đầu trống: thanh bên chỉ có *Hoạt động AI* và *Cài đặt* cho tới khi trợ lý AI dựng workspace (hoặc bạn bật module trong Cài đặt → *Tính năng* (tab này hiện sau khi workspace đã dựng xong từ màn *Bắt đầu*; ví dụ Zalo OA là một công tắc tính năng, chưa bật thì trả 403).
+- Workspace mới cố ý bắt đầu trống: thanh bên chỉ có *Hoạt động AI* và *Cài đặt* cho tới khi trợ lý AI dựng workspace từ màn *Bắt đầu*. Sau đó bộ cơ bản bật sẵn, phần còn lại là công tắc ở Cài đặt → *Tính năng*; ví dụ Zalo OA chưa bật thì trả 403. Cài đặt chia nhóm *Tính năng & Kết nối*, *Khách hàng*, *Công ty & Nhân sự*, *Cá nhân*; mục nào thuộc tính năng đang tắt thì ẩn.
 - Trên Vercel, API chạy trong chính app Next.js (một hàm, giới hạn 60 giây). File tải lên cần object storage: đặt `STORAGE_DRIVER=vercel-blob` với token Vercel Blob, hoặc driver tương thích S3 (xem `.env.example`). Thông báo dùng polling thay cho WebSocket. Tiện ích (sandbox Deno, trang "Chương trình con") và tính năng dùng Redis cần máy chủ chạy liên tục, hãy dùng Cách 2.
 
 ### Cách 2: Tự cài bằng Docker Compose
@@ -166,14 +175,6 @@ Mỗi bản phát hành gắn tag đẩy sẵn image lên GitHub Container Regis
 Để trợ lý AI điều khiển Trinity, đặt `INTEGRATIONS_MCP_ENABLED=true`, một `INTEGRATIONS_PUBLIC_BASE_URL` công khai và `INTEGRATIONS_SECRET_KEY` trong `.env`, rồi làm theo [docs/integrations](docs/integrations/).
 
 Phát triển không dùng Docker: `pnpm install && pnpm dev` (cần Node 22, Postgres và Redis chạy cục bộ).
-
-## Trinity Cloud
-
-Không muốn tự lo máy chủ? **Trinity Cloud** là bản chạy sẵn do chính Thành và đội Trinity vận hành: tự cập nhật, sao lưu, bảo mật, mỗi công ty một máy chủ riêng. Nhắn Thành qua [Facebook](https://www.facebook.com/thanhtt88).
-
-## Làm việc với tác giả
-
-Trinity miễn phí và mở mã. Muốn chính người làm ra nó triển khai, tuỳ biến, tích hợp cho công ty mình? Nhắn Thành qua [Facebook](https://www.facebook.com/thanhtt88); các gói dịch vụ ở [COMMERCIAL.md](COMMERCIAL.md).
 
 ## Vì sao mình làm Trinity
 

@@ -131,7 +131,8 @@ const SETUPS: Record<ConnectAgent, AgentSetup> = {
       '```',
       'Bấm Start cạnh trinity trong file; cửa sổ đăng nhập Trinity mở ra. Nếu VS Code đòi clientId thì dùng cách dự phòng mcp-remote bên dưới.',
     ].join('\n'),
-    rule: 'Tạo file .github/instructions/trinity.instructions.md (hoặc thêm vào .github/copilot-instructions.md) với nội dung:',
+    // copilot-instructions.md luôn áp dụng; *.instructions.md cần frontmatter applyTo.
+    rule: 'Thêm vào .github/copilot-instructions.md của workspace (tạo nếu chưa có) mục sau:',
   },
   other: {
     connect: [

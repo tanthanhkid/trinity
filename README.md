@@ -35,7 +35,7 @@ Most business software makes you learn its menus. Trinity flips that around: **y
 
 ## How it works
 
-Trinity ships a built-in **[Model Context Protocol (MCP)](https://modelcontextprotocol.io) server** with OAuth login. Any MCP-capable assistant connects to it and gets tools for records, pipelines, reports and add-ons, scoped by the connecting user's role. The server itself never calls an AI model and holds no AI API keys: the intelligence comes from the assistant you bring.
+Trinity ships a built-in **[Model Context Protocol (MCP)](https://modelcontextprotocol.io) server** with OAuth login. In the app, *Bắt đầu* ("Get started") asks which assistant you use (ChatGPT, Claude, Claude Code, Antigravity, Gemini CLI, Cursor, Codex CLI, VS Code Copilot…) and copies one prompt: paste it and the assistant adds the server, signs you in and starts setting up. Any MCP-capable assistant connects to it and gets tools for records, pipelines, reports and add-ons, scoped by the connecting user's role. The server itself never calls an AI model and holds no AI API keys: the intelligence comes from the assistant you bring.
 
 ```
 Your AI assistant (ChatGPT · Claude · Gemini · Cursor · OpenClaw …)

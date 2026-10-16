@@ -5,13 +5,16 @@ All notable changes to Trinity are documented here. The format follows [Keep a C
 ## Unreleased
 
 ### Added
-- **AI-native overview**: the home page opens with "AI assistants at work" (which assistants are connected, who is active now, what the AI did today) and "Connected channels" (Fanpage, Zalo OA, posting channels, payments, online store, sales connectors) with status and today's counts. With no assistant connected, it shows a step-by-step invite. New `GET /reports/dashboard-channels`, filtered by enabled features and the viewer's permissions.
-- **Feature switches**: Settings › Features shows grouped cards (core, channels & inbox, sales, people, advanced) with one switch each; the menu and the related Settings sections only show what is on. New `inbox` switch for the Inbox menu. A newly built workspace always turns on the core set (overview, customers, tasks, reports, inbox, AI connections) plus what the AI picks for the industry.
+- **Connect your assistant in one paste** (#6): step 1 of onboarding asks which assistant you use (ChatGPT, Claude, Claude Code, Antigravity, Gemini CLI, Cursor, Codex CLI, VS Code Copilot, other) and copies one prompt with the server address, OAuth-only login, the exact way to add the server for that client (or `mcp-remote` as a fallback), a short `trinity` rule or skill for the client, and the first step. `GET /setup/connect-prompt`; `get_setup_guide` accepts `agent` and returns `connect_prompt`.
+- **AI-native overview** (#4): the home page opens with "AI assistants at work" (which assistants are connected, who is active now, what the AI did today) and "Connected channels" (Fanpage, Zalo OA, posting channels, payments, online store, sales connectors) with status and today's counts. With no assistant connected, it shows a step-by-step invite. New `GET /reports/dashboard-channels`, filtered by enabled features and the viewer's permissions.
+- **Feature switches** (#4): Settings › Features shows grouped cards (core, channels & inbox, sales, people, advanced) with one switch each; the menu and the related Settings sections only show what is on. New `inbox` switch for the Inbox menu. A newly built workspace always turns on the core set (overview, customers, tasks, reports, inbox, AI connections) plus what the AI picks for the industry.
 - **AI assistant (MCP)**: `list_features`, `set_features` (switching off needs `confirmed_by_user`), `save_crm_option` (add, rename, reorder or hide customer sources, stages and statuses; no delete), `get_connected_channels`.
 
 ### Changed
 - Settings: customer sources, stages and statuses are one "Customer lists" tab; Projects and Job titles left Settings (job titles stay under Management); the Messenger and Zalo OA inboxes inside Settings moved to the Inbox menu. Old `?tab=` links still open the right tab.
 - A Fanpage that is turned off shows "Turned off" instead of looking connected.
+- Official brand logos (Facebook, Messenger, YouTube, Zalo, SePay, VNPay, MoMo, KiotViet, Sapo, WooCommerce, Shopee, Lazada, MISA, iPOS…) replace letter badges on the overview, Settings › Connections, posting and inbox screens, in light and dark mode. Sources: `apps/web/public/brand/logos/SOURCES.md`.
+- The sidebar no longer flashes switched-off items while features load.
 
 ### Upgrade notes
 - No migrations. Running systems keep their feature switches (missing keys still mean on), so the new `inbox` switch starts on.

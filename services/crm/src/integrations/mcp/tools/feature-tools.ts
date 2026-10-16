@@ -11,7 +11,7 @@ export const listFeaturesTool: ToolDef = {
   name: 'list_features',
   title: 'Tính năng đang bật / List features',
   description:
-    'Liệt kê các tính năng có sẵn của Trinity theo nhóm (Cơ bản, Kênh & hộp thư, Bán hàng, Nhân sự, Nâng cao): khoá, tên, mô tả một dòng, đang bật hay tắt, lý do bị khoá nếu có. ' +
+    'Liệt kê các tính năng có sẵn của Trinity theo nhóm (Cơ bản, Kênh & hộp thư, Bán hàng, Nhân sự, Nâng cao): khoá, tên, mô tả một dòng, đang bật hay tắt, và locked = lý do không bật được (gói dịch vụ hoặc máy chủ không hỗ trợ) nếu có. ' +
     'Tính năng tắt thì ẩn khỏi menu và Cài đặt của cả công ty; dữ liệu vẫn giữ. Chỉ đọc. / Lists built-in features by group with on/off state. Read-only.',
   permissions: [],
   input: () => ({}),
@@ -36,7 +36,7 @@ export const setFeaturesTool: ToolDef = {
   name: 'set_features',
   title: 'Bật/tắt tính năng / Turn features on or off',
   description:
-    'Bật hoặc tắt tính năng có sẵn cho cả công ty (khoá lấy từ list_features). Bật thì mục menu và Cài đặt liên quan hiện ra ngay. ' +
+    'Bật hoặc tắt tính năng có sẵn cho cả công ty (khoá lấy từ list_features). Bật thì mục menu và Cài đặt liên quan hiện ra ngay, không cần hỏi lại. ' +
     'Tắt thì ẩn với mọi người nhưng không xoá dữ liệu; vì ảnh hưởng cả công ty nên khi có khoá trong disable, confirmed_by_user là lời người dùng đồng ý tắt, chép nguyên văn. ' +
     `Khoá hợp lệ: ${KEY_LIST}. Chỉ quản trị viên. / Turns built-in features on or off for the whole company; turning off needs the user's confirmation. Admins only.`,
   permissions: ['settings.features'],
@@ -88,8 +88,8 @@ export const getConnectedChannelsTool: ToolDef = {
   title: 'Kênh đã kết nối / Connected channels',
   description:
     'Liệt kê các kênh đã kết nối với Trinity: Fanpage Facebook, Zalo OA, kênh đăng bài (Fanpage, YouTube), thanh toán (SePay, VNPay, MoMo), kết nối bán hàng, trang bán hàng. ' +
-    'Mỗi kênh có trạng thái (ok = đang chạy, attention = cần kết nối lại hoặc có lỗi, off = đã tắt), một dòng ghi chú và số liệu hôm nay (tin nhắn mới, bài đã đăng, lượt thanh toán, đơn mới). ' +
-    'available = tính năng đang bật nhưng chưa nối kênh nào. Chỉ thấy nhóm kênh hợp quyền của người dùng. Chỉ đọc. / Connected channels with status and today\'s counts. Read-only.',
+    'Mỗi kênh đã nối có trạng thái (ok = đang chạy, attention = cần kết nối lại hoặc có lỗi, off = đã nối nhưng đang tắt), một dòng ghi chú và số liệu hôm nay (tin nhắn mới, bài đã đăng, lượt thanh toán, đơn mới). ' +
+    'available = tính năng đang bật nhưng chưa nối kênh nào (gợi ý nối thêm). Bật/tắt cả tính năng thì dùng set_features (vd payments = thanh toán SePay/VNPay/MoMo). Chỉ thấy nhóm kênh hợp quyền của người dùng. Chỉ đọc. / Connected channels with status and today\'s counts. Read-only.',
   permissions: [],
   input: () => ({}),
   output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),

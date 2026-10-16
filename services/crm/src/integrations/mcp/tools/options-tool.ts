@@ -43,7 +43,7 @@ export const saveCrmOptionTool: ToolDef = {
   title: 'Thêm/sửa mục danh mục khách hàng / Save CRM option',
   description:
     'Thêm mục mới hoặc sửa mục có sẵn trong danh mục khách hàng: list = sources (nguồn khách), stages (giai đoạn), statuses (trạng thái chăm sóc). ' +
-    'Có id (từ list_crm_options) thì sửa nhãn / thứ tự / bật-tắt; không có id thì thêm mục mới với label. Tắt (active=false) để ẩn mục không dùng; không xoá. ' +
+    'Có id (từ list_crm_options) thì sửa nhãn / thứ tự / bật-tắt; không có id thì thêm mục mới với label. Muốn "bỏ" một mục thì tắt (active=false): mục ẩn khỏi danh sách chọn, khách cũ vẫn giữ nhãn; không có xoá hẳn. ' +
     'Cần quyền cấu hình danh mục khách. / Adds or edits a customer list item (source, stage, status); turning off hides it, nothing is deleted.',
   permissions: ['contacts.catalog'],
   scope: 'crm.write',

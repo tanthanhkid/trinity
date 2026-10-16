@@ -22,7 +22,7 @@ export function DealStatusChart({ data, className }: { data: DashboardOverviewDa
     <ShellChartCard
       className={className}
       title="Cơ hội theo trạng thái"
-      subtitle={`Trên tổng ${nf(total)} thương vụ trong phạm vi của bạn`}
+      subtitle={`Trên tổng ${nf(total)} thương vụ`}
       table={{
         columns: ['Trạng thái', 'Thương vụ'],
         rows: total > 0 ? [['Đang mở', nf(s.open)], ['Đã thắng', nf(s.won)], ['Đã thua', nf(s.lost)]] : [],

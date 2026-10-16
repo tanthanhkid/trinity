@@ -7,7 +7,6 @@ const read = (p: string) => readFileSync(join(__dirname, "../../app", p), "utf8"
 /** Khoá mã nguồn các sửa điện thoại. */
 describe("điện thoại — Tổng quan / Báo cáo / Đăng nhập", () => {
   it("Tổng quan: bộ lọc nằm trong MobileFilterSheet, chip tab biểu đồ cuộn ngang 44px", () => {
-    expect(read("(dashboard)/dashboard/_components/dashboard-overview-filter.tsx")).toContain("<MobileFilterSheet")
     const chart = read("(dashboard)/dashboard/_components/dashboard-overview-tabbed-chart.tsx")
     expect(chart).toContain("max-sm:flex-nowrap")
     expect(chart).toContain("max-sm:min-h-11")

@@ -10,7 +10,6 @@ import { getUserDisplayName } from '@/lib/user-identity'
 import { formatDate, formatTimeVn, todayVn } from '@/lib/format'
 import { greetingForHour, formatLongDateVn, vnClockParts } from './dashboard-greeting'
 import { DashboardReportsButton } from './dashboard-reports-button'
-import { DashboardOverviewFilter } from './dashboard-overview-filter'
 import { useDashboardFilter } from './dashboard-filter-context'
 import { EMPTY_FILTER } from './dashboard-filter-utils'
 import { taskHref } from './dashboard-tasks-card'
@@ -23,8 +22,6 @@ import { resolveNotificationHref } from '@/lib/notification-href'
 import { usePermissions } from '@/lib/rbac'
 import {
   useCanSeeOverview,
-  useCanUseDashboardFilter,
-  useDashboardFilterRoster,
   useDashboardOverview,
   useDashboardTasks,
 } from './use-dashboard-overview'
@@ -50,9 +47,8 @@ export function DashboardHome() {
 
   const { can } = usePermissions()
   const canOverview = useCanSeeOverview()
-  const canFilter = useCanUseDashboardFilter()
-  const { filter, effective, setFilter } = useDashboardFilter()
-  const roster = useDashboardFilterRoster()
+  // Không có bộ lọc phạm vi trên giao diện: số liệu theo đúng quyền người đang xem (server tự giới hạn).
+  const { effective } = useDashboardFilter()
   const overview = useDashboardOverview(effective)
   const tasks = useDashboardTasks(effective)
   // "Cần bạn xem" luôn là việc của CHÍNH mình, kể cả khi đang lọc xem người khác.
@@ -177,10 +173,6 @@ export function DashboardHome() {
           <DashboardReportsButton />
         </div>
       </div>
-
-      {canOverview && canFilter && (
-        <DashboardOverviewFilter roster={roster.data} value={filter} onChange={setFilter} selfId={user?.id ?? null} />
-      )}
 
       {/* AI Native: trợ lý AI đang làm việc + kênh đã kết nối — thứ đầu tiên người dùng thấy. */}
       <div className="grid items-start gap-4 lg:grid-cols-2">

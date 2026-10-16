@@ -69,10 +69,12 @@ export function ShellSidebar() {
     () => withSetupMenu(withCustomObjectItems(withExtraMenuItems(menuItems), customNav ?? []), setupStatus),
     [customNav, setupStatus],
   )
-  const { features } = useOrgFeatures()
+  const { features, isLoading: featuresLoading } = useOrgFeatures()
+  // Lần tải đầu: chưa biết tính năng nào bật ⇒ tạm ẩn mục có công tắc (tránh menu đầy đủ nháy rồi thu gọn).
+  // Tải xong hoặc lỗi ⇒ luật cũ (lỗi = fail-open, bật hết).
   const visibleItems = useMemo(
-    () => baseItems.filter((item) => isItemVisible(item, grants, features)),
-    [baseItems, grants, features],
+    () => baseItems.filter((item) => !(featuresLoading && item.feature) && isItemVisible(item, grants, features)),
+    [baseItems, grants, features, featuresLoading],
   )
 
   // Trạng thái "đang sáng" tính TẬP TRUNG 1 lần cho cả menu — href khớp DÀI

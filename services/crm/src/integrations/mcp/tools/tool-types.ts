@@ -9,6 +9,7 @@ import type { KanbanCardsService } from '../../../kanban/cards/kanban-cards.serv
 import type { ActivitiesService } from '../../../activities/activities.service';
 import type { DashboardOverviewService } from '../../../reports/dashboard-overview.service';
 import type { DashboardChannelsService } from '../../../reports/dashboard-channels.service';
+import type { InteractionsService } from '../../../interactions/interactions.service';
 import type { AiActionsService } from '../actions/ai-actions.service';
 import type { BriefingsService } from '../../../briefings/briefings.service';
 import type { LeadScoringService } from '../../../lead-scoring/lead-scoring.service';
@@ -80,6 +81,8 @@ export interface McpDeps {
   payments?: PaymentsService;
   /** Kênh đã kết nối + số liệu hôm nay (cùng dữ liệu khối "Kênh đã kết nối" ở Tổng quan). */
   channels?: DashboardChannelsService;
+  /** Tương tác gộp (bình luận + tin nhắn các kênh) — màn Tương tác + list_interactions. */
+  interactions?: InteractionsService;
 }
 
 export interface ToolContext {

@@ -7,6 +7,7 @@ function make(opts: { features?: Record<string, boolean>; pages?: any[]; msgs?: 
     facebookPage: { findMany: jest.fn(async () => opts.pages ?? []) },
     facebookMessage: { groupBy: jest.fn(async () => opts.msgs ?? []) },
     facebookConversation: { findMany: jest.fn(async () => opts.convs ?? []) },
+    facebookComment: { groupBy: jest.fn(async () => (opts as any).comments ?? []) },
     zaloOaConnection: { findMany: jest.fn(async () => []) },
     zaloOaMessage: { count: jest.fn(async () => 0) },
     socialAccount: { findMany: jest.fn(async () => opts.social ?? []) },
@@ -33,6 +34,8 @@ describe('DashboardChannelsService', () => {
     const r = await svc.get(ADMIN);
     const fb = r.channels.filter((c) => c.kind === 'facebook_page');
     expect(fb.map((c) => [c.name, c.state, c.today?.value])).toEqual([['AiiLab', 'ok', 5], ['Trinity', 'off', 0]]);
+    const withComments = await make({ pages: [PAGE], comments: [{ page_id: 'p1', _count: { _all: 3 } }] } as any).svc.get(ADMIN);
+    expect(withComments.channels[0].note).toBe('Đang nhận tin · 3 bình luận hôm nay');
   });
 
   it('token hỏng ⇒ attention; chưa nối Page nào ⇒ gợi ý nối thêm', async () => {

@@ -27,7 +27,7 @@ import type { MenuItem } from "@/components/nav-config"
  */
 const INBOX_ITEM: MenuItem = {
   key: "inbox",
-  title: "Hộp thư",
+  title: "Tương tác",
   icon: Inbox,
   href: "/inbox",
   iconColor: "text-blue-600 dark:text-blue-400",

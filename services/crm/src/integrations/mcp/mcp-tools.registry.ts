@@ -13,6 +13,7 @@ import { optionsTool, saveCrmOptionTool } from './tools/options-tool';
 import { getBriefingDataTool, saveBriefingTool } from './tools/briefing-tools';
 import { listLeadsToScoreTool, setLeadIntentTool } from './tools/lead-intent-tools';
 import { completeSetupTool, getSetupGuideTool, listStructureVersionsTool } from './tools/setup-tools';
+import { listInteractionsTool } from './tools/interaction-tools';
 import { getConnectedChannelsTool, listFeaturesTool, setFeaturesTool } from './tools/feature-tools';
 import { SETUP_INSTRUCTIONS } from './tools/setup-guide';
 import { EXTENSION_TOOLS } from './tools/extension-tools';
@@ -62,6 +63,7 @@ export const MCP_TOOLS: readonly ToolDef[] = [
   completeSetupTool,
   listFeaturesTool,
   getConnectedChannelsTool,
+  listInteractionsTool,
   setFeaturesTool,
   saveCrmOptionTool,
   ...EXTENSION_TOOLS,

@@ -198,7 +198,7 @@ export class FacebookCommentsService {
     await this.notices?.notify({
       event: 'facebook.comment_received', channelName: ctx.page.name, defaultAssignee: ctx.page.default_assignee_id, contactId, contactCreated,
       fromName: v.from?.name ?? null, text: message, autoResult: autoResultLine(rule?.name ?? null, status, actions),
-      actionUrl: '/connections?muc=facebook&xem=binh-luan',
+      actionUrl: '/inbox?kenh=tuong-tac',
     });
     return true;
   }

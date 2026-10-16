@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AlertTriangle, ArrowLeft, LayoutGrid, Loader2, PlugZap } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -53,7 +53,10 @@ export function SettingsIntegrations() {
   const params = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
-  const [active, setActive] = useState<IntegrationSection | "overview">(() => sectionFromParams(new URLSearchParams(params.toString())))
+  // Mục đang mở theo URL (?muc= hoặc tham số quay về OAuth); URL đổi (link menu, Back/Forward) ⇒ đồng bộ lại.
+  const query = params.toString()
+  const [active, setActive] = useState<IntegrationSection | "overview">(() => sectionFromParams(new URLSearchParams(query)))
+  useEffect(() => { setActive(sectionFromParams(new URLSearchParams(query))) }, [query])
   const status = useIntegrationsStatus(visible.length > 0)
 
   if (visible.length === 0) {
@@ -66,8 +69,8 @@ export function SettingsIntegrations() {
   const enabled = !overview && isSectionEnabled(current.flag, status.data)
   const open = (s: IntegrationSection | "overview") => {
     setActive(s)
-    // Ghi mục lên URL (bỏ tham số quay về OAuth đã đọc) để link sâu + Back đúng; trang Cài đặt cũ vẫn chuyển hướng về đây.
-    router.replace(s === "overview" ? pathname : `${pathname}?muc=${s}`, { scroll: false })
+    // Người dùng đổi mục ⇒ thêm một mục lịch sử (Back quay lại mục trước); bỏ tham số quay về OAuth đã đọc.
+    router.push(s === "overview" ? pathname : `${pathname}?muc=${s}`, { scroll: false })
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
   }
   const groups = INTEGRATION_GROUPS.map((g) => ({ ...g, items: visible.filter((s) => s.group === g.key) })).filter((g) => g.items.length > 0)

@@ -1,13 +1,11 @@
 name: Docker image
 
-# Builds both image targets from the root Dockerfile on every push / PR (validates that the self-host path builds).
-# Pushes to GHCR only for version tags (v*), using the built-in GITHUB_TOKEN.
+# Builds both image targets from the root Dockerfile and pushes them to GHCR, only for version tags (v*).
+# Not on PRs or main (Thanh 16/10: keep CI minimal); use workflow_dispatch to test a Dockerfile change.
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

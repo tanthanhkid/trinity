@@ -1,9 +1,9 @@
 name: CI
 
+# Tối giản (Thanh 16/10): chỉ chạy trên PR, không chạy lại trên main sau merge. Deploy tự build — build hỏng thì
+# deploy dừng và bản đang chạy giữ nguyên. Lint chạy ở máy dev; image Docker chỉ build khi gắn tag (docker.yml).
 on:
   pull_request:
-    branches: [main]
-  push:
     branches: [main]
 
 concurrency:
@@ -14,10 +14,10 @@ permissions:
   contents: read
 
 jobs:
-  build-test:
-    name: Install, lint, typecheck, test
+  quick:
+    name: Typecheck and tests (changed packages)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     env:
       # Shape-only values: nothing here talks to a real database or service.
       DATABASE_URL: postgresql://test:test@localhost:5432/test
@@ -27,6 +27,8 @@ jobs:
       CI: "true"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
@@ -38,7 +40,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Generate Prisma clients
         run: pnpm --filter @trinity/prisma generate
@@ -46,19 +48,12 @@ jobs:
       - name: Build shared packages
         run: pnpm --filter "./packages/*" build
 
-      - name: Lint
-        run: pnpm -r lint
+      # Chỉ package bị đổi và các package phụ thuộc vào nó (pnpm "...[origin/main]").
+      - name: Typecheck (changed packages)
+        run: pnpm --filter "...[origin/${{ github.base_ref }}]" --if-present typecheck
 
-      - name: Typecheck
-        run: pnpm -r typecheck
-
-      - name: Unit tests
-        run: pnpm -r test
-
-      - name: Build web and monolith
-        run: |
-          pnpm --filter @trinity/monolith build
-          pnpm --filter web build
+      - name: Unit tests (changed packages)
+        run: pnpm --filter "...[origin/${{ github.base_ref }}]" --if-present test
 
   sql-postgres:
     # Câu SQL raw / transaction chạy trên Postgres THẬT — unit test dùng mock không bắt được lỗi kiểu
@@ -88,29 +83,49 @@ jobs:
       CI: "true"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      # Chỉ chạy khi đổi migration, schema, test SQL (*.pg.spec.ts) hoặc file có SQL viết tay ($queryRaw/$executeRaw).
+      - name: Detect SQL changes
+        id: sql
+        run: |
+          files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          if echo "$files" | grep -qE '(prisma/migrations/|schema\.prisma$|\.pg\.spec\.ts$)'; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          for f in $(echo "$files" | grep -E '\.ts$' || true); do
+            if [ -f "$f" ] && grep -qE '\$(queryRaw|executeRaw)' "$f"; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          done
+          echo "run=false" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        if: steps.sql.outputs.run == 'true'
         with:
           version: 10.6.5
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: steps.sql.outputs.run == 'true'
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        if: steps.sql.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Generate Prisma clients
+        if: steps.sql.outputs.run == 'true'
         run: pnpm --filter @trinity/prisma generate
 
       - name: Build shared packages
+        if: steps.sql.outputs.run == 'true'
         run: pnpm --filter "./packages/*" build
 
       - name: Apply migrations
+        if: steps.sql.outputs.run == 'true'
         run: pnpm --filter @trinity/prisma exec prisma migrate deploy
 
       - name: SQL tests on Postgres
+        if: steps.sql.outputs.run == 'true'
         working-directory: services/crm
         run: npx jest --testRegex '\.pg\.spec\.ts$' --runInBand
 

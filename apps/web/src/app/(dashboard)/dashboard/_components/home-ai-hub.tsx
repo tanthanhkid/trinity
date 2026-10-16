@@ -9,6 +9,8 @@ import { ArrowRight, CreditCard, Plug, Plus, ShoppingBag, Sparkles, X } from 'lu
 import { toast } from 'sonner'
 import { ORG_FEATURES, type OrgFeatureKey } from '@trinity/rbac'
 import { Skeleton } from '@/components/ui/skeleton'
+import { BrandLogo } from '@/components/ui/connection-row'
+import { isBrandKey } from '@/lib/brand-logos'
 import type { AiConnection } from '@/app/(dashboard)/settings/_components/integrations/integrations-meta'
 import { useOrgFeatures, useUpdateOrgFeatures } from '@/hooks/use-org-features'
 import { formatRelativeTimeVn } from '@/lib/nav-time'
@@ -148,26 +150,11 @@ const STATE_DOT: Record<ChannelState, string> = {
   off: 'bg-muted-foreground/40',
 }
 
-/** Dấu nhận diện kênh (vẽ gọn, không tải ảnh ngoài). */
+/** Dấu nhận diện kênh: logo chính thức của hãng; trang bán hàng (của chính Trinity) và kênh lạ dùng biểu tượng chung. */
 export function ChannelMark({ c }: { c: Pick<HomeChannel, 'kind' | 'network'> }) {
-  const base = 'grid size-8 shrink-0 place-items-center rounded-lg text-white'
-  if (c.network === 'facebook') {
-    return (
-      <span className={cn(base, 'bg-[#1877F2]')} aria-hidden>
-        <svg viewBox="0 0 24 24" className="size-[18px]" fill="currentColor"><path d="M13.5 21v-7.5h2.5l.4-3h-2.9V8.6c0-.9.3-1.5 1.5-1.5h1.5V4.4c-.3 0-1.2-.1-2.2-.1-2.2 0-3.7 1.3-3.7 3.8v2.4H8v3h2.6V21h2.9z" /></svg>
-      </span>
-    )
-  }
-  if (c.network === 'youtube') {
-    return (
-      <span className={cn(base, 'bg-[#FF0000]')} aria-hidden>
-        <svg viewBox="0 0 24 24" className="size-[16px]" fill="currentColor"><path d="M9 7.5v9l7.5-4.5z" /></svg>
-      </span>
-    )
-  }
-  if (c.network === 'zalo') return <span className={cn(base, 'bg-[#0068FF] text-[13px] font-bold')} aria-hidden>Zalo</span>
+  if (isBrandKey(c.network)) return <BrandLogo brand={c.network} size={32} className="rounded-lg" />
   const Icon = c.kind === 'payment' ? CreditCard : c.kind === 'store' ? ShoppingBag : Plug
-  return <span className={cn(base, 'bg-[var(--muted)] text-[var(--foreground)]')} aria-hidden><Icon className="size-4" /></span>
+  return <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--muted)] text-[var(--foreground)]" aria-hidden><Icon className="size-4" /></span>
 }
 
 const POST_NETWORK_LABELS: Record<string, string> = { facebook: 'Fanpage', youtube: 'kênh YouTube', tiktok: 'kênh TikTok' }

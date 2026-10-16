@@ -3,6 +3,7 @@
 import type { ReactNode } from "react"
 import { AlertTriangle, Blocks, Bot, FileSpreadsheet, History, Webhook } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import type { BrandKey } from "@/lib/brand-logos"
 import { ConnectionGroup, ConnectionLogo, ConnectionRow, StatusPill, type ConnectionTone } from "@/components/ui/connection-row"
 import { useFacebookPages, useFacebookStatus } from "./use-facebook"
 import { useZaloOaStatus } from "./zalo-oa/use-zalo-oa"
@@ -73,7 +74,7 @@ function FacebookRow({ open }: { open: Open }) {
         ? { tone: "warning", label: "Cần liên kết lại", detail: `${active.length} Fanpage` }
         : { tone: "connected", label: "Đã kết nối", detail: active.length === 1 ? active[0].name : `${active.length} Fanpage` }
   }
-  return <Row section="facebook" open={open} logo={<ConnectionLogo color="#1877F2" text="f" />} title="Fanpage Facebook" description="Tin nhắn Messenger, bình luận, gửi hàng loạt" state={state} />
+  return <Row section="facebook" open={open} logo={<ConnectionLogo brand="facebook" color="#1877F2" text="f" />} title="Fanpage Facebook" description="Tin nhắn Messenger, bình luận, gửi hàng loạt" state={state} />
 }
 
 function ZaloRow({ open }: { open: Open }) {
@@ -90,7 +91,7 @@ function ZaloRow({ open }: { open: Open }) {
           ? { tone: "warning", label: "Cần cấp quyền lại" }
           : { tone: "off", label: "Chưa kết nối" }
   }
-  return <Row section="zalo-oa" open={open} logo={<ConnectionLogo color="#0068FF" text="Z" />} title="Zalo Official Account" description="Hộp thư Zalo OA và thông báo ZNS" state={state} />
+  return <Row section="zalo-oa" open={open} logo={<ConnectionLogo brand="zalo" color="#0068FF" text="Z" />} title="Zalo Official Account" description="Hộp thư Zalo OA và thông báo ZNS" state={state} />
 }
 
 function GoogleRow({ open }: { open: Open }) {
@@ -107,7 +108,7 @@ function GoogleRow({ open }: { open: Open }) {
           ? { tone: "warning", label: "Cần kết nối lại" }
           : { tone: "off", label: "Chưa kết nối" }
   }
-  return <Row section="google-sheets" open={open} logo={<ConnectionLogo color="#0F9D58" icon={<FileSpreadsheet />} />} title="Google Sheets" description="Đồng bộ khách từ bảng tính" state={state} />
+  return <Row section="google-sheets" open={open} logo={<ConnectionLogo brand="google_sheets" color="#0F9D58" icon={<FileSpreadsheet />} />} title="Google Sheets" description="Đồng bộ khách từ bảng tính" state={state} />
 }
 
 function AiRow({ open, enabled }: { open: Open; enabled: boolean | undefined }) {
@@ -153,7 +154,7 @@ function SepayRow({ open }: { open: Open }) {
         ? { tone: "warning", label: "Có lỗi" }
         : { tone: "connected", label: "Đã kết nối", detail: sepay.settings?.bank ? `${sepay.settings.bank} · ${sepay.settings.account_number}` : undefined }
   }
-  return <Row section="payments" open={open} logo={<ConnectionLogo color="#1d4ed8" text="SP" />} title="SePay" description="Tự khớp tiền chuyển khoản, tạo mã QR thanh toán" state={state} />
+  return <Row section="payments" open={open} logo={<ConnectionLogo brand="sepay" color="#1d4ed8" text="SP" />} title="SePay" description="Tự khớp tiền chuyển khoản, tạo mã QR thanh toán" state={state} />
 }
 
 function GatewayOverviewRow({ open, provider, title, color, text, description }: { open: Open; provider: "vnpay" | "momo"; title: string; color: string; text: string; description: string }) {
@@ -171,7 +172,7 @@ function GatewayOverviewRow({ open, provider, title, color, text, description }:
   return (
     <ConnectionRow
       testId={`conn-${provider}`}
-      logo={<ConnectionLogo color={color} text={text} />}
+      logo={<ConnectionLogo brand={provider} color={color} text={text} />}
       title={title}
       description={state?.detail ? `${description} · ${state.detail}` : description}
       status={state ? <StatusPill tone={state.tone}>{state.label}</StatusPill> : <StatusPill tone="off">Đang kiểm tra…</StatusPill>}
@@ -188,12 +189,12 @@ function ShopOverviewRow({ open, provider, title, color, text, description }: { 
   if (c.isError) state = httpStatus(c.error) === 403 ? { tone: "off", label: "Tính năng đang tắt" } : { tone: "warning", label: "Không đọc được trạng thái" }
   else if (c.data && conn?.server_configured === false) state = { tone: "off", label: "Máy chủ chưa cấu hình" }
   else if (c.data) state = !conn?.connected ? { tone: "off", label: "Chưa kết nối" } : conn.last_error ? { tone: "warning", label: "Có lỗi" } : { tone: "connected", label: "Đã kết nối", detail: typeof conn.settings?.retailer === "string" ? conn.settings.retailer : typeof conn.settings?.store === "string" ? conn.settings.store : typeof conn.settings?.url === "string" ? conn.settings.url.replace(/^https:\/\//, "") : undefined }
-  return <Row section="ban-hang" open={open} logo={<ConnectionLogo color={color} text={text} />} title={title} description={description} state={state} />
+  return <Row section="ban-hang" open={open} logo={<ConnectionLogo brand={provider} color={color} text={text} />} title={title} description={description} state={state} />
 }
 
 /** Connector đang làm — hiện để khách biết sắp có, nhãn rõ chưa thử với tài khoản thật. */
-const COMING: ReadonlyArray<{ name: string; desc: string; color: string; text: string }> = [
-  { name: "iPOS", desc: "Khách, đơn từ máy bán hàng F&B", color: "#ea580c", text: "iP" },
+const COMING: ReadonlyArray<{ name: string; desc: string; color: string; text: string; brand?: BrandKey }> = [
+  { name: "iPOS", desc: "Khách, đơn từ máy bán hàng F&B", color: "#ea580c", text: "iP", brand: "ipos" },
 ]
 
 /**
@@ -279,7 +280,7 @@ export function IntegrationsOverview({ visible, status, statusError, open, audit
           {COMING.map((c) => (
             <ConnectionRow
               key={c.name}
-              logo={<ConnectionLogo color={c.color} text={c.text} />}
+              logo={<ConnectionLogo brand={c.brand} color={c.color} text={c.text} />}
               title={c.name}
               description={c.desc}
               status={<StatusPill tone="soon">Chờ đối tác</StatusPill>}

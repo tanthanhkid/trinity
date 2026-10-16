@@ -42,9 +42,6 @@ export function DashboardOverview() {
     <section aria-labelledby="home-business" className="flex flex-col gap-4">
       <h2 id="home-business" className="text-[15px] font-semibold text-[var(--foreground)]">
         Số liệu kinh doanh
-        <span className="ml-2 font-normal text-muted-foreground">
-          {data ? `phạm vi ${data.scope_label}` : ''}
-        </span>
       </h2>
       <p className="sr-only">số liệu tháng này, làm mới mỗi 5 phút</p>
 

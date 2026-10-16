@@ -42,7 +42,7 @@ export function OverviewTabbedChart({ data }: { data: DashboardOverviewData }) {
     <ShellChartCard
       className="min-h-[300px] lg:col-span-2"
       title="Biểu đồ tổng quan"
-      subtitle="6 tháng gần nhất, trong phạm vi của bạn"
+      subtitle="6 tháng gần nhất"
       table={{ columns: ['Tháng', cfg.name], rows }}
       chartNotice={hasData ? undefined : cfg.empty}
       tools={

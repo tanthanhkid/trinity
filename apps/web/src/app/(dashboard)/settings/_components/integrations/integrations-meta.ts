@@ -5,7 +5,7 @@ export type IntegrationChannel = "mcp" | "webhook_out" | "webhook_in"
 export type IntegrationAuditStatus = "ok" | "denied" | "error"
 
 export const CHANNEL_LABELS: Record<IntegrationChannel, string> = {
-  mcp: "AI (MCP)",
+  mcp: "Trợ lý AI",
   webhook_out: "Webhook ra",
   webhook_in: "Webhook vào",
 }
@@ -16,7 +16,7 @@ export const STATUS_LABELS: Record<IntegrationAuditStatus, string> = {
   error: "Lỗi",
 }
 
-export type IntegrationSection = "extensions" | "webhook-out" | "webhook-in" | "facebook" | "google-sheets" | "ai" | "audit" | "zalo-oa" | "zalo-inbox" | "payments" | "ban-hang" | "ban-online"
+export type IntegrationSection = "extensions" | "webhook-out" | "webhook-in" | "facebook" | "google-sheets" | "ai" | "audit" | "zalo-oa" | "payments" | "ban-hang" | "ban-online"
 
 /** Mục con của "Kết nối & AI": nhãn + quyền nào được thấy + cờ máy chủ nào phải bật. */
 export const INTEGRATION_SECTIONS: ReadonlyArray<{
@@ -33,8 +33,7 @@ export const INTEGRATION_SECTIONS: ReadonlyArray<{
   // Google Sheets: không có cờ env riêng — trạng thái cấu hình (client id/secret) do chính mục này báo.
   { value: "google-sheets", label: "Google Sheets", anyOf: ["integrations.webhooks"], flag: "always" },
   { value: "ai", label: "Kết nối AI", anyOf: ["integrations.ai_connect", "integrations.ai_admin"], flag: "mcp" },
-  { value: "zalo-oa", label: "Zalo OA", anyOf: ["integrations.webhooks", "contacts.update"], flag: "always" },
-  { value: "zalo-inbox", label: "Hộp thư Zalo OA", anyOf: ["contacts.update"], flag: "always" },
+  { value: "zalo-oa", label: "Zalo OA", anyOf: ["integrations.webhooks", "contacts.update"], flag: "always", feature: "zalo_oa" },
   { value: "payments", label: "Thanh toán", anyOf: ["integrations.webhooks", "deals.view"], flag: "always", feature: "payments" },
   { value: "ban-hang", label: "Bán hàng", anyOf: ["integrations.webhooks", "deals.view"], flag: "always", feature: "commerce_connectors" },
   { value: "ban-online", label: "Trang bán hàng", anyOf: ["pos.manage", "deals.view"], flag: "always", feature: "online_store" },

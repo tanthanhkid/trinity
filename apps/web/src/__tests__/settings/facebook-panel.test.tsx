@@ -20,6 +20,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), message: v
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams("") }))
 
 import { FacebookPanel } from "@/app/(dashboard)/settings/_components/integrations/facebook-panel"
+import { FacebookInbox } from "@/app/(dashboard)/settings/_components/integrations/facebook-inbox"
 
 const INITIAL = useAuthStore.getState()
 const STATUS = {
@@ -55,6 +56,12 @@ function setup(opts: { status?: unknown; pages?: unknown[]; conversations?: unkn
 function renderPanel() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(<QueryClientProvider client={qc}><FacebookPanel /></QueryClientProvider>)
+}
+
+/** Hộp thư Messenger nằm ở menu Hộp thư (/inbox); Cài đặt chỉ còn link sang đó. */
+function renderInbox() {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(<QueryClientProvider client={qc}><FacebookInbox /></QueryClientProvider>)
 }
 
 beforeEach(() => {
@@ -103,8 +110,7 @@ describe("<FacebookPanel>", () => {
   it("hộp thư: mở hội thoại, gửi trả lời trong 24h", async () => {
     setup()
     mockPost.mockResolvedValue({ data: { id: "3" } })
-    renderPanel()
-    fireEvent.click(screen.getByRole("button", { name: "Hộp thư" }))
+    renderInbox()
     fireEvent.click(await screen.findByRole("button", { name: /Khách A/ }))
     await waitFor(() => expect(screen.getByText("Dạ 5 triệu ạ")).toBeTruthy())
     fireEvent.change(screen.getByLabelText("Nội dung trả lời"), { target: { value: "Dạ vâng" } })
@@ -112,10 +118,22 @@ describe("<FacebookPanel>", () => {
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith("/facebook/conversations/7/messages", { text: "Dạ vâng" }))
   })
 
+  it("Cài đặt Fanpage: Hộp thư là link sang menu Hộp thư", () => {
+    setup()
+    renderPanel()
+    expect(screen.getByRole("link", { name: "Hộp thư" }).getAttribute("href")).toBe("/inbox")
+  })
+
+  it("Fanpage đã tắt ⇒ hiện 'Đã tắt', không hiện như đang kết nối", async () => {
+    setup({ pages: [{ ...PAGE, is_active: false }] })
+    renderPanel()
+    expect(await screen.findByTestId("fb-page-off")).toBeTruthy()
+    expect(screen.queryByText(/còn hiệu lực/)).toBeNull()
+  })
+
   it("hộp thư: quá 24h ⇒ không có ô trả lời, hiện lý do", async () => {
     setup({ canReply: false })
-    renderPanel()
-    fireEvent.click(screen.getByRole("button", { name: "Hộp thư" }))
+    renderInbox()
     fireEvent.click(await screen.findByRole("button", { name: /Khách A/ }))
     await waitFor(() => expect(screen.getByText(/quá 24 giờ/)).toBeTruthy())
     expect(screen.queryByLabelText("Nội dung trả lời")).toBeNull()

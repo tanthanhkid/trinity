@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { AlertTriangle, CheckCircle2, Loader2, MessagesSquare, Plus, ShieldAlert } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Loader2, MessagesSquare, PauseCircle, Plus, ShieldAlert } from "lucide-react"
 import { toast } from "sonner"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -15,7 +16,6 @@ import { FacebookChatLinks } from "./facebook-chat-links"
 import { FacebookFlows } from "./facebook-flows"
 import { FacebookBroadcasts } from "./facebook-broadcasts"
 import { FacebookComments } from "./facebook-comments"
-import { FacebookInbox } from "./facebook-inbox"
 import { OptionSelect } from "./option-select"
 import { TOKEN_STATUS_LABELS, useFacebookPageMutations, useFacebookPages, useFacebookStatus, type FacebookPageView } from "./use-facebook"
 import { useAssignableUsers, useContactSourceOptions } from "./use-webhooks"
@@ -58,7 +58,7 @@ function PageCard({ p, assignees, sources, canTransfer }: { p: FacebookPageView;
   const patch = (body: { default_assignee_id?: number; contact_source_id?: number; is_active?: boolean }) =>
     m.update.mutate({ id: p.id, ...body }, { onSuccess: () => toast.success("Đã lưu"), onError: (e) => toast.error(apiErrorMessage(e, "Không lưu được")) })
   return (
-    <Card>
+    <Card className={p.is_active ? undefined : "opacity-75"}>
       <CardContent className="space-y-3 py-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -67,13 +67,20 @@ function PageCard({ p, assignees, sources, canTransfer }: { p: FacebookPageView;
           </div>
           <Switch checked={p.is_active} onCheckedChange={(v) => patch({ is_active: v })} aria-label="Bật/tắt nhận tin của Fanpage" />
         </div>
+        {/* Page đã tắt: không nhận tin/lead nữa, dù token còn hạn — không hiện như đang kết nối bình thường. */}
+        {!p.is_active ? (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid="fb-page-off">
+            <PauseCircle className="size-3.5" />Đã tắt: không nhận tin nhắn, bình luận và lead từ Fanpage này. Bật công tắc để nhận lại.
+          </p>
+        ) : (
         <p className={bad ? "flex items-center gap-1.5 text-xs text-red-600" : "flex items-center gap-1.5 text-xs text-muted-foreground"}>
           {bad ? <ShieldAlert className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
           {TOKEN_STATUS_LABELS[p.token_status]}
           {p.token_checked_at && ` · kiểm ${fmtDate(p.token_checked_at)}`}
           {p.data_access_expires_at && ` · quyền dữ liệu đến ${fmtDate(p.data_access_expires_at)}`}
         </p>
-        {!p.subscribed && <p className="text-xs text-amber-700">Fanpage này chưa nhận tin nhắn về Trinity. Bấm &quot;Kiểm tra token&quot; để thử lại; vẫn báo thì bấm &quot;Kết nối Fanpage&quot; và cấp đủ quyền quản lý Page.</p>}
+        )}
+        {p.is_active && !p.subscribed && <p className="text-xs text-amber-700">Fanpage này chưa nhận tin nhắn về Trinity. Bấm &quot;Kiểm tra token&quot; để thử lại; vẫn báo thì bấm &quot;Kết nối Fanpage&quot; và cấp đủ quyền quản lý Page.</p>}
         <div className="grid gap-3 sm:grid-cols-2">
           <OptionSelect label="Người nhận khách (Messenger, Lead Ads)" value={String(p.default_assignee_id)} options={opts(assignees)} onChange={(v) => patch({ default_assignee_id: Number(v) })} placeholder="Chọn sale" className="h-9 w-full max-sm:h-11" disabled={!canTransfer && assignees.length <= 1} />
           <OptionSelect label="Nguồn khách" value={String(p.contact_source_id)} options={opts(sources)} onChange={(v) => patch({ contact_source_id: Number(v) })} placeholder="Chọn nguồn" className="h-9 w-full max-sm:h-11" />
@@ -102,7 +109,7 @@ export function FacebookPanel() {
   const roster = useAssignableUsers(canTransfer)
   const sources = useContactSourceOptions(true)
   const xem = params.get("xem")
-  const [view, setView] = useState<"pages" | "inbox" | "comments" | "links" | "flows" | "broadcasts">(
+  const [view, setView] = useState<"pages" | "comments" | "links" | "flows" | "broadcasts">(
     xem === "binh-luan" ? "comments" : xem === "link-chat" ? "links" : xem === "kich-ban" ? "flows" : xem === "gui-hang-loat" ? "broadcasts" : "pages",
   )
   const assignees: SimpleOption[] = canTransfer ? (roster.data ?? []) : me ? [{ id: me.id, label: me.full_name }] : []
@@ -123,14 +130,14 @@ export function FacebookPanel() {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
         <Button variant={view === "pages" ? "soft" : "outline"} aria-pressed={view === "pages"} onClick={() => setView("pages")}>Fanpage</Button>
-        <Button variant={view === "inbox" ? "soft" : "outline"} aria-pressed={view === "inbox"} onClick={() => setView("inbox")}>Hộp thư</Button>
+        {/* Tin Messenger đọc và trả lời ở menu Hộp thư (một chỗ cho mọi kênh). */}
+        <Link href="/inbox" className={buttonVariants({ variant: "outline" })}>Hộp thư</Link>
         <Button variant={view === "comments" ? "soft" : "outline"} aria-pressed={view === "comments"} onClick={() => setView("comments")}>Bình luận tự động</Button>
         <Button variant={view === "links" ? "soft" : "outline"} aria-pressed={view === "links"} onClick={() => setView("links")}>Link / QR mở chat</Button>
         <Button variant={view === "flows" ? "soft" : "outline"} aria-pressed={view === "flows"} onClick={() => setView("flows")}>Kịch bản nhắn tin</Button>
         <Button variant={view === "broadcasts" ? "soft" : "outline"} aria-pressed={view === "broadcasts"} onClick={() => setView("broadcasts")}>Gửi hàng loạt</Button>
       </div>
 
-      {view === "inbox" && <FacebookInbox />}
       {view === "links" && <FacebookChatLinks pages={pages.data ?? []} sources={sources.data ?? []} highlight={Number(params.get("link")) || undefined} />}
       {view === "flows" && <FacebookFlows pages={pages.data ?? []} highlight={Number(params.get("kich-ban")) || undefined} />}
       {view === "broadcasts" && <FacebookBroadcasts pages={pages.data ?? []} sources={sources.data ?? []} highlight={Number(params.get("luot")) || undefined} />}

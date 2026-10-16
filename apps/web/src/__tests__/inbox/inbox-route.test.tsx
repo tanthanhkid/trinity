@@ -43,14 +43,15 @@ describe("Mục sidebar 'Hộp thư'", () => {
     expect(resolveBreadcrumb("/inbox").title).toBe("Hộp thư")
   })
 
-  it("hiện khi có quyền của ít nhất một kênh; ẩn khi không quyền hoặc tắt 'Kết nối & AI'", () => {
+  it("hiện khi có quyền của ít nhất một kênh; ẩn khi không quyền hoặc tắt 'Hộp thư'", () => {
     expect(isItemVisible(inbox, {}, ALL_ON)).toBe(false)
     expect(isItemVisible(inbox, { "contacts.view": "all" }, ALL_ON)).toBe(false)
     expect(isItemVisible(inbox, { "contacts.update": "own" }, ALL_ON)).toBe(true)
     expect(isItemVisible(inbox, { "social.post": true }, ALL_ON)).toBe(true) // chỉ trả lời đánh giá Google
     expect(isItemVisible(inbox, { "integrations.webhooks": true }, ALL_ON)).toBe(true)
-    expect(isItemVisible(inbox, { "contacts.update": "all" }, off("integrations"))).toBe(false)
-    expect(featureForPath("/inbox")).toBe("integrations")
+    expect(isItemVisible(inbox, { "contacts.update": "all" }, off("inbox"))).toBe(false)
+    expect(isItemVisible(inbox, { "contacts.update": "all" }, off("integrations"))).toBe(true)
+    expect(featureForPath("/inbox")).toBe("inbox")
   })
 })
 

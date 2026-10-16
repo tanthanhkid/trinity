@@ -9,10 +9,11 @@ import { findByCodeTool } from './tools/code-tools';
 import { listTemplatesTool } from './tools/template-tools';
 import { listScreenTypesTool } from './tools/screen-types-tool';
 import { listAiActivityTool } from './tools/ai-activity-tool';
-import { optionsTool } from './tools/options-tool';
+import { optionsTool, saveCrmOptionTool } from './tools/options-tool';
 import { getBriefingDataTool, saveBriefingTool } from './tools/briefing-tools';
 import { listLeadsToScoreTool, setLeadIntentTool } from './tools/lead-intent-tools';
 import { completeSetupTool, getSetupGuideTool, listStructureVersionsTool } from './tools/setup-tools';
+import { listFeaturesTool, setFeaturesTool } from './tools/feature-tools';
 import { SETUP_INSTRUCTIONS } from './tools/setup-guide';
 import { EXTENSION_TOOLS } from './tools/extension-tools';
 import { SOCIAL_METRICS_TOOLS, SOCIAL_READ_TOOLS, uploadSocialMediaTool } from './tools/social-tools';
@@ -59,6 +60,9 @@ export const MCP_TOOLS: readonly ToolDef[] = [
   saveBriefingTool,
   setLeadIntentTool,
   completeSetupTool,
+  listFeaturesTool,
+  setFeaturesTool,
+  saveCrmOptionTool,
   ...EXTENSION_TOOLS,
   ...SOCIAL_READ_TOOLS,
   ...SOCIAL_METRICS_TOOLS,

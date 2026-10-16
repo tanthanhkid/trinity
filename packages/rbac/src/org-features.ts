@@ -7,31 +7,48 @@
  * tab Cài đặt) cùng import từ đây — thêm tính năng = thêm 1 dòng ở đây.
  * Thiếu khoá trong cấu hình đã lưu = BẬT (mặc định bật hết).
  */
+/** Nhóm hiển thị ở Cài đặt › Tính năng (thứ tự = thứ tự trên màn). */
+export const ORG_FEATURE_GROUPS = [
+  { key: 'core', label: 'Cơ bản' },
+  { key: 'channels', label: 'Kênh & hộp thư' },
+  { key: 'sales', label: 'Bán hàng' },
+  { key: 'hr', label: 'Nhân sự' },
+  { key: 'advanced', label: 'Nâng cao' },
+] as const
+export type OrgFeatureGroup = (typeof ORG_FEATURE_GROUPS)[number]['key']
+
 export const ORG_FEATURES = {
-  dashboard: { label: 'Tổng quan', description: 'Màn Tổng quan (số liệu khách hàng, công việc).' },
-  contacts: { label: 'Khách hàng', description: 'Menu Khách hàng (danh bạ) có sẵn của hệ thống.' },
-  reports: { label: 'Báo cáo', description: 'Menu Báo cáo.' },
-  newsfeed: { label: 'Bảng tin', description: 'Menu Bảng tin.' },
-  kanban: { label: 'Công việc', description: 'Menu Công việc (Kanban).' },
-  attendance: { label: 'Chấm công', description: 'Menu Chấm công của nhân viên.' },
-  payroll: { label: 'Lương', description: 'Menu Lương.' },
-  products: { label: 'Sản phẩm', description: 'Menu Sản phẩm và Dự án (danh mục sản phẩm, dự án).' },
-  pos: { label: 'Bán hàng (POS)', description: 'Menu Bán hàng tại quầy (POS).' },
-  integrations: { label: 'Kết nối & AI', description: 'Mục Kết nối & AI trong Cài đặt (webhook, kết nối ChatGPT/Claude/agent khác qua MCP, nhật ký tích hợp). Chỉ ẩn giao diện; việc có chạy hay không do cờ máy chủ quyết định.' },
-  ai_briefing: { label: 'Bản tin sáng/chiều', description: 'Bản tin số liệu sáng/chiều trong app. Agent AI của bạn (ChatGPT/Claude… qua MCP) đọc dữ liệu và viết bản tin; Trinity không tự chạy AI.' },
-  zalo_oa: { label: 'Zalo OA', description: 'Trực Zalo OA/ZNS chính thức: nhận tin, trả lời, gửi thông báo.' },
-  lead_scoring: { label: 'Chấm điểm lead', description: 'Chấm điểm lead theo quy tắc; agent AI của bạn (qua MCP) có thể chấm thêm ý định mua.' },
-  google_sheets: { label: 'Google Sheets', description: 'Kết nối đồng bộ với Google Sheets.' },
-  stale_reminders: { label: 'Nhắc việc treo', description: 'Nhắc nhân viên liên hệ lại khách/việc bị treo quá hạn.' },
-  facebook_page: { label: 'Fanpage Facebook', description: 'Kết nối Fanpage: nhận/trả lời tin Messenger và nhận lead từ Lead Ads vào CRM.' },
-  social_posting: { label: 'Đăng đa kênh', description: 'Soạn một lần, đăng ngay ra Fanpage Facebook và kênh YouTube (TikTok sắp có); agent AI của bạn soạn và đăng được qua MCP.' },
-  payments: { label: 'Thanh toán & đối soát', description: 'Kết nối SePay/VNPay/MoMo: tạo yêu cầu thanh toán (mã QR, link) và tự khớp tiền chuyển khoản vào đơn/deal.' },
-  commerce_connectors: { label: 'Kết nối bán hàng', description: 'Đồng bộ khách, đơn, hoá đơn, hàng hoá từ KiotViet, Sapo, iPOS, WooCommerce, Shopee, Lazada vào CRM.' },
-  online_store: { label: 'Trang bán hàng', description: 'Trang bán hàng online nhanh: chọn sản phẩm, giao diện, nhận đơn COD hoặc chuyển khoản QR; đơn và khách vào thẳng CRM. Mặc định tắt.' },
-  management: { label: 'Quản lý nhân sự', description: 'Nhóm menu Quản lý (nhân viên, hợp đồng, tuyển dụng, ngày công).' },
-} as const satisfies Record<string, { label: string; description: string }>
+  dashboard: { label: 'Tổng quan', group: 'core', description: 'Trang đầu: trợ lý AI đang làm gì, kênh đã kết nối, số liệu chính.' },
+  contacts: { label: 'Khách hàng', group: 'core', description: 'Danh bạ khách hàng, nguồn khách, giai đoạn chăm sóc.' },
+  kanban: { label: 'Công việc', group: 'core', description: 'Bảng công việc dạng thẻ (Kanban), giao việc và hạn chót.' },
+  reports: { label: 'Báo cáo', group: 'core', description: 'Báo cáo khách hàng, nhân viên, kênh.' },
+  inbox: { label: 'Hộp thư', group: 'channels', description: 'Gom tin Messenger và Zalo OA vào một chỗ để trả lời khách.' },
+  facebook_page: { label: 'Fanpage Facebook', group: 'channels', description: 'Nhận và trả lời tin Messenger, bình luận, lead từ Lead Ads vào khách hàng.' },
+  zalo_oa: { label: 'Zalo OA', group: 'channels', description: 'Nhận và trả lời tin Zalo OA, gửi thông báo ZNS.' },
+  social_posting: { label: 'Đăng đa kênh', group: 'channels', description: 'Soạn một lần, đăng hoặc hẹn giờ ra Fanpage và YouTube; trợ lý AI soạn và đăng được.' },
+  products: { label: 'Sản phẩm', group: 'sales', description: 'Danh mục sản phẩm, dịch vụ và giá.' },
+  pos: { label: 'Bán hàng (POS)', group: 'sales', description: 'Bán hàng tại quầy, in hoá đơn.' },
+  payments: { label: 'Thanh toán & đối soát', group: 'sales', description: 'SePay, VNPay, MoMo: mã QR, link thanh toán, tự khớp tiền chuyển khoản.' },
+  online_store: { label: 'Trang bán hàng', group: 'sales', description: 'Trang bán hàng online: khách đặt COD hoặc chuyển khoản QR, đơn vào thẳng CRM.' },
+  commerce_connectors: { label: 'Kết nối bán hàng', group: 'sales', description: 'Đồng bộ khách, đơn, hàng hoá từ KiotViet, Sapo, iPOS, WooCommerce, Shopee, Lazada.' },
+  management: { label: 'Quản lý nhân sự', group: 'hr', description: 'Nhân viên, phòng ban, team, chức danh, hợp đồng, tuyển dụng.' },
+  attendance: { label: 'Chấm công', group: 'hr', description: 'Nhân viên tự chấm công, quản lý ngày công.' },
+  payroll: { label: 'Lương', group: 'hr', description: 'Bảng lương và phiếu lương.' },
+  newsfeed: { label: 'Bảng tin', group: 'hr', description: 'Bảng tin nội bộ của công ty.' },
+  integrations: { label: 'Kết nối & AI', group: 'advanced', description: 'Kết nối trợ lý AI (ChatGPT, Claude, Gemini…), webhook và nhật ký tích hợp.' },
+  ai_briefing: { label: 'Bản tin sáng/chiều', group: 'advanced', description: 'Bản tin số liệu sáng và chiều do trợ lý AI của bạn viết.' },
+  lead_scoring: { label: 'Chấm điểm khách tiềm năng', group: 'advanced', description: 'Chấm điểm khách theo quy tắc; trợ lý AI chấm thêm ý định mua.' },
+  stale_reminders: { label: 'Nhắc việc treo', group: 'advanced', description: 'Nhắc nhân viên liên hệ lại khách hoặc việc quá hạn.' },
+  google_sheets: { label: 'Google Sheets', group: 'advanced', description: 'Đồng bộ khách hàng với Google Sheets.' },
+} as const satisfies Record<string, { label: string; group: OrgFeatureGroup; description: string }>
 
 export type OrgFeatureKey = keyof typeof ORG_FEATURES
+
+/**
+ * Bộ cơ bản: luôn bật khi hệ thống mới được dựng (cộng với những tính năng trợ lý AI chọn theo ngành).
+ * Hệ thống đang chạy không bị đụng: khoá chưa lưu vẫn tính là BẬT (`resolveOrgFeatures`).
+ */
+export const BASIC_FEATURES: readonly OrgFeatureKey[] = ['dashboard', 'contacts', 'kanban', 'reports', 'inbox', 'integrations']
 export const ORG_FEATURE_KEYS = Object.keys(ORG_FEATURES) as OrgFeatureKey[]
 export type OrgFeatures = Record<OrgFeatureKey, boolean>
 

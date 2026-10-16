@@ -125,7 +125,7 @@ Scope comes from the user's real grants (`own` = own · `team` = self + direct r
 
 ## Full tool index
 
-Every tool the server exposes (103), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
+Every tool the server exposes (106), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
 
 ### Multi-channel posting
 
@@ -224,11 +224,14 @@ Every tool the server exposes (103), generated from the tool registry. "write" t
 | `get_setup_guide` | read | Setup guide |
 | `install_object_template` | write · preview → `confirmed_by_user` | Install an industry template |
 | `list_crm_options` | read | List CRM options |
+| `list_features` | read | List features (by group, on/off) |
 | `list_object_templates` | read | List industry templates |
 | `list_screen_types` | read | List supported screen types |
 | `list_structure_versions` | read | List structure versions |
 | `propose_workspace` | write · preview → `confirmed_by_user` | Build a whole workspace |
 | `restore_structure_version` | write | Restore a structure version |
+| `save_crm_option` | write | Add or edit a customer list item (source, stage, status); turning off hides it |
+| `set_features` | write · turning off needs `confirmed_by_user` | Turn features on or off for the whole company |
 | `set_menu` | write | Set the menu |
 | `update_field` | write | Edit a field |
 | `update_object` | write | Edit or hide a custom table |

@@ -81,3 +81,21 @@ export const setFeaturesTool: ToolDef = {
     return { structured: out, text: JSON.stringify(out) };
   },
 };
+
+/** Kênh đã kết nối (Fanpage, Zalo OA, kênh đăng bài, thanh toán, trang bán hàng) + trạng thái + số liệu hôm nay — đúng khối "Kênh đã kết nối" ở Tổng quan. */
+export const getConnectedChannelsTool: ToolDef = {
+  name: 'get_connected_channels',
+  title: 'Kênh đã kết nối / Connected channels',
+  description:
+    'Liệt kê các kênh đã kết nối với Trinity: Fanpage Facebook, Zalo OA, kênh đăng bài (Fanpage, YouTube), thanh toán (SePay, VNPay, MoMo), kết nối bán hàng, trang bán hàng. ' +
+    'Mỗi kênh có trạng thái (ok = đang chạy, attention = cần kết nối lại hoặc có lỗi, off = đã tắt), một dòng ghi chú và số liệu hôm nay (tin nhắn mới, bài đã đăng, lượt thanh toán, đơn mới). ' +
+    'available = tính năng đang bật nhưng chưa nối kênh nào. Chỉ thấy nhóm kênh hợp quyền của người dùng. Chỉ đọc. / Connected channels with status and today\'s counts. Read-only.',
+  permissions: [],
+  input: () => ({}),
+  output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
+  async run(_args, { deps, principal }) {
+    if (!deps.channels) throw new ToolUserError('Máy chủ chưa bật mục kênh kết nối. / Not available on this server.');
+    const out = wrapData(await deps.channels.get(principal.user.grants));
+    return { structured: out, text: JSON.stringify(out) };
+  },
+};

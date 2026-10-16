@@ -13,9 +13,8 @@ vi.mock("next/link", () => ({
 }))
 
 import type { AiAction } from "@/lib/ai-actions"
-import type { AiConnection } from "@/app/(dashboard)/settings/_components/integrations/integrations-meta"
 import { AiTimelineView, CONNECT_AI_HREF } from "@/app/(dashboard)/dashboard/_components/home-ai-timeline"
-import { ConnectedAssistantsView, NeedsReviewView } from "@/app/(dashboard)/dashboard/_components/home-side"
+import { NeedsReviewView } from "@/app/(dashboard)/dashboard/_components/home-side"
 import {
   aiClientKind,
   agoLabel,
@@ -38,19 +37,6 @@ const action = (over: Partial<AiAction> = {}): AiAction => ({
   created_at: "2026-10-12T02:42:00Z",
   decided_at: "2026-10-12T02:42:00Z",
   expires_at: "2026-10-19T02:42:00Z",
-  ...over,
-})
-
-const conn = (over: Partial<AiConnection> = {}): AiConnection => ({
-  id: "c1",
-  client_id: "x",
-  client_name: "Claude",
-  client_kind: "dcr",
-  user: { id: 1, full_name: "Lan", email: "lan@x.vn" },
-  scopes: ["crm.read", "crm.write"],
-  connected_at: "2026-10-12T01:00:00Z",
-  last_used_at: null,
-  refresh_expires_at: "2026-11-12T01:00:00Z",
   ...over,
 })
 
@@ -93,30 +79,6 @@ describe("AiTimelineView — dòng thời gian", () => {
     render(<AiTimelineView state="disabled" rows={[]} userName="Thành" canConnect hasConnections={false} />)
     expect(screen.getByTestId("ai-timeline-disabled")).toBeInTheDocument()
     expect(screen.queryByRole("link", { name: "Kết nối AI" })).toBeNull()
-  })
-})
-
-describe("ConnectedAssistantsView — trợ lý đang kết nối", () => {
-  it("trống → 'Chưa có trợ lý nào kết nối' + nút Kết nối AI", () => {
-    render(<ConnectedAssistantsView state="ready" rows={[]} showOwner={false} />)
-    const empty = screen.getByTestId("connections-empty")
-    expect(empty.textContent).toMatch(/Chưa có trợ lý nào kết nối/)
-    expect(within(empty).getByRole("link", { name: "Kết nối AI" })).toHaveAttribute("href", CONNECT_AI_HREF)
-  })
-
-  it("không có quyền kết nối AI → nói rõ, không gọi/không hiện danh sách", () => {
-    render(<ConnectedAssistantsView state="no-permission" rows={[]} showOwner={false} />)
-    expect(screen.getByTestId("connections-no-permission")).toBeInTheDocument()
-    expect(screen.queryByRole("link", { name: "Kết nối AI" })).toBeNull()
-  })
-
-  it("có dữ liệu → tên client (+ người khi xem cả công ty), logo theo tên, 'Chưa dùng' khi chưa có lần dùng", () => {
-    render(<ConnectedAssistantsView state="ready" rows={[conn(), conn({ id: "c2", client_name: "Trợ lý nội bộ" })]} showOwner />)
-    const list = screen.getByTestId("connections")
-    expect(list.textContent).toContain("Claude · Lan")
-    expect(list.querySelector('[data-ai-kind="claude"]')).not.toBeNull()
-    expect(list.querySelector('[data-ai-kind="other"]')).not.toBeNull()
-    expect(screen.getAllByText("Chưa dùng")).toHaveLength(2)
   })
 })
 

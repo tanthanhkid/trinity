@@ -8,6 +8,7 @@ import type { DealsService } from '../../../deals/deals.service';
 import type { KanbanCardsService } from '../../../kanban/cards/kanban-cards.service';
 import type { ActivitiesService } from '../../../activities/activities.service';
 import type { DashboardOverviewService } from '../../../reports/dashboard-overview.service';
+import type { DashboardChannelsService } from '../../../reports/dashboard-channels.service';
 import type { AiActionsService } from '../actions/ai-actions.service';
 import type { BriefingsService } from '../../../briefings/briefings.service';
 import type { LeadScoringService } from '../../../lead-scoring/lead-scoring.service';
@@ -77,6 +78,8 @@ export interface McpDeps {
   zaloOa?: ZaloOaMessagingService;
   /** Yêu cầu thanh toán + tự khớp tiền (SePay…); chỉ có khi module Connectors được nối. */
   payments?: PaymentsService;
+  /** Kênh đã kết nối + số liệu hôm nay (cùng dữ liệu khối "Kênh đã kết nối" ở Tổng quan). */
+  channels?: DashboardChannelsService;
 }
 
 export interface ToolContext {

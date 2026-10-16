@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { SettingsModule } from '../settings/settings.module';
+import { DashboardChannelsService } from './dashboard-channels.service';
 import { ReportsController } from './reports.controller';
 import { DashboardStatsTodayService } from './dashboard-stats-today.service';
 import { DashboardTrendService } from './dashboard-trend.service';
@@ -18,6 +20,7 @@ import { ReportEmployeePerformanceService } from './report-employee-performance.
 import { ReportEmployeePerformanceExportService } from './report-employee-performance-export.service';
 
 @Module({
+  imports: [SettingsModule],
   controllers: [
     ReportsController,
     DashboardTrendController,
@@ -30,6 +33,7 @@ import { ReportEmployeePerformanceExportService } from './report-employee-perfor
     DashboardStatsTodayService,
     DashboardTrendService,
     DashboardOverviewService,
+    DashboardChannelsService,
     DashboardTasksService,
     DashboardFilterRosterService,
     MarketingRecruitmentReportService,
@@ -40,6 +44,6 @@ import { ReportEmployeePerformanceExportService } from './report-employee-perfor
     ReportEmployeePerformanceExportService,
   ],
   // MCP chỉ đọc dùng lại số liệu Tổng quan.
-  exports: [DashboardOverviewService],
+  exports: [DashboardOverviewService, DashboardChannelsService],
 })
 export class ReportsModule {}

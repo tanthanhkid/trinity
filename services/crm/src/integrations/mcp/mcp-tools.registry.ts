@@ -13,7 +13,7 @@ import { optionsTool, saveCrmOptionTool } from './tools/options-tool';
 import { getBriefingDataTool, saveBriefingTool } from './tools/briefing-tools';
 import { listLeadsToScoreTool, setLeadIntentTool } from './tools/lead-intent-tools';
 import { completeSetupTool, getSetupGuideTool, listStructureVersionsTool } from './tools/setup-tools';
-import { listFeaturesTool, setFeaturesTool } from './tools/feature-tools';
+import { getConnectedChannelsTool, listFeaturesTool, setFeaturesTool } from './tools/feature-tools';
 import { SETUP_INSTRUCTIONS } from './tools/setup-guide';
 import { EXTENSION_TOOLS } from './tools/extension-tools';
 import { SOCIAL_METRICS_TOOLS, SOCIAL_READ_TOOLS, uploadSocialMediaTool } from './tools/social-tools';
@@ -61,6 +61,7 @@ export const MCP_TOOLS: readonly ToolDef[] = [
   setLeadIntentTool,
   completeSetupTool,
   listFeaturesTool,
+  getConnectedChannelsTool,
   setFeaturesTool,
   saveCrmOptionTool,
   ...EXTENSION_TOOLS,

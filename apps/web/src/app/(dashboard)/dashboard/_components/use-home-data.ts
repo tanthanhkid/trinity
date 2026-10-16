@@ -7,7 +7,8 @@
  *  - Thông báo chưa đọc:  GET /notifications?read=false · /notifications/unread-count (@AuthOnly, của chính mình)
  *  - Trợ lý đang kết nối: GET /integrations/ai-connections [?scope=all]  (@CanAny ai_connect/ai_admin; scope=all cần ai_admin)
  *  - Việc quá hạn:        GET /reports/dashboard-tasks (đã có trong `use-dashboard-overview.ts`, quyền reports.overview)
- * Không endpoint mới, không số giả. */
+ *  - Kênh đã kết nối:     GET /reports/dashboard-channels (@AuthOnly; BE chỉ trả nhóm kênh hợp quyền + tính năng đang bật)
+ * Không số giả. */
 
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
@@ -83,3 +84,29 @@ export function useHomeAiConnections() {
 
 /** 404 từ các endpoint Kết nối AI = tính năng tắt trên máy chủ. */
 export const isNotFound = (err: unknown): boolean => (err as { response?: { status?: number } })?.response?.status === 404
+
+/** Kênh đã kết nối (khối "Kênh đã kết nối" ở đầu trang) — khớp `GET /reports/dashboard-channels`. */
+export type ChannelState = 'ok' | 'attention' | 'off'
+export interface HomeChannel {
+  key: string
+  kind: 'facebook_page' | 'zalo_oa' | 'social' | 'payment' | 'commerce' | 'store'
+  network: string
+  name: string
+  state: ChannelState
+  note: string
+  today: { label: string; value: number } | null
+  href: string
+}
+export interface HomeChannels {
+  channels: HomeChannel[]
+  available: { kind: HomeChannel['kind']; label: string; href: string }[]
+}
+
+export function useDashboardChannels() {
+  return useQuery<HomeChannels>({
+    queryKey: ['dashboard', 'channels'],
+    queryFn: async () => (await apiClient.get<HomeChannels>('/reports/dashboard-channels')).data,
+    staleTime: 60_000,
+    retry: false,
+  })
+}

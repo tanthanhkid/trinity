@@ -4,6 +4,18 @@ All notable changes to Trinity are documented here. The format follows [Keep a C
 
 ## Unreleased
 
+### Added
+- **AI-native overview**: the home page opens with "AI assistants at work" (which assistants are connected, who is active now, what the AI did today) and "Connected channels" (Fanpage, Zalo OA, posting channels, payments, online store, sales connectors) with status and today's counts. With no assistant connected, it shows a step-by-step invite. New `GET /reports/dashboard-channels`, filtered by enabled features and the viewer's permissions.
+- **Feature switches**: Settings › Features shows grouped cards (core, channels & inbox, sales, people, advanced) with one switch each; the menu and the related Settings sections only show what is on. New `inbox` switch for the Inbox menu. A newly built workspace always turns on the core set (overview, customers, tasks, reports, inbox, AI connections) plus what the AI picks for the industry.
+- **AI assistant (MCP)**: `list_features`, `set_features` (switching off needs `confirmed_by_user`), `save_crm_option` (add, rename, reorder or hide customer sources, stages and statuses; no delete), `get_connected_channels`.
+
+### Changed
+- Settings: customer sources, stages and statuses are one "Customer lists" tab; Projects and Job titles left Settings (job titles stay under Management); the Messenger and Zalo OA inboxes inside Settings moved to the Inbox menu. Old `?tab=` links still open the right tab.
+- A Fanpage that is turned off shows "Turned off" instead of looking connected.
+
+### Upgrade notes
+- No migrations. Running systems keep their feature switches (missing keys still mean on), so the new `inbox` switch starts on.
+
 ## 0.3.0 — 2026-10-15
 
 ### Added

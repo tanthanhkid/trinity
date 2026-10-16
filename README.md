@@ -7,7 +7,7 @@ Run your whole company by chatting with the AI assistant you already love: ChatG
 
 Created by **Thanh Tran** · [X @trntnthnh](https://x.com/trntnthnh) · [YouTube](https://www.youtube.com/@ltvaicom) · [TikTok](https://www.tiktok.com/@laptrinhvoiai)
 
-[Tiếng Việt](README.vi.md) · [Website](https://phanmemtrinity.com) · [Deploy](#deploy) · [Cloud](#trinity-cloud) · [Services](COMMERCIAL.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
+[Tiếng Việt](README.vi.md) · [Website](https://phanmemtrinity.com) · [Deploy](#deploy) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
 
 ![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)
 ![Status: preview](https://img.shields.io/badge/status-preview-orange)
@@ -29,7 +29,7 @@ Most business software makes you learn its menus. Trinity flips that around: **y
 - **"How did the Q3 campaign do compared to Q2?"** Your assistant reads the data and answers with a chart.
 - **"Every morning, sync new orders from my Google Sheet."** Trinity builds a small add-on for it. The add-on runs in its own sandbox, so it can never break the main system.
 
-**Start empty, grow with you.** You don't configure modules. On first connect, your AI asks about your business, imports your Excel/Google Sheet, and builds the pipelines and screens you need.
+**Start lean, grow with you.** On first connect, your AI asks about your business, imports your Excel/Google Sheet, and builds the pipelines and screens you need. A core set (overview, customers, tasks, reports, inbox) is on; everything else is a switch in Settings › Features, and the menu only shows what is on. Your AI can turn features on for your industry.
 
 **Built for Vietnamese businesses first.** Zalo, VietQR, Vietnamese UI and data formats work out of the box. Global CRMs don't cover these.
 
@@ -52,17 +52,26 @@ Trinity  ──  CRM · Sales · Zalo · HR · Reports
 |---|---|
 | **AI control (MCP)** | Built-in MCP server: connect ChatGPT, Claude, Gemini, Cursor, OpenClaw or any MCP client. Read and write data directly within the connected user's permissions (writes need the `crm.write` scope; every action is listed under AI activity). Optional setting *Require approval for AI changes* turns on a draft-then-approve flow |
 | **Self-extending add-ons** | Ask your AI for a sync job, a custom workflow or a new integration. Each add-on runs isolated (separate process, sandboxed permissions, auto-disabled after repeated failures) |
+| **AI-native overview** | The home page shows which AI assistants are connected and active, what they did today, and every connected channel (Fanpage, Zalo OA, YouTube, payments, online store) with its status and today's counts. With no assistant yet, it walks you through connecting one |
+| **Feature switches** | Settings › Features: grouped cards (core, channels & inbox, sales, people, advanced), one switch each. Turning a feature off hides it for everyone and keeps the data. Your AI can list and switch features too (switching off needs your OK) |
 | **Shared inbox** | Messenger and Zalo OA conversations in one place, with search and an "awaiting reply" filter; replies respect each platform's messaging window. Your AI assistant can read conversations and draft replies you approve |
 | **Facebook Page automation** | Auto-replies to comments, hiding phone numbers, private replies; chat links and QR codes that open a conversation; Messenger flows; broadcasts within the 24-hour window. Rules, flows and broadcasts can also be created and edited from your AI assistant |
 | **Multi-channel posting** | Write once, publish or schedule to Facebook Pages and YouTube, with a content calendar, a media library and post stats. Drafts, a weekly posting queue (time slots), reusable hashtag sets and signatures, UTM tagging of links, a per-channel preview of exactly what each network will show, bulk import from CSV, and recurring posts (daily, weekly or monthly). All of it can also be driven from your AI assistant |
 | **Payments** | Payment requests with a VietQR code that SePay matches automatically when the money arrives; VNPay and MoMo payment links |
 | **Sales connectors** | KiotViet, Sapo, WooCommerce, MISA, Shopee, Lazada: what each platform's API allows (customers, orders and/or products) is synced into the CRM; customers are matched to contacts by phone where the platform shares it (Shopee masks buyer phones). Per-connector scope in [status.md](docs/integrations/status.md) |
 | **Online store** | A storefront at `/s/<name>` (or a subdomain) with three themes, a cart, cash on delivery or bank-transfer QR; orders and buyers land in the CRM. Off by default |
-| **CRM** | Contacts, Kanban pipelines, shared record codes and `@` linking across screens, newsfeed |
-| **Sales** | Products and projects, POS |
+| **CRM** | Contacts with your own sources, stages and statuses, Kanban pipelines, shared record codes and `@` linking across screens, newsfeed |
+| **Sales** | Products, POS |
 | **People** | HR, attendance, payroll |
 | **Insights** | Dashboards and reports |
 | **Access control** | Roles and data scopes |
+
+### How far it is tested
+
+- **Tested end to end on a fresh deploy** (the Vercel button, a new Postgres database): first sign-in, connecting an AI assistant, building tables by chat, importing records, the AI tools.
+- **Tested with real accounts**: publishing and scheduling posts to Facebook Pages and YouTube, Messenger messages.
+- **Tested with sample data only**: the posting queue, recurring posts and CSV import, dashboards and reports, the AI-native overview, feature switches, POS, HR, attendance and payroll, the online store (sample shop).
+- These areas have automated tests; connectors are listed below.
 
 ### Connectors and how far each is tested
 
@@ -161,7 +170,7 @@ Tried on a fresh Vercel account (2026-10-15): about 4 minutes from clone to sign
 Then open the production URL and sign in with the admin account above. Notes:
 
 - The first admin is only created when it does not exist yet; redeploying never overwrites a password.
-- A new workspace starts empty on purpose: the sidebar only shows *AI activity* and *Settings* until your AI assistant builds the workspace (or you switch modules on in Settings → *Tính năng* ("Features"; this tab appears once the workspace has been set up from the *Bắt đầu* / "Get started" screen, and Zalo OA, for example, is a feature switch that answers 403 until it is on). Settings has these sections in the Vietnamese UI: *Hồ sơ cá nhân* (your profile), *Người dùng* (users), *Vai trò* (roles), *Team*, *Kết nối & AI* (connections & AI), *Thông báo* (notifications), plus *Tính năng* (features) and more as the workspace grows.
+- A new workspace starts empty on purpose: the sidebar only shows *AI activity* and *Settings* until your AI assistant builds the workspace from the *Bắt đầu* ("Get started") screen. After that the core set is on and everything else is a switch in Settings → *Tính năng* ("Features"); Zalo OA, for example, answers 403 until its switch is on. Settings is grouped in the Vietnamese UI as *Tính năng & Kết nối* (features & connections), *Khách hàng* (customer lists), *Công ty & Nhân sự* (users, roles, teams) and *Cá nhân* (profile, notifications); a section only shows when its feature is on.
 - The interface is currently **Vietnamese only**. Your data and the AI tools work in any language.
 - Vercel runs the API inside the Next.js app (one function, 60 s limit). Uploaded files need object storage: set `STORAGE_DRIVER=vercel-blob` with a Vercel Blob token, or an S3-compatible driver (see `.env.example`). Notifications use polling instead of WebSockets. Add-ons (Deno sandbox, the "Extensions" page) and Redis-backed features need a long-running server, so use Option 2 for them.
 
@@ -184,14 +193,6 @@ Tagged releases publish ready-made images to GitHub Container Registry (`ghcr.io
 To let your AI assistant drive Trinity, set `INTEGRATIONS_MCP_ENABLED=true`, a public `INTEGRATIONS_PUBLIC_BASE_URL` and an `INTEGRATIONS_SECRET_KEY` in `.env`, then follow [docs/integrations](docs/integrations/).
 
 For development without Docker: `pnpm install && pnpm dev` (needs Node 22, Postgres and Redis running locally).
-
-## Trinity Cloud
-
-Don't want to run servers? **Trinity Cloud** is the hosted version run by Thanh and the Trinity team: managed updates, backups, security, and your own private server per company. Message Thanh on [Facebook](https://www.facebook.com/thanhtt88).
-
-## Work with the creator
-
-Trinity is free and open source. Want it set up, customized or integrated for your company by the person who built it? Message Thanh on [Facebook](https://www.facebook.com/thanhtt88); options are listed in [COMMERCIAL.md](COMMERCIAL.md).
 
 ## Why I built this
 

@@ -66,6 +66,49 @@ describe("FacebookComments", () => {
     expect(screen.getByRole("button", { name: /Thêm luật/ })).toBeTruthy()
   })
 
+  it("Lưu luật: link bài + Mọi Fanpage (một Page) ⇒ tự chọn Page và gửi; lỗi máy chủ hiện ngay trong hộp thoại", async () => {
+    setup()
+    fireEvent.click(await screen.findByRole("button", { name: /Thêm luật/ }))
+    fireEvent.change(await screen.findByLabelText(/Tên luật/), { target: { value: "Ảnh bìa" } })
+    fireEvent.change(screen.getByLabelText(/Chỉ bài này/), { target: { value: "https://www.facebook.com/photo/?fbid=122112283401318324" } })
+    fireEvent.change(screen.getByLabelText(/Nhắn riêng qua Messenger/), { target: { value: "Chào {ten}" } })
+    mockPost.mockRejectedValueOnce(Object.assign(new Error("400"), { response: { status: 400, data: { message: "Không đọc được bài từ link này" } } }))
+    fireEvent.click(screen.getByRole("button", { name: "Lưu luật" }))
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith("/facebook/comment-rules", expect.objectContaining({ page_id: "111", post_id: "https://www.facebook.com/photo/?fbid=122112283401318324" })))
+    expect((await screen.findByTestId("rule-form-error")).textContent).toMatch(/Không đọc được bài/)
+    expect(screen.getByRole("button", { name: "Lưu luật" })).toBeTruthy()
+  })
+
+  it("link có id Page chưa nối ⇒ báo lỗi trong hộp thoại, không gửi", async () => {
+    setup()
+    fireEvent.click(await screen.findByRole("button", { name: /Thêm luật/ }))
+    fireEvent.change(await screen.findByLabelText(/Tên luật/), { target: { value: "Sai page" } })
+    fireEvent.change(screen.getByLabelText(/Chỉ bài này/), { target: { value: "https://www.facebook.com/999999_123456" } })
+    fireEvent.change(screen.getByLabelText(/Nhắn riêng qua Messenger/), { target: { value: "Chào" } })
+    fireEvent.click(screen.getByRole("button", { name: "Lưu luật" }))
+    expect((await screen.findByTestId("rule-form-error")).textContent).toMatch(/chưa nối/)
+    expect(mockPost).not.toHaveBeenCalled()
+  })
+
+  it("permalink có id không trùng Page đã nối ⇒ không tự gán Page duy nhất, yêu cầu chọn Fanpage", async () => {
+    setup()
+    fireEvent.click(await screen.findByRole("button", { name: /Thêm luật/ }))
+    fireEvent.change(await screen.findByLabelText(/Tên luật/), { target: { value: "Permalink" } })
+    fireEvent.change(screen.getByLabelText(/Chỉ bài này/), { target: { value: "https://www.facebook.com/permalink.php?story_fbid=123456&id=999999" } })
+    fireEvent.change(screen.getByLabelText(/Nhắn riêng qua Messenger/), { target: { value: "Chào" } })
+    fireEvent.click(screen.getByRole("button", { name: "Lưu luật" }))
+    expect((await screen.findByTestId("rule-form-error")).textContent).toMatch(/Fanpage nào/)
+    expect(mockPost).not.toHaveBeenCalled()
+  })
+
+  it("explicitPageRef đọc id Page từ mọi dạng link", async () => {
+    const { explicitPageRef } = await import("@/app/(dashboard)/settings/_components/integrations/facebook-comments")
+    expect(explicitPageRef("https://www.facebook.com/1090368650834107_122112283401318324")).toEqual({ kind: "pair", id: "1090368650834107" })
+    expect(explicitPageRef("https://www.facebook.com/permalink.php?story_fbid=123456&id=999999")).toEqual({ kind: "id", id: "999999" })
+    expect(explicitPageRef("https://www.facebook.com/999999/posts/123456")).toEqual({ kind: "path", id: "999999" })
+    expect(explicitPageRef("https://www.facebook.com/photo/?fbid=122112283401318324")).toBeNull()
+  })
+
   it("không có thuật ngữ kỹ thuật", async () => {
     const { container } = setup()
     await screen.findByText("Giá sao ạ")

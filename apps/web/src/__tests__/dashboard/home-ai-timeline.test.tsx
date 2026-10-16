@@ -64,7 +64,7 @@ describe("AiTimelineView — dòng thời gian", () => {
     render(<AiTimelineView state="ready" rows={[]} userName="Thành" canConnect hasConnections={false} />)
     const empty = screen.getByTestId("ai-timeline-empty")
     expect(within(empty).getByRole("link", { name: "Kết nối AI" })).toHaveAttribute("href", CONNECT_AI_HREF)
-    expect(CONNECT_AI_HREF).toBe("/settings?tab=integrations&muc=ai")
+    expect(CONNECT_AI_HREF).toBe("/connections?muc=ai")
     expect(screen.queryByTestId("ai-timeline")).toBeNull()
     expect(empty.textContent).not.toMatch(/\d/)
   })

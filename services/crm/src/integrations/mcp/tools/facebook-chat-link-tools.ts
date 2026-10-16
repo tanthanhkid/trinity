@@ -11,7 +11,7 @@ async function chatLinksDeps(deps: Pick<McpDeps, 'facebookChatLinks' | 'orgFeatu
   return deps.facebookChatLinks;
 }
 
-const MANAGE = '/settings?tab=integrations&muc=facebook&xem=link-chat';
+const MANAGE = '/connections?muc=facebook&xem=link-chat';
 
 function linkForAi(l: ChatLinkView, baseUrl: string) {
   return {

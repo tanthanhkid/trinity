@@ -43,7 +43,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 };
 const NETWORK_LABELS: Record<string, string> = { facebook: 'Fanpage', youtube: 'YouTube', tiktok: 'TikTok', zalo: 'Zalo OA' };
 
-const INTEGRATIONS = '/settings?tab=integrations';
+const INTEGRATIONS = '/connections';
 
 /**
  * "Kênh đã kết nối" cho trang Tổng quan (và tool get_connected_channels): Fanpage, Zalo OA, kênh đăng bài, thanh toán,
@@ -76,7 +76,7 @@ export class DashboardChannelsService {
     if (on('facebook_page') && any('integrations.webhooks')) {
       tasks.push((async () => {
         const pages = await this.prisma.facebookPage.findMany({ orderBy: { id: 'asc' }, take: 20, select: { id: true, page_id: true, name: true, is_active: true, token_status: true, subscribed: true } });
-        if (pages.length === 0) available.push({ kind: 'facebook_page', label: 'Fanpage Facebook', href: `${INTEGRATIONS}&muc=facebook` });
+        if (pages.length === 0) available.push({ kind: 'facebook_page', label: 'Fanpage Facebook', href: `${INTEGRATIONS}?muc=facebook` });
         const counts = await this.inboundByPage(pages.map((p) => p.page_id), today);
         for (const p of pages) {
           const broken = p.token_status === 'invalid' || p.token_status === 'expired';
@@ -85,7 +85,7 @@ export class DashboardChannelsService {
             key: `facebook_page:${p.id}`, kind: 'facebook_page', network: 'facebook', name: p.name, state,
             note: state === 'off' ? 'Đã tắt' : broken ? 'Cần kết nối lại' : !p.subscribed ? 'Chưa nhận tin nhắn' : 'Đang nhận tin',
             today: { label: 'tin nhắn mới', value: counts.get(p.page_id) ?? 0 },
-            href: `${INTEGRATIONS}&muc=facebook`,
+            href: `${INTEGRATIONS}?muc=facebook`,
           });
         }
       })());
@@ -94,7 +94,7 @@ export class DashboardChannelsService {
     if (on('zalo_oa') && any('integrations.webhooks', 'contacts.update')) {
       tasks.push((async () => {
         const conns = await this.prisma.zaloOaConnection.findMany({ orderBy: { id: 'asc' }, take: 5, select: { id: true, oa_id: true, status: true } });
-        if (conns.length === 0) available.push({ kind: 'zalo_oa', label: 'Zalo OA', href: `${INTEGRATIONS}&muc=zalo-oa` });
+        if (conns.length === 0) available.push({ kind: 'zalo_oa', label: 'Zalo OA', href: `${INTEGRATIONS}?muc=zalo-oa` });
         for (const c of conns) {
           const inbound = await this.prisma.zaloOaMessage.count({ where: { direction: 'in', created_at: today, thread: { oa_id: c.oa_id } } });
           const state: ChannelState = c.status === 'active' ? 'ok' : c.status === 'disconnected' ? 'off' : 'attention';
@@ -102,7 +102,7 @@ export class DashboardChannelsService {
             key: `zalo_oa:${c.id}`, kind: 'zalo_oa', network: 'zalo', name: 'Zalo OA', state,
             note: state === 'ok' ? 'Đang nhận tin' : state === 'off' ? 'Đã ngắt kết nối' : 'Cần kết nối lại',
             today: { label: 'tin nhắn mới', value: inbound },
-            href: `${INTEGRATIONS}&muc=zalo-oa`,
+            href: `${INTEGRATIONS}?muc=zalo-oa`,
           });
         }
       })());
@@ -135,14 +135,14 @@ export class DashboardChannelsService {
         const accounts = await this.prisma.connectorAccount.findMany({ orderBy: { id: 'asc' }, select: { id: true, provider: true, status: true, last_event_at: true } });
         const pay = accounts.filter((a) => PAYMENT_PROVIDERS.has(a.provider));
         const shop = accounts.filter((a) => !PAYMENT_PROVIDERS.has(a.provider));
-        if (wantPayments && pay.length === 0) available.push({ kind: 'payment', label: 'Thanh toán (SePay, VNPay, MoMo)', href: `${INTEGRATIONS}&muc=payments` });
+        if (wantPayments && pay.length === 0) available.push({ kind: 'payment', label: 'Thanh toán (SePay, VNPay, MoMo)', href: `${INTEGRATIONS}?muc=payments` });
         if (wantPayments && pay.length) {
           const paid = await this.prisma.paymentIntent.groupBy({ by: ['paid_via'], where: { status: 'paid', paid_at: today }, _count: { _all: true } });
           const byVia = new Map(paid.map((r) => [r.paid_via ?? '', r._count._all]));
-          for (const a of pay) channels.push(this.connector(a, 'payment', { label: 'lượt thanh toán', value: byVia.get(a.provider) ?? 0 }, `${INTEGRATIONS}&muc=payments`));
+          for (const a of pay) channels.push(this.connector(a, 'payment', { label: 'lượt thanh toán', value: byVia.get(a.provider) ?? 0 }, `${INTEGRATIONS}?muc=payments`));
         }
-        if (wantCommerce && shop.length === 0) available.push({ kind: 'commerce', label: 'Kết nối bán hàng (KiotViet, Sapo…)', href: `${INTEGRATIONS}&muc=ban-hang` });
-        if (wantCommerce) for (const a of shop) channels.push(this.connector(a, 'commerce', null, `${INTEGRATIONS}&muc=ban-hang`));
+        if (wantCommerce && shop.length === 0) available.push({ kind: 'commerce', label: 'Kết nối bán hàng (KiotViet, Sapo…)', href: `${INTEGRATIONS}?muc=ban-hang` });
+        if (wantCommerce) for (const a of shop) channels.push(this.connector(a, 'commerce', null, `${INTEGRATIONS}?muc=ban-hang`));
       })());
     }
 
@@ -152,13 +152,13 @@ export class DashboardChannelsService {
         let store: { name?: string; slug?: string; published?: boolean } = {};
         try { store = row?.value ? JSON.parse(row.value) : {}; } catch { store = {}; }
         if (!store.slug) {
-          available.push({ kind: 'store', label: 'Trang bán hàng', href: `${INTEGRATIONS}&muc=ban-online` });
+          available.push({ kind: 'store', label: 'Trang bán hàng', href: `${INTEGRATIONS}?muc=ban-online` });
           return;
         }
         const orders = await this.prisma.storeOrder.count({ where: { created_at: today } });
         channels.push({
           key: 'store', kind: 'store', network: 'store', name: store.name || 'Trang bán hàng', state: store.published ? 'ok' : 'off',
-          note: store.published ? 'Đang mở bán' : 'Chưa mở bán', today: { label: 'đơn mới', value: orders }, href: `${INTEGRATIONS}&muc=ban-online`,
+          note: store.published ? 'Đang mở bán' : 'Chưa mở bán', today: { label: 'đơn mới', value: orders }, href: `${INTEGRATIONS}?muc=ban-online`,
         });
       })());
     }

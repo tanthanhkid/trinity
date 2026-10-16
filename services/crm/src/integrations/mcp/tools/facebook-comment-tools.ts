@@ -18,7 +18,7 @@ async function commentsDeps(deps: Pick<McpDeps, 'facebookComments' | 'orgFeature
 /** id bài dạng <page>_<post> ⇒ link (khoá `post_link` được giữ nguyên khi che số). */
 const linkOf = (postId: string | null) => (postId && /^\d+_\d+$/.test(postId) ? postLink(postId) : null);
 
-const RULES_URL = '/settings?tab=integrations&muc=facebook&xem=binh-luan';
+const RULES_URL = '/connections?muc=facebook&xem=binh-luan';
 
 type RuleRow = Awaited<ReturnType<NonNullable<McpDeps['facebookComments']>['listRules']>>[number];
 

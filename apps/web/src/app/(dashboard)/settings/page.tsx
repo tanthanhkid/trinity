@@ -100,10 +100,6 @@ const SettingsBriefings = dynamic(
   { loading: TabSkeleton },
 )
 
-const SettingsIntegrations = dynamic(
-  () => import("./_components/settings-integrations").then((m) => ({ default: m.SettingsIntegrations })),
-  { loading: TabSkeleton },
-)
 
 // Exported để test đọc trực tiếp permission từng tab mà không cần render component client.
 // RBAC theo quyền + phạm vi — `permission`/`anyOf` quyết định tab nào hiện. Không khai gì
@@ -124,7 +120,6 @@ export const ALL_TABS = [
   { value: "features", label: "Tính năng", icon: ToggleRight, description: "Bật/tắt từng chức năng (menu, báo cáo...) cho toàn công ty — độc lập với phân quyền", permission: "settings.features" as Permission },
   // khung "Kết nối & AI" — hiện với người có BẤT KỲ quyền nào trong nhóm (`anyOf`); từng mục con
   // lọc tiếp theo quyền riêng + cờ máy chủ (xem settings-integrations.tsx). `feature` = công tắc tổ chức "integrations".
-  { value: "integrations", label: "Kết nối & AI", icon: PlugZap, description: "Webhook ra/vào, kết nối ChatGPT/Claude, Zalo OA và nhật ký tích hợp", anyOf: ["integrations.webhooks", "integrations.ai_connect", "integrations.ai_admin", "contacts.update"] as readonly Permission[], feature: "integrations" as OrgFeatureKey },
   { value: "briefings", label: "Bản tin sáng/chiều", icon: Newspaper, description: "Bản tin số liệu tự động gửi trong app; trợ lý AI của bạn có thể viết thay", permission: "settings.integrations" as Permission, feature: "ai_briefing" as OrgFeatureKey },
   { value: "login-wifi-check", label: "Đăng nhập theo Wifi văn phòng", icon: Wifi, description: "Bật/tắt kiểm tra IP văn phòng khi đăng nhập", permission: "settings.integrations" as Permission, feature: "attendance" as OrgFeatureKey },
   { value: "notifications", label: "Thông báo", icon: Bell, description: "Cài đặt thông báo" },
@@ -136,8 +131,8 @@ type TabValue = (typeof ALL_TABS)[number]["value"]
 // Exported để test khoá việc 1 tab bị gỡ khỏi nav mà không cần render component client.
 export const TAB_GROUPS = [
   {
-    label: "Tính năng & Kết nối",
-    tabs: ["features", "integrations", "api-keys", "briefings"],
+    label: "Tính năng & Hệ thống",
+    tabs: ["features", "api-keys", "briefings"],
   },
   {
     label: "Khách hàng",
@@ -164,7 +159,6 @@ const tabComponents: Record<TabValue, React.ComponentType> = {
   "api-keys": SettingsApiKeys,
   "login-wifi-check": SettingsLoginWifiCheck,
   features: SettingsFeatures,
-  integrations: SettingsIntegrations,
   briefings: SettingsBriefings,
   notifications: SettingsNotifications,
 }
@@ -182,7 +176,7 @@ export function isSettingsTabVisible(
   if ("hidden" in t && t.hidden) return false
   if ("feature" in t && features && features[t.feature] === false) return false
   if ("permission" in t) return can(t.permission)
-  if ("anyOf" in t) return t.anyOf.some((p) => can(p))
+  if ("anyOf" in t) return (t.anyOf as readonly Permission[]).some((p) => can(p))
   return true
 }
 
@@ -199,6 +193,7 @@ function isValidTabValue(value: string): value is TabValue {
 
 function SettingsPageContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const { can } = usePermissions()
   const { features } = useOrgFeatures()
 
@@ -215,6 +210,16 @@ function SettingsPageContent() {
   // Mục cũ đã gộp: link cũ (?tab=contact-sources…) vẫn mở đúng chỗ mới.
   const rawTab = searchParams.get("tab")
   const tabParam = rawTab && rawTab in LEGACY_TAB_ALIASES ? LEGACY_TAB_ALIASES[rawTab] : rawTab
+
+  // Kết nối đã thành trang riêng (/connections). Link cũ và chỗ quay về từ OAuth (Facebook/Google/Zalo/phần mềm bán hàng)
+  // vẫn trỏ /settings?tab=integrations… hoặc /settings?zalo_oa=… ⇒ chuyển hướng, giữ nguyên tham số để mục đích hiện đúng.
+  const toConnections = rawTab === "integrations" || ["facebook", "google", "zalo_oa", "ket_noi"].some((k) => searchParams.get(k) !== null)
+  useEffect(() => {
+    if (!toConnections) return
+    const q = new URLSearchParams(searchParams.toString())
+    q.delete("tab")
+    router.replace(`/connections${q.toString() ? `?${q}` : ""}`)
+  }, [toConnections, searchParams, router])
   // Chỉ dùng tabParam nếu tồn tại trong settingsTabs (subset RBAC) — không kiểm tra ALL_TABS
   // để tránh non-super_admin deep-link vào tab không có quyền → blank content / API 403.
   const validTabParam =
@@ -223,7 +228,6 @@ function SettingsPageContent() {
       : null
   const initialTab = validTabParam ?? "profile"
 
-  const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabValue>(initialTab)
   const [mobileTab, setMobileTab] = useState<TabValue | null>(validTabParam)
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {

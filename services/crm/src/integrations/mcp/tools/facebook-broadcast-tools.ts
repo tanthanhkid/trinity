@@ -13,7 +13,7 @@ export async function broadcastsDeps(deps: Pick<McpDeps, 'facebookBroadcasts' | 
   return deps.facebookBroadcasts;
 }
 
-const MANAGE = '/settings?tab=integrations&muc=facebook&xem=gui-hang-loat';
+const MANAGE = '/connections?muc=facebook&xem=gui-hang-loat';
 export const STATUS_VI: Record<string, string> = { draft: 'nháp', scheduled: 'chờ gửi', sending: 'đang gửi', done: 'đã xong', cancelled: 'đã huỷ' };
 
 export function broadcastForAi(b: BroadcastView, baseUrl: string) {

@@ -68,9 +68,9 @@ describe("SetupGate", () => {
 
 describe("withSetupMenu", () => {
   const all = withExtraMenuItems(menuItems)
-  it("chua_dung ⇒ đúng 3 mục: Bắt đầu · Hoạt động AI · Cài đặt", () => {
+  it("chua_dung ⇒ đúng 4 mục: Bắt đầu · Hoạt động AI · Kết nối · Cài đặt", () => {
     const m = withSetupMenu(all, "chua_dung")
-    expect(m.map((i) => i.title)).toEqual(["Bắt đầu", "Hoạt động AI", "Cài đặt"])
+    expect(m.map((i) => i.title)).toEqual(["Bắt đầu", "Hoạt động AI", "Kết nối", "Cài đặt"])
   })
   it("da_dung ⇒ giữ menu hiện có, thêm Bắt đầu ở cuối để mở lại hướng dẫn", () => {
     const m = withSetupMenu(all, "da_dung")

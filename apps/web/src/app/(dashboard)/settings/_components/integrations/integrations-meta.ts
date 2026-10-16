@@ -18,28 +18,40 @@ export const STATUS_LABELS: Record<IntegrationAuditStatus, string> = {
 
 export type IntegrationSection = "extensions" | "webhook-out" | "webhook-in" | "facebook" | "google-sheets" | "ai" | "audit" | "zalo-oa" | "payments" | "ban-hang" | "ban-online"
 
-/** Mục con của "Kết nối & AI": nhãn + quyền nào được thấy + cờ máy chủ nào phải bật. */
+/** Nhóm ở cột trái trang Kết nối (thứ tự = thứ tự hiện). */
+export const INTEGRATION_GROUPS = [
+  { key: "ai", label: "Trợ lý AI" },
+  { key: "channels", label: "Kênh khách" },
+  { key: "payments", label: "Thanh toán" },
+  { key: "commerce", label: "Bán hàng" },
+  { key: "data", label: "Dữ liệu & tự động" },
+  { key: "log", label: "Nhật ký" },
+] as const
+export type IntegrationGroup = (typeof INTEGRATION_GROUPS)[number]["key"]
+
+/** Mục con của trang Kết nối: nhãn + nhóm + quyền nào được thấy + cờ máy chủ nào phải bật. */
 export const INTEGRATION_SECTIONS: ReadonlyArray<{
   value: IntegrationSection
   label: string
+  group: IntegrationGroup
   anyOf: readonly Permission[]
   flag: "webhooks" | "mcp" | "any" | "always"
   /** Công tắc tổ chức: tắt/không có trong gói ⇒ ẩn mục. */
   feature?: OrgFeatureKey
 }> = [
-  { value: "webhook-out", label: "Webhook ra", anyOf: ["integrations.webhooks"], flag: "webhooks" },
-  { value: "webhook-in", label: "Webhook vào", anyOf: ["integrations.webhooks"], flag: "webhooks" },
-  { value: "facebook", label: "Fanpage Facebook", anyOf: ["integrations.webhooks"], flag: "always", feature: "facebook_page" },
+  { value: "webhook-out", label: "Webhook ra", group: "data", anyOf: ["integrations.webhooks"], flag: "webhooks" },
+  { value: "webhook-in", label: "Webhook vào", group: "data", anyOf: ["integrations.webhooks"], flag: "webhooks" },
+  { value: "facebook", label: "Fanpage Facebook", group: "channels", anyOf: ["integrations.webhooks"], flag: "always", feature: "facebook_page" },
   // Google Sheets: không có cờ env riêng — trạng thái cấu hình (client id/secret) do chính mục này báo.
-  { value: "google-sheets", label: "Google Sheets", anyOf: ["integrations.webhooks"], flag: "always", feature: "google_sheets" },
-  { value: "ai", label: "Kết nối AI", anyOf: ["integrations.ai_connect", "integrations.ai_admin"], flag: "mcp" },
-  { value: "zalo-oa", label: "Zalo OA", anyOf: ["integrations.webhooks", "contacts.update"], flag: "always", feature: "zalo_oa" },
-  { value: "payments", label: "Thanh toán", anyOf: ["integrations.webhooks", "deals.view"], flag: "always", feature: "payments" },
-  { value: "ban-hang", label: "Bán hàng", anyOf: ["integrations.webhooks", "deals.view"], flag: "always", feature: "commerce_connectors" },
-  { value: "ban-online", label: "Trang bán hàng", anyOf: ["pos.manage", "deals.view"], flag: "always", feature: "online_store" },
+  { value: "google-sheets", label: "Google Sheets", group: "data", anyOf: ["integrations.webhooks"], flag: "always", feature: "google_sheets" },
+  { value: "ai", label: "Trợ lý AI", group: "ai", anyOf: ["integrations.ai_connect", "integrations.ai_admin"], flag: "mcp" },
+  { value: "zalo-oa", label: "Zalo OA", group: "channels", anyOf: ["integrations.webhooks", "contacts.update"], flag: "always", feature: "zalo_oa" },
+  { value: "payments", label: "Thanh toán", group: "payments", anyOf: ["integrations.webhooks", "deals.view"], flag: "always", feature: "payments" },
+  { value: "ban-hang", label: "Phần mềm bán hàng", group: "commerce", anyOf: ["integrations.webhooks", "deals.view"], flag: "always", feature: "commerce_connectors" },
+  { value: "ban-online", label: "Trang bán hàng", group: "commerce", anyOf: ["pos.manage", "deals.view"], flag: "always", feature: "online_store" },
   // Chương trình con: không có cờ trong `/integrations/status` — chính màn hình tự báo "chưa bật" khi máy chủ trả 404.
-  { value: "extensions", label: "Chương trình con", anyOf: ["extensions.view"], flag: "always" },
-  { value: "audit", label: "Nhật ký tích hợp", anyOf: ["integrations.ai_admin"], flag: "any" },
+  { value: "extensions", label: "Chương trình con", group: "data", anyOf: ["extensions.view"], flag: "always" },
+  { value: "audit", label: "Nhật ký tích hợp", group: "log", anyOf: ["integrations.ai_admin"], flag: "any" },
 ]
 
 export interface IntegrationsStatus {

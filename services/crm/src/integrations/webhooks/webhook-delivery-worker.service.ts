@@ -166,7 +166,7 @@ export class WebhookDeliveryWorker {
       await this.notifications?.createPendingLogs([creatorId], 'webhook_endpoint_disabled', {
         title: 'Webhook tự động tắt',
         body: `Endpoint "${name}" đã bị tắt: ${why}. Kiểm tra rồi bật lại ở Cài đặt > Kết nối & AI.`,
-        action_url: '/settings?tab=integrations',
+        action_url: '/connections?muc=webhook-out',
       });
     } catch (err) {
       this.logger.warn(`Không gửi được thông báo tắt webhook endpoint=${endpointId}: ${(err as Error)?.message}`);

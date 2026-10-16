@@ -66,7 +66,7 @@ const STEPS: readonly Step[] = [
     shared: true,
     actions: [
       { kind: "link", href: "/social?tab=channels", label: "Kết nối kênh đăng bài", permission: "social.manage", feature: "social_posting" },
-      { kind: "link", href: "/settings?tab=integrations", label: "Nhận tin nhắn Fanpage", permission: "integrations.webhooks", feature: "facebook_page" },
+      { kind: "link", href: "/connections?muc=facebook", label: "Nhận tin nhắn Fanpage", permission: "integrations.webhooks", feature: "facebook_page" },
     ],
   },
   {

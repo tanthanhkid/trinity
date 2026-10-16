@@ -125,7 +125,7 @@ Scope comes from the user's real grants (`own` = own · `team` = self + direct r
 
 ## Full tool index
 
-Every tool the server exposes (107), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
+Every tool the server exposes (108), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
 
 ### Multi-channel posting
 
@@ -181,6 +181,7 @@ Every tool the server exposes (107), generated from the tool registry. "write" t
 
 | Tool | Kind | What it does |
 |---|---|---|
+| `list_interactions` | read | Recent interactions: Fanpage comments, Messenger and Zalo OA conversations, with rule results and reply status |
 | `get_conversation_messages` | read | Read a conversation |
 | `list_conversations` | read | List inbox conversations |
 | `list_google_reviews` | read | List Google reviews |

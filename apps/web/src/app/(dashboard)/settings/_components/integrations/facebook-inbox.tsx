@@ -93,11 +93,12 @@ export function FacebookCustomerSide({ c }: { c: FacebookConversation }) {
  * Hộp thư Messenger theo bố cục 3 cột của giao diện mới. Trả lời chỉ trong 24h (BE báo `can_reply`).
  * Quyền xem/trả lời = `integrations.webhooks` (cổng ở mục Fanpage Facebook). Dữ liệu y nguyên hook cũ (`use-facebook`).
  */
-export function FacebookInbox({ listTop, className }: { listTop?: React.ReactNode; className?: string } = {}) {
+export function FacebookInbox({ listTop, className, initialOpenId }: { listTop?: React.ReactNode; className?: string; initialOpenId?: number | null } = {}) {
   const list = useFacebookConversations(true)
   // Kênh tắt (403) = trạng thái trống, không phải lỗi.
   const fbOff = list.isError && isChannelOff(list.error)
-  const [openId, setOpenId] = useState<number | null>(null)
+  // Mở sẵn hội thoại từ thông báo / Tương tác (?hoi_thoai=).
+  const [openId, setOpenId] = useState<number | null>(initialOpenId ?? null)
   const [q, setQ] = useState("")
   const [onlyAwaiting, setOnlyAwaiting] = useState(false)
   const needle = q.trim().toLocaleLowerCase("vi")

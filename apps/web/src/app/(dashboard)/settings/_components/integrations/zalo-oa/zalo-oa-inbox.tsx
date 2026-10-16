@@ -144,10 +144,11 @@ export function ZaloThreadView({ thread, onBack }: { thread: ZaloOaThread; onBac
  * Hộp thư Zalo OA theo bố cục 3 cột của giao diện mới: danh sách hội thoại · luồng tin · thông tin khách.
  * Điện thoại: danh sách rồi vào từng hội thoại. Dữ liệu/gửi tin y nguyên hook cũ (`use-zalo-oa`).
  */
-export function ZaloOaInbox({ listTop, className }: { listTop?: React.ReactNode; className?: string } = {}) {
+export function ZaloOaInbox({ listTop, className, initialOpenId }: { listTop?: React.ReactNode; className?: string; initialOpenId?: number | null } = {}) {
   const [q, setQ] = useState("")
   const [onlyAwaiting, setOnlyAwaiting] = useState(false)
-  const [selectedId, setSelectedId] = useState<number | null>(null)
+  // Mở sẵn hội thoại từ thông báo / Tương tác (?hoi_thoai=).
+  const [selectedId, setSelectedId] = useState<number | null>(initialOpenId ?? null)
   const threads = useZaloOaThreads(q, true)
   const markRead = useMarkReadZaloOa()
   // Kênh tắt (403) = trạng thái trống, không phải lỗi.

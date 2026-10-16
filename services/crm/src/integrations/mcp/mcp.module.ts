@@ -6,6 +6,7 @@ import { DealsModule } from '../../deals/deals.module';
 import { KanbanModule } from '../../kanban/kanban.module';
 import { ActivitiesModule } from '../../activities/activities.module';
 import { CustomObjectsModule } from '../../custom-objects/custom-objects.module';
+import { InteractionsModule } from '../../interactions/interactions.module';
 import { ReportsModule } from '../../reports/reports.module';
 import { NotificationsModule } from '../../notifications/notifications.module';
 import { OauthModule } from '../oauth/oauth.module';
@@ -26,7 +27,7 @@ import { AiActionExpiryService } from './actions/ai-action-expiry.service';
 
 /** Máy chủ MCP + đề xuất thao tác ghi chờ duyệt. Thêm tool = thêm vào `mcp-tools.registry.ts` / `actions/action-registry.ts`. */
 @Module({
-  imports: [PrismaModule, NotificationsModule, OauthModule, ContactsModule, DealsModule, KanbanModule, ActivitiesModule, ReportsModule, CustomObjectsModule, BriefingsModule, LeadScoringModule, SettingsModule, ExtensionsModule, SocialModule, FacebookModule, ZaloOaModule, ConnectorsModule],
+  imports: [PrismaModule, NotificationsModule, OauthModule, ContactsModule, DealsModule, KanbanModule, ActivitiesModule, ReportsModule, InteractionsModule, CustomObjectsModule, BriefingsModule, LeadScoringModule, SettingsModule, ExtensionsModule, SocialModule, FacebookModule, ZaloOaModule, ConnectorsModule],
   controllers: [McpController, AiActionsController],
   providers: [McpAuthService, McpServerService, McpRateLimiter, AiActionsService, AiActionExpiryService],
   exports: [McpServerService],

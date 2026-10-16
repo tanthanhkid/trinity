@@ -29,20 +29,22 @@ export function inboxChannels(grants: Grants, features?: OrgFeatures, opts: { ha
   return out
 }
 
-export type InboxTab = "all" | InboxChannel
+export type InboxTab = "interactions" | "all" | InboxChannel
 
 /** Tab hiển thị: có từ 2 kênh TIN NHẮN (Zalo, Messenger) thì thêm "Tất cả" đứng đầu; đánh giá Google luôn là tab riêng. */
 export function inboxTabs(channels: readonly InboxChannel[]): InboxTab[] {
   const chat = channels.filter((c) => c !== "google")
-  return chat.length > 1 ? ["all", ...channels] : [...channels]
+  // "Tương tác" (bình luận + tin nhắn gộp) đứng đầu, là tab mặc định khi có Facebook hoặc Zalo.
+  const head: InboxTab[] = chat.length > 0 ? ["interactions"] : []
+  return [...head, ...(chat.length > 1 ? ["all" as const] : []), ...channels]
 }
 
 /** `?kenh=` trên URL → tab hợp lệ (không có quyền / sai giá trị ⇒ tab đầu). */
 export function pickInboxTab(param: string | null, tabs: readonly InboxTab[]): InboxTab | null {
   if (tabs.length === 0) return null
-  const wanted: InboxTab | null = param === "zalo" || param === "facebook" || param === "google" ? param : param === "tat-ca" ? "all" : null
+  const wanted: InboxTab | null = param === "zalo" || param === "facebook" || param === "google" ? param : param === "tat-ca" ? "all" : param === "tuong-tac" ? "interactions" : null
   return wanted && tabs.includes(wanted) ? wanted : tabs[0]
 }
 
-export const INBOX_TAB_LABEL: Record<InboxTab, string> = { all: "Tất cả", zalo: "Zalo", facebook: "Facebook", google: "Đánh giá Google" }
-export const INBOX_TAB_PARAM: Record<InboxTab, string> = { all: "tat-ca", zalo: "zalo", facebook: "facebook", google: "google" }
+export const INBOX_TAB_LABEL: Record<InboxTab, string> = { interactions: "Tương tác", all: "Tất cả hội thoại", zalo: "Zalo", facebook: "Facebook", google: "Đánh giá Google" }
+export const INBOX_TAB_PARAM: Record<InboxTab, string> = { interactions: "tuong-tac", all: "tat-ca", zalo: "zalo", facebook: "facebook", google: "google" }

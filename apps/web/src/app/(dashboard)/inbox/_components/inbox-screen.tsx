@@ -16,6 +16,7 @@ import { useSocialAccounts } from "@/hooks/use-social"
 import { can } from "@trinity/rbac"
 import { AllInbox } from "./all-inbox"
 import { GoogleReviewsInbox } from "./google-reviews-inbox"
+import { InteractionsView, type Interaction } from "./interactions-view"
 import { INBOX_TAB_LABEL, INBOX_TAB_PARAM, inboxChannels, inboxTabs, pickInboxTab, type InboxTab } from "./inbox-access"
 
 /** Khung 3 cột chiếm gần hết chiều cao màn hình (trừ topbar + tiêu đề). */
@@ -69,6 +70,11 @@ export function InboxScreen() {
   const canSettings = canAny("integrations.webhooks", "contacts.update")
 
   const pick = (t: InboxTab) => router.replace(`${pathname}?kenh=${INBOX_TAB_PARAM[t]}`, { scroll: false })
+  const openId = Number(params.get("hoi_thoai")) || null
+  const openConversation = (i: Interaction) => {
+    const id = i.ref.conversation_id ?? i.ref.thread_id
+    router.push(`${pathname}?kenh=${i.channel === "zalo" ? "zalo" : "facebook"}${id ? `&hoi_thoai=${id}` : ""}`, { scroll: false })
+  }
 
   if (isLoading) return <Skeleton className="h-96 rounded-[var(--radius)]" />
 
@@ -76,8 +82,8 @@ export function InboxScreen() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-foreground">Hộp thư</h1>
-          <p className="text-[13px] text-muted-foreground">Tin nhắn của khách từ Messenger và Zalo OA{googleAccounts.length > 0 ? ", đánh giá Google" : ""}, trả lời ngay tại đây.</p>
+          <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-foreground">Tương tác</h1>
+          <p className="text-[13px] text-muted-foreground">Bình luận Fanpage, tin nhắn Messenger và Zalo OA{googleAccounts.length > 0 ? ", đánh giá Google" : ""} ở một chỗ, trả lời ngay tại đây.</p>
         </div>
         {canSettings && active !== null && (
           <Link href="/connections" className={cn(buttonVariants({ variant: "outline" }), "ml-auto max-sm:h-11")}>
@@ -89,14 +95,16 @@ export function InboxScreen() {
 
       {active === null ? (
         <EmptyState icon={Inbox} message={canSocial ? "Chưa có kênh nào để hiện ở đây. Liên kết địa điểm Google Business ở Đăng đa kênh › Kênh để đọc và trả lời đánh giá Google." : "Bạn chưa có quyền xem hộp thư Zalo OA hay Messenger."} />
+      ) : active === "interactions" ? (
+        <InteractionsView key="interactions" tabs={<ChannelTabs tabs={tabs} active={active} onPick={pick} />} onOpenConversation={openConversation} />
       ) : active === "all" ? (
         <AllInbox key="all" className={FRAME} listTop={<ChannelTabs tabs={tabs} active={active} onPick={pick} />} />
       ) : active === "google" ? (
         <GoogleReviewsInbox key="google" accounts={googleAccounts} className={FRAME} listTop={<ChannelTabs tabs={tabs} active={active} onPick={pick} />} />
       ) : active === "zalo" ? (
-        <ZaloOaInbox key="zalo" className={FRAME} listTop={<ChannelTabs tabs={tabs} active={active} onPick={pick} />} />
+        <ZaloOaInbox key={`zalo-${openId ?? ""}`} initialOpenId={openId} className={FRAME} listTop={<ChannelTabs tabs={tabs} active={active} onPick={pick} />} />
       ) : (
-        <FacebookInbox key="facebook" className={FRAME} listTop={<ChannelTabs tabs={tabs} active={active} onPick={pick} />} />
+        <FacebookInbox key={`facebook-${openId ?? ""}`} initialOpenId={openId} className={FRAME} listTop={<ChannelTabs tabs={tabs} active={active} onPick={pick} />} />
       )}
     </div>
   )

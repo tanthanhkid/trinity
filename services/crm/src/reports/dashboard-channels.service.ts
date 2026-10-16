@@ -78,12 +78,14 @@ export class DashboardChannelsService {
         const pages = await this.prisma.facebookPage.findMany({ orderBy: { id: 'asc' }, take: 20, select: { id: true, page_id: true, name: true, is_active: true, token_status: true, subscribed: true } });
         if (pages.length === 0) available.push({ kind: 'facebook_page', label: 'Fanpage Facebook', href: `${INTEGRATIONS}?muc=facebook` });
         const counts = await this.inboundByPage(pages.map((p) => p.page_id), today);
+        const cm = pages.length ? await this.prisma.facebookComment.groupBy({ by: ['page_id'], where: { commented_at: today, page_id: { in: pages.map((p) => p.page_id) } }, _count: { _all: true } }) : [];
+        const commentsByPage = new Map(cm.map((r) => [r.page_id, r._count._all]));
         for (const p of pages) {
           const broken = p.token_status === 'invalid' || p.token_status === 'expired';
           const state: ChannelState = !p.is_active ? 'off' : broken || !p.subscribed ? 'attention' : 'ok';
           channels.push({
             key: `facebook_page:${p.id}`, kind: 'facebook_page', network: 'facebook', name: p.name, state,
-            note: state === 'off' ? 'Đã tắt' : broken ? 'Cần kết nối lại' : !p.subscribed ? 'Chưa nhận tin nhắn' : 'Đang nhận tin',
+            note: (state === 'off' ? 'Đã tắt' : broken ? 'Cần kết nối lại' : !p.subscribed ? 'Chưa nhận tin nhắn' : 'Đang nhận tin') + (commentsByPage.get(p.page_id) ? ` · ${commentsByPage.get(p.page_id)} bình luận hôm nay` : ''),
             today: { label: 'tin nhắn mới', value: counts.get(p.page_id) ?? 0 },
             href: `${INTEGRATIONS}?muc=facebook`,
           });

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { Grants, OrgFeatures } from "@trinity/rbac"
 import { resolveOrgFeatures } from "@trinity/rbac"
@@ -40,7 +40,7 @@ describe("Mục sidebar 'Hộp thư'", () => {
     const i = merged.findIndex((m) => m.key === "dashboard")
     expect(merged[i + 1]?.key).toBe("inbox")
     expect(inbox.href).toBe("/inbox")
-    expect(resolveBreadcrumb("/inbox").title).toBe("Hộp thư")
+    expect(resolveBreadcrumb("/inbox").title).toBe("Tương tác")
   })
 
   it("hiện khi có quyền của ít nhất một kênh; ẩn khi không quyền hoặc tắt 'Hộp thư'", () => {
@@ -68,8 +68,10 @@ describe("inboxChannels / tab", () => {
     expect(inboxChannels({}, ALL_ON)).toEqual([])
   })
   it("'Tất cả' chỉ khi có từ 2 kênh; ?kenh= lạ hoặc không quyền ⇒ tab đầu", () => {
-    expect(inboxTabs(["zalo", "facebook"])).toEqual(["all", "zalo", "facebook"])
-    expect(inboxTabs(["zalo"])).toEqual(["zalo"])
+    expect(inboxTabs(["zalo", "facebook"])).toEqual(["interactions", "all", "zalo", "facebook"])
+    expect(inboxTabs(["zalo"])).toEqual(["interactions", "zalo"])
+    expect(pickInboxTab(null, ["interactions", "zalo"])).toBe("interactions")
+    expect(pickInboxTab("tuong-tac", ["interactions", "zalo"])).toBe("interactions")
     expect(pickInboxTab("facebook", ["all", "zalo", "facebook"])).toBe("facebook")
     expect(pickInboxTab("facebook", ["zalo"])).toBe("zalo")
     expect(pickInboxTab("xyz", ["all", "zalo"])).toBe("all")
@@ -81,8 +83,9 @@ describe("inboxChannels / tab", () => {
     expect(inboxChannels(g, ALL_ON, { hasGoogle: true })).toEqual(["zalo", "facebook", "google"])
     expect(inboxChannels(both, ALL_ON, { hasGoogle: true })).toEqual(["zalo", "facebook"])
     expect(inboxChannels(g, off("social_posting"), { hasGoogle: true })).toEqual(["zalo", "facebook"])
-    expect(inboxTabs(["zalo", "google"])).toEqual(["zalo", "google"])
-    expect(inboxTabs(["zalo", "facebook", "google"])).toEqual(["all", "zalo", "facebook", "google"])
+    expect(inboxTabs(["zalo", "google"])).toEqual(["interactions", "zalo", "google"])
+    expect(inboxTabs(["zalo", "facebook", "google"])).toEqual(["interactions", "all", "zalo", "facebook", "google"])
+    expect(inboxTabs(["google"])).toEqual(["google"])
     expect(pickInboxTab("google", ["zalo", "google"])).toBe("google")
   })
 })
@@ -122,22 +125,32 @@ describe("<InboxScreen>", () => {
   })
   afterEach(() => { useAuthStore.setState(INITIAL, true) })
 
-  it("đủ hai kênh: tab Tất cả / Zalo / Facebook, danh sách gộp; bấm tab ghi ?kenh=", async () => {
+  it("mặc định mở Tương tác (gộp bình luận + tin nhắn): gọi /interactions, có số hôm nay", async () => {
     grant({ "contacts.update": "own", "integrations.webhooks": true })
     wrap()
+    expect(await screen.findByTestId("interactions")).toBeTruthy()
+    await waitFor(() => expect(mockGet.mock.calls.some(([u]) => u === "/interactions")).toBe(true))
+    expect(mockGet.mock.calls.some(([u]) => u === "/interactions/stats")).toBe(true)
+  })
+
+  it("đủ hai kênh: tab Tương tác / Tất cả hội thoại / Zalo / Facebook, danh sách gộp; bấm tab ghi ?kenh=", async () => {
+    grant({ "contacts.update": "own", "integrations.webhooks": true })
+    nav.search = new URLSearchParams("kenh=tat-ca")
+    wrap()
     const tabs = screen.getByRole("tablist", { name: "Kênh" })
-    expect(within(tabs).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Tất cả", "Zalo", "Facebook"])
+    expect(within(tabs).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Tương tác", "Tất cả hội thoại", "Zalo", "Facebook"])
     expect(await screen.findByText("Zalo 1")).toBeTruthy()
     expect(await screen.findByText("Messenger 9")).toBeTruthy()
     fireEvent.click(within(tabs).getByRole("tab", { name: "Facebook" }))
     expect(nav.replace).toHaveBeenCalledWith("/inbox?kenh=facebook", { scroll: false })
   })
 
-  it("chỉ quyền Zalo: không có tab, không gọi API Messenger", async () => {
+  it("chỉ quyền Zalo: tab Tương tác + Zalo, không gọi API Messenger", async () => {
     grant({ "contacts.update": "own" })
+    nav.search = new URLSearchParams("kenh=zalo")
     wrap()
     expect(await screen.findByText("Zalo 1")).toBeTruthy()
-    expect(screen.queryByRole("tablist", { name: "Kênh" })).toBeNull()
+    expect(within(screen.getByRole("tablist", { name: "Kênh" })).getAllByRole("tab").map((t) => t.textContent)).toEqual(["Tương tác", "Zalo"])
     expect(mockGet.mock.calls.some(([u]) => u === "/facebook/conversations")).toBe(false)
   })
 
@@ -157,6 +170,7 @@ describe("<InboxScreen>", () => {
       return { data: { data: [] } }
     })
     grant({ "contacts.update": "own", "integrations.webhooks": true })
+    nav.search = new URLSearchParams("kenh=tat-ca")
     wrap()
     expect(await screen.findByText("Messenger 9")).toBeTruthy()
     expect(screen.queryByText(/Không tải được/)).toBeNull()
@@ -168,6 +182,7 @@ describe("<InboxScreen>", () => {
       throw Object.assign(new Error("Forbidden"), { response: { status: 403 } })
     })
     grant({ "contacts.update": "own" })
+    nav.search = new URLSearchParams("kenh=zalo")
     wrap()
     expect(await screen.findByText(/Kênh Zalo OA chưa bật/)).toBeTruthy()
     expect(screen.queryByText(/Không tải được/)).toBeNull()
@@ -179,6 +194,7 @@ describe("<InboxScreen>", () => {
       throw Object.assign(new Error("Forbidden"), { response: { status: 403 } })
     })
     grant({ "integrations.webhooks": true })
+    nav.search = new URLSearchParams("kenh=facebook")
     wrap()
     expect(await screen.findByText(/Kênh Fanpage Facebook chưa bật/)).toBeTruthy()
     expect(screen.queryByText(/Không tải được/)).toBeNull()
@@ -190,6 +206,7 @@ describe("<InboxScreen>", () => {
       throw Object.assign(new Error("boom"), { response: { status: 500 } })
     })
     grant({ "contacts.update": "own" })
+    nav.search = new URLSearchParams("kenh=zalo")
     wrap()
     expect(await screen.findByText("Không tải được danh sách hội thoại.")).toBeTruthy()
   })

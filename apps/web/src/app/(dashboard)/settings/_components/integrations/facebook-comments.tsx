@@ -277,7 +277,7 @@ function TryRule({ pages }: { pages: FacebookPageView[] }) {
 }
 
 /** Ô trả lời tay: công khai dưới bình luận, hoặc nhắn riêng qua Messenger (Facebook cho 1 lần, trong 7 ngày). */
-function ReplyBox({ c }: { c: FacebookCommentView }) {
+export function ReplyBox({ c, onSent }: { c: Pick<FacebookCommentView, "id" | "can_private_reply">; onSent?: () => void }) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState("")
   const [mode, setMode] = useState<"public" | "private">("public")
@@ -297,6 +297,7 @@ function ReplyBox({ c }: { c: FacebookCommentView }) {
           toast.success(mode === "private" ? "Đã nhắn riêng cho khách qua Messenger." : "Đã trả lời dưới bình luận.")
           setText("")
           setOpen(false)
+          onSent?.()
         },
         onError: (err) => toast.error(apiErrorMessage(err, "Không gửi được trả lời.")),
       },

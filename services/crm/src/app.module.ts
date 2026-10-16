@@ -5,6 +5,7 @@ import { ElkLoggerModule } from '@trinity/logger';
 import { ContactsModule } from './contacts/contacts.module';
 import { ActivitiesModule } from './activities/activities.module';
 import { ReportsModule } from './reports/reports.module';
+import { InteractionsModule } from './interactions/interactions.module';
 import { StorageModule } from './storage/storage.module';
 import { SettingsModule } from './settings/settings.module';
 import { SettingsOptionsModule } from './settings-options/settings-options.module';
@@ -51,6 +52,7 @@ import { SecurityHeadersMiddleware } from './common/middleware/security-headers.
     ContactsModule,
     ActivitiesModule,
     ReportsModule,
+    InteractionsModule,
     SettingsModule,
     SettingsOptionsModule,
     NotificationsModule,

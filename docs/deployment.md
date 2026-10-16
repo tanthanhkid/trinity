@@ -61,6 +61,46 @@ build on a workstation (only the parts the diff touches), ship the build output,
 directory beside the app, restart, and move the previous release back if the health checks fail. Copy `.env` before every
 update; dump the database only when the update contains a migration (a rollback does not undo migrations).
 
+## Monitoring (optional)
+
+Trinity can report errors to [Sentry](https://sentry.io) and send anonymous product metrics to
+[PostHog](https://posthog.com). **Both are off by default**: while the variables below are empty the app makes no
+network call for monitoring and never loads either SDK (the browser code is a dynamic import that only runs when the
+API returns a config).
+
+| Variable | Purpose |
+|---|---|
+| `SENTRY_DSN` | Sentry DSN for the API process. Only 5xx errors and traces are sent. |
+| `SENTRY_DSN_WEB` | Sentry DSN for the browser, served to the web app by `GET /api/v1/telemetry/config`. |
+| `SENTRY_ENVIRONMENT` | Environment label. Defaults to `NODE_ENV`. |
+| `SENTRY_TRACES_SAMPLE_RATE` | Trace sampling, 0 to 1. Default `0.1`. |
+| `TRINITY_RELEASE` | Release id. Falls back to `VERCEL_GIT_COMMIT_SHA` (first 7 chars), then to a `.release` file in `APP_ROOT` (or the working directory). |
+| `POSTHOG_KEY` | PostHog project key. Enables server events and browser page views. |
+| `POSTHOG_HOST` | PostHog ingestion host. Default `https://us.i.posthog.com`. |
+| `POSTHOG_REPLAY` | Set to exactly `true` to enable session replay. Default off. |
+| `MONITORING_HASH_SECRET` | Secret for hashing user ids. Falls back to `JWT_SECRET`. |
+
+### What is filtered
+
+- **User identity**: user ids are never sent. Both services receive `HMAC-SHA256(secret, id)` truncated to 24 hex
+  characters. Without a secret nothing is identified.
+- **Sentry (API and browser)**: `sendDefaultPii` is off. Request bodies, cookies, headers and query strings are
+  removed; URLs are stripped of query strings and webhook tokens. Email addresses and phone numbers in messages
+  and exception text are masked. Console breadcrumbs are dropped (and input breadcrumbs in the browser); URLs in HTTP
+  breadcrumbs lose their query string. The only user field is the hashed id.
+- **PostHog browser**: autocapture is off. Page views are recorded as paths with numeric and UUID segments replaced by
+  `:id`, without query strings; referrers keep only the origin. All text, input values and element attributes are masked
+  and images, video and canvas are blocked in replays.
+- **PostHog server events** carry only keys, counts and booleans. Strings are cut at 60 characters, and any string
+  containing `@` or a run of 8 or more digits is dropped. No names or record content is sent.
+- Sending is fire-and-forget and never affects a request. Events are not sent when `NODE_ENV=test`.
+
+### Server events
+
+`onboarding_step` (`step`, `action`: confirm or skip) · `feature_toggled` (`feature`, `enabled`) · `plan_changed`
+(`plan`) · `table_created` (`fields`) · `table_updated` (`fields`) · `post_published` (`networks`, `scheduled`,
+`source`: web, mcp or csv) · `comment_rule_saved` (`created`, `actions`).
+
 ## Production checklist
 
 - [ ] Every `change-me-*` value replaced; secrets are random and at least 32 bytes.

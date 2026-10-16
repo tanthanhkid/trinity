@@ -194,6 +194,16 @@ To let your AI assistant drive Trinity, set `INTEGRATIONS_MCP_ENABLED=true`, a p
 
 For development without Docker: `pnpm install && pnpm dev` (needs Node 22, Postgres and Redis running locally).
 
+### Monitoring (optional)
+
+Error reporting (Sentry) and anonymous product metrics (PostHog) are **off by default**: no network call is made and
+no SDK is loaded until you set the variables. Variables: `SENTRY_DSN` (API), `SENTRY_DSN_WEB` (browser),
+`SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE`, `TRINITY_RELEASE`, `POSTHOG_KEY`, `POSTHOG_HOST`, `POSTHOG_REPLAY`,
+`MONITORING_HASH_SECRET`. User ids are hashed (HMAC) before they leave your server; request bodies, cookies, headers,
+query strings, emails and phone numbers are stripped; session replay (if enabled) masks all text and inputs. Server
+events: `onboarding_step`, `feature_toggled`, `plan_changed`, `table_created`, `table_updated`, `post_published`,
+`comment_rule_saved`, with keys, counts and booleans only. Details in [docs/deployment.md](docs/deployment.md#monitoring-optional).
+
 ## Why I built this
 
 > *I'm Thanh. I build software with AI every day, and I kept seeing small businesses drown in menus and spreadsheets. So I built the system I wanted: one where you just tell your AI what to do. I'm giving it away so everyone can run their business this way.* — Thanh Tran

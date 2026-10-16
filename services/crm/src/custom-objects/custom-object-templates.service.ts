@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@trinity/prisma';
+import { trackProductEvent } from '@trinity/logger';
 import { can } from '@trinity/rbac';
 import type { AuthUser } from '@trinity/rbac-nest';
 import { toFieldDef } from './custom-object-access';
@@ -58,6 +59,7 @@ export class CustomObjectTemplatesService {
         throw e;
       });
     this.logger.log(`template ${templateKey} áp bởi user ${user.userId}: tạo [${result.created}] giữ [${result.existing}] mẫu ${result.sample_records}`);
+    for (const o of tpl.objects) if (result.created.includes(o.key)) trackProductEvent('table_created', user.userId, { fields: o.fields.length });
     return result;
   }
 

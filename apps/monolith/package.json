@@ -29,6 +29,7 @@
     "@nestjs/swagger": "^7",
     "@nestjs/websockets": "^10",
     "@prisma/client": "^6.19.3",
+    "@sentry/node": "^10.76.2",
     "@trinity/logger": "workspace:*",
     "@trinity/prisma": "workspace:*",
     "@trinity/rbac": "workspace:*",

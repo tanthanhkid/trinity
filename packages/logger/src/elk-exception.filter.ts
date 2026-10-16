@@ -9,6 +9,7 @@ import {
 import * as winston from 'winston'
 import { ELK_LOGGER } from './logging.interceptor'
 import { redactUrl } from './redact-url'
+import { reportServerError } from './server-error-reporter'
 
 @Catch()
 export class ElkExceptionFilter implements ExceptionFilter {
@@ -60,6 +61,16 @@ export class ElkExceptionFilter implements ExceptionFilter {
     if (isServerError) {
       logMeta.error_stack = exception instanceof Error ? exception.stack : undefined
       this.logger.error('Unhandled Exception', logMeta)
+      try {
+        reportServerError(exception, {
+          method: request.method,
+          status,
+          url: redactUrl(request.url),
+          userId: request.user?.userId ?? request.user?.id ?? null,
+        })
+      } catch {
+        /* never break the response */
+      }
     } else {
       // 4xx là expected (validation, auth hết hạn, rate limit...): log warn, không kèm stack
       this.logger.warn('HTTP Client Error', logMeta)

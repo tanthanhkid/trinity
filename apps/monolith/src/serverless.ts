@@ -4,6 +4,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express'
 import { ElkNestLogger } from '@trinity/logger'
 
 import { MonolithModule } from './app.module'
+import { initMonitoring } from './monitoring'
 import { withPooledParams } from './runtime'
 import { NEST_CREATE_OPTIONS, configureApp, initAndAudit } from './bootstrap-app'
 
@@ -25,6 +26,7 @@ type Cache = { [CACHE_KEY]?: Promise<ServerlessHandler> }
 async function createHandler(): Promise<ServerlessHandler> {
   // Có gọi `getHandler()` là đang ở serverless — để mọi module tự gate timer/Redis/… theo cùng một cờ.
   process.env.TRINITY_RUNTIME ??= 'serverless'
+  initMonitoring()
 
   // Neon pooled: bổ sung `pgbouncer=true` + sàn `connection_limit=3` cho PrismaService (nó đọc DATABASE_URL lúc dựng client).
   if (process.env.DATABASE_URL) process.env.DATABASE_URL = withPooledParams(process.env.DATABASE_URL)

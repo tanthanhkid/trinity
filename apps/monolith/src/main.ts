@@ -1,3 +1,4 @@
+import './instrument'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 

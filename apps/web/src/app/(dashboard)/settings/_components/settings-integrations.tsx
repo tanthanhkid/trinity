@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AlertTriangle, ArrowLeft, LayoutGrid, Loader2, PlugZap } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -56,7 +56,11 @@ export function SettingsIntegrations() {
   // Mục đang mở theo URL (?muc= hoặc tham số quay về OAuth); URL đổi (link menu, Back/Forward) ⇒ đồng bộ lại.
   const query = params.toString()
   const [active, setActive] = useState<IntegrationSection | "overview">(() => sectionFromParams(new URLSearchParams(query)))
-  useEffect(() => { setActive(sectionFromParams(new URLSearchParams(query))) }, [query])
+  const [seenQuery, setSeenQuery] = useState(query)
+  if (seenQuery !== query) {
+    setSeenQuery(query)
+    setActive(sectionFromParams(new URLSearchParams(query)))
+  }
   const status = useIntegrationsStatus(visible.length > 0)
 
   if (visible.length === 0) {

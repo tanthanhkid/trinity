@@ -1,8 +1,8 @@
 "use client"
 
-import { useRef, useState } from "react"
-import { useSearchParams } from "next/navigation"
-import { AlertTriangle, Loader2, PlugZap } from "lucide-react"
+import { useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { AlertTriangle, ArrowLeft, LayoutGrid, Loader2, PlugZap } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { usePermissions } from "@/lib/rbac"
@@ -22,28 +22,46 @@ import { useIntegrationsStatus } from "./integrations/use-integrations"
 import { IntegrationsOverview } from "./integrations/integrations-overview"
 import { cn } from "@/lib/utils"
 import {
+  INTEGRATION_GROUPS,
   INTEGRATION_SECTIONS,
   flagEnvName,
   isSectionEnabled,
   type IntegrationSection,
 } from "./integrations/integrations-meta"
 
+/** Tham số quay về từ OAuth (Facebook / Google / Zalo / phần mềm bán hàng) ⇒ mục cần mở. */
+export function sectionFromParams(params: URLSearchParams): IntegrationSection | "overview" {
+  const muc = params.get("muc")
+  if (muc) return muc as IntegrationSection
+  if (params.get("google") !== null) return "google-sheets"
+  if (params.get("facebook") !== null) return "facebook"
+  if (params.get("zalo_oa") !== null) return "zalo-oa"
+  if (params.get("ket_noi") !== null) return "ban-hang"
+  return "overview"
+}
+
 /**
- * Cài đặt > Kết nối & AI: khung 5 mục (Fanpage Facebook  chạy độc lập cờ webhook/MCP) — Webhook ra + Webhook vào, Kết nối AI và Nhật ký tích hợp. Mục nào hiện theo QUYỀN; mục nào chạy được
- * theo CỜ máy chủ (`GET /integrations/status`). FE chỉ ẩn/hiện — BE mới là cổng thật.
+ * Trang Kết nối (`/connections`, menu chính): cột trái nhóm theo loại (Trợ lý AI · Kênh khách · Thanh toán · Bán hàng ·
+ * Dữ liệu & tự động · Nhật ký), mặc định là lưới thẻ có logo + trạng thái; bấm một mục mở chi tiết mục đó. Mục nào hiện theo
+ * QUYỀN + công tắc tính năng; chạy được hay không theo CỜ máy chủ (`GET /integrations/status`). FE chỉ ẩn/hiện, BE mới là cổng thật.
+ * Mục đang mở nằm trên URL (`?muc=`) để link sâu và nút Back chạy đúng.
  */
 export function SettingsIntegrations() {
   const { can, canAny } = usePermissions()
   const { features } = useOrgFeatures()
   const visible = INTEGRATION_SECTIONS.filter((s) => canAny(...s.anyOf) && (!s.feature || features[s.feature] !== false))
-  // Quay về từ Google OAuth (`?google=...`) => mở thẳng mục Google Sheets.
-  // `?muc=<mục>` (vd `ai` từ nút "Kết nối AI" ở Trang chủ, `facebook` từ link AI gửi) => mở thẳng mục đó; mục không có quyền thì rơi về mục đầu như cũ.
   const params = useSearchParams()
-  const fromGoogle = params.get("google") !== null
-  // Không có `?muc=` ⇒ mở trang Tổng quan (mỗi kênh một dòng). `muc` lạ/không có quyền ⇒ cũng về Tổng quan.
-  const [active, setActive] = useState<IntegrationSection | "overview">(fromGoogle ? "google-sheets" : ((params.get("muc") || "overview") as IntegrationSection | "overview"))
+  const router = useRouter()
+  const pathname = usePathname()
+  // Mục đang mở theo URL (?muc= hoặc tham số quay về OAuth); URL đổi (link menu, Back/Forward) ⇒ đồng bộ lại.
+  const query = params.toString()
+  const [active, setActive] = useState<IntegrationSection | "overview">(() => sectionFromParams(new URLSearchParams(query)))
+  const [seenQuery, setSeenQuery] = useState(query)
+  if (seenQuery !== query) {
+    setSeenQuery(query)
+    setActive(sectionFromParams(new URLSearchParams(query)))
+  }
   const status = useIntegrationsStatus(visible.length > 0)
-  const navRef = useRef<HTMLElement>(null)
 
   if (visible.length === 0) {
     return <EmptyState icon={PlugZap} message="Bạn chưa có quyền xem mục này." />
@@ -55,36 +73,49 @@ export function SettingsIntegrations() {
   const enabled = !overview && isSectionEnabled(current.flag, status.data)
   const open = (s: IntegrationSection | "overview") => {
     setActive(s)
-    navRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" })
+    // Người dùng đổi mục ⇒ thêm một mục lịch sử (Back quay lại mục trước); bỏ tham số quay về OAuth đã đọc.
+    router.push(s === "overview" ? pathname : `${pathname}?muc=${s}`, { scroll: false })
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
   }
-  const tabs: ReadonlyArray<{ value: IntegrationSection | "overview"; label: string }> = [{ value: "overview", label: "Tổng quan" }, ...visible]
+  const groups = INTEGRATION_GROUPS.map((g) => ({ ...g, items: visible.filter((s) => s.group === g.key) })).filter((g) => g.items.length > 0)
+  const navButton = (value: IntegrationSection | "overview", label: string, on: boolean, icon?: React.ReactNode) => (
+    <button
+      key={value}
+      type="button"
+      aria-current={on ? "page" : undefined}
+      onClick={() => open(value)}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20 max-md:min-h-11",
+        on ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+      )}
+    >
+      {icon}
+      <span className="truncate">{label}</span>
+    </button>
+  )
 
   return (
-    <div className="space-y-4">
-      {/* Tab gạch chân, cuộn ngang trên điện thoại — thay hàng nút viên thuốc (dễ nhầm với nút hành động). */}
-      <nav ref={navRef} aria-label="Mục kết nối" className="-mx-1 overflow-x-auto border-b border-border [mask-image:linear-gradient(to_right,black_calc(100%-40px),transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex min-w-max gap-1 px-1">
-          {tabs.map((s) => {
-            const on = overview ? s.value === "overview" : s.value === current.value
-            return (
-              <button
-                key={s.value}
-                type="button"
-                aria-pressed={on}
-                aria-current={on ? "page" : undefined}
-                onClick={() => open(s.value)}
-                className={cn(
-                  "relative h-10 rounded-md px-2.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 ease-out outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20 max-sm:h-11",
-                  "after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:transition-opacity after:duration-150",
-                  on ? "text-foreground after:bg-foreground after:opacity-100" : "text-muted-foreground after:opacity-0 hover:text-foreground",
-                )}
-              >
-                {s.label}
-              </button>
-            )
-          })}
-        </div>
+    <div className="grid gap-5 md:grid-cols-[208px_minmax(0,1fr)]">
+      {/* Cột trái nhóm theo loại. Điện thoại: chỉ hiện ở trang tổng (vào một mục thì có nút quay lại). */}
+      <nav aria-label="Mục kết nối" className={cn("space-y-4 md:sticky md:top-4 md:self-start", !overview && "max-md:hidden")}>
+        {navButton("overview", "Tất cả kết nối", overview, <LayoutGrid className="size-4 shrink-0" aria-hidden />)}
+        {groups.map((g) => (
+          <div key={g.key} className="space-y-0.5">
+            <p className="px-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">{g.label}</p>
+            {g.items.map((s) => navButton(s.value, s.label, !overview && s.value === current.value))}
+          </div>
+        ))}
       </nav>
+
+      <div className="min-w-0 space-y-4">
+      {!overview && (
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => open("overview")} className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground md:hidden max-md:min-h-11">
+            <ArrowLeft className="size-4" aria-hidden /> Tất cả kết nối
+          </button>
+          <h2 className="text-base font-semibold max-md:hidden">{current.label}</h2>
+        </div>
+      )}
 
       {overview && (
         <IntegrationsOverview
@@ -141,6 +172,7 @@ export function SettingsIntegrations() {
       {status.data && enabled && !overview && current.value === "ai" && (
         <AiConnectionsPanel mcpUrl={status.data.mcp_url ?? null} baseUrlConfigured={status.data.mcp_base_url_configured !== false} />
       )}
+      </div>
     </div>
   )
 }

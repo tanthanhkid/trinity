@@ -13,7 +13,7 @@ import { ToolUserError, rejectDigitProbe, type McpDeps, type ToolDef } from './t
  * Trả lời đi thẳng tới khách ⇒ hai bước (xem trước → `confirmed_by_user`). Giữ luật kênh: Messenger 24 giờ, Zalo OA 48 giờ,
  * nhắn riêng bình luận 1 lần trong 7 ngày.
  */
-const INBOX_URL = '/settings?tab=integrations&muc=facebook';
+const INBOX_URL = '/connections?muc=facebook';
 const SINCE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const canZalo = (grants: Parameters<typeof can>[0]) => can(grants, 'contacts.update');

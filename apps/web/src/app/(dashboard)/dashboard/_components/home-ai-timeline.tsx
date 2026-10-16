@@ -11,7 +11,7 @@ import { GHOST_BTN, HomeBox, HomeEmpty, SMALL_BTN } from './home-box'
 import { canUndoAiAction } from './home-utils'
 
 /** Màn Kết nối sẵn có: Cài đặt › Kết nối & AI › Kết nối AI. */
-export const CONNECT_AI_HREF = '/settings?tab=integrations&muc=ai'
+export const CONNECT_AI_HREF = '/connections?muc=ai'
 
 export type TimelineState = 'loading' | 'disabled' | 'error' | 'ready'
 

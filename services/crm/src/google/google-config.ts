@@ -37,5 +37,5 @@ export function loadGoogleConfig(env: NodeJS.ProcessEnv = process.env): GoogleOA
 /** Trang web sau khi nối xong Google (người dùng được chuyển về đây). */
 export function settingsReturnUrl(env: NodeJS.ProcessEnv = process.env): string {
   const base = publicBaseUrl(env) ?? env.WEB_BASE_URL ?? '';
-  return `${base}/settings?tab=integrations&google=`;
+  return `${base}/connections?muc=google-sheets&google=`;
 }

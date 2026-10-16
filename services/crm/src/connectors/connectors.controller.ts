@@ -385,7 +385,7 @@ export class ConnectorsController {
 
   /** Về lại Cài đặt sau khi cấp quyền sàn, kèm kết quả. */
   private async marketBack(res: Response, done: () => Promise<void>) {
-    const back = `${publicBaseUrl() ?? ''}/settings?tab=integrations&muc=ban-hang`;
+    const back = `${publicBaseUrl() ?? ''}/connections?muc=ban-hang`;
     try {
       await done();
       res.redirect(302, `${back}&ket_noi=ok`);

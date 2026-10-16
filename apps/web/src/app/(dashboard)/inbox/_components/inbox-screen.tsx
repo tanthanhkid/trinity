@@ -80,7 +80,7 @@ export function InboxScreen() {
           <p className="text-[13px] text-muted-foreground">Tin nhắn của khách từ Messenger và Zalo OA{googleAccounts.length > 0 ? ", đánh giá Google" : ""}, trả lời ngay tại đây.</p>
         </div>
         {canSettings && active !== null && (
-          <Link href="/settings?tab=integrations" className={cn(buttonVariants({ variant: "outline" }), "ml-auto max-sm:h-11")}>
+          <Link href="/connections" className={cn(buttonVariants({ variant: "outline" }), "ml-auto max-sm:h-11")}>
             <Settings2 className="size-4" aria-hidden />
             Kết nối kênh
           </Link>

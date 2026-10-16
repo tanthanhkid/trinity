@@ -21,6 +21,8 @@ export const FEATURE_ROUTES: readonly { route: string; feature: OrgFeatureKey }[
   { route: "/management", feature: "management" },
   // Hộp thư (Zalo OA + Messenger) có công tắc riêng.
   { route: "/inbox", feature: "inbox" },
+  // Trang Kết nối (trợ lý AI, kênh, thanh toán…) theo công tắc "Kết nối & AI".
+  { route: "/connections", feature: "integrations" },
 ]
 
 /** Tính năng quản `pathname`, hoặc null nếu route không thuộc module tắt được. Dùng `isUnderRoute` (không startsWith trần). */

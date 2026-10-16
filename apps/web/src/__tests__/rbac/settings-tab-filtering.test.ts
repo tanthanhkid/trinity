@@ -64,7 +64,7 @@ describe("Settings ALL_TABS — lọc theo permission (Grants)", () => {
     const grants: Grants = {}
     for (const t of ALL_TABS) {
       if ("permission" in t && t.permission) grants[t.permission] = "all"
-      if ("anyOf" in t) for (const p of t.anyOf) grants[p as Permission] = "all"
+      if ("anyOf" in t) for (const p of t.anyOf as readonly Permission[]) grants[p] = "all"
     }
     const visible = visibleTabValues(grants)
     for (const t of ALL_TABS) {
@@ -74,30 +74,22 @@ describe("Settings ALL_TABS — lọc theo permission (Grants)", () => {
   })
 })
 
-describe("Settings tab 'integrations' (Kết nối & AI)", () => {
+describe("Kết nối tách khỏi Cài đặt thành mục menu riêng (/connections)", () => {
   const NEW_PERMS = ["integrations.webhooks", "integrations.ai_connect", "integrations.ai_admin"] as const
 
-  it("nằm trong TAB_GROUPS (không lạc nhóm)", () => {
+  it("Cài đặt không còn tab integrations", () => {
     const grouped: string[] = TAB_GROUPS.flatMap((g) => g.tabs as readonly string[])
-    expect(grouped).toContain("integrations")
+    expect(grouped).not.toContain("integrations")
+    expect(ALL_TABS.some((t) => t.value === ("integrations" as never))).toBe(false)
   })
 
-  it("grants rỗng → ẨN; chỉ cần MỘT trong 3 quyền nhóm Kết nối & AI → HIỆN", () => {
-    expect(visibleTabValues({})).not.toContain("integrations")
-    for (const p of NEW_PERMS) {
-      expect(visibleTabValues({ [p]: true }), p).toContain("integrations")
-    }
-  })
-
-  it("quyền không liên quan (settings.integrations = khoá API/Wifi) KHÔNG mở tab này", () => {
-    expect(visibleTabValues({ "settings.integrations": true })).not.toContain("integrations")
-  })
-
-  it("công tắc tổ chức `integrations` tắt → ẩn với MỌI người kể cả đủ quyền; bật/thiếu khoá → hiện", () => {
-    const all: Grants = { "integrations.webhooks": true, "integrations.ai_connect": true, "integrations.ai_admin": true }
-    expect(visibleTabValues(all, resolveOrgFeatures({ integrations: false }))).not.toContain("integrations")
-    expect(visibleTabValues(all, resolveOrgFeatures({}))).toContain("integrations")
-    expect(visibleTabValues(all, resolveOrgFeatures({ integrations: true }))).toContain("integrations")
-    expect(visibleTabValues(all, undefined)).toContain("integrations")
+  it("mục menu Kết nối: grants rỗng ⇒ ẩn; một trong các quyền kết nối ⇒ hiện; tắt công tắc integrations ⇒ ẩn", async () => {
+    const { menuItems } = await import("@/components/nav-config")
+    const { isItemVisible } = await import("@/components/nav-visibility")
+    const item = menuItems.find((m) => m.key === "connections")!
+    expect(item.href).toBe("/connections")
+    expect(isItemVisible(item, {})).toBe(false)
+    for (const p of NEW_PERMS) expect(isItemVisible(item, { [p]: true } as Grants), p).toBe(true)
+    expect(isItemVisible(item, { "integrations.webhooks": true } as Grants, resolveOrgFeatures({ integrations: false }))).toBe(false)
   })
 })

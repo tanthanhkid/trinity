@@ -26,7 +26,7 @@ describe("OnboardingChecklist", () => {
     expect(screen.getByTestId("step-build").dataset.done).toBe("false")
     const ch = within(screen.getByTestId("step-channels"))
     expect(ch.getByText("Kết nối kênh đăng bài").getAttribute("href")).toBe("/social?tab=channels")
-    expect(ch.getByText("Nhận tin nhắn Fanpage").getAttribute("href")).toBe("/settings?tab=integrations")
+    expect(ch.getByText("Nhận tin nhắn Fanpage").getAttribute("href")).toBe("/connections?muc=facebook")
     expect(within(screen.getByTestId("step-post")).getByText("Soạn bài").getAttribute("href")).toBe("/social?tab=compose")
   })
   it("thiếu quyền ⇒ báo nhờ quản trị viên, không đưa nút", () => {

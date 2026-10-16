@@ -52,7 +52,7 @@ export class FacebookPublicController {
   @ApiOperation({ summary: 'Facebook chuyển người dùng về đây sau khi chọn Fanpage' })
   async callback(@Res() res: Response, @Query('code') code?: string, @Query('state') state?: string, @Query('error') error?: string) {
     const base = loadFacebookConfig().baseUrl ?? '';
-    const back = (q: string) => res.redirect(`${base}/settings?tab=integrations&${q}`);
+    const back = (q: string) => res.redirect(`${base}/connections?muc=facebook&${q}`);
     if (error || !code || !state) return back('facebook=cancelled');
     try {
       const r = await this.pages.handleCallback(code, state);

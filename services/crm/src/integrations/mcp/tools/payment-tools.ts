@@ -12,7 +12,7 @@ async function paymentsDeps(deps: Pick<McpDeps, 'payments' | 'orgFeatures'>) {
   return deps.payments;
 }
 
-const MANAGE = '/settings?tab=integrations&muc=payments';
+const MANAGE = '/connections?muc=payments';
 const STATUS_VI: Record<string, string> = { pending: 'chờ thanh toán', paid: 'đã thanh toán', cancelled: 'đã huỷ', expired: 'quá hạn' };
 
 function paymentForAi(p: PaymentView) {

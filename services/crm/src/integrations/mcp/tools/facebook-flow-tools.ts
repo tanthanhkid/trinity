@@ -11,7 +11,7 @@ async function flowsDeps(deps: Pick<McpDeps, 'facebookFlows' | 'orgFeatures'>) {
   return deps.facebookFlows;
 }
 
-const MANAGE = '/settings?tab=integrations&muc=facebook&xem=kich-ban';
+const MANAGE = '/connections?muc=facebook&xem=kich-ban';
 const TRIGGER_VI: Record<string, string> = { keyword: 'khách nhắn có từ khoá', chat_link: 'khách vào qua link/QR', first_message: 'tin đầu tiên của khách mới' };
 
 function flowForAi(f: FlowView, baseUrl: string) {

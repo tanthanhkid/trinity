@@ -232,6 +232,23 @@ describe('get_setup_guide / complete_setup + server instructions', () => {
     expect(MCP_SERVER_INSTRUCTIONS).toContain('get_setup_guide');
     expect(MCP_SERVER_INSTRUCTIONS).toContain('propose_workspace');
   });
+  it('get_setup_guide có agent ⇒ connect_prompt đầy đủ (không bị cắt), đúng địa chỉ máy chủ', async () => {
+    const old = process.env.INTEGRATIONS_PUBLIC_BASE_URL;
+    process.env.INTEGRATIONS_PUBLIC_BASE_URL = 'https://crm.example.com';
+    try {
+      const d = { setup: { get: jest.fn().mockResolvedValue('chua_dung') }, orgFeatures: { get: jest.fn().mockResolvedValue({ integrations: true }) }, prisma: { customObject: { findMany: jest.fn().mockResolvedValue([]) }, customView: { count: jest.fn().mockResolvedValue(0) }, role: { findMany: jest.fn().mockResolvedValue([]) }, userRole: { findMany: jest.fn().mockResolvedValue([]) } } };
+      const r = await t('get_setup_guide').run({ agent: 'antigravity' }, { deps: d as never, principal: principal as never, baseUrl: 'https://x' });
+      const p = (r.structured as { data: { connect_prompt: string } }).data.connect_prompt;
+      expect(p.length).toBeGreaterThan(1500);
+      expect(p).not.toContain('[đã cắt]');
+      expect(p).toContain('"serverUrl": "https://crm.example.com/api/v1/mcp"');
+      const none = await t('get_setup_guide').run({}, { deps: d as never, principal: principal as never, baseUrl: 'https://x' });
+      expect((none.structured as { data: Record<string, unknown> }).data.connect_prompt).toBeUndefined();
+    } finally {
+      if (old === undefined) delete process.env.INTEGRATIONS_PUBLIC_BASE_URL; else process.env.INTEGRATIONS_PUBLIC_BASE_URL = old;
+    }
+  });
+
   it('get_setup_guide: trạng thái + kịch bản phỏng vấn tiếng Việt (xin Sheet/Excel)', async () => {
     const d = { setup: { get: jest.fn().mockResolvedValue('chua_dung') }, orgFeatures: { get: jest.fn().mockResolvedValue({ integrations: true }) }, prisma: { customObject: { findMany: jest.fn().mockResolvedValue([{ key: 'benh_nhan', label_plural: 'Bệnh nhân', code_prefix: 'BN' }]) }, customView: { count: jest.fn().mockResolvedValue(0) }, role: { findMany: jest.fn().mockResolvedValue([{ name: 'Quản trị' }, { name: 'Bác sĩ' }]) }, userRole: { findMany: jest.fn().mockResolvedValue([]) } } };
     const r = await t('get_setup_guide').run({}, { deps: d as never, principal: principal as never, baseUrl: 'https://x' });

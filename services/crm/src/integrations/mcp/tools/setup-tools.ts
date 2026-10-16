@@ -50,8 +50,10 @@ export const getSetupGuideTool: ToolDef = {
         core_codes: { contacts: 'KH001…', deals: 'DL001…', tasks: 'CV001…' },
       },
       modules: Object.fromEntries(Object.entries(ORG_FEATURES).map(([k, v]) => [k, v.label])),
-      ...(isConnectAgent(args.agent) && publicBaseUrl() ? { connect_prompt: buildConnectPrompt(args.agent, mcpResourceUrl(publicBaseUrl()!)) } : {}),
     });
+    // Prompt nối do chính máy chủ sinh (không chứa dữ liệu người dùng) ⇒ gắn sau wrapData để không bị cắt 500 ký tự.
+    const base = publicBaseUrl();
+    if (isConnectAgent(args.agent) && base) (out.data as Record<string, unknown>).connect_prompt = buildConnectPrompt(args.agent, mcpResourceUrl(base));
     return { structured: out, text: JSON.stringify(out) };
   },
 };

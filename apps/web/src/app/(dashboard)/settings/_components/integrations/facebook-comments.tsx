@@ -119,8 +119,12 @@ function RuleDialog({ open, onOpenChange, rule, pages }: { open: boolean; onOpen
     const fromLink = postRaw.match(/(\d{5,})_\d{5,}/)?.[1] ?? null
     if (fromLink && !pages.some((p) => p.page_id === fromLink)) return failEarly("Bài này thuộc một Fanpage chưa nối với Trinity. Nối Fanpage đó trước, hoặc dán link bài của Fanpage đã nối.")
     if (fromLink && effectivePage && fromLink !== effectivePage) return failEarly("Bài này thuộc Fanpage khác với Fanpage đã chọn. Chọn lại ô \"Áp cho Fanpage\" hoặc dán đúng link bài.")
+    // Link dạng permalink.php?story_fbid=…&id=…: id trùng Page đã nối thì chọn Page đó; không trùng (Page khác, hoặc id hồ sơ của
+    // "trang mới") thì KHÔNG tự gán Page duy nhất — người dùng tự chọn ở ô "Áp cho Fanpage".
+    const idParam = postRaw.match(/[?&]id=(\d{5,})/)?.[1] ?? null
+    const idMatches = idParam && pages.some((p) => p.page_id === idParam) ? idParam : null
     if (postRaw && !effectivePage) {
-      const guess = fromLink ?? (pages.length === 1 ? pages[0].page_id : null)
+      const guess = fromLink ?? idMatches ?? (!idParam && pages.length === 1 ? pages[0].page_id : null)
       if (guess) { effectivePage = guess; setPageId(guess) }
     }
     const body: CommentRuleInput = {

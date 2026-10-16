@@ -90,6 +90,17 @@ describe("FacebookComments", () => {
     expect(mockPost).not.toHaveBeenCalled()
   })
 
+  it("permalink có id không trùng Page đã nối ⇒ không tự gán Page duy nhất, yêu cầu chọn Fanpage", async () => {
+    setup()
+    fireEvent.click(await screen.findByRole("button", { name: /Thêm luật/ }))
+    fireEvent.change(await screen.findByLabelText(/Tên luật/), { target: { value: "Permalink" } })
+    fireEvent.change(screen.getByLabelText(/Chỉ bài này/), { target: { value: "https://www.facebook.com/permalink.php?story_fbid=123456&id=999999" } })
+    fireEvent.change(screen.getByLabelText(/Nhắn riêng qua Messenger/), { target: { value: "Chào" } })
+    fireEvent.click(screen.getByRole("button", { name: "Lưu luật" }))
+    expect((await screen.findByTestId("rule-form-error")).textContent).toMatch(/Fanpage nào/)
+    expect(mockPost).not.toHaveBeenCalled()
+  })
+
   it("không có thuật ngữ kỹ thuật", async () => {
     const { container } = setup()
     await screen.findByText("Giá sao ạ")

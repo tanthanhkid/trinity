@@ -30,6 +30,8 @@ describe('buildConnectPrompt', () => {
     expect(p).toContain('Authenticate');
     expect(p).toContain('KHÔNG dùng thư mục .agents/plugins');
     expect(p).toContain('mcp-remote');
+    expect(p).toContain('~/.gemini/GEMINI.md');
+    expect(p).not.toContain('rules/trinity.md');
   });
 
   it('cú pháp đúng từng agent', () => {

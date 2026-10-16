@@ -84,7 +84,8 @@ const SETUPS: Record<ConnectAgent, AgentSetup> = {
       '```',
       'Rồi mở Settings › Customizations, bấm Authenticate cạnh trinity, đăng nhập Trinity, bấm Cho phép; nếu trình duyệt hiện mã thì dán mã đó lại vào Antigravity.',
     ].join('\n'),
-    rule: 'Tạo rule tại ~/.gemini/config/rules/trinity.md (hoặc .agents/rules/trinity.md nếu chỉ dùng cho workspace này) với nội dung:',
+    // GEMINI.md luôn được nạp; file trong thư mục rules/ cần frontmatter trigger, thiếu là bị bỏ qua.
+    rule: 'Thêm vào ~/.gemini/GEMINI.md (tạo nếu chưa có; hoặc AGENTS.md ở thư mục workspace nếu chỉ dùng cho workspace này) mục sau:',
   },
   gemini_cli: {
     connect: [

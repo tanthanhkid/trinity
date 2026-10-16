@@ -2,6 +2,8 @@
 import { describe, expect, it, vi } from "vitest"
 import { render } from "@testing-library/react"
 
+// Prompt cho agent (có chữ MCP vì agent cần biết) nằm trong ô xem trước; chữ trên giao diện của AgentConnect có test riêng (agent-connect.test.tsx).
+vi.mock("@/components/onboarding-wizard/agent-connect", () => ({ AgentConnect: () => null }))
 vi.mock("@/hooks/use-setup-status", () => ({
   useSetupStatus: () => ({ status: "chua_dung", isLoading: false, data: { mcp_url: "https://crm.example.vn/mcp", can_build: true, ai_connected: false, ai_connected_anyone: false } }),
   useCompleteSetup: () => ({ isPending: false, mutate: vi.fn() }),

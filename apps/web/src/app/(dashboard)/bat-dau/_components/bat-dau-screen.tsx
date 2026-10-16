@@ -14,7 +14,7 @@ import { usePermissions } from "@/lib/rbac"
 import { useCompleteSetup, useSetupStatus } from "@/hooks/use-setup-status"
 import { useMarkOnboardingSeen, useOnboarding } from "@/hooks/use-onboarding"
 import { cn } from "@/lib/utils"
-import { ConnectSteps } from "./connect-steps"
+import { AgentConnect } from "@/components/onboarding-wizard/agent-connect"
 import { OnboardingChecklist } from "./onboarding-checklist"
 import { OnboardingIntro } from "./onboarding-intro"
 import { SETUP_PROMPTS } from "./setup-prompts"
@@ -83,7 +83,7 @@ export function BatDauScreen() {
             )}
           </div>
           {data?.mcp_url ? (
-            <p className="text-sm text-muted-foreground">Đây là địa chỉ Trinity của công ty bạn. Bấm Sao chép, rồi bấm tên trợ lý AI bạn đang dùng bên dưới để xem từng bước dán địa chỉ này vào đâu. Trong ngoặc là gói của trợ lý AI dùng được việc này.</p>
+            <p className="text-sm text-muted-foreground">Chọn trợ lý AI bạn đang dùng rồi bấm Copy prompt, dán vào trợ lý đó là nó tự nối với Trinity. Cần dán tay địa chỉ kết nối của công ty thì chép ở dòng dưới.</p>
           ) : null}
           {data?.mcp_url ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -101,7 +101,7 @@ export function BatDauScreen() {
             <p className="text-sm text-amber-700" data-testid="mcp-off-user">Tính năng Kết nối AI chưa được bật cho công ty bạn. Hãy nhờ quản trị viên Trinity bật tính năng này.</p>
           )
           )}
-          <ConnectSteps />
+          {data?.mcp_url ? <AgentConnect /> : null}
         </CardContent>
       </Card>
 

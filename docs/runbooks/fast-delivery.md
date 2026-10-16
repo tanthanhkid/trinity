@@ -22,7 +22,8 @@ The Docker image builds only for `v*` tags (or by manual dispatch).
 
 ## 3. Deploying — one command, targets in parallel
 The deploy script runs the serverless targets and the self-hosted server **at the same time**:
-- **Serverless (Vercel):** each project builds itself from the commit. A long-lived instance that already has its admin deploys with
+- **Serverless (Vercel):** each project builds itself from the commit. Only the public demo deploys by default; a separate test
+  instance deploys only when asked for (a flag on the script), since it adds minutes and nobody reviews there. A long-lived instance that already has its admin deploys with
   `SKIP_DB_SEED=1`: migrations still apply, the seed is skipped.
 - **Self-hosted server (PM2):** build on the workstation, ship artifacts, restart.
   - **Selective build** from the diff between the server's `.deployed-commit` and the new commit: web only when `apps/web/` or `packages/` changed,
@@ -40,4 +41,6 @@ The deploy script runs the serverless targets and the self-hosted server **at th
 | CI on a pull request | under 1 min (was 5–9 min, plus ~9 min again on `main`) |
 | Build packages + API + web with warm cache | ~10 s |
 | Ship + server switch + health | ~30 s |
-| Vercel build per project (parallel with the server) | ~3–4 min |
+| Vercel demo build (parallel with the server) | ~2.5 min: API compile + packaging ~70 s, upload ~25 s; Next.js itself hits its cache (~2 s) |
+
+Turborepo remote caching does not apply: the workspace builds with pnpm filters, not Turborepo, and Next.js already reuses its own cache on Vercel.

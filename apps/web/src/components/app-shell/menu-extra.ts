@@ -22,7 +22,7 @@ import type { MenuItem } from "@/components/nav-config"
  * **"Hộp thư"** (Zalo OA + Messenger) — UI ở `app/(dashboard)/inbox`. Đứng ngay dưới "Tổng quan" như bản demo.
  * Hiện khi có quyền của ÍT NHẤT một kênh — đúng luật hai hộp thư sẵn có trong Cài đặt > Kết nối & AI:
  * Zalo OA = `contacts.update`, Messenger = `integrations.webhooks` (kênh này còn theo công tắc `facebook_page`,
- * lọc ở trong trang — `inboxChannels`). Công tắc tổ chức `integrations` tắt ⇒ ẩn như tab "Kết nối & AI".
+ * lọc ở trong trang — `inboxChannels`). Công tắc tổ chức `inbox` tắt ⇒ ẩn.
  * Không có số chưa đọc: app chưa có API đếm tổng tin chưa đọc.
  */
 const INBOX_ITEM: MenuItem = {
@@ -32,7 +32,7 @@ const INBOX_ITEM: MenuItem = {
   href: "/inbox",
   iconColor: "text-blue-600 dark:text-blue-400",
   anyOf: ["contacts.update", "integrations.webhooks", "social.post"],
-  feature: "integrations",
+  feature: "inbox",
 }
 
 const PRODUCTS_ITEM: MenuItem = {

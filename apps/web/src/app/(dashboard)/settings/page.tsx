@@ -13,13 +13,9 @@ import {
   ChevronRight,
   ArrowLeft,
   Tag,
-  ListOrdered,
-  ListTree,
   KeyRound,
-  FolderOpen,
   ChevronDown,
   Building2,
-  Briefcase,
   Users2,
   Wifi,
   ToggleRight,
@@ -64,46 +60,18 @@ const SettingsDepartments = dynamic(
   () => import("./_components/settings-departments").then((m) => ({ default: m.SettingsDepartments })),
   { loading: TabSkeleton },
 )
-const SettingsJobTitles = dynamic(
-  () => import("./_components/settings-job-titles").then((m) => ({ default: m.SettingsJobTitles })),
-  { loading: TabSkeleton },
-)
 const SettingsTeams = dynamic(
   () => import("./_components/settings-teams").then((m) => ({ default: m.SettingsTeams })),
   { loading: TabSkeleton },
 )
-const SettingsContactSources = dynamic(
-  () =>
-    import("./_components/settings-contact-sources").then((m) => ({
-      default: m.SettingsContactSources,
-    })),
-  { loading: TabSkeleton },
-)
-const SettingsContactStages = dynamic(
-  () =>
-    import("./_components/settings-contact-stages").then((m) => ({
-      default: m.SettingsContactStages,
-    })),
-  { loading: TabSkeleton },
-)
-const SettingsContactStatuses = dynamic(
-  () =>
-    import("./_components/settings-contact-statuses").then((m) => ({
-      default: m.SettingsContactStatuses,
-    })),
+const SettingsCustomerLists = dynamic(
+  () => import("./_components/settings-customer-lists").then((m) => ({ default: m.SettingsCustomerLists })),
   { loading: TabSkeleton },
 )
 const SettingsApiKeys = dynamic(
   () =>
     import("./_components/settings-api-keys").then((m) => ({
       default: m.SettingsApiKeys,
-    })),
-  { loading: TabSkeleton },
-)
-const SettingsProjects = dynamic(
-  () =>
-    import("./_components/settings-projects").then((m) => ({
-      default: m.SettingsProjects,
     })),
   { loading: TabSkeleton },
 )
@@ -148,21 +116,17 @@ export const ALL_TABS = [
   { value: "profile", label: "Hồ sơ cá nhân", icon: User, description: "Thông tin tài khoản, mật khẩu" },
   { value: "users", label: "Người dùng", icon: Users, description: "Quản lý tài khoản nhân viên", permission: "users.view" as Permission },
   { value: "roles", label: "Vai trò", icon: Shield, description: "Phân quyền hệ thống", permission: "roles.manage" as Permission },
-  { value: "departments", label: "Phòng ban", icon: Building2, description: "Danh sách phòng ban dùng chung cho NV, hợp đồng, tuyển dụng", permission: "org.manage" as Permission },
-  { value: "job-titles", label: "Chức vụ", icon: Briefcase, description: "Tạo/sửa/xoá chức vụ (chức danh) cho Quản lý nhân viên", permission: "org.manage" as Permission },
-  { value: "teams", label: "Team", icon: Users2, description: "Cấu hình Team (1 phòng ban nhiều team) + trưởng nhóm; gán NV vào Team tự set trưởng nhóm + phòng ban", permission: "org.manage" as Permission },
-  { value: "contact-sources", label: "Nguồn khách", icon: Tag, description: "Danh sách nguồn khách (khách biết đến bạn qua đâu)", permission: "contacts.catalog" as Permission },
-  { value: "contact-stages", label: "Giai đoạn khách hàng", icon: ListOrdered, description: "Giai đoạn theo dõi khách trước khi chuyển thành deal", permission: "contacts.catalog" as Permission },
-  { value: "contact-statuses", label: "Trạng thái khách hàng", icon: ListTree, description: "Trạng thái nhân viên đánh dấu khi tương tác khách", permission: "contacts.catalog" as Permission },
-  { value: "sales-assistant", label: "Trợ lý bán hàng", icon: Sparkles, description: "Quy tắc chấm điểm khách tiềm năng và ngưỡng nhắc việc treo", permission: "contacts.catalog" as Permission },
+  { value: "departments", label: "Phòng ban", icon: Building2, description: "Danh sách phòng ban dùng chung cho NV, hợp đồng, tuyển dụng", permission: "org.manage" as Permission, feature: "management" as OrgFeatureKey },
+  { value: "teams", label: "Team", icon: Users2, description: "Cấu hình Team (1 phòng ban nhiều team) + trưởng nhóm; gán NV vào Team tự set trưởng nhóm + phòng ban", permission: "org.manage" as Permission, feature: "management" as OrgFeatureKey },
+  { value: "customer-lists", label: "Danh mục khách hàng", icon: Tag, description: "Nguồn khách, giai đoạn và trạng thái chăm sóc: tự đặt theo cách công ty bạn làm việc", permission: "contacts.catalog" as Permission, feature: "contacts" as OrgFeatureKey },
+  { value: "sales-assistant", label: "Trợ lý bán hàng", icon: Sparkles, description: "Quy tắc chấm điểm khách tiềm năng và ngưỡng nhắc việc treo", permission: "contacts.catalog" as Permission, feature: "contacts" as OrgFeatureKey },
   { value: "api-keys", label: "Khoá API bên thứ 3", icon: KeyRound, description: "Cấp khoá cho landing page / đối tác tạo khách hàng", permission: "settings.integrations" as Permission },
-  { value: "projects", label: "Dự án", icon: FolderOpen, description: "Quản lý Dự án (Sản phẩm) dùng để phân loại khách hàng", permission: "products.manage" as Permission },
   { value: "features", label: "Tính năng", icon: ToggleRight, description: "Bật/tắt từng chức năng (menu, báo cáo...) cho toàn công ty — độc lập với phân quyền", permission: "settings.features" as Permission },
   // khung "Kết nối & AI" — hiện với người có BẤT KỲ quyền nào trong nhóm (`anyOf`); từng mục con
   // lọc tiếp theo quyền riêng + cờ máy chủ (xem settings-integrations.tsx). `feature` = công tắc tổ chức "integrations".
   { value: "integrations", label: "Kết nối & AI", icon: PlugZap, description: "Webhook ra/vào, kết nối ChatGPT/Claude, Zalo OA và nhật ký tích hợp", anyOf: ["integrations.webhooks", "integrations.ai_connect", "integrations.ai_admin", "contacts.update"] as readonly Permission[], feature: "integrations" as OrgFeatureKey },
-  { value: "briefings", label: "Bản tin sáng/chiều", icon: Newspaper, description: "Bản tin số liệu tự động gửi trong app; agent AI của bạn có thể viết thay qua MCP", permission: "settings.integrations" as Permission },
-  { value: "login-wifi-check", label: "Đăng nhập theo Wifi văn phòng", icon: Wifi, description: "Bật/tắt kiểm tra IP văn phòng khi đăng nhập", permission: "settings.integrations" as Permission },
+  { value: "briefings", label: "Bản tin sáng/chiều", icon: Newspaper, description: "Bản tin số liệu tự động gửi trong app; trợ lý AI của bạn có thể viết thay", permission: "settings.integrations" as Permission, feature: "ai_briefing" as OrgFeatureKey },
+  { value: "login-wifi-check", label: "Đăng nhập theo Wifi văn phòng", icon: Wifi, description: "Bật/tắt kiểm tra IP văn phòng khi đăng nhập", permission: "settings.integrations" as Permission, feature: "attendance" as OrgFeatureKey },
   { value: "notifications", label: "Thông báo", icon: Bell, description: "Cài đặt thông báo" },
 ] as const
 
@@ -172,24 +136,20 @@ type TabValue = (typeof ALL_TABS)[number]["value"]
 // Exported để test khoá việc 1 tab bị gỡ khỏi nav mà không cần render component client.
 export const TAB_GROUPS = [
   {
-    label: "Tài khoản & Nhân sự",
-    tabs: ["profile", "users", "roles", "departments", "job-titles", "teams"],
+    label: "Tính năng & Kết nối",
+    tabs: ["features", "integrations", "api-keys", "briefings"],
   },
   {
-    label: "Quy trình & Khách hàng",
-    tabs: ["contact-sources", "contact-stages", "contact-statuses", "sales-assistant"],
+    label: "Khách hàng",
+    tabs: ["customer-lists", "sales-assistant"],
   },
   {
-    label: "Dự án",
-    tabs: ["projects"],
+    label: "Công ty & Nhân sự",
+    tabs: ["users", "roles", "departments", "teams", "login-wifi-check"],
   },
   {
-    label: "Hệ thống & Tích hợp",
-    tabs: ["api-keys", "integrations", "briefings", "login-wifi-check", "features"],
-  },
-  {
-    label: "Thông báo",
-    tabs: ["notifications"],
+    label: "Cá nhân",
+    tabs: ["profile", "notifications"],
   },
 ] as const
 
@@ -198,14 +158,10 @@ const tabComponents: Record<TabValue, React.ComponentType> = {
   users: SettingsUsers,
   roles: SettingsRoles,
   departments: SettingsDepartments,
-  "job-titles": SettingsJobTitles,
   teams: SettingsTeams,
-  "contact-sources": SettingsContactSources,
-  "contact-stages": SettingsContactStages,
-  "contact-statuses": SettingsContactStatuses,
+  "customer-lists": SettingsCustomerLists,
   "sales-assistant": SettingsSalesAssistant,
   "api-keys": SettingsApiKeys,
-  projects: SettingsProjects,
   "login-wifi-check": SettingsLoginWifiCheck,
   features: SettingsFeatures,
   integrations: SettingsIntegrations,
@@ -230,6 +186,13 @@ export function isSettingsTabVisible(
   return true
 }
 
+/** Mục đã gộp hoặc bỏ → mục thay thế. */
+const LEGACY_TAB_ALIASES: Record<string, TabValue> = {
+  "contact-sources": "customer-lists",
+  "contact-stages": "customer-lists",
+  "contact-statuses": "customer-lists",
+}
+
 function isValidTabValue(value: string): value is TabValue {
   return ALL_TABS.some((t) => t.value === value)
 }
@@ -242,11 +205,16 @@ function SettingsPageContent() {
   // Không khai `permission`/`anyOf` → mở cho mọi người đã đăng nhập (vd "Hồ sơ cá nhân", "Thông báo").
   // hệ thống chưa dựng quy trình ⇒ Cài đặt tối giản (tài khoản, người dùng, vai trò, team, kết nối AI, thông báo).
   const { status: setupStatus } = useSetupStatus()
-  const settingsTabs = ALL_TABS.filter(
-    (t) => isSettingsTabVisible(t, can, features) && (setupStatus !== "chua_dung" || (SETUP_SETTINGS_TABS as readonly string[]).includes(t.value)),
+  // Hệ thống chưa dựng: mọi module đang tắt, nhưng các tab dựng ban đầu (vd Team) vẫn phải dùng được ⇒ bỏ qua công tắc tính năng cho chúng.
+  const settingsTabs = ALL_TABS.filter((t) =>
+    setupStatus === "chua_dung"
+      ? (SETUP_SETTINGS_TABS as readonly string[]).includes(t.value) && isSettingsTabVisible(t, can)
+      : isSettingsTabVisible(t, can, features),
   )
 
-  const tabParam = searchParams.get("tab")
+  // Mục cũ đã gộp: link cũ (?tab=contact-sources…) vẫn mở đúng chỗ mới.
+  const rawTab = searchParams.get("tab")
+  const tabParam = rawTab && rawTab in LEGACY_TAB_ALIASES ? LEGACY_TAB_ALIASES[rawTab] : rawTab
   // Chỉ dùng tabParam nếu tồn tại trong settingsTabs (subset RBAC) — không kiểm tra ALL_TABS
   // để tránh non-super_admin deep-link vào tab không có quyền → blank content / API 403.
   const validTabParam =

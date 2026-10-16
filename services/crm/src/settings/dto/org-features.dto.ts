@@ -29,4 +29,5 @@ export class UpdateOrgFeaturesDto {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() payments?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() commerce_connectors?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() online_store?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() inbox?: boolean;
 }

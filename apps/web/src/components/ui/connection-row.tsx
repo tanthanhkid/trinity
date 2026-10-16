@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 
+import { BRAND_LOGOS, type BrandKey } from "@/lib/brand-logos"
 import { cn } from "@/lib/utils"
 
 export type ConnectionTone = "connected" | "warning" | "off" | "soon" | "danger" | "info"
@@ -23,8 +24,24 @@ export function StatusPill({ tone, children, className }: { tone: ConnectionTone
   )
 }
 
-/** Ô logo 32px: chữ viết tắt trên nền màu thương hiệu (không dùng logo của bên thứ ba). */
-export function ConnectionLogo({ text, color, icon }: { text?: string; color: string; icon?: ReactNode }) {
+/** Logo chính thức của hãng trên nền trắng (cả chế độ tối), cùng khung với ô chữ. */
+export function BrandLogo({ brand, size = 36, className }: { brand: BrandKey; size?: number; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      data-brand={brand}
+      className={cn("flex shrink-0 items-center justify-center rounded-[10px] border border-[var(--border)] bg-white shadow-[var(--shadow-field)]", className)}
+      style={{ width: size, height: size }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={BRAND_LOGOS[brand]} alt="" width={size} height={size} className="size-[64%] object-contain" />
+    </span>
+  )
+}
+
+/** Ô logo 36px: logo chính thức của hãng nếu có (`brand`), không thì chữ viết tắt / biểu tượng trên nền màu (vd webhook, tính năng của chính Trinity). */
+export function ConnectionLogo({ text, color, icon, brand }: { text?: string; color: string; icon?: ReactNode; brand?: BrandKey }) {
+  if (brand) return <BrandLogo brand={brand} />
   return (
     <span
       aria-hidden

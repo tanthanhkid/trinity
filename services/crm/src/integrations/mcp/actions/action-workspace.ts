@@ -1,5 +1,5 @@
 import type { AuthUser } from '@trinity/rbac-nest';
-import { ORG_FEATURES, type OrgFeatureKey } from '@trinity/rbac';
+import { BASIC_FEATURES, ORG_FEATURES, type OrgFeatureKey } from '@trinity/rbac';
 import { loadVisibleObject } from '../../../custom-objects/custom-object-access';
 import { MAX_MENU_ENTRIES, type MenuEntry } from '../../../custom-objects/custom-menu.service';
 import { CUSTOM_ICONS } from '../../../custom-objects/field-types';
@@ -27,7 +27,7 @@ const input = (z: Z) => ({
   menu: menuShape(z).optional().describe(`Menu theo thứ tự (≤${MAX_MENU_ENTRIES}); bỏ trống = mỗi bảng một mục, ưu tiên kanban / Menu`),
   confirmed_by_user: confirmationParam(z),
   features: z.array(z.string().max(32)).max(20).optional()
-    .describe(`Module có sẵn cần BẬT (còn lại tắt): ${Object.entries(ORG_FEATURES).map(([k, v]) => `${k}=${v.label}`).join('; ')} / Built-in modules to enable`),
+    .describe(`Module có sẵn cần BẬT thêm ngoài bộ cơ bản (${BASIC_FEATURES.join(', ')}); hệ thống mới thì các module khác tắt: ${Object.entries(ORG_FEATURES).map(([k, v]) => `${k}=${v.label}`).join('; ')} / Built-in modules to enable`),
 });
 
 function parsePackage(args: Record<string, unknown>): WorkspacePackage {
@@ -113,7 +113,8 @@ async function snapshotNav(deps: ActionDeps) {
 
 async function applyFeatures(deps: ActionDeps, user: AuthUser, keys: OrgFeatureKey[], blank: boolean): Promise<void> {
   if (blank) {
-    await deps.orgFeatures.replaceAll([...new Set<OrgFeatureKey>([...keys, 'integrations'])], user.userId);
+    // Hệ thống mới: bộ cơ bản luôn bật, cộng các module AI chọn theo ngành.
+    await deps.orgFeatures.replaceAll([...new Set<OrgFeatureKey>([...BASIC_FEATURES, ...keys])], user.userId);
     return;
   }
   if (keys.length) await deps.orgFeatures.update(Object.fromEntries(keys.map((k) => [k, true])) as never, user.userId);
@@ -155,8 +156,8 @@ export const proposeWorkspaceAction: ActionToolDef = {
   title: 'Dựng cả CRM trong MỘT gói: bảng + trường + trạng thái + kanban + menu + module / Build a whole workspace',
   description:
     'Sau khi phỏng vấn (get_setup_guide), dựng MỘT gói toàn bộ CRM trong MỘT lần: bảng + trường (trạng thái/bước quy trình = trường select có choices đúng thứ tự), ' +
-    'màn kanban/lịch/bảng/danh sách, menu và các module có sẵn cần bật (còn lại tắt nếu hệ thống mới). Chạy ngay; lỗi giữa chừng thì không dựng gì (không nửa vời). ' +
-    'Có thể lấy cảm hứng từ list_object_templates. Bảng lõi contacts (khách hàng) dùng được làm đích liên kết; muốn dùng thì thêm "contacts" vào features. ' +
+    'màn kanban/lịch/bảng/danh sách, menu và các module có sẵn cần bật (hệ thống mới: bộ cơ bản luôn bật, module khác tắt). Chạy ngay; lỗi giữa chừng thì không dựng gì (không nửa vời). ' +
+    'Có thể lấy cảm hứng từ list_object_templates. Bảng lõi contacts (khách hàng) thuộc bộ cơ bản, dùng được làm đích liên kết. ' +
     'Cấu trúc (bảng, cột, màn) do người dùng duyệt trước khi dựng: confirmed_by_user là ' + CONSENT_NOTE + '; thiếu lời đồng ý thì máy chủ không dựng gì và trả bản dự kiến để người dùng xem. Màn trong views cần type_words như create_view. ' +
     'Dành cho quản trị viên. Sau đó: nhập dữ liệu bằng import_records rồi complete_setup. / Builds the whole workspace in one run once the user has confirmed the planned structure (confirmed_by_user). Admins only.',
   permissions: ['custom_objects.manage', 'settings.features'],

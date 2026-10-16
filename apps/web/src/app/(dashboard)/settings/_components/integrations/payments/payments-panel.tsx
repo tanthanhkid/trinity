@@ -121,7 +121,7 @@ function SepaySection({ conn, canManage }: { conn: ConnectorStatus; canManage: b
       <ConnectionGroup label="Cổng thanh toán">
         <ConnectionRow
           testId="conn-sepay"
-          logo={<ConnectionLogo color="#1d4ed8" text="SP" />}
+          logo={<ConnectionLogo brand="sepay" color="#1d4ed8" text="SP" />}
           title="SePay"
           description={detail}
           status={<StatusPill tone={state.tone}>{state.label}</StatusPill>}
@@ -306,7 +306,7 @@ function GatewayRow({ provider, conn, canManage }: { provider: GatewayProvider; 
     <>
       <ConnectionRow
         testId={`conn-${provider}`}
-        logo={<ConnectionLogo color={g.color} text={g.text} />}
+        logo={<ConnectionLogo brand={provider} color={g.color} text={g.text} />}
         title={g.title}
         description={detail}
         status={<StatusPill tone={!on ? "off" : conn?.last_error ? "warning" : "connected"}>{!on ? "Chưa kết nối" : conn?.last_error ? "Có lỗi" : "Đã kết nối"}</StatusPill>}

@@ -10,7 +10,6 @@ import { useOrgFeatures } from "@/hooks/use-org-features"
 import { GoogleSheetsPanel } from "./integrations/google-sheets-panel"
 import { AiConnectionsPanel } from "./integrations/ai-connections-panel"
 import { IntegrationAuditLogs } from "./integrations/integration-audit-logs"
-import { ZaloOaInbox } from "./integrations/zalo-oa/zalo-oa-inbox"
 import { ZaloOaPanel } from "./integrations/zalo-oa/zalo-oa-panel"
 import { PaymentsPanel } from "./integrations/payments/payments-panel"
 import { SalesPanel } from "./integrations/sales/sales-panel"
@@ -138,7 +137,6 @@ export function SettingsIntegrations() {
       {status.data && enabled && !overview && current.value === "webhook-in" && <WebhookInPanel keyReady={status.data.secret_key_configured !== false} />}
 
       {status.data && enabled && !overview && current.value === "zalo-oa" && <ZaloOaPanel />}
-      {status.data && enabled && !overview && current.value === "zalo-inbox" && <ZaloOaInbox />}
 
       {status.data && enabled && !overview && current.value === "ai" && (
         <AiConnectionsPanel mcpUrl={status.data.mcp_url ?? null} baseUrlConfigured={status.data.mcp_base_url_configured !== false} />

@@ -141,7 +141,7 @@ function ShopRow({ provider, conn, canManage }: { provider: ShopProvider; conn: 
     <>
       <ConnectionRow
         testId={`conn-${provider}`}
-        logo={<ConnectionLogo color={shop.color} text={shop.text} />}
+        logo={<ConnectionLogo brand={provider} color={shop.color} text={shop.text} />}
         title={shop.title}
         description={detail}
         status={<StatusPill tone={!on ? "off" : conn?.last_error ? "warning" : "connected"}>{!on ? "Chưa kết nối" : conn?.last_error ? "Có lỗi" : "Đã kết nối"}</StatusPill>}
@@ -199,7 +199,7 @@ function MarketRow({ provider, conn, canManage }: { provider: MarketProvider; co
     <>
       <ConnectionRow
         testId={`conn-${provider}`}
-        logo={<ConnectionLogo color={m.color} text={m.text} />}
+        logo={<ConnectionLogo brand={provider} color={m.color} text={m.text} />}
         title={m.title}
         description={detail}
         status={<StatusPill tone={notConfigured ? "off" : !on ? "off" : conn?.last_error ? "warning" : "connected"}>{notConfigured ? "Máy chủ chưa cấu hình" : !on ? "Chưa kết nối" : conn?.last_error ? "Có lỗi" : "Đã kết nối"}</StatusPill>}

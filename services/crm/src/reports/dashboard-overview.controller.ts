@@ -1,8 +1,9 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Can, CurrentUser } from '@trinity/rbac-nest';
+import { AuthOnly, Can, CurrentUser } from '@trinity/rbac-nest';
 import type { AuthUser } from '@trinity/rbac-nest';
 import { DashboardOverviewService } from './dashboard-overview.service';
+import { DashboardChannelsService } from './dashboard-channels.service';
 import { DashboardTasksService } from './dashboard-tasks.service';
 import { DashboardFilterQuery } from './dashboard-overview.filter';
 import { DashboardFilterRosterService } from './dashboard-filter-roster.service';
@@ -23,6 +24,7 @@ export class DashboardOverviewController {
     private readonly overview: DashboardOverviewService,
     private readonly tasks: DashboardTasksService,
     private readonly roster: DashboardFilterRosterService,
+    private readonly channels: DashboardChannelsService,
   ) {}
 
   @Get('dashboard-overview')
@@ -62,5 +64,16 @@ export class DashboardOverviewController {
   @ApiResponse({ status: 200, description: 'DashboardFilterRoster' })
   getFilterRoster(@CurrentUser() user: AuthUser) {
     return this.roster.getRoster(user);
+  }
+
+  @Get('dashboard-channels')
+  @AuthOnly()
+  @ApiOperation({
+    summary: 'Kênh đã kết nối cho Tổng quan: Fanpage, Zalo OA, kênh đăng bài, thanh toán, trang bán hàng — trạng thái + số liệu hôm nay',
+    description: 'Mỗi nhóm kênh chỉ trả khi tính năng đang bật VÀ người gọi có quyền liên quan; không có quyền nào ⇒ danh sách rỗng. Không trả khoá/token.',
+  })
+  @ApiResponse({ status: 200, description: 'DashboardChannels' })
+  getChannels(@CurrentUser() user: AuthUser) {
+    return this.channels.get(user.grants);
   }
 }

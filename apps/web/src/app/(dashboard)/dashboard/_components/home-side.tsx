@@ -4,13 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Check, Copy, Sparkles } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { AiConnection } from '@/app/(dashboard)/settings/_components/integrations/integrations-meta'
-import { formatRelativeTimeVn } from '@/lib/nav-time'
 import { cn } from '@/lib/utils'
-import { AiLogo } from './ai-logo'
-import { CONNECT_AI_HREF } from './home-ai-timeline'
 import { BOX, HomeBox, HomeEmpty, SMALL_BTN } from './home-box'
-import { agoLabel } from './home-utils'
 
 /* ------------------------------------------------------------------ */
 /* Cần bạn xem                                                          */
@@ -59,58 +54,8 @@ export function NeedsReviewView({ loading, items, total }: { loading: boolean; i
   )
 }
 
-/* ------------------------------------------------------------------ */
-/* Trợ lý đang kết nối                                                  */
-/* ------------------------------------------------------------------ */
-
+/** Trạng thái tải danh sách trợ lý AI đang kết nối (khối "Trợ lý AI đang làm việc" ở `home-ai-hub.tsx`). */
 export type ConnectionsState = 'loading' | 'disabled' | 'no-permission' | 'error' | 'ready'
-
-const lastUsed = (c: AiConnection) => Date.parse(c.last_used_at ?? c.connected_at ?? '') || 0
-
-export function ConnectedAssistantsView({
-  state,
-  rows,
-  showOwner,
-}: {
-  state: ConnectionsState
-  rows: AiConnection[]
-  /** Danh sách cả công ty (ai_admin) ⇒ ghi tên người sở hữu kết nối. */
-  showOwner: boolean
-}) {
-  const sorted = [...rows].sort((a, b) => lastUsed(b) - lastUsed(a))
-  return (
-    <HomeBox labelledBy="home-connected" title="Trợ lý đang kết nối" aside={state === 'ready' && rows.length > 0 ? rows.length.toLocaleString('vi-VN') : undefined}>
-      {state === 'loading' && <div className="space-y-3 p-4">{Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-8 rounded-lg" />)}</div>}
-      {state === 'disabled' && <HomeEmpty testId="connections-disabled">Kết nối AI chưa được bật trên hệ thống này.</HomeEmpty>}
-      {state === 'no-permission' && (
-        <HomeEmpty testId="connections-no-permission">Bạn chưa được cấp quyền kết nối AI. Nhờ quản trị viên bật quyền “Kết nối AI” cho vai trò của bạn.</HomeEmpty>
-      )}
-      {state === 'error' && <HomeEmpty>Không tải được danh sách trợ lý. Thử tải lại trang.</HomeEmpty>}
-      {state === 'ready' && rows.length === 0 && (
-        <HomeEmpty testId="connections-empty" action={<Link href={CONNECT_AI_HREF} className={SMALL_BTN}>Kết nối AI</Link>}>
-          Chưa có trợ lý nào kết nối. Nối ChatGPT, Claude hoặc Gemini để AI làm việc trong Trinity theo đúng quyền của bạn.
-        </HomeEmpty>
-      )}
-      {state === 'ready' && sorted.length > 0 && (
-        <ul data-testid="connections">
-          {sorted.map((c) => {
-            const owner = c.user.full_name ?? c.user.email
-            const when = c.last_used_at ? agoLabel(formatRelativeTimeVn(c.last_used_at)) : 'Chưa dùng'
-            return (
-              <li key={c.id} className="flex items-center gap-2.5 border-t border-[var(--border)] px-4 py-2.5 first:border-t-0">
-                <AiLogo name={c.client_name} size={26} />
-                <span className="min-w-0 flex-1 truncate text-[14px] text-[var(--foreground)]" title={showOwner ? `${c.client_name} · ${owner}` : c.client_name}>
-                  {c.client_name}{showOwner ? ` · ${owner}` : ''}
-                </span>
-                <span className="shrink-0 text-[14px] text-muted-foreground">{when}</span>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </HomeBox>
-  )
-}
 
 /* ------------------------------------------------------------------ */
 /* Ô "Hỏi AI" gợi ý                                                     */

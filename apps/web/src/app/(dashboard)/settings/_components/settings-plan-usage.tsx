@@ -70,7 +70,7 @@ export function SettingsPlanUsage() {
         </div>
         <p className="text-xs text-muted-foreground">
           Gói do Trinity quản lý, quản trị viên chỉ xem. Muốn đổi gói, liên hệ Trinity. Tính năng ngoài gói sẽ không bật được ở bảng bên dưới.
-          AI dùng qua ChatGPT/Claude/agent của bạn (kết nối MCP) và tính theo gói AI của chính bạn.
+          AI dùng qua trợ lý AI của bạn (ChatGPT, Claude, Gemini…) và tính theo gói AI của chính bạn.
         </p>
       </CardContent>
     </Card>

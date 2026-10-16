@@ -15,7 +15,8 @@ import { useDashboardFilter } from './dashboard-filter-context'
 import { EMPTY_FILTER } from './dashboard-filter-utils'
 import { taskHref } from './dashboard-tasks-card'
 import { AiTimelineView, type TimelineState } from './home-ai-timeline'
-import { AskAiHint, ConnectedAssistantsView, NeedsReviewView, type ConnectionsState, type ReviewItem } from './home-side'
+import { AskAiHint, NeedsReviewView, type ConnectionsState, type ReviewItem } from './home-side'
+import { AiAssistantsHub, ChannelsHub, FeatureSuggestions } from './home-ai-hub'
 import { HomeStats, type HomeStatItem } from './home-stats'
 import { formatMoneyCompact, homeSummary, isAiActionDone, todaysAiActions } from './home-utils'
 import { resolveNotificationHref } from '@/lib/notification-href'
@@ -30,6 +31,7 @@ import {
 import {
   isNotFound,
   useAiActionsPendingCount,
+  useDashboardChannels,
   useHomeAiConnections,
   usePendingAiActions,
   useRecentAiActions,
@@ -62,6 +64,9 @@ export function DashboardHome() {
   const notices = useUnreadNotifications()
   const unreadCount = useUnreadNotificationCount()
   const conns = useHomeAiConnections()
+  const channels = useDashboardChannels()
+  // "Đang hoạt động" so với đồng hồ máy khách ⇒ chỉ tính sau mount (SSR và lần hydrate đầu cùng markup).
+  const nowMs = useSyncExternalStore(noopSubscribe, () => Math.floor(Date.now() / 60_000) * 60_000, () => null)
 
   /* ---- AI hôm nay ---- */
   const aiDisabled = recent.isError && isNotFound(recent.error)
@@ -177,6 +182,18 @@ export function DashboardHome() {
         <DashboardOverviewFilter roster={roster.data} value={filter} onChange={setFilter} selfId={user?.id ?? null} />
       )}
 
+      {/* AI Native: trợ lý AI đang làm việc + kênh đã kết nối — thứ đầu tiên người dùng thấy. */}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <AiAssistantsHub
+          state={connState}
+          rows={connRows}
+          showOwner={conns.all}
+          doneToday={aiDisabled || timelineState !== 'ready' ? null : `${nf(doneToday)}${truncated ? '+' : ''} việc`}
+          now={nowMs}
+        />
+        <ChannelsHub loading={channels.isLoading} error={channels.isError} data={channels.data} />
+      </div>
+
       <HomeStats items={stats} />
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
@@ -189,10 +206,11 @@ export function DashboardHome() {
         />
         <div className="flex min-w-0 flex-col gap-4">
           <NeedsReviewView loading={!reviewReady} items={reviewItems} total={needReview} />
-          <ConnectedAssistantsView state={connState} rows={connRows} showOwner={conns.all} />
           {connState === 'ready' && connRows.length > 0 && <AskAiHint />}
         </div>
       </div>
+
+      <FeatureSuggestions />
     </div>
   )
 }

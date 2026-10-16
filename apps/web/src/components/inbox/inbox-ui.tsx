@@ -16,14 +16,16 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ShellAvatar } from "@/components/app-shell/avatar"
 import { formatTimeVn, todayVn, vnDateKey } from "@/lib/format"
+import { BRAND_LOGOS, type BrandKey } from "@/lib/brand-logos"
 import { cn } from "@/lib/utils"
 
 export type InboxChannel = "zalo" | "facebook" | "google"
 
-const CHANNEL_MARK: Record<InboxChannel, { label: string; text: string; bg: string }> = {
-  zalo: { label: "Zalo", text: "Z", bg: "var(--color-app-zalo)" },
-  facebook: { label: "Facebook", text: "f", bg: "#1877f2" },
-  google: { label: "Google", text: "G", bg: "#4285f4" },
+/** Dấu kênh = logo chính thức (Messenger cho tin Fanpage). */
+const CHANNEL_MARK: Record<InboxChannel, { label: string; brand: BrandKey }> = {
+  zalo: { label: "Zalo", brand: "zalo" },
+  facebook: { label: "Messenger", brand: "messenger" },
+  google: { label: "Google", brand: "google_business" },
 }
 
 /** Giờ ngắn cho danh sách: hôm nay "09:31", hôm qua "Hôm qua", còn lại "dd/mm". */
@@ -63,13 +65,11 @@ export function InboxAvatar({ name, src, channel, size = "md" }: { name: string;
       <span
         aria-label={mark.label}
         title={mark.label}
-        className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-[5px] ring-2 ring-[var(--card)]"
-        style={{ background: mark.bg }}
+        className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-[5px] bg-white ring-2 ring-[var(--card)]"
+        data-brand={mark.brand}
       >
-        {/* Dấu kênh là BIỂU TƯỢNG (svg), không phải chữ đọc. */}
-        <svg aria-hidden viewBox="0 0 16 16" className="size-4">
-          <text x="8" y="12" textAnchor="middle" fontSize="11" fontWeight="700" fill="#fff" fontFamily="inherit">{mark.text}</text>
-        </svg>
+        {/* eslint-disable-next-line @next/next/no-img-element -- logo tĩnh trong /public */}
+        <img src={BRAND_LOGOS[mark.brand]} alt="" className="size-3 object-contain" />
       </span>
     </span>
   )

@@ -63,7 +63,8 @@ describe("inboxChannels / tab", () => {
     expect(inboxChannels({ "integrations.webhooks": true }, ALL_ON)).toEqual(["facebook"])
     expect(inboxChannels(both, off("facebook_page"))).toEqual(["zalo"])
     expect(inboxChannels(both, off("zalo_oa"))).toEqual(["facebook"])
-    expect(inboxChannels(both, off("integrations"))).toEqual([])
+    expect(inboxChannels(both, off("inbox"))).toEqual([])
+    expect(inboxChannels(both, off("integrations"))).toEqual(["zalo", "facebook"])
     expect(inboxChannels({}, ALL_ON)).toEqual([])
   })
   it("'Tất cả' chỉ khi có từ 2 kênh; ?kenh= lạ hoặc không quyền ⇒ tab đầu", () => {

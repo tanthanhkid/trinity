@@ -20,7 +20,8 @@ export const INBOX_CHANNEL_PERMISSION: Record<InboxChannel, Permission> = {
  * ít nhất một địa điểm (`hasGoogle` — địa điểm chỉ liên kết được khi máy chủ đã bật quyền API của Google).
  */
 export function inboxChannels(grants: Grants, features?: OrgFeatures, opts: { hasGoogle?: boolean } = {}): InboxChannel[] {
-  if (features && features.integrations === false) return []
+  // Công tắc riêng của Hộp thư (Cài đặt › Tính năng); từng kênh còn theo công tắc của kênh đó.
+  if (features && features.inbox === false) return []
   const out: InboxChannel[] = []
   if (can(grants, INBOX_CHANNEL_PERMISSION.zalo) && !(features && features.zalo_oa === false)) out.push("zalo")
   if (can(grants, INBOX_CHANNEL_PERMISSION.facebook) && !(features && features.facebook_page === false)) out.push("facebook")

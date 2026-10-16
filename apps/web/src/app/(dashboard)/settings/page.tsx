@@ -205,8 +205,11 @@ function SettingsPageContent() {
   // Không khai `permission`/`anyOf` → mở cho mọi người đã đăng nhập (vd "Hồ sơ cá nhân", "Thông báo").
   // hệ thống chưa dựng quy trình ⇒ Cài đặt tối giản (tài khoản, người dùng, vai trò, team, kết nối AI, thông báo).
   const { status: setupStatus } = useSetupStatus()
-  const settingsTabs = ALL_TABS.filter(
-    (t) => isSettingsTabVisible(t, can, features) && (setupStatus !== "chua_dung" || (SETUP_SETTINGS_TABS as readonly string[]).includes(t.value)),
+  // Hệ thống chưa dựng: mọi module đang tắt, nhưng các tab dựng ban đầu (vd Team) vẫn phải dùng được ⇒ bỏ qua công tắc tính năng cho chúng.
+  const settingsTabs = ALL_TABS.filter((t) =>
+    setupStatus === "chua_dung"
+      ? (SETUP_SETTINGS_TABS as readonly string[]).includes(t.value) && isSettingsTabVisible(t, can)
+      : isSettingsTabVisible(t, can, features),
   )
 
   // Mục cũ đã gộp: link cũ (?tab=contact-sources…) vẫn mở đúng chỗ mới.

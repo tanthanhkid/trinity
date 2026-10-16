@@ -12,7 +12,7 @@ Ready-made n8n workflows are in [`integrations/n8n/`](../../integrations/n8n): i
 ## Trinity → your tools: outgoing webhooks
 
 1. In your tool, create a webhook trigger and copy its URL (it must be public `https://`).
-2. In Trinity: **Settings › Connections › Outgoing webhooks › Add endpoint**, paste the URL and pick the events (for example *Trang bán hàng: có đơn mới* = `store_order.created`, *Tạo khách hàng* = `contact.created`, *Thanh toán: đã nhận tiền* = `payment.received`). Copy the signing secret `whsec_…`; it is shown once.
+2. In Trinity: **Connections (Kết nối) › Outgoing webhooks › Add endpoint**, paste the URL and pick the events (for example *Trang bán hàng: có đơn mới* = `store_order.created`, *Tạo khách hàng* = `contact.created`, *Thanh toán: đã nhận tiền* = `payment.received`). Copy the signing secret `whsec_…`; it is shown once.
 3. Click **Gửi thử** (Send test). Your tool receives a `ping` event.
 
 Every request is `POST` JSON `{ id, type, created_at, data }`. The full event list, payloads, retries and the signature algorithm are in [webhooks.md](webhooks.md). Two rules matter in automations:

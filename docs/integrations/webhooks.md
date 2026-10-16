@@ -1,6 +1,6 @@
 # Outgoing webhooks — guide for receivers
 
-Trinity sends a JSON `POST` to the URL you register under **Settings > Connections & AI > Outgoing webhooks** ("Cài đặt > Kết nối & AI > Webhook ra") whenever an event you selected occurs.
+Trinity sends a JSON `POST` to the URL you register under **Connections (Kết nối) > Outgoing webhooks** ("Kết nối > Webhook ra") whenever an event you selected occurs.
 
 ## Format
 
@@ -89,7 +89,7 @@ Enable: `INTEGRATIONS_WEBHOOKS_ENABLED=true` + `INTEGRATIONS_SECRET_KEY` (32 byt
 
 # INCOMING webhooks — push customers into Trinity
 
-Create a source under **Settings > Connections & AI > Incoming webhooks** ("Webhook vào"): choose the staff member who receives customers (owner), the customer source, the project (optional), and whether a signature is required. The URL with the token is shown only **once**.
+Create a source under **Connections (Kết nối) > Incoming webhooks** ("Webhook vào"): choose the staff member who receives customers (owner), the customer source, the project (optional), and whether a signature is required. The URL with the token is shown only **once**.
 
 ```bash
 curl -X POST 'https://<domain>/api/v1/hooks/in/whk_xxxxxxxx…' \

@@ -10,7 +10,7 @@ How far each channel and connector has been tested. We only mark something "test
 | **Waiting for platform approval** | Code ready; the platform has to approve the app before real accounts can connect |
 | **Ready — not yet tried with a real account** | The connector is in the open-source code and works against the platform's documented API or sandbox, but nobody has run it with a live account yet. Use it, and tell us how it goes |
 
-The same label shows next to each item on **Settings › Connections** in the app.
+The same label shows next to each item on **Connections (Kết nối)** in the app.
 
 ## Channels
 
@@ -19,6 +19,7 @@ The same label shows next to each item on **Settings › Connections** in the ap
 | Facebook Page — posting | Tested with a real account (2026-10-13) | |
 | Facebook Messenger — inbox, replies, broadcasts | Tested with a real account (2026-10-13) | Pages owned by the app's developers; other Pages wait for Meta App Review |
 | Facebook comments — auto-replies, hide phone numbers | Tested with a real account (2026-10-13) | |
+| Interactions timeline (comments + Messenger + Zalo OA), comment rules on a cover photo | Tested with a real account (2026-10-16) | Counters, filters and rule results read from real Page comments; real-time bell notifications not yet tried with a live comment |
 | Facebook comments — manual replies | Tested in sandbox / simulated webhooks only | Public reply and one private reply per comment within 7 days |
 | YouTube — video upload | Tested with a real account (2026-10-13) | |
 | Zalo Official Account — connect, incoming messages | Tested with a real account (2026-10-15) | OAuth connection; a real user's message reached the CRM through the webhook and opened a conversation |

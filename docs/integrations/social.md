@@ -6,7 +6,7 @@ Organisation feature `social_posting` (`@RequireOrgFeature`). Screen: `/social` 
 
 | Network | Status |
 |---|---|
-| Facebook Page | supported, with an optional first comment (posted by the Page right after the post; needs the Page connected under Settings › Connections › Facebook Page, which holds the comment permission) |
+| Facebook Page | supported, with an optional first comment (posted by the Page right after the post; needs the Page connected under Connections (Kết nối) › Facebook Page, which holds the comment permission) |
 | YouTube | supported: video upload with title, own description, tags, category, made-for-kids flag, privacy (default private), custom thumbnail and playlist |
 | Instagram | supported when `INSTAGRAM_PUBLISH_ENABLED=true` and the Facebook app has Instagram permissions (waiting for Meta App Review) |
 | TikTok | enabled once TikTok keys are set — provider code and tests are ready (`tiktok.provider.ts`); waiting for TikTok production approval |

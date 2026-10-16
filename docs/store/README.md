@@ -5,7 +5,7 @@ A quick storefront for small shops, built on the CRM's own product catalog. It i
 ## Turning it on
 
 1. Settings › Features: turn on **Trang bán hàng**.
-2. Settings › Connections & AI › **Trang bán hàng**: set the shop name and page address (for example `cua-hang-abc`), pick one of three themes and an accent colour, choose payment methods, tick the products to sell (products need a price), then switch on **Mở bán**.
+2. Connections (Kết nối) › **Trang bán hàng**: set the shop name and page address (for example `cua-hang-abc`), pick one of three themes and an accent colour, choose payment methods, tick the products to sell (products need a price), then switch on **Mở bán**.
 3. Share `https://<your-domain>/s/<page-address>`.
 
 ## What a buyer gets

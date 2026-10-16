@@ -53,9 +53,11 @@ Trinity  ──  CRM · Sales · Zalo · HR · Reports
 | **AI control (MCP)** | Built-in MCP server: connect ChatGPT, Claude, Gemini, Cursor, OpenClaw or any MCP client. Read and write data directly within the connected user's permissions (writes need the `crm.write` scope; every action is listed under AI activity). Optional setting *Require approval for AI changes* turns on a draft-then-approve flow |
 | **Self-extending add-ons** | Ask your AI for a sync job, a custom workflow or a new integration. Each add-on runs isolated (separate process, sandboxed permissions, auto-disabled after repeated failures) |
 | **AI-native overview** | The home page shows which AI assistants are connected and active, what they did today, and every connected channel (Fanpage, Zalo OA, YouTube, payments, online store) with its status and today's counts. With no assistant yet, it walks you through connecting one |
+| **Connections** | One menu for every channel, payment, sales and data connector, grouped, each with its status and setup steps |
 | **Feature switches** | Settings › Features: grouped cards (core, channels & inbox, sales, people, advanced), one switch each. Turning a feature off hides it for everyone and keeps the data. Your AI can list and switch features too (switching off needs your OK) |
-| **Shared inbox** | Messenger and Zalo OA conversations in one place, with search and an "awaiting reply" filter; replies respect each platform's messaging window. Your AI assistant can read conversations and draft replies you approve |
-| **Facebook Page automation** | Auto-replies to comments, hiding phone numbers, private replies; chat links and QR codes that open a conversation; Messenger flows; broadcasts within the 24-hour window. Rules, flows and broadcasts can also be created and edited from your AI assistant |
+| **Interactions** | Fanpage comments, Messenger and Zalo OA conversations in one timeline: today's counts, what each rule did, filters (channel, Page, unanswered, date) and a reply box in place. New comments and messages ring the bell for the customer's owner and the channel's assignee. Your AI assistant can read the timeline and draft replies you approve |
+| **Shared inbox** | Messenger and Zalo OA conversations in one place, with search and an "awaiting reply" filter; replies respect each platform's messaging window |
+| **Facebook Page automation** | Comment rules per Page or per post (including the cover photo): auto-replies, hiding phone numbers, private replies, each commenter linked to a customer; chat links and QR codes that open a conversation; Messenger flows; broadcasts within the 24-hour window. Rules, flows and broadcasts can also be created and edited from your AI assistant |
 | **Multi-channel posting** | Write once, publish or schedule to Facebook Pages and YouTube, with a content calendar, a media library and post stats. Drafts, a weekly posting queue (time slots), reusable hashtag sets and signatures, UTM tagging of links, a per-channel preview of exactly what each network will show, bulk import from CSV, and recurring posts (daily, weekly or monthly). All of it can also be driven from your AI assistant |
 | **Payments** | Payment requests with a VietQR code that SePay matches automatically when the money arrives; VNPay and MoMo payment links |
 | **Sales connectors** | KiotViet, Sapo, WooCommerce, MISA, Shopee, Lazada: what each platform's API allows (customers, orders and/or products) is synced into the CRM; customers are matched to contacts by phone where the platform shares it (Shopee masks buyer phones). Per-connector scope in [status.md](docs/integrations/status.md) |
@@ -69,7 +71,7 @@ Trinity  ──  CRM · Sales · Zalo · HR · Reports
 ### How far it is tested
 
 - **Tested end to end on a fresh deploy** (the Vercel button, a new Postgres database): first sign-in, connecting an AI assistant, building tables by chat, importing records, the AI tools.
-- **Tested with real accounts**: publishing and scheduling posts to Facebook Pages and YouTube, Messenger messages.
+- **Tested with real accounts**: publishing and scheduling posts to Facebook Pages and YouTube, Messenger messages, Facebook comment rules (auto-replies, hiding phone numbers), the Interactions timeline, incoming Zalo OA messages.
 - **Tested with sample data only**: the posting queue, recurring posts and CSV import, dashboards and reports, the AI-native overview, feature switches, POS, HR, attendance and payroll, the online store (sample shop).
 - These areas have automated tests; connectors are listed below.
 
@@ -93,7 +95,7 @@ Details per connector: [docs/integrations/status.md](docs/integrations/status.md
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/connections.png" alt="Settings › Connections: every channel, payment and sales connector on one screen with its status"><br><sub>Every channel and connector on one screen</sub></td>
+<td width="50%"><img src="docs/screenshots/connections.png" alt="Connections: every channel, payment and sales connector on one screen with its status"><br><sub>Every channel and connector on one screen</sub></td>
 <td width="50%"><img src="docs/screenshots/inbox.png" alt="Shared inbox with search and an awaiting-reply filter"><br><sub>Shared inbox for Messenger and Zalo OA</sub></td>
 </tr>
 <tr>

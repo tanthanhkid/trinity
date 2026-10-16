@@ -17,7 +17,7 @@ Note: the docs.zalo site is an SPA, so the full text cannot be read automaticall
 3. `ZALO_OA_REDIRECT_URI` = `https://<CRM domain>/api/v1/zalo-oa/oauth/callback` — declare the same URL under App settings > Official Account > Callback URL.
 4. Webhook URL declared on Zalo: `https://<CRM domain>/api/v1/zalo-oa/webhook`; enable the events user_send_*, follow, oa_send_*. Zalo requires domain verification (meta tag/file).
 5. `INTEGRATIONS_SECRET_KEY` (32 byte base64) — tokens are stored encrypted; without it, connecting fails.
-6. The OA id + the OA admin clicks "Kết nối Zalo OA" ("Connect Zalo OA") under Settings > Connections & AI > Zalo OA.
+6. The OA id + the OA admin clicks "Kết nối Zalo OA" ("Connect Zalo OA") under Connections (Kết nối) > Zalo OA.
 7. A ZNS template approved by Zalo (template_id + parameter names) and the OA's ZNS permission.
 
 ## Access model

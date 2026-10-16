@@ -19,7 +19,6 @@ import {
   Users2,
   Wifi,
   ToggleRight,
-  PlugZap,
   Sparkles,
   Newspaper,
 } from "lucide-react"

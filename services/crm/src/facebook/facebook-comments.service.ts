@@ -1,10 +1,11 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Optional, BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { FacebookCommentRule, FacebookPage } from '@prisma/client';
 import { Prisma, PrismaService, publishIntegrationEvent } from '@trinity/prisma';
 import { publishMessengerEvent } from './facebook-events';
 import { FacebookPagesService } from './facebook-pages.service';
 import { findVnPhone } from './facebook-messenger.service';
 import { GraphApiError, GraphClient } from './graph-client';
+import { ChannelNotificationsService } from '../notifications/channel-notifications.service';
 import { PublicApiService } from '../public-api/public-api.service';
 
 /** Giá trị `changes[].value` của webhook `feed` (chỉ phần dùng tới). Docs: webhooks-for-pages › feed. */
@@ -109,6 +110,7 @@ export class FacebookCommentsService {
     private readonly graph: GraphClient,
     private readonly pages: FacebookPagesService,
     private readonly publicApi: PublicApiService,
+    @Optional() private readonly notices?: ChannelNotificationsService,
   ) {}
 
   /** Một thay đổi `feed`. Chỉ xử lý bình luận MỚI của người khác (bỏ bình luận của chính Page ⇒ không tự trả lời mình). */
@@ -174,7 +176,8 @@ export class FacebookCommentsService {
       }
     }
     if (!contactId && psid) contactId = await this.contactOfConversation(pageId, psid);
-    if (!contactId) contactId = await this.createContact(ctx.page, { fromId, fromName: v.from?.name ?? null, phone });
+    let contactCreated = false;
+    if (!contactId) { contactId = await this.createContact(ctx.page, { fromId, fromName: v.from?.name ?? null, phone }); contactCreated = !!contactId; }
     if (psid && actions.private_reply?.message_id) await this.rememberConversation(pageId, psid, actions.private_reply.message_id, actions.private_reply.text, contactId);
     if (phone && contactId) {
       const r = await this.prisma.contact.updateMany({ where: { id: contactId, phone: '' }, data: { phone } });
@@ -192,6 +195,11 @@ export class FacebookCommentsService {
       { comment_id: Number(row.id), page_id: pageId, post_id: v.post_id, contact_id: contactId, contact_assigned_to: owner?.assigned_to ?? null, auto_reply_status: status },
       { resourceId: row.id.toString(), actorUserId: null },
     ).catch((e) => this.logger.warn(`Sự kiện webhook bình luận lỗi: ${(e as Error).message}`));
+    await this.notices?.notify({
+      event: 'facebook.comment_received', channelName: ctx.page.name, defaultAssignee: ctx.page.default_assignee_id, contactId, contactCreated,
+      fromName: v.from?.name ?? null, text: message, autoResult: autoResultLine(rule?.name ?? null, status, actions),
+      actionUrl: '/connections?muc=facebook&xem=binh-luan',
+    });
     return true;
   }
 
@@ -497,6 +505,16 @@ function toDate(v: number | string | undefined): Date {
     if (!Number.isNaN(d.getTime())) return d;
   }
   return new Date();
+}
+
+/** Một dòng kết quả luật cho thông báo: "Luật X: đã trả lời công khai, đã nhắn riêng". */
+export function autoResultLine(ruleName: string | null, status: string, a: PlannedActions): string | null {
+  if (!ruleName) return null;
+  if (status === 'test') return `Luật "${ruleName}" (chạy thử)`;
+  if (status === 'skipped') return `Luật "${ruleName}": bỏ qua (đã trả lời người này)`;
+  const done = [a.public_reply?.id ? 'đã trả lời công khai' : null, a.private_reply?.message_id ? 'đã nhắn riêng' : null, a.hide?.done ? 'đã ẩn vì có SĐT' : null].filter(Boolean);
+  const failed = [a.public_reply?.error, a.private_reply?.error, a.hide?.error].filter(Boolean).length;
+  return `Luật "${ruleName}": ${done.length ? done.join(', ') : 'chưa làm được'}${failed ? ` (${failed} việc lỗi)` : ''}`;
 }
 
 /**

@@ -1,3 +1,4 @@
+import { NotificationsModule } from '../notifications/notifications.module';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '@trinity/prisma';
 import { PublicApiModule } from '../public-api/public-api.module';
@@ -12,7 +13,7 @@ import { ZaloOaWebhookService } from './zalo-oa-webhook.service';
 
 /** Zalo OA chính thức + ZNS. Dùng API chính thức của Zalo, không dùng tài khoản cá nhân. */
 @Module({
-  imports: [PrismaModule, PublicApiModule],
+  imports: [NotificationsModule, PrismaModule, PublicApiModule],
   controllers: [ZaloOaController],
   providers: [
     ZaloOaApiClient, ZaloOaContactLinker, ZaloOaFeatureService, ZaloOaThreadsService,

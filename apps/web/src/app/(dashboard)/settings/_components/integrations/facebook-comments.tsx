@@ -81,6 +81,17 @@ function ActionLines({ a, planned }: { a: CommentActions; planned?: boolean }) {
   )
 }
 
+/** Id Page ghi rõ trong link bài, nếu có. */
+export function explicitPageRef(link: string): { kind: "pair" | "id" | "path"; id: string } | null {
+  const pair = link.match(/(\d{5,})_\d{5,}/)?.[1]
+  if (pair) return { kind: "pair", id: pair }
+  const q = link.match(/[?&]id=(\d{5,})/)?.[1]
+  if (q) return { kind: "id", id: q }
+  const path = link.match(/facebook\.com\/(\d{5,})\/(?:posts|videos|photos)\//)?.[1]
+  if (path) return { kind: "path", id: path }
+  return null
+}
+
 function RuleDialog({ open, onOpenChange, rule, pages }: { open: boolean; onOpenChange: (o: boolean) => void; rule: CommentRule | null; pages: FacebookPageView[] }) {
   const m = useCommentRuleMutations()
   const init = rule ?? EMPTY
@@ -115,16 +126,14 @@ function RuleDialog({ open, onOpenChange, rule, pages }: { open: boolean; onOpen
     const postRaw = post.trim()
     // Dán link bài mà để "Mọi Fanpage": tự chọn Page khi đoán được (link có sẵn <page>_<post>, hoặc chỉ có một Page).
     let effectivePage = pageId === ALL ? null : pageId
-    // Link có sẵn id Page (<page>_<post>): Page đó phải đã nối và trùng Page đã chọn, không thì luật lưu được mà không bao giờ chạy.
-    const fromLink = postRaw.match(/(\d{5,})_\d{5,}/)?.[1] ?? null
-    if (fromLink && !pages.some((p) => p.page_id === fromLink)) return failEarly("Bài này thuộc một Fanpage chưa nối với Trinity. Nối Fanpage đó trước, hoặc dán link bài của Fanpage đã nối.")
-    if (fromLink && effectivePage && fromLink !== effectivePage) return failEarly("Bài này thuộc Fanpage khác với Fanpage đã chọn. Chọn lại ô \"Áp cho Fanpage\" hoặc dán đúng link bài.")
-    // Link dạng permalink.php?story_fbid=…&id=…: id trùng Page đã nối thì chọn Page đó; không trùng (Page khác, hoặc id hồ sơ của
-    // "trang mới") thì KHÔNG tự gán Page duy nhất — người dùng tự chọn ở ô "Áp cho Fanpage".
-    const idParam = postRaw.match(/[?&]id=(\d{5,})/)?.[1] ?? null
-    const idMatches = idParam && pages.some((p) => p.page_id === idParam) ? idParam : null
+    // Id Page nằm trong link (<page>_<post>, ?id=, hoặc /<số>/posts/): trùng Page đã nối thì dùng Page đó (khác Page đã chọn ⇒ lỗi);
+    // không trùng (Page khác, hoặc id hồ sơ của "trang mới") thì chỉ chấp nhận khi người dùng tự chọn Page — không tự gán Page duy nhất.
+    const ref = explicitPageRef(postRaw)
+    const connected = (id: string) => pages.some((p) => p.page_id === id)
+    if (ref?.kind === "pair" && !connected(ref.id)) return failEarly("Bài này thuộc một Fanpage chưa nối với Trinity. Nối Fanpage đó trước, hoặc dán link bài của Fanpage đã nối.")
+    if (ref && connected(ref.id) && effectivePage && ref.id !== effectivePage) return failEarly("Bài này thuộc Fanpage khác với Fanpage đã chọn. Chọn lại ô \"Áp cho Fanpage\" hoặc dán đúng link bài.")
     if (postRaw && !effectivePage) {
-      const guess = fromLink ?? idMatches ?? (!idParam && pages.length === 1 ? pages[0].page_id : null)
+      const guess = ref ? (connected(ref.id) ? ref.id : null) : pages.length === 1 ? pages[0].page_id : null
       if (guess) { effectivePage = guess; setPageId(guess) }
     }
     const body: CommentRuleInput = {

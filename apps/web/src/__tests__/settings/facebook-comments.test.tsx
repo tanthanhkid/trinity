@@ -101,6 +101,14 @@ describe("FacebookComments", () => {
     expect(mockPost).not.toHaveBeenCalled()
   })
 
+  it("explicitPageRef đọc id Page từ mọi dạng link", async () => {
+    const { explicitPageRef } = await import("@/app/(dashboard)/settings/_components/integrations/facebook-comments")
+    expect(explicitPageRef("https://www.facebook.com/1090368650834107_122112283401318324")).toEqual({ kind: "pair", id: "1090368650834107" })
+    expect(explicitPageRef("https://www.facebook.com/permalink.php?story_fbid=123456&id=999999")).toEqual({ kind: "id", id: "999999" })
+    expect(explicitPageRef("https://www.facebook.com/999999/posts/123456")).toEqual({ kind: "path", id: "999999" })
+    expect(explicitPageRef("https://www.facebook.com/photo/?fbid=122112283401318324")).toBeNull()
+  })
+
   it("không có thuật ngữ kỹ thuật", async () => {
     const { container } = setup()
     await screen.findByText("Giá sao ạ")

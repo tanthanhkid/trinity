@@ -62,6 +62,8 @@ export class DashboardChannelsService {
   async get(grants: Grants, now = new Date()): Promise<DashboardChannels> {
     const f = await this.features.get();
     const any = (...p: Permission[]) => p.some((x) => can(grants, x));
+    /** Số tiền/đơn là số cả công ty ⇒ chỉ người xem được toàn bộ (quyền tích hợp, hoặc xem thương vụ phạm vi 'all'). */
+    const orgWideDeals = any('integrations.webhooks') || can(grants, 'deals.view', 'all');
     const on = (k: OrgFeatureKey) => f[k] !== false;
     const { start, end } = vnTodayRange(now);
     const today = { gte: start, lt: end };
@@ -70,7 +72,8 @@ export class DashboardChannelsService {
     const available: AvailableChannel[] = [];
     const tasks: Promise<void>[] = [];
 
-    if (on('facebook_page') && any('integrations.webhooks', 'contacts.update')) {
+    // Cùng quyền với màn Fanpage trong Cài đặt (`integrations.webhooks`): tên Page, trạng thái token, số tin cả công ty.
+    if (on('facebook_page') && any('integrations.webhooks')) {
       tasks.push((async () => {
         const pages = await this.prisma.facebookPage.findMany({ orderBy: { id: 'asc' }, take: 20, select: { id: true, page_id: true, name: true, is_active: true, token_status: true, subscribed: true } });
         if (pages.length === 0) available.push({ kind: 'facebook_page', label: 'Fanpage Facebook', href: `${INTEGRATIONS}&muc=facebook` });
@@ -125,8 +128,8 @@ export class DashboardChannelsService {
       })());
     }
 
-    const wantPayments = on('payments') && any('integrations.webhooks', 'deals.view');
-    const wantCommerce = on('commerce_connectors') && any('integrations.webhooks', 'deals.view');
+    const wantPayments = on('payments') && orgWideDeals;
+    const wantCommerce = on('commerce_connectors') && orgWideDeals;
     if (wantPayments || wantCommerce) {
       tasks.push((async () => {
         const accounts = await this.prisma.connectorAccount.findMany({ orderBy: { id: 'asc' }, select: { id: true, provider: true, status: true, last_event_at: true } });
@@ -138,11 +141,12 @@ export class DashboardChannelsService {
           const byVia = new Map(paid.map((r) => [r.paid_via ?? '', r._count._all]));
           for (const a of pay) channels.push(this.connector(a, 'payment', { label: 'lượt thanh toán', value: byVia.get(a.provider) ?? 0 }, `${INTEGRATIONS}&muc=payments`));
         }
+        if (wantCommerce && shop.length === 0) available.push({ kind: 'commerce', label: 'Kết nối bán hàng (KiotViet, Sapo…)', href: `${INTEGRATIONS}&muc=ban-hang` });
         if (wantCommerce) for (const a of shop) channels.push(this.connector(a, 'commerce', null, `${INTEGRATIONS}&muc=ban-hang`));
       })());
     }
 
-    if (on('online_store') && any('pos.manage', 'deals.view')) {
+    if (on('online_store') && (any('pos.manage') || orgWideDeals)) {
       tasks.push((async () => {
         const row = await this.prisma.setting.findUnique({ where: { key: STORE_SETTING_KEY }, select: { value: true } });
         let store: { name?: string; slug?: string; published?: boolean } = {};

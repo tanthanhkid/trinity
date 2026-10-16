@@ -17,7 +17,7 @@ function fdeps(state: Record<string, boolean> = { dashboard: true, pos: false })
 describe('list_features', () => {
   it('nhóm theo Cơ bản / Kênh / Bán hàng / Nhân sự / Nâng cao, kèm bật-tắt', async () => {
     const r = (await listFeaturesTool.run({}, ctx(fdeps()))).structured as any;
-    expect(r.data.groups.map((g: any) => g.group)).toEqual(['core', 'channels', 'sales', 'hr', 'advanced']);
+    expect(r.data.groups.map((g: any) => g.group)).toEqual(['core', 'channels', 'sales', 'people', 'advanced']);
     const all = r.data.groups.flatMap((g: any) => g.features);
     expect(all.find((f: any) => f.key === 'dashboard').enabled).toBe(true);
     expect(all.find((f: any) => f.key === 'pos').enabled).toBe(false);

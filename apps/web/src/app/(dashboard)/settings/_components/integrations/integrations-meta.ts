@@ -31,7 +31,7 @@ export const INTEGRATION_SECTIONS: ReadonlyArray<{
   { value: "webhook-in", label: "Webhook vào", anyOf: ["integrations.webhooks"], flag: "webhooks" },
   { value: "facebook", label: "Fanpage Facebook", anyOf: ["integrations.webhooks"], flag: "always", feature: "facebook_page" },
   // Google Sheets: không có cờ env riêng — trạng thái cấu hình (client id/secret) do chính mục này báo.
-  { value: "google-sheets", label: "Google Sheets", anyOf: ["integrations.webhooks"], flag: "always" },
+  { value: "google-sheets", label: "Google Sheets", anyOf: ["integrations.webhooks"], flag: "always", feature: "google_sheets" },
   { value: "ai", label: "Kết nối AI", anyOf: ["integrations.ai_connect", "integrations.ai_admin"], flag: "mcp" },
   { value: "zalo-oa", label: "Zalo OA", anyOf: ["integrations.webhooks", "contacts.update"], flag: "always", feature: "zalo_oa" },
   { value: "payments", label: "Thanh toán", anyOf: ["integrations.webhooks", "deals.view"], flag: "always", feature: "payments" },

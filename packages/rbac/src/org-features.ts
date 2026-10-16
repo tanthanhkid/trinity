@@ -12,7 +12,7 @@ export const ORG_FEATURE_GROUPS = [
   { key: 'core', label: 'Cơ bản' },
   { key: 'channels', label: 'Kênh & hộp thư' },
   { key: 'sales', label: 'Bán hàng' },
-  { key: 'hr', label: 'Nhân sự' },
+  { key: 'people', label: 'Nhân sự' },
   { key: 'advanced', label: 'Nâng cao' },
 ] as const
 export type OrgFeatureGroup = (typeof ORG_FEATURE_GROUPS)[number]['key']
@@ -31,10 +31,10 @@ export const ORG_FEATURES = {
   payments: { label: 'Thanh toán & đối soát', group: 'sales', description: 'SePay, VNPay, MoMo: mã QR, link thanh toán, tự khớp tiền chuyển khoản.' },
   online_store: { label: 'Trang bán hàng', group: 'sales', description: 'Trang bán hàng online: khách đặt COD hoặc chuyển khoản QR, đơn vào thẳng CRM.' },
   commerce_connectors: { label: 'Kết nối bán hàng', group: 'sales', description: 'Đồng bộ khách, đơn, hàng hoá từ KiotViet, Sapo, iPOS, WooCommerce, Shopee, Lazada.' },
-  management: { label: 'Quản lý nhân sự', group: 'hr', description: 'Nhân viên, phòng ban, team, chức danh, hợp đồng, tuyển dụng.' },
-  attendance: { label: 'Chấm công', group: 'hr', description: 'Nhân viên tự chấm công, quản lý ngày công.' },
-  payroll: { label: 'Lương', group: 'hr', description: 'Bảng lương và phiếu lương.' },
-  newsfeed: { label: 'Bảng tin', group: 'hr', description: 'Bảng tin nội bộ của công ty.' },
+  management: { label: 'Quản lý nhân sự', group: 'people', description: 'Nhân viên, phòng ban, team, chức danh, hợp đồng, tuyển dụng.' },
+  attendance: { label: 'Chấm công', group: 'people', description: 'Nhân viên tự chấm công, quản lý ngày công.' },
+  payroll: { label: 'Lương', group: 'people', description: 'Bảng lương và phiếu lương.' },
+  newsfeed: { label: 'Bảng tin', group: 'people', description: 'Bảng tin nội bộ của công ty.' },
   integrations: { label: 'Kết nối & AI', group: 'advanced', description: 'Kết nối trợ lý AI (ChatGPT, Claude, Gemini…), webhook và nhật ký tích hợp.' },
   ai_briefing: { label: 'Bản tin sáng/chiều', group: 'advanced', description: 'Bản tin số liệu sáng và chiều do trợ lý AI của bạn viết.' },
   lead_scoring: { label: 'Chấm điểm khách tiềm năng', group: 'advanced', description: 'Chấm điểm khách theo quy tắc; trợ lý AI chấm thêm ý định mua.' },

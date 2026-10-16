@@ -49,6 +49,22 @@ describe('DashboardChannelsService', () => {
     expect(none.prisma.facebookPage.findMany).not.toHaveBeenCalled();
   });
 
+  it('chỉ quyền cập nhật khách ⇒ không thấy Fanpage; xem thương vụ phạm vi hẹp ⇒ không thấy số tiền/đơn cả công ty', async () => {
+    const { svc, prisma } = make({ pages: [PAGE], connectors: [{ id: 4, provider: 'sepay', status: 'active', last_event_at: null }], store: JSON.stringify({ slug: 'a', published: true }) });
+    const r = await svc.get({ 'contacts.update': 'own', 'deals.view': 'own' } as any);
+    expect(r.channels).toEqual([]);
+    expect(prisma.facebookPage.findMany).not.toHaveBeenCalled();
+    expect(prisma.paymentIntent.groupBy).not.toHaveBeenCalled();
+    expect(prisma.storeOrder.count).not.toHaveBeenCalled();
+    const all = await svc.get({ 'deals.view': 'all' } as any);
+    expect(all.channels.map((c) => c.kind).sort()).toEqual(['payment', 'store']);
+  });
+
+  it('bật kết nối bán hàng mà chưa nối ⇒ gợi ý nối', async () => {
+    const r = await make({ connectors: [{ id: 4, provider: 'sepay', status: 'active', last_event_at: null }] }).svc.get(ADMIN);
+    expect(r.available.map((a) => a.kind)).toContain('commerce');
+  });
+
   it('kênh đăng bài, thanh toán, trang bán hàng', async () => {
     const { svc } = make({
       social: [{ id: 3, network: 'youtube', name: 'Kênh YT', status: 'needs_reauth' }],

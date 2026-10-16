@@ -31,7 +31,7 @@ The deploy script runs the serverless targets and the self-hosted server **at th
     only the API process restarts. The Next.js and TypeScript build caches stay in the build checkout, so repeat builds take seconds.
   - **Build errors stop the deploy** before anything is shipped; the server keeps running the previous release.
   - **Backups:** `.env` is copied (mode 600) every time. The database is dumped **only when the diff contains a migration or a schema change**.
-  - **Previous release kept as a directory** (moved aside, not archived), so rollback is a move back plus a restart.
+  - **Previous release kept as a directory** (moved aside, not archived; the last three are kept), so rollback is a move back plus a restart.
   - **Health gate:** API health and the web login page must answer 200 within 40 s, otherwise the script rolls back automatically.
     A rollback after a migration does not undo the database; restore the dump taken just before.
 

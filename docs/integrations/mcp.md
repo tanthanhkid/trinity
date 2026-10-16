@@ -160,6 +160,8 @@ Every tool the server exposes (108), generated from the tool registry. "write" t
 
 ### Facebook Page & Messenger
 
+How comment rules, notifications and the Interactions screen behave: [facebook-comments.md](facebook-comments.md).
+
 | Tool | Kind | What it does |
 |---|---|---|
 | `cancel_messenger_broadcast` | write · preview → `confirmed_by_user` | Cancel a pending Messenger broadcast |

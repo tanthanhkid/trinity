@@ -54,6 +54,13 @@ run `node apps/monolith/dist/apps/monolith/src/main.js` and `node apps/web/.next
 process manager of your choice (systemd, pm2). Apply migrations with `pnpm --filter @trinity/prisma migrate:deploy`.
 The monolith locates `services/crm/ext-deno` by walking up from its install directory, so keep the repository layout.
 
+## Fast updates without Docker
+
+For a server run under a process manager, the maintainers' flow ([runbooks/fast-delivery.md](runbooks/fast-delivery.md)) is:
+build on a workstation (only the parts the diff touches), ship the build output, keep the previous build output in a release
+directory beside the app, restart, and move the previous release back if the health checks fail. Copy `.env` before every
+update; dump the database only when the update contains a migration (a rollback does not undo migrations).
+
 ## Production checklist
 
 - [ ] Every `change-me-*` value replaced; secrets are random and at least 32 bytes.

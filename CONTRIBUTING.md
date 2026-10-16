@@ -11,7 +11,7 @@ Thanks for helping build Trinity. Issues and pull requests in English or Vietnam
 ## Pull requests
 1. Fork, create a branch from `main`.
 2. Keep each PR to one change. Add or update tests.
-3. Run `pnpm lint && pnpm test` before pushing.
+3. Run `pnpm lint` and `pnpm --filter <package> typecheck` / `test` for the packages you changed before pushing.
 4. Describe what changed and why. Screenshots for UI changes.
 5. Changing an MCP tool (description, schema, error text)? Test it with a small model (Haiku) using everyday user prompts — see "Testing tool descriptions with a weak model" in [docs/integrations/mcp.md](docs/integrations/mcp.md).
 
@@ -24,7 +24,7 @@ On your first pull request the **CLA** check comments with a link. Sign by comme
 
 The check then turns green (comment `recheck` if it does not). Signatures are stored in the `cla-signatures` branch.
 
-`main` is protected: every change goes through a pull request, and the CI checks (lint, typecheck, tests, secret scan, SQL on Postgres, builds) and the CLA check must pass before merging.
+`main` is protected: contributions go through a pull request, and three checks must pass before merging: **Secret scan (gitleaks)**, **CLA**, and **Typecheck and tests (changed packages)**. A fourth job, **SQL on Postgres**, runs real-database tests when your change touches migrations, the Prisma schema, `*.pg.spec.ts` or raw SQL. CI does not run lint or full builds, so run `pnpm lint` and the build of what you touched locally. How maintainers ship: [docs/runbooks/fast-delivery.md](docs/runbooks/fast-delivery.md).
 
 ## Code of conduct
 By participating you agree to follow our [Code of Conduct](CODE_OF_CONDUCT.md).

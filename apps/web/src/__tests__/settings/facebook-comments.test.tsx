@@ -66,6 +66,19 @@ describe("FacebookComments", () => {
     expect(screen.getByRole("button", { name: /Thêm luật/ })).toBeTruthy()
   })
 
+  it("Lưu luật: link bài + Mọi Fanpage (một Page) ⇒ tự chọn Page và gửi; lỗi máy chủ hiện ngay trong hộp thoại", async () => {
+    setup()
+    fireEvent.click(await screen.findByRole("button", { name: /Thêm luật/ }))
+    fireEvent.change(await screen.findByLabelText(/Tên luật/), { target: { value: "Ảnh bìa" } })
+    fireEvent.change(screen.getByLabelText(/Chỉ bài này/), { target: { value: "https://www.facebook.com/photo/?fbid=122112283401318324" } })
+    fireEvent.change(screen.getByLabelText(/Nhắn riêng qua Messenger/), { target: { value: "Chào {ten}" } })
+    mockPost.mockRejectedValueOnce(Object.assign(new Error("400"), { response: { status: 400, data: { message: "Không đọc được bài từ link này" } } }))
+    fireEvent.click(screen.getByRole("button", { name: "Lưu luật" }))
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith("/facebook/comment-rules", expect.objectContaining({ page_id: "111", post_id: "https://www.facebook.com/photo/?fbid=122112283401318324" })))
+    expect((await screen.findByTestId("rule-form-error")).textContent).toMatch(/Không đọc được bài/)
+    expect(screen.getByRole("button", { name: "Lưu luật" })).toBeTruthy()
+  })
+
   it("không có thuật ngữ kỹ thuật", async () => {
     const { container } = setup()
     await screen.findByText("Giá sao ạ")

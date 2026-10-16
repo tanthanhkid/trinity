@@ -94,6 +94,8 @@ function RuleDialog({ open, onOpenChange, rule, pages }: { open: boolean; onOpen
   const [hide, setHide] = useState(init.hide_if_phone)
   const [once, setOnce] = useState(init.once_per_user)
   const [live, setLive] = useState(init.mode === "live")
+  // Lỗi hiện ngay trong hộp thoại (toast có thể bị lớp phủ che ⇒ người dùng tưởng đã lưu).
+  const [error, setError] = useState<string | null>(null)
   const pending = m.create.isPending || m.update.isPending
   const social = useSocialPosts()
   // Bài Trinity đã đăng lên Fanpage: link có sẵn id <page>_<post> ⇒ chọn thẳng, khỏi dò link.
@@ -107,9 +109,18 @@ function RuleDialog({ open, onOpenChange, rule, pages }: { open: boolean; onOpen
   }
 
   function save() {
+    setError(null)
+    const postRaw = post.trim()
+    // Dán link bài mà để "Mọi Fanpage": tự chọn Page khi đoán được (link có sẵn <page>_<post>, hoặc chỉ có một Page).
+    let effectivePage = pageId === ALL ? null : pageId
+    if (postRaw && !effectivePage) {
+      const fromLink = postRaw.match(/(\d{5,})_\d{5,}/)?.[1]
+      const guess = fromLink && pages.some((p) => p.page_id === fromLink) ? fromLink : pages.length === 1 ? pages[0].page_id : null
+      if (guess) { effectivePage = guess; setPageId(guess) }
+    }
     const body: CommentRuleInput = {
       name: name.trim(),
-      page_id: pageId === ALL ? null : pageId,
+      page_id: effectivePage,
       post_id: post.trim() || null,
       keywords: splitWords(keywords),
       exclude_keywords: splitWords(exclude),
@@ -120,9 +131,11 @@ function RuleDialog({ open, onOpenChange, rule, pages }: { open: boolean; onOpen
       mode: live ? "live" : "test",
       is_active: rule?.is_active ?? true,
     }
-    if (!body.name) return toast.error("Đặt tên cho luật")
-    if (body.post_id && !body.page_id) return toast.error("Chọn Fanpage của bài trước khi dán link bài")
-    const done = { onSuccess: () => { toast.success("Đã lưu luật"); onOpenChange(false) }, onError: (e: unknown) => toast.error(apiErrorMessage(e, "Không lưu được luật")) }
+    const fail = (msg: string) => { setError(msg); toast.error(msg) }
+    if (!body.name) return fail("Đặt tên cho luật")
+    if (body.post_id && !body.page_id) return fail("Bài này thuộc Fanpage nào? Chọn ở ô \"Áp cho Fanpage\" rồi bấm Lưu luật lại.")
+    if (!body.public_replies.length && !body.private_reply && !body.hide_if_phone) return fail("Luật cần ít nhất một việc: trả lời công khai, nhắn riêng hoặc ẩn bình luận có số điện thoại.")
+    const done = { onSuccess: () => { toast.success("Đã lưu luật"); onOpenChange(false) }, onError: (e: unknown) => fail(apiErrorMessage(e, "Không lưu được luật")) }
     if (rule) m.update.mutate({ id: rule.id, ...body }, done)
     else m.create.mutate(body, done)
   }
@@ -176,6 +189,7 @@ function RuleDialog({ open, onOpenChange, rule, pages }: { open: boolean; onOpen
             </label>
           </div>
         </div>
+        {error && <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-200" data-testid="rule-form-error">{error}</p>}
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={pending}>Huỷ</Button>
           <Button onClick={save} disabled={pending}>{pending && <Loader2 className="mr-1 size-4 animate-spin" />}Lưu luật</Button>

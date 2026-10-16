@@ -59,7 +59,8 @@ export class InteractionsService {
     private readonly features: OrgFeaturesService,
   ) {}
 
-  private async sources(grants: Grants) {
+  /** Nguồn nào người xem được thấy (công tắc tính năng + quyền). */
+  async sources(grants: Grants) {
     const f = await this.features.get();
     const inbox = f.inbox !== false;
     return {

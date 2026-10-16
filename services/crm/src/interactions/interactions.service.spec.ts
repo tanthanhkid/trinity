@@ -40,6 +40,12 @@ describe('InteractionsService', () => {
     expect(b.prisma.zaloOaThread.findMany).not.toHaveBeenCalled();
   });
 
+  it('sources: Fanpage tắt hoặc Hộp thư tắt ⇒ không thấy Facebook', async () => {
+    expect((await make({ features: { facebook_page: false } }).svc.sources(ALL)).facebook).toBe(false)
+    expect((await make({ features: { inbox: false } }).svc.sources(ALL)).facebook).toBe(false)
+    expect((await make().svc.sources(ALL)).facebook).toBe(true)
+  });
+
   it('số hôm nay', async () => {
     const { svc } = make();
     const s = await svc.stats(ALL, T(8));

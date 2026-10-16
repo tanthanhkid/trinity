@@ -1,6 +1,5 @@
 import { BadRequestException, Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { can } from '@trinity/rbac';
 import { AuthOnly, CurrentUser, type AuthUser } from '@trinity/rbac-nest';
 import { PrismaService } from '@trinity/prisma';
 import { InteractionsService, type InteractionQuery } from './interactions.service';
@@ -66,7 +65,8 @@ export class InteractionsController {
   @AuthOnly()
   @ApiOperation({ summary: 'Chuỗi của một bình luận: các bình luận cùng người trên cùng bài + hội thoại Messenger của khách (nếu có)' })
   async thread(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    if (!can(user.grants, 'integrations.webhooks')) throw new NotFoundException();
+    // Cùng cổng với danh sách: công tắc Hộp thư + Fanpage và quyền Fanpage.
+    if (!(await this.svc.sources(user.grants)).facebook) throw new NotFoundException();
     if (!/^\d+$/.test(id)) throw new NotFoundException();
     const c = await this.prisma.facebookComment.findUnique({ where: { id: BigInt(id) } });
     if (!c) throw new NotFoundException();

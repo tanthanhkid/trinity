@@ -9,7 +9,7 @@ vi.mock("@/hooks/use-setup-status", () => ({
 }))
 vi.mock("@/hooks/ai-actions/use-ai-actions", () => ({ useAiActionsPendingCount: () => ({ data: 0 }) }))
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }))
-vi.mock("@/app/(dashboard)/bat-dau/_components/connect-steps", () => ({ ConnectSteps: () => null }))
+vi.mock("@/components/onboarding-wizard/agent-connect", () => ({ AgentConnect: () => null }))
 vi.mock("@/hooks/use-onboarding", () => ({ useOnboarding: () => ({ data: undefined }), useMarkOnboardingSeen: () => ({ mutate: vi.fn(), isIdle: true }) }))
 vi.mock("@/app/(dashboard)/bat-dau/_components/onboarding-intro", () => ({ OnboardingIntro: () => null }))
 vi.mock("@/app/(dashboard)/bat-dau/_components/onboarding-checklist", () => ({ OnboardingChecklist: () => null }))

@@ -1,9 +1,10 @@
-import { BadRequestException, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { BadRequestException, Controller, Get, HttpCode, NotFoundException, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { can } from '@trinity/rbac';
 import { AuthOnly, Can, CurrentUser, type AuthUser } from '@trinity/rbac-nest';
 import { mcpResourceUrl, oauthEnabled, publicBaseUrl } from '../integrations/oauth/oauth-config';
 import { SetupStatusService } from './setup-status.service';
+import { buildConnectPrompt, CONNECT_AGENTS, isConnectAgent } from './connect-prompts';
 
 /** Màn "Bắt đầu": trạng thái dựng quy trình + địa chỉ MCP + AI đã nối chưa. */
 @ApiTags('Setup')
@@ -28,6 +29,18 @@ export class SetupController {
       ai_connected_anyone: anyone.active,
       can_build: can(user.grants, 'custom_objects.manage'),
     };
+  }
+
+  @Get('connect-prompt')
+  @AuthOnly()
+  @ApiOperation({ summary: 'Prompt nối Trinity cho từng agent (ChatGPT, Claude, Claude Code, Antigravity, Gemini CLI, Cursor, Codex, VS Code, khác): dán một lần là agent tự gắn máy chủ, đăng nhập OAuth, tạo rule' })
+  @ApiResponse({ status: 404, description: 'Máy chủ chưa bật kết nối AI' })
+  connectPrompt(@Query('agent') agent?: string) {
+    const base = publicBaseUrl();
+    if (!oauthEnabled() || !base) throw new NotFoundException('Máy chủ chưa bật kết nối AI');
+    const key = isConnectAgent(agent) ? agent : 'other';
+    const url = mcpResourceUrl(base);
+    return { agent: key, agents: CONNECT_AGENTS.map(({ key: k, label }) => ({ key: k, label })), mcp_url: url, prompt: buildConnectPrompt(key, url) };
   }
 
   @Get('onboarding')

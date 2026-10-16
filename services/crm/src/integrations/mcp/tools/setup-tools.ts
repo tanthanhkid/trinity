@@ -3,6 +3,8 @@ import { isObjectVisible, loadObjectAccess } from '../../../custom-objects/custo
 import { wrapData } from '../ai-output';
 import { SETUP_INTERVIEW, SETUP_STEPS } from './setup-guide';
 import { ToolUserError, type ToolDef } from './tool-types';
+import { buildConnectPrompt, CONNECT_AGENTS, isConnectAgent } from '../../../setup/connect-prompts';
+import { mcpResourceUrl, publicBaseUrl } from '../../oauth/oauth-config';
 
 export const getSetupGuideTool: ToolDef = {
   name: 'get_setup_guide',
@@ -10,11 +12,12 @@ export const getSetupGuideTool: ToolDef = {
   description:
     'GỌI ĐẦU TIÊN khi bắt đầu với một hệ thống Trinity. Trả trạng thái dựng (chua_dung = CRM trống, cần phỏng vấn và dựng; dang_dung = đã dựng gói, đang nhập dữ liệu; da_dung = đang dùng), ' +
     'kịch bản phỏng vấn tiếng Việt, các bước dựng (propose_workspace → import_records → complete_setup), bảng/màn/module đang có. Chỉ đọc. / ' +
-    'CALL FIRST: setup status, Vietnamese interview script and the steps to build the CRM.',
+    'CALL FIRST: setup status, Vietnamese interview script and the steps to build the CRM. ' +
+    `Truyền agent (${CONNECT_AGENTS.map((a) => a.key).join(', ')}) để nhận thêm connect_prompt: hướng dẫn gắn Trinity vào agent đó và rule/skill nên tạo. / Pass agent to also get connect_prompt for that client.`,
   permissions: [],
-  input: () => ({}),
+  input: (z) => ({ agent: z.enum(CONNECT_AGENTS.map((a) => a.key) as [string, ...string[]]).optional().describe('Agent đang dùng, để nhận connect_prompt / Client in use, to get connect_prompt') }),
   output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
-  async run(_args, { deps, principal }) {
+  async run(args, { deps, principal }) {
     const canBuild = can(principal.user.grants, 'custom_objects.manage');
     const [status, allObjects, views, features, roles, access] = await Promise.all([
       deps.setup.get(),
@@ -47,6 +50,7 @@ export const getSetupGuideTool: ToolDef = {
         core_codes: { contacts: 'KH001…', deals: 'DL001…', tasks: 'CV001…' },
       },
       modules: Object.fromEntries(Object.entries(ORG_FEATURES).map(([k, v]) => [k, v.label])),
+      ...(isConnectAgent(args.agent) && publicBaseUrl() ? { connect_prompt: buildConnectPrompt(args.agent, mcpResourceUrl(publicBaseUrl()!)) } : {}),
     });
     return { structured: out, text: JSON.stringify(out) };
   },

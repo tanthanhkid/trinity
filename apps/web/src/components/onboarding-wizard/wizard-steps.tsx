@@ -2,11 +2,10 @@
 
 import { useState, type ReactNode } from "react"
 import { CopyButton } from "@/app/(dashboard)/settings/_components/integrations/secret-reveal-dialog"
-import { ConnectSteps } from "@/app/(dashboard)/bat-dau/_components/connect-steps"
+import { AgentConnect } from "./agent-connect"
 import { SETUP_PROMPTS } from "@/app/(dashboard)/bat-dau/_components/setup-prompts"
 import { SocialChannels } from "@/app/(dashboard)/social/_components/social-channels"
 import { SocialComposer } from "@/app/(dashboard)/social/_components/social-composer"
-import { useSetupStatus } from "@/hooks/use-setup-status"
 import type { WizardStepKey } from "@/hooks/use-onboarding-wizard"
 
 const prompt = (key: string) => SETUP_PROMPTS.find((p) => p.key === key)?.text ?? ""
@@ -31,22 +30,14 @@ export function PromptBox({ title, text }: { title: string; text: string }) {
 }
 
 function StepAi() {
-  const { data } = useSetupStatus()
   return (
     <div className="space-y-4">
       <ol className="list-decimal space-y-1 pl-5 text-sm">
-        <li>Bấm Sao chép để lấy địa chỉ Trinity của công ty bạn.</li>
-        <li>Bấm tên trợ lý AI bạn đang dùng bên dưới, làm theo từng bước để dán địa chỉ vào và bấm Cho phép.</li>
-        <li>Mở khung chat với trợ lý AI, dán câu hỏi thử bên dưới. AI trả lời được là đã nối xong.</li>
+        <li>Chọn trợ lý AI bạn đang dùng, bấm <b>Copy prompt</b>.</li>
+        <li>Dán vào trợ lý AI. Nó tự nối với Trinity và mở trang đăng nhập; bạn đăng nhập rồi bấm Cho phép.</li>
+        <li>Trợ lý AI hỏi bạn về công ty để dựng hệ thống. Thấy nó trả lời được là đã nối xong.</li>
       </ol>
-      {data?.mcp_url && (
-        <div className="flex flex-wrap items-center gap-2">
-          <code className="min-w-0 flex-1 rounded-md bg-muted px-2 py-1.5 font-mono text-xs break-all" data-testid="wizard-connect-url">{data.mcp_url}</code>
-          <CopyButton value={data.mcp_url} label="địa chỉ kết nối" />
-        </div>
-      )}
-      <ConnectSteps />
-      <PromptBox title="Câu hỏi thử" text={WIZARD_PROMPTS.hello} />
+      <AgentConnect />
     </div>
   )
 }

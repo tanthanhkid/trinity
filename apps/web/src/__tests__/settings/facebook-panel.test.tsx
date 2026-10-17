@@ -30,7 +30,7 @@ const STATUS = {
 }
 const PAGE = {
   id: 1, page_id: "111", name: "Trinity Software", token_status: "active", token_checked_at: "2026-10-07T01:00:00.000Z", token_expires_at: null,
-  data_access_expires_at: null, subscribed: true, default_assignee_id: 5, contact_source_id: 3, is_active: true, created_at: "2026-10-07T01:00:00.000Z",
+  data_access_expires_at: null, subscribed: true, default_assignee_id: 5, contact_source_id: 3, is_active: true, created_at: "2026-10-07T01:00:00.000Z", posting: null, disconnected: false,
 }
 const conv = (over: Record<string, unknown> = {}) => ({
   id: 7, page_id: "111", page_name: "Trinity Software", psid: "999888", customer_name: "Khách A", last_inbound_at: "2026-10-07T01:00:00.000Z",
@@ -78,6 +78,20 @@ describe("<FacebookPanel>", () => {
     expect(screen.getByText("https://crm.example.vn/api/v1/facebook/webhook")).toBeTruthy()
     expect(screen.getByText(/Token còn hiệu lực/)).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/token_enc|access_token/)
+  })
+
+  it("ghi rõ phần đăng bài của Page: đã nối / đã gỡ / chưa nối", async () => {
+    setup({ pages: [{ ...PAGE, posting: "on" }, { ...PAGE, id: 2, page_id: "222", name: "Hai", posting: "removed" }, { ...PAGE, id: 3, page_id: "333", name: "Ba" }] })
+    renderPanel()
+    await waitFor(() => expect(screen.getByText("Trinity Software")).toBeTruthy())
+    expect(screen.getAllByTestId("fb-page-posting").map((e) => e.textContent)).toEqual(["Đăng bài: đã nối", "Đăng bài: đã gỡ", "Đăng bài: chưa nối"])
+  })
+
+  it("Page đã ngắt (tắt, token rỗng) ⇒ ghi 'kết nối lại để bật', không có nút kiểm tra/ngắt", async () => {
+    setup({ pages: [{ ...PAGE, is_active: false, disconnected: true }] })
+    renderPanel()
+    await waitFor(() => expect(screen.getByTestId("fb-page-disconnected")).toHaveTextContent("Đã ngắt — kết nối lại để bật"))
+    expect(screen.queryByRole("button", { name: /Kiểm tra token/ })).toBeNull()
   })
 
   it("thiếu cấu hình máy chủ ⇒ liệt kê biến còn thiếu và khoá nút Kết nối", async () => {

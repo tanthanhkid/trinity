@@ -5,12 +5,24 @@ import { ScopeService, type AuthUser } from '@trinity/rbac-nest';
 import { decryptSecret, encryptSecret, IntegrationsKeyError, loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { SUBSCRIBED_FIELDS, commentAutomationEnabled, facebookScopes, isFacebookConfigured, subscribedFields, loadFacebookConfig, oauthRedirectUri } from './facebook.config';
 import { signFacebookState, verifyFacebookState } from './facebook-oauth-state';
-import { GraphApiError, GraphClient, type TokenDebug } from './graph-client';
+import { GraphApiError, GraphClient, type GraphPage, type TokenDebug } from './graph-client';
+import { FACEBOOK_SOCIAL_SCOPES } from '../social/providers/facebook.provider';
+
+/** Một lần nối xin cả quyền nhận tin/bình luận lẫn quyền đăng bài (cùng một app Meta), bỏ trùng. */
+export function connectScopes(env: NodeJS.ProcessEnv = process.env): string[] {
+  return [...new Set([...facebookScopes(env), ...FACEBOOK_SOCIAL_SCOPES])];
+}
+
+/** Page có phần đăng bài khi quyền `pages_manage_posts` được cấp thật VÀ người nối có task đăng nội dung trên Page. */
+export function canPostToPage(granted: readonly string[], tasks: readonly string[] | undefined): boolean {
+  if (!granted.includes('pages_manage_posts')) return false;
+  return !tasks || tasks.includes('CREATE_CONTENT') || tasks.includes('MANAGE');
+}
 
 /** Phản hồi — KHÔNG có `token_enc`. */
-export function toPageView(p: FacebookPage) {
+export function toPageView(p: FacebookPage, posting: 'on' | 'removed' | null = null) {
   const { token_enc: _t, ...rest } = p;
-  return rest;
+  return { ...rest, posting, disconnected: !p.is_active && !p.token_enc };
 }
 
 export interface UpdatePageInput {
@@ -61,7 +73,7 @@ export class FacebookPagesService {
       graph_version: c.graphVersion,
       webhook_url: c.baseUrl ? `${c.baseUrl}/api/v1/facebook/webhook` : null,
       oauth_redirect_uri: c.baseUrl ? oauthRedirectUri(c) : null,
-      scopes: facebookScopes(),
+      scopes: connectScopes(),
       comment_automation: commentAutomationEnabled(),
     };
   }
@@ -74,7 +86,7 @@ export class FacebookPagesService {
       client_id: c.appId,
       redirect_uri: oauthRedirectUri(c),
       state: signFacebookState(actor.userId),
-      scope: facebookScopes().join(','),
+      scope: connectScopes().join(','),
       response_type: 'code',
     });
     return { url: `https://www.facebook.com/${c.graphVersion}/dialog/oauth?${q.toString()}` };
@@ -88,8 +100,8 @@ export class FacebookPagesService {
     return pick.id;
   }
 
-  /** Xử lý callback đăng nhập: trả số Page đã kết nối. State sai/hết hạn ⇒ 400. */
-  async handleCallback(code: string, state: string): Promise<{ connected: number; failed: number }> {
+  /** Xử lý callback đăng nhập: trả số Page đã kết nối (nhận tin) và số Page có phần đăng bài. State sai/hết hạn ⇒ 400. */
+  async handleCallback(code: string, state: string): Promise<{ connected: number; failed: number; posting: number }> {
     const st = verifyFacebookState(state);
     if (!st) throw new BadRequestException('Phiên kết nối Facebook không hợp lệ hoặc đã hết hạn. Hãy bấm "Kết nối" lại.');
     const c = loadFacebookConfig();
@@ -98,19 +110,30 @@ export class FacebookPagesService {
     const sourceId = await this.defaultSourceId();
     const user = await this.graph.toLongLived(await this.graph.exchangeCode(code, oauthRedirectUri(c)));
     const pages = await this.graph.listPages(user);
+    const granted = await this.graph.grantedPermissions(user).catch((err: Error) => {
+      this.logger.warn(`Không đọc được me/permissions, bỏ qua phần đăng bài: ${err.message}`);
+      return [] as string[];
+    });
     let failed = 0;
+    let posting = 0;
     for (const p of pages) {
       try {
         await this.saveConnectedPage(p, st.userId, sourceId, key);
       } catch (err) {
         failed++;
         this.logger.warn(`Kết nối Page ${p.id} lỗi: ${(err as Error).message}`);
+        continue;
+      }
+      try {
+        if (await this.saveSocialAccount(p, granted, st.userId, key)) posting++;
+      } catch (err) {
+        this.logger.warn(`Lưu phần đăng bài của Page ${p.id} lỗi: ${(err as Error).message}`);
       }
     }
-    return { connected: pages.length - failed, failed };
+    return { connected: pages.length - failed, failed, posting };
   }
 
-  private async saveConnectedPage(p: { id: string; name: string; access_token: string }, userId: number, sourceId: number, key: Buffer): Promise<void> {
+  private async saveConnectedPage(p: GraphPage, userId: number, sourceId: number, key: Buffer): Promise<void> {
     const subscribed = await this.subscribe(p.id, p.access_token);
     const state = await this.graph.debugToken(p.access_token).then((d) => tokenStateFromDebug(d), () => null);
     const common = {
@@ -121,18 +144,55 @@ export class FacebookPagesService {
       token_checked_at: new Date(),
       token_expires_at: state?.expiresAt ?? null,
       data_access_expires_at: state?.dataAccessExpiresAt ?? null,
-      is_active: true,
     };
+    // KHÔNG đụng `is_active` ở nhánh update: Page người dùng đã tắt/gỡ không tự bật lại khi nối lại.
     await this.prisma.facebookPage.upsert({
       where: { page_id: p.id },
       update: common,
-      create: { page_id: p.id, ...common, default_assignee_id: userId, contact_source_id: sourceId, connected_by: userId },
+      create: { page_id: p.id, ...common, is_active: true, default_assignee_id: userId, contact_source_id: sourceId, connected_by: userId },
     });
+  }
+
+  /**
+   * Phần đăng bài (Đăng đa kênh) của cùng Page, cùng lần nối. Kênh đã `disabled` (người dùng gỡ) thì chỉ làm mới token/tên, giữ `disabled`.
+   * Trả true nếu Page có phần đăng bài sau lần nối này.
+   */
+  private async saveSocialAccount(p: GraphPage, granted: readonly string[], userId: number, key: Buffer): Promise<boolean> {
+    if (!canPostToPage(granted, p.tasks)) return false;
+    const where = { network_external_id: { network: 'facebook', external_id: p.id } };
+    const existing = await this.prisma.socialAccount.findUnique({ where });
+    const data = {
+      name: p.name.slice(0, 200),
+      avatar_url: p.picture?.data?.url ?? null,
+      access_token_enc: encryptSecret(p.access_token, key),
+      refresh_token_enc: null,
+      token_expires_at: null,
+      scopes: FACEBOOK_SOCIAL_SCOPES.filter((x) => granted.includes(x)).join(' '),
+      connected_by: userId,
+    };
+    if (!existing) {
+      await this.prisma.socialAccount.create({ data: { network: 'facebook', external_id: p.id, ...data, status: 'active', last_error: null } });
+      return true;
+    }
+    if (existing.status === 'disabled') {
+      await this.prisma.socialAccount.update({ where: { id: existing.id }, data });
+      return false;
+    }
+    await this.prisma.socialAccount.update({ where: { id: existing.id }, data: { ...data, status: 'active', last_error: null } });
+    return true;
+  }
+
+  /** Trạng thái phần đăng bài theo `social_accounts`: 'on' (đang dùng) | 'removed' (người dùng đã gỡ) | null (chưa nối). */
+  private async postingMap(pageIds: string[]): Promise<Map<string, 'on' | 'removed'>> {
+    if (!pageIds.length) return new Map();
+    const rows = await this.prisma.socialAccount.findMany({ where: { network: 'facebook', external_id: { in: pageIds } }, select: { external_id: true, status: true } });
+    return new Map(rows.map((r) => [r.external_id, r.status === 'disabled' ? ('removed' as const) : ('on' as const)]));
   }
 
   async list() {
     const rows = await this.prisma.facebookPage.findMany({ orderBy: { id: 'asc' } });
-    return rows.map(toPageView);
+    const posting = await this.postingMap(rows.map((r) => r.page_id));
+    return rows.map((r) => toPageView(r, posting.get(r.page_id) ?? null));
   }
 
   private async find(id: number): Promise<FacebookPage> {
@@ -152,24 +212,29 @@ export class FacebookPagesService {
   }
 
   async update(id: number, input: UpdatePageInput, actor: AuthUser) {
-    await this.find(id);
+    const current = await this.find(id);
+    if (input.is_active === true && !current.token_enc) throw new BadRequestException('Kết nối lại Facebook để bật lại Page này');
     if (input.default_assignee_id !== undefined) await this.assertAssignable(actor, input.default_assignee_id);
     if (input.contact_source_id !== undefined) {
       const o = await this.prisma.settingOption.findUnique({ where: { id: input.contact_source_id }, select: { group_key: true, is_active: true } });
       if (!o || o.group_key !== 'contact_source' || !o.is_active) throw new BadRequestException('Nguồn khách không hợp lệ hoặc đang tắt');
     }
-    return toPageView(await this.prisma.facebookPage.update({ where: { id }, data: input }));
+    const row = await this.prisma.facebookPage.update({ where: { id }, data: input });
+    return toPageView(row, (await this.postingMap([row.page_id])).get(row.page_id) ?? null);
   }
 
-  /** Ngắt kết nối: huỷ đăng ký webhook (best-effort) rồi xoá token. Hội thoại/tin cũ được giữ. */
+  /** Ngắt kết nối: huỷ đăng ký webhook (best-effort), xoá token, tắt Page — dòng được giữ. Hội thoại/tin cũ được giữ. */
   async disconnect(id: number): Promise<void> {
     const p = await this.find(id);
-    try {
-      await this.graph.unsubscribePage(p.page_id, decryptSecret(p.token_enc, this.key()));
-    } catch (err) {
-      this.logger.warn(`Huỷ đăng ký webhook Page ${p.page_id}: ${(err as Error).message}`);
+    if (p.token_enc) {
+      try {
+        await this.graph.unsubscribePage(p.page_id, decryptSecret(p.token_enc, this.key()));
+      } catch (err) {
+        this.logger.warn(`Huỷ đăng ký webhook Page ${p.page_id}: ${(err as Error).message}`);
+      }
     }
-    await this.prisma.facebookPage.delete({ where: { id } });
+    // Giữ dòng (không xoá) để nối lại không tự bật lại Page đã gỡ và hội thoại cũ vẫn có tên Page.
+    await this.prisma.facebookPage.update({ where: { id }, data: { is_active: false, token_enc: '', subscribed: false } });
   }
 
   /**
@@ -207,6 +272,7 @@ export class FacebookPagesService {
   /** Kiểm hạn/hiệu lực token ngay (nút "Kiểm tra"); token còn sống thì đăng ký lại webhook với đủ trường hiện hành. */
   async checkToken(id: number) {
     const p = await this.find(id);
+    if (!p.token_enc) throw new BadRequestException('Page đã ngắt — kết nối lại Facebook để dùng');
     let data: Partial<FacebookPage>;
     try {
       const token = decryptSecret(p.token_enc, this.key());
@@ -222,13 +288,14 @@ export class FacebookPagesService {
       if (err instanceof GraphApiError && err.isTokenError) data = { token_status: 'invalid' };
       else throw new ServiceUnavailableException('Không kiểm tra được token với Facebook, thử lại sau.');
     }
-    return toPageView(await this.prisma.facebookPage.update({ where: { id }, data: { ...data, token_checked_at: new Date() } }));
+    const row = await this.prisma.facebookPage.update({ where: { id }, data: { ...data, token_checked_at: new Date() } });
+    return toPageView(row, (await this.postingMap([row.page_id])).get(row.page_id) ?? null);
   }
 
   /** Page + token giải mã cho nội bộ (gửi tin, lấy lead). Page tắt/không có ⇒ null. */
   async activePageWithToken(pageId: string): Promise<{ page: FacebookPage; token: string } | null> {
     const page = await this.prisma.facebookPage.findUnique({ where: { page_id: pageId } });
-    if (!page || !page.is_active) return null;
+    if (!page || !page.is_active || !page.token_enc) return null;
     return { page, token: decryptSecret(page.token_enc, this.key()) };
   }
 

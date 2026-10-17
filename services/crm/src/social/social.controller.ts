@@ -77,6 +77,14 @@ export class SocialController {
     return this.accounts.connectUrl(dto.network, user);
   }
 
+  @Post('accounts/:id/enable')
+  @HttpCode(HttpStatus.OK)
+  @Can('social.manage')
+  @ApiOperation({ summary: 'Bật lại kênh đã gỡ (chỉ khi còn token; không thì liên kết lại)' })
+  async enableAccount(@Param('id', ParseIntPipe) id: number) {
+    return { data: await this.accounts.enable(id) };
+  }
+
   @Delete('accounts/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Can('social.manage')

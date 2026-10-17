@@ -33,6 +33,10 @@ export interface FacebookPageView {
   contact_source_id: number
   is_active: boolean
   created_at: string
+  /** Phần Đăng đa kênh của cùng Page: đang dùng / đã gỡ / chưa nối. */
+  posting: "on" | "removed" | null
+  /** Đã ngắt kết nối: tắt và không còn token — phải kết nối lại để dùng. */
+  disconnected: boolean
 }
 
 export interface FacebookConversation {

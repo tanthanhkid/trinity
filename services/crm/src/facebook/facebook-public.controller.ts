@@ -56,7 +56,7 @@ export class FacebookPublicController {
     if (error || !code || !state) return back('facebook=cancelled');
     try {
       const r = await this.pages.handleCallback(code, state);
-      return back(`facebook=connected&pages=${r.connected}&failed=${r.failed}`);
+      return back(`facebook=connected&pages=${r.connected}&failed=${r.failed}&posting=${r.posting}`);
     } catch {
       return back('facebook=error');
     }

@@ -88,7 +88,7 @@ export const getConnectedChannelsTool: ToolDef = {
   title: 'Kênh đã kết nối / Connected channels',
   description:
     'Liệt kê các kênh đã kết nối với Trinity: Fanpage Facebook, Zalo OA, kênh đăng bài (Fanpage, YouTube), thanh toán (SePay, VNPay, MoMo), kết nối bán hàng, trang bán hàng. ' +
-    'Mỗi kênh đã nối có trạng thái (ok = đang chạy, attention = cần kết nối lại hoặc có lỗi, off = đã nối nhưng đang tắt), một dòng ghi chú và số liệu hôm nay (tin nhắn mới, bài đã đăng, lượt thanh toán, đơn mới). ' +
+    'Fanpage có thêm posting (on = đã nối Đăng đa kênh, removed = đã gỡ, null = chưa nối). Mỗi kênh đã nối có trạng thái (ok = đang chạy, attention = cần kết nối lại hoặc có lỗi, off = đã nối nhưng đang tắt), một dòng ghi chú và số liệu hôm nay (tin nhắn mới, bài đã đăng, lượt thanh toán, đơn mới). ' +
     'available = tính năng đang bật nhưng chưa nối kênh nào (gợi ý nối thêm). Bật/tắt cả tính năng thì dùng set_features (vd payments = thanh toán SePay/VNPay/MoMo). Chỉ thấy nhóm kênh hợp quyền của người dùng. Chỉ đọc. / Connected channels with status and today\'s counts. Read-only.',
   permissions: [],
   input: () => ({}),

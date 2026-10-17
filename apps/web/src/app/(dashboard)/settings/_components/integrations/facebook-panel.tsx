@@ -21,6 +21,8 @@ import { TOKEN_STATUS_LABELS, useFacebookPageMutations, useFacebookPages, useFac
 import { useAssignableUsers, useContactSourceOptions } from "./use-webhooks"
 import { apiErrorMessage, type SimpleOption } from "./webhook-types"
 
+const POSTING_LABELS = { on: "đã nối", removed: "đã gỡ", null: "chưa nối" } as const
+
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("vi-VN") : null)
 
 function Row({ k, v }: { k: string; v: string }) {
@@ -65,10 +67,15 @@ function PageCard({ p, assignees, sources, canTransfer }: { p: FacebookPageView;
             <p className="flex items-center gap-1.5 truncate font-medium"><MessagesSquare className="size-4 shrink-0 text-blue-600" />{p.name}</p>
             <p className="text-xs text-muted-foreground">ID {p.page_id}</p>
           </div>
-          <Switch checked={p.is_active} onCheckedChange={(v) => patch({ is_active: v })} aria-label="Bật/tắt nhận tin của Fanpage" />
+          <Switch checked={p.is_active} disabled={p.disconnected} onCheckedChange={(v) => patch({ is_active: v })} aria-label="Bật/tắt nhận tin của Fanpage" />
         </div>
+        <p className="text-xs text-muted-foreground" data-testid="fb-page-posting">Đăng bài: {POSTING_LABELS[p.posting ?? "null"]}</p>
         {/* Page đã tắt: không nhận tin/lead nữa, dù token còn hạn — không hiện như đang kết nối bình thường. */}
-        {!p.is_active ? (
+        {p.disconnected ? (
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid="fb-page-disconnected">
+            <PauseCircle className="size-3.5" />Đã ngắt — kết nối lại để bật
+          </p>
+        ) : !p.is_active ? (
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid="fb-page-off">
             <PauseCircle className="size-3.5" />Đã tắt: không nhận tin nhắn, bình luận và lead từ Fanpage này. Bật công tắc để nhận lại.
           </p>
@@ -86,12 +93,12 @@ function PageCard({ p, assignees, sources, canTransfer }: { p: FacebookPageView;
           <OptionSelect label="Nguồn khách" value={String(p.contact_source_id)} options={opts(sources)} onChange={(v) => patch({ contact_source_id: Number(v) })} placeholder="Chọn nguồn" className="h-9 w-full max-sm:h-11" />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" disabled={m.check.isPending} onClick={() => m.check.mutate(p.id, { onSuccess: (r) => toast.success(TOKEN_STATUS_LABELS[r.token_status]), onError: (e) => toast.error(apiErrorMessage(e, "Không kiểm tra được")) })} className="max-sm:h-11">
+          {!p.disconnected && <Button variant="outline" size="sm" disabled={m.check.isPending} onClick={() => m.check.mutate(p.id, { onSuccess: (r) => toast.success(TOKEN_STATUS_LABELS[r.token_status]), onError: (e) => toast.error(apiErrorMessage(e, "Không kiểm tra được")) })} className="max-sm:h-11">
             {m.check.isPending && <Loader2 className="mr-1 size-4 animate-spin" />}Kiểm tra token
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setConfirm(true)} className="max-sm:h-11 text-red-600">Ngắt kết nối</Button>
+          </Button>}
+          {!p.disconnected && <Button variant="outline" size="sm" onClick={() => setConfirm(true)} className="max-sm:h-11 text-red-600">Ngắt kết nối</Button>}
         </div>
-        <ConfirmDialog open={confirm} onOpenChange={setConfirm} pending={m.remove.isPending} title={`Ngắt kết nối "${p.name}"?`} description="Huỷ đăng ký webhook và xoá token. Hội thoại và khách đã tạo được giữ nguyên." confirmLabel="Ngắt kết nối" onConfirm={() => m.remove.mutate(p.id, { onSuccess: () => { setConfirm(false); toast.success("Đã ngắt kết nối") }, onError: (e) => toast.error(apiErrorMessage(e, "Không ngắt được")) })} />
+        <ConfirmDialog open={confirm} onOpenChange={setConfirm} pending={m.remove.isPending} title={`Ngắt kết nối "${p.name}"?`} description="Huỷ đăng ký webhook, xoá token và tắt Page này. Hội thoại và khách đã tạo được giữ nguyên. Nối lại Facebook sau này sẽ không tự bật lại Page đã ngắt." confirmLabel="Ngắt kết nối" onConfirm={() => m.remove.mutate(p.id, { onSuccess: () => { setConfirm(false); toast.success("Đã ngắt kết nối") }, onError: (e) => toast.error(apiErrorMessage(e, "Không ngắt được")) })} />
       </CardContent>
     </Card>
   )
@@ -112,11 +119,15 @@ export function FacebookPanel() {
   const [view, setView] = useState<"pages" | "comments" | "links" | "flows" | "broadcasts">(
     xem === "binh-luan" ? "comments" : xem === "link-chat" ? "links" : xem === "kich-ban" ? "flows" : xem === "gui-hang-loat" ? "broadcasts" : "pages",
   )
+  const livePages = (pages.data ?? []).filter((p) => !p.disconnected)
   const assignees: SimpleOption[] = canTransfer ? (roster.data ?? []) : me ? [{ id: me.id, label: me.full_name }] : []
 
   const result = params.get("facebook")
   useEffect(() => {
-    if (result === "connected") toast.success(`Đã kết nối ${params.get("pages") ?? ""} Fanpage`)
+    if (result === "connected") {
+      const n = Number(params.get("posting") ?? 0)
+      toast.success(`Đã kết nối ${params.get("pages") ?? ""} Fanpage` + (n > 0 ? `, ${n} Page dùng được cả để đăng bài` : ""))
+    }
     else if (result === "cancelled") toast.message("Đã huỷ kết nối Facebook")
     else if (result === "error") toast.error("Kết nối Facebook thất bại — kiểm tra cấu hình ứng dụng rồi thử lại")
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -138,10 +149,10 @@ export function FacebookPanel() {
         <Button variant={view === "broadcasts" ? "soft" : "outline"} aria-pressed={view === "broadcasts"} onClick={() => setView("broadcasts")}>Gửi hàng loạt</Button>
       </div>
 
-      {view === "links" && <FacebookChatLinks pages={pages.data ?? []} sources={sources.data ?? []} highlight={Number(params.get("link")) || undefined} />}
-      {view === "flows" && <FacebookFlows pages={pages.data ?? []} highlight={Number(params.get("kich-ban")) || undefined} />}
-      {view === "broadcasts" && <FacebookBroadcasts pages={pages.data ?? []} sources={sources.data ?? []} highlight={Number(params.get("luot")) || undefined} />}
-      {view === "comments" && <FacebookComments pages={pages.data ?? []} enabled={!!status.data?.comment_automation} />}
+      {view === "links" && <FacebookChatLinks pages={livePages} sources={sources.data ?? []} highlight={Number(params.get("link")) || undefined} />}
+      {view === "flows" && <FacebookFlows pages={livePages} highlight={Number(params.get("kich-ban")) || undefined} />}
+      {view === "broadcasts" && <FacebookBroadcasts pages={livePages} sources={sources.data ?? []} highlight={Number(params.get("luot")) || undefined} />}
+      {view === "comments" && <FacebookComments pages={livePages} enabled={!!status.data?.comment_automation} />}
 
       {view === "pages" && (
         <>

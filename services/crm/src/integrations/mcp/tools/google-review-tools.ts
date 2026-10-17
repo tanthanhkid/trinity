@@ -13,7 +13,7 @@ const MANAGE = '/social?tab=channels';
 /** account_id bỏ trống ⇒ dùng địa điểm duy nhất; nhiều địa điểm thì liệt kê để chọn. */
 async function gbpAccount(deps: Pick<McpDeps, 'social' | 'orgFeatures'>, accountId: unknown) {
   const s = await socialDeps(deps);
-  const places = (await s.accounts.list()).filter((a) => a.network === 'google_business');
+  const places = (await s.accounts.list()).filter((a) => a.network === 'google_business' && !a.removed);
   if (typeof accountId === 'number') {
     const a = places.find((p) => p.id === accountId);
     if (!a) throw new ToolUserError(`account_id ${accountId} không phải địa điểm Google Business đã liên kết. / Not a linked Google Business location.`);

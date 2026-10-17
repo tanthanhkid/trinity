@@ -155,10 +155,12 @@ export class GraphClient {
   }
 
   /** Gửi tin văn bản — `messaging_type: RESPONSE` (trong cửa sổ 24h). */
-  async sendText(pageToken: string, psid: string, text: string): Promise<{ message_id: string }> {
+  /** `humanAgent`: tin nhân viên gõ, 24h–7 ngày sau tin khách — gửi `MESSAGE_TAG` + `HUMAN_AGENT`. */
+  async sendText(pageToken: string, psid: string, text: string, opts: { humanAgent?: boolean } = {}): Promise<{ message_id: string }> {
+    const kind = opts.humanAgent ? { messaging_type: 'MESSAGE_TAG', tag: 'HUMAN_AGENT' } : { messaging_type: 'RESPONSE' };
     return this.call<{ message_id: string }>('POST', 'me/messages', {
       token: pageToken,
-      body: { recipient: { id: psid }, messaging_type: 'RESPONSE', message: { text } },
+      body: { recipient: { id: psid }, ...kind, message: { text } },
     });
   }
 

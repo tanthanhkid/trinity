@@ -183,9 +183,9 @@ describe('FacebookMessengerService', () => {
     expect(prisma.integrationEvent.create).not.toHaveBeenCalled();
   });
 
-  it('quá 24 giờ theo dữ liệu đã lưu ⇒ kéo tin từ Facebook trước; khách có nhắn mới thì gửi được', async () => {
+  it('quá hạn theo dữ liệu đã lưu ⇒ kéo tin từ Facebook trước; khách có nhắn mới thì gửi được', async () => {
     const { svc, prisma, graph } = mk();
-    const old = new Date(Date.now() - 3 * 86_400_000);
+    const old = new Date(Date.now() - 8 * 86_400_000);
     const fresh = new Date(Date.now() - 60_000);
     const conv = { id: 3, page_id: '111', psid: 'u1', contact_id: null, last_inbound_at: old, last_message_at: old };
     prisma.facebookConversation.findUnique.mockResolvedValueOnce(conv).mockResolvedValue({ ...conv, last_inbound_at: fresh, last_message_at: fresh });
@@ -202,15 +202,15 @@ describe('FacebookMessengerService', () => {
     const mids = prisma.facebookMessage.create.mock.calls.map((c) => c[0].data.mid);
     expect(mids[0]).toBe('m_new');
     expect(mids).not.toContain('m_old');
-    expect(graph.sendText).toHaveBeenCalledWith('PAGE_TOKEN', 'u1', 'Dạ còn ạ');
+    expect(graph.sendText).toHaveBeenCalledWith('PAGE_TOKEN', 'u1', 'Dạ còn ạ', { humanAgent: false });
   });
 
-  it('Facebook cũng không có tin mới ⇒ vẫn chặn vì quá 24 giờ', async () => {
+  it('Facebook cũng không có tin mới ⇒ vẫn chặn vì quá 7 ngày', async () => {
     const { svc, prisma, graph } = mk();
-    const old = new Date(Date.now() - 3 * 86_400_000);
+    const old = new Date(Date.now() - 8 * 86_400_000);
     prisma.facebookConversation.findUnique.mockResolvedValue({ id: 3, page_id: '111', psid: 'u1', contact_id: null, last_inbound_at: old, last_message_at: old });
     Object.assign(graph, { getRecentMessages: jest.fn().mockResolvedValue([]) });
-    await expect(svc.reply(3, 'Dạ', { userId: 5 } as never)).rejects.toThrow(/24 giờ/);
+    await expect(svc.reply(3, 'Dạ', { userId: 5 } as never)).rejects.toThrow(/7 ngày/);
     expect(graph.sendText).not.toHaveBeenCalled();
   });
 
@@ -291,7 +291,7 @@ describe('FacebookMessengerService', () => {
     prisma.facebookConversation.findUnique.mockResolvedValue({ id: 3, page_id: '111', psid: 'u1', last_inbound_at: new Date(Date.now() - 3600_000) });
     prisma.facebookMessage.create.mockResolvedValue({ id: 10n, mid: 'm.out1' });
     const r = await svc.reply(3, '  Chào anh  ', actor);
-    expect(graph.sendText).toHaveBeenCalledWith('PAGE_TOKEN', 'u1', 'Chào anh');
+    expect(graph.sendText).toHaveBeenCalledWith('PAGE_TOKEN', 'u1', 'Chào anh', { humanAgent: false });
     expect(prisma.facebookMessage.create.mock.calls[0][0].data).toMatchObject({ mid: 'm.out1', direction: 'out', sent_by_user_id: 5 });
     expect(r.id).toBe('10');
     expect(prisma.activity.create).not.toHaveBeenCalled(); // hội thoại chưa gắn khách
@@ -312,11 +312,23 @@ describe('FacebookMessengerService', () => {
     expect(prisma.activity.create).not.toHaveBeenCalled();
   });
 
-  it('reply quá 24h: 400 và KHÔNG gọi Graph', async () => {
+  it('reply quá 7 ngày: 400 và KHÔNG gọi Graph', async () => {
     const { svc, prisma, graph } = mk();
-    prisma.facebookConversation.findUnique.mockResolvedValue({ id: 3, page_id: '111', psid: 'u1', last_inbound_at: new Date(Date.now() - 25 * 3600_000) });
-    await expect(svc.reply(3, 'hi', actor)).rejects.toThrow(BadRequestException);
+    Object.assign(graph, { getRecentMessages: jest.fn().mockResolvedValue([]) });
+    prisma.facebookConversation.findUnique.mockResolvedValue({ id: 3, page_id: '111', psid: 'u1', last_inbound_at: new Date(Date.now() - 8 * 86_400_000), last_message_at: null });
+    await expect(svc.reply(3, 'hi', actor)).rejects.toThrow(/quá 7 ngày/);
     expect(graph.sendText).not.toHaveBeenCalled();
+  });
+
+  it('reply 24h–7 ngày: gửi kèm thẻ HUMAN_AGENT; Meta chưa duyệt quyền ⇒ 400 "Cần Meta duyệt quyền Human Agent"', async () => {
+    const { svc, prisma, graph } = mk();
+    Object.assign(graph, { getRecentMessages: jest.fn().mockResolvedValue([]) });
+    prisma.facebookConversation.findUnique.mockResolvedValue({ id: 3, page_id: '111', psid: 'u1', last_inbound_at: new Date(Date.now() - 3 * 86_400_000), last_message_at: null });
+    prisma.facebookMessage.create.mockResolvedValue({ id: 11n, mid: 'm.out1' });
+    await svc.reply(3, 'Dạ', actor);
+    expect(graph.sendText).toHaveBeenCalledWith('PAGE_TOKEN', 'u1', 'Dạ', { humanAgent: true });
+    graph.sendText.mockRejectedValueOnce(new GraphApiError(400, 10, 2018278, 'outside window'));
+    await expect(svc.reply(3, 'Dạ', actor)).rejects.toThrow(/Cần Meta duyệt quyền Human Agent/);
   });
 
   it('reply: Meta báo ngoài cửa sổ (đồng hồ lệch) ⇒ 400; token chết ⇒ 503 và đánh dấu Page', async () => {

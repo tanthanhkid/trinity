@@ -15,8 +15,17 @@ Page fields `feed` (comments) and `messages`.
 ## Messages the webhook did not deliver
 Opening a Messenger conversation reads its latest 20 messages straight from Facebook (at most once a minute per conversation) and stores
 the ones newer than the last stored message, exactly as if the webhook had delivered them. Replying (in the inbox or with
-`reply_to_customer`) when the stored messages say the 24-hour window has closed first asks Facebook the same way, so a customer who wrote
+`reply_to_customer`) when the stored messages say the standard 24-hour window has closed first asks Facebook the same way, so a customer who wrote
 while the webhook pointed elsewhere, or while the Page was switched off, can still be answered. The Page must be connected and switched on.
+
+## Reply window: 24 hours, up to 7 days for staff
+- Within 24 hours of the customer's last message: a normal reply (`messaging_type = RESPONSE`).
+- 24 hours to 7 days: only a person can reply (inbox, or `reply_to_customer` after the user approves the text). The message is sent with
+  `messaging_type = MESSAGE_TAG`, `tag = HUMAN_AGENT`. The inbox shows "Trả lời trong 7 ngày (nhân viên)". Flows, broadcasts and comment
+  rules are automatic and keep the 24-hour limit.
+- After 7 days the reply box is locked until the customer writes again.
+- The HUMAN_AGENT tag needs the **Human Agent** permission approved by Meta (App Review). Until then Facebook refuses these messages and
+  the inbox says "Cần Meta duyệt quyền Human Agent". Conversations and AI tools expose `reply_mode` (`standard` | `human_agent` | `closed`).
 
 ## Turning a Page off, and reconnecting
 Under **Connections › Facebook Page** each Page can be switched off (`is_active = false`): its events are ignored and it is not offered for

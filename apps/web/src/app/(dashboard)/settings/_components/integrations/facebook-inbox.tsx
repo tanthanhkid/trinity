@@ -8,7 +8,7 @@ import {
   Composer, ConversationItem, InboxEmpty, InboxFrame, InboxListToolbar, awaitingReply, MessageThread, SideSection, StatusPill, ThreadHeader,
   inboxTimeLabel, type InboxMessage,
 } from "@/components/inbox/inbox-ui"
-import { useFacebookConversations, useFacebookMessages, useFacebookReply, type FacebookConversation } from "./use-facebook"
+import { messengerReplyLabel, useFacebookConversations, useFacebookMessages, useFacebookReply, type FacebookConversation } from "./use-facebook"
 import { apiErrorMessage } from "./webhook-types"
 import { isChannelOff } from "@/lib/channel-off"
 
@@ -43,16 +43,22 @@ export function FacebookThread({ id, onBack }: { id: number; onBack: () => void 
         sub={conv ? (conv.page_name ? `Messenger · ${conv.page_name}` : "Messenger") : ""}
         channel="facebook"
         onBack={onBack}
-        aside={conv ? <StatusPill tone={conv.can_reply ? "ok" : "warn"}>{conv.can_reply ? "Trả lời được" : "Quá 24 giờ"}</StatusPill> : null}
+        aside={conv ? <StatusPill tone={conv.can_reply && conv.reply_mode !== "human_agent" ? "ok" : "warn"}>{conv.can_reply ? (conv.reply_mode === "human_agent" ? "Trả lời trong 7 ngày (nhân viên)" : "Trả lời được") : "Quá 7 ngày"}</StatusPill> : null}
       />
       <MessageThread messages={items} loading={q.isLoading} error={q.isError} />
       {conv && !conv.can_reply ? (
         <div className="border-t border-[var(--border)] bg-[var(--card)] px-4 py-3">
           <p className="text-sm text-[var(--color-app-tag-amber-ink)]">
-            Đã quá 24 giờ kể từ tin nhắn gần nhất của khách — Messenger không cho gửi tin chủ động. Có thể trả lời khi khách nhắn lại (hoặc trả lời trong Inbox của Fanpage).
+            Đã quá 7 ngày kể từ tin nhắn gần nhất của khách — Messenger không cho gửi tin chủ động. Có thể trả lời khi khách nhắn lại (hoặc trả lời trong Inbox của Fanpage).
           </p>
         </div>
       ) : (
+        <>
+        {conv?.reply_mode === "human_agent" && (
+          <p className="border-t border-[var(--border)] bg-[var(--card)] px-4 pt-2 text-xs text-[var(--color-app-tag-amber-ink)]">
+            Khách nhắn đã quá 24 giờ: chỉ nhân viên trả lời trực tiếp, trong 7 ngày kể từ tin cuối của khách.
+          </p>
+        )}
         <Composer
           value={text}
           onChange={setText}
@@ -62,6 +68,7 @@ export function FacebookThread({ id, onBack }: { id: number; onBack: () => void 
           ariaLabel="Nội dung trả lời"
           maxLength={2000}
         />
+        </>
       )}
     </>
   )
@@ -82,7 +89,7 @@ export function FacebookCustomerSide({ c }: { c: FacebookConversation }) {
         title="Hội thoại Messenger"
         rows={[
           { label: "Tin khách gần nhất", value: c.last_inbound_at ? formatDateTimeVn(c.last_inbound_at) : "—" },
-          { label: "Trả lời", value: c.can_reply ? "Còn trong 24 giờ" : "Quá 24 giờ" },
+          { label: "Trả lời", value: messengerReplyLabel(c) },
         ]}
       />
     </>
@@ -139,7 +146,7 @@ export function FacebookInbox({ listTop, className, initialOpenId }: { listTop?:
                   unread={c.unread_count}
                   active={openId === c.id}
                   channel="facebook"
-                  dot={{ tone: c.can_reply ? "open" : "closed", label: c.can_reply ? "Còn trong 24 giờ trả lời" : "Quá 24 giờ" }}
+                  dot={{ tone: c.can_reply ? "open" : "closed", label: messengerReplyLabel(c) }}
                   onClick={() => setOpenId(c.id)}
                 />
               </li>

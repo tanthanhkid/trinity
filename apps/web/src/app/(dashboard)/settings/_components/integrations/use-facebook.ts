@@ -50,6 +50,8 @@ export interface FacebookConversation {
   last_message_preview: string | null
   unread_count: number
   can_reply: boolean
+  /** standard: trong 24 giờ · human_agent: 24 giờ–7 ngày, chỉ nhân viên trả lời (thẻ Human Agent) · closed: quá 7 ngày. */
+  reply_mode?: "standard" | "human_agent" | "closed"
 }
 
 export interface FacebookMessage {
@@ -467,4 +469,10 @@ export function useFacebookDueTicker(enabled: boolean) {
     retry: false,
     staleTime: 20_000,
   })
+}
+
+/** Nhãn cửa sổ trả lời Messenger của một hội thoại. */
+export function messengerReplyLabel(c: Pick<FacebookConversation, "can_reply" | "reply_mode">): string {
+  if (!c.can_reply) return "Quá 7 ngày"
+  return c.reply_mode === "human_agent" ? "Trả lời trong 7 ngày (nhân viên)" : "Còn trong 24 giờ trả lời"
 }

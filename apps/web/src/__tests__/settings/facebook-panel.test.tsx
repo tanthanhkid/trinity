@@ -37,13 +37,13 @@ const conv = (over: Record<string, unknown> = {}) => ({
   last_message_at: "2026-10-07T01:00:00.000Z", last_message_preview: "Giá gói A?", unread_count: 2, can_reply: true, ...over,
 })
 
-function setup(opts: { status?: unknown; pages?: unknown[]; conversations?: unknown[]; canReply?: boolean } = {}) {
+function setup(opts: { status?: unknown; pages?: unknown[]; conversations?: unknown[]; canReply?: boolean; replyMode?: string } = {}) {
   mockGet.mockImplementation(async (url: string) => {
     if (url === "/facebook/status") return { data: opts.status ?? STATUS }
     if (url === "/facebook/pages") return { data: { data: opts.pages ?? [PAGE] } }
     if (url === "/facebook/conversations") return { data: { data: opts.conversations ?? [conv({ can_reply: opts.canReply ?? true })] } }
     if (url === "/facebook/conversations/7/messages") {
-      return { data: { conversation: conv({ can_reply: opts.canReply ?? true }), messages: [
+      return { data: { conversation: conv({ can_reply: opts.canReply ?? true, reply_mode: opts.replyMode }), messages: [
         { id: "1", direction: "in", text: "Giá gói A?", sent_at: "2026-10-07T01:00:00.000Z", sent_by_user_id: null },
         { id: "2", direction: "out", text: "Dạ 5 triệu ạ", sent_at: "2026-10-07T01:05:00.000Z", sent_by_user_id: 5 },
       ] } }
@@ -145,11 +145,19 @@ describe("<FacebookPanel>", () => {
     expect(screen.queryByText(/còn hiệu lực/)).toBeNull()
   })
 
-  it("hộp thư: quá 24h ⇒ không có ô trả lời, hiện lý do", async () => {
-    setup({ canReply: false })
+  it("hộp thư: 24h–7 ngày ⇒ vẫn trả lời được, ghi rõ chỉ nhân viên trong 7 ngày", async () => {
+    setup({ canReply: true, replyMode: "human_agent" })
     renderInbox()
     fireEvent.click(await screen.findByRole("button", { name: /Khách A/ }))
-    await waitFor(() => expect(screen.getByText(/quá 24 giờ/)).toBeTruthy())
+    await waitFor(() => expect(screen.getAllByText("Trả lời trong 7 ngày (nhân viên)").length).toBeGreaterThan(0))
+    expect(screen.getByLabelText("Nội dung trả lời")).toBeTruthy()
+  })
+
+  it("hộp thư: quá 7 ngày ⇒ không có ô trả lời, hiện lý do", async () => {
+    setup({ canReply: false, replyMode: "closed" })
+    renderInbox()
+    fireEvent.click(await screen.findByRole("button", { name: /Khách A/ }))
+    await waitFor(() => expect(screen.getByText(/quá 7 ngày kể từ/)).toBeTruthy())
     expect(screen.queryByLabelText("Nội dung trả lời")).toBeNull()
   })
 })

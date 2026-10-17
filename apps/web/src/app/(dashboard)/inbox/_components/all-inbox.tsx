@@ -10,7 +10,7 @@ import {
 import { useMarkReadZaloOa, useZaloOaThreads } from "@/app/(dashboard)/settings/_components/integrations/zalo-oa/use-zalo-oa"
 import { inConsultWindow, threadTitle, type ZaloOaThread } from "@/app/(dashboard)/settings/_components/integrations/zalo-oa/zalo-oa-types"
 import { ZaloCustomerSide, ZaloThreadView } from "@/app/(dashboard)/settings/_components/integrations/zalo-oa/zalo-oa-inbox"
-import { useFacebookConversations, type FacebookConversation } from "@/app/(dashboard)/settings/_components/integrations/use-facebook"
+import { messengerReplyLabel, useFacebookConversations, type FacebookConversation } from "@/app/(dashboard)/settings/_components/integrations/use-facebook"
 import { FacebookCustomerSide, FacebookThread, facebookCustomerName } from "@/app/(dashboard)/settings/_components/integrations/facebook-inbox"
 
 /** Một dòng của danh sách gộp — giữ bản ghi gốc để mở đúng màn hội thoại của kênh đó. */
@@ -86,7 +86,7 @@ export function AllInbox({ listTop, className }: { listTop?: ReactNode; classNam
             const dotLabel =
               r.channel === "zalo"
                 ? open ? "Còn trong 48 giờ trả lời" : "Quá 48 giờ — chỉ gửi được ZNS"
-                : open ? "Còn trong 24 giờ trả lời" : "Quá 24 giờ"
+                : messengerReplyLabel(r.source)
             return (
               <li key={r.key}>
                 <ConversationItem

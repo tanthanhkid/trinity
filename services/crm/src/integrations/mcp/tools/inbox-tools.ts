@@ -2,7 +2,8 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { can } from '@trinity/rbac';
 import { wrapData } from '../ai-output';
 import { isUserConfirmation } from '../actions/user-confirmation';
-import { isWithinMessagingWindow } from '../../../facebook/channel';
+import { HUMAN_AGENT_WINDOW_MS, isWithinMessagingWindow, messengerReplyMode } from '../../../facebook/channel';
+import { MESSENGER_CLOSED } from '../../../facebook/facebook-messenger.service';
 import { PRIVATE_REPLY_WINDOW_MS, postLink, privateReplied } from '../../../facebook/facebook-comments.service';
 import { ZaloOaMessagingService } from '../../../zalo-oa/zalo-oa-messaging.service';
 import { vnIso } from './ai-activity-tool';
@@ -10,7 +11,7 @@ import { ToolUserError, rejectDigitProbe, type McpDeps, type ToolDef } from './t
 
 /**
  * Hộp thư chung cho AI: tin/bình luận khách CHƯA ai trả lời trên Messenger, bình luận Fanpage, Zalo OA — và trả lời từ đó.
- * Trả lời đi thẳng tới khách ⇒ hai bước (xem trước → `confirmed_by_user`). Giữ luật kênh: Messenger 24 giờ, Zalo OA 48 giờ,
+ * Trả lời đi thẳng tới khách ⇒ hai bước (xem trước → `confirmed_by_user`). Giữ luật kênh: Messenger 24 giờ (tới 7 ngày với thẻ Human Agent), Zalo OA 48 giờ,
  * nhắn riêng bình luận 1 lần trong 7 ngày.
  */
 const INBOX_URL = '/connections?muc=facebook';
@@ -27,7 +28,7 @@ export const listUnansweredMessagesTool: ToolDef = {
   title: 'Tin và bình luận khách chưa trả lời / List unanswered customer messages',
   description:
     'Tin nhắn và bình luận của khách CHƯA ai trả lời, gom từ: Messenger của Fanpage (channel = messenger), bình luận dưới bài Fanpage (channel = facebook_comment, 7 ngày gần nhất), Zalo OA (channel = zalo_oa, cần quyền sửa khách hàng). ' +
-    'Mỗi mục có id (dùng cho reply_to_customer), tên khách, nội dung gần nhất, thời điểm, can_reply (còn trong cửa sổ kênh cho phép trả lời: Messenger 24 giờ, Zalo OA 48 giờ), reply_deadline, contact_url. ' +
+    'Mỗi mục có id (dùng cho reply_to_customer), tên khách, nội dung gần nhất, thời điểm, can_reply (còn trong cửa sổ kênh cho phép trả lời: Messenger 7 ngày — quá 24 giờ thì reply_mode = human_agent, chỉ người thật trả lời; Zalo OA 48 giờ), reply_deadline, contact_url. ' +
     'Bình luận có can_private_reply (còn nhắn riêng được: 1 lần, trong 7 ngày). Chỉ đọc. / ' +
     'Customer messages and comments nobody has answered yet across Messenger, Facebook Page comments (last 7 days) and Zalo OA, with ids for reply_to_customer and whether the channel still allows a reply. Read-only.',
   permissions: ['integrations.webhooks'],
@@ -55,7 +56,8 @@ export const listUnansweredMessagesTool: ToolDef = {
           last_message: c.last_message_preview,
           at: c.last_inbound_at ? vnIso(c.last_inbound_at) : null,
           can_reply: c.can_reply,
-          reply_deadline: c.last_inbound_at ? vnIso(new Date(c.last_inbound_at.getTime() + 24 * 3600 * 1000)) : null,
+          reply_mode: c.reply_mode,
+          reply_deadline: c.last_inbound_at ? vnIso(new Date(c.last_inbound_at.getTime() + HUMAN_AGENT_WINDOW_MS)) : null,
           contact_url: contactUrl(c.contact_id),
         }));
       }
@@ -107,7 +109,7 @@ export const replyToCustomerTool: ToolDef = {
   description:
     'Trả lời một tin/bình luận lấy từ list_unanswered_messages hoặc list_conversations (id dạng messenger:12, facebook_comment:34, zalo_oa:5). ' +
     'Bình luận: comment_mode = public (trả lời dưới bình luận, ai cũng thấy) hoặc private (nhắn riêng qua Messenger — Facebook chỉ cho 1 lần mỗi bình luận, trong 7 ngày). ' +
-    'Luật kênh: Messenger chỉ trả lời trong 24 giờ kể từ tin cuối của khách; Zalo OA trong 48 giờ — quá hạn thì máy chủ từ chối, báo người dùng. ' +
+    'Luật kênh: Messenger trả lời trong 7 ngày kể từ tin cuối của khách — quá 24 giờ thì tin đi với thẻ Human Agent (chỉ cho câu trả lời do người dùng duyệt, đúng như bước confirmed_by_user); Zalo OA trong 48 giờ — quá hạn thì máy chủ từ chối, báo người dùng. ' +
     'Bước 1: gọi KHÔNG có confirmed_by_user ⇒ không gửi gì, trả bản xem trước. Đưa người dùng xem nội dung. Bước 2: người dùng đồng ý thì gọi lại y hệt, thêm confirmed_by_user = câu đồng ý chép nguyên văn. Cần scope crm.write. / ' +
     'Replies to a Messenger conversation, a Facebook Page comment (public or one-time private reply) or a Zalo OA thread. Call once without confirmed_by_user for a preview, then again with the user approval verbatim.',
   permissions: ['integrations.webhooks'],
@@ -133,8 +135,9 @@ export const replyToCustomerTool: ToolDef = {
       if (!c) throw new ToolUserError('Không tìm thấy hội thoại. / Conversation not found.');
       // Tin khách có thể chưa về qua webhook: hỏi lại Facebook trước khi chặn.
       if (!isWithinMessagingWindow(c.last_inbound_at) && (await deps.facebookMessenger.syncConversation(c, true))) c = (await deps.prisma.facebookConversation.findUnique({ where: { id: c.id } })) ?? c;
-      if (!isWithinMessagingWindow(c.last_inbound_at)) throw new ToolUserError('Đã quá 24 giờ kể từ tin cuối của khách — Messenger không cho gửi. / Outside the 24-hour window.');
-      preview = { channel, customer: c.customer_name, text };
+      const replyMode = messengerReplyMode(c.last_inbound_at);
+      if (replyMode === 'closed') throw new ToolUserError(`${MESSENGER_CLOSED} / Outside the 7-day window.`);
+      preview = { channel, customer: c.customer_name, text, reply_mode: replyMode };
     } else if (channel === 'facebook_comment') {
       if (!deps.facebookComments || !(await deps.orgFeatures.isEnabled('facebook_page'))) throw new ToolUserError('Bình luận Fanpage chưa bật trên máy chủ này. / Facebook comments are not available.');
       const c = await deps.prisma.facebookComment.findUnique({ where: { id: BigInt(rawId) } });
@@ -174,7 +177,7 @@ export const listConversationsTool: ToolDef = {
   title: 'Các hội thoại Messenger và Zalo OA / List inbox conversations',
   description:
     'Các hội thoại với khách trong hộp thư chung của Trinity, mới nhắn trước: Messenger của Fanpage (channel = messenger) và Zalo OA (channel = zalo_oa, cần quyền sửa khách hàng). Gồm cả hội thoại đã trả lời; muốn chỉ những tin chưa ai trả lời thì dùng list_unanswered_messages. ' +
-    'Mỗi hội thoại có id (dùng cho get_conversation_messages và reply_to_customer), tên khách, tin gần nhất, last_message_at, unread (số tin chưa đọc), awaiting_reply (tin cuối là của khách), can_reply (còn trong cửa sổ kênh: Messenger 24 giờ, Zalo OA 48 giờ), contact_url. ' +
+    'Mỗi hội thoại có id (dùng cho get_conversation_messages và reply_to_customer), tên khách, tin gần nhất, last_message_at, unread (số tin chưa đọc), awaiting_reply (tin cuối là của khách), can_reply (còn trong cửa sổ kênh: Messenger 7 ngày, quá 24 giờ thì reply_mode = human_agent; Zalo OA 48 giờ), contact_url. ' +
     'search lọc theo tên khách. Chỉ đọc, không đánh dấu đã đọc. / ' +
     'Inbox conversations across Messenger and Zalo OA, newest first, including answered ones; ids work with get_conversation_messages and reply_to_customer. Read-only.',
   permissions: ['integrations.webhooks'],
@@ -210,7 +213,8 @@ export const listConversationsTool: ToolDef = {
           last_message_at: vnIso(c.last_message_at),
           unread: c.unread_count,
           awaiting_reply: Boolean(c.last_inbound_at && c.last_inbound_at.getTime() >= c.last_message_at.getTime()),
-          can_reply: isWithinMessagingWindow(c.last_inbound_at),
+          can_reply: messengerReplyMode(c.last_inbound_at) !== 'closed',
+          reply_mode: messengerReplyMode(c.last_inbound_at),
           contact_url: contactUrl(c.contact_id),
         }));
       }
@@ -270,7 +274,8 @@ export const getConversationMessagesTool: ToolDef = {
       const res = wrapData({
         id: `messenger:${id}`,
         customer: c.customer_name,
-        can_reply: isWithinMessagingWindow(c.last_inbound_at),
+        can_reply: messengerReplyMode(c.last_inbound_at) !== 'closed',
+          reply_mode: messengerReplyMode(c.last_inbound_at),
         contact_url: contactUrl(c.contact_id),
         messages: rows.reverse().map((r) => ({ from: r.direction === 'in' ? 'customer' : 'business', text: r.text, at: vnIso(r.sent_at) })),
       });

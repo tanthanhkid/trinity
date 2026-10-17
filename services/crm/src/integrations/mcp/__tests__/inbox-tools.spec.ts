@@ -31,7 +31,7 @@ function deps(o: { zalo?: boolean; features?: Record<string, boolean> } = {}) {
         ]),
         findUnique: jest.fn(async ({ where }: any) => ({ id: where.id, display_name: 'Hoa', last_inbound_at: where.id === 9 ? old() : recent() })),
       },
-      facebookConversation: { findUnique: jest.fn(async ({ where }: any) => ({ id: where.id, customer_name: 'Lan', last_inbound_at: where.id === 9 ? old() : recent() })) },
+      facebookConversation: { findUnique: jest.fn(async ({ where }: any) => ({ id: where.id, customer_name: 'Lan', last_inbound_at: where.id === 9 ? new Date(Date.now() - 8 * 86_400_000) : where.id === 8 ? old() : recent() })) },
       facebookComment: { findUnique: jest.fn(async () => ({ id: 10n, from_name: 'Minh', message: 'ib', actions: {}, commented_at: recent() })) },
     },
   } as any;
@@ -71,9 +71,16 @@ describe('reply_to_customer', () => {
     await replyToCustomerTool.run({ id: 'zalo_oa:5', text: 'Dạ', confirmed_by_user: 'ok gửi đi' }, ctx(d));
     expect(d.zaloOa.sendText).toHaveBeenCalledWith(5, 'Dạ', 5);
   });
+  it('Messenger 24h–7 ngày ⇒ xem trước ghi reply_mode human_agent, đồng ý thì gửi', async () => {
+    const d = deps();
+    const out = data(await replyToCustomerTool.run({ id: 'messenger:8', text: 'Dạ' }, ctx(d)));
+    expect(out.preview).toMatchObject({ reply_mode: 'human_agent' });
+    await replyToCustomerTool.run({ id: 'messenger:8', text: 'Dạ', confirmed_by_user: 'ok gửi đi' }, ctx(d));
+    expect(d.facebookMessenger.reply).toHaveBeenCalledWith(8, 'Dạ', expect.anything());
+  });
   it('ngoài cửa sổ kênh / id sai ⇒ báo lỗi, không gửi', async () => {
     const d = deps();
-    await expect(replyToCustomerTool.run({ id: 'messenger:9', text: 'Dạ', confirmed_by_user: 'ok gửi đi' }, ctx(d))).rejects.toThrow(/24 giờ/);
+    await expect(replyToCustomerTool.run({ id: 'messenger:9', text: 'Dạ', confirmed_by_user: 'ok gửi đi' }, ctx(d))).rejects.toThrow(/7 ngày/);
     await expect(replyToCustomerTool.run({ id: 'zalo_oa:9', text: 'Dạ', confirmed_by_user: 'ok gửi đi' }, ctx(d))).rejects.toThrow(/48 giờ/);
     await expect(replyToCustomerTool.run({ id: 'x:1', text: 'Dạ' }, ctx(d))).rejects.toThrow(/id không hợp lệ/);
     expect(d.facebookMessenger.reply).not.toHaveBeenCalled();

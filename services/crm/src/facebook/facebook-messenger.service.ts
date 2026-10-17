@@ -3,7 +3,7 @@ import type { FacebookPage } from '@prisma/client';
 import { Prisma, PrismaService } from '@trinity/prisma';
 import { publishMessengerEvent } from './facebook-events';
 import type { AuthUser } from '@trinity/rbac-nest';
-import { isWithinMessagingWindow, type ChannelSendResult, type MessagingChannel } from './channel';
+import { isWithinMessagingWindow, messengerReplyMode, type ChannelSendResult, type MessagingChannel } from './channel';
 import { FacebookPagesService } from './facebook-pages.service';
 import { GraphApiError, GraphClient } from './graph-client';
 import { ChannelNotificationsService } from '../notifications/channel-notifications.service';
@@ -59,6 +59,16 @@ export const placeholderName = (psid: string): string => `Khách Messenger ${psi
  * Cũng là `MessagingChannel` tối thiểu.
  */
 /** Tin cuối của hội thoại là của khách (tin vào ghi cả `last_inbound_at` lẫn `last_message_at`; tin ra chỉ đẩy `last_message_at`). */
+export const MESSENGER_CLOSED = 'Đã quá 7 ngày kể từ tin nhắn gần nhất của khách — Messenger không cho gửi. Có thể trả lời khi khách nhắn lại.';
+export const HUMAN_AGENT_REFUSED =
+  'Cần Meta duyệt quyền Human Agent: tin quá 24 giờ (trong 7 ngày) chưa gửi được. Trả lời trong Inbox của Fanpage, hoặc chờ khách nhắn lại.';
+
+/** Trường trả lời của hội thoại cho giao diện / AI: `can_reply` (còn gửi được), `reply_mode` (standard | human_agent | closed). */
+export function replyFields(lastInboundAt: Date | null) {
+  const reply_mode = messengerReplyMode(lastInboundAt);
+  return { can_reply: reply_mode !== 'closed', reply_mode };
+}
+
 export function awaitingReply(c: { last_inbound_at: Date | null; last_message_at: Date | null }): boolean {
   return Boolean(c.last_inbound_at && (!c.last_message_at || c.last_inbound_at.getTime() >= c.last_message_at.getTime()));
 }
@@ -289,7 +299,7 @@ export class FacebookMessengerService implements MessagingChannel {
     const kept = opts.unanswered ? rows.filter(awaitingReply).slice(0, take) : rows;
     const pages = await this.prisma.facebookPage.findMany({ select: { page_id: true, name: true } });
     const names = new Map(pages.map((p) => [p.page_id, p.name]));
-    return kept.map((c) => ({ ...c, page_name: names.get(c.page_id) ?? c.page_id, can_reply: isWithinMessagingWindow(c.last_inbound_at), awaiting_reply: awaitingReply(c) }));
+    return kept.map((c) => ({ ...c, page_name: names.get(c.page_id) ?? c.page_id, ...replyFields(c.last_inbound_at), awaiting_reply: awaitingReply(c) }));
   }
 
   private readonly lastSync = new Map<number, number>();
@@ -336,7 +346,7 @@ export class FacebookMessengerService implements MessagingChannel {
     if (await this.syncConversation(conv)) conv = (await this.prisma.facebookConversation.findUnique({ where: { id: conversationId } })) ?? conv;
     const rows = await this.prisma.facebookMessage.findMany({ where: { conversation_id: conversationId }, orderBy: { sent_at: 'desc' }, take: Math.min(Math.max(limit, 1), 200) });
     if (conv.unread_count > 0) await this.prisma.facebookConversation.update({ where: { id: conv.id }, data: { unread_count: 0 } });
-    return { conversation: { ...conv, unread_count: 0, can_reply: isWithinMessagingWindow(conv.last_inbound_at) }, messages: rows.reverse().map((m) => ({ ...m, id: m.id.toString() })) };
+    return { conversation: { ...conv, unread_count: 0, ...replyFields(conv.last_inbound_at) }, messages: rows.reverse().map((m) => ({ ...m, id: m.id.toString() })) };
   }
 
   /** `MessagingChannel`: gửi thẳng theo (pageId, psid), KHÔNG kiểm cửa sổ — dùng `reply` cho nhân viên. */
@@ -350,8 +360,24 @@ export class FacebookMessengerService implements MessagingChannel {
     }
   }
 
-  private async mapSendError(err: unknown, pageId: string): Promise<Error> {
+  /** Tin nhân viên gõ: 24h–7 ngày sau tin khách thì kèm thẻ HUMAN_AGENT. */
+  private async sendAsAgent(pageId: string, psid: string, text: string, humanAgent: boolean): Promise<ChannelSendResult> {
+    const ctx = await this.pages.activePageWithToken(pageId);
+    if (!ctx) throw new BadRequestException('Fanpage chưa kết nối hoặc đã tắt');
+    try {
+      return { externalId: (await this.graph.sendText(ctx.token, psid, text, { humanAgent })).message_id };
+    } catch (err) {
+      throw await this.mapSendError(err, pageId, humanAgent);
+    }
+  }
+
+  private async mapSendError(err: unknown, pageId: string, humanAgent = false): Promise<Error> {
     if (!(err instanceof GraphApiError)) return err as Error;
+    // Thẻ HUMAN_AGENT bị từ chối (app chưa được Meta duyệt quyền Human Agent).
+    if (humanAgent && (err.isOutsideWindow || err.isPermissionError || /human.?agent|tag/i.test(err.message))) {
+      this.logger.warn(`Gửi tin HUMAN_AGENT bị từ chối code=${err.code} subcode=${err.subcode}`);
+      return new BadRequestException(HUMAN_AGENT_REFUSED);
+    }
     if (err.isOutsideWindow) return new BadRequestException('Đã quá 24 giờ kể từ tin nhắn gần nhất của khách — Messenger không cho gửi tin chủ động.');
     if (err.isTokenError) {
       await this.pages.markTokenInvalid(pageId);
@@ -362,7 +388,7 @@ export class FacebookMessengerService implements MessagingChannel {
     return new ServiceUnavailableException('Facebook không nhận tin nhắn, thử lại sau.');
   }
 
-  /** Nhân viên trả lời: CHỈ trong 24h kể từ tin khách gần nhất. */
+  /** Nhân viên trả lời: trong 24h bình thường; 24h–7 ngày kèm thẻ HUMAN_AGENT; quá 7 ngày bị chặn. */
   async reply(conversationId: number, rawText: string, actor: AuthUser) {
     const text = rawText?.trim();
     if (!text) throw new BadRequestException('Nội dung tin nhắn trống');
@@ -373,10 +399,9 @@ export class FacebookMessengerService implements MessagingChannel {
     if (!isWithinMessagingWindow(conv.last_inbound_at) && (await this.syncConversation(conv, true))) {
       conv = (await this.prisma.facebookConversation.findUnique({ where: { id: conversationId } })) ?? conv;
     }
-    if (!isWithinMessagingWindow(conv.last_inbound_at)) {
-      throw new BadRequestException('Đã quá 24 giờ kể từ tin nhắn gần nhất của khách — Messenger không cho gửi tin chủ động.');
-    }
-    const sent = await this.sendText(conv.page_id, conv.psid, text);
+    const mode = messengerReplyMode(conv.last_inbound_at);
+    if (mode === 'closed') throw new BadRequestException(MESSENGER_CLOSED);
+    const sent = await this.sendAsAgent(conv.page_id, conv.psid, text, mode === 'human_agent');
     const now = new Date();
     // Nhân viên đã vào trả lời ⇒ kịch bản tự động đang dở dừng lại (không chen tin máy vào cuộc nói chuyện).
     await this.prisma.facebookFlowRun.updateMany({

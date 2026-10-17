@@ -22,14 +22,20 @@ in the build log, which every project member can read, so set `SEED_ADMIN_PASSWO
    `INTERNAL_SERVICE_SECRET`, `CORS_ORIGIN` (your public web origin) and
    `SEED_ADMIN_PASSWORD`. Demo data is off by default; if you want demo data, set `SEED_DEMO_DATA=true`.
 3. `docker compose up -d --build`.
-4. Put a reverse proxy with TLS in front of the `web` container (port 3000). One proxy rule is enough:
-   everything goes to `web`; Next.js proxies `/api/v1/*` to the API container. Example Caddyfile:
+4. Put a reverse proxy with TLS in front of the `web` container (port 3000). Everything goes to `web`
+   (Next.js proxies `/api/v1/*` to the API container) except the real-time notification socket
+   `/notif-ws/`, which must go straight to the API (port 4000) with WebSocket upgrade. Without that rule
+   the bell only updates every 30 seconds and never plays a sound. Example Caddyfile:
 
    ```
    crm.example.com {
+     reverse_proxy /notif-ws/* localhost:4000
      reverse_proxy localhost:3000
    }
    ```
+
+   With nginx, add `location /notif-ws/ { proxy_pass http://127.0.0.1:4000; proxy_http_version 1.1;
+   proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade"; }` before `location /`.
 
    For streaming / large uploads raise the proxy timeouts (large exports can take a while).
 5. If you enable MCP/OAuth set `INTEGRATIONS_PUBLIC_BASE_URL=https://crm.example.com` and
@@ -104,6 +110,8 @@ API returns a config).
 ## Production checklist
 
 - [ ] A reverse proxy in front of the API accepts uploads up to the app's limits (videos for social posting go up to 200 MB): with nginx, `client_max_body_size 210m;`. A smaller limit makes large uploads fail in the browser with a bare "Network Error".
+
+- [ ] `/notif-ws/` reaches the API with WebSocket upgrade (a test request answers `101 Switching Protocols`, not a 404/499 from the web container).
 
 - [ ] Every `change-me-*` value replaced; secrets are random and at least 32 bytes.
 - [ ] `CORS_ORIGIN` lists only your real web origin(s).

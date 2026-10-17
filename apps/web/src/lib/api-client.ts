@@ -194,6 +194,8 @@ apiClient.interceptors.request.use(
       config.signal = controller.signal
       return config
     }
+    // Mặc định JSON khiến axios biến FormData thành JSON (máy chủ báo "Thiếu tệp"): tệp luôn đi multipart, trình duyệt tự gắn boundary.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) config.headers.set('Content-Type', 'multipart/form-data')
     const url = config.url ?? ''
     const isAuthSkip = AUTH_SKIP_URLS.some((skip) => url.includes(skip))
     if (!isAuthSkip) {

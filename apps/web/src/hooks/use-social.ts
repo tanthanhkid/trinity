@@ -70,6 +70,10 @@ export interface SocialAccount {
   avatar_url: string | null
   status: "active" | "reauth" | "disabled"
   last_error: string | null
+  /** Người dùng đã gỡ kênh (hiện mờ, có nút "Bật lại"). */
+  removed?: boolean
+  /** Chỉ Fanpage: phần nhận tin của cùng Page — null = chưa nối. */
+  inbox?: "on" | "off" | null
 }
 
 export interface SocialMediaItem {
@@ -335,10 +339,12 @@ export function useSocialNetworks() {
   })
 }
 
-export function useSocialAccounts(enabled = true) {
+/** Mặc định chỉ kênh đang dùng (chọn kênh đăng bài); màn Kênh truyền `includeRemoved` để thấy cả kênh đã gỡ. */
+export function useSocialAccounts(enabled = true, includeRemoved = false) {
   return useQuery({
     queryKey: [...KEY, "accounts"],
     queryFn: async () => (await apiClient.get<{ data: SocialAccount[] }>("/social/accounts")).data.data,
+    select: (rows) => (includeRemoved ? rows : rows.filter((a) => !a.removed)),
     enabled,
   })
 }
@@ -459,6 +465,7 @@ export function useSocialMutations() {
       mutationFn: async (network: SocialNetwork) => (await apiClient.post<{ url: string }>("/social/accounts/connect-url", { network })).data.url,
     }),
     disconnect: useMutation({ mutationFn: (id: number) => apiClient.delete(`/social/accounts/${id}`), onSuccess: refresh }),
+    enable: useMutation({ mutationFn: (id: number) => apiClient.post(`/social/accounts/${id}/enable`), onSuccess: refresh }),
     create: useMutation({ mutationFn: async (body: CreateSocialPostBody) => (await apiClient.post<SocialPost>("/social/posts", body)).data, onSuccess: refresh }),
     /** Tạo bài lặp lại (thay cho tạo bài): máy chủ giữ đúng một bài hẹn sắp tới. */
     createRecurrence: useMutation({ mutationFn: async (body: CreateRecurrenceBody) => (await apiClient.post<{ data: SocialRecurrence }>("/social/recurrences", body)).data.data, onSuccess: refresh }),

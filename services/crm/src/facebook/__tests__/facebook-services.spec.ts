@@ -459,12 +459,14 @@ describe('FacebookPagesService', () => {
     const prisma = {
       settingOption: { findMany: jest.fn().mockResolvedValue([{ id: 9, label: 'Facebook' }]), findUnique: jest.fn().mockResolvedValue({ group_key: 'contact_source', is_active: true }) },
       facebookPage: { upsert: jest.fn().mockResolvedValue({}), findUnique: jest.fn(), update: jest.fn(), delete: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
+      socialAccount: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({}), update: jest.fn().mockResolvedValue({}), findMany: jest.fn().mockResolvedValue([]) },
       user: { findUnique: jest.fn().mockResolvedValue({ status: 'active', deleted_at: null }) },
     };
     const graph = {
       exchangeCode: jest.fn().mockResolvedValue('SHORT'),
       toLongLived: jest.fn().mockResolvedValue('LONG'),
       listPages: jest.fn().mockResolvedValue([{ id: '111', name: 'Trinity', access_token: 'PT1' }, { id: '222', name: 'Hai', access_token: 'PT2' }]),
+      grantedPermissions: jest.fn().mockResolvedValue(['pages_show_list', 'pages_messaging']),
       subscribePage: jest.fn().mockResolvedValue(undefined),
       unsubscribePage: jest.fn().mockResolvedValue(undefined),
       ensureGetStarted: jest.fn().mockResolvedValue(true),
@@ -491,7 +493,7 @@ describe('FacebookPagesService', () => {
   it('callback: lưu từng Page với token MÃ HOÁ, đăng ký webhook, mặc định gán người bấm', async () => {
     const { svc, prisma, graph } = mk();
     const r = await svc.handleCallback('CODE', signFacebookState(5));
-    expect(r).toEqual({ connected: 2, failed: 0 });
+    expect(r).toEqual({ connected: 2, failed: 0, posting: 0 });
     expect(graph.exchangeCode).toHaveBeenCalledWith('CODE', 'https://crm.example.vn/api/v1/facebook/oauth/callback');
     expect(graph.subscribePage).toHaveBeenCalledWith('111', 'PT1', ['messages', 'messaging_postbacks', 'messaging_referrals']);
     const arg = prisma.facebookPage.upsert.mock.calls[0][0];
@@ -506,7 +508,7 @@ describe('FacebookPagesService', () => {
     const { svc, prisma, graph } = mk();
     graph.subscribePage.mockRejectedValueOnce(new GraphApiError(400, 200, null, 'perm'));
     prisma.facebookPage.upsert.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error('db'));
-    expect(await svc.handleCallback('CODE', signFacebookState(5))).toEqual({ connected: 1, failed: 1 });
+    expect(await svc.handleCallback('CODE', signFacebookState(5))).toEqual({ connected: 1, failed: 1, posting: 0 });
     expect(prisma.facebookPage.upsert.mock.calls[0][0].create.subscribed).toBe(false);
   });
 
@@ -547,7 +549,7 @@ describe('FacebookPagesService', () => {
   it('nút "Bắt đầu": bật lỗi chỉ ghi log, Page vẫn đăng ký; subscribe lỗi hẳn thì không bật', async () => {
     const { svc, prisma, graph } = mk();
     graph.ensureGetStarted.mockRejectedValueOnce(new GraphApiError(400, 200, null, 'perm'));
-    expect(await svc.handleCallback('CODE', signFacebookState(5))).toEqual({ connected: 2, failed: 0 });
+    expect(await svc.handleCallback('CODE', signFacebookState(5))).toEqual({ connected: 2, failed: 0, posting: 0 });
     expect(prisma.facebookPage.upsert.mock.calls[0][0].create.subscribed).toBe(true);
     graph.ensureGetStarted.mockClear();
     graph.subscribePage.mockRejectedValue(new GraphApiError(400, 200, null, 'perm'));
@@ -555,7 +557,7 @@ describe('FacebookPagesService', () => {
     expect(graph.ensureGetStarted).not.toHaveBeenCalled();
   });
 
-  it('checkToken: token chết ⇒ invalid; ngắt kết nối huỷ đăng ký rồi xoá', async () => {
+  it('checkToken: token chết ⇒ invalid; ngắt kết nối huỷ đăng ký rồi giữ dòng', async () => {
     const { svc, prisma, graph } = mk();
     prisma.facebookPage.findUnique.mockResolvedValue(PAGE);
     prisma.facebookPage.update.mockImplementation(async ({ data }: { data: unknown }) => ({ ...PAGE, ...(data as object) }));
@@ -563,7 +565,89 @@ describe('FacebookPagesService', () => {
     expect((await svc.checkToken(1)).token_status).toBe('invalid');
     await svc.disconnect(1);
     expect(graph.unsubscribePage).toHaveBeenCalledWith('111', 'PAGE_TOKEN');
-    expect(prisma.facebookPage.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(prisma.facebookPage.delete).not.toHaveBeenCalled();
+    expect(prisma.facebookPage.update).toHaveBeenLastCalledWith({ where: { id: 1 }, data: { is_active: false, token_enc: '', subscribed: false } });
+  });
+
+  describe('nối một lần: nhận tin + đăng bài', () => {
+    const POSTING = ['pages_show_list', 'pages_messaging', 'pages_read_engagement', 'pages_manage_posts'];
+    const withTasks = (g: ReturnType<typeof mk>['graph'], tasks: string[]) =>
+      g.listPages.mockResolvedValue([{ id: '111', name: 'Trinity', access_token: 'PT1', tasks, picture: { data: { url: 'http://img/1.png' } } }]);
+
+    it('connectUrl xin hợp quyền nhận tin và đăng bài, không trùng', () => {
+      const { svc } = mk();
+      const scope = new URL(svc.connectUrl(actor).url).searchParams.get('scope')!.split(',');
+      expect(scope).toEqual(expect.arrayContaining(['pages_messaging', 'pages_manage_posts', 'pages_manage_metadata']));
+      expect(new Set(scope).size).toBe(scope.length);
+    });
+
+    it('Page mới + có quyền đăng ⇒ tạo ở cả facebook_pages (is_active) và social_accounts (active)', async () => {
+      const { svc, prisma, graph } = mk();
+      withTasks(graph, ['CREATE_CONTENT', 'MESSAGING']);
+      graph.grantedPermissions.mockResolvedValue(POSTING);
+      expect(await svc.handleCallback('CODE', signFacebookState(5))).toEqual({ connected: 1, failed: 0, posting: 1 });
+      expect(prisma.facebookPage.upsert.mock.calls[0][0].create.is_active).toBe(true);
+      const c = prisma.socialAccount.create.mock.calls[0][0].data;
+      expect(c).toMatchObject({ network: 'facebook', external_id: '111', status: 'active', avatar_url: 'http://img/1.png', connected_by: 5, token_expires_at: null });
+      expect(c.access_token_enc).toMatch(/^v1\./);
+      expect(c.scopes).toBe('pages_show_list pages_read_engagement pages_manage_posts');
+    });
+
+    it('thiếu pages_manage_posts hoặc không có task đăng ⇒ không tạo social_accounts', async () => {
+      const { svc, prisma, graph } = mk();
+      withTasks(graph, ['CREATE_CONTENT']);
+      expect((await svc.handleCallback('CODE', signFacebookState(5))).posting).toBe(0);
+      withTasks(graph, ['MESSAGING']);
+      graph.grantedPermissions.mockResolvedValue(POSTING);
+      expect((await svc.handleCallback('CODE', signFacebookState(5))).posting).toBe(0);
+      expect(prisma.socialAccount.create).not.toHaveBeenCalled();
+      expect(prisma.socialAccount.update).not.toHaveBeenCalled();
+    });
+
+    it('nối lại KHÔNG bật lại Page is_active=false: nhánh update không có is_active', async () => {
+      const { svc, prisma } = mk();
+      await svc.handleCallback('CODE', signFacebookState(5));
+      for (const call of prisma.facebookPage.upsert.mock.calls) expect(call[0].update).not.toHaveProperty('is_active');
+    });
+
+    it('kênh đăng bài đang disabled ⇒ chỉ làm mới token, giữ disabled; reauth ⇒ bật lại active', async () => {
+      const { svc, prisma, graph } = mk();
+      withTasks(graph, ['MANAGE']);
+      graph.grantedPermissions.mockResolvedValue(POSTING);
+      prisma.socialAccount.findUnique.mockResolvedValueOnce({ id: 7, status: 'disabled' });
+      expect((await svc.handleCallback('CODE', signFacebookState(5))).posting).toBe(0);
+      const d = prisma.socialAccount.update.mock.calls[0][0].data;
+      expect(d).not.toHaveProperty('status');
+      expect(d.access_token_enc).toMatch(/^v1\./);
+      prisma.socialAccount.findUnique.mockResolvedValueOnce({ id: 8, status: 'reauth' });
+      expect((await svc.handleCallback('CODE', signFacebookState(5))).posting).toBe(1);
+      expect(prisma.socialAccount.update.mock.calls[1][0].data).toMatchObject({ status: 'active', last_error: null });
+    });
+
+    it('bật lại Page đã ngắt (token rỗng) ⇒ 400; Page còn token bật được', async () => {
+      const { svc, prisma } = mk();
+      prisma.facebookPage.findUnique.mockResolvedValue({ ...PAGE, is_active: false, token_enc: '' });
+      await expect(svc.update(1, { is_active: true }, actor)).rejects.toThrow('Kết nối lại Facebook để bật lại Page này');
+      prisma.facebookPage.findUnique.mockResolvedValue({ ...PAGE, is_active: false });
+      prisma.facebookPage.update.mockResolvedValue(PAGE);
+      await expect(svc.update(1, { is_active: true }, actor)).resolves.toBeDefined();
+    });
+
+    it('activePageWithToken bỏ qua Page tắt hoặc token rỗng, không ném lỗi giải mã', async () => {
+      const { svc, prisma } = mk();
+      prisma.facebookPage.findUnique.mockResolvedValue({ ...PAGE, is_active: false, token_enc: '' });
+      expect(await svc.activePageWithToken('111')).toBeNull();
+      prisma.facebookPage.findUnique.mockResolvedValue({ ...PAGE, token_enc: '' });
+      expect(await svc.activePageWithToken('111')).toBeNull();
+    });
+
+    it('list thêm posting từ social_accounts', async () => {
+      const { svc, prisma } = mk();
+      prisma.facebookPage.findMany.mockResolvedValue([{ ...PAGE }, { ...PAGE, id: 2, page_id: '222' }]);
+      prisma.socialAccount.findMany.mockResolvedValue([{ external_id: '111', status: 'disabled' }]);
+      const rows = await svc.list();
+      expect(rows.map((r) => r.posting)).toEqual(['removed', null]);
+    });
   });
 });
 

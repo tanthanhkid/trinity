@@ -52,9 +52,9 @@ export const listSocialAccountsTool: ToolDef = {
   name: 'list_social_accounts',
   title: 'Kênh mạng xã hội đã liên kết / List social accounts',
   description:
-    'Bước đầu của việc đăng bài lên Fanpage Facebook hoặc kênh YouTube của công ty qua Trinity: các kênh mạng xã hội công ty đã liên kết với Trinity (Fanpage Facebook, kênh YouTube). Chưa có kênh thì người dùng liên kết ở màn Đăng đa kênh › Kênh. Trả về id kênh, mạng, tên, trạng thái (active = đăng được; reauth = cần liên kết lại trong Trinity). ' +
+    'Bước đầu của việc đăng bài lên Fanpage Facebook hoặc kênh YouTube của công ty qua Trinity: các kênh mạng xã hội công ty đã liên kết với Trinity (Fanpage Facebook, kênh YouTube). Chưa có kênh thì người dùng liên kết ở màn Đăng đa kênh › Kênh. Trả về id kênh, mạng, tên, trạng thái (active = đăng được; reauth = cần liên kết lại trong Trinity), removed (true = người dùng đã gỡ kênh, KHÔNG đăng được; bật lại bằng enable_social_account hoặc liên kết lại), inbox (chỉ Fanpage: on/off/null = phần nhận tin nhắn của cùng Page đã nối, đang tắt, hay chưa nối). ' +
     'Kèm danh sách mạng và mạng nào đã hỗ trợ. account_id dùng cho create_social_post. Danh sách không xếp theo mức dùng và không có kênh mặc định. Chỉ đọc. / ' +
-    'First step for posting to the company\'s Facebook Page or YouTube channel through Trinity: social accounts linked to Trinity (Facebook Pages, YouTube channels); with none linked, the user links them in Trinity under Đăng đa kênh › Kênh. Returns id, network, name, status (active, or reauth = needs relinking in Trinity), plus which networks are supported. Not ordered by usage; no default channel. Read-only.',
+    'First step for posting to the company\'s Facebook Page or YouTube channel through Trinity: social accounts linked to Trinity (Facebook Pages, YouTube channels); with none linked, the user links them in Trinity under Đăng đa kênh › Kênh. Returns id, network, name, status (active, or reauth = needs relinking in Trinity), removed (true = the user removed the channel; cannot post, re-enable with enable_social_account), inbox (Facebook only: on/off/null = whether the message inbox of the same Page is connected, off, or not connected), plus which networks are supported. Not ordered by usage; no default channel. Read-only.',
   permissions: ['social.post'],
   input: () => ({}),
   output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
@@ -63,7 +63,7 @@ export const listSocialAccountsTool: ToolDef = {
     const accounts = await s.accounts.list();
     const networks = s.accounts.networks().map((n) => ({ network: n.network, label: n.label, supported: n.supported, configured: n.configured }));
     const out = wrapData({
-      accounts: accounts.map((a) => ({ account_id: a.id, network: a.network, name: a.name, status: a.status, error: a.last_error })),
+      accounts: accounts.map((a) => ({ account_id: a.id, network: a.network, name: a.name, status: a.status, removed: a.removed ?? false, ...(a.network === 'facebook' ? { inbox: a.inbox ?? null } : {}), error: a.last_error })),
       networks,
       manage_url: `${baseUrl}/social?tab=channels`,
     });
@@ -664,7 +664,37 @@ export const listRecurringPostsTool: ToolDef = {
   },
 };
 
+/** Bật lại kênh đã gỡ — chỉ lật cờ cấu hình, không đăng gì. Không có tool gỡ/xoá (gỡ ở giao diện). */
+export const enableSocialAccountTool: ToolDef = {
+  name: 'enable_social_account',
+  title: 'Bật lại kênh đăng bài đã gỡ / Re-enable a removed social account',
+  description:
+    'Bật lại một kênh đăng bài mà người dùng từng gỡ (list_social_accounts có removed = true). account_id lấy từ list_social_accounts. Chỉ bật được khi kênh còn quyền đăng cũ; kênh gỡ xong đã xoá quyền thì báo "Liên kết lại để bật kênh này" và người dùng phải liên kết lại ở Đăng đa kênh › Kênh. Không đăng gì ra mạng xã hội. Không có công cụ gỡ kênh. Cần scope crm.write. / ' +
+    'Re-enables a social account the user previously removed (removed = true in list_social_accounts). Works only while the channel still holds its posting credentials; otherwise it says to link again under Đăng đa kênh › Kênh. Nothing is published. There is no tool to remove a channel.',
+  permissions: ['social.manage'],
+  scope: 'crm.write',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+  input: (z) => ({
+    account_id: z.number().int().min(1).max(2_147_483_647).describe('id kênh đã gỡ (list_social_accounts) / Removed account id'),
+  }),
+  output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
+  async run(args, { deps, baseUrl }) {
+    const s = await socialDeps(deps);
+    const id = optInt(args.account_id);
+    if (!id) throw new ToolUserError('account_id không hợp lệ. / Invalid account_id.');
+    try {
+      const a = await s.accounts.enable(id);
+      const out = wrapData({ account_id: a.id, network: a.network, name: a.name, status: a.status, manage_url: `${baseUrl}/social?tab=channels` });
+      return { structured: out, text: JSON.stringify(out) };
+    } catch (err) {
+      const st = (err as { status?: number }).status;
+      if (typeof st === 'number' && st < 500) throw new ToolUserError((err as Error).message);
+      throw err;
+    }
+  },
+};
+
 export const SOCIAL_READ_TOOLS: readonly ToolDef[] = [listSocialAccountsTool, listSocialPostsTool, getSocialPostTool, getSocialPostStatsTool, listSocialMediaTool, listYoutubePlaylistsTool, listSocialDraftsTool, listQueueSlotsTool, listSocialSnippetsTool, previewSocialPostTool, listRecurringPostsTool];
 
 /** Ghi (lưu số liệu mới) ⇒ cần crm.write. */
-export const SOCIAL_METRICS_TOOLS: readonly ToolDef[] = [refreshSocialPostMetricsTool, saveSocialDraftTool, setQueueSlotsTool, saveSocialSnippetTool];
+export const SOCIAL_METRICS_TOOLS: readonly ToolDef[] = [refreshSocialPostMetricsTool, saveSocialDraftTool, setQueueSlotsTool, saveSocialSnippetTool, enableSocialAccountTool];

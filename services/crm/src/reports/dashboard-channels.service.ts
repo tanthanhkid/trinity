@@ -22,6 +22,8 @@ export interface ConnectedChannel {
   today: { label: string; value: number } | null;
   /** Màn quản lý kênh trong app. */
   href: string;
+  /** Chỉ Fanpage: phần Đăng đa kênh của cùng Page — 'on' | 'removed' (đã gỡ) | null (chưa nối). */
+  posting?: 'on' | 'removed' | null;
 }
 
 /** Tính năng đang bật nhưng chưa nối kênh nào — gợi ý "Nối thêm". */
@@ -75,19 +77,22 @@ export class DashboardChannelsService {
     // Cùng quyền với màn Fanpage trong Cài đặt (`integrations.webhooks`): tên Page, trạng thái token, số tin cả công ty.
     if (on('facebook_page') && any('integrations.webhooks')) {
       tasks.push((async () => {
-        const pages = await this.prisma.facebookPage.findMany({ orderBy: { id: 'asc' }, take: 20, select: { id: true, page_id: true, name: true, is_active: true, token_status: true, subscribed: true } });
+        const pages = await this.prisma.facebookPage.findMany({ orderBy: { id: 'asc' }, take: 20, select: { id: true, page_id: true, name: true, is_active: true, token_status: true, subscribed: true, token_enc: true } });
         if (pages.length === 0) available.push({ kind: 'facebook_page', label: 'Fanpage Facebook', href: `${INTEGRATIONS}?muc=facebook` });
         const counts = await this.inboundByPage(pages.map((p) => p.page_id), today);
         const cm = pages.length ? await this.prisma.facebookComment.groupBy({ by: ['page_id'], where: { commented_at: today, page_id: { in: pages.map((p) => p.page_id) } }, _count: { _all: true } }) : [];
         const commentsByPage = new Map(cm.map((r) => [r.page_id, r._count._all]));
+        const soc = pages.length ? await this.prisma.socialAccount.findMany({ where: { network: 'facebook', external_id: { in: pages.map((p) => p.page_id) } }, select: { external_id: true, status: true } }) : [];
+        const postingByPage = new Map(soc.map((r) => [r.external_id, r.status === 'disabled' ? ('removed' as const) : ('on' as const)]));
         for (const p of pages) {
           const broken = p.token_status === 'invalid' || p.token_status === 'expired';
           const state: ChannelState = !p.is_active ? 'off' : broken || !p.subscribed ? 'attention' : 'ok';
           channels.push({
             key: `facebook_page:${p.id}`, kind: 'facebook_page', network: 'facebook', name: p.name, state,
-            note: (state === 'off' ? 'Đã tắt' : broken ? 'Cần kết nối lại' : !p.subscribed ? 'Chưa nhận tin nhắn' : 'Đang nhận tin') + (commentsByPage.get(p.page_id) ? ` · ${commentsByPage.get(p.page_id)} bình luận hôm nay` : ''),
+            note: (state === 'off' ? (p.token_enc ? 'Đã tắt' : 'Đã ngắt — kết nối lại để bật') : broken ? 'Cần kết nối lại' : !p.subscribed ? 'Chưa nhận tin nhắn' : 'Đang nhận tin') + (commentsByPage.get(p.page_id) ? ` · ${commentsByPage.get(p.page_id)} bình luận hôm nay` : ''),
             today: { label: 'tin nhắn mới', value: counts.get(p.page_id) ?? 0 },
             href: `${INTEGRATIONS}?muc=facebook`,
+            posting: postingByPage.get(p.page_id) ?? null,
           });
         }
       })());

@@ -21,6 +21,10 @@ export interface SocialAccountView {
   token_expires_at: Date | null;
   connected_by: number;
   created_at: Date;
+  /** true = người dùng đã gỡ kênh (còn token cũ đã xoá hay chưa — xem `can_enable`); bật lại có chủ đích bằng `enable`. */
+  removed?: boolean;
+  /** Chỉ Facebook: phần nhận tin của cùng Page — 'on' | 'off' | null (chưa nối nhận tin). */
+  inbox?: 'on' | 'off' | null;
 }
 
 export const toAccountView = (a: SocialAccount): SocialAccountView => ({
@@ -69,9 +73,32 @@ export class SocialAccountsService {
     }));
   }
 
+  /** Kênh đang dùng + kênh đã gỡ mà còn token (đánh dấu `removed`, để bật lại). Kênh gỡ và đã xoá token thì ẩn. */
   async list(): Promise<SocialAccountView[]> {
-    const rows = await this.prisma.socialAccount.findMany({ where: { status: { not: 'disabled' } }, orderBy: [{ network: 'asc' }, { name: 'asc' }] });
-    return rows.map(toAccountView);
+    const rows = await this.prisma.socialAccount.findMany({
+      where: { OR: [{ status: { not: 'disabled' } }, { status: 'disabled', access_token_enc: { not: '' } }] },
+      orderBy: [{ network: 'asc' }, { name: 'asc' }],
+    });
+    const fbIds = rows.filter((r) => r.network === 'facebook').map((r) => r.external_id);
+    const inbox = new Map<string, 'on' | 'off'>();
+    if (fbIds.length) {
+      const pages = await this.prisma.facebookPage.findMany({ where: { page_id: { in: fbIds } }, select: { page_id: true, is_active: true, token_enc: true } });
+      for (const pg of pages) inbox.set(pg.page_id, pg.is_active && pg.token_enc ? 'on' : 'off');
+    }
+    return rows.map((r) => ({
+      ...toAccountView(r),
+      removed: r.status === 'disabled',
+      ...(r.network === 'facebook' ? { inbox: inbox.get(r.external_id) ?? null } : {}),
+    }));
+  }
+
+  /** Bật lại kênh đã gỡ — chỉ khi còn token. Gỡ kênh xoá token nên thường phải liên kết lại. */
+  async enable(id: number): Promise<SocialAccountView> {
+    const a = await this.prisma.socialAccount.findUnique({ where: { id } });
+    if (!a) throw new NotFoundException('Không tìm thấy kênh');
+    if (a.status !== 'disabled') throw new BadRequestException('Kênh này đang bật');
+    if (!a.access_token_enc) throw new BadRequestException('Liên kết lại để bật kênh này');
+    return toAccountView(await this.prisma.socialAccount.update({ where: { id }, data: { status: 'active', last_error: null } }));
   }
 
   connectUrl(network: SocialNetwork, actor: AuthUser): { url: string } {
@@ -85,7 +112,7 @@ export class SocialAccountsService {
     return { url: p.authorizeUrl(state, socialRedirectUri(base, network), verifier ? pkceS256(verifier) : undefined) };
   }
 
-  /** Callback OAuth: lưu/ghi đè mọi tài khoản/trang nhận được. State sai/hết hạn ⇒ 400. */
+  /** Callback OAuth: lưu/ghi đè mọi tài khoản/trang nhận được (kênh đã gỡ giữ `disabled`). State sai/hết hạn ⇒ 400. */
   async handleCallback(network: SocialNetwork, code: string, state: string): Promise<{ connected: number }> {
     const st = verifySocialState(state, network);
     if (!st) throw new BadRequestException('Phiên liên kết không hợp lệ hoặc đã hết hạn. Hãy bấm "Liên kết" lại.');
@@ -95,6 +122,7 @@ export class SocialAccountsService {
     const key = this.key();
     const accounts = await p.exchange(code, socialRedirectUri(base, network), st.verifier);
     for (const a of accounts) {
+      const existing = await this.prisma.socialAccount.findUnique({ where: { network_external_id: { network, external_id: a.external_id } }, select: { status: true } });
       const data = {
         name: a.name.slice(0, 200),
         avatar_url: a.avatar_url ?? null,
@@ -102,14 +130,14 @@ export class SocialAccountsService {
         refresh_token_enc: a.refresh_token ? encryptSecret(a.refresh_token, key) : null,
         token_expires_at: a.token_expires_at ?? null,
         scopes: a.scopes.join(' '),
-        status: 'active',
-        last_error: null,
         connected_by: st.userId,
       };
+      // Kênh người dùng đã gỡ (`disabled`) chỉ được làm mới token/tên — bật lại phải có chủ đích (`enable`).
+      const reactivate = existing?.status === 'disabled' ? {} : { status: 'active', last_error: null };
       await this.prisma.socialAccount.upsert({
         where: { network_external_id: { network, external_id: a.external_id } },
-        create: { network, external_id: a.external_id, ...data },
-        update: data,
+        create: { network, external_id: a.external_id, ...data, status: 'active', last_error: null },
+        update: { ...data, ...reactivate },
       });
     }
     this.logger.log(`Liên kết ${network}: ${accounts.length} tài khoản (user ${st.userId})`);

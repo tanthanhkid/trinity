@@ -15,7 +15,7 @@ import { useSocialAccounts, useSocialMutations, useSocialNetworks, type SocialAc
 /** Kênh: liên kết từng mạng (OAuth), danh sách kênh đã liên kết, gỡ kênh. */
 export function SocialChannels() {
   const { data: networks = [], isLoading } = useSocialNetworks()
-  const { data: accounts = [] } = useSocialAccounts()
+  const { data: accounts = [] } = useSocialAccounts(true, true)
   const m = useSocialMutations()
   const { can } = usePermissions()
   const manage = can("social.manage")
@@ -27,12 +27,19 @@ export function SocialChannels() {
       onError: (err) => toast.error(getApiErrorMessage(err, "Không mở được trang liên kết")),
     })
 
+  const enable = (a: SocialAccount) =>
+    m.enable.mutate(a.id, {
+      onSuccess: () => toast.success("Đã bật lại kênh."),
+      onError: (err) => toast.error(getApiErrorMessage(err, "Không bật lại được kênh")),
+    })
+
   if (isLoading) return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang tải…</div>
 
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {networks.map((n) => {
         const mine = accounts.filter((a) => a.network === n.network)
+        const activeCount = mine.filter((a) => !a.removed).length
         return (
           <Card key={n.network}>
             <CardContent className="space-y-3 p-4">
@@ -42,7 +49,7 @@ export function SocialChannels() {
                 {!n.supported && <StatusPill tone="soon">Sắp có</StatusPill>}
                 {n.supported && manage && (
                   <Button size="sm" variant="outline" className="ml-auto" disabled={!n.configured || m.connect.isPending} onClick={() => connect(n.network)}>
-                    <Link2 className="size-3.5" /> {mine.length ? "Liên kết thêm / lại" : "Liên kết"}
+                    <Link2 className="size-3.5" /> {activeCount ? "Liên kết thêm / lại" : "Liên kết"}
                   </Button>
                 )}
               </div>
@@ -55,10 +62,18 @@ export function SocialChannels() {
               {mine.length > 0 && (
                 <ul className="divide-y divide-border rounded-lg text-sm ring-1 ring-border">
                   {mine.map((a) => (
-                    <li key={a.id} className="flex min-h-11 items-center gap-2 px-3 py-1.5">
+                    <li key={a.id} className={`flex min-h-11 items-center gap-2 px-3 py-1.5${a.removed ? " opacity-60" : ""}`} data-testid={a.removed ? "social-account-removed" : undefined}>
                       <span className="truncate">{a.name}</span>
-                      {a.status === "active" ? <StatusPill tone="connected">Hoạt động</StatusPill> : <StatusPill tone="danger">Cần liên kết lại</StatusPill>}
-                      {manage && (
+                      {a.removed ? <StatusPill tone="soon">Đã gỡ</StatusPill> : a.status === "active" ? <StatusPill tone="connected">Hoạt động</StatusPill> : <StatusPill tone="danger">Cần liên kết lại</StatusPill>}
+                      {a.network === "facebook" && (
+                        <span className="text-xs text-muted-foreground">Nhận tin: {a.inbox === "on" ? "đã nối" : a.inbox === "off" ? "tắt" : "chưa nối"}</span>
+                      )}
+                      {manage && a.removed && (
+                        <Button size="sm" variant="outline" className="ml-auto" disabled={m.enable.isPending} onClick={() => enable(a)}>
+                          Bật lại
+                        </Button>
+                      )}
+                      {manage && !a.removed && (
                         <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setRemoving(a)} aria-label={`Gỡ ${a.name}`}>
                           <Unlink className="size-3.5" />
                         </Button>

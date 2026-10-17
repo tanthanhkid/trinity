@@ -32,6 +32,9 @@ export interface GraphPage {
   id: string;
   name: string;
   access_token: string;
+  /** Việc người dùng làm được trên Page (CREATE_CONTENT, MANAGE, MESSAGING…). */
+  tasks?: string[];
+  picture?: { data?: { url?: string } };
 }
 
 export interface TokenDebug {
@@ -113,8 +116,14 @@ export class GraphClient {
 
   /** Các Page user quản trị kèm page token (từ user token dài hạn ⇒ page token không hết hạn). */
   async listPages(userToken: string): Promise<GraphPage[]> {
-    const r = await this.call<{ data?: GraphPage[] }>('GET', 'me/accounts', { token: userToken, query: { fields: 'id,name,access_token', limit: '100' } });
+    const r = await this.call<{ data?: GraphPage[] }>('GET', 'me/accounts', { token: userToken, query: { fields: 'id,name,access_token,tasks,picture{url}', limit: '100' } });
     return r.data ?? [];
+  }
+
+  /** Quyền người dùng đã THẬT SỰ cấp trong lần đăng nhập này (status `granted`). */
+  async grantedPermissions(userToken: string): Promise<string[]> {
+    const r = await this.call<{ data?: Array<{ permission: string; status: string }> }>('GET', 'me/permissions', { token: userToken });
+    return (r.data ?? []).filter((x) => x.status === 'granted').map((x) => x.permission);
   }
 
   /** Đăng ký Page nhận webhook (messages + leadgen). Cần `pages_manage_metadata`. */

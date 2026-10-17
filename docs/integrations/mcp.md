@@ -89,8 +89,10 @@ Missing permission ⇒ a clear `isError` tool result + a `denied` log entry. To 
 | `publish_social_draft` (draft_id, scheduled_at?, use_queue?, confirmed_by_user) | `social.post` + org feature social posting | `SocialDraftsService.publish`: builds the post from the draft and runs the same full validation as `create_social_post`; the draft is hidden afterwards. Two steps: preview → `confirmed_by_user`. `use_queue` (instead of `scheduled_at`) takes the nearest free queue slot, resolved to a concrete time at preview; error when both are given or no slots exist. Only `{draft_id, scheduled_at?}` is stored for approval, never a snapshot | false |
 | `set_queue_slots` (slots: [{weekday 0-6, time "HH:mm"}]) | `social.post` + org feature social posting | `SocialQueueService.setSlots`: replaces the WHOLE weekly slot list (Vietnam time; send existing slots plus new ones, read with `list_queue_slots` first; max 100, duplicates merged). Nothing is published, so no confirmation. Direct write (no approval draft) | false |
 | `preview_social_post` (read) | `social.post` + org feature social posting | `SocialPostsService.preview`: per-channel preview of what `create_social_post` would send (text after UTM, YouTube title/description, Facebook first comment, length/limit, approximate "See more" cut `truncated_at`, warnings). Same inputs minus `confirmed_by_user`; nothing is posted, saved or reserved in the queue | — |
+| `enable_social_account` | write | Re-enable a removed social account |
 | `list_queue_slots` (read) | `social.post` + org feature social posting | weekly slots as `{weekday, weekday_text, time}` plus `next_free` (next 5 free times in Vietnam time); use `use_queue` on `create_social_post` / `publish_social_draft` to take the nearest one | — |
 | `list_social_snippets` (read) | `social.post` + org feature social posting | reusable hashtag sets and signatures as `{id, name, content, is_default}` grouped by kind; the assistant can append a snippet to the post text when the user asks | — |
+| `enable_social_account` (account_id) | `social.manage` + org feature social posting | `SocialAccountsService.enable`: turns a channel the user removed back on, only while it still holds its credentials (removing a channel clears them, so usually the user links again instead; the tool then says so). Publishes nothing. No tool removes a channel. Direct write (no approval draft) | false |
 | `save_social_snippet` (snippet_id?, kind, name, content, is_default?) | `social.post` + org feature social posting | `SocialSnippetsService.create` / `update`: creates a snippet, or updates only the fields sent when `snippet_id` is given (`kind` cannot change; hashtag content is normalised; `is_default` only for signatures). Nothing is published, so no confirmation. No delete tool. Direct write (no approval draft) | false |
 | `list_social_drafts` (read) | `social.post` + org feature social posting | unpublished drafts with channels, per-channel captions/options, Vietnam-time schedule and `edit_url` (`/social?tab=drafts&draft=<id>`) | — |
 | `cancel_scheduled_post` (post_id) / `cancel_messenger_broadcast` (broadcast_id) | `social.post` / `integrations.webhooks` | only for work that has not run yet: a scheduled post with no channel published (`SocialPostsService.cancel`) or a broadcast waiting for its send time (`FacebookBroadcastsService.cancel`). The status becomes cancelled; nothing is deleted and nothing already published is taken down. Two steps: preview → `confirmed_by_user` | false |
@@ -125,7 +127,7 @@ Scope comes from the user's real grants (`own` = own · `team` = self + direct r
 
 ## Full tool index
 
-Every tool the server exposes (108), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
+Every tool the server exposes (109), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
 
 ### Multi-channel posting
 
@@ -139,7 +141,7 @@ Every tool the server exposes (108), generated from the tool registry. "write" t
 | `import_social_posts` | write · `schedule` mode: preview → `confirmed_by_user` | Bulk-create drafts or scheduled posts from up to 50 rows |
 | `list_queue_slots` | read | List queue slots |
 | `list_recurring_posts` | read | List recurring posts with their next 3 run times |
-| `list_social_accounts` | read | List social accounts |
+| `list_social_accounts` | read | List social accounts (with `removed`, and `inbox` for Facebook Pages) |
 | `list_social_drafts` | read | List social drafts |
 | `list_social_media` | read | List social media library |
 | `list_social_posts` | read | List social posts |

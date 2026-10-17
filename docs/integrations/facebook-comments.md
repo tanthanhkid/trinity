@@ -14,8 +14,17 @@ Page fields `feed` (comments) and `messages`.
 
 ## Turning a Page off, and reconnecting
 Under **Connections › Facebook Page** each Page can be switched off (`is_active = false`): its events are ignored and it is not offered for
-posting. **Connecting Facebook again (the OAuth flow) switches every Page that the login grants back on**, including Pages you had turned off.
-After a reconnect, check the list and switch off again the Pages that should stay off.
+posting comments, messages or broadcasts. **Disconnect** also turns the Page off, clears its token and webhook subscription, and keeps the
+row, so conversations keep the Page name and the Page is remembered as removed.
+
+**Connecting Facebook again never switches a Page back on.** A new Page is created active; a Page that already exists only gets a fresh
+token, name and token status, and keeps whatever `is_active` it had. To use a Page you turned off, switch it on in the list. A Page that was
+disconnected has no token any more, so switching it on is refused with "Kết nối lại Facebook để bật lại Page này": connect Facebook again
+first (this refreshes the token), then switch the Page on.
+
+One connection covers both receiving and posting. The login asks for the messaging/comment permissions and the posting permissions together
+(same Meta app), and the Page also gets its posting channel under Multi-channel posting when `pages_manage_posts` was granted and you can
+create content on the Page. Each Page card shows whether posting is connected, removed or not connected. See [social.md](social.md).
 
 ## Comment rules
 A rule matches incoming comments by keywords (or every comment) on chosen posts or all posts of a Page, and can:

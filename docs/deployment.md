@@ -103,6 +103,8 @@ API returns a config).
 
 ## Production checklist
 
+- [ ] A reverse proxy in front of the API accepts uploads up to the app's limits (videos for social posting go up to 200 MB): with nginx, `client_max_body_size 210m;`. A smaller limit makes large uploads fail in the browser with a bare "Network Error".
+
 - [ ] Every `change-me-*` value replaced; secrets are random and at least 32 bytes.
 - [ ] `CORS_ORIGIN` lists only your real web origin(s).
 - [ ] TLS in front of the web container; port 4000 not exposed to the internet.

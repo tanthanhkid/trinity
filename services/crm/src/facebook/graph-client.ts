@@ -59,6 +59,13 @@ type Query = Record<string, string | undefined>;
  * `Authorization: Bearer` (không nằm trong URL ⇒ không lọt vào log truy cập). KHÔNG BAO GIỜ log token/secret.
  * Docs: https://developers.facebook.com/docs/graph-api/overview
  */
+export interface GraphConversationMessage {
+  id: string;
+  created_time: string;
+  from?: { id?: string; name?: string };
+  message?: string;
+}
+
 @Injectable()
 export class GraphClient {
   private readonly logger = new Logger(GraphClient.name);
@@ -204,6 +211,15 @@ export class GraphClient {
     } catch {
       return null;
     }
+  }
+
+  /** Tin gần nhất của hội thoại Page ↔ khách (mới → cũ), đọc thẳng từ Facebook — bù tin webhook không về. */
+  async getRecentMessages(pageId: string, psid: string, pageToken: string, limit = 20): Promise<GraphConversationMessage[]> {
+    const r = await this.call<{ data?: Array<{ messages?: { data?: GraphConversationMessage[] } }> }>('GET', `${pageId}/conversations`, {
+      token: pageToken,
+      query: { platform: 'messenger', user_id: psid, fields: `messages.limit(${limit}){id,created_time,from,message}` },
+    });
+    return r.data?.[0]?.messages?.data ?? [];
   }
 
   /**

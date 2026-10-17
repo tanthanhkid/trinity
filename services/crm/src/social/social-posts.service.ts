@@ -571,12 +571,15 @@ export class SocialPostsService {
     if (!a || a.status === 'disabled' || !isSocialNetwork(a.network)) throw new BadRequestException('Kênh đã bị gỡ khỏi Trinity — gỡ bài trực tiếp trên mạng.');
     const p = this.providers.get(a.network);
     if (!p.deletePost) throw new BadRequestException(`${NETWORK_LABELS[a.network]} không cho gỡ bài qua API — gỡ trực tiếp trên mạng.`);
+    let note = 'Đã gỡ bài khỏi mạng';
     try {
       await p.deletePost(await this.freshAccount(p, a), t.external_post_id);
     } catch (err) {
-      throw new BadRequestException(err instanceof SocialPublishError ? err.message : 'Gỡ bài không thành công.');
+      // Bài đã bị xoá thẳng trên mạng từ trước: không còn gì để gỡ, chỉ đồng bộ trạng thái.
+      if (err instanceof SocialPostGoneError) note = 'Bài đã bị xoá trên mạng từ trước';
+      else throw new BadRequestException(err instanceof SocialPublishError ? err.message : 'Gỡ bài không thành công.');
     }
-    await this.prisma.socialPostTarget.update({ where: { id: targetId }, data: { status: 'cancelled', last_error: 'Đã gỡ bài khỏi mạng', url: null } });
+    await this.prisma.socialPostTarget.update({ where: { id: targetId }, data: { status: 'cancelled', last_error: note, url: null } });
     await this.refreshStatus(t.post_id);
     return this.get(t.post_id);
   }
@@ -696,6 +699,34 @@ export class SocialPostsService {
   /** Bấm "Cập nhật số" trên một bài: lấy ngay mọi kênh đã đăng (bỏ qua kênh vừa lấy dưới 1 phút). */
   async refreshPostMetrics(postId: number): Promise<PostWithTargets> {
     return (await this.refreshPostMetricsReport(postId)).post;
+  }
+
+  /**
+   * Mở màn bài đăng: kiểm nhanh bài đăng trong 30 ngày còn trên mạng không (lấy số luôn), để bài bị xoá thẳng trên mạng
+   * hiện "đã xoá" mà không chờ lượt lấy số định kỳ. Mỗi bài tối đa một lần mỗi 5 phút, tối đa 20 bài, ngân sách 15 giây.
+   */
+  async syncPublished(now = Date.now()): Promise<{ checked: number; removed: number }> {
+    const rows = await this.prisma.socialPostTarget.findMany({
+      where: {
+        status: 'published',
+        external_post_id: { not: null },
+        published_at: { gte: new Date(now - 30 * 86_400_000) },
+        OR: [{ metrics_at: null }, { metrics_at: { lt: new Date(now - 5 * MINUTE) } }],
+      },
+      orderBy: { published_at: 'desc' },
+      take: 20,
+    });
+    let checked = 0;
+    let removed = 0;
+    const started = Date.now();
+    for (const t of rows) {
+      if (isRemoved(t) || Date.now() - started > 15_000) continue;
+      checked++;
+      await this.fetchTargetMetrics(t);
+      const after = await this.prisma.socialPostTarget.findUnique({ where: { id: t.id }, select: { metrics: true } });
+      if (after && isRemoved(after)) removed++;
+    }
+    return { checked, removed };
   }
 
   /** Như `refreshPostMetrics` nhưng báo kênh nào lấy số không được (số hiện ra là của lần lấy trước). */

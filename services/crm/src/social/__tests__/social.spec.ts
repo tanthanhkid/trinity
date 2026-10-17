@@ -1,6 +1,6 @@
 import { FacebookSocialProvider, classifyGraphError } from '../providers/facebook.provider';
 import { SocialProviderRegistry } from '../providers/provider.registry';
-import { SocialPublishError, type AccountForPublish, type SocialMedia } from '../providers/provider.types';
+import { SocialPostGoneError, SocialPublishError, type AccountForPublish, type SocialMedia } from '../providers/provider.types';
 import { signSocialState, verifySocialState } from '../social-oauth-state';
 import { SOCIAL_RETRY_DELAYS_MS, SocialPostsService, aggregateStatus } from '../social-posts.service';
 
@@ -103,11 +103,32 @@ describe('FacebookSocialProvider', () => {
     expect(JSON.parse((f.mock.calls[2][1] as RequestInit).body as string)).toEqual({ message: 'Album', attached_media: [{ media_fbid: 'p1' }, { media_fbid: 'p2' }] });
   });
 
-  it('video ⇒ graph-video host', async () => {
-    const f = jest.spyOn(global, 'fetch').mockResolvedValue(ok({ id: 'v1' }));
+  it('video ⇒ tải theo phiên trên graph-video: start → transfer từng phần → finish', async () => {
+    const f = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(ok({ upload_session_id: 's1', video_id: 'v1', start_offset: '0', end_offset: '2' }))
+      .mockResolvedValueOnce(ok({ start_offset: '2', end_offset: '3' }))
+      .mockResolvedValueOnce(ok({ start_offset: '3', end_offset: '3' }))
+      .mockResolvedValueOnce(ok({ success: true }));
     const r = await fb.publish(acc, { text: 'Clip', media: [{ key: 'v', type: 'video', content_type: 'video/mp4', size: 3 }], options: { title: 'T' }, load, publicUrl: () => "" });
-    expect(f.mock.calls[0][0]).toMatch(/^https:\/\/graph-video\.facebook\.com\/v25\.0\/555\/videos/);
-    expect(r.url).toBe('https://www.facebook.com/555/videos/v1');
+    expect(f).toHaveBeenCalledTimes(4);
+    for (const c of f.mock.calls) expect(c[0]).toMatch(/^https:\/\/graph-video\.facebook\.com\/v25\.0\/555\/videos/);
+    const forms = f.mock.calls.map((c) => (c[1] as RequestInit).body as FormData);
+    expect(forms[0].get('upload_phase')).toBe('start');
+    expect(forms[1].get('upload_phase')).toBe('transfer');
+    expect(forms[1].get('start_offset')).toBe('0');
+    expect((forms[1].get('video_file_chunk') as Blob).size).toBe(2);
+    expect((forms[2].get('video_file_chunk') as Blob).size).toBe(1);
+    expect(forms[3].get('upload_phase')).toBe('finish');
+    expect(forms[3].get('description')).toBe('Clip');
+    expect(forms[3].get('title')).toBe('T');
+    expect(r).toEqual({ external_post_id: 'v1', url: 'https://www.facebook.com/555/videos/v1' });
+  });
+
+  it('HTTP 408 ⇒ temporary (tự thử lại); bài đã bị xoá (100/33) ⇒ SocialPostGoneError', () => {
+    expect(classifyGraphError(408, {}).kind).toBe('temporary');
+    expect(classifyGraphError(400, { error: { code: 100, error_subcode: 33, message: 'does not exist' } })).toBeInstanceOf(SocialPostGoneError);
+    expect(classifyGraphError(400, { error: { code: 100, message: 'Invalid parameter' } })).not.toBeInstanceOf(SocialPostGoneError);
   });
 
   it('lỗi Graph ⇒ SocialPublishError đã phân loại; lỗi mạng ⇒ temporary', async () => {
@@ -360,5 +381,33 @@ describe('SocialPostsService.update / reschedule — sửa bài đang hẹn gi�
     expect(tx.socialPostTarget.updateMany).toHaveBeenCalledWith({ where: { id: { in: [11] }, status: 'queued' }, data: { next_attempt_at: at } });
     expect(tx.socialPost.update).toHaveBeenCalledWith({ where: { id: 5 }, data: { scheduled_at: at } });
     await expect(setup().svc.reschedule(5, 'không phải ngày')).rejects.toThrow(/ISO 8601/);
+  });
+});
+
+describe('SocialPostsService.deleteRemote', () => {
+  function setup(deletePost: jest.Mock) {
+    const target = { id: 21, post_id: 4, account_id: 5, network: 'facebook', status: 'published', external_post_id: '555_9' };
+    const prisma = {
+      socialPostTarget: { findUnique: jest.fn().mockResolvedValue(target), update: jest.fn().mockResolvedValue({}), findMany: jest.fn().mockResolvedValue([]) },
+      socialPost: { findUnique: jest.fn().mockResolvedValue(null), update: jest.fn() },
+      socialAccount: { findUnique: jest.fn().mockResolvedValue({ id: 5, network: 'facebook', status: 'active', external_id: '555', name: 'Trang' }) },
+    };
+    const accounts = { forPublish: jest.fn().mockReturnValue({ id: 5, external_id: '555', name: 'Trang', access_token: 't', refresh_token: null, token_expires_at: null }) };
+    const registry = { get: () => ({ network: 'facebook', supported: true, deletePost }) } as unknown as SocialProviderRegistry;
+    const svc = new SocialPostsService(prisma as never, accounts as never, {} as never, registry);
+    jest.spyOn(svc, 'get').mockResolvedValue({} as never);
+    return { svc, prisma };
+  }
+
+  it('bài đã bị xoá thẳng trên mạng ⇒ không báo lỗi, đánh dấu đã gỡ', async () => {
+    const { svc, prisma } = setup(jest.fn().mockRejectedValue(new SocialPostGoneError('gone')));
+    await svc.deleteRemote(21);
+    expect(prisma.socialPostTarget.update.mock.calls[0][0].data).toEqual({ status: 'cancelled', last_error: 'Bài đã bị xoá trên mạng từ trước', url: null });
+  });
+
+  it('lỗi khác ⇒ 400 kèm lời của mạng, không đổi trạng thái', async () => {
+    const { svc, prisma } = setup(jest.fn().mockRejectedValue(new SocialPublishError('permission', 'Facebook: thiếu quyền')));
+    await expect(svc.deleteRemote(21)).rejects.toThrow('Facebook: thiếu quyền');
+    expect(prisma.socialPostTarget.update).not.toHaveBeenCalled();
   });
 });

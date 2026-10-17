@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import axios from "axios"
 import { keepPreviousData, useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import apiClient from "@/lib/api-client"
@@ -385,6 +386,24 @@ export function useSocialPosts() {
     // Bài đang đăng nền: tự làm mới tới khi xong.
     refetchInterval: (q) => (q.state.data?.data.some((p) => p.status === "publishing") ? 5_000 : false),
   })
+}
+
+/** Mở danh sách bài: nhờ máy chủ kiểm bài gần đây còn trên mạng không (bài bị xoá thẳng trên Facebook… hiện "Đã xoá trên mạng"). */
+export function useSyncPublishedPosts(enabled: boolean) {
+  const qc = useQueryClient()
+  useEffect(() => {
+    if (!enabled) return
+    let live = true
+    apiClient
+      .post<{ checked: number; removed: number }>("/social/posts/sync")
+      .then((r) => {
+        if (live && r.data.checked > 0) void qc.invalidateQueries({ queryKey: [...KEY, "posts"] })
+      })
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [enabled, qc])
 }
 
 /** Bài trong một khoảng (lịch): bài hẹn giờ tính theo giờ hẹn, bài đăng ngay theo giờ tạo. Tối đa 100 bài. */

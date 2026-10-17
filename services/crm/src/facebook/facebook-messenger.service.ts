@@ -292,10 +292,48 @@ export class FacebookMessengerService implements MessagingChannel {
     return kept.map((c) => ({ ...c, page_name: names.get(c.page_id) ?? c.page_id, can_reply: isWithinMessagingWindow(c.last_inbound_at), awaiting_reply: awaitingReply(c) }));
   }
 
+  private readonly lastSync = new Map<number, number>();
+
+  /**
+   * Kéo tin gần nhất của hội thoại thẳng từ Facebook và ghi tin còn thiếu (như webhook). Bù khi webhook không về — vd app Meta
+   * trỏ webhook sang bản cài khác, hoặc Page tắt lúc khách nhắn. Mỗi hội thoại tối đa một lần mỗi phút; lỗi Facebook thì bỏ qua.
+   * Trả số tin mới.
+   */
+  async syncConversation(conv: { id: number; page_id: string; psid: string; last_message_at: Date | null }, force = false): Promise<number> {
+    const now = Date.now();
+    if (!force && now - (this.lastSync.get(conv.id) ?? 0) < 60_000) return 0;
+    this.lastSync.set(conv.id, now);
+    const ctx = await this.pages.activePageWithToken(conv.page_id);
+    if (!ctx) return 0;
+    let msgs: Awaited<ReturnType<GraphClient['getRecentMessages']>>;
+    try {
+      msgs = await this.graph.getRecentMessages(conv.page_id, conv.psid, ctx.token);
+    } catch (err) {
+      this.logger.warn(`Đồng bộ hội thoại ${conv.id} từ Facebook lỗi: ${(err as Error).message}`);
+      return 0;
+    }
+    let added = 0;
+    // Chỉ tin mới hơn tin cuối đã lưu: không kéo lùi "tin cuối" của hội thoại.
+    const after = conv.last_message_at?.getTime() ?? 0;
+    for (const m of [...msgs].reverse()) {
+      if ((Date.parse(m.created_time) || 0) <= after) continue;
+      const fromPage = m.from?.id === conv.page_id;
+      const ev: MessagingEvent = {
+        sender: { id: fromPage ? conv.page_id : conv.psid },
+        recipient: { id: fromPage ? conv.psid : conv.page_id },
+        timestamp: Date.parse(m.created_time) || undefined,
+        message: { mid: m.id, text: m.message || undefined, ...(fromPage ? { is_echo: true } : {}) },
+      };
+      if (await this.ingest(conv.page_id, ev)) added++;
+    }
+    return added;
+  }
+
   /** Tin của 1 hội thoại (cũ → mới) và đánh dấu đã đọc. */
   async messages(conversationId: number, limit = 100) {
-    const conv = await this.prisma.facebookConversation.findUnique({ where: { id: conversationId } });
+    let conv = await this.prisma.facebookConversation.findUnique({ where: { id: conversationId } });
     if (!conv) throw new NotFoundException('Không tìm thấy hội thoại');
+    if (await this.syncConversation(conv)) conv = (await this.prisma.facebookConversation.findUnique({ where: { id: conversationId } })) ?? conv;
     const rows = await this.prisma.facebookMessage.findMany({ where: { conversation_id: conversationId }, orderBy: { sent_at: 'desc' }, take: Math.min(Math.max(limit, 1), 200) });
     if (conv.unread_count > 0) await this.prisma.facebookConversation.update({ where: { id: conv.id }, data: { unread_count: 0 } });
     return { conversation: { ...conv, unread_count: 0, can_reply: isWithinMessagingWindow(conv.last_inbound_at) }, messages: rows.reverse().map((m) => ({ ...m, id: m.id.toString() })) };
@@ -329,8 +367,12 @@ export class FacebookMessengerService implements MessagingChannel {
     const text = rawText?.trim();
     if (!text) throw new BadRequestException('Nội dung tin nhắn trống');
     if (text.length > MAX_TEXT) throw new BadRequestException(`Tin nhắn tối đa ${MAX_TEXT} ký tự`);
-    const conv = await this.prisma.facebookConversation.findUnique({ where: { id: conversationId } });
+    let conv = await this.prisma.facebookConversation.findUnique({ where: { id: conversationId } });
     if (!conv) throw new NotFoundException('Không tìm thấy hội thoại');
+    // Theo dữ liệu đã lưu thì quá 24 giờ: hỏi lại Facebook trước khi chặn (tin khách có thể chưa về qua webhook).
+    if (!isWithinMessagingWindow(conv.last_inbound_at) && (await this.syncConversation(conv, true))) {
+      conv = (await this.prisma.facebookConversation.findUnique({ where: { id: conversationId } })) ?? conv;
+    }
     if (!isWithinMessagingWindow(conv.last_inbound_at)) {
       throw new BadRequestException('Đã quá 24 giờ kể từ tin nhắn gần nhất của khách — Messenger không cho gửi tin chủ động.');
     }

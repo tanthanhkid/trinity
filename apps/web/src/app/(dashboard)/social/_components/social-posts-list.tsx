@@ -10,7 +10,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { getApiErrorMessage } from "@/lib/api-client"
 import { usePermissions } from "@/lib/rbac/use-permissions"
-import { isPostEditable, useSocialMutations, useSocialPosts, type SocialPost, type SocialTarget } from "@/hooks/use-social"
+import { isPostEditable, useSocialMutations, useSocialPosts, useSyncPublishedPosts, type SocialPost, type SocialTarget } from "@/hooks/use-social"
 import { SocialPostEdit } from "./social-post-edit"
 import { CalendarClock } from "lucide-react"
 import { SocialMetricsLine } from "./social-metrics"
@@ -37,6 +37,9 @@ const TARGET_STATUS: Record<SocialTarget["status"], { label: string; variant: "s
   cancelled: { label: "Đã huỷ", variant: "secondary" },
 }
 
+/** Bài đã bị xoá thẳng trên mạng (Trinity phát hiện khi kiểm/lấy số). */
+const REMOVED_STATUS = { label: "Đã xoá trên mạng", variant: "secondary" } as const
+
 /** Mạng không cho gỡ bài qua API — người dùng gỡ trong ứng dụng của mạng. */
 const APP_ONLY_REMOVE: Partial<Record<SocialTarget["network"], string>> = { tiktok: "TikTok", instagram: "Instagram" }
 
@@ -45,6 +48,7 @@ const fmt = (iso: string) => new Intl.DateTimeFormat("vi-VN", { dateStyle: "shor
 /** Bài đã đăng: mới nhất trước, trạng thái từng kênh, Huỷ / Thử lại / Gỡ khỏi mạng. */
 export function SocialPostsList({ highlight, onCompose }: { highlight?: number; onCompose?: () => void }) {
   const { data, isLoading, isError } = useSocialPosts()
+  useSyncPublishedPosts(Boolean(data?.data.some((p) => p.targets.some((t) => t.status === "published"))))
   const m = useSocialMutations()
   const { can } = usePermissions()
   const [removing, setRemoving] = useState<SocialTarget | null>(null)
@@ -61,9 +65,11 @@ export function SocialPostsList({ highlight, onCompose }: { highlight?: number; 
     <div className="flex flex-col gap-3">
       <ul className="divide-y divide-border overflow-hidden rounded-xl bg-card ring-1 ring-foreground/8 shadow-[var(--shadow-card)]">
       {data.data.map((p) => {
-        const s = POST_STATUS[p.status]
+        const published = p.targets.filter((t) => t.status === "published")
+        // Mọi kênh đã đăng đều bị xoá thẳng trên mạng ⇒ bài không còn ở đâu nữa.
+        const s = published.length > 0 && published.every((t) => t.metrics?.removed) && p.status === "published" ? REMOVED_STATUS : POST_STATUS[p.status]
         const cancellable = p.targets.some((t) => t.status === "queued" || t.status === "failed")
-        const live = p.targets.some((t) => t.status === "published")
+        const live = published.some((t) => !t.metrics?.removed)
         const editable = isPostEditable(p)
         return (
           <li key={p.id} id={`social-post-${p.id}`} className={cn("flex flex-col gap-2.5 px-4 py-3.5 sm:px-5", p.id === highlight && "bg-primary/[0.05] ring-2 ring-inset ring-primary/30")}>
@@ -105,13 +111,14 @@ export function SocialPostsList({ highlight, onCompose }: { highlight?: number; 
             </div>
             <ul className="flex flex-col gap-1.5">
               {p.targets.map((t) => {
-                const ts = TARGET_STATUS[t.status]
+                const gone = t.status === "published" && Boolean(t.metrics?.removed)
+                const ts = gone ? REMOVED_STATUS : TARGET_STATUS[t.status]
                 return (
                   <li key={t.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
                     <NetworkMark network={t.network} size="sm" />
                     <span className="font-medium text-foreground">{t.account_name ?? `#${t.account_id}`}</span>
                     <StatusPill tone={TONE[ts.variant]}>{ts.label}</StatusPill>
-                    {t.url && (
+                    {t.url && !gone && (
                       <a href={t.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
                         Xem bài <ExternalLink className="size-3" />
                       </a>
@@ -124,8 +131,8 @@ export function SocialPostsList({ highlight, onCompose }: { highlight?: number; 
                           <RotateCcw className="size-3.5" /> Thử lại
                         </Button>
                       )}
-                      {t.status === "published" && APP_ONLY_REMOVE[t.network] && <span className="text-xs text-muted-foreground">Gỡ trong ứng dụng {APP_ONLY_REMOVE[t.network]}</span>}
-                      {t.status === "published" && !APP_ONLY_REMOVE[t.network] && can("social.manage") && (
+                      {t.status === "published" && !gone && APP_ONLY_REMOVE[t.network] && <span className="text-xs text-muted-foreground">Gỡ trong ứng dụng {APP_ONLY_REMOVE[t.network]}</span>}
+                      {t.status === "published" && !gone && !APP_ONLY_REMOVE[t.network] && can("social.manage") && (
                         <Button size="sm" variant="ghost" onClick={() => setRemoving(t)}>
                           <Trash2 className="size-3.5" /> Gỡ khỏi mạng
                         </Button>

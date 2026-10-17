@@ -299,7 +299,9 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
       | undefined
     // ValidationPipe của NestJS trả `message` là mảng — gộp lại để luôn trả string.
     const msg = Array.isArray(data?.message) ? data.message.join("; ") : data?.message
-    return data?.error ?? msg ?? fallback
+    // NestJS đặt `error` là tên mã HTTP ("Bad Request") — câu giải thích tiếng Việt nằm ở `message`.
+    const reason = typeof data?.error === "string" && /^[A-Za-z ]+$/.test(data.error)
+    return (reason ? msg ?? data?.error : data?.error ?? msg) ?? fallback
   }
   return fallback
 }

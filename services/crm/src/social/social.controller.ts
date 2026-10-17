@@ -372,6 +372,14 @@ export class SocialController {
     return this.posts.list({ status, from, to, limit: n(limit), cursor: n(cursor) });
   }
 
+  @Post('posts/sync')
+  @Can('social.post')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Kiểm bài đã đăng gần đây còn trên mạng không (bài bị xoá thẳng trên mạng ⇒ đánh dấu đã xoá)' })
+  syncPublished() {
+    return this.posts.syncPublished();
+  }
+
   @Get('stats')
   @Can('social.post')
   @ApiOperation({ summary: 'Thống kê bài đã đăng trong khoảng ngày: tổng, theo kênh, bài tương tác cao nhất (mặc định 30 ngày)' })

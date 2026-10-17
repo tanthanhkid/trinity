@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { loadFacebookConfig } from '../../facebook/facebook.config';
 import {
+  SocialPostGoneError,
   SocialPublishError,
   type AccountForPublish,
   type ConnectedAccount,
@@ -36,10 +37,13 @@ export function classifyGraphError(status: number, body: GraphErrorBody): Social
   const e = body.error ?? {};
   const code = typeof e.code === 'number' ? e.code : null;
   const msg = (e.error_user_msg || e.message || `HTTP ${status}`).slice(0, 300);
+  // Đối tượng không còn (bài/video đã bị xoá trên Facebook): code 100, subcode 33.
+  if (code === 100 && e.error_subcode === 33) return new SocialPostGoneError(`Facebook: bài không còn trên trang (đã bị xoá). (${msg})`);
   if (code === 190 || code === 102) return new SocialPublishError('token', `Facebook: phiên đăng nhập của trang đã hết hạn hoặc bị thu hồi — liên kết lại. (${msg})`);
   if (status === 429 || (code !== null && [4, 17, 32, 613].includes(code))) return new SocialPublishError('rate', `Facebook giới hạn tần suất. (${msg})`);
   if (code === 10 || (code !== null && code >= 200 && code < 300)) return new SocialPublishError('permission', `Facebook: thiếu quyền đăng lên trang này. (${msg})`);
-  if (e.is_transient || code === 1 || code === 2 || status >= 500) return new SocialPublishError('temporary', `Facebook tạm thời lỗi. (${msg})`);
+  // 408: Facebook hết giờ chờ nhận tệp (video lớn, đường truyền chậm) — thử lại được.
+  if (e.is_transient || code === 1 || code === 2 || status === 408 || status >= 500) return new SocialPublishError('temporary', `Facebook tạm thời lỗi. (${msg})`);
   return new SocialPublishError('invalid', `Facebook từ chối bài: ${msg}`);
 }
 
@@ -115,13 +119,9 @@ export class FacebookSocialProvider implements SocialProvider {
     const video = input.media.find((m) => m.type === 'video');
     if (video) {
       const f = await input.load(video);
-      const form = new FormData();
-      form.set('description', input.text);
       const title = typeof input.options.title === 'string' ? input.options.title.trim() : '';
-      if (title) form.set('title', title.slice(0, 255));
-      form.set('source', new Blob([new Uint8Array(f.body)], { type: f.content_type }), `video${extOf(f.content_type)}`);
-      const r = await this.call<{ id: string }>('POST', `${page}/videos`, { token, form, host: 'graph-video.facebook.com' });
-      return { external_post_id: r.id, url: `https://www.facebook.com/${page}/videos/${r.id}` };
+      const id = await this.uploadVideo(page, token, f.body, f.content_type, { description: input.text, ...(title ? { title: title.slice(0, 255) } : {}) });
+      return { external_post_id: id, url: `https://www.facebook.com/${page}/videos/${id}` };
     }
     const images = input.media.filter((m) => m.type === 'image');
     if (images.length === 1) {
@@ -147,6 +147,38 @@ export class FacebookSocialProvider implements SocialProvider {
     }
     const r = await this.call<{ id: string }>('POST', `${page}/feed`, { token, body });
     return { external_post_id: r.id, url: `https://www.facebook.com/${r.id}` };
+  }
+
+  /**
+   * Video tải lên theo phiên (start → transfer từng phần → finish), mỗi phần một request ngắn: một request chứa cả video
+   * vài chục MB hay bị Facebook trả HTTP 408 khi đường lên chậm. Docs: https://developers.facebook.com/docs/video-api/guides/publishing
+   */
+  private async uploadVideo(page: string, token: string, body: Buffer, contentType: string, fields: Record<string, string>): Promise<string> {
+    const host = 'graph-video.facebook.com';
+    const phase = (values: Record<string, string>, chunk?: Buffer) => {
+      const form = new FormData();
+      for (const [k, v] of Object.entries(values)) form.set(k, v);
+      if (chunk) form.set('video_file_chunk', new Blob([new Uint8Array(chunk)], { type: contentType }), `video${extOf(contentType)}`);
+      return form;
+    };
+    const start = await this.call<{ upload_session_id: string; video_id: string; start_offset: string; end_offset: string }>('POST', `${page}/videos`, {
+      token,
+      host,
+      form: phase({ upload_phase: 'start', file_size: String(body.length) }),
+    });
+    let from = Number(start.start_offset);
+    let to = Number(start.end_offset);
+    while (from < to) {
+      const r = await this.call<{ start_offset: string; end_offset: string }>('POST', `${page}/videos`, {
+        token,
+        host,
+        form: phase({ upload_phase: 'transfer', upload_session_id: start.upload_session_id, start_offset: String(from) }, body.subarray(from, to)),
+      });
+      from = Number(r.start_offset);
+      to = Number(r.end_offset);
+    }
+    await this.call('POST', `${page}/videos`, { token, host, form: phase({ upload_phase: 'finish', upload_session_id: start.upload_session_id, ...fields }) });
+    return start.video_id;
   }
 
   async deletePost(account: AccountForPublish, externalPostId: string): Promise<void> {

@@ -12,6 +12,12 @@ events, or accept that the others are send-only.
 The callback is `https://<domain>/api/v1/facebook/webhook`; the verify token is `FACEBOOK_WEBHOOK_VERIFY_TOKEN`. Subscribe the app to the
 Page fields `feed` (comments) and `messages`.
 
+## Messages the webhook did not deliver
+Opening a Messenger conversation reads its latest 20 messages straight from Facebook (at most once a minute per conversation) and stores
+the ones newer than the last stored message, exactly as if the webhook had delivered them. Replying (in the inbox or with
+`reply_to_customer`) when the stored messages say the 24-hour window has closed first asks Facebook the same way, so a customer who wrote
+while the webhook pointed elsewhere, or while the Page was switched off, can still be answered. The Page must be connected and switched on.
+
 ## Turning a Page off, and reconnecting
 Under **Connections › Facebook Page** each Page can be switched off (`is_active = false`): its events are ignored and it is not offered for
 posting comments, messages or broadcasts. **Disconnect** also turns the Page off, clears its token and webhook subscription, and keeps the

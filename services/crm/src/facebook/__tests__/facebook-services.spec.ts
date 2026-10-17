@@ -183,6 +183,37 @@ describe('FacebookMessengerService', () => {
     expect(prisma.integrationEvent.create).not.toHaveBeenCalled();
   });
 
+  it('quá 24 giờ theo dữ liệu đã lưu ⇒ kéo tin từ Facebook trước; khách có nhắn mới thì gửi được', async () => {
+    const { svc, prisma, graph } = mk();
+    const old = new Date(Date.now() - 3 * 86_400_000);
+    const fresh = new Date(Date.now() - 60_000);
+    const conv = { id: 3, page_id: '111', psid: 'u1', contact_id: null, last_inbound_at: old, last_message_at: old };
+    prisma.facebookConversation.findUnique.mockResolvedValueOnce(conv).mockResolvedValue({ ...conv, last_inbound_at: fresh, last_message_at: fresh });
+    prisma.facebookMessage.create.mockResolvedValue({ id: 9n });
+    Object.assign(graph, {
+      getRecentMessages: jest.fn().mockResolvedValue([
+        { id: 'm_new', created_time: fresh.toISOString(), from: { id: 'u1' }, message: 'còn hàng không' },
+        { id: 'm_old', created_time: old.toISOString(), from: { id: 'u1' }, message: 'tin cũ' },
+      ]),
+    });
+    await svc.reply(3, 'Dạ còn ạ', { userId: 5 } as never);
+    expect((graph as unknown as { getRecentMessages: jest.Mock }).getRecentMessages).toHaveBeenCalledWith('111', 'u1', 'PAGE_TOKEN');
+    // Chỉ tin mới hơn tin cuối đã lưu được ghi; rồi tin trả lời đi được.
+    const mids = prisma.facebookMessage.create.mock.calls.map((c) => c[0].data.mid);
+    expect(mids[0]).toBe('m_new');
+    expect(mids).not.toContain('m_old');
+    expect(graph.sendText).toHaveBeenCalledWith('PAGE_TOKEN', 'u1', 'Dạ còn ạ');
+  });
+
+  it('Facebook cũng không có tin mới ⇒ vẫn chặn vì quá 24 giờ', async () => {
+    const { svc, prisma, graph } = mk();
+    const old = new Date(Date.now() - 3 * 86_400_000);
+    prisma.facebookConversation.findUnique.mockResolvedValue({ id: 3, page_id: '111', psid: 'u1', contact_id: null, last_inbound_at: old, last_message_at: old });
+    Object.assign(graph, { getRecentMessages: jest.fn().mockResolvedValue([]) });
+    await expect(svc.reply(3, 'Dạ', { userId: 5 } as never)).rejects.toThrow(/24 giờ/);
+    expect(graph.sendText).not.toHaveBeenCalled();
+  });
+
   it('người nhắn lần đầu ⇒ tạo khách (SĐT trống, nguồn của Page, người nhận khách của Page), ghép hội thoại, ghi timeline', async () => {
     const { svc, prisma, publicApi } = mk();
     await svc.ingest('111', { sender: { id: 'u1' }, recipient: { id: '111' }, message: { mid: 'm1', text: 'shop ơi còn hàng không' } });

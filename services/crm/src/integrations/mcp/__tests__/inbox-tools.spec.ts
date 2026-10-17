@@ -16,6 +16,7 @@ function deps(o: { zalo?: boolean; features?: Record<string, boolean> } = {}) {
     facebookMessenger: {
       listConversations: jest.fn(async () => [{ id: 3, customer_name: 'Lan', page_name: 'Trinity', last_message_preview: 'Giá?', last_inbound_at: recent(), can_reply: true, contact_id: 7 }]),
       reply: jest.fn(async () => ({})),
+      syncConversation: jest.fn(async () => 0),
     },
     facebookComments: {
       listComments: jest.fn(async () => [{ id: '10', from_name: 'Minh', page_name: 'Trinity', message: 'ib', commented_at: recent(), post_id: '111_9', can_private_reply: true, contact_id: null }]),
@@ -76,6 +77,8 @@ describe('reply_to_customer', () => {
     await expect(replyToCustomerTool.run({ id: 'zalo_oa:9', text: 'Dạ', confirmed_by_user: 'ok gửi đi' }, ctx(d))).rejects.toThrow(/48 giờ/);
     await expect(replyToCustomerTool.run({ id: 'x:1', text: 'Dạ' }, ctx(d))).rejects.toThrow(/id không hợp lệ/);
     expect(d.facebookMessenger.reply).not.toHaveBeenCalled();
+    // Hỏi lại Facebook trước khi chặn (tin khách có thể chưa về qua webhook).
+    expect(d.facebookMessenger.syncConversation).toHaveBeenCalledWith(expect.objectContaining({ id: 9 }), true);
     expect(d.zaloOa.sendText).not.toHaveBeenCalled();
   });
 });

@@ -129,8 +129,10 @@ export const replyToCustomerTool: ToolDef = {
     let preview: Record<string, unknown>;
     if (channel === 'messenger') {
       if (!deps.facebookMessenger || !(await deps.orgFeatures.isEnabled('facebook_page'))) throw new ToolUserError('Messenger chưa bật trên máy chủ này. / Messenger is not available.');
-      const c = await deps.prisma.facebookConversation.findUnique({ where: { id: Number(rawId) } });
+      let c = await deps.prisma.facebookConversation.findUnique({ where: { id: Number(rawId) } });
       if (!c) throw new ToolUserError('Không tìm thấy hội thoại. / Conversation not found.');
+      // Tin khách có thể chưa về qua webhook: hỏi lại Facebook trước khi chặn.
+      if (!isWithinMessagingWindow(c.last_inbound_at) && (await deps.facebookMessenger.syncConversation(c, true))) c = (await deps.prisma.facebookConversation.findUnique({ where: { id: c.id } })) ?? c;
       if (!isWithinMessagingWindow(c.last_inbound_at)) throw new ToolUserError('Đã quá 24 giờ kể từ tin cuối của khách — Messenger không cho gửi. / Outside the 24-hour window.');
       preview = { channel, customer: c.customer_name, text };
     } else if (channel === 'facebook_comment') {

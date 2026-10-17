@@ -112,8 +112,12 @@ export function useKanbanCard(cardId: number | null) {
 
 function useInvalidateCards() {
   const queryClient = useQueryClient()
-  return () => {
-    queryClient.invalidateQueries({ queryKey: [CARDS_KEY] })
+  // `deletedId`: bỏ qua query chi tiết của card vừa xoá — hộp thoại còn mở thì refetch sẽ ra 404.
+  return (deletedId?: number) => {
+    queryClient.invalidateQueries({
+      queryKey: [CARDS_KEY],
+      predicate: (q) => deletedId == null || !(q.queryKey[1] === "detail" && q.queryKey[2] === deletedId),
+    })
     queryClient.invalidateQueries({ queryKey: ["kanban-boards"] })
   }
 }
@@ -125,7 +129,7 @@ export function useCreateKanbanCard() {
       const res = await apiClient.post<KanbanCard>("/kanban/cards", payload)
       return res.data
     },
-    onSuccess: invalidate,
+    onSuccess: () => invalidate(),
   })
 }
 
@@ -136,7 +140,7 @@ export function useUpdateKanbanCard() {
       const res = await apiClient.patch<KanbanCard>(`/kanban/cards/${id}`, payload)
       return res.data
     },
-    onSuccess: invalidate,
+    onSuccess: () => invalidate(),
   })
 }
 
@@ -196,7 +200,7 @@ export function useMoveKanbanCard() {
     onError: (_err, _vars, context) => {
       context?.previous.forEach(([key, data]) => queryClient.setQueryData(key, data))
     },
-    onSettled: invalidate,
+    onSettled: () => invalidate(),
   })
 }
 
@@ -206,6 +210,6 @@ export function useDeleteKanbanCard() {
     mutationFn: async (id: number) => {
       await apiClient.delete(`/kanban/cards/${id}`)
     },
-    onSuccess: invalidate,
+    onSuccess: (_data, id) => invalidate(id),
   })
 }

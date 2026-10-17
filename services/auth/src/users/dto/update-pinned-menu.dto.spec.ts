@@ -1,6 +1,8 @@
 import 'reflect-metadata'
 import { plainToInstance } from 'class-transformer'
 import { validate } from 'class-validator'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { UpdatePinnedMenuDto } from './update-pinned-menu.dto'
 import { KNOWN_MENU_KEYS, MAX_PINNED_MENU_KEYS } from '../pinned-menu.constants'
 
@@ -48,5 +50,12 @@ describe('UpdatePinnedMenuDto validation', () => {
     const errors = await validateDto({ keys: 'contacts' })
     const err = errors.find((e) => e.property === 'keys')
     expect(err).toBeDefined()
+  })
+
+  it('KNOWN_MENU_KEYS chứa mọi key menu của nav-config (ghim menu mới không bị 400)', () => {
+    const nav = readFileSync(join(__dirname, '../../../../../apps/web/src/components/nav-config.ts'), 'utf8')
+    const navKeys = [...nav.matchAll(/\bkey: *"([a-z0-9_-]+)"/g)].map((m) => m[1])
+    expect(navKeys.length).toBeGreaterThan(10)
+    expect(navKeys.filter((k) => !(KNOWN_MENU_KEYS as readonly string[]).includes(k))).toEqual([])
   })
 })

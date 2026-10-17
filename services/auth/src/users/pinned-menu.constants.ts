@@ -15,6 +15,7 @@ export const KNOWN_MENU_KEYS = [
   'projects',
   'reports',
   'newsfeed',
+  'social',
   'kanban',
   'attendance',
   'payroll',
@@ -24,6 +25,7 @@ export const KNOWN_MENU_KEYS = [
   'management_job_titles',
   'management_recruitment',
   'management_workdays',
+  'connections',
   'settings',
 ] as const;
 

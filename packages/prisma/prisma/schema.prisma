@@ -12,6 +12,20 @@ datasource db {
   // khi migrate thì chạy với DATABASE_URL = URL direct.
 }
 
+// ==================== TENANT (SaaS — spike RLS) ====================
+
+/// Khách thuê. Bảng có `tenant_id` bật Row-Level Security: chỉ thấy/ghi dòng có `tenant_id = trinity_current_tenant()`
+/// (`app.tenant_id` đặt bằng `set_config(..., true)` trong mỗi transaction — xem `packages/prisma/src/tenant`).
+/// Dữ liệu có sẵn thuộc tenant mặc định `00000000-0000-0000-0000-000000000001`.
+model Tenant {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug       String   @unique @db.VarChar(63)
+  name       String   @db.VarChar(200)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  @@map("tenants")
+}
+
 // ==================== AUTH (4 tables) ====================
 
 model User {
@@ -170,6 +184,8 @@ model LoginWifiCheckTarget {
 
 model Contact {
   id                 Int       @id @default(autoincrement())
+  /// Khách thuê (SaaS). DB tự điền từ `app.tenant_id` của transaction (RLS, migration 0016) — app không cần truyền.
+  tenant_id          String   @default(dbgenerated("trinity_current_tenant()")) @db.Uuid
   /// Mã chung KH001… — DB cấp lúc INSERT (trigger `trinity_contacts_code`, migration `0000_init`).
   code               String?   @db.VarChar(24)
   phone              String // cho phép trùng (nhiều bản ghi cùng số)
@@ -246,6 +262,7 @@ model Contact {
   @@index([created_by_id], map: "idx_contacts_created_by_id")
   @@index([created_at(sort: Desc), id(sort: Desc)], map: "idx_contacts_created_at_id_desc")
   @@index([assigned_to, created_at(sort: Desc), id(sort: Desc)], map: "idx_contacts_assigned_to_created_at_id")
+  @@index([tenant_id], map: "contacts_tenant_idx")
   @@map("contacts")
 }
 
@@ -268,6 +285,8 @@ model ContactRecentView {
 
 model Activity {
   id         Int      @id @default(autoincrement())
+  /// Khách thuê (SaaS). DB tự điền từ `app.tenant_id` của transaction (RLS, migration 0016) — app không cần truyền.
+  tenant_id  String   @default(dbgenerated("trinity_current_tenant()")) @db.Uuid
   contact_id Int?
   action     String // note, stage_change, ...
   details    Json? // structured activity details
@@ -281,11 +300,14 @@ model Activity {
   // countStageEntryToday queries WHERE action='stage_change' AND created_at >= today
   // trên bảng lớn. Index này tránh full-scan mỗi lần tải dashboard.
   @@index([action, created_at(sort: Desc)], map: "idx_activities_action_created_at")
+  @@index([tenant_id], map: "activities_tenant_idx")
   @@map("activities")
 }
 
 model Deal {
   id          Int      @id @default(autoincrement())
+  /// Khách thuê (SaaS). DB tự điền từ `app.tenant_id` của transaction (RLS, migration 0016) — app không cần truyền.
+  tenant_id   String   @default(dbgenerated("trinity_current_tenant()")) @db.Uuid
   /// Mã chung DL001… — DB cấp lúc INSERT (trigger, migration `0000_init`).
   code        String?  @db.VarChar(24)
   title       String
@@ -309,6 +331,7 @@ model Deal {
   @@index([created_by])
   @@index([created_at])
   @@index([status, won_at])
+  @@index([tenant_id], map: "deals_tenant_idx")
   @@map("deals")
 }
 
@@ -2067,6 +2090,8 @@ model Briefing {
 /// 1 Fanpage đã kết nối. `token_enc` = page access token mã hoá AES-256-GCM (khoá INTEGRATIONS_SECRET_KEY) — KHÔNG trả ra API.
 model FacebookPage {
   id                     Int       @id @default(autoincrement())
+  /// Khách thuê (SaaS). DB tự điền từ `app.tenant_id` của transaction (RLS, migration 0016) — app không cần truyền.
+  tenant_id              String   @default(dbgenerated("trinity_current_tenant()")) @db.Uuid
   page_id                String    @unique @db.VarChar(40)
   name                   String    @db.VarChar(200)
   token_enc              String    @db.Text
@@ -2088,12 +2113,15 @@ model FacebookPage {
   created_at             DateTime  @default(now()) @db.Timestamptz(3)
   updated_at             DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
 
+  @@index([tenant_id], map: "facebook_pages_tenant_idx")
   @@map("facebook_pages")
 }
 
 /// Hội thoại Messenger = (Page, PSID). `last_inbound_at` quyết định cửa sổ trả lời 24h.
 model FacebookConversation {
   id                   Int       @id @default(autoincrement())
+  /// Khách thuê (SaaS). DB tự điền từ `app.tenant_id` của transaction (RLS, migration 0016) — app không cần truyền.
+  tenant_id            String   @default(dbgenerated("trinity_current_tenant()")) @db.Uuid
   page_id              String    @db.VarChar(40)
   psid                 String    @db.VarChar(40)
   customer_name        String?   @db.VarChar(200)
@@ -2108,6 +2136,7 @@ model FacebookConversation {
 
   @@unique([page_id, psid], map: "facebook_conversations_page_psid_uniq")
   @@index([last_message_at(sort: Desc)], map: "facebook_conversations_last_idx")
+  @@index([tenant_id], map: "facebook_conversations_tenant_idx")
   @@map("facebook_conversations")
 }
 
@@ -2159,6 +2188,8 @@ model FacebookBroadcastRecipient {
 /// Tin nhắn. `mid` UNIQUE = khử trùng (Meta gửi lại webhook khi lỗi).
 model FacebookMessage {
   id              BigInt   @id @default(autoincrement())
+  /// Khách thuê (SaaS). DB tự điền từ `app.tenant_id` của transaction (RLS, migration 0016) — app không cần truyền.
+  tenant_id          String   @default(dbgenerated("trinity_current_tenant()")) @db.Uuid
   conversation_id Int
   mid             String   @unique @db.VarChar(255)
   /// 'in' (khách) | 'out' (Page — gồm cả tin gửi từ Inbox Facebook, qua echo)
@@ -2168,6 +2199,7 @@ model FacebookMessage {
   sent_at         DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([conversation_id, sent_at(sort: Desc)], map: "facebook_messages_conv_idx")
+  @@index([tenant_id], map: "facebook_messages_tenant_idx")
   @@map("facebook_messages")
 }
 

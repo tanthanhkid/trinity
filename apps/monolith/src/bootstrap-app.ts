@@ -6,6 +6,7 @@ import { requestPathMiddleware } from './request-path.context'
 import { ServiceAwareValidationPipe } from './service-aware-validation.pipe'
 import { LoggingInterceptor, ElkExceptionFilter } from '@trinity/logger'
 import { auditRoutes } from '@trinity/rbac-nest'
+import { tenantMiddleware } from '@trinity/prisma'
 
 // BigInt không serialize được mặc định trong JSON (cùng cách làm ở entrypoint của các service)
 // eslint-disable-next-line @typescript-eslint/no-redeclare
@@ -66,6 +67,8 @@ export async function configureApp(
 ): Promise<void> {
   // PHẢI đứng trước mọi middleware khác — pipe đọc đường dẫn từ đây.
   app.use(requestPathMiddleware)
+  // SPIKE RLS: request chạy trong tenant cấu hình (TRINITY_DEFAULT_TENANT_ID). Chỉ có tác dụng khi TRINITY_TENANT_RLS=on.
+  app.use(tenantMiddleware)
 
 
   const captureRawBody = (req: unknown, _res: unknown, buf: Buffer): void => {

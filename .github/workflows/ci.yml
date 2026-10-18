@@ -42,6 +42,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
+      - name: Raw SQL guard (no $queryRawUnsafe, reviewed Prisma.raw only)
+        run: bash scripts/ci/check-raw-sql.sh
+
       - name: Generate Prisma clients
         run: pnpm --filter @trinity/prisma generate
 
@@ -123,6 +126,12 @@ jobs:
       - name: Apply migrations
         if: steps.sql.outputs.run == 'true'
         run: pnpm --filter @trinity/prisma exec prisma migrate deploy
+
+      # Spike RLS (0016): role admin của test (superuser, bỏ qua RLS) ghi dữ liệu không qua extension ⇒ cần tenant mặc định
+      # cho DEFAULT trinity_current_tenant(). Role app trong tenant-rls.pg.spec.ts KHÔNG có mặc định này (fail closed).
+      - name: Default tenant for the admin test role
+        if: steps.sql.outputs.run == 'true'
+        run: echo "ALTER ROLE test IN DATABASE trinity_sql_test SET app.tenant_id = '00000000-0000-0000-0000-000000000001';" | pnpm --filter @trinity/prisma exec prisma db execute --stdin --schema prisma/schema.prisma
 
       - name: SQL tests on Postgres
         if: steps.sql.outputs.run == 'true'

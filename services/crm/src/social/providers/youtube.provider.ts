@@ -179,7 +179,7 @@ export class YoutubeSocialProvider implements SocialProvider {
       access_type: 'offline',
       // Luôn hỏi lại để Google trả refresh token cả khi người dùng từng đồng ý.
       prompt: 'consent',
-      include_granted_scopes: 'true',
+      // Không gộp quyền cũ (include_granted_scopes): màn đồng ý và token chỉ mang đúng hai scope đã khai với Google.
     });
     return `https://accounts.google.com/o/oauth2/v2/auth?${q.toString()}`;
   }

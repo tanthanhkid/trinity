@@ -124,7 +124,7 @@ export class GoogleBusinessSocialProvider implements SocialProvider {
       state,
       access_type: 'offline',
       prompt: 'consent',
-      include_granted_scopes: 'true',
+      // Cùng OAuth client với YouTube: không gộp quyền cũ để mỗi lần liên kết chỉ xin đúng scope của mình.
     });
     return `https://accounts.google.com/o/oauth2/v2/auth?${q.toString()}`;
   }

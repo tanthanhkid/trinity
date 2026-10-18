@@ -30,7 +30,7 @@ Linked channels belong to the company: everyone with `social.post` can post to e
 ## Prerequisites (YouTube)
 1. A Google Cloud project with **YouTube Data API v3** enabled and an OAuth client of type *Web application*.
 2. Authorized redirect URI: `https://<CRM domain>/api/v1/social/oauth/callback/youtube`.
-3. OAuth consent screen with the scopes `youtube.upload` and `youtube.force-ssl` (reads the channel and removes videos; `videos.delete` rejects `youtube.upload`/`youtube.readonly`). In *Testing* mode only listed test users can link, and
+3. OAuth consent screen with the scopes `youtube.upload` and `youtube.force-ssl` (reads the channel and removes videos; `videos.delete` rejects `youtube.upload`/`youtube.readonly`). The login asks for exactly these two scopes (no `include_granted_scopes`, so scopes granted earlier to the same OAuth client are not merged in). In *Testing* mode only listed test users can link, and
    Google expires refresh tokens after 7 days — the channel then shows "Cần liên kết lại". Production use needs Google's verification of these sensitive scopes.
 4. `GOOGLE_SOCIAL_CLIENT_ID`, `GOOGLE_SOCIAL_CLIENT_SECRET`.
 5. Each post needs exactly one video. Options per channel: title (default: first line of the text, max 100 characters, `<` `>` removed)

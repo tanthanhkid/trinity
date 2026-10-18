@@ -79,6 +79,7 @@ describe('YoutubeSocialProvider', () => {
     expect(u.searchParams.get('prompt')).toBe('consent');
     expect(u.searchParams.get('scope')).toBe('https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl');
     expect(u.searchParams.get('state')).toBe('st');
+    expect(u.searchParams.has('include_granted_scopes')).toBe(false);
   });
 
   it('đổi code ⇒ token + kênh; client secret đi trong body, không trong URL', async () => {

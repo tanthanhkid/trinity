@@ -32,10 +32,10 @@ export const KNOWN_MENU_KEYS = [
 export type KnownMenuKey = (typeof KNOWN_MENU_KEYS)[number];
 
 /**
- * Trần kỹ thuật server-side (rộng rãi hơn gợi ý UX "~5" ở FE — FE mới là nơi
- * chặn thao tác, BE chỉ chống payload bất thường).
+ * Trần số mục ghim. PHẢI bằng `MAX_PINS` ở `apps/web/src/hooks/use-pinned-menus.ts`
+ * (FE chặn thao tác kèm thông báo, BE chặn payload bất thường); có test giữ hai số khớp nhau.
  */
-export const MAX_PINNED_MENU_KEYS = 12;
+export const MAX_PINNED_MENU_KEYS = 20;
 
 /**
  * Mục menu của bảng tuỳ biến (custom object), do FE dựng ở `menu-custom.ts`:

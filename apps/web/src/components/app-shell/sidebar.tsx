@@ -171,6 +171,14 @@ export function ShellSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="group-data-[collapsible=icon]:overflow-auto">
+        {!blank && <ShellPinnedGroup
+          pinnedKeys={pinnedKeys}
+          visibleFlatEntries={visibleFlatEntries}
+          activeHref={activeHref}
+          onTogglePin={togglePin}
+          onNavigate={closeMobile}
+        />}
+
         {/* Menu chính — luôn hiện cả ở rail thu gọn (chỉ icon). */}
         <SidebarGroup>
           <SidebarGroupContent>
@@ -186,14 +194,6 @@ export function ShellSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
-
-        {!blank && <ShellPinnedGroup
-          pinnedKeys={pinnedKeys}
-          visibleFlatEntries={visibleFlatEntries}
-          activeHref={activeHref}
-          onTogglePin={togglePin}
-          onNavigate={closeMobile}
-        />}
 
         {!blank && <ShellRecentGroup contacts={recentContacts} onNavigate={closeMobile} />}
       </SidebarContent>

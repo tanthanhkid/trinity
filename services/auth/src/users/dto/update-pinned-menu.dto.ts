@@ -1,6 +1,17 @@
-import { ArrayMaxSize, ArrayUnique, IsArray, IsIn } from 'class-validator'
+import { ArrayMaxSize, ArrayUnique, IsArray, Validate, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
-import { KNOWN_MENU_KEYS, MAX_PINNED_MENU_KEYS } from '../pinned-menu.constants'
+import { MAX_PINNED_MENU_KEYS, isCustomMenuKey, isKnownMenuKey } from '../pinned-menu.constants'
+
+/** Key cố định (KNOWN_MENU_KEYS) hoặc key bảng tuỳ biến đúng định dạng `custom_<key>[__<view>]`. */
+@ValidatorConstraint({ name: 'pinnedMenuKey', async: false })
+export class PinnedMenuKeyConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown): boolean {
+    return typeof value === 'string' && (isKnownMenuKey(value) || isCustomMenuKey(value))
+  }
+  defaultMessage(): string {
+    return 'each value in keys must be a known menu key or a custom table key (custom_<key>)'
+  }
+}
 
 /**
  * Ghim menu sidebar — thay TOÀN BỘ danh sách đang lưu (không phải
@@ -10,11 +21,11 @@ import { KNOWN_MENU_KEYS, MAX_PINNED_MENU_KEYS } from '../pinned-menu.constants'
 export class UpdatePinnedMenuDto {
   @ApiProperty({
     type: [String],
-    description: `Danh sách key menu đã ghim, tối đa ${MAX_PINNED_MENU_KEYS} — mỗi key phải thuộc KNOWN_MENU_KEYS.`,
+    description: `Danh sách key menu đã ghim, tối đa ${MAX_PINNED_MENU_KEYS} — mỗi key thuộc KNOWN_MENU_KEYS hoặc dạng custom_<key> của bảng tuỳ biến.`,
   })
   @IsArray()
   @ArrayMaxSize(MAX_PINNED_MENU_KEYS)
   @ArrayUnique()
-  @IsIn(KNOWN_MENU_KEYS, { each: true })
+  @Validate(PinnedMenuKeyConstraint, { each: true })
   keys!: string[]
 }

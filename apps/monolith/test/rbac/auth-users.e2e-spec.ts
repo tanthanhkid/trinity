@@ -220,6 +220,44 @@ describe('RBAC E2E — cụm auth/users/teams/api-keys/public-api', () => {
     })
   })
 
+  describe('PUT /api/v1/users/me/pinned-menu — ghim mục bảng tuỳ biến', () => {
+    it('ghim/bỏ ghim bảng tuỳ biến (custom_<key>), trả lại đúng; bảng đã xoá thì tự rơi khỏi danh sách', async () => {
+      const u = await makeUser(prisma, { grants: {} })
+      const key = `ghim_${Date.now().toString(36)}`
+      const obj = await prisma.customObject.create({ data: { key, label: 'Ghi danh', label_plural: 'Ghi danh' } })
+      const res = await api(app, u.token)
+        .put('/api/v1/users/me/pinned-menu')
+        .send({ keys: ['contacts', `custom_${key}`] })
+        .expect(200)
+      expect(res.body.keys).toEqual(['contacts', `custom_${key}`])
+      const got = await api(app, u.token).get('/api/v1/users/me/pinned-menu').expect(200)
+      expect(got.body.keys).toEqual(['contacts', `custom_${key}`])
+
+      await prisma.customObject.update({ where: { id: obj.id }, data: { deleted_at: new Date() } })
+      const after = await api(app, u.token).get('/api/v1/users/me/pinned-menu').expect(200)
+      expect(after.body.keys).toEqual(['contacts'])
+
+      const cleared = await api(app, u.token).put('/api/v1/users/me/pinned-menu').send({ keys: [] }).expect(200)
+      expect(cleared.body.keys).toEqual([])
+    })
+
+    it('bảng không tồn tại: bỏ qua im lặng (200), không lưu khoá ma', async () => {
+      const u = await makeUser(prisma, { grants: {} })
+      const res = await api(app, u.token)
+        .put('/api/v1/users/me/pinned-menu')
+        .send({ keys: ['kanban', 'custom_khong_co_that'] })
+        .expect(200)
+      expect(res.body.keys).toEqual(['kanban'])
+    })
+
+    it('khoá rác → 400', async () => {
+      const u = await makeUser(prisma, { grants: {} })
+      for (const bad of ['custom_', 'custom_A', 'x:ghi_danh', 'custom_a b', 'bat_ky_gi']) {
+        await api(app, u.token).put('/api/v1/users/me/pinned-menu').send({ keys: [bad] }).expect(400)
+      }
+    })
+  })
+
   describe('PATCH /api/v1/users/:id/team', () => {
     it('không có users.manage → 403', async () => {
       const target = await makeUser(prisma)

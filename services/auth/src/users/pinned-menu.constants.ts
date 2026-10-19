@@ -36,3 +36,41 @@ export type KnownMenuKey = (typeof KNOWN_MENU_KEYS)[number];
  * chặn thao tác, BE chỉ chống payload bất thường).
  */
 export const MAX_PINNED_MENU_KEYS = 12;
+
+/**
+ * Mục menu của bảng tuỳ biến (custom object), do FE dựng ở `menu-custom.ts`:
+ * `custom_<object_key>` hoặc `custom_<object_key>__<view_key>` (màn xem riêng).
+ * Key đối tượng/màn theo `KEY_REGEX` của custom-objects (a-z, 0-9, `_`, bắt đầu bằng chữ, tối đa 48 ký tự).
+ * Vì key có thể chứa `__` nên dấu tách đối tượng/màn mơ hồ: DTO chỉ kiểm hình dạng chặt + độ dài,
+ * còn tách và kiểm tồn tại làm ở service (`parseCustomMenuKey`).
+ */
+export const CUSTOM_MENU_KEY_PREFIX = 'custom_';
+export const CUSTOM_MENU_KEY_REGEX = /^custom_[a-z][a-z0-9_]{0,96}$/;
+const PART_REGEX = /^[a-z][a-z0-9_]{0,47}$/;
+
+export function isKnownMenuKey(key: string): boolean {
+  return (KNOWN_MENU_KEYS as readonly string[]).includes(key);
+}
+
+export function isCustomMenuKey(key: unknown): key is string {
+  return typeof key === 'string' && CUSTOM_MENU_KEY_REGEX.test(key);
+}
+
+export interface CustomMenuTarget {
+  objectKey: string;
+  viewKey: string | null;
+}
+
+/** Mọi cách hiểu hợp lệ của một key `custom_…` (cả bảng, và từng điểm tách `__` thành bảng + màn). */
+export function parseCustomMenuKey(key: string): CustomMenuTarget[] {
+  if (!isCustomMenuKey(key)) return [];
+  const rest = key.slice(CUSTOM_MENU_KEY_PREFIX.length);
+  const out: CustomMenuTarget[] = [];
+  if (PART_REGEX.test(rest)) out.push({ objectKey: rest, viewKey: null });
+  for (let i = rest.indexOf('__'); i !== -1; i = rest.indexOf('__', i + 1)) {
+    const objectKey = rest.slice(0, i);
+    const viewKey = rest.slice(i + 2);
+    if (PART_REGEX.test(objectKey) && PART_REGEX.test(viewKey)) out.push({ objectKey, viewKey });
+  }
+  return out;
+}

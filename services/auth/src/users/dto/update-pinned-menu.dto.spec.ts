@@ -52,6 +52,32 @@ describe('UpdatePinnedMenuDto validation', () => {
     expect(err).toBeDefined()
   })
 
+  it('pass với key bảng tuỳ biến custom_<key> và custom_<key>__<view>', async () => {
+    const errors = await validateDto({ keys: ['contacts', 'custom_ghi_danh', 'custom_hoc_sinh__lop_a'] })
+    expect(errors).toHaveLength(0)
+  })
+
+  it.each([
+    'custom_',
+    'custom_Ghi',
+    'custom_1abc',
+    'custom_a-b',
+    'custom_a b',
+    `custom_${'a'.repeat(98)}`,
+    'custom_a\nb',
+    'x:ghi_danh',
+    '../etc/passwd',
+    '',
+  ])('reject key rác %j', async (bad) => {
+    const errors = await validateDto({ keys: [bad] })
+    expect(errors.find((e) => e.property === 'keys')).toBeDefined()
+  })
+
+  it('reject phần tử không phải chuỗi', async () => {
+    const errors = await validateDto({ keys: [123, null] })
+    expect(errors.find((e) => e.property === 'keys')).toBeDefined()
+  })
+
   it('KNOWN_MENU_KEYS chứa mọi key menu của nav-config (ghim menu mới không bị 400)', () => {
     const nav = readFileSync(join(__dirname, '../../../../../apps/web/src/components/nav-config.ts'), 'utf8')
     const navKeys = [...nav.matchAll(/\bkey: *"([a-z0-9_-]+)"/g)].map((m) => m[1])

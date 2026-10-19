@@ -39,8 +39,21 @@ describe('UpdatePinnedMenuDto validation', () => {
     expect(err).toBeDefined()
   })
 
+  const customKeys = (n: number) => Array.from({ length: n }, (_, i) => `custom_bang_${i}`)
+
+  it('trần ghim là 20 và bằng MAX_PINS ở FE', () => {
+    expect(MAX_PINNED_MENU_KEYS).toBe(20)
+    const hook = readFileSync(join(__dirname, '../../../../../apps/web/src/hooks/use-pinned-menus.ts'), 'utf8')
+    expect(hook).toMatch(new RegExp(`export const MAX_PINS = ${MAX_PINNED_MENU_KEYS}\\b`))
+  })
+
+  it('pass đúng MAX_PINNED_MENU_KEYS (20) mục, kể cả trên 12', async () => {
+    const errors = await validateDto({ keys: [...KNOWN_MENU_KEYS, ...customKeys(MAX_PINNED_MENU_KEYS - KNOWN_MENU_KEYS.length)] })
+    expect(errors).toHaveLength(0)
+  })
+
   it('reject vượt trần MAX_PINNED_MENU_KEYS', async () => {
-    const keys = KNOWN_MENU_KEYS.slice(0, MAX_PINNED_MENU_KEYS + 1) as unknown as string[]
+    const keys = customKeys(MAX_PINNED_MENU_KEYS + 1)
     const errors = await validateDto({ keys })
     const err = errors.find((e) => e.property === 'keys')
     expect(err).toBeDefined()

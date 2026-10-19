@@ -7,9 +7,9 @@ import apiClient from "@/lib/api-client"
 
 const PINNED_MENU_QUERY_KEY = ["users", "me", "pinned-menu"] as const
 
-/** Tối đa 5 mục ghim ở UX — BE cho phép nhiều hơn
- *  (trần kỹ thuật chống payload rác), gate thao tác thật nằm ở đây. */
-const MAX_PINS = 5
+/** Trần số mục ghim. PHẢI bằng `MAX_PINNED_MENU_KEYS` ở
+ *  `services/auth/src/users/pinned-menu.constants.ts` (có test giữ hai số khớp nhau). */
+export const MAX_PINS = 20
 
 /**
  * Mặc định khi user CHƯA từng tuỳ chỉnh (chưa ghim gì → ghim sẵn bộ

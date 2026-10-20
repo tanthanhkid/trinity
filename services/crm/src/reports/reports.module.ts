@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { CustomReportsController } from './custom/custom-reports.controller';
+import { CustomReportsService } from './custom/custom-reports.service';
 import { SettingsModule } from '../settings/settings.module';
 import { DashboardChannelsService } from './dashboard-channels.service';
 import { ReportsController } from './reports.controller';
@@ -28,6 +30,7 @@ import { ReportEmployeePerformanceExportService } from './report-employee-perfor
     ReportOverviewController,
     ReportCustomersController,
     ReportEmployeePerformanceController,
+    CustomReportsController,
   ],
   providers: [
     DashboardStatsTodayService,
@@ -42,8 +45,9 @@ import { ReportEmployeePerformanceExportService } from './report-employee-perfor
     ReportCustomersUncontactedService,
     ReportEmployeePerformanceService,
     ReportEmployeePerformanceExportService,
+    CustomReportsService,
   ],
   // MCP chỉ đọc dùng lại số liệu Tổng quan.
-  exports: [DashboardOverviewService, DashboardChannelsService],
+  exports: [DashboardOverviewService, DashboardChannelsService, CustomReportsService],
 })
 export class ReportsModule {}

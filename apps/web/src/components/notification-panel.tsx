@@ -10,6 +10,9 @@ import {
   type NotificationItem,
 } from '@/hooks/use-notifications-list'
 import { EVENT_CONFIG, DEFAULT_EVENT_CONFIG, formatRelativeTime } from '@/lib/notification-display'
+import { AnimatePresence, motion } from 'motion/react'
+import { motionTokens } from '@/lib/motion-tokens'
+import { LoadingBlock } from '@/components/ui/loading-block'
 
 // ---------------------------------------------------------------------------
 // cửa sổ Thông báo tách 2 tab "Chưa đọc" / "Đã đọc" +
@@ -57,7 +60,15 @@ function NotificationRow({
           >
             {n.title}
           </span>
-          {!n.is_read && <span className={`size-2 shrink-0 rounded-full ${config.dotClass}`} />}
+          <AnimatePresence initial={false}>
+            {!n.is_read && (
+              <motion.span
+                key="dot"
+                className={`size-2 shrink-0 rounded-full ${config.dotClass}`}
+                exit={{ opacity: 0, scale: 0.4, transition: { duration: motionTokens.duration.exit } }}
+              />
+            )}
+          </AnimatePresence>
         </div>
         <p className={`mt-0.5 text-xs leading-relaxed line-clamp-2 ${!n.is_read ? 'text-foreground/70' : 'text-muted-foreground'}`}>
           {n.body}
@@ -110,25 +121,31 @@ function TabPane({
 
   if (isLoading || (items.length === 0 && hasNextPage)) {
     return (
-      <div className="flex justify-center py-8 text-muted-foreground">
-        <Loader2 className="size-5 animate-spin" />
-      </div>
+      <LoadingBlock variant="lines" count={3} avatar label="Đang tải thông báo…" className="px-4 py-4" />
     )
   }
 
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
-        <EmptyIcon className="size-8 opacity-30" />
-        <span className="text-sm">{emptyLabel}</span>
+        <EmptyIcon className="empty-enter-icon size-8 opacity-30" />
+        <span className="empty-enter-copy text-sm">{emptyLabel}</span>
       </div>
     )
   }
 
   return (
     <div ref={containerRef} onScroll={handleScroll} className="max-h-[400px] overflow-y-auto">
-      {items.map((n) => (
-        <NotificationRow key={n.id} n={n} onClick={() => onClickItem(n)} />
+      {/* Lần đầu mở: các dòng hiện lần lượt (tối đa ~8 dòng đầu); tải thêm thì hiện ngay. */}
+      {items.map((n, i) => (
+        <motion.div
+          key={n.id}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: motionTokens.duration.standard, ease: motionTokens.ease.enter, delay: Math.min(i, 8) * 0.025 }}
+        >
+          <NotificationRow n={n} onClick={() => onClickItem(n)} />
+        </motion.div>
       ))}
       {isFetchingNextPage && (
         <div className="flex justify-center py-3 text-muted-foreground">

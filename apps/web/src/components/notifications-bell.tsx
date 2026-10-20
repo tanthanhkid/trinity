@@ -20,6 +20,51 @@ import { isPollMode } from '@/lib/realtime-mode'
 import { NotificationPanel } from '@/components/notification-panel'
 import { type NotificationItem, type NotificationsPage } from '@/hooks/use-notifications-list'
 import { isMessageEvent } from '@/lib/notification-display'
+import { AnimatePresence, motion } from 'motion/react'
+import { motionTokens } from '@/lib/motion-tokens'
+import { RollingNumber } from '@/components/ui/rolling-number'
+import { cn } from '@/lib/utils'
+
+/**
+ * Biểu tượng + huy hiệu số chưa đọc — chuyển động phỏng theo `notification-center` của Arc Library
+ * (MIT, xem lib/motion-tokens.ts): mở thì biểu tượng nghiêng nhẹ, huy hiệu bật vào/ra, số lăn khi đổi.
+ */
+function TriggerIcon({ icon: Icon, open, count, badgeClass }: {
+  icon: typeof Bell
+  open: boolean
+  count: number
+  badgeClass: string
+}) {
+  return (
+    <>
+      <motion.span
+        className="inline-grid"
+        initial={false}
+        animate={{ rotate: open ? -12 : 0 }}
+        transition={motionTokens.spring.snappy}
+      >
+        <Icon className="size-5" />
+      </motion.span>
+      <AnimatePresence initial={false}>
+        {count > 0 && (
+          <motion.span
+            key="badge"
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.6, transition: { duration: motionTokens.duration.exit } }}
+            transition={motionTokens.spring.snappy}
+            className={cn(
+              'absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[12px] font-semibold leading-none tabular-nums text-white',
+              badgeClass,
+            )}
+          >
+            <RollingNumber text={count > 99 ? '99+' : String(count)} />
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </>
+  )
+}
 
 // ---------------------------------------------------------------------------
 // optimistic update mark-as-read (KHÔNG chỉ invalidateQueries).
@@ -186,12 +231,7 @@ export function NotificationsBell() {
           nút 32px, chữ 14px ("99+") che mất biểu tượng. Nâng 10px → 12px đậm. */}
       <DropdownMenu onOpenChange={setBellOpen}>
         <DropdownMenuTrigger className="relative inline-flex size-8 max-sm:size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-sm font-semibold outline-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
-          <Bell className="size-5" />
-          {bellUnread > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[12px] font-semibold leading-none tabular-nums text-white">
-              {bellUnread > 99 ? '99+' : bellUnread}
-            </span>
-          )}
+          <TriggerIcon icon={Bell} open={bellOpen} count={bellUnread} badgeClass="bg-destructive" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-96 max-w-[calc(100vw-1rem)] p-0">
           <DropdownMenuGroup>
@@ -214,12 +254,7 @@ export function NotificationsBell() {
       {/* ---- Icon Tin nhắn: chat tag / mention / internal ---- */}
       <DropdownMenu onOpenChange={setMsgOpen}>
         <DropdownMenuTrigger className="relative inline-flex size-8 max-sm:size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-sm font-semibold outline-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
-          <MessageSquare className="size-5" />
-          {msgUnread > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-blue-600 px-1 text-[12px] font-semibold leading-none tabular-nums text-white">
-              {msgUnread > 99 ? '99+' : msgUnread}
-            </span>
-          )}
+          <TriggerIcon icon={MessageSquare} open={msgOpen} count={msgUnread} badgeClass="bg-blue-600" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-96 max-w-[calc(100vw-1rem)] p-0">
           <DropdownMenuGroup>

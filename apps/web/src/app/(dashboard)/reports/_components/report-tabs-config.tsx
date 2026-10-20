@@ -7,6 +7,7 @@ import { ReportRecruitment } from "./report-recruitment"
 import { ReportOverview } from "./report-overview"
 import { ReportCustomers } from "./report-customers"
 import { ReportEmployeePerformance } from "./report-employee-performance"
+import { ReportCustom } from "./custom/report-custom"
 
 // ==== RBAC hiển thị tab — theo QUYỀN (RBAC quyền + phạm vi) ====
 // Mỗi tab 1 quyền `reports.<tab>`; BE vẫn lọc dữ liệu theo phạm vi của quyền đó.
@@ -18,7 +19,9 @@ export interface ReportTabDef {
   value: string
   label: string
   /** Quyền cần có để thấy tab (xem `usePermissions().can`). */
-  permission: Permission
+  permission?: Permission
+  /** Thay cho `permission`: có MỘT trong các quyền là thấy tab. Thiếu cả hai ⇒ không ai thấy (fail-closed). */
+  anyPermission?: readonly Permission[]
   /** Tính năng tổ chức quản tab — tắt thì ẩn tab, AND với quyền. */
   feature?: OrgFeatureKey
   Component: ComponentType
@@ -74,6 +77,18 @@ export const REPORT_TAB_GROUPS: ReportTabGroup[] = [
         // BE `GET /reports/marketing/recruitment-overview` yêu cầu quyền
         // `reports.channels` (không phải `recruitment.view`).
         permission: "reports.channels",
+      },
+    ],
+  },
+  {
+    key: "custom",
+    label: "Báo cáo tuỳ chỉnh",
+    tabs: [
+      {
+        // Báo cáo dùng chung cho mọi bảng (#25): ai vào được Trung tâm báo cáo (hoặc cấu hình được bảng) thấy tab;
+        // BE chỉ trả báo cáo của bảng người xem được xem, số liệu theo phạm vi quyền đó.
+        value: "custom", label: "Báo cáo tuỳ chỉnh", Component: ReportCustom,
+        anyPermission: ["reports.overview", "reports.customers", "reports.staff", "reports.channels", "custom_objects.manage"],
       },
     ],
   },

@@ -14,6 +14,7 @@ import {
   DEFAULT_REPORT_TAB,
   type ReportTabGroup,
 } from "./_components/report-tabs-config"
+import { reportTabAllowed } from "./_components/report-tab-access"
 
 function ReportsContent() {
   const { can, grants } = usePermissions()
@@ -28,7 +29,7 @@ function ReportsContent() {
       REPORT_TAB_GROUPS.map((g) => ({
         ...g,
         tabs: g.tabs.filter(
-          (t) => can(t.permission) && (!t.feature || isOrgFeatureOn(features, t.feature)),
+          (t) => reportTabAllowed(t, can) && (!t.feature || isOrgFeatureOn(features, t.feature)),
         ),
       })).filter((g) => g.tabs.length > 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `can` đọc grants từ store

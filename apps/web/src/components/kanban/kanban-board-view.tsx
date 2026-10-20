@@ -5,12 +5,15 @@
  * — cột kéo-thả ngang, mỗi cột tự tải card riêng (phân trang). Mobile: cuộn
  * ngang (`overflow-x-auto`).
  *
- * Kéo-thả CHỈ dùng `@dnd-kit/core` đã có sẵn (KHÔNG thêm `@dnd-kit/sortable`)
- * — thứ tự chèn card tính THỦ CÔNG từ `prevCardId`/`nextCardId` do
- * `KanbanColumnView` truyền xuống mỗi `KanbanCardPreview` (xem file đó), và
- * thứ tự cột tính từ vị trí X so với cột đích lúc thả. `DragOverlay` cho hiệu
- * ứng "nhấc lên nghiêng nhẹ" — bản gốc tại chỗ tạm ẩn thành placeholder viền
- * đứt (xem `kanban-card-preview.tsx`).
+ * Kéo-thả dùng `@dnd-kit/core` (nhấc + `DragOverlay`) và `useBoardDrag` (theo
+ * con trỏ → cột + vị trí chèn). Phong cách chuyển động theo Arc Library
+ * (`lib/motion-tokens.ts`): thẻ nhấc lên nghiêng nhẹ, ô giữ chỗ viền đứt chạy theo
+ * con trỏ, các thẻ khác trượt nhường chỗ, thả xuống thì trượt vào đúng ô giữ chỗ
+ * (không bay về chỗ cũ rồi mới nhảy sang).
+ *
+ * Sau khi thả, thẻ được giữ ở vị trí mới (`settling`) tới khi máy chủ trả lời —
+ * cache của React Query báo tới component chậm một nhịp, nếu bỏ giữ ngay thì thẻ
+ * chớp về cột cũ. Thứ tự cột vẫn tính từ vị trí X so với cột đích lúc thả.
  */
 import { useState } from "react"
 import {
@@ -24,13 +27,19 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core"
 import { GripVertical } from "lucide-react"
+import { motion, MotionConfig } from "motion/react"
 import { toast } from "sonner"
 import { getApiErrorMessage } from "@/lib/api-client"
 import { usePermissions } from "@/lib/rbac"
+import { neighboursAt } from "@/lib/board-drag-target"
+import { CSS_EASE_ENTER, motionTokens } from "@/lib/motion-tokens"
+import { useBoardDrag } from "@/hooks/use-board-drag"
+import { useKanbanUserRoster } from "@/hooks/kanban/use-kanban-user-roster"
 import { useKanbanBoardDetail } from "@/hooks/kanban/use-kanban-boards"
 import { useMoveKanbanCard } from "@/hooks/kanban/use-kanban-cards"
 import { useReorderKanbanColumns } from "@/hooks/kanban/use-kanban-columns"
 import { KanbanColumnView } from "./kanban-column-view"
+import { KANBAN_CARD_FRAME, KanbanCardContent } from "./kanban-card-preview"
 import { KanbanCardDialog } from "./kanban-card-dialog"
 import type { KanbanCard, QueryKanbanCardsParams } from "@/types/kanban"
 
@@ -39,7 +48,7 @@ interface KanbanBoardViewProps {
   filters: Omit<QueryKanbanCardsParams, "board_id" | "column_id" | "cursor">
 }
 
-/** So tâm 2 hình chữ nhật theo 1 trục — dùng để quyết "thả TRƯỚC hay SAU đích". */
+/** So tâm 2 hình chữ nhật theo 1 trục — dùng để quyết "thả cột TRƯỚC hay SAU cột đích". */
 function isBeforeOnAxis(
   activeRect: { top: number; left: number; width: number; height: number } | null,
   overRect: { top: number; left: number; width: number; height: number } | null,
@@ -59,52 +68,48 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
   const [openCardId, setOpenCardId] = useState<number | null>(null)
   const [activeCard, setActiveCard] = useState<KanbanCard | null>(null)
   const [activeColumnId, setActiveColumnId] = useState<number | null>(null)
+  const [activeSize, setActiveSize] = useState<{ width: number; height: number } | null>(null)
+  const [settling, setSettling] = useState<{ card: KanbanCard; index: number; height: number } | null>(null)
+  const { rootRef: boardRef, target: dropTarget, start: startDrag, stop: stopDrag } = useBoardDrag()
+  const { data: roster = [] } = useKanbanUserRoster()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
   const canReorderColumns = can("kanban.boards")
 
   const handleDragStart = (event: DragStartEvent) => {
     const id = String(event.active.id)
     if (id.startsWith("card-")) {
-      setActiveCard((event.active.data.current as { card: KanbanCard } | undefined)?.card ?? null)
+      const card = (event.active.data.current as { card: KanbanCard } | undefined)?.card ?? null
+      if (!card) return
+      const rect = event.active.rect.current.initial
+      setActiveSize(rect ? { width: rect.width, height: rect.height } : null)
+      setActiveCard(card)
+      startDrag(String(card.id), String(card.column_id))
     } else if (id.startsWith("col-")) {
       setActiveColumnId(Number(id.replace("col-", "")))
     }
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
+    const card = activeCard
     setActiveCard(null)
     setActiveColumnId(null)
-    const { active, over } = event
-    if (!over || !board) return
-    const activeId = String(active.id)
-
+    const activeId = String(event.active.id)
     if (activeId.startsWith("col-")) {
-      handleColumnDragEnd(activeId, event)
+      if (board && event.over) handleColumnDragEnd(activeId, event)
       return
     }
 
-    const cardId = Number(activeId.replace("card-", ""))
-    if (!cardId) return
-    const overId = String(over.id)
-
-    if (overId.startsWith("card-drop-")) {
-      const overData = over.data.current as
-        | { card: KanbanCard; prevCardId?: number; nextCardId?: number }
-        | undefined
-      if (!overData) return
-      const before = isBeforeOnAxis(active.rect.current.translated, over.rect, "y")
-      const payload = before
-        ? { column_id: overData.card.column_id, before_card_id: overData.prevCardId, after_card_id: overData.card.id }
-        : { column_id: overData.card.column_id, before_card_id: overData.card.id, after_card_id: overData.nextCardId }
-      submitMove(cardId, payload)
-      return
-    }
-
-    if (overId.startsWith("column-")) {
-      const columnId = Number(overId.replace("column-", ""))
-      if (!columnId) return
-      submitMove(cardId, { column_id: columnId })
-    }
+    const result = stopDrag()
+    if (!card || !result || result.unchanged) return
+    const columnId = Number(result.target.column)
+    if (!columnId) return
+    const { prev, next } = neighboursAt(result.snapshot, result.target.index)
+    setSettling({ card: { ...card, column_id: columnId }, index: result.target.index, height: activeSize?.height ?? 92 })
+    submitMove(card.id, {
+      column_id: columnId,
+      before_card_id: prev ? Number(prev) : undefined,
+      after_card_id: next ? Number(next) : undefined,
+    })
   }
 
   const submitMove = (
@@ -118,6 +123,7 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
           if (result.wip_warning) toast.warning(result.wip_warning)
         },
         onError: (err) => toast.error(getApiErrorMessage(err, "Không chuyển được card")),
+        onSettled: () => setSettling(null),
       },
     )
   }
@@ -167,11 +173,13 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragCancel={() => {
+          stopDrag()
           setActiveCard(null)
           setActiveColumnId(null)
         }}
       >
-        <div className="flex gap-3 overflow-x-auto pb-3 max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-4">
+        <MotionConfig reducedMotion="user">
+        <div ref={boardRef} className="flex gap-3 overflow-x-auto pb-3 max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-4">
           {board.columns.map((column) => (
             <KanbanColumnView
               key={column.id}
@@ -181,16 +189,37 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
               filters={filters}
               canReorder={canReorderColumns}
               isBeingDragged={activeColumnId === column.id}
+              hiddenCardId={activeCard?.id ?? settling?.card.id ?? null}
+              drop={
+                activeCard && dropTarget?.column === String(column.id)
+                  ? { card: activeCard, index: dropTarget.index, height: activeSize?.height ?? 92 }
+                  : !activeCard && settling?.card.column_id === column.id
+                    ? settling
+                    : null
+              }
               onOpenCard={setOpenCardId}
             />
           ))}
         </div>
+        </MotionConfig>
 
-        <DragOverlay dropAnimation={{ duration: 180, easing: "cubic-bezier(0.2, 0, 0, 1)" }}>
+        <DragOverlay dropAnimation={{ duration: 260, easing: CSS_EASE_ENTER }}>
           {activeCard ? (
-            <div className="w-64 rotate-2 scale-105 rounded-lg border border-primary/40 bg-card p-2.5 text-sm shadow-xl">
-              <p className="line-clamp-2 font-medium">{activeCard.title}</p>
-            </div>
+            <MotionConfig reducedMotion="user">
+              <motion.div
+                initial={{ rotate: 0, scale: 1 }}
+                animate={{ rotate: 2.5, scale: 1.03 }}
+                transition={motionTokens.spring.snappy}
+                style={{ width: activeSize?.width }}
+                className={`cursor-grabbing !shadow-xl ${KANBAN_CARD_FRAME}`}
+              >
+                <KanbanCardContent
+                  card={activeCard}
+                  labelDefs={board.label_defs}
+                  assigneeNames={activeCard.assignee_ids.map((uid) => roster.find((u) => u.id === uid)?.full_name ?? `#${uid}`)}
+                />
+              </motion.div>
+            </MotionConfig>
           ) : activeColumnId != null ? (
             <div className="flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm font-semibold shadow-xl">
               <GripVertical className="size-3.5 text-muted-foreground" />

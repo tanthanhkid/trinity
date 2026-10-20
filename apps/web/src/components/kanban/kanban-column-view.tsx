@@ -1,20 +1,25 @@
 "use client"
 
 /**
- * 1 cột Kanban — droppable qua `@dnd-kit/core` + cursor phân
- * trang với nút "Tải thêm" tường minh (thiếu UI trigger là
- * phân trang vô dụng).
+ * 1 cột Kanban — droppable qua `@dnd-kit/core` (để kéo đổi thứ tự CỘT) + cursor
+ * phân trang với nút "Tải thêm" tường minh (thiếu UI trigger là phân trang vô dụng).
+ *
+ * Kéo thẻ: cột đánh dấu DOM theo `lib/board-drag-target.ts`; khi cột là đích thả,
+ * nó chèn ô giữ chỗ vào `drop.index` và các thẻ khác trượt nhường chỗ (Motion
+ * `layout`, nhịp `motionTokens.spring.smooth`).
  */
 import { useDraggable, useDroppable } from "@dnd-kit/core"
 import { GripVertical, Loader2, Plus } from "lucide-react"
-import { useMemo, useRef, useState } from "react"
+import { motion } from "motion/react"
+import { useMemo, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useKanbanCardsByColumn } from "@/hooks/kanban/use-kanban-cards"
 import { useCreateKanbanCard } from "@/hooks/kanban/use-kanban-cards"
 import { useKanbanUserRoster } from "@/hooks/kanban/use-kanban-user-roster"
+import { motionTokens } from "@/lib/motion-tokens"
 import { KanbanCardPreview } from "./kanban-card-preview"
-import type { KanbanColumn, KanbanLabelDef, QueryKanbanCardsParams } from "@/types/kanban"
+import type { KanbanCard, KanbanColumn, KanbanLabelDef, QueryKanbanCardsParams } from "@/types/kanban"
 
 interface KanbanColumnViewProps {
   boardId: number
@@ -27,6 +32,10 @@ interface KanbanColumnViewProps {
   /** Cột NÀY đang được kéo (từ `KanbanBoardView`) — ẩn nội dung, chỉ còn
    * placeholder viền đứt, mirror hiệu ứng card. */
   isBeingDragged: boolean
+  /** Thẻ đang kéo/vừa thả — ẩn khỏi vị trí cũ ở MỌI cột. */
+  hiddenCardId?: number | null
+  /** Chỉ có ở cột đích: chèn thẻ đang kéo (ô giữ chỗ) hoặc vừa thả vào vị trí `index`. */
+  drop?: { card: KanbanCard; index: number; height: number } | null
   onOpenCard: (cardId: number) => void
 }
 
@@ -37,9 +46,13 @@ export function KanbanColumnView({
   filters,
   canReorder,
   isBeingDragged,
+  hiddenCardId,
+  drop,
   onOpenCard,
 }: KanbanColumnViewProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: `column-${column.id}`, data: { column } })
+  const { setNodeRef, isOver: isOverAny, active } = useDroppable({ id: `column-${column.id}`, data: { column } })
+  // Viền "đang trỏ vào" chỉ cho lúc kéo CỘT — kéo thẻ đã có ô giữ chỗ chỉ đích.
+  const isOver = isOverAny && String(active?.id ?? "").startsWith("col-")
   const {
     attributes: dragAttributes,
     listeners: dragListeners,
@@ -62,8 +75,9 @@ export function KanbanColumnView({
     )
   }
 
-  const cards = data?.pages.flatMap((p) => p.cards) ?? []
-  const total = data?.pages[0] ? cards.length : 0
+  const allCards = data?.pages.flatMap((p) => p.cards) ?? []
+  const cards = hiddenCardId != null ? allCards.filter((c) => c.id !== hiddenCardId) : allCards
+  const total = data?.pages[0] ? allCards.length : 0
   // Trang đầu chỉ tải 30 thẻ: còn trang sau thì tổng THỰC lớn hơn số đã tải, nên hiện "N+" và tính vượt WIP theo đó.
   const hasMoreCards = Boolean(hasNextPage)
   const wipExceeded =
@@ -86,6 +100,7 @@ export function KanbanColumnView({
   return (
     <div
       ref={setNodeRef}
+      data-board-column={column.id}
       className={`flex w-72 shrink-0 max-sm:w-[85vw] max-sm:max-w-72 max-sm:snap-start flex-col rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] transition-shadow ${
         isOver ? "ring-2 ring-[var(--ring)]" : ""
       }`}
@@ -106,23 +121,35 @@ export function KanbanColumnView({
         </span>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2" style={{ maxHeight: "calc(100vh - 320px)" }}>
+      <div data-board-list className="flex flex-1 flex-col gap-2 overflow-y-auto p-2" style={{ maxHeight: "calc(100vh - 320px)" }}>
         {isLoading ? (
           <p className="p-2 text-center text-sm text-muted-foreground">Đang tải…</p>
-        ) : cards.length === 0 ? (
+        ) : cards.length === 0 && !drop ? (
           <p className="p-2 text-center text-sm text-muted-foreground">Chưa có card</p>
         ) : (
-          cards.map((card, idx) => (
-            <KanbanCardPreview
-              key={card.id}
-              card={card}
-              labelDefs={labelDefs}
-              assigneeNames={card.assignee_ids.map((uid) => userNames.get(uid) ?? `#${uid}`)}
-              prevCardId={cards[idx - 1]?.id}
-              nextCardId={cards[idx + 1]?.id}
-              onOpen={onOpenCard}
-            />
-          ))
+          withDrop(
+            cards.map((card) => (
+              <motion.div key={card.id} layout="position" transition={motionTokens.spring.smooth} data-board-item={card.id}>
+                <KanbanCardPreview
+                  card={card}
+                  labelDefs={labelDefs}
+                  assigneeNames={card.assignee_ids.map((uid) => userNames.get(uid) ?? `#${uid}`)}
+                  onOpen={onOpenCard}
+                />
+              </motion.div>
+            )),
+            drop &&
+              <motion.div key={drop.card.id} layout="position" transition={motionTokens.spring.smooth}>
+                <KanbanCardPreview
+                  card={drop.card}
+                  labelDefs={labelDefs}
+                  assigneeNames={drop.card.assignee_ids.map((uid) => userNames.get(uid) ?? `#${uid}`)}
+                  placeholderHeight={drop.height}
+                  onOpen={onOpenCard}
+                />
+              </motion.div>,
+            drop?.index ?? 0,
+          )
         )}
 
         {hasNextPage && (
@@ -176,4 +203,12 @@ export function KanbanColumnView({
       </div>
     </div>
   )
+}
+
+/** Chèn `node` vào `items` tại `index` (null thì giữ nguyên). */
+function withDrop(items: ReactNode[], node: ReactNode | null | undefined, index: number): ReactNode[] {
+  if (!node) return items
+  const out = items.slice()
+  out.splice(Math.min(index, out.length), 0, node)
+  return out
 }

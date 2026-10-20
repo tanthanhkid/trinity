@@ -1,11 +1,15 @@
 "use client"
 
 import { Plus, X } from "lucide-react"
+import { AnimatePresence, motion } from "motion/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { VnDateInput } from "@/components/ui/vn-date-input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FILTERABLE_TYPES } from "@/lib/custom-objects/field-meta"
+import { isoToVnDate } from "@/lib/format"
+import { motionTokens } from "@/lib/motion-tokens"
+import { cn } from "@/lib/utils"
 import type { CustomFieldDef, CustomObjectDef } from "@/types/custom-objects"
 import { RelationCombobox } from "./relation-combobox"
 
@@ -40,6 +44,107 @@ export function buildFilterParam(def: CustomObjectDef, state: FilterState): stri
     }
   }
   return Object.keys(out).length ? JSON.stringify(out) : undefined
+}
+
+export interface FilterChip {
+  key: string
+  label: string
+  /** Giá trị đang lọc dạng chữ ngắn; relation/user chỉ có id nên ghi "đã chọn". */
+  value: string
+}
+
+/** Bộ lọc ĐANG ÁP (bỏ ô rỗng, cùng điều kiện với `buildFilterParam`) dạng chữ để hiện chip. */
+export function filterChips(def: CustomObjectDef, state: FilterState): FilterChip[] {
+  const applied = buildFilterParam(def, state)
+  if (!applied) return []
+  const keys = Object.keys(JSON.parse(applied) as Record<string, unknown>)
+  const range = (a?: string, b?: string) => (a && b ? `${a} – ${b}` : a ? `từ ${a}` : `đến ${b}`)
+  const day = (d?: string) => (d ? isoToVnDate(d) : undefined)
+  return filterableFields(def).filter((f) => keys.includes(f.key)).map((f) => {
+    const v = state[f.key]
+    let value: string
+    switch (f.type) {
+      case "select": case "multi_select": {
+        const cur = Array.isArray(v) ? (v as string[])[0] : (v as string)
+        value = f.options.choices?.find((c) => c.value === cur)?.label ?? cur
+        break
+      }
+      case "boolean": value = v === "true" ? "Có" : "Không"; break
+      case "number": case "currency": case "percent": {
+        const r = v as { min?: string; max?: string }
+        value = range(r.min || undefined, r.max || undefined)
+        break
+      }
+      case "date": case "datetime": {
+        const r = v as { from?: string; to?: string }
+        value = range(day(r.from), day(r.to))
+        break
+      }
+      case "relation": case "user": value = "đã chọn"; break
+      default: value = String(v)
+    }
+    return { key: f.key, label: f.label, value }
+  })
+}
+
+/**
+ * Hàng chip "bộ lọc đang áp" — phỏng theo `filter-toolbar` của Arc Library (MIT, xem lib/motion-tokens.ts):
+ * mỗi điều kiện một chip có nút bỏ, cuối hàng "Xoá lọc". Chip vào/ra và dồn chỗ bằng Motion.
+ */
+export function ActiveFilterChips({ chips, onRemove, onClear, className }: {
+  chips: FilterChip[]
+  onRemove: (key: string) => void
+  onClear: () => void
+  className?: string
+}) {
+  return (
+    <AnimatePresence initial={false}>
+      {chips.length > 0 && (
+        <motion.div
+          key="chips"
+          className={cn("flex flex-wrap items-center gap-1.5", className)}
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={motionTokens.spring.smooth}
+        >
+          <AnimatePresence initial={false} mode="popLayout">
+            {chips.map((c) => (
+              <motion.span
+                key={c.key}
+                layout
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.92, transition: { duration: motionTokens.duration.exit } }}
+                transition={motionTokens.spring.snappy}
+                className="inline-flex max-w-full items-center gap-1 rounded-full border bg-muted/60 py-0.5 pr-0.5 pl-2.5 text-xs"
+              >
+                <span className="truncate"><span className="text-muted-foreground">{c.label}:</span> {c.value}</span>
+                <button
+                  type="button"
+                  aria-label={`Bỏ bộ lọc ${c.label}`}
+                  onClick={() => onRemove(c.key)}
+                  className="relative grid size-5 place-items-center rounded-full text-muted-foreground hover:bg-background hover:text-foreground after:absolute after:-inset-2 after:content-['']"
+                >
+                  <X className="size-3" />
+                </button>
+              </motion.span>
+            ))}
+            <motion.button
+              key="__clear"
+              layout
+              type="button"
+              onClick={onClear}
+              transition={motionTokens.spring.snappy}
+              className="px-1.5 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Xoá lọc
+            </motion.button>
+          </AnimatePresence>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
 }
 
 function ChoiceFilter({ field, value, onChange }: { field: CustomFieldDef; value: unknown; onChange: (v: unknown) => void }) {

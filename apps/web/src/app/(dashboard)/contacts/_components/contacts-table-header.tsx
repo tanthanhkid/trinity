@@ -1,17 +1,10 @@
 "use client"
 
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import type { ContactFilters } from "@/hooks/use-contacts"
 import type { SortField } from "./contacts-constants"
 import { ShellCheckbox as Checkbox } from "@/components/app-shell/checkbox"
+import { SortArrow } from "@/components/ui/sort-header"
 import { cn } from "@/lib/utils"
-
-function SortIcon({ field, filters }: { field: SortField; filters: ContactFilters }) {
-  if (filters.sortBy !== field) return <ArrowUpDown className="ml-1 h-3.5 w-3.5 opacity-40" />
-  return filters.sortOrder === "asc"
-    ? <ArrowUp className="ml-1 h-3.5 w-3.5" />
-    : <ArrowDown className="ml-1 h-3.5 w-3.5" />
-}
 
 function SortButton({ field, filters, onToggleSort, children }: {
   field: SortField
@@ -24,12 +17,12 @@ function SortButton({ field, filters, onToggleSort, children }: {
     <button
       type="button"
       onClick={() => onToggleSort(field)}
-      className="inline-flex items-center rounded font-medium hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+      className="group inline-flex items-center gap-1 rounded font-medium hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
       aria-label={`Sắp xếp theo ${children.toLowerCase()}`}
       aria-pressed={active}
     >
       {children}
-      <SortIcon field={field} filters={filters} />
+      <SortArrow dir={active ? (filters.sortOrder === "asc" ? "asc" : "desc") : null} />
     </button>
   )
 }

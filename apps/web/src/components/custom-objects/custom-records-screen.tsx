@@ -30,6 +30,7 @@ import { CustomFieldValue } from "./custom-field-value"
 import { RecordCode } from "./record-code"
 import { RecordsPager } from "./records-pager"
 import { buildFilterParam, CustomRecordsFilters, type FilterState } from "./custom-records-filters"
+import { LoadingBlock } from "@/components/ui/loading-block"
 
 const MAX_COLS = 6
 
@@ -187,7 +188,7 @@ export function CustomRecordsScreen({ def, view }: { def: CustomObjectDef; view?
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {query.isLoading && <ShellTableEmptyRow colSpan={listFields.length + 3}><Loader2 className="mx-auto size-4 animate-spin" /></ShellTableEmptyRow>}
+                    {query.isLoading && <ShellTableEmptyRow colSpan={listFields.length + 3}><LoadingBlock count={3} /></ShellTableEmptyRow>}
                     {!query.isLoading && rows.length === 0 && (
                       <ShellTableEmptyRow colSpan={listFields.length + 3}>
                         {q || filterCount ? "Không có kết quả phù hợp bộ lọc" : `Chưa có ${def.label.toLowerCase()} nào`}
@@ -212,7 +213,7 @@ export function CustomRecordsScreen({ def, view }: { def: CustomObjectDef; view?
           }
           cards={
             <div className="space-y-3">
-              {query.isLoading && <div className="flex justify-center p-6"><Loader2 className="size-5 animate-spin" /></div>}
+              {query.isLoading && <LoadingBlock variant="cards" count={3} className="p-3" />}
               {!query.isLoading && rows.length === 0 && (
                 <Card><ShellEmptyState icon={Icon} title={q || filterCount ? "Không có kết quả" : `Chưa có ${def.label.toLowerCase()} nào`} /></Card>
               )}

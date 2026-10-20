@@ -28,11 +28,11 @@ export function EmptyState({
       )}
     >
       {Icon ? (
-        <span className="flex size-12 items-center justify-center rounded-full bg-muted">
+        <span className="empty-enter-icon flex size-12 items-center justify-center rounded-full bg-muted">
           <Icon className="size-6" aria-hidden />
         </span>
       ) : null}
-      <div className="flex max-w-md flex-col gap-1">
+      <div className="empty-enter-copy flex max-w-md flex-col gap-1 text-balance">
         {title ? <p className="text-sm font-medium text-foreground">{title}</p> : null}
         <p className={title ? "text-[13px] leading-5" : "text-sm text-foreground/80"}>{message}</p>
       </div>

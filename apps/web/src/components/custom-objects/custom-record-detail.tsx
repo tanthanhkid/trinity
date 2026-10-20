@@ -19,6 +19,7 @@ import type { CustomObjectDef } from "@/types/custom-objects"
 import { CustomRecordForm } from "./custom-record-form"
 import { RecordCode } from "./record-code"
 import { MentionedIn } from "@/components/refs/mentioned-in"
+import { LoadingBlock } from "@/components/ui/loading-block"
 
 function RelatedGroups({ objectKey, id }: { objectKey: string; id: number }) {
   const q = useCustomRelated(objectKey, id)
@@ -57,7 +58,7 @@ export function CustomRecordDetail({ def, id }: { def: CustomObjectDef; id: numb
     <Link href={`/x/${def.key}`} className={buttonVariants({ variant: "ghost" }) + " max-sm:min-h-11"}><ArrowLeft className="mr-1.5 size-4" /> {def.label_plural}</Link>
   )
 
-  if (q.isLoading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin" aria-label="Đang tải" /></div>
+  if (q.isLoading) return <LoadingBlock className="mx-auto max-w-3xl p-6" count={4} avatar />
   if (q.isError && (q.error as { response?: { status?: number } })?.response?.status !== 404) {
     return <ShellEmptyState icon={TriangleAlert} title="Không tải được bản ghi" description={getApiErrorMessage(q.error, "Vui lòng thử lại sau")} action={<Button variant="outline" onClick={() => void q.refetch()}>Thử lại</Button>} />
   }

@@ -20,6 +20,7 @@ import { useKanbanUserRoster } from "@/hooks/kanban/use-kanban-user-roster"
 import { motionTokens } from "@/lib/motion-tokens"
 import { KanbanCardPreview } from "./kanban-card-preview"
 import type { KanbanCard, KanbanColumn, KanbanLabelDef, QueryKanbanCardsParams } from "@/types/kanban"
+import { LoadingBlock } from "@/components/ui/loading-block"
 
 interface KanbanColumnViewProps {
   boardId: number
@@ -123,7 +124,7 @@ export function KanbanColumnView({
 
       <div data-board-list className="flex flex-1 flex-col gap-2 overflow-y-auto p-2" style={{ maxHeight: "calc(100vh - 320px)" }}>
         {isLoading ? (
-          <p className="p-2 text-center text-sm text-muted-foreground">Đang tải…</p>
+          <LoadingBlock variant="cards" count={3} />
         ) : cards.length === 0 && !drop ? (
           <p className="p-2 text-center text-sm text-muted-foreground">Chưa có card</p>
         ) : (

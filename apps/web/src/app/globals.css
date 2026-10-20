@@ -229,6 +229,15 @@
   }
 }
 
+/* Khung tải + màn trống — "calm motion" theo Arc Library (Elia Kuratli, MIT; xem lib/motion-tokens.ts).
+   Skeleton nhịp như một làn sóng: khối dưới mờ sau khối trên một nhịp, chạy 11 lần (~20 giây) rồi đứng yên. */
+@keyframes trinity-skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .52; } }
+.skeleton-calm { animation: trinity-skeleton-pulse 1.8s cubic-bezier(0.65, 0, 0.35, 1) calc(var(--sk-index, 0) * 90ms) 11 both; }
+@keyframes trinity-empty-icon { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
+@keyframes trinity-empty-copy { from { opacity: 0; transform: translateY(.3em); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.empty-enter-icon { animation: trinity-empty-icon .48s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.empty-enter-copy { animation: trinity-empty-copy .24s cubic-bezier(0.16, 1, 0.3, 1) 60ms both; }
+
 /* Sidebar nav item hover/active transitions */
 [data-slot="sidebar-menu-button"] {
   transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;

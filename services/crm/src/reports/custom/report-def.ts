@@ -30,6 +30,8 @@ export class ReportDefError extends Error {}
 
 const ID_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const SOURCE_RE = /^(contacts|deals|x:[a-z][a-z0-9_]{0,47})$/;
+/** Trùng đường con của `reports/custom/*` — không dùng làm mã báo cáo. */
+const RESERVED_IDS = new Set(['sources', 'definitions', 'presets']);
 const FIELD_RE = /^[a-z][a-z0-9_]{0,47}$/;
 
 function str(v: unknown, what: string, max: number): string {
@@ -55,6 +57,7 @@ export function normalizeReportDefs(raw: unknown): ReportDef[] {
     const o = r as Record<string, unknown>;
     const id = str(o.id, 'Mã báo cáo', 48);
     if (!ID_RE.test(id)) throw new ReportDefError(`Mã báo cáo “${id.slice(0, 30)}” chỉ gồm a-z, 0-9, _`);
+    if (RESERVED_IDS.has(id)) throw new ReportDefError(`Mã báo cáo “${id}” trùng tên đường dẫn hệ thống`);
     if (seen.has(id)) throw new ReportDefError(`Trùng mã báo cáo “${id}”`);
     seen.add(id);
     const name = str(o.name, 'Tên báo cáo', REPORT_LIMITS.maxName);

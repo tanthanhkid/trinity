@@ -42,6 +42,13 @@ export class CustomReportsController {
     return this.reports.sources(user);
   }
 
+  @Get('definitions')
+  @Can('custom_objects.manage')
+  @ApiOperation({ summary: 'Toàn bộ định nghĩa đã lưu (kể cả báo cáo của bảng người cấu hình không xem được) — màn cấu hình sửa trên danh sách này' })
+  async definitions() {
+    return { reports: await this.reports.readDefs() };
+  }
+
   @Put()
   @Can('custom_objects.manage')
   @ApiOperation({ summary: 'Lưu toàn bộ danh sách báo cáo (thay thế)' })

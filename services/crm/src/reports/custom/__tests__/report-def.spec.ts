@@ -18,5 +18,6 @@ describe('báo cáo dùng chung (#25) — kỳ và định nghĩa', () => {
     expect(() => normalizeReportDefs([{ id: 'a', name: 'x', source: 'users', date_field: 'created_at' }])).toThrow(/Bảng nguồn/);
     expect(() => normalizeReportDefs([{ id: 'a', name: 'x', source: 'deals', date_field: "x') OR 1=1" }])).toThrow(/Trường ngày/);
     expect(() => normalizeReportDefs([{ id: 'a', name: 'x', source: 'deals', date_field: 'd' }, { id: 'a', name: 'y', source: 'deals', date_field: 'd' }])).toThrow(/Trùng/);
+    expect(() => normalizeReportDefs([{ id: 'sources', name: 'x', source: 'deals', date_field: 'd' }])).toThrow(/đường dẫn hệ thống/);
   });
 });

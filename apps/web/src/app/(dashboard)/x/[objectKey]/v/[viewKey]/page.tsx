@@ -12,10 +12,11 @@ import { CustomCalendarView } from "@/components/custom-objects/custom-calendar-
 import { CustomTableView } from "@/components/custom-objects/custom-table-view"
 import { useCustomView } from "@/hooks/custom-objects/use-custom-views"
 import type { CustomObjectDef } from "@/types/custom-objects"
+import { LoadingBlock } from "@/components/ui/loading-block"
 
 function ViewBody({ def, viewKey }: { def: CustomObjectDef; viewKey: string }) {
   const q = useCustomView(def.key, viewKey)
-  if (q.isLoading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin" aria-label="Đang tải" /></div>
+  if (q.isLoading) return <LoadingBlock className="mx-auto max-w-3xl p-6" count={4} avatar />
   if (q.isError || !q.data) return <ShellEmptyState icon={SearchX} title="Không tìm thấy màn xem này" description="Màn xem không tồn tại hoặc vai trò của bạn không được phép xem." />
   if (q.data.type === "kanban") return <CustomKanbanBoard def={def} view={q.data} />
   if (q.data.type === "calendar") return <CustomCalendarView def={def} view={q.data} />

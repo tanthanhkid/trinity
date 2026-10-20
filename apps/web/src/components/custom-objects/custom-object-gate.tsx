@@ -8,6 +8,7 @@ import { ShellEmptyState } from "@/components/app-shell/empty-state"
 import { useCustomObjectDef } from "@/hooks/custom-objects/use-custom-objects"
 import { getApiErrorMessage } from "@/lib/api-client"
 import type { CustomObjectDef } from "@/types/custom-objects"
+import { LoadingBlock } from "@/components/ui/loading-block"
 
 /**
  * Nạp định nghĩa tính năng theo khoá trên URL rồi render `children(def)`. 404 (không tồn tại / vai trò của bạn không được
@@ -15,7 +16,7 @@ import type { CustomObjectDef } from "@/types/custom-objects"
  */
 export function CustomObjectGate({ objectKey, children }: { objectKey: string; children: (def: CustomObjectDef) => ReactNode }) {
   const q = useCustomObjectDef(objectKey)
-  if (q.isLoading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin" aria-label="Đang tải" /></div>
+  if (q.isLoading) return <LoadingBlock className="mx-auto max-w-3xl p-6" count={4} avatar />
   if (q.isError && (q.error as { response?: { status?: number } })?.response?.status !== 404) {
     return (
       <ShellEmptyState

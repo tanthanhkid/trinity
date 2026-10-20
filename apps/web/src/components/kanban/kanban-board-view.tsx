@@ -42,6 +42,7 @@ import { KanbanColumnView } from "./kanban-column-view"
 import { KANBAN_CARD_FRAME, KanbanCardContent } from "./kanban-card-preview"
 import { KanbanCardDialog } from "./kanban-card-dialog"
 import type { KanbanCard, QueryKanbanCardsParams } from "@/types/kanban"
+import { LoadingBlock } from "@/components/ui/loading-block"
 
 interface KanbanBoardViewProps {
   boardId: number
@@ -152,7 +153,17 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
   }
 
   if (isLoading || !board) {
-    return <p className="p-6 text-sm text-muted-foreground">Đang tải board…</p>
+    return (
+      <div className="flex gap-3 overflow-hidden pb-3" role="status" aria-busy="true">
+        <span className="sr-only">Đang tải board…</span>
+        {[0, 1, 2].map((i) => (
+          <div key={i} aria-hidden className="flex w-72 shrink-0 flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] p-2 max-sm:w-[85vw]">
+            <div className="h-6 px-1 py-1"><div className="skeleton-calm h-3.5 w-24 rounded-md bg-muted" /></div>
+            <LoadingBlock variant="cards" count={3 - i} />
+          </div>
+        ))}
+      </div>
+    )
   }
 
   if (board.columns.length === 0) {

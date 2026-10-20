@@ -20,6 +20,7 @@ import type { CustomFieldDef, CustomObjectDef, CustomRecord, CustomViewDef, Sele
 import { CustomFieldValue } from "./custom-field-value"
 import { RecordCode } from "./record-code"
 import { ViewTabs } from "./view-tabs"
+import { LoadingBlock } from "@/components/ui/loading-block"
 
 const PER_COLUMN = 50
 const CARD_FRAME = "space-y-1 rounded-[var(--radius)] border bg-card p-3 text-sm shadow-sm"
@@ -94,7 +95,7 @@ function KanbanColumn({ def, view, choice, groupKey, cardFields, canMove, hidden
         <span className="text-sm font-semibold">{choice.label}</span>
         <span className="rounded-full bg-background px-2 text-xs text-muted-foreground">{q.data?.total != null ? formatNumberVn(q.data.total) : "…"}</span>
       </div>
-      {q.isLoading && <Loader2 className="mx-auto size-4 animate-spin" aria-label="Đang tải" />}
+      {q.isLoading && <LoadingBlock variant="cards" count={2} />}
       {q.isError && <p className="px-1 text-xs text-red-700">{getApiErrorMessage(q.error, "Không tải được")}</p>}
       <div data-board-list className="flex flex-col gap-2">{items}</div>
       {q.data?.total != null && q.data.total > allRows.length && <p className="px-1 text-xs text-muted-foreground">+{formatNumberVn(q.data.total - allRows.length)} thẻ nữa — mở Danh sách để xem hết</p>}

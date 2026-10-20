@@ -16,6 +16,7 @@ import { RecordCode } from "./record-code"
 import { RecordsPager } from "./records-pager"
 import { TableCellEditor } from "./table-cell-editor"
 import { ViewTabs } from "./view-tabs"
+import { LoadingBlock } from "@/components/ui/loading-block"
 
 /**
  * Kiểu xem Bảng: bảng tính sửa nhanh TẠI Ô — bấm ô để sửa (BE kiểm như form; ngoài phạm vi sửa thì chỉ xem). Cột theo
@@ -55,7 +56,7 @@ export function CustomTableView({ def, view }: { def: CustomObjectDef; view: Cus
               </TableRow>
             </TableHeader>
             <TableBody>
-              {query.isLoading && <ShellTableEmptyRow colSpan={cols.length + 1}><Loader2 className="mx-auto size-4 animate-spin" /></ShellTableEmptyRow>}
+              {query.isLoading && <ShellTableEmptyRow colSpan={cols.length + 1}><LoadingBlock count={3} /></ShellTableEmptyRow>}
               {!query.isLoading && rows.length === 0 && <ShellTableEmptyRow colSpan={cols.length + 1}>{q ? "Không có kết quả" : `Chưa có ${def.label.toLowerCase()} nào`}</ShellTableEmptyRow>}
               {rows.map((r) => (
                 <TableRow key={r.id}>

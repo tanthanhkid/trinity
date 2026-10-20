@@ -32,12 +32,12 @@ export function ShellEmptyState({
         className,
       )}
     >
-      <span className="flex size-14 items-center justify-center rounded-[18px] bg-accent text-accent-foreground">
+      <span className="empty-enter-icon flex size-14 items-center justify-center rounded-[18px] bg-accent text-accent-foreground">
         <Icon className="size-6" aria-hidden />
       </span>
-      {title && <h4 className="text-sm font-semibold text-foreground">{title}</h4>}
+      {title && <h4 className="empty-enter-copy text-sm font-semibold text-foreground">{title}</h4>}
       {description && (
-        <p className="max-w-[280px] text-xs text-muted-foreground">{description}</p>
+        <p className="empty-enter-copy max-w-[280px] text-balance text-xs text-muted-foreground">{description}</p>
       )}
       {action}
     </div>

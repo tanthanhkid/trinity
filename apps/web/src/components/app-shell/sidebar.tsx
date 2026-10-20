@@ -30,7 +30,7 @@ import { ShellRecentGroup } from "@/components/app-shell/sidebar-recent-group"
 import { ShellGroupLabel } from "@/components/app-shell/sidebar-group-label"
 import { ShellSidebarUser } from "@/components/app-shell/sidebar-user"
 import { collectMenuHrefs, isItemActive, resolveActiveHref } from "@/components/app-shell/nav-active"
-import type { FlatMenuEntry } from "@/components/app-shell/menu-resolve"
+import { resolvePinnedEntries, withoutPinned, type FlatMenuEntry } from "@/components/app-shell/menu-resolve"
 import { usePinnedMenus } from "@/hooks/use-pinned-menus"
 import { useRecentContacts } from "@/hooks/use-recent-contacts"
 import { useOrgFeatures } from "@/hooks/use-org-features"
@@ -133,11 +133,17 @@ export function ShellSidebar() {
 
   // "Cài đặt" ghim cố định ở chân sidebar; mục "tính năng tuỳ biến" (key `custom_…`,
   // xem `menu-custom.ts`) gom thành nhóm "Bảng tuỳ chỉnh" riêng như demo.
+  // Mục đã ở nhóm "Đã ghim" thì không lặp lại ở menu chính / "Bảng tuỳ chỉnh" (#27); rail thu gọn không có nhóm ghim nên giữ đủ.
+  const pinnedShown = useMemo(
+    () => new Set(compact || blank ? [] : resolvePinnedEntries(pinnedKeys, visibleFlatEntries).map((e) => e.key)),
+    [compact, blank, pinnedKeys, visibleFlatEntries],
+  )
   const settingsItem = visibleItems.find((item) => item.key === "settings")
-  const mainItems = visibleItems.filter(
+  const listedItems = withoutPinned(visibleItems, pinnedShown)
+  const mainItems = listedItems.filter(
     (item) => item.key !== "settings" && !item.key.startsWith(CUSTOM_ITEM_KEY_PREFIX),
   )
-  const customItems = visibleItems.filter((item) => item.key.startsWith(CUSTOM_ITEM_KEY_PREFIX))
+  const customItems = listedItems.filter((item) => item.key.startsWith(CUSTOM_ITEM_KEY_PREFIX))
 
   const renderItem = (item: (typeof visibleItems)[number]) =>
     item.children ? (

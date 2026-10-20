@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { Gauge, ContactRound } from "lucide-react"
-import { flattenMenuEntries, resolvePinnedEntries, findMenuEntry } from "@/components/app-shell/menu-resolve"
+import { flattenMenuEntries, resolvePinnedEntries, findMenuEntry, withoutPinned } from "@/components/app-shell/menu-resolve"
 import type { MenuItem } from "@/components/nav-config"
 
 const ITEMS: readonly MenuItem[] = [
@@ -54,5 +54,19 @@ describe("resolvePinnedEntries — 'ghim mục không còn quyền thì không h
   it("trả [] khi không còn key ghim nào hợp lệ", () => {
     const result = resolvePinnedEntries(["unknown-key"], visibleFlat)
     expect(result).toEqual([])
+  })
+})
+
+describe("withoutPinned (#27) — mục đã ghim không lặp lại ở menu", () => {
+  it("bỏ mục lá đã ghim, giữ thứ tự phần còn lại", () => {
+    expect(withoutPinned(ITEMS, new Set(["dashboard"])).map((i) => i.key)).toEqual(["contacts", "management", "projects"])
+  })
+  it("bỏ mục con đã ghim khỏi nhóm; nhóm hết con thì bỏ luôn", () => {
+    const one = withoutPinned(ITEMS, new Set(["management_employees"]))
+    expect(one.find((i) => i.key === "management")?.children?.map((c) => c.key)).toEqual(["management_contracts"])
+    expect(withoutPinned(ITEMS, new Set(["management_employees", "management_contracts"])).some((i) => i.key === "management")).toBe(false)
+  })
+  it("không ghim gì (hoặc rail thu gọn) ⇒ giữ nguyên", () => {
+    expect(withoutPinned(ITEMS, new Set())).toEqual([...ITEMS])
   })
 })

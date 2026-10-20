@@ -174,7 +174,10 @@ export function DashboardHome() {
         </div>
       </div>
 
-      {/* AI Native: trợ lý AI đang làm việc + kênh đã kết nối — thứ đầu tiên người dùng thấy. */}
+      {/* Thẻ số lên đầu (issue #28): nhìn một lượt là thấy AI hôm nay, khách, doanh thu, công việc. */}
+      <HomeStats items={stats} />
+
+      {/* AI Native: trợ lý AI đang làm việc + kênh đã kết nối ngay dưới thẻ số. */}
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <AiAssistantsHub
           state={connState}
@@ -185,8 +188,6 @@ export function DashboardHome() {
         />
         <ChannelsHub loading={channels.isLoading} error={channels.isError} data={channels.data} />
       </div>
-
-      <HomeStats items={stats} />
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <AiTimelineView

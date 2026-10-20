@@ -75,6 +75,10 @@ describe("ChannelsHub", () => {
     expect(list.textContent).toContain("AiiLab")
     expect(list.textContent).toContain("Đã tắt")
     expect(screen.getByText("1/2 đang chạy")).toBeInTheDocument()
+    // Chấm trạng thái trên logo kèm chữ cho trình đọc màn hình, không chỉ màu.
+    expect(within(list).getByRole("link", { name: /AiiLab — Đang chạy/ })).toBeInTheDocument()
+    expect(within(list).getByRole("link", { name: /Trinity — Đã tắt/ })).toBeInTheDocument()
+    expect([...list.querySelectorAll("[data-state]")].map((e) => e.getAttribute("data-state"))).toEqual(["ok", "off"])
     expect(within(screen.getByTestId("channels-available")).getByRole("link", { name: /Nối Zalo OA/ })).toHaveAttribute("href", "/settings?tab=integrations&muc=zalo-oa")
   })
 

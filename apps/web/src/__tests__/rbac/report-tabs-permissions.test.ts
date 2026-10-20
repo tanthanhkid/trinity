@@ -14,11 +14,12 @@ import {
   DEFAULT_REPORT_TAB,
   REPORT_TAB_GROUPS,
 } from "../../app/(dashboard)/reports/_components/report-tabs-config"
+import { reportTabAllowed } from "../../app/(dashboard)/reports/_components/report-tab-access"
 
 const allTabs = REPORT_TAB_GROUPS.flatMap((g) => g.tabs)
 
 function visibleTabs(grants: Grants): string[] {
-  return allTabs.filter((t) => can(grants, t.permission)).map((t) => t.value)
+  return allTabs.filter((t) => reportTabAllowed(t, (p) => can(grants, p))).map((t) => t.value)
 }
 
 describe("Báo cáo — cấu trúc nhóm/tab", () => {
@@ -37,7 +38,11 @@ describe("Báo cáo — cấu trúc nhóm/tab", () => {
   })
 
   test("mọi tab khai quyền có trong danh mục", () => {
-    for (const t of allTabs) expect(t.permission in PERMISSIONS).toBe(true)
+    for (const t of allTabs) {
+      const perms = t.permission ? [t.permission] : (t.anyPermission ?? [])
+      expect(perms.length).toBeGreaterThan(0)
+      for (const p of perms) expect(p in PERMISSIONS).toBe(true)
+    }
   })
 
   test("tab mặc định là overview và tồn tại", () => {
@@ -62,11 +67,16 @@ describe("Báo cáo — tab theo quyền", () => {
   })
 
   test("chỉ reports.overview (scope own) → chỉ thấy tab Tổng quan", () => {
-    expect(visibleTabs({ "reports.overview": "own" })).toEqual(["overview"])
+    expect(visibleTabs({ "reports.overview": "own" })).toEqual(["overview", "custom"])
   })
 
   test("reports.staff không kéo theo reports.customers", () => {
     const v = visibleTabs({ "reports.staff": "team" })
-    expect(v).toEqual(["employee-performance"])
+    expect(v).toEqual(["employee-performance", "custom"])
+  })
+
+  test("Báo cáo tuỳ chỉnh: có một quyền báo cáo bất kỳ hoặc quyền cấu hình bảng; không có ⇒ ẩn", () => {
+    expect(visibleTabs({ "custom_objects.manage": "all" })).toEqual(["custom"])
+    expect(visibleTabs({ "contacts.view": "own" })).toEqual([])
   })
 })

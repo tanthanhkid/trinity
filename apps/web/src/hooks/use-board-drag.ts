@@ -41,17 +41,20 @@ export function useBoardDrag<T extends HTMLElement = HTMLDivElement>() {
     cleanupRef.current = null
   }, [])
 
+  /** Bắt đầu theo dõi; trả về kích thước thẻ đang kéo (cho ô giữ chỗ + bản nhấc lên). */
   const start = useCallback(
-    (itemId: string, column: string) => {
+    (itemId: string, column: string): { width: number; height: number } | null => {
       const root = rootRef.current
-      if (!root) return
+      if (!root) return null
       detach()
       const snap = snapshotBoard(root, itemId)
       snapRef.current = snap
       const items = Array.from(
         root.querySelectorAll<HTMLElement>(`[data-board-column="${CSS.escape(column)}"] [data-board-item]`),
       )
-      const origin = { column, index: Math.max(0, items.findIndex((el) => el.dataset.boardItem === itemId)) }
+      const itemIdx = items.findIndex((el) => el.dataset.boardItem === itemId)
+      const itemRect = itemIdx >= 0 ? items[itemIdx].getBoundingClientRect() : null
+      const origin = { column, index: Math.max(0, itemIdx) }
       originRef.current = origin
       update(origin)
 
@@ -78,6 +81,7 @@ export function useBoardDrag<T extends HTMLElement = HTMLDivElement>() {
         window.removeEventListener("pointermove", onMove)
         window.removeEventListener("scroll", schedule, true)
       }
+      return itemRect && itemRect.height > 0 ? { width: itemRect.width, height: itemRect.height } : null
     },
     [detach, update],
   )

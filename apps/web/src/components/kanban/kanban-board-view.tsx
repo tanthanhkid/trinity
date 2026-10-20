@@ -80,10 +80,8 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
     if (id.startsWith("card-")) {
       const card = (event.active.data.current as { card: KanbanCard } | undefined)?.card ?? null
       if (!card) return
-      const rect = event.active.rect.current.initial
-      setActiveSize(rect ? { width: rect.width, height: rect.height } : null)
+      setActiveSize(startDrag(String(card.id), String(card.column_id)))
       setActiveCard(card)
-      startDrag(String(card.id), String(card.column_id))
     } else if (id.startsWith("col-")) {
       setActiveColumnId(Number(id.replace("col-", "")))
     }

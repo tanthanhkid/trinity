@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowDown, ArrowUp, Download, Loader2, Plus, Search, Settings2 } from "lucide-react"
+import { Download, Loader2, Plus, Search, Settings2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,7 +29,8 @@ import { ViewTabs } from "./view-tabs"
 import { CustomFieldValue } from "./custom-field-value"
 import { RecordCode } from "./record-code"
 import { RecordsPager } from "./records-pager"
-import { buildFilterParam, CustomRecordsFilters, type FilterState } from "./custom-records-filters"
+import { ActiveFilterChips, buildFilterParam, CustomRecordsFilters, filterChips, type FilterState } from "./custom-records-filters"
+import { SortHeader } from "@/components/ui/sort-header"
 import { LoadingBlock } from "@/components/ui/loading-block"
 
 const MAX_COLS = 6
@@ -156,6 +157,16 @@ export function CustomRecordsScreen({ def, view }: { def: CustomObjectDef; view?
         <MobileFilterSheet activeCount={filterCount} onReset={() => { setFilters({}); setActiveFilters([]) }} title="Bộ lọc">
           <CustomRecordsFilters def={def} state={filters} active={activeFilters} onActiveChange={setActiveFilters} onChange={setFilters} />
         </MobileFilterSheet>
+        {/* Điện thoại: bộ lọc nằm trong bảng trượt → chip cho thấy đang lọc gì, bỏ nhanh không cần mở bảng. */}
+        <ActiveFilterChips
+          className="basis-full sm:hidden"
+          chips={filterChips(def, filters)}
+          onRemove={(key) => {
+            setActiveFilters((a) => a.filter((k) => k !== key))
+            setFilters((s) => { const next = { ...s }; delete next[key]; return next })
+          }}
+          onClear={() => { setFilters({}); setActiveFilters([]) }}
+        />
       </Card>
 
       {query.isError ? (
@@ -172,18 +183,17 @@ export function CustomRecordsScreen({ def, view }: { def: CustomObjectDef; view?
                       {listFields.map((f) => (
                         <TableHead key={f.key} aria-sort={sort?.key === f.key ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}>
                           {SORTABLE_TYPES.includes(f.type) ? (
-                            <button type="button" onClick={() => toggleSort(f)} className="relative inline-flex items-center gap-1 font-semibold after:absolute after:-inset-3 after:content-['']">
-                              {f.label}
-                              {sort?.key === f.key && (sort.dir === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />)}
-                            </button>
+                            <SortHeader label={f.label} dir={sort?.key === f.key ? sort.dir : null} onToggle={() => toggleSort(f)} />
                           ) : f.label}
                         </TableHead>
                       ))}
                       <TableHead>Phụ trách</TableHead>
                       <TableHead>
-                        <button type="button" onClick={() => setSort((s) => (s?.key === "__updated" ? (s.dir === "desc" ? null : { key: "__updated", dir: "desc" }) : { key: "__updated", dir: "desc" }))} className="relative inline-flex items-center gap-1 font-semibold after:absolute after:-inset-3 after:content-['']">
-                          Cập nhật {sort?.key === "__updated" && (sort.dir === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />)}
-                        </button>
+                        <SortHeader
+                          label="Cập nhật"
+                          dir={sort?.key === "__updated" ? sort.dir : null}
+                          onToggle={() => setSort((s) => (s?.key === "__updated" ? (s.dir === "desc" ? null : { key: "__updated", dir: "desc" }) : { key: "__updated", dir: "desc" }))}
+                        />
                       </TableHead>
                     </TableRow>
                   </TableHeader>

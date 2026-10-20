@@ -9,8 +9,9 @@ import { periodValue, reportIdFromName } from "@/app/(dashboard)/reports/_compon
 
 const get = vi.fn()
 const put = vi.fn()
+const post = vi.fn()
 vi.mock("@/lib/api-client", () => ({
-  default: { get: (...a: unknown[]) => get(...a), put: (...a: unknown[]) => put(...a), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+  default: { get: (...a: unknown[]) => get(...a), put: (...a: unknown[]) => put(...a), post: (...a: unknown[]) => post(...a), patch: vi.fn(), delete: vi.fn() },
   getApiErrorMessage: (_e: unknown, fb: string) => fb,
 }))
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }))
@@ -39,7 +40,7 @@ function routes(canManage: boolean) {
 }
 const wrap = () => render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ReportCustom /></QueryClientProvider>)
 
-afterEach(() => { get.mockReset(); put.mockReset() })
+afterEach(() => { get.mockReset(); put.mockReset(); post.mockReset() })
 
 describe("Báo cáo tuỳ chỉnh", () => {
   it("người xem: số bản ghi, tổng cột, bảng nhóm; không có nút cấu hình; kỳ mặc định Tháng này", async () => {
@@ -75,6 +76,25 @@ describe("Báo cáo tuỳ chỉnh", () => {
     wrap()
     expect(await screen.findByText(/chưa cấu hình báo cáo nào/)).toBeTruthy()
     expect(screen.queryByRole("button")).toBeNull()
+  })
+})
+
+describe("Báo cáo mẫu", () => {
+  it("quản trị viên chưa có báo cáo ⇒ mở Báo cáo mẫu, thấy báo cáo thiếu bảng, cài ⇒ POST đúng bộ", async () => {
+    get.mockImplementation((url: string) => {
+      if (url === "/reports/custom") return Promise.resolve({ data: { reports: [], can_manage: true } })
+      if (url === "/reports/custom/presets") return Promise.resolve({ data: [{ key: "giao_duc", name: "Trung tâm giáo dục", description: "d", reports: [
+        { id: "thu_tien", name: "Thu tiền", source_label: "Thanh toán", installed: false, installable: true },
+        { id: "phu_huynh_moi", name: "Phụ huynh mới", source_label: null, installed: false, installable: false },
+      ] }] })
+      return Promise.reject(new Error(url))
+    })
+    post.mockResolvedValue({ data: { installed: ["thu_tien"], skipped: [] } })
+    wrap()
+    fireEvent.click(await screen.findByRole("button", { name: /Dùng báo cáo mẫu/ }))
+    expect(await screen.findByText("Chưa có bảng")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: "Cài Trung tâm giáo dục" }))
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/reports/custom/presets/giao_duc/install"))
   })
 })
 

@@ -20,6 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { RollingNumber } from "@/components/ui/rolling-number"
 
 export interface KpiDelta {
   trend: 'up' | 'down' | 'flat'
@@ -181,7 +182,7 @@ export function KpiCard({
           </div>
 
           <div className="mt-2 truncate text-[28px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--color-app-navy)] tabular-nums">
-            {value}
+            {typeof value === "string" || typeof value === "number" ? <RollingNumber text={String(value)} /> : value}
           </div>
 
           <div className="mt-[3px] flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-[var(--color-app-ink-2)]">

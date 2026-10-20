@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 import type { LucideIcon } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { RollingNumber } from "@/components/ui/rolling-number"
 
 /**
  * Thẻ số liệu (KPI) dùng chung — ô icon hình vuông bo góc bên trái, nhãn nhạt
@@ -65,7 +66,7 @@ export function ShellStatCard({
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-muted-foreground">{label}</p>
         <p className="mt-0.5 truncate text-2xl font-bold tracking-tight text-foreground">
-          {value}
+          {typeof value === "string" || typeof value === "number" ? <RollingNumber text={String(value)} /> : value}
         </p>
         {hint && <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>}
       </div>

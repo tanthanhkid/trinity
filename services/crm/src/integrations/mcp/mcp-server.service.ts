@@ -24,6 +24,7 @@ import { DealsService } from '../../deals/deals.service';
 import { KanbanCardsService } from '../../kanban/cards/kanban-cards.service';
 import { ActivitiesService } from '../../activities/activities.service';
 import { DashboardOverviewService } from '../../reports/dashboard-overview.service';
+import { CustomReportsService } from '../../reports/custom/custom-reports.service';
 import { DashboardChannelsService } from '../../reports/dashboard-channels.service';
 import { InteractionsService } from '../../interactions/interactions.service';
 import { publicBaseUrl } from '../oauth/oauth-config';
@@ -113,9 +114,10 @@ export class McpServerService {
     @Optional() socialRecurrence?: SocialRecurrenceService,
     @Optional() channels?: DashboardChannelsService,
     @Optional() interactions?: InteractionsService,
+    @Optional() customReports?: CustomReportsService,
   ) {
     const social = socialPosts && socialAccounts && socialDrafts && socialQueue && socialSnippets && socialImport && socialRecurrence ? { posts: socialPosts, accounts: socialAccounts, drafts: socialDrafts, queue: socialQueue, snippets: socialSnippets, importer: socialImport, recurrences: socialRecurrence } : undefined;
-    this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, extensions, extRuntime, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, payments, channels, interactions };
+    this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, extensions, extRuntime, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, payments, channels, interactions, customReports };
   }
 
   /** Dựng server + đăng ký tool cho 1 request (public để test gọi trực tiếp tool qua `execute`). */

@@ -2,6 +2,7 @@ import type { ToolDef } from './tools/tool-types';
 import { fetchTool, searchTool } from './tools/search-fetch';
 import { getContactTool, listActivitiesTool, listContactsTool } from './tools/contacts-tools';
 import { dashboardTool, listDealsTool, myTasksTool } from './tools/deals-dashboard-tools';
+import { getReportTool } from './tools/report-tools';
 import { WRITE_TOOLS } from './tools/action-tools';
 import { describeSchemaTool } from './tools/schema-tools';
 import { getRecordTool, listRecordsTool } from './tools/record-tools';
@@ -45,6 +46,7 @@ export const MCP_TOOLS: readonly ToolDef[] = [
   listActivitiesTool,
   listDealsTool,
   dashboardTool,
+  getReportTool,
   myTasksTool,
   optionsTool,
   describeSchemaTool,

@@ -134,9 +134,8 @@ export function CustomKanbanBoard({ def, view }: { def: CustomObjectDef; view: C
   function onDragStart(e: DragStartEvent) {
     const record = (e.active.data.current as { record: CustomRecord } | undefined)?.record
     if (!record || !group) return
-    const rect = e.active.rect.current.initial
-    setActive({ record, width: rect?.width ?? 288, height: rect?.height ?? 72 })
-    startDrag(String(record.id), String(record.data[group.key] ?? ""))
+    const size = startDrag(String(record.id), String(record.data[group.key] ?? ""))
+    setActive({ record, width: size?.width ?? 272, height: size?.height ?? 72 })
   }
 
   function onDragEnd() {

@@ -1,6 +1,7 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { BOX } from './home-box'
+import { RollingNumber } from '@/components/ui/rolling-number'
 
 export interface HomeStatItem {
   key: string
@@ -28,7 +29,7 @@ export function HomeStats({ items, loading }: { items: HomeStatItem[]; loading?:
         <div key={s.key} className={cn(BOX, 'min-w-0 px-4 py-3.5')} title={s.title}>
           <p className="truncate text-[14px] text-muted-foreground">{s.label}</p>
           <div className="mt-1 mb-0.5 truncate text-[22px] font-semibold leading-tight tracking-[-0.01em] tabular-nums text-[var(--foreground)] sm:text-[26px]">
-            {loading ? <Skeleton className="h-7 w-20" /> : s.value}
+            {loading ? <Skeleton className="h-7 w-20" /> : <RollingNumber text={s.value} />}
           </div>
           {s.note && !loading && <p className={cn('text-[14px] leading-snug', TONE[s.tone ?? 'muted'])}>{s.note}</p>}
         </div>

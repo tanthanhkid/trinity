@@ -4,6 +4,7 @@ import type { ElementType } from "react"
 import { ArrowUpRight, ArrowDownRight, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
+import { RollingNumber } from "@/components/ui/rolling-number"
 
 /** Khớp `DeltaMetric` BE (`reports/helpers/report-date-range.helper.ts`). */
 export interface ReportDeltaMetric {
@@ -43,7 +44,7 @@ export function ReportKpiCard({
     <div className="flex min-w-0 flex-col rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-4 py-3.5 shadow-[var(--shadow-card)]">
       <p className="truncate text-sm text-muted-foreground">{title}</p>
       <div className="mt-1 mb-0.5 truncate text-[22px] font-semibold leading-tight tracking-[-0.01em] text-foreground tabular-nums sm:text-[26px]">
-        {value}
+        <RollingNumber text={value} />
       </div>
       <div className="text-sm text-muted-foreground">
         {delta ? (

@@ -98,7 +98,7 @@ export class CustomReportsService {
     for (const p of REPORT_PRESETS) {
       const reports = [];
       for (const r of p.reports) {
-        const spec = await this.resolveSource(user, r.source, acc).catch(() => null);
+        const spec = await this.firstSource(user, r.sources, acc);
         reports.push({ id: r.id, name: r.name, source_label: spec?.label ?? null, installed: have.has(r.id), installable: !!spec && !have.has(r.id) });
       }
       out.push({ key: p.key, name: p.name, description: p.description, reports });
@@ -120,15 +120,23 @@ export class CustomReportsService {
     const skipped: { id: string; reason: string }[] = [];
     for (const r of preset.reports) {
       if (have.has(r.id)) { skipped.push({ id: r.id, reason: 'đã có' }); continue; }
-      const spec = await this.resolveSource(user, r.source, acc).catch(() => null);
+      const spec = await this.firstSource(user, r.sources, acc);
       if (!spec) { skipped.push({ id: r.id, reason: 'chưa có bảng' }); continue; }
       if (defs.length >= REPORT_LIMITS.maxReports) { skipped.push({ id: r.id, reason: 'đủ số báo cáo tối đa' }); continue; }
-      defs.push(resolvePresetReport(r, preset.key, (k, role) => !!findField(spec, k, role)));
+      defs.push(resolvePresetReport(r, preset.key, spec.source, (k, role) => !!findField(spec, k, role)));
       have.add(r.id);
       installed.push(r.id);
     }
     if (installed.length) await this.writeDefs(user, defs);
     return { installed, skipped };
+  }
+
+  private async firstSource(user: AuthUser, sources: string[], acc: ObjectAccess): Promise<ReportSourceSpec | null> {
+    for (const s of sources) {
+      const spec = await this.resolveSource(user, s, acc).catch(() => null);
+      if (spec) return spec;
+    }
+    return null;
   }
 
   private async writeDefs(user: AuthUser, defs: ReportDef[]) {

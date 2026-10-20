@@ -91,7 +91,7 @@ export function ReportCustom() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2">
         <Select value={id} onValueChange={(v) => v && setId(v)}>
-          <SelectTrigger aria-label="Báo cáo" className="min-w-52 max-sm:w-full">
+          <SelectTrigger aria-label="Báo cáo" className="w-72 max-sm:w-full">
             <SelectValue>{(v) => reports.find((r) => r.id === v)?.name ?? "Chọn báo cáo"}</SelectValue>
           </SelectTrigger>
           <SelectContent>

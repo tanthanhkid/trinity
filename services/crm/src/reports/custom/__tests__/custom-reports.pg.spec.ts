@@ -103,5 +103,10 @@ describePg('Báo cáo dùng chung (#25) trên Postgres thật', () => {
     expect((await svc.run(admin, 'thu_tien', 'month:2026-09')).sums.so_tien).toBe(2_000_000);
     expect((await svc.installPreset(admin, 'crm_co_ban')).installed).toEqual(['khach_moi_theo_nguon', 'deal_theo_trang_thai', 'doanh_so_chot']);
     await expect(svc.installPreset(admin, 'khong_co')).rejects.toThrow(/Không có bộ mẫu/);
+    // Tổ chức đặt khoá bảng khác (hoc_vien) ⇒ mẫu dùng bảng ứng viên kế tiếp.
+    await db.customObject.update({ where: { id: hs.id }, data: { key: 'hoc_vien' } });
+    await save([]);
+    await svc.installPreset(admin, 'giao_duc');
+    expect((await svc.readDefs()).find((d) => d.id === 'hoc_sinh_moi')?.source).toBe('x:hoc_vien');
   });
 });

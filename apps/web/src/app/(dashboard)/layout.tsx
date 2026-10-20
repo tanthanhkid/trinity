@@ -33,7 +33,8 @@ const APP_SIDEBAR_STYLE = {
   "--sidebar-width-icon": "64px",
 } as CSSProperties
 
-const MAIN_CLASS = "min-w-0 flex-1 overflow-auto px-5 pb-6 max-sm:px-4 max-sm:pb-28"
+// pt-5: tiêu đề trang không dính sát viền dưới thanh trên (#29) — áp mọi trang trong dashboard.
+const MAIN_CLASS = "min-w-0 flex-1 overflow-auto px-5 pt-5 pb-6 max-sm:px-4 max-sm:pt-4 max-sm:pb-28"
 
 export default function DashboardLayout({
   children,

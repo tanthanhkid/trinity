@@ -20,7 +20,7 @@ import { InteractionsView, type Interaction } from "./interactions-view"
 import { INBOX_TAB_LABEL, INBOX_TAB_PARAM, inboxChannels, inboxTabs, pickInboxTab, type InboxTab } from "./inbox-access"
 
 /** Khung 3 cột chiếm gần hết chiều cao màn hình (trừ topbar + tiêu đề). */
-const FRAME = "h-[calc(100dvh-10rem)] max-h-none min-h-[480px] md:h-[calc(100dvh-9.5rem)]"
+const FRAME = "h-[calc(100dvh-11.25rem)] max-h-none min-h-[480px] md:h-[calc(100dvh-10.75rem)]" // +1.25rem: pt-5 của <main> (#29)
 
 /** Tab kênh ở đầu cột danh sách — cùng kiểu tab nhanh của màn Khách hàng. */
 function ChannelTabs({ tabs, active, onPick }: { tabs: readonly InboxTab[]; active: InboxTab; onPick: (t: InboxTab) => void }) {

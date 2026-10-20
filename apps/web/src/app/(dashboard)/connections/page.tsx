@@ -10,7 +10,7 @@ import { SettingsIntegrations } from "@/app/(dashboard)/settings/_components/set
  */
 export default function ConnectionsPage() {
   return (
-    <div className="mx-auto w-full max-w-[1120px] space-y-5 pt-2 md:pt-5">
+    <div className="mx-auto w-full max-w-[1120px] space-y-5">
       <div>
         <h1 className="text-[22px] font-semibold leading-tight tracking-tight">Kết nối</h1>
         <p className="mt-1 text-sm text-muted-foreground">Trợ lý AI, Fanpage, Zalo OA, thanh toán, phần mềm bán hàng và các kết nối dữ liệu của công ty.</p>

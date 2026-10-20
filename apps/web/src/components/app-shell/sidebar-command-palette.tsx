@@ -4,13 +4,15 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { Command } from "cmdk"
-import { Moon, Search, Sun, UserPlus, UserRound } from "lucide-react"
+import { Moon, Search, SearchX, Sun, UserPlus, UserRound, X } from "lucide-react"
+import { AnimatePresence, motion, MotionConfig } from "motion/react"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import apiClient from "@/lib/api-client"
 import { usePermissions } from "@/lib/rbac"
 import { useOrgFeature } from "@/hooks/use-org-features"
 import { useTheme } from "@/lib/theme"
 import type { FlatMenuEntry } from "@/components/app-shell/menu-resolve"
+import { motionTokens } from "@/lib/motion-tokens"
 
 interface ContactSearchHit {
   id: number
@@ -32,8 +34,22 @@ function fold(s: string): string {
 
 const GROUP_HEADING =
   "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pt-1 [&_[cmdk-group-heading]]:pb-1.5 [&_[cmdk-group-heading]]:text-sm [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground"
+// Nền dòng đang chọn là MỘT ô sáng dùng chung trượt giữa các dòng (xem `Highlight`), không tô từng dòng.
 const ITEM =
-  "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground outline-none select-none data-[selected=true]:bg-accent [&_svg]:size-[18px] [&_svg]:flex-none [&_svg]:text-muted-foreground"
+  "relative isolate flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground outline-none select-none [&_svg]:size-[18px] [&_svg]:flex-none [&_svg]:text-muted-foreground data-[selected=true]:[&_svg]:text-foreground"
+
+/** Ô sáng sau dòng đang chọn — phỏng theo `command-palette` của Arc Library (MIT, xem lib/motion-tokens.ts). */
+function Highlight({ show }: { show: boolean }) {
+  if (!show) return null
+  return (
+    <motion.span
+      layoutId="command-palette-highlight"
+      className="absolute inset-0 -z-10 rounded-lg bg-accent"
+      transition={motionTokens.spring.smooth}
+      aria-hidden
+    />
+  )
+}
 
 /**
  * Bảng lệnh ⌘K (dựng bằng `cmdk`): tìm khách + nhảy tới các màn trong menu
@@ -43,6 +59,9 @@ const ITEM =
  * trang `/contacts` dùng) — KHÔNG dùng `GET /contacts/search`: endpoint đó
  * dành cho luồng chống trùng SĐT trước khi tạo khách (không scope theo
  * assigned_to), dùng ở đây sẽ lộ khách ngoài phạm vi của người xem.
+ *
+ * Chuyển động theo Arc Library: ô sáng trượt theo dòng chọn, khung kết quả co giãn theo số dòng
+ * (`--cmdk-list-height`), nút xoá chữ hiện khi đã gõ. Giảm chuyển động thì hiện thẳng.
  *
  * KHÔNG có lệnh gọi AI phía máy chủ — Trinity không gọi LLM trên server (AI là
  * của người dùng, qua MCP). Không dựng API tìm kiếm toàn cục mới.
@@ -108,6 +127,7 @@ export function ShellCommandPalette({
     router.push(href)
   }
 
+  const [selected, setSelected] = useState("")
   const nothing = contactHits.length === 0 && matchedNav.length === 0 && actions.length === 0
 
   return (
@@ -117,7 +137,8 @@ export function ShellCommandPalette({
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">Tìm hoặc ra lệnh</DialogTitle>
-        <Command shouldFilter={false} loop label="Tìm hoặc ra lệnh" className="flex flex-col">
+        <MotionConfig reducedMotion="user">
+        <Command shouldFilter={false} loop label="Tìm hoặc ra lệnh" value={selected} onValueChange={setSelected} className="flex flex-col">
           <div className="flex items-center gap-2.5 border-b border-[color:var(--color-app-line)] px-4 py-3.5">
             <Search className="size-[18px] flex-none text-muted-foreground" aria-hidden />
             <Command.Input
@@ -127,13 +148,33 @@ export function ShellCommandPalette({
               placeholder="Tìm khách, màn hình… hoặc ra lệnh"
               className="w-full bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground"
             />
+            <AnimatePresence initial={false}>
+              {query && (
+                <motion.button
+                  type="button"
+                  aria-label="Xoá chữ đã gõ"
+                  onClick={() => setQuery("")}
+                  initial={{ opacity: 0, scale: 0.6 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.6, transition: { duration: motionTokens.duration.exit } }}
+                  transition={motionTokens.spring.snappy}
+                  className="grid size-6 flex-none place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <X className="size-4" />
+                </motion.button>
+              )}
+            </AnimatePresence>
             <kbd className="flex-none rounded-[5px] border border-[color:var(--color-app-line)] bg-card px-1.5 font-sans text-sm text-muted-foreground">
               Esc
             </kbd>
           </div>
-          <Command.List className={`max-h-[min(420px,60vh)] overflow-y-auto p-2 ${GROUP_HEADING}`}>
+          <Command.List className={`h-[calc(var(--cmdk-list-height)+1rem)] max-h-[min(420px,60vh)] overflow-y-auto p-2 transition-[height] duration-[240ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none ${GROUP_HEADING}`}>
             {nothing && (
-              <p className="px-2.5 py-6 text-center text-sm text-muted-foreground">Không tìm thấy</p>
+              <div className="empty-enter-copy flex flex-col items-center gap-1 px-2.5 py-6 text-center">
+                <SearchX className="mb-1 size-5 text-muted-foreground" aria-hidden />
+                <p className="text-sm font-medium">Không tìm thấy</p>
+                <p className="text-sm text-muted-foreground">Thử từ khác, hoặc xoá chữ để xem gợi ý.</p>
+              </div>
             )}
             {contactHits.length > 0 && (
               <Command.Group heading="Khách hàng" className="mb-1">
@@ -144,6 +185,7 @@ export function ShellCommandPalette({
                     onSelect={() => goTo(`/contacts/${c.id}`)}
                     className={ITEM}
                   >
+                    <Highlight show={selected === `contact-${c.id}`} />
                     <UserRound aria-hidden />
                     <span className="truncate">{c.full_name ?? `Khách #${c.id}`}</span>
                   </Command.Item>
@@ -159,6 +201,7 @@ export function ShellCommandPalette({
                     onSelect={() => goTo(n.href)}
                     className={ITEM}
                   >
+                    <Highlight show={selected === `nav-${n.key}`} />
                     <n.icon aria-hidden />
                     <span className="truncate">{n.title}</span>
                   </Command.Item>
@@ -169,6 +212,7 @@ export function ShellCommandPalette({
               <Command.Group heading="Thao tác">
                 {actions.map((a) => (
                   <Command.Item key={a.key} value={`action-${a.key}`} onSelect={a.run} className={ITEM}>
+                    <Highlight show={selected === `action-${a.key}`} />
                     <a.icon aria-hidden />
                     <span className="truncate">{a.label}</span>
                   </Command.Item>
@@ -177,6 +221,7 @@ export function ShellCommandPalette({
             )}
           </Command.List>
         </Command>
+        </MotionConfig>
       </DialogContent>
     </Dialog>
   )

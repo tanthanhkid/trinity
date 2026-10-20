@@ -3,6 +3,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
 import type { CustomObjectDef, CustomViewDef } from "@/types/custom-objects"
 
+// jsdom chưa có PointerEvent — dnd-kit cần `isPrimary`/`button` để nhận cú kéo chuột.
+if (typeof window.PointerEvent === "undefined") {
+  class PointerEventShim extends MouseEvent {
+    isPrimary: boolean
+    pointerId: number
+    constructor(type: string, init: PointerEventInit = {}) {
+      super(type, init)
+      this.isPrimary = init.isPrimary ?? true
+      this.pointerId = init.pointerId ?? 1
+    }
+  }
+  window.PointerEvent = PointerEventShim as unknown as typeof PointerEvent
+}
+
 const mutate = vi.fn()
 const recordsByFilter: Record<string, { id: number; title: string; owner_name: string | null; data: Record<string, unknown> }[]> = {}
 vi.mock("@/hooks/custom-objects/use-custom-objects", () => ({
@@ -42,15 +56,29 @@ describe("CustomKanbanBoard", () => {
     expect(cols.map((c) => c.getAttribute("aria-label"))).toEqual(["Mới", "Đã liên hệ"])
     expect(cols[0].textContent).toContain("An")
   })
-  it("kéo thẻ sang cột khác ⇒ sửa đúng trường trạng thái qua API sửa bản ghi", () => {
+  it("kéo thẻ sang cột khác ⇒ sửa đúng trường trạng thái qua API sửa bản ghi", async () => {
     render(<CustomKanbanBoard def={DEF} view={VIEW} />)
     const cols = screen.getAllByTestId("kanban-column")
-    const data = new Map<string, string>()
-    const dataTransfer = { setData: (k: string, v: string) => data.set(k, v), getData: (k: string) => data.get(k) ?? "", effectAllowed: "" }
-    fireEvent.dragStart(screen.getByTestId("kanban-card"), { dataTransfer })
-    fireEvent.dragOver(cols[1], { dataTransfer })
-    fireEvent.drop(cols[1], { dataTransfer })
+    // jsdom không có bố cục: đặt toạ độ hai cột để biết con trỏ đang ở cột nào.
+    const rect = (left: number) => ({ left, right: left + 280, top: 0, bottom: 600, width: 280, height: 600, x: left, y: 0, toJSON: () => ({}) })
+    cols[0].getBoundingClientRect = () => rect(0)
+    cols[1].getBoundingClientRect = () => rect(292)
+    const card = screen.getByTestId("kanban-card")
+    fireEvent.pointerDown(card, { clientX: 20, clientY: 20, isPrimary: true, button: 0 })
+    fireEvent.pointerMove(document, { clientX: 30, clientY: 20, isPrimary: true })
+    fireEvent.pointerMove(document, { clientX: 400, clientY: 20, isPrimary: true })
+    await new Promise((r) => requestAnimationFrame(() => r(null)))
+    fireEvent.pointerUp(document, { clientX: 400, clientY: 20, isPrimary: true })
     expect(mutate).toHaveBeenCalledWith({ id: 7, input: { data: { trang_thai: "contacted" } } }, expect.anything())
+  })
+  it("thả lại đúng cột cũ ⇒ không gọi API", async () => {
+    render(<CustomKanbanBoard def={DEF} view={VIEW} />)
+    const card = screen.getByTestId("kanban-card")
+    fireEvent.pointerDown(card, { clientX: 20, clientY: 20, isPrimary: true, button: 0 })
+    fireEvent.pointerMove(document, { clientX: 40, clientY: 30, isPrimary: true })
+    await new Promise((r) => requestAnimationFrame(() => r(null)))
+    fireEvent.pointerUp(document, { clientX: 40, clientY: 30, isPrimary: true })
+    expect(mutate).not.toHaveBeenCalled()
   })
   it("trường chia cột không còn là select ⇒ báo cần sửa màn, không vỡ trang", () => {
     render(<CustomKanbanBoard def={DEF} view={{ ...VIEW, config: { group_by: "ho_ten" } }} />)

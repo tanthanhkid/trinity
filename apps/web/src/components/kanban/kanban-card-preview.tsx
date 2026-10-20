@@ -1,18 +1,20 @@
 "use client"
 
 /**
- * Thẻ card trong cột Kanban (badge kiểu Trello) —
- * draggable + droppable qua `@dnd-kit/core` (chỉ `useDraggable`/`useDroppable`,
- * KHÔNG `@dnd-kit/sortable` — mirror `org-chart-tree.tsx`; thứ tự chèn CHÍNH
- * XÁC tính ở `KanbanBoardView.handleDragEnd` dựa vào `prevCardId`/`nextCardId`
- * do `KanbanColumnView` truyền xuống, KHÔNG phải cơ chế sortable tự động).
+ * Thẻ card trong cột Kanban (badge kiểu Trello).
+ * - `KanbanCardContent`: phần hiển thị thuần — dùng cả trong cột lẫn bản "nhấc
+ *   lên" khi kéo (`DragOverlay` ở `KanbanBoardView`).
+ * - `KanbanCardPreview`: thẻ kéo được (`useDraggable` của `@dnd-kit/core`). Vị trí
+ *   thả KHÔNG tính ở đây — `hooks/use-board-drag.ts` theo con trỏ và cột chèn ô
+ *   giữ chỗ đúng chỗ (xem `KanbanColumnView`).
  */
-import { useDraggable, useDroppable } from "@dnd-kit/core"
+import { useDraggable } from "@dnd-kit/core"
 import { CalendarClock, CheckSquare, MessageSquare, Paperclip } from "lucide-react"
 import type { KanbanCard, KanbanLabelDef } from "@/types/kanban"
 import { formatDate } from "@/lib/format"
 import { kanbanPriorityLabel } from "@/lib/kanban-display"
 import { ShellAvatar } from "@/components/app-shell/avatar"
+import { RecordCode } from "@/components/custom-objects/record-code"
 
 /** Chấm ưu tiên — màu token (đủ tương phản ở cả nền tối). */
 const PRIORITY_DOT: Record<string, string> = {
@@ -22,53 +24,16 @@ const PRIORITY_DOT: Record<string, string> = {
   urgent: "var(--color-app-tag-red-ink)",
 }
 
-interface KanbanCardPreviewProps {
+interface KanbanCardContentProps {
   card: KanbanCard
   labelDefs: KanbanLabelDef[]
   /** Tên người phụ trách đã tra (theo `assignee_ids`); chưa tra được thì `#id`. */
   assigneeNames?: string[]
-  prevCardId?: number
-  nextCardId?: number
-  onOpen: (cardId: number) => void
 }
 
-export function KanbanCardPreview({ card, labelDefs, assigneeNames, prevCardId, nextCardId, onOpen }: KanbanCardPreviewProps) {
-  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
-    id: `card-${card.id}`,
-    data: { card },
-  })
-  const { setNodeRef: setDropRef, isOver } = useDroppable({
-    id: `card-drop-${card.id}`,
-    data: { card, prevCardId, nextCardId },
-    // Đang kéo CHÍNH card này thì KHÔNG cho nó làm drop-target của chính nó.
-    disabled: isDragging,
-  })
-  const setNodeRef = (node: HTMLElement | null) => {
-    setDragRef(node)
-    setDropRef(node)
-  }
-
-  // Đang kéo card này đi — chừa lại 1 "placeholder" đúng chiều cao thay vì
-  // hiện card thật (bản thật hiện qua `<DragOverlay>` ở `KanbanBoardView`).
-  if (isDragging) {
-    return (
-      <div
-        ref={setNodeRef}
-        className="h-[92px] shrink-0 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5"
-      />
-    )
-  }
-
+export function KanbanCardContent({ card, labelDefs, assigneeNames }: KanbanCardContentProps) {
   return (
-    <div
-      ref={setNodeRef}
-      onClick={() => onOpen(card.id)}
-      className={`group cursor-pointer rounded-lg border border-[var(--border)] bg-[var(--card)] p-3 text-sm shadow-[var(--shadow-card)] transition-colors hover:border-[var(--input)] ${
-        isOver ? "ring-2 ring-[var(--ring)]" : ""
-      }`}
-      {...listeners}
-      {...attributes}
-    >
+    <>
       {card.labels.length > 0 && (
         <div className="mb-1.5 flex flex-wrap gap-1">
           {card.labels.slice(0, 6).map((id) => {
@@ -86,7 +51,10 @@ export function KanbanCardPreview({ card, labelDefs, assigneeNames, prevCardId, 
         </div>
       )}
 
-      <p className="line-clamp-2 font-medium leading-snug text-foreground">{card.title}</p>
+      <div className="flex items-start gap-1.5">
+        <RecordCode code={card.code} />
+        <p className="line-clamp-2 min-w-0 font-medium leading-snug text-foreground">{card.title}</p>
+      </div>
 
       {card.contact && (
         <p className="mt-1 truncate text-sm text-muted-foreground">
@@ -147,6 +115,47 @@ export function KanbanCardPreview({ card, labelDefs, assigneeNames, prevCardId, 
           )
         })()}
       </div>
+    </>
+  )
+}
+
+/** Khung thẻ — cùng một class cho thẻ trong cột và bản nhấc lên khi kéo. */
+export const KANBAN_CARD_FRAME =
+  "rounded-lg border border-[var(--border)] bg-[var(--card)] p-3 text-sm shadow-[var(--shadow-card)]"
+
+interface KanbanCardPreviewProps extends KanbanCardContentProps {
+  /** Chiều cao ô giữ chỗ khi CHÍNH thẻ này đang được kéo (đo lúc nhấc lên). */
+  placeholderHeight?: number
+  onOpen: (cardId: number) => void
+}
+
+export function KanbanCardPreview({ card, labelDefs, assigneeNames, placeholderHeight, onOpen }: KanbanCardPreviewProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `card-${card.id}`,
+    data: { card },
+  })
+
+  // Đang kéo thẻ này: chỉ còn ô giữ chỗ viền đứt ở vị trí sẽ thả (cột đặt nó
+  // đúng chỗ), bản thật hiện qua `<DragOverlay>`.
+  if (isDragging) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={{ height: placeholderHeight ?? 92 }}
+        className="shrink-0 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5"
+      />
+    )
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      onClick={() => onOpen(card.id)}
+      className={`group cursor-pointer touch-manipulation transition-colors hover:border-[var(--input)] ${KANBAN_CARD_FRAME}`}
+      {...listeners}
+      {...attributes}
+    >
+      <KanbanCardContent card={card} labelDefs={labelDefs} assigneeNames={assigneeNames} />
     </div>
   )
 }

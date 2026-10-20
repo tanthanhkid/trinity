@@ -36,6 +36,7 @@ import type { FacebookBroadcastsService } from '../../../facebook/facebook-broad
 import type { PaymentsService } from '../../../connectors/payments.service';
 import type { FacebookMessengerService } from '../../../facebook/facebook-messenger.service';
 import type { ZaloOaMessagingService } from '../../../zalo-oa/zalo-oa-messaging.service';
+import type { CustomReportsService } from '../../../reports/custom/custom-reports.service';
 
 export interface McpDeps {
   prisma: PrismaService;
@@ -83,6 +84,8 @@ export interface McpDeps {
   channels?: DashboardChannelsService;
   /** Tương tác gộp (bình luận + tin nhắn các kênh) — màn Tương tác + list_interactions. */
   interactions?: InteractionsService;
+  /** Báo cáo dùng chung do quản trị viên cấu hình (#25) — `get_report`. */
+  customReports?: CustomReportsService;
 }
 
 export interface ToolContext {

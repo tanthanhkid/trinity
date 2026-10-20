@@ -43,6 +43,7 @@ If the reverse proxy only forwards `/api/v1/` to the monolith and `/` to the web
 | `get_contact` / `list_contact_activities` | `contacts.view` | the address is not returned |
 | `list_deals` | `deals.view` | filters status/assigned_to/search; cursor |
 | `get_dashboard_overview` | `reports.overview` | |
+| `get_report` (report_id?, period?) | — (filtered internally: only reports on tables the user can view, numbers within their view scope) | admin-configured reports over any table (web: Reports → Báo cáo tuỳ chỉnh). No `report_id` ⇒ list; `period` = `this_month` · `month:YYYY-MM` · `year:YYYY` · `all`. Count, sums, per group, per month. Configuration stays on the web |
 | `list_my_tasks` | `kanban.view` | unfinished cards where I am the primary/co-assignee |
 | `describe_schema` (object?) | — (filtered internally by real permissions) | CALL FIRST. Core tables (`contacts`/`deals`/`tasks`, only with `*.view`) + every custom table the user can see (`custom_records.view` + `visible_role_ids`/on-off): keys, fields (key, label, type, required, unique, select options, relation table — the target table's name is not leaked if it is not visible), view/create/edit permissions. Reads structure only |
 | `list_records` (object, filter?, search?, sort?, dir?, limit, cursor) | per table: `custom_records.view` / `contacts.view` / `deals.view` / `kanban.view` | custom tables and also the core tables `contacts`/`deals`/`tasks` (routed to `list_contacts`/`list_deals`/`KanbanCardsService.list`: same scope + phone masking as the dedicated tools). Custom tables use `CustomRecordsListService` (same `owner_id ∪ created_by` scope + filters/sorting as the web); `search` blocks digit probing; phone numbers masked. On custom tables `search` matches title, code and any text/long_text field; `total` counts records matching search/filter (explained in `total_counts`), not the whole table. Global `search` covers core tables only |
@@ -227,6 +228,7 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 | `describe_schema` | read | Describe schema |
 | `get_connected_channels` | read | Connected channels with status and today's counts |
 | `get_dashboard_overview` | read | Dashboard overview |
+| `get_report` | read | Custom report |
 | `get_setup_guide` | read | Setup guide |
 | `install_object_template` | write · preview → `confirmed_by_user` | Install an industry template |
 | `list_crm_options` | read | List CRM options |

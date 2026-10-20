@@ -38,6 +38,7 @@ import { buildScopedContactListWhere, MIN_MASKED_PHONE_SEARCH_DIGITS } from './h
 import { normalizePhone, phoneVariants } from '../google/sheet-mapping';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { foldedIds } from '../common/helpers/fold-search.helper';
 
 /** Owner của Contact — thống nhất cho MỌI quyền. */
 const CONTACT_OWNER_FIELDS = ['assigned_to', 'created_by_id'] as const;
@@ -1220,7 +1221,7 @@ export class ContactsService {
     if (isDigitsOnly) {
       where.phone = { contains: digits };
     } else {
-      where.full_name = { contains: trimmed, mode: 'insensitive' };
+      where.OR = [{ full_name: { contains: trimmed, mode: 'insensitive' } }, { id: { in: await foldedIds(this.prisma, 'contacts', trimmed) } }];
     }
 
     const contacts = await this.prisma.contact.findMany({

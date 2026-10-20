@@ -147,7 +147,7 @@ export function CustomRecordsScreen({ def, view }: { def: CustomObjectDef; view?
               if (searchTimer.current !== null) window.clearTimeout(searchTimer.current)
               searchTimer.current = window.setTimeout(() => setQ(next.trim()), 300)
             }}
-            placeholder="Tìm theo tiêu đề…"
+            placeholder="Tìm tên, mã, nội dung…"
             aria-label="Tìm kiếm"
             className="pl-9"
           />

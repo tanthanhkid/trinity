@@ -68,7 +68,7 @@ export const listRecordsTool: ToolDef = {
     const q = { q: search, limit: clampLimit(args.limit), cursor: optStr(args.cursor, 400), sort: optStr(args.sort, 60), dir: args.dir === 'asc' ? 'asc' : 'desc', filter } as ListCustomRecordsQueryDto;
     let res;
     try {
-      res = await deps.recordLists.list(principal.user, key, q, { qInText: true });
+      res = await deps.recordLists.list(principal.user, key, q);
     } catch (e) {
       mapNotFound(e, key);
     }

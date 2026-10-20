@@ -6,6 +6,9 @@ import { listSocialDraftsTool, saveSocialDraftTool } from '../tools/social-tools
 const user = { userId: 1, email: 'a@x.vn', isAdmin: true, grants: {} } as never;
 const future = (min: number) => new Date(Date.now() + min * 60_000);
 const NOW = new Date('2026-10-15T03:00:00Z');
+// Đồng hồ cố định ở NOW: ngày hẹn trong fixture (20/10) luôn ở tương lai — trước đây test hỏng khi lịch thật trôi qua ngày đó.
+beforeAll(() => jest.useFakeTimers({ now: NOW, advanceTimers: true }));
+afterAll(() => jest.useRealTimers());
 
 const row = (over: Record<string, unknown> = {}) => ({
   id: 4, title: 'Khuyến mãi', content: 'Nội dung', media: [{ key: 'social/u1_1_a.png', type: 'image', content_type: 'image/png', size: 5, name: 'a.png' }],

@@ -122,7 +122,7 @@ describe('list_records / get_record', () => {
     (deps.recordLists.list as jest.Mock).mockResolvedValue({ items: [{ id: 1, title: 'An', data: { sdt: '***678' } }], next_cursor: 'abc', total: 1 });
     const u = user(FULL);
     const out = await listRecordsTool.run({ object: 'hoc_sinh', filter: { lop: 'a' }, search: 'An', sort: 'title', dir: 'asc', limit: 500 }, ctx(deps, u));
-    expect(deps.recordLists.list).toHaveBeenCalledWith(u, 'hoc_sinh', expect.objectContaining({ q: 'An', filter: '{"lop":"a"}', sort: 'title', dir: 'asc', limit: 50 }), { qInText: true });
+    expect(deps.recordLists.list).toHaveBeenCalledWith(u, 'hoc_sinh', expect.objectContaining({ q: 'An', filter: '{"lop":"a"}', sort: 'title', dir: 'asc', limit: 50 }));
     expect((out.structured.data as { next_cursor: string }).next_cursor).toBe('abc');
   });
   it('chặn dò chữ số trong search; khoá bảng sai định dạng; bảng không thấy ⇒ chỉ đường describe_schema', async () => {

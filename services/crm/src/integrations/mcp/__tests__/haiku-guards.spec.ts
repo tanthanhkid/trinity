@@ -2,7 +2,8 @@ import { z } from 'zod';
 import type { Grants } from '@trinity/rbac';
 import type { AuthUser } from '@trinity/rbac-nest';
 import { CustomViewsService } from '../../../custom-objects/custom-views.service';
-import { codeTitleOrTextSql } from '../../../custom-objects/custom-records-list.service';
+import { recordSearchSql } from '../../../custom-objects/custom-records-list.service';
+import type { ObjectDef } from '../../../custom-objects/custom-object-access';
 import { viewTypesInWords, VIEW_TYPE_INFO } from '../../../custom-objects/view-config';
 import { actionToolByName } from '../actions/action-registry';
 import { ActionUserError, type ActionCtx, type ActionDeps } from '../actions/action-types';
@@ -176,11 +177,12 @@ describe('list_ai_activity', () => {
 });
 
 describe('tìm bản ghi & mô tả tool', () => {
-  it('codeTitleOrTextSql: tìm thêm trong các trường chữ, không có trường chữ thì như cũ', () => {
-    const sql = codeTitleOrTextSql('trà sữa', ['ten_don', 'ghi_chu']);
-    expect(sql.sql).toMatch(/data->>.*ILIKE.*OR.*data->>.*ILIKE/s);
-    expect(sql.values).toEqual(expect.arrayContaining(['ten_don', 'ghi_chu', '%trà sữa%']));
-    expect(codeTitleOrTextSql('x', []).sql).not.toContain('data->>');
+  it('recordSearchSql: tìm thêm trong các trường chữ (bỏ dấu), không có trường chữ thì chỉ tiêu đề + mã', () => {
+    const def = (keys: string[]) => ({ obj: {}, fields: keys.map((key) => ({ key, type: 'text', options: {} })) }) as unknown as ObjectDef;
+    const sql = recordSearchSql(def(['ten_don', 'ghi_chu']), 'trà sữa');
+    expect(sql.sql).toMatch(/data->>.*LIKE.*OR.*data->>.*LIKE/s);
+    expect(sql.values).toEqual(expect.arrayContaining(['ten_don', 'ghi_chu', '%tra sua%']));
+    expect(recordSearchSql(def([]), 'x').sql).not.toContain('data->>');
   });
   it('totalCounts nói rõ total là số khớp tìm/lọc chứ không phải cả bảng', () => {
     expect(totalCounts('trà sữa', undefined, 2)).toMatch(/không phải cả bảng/);

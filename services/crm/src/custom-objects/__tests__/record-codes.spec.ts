@@ -1,7 +1,8 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { PrismaService } from '@trinity/prisma';
 import { formatCode, normalizePrefix, parseCode, renamePrefix } from '../record-codes';
-import { codeOrTitleSql } from '../custom-records-list.service';
+import { recordSearchSql } from '../custom-records-list.service';
+import type { ObjectDef } from '../custom-object-access';
 
 describe('mã chung — định dạng', () => {
   it('formatCode khớp trinity_code_num của DB: đệm 3 chữ số, không cắt khi ≥ 1000', () => {
@@ -30,11 +31,11 @@ describe('mã chung — định dạng', () => {
     expect(() => normalizePrefix('CV')).toThrow(/bảng lõi/);
   });
 
-  it('ô tìm của danh sách khớp tiêu đề HOẶC đầu mã (in hoa)', () => {
-    const sql = codeOrTitleSql('hs0');
-    expect(sql.sql).toContain('title ILIKE');
+  it('ô tìm của danh sách khớp tiêu đề (bỏ dấu) HOẶC đầu mã (in hoa)', () => {
+    const sql = recordSearchSql({ obj: {}, fields: [] } as unknown as ObjectDef, 'hs0');
+    expect(sql.sql).toContain('translate(lower(title)');
     expect(sql.sql).toContain('code LIKE');
-    expect(sql.values).toEqual(['%hs0%', 'HS0%']);
+    expect(sql.values).toEqual(expect.arrayContaining(['%hs0%', 'HS0%']));
   });
 });
 

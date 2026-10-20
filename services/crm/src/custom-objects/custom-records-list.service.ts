@@ -10,6 +10,8 @@ import { RecordPresenter, type RecordRow, type RecordView } from './record-prese
 import {
   buildFilters, buildSort, cursorSql, decodeCursor, encodeCursor, escapeLike, orderSql, scopeSql, whereSql, type SortSpec,
 } from './record-query';
+import { foldMatchSql } from '../common/helpers/fold-search.helper';
+import { foldVi } from './refs/fold-vi';
 import type { ListCustomRecordsQueryDto, LookupQueryDto } from './dto/custom-record.dto';
 
 export interface RowQuery {
@@ -22,8 +24,6 @@ export interface RowQuery {
   dir: 'asc' | 'desc';
   filter?: string;
   withTotal: boolean;
-  /** `q` khớp thêm mọi trường chữ (text, long_text) của bảng, ngoài tiêu đề và mã. */
-  qInText?: boolean;
 }
 
 /** Trang n (từ 1) → số dòng bỏ qua; `cursor` thắng `page`. */
@@ -34,21 +34,39 @@ export function pageOffset(q: { page?: number; limit?: number; cursor?: string }
 
 type SortedRow = RecordRow & { sort_v: string | null };
 
-/** Ô tìm: khớp tiêu đề (chứa) HOẶC mã (bắt đầu bằng — "HS0" ra HS001…HS009). */
-export function codeOrTitleSql(q: string): Prisma.Sql {
-  const like = escapeLike(q);
-  return Prisma.sql`(title ILIKE ${`%${like}%`} ESCAPE '\\' OR code LIKE ${`${like.toUpperCase()}%`} ESCAPE '\\')`;
-}
+/** Kiểu trường chữ được ô tìm quét thêm (không gồm phone: SĐT bị che theo quyền, tìm chứa là oracle dò số). */
+export const TEXT_SEARCH_TYPES: readonly string[] = ['text', 'long_text', 'email', 'url'];
 
-/** Kiểu trường chữ được ô tìm quét thêm khi `qInText` (không gồm phone/email: SĐT luôn bị che với AI). */
-export const TEXT_SEARCH_TYPES: readonly string[] = ['text', 'long_text'];
-
-/** Ô tìm mở rộng: tiêu đề / mã như `codeOrTitleSql`, HOẶC chứa trong một trường chữ của bảng. */
-export function codeTitleOrTextSql(q: string, fieldKeys: readonly string[]): Prisma.Sql {
-  if (fieldKeys.length === 0) return codeOrTitleSql(q);
-  const like = `%${escapeLike(q)}%`;
-  const parts = fieldKeys.map((k) => Prisma.sql`(data->>${k}) ILIKE ${like} ESCAPE '\\'`);
-  return Prisma.sql`(${codeOrTitleSql(q)} OR ${Prisma.join(parts, ' OR ')})`;
+/**
+ * Ô tìm của MỌI bảng tuỳ biến — không phân biệt hoa/thường, bỏ dấu, khớp chuỗi con. Khớp khi: tiêu đề chứa
+ * từ khoá · mã bắt đầu bằng từ khoá ("HS0" ra HS001…) · một trường chữ chứa · nhãn lựa chọn (select /
+ * multi_select) chứa · TÊN của bản ghi / khách hàng / người dùng được liên kết chứa (bảng ghi danh có tiêu đề
+ * là mã vẫn tìm được theo tên học sinh). Chỉ lọc các dòng người xem đã thấy — điều kiện phạm vi nằm ở `extra`.
+ */
+export function recordSearchSql(def: ObjectDef, q: string): Prisma.Sql {
+  const term = foldVi(q.trim());
+  const parts: Prisma.Sql[] = [
+    foldMatchSql(Prisma.sql`title`, q),
+    Prisma.sql`code LIKE ${`${escapeLike(q.trim().toUpperCase())}%`} ESCAPE '\\'`,
+  ];
+  for (const f of def.fields) {
+    const json = Prisma.sql`(custom_records.data->${f.key})`;
+    if (TEXT_SEARCH_TYPES.includes(f.type)) parts.push(foldMatchSql(Prisma.sql`(data->>${f.key})`, q));
+    else if (f.type === 'select' || f.type === 'multi_select') {
+      const hit = (f.options.choices ?? []).filter((c) => foldVi(c.label).includes(term)).map((c) => c.value);
+      if (hit.length === 0) continue;
+      parts.push(f.type === 'select'
+        ? Prisma.sql`(data->>${f.key}) IN (${Prisma.join(hit)})`
+        : Prisma.sql`EXISTS (SELECT 1 FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(${json}) = 'array' THEN ${json} END) v WHERE v IN (${Prisma.join(hit)}))`);
+    } else if (f.type === 'user') {
+      parts.push(Prisma.sql`EXISTS (SELECT 1 FROM users u WHERE ${json} @> to_jsonb(u.id) AND ${foldMatchSql(Prisma.sql`u.full_name`, q)})`);
+    } else if (f.type === 'relation' && f.options.target === 'contact') {
+      parts.push(Prisma.sql`EXISTS (SELECT 1 FROM contacts c WHERE c.deleted_at IS NULL AND ${json} @> to_jsonb(c.id) AND ${foldMatchSql(Prisma.sql`c.full_name`, q)})`);
+    } else if (f.type === 'relation' && f.options.target_object_id) {
+      parts.push(Prisma.sql`EXISTS (SELECT 1 FROM custom_records t WHERE t.object_id = ${f.options.target_object_id} AND t.deleted_at IS NULL AND ${json} @> to_jsonb(t.id) AND ${foldMatchSql(Prisma.sql`t.title`, q)})`);
+    }
+  }
+  return Prisma.sql`(${Prisma.join(parts, ' OR ')})`;
 }
 
 /** Đọc danh sách / tra cứu / liên kết ngược của bản ghi tuỳ biến. Phạm vi = `custom_records.view` (owner_id ∪ created_by). */
@@ -60,12 +78,12 @@ export class CustomRecordsListService {
     private readonly presenter: RecordPresenter,
   ) {}
 
-  async list(user: AuthUser, key: string, q: ListCustomRecordsQueryDto, opts: { qInText?: boolean } = {}) {
+  async list(user: AuthUser, key: string, q: ListCustomRecordsQueryDto) {
     const def = await loadVisibleObject(this.prisma, user, key);
     const owners = await this.scope.ownerIds(user, 'custom_records.view');
     if (owners === null) return { items: [], next_cursor: null, total: 0 };
     const res = await this.queryRows(def, [scopeSql(owners)], {
-      q: q.q, limit: q.limit ?? LIMITS.defaultListLimit, cursor: q.cursor, offset: pageOffset(q), sort: q.sort, dir: q.dir ?? 'desc', filter: q.filter, withTotal: !q.cursor || q.page !== undefined, qInText: opts.qInText,
+      q: q.q, limit: q.limit ?? LIMITS.defaultListLimit, cursor: q.cursor, offset: pageOffset(q), sort: q.sort, dir: q.dir ?? 'desc', filter: q.filter, withTotal: !q.cursor || q.page !== undefined,
     });
     return { items: await this.presenter.present(def, user, res.rows), next_cursor: res.next, total: res.total };
   }
@@ -75,7 +93,7 @@ export class CustomRecordsListService {
     const sort = buildSort(def, o.sort);
     const base: Prisma.Sql[] = [Prisma.sql`object_id = ${def.obj.id}`, Prisma.sql`deleted_at IS NULL`, ...extra, ...buildFilters(def, o.filter)];
     const q = o.q?.trim();
-    if (q) base.push(o.qInText ? codeTitleOrTextSql(q, def.fields.filter((f) => TEXT_SEARCH_TYPES.includes(f.type)).map((f) => f.key)) : codeOrTitleSql(q));
+    if (q) base.push(recordSearchSql(def, q));
     const withCursor = o.cursor ? [...base, cursorSql(sort, o.dir, decodeCursor(o.cursor))] : base;
     const sortV = sort.kind === 'id' ? Prisma.sql`NULL::text` : Prisma.sql`(${sort.expr})::text`;
     const rows = await this.prisma.$queryRaw<SortedRow[]>(Prisma.sql`

@@ -18,6 +18,7 @@ import { CreateDealDto } from './dto/create-deal.dto';
 import { UpdateDealDto } from './dto/update-deal.dto';
 import { QueryDealDto } from './dto/query-deal.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { foldedIds } from '../common/helpers/fold-search.helper';
 
 /** Owner của Deal: `['assigned_to', 'created_by']`. */
 const DEAL_OWNER_FIELDS = ['assigned_to', 'created_by'];
@@ -164,7 +165,10 @@ export class DealsService {
 
     const and: Prisma.DealWhereInput[] = [rbacFilter];
     if (query.status) and.push({ status: query.status });
-    if (query.search) and.push({ title: { contains: query.search, mode: 'insensitive' } });
+    if (query.search) {
+      const term = query.search.trim();
+      and.push({ OR: [{ title: { contains: term, mode: 'insensitive' } }, { id: { in: await foldedIds(this.prisma, 'deals', term) } }] });
+    }
     if (query.assigned_to !== undefined) and.push({ assigned_to: query.assigned_to });
     const where: Prisma.DealWhereInput = { AND: and };
 

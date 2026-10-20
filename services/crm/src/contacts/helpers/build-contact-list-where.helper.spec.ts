@@ -17,6 +17,7 @@ function makePrisma(userFindManyResult: Array<{ id: number }> = []) {
     user: {
       findMany: jest.fn().mockResolvedValue(userFindManyResult),
     },
+    $queryRaw: jest.fn().mockResolvedValue([{ id: 42 }]),
   } as unknown as PrismaService;
 }
 
@@ -85,6 +86,11 @@ describe('buildScopedContactListWhere', () => {
         { phone: { contains: '0912345' } },
       ]),
     );
+  });
+
+  it('search theo tên: contains gốc HOẶC id khớp bản bỏ dấu (#30)', async () => {
+    const where = await buildScopedContactListWhere(makePrisma(), makeScope('all'), makeUser(1), { search: 'minh' });
+    expect(JSON.stringify((where as { AND: unknown[] }).AND)).toContain('{"id":{"in":[42]}}');
   });
 
   it('search SĐT ngắn (<9 số) không khớp cột phone khi người xem chưa có phone_full scope all', async () => {

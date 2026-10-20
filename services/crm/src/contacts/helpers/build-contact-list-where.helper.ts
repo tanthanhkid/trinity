@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@trinity/prisma';
 import { type AuthUser, ScopeService, scopeWhere } from '@trinity/rbac-nest';
+import { foldedIds } from '../../common/helpers/fold-search.helper';
 
 /** Owner của Contact — thống nhất cho MỌI quyền. Dùng bởi `buildScopedContactListWhere`. */
 const CONTACT_OWNER_FIELDS = ['assigned_to', 'created_by_id'];
@@ -37,18 +38,17 @@ export const MIN_MASKED_PHONE_SEARCH_DIGITS = 9;
  * đủ ≥9 chữ số — list che SĐT theo `phone_full`, nên tra chứa bằng chuỗi ngắn là oracle lộ số đã che
  * (cùng luật với `ContactsService.search`).
  */
-function buildSearchClause(search: string, phoneOpen: boolean): Prisma.ContactWhereInput {
+async function buildSearchClause(prisma: PrismaService, search: string, phoneOpen: boolean): Promise<Prisma.ContactWhereInput> {
   const searchTerm = search.trim();
   const digits = searchTerm.replace(/\D/g, '');
   const isDigitsOnly = digits.length >= 6 && digits === searchTerm;
   const phoneAllowed = phoneOpen || digits.length >= MIN_MASKED_PHONE_SEARCH_DIGITS;
-  if (isDigitsOnly) {
-    return phoneAllowed
-      ? { phone: { contains: digits } }
-      : { full_name: { contains: searchTerm, mode: 'insensitive' } };
-  }
-  const byName: Prisma.ContactWhereInput = { full_name: { contains: searchTerm, mode: 'insensitive' } };
-  return phoneAllowed ? { OR: [{ phone: { contains: searchTerm } }, byName] } : byName;
+  if (isDigitsOnly && phoneAllowed) return { phone: { contains: digits } };
+  // Tên: không phân biệt hoa/thường + bỏ dấu ("minh" ra "Bé Mính") — id lấy qua SQL gập dấu, phạm vi do AND bên ngoài.
+  const byName: Prisma.ContactWhereInput = {
+    OR: [{ full_name: { contains: searchTerm, mode: 'insensitive' } }, { id: { in: await foldedIds(prisma, 'contacts', searchTerm) } }],
+  };
+  return phoneAllowed && !isDigitsOnly ? { OR: [{ phone: { contains: searchTerm } }, byName] } : byName;
 }
 
 function buildCreatedAtClause(
@@ -146,7 +146,7 @@ export async function buildScopedContactListWhere(
   if (filters.creator_id !== undefined) and.push({ created_by_id: filters.creator_id });
   if (filters.search) {
     const phoneFullOwners = await scope.ownerIds(user, 'contacts.phone_full');
-    and.push(buildSearchClause(filters.search, phoneFullOwners === 'all'));
+    and.push(await buildSearchClause(prisma, filters.search, phoneFullOwners === 'all'));
   }
   if (filters.lead_label) {
     and.push(filters.lead_label === 'unscored' ? { lead_label: null } : { lead_label: filters.lead_label });

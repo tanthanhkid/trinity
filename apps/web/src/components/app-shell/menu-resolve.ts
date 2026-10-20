@@ -64,3 +64,25 @@ export function resolvePinnedEntries(
   }
   return out
 }
+
+/**
+ * Bỏ khỏi menu chính / "Bảng tuỳ chỉnh" những mục đang nằm ở nhóm "Đã ghim" — mỗi tính năng hiện MỘT lần (#27).
+ * Mục con đã ghim bị bỏ khỏi nhóm cha; nhóm cha hết con thì bỏ luôn. Rail thu gọn không hiện nhóm "Đã ghim"
+ * nên nơi gọi truyền tập rỗng khi thu gọn.
+ */
+export function withoutPinned<T extends Pick<MenuItem, "key"> & { children?: readonly Pick<ChildMenuItem, "key">[] }>(
+  items: readonly T[],
+  pinned: ReadonlySet<string>,
+): T[] {
+  if (pinned.size === 0) return [...items]
+  const out: T[] = []
+  for (const item of items) {
+    if (!item.children) {
+      if (!pinned.has(item.key)) out.push(item)
+      continue
+    }
+    const children = item.children.filter((c) => !pinned.has(c.key))
+    if (children.length > 0) out.push(children.length === item.children.length ? item : { ...item, children })
+  }
+  return out
+}

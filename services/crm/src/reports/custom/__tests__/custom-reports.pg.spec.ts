@@ -84,4 +84,24 @@ describePg('Báo cáo dùng chung (#25) trên Postgres thật', () => {
     await expect(svc.run(admin, 'deal', 'all')).rejects.toThrow(/Không tìm thấy/);
     svc = new CustomReportsService(db, { ownerIds: async () => owners } as never);
   });
+
+  it('bộ mẫu: chỉ cài báo cáo có bảng, trường lấy theo danh mục thật, cài lại không ghi đè', async () => {
+    await save([{ id: 'thu_tien', name: 'Thu tiền (tự sửa)', source: 'x:thanh_toan', date_field: 'created_at', sum_fields: [] }]);
+    const before = (await svc.presets(admin)).find((p) => p.key === 'giao_duc')!;
+    expect(before.reports.find((r) => r.id === 'phu_huynh_moi')).toMatchObject({ installable: false, source_label: null });
+    expect(before.reports.find((r) => r.id === 'thu_tien')).toMatchObject({ installed: true, installable: false });
+    const res = await svc.installPreset(admin, 'giao_duc');
+    expect(res.installed).toEqual(['hoc_sinh_moi']);
+    expect(res.skipped.map((s) => s.id)).toEqual(expect.arrayContaining(['phu_huynh_moi', 'thu_tien', 'ghi_danh_theo_loai']));
+    const defs = await svc.readDefs();
+    expect(defs.find((d) => d.id === 'thu_tien')?.name).toBe('Thu tiền (tự sửa)');
+    expect(defs.find((d) => d.id === 'hoc_sinh_moi')).toMatchObject({ source: 'x:hoc_sinh', date_field: 'created_at', group_by: null, preset: 'giao_duc' });
+    // Bảng có trường đúng tên ⇒ mẫu dùng trường nghiệp vụ (ngày thanh toán, số tiền, hình thức) thay vì ngày tạo.
+    await save([]);
+    await svc.installPreset(admin, 'giao_duc');
+    expect((await svc.readDefs()).find((d) => d.id === 'thu_tien')).toMatchObject({ date_field: 'ngay_tt', sum_fields: ['so_tien'], group_by: 'hinh_thuc' });
+    expect((await svc.run(admin, 'thu_tien', 'month:2026-09')).sums.so_tien).toBe(2_000_000);
+    expect((await svc.installPreset(admin, 'crm_co_ban')).installed).toEqual(['khach_moi_theo_nguon', 'deal_theo_trang_thai', 'doanh_so_chot']);
+    await expect(svc.installPreset(admin, 'khong_co')).rejects.toThrow(/Không có bộ mẫu/);
+  });
 });

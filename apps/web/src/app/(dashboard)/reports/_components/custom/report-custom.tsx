@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { FileBarChart, Pencil, Plus } from "lucide-react"
+import { FileBarChart, LayoutTemplate, Pencil, Plus } from "lucide-react"
 import apiClient from "@/lib/api-client"
 import { todayVn } from "@/lib/format"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import { MonthPicker } from "@/components/ui/month-picker"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BarChart } from "../charts/bar-chart"
 import { ReportEditorDialog } from "./report-editor-dialog"
+import { ReportPresetsDialog } from "./report-presets-dialog"
 import {
   monthLabel, periodValue,
   type CustomReportList, type CustomReportResult, type PeriodKind,
@@ -36,6 +37,7 @@ export function ReportCustom() {
   const [month, setMonth] = useState(() => todayVn().slice(0, 7))
   const [year, setYear] = useState(() => todayVn().slice(0, 4))
   const [editor, setEditor] = useState<{ open: boolean; id?: string }>({ open: false })
+  const [presetsOpen, setPresetsOpen] = useState(false)
 
   // Chưa chọn / báo cáo đang chọn bị xoá hoặc mất quyền → báo cáo đầu tiên.
   const id = reports.some((r) => r.id === picked) ? picked : (reports[0]?.id ?? "")
@@ -50,12 +52,15 @@ export function ReportCustom() {
   if (list.isLoading) return <Skeleton className="h-40 w-full" />
 
   const editorDialog = canManage && (
-    <ReportEditorDialog
-      open={editor.open}
-      editId={editor.id}
-      onOpenChange={(open) => setEditor((e) => ({ ...e, open }))}
-      onSaved={(savedId) => savedId && setId(savedId)}
-    />
+    <>
+      <ReportEditorDialog
+        open={editor.open}
+        editId={editor.id}
+        onOpenChange={(open) => setEditor((e) => ({ ...e, open }))}
+        onSaved={(savedId) => savedId && setId(savedId)}
+      />
+      <ReportPresetsDialog open={presetsOpen} onOpenChange={setPresetsOpen} onInstalled={(first) => first && setId(first)} />
+    </>
   )
 
   if (!reports.length) {
@@ -67,7 +72,12 @@ export function ReportCustom() {
           message={canManage
             ? "Tạo báo cáo cho bất kỳ bảng nào: chọn bảng, trường ngày để lọc theo tháng/năm, cột cần cộng tổng và cách nhóm."
             : "Quản trị viên chưa cấu hình báo cáo nào bạn xem được."}
-          action={canManage ? <Button onClick={() => setEditor({ open: true })}><Plus className="size-4" />Thêm báo cáo</Button> : undefined}
+          action={canManage ? (
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button onClick={() => setPresetsOpen(true)}><LayoutTemplate className="size-4" />Dùng báo cáo mẫu</Button>
+              <Button variant="outline" onClick={() => setEditor({ open: true })}><Plus className="size-4" />Tự tạo báo cáo</Button>
+            </div>
+          ) : undefined}
         />
         {editorDialog}
       </>
@@ -109,6 +119,7 @@ export function ReportCustom() {
           <div className="ml-auto flex gap-2">
             <Button variant="outline" onClick={() => setEditor({ open: true, id })}><Pencil className="size-4" />Sửa</Button>
             <Button variant="outline" onClick={() => setEditor({ open: true })}><Plus className="size-4" />Thêm báo cáo</Button>
+            <Button variant="outline" onClick={() => setPresetsOpen(true)}><LayoutTemplate className="size-4" />Mẫu</Button>
           </div>
         )}
       </div>

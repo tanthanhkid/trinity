@@ -28,6 +28,13 @@ export interface CustomReportSource {
   fields: { key: string; label: string; role: ReportFieldRole }[]
 }
 
+export interface CustomReportPreset {
+  key: string
+  name: string
+  description: string
+  reports: { id: string; name: string; source_label: string | null; installed: boolean; installable: boolean }[]
+}
+
 export interface ReportNumbers {
   count: number
   sums: Record<string, number>

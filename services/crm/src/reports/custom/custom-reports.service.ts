@@ -8,6 +8,7 @@ import {
   normalizeReportDefs, parseReportPeriod, REPORT_DEFS_KEY, REPORT_LIMITS, ReportDefError,
   type ReportDef, type ReportPeriod,
 } from './report-def';
+import { REPORT_PRESETS, resolvePresetReport } from './report-presets';
 import { CORE_SOURCES, customSource, findField, type ReportSourceSpec, type SourceField } from './report-sources';
 
 export interface ReportNumbers {
@@ -85,12 +86,57 @@ export class CustomReportsService {
       if (!spec) throw new BadRequestException(`“${d.name}”: không có bảng nguồn ${d.source}`);
       this.fieldsOf(spec, d);
     }
+    await this.writeDefs(user, defs);
+    return defs;
+  }
+
+  /** Bộ mẫu + từng báo cáo: cài được không (bảng có chưa), đã có chưa (trùng mã). */
+  async presets(user: AuthUser) {
+    const have = new Set((await this.readDefs()).map((d) => d.id));
+    const acc = await loadObjectAccess(this.prisma, user);
+    const out = [];
+    for (const p of REPORT_PRESETS) {
+      const reports = [];
+      for (const r of p.reports) {
+        const spec = await this.resolveSource(user, r.source, acc).catch(() => null);
+        reports.push({ id: r.id, name: r.name, source_label: spec?.label ?? null, installed: have.has(r.id), installable: !!spec && !have.has(r.id) });
+      }
+      out.push({ key: p.key, name: p.name, description: p.description, reports });
+    }
+    return out;
+  }
+
+  /**
+   * Cài một bộ mẫu: thêm những báo cáo có bảng nguồn và chưa có mã trùng; trường lấy theo danh mục thật của bảng.
+   * Báo cáo đã có giữ nguyên (cài lại không ghi đè chỉnh sửa của quản trị viên).
+   */
+  async installPreset(user: AuthUser, key: string): Promise<{ installed: string[]; skipped: { id: string; reason: string }[] }> {
+    const preset = REPORT_PRESETS.find((p) => p.key === key);
+    if (!preset) throw new NotFoundException('Không có bộ mẫu này');
+    const defs = await this.readDefs();
+    const have = new Set(defs.map((d) => d.id));
+    const acc = await loadObjectAccess(this.prisma, user);
+    const installed: string[] = [];
+    const skipped: { id: string; reason: string }[] = [];
+    for (const r of preset.reports) {
+      if (have.has(r.id)) { skipped.push({ id: r.id, reason: 'đã có' }); continue; }
+      const spec = await this.resolveSource(user, r.source, acc).catch(() => null);
+      if (!spec) { skipped.push({ id: r.id, reason: 'chưa có bảng' }); continue; }
+      if (defs.length >= REPORT_LIMITS.maxReports) { skipped.push({ id: r.id, reason: 'đủ số báo cáo tối đa' }); continue; }
+      defs.push(resolvePresetReport(r, preset.key, (k, role) => !!findField(spec, k, role)));
+      have.add(r.id);
+      installed.push(r.id);
+    }
+    if (installed.length) await this.writeDefs(user, defs);
+    return { installed, skipped };
+  }
+
+  private async writeDefs(user: AuthUser, defs: ReportDef[]) {
     await this.prisma.setting.upsert({
       where: { key: REPORT_DEFS_KEY },
       create: { key: REPORT_DEFS_KEY, value: JSON.stringify(defs), updated_by: user.userId },
       update: { value: JSON.stringify(defs), updated_by: user.userId },
     });
-    return defs;
   }
 
   async run(user: AuthUser, id: string, periodRaw: string | undefined): Promise<ReportResult> {

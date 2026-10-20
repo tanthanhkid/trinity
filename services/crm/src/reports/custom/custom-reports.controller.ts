@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { IsArray, IsOptional, IsString, MaxLength } from 'class-validator';
 import { AuthOnly, Can, CurrentUser, type AuthUser } from '@trinity/rbac-nest';
@@ -47,6 +47,20 @@ export class CustomReportsController {
   @ApiOperation({ summary: 'Toàn bộ định nghĩa đã lưu (kể cả báo cáo của bảng người cấu hình không xem được) — màn cấu hình sửa trên danh sách này' })
   async definitions() {
     return { reports: await this.reports.readDefs() };
+  }
+
+  @Get('presets')
+  @Can('custom_objects.manage')
+  @ApiOperation({ summary: 'Bộ báo cáo mẫu cài sẵn (theo ngành) + báo cáo nào cài được trên dữ liệu hiện có' })
+  presets(@CurrentUser() user: AuthUser) {
+    return this.reports.presets(user);
+  }
+
+  @Post('presets/:key/install')
+  @Can('custom_objects.manage')
+  @ApiOperation({ summary: 'Cài một bộ mẫu: thêm báo cáo có bảng nguồn và chưa trùng mã; không ghi đè báo cáo đã có' })
+  installPreset(@Param('key') key: string, @CurrentUser() user: AuthUser) {
+    return this.reports.installPreset(user, key);
   }
 
   @Put()

@@ -135,7 +135,7 @@ export function KanbanCardDialog({ cardId, onClose }: KanbanCardDialogProps) {
 
   const handleDelete = () => {
     if (!cardId) return
-    // Xoá có 5 giây hoàn tác (toast "Hoàn tác"); lệnh xoá gửi sau khi hết hạn.
+    // Xoá ngay (mềm) + toast "Hoàn tác" 5 giây gọi khôi phục phía máy chủ.
     deleteCard(cardId, card?.title)
     setConfirmDelete(false)
     onClose()
@@ -405,7 +405,7 @@ export function KanbanCardDialog({ cardId, onClose }: KanbanCardDialogProps) {
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title="Xoá card"
-        description="Card biến khỏi bảng ngay; bạn có 5 giây để bấm Hoàn tác trước khi xoá hẳn."
+        description="Card biến khỏi bảng ngay; bấm Hoàn tác trên thông báo trong 5 giây để lấy lại."
         confirmLabel="Xoá card"
         onConfirm={handleDelete}
       />

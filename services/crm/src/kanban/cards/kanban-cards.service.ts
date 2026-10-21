@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, GoneException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma, PrismaService } from '@trinity/prisma';
 import { ScopeService } from '@trinity/rbac-nest';
 // ScopeService PHẢI import THẬT (không type-only) — constructor DI của NestJS
@@ -7,9 +7,12 @@ import { ScopeService } from '@trinity/rbac-nest';
 import type { AuthUser } from '@trinity/rbac-nest';
 import {
   KanbanAccessContext,
+  canAccessKanbanCard,
+  isBoardVisibleToUser,
   loadScopedCardOrNotFound,
   loadVisibleBoardOrNotFound,
 } from '../common/kanban-rbac.helper';
+import { RESTORE_WINDOW_MS } from '../../common/helpers/restore-window';
 import {
   assertContactFieldMutable,
   assertContactLinkable,
@@ -242,10 +245,37 @@ export class KanbanCardsService {
       throw new ForbiddenException('Chỉ người tạo card hoặc Quản trị mới được xoá');
     }
     await this.prisma.$transaction(async (tx) => {
-      await tx.kanbanCard.update({ where: { id: cardId }, data: { deleted_at: new Date() } });
+      await tx.kanbanCard.update({ where: { id: cardId }, data: { deleted_at: new Date(), deleted_by: user.userId } });
       await logKanbanCardActivity(tx, cardId, user.userId, 'deleted');
     });
     return { deleted: true };
+  }
+
+  /**
+   * Hoàn tác xoá (web): khôi phục card vừa xoá mềm — người đã xoá hoặc Quản trị, trong `RESTORE_WINDOW_MS`,
+   * board vẫn trong phạm vi xem của người khôi phục. Không có tool MCP tương ứng.
+   */
+  async restore(user: AuthUser, access: KanbanAccessContext, cardId: number) {
+    // Cùng cổng phạm vi như loadScopedCardOrNotFound (board hiển thị + card trong phạm vi ⇒ ngoài phạm vi = 404),
+    // nhưng tìm card ĐÃ xoá mềm; board đã xoá thì không khôi phục.
+    const card = await this.prisma.kanbanCard.findFirst({
+      where: { id: cardId, deleted_at: { not: null } },
+      include: { board: true, assignees: { select: { user_id: true } } },
+    });
+    const notFound = () => new NotFoundException(`Không có card ${cardId} đang chờ khôi phục`);
+    if (!card || !card.deleted_at || card.board.deleted_at || !isBoardVisibleToUser(user, access, card.board)) throw notFound();
+    if (!canAccessKanbanCard(access, card)) throw notFound();
+    if (card.deleted_by !== user.userId && !user.isAdmin) {
+      throw new ForbiddenException('Chỉ người đã xoá hoặc Quản trị mới khôi phục được card này');
+    }
+    if (Date.now() - card.deleted_at.getTime() > RESTORE_WINDOW_MS) {
+      throw new GoneException('Đã quá thời gian hoàn tác — card này không khôi phục được nữa');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.kanbanCard.update({ where: { id: cardId }, data: { deleted_at: null, deleted_by: null } });
+      await logKanbanCardActivity(tx, cardId, user.userId, 'restored');
+    });
+    return { restored: true };
   }
 
   /** Batch-resolve contact display cho 1 trang card — KHÔNG N+1. */

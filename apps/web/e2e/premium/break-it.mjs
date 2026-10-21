@@ -168,6 +168,40 @@ export const CASES = [
     },
   },
   {
+    name: "hoan-tac-xoa-khach",
+    expect: "Xoá khách ⇒ gửi DELETE ngay, khách biến khỏi danh sách + toast Hoàn tác; bấm Hoàn tác ⇒ gọi POST /contacts/:id/restore (khôi phục phía máy chủ)",
+    async run() {
+      // Máy chủ giả có trạng thái: xoá thì khách biến khỏi danh sách, khôi phục thì hiện lại.
+      const gone = new Set()
+      const h = await open("/contacts", {
+        "/^DELETE \\/contacts\\/\\d+$/": (req) => (gone.add(req.path.split("/")[2]), { status: 200, json: { success: true } }),
+        "/^POST \\/contacts\\/\\d+\\/restore$/": (req) => (gone.delete(req.path.split("/")[2]), { status: 200, json: { success: true } }),
+        "GET /contacts": (req) => {
+          const base = handle(req)
+          return { ...base, json: { ...base.json, data: base.json.data.filter((c) => !gone.has(String(c.id))) } }
+        },
+      })
+      try {
+        const box = h.page.getByRole("checkbox", { name: /^Chọn khách hàng / }).first()
+        const label = (await box.getAttribute("aria-label")) ?? ""
+        const name = label.replace(/^Chọn khách hàng /, "")
+        await box.check()
+        await h.page.getByRole("button", { name: /Xoá đã chọn/ }).first().click()
+        await h.page.getByRole("button", { name: "Xoá khách hàng" }).click()
+        await h.page.waitForTimeout(800)
+        const sent = h.api.log.some((l) => /^DELETE \/contacts\/\d+$/.test(l))
+        const hidden = !(await h.page.locator("main").last().innerText()).includes(name)
+        await h.page.getByRole("button", { name: "Hoàn tác" }).click()
+        await h.page.waitForTimeout(800)
+        const restored = h.api.log.some((l) => /^POST \/contacts\/\d+\/restore$/.test(l))
+        return {
+          ok: sent && hidden && restored,
+          actual: `gửi DELETE ngay: ${sent ? "có" : "KHÔNG"}; ẩn khỏi danh sách: ${hidden ? "có" : "KHÔNG"}; Hoàn tác gọi restore: ${restored ? "có" : "KHÔNG"}`,
+        }
+      } finally { await h.close() }
+    },
+  },
+  {
     name: "hoan-tac-xoa-nhap",
     expect: "Xoá bài nháp ⇒ biến mất ngay + toast Hoàn tác; bấm Hoàn tác ⇒ hiện lại, KHÔNG gửi DELETE; xoá lại và chờ 5 giây ⇒ gửi DELETE",
     async run() {

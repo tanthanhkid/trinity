@@ -292,4 +292,18 @@ export class ContactsController {
   async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.contactsService.remove(id, user);
   }
+
+  /** Nút "Hoàn tác" trên web sau khi xoá. Không có tool MCP tương ứng. */
+  @Post(':id/restore')
+  @Can('contacts.delete')
+  @ApiOperation({ summary: 'Khôi phục khách vừa xoá (Hoàn tác) — người đã xoá hoặc Quản trị, trong 10 phút' })
+  @ApiResponse({ status: 200, description: 'Đã khôi phục' })
+  @ApiResponse({ status: 403, description: 'Không phải người đã xoá / Quản trị' })
+  @ApiResponse({ status: 404, description: 'Không có khách đang chờ khôi phục hoặc ngoài phạm vi' })
+  @ApiResponse({ status: 409, description: 'SĐT đã có ở khách khác của cùng người phụ trách' })
+  @ApiResponse({ status: 410, description: 'Quá thời gian hoàn tác' })
+  @ApiParam({ name: 'id', type: Number, description: 'Contact ID' })
+  async restore(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.contactsService.restore(id, user);
+  }
 }

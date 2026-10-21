@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  GoneException,
   Logger,
   Optional,
 } from '@nestjs/common';
@@ -36,6 +37,7 @@ import { deriveContactStage } from './helpers/derive-stage.helper';
 import { changedContactFields } from './helpers/contact-events.helper';
 import { buildScopedContactListWhere, MIN_MASKED_PHONE_SEARCH_DIGITS } from './helpers/build-contact-list-where.helper';
 import { normalizePhone, phoneVariants } from '../google/sheet-mapping';
+import { RESTORE_WINDOW_MS } from '../common/helpers/restore-window';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { foldedIds } from '../common/helpers/fold-search.helper';
@@ -1093,7 +1095,7 @@ export class ContactsService {
     await this.prisma.$transaction(async (tx) => {
       const deleted = await tx.contact.update({
         where: { id },
-        data: { deleted_at: new Date() },
+        data: { deleted_at: new Date(), deleted_by_id: user.userId },
         select: CONTACT_EVENT_SELECT,
       });
       await publishIntegrationEvent(
@@ -1118,6 +1120,63 @@ export class ContactsService {
       `Contact ID ${id} soft-deleted by user ID ${user.userId}`,
     );
     return { success: true, message: 'Đã xoá contact thành công' };
+  }
+
+  /**
+   * Hoàn tác xoá (web): khôi phục khách vừa xoá mềm. Chỉ người đã xoá hoặc Quản trị, trong
+   * `RESTORE_WINDOW_MS` kể từ lúc xoá, vẫn trong phạm vi `contacts.delete` của người khôi phục.
+   * SĐT trùng với khách đang có của cùng người phụ trách (luật như tạo/sửa) ⇒ 409, không khôi phục.
+   * Không có tool MCP tương ứng (chỉ dùng cho nút Hoàn tác trên web).
+   */
+  async restore(id: number, user: AuthUser) {
+    const existing = await this.prisma.contact.findUnique({
+      where: { id },
+      select: { id: true, phone: true, full_name: true, deleted_at: true, deleted_by_id: true, assigned_to: true, created_by_id: true },
+    });
+    if (!existing || !existing.deleted_at) {
+      throw new NotFoundException(`Không có khách ID ${id} đang chờ khôi phục`);
+    }
+    if (existing.deleted_by_id !== user.userId && !user.isAdmin) {
+      throw new ForbiddenException('Chỉ người đã xoá hoặc Quản trị mới khôi phục được khách này');
+    }
+    if (Date.now() - existing.deleted_at.getTime() > RESTORE_WINDOW_MS) {
+      throw new GoneException('Đã quá thời gian hoàn tác — khách này không khôi phục được nữa');
+    }
+    await assertInScope(this.scope, user, 'contacts.delete', [existing.assigned_to, existing.created_by_id]);
+    if (existing.phone) {
+      const dupeCount = await this.prisma.contact.count({
+        where: { phone: { in: phoneVariants(existing.phone) }, deleted_at: null, assigned_to: existing.assigned_to },
+      });
+      if (dupeCount > 0) {
+        throw new ConflictException(
+          `SĐT ${maskPhone(existing.phone)} đã có ở một khách khác của người phụ trách — không khôi phục được`,
+        );
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const restored = await tx.contact.update({
+        where: { id },
+        data: { deleted_at: null, deleted_by_id: null },
+        select: CONTACT_EVENT_SELECT,
+      });
+      await publishIntegrationEvent(
+        tx,
+        'contact.restored',
+        { contact: snapshotContact(restored) },
+        { resourceId: id, actorUserId: user.userId },
+      );
+      await this.auditService.writeInTx(tx, {
+        userId: user.userId,
+        action: 'contact.restore',
+        resource: 'contacts',
+        resourceId: id,
+        metadata: { phone: existing.phone, full_name: existing.full_name },
+      });
+    });
+
+    this.logger.log(`Contact ID ${id} restored by user ID ${user.userId}`);
+    return { success: true, message: 'Đã khôi phục khách hàng' };
   }
 
   /**

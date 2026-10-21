@@ -29,6 +29,10 @@ export async function launch({ viewport = { width: 1280, height: 800 } } = {}) {
     timezoneId: "Asia/Ho_Chi_Minh",
     serviceWorkers: "block",
   })
+  // WebSocket (thông báo thời gian thực) KHÔNG đi qua CDP Fetch ⇒ chặn riêng: mọi kết nối bị đóng ngay tại trình duyệt,
+  // không tới máy chủ nào kể cả khi NEXT_PUBLIC_API_URL trỏ ra máy chủ thật (ứng dụng tự lùi về chế độ hỏi định kỳ).
+  // Trừ `/_next/*` (HMR của `next dev`): chặn nó thì trang tự tải lại liên tục.
+  await context.routeWebSocket((url) => !url.pathname.startsWith("/_next/"), (ws) => ws.close())
   const page = context.pages()[0] ?? (await context.newPage())
   const cdp = await context.newCDPSession(page)
   const close = async () => {

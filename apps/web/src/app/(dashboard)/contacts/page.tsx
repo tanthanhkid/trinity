@@ -22,7 +22,7 @@ import { useContactsUrlFilters, areContactFiltersEqual } from "@/hooks/use-conta
 import { useAuth } from "@/hooks/use-auth"
 import { useOrgFeature } from "@/hooks/use-org-features"
 import { toast } from "sonner"
-import { deferWithUndo } from "@/lib/undo"
+import { toastWithUndo } from "@/lib/undo"
 import { formatCount } from "@/lib/format"
 import { ContactRow, ContactCard } from "./_components/contact-row"
 import { ContactsFilters } from "./_components/contacts-filters"
@@ -37,7 +37,7 @@ import {
   BULK_TRANSFER_MAX,
   type SortField,
 } from "./_components/contacts-constants"
-import apiClient, { sendKeepalive } from "@/lib/api-client"
+import apiClient, { getApiErrorMessage } from "@/lib/api-client"
 import { Can, Forbidden, usePermissions } from "@/lib/rbac"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { MOBILE_FAB_CLASS } from "@/components/app-shell/mobile-primary"
@@ -53,52 +53,50 @@ interface ContactDeleteFailure {
   reason: string
 }
 
+/** Gom lỗi theo lý do để một toast nói đủ (≤ 3 ID mỗi lý do). */
+function toastFailures(verb: string, failures: ContactDeleteFailure[]) {
+  if (failures.length === 0) return
+  const groups: Record<string, string[]> = {}
+  for (const f of failures) (groups[f.reason] ??= []).push(f.id)
+  const lines = Object.entries(groups).map(
+    ([reason, ids]) => `• ${ids.length} khách hàng (ID: ${ids.slice(0, 3).join(", ")}${ids.length > 3 ? "..." : ""}): ${reason}`,
+  )
+  toast.error([`Có ${failures.length} khách hàng ${verb} không được:`, ...lines].join("\n"), { duration: 8000 })
+}
+
+/** Gọi một lệnh cho từng khách; trả id thành công + lỗi (câu lỗi qua bảng thông điệp chung). */
+async function runForEach(ids: string[], call: (id: string) => Promise<unknown>, fallback: string) {
+  const results = await Promise.allSettled(ids.map(call))
+  const ok: string[] = []
+  const failures: ContactDeleteFailure[] = []
+  results.forEach((r, i) => {
+    if (r.status === "fulfilled") ok.push(ids[i])
+    else failures.push({ id: ids[i], reason: getApiErrorMessage(r.reason, fallback) })
+  })
+  return { ok, failures }
+}
+
 /**
- * Gửi lệnh xoá lên máy chủ — gọi SAU khi hết 5 giây hoàn tác (xem `deferWithUndo`).
- * Đặt ngoài component: người dùng chuyển trang trong lúc chờ thì lệnh vẫn chạy.
+ * Xoá (mềm) ngay trên máy chủ; trả các id đã xoá được để nút "Hoàn tác" khôi phục đúng những khách đó
+ * qua `POST /contacts/:id/restore` (người đã xoá / Quản trị, trong 10 phút).
  */
-async function commitContactDelete(ids: string[], queryClient: QueryClient) {
+async function commitContactDelete(ids: string[], queryClient: QueryClient): Promise<string[]> {
   try {
-    const results = await Promise.allSettled(
-      ids.map((id) => apiClient.delete(`/contacts/${id}`)),
-    )
-
-    const failures: ContactDeleteFailure[] = []
-    results.forEach((r, idx) => {
-      if (r.status === "rejected") {
-        const id = ids[idx]
-        const raw = (r.reason as { response?: { data?: { message?: string | string[] } } })
-          ?.response?.data?.message
-        const reason = Array.isArray(raw)
-          ? raw.join(", ")
-          : typeof raw === "string" && raw.length > 0
-            ? raw
-            : r.reason instanceof Error
-              ? r.reason.message
-              : "Không xoá được"
-        failures.push({ id, reason })
-      }
-    })
-
-    if (failures.length > 0) {
-      // Gom lý do: nếu ≤3 lần thì show inline, nếu nhiều hơn gom theo lý do
-      const reasonGroups: Record<string, string[]> = {}
-      for (const f of failures) {
-        reasonGroups[f.reason] = reasonGroups[f.reason] ?? []
-        reasonGroups[f.reason].push(f.id)
-      }
-      const lines = Object.entries(reasonGroups).map(
-        ([reason, ids]) =>
-          `• ${ids.length} khách hàng (ID: ${ids.slice(0, 3).join(", ")}${ids.length > 3 ? "..." : ""}): ${reason}`,
-      )
-      toast.error(
-        `Có ${failures.length} khách hàng xoá thất bại:\n${lines.join("\n")}`,
-        { duration: 8000 },
-      )
-      console.error("[contacts-bulk-delete] failures", failures)
-    }
+    const { ok, failures } = await runForEach(ids, (id) => apiClient.delete(`/contacts/${id}`), "Không xoá được")
+    toastFailures("xoá", failures)
+    return ok
   } finally {
     // Thành công hay lỗi đều tải lại: khách xoá hỏng phải hiện lại trong danh sách.
+    queryClient.invalidateQueries({ queryKey: ["contacts"] })
+  }
+}
+
+async function restoreContacts(ids: string[], queryClient: QueryClient) {
+  try {
+    const { ok, failures } = await runForEach(ids, (id) => apiClient.post(`/contacts/${id}/restore`), "Không khôi phục được")
+    if (ok.length) toast.success(`Đã khôi phục ${formatCount(ok.length, "khách hàng")}`)
+    toastFailures("khôi phục", failures)
+  } finally {
     queryClient.invalidateQueries({ queryKey: ["contacts"] })
   }
 }
@@ -371,17 +369,18 @@ function ContactsPageContent() {
     }
     const ids = [...selectedIds]
     const hidden = new Set(ids)
-    // Ẩn ngay khỏi danh sách; lệnh xoá chỉ gửi sau 5 giây — bấm "Hoàn tác" thì không gửi gì.
+    // Ẩn ngay khỏi danh sách và xoá (mềm) trên máy chủ; "Hoàn tác" khôi phục phía máy chủ.
     queryClient.setQueriesData<{ data: { id: number | string }[] }>({ queryKey: ["contacts", "page"] }, (d) =>
       d ? { ...d, data: d.data.filter((c) => !hidden.has(String(c.id))) } : d,
     )
     setSelectedIds([])
     setBulkDeleteOpen(false)
-    deferWithUndo({
-      message: `Đã xoá ${formatCount(ids.length, "khách hàng")}`,
-      commit: () => commitContactDelete(ids, queryClient),
-      commitOnUnload: () => ids.forEach((id) => sendKeepalive("DELETE", `/contacts/${id}`)),
-      onUndo: () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+    void commitContactDelete(ids, queryClient).then((deleted) => {
+      if (deleted.length === 0) return
+      toastWithUndo({
+        message: `Đã xoá ${formatCount(deleted.length, "khách hàng")}`,
+        onUndo: () => void restoreContacts(deleted, queryClient),
+      })
     })
   }, [canBulkDelete, queryClient, selectedIds])
 
@@ -532,7 +531,7 @@ function ContactsPageContent() {
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
         title={`Xoá ${selectedIds.length} khách hàng đã chọn?`}
-        description="Khách sẽ biến khỏi danh sách ngay; bạn có 5 giây để bấm Hoàn tác trước khi xoá hẳn."
+        description="Khách biến khỏi danh sách ngay; bấm Hoàn tác trên thông báo trong 5 giây để lấy lại."
         confirmLabel="Xoá khách hàng"
         onConfirm={handleBulkDelete}
       />

@@ -8,8 +8,8 @@ import {
   type InfiniteData,
 } from "@tanstack/react-query"
 import { toast } from "sonner"
-import apiClient, { getApiErrorMessage, sendKeepalive } from "@/lib/api-client"
-import { deferWithUndo } from "@/lib/undo"
+import apiClient, { getApiErrorMessage } from "@/lib/api-client"
+import { toastWithUndo } from "@/lib/undo"
 import type {
   CreateKanbanCardPayload,
   KanbanCard,
@@ -207,8 +207,9 @@ export function useMoveKanbanCard() {
 }
 
 /**
- * Xoá card có 5 giây hoàn tác: card biến khỏi cột ngay, lệnh xoá chỉ gửi khi hết 5 giây.
- * Hoàn tác (hoặc xoá lỗi) ⇒ tải lại cột để card hiện về chỗ cũ.
+ * Xoá card có Hoàn tác phía máy chủ: card biến khỏi cột ngay và lệnh xoá (mềm) gửi luôn;
+ * "Hoàn tác" gọi `POST /kanban/cards/:id/restore` (người đã xoá / Quản trị, trong 10 phút).
+ * Xoá lỗi hoặc khôi phục ⇒ tải lại cột để card hiện về chỗ cũ.
  */
 export function useDeleteKanbanCardWithUndo() {
   const queryClient = useQueryClient()
@@ -217,16 +218,21 @@ export function useDeleteKanbanCardWithUndo() {
     queryClient.setQueriesData<KanbanColumnPages>({ queryKey: [CARDS_KEY, "column"] }, (d) =>
       d ? removeCardFromColumnPages(d, id).next : d,
     )
-    deferWithUndo({
-      message: title ? `Đã xoá card “${title}”` : "Đã xoá card",
-      commit: () =>
-        apiClient
-          .delete(`/kanban/cards/${id}`)
-          .catch((err) => toast.error(getApiErrorMessage(err, "Không xoá được card")))
-          .finally(() => invalidate(id)),
-      commitOnUnload: () => sendKeepalive("DELETE", `/kanban/cards/${id}`),
-      onUndo: () => invalidate(),
-    })
+    apiClient
+      .delete(`/kanban/cards/${id}`)
+      .then(() =>
+        toastWithUndo({
+          message: title ? `Đã xoá card “${title}”` : "Đã xoá card",
+          onUndo: () =>
+            apiClient
+              .post(`/kanban/cards/${id}/restore`)
+              .then(() => toast.success("Đã khôi phục card"))
+              .catch((err) => toast.error(getApiErrorMessage(err, "Không khôi phục được card")))
+              .finally(() => invalidate()),
+        }),
+      )
+      .catch((err) => toast.error(getApiErrorMessage(err, "Không xoá được card")))
+      .finally(() => invalidate(id))
   }
 }
 

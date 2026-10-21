@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import apiClient from "@/lib/api-client"
 import { usePermissions } from "@/lib/rbac"
 import { toast } from "sonner"
+import { errorMessage } from "@/lib/error-messages"
 
 export const CONTRACTS_PAGE_SIZE = 10
 
@@ -352,6 +353,6 @@ export function useDownloadContractTemplate() {
       a.remove()
       setTimeout(() => URL.revokeObjectURL(url), 60_000)
     },
-    onError: () => toast.error("Không tải được file mẫu — thử lại hoặc kiểm tra quyền."),
+    onError: (err) => toast.error(errorMessage(err, "Không tải được file mẫu — thử lại hoặc kiểm tra quyền.")),
   })
 }

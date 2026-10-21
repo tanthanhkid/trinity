@@ -15,6 +15,7 @@ import { useUpdateProfile } from '@/hooks/use-profile'
 import { SettingsSectionActions } from './settings-section-header'
 import { ProfileAvatarSection } from './profile-avatar-section'
 import { ProfilePasswordSection } from './profile-password-section'
+import { errorMessage } from '@/lib/error-messages'
 
 const profileSchema = z.object({
   full_name: z.string().min(2, 'Họ tên tối thiểu 2 ký tự').max(100, 'Họ tên tối đa 100 ký tự'),
@@ -44,8 +45,8 @@ export function SettingsProfile() {
       }
       const result = await updateProfile.mutateAsync(payload)
       setProfileMsg(result.message)
-    } catch {
-      setProfileMsg('Có lỗi xảy ra, vui lòng thử lại')
+    } catch (err) {
+      setProfileMsg(errorMessage(err, 'Chưa lưu được thông tin cá nhân'))
     }
   }
 

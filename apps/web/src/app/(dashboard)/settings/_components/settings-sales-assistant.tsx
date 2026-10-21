@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+import { errorMessage } from "@/lib/error-messages"
 
 interface LeadRules {
   thresholds: { hot: number; warm: number }
@@ -59,22 +60,22 @@ export function SettingsSalesAssistant() {
   const saveRules = useMutation({
     mutationFn: async (body: LeadRules) => (await apiClient.put<{ rules: LeadRules }>("/lead-scoring/rules", body)).data,
     onSuccess: () => { void qc.invalidateQueries({ queryKey: RULES_KEY }); toast.success("Đã lưu quy tắc chấm điểm") },
-    onError: () => toast.error("Không lưu được quy tắc"),
+    onError: (err) => toast.error(errorMessage(err, "Không lưu được quy tắc")),
   })
   const saveStale = useMutation({
     mutationFn: async (body: StaleConfig) => (await apiClient.put("/stale-work/config", body)).data,
     onSuccess: () => { void qc.invalidateQueries({ queryKey: STALE_KEY }); toast.success("Đã lưu cấu hình nhắc việc treo") },
-    onError: () => toast.error("Không lưu được cấu hình"),
+    onError: (err) => toast.error(errorMessage(err, "Không lưu được cấu hình")),
   })
   const rescore = useMutation({
     mutationFn: async () => (await apiClient.post<{ rescored: number }>("/lead-scoring/recompute-all")).data,
     onSuccess: (d) => toast.success(`Đã chấm lại ${d.rescored} khách`),
-    onError: () => toast.error("Không chấm lại được"),
+    onError: (err) => toast.error(errorMessage(err, "Không chấm lại được")),
   })
   const runDigest = useMutation({
     mutationFn: async () => (await apiClient.post<{ sent: number }>("/stale-work/run")).data,
     onSuccess: (d) => toast.success(`Đã gửi nhắc việc cho ${d.sent} người`),
-    onError: () => toast.error("Không gửi được nhắc việc"),
+    onError: (err) => toast.error(errorMessage(err, "Không gửi được nhắc việc")),
   })
 
   if (!scoringOn && !staleOn) {

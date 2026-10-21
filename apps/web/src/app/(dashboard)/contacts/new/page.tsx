@@ -31,6 +31,7 @@ import { MobileActionBar } from "@/components/app-shell/mobile-action-bar"
 import { DealAssigneePicker } from "./_components/deal-assignee-picker"
 import { VnDateInput } from "@/components/ui/vn-date-input"
 import { VnDateTimeInput } from "@/components/ui/vn-datetime-input"
+import { errorMessage } from "@/lib/error-messages"
 
 /**
  * Form tạo contact mới.
@@ -166,9 +167,7 @@ function NewContactForm() {
       router.push(`/contacts/${response.contact.id}`)
     },
     onError: (err) => {
-      const message = (err as { response?: { data?: { message?: string } } })
-        .response?.data?.message
-      toast.error(message ?? "Không thể tạo khách hàng. Vui lòng thử lại.")
+      toast.error(errorMessage(err, "Chưa tạo được khách hàng"))
     },
   })
 

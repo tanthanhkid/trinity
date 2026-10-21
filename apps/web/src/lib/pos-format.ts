@@ -5,7 +5,7 @@ import { getApiErrorMessage } from "@/lib/api-client"
 export const vnd = (n: number | null | undefined): string => `${formatCurrency(n)}đ`
 
 /** Thông điệp lỗi API tiếng Việt; NestJS validation trả `message` là MẢNG → nối lại. */
-export function posErrorMessage(err: unknown, fallback = "Có lỗi xảy ra, thử lại"): string {
+export function posErrorMessage(err: unknown, fallback = "Chưa thực hiện được"): string {
   const m = getApiErrorMessage(err, fallback) as unknown
   return Array.isArray(m) ? m.join("; ") : typeof m === "string" ? m : fallback
 }

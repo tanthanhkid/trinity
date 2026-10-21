@@ -24,6 +24,7 @@ import { PayslipsMobileList } from "./payroll-payslips-cards"
 import { AddToPeriodDialog, PayslipDetailDialog, RemovePayslipDialog } from "./payroll-payslips-dialogs"
 import { ImportPayslipsDialog } from "./payroll-payslips-import-dialog"
 import { PayslipEditDialog } from "./payroll-payslips-edit-dialog"
+import { errorMessage } from "@/lib/error-messages"
 
 // Test `payroll-payslip-gates` import các hàm gate từ file này — giữ re-export.
 export { canApproveNow, canEditPayslip, canRemoveFromPeriod } from "./payroll-payslips-shared"
@@ -100,7 +101,7 @@ export function PayrollPayslips() {
         )
       }
     },
-    onError: () => toast.error("Không thể tạo phiếu lương. Vui lòng thử lại."),
+    onError: (err) => toast.error(errorMessage(err, "Không thể tạo phiếu lương. Vui lòng thử lại.")),
   })
 
   const approveMutation = useMutation({
@@ -111,7 +112,7 @@ export function PayrollPayslips() {
       void qc.invalidateQueries({ queryKey: ["payroll-payslips", month] })
       toast.success("Đã duyệt phiếu lương.")
     },
-    onError: () => toast.error("Không thể duyệt phiếu lương. Vui lòng thử lại."),
+    onError: (err) => toast.error(errorMessage(err, "Không thể duyệt phiếu lương. Vui lòng thử lại.")),
   })
 
   // Loại 1 người khỏi kỳ (soft-delete) — phiếu của tháng đang xem bị xóa, người này

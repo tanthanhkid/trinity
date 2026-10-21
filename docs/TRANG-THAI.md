@@ -95,6 +95,17 @@ Cách ghép câu:
 - Các hàm lỗi riêng của từng mô-đun (`apiErrorMessage` ở webhook và vai trò, `aiActionErrorMessage`, `extensionErrorMessage`, lỗi chấm công) đều đi qua `errorMessage` của bảng chung.
 - Trang lỗi toàn ứng dụng (`app/error.tsx`, `app/global-error.tsx`) không in `error.message`; lỗi đã gửi về nhật ký.
 
+**Khoá ở mức mã nguồn** (`apps/web/src/__tests__/repo/error-text-guard.test.ts`, chạy trong CI). Test đỏ khi:
+
+- tự đọc `response.data.message` mà không qua `errorMessage` / `getApiErrorMessage`;
+- in `error.message` / `err.message` thô ra giao diện hoặc toast;
+- `onError: () => toast.error("câu cố định")` (vứt lỗi thật — phải là `errorMessage(err, "câu")`);
+- dùng câu chung chung ("Có lỗi xảy ra", "Đã xảy ra lỗi", "Something went wrong"…).
+
+Ngoại lệ nằm trong `ALLOW` của test, mỗi dòng có lý do.
+
+Câu màn hình đã tự giải thích cách sửa (vd "Không đọc được file. Kiểm tra đúng mẫu…") được giữ nguyên với lỗi dữ liệu. Mất mạng, máy chủ lỗi, thiếu quyền… vẫn nói thêm nguyên nhân thật.
+
 Chữ "MCP" không xuất hiện trên giao diện: hướng dẫn nối trợ lý AI gọi là "địa chỉ kết nối". Tên biến môi trường (`INTEGRATIONS_*`) vẫn hiện ở các hướng dẫn cài đặt dành cho người tự cài máy chủ.
 
 ## Nền tảng UI

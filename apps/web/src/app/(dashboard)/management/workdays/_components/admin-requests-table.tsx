@@ -25,6 +25,7 @@ import {
   useRejectRequest,
   type AttendanceRequest,
 } from "@/hooks/use-attendance"
+import { errorMessage } from "@/lib/error-messages"
 
 interface Props {
   rows: AttendanceRequest[]
@@ -47,7 +48,7 @@ export function AdminRequestsTable({ rows, isLoading, isAdmin }: Props) {
       { id },
       {
         onSuccess: () => toast.success("Đã duyệt đơn"),
-        onError: () => toast.error("Duyệt thất bại, vui lòng thử lại"),
+        onError: (err) => toast.error(errorMessage(err, "Duyệt thất bại, vui lòng thử lại")),
       },
     )
   }
@@ -66,7 +67,7 @@ export function AdminRequestsTable({ rows, isLoading, isAdmin }: Props) {
           toast.success("Đã từ chối đơn")
           setRejectId(null)
         },
-        onError: () => toast.error("Từ chối thất bại, vui lòng thử lại"),
+        onError: (err) => toast.error(errorMessage(err, "Từ chối thất bại, vui lòng thử lại")),
       },
     )
   }

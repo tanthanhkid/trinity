@@ -17,6 +17,7 @@ import {
   type NewsfeedCategory,
   type NewsfeedPost,
 } from './_components/types'
+import { errorMessage } from "@/lib/error-messages"
 
 const ALL = 'all' as const
 type FilterValue = typeof ALL | NewsfeedCategory
@@ -63,7 +64,7 @@ function NewsfeedContent() {
         <ShellEmptyState
           icon={MessageSquareText}
           title="Không tải được bảng tin"
-          description="Đã xảy ra lỗi khi tải bài đăng."
+          description={errorMessage(postsQuery.error, "Không tải được bài đăng")}
           action={
             <Button variant="outline" size="sm" onClick={() => postsQuery.refetch()}>
               Thử lại

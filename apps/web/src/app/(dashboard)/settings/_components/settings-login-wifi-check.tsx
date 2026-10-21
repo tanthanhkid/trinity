@@ -10,6 +10,7 @@ import {
   useUpdateLoginWifiCheckConfig,
 } from "@/hooks/use-login-wifi-check"
 import { SettingsLoginWifiCheckTargets } from "./settings-login-wifi-check-targets"
+import { errorMessage } from "@/lib/error-messages"
 
 /**
  * Công tắc "Kiểm tra IP văn phòng khi
@@ -42,7 +43,7 @@ export function SettingsLoginWifiCheck() {
             : "Đã TẮT kiểm tra IP văn phòng khi đăng nhập",
         )
       },
-      onError: () => toast.error("Không lưu được, vui lòng thử lại"),
+      onError: (err) => toast.error(errorMessage(err, "Không lưu được, vui lòng thử lại")),
     })
   }
 

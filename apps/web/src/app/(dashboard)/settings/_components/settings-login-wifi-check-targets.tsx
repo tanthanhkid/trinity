@@ -14,6 +14,7 @@ import {
 } from "@/hooks/use-login-wifi-check-targets"
 import { resolveLoginWifiTargetPreview } from "@/lib/login-wifi-check-target-scope"
 import { LoginWifiCheckTargetPicker, type PickerOption } from "./login-wifi-check-target-picker"
+import { errorMessage } from "@/lib/error-messages"
 
 type TargetKey = `${LoginWifiCheckScopeType}:${number}`
 const keyOf = (scopeType: LoginWifiCheckScopeType, id: number): TargetKey => `${scopeType}:${id}`
@@ -114,7 +115,7 @@ export function SettingsLoginWifiCheckTargets({ wifiCheckEnabled }: { wifiCheckE
         savedKeysRef.current = new Set(selected.keys())
         toast.success("Đã lưu danh sách áp dụng kiểm tra wifi")
       },
-      onError: () => toast.error("Không lưu được, vui lòng thử lại"),
+      onError: (err) => toast.error(errorMessage(err, "Không lưu được, vui lòng thử lại")),
     })
   }
 

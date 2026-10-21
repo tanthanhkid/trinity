@@ -70,6 +70,7 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react"
+import { errorMessage } from "@/lib/error-messages"
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -919,7 +920,7 @@ function AddContractDialog({
             onClose()
           }
         },
-        onError: () => toast.error("Không thể thêm hợp đồng"),
+        onError: (err) => toast.error(errorMessage(err, "Không thể thêm hợp đồng")),
       },
     )
   }
@@ -1069,7 +1070,7 @@ function EditContractDialog({ contract, onClose }: { contract: ExistingContract;
           }
           onClose()
         },
-        onError: () => toast.error("Không thể cập nhật hợp đồng"),
+        onError: (err) => toast.error(errorMessage(err, "Không thể cập nhật hợp đồng")),
       },
     )
   }
@@ -1080,7 +1081,7 @@ function EditContractDialog({ contract, onClose }: { contract: ExistingContract;
         toast.success("Đã xoá file")
         setDeleteFileOpen(false)
       },
-      onError: () => toast.error("Không thể xoá file"),
+      onError: (err) => toast.error(errorMessage(err, "Không thể xoá file")),
     })
   }
 
@@ -1427,7 +1428,7 @@ function DeleteContractDialog({ contract, onClose }: { contract: ExistingContrac
                   toast.success("Đã xoá hợp đồng")
                   onClose()
                 },
-                onError: () => toast.error("Không thể xoá hợp đồng"),
+                onError: (err) => toast.error(errorMessage(err, "Không thể xoá hợp đồng")),
               })
             }
           >

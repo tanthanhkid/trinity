@@ -13,6 +13,7 @@ import {
   type BriefingConfig,
   type BriefingSlot,
 } from "@/hooks/use-briefings"
+import { errorMessage } from "@/lib/error-messages"
 
 type BoolKey = {
   [K in keyof BriefingConfig]: BriefingConfig[K] extends boolean ? K : never
@@ -47,12 +48,12 @@ export function SettingsBriefings() {
   const save = (patch: Partial<BriefingConfig>) =>
     update.mutate(patch, {
       onSuccess: () => toast.success("Đã lưu cấu hình bản tin"),
-      onError: () => toast.error("Không lưu được, vui lòng thử lại"),
+      onError: (err) => toast.error(errorMessage(err, "Không lưu được, vui lòng thử lại")),
     })
   const send = (slot: BriefingSlot) =>
     runNow.mutate(slot, {
       onSuccess: (r) => toast.success(`Đã gửi ${r.created} bản tin (${r.recipients} người nhận)`),
-      onError: () => toast.error("Không gửi được bản tin"),
+      onError: (err) => toast.error(errorMessage(err, "Không gửi được bản tin")),
     })
 
   return (

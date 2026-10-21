@@ -58,3 +58,11 @@ describe("bảng thông điệp lỗi", () => {
     expect(describeError(err(undefined, 403))).toBe(`${ERROR_MESSAGES.forbidden.title}. ${ERROR_MESSAGES.forbidden.hint}`)
   })
 })
+
+describe("câu màn hình đã tự giải thích", () => {
+  it("lỗi dữ liệu ⇒ giữ nguyên câu màn hình; lỗi máy chủ ⇒ vẫn nói nguyên nhân thật", () => {
+    const action = "Không đọc được file. Kiểm tra đúng mẫu Excel rồi tải lại"
+    expect(describeError(err({}, 400), action)).toBe(action)
+    expect(describeError(err({}, 500), action)).toContain("máy chủ đang gặp sự cố")
+  })
+})

@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useUploadProductImage } from "@/hooks/products/use-products"
+import { errorMessage } from "@/lib/error-messages"
 
 /** Khớp `PRODUCT_IMAGE_MAX_BYTES` của BE (`product-image-upload.helper.ts`). */
 export const PRODUCT_IMAGE_MAX_BYTES = 5 * 1024 * 1024
@@ -48,8 +49,7 @@ export function ProductImageField({
     upload.mutate(file, {
       onSuccess: (url) => onChange(url),
       onError: (err) => {
-        const msg = (err as { response?: { data?: { message?: unknown } } })?.response?.data?.message
-        const text = Array.isArray(msg) ? msg.join(", ") : typeof msg === "string" ? msg : "Tải ảnh lên thất bại"
+        const text = errorMessage(err, "Chưa tải ảnh lên được")
         setError(text)
         toast.error(text)
       },

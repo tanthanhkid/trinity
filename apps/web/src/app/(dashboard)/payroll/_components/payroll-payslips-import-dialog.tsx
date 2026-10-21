@@ -9,6 +9,7 @@ import { Download, Loader2, Upload, AlertTriangle } from "lucide-react"
 import apiClient from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import { formatMonth } from "./payroll-payslips-shared"
+import { errorMessage } from "@/lib/error-messages"
 // ============ Dialog Nhập phiếu lương từ Excel ============
 interface ImportChangeItem {
   header: string
@@ -75,7 +76,7 @@ export function ImportPayslipsDialog({
       setApplied(null)
       if (rows.length === 0) toast.info("File không có dòng hợp lệ (kiểm tra cột Mã nhân viên).")
     },
-    onError: () => toast.error("Không thể đọc file. Kiểm tra đúng file Excel Template."),
+    onError: (err) => toast.error(errorMessage(err, "Không thể đọc file. Kiểm tra đúng file Excel Template.")),
   })
 
   const applyMutation = useMutation({
@@ -99,7 +100,7 @@ export function ImportPayslipsDialog({
       )
       onImported()
     },
-    onError: () => toast.error("Không thể áp dụng import. Vui lòng thử lại."),
+    onError: (err) => toast.error(errorMessage(err, "Không thể áp dụng import. Vui lòng thử lại.")),
   })
 
   function handleFileChange(f: File | null) {

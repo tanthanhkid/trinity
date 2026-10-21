@@ -438,7 +438,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
               {([["now", "Đăng ngay"], ["schedule", "Hẹn giờ"], ["queue", "Vào hàng đợi"], ["recurring", "Lặp lại"]] as const).map(([m, label]) => {
                 const off = m === "queue" && noSlots
                 return (
-                  <label key={m} className={cn("flex items-center gap-1.5", off ? "cursor-not-allowed opacity-60" : "cursor-pointer")}>
+                  <label key={m} className={cn("flex items-center gap-1.5 max-sm:min-h-11", off ? "cursor-not-allowed opacity-60" : "cursor-pointer")}>
                     <input type="radio" name="social-when" value={m} checked={mode === m} disabled={off} onChange={() => pickMode(m)} className="size-4 accent-primary" />
                     {label}
                   </label>
@@ -474,7 +474,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
           </div>
 
           <div className="space-y-2">
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <label className="flex cursor-pointer items-center gap-2 text-sm max-sm:min-h-11">
               <Checkbox checked={utm.on} onChange={(e) => setUtm((u) => ({ ...u, on: e.target.checked }))} aria-label="Gắn UTM vào liên kết" />
               Gắn UTM vào liên kết
             </label>
@@ -556,7 +556,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
                 type="button"
                 role="tab"
                 aria-selected={side === k}
-                className={cn("flex-1 rounded-md px-2 py-1 font-medium transition-colors", side === k ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                className={cn("flex-1 rounded-md px-2 py-1 font-medium transition-colors max-sm:min-h-11", side === k ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
                 onClick={() => setSide(k)}
               >
                 {label}

@@ -49,7 +49,7 @@ export function ErrorState({
   if (compact) {
     return (
       <div role="alert" className={cn("flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground", className)}>
-        <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+        <AlertTriangle className="size-4 shrink-0 text-[var(--color-app-tag-amber-ink)]" aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="font-medium text-foreground">{title}.</span> {text}
         </span>
@@ -66,7 +66,7 @@ export function ErrorState({
         className,
       )}
     >
-      <span className="flex size-12 items-center justify-center rounded-full bg-muted text-amber-600 dark:text-amber-400">
+      <span className="flex size-12 items-center justify-center rounded-full bg-muted text-[var(--color-app-tag-amber-ink)]">
         <AlertTriangle className="size-6" aria-hidden />
       </span>
       <div className="flex max-w-md flex-col gap-1 text-balance">

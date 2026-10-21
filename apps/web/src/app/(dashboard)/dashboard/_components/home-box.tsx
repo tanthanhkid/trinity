@@ -6,11 +6,11 @@ export const BOX = 'rounded-[var(--radius)] border border-[var(--border)] bg-[va
 
 /** Nút phụ nhỏ `.btn.sm` (Trả lời / Mở / Xem): chữ 14px, chạm ≥44px trên điện thoại. */
 export const SMALL_BTN =
-  'inline-flex h-8 shrink-0 items-center justify-center rounded-lg border border-[var(--input)] bg-[var(--card)] px-2.5 text-[14px] font-medium text-[var(--foreground)] transition hover:bg-[var(--muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] max-sm:min-h-11'
+  'inline-flex h-8 shrink-0 items-center justify-center rounded-lg border border-[var(--input)] bg-[var(--card)] px-2.5 text-[14px] font-medium text-[var(--foreground)] transition hover:bg-[var(--muted)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] max-sm:min-h-11 max-sm:min-w-11'
 
 /** Nút chữ trơn `.undo` (Xem trong dòng thời gian). */
 export const GHOST_BTN =
-  'inline-flex shrink-0 items-center rounded-md px-1.5 py-1 text-[14px] text-muted-foreground transition hover:bg-[var(--muted)] hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] max-sm:min-h-11'
+  'inline-flex shrink-0 items-center rounded-md px-1.5 py-1 text-[14px] text-muted-foreground transition hover:bg-[var(--muted)] hover:text-[var(--foreground)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] max-sm:min-h-11 max-sm:min-w-11'
 
 export function HomeBox({
   title,

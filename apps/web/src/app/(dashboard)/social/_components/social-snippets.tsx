@@ -61,7 +61,7 @@ export function SnippetMenu({ onInsert, onManage }: { onInsert: (content: string
           )}
         </DropdownMenuContent>
       </DropdownMenu>
-      <button type="button" className="text-[13px] text-primary hover:underline" onClick={onManage}>Quản lý mẫu</button>
+      <button type="button" className="text-[13px] text-primary hover:underline max-sm:inline-flex max-sm:min-h-11 max-sm:items-center" onClick={onManage}>Quản lý mẫu</button>
     </div>
   )
 }

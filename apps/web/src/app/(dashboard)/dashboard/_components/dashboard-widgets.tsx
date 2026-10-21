@@ -49,7 +49,7 @@ export function DashboardWidgets() {
         <div className="flex justify-end">
           <Link
             href="/reports"
-            className={cn(buttonVariants({ variant: 'link', size: 'sm' }), 'gap-1 text-[14px]')}
+            className={cn(buttonVariants({ variant: 'link', size: 'sm' }), 'gap-1 text-[14px] max-sm:min-h-11')}
           >
             Xem báo cáo chi tiết
             <ChevronRight className="size-4" />

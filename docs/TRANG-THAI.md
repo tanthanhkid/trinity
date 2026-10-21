@@ -95,6 +95,95 @@ Cách ghép câu:
 
 Chữ "MCP" không xuất hiện trên giao diện: hướng dẫn nối trợ lý AI gọi là "địa chỉ kết nối". Tên biến môi trường (`INTEGRATIONS_*`) vẫn hiện ở các hướng dẫn cài đặt dành cho người tự cài máy chủ.
 
+## Nền tảng UI
+
+Đo trên Chrome headless (hồ sơ tạm, API giả qua CDP Fetch) bằng `apps/web/e2e/premium/ui-audit.mjs` và `contrast.mjs`, ngày 21/10/2026. Năm màn được đo: Tổng quan, Khách hàng, Kanban, Đăng đa kênh, Kết nối.
+
+| Tiêu chí | Chuẩn | Cách đo |
+|---|---|---|
+| Vùng chạm | ≥ 44×44px trên điện thoại (360px) | Mọi nút/link/ô chọn đang hiện. Ô chọn trong `<label>` đo cả nhãn; link nằm giữa câu chữ được miễn |
+| Tương phản | Chữ ≥ 4,5:1; biểu tượng, viền ô nhập ≥ 3:1 | Token màu thật, cả bản sáng lẫn tối |
+| Focus bàn phím | Thấy được | Tab qua 25 phần tử đầu; phần tử đang focus phải có outline hoặc vòng (box-shadow) |
+| Nhấn có phản hồi | Co nhẹ khi nhấn | `active:scale-[0.97]` ở `buttonVariants` và nút nhỏ trang chủ (link dạng nút trước đây không có) |
+| Chuyển động ngắt được | Không còn animation dài khi bật "giảm chuyển động" | `prefers-reduced-motion: reduce` ⇒ đếm animation đang chạy > 10ms |
+| Màn hẹp | Không cuộn ngang ở 360px | `scrollWidth − clientWidth` của trang |
+
+**Kết quả** (trước → sau đợt sửa):
+
+| Màn | Tràn ngang 360px | Vùng chạm < 44px | Focus thiếu viền | Animation khi giảm chuyển động |
+|---|---|---|---|---|
+| Tổng quan | 0 → 0 | 9 → 1 (*) | 0/25 | 0 |
+| Khách hàng | 0 → 0 | 5 → 0 | 0/25 | 0 |
+| Kanban | **291px → 0** | 0 → 0 | 0/25 | 0 |
+| Đăng đa kênh | 0 → 0 | 8 → 0 | 0/25 | 0 |
+| Kết nối | 0 → 0 | 0 → 0 | 0/25 | 0 |
+
+(*) Còn link "Xem tất cả tính năng" (cao 21px, màu `--ring` 4,29:1) trong `home-ai-hub.tsx`. File này thuộc PR #48 nên sửa sau khi #48 gộp.
+
+Đã sửa:
+
+- **Kanban cuộn ngang cả trang ở 360px.** Chữ ẩn cho trình đọc màn hình (`sr-only`, `position:absolute`) ở cột xa bên phải bám ra `main` nên thoát khỏi khung cuộn của bảng. Thêm `relative` cho khung cuộn.
+- **Vùng chạm**, chỉ đổi kích thước trên điện thoại:
+  - nút "Mở"/"Xem chi tiết" thêm `min-w-11`;
+  - link "Xem tất cả", "Xem báo cáo chi tiết";
+  - nút bỏ điều kiện lọc 36 → 44px, nút tìm kiếm 40 → 44px;
+  - chip "✦AI" dẫn sang Hoạt động AI;
+  - tab "Kênh/Xem trước", nhãn "Thời điểm đăng", "Gắn UTM", "Quản lý mẫu".
+- **Tương phản:**
+  - chữ lỗi đỏ ở bản tối 3,61 → 7,66:1, nhờ đổi riêng `.text-destructive` sang mực đỏ của nhãn; nền nút xoá giữ nguyên;
+  - biểu tượng cảnh báo ở `ErrorState` và trang lỗi 2,93 → 6,00:1 (amber-600 → `--color-app-tag-amber-ink`).
+- **Nhấn có phản hồi:** link dạng nút ("Kết nối lại", "Tạo board", "Đăng nhập lại"…) và nút nhỏ ở trang chủ.
+
+**Bảng tương phản** (sau khi sửa, `node e2e/premium/contrast.mjs`):
+
+#### Chế độ sáng
+
+| Cặp | Chữ | Nền | Tỉ lệ | Đạt |
+|---|---|---|---|---|
+| Chữ chính trên thẻ | `#17181c` | `#ffffff` | 17,74:1 | ✅ |
+| Chữ phụ (muted) trên thẻ | `#6b6f7b` | `#ffffff` | 5,02:1 | ✅ |
+| Chữ phụ (muted) trên nền trang | `#6b6f7b` | `#fbfbfa` | 4,85:1 | ✅ |
+| Chữ phụ trong ErrorState/EmptyState (nền muted/30) | `#6b6f7b` | `#fcfcfb` | 4,89:1 | ✅ |
+| ink-2 trên thẻ (mô tả, tóm tắt) | `#4a4d57` | `#ffffff` | 8,43:1 | ✅ |
+| Biểu tượng màu ring trên thẻ | `#3f7fb3` | `#ffffff` | 4,29:1 | ✅ |
+| Link primary-ink trên thẻ | `#285f8c` | `#ffffff` | 6,76:1 | ✅ |
+| Nút chính: chữ trên primary | `#ffffff` | `#3a75a6` | 4,91:1 | ✅ |
+| Chữ lỗi text-destructive trên thẻ (đăng bài lỗi) | `#c2413b` | `#ffffff` | 5,11:1 | ✅ |
+| StatusTag Chờ duyệt / Cần kết nối lại | `#8a4f0d` | `#fbe8ca` | 5,46:1 | ✅ |
+| StatusTag Đang chạy | `#277619` | `#e3f7ee` | 5,09:1 | ✅ |
+| StatusTag Lỗi | `#b13442` | `#fde8ea` | 5,21:1 | ✅ |
+| StatusTag Đã tắt | `#5c6a85` | `#e9eef4` | 4,67:1 | ✅ |
+| ReconnectNotice: chữ đậm | `#17181c` | `#fbe8ca` | 14,78:1 | ✅ |
+| ReconnectNotice: lý do (ink-2) | `#4a4d57` | `#fbe8ca` | 7,03:1 | ✅ |
+| Gợi ý soạn bài khi mất kênh (amber-ink trên thẻ) | `#8a4f0d` | `#ffffff` | 6,55:1 | ✅ |
+| Dải mất mạng (amber-900 / amber-50) | `#7b3306` | `#fffbeb` | 8,73:1 | ✅ |
+| Biểu tượng cảnh báo ErrorState (amber-ink / muted) | `#8a4f0d` | `#f5f5f3` | 6,00:1 | ✅ |
+| Viền ô nhập (input) trên thẻ | `#8a8d96` | `#ffffff` | 3,32:1 | ✅ |
+
+#### Chế độ tối
+
+| Cặp | Chữ | Nền | Tỉ lệ | Đạt |
+|---|---|---|---|---|
+| Chữ chính trên thẻ | `#eceef2` | `#131418` | 15,85:1 | ✅ |
+| Chữ phụ (muted) trên thẻ | `#8d919c` | `#131418` | 5,84:1 | ✅ |
+| Chữ phụ (muted) trên nền trang | `#8d919c` | `#0d0e11` | 6,12:1 | ✅ |
+| Chữ phụ trong ErrorState/EmptyState (nền muted/30) | `#8d919c` | `#15161a` | 5,74:1 | ✅ |
+| ink-2 trên thẻ (mô tả, tóm tắt) | `#b4b8c2` | `#131418` | 9,27:1 | ✅ |
+| Biểu tượng màu ring trên thẻ | `#7fb2da` | `#131418` | 8,14:1 | ✅ |
+| Link primary-ink trên thẻ | `#a6cbe8` | `#131418` | 10,81:1 | ✅ |
+| Nút chính: chữ trên primary | `#0d0e11` | `#7fb2da` | 8,53:1 | ✅ |
+| Chữ lỗi text-destructive trên thẻ (đăng bài lỗi) | `#f08b85` | `#131418` | 7,66:1 | ✅ |
+| StatusTag Chờ duyệt / Cần kết nối lại | `#e0a24a` | `#2a2114` | 7,12:1 | ✅ |
+| StatusTag Đang chạy | `#7fd3a2` | `#15261d` | 8,85:1 | ✅ |
+| StatusTag Lỗi | `#f08b85` | `#2c1716` | 7,04:1 | ✅ |
+| StatusTag Đã tắt | `#b4b8c2` | `#1d1f24` | 8,30:1 | ✅ |
+| ReconnectNotice: chữ đậm | `#eceef2` | `#2a2114` | 13,63:1 | ✅ |
+| ReconnectNotice: lý do (ink-2) | `#b4b8c2` | `#2a2114` | 7,98:1 | ✅ |
+| Gợi ý soạn bài khi mất kênh (amber-ink trên thẻ) | `#e0a24a` | `#131418` | 8,27:1 | ✅ |
+| Dải mất mạng (amber-100 / amber-950·40%) | `#fef3c6` | `#24120b` | 16,16:1 | ✅ |
+| Biểu tượng cảnh báo ErrorState (amber-ink / muted) | `#e0a24a` | `#18191e` | 7,89:1 | ✅ |
+| Viền ô nhập (input) trên thẻ | `#676b75` | `#131418` | 3,45:1 | ✅ |
+
 ## Kiểm kê (21/10/2026)
 
 ✅ đủ · ⚠️ có nhưng yếu · ❌ thiếu. Cột "Sau" là trạng thái sau đợt sửa đầu tiên.

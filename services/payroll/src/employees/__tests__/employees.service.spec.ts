@@ -11,6 +11,8 @@ const mockPrisma = {
     create: jest.fn(),
     update: jest.fn(),
   },
+  $executeRaw: jest.fn(),
+  $transaction: jest.fn(),
 }
 
 const mockScope = {
@@ -216,6 +218,21 @@ describe('EmployeesService', () => {
 
       const result = await service.update(1, { position: 'team_lead' })
       expect(result.position).toBe('team_lead')
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled()
+    })
+
+    it('đổi status vào resigned ⇒ trong transaction: đóng giai đoạn làm việc + đặt resigned_at', async () => {
+      mockPrisma.employee.findUnique.mockResolvedValue({ id: 1, status: 'active' })
+      mockPrisma.employee.update.mockResolvedValue({ id: 1, status: 'resigned' })
+      mockPrisma.$executeRaw.mockResolvedValue(0)
+      mockPrisma.$transaction.mockImplementation(async (cb: (tx: typeof mockPrisma) => unknown) => cb(mockPrisma))
+
+      await service.update(1, { status: 'resigned' })
+      const sqls = mockPrisma.$executeRaw.mock.calls.map((c) => (c[0] as TemplateStringsArray).join('?'))
+      expect(sqls.some((q) => q.includes('UPDATE employment_periods SET ended_on'))).toBe(true)
+      expect(mockPrisma.employee.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'resigned', resigned_at: expect.any(Date) }) }),
+      )
     })
   })
 

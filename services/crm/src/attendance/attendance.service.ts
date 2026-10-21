@@ -4,7 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, employedOnSql } from '@trinity/prisma';
 import { Prisma } from '@prisma/client';
 import { ScopeService, runInBackground, type AuthUser } from '@trinity/rbac-nest';
 import { findUserIdsWithPermission } from '../common/helpers/permission-roster.helper';
@@ -361,16 +361,16 @@ function buildScopeCondition(
 
 /**
  * Điều kiện roster "đang trong biên chế" tại mốc tham chiếu `refSql` — thay cho
- * `e.status = 'active'` trần. NV nghỉ việc (`status='resigned'`) vẫn được
- * TÍNH cho giai đoạn TRƯỚC ngày nghỉ (`resigned_at`, quy đổi giờ VN) — dữ liệu/thống kê lịch
- * sử KHÔNG bị xoá — nhưng bị LOẠI kể từ ngày nghỉ trở đi. Các status khác (on_leave/probation/
- * waiting...) vẫn bị loại như cũ (nhánh đầu `e.status = 'active'` GIỮ NGUYÊN).
+ * `e.status = 'active'` trần. Nhân viên đã có giai đoạn làm việc (`employment_periods`) ⇒ tính đúng những ngày
+ * nằm trong giai đoạn: khoá rồi mở khoá KHÔNG làm khoảng bị khoá hiện lại trong báo cáo cũ. Chưa có giai đoạn ⇒ luật
+ * cũ: NV nghỉ việc (`status='resigned'`) vẫn được TÍNH cho giai đoạn TRƯỚC ngày nghỉ (`resigned_at`, giờ VN), bị
+ * LOẠI kể từ ngày nghỉ. Các status khác (on_leave/probation/waiting...) vẫn bị loại như cũ. Xem `employedOnSql`.
  * `refSql`: cột SQL (`Prisma.raw('ar.work_date')`) hoặc tham số ngày đã parameterized
  * (`Prisma.sql\`${fromStr}::date\``) — CHỈ dùng `Prisma.raw` cho tên cột cố định, TUYỆT ĐỐI
  * KHÔNG cho giá trị người dùng.
  */
 function employedRosterCond(refSql: Prisma.Sql): Prisma.Sql {
-  return Prisma.sql`(e.status = 'active' OR (e.status = 'resigned' AND e.resigned_at IS NOT NULL AND (e.resigned_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date > ${refSql}))`;
+  return employedOnSql(refSql);
 }
 
 /** Mốc ngày hiện tại (giờ VN) — dùng làm `<REF>` cho roster KHÔNG có ngày trong scope
@@ -2643,9 +2643,8 @@ export class AttendanceService {
 
   /**
    * Danh sách nhân viên VẮNG (chưa chấm CẢ vào lẫn ra) trong 1 NGÀY (giờ VN, YYYY-MM-DD).
-   * Phạm vi = NV ĐANG LÀM VIỆC theo `employedRosterCond(${dateStr}::date)`: `status='active'`,
-   * HOẶC `status='resigned'` mà `dateStr` còn TRƯỚC mốc `resigned_at` (giờ VN) — giữ lịch sử
-   * các ngày trước khi nghỉ, chỉ loại NV KỂ TỪ ngày họ nghỉ + user chưa xoá. Vắng = KHÔNG tồn
+   * Phạm vi = NV ĐANG LÀM VIỆC vào `dateStr` theo `employedRosterCond(${dateStr}::date)` (giai đoạn làm việc, hoặc
+   * luật cũ status + `resigned_at` khi chưa có giai đoạn) — giữ lịch sử các ngày còn làm + user chưa xoá. Vắng = KHÔNG tồn
    * tại bản ghi attendance nào trong ngày có check_in HOẶC check_out. Dùng cho bảng trong popup
    * Thống kê + xuất Excel. Cap ABSENT_EMPLOYEES_CAP.
    *

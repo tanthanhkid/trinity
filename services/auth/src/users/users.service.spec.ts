@@ -26,7 +26,7 @@ interface MockPrisma {
   }
   team: { findUnique: jest.Mock }
   setting: { findUnique: jest.Mock }
-  employee: { upsert: jest.Mock; updateMany: jest.Mock }
+  employee: { upsert: jest.Mock; updateMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock }
   auditLog: { findMany: jest.Mock }
   $transaction: jest.Mock
   $executeRaw: jest.Mock
@@ -49,6 +49,8 @@ const mockPrisma: MockPrisma = {
   employee: {
     upsert: jest.fn(),
     updateMany: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
   },
   auditLog: {
     findMany: jest.fn(),
@@ -107,6 +109,8 @@ describe('UsersService', () => {
     mockPrisma.employee.upsert.mockResolvedValue({})
     // Default: đồng bộ nghỉ việc — không có employee row liên kết cũng OK (updateMany).
     mockPrisma.employee.updateMany.mockResolvedValue({ count: 0 })
+    mockPrisma.employee.findUnique.mockResolvedValue(null)
+    mockPrisma.employee.update.mockResolvedValue({})
 
     // Mặc định permissive: target trong scope ('all') + target.grants={} (⊆
     // MỌI actor.grants — isSubset rỗng luôn true) → `assertCanManageUser` pass
@@ -651,6 +655,27 @@ describe('UsersService', () => {
       expect(unlockData.email).toBeUndefined()
       expect(unlockData.tokens_valid_after).toBeUndefined()
       expect(unlockData.status).toBe('active')
+    })
+
+    it('khoá / mở khoá có hồ sơ nhân viên ⇒ đóng / mở giai đoạn làm việc; khoá lại người đã nghỉ không dời ngày nghỉ', async () => {
+      mockPrisma.employee.findUnique.mockResolvedValue({ id: 42 })
+      mockPrisma.user.findUnique.mockResolvedValue({ ...mockUserResponse, manager_id: null })
+      mockPrisma.user.count.mockResolvedValue(0)
+      mockPrisma.user.update.mockResolvedValue({ id: 5, email: 'a@b.vn', status: 'locked' })
+      await service.update(5, { status: 'locked' }, mkActor(99, { isAdmin: true }))
+      const sqlOf = () => mockPrisma.$executeRaw.mock.calls.map((c) => (c[0] as TemplateStringsArray).join('?'))
+      expect(sqlOf().some((q) => q.includes('UPDATE employment_periods SET ended_on'))).toBe(true)
+      expect(mockPrisma.employee.updateMany).toHaveBeenCalledWith({
+        where: { id: 42, status: { not: 'resigned' } },
+        data: { status: 'resigned', resigned_at: expect.any(Date) },
+      })
+
+      mockPrisma.$executeRaw.mockClear()
+      mockPrisma.user.findUnique.mockResolvedValue({ ...mockUserResponse, manager_id: null, status: 'locked' })
+      mockPrisma.user.update.mockResolvedValue({ id: 5, email: 'a@b.vn', status: 'active' })
+      await service.update(5, { status: 'active' }, mkActor(99, { isAdmin: true }))
+      expect(sqlOf().some((q) => q.includes('INSERT INTO employment_periods (employee_id, started_on)'))).toBe(true)
+      expect(mockPrisma.employee.update).toHaveBeenCalledWith({ where: { id: 42 }, data: { status: 'active', resigned_at: null } })
     })
 
     it('không anonymize email nếu user đã ở trạng thái locked (idempotent)', async () => {

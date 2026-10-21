@@ -6,7 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, recordEmploymentEnd, recordEmploymentStart, recordEmploymentStatusChange } from '@trinity/prisma';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as path from 'path';
@@ -993,6 +993,10 @@ export class EmployeesService {
 
       // Employee upsert theo user_id (@unique): create cho tài khoản mới / chưa có nhân sự,
       // update khi khôi phục nhân viên đã xoá mềm (employee record cũ còn tồn tại).
+      const newStatus = dto.status ?? 'active';
+      const prev = await tx.employee.findUnique({ where: { user_id: userId }, select: { id: true, status: true, resigned_at: true } });
+      // Hồ sơ cũ đổi trạng thái nghỉ việc ⇒ đóng / mở giai đoạn làm việc (chấm công cũ giữ nguyên).
+      if (prev) await recordEmploymentStatusChange(tx, prev.id, prev.status, newStatus);
       const employeeData = {
         employee_code: dto.employee_code?.trim() || null,
         position: dto.position?.trim() || jobTitleName || 'Chưa phân loại',
@@ -1002,12 +1006,12 @@ export class EmployeesService {
         salary_rule_id: dto.salary_rule_id ?? null,
         insurance_salary: dto.insurance_salary != null ? BigInt(dto.insurance_salary) : null,
         job_title_id: dto.job_title_id ?? null,
-        status: dto.status ?? 'active',
+        status: newStatus,
         // Khôi phục nhân viên đã xoá mềm (nhánh update của upsert) phải bỏ dấu xoá.
         deleted_at: null,
         // Giữ bất biến: employees.status='resigned' ⇔ resigned_at != null.
-        // Reactivate NV đã nghỉ (status→active) tự xoá mốc ngày nghỉ cũ.
-        resigned_at: (dto.status ?? 'active') === 'resigned' ? new Date() : null,
+        // Reactivate NV đã nghỉ (status→active) tự xoá mốc ngày nghỉ cũ; vẫn nghỉ ⇒ giữ ngày nghỉ cũ.
+        resigned_at: newStatus !== 'resigned' ? null : prev?.status === 'resigned' ? prev.resigned_at : new Date(),
         joined_at: dto.joined_at ? new Date(dto.joined_at) : new Date(),
         birth_date: dto.birth_date ? new Date(dto.birth_date) : null,
         id_card_number: dto.id_card_number?.trim() || null,
@@ -1176,6 +1180,14 @@ export class EmployeesService {
       // Vai trò hệ thống KHÔNG sửa qua endpoint này — gán/gỡ vai trò đi qua
       // `PUT /users/:id/roles` (quyền `users.manage`).
 
+      if (dto.status !== undefined) {
+        const before = await tx.employee.findUnique({ where: { id }, select: { status: true } });
+        // Vào / rời 'resigned' ⇒ đóng / mở giai đoạn làm việc (chấm công cũ giữ nguyên khoảng đã nghỉ).
+        await recordEmploymentStatusChange(tx, id, before?.status, dto.status);
+        // Lưu lại hồ sơ vẫn ở 'resigned' ⇒ KHÔNG dời ngày nghỉ sang hôm nay.
+        if (before?.status === 'resigned' && dto.status === 'resigned') delete employeeUpdateData['resigned_at'];
+      }
+
       const updated = await tx.employee.update({
         where: { id },
         data: Object.keys(employeeUpdateData).length > 0
@@ -1271,17 +1283,20 @@ export class EmployeesService {
     // (vd Quản trị thật) chỉ vì scope `users.manage` của caller đủ rộng.
     await this.assertNotEscalating(caller, employee.user_id);
 
-    await this.prisma.$transaction([
-      this.prisma.user.update({
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.user.update({
         where: { id: employee.user_id },
         data: { status: 'locked', tokens_valid_after: new Date() },
-      }),
-      this.prisma.employee.update({
-        where: { id },
-        // resigned_at = mốc ngày nghỉ việc — dùng để loại NV khỏi chấm công KỂ TỪ ngày này.
+      });
+      // Đóng giai đoạn làm việc đang mở — mở khoá sau này KHÔNG xoá khoảng bị khoá khỏi chấm công cũ.
+      await recordEmploymentEnd(tx, id);
+      // resigned_at = mốc ngày nghỉ việc — dùng để loại NV khỏi chấm công KỂ TỪ ngày này.
+      // Khoá lại người đã nghỉ: giữ ngày nghỉ cũ.
+      await tx.employee.updateMany({
+        where: { id, status: { not: 'resigned' } },
         data: { status: 'resigned', resigned_at: new Date() },
-      }),
-    ]);
+      });
+    });
 
     // Khoá tài khoản đổi trạng thái quyền hiệu lực (isAdmin có thể mất khi role
     // gắn với account bị khoá không còn nghĩa) — invalidate ngay, mirror update().
@@ -1303,7 +1318,8 @@ export class EmployeesService {
 
   /**
    * Mở khoá — đảo `lock()`: tài khoản đăng nhập lại được (users.status=active) và nhân viên trở lại "đang làm"
-   * (employees.status=active, xoá resigned_at để chấm công / lương tính lại từ nay). CHỈ Quản trị.
+   * (employees.status=active, xoá resigned_at; mở giai đoạn làm việc mới từ hôm nay — khoảng bị khoá vẫn KHÔNG được
+   * tính trong chấm công / lương cũ). CHỈ Quản trị.
    * Token phát trước lúc khoá vẫn vô hiệu (`tokens_valid_after` giữ nguyên) ⇒ người đó đăng nhập lại từ đầu.
    * Hồ sơ đã xoá ⇒ 404. Không có tool MCP tương ứng.
    */
@@ -1323,10 +1339,11 @@ export class EmployeesService {
     // đường mở khoá ở services/auth (users.service). Hết chỗ ⇒ lỗi của gói, không bật lại tài khoản.
     await assertUserSlotAvailable(this.prisma);
 
-    await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: employee.user_id }, data: { status: 'active' } }),
-      this.prisma.employee.update({ where: { id }, data: { status: 'active', resigned_at: null } }),
-    ]);
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.user.update({ where: { id: employee.user_id }, data: { status: 'active' } });
+      await recordEmploymentStart(tx, id);
+      await tx.employee.update({ where: { id }, data: { status: 'active', resigned_at: null } });
+    });
     await this.rbacCache.invalidateUsers('*');
 
     this.logger.log(`[employee-unlock] actor=${caller.userId} employee_id=${id} user_id=${employee.user_id}`);

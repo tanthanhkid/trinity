@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Link2, Loader2, Unlink } from "lucide-react"
+import { Link2, Unlink } from "lucide-react"
 import { toast } from "sonner"
 import { StatusPill } from "@/components/ui/connection-row"
 import { NetworkMark } from "./social-network-mark"
@@ -9,13 +9,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { getApiErrorMessage } from "@/lib/api-client"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
 import { usePermissions } from "@/lib/rbac/use-permissions"
 import { useSocialAccounts, useSocialMutations, useSocialNetworks, type SocialAccount, type SocialNetwork } from "@/hooks/use-social"
 
 /** Kênh: liên kết từng mạng (OAuth), danh sách kênh đã liên kết, gỡ kênh. */
 export function SocialChannels() {
-  const { data: networks = [], isLoading } = useSocialNetworks()
-  const { data: accounts = [] } = useSocialAccounts(true, true)
+  const networksQ = useSocialNetworks()
+  const accountsQ = useSocialAccounts(true, true)
+  const { data: networks = [], isLoading } = networksQ
+  const { data: accounts = [] } = accountsQ
   const m = useSocialMutations()
   const { can } = usePermissions()
   const manage = can("social.manage")
@@ -33,7 +37,19 @@ export function SocialChannels() {
       onError: (err) => toast.error(getApiErrorMessage(err, "Không bật lại được kênh")),
     })
 
-  if (isLoading) return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang tải…</div>
+  if (isLoading) return <LoadingBlock variant="cards" count={2} label="Đang tải kênh…" />
+  // Lỗi tải ⇒ nói rõ + Thử lại; KHÔNG hiện lưới trống (người dùng tưởng chưa liên kết kênh nào).
+  const failed = networksQ.isError ? networksQ : accountsQ.isError ? accountsQ : null
+  if (failed) {
+    return (
+      <ErrorState
+        title="Không tải được danh sách kênh"
+        error={failed.error}
+        onRetry={() => { void networksQ.refetch(); void accountsQ.refetch() }}
+        retrying={networksQ.isFetching || accountsQ.isFetching}
+      />
+    )
+  }
 
   return (
     <div className="grid gap-3 md:grid-cols-2">

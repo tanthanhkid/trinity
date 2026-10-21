@@ -39,12 +39,18 @@ export default function DashboardError({
         </div>
         <div className="space-y-2">
           <h2 className="text-[17px] font-semibold text-foreground">Có lỗi xảy ra</h2>
-          <p className="break-words text-sm text-muted-foreground">Đã xảy ra sự cố, vui lòng tải lại trang.{error.digest ? ` (Mã: ${error.digest})` : ""}</p>
+          <p className="break-words text-sm text-muted-foreground">Phần này gặp sự cố khi hiển thị. Bấm &quot;Thử lại&quot;; nếu vẫn lỗi thì tải lại trang.{error.digest ? ` (Mã: ${error.digest})` : ""}</p>
         </div>
-        <Button onClick={() => window.location.reload()} className="h-10 rounded-lg px-5">
-          <RotateCw className="mr-2 h-4 w-4" aria-hidden />
-          Tải lại trang
-        </Button>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {/* Thử lại = dựng lại phần lỗi, giữ nguyên dữ liệu đang nhập ở chỗ khác; tải lại trang là phương án cuối. */}
+          <Button onClick={() => reset()} className="h-10 rounded-lg px-5">
+            <RotateCw className="mr-2 h-4 w-4" aria-hidden />
+            Thử lại
+          </Button>
+          <Button variant="outline" onClick={() => window.location.reload()} className="h-10 rounded-lg px-5">
+            Tải lại trang
+          </Button>
+        </div>
       </div>
     </div>
   )

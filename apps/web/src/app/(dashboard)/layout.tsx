@@ -3,6 +3,7 @@
 import { useCallback, type CSSProperties } from "react"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { NotificationSocket } from "@/components/notification-socket"
+import { OfflineBanner } from "@/components/offline-banner"
 import { ShellSidebar } from "@/components/app-shell/sidebar"
 import { FeatureRouteGate } from "@/components/feature-route-gate"
 import { SetupGate } from "@/components/setup-gate"
@@ -67,6 +68,7 @@ export default function DashboardLayout({
       <ShellSidebar />
       <SidebarInset className="bg-background">
         <ShellTopbar />
+        <OfflineBanner />
         <main className={MAIN_CLASS}>
           <SetupGate>
             <FeatureRouteGate>{children}</FeatureRouteGate>

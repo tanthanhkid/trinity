@@ -20,6 +20,9 @@ import { KanbanCardList } from "@/components/kanban/kanban-card-list"
 import { KanbanAddCardDialog } from "@/components/kanban/kanban-add-card-dialog"
 import { KanbanCardDialog } from "@/components/kanban/kanban-card-dialog"
 import { InlineSelect } from "@/components/ui/inline-select"
+import { LoadingBlock } from "@/components/ui/loading-block"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
 import { cn } from "@/lib/utils"
 import { BOX } from "@/app/(dashboard)/dashboard/_components/home-box"
 
@@ -46,7 +49,7 @@ function KanbanScreen() {
   const { can } = usePermissions()
   const canConfigure = can("kanban.boards")
   const canCreateCard = can("kanban.manage")
-  const { data: boards = [], isLoading: boardsLoading } = useKanbanBoards()
+  const { data: boards = [], isLoading: boardsLoading, isError: boardsError, error: boardsErr, refetch: refetchBoards, isFetching: boardsFetching } = useKanbanBoards()
   const [boardId, setBoardId] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>("board")
   const [addCardOpen, setAddCardOpen] = useState(false)
@@ -109,12 +112,15 @@ function KanbanScreen() {
       </div>
 
       {boardsLoading ? (
-        <p className="text-sm text-muted-foreground">Đang tải danh sách board…</p>
+        <div className={cn(BOX, "p-4")}><LoadingBlock count={3} label="Đang tải danh sách board…" /></div>
+      ) : boardsError && boards.length === 0 ? (
+        <ErrorState title="Không tải được danh sách board" error={boardsErr} onRetry={() => void refetchBoards()} retrying={boardsFetching} />
       ) : boards.length === 0 ? (
-        <div className={cn(BOX, "px-4 py-10 text-center text-sm text-muted-foreground")}>
-          Chưa có board nào hiển thị với vai trò của bạn.
-          {canConfigure && " Vào \"Cấu hình board\" để tạo board đầu tiên."}
-        </div>
+        <EmptyState
+          title="Chưa có board nào"
+          message={canConfigure ? "Tạo board đầu tiên để theo dõi công việc, cơ hội bán theo từng bước." : "Chưa có board nào hiển thị với vai trò của bạn — nhờ quản trị viên cấp quyền xem board."}
+          action={canConfigure ? <Link href="/kanban/settings" className={buttonVariants({ variant: "outline" })}>Tạo board</Link> : undefined}
+        />
       ) : (
         <section aria-label="Công việc của board" className={cn(BOX, "overflow-hidden")}>
           {/* Hàng công cụ: chọn board · tìm · Kanban/Bảng */}
@@ -158,6 +164,8 @@ function KanbanScreen() {
               <KanbanCardList
                 cards={listCards}
                 isLoading={listQuery.isLoading}
+                error={listQuery.isError ? listQuery.error : undefined}
+                onRetry={() => void listQuery.refetch()}
                 hasNextPage={listQuery.hasNextPage}
                 isFetchingNextPage={listQuery.isFetchingNextPage}
                 onFetchNextPage={() => listQuery.fetchNextPage()}

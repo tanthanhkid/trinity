@@ -9,6 +9,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
 import { Switch } from "@/components/ui/switch"
 import { usePermissions } from "@/lib/rbac"
 import { useAuthStore } from "@/store/auth"
@@ -158,13 +159,13 @@ export function FacebookPanel() {
         <>
           <p className="text-sm text-muted-foreground">Kết nối Fanpage để nhận và trả lời tin Messenger ngay trong CRM. Mỗi người nhắn vào Page thành một khách hàng, tin nhắn ghi vào lịch sử chăm sóc (tin có SĐT trùng khách cũ thì ghi vào khách đó). Khách gửi form Lead Ads cũng tự thành khách hàng.</p>
           {status.isLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang kiểm tra cấu hình...</div>}
-          {status.isError && <p className="text-sm text-red-600">Không đọc được cấu hình Facebook.</p>}
+          {status.isError && <ErrorState compact title="Không đọc được cấu hình Facebook" error={status.error} onRetry={() => void status.refetch()} retrying={status.isFetching} />}
           {status.data && <SetupHelp s={status.data} />}
           <Button onClick={connect} disabled={!status.data?.configured || !status.data.secret_key_configured || m.connect.isPending} className="max-sm:h-11">
             {m.connect.isPending ? <Loader2 className="mr-1 size-4 animate-spin" /> : <Plus className="mr-1 size-4" />}Kết nối Fanpage
           </Button>
           {pages.isLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang tải...</div>}
-          {pages.isError && <p className="text-sm text-red-600">Không tải được danh sách Fanpage.</p>}
+          {pages.isError && <ErrorState compact title="Không tải được danh sách Fanpage" error={pages.error} onRetry={() => void pages.refetch()} retrying={pages.isFetching} />}
           {pages.isSuccess && pages.data.length === 0 && <EmptyState icon={MessagesSquare} message='Chưa kết nối Fanpage nào. Bấm "Kết nối Fanpage" rồi chọn Page trong hộp thoại Facebook.' />}
           <div className="grid gap-3 lg:grid-cols-2">
             {pages.data?.map((p) => <PageCard key={p.id} p={p} assignees={assignees} sources={sources.data ?? []} canTransfer={canTransfer} />)}

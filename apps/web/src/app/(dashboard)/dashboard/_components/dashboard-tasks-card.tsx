@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ChevronRight, Bell, SquareKanban } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
 import { formatDate, formatTimeVn, todayVn, vnDateKey } from '@/lib/format'
 import type { DashboardTaskItem, DashboardTasksData } from './use-dashboard-overview'
 
@@ -60,11 +61,16 @@ function TaskRow({ t }: { t: DashboardTaskItem }) {
 export function DashboardTasksCard({
   tasks,
   isLoading,
+  error,
+  onRetry,
   filterNote,
   className,
 }: {
   tasks: DashboardTasksData | undefined
   isLoading: boolean
+  /** Lỗi tải (chưa có dữ liệu) ⇒ khung lỗi + Thử lại, không nói "Không có việc". */
+  error?: unknown
+  onRetry?: () => void
   /** Có giá trị khi super_admin đang lọc — đổi mô tả "việc của riêng bạn". */
   filterNote?: string | null
   className?: string
@@ -92,10 +98,15 @@ export function DashboardTasksCard({
           <div className="space-y-2 p-1.5">
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 rounded-lg" />)}
           </div>
+        ) : error && !tasks ? (
+          <ErrorState compact className="px-2 py-6" title="Không tải được việc hôm nay" error={error} onRetry={onRetry} />
         ) : !tasks || tasks.items.length === 0 ? (
-          <p className="py-8 text-center text-[14px] text-[var(--color-app-ink-2)]">
-            Không có việc cần xử lý hôm nay.
-          </p>
+          <div className="flex flex-col items-center gap-2 py-8 text-center">
+            <p className="text-[14px] text-[var(--color-app-ink-2)]">Không có việc cần xử lý hôm nay.</p>
+            <Link href="/kanban" className="rounded text-[14px] font-medium text-[var(--color-app-primary-ink)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] max-sm:min-h-11 max-sm:inline-flex max-sm:items-center">
+              Lên kế hoạch việc trên Kanban
+            </Link>
+          </div>
         ) : (
           <>
             <ul>{tasks.items.map((t) => <TaskRow key={t.key} t={t} />)}</ul>

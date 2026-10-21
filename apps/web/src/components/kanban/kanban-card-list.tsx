@@ -9,6 +9,8 @@ import { Loader2 } from "lucide-react"
 import { DotTag } from "@/components/app-shell/dot-tag"
 import { ShellAvatar } from "@/components/app-shell/avatar"
 import { Button } from "@/components/ui/button"
+import { LoadingBlock } from "@/components/ui/loading-block"
+import { ErrorState } from "@/components/ui/error-state"
 import { ShellResponsiveList } from "@/components/app-shell/responsive-list"
 import { ShellListCard, ShellListCardRow } from "@/components/app-shell/list-card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -28,6 +30,9 @@ interface KanbanCardListProps {
   showBoardColumn?: boolean
   /** Cột "Trạng thái" (tên cột Kanban chứa card). */
   showStatusColumn?: boolean
+  /** Lỗi tải (chưa có card nào) ⇒ khung lỗi + Thử lại thay vì "Không có card nào". */
+  error?: unknown
+  onRetry?: () => void
 }
 
 export function KanbanCardList({
@@ -39,12 +44,17 @@ export function KanbanCardList({
   onOpenCard,
   showBoardColumn = false,
   showStatusColumn = false,
+  error,
+  onRetry,
 }: KanbanCardListProps) {
   const lookups = useKanbanCardLookups(cards, showBoardColumn || showStatusColumn || cards.length > 0)
   // Nhãn: tạo công việc từ khách không có chọn nhãn → chỉ hiện cột khi có dữ liệu.
   const hasLabels = cards.some((c) => c.labels.length > 0)
   if (isLoading) {
-    return <p className="p-6 text-sm text-muted-foreground">Đang tải…</p>
+    return <LoadingBlock className="p-4" count={4} />
+  }
+  if (error && cards.length === 0) {
+    return <ErrorState className="m-4" title="Không tải được danh sách card" error={error} onRetry={onRetry} />
   }
   if (cards.length === 0) {
     return <p className="px-4 py-12 text-center text-sm text-muted-foreground">Không có card nào.</p>

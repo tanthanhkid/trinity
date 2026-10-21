@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
 import { usePermissions } from "@/lib/rbac"
 import { apiErrorMessage } from "../webhook-types"
 import { useConnectZaloOa, useDisconnectZaloOa, useSendZns, useZaloOaStatus } from "./use-zalo-oa"
@@ -64,8 +66,14 @@ export function ZaloOaPanel() {
   const canManage = can("integrations.webhooks")
   const flash = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("zalo_oa")
 
-  if (status.isLoading) return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang tải...</div>
-  if (status.isError || !status.data) return <Card><CardContent className="py-4 text-sm text-red-600">Không đọc được trạng thái Zalo OA (hoặc tính năng đang tắt).</CardContent></Card>
+  if (status.isLoading) return <Card><CardContent className="py-4"><LoadingBlock count={3} label="Đang tải trạng thái Zalo OA…" /></CardContent></Card>
+  // 404 = máy chủ tắt tính năng Zalo OA; lỗi khác = không đọc được ⇒ hai câu khác nhau, chỉ lỗi thật mới có "Thử lại".
+  if ((status.error as { response?: { status?: number } } | null)?.response?.status === 404) {
+    return <Card><CardContent className="py-4 text-sm text-muted-foreground">Tính năng Zalo OA đang tắt trên máy chủ này. Nhờ quản trị viên bật để kết nối.</CardContent></Card>
+  }
+  if (status.isError || !status.data) {
+    return <ErrorState title="Không đọc được trạng thái Zalo OA" error={status.error} onRetry={() => void status.refetch()} retrying={status.isFetching} />
+  }
   const s = status.data
   const missing = [
     ...(s.configured ? [] : ["ZALO_OA_APP_ID", "ZALO_OA_APP_SECRET", "ZALO_OA_REDIRECT_URI"]),
@@ -115,7 +123,7 @@ export function ZaloOaPanel() {
         title="Ngắt kết nối Zalo OA?"
         description="Token đã lưu sẽ bị xoá; tin nhắn đã nhận vẫn được giữ. Bạn có thể kết nối lại bất cứ lúc nào."
         confirmLabel="Ngắt kết nối"
-        onConfirm={() => disconnect.mutate(undefined, { onSuccess: () => setConfirm(false), onError: (e) => toast.error(apiErrorMessage(e, "Không ngắt được")) })}
+        onConfirm={() => disconnect.mutate(undefined, { onSuccess: () => { setConfirm(false); toast.success("Đã ngắt kết nối Zalo OA") }, onError: (e) => toast.error(apiErrorMessage(e, "Không ngắt được")) })}
       />
     </div>
   )

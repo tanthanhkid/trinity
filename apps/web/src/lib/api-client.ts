@@ -288,6 +288,24 @@ apiClient.interceptors.response.use(
   },
 )
 
+/**
+ * Gửi một lệnh lúc trang đang đóng (`pagehide`): XHR của axios có thể bị trình duyệt huỷ giữa chừng,
+ * `fetch` với `keepalive` thì được phép chạy tiếp sau khi tab đóng. Không chờ kết quả.
+ */
+export function sendKeepalive(method: "DELETE" | "POST" | "PATCH", path: string): void {
+  try {
+    const token = getAccessToken()
+    void fetch(`${BASE_URL}${path}`, {
+      method,
+      keepalive: true,
+      credentials: "include",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }).catch(() => {})
+  } catch {
+    /* môi trường không có fetch: bỏ qua, lệnh sẽ không gửi */
+  }
+}
+
 /** Yêu cầu không tới được máy chủ (mất mạng, máy chủ không phản hồi). */
 export const NETWORK_ERROR_MESSAGE = "Không kết nối được máy chủ. Kiểm tra Internet rồi thử lại."
 /** Máy chủ phản hồi quá lâu. */

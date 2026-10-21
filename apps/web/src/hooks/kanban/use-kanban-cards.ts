@@ -8,7 +8,7 @@ import {
   type InfiniteData,
 } from "@tanstack/react-query"
 import { toast } from "sonner"
-import apiClient, { getApiErrorMessage } from "@/lib/api-client"
+import apiClient, { getApiErrorMessage, sendKeepalive } from "@/lib/api-client"
 import { deferWithUndo } from "@/lib/undo"
 import type {
   CreateKanbanCardPayload,
@@ -224,6 +224,7 @@ export function useDeleteKanbanCardWithUndo() {
           .delete(`/kanban/cards/${id}`)
           .catch((err) => toast.error(getApiErrorMessage(err, "Không xoá được card")))
           .finally(() => invalidate(id)),
+      commitOnUnload: () => sendKeepalive("DELETE", `/kanban/cards/${id}`),
       onUndo: () => invalidate(),
     })
   }

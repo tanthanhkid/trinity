@@ -4,14 +4,17 @@ import { toast } from "sonner"
 export const UNDO_WINDOW_MS = 5000
 export const UNDO_LABEL = "Hoàn tác"
 
-type Pending = { timer: ReturnType<typeof setTimeout> | null; run: () => void }
+type Pending = { timer: ReturnType<typeof setTimeout> | null; run: (unloading?: boolean) => void }
 const pending = new Set<Pending>()
 
-/** Chạy ngay mọi thao tác đang chờ hết cửa sổ hoàn tác (đóng tab / tải lại trang thì không bỏ rơi việc người dùng đã bấm). */
-export function flushUndoables() {
-  for (const p of [...pending]) p.run()
+/**
+ * Chạy ngay mọi thao tác đang chờ hết cửa sổ hoàn tác (đóng tab / tải lại trang thì không bỏ rơi việc người dùng đã bấm).
+ * `unloading`: trang đang đóng ⇒ dùng `commitOnUnload` (fetch keepalive) nếu thao tác có khai báo.
+ */
+export function flushUndoables(unloading = false) {
+  for (const p of [...pending]) p.run(unloading)
 }
-if (typeof window !== "undefined") window.addEventListener("pagehide", flushUndoables)
+if (typeof window !== "undefined") window.addEventListener("pagehide", () => flushUndoables(true))
 
 /**
  * Thao tác KHÔNG có đường lùi trên máy chủ (xoá): ẩn ngay trên màn hình, chỉ gửi lên máy chủ sau 5 giây.
@@ -21,23 +24,27 @@ if (typeof window !== "undefined") window.addEventListener("pagehide", flushUndo
 export function deferWithUndo({
   message,
   commit,
+  commitOnUnload,
   onUndo,
   undoneMessage = "Đã hoàn tác",
 }: {
   message: string
   commit: () => Promise<unknown> | void
+  /** Bản gửi được lúc tab đang đóng (thường là `sendKeepalive`); thiếu thì dùng `commit`. */
+  commitOnUnload?: () => void
   onUndo: () => void
   undoneMessage?: string
 }) {
   let settled = false
   const entry: Pending = {
     timer: null,
-    run: () => {
+    run: (unloading = false) => {
       if (settled) return
       settled = true
       if (entry.timer) clearTimeout(entry.timer)
       pending.delete(entry)
-      void commit()
+      if (unloading && commitOnUnload) commitOnUnload()
+      else void commit()
     },
   }
   entry.timer = setTimeout(entry.run, UNDO_WINDOW_MS)

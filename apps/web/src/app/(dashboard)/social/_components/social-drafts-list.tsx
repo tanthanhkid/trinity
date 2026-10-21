@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadingBlock } from "@/components/ui/loading-block"
 import { cn } from "@/lib/utils"
-import apiClient, { getApiErrorMessage } from "@/lib/api-client"
+import apiClient, { getApiErrorMessage, sendKeepalive } from "@/lib/api-client"
 import { deferWithUndo } from "@/lib/undo"
 import { useSocialAccounts, useSocialDrafts, type SocialDraft } from "@/hooks/use-social"
 import { NetworkMark } from "./social-network-mark"
@@ -98,6 +98,7 @@ export function SocialDraftsList({ highlight, onOpen, onCompose }: { highlight?:
                 .delete(`/social/drafts/${d.id}`)
                 .catch((err) => toast.error(getApiErrorMessage(err, "Không xoá được bài nháp")))
                 .finally(() => queryClient.invalidateQueries({ queryKey: key })),
+            commitOnUnload: () => sendKeepalive("DELETE", `/social/drafts/${d.id}`),
             onUndo: () => queryClient.invalidateQueries({ queryKey: key }),
           })
         }}

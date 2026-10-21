@@ -37,7 +37,7 @@ import {
   BULK_TRANSFER_MAX,
   type SortField,
 } from "./_components/contacts-constants"
-import apiClient from "@/lib/api-client"
+import apiClient, { sendKeepalive } from "@/lib/api-client"
 import { Can, Forbidden, usePermissions } from "@/lib/rbac"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { MOBILE_FAB_CLASS } from "@/components/app-shell/mobile-primary"
@@ -380,6 +380,7 @@ function ContactsPageContent() {
     deferWithUndo({
       message: `Đã xoá ${formatCount(ids.length, "khách hàng")}`,
       commit: () => commitContactDelete(ids, queryClient),
+      commitOnUnload: () => ids.forEach((id) => sendKeepalive("DELETE", `/contacts/${id}`)),
       onUndo: () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),
     })
   }, [canBulkDelete, queryClient, selectedIds])

@@ -133,17 +133,16 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
     payload: { column_id: number; before_card_id?: number; after_card_id?: number },
     undo: { message: string; payload: { column_id: number; before_card_id?: number; after_card_id?: number } } | null = null,
   ) => {
-    moveCard.mutate(
-      { id: cardId, payload },
-      {
-        onSuccess: (result) => {
-          if (result.wip_warning) toast.warning(result.wip_warning)
-          if (undo) toastWithUndo({ message: undo.message, onUndo: () => submitMove(cardId, undo.payload) })
-        },
-        onError: (err) => toast.error(getApiErrorMessage(err, "Không chuyển được card")),
-        onSettled: () => setSettling(null),
-      },
-    )
+    // `mutateAsync` (không dùng callback của `mutate`): kéo liền hai card thì callback của `mutate` chỉ chạy cho lần
+    // cuối — lần đầu sẽ mất toast Hoàn tác. Promise của từng lần gọi luôn trả về đúng lần đó.
+    moveCard
+      .mutateAsync({ id: cardId, payload })
+      .then((result) => {
+        if (result.wip_warning) toast.warning(result.wip_warning)
+        if (undo) toastWithUndo({ message: undo.message, onUndo: () => submitMove(cardId, undo.payload) })
+      })
+      .catch((err) => toast.error(getApiErrorMessage(err, "Không chuyển được card")))
+      .finally(() => setSettling(null))
   }
 
   const handleColumnDragEnd = (activeId: string, event: DragEndEvent) => {

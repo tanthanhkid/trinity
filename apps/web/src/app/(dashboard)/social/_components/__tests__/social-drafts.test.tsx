@@ -1,18 +1,39 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
-import { fireEvent, render, screen } from "@testing-library/react"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { act, fireEvent, render, screen } from "@testing-library/react"
+import type { ReactElement } from "react"
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query"
 import type { SocialDraft } from "@/hooks/use-social"
 import { youtubeChoiceFrom, youtubeOptionsOf, EMPTY_YOUTUBE_CHOICE } from "../youtube-post-options"
 import { composerStateFrom } from "../social-draft-state"
 import { SocialDraftsList, draftLabel } from "../social-drafts-list"
 
 const state = vi.hoisted(() => ({ drafts: [] as unknown[], loading: false }))
+const api = vi.hoisted(() => ({ del: vi.fn(() => Promise.resolve({})), keepalive: vi.fn() }))
+const toasts = vi.hoisted(() => ({ list: [] as { message: string; action?: { label: string; onClick: () => void } }[] }))
 
+// Nháp đọc từ cache react-query thật (khoá ["social","drafts"]) như ứng dụng ⇒ thao tác "ẩn ngay" thấy được trong test.
 vi.mock("@/hooks/use-social", async (orig) => ({
   ...(await orig<typeof import("@/hooks/use-social")>()),
-  useSocialDrafts: () => ({ data: state.loading ? undefined : state.drafts, isLoading: state.loading, isError: false }),
+  useSocialDrafts: () => {
+    const q = useQuery({ queryKey: ["social", "drafts"], queryFn: () => state.drafts, initialData: state.drafts, staleTime: Infinity })
+    return state.loading ? { data: undefined, isLoading: true, isError: false } : q
+  },
   useSocialAccounts: () => ({ data: [{ id: 3, network: "facebook", name: "Fanpage", avatar_url: null, status: "active", last_error: null }] }),
-  useSocialMutations: () => ({ deleteDraft: { isPending: false, mutateAsync: vi.fn() } }),
 }))
+vi.mock("@/lib/api-client", async (orig) => ({
+  ...(await orig<typeof import("@/lib/api-client")>()),
+  default: { delete: api.del },
+  sendKeepalive: api.keepalive,
+}))
+vi.mock("sonner", () => {
+  const push = (message: string, opts?: { action?: { label: string; onClick: () => void } }) => toasts.list.push({ message, action: opts?.action })
+  return { toast: Object.assign(push, { success: push, error: push }) }
+})
+
+function renderWithQuery(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
+}
 
 const draft = (o: Partial<SocialDraft> = {}): SocialDraft => ({
   id: 1, title: null, content: "Dòng đầu\nDòng hai", media: [], targets: [], scheduled_at: null, ui: null, source: "web",
@@ -70,14 +91,14 @@ describe("danh sách nháp", () => {
     expect(draftLabel({ title: null, content: "" })).toBe("(Bài nháp trống)")
   })
   it("rỗng ⇒ lời nhắn tiếng Việt", () => {
-    render(<SocialDraftsList onOpen={vi.fn()} />)
+    renderWithQuery(<SocialDraftsList onOpen={vi.fn()} />)
     expect(screen.getByText("Chưa có bài nháp")).toBeInTheDocument()
   })
   it("hiện nháp, kênh, giờ hẹn; Mở gọi onOpen với đúng nháp", () => {
     const d = draft({ targets: [{ account_id: 3 }], scheduled_at: "2030-01-01T00:00:00Z", source: "mcp" })
     state.drafts = [d]
     const onOpen = vi.fn()
-    render(<SocialDraftsList onOpen={onOpen} />)
+    renderWithQuery(<SocialDraftsList onOpen={onOpen} />)
     expect(screen.getByText("Dòng đầu")).toBeInTheDocument()
     expect(screen.getByText(/Hẹn/)).toBeInTheDocument()
     expect(screen.getByText(/qua AI/)).toBeInTheDocument()
@@ -86,8 +107,55 @@ describe("danh sách nháp", () => {
   })
   it("Xoá hỏi xác nhận trước", () => {
     state.drafts = [draft()]
-    render(<SocialDraftsList onOpen={vi.fn()} />)
+    renderWithQuery(<SocialDraftsList onOpen={vi.fn()} />)
     fireEvent.click(screen.getByRole("button", { name: /Xoá/ }))
     expect(screen.getByText("Xoá bài nháp?")).toBeInTheDocument()
+  })
+
+  describe("xoá có hoàn tác 5 giây", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      api.del.mockClear()
+      api.keepalive.mockClear()
+      toasts.list = []
+    })
+    afterEach(() => vi.useRealTimers())
+
+    const confirmDelete = () => {
+      fireEvent.click(screen.getByRole("button", { name: /Xoá/ }))
+      fireEvent.click(screen.getByRole("button", { name: "Xoá nháp" }))
+    }
+
+    it("ẩn ngay; chưa gửi lệnh trong 5 giây; hết 5 giây mới gửi DELETE", async () => {
+      state.drafts = [draft({ id: 7 })]
+      renderWithQuery(<SocialDraftsList onOpen={vi.fn()} />)
+      confirmDelete()
+      expect(screen.queryByText("Dòng đầu")).toBeNull()
+      expect(toasts.list.at(-1)).toMatchObject({ message: "Đã xoá bài nháp.", action: { label: "Hoàn tác" } })
+      await act(async () => { vi.advanceTimersByTime(4999) })
+      expect(api.del).not.toHaveBeenCalled()
+      await act(async () => { vi.advanceTimersByTime(1) })
+      expect(api.del).toHaveBeenCalledWith("/social/drafts/7")
+    })
+
+    it("bấm Hoàn tác ⇒ không bao giờ gửi lệnh xoá", async () => {
+      state.drafts = [draft({ id: 8 })]
+      renderWithQuery(<SocialDraftsList onOpen={vi.fn()} />)
+      confirmDelete()
+      act(() => toasts.list.at(-1)!.action!.onClick())
+      await act(async () => { vi.advanceTimersByTime(10_000) })
+      expect(api.del).not.toHaveBeenCalled()
+      expect(toasts.list.at(-1)!.message).toBe("Đã hoàn tác")
+    })
+
+    it("đóng tab khi đang chờ ⇒ gửi bằng fetch keepalive, không gửi lần hai", async () => {
+      state.drafts = [draft({ id: 9 })]
+      renderWithQuery(<SocialDraftsList onOpen={vi.fn()} />)
+      confirmDelete()
+      act(() => { window.dispatchEvent(new Event("pagehide")) })
+      expect(api.keepalive).toHaveBeenCalledWith("DELETE", "/social/drafts/9")
+      await act(async () => { vi.advanceTimersByTime(10_000) })
+      expect(api.del).not.toHaveBeenCalled()
+    })
   })
 })

@@ -213,6 +213,8 @@ model Contact {
   // Hard delete bị chặn vì quan hệ RESTRICT từ các bảng con và Activity.contact SET NULL
   // (mất liên kết lịch sử hoạt động).
   deleted_at         DateTime? @db.Timestamp(3)
+  /// Người xoá mềm — để Hoàn tác (POST /contacts/:id/restore) chỉ cho người đó hoặc Quản trị.
+  deleted_by_id      Int?
   // Chấm điểm lead nóng (0–100) — NULLABLE, chưa chấm = NULL. Do module lead-scoring ghi.
   lead_score         Int?
   lead_label         String?   @db.VarChar(8) // hot | warm | cold
@@ -1259,6 +1261,8 @@ model KanbanCard {
   updated_at       DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
   /// Soft-delete — giữ lịch sử/audit, chỉ ẩn khỏi board/list.
   deleted_at       DateTime?    @db.Timestamptz(6)
+  /// Người xoá mềm — để Hoàn tác (POST /kanban/cards/:id/restore) chỉ cho người đó hoặc Quản trị.
+  deleted_by       Int?
 
   activities      KanbanCardActivity[]
   /// Người phụ trách BỔ SUNG (ngoài `assignee_id` = primary, giữ cho tương

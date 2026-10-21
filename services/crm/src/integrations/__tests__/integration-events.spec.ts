@@ -14,10 +14,10 @@ import { changedContactFields } from '../../contacts/helpers/contact-events.help
 const mkClient = () => ({ integrationEvent: { create: jest.fn().mockResolvedValue({ id: 1n }) } });
 
 describe('catalog sự kiện', () => {
-  it('đủ 23 sự kiện (10 cốt lõi + 3 bản ghi tuỳ biến + 2 Zalo OA + 4 Messenger/Fanpage + 2 đăng bài + 1 thanh toán + 1 đơn online), mỗi sự kiện có resource + nhãn tiếng Việt', () => {
+  it('đủ 24 sự kiện (11 cốt lõi, gồm khôi phục khách + 3 bản ghi tuỳ biến + 2 Zalo OA + 4 Messenger/Fanpage + 2 đăng bài + 1 thanh toán + 1 đơn online), mỗi sự kiện có resource + nhãn tiếng Việt', () => {
     expect([...INTEGRATION_EVENT_TYPES].sort()).toEqual(
       [
-        'contact.created', 'contact.updated', 'contact.stage_changed', 'contact.assigned', 'contact.deleted',
+        'contact.created', 'contact.updated', 'contact.stage_changed', 'contact.assigned', 'contact.deleted', 'contact.restored',
         'deal.created', 'deal.stage_changed', 'deal.won', 'deal.lost', 'pos.order.completed',
         'custom_record.created', 'custom_record.updated', 'custom_record.deleted',
         'zalo_oa.message_received', 'zalo_oa.message_sent',

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, GoneException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@trinity/prisma';
 import type { Grants } from '@trinity/rbac';
 import type { AuthUser, ScopeService } from '@trinity/rbac-nest';
@@ -439,6 +439,61 @@ describe('KanbanCardsService', () => {
       await expect(service.remove(mkUser({}, 1), ownAccess(1), 1)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+  describe('remove ghi người xoá; restore — Hoàn tác phía máy chủ', () => {
+    const boardOk = { is_active: true, deleted_at: null, visibility_role_ids: [] };
+    function mockDeletedCard(o: Partial<{ created_by: number; deleted_by: number | null; deleted_at: Date | null; board: object; assignee_id: number | null }> = {}) {
+      prisma.kanbanCard.findFirst.mockResolvedValue({
+        id: 1, board_id: 10, created_by: o.created_by ?? 1, assignee_id: o.assignee_id ?? null, assignees: [],
+        deleted_by: o.deleted_by === undefined ? 1 : o.deleted_by,
+        deleted_at: o.deleted_at === undefined ? new Date(Date.now() - 2_000) : o.deleted_at,
+        board: o.board ?? boardOk,
+      });
+    }
+
+    it('remove ghi deleted_by = người xoá', async () => {
+      prisma.kanbanCard.findFirst.mockResolvedValue({ id: 1, created_by: 1, assignee_id: null, board_id: 10, column_id: 1, board: boardOk, column: {} });
+      await service.remove(mkUser({}, 1), ownAccess(1), 1);
+      expect(prisma.kanbanCard.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { deleted_at: expect.any(Date), deleted_by: 1 } });
+    });
+
+    it('người đã xoá khôi phục được trong cửa sổ ⇒ bỏ deleted_at + ghi lịch sử restored', async () => {
+      mockDeletedCard()
+      await expect(service.restore(mkUser({}, 1), ownAccess(1), 1)).resolves.toEqual({ restored: true });
+      expect(prisma.kanbanCard.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { deleted_at: null, deleted_by: null } });
+      expect(prisma.kanbanCardActivity.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ action: 'restored' }) }));
+    });
+
+    it('chỉ tìm card ĐÃ xoá (card đang sống ⇒ 404)', async () => {
+      prisma.kanbanCard.findFirst.mockResolvedValue(null);
+      await expect(service.restore(mkUser({}, 1), ownAccess(1), 1)).rejects.toThrow(NotFoundException);
+      expect(prisma.kanbanCard.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 1, deleted_at: { not: null } } }));
+    });
+
+    it('người khác (không phải người xoá, không Quản trị) ⇒ 403', async () => {
+      mockDeletedCard({ created_by: 5, deleted_by: 5 });
+      await expect(service.restore(mkUser({}, 1), { owner: [1, 5], roleIds: [] }, 1)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('Quản trị khôi phục được card người khác xoá', async () => {
+      mockDeletedCard({ created_by: 5, deleted_by: 5 });
+      const admin = mkUser({ 'kanban.boards': true }, 1, true);
+      await expect(service.restore(admin, { owner: 'all', roleIds: [] }, 1)).resolves.toEqual({ restored: true });
+    });
+
+    it('quá 10 phút ⇒ 410; bản xoá cũ không có deleted_by ⇒ 403', async () => {
+      mockDeletedCard({ deleted_at: new Date(Date.now() - 11 * 60_000) });
+      await expect(service.restore(mkUser({}, 1), ownAccess(1), 1)).rejects.toThrow(GoneException);
+      mockDeletedCard({ deleted_by: null });
+      await expect(service.restore(mkUser({}, 1), ownAccess(1), 1)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('ngoài phạm vi hoặc board đã xoá ⇒ 404 (không lộ tồn tại)', async () => {
+      mockDeletedCard({ created_by: 999, assignee_id: 888 });
+      await expect(service.restore(mkUser({}, 1), ownAccess(1), 1)).rejects.toThrow(NotFoundException);
+      mockDeletedCard({ board: { ...boardOk, deleted_at: new Date() } });
+      await expect(service.restore(mkUser({}, 1), ownAccess(1), 1)).rejects.toThrow(NotFoundException);
     });
   });
 });

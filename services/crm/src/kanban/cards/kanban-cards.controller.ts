@@ -100,6 +100,15 @@ export class KanbanCardsController {
     return this.cardsService.remove(user, access, id);
   }
 
+  /** Nút "Hoàn tác" trên web sau khi xoá. Không có tool MCP tương ứng. */
+  @Post(':id/restore')
+  @Can('kanban.manage')
+  @ApiOperation({ summary: 'Khôi phục card vừa xoá (Hoàn tác) — người đã xoá hoặc Quản trị, trong 10 phút' })
+  async restore(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    const access = await loadKanbanAccessContext(this.prisma, this.scope, user);
+    return this.cardsService.restore(user, access, id);
+  }
+
   @Get(':id/activities')
   @Can('kanban.view')
   @ApiOperation({ summary: 'Lịch sử card (tạo/chuyển cột/sửa/bình luận)' })

@@ -47,18 +47,20 @@ Bấm nhầm phải sửa được trong một nhịp, không qua hộp thoại 
 
 | Cách | Khi nào | Hành vi |
 |---|---|---|
-| `deferWithUndo` | Thao tác máy chủ KHÔNG lùi được (xoá) | Ẩn ngay trên màn hình, chỉ gửi lệnh sau 5 giây. Hoàn tác ⇒ không gửi gì. Đóng tab trong lúc chờ ⇒ gửi ngay (`pagehide`) |
-| `toastWithUndo` | Thao tác có đường ngược (đổi cột, gỡ kênh) | Làm ngay; Hoàn tác gọi thao tác ngược |
+| `deferWithUndo` | Thao tác máy chủ KHÔNG lùi được (xoá không có API khôi phục) | Ẩn ngay trên màn hình, chỉ gửi lệnh sau 5 giây. Hoàn tác ⇒ không gửi gì. Đóng tab trong lúc chờ ⇒ gửi ngay (`pagehide`) |
+| `toastWithUndo` | Thao tác có đường ngược (đổi cột, gỡ kênh, xoá có API khôi phục) | Làm ngay; Hoàn tác gọi thao tác ngược |
 
 Đang áp dụng:
 
-- Xoá khách hàng hàng loạt: deferred.
-- Xoá card Kanban: deferred.
-- Xoá bài nháp: deferred.
+- Xoá khách hàng hàng loạt và xoá card Kanban: xoá (mềm) ngay trên máy chủ. Hoàn tác gọi `POST /contacts/:id/restore` hoặc `POST /kanban/cards/:id/restore`, nên đóng tab hay đổi máy vẫn đúng.
+  - Máy chủ chỉ cho người đã xoá hoặc Quản trị khôi phục, trong 10 phút, và vẫn trong phạm vi quyền.
+  - Khách bị trùng SĐT với một khách đang có của cùng người phụ trách ⇒ 409, không khôi phục.
+  - Không có tool MCP cho việc này.
+- Xoá bài nháp: deferred (chưa có API khôi phục).
 - Kéo card sang cột khác (= đổi trạng thái): Hoàn tác đưa card về đúng chỗ cũ, giữa hai card hàng xóm cũ. Chỉ đổi thứ tự trong cùng cột thì không có toast.
 - Gỡ kênh đăng bài: Hoàn tác bật lại kênh. Câu báo nói thật là bài chưa đăng lúc gỡ đã bị huỷ.
 
-Hộp xác nhận của các thao tác này nói "có 5 giây để Hoàn tác", không còn "không hoàn tác được".
+Hộp xác nhận của các thao tác này nói có Hoàn tác trong 5 giây, không còn "không hoàn tác được".
 
 **Khoảnh khắc hỏng** phải nói rõ chuyện gì, ở đâu, và có nút làm lại ngay tại chỗ:
 

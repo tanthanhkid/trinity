@@ -68,7 +68,7 @@ def verify(secret: str, raw_body: bytes, header: str, tolerance=300) -> bool:
 
 | Group | Events |
 |---|---|
-| Customers | `contact.created`, `contact.updated`, `contact.stage_changed`, `contact.assigned`, `contact.deleted` |
+| Customers | `contact.created`, `contact.updated`, `contact.stage_changed`, `contact.assigned`, `contact.deleted`, `contact.restored` (customer brought back by Undo within 10 minutes of deletion) |
 | Deals | `deal.created`, `deal.stage_changed`, `deal.won`, `deal.lost` |
 | Sales | `pos.order.completed`, `store_order.created` (new order from the online store), `payment.received` (SePay, VNPay, MoMo) |
 | Custom objects | `custom_record.created`, `custom_record.updated`, `custom_record.deleted` (rows of [custom objects](../custom-objects.md)) |

@@ -14,6 +14,7 @@ export const INTEGRATION_EVENT_META = {
   'contact.stage_changed': { resource: 'contact', label: 'Đổi giai đoạn khách hàng' },
   'contact.assigned': { resource: 'contact', label: 'Gán / chuyển khách cho người khác' },
   'contact.deleted': { resource: 'contact', label: 'Xoá khách hàng' },
+  'contact.restored': { resource: 'contact', label: 'Khôi phục khách hàng vừa xoá (Hoàn tác)' },
   'deal.created': { resource: 'deal', label: 'Tạo deal' },
   'deal.stage_changed': { resource: 'deal', label: 'Deal đổi trạng thái' },
   'deal.won': { resource: 'deal', label: 'Deal chốt thành công' },
@@ -207,6 +208,7 @@ export interface IntegrationEventMap {
   'contact.stage_changed': { contact: ContactEventSnapshot; from_stage_id: number | null; to_stage_id: number | null }
   'contact.assigned': { contact: ContactEventSnapshot; from_user_id: number | null; to_user_id: number | null; reason?: string | null }
   'contact.deleted': { contact: ContactEventSnapshot }
+  'contact.restored': { contact: ContactEventSnapshot }
   'deal.created': { deal: DealEventSnapshot }
   'deal.stage_changed': { deal: DealEventSnapshot; from_status: string; to_status: string }
   'deal.won': { deal: DealEventSnapshot }

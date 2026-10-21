@@ -20,11 +20,12 @@ const TONE: Record<NonNullable<HomeStatItem['tone']>, string> = {
   muted: 'text-muted-foreground',
 }
 
-/** Hàng thẻ số `.stats` của bản demo: nhãn xám, số lớn 26px, một dòng ghi chú có màu theo ý nghĩa. */
+/** Hàng thẻ số `.stats` của bản demo: nhãn xám, số lớn 26px, một dòng ghi chú có màu theo ý nghĩa.
+ *  Điện thoại 1 cột · máy tính bảng 2 cột · màn rộng đủ số thẻ trên một hàng (tối đa 4). */
 export function HomeStats({ items, loading }: { items: HomeStatItem[]; loading?: boolean }) {
   const cols = items.length >= 4 ? 'lg:grid-cols-4' : items.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'
   return (
-    <div className={cn('grid grid-cols-2 gap-3', cols)} data-testid="home-stats">
+    <div className={cn('grid grid-cols-1 gap-3 sm:grid-cols-2', cols)} data-testid="home-stats">
       {items.map((s) => (
         <div key={s.key} className={cn(BOX, 'min-w-0 px-4 py-3.5')} title={s.title}>
           <p className="truncate text-[14px] text-muted-foreground">{s.label}</p>

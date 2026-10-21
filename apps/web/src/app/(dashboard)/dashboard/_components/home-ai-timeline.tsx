@@ -72,7 +72,7 @@ export function AiTimelineView({
       icon={<Sparkles className="size-4 text-[var(--ring)]" aria-hidden />}
       aside={
         state === 'ready' || state === 'loading' ? (
-          <Link href="/ai-actions" className="rounded px-1 hover:text-[var(--foreground)] hover:underline max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
+          <Link href="/ai-actions" className="rounded px-1 hover:text-[var(--foreground)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
             {rows.length > 0 ? `Tất cả · ${rows.length.toLocaleString('vi-VN')} hôm nay` : 'Tất cả'}
           </Link>
         ) : undefined

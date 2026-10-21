@@ -186,6 +186,7 @@ export function DashboardHome() {
         <ChannelsHub loading={channels.isLoading} error={channels.isError} data={channels.data} />
       </div>
 
+      {/* Thẻ số ngay sau khối AI (#28). */}
       <HomeStats items={stats} />
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">

@@ -18,12 +18,18 @@ export const ALLOW = [
 
 async function open(path, viewport, opts = {}) {
   const h = await launch({ viewport })
-  await signIn(h.context)
-  await mockApi(h.cdp, (req) => handle(req))
-  if (opts.reducedMotion) await h.page.emulateMedia({ reducedMotion: "reduce" })
-  await h.page.goto(`${BASE_URL}${path}`, { waitUntil: "networkidle", timeout: 180_000 })
-  await h.page.waitForTimeout(1500)
-  return h
+  try {
+    await signIn(h.context)
+    await mockApi(h.cdp, (req) => handle(req))
+    if (opts.reducedMotion) await h.page.emulateMedia({ reducedMotion: "reduce" })
+    await h.page.goto(`${BASE_URL}${path}`, { waitUntil: "networkidle", timeout: 180_000 })
+    await h.page.waitForTimeout(1500)
+    return h
+  } catch (e) {
+    // Mở trang lỗi (quá giờ…) ⇒ đóng Chrome + xoá hồ sơ tạm trước khi báo lỗi, không để sót tiến trình.
+    await h.close()
+    throw e
+  }
 }
 
 /** Phần tử bấm được, đang hiện, nằm trong vùng nội dung + thanh trên (bỏ thanh bên đã thu ở điện thoại). */

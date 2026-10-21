@@ -66,3 +66,15 @@ describe("câu màn hình đã tự giải thích", () => {
     expect(describeError(err({}, 500), action)).toContain("máy chủ đang gặp sự cố")
   })
 })
+
+describe("ghép câu không lặp dấu câu / lặp lời khuyên (Codex P2 #52)", () => {
+  it("câu màn hình kết thúc bằng dấu chấm hoặc 'thử bấm lại sau ít giây' ⇒ không ra '.:'", () => {
+    expect(describeError(err({}, 500), "Chưa kiểm được, bạn thử bấm lại sau ít giây.")).toBe(
+      `Chưa kiểm được: máy chủ đang gặp sự cố. ${ERROR_MESSAGES.server.hint}`,
+    )
+    expect(describeError(err({}, 500), "Không lấy được thông tin tài khoản TikTok.")).toBe(
+      `Không lấy được thông tin tài khoản TikTok: máy chủ đang gặp sự cố. ${ERROR_MESSAGES.server.hint}`,
+    )
+    expect(describeError(err({}, 500), "x.")).not.toContain(".:")
+  })
+})

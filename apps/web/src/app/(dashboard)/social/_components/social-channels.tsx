@@ -41,19 +41,26 @@ export function SocialChannels() {
 
   if (isLoading) return <LoadingBlock variant="cards" count={2} label="Đang tải kênh…" />
   // Lỗi tải ⇒ nói rõ + Thử lại; KHÔNG hiện lưới trống (người dùng tưởng chưa liên kết kênh nào).
+  // Đang có dữ liệu cũ mà tải lại nền lỗi ⇒ giữ lưới + nút quản lý, chỉ báo một dòng phía trên.
   const failed = networksQ.isError ? networksQ : accountsQ.isError ? accountsQ : null
-  if (failed) {
+  const retryAll = () => { void networksQ.refetch(); void accountsQ.refetch() }
+  const refreshing = networksQ.isFetching || accountsQ.isFetching
+  if (failed && !failed.data) {
     return (
       <ErrorState
         title="Không tải được danh sách kênh"
         error={failed.error}
-        onRetry={() => { void networksQ.refetch(); void accountsQ.refetch() }}
-        retrying={networksQ.isFetching || accountsQ.isFetching}
+        onRetry={retryAll}
+        retrying={refreshing}
       />
     )
   }
 
   return (
+    <div className="flex flex-col gap-3">
+    {failed && (
+      <ErrorState compact title="Không cập nhật được danh sách kênh — đang hiện bản trước" error={failed.error} onRetry={retryAll} retrying={refreshing} />
+    )}
     <div className="grid gap-3 md:grid-cols-2">
       {networks.map((n) => {
         const mine = accounts.filter((a) => a.network === n.network)
@@ -141,6 +148,7 @@ export function SocialChannels() {
           setRemoving(null)
         }}
       />
+    </div>
     </div>
   )
 }

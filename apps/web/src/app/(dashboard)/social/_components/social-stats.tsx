@@ -33,6 +33,8 @@ export function SocialStats({ onOpen }: { onOpen: (postId: number) => void }) {
       </div>
 
       {isError && !data && <ErrorState title="Không tải được thống kê" error={error} onRetry={() => void refetch()} retrying={isFetching} />}
+      {/* Số cũ vẫn hiện nhưng nói rõ là chưa cập nhật được (không trình bày số cũ như số mới). */}
+      {isError && data && <ErrorState compact title="Không cập nhật được thống kê — đang hiện số lần trước" error={error} onRetry={() => void refetch()} retrying={isFetching} />}
       {isLoading && <LoadingBlock variant="cards" count={2} label="Đang tải thống kê…" />}
       {data && data.totals.published === 0 && <EmptyState icon={BarChart3} message={`Chưa có bài nào lên mạng trong ${days} ngày qua.`} />}
 

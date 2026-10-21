@@ -88,6 +88,16 @@ export function SocialLibrary({ pick, highlight, initialType }: { pick?: { selec
         )}
       </div>
 
+      {/* Đã có tệp mà tải lại / "Xem thêm" lỗi ⇒ giữ lưới cũ, báo một dòng + Thử lại (không im lặng). */}
+      {!lib.isLoading && lib.isError && items.length > 0 && (
+        <ErrorState
+          compact
+          title={lib.isFetchNextPageError ? "Không tải thêm được tệp" : "Không cập nhật được thư viện — đang hiện bản trước"}
+          error={lib.error}
+          onRetry={() => void (lib.isFetchNextPageError ? lib.fetchNextPage() : lib.refetch())}
+          retrying={lib.isFetching}
+        />
+      )}
       {lib.isLoading ? (
         <LoadingBlock variant="cards" count={3} label="Đang tải thư viện…" />
       ) : lib.isError && items.length === 0 ? (

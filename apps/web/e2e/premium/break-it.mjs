@@ -9,11 +9,16 @@ const json = (status, body) => () => ({ status, json: body })
 /** Mở trang với kịch bản API riêng; `scenario` là object sống — sửa giữa chừng để "chữa" lỗi (vd trước khi bấm Thử lại). */
 async function open(path, scenario = {}, viewport = { width: 1280, height: 800 }) {
   const h = await launch({ viewport })
-  await signIn(h.context)
-  const api = await mockApi(h.cdp, (req) => handle(req, scenario))
-  await h.page.goto(`${BASE_URL}${path}`, { waitUntil: "networkidle", timeout: 180_000 })
-  await h.page.waitForTimeout(800)
-  return { ...h, api, scenario }
+  try {
+    await signIn(h.context)
+    const api = await mockApi(h.cdp, (req) => handle(req, scenario))
+    await h.page.goto(`${BASE_URL}${path}`, { waitUntil: "networkidle", timeout: 180_000 })
+    await h.page.waitForTimeout(800)
+    return { ...h, api, scenario }
+  } catch (e) {
+    await h.close()
+    throw e
+  }
 }
 
 const text = (page) => page.locator("main").last().innerText().catch(() => "")

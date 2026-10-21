@@ -87,7 +87,12 @@ export function serverSentence(err: unknown): string | null {
 }
 
 /** Bỏ đuôi "vui lòng thử lại" của câu màn hình truyền vào — phần gợi ý đã có trong bảng, tránh nói hai lần. */
-const stripRetryTail = (s: string) => s.replace(/[,.;:\s—-]*(vui lòng\s+)?thử lại(\s+sau)?\.?\s*$/i, "").trim()
+const stripRetryTail = (s: string) =>
+  s
+    .replace(/[,.;:\s—-]*(vui lòng\s+|bạn\s+)?thử(\s+bấm)?\s+lại(\s+sau(\s+(ít|vài)\s+(giây|phút))?)?[.!…]*\s*$/i, "")
+    // Bỏ dấu câu cuối để ghép ": <nguyên nhân>" không thành ".:" (Codex P2 ở #52).
+    .replace(/[\s.,;:!…—-]+$/u, "")
+    .trim()
 
 /**
  * Câu lỗi cho người dùng: "<việc không làm được>: <chuyện gì>. <cách sửa>".

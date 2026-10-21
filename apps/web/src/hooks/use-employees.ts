@@ -281,6 +281,17 @@ export function useLockEmployee(id: number) {
   })
 }
 
+/** `PATCH /management/employees/:id/unlock` — mở khoá (đảo lock), CHỈ Quản trị. */
+export function useUnlockEmployee(id: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async () => (await apiClient.patch<{ ok: boolean }>(`/management/employees/${id}/unlock`, {})).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["employees"] })
+    },
+  })
+}
+
 export function useDeleteEmployee(id: number) {
   const qc = useQueryClient()
   return useMutation({

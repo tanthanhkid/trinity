@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -249,6 +250,35 @@ describe('EmployeesService', () => {
   });
 
   // ─── lock ──────────────────────────────────────────────────────────────────
+
+  describe('unlock — chỉ Quản trị, đảo lock', () => {
+    const admin = () => authUser(1, { isAdmin: true })
+    const locked = { id: 1, user_id: 10, user: { status: 'locked' } }
+
+    it('Quản trị mở khoá ⇒ user active + employee active, xoá resigned_at, ghi audit employee_unlock', async () => {
+      prisma.employee.findFirst.mockResolvedValue(locked);
+      prisma.$transaction.mockResolvedValue([{}, {}]);
+      await expect(service.unlock(1, admin())).resolves.toMatchObject({ ok: true });
+      expect(prisma.employee.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 1, deleted_at: null } }));
+      expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 10 }, data: { status: 'active' } });
+      expect(prisma.employee.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { status: 'active', resigned_at: null } });
+      expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({ userId: 1, action: 'employee_unlock', resourceId: 1 }));
+    });
+
+    it('không phải Quản trị ⇒ 403, không đụng DB', async () => {
+      await expect(service.unlock(1, authUser(1))).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.employee.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('không có / đã xoá ⇒ 404; chưa bị khoá ⇒ 409; tự mở khoá chính mình ⇒ 403', async () => {
+      prisma.employee.findFirst.mockResolvedValue(null);
+      await expect(service.unlock(1, admin())).rejects.toBeInstanceOf(NotFoundException);
+      prisma.employee.findFirst.mockResolvedValue({ ...locked, user: { status: 'active' } });
+      await expect(service.unlock(1, admin())).rejects.toBeInstanceOf(ConflictException);
+      prisma.employee.findFirst.mockResolvedValue({ ...locked, user_id: 1 });
+      await expect(service.unlock(1, admin())).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
 
   describe('lock', () => {
     it('khoá user + đánh resigned cho employee', async () => {

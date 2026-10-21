@@ -14,6 +14,7 @@ import {
   useCreateEmployee,
   useUpdateEmployee,
   useLockEmployee,
+  useUnlockEmployee,
   resolveEmployeeDisplayStatus,
   EMPLOYEES_PAGE_SIZE,
 } from "@/hooks/use-employees"
@@ -63,7 +64,7 @@ import { useOffline } from "@/components/offline-banner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadingBlock } from "@/components/ui/loading-block"
-import { Loader2, Eye, Pencil, Lock, Trash2, ChevronLeft, ChevronRight, Camera, RotateCcw, UserPlus, BarChart3, Users, ArrowUpDown, ArrowUp, ArrowDown, MoreHorizontal } from "lucide-react"
+import { Loader2, Eye, Pencil, Lock, LockOpen, Trash2, ChevronLeft, ChevronRight, Camera, RotateCcw, UserPlus, BarChart3, Users, ArrowUpDown, ArrowUp, ArrowDown, MoreHorizontal } from "lucide-react"
 import { teamColorClass } from "@/lib/team-style"
 import { cn } from "@/lib/utils"
 import { useRowHighlight } from "@/lib/use-row-highlight"
@@ -1208,6 +1209,34 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode | nul
 
 function LockConfirmDialog({ employee, onClose }: { employee: Employee; onClose: () => void }) {
   const lockMutation = useLockEmployee(employee.id)
+  const unlockMutation = useUnlockEmployee(employee.id)
+  // Tài khoản đang khoá ⇒ hộp thoại này là "Mở khoá" (nút chỉ hiện cho Quản trị).
+  if (employee.user_status === "locked") {
+    return (
+      <ConfirmDialog
+        open
+        onOpenChange={(v) => { if (!v) onClose() }}
+        title="Mở khoá tài khoản?"
+        description={
+          <>
+            <span className="font-medium text-foreground">{employee.full_name ?? employee.email}</span> sẽ đăng nhập lại được
+            và trở về trạng thái đang làm việc (chấm công, lương tính lại từ hôm nay). Người đó cần đăng nhập lại từ đầu.
+          </>
+        }
+        confirmLabel="Mở khoá"
+        pending={unlockMutation.isPending}
+        onConfirm={async () => {
+          try {
+            await unlockMutation.mutateAsync()
+            toast.success("Đã mở khoá tài khoản nhân viên")
+            onClose()
+          } catch (err) {
+            toast.error(errorMessage(err, "Chưa mở khoá được tài khoản"))
+          }
+        }}
+      />
+    )
+  }
   return (
     <ConfirmDialog
       open
@@ -1323,7 +1352,7 @@ function SortTh({
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 function EmployeesPageContent() {
-  const { can } = usePermissions()
+  const { can, isAdmin } = usePermissions()
   const departments = useDepartments()
   const canAdd = can("employees.manage")
   const canEdit = can("employees.manage")
@@ -1441,9 +1470,13 @@ function EmployeesPageContent() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       {canLock && (
-                        <DropdownMenuItem className="gap-2" onClick={() => setLockTarget(emp)}>
-                          <Lock className="h-4 w-4" />
-                          {emp.user_status === "locked" ? "Đang bị khoá" : "Khoá tài khoản"}
+                        <DropdownMenuItem
+                          className="gap-2"
+                          disabled={emp.user_status === "locked" && !isAdmin}
+                          onClick={() => setLockTarget(emp)}
+                        >
+                          {emp.user_status === "locked" ? <LockOpen className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                          {emp.user_status === "locked" ? (isAdmin ? "Mở khoá tài khoản" : "Đang bị khoá") : "Khoá tài khoản"}
                         </DropdownMenuItem>
                       )}
                       {canLock && canDelete && <DropdownMenuSeparator />}
@@ -1774,10 +1807,12 @@ function EmployeesPageContent() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            title={emp.user_status === "locked" ? "Đang bị khoá" : "Khoá tài khoản"}
+                            title={emp.user_status === "locked" ? (isAdmin ? "Mở khoá tài khoản" : "Đang bị khoá — chỉ Quản trị mở khoá được") : "Khoá tài khoản"}
+                            aria-label={emp.user_status === "locked" ? (isAdmin ? "Mở khoá tài khoản" : "Đang bị khoá") : "Khoá tài khoản"}
+                            disabled={emp.user_status === "locked" && !isAdmin}
                             onClick={() => setLockTarget(emp)}
                           >
-                            <Lock className="h-4 w-4" />
+                            {emp.user_status === "locked" ? <LockOpen className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
                           </Button>
                         )}
                         {canDelete && (

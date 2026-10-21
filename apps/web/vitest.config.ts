@@ -8,6 +8,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/__tests__/setup.tsx'],
+    // Lần `await import()` đầu của một trang nặng (vd /login) phải biên dịch cả cây module; khi chạy cả bộ song song
+    // trên máy chậm (Windows) việc đó vượt 5s mặc định ⇒ test đỏ dù không lỗi. 15s đủ dư, test treo thật vẫn bị bắt.
+    testTimeout: 15_000,
     // `e2e/**` là test PLAYWRIGHT (`test.describe`, `page.goto`) — glob mặc
     // định của vitest khớp mọi `*.spec.ts` nên nó nhặt luôn 13 file đó vào rồi
     // báo đỏ, dù chúng chưa bao giờ được viết để chạy dưới vitest — nhiễu che

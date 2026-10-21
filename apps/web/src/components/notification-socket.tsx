@@ -4,7 +4,8 @@ import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { io, Socket } from 'socket.io-client'
+// socket.io-client chỉ nạp khi thật sự mở socket (chế độ poll không cần) — không nằm trong JS mọi trang phải tải.
+import type { Socket } from 'socket.io-client'
 import { useAuthStore } from '@/store/auth'
 import { useNotificationSound } from '@/hooks/use-notification-sound'
 import { resolveWsBaseUrl } from '@/lib/ws-url'
@@ -160,45 +161,56 @@ export function NotificationSocket() {
   useEffect(() => {
     if (!accessToken || isPollMode()) return
 
-    const socket = io(`${getWsBaseUrl()}/notifications/ws`, {
-      path: '/notif-ws',
-      // Callback form: always reads latest token from store on each (re)connect,
-      // so token refresh doesn't leave socket with a stale JWT.
-      auth: (cb: (data: Record<string, string>) => void) =>
-        cb({ token: useAuthStore.getState().accessToken ?? '' }),
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 3000,
-      reconnectionDelayMax: 30000,
-    })
-    socketRef.current = socket
+    let active: Socket | null = null
+    let cancelled = false
+    const connect = (io: typeof import('socket.io-client').io): Socket => {
+      const socket = io(`${getWsBaseUrl()}/notifications/ws`, {
+        path: '/notif-ws',
+        // Callback form: always reads latest token from store on each (re)connect,
+        // so token refresh doesn't leave socket with a stale JWT.
+        auth: (cb: (data: Record<string, string>) => void) =>
+          cb({ token: useAuthStore.getState().accessToken ?? '' }),
+        transports: ['websocket'],
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 3000,
+        reconnectionDelayMax: 30000,
+      })
+      socketRef.current = socket
 
-    socket.on('notification:new', (payload: NotificationPayload) => handleNewRef.current(payload))
+      socket.on('notification:new', (payload: NotificationPayload) => handleNewRef.current(payload))
 
-    // BE gửi 3 con số (tổng/thông báo/tin nhắn) theo category.
-    // Thay vì tự gán số thô vào cache (dễ lệch shape + double-decrement khi
-    // socket VÀ response mark-as-read cùng bắn), CHỈ invalidate để React
-    // Query tự refetch từ nguồn COUNT thật — luôn khớp badge lẫn popup.
-    socket.on('notification:count', () => {
-      void queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
-    })
+      // BE gửi 3 con số (tổng/thông báo/tin nhắn) theo category.
+      // Thay vì tự gán số thô vào cache (dễ lệch shape + double-decrement khi
+      // socket VÀ response mark-as-read cùng bắn), CHỈ invalidate để React
+      // Query tự refetch từ nguồn COUNT thật — luôn khớp badge lẫn popup.
+      socket.on('notification:count', () => {
+        void queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
+      })
 
-    socket.on('connect_error', (err: Error) => {
-      const msg = err.message.toLowerCase()
-      if (msg.includes('jwt') || msg.includes('token') || msg.includes('unauthorized')) {
-        toast.warning('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại')
-      } else {
-        console.warn('[NotificationSocket] Connection error:', err.message)
-      }
-    })
+      socket.on('connect_error', (err: Error) => {
+        const msg = err.message.toLowerCase()
+        if (msg.includes('jwt') || msg.includes('token') || msg.includes('unauthorized')) {
+          toast.warning('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại')
+        } else {
+          console.warn('[NotificationSocket] Connection error:', err.message)
+        }
+      })
 
-    socket.on('reconnect_failed', () => {
-      toast.warning('Mất kết nối thời gian thực — vui lòng tải lại trang')
+      socket.on('reconnect_failed', () => {
+        toast.warning('Mất kết nối thời gian thực — vui lòng tải lại trang')
+      })
+      return socket
+    }
+
+    void import('socket.io-client').then(({ io }) => {
+      if (cancelled) return
+      active = connect(io)
     })
 
     return () => {
-      socket.disconnect()
+      cancelled = true
+      active?.disconnect()
       socketRef.current = null
     }
   }, [accessToken, queryClient])

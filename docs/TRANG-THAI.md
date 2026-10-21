@@ -223,6 +223,14 @@ Chữ "MCP" không xuất hiện trên giao diện: hướng dẫn nối trợ l
 
 Ghi chú: màn Khách hàng mặc định lọc 7 ngày gần nhất, nên trống ở lần mở đầu là "không khớp bộ lọc" + "Xoá bộ lọc". Bỏ lọc mà vẫn trống mới là "Chưa có khách hàng nào" + "Thêm khách".
 
+## Dung lượng JS theo route
+
+Next 16 (Turbopack) không còn in bảng dung lượng sau `next build`. `apps/web/scripts/route-js-size.mjs` (`pnpm --filter ./apps/web size:routes`) đo JS mỗi route nạp lần đầu (gzip mức 9). Danh sách chunk lấy từ `page_client-reference-manifest.js` cộng runtime trong `build-manifest.json`, khớp với `.next/diagnostics/route-bundle-stats.json` của Next. Chunk tải động (`next/dynamic`, `import()`) không được tính.
+
+Job CI "Web build and UI checks" chạy script ngay sau `next build`: in bảng vào phần tóm tắt của job và báo đỏ khi một route vượt mức trong `apps/web/route-js-budget.json`. Mức ngân sách bằng số đo cộng 5%, làm tròn lên 5 kB; route mới chưa có trong file dùng `default_first_load_kb`. Nếu tăng có chủ đích, chạy `node scripts/route-js-size.mjs --write` và ghi lý do trong PR.
+
+Phần nạp sau: biểu đồ Tổng quan, từng tab Báo cáo (chỉ tab đang mở), wizard Bắt đầu, bảng ⌘K (tải trước khi rê chuột hoặc focus vào ô tìm) và `socket.io-client` (chế độ poll không tải). Ngày 21/10/2026, mọi route trong ứng dụng giảm 36–124 kB gzip: Báo cáo 525 → 401 kB, Tổng quan 494 → 415 kB.
+
 ## Kiểm kê (21/10/2026)
 
 ✅ đủ · ⚠️ có nhưng yếu · ❌ thiếu. Cột "Sau" là trạng thái sau đợt sửa đầu tiên.

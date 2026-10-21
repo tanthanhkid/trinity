@@ -9,13 +9,12 @@
  * KHÔNG có thẻ Báo giá / Hợp đồng sắp hết hạn / Công nợ: hệ thống chưa có
  * module tương ứng (bảng `contracts` chỉ là hợp đồng nhân sự) — không bịa số. */
 
+import dynamic from 'next/dynamic'
 import { useAuth } from '@/hooks/use-auth'
 import { useRecentContacts } from '@/hooks/use-recent-contacts'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { DashboardTasksCard } from './dashboard-tasks-card'
-import { DealStatusChart } from './dashboard-overview-charts'
-import { OverviewTabbedChart } from './dashboard-overview-tabbed-chart'
 import { DashboardRecentCustomers } from './dashboard-recent-customers'
 import { describeFilter, isFilterActive } from './dashboard-filter-utils'
 import { useDashboardFilter } from './dashboard-filter-context'
@@ -25,6 +24,19 @@ import {
   useDashboardOverview,
   useDashboardTasks,
 } from './use-dashboard-overview'
+
+// Biểu đồ (vẽ SVG) tải thành chunk riêng sau khung trang — cùng ô skeleton như lúc chờ dữ liệu nên bố cục không nhảy.
+const ChartSkeleton = ({ wide }: { wide?: boolean }) => (
+  <Skeleton className={wide ? 'h-[300px] rounded-2xl lg:col-span-2' : 'h-[300px] rounded-2xl'} />
+)
+const OverviewTabbedChart = dynamic(
+  () => import('./dashboard-overview-tabbed-chart').then((m) => ({ default: m.OverviewTabbedChart })),
+  { loading: () => <ChartSkeleton wide /> },
+)
+const DealStatusChart = dynamic(
+  () => import('./dashboard-overview-charts').then((m) => ({ default: m.DealStatusChart })),
+  { loading: () => <ChartSkeleton /> },
+)
 
 export function DashboardOverview() {
   const canSee = useCanSeeOverview()
@@ -56,8 +68,8 @@ export function DashboardOverview() {
         />
       ) : (
         <div className="grid gap-4 lg:grid-cols-3">
-          {data ? <OverviewTabbedChart data={data} /> : <Skeleton className="h-[300px] rounded-2xl lg:col-span-2" />}
-          {data ? <DealStatusChart data={data} /> : <Skeleton className="h-[300px] rounded-2xl" />}
+          {data ? <OverviewTabbedChart data={data} /> : <ChartSkeleton wide />}
+          {data ? <DealStatusChart data={data} /> : <ChartSkeleton />}
         </div>
       )}
 

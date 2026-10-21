@@ -85,10 +85,11 @@ describe('NotificationSocket — NEXT_PUBLIC_REALTIME_MODE', () => {
   it('không đặt cờ → mở socket như cũ, không poll', async () => {
     const qc = new QueryClient()
     render(<NotificationSocket />, { wrapper: wrap(qc) })
-    expect(ioMock).toHaveBeenCalledTimes(1)
     await act(async () => {
       await vi.advanceTimersByTimeAsync(60_000)
     })
+    // socket.io-client nạp động (import()) ⇒ io được gọi sau một nhịp, không đồng bộ lúc render.
+    expect(ioMock).toHaveBeenCalledTimes(1)
     expect(getMock).not.toHaveBeenCalled()
   })
 

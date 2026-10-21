@@ -3,7 +3,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common'
-import { PrismaService } from '@trinity/prisma'
+import { PrismaService, recordEmploymentStatusChange } from '@trinity/prisma'
 import { Prisma } from '@prisma/client'
 import { ScopeService, scopeWhere, assertInScope, type AuthUser } from '@trinity/rbac-nest'
 import { CreateEmployeeDto } from './dto/create-employee.dto'
@@ -199,28 +199,40 @@ export class EmployeesService {
       throw new NotFoundException(`Nhân viên #${id} không tồn tại`)
     }
 
-    return this.prisma.employee.update({
-      where: { id },
-      data: {
-        ...(dto.position !== undefined && { position: dto.position }),
-        ...(dto.department !== undefined && { department: dto.department }),
-        ...(dto.team_id !== undefined && { team_id: dto.team_id }),
-        ...(dto.salary_rule_id !== undefined && {
-          salary_rule_id: dto.salary_rule_id,
-        }),
-        ...(dto.status !== undefined && { status: dto.status }),
-      },
-      select: {
-        id: true,
-        user_id: true,
-        position: true,
-        department: true,
-        team_id: true,
-        salary_rule_id: true,
-        status: true,
-        joined_at: true,
-        created_at: true,
-      },
+    const data: Prisma.EmployeeUpdateInput = {
+      ...(dto.position !== undefined && { position: dto.position }),
+      ...(dto.department !== undefined && { department: dto.department }),
+      ...(dto.team_id !== undefined && { team_id: dto.team_id }),
+      ...(dto.salary_rule_id !== undefined && {
+        salary_rule_id: dto.salary_rule_id,
+      }),
+      ...(dto.status !== undefined && { status: dto.status }),
+    }
+    const select = {
+      id: true,
+      user_id: true,
+      position: true,
+      department: true,
+      team_id: true,
+      salary_rule_id: true,
+      status: true,
+      joined_at: true,
+      created_at: true,
+    } satisfies Prisma.EmployeeSelect
+
+    if (dto.status === undefined || dto.status === existing.status) {
+      return this.prisma.employee.update({ where: { id }, data, select })
+    }
+    // Đổi trạng thái: giữ bất biến status='resigned' ⇔ resigned_at != null (như crm) và đóng / mở giai đoạn làm
+    // việc để chấm công cũ giữ nguyên khoảng đã nghỉ.
+    const status = dto.status
+    return this.prisma.$transaction(async (tx) => {
+      await recordEmploymentStatusChange(tx, id, existing.status, status)
+      return tx.employee.update({
+        where: { id },
+        data: { ...data, resigned_at: status === 'resigned' ? new Date() : null },
+        select,
+      })
     })
   }
 

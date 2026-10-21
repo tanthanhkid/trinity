@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common'
 import * as bcrypt from 'bcryptjs'
-import { PrismaService, Prisma } from '@trinity/prisma'
+import { PrismaService, Prisma, recordEmploymentEnd, recordEmploymentStart } from '@trinity/prisma'
 import {
   RbacCache,
   ScopeService,
@@ -624,19 +624,27 @@ export class UsersService {
    * đồng bộ trạng thái nghỉ việc sang bảng `employees` (nguồn chuẩn cho
    * Quản lý hợp đồng + Chấm công). `users.status='locked'` = đã nghỉ việc → set
    * `employees.status='resigned'` + `resigned_at` (mốc ngày loại khỏi chấm công);
-   * mở khoá lại → khôi phục `active` + xoá mốc. `updateMany` không lỗi khi user chưa có employee.
+   * mở khoá lại → khôi phục `active` + xoá mốc. User chưa có employee ⇒ không làm gì.
+   * Đồng thời đóng / mở giai đoạn làm việc (`employment_periods`) để chấm công cũ giữ nguyên khoảng bị khoá.
+   * Khoá lại người ĐÃ nghỉ không dời ngày nghỉ sang hôm nay.
    */
   private async syncEmployeeResignation(
     userId: number,
     resigned: boolean,
     tx: Prisma.TransactionClient | PrismaService = this.prisma,
   ): Promise<void> {
-    await tx.employee.updateMany({
-      where: { user_id: userId },
-      data: resigned
-        ? { status: 'resigned', resigned_at: new Date() }
-        : { status: 'active', resigned_at: null },
-    })
+    const employee = await tx.employee.findUnique({ where: { user_id: userId }, select: { id: true } })
+    if (!employee) return
+    if (resigned) {
+      await recordEmploymentEnd(tx, employee.id)
+      await tx.employee.updateMany({
+        where: { id: employee.id, status: { not: 'resigned' } },
+        data: { status: 'resigned', resigned_at: new Date() },
+      })
+    } else {
+      await recordEmploymentStart(tx, employee.id)
+      await tx.employee.update({ where: { id: employee.id }, data: { status: 'active', resigned_at: null } })
+    }
   }
 
   /**
@@ -708,11 +716,8 @@ export class UsersService {
         },
       })
 
-      // xoá vĩnh viễn = nghỉ việc → đồng bộ employees.status + resigned_at (trong tx).
-      await tx.employee.updateMany({
-        where: { user_id: id },
-        data: { status: 'resigned', resigned_at: new Date() },
-      })
+      // xoá vĩnh viễn = nghỉ việc → đồng bộ employees.status + resigned_at + giai đoạn làm việc (trong tx).
+      await this.syncEmployeeResignation(id, true, tx)
 
       return { managedCount, targetEmail: target.email }
     })

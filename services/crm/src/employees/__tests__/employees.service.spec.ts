@@ -63,6 +63,8 @@ function makeEmployee(override: Record<string, unknown> = {}) {
 
 describe('EmployeesService', () => {
   let service: EmployeesService;
+  /** Câu SQL (đã nối) mà các hàm giai đoạn làm việc gửi qua `prisma.$executeRaw`. */
+  const sqlCalls = () => prisma.$executeRaw.mock.calls.map((c) => (c[0] as TemplateStringsArray).join('?'));
   let audit: { write: jest.Mock };
   let scope: { ownerIds: jest.Mock };
   let permission: { grantsFor: jest.Mock };
@@ -75,6 +77,7 @@ describe('EmployeesService', () => {
       findFirst: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
       upsert: jest.Mock;
     };
     user: {
@@ -84,6 +87,7 @@ describe('EmployeesService', () => {
       count: jest.Mock;
     };
     $transaction: jest.Mock;
+    $executeRaw: jest.Mock;
     role: { findUnique: jest.Mock };
     userRole: { deleteMany: jest.Mock; create: jest.Mock };
     jobTitle: { findUnique: jest.Mock };
@@ -100,6 +104,7 @@ describe('EmployeesService', () => {
         findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         upsert: jest.fn(),
       },
       user: {
@@ -108,7 +113,10 @@ describe('EmployeesService', () => {
         update: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
       },
-      $transaction: jest.fn(),
+      // Transaction kiểu callback chạy với chính mock này; kiểu mảng chờ các lệnh đã dựng.
+      $transaction: jest.fn(async (arg: unknown) =>
+        typeof arg === 'function' ? (arg as (tx: unknown) => unknown)(prisma) : Promise.all(arg as unknown[])),
+      $executeRaw: jest.fn().mockResolvedValue(0),
       setting: { findUnique: jest.fn().mockResolvedValue(null) }, // gói mặc định custom
       role: { findUnique: jest.fn() },
       userRole: { deleteMany: jest.fn(), create: jest.fn() },
@@ -259,7 +267,6 @@ describe('EmployeesService', () => {
 
     it('Quản trị mở khoá ⇒ user active + employee active, xoá resigned_at, ghi audit employee_unlock', async () => {
       prisma.employee.findFirst.mockResolvedValue(locked);
-      prisma.$transaction.mockResolvedValue([{}, {}]);
       await expect(service.unlock(1, admin())).resolves.toMatchObject({ ok: true });
       // Tài khoản liên kết đã xoá hẳn ⇒ không tìm thấy (Codex #63).
       expect(prisma.employee.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 1, deleted_at: null, user: { deleted_at: null } } }));
@@ -294,7 +301,6 @@ describe('EmployeesService', () => {
   describe('lock', () => {
     it('khoá user + đánh resigned cho employee', async () => {
       prisma.employee.findUnique.mockResolvedValue({ id: 1, user_id: 10 });
-      prisma.$transaction.mockResolvedValue([{}, {}]);
 
       const result = await service.lock(1, authUser(1));
 
@@ -303,7 +309,6 @@ describe('EmployeesService', () => {
 
     it('ghi audit DB (employee_lock) với người thực hiện', async () => {
       prisma.employee.findUnique.mockResolvedValue({ id: 1, user_id: 10 });
-      prisma.$transaction.mockResolvedValue([{}, {}]);
 
       await service.lock(1, authUser(1));
 
@@ -314,19 +319,16 @@ describe('EmployeesService', () => {
 
     it('khoá NV → set resigned_at (giữ bất biến status=resigned ⇔ resigned_at != null)', async () => {
       prisma.employee.findUnique.mockResolvedValue({ id: 1, user_id: 10 });
-      prisma.$transaction.mockResolvedValue([{}, {}]);
 
       await service.lock(1, authUser(1));
 
-      expect(prisma.employee.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 1 },
-          data: expect.objectContaining({
-            status: 'resigned',
-            resigned_at: expect.any(Date),
-          }),
-        }),
-      );
+      // Có điều kiện: khoá lại người đã nghỉ không dời ngày nghỉ.
+      expect(prisma.employee.updateMany).toHaveBeenCalledWith({
+        where: { id: 1, status: { not: 'resigned' } },
+        data: { status: 'resigned', resigned_at: expect.any(Date) },
+      });
+      // Đóng giai đoạn làm việc đang mở (employment_periods).
+      expect(sqlCalls().some((q) => q.includes('UPDATE employment_periods SET ended_on'))).toBe(true);
     });
 
     it('throw NotFoundException khi không tìm thấy employee', async () => {
@@ -337,7 +339,6 @@ describe('EmployeesService', () => {
 
     it('có caller → ghi audit log người thực hiện + trả ok', async () => {
       prisma.employee.findUnique.mockResolvedValue({ id: 1, user_id: 10 });
-      prisma.$transaction.mockResolvedValue([{}, {}]);
 
       const res = await service.lock(1, authUser(7));
 
@@ -374,7 +375,6 @@ describe('EmployeesService', () => {
 
     it('caller isAdmin (Quản trị) → bỏ qua kiểm isSubset, vẫn khoá được', async () => {
       prisma.employee.findUnique.mockResolvedValue({ id: 1, user_id: 10 });
-      prisma.$transaction.mockResolvedValue([{}, {}]);
 
       await service.lock(1, authUser(2, { isAdmin: true }));
 
@@ -384,7 +384,6 @@ describe('EmployeesService', () => {
 
     it('khoá thành công → invalidate cache quyền toàn cục (status đổi ảnh hưởng isAdmin hiệu lực)', async () => {
       prisma.employee.findUnique.mockResolvedValue({ id: 1, user_id: 10 });
-      prisma.$transaction.mockResolvedValue([{}, {}]);
 
       await service.lock(1, authUser(2));
 
@@ -411,7 +410,6 @@ describe('EmployeesService', () => {
       prisma.employee.findFirst.mockResolvedValue({ id: 1, user_id: 10 });
       prisma.employee.update.mockResolvedValue({});
       prisma.user.update.mockResolvedValue({});
-      prisma.$transaction.mockResolvedValue([{}, {}]);
 
       const result = await service.remove(1);
 
@@ -432,7 +430,6 @@ describe('EmployeesService', () => {
 
     it('khoá nhân viên (lock) cũng đặt tokens_valid_after để mở khoá không làm token cũ sống lại', async () => {
       prisma.employee.findUnique.mockResolvedValue({ id: 1, user_id: 10 });
-      prisma.$transaction.mockResolvedValue([{}, {}]);
 
       await service.lock(1, authUser(1));
 
@@ -555,7 +552,8 @@ describe('EmployeesService', () => {
         },
         role: { findUnique: jest.fn().mockResolvedValue({ id: 5 }) },
         userRole: { deleteMany: jest.fn().mockResolvedValue({}), create: jest.fn().mockResolvedValue({}) },
-        employee: { upsert: jest.fn().mockResolvedValue(makeEmployee()) },
+        employee: { upsert: jest.fn().mockResolvedValue(makeEmployee()), findUnique: jest.fn().mockResolvedValue(null) },
+        $executeRaw: jest.fn().mockResolvedValue(0),
       };
       prisma.$transaction.mockImplementation(
         async (cb: (t: typeof tx) => unknown) => cb(tx),
@@ -804,10 +802,14 @@ describe('EmployeesService', () => {
       prisma.user.findUnique.mockResolvedValue({ manager_id: cycleParentManagerId });
     }
 
-    function wireUpdateTx() {
+    function wireUpdateTx(currentStatus = 'active') {
       const tx = {
         user: { update: jest.fn().mockResolvedValue({}) },
-        employee: { update: jest.fn().mockResolvedValue(makeEmployee()) },
+        employee: {
+          update: jest.fn().mockResolvedValue(makeEmployee()),
+          findUnique: jest.fn().mockResolvedValue({ status: currentStatus }),
+        },
+        $executeRaw: jest.fn().mockResolvedValue(0),
       };
       prisma.$transaction.mockImplementation(
         async (cb: (t: typeof tx) => unknown) => cb(tx),
@@ -936,6 +938,30 @@ describe('EmployeesService', () => {
           }),
         }),
       );
+    });
+
+    it('PATCH status đổi vào / ra "resigned" ⇒ đóng / mở giai đoạn làm việc; đổi active ⇄ probation không chạm', async () => {
+      const sqls = (tx: { $executeRaw: jest.Mock }) => tx.$executeRaw.mock.calls.map((c) => (c[0] as TemplateStringsArray).join('?'));
+      mockCurrentEmployee(null);
+      let tx = wireUpdateTx('active');
+      await service.update(1, { status: 'resigned' }, authUser(7));
+      expect(sqls(tx).some((q) => q.includes('UPDATE employment_periods SET ended_on'))).toBe(true);
+
+      tx = wireUpdateTx('resigned');
+      await service.update(1, { status: 'active' }, authUser(7));
+      expect(sqls(tx).some((q) => q.includes('INSERT INTO employment_periods (employee_id, started_on)'))).toBe(true);
+
+      tx = wireUpdateTx('active');
+      await service.update(1, { status: 'probation' }, authUser(7));
+      expect(tx.$executeRaw).not.toHaveBeenCalled();
+    });
+
+    it('PATCH status="resigned" khi ĐÃ nghỉ ⇒ giữ ngày nghỉ cũ (không ghi resigned_at), không chạm giai đoạn', async () => {
+      mockCurrentEmployee(null);
+      const tx = wireUpdateTx('resigned');
+      await service.update(1, { status: 'resigned' }, authUser(7));
+      expect(tx.employee.update.mock.calls[0][0].data).not.toHaveProperty('resigned_at');
+      expect(tx.$executeRaw).not.toHaveBeenCalled();
     });
   });
 

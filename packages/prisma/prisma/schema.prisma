@@ -399,6 +399,7 @@ model Employee {
   payslips           Payslip[]
   contracts          EmployeeContract[]
   attendance_records AttendanceRecord[] @relation("AttendanceEmployee")
+  employment_periods EmploymentPeriod[]
 
   @@index([job_title_id])
   @@index([office_id])
@@ -426,6 +427,25 @@ model EmployeeContract {
   @@index([employee_id])
   @@index([end_date])
   @@map("employee_contracts")
+}
+
+// Các giai đoạn làm việc của một nhân viên — nguồn cho roster chấm công khi đã có dòng (xem employedRosterCond).
+// Khoá / nghỉ việc đóng giai đoạn đang mở (ended_on = ngày nghỉ, giờ VN, KHÔNG tính ngày này); mở khoá / đi làm lại
+// mở giai đoạn mới từ hôm nay ⇒ khoảng thời gian bị khoá KHÔNG được tính lại khi xem báo cáo cũ.
+// Nhân viên CHƯA có dòng nào ⇒ dùng luật cũ (status + resigned_at); dòng đầu tiên được dựng từ luật cũ ngay lúc
+// đổi trạng thái lần đầu (packages/prisma/src/employment-periods.ts). Migration chỉ thêm bảng — không điền sẵn.
+// Mỗi nhân viên tối đa 1 giai đoạn đang mở: unique index một phần (employee_id) WHERE ended_on IS NULL (chỉ có trong SQL).
+model EmploymentPeriod {
+  id          Int       @id @default(autoincrement())
+  employee_id Int
+  started_on  DateTime? @db.Date // NULL = từ trước khi có bảng này (không giới hạn đầu, như luật cũ)
+  ended_on    DateTime? @db.Date // ngày đầu tiên KHÔNG còn làm; NULL = đang làm
+  created_at  DateTime  @default(now()) @db.Timestamptz(3)
+
+  employee Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+
+  @@index([employee_id])
+  @@map("employment_periods")
 }
 
 // Hồ sơ mẫu hợp đồng — file mẫu CHUNG (Quy chế lương, Phụ lục HĐLĐ,

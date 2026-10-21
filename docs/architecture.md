@@ -34,6 +34,13 @@ browser ──► web (Next.js :3000) ──/api/v1/*──► api (NestJS monol
   (default off), switches to the draft-then-approve flow where writes are *proposals* a human approves.
 - **Feature flags default to OFF** for anything that reaches outside the system: webhooks, MCP, add-ons.
 - **Storage drivers**: local disk (default), S3/MinIO, Vercel Blob (`packages/storage`).
+- **Employment periods.** Attendance and payroll count an employee on a day only if that day lies inside one of
+  their `employment_periods`. Locking an employee or setting their status to `resigned` closes the open period, and
+  unlocking or moving them back out of `resigned` opens a new one from today, so a lock/unlock cycle keeps the locked
+  stretch out of past reports. Every path that changes this status goes through `packages/prisma/src/employment-periods.ts`:
+  crm employees (lock, unlock, edit, re-create), auth users (lock, unlock, permanent delete) and payroll employees.
+  An employee with no rows yet uses the older rule: `status` plus `resigned_at`. Their first row is built from that
+  rule on their first status change, so migration `0018` only adds the table.
 
 ## Databases
 

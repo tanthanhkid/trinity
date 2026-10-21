@@ -165,6 +165,6 @@ describePg('Giai đoạn làm việc — khoá / mở khoá giữ lịch sử ch
     ]);
     await expect(
       db.$executeRaw(Prisma.sql`INSERT INTO employment_periods (employee_id, started_on) VALUES (${a.id}, CURRENT_DATE)`),
-    ).rejects.toThrow(/employment_periods_one_open_idx/);
+    ).rejects.toThrow(/23505/); // unique một phần employment_periods_one_open_idx
   });
 });

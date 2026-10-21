@@ -211,7 +211,9 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
         }}
       >
         <MotionConfig reducedMotion="user">
-        <div ref={boardRef} className="flex gap-3 overflow-x-auto pb-3 max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-4">
+        {/* `relative`: chữ ẩn cho trình đọc màn hình (sr-only, position:absolute) trong cột xa bên phải bám vào khung cuộn này,
+            không bám ra `main` — nếu không cả trang cuộn ngang ~290px ở màn 360px (đo bằng e2e/premium/ui-audit.mjs). */}
+        <div ref={boardRef} className="relative flex gap-3 overflow-x-auto pb-3 max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-4">
           {board.columns.map((column) => (
             <KanbanColumnView
               key={column.id}

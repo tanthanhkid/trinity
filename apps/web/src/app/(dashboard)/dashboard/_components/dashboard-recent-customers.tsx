@@ -24,7 +24,7 @@ export function DashboardRecentCustomers({ className }: { className?: string }) 
         <h3 className="text-[15px] font-semibold text-[var(--color-app-navy)]">Khách hàng gần đây</h3>
         <Link
           href="/contacts"
-          className="ml-auto inline-flex items-center gap-0.5 text-[14px] font-semibold text-[var(--color-app-primary-ink)] hover:underline"
+          className="ml-auto inline-flex items-center gap-0.5 text-[14px] font-semibold text-[var(--color-app-primary-ink)] hover:underline max-sm:min-h-11"
         >
           Xem tất cả <ChevronRight className="size-3.5" aria-hidden />
         </Link>

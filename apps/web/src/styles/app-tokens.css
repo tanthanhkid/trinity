@@ -478,6 +478,13 @@ html:root[data-ui="app"].dark {
   --color-app-stage-follow3-ink: #e0a24a;
 }
 
+/* Chữ lỗi `text-destructive` ở bản tối: #c2413b trên thẻ #131418 chỉ 3,61:1 (cần 4,5:1). Giữ nguyên
+   `--destructive` cho NỀN nút xoá (chữ trắng trên đó vẫn đủ tương phản); riêng CHỮ đỏ đổi sang mực đỏ của nhãn
+   (#f08b85, 7,0:1 trên thẻ). Đo bằng `e2e/premium/contrast.mjs`. */
+html:root[data-ui="app"].dark .text-destructive {
+  color: var(--color-app-tag-red-ink);
+}
+
 /* Màn cũ còn ~40 chỗ viết cứng nền trắng/xám nhạt (`bg-white`, `bg-slate-50`…).
    Ở bản tối, quy chúng về token thay vì sửa từng màn (cùng cách khối "QUY ĐỔI HEX"
    bên dưới). Không nằm trong `@layer` ⇒ thắng utility Tailwind. */

@@ -102,7 +102,7 @@ export function SignalChips({ signals, className }: { signals: readonly ContactS
             href={s.href}
             title={s.title}
             onClick={(e) => e.stopPropagation()}
-            className={cn(cls, "hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]")}
+            className={cn(cls, "hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] max-sm:min-h-11")}
           >
             {body}
           </Link>

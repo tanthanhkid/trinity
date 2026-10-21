@@ -34,7 +34,7 @@ export default function DashboardError({
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-6">
       <div className="w-full max-w-md space-y-5 rounded-[var(--radius)] border border-[var(--border)] bg-card p-8 text-center shadow-[var(--shadow-card)]">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-[var(--muted)] text-amber-600 dark:text-amber-400">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-[var(--muted)] text-[var(--color-app-tag-amber-ink)]">
           <AlertTriangle className="h-7 w-7" aria-hidden />
         </div>
         <div className="space-y-2">

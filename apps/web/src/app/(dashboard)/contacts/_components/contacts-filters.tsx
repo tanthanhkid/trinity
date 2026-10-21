@@ -429,7 +429,7 @@ export function ContactsFilters(props: ContactsFiltersProps) {
               type="button"
               onClick={() => onRemoveApplied(chip.key)}
               aria-label={`Bỏ điều kiện ${chip.label}`}
-              className="flex size-5 shrink-0 items-center justify-center rounded-full max-sm:size-9 text-[var(--color-app-ink-2)] transition hover:bg-[var(--color-app-surface-3)] hover:text-[var(--color-app-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+              className="flex size-5 shrink-0 items-center justify-center rounded-full max-sm:size-11 text-[var(--color-app-ink-2)] transition hover:bg-[var(--color-app-surface-3)] hover:text-[var(--color-app-navy)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
             >
               <X className="size-3" />
             </button>
@@ -680,7 +680,7 @@ export function ContactsFilters(props: ContactsFiltersProps) {
         type="button"
         onClick={() => onApply()}
         aria-label="Tìm kiếm"
-        className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] max-sm:size-10"
+        className="absolute right-1 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] max-sm:size-11"
       >
         <ArrowRight className="h-4 w-4" />
         {isDirty ? <span aria-hidden className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-primary" /> : null}

@@ -153,16 +153,22 @@ describe("DateRangePicker", () => {
   })
 
   it("có khoảng nhanh tiếng Việt; 'Hôm nay' phát khoảng 1 ngày", () => {
-    const onChange = vi.fn()
-    render(<Harness onChange={onChange} />)
-    fireEvent.click(screen.getByRole("button", { name: "Chọn khoảng ngày" }))
-    for (const l of ["Hôm nay", "7 ngày qua", "30 ngày qua", "Tháng này", "Tháng trước"]) {
-      expect(screen.getByRole("button", { name: l })).toBeTruthy()
+    // Harness có max cố định 2026-10-20 ⇒ ghim "hôm nay" trước max, nếu không test hỏng từ 21/10/2026 (date_to bị clamp).
+    vi.useFakeTimers({ toFake: ["Date"] })
+    vi.setSystemTime(new Date("2026-10-15T05:00:00Z"))
+    try {
+      const onChange = vi.fn()
+      render(<Harness onChange={onChange} />)
+      fireEvent.click(screen.getByRole("button", { name: "Chọn khoảng ngày" }))
+      for (const l of ["Hôm nay", "7 ngày qua", "30 ngày qua", "Tháng này", "Tháng trước"]) {
+        expect(screen.getByRole("button", { name: l })).toBeTruthy()
+      }
+      fireEvent.click(screen.getByRole("button", { name: "Hôm nay" }))
+      const arg = onChange.mock.calls[0][0]
+      expect(arg).toEqual({ date_from: "2026-10-15", date_to: "2026-10-15" })
+    } finally {
+      vi.useRealTimers()
     }
-    fireEvent.click(screen.getByRole("button", { name: "Hôm nay" }))
-    const arg = onChange.mock.calls[0][0]
-    expect(arg.date_from).toBe(arg.date_to)
-    expect(arg.date_from).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 })
 

@@ -1,10 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { BarChart3, ExternalLink, Loader2 } from "lucide-react"
+import { BarChart3, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
 import { HomeStats } from "@/app/(dashboard)/dashboard/_components/home-stats"
 import { useSocialStats } from "@/hooks/use-social"
 import { SocialMetricsLine, formatCount } from "./social-metrics"
@@ -17,7 +19,7 @@ const fmt = (iso: string) => formatDateTime(iso)
 /** Thống kê bài đã đăng: tổng số, theo kênh, bài tương tác cao nhất. Số tự cập nhật mỗi 1–6 giờ. */
 export function SocialStats({ onOpen }: { onOpen: (postId: number) => void }) {
   const [days, setDays] = useState<(typeof RANGES)[number]>(30)
-  const { data, isLoading, isError } = useSocialStats(days)
+  const { data, isLoading, isError, error, refetch, isFetching } = useSocialStats(days)
 
   return (
     <div className="space-y-4">
@@ -30,8 +32,8 @@ export function SocialStats({ onOpen }: { onOpen: (postId: number) => void }) {
         {data?.updated_at && <span className="ml-auto text-xs text-muted-foreground">Số cập nhật lúc {fmt(data.updated_at)}</span>}
       </div>
 
-      {isError && <p className="text-sm text-destructive">Không tải được thống kê.</p>}
-      {isLoading && <Loader2 className="size-4 animate-spin" />}
+      {isError && !data && <ErrorState title="Không tải được thống kê" error={error} onRetry={() => void refetch()} retrying={isFetching} />}
+      {isLoading && <LoadingBlock variant="cards" count={2} label="Đang tải thống kê…" />}
       {data && data.totals.published === 0 && <EmptyState icon={BarChart3} message={`Chưa có bài nào lên mạng trong ${days} ngày qua.`} />}
 
       {data && data.totals.published > 0 && (

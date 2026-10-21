@@ -145,13 +145,19 @@ Chữ "MCP" không xuất hiện trên giao diện: hướng dẫn nối trợ l
 |---|---|---|---|
 | Đang tải | ⚠️ | ✅ | Trang (trước: màn trắng), kênh, bài, nháp đều có khung xương |
 | Trống | ✅ | ✅ | "Soạn bài đầu tiên", "Đến mục Kênh" |
-| Lỗi | ❌ | ⚠️ | Kênh: trước hiện lưới trống. Soạn bài: trước báo sai "Chưa có kênh nào được liên kết". Bài, nháp: thêm Thử lại. **Còn lại:** lịch, thư viện, thống kê vẫn chỉ là chữ |
-| Mất mạng | ❌ | ✅ | Dải báo chung. **Còn lại:** chưa khoá nút Đăng/Hẹn giờ khi mất mạng |
+| Lỗi | ❌ | ✅ | Kênh: trước hiện lưới trống. Soạn bài: trước báo sai "Chưa có kênh nào được liên kết". Bài, nháp, lịch, thư viện, thống kê: `ErrorState` + Thử lại |
+| Mất mạng | ❌ | ✅ | Dải báo chung; nút Đăng/Hẹn giờ/Lưu nháp khoá khi mất mạng, kèm câu giải thích |
 | Thành công | ✅ | ✅ | |
 
 ## Việc còn lại
 
-- Khối Trợ lý AI/Kênh và "Cần bạn xem" trên Tổng quan: thêm Thử lại; "Cần bạn xem" đang coi lỗi là "không có gì". Làm sau khi PR #48 gộp để khỏi đụng cùng file.
-- Đăng đa kênh: lịch, thư viện, thống kê dùng `ErrorState`; khoá nút Đăng/Hẹn giờ khi `useOffline()`.
-- Mẫu chung (phần B) còn chưa áp: khối Kênh trên Tổng quan (file của PR #48); nhãn trạng thái của đề xuất AI đã đúng màu hổ phách nhưng vẫn qua bảng riêng `lib/ai-actions.ts`; vòng tròn nét đứt ở "Cần bạn xem".
+- Đã xong (phần G):
+  - Đăng đa kênh: lịch, thư viện, thống kê dùng `ErrorState`. Thư viện lỗi không còn hiện "Thư viện trống".
+  - Mất mạng thì khoá nút Đăng/Hẹn giờ/Lưu nháp và nói rõ bài đang soạn vẫn giữ nguyên.
+  - Nhãn "Chờ duyệt" của đề xuất AI dùng `StatusTag`.
+  - "Cần bạn xem": chấm "đang chờ" màu hổ phách thay vòng nét đứt; tổng có đơn vị ("3 mục"). `NeedsReviewView` đã nhận `error`/`onRetry`.
+- Còn chờ PR #48 gộp (cùng file `dashboard-home.tsx`, `home-ai-hub.tsx`):
+  - Truyền lỗi vào "Cần bạn xem" (hiện đang coi lỗi là "không có gì").
+  - Thêm Thử lại cho khối Trợ lý AI/Kênh.
+  - Áp `StatusTag`/`ReconnectNotice` cho khối Kênh trên Tổng quan.
 - Hoàn tác cho các thao tác xoá/đổi trạng thái ở màn khác (nhân sự, sản phẩm, đơn hàng…) dùng cùng `lib/undo.ts`.

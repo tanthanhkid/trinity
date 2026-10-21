@@ -7,6 +7,8 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
 import { Input } from "@/components/ui/input"
 import { getApiErrorMessage } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
@@ -86,9 +88,11 @@ export function SocialLibrary({ pick, highlight, initialType }: { pick?: { selec
         )}
       </div>
 
-      {lib.isError && <p className="text-sm text-destructive">{getApiErrorMessage(lib.error, "Không tải được thư viện")}</p>}
       {lib.isLoading ? (
-        <Loader2 className="size-5 animate-spin text-muted-foreground" aria-label="Đang tải" />
+        <LoadingBlock variant="cards" count={3} label="Đang tải thư viện…" />
+      ) : lib.isError && items.length === 0 ? (
+        // Lỗi tải ≠ thư viện trống.
+        <ErrorState title="Không tải được thư viện" error={lib.error} onRetry={() => void lib.refetch()} retrying={lib.isFetching} />
       ) : items.length === 0 ? (
         <EmptyState icon={Images} message={search || type ? "Không có tệp khớp bộ lọc." : "Thư viện trống. Ảnh/video tải lên khi soạn bài sẽ tự vào đây để dùng lại."} />
       ) : (

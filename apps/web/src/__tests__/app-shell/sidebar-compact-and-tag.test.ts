@@ -9,7 +9,8 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const SRC = join(__dirname, "../..")
-const read = (p: string) => readFileSync(join(SRC, p), "utf8")
+// Bỏ CR: Windows (core.autocrlf) lấy tệp về với CRLF, còn chuỗi so sánh nhiều dòng trong test dùng LF.
+const read = (p: string) => readFileSync(join(SRC, p), "utf8").replace(/\r\n/g, "\n")
 
 describe("nhãn Mới không bị nút ghim đè", () => {
   const css = read("styles/app-sidebar.css")

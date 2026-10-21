@@ -23,8 +23,9 @@ function walk(dir: string): string[] {
 const DEFINITIONS = new Set(["components/app-shell/button.tsx"])
 
 const files = walk(SRC)
-  .filter((p) => !DEFINITIONS.has(relative(SRC, p)))
-  .map((p) => ({ path: relative(SRC, p), text: readFileSync(p, "utf8") }))
+  // Đường dẫn dùng "/" và bỏ CR trên mọi hệ điều hành (Windows: dấu "\" + CRLF từ core.autocrlf).
+  .map((p) => ({ path: relative(SRC, p).replace(/\\/g, "/"), text: readFileSync(p, "utf8").replace(/\r\n/g, "\n") }))
+  .filter(({ path }) => !DEFINITIONS.has(path))
 
 function offenders(re: RegExp) {
   return files.flatMap(({ path, text }) =>

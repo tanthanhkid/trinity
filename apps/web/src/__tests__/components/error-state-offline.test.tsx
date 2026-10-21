@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react"
-import { AxiosError } from "axios"
+import { AxiosError, AxiosHeaders } from "axios"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 const toastSuccess = vi.fn()
@@ -11,8 +11,8 @@ import { getApiErrorMessage, NETWORK_ERROR_MESSAGE, TIMEOUT_MESSAGE } from "@/li
 
 describe("getApiErrorMessage — không tới được máy chủ", () => {
   it("mất mạng ⇒ nói rõ + cách sửa; quá giờ ⇒ câu riêng; huỷ yêu cầu ⇒ fallback", () => {
-    expect(getApiErrorMessage(new AxiosError("Network Error", "ERR_NETWORK"), "x")).toBe(NETWORK_ERROR_MESSAGE)
-    expect(getApiErrorMessage(new AxiosError("timeout", "ECONNABORTED"), "x")).toBe(TIMEOUT_MESSAGE)
+    expect(getApiErrorMessage(new AxiosError("Network Error", "ERR_NETWORK"), "Không lưu được")).toBe("Không lưu được: không kết nối được máy chủ. Kiểm tra Internet rồi thử lại.")
+    expect(getApiErrorMessage(new AxiosError("timeout", "ECONNABORTED"), "Không lưu được")).toContain(TIMEOUT_MESSAGE.slice(1))
     expect(getApiErrorMessage(new AxiosError("canceled", "ERR_CANCELED"), "x")).toBe("x")
   })
 })
@@ -26,6 +26,17 @@ describe("ErrorState", () => {
     expect(box.textContent).toContain(NETWORK_ERROR_MESSAGE)
     fireEvent.click(screen.getByRole("button", { name: "Thử lại" }))
     expect(retry).toHaveBeenCalledOnce()
+  })
+
+  it("hết phiên ⇒ nút Đăng nhập lại; thiếu quyền ⇒ không có nút Thử lại", () => {
+    const res = (status: number) => new AxiosError("x", "ERR_BAD_REQUEST", undefined, undefined, { data: {}, status, statusText: "", headers: {}, config: { headers: new AxiosHeaders() } })
+    const { unmount } = render(<ErrorState error={res(401)} onRetry={() => {}} />)
+    expect(screen.getByRole("link", { name: "Đăng nhập lại" })).toHaveAttribute("href", "/login")
+    expect(screen.queryByRole("button", { name: "Thử lại" })).toBeNull()
+    unmount()
+    render(<ErrorState error={res(403)} onRetry={() => {}} />)
+    expect(screen.getByRole("alert").textContent).toContain("chưa có quyền")
+    expect(screen.queryByRole("button", { name: "Thử lại" })).toBeNull()
   })
 
   it("không có onRetry ⇒ không có nút; đang thử lại ⇒ nút khoá", () => {

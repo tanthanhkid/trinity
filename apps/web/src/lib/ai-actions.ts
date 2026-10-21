@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/error-messages"
 /**
  * Hoạt động AI: thao tác ghi do AI (ChatGPT/Claude qua MCP) thực hiện theo quyền của người dùng (mặc định ghi thẳng, `executed`);
  * khi quản trị bật "Yêu cầu duyệt thay đổi do AI" thì AI chỉ tạo đề xuất `pending` chờ CHÍNH người dùng duyệt.
@@ -83,9 +84,7 @@ export function aiActionResultLink(a: Pick<AiAction, "status" | "result">): { hr
 
 /** Thông điệp THẬT của BE — class-validator trả mảng; lỗi 403/404/409 của duyệt có lý do cụ thể. */
 export function aiActionErrorMessage(err: unknown, fallback: string): string {
-  const msg = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message
-  if (Array.isArray(msg)) return msg.join("; ")
-  return typeof msg === "string" && msg ? msg : fallback
+  return errorMessage(err, fallback)
 }
 
 export const isAiActionsDisabled = (err: unknown): boolean => (err as { response?: { status?: number } })?.response?.status === 404

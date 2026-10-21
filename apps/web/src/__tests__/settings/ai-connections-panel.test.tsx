@@ -57,11 +57,11 @@ describe("<AiConnectionsPanel>", () => {
     expect(screen.queryByRole("switch")).toBeNull()
   })
 
-  it("hiện URL MCP + nút sao chép + hướng dẫn ChatGPT & Claude", async () => {
+  it("hiện địa chỉ kết nối + nút sao chép (không chữ MCP) + hướng dẫn ChatGPT & Claude", async () => {
     mockGet.mockResolvedValue({ data: { data: [] } })
     renderPanel()
     expect(screen.getByTestId("mcp-url").textContent).toBe(MCP)
-    fireEvent.click(screen.getByRole("button", { name: /Sao chép URL MCP/ }))
+    fireEvent.click(screen.getByRole("button", { name: /Sao chép địa chỉ kết nối/ }))
     await waitFor(() => expect((navigator.clipboard.writeText as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith(MCP))
     expect(screen.getByText(/Cách nối với ChatGPT/)).toBeTruthy()
     expect(screen.getByText(/Cách nối với Claude/)).toBeTruthy()

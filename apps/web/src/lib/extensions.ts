@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/error-messages"
 /**
  * Chương trình con (do trợ lý AI của khách viết, người duyệt rồi mới chạy). Chữ hiển thị tiếng Việt, KHÔNG dùng thuật ngữ kỹ thuật
  * (MCP/API/OAuth/token) ở phần người dùng đọc. Mã nguồn + tên + mô tả do AI soạn ⇒ chỉ hiển thị dạng text (không HTML).
@@ -92,7 +93,5 @@ export function describePermissions(m: ExtensionManifest, kind: ExtensionKind): 
 export const extensionsDisabled = (err: unknown): boolean => (err as { response?: { status?: number } })?.response?.status === 404
 
 export function extensionErrorMessage(err: unknown, fallback: string): string {
-  const msg = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message
-  if (Array.isArray(msg)) return msg.join("; ")
-  return typeof msg === "string" && msg ? msg : fallback
+  return errorMessage(err, fallback)
 }

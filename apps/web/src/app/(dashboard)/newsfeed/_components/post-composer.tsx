@@ -147,7 +147,7 @@ function describeUploadError(err: unknown): string {
     }
     return getApiErrorMessage(err, 'Không đăng được bài')
   }
-  return err instanceof Error ? err.message : 'Không đăng được bài'
+  return 'Không đăng được bài'
 }
 
 export function PostComposer() {

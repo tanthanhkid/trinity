@@ -99,7 +99,7 @@ export function CustomRecordsScreen({ def, view }: { def: CustomObjectDef; view?
       if (r.truncated) toast.warning(`Đã xuất ${formatNumberVn(r.exported)} bản ghi MỚI NHẤT trong tổng ${formatNumberVn(r.total)}. Hãy lọc thu hẹp để xuất phần còn lại.`)
       else toast.success(`Đã xuất ${formatNumberVn(r.exported)} bản ghi`)
     } catch (e) {
-      toast.error(e instanceof Error && e.message ? e.message : "Không xuất được file, vui lòng thử lại")
+      toast.error(getApiErrorMessage(e, "Không xuất được file"))
     } finally {
       setExporting(false)
     }

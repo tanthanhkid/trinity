@@ -3,6 +3,7 @@ import axios, {
   type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from 'axios'
+import { errorMessage, errorSentence } from "@/lib/error-messages"
 import type { Grants } from '@trinity/rbac'
 import {
   getAccessToken,
@@ -307,31 +308,17 @@ export function sendKeepalive(method: "DELETE" | "POST" | "PATCH", path: string)
 }
 
 /** Yêu cầu không tới được máy chủ (mất mạng, máy chủ không phản hồi). */
-export const NETWORK_ERROR_MESSAGE = "Không kết nối được máy chủ. Kiểm tra Internet rồi thử lại."
+export const NETWORK_ERROR_MESSAGE = errorSentence("network")
 /** Máy chủ phản hồi quá lâu. */
-export const TIMEOUT_MESSAGE = "Máy chủ phản hồi quá lâu. Thử lại sau ít phút."
+export const TIMEOUT_MESSAGE = errorSentence("timeout")
 
 /**
- * Trích thông điệp lỗi tiếng Việt từ axios error.
- * Một số endpoint trả `{ error }`, NestJS trả `{ message }` — fallback nếu không có.
+ * Câu lỗi tiếng Việt cho người dùng — qua bảng thông điệp chung `lib/error-messages.ts`.
+ * `fallback` = việc không làm được ("Không lưu được"); phần "chuyện gì + cách sửa" lấy theo loại lỗi.
+ * Máy chủ có câu giải thích tiếng Việt ⇒ dùng câu đó; chữ tiếng Anh / mã lỗi của máy chủ KHÔNG hiện ra.
  */
 export function getApiErrorMessage(err: unknown, fallback: string): string {
-  if (axios.isAxiosError(err)) {
-    // Không có phản hồi = yêu cầu không tới được máy chủ: nói rõ nguyên nhân + cách sửa thay vì câu chung chung.
-    if (!err.response && err.code !== "ERR_CANCELED") {
-      if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT") return TIMEOUT_MESSAGE
-      return NETWORK_ERROR_MESSAGE
-    }
-    const data = err.response?.data as
-      | { error?: string; message?: string | string[] }
-      | undefined
-    // ValidationPipe của NestJS trả `message` là mảng — gộp lại để luôn trả string.
-    const msg = Array.isArray(data?.message) ? data.message.join("; ") : data?.message
-    // NestJS đặt `error` là tên mã HTTP ("Bad Request") — câu giải thích tiếng Việt nằm ở `message`.
-    const reason = typeof data?.error === "string" && /^[A-Za-z ]+$/.test(data.error)
-    return (reason ? msg ?? data?.error : data?.error ?? msg) ?? fallback
-  }
-  return fallback
+  return errorMessage(err, fallback)
 }
 
 export { forceLogout, resetLogoutState, refreshTokens, performTokenRefresh }

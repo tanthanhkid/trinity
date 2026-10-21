@@ -7,7 +7,9 @@ import {
   useQueryClient,
   type InfiniteData,
 } from "@tanstack/react-query"
-import apiClient from "@/lib/api-client"
+import { toast } from "sonner"
+import apiClient, { getApiErrorMessage } from "@/lib/api-client"
+import { deferWithUndo } from "@/lib/undo"
 import type {
   CreateKanbanCardPayload,
   KanbanCard,
@@ -202,6 +204,29 @@ export function useMoveKanbanCard() {
     },
     onSettled: () => invalidate(),
   })
+}
+
+/**
+ * Xoá card có 5 giây hoàn tác: card biến khỏi cột ngay, lệnh xoá chỉ gửi khi hết 5 giây.
+ * Hoàn tác (hoặc xoá lỗi) ⇒ tải lại cột để card hiện về chỗ cũ.
+ */
+export function useDeleteKanbanCardWithUndo() {
+  const queryClient = useQueryClient()
+  const invalidate = useInvalidateCards()
+  return (id: number, title?: string) => {
+    queryClient.setQueriesData<KanbanColumnPages>({ queryKey: [CARDS_KEY, "column"] }, (d) =>
+      d ? removeCardFromColumnPages(d, id).next : d,
+    )
+    deferWithUndo({
+      message: title ? `Đã xoá card “${title}”` : "Đã xoá card",
+      commit: () =>
+        apiClient
+          .delete(`/kanban/cards/${id}`)
+          .catch((err) => toast.error(getApiErrorMessage(err, "Không xoá được card")))
+          .finally(() => invalidate(id)),
+      onUndo: () => invalidate(),
+    })
+  }
 }
 
 export function useDeleteKanbanCard() {

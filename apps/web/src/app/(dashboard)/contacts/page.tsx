@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useCallback, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -22,6 +22,8 @@ import { useContactsUrlFilters, areContactFiltersEqual } from "@/hooks/use-conta
 import { useAuth } from "@/hooks/use-auth"
 import { useOrgFeature } from "@/hooks/use-org-features"
 import { toast } from "sonner"
+import { deferWithUndo } from "@/lib/undo"
+import { formatCount } from "@/lib/format"
 import { ContactRow, ContactCard } from "./_components/contact-row"
 import { ContactsFilters } from "./_components/contacts-filters"
 import { ContactsTableHeader } from "./_components/contacts-table-header"
@@ -49,6 +51,56 @@ import {
 interface ContactDeleteFailure {
   id: string
   reason: string
+}
+
+/**
+ * Gửi lệnh xoá lên máy chủ — gọi SAU khi hết 5 giây hoàn tác (xem `deferWithUndo`).
+ * Đặt ngoài component: người dùng chuyển trang trong lúc chờ thì lệnh vẫn chạy.
+ */
+async function commitContactDelete(ids: string[], queryClient: QueryClient) {
+  try {
+    const results = await Promise.allSettled(
+      ids.map((id) => apiClient.delete(`/contacts/${id}`)),
+    )
+
+    const failures: ContactDeleteFailure[] = []
+    results.forEach((r, idx) => {
+      if (r.status === "rejected") {
+        const id = ids[idx]
+        const raw = (r.reason as { response?: { data?: { message?: string | string[] } } })
+          ?.response?.data?.message
+        const reason = Array.isArray(raw)
+          ? raw.join(", ")
+          : typeof raw === "string" && raw.length > 0
+            ? raw
+            : r.reason instanceof Error
+              ? r.reason.message
+              : "Không xoá được"
+        failures.push({ id, reason })
+      }
+    })
+
+    if (failures.length > 0) {
+      // Gom lý do: nếu ≤3 lần thì show inline, nếu nhiều hơn gom theo lý do
+      const reasonGroups: Record<string, string[]> = {}
+      for (const f of failures) {
+        reasonGroups[f.reason] = reasonGroups[f.reason] ?? []
+        reasonGroups[f.reason].push(f.id)
+      }
+      const lines = Object.entries(reasonGroups).map(
+        ([reason, ids]) =>
+          `• ${ids.length} khách hàng (ID: ${ids.slice(0, 3).join(", ")}${ids.length > 3 ? "..." : ""}): ${reason}`,
+      )
+      toast.error(
+        `Có ${failures.length} khách hàng xoá thất bại:\n${lines.join("\n")}`,
+        { duration: 8000 },
+      )
+      console.error("[contacts-bulk-delete] failures", failures)
+    }
+  } finally {
+    // Thành công hay lỗi đều tải lại: khách xoá hỏng phải hiện lại trong danh sách.
+    queryClient.invalidateQueries({ queryKey: ["contacts"] })
+  }
 }
 
 /**
@@ -152,7 +204,6 @@ function ContactsPageContent() {
   }, [pendingFilters, appliedFilters, searchInput])
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [isDeleting, setIsDeleting] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkTransferOpen, setBulkTransferOpen] = useState(false)
 
@@ -312,64 +363,26 @@ function ContactsPageContent() {
     [canSelectRows, visibleIds],
   )
 
-  const handleBulkDelete = useCallback(async () => {
-    if (!canBulkDelete || selectedIds.length === 0 || isDeleting) return
+  const handleBulkDelete = useCallback(() => {
+    if (!canBulkDelete || selectedIds.length === 0) return
     if (selectedIds.length > BULK_DELETE_MAX) {
       toast.error(`Chỉ được xoá tối đa ${BULK_DELETE_MAX} khách hàng mỗi lần`)
       return
     }
-    setIsDeleting(true)
-    try {
-      const results = await Promise.allSettled(
-        selectedIds.map((id) => apiClient.delete(`/contacts/${id}`)),
-      )
-
-      const failures: ContactDeleteFailure[] = []
-      results.forEach((r, idx) => {
-        if (r.status === "rejected") {
-          const id = selectedIds[idx]
-          const raw = (r.reason as { response?: { data?: { message?: string | string[] } } })
-            ?.response?.data?.message
-          const reason = Array.isArray(raw)
-            ? raw.join(", ")
-            : typeof raw === "string" && raw.length > 0
-              ? raw
-              : r.reason instanceof Error
-                ? r.reason.message
-                : "Không xoá được"
-          failures.push({ id, reason })
-        }
-      })
-
-      const successCount = results.length - failures.length
-
-      if (successCount > 0) {
-        toast.success(`Đã xoá ${successCount} khách hàng thành công`)
-        setSelectedIds((prev) => (prev.length === 0 ? prev : []))
-        queryClient.invalidateQueries({ queryKey: ["contacts"] })
-      }
-      if (failures.length > 0) {
-        // Gom lý do: nếu ≤3 lần thì show inline, nếu nhiều hơn gom theo lý do
-        const reasonGroups: Record<string, string[]> = {}
-        for (const f of failures) {
-          reasonGroups[f.reason] = reasonGroups[f.reason] ?? []
-          reasonGroups[f.reason].push(f.id)
-        }
-        const lines = Object.entries(reasonGroups).map(
-          ([reason, ids]) =>
-            `• ${ids.length} khách hàng (ID: ${ids.slice(0, 3).join(", ")}${ids.length > 3 ? "..." : ""}): ${reason}`,
-        )
-        toast.error(
-          `Có ${failures.length} khách hàng xoá thất bại:\n${lines.join("\n")}`,
-          { duration: 8000 },
-        )
-        console.error("[contacts-bulk-delete] failures", failures)
-      }
-    } finally {
-      setIsDeleting(false)
-      setBulkDeleteOpen(false)
-    }
-  }, [canBulkDelete, isDeleting, queryClient, selectedIds])
+    const ids = [...selectedIds]
+    const hidden = new Set(ids)
+    // Ẩn ngay khỏi danh sách; lệnh xoá chỉ gửi sau 5 giây — bấm "Hoàn tác" thì không gửi gì.
+    queryClient.setQueriesData<{ data: { id: number | string }[] }>({ queryKey: ["contacts", "page"] }, (d) =>
+      d ? { ...d, data: d.data.filter((c) => !hidden.has(String(c.id))) } : d,
+    )
+    setSelectedIds([])
+    setBulkDeleteOpen(false)
+    deferWithUndo({
+      message: `Đã xoá ${formatCount(ids.length, "khách hàng")}`,
+      commit: () => commitContactDelete(ids, queryClient),
+      onUndo: () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),
+    })
+  }, [canBulkDelete, queryClient, selectedIds])
 
   // Cap số trang hiển thị tại MAX_VISIBLE_PAGES — khớp giới hạn BE OFFSET.
   const cappedPages = Math.min(pages, MAX_VISIBLE_PAGES)
@@ -517,9 +530,8 @@ function ContactsPageContent() {
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
         title={`Xoá ${selectedIds.length} khách hàng đã chọn?`}
-        description="Thao tác này không thể hoàn tác."
+        description="Khách sẽ biến khỏi danh sách ngay; bạn có 5 giây để bấm Hoàn tác trước khi xoá hẳn."
         confirmLabel="Xoá khách hàng"
-        pending={isDeleting}
         onConfirm={handleBulkDelete}
       />
 
@@ -575,8 +587,8 @@ function ContactsPageContent() {
                   </Button>
                 )}
                 {canBulkDelete && (
-                  <Button size="sm" variant="destructive" className="h-8 text-sm" disabled={isDeleting} onClick={requestBulkDelete}>
-                    {isDeleting ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Trash2 className="mr-1 h-4 w-4" />}
+                  <Button size="sm" variant="destructive" className="h-8 text-sm" onClick={requestBulkDelete}>
+                    <Trash2 className="mr-1 h-4 w-4" />
                     Xoá đã chọn ({selectedIds.length})
                   </Button>
                 )}
@@ -589,7 +601,7 @@ function ContactsPageContent() {
                   {selectedIds.length} đã chọn
                 </span>
                 {canBulkDelete && !canBulkTransfer && (
-                  <Button variant="destructive" disabled={isDeleting} onClick={requestBulkDelete}>
+                  <Button variant="destructive" onClick={requestBulkDelete}>
                     <Trash2 className="mr-1 h-4 w-4" />
                     Xoá đã chọn ({selectedIds.length})
                   </Button>
@@ -597,7 +609,7 @@ function ContactsPageContent() {
                 {canBulkDelete && canBulkTransfer && (
                   <DropdownMenu>
                     <DropdownMenuTrigger
-                      render={<Button variant="outline" size="icon" aria-label="Thao tác khác" disabled={isDeleting} />}
+                      render={<Button variant="outline" size="icon" aria-label="Thao tác khác" />}
                     >
                       <MoreHorizontal className="size-4" />
                     </DropdownMenuTrigger>

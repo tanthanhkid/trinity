@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { ErrorState } from "@/components/ui/error-state"
-import { StatusTag } from "@/components/ui/status-tag"
+import { ReconnectNotice, StatusTag } from "@/components/ui/status-tag"
 import { formatDateTime } from "@/lib/format"
 import { LoadingBlock } from "@/components/ui/loading-block"
 import { usePermissions } from "@/lib/rbac"
@@ -94,6 +94,14 @@ export function ZaloOaPanel() {
             {s.status === "active" ? <StatusTag kind="running">Đã kết nối</StatusTag> : s.status === "needs_reauth" ? <StatusTag kind="reauth" /> : <StatusTag kind="off">Chưa kết nối</StatusTag>}
           </div>
           <Missing items={missing} />
+          {s.status === "needs_reauth" && (
+            <ReconnectNotice
+              channel="Zalo OA"
+              reason={`Zalo đã thu hồi quyền truy cập${s.last_error ? ` (${s.last_error})` : ""} — tạm dừng nhận tin nhắn và gửi ZNS.`}
+              onReconnect={canManage ? () => connect.mutate(undefined, { onSuccess: (url) => { window.location.href = url }, onError: (e) => toast.error(apiErrorMessage(e, "Không bắt đầu được kết nối")) }) : undefined}
+              reconnecting={connect.isPending}
+            />
+          )}
           <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
             <div><dt className="text-muted-foreground">OA id</dt><dd>{s.oa_id ?? "—"}</dd></div>
             <div><dt className="text-muted-foreground">Access token hết hạn</dt><dd>{fmt(s.access_expires_at)} (tự làm mới)</dd></div>

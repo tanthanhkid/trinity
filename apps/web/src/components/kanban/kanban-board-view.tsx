@@ -30,6 +30,7 @@ import { GripVertical } from "lucide-react"
 import { motion, MotionConfig } from "motion/react"
 import { toast } from "sonner"
 import { getApiErrorMessage } from "@/lib/api-client"
+import { toastWithUndo } from "@/lib/undo"
 import { ErrorState } from "@/components/ui/error-state"
 import { usePermissions } from "@/lib/rbac"
 import { neighboursAt } from "@/lib/board-drag-target"
@@ -105,22 +106,39 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
     if (!columnId) return
     const { prev, next } = neighboursAt(result.snapshot, result.target.index)
     setSettling({ card: { ...card, column_id: columnId }, index: result.target.index, height: activeSize?.height ?? 92 })
-    submitMove(card.id, {
-      column_id: columnId,
-      before_card_id: prev ? Number(prev) : undefined,
-      after_card_id: next ? Number(next) : undefined,
-    })
+    // Chỗ cũ để "Hoàn tác": cột cũ + hai thẻ hàng xóm cũ (bản chụp đã bỏ thẻ đang kéo).
+    const back = result.origin && result.originSnapshot ? neighboursAt(result.originSnapshot, result.origin.index) : null
+    const undo = result.origin
+      ? {
+          column_id: Number(result.origin.column),
+          before_card_id: back?.prev ? Number(back.prev) : undefined,
+          after_card_id: back?.next ? Number(back.next) : undefined,
+        }
+      : null
+    const toColumn = board?.columns.find((c) => c.id === columnId)?.name
+    submitMove(
+      card.id,
+      {
+        column_id: columnId,
+        before_card_id: prev ? Number(prev) : undefined,
+        after_card_id: next ? Number(next) : undefined,
+      },
+      // Chỉ đổi thứ tự trong cùng cột thì không cần toast — đổi cột (= đổi trạng thái) mới có Hoàn tác.
+      undo && undo.column_id !== columnId ? { message: `Đã chuyển “${card.title}”${toColumn ? ` sang ${toColumn}` : ""}`, payload: undo } : null,
+    )
   }
 
   const submitMove = (
     cardId: number,
     payload: { column_id: number; before_card_id?: number; after_card_id?: number },
+    undo: { message: string; payload: { column_id: number; before_card_id?: number; after_card_id?: number } } | null = null,
   ) => {
     moveCard.mutate(
       { id: cardId, payload },
       {
         onSuccess: (result) => {
           if (result.wip_warning) toast.warning(result.wip_warning)
+          if (undo) toastWithUndo({ message: undo.message, onUndo: () => submitMove(cardId, undo.payload) })
         },
         onError: (err) => toast.error(getApiErrorMessage(err, "Không chuyển được card")),
         onSettled: () => setSettling(null),

@@ -19,6 +19,9 @@ export interface BoardDropResult {
   snapshot: ColumnSnapshot
   /** Thả lại đúng chỗ cũ — không cần gọi máy chủ. */
   unchanged: boolean
+  /** Chỗ cũ của thẻ + bản chụp cột cũ — để "Hoàn tác" đưa thẻ về đúng giữa hai thẻ hàng xóm cũ. */
+  origin: BoardDropTarget | null
+  originSnapshot: ColumnSnapshot | null
 }
 
 export function useBoardDrag<T extends HTMLElement = HTMLDivElement>() {
@@ -91,13 +94,14 @@ export function useBoardDrag<T extends HTMLElement = HTMLDivElement>() {
     const t = targetRef.current
     const origin = originRef.current
     const snap = t ? snapRef.current?.get(t.column) : undefined
+    const originSnapshot = origin ? snapRef.current?.get(origin.column) ?? null : null
     targetRef.current = null
     originRef.current = null
     snapRef.current = null
     setTarget(null)
     if (!t || !snap) return null
     const unchanged = origin != null && origin.column === t.column && origin.index === t.index
-    return { target: t, snapshot: snap, unchanged }
+    return { target: t, snapshot: snap, unchanged, origin, originSnapshot }
   }, [detach])
 
   useEffect(() => detach, [detach])

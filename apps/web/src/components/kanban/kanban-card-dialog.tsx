@@ -32,7 +32,7 @@ import { formatDateTimeVn } from "@/lib/format"
 import { useAuth } from "@/hooks/use-auth"
 import { usePermissions } from "@/lib/rbac"
 import { useKanbanBoardDetail } from "@/hooks/kanban/use-kanban-boards"
-import { useDeleteKanbanCard, useKanbanCard, useUpdateKanbanCard } from "@/hooks/kanban/use-kanban-cards"
+import { useDeleteKanbanCardWithUndo, useKanbanCard, useUpdateKanbanCard } from "@/hooks/kanban/use-kanban-cards"
 import { KanbanUserPicker } from "./kanban-user-picker"
 import { KanbanMultiUserPicker } from "./kanban-multi-user-picker"
 import { KanbanContactPicker } from "./kanban-contact-picker"
@@ -72,7 +72,7 @@ export function KanbanCardDialog({ cardId, onClose }: KanbanCardDialogProps) {
   }, [isError, cardId])
   const { data: board } = useKanbanBoardDetail(card?.board_id ?? null)
   const updateCard = useUpdateKanbanCard()
-  const deleteCard = useDeleteKanbanCard()
+  const deleteCard = useDeleteKanbanCardWithUndo()
 
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [title, setTitle] = useState("")
@@ -135,14 +135,10 @@ export function KanbanCardDialog({ cardId, onClose }: KanbanCardDialogProps) {
 
   const handleDelete = () => {
     if (!cardId) return
-    deleteCard.mutate(cardId, {
-      onSuccess: () => {
-        toast.success("Đã xoá card")
-        setConfirmDelete(false)
-        onClose()
-      },
-      onError: (err) => toast.error(getApiErrorMessage(err, "Không xoá được card")),
-    })
+    // Xoá có 5 giây hoàn tác (toast "Hoàn tác"); lệnh xoá gửi sau khi hết hạn.
+    deleteCard(cardId, card?.title)
+    setConfirmDelete(false)
+    onClose()
   }
 
   // Xoá card: khớp BE `KanbanCardsService.remove` — người tạo card hoặc Quản trị
@@ -409,9 +405,8 @@ export function KanbanCardDialog({ cardId, onClose }: KanbanCardDialogProps) {
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title="Xoá card"
-        description="Xoá card này? Có thể xem lại trong lịch sử."
+        description="Card biến khỏi bảng ngay; bạn có 5 giây để bấm Hoàn tác trước khi xoá hẳn."
         confirmLabel="Xoá card"
-        pending={deleteCard.isPending}
         onConfirm={handleDelete}
       />
     </>

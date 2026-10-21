@@ -167,6 +167,18 @@ export class EmployeesController {
     return this.employeesService.lock(id, user);
   }
 
+  /** Nút "Mở khoá" trên web. CHỈ Quản trị (kiểm trong service). Không có tool MCP tương ứng. */
+  @Patch(':id/unlock')
+  @Can('employees.manage')
+  @ApiOperation({ summary: 'Mở khoá tài khoản nhân viên (đảo lock: User.status=active + Employee.status=active) — chỉ Quản trị' })
+  @ApiResponse({ status: 200, description: 'Đã mở khoá' })
+  @ApiResponse({ status: 403, description: 'Không phải Quản trị / tài khoản của chính mình' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy nhân viên' })
+  @ApiResponse({ status: 409, description: 'Tài khoản đang không bị khoá' })
+  unlock(@CurrentUser() user: AuthUser, @Param('id', ParseIntPipe) id: number) {
+    return this.employeesService.unlock(id, user);
+  }
+
   @Delete(':id')
   @Can('employees.manage')
   @ApiOperation({ summary: 'Xoá nhân viên (soft delete)' })

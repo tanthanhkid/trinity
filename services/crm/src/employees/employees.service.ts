@@ -1301,6 +1301,41 @@ export class EmployeesService {
     return { ok: true, message: 'Đã khoá tài khoản nhân viên' };
   }
 
+  /**
+   * Mở khoá — đảo `lock()`: tài khoản đăng nhập lại được (users.status=active) và nhân viên trở lại "đang làm"
+   * (employees.status=active, xoá resigned_at để chấm công / lương tính lại từ nay). CHỈ Quản trị.
+   * Token phát trước lúc khoá vẫn vô hiệu (`tokens_valid_after` giữ nguyên) ⇒ người đó đăng nhập lại từ đầu.
+   * Hồ sơ đã xoá ⇒ 404. Không có tool MCP tương ứng.
+   */
+  async unlock(id: number, caller: AuthUser) {
+    if (!caller.isAdmin) throw new ForbiddenException('Chỉ Quản trị mới mở khoá được tài khoản nhân viên');
+    const employee = await this.prisma.employee.findFirst({
+      where: { id, deleted_at: null },
+      select: { id: true, user_id: true, user: { select: { status: true } } },
+    });
+    if (!employee) throw new NotFoundException('Không tìm thấy nhân viên');
+    this.assertNotSelf(caller, employee.user_id);
+    if (employee.user?.status !== 'locked') {
+      throw new ConflictException('Tài khoản này đang không bị khoá');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: employee.user_id }, data: { status: 'active' } }),
+      this.prisma.employee.update({ where: { id }, data: { status: 'active', resigned_at: null } }),
+    ]);
+    await this.rbacCache.invalidateUsers('*');
+
+    this.logger.log(`[employee-unlock] actor=${caller.userId} employee_id=${id} user_id=${employee.user_id}`);
+    await this.audit.write({
+      userId: caller.userId,
+      action: 'employee_unlock',
+      resource: 'employees',
+      resourceId: id,
+      metadata: { target_user_id: employee.user_id },
+    });
+    return { ok: true, message: 'Đã mở khoá tài khoản nhân viên' };
+  }
+
   async remove(id: number, caller?: AuthUser) {
     // Chỉ tìm nhân viên chưa bị xoá (tránh double-soft-delete trả 404 rõ ràng)
     const employee = await this.prisma.employee.findFirst({

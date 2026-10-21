@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, GoneException, NotFoundException } from '@nestjs/common';
+
+/** Quản trị — được xoá hẳn / khôi phục mọi sản phẩm. */
+const admin = { userId: 1, isAdmin: true, grants: {} } as never;
 import { Prisma, PrismaService } from '@trinity/prisma';
 import { ProductsService } from '../products.service';
 import { ProductAttributeDefsService } from '../attribute-defs/product-attribute-defs.service';
@@ -275,7 +278,8 @@ describe('ProductsService (khung sản phẩm đa ngành)', () => {
       expect(args.orderBy).toEqual([{ is_featured: 'desc' }, { id: 'asc' }]);
       expect(args).not.toHaveProperty('take');
       expect(args).not.toHaveProperty('skip');
-      expect(args.where).toEqual({});
+      // Mặc định chỉ sản phẩm chưa xoá (lưu trữ).
+      expect(args.where).toEqual({ AND: [{ deleted_at: null }] });
       // `select` tường minh, KHÔNG include/SELECT *.
       expect(args.select).toBeDefined();
     });
@@ -286,8 +290,14 @@ describe('ProductsService (khung sản phẩm đa ngành)', () => {
       await service.findAll({ is_active: false });
 
       expect(mockPrisma.product.findMany.mock.calls[0][0].where).toEqual({
-        AND: [{ is_active: false }],
+        AND: [{ deleted_at: null }, { is_active: false }],
       });
+    });
+
+    it('archived=true ⇒ CHỈ sản phẩm đã xoá (lưu trữ), cho Quản trị xoá hẳn', async () => {
+      mockPrisma.product.findMany.mockResolvedValue([]);
+      await service.findAll({ archived: true });
+      expect(mockPrisma.product.findMany.mock.calls[0][0].where).toEqual({ AND: [{ deleted_at: { not: null } }] });
     });
 
     it('category_id lọc được, ghép AND không spread', async () => {
@@ -297,6 +307,7 @@ describe('ProductsService (khung sản phẩm đa ngành)', () => {
 
       expect(mockPrisma.product.findMany.mock.calls[0][0].where).toEqual({
         AND: [
+          { deleted_at: null },
           { project_id: 7 },
           { category_id: 3 },
           {
@@ -437,7 +448,7 @@ describe('ProductsService (khung sản phẩm đa ngành)', () => {
     });
   });
 
-  describe('remove — xoá cứng', () => {
+  describe('purge — xoá cứng (chỉ Quản trị)', () => {
     const setup = (o: { exists?: boolean; orders?: number; contacts?: number; image?: string | null } = {}) => {
       mockTx.$queryRaw
         .mockResolvedValueOnce(o.exists === false ? [] : [{ id: 1 }]) // FOR UPDATE
@@ -449,14 +460,14 @@ describe('ProductsService (khung sản phẩm đa ngành)', () => {
 
     it('không tham chiếu → xoá hẳn trong transaction + khoá hàng FOR UPDATE', async () => {
       setup();
-      await expect(service.remove(1)).resolves.toEqual({ id: 1, deleted: true });
+      await expect(service.purge(1, admin)).resolves.toEqual({ id: 1, deleted: true });
       expect(mockTx.product.delete).toHaveBeenCalledWith({ where: { id: 1 } });
       expect(String(mockTx.$queryRaw.mock.calls[0][0].join(' '))).toContain('FOR UPDATE');
     });
 
     it('đã có trong đơn POS → 409 nguyên văn tiếng Việt, KHÔNG xoá', async () => {
       setup({ orders: 3 });
-      await expect(service.remove(1)).rejects.toThrow(
+      await expect(service.purge(1, admin)).rejects.toThrow(
         new ConflictException('Sản phẩm đã có trong 3 đơn bán hàng — không thể xoá hẳn, chỉ có thể ẩn'),
       );
       expect(mockTx.product.delete).not.toHaveBeenCalled();
@@ -464,13 +475,13 @@ describe('ProductsService (khung sản phẩm đa ngành)', () => {
 
     it('đang gắn cho liên hệ → 409 nêu cả đơn lẫn liên hệ', async () => {
       setup({ orders: 2, contacts: 5 });
-      await expect(service.remove(1)).rejects.toThrow('2 đơn bán hàng và 5 liên hệ');
+      await expect(service.purge(1, admin)).rejects.toThrow('2 đơn bán hàng và 5 liên hệ');
       expect(mockTx.product.delete).not.toHaveBeenCalled();
     });
 
     it('không tồn tại → 404, không đếm/xoá', async () => {
       setup({ exists: false });
-      await expect(service.remove(1)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.purge(1, admin)).rejects.toBeInstanceOf(NotFoundException);
       expect(mockTx.product.delete).not.toHaveBeenCalled();
       expect(mockTx.contact.count).not.toHaveBeenCalled();
     });
@@ -478,19 +489,62 @@ describe('ProductsService (khung sản phẩm đa ngành)', () => {
     it('ảnh /uploads/products/... không ai dùng nữa → dọn file sau commit; còn dùng chung → giữ', async () => {
       setup({ image: '/uploads/products/a_b.png' });
       mockPrisma.product.count.mockResolvedValue(1);
-      await service.remove(1);
+      await service.purge(1, admin);
       expect(deleteImage).not.toHaveBeenCalled();
 
       setup({ image: '/uploads/products/a_b.png' });
       mockPrisma.product.count.mockResolvedValue(0);
-      await service.remove(1);
+      await service.purge(1, admin);
       expect(deleteImage).toHaveBeenCalledWith('/uploads/products/a_b.png');
     });
 
     it('lỗi 409 thì KHÔNG đụng file ảnh', async () => {
       setup({ orders: 1, image: '/uploads/products/a_b.png' });
-      await expect(service.remove(1)).rejects.toBeInstanceOf(ConflictException);
+      await expect(service.purge(1, admin)).rejects.toBeInstanceOf(ConflictException);
       expect(deleteImage).not.toHaveBeenCalled();
+    });
+  });
+  describe('remove = lưu trữ (xoá mềm) + restore — Hoàn tác 10 phút', () => {
+    const owner = { userId: 7, isAdmin: false, grants: {} } as never;
+    const other = { userId: 8, isAdmin: false, grants: {} } as never;
+    const archived = (o: Record<string, unknown> = {}) => ({ deleted_at: new Date(Date.now() - 2_000), deleted_by: 7, ...o });
+
+    it('remove KHÔNG xoá dòng: ghi deleted_at + người xoá; 404 nếu đã xoá', async () => {
+      mockPrisma.product.findUnique.mockResolvedValue(productRow);
+      mockPrisma.product.update.mockResolvedValue(productRow);
+      await expect(service.remove(1, owner)).resolves.toEqual({ id: 1, archived: true });
+      expect(mockPrisma.product.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { deleted_at: expect.any(Date), deleted_by: 7 } });
+      expect(mockTx.product.delete).not.toHaveBeenCalled();
+      mockPrisma.product.findUnique.mockResolvedValue({ ...productRow, deleted_at: new Date() });
+      await expect(service.remove(1, owner)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('restore: người đã xoá trong 10 phút ⇒ bỏ deleted_at', async () => {
+      mockPrisma.product.findFirst.mockResolvedValue(archived());
+      mockPrisma.product.update.mockResolvedValue(productRow);
+      await service.restore(1, owner);
+      expect(mockPrisma.product.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 1 }, data: { deleted_at: null, deleted_by: null } }));
+    });
+
+    it('restore: người khác ⇒ 403 (Quản trị thì được); quá 10 phút ⇒ 410; không có ⇒ 404', async () => {
+      mockPrisma.product.findFirst.mockResolvedValue(archived());
+      await expect(service.restore(1, other)).rejects.toBeInstanceOf(ForbiddenException);
+      mockPrisma.product.update.mockResolvedValue(productRow);
+      await expect(service.restore(1, admin)).resolves.toBeDefined();
+      mockPrisma.product.findFirst.mockResolvedValue(archived({ deleted_at: new Date(Date.now() - 11 * 60_000) }));
+      await expect(service.restore(1, owner)).rejects.toBeInstanceOf(GoneException);
+      mockPrisma.product.findFirst.mockResolvedValue(null);
+      await expect(service.restore(1, owner)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('purge: không phải Quản trị ⇒ 403, không đụng DB', async () => {
+      await expect(service.purge(1, owner)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(mockTx.$queryRaw).not.toHaveBeenCalled();
+    });
+
+    it('mã trùng với sản phẩm đã lưu trữ ⇒ 409 nói rõ cách xử lý', async () => {
+      mockPrisma.product.findFirst.mockResolvedValue({ id: 3, code: 'CF-1', deleted_at: new Date() });
+      await expect(service.create({ name: 'X', code: 'cf-1' } as never, 7)).rejects.toThrow('đang thuộc một sản phẩm đã xoá (lưu trữ)');
     });
   });
 });

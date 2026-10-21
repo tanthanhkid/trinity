@@ -35,6 +35,14 @@ export class ListProductsQueryDto {
   @IsBoolean({ message: 'is_active phải là true hoặc false' })
   is_active?: boolean;
 
+  /**
+   * `true` ⇒ CHỈ sản phẩm đã xoá (lưu trữ) — để Quản trị xoá hẳn. Mặc định: sản phẩm đang có (chưa xoá).
+   */
+  @IsOptional()
+  @Transform(({ value }) => (value === 'true' || value === true ? true : value === 'false' || value === false ? false : value))
+  @IsBoolean({ message: 'archived phải là true hoặc false' })
+  archived?: boolean;
+
   @ApiPropertyOptional({ description: 'Tìm theo tên / mã / thương hiệu (không phân biệt hoa thường).' })
   @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))

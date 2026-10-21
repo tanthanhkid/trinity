@@ -2,6 +2,8 @@
 
 Các script ở đây mở một Chrome headless riêng, dùng hồ sơ tạm và xoá hồ sơ khi đóng. Mọi lệnh gọi `/api/v1/*` bị chặn bằng CDP `Fetch` rồi trả dữ liệu giả từ `fixtures.mjs`. Script **không gọi máy chủ thật** và không dùng phiên đăng nhập thật. Kết quả được ghi vào `docs/TRANG-THAI.md`.
 
+Trong CI, job **Web build and UI checks** (`.github/workflows/ci.yml`) chạy các script này trên bản `next build` standalone, cho mọi PR đụng `apps/web/`. Script nào báo lỗi thì job đỏ. Ngoại lệ đã biết nằm trong `ALLOW` của `ui-audit.mjs`, kèm lý do và hạn sửa.
+
 ## Chạy
 
 1. Mở web ở chế độ dev, ví dụ cổng 3917: `cd apps/web && node node_modules/next/dist/bin/next dev -p 3917`.

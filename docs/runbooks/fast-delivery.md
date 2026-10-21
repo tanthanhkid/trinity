@@ -16,8 +16,16 @@ How the maintainers ship. The goal is a short loop: a fix is live minutes after 
 | CLA | every PR | ~10 s |
 | Typecheck and tests (changed packages) | every PR; typecheck covers changed packages and their dependents, unit tests run in the changed packages only | 1–2 min |
 | SQL on Postgres | its steps run only when migrations, `schema.prisma`, `*.pg.spec.ts` or `$queryRaw`/`$executeRaw` code changed | ~20 s when skipped |
+| Web build and UI checks | its steps run only when `apps/web/`, `packages/`, the lockfile or the CI workflow changed. Runs `next build`, starts the standalone server, then runs the checks in `apps/web/e2e/premium/` (see its README) | ~20 s when skipped |
 
-Nothing runs on push to `main`. Lint and the full web/api builds are not part of CI; the deploy build catches build errors.
+Nothing runs on push to `main`. Lint and the full API build are not part of CI; the deploy build catches API build errors.
+Web PRs get a real `next build` plus the browser checks, so a web build no longer has to be run by hand before review.
+
+The browser checks run on headless Chrome with a temporary profile. Every `/api/v1` call is answered from fixtures through CDP `Fetch`, so no server or real data is involved. The checks are:
+
+- contrast of the design tokens;
+- touch targets, keyboard focus, horizontal overflow at 360px and reduced motion on five main screens;
+- the "break-it" scenarios (offline, 500/401, empty lists, expired channel token, failed post, undo).
 The Docker image builds only for `v*` tags (or by manual dispatch).
 
 ## 3. Deploying — one command, targets in parallel

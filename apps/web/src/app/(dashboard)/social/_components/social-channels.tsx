@@ -42,7 +42,8 @@ export function SocialChannels() {
   if (isLoading) return <LoadingBlock variant="cards" count={2} label="Đang tải kênh…" />
   // Lỗi tải ⇒ nói rõ + Thử lại; KHÔNG hiện lưới trống (người dùng tưởng chưa liên kết kênh nào).
   // Đang có dữ liệu cũ mà tải lại nền lỗi ⇒ giữ lưới + nút quản lý, chỉ báo một dòng phía trên.
-  const failed = networksQ.isError ? networksQ : accountsQ.isError ? accountsQ : null
+  // Query nào lỗi mà CHƯA có dữ liệu thì ưu tiên nó — một query còn dữ liệu cũ không được che query kia đang trống.
+  const failed = [networksQ, accountsQ].find((q) => q.isError && !q.data) ?? [networksQ, accountsQ].find((q) => q.isError) ?? null
   const retryAll = () => { void networksQ.refetch(); void accountsQ.refetch() }
   const refreshing = networksQ.isFetching || accountsQ.isFetching
   if (failed && !failed.data) {

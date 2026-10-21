@@ -306,8 +306,12 @@ export const CASES = [
         const before = await h.page.getByRole("button", { name: /^Xoá/ }).count()
         await h.page.getByRole("button", { name: /^Xoá/ }).first().click()
         await h.page.getByRole("button", { name: "Xoá nháp" }).click()
-        await h.page.waitForTimeout(300)
-        const hidden = (await h.page.getByRole("button", { name: /^Xoá/ }).count()) === before - 1
+        // Chờ tới 3 giây cho lần vẽ lại (CI chậm hơn máy dev) — vẫn trong cửa sổ 5 giây, chưa gửi DELETE.
+        let hidden = false
+        for (let i = 0; i < 15 && !hidden; i++) {
+          await h.page.waitForTimeout(200)
+          hidden = (await h.page.getByRole("button", { name: /^Xoá/ }).count()) === before - 1
+        }
         await h.page.getByRole("button", { name: "Hoàn tác" }).click()
         await h.page.waitForTimeout(1500)
         const back = (await h.page.getByRole("button", { name: /^Xoá/ }).count()) === before

@@ -35,6 +35,8 @@ export interface ListProductsParams {
   category_id?: number
   is_active?: boolean
   q?: string
+  /** `true` ⇒ CHỈ sản phẩm đã xoá (lưu trữ) — mục của Quản trị. */
+  archived?: boolean
 }
 
 /**

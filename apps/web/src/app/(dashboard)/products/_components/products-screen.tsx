@@ -23,7 +23,8 @@ import { usePermissions } from "@/lib/rbac"
 import { useActiveProjects } from "@/hooks/use-projects"
 import axios from "axios"
 import { getApiErrorMessage } from "@/lib/api-client"
-import { useDeleteProduct, useProducts, useUpdateProduct } from "@/hooks/products/use-products"
+import { useDeleteProduct, useProducts, useRestoreProduct, useUpdateProduct } from "@/hooks/products/use-products"
+import { ProductArchivedList } from "./product-archived-list"
 import { useProductCategories } from "@/hooks/products/use-product-categories"
 import type { Product } from "@/types/product"
 import { ProductCard } from "./product-card"
@@ -34,7 +35,7 @@ import { ProductDeleteDialog } from "./product-delete-dialog"
 import { ALL_SENTINEL, ProductsFilterBar } from "./products-filter-bar"
 
 export function ProductsScreen() {
-  const { can } = usePermissions()
+  const { can, isAdmin } = usePermissions()
   const canManage = can("products.manage")
   const { data: products = [], isLoading, isError, error, refetch, isFetching } = useProducts()
   const { data: projects = [] } = useActiveProjects()
@@ -54,6 +55,7 @@ export function ProductsScreen() {
 
   const updateMutation = useUpdateProduct()
   const deleteMutation = useDeleteProduct()
+  const restoreMutation = useRestoreProduct()
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -80,7 +82,15 @@ export function ProductsScreen() {
     deleteMutation.mutate(product.id, {
       onSuccess: () => {
         closeDelete()
-        toast.success(`Đã xoá sản phẩm “${product.name}”`)
+        // Xoá = lưu trữ ⇒ Hoàn tác khôi phục phía máy chủ (10 phút); đơn cũ / liên hệ vẫn trỏ tới được.
+        toastWithUndo({
+          message: `Đã xoá “${product.name}”`,
+          onUndo: () =>
+            restoreMutation.mutate(product.id, {
+              onSuccess: () => toast.success(`Đã khôi phục “${product.name}”`),
+              onError: (err) => toast.error(getApiErrorMessage(err, "Chưa khôi phục được sản phẩm")),
+            }),
+        })
       },
       onError: (err) =>
         setDeleteError({
@@ -221,6 +231,9 @@ export function ProductsScreen() {
         open={showCategoryManager}
         onClose={() => setShowCategoryManager(false)}
       />
+
+      {/* Mục lưu trữ + "Xoá hẳn" — chỉ Quản trị. */}
+      {isAdmin && <ProductArchivedList />}
 
       <ProductDeleteDialog
         product={deleteProduct}

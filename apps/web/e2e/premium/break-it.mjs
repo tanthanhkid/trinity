@@ -160,6 +160,39 @@ export const CASES = [
     },
   },
   {
+    name: "xoa-san-pham-hoan-tac",
+    expect: "Xoá sản phẩm ⇒ DELETE (lưu trữ) gửi ngay, sản phẩm biến khỏi danh mục + toast Hoàn tác; bấm ⇒ POST /products/:id/restore",
+    async run() {
+      // Máy chủ giả có trạng thái: xoá thì biến khỏi danh mục, khôi phục thì hiện lại.
+      const gone = new Set()
+      const h = await open("/products", {
+        "/^DELETE \\/products\\/\\d+$/": (req) => (gone.add(req.path.split("/")[2]), { status: 200, json: { archived: true } }),
+        "/^POST \\/products\\/\\d+\\/restore$/": (req) => (gone.delete(req.path.split("/")[2]), { status: 200, json: {} }),
+        "GET /products": (req) => {
+          const base = handle(req)
+          return { ...base, json: base.json.filter((p) => !gone.has(String(p.id))) }
+        },
+      })
+      try {
+        const name = "Cà phê sữa đá"
+        await h.page.getByRole("button", { name: "Thao tác khác" }).first().click().catch(() => {})
+        const del = h.page.getByRole("button", { name: /^Xoá$/ }).or(h.page.getByRole("menuitem", { name: /^Xoá$/ }))
+        await del.first().click()
+        await h.page.getByRole("dialog").getByRole("button", { name: /^Xoá$/ }).click()
+        await h.page.waitForTimeout(900)
+        const sent = h.api.log.some((l) => /^DELETE \/products\/\d+$/.test(l))
+        const hidden = !(await h.page.locator("main").last().innerText()).includes(name)
+        await h.page.getByRole("button", { name: "Hoàn tác" }).click()
+        await h.page.waitForTimeout(900)
+        const restored = h.api.log.some((l) => /^POST \/products\/\d+\/restore$/.test(l))
+        return {
+          ok: sent && hidden && restored,
+          actual: `DELETE gửi ngay: ${sent ? "có" : "KHÔNG"}; biến khỏi danh mục: ${hidden ? "có" : "KHÔNG"}; Hoàn tác gọi restore: ${restored ? "có" : "KHÔNG"}`,
+        }
+      } finally { await h.close() }
+    },
+  },
+  {
     name: "api-401-het-phien",
     expect: "Phiên hết hạn (401 và làm mới token cũng 401) ⇒ về trang đăng nhập, không kẹt màn trắng/lỗi",
     async run() {
@@ -278,8 +311,12 @@ export const CASES = [
         const before = await h.page.getByRole("button", { name: /^Xoá/ }).count()
         await h.page.getByRole("button", { name: /^Xoá/ }).first().click()
         await h.page.getByRole("button", { name: "Xoá nháp" }).click()
-        await h.page.waitForTimeout(300)
-        const hidden = (await h.page.getByRole("button", { name: /^Xoá/ }).count()) === before - 1
+        // Chờ tới 3 giây cho lần vẽ lại (CI chậm hơn máy dev) — vẫn trong cửa sổ 5 giây, chưa gửi DELETE.
+        let hidden = false
+        for (let i = 0; i < 15 && !hidden; i++) {
+          await h.page.waitForTimeout(200)
+          hidden = (await h.page.getByRole("button", { name: /^Xoá/ }).count()) === before - 1
+        }
         await h.page.getByRole("button", { name: "Hoàn tác" }).click()
         await h.page.waitForTimeout(1500)
         const back = (await h.page.getByRole("button", { name: /^Xoá/ }).count()) === before

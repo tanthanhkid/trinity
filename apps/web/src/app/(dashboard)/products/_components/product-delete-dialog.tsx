@@ -12,7 +12,8 @@ import {
 import type { Product } from "@/types/product"
 
 /**
- * Xác nhận "Xoá" sản phẩm — xoá HẲN, không hoàn tác. Tách bạch với "Ẩn" (bật lại được).
+ * Xác nhận "Xoá" sản phẩm — lưu trữ (xoá mềm): biến khỏi danh mục / POS / trang bán hàng, đơn cũ vẫn giữ;
+ * bấm Hoàn tác trên thông báo để lấy lại. Tách bạch với "Ẩn" (tạm ngừng bán, bật lại lúc nào cũng được).
  * BE trả 409 khi sản phẩm đã có trong đơn bán hàng/liên hệ: hiện NGUYÊN VĂN lý do của BE và
  * đổi sang hành động duy nhất còn lại là "Ẩn sản phẩm".
  */
@@ -40,9 +41,9 @@ export function ProductDeleteDialog({
           <DialogTitle>Xoá sản phẩm</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Xoá hẳn sản phẩm <strong className="text-foreground">{product?.name}</strong>? Hành động này{" "}
-          <strong className="text-foreground">không thể hoàn tác</strong>. Nếu chỉ muốn ngừng bán,
-          hãy chọn &quot;Ẩn&quot; — sản phẩm vẫn còn và bật lại được.
+          Xoá sản phẩm <strong className="text-foreground">{product?.name}</strong>? Sản phẩm biến khỏi danh mục, POS
+          và trang bán hàng; đơn cũ vẫn giữ. Bấm <strong className="text-foreground">Hoàn tác</strong> trên thông báo
+          trong 5 giây để lấy lại. Nếu chỉ muốn tạm ngừng bán, chọn &quot;Ẩn&quot;.
         </p>
         {error && (
           <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
@@ -60,7 +61,7 @@ export function ProductDeleteDialog({
           )}
           {!blocked && (
             <Button variant="destructive" disabled={pending} onClick={() => product && onConfirm(product)}>
-              <Trash2 className="mr-1.5 size-4" /> Xoá vĩnh viễn
+              <Trash2 className="mr-1.5 size-4" /> Xoá
             </Button>
           )}
         </DialogFooter>

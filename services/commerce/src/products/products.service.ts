@@ -1,4 +1,5 @@
-import { Injectable, BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, ForbiddenException, GoneException, NotFoundException } from '@nestjs/common';
+import type { AuthUser } from '@trinity/rbac-nest';
 // Commerce service không có `@prisma/client` trực tiếp trong package.json (chỉ CRM có)
 // → import Prisma namespace qua re-export `@trinity/prisma`, mirror `ProjectsService`.
 import { Prisma, PrismaService } from '@trinity/prisma';
@@ -16,6 +17,9 @@ import { ProductAttributeDefsService } from './attribute-defs/product-attribute-
 import { hardDeleteProduct } from './product-delete.helper';
 import { deleteProductImageFile } from './product-image-upload.helper';
 import { validateProductAttributes } from './product-attributes.validator';
+
+/** Cửa sổ Hoàn tác phía máy chủ (toast trên web chỉ 5 giây; để dư cho mạng chậm), giống khách hàng / card. */
+export const RESTORE_WINDOW_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class ProductsService {
@@ -43,11 +47,12 @@ export class ProductsService {
   }
 
   async findOne(id: number): Promise<ProductDto> {
+    // Sản phẩm đã xoá (lưu trữ) coi như không tồn tại với mọi đường đọc/sửa thường.
     const product = await this.prisma.product.findUnique({
       where: { id },
-      select: PRODUCT_SELECT,
+      select: { ...PRODUCT_SELECT, deleted_at: true },
     });
-    if (!product) throw new NotFoundException('Sản phẩm không tồn tại');
+    if (!product || product.deleted_at) throw new NotFoundException('Sản phẩm không tồn tại');
     return toProductDto(product as ProductRow);
   }
 
@@ -113,11 +118,45 @@ export class ProductsService {
   }
 
   /**
-   * Xoá CỨNG. 404 nếu không có; 409 + lý do tiếng Việt nếu còn đơn POS/liên hệ trỏ
-   * tới (khi đó chỉ ẩn được). Xoá dòng trong transaction (khoá hàng chống race với đơn POS đang
+   * Xoá = LƯU TRỮ (xoá mềm): sản phẩm biến khỏi danh mục, POS, trang bán hàng; đơn cũ / liên hệ vẫn trỏ tới được.
+   * Hoàn tác trong `RESTORE_WINDOW_MS` bằng `restore()`. Xoá hẳn là `purge()` (Quản trị).
+   */
+  async remove(id: number, user: AuthUser): Promise<{ id: number; archived: true }> {
+    await this.findOne(id); // 404 nếu không có / đã xoá
+    await this.prisma.product.update({ where: { id }, data: { deleted_at: new Date(), deleted_by: user.userId } });
+    return { id, archived: true };
+  }
+
+  /**
+   * Hoàn tác xoá: người đã xoá hoặc Quản trị, trong `RESTORE_WINDOW_MS`. Không có tool MCP tương ứng.
+   */
+  async restore(id: number, user: AuthUser): Promise<ProductDto> {
+    const row = await this.prisma.product.findFirst({
+      where: { id, deleted_at: { not: null } },
+      select: { deleted_at: true, deleted_by: true },
+    });
+    if (!row || !row.deleted_at) throw new NotFoundException('Không có sản phẩm đang chờ khôi phục');
+    if (row.deleted_by !== user.userId && !user.isAdmin) {
+      throw new ForbiddenException('Chỉ người đã xoá hoặc Quản trị mới khôi phục được sản phẩm này');
+    }
+    if (Date.now() - row.deleted_at.getTime() > RESTORE_WINDOW_MS) {
+      throw new GoneException('Đã quá thời gian hoàn tác — sản phẩm vẫn nằm trong mục đã xoá');
+    }
+    const product = await this.prisma.product.update({
+      where: { id },
+      data: { deleted_at: null, deleted_by: null },
+      select: PRODUCT_SELECT,
+    });
+    return toProductDto(product as ProductRow);
+  }
+
+  /**
+   * Xoá CỨNG — CHỈ Quản trị. 404 nếu không có; 409 + lý do tiếng Việt nếu còn đơn POS/liên hệ trỏ
+   * tới. Xoá dòng trong transaction (khoá hàng chống race với đơn POS đang
    * tạo), rồi MỚI dọn file ảnh trên đĩa — sau commit, và chỉ khi không sản phẩm nào khác dùng chung URL.
    */
-  async remove(id: number): Promise<{ id: number; deleted: true }> {
+  async purge(id: number, user: AuthUser): Promise<{ id: number; deleted: true }> {
+    if (!user.isAdmin) throw new ForbiddenException('Chỉ Quản trị mới xoá hẳn được sản phẩm');
     const { image_url } = await this.prisma.$transaction((tx) => hardDeleteProduct(tx, id));
     if (image_url) {
       const stillUsed = await this.prisma.product.count({ where: { image_url } });
@@ -177,8 +216,13 @@ export class ProductsService {
   private async assertCodeAvailable(code: string): Promise<void> {
     const existing = await this.prisma.product.findFirst({
       where: { code: { equals: code, mode: 'insensitive' } },
-      select: { id: true, code: true },
+      select: { id: true, code: true, deleted_at: true },
     });
+    if (existing?.deleted_at) {
+      throw new ConflictException(
+        `Mã sản phẩm "${code}" đang thuộc một sản phẩm đã xoá (lưu trữ) — khôi phục sản phẩm đó, hoặc nhờ Quản trị xoá hẳn rồi dùng lại mã`,
+      );
+    }
     if (existing) {
       throw new ConflictException(
         `Mã sản phẩm "${code}" đã tồn tại (trùng "${existing.code}", không phân biệt hoa/thường)`,

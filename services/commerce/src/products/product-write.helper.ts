@@ -43,7 +43,8 @@ export interface ProductWritableData {
 }
 
 export function buildListWhere(query: ListProductsQueryDto): Prisma.ProductWhereInput {
-  const and: Prisma.ProductWhereInput[] = [];
+  // Sản phẩm đã xoá (lưu trữ) chỉ hiện khi xin rõ `archived=true`.
+  const and: Prisma.ProductWhereInput[] = [{ deleted_at: query.archived ? { not: null } : null }];
   if (query.project_id != null) and.push({ project_id: query.project_id });
   if (query.category_id != null) and.push({ category_id: query.category_id });
   // `!= null` chứ KHÔNG truthy-check: `is_active=false` là bộ lọc HỢP LỆ
@@ -60,7 +61,7 @@ export function buildListWhere(query: ListProductsQueryDto): Prisma.ProductWhere
     });
   }
   // Ghép bằng `AND`, KHÔNG spread — không key nào ghi đè key khác.
-  return and.length > 0 ? { AND: and } : {};
+  return { AND: and };
 }
 
 /**

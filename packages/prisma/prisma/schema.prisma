@@ -1050,8 +1050,11 @@ model Product {
   description String?          @db.Text
   /// Giá bán (VND). Null = chưa nhập giá.
   price       BigInt?
-  /// Ẩn/hiện (mirror `projects.is_active`) qua PATCH. Từ `DELETE /products/:id` xoá HẲN khi chưa có `pos_order_items`/`contacts` trỏ tới (409 nếu còn) — các tham chiếu là soft-FK nên chặn ở `product-delete.helper.ts`.
+  /// Ẩn/hiện (mirror `projects.is_active`) qua PATCH. Xoá HẲN (`DELETE /products/:id/permanent`, Quản trị) chỉ khi chưa có `pos_order_items`/`contacts` trỏ tới (409 nếu còn) — các tham chiếu là soft-FK nên chặn ở `product-delete.helper.ts`.
   is_active   Boolean          @default(true)
+  /// Xoá mềm (lưu trữ): DELETE /products/:id. Hoàn tác trong 10 phút (POST /products/:id/restore); xoá HẲN: DELETE /products/:id/permanent (Quản trị).
+  deleted_at  DateTime?        @db.Timestamptz(6)
+  deleted_by  Int?
   created_by  Int?
   created_at  DateTime         @default(now()) @db.Timestamptz(6)
   /// ⚠️ PHẢI có `@default(now())` kèm `@updatedAt`: cột là `NOT NULL DEFAULT

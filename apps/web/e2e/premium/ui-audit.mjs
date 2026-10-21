@@ -7,7 +7,7 @@
 import { BASE_URL, launch, mockApi, signIn } from "./harness.mjs"
 import { handle } from "./fixtures.mjs"
 
-export const PAGES = ["/dashboard", "/contacts", "/kanban", "/social", "/connections"]
+export const PAGES = ["/dashboard", "/contacts", "/kanban", "/social", "/connections", "/inbox", "/products", "/pos", "/management/employees"]
 const MIN = 44
 
 /** Ngoại lệ đã biết, có lý do và hạn sửa — KHÔNG thêm vào đây để né lỗi mới. */

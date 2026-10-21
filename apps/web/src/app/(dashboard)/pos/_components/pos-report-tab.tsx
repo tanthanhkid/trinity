@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2 } from "lucide-react"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
 import { VnDateInput } from "@/components/ui/vn-date-input"
 import { usePosDailyReport } from "@/hooks/pos/use-pos"
 import { todayVn } from "@/lib/format"
@@ -24,8 +25,8 @@ export function PosReportTab() {
         <label htmlFor="pos-report-date" className="text-sm font-medium text-foreground">Ngày</label>
         <VnDateInput id="pos-report-date" value={date} onChange={(v) => v && setDate(v)} className="w-44 max-sm:w-full" inputClassName="h-11" />
       </div>
-      {q.isLoading && <div className="flex justify-center p-8"><Loader2 className="animate-spin" aria-label="Đang tải" /></div>}
-      {q.isError && <p role="alert" className="text-sm text-destructive">Không tải được báo cáo.</p>}
+      {q.isLoading && <LoadingBlock variant="cards" count={2} label="Đang tải báo cáo…" />}
+      {q.isError && !q.data && <ErrorState title="Không tải được báo cáo ngày" error={q.error} onRetry={() => void q.refetch()} retrying={q.isFetching} />}
       {r && (
         <>
           <dl className="grid grid-cols-2 gap-2 md:grid-cols-4">

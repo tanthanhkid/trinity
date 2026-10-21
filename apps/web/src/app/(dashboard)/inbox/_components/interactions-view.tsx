@@ -12,6 +12,7 @@ import apiClient from "@/lib/api-client"
 import { formatDateTimeVn } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { formatNumber } from "@/lib/format"
+import { ErrorState } from "@/components/ui/error-state"
 
 /** Khớp `GET /interactions` (services/crm/src/interactions/interactions.service.ts). */
 export interface Interaction {
@@ -113,7 +114,9 @@ export function InteractionsView({ tabs, onOpenConversation }: { tabs?: React.Re
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
         <ul className={cn("divide-y rounded-xl border bg-card", open && "max-lg:hidden")} data-testid="interaction-list">
           {list.isLoading && Array.from({ length: 5 }).map((_, k) => <li key={k} className="p-3"><Skeleton className="h-12 rounded-lg" /></li>)}
-          {!list.isLoading && rows.length === 0 && <li className="p-6 text-center text-sm text-muted-foreground">Chưa có tương tác nào khớp bộ lọc.</li>}
+          {/* Lỗi tải ≠ không có tương tác. */}
+          {!list.isLoading && list.isError && rows.length === 0 && <li className="p-3"><ErrorState compact title="Không tải được tương tác" error={list.error} onRetry={() => void list.refetch()} retrying={list.isFetching} /></li>}
+          {!list.isLoading && !list.isError && rows.length === 0 && <li className="p-6 text-center text-sm text-muted-foreground">Chưa có tương tác nào khớp bộ lọc.</li>}
           {rows.map((i) => (
             <li key={i.key}>
               <button type="button" onClick={() => setOpen(i)} className={cn("flex w-full gap-3 px-4 py-3 text-left hover:bg-muted/60", open?.key === i.key && "bg-accent")} data-testid="interaction-row">
@@ -148,7 +151,7 @@ function Seg({ value, onChange, options, label }: { value: string; onChange: (v:
   return (
     <div className="inline-flex rounded-lg border p-0.5" role="group" aria-label={label}>
       {options.map(([v, l]) => (
-        <button key={v} type="button" aria-pressed={value === v} onClick={() => onChange(v)} className={cn("rounded-md px-2.5 py-1 text-sm max-sm:min-h-10", value === v ? "bg-accent font-medium" : "text-muted-foreground hover:text-foreground")}>{l}</button>
+        <button key={v} type="button" aria-pressed={value === v} onClick={() => onChange(v)} className={cn("rounded-md px-2.5 py-1 text-sm max-sm:min-h-11", value === v ? "bg-accent font-medium" : "text-muted-foreground hover:text-foreground")}>{l}</button>
       ))}
     </div>
   )
@@ -174,7 +177,9 @@ function InteractionDetail({ i, onClose, onOpenConversation, onReplied }: { i: I
         {i.post_url && <a href={i.post_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary underline">Xem bài<ExternalLink className="size-3" aria-hidden /></a>}
       </div>
       {i.type === "comment" ? (
-        thread.isLoading ? <Skeleton className="h-24 rounded-lg" /> : (
+        thread.isLoading ? <Skeleton className="h-24 rounded-lg" /> : thread.isError && !thread.data ? (
+          <ErrorState compact title="Không tải được bình luận" error={thread.error} onRetry={() => void thread.refetch()} retrying={thread.isFetching} />
+        ) : (
           <div className="space-y-3">
             {(thread.data?.comments ?? []).map((c) => (
               <div key={c.id} className="space-y-2 rounded-lg bg-muted/50 p-3">

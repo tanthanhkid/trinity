@@ -1,19 +1,10 @@
 import { Star } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { StatusTag } from "@/components/ui/status-tag"
 
-/** Badge trạng thái dùng chung card + modal: đang mở bán / ngừng bán. */
+/** Trạng thái dùng chung card + modal — mẫu chung `StatusTag` (đang chạy = xanh, tắt = xám). */
 export function ProductStatusBadge({ active }: { active: boolean }) {
-  return active ? (
-    <Badge className="bg-[var(--color-app-primary-soft)] text-[var(--color-app-primary-ink)]">
-      <span aria-hidden className="size-1.5 rounded-full bg-[var(--color-app-primary)]" />
-      Đang mở bán
-    </Badge>
-  ) : (
-    <Badge className="bg-[var(--color-app-surface-3)] text-foreground">
-      <span aria-hidden className="size-1.5 rounded-full bg-muted-foreground" />
-      Ngừng bán
-    </Badge>
-  )
+  return active ? <StatusTag kind="running">Đang mở bán</StatusTag> : <StatusTag kind="off">Ngừng bán</StatusTag>
 }
 
 export function ProductFeaturedBadge() {

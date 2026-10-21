@@ -1,8 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2, MoreHorizontal, Printer } from "lucide-react"
+import { MoreHorizontal, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -38,8 +41,10 @@ export function PosOrdersTab({ canManage }: { canManage: boolean }) {
           </button>
         ))}
       </div>
-      {orders.isLoading && <div className="flex justify-center p-8"><Loader2 className="animate-spin" aria-label="Đang tải" /></div>}
-      {orders.data?.length === 0 && <p className="rounded-xl bg-muted/30 p-8 text-center text-sm text-muted-foreground">Không có đơn.</p>}
+      {orders.isLoading && <LoadingBlock variant="cards" count={3} label="Đang tải đơn…" />}
+      {/* Lỗi tải ≠ không có đơn. */}
+      {orders.isError && !orders.data && <ErrorState title="Không tải được danh sách đơn" error={orders.error} onRetry={() => void orders.refetch()} retrying={orders.isFetching} />}
+      {orders.data?.length === 0 && <EmptyState title="Không có đơn nào ở mục này" message="Đơn bán ở tab Bán hàng sẽ hiện ở đây; đổi trạng thái phía trên để xem đơn khác." />}
       <ul className="space-y-2">
         {(orders.data ?? []).map((o) => (
           <li key={o.id} className="rounded-[var(--radius)] border bg-card p-3">

@@ -18,6 +18,8 @@ import { ShellAvatar } from "@/components/app-shell/avatar"
 import { formatTimeVn, todayVn, vnDateKey } from "@/lib/format"
 import { BRAND_LOGOS, type BrandKey } from "@/lib/brand-logos"
 import { cn } from "@/lib/utils"
+import { ErrorState } from "@/components/ui/error-state"
+import { useOffline } from "@/components/offline-banner"
 
 export type InboxChannel = "zalo" | "facebook" | "google"
 
@@ -253,7 +255,7 @@ export function MessageThread({
           <Loader2 className="size-4 animate-spin" /> Đang tải...
         </div>
       )}
-      {error && <p className="py-6 text-center text-sm text-[var(--color-app-tag-red-ink)]">Không tải được tin nhắn.</p>}
+      {error && <ErrorState compact className="py-6" title="Không tải được tin nhắn" message="Kiểm tra Internet rồi mở lại hội thoại; vẫn lỗi thì tải lại trang." />}
       <div className="space-y-3">
         {messages.map((m, i) => {
           const day = days[i]
@@ -321,9 +323,12 @@ export function Composer({
   notice?: ReactNode
   maxLength?: number
 }) {
+  // Mất mạng: vẫn gõ được (giữ nháp) nhưng khoá Gửi và nói rõ — không để tin "gửi" mà không đi.
+  const offline = useOffline()
   return (
     <div className="border-t border-[var(--border)] bg-[var(--card)] p-3">
       {notice}
+      {offline && <p role="status" className="mb-2 text-sm text-[var(--color-app-tag-amber-ink)]">Đang mất mạng — tin chưa gửi được. Nội dung vẫn giữ trong ô, có mạng lại thì bấm Gửi.</p>}
       <div className="flex items-end gap-2">
         <Textarea
           rows={1}
@@ -337,7 +342,7 @@ export function Composer({
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault()
-              if (!disabled && value.trim() && !pending) onSend()
+              if (!disabled && !offline && value.trim() && !pending) onSend()
             }
           }}
         />
@@ -345,7 +350,7 @@ export function Composer({
           variant="outline"
           size="icon"
           className="size-10 shrink-0 max-sm:size-11"
-          disabled={disabled || !value.trim() || pending}
+          disabled={disabled || offline || !value.trim() || pending}
           onClick={onSend}
           aria-label="Gửi"
         >

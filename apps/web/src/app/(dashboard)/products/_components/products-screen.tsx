@@ -10,7 +10,12 @@
  *  - Không dựng các thao tác chưa có BE hỗ trợ (tránh affordance giả).
  */
 import { useMemo, useState } from "react"
-import { Loader2, Plus, Settings2 } from "lucide-react"
+import { Package, Plus, Settings2 } from "lucide-react"
+import { toast } from "sonner"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
+import { toastWithUndo } from "@/lib/undo"
 import { Button } from "@/components/ui/button"
 import { ShellPageHeader } from "@/components/app-shell/page-header"
 import { MOBILE_FAB_CLASS } from "@/components/app-shell/mobile-primary"
@@ -31,7 +36,7 @@ import { ALL_SENTINEL, ProductsFilterBar } from "./products-filter-bar"
 export function ProductsScreen() {
   const { can } = usePermissions()
   const canManage = can("products.manage")
-  const { data: products = [], isLoading } = useProducts()
+  const { data: products = [], isLoading, isError, error, refetch, isFetching } = useProducts()
   const { data: projects = [] } = useActiveProjects()
   const { data: categories = [] } = useProductCategories(true)
 
@@ -73,7 +78,10 @@ export function ProductsScreen() {
   function handleDelete(product: Product) {
     setDeleteError(null)
     deleteMutation.mutate(product.id, {
-      onSuccess: closeDelete,
+      onSuccess: () => {
+        closeDelete()
+        toast.success(`Đã xoá sản phẩm “${product.name}”`)
+      },
       onError: (err) =>
         setDeleteError({
           message: getApiErrorMessage(err, "Không xoá được sản phẩm, thử lại sau"),
@@ -83,9 +91,27 @@ export function ProductsScreen() {
   }
 
   function handleHideFromDialog(product: Product) {
+    setActive(product, false, closeDelete)
+  }
+
+  /** Ẩn / mở bán lại — đảo được bằng chính API này nên có "Hoàn tác"; lỗi thì nói rõ (trước đây im lặng). */
+  function setActive(product: Product, active: boolean, done?: () => void) {
     updateMutation.mutate(
-      { id: product.id, payload: { is_active: false } },
-      { onSuccess: closeDelete },
+      { id: product.id, payload: { is_active: active } },
+      {
+        onSuccess: () => {
+          done?.()
+          toastWithUndo({
+            message: active ? `Đã mở bán lại “${product.name}”` : `Đã ẩn “${product.name}” — ngừng bán`,
+            onUndo: () =>
+              updateMutation.mutate(
+                { id: product.id, payload: { is_active: !active } },
+                { onError: (err) => toast.error(getApiErrorMessage(err, "Chưa hoàn tác được")) },
+              ),
+          })
+        },
+        onError: (err) => toast.error(getApiErrorMessage(err, active ? "Chưa mở bán lại được" : "Chưa ẩn được sản phẩm")),
+      },
     )
   }
 
@@ -97,7 +123,7 @@ export function ProductsScreen() {
   }
 
   function handleToggleActive(product: Product) {
-    updateMutation.mutate({ id: product.id, payload: { is_active: !product.is_active } })
+    setActive(product, !product.is_active)
   }
 
   return (
@@ -133,25 +159,27 @@ export function ProductsScreen() {
       />
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="size-6 animate-spin text-[var(--color-app-primary-ink)]" />
-        </div>
+        <LoadingBlock variant="cards" count={4} label="Đang tải sản phẩm…" />
+      ) : isError && products.length === 0 ? (
+        // Lỗi tải ≠ chưa có sản phẩm.
+        <ErrorState title="Không tải được danh sách sản phẩm" error={error} onRetry={() => void refetch()} retrying={isFetching} />
       ) : products.length === 0 ? (
-        <div className="space-y-3 rounded-2xl border border-dashed py-16 text-center text-sm text-muted-foreground">
-          <p>Chưa có sản phẩm nào.</p>
-          {canManage && (
+        <EmptyState
+          icon={Package}
+          title="Chưa có sản phẩm nào"
+          message="Thêm sản phẩm để bán ở POS, trang bán hàng và gắn vào cơ hội."
+          action={canManage ? (
             <Button variant="outline" onClick={() => setShowCreate(true)}>
               <Plus className="mr-1.5 size-4" /> Thêm sản phẩm
             </Button>
-          )}
-        </div>
+          ) : undefined}
+        />
       ) : filtered.length === 0 ? (
-        <div className="space-y-3 rounded-2xl border border-dashed py-16 text-center text-sm text-muted-foreground">
-          <p>Không có sản phẩm nào khớp bộ lọc.</p>
-          <Button variant="ghost" onClick={clearFilters}>
-            Xoá bộ lọc
-          </Button>
-        </div>
+        <EmptyState
+          title="Không có sản phẩm nào khớp bộ lọc"
+          message="Thử bỏ bớt điều kiện hoặc tìm bằng tên khác."
+          action={<Button variant="outline" onClick={clearFilters}>Xoá bộ lọc</Button>}
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filtered.map((p) => (

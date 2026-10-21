@@ -2,7 +2,8 @@
 
 import { useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { useIsPhone } from "@/hooks/use-is-phone"
@@ -105,8 +106,8 @@ export function PosSell() {
   const doPay = async () => { const o = await save(); if (o) setPayOrder(o) }
   const editing = editKey ? cart.lines.find((l) => l.key === editKey) : undefined
 
-  if (menuQ.isLoading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin" aria-label="Đang tải" /></div>
-  if (menuQ.isError || !menuQ.data) return <p role="alert" className="p-6 text-sm text-destructive">Không tải được thực đơn. Thử tải lại trang.</p>
+  if (menuQ.isLoading) return <LoadingBlock variant="cards" count={4} label="Đang tải thực đơn…" />
+  if (menuQ.isError || !menuQ.data) return <ErrorState title="Không tải được thực đơn" error={menuQ.error} onRetry={() => void menuQ.refetch()} retrying={menuQ.isFetching} />
 
   const cartPanel = (inSheet: boolean) => (
     <PosCartPanel

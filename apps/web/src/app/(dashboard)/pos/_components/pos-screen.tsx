@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import { Loader2 } from "lucide-react"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ShellPageHead } from "@/components/app-shell/page-head"
@@ -60,7 +62,9 @@ export function PosScreen() {
             {manage && <TabsTrigger value="settings" className={QUICK_TAB}>Cài đặt</TabsTrigger>}
           </TabsList>
           <TabsContent value="sell">
-            {shift.isLoading ? <div className="flex justify-center p-10"><Loader2 className="animate-spin" aria-label="Đang tải" /></div>
+            {shift.isLoading ? <LoadingBlock className="p-4" count={4} label="Đang tải ca…" />
+              // Không đọc được ca ⇒ báo lỗi, KHÔNG mời "Mở ca" (có thể đang có ca mở thật).
+              : shift.isError && !shift.data ? <ErrorState title="Không đọc được ca đang mở" error={shift.error} onRetry={() => void shift.refetch()} retrying={shift.isFetching} />
               : open ? <PosSell /> : <div className="py-6"><PosOpenShiftCard /></div>}
           </TabsContent>
           <TabsContent value="orders"><PosOrdersTab canManage={manage} /></TabsContent>

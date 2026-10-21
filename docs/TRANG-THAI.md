@@ -274,6 +274,22 @@ Ghi chú: màn Khách hàng mặc định lọc 7 ngày gần nhất, nên trố
 | Mất mạng | ❌ | ✅ | Dải báo chung; nút Đăng/Hẹn giờ/Lưu nháp khoá khi mất mạng, kèm câu giải thích |
 | Thành công | ✅ | ✅ | |
 
+### Hộp thư, Sản phẩm, Bán hàng (POS), Nhân sự (đợt 2, 21/10/2026)
+
+| Màn | Trước | Sau |
+|---|---|---|
+| Hộp thư (`/inbox`) | Tương tác tải lỗi ⇒ "Chưa có tương tác nào khớp bộ lọc"; lỗi hội thoại / đánh giá chỉ là chữ đỏ; mất mạng vẫn bấm Gửi | `ErrorState` + Thử lại ở Tương tác, Tất cả hội thoại, Zalo, Facebook, Google; ô soạn tin khoá Gửi khi mất mạng (vẫn gõ được, nói rõ) |
+| Sản phẩm (`/products`) | Tải lỗi ⇒ "Chưa có sản phẩm nào"; Ẩn/Hiện lại lỗi thì im lặng, xoá xong không báo | `ErrorState`; Ẩn/Hiện lại có toast + **Hoàn tác** (đảo lại bằng chính API); xoá có toast; nhãn trạng thái dùng `StatusTag` |
+| POS (`/pos`) | Không đọc được ca ⇒ mời "Mở ca" (có thể đang có ca mở thật); đơn / lịch sử ca lỗi ⇒ trống; mất mạng vẫn bấm Thanh toán | Ca lỗi ⇒ `ErrorState`, không mời Mở ca; thực đơn / đơn / ca / báo cáo có Thử lại; **mất mạng khoá Lưu đơn / Thanh toán / Huỷ đơn** + câu "giỏ hàng vẫn giữ nguyên" |
+| Nhân sự (`/management/employees`) | Tải lỗi ⇒ "Chưa có nhân viên nào"; vòng quay hiện lại mỗi lần tải nền; xoá không hoàn tác được | `ErrorState`; khung xương chỉ lần đầu; trống có "Thêm nhân viên"; **xoá có Hoàn tác 5 giây** (chưa có API khôi phục ⇒ hoãn gửi); lưu khoá khi mất mạng |
+| Đơn trang bán hàng (`/connections?muc=ban-online`) | Đổi trạng thái (kể cả huỷ) không có phản hồi | Toast + **Hoàn tác** (đổi lại trạng thái cũ) |
+
+`ui-audit.mjs` nay đo cả 9 màn (0 lỗi sau khi sửa vùng chạm của chip lọc Tương tác và nút Thống kê). `break-it.mjs` thêm 3 tình huống (13/13 đạt):
+
+- 500 ở Sản phẩm / Nhân sự / ca POS;
+- POS mất mạng;
+- Ẩn sản phẩm rồi Hoàn tác.
+
 ## Việc còn lại
 
 - Đã xong (phần G):

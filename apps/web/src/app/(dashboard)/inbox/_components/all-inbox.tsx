@@ -12,6 +12,7 @@ import { inConsultWindow, threadTitle, type ZaloOaThread } from "@/app/(dashboar
 import { ZaloCustomerSide, ZaloThreadView } from "@/app/(dashboard)/settings/_components/integrations/zalo-oa/zalo-oa-inbox"
 import { messengerReplyLabel, useFacebookConversations, type FacebookConversation } from "@/app/(dashboard)/settings/_components/integrations/use-facebook"
 import { FacebookCustomerSide, FacebookThread, facebookCustomerName } from "@/app/(dashboard)/settings/_components/integrations/facebook-inbox"
+import { ErrorState } from "@/components/ui/error-state"
 
 /** Một dòng của danh sách gộp — giữ bản ghi gốc để mở đúng màn hội thoại của kênh đó. */
 export type MergedConversation =
@@ -73,8 +74,8 @@ export function AllInbox({ listTop, className }: { listTop?: ReactNode; classNam
       <InboxListToolbar q={q} onQ={setQ} awaiting={{ on: onlyAwaiting, count: awaitingCount, onChange: setOnlyAwaiting }} />
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {loading && <div className="flex justify-center py-6"><Loader2 className="size-4 animate-spin" /></div>}
-        {zaloErr && <p className="px-2 py-2 text-sm text-[var(--color-app-tag-red-ink)]">Không tải được hội thoại Zalo OA.</p>}
-        {fbErr && <p className="px-2 py-2 text-sm text-[var(--color-app-tag-red-ink)]">Không tải được hội thoại Messenger.</p>}
+        {zaloErr && <ErrorState compact className="px-2 py-2" title="Không tải được hội thoại Zalo OA" error={zalo.error} onRetry={() => void zalo.refetch()} retrying={zalo.isFetching} />}
+        {fbErr && <ErrorState compact className="px-2 py-2" title="Không tải được hội thoại Messenger" error={fb.error} onRetry={() => void fb.refetch()} retrying={fb.isFetching} />}
         {!loading && rows.length === 0 && !zaloErr && !fbErr && (
           <InboxEmpty icon={<Inbox aria-hidden />}>
             {onlyAwaiting ? "Không còn hội thoại nào chờ trả lời." : q ? "Không có hội thoại nào khớp." : "Chưa có hội thoại nào. Khi khách nhắn vào Zalo OA hoặc Fanpage đã kết nối, hội thoại sẽ hiện ở đây."}

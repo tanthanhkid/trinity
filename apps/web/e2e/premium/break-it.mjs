@@ -92,6 +92,69 @@ export const CASES = [
     },
   },
   {
+    name: "api-500-man-khac",
+    expect: "API chính của Sản phẩm, Nhân sự, POS (ca đang mở) trả 500 ⇒ khung lỗi + Thử lại; KHÔNG nói 'Chưa có…' và KHÔNG mời 'Mở ca' khi chưa biết có ca hay không",
+    async run() {
+      const cases = [
+        ["/products", { "GET /products": json(500, {}) }, /Chưa có sản phẩm nào/],
+        ["/management/employees", { "GET /management/employees": json(500, {}) }, /Chưa có nhân viên nào/],
+        ["/pos", { "GET /pos/shifts/current": json(500, {}) }, /Mở ca/],
+      ]
+      const parts = []
+      let ok = true
+      for (const [path, sc, lie] of cases) {
+        const h = await open(path, sc)
+        try {
+          const t = await text(h.page)
+          const good = /Không (tải|đọc) được/.test(t) && /máy chủ đang gặp sự cố/i.test(t) && (await visible(h.page.getByRole("button", { name: "Thử lại" }))) && !lie.test(t)
+          ok &&= good
+          parts.push(`${path}: ${good ? "đúng" : "LỆCH — " + t.replace(/\s+/g, " ").slice(0, 80)}`)
+        } finally { await h.close() }
+      }
+      return { ok, actual: parts.join("; ") }
+    },
+  },
+  {
+    name: "pos-mat-mang",
+    expect: "POS mất mạng ⇒ khoá Lưu đơn / Thanh toán + câu 'giỏ hàng vẫn giữ nguyên'; có mạng lại ⇒ mở lại",
+    async run() {
+      const h = await open("/pos")
+      try {
+        await h.page.getByRole("button", { name: /Cà phê sữa đá/ }).first().click()
+        await h.page.waitForTimeout(500)
+        // Món có tuỳ chọn mở hộp thoại — bấm nút thêm nếu có.
+        const add = h.page.getByRole("button", { name: /^Thêm ·/ })
+        if (await visible(add)) await add.first().click()
+        await setOffline(h.context, true)
+        await h.page.waitForTimeout(400)
+        const pay = h.page.getByRole("button", { name: "Thanh toán" }).first()
+        const locked = await pay.isDisabled()
+        const said = await visible(h.page.getByText(/Đang mất mạng — chưa lưu \/ thu tiền được/))
+        await setOffline(h.context, false)
+        await h.page.waitForTimeout(400)
+        const back = await pay.isEnabled()
+        return { ok: locked && said && back, actual: `khoá Thanh toán: ${locked ? "có" : "KHÔNG"}; câu giải thích: ${said ? "có" : "KHÔNG"}; có mạng lại mở: ${back ? "có" : "KHÔNG"}` }
+      } finally { await h.close() }
+    },
+  },
+  {
+    name: "an-san-pham-hoan-tac",
+    expect: "Ẩn sản phẩm ⇒ PATCH is_active=false + toast Hoàn tác; bấm ⇒ PATCH is_active=true (đảo lại)",
+    async run() {
+      const bodies = []
+      const h = await open("/products", { "/^PATCH \\/products\\/\\d+$/": (req) => (bodies.push(req.body ?? ""), { status: 200, json: {} }) })
+      try {
+        await h.page.getByRole("button", { name: "Ẩn" }).first().click()
+        await h.page.waitForTimeout(600)
+        const hid = bodies.some((b) => /"is_active":\s*false/.test(b))
+        await h.page.getByRole("button", { name: "Hoàn tác" }).click()
+        await h.page.waitForTimeout(600)
+        const undone = bodies.some((b) => /"is_active":\s*true/.test(b))
+        return { ok: hid && undone, actual: `PATCH ẩn: ${hid ? "có" : "KHÔNG"}; Hoàn tác PATCH mở bán lại: ${undone ? "có" : "KHÔNG"}` }
+      } finally { await h.close() }
+    },
+  },
+  {
     name: "api-401-het-phien",
     expect: "Phiên hết hạn (401 và làm mới token cũng 401) ⇒ về trang đăng nhập, không kẹt màn trắng/lỗi",
     async run() {

@@ -1,6 +1,7 @@
 "use client"
 
-import { Loader2 } from "lucide-react"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
 import { ShellResponsiveList } from "@/components/app-shell/responsive-list"
 import { ShellListCard, ShellListCardRow } from "@/components/app-shell/list-card"
 import { usePosShift, usePosShifts } from "@/hooks/pos/use-pos"
@@ -14,10 +15,14 @@ export function PosShiftTab() {
   const hist = usePosShifts()
   const shifts = hist.data ?? []
   const money = (v: number | null) => (v == null ? "—" : vnd(v))
-  if (cur.isLoading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin" aria-label="Đang tải" /></div>
+  if (cur.isLoading) return <LoadingBlock className="p-4" count={4} label="Đang tải ca…" />
   return (
     <div className="space-y-4">
-      {cur.data?.shift && cur.data.summary ? <PosCurrentShiftCard shift={cur.data.shift} summary={cur.data.summary} /> : <PosOpenShiftCard />}
+      {/* Không đọc được ca hiện tại ⇒ báo lỗi, KHÔNG mời "Mở ca" (có thể đang có ca mở thật). */}
+      {cur.isError && !cur.data ? (
+        <ErrorState title="Không đọc được ca đang mở" error={cur.error} onRetry={() => void cur.refetch()} retrying={cur.isFetching} />
+      ) : cur.data?.shift && cur.data.summary ? <PosCurrentShiftCard shift={cur.data.shift} summary={cur.data.summary} /> : <PosOpenShiftCard />}
+      {hist.isError && !hist.data && <ErrorState compact title="Không tải được lịch sử ca" error={hist.error} onRetry={() => void hist.refetch()} retrying={hist.isFetching} />}
       <section aria-label="Lịch sử ca" className="rounded-[var(--radius)] border bg-card">
         <h2 className="border-b p-3 text-base font-bold text-foreground">Lịch sử ca</h2>
         <ShellResponsiveList
@@ -36,7 +41,7 @@ export function PosShiftTab() {
                   <td className="p-2 text-right font-semibold tabular-nums">{s.cash_diff == null ? "—" : vnd(s.cash_diff)}</td>
                 </tr>
               ))}
-              {(hist.data ?? []).length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Chưa có ca nào.</td></tr>}
+              {hist.data && hist.data.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Chưa có ca nào.</td></tr>}
             </tbody>
           </table></div>}
           cards={
@@ -51,7 +56,7 @@ export function PosShiftTab() {
                   <ShellListCardRow label="Chênh lệch" value={<span className="font-semibold tabular-nums">{money(s.cash_diff)}</span>} />
                 </ShellListCard>
               ))}
-              {shifts.length === 0 && <p className="p-3 text-center text-sm text-muted-foreground">Chưa có ca nào.</p>}
+              {hist.data && shifts.length === 0 && <p className="p-3 text-center text-sm text-muted-foreground">Chưa có ca nào.</p>}
             </div>
           }
         />

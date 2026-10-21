@@ -171,6 +171,10 @@ jobs:
         if: steps.web.outputs.run == 'true'
         run: pnpm install --frozen-lockfile --prefer-offline
 
+      - name: Generate Prisma clients
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter @trinity/prisma generate
+
       - name: Build shared packages
         if: steps.web.outputs.run == 'true'
         run: pnpm --filter "./packages/*" --if-present build

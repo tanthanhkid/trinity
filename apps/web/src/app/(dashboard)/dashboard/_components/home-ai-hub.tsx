@@ -144,10 +144,13 @@ export function ConnectAiInvite() {
 /* Kênh đã kết nối                                                      */
 /* ------------------------------------------------------------------ */
 
-const STATE_DOT: Record<ChannelState, string> = {
-  ok: 'bg-emerald-500',
-  attention: 'bg-amber-500',
-  off: 'bg-muted-foreground/40',
+/** Chấm trạng thái: khác nhau cả HÌNH (không chỉ màu) để người mù màu vẫn phân biệt — WCAG 1.4.1 / 1.4.11.
+ *  ok = chấm đặc · attention = chấm có dấu "!" · off = chấm rỗng (chỉ viền). Sắc -600 cho đủ tương phản trên nền thẻ sáng. */
+function ChannelDot({ state }: { state: ChannelState }) {
+  const base = 'absolute -right-0.5 -bottom-0.5 grid size-3 place-items-center rounded-full ring-2 ring-[var(--card)]'
+  if (state === 'off') return <span aria-hidden className={cn(base, 'border border-muted-foreground/70 bg-[var(--card)]')} />
+  if (state === 'attention') return <span aria-hidden className={cn(base, 'bg-amber-600 text-[8px] font-bold leading-none text-white')}>!</span>
+  return <span aria-hidden className={cn(base, 'bg-emerald-600')} />
 }
 
 /** Chữ cho trình đọc màn hình — chấm trạng thái không chỉ dựa vào màu. */
@@ -223,7 +226,7 @@ export function ChannelsHub({ loading, error, data }: { loading: boolean; error:
               <Link href={c.href} className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)]">
                 <span className="relative shrink-0" data-state={c.state}>
                   <ChannelMark c={c} />
-                  <span aria-hidden className={cn('absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-[var(--card)]', STATE_DOT[c.state])} />
+                  <ChannelDot state={c.state} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[14px] font-medium text-[var(--foreground)]">

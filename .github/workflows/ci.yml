@@ -189,6 +189,12 @@ jobs:
         if: steps.web.outputs.run == 'true'
         run: pnpm --filter ./apps/web build
 
+      # JS tải lần đầu theo route (gzip) so với apps/web/route-js-budget.json — bảng in vào tóm tắt job.
+      - name: Route JS budget
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: node scripts/route-js-size.mjs
+
       - name: Contrast (design tokens)
         if: steps.web.outputs.run == 'true'
         working-directory: apps/web

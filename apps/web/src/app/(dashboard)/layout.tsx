@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, type CSSProperties } from "react"
+import dynamic from "next/dynamic"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { NotificationSocket } from "@/components/notification-socket"
 import { OfflineBanner } from "@/components/offline-banner"
@@ -8,10 +9,18 @@ import { ShellSidebar } from "@/components/app-shell/sidebar"
 import { FeatureRouteGate } from "@/components/feature-route-gate"
 import { SetupGate } from "@/components/setup-gate"
 import { ShellTopbar } from "@/components/app-shell/topbar"
-import { OnboardingWizard } from "@/components/onboarding-wizard/onboarding-wizard"
 import { useWizard } from "@/hooks/use-onboarding-wizard"
 import { useAppDocumentTheme, useAppNavMini } from "@/hooks/use-app-shell"
 import { appFont } from "@/lib/app-font"
+
+const WIZARD_LOADING = (
+  <div role="status" aria-busy="true" className="flex min-h-dvh items-center justify-center text-sm text-muted-foreground">Đang tải…</div>
+)
+// Wizard bắt đầu chỉ hiện cho tổ chức chưa cài đặt xong — tải riêng, không nằm trong JS mọi trang phải nạp.
+const OnboardingWizard = dynamic(
+  () => import("@/components/onboarding-wizard/onboarding-wizard").then((m) => ({ default: m.OnboardingWizard })),
+  { loading: () => WIZARD_LOADING },
+)
 
 // Sidebar pinned trên desktop (>=768px): luôn mở mặc định, bỏ qua cookie
 // `sidebar_state=false` cũ. Lý do: Header chỉ render `SidebarTrigger` trên
@@ -52,9 +61,7 @@ export default function DashboardLayout({
   // Wizard bắt đầu: chưa đi hết thì MỌI trang trong ứng dụng (kể cả URL gõ tay) chỉ hiện wizard toàn màn hình.
   // Đang tải ⇒ chờ (không nháy ứng dụng); lỗi ⇒ fail-open, vào ứng dụng như cũ.
   const wizard = useWizard()
-  if (wizard.isLoading) {
-    return <div role="status" aria-busy="true" className="flex min-h-dvh items-center justify-center text-sm text-muted-foreground">Đang tải…</div>
-  }
+  if (wizard.isLoading) return WIZARD_LOADING
   if (wizard.data?.enabled && !wizard.data.completed) return <OnboardingWizard wizard={wizard.data} />
 
   return (

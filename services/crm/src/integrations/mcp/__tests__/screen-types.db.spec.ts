@@ -56,9 +56,9 @@ d('Loại màn qua MCP — DB thật', () => {
   });
 
   it('create_view hợp lệ ghi đúng loại + cấu hình; update_view sang loại lạ bị từ chối, view giữ nguyên', async () => {
-    const k = await act('create_view').prepare({ object: 'don_hang', label: 'Pipeline đơn', type: 'kanban', group_by: 'trang_thai' }, { deps, user });
+    const k = await act('create_view').prepare({ object: 'don_hang', label: 'Pipeline đơn', type: 'kanban', type_words: 'làm dạng kanban', group_by: 'trang_thai' }, { deps, user });
     await act('create_view').execute(k.params, { deps, user }, 1);
-    const c = await act('create_view').prepare({ object: 'don_hang', label: 'Lịch giao', type: 'calendar', date_field: 'ngay_giao', mode: 'week' }, { deps, user });
+    const c = await act('create_view').prepare({ object: 'don_hang', label: 'Lịch giao', type: 'calendar', type_words: 'xem dạng lịch', date_field: 'ngay_giao', mode: 'week' }, { deps, user });
     await act('create_view').execute(c.params, { deps, user }, 2);
     const rows = await prisma.customView.findMany({ orderBy: { id: 'asc' }, select: { key: true, type: true, config: true } });
     expect(rows).toMatchObject([{ type: 'kanban', config: { group_by: 'trang_thai' } }, { type: 'calendar', config: { date_field: 'ngay_giao', mode: 'week' } }]);

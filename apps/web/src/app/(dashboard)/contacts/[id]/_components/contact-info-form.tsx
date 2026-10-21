@@ -28,6 +28,7 @@ import { Can, usePermissions } from "@/lib/rbac"
 import { MobileActionBar } from "@/components/app-shell/mobile-action-bar"
 import { useSettingsOptions } from "@/hooks/use-settings-options"
 import { VnDateTimeInput } from "@/components/ui/vn-datetime-input"
+import { errorMessage } from "@/lib/error-messages"
 
 const GENDERS = [
   { value: "nam", label: "Nam" },
@@ -256,7 +257,7 @@ export function ContactInfoForm({
       toast.success("Cập nhật thành công")
       setEditing(false)
     },
-    onError: () => toast.error("Không thể cập nhật thông tin"),
+    onError: (err) => toast.error(errorMessage(err, "Không thể cập nhật thông tin")),
   })
 
   const handleSave = () => {

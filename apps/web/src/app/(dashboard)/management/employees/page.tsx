@@ -60,6 +60,7 @@ import { Loader2, Eye, Pencil, Lock, Trash2, ChevronLeft, ChevronRight, Camera, 
 import { teamColorClass } from "@/lib/team-style"
 import { cn } from "@/lib/utils"
 import { useRowHighlight } from "@/lib/use-row-highlight"
+import { errorMessage } from "@/lib/error-messages"
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -438,8 +439,7 @@ export function EditEmployeeDialog({ employee, onClose }: { employee: Employee; 
       toast.success("Đã cập nhật thông tin nhân viên")
       onClose()
     } catch (err) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      toast.error(msg ?? "Không thể cập nhật nhân viên")
+      toast.error(errorMessage(err, "Chưa cập nhật được nhân viên"))
     }
   }
 
@@ -603,7 +603,7 @@ export function EditEmployeeDialog({ employee, onClose }: { employee: Employee; 
                         toast.success("Đã đặt lại thiết bị.")
                         setResetDeviceOpen(false)
                       },
-                      onError: () => toast.error("Đặt lại thiết bị thất bại."),
+                      onError: (err) => toast.error(errorMessage(err, "Đặt lại thiết bị thất bại.")),
                     })
                   }
                 />
@@ -856,8 +856,7 @@ function AddEmployeeDialog({ onClose }: { onClose: () => void }) {
       toast.success("Đã thêm nhân viên mới")
       onClose()
     } catch (err) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-      toast.error(msg ?? "Không thể tạo nhân viên")
+      toast.error(errorMessage(err, "Chưa tạo được nhân viên"))
     }
   }
 

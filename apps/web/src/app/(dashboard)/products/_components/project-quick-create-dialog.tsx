@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import apiClient from '@/lib/api-client'
 import type { ProjectOption } from '@/hooks/use-projects'
+import { errorMessage } from '@/lib/error-messages'
 
 /** "Bán Lẻ" → "ban_le" (BE chỉ nhận `^[a-z0-9_]+$`, 2–100 ký tự). */
 export function slugifyProjectCode(name: string): string {
@@ -38,9 +39,7 @@ export function slugifyProjectCode(name: string): string {
 const CODE_RE = /^[a-z0-9_]+$/
 
 function apiMessage(err: unknown): string {
-  const msg = (err as { response?: { data?: { message?: unknown } } })?.response?.data?.message
-  if (Array.isArray(msg)) return msg.join(', ')
-  return typeof msg === 'string' ? msg : 'Tạo dự án thất bại. Vui lòng thử lại.'
+  return errorMessage(err, 'Chưa tạo được dự án')
 }
 
 type Props = {

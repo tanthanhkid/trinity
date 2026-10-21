@@ -16,6 +16,7 @@ import {
   useAssignableContactSales,
   useBulkTransferContacts,
 } from "@/hooks/use-contact-transfer"
+import { errorMessage } from "@/lib/error-messages"
 
 /**
  * DEPT_HEAD/team_lead/super_admin chuyển quyền phụ trách NHIỀU liên
@@ -73,8 +74,7 @@ export function BulkTransferContactsDialog({
           handleClose()
         },
         onError: (err) => {
-          const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-          toast.error(msg ?? "Không thể chuyển khách hàng. Vui lòng thử lại.")
+          toast.error(errorMessage(err, "Chưa chuyển được khách hàng"))
         },
       },
     )

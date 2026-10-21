@@ -52,6 +52,7 @@ import { useRowHighlight } from "@/lib/use-row-highlight"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EditEmployeeDialog } from "../../management/employees/page"
+import { errorMessage } from "@/lib/error-messages"
 
 function formatVnd(v: string | number | null | undefined): string {
   if (v == null || v === "") return "—"
@@ -237,7 +238,7 @@ function DeleteConfirm({ e, onClose }: { e: Employee; onClose: () => void }) {
       onConfirm={() =>
         del.mutate(undefined, {
           onSuccess: () => { toast.success("Đã xoá nhân viên"); onClose() },
-          onError: () => toast.error("Không thể xoá nhân viên"),
+          onError: (err) => toast.error(errorMessage(err, "Không thể xoá nhân viên")),
         })
       }
     />
@@ -260,7 +261,7 @@ function ResignConfirm({ e, onClose }: { e: Employee; onClose: () => void }) {
       onConfirm={() =>
         lock.mutate(undefined, {
           onSuccess: () => { toast.success("Đã đánh dấu nghỉ việc"); onClose() },
-          onError: () => toast.error("Không thể đánh dấu nghỉ việc"),
+          onError: (err) => toast.error(errorMessage(err, "Không thể đánh dấu nghỉ việc")),
         })
       }
     />

@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/auth'
 import { formatDate } from '@/lib/format'
 import type { NewsfeedComment } from './types'
 import { usePermissions } from '@/lib/rbac'
+import { errorMessage } from '@/lib/error-messages'
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -61,7 +62,7 @@ export function PostComments({ postId }: { postId: number }) {
       qc.invalidateQueries({ queryKey: ['newsfeed', 'comments', postId] })
       qc.invalidateQueries({ queryKey: ['newsfeed', 'posts'] })
     },
-    onError: () => toast.error('Không gửi được bình luận'),
+    onError: (err) => toast.error(errorMessage(err, 'Không gửi được bình luận')),
   })
 
   const deleteMutation = useMutation({
@@ -72,7 +73,7 @@ export function PostComments({ postId }: { postId: number }) {
       qc.invalidateQueries({ queryKey: ['newsfeed', 'comments', postId] })
       qc.invalidateQueries({ queryKey: ['newsfeed', 'posts'] })
     },
-    onError: () => toast.error('Không xoá được bình luận'),
+    onError: (err) => toast.error(errorMessage(err, 'Không xoá được bình luận')),
   })
 
   return (

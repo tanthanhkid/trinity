@@ -16,6 +16,7 @@ import {
   useWorkingSaturdays,
   useUpdateWorkingSaturdays,
 } from "@/hooks/use-attendance"
+import { errorMessage } from "@/lib/error-messages"
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0")
@@ -88,7 +89,7 @@ export function WorkingSaturdaysDialog({
         toast.success("Đã lưu cấu hình thứ 7 đi làm")
         handleOpenChange(false)
       },
-      onError: () => toast.error("Không lưu được cấu hình"),
+      onError: (err) => toast.error(errorMessage(err, "Không lưu được cấu hình")),
     })
   }
 

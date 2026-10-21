@@ -22,6 +22,7 @@ import {
   useDownloadContractTemplate,
   type ContractTemplate,
 } from "@/hooks/use-contracts"
+import { errorMessage } from "@/lib/error-messages"
 
 const MAX_BYTES = 20 * 1024 * 1024
 const ACCEPT = ".pdf,.doc,.docx,.xls,.xlsx"
@@ -67,7 +68,7 @@ export function ContractTemplatesTab({ canWrite }: { canWrite: boolean }) {
         toast.success("Đã xoá hồ sơ mẫu.")
         setConfirmId(null)
       },
-      onError: () => toast.error("Không xoá được hồ sơ mẫu."),
+      onError: (err) => toast.error(errorMessage(err, "Không xoá được hồ sơ mẫu.")),
     })
   }
 

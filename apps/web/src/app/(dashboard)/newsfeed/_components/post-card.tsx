@@ -37,6 +37,7 @@ import {
 } from './types'
 import { PostComments } from './post-comments'
 import { PostImageGallery } from './post-image-gallery'
+import { errorMessage } from '@/lib/error-messages'
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
@@ -97,7 +98,7 @@ export function PostCard({
     },
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ['newsfeed', 'posts'] }),
-    onError: () => toast.error('Không thực hiện được'),
+    onError: (err) => toast.error(errorMessage(err, 'Không thực hiện được')),
   })
 
   const deleteMutation = useMutation({
@@ -109,7 +110,7 @@ export function PostCard({
       setConfirmingDelete(false)
       qc.invalidateQueries({ queryKey: ['newsfeed', 'posts'] })
     },
-    onError: () => toast.error('Không xoá được bài đăng'),
+    onError: (err) => toast.error(errorMessage(err, 'Không xoá được bài đăng')),
   })
 
   const editMutation = useMutation({
@@ -121,7 +122,7 @@ export function PostCard({
       setEditing(false)
       qc.invalidateQueries({ queryKey: ['newsfeed', 'posts'] })
     },
-    onError: () => toast.error('Không lưu được'),
+    onError: (err) => toast.error(errorMessage(err, 'Không lưu được')),
   })
 
   return (

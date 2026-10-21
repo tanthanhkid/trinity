@@ -11,6 +11,7 @@ import { useOrgFeatures, useUpdateOrgFeatures } from "@/hooks/use-org-features"
 import { usePermissions } from "@/lib/rbac"
 import { SettingsPlanUsage } from "./settings-plan-usage"
 import { CustomObjectsSection } from "./custom-objects/custom-objects-section"
+import { errorMessage } from "@/lib/error-messages"
 
 /**
  * Cài đặt > Tính năng — bật/tắt từng module THEO TỔ CHỨC. Tắt =
@@ -30,7 +31,7 @@ export function SettingsFeatures() {
       {
         onSuccess: () =>
           toast.success(`Đã ${next ? "BẬT" : "TẮT"} “${ORG_FEATURES[key].label}”`),
-        onError: () => toast.error("Không lưu được, vui lòng thử lại"),
+        onError: (err) => toast.error(errorMessage(err, "Không lưu được, vui lòng thử lại")),
       },
     )
   }

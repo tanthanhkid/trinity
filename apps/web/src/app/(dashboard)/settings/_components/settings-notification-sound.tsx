@@ -16,6 +16,7 @@ import {
   setNotificationSoundId,
   DEFAULT_SOUND_ID,
 } from "@/lib/notification-sounds"
+import { errorMessage } from "@/lib/error-messages"
 
 const SOUND_QUERY_KEY = ["settings", "notification-sound"] as const
 
@@ -66,7 +67,7 @@ export function SettingsNotificationSound() {
       void qc.invalidateQueries({ queryKey: SOUND_QUERY_KEY })
       toast.success("Đã lưu âm báo — áp dụng cho toàn bộ nhân viên")
     },
-    onError: () => toast.error("Không lưu được, vui lòng thử lại"),
+    onError: (err) => toast.error(errorMessage(err, "Không lưu được, vui lòng thử lại")),
   })
 
   const handleToggle = () => {

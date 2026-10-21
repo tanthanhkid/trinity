@@ -100,6 +100,9 @@ export function describeError(err: unknown, action?: string): string {
   const kind = errorKind(err)
   const lead = action ? stripRetryTail(action) : ""
   if (!lead) return errorSentence(kind)
+  // Câu màn hình đã tự giải thích cách sửa ("Không đọc được file. Kiểm tra đúng mẫu…") ⇒ với lỗi dữ liệu / lỗi khác,
+  // câu chung chỉ lặp lại ý kém hơn; mất mạng / máy chủ / quyền… thì vẫn nói thêm nguyên nhân thật.
+  if (/[.!?]\s+\S/.test(lead) && (kind === "validation" || kind === "unknown")) return lead
   const { title, hint } = ERROR_MESSAGES[kind]
   return `${lead}: ${title.charAt(0).toLowerCase()}${title.slice(1)}. ${hint}`
 }

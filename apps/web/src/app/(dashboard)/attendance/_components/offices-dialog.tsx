@@ -19,6 +19,7 @@ import {
   useDeleteOffice,
   type AttendanceOffice,
 } from "@/hooks/use-attendance"
+import { errorMessage } from "@/lib/error-messages"
 
 function parseIps(raw: string): string[] {
   return raw
@@ -100,7 +101,7 @@ function OfficeRow({ office }: { office: AttendanceOffice }) {
                 { id: office.id, body: { name, ips: parseIps(ipsText), is_active: active, is_demo: isDemo } },
                 {
                   onSuccess: () => toast.success("Đã lưu văn phòng."),
-                  onError: () => toast.error("Lưu văn phòng thất bại."),
+                  onError: (err) => toast.error(errorMessage(err, "Lưu văn phòng thất bại.")),
                 },
               )
             }
@@ -122,7 +123,7 @@ function OfficeRow({ office }: { office: AttendanceOffice }) {
               toast.success("Đã xoá văn phòng.")
               setConfirmDelete(false)
             },
-            onError: () => toast.error("Xoá văn phòng thất bại."),
+            onError: (err) => toast.error(errorMessage(err, "Xoá văn phòng thất bại.")),
           })
         }
       />
@@ -196,7 +197,7 @@ export function OfficesDialog({
                         setNewIps("")
                         setNewIsDemo(false)
                       },
-                      onError: () => toast.error("Thêm văn phòng thất bại."),
+                      onError: (err) => toast.error(errorMessage(err, "Thêm văn phòng thất bại.")),
                     },
                   )
                 }

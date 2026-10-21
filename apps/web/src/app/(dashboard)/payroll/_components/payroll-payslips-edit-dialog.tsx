@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Loader2 } from "lucide-react"
 import apiClient from "@/lib/api-client"
 import { PayslipRow, formatMonth, fmt } from "./payroll-payslips-shared"
+import { errorMessage } from "@/lib/error-messages"
 // ============ Dialog Sửa phiếu lương ============
 interface EditFormState {
   working_days: string
@@ -102,7 +103,7 @@ export function PayslipEditDialog({
       toast.success("Đã lưu phiếu lương. Tổng thực nhận đã tính lại.")
       onSaved()
     },
-    onError: () => toast.error("Không thể lưu. Phiếu đã duyệt không sửa được, hoặc dữ liệu không hợp lệ."),
+    onError: (err) => toast.error(errorMessage(err, "Không thể lưu. Phiếu đã duyệt không sửa được, hoặc dữ liệu không hợp lệ.")),
   })
 
   // Tạm tính trực tiếp (các phần tính được ở FE); BHXH/thuế/thực nhận tính LẠI ở server khi lưu.

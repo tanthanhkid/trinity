@@ -12,6 +12,7 @@ import { guessMapping, SCHEDULE_OPTIONS, type GoogleTargets, type InspectResult,
 import { OptionSelect } from "./option-select"
 import type { SyncInput } from "./use-google-sheets"
 import type { SimpleOption } from "./webhook-types"
+import { errorMessage } from "@/lib/error-messages"
 
 interface Props {
   open: boolean
@@ -66,7 +67,7 @@ function GoogleSyncForm({ onOpenChange, targets, sources, inspect, inspecting, p
       if (t && !nextTab && t !== tab) { const again = await inspect({ spreadsheet: url, tab: t }); setInfo(again); setMap(guessMapping(fields, again.headers)) }
       else if (r.headers.length) setMap(guessMapping(fields, r.headers))
     } catch (e) {
-      setLocalError((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Không đọc được Sheet")
+      setLocalError(errorMessage(e, "Không đọc được Sheet"))
     }
   }
 

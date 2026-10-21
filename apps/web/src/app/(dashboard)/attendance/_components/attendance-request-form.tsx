@@ -26,6 +26,7 @@ import {
   useRequestConfig,
   type AttendanceRequestType,
 } from "@/hooks/use-attendance"
+import { errorMessage } from "@/lib/error-messages"
 
 const REQUEST_TYPES = Object.entries(REQUEST_TYPE_LABEL) as [
   AttendanceRequestType,
@@ -143,16 +144,8 @@ export function AttendanceRequestForm() {
           form.reset()
         },
         onError: (err: unknown) => {
-          // Hiện đúng lý do từ BE (vd thiếu giờ, vượt hạn mức) thay vì thông báo chung chung.
-          const data = (err as { response?: { data?: { message?: unknown } } })
-            ?.response?.data?.message
-          const msg =
-            typeof data === "string"
-              ? data
-              : Array.isArray(data) && typeof data[0] === "string"
-                ? data[0]
-                : "Gửi đơn thất bại, vui lòng thử lại"
-          toast.error(msg)
+          // Lý do cụ thể của máy chủ (thiếu giờ, vượt hạn mức…) hoặc câu theo loại lỗi — bảng thông điệp chung.
+          toast.error(errorMessage(err, "Chưa gửi được đơn"))
         },
       },
     )

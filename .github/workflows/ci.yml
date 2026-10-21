@@ -78,6 +78,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
       TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
+      # Các bộ test DB cũ đọc biến riêng — trỏ cùng DB test để chúng chạy THẬT trong CI (trước đây luôn bị bỏ qua).
+      POS_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
+      RBAC_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
       JWT_SECRET: ci-test-secret-not-real-do-not-use
       SERVICE_SECRET: ci-test-service-secret-do-not-use
       CI: "true"
@@ -91,7 +94,8 @@ jobs:
         id: sql
         run: |
           files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
-          if echo "$files" | grep -qE '(prisma/migrations/|schema\.prisma$|\.pg\.spec\.ts$)'; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          # Thêm: test DB (*.db.spec.ts, luồng POS, phạm vi quyền), mã tiền / quyền mà các test đó canh, và chính file CI.
+          if echo "$files" | grep -qE '(prisma/migrations/|schema\.prisma$|\.(pg|db)\.spec\.ts$|services/commerce/src/pos/|packages/rbac-nest/src/|services/auth/src/users/|\.github/workflows/ci\.yml$)'; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           for f in $(echo "$files" | grep -E '\.ts$' || true); do
             if [ -f "$f" ] && grep -qE '\$(queryRaw|executeRaw)' "$f"; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           done
@@ -124,16 +128,420 @@ jobs:
         if: steps.sql.outputs.run == 'true'
         run: pnpm --filter @trinity/prisma exec prisma migrate deploy
 
-      - name: SQL tests on Postgres
+      # Chạy lần lượt (--runInBand, từng gói một): các bộ test cùng dùng một DB và tự dọn bảng của mình.
+      - name: SQL tests on Postgres (crm)
         if: steps.sql.outputs.run == 'true'
         working-directory: services/crm
-        run: npx jest --testRegex '\.pg\.spec\.ts$' --runInBand
+        run: npx jest --testRegex '(\.pg\.spec|\.db\.spec|extensions\.service\.spec)\.ts
 
-      # services/commerce (sản phẩm, POS) có test SQL riêng — chạy trên cùng Postgres sau crm.
+  web-ui:
+    # Web: build thật (thay cho build tay trước khi duyệt) + đo trên Chrome headless (docs/TRANG-THAI.md):
+    # tương phản, nền tảng UI (vùng chạm, focus, tràn ngang, chuyển động) và "cố tình phá" (mất mạng, 500/401, trống,
+    # token kênh hết hạn, đăng bài lỗi, hoàn tác). API giả qua CDP Fetch — không có máy chủ, không có dữ liệu thật.
+    name: Web build and UI checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_API_URL: /api/v1
+      NEXT_TELEMETRY_DISABLED: "1"
+      BASE_URL: http://localhost:3917
+      CI: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      # Chỉ chạy khi PR đụng web hoặc gói dùng chung mà web phụ thuộc.
+      - name: Detect web changes
+        id: web
+        run: |
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(apps/web/|packages/|pnpm-lock\.yaml$|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        if: steps.web.outputs.run == 'true'
+        with:
+          version: 10.6.5
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: steps.web.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.web.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Generate Prisma clients
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter @trinity/prisma generate
+
+      - name: Build shared packages
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter "./packages/*" --if-present build
+
+      - name: next build
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter ./apps/web build
+
+      - name: Contrast (design tokens)
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: node e2e/premium/contrast.mjs
+
+      # Bản standalone (cách chạy trên máy chủ tự quản): chép static + public cạnh server.js rồi chạy ở cổng 3917.
+      - name: Start web (standalone)
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: |
+          cp -r .next/static .next/standalone/apps/web/.next/static
+          if [ -d public ]; then cp -r public .next/standalone/apps/web/public; fi
+          PORT=3917 HOSTNAME=127.0.0.1 nohup node .next/standalone/apps/web/server.js > /tmp/web.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3917/login && exit 0; sleep 1; done
+          cat /tmp/web.log; exit 1
+
+      # Chrome có sẵn trên ubuntu-latest (channel "chrome"); hồ sơ tạm mỗi lần chạy.
+      - name: UI audit (touch targets, focus, overflow, motion)
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: node e2e/premium/ui-audit.mjs > /tmp/ui-audit.json
+
+      - name: Break-it scenarios
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: |
+          if [ -f e2e/premium/break-it.mjs ]; then node e2e/premium/break-it.mjs; else echo "break-it.mjs chưa có trên nhánh này"; fi
+
+      - name: Web server log (on failure)
+        if: failure() && steps.web.outputs.run == 'true'
+        run: tail -n 200 /tmp/web.log || true
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ --runInBand
+
+      # services/commerce: sản phẩm (*.pg.spec) + luồng bán hàng POS trên DB thật (pos-flow.integration).
       - name: SQL tests on Postgres (commerce)
         if: steps.sql.outputs.run == 'true'
         working-directory: services/commerce
-        run: npx jest --testRegex '\.pg\.spec\.ts$' --runInBand --passWithNoTests
+        run: npx jest --testRegex '(\.pg\.spec|pos-flow\.integration\.spec)\.ts
+
+  web-ui:
+    # Web: build thật (thay cho build tay trước khi duyệt) + đo trên Chrome headless (docs/TRANG-THAI.md):
+    # tương phản, nền tảng UI (vùng chạm, focus, tràn ngang, chuyển động) và "cố tình phá" (mất mạng, 500/401, trống,
+    # token kênh hết hạn, đăng bài lỗi, hoàn tác). API giả qua CDP Fetch — không có máy chủ, không có dữ liệu thật.
+    name: Web build and UI checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_API_URL: /api/v1
+      NEXT_TELEMETRY_DISABLED: "1"
+      BASE_URL: http://localhost:3917
+      CI: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      # Chỉ chạy khi PR đụng web hoặc gói dùng chung mà web phụ thuộc.
+      - name: Detect web changes
+        id: web
+        run: |
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(apps/web/|packages/|pnpm-lock\.yaml$|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        if: steps.web.outputs.run == 'true'
+        with:
+          version: 10.6.5
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: steps.web.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.web.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Generate Prisma clients
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter @trinity/prisma generate
+
+      - name: Build shared packages
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter "./packages/*" --if-present build
+
+      - name: next build
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter ./apps/web build
+
+      - name: Contrast (design tokens)
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: node e2e/premium/contrast.mjs
+
+      # Bản standalone (cách chạy trên máy chủ tự quản): chép static + public cạnh server.js rồi chạy ở cổng 3917.
+      - name: Start web (standalone)
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: |
+          cp -r .next/static .next/standalone/apps/web/.next/static
+          if [ -d public ]; then cp -r public .next/standalone/apps/web/public; fi
+          PORT=3917 HOSTNAME=127.0.0.1 nohup node .next/standalone/apps/web/server.js > /tmp/web.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3917/login && exit 0; sleep 1; done
+          cat /tmp/web.log; exit 1
+
+      # Chrome có sẵn trên ubuntu-latest (channel "chrome"); hồ sơ tạm mỗi lần chạy.
+      - name: UI audit (touch targets, focus, overflow, motion)
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: node e2e/premium/ui-audit.mjs > /tmp/ui-audit.json
+
+      - name: Break-it scenarios
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: |
+          if [ -f e2e/premium/break-it.mjs ]; then node e2e/premium/break-it.mjs; else echo "break-it.mjs chưa có trên nhánh này"; fi
+
+      - name: Web server log (on failure)
+        if: failure() && steps.web.outputs.run == 'true'
+        run: tail -n 200 /tmp/web.log || true
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ --runInBand
+
+      # Phạm vi quyền (ScopeService) và làm mới cache quyền khi đổi người quản lý — trên DB thật.
+      - name: SQL tests on Postgres (rbac + auth)
+        if: steps.sql.outputs.run == 'true'
+        run: |
+          (cd packages/rbac-nest && npx jest --testRegex 'scope\.service\.spec\.ts
+
+  web-ui:
+    # Web: build thật (thay cho build tay trước khi duyệt) + đo trên Chrome headless (docs/TRANG-THAI.md):
+    # tương phản, nền tảng UI (vùng chạm, focus, tràn ngang, chuyển động) và "cố tình phá" (mất mạng, 500/401, trống,
+    # token kênh hết hạn, đăng bài lỗi, hoàn tác). API giả qua CDP Fetch — không có máy chủ, không có dữ liệu thật.
+    name: Web build and UI checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_API_URL: /api/v1
+      NEXT_TELEMETRY_DISABLED: "1"
+      BASE_URL: http://localhost:3917
+      CI: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      # Chỉ chạy khi PR đụng web hoặc gói dùng chung mà web phụ thuộc.
+      - name: Detect web changes
+        id: web
+        run: |
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(apps/web/|packages/|pnpm-lock\.yaml$|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        if: steps.web.outputs.run == 'true'
+        with:
+          version: 10.6.5
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: steps.web.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.web.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Generate Prisma clients
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter @trinity/prisma generate
+
+      - name: Build shared packages
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter "./packages/*" --if-present build
+
+      - name: next build
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter ./apps/web build
+
+      - name: Contrast (design tokens)
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: node e2e/premium/contrast.mjs
+
+      # Bản standalone (cách chạy trên máy chủ tự quản): chép static + public cạnh server.js rồi chạy ở cổng 3917.
+      - name: Start web (standalone)
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: |
+          cp -r .next/static .next/standalone/apps/web/.next/static
+          if [ -d public ]; then cp -r public .next/standalone/apps/web/public; fi
+          PORT=3917 HOSTNAME=127.0.0.1 nohup node .next/standalone/apps/web/server.js > /tmp/web.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3917/login && exit 0; sleep 1; done
+          cat /tmp/web.log; exit 1
+
+      # Chrome có sẵn trên ubuntu-latest (channel "chrome"); hồ sơ tạm mỗi lần chạy.
+      - name: UI audit (touch targets, focus, overflow, motion)
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: node e2e/premium/ui-audit.mjs > /tmp/ui-audit.json
+
+      - name: Break-it scenarios
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: |
+          if [ -f e2e/premium/break-it.mjs ]; then node e2e/premium/break-it.mjs; else echo "break-it.mjs chưa có trên nhánh này"; fi
+
+      - name: Web server log (on failure)
+        if: failure() && steps.web.outputs.run == 'true'
+        run: tail -n 200 /tmp/web.log || true
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ --runInBand)
+          (cd services/auth && npx jest --testRegex 'users-manager-cache-invalidation\.spec\.ts
+
+  web-ui:
+    # Web: build thật (thay cho build tay trước khi duyệt) + đo trên Chrome headless (docs/TRANG-THAI.md):
+    # tương phản, nền tảng UI (vùng chạm, focus, tràn ngang, chuyển động) và "cố tình phá" (mất mạng, 500/401, trống,
+    # token kênh hết hạn, đăng bài lỗi, hoàn tác). API giả qua CDP Fetch — không có máy chủ, không có dữ liệu thật.
+    name: Web build and UI checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_API_URL: /api/v1
+      NEXT_TELEMETRY_DISABLED: "1"
+      BASE_URL: http://localhost:3917
+      CI: "true"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      # Chỉ chạy khi PR đụng web hoặc gói dùng chung mà web phụ thuộc.
+      - name: Detect web changes
+        id: web
+        run: |
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(apps/web/|packages/|pnpm-lock\.yaml$|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        if: steps.web.outputs.run == 'true'
+        with:
+          version: 10.6.5
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: steps.web.outputs.run == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.web.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Generate Prisma clients
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter @trinity/prisma generate
+
+      - name: Build shared packages
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter "./packages/*" --if-present build
+
+      - name: next build
+        if: steps.web.outputs.run == 'true'
+        run: pnpm --filter ./apps/web build
+
+      - name: Contrast (design tokens)
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: node e2e/premium/contrast.mjs
+
+      # Bản standalone (cách chạy trên máy chủ tự quản): chép static + public cạnh server.js rồi chạy ở cổng 3917.
+      - name: Start web (standalone)
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: |
+          cp -r .next/static .next/standalone/apps/web/.next/static
+          if [ -d public ]; then cp -r public .next/standalone/apps/web/public; fi
+          PORT=3917 HOSTNAME=127.0.0.1 nohup node .next/standalone/apps/web/server.js > /tmp/web.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3917/login && exit 0; sleep 1; done
+          cat /tmp/web.log; exit 1
+
+      # Chrome có sẵn trên ubuntu-latest (channel "chrome"); hồ sơ tạm mỗi lần chạy.
+      - name: UI audit (touch targets, focus, overflow, motion)
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: node e2e/premium/ui-audit.mjs > /tmp/ui-audit.json
+
+      - name: Break-it scenarios
+        if: steps.web.outputs.run == 'true'
+        working-directory: apps/web
+        run: |
+          if [ -f e2e/premium/break-it.mjs ]; then node e2e/premium/break-it.mjs; else echo "break-it.mjs chưa có trên nhánh này"; fi
+
+      - name: Web server log (on failure)
+        if: failure() && steps.web.outputs.run == 'true'
+        run: tail -n 200 /tmp/web.log || true
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ --runInBand)
 
   web-ui:
     # Web: build thật (thay cho build tay trước khi duyệt) + đo trên Chrome headless (docs/TRANG-THAI.md):

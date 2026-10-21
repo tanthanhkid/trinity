@@ -1,3 +1,4 @@
+import { errorMessage } from "@/lib/error-messages"
 /** Kiểu + hằng cho Webhook ra/vào. Khớp BE `services/crm/src/integrations/webhooks/**`. */
 
 export interface WebhookEventDef {
@@ -130,9 +131,7 @@ export function deliveryErrorText(code: string | null, status: number | null): s
 
 /** Lấy thông điệp lỗi THẬT từ BE — class-validator trả mảng. */
 export function apiErrorMessage(err: unknown, fallback: string): string {
-  const msg = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message
-  if (Array.isArray(msg)) return msg.join("; ")
-  return typeof msg === "string" && msg ? msg : fallback
+  return errorMessage(err, fallback)
 }
 
 /** Gom sự kiện theo tài nguyên, giữ thứ tự BE trả. */

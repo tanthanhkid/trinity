@@ -119,7 +119,7 @@ export function SettingsSalesAssistant() {
             <Switch checked={rules.ai_intent.enabled} onCheckedChange={(v) => editRules({ ...rules, ai_intent: { ...rules.ai_intent, enabled: v } })} aria-label="Cộng điểm ý định do agent AI chấm" />
             <div>
               <p className="text-sm font-medium">Cộng điểm ý định mua do agent AI của bạn chấm</p>
-              <p className="text-xs text-muted-foreground">Trinity không tự chạy AI. Agent của bạn (ChatGPT/Claude… kết nối qua MCP) đọc ghi chú bằng <code>list_leads_to_score</code> và ghi điểm bằng <code>set_lead_intent</code>; điểm đó cộng tối đa {rules.ai_intent.max_points} điểm.</p>
+              <p className="text-xs text-muted-foreground">Trinity không tự chạy AI. Agent của bạn (ChatGPT/Claude… đã kết nối với Trinity) đọc ghi chú bằng <code>list_leads_to_score</code> và ghi điểm bằng <code>set_lead_intent</code>; điểm đó cộng tối đa {rules.ai_intent.max_points} điểm.</p>
             </div>
           </div>
           <details className="rounded-lg border p-3">

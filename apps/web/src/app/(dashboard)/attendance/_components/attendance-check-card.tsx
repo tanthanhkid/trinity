@@ -4,6 +4,7 @@ import { useState } from "react"
 import { LogIn, LogOut, MapPin } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { errorMessage } from "@/lib/error-messages"
 import { MobileActionBar } from "@/components/app-shell/mobile-action-bar"
 import { useIsPhone } from "@/hooks/use-is-phone"
 import {
@@ -16,14 +17,9 @@ import {
 import { formatDateTimeVn } from "@/lib/format"
 import { SelfieCaptureDialog } from "./selfie-capture-dialog"
 
-/** Trích thông báo lỗi tiếng Việt từ response axios. */
+/** Câu lỗi tiếng Việt qua bảng thông điệp chung — không in chữ tiếng Anh của axios ("Request failed…"). */
 function extractMessage(err: unknown, fallback: string): string {
-  const raw = (err as { response?: { data?: { message?: string | string[] } } })
-    ?.response?.data?.message
-  if (Array.isArray(raw)) return raw.join(", ")
-  if (typeof raw === "string" && raw) return raw
-  if (err instanceof Error && err.message) return err.message
-  return fallback
+  return errorMessage(err, fallback)
 }
 
 /**

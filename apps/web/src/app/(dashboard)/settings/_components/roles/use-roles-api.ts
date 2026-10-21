@@ -1,5 +1,6 @@
 'use client'
 
+import { errorMessage } from "@/lib/error-messages"
 import axios from 'axios'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Grants, Permission, Scope } from '@trinity/rbac'
@@ -65,12 +66,7 @@ export type GrantsPayload = Record<string, Scope | null>
 
 /** đọc MESSAGE THẬT từ response BE (string | string[]), không hardcode câu tĩnh. */
 export function apiErrorMessage(err: unknown, fallback: string): string {
-  if (axios.isAxiosError(err)) {
-    const raw = (err.response?.data as { message?: string | string[] } | undefined)?.message
-    if (Array.isArray(raw) && raw.length > 0) return raw.join(', ')
-    if (typeof raw === 'string' && raw) return raw
-  }
-  return fallback
+  return errorMessage(err, fallback)
 }
 
 export function grantsToPayload(grants: Grants): GrantsPayload {

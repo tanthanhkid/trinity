@@ -38,13 +38,19 @@ export default function GlobalError({
           <AlertTriangle className="h-7 w-7" aria-hidden />
         </div>
         <div className="space-y-2">
-          <h2 className="text-[17px] font-semibold text-foreground">Có lỗi xảy ra</h2>
-          <p className="break-words text-sm text-muted-foreground">{error.message}</p>
+          <h2 className="text-[17px] font-semibold text-foreground">Trang gặp sự cố khi hiển thị</h2>
+          {/* Không in error.message (chữ kỹ thuật, có thể tiếng Anh) — lỗi đã gửi về nhật ký để đội kỹ thuật xem. */}
+          <p className="break-words text-sm text-muted-foreground">Bấm &quot;Thử lại&quot;; vẫn lỗi thì tải lại trang hoặc báo quản trị viên kèm thời điểm xảy ra.</p>
         </div>
-        <Button onClick={() => window.location.reload()} className="h-10 rounded-lg px-5">
-          <RotateCw className="mr-2 h-4 w-4" aria-hidden />
-          Tải lại trang
-        </Button>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Button onClick={() => reset()} className="h-10 rounded-lg px-5">
+            <RotateCw className="mr-2 h-4 w-4" aria-hidden />
+            Thử lại
+          </Button>
+          <Button variant="outline" onClick={() => window.location.reload()} className="h-10 rounded-lg px-5">
+            Tải lại trang
+          </Button>
+        </div>
       </div>
     </div>
   )

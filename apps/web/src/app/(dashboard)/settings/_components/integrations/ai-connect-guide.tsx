@@ -27,10 +27,10 @@ export function AiConnectGuide({ mcpUrl, baseUrlConfigured }: { mcpUrl: string |
       {mcpUrl ? (
         <Card className="rounded-2xl">
           <CardContent className="space-y-2 py-4">
-            <p className="text-sm font-semibold">Địa chỉ máy chủ MCP của công ty</p>
+            <p className="text-sm font-semibold">Địa chỉ kết nối trợ lý AI của công ty</p>
             <div className="flex flex-wrap items-center gap-2">
               <code className="min-w-0 flex-1 rounded-md bg-muted px-2 py-1.5 font-mono text-xs break-all" data-testid="mcp-url">{mcpUrl}</code>
-              <CopyButton value={mcpUrl} label="URL MCP" />
+              <CopyButton value={mcpUrl} label="địa chỉ kết nối" />
             </div>
             <p className="text-xs text-muted-foreground">
               AI chỉ làm được những gì bạn làm được: đọc dữ liệu theo đúng quyền của bạn, số điện thoại luôn bị che. Nếu bạn cấp quyền ghi khi kết nối, thay đổi có hiệu lực ngay. Bạn thu hồi quyền bất cứ lúc nào ở danh sách bên dưới.
@@ -54,7 +54,7 @@ export function AiConnectGuide({ mcpUrl, baseUrlConfigured }: { mcpUrl: string |
         title="Cách nối với ChatGPT (gói Business / Enterprise)"
         steps={[
           "Mở ChatGPT > Settings > Apps (hoặc Connectors / Plugins) và bật chế độ nhà phát triển nếu được yêu cầu.",
-          "Chọn tạo ứng dụng/connector mới, dán địa chỉ máy chủ MCP ở trên, chọn xác thực OAuth.",
+          "Chọn tạo ứng dụng/connector mới, dán địa chỉ kết nối ở trên vào ô địa chỉ máy chủ (Server URL), chọn xác thực OAuth.",
           "Bấm Kết nối: ChatGPT mở trang Trinity — đăng nhập (nếu cần), kiểm tra tên ứng dụng + địa chỉ chuyển về (chatgpt.com), rồi bấm Cho phép.",
           "Trong cuộc trò chuyện, bật connector và hỏi về khách hàng, deal, công việc của bạn.",
         ]}
@@ -63,7 +63,7 @@ export function AiConnectGuide({ mcpUrl, baseUrlConfigured }: { mcpUrl: string |
         title="Cách nối với Claude (Custom connector)"
         steps={[
           "Mở Claude > Settings > Connectors > Add custom connector.",
-          "Đặt tên, dán địa chỉ máy chủ MCP ở trên rồi bấm Add.",
+          "Đặt tên, dán địa chỉ kết nối ở trên vào ô địa chỉ máy chủ (Server URL) rồi bấm Add.",
           "Bấm Connect: Claude mở trang Trinity — đăng nhập (nếu cần), kiểm tra địa chỉ chuyển về (claude.ai), rồi bấm Cho phép.",
           "Trong cuộc trò chuyện, bật connector từ menu công cụ.",
         ]}

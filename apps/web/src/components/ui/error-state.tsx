@@ -1,12 +1,15 @@
 import { AlertTriangle, RotateCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getApiErrorMessage } from "@/lib/api-client"
+import Link from "next/link"
+import { buttonVariants } from "@/components/ui/button-variants"
+import { ERROR_MESSAGES, describeError, errorKind } from "@/lib/error-messages"
 import { cn } from "@/lib/utils"
 
 /**
  * Khung "không tải được" dùng chung — nói rõ chuyện gì + cách sửa + nút "Thử lại".
  * Dùng thay cho việc coi lỗi như "chưa có dữ liệu" (người dùng tưởng tài khoản trống) hoặc để khung xương quay mãi.
- * `error` là lỗi từ react-query/axios: mất mạng ⇒ câu "Không kết nối được máy chủ…", lỗi máy chủ ⇒ câu máy chủ trả về.
+ * `error` là lỗi từ react-query/axios; câu giải thích lấy từ bảng thông điệp chung `lib/error-messages.ts`.
+ * Hết phiên ⇒ nút "Đăng nhập lại"; thiếu quyền ⇒ không có nút Thử lại (thử lại cũng không được) mà chỉ cách xin quyền.
  */
 export function ErrorState({
   title = "Không tải được dữ liệu",
@@ -29,8 +32,14 @@ export function ErrorState({
   compact?: boolean
   className?: string
 }) {
-  const text = message ?? getApiErrorMessage(error, "Đã có lỗi phía máy chủ. Thử lại sau ít phút.")
-  const retry = onRetry ? (
+  const kind = error === undefined ? null : errorKind(error)
+  const text = message ?? describeError(error)
+  const canRetry = kind === null || ERROR_MESSAGES[kind].retry
+  const retry = kind === "session" ? (
+    <Link href="/login" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 rounded-lg max-sm:min-h-11")}>
+      Đăng nhập lại
+    </Link>
+  ) : onRetry && canRetry ? (
     <Button type="button" variant="outline" size="sm" onClick={onRetry} disabled={retrying} className="h-8 rounded-lg max-sm:min-h-11">
       <RotateCw className={cn("mr-1.5 size-4", retrying && "animate-spin motion-reduce:animate-none")} aria-hidden />
       {retrying ? "Đang thử lại…" : "Thử lại"}

@@ -13,6 +13,7 @@ import { CircleAlert, Eye, EyeOff, Loader2 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { login } from "@/lib/auth-api"
 import { resetLogoutState } from "@/lib/api-client"
+import { describeError, serverSentence } from "@/lib/error-messages"
 import { logFrontendError } from "@/lib/fe-logger"
 import { setAccessToken, setRefreshToken, clearTokens } from "@/lib/token-storage"
 import { useAuthStore } from "@/store/auth"
@@ -131,10 +132,9 @@ export default function LoginPage() {
       const next = safeNextPath(new URLSearchParams(window.location.search).get("next"))
       router.push(next ?? "/dashboard")
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { status?: number; data?: { message?: string | string[] } } }
-      const status = axiosErr?.response?.status
-      const rawMsg = axiosErr?.response?.data?.message
-      const serverMsg = Array.isArray(rawMsg) ? rawMsg[0] : rawMsg
+      const status = (err as { response?: { status?: number } })?.response?.status
+      // Chỉ dùng câu tiếng Việt máy chủ viết sẵn; chữ tiếng Anh ("Unauthorized") thay bằng câu của mình.
+      const serverMsg = serverSentence(err) ?? undefined
 
       if (status === 401) {
         setLoginError(serverMsg ?? "Email hoặc mật khẩu không đúng")
@@ -144,7 +144,8 @@ export default function LoginPage() {
         setLoginError(serverMsg ?? "Quá nhiều lần thử đăng nhập, vui lòng thử lại sau")
       } else {
         logFrontendError(err, { component: "login", context: "submit", status })
-        setLoginError("Không thể kết nối máy chủ, vui lòng thử lại")
+        // Mất mạng / máy chủ lỗi / bảo trì: mỗi loại một câu nói rõ + cách sửa (bảng thông điệp chung).
+        setLoginError(describeError(err, "Chưa đăng nhập được"))
       }
     }
   }

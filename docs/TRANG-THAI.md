@@ -65,6 +65,36 @@ Hộp xác nhận của các thao tác này nói "có 5 giây để Hoàn tác",
 - Kênh mất kết nối: `ReconnectNotice` ở thẻ Fanpage, thẻ mạng ở Đăng đa kênh và Zalo OA. Có nút "Kết nối lại" mở lại luồng cấp quyền.
 - Đăng bài lỗi: "Không đăng được lên <kênh>: <lý do>" + nút "Đăng lại" (viền, dễ thấy).
 
+## Chữ lỗi
+
+Mỗi câu lỗi trả lời hai câu hỏi: **chuyện gì xảy ra** và **làm gì tiếp**. Câu viết bằng tiếng Việt, không mã HTTP, không chữ tiếng Anh của máy chủ, không tên giao thức. Bảng chung ở `lib/error-messages.ts`:
+
+| Loại | Khi nào | Câu hiện ra | Nút |
+|---|---|---|---|
+| `network` | Không có phản hồi | Không kết nối được máy chủ. Kiểm tra Internet rồi thử lại. | Thử lại |
+| `timeout` | Quá giờ, 408, 504 | Máy chủ phản hồi quá lâu. Thử lại sau ít phút. | Thử lại |
+| `session` | 401 | Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục — dữ liệu đã lưu không mất. | Đăng nhập lại |
+| `forbidden` | 403 | Tài khoản của bạn chưa có quyền làm việc này. Nhờ quản trị viên cấp quyền ở Cài đặt › Vai trò. | (không) |
+| `notFound` | 404 | Không tìm thấy dữ liệu. Có thể mục này đã bị xoá hoặc chuyển cho người khác — tải lại để xem bản mới nhất. | Thử lại |
+| `conflict` | 409, 412 | Dữ liệu vừa được người khác thay đổi. Tải lại để xem bản mới nhất rồi làm lại. | Thử lại |
+| `validation` | 400, 422 | Thông tin chưa hợp lệ. Kiểm tra lại các ô đã nhập. | (không) |
+| `tooLarge` | 413 | Tệp quá lớn. Chọn tệp nhỏ hơn hoặc nén lại rồi tải lên. | (không) |
+| `rateLimited` | 429 | Bạn thao tác hơi nhanh. Đợi khoảng một phút rồi thử lại. | Thử lại |
+| `server` | 500 | Máy chủ đang gặp sự cố. Thử lại sau ít phút; vẫn lỗi thì báo quản trị viên kèm thời điểm xảy ra. | Thử lại |
+| `maintenance` | 502, 503 | Hệ thống đang bảo trì hoặc khởi động lại. Thử lại sau vài phút. | Thử lại |
+| `unknown` | Lỗi khác | Có trục trặc ngoài dự kiến. Thử lại; vẫn lỗi thì tải lại trang. | Thử lại |
+
+Cách ghép câu:
+
+- Màn hình chỉ truyền phần "việc gì không làm được": `getApiErrorMessage(err, "Không lưu được")` ⇒ "Không lưu được: máy chủ đang gặp sự cố. Thử lại sau ít phút; …". Đuôi "vui lòng thử lại" của câu cũ tự bỏ để khỏi nói hai lần.
+- Máy chủ đã viết câu tiếng Việt cụ thể (vd "Số điện thoại đã tồn tại") ⇒ dùng nguyên câu đó, vì nó rõ hơn câu chung.
+- Câu tiếng Anh hoặc mã lỗi của máy chủ ("Internal server error", "CONTACT_NOT_FOUND", "ThrottlerException…") không bao giờ hiện ra. Nhận biết bằng dấu tiếng Việt.
+- `ErrorState` dùng cùng bảng: hết phiên thì có nút "Đăng nhập lại"; thiếu quyền thì không có "Thử lại" (thử cũng không được), chỉ có cách xin quyền.
+- Các hàm lỗi riêng của từng mô-đun (`apiErrorMessage` ở webhook và vai trò, `aiActionErrorMessage`, `extensionErrorMessage`, lỗi chấm công) đều đi qua `errorMessage` của bảng chung.
+- Trang lỗi toàn ứng dụng (`app/error.tsx`, `app/global-error.tsx`) không in `error.message`; lỗi đã gửi về nhật ký.
+
+Chữ "MCP" không xuất hiện trên giao diện: hướng dẫn nối trợ lý AI gọi là "địa chỉ kết nối". Tên biến môi trường (`INTEGRATIONS_*`) vẫn hiện ở các hướng dẫn cài đặt dành cho người tự cài máy chủ.
+
 ## Kiểm kê (21/10/2026)
 
 ✅ đủ · ⚠️ có nhưng yếu · ❌ thiếu. Cột "Sau" là trạng thái sau đợt sửa đầu tiên.

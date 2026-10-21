@@ -12,6 +12,15 @@ Các script ở đây mở một Chrome headless riêng, dùng hồ sơ tạm v�
      - vùng chạm ≥ 44px;
      - focus bàn phím thấy được;
      - giảm chuyển động.
+   - `node e2e/premium/break-it.mjs [tình-huống…]` "cố tình phá":
+     - mất mạng giữa luồng;
+     - API 500/401;
+     - danh sách trống;
+     - token kênh hết hạn;
+     - đăng bài lỗi;
+     - hoàn tác xoá.
+
+     Mã thoát 1 nếu có tình huống lệch.
    - `node e2e/premium/probe.mjs /đường-dẫn` liệt kê các API một trang gọi, dùng khi thêm dữ liệu giả.
 
 Biến môi trường:
@@ -29,4 +38,5 @@ Trên Git Bash (Windows), đặt `MSYS_NO_PATHCONV=1` để đường dẫn `/da
 | `fixtures.mjs` | Dữ liệu giả của một công ty mẫu. `handle(req, scenario)` cho phép ghi đè từng tình huống (lỗi 500/401, danh sách trống, token kênh hết hạn…) |
 | `contrast.mjs` | Bảng tương phản WCAG cho các cặp màu màn A–C dùng, cả sáng lẫn tối |
 | `ui-audit.mjs` | Đo tràn ngang, vùng chạm, focus, chuyển động |
+| `break-it.mjs` | 9 tình huống "cố tình phá", in bảng kết quả |
 | `probe.mjs` | Dò API của một trang |

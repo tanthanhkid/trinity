@@ -37,6 +37,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     count: jest.fn(),
   },
   $transaction: jest.fn(),
@@ -509,14 +510,19 @@ describe('ProductsService (khung sản phẩm đa ngành)', () => {
     const other = { userId: 8, isAdmin: false, grants: {} } as never;
     const archived = (o: Record<string, unknown> = {}) => ({ deleted_at: new Date(Date.now() - 2_000), deleted_by: 7, ...o });
 
-    it('remove KHÔNG xoá dòng: ghi deleted_at + người xoá; 404 nếu đã xoá', async () => {
-      mockPrisma.product.findUnique.mockResolvedValue(productRow);
-      mockPrisma.product.update.mockResolvedValue(productRow);
+    it('remove KHÔNG xoá dòng: ghi deleted_at + người xoá bằng cập nhật CÓ ĐIỀU KIỆN deleted_at IS NULL', async () => {
+      mockPrisma.product.updateMany.mockResolvedValue({ count: 1 });
       await expect(service.remove(1, owner)).resolves.toEqual({ id: 1, archived: true });
-      expect(mockPrisma.product.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { deleted_at: expect.any(Date), deleted_by: 7 } });
+      expect(mockPrisma.product.updateMany).toHaveBeenCalledWith({
+        where: { id: 1, deleted_at: null },
+        data: { deleted_at: expect.any(Date), deleted_by: 7 },
+      });
       expect(mockTx.product.delete).not.toHaveBeenCalled();
-      mockPrisma.product.findUnique.mockResolvedValue({ ...productRow, deleted_at: new Date() });
-      await expect(service.remove(1, owner)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('hai người xoá cùng lúc: lệnh sau không ghi được (count 0) ⇒ 404, không ghi đè người xoá trước (Codex #62)', async () => {
+      mockPrisma.product.updateMany.mockResolvedValue({ count: 0 });
+      await expect(service.remove(1, other)).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('restore: người đã xoá trong 10 phút ⇒ bỏ deleted_at', async () => {

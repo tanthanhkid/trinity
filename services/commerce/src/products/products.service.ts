@@ -122,8 +122,13 @@ export class ProductsService {
    * Hoàn tác trong `RESTORE_WINDOW_MS` bằng `restore()`. Xoá hẳn là `purge()` (Quản trị).
    */
   async remove(id: number, user: AuthUser): Promise<{ id: number; archived: true }> {
-    await this.findOne(id); // 404 nếu không có / đã xoá
-    await this.prisma.product.update({ where: { id }, data: { deleted_at: new Date(), deleted_by: user.userId } });
+    // Cập nhật CÓ ĐIỀU KIỆN `deleted_at IS NULL`: hai người xoá cùng lúc thì chỉ một lệnh ghi được, người kia nhận 404
+    // (không ghi đè `deleted_by` ⇒ người xoá trước vẫn Hoàn tác được như đã hứa).
+    const { count } = await this.prisma.product.updateMany({
+      where: { id, deleted_at: null },
+      data: { deleted_at: new Date(), deleted_by: user.userId },
+    });
+    if (count === 0) throw new NotFoundException('Sản phẩm không tồn tại');
     return { id, archived: true };
   }
 

@@ -10,6 +10,12 @@ import { handle } from "./fixtures.mjs"
 export const PAGES = ["/dashboard", "/contacts", "/kanban", "/social", "/connections"]
 const MIN = 44
 
+/** Ngoại lệ đã biết, có lý do và hạn sửa — KHÔNG thêm vào đây để né lỗi mới. */
+export const ALLOW = [
+  // home-ai-hub.tsx thuộc PR #48 (đang chờ); sửa link này ngay sau khi #48 gộp rồi xoá dòng này.
+  { path: "/dashboard", label: "Xem tất cả tính năng" },
+]
+
 async function open(path, viewport, opts = {}) {
   const h = await launch({ viewport })
   await signIn(h.context)
@@ -98,4 +104,15 @@ if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, "/")}` || proc
     }
   }
   console.log(JSON.stringify(results, null, 2))
+  // Lỗi = tràn ngang, vùng chạm < 44px (trừ ALLOW), focus không thấy, animation khi giảm chuyển động, trang không mở được.
+  const problems = []
+  for (const r of results) {
+    if (r.error) { problems.push(`${r.path}: không mở được — ${r.error}`); continue }
+    if (r.overflow360 > 0) problems.push(`${r.path}: tràn ngang ${r.overflow360}px ở 360px`)
+    for (const t of r.small.filter((t) => !ALLOW.some((a) => a.path === r.path && a.label === t.label))) problems.push(`${r.path}: vùng chạm "${t.label}" ${t.w}×${t.h}px`)
+    for (const n of r.noRing) problems.push(`${r.path}: focus không thấy ở "${n.label}"`)
+    if (r.longAnimations > 0) problems.push(`${r.path}: ${r.longAnimations} animation vẫn chạy khi bật giảm chuyển động`)
+  }
+  console.error(problems.length ? [`❌ ${problems.length} lỗi:`, ...problems].join("\n") : "✅ Không có lỗi nền tảng UI")
+  process.exitCode = problems.length ? 1 : 0
 }

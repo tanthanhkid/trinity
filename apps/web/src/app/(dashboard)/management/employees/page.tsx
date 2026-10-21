@@ -14,11 +14,10 @@ import {
   useCreateEmployee,
   useUpdateEmployee,
   useLockEmployee,
-  useDeleteEmployee,
   resolveEmployeeDisplayStatus,
   EMPLOYEES_PAGE_SIZE,
 } from "@/hooks/use-employees"
-import type { Employee, CreateEmployeeDto, UpdateEmployeeDto } from "@/hooks/use-employees"
+import type { Employee, CreateEmployeeDto, UpdateEmployeeDto, EmployeesResponse } from "@/hooks/use-employees"
 import { useJobTitles } from "@/hooks/use-job-titles"
 import { useDepartments } from "@/hooks/use-departments"
 import { useOffices, useResetDevice } from "@/hooks/use-attendance"
@@ -56,11 +55,18 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
+import apiClient, { sendKeepalive } from "@/lib/api-client"
+import { deferWithUndo } from "@/lib/undo"
+import { errorMessage } from "@/lib/error-messages"
+import { useOffline } from "@/components/offline-banner"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
 import { Loader2, Eye, Pencil, Lock, Trash2, ChevronLeft, ChevronRight, Camera, RotateCcw, UserPlus, BarChart3, Users, ArrowUpDown, ArrowUp, ArrowDown, MoreHorizontal } from "lucide-react"
 import { teamColorClass } from "@/lib/team-style"
 import { cn } from "@/lib/utils"
 import { useRowHighlight } from "@/lib/use-row-highlight"
-import { errorMessage } from "@/lib/error-messages"
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -347,6 +353,7 @@ function StatusBadge({ status }: { status: string | null }) {
 
 export function EditEmployeeDialog({ employee, onClose }: { employee: Employee; onClose: () => void }) {
   const updateMutation = useUpdateEmployee(employee.id)
+  const offline = useOffline()
   const resetDevice = useResetDevice()
   // Phòng ban cấu hình ở Cài đặt; giữ cả giá trị hiện tại của NV nếu phòng ban đó đã bị gỡ khỏi danh sách.
   const configuredDepartments = useDepartments()
@@ -779,7 +786,8 @@ export function EditEmployeeDialog({ employee, onClose }: { employee: Employee; 
           </div>
           <DialogFooter className="shrink-0 pt-4">
             <Button type="button" variant="outline" onClick={onClose} disabled={updateMutation.isPending}>Huỷ</Button>
-            <Button type="submit" disabled={updateMutation.isPending}>
+            {/* Mất mạng: khoá lưu (dải báo mất mạng đã nói rõ), dữ liệu trong form vẫn giữ nguyên. */}
+            <Button type="submit" disabled={updateMutation.isPending || offline}>
               {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Lưu thay đổi
             </Button>
@@ -794,6 +802,7 @@ export function EditEmployeeDialog({ employee, onClose }: { employee: Employee; 
 
 function AddEmployeeDialog({ onClose }: { onClose: () => void }) {
   const createMutation = useCreateEmployee()
+  const offline = useOffline()
   const departments = useDepartments()
   const { data: jobTitles = [] } = useJobTitles({ is_active: true })
   const [avatarBase64, setAvatarBase64] = useState<string | null>(null)
@@ -1120,7 +1129,7 @@ function AddEmployeeDialog({ onClose }: { onClose: () => void }) {
           </div>
           <DialogFooter className="shrink-0 pt-4">
             <Button type="button" variant="outline" onClick={onClose} disabled={createMutation.isPending}>Huỷ</Button>
-            <Button type="submit" disabled={createMutation.isPending}>
+            <Button type="submit" disabled={createMutation.isPending || offline}>
               {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Thêm nhân viên
             </Button>
@@ -1219,8 +1228,8 @@ function LockConfirmDialog({ employee, onClose }: { employee: Employee; onClose:
           await lockMutation.mutateAsync()
           toast.success("Đã khoá tài khoản nhân viên")
           onClose()
-        } catch {
-          toast.error("Không thể khoá tài khoản")
+        } catch (err) {
+          toast.error(errorMessage(err, "Chưa khoá được tài khoản"))
         }
       }}
     />
@@ -1228,7 +1237,7 @@ function LockConfirmDialog({ employee, onClose }: { employee: Employee; onClose:
 }
 
 function DeleteConfirmDialog({ employee, onClose }: { employee: Employee; onClose: () => void }) {
-  const deleteMutation = useDeleteEmployee(employee.id)
+  const queryClient = useQueryClient()
   return (
     <ConfirmDialog
       open
@@ -1243,15 +1252,22 @@ function DeleteConfirmDialog({ employee, onClose }: { employee: Employee; onClos
       }
       tone="destructive"
       confirmLabel="Xoá nhân viên"
-      pending={deleteMutation.isPending}
-      onConfirm={async () => {
-        try {
-          await deleteMutation.mutateAsync()
-          toast.success("Đã xoá nhân viên")
-          onClose()
-        } catch {
-          toast.error("Không thể xoá nhân viên")
-        }
+      onConfirm={() => {
+        onClose()
+        // Chưa có API khôi phục hồ sơ nhân viên ⇒ ẩn ngay, chỉ gửi lệnh xoá sau 5 giây; "Hoàn tác" thì không gửi gì.
+        queryClient.setQueriesData<EmployeesResponse>({ queryKey: ["employees"] }, (d) =>
+          d && Array.isArray(d.data) ? { ...d, data: d.data.filter((e) => e.id !== employee.id) } : d,
+        )
+        deferWithUndo({
+          message: `Đã xoá hồ sơ ${employee.full_name ?? employee.email}`,
+          commit: () =>
+            apiClient
+              .delete(`/management/employees/${employee.id}`)
+              .catch((err) => toast.error(errorMessage(err, "Chưa xoá được nhân viên")))
+              .finally(() => queryClient.invalidateQueries({ queryKey: ["employees"] })),
+          commitOnUnload: () => sendKeepalive("DELETE", `/management/employees/${employee.id}`),
+          onUndo: () => queryClient.invalidateQueries({ queryKey: ["employees"] }),
+        })
       }}
     />
   )
@@ -1345,7 +1361,7 @@ function EmployeesPageContent() {
   // filter gửi lên BE = id team (KHÔNG team_lead_id).
   const { data: teamsForFilter = [] } = useTeamsForFilter({ includeUnled: true })
 
-  const { data, isLoading, isFetching } = useEmployees({
+  const { data, isLoading, isFetching, isError, error, refetch } = useEmployees({
     search: search || undefined,
     department: department || undefined,
     position: filterPosition || undefined,
@@ -1474,7 +1490,7 @@ function EmployeesPageContent() {
           <>
             <Link
               href="/management/employees/stats"
-              className={buttonVariants({ variant: "outline" })}
+              className={cn(buttonVariants({ variant: "outline" }), "max-sm:min-h-11")}
             >
               <BarChart3 className="mr-2 h-4 w-4" />
               Thống kê
@@ -1650,18 +1666,29 @@ function EmployeesPageContent() {
 
       {/* Table */}
       <div className="rounded-lg border overflow-x-auto max-sm:rounded-none max-sm:border-0">
-        {(isLoading || isFetching) && (
-          <div className="flex items-center justify-center p-8 text-muted-foreground">
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            Đang tải...
-          </div>
+        {/* Khung xương chỉ ở lần tải đầu; tải lại nền (đổi trang/lọc) giữ danh sách cũ, không nhảy bố cục. */}
+        {isLoading && <LoadingBlock className="p-4" count={6} label="Đang tải nhân viên…" />}
+        {!isLoading && isError && employees.length === 0 && (
+          // Lỗi tải ≠ chưa có nhân viên.
+          <ErrorState className="m-4" title="Không tải được danh sách nhân viên" error={error} onRetry={() => void refetch()} retrying={isFetching} />
         )}
-        {!isLoading && employees.length === 0 && (
-          <div className="p-8 text-center text-muted-foreground">
-            {hasActiveFilters
-              ? "Không có nhân viên nào phù hợp với bộ lọc."
-              : "Chưa có nhân viên nào. Vui lòng thêm nhân viên mới."}
-          </div>
+        {!isLoading && !isError && employees.length === 0 && (
+          hasActiveFilters ? (
+            <EmptyState className="m-4" title="Không có nhân viên nào phù hợp với bộ lọc" message="Thử bỏ bớt điều kiện lọc hoặc tìm bằng tên, email khác." />
+          ) : (
+            <EmptyState
+              className="m-4"
+              icon={Users}
+              title="Chưa có nhân viên nào"
+              message="Thêm nhân viên để giao khách, chấm công và tính lương."
+              action={canAdd ? (
+                <Button variant="outline" onClick={() => setShowAddDialog(true)}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Thêm nhân viên
+                </Button>
+              ) : undefined}
+            />
+          )
         )}
         {!isLoading && employees.length > 0 && (
           <ShellResponsiveList

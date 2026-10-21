@@ -32,11 +32,11 @@ const SETUP_STATUS = {
   ai_connected_anyone: true,
   can_build: true,
 }
-/** Bật đủ các mô-đun cần cho 5 màn (thiếu khoá = bật; `online_store` mặc định tắt). */
+/** Bật đủ các mô-đun cần cho các màn có dữ liệu giả (thiếu khoá = bật; `online_store` mặc định tắt). */
 const ORG_FEATURES = {
   dashboard: true, contacts: true, kanban: true, reports: true, inbox: true,
   facebook_page: true, zalo_oa: true, social_posting: true,
-  products: true, pos: false, payments: true, online_store: false, commerce_connectors: false,
+  products: true, pos: true, payments: true, online_store: false, commerce_connectors: false,
   management: true, attendance: false, payroll: false, newsfeed: true,
   integrations: true, ai_briefing: true, lead_scoring: true, stale_reminders: true, google_sheets: false,
 }
@@ -205,6 +205,160 @@ const CONNECTORS = [
 ]
 const INTEGRATIONS_STATUS = { webhooks_enabled: true, mcp_enabled: true, secret_key_configured: true, mcp_base_url_configured: true, mcp_url: "https://crm.example.com/api/v1/mcp" }
 
+// ─── Tương tác / Hộp thư ──────────────────────────────────────
+const interaction = (key, channel, type, when, customer_name, text, status, extra = {}) => ({
+  key, channel, type, page_id: channel === "facebook" ? "1000001" : null, channel_name: channel === "facebook" ? "Trinity Coffee" : "Trinity Coffee OA",
+  at: when, customer_name, contact_id: null, text, post_url: null, rule_name: null, auto_result: null, hidden: false, status, ref: {}, ...extra,
+})
+const INTERACTIONS = [
+  interaction("fbc-c1", "facebook", "comment", at(TODAY, "09:05"), "Nguyễn Văn Bình", "Gói Cơ bản giá bao nhiêu vậy shop?", "unanswered",
+    { contact_id: 2, post_url: "https://facebook.com/", ref: { comment_id: "c1" } }),
+  interaction("fbm-1", "facebook", "message", at(TODAY, "08:52"), "Lê Quốc Huy", "Mai quán mở cửa mấy giờ ạ?", "staff", { contact_id: 4, ref: { conversation_id: 1 } }),
+  interaction("zalo-1", "zalo", "message", at(TODAY, "08:30"), "Trần Thị Hoa", "Chị đặt 2 ly cold brew giao 10h nhé", "unanswered", { contact_id: 3, ref: { thread_id: 1 } }),
+  interaction("fbc-c2", "facebook", "comment", at(TODAY, "07:40"), "Hồ Minh Khang", "Ib em giá nhé, sđt 0909 *** ***", "auto", {
+    post_url: "https://facebook.com/", rule_name: "Hỏi giá", auto_result: "Luật “Hỏi giá” đã trả lời và ẩn bình luận có số điện thoại", hidden: true, ref: { comment_id: "c2" },
+  }),
+  interaction("zalo-2", "zalo", "message", at(20, "17:15"), "Võ Thị Mai", "Cảm ơn quán, cà phê ngon lắm!", "answered", { contact_id: 6, ref: { thread_id: 2 } }),
+]
+const INTERACTION_STATS = { messages_today: 2, comments_today: 2, auto_handled_today: 1, unanswered_7d: 2 }
+const COMMENT_THREAD = {
+  comments: [{ id: "c1", message: "Gói Cơ bản giá bao nhiêu vậy shop?", at: at(TODAY, "09:05"), status: "no_match", hidden: false, can_private_reply: true, actions: {} }],
+  conversation: { id: 2, customer_name: "Nguyễn Văn Bình" },
+  messages: [{ id: "f21", direction: "in", text: "Cho mình xin bảng giá với", at: at(TODAY, "09:06") }],
+}
+const zaloThread = (id, display_name, preview, last_message_at, last_inbound_at, unread_count, contact_id) => ({
+  id, zalo_user_id: `84000000000${id}`, display_name, avatar_url: null, phone: null, contact_id, last_message_preview: preview, last_message_at, last_inbound_at, unread_count,
+})
+const ZALO_THREADS = [
+  zaloThread(1, "Trần Thị Hoa", "Chị đặt 2 ly cold brew giao 10h nhé", at(TODAY, "08:30"), at(TODAY, "08:30"), 1, 3),
+  zaloThread(2, "Võ Thị Mai", "Dạ quán cảm ơn chị ạ!", at(20, "17:20"), at(20, "17:15"), 0, 6),
+]
+const zaloMsg = (id, direction, text, created_at) => ({ id, direction, kind: "text", text, status: direction === "in" ? "received" : "sent", error: null, created_at })
+const ZALO_MESSAGES = {
+  1: [zaloMsg("z11", "in", "Quán ơi còn cold brew không?", at(TODAY, "08:25")), zaloMsg("z12", "out", "Dạ còn chị ạ, 45.000đ/ly.", at(TODAY, "08:27")), zaloMsg("z13", "in", "Chị đặt 2 ly cold brew giao 10h nhé", at(TODAY, "08:30"))],
+  2: [zaloMsg("z21", "in", "Cảm ơn quán, cà phê ngon lắm!", at(20, "17:15")), zaloMsg("z22", "out", "Dạ quán cảm ơn chị ạ!", at(20, "17:20"))],
+}
+const fbConv = (id, customer_name, preview, last_message_at, last_inbound_at, unread_count, can_reply = true) => ({
+  id, page_id: "1000001", page_name: "Trinity Coffee", psid: `70000000000${id}`, customer_name, last_inbound_at, last_message_at,
+  last_message_preview: preview, unread_count, can_reply, reply_mode: can_reply ? "standard" : "closed",
+})
+const FB_CONVERSATIONS = [
+  fbConv(2, "Nguyễn Văn Bình", "Cho mình xin bảng giá với", at(TODAY, "09:06"), at(TODAY, "09:06"), 1),
+  fbConv(1, "Lê Quốc Huy", "Dạ 7h sáng quán mở cửa anh nhé", at(TODAY, "08:55"), at(TODAY, "08:52"), 0),
+  fbConv(3, "Đặng Thu Hà", "Ok bạn, hẹn tuần sau", at(10, "15:00"), at(10, "15:00"), 0, false),
+]
+const fbMsg = (id, direction, text, sent_at) => ({ id, direction, text, sent_at, sent_by_user_id: direction === "out" ? 1 : null })
+const FB_MESSAGES = {
+  1: [fbMsg("f11", "in", "Mai quán mở cửa mấy giờ ạ?", at(TODAY, "08:52")), fbMsg("f12", "out", "Dạ 7h sáng quán mở cửa anh nhé", at(TODAY, "08:55"))],
+  2: [fbMsg("f21", "in", "Cho mình xin bảng giá với", at(TODAY, "09:06"))],
+  3: [fbMsg("f31", "out", "Quán gửi bạn thực đơn mới ạ", at(10, "14:50")), fbMsg("f32", "in", "Ok bạn, hẹn tuần sau", at(10, "15:00"))],
+}
+
+// ─── Sản phẩm ─────────────────────────────────────────────────
+const category = (id, code, name, sort_order) => ({ id, code, name, description: null, is_active: true, sort_order, created_by: 1, created_at: at(1), updated_at: at(1) })
+const PRODUCT_CATEGORIES = [category(1, "CAFE", "Cà phê", 1), category(2, "BANH", "Bánh ngọt", 2)]
+const product = (id, code, name, category_id, price, extra = {}) => ({
+  id, code, name, project_id: null, brand: null, color: null, tags: [], is_featured: false, image_url: null,
+  category_id, attributes: {}, description: null, price, is_active: true, created_by: 1, created_at: at(2), updated_at: at(15), ...extra,
+})
+const PRODUCTS = [
+  product(1, "CF-SUA", "Cà phê sữa đá", 1, 29_000, { is_featured: true, tags: ["bán chạy"] }),
+  product(2, "CF-DEN", "Cà phê đen", 1, 25_000),
+  product(3, "CF-COLD", "Cold brew cam sả", 1, 45_000, { description: "Ủ lạnh 16 giờ, thêm cam và sả tươi." }),
+  product(4, "CF-BAC", "Bạc xỉu", 1, 32_000),
+  product(5, "BN-CROI", "Bánh sừng bò", 2, 28_000),
+  product(6, "BN-TIRA", "Bánh tiramisu", 2, 39_000, { is_active: false, description: "Tạm ngưng bán." }),
+]
+
+// ─── Bán hàng tại quầy (POS) ──────────────────────────────────
+const POS_SETTINGS = {
+  id: 1, store_name: "Trinity Coffee", address: "12 Lê Lợi, Q.1", phone: "0283 822 ***", receipt_footer: "Cảm ơn quý khách!",
+  bank_bin: "970436", bank_account_no: "0123***789", bank_account_name: "TRINITY COFFEE", menu_category_ids: [1, 2],
+}
+const POS_MENU = {
+  categories: PRODUCT_CATEGORIES.map(({ id, code, name }) => ({ id, code, name })),
+  products: PRODUCTS.filter((p) => p.is_active).map(({ id, code, name, price, image_url, category_id }) => ({ id, code, name, price, image_url, category_id })),
+}
+const POS_AREAS = [{ id: 1, name: "Tầng trệt", sort_order: 1, is_active: true }]
+const posTable = (id, name, open_order = null) => ({ id, area_id: 1, name, sort_order: id, is_active: true, open_order })
+const POS_TABLES = [posTable(1, "1", { id: 3, code: "20261021-0003", total: 86_000 }), posTable(2, "2"), posTable(3, "3"), posTable(4, "4")]
+const POS_MODIFIERS = [
+  { id: 1, group_name: "Đường", name: "Ít đường", price_delta: 0, sort_order: 1, is_active: true },
+  { id: 2, group_name: "Thêm", name: "Thêm shot espresso", price_delta: 10_000, sort_order: 2, is_active: true },
+]
+const POS_SHIFT = { id: 7, opened_by: 1, opened_at: at(TODAY, "07:00"), status: "open", opening_cash: 500_000, closed_at: null, closing_cash_counted: null, expected_cash: null, cash_diff: null, note: null }
+const POS_SUMMARY = { paid_orders: 1, void_orders: 1, cash_sales: 86_000, transfer_sales: 0, expected_cash: 586_000 }
+const posItem = (id, p, quantity) => ({ id, product_id: p.id, product_name: p.name, unit_price: p.price, quantity, options: [], note: null, line_total: p.price * quantity })
+const posOrder = (id, status, hm, items, extra = {}) => {
+  const subtotal = items.reduce((s, i) => s + i.line_total, 0)
+  return {
+    id, code: `20261021-${String(id).padStart(4, "0")}`, shift_id: 7, table_id: null, order_type: "takeaway", status, note: null,
+    subtotal, discount_type: "none", discount_value: 0, discount_amount: 0, total: subtotal, created_by: 1, created_at: at(TODAY, hm),
+    paid_by: null, paid_at: null, void_reason: null, items, payments: [], ...extra,
+  }
+}
+/** 3 đơn trong ca: 1 đang mở (Bàn 1), 1 đã huỷ, 1 đã thanh toán tiền mặt. */
+const POS_ORDERS = [
+  posOrder(3, "open", "08:40", [posItem(31, PRODUCTS[0], 2), posItem(32, PRODUCTS[4], 1)], { table_id: 1, order_type: "dine_in" }),
+  posOrder(2, "void", "08:10", [posItem(21, PRODUCTS[2], 1)], { void_reason: "Khách đổi ý, chưa pha" }),
+  posOrder(1, "paid", "07:15", [posItem(11, PRODUCTS[0], 1), posItem(12, PRODUCTS[3], 1), posItem(13, PRODUCTS[1], 1)], {
+    paid_by: 1, paid_at: at(TODAY, "07:20"),
+    payments: [{ id: 1, method: "cash", amount: 86_000, tendered: 100_000, change: 14_000, reference: null, shift_id: 7, created_at: at(TODAY, "07:20") }],
+  }),
+]
+const POS_REPORT = {
+  date: "2026-10-21", order_count: 1, revenue: 86_000, subtotal: 86_000, discount: 0, avg_order_value: 86_000,
+  by_method: [{ method: "cash", amount: 86_000 }, { method: "bank_transfer", amount: 0 }],
+  by_product: [
+    { product_id: 4, product_name: "Bạc xỉu", quantity: 1, revenue: 32_000 },
+    { product_id: 1, product_name: "Cà phê sữa đá", quantity: 1, revenue: 29_000 },
+    { product_id: 2, product_name: "Cà phê đen", quantity: 1, revenue: 25_000 },
+  ],
+  by_hour: [{ hour: 7, orders: 1, revenue: 86_000 }], by_product_truncated: false,
+}
+
+// ─── Nhân viên ────────────────────────────────────────────────
+const DEPARTMENTS = ["Kinh doanh", "Pha chế"]
+const jobTitle = (id, category, rank_code, name, symbol, base_salary) => ({
+  id, category, rank_code, name, symbol, base_salary: String(base_salary), standard_target: "0", default_insurance_salary: null,
+  review_cycle_months: 6, is_active: true, sort_order: id, created_at: at(1), updated_at: at(1),
+})
+const JOB_TITLES = [
+  jobTitle(1, "Quản lý", "QL1", "Quản lý cửa hàng", "QL", 15_000_000),
+  jobTitle(2, "Kinh doanh", "KD1", "Nhân viên kinh doanh", "KD", 8_000_000),
+  jobTitle(3, "Pha chế", "PC1", "Nhân viên pha chế", "PC", 7_000_000),
+]
+const TEAMS = [
+  { id: 1, name: "Kinh doanh", department: "Kinh doanh", team_lead_id: 1 },
+  { id: 2, name: "Quầy pha chế", department: "Pha chế", team_lead_id: 3 },
+]
+const employee = (id, code, full_name, email, jt, team, status, joined, extra = {}) => ({
+  id, user_id: id, employee_code: code, full_name, email, phone: `09${id}0 123 ***`, avatar_url: null,
+  position: jt.name, department: team.department, gender: null, education_level: null, recruitment_source: null,
+  status, user_status: "active", role: "sales", team_id: team.id, manager_id: team.team_lead_id === id ? null : team.team_lead_id,
+  manager_name: team.team_lead_id === 1 ? "Chị Lan" : "Anh Phúc", team_name: team.name, team_lead_id: team.team_lead_id,
+  salary_rule_id: null, insurance_salary: null, job_title_id: jt.id, job_title_name: jt.name, job_title_category: jt.category,
+  job_title_rank_code: jt.rank_code, job_title_symbol: jt.symbol, joined_at: joined,
+  birth_date: null, id_card_number: null, id_card_issued_date: null, id_card_issued_place: null, permanent_address: null, current_address: null,
+  bank_account_number: null, bank_name: null, bank_account_holder: null, office_id: null, office_name: null, registered_device_id: null, device_registered_at: null,
+  created_at: joined, ...extra,
+})
+const [JT_QL, JT_KD, JT_PC] = JOB_TITLES
+const [TEAM_KD, TEAM_PC] = TEAMS
+/** 5 nhân viên: 1 đã nghỉ (tài khoản khoá — chỉ hiện khi lọc "Nghỉ việc"/"Tất cả"). */
+const EMPLOYEES = [
+  employee(1, "NV001", "Chị Lan", "demo@example.com", JT_QL, TEAM_KD, "active", "2024-03-01", { role: "admin" }),
+  employee(2, "NV002", "Anh Tuấn", "tuan@example.com", JT_KD, TEAM_KD, "active", "2025-06-15"),
+  employee(3, "NV003", "Anh Phúc", "phuc@example.com", JT_PC, TEAM_PC, "active", "2024-09-01"),
+  employee(4, "NV004", "Bùi Ngọc Ánh", "anh@example.com", JT_PC, TEAM_PC, "probation", "2026-09-20"),
+  employee(5, "NV005", "Đỗ Minh Quân", "quan@example.com", JT_KD, TEAM_KD, "resigned", "2025-01-10", { user_status: "locked" }),
+]
+const employeesPage = (q) => {
+  const state = q.employment_state ?? "all"
+  const rows = EMPLOYEES.filter((e) => state === "all" || (state === "resigned") === (e.user_status === "locked"))
+  return { data: rows, pagination: { total: rows.length, page: Number(q.page ?? 1), page_size: Number(q.page_size ?? 10), total_pages: 1 } }
+}
+
 /** Bảng trả lời mặc định: khoá = "METHOD /đường-dẫn" (khớp đúng) hoặc RegExp trên "METHOD /đường-dẫn". */
 export const ROUTES = [
   // Khung ứng dụng
@@ -267,6 +421,50 @@ export const ROUTES = [
   ["GET /connectors", () => CONNECTORS],
   ["GET /integrations/webhooks/endpoints", () => ({ data: [] })],
   ["GET /integrations/webhooks/inbound-sources", () => ({ data: [] })],
+
+  // Tương tác / Hộp thư (Zalo OA + Messenger)
+  ["GET /interactions/stats", () => INTERACTION_STATS],
+  ["GET /interactions", (req) => ({
+    data: INTERACTIONS.filter((i) => (!req.query.type || i.type === req.query.type) && (!req.query.channel || i.channel === req.query.channel) && (!req.query.status || i.status === req.query.status)),
+    next_before: null,
+  })],
+  [/^GET \/interactions\/comments\/[^/]+\/thread$/, () => COMMENT_THREAD],
+  ["GET /zalo-oa/threads", () => ({ data: ZALO_THREADS, meta: { next_cursor: null } })],
+  [/^GET \/zalo-oa\/threads\/\d+\/messages$/, (req) => ({ data: ZALO_MESSAGES[req.path.split("/")[3]] ?? [] })],
+  [/^POST \/zalo-oa\/threads\/\d+\/read$/, () => ({ ok: true })],
+  ["GET /facebook/conversations", () => ({ data: FB_CONVERSATIONS })],
+  [/^GET \/facebook\/conversations\/\d+\/messages$/, (req) => {
+    const id = Number(req.path.split("/")[3])
+    return { conversation: FB_CONVERSATIONS.find((c) => c.id === id) ?? FB_CONVERSATIONS[0], messages: FB_MESSAGES[id] ?? [] }
+  }],
+
+  // Sản phẩm (danh sách trả mảng trần)
+  ["GET /product-categories", () => PRODUCT_CATEGORIES],
+  [/^GET \/product-categories\/\d+\/attribute-defs$/, () => []],
+  ["GET /products", (req) => PRODUCTS.filter((p) =>
+    (req.query.is_active === undefined || String(p.is_active) === req.query.is_active) && (!req.query.category_id || p.category_id === Number(req.query.category_id)))],
+
+  // Bán hàng tại quầy
+  ["GET /pos/settings", () => POS_SETTINGS],
+  ["GET /pos/menu", () => POS_MENU],
+  ["GET /pos/areas", () => POS_AREAS],
+  ["GET /pos/tables", () => POS_TABLES],
+  ["GET /pos/modifiers", () => POS_MODIFIERS],
+  ["GET /pos/shifts/current", () => ({ shift: POS_SHIFT, summary: POS_SUMMARY })],
+  ["GET /pos/shifts", () => ({ data: [POS_SHIFT] })],
+  [/^GET \/pos\/shifts\/\d+\/summary$/, () => ({ shift: POS_SHIFT, summary: POS_SUMMARY })],
+  ["GET /pos/orders", (req) => ({ data: POS_ORDERS.filter((o) => !req.query.status || o.status === req.query.status) })],
+  [/^GET \/pos\/orders\/\d+$/, (req) => POS_ORDERS.find((o) => o.id === Number(req.path.split("/")[3])) ?? POS_ORDERS[0]],
+  ["GET /pos/reports/daily", () => POS_REPORT],
+
+  // Nhân viên
+  ["GET /settings/departments", () => ({ departments: DEPARTMENTS })],
+  ["GET /management/teams/for-filter", () => TEAMS],
+  ["GET /management/teams", () => TEAMS.map((t) => ({
+    ...t, description: null, team_lead_name: t.team_lead_id === 1 ? "Chị Lan" : "Anh Phúc", member_count: EMPLOYEES.filter((e) => e.team_id === t.id).length,
+  }))],
+  ["GET /management/job-titles", () => JOB_TITLES],
+  ["GET /management/employees", (req) => employeesPage(req.query)],
 ]
 
 export function handle(req, scenario = {}) {

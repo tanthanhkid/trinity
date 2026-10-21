@@ -6,6 +6,7 @@ import QRCode from "react-qr-code"
 import { toast } from "sonner"
 import { Banknote, CheckCircle2, Landmark, Printer, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useOffline } from "@/components/offline-banner"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { fetchPosQr, usePayOrder } from "@/hooks/pos/use-pos"
@@ -34,6 +35,7 @@ interface Props { order: PosOrder; onClose: () => void; onPaid: (o: PosOrder) =>
 /** Thanh toán: tiền mặt (gợi ý mệnh giá + tiền thối), chuyển khoản (QR VietQR), hoặc chia nhiều dòng. Tổng do BE tính lại và đối chiếu. */
 export function PosPaymentDialog({ order, onClose, onPaid, onPrint }: Props) {
   const pay = usePayOrder()
+  const offline = useOffline()
   const [paid, setPaid] = useState<PosOrder | null>(null)
   const [lines, setLines] = useState<Line[]>(() => (order.total > 0 ? [{ id: ++seq, method: "cash", amount: order.total, tendered: null, confirmed: false }] : []))
   const sum = lines.reduce((s, l) => s + (l.amount ?? 0), 0)
@@ -131,7 +133,7 @@ export function PosPaymentDialog({ order, onClose, onPaid, onPrint }: Props) {
         {remaining < 0 && <p role="alert" className="text-sm font-medium text-destructive">Tổng thanh toán vượt {vnd(-remaining)} so với tổng đơn</p>}
         <DialogFooter>
           <Button type="button" variant="outline" className="min-h-11" disabled={pay.isPending} onClick={onClose}>Quay lại</Button>
-          <Button type="button" className="min-h-11 text-base" disabled={!valid || pay.isPending} onClick={submit}>
+          <Button type="button" className="min-h-11 text-base" disabled={!valid || pay.isPending || offline} onClick={submit}>
             {pay.isPending ? "Đang xử lý…" : "Xác nhận thanh toán"}
           </Button>
         </DialogFooter>

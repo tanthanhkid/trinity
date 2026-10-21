@@ -3,6 +3,7 @@
 import type { Dispatch, SetStateAction } from "react"
 import { Armchair, MoreHorizontal, Minus, Plus, Printer, ShoppingBag, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useOffline } from "@/components/offline-banner"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -38,6 +39,8 @@ export function PosCartPanel(p: Props) {
   const { cart, setCart } = p
   const t = cartTotals(cart)
   const empty = cart.lines.length === 0
+  // Mất mạng: lưu / thu tiền / huỷ không tới được máy chủ — khoá nút, giỏ hàng vẫn giữ nguyên.
+  const offline = useOffline()
   const setOrderType = (orderType: "dine_in" | "takeaway") =>
     setCart((c) => ({ ...c, orderType, tableId: orderType === "takeaway" ? null : c.tableId }))
 
@@ -121,11 +124,12 @@ export function PosCartPanel(p: Props) {
         </dl>
         <div className="grid grid-cols-[auto_auto_1fr] gap-2">
           <Button type="button" variant="outline" className="size-11" aria-label="In tạm tính" disabled={empty} onClick={p.onProvisional}><Printer /></Button>
-          <Button type="button" variant="outline" className="min-h-11" disabled={empty || p.busy} onClick={p.onSave}>Lưu đơn</Button>
-          <Button type="button" className="min-h-11 text-base" disabled={empty || p.busy} onClick={p.onPay}>Thanh toán</Button>
+          <Button type="button" variant="outline" className="min-h-11" disabled={empty || p.busy || offline} onClick={p.onSave}>Lưu đơn</Button>
+          <Button type="button" className="min-h-11 text-base" disabled={empty || p.busy || offline} onClick={p.onPay}>Thanh toán</Button>
         </div>
+        {offline && <p role="status" className="text-sm text-[var(--color-app-tag-amber-ink)]">Đang mất mạng — chưa lưu / thu tiền được. Giỏ hàng vẫn giữ nguyên, có mạng lại thì bấm tiếp.</p>}
         {cart.orderId != null && !p.inSheet && (
-          <Button type="button" variant="destructive" className="min-h-11 w-full" disabled={p.busy} onClick={p.onVoid}>Huỷ đơn này</Button>
+          <Button type="button" variant="destructive" className="min-h-11 w-full" disabled={p.busy || offline} onClick={p.onVoid}>Huỷ đơn này</Button>
         )}
       </div>
     </aside>

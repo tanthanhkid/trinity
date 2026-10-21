@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Composer, ConversationItem, InboxEmpty, InboxFrame, InboxListToolbar, SideSection, StatusPill, ThreadHeader, inboxTimeLabel } from "@/components/inbox/inbox-ui"
 import { useGoogleReviews, useReplyGoogleReview, type GoogleReview, type SocialAccount } from "@/hooks/use-social"
+import { ErrorState } from "@/components/ui/error-state"
 
 /** Google cho câu trả lời tối đa 4.096 byte; chữ Việt có dấu ~2–3 byte/ký tự ⇒ chặn ở 1.300 ký tự là an toàn. */
 const REPLY_MAX = 1300
@@ -123,7 +124,7 @@ export function GoogleReviewsInbox({ accounts, listTop, className }: { accounts:
           <InboxListToolbar q={search} onQ={setSearch} awaiting={{ on: onlyAwaiting, count: awaitingCount, onChange: setOnlyAwaiting }} />
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
             {q.isLoading && <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang tải...</div>}
-            {q.isError && <p className="px-2 py-4 text-sm text-[var(--color-app-tag-red-ink)]">{getApiErrorMessage(q.error, "Không tải được đánh giá Google.")}</p>}
+            {q.isError && <ErrorState compact className="px-2 py-4" title="Không tải được đánh giá Google" error={q.error} onRetry={() => void q.refetch()} retrying={q.isFetching} />}
             {q.isSuccess && rows.length === 0 && (
               <InboxEmpty icon={<Star aria-hidden />}>
                 {onlyAwaiting && all.length > 0 ? "Không còn đánh giá nào chờ trả lời." : needle && all.length > 0 ? "Không có đánh giá nào khớp." : "Địa điểm này chưa có đánh giá nào trên Google."}

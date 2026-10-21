@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils"
 import { CopyButton } from "../secret-reveal-dialog"
 import { apiErrorMessage } from "../webhook-types"
 import { formatDateTimeShort, formatVnd } from "@/lib/format"
+import { ErrorState } from "@/components/ui/error-state"
+import { toastWithUndo } from "@/lib/undo"
 
 export interface StoreSettings {
   slug: string; name: string; tagline: string | null; theme: "toi-gian" | "am-ap" | "soi-dong"; accent: string
@@ -158,11 +160,26 @@ function StoreOrders() {
     mutationFn: async (b: { id: number; status: string }) => (await apiClient.patch(`/store/orders/${b.id}`, { status: b.status })).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["store", "orders"] }),
   })
+  /** Đổi trạng thái đơn (kể cả huỷ) — đảo được bằng chính API này nên có "Hoàn tác" 5 giây. */
+  const changeStatus = (o: StoreOrder, status: string) => {
+    const from = o.status
+    update.mutate(
+      { id: o.id, status },
+      {
+        onSuccess: () =>
+          toastWithUndo({
+            message: `Đơn ${o.code}: ${STATUS[status]?.label ?? status}`,
+            onUndo: () => update.mutate({ id: o.id, status: from }, { onError: (err) => toast.error(apiErrorMessage(err, "Chưa hoàn tác được")) }),
+          }),
+        onError: (err) => toast.error(apiErrorMessage(err, "Không đổi được trạng thái")),
+      },
+    )
+  }
   return (
     <section className="flex flex-col gap-2">
       <h3 className="px-1 text-[13px] font-medium text-muted-foreground">Đơn từ trang bán hàng</h3>
       {orders.isLoading ? <div className="flex items-center gap-2 px-1 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang tải…</div>
-        : orders.isError ? <p role="alert" className="px-1 text-sm text-destructive">Không tải được đơn.</p>
+        : orders.isError ? <ErrorState compact className="px-1" title="Không tải được đơn" error={orders.error} onRetry={() => void orders.refetch()} retrying={orders.isFetching} />
         : !orders.data?.length ? <EmptyState icon={StoreIcon} title="Chưa có đơn nào" message="Mở bán và gửi địa chỉ trang cho khách — đơn mới hiện ở đây và trong lịch sử khách." />
         : (
           <ul className="divide-y divide-border overflow-hidden rounded-xl bg-card ring-1 ring-foreground/8 shadow-[var(--shadow-card)]">
@@ -174,7 +191,7 @@ function StoreOrders() {
                 </span>
                 {o.contact_id ? <a href={`/contacts/${o.contact_id}`} className="text-[13px] font-medium text-primary hover:underline">Xem khách</a> : null}
                 {can("deals.manage") ? (
-                  <select aria-label={`Trạng thái đơn ${o.code}`} value={o.status} disabled={update.isPending} onChange={(e) => update.mutate({ id: o.id, status: e.target.value }, { onError: (err) => toast.error(apiErrorMessage(err, "Không đổi được trạng thái")) })}
+                  <select aria-label={`Trạng thái đơn ${o.code}`} value={o.status} disabled={update.isPending} onChange={(e) => changeStatus(o, e.target.value)}
                     className="h-8 rounded-md border border-input bg-transparent px-2 text-[13px] max-sm:h-11">
                     {Object.entries(STATUS).map(([v, s]) => <option key={v} value={v}>{s.label}</option>)}
                   </select>

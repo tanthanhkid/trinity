@@ -17,6 +17,7 @@ import { apiErrorMessage } from "../webhook-types"
 import { useMarkReadZaloOa, useReplyZaloOa, useZaloOaMessages, useZaloOaThreads } from "./use-zalo-oa"
 import { inConsultWindow, threadTitle, type ZaloOaMessage, type ZaloOaThread } from "./zalo-oa-types"
 import { isChannelOff } from "@/lib/channel-off"
+import { ErrorState } from "@/components/ui/error-state"
 
 const messageText = (m: ZaloOaMessage) => m.text ?? (m.kind === "zns" ? "[Tin ZNS]" : "[Tệp đính kèm]")
 
@@ -168,7 +169,7 @@ export function ZaloOaInbox({ listTop, className, initialOpenId }: { listTop?: R
       <InboxListToolbar q={q} onQ={setQ} awaiting={{ on: onlyAwaiting, count: awaitingCount, onChange: setOnlyAwaiting }} />
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {threads.isLoading && <div className="flex justify-center py-6"><Loader2 className="size-4 animate-spin" /></div>}
-        {threads.isError && !zaloOff && <p className="px-2 py-4 text-sm text-[var(--color-app-tag-red-ink)]">Không tải được danh sách hội thoại.</p>}
+        {threads.isError && !zaloOff && <ErrorState compact className="px-2 py-4" title="Không tải được danh sách hội thoại" error={threads.error} onRetry={() => void threads.refetch()} retrying={threads.isFetching} />}
         {!threads.isLoading && (zaloOff || (!threads.isError && rows.length === 0)) && (
           <InboxEmpty icon={<Inbox aria-hidden />}>
             {zaloOff

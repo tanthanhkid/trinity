@@ -11,6 +11,7 @@ import {
 import { messengerReplyLabel, useFacebookConversations, useFacebookMessages, useFacebookReply, type FacebookConversation } from "./use-facebook"
 import { apiErrorMessage } from "./webhook-types"
 import { isChannelOff } from "@/lib/channel-off"
+import { ErrorState } from "@/components/ui/error-state"
 
 /** Tên hiển thị của khách Messenger (chưa có tên ⇒ 6 số cuối PSID). */
 export const facebookCustomerName = (c: FacebookConversation) => c.customer_name || `Khách ${c.psid.slice(-6)}`
@@ -124,7 +125,7 @@ export function FacebookInbox({ listTop, className, initialOpenId }: { listTop?:
         <InboxListToolbar q={q} onQ={setQ} awaiting={{ on: onlyAwaiting, count: awaitingCount, onChange: setOnlyAwaiting }} />
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
           {list.isLoading && <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang tải...</div>}
-          {list.isError && !fbOff && <p className="px-2 py-4 text-sm text-[var(--color-app-tag-red-ink)]">Không tải được hộp thư. Vui lòng thử lại.</p>}
+          {list.isError && !fbOff && <ErrorState compact className="px-2 py-4" title="Không tải được hộp thư" error={list.error} onRetry={() => void list.refetch()} retrying={list.isFetching} />}
           {(fbOff || (list.isSuccess && rows.length === 0)) && (
             <InboxEmpty icon={<MessageCircle aria-hidden />}>
               {fbOff

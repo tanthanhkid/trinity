@@ -138,7 +138,7 @@ export class StoreService {
   private async products(ids: number[]) {
     if (!ids.length) return [];
     const rows = await this.prisma.product.findMany({
-      where: { id: { in: ids }, is_active: true, price: { not: null } },
+      where: { id: { in: ids }, is_active: true, deleted_at: null, price: { not: null } },
       select: { id: true, name: true, price: true, image_url: true, description: true },
     });
     const order = new Map(ids.map((id, i) => [id, i]));

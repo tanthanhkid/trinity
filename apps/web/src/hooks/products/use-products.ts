@@ -21,12 +21,14 @@ function buildQuery(params: ListProductsParams): string {
   if (params.category_id != null) q.set("category_id", String(params.category_id))
   if (params.is_active != null) q.set("is_active", String(params.is_active))
   if (params.q) q.set("q", params.q)
+  if (params.archived) q.set("archived", "true")
   return q.toString()
 }
 
 /** `GET /products` — quyền `products.view`. */
-export function useProducts(params: ListProductsParams = {}) {
+export function useProducts(params: ListProductsParams = {}, opts: { enabled?: boolean } = {}) {
   return useQuery<Product[]>({
+    enabled: opts.enabled ?? true,
     queryKey: [PRODUCTS_KEY, params],
     queryFn: async () => {
       const qs = buildQuery(params)
@@ -66,6 +68,27 @@ export function useUpdateProduct() {
 }
 
 /** `DELETE /products/:id` — quyền `products.manage`; XOÁ HẲN, 409 nếu đã có đơn/liên hệ tham chiếu. Ẩn = `useUpdateProduct` với `is_active:false`. */
+/** `POST /products/:id/restore` — Hoàn tác xoá (người đã xoá / Quản trị, trong 10 phút). */
+export function useRestoreProduct() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => (await apiClient.post<Product>(`/products/${id}/restore`)).data,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY] }),
+  })
+}
+
+/** `DELETE /products/:id/permanent` — xoá HẲN, chỉ Quản trị, chỉ khi chưa đơn / liên hệ nào dùng (409 nếu còn). */
+export function usePurgeProduct() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await apiClient.delete(`/products/${id}/permanent`)
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY] }),
+  })
+}
+
+/** `DELETE /products/:id` — xoá = lưu trữ (xoá mềm); Hoàn tác bằng `useRestoreProduct`. */
 export function useDeleteProduct() {
   const queryClient = useQueryClient()
   return useMutation({

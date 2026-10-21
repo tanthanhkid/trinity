@@ -109,15 +109,35 @@ export class ProductsController {
 
   @Delete(':id')
   @Can('products.manage')
-  @ApiOperation({
-    summary:
-      'Xoá HẲN sản phẩm — chỉ khi chưa có đơn bán hàng/liên hệ nào dùng; ngược lại 409 (dùng PATCH is_active=false để ẩn)',
-  })
-  @ApiResponse({ status: 200, description: 'Đã xoá hẳn: { id, deleted: true }' })
+  @ApiOperation({ summary: 'Xoá sản phẩm = lưu trữ (xoá mềm); Hoàn tác trong 10 phút qua POST /products/:id/restore' })
+  @ApiResponse({ status: 200, description: 'Đã lưu trữ: { id, archived: true }' })
   @ApiResponse({ status: 403, description: 'Không có quyền — cần products.manage' })
   @ApiResponse({ status: 404, description: 'Sản phẩm không tồn tại' })
-  @ApiResponse({ status: 409, description: 'Sản phẩm đã có trong đơn bán hàng/liên hệ — chỉ ẩn được' })
-  remove(@Param('id', ParseInt4Pipe) id: number) {
-    return this.productsService.remove(id);
+  remove(@Param('id', ParseInt4Pipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.productsService.remove(id, user);
+  }
+
+  /** Nút "Hoàn tác" trên web sau khi xoá. Không có tool MCP tương ứng. */
+  @Post(':id/restore')
+  @Can('products.manage')
+  @ApiOperation({ summary: 'Khôi phục sản phẩm vừa xoá — người đã xoá hoặc Quản trị, trong 10 phút' })
+  @ApiResponse({ status: 403, description: 'Không phải người đã xoá / Quản trị' })
+  @ApiResponse({ status: 404, description: 'Không có sản phẩm đang chờ khôi phục' })
+  @ApiResponse({ status: 410, description: 'Quá thời gian hoàn tác' })
+  restore(@Param('id', ParseInt4Pipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.productsService.restore(id, user);
+  }
+
+  @Delete(':id/permanent')
+  @Can('products.manage')
+  @ApiOperation({
+    summary: 'Xoá HẲN sản phẩm — CHỈ Quản trị, chỉ khi chưa có đơn bán hàng/liên hệ nào dùng; ngược lại 409',
+  })
+  @ApiResponse({ status: 200, description: 'Đã xoá hẳn: { id, deleted: true }' })
+  @ApiResponse({ status: 403, description: 'Không phải Quản trị' })
+  @ApiResponse({ status: 404, description: 'Sản phẩm không tồn tại' })
+  @ApiResponse({ status: 409, description: 'Sản phẩm đã có trong đơn bán hàng/liên hệ' })
+  purge(@Param('id', ParseInt4Pipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.productsService.purge(id, user);
   }
 }

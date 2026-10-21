@@ -56,6 +56,9 @@ Bấm nhầm phải sửa được trong một nhịp, không qua hộp thoại 
   - Máy chủ chỉ cho người đã xoá hoặc Quản trị khôi phục, trong 10 phút, và vẫn trong phạm vi quyền.
   - Khách bị trùng SĐT với một khách đang có của cùng người phụ trách ⇒ 409, không khôi phục.
   - Không có tool MCP cho việc này.
+- Xoá sản phẩm: lưu trữ (xoá mềm). Sản phẩm biến khỏi danh mục, POS và trang bán hàng; đơn cũ và liên hệ vẫn trỏ tới được.
+  - Hoàn tác gọi `POST /products/:id/restore` (người đã xoá hoặc Quản trị, trong 10 phút).
+  - Xoá hẳn (`DELETE /products/:id/permanent`): chỉ Quản trị, ở mục "Sản phẩm đã xoá (lưu trữ)", và chỉ khi chưa có đơn / liên hệ nào dùng (409 kèm lý do).
 - Xoá bài nháp: deferred (chưa có API khôi phục).
 - Kéo card sang cột khác (= đổi trạng thái): Hoàn tác đưa card về đúng chỗ cũ, giữa hai card hàng xóm cũ. Chỉ đổi thứ tự trong cùng cột thì không có toast.
 - Gỡ kênh đăng bài: Hoàn tác bật lại kênh. Câu báo nói thật là bài chưa đăng lúc gỡ đã bị huỷ.

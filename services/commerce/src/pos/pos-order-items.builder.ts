@@ -27,7 +27,7 @@ export interface BuiltItem {
 export async function lockProductsForOrder(tx: Prisma.TransactionClient, items: BuiltItem[]): Promise<void> {
   const ids = [...new Set(items.map((i) => i.product_id))];
   if (ids.length === 0) return;
-  const rows = await tx.$queryRaw<{ id: number }[]>`SELECT id FROM products WHERE id IN (${Prisma.join(ids)}) FOR SHARE`;
+  const rows = await tx.$queryRaw<{ id: number }[]>`SELECT id FROM products WHERE id IN (${Prisma.join(ids)}) AND deleted_at IS NULL FOR SHARE`;
   if (rows.length !== ids.length) {
     throw new ConflictException('Có món vừa bị xoá khỏi danh mục sản phẩm — tải lại menu rồi tạo lại đơn');
   }
@@ -42,7 +42,7 @@ export class PosOrderItemsBuilder {
     const modIds = [...new Set(items.flatMap((i) => i.modifier_ids ?? []))];
     const [products, mods, settings] = await Promise.all([
       db.product.findMany({
-        where: { id: { in: productIds }, is_active: true, price: { not: null } },
+        where: { id: { in: productIds }, is_active: true, deleted_at: null, price: { not: null } },
         select: { id: true, name: true, price: true, category_id: true },
       }),
       modIds.length

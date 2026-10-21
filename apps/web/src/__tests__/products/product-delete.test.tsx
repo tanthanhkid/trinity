@@ -19,10 +19,11 @@ function setup(error: { message: string; conflict: boolean } | null, p: Product 
 }
 
 describe("hộp xác nhận Xoá sản phẩm", () => {
-  it("cảnh báo không hoàn tác; tách 2 hành động Ẩn và Xoá vĩnh viễn", () => {
+  it("xoá = lưu trữ, nói có Hoàn tác; tách 2 hành động Ẩn và Xoá", () => {
     const fns = setup(null)
-    expect(screen.getByRole("dialog").textContent).toContain("không thể hoàn tác")
-    fireEvent.click(screen.getByRole("button", { name: /Xoá vĩnh viễn/ }))
+    expect(screen.getByRole("dialog").textContent).toContain("Hoàn tác")
+    expect(screen.getByRole("dialog").textContent).not.toContain("không thể hoàn tác")
+    fireEvent.click(screen.getByRole("button", { name: /^Xoá$/ }))
     expect(fns.onConfirm).toHaveBeenCalledWith(product)
     fireEvent.click(screen.getByRole("button", { name: /Ẩn sản phẩm/ }))
     expect(fns.onHide).toHaveBeenCalledWith(product)
@@ -32,7 +33,7 @@ describe("hộp xác nhận Xoá sản phẩm", () => {
     const msg = "Sản phẩm đã có trong 3 đơn bán hàng — không thể xoá hẳn, chỉ có thể ẩn"
     const fns = setup({ message: msg, conflict: true })
     expect(screen.getByRole("alert").textContent).toBe(msg)
-    expect(screen.queryByRole("button", { name: /Xoá vĩnh viễn/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /^Xoá$/ })).toBeNull()
     fireEvent.click(screen.getByRole("button", { name: /Ẩn sản phẩm/ }))
     expect(fns.onHide).toHaveBeenCalledWith(product)
   })
@@ -40,7 +41,7 @@ describe("hộp xác nhận Xoá sản phẩm", () => {
   it("lỗi khác 409 (mạng/5xx): hiện lỗi nhưng vẫn cho thử xoá lại", () => {
     setup({ message: "Máy chủ bận", conflict: false })
     expect(screen.getByRole("alert").textContent).toBe("Máy chủ bận")
-    expect(screen.getByRole("button", { name: /Xoá vĩnh viễn/ })).toBeTruthy()
+    expect(screen.getByRole("button", { name: /^Xoá$/ })).toBeTruthy()
   })
 
   it("sản phẩm đã ẩn: không đề nghị Ẩn lần nữa", () => {

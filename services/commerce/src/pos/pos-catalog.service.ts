@@ -34,7 +34,7 @@ export class PosCatalogService {
       }),
       this.prisma.product.findMany({
         where: {
-          is_active: true, price: { not: null },
+          is_active: true, deleted_at: null, price: { not: null },
           // Lọc theo danh mục không được vượt ra ngoài danh mục menu đã cấu hình.
           ...(q.category_id
             ? { category_id: cats.length && !cats.includes(q.category_id) ? { in: [] as number[] } : q.category_id }

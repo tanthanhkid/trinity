@@ -30,6 +30,7 @@ import { GripVertical } from "lucide-react"
 import { motion, MotionConfig } from "motion/react"
 import { toast } from "sonner"
 import { getApiErrorMessage } from "@/lib/api-client"
+import { ErrorState } from "@/components/ui/error-state"
 import { usePermissions } from "@/lib/rbac"
 import { neighboursAt } from "@/lib/board-drag-target"
 import { CSS_EASE_ENTER, motionTokens } from "@/lib/motion-tokens"
@@ -63,7 +64,7 @@ function isBeforeOnAxis(
 
 export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
   const { can } = usePermissions()
-  const { data: board, isLoading } = useKanbanBoardDetail(boardId)
+  const { data: board, isLoading, isError, error, refetch, isFetching } = useKanbanBoardDetail(boardId)
   const moveCard = useMoveKanbanCard()
   const reorderColumns = useReorderKanbanColumns(boardId)
   const [openCardId, setOpenCardId] = useState<number | null>(null)
@@ -150,6 +151,11 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
     reorderColumns.mutate(ids, {
       onError: (err) => toast.error(getApiErrorMessage(err, "Không sắp xếp lại được cột")),
     })
+  }
+
+  // Lỗi mà chưa có dữ liệu ⇒ nói rõ + Thử lại, không để khung xương quay mãi.
+  if (isError && !board) {
+    return <ErrorState title="Không tải được board" error={error} onRetry={() => void refetch()} retrying={isFetching} />
   }
 
   if (isLoading || !board) {

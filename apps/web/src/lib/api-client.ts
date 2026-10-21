@@ -288,12 +288,22 @@ apiClient.interceptors.response.use(
   },
 )
 
+/** Yêu cầu không tới được máy chủ (mất mạng, máy chủ không phản hồi). */
+export const NETWORK_ERROR_MESSAGE = "Không kết nối được máy chủ. Kiểm tra Internet rồi thử lại."
+/** Máy chủ phản hồi quá lâu. */
+export const TIMEOUT_MESSAGE = "Máy chủ phản hồi quá lâu. Thử lại sau ít phút."
+
 /**
  * Trích thông điệp lỗi tiếng Việt từ axios error.
  * Một số endpoint trả `{ error }`, NestJS trả `{ message }` — fallback nếu không có.
  */
 export function getApiErrorMessage(err: unknown, fallback: string): string {
   if (axios.isAxiosError(err)) {
+    // Không có phản hồi = yêu cầu không tới được máy chủ: nói rõ nguyên nhân + cách sửa thay vì câu chung chung.
+    if (!err.response && err.code !== "ERR_CANCELED") {
+      if (err.code === "ECONNABORTED" || err.code === "ETIMEDOUT") return TIMEOUT_MESSAGE
+      return NETWORK_ERROR_MESSAGE
+    }
     const data = err.response?.data as
       | { error?: string; message?: string | string[] }
       | undefined

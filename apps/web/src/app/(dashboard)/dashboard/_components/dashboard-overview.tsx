@@ -12,6 +12,7 @@
 import { useAuth } from '@/hooks/use-auth'
 import { useRecentContacts } from '@/hooks/use-recent-contacts'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
 import { DashboardTasksCard } from './dashboard-tasks-card'
 import { DealStatusChart } from './dashboard-overview-charts'
 import { OverviewTabbedChart } from './dashboard-overview-tabbed-chart'
@@ -45,21 +46,27 @@ export function DashboardOverview() {
       </h2>
       <p className="sr-only">số liệu tháng này, làm mới mỗi 5 phút</p>
 
-      {overview.isError && (
-        <p className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] p-4 text-[14px] text-[var(--color-app-ink-2)]">
-          Không tải được số liệu Tổng quan. Thử tải lại trang.
-        </p>
+      {/* Lỗi mà chưa có số ⇒ khung lỗi + Thử lại thay cho biểu đồ (không để khung xương quay mãi). */}
+      {overview.isError && !data ? (
+        <ErrorState
+          title="Không tải được số liệu kinh doanh"
+          error={overview.error}
+          onRetry={() => void overview.refetch()}
+          retrying={overview.isFetching}
+        />
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-3">
+          {data ? <OverviewTabbedChart data={data} /> : <Skeleton className="h-[300px] rounded-2xl lg:col-span-2" />}
+          {data ? <DealStatusChart data={data} /> : <Skeleton className="h-[300px] rounded-2xl" />}
+        </div>
       )}
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        {data ? <OverviewTabbedChart data={data} /> : <Skeleton className="h-[300px] rounded-2xl lg:col-span-2" />}
-        {data ? <DealStatusChart data={data} /> : <Skeleton className="h-[300px] rounded-2xl" />}
-      </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <DashboardTasksCard
           tasks={tasks.data}
           isLoading={tasks.isLoading}
+          error={tasks.isError ? tasks.error : undefined}
+          onRetry={() => void tasks.refetch()}
           filterNote={filterNote}
           className={recentContacts.length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}
         />

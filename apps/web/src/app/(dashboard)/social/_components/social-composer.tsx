@@ -5,6 +5,7 @@ import { CalendarClock, ImagePlus, Images, ListPlus, Loader2, Repeat, Save, Send
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { ErrorState } from "@/components/ui/error-state"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -95,7 +96,8 @@ function Counter({ text, limit }: { text: string; limit: number }) {
 
 /** Soạn một lần, chọn kênh, sửa nội dung riêng từng kênh, đăng ngay. */
 export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, draft }: { onCreated: (kind?: "recurring") => void; onGoChannels: () => void; onGoCalendar?: () => void; preset?: { at: string; n: number }; draft?: SocialDraft }) {
-  const { data: accounts = [], isLoading } = useSocialAccounts()
+  const accountsQ = useSocialAccounts()
+  const { data: accounts = [], isLoading } = accountsQ
   const { create, saveDraft, publishDraft, createRecurrence } = useSocialMutations()
   // Mở từ một nháp: khôi phục trạng thái ô soạn một lần lúc dựng (đổi nháp ⇒ màn cha dựng lại bằng `key`).
   const [init] = useState<ComposerState | null>(() => (draft ? composerStateFrom(draft) : null))
@@ -333,6 +335,18 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
         onCreated()
       },
       (err) => toast.error(getApiErrorMessage(err, "Không tạo được bài đăng")),
+    )
+  }
+
+  // Không tải được kênh ≠ chưa liên kết kênh: nói đúng chuyện + Thử lại.
+  if (accountsQ.isError && accounts.length === 0) {
+    return (
+      <ErrorState
+        title="Không tải được danh sách kênh"
+        error={accountsQ.error}
+        onRetry={() => void accountsQ.refetch()}
+        retrying={accountsQ.isFetching}
+      />
     )
   }
 

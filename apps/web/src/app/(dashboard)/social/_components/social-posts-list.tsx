@@ -1,13 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { ExternalLink, Loader2, RefreshCw, RotateCcw, Trash2 } from "lucide-react"
+import { ExternalLink, RefreshCw, RotateCcw, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { StatusPill, type ConnectionTone } from "@/components/ui/connection-row"
 import { cn } from "@/lib/utils"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
 import { getApiErrorMessage } from "@/lib/api-client"
 import { usePermissions } from "@/lib/rbac/use-permissions"
 import { isPostEditable, useSocialMutations, useSocialPosts, useSyncPublishedPosts, type SocialPost, type SocialTarget } from "@/hooks/use-social"
@@ -47,7 +49,7 @@ const fmt = (iso: string) => new Intl.DateTimeFormat("vi-VN", { dateStyle: "shor
 
 /** Bài đã đăng: mới nhất trước, trạng thái từng kênh, Huỷ / Thử lại / Gỡ khỏi mạng. */
 export function SocialPostsList({ highlight, onCompose }: { highlight?: number; onCompose?: () => void }) {
-  const { data, isLoading, isError } = useSocialPosts()
+  const { data, isLoading, isError, error, refetch, isFetching } = useSocialPosts()
   useSyncPublishedPosts(Boolean(data?.data.some((p) => p.targets.some((t) => t.status === "published"))))
   const m = useSocialMutations()
   const { can } = usePermissions()
@@ -57,8 +59,8 @@ export function SocialPostsList({ highlight, onCompose }: { highlight?: number; 
   const run = (p: Promise<unknown>, ok: string): Promise<boolean> =>
     p.then(() => (toast.success(ok), true)).catch((err) => (toast.error(getApiErrorMessage(err, "Không thực hiện được")), false))
 
-  if (isLoading) return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang tải…</div>
-  if (isError) return <p className="text-sm text-destructive">Không tải được danh sách bài.</p>
+  if (isLoading) return <LoadingBlock count={4} label="Đang tải danh sách bài…" />
+  if (isError && !data) return <ErrorState title="Không tải được danh sách bài" error={error} onRetry={() => void refetch()} retrying={isFetching} />
   if (!data?.data.length) return <EmptyState icon={CalendarClock} title="Chưa có bài nào" message="Viết một lần, đăng cùng lúc lên mọi kênh đã liên kết." action={onCompose ? <Button variant="outline" onClick={onCompose}>Soạn bài đầu tiên</Button> : undefined} />
 
   return (

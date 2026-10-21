@@ -6,6 +6,8 @@ import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
 import {
   Plus, Loader2, Trash2, MoreHorizontal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileSpreadsheet, Send,
   ArrowDownUp,
@@ -130,6 +132,8 @@ function ContactsPageContent() {
     isLoading,
     isFetching,
     isError,
+    error,
+    refetch,
   } = useContacts({
     filters: appliedFilters,
     page,
@@ -177,9 +181,14 @@ function ContactsPageContent() {
     setBulkDeleteOpen(true)
   }
 
+  // Danh sách cũ vẫn còn trên màn hình mà tải mới lỗi ⇒ báo bằng toast; danh sách trống thì khung lỗi bên dưới đã nói.
+  const staleError = isError && contacts.length > 0
   useEffect(() => {
-    if (isError) toast.error("Không thể tải danh sách khách hàng")
-  }, [isError])
+    if (staleError) toast.error("Không cập nhật được danh sách khách hàng — đang hiện dữ liệu cũ")
+  }, [staleError])
+
+  // Đang lọc/tìm ⇒ danh sách trống là "không khớp", không phải "chưa có khách".
+  const hasFilters = Object.entries(appliedFilters).some(([k, v]) => k !== "sortBy" && k !== "sortOrder" && v != null && v !== "")
 
   const handleSearchInput = useCallback((value: string) => {
     setSearchInput(value)
@@ -617,10 +626,37 @@ function ContactsPageContent() {
               <Skeleton key={i} className="h-11 w-full" />
             ))}
           </div>
+        ) : isError && contacts.length === 0 ? (
+          <ErrorState
+            className="m-4"
+            title="Không tải được danh sách khách hàng"
+            error={error}
+            onRetry={() => void refetch()}
+            retrying={isFetching}
+          />
         ) : contacts.length === 0 ? (
-          <div className="px-4 py-12 text-center text-sm text-muted-foreground">
-            Không tìm thấy khách hàng nào
-          </div>
+          hasFilters ? (
+            <EmptyState
+              className="m-4"
+              title="Không có khách nào khớp bộ lọc"
+              message="Thử bỏ bớt điều kiện hoặc tìm bằng tên, số điện thoại khác."
+              action={<Button variant="outline" onClick={handleReset}>Xoá bộ lọc</Button>}
+            />
+          ) : (
+            <EmptyState
+              className="m-4"
+              title="Chưa có khách hàng nào"
+              message="Thêm khách đầu tiên, hoặc bật Fanpage/Zalo OA để khách nhắn tin tự vào danh sách."
+              action={
+                <Can perm="contacts.create">
+                  <Button variant="outline" onClick={() => router.push("/contacts/new")}>
+                    <Plus className="h-4 w-4" />
+                    Thêm khách
+                  </Button>
+                </Can>
+              }
+            />
+          )
         ) : (
           <ShellResponsiveList
             table={

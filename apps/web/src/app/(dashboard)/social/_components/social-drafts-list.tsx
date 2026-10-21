@@ -1,11 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { FileText, Loader2, Trash2 } from "lucide-react"
+import { FileText, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { LoadingBlock } from "@/components/ui/loading-block"
 import { cn } from "@/lib/utils"
 import { getApiErrorMessage } from "@/lib/api-client"
 import { useSocialAccounts, useSocialDrafts, useSocialMutations, type SocialDraft } from "@/hooks/use-social"
@@ -23,14 +25,14 @@ export function draftLabel(d: Pick<SocialDraft, "title" | "content">): string {
 
 /** Bài nháp chưa đăng: mới sửa trước; Mở (vào ô soạn) / Xoá. */
 export function SocialDraftsList({ highlight, onOpen, onCompose }: { highlight?: number; onOpen: (d: SocialDraft) => void; onCompose?: () => void }) {
-  const { data, isLoading, isError } = useSocialDrafts()
+  const { data, isLoading, isError, error, refetch, isFetching } = useSocialDrafts()
   const { data: accounts = [] } = useSocialAccounts()
   const { deleteDraft } = useSocialMutations()
   const [removing, setRemoving] = useState<SocialDraft | null>(null)
   const byId = new Map(accounts.map((a) => [a.id, a]))
 
-  if (isLoading) return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang tải…</div>
-  if (isError) return <p className="text-sm text-destructive">Không tải được danh sách nháp.</p>
+  if (isLoading) return <LoadingBlock count={3} label="Đang tải bài nháp…" />
+  if (isError && !data) return <ErrorState title="Không tải được danh sách nháp" error={error} onRetry={() => void refetch()} retrying={isFetching} />
   if (!data?.length) {
     return (
       <EmptyState

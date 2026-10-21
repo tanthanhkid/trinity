@@ -14,6 +14,7 @@ import { motion } from "motion/react"
 import { useMemo, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ErrorState } from "@/components/ui/error-state"
 import { useKanbanCardsByColumn } from "@/hooks/kanban/use-kanban-cards"
 import { useCreateKanbanCard } from "@/hooks/kanban/use-kanban-cards"
 import { useKanbanUserRoster } from "@/hooks/kanban/use-kanban-user-roster"
@@ -59,7 +60,7 @@ export function KanbanColumnView({
     listeners: dragListeners,
     setNodeRef: setDragHandleRef,
   } = useDraggable({ id: `col-${column.id}`, data: { column }, disabled: !canReorder })
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, isLoading, isError, error, refetch, isFetching, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useKanbanCardsByColumn(boardId, column.id, filters)
   const createCard = useCreateKanbanCard()
   // Tên người phụ trách (cùng cache với bảng danh sách) — thẻ hiện avatar + tên thay vì `#id`.
@@ -125,6 +126,8 @@ export function KanbanColumnView({
       <div data-board-list className="flex flex-1 flex-col gap-2 overflow-y-auto p-2" style={{ maxHeight: "calc(100vh - 320px)" }}>
         {isLoading ? (
           <LoadingBlock variant="cards" count={3} />
+        ) : isError && cards.length === 0 ? (
+          <ErrorState compact className="p-2" title="Không tải được card" error={error} onRetry={() => void refetch()} retrying={isFetching} />
         ) : cards.length === 0 && !drop ? (
           <p className="p-2 text-center text-sm text-muted-foreground">Chưa có card</p>
         ) : (

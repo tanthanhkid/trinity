@@ -127,11 +127,16 @@ export function SocialPostsList({ highlight, onCompose }: { highlight?: number; 
                       </a>
                     )}
                     {t.status === "published" && t.metrics && <SocialMetricsLine metrics={t.metrics} network={t.network} />}
-                    {t.last_error && <span className={cn("w-full pl-6 text-xs", t.status === "cancelled" ? "text-muted-foreground" : t.status === "published" ? "text-[var(--color-app-tag-amber-ink)]" : "text-destructive")}>{t.last_error}</span>}
+                    {t.status === "failed" ? (
+                      // Khoảnh khắc hỏng: nói rõ kênh nào không đăng được + vì sao; nút "Đăng lại" ngay bên cạnh.
+                      <span role="alert" className="w-full pl-6 text-xs text-destructive">
+                        Không đăng được lên {t.account_name ?? "kênh này"}{t.last_error ? `: ${t.last_error}` : "."}
+                      </span>
+                    ) : t.last_error && <span className={cn("w-full pl-6 text-xs", t.status === "cancelled" ? "text-muted-foreground" : t.status === "published" ? "text-[var(--color-app-tag-amber-ink)]" : "text-destructive")}>{t.last_error}</span>}
                     <span className="ml-auto flex gap-1">
                       {t.status === "failed" && (
-                        <Button size="sm" variant="ghost" disabled={m.retry.isPending} onClick={() => run(m.retry.mutateAsync(t.id), "Đã đưa vào hàng đăng lại.")}>
-                          <RotateCcw className="size-3.5" /> Thử lại
+                        <Button size="sm" variant="outline" disabled={m.retry.isPending} onClick={() => run(m.retry.mutateAsync(t.id), "Đã đưa vào hàng đăng lại.")}>
+                          <RotateCcw className="size-3.5" /> Đăng lại
                         </Button>
                       )}
                       {t.status === "published" && !gone && APP_ONLY_REMOVE[t.network] && <span className="text-xs text-muted-foreground">Gỡ trong ứng dụng {APP_ONLY_REMOVE[t.network]}</span>}

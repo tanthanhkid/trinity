@@ -41,6 +41,30 @@ Người dùng học một lần, nhận ra ở mọi màn. Trước đợt này
 - Số dùng `formatNumber` (1.234.567); tiền dùng `formatVnd` (1.250.000 ₫).
 - Ngày: `formatDate` (21/10/2026), `formatDateTime` (14:30 21/10/2026), `formatDateTimeShort` (14:30 21/10) cho mốc gần trong danh sách dày. Luôn theo giờ Việt Nam, không tự gọi `toLocaleString` với tuỳ chọn riêng.
 
+## Hoàn tác và khoảnh khắc hỏng
+
+Bấm nhầm phải sửa được trong một nhịp, không qua hộp thoại thứ hai. `lib/undo.ts` có hai cách, cùng cửa sổ **5 giây** và cùng nút "Hoàn tác" trên toast:
+
+| Cách | Khi nào | Hành vi |
+|---|---|---|
+| `deferWithUndo` | Thao tác máy chủ KHÔNG lùi được (xoá) | Ẩn ngay trên màn hình, chỉ gửi lệnh sau 5 giây. Hoàn tác ⇒ không gửi gì. Đóng tab trong lúc chờ ⇒ gửi ngay (`pagehide`) |
+| `toastWithUndo` | Thao tác có đường ngược (đổi cột, gỡ kênh) | Làm ngay; Hoàn tác gọi thao tác ngược |
+
+Đang áp dụng:
+
+- Xoá khách hàng hàng loạt: deferred.
+- Xoá card Kanban: deferred.
+- Xoá bài nháp: deferred.
+- Kéo card sang cột khác (= đổi trạng thái): Hoàn tác đưa card về đúng chỗ cũ, giữa hai card hàng xóm cũ. Chỉ đổi thứ tự trong cùng cột thì không có toast.
+- Gỡ kênh đăng bài: Hoàn tác bật lại kênh. Câu báo nói thật là bài chưa đăng lúc gỡ đã bị huỷ.
+
+Hộp xác nhận của các thao tác này nói "có 5 giây để Hoàn tác", không còn "không hoàn tác được".
+
+**Khoảnh khắc hỏng** phải nói rõ chuyện gì, ở đâu, và có nút làm lại ngay tại chỗ:
+
+- Kênh mất kết nối: `ReconnectNotice` ở thẻ Fanpage, thẻ mạng ở Đăng đa kênh và Zalo OA. Có nút "Kết nối lại" mở lại luồng cấp quyền.
+- Đăng bài lỗi: "Không đăng được lên <kênh>: <lý do>" + nút "Đăng lại" (viền, dễ thấy).
+
 ## Kiểm kê (21/10/2026)
 
 ✅ đủ · ⚠️ có nhưng yếu · ❌ thiếu. Cột "Sau" là trạng thái sau đợt sửa đầu tiên.
@@ -73,7 +97,7 @@ Người dùng học một lần, nhận ra ở mọi màn. Trước đợt này
 | Trống | ⚠️ | ✅ | Chưa có board ⇒ "Tạo board" (người có quyền cấu hình) hoặc câu nhờ quản trị viên. **Còn lại:** board chưa có cột vẫn chỉ là chữ |
 | Lỗi | ❌ | ✅ | Danh sách board, chi tiết board (trước: khung xương quay mãi), từng cột, chế độ Bảng |
 | Mất mạng | ❌ | ✅ | |
-| Thành công | ✅ | ✅ | Kéo thẻ lạc quan, lỗi thì toast. Hoàn tác thuộc phần C |
+| Thành công | ✅ | ✅ | Kéo thẻ lạc quan, lỗi thì toast; đổi cột và xoá card có Hoàn tác 5 giây |
 
 ### Kênh (`/connections`: Facebook, Zalo OA)
 
@@ -100,4 +124,4 @@ Người dùng học một lần, nhận ra ở mọi màn. Trước đợt này
 - Khối Trợ lý AI/Kênh và "Cần bạn xem" trên Tổng quan: thêm Thử lại; "Cần bạn xem" đang coi lỗi là "không có gì". Làm sau khi PR #48 gộp để khỏi đụng cùng file.
 - Đăng đa kênh: lịch, thư viện, thống kê dùng `ErrorState`; khoá nút Đăng/Hẹn giờ khi `useOffline()`.
 - Mẫu chung (phần B) còn chưa áp: khối Kênh trên Tổng quan (file của PR #48); nhãn trạng thái của đề xuất AI đã đúng màu hổ phách nhưng vẫn qua bảng riêng `lib/ai-actions.ts`; vòng tròn nét đứt ở "Cần bạn xem".
-- Hoàn tác (xoá, đổi trạng thái, kéo thẻ) và khoảnh khắc hỏng (kênh mất kết nối, đăng bài lỗi): phần C.
+- Hoàn tác cho các thao tác xoá/đổi trạng thái ở màn khác (nhân sự, sản phẩm, đơn hàng…) dùng cùng `lib/undo.ts`.

@@ -9,11 +9,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { getApiErrorMessage } from "@/lib/api-client"
+import { toastWithUndo } from "@/lib/undo"
+import { ReconnectNotice, STATUS_LABEL } from "@/components/ui/status-tag"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadingBlock } from "@/components/ui/loading-block"
 import { usePermissions } from "@/lib/rbac/use-permissions"
 import { useSocialAccounts, useSocialMutations, useSocialNetworks, type SocialAccount, type SocialNetwork } from "@/hooks/use-social"
-import { STATUS_LABEL } from "@/components/ui/status-tag"
 
 /** Kênh: liên kết từng mạng (OAuth), danh sách kênh đã liên kết, gỡ kênh. */
 export function SocialChannels() {
@@ -99,6 +100,18 @@ export function SocialChannels() {
                   ))}
                 </ul>
               )}
+              {/* Kênh mất quyền: nói rõ + nút Kết nối lại ngay tại thẻ mạng (mở lại luồng liên kết của mạng đó). */}
+              {mine
+                .filter((a) => !a.removed && a.status !== "active")
+                .map((a) => (
+                  <ReconnectNotice
+                    key={`reauth-${a.id}`}
+                    channel={`${n.label} ${a.name}`}
+                    reason="Quyền đăng bài đã hết hạn hoặc bị thu hồi — bài hẹn lên kênh này sẽ không đăng được."
+                    onReconnect={manage && n.configured ? () => connect(n.network) : undefined}
+                    reconnecting={m.connect.isPending}
+                  />
+                ))}
             </CardContent>
           </Card>
         )
@@ -111,7 +124,20 @@ export function SocialChannels() {
         confirmLabel="Gỡ kênh"
         pending={m.disconnect.isPending}
         onConfirm={async () => {
-          if (removing) await m.disconnect.mutateAsync(removing.id).then(() => toast.success("Đã gỡ kênh.")).catch((err) => toast.error(getApiErrorMessage(err, "Không gỡ được kênh")))
+          const a = removing
+          if (a) {
+            await m.disconnect
+              .mutateAsync(a.id)
+              // Gỡ nhầm ⇒ Hoàn tác = bật lại kênh (bài chưa đăng đã bị huỷ thì phải hẹn lại — nói thật trong câu báo).
+              .then(() => toastWithUndo({
+                message: `Đã gỡ kênh ${a.name}.`,
+                onUndo: () => m.enable.mutate(a.id, {
+                  onSuccess: () => toast.success(`Đã bật lại kênh ${a.name}. Bài chưa đăng lúc gỡ đã bị huỷ — hẹn lại nếu cần.`),
+                  onError: (err) => toast.error(getApiErrorMessage(err, "Không bật lại được kênh")),
+                }),
+              }))
+              .catch((err) => toast.error(getApiErrorMessage(err, "Không gỡ được kênh")))
+          }
           setRemoving(null)
         }}
       />

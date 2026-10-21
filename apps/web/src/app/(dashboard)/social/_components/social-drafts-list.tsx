@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { FileText, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -9,8 +10,9 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadingBlock } from "@/components/ui/loading-block"
 import { cn } from "@/lib/utils"
-import { getApiErrorMessage } from "@/lib/api-client"
-import { useSocialAccounts, useSocialDrafts, useSocialMutations, type SocialDraft } from "@/hooks/use-social"
+import apiClient, { getApiErrorMessage, sendKeepalive } from "@/lib/api-client"
+import { deferWithUndo } from "@/lib/undo"
+import { useSocialAccounts, useSocialDrafts, type SocialDraft } from "@/hooks/use-social"
 import { NetworkMark } from "./social-network-mark"
 import { formatDateTime } from "@/lib/format"
 
@@ -28,7 +30,7 @@ export function draftLabel(d: Pick<SocialDraft, "title" | "content">): string {
 export function SocialDraftsList({ highlight, onOpen, onCompose }: { highlight?: number; onOpen: (d: SocialDraft) => void; onCompose?: () => void }) {
   const { data, isLoading, isError, error, refetch, isFetching } = useSocialDrafts()
   const { data: accounts = [] } = useSocialAccounts()
-  const { deleteDraft } = useSocialMutations()
+  const queryClient = useQueryClient()
   const [removing, setRemoving] = useState<SocialDraft | null>(null)
   const byId = new Map(accounts.map((a) => [a.id, a]))
 
@@ -80,18 +82,25 @@ export function SocialDraftsList({ highlight, onOpen, onCompose }: { highlight?:
         open={removing !== null}
         onOpenChange={(o) => !o && setRemoving(null)}
         title="Xoá bài nháp?"
-        description={<>Bài nháp <b>{removing ? draftLabel(removing) : ""}</b> sẽ bị xoá. Không hoàn tác được.</>}
+        description={<>Bài nháp <b>{removing ? draftLabel(removing) : ""}</b> biến khỏi danh sách ngay; bạn có 5 giây để bấm Hoàn tác trước khi xoá hẳn.</>}
         confirmLabel="Xoá nháp"
-        pending={deleteDraft.isPending}
-        onConfirm={async () => {
-          if (!removing) return
-          try {
-            await deleteDraft.mutateAsync(removing.id)
-            toast.success("Đã xoá bài nháp.")
-            setRemoving(null)
-          } catch (err) {
-            toast.error(getApiErrorMessage(err, "Không xoá được bài nháp"))
-          }
+        onConfirm={() => {
+          const d = removing
+          if (!d) return
+          setRemoving(null)
+          const key = ["social", "drafts"]
+          queryClient.setQueryData<SocialDraft[]>(key, (list) => list?.filter((x) => x.id !== d.id))
+          deferWithUndo({
+            message: "Đã xoá bài nháp.",
+            // Gọi thẳng API (không qua hook): hết 5 giây có thể đã rời màn này.
+            commit: () =>
+              apiClient
+                .delete(`/social/drafts/${d.id}`)
+                .catch((err) => toast.error(getApiErrorMessage(err, "Không xoá được bài nháp")))
+                .finally(() => queryClient.invalidateQueries({ queryKey: key })),
+            commitOnUnload: () => sendKeepalive("DELETE", `/social/drafts/${d.id}`),
+            onUndo: () => queryClient.invalidateQueries({ queryKey: key }),
+          })
         }}
       />
     </>

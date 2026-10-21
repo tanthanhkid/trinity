@@ -21,6 +21,26 @@
 
 Quy ước: lỗi **khi chưa có dữ liệu** ⇒ `ErrorState` thay chỗ nội dung. Lỗi **khi đang có dữ liệu cũ** ⇒ giữ dữ liệu cũ, báo bằng toast.
 
+## Cùng tình huống → cùng một mẫu
+
+Người dùng học một lần, nhận ra ở mọi màn. Trước đợt này, "Chờ duyệt" có khoảng 9 kiểu hiển thị; "cần kết nối lại" có 4 cách nói ("Cần liên kết lại", "Cần cấp quyền lại"…) và 7 kiểu màu. Cùng một kênh còn đỏ ở màn Đăng đa kênh nhưng vàng ở màn Kết nối.
+
+| Tình huống | Mẫu | Chữ | Màu |
+|---|---|---|---|
+| Trống | `EmptyState` | Vì sao trống + một hành động | Xám |
+| Lỗi tải | `ErrorState` | "Không tải được …" + cách sửa + Thử lại | Hổ phách (biểu tượng) |
+| Chờ người duyệt | `StatusTag kind="pending"` | "Chờ duyệt" (cụ thể hơn khi cần: "Chờ Kế toán duyệt", "Bản mới chờ duyệt") | Hổ phách |
+| Kênh mất quyền truy cập | `StatusTag kind="reauth"` trong danh sách; `ReconnectNotice` trên thẻ kênh | "Cần kết nối lại" + vì sao + nút "Kết nối lại" | Hổ phách |
+| Đang chạy / Đã tắt / Lỗi | `StatusTag kind="running" \| "off" \| "error"` | "Đang chạy", "Đã tắt", "Lỗi" | Xanh lá / xám / đỏ |
+
+`components/ui/status-tag.tsx` giữ chữ chuẩn trong `STATUS_LABEL`, dùng chung cho toast và aria-label. Dòng kết nối dùng `StatusPill` cỡ nhỏ thì lấy chữ từ `STATUS_LABEL` để khớp câu chữ.
+
+**Số và ngày** (`lib/format.ts`):
+
+- Số đếm hiện ra luôn kèm đơn vị: `formatCount(12, "khách")` ⇒ "12 khách". Cột kanban ghi "12/15 card", không còn "12/15" trơ trọi.
+- Số dùng `formatNumber` (1.234.567); tiền dùng `formatVnd` (1.250.000 ₫).
+- Ngày: `formatDate` (21/10/2026), `formatDateTime` (14:30 21/10/2026), `formatDateTimeShort` (14:30 21/10) cho mốc gần trong danh sách dày. Luôn theo giờ Việt Nam, không tự gọi `toLocaleString` với tuỳ chọn riêng.
+
 ## Kiểm kê (21/10/2026)
 
 ✅ đủ · ⚠️ có nhưng yếu · ❌ thiếu. Cột "Sau" là trạng thái sau đợt sửa đầu tiên.
@@ -79,5 +99,5 @@ Quy ước: lỗi **khi chưa có dữ liệu** ⇒ `ErrorState` thay chỗ nộ
 
 - Khối Trợ lý AI/Kênh và "Cần bạn xem" trên Tổng quan: thêm Thử lại; "Cần bạn xem" đang coi lỗi là "không có gì". Làm sau khi PR #48 gộp để khỏi đụng cùng file.
 - Đăng đa kênh: lịch, thư viện, thống kê dùng `ErrorState`; khoá nút Đăng/Hẹn giờ khi `useOffline()`.
-- Gộp các mẫu giống nhau (trống, lỗi, chờ duyệt, hết hạn token kênh) về một thành phần: phần B.
+- Mẫu chung (phần B) còn chưa áp: khối Kênh trên Tổng quan (file của PR #48); nhãn trạng thái của đề xuất AI đã đúng màu hổ phách nhưng vẫn qua bảng riêng `lib/ai-actions.ts`; vòng tròn nét đứt ở "Cần bạn xem".
 - Hoàn tác (xoá, đổi trạng thái, kéo thẻ) và khoảnh khắc hỏng (kênh mất kết nối, đăng bài lỗi): phần C.

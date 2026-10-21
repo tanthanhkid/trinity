@@ -4,6 +4,7 @@ import { useState } from "react"
 import { FileX2 } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
+import { StatusTag } from "@/components/ui/status-tag"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -107,21 +108,7 @@ export function AdminRequestsTable({ rows, isLoading, isAdmin }: Props) {
                   <p className="line-clamp-2">{r.reason}</p>
                 </td>
                 <td className="px-4 py-3">
-                  <Badge
-                    variant={
-                      r.status === "approved"
-                        ? "success"
-                        : r.status === "rejected"
-                          ? "destructive"
-                          : "secondary"
-                    }
-                  >
-                    {r.status === "approved"
-                      ? "Đã duyệt"
-                      : r.status === "rejected"
-                        ? "Từ chối"
-                        : "Chờ duyệt"}
-                  </Badge>
+                  <RequestStatus status={r.status} />
                 </td>
                 <td className="px-4 py-3 text-slate-500">{r.reviewer_name ?? "—"}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-500 tabular-nums">
@@ -170,21 +157,7 @@ export function AdminRequestsTable({ rows, isLoading, isAdmin }: Props) {
         <ShellListCard key={r.id}>
           <div className="flex items-center justify-between gap-2">
             <span className="font-semibold text-slate-800">{r.user_name}</span>
-            <Badge
-              variant={
-                r.status === "approved"
-                  ? "success"
-                  : r.status === "rejected"
-                    ? "destructive"
-                    : "secondary"
-              }
-            >
-              {r.status === "approved"
-                ? "Đã duyệt"
-                : r.status === "rejected"
-                  ? "Từ chối"
-                  : "Chờ duyệt"}
-            </Badge>
+            <RequestStatus status={r.status} />
           </div>
           <ShellListCardRow label="Team" value={r.team_name ?? "—"} />
           <ShellListCardRow label="Ngày" value={formatDate(r.work_date)} />
@@ -250,4 +223,11 @@ export function AdminRequestsTable({ rows, isLoading, isAdmin }: Props) {
       </Dialog>
     </>
   )
+}
+
+/** Trạng thái đơn — "Chờ duyệt" dùng mẫu chung `StatusTag` như mọi chỗ chờ duyệt khác. */
+function RequestStatus({ status }: { status: string }) {
+  if (status === "approved") return <Badge variant="success">Đã duyệt</Badge>
+  if (status === "rejected") return <Badge variant="destructive">Từ chối</Badge>
+  return <StatusTag kind="pending" />
 }

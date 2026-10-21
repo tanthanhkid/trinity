@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { StatusTag } from "@/components/ui/status-tag"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { usePermissions } from "@/lib/rbac"
@@ -87,9 +88,14 @@ export function GoogleSheetsPanel() {
           <div className="min-w-0 space-y-0.5">
             <p className="flex items-center gap-2 text-sm font-medium"><Sheet className="size-4" />Tài khoản Google</p>
             {st.connection ? (
-              <p className="text-sm text-muted-foreground">
-                {st.connection.status === "active" ? `Đã kết nối${st.connection.email ? `: ${st.connection.email}` : ""}` : `Kết nối lỗi — ${st.connection.last_error ?? "cần kết nối lại"}`}
-              </p>
+              st.connection.status === "active" ? (
+                <p className="text-sm text-muted-foreground">{`Đã kết nối${st.connection.email ? `: ${st.connection.email}` : ""}`}</p>
+              ) : (
+                <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                  <StatusTag kind="reauth" size="sm" />
+                  {st.connection.last_error ?? "Google đã thu hồi quyền truy cập — bấm kết nối lại để đồng bộ tiếp."}
+                </p>
+              )
             ) : <p className="text-sm text-muted-foreground">Chưa kết nối. Chỉ xin quyền Google Sheets và các file do CRM tạo — không đọc toàn bộ Drive.</p>}
           </div>
           {canWrite && (

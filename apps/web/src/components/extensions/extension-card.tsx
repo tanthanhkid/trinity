@@ -2,6 +2,7 @@
 
 import { Code2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { StatusTag } from "@/components/ui/status-tag"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { formatDateTimeVn } from "@/lib/format"
@@ -15,8 +16,8 @@ export function ExtensionCard({ ext, onOpen }: { ext: Extension; onOpen: () => v
       <CardContent className="space-y-3 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">{KIND_LABEL[ext.kind]}</Badge>
-          <Badge variant={STATUS_VARIANT[ext.status]}>{STATUS_LABEL[ext.status]}</Badge>
-          {waiting && ext.status !== "draft" && <Badge variant="soft">Có bản mới</Badge>}
+          {ext.status === "draft" ? <StatusTag kind="pending" /> : <Badge variant={STATUS_VARIANT[ext.status]}>{STATUS_LABEL[ext.status]}</Badge>}
+          {waiting && ext.status !== "draft" && <StatusTag kind="pending">Bản mới chờ duyệt</StatusTag>}
         </div>
         <p className="break-words text-sm font-medium">{ext.name}</p>
         {ext.description && <p className="line-clamp-2 break-words text-xs text-muted-foreground">{ext.description}</p>}

@@ -17,6 +17,7 @@ import { SocialPostEdit } from "./social-post-edit"
 import { CalendarClock } from "lucide-react"
 import { SocialMetricsLine } from "./social-metrics"
 import { NetworkMark } from "./social-network-mark"
+import { formatDateTime } from "@/lib/format"
 
 const TONE: Record<"soft" | "success" | "destructive" | "secondary" | "outline", ConnectionTone> = {
   soft: "info", success: "connected", destructive: "danger", secondary: "off", outline: "off",
@@ -32,7 +33,7 @@ export const POST_STATUS: Record<SocialPost["status"], { label: string; variant:
 }
 
 const TARGET_STATUS: Record<SocialTarget["status"], { label: string; variant: "soft" | "success" | "destructive" | "secondary" }> = {
-  queued: { label: "Chờ", variant: "soft" },
+  queued: { label: "Chờ đăng", variant: "soft" },
   publishing: { label: "Đang đăng", variant: "soft" },
   published: { label: "Đã đăng", variant: "success" },
   failed: { label: "Lỗi", variant: "destructive" },
@@ -45,7 +46,7 @@ const REMOVED_STATUS = { label: "Đã xoá trên mạng", variant: "secondary" }
 /** Mạng không cho gỡ bài qua API — người dùng gỡ trong ứng dụng của mạng. */
 const APP_ONLY_REMOVE: Partial<Record<SocialTarget["network"], string>> = { tiktok: "TikTok", instagram: "Instagram" }
 
-const fmt = (iso: string) => new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(iso))
+const fmt = (iso: string) => formatDateTime(iso)
 
 /** Bài đã đăng: mới nhất trước, trạng thái từng kênh, Huỷ / Thử lại / Gỡ khỏi mạng. */
 export function SocialPostsList({ highlight, onCompose }: { highlight?: number; onCompose?: () => void }) {

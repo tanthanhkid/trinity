@@ -19,9 +19,10 @@ import {
   useCancelPayment, useConnectors, useCreatePayment, useDisconnect, useDisconnectSepay, usePayments, useSaveGateway, useSaveSepay,
   type ConnectorStatus, type GatewayProvider, type Payment, type SaveGatewayInput, type SaveSepayInput,
 } from "./use-payments"
+import { formatDateTimeShort, formatVnd } from "@/lib/format"
 
-const vnd = (n: number) => `${n.toLocaleString("vi-VN")}đ`
-const when = (iso: string) => new Date(iso).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })
+const vnd = (n: number) => formatVnd(n)
+const when = (iso: string) => formatDateTimeShort(iso)
 /** Tên ngân hàng SePay/VietQR hay dùng — gợi ý, khách vẫn gõ tên khác được. */
 const BANKS = ["MBBank", "Vietcombank", "ACB", "TPBank", "Techcombank", "VietinBank", "BIDV", "VPBank", "Sacombank", "HDBank", "OCB", "MSB", "VIB", "SHB", "KienLongBank"]
 const STATUS: Record<Payment["status"], { tone: ConnectionTone; label: string }> = {

@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { formatMoneyAxis } from './dashboard-overview-charts'
 import type { DashboardOverviewData } from './use-dashboard-overview'
+import { formatNumber } from '@/lib/format'
 
 type TabKey = 'customers' | 'opportunities' | 'revenue'
 
@@ -17,7 +18,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'revenue', label: 'Doanh thu' },
 ]
 
-const nf = (n: number) => n.toLocaleString('vi-VN')
+const nf = formatNumber
 
 /**
  * "Biểu đồ tổng quan": 1 thẻ, 3 tab (Khách hàng · Cơ hội · Doanh

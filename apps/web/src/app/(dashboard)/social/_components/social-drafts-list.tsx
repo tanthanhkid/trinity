@@ -12,8 +12,9 @@ import { cn } from "@/lib/utils"
 import { getApiErrorMessage } from "@/lib/api-client"
 import { useSocialAccounts, useSocialDrafts, useSocialMutations, type SocialDraft } from "@/hooks/use-social"
 import { NetworkMark } from "./social-network-mark"
+import { formatDateTime } from "@/lib/format"
 
-const fmt = (iso: string) => new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(iso))
+const fmt = (iso: string) => formatDateTime(iso)
 
 /** Tên hiển thị của nháp: tiêu đề, không thì dòng đầu của nội dung. */
 export function draftLabel(d: Pick<SocialDraft, "title" | "content">): string {

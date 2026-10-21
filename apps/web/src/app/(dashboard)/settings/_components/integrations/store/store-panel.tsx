@@ -17,6 +17,7 @@ import { usePermissions } from "@/lib/rbac"
 import { cn } from "@/lib/utils"
 import { CopyButton } from "../secret-reveal-dialog"
 import { apiErrorMessage } from "../webhook-types"
+import { formatDateTimeShort, formatVnd } from "@/lib/format"
 
 export interface StoreSettings {
   slug: string; name: string; tagline: string | null; theme: "toi-gian" | "am-ap" | "soi-dong"; accent: string
@@ -37,8 +38,8 @@ const STATUS: Record<string, { label: string; tone: ConnectionTone }> = {
   new: { label: "Mới", tone: "info" }, confirmed: { label: "Đã xác nhận", tone: "soon" }, paid: { label: "Đã thanh toán", tone: "connected" },
   shipped: { label: "Đang giao", tone: "soon" }, done: { label: "Hoàn tất", tone: "connected" }, cancelled: { label: "Đã huỷ", tone: "off" },
 }
-const vnd = (n: number) => `${n.toLocaleString("vi-VN")}đ`
-const when = (iso: string) => new Date(iso).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })
+const vnd = (n: number) => formatVnd(n)
+const when = (iso: string) => formatDateTimeShort(iso)
 
 function StoreSettingsForm({ initial }: { initial: StoreSettings }) {
   const qc = useQueryClient()

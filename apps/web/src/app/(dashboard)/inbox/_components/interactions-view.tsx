@@ -11,6 +11,7 @@ import { ReplyBox } from "@/app/(dashboard)/settings/_components/integrations/fa
 import apiClient from "@/lib/api-client"
 import { formatDateTimeVn } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { formatNumber } from "@/lib/format"
 
 /** Khớp `GET /interactions` (services/crm/src/interactions/interactions.service.ts). */
 export interface Interaction {
@@ -58,7 +59,7 @@ const STATUS: Record<Interaction["status"], { label: string; cls: string }> = {
   staff: { label: "Nhân viên đã trả lời", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" },
   answered: { label: "Đã trả lời", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" },
 }
-const nf = (n: number) => n.toLocaleString("vi-VN")
+const nf = formatNumber
 const brandOf = (i: Pick<Interaction, "channel" | "type">) => (i.channel === "zalo" ? "zalo" : i.type === "comment" ? "facebook" : "messenger") as "zalo" | "facebook" | "messenger"
 
 /** "Tương tác": dòng thời gian gộp bình luận Fanpage + tin Messenger + Zalo OA, có số hôm nay, lọc, và khung chi tiết để trả lời tại chỗ. */

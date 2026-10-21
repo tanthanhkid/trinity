@@ -5,7 +5,7 @@ import { ChevronRight, Bell, SquareKanban } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
-import { formatDate, formatTimeVn, todayVn, vnDateKey } from '@/lib/format'
+import { formatCount, formatDate, formatNumber, formatTimeVn, todayVn, vnDateKey } from '@/lib/format'
 import type { DashboardTaskItem, DashboardTasksData } from './use-dashboard-overview'
 
 /** Nhãn mức ưu tiên — LUÔN chữ + màu (không chỉ màu, WCAG 1.4.1). */
@@ -112,7 +112,7 @@ export function DashboardTasksCard({
             <ul>{tasks.items.map((t) => <TaskRow key={t.key} t={t} />)}</ul>
             {tasks.total > tasks.items.length && (
               <p className="px-2 pt-1 text-[14px] text-[var(--color-app-ink-2)]">
-                Đang hiện {tasks.items.length}/{tasks.total} việc gấp nhất.
+                Đang hiện {formatNumber(tasks.items.length)}/{formatCount(tasks.total, 'việc')} gấp nhất.
               </p>
             )}
           </>

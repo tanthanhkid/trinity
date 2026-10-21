@@ -13,6 +13,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { LoadingBlock } from "@/components/ui/loading-block"
 import { usePermissions } from "@/lib/rbac/use-permissions"
 import { useSocialAccounts, useSocialMutations, useSocialNetworks, type SocialAccount, type SocialNetwork } from "@/hooks/use-social"
+import { STATUS_LABEL } from "@/components/ui/status-tag"
 
 /** Kênh: liên kết từng mạng (OAuth), danh sách kênh đã liên kết, gỡ kênh. */
 export function SocialChannels() {
@@ -80,7 +81,7 @@ export function SocialChannels() {
                   {mine.map((a) => (
                     <li key={a.id} className={`flex min-h-11 items-center gap-2 px-3 py-1.5${a.removed ? " opacity-60" : ""}`} data-testid={a.removed ? "social-account-removed" : undefined}>
                       <span className="truncate">{a.name}</span>
-                      {a.removed ? <StatusPill tone="soon">Đã gỡ</StatusPill> : a.status === "active" ? <StatusPill tone="connected">Hoạt động</StatusPill> : <StatusPill tone="danger">Cần liên kết lại</StatusPill>}
+                      {a.removed ? <StatusPill tone="soon">Đã gỡ</StatusPill> : a.status === "active" ? <StatusPill tone="connected">Hoạt động</StatusPill> : <StatusPill tone="warning">{STATUS_LABEL.reauth}</StatusPill>}
                       {a.network === "facebook" && (
                         <span className="text-xs text-muted-foreground">Nhận tin: {a.inbox === "on" ? "đã nối" : a.inbox === "off" ? "tắt" : "chưa nối"}</span>
                       )}

@@ -4,6 +4,7 @@ import { useState } from "react"
 import { AlertTriangle, Loader2, ShieldAlert } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
+import { StatusTag } from "@/components/ui/status-tag"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -62,7 +63,7 @@ export function ExtensionDialog({ id, onClose }: { id: number; onClose: () => vo
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2">
             <span className="break-words">{ext?.name ?? "Chương trình con"}</span>
-            {ext && <Badge variant={STATUS_VARIANT[ext.status]}>{STATUS_LABEL[ext.status]}</Badge>}
+            {ext && (ext.status === "draft" ? <StatusTag kind="pending" /> : <Badge variant={STATUS_VARIANT[ext.status]}>{STATUS_LABEL[ext.status]}</Badge>)}
           </DialogTitle>
           <DialogDescription>{ext ? `${KIND_LABEL[ext.kind]} · mã ${ext.key}` : "Đang tải..."}</DialogDescription>
         </DialogHeader>

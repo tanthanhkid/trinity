@@ -19,9 +19,10 @@ import {
   useDisconnectShop, useMarketConnect, useMarketDisconnect, useMarketSync, useSalesConnectors, useSalesRecords, useSaveShop, useSyncShop,
   type MarketProvider, type ShopProvider, type SyncResult,
 } from "./use-sales"
+import { formatDateTimeShort, formatVnd } from "@/lib/format"
 
-const vnd = (n: number | null) => (n == null ? "—" : `${n.toLocaleString("vi-VN")}đ`)
-const when = (iso: string) => new Date(iso).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })
+const vnd = (n: number | null) => formatVnd(n)
+const when = (iso: string) => formatDateTimeShort(iso)
 const summary = (r: SyncResult) =>
   [r.added.customers != null ? `${r.added.customers} khách` : null, r.added.invoices != null ? `${r.added.invoices} hoá đơn` : null, r.added.orders != null ? `${r.added.orders} đơn` : null, r.added.products != null ? `${r.added.products} hàng hoá` : null, r.added.items != null ? `${r.added.items} hàng hoá` : null]
     .filter(Boolean).join(", ") + (r.more ? " — còn nữa, bấm Đồng bộ để lấy tiếp" : "")

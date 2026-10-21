@@ -5,6 +5,7 @@ import { AlertTriangle, Blocks, Bot, FileSpreadsheet, History, Webhook } from "l
 import { Button } from "@/components/ui/button"
 import type { BrandKey } from "@/lib/brand-logos"
 import { ConnectionGroup, ConnectionLogo, ConnectionRow, StatusPill, type ConnectionTone } from "@/components/ui/connection-row"
+import { STATUS_LABEL } from "@/components/ui/status-tag"
 import { useFacebookPages, useFacebookStatus } from "./use-facebook"
 import { useZaloOaStatus } from "./zalo-oa/use-zalo-oa"
 import { useGoogleStatus } from "./use-google-sheets"
@@ -71,7 +72,7 @@ function FacebookRow({ open }: { open: Open }) {
     state = active.length === 0
       ? { tone: "off", label: "Chưa kết nối" }
       : broken.length > 0
-        ? { tone: "warning", label: "Cần liên kết lại", detail: `${active.length} Fanpage` }
+        ? { tone: "warning", label: STATUS_LABEL.reauth, detail: `${active.length} Fanpage` }
         : { tone: "connected", label: "Đã kết nối", detail: active.length === 1 ? active[0].name : `${active.length} Fanpage` }
   }
   return <Row section="facebook" open={open} logo={<ConnectionLogo brand="facebook" color="#1877F2" text="f" />} title="Fanpage Facebook" description="Tin nhắn Messenger, bình luận, gửi hàng loạt" state={state} />
@@ -88,7 +89,7 @@ function ZaloRow({ open }: { open: Open }) {
       : s.data.connected && s.data.status === "active"
         ? { tone: "connected", label: "Đã kết nối" }
         : s.data.status === "needs_reauth"
-          ? { tone: "warning", label: "Cần cấp quyền lại" }
+          ? { tone: "warning", label: STATUS_LABEL.reauth }
           : { tone: "off", label: "Chưa kết nối" }
   }
   return <Row section="zalo-oa" open={open} logo={<ConnectionLogo brand="zalo" color="#0068FF" text="Z" />} title="Zalo Official Account" description="Hộp thư Zalo OA và thông báo ZNS" state={state} />
@@ -105,7 +106,7 @@ function GoogleRow({ open }: { open: Open }) {
       : c && c.status === "active"
         ? { tone: "connected", label: "Đã kết nối", detail: c.email ?? undefined }
         : c
-          ? { tone: "warning", label: "Cần kết nối lại" }
+          ? { tone: "warning", label: STATUS_LABEL.reauth }
           : { tone: "off", label: "Chưa kết nối" }
   }
   return <Row section="google-sheets" open={open} logo={<ConnectionLogo brand="google_sheets" color="#0F9D58" icon={<FileSpreadsheet />} />} title="Google Sheets" description="Đồng bộ khách từ bảng tính" state={state} />

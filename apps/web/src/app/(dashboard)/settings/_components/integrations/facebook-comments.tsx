@@ -31,11 +31,12 @@ import {
   type FacebookPageView,
 } from "./use-facebook"
 import { apiErrorMessage } from "./webhook-types"
+import { formatDateTimeShort } from "@/lib/format"
 
 const ALL = "all"
 const splitWords = (s: string) => s.split(/[,\n]/).map((x) => x.trim()).filter(Boolean)
 const splitLines = (s: string) => s.split("\n").map((x) => x.trim()).filter(Boolean)
-const fmtTime = (iso: string) => new Date(iso).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })
+const fmtTime = (iso: string) => formatDateTimeShort(iso)
 
 export const COMMENT_STATUS: Record<CommentStatus, { label: string; variant: "success" | "soft" | "secondary" | "destructive" | "outline" }> = {
   done: { label: "Đã xử lý", variant: "success" },

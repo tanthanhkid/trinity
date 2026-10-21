@@ -100,9 +100,9 @@ export function formatMonth(ym: string) {
 export function statusColor(s: string) {
   if (s === "paid") return "bg-green-50 text-green-700"
   if (s === "approved") return "bg-[var(--color-app-primary-soft)] text-[var(--color-app-primary-ink)]"
-  if (s === "pending_accountant") return "bg-blue-50 text-blue-600"
-  if (s === "pending_tl") return "bg-purple-50 text-purple-600"
-  return "bg-amber-50 text-amber-700"
+  // Chờ duyệt (mọi bước) = cùng màu hổ phách như mẫu chung `StatusTag kind="pending"`; nháp = xám.
+  if (s === "pending_accountant" || s === "pending_tl") return "bg-[var(--color-app-tag-amber-bg)] text-[var(--color-app-tag-amber-ink)]"
+  return "bg-[var(--color-app-tag-slate-bg)] text-[var(--color-app-tag-slate-ink)]"
 }
 export function statusLabel(s: string) {
   if (s === "paid") return "Đã trả lương"

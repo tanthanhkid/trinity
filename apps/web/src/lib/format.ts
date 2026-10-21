@@ -192,6 +192,35 @@ export function formatDateTime(date: Date | string | null | undefined): string {
   return d.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+/** Giờ:phút ngày/tháng (không năm) theo giờ VN — "14:30 21/10" — cho mốc gần đây trong danh sách dày. */
+export function formatDateTimeShort(date: Date | string | null | undefined): string {
+  if (date === null || date === undefined || date === '') return '—'
+  const d = date instanceof Date ? date : new Date(date)
+  if (Number.isNaN(d.getTime())) return '—'
+  // Ghép từ từng phần: vi-VN bỏ năm thì in "21-10" — giữ dấu "/" như mọi ngày khác trong ứng dụng.
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+      .formatToParts(d)
+      .map((x) => [x.type, x.value]),
+  )
+  return `${p.hour}:${p.minute} ${p.day}/${p.month}`
+}
+
+/** Số theo kiểu Việt Nam (1.234); thiếu/không hợp lệ ⇒ "—". */
+export function formatNumber(n: number | null | undefined): string {
+  return typeof n === 'number' && Number.isFinite(n) ? n.toLocaleString('vi-VN') : '—'
+}
+
+/** Số kèm đơn vị — "12 khách", "3 việc". Con số đứng một mình dễ đọc sai, nên mọi số đếm hiện ra đều có đơn vị. */
+export function formatCount(n: number | null | undefined, unit: string): string {
+  return `${formatNumber(n)} ${unit}`
+}
+
+/** Tiền đồng — "1.250.000 ₫"; thiếu ⇒ "—". */
+export function formatVnd(n: number | null | undefined): string {
+  return typeof n === 'number' && Number.isFinite(n) ? `${n.toLocaleString('vi-VN')} ₫` : '—'
+}
+
 /**
  * Thời gian kèm GIÂY theo giờ VN — dùng cho log chi tiết.
  * Trả "HH:mm:ss DD/MM/YYYY" — deterministic (Intl.DateTimeFormat, không dùng toLocaleString không có options).

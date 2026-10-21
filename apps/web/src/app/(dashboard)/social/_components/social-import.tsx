@@ -11,13 +11,14 @@ import { getApiErrorMessage } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import { useSocialAccounts, useSocialImport, type SocialImportMode, type SocialImportPlan, type SocialImportResult, type SocialImportRowPlan } from "@/hooks/use-social"
 import { buildCsvTemplate } from "./social-csv-template"
+import { formatDateTime } from "@/lib/format"
 
 const MODES: ReadonlyArray<{ mode: SocialImportMode; label: string; hint: string }> = [
   { mode: "drafts", label: "Tạo nháp", hint: "Lưu thành bài nháp để xem và sửa rồi đăng sau — chưa đăng gì." },
   { mode: "schedule", label: "Hẹn đăng", hint: "Tạo bài hẹn giờ ra kênh. Mỗi dòng cần kênh và giờ (hoặc “hàng đợi”); không có đăng ngay." },
 ]
 
-const fmt = (iso: string) => new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(iso))
+const fmt = (iso: string) => formatDateTime(iso)
 
 /** Cột Giờ: hàng đợi kèm khung đã chọn; không có giờ ⇒ "—". */
 export function importWhen(p: SocialImportRowPlan["preview"]): string {

@@ -40,6 +40,8 @@ import { emptyRecurrence, recurrenceError, recurrenceSchedule } from "./social-r
 import { todayVn } from "@/lib/format"
 import { EMPTY_YOUTUBE_CHOICE, YoutubePostOptions, youtubeOptionsOf, type YoutubeChoice } from "./youtube-post-options"
 import { EMPTY_TIKTOK_CHOICE, TIKTOK_BRANDED_URL, TIKTOK_MUSIC_URL, TiktokPostOptions, tiktokBlocker, tiktokOptionsOf, type TiktokChoice } from "./tiktok-post-options"
+import { STATUS_LABEL } from "@/components/ui/status-tag"
+import { formatDateTime } from "@/lib/format"
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm,.mov"
 
@@ -312,7 +314,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
       (p) => {
         toast.success(
           p.scheduled_at
-            ? `Đã hẹn đăng bài #${p.id} lúc ${new Date(p.scheduled_at).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" })}`
+            ? `Đã hẹn đăng bài #${p.id} lúc ${formatDateTime(p.scheduled_at)}`
             : `Đang đăng bài #${p.id} lên các kênh…`,
           tiktokChosen.length ? { description: "TikTok cần vài phút để xử lý video trước khi video hiện trên hồ sơ." } : undefined,
         )
@@ -595,7 +597,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
                     <span className="text-xs text-muted-foreground">{NETWORK_META[a.network]?.label ?? a.network}</span>
                   </span>
                 </label>
-                {a.status !== "active" && <p className="pl-6 text-xs text-destructive">Cần liên kết lại ở tab Kênh</p>}
+                {a.status !== "active" && <p className="pl-6 text-xs text-[var(--color-app-tag-amber-ink)]">Kênh {STATUS_LABEL.reauth.toLowerCase()} — vào tab Kênh để kết nối lại</p>}
                 {on && (
                   <>
                     <button type="button" className="text-xs text-primary hover:underline" onClick={() => {

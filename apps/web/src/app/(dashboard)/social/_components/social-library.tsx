@@ -11,10 +11,11 @@ import { Input } from "@/components/ui/input"
 import { getApiErrorMessage } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import { uploadSocialFile, useHideSocialMedia, useSocialLibrary, useSocialMediaPreview, type SocialLibraryItem } from "@/hooks/use-social"
+import { formatDate } from "@/lib/format"
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm"
 const kb = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`)
-const day = (iso: string) => new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(iso))
+const day = (iso: string) => formatDate(iso)
 
 function Thumb({ m }: { m: SocialLibraryItem }) {
   const { url, isError } = useSocialMediaPreview(m.id, m.type === "image")

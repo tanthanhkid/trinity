@@ -5,8 +5,9 @@ import { ShellDonut } from '@/components/app-shell/charts/donut'
 import { CHART_PALETTE } from '@/components/app-shell/charts/chart-data'
 import { CHART_STATUS } from '@/components/app-shell/charts/chart-colors'
 import type { DashboardOverviewData } from './use-dashboard-overview'
+import { formatNumber } from '@/lib/format'
 
-const nf = (n: number) => n.toLocaleString('vi-VN')
+const nf = formatNumber
 
 /** Rút gọn TRỤC/nhãn cột (tỷ/triệu); bảng "Bảng" vẫn in số đầy đủ. */
 export function formatMoneyAxis(v: number): string {

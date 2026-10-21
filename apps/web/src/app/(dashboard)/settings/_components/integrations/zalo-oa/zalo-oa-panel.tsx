@@ -8,12 +8,14 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { ErrorState } from "@/components/ui/error-state"
+import { StatusTag } from "@/components/ui/status-tag"
+import { formatDateTime } from "@/lib/format"
 import { LoadingBlock } from "@/components/ui/loading-block"
 import { usePermissions } from "@/lib/rbac"
 import { apiErrorMessage } from "../webhook-types"
 import { useConnectZaloOa, useDisconnectZaloOa, useSendZns, useZaloOaStatus } from "./use-zalo-oa"
 
-const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleString("vi-VN") : "—")
+const fmt = (iso: string | null) => formatDateTime(iso)
 
 function Missing({ items }: { items: string[] }) {
   if (items.length === 0) return null
@@ -80,7 +82,6 @@ export function ZaloOaPanel() {
     ...(s.webhook_secret_configured ? [] : ["ZALO_WEBHOOK_SECRET"]),
     ...(s.secret_key_configured ? [] : ["INTEGRATIONS_SECRET_KEY"]),
   ]
-  const badge = s.status === "active" ? { text: "Đã kết nối", cls: "text-green-700" } : s.status === "needs_reauth" ? { text: "Cần kết nối lại", cls: "text-amber-700" } : { text: "Chưa kết nối", cls: "text-muted-foreground" }
 
   return (
     <div className="space-y-4">
@@ -90,7 +91,7 @@ export function ZaloOaPanel() {
         <CardContent className="space-y-3 py-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="flex items-center gap-2 font-medium"><PlugZap className="size-4" /> Zalo Official Account</h3>
-            <span className={`text-sm font-medium ${badge.cls}`}>{badge.text}</span>
+            {s.status === "active" ? <StatusTag kind="running">Đã kết nối</StatusTag> : s.status === "needs_reauth" ? <StatusTag kind="reauth" /> : <StatusTag kind="off">Chưa kết nối</StatusTag>}
           </div>
           <Missing items={missing} />
           <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">

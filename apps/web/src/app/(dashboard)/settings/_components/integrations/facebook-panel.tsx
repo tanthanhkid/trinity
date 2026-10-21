@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { AlertTriangle, CheckCircle2, Loader2, MessagesSquare, PauseCircle, Plus, ShieldAlert } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Loader2, MessagesSquare, PauseCircle, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
+import { ReconnectNotice } from "@/components/ui/status-tag"
+import { formatDate } from "@/lib/format"
 import { Switch } from "@/components/ui/switch"
 import { usePermissions } from "@/lib/rbac"
 import { useAuthStore } from "@/store/auth"
@@ -24,7 +26,7 @@ import { apiErrorMessage, type SimpleOption } from "./webhook-types"
 
 const POSTING_LABELS = { on: "đã nối", removed: "đã gỡ", null: "chưa nối" } as const
 
-const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("vi-VN") : null)
+const fmtDate = (iso: string | null) => (iso ? formatDate(iso) : null)
 
 function Row({ k, v }: { k: string; v: string }) {
   return <div className="flex flex-wrap gap-x-2 text-xs"><span className="text-muted-foreground">{k}</span><code className="break-all rounded bg-muted px-1">{v}</code></div>
@@ -53,7 +55,7 @@ function SetupHelp({ s }: { s: NonNullable<ReturnType<typeof useFacebookStatus>[
   )
 }
 
-function PageCard({ p, assignees, sources, canTransfer }: { p: FacebookPageView; assignees: SimpleOption[]; sources: SimpleOption[]; canTransfer: boolean }) {
+function PageCard({ p, assignees, sources, canTransfer, onReconnect, reconnecting }: { p: FacebookPageView; assignees: SimpleOption[]; sources: SimpleOption[]; canTransfer: boolean; onReconnect: () => void; reconnecting: boolean }) {
   const m = useFacebookPageMutations()
   const [confirm, setConfirm] = useState(false)
   const opts = (l: SimpleOption[]) => l.map((o) => ({ value: String(o.id), label: o.label }))
@@ -80,9 +82,17 @@ function PageCard({ p, assignees, sources, canTransfer }: { p: FacebookPageView;
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground" data-testid="fb-page-off">
             <PauseCircle className="size-3.5" />Đã tắt: không nhận tin nhắn, bình luận và lead từ Fanpage này. Bật công tắc để nhận lại.
           </p>
+        ) : bad ? (
+          // Token hỏng: mẫu chung "kênh cần kết nối lại" — nói rõ vì sao + nút Kết nối lại ngay trên thẻ.
+          <ReconnectNotice
+            channel={`Fanpage ${p.name}`}
+            reason={`${p.token_status === "expired" ? "Token đã hết hạn" : "Facebook đã thu hồi quyền truy cập"}${p.token_checked_at ? ` (kiểm ${fmtDate(p.token_checked_at)})` : ""} — tạm dừng nhận tin nhắn và lead.`}
+            onReconnect={onReconnect}
+            reconnecting={reconnecting}
+          />
         ) : (
-        <p className={bad ? "flex items-center gap-1.5 text-xs text-red-600" : "flex items-center gap-1.5 text-xs text-muted-foreground"}>
-          {bad ? <ShieldAlert className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <CheckCircle2 className="size-3.5" />
           {TOKEN_STATUS_LABELS[p.token_status]}
           {p.token_checked_at && ` · kiểm ${fmtDate(p.token_checked_at)}`}
           {p.data_access_expires_at && ` · quyền dữ liệu đến ${fmtDate(p.data_access_expires_at)}`}
@@ -168,7 +178,7 @@ export function FacebookPanel() {
           {pages.isError && <ErrorState compact title="Không tải được danh sách Fanpage" error={pages.error} onRetry={() => void pages.refetch()} retrying={pages.isFetching} />}
           {pages.isSuccess && pages.data.length === 0 && <EmptyState icon={MessagesSquare} message='Chưa kết nối Fanpage nào. Bấm "Kết nối Fanpage" rồi chọn Page trong hộp thoại Facebook.' />}
           <div className="grid gap-3 lg:grid-cols-2">
-            {pages.data?.map((p) => <PageCard key={p.id} p={p} assignees={assignees} sources={sources.data ?? []} canTransfer={canTransfer} />)}
+            {pages.data?.map((p) => <PageCard key={p.id} p={p} assignees={assignees} sources={sources.data ?? []} canTransfer={canTransfer} onReconnect={connect} reconnecting={m.connect.isPending} />)}
           </div>
         </>
       )}

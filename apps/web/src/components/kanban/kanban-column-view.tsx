@@ -19,6 +19,7 @@ import { useKanbanCardsByColumn } from "@/hooks/kanban/use-kanban-cards"
 import { useCreateKanbanCard } from "@/hooks/kanban/use-kanban-cards"
 import { useKanbanUserRoster } from "@/hooks/kanban/use-kanban-user-roster"
 import { motionTokens } from "@/lib/motion-tokens"
+import { formatNumber } from "@/lib/format"
 import { KanbanCardPreview } from "./kanban-card-preview"
 import type { KanbanCard, KanbanColumn, KanbanLabelDef, QueryKanbanCardsParams } from "@/types/kanban"
 import { LoadingBlock } from "@/components/ui/loading-block"
@@ -113,13 +114,14 @@ export function KanbanColumnView({
           <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ backgroundColor: column.color || "var(--color-app-faint)" }} />
           <h3 className="truncate text-sm font-semibold">{column.name}</h3>
         </div>
+        {/* Số đếm luôn kèm đơn vị: "12 card", "12/15 card" (vượt giới hạn WIP ⇒ đỏ). */}
         <span
-          title={column.wip_limit != null ? `Giới hạn ${column.wip_limit} card` : undefined}
+          title={column.wip_limit != null ? `Giới hạn ${formatNumber(column.wip_limit)} card` : undefined}
           className={`shrink-0 text-sm tabular-nums ${wipExceeded ? "font-semibold text-[var(--color-app-tag-red-ink)]" : "text-muted-foreground"}`}
         >
-          {total}
+          {formatNumber(total)}
           {hasMoreCards ? "+" : ""}
-          {column.wip_limit != null ? `/${column.wip_limit}` : ""}
+          {column.wip_limit != null ? `/${formatNumber(column.wip_limit)}` : ""} card
         </span>
       </div>
 

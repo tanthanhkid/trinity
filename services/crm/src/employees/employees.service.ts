@@ -1309,8 +1309,9 @@ export class EmployeesService {
    */
   async unlock(id: number, caller: AuthUser) {
     if (!caller.isAdmin) throw new ForbiddenException('Chỉ Quản trị mới mở khoá được tài khoản nhân viên');
+    // Tài khoản liên kết đã bị xoá hẳn (users.deleted_at) ⇒ coi như không có — đăng nhập / truy vấn user đều đã loại nó.
     const employee = await this.prisma.employee.findFirst({
-      where: { id, deleted_at: null },
+      where: { id, deleted_at: null, user: { deleted_at: null } },
       select: { id: true, user_id: true, user: { select: { status: true } } },
     });
     if (!employee) throw new NotFoundException('Không tìm thấy nhân viên');
@@ -1318,6 +1319,9 @@ export class EmployeesService {
     if (employee.user?.status !== 'locked') {
       throw new ConflictException('Tài khoản này đang không bị khoá');
     }
+    // Mở khoá chiếm lại 1 chỗ trong max_users của gói (chỗ đó có thể đã bị người khác dùng) — cùng luật với
+    // đường mở khoá ở services/auth (users.service). Hết chỗ ⇒ lỗi của gói, không bật lại tài khoản.
+    await assertUserSlotAvailable(this.prisma);
 
     await this.prisma.$transaction([
       this.prisma.user.update({ where: { id: employee.user_id }, data: { status: 'active' } }),

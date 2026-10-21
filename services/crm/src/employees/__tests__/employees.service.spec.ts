@@ -81,6 +81,7 @@ describe('EmployeesService', () => {
       findUnique: jest.Mock;
       findFirst: jest.Mock;
       update: jest.Mock;
+      count: jest.Mock;
     };
     $transaction: jest.Mock;
     role: { findUnique: jest.Mock };
@@ -105,6 +106,7 @@ describe('EmployeesService', () => {
         findUnique: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
       },
       $transaction: jest.fn(),
       setting: { findUnique: jest.fn().mockResolvedValue(null) }, // gói mặc định custom
@@ -259,10 +261,19 @@ describe('EmployeesService', () => {
       prisma.employee.findFirst.mockResolvedValue(locked);
       prisma.$transaction.mockResolvedValue([{}, {}]);
       await expect(service.unlock(1, admin())).resolves.toMatchObject({ ok: true });
-      expect(prisma.employee.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 1, deleted_at: null } }));
+      // Tài khoản liên kết đã xoá hẳn ⇒ không tìm thấy (Codex #63).
+      expect(prisma.employee.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 1, deleted_at: null, user: { deleted_at: null } } }));
       expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 10 }, data: { status: 'active' } });
       expect(prisma.employee.update).toHaveBeenCalledWith({ where: { id: 1 }, data: { status: 'active', resigned_at: null } });
       expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({ userId: 1, action: 'employee_unlock', resourceId: 1 }));
+    });
+
+    it('gói đã đủ người dùng đang hoạt động ⇒ 409 của gói, KHÔNG bật lại tài khoản (Codex #63 P1)', async () => {
+      prisma.employee.findFirst.mockResolvedValue(locked);
+      prisma.setting.findUnique.mockResolvedValue({ value: 'ket_noi' }); // tối đa 10 người
+      prisma.user.count.mockResolvedValue(10);
+      await expect(service.unlock(1, admin())).rejects.toThrow('tối đa 10 người dùng');
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('không phải Quản trị ⇒ 403, không đụng DB', async () => {

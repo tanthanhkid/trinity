@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Controller,
   Get,
   Post,
@@ -42,7 +43,11 @@ export class ProductsController {
     summary: 'Danh sách sản phẩm/dịch vụ — cần quyền products.view (cần chọn khi tạo đơn/khách hàng)',
   })
   @ApiResponse({ status: 200, description: 'Danh sách sản phẩm, nổi bật xếp trước' })
-  findAll(@Query() query: ListProductsQueryDto) {
+  findAll(@Query() query: ListProductsQueryDto, @CurrentUser() user: AuthUser) {
+    // Mục "đã xoá (lưu trữ)" chỉ dành cho Quản trị — ẩn nút trên web KHÔNG đủ, phải chặn ở API.
+    if (query.archived && !user.isAdmin) {
+      throw new ForbiddenException('Chỉ Quản trị mới xem được sản phẩm đã xoá');
+    }
     return this.productsService.findAll(query);
   }
 

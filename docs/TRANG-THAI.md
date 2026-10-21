@@ -184,6 +184,29 @@ Chữ "MCP" không xuất hiện trên giao diện: hướng dẫn nối trợ l
 | Biểu tượng cảnh báo ErrorState (amber-ink / muted) | `#e0a24a` | `#18191e` | 7,89:1 | ✅ |
 | Viền ô nhập (input) trên thẻ | `#676b75` | `#131418` | 3,45:1 | ✅ |
 
+## Cố tình phá
+
+`apps/web/e2e/premium/break-it.mjs` cố tình làm hỏng từng thứ rồi kiểm màn hình có nói thật và có lối ra. Mỗi tình huống chạy trên một Chrome headless riêng, hồ sơ tạm, và mọi `/api/v1` bị chặn bằng CDP `Fetch` nên không gọi máy chủ thật. Mất mạng là mất mạng thật ở mức trình duyệt (`navigator.onLine = false`), không chỉ chặn API. Kết quả ngày 21/10/2026, sau khi sửa:
+
+| Tình huống | Mong đợi | Thực tế | Đạt |
+|---|---|---|---|
+| `mat-mang-giua-luong` | Mất mạng giữa lúc dùng ⇒ dải 'Mất kết nối mạng' hiện; có mạng lại ⇒ dải tắt + báo 'Đã có mạng lại' | dải mất mạng: có; có mạng lại: dải tắt, toast có | ✅ |
+| `mat-mang-luc-mo-trang` | Mở danh sách khách khi API không tới được ⇒ khung lỗi 'Không kết nối được máy chủ' + Thử lại (không phải 'chưa có khách') | Khách hàng — Xuất Excel Thêm khách Tất cả Của tôi Khách nóng Lọc 2 Sắp xếp Từ ngày: 14/10/2026 Đến ngày: 21/10/2026 Xoá hết điều kiện Không tải được danh sách k | ✅ |
+| `api-500-roi-thu-lai` | API khách hàng trả 500 ⇒ 'máy chủ đang gặp sự cố' + Thử lại; máy chủ hết lỗi, bấm Thử lại ⇒ danh sách hiện | lúc lỗi: nói đúng; sau Thử lại: danh sách hiện | ✅ |
+| `api-500-cac-man` | API chính của Kanban, Đăng đa kênh, Tổng quan trả 500 ⇒ mỗi màn hiện khung lỗi + Thử lại, không nói 'chưa có'/'0' | /kanban: đúng; /social?tab=posts: đúng; /dashboard: đúng | ✅ |
+| `api-401-het-phien` | Phiên hết hạn (401 và làm mới token cũng 401) ⇒ về trang đăng nhập, không kẹt màn trắng/lỗi | URL: /login | ✅ |
+| `danh-sach-trong` | Không có khách trong bộ lọc mặc định (7 ngày) ⇒ 'không khớp bộ lọc' + Xoá bộ lọc, nói một lần; bỏ lọc mà vẫn trống ⇒ 'Chưa có khách hàng nào' + Thêm khách; không có board ⇒ Tạo board | khách hàng: đúng; kanban: đúng | ✅ |
+| `token-kenh-het-han` | Fanpage hết hạn token ⇒ 'Fanpage … cần kết nối lại' + lý do + nút Kết nối lại; kênh YouTube mất quyền ở Đăng đa kênh cũng vậy | Fanpage: có thông báo + nút; Đăng đa kênh: có thông báo | ✅ |
+| `dang-bai-loi` | Bài đăng lỗi ⇒ 'Không đăng được lên <kênh>: <lý do>' + nút Đăng lại; bấm ⇒ gọi lệnh đăng lại | câu lỗi: đúng; nút: có; gọi đăng lại: có | ✅ |
+| `hoan-tac-xoa-nhap` | Xoá bài nháp ⇒ biến mất ngay + toast Hoàn tác; bấm Hoàn tác ⇒ hiện lại, KHÔNG gửi DELETE; xoá lại và chờ 5 giây ⇒ gửi DELETE | ẩn ngay: có; Hoàn tác hiện lại: có; không gửi khi hoàn tác: đúng; hết 5 giây gửi DELETE: có | ✅ |
+
+**Lệch đã tìm thấy và sửa:**
+
+- Khách hàng, tải lỗi (mất mạng, 500): thanh phân trang dưới khung lỗi vẫn ghi "Không có khách hàng", tiêu đề ghi "0 khách". Trang vừa báo lỗi vừa khẳng định không có khách. Nay khung lỗi là thứ duy nhất nói; tiêu đề ghi "—".
+- Khách hàng, danh sách trống: thanh phân trang lặp lại "Không có khách hàng" ngay dưới khung trống. Nay chỉ nói một lần.
+
+Ghi chú: màn Khách hàng mặc định lọc 7 ngày gần nhất, nên trống ở lần mở đầu là "không khớp bộ lọc" + "Xoá bộ lọc". Bỏ lọc mà vẫn trống mới là "Chưa có khách hàng nào" + "Thêm khách".
+
 ## Kiểm kê (21/10/2026)
 
 ✅ đủ · ⚠️ có nhưng yếu · ❌ thiếu. Cột "Sau" là trạng thái sau đợt sửa đầu tiên.

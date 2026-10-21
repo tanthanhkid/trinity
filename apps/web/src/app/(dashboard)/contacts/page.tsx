@@ -498,7 +498,8 @@ function ContactsPageContent() {
           Khách hàng
           <span className="text-[15px] font-normal tabular-nums text-muted-foreground">
             {/* toLocaleString ở đây là NGĂN CÁCH NGHÌN cho SỐ NGUYÊN (đếm khách hàng). */}
-            {isLoading ? "…" : `${total.toLocaleString("vi-VN")} khách`}
+            {/* Lỗi tải mà chưa có dữ liệu: không biết có bao nhiêu khách ⇒ "—", không nói "0 khách". */}
+            {isLoading ? "…" : isError && contacts.length === 0 ? "—" : formatCount(total, "khách")}
           </span>
         </h1>
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -725,6 +726,9 @@ function ContactsPageContent() {
           />
         )}
 
+        {/* Danh sách trống / lỗi tải: khung trống hoặc khung lỗi phía trên đã nói rồi — thanh phân trang mà ghi
+            "Không có khách hàng" thì vừa lặp lại, vừa sai khi thật ra là lỗi tải (phát hiện bằng e2e/premium/break-it.mjs). */}
+        {contacts.length > 0 && (
         <div className="border-t border-[var(--border)] px-4 py-2.5">
           <PaginationBar
             page={page}
@@ -737,6 +741,7 @@ function ContactsPageContent() {
             isCapped={isCapped}
           />
         </div>
+        )}
       </section>
     </div>
   )

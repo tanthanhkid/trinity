@@ -28,8 +28,6 @@ const ALLOW: Record<string, string> = {
   "hooks/use-social.ts": "chỉ dùng để rẽ nhánh luồng tải lên",
   // `error.message` ở đây là câu ĐÃ qua getApiErrorMessage ở products-screen.tsx (prop { message, conflict }).
   "app/(dashboard)/products/_components/product-delete-dialog.tsx": "message đã qua bảng chung",
-  // Đoạn xoá/khôi phục hàng loạt đang được viết lại trong PR #58 (đã qua bảng chung) — gỡ dòng này khi #58 gộp.
-  "app/(dashboard)/contacts/page.tsx": "chờ PR #58",
   // File của PR #48 (khối Trợ lý AI/Kênh) — sửa sau khi #48 gộp.
   "app/(dashboard)/dashboard/_components/home-ai-hub.tsx": "chờ PR #48",
 }

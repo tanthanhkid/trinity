@@ -129,6 +129,12 @@ jobs:
         working-directory: services/crm
         run: npx jest --testRegex '\.pg\.spec\.ts$' --runInBand
 
+      # services/commerce (sản phẩm, POS) có test SQL riêng — chạy trên cùng Postgres sau crm.
+      - name: SQL tests on Postgres (commerce)
+        if: steps.sql.outputs.run == 'true'
+        working-directory: services/commerce
+        run: npx jest --testRegex '\.pg\.spec\.ts$' --runInBand --passWithNoTests
+
   web-ui:
     # Web: build thật (thay cho build tay trước khi duyệt) + đo trên Chrome headless (docs/TRANG-THAI.md):
     # tương phản, nền tảng UI (vùng chạm, focus, tràn ngang, chuyển động) và "cố tình phá" (mất mạng, 500/401, trống,

@@ -10,7 +10,9 @@ import { PosOrderItemsBuilder, lockProductsForOrder } from '../pos/pos-order-ite
  * khoá `FOR SHARE ... AND deleted_at IS NULL` khi tạo đơn, và xoá hẳn (`hardDeleteProduct`, khoá FOR UPDATE + đếm
  * tham chiếu soft-FK) chỉ khi chưa dùng.
  */
-const TABLES = ['contacts', 'products'];
+// pos_order_items.product_id không có FK ⇒ TRUNCATE products không kéo theo; bộ pos-flow chạy trước để lại đơn trỏ vào id 1, 2…
+// (RESTART IDENTITY cấp lại các id đó) ⇒ phải xoá cả đơn POS, không thì "xoá hẳn" thấy sản phẩm mới như đã bán.
+const TABLES = ['contacts', 'pos_payments', 'pos_order_items', 'pos_orders', 'products'];
 const admin = { userId: 1, email: 'a@t', isAdmin: true, grants: {} } as unknown as AuthUser;
 const owner = { userId: 7, email: 'o@t', isAdmin: false, grants: {} } as unknown as AuthUser;
 const other = { userId: 8, email: 'x@t', isAdmin: false, grants: {} } as unknown as AuthUser;

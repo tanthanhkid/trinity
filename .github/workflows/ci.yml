@@ -78,6 +78,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
       TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
+      # Test DB thật vốn bị bỏ qua khi thiếu biến này (luồng POS, phạm vi quyền) — dùng chung Postgres của job.
+      POS_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
+      RBAC_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
       JWT_SECRET: ci-test-secret-not-real-do-not-use
       SERVICE_SECRET: ci-test-service-secret-do-not-use
       CI: "true"
@@ -91,7 +94,7 @@ jobs:
         id: sql
         run: |
           files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
-          if echo "$files" | grep -qE '(prisma/migrations/|schema\.prisma$|\.pg\.spec\.ts$)'; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if echo "$files" | grep -qE '(prisma/migrations/|schema\.prisma$|\.(pg|db)\.spec\.ts$|services/commerce/src/pos/|packages/rbac-nest/src/|services/auth/src/users/|\.github/workflows/ci\.yml$)'; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           for f in $(echo "$files" | grep -E '\.ts$' || true); do
             if [ -f "$f" ] && grep -qE '\$(queryRaw|executeRaw)' "$f"; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           done
@@ -127,13 +130,20 @@ jobs:
       - name: SQL tests on Postgres
         if: steps.sql.outputs.run == 'true'
         working-directory: services/crm
-        run: npx jest --testRegex '\.pg\.spec\.ts$' --runInBand
+        run: npx jest --testRegex '(\.pg\.spec|\.db\.spec|extensions\.service\.spec)\.ts$' --runInBand
 
       # services/commerce (sản phẩm, POS) có test SQL riêng — chạy trên cùng Postgres sau crm.
       - name: SQL tests on Postgres (commerce)
         if: steps.sql.outputs.run == 'true'
         working-directory: services/commerce
-        run: npx jest --testRegex '\.pg\.spec\.ts$' --runInBand --passWithNoTests
+        run: npx jest --testRegex '(\.pg\.spec|pos-flow\.integration\.spec)\.ts$' --runInBand --passWithNoTests
+
+      # Phạm vi quyền (rbac-nest) và xoá cache quyền khi đổi quản lý (auth) — test DB thật, TRUNCATE users/user_roles.
+      - name: SQL tests on Postgres (rbac + auth)
+        if: steps.sql.outputs.run == 'true'
+        run: |
+          (cd packages/rbac-nest && npx jest --testRegex 'scope\.service\.spec\.ts$' --runInBand)
+          (cd services/auth && npx jest --testRegex 'users-manager-cache-invalidation\.spec\.ts$' --runInBand)
 
   web-ui:
     # Web: build thật (thay cho build tay trước khi duyệt) + đo trên Chrome headless (docs/TRANG-THAI.md):

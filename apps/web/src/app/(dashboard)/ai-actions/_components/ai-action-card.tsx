@@ -2,6 +2,7 @@
 
 import type { ShellBadgeTone } from "@/components/app-shell/badge"
 import { DotTag } from "@/components/app-shell/dot-tag"
+import { StatusTag } from "@/components/ui/status-tag"
 import { AI_ACTION_STATUS_LABEL, type AiAction, type AiActionStatus } from "@/lib/ai-actions"
 import { formatDateTimeVn, formatTimeVn } from "@/lib/format"
 import { AiLogo } from "@/app/(dashboard)/dashboard/_components/ai-logo"
@@ -46,7 +47,7 @@ export function AiActionCard({ action, onOpen }: { action: AiAction; onOpen: () 
         )}
       </div>
       <div className="col-span-2 col-start-2 flex flex-wrap items-center gap-2 sm:col-span-1 sm:col-start-auto sm:justify-end">
-        <DotTag tone={AI_ACTION_STATUS_TONE[action.status]}>{AI_ACTION_STATUS_LABEL[action.status]}</DotTag>
+        {action.status === "pending" ? <StatusTag kind="pending" /> : <DotTag tone={AI_ACTION_STATUS_TONE[action.status]}>{AI_ACTION_STATUS_LABEL[action.status]}</DotTag>}
         <button type="button" onClick={onOpen} className={cn(SMALL_BTN, pending && "border-transparent bg-[var(--primary)] text-[var(--primary-foreground)] hover:bg-[var(--primary)]/90")}>
           {pending ? "Xem & duyệt" : "Xem chi tiết"}
         </button>

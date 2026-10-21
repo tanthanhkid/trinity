@@ -4,6 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Check, Copy, Sparkles } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
+import { formatCount } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { BOX, HomeBox, HomeEmpty, SMALL_BTN } from './home-box'
 
@@ -13,7 +15,7 @@ import { BOX, HomeBox, HomeEmpty, SMALL_BTN } from './home-box'
 
 export interface ReviewItem {
   key: string
-  /** `unread` = chấm đặc (thông báo chưa đọc) · `wait` = vòng nét đứt (đang chờ bạn quyết/làm). */
+  /** `unread` = chấm đặc (thông báo chưa đọc) · `wait` = vòng hổ phách, cùng màu "Chờ duyệt" (đang chờ bạn quyết/làm). */
   dot: 'unread' | 'wait'
   title: string
   sub: string
@@ -21,11 +23,26 @@ export interface ReviewItem {
   cta: string
 }
 
-export function NeedsReviewView({ loading, items, total }: { loading: boolean; items: ReviewItem[]; total: number | null }) {
+export function NeedsReviewView({
+  loading,
+  items,
+  total,
+  error,
+  onRetry,
+}: {
+  loading: boolean
+  items: ReviewItem[]
+  total: number | null
+  /** Lỗi tải khi chưa có mục nào ⇒ khung lỗi + Thử lại, KHÔNG nói "không có gì cần xem". */
+  error?: unknown
+  onRetry?: () => void
+}) {
   return (
-    <HomeBox labelledBy="home-need-review" title="Cần bạn xem" aside={total !== null ? total.toLocaleString('vi-VN') : undefined}>
+    <HomeBox labelledBy="home-need-review" title="Cần bạn xem" aside={total !== null ? formatCount(total, 'mục') : undefined}>
       {loading && items.length === 0 ? (
         <div className="space-y-3 p-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-9 rounded-lg" />)}</div>
+      ) : error !== undefined && items.length === 0 ? (
+        <ErrorState compact className="px-4 py-5" title="Không tải được việc cần xem" error={error} onRetry={onRetry} />
       ) : items.length === 0 ? (
         <HomeEmpty testId="need-review-empty">Không có gì cần bạn xem lúc này — không có đề xuất AI chờ duyệt, việc quá hạn hay thông báo chưa đọc.</HomeEmpty>
       ) : (
@@ -36,7 +53,7 @@ export function NeedsReviewView({ loading, items, total }: { loading: boolean; i
                 aria-hidden
                 className={cn(
                   'mt-[6px] size-2.5 rounded-full',
-                  it.dot === 'unread' ? 'bg-[var(--ring)]' : 'border-2 border-dashed border-muted-foreground',
+                  it.dot === 'unread' ? 'bg-[var(--ring)]' : 'border-2 border-[var(--color-app-tag-amber-ink)]',
                 )}
               />
               <div className="min-w-0">

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { AlertTriangle, Loader2, ShieldAlert } from "lucide-react"
 import { toast } from "sonner"
 import { DotTag } from "@/components/app-shell/dot-tag"
+import { StatusTag } from "@/components/ui/status-tag"
 import { AiLogo } from "@/app/(dashboard)/dashboard/_components/ai-logo"
 import { AI_ACTION_STATUS_TONE } from "./ai-action-card"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -55,7 +56,7 @@ export function AiActionDialog({ action, onClose }: { action: AiAction; onClose:
           <DialogTitle className="flex flex-wrap items-center gap-2">
             <AiLogo name={action.client_name} size={26} />
             {action.tool_label}
-            <DotTag tone={AI_ACTION_STATUS_TONE[action.status]}>{AI_ACTION_STATUS_LABEL[action.status]}</DotTag>
+            {action.status === "pending" ? <StatusTag kind="pending" /> : <DotTag tone={AI_ACTION_STATUS_TONE[action.status]}>{AI_ACTION_STATUS_LABEL[action.status]}</DotTag>}
           </DialogTitle>
           <DialogDescription>
             Do <strong className="break-words">{action.client_name ?? "ứng dụng AI"}</strong> {action.status === "executed" ? "thực hiện" : "đề xuất"} lúc {formatDateTimeVn(action.created_at)}

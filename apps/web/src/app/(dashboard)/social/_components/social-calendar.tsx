@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ErrorState } from "@/components/ui/error-state"
 import { getApiErrorMessage } from "@/lib/api-client"
 import {
   addDays, addMonths, dayOf, monthGrid, monthTitle, rangeFilter, timeOf, visibleRange, vnDay, weekDays, WEEKDAY_LABELS, type CalendarMode,
@@ -129,7 +130,7 @@ export function SocialCalendar({ onOpen, onSchedule }: { onOpen: (postId: number
           <span key={s} className="inline-flex items-center gap-1"><span className={cn("size-2 rounded-full", DOT[s])} />{STATUS_LABEL[s]}</span>
         ))}
       </div>
-      {q.isError && <p className="text-sm text-red-700">{getApiErrorMessage(q.error, "Không tải được lịch bài")}</p>}
+      {q.isError && <ErrorState compact title="Không tải được lịch bài" error={q.error} onRetry={() => void q.refetch()} retrying={q.isFetching} />}
       {q.data?.next_cursor && <p className="text-sm text-amber-700">Khoảng này có hơn {CALENDAR_MAX_POSTS} bài — lịch chỉ hiện {CALENDAR_MAX_POSTS} bài mới nhất. Xem theo tuần để thấy đủ.</p>}
       <div className="overflow-x-auto">
         <div className="grid min-w-[42rem] grid-cols-7 gap-px overflow-hidden rounded-2xl border bg-border" data-testid="social-calendar-grid">

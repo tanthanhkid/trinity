@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ErrorState } from "@/components/ui/error-state"
+import { useOffline } from "@/components/offline-banner"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -98,6 +99,7 @@ function Counter({ text, limit }: { text: string; limit: number }) {
 
 /** Soạn một lần, chọn kênh, sửa nội dung riêng từng kênh, đăng ngay. */
 export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, draft }: { onCreated: (kind?: "recurring") => void; onGoChannels: () => void; onGoCalendar?: () => void; preset?: { at: string; n: number }; draft?: SocialDraft }) {
+  const offline = useOffline()
   const accountsQ = useSocialAccounts()
   const { data: accounts = [], isLoading } = accountsQ
   const { create, saveDraft, publishDraft, createRecurrence } = useSocialMutations()
@@ -525,15 +527,18 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
           )}
 
           <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[13px] text-muted-foreground">
-              {chosen.length === 0 ? "Chọn ít nhất một kênh ở bên cạnh." : `Sẽ đăng lên ${chosen.map((a) => a.name).join(", ")}.`}
+            <p className="text-[13px] text-muted-foreground" aria-live="polite">
+              {/* Mất mạng: khoá nút gửi và nói rõ — bài đang soạn vẫn còn nguyên trên màn hình. */}
+              {offline
+                ? "Đang mất mạng — chưa gửi được. Bài đang soạn vẫn giữ nguyên, có mạng lại thì bấm gửi."
+                : chosen.length === 0 ? "Chọn ít nhất một kênh ở bên cạnh." : `Sẽ đăng lên ${chosen.map((a) => a.name).join(", ")}.`}
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
-            <Button type="button" variant="outline" onClick={saveAsDraft} disabled={!canSaveDraft} className="max-sm:w-full">
+            <Button type="button" variant="outline" onClick={saveAsDraft} disabled={!canSaveDraft || offline} className="max-sm:w-full">
               {saveDraft.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
               Lưu nháp
             </Button>
-            <Button onClick={submit} disabled={disabled} className="max-sm:w-full">
+            <Button onClick={submit} disabled={disabled || offline} className="max-sm:w-full">
               {create.isPending || publishDraft.isPending || createRecurrence.isPending ? <Loader2 className="size-4 animate-spin" /> : mode === "recurring" ? <Repeat className="size-4" /> : mode === "queue" ? <ListPlus className="size-4" /> : mode === "schedule" ? <CalendarClock className="size-4" /> : <Send className="size-4" />}
               {mode === "recurring" ? "Tạo bài lặp lại" : mode === "queue" ? "Thêm vào hàng đợi" : mode === "schedule" ? "Hẹn đăng" : "Đăng ngay"}{chosen.length > 0 ? ` (${chosen.length} kênh)` : ""}
             </Button>

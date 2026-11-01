@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, HttpException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
-import { PrismaService, publishIntegrationEvent } from '@trinity/prisma';
+import { PrismaService, publishIntegrationEvent, tenantKey, currentCompanyId } from '@trinity/prisma';
 import { trackProductEvent } from '@trinity/logger';
 import { isServerless, runInBackground, type AuthUser } from '@trinity/rbac-nest';
 import type { Prisma, SocialPost, SocialPostTarget } from '@prisma/client';
@@ -16,6 +16,7 @@ import { NO_QUEUE_SLOTS, SocialQueueService } from './social-queue.service';
 import { CAPTION_LIMITS, MAX_MEDIA_PER_POST, MAX_SCHEDULE_AHEAD_MS, NETWORK_LABELS, isSocialNetwork, socialBaseUrl, truncatedAt, type SocialNetwork } from './social.config';
 import { mediaLinkExt, signMediaLink } from './social-media-link';
 import { applyUtmToTarget, normalizeUtm, type UtmInput } from './social-utm';
+import { withCompanyHint } from '../common/helpers/tenant-hint';
 
 const MINUTE = 60_000;
 /** Giãn cách thử lại lỗi tạm thời (lần 1→2, 2→3…). Hết mảng ⇒ lỗi hẳn. */
@@ -131,8 +132,9 @@ export function aggregateStatus(targets: Array<Pick<SocialPostTarget, 'status'>>
 @Injectable()
 export class SocialPostsService {
   private readonly logger = new Logger(SocialPostsService.name);
-  private running = false;
-  private lastDueCheck = 0;
+  /** Theo công ty (multi-tenant): lượt nền của công ty A không được chặn/nuốt lượt của công ty B. Khoá = `currentCompanyId() ?? 0`. */
+  private readonly running = new Set<number>();
+  private readonly lastDueCheck = new Map<number, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -226,7 +228,9 @@ export class SocialPostsService {
 
   private async previewMedia(user: AuthUser, keys: string[]): Promise<SocialMedia[]> {
     const now = Date.now();
-    const id = (k: string) => `${user.userId}:${k}`;
+    // Công ty + người dùng + khoá: user id và khoá tệp trùng được giữa các công ty.
+    const owner = tenantKey(user.userId);
+    const id = (k: string) => `${owner}:${k}`;
     for (const [k, v] of this.previewMediaCache) if (now - v.at > 60_000) this.previewMediaCache.delete(k);
     const missing = keys.filter((k) => !this.previewMediaCache.has(id(k)));
     if (missing.length) for (const m of await this.media.resolve(user, missing)) this.previewMediaCache.set(id(m.key), { m, at: now });
@@ -604,8 +608,9 @@ export class SocialPostsService {
   }
 
   async kickIfDue(now = Date.now()): Promise<{ due: boolean }> {
-    if (this.running || now - this.lastDueCheck < 20_000) return { due: false };
-    this.lastDueCheck = now;
+    const company = currentCompanyId() ?? 0;
+    if (this.running.has(company) || now - (this.lastDueCheck.get(company) ?? 0) < 20_000) return { due: false };
+    this.lastDueCheck.set(company, now);
     const at = new Date(now);
     const due = await this.prisma.socialPostTarget.findFirst({
       where: { OR: [{ status: 'queued', next_attempt_at: { lte: at } }, { status: 'publishing', next_attempt_at: { lte: at } }] },
@@ -629,8 +634,9 @@ export class SocialPostsService {
    */
   async runDue(budgetMs: number): Promise<{ published: number; failed: number; retry: number; stale: number }> {
     const out = { published: 0, failed: 0, retry: 0, stale: 0 };
-    if (this.running) return out;
-    this.running = true;
+    const company = currentCompanyId() ?? 0;
+    if (this.running.has(company)) return out;
+    this.running.add(company);
     const t0 = Date.now();
     try {
       out.stale = await this.sweepStale();
@@ -641,7 +647,7 @@ export class SocialPostsService {
         out[r]++;
       }
     } finally {
-      this.running = false;
+      this.running.delete(company);
     }
     return out;
   }
@@ -881,7 +887,7 @@ export class SocialPostsService {
         media,
         options: sent.options,
         load: (m) => this.media.load(m),
-        publicUrl: (m) => `${socialBaseUrl() ?? ''}/api/v1/social/media-link/${signMediaLink(m)}/tep.${mediaLinkExt(m.content_type)}`,
+        publicUrl: (m) => withCompanyHint(`${socialBaseUrl() ?? ''}/api/v1/social/media-link/${signMediaLink(m)}/tep.${mediaLinkExt(m.content_type)}`),
       });
       await this.prisma.socialPostTarget.update({
         where: { id: t.id },

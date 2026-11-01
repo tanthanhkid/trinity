@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { randomBytes } from 'node:crypto'
 import type { AddressInfo } from 'node:net'
+import { currentCompany, runWithCompany, type CompanyRef } from '@trinity/prisma'
 
 /** Cổng dữ liệu thật phía lõi (đi qua service + RBAC của Trinity). Chương trình con KHÔNG chạm DB, chỉ gọi cổng này. */
 export interface DataActor {
@@ -21,6 +22,11 @@ export interface GrantSpec {
   write: string[]
   /** Chạy thử: đọc được (đúng phạm vi), GHI chỉ đếm — không gọi DataPort.create. */
   dryRun: boolean
+  /**
+   * Công ty sở hữu lần chạy (multi-tenant). Bỏ trống ⇒ công ty hiện tại lúc cấp token. Lời gọi dữ liệu của chương trình con
+   * đến qua HTTP loopback — ngoài mọi request — nên cổng chạy nó lại trong ngữ cảnh công ty này.
+   */
+  company?: CompanyRef | null
 }
 
 export interface GrantStats {
@@ -74,6 +80,7 @@ export class InternalGateway {
 
   issueToken(spec: GrantSpec): string {
     const token = randomBytes(24).toString('hex')
+    spec = { ...spec, company: spec.company ?? currentCompany() }
     this.grants.set(token, { spec, read: new Set(spec.read), write: new Set(spec.write), stats: { calls: 0, denied: 0, written: 0, wouldWrite: 0 } })
     return token
   }
@@ -110,8 +117,10 @@ export class InternalGateway {
         grant.stats.denied++
         return reply(403, { error: 'table_out_of_scope', table })
       }
-      if (req.method === 'GET') return reply(200, await this.list(grant, table, u.searchParams))
-      return await this.create(grant, table, req, reply)
+      const company = grant.spec.company
+      const run = <T>(fn: () => Promise<T>): Promise<T> => (company ? runWithCompany(company, fn) : fn())
+      if (req.method === 'GET') return reply(200, await run(() => this.list(grant, table, u.searchParams)))
+      return await run(() => this.create(grant, table, req, reply))
     } catch (e) {
       reply(502, { error: 'port_error', message: String((e as Error)?.message ?? e).slice(0, 300) })
     }

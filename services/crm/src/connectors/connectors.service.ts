@@ -4,6 +4,7 @@ import { misaAppId } from './misa';
 import { shopeeConfig } from './shopee';
 import { lazadaConfig } from './lazada';
 import { decryptSecret, encryptSecret, generateWebhookSecret, isSecretKeyConfigured, loadSecretKey } from '../integrations/webhooks/secret-crypto';
+import { withCompanyHint } from '../common/helpers/tenant-hint';
 
 /** Nhà cung cấp đã làm. Thêm connector mới = thêm vào đây + một provider riêng. */
 export const CONNECTOR_PROVIDERS = ['sepay', 'vnpay', 'momo', 'kiotviet', 'sapo', 'misa', 'woocommerce', 'shopee', 'lazada'] as const;
@@ -72,7 +73,8 @@ export class ConnectorsService {
         settings: r ? (r.settings as Record<string, unknown>) : null,
         last_event_at: r?.last_event_at?.toISOString() ?? null,
         last_error: r?.last_error ?? null,
-        webhook_path: webhookPath(p),
+        // Multi-tenant: URL dán vào dịch vụ ngoài phải mang `cid` (Shopee/Lazada push là URL chung của app đối tác — chọn công ty theo shop).
+        webhook_path: p === 'shopee' || p === 'lazada' ? webhookPath(p) : withCompanyHint(webhookPath(p)),
         secret_key_configured: isSecretKeyConfigured(),
         server_configured: p === 'misa' ? misaAppId() !== null : p === 'shopee' ? shopeeConfig() !== null : p === 'lazada' ? lazadaConfig() !== null : true,
       };

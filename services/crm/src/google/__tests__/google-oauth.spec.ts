@@ -115,15 +115,15 @@ describe('GoogleOAuthService', () => {
     expect((prisma.googleConnection.update.mock.calls as unknown as [{ data: { status: string } }][])[0][0].data.status).toBe('revoked');
   });
 
-  it('thiếu cấu hình Google ⇒ 503 rõ ràng', () => {
+  it('thiếu cấu hình Google ⇒ 503 rõ ràng', async () => {
     delete process.env.GOOGLE_OAUTH_CLIENT_ID;
     const svc = new GoogleOAuthService(makePrisma().prisma as never, new FakeGoogleHttp());
-    expect(() => svc.authUrl(1)).toThrow(/chưa được cấu hình/);
+    await expect(svc.authUrl(1)).rejects.toThrow(/chưa được cấu hình/);
   });
 
-  it('authUrl: scope tối thiểu, offline, có state', () => {
+  it('authUrl: scope tối thiểu, offline, có state', async () => {
     const svc = new GoogleOAuthService(makePrisma().prisma as never, new FakeGoogleHttp());
-    const u = new URL(svc.authUrl(3));
+    const u = new URL(await svc.authUrl(3));
     expect(u.searchParams.get('scope')).toContain('auth/spreadsheets');
     expect(u.searchParams.get('scope')).toContain('auth/drive.file');
     expect(u.searchParams.get('scope')).not.toMatch(/auth\/drive(\s|$)/);

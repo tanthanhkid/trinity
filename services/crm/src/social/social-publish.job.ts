@@ -3,6 +3,7 @@ import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { isSecretKeyConfigured } from '../integrations/webhooks/secret-crypto';
 import { SocialRecurrenceService } from './social-recurrence.service';
 import { SocialPostsService } from './social-posts.service';
+import { tenantTimerTick } from '../common/helpers/tenant-timer';
 
 const INTERVAL_MS = 60_000;
 /** Lấy số bài đã đăng mỗi 15 phút (từng bài tự giãn: bài mới 1 giờ, bài cũ 6 giờ). */
@@ -15,6 +16,9 @@ const METRICS_INTERVAL_MS = 15 * 60_000;
 @Injectable()
 export class SocialPublishJob implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SocialPublishJob.name);
+  /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
+  private readonly timerTick = tenantTimerTick(this.logger, 'Job đăng bài', () => this.tick());
+  private readonly metricsTick = tenantTimerTick(this.logger, 'Job lấy số bài', () => this.metrics());
   private timer: ReturnType<typeof setInterval> | null = null;
   private metricsTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -40,9 +44,9 @@ export class SocialPublishJob implements OnModuleInit, OnModuleDestroy {
       run: async () => (isSecretKeyConfigured() ? this.posts.refreshMetricsDue(25_000) : { skipped: 'no-secret-key' }),
     });
     if (isServerless()) return;
-    this.timer = setInterval(() => void this.tick(), INTERVAL_MS);
+    this.timer = setInterval(() => void this.timerTick(), INTERVAL_MS);
     this.timer.unref();
-    this.metricsTimer = setInterval(() => void this.metrics(), METRICS_INTERVAL_MS);
+    this.metricsTimer = setInterval(() => void this.metricsTick(), METRICS_INTERVAL_MS);
     this.metricsTimer.unref();
   }
 

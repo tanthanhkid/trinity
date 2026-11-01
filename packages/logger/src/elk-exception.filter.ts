@@ -15,7 +15,8 @@ import { reportServerError } from './server-error-reporter'
 export class ElkExceptionFilter implements ExceptionFilter {
   constructor(@Inject(ELK_LOGGER) private readonly logger: winston.Logger) {}
 
-  catch(exception: unknown, host: ArgumentsHost): void {
+  catch(rawException: unknown, host: ArgumentsHost): void {
+    const exception = translateTenantError(rawException)
     const ctx = host.switchToHttp()
     const response = ctx.getResponse()
     const request = ctx.getRequest()
@@ -86,4 +87,25 @@ export class ElkExceptionFilter implements ExceptionFilter {
       ...(fieldErrors !== undefined ? { errors: fieldErrors } : {}),
     })
   }
+}
+
+/**
+ * Multi-tenant errors (matched by name/message so this package does not depend on @trinity/prisma):
+ *  - no company context on a public route (unknown `cid`, etc.) → 404, nothing to see here;
+ *  - database triggers guarding cross-company uniqueness → 409 with a readable message.
+ */
+export function translateTenantError(e: unknown): unknown {
+  if (!(e instanceof Error) || e instanceof HttpException) return e
+  if (e.name === 'MissingCompanyContextError') return new HttpException('Không tìm thấy', HttpStatus.NOT_FOUND)
+  const msg = e.message || ''
+  if (msg.includes('TRINITY_EMAIL_TAKEN')) {
+    return new HttpException('Email này đã được dùng cho một công ty khác trên Trinity', HttpStatus.CONFLICT)
+  }
+  if (msg.includes('TRINITY_ROUTE_TAKEN')) {
+    return new HttpException('Trang/kênh này đã được một công ty khác kết nối với Trinity', HttpStatus.CONFLICT)
+  }
+  if (msg.includes('TRINITY_SINGLE_USER')) {
+    return new HttpException('Mỗi công ty trên Trinity chỉ có một tài khoản chủ', HttpStatus.CONFLICT)
+  }
+  return e
 }

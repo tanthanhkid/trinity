@@ -519,9 +519,9 @@ describe('FacebookPagesService', () => {
     return { prisma, graph, scope, svc: new FacebookPagesService(prisma as never, graph as never, scope as never) };
   };
 
-  it('connectUrl: có state ký, scope đủ, redirect_uri đúng; thiếu env ⇒ 503', () => {
+  it('connectUrl: có state ký, scope đủ, redirect_uri đúng; thiếu env ⇒ 503', async () => {
     const { svc } = mk();
-    const url = new URL(svc.connectUrl(actor).url);
+    const url = new URL((await svc.connectUrl(actor)).url);
     expect(url.host).toBe('www.facebook.com');
     expect(url.searchParams.get('redirect_uri')).toBe('https://crm.example.vn/api/v1/facebook/oauth/callback');
     expect(url.searchParams.get('scope')).toContain('pages_messaging');
@@ -529,7 +529,7 @@ describe('FacebookPagesService', () => {
     expect(url.searchParams.get('scope')).toContain('pages_messaging');
     const saved = process.env.FACEBOOK_APP_SECRET;
     process.env.FACEBOOK_APP_SECRET = '';
-    expect(() => svc.connectUrl(actor)).toThrow(ServiceUnavailableException);
+    await expect(svc.connectUrl(actor)).rejects.toThrow(ServiceUnavailableException);
     process.env.FACEBOOK_APP_SECRET = saved;
   });
 
@@ -617,9 +617,9 @@ describe('FacebookPagesService', () => {
     const withTasks = (g: ReturnType<typeof mk>['graph'], tasks: string[]) =>
       g.listPages.mockResolvedValue([{ id: '111', name: 'Trinity', access_token: 'PT1', tasks, picture: { data: { url: 'http://img/1.png' } } }]);
 
-    it('connectUrl xin hợp quyền nhận tin và đăng bài, không trùng', () => {
+    it('connectUrl xin hợp quyền nhận tin và đăng bài, không trùng', async () => {
       const { svc } = mk();
-      const scope = new URL(svc.connectUrl(actor).url).searchParams.get('scope')!.split(',');
+      const scope = new URL((await svc.connectUrl(actor)).url).searchParams.get('scope')!.split(',');
       expect(scope).toEqual(expect.arrayContaining(['pages_messaging', 'pages_manage_posts', 'pages_manage_metadata']));
       expect(new Set(scope).size).toBe(scope.length);
     });

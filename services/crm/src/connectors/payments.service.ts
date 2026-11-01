@@ -8,6 +8,7 @@ import { publicBaseUrl } from '../integrations/oauth/oauth-config';
 import { VNPAY_IPN, codeFromTxnRef, txnRefFor, verifyVnpay, vnpayPayUrl } from './vnpay';
 import { MOMO_URLS, momoCreateBody, verifyMomoResult, type MomoResult } from './momo';
 import { PAYMENT_CODE_BODY, findPaymentCodes, sepayDate, sepayQrUrl, type SepayTransaction } from './sepay';
+import { withCompanyHint } from '../common/helpers/tenant-hint';
 
 export const PAYMENT_SOURCE_TYPES = ['manual', 'deal', 'pos_order', 'store_order'] as const;
 export type PaymentSourceType = (typeof PAYMENT_SOURCE_TYPES)[number];
@@ -228,8 +229,8 @@ export class PaymentsService {
     const base = publicBaseUrl();
     if (!base || r.status !== 'pending' || expired) return {};
     return {
-      ...(g.vnpay ? { vnpay: `${base}/api/v1/pay/${r.code}/vnpay` } : {}),
-      ...(g.momo ? { momo: `${base}/api/v1/pay/${r.code}/momo` } : {}),
+      ...(g.vnpay ? { vnpay: withCompanyHint(`${base}/api/v1/pay/${r.code}/vnpay`) } : {}),
+      ...(g.momo ? { momo: withCompanyHint(`${base}/api/v1/pay/${r.code}/momo`) } : {}),
     };
   }
 
@@ -260,7 +261,7 @@ export class PaymentsService {
       amount: Number(r.amount),
       txnRef: txnRefFor(r.code),
       orderInfo: `Thanh toan ${r.code}${r.description ? ` ${r.description}` : ''}`,
-      returnUrl: `${this.base()}/api/v1/pay/vnpay/return`,
+      returnUrl: withCompanyHint(`${this.base()}/api/v1/pay/vnpay/return`),
       ipAddr: ip,
     });
   }
@@ -301,8 +302,8 @@ export class PaymentsService {
       orderId,
       requestId: orderId,
       orderInfo: `Thanh toán ${r.code}${r.description ? ` — ${r.description}` : ''}`.slice(0, 200),
-      redirectUrl: `${base}/api/v1/pay/momo/return`,
-      ipnUrl: `${base}/api/v1/connectors/momo/ipn`,
+      redirectUrl: withCompanyHint(`${base}/api/v1/pay/momo/return`),
+      ipnUrl: withCompanyHint(`${base}/api/v1/connectors/momo/ipn`),
     });
     const res = await fetchFn(conn.settings.sandbox !== false ? MOMO_URLS.sandbox : MOMO_URLS.production, {
       method: 'POST',

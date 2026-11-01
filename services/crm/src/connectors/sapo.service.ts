@@ -6,6 +6,7 @@ import { publicBaseUrl } from '../integrations/oauth/oauth-config';
 import { CommerceSyncService, type SyncOwner } from './commerce-sync.service';
 import { ConnectorsService } from './connectors.service';
 import { SapoClient, mapSapoCustomer, mapSapoOrder, mapSapoProduct, verifySapoHmac, type SapoResource } from './sapo';
+import { withCompanyHint } from '../common/helpers/tenant-hint';
 
 const RESOURCES: readonly SapoResource[] = ['customers', 'products', 'orders'];
 /** Mỗi lần đồng bộ tối đa ngần này trang (250 bản ghi/trang) mỗi loại. */
@@ -65,7 +66,7 @@ export class SapoService {
     const base = publicBaseUrl();
     if (base) {
       try {
-        settings.webhook_ids = await client.registerWebhooks(`${base}/api/v1/connectors/sapo/webhook/${creds.webhook_token}`);
+        settings.webhook_ids = await client.registerWebhooks(withCompanyHint(`${base}/api/v1/connectors/sapo/webhook/${creds.webhook_token}`));
         settings.webhook_error = null;
       } catch (err) {
         settings.webhook_ids = [];

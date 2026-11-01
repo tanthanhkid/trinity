@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { isServerless } from '@trinity/rbac-nest';
+import { tenantKey } from '@trinity/prisma';
 import { REDIS_CLIENT } from '../../common/redis.provider';
 import { FixedWindowLimiter } from '../../common/helpers/fixed-window-limiter';
 
@@ -36,7 +37,9 @@ export class McpRateLimiter {
     return l;
   }
 
-  async hit(scope: string, id: string | number, max: number): Promise<LimitResult> {
+  async hit(scope: string, rawId: string | number, max: number): Promise<LimitResult> {
+    // User ids repeat across companies (multi-tenant): key by company too. Company 1 keeps the bare id.
+    const id = tenantKey(rawId);
     const minute = Math.floor(Date.now() / 60_000);
     const key = `mcp:rl:${scope}:${id}:${minute}`;
     if (isServerless() && !process.env.REDIS_URL) return this.hitMem(scope, id, max);

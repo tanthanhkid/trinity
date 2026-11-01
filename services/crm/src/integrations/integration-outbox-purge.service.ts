@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { IntegrationEventsService, integrationFlags } from '@trinity/prisma';
 import { cronRegistry, isServerless } from '@trinity/rbac-nest';
+import { tenantTimerTick } from '../common/helpers/tenant-timer';
 
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 const FIRST_RUN_DELAY_MS = 5 * 60 * 1000;
@@ -13,6 +14,8 @@ const FIRST_RUN_DELAY_MS = 5 * 60 * 1000;
 @Injectable()
 export class IntegrationOutboxPurgeService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(IntegrationOutboxPurgeService.name);
+  /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
+  private readonly timerTick = tenantTimerTick(this.logger, 'Outbox purge', () => this.runOnce());
   private interval: ReturnType<typeof setInterval> | null = null;
   private first: ReturnType<typeof setTimeout> | null = null;
 
@@ -28,8 +31,8 @@ export class IntegrationOutboxPurgeService implements OnModuleInit, OnModuleDest
     // Serverless: không timer nào — việc dọn do `/internal/cron/tick` làm.
     if (isServerless()) return;
     if (!integrationFlags.anyEnabled()) return;
-    this.first = setTimeout(() => void this.runOnce(), FIRST_RUN_DELAY_MS);
-    this.interval = setInterval(() => void this.runOnce(), SIX_HOURS_MS);
+    this.first = setTimeout(() => void this.timerTick(), FIRST_RUN_DELAY_MS);
+    this.interval = setInterval(() => void this.timerTick(), SIX_HOURS_MS);
     // Không giữ process sống chỉ vì job dọn.
     this.first.unref();
     this.interval.unref();

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, tenantKey } from '@trinity/prisma';
 import { PermissionService, type AuthUser } from '@trinity/rbac-nest';
 import { CustomRecordsListService } from '../custom-objects/custom-records-list.service';
 import { CustomRecordsService } from '../custom-objects/custom-records.service';
@@ -15,7 +15,8 @@ const USER_TTL_MS = 60_000;
  */
 @Injectable()
 export class ExtensionsDataPort implements DataPort {
-  private readonly users = new Map<number, { at: number; user: AuthUser }>();
+  /** Khoá theo công ty (`tenantKey`): user id trùng giữa các công ty. */
+  private readonly users = new Map<string, { at: number; user: AuthUser }>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -42,7 +43,8 @@ export class ExtensionsDataPort implements DataPort {
 
   private async actorUser(a: DataActor): Promise<AuthUser> {
     const userId = a.asUserId ?? (await this.approverOf(a.extId));
-    const hit = this.users.get(userId);
+    const cacheKey = tenantKey(userId);
+    const hit = this.users.get(cacheKey);
     if (hit && Date.now() - hit.at < USER_TTL_MS) return hit.user;
     // Người duyệt đã bị khoá/xoá thì chương trình con không còn chạy dưới quyền họ.
     const approver = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true, deleted_at: true } });
@@ -51,7 +53,7 @@ export class ExtensionsDataPort implements DataPort {
     }
     const { grants, isAdmin } = await this.permissions.grantsFor(userId);
     const user = restrictForAi({ userId, email: '', isAdmin, grants });
-    this.users.set(userId, { at: Date.now(), user });
+    this.users.set(cacheKey, { at: Date.now(), user });
     return user;
   }
 

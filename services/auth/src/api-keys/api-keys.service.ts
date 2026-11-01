@@ -6,10 +6,11 @@ import {
   Logger,
 } from '@nestjs/common'
 import * as crypto from 'crypto'
-import { PrismaService } from '@trinity/prisma'
+import { PrismaService, requireCompany } from '@trinity/prisma'
 import { PermissionService } from '@trinity/rbac-nest'
 import { can } from '@trinity/rbac'
 import { CreateApiKeyDto, API_KEY_SCOPES, ApiKeyScope } from './dto/create-api-key.dto'
+import { companyIdOfToken, companyTokenPrefix, enterTokenCompany, withCompanyPrefix } from './company-key'
 
 /** Quyền nghiệp vụ owner phải có cho từng phạm vi khoá. */
 const OWNER_PERMISSION: Record<ApiKeyScope, Parameters<typeof can>[1]> = {
@@ -139,7 +140,12 @@ export class ApiKeysService {
     if (!rawKey || typeof rawKey !== 'string') {
       throw new UnauthorizedException('Thiếu X-API-Key header')
     }
-    const hash = this.hashKey(rawKey.trim())
+    const key = rawKey.trim()
+    // Multi-tenant: `c<id>.` names the company (none = company 1). Look the key up in THAT company's schema only.
+    if (!(await enterTokenCompany(key))) {
+      throw new UnauthorizedException('X-API-Key không hợp lệ')
+    }
+    const hash = this.hashKey(key)
     const record = await this.prisma.apiKey.findUnique({
       where: { key_hash: hash },
       select: {
@@ -202,11 +208,13 @@ export class ApiKeysService {
 
   private generatePlainKey(): string {
     const token = crypto.randomBytes(RANDOM_BYTES).toString('base64url')
-    return `${KEY_PREFIX}${token}`
+    // Company prefix (`c<id>.`, none for company 1) tells the guard which schema holds the key.
+    return withCompanyPrefix(`${KEY_PREFIX}${token}`, requireCompany('API key').id)
   }
 
   private extractPrefix(plainKey: string): string {
-    return plainKey.slice(0, KEY_PREFIX.length + 6) // "trinity_live_XXXXXX"
+    const tag = companyTokenPrefix(companyIdOfToken(plainKey))
+    return tag + plainKey.slice(tag.length, tag.length + KEY_PREFIX.length + 6) // "[c5.]trinity_live_XXXXXX"
   }
 
   private hashKey(plainKey: string): string {

@@ -3,7 +3,11 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { Can, CurrentUser, Public, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
-import { StoreService } from './store.service';
+import { StoreService, type StoreSettings } from './store.service';
+import { withCompanyHint } from '../common/helpers/tenant-hint';
+
+/** Multi-tenant: đường dẫn trang công khai kèm `?cid=` khi không phải công ty 1 (web ghép origin vào trước). */
+const withPublicPath = (s: StoreSettings) => ({ ...s, public_path: s.slug ? withCompanyHint(`/s/${s.slug}`) : null });
 
 const clientIp = (req: Request) => (String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.ip || '0').replace(/^::ffff:/, '').slice(0, 45);
 
@@ -19,16 +23,17 @@ export class StoreController {
   @Get('settings')
   @Can('pos.manage')
   @RequireOrgFeature('online_store')
-  settings() {
-    return this.store.settings();
+  async settings() {
+    return withPublicPath(await this.store.settings());
   }
 
   @Put('settings')
   @Can('pos.manage')
   @RequireOrgFeature('online_store')
   @ApiOperation({ summary: 'Lưu cấu hình trang bán hàng (địa chỉ, giao diện, sản phẩm, cách thanh toán, mở bán)' })
-  save(@Body() body: Record<string, unknown>, @CurrentUser() user: AuthUser) {
-    return this.store.saveSettings(body ?? {}, user.userId);
+  async save(@Body() body: Record<string, unknown>, @CurrentUser() user: AuthUser) {
+    const { public_path: _p, ...rest } = body ?? {};
+    return withPublicPath(await this.store.saveSettings(rest, user.userId));
   }
 
   @Get('orders')

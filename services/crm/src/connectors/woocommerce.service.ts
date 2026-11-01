@@ -6,6 +6,7 @@ import { publicBaseUrl } from '../integrations/oauth/oauth-config';
 import { CommerceSyncService, type SyncOwner } from './commerce-sync.service';
 import { ConnectorsService } from './connectors.service';
 import { WooClient, type WooTransport, mapWooCustomer, mapWooOrder, mapWooProduct, normalizeWooUrl, verifyWooSignature, type WooResource } from './woocommerce';
+import { withCompanyHint } from '../common/helpers/tenant-hint';
 
 const RESOURCES: readonly WooResource[] = ['customers', 'products', 'orders'];
 const MAX_PAGES = 3;
@@ -65,7 +66,7 @@ export class WooCommerceService {
     const base = publicBaseUrl();
     if (base) {
       try {
-        settings.webhook_ids = await client.registerWebhooks(`${base}/api/v1/connectors/woocommerce/webhook/${creds.webhook_token}`, creds.webhook_secret);
+        settings.webhook_ids = await client.registerWebhooks(withCompanyHint(`${base}/api/v1/connectors/woocommerce/webhook/${creds.webhook_token}`), creds.webhook_secret);
         settings.webhook_error = null;
       } catch (err) {
         settings.webhook_ids = [];

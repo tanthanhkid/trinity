@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { tenantKey } from '@trinity/prisma';
 import { FixedWindowLimiter } from '../common/helpers/fixed-window-limiter';
 
 /**
@@ -32,7 +33,8 @@ export class PublicApiRateLimiterGuard implements CanActivate {
       return true;
     }
 
-    const res = this.limiter.hit(`apikey:${apiKey.id}`);
+    // Key ids repeat across companies (multi-tenant): key by company too (company 1 unchanged).
+    const res = this.limiter.hit(`apikey:${tenantKey(apiKey.id)}`);
     if (!res.allowed) {
       this.logger.warn(`PublicApi rate limit hit api_key=${apiKey.id} count=${res.count}`);
       throw new HttpException(

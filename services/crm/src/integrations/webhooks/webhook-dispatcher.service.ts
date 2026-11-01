@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import {
   IntegrationEventsService,
   PrismaService,
+  currentCompanyId,
   integrationFlags,
   isIntegrationEventType,
   type PendingIntegrationEvent,
@@ -11,6 +12,7 @@ import { isSecretKeyConfigured } from './secret-crypto';
 import { WebhookActorService } from './webhook-actor.service';
 import { WebhookDeliveryWorker } from './webhook-delivery-worker.service';
 import { evaluateEvent, type ActorScopes } from './webhook-payload';
+import { tenantTimerTick } from '../../common/helpers/tenant-timer';
 import type { WebhookEndpoint } from '@prisma/client';
 
 export const TICK_MS = 10_000;
@@ -35,11 +37,17 @@ const KICK_MAX_ROUNDS = 3;
 export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WebhookDispatcherService.name);
   private timer: ReturnType<typeof setInterval> | null = null;
-  private running = false;
-  private lastHousekeeping = 0;
+  /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
+  private readonly timerTick = tenantTimerTick(this.logger, 'Webhook tick', () => this.tick());
+  /**
+   * Trạng thái theo công ty (multi-tenant): công ty A đang gửi không được chặn/nuốt lượt của công ty B, và
+   * mốc dọn dẹp của A không được làm B bỏ lượt dọn.
+   */
+  private readonly running = new Set<number>();
+  private readonly lastHousekeeping = new Map<number, number>();
   private lastKeyWarn = 0;
-  private kickActive = false;
-  private kickAgain = false;
+  /** Công ty đang có lượt kick chạy → cờ "còn sự kiện mới, chạy thêm vòng". */
+  private readonly kicks = new Map<number, { again: boolean }>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -68,7 +76,7 @@ export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
       );
       return;
     }
-    this.timer = setInterval(() => void this.tick(), TICK_MS);
+    this.timer = setInterval(() => void this.timerTick(), TICK_MS);
     this.timer.unref();
     this.logger.log('Webhook worker bật (INTEGRATIONS_WEBHOOKS_ENABLED=true)');
   }
@@ -86,21 +94,25 @@ export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
   kick(): void {
     if (!isServerless() || !integrationFlags.webhooksEnabled() || !isSecretKeyConfigured()) return;
     // Đang gửi: đánh dấu để vòng sau nhặt sự kiện vừa commit (không bỏ sót, không chạy chồng).
-    if (this.kickActive) {
-      this.kickAgain = true;
+    const company = companyKey();
+    const active = this.kicks.get(company);
+    if (active) {
+      active.again = true;
       return;
     }
-    this.kickActive = true;
+    const state = { again: false };
+    this.kicks.set(company, state);
+    // Chạy trong ngữ cảnh công ty của request vừa commit (ALS đi theo chuỗi async của runInBackground).
     runInBackground(
       async () => {
         try {
           let rounds = 0;
           do {
-            this.kickAgain = false;
+            state.again = false;
             await this.tick({ housekeeping: false });
-          } while (this.kickAgain && ++rounds < KICK_MAX_ROUNDS);
+          } while (state.again && ++rounds < KICK_MAX_ROUNDS);
         } finally {
-          this.kickActive = false;
+          this.kicks.delete(company);
         }
       },
       (err) => this.logger.error(`Webhook kick lỗi: ${(err as Error)?.message}`),
@@ -109,7 +121,8 @@ export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
 
   /** Public cho test. Không ném lỗi, không chạy chồng trong cùng process. */
   async tick(opts: { housekeeping?: boolean } = {}): Promise<void> {
-    if (this.running || !integrationFlags.webhooksEnabled()) return;
+    const company = companyKey();
+    if (this.running.has(company) || !integrationFlags.webhooksEnabled()) return;
     if (!isSecretKeyConfigured()) {
       if (Date.now() - this.lastKeyWarn > KEY_WARN_EVERY_MS) {
         this.lastKeyWarn = Date.now();
@@ -117,7 +130,7 @@ export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
       }
       return;
     }
-    this.running = true;
+    this.running.add(company);
     try {
       await this.dispatchEvents();
       await this.worker.sweepExhausted();
@@ -127,7 +140,7 @@ export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
     } catch (err) {
       this.logger.error(`Webhook tick lỗi: ${(err as Error)?.message}`);
     } finally {
-      this.running = false;
+      this.running.delete(company);
     }
   }
 
@@ -171,8 +184,9 @@ export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
 
   /** Dọn delivery xong/chết > 30 ngày + receipt webhook vào > 180 ngày (theo lô). */
   private async housekeeping(): Promise<void> {
-    if (Date.now() - this.lastHousekeeping < HOUSEKEEPING_EVERY_MS) return;
-    this.lastHousekeeping = Date.now();
+    const company = companyKey();
+    if (Date.now() - (this.lastHousekeeping.get(company) ?? 0) < HOUSEKEEPING_EVERY_MS) return;
+    this.lastHousekeeping.set(company, Date.now());
     const before = new Date(Date.now() - DELIVERY_RETENTION_DAYS * 86_400_000);
     await this.prisma.webhookInboundReceipt.deleteMany({ where: { created_at: { lt: new Date(Date.now() - RECEIPT_RETENTION_DAYS * 86_400_000) } } });
     for (let i = 0; i < 20; i++) {
@@ -187,4 +201,9 @@ export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
       if (old.length < 1000) break;
     }
   }
+}
+
+/** Khoá trạng thái trong RAM theo công ty hiện tại (0 = chưa có ngữ cảnh; truy vấn DB khi đó sẽ tự báo lỗi). */
+function companyKey(): number {
+  return currentCompanyId() ?? 0;
 }

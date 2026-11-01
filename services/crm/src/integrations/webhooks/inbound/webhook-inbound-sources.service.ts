@@ -5,6 +5,7 @@ import type { WebhookInboundSource } from '@prisma/client';
 import { encryptSecret, generateWebhookSecret, IntegrationsKeyError, loadSecretKey } from '../secret-crypto';
 import { generateInboundToken, hashInboundToken, inboundTokenPrefix, INBOUND_PATH_PREFIX } from './inbound-token';
 import type { CreateInboundSourceDto, UpdateInboundSourceDto } from './dto-inbound-source';
+import { withCompanyHint } from '../../../common/helpers/tenant-hint';
 
 export const MAX_INBOUND_SOURCES = 50;
 
@@ -93,7 +94,7 @@ export class WebhookInboundSourcesService {
       },
     });
     await this.log(actor.userId, 'source.created', row.id, { signed: signing !== null });
-    return { ...toSourceView(row), token, path: `${INBOUND_PATH_PREFIX}${token}`, ...(signing ? { signing_secret: signing } : {}) };
+    return { ...toSourceView(row), token, path: withCompanyHint(`${INBOUND_PATH_PREFIX}${token}`), ...(signing ? { signing_secret: signing } : {}) };
   }
 
   async update(id: number, dto: UpdateInboundSourceDto, actor: AuthUser) {
@@ -139,7 +140,7 @@ export class WebhookInboundSourcesService {
       data: { token_hash: hashInboundToken(token), token_prefix: inboundTokenPrefix(token) },
     });
     await this.log(actor.userId, 'source.token_rotated', id);
-    return { ...toSourceView(saved), token, path: `${INBOUND_PATH_PREFIX}${token}` };
+    return { ...toSourceView(saved), token, path: withCompanyHint(`${INBOUND_PATH_PREFIX}${token}`) };
   }
 
   async remove(id: number, actor: AuthUser): Promise<{ deleted: true }> {

@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import type { Extension, ExtensionVersion } from '@prisma/client';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, currentCompanyId, tenantKey } from '@trinity/prisma';
+import { runForEachCompany } from '@trinity/rbac-nest';
 import { cronMatches, parseCron } from './cron';
 import { ExtensionInputError } from './extension-errors';
 import { denoBin, extensionsEnabled } from './extension-flags';
@@ -32,8 +33,12 @@ export class ExtensionsRuntime implements OnModuleInit, OnModuleDestroy {
   private readonly gateway: InternalGateway;
   private host?: ExtHost;
   private timer?: ReturnType<typeof setInterval>;
-  private readonly active = new Map<string, ActiveTool & { token?: string }>();
-  private readonly lastMinute = new Map<number, number>();
+  /**
+   * Multi-tenant: key và id chương trình con TRÙNG giữa các công ty, nên mọi trạng thái trong RAM (tool đã nạp, tên trong ext-host,
+   * phút đã chạy job) khoá bằng `tenantKey(...)` và tool chỉ hiện/gọi được từ đúng công ty đã nạp nó.
+   */
+  private readonly active = new Map<string, ActiveTool & { token?: string; companyId: number | null }>();
+  private readonly lastMinute = new Map<string, number>();
   private chain: Promise<unknown> = Promise.resolve();
 
   constructor(
@@ -47,9 +52,10 @@ export class ExtensionsRuntime implements OnModuleInit, OnModuleDestroy {
   onModuleInit(): void {
     if (!extensionsEnabled()) return;
     // Lỗi tạm thời (DB, runLog) không được thành unhandled rejection làm sập tiến trình CRM.
-    void this.restoreTools().catch((err) => this.logger.error(`restoreTools: ${(err as Error)?.message ?? err}`));
+    // Timer/boot chạy ngoài request: làm cho TỪNG công ty, mỗi công ty trong ngữ cảnh riêng.
+    void runForEachCompany(() => this.restoreTools()).catch((err) => this.logger.error(`restoreTools: ${(err as Error)?.message ?? err}`));
     this.timer = setInterval(() => {
-      void this.tick().catch((err) => this.logger.error(`tick: ${(err as Error)?.message ?? err}`));
+      void runForEachCompany(() => this.tick()).catch((err) => this.logger.error(`tick: ${(err as Error)?.message ?? err}`));
     }, TICK_MS);
     this.timer.unref();
   }
@@ -61,7 +67,9 @@ export class ExtensionsRuntime implements OnModuleInit, OnModuleDestroy {
   }
 
   listActiveTools(): ActiveTool[] {
-    return extensionsEnabled() ? [...this.active.values()].map(({ extId, key, tools }) => ({ extId, key, tools })) : [];
+    if (!extensionsEnabled()) return [];
+    const company = currentCompanyId();
+    return [...this.active.values()].filter((t) => t.companyId === company).map(({ extId, key, tools }) => ({ extId, key, tools }));
   }
 
   /** Bật chạy một phiên bản (đã duyệt). `job` do bộ hẹn giờ nhặt từ DB; `tool` nạp vào ext-host ngay. */
@@ -72,8 +80,9 @@ export class ExtensionsRuntime implements OnModuleInit, OnModuleDestroy {
   }
 
   async deactivate(extId: number): Promise<void> {
+    const company = currentCompanyId();
     for (const [key, t] of this.active) {
-      if (t.extId !== extId) continue;
+      if (t.extId !== extId || t.companyId !== company) continue;
       this.active.delete(key);
       if (t.token) this.gateway.revoke(t.token);
       await this.host?.unload(key).catch(() => undefined);
@@ -104,8 +113,9 @@ export class ExtensionsRuntime implements OnModuleInit, OnModuleDestroy {
     for (const e of rows) {
       const v = await this.prisma.extensionVersion.findUnique({ where: { id: e.active_version_id as number } });
       const sched = (v?.manifest as unknown as ExtManifest | undefined)?.schedule;
-      if (!v || !sched || this.lastMinute.get(e.id) === minute || !cronMatches(parseCron(sched), now)) continue;
-      this.lastMinute.set(e.id, minute);
+      const runKey = tenantKey(e.id);
+      if (!v || !sched || this.lastMinute.get(runKey) === minute || !cronMatches(parseCron(sched), now)) continue;
+      this.lastMinute.set(runKey, minute);
       ran++;
       await this.runScheduled(e, v);
     }
@@ -113,12 +123,13 @@ export class ExtensionsRuntime implements OnModuleInit, OnModuleDestroy {
   }
 
   async callTool(key: string, tool: string, args: unknown): Promise<CallResult> {
-    const t = this.active.get(key);
+    const hostKey = tenantKey(key);
+    const t = this.active.get(hostKey);
     const e = t && (await this.prisma.extension.findUnique({ where: { id: t.extId } }));
     if (!t || !e || e.status !== 'active' || !this.host) return { ok: false, kind: 'unknown_tool', message: `${key}/${tool}` };
     const m = (await this.activeManifest(e)) as ExtManifest;
     const t0 = performance.now();
-    const r = await this.host.call(key, tool, args, limitsOf(m).timeoutMs);
+    const r = await this.host.call(hostKey, tool, args, limitsOf(m).timeoutMs);
     const msg = r.ok ? '' : `${r.kind}: ${r.message}`;
     await this.runLog.record(e.id, e.active_version_id, 'tool_call', r.ok ? 'ok' : r.kind === 'timeout' ? 'timeout' : 'error', { durationMs: performance.now() - t0, log: msg || `tool ${tool} ok` });
     if (r.ok || COUNTED.has(r.kind)) {
@@ -166,18 +177,19 @@ export class ExtensionsRuntime implements OnModuleInit, OnModuleDestroy {
     if (this.host.isFailed) await this.host.reset().catch(() => undefined);
     await this.deactivate(e.id);
     const hasData = m.tables.read.length + m.tables.write.length > 0;
+    const hostKey = tenantKey(e.key);
     const token = hasData ? this.gateway.issueToken({ extId: e.id, read: m.tables.read, write: m.tables.write, dryRun: false }) : undefined;
     try {
       const tools = await this.host.load({
-        ext: e.key, code: v.code, net: [...m.net, ...(hasData ? [this.gateway.hostPort] : [])],
+        ext: hostKey, code: v.code, net: [...m.net, ...(hasData ? [this.gateway.hostPort] : [])],
         gateway: token ? { url: this.gateway.url, token } : undefined, inputSchema: m.input_schema, description: e.description || e.name,
       });
       const bad = tools.find((t) => !TOOL_NAME_RE.test(t.name));
       if (bad || tools.length === 0 || tools.length > MAX_TOOLS) throw new Error(bad ? `tên tool "${bad.name}" không hợp lệ (a-z, 0-9, _; tối đa 20 ký tự)` : `cần 1–${MAX_TOOLS} tool`);
-      this.active.set(e.key, { extId: e.id, key: e.key, tools, token });
+      this.active.set(hostKey, { extId: e.id, key: e.key, tools, token, companyId: currentCompanyId() });
     } catch (err) {
       if (token) this.gateway.revoke(token);
-      await this.host.unload(e.key).catch(() => undefined);
+      await this.host.unload(hostKey).catch(() => undefined);
       // Bản mới lỗi mà bản cũ đã bị gỡ ở trên → DB vẫn trỏ bản cũ 'active' nhưng không còn gì chạy. Nạp lại bản cũ.
       if (!restoring && e.active_version_id != null && e.active_version_id !== v.id && e.status === 'active') {
         const prev = await this.prisma.extensionVersion.findUnique({ where: { id: e.active_version_id } }).catch(() => null);

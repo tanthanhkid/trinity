@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Cron } from '@nestjs/schedule'
+import { runForEachCompany } from '@trinity/rbac-nest'
 import { NotificationsService } from './notifications.service'
 
 @Injectable()
@@ -14,9 +15,12 @@ export class NotificationsScheduler {
    */
   @Cron('0 */2 * * * *')
   async processScheduledNotifications(): Promise<void> {
-    const processed = await this.notificationsService.processScheduled()
-    if (processed > 0) {
-      this.logger.log(`Processed ${processed} scheduled notifications`)
-    }
+    // @Cron chạy ngoài request (không có công ty) ⇒ chạy cho TỪNG công ty, mỗi công ty trong ngữ cảnh riêng.
+    await runForEachCompany(async () => {
+      const processed = await this.notificationsService.processScheduled()
+      if (processed > 0) {
+        this.logger.log(`Processed ${processed} scheduled notifications`)
+      }
+    })
   }
 }

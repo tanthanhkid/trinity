@@ -45,7 +45,7 @@ export class GoogleController {
   @ApiOperation({ summary: 'Lấy URL đồng ý của Google (FE chuyển hướng người dùng tới đó)' })
   async start(@CurrentUser() user: AuthUser) {
     await this.feature.assertEnabled();
-    return { url: this.oauth.authUrl(user.userId) };
+    return { url: await this.oauth.authUrl(user.userId) };
   }
 
   /** Google chuyển trình duyệt về đây (không có JWT) — `state` ký HMAC gắn người bấm + hạn 10 phút. */

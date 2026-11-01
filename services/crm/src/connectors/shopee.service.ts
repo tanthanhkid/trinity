@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, rememberOauthState } from '@trinity/prisma';
 import { decryptSecret, encryptSecret, isSecretKeyConfigured, loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { publicBaseUrl } from '../integrations/oauth/oauth-config';
 import { CommerceSyncService, type SyncOwner } from './commerce-sync.service';
@@ -30,13 +30,15 @@ export class ShopeeService {
   }
 
   /** Bước 1: URL để chủ shop cấp quyền cho Trinity. */
-  startConnect(userId: number): { authorize_url: string } {
+  async startConnect(userId: number): Promise<{ authorize_url: string }> {
     const cfg = shopeeConfig();
     if (!cfg) throw new ServiceUnavailableException('Máy chủ chưa đặt SHOPEE_PARTNER_ID / SHOPEE_PARTNER_KEY (app đối tác Shopee của Trinity).');
     const base = publicBaseUrl();
     if (!base) throw new ServiceUnavailableException('Máy chủ chưa đặt INTEGRATIONS_PUBLIC_BASE_URL.');
     if (!isSecretKeyConfigured()) throw new ServiceUnavailableException('Máy chủ chưa đặt INTEGRATIONS_SECRET_KEY.');
     const state = signState('shopee', userId, loadSecretKey());
+    // Multi-tenant: callback công khai chọn công ty theo `state`.
+    await rememberOauthState(state);
     return { authorize_url: shopeeAuthUrl(cfg, `${base}/api/v1/connectors/shopee/callback?state=${encodeURIComponent(state)}`) };
   }
 

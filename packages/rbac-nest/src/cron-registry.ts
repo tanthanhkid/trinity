@@ -1,3 +1,5 @@
+import { forEachCompany, isMultiTenant } from '@trinity/prisma'
+
 /**
  * Sổ đăng ký job nền. Mỗi job nền của monolith (webhook, dọn outbox, nhắc việc…) đăng ký MỘT hàm
  * `runOnce` ở đây. Ở server thường timer riêng vẫn gọi hàm đó như cũ; ở serverless không timer nào chạy, thay vào đó
@@ -32,9 +34,22 @@ export const CRON_TICK_TOTAL_BUDGET_MS = 45_000
 
 const jobs = new Map<string, CronJob>()
 
+/**
+ * Multi-tenant: a job's `run` touches one company's data, so a tick runs it once per active company, each in
+ * its own company context. Timer-driven jobs wrap their tick the same way (`runForEachCompany`).
+ */
+export function runForEachCompany<T>(fn: () => Promise<T>): Promise<unknown> {
+  if (!isMultiTenant()) return fn()
+  return forEachCompany(
+    () => fn(),
+    (company, err) => console.error(`[cron] company ${company.id}: ${err instanceof Error ? err.message : String(err)}`),
+  )
+}
+
 export const cronRegistry = {
   /** Đăng ký (ghi đè theo tên — an toàn khi module khởi tạo lại trong test). Trả hàm gỡ. */
-  register(job: CronJob): () => void {
+  register(input: CronJob): () => void {
+    const job: CronJob = { ...input, run: () => runForEachCompany(input.run) }
     jobs.set(job.name, job)
     return () => {
       if (jobs.get(job.name) === job) jobs.delete(job.name)

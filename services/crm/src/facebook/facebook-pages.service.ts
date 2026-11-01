@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { FacebookPage } from '@prisma/client';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, assertRouteAvailableForCurrentCompany, rememberOauthState } from '@trinity/prisma';
+import { rethrowRouteTaken } from '../common/helpers/route-taken';
 import { ScopeService, type AuthUser } from '@trinity/rbac-nest';
 import { decryptSecret, encryptSecret, IntegrationsKeyError, loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { SUBSCRIBED_FIELDS, commentAutomationEnabled, facebookScopes, isFacebookConfigured, subscribedFields, loadFacebookConfig, oauthRedirectUri } from './facebook.config';
@@ -78,14 +79,17 @@ export class FacebookPagesService {
     };
   }
 
-  connectUrl(actor: AuthUser): { url: string } {
+  async connectUrl(actor: AuthUser): Promise<{ url: string }> {
     const c = loadFacebookConfig();
     if (!isFacebookConfigured(c)) throw new ServiceUnavailableException('Chưa cấu hình FACEBOOK_APP_ID / FACEBOOK_APP_SECRET / INTEGRATIONS_PUBLIC_BASE_URL trên máy chủ.');
     this.key();
+    const state = signFacebookState(actor.userId);
+    // Multi-tenant: callback công khai chọn công ty theo `state`.
+    await rememberOauthState(state);
     const q = new URLSearchParams({
       client_id: c.appId,
       redirect_uri: oauthRedirectUri(c),
-      state: signFacebookState(actor.userId),
+      state,
       scope: connectScopes().join(','),
       response_type: 'code',
     });
@@ -134,6 +138,8 @@ export class FacebookPagesService {
   }
 
   private async saveConnectedPage(p: GraphPage, userId: number, sourceId: number, key: Buffer): Promise<void> {
+    // Một Page chỉ một công ty: báo sớm, trước khi đăng ký webhook (trigger DB vẫn là chốt chặn cứng).
+    await assertRouteAvailableForCurrentCompany('facebook_page', p.id);
     const subscribed = await this.subscribe(p.id, p.access_token);
     const state = await this.graph.debugToken(p.access_token).then((d) => tokenStateFromDebug(d), () => null);
     const common = {
@@ -146,11 +152,13 @@ export class FacebookPagesService {
       data_access_expires_at: state?.dataAccessExpiresAt ?? null,
     };
     // KHÔNG đụng `is_active` ở nhánh update: Page người dùng đã tắt/gỡ không tự bật lại khi nối lại.
-    await this.prisma.facebookPage.upsert({
-      where: { page_id: p.id },
-      update: common,
-      create: { page_id: p.id, ...common, is_active: true, default_assignee_id: userId, contact_source_id: sourceId, connected_by: userId },
-    });
+    await this.prisma.facebookPage
+      .upsert({
+        where: { page_id: p.id },
+        update: common,
+        create: { page_id: p.id, ...common, is_active: true, default_assignee_id: userId, contact_source_id: sourceId, connected_by: userId },
+      })
+      .catch(rethrowRouteTaken('facebook_page'));
   }
 
   /**

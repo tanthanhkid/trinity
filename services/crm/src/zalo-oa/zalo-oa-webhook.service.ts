@@ -1,5 +1,6 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import { activeCompanyRef, companyIdForRoute, isMultiTenant, runWithCompany } from '@trinity/prisma';
 import { ZaloOaApiClient } from './zalo-oa-api.client';
 import { ZaloOaContactLinker } from './zalo-oa-contact-linker.service';
 import { ZaloOaFeatureService } from './zalo-oa-feature.service';
@@ -16,6 +17,14 @@ const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : typ
 const INBOUND_RE = /^user_send_/;
 /** Tin do chính OA gửi đi từ app/web Zalo (đồng bộ vào hộp thư): oa_send_text / oa_send_image ... */
 const OUTBOUND_RE = /^oa_send_/;
+
+/** OA nhận sự kiện: tin khách gửi ⇒ recipient; tin OA gửi ⇒ sender; follow/khác ⇒ `oa.id` / `oa_id` / recipient. */
+export function zaloEventOaId(ev: Record<string, unknown>): string | null {
+  const name = str(ev.event_name) ?? '';
+  if (INBOUND_RE.test(name)) return str(obj(ev.recipient).id);
+  if (OUTBOUND_RE.test(name)) return str(obj(ev.sender).id);
+  return str(obj(ev.oa).id) ?? str(ev.oa_id) ?? str(obj(ev.recipient).id);
+}
 
 /**
  * Webhook Zalo OA. Luôn kiểm chữ ký TRƯỚC (sai/thiếu ⇒ 401, không phân biệt lý do). Sau đó trả 200 cho mọi sự kiện
@@ -39,8 +48,18 @@ export class ZaloOaWebhookService {
     if (!verifyZaloSignature({ appId: cfg.appId, secret: cfg.webhookSecret, rawBody, header: signature })) {
       throw new UnauthorizedException('Chữ ký không hợp lệ');
     }
-    if (!(await this.feature.isEnabled())) return { ok: true, handled: false };
     const ev = obj(JSON.parse((rawBody as Buffer).toString('utf8')));
+    if (!isMultiTenant()) return this.handle(ev);
+    // Multi-tenant: chạy dưới công ty đã nối OA này; OA không thuộc công ty nào ⇒ bỏ qua (không rơi về công ty 1).
+    const oaId = zaloEventOaId(ev);
+    const cid = oaId ? await companyIdForRoute('zalo_oa', oaId) : null;
+    const company = cid ? await activeCompanyRef(cid) : null;
+    if (!company) return { ok: true, handled: false };
+    return runWithCompany(company, () => this.handle(ev));
+  }
+
+  private async handle(ev: Obj): Promise<{ ok: true; handled: boolean }> {
+    if (!(await this.feature.isEnabled())) return { ok: true, handled: false };
     const name = str(ev.event_name) ?? '';
     if (INBOUND_RE.test(name)) return { ok: true, handled: await this.onMessage(ev, 'in') };
     if (OUTBOUND_RE.test(name)) return { ok: true, handled: await this.onMessage(ev, 'out') };

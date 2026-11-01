@@ -22,6 +22,7 @@ import {
 import { CUSTOM_ITEM_KEY_PREFIX, withCustomObjectItems } from "@/components/app-shell/menu-custom"
 import { useCustomNav } from "@/hooks/custom-objects/use-custom-objects"
 import { isItemVisible, isChildVisible } from "@/components/nav-visibility"
+import { SINGLE_USER_HIDDEN_NAV_KEYS, useIsSingleUserCompany } from "@/lib/tenant/single-user"
 import { ShellGroupItem, ShellLeafItem } from "@/components/app-shell/sidebar-items"
 import { ShellWorkspaceHeader } from "@/components/app-shell/workspace-header"
 import { ShellQuickActions } from "@/components/app-shell/sidebar-quick-actions"
@@ -72,9 +73,17 @@ export function ShellSidebar() {
   const { features, isLoading: featuresLoading } = useOrgFeatures()
   // Lần tải đầu: chưa biết tính năng nào bật ⇒ tạm ẩn mục có công tắc (tránh menu đầy đủ nháy rồi thu gọn).
   // Tải xong hoặc lỗi ⇒ luật cũ (lỗi = fail-open, bật hết).
+  // Công ty một người (SaaS): không có nhân viên nào khác ⇒ ẩn nhóm Quản lý nhân sự.
+  const singleUser = useIsSingleUserCompany()
   const visibleItems = useMemo(
-    () => baseItems.filter((item) => !(featuresLoading && item.feature) && isItemVisible(item, grants, features)),
-    [baseItems, grants, features, featuresLoading],
+    () =>
+      baseItems.filter(
+        (item) =>
+          !(singleUser && SINGLE_USER_HIDDEN_NAV_KEYS.has(item.key)) &&
+          !(featuresLoading && item.feature) &&
+          isItemVisible(item, grants, features),
+      ),
+    [baseItems, grants, features, featuresLoading, singleUser],
   )
 
   // Trạng thái "đang sáng" tính TẬP TRUNG 1 lần cho cả menu — href khớp DÀI

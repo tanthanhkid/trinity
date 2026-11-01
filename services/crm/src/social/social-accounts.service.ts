@@ -1,5 +1,5 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { PrismaService, assertRouteAvailableForCurrentCompany, rememberOauthState } from '@trinity/prisma';
 import type { AuthUser } from '@trinity/rbac-nest';
 import type { SocialAccount } from '@prisma/client';
 import { pkceS256, randomToken } from '../integrations/oauth/oauth-crypto';
@@ -101,7 +101,7 @@ export class SocialAccountsService {
     return toAccountView(await this.prisma.socialAccount.update({ where: { id }, data: { status: 'active', last_error: null } }));
   }
 
-  connectUrl(network: SocialNetwork, actor: AuthUser): { url: string } {
+  async connectUrl(network: SocialNetwork, actor: AuthUser): Promise<{ url: string }> {
     const p = this.providers.get(network);
     if (!p.supported) throw new BadRequestException(`${NETWORK_LABELS[network]} chưa hỗ trợ.`);
     const base = socialBaseUrl();
@@ -109,6 +109,8 @@ export class SocialAccountsService {
     this.key();
     const verifier = p.usesPkce ? randomToken(48) : undefined;
     const state = signSocialState(actor.userId, network, verifier);
+    // Multi-tenant: callback công khai chọn công ty theo `state`.
+    await rememberOauthState(state);
     return { url: p.authorizeUrl(state, socialRedirectUri(base, network), verifier ? pkceS256(verifier) : undefined) };
   }
 
@@ -121,7 +123,16 @@ export class SocialAccountsService {
     if (!p.supported || !p.configured() || !base) throw new ServiceUnavailableException(`Chưa cấu hình ${NETWORK_LABELS[network]} trên máy chủ.`);
     const key = this.key();
     const accounts = await p.exchange(code, socialRedirectUri(base, network), st.verifier);
+    let skipped = 0;
     for (const a of accounts) {
+      if (network === 'facebook') {
+        // Một Fanpage chỉ một công ty: Page đã thuộc công ty khác thì bỏ qua (không lưu token của họ vào công ty này).
+        const free = await assertRouteAvailableForCurrentCompany('facebook_page', a.external_id).then(() => true, () => false);
+        if (!free) {
+          skipped++;
+          continue;
+        }
+      }
       const existing = await this.prisma.socialAccount.findUnique({ where: { network_external_id: { network, external_id: a.external_id } }, select: { status: true } });
       const data = {
         name: a.name.slice(0, 200),
@@ -140,8 +151,9 @@ export class SocialAccountsService {
         update: { ...data, ...reactivate },
       });
     }
-    this.logger.log(`Liên kết ${network}: ${accounts.length} tài khoản (user ${st.userId})`);
-    return { connected: accounts.length };
+    if (skipped && skipped === accounts.length) throw new ConflictException('Trang Facebook này đã được một công ty khác kết nối với Trinity');
+    this.logger.log(`Liên kết ${network}: ${accounts.length - skipped} tài khoản (user ${st.userId})`);
+    return { connected: accounts.length - skipped };
   }
 
   /** Gỡ kênh: xoá token, bài hẹn giờ còn chờ trên kênh này chuyển "đã huỷ". */

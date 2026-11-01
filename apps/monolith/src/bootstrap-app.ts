@@ -6,6 +6,7 @@ import { requestPathMiddleware } from './request-path.context'
 import { ServiceAwareValidationPipe } from './service-aware-validation.pipe'
 import { LoggingInterceptor, ElkExceptionFilter } from '@trinity/logger'
 import { auditRoutes } from '@trinity/rbac-nest'
+import { ensurePlatform, isMultiTenant, migrateAllCompanies, runInTenantScope } from '@trinity/prisma'
 
 // BigInt không serialize được mặc định trong JSON (cùng cách làm ở entrypoint của các service)
 // eslint-disable-next-line @typescript-eslint/no-redeclare
@@ -75,6 +76,14 @@ export async function configureApp(
   app.useBodyParser('urlencoded', { extended: true, limit: '5mb' })
 
   opts.afterBodyParser?.()
+
+  // Multi-tenant: every request gets its own (empty) company scope; the JWT guard / public-route resolvers bind
+  // it. Registered after the body parsers so the scope is the one the route handlers run in.
+  app.use((_req: unknown, _res: unknown, next: () => void) => runInTenantScope(next))
+  if (isMultiTenant()) {
+    await ensurePlatform()
+    await migrateAllCompanies((msg) => console.log(`[tenant] ${msg}`))
+  }
 
   app.enableCors({ origin: corsOrigin, credentials: true })
   app.setGlobalPrefix('api/v1')

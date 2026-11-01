@@ -1,5 +1,5 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, tenantKey } from '@trinity/prisma';
 import { Prisma } from '@prisma/client';
 import Redis from 'ioredis';
 import { ScopeService } from '@trinity/rbac-nest';
@@ -165,7 +165,7 @@ export class DashboardTrendService {
 
   private async readCache(key: string): Promise<DashboardTrendResult | null> {
     try {
-      const raw = await this.redis.get(key);
+      const raw = await this.redis.get(tenantKey(key));
       return raw ? (JSON.parse(raw) as DashboardTrendResult) : null;
     } catch (e) {
       this.logger.warn(`Redis đọc lỗi (bỏ cache, vẫn trả số thật): ${String(e)}`);
@@ -175,7 +175,7 @@ export class DashboardTrendService {
 
   private async writeCache(key: string, value: DashboardTrendResult): Promise<void> {
     try {
-      await this.redis.setex(key, TREND_CACHE_TTL_SEC, JSON.stringify(value));
+      await this.redis.setex(tenantKey(key), TREND_CACHE_TTL_SEC, JSON.stringify(value));
     } catch (e) {
       this.logger.warn(`Redis ghi lỗi (bỏ qua): ${String(e)}`);
     }

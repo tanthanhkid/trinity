@@ -17,7 +17,13 @@ interface Placed {
 type Line = Product & { qty: number }
 
 const vnd = (n: number) => `${n.toLocaleString("vi-VN")}đ`
-const api = (path: string, init?: RequestInit) => fetch(`/api/v1/store/public${path}`, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } })
+/** Multi-tenant: link cửa hàng của công ty ≠ 1 mang `?cid=`; chuyển tiếp cho API để máy chủ tìm đúng công ty. */
+const companyHint = (): Record<string, string> => {
+  if (typeof window === "undefined") return {}
+  const cid = new URLSearchParams(window.location.search).get("cid")
+  return cid && /^\d{1,9}$/.test(cid) ? { "x-trinity-company": cid } : {}
+}
+const api = (path: string, init?: RequestInit) => fetch(`/api/v1/store/public${path}`, { ...init, headers: { "content-type": "application/json", ...companyHint(), ...(init?.headers ?? {}) } })
 
 /** Ba giao diện = bộ biến (nền, chữ, bo góc, phông, kiểu nút). Màu chủ đạo do chủ shop chọn. */
 interface Theme { bg: string; surface: string; ink: string; muted: string; line: string; radius: string; btnRadius: string; heading: string; body: string; weight: number }

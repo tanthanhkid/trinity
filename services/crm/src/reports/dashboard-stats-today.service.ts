@@ -1,5 +1,5 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, tenantKey } from '@trinity/prisma';
 import { Prisma } from '@prisma/client';
 import Redis from 'ioredis';
 import type { Scope } from '@trinity/rbac';
@@ -103,7 +103,7 @@ export class DashboardStatsTodayService {
 
   private async getFromRedis(key: string): Promise<DashboardStatsTodayResult | null> {
     try {
-      const raw = await this.redis.get(key);
+      const raw = await this.redis.get(tenantKey(key));
       if (!raw) return null;
       return JSON.parse(raw) as DashboardStatsTodayResult;
     } catch (err) {
@@ -114,7 +114,7 @@ export class DashboardStatsTodayService {
 
   private async setInRedis(key: string, data: DashboardStatsTodayResult): Promise<void> {
     try {
-      await this.redis.set(key, JSON.stringify(data), 'EX', CACHE_TTL_SEC);
+      await this.redis.set(tenantKey(key), JSON.stringify(data), 'EX', CACHE_TTL_SEC);
     } catch (err) {
       this.logger.warn(`Redis set failed (${key}): ${err instanceof Error ? err.message : err}`);
     }

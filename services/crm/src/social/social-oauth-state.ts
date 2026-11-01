@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { safeEqual } from '../integrations/oauth/oauth-crypto';
 import { isSocialNetwork, type SocialNetwork } from './social.config';
+import { stateCompanyClaim, stateCompanyMatches } from '../common/helpers/tenant-hint';
 
 const TTL_SEC = 10 * 60;
 
@@ -17,6 +18,8 @@ function key(): Buffer {
 export function signSocialState(userId: number, network: SocialNetwork, verifier?: string, now = Date.now()): string {
   const claims: Record<string, unknown> = { u: userId, n: network, e: Math.floor(now / 1000) + TTL_SEC };
   if (verifier) claims.v = verifier;
+  const company = stateCompanyClaim();
+  if (company !== undefined) claims.c = company;
   const body = Buffer.from(JSON.stringify(claims)).toString('base64url');
   return `${body}.${createHmac('sha256', key()).update(body).digest('base64url')}`;
 }
@@ -26,9 +29,10 @@ export function verifySocialState(state: string, network: SocialNetwork, now = D
   if (!body || !mac || extra !== undefined) return null;
   if (!safeEqual(mac, createHmac('sha256', key()).update(body).digest('base64url'))) return null;
   try {
-    const c = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as { u?: unknown; n?: unknown; e?: unknown; v?: unknown };
+    const c = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as { u?: unknown; n?: unknown; e?: unknown; v?: unknown; c?: unknown };
     if (typeof c.u !== 'number' || typeof c.e !== 'number' || c.e * 1000 < now) return null;
     if (!isSocialNetwork(c.n) || c.n !== network) return null;
+    if (!stateCompanyMatches(c.c)) return null;
     return { userId: c.u, verifier: typeof c.v === 'string' ? c.v : undefined };
   } catch {
     return null;

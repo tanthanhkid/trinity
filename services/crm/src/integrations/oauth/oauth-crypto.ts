@@ -27,6 +27,8 @@ export interface ConsentClaims {
   h: string;
   /** hạn (epoch giây) */
   e: number;
+  /** company id (multi-tenant): user ids repeat across companies, so the decision must come from the same company. */
+  c?: number;
 }
 
 export function signConsent(claims: ConsentClaims): string {
@@ -42,7 +44,7 @@ export function verifyConsent(token: string, now = Date.now()): ConsentClaims | 
   if (!safeEqual(mac, expected)) return null;
   try {
     const c = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as ConsentClaims;
-    if (typeof c.u !== 'number' || typeof c.h !== 'string' || typeof c.e !== 'number' || c.e * 1000 < now) return null;
+    if (typeof c.u !== 'number' || typeof c.h !== 'string' || typeof c.e !== 'number' || (c.c !== undefined && typeof c.c !== 'number') || c.e * 1000 < now) return null;
     return c;
   } catch {
     return null;

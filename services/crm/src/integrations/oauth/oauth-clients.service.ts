@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { OauthClient, Prisma } from '@prisma/client';
-import { PrismaService } from '@trinity/prisma';
+import { DEFAULT_COMPANY, PrismaService, isMultiTenant, runWithCompany } from '@trinity/prisma';
 import { randomToken, safeEqual, sha256Hex } from './oauth-crypto';
 import { OAuthError } from './oauth-error';
 import { ADVERTISED_SCOPES } from './oauth-config';
@@ -74,6 +74,17 @@ function validateRedirectList(raw: unknown): string[] {
   return Array.from(new Set(uris));
 }
 
+/**
+ * Multi-tenant: OAuth clients form ONE shared registry kept in company 1's schema (`public`). Dynamic client
+ * registration (and CIMD discovery) happens before Trinity knows which company the user belongs to, and a client
+ * (Claude, ChatGPT…) is not company data — codes and tokens are, and they live in each company's own schema.
+ * Every read/write of `oauth_clients` goes through here so it always hits the registry, whatever company the
+ * request is bound to.
+ */
+export function inClientRegistry<T>(fn: () => Promise<T>): Promise<T> {
+  return isMultiTenant() ? runWithCompany(DEFAULT_COMPANY, fn) : fn();
+}
+
 @Injectable()
 export class OauthClientsService {
   private readonly logger = new Logger(OauthClientsService.name);
@@ -94,14 +105,14 @@ export class OauthClientsService {
     if (body.response_types !== undefined && (!Array.isArray(body.response_types) || body.response_types.some((r) => r !== 'code'))) {
       throw new OAuthError('invalid_client_metadata', 'response_types chỉ hỗ trợ code');
     }
-    if ((await this.prisma.oauthClient.count({ where: { kind: 'dcr' } })) >= MAX_DCR_CLIENTS) {
+    if ((await inClientRegistry(() => this.prisma.oauthClient.count({ where: { kind: 'dcr' } }))) >= MAX_DCR_CLIENTS) {
       throw new OAuthError('temporarily_unavailable', 'Máy chủ đang tạm dừng đăng ký client mới', 503);
     }
     const name = str(body.client_name, 200) ?? 'Ứng dụng chưa đặt tên';
     const scope = typeof body.scope === 'string' ? body.scope.split(/\s+/).filter((s) => ADVERTISED_SCOPES.includes(s)).join(' ') : undefined;
     const clientId = `trn_c_${randomToken(18)}`;
     const secret = method === 'client_secret_post' ? `trn_s_${randomToken(32)}` : null;
-    const row = await this.prisma.oauthClient.create({
+    const row = await inClientRegistry(() => this.prisma.oauthClient.create({
       data: {
         client_id: clientId,
         kind: 'dcr',
@@ -113,7 +124,7 @@ export class OauthClientsService {
         client_secret_hash: secret ? sha256Hex(secret) : null,
         metadata: { grant_types: grants, scope: scope ?? '' } as Prisma.InputJsonObject,
       },
-    });
+    }));
     return {
       client_id: row.client_id,
       client_id_issued_at: Math.floor(row.created_at.getTime() / 1000),
@@ -133,7 +144,7 @@ export class OauthClientsService {
    */
   async resolve(clientId: string, allowFetch: boolean, env: NodeJS.ProcessEnv = process.env): Promise<OauthClient> {
     if (!clientId || clientId.length > MAX_CLIENT_ID_LEN) throw new OAuthError('invalid_client', 'client_id không hợp lệ', 401);
-    const row = await this.prisma.oauthClient.findUnique({ where: { client_id: clientId } });
+    const row = await inClientRegistry(() => this.prisma.oauthClient.findUnique({ where: { client_id: clientId } }));
     if (!isCimdClientId(clientId, env)) {
       if (!row || row.kind !== 'dcr') throw new OAuthError('invalid_client', 'client_id không tồn tại', 401);
       return row;
@@ -185,7 +196,7 @@ export class OauthClientsService {
       metadata_fetched_at: now,
       metadata_expires_at: new Date(now.getTime() + ttl * 1000),
     };
-    return this.prisma.oauthClient.upsert({ where: { client_id: clientId }, create: { client_id: clientId, ...data }, update: data });
+    return inClientRegistry(() => this.prisma.oauthClient.upsert({ where: { client_id: clientId }, create: { client_id: clientId, ...data }, update: data }));
   }
 
   /** Xác thực client ở endpoint token/revoke: public ⇒ chỉ cần tồn tại; `client_secret_post` ⇒ phải đúng secret. */
@@ -201,6 +212,6 @@ export class OauthClientsService {
   async touch(client: OauthClient): Promise<void> {
     const last = client.last_used_at?.getTime() ?? 0;
     if (Date.now() - last < LAST_USED_THROTTLE_MS) return;
-    await this.prisma.oauthClient.update({ where: { id: client.id }, data: { last_used_at: new Date() }, select: { id: true } }).catch(() => undefined);
+    await inClientRegistry(() => this.prisma.oauthClient.update({ where: { id: client.id }, data: { last_used_at: new Date() }, select: { id: true } })).catch(() => undefined);
   }
 }

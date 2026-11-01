@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { safeEqual } from '../integrations/oauth/oauth-crypto';
+import { currentCompanyId } from '@trinity/prisma';
 import type { SocialMedia } from './providers/provider.types';
 
 /** Hạn link: đủ cho mạng tải tệp (Instagram tải video có khi vài phút), không để link sống lâu. */
@@ -13,21 +14,25 @@ function key(): Buffer {
 
 /**
  * Link tải tệp CÔNG KHAI có chữ ký cho mạng chỉ nhận ảnh/video qua URL (Instagram). Chứa key tệp + loại + hạn, ký HMAC;
- * không đăng nhập vẫn tải được nhưng chỉ đúng tệp đó, tới hết hạn.
+ * không đăng nhập vẫn tải được nhưng chỉ đúng tệp đó, tới hết hạn. Multi-tenant: token mang luôn công ty (`c`) — route công khai
+ * chỉ mở tệp khi công ty trong token trùng công ty mà gợi ý `?cid=` đã chọn (token công ty này không mở được tệp công ty khác).
  */
 export function signMediaLink(m: Pick<SocialMedia, 'key' | 'content_type'>, now = Date.now()): string {
-  const body = Buffer.from(JSON.stringify({ k: m.key, t: m.content_type, e: Math.floor(now / 1000) + MEDIA_LINK_TTL_SEC })).toString('base64url');
+  const body = Buffer.from(JSON.stringify({ k: m.key, t: m.content_type, e: Math.floor(now / 1000) + MEDIA_LINK_TTL_SEC, c: currentCompanyId() ?? 1 })).toString('base64url');
   return `${body}.${createHmac('sha256', key()).update(body).digest('base64url')}`;
 }
 
-export function verifyMediaLink(token: string, now = Date.now()): { key: string; contentType: string } | null {
+export function verifyMediaLink(token: string, now = Date.now()): { key: string; contentType: string; companyId: number } | null {
   const [body, mac, extra] = token.split('.');
   if (!body || !mac || extra !== undefined) return null;
   if (!safeEqual(mac, createHmac('sha256', key()).update(body).digest('base64url'))) return null;
   try {
-    const c = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as { k?: unknown; t?: unknown; e?: unknown };
+    const c = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as { k?: unknown; t?: unknown; e?: unknown; c?: unknown };
     if (typeof c.k !== 'string' || typeof c.t !== 'string' || typeof c.e !== 'number' || c.e * 1000 < now) return null;
-    return { key: c.k, contentType: c.t };
+    // Token cấp trước multi-tenant không có `c` ⇒ công ty 1.
+    const companyId = c.c === undefined ? 1 : c.c;
+    if (typeof companyId !== 'number' || !Number.isInteger(companyId) || companyId < 1) return null;
+    return { key: c.k, contentType: c.t, companyId };
   } catch {
     return null;
   }

@@ -3,6 +3,7 @@ import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { loadGoogleConfig } from './google-config';
 import { GoogleFeatureService } from './google-feature.service';
 import { GoogleSyncService } from './google-sync.service';
+import { tenantTimerTick } from '../common/helpers/tenant-timer';
 
 const TICK_MS = 60_000;
 const FIRST_DELAY_MS = 90_000;
@@ -14,6 +15,8 @@ const FIRST_DELAY_MS = 90_000;
 @Injectable()
 export class GoogleSyncScheduler implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(GoogleSyncScheduler.name);
+  /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
+  private readonly timerTick = tenantTimerTick(this.logger, 'Google sheet-sync', () => this.tick());
   private interval: ReturnType<typeof setInterval> | null = null;
   private first: ReturnType<typeof setTimeout> | null = null;
 
@@ -26,8 +29,8 @@ export class GoogleSyncScheduler implements OnModuleInit, OnModuleDestroy {
       run: async () => (loadGoogleConfig() ? this.tick() : { skipped: 'google-not-configured' }),
     });
     if (isServerless() || !loadGoogleConfig()) return;
-    this.first = setTimeout(() => void this.tick(), FIRST_DELAY_MS);
-    this.interval = setInterval(() => void this.tick(), TICK_MS);
+    this.first = setTimeout(() => void this.timerTick(), FIRST_DELAY_MS);
+    this.interval = setInterval(() => void this.timerTick(), TICK_MS);
     this.first.unref();
     this.interval.unref();
   }

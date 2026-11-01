@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import * as path from 'node:path';
+import { requireCompany } from '@trinity/prisma';
 import { createUploadsStore, type UploadsStore } from '@trinity/storage';
 
 /** Trần dung lượng ảnh minh hoạ sản phẩm — khớp FE `PRODUCT_IMAGE_MAX_BYTES`. */
@@ -48,6 +49,15 @@ function uploadsStoreFor(root?: string): UploadsStore {
   return createUploadsStore(root ? { localRoot: path.join(root, 'uploads') } : {});
 }
 
+/**
+ * Thư mục ảnh sản phẩm của công ty hiện tại (multi-tenant): công ty 1 giữ `products/` cũ, công ty khác
+ * `c<id>/products/` — ảnh của công ty này không bao giờ bị lệnh xoá của công ty khác chạm tới.
+ */
+function productImageDir(): string {
+  const { id } = requireCompany('ảnh sản phẩm');
+  return id === 1 ? PRODUCT_IMAGE_SUBDIR : `c${id}/${PRODUCT_IMAGE_SUBDIR}`;
+}
+
 /** Lưu ảnh đã validate xuống kho uploads, trả URL tương đối `/uploads/products/<tên>` để gán vào `image_url`. */
 export async function saveProductImage(
   file: Express.Multer.File | undefined,
@@ -64,12 +74,13 @@ export async function saveProductImage(
     throw new BadRequestException('Định dạng ảnh không hợp lệ. Chỉ chấp nhận JPG, PNG, WebP, GIF.');
   }
   const name = `${Date.now()}_${randomBytes(6).toString('hex')}.${kind.ext}`;
-  await uploadsStoreFor(root).save(`${PRODUCT_IMAGE_SUBDIR}/${name}`, file.buffer, kind.mime);
-  return { image_url: `/uploads/${PRODUCT_IMAGE_SUBDIR}/${name}` };
+  const dir = productImageDir();
+  await uploadsStoreFor(root).save(`${dir}/${name}`, file.buffer, kind.mime);
+  return { image_url: `/uploads/${dir}/${name}` };
 }
 
 /** Chỉ nhận đúng dạng do `saveProductImage` sinh ra — chặn `..`, đường dẫn tuyệt đối, URL ngoài. */
-const OWN_IMAGE_URL = /^\/uploads\/products\/([A-Za-z0-9_-]+\.(?:jpg|png|webp|gif))$/;
+const OWN_IMAGE_URL = /^\/uploads\/(?:(c[0-9]+)\/)?products\/([A-Za-z0-9_-]+\.(?:jpg|png|webp|gif))$/;
 
 /**
  * Xoá file ảnh trên đĩa của sản phẩm vừa bị xoá cứng. Best-effort: chỉ file do chính
@@ -82,5 +93,8 @@ export async function deleteProductImageFile(
 ): Promise<boolean> {
   const m = imageUrl ? OWN_IMAGE_URL.exec(imageUrl) : null;
   if (!m) return false;
-  return uploadsStoreFor(root).remove(`${PRODUCT_IMAGE_SUBDIR}/${m[1]}`);
+  // Chỉ xoá ảnh trong thư mục của CHÍNH công ty hiện tại.
+  const dir = productImageDir();
+  if ((m[1] ? `${m[1]}/${PRODUCT_IMAGE_SUBDIR}` : PRODUCT_IMAGE_SUBDIR) !== dir) return false;
+  return uploadsStoreFor(root).remove(`${dir}/${m[2]}`);
 }

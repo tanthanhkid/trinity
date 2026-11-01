@@ -6,7 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService, recordEmploymentEnd, recordEmploymentStart, recordEmploymentStatusChange } from '@trinity/prisma';
+import { PrismaService, recordEmploymentEnd, recordEmploymentStart, recordEmploymentStatusChange, assertEmailAvailableForCurrentCompany, requireCompany } from '@trinity/prisma';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as path from 'path';
@@ -34,7 +34,15 @@ import { isSubset } from '@trinity/rbac';
 // Settings Users và /auth/me — base64 ~2.7MB/ảnh × 25 dòng/trang = payload bomb).
 // Base64 từ FE được chuyển thành file JPEG 200×200 đặt trong uploads/avatars của service AUTH
 // (nơi serve /uploads qua useStaticAssets + web proxy /uploads/[...path]) — DB chỉ giữ đường dẫn.
-const AVATAR_URL_PREFIX = '/uploads/avatars/';
+/**
+ * Thư mục avatar của công ty hiện tại trong kho uploads (multi-tenant): công ty 1 giữ `avatars/` cũ, công ty khác
+ * `c<id>/avatars/` — tên file trùng/đoán được giữa các công ty không chạm được file của nhau (kể cả lệnh xoá).
+ */
+const avatarSubdir = (): string => {
+  const { id } = requireCompany('avatar nhân viên');
+  return id === 1 ? 'avatars/' : `c${id}/avatars/`;
+};
+const avatarUrlPrefix = (): string => `/uploads/${avatarSubdir()}`;
 const AVATAR_DIR =
   process.env.EMPLOYEE_AVATAR_DIR ??
   path.resolve(process.cwd(), '..', 'auth', 'uploads', 'avatars');
@@ -931,6 +939,8 @@ export class EmployeesService {
     if (!existingUser || existingUser.deleted_at != null) {
       await assertUserSlotAvailable(this.prisma);
     }
+    // Multi-tenant: an email belongs to one company only (login looks the company up by email).
+    if (!existingUser) await assertEmailAvailableForCurrentCompany(dto.email);
 
     // 2. Tạo/tái dùng User + Employee trong cùng 1 transaction (CRM và Auth dùng chung DB)
     const passwordHash = await bcrypt.hash(dto.password || randomBytes(16).toString('hex'), 10);
@@ -1229,7 +1239,7 @@ export class EmployeesService {
   ): Promise<string | null | undefined> {
     if (input === undefined) return undefined;
     if (input === null || input.trim() === '') return null;
-    if (input.startsWith(AVATAR_URL_PREFIX)) {
+    if (input.startsWith('/uploads/')) {
       if (currentAvatar && input === currentAvatar) return input;
       throw new BadRequestException('Ảnh đại diện không hợp lệ');
     }
@@ -1248,21 +1258,23 @@ export class EmployeesService {
         .resize(200, 200, { fit: 'cover' })
         .jpeg({ quality: 80 })
         .toBuffer();
-      await avatarStore().save(`avatars/${fileName}`, jpeg, 'image/jpeg');
+      await avatarStore().save(`${avatarSubdir()}${fileName}`, jpeg, 'image/jpeg');
     } catch (err) {
       this.logger.warn(`Không xử lý được ảnh avatar: ${(err as Error).message}`);
       throw new BadRequestException(
         'Không đọc được file ảnh — vui lòng chọn ảnh JPG, PNG hoặc WebP hợp lệ',
       );
     }
-    return AVATAR_URL_PREFIX + fileName;
+    return avatarUrlPrefix() + fileName;
   }
 
   /** Xoá file avatar đã lưu (best-effort — file có thể không tồn tại). */
   private async deleteAvatarFile(avatarUrl: string | null | undefined): Promise<void> {
-    if (!avatarUrl || !avatarUrl.startsWith(AVATAR_URL_PREFIX)) return;
+    // Chỉ file trong thư mục avatar của CHÍNH công ty hiện tại (không xoá nhầm file công ty khác).
+    const prefix = avatarUrlPrefix();
+    if (!avatarUrl || !avatarUrl.startsWith(prefix)) return;
     // best-effort — file có thể không tồn tại
-    await avatarStore().remove(`avatars/${path.basename(avatarUrl)}`);
+    await avatarStore().remove(`${avatarSubdir()}${path.basename(avatarUrl)}`);
   }
 
   async lock(id: number, caller: AuthUser) {

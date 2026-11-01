@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { OauthClient } from '@prisma/client';
-import { IntegrationAuditService, PrismaService } from '@trinity/prisma';
+import { IntegrationAuditService, PrismaService, requireCompany } from '@trinity/prisma';
 import { PermissionService } from '@trinity/rbac-nest';
 import { can } from '@trinity/rbac';
 import { ACCESS_TTL_SEC, OAUTH_SCOPES, REFRESH_TTL_MS, isCanonicalResource, publicBaseUrl, type OauthScope } from './oauth-config';
 import { CODE_VERIFIER_RE, pkceS256, randomToken, safeEqual, sha256Hex } from './oauth-crypto';
 import { OAuthError } from './oauth-error';
 import { OauthClientsService } from './oauth-clients.service';
+import { enterTokenCompany, withCompanyPrefix } from '../../common/helpers/company-token';
 
 export interface TokenResponse {
   access_token: string;
@@ -47,6 +48,11 @@ export class OauthTokenService {
       throw new OAuthError('unsupported_grant_type', 'Chỉ hỗ trợ authorization_code và refresh_token');
     }
     const client = await this.clients.authenticate(s(body.client_id) ?? '', s(body.client_secret));
+    // Multi-tenant: the code / refresh token names its company; every lookup below runs in that company's schema.
+    const secret = s(grant === 'authorization_code' ? body.code : body.refresh_token);
+    if (secret && !(await enterTokenCompany(secret))) {
+      throw invalidGrant(grant === 'authorization_code' ? 'Mã uỷ quyền không hợp lệ, đã hết hạn hoặc đã dùng' : 'refresh_token không hợp lệ');
+    }
     const out = grant === 'authorization_code' ? await this.exchangeCode(client, body) : await this.refresh(client, body);
     await this.clients.touch(client);
     return out;
@@ -146,8 +152,10 @@ export class OauthTokenService {
   }
 
   private async issue(p: { clientId: string; userId: number; scopes: string[]; resource: string; familyId: string }): Promise<TokenResponse> {
-    const access = `trn_at_${randomToken(32)}`;
-    const refresh = `trn_rt_${randomToken(32)}`;
+    // Company prefix (`c<id>.`, none for company 1) — see common/helpers/company-token.ts.
+    const companyId = requireCompany('OAuth token').id;
+    const access = withCompanyPrefix(`trn_at_${randomToken(32)}`, companyId);
+    const refresh = withCompanyPrefix(`trn_rt_${randomToken(32)}`, companyId);
     const now = Date.now();
     const created = await this.prisma.oauthToken.create({
       data: {
@@ -176,7 +184,7 @@ export class OauthTokenService {
   async revoke(body: Record<string, unknown>): Promise<void> {
     const raw = s(body.token);
     const client = await this.clients.authenticate(s(body.client_id) ?? '', s(body.client_secret));
-    if (!raw) return;
+    if (!raw || !(await enterTokenCompany(raw))) return;
     const h = sha256Hex(raw);
     const row = await this.prisma.oauthToken.findFirst({ where: { OR: [{ access_hash: h }, { refresh_hash: h }] }, select: { family_id: true, client_id: true, user_id: true } });
     if (!row || row.client_id !== client.client_id) return;
@@ -190,6 +198,8 @@ export class OauthTokenService {
    */
   async verifyAccessToken(raw: string): Promise<VerifiedAccessToken | null> {
     if (!raw || raw.length > 256) return null;
+    // Bind the request to the token's company first (unknown/suspended company ⇒ null ⇒ 401).
+    if (!(await enterTokenCompany(raw))) return null;
     const row = await this.prisma.oauthToken.findUnique({ where: { access_hash: sha256Hex(raw) } });
     if (!row || row.revoked_at || row.access_expires_at.getTime() <= Date.now()) return null;
     const base = publicBaseUrl();

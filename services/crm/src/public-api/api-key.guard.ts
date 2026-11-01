@@ -11,6 +11,7 @@ import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import * as crypto from 'crypto';
 import { PrismaService } from '@trinity/prisma';
+import { enterTokenCompany } from '../common/helpers/company-token';
 
 // API key lưu sẵn có thể còn chuỗi scope không còn dùng trong `scopes[]` — vô hại.
 export type ApiKeyScope =
@@ -63,10 +64,12 @@ export class ApiKeyGuard implements CanActivate {
       throw new UnauthorizedException('Thiếu X-API-Key header');
     }
 
-    const hash = crypto
-      .createHash('sha256')
-      .update(rawKey.trim())
-      .digest('hex');
+    const key = rawKey.trim();
+    // Multi-tenant: `c<id>.` names the company (none = company 1). Look the key up in THAT company's schema only.
+    if (!(await enterTokenCompany(key))) {
+      throw new UnauthorizedException('X-API-Key không hợp lệ');
+    }
+    const hash = crypto.createHash('sha256').update(key).digest('hex');
 
     const record = await this.prisma.apiKey.findUnique({
       where: { key_hash: hash },

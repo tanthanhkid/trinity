@@ -33,6 +33,16 @@ If the reverse proxy only forwards `/api/v1/` to the monolith and `/` to the web
 * DCR: 10 registrations/hour/IP, a cap of 5000 clients, unused DCR clients are cleaned up after 7 days. The consent page always shows the **host of the redirect_uri**; the "recognized" label appears only when the redirect is exactly `chatgpt.com`/`claude.ai`.
 * MCP: `Origin` check (anti DNS rebinding): allowed only when there is NO Origin, or it is the base URL / `chatgpt.com` / `chat.openai.com` / `claude.ai` / `INTEGRATIONS_MCP_ALLOWED_ORIGINS`.
 
+### Multi-tenant hosting (`MULTI_TENANT=true`)
+
+Each company has its own Postgres schema; authorization codes and access/refresh tokens live in the company's schema, so every step must find the right company before it looks anything up:
+
+* **Clients are a shared registry** in company 1's schema (`public`). Dynamic client registration and CIMD discovery happen before Trinity knows who the user is, and a client (Claude, ChatGPT…) is not company data. Every read/write of `oauth_clients` goes through `inClientRegistry()` in `oauth-clients.service.ts`, whatever company the request is bound to. `.well-known` metadata is unchanged.
+* **Codes and tokens carry their company**: `c<id>.` + the old format (e.g. `c5.trn_at_…`). Company 1 keeps the unprefixed format, so tokens issued before multi-tenancy keep working. The consent page runs with the user's JWT, so `/oauth/authorize/decision` knows the company and mints `c<id>.<code>`; the consent token is also bound to the company (user ids repeat across companies).
+* **Receiving side** (`/oauth/token`, `/oauth/revoke`, `/mcp`): split the prefix → active company (unknown or suspended ⇒ `invalid_grant` / `401`) → bind the request to it → hash the FULL token (prefix included) and look it up in that schema only. Rewriting the prefix of company A's token to company B therefore finds nothing. A `?cid=` hint that disagrees with the token is rejected.
+* Per-user rate limits are keyed by company as well.
+* Public API keys follow the same rule: new keys are `c<id>.trinity_live_…` (company 1: `trinity_live_…`), and the API-key guards bind the company from the prefix before the hash lookup.
+
 ## Tools (all `readOnlyHint: true`, Vietnamese + English descriptions, with outputSchema)
 
 | Tool | Permission needed | Notes |

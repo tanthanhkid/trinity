@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, assertRouteAvailableForCurrentCompany, rememberOauthState } from '@trinity/prisma';
+import { rethrowRouteTaken } from '../common/helpers/route-taken';
 import type { ZaloOaConnection } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 import { decryptSecret, encryptSecret, loadSecretKey } from '../integrations/webhooks/secret-crypto';
@@ -29,7 +30,8 @@ export interface ZaloOaStatus {
 @Injectable()
 export class ZaloOaTokenService {
   private readonly logger = new Logger(ZaloOaTokenService.name);
-  private inflight: Promise<string> | null = null;
+  /** Single-flight theo OA (multi-tenant: mỗi công ty một OA khác nhau, không dùng chung lời làm mới). */
+  private readonly inflight = new Map<string, Promise<string>>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -46,6 +48,8 @@ export class ZaloOaTokenService {
     await this.prisma.zaloOaOauthState.create({
       data: { state, code_verifier_enc: encryptSecret(verifier, key), user_id: userId, expires_at: new Date(Date.now() + OAUTH_STATE_TTL_MS) },
     });
+    // Multi-tenant: callback công khai chọn công ty theo `state`.
+    await rememberOauthState(state);
     const q = new URLSearchParams({
       app_id: cfg.appId as string,
       redirect_uri: cfg.redirectUri as string,
@@ -64,6 +68,8 @@ export class ZaloOaTokenService {
     const st = await this.prisma.zaloOaOauthState.findUnique({ where: { state } });
     await this.prisma.zaloOaOauthState.deleteMany({ where: { state } });
     if (!st || st.expires_at.getTime() < Date.now()) throw new BadRequestException('Phiên cấp quyền không hợp lệ hoặc đã hết hạn — hãy thử kết nối lại');
+    // Một OA chỉ một công ty (trigger DB vẫn là chốt chặn cứng).
+    await assertRouteAvailableForCurrentCompany('zalo_oa', oaId);
     const key = this.key();
     const tokens = await this.api.exchangeCode(cfg.appId as string, cfg.appSecret as string, code, decryptSecret(st.code_verifier_enc, key));
     await this.save(oaId, tokens, st.user_id);
@@ -89,7 +95,9 @@ export class ZaloOaTokenService {
       last_error: null,
       last_refreshed_at: new Date(),
     };
-    await this.prisma.zaloOaConnection.upsert({ where: { oa_id: oaId }, create: { oa_id: oaId, connected_by: userId, ...data }, update: data });
+    await this.prisma.zaloOaConnection
+      .upsert({ where: { oa_id: oaId }, create: { oa_id: oaId, connected_by: userId, ...data }, update: data })
+      .catch(rethrowRouteTaken('zalo_oa'));
   }
 
   getConnection(): Promise<ZaloOaConnection | null> {
@@ -106,10 +114,14 @@ export class ZaloOaTokenService {
   }
 
   private refreshShared(conn: ZaloOaConnection): Promise<string> {
-    this.inflight ??= this.refresh(conn).finally(() => {
-      this.inflight = null;
-    });
-    return this.inflight;
+    let p = this.inflight.get(conn.oa_id);
+    if (!p) {
+      p = this.refresh(conn).finally(() => {
+        this.inflight.delete(conn.oa_id);
+      });
+      this.inflight.set(conn.oa_id, p);
+    }
+    return p;
   }
 
   private async refresh(conn: ZaloOaConnection): Promise<string> {

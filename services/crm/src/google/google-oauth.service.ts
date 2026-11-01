@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { GoogleConnection } from '@prisma/client';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, rememberOauthState } from '@trinity/prisma';
+import { stateCompanyClaim, stateCompanyMatches } from '../common/helpers/tenant-hint';
 import { decryptSecret, encryptSecret, loadSecretKey, IntegrationsKeyError } from '../integrations/webhooks/secret-crypto';
 import {
   GOOGLE_AUTH_URL,
@@ -18,7 +19,10 @@ const SKEW_MS = 60_000;
 
 /** `state` OAuth ký HMAC (không lưu DB): gắn người bấm + hạn 10 phút + nonce — chặn CSRF/replay xa. */
 export function signState(userId: number, key: Buffer, now = Date.now()): string {
-  const body = Buffer.from(JSON.stringify({ u: userId, e: now + STATE_TTL_MS, n: randomBytes(8).toString('hex') })).toString('base64url');
+  const claims: Record<string, unknown> = { u: userId, e: now + STATE_TTL_MS, n: randomBytes(8).toString('hex') };
+  const c = stateCompanyClaim();
+  if (c !== undefined) claims.c = c;
+  const body = Buffer.from(JSON.stringify(claims)).toString('base64url');
   const mac = createHmac('sha256', key).update(`google-oauth-state/v1.${body}`).digest('base64url');
   return `${body}.${mac}`;
 }
@@ -30,8 +34,9 @@ export function verifyState(state: string, key: Buffer, now = Date.now()): { use
   const given = Buffer.from(mac, 'base64url');
   if (given.length !== expect.length || !timingSafeEqual(given, expect)) return null;
   try {
-    const p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as { u?: unknown; e?: unknown };
+    const p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as { u?: unknown; e?: unknown; c?: unknown };
     if (typeof p.u !== 'number' || typeof p.e !== 'number' || p.e < now) return null;
+    if (!stateCompanyMatches(p.c)) return null;
     return { userId: p.u };
   } catch {
     return null;
@@ -79,8 +84,11 @@ export class GoogleOAuthService {
     }
   }
 
-  authUrl(userId: number): string {
+  async authUrl(userId: number): Promise<string> {
     const cfg = this.config();
+    const state = signState(userId, this.key());
+    // Multi-tenant: callback công khai chọn công ty theo `state`.
+    await rememberOauthState(state);
     const q = new URLSearchParams({
       client_id: cfg.clientId,
       redirect_uri: cfg.redirectUri,
@@ -89,7 +97,7 @@ export class GoogleOAuthService {
       access_type: 'offline',
       prompt: 'consent',
       include_granted_scopes: 'true',
-      state: signState(userId, this.key()),
+      state,
     });
     return `${GOOGLE_AUTH_URL}?${q.toString()}`;
   }

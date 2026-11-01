@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { tenantKey } from '@trinity/prisma'
 
 interface BlacklistEntry {
   expiresAt: number
@@ -6,29 +7,31 @@ interface BlacklistEntry {
 
 @Injectable()
 export class TokenBlacklistService {
-  private readonly blacklist = new Map<number, BlacklistEntry>()
+  private readonly blacklist = new Map<string, BlacklistEntry>()
+  // Keys carry the company (`tenantKey`): user ids repeat across companies.
   private readonly TOKEN_TTL_MS = 15 * 60 * 1000 // 15 minutes (access token lifetime)
 
   blacklistUser(userId: number): void {
     this.cleanup()
-    this.blacklist.set(userId, {
+    this.blacklist.set(tenantKey(userId), {
       expiresAt: Date.now() + this.TOKEN_TTL_MS,
     })
   }
 
   isBlacklisted(userId: number): boolean {
     this.cleanup()
-    const entry = this.blacklist.get(userId)
+    const key = tenantKey(userId)
+    const entry = this.blacklist.get(key)
     if (!entry) return false
     if (Date.now() > entry.expiresAt) {
-      this.blacklist.delete(userId)
+      this.blacklist.delete(key)
       return false
     }
     return true
   }
 
   removeUser(userId: number): void {
-    this.blacklist.delete(userId)
+    this.blacklist.delete(tenantKey(userId))
   }
 
   private cleanup(): void {

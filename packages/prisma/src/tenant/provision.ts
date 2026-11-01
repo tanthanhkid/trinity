@@ -55,7 +55,33 @@ export async function migrateAllCompanies(log: (msg: string) => void = () => und
   for (const r of rows) {
     if (latest && r.migrated_to === latest) continue
     log(`migrating company ${r.id} (${r.schema_name})`)
-    await migrateCompanySchema({ id: r.id, schema: r.schema_name })
+    try {
+      await migrateCompanySchema({ id: r.id, schema: r.schema_name })
+    } catch (err) {
+      // One company's failed migration must not take the API down for every other company.
+      log(`company ${r.id} migration FAILED: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+}
+
+/** Sign-ups abandoned mid-way (process killed while migrating) older than this are removed, freeing the email. */
+const STALE_PROVISIONING_MINUTES = 15
+
+async function reapStaleProvisioning(): Promise<void> {
+  const base = getBaseClient()
+  const stale = await base.$queryRawUnsafe<Array<{ id: number; schema_name: string }>>(
+    `SELECT id, schema_name FROM platform.companies
+      WHERE status = 'provisioning' AND created_at < now() - ($1 || ' minutes')::interval`,
+    String(STALE_PROVISIONING_MINUTES),
+  )
+  for (const c of stale) {
+    if (!/^c_[0-9]+$/.test(c.schema_name)) continue
+    await base.$transaction([
+      base.$executeRawUnsafe(`DELETE FROM platform.company_logins WHERE company_id = $1`, c.id),
+      base.$executeRawUnsafe(`DELETE FROM platform.company_routes WHERE company_id = $1`, c.id),
+      base.$executeRawUnsafe(`DROP SCHEMA IF EXISTS "${c.schema_name}" CASCADE`),
+      base.$executeRawUnsafe(`DELETE FROM platform.companies WHERE id = $1 AND status = 'provisioning'`, c.id),
+    ])
   }
 }
 
@@ -81,6 +107,7 @@ export async function provisionCompany(input: ProvisionInput): Promise<Provision
   await ensurePlatform()
   const base = getBaseClient()
   const email = input.adminEmail.trim().toLowerCase()
+  await reapStaleProvisioning()
 
   // Reserve the id and the email first, so two sign-ups with the same email cannot both pass.
   const company = await base.$transaction(async (tx) => {

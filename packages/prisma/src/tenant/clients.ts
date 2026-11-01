@@ -22,11 +22,20 @@ export function getBaseClient(): PrismaClient {
 
 /** DATABASE_URL pointed at one schema (used by the client pool and by the migration runner). */
 export function databaseUrlForSchema(schema: string, connectionLimit?: string): string {
-  const raw = process.env.DATABASE_URL
+  // Company schemas rely on a per-connection search_path (`?schema=`), which a transaction-mode pooler
+  // (PgBouncer, Neon pooled) shares between clients. Use a direct / session-mode URL for them.
+  const raw = process.env.TENANT_DATABASE_URL || process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL
   if (!raw) throw new Error('DATABASE_URL is not set')
   const url = new URL(raw)
+  if (url.searchParams.get('pgbouncer') === 'true' || /-pooler\./.test(url.hostname)) {
+    throw new Error(
+      'Multi-tenant company schemas need a direct or session-mode Postgres URL: set TENANT_DATABASE_URL (or DIRECT_DATABASE_URL)',
+    )
+  }
   url.searchParams.set('schema', schema)
-  if (connectionLimit && !url.searchParams.has('connection_limit')) url.searchParams.set('connection_limit', connectionLimit)
+  // Always ours: a connection_limit meant for the main pool must not multiply by the number of companies.
+  if (connectionLimit) url.searchParams.set('connection_limit', connectionLimit)
+  else url.searchParams.delete('connection_limit')
   return url.toString()
 }
 
@@ -47,7 +56,11 @@ export function clientForSchema(schema: string): PrismaClient {
   return client
 }
 
-/** Disconnects the least recently used clients beyond the cap (never ones used in the last minute). */
+/**
+ * Keeps at most TENANT_MAX_CLIENTS clients: the least recently used ones beyond the cap are disconnected (a
+ * client touched in the last few seconds is spared so a query in flight can finish). Background jobs that walk
+ * every company therefore cycle through the pool instead of growing it.
+ */
 function evictIdle(): void {
   const cap = maxClients()
   if (clients.size <= cap) return
@@ -55,9 +68,10 @@ function evictIdle(): void {
   const byAge = [...clients.entries()].sort((a, b) => a[1].lastUsed - b[1].lastUsed)
   for (const [schema, entry] of byAge) {
     if (clients.size <= cap) break
-    if (now - entry.lastUsed < 60_000) break
+    if (now - entry.lastUsed < 5_000) continue
     clients.delete(schema)
-    void entry.client.$disconnect().catch(() => undefined)
+    // Let queries already queued on it settle before closing.
+    setTimeout(() => void entry.client.$disconnect().catch(() => undefined), 30_000).unref?.()
   }
 }
 

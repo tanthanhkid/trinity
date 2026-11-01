@@ -24,6 +24,7 @@ import {
   hasExplicitCompany,
   isMultiTenant,
   provisionCompany,
+  runWithCompany,
 } from '@trinity/prisma'
 import { isSingleUserCompany } from '@trinity/rbac-nest'
 import type { RegisterDto } from './dto/register.dto'
@@ -526,11 +527,14 @@ export class AuthService {
 
   async refresh(refreshToken: string) {
     const payload = this.verifyRefreshToken(refreshToken)
-    if (isMultiTenant()) {
-      const company = await activeCompanyRef(payload.cid ?? 1)
-      if (!company) throw new UnauthorizedException('Công ty của tài khoản này không còn hoạt động')
-      enterCompany(company)
-    }
+    if (!isMultiTenant()) return this.refreshInCompany(payload)
+    // The token decides the company — run in its own scope, whatever hint (`?cid=`) the public route carried.
+    const company = await activeCompanyRef(payload.cid ?? 1)
+    if (!company) throw new UnauthorizedException('Công ty của tài khoản này không còn hoạt động')
+    return runWithCompany(company, () => this.refreshInCompany(payload))
+  }
+
+  private async refreshInCompany(payload: RefreshPayload) {
     const user = await this.findUserById(payload.sub)
 
     if (!user || user.status !== 'active') {
@@ -937,11 +941,13 @@ export class AuthService {
       this.logger.error(`register failed: ${(err as Error)?.message}`)
       throw new InternalServerErrorException('Chưa tạo được công ty, vui lòng thử lại')
     }
-    enterCompany(company)
-    const user = await this.findUserByEmail(dto.email)
-    if (!user) throw new InternalServerErrorException('Chưa tạo được công ty, vui lòng thử lại')
-    await this.logLoginAttempt(user.id, dto.email, true, ipAddress, 'ok')
-    return this.buildTokenResponse(user, undefined, crypto.randomUUID())
+    // Own scope for the new company (the public route may already carry a fallback or a `?cid=` hint).
+    return runWithCompany(company, async () => {
+      const user = await this.findUserByEmail(dto.email)
+      if (!user) throw new InternalServerErrorException('Chưa tạo được công ty, vui lòng thử lại')
+      await this.logLoginAttempt(user.id, dto.email, true, ipAddress, 'ok')
+      return this.buildTokenResponse(user, undefined, crypto.randomUUID())
+    })
   }
 
   private verifyRefreshToken(token: string): RefreshPayload {

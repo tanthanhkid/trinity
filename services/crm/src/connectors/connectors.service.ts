@@ -73,7 +73,7 @@ export class ConnectorsService {
         settings: r ? (r.settings as Record<string, unknown>) : null,
         last_event_at: r?.last_event_at?.toISOString() ?? null,
         last_error: r?.last_error ?? null,
-        // Multi-tenant: URL dán vào dịch vụ ngoài phải mang `cid` (Shopee/Lazada push là URL chung của app đối tác — chọn công ty theo shop).
+        // Multi-tenant: URL dán vào dịch vụ ngoài phải mang `cid` (Shopee/Lazada push là URL chung của app đối tác — công ty chọn theo shop/seller đã kết nối (registerCompanyRoute)).
         webhook_path: p === 'shopee' || p === 'lazada' ? webhookPath(p) : withCompanyHint(webhookPath(p)),
         secret_key_configured: isSecretKeyConfigured(),
         server_configured: p === 'misa' ? misaAppId() !== null : p === 'shopee' ? shopeeConfig() !== null : p === 'lazada' ? lazadaConfig() !== null : true,

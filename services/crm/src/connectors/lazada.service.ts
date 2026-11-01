@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { PrismaService, rememberOauthState } from '@trinity/prisma';
+import { PrismaService, registerCompanyRoute, rememberOauthState } from '@trinity/prisma';
+import { enterRoutedCompany } from '../common/helpers/routed-company';
 import { decryptSecret, encryptSecret, isSecretKeyConfigured, loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { publicBaseUrl } from '../integrations/oauth/oauth-config';
 import { CommerceSyncService, type SyncOwner } from './commerce-sync.service';
@@ -53,6 +54,8 @@ export class LazadaService {
     const settings: LazadaSettings = same ? { ...(old!.settings as unknown as LazadaSettings), account: t.account } : { seller_id: t.seller_id, account: t.account };
     const data = { status: 'active', credentials_enc: encryptSecret(JSON.stringify(creds), loadSecretKey()), settings: settings as object, last_error: null, connected_by: st.userId };
     await this.prisma.connectorAccount.upsert({ where: { provider: 'lazada' }, update: data, create: { provider: 'lazada', ...data } });
+    // Multi-tenant: pushes arrive on the app's single URL — remember which company this seller belongs to.
+    if (t.seller_id) await registerCompanyRoute('lazada_seller', String(t.seller_id));
     await this.runSync(fetchFn).catch((e) => this.logger.warn(`Lazada đồng bộ lần đầu lỗi: ${(e as Error).message}`));
   }
 
@@ -99,6 +102,7 @@ export class LazadaService {
   async handlePush(raw: Buffer | undefined, auth: string | undefined, body: { seller_id?: string; message_type?: number; data?: { trade_order_id?: string } }, fetchFn: typeof fetch = fetch): Promise<{ ok: boolean; applied: number }> {
     const cfg = lazadaConfig();
     if (!cfg || !verifyLazadaPush(cfg, raw, auth)) return { ok: false, applied: 0 };
+    if (!(await enterRoutedCompany('lazada_seller', body?.seller_id))) return { ok: true, applied: 0 };
     const c = await this.session(fetchFn);
     const orderId = body?.data?.trade_order_id;
     if (!c || body?.message_type !== 0 || !orderId || (c.settings.seller_id && String(body.seller_id) !== String(c.settings.seller_id))) return { ok: true, applied: 0 };

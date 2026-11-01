@@ -17,7 +17,7 @@ import { CompanyRef, DEFAULT_COMPANY, companyRef, currentCompany, isMultiTenant,
  * same email / Page fail at the database.
  */
 
-export type RouteKind = 'facebook_page' | 'zalo_oa' | 'oauth_state'
+export type RouteKind = 'facebook_page' | 'zalo_oa' | 'oauth_state' | 'shopee_shop' | 'lazada_seller'
 
 export interface CompanyRow {
   id: number
@@ -111,7 +111,9 @@ async function doEnsurePlatform(): Promise<void> {
           `SELECT 1 AS ok FROM information_schema.tables WHERE table_schema = $1 AND table_name = 'users'`,
           row.schema_name,
         )
-        if (exists.length) await installSyncTriggers(tx, row.id, row.schema_name)
+        if (exists.length && !(await syncTriggersInstalled(tx, row.schema_name))) {
+          await installSyncTriggers(tx, row.id, row.schema_name)
+        }
       }
     },
     { timeout: 60_000 },
@@ -119,6 +121,24 @@ async function doEnsurePlatform(): Promise<void> {
 }
 
 type Exec = { $executeRawUnsafe(sql: string, ...values: unknown[]): Promise<number> }
+
+/**
+ * Bumped whenever the trigger functions below change. Boot only (re)installs triggers in schemas that lack this
+ * version, so a normal restart takes no table locks.
+ */
+const SYNC_TRIGGER_VERSION = 'trinity-sync-v1'
+
+async function syncTriggersInstalled(
+  tx: { $queryRawUnsafe<T = unknown>(sql: string, ...values: unknown[]): Promise<T> },
+  schema: string,
+): Promise<boolean> {
+  const rows = await tx.$queryRawUnsafe<Array<{ c: string | null }>>(
+    `SELECT obj_description(p.oid, 'pg_proc') AS c FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = $1 AND p.proname = 'trinity_platform_sync_login'`,
+    schema,
+  )
+  return rows[0]?.c === SYNC_TRIGGER_VERSION
+}
 
 /** Triggers that mirror users.email → company_logins and Page/OA ids → company_routes for one company schema. */
 export async function installSyncTriggers(tx: Exec, companyId: number, schema: string): Promise<void> {
@@ -141,6 +161,7 @@ export async function installSyncTriggers(tx: Exec, companyId: number, schema: s
       END IF;
       RETURN NULL;
     END $fn$`)
+  await tx.$executeRawUnsafe(`COMMENT ON FUNCTION ${s}.trinity_platform_sync_login() IS '${SYNC_TRIGGER_VERSION}'`)
   await tx.$executeRawUnsafe(`DROP TRIGGER IF EXISTS trinity_platform_sync_login ON ${s}.users`)
   await tx.$executeRawUnsafe(`
     CREATE TRIGGER trinity_platform_sync_login AFTER INSERT OR DELETE OR UPDATE OF email ON ${s}.users
@@ -297,6 +318,24 @@ export async function rememberOauthState(state: string): Promise<void> {
   // Open flows older than a day are dead.
   await db.$executeRawUnsafe(
     `DELETE FROM platform.company_routes WHERE kind = 'oauth_state' AND created_at < now() - interval '1 day'`,
+  )
+}
+
+/**
+ * Records that `externalId` (a marketplace shop / seller id whose push webhooks arrive on one shared URL) belongs
+ * to the current company. The last company to connect the shop receives its pushes.
+ */
+export async function registerCompanyRoute(kind: 'shopee_shop' | 'lazada_seller', externalId: string): Promise<void> {
+  if (!isMultiTenant() || !externalId) return
+  const c = currentCompany()
+  if (!c) return
+  await ensurePlatform()
+  await getBaseClient().$executeRawUnsafe(
+    `INSERT INTO platform.company_routes (kind, external_id, company_id) VALUES ($1, $2, $3)
+     ON CONFLICT (kind, external_id) DO UPDATE SET company_id = EXCLUDED.company_id, created_at = now()`,
+    kind,
+    externalId.slice(0, 255),
+    c.id,
   )
 }
 

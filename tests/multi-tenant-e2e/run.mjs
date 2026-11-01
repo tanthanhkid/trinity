@@ -81,6 +81,16 @@ await step('company A and company B sign up', async () => {
   return `cid A=${A.cid}, B=${B.cid}`;
 });
 
+await step('a ?cid= hint on the public sign-up route does not break it', async () => {
+  const email = `owner-hint-${stamp}@example.test`;
+  const r = await call('POST', '/auth/register?cid=1', {
+    body: { company_name: `Công ty gợi ý ${stamp}`, full_name: 'Chủ gợi ý', email, password: 'MatKhau-hint-123' },
+    headers: { 'x-trinity-company': '1' },
+  });
+  expect(r.status === 201, `HTTP ${r.status} ${JSON.stringify(r.data)}`);
+  expect(decode(r.data.access_token).cid > 1, 'token should carry the new company');
+});
+
 await step('same email cannot sign up twice', async () => {
   const r = await call('POST', '/auth/register', {
     body: { company_name: 'Trùng', full_name: 'Trùng', email: A.email, password: 'MatKhau-x-123' },

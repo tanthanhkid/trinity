@@ -16,8 +16,9 @@ export class ElkExceptionFilter implements ExceptionFilter {
   constructor(@Inject(ELK_LOGGER) private readonly logger: winston.Logger) {}
 
   catch(rawException: unknown, host: ArgumentsHost): void {
-    const exception = translateTenantError(rawException)
     const ctx = host.switchToHttp()
+    // A signed-in request without a company context is a server bug (500, reported), not "not found".
+    const exception = translateTenantError(rawException, Boolean(ctx.getRequest()?.user))
     const response = ctx.getResponse()
     const request = ctx.getRequest()
 
@@ -94,9 +95,12 @@ export class ElkExceptionFilter implements ExceptionFilter {
  *  - no company context on a public route (unknown `cid`, etc.) → 404, nothing to see here;
  *  - database triggers guarding cross-company uniqueness → 409 with a readable message.
  */
-export function translateTenantError(e: unknown): unknown {
+export function translateTenantError(e: unknown, authenticated = false): unknown {
   if (!(e instanceof Error) || e instanceof HttpException) return e
-  if (e.name === 'MissingCompanyContextError') return new HttpException('Không tìm thấy', HttpStatus.NOT_FOUND)
+  // Signed-in requests always have a company: missing one there is a server bug — keep it a reported 500.
+  if (e.name === 'MissingCompanyContextError') {
+    return authenticated ? e : new HttpException('Không tìm thấy', HttpStatus.NOT_FOUND)
+  }
   const msg = e.message || ''
   if (msg.includes('TRINITY_EMAIL_TAKEN')) {
     return new HttpException('Email này đã được dùng cho một công ty khác trên Trinity', HttpStatus.CONFLICT)

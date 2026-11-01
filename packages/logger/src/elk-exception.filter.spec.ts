@@ -58,6 +58,10 @@ describe('translateTenantError', () => {
     expect(run(new Error('TRINITY_EMAIL_TAKEN: a@b.c')).status).toBe(409)
     expect(run(new Error('TRINITY_SINGLE_USER')).status).toBe(409)
   })
+  it('keeps a missing company context on a signed-in request a 500', () => {
+    const e = new Error('No company context'); e.name = 'MissingCompanyContextError'
+    expect(translateTenantError(e, true)).toBe(e)
+  })
   it('leaves other errors alone', () => {
     const e = new Error('boom')
     expect(translateTenantError(e)).toBe(e)

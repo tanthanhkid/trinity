@@ -13,6 +13,8 @@ other's data or connected channels. Self-hosted installs keep the default single
 | `TENANT_MAX_CLIENTS` | `30` | Database clients kept open at once (one per active company, LRU). |
 | `TENANT_CONNECTION_LIMIT` | `2` | Connections per company client. Size Postgres `max_connections` ≥ `TENANT_MAX_CLIENTS × TENANT_CONNECTION_LIMIT` + the main pool. |
 
+| `TENANT_DATABASE_URL` | `DIRECT_DATABASE_URL`, then `DATABASE_URL` | URL used for company schemas and their migrations. It must be a direct or session-mode connection: company clients rely on a per-connection `search_path`, which a transaction-mode pooler (PgBouncer, Neon pooled) shares between clients, so a pooled URL is refused. |
+
 The database role needs `CREATE` on the database (to create one schema per company).
 
 ## How isolation works
@@ -24,7 +26,8 @@ The database role needs `CREATE` on the database (to create one schema per compa
 - **`PrismaService` routes every query.** It is a proxy that resolves each access against the company of the current
   async context (`AsyncLocalStorage`). With no company in context it throws (fail-closed) — a code path that forgot to
   choose a company errors instead of reading someone else's rows. Background jobs run once per company
-  (`forEachCompany`, `cronRegistry`).
+  (`cronRegistry`): a tick stops starting new companies when the job's budget is spent and the next tick resumes
+  where it stopped, and a company that fails is logged and reported without stopping the others.
 - **Choosing the company of a request**
   - Signed-in requests: the JWT carries `cid`; tokens without it belong to company 1.
   - Login: `platform.company_logins` maps the email to its company (an email belongs to one company only).
@@ -46,7 +49,10 @@ The database role needs `CREATE` on the database (to create one schema per compa
 
 ## Deploying an update
 
-Boot runs `ensurePlatform()` and brings every company schema to the latest migration before serving requests. Run the
+Boot runs `ensurePlatform()` and brings every company schema to the latest migration before serving requests
+(a company whose migration fails is logged; the others keep working). Sync triggers are reinstalled only when
+their version changes, so a restart takes no table locks. A sign-up abandoned mid-way (process killed while
+migrating) is cleaned up after 15 minutes, freeing its email. Run the
 usual `prisma migrate deploy` for `public` first, as before. Back up the whole database (all schemas) before a
 migration.
 

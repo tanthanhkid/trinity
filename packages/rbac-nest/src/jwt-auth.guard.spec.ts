@@ -79,6 +79,13 @@ describe('JwtAuthGuard', () => {
     expect(req.user).toEqual({ userId: 7, email: 'a@x', companyId: 1 })
   })
 
+  it('single-tenant mode rejects a token issued to another company', async () => {
+    const token = jwtService.sign({ sub: 7, email: 'a@x', cid: 5 })
+    const { ctx } = makeContext({ authorization: `Bearer ${token}` })
+    await expect(guard.canActivate(ctx)).rejects.toThrow(UnauthorizedException)
+    expect(prisma.user.findUnique).not.toHaveBeenCalled()
+  })
+
   describe('multi-tenant', () => {
     const prev = process.env.MULTI_TENANT
     beforeEach(() => {

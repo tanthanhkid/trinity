@@ -5,7 +5,7 @@ import { promisify } from 'node:util'
 import * as bcrypt from 'bcryptjs'
 import { clientForSchema, databaseUrlForSchema, getBaseClient } from './clients'
 import { CompanyRef, isMultiTenant, runWithCompany, schemaForCompany } from './context'
-import { ensurePlatform, forgetCompanyCache, installSyncTriggers, listActiveCompanies } from './platform'
+import { ensurePlatform, forgetCompanyCache, installSyncTriggers } from './platform'
 import { seedSettingOptions } from '../seed/setting-options.seed'
 import { seedDefaultKanbanBoard } from '../seed/kanban-default.seed'
 
@@ -49,11 +49,15 @@ export async function migrateAllCompanies(log: (msg: string) => void = () => und
   if (!isMultiTenant()) return
   await ensurePlatform()
   const latest = latestMigrationName()
+  if (!latest) {
+    log('no migrations folder in this build — company schemas are not migrated at boot')
+    return
+  }
   const rows = await getBaseClient().$queryRawUnsafe<Array<{ id: number; schema_name: string; migrated_to: string | null }>>(
     `SELECT id, schema_name, migrated_to FROM platform.companies WHERE id <> 1 ORDER BY id`,
   )
   for (const r of rows) {
-    if (latest && r.migrated_to === latest) continue
+    if (r.migrated_to === latest) continue
     log(`migrating company ${r.id} (${r.schema_name})`)
     try {
       await migrateCompanySchema({ id: r.id, schema: r.schema_name })
@@ -111,6 +115,8 @@ export async function provisionCompany(input: ProvisionInput): Promise<Provision
 
   // Reserve the id and the email first, so two sign-ups with the same email cannot both pass.
   const company = await base.$transaction(async (tx) => {
+    // Serialise sign-ups of the same email (double click, two tabs): the second waits, then sees the first.
+    await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(726354002, hashtext($1))`, email)
     const taken = await tx.$queryRawUnsafe<Array<{ company_id: number }>>(
       `SELECT company_id FROM platform.company_logins WHERE email = $1`,
       email,
@@ -179,24 +185,4 @@ export class EmailTakenError extends Error {
     super('Email này đã được dùng trên Trinity')
     this.name = 'EmailTakenError'
   }
-}
-
-/**
- * Runs `fn` once per active company, each inside its own company context, one after another. A failure in one
- * company is reported and does not stop the others. Single-tenant mode: one run as the default company.
- */
-export async function forEachCompany<T>(
-  fn: (company: CompanyRef) => Promise<T>,
-  onError: (company: CompanyRef, err: unknown) => void = () => undefined,
-): Promise<Record<number, T | { error: string }>> {
-  const out: Record<number, T | { error: string }> = {}
-  for (const company of await listActiveCompanies()) {
-    try {
-      out[company.id] = await runWithCompany(company, () => fn(company))
-    } catch (err) {
-      onError(company, err)
-      out[company.id] = { error: err instanceof Error ? err.message : String(err) }
-    }
-  }
-  return out
 }

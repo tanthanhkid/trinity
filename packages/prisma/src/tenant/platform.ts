@@ -103,21 +103,26 @@ async function doEnsurePlatform(): Promise<void> {
           r.kind,
         )
       }
-      const rows = await tx.$queryRawUnsafe<Array<{ id: number; schema_name: string }>>(
-        `SELECT id, schema_name FROM platform.companies`,
-      )
-      for (const row of rows) {
-        const exists = await tx.$queryRawUnsafe<Array<{ ok: number }>>(
-          `SELECT 1 AS ok FROM information_schema.tables WHERE table_schema = $1 AND table_name = 'users'`,
-          row.schema_name,
-        )
-        if (exists.length && !(await syncTriggersInstalled(tx, row.schema_name))) {
-          await installSyncTriggers(tx, row.id, row.schema_name)
-        }
-      }
     },
     { timeout: 60_000 },
   )
+  // Triggers: one short transaction per company that needs them (new version or new schema), so a version bump
+  // on a large deployment never hits one transaction's timeout. Concurrent boots serialise on the same lock.
+  const rows = await db.$queryRawUnsafe<Array<{ id: number; schema_name: string }>>(
+    `SELECT c.id, c.schema_name FROM platform.companies c
+      WHERE EXISTS (SELECT 1 FROM information_schema.tables t WHERE t.table_schema = c.schema_name AND t.table_name = 'users')
+      ORDER BY c.id`,
+  )
+  for (const row of rows) {
+    if (await syncTriggersInstalled(db, row.schema_name)) continue
+    await db.$transaction(
+      async (tx) => {
+        await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(726354001)`)
+        if (!(await syncTriggersInstalled(tx, row.schema_name))) await installSyncTriggers(tx, row.id, row.schema_name)
+      },
+      { timeout: 30_000 },
+    )
+  }
 }
 
 type Exec = { $executeRawUnsafe(sql: string, ...values: unknown[]): Promise<number> }
@@ -126,7 +131,7 @@ type Exec = { $executeRawUnsafe(sql: string, ...values: unknown[]): Promise<numb
  * Bumped whenever the trigger functions below change. Boot only (re)installs triggers in schemas that lack this
  * version, so a normal restart takes no table locks.
  */
-const SYNC_TRIGGER_VERSION = 'trinity-sync-v1'
+const SYNC_TRIGGER_VERSION = 'trinity-sync-v2'
 
 async function syncTriggersInstalled(
   tx: { $queryRawUnsafe<T = unknown>(sql: string, ...values: unknown[]): Promise<T> },
@@ -172,6 +177,8 @@ export async function installSyncTriggers(tx: Exec, companyId: number, schema: s
     await tx.$executeRawUnsafe(`
       CREATE OR REPLACE FUNCTION ${s}.trinity_single_user() RETURNS trigger LANGUAGE plpgsql AS $fn$
       BEGIN
+        -- Serialise concurrent inserts in this company: the count below then sees the other, committed row.
+        PERFORM pg_advisory_xact_lock(726354003, ${id});
         IF (SELECT count(*) FROM ${s}.users) > 1 THEN
           RAISE EXCEPTION 'TRINITY_SINGLE_USER: a company has exactly one user' USING ERRCODE = '23514';
         END IF;

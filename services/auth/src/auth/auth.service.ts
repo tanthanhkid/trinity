@@ -527,7 +527,11 @@ export class AuthService {
 
   async refresh(refreshToken: string) {
     const payload = this.verifyRefreshToken(refreshToken)
-    if (!isMultiTenant()) return this.refreshInCompany(payload)
+    if (!isMultiTenant()) {
+      // Multi-tenancy switched off: another company's token must not act as company 1's user with the same id.
+      if (payload.cid !== undefined && payload.cid !== 1) throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn')
+      return this.refreshInCompany(payload)
+    }
     // The token decides the company — run in its own scope, whatever hint (`?cid=`) the public route carried.
     const company = await activeCompanyRef(payload.cid ?? 1)
     if (!company) throw new UnauthorizedException('Công ty của tài khoản này không còn hoạt động')

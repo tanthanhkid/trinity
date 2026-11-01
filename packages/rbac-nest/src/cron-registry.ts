@@ -60,6 +60,8 @@ export async function runForEachCompany<T>(fn: () => Promise<T>, opts: { key?: s
   for (; i < companies.length; i++) {
     if (i > 0 && Date.now() >= deadline) break
     const company = companies[(start + i) % companies.length]
+    // Saved before the run: if this tick is cut short (serverless timeout), the next one starts after this company.
+    cursors.set(key, (start + i + 1) % companies.length)
     try {
       out[company.id] = await runWithCompany(company, fn)
     } catch (err) {
@@ -68,7 +70,6 @@ export async function runForEachCompany<T>(fn: () => Promise<T>, opts: { key?: s
       failures.push(`company ${company.id}: ${msg}`)
     }
   }
-  cursors.set(key, (start + i) % companies.length)
   if (failures.length) throw new Error(failures.join('; ').slice(0, 1000))
   return out
 }

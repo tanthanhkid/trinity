@@ -9,13 +9,19 @@ import { runForEachCompany } from '@trinity/rbac-nest';
  *
  * Use ONE callback for both the first-run setTimeout and the setInterval of a job so they share the guard.
  */
-export function tenantTimerTick(logger: Pick<Logger, 'error'>, name: string, fn: () => Promise<unknown>): () => Promise<void> {
+export function tenantTimerTick(
+  logger: Pick<Logger, 'error'>,
+  name: string,
+  fn: () => Promise<unknown>,
+  /** Stop starting new companies after this long; the next round resumes after the last company reached. */
+  roundBudgetMs = 55_000,
+): () => Promise<void> {
   let running = false;
   return async () => {
     if (running) return;
     running = true;
     try {
-      await runForEachCompany(fn);
+      await runForEachCompany(fn, { key: `timer:${name}`, budgetMs: roundBudgetMs });
     } catch (err) {
       logger.error(`${name}: ${(err as Error)?.message}`);
     } finally {

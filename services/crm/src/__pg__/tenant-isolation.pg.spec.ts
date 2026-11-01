@@ -11,8 +11,9 @@ import {
   getBaseClient,
   provisionCompany,
   runWithCompany,
-  forEachCompany,
+  currentCompany,
 } from '@trinity/prisma';
+import { runForEachCompany } from '@trinity/rbac-nest';
 import { PG_URL, describePg, isLocalDbUrl } from './pg-harness';
 
 /**
@@ -155,7 +156,10 @@ describePg('multi-tenant isolation (Postgres)', () => {
   });
 
   it('runs background work once per company, each in its own schema', async () => {
-    const seen = await forEachCompany(async (c) => ({ schema: c.schema, contacts: await db.contact.count() }));
+    const seen = (await runForEachCompany(async () => ({ schema: currentCompany()?.schema, contacts: await db.contact.count() }))) as Record<
+      number,
+      { schema: string; contacts: number }
+    >;
     expect(seen[A.id]).toEqual({ schema: A.schema, contacts: 2 });
     expect(seen[B.id]).toEqual({ schema: B.schema, contacts: 1 });
     expect(seen[1]).toMatchObject({ schema: 'public' });

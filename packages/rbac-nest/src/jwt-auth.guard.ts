@@ -56,6 +56,9 @@ export class JwtAuthGuard implements CanActivate {
         const company = await activeCompanyRef(payload.cid ?? 1)
         if (!company) throw new UnauthorizedException('Công ty của tài khoản này không còn hoạt động')
         enterCompany(company)
+      } else if (payload.cid !== undefined && payload.cid !== 1) {
+        // Multi-tenancy switched off: a token of another company must never act as company 1's user with the same id.
+        throw new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn')
       }
 
       if (this.tokenBlacklist.isBlacklisted(payload.sub)) {

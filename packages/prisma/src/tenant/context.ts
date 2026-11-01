@@ -11,7 +11,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
  *
  * The HTTP middleware opens an empty scope per request (`runInTenantScope`); the JWT guard, the login route and
  * the public webhook routes then call `enterCompany()` once they know whose request it is. Background jobs
- * use `forEachCompany()`.
+ * use `runForEachCompany()` from `@trinity/rbac-nest`.
  */
 export interface CompanyRef {
   id: number
@@ -94,7 +94,7 @@ export function currentCompanyId(): number | null {
 
 export class MissingCompanyContextError extends Error {
   constructor(what: string) {
-    super(`No company context for ${what}: wrap the call in runWithCompany()/forEachCompany() or enterCompany() first`)
+    super(`No company context for ${what}: wrap the call in runWithCompany() / runForEachCompany() (jobs) or enterCompany() first`)
     this.name = 'MissingCompanyContextError'
   }
 }

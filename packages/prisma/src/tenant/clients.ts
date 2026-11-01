@@ -57,9 +57,9 @@ export function clientForSchema(schema: string): PrismaClient {
 }
 
 /**
- * Keeps at most TENANT_MAX_CLIENTS clients: the least recently used ones beyond the cap are disconnected (a
- * client touched in the last few seconds is spared so a query in flight can finish). Background jobs that walk
- * every company therefore cycle through the pool instead of growing it.
+ * Keeps at most TENANT_MAX_CLIENTS clients: the least recently used ones beyond the cap leave the pool at once and
+ * are disconnected a few seconds later (so a query in flight can finish). Background jobs that walk every company
+ * therefore cycle through the pool instead of growing it.
  */
 function evictIdle(): void {
   const cap = maxClients()
@@ -68,10 +68,10 @@ function evictIdle(): void {
   const byAge = [...clients.entries()].sort((a, b) => a[1].lastUsed - b[1].lastUsed)
   for (const [schema, entry] of byAge) {
     if (clients.size <= cap) break
-    if (now - entry.lastUsed < 5_000) continue
     clients.delete(schema)
-    // Let queries already queued on it settle before closing.
-    setTimeout(() => void entry.client.$disconnect().catch(() => undefined), 30_000).unref?.()
+    // Let a query already in flight settle before closing; the next access to this company opens a fresh client.
+    const delay = Math.min(10_000, Math.max(1_000, 10_000 - (now - entry.lastUsed)))
+    setTimeout(() => void entry.client.$disconnect().catch(() => undefined), delay).unref?.()
   }
 }
 

@@ -19,7 +19,7 @@ Organisation feature `social_posting` (`@RequireOrgFeature`). Screen: `/social` 
 Linked channels belong to the company: everyone with `social.post` can post to every active channel.
 
 ## Prerequisites (Facebook Page)
-1. A Meta app with the "Manage everything on your Page" use case and the permissions `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `business_management`.
+1. A Meta app with the "Manage everything on your Page" use case and the permissions `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`.
    Page videos are published with `pages_manage_posts` (no `publish_video`).
 2. `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` (shared with the Facebook inbox integration).
 3. Valid OAuth redirect URI in the Meta app: `https://<CRM domain>/api/v1/social/oauth/callback/facebook`.

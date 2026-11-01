@@ -16,9 +16,9 @@ import {
 /**
  * Quyền đăng bài lên Fanpage (Facebook Login for Business, use case "Manage everything on your Page").
  * Video Page đăng bằng `pages_manage_posts` — không cần `publish_video` (quyền đó cho video lên trang cá nhân/nhóm).
- * `business_management`: Page nằm trong Business portfolio mới hiện ở /me/accounts.
+ * Không xin `business_management` (01/11/2026): không nằm trong hồ sơ Meta App Review; /me/accounts đã trả các Page người dùng chọn cấp quyền.
  */
-export const FACEBOOK_SOCIAL_SCOPES = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'business_management'] as const;
+export const FACEBOOK_SOCIAL_SCOPES = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts'] as const;
 
 type Query = Record<string, string | undefined>;
 export interface GraphCallOptions {

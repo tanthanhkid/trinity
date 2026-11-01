@@ -80,7 +80,7 @@ describe('FacebookSocialProvider', () => {
 
   it('URL đăng nhập xin đúng quyền đăng bài, không có publish_video', () => {
     const u = new URL(fb.authorizeUrl('st', 'https://crm.example.com/api/v1/social/oauth/callback/facebook'));
-    expect(u.searchParams.get('scope')).toBe('pages_show_list,pages_read_engagement,pages_manage_posts,business_management');
+    expect(u.searchParams.get('scope')).toBe('pages_show_list,pages_read_engagement,pages_manage_posts');
     expect(u.searchParams.get('state')).toBe('st');
   });
 

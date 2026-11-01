@@ -18,7 +18,10 @@ export class ElkExceptionFilter implements ExceptionFilter {
   catch(rawException: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp()
     // A signed-in request without a company context is a server bug (500, reported), not "not found".
-    const exception = translateTenantError(rawException, Boolean(ctx.getRequest()?.user))
+    const req = ctx.getRequest()
+    // JWT, API key or MCP bearer: the request carries a credential, so it had a company — missing one is a bug.
+    const authenticated = Boolean(req?.user || req?.apiKey || req?.headers?.authorization || req?.headers?.['x-api-key'])
+    const exception = translateTenantError(rawException, authenticated)
     const response = ctx.getResponse()
     const request = ctx.getRequest()
 

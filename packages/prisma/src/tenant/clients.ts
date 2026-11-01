@@ -6,7 +6,7 @@ import { PrismaClient } from '@prisma/client'
  * `?schema=c_<id>`, so every query (models, raw SQL, triggers) resolves inside that company's schema only.
  */
 let baseClient: PrismaClient | null = null
-const clients = new Map<string, { client: PrismaClient; lastUsed: number }>()
+const clients = new Map<string, { client: PrismaClient; lastUsed: number; busy: number }>()
 
 const maxClients = (): number => Math.max(2, Number(process.env.TENANT_MAX_CLIENTS) || 30)
 const perClientConnections = (): string => process.env.TENANT_CONNECTION_LIMIT?.trim() || '2'
@@ -51,7 +51,7 @@ export function clientForSchema(schema: string): PrismaClient {
     log: ['error'],
     datasources: { db: { url: databaseUrlForSchema(schema, perClientConnections()) } },
   })
-  clients.set(schema, { client, lastUsed: Date.now() })
+  clients.set(schema, { client, lastUsed: Date.now(), busy: 0 })
   evictIdle()
   return client
 }
@@ -68,11 +68,27 @@ function evictIdle(): void {
   const byAge = [...clients.entries()].sort((a, b) => a[1].lastUsed - b[1].lastUsed)
   for (const [schema, entry] of byAge) {
     if (clients.size <= cap) break
+    // An interactive transaction still running on it: keep it (the pool may exceed the cap for a moment).
+    if (entry.busy > 0) continue
     clients.delete(schema)
     // Let a query already in flight settle before closing; the next access to this company opens a fresh client.
     const delay = Math.min(10_000, Math.max(1_000, 10_000 - (now - entry.lastUsed)))
     setTimeout(() => void entry.client.$disconnect().catch(() => undefined), delay).unref?.()
   }
+}
+
+/**
+ * Marks `schema`'s client busy while `work` runs (interactive transactions use `tx` directly, never touching the
+ * pool, so without this a long transaction could be evicted and disconnected mid-way).
+ */
+export function trackClientWork<T>(schema: string, work: () => Promise<T>): Promise<T> {
+  const entry = clients.get(schema)
+  if (!entry) return work()
+  entry.busy++
+  return work().finally(() => {
+    entry.busy--
+    entry.lastUsed = Date.now()
+  })
 }
 
 export async function disconnectTenantClients(): Promise<void> {

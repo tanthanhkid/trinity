@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common'
 import { Prisma, PrismaClient } from '@prisma/client'
-import { clientForSchema, disconnectTenantClients, setBaseClient } from './tenant/clients'
+import { clientForSchema, disconnectTenantClients, setBaseClient, trackClientWork } from './tenant/clients'
 import { MissingCompanyContextError, currentCompany, isMultiTenant } from './tenant/context'
 
 /**
@@ -85,7 +85,12 @@ function tenantRouted(base: PrismaService): PrismaService {
       if (!company) throw new MissingCompanyContextError(`prisma.${String(prop)}`)
       const client = company.schema === 'public' ? target : clientForSchema(company.schema)
       const value = Reflect.get(client, prop, client)
-      return typeof value === 'function' ? value.bind(client) : value
+      if (typeof value !== 'function') return value
+      if (prop === '$transaction' && company.schema !== 'public') {
+        return (...args: unknown[]) =>
+          trackClientWork(company.schema, () => (value as (...a: unknown[]) => Promise<unknown>).apply(client, args))
+      }
+      return value.bind(client)
     },
   })
 }

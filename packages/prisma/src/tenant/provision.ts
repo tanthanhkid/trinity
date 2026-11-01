@@ -56,16 +56,20 @@ export async function migrateAllCompanies(log: (msg: string) => void = () => und
   const rows = await getBaseClient().$queryRawUnsafe<Array<{ id: number; schema_name: string; migrated_to: string | null }>>(
     `SELECT id, schema_name, migrated_to FROM platform.companies WHERE id <> 1 ORDER BY id`,
   )
-  for (const r of rows) {
-    if (r.migrated_to === latest) continue
-    log(`migrating company ${r.id} (${r.schema_name})`)
-    try {
-      await migrateCompanySchema({ id: r.id, schema: r.schema_name })
-    } catch (err) {
-      // One company's failed migration must not take the API down for every other company.
-      log(`company ${r.id} migration FAILED: ${err instanceof Error ? err.message : String(err)}`)
+  const pending = rows.filter((r) => r.migrated_to !== latest)
+  const concurrency = Math.max(1, Number(process.env.TENANT_MIGRATE_CONCURRENCY) || 4)
+  const worker = async (): Promise<void> => {
+    for (let r = pending.shift(); r; r = pending.shift()) {
+      log(`migrating company ${r.id} (${r.schema_name})`)
+      try {
+        await migrateCompanySchema({ id: r.id, schema: r.schema_name })
+      } catch (err) {
+        // One company's failed migration must not stop the others.
+        log(`company ${r.id} migration FAILED: ${err instanceof Error ? err.message : String(err)}`)
+      }
     }
   }
+  await Promise.all(Array.from({ length: concurrency }, worker))
 }
 
 /** Sign-ups abandoned mid-way (process killed while migrating) older than this are removed, freeing the email. */

@@ -127,7 +127,14 @@ export class SocialAccountsService {
     for (const a of accounts) {
       if (network === 'facebook') {
         // Một Fanpage chỉ một công ty: Page đã thuộc công ty khác thì bỏ qua (không lưu token của họ vào công ty này).
-        const free = await assertRouteAvailableForCurrentCompany('facebook_page', a.external_id).then(() => true, () => false);
+        // Only "owned by another company" (409) skips the Page; a database error must surface, not pass as taken.
+        const free = await assertRouteAvailableForCurrentCompany('facebook_page', a.external_id).then(
+          () => true,
+          (err: unknown) => {
+            if (err instanceof ConflictException) return false;
+            throw err;
+          },
+        );
         if (!free) {
           skipped++;
           continue;

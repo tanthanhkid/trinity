@@ -82,7 +82,11 @@ export async function configureApp(
   app.use((_req: unknown, _res: unknown, next: () => void) => runInTenantScope(next))
   if (isMultiTenant()) {
     await ensurePlatform()
-    await migrateAllCompanies((msg) => console.log(`[tenant] ${msg}`))
+    // Company schemas are migrated by the deploy step (`pnpm --filter @trinity/prisma migrate:companies`); this
+    // background pass only catches up stragglers, so a release never holds the API down for every company.
+    void migrateAllCompanies((msg) => console.log(`[tenant] ${msg}`)).catch((err) =>
+      console.error(`[tenant] migrateAllCompanies: ${err instanceof Error ? err.message : String(err)}`),
+    )
   }
 
   app.enableCors({ origin: corsOrigin, credentials: true })

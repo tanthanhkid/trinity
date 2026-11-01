@@ -52,7 +52,10 @@ export async function runForEachCompany<T>(fn: () => Promise<T>, opts: { key?: s
   const companies = await listActiveCompanies()
   if (!companies.length) return {}
   const key = opts.key ?? ''
-  const start = Math.min(cursors.get(key) ?? 0, companies.length - 1)
+  // Resume after the last company reached (by id, so companies added/suspended in between do not shift it).
+  const last = cursors.get(key)
+  const next = last === undefined ? -1 : companies.findIndex((c) => c.id > last)
+  const start = next < 0 ? 0 : next
   const deadline = opts.budgetMs ? Date.now() + opts.budgetMs : Infinity
   const out: Record<number, unknown> = {}
   const failures: string[] = []
@@ -61,7 +64,7 @@ export async function runForEachCompany<T>(fn: () => Promise<T>, opts: { key?: s
     if (i > 0 && Date.now() >= deadline) break
     const company = companies[(start + i) % companies.length]
     // Saved before the run: if this tick is cut short (serverless timeout), the next one starts after this company.
-    cursors.set(key, (start + i + 1) % companies.length)
+    cursors.set(key, company.id)
     try {
       out[company.id] = await runWithCompany(company, fn)
     } catch (err) {

@@ -83,10 +83,13 @@ async function doEnsurePlatform(): Promise<void> {
       await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(726354001)`)
       for (const stmt of PLATFORM_DDL) await tx.$executeRawUnsafe(stmt)
       const name = process.env.DEFAULT_COMPANY_NAME?.trim() || 'Công ty mặc định'
-      await tx.$executeRawUnsafe(
+      const created = await tx.$executeRawUnsafe(
         `INSERT INTO platform.companies (id, name, schema_name) VALUES (1, $1, 'public') ON CONFLICT (id) DO NOTHING`,
         name,
       )
+      // From here on the triggers on `public` keep logins/routes in sync; the backfill is a first-boot job
+      // (or a repair when company 1's triggers are missing).
+      if (!created && (await syncTriggersInstalled(tx, 'public'))) return
       await tx.$executeRawUnsafe(
         `SELECT setval(pg_get_serial_sequence('platform.companies', 'id'), GREATEST((SELECT max(id) FROM platform.companies), 1))`,
       )
@@ -108,13 +111,15 @@ async function doEnsurePlatform(): Promise<void> {
   )
   // Triggers: one short transaction per company that needs them (new version or new schema), so a version bump
   // on a large deployment never hits one transaction's timeout. Concurrent boots serialise on the same lock.
+  // One query: the companies whose schema exists but lacks the current trigger version.
   const rows = await db.$queryRawUnsafe<Array<{ id: number; schema_name: string }>>(
     `SELECT c.id, c.schema_name FROM platform.companies c
       WHERE EXISTS (SELECT 1 FROM information_schema.tables t WHERE t.table_schema = c.schema_name AND t.table_name = 'users')
+        AND NOT EXISTS (SELECT 1 ${TRIGGERS_CURRENT_SQL.replace('$2', '$1')})
       ORDER BY c.id`,
+    SYNC_TRIGGER_VERSION,
   )
   for (const row of rows) {
-    if (await syncTriggersInstalled(db, row.schema_name)) continue
     await db.$transaction(
       async (tx) => {
         await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(726354001)`)
@@ -137,13 +142,23 @@ async function syncTriggersInstalled(
   tx: { $queryRawUnsafe<T = unknown>(sql: string, ...values: unknown[]): Promise<T> },
   schema: string,
 ): Promise<boolean> {
-  const rows = await tx.$queryRawUnsafe<Array<{ c: string | null }>>(
-    `SELECT obj_description(p.oid, 'pg_proc') AS c FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname = $1 AND p.proname = 'trinity_platform_sync_login'`,
+  const rows = await tx.$queryRawUnsafe<Array<{ ok: number }>>(
+    `SELECT 1 AS ok ${TRIGGERS_CURRENT_SQL.replace(/c\.schema_name/g, '$1')}`,
     schema,
+    SYNC_TRIGGER_VERSION,
   )
-  return rows[0]?.c === SYNC_TRIGGER_VERSION
+  return rows.length > 0
 }
+
+/**
+ * "Schema `c.schema_name` has the current trigger version": the function carries the version comment AND the
+ * trigger is attached to its users table (a dropped trigger is reinstalled).
+ */
+const TRIGGERS_CURRENT_SQL = `WHERE EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                    WHERE n.nspname = c.schema_name AND p.proname = 'trinity_platform_sync_login'
+                      AND obj_description(p.oid, 'pg_proc') = $2)
+     AND EXISTS (SELECT 1 FROM pg_trigger t JOIN pg_class r ON r.oid = t.tgrelid JOIN pg_namespace n ON n.oid = r.relnamespace
+                    WHERE n.nspname = c.schema_name AND r.relname = 'users' AND t.tgname = 'trinity_platform_sync_login')`
 
 /** Triggers that mirror users.email → company_logins and Page/OA ids → company_routes for one company schema. */
 export async function installSyncTriggers(tx: Exec, companyId: number, schema: string): Promise<void> {

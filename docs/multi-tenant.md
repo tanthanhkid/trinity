@@ -49,12 +49,23 @@ The database role needs `CREATE` on the database (to create one schema per compa
 
 ## Deploying an update
 
-Boot runs `ensurePlatform()` and brings every company schema to the latest migration before serving requests
-(a company whose migration fails is logged; the others keep working). Sync triggers are reinstalled only when
+1. `prisma migrate deploy` for `public` (company 1), as before.
+2. `MULTI_TENANT=true pnpm --filter @trinity/prisma migrate:companies` — every company schema, 4 at a time
+   (`TENANT_MIGRATE_CONCURRENCY`); exits non-zero if a company failed.
+3. Restart. Boot runs `ensurePlatform()` and, in the background, migrates any company still behind (a company
+   whose migration fails is logged; the others keep working). Sync triggers are reinstalled only when
 their version changes, so a restart takes no table locks. A sign-up abandoned mid-way (process killed while
-migrating) is cleaned up after 15 minutes, freeing its email. Run the
-usual `prisma migrate deploy` for `public` first, as before. Back up the whole database (all schemas) before a
-migration.
+migrating) is cleaned up after 15 minutes, freeing its email. Back up the whole
+database (all schemas) before a migration.
+
+## Known limits
+
+- One database client per active company (LRU, `TENANT_MAX_CLIENTS`). Background jobs walk every company, so with
+  far more companies than the cap the pool keeps cycling; raise the cap (and Postgres `max_connections`) as the
+  number of active companies grows.
+- A job's per-company work keeps the job's own budget. A tick stops starting new companies when its budget is
+  spent and the next tick resumes after the last company reached, so one busy company delays the others by
+  about one tick per company ahead of them.
 
 ## Tests
 

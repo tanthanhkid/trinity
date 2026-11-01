@@ -910,7 +910,9 @@ export class AuthService {
     const id = await companyIdForEmail(email)
     if (!id) return
     const company = await activeCompanyRef(id)
-    if (!company) throw new UnauthorizedException('Công ty của tài khoản này không còn hoạt động')
+    // Suspended company: no distinct answer (it would let anyone probe emails past the rate limit) — the lookup
+    // stays on the fallback, finds nothing and fails like a wrong password.
+    if (!company) return
     enterCompany(company)
   }
 

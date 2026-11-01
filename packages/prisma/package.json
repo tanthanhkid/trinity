@@ -10,7 +10,8 @@
     "migrate:status": "prisma migrate status",
     "seed": "ts-node prisma/seed.ts",
     "studio": "prisma studio",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "migrate:companies": "node scripts/migrate-companies.cjs"
   },
   "dependencies": {
     "@nestjs/common": "^10",

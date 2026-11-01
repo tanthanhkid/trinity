@@ -17,7 +17,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 
 const mockLogin = vi.fn()
 
-vi.mock('@/lib/auth-api', () => ({ login: mockLogin }))
+vi.mock('@/lib/auth-api', () => ({ login: mockLogin, isSignupEnabled: () => Promise.resolve(false) }))
 vi.mock('@/lib/token-storage', () => ({
   getAccessToken: vi.fn(() => null),
   setAccessToken: vi.fn(),

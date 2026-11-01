@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { oauthEnabled } from '../../oauth/oauth-config';
 import { AiActionsService } from './ai-actions.service';
+import { tenantTimerTick } from '../../../common/helpers/tenant-timer';
 
 const TEN_MIN_MS = 10 * 60 * 1000;
 const FIRST_RUN_DELAY_MS = 8 * 60 * 1000;
@@ -13,6 +14,8 @@ const FIRST_RUN_DELAY_MS = 8 * 60 * 1000;
 @Injectable()
 export class AiActionExpiryService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AiActionExpiryService.name);
+  /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
+  private readonly timerTick = tenantTimerTick(this.logger, 'Dọn đề xuất AI', () => this.runOnce());
   private interval: ReturnType<typeof setInterval> | null = null;
   private first: ReturnType<typeof setTimeout> | null = null;
 
@@ -27,8 +30,8 @@ export class AiActionExpiryService implements OnModuleInit, OnModuleDestroy {
     });
     if (isServerless()) return;
     if (!oauthEnabled()) return;
-    this.first = setTimeout(() => void this.runOnce(), FIRST_RUN_DELAY_MS);
-    this.interval = setInterval(() => void this.runOnce(), TEN_MIN_MS);
+    this.first = setTimeout(() => void this.timerTick(), FIRST_RUN_DELAY_MS);
+    this.interval = setInterval(() => void this.timerTick(), TEN_MIN_MS);
     this.first.unref();
     this.interval.unref();
   }

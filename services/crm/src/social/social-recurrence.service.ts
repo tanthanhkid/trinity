@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, HttpException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, tenantKey } from '@trinity/prisma';
 import type { AuthUser } from '@trinity/rbac-nest';
 import type { Prisma, SocialRecurrence } from '@prisma/client';
 import { MAX_SCHEDULE_AHEAD_MS } from './social.config';
@@ -163,7 +163,8 @@ class RecurrenceChanged extends Error {}
 @Injectable()
 export class SocialRecurrenceService {
   private readonly logger = new Logger(SocialRecurrenceService.name);
-  private running = false;
+  /** Companies whose materialize() is in progress (one company's run must not skip another's). */
+  private readonly running = new Set<string>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -379,8 +380,9 @@ export class SocialRecurrenceService {
    */
   async materialize(now = Date.now()): Promise<{ created: number; skipped: number; paused: number }> {
     const out = { created: 0, skipped: 0, paused: 0 };
-    if (this.running) return out;
-    this.running = true;
+    const key = tenantKey('materialize');
+    if (this.running.has(key)) return out;
+    this.running.add(key);
     try {
       const rows = await this.prisma.socialRecurrence.findMany({ where: { active: true, next_run_at: { not: null } }, orderBy: { id: 'asc' }, take: 200 });
       for (const r of rows) {
@@ -392,7 +394,7 @@ export class SocialRecurrenceService {
         }
       }
     } finally {
-      this.running = false;
+      this.running.delete(key);
     }
     return out;
   }

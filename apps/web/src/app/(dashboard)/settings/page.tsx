@@ -26,6 +26,7 @@ import type { OrgFeatureKey, OrgFeatures, Permission } from "@trinity/rbac"
 import { usePermissions } from "@/lib/rbac"
 import { useOrgFeatures } from "@/hooks/use-org-features"
 import { useSetupStatus } from "@/hooks/use-setup-status"
+import { SINGLE_USER_HIDDEN_SETTINGS_TABS, useIsSingleUserCompany } from "@/lib/tenant/single-user"
 import { SETUP_SETTINGS_TABS } from "@/lib/setup-routes"
 import { cn } from "@/lib/utils"
 import { SettingsSectionHeader } from "./_components/settings-section-header"
@@ -200,10 +201,14 @@ function SettingsPageContent() {
   // hệ thống chưa dựng quy trình ⇒ Cài đặt tối giản (tài khoản, người dùng, vai trò, team, kết nối AI, thông báo).
   const { status: setupStatus } = useSetupStatus()
   // Hệ thống chưa dựng: mọi module đang tắt, nhưng các tab dựng ban đầu (vd Team) vẫn phải dùng được ⇒ bỏ qua công tắc tính năng cho chúng.
-  const settingsTabs = ALL_TABS.filter((t) =>
-    setupStatus === "chua_dung"
-      ? (SETUP_SETTINGS_TABS as readonly string[]).includes(t.value) && isSettingsTabVisible(t, can)
-      : isSettingsTabVisible(t, can, features),
+  // Công ty một người (SaaS): ẩn người dùng / vai trò / phòng ban / team / kiểm wifi.
+  const singleUser = useIsSingleUserCompany()
+  const settingsTabs = ALL_TABS.filter(
+    (t) =>
+      !(singleUser && SINGLE_USER_HIDDEN_SETTINGS_TABS.has(t.value)) &&
+      (setupStatus === "chua_dung"
+        ? (SETUP_SETTINGS_TABS as readonly string[]).includes(t.value) && isSettingsTabVisible(t, can)
+        : isSettingsTabVisible(t, can, features)),
   )
 
   // Mục cũ đã gộp: link cũ (?tab=contact-sources…) vẫn mở đúng chỗ mới.

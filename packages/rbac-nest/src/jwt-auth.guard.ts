@@ -1,6 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
-import { PrismaService } from '@trinity/prisma'
+import { PrismaService, activeCompanyRef, enterCompany, isMultiTenant } from '@trinity/prisma'
 import type { Request } from 'express'
 import { TokenBlacklistService } from './session/token-blacklist.service'
 import { ActiveSessionService } from './session/active-session.service'
@@ -11,6 +11,8 @@ interface JwtPayload {
   // — sessionId phiên đăng nhập, CHỈ có khi tính năng "1 phiên/tài
   // khoản" đang bật lúc login. Thiếu field này ⇒ fail-open (không kiểm tra).
   sid?: string
+  // Company (multi-tenant). Tokens minted before multi-tenancy have none = company 1.
+  cid?: number
   // Refresh token mang type='refresh' — KHÔNG được dùng làm access token.
   type?: string
   iat: number
@@ -49,6 +51,16 @@ export class JwtAuthGuard implements CanActivate {
         throw new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn')
       }
 
+      // Bind the request to the token's company BEFORE any lookup: every query below runs in its schema.
+      if (isMultiTenant()) {
+        const company = await activeCompanyRef(payload.cid ?? 1)
+        if (!company) throw new UnauthorizedException('Công ty của tài khoản này không còn hoạt động')
+        enterCompany(company)
+      } else if (payload.cid !== undefined && payload.cid !== 1) {
+        // Multi-tenancy switched off: a token of another company must never act as company 1's user with the same id.
+        throw new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn')
+      }
+
       if (this.tokenBlacklist.isBlacklisted(payload.sub)) {
         throw new UnauthorizedException('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại')
       }
@@ -79,6 +91,7 @@ export class JwtAuthGuard implements CanActivate {
       ;(request as unknown as Record<string, unknown>)['user'] = {
         userId: payload.sub,
         email: payload.email,
+        companyId: payload.cid ?? 1,
       }
     } catch (err) {
       if (err instanceof UnauthorizedException) throw err

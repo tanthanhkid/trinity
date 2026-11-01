@@ -1,6 +1,10 @@
 import Redis from 'ioredis'
 import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common'
 import { isServerless } from './runtime'
+import { currentCompanyId } from '@trinity/prisma'
+
+/** Cache keys and invalidations are per company: user ids repeat across companies. */
+const companyPrefix = (): string => `${currentCompanyId() ?? 0}|`
 
 const CHANNEL = 'rbac:invalidate'
 
@@ -38,7 +42,11 @@ export class RbacCache implements OnModuleDestroy {
     this.pub.on('error', (e) => this.warnThrottled(e))
     this.sub.on('error', (e) => this.warnThrottled(e))
     this.sub.subscribe(CHANNEL).catch((e) => this.log.warn(`subscribe lỗi: ${e.message}`))
-    this.sub.on('message', (_c, msg) => this.dropLocal(msg === '*' ? '*' : msg.split(',').map(Number)))
+    this.sub.on('message', (_c, msg) => {
+      // "<companyId>|<ids or *>" (older processes publish without the prefix = company 1)
+      const [cid, body] = msg.includes('|') ? msg.split('|', 2) : ['1', msg]
+      this.dropLocal(`${cid}|`, body === '*' ? '*' : body.split(',').map(Number))
+    })
   }
 
   private lastWarn = 0
@@ -49,22 +57,23 @@ export class RbacCache implements OnModuleDestroy {
   }
 
   get<T>(k: string): T | undefined {
-    const e = this.store.get(k)
+    const key = companyPrefix() + k
+    const e = this.store.get(key)
     if (!e) return undefined
     if (e.exp < Date.now()) {
-      this.store.delete(k)
+      this.store.delete(key)
       return undefined
     }
     return e.v as T
   }
 
   set(k: string, v: unknown, ttlMs = 60_000): void {
-    this.store.set(k, { v, exp: Date.now() + ttlMs })
+    this.store.set(companyPrefix() + k, { v, exp: Date.now() + ttlMs })
   }
 
-  private dropLocal(ids: number[] | '*'): void {
+  private dropLocal(prefix: string, ids: number[] | '*'): void {
     if (ids === '*') {
-      this.store.clear()
+      for (const k of [...this.store.keys()]) if (k.startsWith(prefix)) this.store.delete(k)
       return
     }
     // khoá dạng "g:<uid>" (khớp CHÍNH XÁC) và "s:<uid>:<scope>" (khớp theo
@@ -74,22 +83,25 @@ export class RbacCache implements OnModuleDestroy {
     // invalidation (không leak quyền, chỉ tốn cache oan) nhưng vẫn là bug
     // đúng-sai rõ ràng, sửa cho khớp ý định trong comment.
     const idSet = new Set(ids)
-    for (const k of [...this.store.keys()]) {
+    for (const full of [...this.store.keys()]) {
+      if (!full.startsWith(prefix)) continue
+      const k = full.slice(prefix.length)
       const gMatch = /^g:(\d+)$/.exec(k)
       if (gMatch && idSet.has(Number(gMatch[1]))) {
-        this.store.delete(k)
+        this.store.delete(full)
         continue
       }
       const sMatch = /^s:(\d+):/.exec(k)
       if (sMatch && idSet.has(Number(sMatch[1]))) {
-        this.store.delete(k)
+        this.store.delete(full)
       }
     }
   }
 
   async invalidateUsers(ids: number[] | '*'): Promise<void> {
-    this.dropLocal(ids)
-    await this.pub?.publish(CHANNEL, ids === '*' ? '*' : ids.join(',')).catch(() => undefined)
+    const prefix = companyPrefix()
+    this.dropLocal(prefix, ids)
+    await this.pub?.publish(CHANNEL, prefix + (ids === '*' ? '*' : ids.join(','))).catch(() => undefined)
   }
 
   async onModuleDestroy(): Promise<void> {

@@ -5,6 +5,7 @@ const mockLogin = vi.fn()
 
 vi.mock('@/lib/auth-api', () => ({
   login: mockLogin,
+  isSignupEnabled: () => Promise.resolve(false),
 }))
 
 vi.mock('@/lib/token-storage', () => ({

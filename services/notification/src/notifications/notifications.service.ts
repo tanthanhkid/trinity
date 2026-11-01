@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common'
-import { PrismaService } from '@trinity/prisma'
+import { PrismaService, currentCompanyId, tenantKey } from '@trinity/prisma'
 import { cronRegistry, isServerless, runInBackground } from '@trinity/rbac-nest'
 import { SendNotificationDto, NotifChannel } from './dto/send-notification.dto'
 import type { UnreadCountCategory } from './dto/query-unread-count.dto'
@@ -36,7 +36,7 @@ export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name)
   // key = `${userId}:${category ?? 'all'}` — cache rieng theo tung nhom
   private readonly unreadCache = new Map<string, { count: number; expiry: number }>()
-  private lastOpportunistic = 0
+  private readonly lastOpportunistic = new Map<number, number>()
 
   constructor(
     private readonly prisma: PrismaService,
@@ -62,8 +62,10 @@ export class NotificationsService implements OnModuleInit {
   maybeProcessScheduledInBackground(): boolean {
     if (!isServerless()) return false
     const now = Date.now()
-    if (now - this.lastOpportunistic < SCHEDULED_OPPORTUNISTIC_GAP_MS) return false
-    this.lastOpportunistic = now
+    // Giãn theo TỪNG công ty: lượt của công ty A không được làm công ty B chờ.
+    const company = currentCompanyId() ?? 0
+    if (now - (this.lastOpportunistic.get(company) ?? 0) < SCHEDULED_OPPORTUNISTIC_GAP_MS) return false
+    this.lastOpportunistic.set(company, now)
     runInBackground(
       () => this.processScheduled(),
       (err) => this.logger.error(`processScheduled (nền) lỗi: ${err instanceof Error ? err.message : String(err)}`),
@@ -112,7 +114,8 @@ export class NotificationsService implements OnModuleInit {
     userId: number,
     category?: UnreadCountCategory,
   ): Promise<{ count: number }> {
-    const cacheKey = `${userId}:${category ?? 'all'}`
+    // Multi-tenant: user id trùng giữa các công ty ⇒ khoá cache mang công ty (công ty 1 giữ khoá cũ).
+    const cacheKey = tenantKey(`${userId}:${category ?? 'all'}`)
     // Serverless: cache RAM theo instance sẽ cũ tới 5 phút ở instance khác (invalidate chỉ chạm instance ghi)
     // badge poll 30s phải đúng ⇒ bỏ cache, COUNT theo index recipient_id/is_read đủ rẻ.
     const cached = isServerless() ? undefined : this.unreadCache.get(cacheKey)
@@ -317,8 +320,8 @@ export class NotificationsService implements OnModuleInit {
   }
 
   invalidateUnreadCache(userId: number): void {
-    this.unreadCache.delete(`${userId}:all`)
-    this.unreadCache.delete(`${userId}:profile`)
-    this.unreadCache.delete(`${userId}:message`)
+    this.unreadCache.delete(tenantKey(`${userId}:all`))
+    this.unreadCache.delete(tenantKey(`${userId}:profile`))
+    this.unreadCache.delete(tenantKey(`${userId}:message`))
   }
 }

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { tenantKey } from '@trinity/prisma'
 
 /**
  * Theo dõi phiên đăng nhập "đang sống" gần nhất của mỗi user —
@@ -25,12 +26,12 @@ import { Injectable } from '@nestjs/common'
  */
 @Injectable()
 export class ActiveSessionService {
-  private readonly sessions = new Map<number, string>()
+  private readonly sessions = new Map<string, string>() // keyed by tenantKey(userId)
 
   /** Đăng ký phiên MỚI cho user — trả về sessionId để nhúng vào JWT. Ghi đè phiên cũ (nếu có). */
   startSession(userId: number): string {
     const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-    this.sessions.set(userId, sessionId)
+    this.sessions.set(tenantKey(userId), sessionId)
     return sessionId
   }
 
@@ -40,7 +41,7 @@ export class ActiveSessionService {
    * bật tính năng nên chưa từng gọi `startSession`).
    */
   isCurrentSession(userId: number, sessionId: string | undefined): boolean {
-    const current = this.sessions.get(userId)
+    const current = this.sessions.get(tenantKey(userId))
     if (current === undefined) return true
     if (!sessionId) return true
     return current === sessionId
@@ -48,7 +49,7 @@ export class ActiveSessionService {
 
   /** Gỡ theo dõi phiên của user (vd logout tường minh). Không bắt buộc gọi. */
   clearUser(userId: number): void {
-    this.sessions.delete(userId)
+    this.sessions.delete(tenantKey(userId))
   }
 
   /** Exposed for testing */

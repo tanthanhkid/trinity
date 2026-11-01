@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, tenantKey } from '@trinity/prisma';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../common/redis.provider';
 import { scopeOf } from '@trinity/rbac';
@@ -61,14 +61,14 @@ export class DashboardOverviewService {
     const fKey = filterCacheKey(user, filter);
     const key = `dashboard:overview:${CACHE_VERSION}:${user.userId}:${fKey}:${scopePart}`;
     try {
-      const raw = await this.redis.get(key);
+      const raw = await this.redis.get(tenantKey(key));
       if (raw) return JSON.parse(raw) as DashboardOverviewResult;
     } catch (err) {
       this.logger.warn(`Redis get failed (${key}): ${err instanceof Error ? err.message : err}`);
     }
     const result = await this.compute(user, scopeIds, filterIds !== null);
     try {
-      await this.redis.set(key, JSON.stringify(result), 'EX', OVERVIEW_CACHE_TTL_SEC);
+      await this.redis.set(tenantKey(key), JSON.stringify(result), 'EX', OVERVIEW_CACHE_TTL_SEC);
     } catch (err) {
       this.logger.warn(`Redis set failed (${key}): ${err instanceof Error ? err.message : err}`);
     }

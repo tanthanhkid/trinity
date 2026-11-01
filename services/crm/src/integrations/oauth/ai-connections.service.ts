@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { IntegrationAuditService, PrismaService } from '@trinity/prisma';
 import { OauthTokenService } from './oauth-token.service';
+import { inClientRegistry } from './oauth-clients.service';
 
 export interface AiConnectionRow {
   id: string;
@@ -37,7 +38,7 @@ export class AiConnectionsService {
     const families = heads.map((h) => h.family_id);
     const [firsts, clients, users] = await Promise.all([
       this.prisma.oauthToken.groupBy({ by: ['family_id'], where: { family_id: { in: families } }, _min: { created_at: true } }),
-      this.prisma.oauthClient.findMany({ where: { client_id: { in: heads.map((h) => h.client_id) } }, select: { client_id: true, name: true, kind: true } }),
+      inClientRegistry(() => this.prisma.oauthClient.findMany({ where: { client_id: { in: heads.map((h) => h.client_id) } }, select: { client_id: true, name: true, kind: true } })),
       this.prisma.user.findMany({ where: { id: { in: heads.map((h) => h.user_id) } }, select: { id: true, full_name: true, email: true } }),
     ]);
     const first = new Map(firsts.map((f) => [f.family_id, f._min.created_at]));

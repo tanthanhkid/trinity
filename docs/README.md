@@ -3,6 +3,7 @@
 - [Getting started](getting-started.md)
 - [Architecture](architecture.md)
 - [Deployment](deployment.md)
+- [Multi-tenant hosting](multi-tenant.md) (one company per sign-up)
 - [Custom objects](custom-objects.md) (Vietnamese)
 - Integrations: [MCP / AI connections](integrations/mcp.md), [Webhooks](integrations/webhooks.md), [Zalo OA](integrations/zalo-oa.md) (Vietnamese), [Facebook comments, Messenger and the Interactions screen](integrations/facebook-comments.md), [Social posting](integrations/social.md)
 - [Add-ons runbook](runbooks/addons.md) (Vietnamese)

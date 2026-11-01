@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { FacebookBroadcastsService } from './facebook-broadcasts.service';
+import { tenantTimerTick } from '../common/helpers/tenant-timer';
 
 const INTERVAL_MS = 60_000;
 
@@ -8,6 +9,8 @@ const INTERVAL_MS = 60_000;
 @Injectable()
 export class FacebookBroadcastsJob implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(FacebookBroadcastsJob.name);
+  /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
+  private readonly timerTick = tenantTimerTick(this.logger, 'Gửi hàng loạt', () => this.tick());
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
 
@@ -16,7 +19,7 @@ export class FacebookBroadcastsJob implements OnModuleInit, OnModuleDestroy {
   onModuleInit(): void {
     cronRegistry.register({ name: 'facebook.broadcasts', budgetMs: 30_000, run: () => this.broadcasts.runDue(30_000) });
     if (isServerless()) return;
-    this.timer = setInterval(() => void this.tick(), INTERVAL_MS);
+    this.timer = setInterval(() => void this.timerTick(), INTERVAL_MS);
     this.timer.unref();
   }
 

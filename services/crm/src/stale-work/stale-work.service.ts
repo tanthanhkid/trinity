@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, tenantKey } from '@trinity/prisma';
 import { ScopeService, type AuthUser } from '@trinity/rbac-nest';
 import { OrgFeaturesService } from '../settings/org-features.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -25,7 +25,8 @@ export interface RunResult {
 @Injectable()
 export class StaleWorkService {
   private readonly logger = new Logger(StaleWorkService.name);
-  private scanCache: { at: number; value: Map<number, OwnerStats> } | null = null;
+  /** Kết quả quét theo công ty (`tenantKey('scan')`): id người phụ trách trùng giữa các công ty. */
+  private readonly scanCache = new Map<string, { at: number; value: Map<number, OwnerStats> }>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -47,14 +48,16 @@ export class StaleWorkService {
     const cfg = normalizeStaleConfig(raw);
     const value = JSON.stringify(cfg);
     await this.prisma.setting.upsert({ where: { key: CONFIG_KEY }, update: { value, updated_by: userId }, create: { key: CONFIG_KEY, value, updated_by: userId } });
-    this.scanCache = null;
+    this.scanCache.delete(tenantKey('scan'));
     return cfg;
   }
 
   private async stats(now: Date, fresh = false): Promise<Map<number, OwnerStats>> {
-    if (!fresh && this.scanCache && now.getTime() - this.scanCache.at < SCAN_CACHE_MS) return this.scanCache.value;
+    const key = tenantKey('scan');
+    const hit = this.scanCache.get(key);
+    if (!fresh && hit && now.getTime() - hit.at < SCAN_CACHE_MS) return hit.value;
     const value = await scanStale(this.prisma, await this.getConfig(), now);
-    this.scanCache = { at: now.getTime(), value };
+    this.scanCache.set(key, { at: now.getTime(), value });
     return value;
   }
 

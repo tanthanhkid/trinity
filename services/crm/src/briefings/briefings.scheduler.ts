@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { BriefingsService } from './briefings.service';
+import { tenantTimerTick } from '../common/helpers/tenant-timer';
 
 const ONE_MIN_MS = 60_000;
 
@@ -13,6 +14,8 @@ const ONE_MIN_MS = 60_000;
 @Injectable()
 export class BriefingsScheduler implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BriefingsScheduler.name);
+  /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
+  private readonly timerTick = tenantTimerTick(this.logger, 'Bản tin', () => this.tick());
   private interval: ReturnType<typeof setInterval> | null = null;
   private running = false;
 
@@ -21,7 +24,7 @@ export class BriefingsScheduler implements OnModuleInit, OnModuleDestroy {
   onModuleInit(): void {
     cronRegistry.register({ name: 'briefings.run-due', budgetMs: 40_000, run: () => this.briefings.runDue() });
     if (isServerless() || process.env.BRIEFING_CRON_ENABLED?.trim() !== 'true') return;
-    this.interval = setInterval(() => void this.tick(), ONE_MIN_MS);
+    this.interval = setInterval(() => void this.timerTick(), ONE_MIN_MS);
     this.interval.unref();
   }
 

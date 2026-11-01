@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { FacebookFlow, FacebookFlowRun } from '@prisma/client';
-import { Prisma, PrismaService } from '@trinity/prisma';
+import { Prisma, PrismaService, currentCompanyId } from '@trinity/prisma';
 import { publishMessengerEvent } from './facebook-events';
 import { runInBackground } from '@trinity/rbac-nest';
 import { isWithinMessagingWindow } from './channel';
@@ -154,8 +154,9 @@ export interface FlowView extends Omit<FacebookFlow, 'steps'> {
 @Injectable()
 export class FacebookFlowsService {
   private readonly logger = new Logger(FacebookFlowsService.name);
-  private running = false;
-  private lastDueCheck = 0;
+  /** Theo công ty (multi-tenant): lượt nền của công ty A không được chặn/nuốt lượt của công ty B. Khoá = `currentCompanyId() ?? 0`. */
+  private readonly running = new Set<number>();
+  private readonly lastDueCheck = new Map<number, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -415,13 +416,14 @@ export class FacebookFlowsService {
   }
 
   async kickIfDue(now = Date.now()): Promise<{ due: boolean }> {
-    if (this.running || now - this.lastDueCheck < 20_000) return { due: false };
-    this.lastDueCheck = now;
+    const company = currentCompanyId() ?? 0;
+    if (this.running.has(company) || now - (this.lastDueCheck.get(company) ?? 0) < 20_000) return { due: false };
+    this.lastDueCheck.set(company, now);
     const due = await this.prisma.facebookFlowRun.findFirst({ where: { status: 'scheduled', due_at: { lte: new Date(now) } }, select: { id: true } });
     if (!due) return { due: false };
-    this.running = true;
+    this.running.add(company);
     runInBackground(
-      () => this.runDue(40_000).finally(() => (this.running = false)),
+      () => this.runDue(40_000).finally(() => this.running.delete(company)),
       (err) => this.logger.error(`Kịch bản nhắn tin nền lỗi: ${(err as Error)?.message}`),
     );
     return { due: true };

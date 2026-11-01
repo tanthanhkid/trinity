@@ -1,5 +1,5 @@
 import { Module, Global } from '@nestjs/common'
-import { PrismaService } from './prisma.service'
+import { PrismaService, createPrismaService } from './prisma.service'
 import { IntegrationAuditService } from './integrations/integration-audit.service'
 import { IntegrationEventsService } from './integrations/integration-events.service'
 
@@ -14,7 +14,12 @@ export { PrismaService }
  */
 @Global()
 @Module({
-  providers: [PrismaService, IntegrationAuditService, IntegrationEventsService],
+  providers: [
+    // Factory → the multi-tenant routing proxy (see prisma.service.ts). Same token, same type for injectors.
+    { provide: PrismaService, useFactory: createPrismaService },
+    IntegrationAuditService,
+    IntegrationEventsService,
+  ],
   exports: [PrismaService, IntegrationAuditService, IntegrationEventsService],
 })
 export class PrismaModule {}

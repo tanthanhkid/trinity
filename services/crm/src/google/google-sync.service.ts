@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { GoogleConnection, GoogleSheetSync, Prisma } from '@prisma/client';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, tenantKey } from '@trinity/prisma';
 import type { AuthUser } from '@trinity/rbac-nest';
 import { PermissionService } from '@trinity/rbac-nest';
 import type { CreateSyncDto, UpdateSyncDto } from './dto/google-sync.dto';
@@ -20,7 +20,8 @@ const STALE_RUNNING_MS = 10 * 60_000;
 @Injectable()
 export class GoogleSyncService {
   private readonly logger = new Logger(GoogleSyncService.name);
-  private readonly running = new Set<number>();
+  /** Khoá theo công ty (`tenantKey`): id cấu hình trùng giữa các công ty. */
+  private readonly running = new Set<string>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -146,8 +147,9 @@ export class GoogleSyncService {
   /** Chạy một cấu hình. Không chạy chồng (cùng cấu hình); lỗi được ghi vào run + sync, không ném ra caller định kỳ. */
   async execute(id: number, trigger: RunTrigger, opts: { backfill?: boolean } = {}): Promise<RunStats> {
     // Giữ chỗ ĐỒNG BỘ ngay sau kiểm tra (trước mọi await) — hai lần gọi đồng thời không cùng lọt qua được.
-    if (this.running.has(id)) throw new ConflictException('Cấu hình này đang chạy');
-    this.running.add(id);
+    const runKey = tenantKey(id);
+    if (this.running.has(runKey)) throw new ConflictException('Cấu hình này đang chạy');
+    this.running.add(runKey);
     let sync: GoogleSheetSync;
     let run: { id: bigint };
     try {
@@ -157,7 +159,7 @@ export class GoogleSyncService {
       if (busy) throw new ConflictException('Cấu hình này đang chạy');
       run = await this.prisma.googleSheetSyncRun.create({ data: { sync_id: id, trigger }, select: { id: true } });
     } catch (e) {
-      this.running.delete(id);
+      this.running.delete(runKey);
       throw e;
     }
     const stats = emptyStats();
@@ -169,7 +171,7 @@ export class GoogleSyncService {
       error = ((e as Error)?.message ?? 'lỗi không rõ').slice(0, 500);
       this.logger.warn(`Đồng bộ Google Sheet sync=${id} lỗi: ${error}`);
     } finally {
-      this.running.delete(id);
+      this.running.delete(runKey);
     }
     const status = error ? 'error' : stats.errors > 0 ? 'partial' : 'ok';
     const now = new Date();

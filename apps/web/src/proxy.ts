@@ -4,7 +4,7 @@ import { loginPathWithNext } from '@/lib/oauth-authorize'
 
 // '/.well-known' = metadata OAuth/MCP — máy chủ của ChatGPT/Claude tải KHÔNG có phiên; Next rewrite sang monolith.
 // '/s/' = trang bán hàng online công khai (khách mua không đăng nhập).
-const PUBLIC_PATHS = ['/login', '/.well-known', '/s/']
+const PUBLIC_PATHS = ['/login', '/register', '/.well-known', '/s/']
 /** Path exact match (không dùng startsWith vì '/' match mọi thứ) */
 /** `/privacy`, `/terms`: trang chính sách công khai — Meta/Google/TikTok đọc khi duyệt ứng dụng đăng bài. */
 const PUBLIC_EXACT_PATHS: string[] = ['/privacy', '/terms']

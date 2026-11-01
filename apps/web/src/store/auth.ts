@@ -3,7 +3,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { Grants } from '@trinity/rbac'
-import type { AuthMe, AuthTokens, Role, User } from '../types/auth'
+import type { AuthMe, AuthTokens, Company, Role, User } from '../types/auth'
 
 const EMPTY_GRANTS: Grants = {}
 
@@ -13,6 +13,7 @@ interface AuthState {
   /** RBAC quyền + phạm vi — nguồn DUY NHẤT cho `usePermissions()`. */
   permissions: Grants
   isAdmin: boolean
+  company: Company | null
   accessToken: string | null
   refreshToken: string | null
   _hasHydrated: boolean
@@ -54,24 +55,28 @@ export const useAuthStore = create<AuthState>()(
       roles: [],
       permissions: EMPTY_GRANTS,
       isAdmin: false,
+      company: null,
       accessToken: null,
       refreshToken: null,
       _hasHydrated: false,
       setAuth: (auth: AuthMe, tokens: AuthTokens) =>
-        set({
+        set((prev) => ({
+          // Responses that omit `company` (older servers, partial refresh payloads) keep the known one.
+          company: auth.company ?? prev.company,
           user: auth.user,
           roles: auth.roles,
           permissions: auth.permissions,
           isAdmin: auth.isAdmin,
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
-        }),
+        })),
       clearAuth: () => {
         set({
           user: null,
           roles: [],
           permissions: EMPTY_GRANTS,
           isAdmin: false,
+          company: null,
           accessToken: null,
           refreshToken: null,
         })

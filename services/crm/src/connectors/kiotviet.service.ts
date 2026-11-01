@@ -6,6 +6,7 @@ import { publicBaseUrl } from '../integrations/oauth/oauth-config';
 import { CommerceSyncService, type SyncOwner } from './commerce-sync.service';
 import { ConnectorsService } from './connectors.service';
 import { KiotVietClient, mapKvCustomer, mapKvOrder, mapKvProduct, verifyKiotvietSignature, kvDate, type KvWebhookBody } from './kiotviet';
+import { withCompanyHint } from '../common/helpers/tenant-hint';
 
 const RESOURCES = ['customers', 'products', 'orders', 'invoices'] as const;
 type Resource = (typeof RESOURCES)[number];
@@ -71,7 +72,7 @@ export class KiotVietService {
     const base = publicBaseUrl();
     if (base) {
       try {
-        settings.webhook_ids = await client.registerWebhooks(`${base}/api/v1/connectors/kiotviet/webhook/${creds.webhook_token}`, creds.webhook_secret);
+        settings.webhook_ids = await client.registerWebhooks(withCompanyHint(`${base}/api/v1/connectors/kiotviet/webhook/${creds.webhook_token}`), creds.webhook_secret);
         settings.webhook_error = null;
       } catch (err) {
         settings.webhook_ids = [];

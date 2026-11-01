@@ -1,6 +1,7 @@
 import { Controller, Get, HttpException, Logger, NotFoundException, Param, Query, Res, StreamableFile } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { currentCompanyId } from '@trinity/prisma';
 import { Public } from '@trinity/rbac-nest';
 import { isSocialNetwork, socialBaseUrl } from './social.config';
 import { SocialAccountsService } from './social-accounts.service';
@@ -28,7 +29,8 @@ export class SocialPublicController {
   @ApiOperation({ summary: 'Link tải tệp có chữ ký cho mạng xã hội lấy ảnh/video khi đăng' })
   async mediaLink(@Param('token') token: string, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
     const v = verifyMediaLink(token);
-    if (!v) throw new NotFoundException();
+    // Token chỉ mở tệp của đúng công ty đã ký nó (công ty route chọn từ `?cid=`).
+    if (!v || v.companyId !== (currentCompanyId() ?? 0)) throw new NotFoundException();
     const f = await this.media.openKey(v.key).catch(() => null);
     if (!f) throw new NotFoundException();
     res.set({ 'Content-Type': v.contentType, 'Cache-Control': 'private, max-age=600', ...(f.contentLength ? { 'Content-Length': String(f.contentLength) } : {}) });

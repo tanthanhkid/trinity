@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, registerCompanyRoute, rememberOauthState } from '@trinity/prisma';
+import { enterRoutedCompany } from '../common/helpers/routed-company';
 import { decryptSecret, encryptSecret, isSecretKeyConfigured, loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { publicBaseUrl } from '../integrations/oauth/oauth-config';
 import { CommerceSyncService, type SyncOwner } from './commerce-sync.service';
@@ -30,13 +31,15 @@ export class ShopeeService {
   }
 
   /** Bước 1: URL để chủ shop cấp quyền cho Trinity. */
-  startConnect(userId: number): { authorize_url: string } {
+  async startConnect(userId: number): Promise<{ authorize_url: string }> {
     const cfg = shopeeConfig();
     if (!cfg) throw new ServiceUnavailableException('Máy chủ chưa đặt SHOPEE_PARTNER_ID / SHOPEE_PARTNER_KEY (app đối tác Shopee của Trinity).');
     const base = publicBaseUrl();
     if (!base) throw new ServiceUnavailableException('Máy chủ chưa đặt INTEGRATIONS_PUBLIC_BASE_URL.');
     if (!isSecretKeyConfigured()) throw new ServiceUnavailableException('Máy chủ chưa đặt INTEGRATIONS_SECRET_KEY.');
     const state = signState('shopee', userId, loadSecretKey());
+    // Multi-tenant: callback công khai chọn công ty theo `state`.
+    await rememberOauthState(state);
     return { authorize_url: shopeeAuthUrl(cfg, `${base}/api/v1/connectors/shopee/callback?state=${encodeURIComponent(state)}`) };
   }
 
@@ -55,6 +58,8 @@ export class ShopeeService {
     const settings: ShopeeSettings = sameShop ? { ...(old!.settings as unknown as ShopeeSettings) } : { shop_id: shopId };
     const data = { status: 'active', credentials_enc: encryptSecret(JSON.stringify(creds), loadSecretKey()), settings: settings as object, last_error: null, connected_by: st.userId };
     await this.prisma.connectorAccount.upsert({ where: { provider: 'shopee' }, update: data, create: { provider: 'shopee', ...data } });
+    // Multi-tenant: pushes arrive on the app's single URL — remember which company this shop belongs to.
+    await registerCompanyRoute('shopee_shop', String(shopId));
     await this.runSync(fetchFn).catch((e) => this.logger.warn(`Shopee đồng bộ lần đầu lỗi: ${(e as Error).message}`));
   }
 
@@ -98,6 +103,7 @@ export class ShopeeService {
   async handlePush(url: string, raw: Buffer | undefined, auth: string | undefined, body: { shop_id?: number; code?: number; data?: { ordersn?: string } }, fetchFn: typeof fetch = fetch): Promise<{ ok: boolean; applied: number }> {
     const cfg = shopeeConfig();
     if (!cfg || !verifyShopeePush(cfg, url, raw, auth)) return { ok: false, applied: 0 };
+    if (!(await enterRoutedCompany('shopee_shop', body?.shop_id))) return { ok: true, applied: 0 };
     const c = await this.session(fetchFn);
     if (!c || body?.shop_id !== c.shop.shopId || body.code !== 3 || !body.data?.ordersn) return { ok: true, applied: 0 };
     const d = await new ShopeeClient(cfg, fetchFn).orderDetail(c.shop, [body.data.ordersn]);

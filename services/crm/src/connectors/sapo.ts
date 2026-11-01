@@ -141,7 +141,7 @@ export class SapoClient {
   private async registerAll(address: string, ids: number[]): Promise<void> {
     for (const topic of SAPO_WEBHOOK_TOPICS) {
       // Topic gắn vào địa chỉ: không phụ thuộc tên header topic của Sapo.
-      const r = await this.request<{ webhook?: { id?: number } }>('POST', '/webhooks.json', { webhook: { topic, address: `${address}?topic=${encodeURIComponent(topic)}`, format: 'json' } });
+      const r = await this.request<{ webhook?: { id?: number } }>('POST', '/webhooks.json', { webhook: { topic, address: `${address}${address.includes('?') ? '&' : '?'}topic=${encodeURIComponent(topic)}`, format: 'json' } });
       if (r.webhook?.id) ids.push(r.webhook.id);
     }
   }

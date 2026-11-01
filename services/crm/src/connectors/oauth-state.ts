@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { stateCompanyClaim, stateCompanyMatches } from '../common/helpers/tenant-hint';
 
 /**
  * `state` OAuth không cần lưu DB: `base64url(json{p,u,exp}).hmac` ký bằng INTEGRATIONS_SECRET_KEY.
@@ -7,7 +8,10 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 const TTL_MS = 15 * 60_000;
 
 export function signState(provider: string, userId: number, key: Buffer, now = Date.now()): string {
-  const body = Buffer.from(JSON.stringify({ p: provider, u: userId, exp: now + TTL_MS })).toString('base64url');
+  const claims: Record<string, unknown> = { p: provider, u: userId, exp: now + TTL_MS };
+  const c = stateCompanyClaim();
+  if (c !== undefined) claims.c = c;
+  const body = Buffer.from(JSON.stringify(claims)).toString('base64url');
   return `${body}.${createHmac('sha256', key).update(body).digest('base64url')}`;
 }
 
@@ -17,8 +21,9 @@ export function verifyState(state: string, provider: string, key: Buffer, now = 
   const want = createHmac('sha256', key).update(body).digest('base64url');
   if (want.length !== mac.length || !timingSafeEqual(Buffer.from(want), Buffer.from(mac))) return null;
   try {
-    const j = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as { p?: string; u?: number; exp?: number };
+    const j = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as { p?: string; u?: number; exp?: number; c?: unknown };
     if (j.p !== provider || typeof j.u !== 'number' || typeof j.exp !== 'number' || j.exp < now) return null;
+    if (!stateCompanyMatches(j.c)) return null;
     return { userId: j.u };
   } catch {
     return null;

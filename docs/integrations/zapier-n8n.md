@@ -55,7 +55,7 @@ Create a key under **Settings › API keys** (Cài đặt › Khoá API). Pick t
 
 Administrators cannot own a key, and a key stops working (`403`) if its owner is later made an administrator: create a new key for a staff account with just the permissions needed.
 
-Send the key in the header `X-API-Key: trinity_live_…`. Limit: 100 requests per minute per key. Errors: `401` wrong/revoked key or missing scope, `403` the owner lacks the permission, `400` invalid data.
+Send the key in the header `X-API-Key: trinity_live_…` (on a multi-company host keys start with the company, e.g. `c5.trinity_live_…` — send the whole key as shown). Limit: 100 requests per minute per key. Errors: `401` wrong/revoked key or missing scope, `403` the owner lacks the permission, `400` invalid data.
 
 ### Create a deal (order)
 

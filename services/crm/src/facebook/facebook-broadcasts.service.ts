@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { FacebookBroadcast, FacebookConversation } from '@prisma/client';
-import { Prisma, PrismaService, publishIntegrationEvent } from '@trinity/prisma';
+import { Prisma, PrismaService, publishIntegrationEvent, currentCompanyId } from '@trinity/prisma';
 import { publishMessengerEvent } from './facebook-events';
 import { runInBackground } from '@trinity/rbac-nest';
 import { MESSAGING_WINDOW_MS, isWithinMessagingWindow } from './channel';
@@ -62,8 +62,9 @@ export function cleanAudience(a: unknown): BroadcastAudience {
 @Injectable()
 export class FacebookBroadcastsService {
   private readonly logger = new Logger(FacebookBroadcastsService.name);
-  private running = false;
-  private lastDueCheck = 0;
+  /** Theo công ty (multi-tenant): lượt nền của công ty A không được chặn/nuốt lượt của công ty B. Khoá = `currentCompanyId() ?? 0`. */
+  private readonly running = new Set<number>();
+  private readonly lastDueCheck = new Map<number, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -222,10 +223,11 @@ export class FacebookBroadcastsService {
 
   /** Gửi ngay sau request (serverless: giữ hàm sống tới khi xong; VPS: chạy nền). Không chạy chồng trong cùng process. */
   kick(): void {
-    if (this.running) return;
-    this.running = true;
+    const company = currentCompanyId() ?? 0;
+    if (this.running.has(company)) return;
+    this.running.add(company);
     runInBackground(
-      () => this.runDue(40_000).finally(() => (this.running = false)),
+      () => this.runDue(40_000).finally(() => this.running.delete(company)),
       (err) => this.logger.error(`Gửi hàng loạt nền lỗi: ${(err as Error)?.message}`),
     );
   }
@@ -243,8 +245,9 @@ export class FacebookBroadcastsService {
   }
 
   async kickIfDue(now = Date.now()): Promise<{ due: boolean }> {
-    if (this.running || now - this.lastDueCheck < 20_000) return { due: false };
-    this.lastDueCheck = now;
+    const company = currentCompanyId() ?? 0;
+    if (this.running.has(company) || now - (this.lastDueCheck.get(company) ?? 0) < 20_000) return { due: false };
+    this.lastDueCheck.set(company, now);
     const due = await this.prisma.facebookBroadcast.findFirst({
       where: { OR: [{ status: 'scheduled', scheduled_at: { lte: new Date(now) } }, { status: 'sending' }] },
       select: { id: true },

@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { CircleAlert, Eye, EyeOff, Loader2 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
-import { login } from "@/lib/auth-api"
+import { isSignupEnabled, login } from "@/lib/auth-api"
+import Link from "next/link"
 import { resetLogoutState } from "@/lib/api-client"
 import { describeError, serverSentence } from "@/lib/error-messages"
 import { logFrontendError } from "@/lib/fe-logger"
@@ -105,6 +106,16 @@ export default function LoginPage() {
     clearAuth()
   }, [hasHydrated]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Bản cài nhiều công ty mở đăng ký ⇒ hiện link "Đăng ký công ty mới".
+  const [signupOpen, setSignupOpen] = useState(false)
+  useEffect(() => {
+    let alive = true
+    void isSignupEnabled().then((v) => alive && setSignupOpen(v))
+    return () => {
+      alive = false
+    }
+  }, [])
+
   const {
     register,
     handleSubmit,
@@ -122,10 +133,10 @@ export default function LoginPage() {
       // ngay tại FE (trim + lowercase) để tránh lớp lỗi này phát sinh ngay từ đầu
       // — KHÔNG thay cho fix BE, chỉ là hàng rào bổ sung cho đường web.
       const normalizedEmail = values.email.trim().toLowerCase()
-      const { user, roles, permissions, isAdmin, tokens } = await login(normalizedEmail, values.password)
+      const { user, roles, permissions, isAdmin, company, tokens } = await login(normalizedEmail, values.password)
       setAccessToken(tokens.accessToken)
       setRefreshToken(tokens.refreshToken)
-      setAuth({ user, roles, permissions, isAdmin }, tokens)
+      setAuth({ user, roles, permissions, isAdmin, company }, tokens)
       // đang dở luồng cấp quyền AI (middleware chuyển `/oauth/authorize?...` sang `/login?next=...`) ⇒ quay lại đúng trang
       // đồng ý. Chỉ nhận `/oauth/authorize` (safeNextPath) — không dùng `next` làm open redirect. Đọc URL lúc submit (không cần
       // useSearchParams/Suspense).
@@ -257,6 +268,15 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          {signupOpen && (
+            <p className="text-center text-sm text-muted-foreground">
+              Chưa có tài khoản?{" "}
+              <Link href="/register" className="font-medium text-primary hover:underline">
+                Đăng ký công ty mới
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </div>

@@ -14,8 +14,7 @@ import {
   publishIntegrationEvent,
   snapshotContact,
   snapshotDeal,
-  CONTACT_EVENT_SELECT,
-} from '@trinity/prisma';
+  CONTACT_EVENT_SELECT, tenantKey } from '@trinity/prisma';
 import { Prisma } from '@prisma/client';
 import Redis from 'ioredis';
 import { createHash } from 'node:crypto';
@@ -216,7 +215,7 @@ export class ContactsService {
    */
   private async getCachedCount(key: string): Promise<number | undefined> {
     try {
-      const raw = await this.redis.get(key);
+      const raw = await this.redis.get(tenantKey(key));
       if (raw == null) return undefined;
       const parsed = Number(raw);
       return Number.isFinite(parsed) ? parsed : undefined;
@@ -233,7 +232,7 @@ export class ContactsService {
    */
   private async setCachedCount(key: string, total: number): Promise<void> {
     try {
-      await this.redis.set(key, String(total), 'EX', COUNT_CACHE_TTL_SECONDS);
+      await this.redis.set(tenantKey(key), String(total), 'EX', COUNT_CACHE_TTL_SECONDS);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Redis count cache set failed (${key}): ${msg}`);

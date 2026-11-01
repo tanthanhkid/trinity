@@ -13,7 +13,21 @@ import * as bcrypt from 'bcryptjs'
 import * as crypto from 'crypto'
 import sharp from 'sharp'
 import { createUploadsStore, uploadsRelPathFromUrl } from '@trinity/storage'
-import { PrismaService } from '@trinity/prisma'
+import {
+  PrismaService,
+  EmailTakenError,
+  activeCompanyRef,
+  companyIdForEmail,
+  currentCompanyId,
+  enterCompany,
+  getCompany,
+  hasExplicitCompany,
+  isMultiTenant,
+  provisionCompany,
+  runWithCompany,
+} from '@trinity/prisma'
+import { isSingleUserCompany } from '@trinity/rbac-nest'
+import type { RegisterDto } from './dto/register.dto'
 import { PermissionService } from '@trinity/rbac-nest'
 import { can, type Grants } from '@trinity/rbac'
 import { LoginDto } from './dto/login.dto'
@@ -43,16 +57,26 @@ interface JwtPayload {
   email: string
   // CHỈ có khi tính năng 1-phiên/tài khoản đang bật lúc login.
   sid?: string
+  // Multi-tenant: company of the user (absent = company 1, tokens minted before multi-tenancy).
+  cid?: number
 }
 
 interface RefreshPayload {
   sub: number
   type: 'refresh'
   sid?: string
+  cid?: number
   /** Id PHIÊN đăng nhập: sinh lúc login, giữ nguyên qua mọi lần refresh; đăng xuất thu hồi theo id này. */
   jti?: string
   iat?: number
   exp?: number
+}
+
+export interface CompanyInfo {
+  id: number
+  name: string
+  single_user: boolean
+  multi_tenant: boolean
 }
 
 interface UserWithRole {
@@ -85,8 +109,19 @@ export class AuthService {
 
   /** Hình dạng chung của `/auth/me` VÀ response login/refresh
    * FE có `permissions` ngay từ lúc đăng nhập, không cần gọi thêm request. */
-  private toMeResponse(user: UserWithRole, grants: Grants, isAdmin: boolean) {
+  /**
+   * The user's company, for the web app: its name, and `single_user` (SaaS companies have exactly one user, so
+   * staff / user / team management screens are hidden).
+   */
+  private async companyInfo(): Promise<CompanyInfo> {
+    const id = currentCompanyId() ?? 1
+    const row = await getCompany(id)
+    return { id, name: row?.name ?? '', single_user: isSingleUserCompany(), multi_tenant: isMultiTenant() }
+  }
+
+  private toMeResponse(user: UserWithRole, grants: Grants, isAdmin: boolean, company?: CompanyInfo) {
     return {
+      company,
       user: {
         id: user.id,
         email: user.email,
@@ -111,7 +146,7 @@ export class AuthService {
       throw new NotFoundException('Không tìm thấy người dùng')
     }
     const { grants, isAdmin } = await this.permissionService.grantsFor(userId)
-    return this.toMeResponse(user, grants, isAdmin)
+    return this.toMeResponse(user, grants, isAdmin, await this.companyInfo())
   }
 
   async login(dto: LoginDto, ipAddress: string | null = null) {
@@ -120,6 +155,8 @@ export class AuthService {
     // viết hoa chữ cái đầu). Giá trị RAW `dto.email` (audit log, lookup) GIỮ
     // NGUYÊN — không đụng, vì đó là tín hiệu chẩn đoán chính.
     const rateLimitKey = `login:${ipAddress ?? 'unknown'}:${this.normalizeEmailForKey(dto.email)}`
+    // Multi-tenant: the email decides the company; everything below (audit log included) runs in its schema.
+    await this.enterCompanyOfEmail(dto.email)
     await this.enforceRateLimit(rateLimitKey, dto.email, ipAddress)
 
     const user = await this.findUserByEmail(dto.email)
@@ -467,6 +504,7 @@ export class AuthService {
     const accessPayload: JwtPayload = {
       sub: user.id,
       email: user.email,
+      ...this.companyClaim(),
     }
     const accessToken = this.jwtService.sign(accessPayload, {
       expiresIn: '15m',
@@ -489,6 +527,18 @@ export class AuthService {
 
   async refresh(refreshToken: string) {
     const payload = this.verifyRefreshToken(refreshToken)
+    if (!isMultiTenant()) {
+      // Multi-tenancy switched off: another company's token must not act as company 1's user with the same id.
+      if (payload.cid !== undefined && payload.cid !== 1) throw new UnauthorizedException('Refresh token không hợp lệ hoặc đã hết hạn')
+      return this.refreshInCompany(payload)
+    }
+    // The token decides the company — run in its own scope, whatever hint (`?cid=`) the public route carried.
+    const company = await activeCompanyRef(payload.cid ?? 1)
+    if (!company) throw new UnauthorizedException('Công ty của tài khoản này không còn hoạt động')
+    return runWithCompany(company, () => this.refreshInCompany(payload))
+  }
+
+  private async refreshInCompany(payload: RefreshPayload) {
     const user = await this.findUserById(payload.sub)
 
     if (!user || user.status !== 'active') {
@@ -686,9 +736,10 @@ export class AuthService {
     } catch {
       throw new BadRequestException('Tệp không phải ảnh hợp lệ')
     }
-    await store.save(`avatars/${fileName}`, jpeg, 'image/jpeg')
+    const subdir = this.avatarSubdir()
+    await store.save(`${subdir}${fileName}`, jpeg, 'image/jpeg')
 
-    const avatarUrl = `/uploads/avatars/${fileName}`
+    const avatarUrl = `/uploads/${subdir}${fileName}`
     await this.prisma.user.update({
       where: { id: userId },
       data: { avatar_url: avatarUrl },
@@ -697,6 +748,12 @@ export class AuthService {
     await this.deleteOldAvatar(user.avatar_url)
 
     return { avatar_url: avatarUrl, message: 'Cập nhật ảnh đại diện thành công' }
+  }
+
+  /** Company 1 keeps `avatars/`; other companies `c<id>/avatars/` (same file names never collide across companies). */
+  private avatarSubdir(): string {
+    const id = currentCompanyId() ?? 1
+    return id === 1 ? 'avatars/' : `c${id}/avatars/`
   }
 
   private validateAvatarFile(file: Express.Multer.File): void {
@@ -716,7 +773,8 @@ export class AuthService {
 
   private async deleteOldAvatar(avatarUrl: string | null): Promise<void> {
     const rel = uploadsRelPathFromUrl(avatarUrl)
-    if (!rel || !rel.startsWith('avatars/')) return
+    // Only this company's avatar folder: a URL pointing into another company's files is never deleted.
+    if (!rel || !rel.startsWith(this.avatarSubdir())) return
     // best-effort: file có thể không tồn tại
     await createUploadsStore().remove(rel)
   }
@@ -811,11 +869,13 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       ...(sid ? { sid } : {}),
+      ...this.companyClaim(),
     }
     const refreshPayload: RefreshPayload = {
       sub: user.id,
       type: 'refresh',
       ...(sid ? { sid } : {}),
+      ...this.companyClaim(),
       ...(sessionId ? { jti: sessionId } : {}),
     }
 
@@ -825,13 +885,75 @@ export class AuthService {
     // — FE có `permissions`/`isAdmin` NGAY từ response login/refresh,
     // không cần gọi thêm `/auth/me`.
     const { grants, isAdmin } = await this.permissionService.grantsFor(user.id)
-    const me = this.toMeResponse(user, grants, isAdmin)
+    const me = this.toMeResponse(user, grants, isAdmin, await this.companyInfo())
 
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
       ...me,
     }
+  }
+
+  /** `cid` claim for tokens minted in multi-tenant mode. */
+  private companyClaim(): { cid?: number } {
+    if (!isMultiTenant()) return {}
+    const id = currentCompanyId()
+    return id ? { cid: id } : {}
+  }
+
+  /**
+   * Login is a public route: pick the company from the email (platform.company_logins). Unknown email → the
+   * request stays on the company-1 fallback, the lookup finds nothing and login fails the usual way.
+   */
+  private async enterCompanyOfEmail(email: string): Promise<void> {
+    if (!isMultiTenant() || hasExplicitCompany()) return
+    const id = await companyIdForEmail(email)
+    if (!id) return
+    const company = await activeCompanyRef(id)
+    // Suspended company: no distinct answer (it would let anyone probe emails past the rate limit) — the lookup
+    // stays on the fallback, finds nothing and fails like a wrong password.
+    if (!company) return
+    enterCompany(company)
+  }
+
+  signupEnabled(): boolean {
+    return isMultiTenant() && process.env.SIGNUP_ENABLED !== 'false'
+  }
+
+  /**
+   * Self-service sign-up: a new company (its own schema, empty CRM) whose only user is the owner, then the same
+   * token response as a login, minted inside the new company.
+   */
+  async register(dto: RegisterDto, ipAddress: string | null) {
+    if (!this.signupEnabled()) throw new NotFoundException('Bản cài đặt này không mở đăng ký')
+    // No company exists yet, so nothing is written to an audit log until the new one does.
+    const rateLimitKey = `register:${ipAddress ?? 'unknown'}`
+    if (this.rateLimiter.isRateLimited(rateLimitKey)) {
+      throw new HttpException('Quá nhiều lần đăng ký, vui lòng thử lại sau', HttpStatus.TOO_MANY_REQUESTS)
+    }
+    this.rateLimiter.recordAttempt(rateLimitKey)
+    let company
+    try {
+      ;({ company } = await provisionCompany({
+        companyName: dto.company_name,
+        adminEmail: dto.email,
+        adminPassword: dto.password,
+        adminName: dto.full_name,
+      }))
+    } catch (err) {
+      if (err instanceof EmailTakenError) {
+        throw new HttpException('Email này đã được dùng — hãy đăng nhập', HttpStatus.CONFLICT)
+      }
+      this.logger.error(`register failed: ${(err as Error)?.message}`)
+      throw new InternalServerErrorException('Chưa tạo được công ty, vui lòng thử lại')
+    }
+    // Own scope for the new company (the public route may already carry a fallback or a `?cid=` hint).
+    return runWithCompany(company, async () => {
+      const user = await this.findUserByEmail(dto.email)
+      if (!user) throw new InternalServerErrorException('Chưa tạo được công ty, vui lòng thử lại')
+      await this.logLoginAttempt(user.id, dto.email, true, ipAddress, 'ok')
+      return this.buildTokenResponse(user, undefined, crypto.randomUUID())
+    })
   }
 
   private verifyRefreshToken(token: string): RefreshPayload {

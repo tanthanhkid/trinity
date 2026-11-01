@@ -3,6 +3,7 @@ import type { Readable } from 'stream';
 import {
   LocalDiskStorageDriver,
   S3StorageDriver,
+  StorageInvalidKeyError,
   VercelBlobStorageDriver,
   buildClientUploadTarget,
   generateClientUploadToken,
@@ -15,6 +16,7 @@ import {
   type ClientUploadTarget,
   type StorageDriver,
 } from '@trinity/storage';
+import { requireCompany } from '@trinity/prisma';
 
 export type { ObjectStream, RangedObjectStream, ClientUploadTarget };
 
@@ -25,6 +27,24 @@ const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY ?? '';
 const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY ?? '';
 const MINIO_BUCKET = process.env.MINIO_BUCKET ?? 'trinity-documents';
 const MINIO_REGION = process.env.MINIO_REGION ?? 'ap-southeast-1';
+
+/** Tiền tố thư mục của công ty khác công ty 1 (`c<id>/`). */
+const COMPANY_PREFIX_RE = /^c[0-9]+\//;
+
+/**
+ * Khoá lưu trữ thật của `key` (logic) cho công ty hiện tại (multi-tenant). Công ty 1 giữ nguyên khoá cũ; công ty khác lưu
+ * dưới `c<id>/`. Mọi caller chỉ cầm khoá logic, nên một công ty không bao giờ gọi tới được file của công ty khác:
+ * khoá của công ty ≠1 luôn bị gắn tiền tố của chính nó, còn công ty 1 không được dùng khoá trông như tiền tố công ty.
+ * Không có ngữ cảnh công ty ⇒ ném (fail-closed như PrismaService).
+ */
+export function companyStorageKey(key: string): string {
+  const { id } = requireCompany(`storage key ${key}`);
+  if (id === 1) {
+    if (COMPANY_PREFIX_RE.test(key)) throw new StorageInvalidKeyError(key, 'tiền tố dành cho công ty khác');
+    return key;
+  }
+  return `c${id}/${key}`;
+}
 
 @Injectable()
 export class StorageService implements OnModuleInit {
@@ -86,7 +106,7 @@ export class StorageService implements OnModuleInit {
     contentType: string,
     contentLength?: number,
   ): Promise<string> {
-    const result = await this.driver.upload(key, body, contentType, contentLength);
+    const result = await this.driver.upload(companyStorageKey(key), body, contentType, contentLength);
     this.logger.log(`Uploaded: ${key}`);
     return result;
   }
@@ -96,7 +116,7 @@ export class StorageService implements OnModuleInit {
    * có khái niệm này, driver ném `PresignNotSupportedError`.
    */
   async getPresignedUrl(key: string): Promise<string> {
-    return this.driver.getPresignedUrl(key);
+    return this.driver.getPresignedUrl(companyStorageKey(key));
   }
 
   /**
@@ -104,7 +124,7 @@ export class StorageService implements OnModuleInit {
    * không (hoặc không nên) truy cập trực tiếp storage backend.
    */
   async getObjectStream(key: string): Promise<ObjectStream> {
-    return this.driver.getObjectStream(key);
+    return this.driver.getObjectStream(companyStorageKey(key));
   }
 
   /**
@@ -115,7 +135,7 @@ export class StorageService implements OnModuleInit {
     key: string,
     range?: string,
   ): Promise<RangedObjectStream> {
-    return this.driver.getObjectStreamRange(key, range);
+    return this.driver.getObjectStreamRange(companyStorageKey(key), range);
   }
 
   /**
@@ -135,16 +155,16 @@ export class StorageService implements OnModuleInit {
     const { token } = resolveVercelBlobConfig();
     const clientToken = generateClientUploadToken({
       token,
-      pathname: key,
+      pathname: companyStorageKey(key),
       maximumSizeInBytes: maxBytes,
       allowedContentTypes: [contentType],
     });
-    return buildClientUploadTarget(clientToken, key, contentType, resolveBlobAccess());
+    return buildClientUploadTarget(clientToken, companyStorageKey(key), contentType, resolveBlobAccess());
   }
 
   /** Best-effort delete; logs warning nếu lỗi (vd đã xoá từ trước). */
   async delete(key: string): Promise<void> {
-    await this.driver.delete(key);
+    await this.driver.delete(companyStorageKey(key));
     this.logger.log(`Deleted: ${key}`);
   }
 }

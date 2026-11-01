@@ -1,3 +1,5 @@
+import { isMultiTenant, listActiveCompanies, runWithCompany } from '@trinity/prisma'
+
 /**
  * Sổ đăng ký job nền. Mỗi job nền của monolith (webhook, dọn outbox, nhắc việc…) đăng ký MỘT hàm
  * `runOnce` ở đây. Ở server thường timer riêng vẫn gọi hàm đó như cũ; ở serverless không timer nào chạy, thay vào đó
@@ -32,9 +34,57 @@ export const CRON_TICK_TOTAL_BUDGET_MS = 45_000
 
 const jobs = new Map<string, CronJob>()
 
+/**
+ * Multi-tenant: a job's `run` touches one company's data, so a tick runs it once per active company, each in
+ * its own company context. Timer-driven jobs wrap their tick the same way (`runForEachCompany`).
+ */
+const cursors = new Map<string, number>()
+
+/**
+ * Runs `fn` once per active company, each in its own company context, one after another.
+ *  - `budgetMs`: stop starting new companies once it is spent; the next run resumes after the last company
+ *    reached (per `key`), so a long list is covered across ticks instead of always restarting at company 1.
+ *  - A company that fails does not stop the others; if any failed, the run rejects afterwards with every
+ *    failure so the tick reports `error` (monitoring stays loud).
+ */
+export async function runForEachCompany<T>(fn: () => Promise<T>, opts: { key?: string; budgetMs?: number } = {}): Promise<unknown> {
+  if (!isMultiTenant()) return fn()
+  const companies = await listActiveCompanies()
+  if (!companies.length) return {}
+  const key = opts.key ?? ''
+  // Resume after the last company reached (by id, so companies added/suspended in between do not shift it).
+  const last = cursors.get(key)
+  const next = last === undefined ? -1 : companies.findIndex((c) => c.id > last)
+  const start = next < 0 ? 0 : next
+  const deadline = opts.budgetMs ? Date.now() + opts.budgetMs : Infinity
+  const out: Record<number, unknown> = {}
+  const failures: string[] = []
+  let i = 0
+  for (; i < companies.length; i++) {
+    if (i > 0 && Date.now() >= deadline) break
+    const company = companies[(start + i) % companies.length]
+    // Saved before the run: if this tick is cut short (serverless timeout), the next one starts after this company.
+    cursors.set(key, company.id)
+    try {
+      out[company.id] = await runWithCompany(company, fn)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[cron${key ? ` ${key}` : ''}] company ${company.id}: ${msg}`)
+      failures.push(`company ${company.id}: ${msg}`)
+    }
+  }
+  if (failures.length) throw new Error(failures.join('; ').slice(0, 1000))
+  return out
+}
+
 export const cronRegistry = {
   /** Đăng ký (ghi đè theo tên — an toàn khi module khởi tạo lại trong test). Trả hàm gỡ. */
-  register(job: CronJob): () => void {
+  register(input: CronJob): () => void {
+    // Leave headroom inside the job's own budget for the company that is still running when it runs out.
+    const job: CronJob = {
+      ...input,
+      run: () => runForEachCompany(input.run, { key: input.name, budgetMs: Math.floor(input.budgetMs * 0.6) }),
+    }
     jobs.set(job.name, job)
     return () => {
       if (jobs.get(job.name) === job) jobs.delete(job.name)

@@ -25,6 +25,8 @@ export interface StoreSettings {
   slug: string; name: string; tagline: string | null; theme: "toi-gian" | "am-ap" | "soi-dong"; accent: string
   cover_url: string | null; logo_url: string | null
   phone: string | null; address: string | null; cod: boolean; bank_transfer: boolean; published: boolean; product_ids: number[]
+  /** Máy chủ trả: `/s/<slug>` kèm `?cid=` khi tài khoản không phải công ty 1. */
+  public_path?: string | null
 }
 export interface StoreOrder {
   id: number; code: string; status: string; customer_name: string; customer_phone: string; customer_address: string | null
@@ -52,7 +54,9 @@ function StoreSettingsForm({ initial }: { initial: StoreSettings }) {
     mutationFn: async (b: StoreSettings) => (await apiClient.put<StoreSettings>("/store/settings", b)).data,
     onSuccess: (d) => { qc.setQueryData(["store", "settings"], d); toast.success(d.published ? "Đã lưu — trang đang mở bán" : "Đã lưu") },
   })
-  const url = typeof window === "undefined" || !f.slug ? "" : `${window.location.origin}/s/${f.slug}`
+  // Giữ phần `?cid=` máy chủ gắn (multi-tenant) cho cả khi đang sửa địa chỉ.
+  const hint = initial.public_path?.includes("?") ? initial.public_path.slice(initial.public_path.indexOf("?")) : ""
+  const url = typeof window === "undefined" || !f.slug ? "" : `${window.location.origin}/s/${f.slug}${hint}`
   const sellable = (products.data ?? []).filter((p) => p.price != null)
   const toggle = (id: number) => setF({ ...f, product_ids: f.product_ids.includes(id) ? f.product_ids.filter((x) => x !== id) : [...f.product_ids, id] })
   const submit = async (e: React.FormEvent) => {

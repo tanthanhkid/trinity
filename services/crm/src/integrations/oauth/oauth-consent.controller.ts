@@ -6,6 +6,7 @@ import { OAuthError } from './oauth-error';
 import { oauthEnabled } from './oauth-config';
 import { OauthAuthorizeService } from './oauth-authorize.service';
 import { consentLimiter } from './oauth-rate-limits';
+import { tenantKey } from '@trinity/prisma';
 import type { AuthorizeInput } from './authorize-request';
 
 const isObj = (b: unknown): b is Record<string, unknown> => !!b && typeof b === 'object' && !Array.isArray(b);
@@ -27,7 +28,7 @@ export class OauthConsentController {
       res.status(404).json({ statusCode: 404, message: 'Not Found' });
       return true;
     }
-    const hit = consentLimiter.hit(`consent:${user.userId}`);
+    const hit = consentLimiter.hit(`consent:${tenantKey(user.userId)}`);
     if (!hit.allowed) {
       res.set('Retry-After', String(hit.retryAfterSec)).status(429).json({ error: 'temporarily_unavailable', error_description: 'Quá nhiều yêu cầu, thử lại sau' });
       return true;

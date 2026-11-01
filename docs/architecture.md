@@ -32,6 +32,9 @@ browser ──► web (Next.js :3000) ──/api/v1/*──► api (NestJS monol
   MCP server (`/api/v1/mcp`, OAuth 2.1 + PKCE) and act with the permissions of the connected user; writes execute right away within
   that user's permissions and scope (the `crm.write` OAuth scope gates them). An admin setting, *Require approval for AI changes*
   (default off), switches to the draft-then-approve flow where writes are *proposals* a human approves.
+- **Multi-tenant (optional).** `MULTI_TENANT=true` turns a deployment into a hosted service: one company per sign-up,
+  one Postgres schema per company, every query routed by `PrismaService` to the company of the request (fail-closed).
+  See [multi-tenant.md](multi-tenant.md).
 - **Feature flags default to OFF** for anything that reaches outside the system: webhooks, MCP, add-ons.
 - **Storage drivers**: local disk (default), S3/MinIO, Vercel Blob (`packages/storage`).
 - **Employment periods.** Attendance and payroll count an employee on a day only if that day lies inside one of

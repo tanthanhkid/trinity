@@ -23,6 +23,7 @@ import { Request } from 'express'
 import { AuthService } from './auth.service'
 import { LoginDto } from './dto/login.dto'
 import { RefreshDto } from './dto/refresh.dto'
+import { RegisterDto } from './dto/register.dto'
 import { LogoutDto } from './dto/logout.dto'
 import { ChangePasswordDto } from './dto/change-password.dto'
 import { ResetMyPasswordDto } from './dto/reset-my-password.dto'
@@ -51,6 +52,25 @@ export class AuthController {
     // loopback của proxy, không phải IP thật của client (xem chú thích helper).
     const ip = extractLoginClientIp(req)
     return this.authService.login(dto, ip)
+  }
+
+  @Post('register')
+  @Public()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Đăng ký công ty mới (chỉ khi bật nhiều công ty) — trả về token như đăng nhập' })
+  @ApiBody({ type: RegisterDto })
+  @ApiResponse({ status: 201, description: 'Đã tạo công ty và tài khoản chủ' })
+  @ApiResponse({ status: 404, description: 'Bản cài đặt này không mở đăng ký' })
+  @ApiResponse({ status: 409, description: 'Email đã được dùng' })
+  async register(@Body() dto: RegisterDto, @Req() req: Request) {
+    return this.authService.register(dto, extractLoginClientIp(req))
+  }
+
+  @Get('signup-enabled')
+  @Public()
+  @ApiOperation({ summary: 'Bản cài đặt có mở đăng ký công ty mới không' })
+  signupEnabled() {
+    return { enabled: this.authService.signupEnabled() }
   }
 
   @Post('refresh')

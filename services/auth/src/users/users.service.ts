@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common'
 import * as bcrypt from 'bcryptjs'
-import { PrismaService, Prisma, recordEmploymentEnd, recordEmploymentStart } from '@trinity/prisma'
+import { assertEmailAvailableForCurrentCompany, PrismaService, Prisma, recordEmploymentEnd, recordEmploymentStart } from '@trinity/prisma'
 import {
   RbacCache,
   ScopeService,
@@ -232,6 +232,7 @@ export class UsersService {
     const normalizedEmail = dto.email.trim().toLowerCase()
     // Gói dịch vụ: chặn vượt max_users TRƯỚC mọi thay đổi dữ liệu.
     await assertUserSlotAvailable(this.prisma)
+    await assertEmailAvailableForCurrentCompany(normalizedEmail)
     const existing = await this.prisma.user.findFirst({
       where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
       select: { id: true, deleted_at: true },
@@ -332,6 +333,7 @@ export class UsersService {
     // cần kiểm tra).
     const normalizedEmail = dto.email?.trim()
     if (normalizedEmail && normalizedEmail.toLowerCase() !== user.email.toLowerCase()) {
+      await assertEmailAvailableForCurrentCompany(normalizedEmail)
       // Case-insensitive lookup — `findUnique` không diễn tả
       // được so sánh không phân biệt hoa/thường trên field `@unique` thường.
       // `NOT: { id }` là lớp phòng thủ THỨ 2 (defense-in-depth): điều kiện

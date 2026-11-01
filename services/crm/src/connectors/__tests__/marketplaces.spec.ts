@@ -58,10 +58,10 @@ describe('Shopee', () => {
     expect(u.searchParams.get('time_range_field')).toBe('update_time');
   });
 
-  it('máy chủ chưa cấu hình ⇒ báo rõ', () => {
+  it('máy chủ chưa cấu hình ⇒ báo rõ', async () => {
     const prev = process.env.SHOPEE_PARTNER_ID;
     delete process.env.SHOPEE_PARTNER_ID;
-    expect(() => new ShopeeService({} as never, {} as never, {} as never).startConnect(1)).toThrow('SHOPEE_PARTNER_ID');
+    await expect(new ShopeeService({} as never, {} as never, {} as never).startConnect(1)).rejects.toThrow('SHOPEE_PARTNER_ID');
     if (prev !== undefined) process.env.SHOPEE_PARTNER_ID = prev;
   });
 });

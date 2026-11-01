@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { OrgFeaturesService } from '../settings/org-features.service';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, activeCompanyRef, companyIdForRoute, isMultiTenant, runWithCompany, type CompanyRef } from '@trinity/prisma';
 import { FORWARDED_HEADER, loadFacebookConfig, webhookForwardUrl } from './facebook.config';
 import { verifyMetaSignature } from './facebook-signature';
 import { FacebookLeadsService, type LeadgenChange } from './facebook-leads.service';
@@ -50,7 +50,46 @@ export class FacebookWebhookService {
     if (!secret) throw new ServiceUnavailableException();
     if (!verifyMetaSignature(rawBody, signature, secret)) throw new UnauthorizedException('Chữ ký không hợp lệ');
     const b = (body ?? {}) as WebhookBody;
-    if (!opts.forwarded) await this.forwardForeignPages(rawBody as Buffer, signature as string, b);
+    if (!isMultiTenant()) {
+      if (!opts.forwarded) await this.forwardForeignPages(rawBody as Buffer, signature as string, b);
+      return this.processEntries(b);
+    }
+    // Multi-tenant: một POST có thể gồm entry của nhiều Page thuộc nhiều công ty ⇒ chạy từng nhóm dưới công ty sở hữu Page.
+    // Page không có trong `company_routes` (chưa công ty nào nối) ⇒ bỏ qua, KHÔNG rơi về công ty 1.
+    const groups = b.object === 'page' && Array.isArray(b.entry) ? await this.groupByCompany(b.entry) : { byCompany: [], unknown: 0 };
+    if (!opts.forwarded && groups.unknown > 0) this.forward(rawBody as Buffer, signature as string);
+    let n = 0;
+    for (const g of groups.byCompany) {
+      n += await runWithCompany(g.company, () => this.processEntries({ object: b.object, entry: g.entries }));
+    }
+    return n;
+  }
+
+  /** Nhóm entry theo công ty sở hữu Page (`platform.company_routes`). Giữ thứ tự entry trong từng nhóm. */
+  async groupByCompany(entries: WebhookEntry[]): Promise<{ byCompany: Array<{ company: CompanyRef; entries: WebhookEntry[] }>; unknown: number }> {
+    const owner = new Map<string, CompanyRef | null>();
+    const byId = new Map<number, { company: CompanyRef; entries: WebhookEntry[] }>();
+    let unknown = 0;
+    for (const entry of entries) {
+      if (!entry?.id) continue;
+      if (!owner.has(entry.id)) {
+        const cid = await companyIdForRoute('facebook_page', entry.id);
+        owner.set(entry.id, cid ? await activeCompanyRef(cid) : null);
+      }
+      const company = owner.get(entry.id);
+      if (!company) {
+        unknown++;
+        continue;
+      }
+      let g = byId.get(company.id);
+      if (!g) byId.set(company.id, (g = { company, entries: [] }));
+      g.entries.push(entry);
+    }
+    return { byCompany: [...byId.values()], unknown };
+  }
+
+  /** Xử lý các entry của MỘT công ty (ngữ cảnh công ty đã chọn). Cờ gói tắt ⇒ bỏ qua. */
+  private async processEntries(b: WebhookBody): Promise<number> {
     if (!(await this.orgFeatures.isEnabled('facebook_page'))) return 0;
     if (b.object !== 'page' || !Array.isArray(b.entry)) return 0;
     let n = 0;
@@ -96,6 +135,14 @@ export class FacebookWebhookService {
       return false;
     }
     if (ids.every((id) => known.has(id))) return false;
+    this.forward(rawBody, signature);
+    return true;
+  }
+
+  /** Chuyển nguyên body + chữ ký gốc sang `FACEBOOK_WEBHOOK_FORWARD_URL` (không chờ). */
+  private forward(rawBody: Buffer, signature: string): void {
+    const url = webhookForwardUrl();
+    if (!url) return;
     void fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-hub-signature-256': signature, [FORWARDED_HEADER]: '1' },
@@ -106,7 +153,6 @@ export class FacebookWebhookService {
         if (!r.ok) this.logger.warn(`Chuyển tiếp webhook Facebook: bản kia trả ${r.status}`);
       })
       .catch((err: Error) => this.logger.warn(`Chuyển tiếp webhook Facebook lỗi: ${err.message}`));
-    return true;
   }
 
   /** Lỗi DB của 1 tin không được làm hỏng cả lô (và gây Meta gửi lại tin đã xử lý). */

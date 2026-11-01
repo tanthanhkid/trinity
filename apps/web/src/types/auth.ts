@@ -38,4 +38,13 @@ export interface AuthMe {
   roles: Role[]
   permissions: Grants
   isAdmin: boolean
+  /** Company of the user (`/auth/me`). `single_user` = SaaS company with only its owner: staff/user/team screens hidden. */
+  company?: Company
+}
+
+export interface Company {
+  id: number
+  name: string
+  single_user: boolean
+  multi_tenant: boolean
 }

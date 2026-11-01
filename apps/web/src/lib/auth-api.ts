@@ -21,7 +21,37 @@ export async function login(email: string, password: string): Promise<LoginResul
     roles: data.roles,
     permissions: data.permissions,
     isAdmin: data.isAdmin,
+    company: data.company,
     tokens: { accessToken: data.access_token, refreshToken: data.refresh_token },
+  }
+}
+
+export interface RegisterInput {
+  company_name: string
+  full_name: string
+  email: string
+  password: string
+}
+
+/** Sign-up (multi-tenant installs): creates a new company owned by this account and returns a logged-in session. */
+export async function registerCompany(input: RegisterInput): Promise<LoginResult> {
+  const { data } = await apiClient.post<LoginResponseRaw>('/auth/register', input)
+  return {
+    user: data.user,
+    roles: data.roles,
+    permissions: data.permissions,
+    isAdmin: data.isAdmin,
+    company: data.company,
+    tokens: { accessToken: data.access_token, refreshToken: data.refresh_token },
+  }
+}
+
+export async function isSignupEnabled(): Promise<boolean> {
+  try {
+    const { data } = await apiClient.get<{ enabled: boolean }>('/auth/signup-enabled')
+    return data.enabled === true
+  } catch {
+    return false
   }
 }
 

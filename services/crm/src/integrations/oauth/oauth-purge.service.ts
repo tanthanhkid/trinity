@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { PrismaService } from '@trinity/prisma';
 import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { oauthEnabled } from './oauth-config';
+import { tenantTimerTick } from '../../common/helpers/tenant-timer';
 
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 const FIRST_RUN_DELAY_MS = 7 * 60 * 1000;
@@ -14,6 +15,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 @Injectable()
 export class OauthPurgeService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OauthPurgeService.name);
+  /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
+  private readonly timerTick = tenantTimerTick(this.logger, 'OAuth purge', () => this.runOnce());
   private interval: ReturnType<typeof setInterval> | null = null;
   private first: ReturnType<typeof setTimeout> | null = null;
 
@@ -27,8 +30,8 @@ export class OauthPurgeService implements OnModuleInit, OnModuleDestroy {
     });
     if (isServerless()) return;
     if (!oauthEnabled()) return;
-    this.first = setTimeout(() => void this.runOnce(), FIRST_RUN_DELAY_MS);
-    this.interval = setInterval(() => void this.runOnce(), SIX_HOURS_MS);
+    this.first = setTimeout(() => void this.timerTick(), FIRST_RUN_DELAY_MS);
+    this.interval = setInterval(() => void this.timerTick(), SIX_HOURS_MS);
     this.first.unref();
     this.interval.unref();
   }

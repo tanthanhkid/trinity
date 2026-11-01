@@ -144,7 +144,7 @@ describe('Instagram: số liệu', () => {
 describe('link tệp công khai có chữ ký', () => {
   it('ký rồi kiểm ra đúng khoá; sai chữ ký / hết hạn ⇒ null', () => {
     const t = signMediaLink({ key: 'social/u1_a.jpg', content_type: 'image/jpeg' }, 1_000);
-    expect(verifyMediaLink(t, 1_000)).toEqual({ key: 'social/u1_a.jpg', contentType: 'image/jpeg' });
+    expect(verifyMediaLink(t, 1_000)).toEqual({ key: 'social/u1_a.jpg', contentType: 'image/jpeg', companyId: 1 });
     expect(verifyMediaLink(t.slice(0, -2) + 'xx', 1_000)).toBeNull();
     expect(verifyMediaLink(t, 1_000 + 3 * 60 * 60 * 1000)).toBeNull();
     expect(verifyMediaLink('rác', 1_000)).toBeNull();

@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core'
 import { timingSafeEqual } from 'crypto'
 import { can } from '@trinity/rbac'
+import { resolvePublicRouteCompany } from './tenant-resolve'
 import { RBAC_META, AccessMeta } from './decorators'
 import { JwtAuthGuard } from './jwt-auth.guard'
 import { PermissionService } from './permission.service'
@@ -51,19 +52,23 @@ export class PermissionGuard implements CanActivate {
       throw new ForbiddenException('Route chưa khai báo quyền')
     }
 
-    if (meta.kind === 'public') return true
+    if (meta.kind === 'public') {
+      await resolvePublicRouteCompany(context.switchToHttp().getRequest())
+      return true
+    }
 
     if (meta.kind === 'internal') {
       this.assertInternalSecret(context)
+      await resolvePublicRouteCompany(context.switchToHttp().getRequest())
       return true
     }
 
     // auth | can → xác thực trước
     await this.jwtGuard.canActivate(context)
     const request = context.switchToHttp().getRequest()
-    const basicUser = request.user as { userId: number; email: string }
+    const basicUser = request.user as { userId: number; email: string; companyId?: number }
     const { grants, isAdmin } = await this.permissionService.grantsFor(basicUser.userId)
-    const user: AuthUser = { userId: basicUser.userId, email: basicUser.email, isAdmin, grants }
+    const user: AuthUser = { userId: basicUser.userId, email: basicUser.email, companyId: basicUser.companyId, isAdmin, grants }
     request.user = user
 
     if (meta.kind === 'auth') return true

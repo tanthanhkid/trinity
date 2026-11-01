@@ -3,6 +3,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { FacebookChatLink } from '@prisma/client';
 import { PrismaService } from '@trinity/prisma';
 import { loadFacebookConfig } from './facebook.config';
+import { withCompanyHint } from '../common/helpers/tenant-hint';
 
 export interface ChatLinkInput {
   name?: string;
@@ -123,7 +124,7 @@ export class FacebookChatLinksService {
     const srcLabel = new Map(srcs.map((s) => [s.id, s.label]));
     return rows.map((r) => ({
       ...r,
-      url: base ? `${base}/api/v1/facebook/go/${r.code}` : null,
+      url: base ? withCompanyHint(`${base}/api/v1/facebook/go/${r.code}`) : null,
       messenger_url: messengerUrl(r.page_id, r.code),
       page_name: pageName.get(r.page_id) ?? null,
       source_label: r.source_id !== null ? (srcLabel.get(r.source_id) ?? null) : null,

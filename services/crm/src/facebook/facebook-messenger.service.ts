@@ -1,6 +1,6 @@
 import { Optional, BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { FacebookPage } from '@prisma/client';
-import { Prisma, PrismaService } from '@trinity/prisma';
+import { Prisma, PrismaService, tenantKey } from '@trinity/prisma';
 import { publishMessengerEvent } from './facebook-events';
 import type { AuthUser } from '@trinity/rbac-nest';
 import { isWithinMessagingWindow, messengerReplyMode, type ChannelSendResult, type MessagingChannel } from './channel';
@@ -302,7 +302,8 @@ export class FacebookMessengerService implements MessagingChannel {
     return kept.map((c) => ({ ...c, page_name: names.get(c.page_id) ?? c.page_id, ...replyFields(c.last_inbound_at), awaiting_reply: awaitingReply(c) }));
   }
 
-  private readonly lastSync = new Map<number, number>();
+  /** Khoá theo công ty (`tenantKey`): id hội thoại trùng giữa các công ty. */
+  private readonly lastSync = new Map<string, number>();
 
   /**
    * Kéo tin gần nhất của hội thoại thẳng từ Facebook và ghi tin còn thiếu (như webhook). Bù khi webhook không về — vd app Meta
@@ -311,8 +312,9 @@ export class FacebookMessengerService implements MessagingChannel {
    */
   async syncConversation(conv: { id: number; page_id: string; psid: string; last_message_at: Date | null }, force = false): Promise<number> {
     const now = Date.now();
-    if (!force && now - (this.lastSync.get(conv.id) ?? 0) < 60_000) return 0;
-    this.lastSync.set(conv.id, now);
+    const syncKey = tenantKey(conv.id);
+    if (!force && now - (this.lastSync.get(syncKey) ?? 0) < 60_000) return 0;
+    this.lastSync.set(syncKey, now);
     const ctx = await this.pages.activePageWithToken(conv.page_id);
     if (!ctx) return 0;
     let msgs: Awaited<ReturnType<GraphClient['getRecentMessages']>>;

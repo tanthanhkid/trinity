@@ -46,3 +46,24 @@ describe('ElkExceptionFilter → server error reporter', () => {
     expect(run(new Error('boom')).status).toBe(500)
   })
 })
+
+describe('translateTenantError', () => {
+  const { translateTenantError } = require('./elk-exception.filter')
+  it('maps a missing company context to 404', () => {
+    const e = new Error('No company context'); e.name = 'MissingCompanyContextError'
+    expect(run(e).status).toBe(404)
+  })
+  it('maps cross-company trigger errors to 409', () => {
+    expect(run(new Error('ERROR: TRINITY_ROUTE_TAKEN: facebook_page 1 is connected to another company')).status).toBe(409)
+    expect(run(new Error('TRINITY_EMAIL_TAKEN: a@b.c')).status).toBe(409)
+    expect(run(new Error('TRINITY_SINGLE_USER')).status).toBe(409)
+  })
+  it('keeps a missing company context on a signed-in request a 500', () => {
+    const e = new Error('No company context'); e.name = 'MissingCompanyContextError'
+    expect(translateTenantError(e, true)).toBe(e)
+  })
+  it('leaves other errors alone', () => {
+    const e = new Error('boom')
+    expect(translateTenantError(e)).toBe(e)
+  })
+})

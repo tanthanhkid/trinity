@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IntegrationAuditService, PrismaService } from '@trinity/prisma';
+import { IntegrationAuditService, PrismaService, requireCompany } from '@trinity/prisma';
 import type { AuthUser } from '@trinity/rbac-nest';
 import { randomUUID } from 'node:crypto';
 import {
@@ -15,6 +15,7 @@ import { randomToken, sha256Hex, signConsent, verifyConsent } from './oauth-cryp
 import { OAuthError, RedirectableOAuthError } from './oauth-error';
 import { OauthClientsService } from './oauth-clients.service';
 import { isLoopbackUri, redirectHost } from './redirect-uri';
+import { withCompanyPrefix } from '../../common/helpers/company-token';
 
 /** Nhãn nhận diện CHỈ khi redirect đi tới đúng host đã biết — tên client do client tự khai nên không đáng tin một mình. */
 const KNOWN_REDIRECT_HOSTS: Record<string, string> = {
@@ -92,7 +93,7 @@ export class OauthAuthorizeService {
         known_as: KNOWN_REDIRECT_HOSTS[host.toLowerCase()] ?? null,
       },
       scopes: v.scopes.map((s) => ({ scope: s, ...SCOPE_LABELS[s] })),
-      consent_token: signConsent({ u: user.userId, h: authorizeFingerprint(v), e: Math.floor(Date.now() / 1000) + CONSENT_TTL_SEC }),
+      consent_token: signConsent({ u: user.userId, c: requireCompany('OAuth consent').id, h: authorizeFingerprint(v), e: Math.floor(Date.now() / 1000) + CONSENT_TTL_SEC }),
       expires_in: CONSENT_TTL_SEC,
     };
   }
@@ -106,8 +107,9 @@ export class OauthAuthorizeService {
       if (err instanceof RedirectableOAuthError) return { redirect_to: this.errorRedirect(err, input).redirect_to };
       throw err;
     }
+    const companyId = requireCompany('OAuth consent').id;
     const claims = verifyConsent(consentToken);
-    if (!claims || claims.u !== user.userId || claims.h !== authorizeFingerprint(v)) {
+    if (!claims || claims.u !== user.userId || (claims.c ?? 1) !== companyId || claims.h !== authorizeFingerprint(v)) {
       throw new OAuthError('invalid_request', 'Phiên đồng ý không hợp lệ hoặc đã hết hạn — hãy tải lại trang');
     }
     // Người dùng có thể BỎ scope tuỳ chọn (crm.write) ở màn đồng ý: chỉ nhận tập con của scope đã hiển thị, không bao giờ rộng hơn.
@@ -120,7 +122,8 @@ export class OauthAuthorizeService {
       await this.audit.log({ channel: 'mcp', action: 'oauth.authorize', status: 'denied', clientId: v.client.client_id, userId: user.userId, metadata: { ...meta, reason: 'user_denied' } });
       return { redirect_to: buildClientRedirect(v.redirectUri, this.base(), { error: 'access_denied', error_description: 'Người dùng từ chối', state: v.state }) };
     }
-    const code = randomToken(32);
+    // Multi-tenant: the code carries its company (`c<id>.`, none for company 1) so /oauth/token knows which schema to look in.
+    const code = withCompanyPrefix(randomToken(32), companyId);
     await this.prisma.oauthAuthorizationCode.create({
       data: {
         code_hash: sha256Hex(code),

@@ -36,6 +36,7 @@ import { shown } from './action-helpers';
 import { EXECUTION_STALE_MS, STALE_EXECUTION_ERROR, effectiveStatus, toView, type DraftView, type ViewStatus } from './ai-action-view';
 import { RecordRefsService } from '../../../custom-objects/refs/record-refs.service';
 import { RecordLinksService } from '../../../custom-objects/refs/record-links.service';
+import { inClientRegistry } from '../../oauth/oauth-clients.service';
 
 const ADVISORY_NS = 347;
 /** Thao tác đổi cấu trúc ⇒ lưu phiên bản cấu trúc trước khi chạy. */
@@ -227,7 +228,7 @@ export class AiActionsService {
 
   private async clientNames(rows: AiActionDraft[]): Promise<Map<string, string>> {
     const ids = Array.from(new Set(rows.map((r) => r.client_id)));
-    const cs = ids.length ? await this.prisma.oauthClient.findMany({ where: { client_id: { in: ids } }, select: { client_id: true, name: true } }) : [];
+    const cs = ids.length ? await inClientRegistry(() => this.prisma.oauthClient.findMany({ where: { client_id: { in: ids } }, select: { client_id: true, name: true } })) : [];
     return new Map(cs.map((c) => [c.client_id, c.name]));
   }
 

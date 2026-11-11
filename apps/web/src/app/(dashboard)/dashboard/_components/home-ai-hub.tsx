@@ -144,10 +144,20 @@ export function ConnectAiInvite() {
 /* Kênh đã kết nối                                                      */
 /* ------------------------------------------------------------------ */
 
-const STATE_DOT: Record<ChannelState, string> = {
-  ok: 'bg-emerald-500',
-  attention: 'bg-amber-500',
-  off: 'bg-muted-foreground/40',
+/** Chấm trạng thái: khác nhau cả HÌNH (không chỉ màu) để người mù màu vẫn phân biệt — WCAG 1.4.1 / 1.4.11.
+ *  ok = chấm đặc · attention = chấm có dấu "!" · off = chấm rỗng (chỉ viền). Sắc -600 cho đủ tương phản trên nền thẻ sáng. */
+function ChannelDot({ state }: { state: ChannelState }) {
+  const base = 'absolute -right-0.5 -bottom-0.5 grid size-3 place-items-center rounded-full ring-2 ring-[var(--card)]'
+  if (state === 'off') return <span aria-hidden className={cn(base, 'border border-muted-foreground/70 bg-[var(--card)]')} />
+  if (state === 'attention') return <span aria-hidden className={cn(base, 'bg-amber-600 text-[8px] font-bold leading-none text-white')}>!</span>
+  return <span aria-hidden className={cn(base, 'bg-emerald-600')} />
+}
+
+/** Chữ cho trình đọc màn hình — chấm trạng thái không chỉ dựa vào màu. */
+const STATE_LABEL: Record<ChannelState, string> = {
+  ok: 'Đang chạy',
+  attention: 'Cần xử lý',
+  off: 'Đã tắt',
 }
 
 /** Dấu nhận diện kênh: logo chính thức của hãng; trang bán hàng (của chính Trinity) và kênh lạ dùng biểu tượng chung. */
@@ -214,13 +224,15 @@ export function ChannelsHub({ loading, error, data }: { loading: boolean; error:
           {channels.slice(0, 7).map((c) => (
             <li key={c.key} className="border-t border-[var(--border)] first:border-t-0">
               <Link href={c.href} className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--ring)]">
-                <ChannelMark c={c} />
+                <span className="relative shrink-0" data-state={c.state}>
+                  <ChannelMark c={c} />
+                  <ChannelDot state={c.state} />
+                </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[14px] font-medium text-[var(--foreground)]">{c.name}</span>
-                  <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
-                    <span aria-hidden className={cn('size-2 shrink-0 rounded-full', STATE_DOT[c.state])} />
-                    <span className="truncate">{c.note}</span>
+                  <span className="block truncate text-[14px] font-medium text-[var(--foreground)]">
+                    {c.name}<span className="sr-only"> — {STATE_LABEL[c.state]}</span>
                   </span>
+                  <span className="block truncate text-[13px] text-muted-foreground">{c.note}</span>
                 </span>
                 {c.today && (
                   <span className="shrink-0 text-right">
@@ -286,7 +298,7 @@ export function FeatureSuggestions() {
           <h2 id="home-feature-suggest" className="text-[15px] font-semibold text-[var(--foreground)]">Bật thêm tính năng</h2>
           <p className="mt-0.5 text-[14px] text-muted-foreground">Trinity mở ra gọn với bộ cơ bản. Bật thêm khi cần, menu sẽ hiện mục tương ứng. Có thể nhờ trợ lý AI bật giúp.</p>
         </div>
-        <button type="button" onClick={dismiss} className="rounded-md p-1 text-muted-foreground hover:bg-[var(--muted)] max-sm:min-h-11 max-sm:min-w-11" aria-label="Ẩn gợi ý">
+        <button type="button" onClick={dismiss} className="rounded-md p-1 text-muted-foreground hover:bg-[var(--muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] max-sm:min-h-11 max-sm:min-w-11" aria-label="Ẩn gợi ý">
           <X className="size-4" aria-hidden />
         </button>
       </div>
@@ -311,7 +323,7 @@ export function FeatureSuggestions() {
           </li>
         ))}
       </ul>
-      <Link href="/settings?tab=features" className="mt-3 inline-flex items-center gap-1 text-[14px] text-[var(--ring)] hover:underline">
+      <Link href="/settings?tab=features" className="mt-3 inline-flex items-center gap-1 rounded text-[14px] text-[var(--ring)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]">
         Xem tất cả tính năng <ArrowRight className="size-3.5" aria-hidden />
       </Link>
     </section>

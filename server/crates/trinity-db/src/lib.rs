@@ -1,11 +1,19 @@
 //! Pool Postgres, `TenantDb`/`PlatformDb`, migrator tương thích Prisma, platform, provision, model sinh tự động.
 //!
+//! Định tuyến công ty bằng `search_path` (K06): xem [`Db`], [`TenantDb`] và tài liệu đầu `tenant.rs`.
+//!
 //! K01 chỉ đặt nền cho cách kiểm truy vấn (docs/rust/PLAN.md mục 4.4, `server/README.md`):
 //! - truy vấn tĩnh dùng `sqlx::query!`/`query_scalar!`/`query_as!`, kiểm lúc biên dịch bằng dữ liệu trong
 //!   `server/.sqlx/` (`SQLX_OFFLINE=true`), nên `cargo check` và CI không cần DB;
 //! - truy vấn có bộ lọc động dùng `QueryBuilder`/`query_as` không macro, giá trị luôn bind, và bắt buộc có test pg.
 
 pub mod prisma_migrate;
+mod tenant;
+
+pub use tenant::{
+    CompanyRef, Db, DbConfig, DbError, LATEST_MIGRATION, PlatformConn, PlatformDb, PlatformTx, TenantConn, TenantDb,
+    TenantTx,
+};
 
 use sqlx::PgExecutor;
 

@@ -658,6 +658,19 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   của job (`jobs`, `job_runs`, mục 4.9), không có bảng công ty/định tuyến.
 - Kiểm "đã migrate chưa" cho công ty 1: `platform.companies.migrated_to` không được ghi cho công ty 1
   (`provision.ts` lọc `id <> 1`), nên đọc `_prisma_migrations` của `public`.
+- **Đã làm ở K06** (`server/crates/trinity-db/src/tenant.rs`): `Db` (pool), `Db::tenant(CompanyRef)` → `TenantDb`
+  (handle) → `TenantConn`/`TenantTx`; `PlatformDb` → `PlatformConn`/`PlatformTx`. `search_path` không tồn tại,
+  `TimeZone=UTC`, `statement_timeout` gửi trong gói khởi động (thay cho `after_connect`, không thêm vòng gọi); trả kết
+  nối thì `ROLLBACK; RESET ALL; SELECT pg_advisory_unlock_all()` (RESET ALL về đúng giá trị khởi động, xoá mọi `SET`
+  của handler), lỗi thì đóng kết nối. Cổng migrate: tên migration lớn nhất của thư mục Prisma ghi vào binary lúc biên
+  dịch (`LATEST_MIGRATION`); công ty N so `platform.companies.migrated_to`, công ty 1 so tên lớn nhất đã chạy xong
+  trong `public._prisma_migrations`; thiếu ⇒ `DbError::CompanyNotMigrated` (HTTP 503), chỉ nhớ kết quả đạt nên migrate
+  xong là phục vụ được ngay. Env: `DATABASE_URL` (đa công ty: `TENANT_DATABASE_URL`, `DIRECT_DATABASE_URL` trước),
+  `DB_POOL_SIZE` (mặc định 8, không có thì `PRISMA_CONNECTION_LIMIT`), `DB_ACQUIRE_TIMEOUT_MS` (10 000),
+  `DB_STATEMENT_TIMEOUT_MS` (30 000), `MULTI_TENANT`; tham số riêng của Prisma trong URL (`schema`,
+  `connection_limit`…) bị bỏ, `pgbouncer=true` hoặc host `-pooler.` bị từ chối. Lint `cargo xtask lint` (job clippy
+  của CI): `sql-star` và `http-hold` (theo cú pháp: biến từ `.acquire()`/`.begin()` hoặc tham số kiểu
+  `TenantConn`/`TenantTx`/`PlatformConn`/`PlatformTx`, tới `drop`/`commit`/`rollback`).
 
 ### 4.4 Tầng dữ liệu
 

@@ -1,6 +1,6 @@
 //! Lưu trữ file: driver đĩa cục bộ (ghi nguyên tử, chống thoát thư mục, `Range`), kho `uploads` và route
 //! `/uploads/*` (PLAN 4.11, issue K22). Chuyển từ `packages/storage` của bản TS; bố cục trên đĩa giữ nguyên nên file
-//! do Node ghi đọc được (test `tests/node_compat.rs`). Driver S3 làm ở issue riêng.
+//! do Node ghi đọc được (test `tests/node_compat.rs`). Driver S3/MinIO ở `s3.rs` (issue K23).
 
 mod atomic;
 mod error;
@@ -9,6 +9,7 @@ mod local;
 mod mime;
 mod mime_db;
 mod range;
+mod s3;
 mod serve;
 mod uploads;
 
@@ -18,5 +19,6 @@ pub use key::resolve_safe_key;
 pub use local::{LocalDiskDriver, Object, RangedObject};
 pub use mime::content_type_for_path;
 pub use range::{ByteRange, parse_range};
+pub use s3::{S3Config, S3ConfigError, S3Driver, S3Object, S3RangedObject};
 pub use serve::{UPLOADS_CACHE_CONTROL, uploads_router};
 pub use uploads::{LocalUploadsStore, UPLOADS_URL_PREFIX, uploads_rel_path_from_url};

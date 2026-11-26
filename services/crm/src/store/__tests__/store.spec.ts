@@ -25,6 +25,13 @@ describe('cleanStoreSettings', () => {
     const s = cleanStoreSettings({ bank_transfer: true, bank_bin: 'MBBank', bank_account: '0123 456 789', bank_account_name: 'NGUYEN VAN A' }, { ...BASE, bank_notice: 'nhập lại' });
     expect(s).toMatchObject({ bank_transfer: true, bank_bin: '970422', bank_account: '0123456789', bank_account_name: 'NGUYEN VAN A', bank_notice: null });
   });
+
+  it('cấu hình cũ bật chuyển khoản nhưng thiếu tài khoản: sửa trường khác vẫn lưu được; tắt chuyển khoản thì xoá lời nhắc', () => {
+    const old = { ...BASE, bank_transfer: true, bank_notice: 'nhập lại' };
+    expect(cleanStoreSettings({ name: 'Tên mới' }, old)).toMatchObject({ name: 'Tên mới', bank_transfer: true, bank_notice: 'nhập lại' });
+    expect(() => cleanStoreSettings({ bank_account_name: 'A' }, old)).toThrow('chọn ngân hàng');
+    expect(cleanStoreSettings({ bank_transfer: false }, old)).toMatchObject({ bank_transfer: false, bank_notice: null });
+  });
 });
 
 function setup(over: Partial<StoreSettings> = {}, enabled = true) {
@@ -119,6 +126,31 @@ describe('StoreService', () => {
     const rows = await svc.listOrders({ userId: 42 } as never);
     expect(prisma.storeOrder.findMany.mock.calls[0][0].where).toEqual({ contact_id: { in: [55] } });
     expect(rows[0].customer_phone).toBe('***678');
+  });
+
+  it('đổi trạng thái đơn: ghi store_order.status_changed (+ store_order.paid khi sang paid) cùng transaction', async () => {
+    const { svc, prisma } = setup();
+    const row = { id: 1, code: 'DH-ABCDEF', status: 'new', customer_name: 'An', customer_phone: '0912345678', customer_address: null, note: null, items: [{ product_id: 10, name: 'Sách', price: 145000, quantity: 2 }], total: 290000n, payment_method: 'bank_transfer', contact_id: 55, created_at: new Date('2026-10-15T00:00:00Z') };
+    prisma.storeOrder.findUnique.mockResolvedValue(row);
+    prisma.contact.findMany.mockResolvedValue([{ id: 55, assigned_to: 3 }]);
+    prisma.storeOrder.update.mockResolvedValue({ ...row, status: 'paid' });
+    await svc.updateOrderStatus({ userId: 1 } as never, 1, 'paid');
+    expect(prisma.$transaction).toHaveBeenCalled();
+    const evs = prisma.integrationEvent.create.mock.calls.map((c: Array<{ data: { event_type: string; payload: Record<string, unknown> } }>) => c[0].data);
+    expect(evs.map((e: { event_type: string }) => e.event_type)).toEqual(['store_order.status_changed', 'store_order.paid']);
+    expect(evs[0].payload).toMatchObject({ previous_status: 'new', order: { code: 'DH-ABCDEF', status: 'paid', contact_assigned_to: 3, items: [{ product_id: 10, quantity: 2 }] } });
+    prisma.integrationEvent.create.mockClear();
+    prisma.storeOrder.update.mockResolvedValue({ ...row, status: 'shipped' });
+    await svc.updateOrderStatus({ userId: 1 } as never, 1, 'shipped');
+    expect(prisma.integrationEvent.create.mock.calls.map((c: Array<{ data: { event_type: string } }>) => c[0].data.event_type)).toEqual(['store_order.status_changed']);
+  });
+
+  it('người cấu hình cửa hàng không còn tồn tại ⇒ khách mới không có người phụ trách (null, không phải 0)', async () => {
+    const { svc, prisma, publicApi } = setup();
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.contact.findFirst.mockResolvedValue(null);
+    await svc.placeOrder('cua-hang-abc', '1.2.3.8', { name: 'Bình', phone: '0987654322', address: 'x', items: [{ product_id: 10, quantity: 1 }] });
+    expect(publicApi.createContactInTx.mock.calls[0][2]).toEqual({ id: null, team_id: null });
   });
 
   it('đổi trạng thái đơn ngoài phạm vi deals.manage ⇒ 404, không sửa', async () => {

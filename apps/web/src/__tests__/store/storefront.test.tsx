@@ -55,4 +55,54 @@ describe("<Storefront>", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Tiếp tục mua" })[0])
     expect(await screen.findByRole("heading", { level: 2, name: "Sản phẩm" })).toBeTruthy()
   })
+
+  describe("chờ cửa hàng xác nhận chuyển khoản", () => {
+    const QR = "00020101021238540010A00000072701240006970422011001234567890208QRIBFTTA53037045405200005802VN62130809DH-ABCDEF6304XXXX"
+    async function placeTransfer(status: () => string) {
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url === "/api/v1/store/public/cua-hang-abc") return new Response(JSON.stringify(STORE), { status: 200 })
+        if (init?.method === "POST") return new Response(JSON.stringify({ code: "DH-ABCDEF", total: 20000, payment_method: "bank_transfer", payment: { qr_data: QR, transfer_content: "DH-ABCDEF", bank: null } }), { status: 201 })
+        return new Response(JSON.stringify({ status: status() }), { status: 200 })
+      })
+      render(<Storefront slug="cua-hang-abc" />)
+      await screen.findByRole("heading", { level: 1, name: "Cửa hàng ABC" })
+      fireEvent.click(screen.getAllByRole("button", { name: "Thêm vào giỏ" })[0])
+      fireEvent.click(screen.getByRole("button", { name: "Giỏ hàng: 1 món" }))
+      fireEvent.change(screen.getByLabelText("Họ tên"), { target: { value: "An" } })
+      fireEvent.change(screen.getByLabelText("Số điện thoại"), { target: { value: "0912345678" } })
+      fireEvent.click(screen.getByLabelText(/Chuyển khoản/))
+      fireEvent.click(screen.getByRole("button", { name: /Đặt hàng/ }))
+      await waitFor(() => expect(screen.getByText("Quét mã để thanh toán")).toBeTruthy())
+    }
+    afterEach(() => { vi.useRealTimers() })
+
+    it("đơn bị huỷ ⇒ câu riêng, không còn hiện QR", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      await placeTransfer(() => "cancelled")
+      await vi.advanceTimersByTimeAsync(16_000)
+      await waitFor(() => expect(screen.getByText("Đơn đã bị huỷ")).toBeTruthy())
+      expect(screen.queryByRole("img", { name: /Mã QR/ })).toBeNull()
+      expect(screen.getByText(/vui lòng không chuyển khoản/)).toBeTruthy()
+    })
+
+    it("cửa hàng xác nhận ⇒ trạng thái kết thúc có câu riêng", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      await placeTransfer(() => "confirmed")
+      await vi.advanceTimersByTimeAsync(16_000)
+      await waitFor(() => expect(screen.getByText("Cửa hàng đã xác nhận đơn")).toBeTruthy())
+      expect(screen.queryByRole("img", { name: /Mã QR/ })).toBeNull()
+    })
+
+    it("hết 1 giờ chưa xác nhận ⇒ báo ngừng tự kiểm tra, bấm Kiểm tra lại thì hỏi lại ngay", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      let st = "new"
+      await placeTransfer(() => st)
+      await vi.advanceTimersByTimeAsync(15_000 * 241)
+      await waitFor(() => expect(screen.getByRole("button", { name: "Kiểm tra lại" })).toBeTruthy())
+      expect(screen.getByText(/ngừng tự kiểm tra/)).toBeTruthy()
+      st = "paid"
+      fireEvent.click(screen.getByRole("button", { name: "Kiểm tra lại" }))
+      await waitFor(() => expect(screen.getByText("Đã nhận thanh toán")).toBeTruthy())
+    })
+  })
 })

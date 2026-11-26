@@ -94,10 +94,13 @@ export function cleanStoreSettings(input: Record<string, unknown>, current: Stor
   }
   const accName = str('bank_account_name', 80);
   if (accName !== undefined) next.bank_account_name = accName || null;
-  if (next.bank_transfer && !(next.bank_bin && next.bank_account)) {
+  // Chỉ bắt buộc tài khoản khi lần lưu này BẬT chuyển khoản hoặc sửa trường ngân hàng: lưu trường khác (tên, sản phẩm…)
+  // trên cấu hình cũ thiếu tài khoản vẫn được — trang công khai tự coi như chưa nhận chuyển khoản (bankAccountOf).
+  const touchesBank = input.bank_transfer === true || ['bank_bin', 'bank_account', 'bank_account_name'].some((k) => input[k] !== undefined);
+  if (next.bank_transfer && touchesBank && !(next.bank_bin && next.bank_account)) {
     throw new BadRequestException('Chuyển khoản cần chọn ngân hàng và nhập số tài khoản nhận tiền.');
   }
-  if (next.bank_bin && next.bank_account) next.bank_notice = null;
+  if ((next.bank_bin && next.bank_account) || !next.bank_transfer) next.bank_notice = null;
   if (Array.isArray(input.product_ids)) {
     const ids = [...new Set((input.product_ids as unknown[]).map(Number).filter((n) => Number.isSafeInteger(n) && n > 0))];
     if (ids.length > 200) throw new BadRequestException('Tối đa 200 sản phẩm trên trang.');
@@ -109,6 +112,23 @@ export function cleanStoreSettings(input: Record<string, unknown>, current: Stor
     if (!next.cod && !next.bank_transfer) throw new BadRequestException('Bật ít nhất một cách thanh toán (COD hoặc chuyển khoản).');
   }
   return next;
+}
+
+type OrderRow = {
+  id: number; code: string; status: string; customer_name: string; customer_phone: string; customer_address: string | null; note: string | null;
+  items: Prisma.JsonValue; total: bigint; payment_method: string; contact_id: number | null; created_at: Date;
+};
+
+/** Ảnh chụp đơn cho sự kiện webhook (`store_order.*`) — chỉ trường lõi. */
+function orderSnapshot(row: OrderRow, assignedTo: number | null) {
+  const items = Array.isArray(row.items) ? (row.items as Array<Record<string, unknown>>) : [];
+  return {
+    id: row.id, code: row.code, status: row.status, customer_name: row.customer_name, customer_phone: row.customer_phone,
+    customer_address: row.customer_address, note: row.note,
+    items: items.map((l) => ({ product_id: Number(l.product_id), name: String(l.name ?? ''), quantity: Number(l.quantity), price: Number(l.price) })),
+    total: Number(row.total), payment_method: row.payment_method, contact_id: row.contact_id, contact_assigned_to: assignedTo,
+    created_at: row.created_at.toISOString(),
+  };
 }
 
 /** Tài khoản nhận chuyển khoản đang dùng được (bật + đủ BIN hợp lệ + số TK), không thì null. */
@@ -219,21 +239,8 @@ export class StoreService {
     const contactId = await this.contactFor({ name, phone }, owner);
     const assignedTo = contactId ? (await this.prisma.contact.findUnique({ where: { id: contactId }, select: { assigned_to: true } }))?.assigned_to ?? null : null;
     // Sự kiện webhook "đơn mới" (Zapier/n8n) ghi outbox CÙNG transaction với lúc tạo đơn (COD và chuyển khoản như nhau).
-    const emit = (tx: Prisma.TransactionClient, row: { id: number; code: string; status: string; customer_name: string; customer_phone: string; customer_address: string | null; note: string | null; total: bigint; payment_method: string; contact_id: number | null; created_at: Date }) =>
-      publishIntegrationEvent(
-        tx,
-        'store_order.created',
-        {
-          order: {
-            id: row.id, code: row.code, status: row.status, customer_name: row.customer_name, customer_phone: row.customer_phone,
-            customer_address: row.customer_address, note: row.note,
-            items: lines.map((l) => ({ product_id: l.product_id, name: l.name, quantity: l.quantity, price: l.price })),
-            total: Number(row.total), payment_method: row.payment_method, contact_id: row.contact_id, contact_assigned_to: assignedTo,
-            created_at: row.created_at.toISOString(),
-          },
-        },
-        { resourceId: row.id },
-      );
+    const emit = (tx: Prisma.TransactionClient, row: OrderRow) =>
+      publishIntegrationEvent(tx, 'store_order.created', { order: orderSnapshot(row, assignedTo) }, { resourceId: row.id });
     let order: { id: number; code: string } | null = null;
     for (let attempt = 0; attempt < 5 && !order; attempt++) {
       let code = 'DH-';
@@ -302,8 +309,18 @@ export class StoreService {
     const o = await this.prisma.storeOrder.findUnique({ where: { id } });
     if (!o) throw new NotFoundException('Không có đơn này.');
     // Ngoài phạm vi `deals.manage` ⇒ 404 (không lộ là có đơn).
-    await assertInScope(this.scope, user, 'deals.manage', [o.contact_id ? (await this.contactOwners([o.contact_id])).get(o.contact_id) : null]);
-    const u = await this.prisma.storeOrder.update({ where: { id }, data: { status } });
+    const assignedTo = o.contact_id ? (await this.contactOwners([o.contact_id])).get(o.contact_id) ?? null : null;
+    await assertInScope(this.scope, user, 'deals.manage', [assignedTo]);
+    if (o.status === status) return { ...o, total: Number(o.total) };
+    // Sự kiện ghi outbox CÙNG transaction với lúc đổi trạng thái: `store_order.status_changed` mọi lần đổi, thêm
+    // `store_order.paid` khi sang "đã thanh toán" (chuyển khoản do nhân viên xác nhận tay — không tự khớp tiền).
+    const u = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.storeOrder.update({ where: { id }, data: { status } });
+      const order = orderSnapshot(row, assignedTo);
+      await publishIntegrationEvent(tx, 'store_order.status_changed', { order, previous_status: o.status }, { resourceId: row.id });
+      if (status === 'paid') await publishIntegrationEvent(tx, 'store_order.paid', { order }, { resourceId: row.id });
+      return row;
+    });
     return { ...u, total: Number(u.total) };
   }
 
@@ -315,7 +332,7 @@ export class StoreService {
   }
 
   /** Khách theo SĐT (trùng khách cũ ⇒ khách đó), chưa có thì tạo. Cùng khoá tư vấn theo SĐT với tạo khách tay / webhook vào. */
-  private async contactFor(c: { name: string; phone: string }, owner: { id: number; team_id: number | null }): Promise<number | null> {
+  private async contactFor(c: { name: string; phone: string }, owner: { id: number | null; team_id: number | null }): Promise<number | null> {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${c.phone}))`;
       const dup = await tx.contact.findFirst({ where: { phone: { in: phoneVariants(c.phone) }, deleted_at: null }, orderBy: { id: 'asc' }, select: { id: true } });
@@ -327,8 +344,9 @@ export class StoreService {
     });
   }
 
-  private async owner(s: StoreSettings): Promise<{ id: number; team_id: number | null }> {
+  /** Người nhận khách mới; người cấu hình không còn tồn tại ⇒ khách chưa có người phụ trách (null), không gán id 0. */
+  private async owner(s: StoreSettings): Promise<{ id: number | null; team_id: number | null }> {
     const u = s.owner_user_id ? await this.prisma.user.findUnique({ where: { id: s.owner_user_id }, select: { id: true, team_id: true } }) : null;
-    return { id: u?.id ?? s.owner_user_id ?? 0, team_id: u?.team_id ?? null };
+    return { id: u?.id ?? null, team_id: u?.team_id ?? null };
   }
 }

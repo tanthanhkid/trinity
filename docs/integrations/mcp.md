@@ -215,6 +215,8 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 | `create_payment_request` | write | Create payment request |
 | `list_payment_requests` | read | List payment requests |
 | `list_sales_orders` | read | List synced sales orders |
+| `get_store_settings` | read (`pos.manage`) | Online store settings: name, page address, published, payment methods, the bank account used for VietQR transfers, and the list of supported banks (BIN + name) |
+| `update_store_settings` | write (`pos.manage`) | Changes the online store settings (only the fields sent), including the bank (BIN or name such as `MBBank`) and account number. Publishing the page (`published: true` while unpublished) needs `confirmed_by_user`. There is no tool to delete the store |
 
 ### Setup & structure
 

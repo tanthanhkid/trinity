@@ -14,7 +14,7 @@ import { changedContactFields } from '../../contacts/helpers/contact-events.help
 const mkClient = () => ({ integrationEvent: { create: jest.fn().mockResolvedValue({ id: 1n }) } });
 
 describe('catalog sự kiện', () => {
-  it('đủ 24 sự kiện (11 cốt lõi, gồm khôi phục khách + 3 bản ghi tuỳ biến + 2 Zalo OA + 4 Messenger/Fanpage + 2 đăng bài + 1 thanh toán + 1 đơn online), mỗi sự kiện có resource + nhãn tiếng Việt', () => {
+  it('đủ 26 sự kiện (11 cốt lõi, gồm khôi phục khách + 3 bản ghi tuỳ biến + 2 Zalo OA + 4 Messenger/Fanpage + 2 đăng bài + 1 thanh toán + 3 đơn online), mỗi sự kiện có resource + nhãn tiếng Việt', () => {
     expect([...INTEGRATION_EVENT_TYPES].sort()).toEqual(
       [
         'contact.created', 'contact.updated', 'contact.stage_changed', 'contact.assigned', 'contact.deleted', 'contact.restored',
@@ -22,7 +22,7 @@ describe('catalog sự kiện', () => {
         'custom_record.created', 'custom_record.updated', 'custom_record.deleted',
         'zalo_oa.message_received', 'zalo_oa.message_sent',
         'messenger.message_received', 'messenger.message_sent', 'messenger.broadcast_finished', 'facebook.comment_received',
-        'social_post.published', 'social_post.failed', 'payment.received', 'store_order.created',
+        'social_post.published', 'social_post.failed', 'payment.received', 'store_order.created', 'store_order.paid', 'store_order.status_changed',
       ].sort(),
     );
     for (const t of INTEGRATION_EVENT_TYPES) {

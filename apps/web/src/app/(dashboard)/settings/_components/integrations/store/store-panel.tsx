@@ -153,7 +153,8 @@ function StoreSettingsForm({ initial }: { initial: StoreSettings }) {
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="st-acc">Số tài khoản</FieldLabel>
-                  <Input id="st-acc" maxLength={19} inputMode="numeric" value={f.bank_account ?? ""} onChange={(e) => setF({ ...f, bank_account: e.target.value })} />
+                  {/* Bỏ khoảng trắng ngay khi gõ/dán ("0123 456 789"); maxLength rộng để không cắt số khi dán — máy chủ kiểm 4–19 ký tự. */}
+                  <Input id="st-acc" maxLength={40} inputMode="numeric" value={f.bank_account ?? ""} onChange={(e) => setF({ ...f, bank_account: e.target.value.replace(/\s+/g, "") })} />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="st-acc-name">Tên chủ tài khoản</FieldLabel>

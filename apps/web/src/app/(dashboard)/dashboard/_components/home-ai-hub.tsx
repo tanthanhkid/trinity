@@ -188,7 +188,7 @@ export function groupPostingChannels(list: HomeChannel[]): HomeChannel[] {
       today: { label: 'bài đã đăng', value: items.reduce((n, c) => n + (c.today?.value ?? 0), 0) },
     })
   }
-  const order = ['facebook_page', 'zalo_oa', 'social', 'payment', 'store']
+  const order = ['facebook_page', 'zalo_oa', 'social', 'store']
   return out.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))
 }
 

@@ -31,4 +31,6 @@ export class UpdateOrgFeaturesDto {
   @ApiPropertyOptional({ deprecated: true }) @IsOptional() @IsBoolean() google_sheets?: boolean;
   /** ĐÃ GỠ (G06): nhận và BỎ QUA như `google_sheets`. */
   @ApiPropertyOptional({ deprecated: true }) @IsOptional() @IsBoolean() commerce_connectors?: boolean;
+  /** ĐÃ GỠ (G07b): nhận và BỎ QUA như `google_sheets`. */
+  @ApiPropertyOptional({ deprecated: true }) @IsOptional() @IsBoolean() payments?: boolean;
 }

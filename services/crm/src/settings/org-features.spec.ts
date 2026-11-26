@@ -79,4 +79,13 @@ describe('OrgFeaturesService', () => {
     expect(out).not.toHaveProperty('google_sheets');
     expect(JSON.parse(upsert.mock.calls[0][0].update.value)).not.toHaveProperty('google_sheets');
   });
+
+  it('khoá đã gỡ payments (G07b): DTO nhận (không 400), service bỏ qua, không lưu', async () => {
+    const dto = plainToInstance(UpdateOrgFeaturesDto, { kanban: false, payments: true });
+    expect(await validate(dto, { whitelist: true, forbidNonWhitelisted: true })).toHaveLength(0);
+    const { svc, upsert } = make(null);
+    const out = await svc.update(dto, 7);
+    expect(out).not.toHaveProperty('payments');
+    expect(JSON.parse(upsert.mock.calls[0][0].update.value)).not.toHaveProperty('payments');
+  });
 });

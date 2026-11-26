@@ -93,8 +93,7 @@ Details per connector: [docs/integrations/status.md](docs/integrations/status.md
 <td width="50%"><img src="docs/screenshots/inbox.png" alt="Shared inbox with search and an awaiting-reply filter"><br><sub>Shared inbox for Messenger and Zalo OA</sub></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/posting-calendar.png" alt="Multi-channel posting calendar with scheduled and published posts"><br><sub>Content calendar for multi-channel posting</sub></td>
-<td></td>
+<td colspan="2"><img src="docs/screenshots/posting-calendar.png" alt="Multi-channel posting calendar with scheduled and published posts"><br><sub>Content calendar for multi-channel posting</sub></td>
 </tr>
 </table>
 

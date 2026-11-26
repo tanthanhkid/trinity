@@ -72,6 +72,10 @@ const LOCAL_ROUTES: Record<string, string> = {
   // Fanpage Facebook: quản trị/hộp thư + webhook Meta + callback OAuth.
   '/api/v1/facebook': 'http://localhost:4000',
   '/api/v1/zalo-oa': 'http://localhost:4000',
+  // Cổng thanh toán đã gỡ (G07b): các đường cũ chỉ còn phục vụ 410 ở API; thiếu prefix ở đây thì rơi về BACKEND_URL và lặp 504.
+  '/api/v1/connectors': 'http://localhost:4000',
+  '/api/v1/payments': 'http://localhost:4000',
+  '/api/v1/pay/': 'http://localhost:4000',
   // Trang bán hàng online (quản trị + công khai).
   '/api/v1/store/': 'http://localhost:4000',
   // Bản tin sáng/chiều (cấu hình, danh sách của tôi), cùng monolith :4000.

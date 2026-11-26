@@ -84,8 +84,7 @@ Chi tiết từng connector: [docs/integrations/status.md](docs/integrations/sta
 <td width="50%"><img src="docs/screenshots/inbox.png" alt="Hộp thư chung có ô tìm và lọc chưa trả lời"><br><sub>Hộp thư chung Messenger + Zalo OA</sub></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/posting-calendar.png" alt="Lịch đăng đa kênh với bài đã hẹn giờ và đã đăng"><br><sub>Lịch nội dung đăng đa kênh</sub></td>
-<td></td>
+<td colspan="2"><img src="docs/screenshots/posting-calendar.png" alt="Lịch đăng đa kênh với bài đã hẹn giờ và đã đăng"><br><sub>Lịch nội dung đăng đa kênh</sub></td>
 </tr>
 </table>
 

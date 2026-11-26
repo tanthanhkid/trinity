@@ -9,3 +9,11 @@ SET "status" = 'disconnected',
     "updated_at" = CURRENT_TIMESTAMP
 WHERE "provider" IN ('sepay', 'vnpay', 'momo')
   AND ("status" <> 'disconnected' OR "credentials_enc" <> '' OR "last_error" IS DISTINCT FROM 'Trinity đã ngừng hỗ trợ cổng thanh toán này — dữ liệu đã nhận được giữ làm lưu trữ.');
+
+-- Sự kiện `payment.received` không còn trong danh mục: bỏ khỏi danh sách sự kiện của endpoint webhook ra, để sửa endpoint
+-- (DTO kiểm theo danh mục) không bị 400 vì khoá lạ. Dòng `integration_events` cũ giữ nguyên làm lưu trữ.
+UPDATE "webhook_endpoints"
+SET "events" = array_remove("events", 'payment.received'),
+    "updated_at" = CURRENT_TIMESTAMP
+WHERE 'payment.received' = ANY("events");
+

@@ -2020,8 +2020,11 @@ dependencies = [
 name = "mod-auth"
 version = "0.3.0"
 dependencies = [
+ "base64 0.23.1",
+ "chrono",
  "getrandom 0.3.4",
  "serde_json",
+ "sha2",
  "sqlx",
  "tokio",
  "tracing",
@@ -2029,6 +2032,7 @@ dependencies = [
  "trinity-db",
  "trinity-docgen",
  "trinity-kernel",
+ "trinity-rbac",
  "trinity-storage",
  "uuid",
 ]

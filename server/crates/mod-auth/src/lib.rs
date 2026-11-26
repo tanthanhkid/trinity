@@ -8,6 +8,7 @@
 //!
 //! Quyền của người dùng (`grantsFor`) thuộc K12 nên đi qua [`GrantsSource`]; K12 xong thì nối bản thật.
 
+mod invitations;
 mod rate_limit;
 mod wifi;
 
@@ -24,6 +25,12 @@ use trinity_db::{CompanyRef, Db};
 use trinity_kernel::error::HttpError;
 use trinity_storage::{LocalUploadsStore, UPLOADS_URL_PREFIX, uploads_rel_path_from_url};
 
+pub use invitations::{
+    Actor, INVITATION_GONE_MESSAGE, INVITE_TTL_DAYS, InvitationStatus, USABLE_INVITATION_SQL, USER_SLOT_LOCK,
+    assert_user_slot_available, company_id_of_token, company_token_prefix, hash_invite_token, invitable_roles,
+    invitation_scope, invitation_status, invite_path, lock_user_slots, new_invite_token, revoke_pending_invitations_by,
+    revoke_pending_invitations_for_email, revoke_pending_invitations_for_role, user_limit_message,
+};
 pub use rate_limit::{RateLimiter, untrusted_delay_ms};
 pub use wifi::{
     TargetSets, bypass_listed, group_targets, is_targeted, is_unusable_login_ip, login_ip_matches_office,

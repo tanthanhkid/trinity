@@ -12,6 +12,8 @@ publish.workspace = true
 rust_xlsxwriter = { workspace = true }
 calamine = { workspace = true, features = ["dates"] }
 chrono = { workspace = true }
+image = { workspace = true }
+webp = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

@@ -78,7 +78,10 @@ object_store = "0.14"
 rust_xlsxwriter = "0.104"
 calamine = "0.38"
 printpdf = "0.13"
-image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+# Giải mã JPEG/PNG/WebP/GIF (ảnh tải lên), mã hoá JPEG; WebP có mất dữ liệu (ảnh bảng tin, như sharp `.webp({quality})`)
+# cần libwebp qua crate `webp` vì `image` chỉ mã hoá WebP lossless (PLAN 4.2, K30).
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
+webp = { version = "0.3", default-features = false }
 handlebars = "6.4"
 rust-embed = "8.14"
 
@@ -124,6 +127,20 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 debug = false
+
+# Giải mã/thu nhỏ ảnh (trinity-docgen, K30) chạy chậm ~40 lần khi không tối ưu: test ảnh mẫu 4000×3000 mất ~40 giây.
+[profile.dev.package.image]
+opt-level = 3
+[profile.dev.package.zune-jpeg]
+opt-level = 3
+[profile.dev.package.image-webp]
+opt-level = 3
+[profile.dev.package.png]
+opt-level = 3
+[profile.dev.package.fdeflate]
+opt-level = 3
+[profile.dev.package.libwebp-sys]
+opt-level = 3
 
 [profile.release]
 lto = "thin"

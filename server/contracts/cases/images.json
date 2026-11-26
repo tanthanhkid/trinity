@@ -1,0 +1,215 @@
+{
+ "_doc": "K30: kích thước + định dạng đầu ra của sharp (bản Node) trên ảnh mẫu; Rust (trinity-docgen::image) phải ra giống hệt. sharp không tự xoay theo EXIF và bỏ EXIF ở đầu ra (orientation null).",
+ "cases": [
+  {
+   "file": "01-jpeg-4000x3000-exif6.jpg",
+   "input": {
+    "width": 4000,
+    "height": 3000,
+    "format": "jpeg",
+    "orientation": 6
+   },
+   "avatar": {
+    "width": 200,
+    "height": 200,
+    "format": "jpeg",
+    "orientation": null
+   },
+   "newsfeed": {
+    "width": 1920,
+    "height": 1440,
+    "format": "webp",
+    "orientation": null
+   }
+  },
+  {
+   "file": "02-jpeg-3000x4000.jpg",
+   "input": {
+    "width": 3000,
+    "height": 4000,
+    "format": "jpeg",
+    "orientation": null
+   },
+   "avatar": {
+    "width": 200,
+    "height": 200,
+    "format": "jpeg",
+    "orientation": null
+   },
+   "newsfeed": {
+    "width": 1440,
+    "height": 1920,
+    "format": "webp",
+    "orientation": null
+   }
+  },
+  {
+   "file": "03-jpeg-2560x1441-exif8.jpg",
+   "input": {
+    "width": 2560,
+    "height": 1441,
+    "format": "jpeg",
+    "orientation": 8
+   },
+   "avatar": {
+    "width": 200,
+    "height": 200,
+    "format": "jpeg",
+    "orientation": null
+   },
+   "newsfeed": {
+    "width": 1920,
+    "height": 1081,
+    "format": "webp",
+    "orientation": null
+   }
+  },
+  {
+   "file": "04-png-640x480.png",
+   "input": {
+    "width": 640,
+    "height": 480,
+    "format": "png",
+    "orientation": null
+   },
+   "avatar": {
+    "width": 200,
+    "height": 200,
+    "format": "jpeg",
+    "orientation": null
+   },
+   "newsfeed": {
+    "width": 640,
+    "height": 480,
+    "format": "webp",
+    "orientation": null
+   }
+  },
+  {
+   "file": "05-png-2001x2001-alpha.png",
+   "input": {
+    "width": 2001,
+    "height": 2001,
+    "format": "png",
+    "orientation": null
+   },
+   "avatar": {
+    "width": 200,
+    "height": 200,
+    "format": "jpeg",
+    "orientation": null
+   },
+   "newsfeed": {
+    "width": 1920,
+    "height": 1920,
+    "format": "webp",
+    "orientation": null
+   }
+  },
+  {
+   "file": "06-webp-1921x1000.webp",
+   "input": {
+    "width": 1921,
+    "height": 1000,
+    "format": "webp",
+    "orientation": null
+   },
+   "avatar": {
+    "width": 200,
+    "height": 200,
+    "format": "jpeg",
+    "orientation": null
+   },
+   "newsfeed": {
+    "width": 1920,
+    "height": 999,
+    "format": "webp",
+    "orientation": null
+   }
+  },
+  {
+   "file": "07-gif-120x80.gif",
+   "input": {
+    "width": 120,
+    "height": 80,
+    "format": "gif",
+    "orientation": null
+   },
+   "avatar": {
+    "width": 200,
+    "height": 200,
+    "format": "jpeg",
+    "orientation": null
+   },
+   "newsfeed": {
+    "width": 120,
+    "height": 80,
+    "format": "webp",
+    "orientation": null
+   }
+  },
+  {
+   "file": "08-jpeg-50x50.jpg",
+   "input": {
+    "width": 50,
+    "height": 50,
+    "format": "jpeg",
+    "orientation": null
+   },
+   "avatar": {
+    "width": 200,
+    "height": 200,
+    "format": "jpeg",
+    "orientation": null
+   },
+   "newsfeed": {
+    "width": 50,
+    "height": 50,
+    "format": "webp",
+    "orientation": null
+   }
+  },
+  {
+   "file": "09-png-5000x7.png",
+   "input": {
+    "width": 5000,
+    "height": 7,
+    "format": "png",
+    "orientation": null
+   },
+   "avatar": {
+    "width": 200,
+    "height": 200,
+    "format": "jpeg",
+    "orientation": null
+   },
+   "newsfeed": {
+    "width": 1920,
+    "height": 3,
+    "format": "webp",
+    "orientation": null
+   }
+  },
+  {
+   "file": "10-jpeg-1999x3000-exif3.jpg",
+   "input": {
+    "width": 1999,
+    "height": 3000,
+    "format": "jpeg",
+    "orientation": 3
+   },
+   "avatar": {
+    "width": 200,
+    "height": 200,
+    "format": "jpeg",
+    "orientation": null
+   },
+   "newsfeed": {
+    "width": 1279,
+    "height": 1920,
+    "format": "webp",
+    "orientation": null
+   }
+  }
+ ]
+}

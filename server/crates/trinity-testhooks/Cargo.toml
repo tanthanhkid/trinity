@@ -1,0 +1,33 @@
+[package]
+name = "trinity-testhooks"
+description = "API điều khiển test (K34): chạy job theo tên, xoá cache. Chỉ biên dịch khi bật cờ `test-hooks`."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+# Không bật ⇒ crate rỗng (không route, không phụ thuộc nào được biên dịch vào binary phát hành).
+test-hooks = ["dep:axum", "dep:chrono", "dep:serde_json", "dep:thiserror", "dep:tracing", "dep:trinity-auth", "dep:trinity-db", "dep:trinity-jobs", "trinity-jobs/test-hooks"]
+default = []
+
+[dependencies]
+axum = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+thiserror = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+trinity-auth = { workspace = true, optional = true }
+trinity-db = { workspace = true, optional = true }
+trinity-jobs = { workspace = true, optional = true }
+
+[dev-dependencies]
+trinity-kernel = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+http-body-util = "0.1"
+
+[lints]
+workspace = true

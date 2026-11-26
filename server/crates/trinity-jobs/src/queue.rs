@@ -356,6 +356,9 @@ pub struct Worker {
     queue: Queue,
     cfg: WorkerConfig,
     handlers: HashMap<String, Handler>,
+    /// K34: bật ⇒ [`Worker::run`] không nhận việc nào (chỉ có khi biên dịch với cờ `test-hooks`).
+    #[cfg(feature = "test-hooks")]
+    automatic_off: bool,
 }
 
 impl Worker {
@@ -364,7 +367,17 @@ impl Worker {
             queue: queue.clone(),
             cfg,
             handlers: HashMap::new(),
+            #[cfg(feature = "test-hooks")]
+            automatic_off: crate::test_hooks::enabled_from_env(),
         }
+    }
+
+    /// K34: ép bật/tắt "không chạy tự động" (mặc định theo [`crate::test_hooks::enabled_from_env`]).
+    #[cfg(feature = "test-hooks")]
+    #[must_use]
+    pub fn with_automatic_runs_disabled(mut self, off: bool) -> Self {
+        self.automatic_off = off;
+        self
     }
 
     pub fn handle<F, Fut>(&mut self, kind: &str, f: F)
@@ -408,6 +421,11 @@ impl Worker {
 
     /// Chạy `concurrency` vòng cho tới khi `shutdown` đổi sang `true`; chờ việc đang chạy xong (tối đa một hạn thuê).
     pub async fn run(&self, mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), QueueError> {
+        #[cfg(feature = "test-hooks")]
+        if self.automatic_off {
+            tracing::warn!("worker hàng đợi KHÔNG chạy: API điều khiển test đang bật (TRINITY_TEST_HOOKS=1)");
+            return Ok(());
+        }
         self.queue.ready().await?;
         let mut tasks = tokio::task::JoinSet::new();
         for _ in 0..self.cfg.concurrency.max(1) {

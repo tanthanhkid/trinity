@@ -215,6 +215,9 @@ pub struct Scheduler {
     jobs: Arc<RwLock<Vec<JobSpec>>>,
     ownership: Arc<RwLock<Arc<Ownership>>>,
     cursors: Arc<Mutex<HashMap<String, i32>>>,
+    /// K34: bật ⇒ [`Scheduler::run`] không chạy gì (chỉ có khi biên dịch với cờ `test-hooks`).
+    #[cfg(feature = "test-hooks")]
+    automatic_off: bool,
 }
 
 impl std::fmt::Debug for Scheduler {
@@ -244,7 +247,35 @@ impl Scheduler {
             jobs: Arc::new(RwLock::new(Vec::new())),
             ownership: Arc::new(RwLock::new(Arc::new(ownership))),
             cursors: Arc::new(Mutex::new(HashMap::new())),
+            #[cfg(feature = "test-hooks")]
+            automatic_off: crate::test_hooks::enabled_from_env(),
         }
+    }
+
+    /// K34: ép bật/tắt "không chạy tự động" (mặc định theo [`crate::test_hooks::enabled_from_env`]).
+    #[cfg(feature = "test-hooks")]
+    #[must_use]
+    pub fn with_automatic_runs_disabled(mut self, off: bool) -> Self {
+        self.automatic_off = off;
+        self
+    }
+
+    /// K34: chạy job `name` cho đúng một công ty ngay, không nhận lượt qua bảng, không đụng con trỏ hay bảng sở hữu.
+    #[cfg(feature = "test-hooks")]
+    pub async fn run_job_for(&self, name: &str, company: CompanyRef) -> Result<Result<(), String>, SchedulerError> {
+        let spec = self
+            .spec(name)
+            .ok_or_else(|| SchedulerError::UnknownJob(name.to_owned()))?;
+        Ok((spec.run)(company).await)
+    }
+
+    /// K34: tên các job đã đăng ký.
+    #[cfg(feature = "test-hooks")]
+    pub fn job_names(&self) -> Vec<String> {
+        let jobs = self.jobs.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut v: Vec<String> = jobs.iter().map(|j| j.name.clone()).collect();
+        v.sort();
+        v
     }
 
     /// Đăng ký (ghi đè theo tên).
@@ -437,6 +468,11 @@ impl Scheduler {
     /// chưa xong thì bỏ nhịp. Khi tắt: không bắt đầu lượt mới, chờ lượt đang chạy tối đa [`SHUTDOWN_GRACE`] rồi huỷ
     /// và nhả lượt còn giữ của tiến trình này.
     pub async fn run(&self, mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), SchedulerError> {
+        #[cfg(feature = "test-hooks")]
+        if self.automatic_off {
+            tracing::warn!("scheduler KHÔNG chạy: API điều khiển test đang bật (TRINITY_TEST_HOOKS=1)");
+            return Ok(());
+        }
         self.tables.get_or_try_init(|| ensure_job_tables(&self.db)).await?;
         let specs: Vec<JobSpec> = self
             .jobs

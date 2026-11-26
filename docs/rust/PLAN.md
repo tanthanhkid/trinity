@@ -884,6 +884,9 @@ Hai cơ chế, cả hai chỉ dùng Postgres:
 nhận lượt `pg_try_advisory_xact_lock(hashtext('job_runs:<job>'), company)` + `locked_until = budget` rồi commit ngay (job chạy ngoài kết nối),
 `ensure_job_tables` (cả bản một công ty), chủ job từ `Ownership::job` (`set_ownership`/`reload_ownership`). Test pg: `tests/scheduler.rs`.
 
+**Đã làm ở K21** (`server/crates/trinity-jobs/src/queue.rs`): `Queue` (`enqueue` + `dedupe_key`, `claim` bằng một câu `UPDATE … FOR UPDATE SKIP LOCKED`, `complete`/`fail` khớp token lần nhận,
+backoff 5 giây × 2^(n-1) trần 1 giờ, việc quá số lần giữ `failed`, `list_failed`/`requeue_failed`), `Worker` (bộ xử lý theo `kind`, panic thành lỗi). Worker chết thì hết `locked_until` việc được nhận lại; `attempts` tăng lúc nhận. Test pg: `tests/queue.rs`.
+
 Sở hữu job trong giai đoạn lai nằm trong tệp sở hữu chung (mục 4.14): Rust nạp lại khi nhận `SIGHUP` (K20), Node đọc
 lại tệp ở đầu mỗi lượt tick mà không cần khởi động lại (T01). `platform.job_runs` tồn tại cả ở chế độ một công ty.
 

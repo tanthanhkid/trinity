@@ -11,7 +11,7 @@
 
 pub mod edge;
 pub mod outbound;
-pub mod router;
 pub mod rate_limit;
+pub mod router;
 pub mod serve;
 pub mod validate;

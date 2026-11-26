@@ -16,20 +16,49 @@ import {
   PLANS,
   PLAN_GATED_FEATURES,
   PLAN_KEYS,
+  type OrgFeatureKey,
   RETIRED_ORG_FEATURE_KEYS,
   applyPlanToFeatures,
   resolveOrgFeatures,
   resolvePlanForCompany,
 } from '@trinity/rbac';
-import { userLimitMessage } from '@trinity/rbac-nest';
+import { assertUserSlotAvailable, type PlanLimitClient } from '@trinity/rbac-nest';
+import type { ExecutionContext } from '@nestjs/common';
+import { OrgFeatureGuard, ORG_FEATURE_META } from '../../usage/org-feature.guard';
 import { FixedWindowLimiter } from './fixed-window-limiter';
 
 const FILE = path.resolve(__dirname, '../../../../../server/contracts/cases/plan.json');
 
 type Table = Record<string, unknown>;
 
-/** Câu của `OrgFeatureGuard` (org-feature.guard.ts): 403 khi tính năng tắt. */
-const gateMessage = (key: keyof typeof ORG_FEATURES) => `Tính năng "${ORG_FEATURES[key].label}" chưa bật hoặc không có trong gói hiện tại.`;
+/** Chạy `OrgFeatureGuard` thật với `OrgFeaturesService.isEnabled` giả theo cờ đã tính gói: trả câu 403 hoặc null. */
+async function runGate(key: OrgFeatureKey, eff: Record<string, boolean>): Promise<string | null> {
+  const reflector = { getAllAndOverride: (meta: string) => (meta === ORG_FEATURE_META ? key : undefined) };
+  const guard = new OrgFeatureGuard(reflector as never, { isEnabled: async (k: string) => eff[k] !== false } as never);
+  const ctx = { getHandler: () => undefined, getClass: () => undefined } as unknown as ExecutionContext;
+  try {
+    await guard.canActivate(ctx);
+    return null;
+  } catch (e) {
+    return (e as Error).message;
+  }
+}
+
+/** Chạy `assertUserSlotAvailable` thật với DB giả (gói, số người đang hoạt động, số lời mời đang chờ): câu 409 hoặc null. */
+async function runSlot(plan: string, active: number, pending: number): Promise<string | null> {
+  const db: PlanLimitClient = {
+    setting: { findUnique: async () => ({ value: plan }) },
+    user: { count: async () => active },
+    $queryRawUnsafe: (async () => [{ n: pending }]) as never,
+    $executeRaw: (async () => 1) as never,
+  };
+  try {
+    await assertUserSlotAvailable(db);
+    return null;
+  } catch (e) {
+    return (e as Error).message;
+  }
+}
 
 const RAW_FEATURES: unknown[] = [
   undefined,
@@ -55,7 +84,7 @@ function limiterRun(max: number, windowMs: number, steps: Array<[string, number]
   return steps.map(([key, now]) => ({ key, now, out: l.hit(key, now) }));
 }
 
-function compute(): Table {
+async function compute(): Promise<Table> {
   const features = {
     keys: ORG_FEATURE_KEYS.map((k) => ({ key: k, label: ORG_FEATURES[k].label, group: ORG_FEATURES[k].group })),
     default_off: [...DEFAULT_OFF_FEATURES],
@@ -80,21 +109,19 @@ function compute(): Table {
     }),
   );
   const planFor = RAW_PLANS.flatMap((raw) => COMPANY_IDS.map((companyId) => ({ raw: raw ?? null, company_id: companyId, out: resolvePlanForCompany(raw, companyId) })));
-  const gate = PLAN_KEYS.flatMap((plan) =>
-    RAW_FEATURES.flatMap((raw) => {
+  const gate: unknown[] = [];
+  for (const plan of PLAN_KEYS) {
+    for (const raw of RAW_FEATURES) {
       const eff = applyPlanToFeatures(resolveOrgFeatures(raw), plan);
-      return ORG_FEATURE_KEYS.map((key) => ({ plan, raw: raw === undefined ? null : raw, key, out: eff[key] !== false ? null : gateMessage(key) }));
-    }),
-  );
-  const slot = PLAN_KEYS.flatMap((plan) =>
-    [0, 1, 5, 9, 10, 11, 29, 30, 31, 59, 60, 61, 1000].flatMap((active) =>
-      [0, 1, 3].map((pending) => {
-        const max = PLANS[plan].maxUsers;
-        const full = max !== null && active + pending >= max;
-        return { plan, active, pending, out: full ? userLimitMessage(max) : null };
-      }),
-    ),
-  );
+      for (const key of ORG_FEATURE_KEYS) gate.push({ plan, raw: raw === undefined ? null : raw, key, out: await runGate(key, eff) });
+    }
+  }
+  const slot: unknown[] = [];
+  for (const plan of PLAN_KEYS) {
+    for (const active of [0, 1, 5, 9, 10, 11, 29, 30, 31, 59, 60, 61, 1000]) {
+      for (const pending of [0, 1, 3]) slot.push({ plan, active, pending, out: await runSlot(plan, active, pending) });
+    }
+  }
   const limiter = [
     { max: 2, window_ms: 60_000, steps: [['a', 1000], ['a', 2000], ['a', 3000], ['a', 61_000], ['a', 61_001], ['b', 3000], ['a', 61_002], ['a', 61_003]] },
     { max: 1, window_ms: 1000, steps: [['c1:hook', 0], ['c1:hook', 1], ['c2:hook', 1], ['c1:hook', 1000], ['c1:hook', 1001], ['c1:hook', 1002]] },
@@ -105,15 +132,19 @@ function compute(): Table {
 }
 
 describe('bảng ca dùng chung TS ↔ Rust (server/contracts/cases/plan.json)', () => {
-  const fresh = compute();
-  if (process.env.UPDATE_PLAN_CASES === '1') fs.writeFileSync(FILE, `${JSON.stringify(fresh, null, 1)}\n`);
-  const table = JSON.parse(fs.readFileSync(FILE, 'utf8')) as Table;
+  let fresh: Table;
+  let table: Table;
+  beforeAll(async () => {
+    fresh = await compute();
+    if (process.env.UPDATE_PLAN_CASES === '1') fs.writeFileSync(FILE, `${JSON.stringify(fresh, null, 1)}\n`);
+    table = JSON.parse(fs.readFileSync(FILE, 'utf8')) as Table;
+  });
 
   it('có ít nhất 300 ca', () => {
-    const n = ['resolve', 'apply', 'plan_for_company', 'gate', 'slot', 'limiter'].reduce((s, k) => s + (fresh[k] as unknown[]).length, 0);
+    const n = ['resolve', 'apply', 'plan_for_company', 'gate', 'slot', 'limiter'].reduce((sum, k) => sum + (fresh[k] as unknown[]).length, 0);
     expect(n).toBeGreaterThanOrEqual(300);
   });
-  for (const key of Object.keys(fresh)) {
+  for (const key of ['features', 'plans', 'resolve', 'apply', 'plan_for_company', 'gate', 'slot', 'limiter']) {
     it(`${key} khớp bản TS`, () => {
       expect(table[key]).toEqual(JSON.parse(JSON.stringify(fresh[key])));
     });

@@ -106,9 +106,3 @@ fn cong_tinh_nang_tra_403_dung_cau_va_han_muc_nguoi() {
         assert_eq!(got.map(Value::String).unwrap_or(Value::Null), r["out"], "slot {r}");
     }
 }
-
-#[test]
-fn khoa_la_khong_chan() {
-    let f = resolve_org_features(&json!({}), None);
-    assert!(require_org_feature(&f, "khong_co").is_ok());
-}

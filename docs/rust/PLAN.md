@@ -1005,6 +1005,8 @@ vụ trực tiếp với cùng header (`nosniff`, cache 1 ngày). Driver S3 hỗ
   `SWAGGER_ENABLED=true`).
 - Endpoint nội bộ `GET /internal/metrics` (cần `x-service-secret`): RSS, số kết nối pool, độ trễ job, độ dài hàng đợi.
 
+**K25 (đã làm, phần logic thuần):** `trinity_http::rate_limit::FixedWindowLimiter` (RAM, thời gian là tham số, khoá theo công ty) và `trinity_rbac::plan` (khoá/nhãn tính năng, 6 gói, `require_org_feature` trả 403, `check_user_slot` trả 409, `plan_from_setting` có `trim()` kiểu JS còn `resolve_plan_for_company` không trim như TS). Bảng ca dùng chung `server/contracts/cases/plan.json` (cột kết quả sinh bằng `OrgFeatureGuard`, `assertUserSlotAvailable`, `FixedWindowLimiter` thật). **Lệch so với mô tả ban đầu:** chưa có middleware axum, chưa nạp `org_features`/`org_plan` từ DB và chưa đếm người; các limiter cụ thể (MCP, OAuth, API công khai, webhook, trang bán hàng, đăng nhập) do issue của từng route tạo.
+
 ### 4.13 Cấu hình
 
 Giữ nguyên tên biến trong `.env.example`. Biến không còn dùng (`REDIS_URL`, `BACKEND_URL`, `MONOLITH_INTERNAL_URL`,

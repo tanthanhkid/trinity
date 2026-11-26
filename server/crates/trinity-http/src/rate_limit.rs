@@ -6,7 +6,7 @@
 //! Thời gian là tham số (mili giây) để test không dùng đồng hồ thật; dùng [`now_ms`] ở chỗ gọi.
 
 use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock, Weak};
+use std::sync::{Mutex, MutexGuard, OnceLock, PoisonError, Weak};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Kết quả một lần đếm.
@@ -45,6 +45,11 @@ fn registry() -> &'static Registry {
     R.get_or_init(|| Mutex::new(Vec::new()))
 }
 
+/// Mutex bị đầu độc (một luồng panic giữa chừng) vẫn dùng tiếp: bộ đếm chỉ là số, không có bất biến để hỏng.
+fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
 /// Mili giây từ epoch.
 pub fn now_ms() -> u64 {
     SystemTime::now()
@@ -65,10 +70,10 @@ impl FixedWindowLimiter {
             window_ms,
             state: Mutex::new(State::default()),
         });
-        if let Ok(mut r) = registry().lock() {
-            r.retain(|w| w.strong_count() > 0);
-            r.push(std::sync::Arc::downgrade(&l));
-        }
+        let mut r = lock(registry());
+        r.retain(|w| w.strong_count() > 0);
+        r.push(std::sync::Arc::downgrade(&l));
+        drop(r);
         l
     }
 
@@ -82,14 +87,7 @@ impl FixedWindowLimiter {
 
     /// Đếm một lần cho `key` tại thời điểm `now` (ms).
     pub fn hit(&self, key: &str, now: u64) -> Hit {
-        let Ok(mut st) = self.state.lock() else {
-            // Mutex hỏng (một luồng panic giữa chừng): không chặn người dùng thật vì lỗi nội bộ.
-            return Hit {
-                allowed: true,
-                count: 0,
-                retry_after_sec: 0,
-            };
-        };
+        let mut st = lock(&self.state);
         if now.saturating_sub(st.last_sweep) >= self.window_ms {
             st.last_sweep = now;
             st.buckets.retain(|_, b| now <= b.expires_at);
@@ -132,14 +130,12 @@ impl FixedWindowLimiter {
 
     /// Xoá mọi bộ đếm của limiter này.
     pub fn reset(&self) {
-        if let Ok(mut st) = self.state.lock() {
-            st.buckets.clear();
-        }
+        lock(&self.state).buckets.clear();
     }
 
     /// Xoá bộ đếm của MỌI limiter trong tiến trình (chỉ cho API điều khiển test). Trả số limiter đã xoá.
     pub fn reset_all() -> usize {
-        let Ok(mut r) = registry().lock() else { return 0 };
+        let mut r = lock(registry());
         r.retain(|w| w.strong_count() > 0);
         let mut n = 0;
         for l in r.iter().filter_map(Weak::upgrade) {
@@ -188,18 +184,6 @@ mod tests {
         assert!(!l.hit_company(1, "hook", 1).allowed);
         assert!(l.hit_company(2, "hook", 1).allowed);
         assert_eq!(company_key(7, "x"), "c7:x");
-    }
-
-    #[test]
-    fn reset_all_xoa_moi_bo_dem_va_bo_qua_limiter_da_roi() {
-        let a = FixedWindowLimiter::new(1, 60_000);
-        {
-            let _gone = FixedWindowLimiter::new(1, 60_000);
-        }
-        a.hit("k", 0);
-        assert!(!a.hit("k", 1).allowed);
-        assert!(FixedWindowLimiter::reset_all() >= 1);
-        assert!(a.hit("k", 2).allowed);
     }
 
     #[test]

@@ -226,10 +226,10 @@ pub const DEFAULT_PLAN: PlanKey = PlanKey::Custom;
 pub const DEFAULT_SIGNUP_PLAN: PlanKey = PlanKey::MacDinh;
 
 /// `resolvePlanForCompany`: `company_id` = số công ty ở chế độ nhiều công ty, `None` = bản cài một công ty. Dòng gói
-/// hợp lệ thì theo dòng đó; thiếu/rác: công ty >= 2 ⇒ gói đăng ký mặc định, còn lại `custom`. Giá trị thô được cắt
-/// khoảng trắng như `planFromSetting`.
+/// hợp lệ thì theo dòng đó; thiếu/rác: công ty >= 2 ⇒ gói đăng ký mặc định, còn lại `custom`. Không cắt khoảng trắng
+/// (như TS); đọc từ `settings` thì dùng [`plan_from_setting`].
 pub fn resolve_plan_for_company(raw: Option<&str>, company_id: Option<i32>) -> PlanKey {
-    if let Some(p) = raw.map(js_trim).and_then(PlanKey::parse) {
+    if let Some(p) = raw.and_then(PlanKey::parse) {
         return p;
     }
     match company_id {
@@ -238,9 +238,15 @@ pub fn resolve_plan_for_company(raw: Option<&str>, company_id: Option<i32>) -> P
     }
 }
 
-/// `String.prototype.trim` đủ cho khoá gói (khoảng trắng ASCII và Unicode thường gặp).
+/// `planFromSetting` (`packages/rbac-nest/src/plan-limits.ts`): giá trị dòng `org_plan` được `trim()` kiểu JS rồi giải
+/// như [`resolve_plan_for_company`].
+pub fn plan_from_setting(raw: Option<&str>, company_id: Option<i32>) -> PlanKey {
+    resolve_plan_for_company(raw.map(js_trim), company_id)
+}
+
+/// `String.prototype.trim` của JS: `White_Space` Unicode trừ U+0085 (NEL), cộng U+FEFF.
 fn js_trim(s: &str) -> &str {
-    s.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
+    s.trim_matches(|c: char| (c.is_whitespace() && c != '\u{85}') || c == '\u{feff}')
 }
 
 /// `applyPlanToFeatures`: cờ hiệu lực = (gói có cờ đó) VÀ (không bị admin tắt tay). Gói chỉ hạ cờ theo gói.
@@ -266,6 +272,7 @@ pub struct FeatureDisabled {
 /// `@RequireOrgFeature(key)`: `features` đã tính gói ([`apply_plan_to_features`]). Tắt ⇒ [`FeatureDisabled`] (HTTP 403,
 /// câu tiếng Việt). Khoá không có trong danh mục thì cho qua (guard TS chỉ chặn khi `=== false`).
 pub fn require_org_feature(features: &OrgFeatures, key: &str) -> Result<(), FeatureDisabled> {
+    debug_assert!(is_org_feature_key(key), "khoá tính năng không có trong danh mục: {key}");
     match (features.get(key), ORG_FEATURES.iter().find(|(k, _, _)| *k == key)) {
         (Some(false), Some((k, label, _))) => Err(FeatureDisabled { key: k, label }),
         _ => Ok(()),
@@ -296,3 +303,30 @@ pub fn check_user_slot(plan: PlanKey, active: u32, pending: u32) -> Result<(), U
 
 /// Khoá advisory tuần tự hoá "đếm chỗ rồi thêm người" (cùng số với `USER_SLOT_LOCK` của bản TS; khoá đôi với id công ty).
 pub const USER_SLOT_LOCK: i32 = 726_354_004;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn plan_from_setting_cat_khoang_trang_kieu_js() {
+        assert_eq!(plan_from_setting(Some(" ket_noi\n"), Some(2)), PlanKey::KetNoi);
+        assert_eq!(
+            plan_from_setting(Some("\u{feff}custom\u{a0}"), Some(2)),
+            PlanKey::Custom
+        );
+        // NEL không bị `trim()` của JS cắt ⇒ không phải khoá hợp lệ.
+        assert_eq!(plan_from_setting(Some("\u{85}ket_noi"), Some(2)), DEFAULT_SIGNUP_PLAN);
+        // `resolve_plan_for_company` không cắt (như TS).
+        assert_eq!(resolve_plan_for_company(Some(" ket_noi"), Some(2)), DEFAULT_SIGNUP_PLAN);
+        assert_eq!(resolve_plan_for_company(Some("ket_noi"), None), PlanKey::KetNoi);
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "không có trong danh mục")]
+    fn khoa_la_la_loi_lap_trinh() {
+        let f = resolve_org_features(&Value::Null, None);
+        let _ = require_org_feature(&f, "khong_co");
+    }
+}

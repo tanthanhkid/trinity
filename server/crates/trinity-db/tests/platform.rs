@@ -73,14 +73,24 @@ impl TestDb {
     async fn conn(&self) -> PgConnection {
         PgConnection::connect(&self.url).await.unwrap()
     }
+}
 
-    async fn drop_db(self) {
-        let mut admin = PgConnection::connect(&base_url()).await.unwrap();
-        exec(
-            &mut admin,
-            &format!("DROP DATABASE IF EXISTS \"{}\" WITH (FORCE)", self.name),
-        )
-        .await;
+/// Xoá DB của ca kể cả khi test panic (Drop không await được: chạy trên luồng riêng với runtime riêng).
+impl Drop for TestDb {
+    fn drop(&mut self) {
+        let name = self.name.clone();
+        let _ = std::thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            rt.block_on(async {
+                if let Ok(mut admin) = PgConnection::connect(&base_url()).await {
+                    let _ = try_exec(&mut admin, &format!("DROP DATABASE IF EXISTS \"{name}\" WITH (FORCE)")).await;
+                }
+            });
+        })
+        .join();
     }
 }
 
@@ -142,7 +152,12 @@ async fn a_schema_platform_khop_ban_dong_bang_cua_node() {
         .fetch_one(&mut c)
         .await
         .unwrap();
-    Platform::new(&db, Some("Tên khác")).ensure().await.unwrap();
+    // Nhiều lời gọi đồng thời trên một Platform: một lần chạy (single-flight), đều thành công.
+    let p2 = Platform::new(&db, Some("Tên khác"));
+    let (r1, r2, r3) = tokio::join!(p2.ensure(), p2.ensure(), p2.ensure());
+    r1.unwrap();
+    r2.unwrap();
+    r3.unwrap();
     let after: i64 = sqlx::query_scalar("SELECT max(oid::int8) FROM pg_trigger")
         .fetch_one(&mut c)
         .await
@@ -151,7 +166,6 @@ async fn a_schema_platform_khop_ban_dong_bang_cua_node() {
     assert_eq!(snapshot(&t).await, FROZEN);
     db.close().await;
     drop(c);
-    t.drop_db().await;
 }
 
 #[tokio::test]
@@ -259,7 +273,6 @@ async fn b_hai_cong_ty_cung_email_hoac_cung_page_loi_dung_cau() {
 
     db.close().await;
     drop(c);
-    t.drop_db().await;
 }
 
 #[tokio::test]
@@ -311,6 +324,10 @@ async fn c_oauth_state_nhan_ma_va_khoa_kenh() {
         p.company_for_route(RouteKind::StoreSlug, "shop-a").await.unwrap(),
         Some(2)
     );
+    // Nhả bằng cùng cách chuẩn hoá (chữ hoa vẫn nhả được), rồi nhận lại.
+    p.release_route(RouteKind::StoreSlug, "SHOP-A", co(2)).await.unwrap();
+    assert_eq!(p.company_for_route(RouteKind::StoreSlug, "shop-a").await.unwrap(), None);
+    p.claim_route(RouteKind::StoreSlug, "Shop-A", co(2)).await.unwrap();
     // Mã vừa nhận (dưới 2 phút) không bị chiếm dù bên giữ chưa lưu dòng kết nối.
     p.claim_route(RouteKind::ShopeeShop, "shop-1", co(1)).await.unwrap();
     match p.claim_route(RouteKind::ShopeeShop, "shop-1", co(2)).await {
@@ -372,7 +389,6 @@ async fn c_oauth_state_nhan_ma_va_khoa_kenh() {
 
     db.close().await;
     drop(c);
-    t.drop_db().await;
 }
 
 #[tokio::test]
@@ -415,7 +431,6 @@ async fn d_trigger_mat_thi_cai_lai_va_chep_bu_ma_cai_dat() {
     );
     db.close().await;
     drop(c);
-    t.drop_db().await;
 }
 
 #[tokio::test]
@@ -444,5 +459,4 @@ async fn e_ban_mot_cong_ty_khong_co_platform() {
     assert!(!has, "bản một công ty không tạo schema platform");
     db.close().await;
     drop(c);
-    t.drop_db().await;
 }

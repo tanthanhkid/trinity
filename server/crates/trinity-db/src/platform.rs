@@ -16,7 +16,6 @@
 //! `cargo sqlx prepare` không thấy; mọi câu có test pg (`tests/platform.rs`).
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -348,9 +347,32 @@ fn js_slice(s: &str, n: usize) -> &str {
     s
 }
 
-/// `String.prototype.trim` của JS: khoảng trắng Unicode và BOM.
+/// `String.prototype.trim` của JS: khoảng trắng Unicode và BOM, nhưng KHÔNG gồm U+0085 (NEL: Rust coi là khoảng
+/// trắng, JS thì không).
 fn js_trim(s: &str) -> &str {
-    s.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
+    s.trim_matches(|c: char| (c.is_whitespace() && c != '\u{85}') || c == '\u{feff}')
+}
+
+/// Khoá của mã ngoài trong `company_routes`, chuẩn hoá ở MỘT chỗ cho nhận/nhả/tra: cắt 255 đơn vị UTF-16 như
+/// `slice(0, 255)`; slug trang bán hàng viết thường (`toLowerCase`; `to_lowercase` của Rust cùng bảng Unicode).
+fn route_key(kind: RouteKind, external_id: &str) -> String {
+    let sliced = js_slice(external_id, 255);
+    if kind == RouteKind::StoreSlug {
+        sliced.to_lowercase()
+    } else {
+        sliced.to_owned()
+    }
+}
+
+/// `CompanyRef` dựng từ id của dòng, chỉ khi `schema_name` đúng là schema của id đó; lệch ⇒ `None` + log.
+fn company_ref(id: i32, schema: &str) -> Option<CompanyRef> {
+    match CompanyRef::new(i64::from(id)) {
+        Ok(c) if c.schema() == schema => Some(c),
+        _ => {
+            tracing::warn!("platform: công ty {id} có schema_name \"{schema}\" không khớp, bỏ qua");
+            None
+        }
+    }
 }
 
 // ------------------------------------------------------------------------------------------------- Platform
@@ -367,7 +389,8 @@ pub struct Platform {
     db: PlatformDb,
     multi_tenant: bool,
     default_name: String,
-    ensured: Arc<AtomicBool>,
+    /// Như promise `ensured` của Node: một lần chạy dùng chung cho mọi lời gọi đồng thời; lỗi thì lần sau chạy lại.
+    ensured: Arc<tokio::sync::OnceCell<()>>,
     caches: Arc<Caches>,
 }
 
@@ -387,7 +410,7 @@ impl Platform {
             db: db.platform(),
             multi_tenant: db.multi_tenant(),
             default_name: name.unwrap_or(DEFAULT_COMPANY_NAME).to_owned(),
-            ensured: Arc::new(AtomicBool::new(false)),
+            ensured: Arc::new(tokio::sync::OnceCell::new()),
             caches: Arc::new(Caches {
                 companies: Mutex::new(HashMap::new()),
                 locks: Mutex::new(HashMap::new()),
@@ -402,11 +425,10 @@ impl Platform {
     /// Tạo schema `platform`, ghi công ty 1, cài trigger đồng bộ (`ensurePlatform`). Gọi lại bao nhiêu lần cũng được;
     /// trong một tiến trình chỉ chạy tới khi thành công một lần. Bản một công ty: không làm gì.
     pub async fn ensure(&self) -> Result<(), DbError> {
-        if !self.multi_tenant || self.ensured.load(Ordering::Acquire) {
+        if !self.multi_tenant {
             return Ok(());
         }
-        self.do_ensure().await?;
-        self.ensured.store(true, Ordering::Release);
+        self.ensured.get_or_try_init(|| self.do_ensure()).await?;
         Ok(())
     }
 
@@ -594,7 +616,7 @@ impl Platform {
             return Ok(None);
         }
         Ok(match self.company(id).await? {
-            Some(row) if row.status == "active" => Some(CompanyRef::from_schema(&row.schema_name)?),
+            Some(row) if row.status == "active" => company_ref(row.id, &row.schema_name),
             _ => None,
         })
     }
@@ -606,11 +628,12 @@ impl Platform {
         }
         self.ensure().await?;
         let mut conn = self.db.acquire().await?;
-        let rows: Vec<String> =
-            sqlx::query_scalar("SELECT schema_name FROM platform.companies WHERE status = 'active' ORDER BY id")
+        let rows: Vec<(i32, String)> =
+            sqlx::query_as("SELECT id, schema_name FROM platform.companies WHERE status = 'active' ORDER BY id")
                 .fetch_all(&mut *conn)
                 .await?;
-        rows.iter().map(|s| CompanyRef::from_schema(s)).collect()
+        // Dòng hỏng (schema không khớp id) bị bỏ qua và ghi log, không làm hỏng cả danh sách.
+        Ok(rows.iter().filter_map(|(id, s)| company_ref(*id, s)).collect())
     }
 
     /// Công ty sở hữu email (đăng nhập). Bản một công ty: luôn 1.
@@ -688,7 +711,7 @@ impl Platform {
             "INSERT INTO platform.company_routes (kind, external_id, company_id) VALUES ('oauth_state', $1, $2)
      ON CONFLICT (kind, external_id) DO NOTHING",
         )
-        .bind(js_slice(state, 255))
+        .bind(route_key(RouteKind::OauthState, state))
         .bind(current.id())
         .execute(&mut *conn)
         .await?;
@@ -705,7 +728,7 @@ impl Platform {
         if state.is_empty() {
             return Ok(None);
         }
-        self.company_for_route(RouteKind::OauthState, js_slice(state, 255))
+        self.company_for_route(RouteKind::OauthState, &route_key(RouteKind::OauthState, state))
             .await
     }
 
@@ -725,12 +748,7 @@ impl Platform {
             return Ok(());
         }
         self.ensure().await?;
-        let sliced = js_slice(external_id, 255);
-        let id = if kind == RouteKind::StoreSlug {
-            sliced.to_lowercase()
-        } else {
-            sliced.to_owned()
-        };
+        let id = route_key(kind, external_id);
         let me = current.id();
         {
             let mut conn = self.db.acquire().await?;
@@ -807,7 +825,7 @@ impl Platform {
         let mut conn = self.db.acquire().await?;
         sqlx::query("DELETE FROM platform.company_routes WHERE kind = $1 AND external_id = $2 AND company_id = $3")
             .bind(kind.as_str())
-            .bind(js_slice(external_id, 255))
+            .bind(route_key(kind, external_id))
             .bind(current.id())
             .execute(&mut *conn)
             .await?;
@@ -922,6 +940,13 @@ mod tests {
         assert_eq!(js_slice("a😀b", 2), "a");
         assert_eq!(js_slice("a😀b", 3), "a😀");
         assert_eq!(js_trim("\u{feff} a b \n"), "a b");
+        assert_eq!(js_trim("\u{85}a\u{85}"), "\u{85}a\u{85}");
+        assert_eq!(js_trim("\u{a0}\u{2028}a\u{3000}"), "a");
+        assert_eq!(route_key(RouteKind::StoreSlug, "Shop-Đ"), "shop-đ");
+        assert_eq!(route_key(RouteKind::ShopeeShop, "Shop-A"), "Shop-A");
+        assert_eq!(company_ref(2, "c_2"), Some(CompanyRef::new(2).unwrap()));
+        assert_eq!(company_ref(2, "c_3"), None);
+        assert_eq!(company_ref(1, "public"), Some(CompanyRef::DEFAULT));
     }
 
     #[test]

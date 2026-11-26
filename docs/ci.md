@@ -30,9 +30,9 @@ PR chỉ lint/typecheck/test **gói bị đổi** (và gói phụ thuộc với 
 3. Merge Release PR → tag `vX.Y.Z` + GitHub Release → `docker.yml` dựng `trinity-api` / `trinity-web` (amd64 trên runner x64, arm64 trên runner arm native, rồi gộp manifest), đẩy GHCR, kèm SBOM, provenance (`actions/attest-build-provenance`) và chữ ký cosign keyless.
 4. Lưu ý: PR do `GITHUB_TOKEN` tạo không tự kích hoạt CI. Với Release PR, đóng rồi mở lại (hoặc bấm "Update branch") để các check chạy.
 
-Thử Dockerfile mà không phát hành: Actions → Docker image → Run workflow (không đẩy: chỉ amd64; chọn push: luôn amd64 + arm64).
+Thử Dockerfile mà không phát hành: Actions → Docker image → Run workflow (không đẩy: chỉ amd64; chọn push: luôn amd64 + arm64; tag `latest` chỉ khi bật input `latest` hoặc đường release).
 
-Kiểm chứng chữ ký: `cosign verify ghcr.io/tanthanhkid/trinity-api:<tag> --certificate-identity-regexp 'https://github.com/tanthanhkid/trinity/' --certificate-oidc-issuer https://token.actions.githubusercontent.com`.
+Kiểm chứng chữ ký (`<version>` không có tiền tố v, vd `0.4.0`; hoặc dùng `@sha256:<digest>`): `cosign verify ghcr.io/tanthanhkid/trinity-api:<version> --certificate-identity-regexp 'https://github.com/tanthanhkid/trinity/' --certificate-oidc-issuer https://token.actions.githubusercontent.com`.
 
 ## Chạy lại
 - Một job: trang PR → Checks → job → "Re-run".

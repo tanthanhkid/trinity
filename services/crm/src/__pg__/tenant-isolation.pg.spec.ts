@@ -53,6 +53,10 @@ describePg('multi-tenant isolation (Postgres)', () => {
     process.env.MULTI_TENANT = 'true';
     db = createPrismaService();
     await dropTenantObjects();
+    // Các spec pg khác (chạy trước trong cùng DB) chèn users với id tường minh mà không đẩy sequence; bảng public.users
+    // còn dòng id=1 thì INSERT mặc định của ca "email đã thuộc công ty khác" đụng khoá chính trước khi trigger kịp báo
+    // TRINITY_EMAIL_TAKEN. Đưa bảng về trống + sequence về đầu để ca không phụ thuộc thứ tự chạy.
+    await getBaseClient().$executeRawUnsafe('TRUNCATE TABLE public.users RESTART IDENTITY CASCADE');
     await ensurePlatform();
     A = (await provisionCompany({ companyName: 'Công ty A', adminEmail: emailA, adminPassword: 'password-a-123', adminName: 'Chủ A' })).company;
     B = (await provisionCompany({ companyName: 'Công ty B', adminEmail: emailB, adminPassword: 'password-b-123', adminName: 'Chủ B' })).company;

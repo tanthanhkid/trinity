@@ -27,6 +27,10 @@ on:
         description: Đẩy lên GHCR (luôn amd64 + arm64)
         type: boolean
         default: false
+      latest:
+        description: Gắn thêm tag latest (chỉ khi đẩy một release thật)
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.tag || github.ref }}
@@ -43,6 +47,7 @@ jobs:
     outputs:
       push: ${{ steps.p.outputs.push }}
       tag: ${{ steps.p.outputs.tag }}
+      latest: ${{ steps.p.outputs.latest }}
       sha: ${{ steps.p.outputs.sha }}
       matrix: ${{ steps.p.outputs.matrix }}
     steps:
@@ -56,12 +61,17 @@ jobs:
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
           REF_NAME: ${{ github.ref_name }}
+          INPUT_LATEST: ${{ inputs.latest }}
         run: |
           push=false
           if [ "$EVENT" = "push" ] || [ "$INPUT_PUSH" = "true" ]; then push=true; fi
           tag="$INPUT_TAG"
           if [ -z "$tag" ] && [[ "$REF" == refs/tags/v* ]]; then tag="$REF_NAME"; fi
+          # latest chỉ ở đường release (workflow_call / push tag); chạy tay phải bật input latest.
+          latest=false
+          if [ -n "$tag" ] && { [ "$EVENT" != "workflow_dispatch" ] || [ "$INPUT_LATEST" = "true" ]; }; then latest=true; fi
           {
+            echo "latest=$latest"
             echo "push=$push"
             echo "tag=$tag"
             echo "sha=$(git rev-parse HEAD)"
@@ -184,7 +194,7 @@ jobs:
           tags: |
             type=semver,pattern={{version}},value=${{ needs.plan.outputs.tag }},enable=${{ needs.plan.outputs.tag != '' }}
             type=semver,pattern={{major}}.{{minor}},value=${{ needs.plan.outputs.tag }},enable=${{ needs.plan.outputs.tag != '' }}
-            type=raw,value=latest,enable=${{ needs.plan.outputs.tag != '' }}
+            type=raw,value=latest,enable=${{ needs.plan.outputs.latest == 'true' }}
             type=raw,value=sha-${{ needs.plan.outputs.sha }}
 
       - name: Create manifest list

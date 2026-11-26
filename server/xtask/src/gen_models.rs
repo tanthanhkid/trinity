@@ -347,12 +347,18 @@ mod tests {
     }
 
     #[test]
-    fn dung_107_model_va_bo_10_model_luu_tru() {
+    fn dem_dung_model_theo_schema_va_bo_model_luu_tru() {
         let (schema, _) = paths(&server());
         let text = std::fs::read_to_string(schema).expect("đọc schema");
         let (models, _) = parse(&text).expect("đọc");
         let live = models.iter().filter(|m| !ARCHIVED.contains(&m.name.as_str())).count();
-        assert_eq!(live, 107);
+        // Đếm độc lập bằng số dòng `model X {` của schema (không dùng hằng: schema thêm bảng thì số tự theo).
+        let declared = text
+            .lines()
+            .filter(|l| l.starts_with("model ") && l.trim_end().ends_with('{'))
+            .count();
+        assert_eq!(models.len(), declared, "parse bỏ sót hoặc thừa model");
+        assert_eq!(live, declared - ARCHIVED.len());
         for a in ARCHIVED {
             assert!(
                 models.iter().any(|m| m.name == a),

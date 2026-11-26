@@ -139,8 +139,7 @@ describe('RBAC E2E — Kết nối & AI + outbox', () => {
       const cat = await api(app, admin.token).get('/api/v1/rbac/catalog').expect(200)
       const defs = cat.body.permissions as Array<{ key: string; group: string; sensitive?: boolean }>
       expect(defs.filter((d) => d.group === 'Kết nối & AI').map((d) => d.key).sort()).toEqual([
-        // + 3 quyền chương trình con (`extensions.view|draft|approve`) cùng nhóm.
-        'extensions.approve', 'extensions.draft', 'extensions.view', 'integrations.ai_admin', 'integrations.ai_connect', 'integrations.webhooks',
+        'integrations.ai_admin', 'integrations.ai_connect', 'integrations.webhooks',
       ])
     })
 

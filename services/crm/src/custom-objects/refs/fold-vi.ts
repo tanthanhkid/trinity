@@ -4,6 +4,6 @@ export function foldVi(s: string): string {
 }
 
 const VI_LOWER = 'àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ';
-/** Cặp (từ, sang) cho `translate()` của Postgres — cùng bảng với foldVi, KHÔNG cần extension `unaccent` (Neon/PG thuần đều chạy). */
+/** Cặp (từ, sang) cho `translate()` của Postgres — cùng bảng với foldVi, KHÔNG cần `unaccent` của Postgres (Neon/PG thuần đều chạy). */
 export const SQL_FOLD_FROM = VI_LOWER;
 export const SQL_FOLD_TO = [...VI_LOWER].map(foldVi).join('');

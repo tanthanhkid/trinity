@@ -2293,82 +2293,6 @@ model FacebookLeadReceipt {
   @@map("facebook_lead_receipts")
 }
 
-// ── Chương trình con (agent của khách tự mở rộng hệ thống) ───────────────────
-// Mã do agent viết chạy CÁCH LY trên Deno (module extensions của CRM). Chỉ BẢNG MỚI; liên kết người dùng là SOFT REF (Int, không FK).
-// Mỗi lần sửa = MỘT dòng `extension_versions` mới (không bao giờ ghi đè); chỉ phiên bản đã được NGƯỜI duyệt mới deploy/quay lui tới được.
-model Extension {
-  id                   Int       @id @default(autoincrement())
-  /// Mã ngắn a-z0-9 và gạch ngang (≤40) — dùng làm tên tool/đường dẫn nên hạn chế ký tự. Duy nhất trong số còn sống: index từng phần `extensions_key_live_uq` (chỉ ở migration SQL, Prisma không biểu diễn được).
-  key                  String    @db.VarChar(40)
-  /// 'job' | 'api' | 'tool'
-  kind                 String    @db.VarChar(8)
-  name                 String    @db.VarChar(120)
-  description          String    @default("") @db.VarChar(1000)
-  /// 'draft' | 'approved' | 'active' | 'disabled'
-  status               String    @default("draft") @db.VarChar(12)
-  /// Phiên bản ĐANG chạy (null khi chưa deploy).
-  active_version_id    Int?
-  /// Số hiệu phiên bản mới nhất (1, 2, 3…).
-  latest_version       Int       @default(0)
-  disabled_reason      String?   @db.VarChar(1000)
-  /// Số lần lỗi liên tiếp / tổng — cầu dao tự tắt khi lỗi liên tục.
-  consecutive_failures Int       @default(0)
-  created_by           Int
-  created_at           DateTime  @default(now()) @db.Timestamptz(3)
-  updated_at           DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
-  deleted_at           DateTime? @db.Timestamptz(3)
-
-  versions ExtensionVersion[]
-  runs     ExtensionRun[]
-
-  @@index([status, kind], map: "extensions_status_kind_idx")
-  @@map("extensions")
-}
-
-model ExtensionVersion {
-  id            Int       @id @default(autoincrement())
-  extension_id  Int
-  version       Int
-  /// Mã nguồn TypeScript.
-  code          String    @db.Text
-  /// {net[], tables:{read[],write[]}, schedule?, input_schema?, limits?} — đã kiểm ở BE.
-  manifest      Json
-  note          String?   @db.VarChar(500)
-  /// 'draft' | 'approved' | 'rejected'
-  review_status String    @default("draft") @db.VarChar(10)
-  review_note   String?   @db.VarChar(1000)
-  created_by    Int
-  reviewed_by   Int?
-  reviewed_at   DateTime? @db.Timestamptz(3)
-  created_at    DateTime  @default(now()) @db.Timestamptz(3)
-
-  extension Extension @relation(fields: [extension_id], references: [id], onDelete: Cascade)
-
-  @@unique([extension_id, version], map: "extension_versions_ext_ver_uq")
-  @@map("extension_versions")
-}
-
-model ExtensionRun {
-  id           Int      @id @default(autoincrement())
-  extension_id Int
-  version_id   Int?
-  /// 'dry_run' | 'schedule' | 'manual' | 'tool_call'
-  mode         String   @db.VarChar(10)
-  /// 'ok' | 'error' | 'timeout' | 'oom' | 'permission_denied' | 'disabled'
-  outcome      String   @db.VarChar(20)
-  duration_ms  Int      @default(0)
-  peak_rss_kb  Int?
-  /// Log (stdout/stderr đã che SĐT, cắt độ dài).
-  log          String   @default("") @db.Text
-  result       Json?
-  started_at   DateTime @default(now()) @db.Timestamptz(3)
-
-  extension Extension @relation(fields: [extension_id], references: [id], onDelete: Cascade)
-
-  @@index([extension_id, id(sort: Desc)], map: "extension_runs_ext_idx")
-  @@map("extension_runs")
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Đăng đa kênh (Facebook Page, YouTube, TikTok; X giữ chỗ): soạn 1 lần → đăng ngay/hẹn giờ ra nhiều kênh.
 // Không FK (cùng quy ước nhóm tích hợp).
@@ -2759,4 +2683,84 @@ model ChannelEvent {
   @@index([kind, id], map: "channel_events_kind_id_idx")
   @@index([created_at], map: "channel_events_created_idx")
   @@map("channel_events")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LƯU TRỮ — bảng của tính năng đã gỡ (docs/rust/PLAN.md mục 2.3).
+// Giữ model ở đây để `prisma migrate` không sinh lệnh DROP; KHÔNG còn mã nào đọc/ghi các bảng này,
+// bản Rust không sinh struct cho chúng. Không thêm cột, không thêm quan hệ từ model khác tới đây.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// Chương trình con (đã gỡ ở G02): mã chạy cách ly trên Deno do trợ lý AI viết. Dữ liệu cũ (mã, phiên bản, nhật ký chạy) giữ nguyên.
+model Extension {
+  id                   Int       @id @default(autoincrement())
+  /// Mã ngắn a-z0-9 và gạch ngang (≤40) — dùng làm tên tool/đường dẫn nên hạn chế ký tự. Duy nhất trong số còn sống: index từng phần `extensions_key_live_uq` (chỉ ở migration SQL, Prisma không biểu diễn được).
+  key                  String    @db.VarChar(40)
+  /// 'job' | 'api' | 'tool'
+  kind                 String    @db.VarChar(8)
+  name                 String    @db.VarChar(120)
+  description          String    @default("") @db.VarChar(1000)
+  /// 'draft' | 'approved' | 'active' | 'disabled'
+  status               String    @default("draft") @db.VarChar(12)
+  /// Phiên bản ĐANG chạy (null khi chưa deploy).
+  active_version_id    Int?
+  /// Số hiệu phiên bản mới nhất (1, 2, 3…).
+  latest_version       Int       @default(0)
+  disabled_reason      String?   @db.VarChar(1000)
+  /// Số lần lỗi liên tiếp / tổng — cầu dao tự tắt khi lỗi liên tục.
+  consecutive_failures Int       @default(0)
+  created_by           Int
+  created_at           DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at           DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+  deleted_at           DateTime? @db.Timestamptz(3)
+
+  versions ExtensionVersion[]
+  runs     ExtensionRun[]
+
+  @@index([status, kind], map: "extensions_status_kind_idx")
+  @@map("extensions")
+}
+
+model ExtensionVersion {
+  id            Int       @id @default(autoincrement())
+  extension_id  Int
+  version       Int
+  /// Mã nguồn TypeScript.
+  code          String    @db.Text
+  /// {net[], tables:{read[],write[]}, schedule?, input_schema?, limits?} — đã kiểm ở BE.
+  manifest      Json
+  note          String?   @db.VarChar(500)
+  /// 'draft' | 'approved' | 'rejected'
+  review_status String    @default("draft") @db.VarChar(10)
+  review_note   String?   @db.VarChar(1000)
+  created_by    Int
+  reviewed_by   Int?
+  reviewed_at   DateTime? @db.Timestamptz(3)
+  created_at    DateTime  @default(now()) @db.Timestamptz(3)
+
+  extension Extension @relation(fields: [extension_id], references: [id], onDelete: Cascade)
+
+  @@unique([extension_id, version], map: "extension_versions_ext_ver_uq")
+  @@map("extension_versions")
+}
+
+model ExtensionRun {
+  id           Int      @id @default(autoincrement())
+  extension_id Int
+  version_id   Int?
+  /// 'dry_run' | 'schedule' | 'manual' | 'tool_call'
+  mode         String   @db.VarChar(10)
+  /// 'ok' | 'error' | 'timeout' | 'oom' | 'permission_denied' | 'disabled'
+  outcome      String   @db.VarChar(20)
+  duration_ms  Int      @default(0)
+  peak_rss_kb  Int?
+  /// Log (stdout/stderr đã che SĐT, cắt độ dài).
+  log          String   @default("") @db.Text
+  result       Json?
+  started_at   DateTime @default(now()) @db.Timestamptz(3)
+
+  extension Extension @relation(fields: [extension_id], references: [id], onDelete: Cascade)
+
+  @@index([extension_id, id(sort: Desc)], map: "extension_runs_ext_idx")
+  @@map("extension_runs")
 }

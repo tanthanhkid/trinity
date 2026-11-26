@@ -17,7 +17,7 @@ server/
   crates/
     trinity-bin         binary `trinity`
     trinity-kernel  trinity-db  trinity-auth  trinity-rbac  trinity-http  trinity-jobs
-    trinity-storage  trinity-realtime  trinity-docgen  trinity-obs
+    trinity-storage  trinity-realtime  trinity-docgen  trinity-obs  trinity-ops
     mod-*               module nghiệp vụ, thêm theo từng issue (glob `crates/*`, không phải sửa Cargo.toml gốc)
 ```
 

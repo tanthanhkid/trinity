@@ -27,6 +27,31 @@ enum Command {
     /// Mặc định: schema `public` (công ty 1), như bước deploy của bản Node. Thoát mã 1 nếu có lỗi hoặc (với
     /// `--status`) còn migration chưa chạy.
     Migrate(migrate::MigrateArgs),
+    /// Bộ kiểm bất biến dữ liệu (X11, chỉ đọc DB): mã 0 sạch, mã 1 có vi phạm, mã 2 lỗi chạy.
+    /// Chạy theo lịch mỗi giờ: docs/rust/invariants.md.
+    CheckInvariants(InvariantsArgs),
+}
+
+#[derive(Debug, clap::Args)]
+struct InvariantsArgs {
+    /// Tệp trạng thái lần chạy sạch trước (số dòng, max updated_at). Không đặt thì bỏ hai kiểm so với lần trước.
+    #[arg(long)]
+    state: Option<std::path::PathBuf>,
+    /// Ghi mốc mới dù có vi phạm (sau khi người vận hành xác nhận thay đổi là chủ ý, vd xoá cứng có chủ đích).
+    #[arg(long)]
+    accept: bool,
+    /// Chỉ kiểm schema này (lặp được); mặc định mọi schema công ty.
+    #[arg(long = "schema")]
+    schemas: Vec<String>,
+    /// Báo cáo JSON ra stdout thay vì chữ.
+    #[arg(long)]
+    json: bool,
+    /// Số dòng sụt tối thiểu để báo (kèm `--drop-pct`).
+    #[arg(long, default_value_t = 10)]
+    min_drop_rows: i64,
+    /// Phần trăm sụt tối thiểu để báo.
+    #[arg(long, default_value_t = 20)]
+    drop_pct: i64,
 }
 
 fn main() -> ExitCode {
@@ -34,7 +59,84 @@ fn main() -> ExitCode {
         None => ExitCode::SUCCESS,
         Some(Command::CheckConfig) => check_config(),
         Some(Command::Migrate(args)) => migrate::run(args),
+        Some(Command::CheckInvariants(args)) => check_invariants(&args),
     }
+}
+
+fn check_invariants(args: &InvariantsArgs) -> ExitCode {
+    let mut err = std::io::stderr().lock();
+    let rt = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+        Ok(rt) => rt,
+        Err(e) => {
+            let _ = writeln!(err, "không dựng được runtime: {e}");
+            return ExitCode::from(2);
+        }
+    };
+    match rt.block_on(run_invariants(args)) {
+        Ok(true) => ExitCode::SUCCESS,
+        Ok(false) => ExitCode::FAILURE,
+        Err(msg) => {
+            let _ = writeln!(err, "{msg}");
+            ExitCode::from(2)
+        }
+    }
+}
+
+async fn run_invariants(args: &InvariantsArgs) -> Result<bool, String> {
+    use trinity_ops::{Options, Snapshot};
+    let mut cfg = trinity_db::DbConfig::from_env().map_err(|e| e.to_string())?;
+    cfg.pool_size = 1;
+    // Như migrate: bảng lớn có thể đếm lâu hơn 30 giây mặc định.
+    cfg.statement_timeout = std::time::Duration::ZERO;
+    let db = trinity_db::Db::connect(&cfg).await.map_err(|e| e.to_string())?;
+    let prev = match &args.state {
+        Some(p) => Snapshot::load(p).map_err(|e| e.to_string())?,
+        None => Snapshot::default(),
+    };
+    let opts = Options {
+        min_drop_rows: args.min_drop_rows,
+        drop_pct: args.drop_pct,
+        schemas: args.schemas.clone(),
+    };
+    let (report, now) = trinity_ops::run(&db, &prev, &opts).await.map_err(|e| e.to_string())?;
+    db.close().await;
+    if let Some(p) = &args.state
+        && (report.ok() || args.accept)
+    {
+        trinity_ops::Snapshot::next(&prev, now, !args.schemas.is_empty())
+            .save(p)
+            .map_err(|e| e.to_string())?;
+    }
+    let mut out = std::io::stdout().lock();
+    if args.json {
+        let json = serde_json::to_string_pretty(&report).map_err(|e| e.to_string())?;
+        writeln!(out, "{json}").map_err(|e| e.to_string())?;
+    } else {
+        writeln!(
+            out,
+            "{} schema, {} bảng, {} cột JSON, {} quy tắc soft-FK: {} vi phạm",
+            report.schemas_checked.len(),
+            report.tables_checked,
+            report.json_columns_checked,
+            report.orphan_rules_checked,
+            report.violations.len()
+        )
+        .map_err(|e| e.to_string())?;
+        for v in &report.violations {
+            writeln!(
+                out,
+                "- {:?} {}.{}{} x{}: {}",
+                v.kind,
+                v.schema,
+                v.table,
+                v.column.as_deref().map(|c| format!(".{c}")).unwrap_or_default(),
+                v.count,
+                v.detail
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(report.ok())
 }
 
 /// Log JSON (K04) chưa có: cảnh báo và lỗi ghi thẳng ra stderr.

@@ -1,0 +1,116 @@
+# Backend Trinity viết lại bằng Rust — kế hoạch: docs/rust/PLAN.md (mục 4.1 bố cục crate, 4.2 thư viện).
+# Crate mới chỉ cần tạo thư mục trong crates/ (glob bên dưới), không phải sửa danh sách members.
+[workspace]
+resolver = "3"
+members = ["crates/*", "xtask"]
+
+[workspace.package]
+version = "0.3.0"
+edition = "2024"
+rust-version = "1.100.0"
+license = "AGPL-3.0-only"
+repository = "https://github.com/tanthanhkid/trinity"
+publish = false
+
+# Phiên bản theo bảng PLAN 4.2 (bản ổn định mới nhất trên crates.io ngày 26/11/2026). Crate con dùng
+# `foo = { workspace = true }` để cả workspace chung một phiên bản; Cargo.lock ghim bản chính xác.
+[workspace.dependencies]
+# Crate nội bộ
+trinity-kernel = { path = "crates/trinity-kernel" }
+trinity-db = { path = "crates/trinity-db" }
+trinity-auth = { path = "crates/trinity-auth" }
+trinity-rbac = { path = "crates/trinity-rbac" }
+trinity-http = { path = "crates/trinity-http" }
+trinity-jobs = { path = "crates/trinity-jobs" }
+trinity-storage = { path = "crates/trinity-storage" }
+trinity-realtime = { path = "crates/trinity-realtime" }
+trinity-docgen = { path = "crates/trinity-docgen" }
+trinity-obs = { path = "crates/trinity-obs" }
+
+# Runtime, HTTP
+tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync"] }
+axum = "0.8"
+hyper = "1.13"
+tower-http = "0.7"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
+
+# Postgres: truy vấn kiểm lúc biên dịch, chế độ offline (.sqlx/), không ORM, không `sqlx migrate` (PLAN 4.4, 4.5)
+sqlx = { version = "0.9", default-features = false, features = [
+  "runtime-tokio",
+  "tls-rustls-ring-webpki",
+  "postgres",
+  "macros",
+  "chrono",
+  "json",
+  "rust_decimal",
+] }
+
+# Dữ liệu, mã hoá, thời gian
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+jsonwebtoken = "12"
+bcrypt = "0.19"
+aes-gcm = "0.11"
+hmac = "0.13"
+sha2 = "0.11"
+subtle = "2.6"
+garde = "0.23"
+jsonschema = "0.63"
+rust_decimal = "1.43"
+chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
+chrono-tz = "0.10"
+moka = "0.12"
+
+# Realtime, lưu trữ, tài liệu
+socketioxide = "0.18"
+object_store = "0.14"
+rust_xlsxwriter = "0.104"
+calamine = "0.38"
+printpdf = "0.13"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+handlebars = "6.4"
+rust-embed = "8.14"
+
+# Quan sát, CLI, cấp phát
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+sentry = { version = "0.49", default-features = false }
+utoipa = "6.0"
+clap = { version = "4.6", features = ["derive"] }
+mimalloc = "0.1"
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Test
+insta = "1.49"
+wiremock = "0.6"
+
+[workspace.lints.cargo]
+# Bảng phiên bản ở trên khai trước cho cả kế hoạch; crate nào chưa dùng thì chưa vào Cargo.lock.
+unused_workspace_dependencies = "allow"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+unused_must_use = "deny"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+dbg_macro = "warn"
+todo = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+
+[profile.dev]
+# Thông tin gỡ lỗi tối thiểu: biên dịch nhanh hơn, target/ nhỏ hơn (máy phát triển 16 GB dùng chung).
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

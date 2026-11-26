@@ -15,6 +15,8 @@ Nguyên tắc: check **bắt buộc** phải nhanh (mục tiêu ≤ 5 phút); vi
 | `Build api (monolith)` | `ci.yml` | PR + push main | `tsc` build monolith |
 | `Tests with Postgres (migrate + db specs)` | `ci.yml` | PR (khi đổi SQL/migration) + push main | Postgres 16: migrate + `*.pg.spec` / `*.db.spec` |
 | `Web build and UI checks` | `ci.yml` | PR (khi đổi web/packages) + push main | `next build`, ngân sách JS, tương phản, UI audit, break-it |
+| `Rust build (amd64)`, `Rust build (arm64)` | `ci.yml` | PR (khi đổi `server/`, migration Prisma) + push main | `cargo build --release --locked` trên runner x64 và runner arm, `trinity --version`, binary là artifact 7 ngày. Hướng dẫn máy phát triển: `server/README.md` |
+| `Rust deny` | `ci.yml` | PR (khi đổi `Cargo.toml`/`Cargo.lock`/`deny.toml` trong `server/`) + push main | `cargo deny check` theo `server/deny.toml`: giấy phép tương thích AGPL-3.0, lỗ hổng RustSec, nguồn crate |
 | `Dependency review` | `dependency-review.yml` | PR | Chặn dependency lỗ hổng ≥ high |
 | `Label by path / size`, `Conventional PR title` | `pr-triage.yml` | PR | Nhãn + kiểm tiêu đề `type(scope): …` |
 | `Nightly` (full test, Postgres, e2e Playwright, `pnpm audit`, OSV) | `nightly.yml` | 02:00 giờ VN + chạy tay | Toàn bộ test; báo cáo Playwright là artifact |
@@ -42,4 +44,4 @@ Kiểm chứng chữ ký (`<version>` không có tiền tố v, vd `0.4.0`; ho�
 ## Quy ước
 - Mọi action ghim SHA kèm comment phiên bản; Dependabot (`github-actions`) cập nhật hằng tuần.
 - Mỗi job khai `permissions` tối thiểu; chỉ dùng `GITHUB_TOKEN`, không PAT/secret riêng.
-- Dependabot: npm gom minor/patch theo tuần (tối đa 5 PR), github-actions, docker.
+- Dependabot: npm gom minor/patch theo tuần (tối đa 5 PR), cargo (`server/`, gom minor/patch), github-actions, docker.

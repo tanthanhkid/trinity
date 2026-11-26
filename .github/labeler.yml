@@ -8,6 +8,10 @@ api:
 packages:
   - changed-files:
       - any-glob-to-any-file: packages/**
+server:
+  - changed-files:
+      - any-glob-to-any-file: server/**
+
 database:
   - changed-files:
       - any-glob-to-any-file: packages/prisma/**
@@ -19,7 +23,7 @@ docs:
       - any-glob-to-any-file: ['docs/**', '*.md']
 dependencies:
   - changed-files:
-      - any-glob-to-any-file: [pnpm-lock.yaml, '**/package.json']
+      - any-glob-to-any-file: [pnpm-lock.yaml, '**/package.json', server/Cargo.lock, '**/Cargo.toml']
 tests:
   - changed-files:
       - any-glob-to-any-file: ['**/*.spec.ts', '**/*.test.ts', 'tests/**', 'apps/web/e2e/**']

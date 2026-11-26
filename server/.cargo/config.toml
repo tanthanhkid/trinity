@@ -1,0 +1,6 @@
+[alias]
+xtask = "run --quiet --package xtask --"
+
+[env]
+# Kiểm truy vấn bằng dữ liệu trong .sqlx/, không cần DB (PLAN 4.4). Đặt SQLX_OFFLINE=false trong shell để kiểm trên DB thật.
+SQLX_OFFLINE = { value = "true", force = false }

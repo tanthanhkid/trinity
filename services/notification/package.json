@@ -18,7 +18,7 @@
     "@nestjs/swagger": "^7",
     "@nestjs/websockets": "^10",
     "class-transformer": "^0.5",
-    "class-validator": "^0.14",
+    "class-validator": "^0.15",
     "@nestjs/schedule": "^4",
     "handlebars": "^4.7.10",
     "jsonwebtoken": "^9",

@@ -328,33 +328,26 @@ async fn c_oauth_state_nhan_ma_va_khoa_kenh() {
     p.release_route(RouteKind::StoreSlug, "SHOP-A", co(2)).await.unwrap();
     assert_eq!(p.company_for_route(RouteKind::StoreSlug, "shop-a").await.unwrap(), None);
     p.claim_route(RouteKind::StoreSlug, "Shop-A", co(2)).await.unwrap();
-    // Mã vừa nhận (dưới 2 phút) không bị chiếm dù bên giữ chưa lưu dòng kết nối.
-    p.claim_route(RouteKind::ShopeeShop, "shop-1", co(1)).await.unwrap();
-    match p.claim_route(RouteKind::ShopeeShop, "shop-1", co(2)).await {
+    // Mã vừa nhận (dưới 2 phút) không bị chiếm dù bên giữ chưa lưu dòng trang bán hàng.
+    p.claim_route(RouteKind::StoreSlug, "moi-nhan", co(1)).await.unwrap();
+    match p.claim_route(RouteKind::StoreSlug, "moi-nhan", co(2)).await {
         Err(PlatformError::Conflict(m)) => {
-            assert_eq!(m, "Gian hàng Shopee này đã được một công ty khác kết nối với Trinity");
-        }
-        other => panic!("{other:?}"),
-    }
-    match p.claim_route(RouteKind::LazadaSeller, "sel", co(2)).await {
-        Ok(()) => {}
-        other => panic!("{other:?}"),
-    }
-    match p.claim_route(RouteKind::LazadaSeller, "sel", co(1)).await {
-        Err(PlatformError::Conflict(m)) => {
-            assert_eq!(m, "Tài khoản Lazada này đã được một công ty khác kết nối với Trinity");
+            assert_eq!(
+                m,
+                "Địa chỉ trang bán hàng này đã có công ty khác dùng — chọn địa chỉ khác"
+            );
         }
         other => panic!("{other:?}"),
     }
     // Nhả: chỉ mã của mình.
-    p.release_route(RouteKind::ShopeeShop, "shop-1", co(2)).await.unwrap();
+    p.release_route(RouteKind::StoreSlug, "moi-nhan", co(2)).await.unwrap();
     assert_eq!(
-        p.company_for_route(RouteKind::ShopeeShop, "shop-1").await.unwrap(),
+        p.company_for_route(RouteKind::StoreSlug, "moi-nhan").await.unwrap(),
         Some(1)
     );
-    p.release_route(RouteKind::ShopeeShop, "shop-1", co(1)).await.unwrap();
+    p.release_route(RouteKind::StoreSlug, "moi-nhan", co(1)).await.unwrap();
     assert_eq!(
-        p.company_for_route(RouteKind::ShopeeShop, "shop-1").await.unwrap(),
+        p.company_for_route(RouteKind::StoreSlug, "moi-nhan").await.unwrap(),
         None
     );
     assert!(matches!(
@@ -401,13 +394,12 @@ async fn d_trigger_mat_thi_cai_lai_va_chep_bu_ma_cai_dat() {
         &mut c,
         r#"DROP TRIGGER trinity_platform_sync_login ON c_2.users;
            INSERT INTO c_2.settings (key, value) VALUES ('online_store', '{"slug":" Shop-B "}');
-           INSERT INTO c_2.connector_accounts (provider, status, settings) VALUES
-             ('shopee', 'active', '{"shop_id":"s-b"}'), ('lazada', 'disconnected', '{"seller_id":"l-b"}');
            INSERT INTO platform.company_routes (kind, external_id, company_id, created_at)
-             VALUES ('shopee_shop', 'orphan', 2, now() - interval '1 hour');"#,
+             VALUES ('shopee_shop', 's-b', 2, now() - interval '1 hour'),
+                    ('lazada_seller', 'l-b', 2, now() - interval '1 hour');"#,
     )
     .await;
-    // Tiến trình mới boot: cài lại trigger c_2, chép bù slug/gian hàng, dọn mã mồ côi.
+    // Tiến trình mới boot: cài lại trigger c_2, chép bù slug, xoá loại route đã gỡ.
     let p = Platform::new(&db, None);
     p.ensure().await.unwrap();
     assert_eq!(
@@ -420,15 +412,15 @@ async fn d_trigger_mat_thi_cai_lai_va_chep_bu_ma_cai_dat() {
         p.company_for_route(RouteKind::StoreSlug, "shop-b").await.unwrap(),
         Some(2)
     );
-    assert_eq!(
-        p.company_for_route(RouteKind::ShopeeShop, "s-b").await.unwrap(),
-        Some(2)
-    );
-    assert_eq!(p.company_for_route(RouteKind::LazadaSeller, "l-b").await.unwrap(), None);
-    assert_eq!(
-        p.company_for_route(RouteKind::ShopeeShop, "orphan").await.unwrap(),
-        None
-    );
+    // Loại route đã gỡ (G06) bị xoá hết.
+    let mut c = t.conn().await;
+    let left: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM platform.company_routes WHERE kind IN ('shopee_shop', 'lazada_seller')",
+    )
+    .fetch_one(&mut c)
+    .await
+    .unwrap();
+    assert_eq!(left, 0);
     db.close().await;
     drop(c);
 }

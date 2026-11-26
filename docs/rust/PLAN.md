@@ -849,9 +849,21 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
 - Nguồn chung: `packages/rbac` xuất `contracts/rbac.json` (catalog, phạm vi, tính năng, gói, mẫu ngành) ở issue C04.
   Rust nhúng file này lúc biên dịch; web tiếp tục import gói TS. CI kiểm file JSON khớp gói TS.
 - Mỗi route đăng ký qua một hàm bắt buộc nhận `Access` (`Can`, `CanAny`, `AuthOnly`, `Public`, `Internal`); không có
-  API thêm route mà thiếu tham số này. Lúc boot và trong CI, bảng route của Rust được so với `contracts/routes.json`
+  API thêm route mà thiếu tham số này. Lúc khởi động (`check-config`/`serve`) và khi chạy test cục bộ, bảng route của Rust được so với `contracts/routes.json`
   (đường dẫn, phương thức, loại truy cập, danh sách quyền, chế độ validation, mã trạng thái thành công, cổng tính năng,
   guard riêng, pipe của tham số).
+- **Đã làm ở K14** (`server/crates/trinity-http/src/router`): `ApiRouter::route(RouteSpec, handler)` là cách DUY NHẤT thêm route; `RouteSpec::new`
+  bắt buộc `Access` (`Can`, `CanAny`, `AuthOnly`, `Public`, `Internal`) nên thiếu khai báo không biên dịch được (doctest `compile_fail`); phương thức
+  lấy từ spec; phương thức không khai trên một đường dẫn đã có, hay đường dẫn lạ, trả 404 dạng Nest TRƯỚC mọi guard. Lớp thực thi theo
+  `permission.guard.ts` (xác thực → nạp quyền → admin qua hết → 403 câu nguyên văn; lỗi DB khi nạp quyền là 500 như Node, không phải 401), rồi
+  `OrgFeatureGate` (K25 cài đặt) và guard riêng theo tên (`AccessDeps.guards`), pipe tham số (`ParseIntPipe`, `ParseInt4Pipe`, `ParseUUIDPipe`) và áp
+  `status_ok`. Mọi tên guard/pipe chưa có cài đặt, và `org_feature` trên route `Public`/`Internal` (chưa có công ty đã resolve), làm `ApiRouter::route`
+  dừng lúc khởi động. `router::check` so bảng đã khai với `routes.json` (`access`, `permissions`, `permission_mode`, `status_ok`, `org_feature`,
+  `guards`, `param_pipes`) và tự kiểm hợp đồng (quyền, tính năng có trong catalog; `validation` khớp bảng lenient/strict K15; dòng trùng phải giống hệt:
+  health/live/ready lặp 5 lần ở 5 service cũ). Kiểm chạy ở: test đơn vị `trinity-bin` (`routes::tests`), `trinity check-config` (chạy thử lúc khởi động,
+  gọi `routes::boot_check`), `trinity check-routes [--require-all]` / `cargo xtask check-routes`; lệnh `serve` (chưa có) gọi `boot_check` trước khi mở
+  cổng. CI hiện đã tắt (chủ dự án: tự test local), nên đây là kiểm cục bộ, không phải job CI. `--require-all` là cổng cuối X06. Module nào có route
+  đầu tiên thêm `routes()` vào `declared_routes()` của `trinity-bin`. `resolvePublicRouteCompany` chuyển cùng module đầu tiên cần nó.
 - `ScopeService` và bộ dựng điều kiện phạm vi chuyển kèm test pg hiện có (`scope.service.spec.ts`).
 - **Đã làm ở K12** (`server/crates/trinity-rbac`): `catalog` (nhúng `contracts/rbac.json`), `grants` (`normalize_grant`, `merge_grants`, `can`,
   `scope_of`, `is_subset`; bảng ca dùng chung `contracts/cases/rbac.json` do `packages/rbac/src/grants-cases.spec.ts` sinh, Rust chạy lại ở

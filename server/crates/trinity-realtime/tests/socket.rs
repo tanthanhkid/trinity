@@ -200,8 +200,8 @@ async fn khong_token_hoac_token_sai_bi_ngat() {
 async fn token_het_han_bi_ngat() {
     let (url, _s) = serve(true).await;
     let old = Claims {
-        exp: Some(1_000),
-        iat: Some(0),
+        exp: Some(1_000.0),
+        iat: Some(0.0),
         ..Claims::access(7, "u@example.com", None, None, 0)
     };
     let tok = sign(&old, SECRET).unwrap();

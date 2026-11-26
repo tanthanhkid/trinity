@@ -2,6 +2,7 @@
 //! issue sau (docs/rust/PLAN.md mục 4.1).
 
 mod migrate;
+mod routes;
 
 use std::io::Write;
 use std::process::ExitCode;
@@ -28,6 +29,12 @@ enum Command {
     /// Mặc định: schema `public` (công ty 1), như bước deploy của bản Node. Thoát mã 1 nếu có lỗi hoặc (với
     /// `--status`) còn migration chưa chạy.
     Migrate(migrate::MigrateArgs),
+    /// So bảng route Rust đã khai với `contracts/routes.json` (K14): mã 0 khớp, mã 1 có chỗ lệch. `--require-all` đòi
+    /// khai đủ mọi route của hợp đồng (cổng cuối trước khi bỏ Node).
+    CheckRoutes {
+        #[arg(long)]
+        require_all: bool,
+    },
     /// Bộ kiểm bất biến dữ liệu (X11, chỉ đọc DB): mã 0 sạch, mã 1 có vi phạm, mã 2 lỗi chạy.
     /// Chạy theo lịch mỗi giờ: docs/rust/invariants.md.
     CheckInvariants(InvariantsArgs),
@@ -60,6 +67,7 @@ fn main() -> ExitCode {
         None => ExitCode::SUCCESS,
         Some(Command::CheckConfig) => check_config(),
         Some(Command::Migrate(args)) => migrate::run(args),
+        Some(Command::CheckRoutes { require_all }) => check_routes(require_all),
         Some(Command::CheckInvariants(args)) => check_invariants(&args),
     }
 }
@@ -140,6 +148,22 @@ async fn run_invariants(args: &InvariantsArgs) -> Result<bool, String> {
     Ok(report.ok())
 }
 
+fn check_routes(require_all: bool) -> ExitCode {
+    let mut err = std::io::stderr().lock();
+    let rep = routes::check(require_all);
+    for p in &rep.problems {
+        let _ = writeln!(err, "{p}");
+    }
+    let _ = writeln!(
+        err,
+        "check-routes: đã khai {}/{} route của hợp đồng, {} lỗi",
+        rep.declared,
+        rep.contract_total,
+        rep.problems.len()
+    );
+    if rep.ok() { ExitCode::SUCCESS } else { ExitCode::FAILURE }
+}
+
 /// Log JSON (K04) chưa có: cảnh báo và lỗi ghi thẳng ra stderr.
 fn check_config() -> ExitCode {
     let mut err = std::io::stderr().lock();
@@ -175,6 +199,10 @@ fn check_config() -> ExitCode {
             "Không khởi động: cấu hình IP của khách sai:\n- {}",
             ip_problems.join("\n- ")
         );
+        return ExitCode::FAILURE;
+    }
+    if let Err(e) = routes::boot_check() {
+        let _ = writeln!(err, "{e}");
         return ExitCode::FAILURE;
     }
     for w in client_ip::startup_warnings(&env) {

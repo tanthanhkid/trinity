@@ -17,8 +17,16 @@ pub struct PermissionDef {
     pub sensitive: bool,
 }
 
+/// Công tắc tính năng của tổ chức (`org_features` trong `rbac.json`).
+#[derive(Debug, Clone, Deserialize)]
+pub struct OrgFeatureDef {
+    pub key: String,
+    pub label: String,
+}
+
 #[derive(Debug, Deserialize)]
 struct Raw {
+    org_features: Vec<OrgFeatureDef>,
     scope_order: Vec<String>,
     retired_permissions: Vec<String>,
     permissions: Vec<PermissionDef>,
@@ -27,6 +35,7 @@ struct Raw {
 #[derive(Debug)]
 pub struct Catalog {
     permissions: Vec<PermissionDef>,
+    org_features: Vec<OrgFeatureDef>,
     index: HashMap<String, usize>,
     pub scope_order: Vec<String>,
     pub retired: Vec<String>,
@@ -35,6 +44,10 @@ pub struct Catalog {
 impl Catalog {
     pub fn permissions(&self) -> &[PermissionDef] {
         &self.permissions
+    }
+
+    pub fn org_feature(&self, key: &str) -> Option<&OrgFeatureDef> {
+        self.org_features.iter().find(|f| f.key == key)
     }
 
     pub fn get(&self, key: &str) -> Option<&PermissionDef> {
@@ -60,6 +73,7 @@ static CATALOG: LazyLock<Catalog> = LazyLock::new(|| {
         .collect();
     Catalog {
         permissions: raw.permissions,
+        org_features: raw.org_features,
         index,
         scope_order: raw.scope_order,
         retired: raw.retired_permissions,

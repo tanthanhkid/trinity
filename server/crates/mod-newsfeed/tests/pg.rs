@@ -59,6 +59,40 @@ fn actor(id: i32, post: bool, moderate: bool) -> Actor {
     }
 }
 
+/// Đăng bài rồi chờ tác vụ nền gửi thông báo xong (hoặc bỏ cuộc), để test sau không bị việc nền của test trước chạm vào.
+async fn create_t(
+    db: &TenantDb,
+    store: &LocalDiskDriver,
+    actor: &Actor,
+    category: &str,
+    content: &str,
+    images: Vec<ImageUpload>,
+    videos: &[VideoUpload],
+) -> Result<mod_newsfeed::Post, Error> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let r = mod_newsfeed::create(db, store, actor, category, content, images, videos, move |c| {
+        let _ = tx.send(c);
+    })
+    .await;
+    let _ = rx.await;
+    r
+}
+
+async fn lst(
+    db: &TenantDb,
+    actor: &Actor,
+    category: Option<&str>,
+    cursor: Option<i64>,
+    limit: Option<i64>,
+) -> Result<mod_newsfeed::Page<mod_newsfeed::Post>, Error> {
+    let q = mod_newsfeed::ListQuery {
+        category: category.map(str::to_owned),
+        cursor,
+        limit,
+    };
+    mod_newsfeed::list(db, actor, &q).await
+}
+
 fn status(e: Error) -> u16 {
     match e {
         Error::Http(h) => h.status(),
@@ -75,17 +109,32 @@ fn json<T: serde::Serialize>(v: &T) -> serde_json::Value {
 async fn dang_bai_thong_bao_va_hinh_json() {
     let (db, store) = setup().await;
     let a = actor(1, true, false);
+    let (tx, rx) = tokio::sync::oneshot::channel();
     let post = mod_newsfeed::create(
         &db,
         &store,
         &a,
         "announcement",
         "  <p>Xin&nbsp;chào <b>cả</b> nhà</p>  ",
+        vec![],
         &[],
-        &[],
+        move |c| {
+            let _ = tx.send(c);
+        },
     )
     .await
     .unwrap();
+    // Tác vụ nền trả các dòng thông báo đã commit để router đẩy socket nội bộ.
+    let pushed = tokio::time::timeout(std::time::Duration::from_secs(5), rx)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(pushed.iter().map(|n| n.recipient_id).collect::<Vec<_>>(), [2, 4]);
+    assert!(
+        pushed
+            .iter()
+            .all(|n| n.event_type == "newsfeed.post.created" && n.id > 0)
+    );
     let v = json(&post);
     let keys: Vec<&str> = v.as_object().unwrap().keys().map(String::as_str).collect();
     assert_eq!(
@@ -142,20 +191,14 @@ async fn dang_bai_thong_bao_va_hinh_json() {
 async fn kiem_tra_dau_vao_khi_dang() {
     let (db, store) = setup().await;
     let a = actor(1, true, false);
-    let e = mod_newsfeed::create(&db, &store, &a, "pr", "   ", &[], &[])
-        .await
-        .unwrap_err();
+    let e = create_t(&db, &store, &a, "pr", "   ", vec![], &[]).await.unwrap_err();
     assert_eq!(status(e), 400);
     let bad = ImageUpload {
         content_type: "image/gif".into(),
         bytes: vec![1, 2, 3],
     };
     assert_eq!(
-        status(
-            mod_newsfeed::create(&db, &store, &a, "pr", "x", &[bad], &[])
-                .await
-                .unwrap_err()
-        ),
+        status(create_t(&db, &store, &a, "pr", "x", vec![bad], &[]).await.unwrap_err()),
         400
     );
     let not_image = ImageUpload {
@@ -164,7 +207,7 @@ async fn kiem_tra_dau_vao_khi_dang() {
     };
     assert_eq!(
         status(
-            mod_newsfeed::create(&db, &store, &a, "pr", "x", &[not_image], &[])
+            create_t(&db, &store, &a, "pr", "x", vec![not_image], &[])
                 .await
                 .unwrap_err()
         ),
@@ -177,11 +220,7 @@ async fn kiem_tra_dau_vao_khi_dang() {
         })
         .collect();
     assert_eq!(
-        status(
-            mod_newsfeed::create(&db, &store, &a, "pr", "x", &many, &[])
-                .await
-                .unwrap_err()
-        ),
+        status(create_t(&db, &store, &a, "pr", "x", many, &[]).await.unwrap_err()),
         400
     );
     let tmp = std::env::temp_dir().join(format!("m22-bad-{}.avi", uuid_like()));
@@ -192,11 +231,7 @@ async fn kiem_tra_dau_vao_khi_dang() {
         path: tmp.clone(),
     };
     assert_eq!(
-        status(
-            mod_newsfeed::create(&db, &store, &a, "pr", "x", &[], &[v])
-                .await
-                .unwrap_err()
-        ),
+        status(create_t(&db, &store, &a, "pr", "x", vec![], &[v]).await.unwrap_err()),
         400
     );
     assert!(!tmp.exists(), "tệp tạm phải được dọn kể cả khi lỗi");
@@ -225,7 +260,7 @@ async fn anh_video_stream_va_xoa() {
         size: 1000,
         path: tmp.clone(),
     };
-    let post = mod_newsfeed::create(&db, &store, &a, "training", "", &[img], &[vid])
+    let post = create_t(&db, &store, &a, "training", "", vec![img], &[vid])
         .await
         .unwrap();
     assert!(!tmp.exists());
@@ -313,49 +348,36 @@ async fn danh_sach_phan_trang_thich_va_quyen_sua_xoa() {
     for i in 0..5 {
         let cat = if i % 2 == 0 { "pr" } else { "training" };
         ids.push(
-            mod_newsfeed::create(&db, &store, &a1, cat, &format!("bài {i}"), &[], &[])
+            create_t(&db, &store, &a1, cat, &format!("bài {i}"), vec![], &[])
                 .await
                 .unwrap()
                 .id,
         );
     }
     // Trang 1 (limit 2): id giảm dần, next_cursor là id cuối của trang.
-    let p1 = mod_newsfeed::list(&db, &a2, None, None, Some(2)).await.unwrap();
+    let p1 = lst(&db, &a2, None, None, Some(2)).await.unwrap();
     assert_eq!(p1.data.iter().map(|p| p.id).collect::<Vec<_>>(), [ids[4], ids[3]]);
     assert_eq!(p1.next_cursor, Some(ids[3]));
-    let p2 = mod_newsfeed::list(&db, &a2, None, p1.next_cursor.map(i64::from), Some(2))
+    let p2 = lst(&db, &a2, None, p1.next_cursor.map(i64::from), Some(2))
         .await
         .unwrap();
     assert_eq!(p2.data.iter().map(|p| p.id).collect::<Vec<_>>(), [ids[2], ids[1]]);
-    let p3 = mod_newsfeed::list(&db, &a2, None, p2.next_cursor.map(i64::from), Some(2))
+    let p3 = lst(&db, &a2, None, p2.next_cursor.map(i64::from), Some(2))
         .await
         .unwrap();
     assert_eq!((p3.data.len(), p3.next_cursor), (1, None));
-    // Lọc nhóm; limit kẹp 1..50; cursor 0 = trang đầu; cursor không tồn tại = trang trống.
-    let pr = mod_newsfeed::list(&db, &a2, Some("pr"), None, Some(0)).await.unwrap();
+    // Lọc nhóm; limit 1; cursor 0 = trang đầu; cursor không tồn tại = trang trống.
+    let pr = lst(&db, &a2, Some("pr"), None, Some(1)).await.unwrap();
     assert_eq!((pr.data.len(), pr.next_cursor), (1, Some(ids[4])));
-    assert_eq!(
-        mod_newsfeed::list(&db, &a2, None, Some(0), None)
-            .await
-            .unwrap()
-            .data
-            .len(),
-        5
-    );
-    assert!(
-        mod_newsfeed::list(&db, &a2, None, Some(99_999), None)
-            .await
-            .unwrap()
-            .data
-            .is_empty()
-    );
+    assert_eq!(lst(&db, &a2, None, Some(0), None).await.unwrap().data.len(), 5);
+    assert!(lst(&db, &a2, None, Some(99_999), None).await.unwrap().data.is_empty());
 
     // Thích / bỏ thích.
     let l = mod_newsfeed::toggle_like(&db, &a2, ids[4]).await.unwrap();
     assert_eq!(json(&l), serde_json::json!({"liked": true, "like_count": 1}));
-    let top = mod_newsfeed::list(&db, &a2, None, None, Some(1)).await.unwrap();
+    let top = lst(&db, &a2, None, None, Some(1)).await.unwrap();
     assert_eq!((top.data[0].liked_by_me, top.data[0].count.likes), (Some(true), 1));
-    let other = mod_newsfeed::list(&db, &a1, None, None, Some(1)).await.unwrap();
+    let other = lst(&db, &a1, None, None, Some(1)).await.unwrap();
     assert_eq!(other.data[0].liked_by_me, Some(false));
     let l = mod_newsfeed::toggle_like(&db, &a2, ids[4]).await.unwrap();
     assert_eq!((l.liked, l.like_count), (false, 0));
@@ -383,14 +405,7 @@ async fn danh_sach_phan_trang_thich_va_quyen_sua_xoa() {
         403
     );
     mod_newsfeed::delete(&db, &store, &admin, ids[1]).await.unwrap();
-    assert_eq!(
-        mod_newsfeed::list(&db, &a1, None, None, Some(50))
-            .await
-            .unwrap()
-            .data
-            .len(),
-        4
-    );
+    assert_eq!(lst(&db, &a1, None, None, Some(50)).await.unwrap().data.len(), 4);
 }
 
 #[tokio::test]
@@ -400,9 +415,7 @@ async fn binh_luan() {
     let a1 = actor(1, true, false);
     let a2 = actor(2, false, false);
     let admin = actor(4, true, true);
-    let post = mod_newsfeed::create(&db, &store, &a1, "pr", "p", &[], &[])
-        .await
-        .unwrap();
+    let post = create_t(&db, &store, &a1, "pr", "p", vec![], &[]).await.unwrap();
     let mut cids = Vec::new();
     for i in 0..3 {
         let c = mod_newsfeed::create_comment(&db, &a2, post.id, &format!(" ý {i} "))
@@ -440,7 +453,7 @@ async fn binh_luan() {
         404
     );
     // Đếm bình luận trong bài.
-    let top = mod_newsfeed::list(&db, &a1, None, None, Some(1)).await.unwrap();
+    let top = lst(&db, &a1, None, None, Some(1)).await.unwrap();
     assert_eq!(top.data[0].count.comments, 3);
     // Xoá: người lạ 403, tác giả và người kiểm duyệt được.
     assert_eq!(
@@ -469,4 +482,44 @@ async fn quyen_cua_toi_va_token_video() {
     assert_eq!(json(&p), serde_json::json!({"can_post": true, "can_moderate": false}));
     let e = mod_newsfeed::video_upload_token_gone();
     assert_eq!(e.status(), 400);
+}
+
+#[tokio::test]
+async fn kiem_query_danh_sach() {
+    let ok = mod_newsfeed::validate_list_query(Some("pr"), Some("12"), Some("50")).unwrap();
+    assert_eq!(
+        (ok.category.as_deref(), ok.cursor, ok.limit),
+        (Some("pr"), Some(12), Some(50))
+    );
+    let empty = mod_newsfeed::validate_list_query(None, None, None).unwrap();
+    assert_eq!(empty, mod_newsfeed::ListQuery::default());
+    // Ngoài khoảng bị từ chối, không kẹp; câu như class-validator.
+    for (c, cur, l, want) in [
+        (
+            Some("x"),
+            None,
+            None,
+            "category must be one of the following values: announcement, training, pr",
+        ),
+        (None, None, Some("0"), "limit must not be less than 1"),
+        (None, None, Some("51"), "limit must not be greater than 50"),
+        (None, None, Some("1.5"), "limit must be an integer number"),
+        (None, None, Some("abc"), "limit must be an integer number"),
+        (None, Some("x"), None, "cursor must be an integer number"),
+    ] {
+        match mod_newsfeed::validate_list_query(c, cur, l).unwrap_err() {
+            Error::Http(h) => {
+                assert_eq!(h.status(), 400);
+                let body = serde_json::to_string(&h.body()).unwrap();
+                assert!(body.contains(want), "{body} thiếu {want}");
+            }
+            Error::Internal(m) => panic!("{m}"),
+        }
+    }
+    // Chuỗi rỗng là 0 như `Number("")` (cursor 0 = trang đầu; limit 0 vi phạm tối thiểu).
+    assert_eq!(
+        mod_newsfeed::validate_list_query(None, Some(""), None).unwrap().cursor,
+        Some(0)
+    );
+    assert!(mod_newsfeed::validate_list_query(None, None, Some("")).is_err());
 }

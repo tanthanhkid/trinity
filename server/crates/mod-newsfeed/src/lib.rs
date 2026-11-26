@@ -29,7 +29,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use sqlx::{PgConnection, Row};
-use trinity_db::outbox::{NewNotification, create_notification};
+use trinity_db::outbox::{CreatedNotification, NewNotification, create_notification};
 use trinity_db::types::Timestamp;
 use trinity_db::{DbError, TenantDb};
 use trinity_kernel::error::HttpError;
@@ -388,15 +388,16 @@ async fn cursor_exists(conn: &mut PgConnection, table: &str, cursor: i64) -> Res
 // ---------------------------------------------------------------------------------------------------------------------
 // Endpoint
 
-/// `GET /newsfeed` (`AuthOnly`): trang bài theo `id` giảm dần; `cursor` 0 hoặc thiếu = trang đầu; `limit` 1–50 (mặc định 10).
-pub async fn list(
-    db: &TenantDb,
-    actor: &Actor,
-    category: Option<&str>,
-    cursor: Option<i64>,
-    limit: Option<i64>,
-) -> Result<Page<Post>> {
-    let take = clamp(limit, 10, 50);
+/// `GET /newsfeed` (`AuthOnly`): trang bài theo `id` giảm dần; `cursor` 0 hoặc thiếu = trang đầu; `limit` 1–50 (mặc định 10),
+/// đã kiểm ở [`validate_list_query`].
+///
+/// Khác biệt đã biết khi có `category` kèm `cursor`: con trỏ chỉ cần là id của MỘT bài còn tồn tại (bất kể nhóm) rồi lấy tiếp
+/// các bài cùng nhóm có `id` nhỏ hơn; id không còn thì trang trống như Prisma. Prisma định vị con trỏ trong tập đã lọc theo
+/// nhóm, nên với con trỏ thuộc nhóm khác kết quả có thể khác ở mép trang; con trỏ do chính API này phát ra (id cuối của một
+/// trang cùng bộ lọc) luôn cho kết quả giống nhau.
+pub async fn list(db: &TenantDb, actor: &Actor, q: &ListQuery) -> Result<Page<Post>> {
+    let (category, cursor) = (q.category.as_deref(), q.cursor);
+    let take = q.limit.unwrap_or(10);
     let mut conn = db.acquire().await?;
     let cursor = cursor.filter(|c| *c != 0);
     if let Some(c) = cursor
@@ -441,6 +442,71 @@ pub async fn list(
     })
 }
 
+/// Tham số đã kiểm của `GET /newsfeed` (`QueryPostsDto`).
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct ListQuery {
+    pub category: Option<String>,
+    pub cursor: Option<i64>,
+    pub limit: Option<i64>,
+}
+
+/// `Number(chuỗi)` của `@Type(() => Number)`: chuỗi rỗng là 0, rác là NaN; trả `Err(())` nếu không phải số nguyên.
+fn query_int(raw: &str) -> std::result::Result<i64, ()> {
+    let t = raw.trim();
+    let n: f64 = if t.is_empty() { 0.0 } else { t.parse().map_err(|_| ())? };
+    if n.is_finite() && n.fract() == 0.0 && n.abs() <= 9_007_199_254_740_991.0 {
+        Ok(n as i64)
+    } else {
+        Err(())
+    }
+}
+
+/// Kiểm query của `GET /newsfeed` đúng câu của class-validator: `category` thuộc [`CATEGORIES`]; `cursor` nguyên;
+/// `limit` nguyên trong 1–50. Giá trị ngoài khoảng bị từ chối 400 (không kẹp). Tham số là chuỗi thô của query string.
+pub fn validate_list_query(category: Option<&str>, cursor: Option<&str>, limit: Option<&str>) -> Result<ListQuery> {
+    let mut msgs = Vec::new();
+    if let Some(c) = category
+        && !CATEGORIES.contains(&c)
+    {
+        msgs.push(format!(
+            "category must be one of the following values: {}",
+            CATEGORIES.join(", ")
+        ));
+    }
+    let cursor = cursor.and_then(|c| match query_int(c) {
+        Ok(v) => Some(v),
+        Err(()) => {
+            msgs.push("cursor must be an integer number".to_owned());
+            None
+        }
+    });
+    let limit = limit.and_then(|l| match query_int(l) {
+        Ok(v) => {
+            if v < 1 {
+                msgs.push("limit must not be less than 1".to_owned());
+            }
+            if v > 50 {
+                msgs.push("limit must not be greater than 50".to_owned());
+            }
+            Some(v)
+        }
+        Err(()) => {
+            msgs.push("limit must be an integer number".to_owned());
+            msgs.push("limit must not be less than 1".to_owned());
+            msgs.push("limit must not be greater than 50".to_owned());
+            None
+        }
+    });
+    if !msgs.is_empty() {
+        return Err(validation(msgs));
+    }
+    Ok(ListQuery {
+        category: category.map(str::to_owned),
+        cursor,
+        limit,
+    })
+}
+
 /// `GET /newsfeed/permissions/me`.
 pub fn permissions_me(actor: &Actor) -> Permissions {
     Permissions {
@@ -477,7 +543,7 @@ fn media_key(ext: &str) -> String {
     format!("newsfeed/{now}_{}{ext}", &rand[..6])
 }
 
-async fn put_image<S: MediaStore>(store: &S, img: &ImageUpload) -> Result<String> {
+async fn put_image<S: MediaStore>(store: &S, img: ImageUpload) -> Result<String> {
     if !ALLOWED_IMAGE_TYPES.contains(&img.content_type.as_str()) {
         return Err(bad_request("Chỉ hỗ trợ JPG, PNG, WEBP"));
     }
@@ -485,7 +551,7 @@ async fn put_image<S: MediaStore>(store: &S, img: &ImageUpload) -> Result<String
         return Err(bad_request("Kích thước ảnh tối đa 10MB"));
     }
     // Nén nặng CPU: tách khỏi luồng async.
-    let bytes = img.bytes.clone();
+    let bytes = img.bytes;
     let encoded = tokio::task::spawn_blocking(move || trinity_docgen::image::newsfeed_webp(&bytes))
         .await
         .map_err(|e| Error::Internal(e.to_string()))?
@@ -515,26 +581,41 @@ async fn put_video<S: MediaStore>(store: &S, v: &VideoUpload) -> Result<String> 
     Ok(key)
 }
 
-/// `POST /newsfeed` và `POST /newsfeed/upload` (`Can('newsfeed.post')`): đăng bài, có thể kèm ảnh/video. Thông báo cho mọi
-/// nhân viên đang hoạt động trừ người đăng chạy SAU khi bài đã commit, lỗi chỉ ghi log (không làm hỏng việc đăng). Tệp
-/// tạm của video luôn được dọn, kể cả khi lỗi.
-pub async fn create<S: MediaStore>(
+/// `POST /newsfeed` và `POST /newsfeed/upload` (`Can('newsfeed.post')`): đăng bài, có thể kèm ảnh/video. Tệp tạm của
+/// video luôn được dọn, kể cả khi lỗi.
+///
+/// Thông báo cho mọi nhân viên đang hoạt động trừ người đăng chạy NỀN (`tokio::spawn`, như `runInBackground` của bản Node)
+/// SAU khi bài đã commit; lỗi chỉ ghi log, không làm hỏng việc đăng. Khi tạo xong (đã commit), `on_notified` được gọi với các
+/// dòng thông báo đã tạo để router đẩy socket NỘI BỘ cùng tiến trình (tin `NOTIFY bell` bị lọc khỏi chính tiến trình phát,
+/// xem `trinity_db::outbox::CreatedNotification`); không có người nhận thì không gọi.
+#[allow(clippy::too_many_arguments)] // tương ứng các trường của một lần đăng bài; router dựng từ multipart
+pub async fn create<S, N>(
     db: &TenantDb,
     store: &S,
     actor: &Actor,
     category: &str,
     content: &str,
-    images: &[ImageUpload],
+    images: Vec<ImageUpload>,
     videos: &[VideoUpload],
-) -> Result<Post> {
+    on_notified: N,
+) -> Result<Post>
+where
+    S: MediaStore,
+    N: FnOnce(Vec<CreatedNotification>) + Send + 'static,
+{
     let res = create_inner(db, store, actor, category, content, images, videos).await;
     for v in videos {
         let _ = tokio::fs::remove_file(&v.path).await;
     }
     let post = res?;
-    if let Err(e) = notify_new_post(db, &post).await {
-        tracing::warn!("notifyNewPost failed for post {}: {}", post.id, describe(&e));
-    }
+    let (db, bg_post) = (db.clone(), post.clone());
+    tokio::spawn(async move {
+        match notify_new_post(&db, &bg_post).await {
+            Ok(created) if !created.is_empty() => on_notified(created),
+            Ok(_) => {}
+            Err(e) => tracing::warn!("notifyNewPost failed for post {}: {}", bg_post.id, describe(&e)),
+        }
+    });
     Ok(post)
 }
 
@@ -551,7 +632,7 @@ async fn create_inner<S: MediaStore>(
     actor: &Actor,
     category: &str,
     content: &str,
-    images: &[ImageUpload],
+    images: Vec<ImageUpload>,
     videos: &[VideoUpload],
 ) -> Result<Post> {
     let trimmed = content.trim();
@@ -608,7 +689,7 @@ async fn create_inner<S: MediaStore>(
     result
 }
 
-async fn notify_new_post(db: &TenantDb, post: &Post) -> Result<()> {
+async fn notify_new_post(db: &TenantDb, post: &Post) -> Result<Vec<CreatedNotification>> {
     let mut tx = db.begin().await?;
     let recipients: Vec<i32> =
         sqlx::query_scalar("SELECT id FROM users WHERE status = 'active' AND id <> $1 ORDER BY id")
@@ -616,7 +697,7 @@ async fn notify_new_post(db: &TenantDb, post: &Post) -> Result<()> {
             .fetch_all(&mut *tx)
             .await?;
     if recipients.is_empty() {
-        return Ok(());
+        return Ok(Vec::new());
     }
     let author = post.author.full_name.trim();
     let author = if author.is_empty() { "Một nhân viên" } else { author };
@@ -646,11 +727,11 @@ async fn notify_new_post(db: &TenantDb, post: &Post) -> Result<()> {
             action_url: Some(url.clone()),
         })
         .collect();
-    create_notification(&mut tx, &items)
+    let created = create_notification(&mut tx, &items)
         .await
         .map_err(|e| Error::Internal(e.to_string()))?;
     tx.commit().await?;
-    Ok(())
+    Ok(created)
 }
 
 async fn post_author(conn: &mut PgConnection, id: i32) -> Result<i32> {
@@ -681,14 +762,16 @@ pub async fn update(db: &TenantDb, actor: &Actor, post_id: i32, content: &str) -
 /// `DELETE /newsfeed/:id`: xoá bài (ảnh, thích, bình luận xoá theo khoá ngoại) rồi xoá tệp khỏi kho, lỗi kho chỉ ghi log.
 pub async fn delete<S: MediaStore>(db: &TenantDb, store: &S, actor: &Actor, post_id: i32) -> Result<Message> {
     let mut conn = db.acquire().await?;
-    let author = post_author(&mut conn, post_id).await?;
+    // Một lần đọc (tác giả + ảnh cũ): bài bị xoá giữa chừng thì 404, không phải lỗi 500.
+    let (author, legacy): (i32, Option<String>) =
+        sqlx::query_as("SELECT author_id, image_url FROM newsfeed_posts WHERE id = $1")
+            .bind(post_id)
+            .fetch_optional(&mut *conn)
+            .await?
+            .ok_or_else(|| not_found("Không tìm thấy bài đăng"))?;
     if author != actor.user_id && !actor.can_moderate {
         return Err(forbidden("Bạn không có quyền xoá bài này"));
     }
-    let legacy: Option<String> = sqlx::query_scalar("SELECT image_url FROM newsfeed_posts WHERE id = $1")
-        .bind(post_id)
-        .fetch_one(&mut *conn)
-        .await?;
     let keys: Vec<String> =
         sqlx::query_scalar("SELECT image_url FROM newsfeed_post_images WHERE post_id = $1 ORDER BY sort_order, id")
             .bind(post_id)

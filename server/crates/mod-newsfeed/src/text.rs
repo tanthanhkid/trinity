@@ -10,64 +10,60 @@ fn code_point(cp: u32) -> String {
     char::from_u32(cp).map_or_else(|| " ".to_owned(), String::from)
 }
 
-/// Tìm entity bắt đầu tại `s[i..]` (`s[i]` là `&`): trả (chuỗi thay, số byte tiêu thụ). Chỉ nhận đúng các dạng của bản TS:
-/// `&#123;`, `&#x1F;`, `&nbsp;|lt|gt|quot|apos;` (không phân biệt hoa thường). `&amp;` xử lý ở bước riêng.
-fn entity(s: &str, i: usize) -> Option<(String, usize)> {
-    let rest = &s[i + 1..];
-    let end = rest.find(';')?;
-    let name = &rest[..end];
-    let used = end + 2;
-    if let Some(num) = name.strip_prefix('#') {
-        let cp = if let Some(hex) = num.strip_prefix(['x', 'X']) {
-            if hex.is_empty() || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
-                return None;
-            }
-            u32::from_str_radix(hex, 16).unwrap_or(u32::MAX)
-        } else {
-            if num.is_empty() || !num.bytes().all(|b| b.is_ascii_digit()) {
-                return None;
-            }
-            num.parse::<u32>().unwrap_or(u32::MAX)
-        };
-        return Some((code_point(cp), used));
-    }
-    let rep = match name.to_ascii_lowercase().as_str() {
-        "nbsp" => " ",
-        "lt" => "<",
-        "gt" => ">",
-        "quot" => "\"",
-        "apos" => "'",
-        _ => return None,
-    };
-    Some((rep.to_owned(), used))
-}
-
-fn decode_once(s: &str) -> String {
-    // Lượt 1: entity số và tên (trừ amp), chạy một mạch từ trái sang phải như chuỗi `.replace` nối tiếp của JS ở dữ liệu thường.
+/// Thay mọi entity có dạng `&<tiền tố><thân>;` bằng `f(thân)` (một lượt `String.replace` toàn chuỗi của JS).
+fn replace_entities(s: &str, accept: impl Fn(&str) -> Option<String>) -> String {
     let mut out = String::with_capacity(s.len());
     let mut i = 0;
     while i < s.len() {
-        let b = s.as_bytes()[i];
-        if b == b'&'
-            && let Some((rep, used)) = entity(s, i)
+        if s.as_bytes()[i] == b'&'
+            && let Some(end) = s[i + 1..].find(';')
+            && let Some(rep) = accept(&s[i + 1..i + 1 + end])
         {
             out.push_str(&rep);
-            i += used;
+            i += end + 2;
             continue;
         }
         let ch = s[i..].chars().next().unwrap_or('\u{fffd}');
         out.push(ch);
         i += ch.len_utf8();
     }
-    // Lượt 2: `&amp;` (không phân biệt hoa thường) → `&`, chạy sau cùng.
-    replace_amp(&out)
+    out
+}
+
+/// `decodeOnce` của bản TS: bốn phép thay NỐI TIẾP trên cả chuỗi (số thập phân, số hex, tên, rồi `&amp;` cuối cùng), nên đầu
+/// ra của phép trước là đầu vào của phép sau (`&#38;lt;` → `&lt;` → `<` trong cùng một lượt).
+fn decode_once(s: &str) -> String {
+    let dec = replace_entities(s, |b| {
+        let n = b.strip_prefix('#')?;
+        (!n.is_empty() && n.bytes().all(|c| c.is_ascii_digit()))
+            .then(|| code_point(n.parse::<u32>().unwrap_or(u32::MAX)))
+    });
+    let hex = replace_entities(&dec, |b| {
+        let h = b.strip_prefix("#x").or_else(|| b.strip_prefix("#X"))?;
+        (!h.is_empty() && h.bytes().all(|c| c.is_ascii_hexdigit()))
+            .then(|| code_point(u32::from_str_radix(h, 16).unwrap_or(u32::MAX)))
+    });
+    let named = replace_entities(&hex, |b| {
+        Some(
+            match b.to_ascii_lowercase().as_str() {
+                "nbsp" => " ",
+                "lt" => "<",
+                "gt" => ">",
+                "quot" => "\"",
+                "apos" => "'",
+                _ => return None,
+            }
+            .to_owned(),
+        )
+    });
+    replace_amp(&named)
 }
 
 fn replace_amp(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut i = 0;
     while i < s.len() {
-        if s.is_char_boundary(i) && s.len() >= i + 5 && s.as_bytes()[i..i + 5].eq_ignore_ascii_case(b"&amp;") {
+        if s.len() >= i + 5 && s.is_char_boundary(i + 5) && s[i..i + 5].eq_ignore_ascii_case("&amp;") {
             out.push('&');
             i += 5;
             continue;
@@ -128,6 +124,13 @@ mod tests {
         assert_eq!(s("&lt;b&gt; &quot;x&quot; &apos;y&apos;"), "<b> \"x\" 'y'");
         assert_eq!(s("&#65;&#x42;&#160;C"), "AB C");
         assert_eq!(s("&NBSP;x"), "x");
+    }
+
+    #[test]
+    fn cac_phep_thay_noi_tiep_trong_mot_luot() {
+        // `&#38;lt;` → `&lt;` (phép số) → `<` (phép tên) trong cùng một lượt; lượt hai không còn gì để đổi.
+        assert_eq!(s("a&#38;lt;b"), "a<b");
+        assert_eq!(s("&#x26;amp;nbsp;x"), "x");
     }
 
     #[test]

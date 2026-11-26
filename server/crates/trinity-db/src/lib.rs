@@ -2,6 +2,8 @@
 //!
 //! Định tuyến công ty bằng `search_path` (K06): xem [`Db`], [`TenantDb`] và tài liệu đầu `tenant.rs`.
 //!
+//! Struct model sinh tự động ([`models`], `cargo xtask gen-models`) và kiểu cột ghi JSON giống bản Node ([`types`]) (K10).
+//!
 //! K01 chỉ đặt nền cho cách kiểm truy vấn (docs/rust/PLAN.md mục 4.4, `server/README.md`):
 //! - truy vấn tĩnh dùng `sqlx::query!`/`query_scalar!`/`query_as!`, kiểm lúc biên dịch bằng dữ liệu trong
 //!   `server/.sqlx/` (`SQLX_OFFLINE=true`), nên `cargo check` và CI không cần DB;
@@ -9,8 +11,11 @@
 
 pub mod migrate;
 pub mod platform;
+#[rustfmt::skip]
+pub mod models;
 pub mod prisma_migrate;
 mod tenant;
+pub mod types;
 
 pub use tenant::{
     CompanyRef, Db, DbConfig, DbError, LATEST_MIGRATION, PlatformConn, PlatformDb, PlatformTx, TenantConn, TenantDb,

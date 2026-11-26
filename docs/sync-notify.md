@@ -32,3 +32,13 @@ cannot leave a revoked user usable. Writers (Rust included) should write the row
 
 Notes for implementers: the cache key of company `c` is the bare key for company 1 and `c<id>:<key>` otherwise. A company
 other than 1 uses schema `c_<id>`; read rows inside that schema. Payslip notices assume one Node process handles them.
+
+## Rust side (K36)
+
+`trinity_db::sync` implements this contract: `publish_in_tx` / `publish_bell_in_tx` send with `pg_notify` on the business
+transaction (Postgres delivers it on commit only, so the row is always written before the message), `listen` receives with
+reconnect and a `Resync` event after a reconnect, and ignores its own origin (`rust-<pid>-<hex>`). Modules never write the
+tables or the message by hand: `trinity_db::outbox::publish_integration_event` writes `integration_events` (event types from
+`server/contracts/events.json`, number text as `JSON.stringify` prints it) and `create_notification` writes `notification_logs`
+and sends the `bell` message. The Node dispatcher picks Rust-written events up on its next 10 second tick. Known difference:
+Prisma rounds floats with more than 15 significant digits when it writes a JSON column; Rust keeps the value.

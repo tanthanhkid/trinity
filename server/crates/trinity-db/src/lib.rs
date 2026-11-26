@@ -2,6 +2,8 @@
 //!
 //! Định tuyến công ty bằng `search_path` (K06): xem [`Db`], [`TenantDb`] và tài liệu đầu `tenant.rs`.
 //!
+//! Cổng sự kiện tích hợp + thông báo ([`outbox`]) và kênh đồng bộ `trinity_sync` ([`sync`]) (K36).
+//!
 //! Struct model sinh tự động ([`models`], `cargo xtask gen-models`) và kiểu cột ghi JSON giống bản Node ([`types`]) (K10).
 //!
 //! K01 chỉ đặt nền cho cách kiểm truy vấn (docs/rust/PLAN.md mục 4.4, `server/README.md`):
@@ -10,11 +12,13 @@
 //! - truy vấn có bộ lọc động dùng `QueryBuilder`/`query_as` không macro, giá trị luôn bind, và bắt buộc có test pg.
 
 pub mod migrate;
+pub mod outbox;
 pub mod platform;
 #[rustfmt::skip]
 pub mod models;
 pub mod prisma_migrate;
 pub mod provision;
+pub mod sync;
 mod tenant;
 pub mod types;
 

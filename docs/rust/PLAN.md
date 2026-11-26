@@ -896,8 +896,8 @@ cần build lại web và binary. Spike R006 kiểm tương thích với `socket
 
 Điều cần nhớ khi làm thật (K-cổng realtime):
 
-- `Data<T>` của handler namespace nhận `auth`; lỗi xác thực phải `disconnect()` trong handler, không trả `Err` (Err làm client
-  nhận `connect_error` thay vì ngắt, lệch hành vi `connect_error` đang được web bắt để báo hết phiên).
+- `Data<T>` của handler namespace nhận `auth`; lỗi xác thực dùng `disconnect()` trong handler như spike (khớp hành vi Nest, đã đo). Dùng middleware
+  từ chối kết nối thì client nhận `connect_error` thay vì `disconnect`: chưa thử, phải kiểm lại với bộ bắt `connect_error` của web.
 - Tính đa công ty ở room, vì `currentCompanyId()` của Nest không có tương đương ngoài request: bên phát phải truyền `cid` rõ ràng.
 - Phát từ ngoài kết nối (job, API) đi qua `io.of(ns).to(room).emit(...)`; một tiến trình duy nhất nên không cần adapter Redis.
 - Chưa đo: Safari bản máy thật (chỉ WebKit của Playwright), proxy ngược cắt WebSocket nhàn rỗi (cần ping của Socket.IO, mặc định 25 s

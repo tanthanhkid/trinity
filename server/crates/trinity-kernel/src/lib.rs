@@ -3,4 +3,5 @@
 //! Phạm vi theo docs/rust/PLAN.md mục 4.1.
 
 pub mod config;
+pub mod error;
 pub mod ownership;

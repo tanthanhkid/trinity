@@ -146,19 +146,17 @@ async fn a_hai_tien_trinh_khong_chay_trung_mot_job_cho_mot_cong_ty() {
     let (s2, db2) = scheduler(&t, true, "node-2", owned());
     for s in [&s1, &s2] {
         let runs = runs.clone();
-        s.register(JobSpec::new(
-            JOB,
-            Duration::from_secs(60),
-            Duration::from_secs(5),
-            move |_| {
+        s.register(
+            JobSpec::new(JOB, Duration::from_secs(60), Duration::from_secs(5), move |_| {
                 let runs = runs.clone();
                 async move {
                     runs.fetch_add(1, Ordering::SeqCst);
                     tokio::time::sleep(Duration::from_millis(400)).await;
                     Ok(())
                 }
-            },
-        ));
+            })
+            .unwrap(),
+        );
     }
     let (r1, r2) = tokio::join!(s1.tick(JOB), s2.tick(JOB));
     let (r1, r2) = (r1.unwrap(), r2.unwrap());
@@ -180,12 +178,12 @@ async fn a_hai_tien_trinh_khong_chay_trung_mot_job_cho_mot_cong_ty() {
 async fn b_cong_ty_loi_khong_chan_cong_ty_khac() {
     let t = TestDb::new("b", &[2, 3, 4], true).await;
     let (s, db) = scheduler(&t, true, "node-1", owned());
-    s.register(JobSpec::new(
-        JOB,
-        Duration::from_secs(60),
-        Duration::from_secs(5),
-        |c| async move { if c.id() == 3 { Err("hỏng".to_owned()) } else { Ok(()) } },
-    ));
+    s.register(
+        JobSpec::new(JOB, Duration::from_secs(60), Duration::from_secs(5), |c| async move {
+            if c.id() == 3 { Err("hỏng".to_owned()) } else { Ok(()) }
+        })
+        .unwrap(),
+    );
     let r = s.tick(JOB).await.unwrap();
     assert_eq!(r.ran(), vec![1, 2, 4]);
     let failed: Vec<_> = r.failed().map(|o| o.company).collect();
@@ -206,15 +204,13 @@ async fn c_het_budget_thi_luot_sau_tiep_tuc_dung_cho() {
     let t = TestDb::new("c", &[2, 3], true).await; // công ty 1, 2, 3
     let (s, db) = scheduler(&t, true, "node-1", owned());
     // Mỗi công ty 80 ms, budget 100 ms ⇒ phần bắt đầu mới là 60 ms: mỗi lượt chỉ kịp một công ty.
-    s.register(JobSpec::new(
-        JOB,
-        Duration::from_secs(60),
-        Duration::from_millis(100),
-        |_| async {
+    s.register(
+        JobSpec::new(JOB, Duration::from_secs(60), Duration::from_millis(100), |_| async {
             tokio::time::sleep(Duration::from_millis(80)).await;
             Ok(())
-        },
-    ));
+        })
+        .unwrap(),
+    );
     let mut seen = Vec::new();
     for _ in 0..4 {
         let r = s.tick(JOB).await.unwrap();
@@ -234,11 +230,8 @@ async fn d_huy_task_giua_chung_thi_qua_locked_until_van_chay() {
     let calls = Arc::new(AtomicI32::new(0));
     {
         let calls = calls.clone();
-        s.register(JobSpec::new(
-            JOB,
-            Duration::from_secs(60),
-            Duration::from_millis(800),
-            move |_| {
+        s.register(
+            JobSpec::new(JOB, Duration::from_secs(60), Duration::from_millis(800), move |_| {
                 let n = calls.fetch_add(1, Ordering::SeqCst);
                 async move {
                     if n == 0 {
@@ -246,8 +239,9 @@ async fn d_huy_task_giua_chung_thi_qua_locked_until_van_chay() {
                     }
                     Ok(())
                 }
-            },
-        ));
+            })
+            .unwrap(),
+        );
     }
     let task = {
         let s = s.clone();
@@ -260,7 +254,7 @@ async fn d_huy_task_giua_chung_thi_qua_locked_until_van_chay() {
     let r = s.tick(JOB).await.unwrap();
     assert_eq!(r.outcomes[0].status, TickStatus::Busy, "{r:?}");
     // Quá `locked_until`: chạy lại.
-    tokio::time::sleep(Duration::from_millis(800)).await;
+    tokio::time::sleep(Duration::from_millis(6200)).await;
     let r = s.tick(JOB).await.unwrap();
     assert_eq!(r.ran(), vec![1], "{r:?}");
     assert_eq!(calls.load(Ordering::SeqCst), 2);
@@ -276,11 +270,8 @@ async fn e_khong_giu_ket_noi_pool_khi_job_dang_cho() {
     let in_use = Arc::new(AtomicUsize::new(usize::MAX));
     {
         let (db, in_use) = (db.clone(), in_use.clone());
-        s.register(JobSpec::new(
-            JOB,
-            Duration::from_secs(60),
-            Duration::from_secs(5),
-            move |_| {
+        s.register(
+            JobSpec::new(JOB, Duration::from_secs(60), Duration::from_secs(5), move |_| {
                 let (db, in_use) = (db.clone(), in_use.clone());
                 async move {
                     // Như gọi mạng: chờ lâu, rồi đo số kết nối đang bị mượn (kích thước pool trừ kết nối rảnh).
@@ -289,8 +280,9 @@ async fn e_khong_giu_ket_noi_pool_khi_job_dang_cho() {
                     in_use.fetch_min(pool.size() as usize - pool.num_idle(), Ordering::SeqCst);
                     Ok(())
                 }
-            },
-        ));
+            })
+            .unwrap(),
+        );
     }
     let r = s.tick(JOB).await.unwrap();
     assert!(r.failed().next().is_none(), "{r:?}");
@@ -306,18 +298,16 @@ async fn f_chu_cua_job_doc_tu_tep_so_huu_va_tep_hong_giu_bang_cu() {
     let runs = Arc::new(AtomicUsize::new(0));
     {
         let runs = runs.clone();
-        s.register(JobSpec::new(
-            JOB,
-            Duration::from_secs(60),
-            Duration::from_secs(5),
-            move |_| {
+        s.register(
+            JobSpec::new(JOB, Duration::from_secs(60), Duration::from_secs(5), move |_| {
                 let runs = runs.clone();
                 async move {
                     runs.fetch_add(1, Ordering::SeqCst);
                     Ok(())
                 }
-            },
-        ));
+            })
+            .unwrap(),
+        );
     }
     assert!(s.tick(JOB).await.unwrap().not_owner);
     assert_eq!(runs.load(Ordering::SeqCst), 0);
@@ -349,12 +339,12 @@ async fn g_ban_mot_cong_ty_co_job_runs_va_chi_chay_cong_ty_1() {
     ensure_job_tables(&db).await.unwrap();
     ensure_job_tables(&db).await.unwrap(); // idempotent
     let s = Scheduler::new(&db, &platform, owned(), "node-1");
-    s.register(JobSpec::new(
-        JOB,
-        Duration::from_secs(60),
-        Duration::from_secs(5),
-        |_| async { Ok(()) },
-    ));
+    s.register(
+        JobSpec::new(JOB, Duration::from_secs(60), Duration::from_secs(5), |_| async {
+            Ok(())
+        })
+        .unwrap(),
+    );
     assert_eq!(s.tick(JOB).await.unwrap().ran(), vec![1]);
     let n: i64 = sqlx::query_scalar("SELECT count(*) FROM platform.job_runs")
         .fetch_one(&mut t.conn().await)
@@ -367,4 +357,47 @@ async fn g_ban_mot_cong_ty_co_job_runs_va_chi_chay_cong_ty_1() {
         .unwrap();
     assert!(!has_companies, "bản một công ty không có bảng công ty");
     db.close().await;
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn h_panic_mot_cong_ty_khong_giet_job_va_release_khop_token() {
+    let t = TestDb::new("h", &[2, 3], true).await;
+    let (s, db) = scheduler(&t, true, "node-1", owned());
+    s.register(
+        JobSpec::new(JOB, Duration::from_secs(60), Duration::from_secs(5), |c| async move {
+            assert_ne!(c.id(), 2, "nổ ở công ty 2");
+            Ok(())
+        })
+        .unwrap(),
+    );
+    let r = s.tick(JOB).await.unwrap();
+    assert_eq!(r.ran(), vec![1, 3]);
+    assert_eq!(r.failed().map(|o| o.company).collect::<Vec<_>>(), vec![2]);
+
+    // Job quá giờ bị huỷ; token của lượt khác (nhận lại sau khi hết hạn) không bị lượt cũ nhả nhầm.
+    let (s2, db2) = scheduler(&t, true, "node-1", owned());
+    s2.register(
+        JobSpec::new(JOB, Duration::from_secs(60), Duration::from_millis(1200), |_| async {
+            tokio::time::sleep(Duration::from_secs(30)).await;
+            Ok(())
+        })
+        .unwrap(),
+    );
+    let r = s2.tick(JOB).await.unwrap();
+    assert!(r.failed().next().is_some(), "{r:?}");
+    db.close().await;
+    db2.close().await;
+}
+
+#[test]
+fn i_khai_bao_job_khong_hop_le_bi_tu_choi() {
+    let ok = |_| async { Ok(()) };
+    let s = Duration::from_secs(1);
+    assert!(JobSpec::new("x", Duration::ZERO, s, ok).is_err());
+    assert!(JobSpec::new("x", s, Duration::ZERO, ok).is_err());
+    assert!(JobSpec::new("x", s, Duration::from_secs(3600), ok).is_err());
+    assert!(JobSpec::new("", s, s, ok).is_err());
+    assert!(JobSpec::new(&"a".repeat(101), s, s, ok).is_err());
+    assert!(JobSpec::new("x", s, s, ok).is_ok());
 }

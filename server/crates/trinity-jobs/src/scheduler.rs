@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::path::Path;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
@@ -23,6 +24,17 @@ use tokio::time::{Instant, MissedTickBehavior};
 use trinity_db::platform::{PLATFORM_LOCK, Platform};
 use trinity_db::{CompanyRef, Db, DbError};
 use trinity_kernel::ownership::{Owner, Ownership};
+
+/// Độ dài tối đa của tên job và `node_id` (cột `varchar(100)`; `locked_by` thêm hậu tố nhận lượt).
+pub const MAX_NAME_LEN: usize = 100;
+/// Trần budget của một job.
+pub const MAX_BUDGET: Duration = Duration::from_secs(600);
+/// Thời gian tối thiểu cho một công ty đã bắt đầu, kể cả khi tick gần hết budget.
+pub const MIN_COMPANY_TIME: Duration = Duration::from_secs(1);
+/// Biên an toàn cộng vào thời hạn thuê: lease luôn dài hơn thời gian job được phép chạy.
+pub const LEASE_MARGIN: Duration = Duration::from_secs(5);
+/// Chờ các tick đang chạy khi tắt trước khi huỷ hẳn.
+pub const SHUTDOWN_GRACE: Duration = Duration::from_secs(30);
 
 /// Phần budget dùng để bắt đầu công ty mới; phần còn lại chừa cho công ty đang chạy khi hết giờ.
 pub const BUDGET_START_FRACTION: f64 = 0.6;
@@ -33,7 +45,7 @@ const JOB_RUNS_DDL: &[&str] = &[
        job varchar(100) NOT NULL,
        company_id int NOT NULL,
        locked_until timestamptz NOT NULL,
-       locked_by varchar(100),
+       locked_by varchar(200),
        last_started_at timestamptz,
        last_finished_at timestamptz,
        last_error text,
@@ -67,6 +79,8 @@ pub enum SchedulerError {
     Sqlx(#[from] sqlx::Error),
     #[error("không có job \"{0}\"")]
     UnknownJob(String),
+    #[error("khai báo job không hợp lệ: {0}")]
+    InvalidSpec(String),
 }
 
 pub type JobFuture = Pin<Box<dyn Future<Output = Result<(), String>> + Send>>;
@@ -85,17 +99,31 @@ pub struct JobSpec {
 }
 
 impl JobSpec {
-    pub fn new<F, Fut>(name: &str, interval: Duration, budget: Duration, run: F) -> Self
+    /// Từ chối chu kỳ 0, budget 0 hoặc quá [`MAX_BUDGET`], tên rỗng hoặc dài hơn [`MAX_NAME_LEN`].
+    pub fn new<F, Fut>(name: &str, interval: Duration, budget: Duration, run: F) -> Result<Self, SchedulerError>
     where
         F: Fn(CompanyRef) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<(), String>> + Send + 'static,
     {
-        Self {
+        if name.is_empty() || name.len() > MAX_NAME_LEN {
+            return Err(SchedulerError::InvalidSpec(format!(
+                "tên job phải dài 1..={MAX_NAME_LEN} byte"
+            )));
+        }
+        if interval.is_zero() {
+            return Err(SchedulerError::InvalidSpec("chu kỳ phải lớn hơn 0".to_owned()));
+        }
+        if budget.is_zero() || budget > MAX_BUDGET {
+            return Err(SchedulerError::InvalidSpec(format!(
+                "budget phải trong (0, {MAX_BUDGET:?}]"
+            )));
+        }
+        Ok(Self {
             name: name.to_owned(),
             interval,
             budget,
             run: Arc::new(move |c| Box::pin(run(c))),
-        }
+        })
     }
 }
 
@@ -149,6 +177,9 @@ pub struct Scheduler {
     platform: Platform,
     /// Định danh tiến trình ghi vào `locked_by`.
     node_id: Arc<str>,
+    /// Số thứ tự nhận lượt: mỗi lần nhận một `locked_by` riêng (`<node>#<n>`), nhả lượt phải khớp đúng token này.
+    claims: Arc<AtomicU64>,
+    tables: Arc<tokio::sync::OnceCell<()>>,
     jobs: Arc<RwLock<Vec<JobSpec>>>,
     ownership: Arc<RwLock<Arc<Ownership>>>,
     cursors: Arc<Mutex<HashMap<String, i32>>>,
@@ -163,11 +194,21 @@ impl std::fmt::Debug for Scheduler {
 }
 
 impl Scheduler {
+    /// `node_id` ≤ [`MAX_NAME_LEN`] byte (cắt nếu dài hơn).
     pub fn new(db: &Db, platform: &Platform, ownership: Ownership, node_id: &str) -> Self {
+        let node_id: String = node_id
+            .chars()
+            .scan(0, |n, c| {
+                *n += c.len_utf8();
+                (*n <= MAX_NAME_LEN).then_some(c)
+            })
+            .collect();
         Self {
             db: db.clone(),
             platform: platform.clone(),
-            node_id: node_id.into(),
+            node_id: node_id.as_str().into(),
+            claims: Arc::new(AtomicU64::new(0)),
+            tables: Arc::new(tokio::sync::OnceCell::new()),
             jobs: Arc::new(RwLock::new(Vec::new())),
             ownership: Arc::new(RwLock::new(Arc::new(ownership))),
             cursors: Arc::new(Mutex::new(HashMap::new())),
@@ -242,6 +283,7 @@ impl Scheduler {
             .spec(job)
             .ok_or_else(|| SchedulerError::UnknownJob(job.to_owned()))?;
         let mut report = TickReport::default();
+        self.tables.get_or_try_init(|| ensure_job_tables(&self.db)).await?;
         if !self.owns(job) {
             report.not_owner = true;
             return Ok(report);
@@ -255,16 +297,20 @@ impl Scheduler {
             None => 0,
             Some(last) => companies.iter().position(|c| c.id() > last).unwrap_or(0),
         };
-        let deadline = Instant::now() + spec.budget.mul_f64(BUDGET_START_FRACTION);
+        // Budget theo cả tick như bản Node: hết `start_by` thì không bắt đầu công ty mới; công ty đang chạy được tới
+        // `end` (có sàn MIN_COMPANY_TIME).
+        let begun = Instant::now();
+        let start_by = begun + spec.budget.mul_f64(BUDGET_START_FRACTION);
+        let end = begun + spec.budget;
         for i in 0..companies.len() {
-            if i > 0 && Instant::now() >= deadline {
+            if i > 0 && Instant::now() >= start_by {
                 report.budget_exhausted = true;
                 break;
             }
             let company = companies[(start + i) % companies.len()];
             // Ghi trước khi chạy: lượt bị cắt giữa chừng thì lượt sau bắt đầu sau công ty này.
             self.set_cursor(job, company.id());
-            let status = self.run_company(&spec, company).await;
+            let status = self.run_company(&spec, company, end).await;
             if let TickStatus::Failed(msg) = &status {
                 tracing::error!("[job {job}] công ty {}: {msg}", company.id());
             }
@@ -276,20 +322,27 @@ impl Scheduler {
         Ok(report)
     }
 
-    async fn run_company(&self, spec: &JobSpec, company: CompanyRef) -> TickStatus {
-        match self.claim(&spec.name, company.id(), spec.budget).await {
-            Ok(true) => {}
-            Ok(false) => return TickStatus::Busy,
+    async fn run_company(&self, spec: &JobSpec, company: CompanyRef, end: Instant) -> TickStatus {
+        let limit = end.saturating_duration_since(Instant::now()).max(MIN_COMPANY_TIME);
+        // Thời hạn thuê luôn dài hơn thời gian job được chạy.
+        let token = match self.claim(&spec.name, company.id(), limit + LEASE_MARGIN).await {
+            Ok(Some(t)) => t,
+            Ok(None) => return TickStatus::Busy,
             Err(e) => return TickStatus::Failed(format!("nhận lượt lỗi: {e}")),
-        }
-        // Job chạy ngoài mọi giao dịch và kết nối; quá budget thì bị huỷ (lượt sau chạy lại).
-        let res = tokio::time::timeout(spec.budget, (spec.run)(company)).await;
-        let error = match res {
-            Ok(Ok(())) => None,
-            Ok(Err(e)) => Some(e),
-            Err(_) => Some(format!("quá budget {} ms", spec.budget.as_millis())),
         };
-        if let Err(e) = self.release(&spec.name, company.id(), error.as_deref()).await {
+        // Job chạy trong task riêng, ngoài mọi giao dịch và kết nối: panic thành lỗi của công ty đó, quá giờ thì bị
+        // huỷ (lượt sau chạy lại). `AbortOnDrop` huỷ cả khi tick bị huỷ.
+        let mut task = AbortOnDrop(tokio::spawn((spec.run)(company)));
+        let error = match tokio::time::timeout(limit, &mut task.0).await {
+            Ok(Ok(Ok(()))) => None,
+            Ok(Ok(Err(e))) => Some(e),
+            Ok(Err(join)) => Some(format!("job dừng bất thường: {join}")),
+            Err(_) => {
+                task.0.abort();
+                Some(format!("quá thời gian {} ms", limit.as_millis()))
+            }
+        };
+        if let Err(e) = self.release(&spec.name, company.id(), &token, error.as_deref()).await {
             tracing::warn!("[job {}] nhả lượt công ty {} lỗi: {e}", spec.name, company.id());
         }
         match error {
@@ -298,8 +351,10 @@ impl Scheduler {
         }
     }
 
-    /// Nhận lượt: một giao dịch ngắn, khoá mức giao dịch rồi ghi `locked_until`. `true` = nhận được.
-    async fn claim(&self, job: &str, company: i32, lease: Duration) -> Result<bool, SchedulerError> {
+    /// Nhận lượt: một giao dịch ngắn, khoá mức giao dịch rồi ghi `locked_until`. Trả token (`locked_by`) riêng của
+    /// lần nhận này, `None` = bên khác đang giữ.
+    async fn claim(&self, job: &str, company: i32, lease: Duration) -> Result<Option<String>, SchedulerError> {
+        let token = format!("{}#{}", self.node_id, self.claims.fetch_add(1, Ordering::Relaxed));
         let mut tx = self.db.platform().begin().await?;
         let got: bool = sqlx::query_scalar("SELECT pg_try_advisory_xact_lock(hashtext($1), $2)")
             .bind(format!("job_runs:{job}"))
@@ -308,7 +363,7 @@ impl Scheduler {
             .await?;
         if !got {
             tx.rollback().await?;
-            return Ok(false);
+            return Ok(None);
         }
         let claimed = sqlx::query(
             "INSERT INTO platform.job_runs (job, company_id, locked_until, locked_by, last_started_at)
@@ -321,17 +376,17 @@ impl Scheduler {
         .bind(job)
         .bind(company)
         .bind(i64::try_from(lease.as_millis()).unwrap_or(i64::MAX))
-        .bind(&*self.node_id)
+        .bind(&token)
         .execute(&mut *tx)
         .await?
         .rows_affected()
             > 0;
         tx.commit().await?;
-        Ok(claimed)
+        Ok(claimed.then_some(token))
     }
 
     /// Nhả lượt (chỉ khi còn là của mình) và ghi kết quả.
-    async fn release(&self, job: &str, company: i32, error: Option<&str>) -> Result<(), SchedulerError> {
+    async fn release(&self, job: &str, company: i32, token: &str, error: Option<&str>) -> Result<(), SchedulerError> {
         let mut conn = self.db.platform().acquire().await?;
         sqlx::query(
             "UPDATE platform.job_runs SET locked_until = now(), last_finished_at = now(), last_error = $4
@@ -339,7 +394,7 @@ impl Scheduler {
         )
         .bind(job)
         .bind(company)
-        .bind(&*self.node_id)
+        .bind(token)
         .bind(error.map(|e| e.chars().take(1000).collect::<String>()))
         .execute(&mut *conn)
         .await?;
@@ -347,9 +402,10 @@ impl Scheduler {
     }
 
     /// Chạy mọi job đã đăng ký theo chu kỳ cho tới khi `shutdown` đổi sang `true`. Mỗi job một task; lượt trước
-    /// chưa xong thì bỏ nhịp (không chạy chồng trong cùng tiến trình).
+    /// chưa xong thì bỏ nhịp. Khi tắt: không bắt đầu lượt mới, chờ lượt đang chạy tối đa [`SHUTDOWN_GRACE`] rồi huỷ
+    /// và nhả lượt còn giữ của tiến trình này.
     pub async fn run(&self, mut shutdown: tokio::sync::watch::Receiver<bool>) -> Result<(), SchedulerError> {
-        ensure_job_tables(&self.db).await?;
+        self.tables.get_or_try_init(|| ensure_job_tables(&self.db)).await?;
         let specs: Vec<JobSpec> = self
             .jobs
             .read()
@@ -357,18 +413,20 @@ impl Scheduler {
             .clone();
         let mut tasks = tokio::task::JoinSet::new();
         for spec in specs {
-            let (this, mut stop) = (self.clone(), shutdown.clone());
+            let (this, stop) = (self.clone(), shutdown.clone());
             tasks.spawn(async move {
                 let mut every = tokio::time::interval(spec.interval);
                 every.set_missed_tick_behavior(MissedTickBehavior::Skip);
                 loop {
-                    tokio::select! {
-                        _ = every.tick() => {
-                            if let Err(e) = this.tick(&spec.name).await {
-                                tracing::error!("[job {}] lượt lỗi: {e}", spec.name);
-                            }
-                        }
-                        _ = stop.changed() => break,
+                    if *stop.borrow() {
+                        break;
+                    }
+                    every.tick().await;
+                    if *stop.borrow() {
+                        break;
+                    }
+                    if let Err(e) = this.tick(&spec.name).await {
+                        tracing::error!("[job {}] lượt lỗi: {e}", spec.name);
                     }
                 }
             });
@@ -378,7 +436,32 @@ impl Scheduler {
                 break;
             }
         }
-        tasks.shutdown().await;
+        let drained = tokio::time::timeout(SHUTDOWN_GRACE, async { while tasks.join_next().await.is_some() {} }).await;
+        if drained.is_err() {
+            tasks.shutdown().await;
+        }
+        // Nhả mọi lượt còn giữ của tiến trình này (chỉ khi huỷ giữa chừng; lượt xong đã tự nhả).
+        sqlx::query(
+            "UPDATE platform.job_runs SET locked_until = now() WHERE locked_by LIKE $1 AND locked_until > now()",
+        )
+        .bind(format!(
+            "{}#%",
+            self.node_id
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_")
+        ))
+        .execute(self.db.raw_pool())
+        .await?;
         Ok(())
+    }
+}
+
+/// Huỷ task khi bị drop (tick bị huỷ thì job không chạy mồ côi).
+struct AbortOnDrop(tokio::task::JoinHandle<Result<(), String>>);
+
+impl Drop for AbortOnDrop {
+    fn drop(&mut self) {
+        self.0.abort();
     }
 }

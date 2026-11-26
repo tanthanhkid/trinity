@@ -40,8 +40,8 @@ const treatmentFields: TemplateField[] = [
 
 function sampleRecords(today: string): SampleRecord[] {
   const out: SampleRecord[] = [];
-  const pts = [['Bệnh nhân Mẫu 01', 'nguoi'], ['Thú cưng Mẫu 01', 'cho'], ['Thú cưng Mẫu 02', 'meo']] as const;
-  pts.forEach(([ten, loai], i) => out.push({ object: 'pk_benh_nhan', data: { ten, loai, gioi_tinh: i % 2 ? 'cai_nu' : 'duc_nam', can_nang: [60, 12, 4][i] } }));
+  const pts = [['Bệnh nhân Mẫu 01', 'nguoi'], ['Bệnh nhân Mẫu 02', 'nguoi'], ['Thú cưng Mẫu 01', 'cho']] as const;
+  pts.forEach(([ten, loai], i) => out.push({ object: 'pk_benh_nhan', data: { ten, loai, gioi_tinh: i % 2 ? 'cai_nu' : 'duc_nam', can_nang: [60, 52, 12][i] } }));
   const services = ['lay_cao', 'tiem_phong', 'kham'];
   for (let i = 0; i < 3; i++) out.push({ object: 'pk_lich_hen', data: { ma_hen: `LH-MAU-${pad(i + 1)}`, thoi_gian: `${today}T${pad(9 + i)}:00:00+07:00`, dich_vu: services[i], trang_thai: 'da_hen' }, refs: { benh_nhan: i } });
   for (let i = 0; i < 2; i++) out.push({ object: 'pk_dieu_tri', data: { ma_dieu_tri: `DT-MAU-${pad(i + 1)}`, chan_doan: `Chẩn đoán mẫu ${pad(i + 1)}`, chi_phi_thu_thuat: [500_000, 350_000][i], chi_phi_thuoc: [120_000, 80_000][i], ngay_dieu_tri: today, trang_thai: i ? 'hoan_thanh' : 'dang_dieu_tri' }, refs: { benh_nhan: i, lich_hen: i } });

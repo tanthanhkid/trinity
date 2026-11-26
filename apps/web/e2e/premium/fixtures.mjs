@@ -21,6 +21,7 @@ const WIZARD = {
   enabled: true,
   completed: true,
   industry: "other",
+  sample_data: false,
   current: null,
   steps: ["industry", "modules", "data", "channels", "post"].map((key) => ({ key, done: true, skipped: false, can_skip: true, needs_admin: false })),
 }

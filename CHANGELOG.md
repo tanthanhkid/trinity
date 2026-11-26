@@ -19,7 +19,7 @@ All notable changes to Trinity are documented here. The format follows [Keep a C
 - The sidebar no longer flashes switched-off items while features load.
 
 ### Upgrade notes
-- No migrations. Running systems keep their feature switches (missing keys still mean on), so the new `inbox` switch starts on. Systems that already have custom tables count as built: they are not locked again and their users do not go through the new steps. The start-wizard config now lets *first customer*, *channels* and *first post* be skipped by default.
+- No migrations. Running systems keep their feature switches (missing keys still mean on), so the new `inbox` switch starts on. A system counts as already built when `setup_built` exists, when `setup_status` was written as `da_dung`/`dang_dung` (the earlier AI-built flow), or when the `setup_status` row is missing and it has custom tables or real records (fail-open). Such systems are not locked again, and their users go straight into the app. A fresh database from the init migration is `chua_dung`, so it still goes through the wizard, and a half-finished build (tables but no `setup_built`) can be built again. The start-wizard config now lets *first customer*, *channels* and *first post* be skipped by default (configs saved before this change that only allow *first post* are upgraded once; the config now has a `version`).
 
 ## 0.3.0 — 2026-10-15
 

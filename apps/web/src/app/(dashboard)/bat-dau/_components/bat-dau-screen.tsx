@@ -20,8 +20,8 @@ import { OnboardingIntro } from "./onboarding-intro"
 import { SETUP_PROMPTS } from "./setup-prompts"
 
 const STATUS_TEXT = {
-  chua_dung: { badge: "Hệ thống còn trống", body: "Hệ thống đang trống. Làm lần lượt các bước bên dưới: nối trợ lý AI của bạn, rồi kể cho AI công ty bạn làm gì. AI hỏi vài câu và dựng danh sách, màn hình, menu ngay sau khi bạn đồng ý." },
-  dang_dung: { badge: "Đang dựng", body: "Menu và màn hình đã có. Nhờ trợ lý AI đưa dữ liệu từ Google Sheet hoặc Excel bạn đang dùng vào. Xong thì bấm Hoàn tất (hoặc nói với AI là đã dựng xong)." },
+  chua_dung: { badge: "Hệ thống còn trống", body: "Hệ thống đang trống. Quản trị viên chọn loại doanh nghiệp và các phân hệ ở màn bắt đầu để dựng hệ thống. Nối trợ lý AI ở bên dưới là tuỳ chọn." },
+  dang_dung: { badge: "Đang dựng", body: "Menu và màn hình đã có. Đưa dữ liệu từ Google Sheet hoặc Excel bạn đang dùng vào (nhờ trợ lý AI nếu đã nối). Xong thì bấm Hoàn tất." },
   da_dung: { badge: "Công ty đã có quy trình", body: "Mỗi ngày: mở Tổng quan xem việc hôm nay, hoặc hỏi trợ lý AI \"hôm nay có gì mới\". Muốn thêm hay đổi gì, cứ nói với AI. AI chỉ làm được trong phạm vi quyền của bạn, và mọi việc AI làm đều ghi lại ở mục Hoạt động AI để bạn xem lại. Dữ liệu chỉ người trong công ty bạn xem được, theo quyền từng người." },
 } as const
 

@@ -3,7 +3,7 @@ import { CUSTOM_OBJECT_TEMPLATES, findTemplate } from '../../../custom-objects/t
 import { ActionUserError, type ActionToolDef } from './action-types';
 import { cleanText, line, lines, shown } from './action-helpers';
 import { requirePerm } from '../tools/core-records';
-import { INDUSTRY_KEYS, INDUSTRY_PRESETS, ORG_FEATURES, ORG_FEATURE_KEYS, isIndustryKey } from '@trinity/rbac';
+import { INDUSTRY_KEYS, INDUSTRY_PRESETS, MAX_BUILD_FEATURES, ORG_FEATURES, ORG_FEATURE_KEYS, isIndustryKey } from '@trinity/rbac';
 import { isUserConfirmation } from './user-confirmation';
 
 export const installTemplateAction: ActionToolDef = {
@@ -61,7 +61,7 @@ export const setupBuildAction: ActionToolDef = {
   idempotent: true,
   input: (z) => ({
     industry: z.enum(INDUSTRY_KEYS as unknown as [string, ...string[]]).describe('Loại doanh nghiệp / Industry preset'),
-    features: z.array(z.string().max(32)).max(30).optional().describe('Khoá phân hệ muốn dùng; bỏ trống = bộ gợi ý của ngành (lần đầu) hoặc giữ nguyên (dựng lại) / Module keys'),
+    features: z.array(z.string().max(32)).max(MAX_BUILD_FEATURES).optional().describe('Khoá phân hệ muốn dùng; bỏ trống = bộ gợi ý của ngành (lần đầu) hoặc giữ nguyên (dựng lại) / Module keys'),
     confirmed_by_user: confirmationParam(z).optional(),
   }),
   async prepare(args, { deps, user }) {
@@ -82,13 +82,23 @@ export const setupBuildAction: ActionToolDef = {
     );
     if ((fresh.length || off.length) && !isUserConfirmation(args.confirmed_by_user)) assertConfirmed(args.confirmed_by_user, preview);
     return {
-      params: { industry, features: chosen ?? null },
+      // `resolved` = danh sách phân hệ ĐÃ GIẢI lúc đề xuất (người dùng duyệt đúng danh sách này); lúc chạy so lại, khác thì không làm.
+      params: { industry, features: chosen ?? null, resolved: plan.features },
       summary: shown(`Dựng hệ thống “${preset.label}”: ${fresh.length} bảng mới, ${plan.features.length} phân hệ bật${off.length ? `, tắt ${off.length}` : ''}`),
       details: lines(line('Loại doanh nghiệp', preset.label), line('Bảng sẽ tạo', fresh.map((o) => o.label_plural).join(', ') || '(không)'), line('Phân hệ bật', plan.features.map((k) => ORG_FEATURES[k].label).join(', ')), line('Dữ liệu mẫu', 'Vài dòng giả, tự xoá khi có dữ liệu thật')),
     };
   },
   async execute(params, { deps, user }) {
-    const r = await deps.setupBuild!.build(user, { industry: String(params.industry), features: Array.isArray(params.features) ? (params.features as string[]) : undefined });
+    const industry = String(params.industry);
+    const chosen = Array.isArray(params.features) ? (params.features as string[]) : undefined;
+    const resolved = Array.isArray(params.resolved) ? (params.resolved as string[]) : null;
+    if (resolved && isIndustryKey(industry)) {
+      const now = (await deps.setupBuild!.plan(industry, chosen)).features as string[];
+      if (now.length !== resolved.length || now.some((k, i) => k !== resolved[i])) {
+        throw new ActionUserError('Danh sách phân hệ đã đổi kể từ lúc đề xuất (có người bật/tắt phân hệ khác). Chưa dựng gì: hãy đề xuất lại để xem danh sách mới.');
+      }
+    }
+    const r = await deps.setupBuild!.build(user, { industry, features: resolved ?? chosen });
     return { industry: r.industry, created_objects: r.created_objects, kept_objects: r.existing_objects, sample_records: r.sample_records + r.sample_contacts };
   },
 };

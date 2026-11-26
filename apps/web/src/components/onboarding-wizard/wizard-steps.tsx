@@ -21,6 +21,7 @@ import { useSettingsOptions } from "@/hooks/use-settings-options"
 import { SocialChannels } from "@/app/(dashboard)/social/_components/social-channels"
 import { SocialComposer } from "@/app/(dashboard)/social/_components/social-composer"
 import { cn } from "@/lib/utils"
+import { usePermissions } from "@/lib/rbac"
 import type { WizardStepKey } from "@/hooks/use-onboarding-wizard"
 
 const ICONS: Record<string, LucideIcon> = { GraduationCap, Store, Stethoscope, Building2, Briefcase }
@@ -70,9 +71,9 @@ function StepModules({ industry, features, onChange, built }: { industry: Indust
     <div className="space-y-4" data-testid="step-modules">
       {preset && (
         <p className="rounded-lg bg-muted p-3 text-sm">
-          <b>{preset.label}.</b> Đã tick sẵn các phân hệ hay dùng. Bạn thêm hoặc bớt tuỳ ý; sau này đổi lại ở Cài đặt › Tính năng.
-          {preset.template ? " Khi dựng, Trinity tạo luôn các danh sách của ngành này kèm vài dòng dữ liệu mẫu." : " Khi dựng, Trinity tạo sẵn vài khách hàng mẫu."}{" "}
-          Dữ liệu mẫu tự mất khi bạn thêm khách hoặc dòng dữ liệu thật đầu tiên.
+          <b>{preset.label}.</b> Đã chọn sẵn các phân hệ hay dùng. Bạn thêm hoặc bớt tuỳ ý; sau này đổi lại ở Cài đặt › Tính năng.
+          {preset.template ? " Khi dựng, Trinity tạo luôn các danh sách của ngành này." : ""}{" "}
+          Nếu công ty chưa có dữ liệu, Trinity thêm vài dòng mẫu để bạn xem thử; dữ liệu mẫu tự mất khi bạn thêm khách hoặc dòng dữ liệu thật đầu tiên.
         </p>
       )}
       {ORG_FEATURE_GROUPS.map((group) => {
@@ -110,7 +111,14 @@ function StepModules({ industry, features, onChange, built }: { industry: Indust
 }
 
 /** Bước 3: thêm khách đầu tiên bằng form ngắn (không cần AI). */
-function StepData({ canSkip }: { canSkip: boolean }) {
+/** Bỏ khoảng trắng, gạch ngang, dấu chấm, ngoặc trước khi kiểm số điện thoại (0912 345 678, +84 912-345-678…). */
+export function normalizePhoneInput(v: string): string {
+  return v.replace(/[\s\-.()]/g, "")
+}
+
+function StepData({ canSkip, hasSamples }: { canSkip: boolean; hasSamples: boolean }) {
+  const { can } = usePermissions()
+  const canCreate = can("contacts.create")
   const sources = useSettingsOptions("contact_source")
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
@@ -121,12 +129,14 @@ function StepData({ canSkip }: { canSkip: boolean }) {
 
   const submit = async () => {
     setError(null)
+    setAdded(null)
     if (!name.trim()) return setError("Bạn nhập tên khách giúp mình nhé.")
-    if (!/^(0|\+84)\d{9}$/.test(phone.trim())) return setError("Số điện thoại cần bắt đầu bằng 0 hoặc +84 và có 10 chữ số.")
+    const clean = normalizePhoneInput(phone)
+    if (!/^(0\d{9}|\+84\d{9})$/.test(clean)) return setError("Số điện thoại chưa đúng: cần 10 số bắt đầu bằng 0 (ví dụ 0912345678) hoặc dạng +84 kèm 9 số.")
     if (!source) return setError("Chưa tải được danh sách nguồn khách, bạn thử lại sau ít giây.")
     setBusy(true)
     try {
-      await apiClient.post("/contacts", { phone: phone.trim(), full_name: name.trim(), source_id: source.id })
+      await apiClient.post("/contacts", { phone: clean, full_name: name.trim(), source_id: source.id })
       setAdded(name.trim())
       setName("")
       setPhone("")
@@ -139,9 +149,15 @@ function StepData({ canSkip }: { canSkip: boolean }) {
 
   return (
     <div className="space-y-4" data-testid="step-data">
-      <p className="text-sm">
-        Trinity đang có vài dòng <b>dữ liệu mẫu</b> để bạn xem thử. Thêm khách hàng thật đầu tiên, dữ liệu mẫu sẽ tự biến mất.
-      </p>
+      {hasSamples ? (
+        <p className="text-sm">Trinity đang có vài dòng <b>dữ liệu mẫu</b> để bạn xem thử. Thêm khách hàng thật đầu tiên, dữ liệu mẫu sẽ tự biến mất.</p>
+      ) : (
+        <p className="text-sm">Thêm khách hàng thật đầu tiên của công ty để bắt đầu theo dõi.</p>
+      )}
+      {!canCreate ? (
+        <p className="rounded-lg bg-muted p-3 text-sm" data-testid="no-create-contact">Tài khoản của bạn chưa được thêm khách hàng. Bấm “Bỏ qua bước này” để vào Trinity, quản trị viên sẽ cấp quyền hoặc thêm khách giúp bạn.</p>
+      ) : (
+      <>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="wiz-contact-name">Tên khách (bắt buộc)</Label>
@@ -157,7 +173,9 @@ function StepData({ canSkip }: { canSkip: boolean }) {
       <Button type="button" onClick={submit} disabled={busy || !name.trim() || !phone.trim()} data-testid="add-contact">
         {busy && <Loader2 className="animate-spin" aria-hidden />} Thêm khách
       </Button>
-      {canSkip && <p className="text-sm text-muted-foreground">Có sẵn danh sách trong Excel hoặc Google Sheet? Bấm “Bỏ qua bước này”, vào Trinity rồi nhập ở Cài đặt › Kết nối &amp; AI › Google Sheets.</p>}
+      </>
+      )}
+      {canSkip && can("settings.features") && <p className="text-sm text-muted-foreground">Có sẵn danh sách trong Excel hoặc Google Sheet? Bấm “Bỏ qua bước này”, vào Trinity rồi nhập ở Cài đặt › Kết nối &amp; AI › Google Sheets.</p>}
     </div>
   )
 }
@@ -188,12 +206,12 @@ export const STEP_TEXT: Record<WizardStepKey, { title: string; why: string }> = 
     why: "Chọn loại doanh nghiệp gần nhất, Trinity dựng sẵn các danh sách và màn hình hợp với nghề đó. Không có loại nào hợp thì chọn Khác.",
   },
   modules: {
-    title: "Chọn các chức năng bạn muốn dùng",
-    why: "Chức năng nào bật thì hiện ở menu, chức năng nào tắt thì ẩn cho gọn. Bấm Dựng hệ thống là xong, bạn đổi lại được bất cứ lúc nào.",
+    title: "Chọn các phân hệ bạn muốn dùng",
+    why: "Phân hệ nào bật thì hiện ở menu, phân hệ nào tắt thì ẩn cho gọn. Bấm Dựng hệ thống là xong, bạn đổi lại được bất cứ lúc nào.",
   },
   data: {
     title: "Thêm khách hàng đầu tiên",
-    why: "Đưa một khách thật vào để bắt đầu theo dõi. Dữ liệu mẫu sẽ tự mất khi bạn thêm khách hoặc dòng dữ liệu thật đầu tiên.",
+    why: "Đưa một khách thật vào để bắt đầu theo dõi.",
   },
   channels: {
     title: "Kết nối Fanpage hoặc kênh YouTube",
@@ -214,6 +232,8 @@ export interface StepContext {
   built: boolean
   /** Máy chủ cho phép bỏ qua bước đang xem. */
   canSkip: boolean
+  /** Hiện còn bản ghi mẫu thật sự (từ máy chủ). */
+  hasSamples: boolean
 }
 
 export function StepBody({ step, onGoChannels, ctx }: { step: WizardStepKey; onGoChannels: () => void; ctx: StepContext }): ReactNode {
@@ -223,7 +243,7 @@ export function StepBody({ step, onGoChannels, ctx }: { step: WizardStepKey; onG
     case "modules":
       return <StepModules industry={ctx.industry} features={ctx.features} onChange={ctx.onFeatures} built={ctx.built} />
     case "data":
-      return <StepData canSkip={ctx.canSkip} />
+      return <StepData canSkip={ctx.canSkip} hasSamples={ctx.hasSamples} />
     case "channels":
       return <StepChannels />
     case "post":

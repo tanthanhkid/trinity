@@ -5,7 +5,7 @@ const c = (value: string, label: string, color?: string) => ({ value, label, ...
 const pad = (n: number) => String(n).padStart(2, '0');
 
 const productFields: TemplateField[] = [
-  { key: 'ten', label: 'Tên sản phẩm / dịch vụ', type: 'text', required: true, is_title: true },
+  { key: 'ten', label: 'Tên mặt hàng', type: 'text', required: true, is_title: true },
   { key: 'ma_sku', label: 'Mã SKU', type: 'text', is_unique: true },
   { key: 'loai', label: 'Loại', type: 'select', choices: [c('san_pham', 'Sản phẩm', 'blue'), c('dich_vu', 'Dịch vụ', 'purple')] },
   { key: 'gia_ban', label: 'Giá bán', type: 'currency', required: true },
@@ -28,7 +28,7 @@ const loyaltyFields: TemplateField[] = [
 const orderFields: TemplateField[] = [
   { key: 'ma_don', label: 'Mã đơn', type: 'text', required: true, is_unique: true, is_title: true },
   { key: 'khach', label: 'Khách thân thiết', type: 'relation', relation: 'bl_khach_than_thiet' },
-  { key: 'san_pham', label: 'Sản phẩm / dịch vụ', type: 'relation', relation: 'bl_san_pham', required: true },
+  { key: 'san_pham', label: 'Mặt hàng', type: 'relation', relation: 'bl_san_pham', required: true },
   { key: 'so_luong', label: 'Số lượng', type: 'number', required: true },
   { key: 'don_gia', label: 'Đơn giá', type: 'currency', required: true },
   { key: 'giam_gia', label: 'Giảm giá (%)', type: 'percent', help_text: 'Nhập 0 nếu không giảm (để trống thì thành tiền rỗng)' },
@@ -53,7 +53,7 @@ export const RETAIL_SERVICE_TEMPLATE: CustomObjectTemplate = {
   label: 'Bán lẻ / dịch vụ',
   description: 'Sản phẩm/dịch vụ (lãi gộp tự tính), Đơn hàng (thành tiền tự tính), Khách thân thiết (hạng, điểm).',
   objects: [
-    { key: 'bl_san_pham', label: 'Sản phẩm / dịch vụ', label_plural: 'Sản phẩm / dịch vụ', icon: 'package', description: 'Danh mục sản phẩm, dịch vụ: giá bán, giá vốn, tồn kho', fields: productFields },
+    { key: 'bl_san_pham', label: 'Mặt hàng', label_plural: 'Mặt hàng & dịch vụ', icon: 'package', description: 'Danh sách mặt hàng, dịch vụ bán ra: giá bán, giá vốn, tồn kho', fields: productFields },
     { key: 'bl_khach_than_thiet', label: 'Khách thân thiết', label_plural: 'Khách thân thiết', icon: 'star', description: 'Khách thành viên: hạng, điểm tích luỹ, chi tiêu', fields: loyaltyFields },
     { key: 'bl_don_hang', label: 'Đơn hàng', label_plural: 'Đơn hàng', icon: 'shopping-cart', description: 'Đơn bán hàng / dịch vụ', fields: orderFields },
   ],

@@ -138,7 +138,6 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
               ))}
             </ol>
             <div className="space-y-2">
-              <p className="text-sm font-medium text-primary">Bước {index + 1} trên {steps.length}</p>
               <h1 className="text-2xl font-semibold leading-tight" data-testid="wizard-step-title">{STEP_TEXT[step.key].title}</h1>
               <p className="text-sm text-muted-foreground">{STEP_TEXT[step.key].why}</p>
             </div>
@@ -152,7 +151,7 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
               <>
                 {step.needs_admin && (
                   <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200">
-                    Bước này cần quyền quản trị. Nếu bạn không làm được, hãy nhờ quản trị viên của công ty làm, xong thì bấm “Tôi đã làm xong”.
+                    Bước này cần quyền quản trị. Bạn nhờ quản trị viên của công ty làm, xong thì bấm “Tôi đã làm xong”.
                   </p>
                 )}
                 {step.can_skip && (
@@ -160,7 +159,7 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
                 )}
                 {!(adminOnly && (step.key === "industry" || step.key === "modules")) && (
                 <section className="rounded-2xl border bg-card p-4 sm:p-5">
-                  <StepBody step={step.key} onGoChannels={() => goTo("channels")} ctx={{ industry, onIndustry: pickIndustry, features, onFeatures: setFeatures, built, canSkip: step.can_skip }} />
+                  <StepBody step={step.key} onGoChannels={() => goTo("channels")} ctx={{ industry, onIndustry: pickIndustry, features, onFeatures: setFeatures, built, canSkip: step.can_skip, hasSamples: wizard.sample_data === true }} />
                 </section>
                 )}
               </>

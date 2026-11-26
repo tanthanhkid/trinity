@@ -51,7 +51,8 @@ const MISSING: Record<WizardStepKey, string> = {
   channels: 'Chưa có kênh nào đang hoạt động. Bấm "Liên kết" ở Facebook hoặc YouTube, đồng ý trên trang của Facebook/Google, chờ kênh hiện "Hoạt động" rồi bấm lại nút này.',
   post: 'Chưa có bài nào đăng thành công. Soạn một bài, chọn kênh, bấm "Đăng ngay", chờ bài báo đã đăng rồi bấm lại nút này.',
 };
-const NEED_ADMIN = ' Bước này cần quyền quản trị: nếu bạn không thấy nút để làm, hãy nhờ quản trị viên của công ty làm giúp.';
+/** Người thiếu quyền không tự làm được: không chỉ họ cách làm (chọn/bấm Dựng), chỉ nhờ quản trị viên. */
+const ASK_ADMIN = 'Quản trị viên của công ty chưa làm xong việc này. Bạn nhờ họ làm, rồi bấm lại nút này.';
 
 export interface WizardStepView {
   key: WizardStepKey;
@@ -66,6 +67,8 @@ export interface WizardView {
   completed: boolean;
   /** Loại doanh nghiệp đã chọn khi dựng (null = chưa dựng). */
   industry: string | null;
+  /** Hiện còn bản ghi mẫu (giả) chưa bị dọn. */
+  sample_data: boolean;
   current: WizardStepKey | null;
   steps: WizardStepView[];
 }
@@ -160,7 +163,8 @@ export class OnboardingWizardService {
   /** Người có tài khoản tạo SAU lúc công ty dựng xong vào thẳng ứng dụng, không phải đi lại wizard. */
   private async joinedAfterBuild(userId: number): Promise<boolean> {
     const raw = await this.readSetting(SETUP_BUILT_KEY);
-    if (!raw) return false;
+    // Hệ thống đã dựng từ lâu (luồng AI cũ, không có setup_built): người dùng cũ và người mới đều vào thẳng ứng dụng.
+    if (!raw) return this.build.isBuilt();
     try {
       const at = Date.parse((JSON.parse(raw) as { built_at?: string }).built_at ?? '');
       if (Number.isNaN(at)) return false;
@@ -188,10 +192,10 @@ export class OnboardingWizardService {
 
   async view(userId: number, grants: Grants): Promise<WizardView> {
     const cfg = await this.config();
-    if (!cfg.enabled) return { enabled: false, completed: true, industry: null, current: null, steps: [] };
+    if (!cfg.enabled) return { enabled: false, completed: true, industry: null, sample_data: false, current: null, steps: [] };
     // Lưới an toàn: khách/bản ghi thật vào bằng đường không đi qua chỗ tạo (nhập file, webhook, kênh chat…) cũng dọn mẫu.
     await this.samples.purgeIfReal();
-    const [doneFlag, isExempt, later, steps, checks, skipped, industry] = await Promise.all([
+    const [doneFlag, isExempt, later, steps, checks, skipped, industry, sampleLeft] = await Promise.all([
       this.readSetting(wizardDoneKey(userId)),
       this.exempt(userId, cfg),
       this.joinedAfterBuild(userId),
@@ -199,6 +203,7 @@ export class OnboardingWizardService {
       this.checks(),
       this.skipped(userId),
       this.readSetting(SETUP_INDUSTRY_KEY),
+      this.samples.read(),
     ]);
     const list: WizardStepView[] = steps.map((key) => {
       const perm = STEP_PERMISSION[key];
@@ -213,7 +218,7 @@ export class OnboardingWizardService {
     const current = list.find((s) => !s.done && !s.skipped)?.key ?? null;
     // Người được cho qua vì vào sau lúc dựng: ghi dấu xong để rebuild sau này không đẩy họ lại wizard.
     if (later && !doneFlag) await this.writeSetting(wizardDoneKey(userId), new Date().toISOString(), userId);
-    return { enabled: true, completed: !!doneFlag || isExempt || later, industry: industry ?? null, current, steps: list };
+    return { enabled: true, completed: !!doneFlag || isExempt || later, industry: industry ?? null, sample_data: sampleLeft != null, current, steps: list };
   }
 
   /** "Tôi đã làm xong": kiểm lại bước; đạt và mọi bước đã qua ⇒ ghi xong wizard. */
@@ -222,7 +227,7 @@ export class OnboardingWizardService {
     const s = wizard.steps.find((x) => x.key === step);
     if (!s) throw new BadRequestException('Bước này không có trong phần bắt đầu của công ty bạn.');
     if (!s.done && !s.skipped) {
-      return { ok: false, message: MISSING[step] + (s.needs_admin ? NEED_ADMIN : ''), wizard };
+      return { ok: false, message: s.needs_admin ? ASK_ADMIN : MISSING[step], wizard };
     }
     trackProductEvent('onboarding_step', userId, { step, action: skipped ? 'skip' : 'confirm' });
     if (!wizard.completed && wizard.current === null) {

@@ -171,11 +171,12 @@ d('Dựng hệ thống + bản ghi mẫu — DB thật', () => {
 
   it('dọn mẫu: id đăng ký giữa chừng (sau lúc đọc) không bị mất theo dõi; dòng chỉ xoá khi rỗng', async () => {
     await build.build(admin, { industry: 'other' });
-    const orig = samples.hasReal.bind(samples);
+    const priv = samples as unknown as { untouched: (...a: unknown[]) => Promise<unknown> };
+    const orig = priv.untouched.bind(samples);
     const extra = 999_999;
-    const spy = jest.spyOn(samples, 'hasReal').mockImplementation(async (...a: Parameters<typeof orig>) => {
+    const spy = jest.spyOn(priv, 'untouched').mockImplementation(async (...a: unknown[]) => {
       const r = await orig(...a);
-      // Giả lập đăng ký đồng thời ngay giữa lúc dọn (ghi trực tiếp, ngoài khoá).
+      // Giả lập một id mẫu được ghi vào danh sách NGAY SAU lúc dọn đọc nó (trong transaction), trước khi dọn ghi lại dòng theo dõi.
       const cur = JSON.parse((await prisma.setting.findUnique({ where: { key: SAMPLE_RECORDS_KEY } }))!.value);
       await prisma.setting.update({ where: { key: SAMPLE_RECORDS_KEY }, data: { value: JSON.stringify({ ...cur, records: [...cur.records, extra] }) } });
       return r;
@@ -215,5 +216,39 @@ d('Dựng hệ thống + bản ghi mẫu — DB thật', () => {
     await records.create(admin, 'hoc_sinh', { data: { ho_ten: 'HS trỏ mẫu', phu_huynh: rows[2].id } });
     const live = await prisma.customRecord.findMany({ where: { deleted_at: null, id: { in: rows.map((r) => r.id) } } });
     expect(live.map((r) => r.id)).toEqual([rows[2].id]);
+  });
+
+  it('R1: hỏng giữa chừng ⇒ rollback cả bảng, vẫn chua_dung, wizard chưa coi là đã dựng và dựng lại được', async () => {
+    await prisma.setting.upsert({ where: { key: 'setup_status' }, update: { value: 'chua_dung' }, create: { key: 'setup_status', value: 'chua_dung' } });
+    // Giả lập lỗi SAU khi bảng + mẫu + phân hệ đã ghi trong transaction (bước ghi dấu đã dựng).
+    const tpl = (build as unknown as { templates: CustomObjectTemplatesService }).templates;
+    const realApply = tpl.apply.bind(tpl);
+    jest.spyOn(tpl, 'apply').mockImplementationOnce((u, k, w, o = {}) => realApply(u, k, w, { ...o, after: async (tx, res) => { await o.after!(tx, res); throw new Error('boom'); } }));
+    await expect(build.build(admin, { industry: 'clinic' })).rejects.toThrow('boom');
+    expect(await prisma.customObject.count()).toBe(0);
+    expect(await prisma.customRecord.count()).toBe(0);
+    expect(await build.isBuilt()).toBe(false);
+    expect((await prisma.setting.findUnique({ where: { key: 'setup_status' } }))?.value).toBe('chua_dung');
+    const ok = await build.build(admin, { industry: 'clinic' });
+    expect(ok.created_objects).toHaveLength(3);
+    expect(await build.isBuilt()).toBe(true);
+    expect((await prisma.setting.findUnique({ where: { key: 'setup_status' } }))?.value).toBe('da_dung');
+  });
+
+  it('R2: còn mẫu nhưng chưa có bản ghi thật ⇒ không mở transaction (tải trang không xếp hàng khoá)', async () => {
+    await build.build(admin, { industry: 'other' });
+    const tx = jest.spyOn(prisma, '$transaction');
+    expect(await samples.purgeIfReal()).toBe(false);
+    expect(tx).not.toHaveBeenCalled();
+    tx.mockRestore();
+  });
+
+  it('R4: bảng đầu của mẫu đã có sẵn (người dùng tự tạo) ⇒ mẫu lấy từ bảng MỚI tạo kế tiếp, vẫn có bản ghi mẫu', async () => {
+    await prisma.customObject.create({ data: { key: 'phu_huynh', label: 'Phụ huynh', label_plural: 'Phụ huynh' } });
+    const r = await build.build(admin, { industry: 'education_center' });
+    expect(r.created_objects[0]).toBe('hoc_sinh');
+    expect(r.sample_records).toBeGreaterThan(0);
+    const obj = await prisma.customObject.findFirstOrThrow({ where: { key: 'hoc_sinh' } });
+    expect(await prisma.customRecord.count({ where: { object_id: obj.id } })).toBe(r.sample_records);
   });
 });

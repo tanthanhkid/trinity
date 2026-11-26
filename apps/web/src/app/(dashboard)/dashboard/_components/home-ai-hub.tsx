@@ -102,43 +102,47 @@ export function AiAssistantsHub({
 }
 
 /** Chưa nối trợ lý nào: lời mời nổi bật nhất trang — Trinity là CRM điều khiển bằng trợ lý AI. */
+const AI_INVITE_DISMISS_KEY = 'trinity.home.ai-invite.dismissed'
+const readAiInviteDismissed = (): boolean => {
+  try {
+    return window.localStorage.getItem(AI_INVITE_DISMISS_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+/** Gợi ý TUỲ CHỌN (không bắt buộc, đóng được): nối trợ lý AI để thao tác bằng lời. */
 export function ConnectAiInvite() {
-  const steps = [
-    'Mở Kết nối trợ lý AI, chép địa chỉ kết nối của công ty bạn.',
-    'Dán vào ChatGPT, Claude hoặc Gemini (mục kết nối ứng dụng).',
-    'Đăng nhập Trinity và cho phép. Xong: nhắn AI là làm.',
-  ]
+  const stored = useSyncExternalStore(noopSubscribe, readAiInviteDismissed, () => true)
+  const [hidden, setHidden] = useState(false)
+  if (stored || hidden) return null
+  const dismiss = () => {
+    setHidden(true)
+    try {
+      window.localStorage.setItem(AI_INVITE_DISMISS_KEY, '1')
+    } catch {
+      /* trình duyệt chặn lưu: chỉ ẩn trong lần xem này */
+    }
+  }
   return (
-    <section
-      aria-labelledby="home-ai-invite"
-      data-testid="hub-ai-invite"
-      className={cn(BOX, 'relative overflow-hidden border-[var(--ring)]/40 bg-gradient-to-br from-[var(--accent)] via-[var(--card)] to-[var(--card)] p-5 sm:p-6')}
-    >
-      <div className="flex items-center gap-2">
-        {(['ChatGPT', 'Claude', 'Gemini'] as const).map((n) => <AiLogo key={n} name={n} size={40} />)}
+    <section aria-labelledby="home-ai-invite" data-testid="hub-ai-invite" className={cn(BOX, 'flex items-center gap-3 p-3 sm:p-4')}>
+      <div className="flex -space-x-2" aria-hidden>
+        {(['ChatGPT', 'Claude', 'Gemini'] as const).map((n) => <AiLogo key={n} name={n} size={28} className="ring-2 ring-[var(--card)]" />)}
       </div>
-      <h2 id="home-ai-invite" className="mt-4 text-[20px] font-semibold leading-tight text-[var(--foreground)]">Kết nối trợ lý AI để điều khiển Trinity</h2>
-      <p className="mt-1.5 max-w-prose text-[15px] text-[var(--color-app-ink-2)]">
-        Trinity là CRM làm việc qua trợ lý AI bạn đang dùng. Nối một lần, rồi chỉ cần nhắn:
-        <span className="text-[var(--foreground)]"> “Thêm khách Lan, 0901…, quan tâm gói A”</span>, AI tự ghi vào đây theo đúng quyền của bạn.
-      </p>
-      <ol className="mt-4 grid gap-2 sm:grid-cols-3">
-        {steps.map((s, i) => (
-          <li key={s} className="flex gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--card)] p-3 text-[14px] text-[var(--color-app-ink-2)]">
-            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[var(--ring)] text-[13px] font-semibold text-white">{i + 1}</span>
-            {s}
-          </li>
-        ))}
-      </ol>
-      <Link
-        href={CONNECT_AI_HREF}
-        className="mt-4 inline-flex h-10 items-center gap-1.5 rounded-lg bg-[var(--ring)] px-4 text-[15px] font-semibold text-white shadow-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 max-sm:min-h-11"
-      >
+      <div className="min-w-0 flex-1">
+        <h2 id="home-ai-invite" className="text-[15px] font-semibold leading-tight text-[var(--foreground)]">Kết nối trợ lý AI (tuỳ chọn)</h2>
+        <p className="text-[14px] text-muted-foreground">Nối ChatGPT, Claude hoặc Gemini để thêm khách, giao việc bằng lời. Không nối vẫn dùng Trinity bình thường.</p>
+      </div>
+      <Link href={CONNECT_AI_HREF} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 text-[14px] font-medium text-[var(--foreground)] hover:bg-[var(--muted)] max-sm:min-h-11">
         Kết nối trợ lý AI <ArrowRight className="size-4" aria-hidden />
       </Link>
+      <button type="button" onClick={dismiss} className="rounded-md p-1 text-muted-foreground hover:bg-[var(--muted)] max-sm:min-h-11 max-sm:min-w-11" aria-label="Ẩn gợi ý nối trợ lý AI">
+        <X className="size-4" aria-hidden />
+      </button>
     </section>
   )
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Kênh đã kết nối                                                      */

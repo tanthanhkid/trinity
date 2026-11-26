@@ -2,13 +2,14 @@ import { BadRequestException } from '@nestjs/common';
 import type { Grants } from '@trinity/rbac';
 import { OnboardingWizardService, parseWizardConfig, wizardDoneKey, wizardSkipKey } from '../onboarding-wizard.service';
 
-const ADMIN = { 'custom_objects.manage': true, 'social.manage': true, 'social.post': true } as unknown as Grants;
+const ADMIN = { 'custom_objects.manage': true, 'settings.features': true, 'social.manage': true, 'social.post': true } as unknown as Grants;
 const NOBODY = {} as Grants;
 
 interface Data {
   settings?: Record<string, string>;
   /** Công ty đã dựng (bấm "Dựng hệ thống" hoặc bản cài cũ đã có bảng tuỳ biến). */
   built?: boolean;
+  legacy?: boolean;
   /** Có khách/bản ghi THẬT. */
   real?: boolean;
   account?: boolean;
@@ -18,6 +19,8 @@ interface Data {
 
 function make(d: Data = {}, features: Record<string, boolean> = {}, networks = [{ network: 'facebook', configured: true }]) {
   const settings = { ...(d.settings ?? {}) };
+  // Dựng qua wizard ⇒ có setup_built (built_at sau lúc tài khoản mặc định được tạo); `legacy` = bản cài cũ do AI dựng, không có dòng này.
+  if (d.built && !d.legacy && !('setup_built' in settings)) settings.setup_built = JSON.stringify({ built_at: '2026-10-14T00:00:00Z' });
   const row = (v: boolean | undefined) => jest.fn().mockResolvedValue(v ? { id: 1 } : null);
   const prisma = {
     setting: {
@@ -77,7 +80,7 @@ describe('OnboardingWizardService', () => {
   it('thiếu quyền ⇒ bước dựng vẫn bắt buộc, lời nhắc nhờ quản trị viên', async () => {
     const r = await make().svc.confirm(7, NOBODY, 'modules');
     expect(r.ok).toBe(false);
-    expect(r.message).toMatch(/quản trị viên/);
+    expect(r.message).toMatch(/quản trị viên/i);
     expect(r.wizard.steps.find((s) => s.key === 'modules')?.needs_admin).toBe(true);
   });
 
@@ -101,6 +104,18 @@ describe('OnboardingWizardService', () => {
     await svc.setConfig({ skippable: ['post'] }, 1);
     expect(JSON.parse(settings.onboarding_wizard).version).toBe(2);
     expect((await svc.config()).skippable).toEqual(['post']);
+  });
+
+  it('bản cài cũ (đã dựng bằng AI, không có setup_built): người dùng vào thẳng ứng dụng, không đi lại wizard', async () => {
+    const w = await make({ built: true, legacy: true }).svc.view(7, ADMIN);
+    expect(w.completed).toBe(true);
+  });
+
+  it('view báo còn bản ghi mẫu hay không (để màn hình chỉ nhắc mẫu khi thật có)', async () => {
+    const a = make({ built: true });
+    expect((await a.svc.view(7, ADMIN)).sample_data).toBe(false);
+    a.samples.read.mockResolvedValue({ contacts: [1], records: [] });
+    expect((await a.svc.view(7, ADMIN)).sample_data).toBe(true);
   });
 
   it('bản cài cũ đã có bảng tuỳ biến ⇒ hai bước đầu tự đạt', async () => {

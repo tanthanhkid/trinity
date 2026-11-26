@@ -27,6 +27,8 @@ export interface ApplyTemplateResult {
 export interface ApplyTemplateOptions {
   sampleObjects?: number;
   trackSamples?: boolean;
+  /** Chạy TRONG cùng transaction với việc tạo bảng (hỏng ở đây thì bảng cũng rollback, thử lại được). */
+  after?: (tx: Prisma.TransactionClient, result: ApplyTemplateResult) => Promise<void>;
 }
 
 const vnToday = (): string => new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
@@ -93,12 +95,15 @@ export class CustomObjectTemplatesService {
     for (const o of toCreate) defs.set(o.key, await this.createFields(tx, ids, o));
     let samples = 0;
     if (withSamples && toCreate.length > 0) {
-      const only = opts.sampleObjects ? new Set(tpl.objects.slice(0, opts.sampleObjects).map((o) => o.key)) : null;
+      // Chọn trong các thực thể MỚI tạo (không theo thứ tự thô của mẫu): thực thể đầu của mẫu đã có sẵn thì lấy thực thể mới kế tiếp.
+      const only = opts.sampleObjects ? new Set(toCreate.slice(0, opts.sampleObjects).map((o) => o.key)) : null;
       const seeded = await this.seedSamples(tx, user, tpl, new Set(toCreate.map((o) => o.key)), defs, only);
       samples = seeded.length;
       if (opts.trackSamples && this.sampleRecords && seeded.length) await this.sampleRecords.register(tx, { records: seeded }, user.userId);
     }
-    return { created: toCreate.map((o) => o.key), existing: tpl.objects.filter((o) => !toCreate.includes(o)).map((o) => o.key), sample_records: samples };
+    const result = { created: toCreate.map((o) => o.key), existing: tpl.objects.filter((o) => !toCreate.includes(o)).map((o) => o.key), sample_records: samples };
+    if (opts.after) await opts.after(tx, result);
+    return result;
   }
 
   private async createFields(tx: Prisma.TransactionClient, ids: Map<string, number>, obj: TemplateObject): Promise<FieldDef[]> {

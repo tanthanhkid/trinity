@@ -12,6 +12,8 @@ vi.mock("@/hooks/use-onboarding-wizard", () => ({
   useBuildSystem: () => ({ mutate: buildMutate, isPending: false }),
   useFinishWizard: () => finish,
 }))
+const perms = new Set<string>(["contacts.create", "settings.features"])
+vi.mock("@/lib/rbac", () => ({ usePermissions: () => ({ can: (p: string) => perms.has(p) }) }))
 vi.mock("@/hooks/use-settings-options", () => ({ useSettingsOptions: () => ({ data: [{ id: 1, value: "other", label: "Khác" }] }) }))
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace, push: vi.fn() }) }))
 vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ clear: vi.fn() }) }))
@@ -28,7 +30,7 @@ const empty = () => view([step("industry"), step("modules"), step("data"), step(
 const reply = (r: WizardConfirmResult) => mutate.mockImplementationOnce((_k: string, o: { onSuccess: (r: WizardConfirmResult) => void }) => o.onSuccess(r))
 const built = (wizard: WizardView): BuildSystemResult => ({ industry: "education_center", features: [], created_objects: [], sample_records: 3, sample_contacts: 0, wizard })
 
-beforeEach(() => { mutate.mockReset(); buildMutate.mockReset(); replace.mockClear(); finish.mockClear() })
+beforeEach(() => { perms.clear(); perms.add("contacts.create"); perms.add("settings.features"); mutate.mockReset(); buildMutate.mockReset(); replace.mockClear(); finish.mockClear() })
 
 describe("OnboardingWizard", () => {
   it("mở ở bước chọn loại doanh nghiệp: hiện 5 thẻ (4 mẫu + Khác), không còn chữ nối AI", () => {
@@ -157,5 +159,33 @@ describe("OnboardingWizard", () => {
     fireEvent.click(screen.getByTestId("wizard-build"))
     expect(screen.getByTestId("wizard-progress").textContent).toBe("Bước 3/3")
     expect(screen.getByTestId("step-data")).toBeTruthy()
+  })
+
+  it("không có quyền thêm khách: ẩn form, gợi ý bấm Bỏ qua; gợi ý Google Sheets chỉ khi có quyền cấu hình", () => {
+    perms.delete("contacts.create"); perms.delete("settings.features")
+    render(<OnboardingWizard wizard={view([step("industry", true), step("modules", true), { ...step("data"), can_skip: true }], "data", false, "clinic")} />)
+    expect(screen.queryByTestId("add-contact")).toBeNull()
+    expect(screen.getByTestId("no-create-contact").textContent).toMatch(/Bỏ qua bước này/)
+    expect(document.body.textContent).not.toMatch(/Google Sheets/)
+  })
+
+  it("chỉ nói 'dữ liệu mẫu' ở bước dữ liệu khi máy chủ báo còn mẫu", () => {
+    const base = view([step("industry", true), step("modules", true), step("data")], "data", false, "clinic")
+    const a = render(<OnboardingWizard wizard={{ ...base, sample_data: false }} />)
+    expect(a.container.textContent).not.toMatch(/dữ liệu mẫu/)
+    a.unmount()
+    const b = render(<OnboardingWizard wizard={{ ...base, sample_data: true }} />)
+    expect(b.container.textContent).toMatch(/dữ liệu mẫu/)
+  })
+
+  it("số điện thoại có dấu cách/gạch/+84 được chấp nhận (chuẩn hoá trước khi kiểm); số sai báo câu lỗi đúng", async () => {
+    const { normalizePhoneInput } = await import("@/components/onboarding-wizard/wizard-steps")
+    for (const v of ["0912 345 678", "0912-345-678", "0912.345.678", "+84 912 345 678"]) expect(/^(0\d{9}|\+84\d{9})$/.test(normalizePhoneInput(v))).toBe(true)
+    expect(/^(0\d{9}|\+84\d{9})$/.test(normalizePhoneInput("091234567"))).toBe(false)
+    render(<OnboardingWizard wizard={view([step("industry", true), step("modules", true), step("data")], "data", false, "clinic")} />)
+    fireEvent.change(screen.getByLabelText(/Tên khách/), { target: { value: "An" } })
+    fireEvent.change(screen.getByLabelText(/Số điện thoại/), { target: { value: "12345" } })
+    fireEvent.click(screen.getByTestId("add-contact"))
+    expect((await screen.findByRole("alert")).textContent).toMatch(/\+84 kèm 9 số/)
   })
 })

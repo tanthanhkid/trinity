@@ -86,8 +86,9 @@ export class SampleRecordsService {
   /** Có bản ghi thật ⇒ xoá mẫu. Trả true nếu vừa xoá. Không bao giờ ném lỗi. */
   async purgeIfReal(): Promise<boolean> {
     try {
-      // Rẻ, ngoài transaction: không có dòng theo dõi (đa số hệ thống) thì xong ngay, không mở transaction hay khoá.
-      if (!(await this.read())) return false;
+      // Rẻ, ngoài transaction và ngoài khoá: không có dòng mẫu, hoặc chưa có bản ghi thật thì xong ngay (mỗi lần tải trang đều qua đây).
+      const quick = await this.read();
+      if (!quick || !(await this.hasReal(quick))) return false;
       const now = new Date();
       let removed = { contacts: 0, records: 0 };
       let purged = false;

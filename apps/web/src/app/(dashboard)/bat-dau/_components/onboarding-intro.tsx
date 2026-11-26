@@ -16,14 +16,14 @@ const FEATURES: readonly Feature[] = [
   {
     key: "ai",
     icon: Bot,
-    title: "Điều hành bằng trợ lý AI bạn đang dùng",
-    body: "Nối ChatGPT, Claude hoặc Gemini với Trinity. Hỏi tình hình, thêm khách, giao việc bằng lời, như nhắn cho một nhân viên.",
+    title: "Điều hành bằng trợ lý AI (tuỳ chọn)",
+    body: "Muốn thì nối ChatGPT, Claude hoặc Gemini với Trinity để hỏi tình hình, thêm khách, giao việc bằng lời. Không nối vẫn dùng đủ mọi tính năng.",
   },
   {
     key: "build",
     icon: Shapes,
     title: "Hệ thống may theo cách công ty bạn làm",
-    body: "Muốn quản lý gì (học viên, đơn hàng, lịch hẹn, kho…) thì kể cho AI. AI tạo danh sách, màn hình và các bước xử lý ngay, không cần lập trình.",
+    body: "Muốn thêm danh sách riêng (học viên, đơn hàng, lịch hẹn, kho…) thì tạo ở Cài đặt, hoặc nhờ trợ lý AI nếu bạn đã nối. Không cần lập trình.",
   },
   {
     key: "social",

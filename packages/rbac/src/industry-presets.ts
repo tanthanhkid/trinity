@@ -7,6 +7,9 @@
 import { ORG_FEATURE_KEYS, isOrgFeatureKey, type OrgFeatureKey } from './org-features'
 
 export const INDUSTRY_KEYS = ['education_center', 'retail_service', 'clinic', 'real_estate', 'other'] as const
+/** Tối đa số khoá phân hệ gửi lên khi dựng = số phân hệ hiện có (một hằng cho DTO REST, tool MCP). */
+export const MAX_BUILD_FEATURES = ORG_FEATURE_KEYS.length
+
 export type IndustryKey = (typeof INDUSTRY_KEYS)[number]
 
 export interface IndustryPreset {

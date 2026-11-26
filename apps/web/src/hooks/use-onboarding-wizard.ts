@@ -17,6 +17,8 @@ export interface WizardView {
   completed: boolean
   /** Loại doanh nghiệp đã chọn khi dựng (null = chưa dựng). */
   industry: string | null
+  /** Hiện còn bản ghi mẫu chưa bị dọn. */
+  sample_data?: boolean
   current: WizardStepKey | null
   steps: WizardStep[]
 }

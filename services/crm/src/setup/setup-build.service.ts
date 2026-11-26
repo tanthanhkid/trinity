@@ -6,6 +6,7 @@ import type { AuthUser } from '@trinity/rbac-nest';
 import { CustomObjectTemplatesService } from '../custom-objects/custom-object-templates.service';
 import { OrgFeaturesService } from '../settings/org-features.service';
 import { SampleRecordsService } from '../sample-records/sample-records.service';
+import { Prisma } from '@prisma/client';
 import { SetupStatusService } from './setup-status.service';
 
 /** Ngành đã chọn khi dựng — 1 dòng `settings` (khoá riêng để bước "Chọn ngành" của wizard kiểm thật). */
@@ -47,21 +48,21 @@ export class SetupBuildService {
   ) {}
 
   /**
-   * Đã dựng: bấm "Dựng" (`setup_built`), hoặc bản cài cũ — có bảng tuỳ biến do AI dựng, hoặc `setup_status` ĐÃ GHI là da_dung/dang_dung
-   * (luồng AI cũ: propose_workspace/complete_setup). DB mới từ migration khởi tạo là chua_dung nên vẫn vào wizard; dòng vắng không tính.
+   * Đã dựng: `setup_built` (bấm "Dựng"), hoặc `setup_status` ĐÃ GHI là da_dung/dang_dung (luồng AI cũ). Hệ thống đang đi qua wizard
+   * (`chua_dung`, DB mới từ migration khởi tạo) chỉ dựa vào hai dấu trên — bảng tuỳ biến dở dang do một lần dựng hỏng không tính, để dựng lại được.
+   * Thiếu dòng `setup_status` (fail-open, bản cài rất cũ): có bảng tuỳ biến hoặc dữ liệu THẬT (mẫu không tính) ⇒ đã dựng.
    */
   async isBuilt(): Promise<boolean> {
-    const [row, obj, status] = await Promise.all([
+    const [row, status] = await Promise.all([
       this.prisma.setting.findUnique({ where: { key: SETUP_BUILT_KEY }, select: { key: true } }),
-      this.prisma.customObject.findFirst({ where: { deleted_at: null, is_active: true }, select: { id: true } }),
       this.prisma.setting.findUnique({ where: { key: SETUP_STATUS_SETTING_KEY }, select: { value: true } }),
     ]);
+    if (row != null) return true;
     const s = status?.value?.trim();
-    if (row != null || obj != null || s === 'da_dung' || s === 'dang_dung') return true;
-    // Fail-open: thiếu dòng setup_status mà đã có dữ liệu THẬT (khách/bản ghi; mẫu không tính) ⇒ hệ thống đang chạy, coi là đã dựng.
-    // DB mới từ migration khởi tạo có dòng chua_dung nên không rơi vào đây và vẫn vào wizard.
-    if (s === undefined || s === '') return this.samples.hasReal(await this.samples.read());
-    return false;
+    if (s === 'da_dung' || s === 'dang_dung') return true;
+    if (s === 'chua_dung') return false;
+    const obj = await this.prisma.customObject.findFirst({ where: { deleted_at: null, is_active: true }, select: { id: true } });
+    return obj != null || (await this.samples.hasReal(await this.samples.read()));
   }
 
   /** Phân hệ sẽ bật khi dựng (+ built_at lần đầu nếu đã dựng): dựng lại không truyền `features` thì GIỮ cấu hình đang lưu, không tắt gì. */
@@ -95,33 +96,39 @@ export class SetupBuildService {
     // Mẫu chỉ sinh khi công ty CHƯA có dữ liệu thật (dựng lại trên hệ thống đang chạy không chèn dữ liệu giả vào lẫn).
     const wantSamples = !seeded && !(await this.samples.hasReal(await this.samples.read())) && can(user.grants, 'custom_records.manage');
 
+    const now = firstBuiltAt && !Number.isNaN(Date.parse(firstBuiltAt)) ? firstBuiltAt : new Date().toISOString();
+    let sampleContacts = 0;
+
+    // MỌI bước ghi (bảng, mẫu, phân hệ, ngành, dấu đã dựng, trạng thái) nằm trong MỘT transaction: hỏng giữa chừng thì không còn gì dở dang,
+    // wizard vẫn ở trạng thái chưa dựng và bấm dựng lại được.
+    const finalize = async (tx: Prisma.TransactionClient, made: { sample_records: number }, extraSamples: number) => {
+      const on = Object.fromEntries(ORG_FEATURE_KEYS.map((k) => [k, features.includes(k)]));
+      const built = JSON.stringify({ industry, features, built_at: now, built_by: user.userId, samples_seeded: seeded || made.sample_records + extraSamples > 0 });
+      const up = (key: string, value: string) => tx.setting.upsert({ where: { key }, update: { value, updated_by: user.userId }, create: { key, value, updated_by: user.userId } });
+      await up('org_features', JSON.stringify(on));
+      await up(SETUP_INDUSTRY_KEY, industry);
+      await up(SETUP_BUILT_KEY, built);
+      await up(SETUP_STATUS_SETTING_KEY, 'da_dung');
+    };
+
     let created: string[] = [];
     let existing: string[] = [];
     let sampleRecords = 0;
-    let sampleContacts = 0;
     if (preset.template) {
-      const r = await this.templates.apply(user, preset.template, wantSamples, { sampleObjects: 1, trackSamples: true });
+      const r = await this.templates.apply(user, preset.template, wantSamples, { sampleObjects: 1, trackSamples: true, after: (tx, res) => finalize(tx, res, 0) });
       created = r.created;
       existing = r.existing;
       sampleRecords = r.sample_records;
-    } else if (wantSamples) {
+    } else {
       // Cùng khoá với nhánh mẫu bảng: 2 lần dựng đồng thời không tạo mẫu trùng; đọc lại danh sách mẫu TRONG khoá.
       sampleContacts = await this.prisma.$transaction(async (tx) => {
         await this.samples.lock(tx);
-        if (await this.samples.read(tx)) return 0;
-        return (await this.samples.seedContacts(tx, user.userId)).length;
+        const n = wantSamples && !(await this.samples.read(tx)) ? (await this.samples.seedContacts(tx, user.userId)).length : 0;
+        await finalize(tx, { sample_records: 0 }, n);
+        return n;
       });
       if (sampleContacts) await this.samples.dropContactCountCache();
     }
-
-    await this.features.replaceAll(features, user.userId);
-    const now = firstBuiltAt && !Number.isNaN(Date.parse(firstBuiltAt)) ? firstBuiltAt : new Date().toISOString();
-    const built = JSON.stringify({ industry, features, built_at: now, built_by: user.userId, samples_seeded: seeded || sampleRecords + sampleContacts > 0 });
-    await this.prisma.$transaction([
-      this.prisma.setting.upsert({ where: { key: SETUP_INDUSTRY_KEY }, update: { value: industry, updated_by: user.userId }, create: { key: SETUP_INDUSTRY_KEY, value: industry, updated_by: user.userId } }),
-      this.prisma.setting.upsert({ where: { key: SETUP_BUILT_KEY }, update: { value: built, updated_by: user.userId }, create: { key: SETUP_BUILT_KEY, value: built, updated_by: user.userId } }),
-    ]);
-    await this.setup.set('da_dung', user.userId);
     trackProductEvent('workspace_built', user.userId, { industry, features: features.length });
     this.logger.log(`dựng hệ thống: ngành ${industry}, ${features.length} phân hệ, bảng mới [${created}], mẫu ${sampleRecords + sampleContacts}`);
     return { industry, features, created_objects: created, existing_objects: existing, sample_records: sampleRecords, sample_contacts: sampleContacts, setup_status: 'da_dung' };

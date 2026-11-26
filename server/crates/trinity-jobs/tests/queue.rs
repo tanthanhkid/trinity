@@ -62,7 +62,7 @@ impl TestDb {
         cfg.pool_size = 6;
         cfg.acquire_timeout = Duration::from_secs(20);
         let db = Db::connect_lazy(&cfg).unwrap();
-        (Queue::new(&db, node), db)
+        (Queue::new(&db, node).with_lease_margin(Duration::ZERO), db)
     }
 
     async fn conn(&self) -> PgConnection {
@@ -90,6 +90,10 @@ impl Drop for TestDb {
         })
         .join();
     }
+}
+
+fn kinds() -> Vec<String> {
+    ["x", "loi", "doc"].map(str::to_owned).to_vec()
 }
 
 #[tokio::test]
@@ -165,12 +169,12 @@ async fn b_worker_chet_giua_chung_thi_viec_duoc_nhan_lai() {
         .await
         .unwrap()
         .unwrap();
-    let dead = q1.claim(Duration::from_millis(400)).await.unwrap().unwrap();
+    let dead = q1.claim(Duration::from_millis(400), &kinds()).await.unwrap().unwrap();
     assert_eq!((dead.id, dead.attempts), (id, 1));
     // Còn hạn thuê: không ai khác nhận được.
-    assert!(q2.claim(Duration::from_secs(30)).await.unwrap().is_none());
+    assert!(q2.claim(Duration::from_secs(30), &kinds()).await.unwrap().is_none());
     tokio::time::sleep(Duration::from_millis(500)).await;
-    let again = q2.claim(Duration::from_secs(30)).await.unwrap().unwrap();
+    let again = q2.claim(Duration::from_secs(30), &kinds()).await.unwrap().unwrap();
     assert_eq!((again.id, again.attempts), (id, 2));
     // Worker "chết" tỉnh dậy: kết quả của lần nhận cũ bị bỏ qua, không xoá việc của lần sau.
     assert!(!q1.complete(&dead).await.unwrap());
@@ -190,17 +194,17 @@ async fn c_thu_lai_co_backoff_roi_giu_viec_loi_va_dat_lai() {
         .await
         .unwrap()
         .unwrap();
-    let j1 = q.claim(Duration::from_secs(30)).await.unwrap().unwrap();
+    let j1 = q.claim(Duration::from_secs(30), &kinds()).await.unwrap().unwrap();
     assert!(q.fail(&j1, "lần 1").await.unwrap());
     // Backoff 5 giây: chưa đến hạn.
-    assert!(q.claim(Duration::from_secs(30)).await.unwrap().is_none());
+    assert!(q.claim(Duration::from_secs(30), &kinds()).await.unwrap().is_none());
     let mut c = t.conn().await;
     exec(&mut c, "UPDATE platform.jobs SET run_at = now()").await;
-    let j2 = q.claim(Duration::from_secs(30)).await.unwrap().unwrap();
+    let j2 = q.claim(Duration::from_secs(30), &kinds()).await.unwrap().unwrap();
     assert_eq!(j2.attempts, 2);
     assert!(q.fail(&j2, "lần 2").await.unwrap());
     // Hết lần thử: giữ lại ở failed kèm lỗi, không nhận nữa.
-    assert!(q.claim(Duration::from_secs(30)).await.unwrap().is_none());
+    assert!(q.claim(Duration::from_secs(30), &kinds()).await.unwrap().is_none());
     let failed = q.list_failed(10).await.unwrap();
     assert_eq!(failed.len(), 1);
     assert_eq!((failed[0].id, failed[0].attempts), (id, 2));
@@ -208,7 +212,7 @@ async fn c_thu_lai_co_backoff_roi_giu_viec_loi_va_dat_lai() {
     // Đặt lại: chạy lại từ đầu.
     assert!(q.requeue_failed(id).await.unwrap());
     assert!(!q.requeue_failed(id).await.unwrap());
-    let j3 = q.claim(Duration::from_secs(30)).await.unwrap().unwrap();
+    let j3 = q.claim(Duration::from_secs(30), &kinds()).await.unwrap().unwrap();
     assert_eq!(j3.attempts, 1);
     db.close().await;
 }
@@ -228,7 +232,7 @@ async fn d_khoa_trung_va_viec_het_lan_thu_vi_worker_chet() {
         .unwrap();
     assert!(first.is_some() && dup.is_none());
     // Xong thì khoá được dùng lại.
-    let j = q.claim(Duration::from_secs(30)).await.unwrap().unwrap();
+    let j = q.claim(Duration::from_secs(30), &kinds()).await.unwrap().unwrap();
     q.complete(&j).await.unwrap();
     assert!(
         q.enqueue(NewJob::new(1, "x", serde_json::json!({})).dedupe("k-1"))
@@ -246,11 +250,11 @@ async fn d_khoa_trung_va_viec_het_lan_thu_vi_worker_chet() {
     let mut c = t.conn().await;
     exec(&mut c, "DELETE FROM platform.jobs WHERE kind = 'x'").await;
     for n in 1..=2 {
-        let j = q.claim(Duration::from_millis(100)).await.unwrap().unwrap();
+        let j = q.claim(Duration::from_millis(100), &kinds()).await.unwrap().unwrap();
         assert_eq!((j.id, j.attempts), (id, n));
         tokio::time::sleep(Duration::from_millis(150)).await;
     }
-    assert!(q.claim(Duration::from_secs(30)).await.unwrap().is_none());
+    assert!(q.claim(Duration::from_secs(30), &kinds()).await.unwrap().is_none());
     let failed = q.list_failed(10).await.unwrap();
     assert_eq!(failed.len(), 1);
     assert!(failed[0].last_error.as_deref().unwrap().contains("hết số lần thử"));
@@ -270,23 +274,19 @@ async fn e_panic_va_kind_la_khong_giet_worker() {
     let mut w = Worker::new(&q, WorkerConfig::default());
     w.handle("no", |_| async { panic!("nổ") });
     w.handle("ok", |_| async { Ok(()) });
-    for _ in 0..3 {
+    for _ in 0..2 {
         assert!(w.run_once().await.unwrap());
     }
+    // Kind không có bộ xử lý không bị nhận: vẫn nằm ở hàng đợi cho worker khác.
     assert!(!w.run_once().await.unwrap());
     let failed = q.list_failed(10).await.unwrap();
-    let kinds: Vec<_> = failed.iter().map(|f| f.kind.as_str()).collect();
-    assert_eq!(failed.len(), 2, "{kinds:?}");
-    assert!(
-        failed
-            .iter()
-            .any(|f| f.last_error.as_deref().unwrap().contains("không có bộ xử lý"))
-    );
-    assert!(
-        failed
-            .iter()
-            .any(|f| f.last_error.as_deref().unwrap().contains("dừng bất thường"))
-    );
+    assert_eq!(failed.len(), 1);
+    assert!(failed[0].last_error.as_deref().unwrap().contains("dừng bất thường"));
+    let left: i64 = sqlx::query_scalar("SELECT count(*) FROM platform.jobs WHERE kind = 'la' AND status = 'queued'")
+        .fetch_one(&mut t.conn().await)
+        .await
+        .unwrap();
+    assert_eq!(left, 1);
     db.close().await;
 }
 
@@ -297,4 +297,69 @@ fn f_backoff_nhan_doi_co_tran() {
     assert_eq!(backoff(2), Duration::from_secs(10));
     assert_eq!(backoff(3), Duration::from_secs(20));
     assert_eq!(backoff(50), BACKOFF_MAX);
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn g_khoa_trung_theo_cong_ty_va_viec_failed_nha_khoa() {
+    let t = TestDb::new("g").await;
+    let (q, db) = t.queue("n");
+    let p = serde_json::json!({});
+    assert!(
+        q.enqueue(NewJob::new(1, "x", p.clone()).dedupe("k"))
+            .await
+            .unwrap()
+            .is_some()
+    );
+    // Công ty khác cùng khoá: được.
+    assert!(
+        q.enqueue(NewJob::new(2, "x", p.clone()).dedupe("k"))
+            .await
+            .unwrap()
+            .is_some()
+    );
+    assert!(
+        q.enqueue(NewJob::new(1, "x", p.clone()).dedupe("k"))
+            .await
+            .unwrap()
+            .is_none()
+    );
+    // Việc failed không giữ khoá.
+    let mut c = t.conn().await;
+    exec(
+        &mut c,
+        "UPDATE platform.jobs SET status = 'failed' WHERE company_id = 1",
+    )
+    .await;
+    assert!(
+        q.enqueue(NewJob::new(1, "x", p.clone()).dedupe("k"))
+            .await
+            .unwrap()
+            .is_some()
+    );
+    // Đặt lại việc failed khi đã có việc cùng khoá đang chờ sẽ đụng khoá: chỉ kiểm requeue xoá lỗi trên việc khác.
+    exec(
+        &mut c,
+        "UPDATE platform.jobs SET status = 'failed', last_error = 'cũ', dedupe_key = NULL WHERE company_id = 2",
+    )
+    .await;
+    let id: i64 = sqlx::query_scalar("SELECT id FROM platform.jobs WHERE company_id = 2")
+        .fetch_one(&mut c)
+        .await
+        .unwrap();
+    assert!(q.requeue_failed(id).await.unwrap());
+    let err: Option<String> = sqlx::query_scalar("SELECT last_error FROM platform.jobs WHERE id = $1")
+        .bind(id)
+        .fetch_one(&mut c)
+        .await
+        .unwrap();
+    assert!(err.is_none());
+    // Giới hạn tham số.
+    assert!(q.claim(Duration::ZERO, &kinds()).await.is_err());
+    assert!(
+        q.enqueue(NewJob::new(1, "x", p).run_in(Duration::from_secs(40 * 86_400)))
+            .await
+            .is_err()
+    );
+    db.close().await;
 }

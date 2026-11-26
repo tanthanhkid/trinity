@@ -65,13 +65,17 @@ const JOB_RUNS_DDL: &[&str] = &[
        locked_until timestamptz,
        locked_by varchar(200),
        last_error text,
-       dedupe_key varchar(200) UNIQUE,
+       dedupe_key varchar(200),
        created_at timestamptz NOT NULL DEFAULT now()
      )",
     "CREATE INDEX IF NOT EXISTS jobs_due_idx ON platform.jobs (run_at, id) WHERE status <> 'failed'",
+    "CREATE INDEX IF NOT EXISTS jobs_running_idx ON platform.jobs (locked_until) WHERE status = 'running'",
+    // Khoá trùng theo công ty; việc `failed` không giữ khoá (gửi lại được).
+    "CREATE UNIQUE INDEX IF NOT EXISTS jobs_dedupe_idx ON platform.jobs (company_id, dedupe_key)
+       WHERE dedupe_key IS NOT NULL AND status <> 'failed'",
 ];
 
-/// Tạo `platform.job_runs` (idempotent, cả ở chế độ một công ty). Nhiều tiến trình boot cùng lúc xếp hàng trên
+/// Tạo `platform.job_runs` (K20) và `platform.jobs` (K21) — idempotent, cả ở chế độ một công ty. Nhiều tiến trình boot cùng lúc xếp hàng trên
 /// [`PLATFORM_LOCK`], cùng khoá với `Platform::ensure`.
 pub async fn ensure_job_tables(db: &Db) -> Result<(), DbError> {
     let mut tx = db.platform().begin().await?;
@@ -476,7 +480,7 @@ impl Scheduler {
 }
 
 /// Huỷ task khi bị drop (tick bị huỷ thì job không chạy mồ côi).
-struct AbortOnDrop(tokio::task::JoinHandle<Result<(), String>>);
+pub(crate) struct AbortOnDrop(pub(crate) tokio::task::JoinHandle<Result<(), String>>);
 
 impl Drop for AbortOnDrop {
     fn drop(&mut self) {

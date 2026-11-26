@@ -2,12 +2,12 @@
 //!
 //! - **Nhận việc nguyên tử** bằng một câu `UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED LIMIT 1)`: không giữ
 //!   kết nối hay giao dịch trong lúc job chạy, hai worker không bao giờ nhận cùng một việc.
-//! - **Thời hạn thuê** (`locked_until`): worker chết giữa chừng thì việc được nhận lại sau khi hết hạn. Số lần thử
+//! - **Thời hạn thuê** (`locked_until` = lease + [`LEASE_MARGIN`], việc chạy tối đa lease): worker chết giữa chừng thì việc được nhận lại sau khi hết hạn. Số lần thử
 //!   (`attempts`) tăng lúc nhận, nên việc làm chết worker cũng bị tính; quá `max_attempts` thì chuyển `failed`.
 //! - **Thử lại có backoff** (5 giây × 2^(lần-1), trần 1 giờ); quá số lần thì giữ ở trạng thái `failed` kèm `last_error`
 //!   để xem, [`Queue::requeue_failed`] đặt lại.
-//! - **Khoá trùng** `dedupe_key` (unique): [`Queue::enqueue`] trả `None` khi đã có việc cùng khoá. Việc xong thì xoá
-//!   dòng (khoá được dùng lại).
+//! - **Khoá trùng** theo `(company_id, dedupe_key)`: [`Queue::enqueue`] trả `None` khi đã có việc cùng khoá chưa `failed`.
+//!   Việc xong thì xoá dòng, việc `failed` không giữ khoá: khoá được dùng lại.
 //! - Hoàn thành/báo lỗi chỉ có hiệu lực với đúng lần nhận (`locked_by` + `attempts`): worker chậm bị nhận lại không
 //!   ghi đè kết quả của lần sau.
 //!
@@ -23,11 +23,14 @@ use std::time::Duration;
 use serde_json::Value;
 use trinity_db::{Db, DbError};
 
-use crate::scheduler::{MAX_NAME_LEN, ensure_job_tables};
+use crate::scheduler::{AbortOnDrop, LEASE_MARGIN, MAX_NAME_LEN, ensure_job_tables};
 
 /// Backoff cơ sở và trần.
 pub const BACKOFF_BASE: Duration = Duration::from_secs(5);
 pub const BACKOFF_MAX: Duration = Duration::from_secs(3600);
+/// Trần thời hạn thuê và độ trễ chạy.
+pub const MAX_LEASE: Duration = Duration::from_secs(3600);
+pub const MAX_RUN_IN: Duration = Duration::from_secs(30 * 86_400);
 /// Số lần thử mặc định.
 pub const DEFAULT_MAX_ATTEMPTS: i32 = 5;
 
@@ -114,6 +117,7 @@ pub struct Queue {
     node_id: Arc<str>,
     claims: Arc<AtomicU64>,
     tables: Arc<tokio::sync::OnceCell<()>>,
+    margin: Duration,
 }
 
 impl std::fmt::Debug for Queue {
@@ -148,7 +152,15 @@ impl Queue {
             node_id: node_id.as_str().into(),
             claims: Arc::new(AtomicU64::new(0)),
             tables: Arc::new(tokio::sync::OnceCell::new()),
+            margin: LEASE_MARGIN,
         }
+    }
+
+    /// Đổi biên an toàn cộng vào thời hạn thuê (mặc định [`LEASE_MARGIN`]).
+    #[must_use]
+    pub fn with_lease_margin(mut self, margin: Duration) -> Self {
+        self.margin = margin;
+        self
     }
 
     async fn ready(&self) -> Result<(), QueueError> {
@@ -167,12 +179,16 @@ impl Queue {
         if job.dedupe_key.as_ref().is_some_and(|k| k.is_empty() || k.len() > 200) {
             return Err(QueueError::Invalid("dedupe_key phải dài 1..=200 byte".to_owned()));
         }
+        if job.run_in.is_some_and(|d| d > MAX_RUN_IN) {
+            return Err(QueueError::Invalid("run_in quá 30 ngày".to_owned()));
+        }
         self.ready().await?;
         let mut conn = self.db.platform().acquire().await?;
         let id: Option<(i64,)> = sqlx::query_as(
             "INSERT INTO platform.jobs (company_id, kind, payload, run_at, max_attempts, dedupe_key)
              VALUES ($1, $2, $3, now() + $4 * interval '1 millisecond', $5, $6)
-             ON CONFLICT (dedupe_key) DO NOTHING RETURNING id",
+             ON CONFLICT (company_id, dedupe_key) WHERE dedupe_key IS NOT NULL AND status <> 'failed' DO NOTHING
+             RETURNING id",
         )
         .bind(job.company_id)
         .bind(&job.kind)
@@ -185,34 +201,46 @@ impl Queue {
         Ok(id.map(|(i,)| i))
     }
 
-    /// Nhận một việc đến hạn, thuê `lease`. `None` = không có việc.
-    pub async fn claim(&self, lease: Duration) -> Result<Option<Job>, QueueError> {
+    /// Nhận một việc đến hạn thuộc một trong `kinds`, thuê `lease` (+ biên an toàn). `None` = không có việc.
+    /// `lease` trong (0, [`MAX_LEASE`]]; `kinds` rỗng thì không nhận gì.
+    pub async fn claim(&self, lease: Duration, kinds: &[String]) -> Result<Option<Job>, QueueError> {
+        if lease.is_zero() || lease > MAX_LEASE {
+            return Err(QueueError::Invalid(format!("lease phải trong (0, {MAX_LEASE:?}]")));
+        }
+        if kinds.is_empty() {
+            return Ok(None);
+        }
         self.ready().await?;
         let mut conn = self.db.platform().acquire().await?;
-        // Việc đã hết hạn thuê mà hết lần thử (worker chết giữ nó mỗi lần): giữ lại ở `failed`.
-        sqlx::query(
-            "UPDATE platform.jobs SET status = 'failed', locked_by = NULL, locked_until = NULL,
-                    last_error = COALESCE(last_error, 'worker dừng giữa chừng, hết số lần thử')
-              WHERE status = 'running' AND locked_until < now() AND attempts >= max_attempts",
-        )
-        .execute(&mut *conn)
-        .await?;
         let token = format!("{}#{}", self.node_id, self.claims.fetch_add(1, Ordering::Relaxed));
-        let row: Option<(i64, i32, String, Value, i32, i32)> = sqlx::query_as(
-            "UPDATE platform.jobs SET status = 'running', attempts = attempts + 1, locked_at = now(),
+        let sql = "UPDATE platform.jobs SET status = 'running', attempts = attempts + 1, locked_at = now(),
                     locked_until = now() + $1 * interval '1 millisecond', locked_by = $2
               WHERE id = (
                 SELECT id FROM platform.jobs
-                 WHERE run_at <= now()
-                   AND (status = 'queued' OR (status = 'running' AND locked_until < now()))
+                 WHERE run_at <= now() AND kind = ANY($3)
+                   AND (status = 'queued'
+                        OR (status = 'running' AND locked_until < now() AND attempts < max_attempts))
                  ORDER BY run_at, id
                  FOR UPDATE SKIP LOCKED LIMIT 1)
-          RETURNING id, company_id, kind, payload, attempts, max_attempts",
-        )
-        .bind(millis(lease))
-        .bind(&token)
-        .fetch_optional(&mut *conn)
-        .await?;
+          RETURNING id, company_id, kind, payload, attempts, max_attempts";
+        let row: Option<(i64, i32, String, Value, i32, i32)> = sqlx::query_as(sql)
+            .bind(millis(lease + self.margin))
+            .bind(&token)
+            .bind(kinds)
+            .fetch_optional(&mut *conn)
+            .await?;
+        if row.is_none() {
+            // Hàng đợi trống thì mới dọn (thưa, rẻ nhờ chỉ mục `jobs_running_idx`): việc hết hạn thuê mà hết lần
+            // thử (worker chết giữ nó mỗi lần) chuyển `failed`, luôn ghi lý do.
+            sqlx::query(
+                "UPDATE platform.jobs SET status = 'failed', locked_by = NULL, locked_until = NULL,
+                        last_error = 'worker dừng giữa chừng, hết số lần thử'
+                            || COALESCE(' (lỗi trước: ' || last_error || ')', '')
+                  WHERE status = 'running' AND locked_until < now() AND attempts >= max_attempts",
+            )
+            .execute(&mut *conn)
+            .await?;
+        }
         Ok(row.map(|(id, company_id, kind, payload, attempts, max_attempts)| Job {
             id,
             company_id,
@@ -288,7 +316,7 @@ impl Queue {
         self.ready().await?;
         let mut conn = self.db.platform().acquire().await?;
         let n = sqlx::query(
-            "UPDATE platform.jobs SET status = 'queued', attempts = 0, run_at = now() WHERE id = $1 AND status = 'failed'",
+            "UPDATE platform.jobs SET status = 'queued', attempts = 0, run_at = now(), last_error = NULL WHERE id = $1 AND status = 'failed'",
         )
         .bind(id)
         .execute(&mut *conn)
@@ -347,25 +375,24 @@ impl Worker {
         self.handlers.insert(kind.to_owned(), Arc::new(move |j| Box::pin(f(j))));
     }
 
-    /// Nhận và chạy MỘT việc nếu có. `true` = đã xử lý một việc.
+    /// Nhận và chạy MỘT việc (chỉ kind có bộ xử lý) nếu có. `true` = đã xử lý một việc.
     pub async fn run_once(&self) -> Result<bool, QueueError> {
-        let Some(job) = self.queue.claim(self.cfg.lease).await? else {
+        let kinds: Vec<String> = self.handlers.keys().cloned().collect();
+        let Some(job) = self.queue.claim(self.cfg.lease, &kinds).await? else {
             return Ok(false);
         };
         let Some(handler) = self.handlers.get(&job.kind).cloned() else {
-            // Không có bộ xử lý: không thử lại vô ích, giữ lại để xem.
-            let msg = format!("không có bộ xử lý cho kind \"{}\"", job.kind);
-            sqlx_fail_now(&self.queue, &job, &msg).await?;
+            self.queue.fail(&job, "không có bộ xử lý").await?;
             return Ok(true);
         };
-        // Task riêng: panic thành lỗi của việc; quá hạn thuê thì bị huỷ.
-        let mut task = tokio::spawn(handler(job.clone()));
-        let res = match tokio::time::timeout(self.cfg.lease, &mut task).await {
+        // Task riêng, huỷ khi worker bị huỷ (không chạy mồ côi): panic thành lỗi của việc; quá `lease` thì bị huỷ.
+        let mut task = AbortOnDrop(tokio::spawn(handler(job.clone())));
+        let res = match tokio::time::timeout(self.cfg.lease, &mut task.0).await {
             Ok(Ok(r)) => r,
             Ok(Err(join)) => Err(format!("việc dừng bất thường: {join}")),
             Err(_) => {
-                task.abort();
-                Err(format!("quá thời hạn thuê {} ms", self.cfg.lease.as_millis()))
+                task.0.abort();
+                Err(format!("quá thời hạn {} ms", self.cfg.lease.as_millis()))
             }
         };
         match res {
@@ -409,20 +436,4 @@ impl Worker {
         }
         Ok(())
     }
-}
-
-/// Đặt `failed` ngay (không backoff) cho việc không có bộ xử lý.
-async fn sqlx_fail_now(queue: &Queue, job: &Job, msg: &str) -> Result<(), QueueError> {
-    let mut conn = queue.db.platform().acquire().await?;
-    sqlx::query(
-        "UPDATE platform.jobs SET status = 'failed', locked_by = NULL, locked_until = NULL, last_error = $4
-          WHERE id = $1 AND locked_by = $2 AND attempts = $3",
-    )
-    .bind(job.id)
-    .bind(&job.token)
-    .bind(job.attempts)
-    .bind(msg)
-    .execute(&mut *conn)
-    .await?;
-    Ok(())
 }

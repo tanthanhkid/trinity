@@ -320,8 +320,11 @@ jobs:
         env:
           SCHEMA_SNAPSHOT_ADMIN_URL: postgresql://test:test@localhost:5432/trinity_sql_test
         run: |
-          sudo apt-get install -y -qq --no-install-recommends postgresql-client-16
-          export PATH=/usr/lib/postgresql/16/bin:$PATH
+          if ! pg_dump --version 2>/dev/null | grep -q ' 16\.'; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --no-install-recommends postgresql-client-16
+            export PATH=/usr/lib/postgresql/16/bin:$PATH
+          fi
           pg_dump --version
           pnpm --filter @trinity/prisma contract:schema:check
 

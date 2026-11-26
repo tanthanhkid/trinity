@@ -556,7 +556,8 @@ server/
     trinity-db         # pool, TenantDb/PlatformDb, migrator, platform, provision, model sinh tự động
     trinity-auth       # JWT, mật khẩu, phiên, API key, internal secret, tiền tố token công ty
     trinity-rbac       # catalog, grants, scope, org features, gói, hạn mức, cache quyền
-    trinity-http       # router, middleware, validation, rate limit, web tĩnh, strangler proxy, shadow, TLS
+    trinity-http       # router, middleware, validation, rate limit, web tĩnh, strangler proxy, shadow, TLS;
+                       # HTTP ra tới địa chỉ người dùng nhập: chống SSRF + GET an toàn (`outbound`, K35)
     trinity-jobs       # scheduler theo công ty, advisory lock, hàng đợi SKIP LOCKED
     trinity-storage    # local, S3, uploads, range
     trinity-realtime   # Socket.IO tương thích, cổng phát thông báo

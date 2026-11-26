@@ -2,7 +2,7 @@
 //! cổng 443/8443, mọi IP phân giải phải công cộng, bộ phân giải của client tự kiểm chống DNS rebinding), KHÔNG theo
 //! chuyển hướng, có hạn thời gian và trần kích thước thân. Lỗi chỉ trả mã chung, không lộ nội dung hay IP nội bộ.
 
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
 use reqwest::header::{ACCEPT, ACCEPT_ENCODING, CACHE_CONTROL, CONTENT_TYPE, HeaderMap, USER_AGENT};
@@ -28,28 +28,79 @@ impl SafeGetError {
     }
 }
 
-/// Tuỳ chọn cho một lần GET.
+/// Tuỳ chọn cho một lần GET, kèm client `reqwest` dựng sẵn cho cặp (chính sách, bộ phân giải): tạo một lần rồi dùng lại
+/// (giữ kết nối), không dựng client mỗi lần gọi.
 #[derive(Clone)]
 pub struct SafeGetOptions {
-    /// Chính sách đích.
-    pub policy: SsrfPolicy,
-    /// Bộ phân giải (mặc định DNS của hệ điều hành).
-    pub resolver: Arc<dyn HostResolver>,
-    /// Hạn thời gian cho cả lượt (phân giải, kết nối, đọc thân).
+    policy: SsrfPolicy,
+    resolver: Arc<dyn HostResolver>,
+    client: reqwest::Client,
+    /// Hạn thời gian cho cả lượt: phân giải DNS bước kiểm, kết nối, đọc thân.
     pub timeout: Duration,
     /// Trần thân (byte).
     pub max_bytes: usize,
 }
 
+/// Hạn kết nối của client dùng chung; hạn của cả lượt là `SafeGetOptions::timeout`.
+const CONNECT_TIMEOUT: Duration = SAFE_GET_MEDIA_TIMEOUT;
+
+/// Client của chính sách lấy từ env tiến trình + DNS hệ thống, dựng một lần cho cả tiến trình.
+static DEFAULT_CLIENT: LazyLock<Option<(SsrfPolicy, reqwest::Client)>> = LazyLock::new(|| {
+    let policy = SsrfPolicy::from_process_env();
+    safe_client(policy, Arc::new(SystemResolver), CONNECT_TIMEOUT)
+        .ok()
+        .map(|c| (policy, c))
+});
+
 impl SafeGetOptions {
-    /// Mặc định của tải CIMD: chính sách từ env của tiến trình, DNS hệ thống, 5 giây, 64 KiB.
-    pub fn json_defaults() -> Self {
-        Self {
-            policy: SsrfPolicy::from_process_env(),
-            resolver: Arc::new(SystemResolver),
-            timeout: SAFE_GET_TIMEOUT,
-            max_bytes: SAFE_GET_MAX_BYTES,
+    /// Tuỳ chọn với chính sách và bộ phân giải riêng (dựng client mới; giữ lại để dùng nhiều lần).
+    pub fn new(
+        policy: SsrfPolicy,
+        resolver: Arc<dyn HostResolver>,
+        timeout: Duration,
+        max_bytes: usize,
+    ) -> reqwest::Result<Self> {
+        let client = safe_client(policy, Arc::clone(&resolver), CONNECT_TIMEOUT)?;
+        Ok(Self {
+            policy,
+            resolver,
+            client,
+            timeout,
+            max_bytes,
+        })
+    }
+
+    fn process_default(timeout: Duration, max_bytes: usize) -> reqwest::Result<Self> {
+        match DEFAULT_CLIENT.as_ref() {
+            Some((policy, client)) => Ok(Self {
+                policy: *policy,
+                resolver: Arc::new(SystemResolver),
+                client: client.clone(),
+                timeout,
+                max_bytes,
+            }),
+            None => Self::new(
+                SsrfPolicy::from_process_env(),
+                Arc::new(SystemResolver),
+                timeout,
+                max_bytes,
+            ),
         }
+    }
+
+    /// Mặc định của tải CIMD: chính sách từ env của tiến trình, DNS hệ thống, 5 giây, 64 KiB.
+    pub fn json_defaults() -> reqwest::Result<Self> {
+        Self::process_default(SAFE_GET_TIMEOUT, SAFE_GET_MAX_BYTES)
+    }
+
+    /// Mặc định của tải media: chính sách từ env của tiến trình, DNS hệ thống, 30 giây, trần do người gọi đặt.
+    pub fn media_defaults(max_bytes: usize) -> reqwest::Result<Self> {
+        Self::process_default(SAFE_GET_MEDIA_TIMEOUT, max_bytes)
+    }
+
+    /// Chính sách đích.
+    pub fn policy(&self) -> SsrfPolicy {
+        self.policy
     }
 }
 
@@ -137,13 +188,13 @@ async fn safe_get_raw(
     user_agent: &str,
     accept_type: fn(&str) -> Option<&'static str>,
 ) -> Result<RawGet, SafeGetError> {
-    let target = assert_safe_url(raw_url, o.policy, o.resolver.as_ref())
-        .await
-        .map_err(|_| SafeGetError::new("blocked_target"))?;
-    let client =
-        safe_client(o.policy, Arc::clone(&o.resolver), o.timeout).map_err(|_| SafeGetError::new("network_error"))?;
+    // Một hạn thời gian cho cả lượt, kể cả bước phân giải DNS để kiểm (DNS treo không giữ lời gọi quá hạn).
     let work = async {
-        let mut res = client
+        let target = assert_safe_url(raw_url, o.policy, o.resolver.as_ref())
+            .await
+            .map_err(|_| SafeGetError::new("blocked_target"))?;
+        let mut res = o
+            .client
             .get(target.url.clone())
             .header(ACCEPT, accept)
             .header(USER_AGENT, user_agent)
@@ -159,12 +210,8 @@ async fn safe_get_raw(
                 format!("http_{status}")
             }));
         }
-        let ctype = res
-            .headers()
-            .get(CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("");
-        if let Some(code) = accept_type(ctype) {
+        let ctype = first_latin1(res.headers(), CONTENT_TYPE);
+        if let Some(code) = accept_type(&ctype) {
             return Err(SafeGetError::new(code));
         }
         if res.content_length().is_some_and(|n| n > o.max_bytes as u64) {
@@ -188,6 +235,24 @@ async fn safe_get_raw(
         .map_err(|_| SafeGetError::new("timeout"))?
 }
 
+/// Giá trị đầu tiên của header như Node đọc (`latin1`: mỗi byte một ký tự); Node bỏ các dòng `Content-Type` trùng.
+fn first_latin1(headers: &HeaderMap, name: reqwest::header::HeaderName) -> String {
+    headers
+        .get(name)
+        .map(|v| v.as_bytes().iter().map(|&b| char::from(b)).collect())
+        .unwrap_or_default()
+}
+
+/// Giá trị header như Node đọc (`latin1`: mỗi byte một ký tự), các dòng trùng tên nối bằng `, `.
+fn header_latin1(headers: &HeaderMap, name: reqwest::header::HeaderName) -> String {
+    headers
+        .get_all(name)
+        .iter()
+        .map(|v| v.as_bytes().iter().map(|&b| char::from(b)).collect::<String>())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// GET JSON an toàn cho việc tải Client ID Metadata Document (CIMD) (`safeGetJson`): mặc định 5 giây, thân ≤ 64 KiB,
 /// phải là JSON.
 pub async fn safe_get_json(raw_url: &str, o: &SafeGetOptions) -> Result<SafeGetJson, SafeGetError> {
@@ -195,14 +260,10 @@ pub async fn safe_get_json(raw_url: &str, o: &SafeGetOptions) -> Result<SafeGetJ
         if is_json_type(c) { None } else { Some("not_json") }
     })
     .await?;
-    let json = serde_json::from_slice(&r.body).map_err(|_| SafeGetError::new("invalid_json"))?;
-    let cache = r
-        .headers
-        .get_all(CACHE_CONTROL)
-        .iter()
-        .filter_map(|v| v.to_str().ok())
-        .collect::<Vec<_>>()
-        .join(",");
+    // Như `Buffer.toString('utf8')`: byte UTF-8 hỏng thành U+FFFD rồi mới đọc JSON.
+    let text = String::from_utf8_lossy(&r.body);
+    let json = serde_json::from_str(&text).map_err(|_| SafeGetError::new("invalid_json"))?;
+    let cache = header_latin1(&r.headers, CACHE_CONTROL);
     Ok(SafeGetJson {
         status: r.status,
         max_age_sec: parse_max_age(Some(&cache)),
@@ -217,7 +278,7 @@ pub async fn safe_get_media(raw_url: &str, o: &SafeGetOptions) -> Result<SafeGet
         if is_media_type(c) { None } else { Some("not_media") }
     })
     .await?;
-    let ctype = r.headers.get(CONTENT_TYPE).and_then(|v| v.to_str().ok()).unwrap_or("");
+    let ctype = first_latin1(&r.headers, CONTENT_TYPE);
     let content_type = ctype.split(';').next().unwrap_or("").trim().to_lowercase();
     Ok(SafeGetMedia {
         content_type,

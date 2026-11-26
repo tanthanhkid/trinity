@@ -16,12 +16,7 @@ const PROD: SsrfPolicy = SsrfPolicy { allow_private: false };
 const DEV: SsrfPolicy = SsrfPolicy { allow_private: true };
 
 fn opts(policy: SsrfPolicy, resolver: Arc<dyn HostResolver>) -> SafeGetOptions {
-    SafeGetOptions {
-        policy,
-        resolver,
-        timeout: Duration::from_secs(5),
-        max_bytes: 64 * 1024,
-    }
+    SafeGetOptions::new(policy, resolver, Duration::from_secs(5), 64 * 1024).expect("client")
 }
 
 /// Máy chủ HTTP/1.1 tối giản trên 127.0.0.1, trả lời theo đường dẫn. `/slow` không bao giờ trả lời.
@@ -55,6 +50,12 @@ async fn serve() -> String {
                     "/ctype" => ("200 OK", "Content-Type: text/html\r\n", b"{\"a\":1}".to_vec()),
                     "/bad" => ("200 OK", "Content-Type: application/json\r\n", b"{nope".to_vec()),
                     "/big" => ("200 OK", "Content-Type: application/json\r\n", big.into_bytes()),
+                    // Header có byte latin1 (0xE9) và thân có byte UTF-8 hỏng (0xFF), gửi bằng byte thô bên dưới.
+                    "/latin1" => (
+                        "200 OK",
+                        "Content-Type: application/json\r\n",
+                        b"{\"a\":\"\xff\"}".to_vec(),
+                    ),
                     "/img" => (
                         "200 OK",
                         "Content-Type: Image/PNG; x=1\r\n",
@@ -70,7 +71,13 @@ async fn serve() -> String {
                     "HTTP/1.1 {status}\r\n{headers}Content-Length: {}\r\nConnection: close\r\n\r\n",
                     body.len()
                 );
-                let _ = sock.write_all(resp.as_bytes()).await;
+                let mut head = resp.into_bytes();
+                if path == "/latin1" {
+                    // Chèn trước dòng trống cuối: Cache-Control có byte 0xE9 (latin1 "é").
+                    head.truncate(head.len() - 2);
+                    head.extend_from_slice(b"Cache-Control: max-age=60, x=\xe9\r\n\r\n");
+                }
+                let _ = sock.write_all(&head).await;
                 let _ = sock.write_all(&body).await;
             });
         }
@@ -171,6 +178,43 @@ async fn het_han() {
     let mut o = opts(DEV, Arc::new(SystemResolver));
     o.timeout = Duration::from_millis(150);
     assert_eq!(err(&format!("{origin}/slow"), &o).await, "timeout");
+}
+
+/// Bộ phân giải treo mãi (DNS không trả lời).
+struct Hang;
+
+impl HostResolver for Hang {
+    fn lookup<'a>(&'a self, _host: &'a str) -> LookupFuture<'a> {
+        Box::pin(std::future::pending())
+    }
+}
+
+#[tokio::test]
+async fn het_han_bao_ca_buoc_dns_dau() {
+    let mut o = opts(PROD, Arc::new(Hang));
+    o.timeout = Duration::from_millis(150);
+    assert_eq!(err("https://slow-dns.example.com/c.json", &o).await, "timeout");
+}
+
+#[tokio::test]
+async fn than_utf8_hong_doc_nhu_buffer_to_string() {
+    let origin = serve().await;
+    let r = safe_get_json(&format!("{origin}/latin1"), &opts(DEV, Arc::new(SystemResolver)))
+        .await
+        .expect("ok");
+    assert_eq!(r.json, serde_json::json!({ "a": "\u{fffd}" }));
+    assert_eq!(r.max_age_sec, Some(60));
+}
+
+#[test]
+fn mac_dinh_media_30_giay() {
+    let o = SafeGetOptions::media_defaults(1024).expect("client");
+    assert_eq!(o.timeout, Duration::from_secs(30));
+    assert_eq!(o.max_bytes, 1024);
+    assert_eq!(
+        SafeGetOptions::json_defaults().expect("client").timeout,
+        Duration::from_secs(5)
+    );
 }
 
 #[tokio::test]

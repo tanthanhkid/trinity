@@ -228,7 +228,7 @@ jobs:
         run: |
           pnpm install --frozen-lockfile --prefer-offline --filter "@trinity/crm..."
           pnpm --filter @trinity/prisma generate
-          cd services/crm && npx jest --testPathPattern 'kernel-cases\.spec\.ts$'
+          cd services/crm && npx jest --testPathPattern '(kernel-cases|formula-cases)\.spec\.ts$'
 
   # Check bắt buộc duy nhất của luồng CI (cộng CLA ở workflow riêng). Chạy `always()` để job bị bỏ qua/huỷ không làm treo merge.
   ci-ok:

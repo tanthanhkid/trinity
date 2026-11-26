@@ -57,7 +57,7 @@ function tokenize(src: string): Tok[] {
       const end = src.indexOf('}', i)
       if (end === -1) throw new FormulaError('Thiếu dấu } đóng tham chiếu trường')
       const key = src.slice(i + 1, end).trim()
-      if (!REF_KEY.test(key)) throw new FormulaError(`Tên trường tham chiếu không hợp lệ: {${key.slice(0, 30)}}`)
+      if (!REF_KEY.test(key)) throw new FormulaError(`Tên trường tham chiếu không hợp lệ: {${Array.from(key).slice(0, 30).join('')}}`)
       out.push({ t: 'ref', key })
       i = end + 1
       continue
@@ -73,7 +73,8 @@ function tokenize(src: string): Tok[] {
     if (c === '(') { out.push({ t: 'lp' }); i++; continue }
     if (c === ')') { out.push({ t: 'rp' }); i++; continue }
     if (c === ',') { out.push({ t: 'comma' }); i++; continue }
-    throw new FormulaError(`Ký tự không được phép trong công thức: "${c}"`)
+    // Theo ký tự (code point), không theo đơn vị UTF-16: emoji báo nguyên ký tự, không báo nửa cặp surrogate.
+    throw new FormulaError(`Ký tự không được phép trong công thức: "${String.fromCodePoint(src.codePointAt(i) as number)}"`)
   }
   return out
 }
@@ -250,7 +251,9 @@ function parseYmd(v: string): { y: number; m: number; d: number } | null {
   if (v.includes('T')) {
     const t = Date.parse(v)
     if (!Number.isFinite(t)) return null
-    s = new Date(t + 7 * 3_600_000).toISOString() // lịch Việt Nam (UTC+7)
+    const vn = new Date(t + 7 * 3_600_000) // lịch Việt Nam (UTC+7)
+    if (!Number.isFinite(vn.getTime())) return null // sát giới hạn Date: toISOString sẽ ném RangeError
+    s = vn.toISOString()
   }
   const m = YMD.exec(s)
   return m ? { y: Number(m[1]), m: Number(m[2]), d: Number(m[3]) } : null

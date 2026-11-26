@@ -94,7 +94,7 @@ export async function configureApp(
         console.error(`[tenant] migrateAllCompanies: ${err instanceof Error ? err.message : String(err)}`),
       )
     } else {
-      console.log('[tenant] migrate nền thuộc Rust theo tệp sở hữu, Node bỏ qua')
+      console.log(`[tenant] migrate nền bị bỏ qua (${testHooksEnabled() ? 'API điều khiển test bật' : 'thuộc Rust theo tệp sở hữu'})`)
     }
   }
 

@@ -228,7 +228,8 @@ jobs:
         run: |
           pnpm install --frozen-lockfile --prefer-offline --filter "@trinity/crm..."
           pnpm --filter @trinity/prisma generate
-          cd services/crm && npx jest --testPathPattern '(kernel-cases|formula-cases)\.spec\.ts$'
+          pnpm --filter "./packages/*" build
+          cd services/crm && npx jest --testPathPattern '(kernel-cases|formula-cases|-contract)\.spec\.ts$'
 
   # Hợp đồng đóng băng sinh từ monolith (docs/rust/PLAN.md mục 6.1): sinh lại và so với file đã commit.
   contracts:

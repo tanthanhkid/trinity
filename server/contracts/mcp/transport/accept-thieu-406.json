@@ -1,0 +1,14 @@
+{
+  "status": 406,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "jsonrpc": "2.0",
+    "error": {
+      "code": -32000,
+      "message": "Not Acceptable: Client must accept both application/json and text/event-stream"
+    },
+    "id": null
+  }
+}

@@ -12,9 +12,15 @@ use crate::redact_url;
 #[allow(clippy::expect_used)]
 static EMAIL_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+").expect("regex email"));
-// Dãy >= 8 chữ số, cho phép `+`, khoảng trắng, chấm, gạch, ngoặc xen giữa.
+// Dãy >= 8 chữ số, cho phép `+`, khoảng trắng, chấm, gạch, ngoặc xen giữa. Hai nhánh đầu (IPv4, ngày ISO kèm giờ
+// tuỳ chọn) khớp trước để giữ nguyên, rồi duyệt tiếp phần sau: `2026-11-26 0912345678` vẫn che số điện thoại.
 #[allow(clippy::expect_used)]
-static PHONE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\+?[0-9][0-9\s().-]{6,}[0-9]").expect("regex phone"));
+static PHONE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?P<keep>[0-9]{1,3}(?:\.[0-9]{1,3}){3}|[0-9]{4}-[0-9]{2}-[0-9]{2}(?:[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2})?)?)|(?P<ph>\+?[0-9][0-9\s().-]{6,}[0-9])",
+    )
+    .expect("regex phone")
+});
 
 /// Che email và số điện thoại trong văn bản.
 pub fn scrub_text(text: &str) -> String {
@@ -22,6 +28,9 @@ pub fn scrub_text(text: &str) -> String {
     PHONE_RE
         .replace_all(&t, |c: &regex::Captures<'_>| {
             let m = &c[0];
+            if c.name("keep").is_some() {
+                return m.to_owned();
+            }
             if m.chars().filter(char::is_ascii_digit).count() >= 8 {
                 "[phone]".to_owned()
             } else {
@@ -74,9 +83,10 @@ pub fn scrub_event(event: &mut Value) {
         for k in ["data", "cookies", "headers", "query_string", "env"] {
             r.remove(k);
         }
-        scrub_str_field(r, "url", scrub_url);
+        scrub_str_field(r, "url", |u| scrub_text(&scrub_url(u)));
     }
-    // `extra` và `contexts` tự do do mã gọi nhét vào: không có gì đảm bảo sạch, bỏ hết (an toàn hơn che từng khoá).
+    // `extra` là chỗ mã gọi nhét dữ liệu tự do: bỏ hết (an toàn hơn che từng khoá). `contexts` do SDK tự sinh (hệ
+    // điều hành, runtime) nên giữ; mã gọi không được đặt context riêng chứa dữ liệu khách.
     ev.remove("extra");
     if let Some(Value::Object(u)) = ev.get_mut("user") {
         let id = match u.get("id") {
@@ -127,7 +137,7 @@ pub fn scrub_event(event: &mut Value) {
         && let Some((method, rest)) = t.split_once(' ')
         && METHODS.contains(&method)
     {
-        *t = format!("{method} {}", scrub_url(rest));
+        *t = format!("{method} {}", scrub_text(&scrub_url(rest)));
     }
     if let Some(Value::Array(spans)) = ev.get_mut("spans") {
         for s in spans {
@@ -149,6 +159,7 @@ pub fn scrub_event(event: &mut Value) {
 
 /// Lọc sự kiện Sentry của SDK. `None` (bỏ sự kiện) nếu không chuyển đổi được: thà mất sự kiện còn hơn gửi bản chưa lọc.
 pub fn scrub_sentry_event(event: sentry::protocol::Event<'static>) -> Option<sentry::protocol::Event<'static>> {
+    // trinity-lint: allow-json-value (sự kiện Sentry rời tiến trình, không phải model/cột DB)
     let mut v = serde_json::to_value(&event).ok()?;
     scrub_event(&mut v);
     serde_json::from_value(v).ok()
@@ -169,6 +180,16 @@ mod tests {
         );
         assert_eq!(scrub_text("lỗi 1234567 dòng 10"), "lỗi 1234567 dòng 10");
         assert_eq!(scrub_text("không có gì"), "không có gì");
+        // Ngày, giờ, IP không phải số điện thoại; số điện thoại đứng cạnh vẫn bị che.
+        assert_eq!(
+            scrub_text("lúc 2026-11-26 13:27:34 từ 192.168.100.200"),
+            "lúc 2026-11-26 13:27:34 từ 192.168.100.200"
+        );
+        assert_eq!(scrub_text("2026-11-26 0912345678"), "2026-11-26 [phone]");
+        assert_eq!(
+            scrub_text("2026-11-26T13:27 gọi 0912 345 678"),
+            "2026-11-26T13:27 gọi [phone]"
+        );
     }
 
     #[test]
@@ -191,7 +212,7 @@ mod tests {
             "breadcrumbs": {"values": [
                 {"category": "console", "message": "noise"},
                 {"category": "http", "message": "to u@x.vn", "data": {"url": "/x?a=b@c.de"}}]},
-            "transaction": "GET /orders/1?phone=0912345678",
+            "transaction": "GET /orders/0912345678?phone=1",
             "spans": [{"description": "GET /x?email=a@b.co", "data": {"url": "/x?a=1", "http.query": "a=1"}}]
         });
         scrub_event(&mut ev);
@@ -212,7 +233,7 @@ mod tests {
         }
         assert_eq!(ev["user"], json!({"id": "42"}));
         assert_eq!(ev["request"]["url"], "https://h/a/b");
-        assert_eq!(ev["transaction"], "GET /orders/1");
+        assert_eq!(ev["transaction"], "GET /orders/[phone]");
         assert_eq!(ev["breadcrumbs"]["values"].as_array().map(Vec::len), Some(1));
         assert_eq!(ev["spans"][0]["data"]["http.query"], "");
     }

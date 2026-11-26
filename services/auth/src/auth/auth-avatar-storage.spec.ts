@@ -11,7 +11,7 @@ import { RateLimiterService } from './services/rate-limiter.service'
 import { TokenBlacklistService, ActiveSessionService } from '@trinity/rbac-nest'
 import { AuditLogService } from './services/audit-log.service'
 
-// ảnh đại diện đi qua kho uploads: đĩa (mặc định, y hệt trước) hoặc Vercel Blob.
+// ảnh đại diện đi qua kho uploads trên đĩa.
 describe('AuthService.uploadAvatar — kho uploads', () => {
   const OLD = { ...process.env }
   const prisma = { user: { findUnique: jest.fn(), update: jest.fn() } }
@@ -62,17 +62,5 @@ describe('AuthService.uploadAvatar — kho uploads', () => {
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
-  })
-
-  it('vercel-blob: PUT lên Blob key uploads/avatars/…, xoá ảnh cũ qua /delete, URL DB không đổi dạng', async () => {
-    process.env.STORAGE_DRIVER = 'vercel-blob'
-    process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_st1_secret'
-    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }))
-    prisma.user.findUnique.mockResolvedValue({ id: 5, avatar_url: '/uploads/avatars/old.jpg' })
-    const r = await service.uploadAvatar(5, file())
-    expect(r.avatar_url).toMatch(/^\/uploads\/avatars\/5_\d+\.jpg$/)
-    const urls = fetchMock.mock.calls.map((c) => String(c[0]))
-    expect(urls).toContain('https://vercel.com/api/blob/delete')
-    expect(urls.some((u) => u.includes('pathname=uploads%2Favatars%2F5_'))).toBe(true)
   })
 })

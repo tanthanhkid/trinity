@@ -11,7 +11,7 @@ import { clientIpStartupProblems, clientIpStartupWarnings, tunnelListenProblem }
 async function bootstrap() {
   const elkLogger = new ElkNestLogger({ service: 'monolith' })
 
-  // Production: không chạy với secret mẫu / quá ngắn (xem `insecureSecrets`). Bản Vercel sinh secret riêng theo README.
+  // Production: không chạy với secret mẫu / quá ngắn (xem `insecureSecrets`).
   if (process.env.NODE_ENV === 'production') {
     const bad = insecureSecrets(process.env)
     if (bad.length) {

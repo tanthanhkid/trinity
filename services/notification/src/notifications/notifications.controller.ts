@@ -48,8 +48,6 @@ export class NotificationsController {
   })
   @ApiResponse({ status: 200, description: 'Tra ve so luong chua doc' })
   getUnreadCount(@Query() query: QueryUnreadCountDto, @CurrentUser() user: AuthUser) {
-    // Serverless: poll badge của FE cũng kích xử lý thông báo hẹn giờ đến hạn (không chặn response; no-op ngoài serverless).
-    this.notificationsService.maybeProcessScheduledInBackground()
     return this.notificationsService.getUnreadCount(user.userId, query.category)
   }
 

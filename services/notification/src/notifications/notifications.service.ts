@@ -1,6 +1,5 @@
-import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common'
-import { PrismaService, currentCompanyId, tenantKey } from '@trinity/prisma'
-import { cronRegistry, isServerless, runInBackground } from '@trinity/rbac-nest'
+import { Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { PrismaService, tenantKey } from '@trinity/prisma'
 import { SendNotificationDto, NotifChannel } from './dto/send-notification.dto'
 import type { UnreadCountCategory } from './dto/query-unread-count.dto'
 import { DeliveryService } from './delivery.service'
@@ -24,54 +23,22 @@ interface PaginatedResult {
   next_cursor: number | null
 }
 
-/** Serverless: giãn tối thiểu giữa 2 lần xử lý thông báo hẹn giờ kiểu "cơ hội" (kích bởi poll badge của FE). */
-export const SCHEDULED_OPPORTUNISTIC_GAP_MS = 60_000
 /** Dòng `processing` quá ngần này thì coi là kẹt. */
 export const STUCK_PROCESSING_MS = 15 * 60 * 1000
 /** Tổng số lần được thử của một dòng hẹn giờ (kể cả lần bị kẹt). */
 export const MAX_SCHEDULED_ATTEMPTS = 3
 
 @Injectable()
-export class NotificationsService implements OnModuleInit {
+export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name)
   // key = `${userId}:${category ?? 'all'}` — cache rieng theo tung nhom
   private readonly unreadCache = new Map<string, { count: number; expiry: number }>()
-  private readonly lastOpportunistic = new Map<number, number>()
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly delivery: DeliveryService,
     private readonly gateway: NotificationsGateway,
   ) {}
-
-  onModuleInit(): void {
-    // Thông báo hẹn giờ/nhắc việc: ở VPS do `NotificationsScheduler` (@Cron 2 phút) gọi; ở serverless không cron
-    // nội bộ nên cron tick (`/internal/cron/tick`) + `maybeProcessScheduledInBackground` làm việc này.
-    cronRegistry.register({
-      name: 'notification.scheduled',
-      budgetMs: 30_000,
-      run: async () => ({ processed: await this.processScheduled() }),
-    })
-  }
-
-  /**
-   * Serverless: FE poll badge mỗi 30s ⇒ tận dụng để xử lý thông báo hẹn giờ đến hạn gần-đúng-giờ (cron của nền tảng chỉ
-   * chạy thưa). `processScheduled` claim nguyên tử nên nhiều instance gọi trùng vẫn không gửi đôi. Không chặn
-   * response (waitUntil/fire-and-forget), giãn ≥ 60s mỗi instance. Ngoài serverless = no-op (đã có @Cron).
-   */
-  maybeProcessScheduledInBackground(): boolean {
-    if (!isServerless()) return false
-    const now = Date.now()
-    // Giãn theo TỪNG công ty: lượt của công ty A không được làm công ty B chờ.
-    const company = currentCompanyId() ?? 0
-    if (now - (this.lastOpportunistic.get(company) ?? 0) < SCHEDULED_OPPORTUNISTIC_GAP_MS) return false
-    this.lastOpportunistic.set(company, now)
-    runInBackground(
-      () => this.processScheduled(),
-      (err) => this.logger.error(`processScheduled (nền) lỗi: ${err instanceof Error ? err.message : String(err)}`),
-    )
-    return true
-  }
 
   async findByUser(
     userId: number,
@@ -116,9 +83,7 @@ export class NotificationsService implements OnModuleInit {
   ): Promise<{ count: number }> {
     // Multi-tenant: user id trùng giữa các công ty ⇒ khoá cache mang công ty (công ty 1 giữ khoá cũ).
     const cacheKey = tenantKey(`${userId}:${category ?? 'all'}`)
-    // Serverless: cache RAM theo instance sẽ cũ tới 5 phút ở instance khác (invalidate chỉ chạm instance ghi)
-    // badge poll 30s phải đúng ⇒ bỏ cache, COUNT theo index recipient_id/is_read đủ rẻ.
-    const cached = isServerless() ? undefined : this.unreadCache.get(cacheKey)
+    const cached = this.unreadCache.get(cacheKey)
     if (cached && cached.expiry > Date.now()) {
       return { count: cached.count }
     }
@@ -137,11 +102,9 @@ export class NotificationsService implements OnModuleInit {
 
     const count = await this.prisma.notificationLog.count({ where })
 
-    if (!isServerless()) {
-      this.unreadCache.set(cacheKey, {
-        count, expiry: Date.now() + 5 * 60 * 1000,
-      })
-    }
+    this.unreadCache.set(cacheKey, {
+      count, expiry: Date.now() + 5 * 60 * 1000,
+    })
     return { count }
   }
 

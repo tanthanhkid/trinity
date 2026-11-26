@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export const NEWSFEED_CATEGORIES = ['announcement', 'training', 'pr'] as const;
 export type NewsfeedCategory = (typeof NEWSFEED_CATEGORIES)[number];
@@ -30,26 +30,4 @@ export class CreatePostMultipartDto {
   @IsString()
   @MaxLength(CONTENT_MAX_LENGTH)
   content?: string;
-
-  @ApiPropertyOptional({
-    description:
-      'Khoá video đã upload thẳng lên Blob, phân tách bằng dấu phẩy — lấy từ POST newsfeed/video-upload-token',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  video_keys?: string;
-}
-
-export class VideoUploadTokenDto {
-  @ApiProperty({ description: 'Tên file gốc (chỉ dùng lấy đuôi .mp4/.webm/.mov)' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(255)
-  file_name!: string;
-
-  @ApiProperty({ description: 'Dung lượng video (byte)' })
-  @IsInt()
-  @Min(1)
-  size!: number;
 }

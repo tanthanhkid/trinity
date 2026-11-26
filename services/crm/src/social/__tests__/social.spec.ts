@@ -182,13 +182,6 @@ describe('SocialPostsService.processOne', () => {
     expect(data.last_error).toBe('down Sẽ tự thử lại sau 1 phút.');
   });
 
-  it('serverless (không có nhịp chạy nền) ⇒ lỗi tạm thời báo lỗi luôn, người dùng bấm Thử lại', async () => {
-    process.env.TRINITY_RUNTIME = 'serverless';
-    const { svc, prisma } = setup(jest.fn().mockRejectedValue(new SocialPublishError('rate', 'Facebook giới hạn tần suất.')));
-    expect(await svc.processOne(11)).toBe('failed');
-    expect(prisma.socialPostTarget.update.mock.calls[0][0].data).toMatchObject({ status: 'failed', last_error: 'Facebook giới hạn tần suất. Bấm Thử lại để đăng lại.' });
-  });
-
   it('lỗi token ⇒ kênh cần liên kết lại, không thử lại', async () => {
     const { svc, prisma, accounts } = setup(jest.fn().mockRejectedValue(new SocialPublishError('token', 'expired')));
     expect(await svc.processOne(11)).toBe('failed');
@@ -230,7 +223,7 @@ describe('SocialProviderRegistry: chỉ còn Facebook Page', () => {
   });
 });
 
-describe('SocialPostsService.kickIfDue (web nhắc đăng bài tới giờ trên bản serverless)', () => {
+describe('SocialPostsService.kickIfDue (web nhắc đăng bài tới giờ)', () => {
   function setup(found: unknown) {
     const prisma = { socialPostTarget: { findFirst: jest.fn().mockResolvedValue(found) } };
     const svc = new SocialPostsService(prisma as never, {} as never, {} as never, {} as never);

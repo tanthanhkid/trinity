@@ -39,47 +39,6 @@ const MAX_TOTAL_VIDEO_BYTES = 40 * 1024 * 1024
 // multipart. Kiểm SAU khi nén ảnh vì chỉ lúc đó mới biết dung lượng thật.
 const MAX_REQUEST_BYTES = 48 * 1024 * 1024
 
-interface VideoUploadGrant {
-  key: string
-  upload_url: string
-  headers: Record<string, string>
-}
-
-/**
- * Vercel chặn body function >4,5MB: video được PUT thẳng lên Blob bằng token ký từ BE.
- * Trả `null` khi môi trường không hỗ trợ (BE 400 → luồng multipart cũ qua BE vẫn dùng).
- */
-async function uploadVideosDirect(
-  files: File[],
-  onProgress: (pct: number) => void,
-): Promise<string[] | null> {
-  const keys: string[] = []
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    let grant: VideoUploadGrant
-    try {
-      const res = await apiClient.post<VideoUploadGrant>('/newsfeed/video-upload-token', {
-        file_name: file.name,
-        size: file.size,
-      })
-      grant = res.data
-    } catch (err) {
-      if (i === 0 && axios.isAxiosError(err) && err.response?.status === 400) return null
-      throw err
-    }
-    // axios trần (KHÔNG apiClient) — không gửi JWT của CRM sang Blob.
-    await axios.put(grant.upload_url, file, {
-      headers: grant.headers,
-      onUploadProgress: (evt) => {
-        if (!evt.total) return
-        onProgress(Math.round(((i + evt.loaded / evt.total) / files.length) * 100))
-      },
-    })
-    keys.push(grant.key)
-  }
-  return keys
-}
-
 const ACCEPT_VIDEO = 'video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov'
 
 // Nén ảnh phía client: resize về 1920px + convert JPEG quality 85 bằng canvas.
@@ -203,11 +162,7 @@ export function PostComposer() {
       if (contentEmpty && images.length === 0 && videos.length === 0) {
         throw new Error('Vui lòng nhập nội dung hoặc đính kèm ảnh/video')
       }
-      setUploadProgress(0)
-      const directKeys = videos.length > 0 ? await uploadVideosDirect(videos, setUploadProgress) : []
-      // `directKeys === null` → môi trường không hỗ trợ upload trực tiếp → gửi video qua multipart.
-      const multipartVideos = directKeys === null ? videos : []
-      const totalVideoBytes = multipartVideos.reduce((sum, v) => sum + v.size, 0)
+      const totalVideoBytes = videos.reduce((sum, v) => sum + v.size, 0)
       if (totalVideoBytes > MAX_TOTAL_VIDEO_BYTES) {
         throw new Error(
           `Tổng dung lượng video vượt quá ${MAX_TOTAL_VIDEO_BYTES / (1024 * 1024)}MB — vui lòng bớt hoặc chia thành nhiều bài`,
@@ -231,10 +186,9 @@ export function PostComposer() {
         )
       }
       // Video gửi nguyên file (không nén phía client)
-      for (const video of multipartVideos) {
+      for (const video of videos) {
         fd.append('videos', video, video.name)
       }
-      if (directKeys && directKeys.length > 0) fd.append('video_keys', directKeys.join(','))
       setUploadProgress(0)
       const res = await apiClient.post<NewsfeedPost>('/newsfeed/upload', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },

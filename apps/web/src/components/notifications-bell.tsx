@@ -143,8 +143,8 @@ async function fetchUnreadCount(category: 'profile' | 'message'): Promise<number
 // Không phát âm báo (tiếng chuông) ở đây.
 // ---------------------------------------------------------------------------
 
-// Poll mode (serverless): KHÔNG tự hỏi định kỳ — vòng hỏi thông báo ở `notification-socket.tsx` (60s, một lượt gọi) làm mới
-// hai con số này khi có thông báo mới; thêm làm mới khi quay lại tab. Gộp từ 3 lượt gọi/30s xuống 1 lượt/60s (CPU Vercel).
+// Poll mode: KHÔNG tự hỏi định kỳ — vòng hỏi thông báo ở `notification-socket.tsx` (60s, một lượt gọi) làm mới
+// hai con số này khi có thông báo mới; thêm làm mới khi quay lại tab. Gộp từ 3 lượt gọi/30s xuống 1 lượt/60s.
 // Bản VPS: socket đẩy realtime, poll 60s chỉ là dự phòng.
 const POLL_MS: number | false = isPollMode() ? false : 60_000
 

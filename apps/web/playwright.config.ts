@@ -1,6 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
 import { FRAMES } from './e2e/helpers/frames'
-import { bypassHeaders } from './e2e/helpers/vercel-bypass'
 
 /**
  * Bộ kiểm tra giao diện tự động Trinity CRM (Playwright). Hướng dẫn: `e2e/README.md`.
@@ -10,7 +9,6 @@ import { bypassHeaders } from './e2e/helpers/vercel-bypass'
  *   của Playwright trên máy dev hỏng); mặc định `chromium` (bundled).
  * - `E2E_ALLOW_WRITE=1`   — bật seed/flows/cleanup (luồng có GHI dữ liệu, tiền tố `E2E-`).
  * - `E2E_WORKERS`         — số worker (mặc định 5; máy yếu thì đặt thấp).
- * - `VERCEL_AUTOMATION_BYPASS_SECRET` — chạy trên URL Vercel có bảo vệ (xem `e2e/helpers/vercel-bypass.ts`).
  */
 const channel = process.env.E2E_BROWSER_CHANNEL
 const useChannel = channel && channel !== 'chromium' ? { channel } : {}
@@ -47,7 +45,6 @@ export default defineConfig({
     trace: 'retain-on-failure',
     ...devices['Desktop Chrome'],
     viewport: { width: 1440, height: 900 },
-    extraHTTPHeaders: bypassHeaders(),
     ...useChannel,
   },
   projects: [

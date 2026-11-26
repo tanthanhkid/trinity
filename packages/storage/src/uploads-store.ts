@@ -2,25 +2,20 @@ import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { LocalDiskStorageDriver } from './local-disk-driver';
 import { resolveSafeKey } from './path-safety';
-import { resolveStorageDriverMode, resolveVercelBlobConfig } from './env';
-import { VercelBlobStorageDriver } from './vercel-blob-driver';
-import type { MinimalLogger, StorageDriver } from './types';
+import { resolveStorageDriverMode } from './env';
+import type { MinimalLogger } from './types';
 
 /**
  * Kho "uploads" công khai-qua-URL cũ (`/uploads/avatars/…`, `/uploads/products/…`).
- * URL lưu trong DB GIỮ NGUYÊN dạng `/uploads/<thư mục>/<tên>`; chỉ nơi lưu đổi:
- *  - Mặc định (local/s3): đĩa `UPLOADS_LOCAL_ROOT` hoặc `<cwd>/uploads` — y hệt
- *    hành vi khi chạy server thường (monolith `useStaticAssets` vẫn phục vụ).
- *  - `STORAGE_DRIVER=vercel-blob`: Blob, key `uploads/<thư mục>/<tên>`; web route
- *    `app/uploads/[...path]` đọc lại từ Blob.
+ * URL lưu trong DB GIỮ NGUYÊN dạng `/uploads/<thư mục>/<tên>`; file nằm trên đĩa `UPLOADS_LOCAL_ROOT`
+ * hoặc `<cwd>/uploads` (monolith `useStaticAssets` phục vụ).
  */
 export const UPLOADS_URL_PREFIX = '/uploads/';
-export const UPLOADS_BLOB_KEY_PREFIX = 'uploads/';
 
 export interface UploadsStore {
   /** `relPath` dạng `avatars/1_123.jpg` (không có `/uploads/` đầu). */
   save(relPath: string, body: Buffer, contentType: string): Promise<void>;
-  /** Best-effort, không throw. Trả `true` nếu chắc chắn đã xoá (local) / đã gửi lệnh (blob). */
+  /** Best-effort, không throw. Trả `true` nếu chắc chắn đã xoá. */
   remove(relPath: string): Promise<boolean>;
 }
 
@@ -43,28 +38,11 @@ class LocalUploadsStore implements UploadsStore {
   }
 }
 
-class DriverUploadsStore implements UploadsStore {
-  constructor(private readonly driver: StorageDriver) {}
-
-  async save(relPath: string, body: Buffer, contentType: string): Promise<void> {
-    await this.driver.upload(UPLOADS_BLOB_KEY_PREFIX + relPath, body, contentType);
-  }
-
-  async remove(relPath: string): Promise<boolean> {
-    await this.driver.delete(UPLOADS_BLOB_KEY_PREFIX + relPath);
-    return true;
-  }
-}
-
-/** `root` chỉ áp dụng nhánh đĩa (vd `EMPLOYEE_AVATAR_DIR` cũ, hoặc test). */
+/** `localRoot`: thư mục gốc (vd `EMPLOYEE_AVATAR_DIR` cũ, hoặc test). */
 export function createUploadsStore(
   opts: { localRoot?: string; logger?: MinimalLogger } = {},
 ): UploadsStore {
-  if (resolveStorageDriverMode() === 'vercel-blob') {
-    return new DriverUploadsStore(
-      new VercelBlobStorageDriver(resolveVercelBlobConfig(), opts.logger),
-    );
-  }
+  resolveStorageDriverMode(); // cấu hình Blob cũ ⇒ ném lỗi kèm hướng dẫn, không ghi nhầm ra đĩa
   const root =
     opts.localRoot ?? process.env.UPLOADS_LOCAL_ROOT?.trim() ?? join(process.cwd(), 'uploads');
   return new LocalUploadsStore(root || join(process.cwd(), 'uploads'));

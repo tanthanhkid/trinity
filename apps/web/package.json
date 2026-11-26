@@ -28,7 +28,6 @@
     "@sentry/browser": "^10.76.2",
     "@tanstack/react-query": "^5.95.2",
     "@tanstack/react-virtual": "^3.13.23",
-    "@trinity/monolith": "workspace:*",
     "@trinity/rbac": "workspace:*",
     "@xyflow/react": "^12.10.2",
     "axios": "^1.7.0",

@@ -80,34 +80,3 @@ describe('OrgFeaturesService', () => {
     expect(JSON.parse(upsert.mock.calls[0][0].update.value)).not.toHaveProperty('google_sheets');
   });
 });
-
-describe('OrgFeaturesService — runtime serverless', () => {
-  const make = (stored: string | null) => {
-    const upsert = jest.fn();
-    const prisma = {
-      setting: {
-        findUnique: jest.fn().mockResolvedValue(stored === null ? null : { value: stored }),
-        upsert,
-      },
-    };
-    return { svc: new OrgFeaturesService(prisma as never), upsert };
-  };
-  const prev = process.env.TRINITY_RUNTIME;
-  afterEach(() => {
-    if (prev === undefined) delete process.env.TRINITY_RUNTIME;
-    else process.env.TRINITY_RUNTIME = prev;
-  });
-
-  it('serverless: không tính năng nào bị khoá, GET không có `locked`', async () => {
-    process.env.TRINITY_RUNTIME = 'serverless';
-    const f = await make(JSON.stringify({ kanban: true })).svc.get();
-    expect(f.kanban).toBe(true);
-    expect(f).not.toHaveProperty('locked');
-  });
-  it('serverless: PUT bật/tắt khoá bất kỳ vẫn được', async () => {
-    process.env.TRINITY_RUNTIME = 'serverless';
-    const { svc } = make(null);
-    const out = await svc.update(plainToInstance(UpdateOrgFeaturesDto, { newsfeed: false }), 1);
-    expect(out.newsfeed).toBe(false);
-  });
-});

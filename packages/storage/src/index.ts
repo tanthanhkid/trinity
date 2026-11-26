@@ -17,28 +17,12 @@ export { S3StorageDriver, type S3StorageDriverConfig } from './s3-driver';
 export {
   resolveStorageDriverMode,
   resolveLocalStorageRoot,
-  resolveBlobAccess,
-  resolveVercelBlobConfig,
+  BLOB_REMOVED_MESSAGE,
   type StorageDriverMode,
 } from './env';
-export {
-  VercelBlobStorageDriver,
-  parseBlobStoreId,
-  VERCEL_BLOB_API_URL,
-  VERCEL_BLOB_API_VERSION,
-  type VercelBlobDriverConfig,
-  type BlobAccess,
-} from './vercel-blob-driver';
-export {
-  generateClientUploadToken,
-  buildClientUploadTarget,
-  type ClientUploadGrantInput,
-  type ClientUploadTarget,
-} from './vercel-blob-client-token';
 export {
   createUploadsStore,
   uploadsRelPathFromUrl,
   UPLOADS_URL_PREFIX,
-  UPLOADS_BLOB_KEY_PREFIX,
   type UploadsStore,
 } from './uploads-store';

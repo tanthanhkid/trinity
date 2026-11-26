@@ -19,8 +19,7 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "#nest-loader": ["./src/lib/nest-loader.ts"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [

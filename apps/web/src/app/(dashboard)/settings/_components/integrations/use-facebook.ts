@@ -457,7 +457,7 @@ export function useBroadcastMutations() {
   }
 }
 
-/** Như `useSocialDueTicker`: bản serverless không có job mỗi phút ⇒ web đang mở nhắc máy chủ chạy bước kịch bản / lượt gửi hàng loạt đã tới giờ. */
+/** Như `useSocialDueTicker`: web đang mở nhắc máy chủ chạy bước kịch bản / lượt gửi hàng loạt đã tới giờ. */
 export function useFacebookDueTicker(enabled: boolean) {
   useQuery({
     queryKey: ["facebook", "tick"],

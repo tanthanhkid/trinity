@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { buildBlobUploadUrl, isBlobUploadsEnabled } from '@/lib/uploads-blob'
-import { isServerlessRuntime } from '@/lib/serverless-runtime'
 
 /**
  * Proxy /uploads/* requests to the monolith — nơi phục vụ tĩnh ảnh đại diện
@@ -20,19 +18,6 @@ export async function GET(
   if (path.some((segment) => segment === '..' || segment === '.' || segment === '' || /[/\\]/.test(segment))) {
     return new NextResponse(null, { status: 400 })
   }
-
-  // STORAGE_DRIVER=vercel-blob → ảnh nằm ở Blob (không có đĩa bền trên Vercel).
-  // Blob không có (404) → rơi xuống monolith để dữ liệu cũ trên đĩa vẫn đọc được.
-  if (isBlobUploadsEnabled()) {
-    const blobUrl = buildBlobUploadUrl(path)
-    if (blobUrl) {
-      const blobRes = await fetchBlob(blobUrl)
-      if (blobRes) return blobRes
-    }
-  }
-
-  // serverless không có monolith / đĩa bền để rơi xuống → Blob không có file = 404 thật (không phải 502).
-  if (isServerlessRuntime()) return new NextResponse(null, { status: 404 })
 
   const filePath = `/uploads/${path.map(encodeURIComponent).join('/')}`
   const url = `${AUTH_SERVICE_URL}${filePath}`
@@ -62,31 +47,5 @@ export async function GET(
     })
   } catch {
     return new NextResponse(null, { status: 502 })
-  }
-}
-
-const UPLOAD_HEADERS = {
-  // Ảnh người dùng tải lên: cấm trình duyệt đoán lại kiểu (chống polyglot → HTML/JS).
-  'X-Content-Type-Options': 'nosniff',
-  'Cache-Control': 'public, max-age=86400, immutable',
-}
-
-/** `null` khi Blob không có file / lỗi tạm → caller thử nguồn kế tiếp. */
-async function fetchBlob(url: string): Promise<NextResponse | null> {
-  try {
-    const res = await fetch(url, {
-      headers: { authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN?.trim() ?? ''}` },
-      signal: AbortSignal.timeout(10_000),
-    })
-    if (!res.ok || !res.body) return null
-    return new NextResponse(res.body, {
-      status: 200,
-      headers: {
-        'Content-Type': res.headers.get('content-type') ?? 'application/octet-stream',
-        ...UPLOAD_HEADERS,
-      },
-    })
-  } catch {
-    return null
   }
 }

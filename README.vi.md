@@ -20,7 +20,7 @@ Tác giả: **Trần Tấn Thành** · [X @trntnthnh](https://x.com/trntnthnh) �
 
 <p align="center"><img src="docs/demo/trinity-demo.gif" width="400" alt="ChatGPT dựng một CRM nhỏ trong Trinity: bạn mô tả, bảng và dữ liệu hiện ra, trang chủ ghi lại AI đã làm gì hôm nay"></p>
 
-<p align="center"><sub>Quay thật: ChatGPT có plugin Trinity, chạy trên một bản mới cài bằng nút Deploy Vercel bên dưới. AI làm việc bằng quyền của bạn nên các thay đổi hiện ra ngay.</sub></p>
+<p align="center"><sub>Quay thật: ChatGPT có plugin Trinity, chạy trên một bản mới cài. AI làm việc bằng quyền của bạn nên các thay đổi hiện ra ngay.</sub></p>
 
 ## Vì sao là Trinity
 
@@ -60,7 +60,7 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 
 ### Đã thử tới đâu
 
-- **Thử trọn vòng trên bản cài mới** (nút Vercel, cơ sở dữ liệu Postgres mới): đăng nhập lần đầu, nối trợ lý AI, dựng bảng bằng chat, nhập dữ liệu, các tool AI.
+- **Thử trọn vòng trên bản cài mới** (cơ sở dữ liệu Postgres mới; thử trên đường Vercel cũ, chưa thử lại với Docker Compose): đăng nhập lần đầu, nối trợ lý AI, dựng bảng bằng chat, nhập dữ liệu, các tool AI.
 - **Thử với tài khoản thật**: đăng ngay và hẹn giờ lên Fanpage, tin nhắn Messenger, luật bình luận Fanpage (tự trả lời, ẩn số điện thoại), dòng thời gian Tương tác, tin Zalo OA gửi đến.
 - **Mới thử với dữ liệu mẫu**: hàng đợi đăng bài, bài lặp lại, nhập CSV, dashboard và báo cáo, Tổng quan kiểu AI, bật/tắt tính năng, POS, nhân sự, chấm công, lương, trang bán hàng (cửa hàng mẫu).
 - Các mảng này có test tự động; connector ở bảng dưới.
@@ -97,69 +97,7 @@ Chi tiết từng connector: [docs/integrations/status.md](docs/integrations/sta
 
 ## Triển khai
 
-Chọn một trong hai cách, kết quả như nhau.
-
-### Cách 1: Vercel (serverless, không phải lo máy chủ)
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Ftanthanhkid%2Ftrinity&root-directory=apps/web&repository-name=trinity&env=JWT_SECRET,SERVICE_SECRET,CRON_SECRET,SEED_ADMIN_EMAIL,SEED_ADMIN_PASSWORD,INTEGRATIONS_MCP_ENABLED,INTEGRATIONS_SECRET_KEY&envDescription=Secrets%3A%20openssl%20rand%20-hex%2032.%20INTEGRATIONS_MCP_ENABLED%3Dtrue%20%28AI%20assistants%29.%20INTEGRATIONS_SECRET_KEY%3A%20openssl%20rand%20-base64%2032.%20Then%20the%20first%20admin%20account.%20See%20the%20README.&envLink=https%3A%2F%2Fgithub.com%2Ftanthanhkid%2Ftrinity%23deploy&products=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%5D)
-
-Nút này sao chép repo vào GitHub của bạn, tạo project Vercel với **Root Directory `apps/web`**, hỏi các biến môi trường bên dưới và đề nghị thêm cơ sở dữ liệu **Neon Postgres**. Repo được tạo với tên `trinity`; nếu tài khoản của bạn đã có repo trùng tên, hãy đổi tên ở bước đầu của form.
-
-Trước khi điền form:
-
-1. **Bấm "Add Neon" trước.** Các ô biến môi trường bị khoá cho tới khi thêm xong cơ sở dữ liệu.
-2. **Tắt Neon Auth** khi Neon đề nghị. Trinity có đăng nhập riêng, không dùng; để bật chỉ sinh thêm các biến `NEON_AUTH_*` không dùng tới.
-3. **Chọn region gần người dùng** cho cả cơ sở dữ liệu Neon lẫn Vercel function (Project Settings → Functions → Function Region), ví dụ Singapore (`sin1`) cho Việt Nam. Mặc định là Washington (`iad1`), khiến lần gọi đầu từ Việt Nam mất khoảng 5 giây. Đặt cơ sở dữ liệu và function cùng một region.
-4. Sinh khoá trên máy bạn bằng `openssl rand -hex 32` (và `openssl rand -base64 32` cho `INTEGRATIONS_SECRET_KEY`), đặt `INTEGRATIONS_MCP_ENABLED` là `true`. Hai dòng này chỉ cần khi bạn muốn nối trợ lý AI (không bắt buộc để dựng hệ thống). Lỡ quên thì đặt ở Project Settings → Environment Variables rồi **deploy lại**.
-
-Mỗi lần build, Vercel cài workspace, build, chạy migration và tạo tài khoản admin đầu tiên (đều idempotent, deploy lại không sao). Không phải chạy thêm gì.
-
-Biến môi trường (Project Settings → Environment Variables, hoặc form của nút):
-
-| Biến | Bắt buộc | Lấy ở đâu |
-|---|---|---|
-| `DATABASE_URL` | có | Tích hợp Neon tự thêm (Vercel → Storage → Neon). Postgres 14+ nào cũng được. Nếu nhà cung cấp có thêm URL không qua pooler, đặt vào `DATABASE_URL_UNPOOLED`: dùng cho migration |
-| `JWT_SECRET` | có | `openssl rand -hex 32` |
-| `SERVICE_SECRET` | có | `openssl rand -hex 32` |
-| `CRON_SECRET` | có | `openssl rand -hex 32` (bảo vệ endpoint việc nền hằng ngày mà Vercel Cron gọi) |
-| `SEED_ADMIN_EMAIL` | nên đặt | Email admin đầu tiên (mặc định `admin@example.com`) |
-| `SEED_ADMIN_PASSWORD` | nên đặt | Mật khẩu admin đầu tiên. Để trống thì hệ thống sinh ngẫu nhiên và **in một lần trong log build** (Deployments → bản build → tìm "Generated password"). Không bao giờ có mật khẩu mặc định cố định. Log build ai trong project cũng xem được, nên **hãy tự đặt `SEED_ADMIN_PASSWORD`** và đổi sau lần đăng nhập đầu |
-| `SEED_DEMO_DATA` | không | `true` để thêm vài khách mẫu (mặc định `false`; muốn dữ liệu demo thì đặt `SEED_DEMO_DATA=true`) |
-| `INTEGRATIONS_MCP_ENABLED` | có (nút sẽ hỏi) | `true` bật MCP server có sẵn (URL MCP: `https://<tên-miền>/api/v1/mcp`) |
-| `INTEGRATIONS_PUBLIC_BASE_URL` | cho tên miền riêng | Trên Vercel tự lấy hostname production do nền tảng cấp (`VERCEL_PROJECT_PRODUCTION_URL`, không bao giờ lấy từ header Host), nên chỉ đặt khi dùng tên miền riêng; **ở mọi nơi khác là bắt buộc** nếu bật MCP/OAuth, ví dụ `https://crm.example.com` |
-| `INTEGRATIONS_SECRET_KEY` | có (nút sẽ hỏi) | `openssl rand -base64 32` (phải là base64 của 32 byte; là khoá riêng, không suy ra từ `JWT_SECRET`). Giữ cẩn thận: mất khoá là không đọc lại được secret webhook và token OAuth đã lưu |
-
-Triển khai bằng dòng lệnh thay cho nút (clone mới là đủ). Chạy mọi lệnh ở **thư mục gốc repo** (Root Directory của project là `apps/web`, nhưng CLI phải tải lên cả monorepo):
-
-```bash
-git clone https://github.com/tanthanhkid/trinity.git && cd trinity
-vercel link --yes --project my-trinity                     # tạo project
-vercel api -X PATCH /v9/projects/my-trinity -F rootDirectory=apps/web   # hoặc: Settings > General > Root Directory
-vercel api -X PATCH /v9/projects/my-trinity -F serverlessFunctionRegion=sin1   # chạy gần người dùng (mặc định iad1 = Washington)
-vercel integration add neon                                # hoặc thêm Postgres bất kỳ rồi tự đặt DATABASE_URL
-openssl rand -hex 32 | vercel env add JWT_SECRET production --sensitive
-openssl rand -hex 32 | vercel env add SERVICE_SECRET production --sensitive
-openssl rand -hex 32 | vercel env add CRON_SECRET production --sensitive
-printf '%s' you@example.com | vercel env add SEED_ADMIN_EMAIL production
-printf '%s' 'mat-khau-dai' | vercel env add SEED_ADMIN_PASSWORD production --sensitive
-printf true | vercel env add INTEGRATIONS_MCP_ENABLED production       # để nối trợ lý AI
-openssl rand -base64 32 | tr -d '\n' | vercel env add INTEGRATIONS_SECRET_KEY production --sensitive
-vercel deploy --prod
-```
-
-Đã thử trên tài khoản Vercel mới (15/10/2026): khoảng 4 phút từ lúc clone tới lúc đăng nhập, phần lớn là lần build đầu.
-
-- `vercel link` ghi file `.env.local` (token Vercel ngắn hạn) và thêm nó vào `.gitignore`; `vercel integration add neon` còn ghi file skill cho agent (`.agents/`, `.claude/`, `skills-lock.json`). Các file này đều được git bỏ qua, xoá đi cũng được.
-- Tạo Neon bằng dòng lệnh thì cơ sở dữ liệu nằm ở vùng mặc định và có bật Neon Auth (thêm biến `NEON_AUTH_*` không dùng tới, vô hại). Muốn chọn vùng cho cơ sở dữ liệu thì thêm Neon trong bảng điều khiển Vercel (Storage).
-- Hai dòng `INTEGRATIONS_*` chỉ cần khi bạn muốn nối trợ lý AI; không có chúng thì wizard bắt đầu vẫn dựng được hệ thống. Lỡ quên thì thêm vào rồi deploy lại.
-
-Rồi mở URL production và đăng nhập bằng tài khoản admin ở trên. Lưu ý:
-
-- Admin đầu tiên chỉ được tạo khi chưa tồn tại; deploy lại không bao giờ ghi đè mật khẩu.
-- Workspace mới cố ý bắt đầu trống: lần đăng nhập đầu tiên đi qua wizard bắt đầu (loại doanh nghiệp, phân hệ, *Dựng hệ thống*, khách đầu tiên) rồi mới vào app; người có tài khoản tạo sau khi hệ thống đã dựng vào thẳng app. Sau khi dựng, bộ cơ bản bật sẵn, phần còn lại là công tắc ở Cài đặt → *Tính năng*; ví dụ Zalo OA chưa bật thì trả 403. Cài đặt chia nhóm *Tính năng & Kết nối*, *Khách hàng*, *Công ty & Nhân sự*, *Cá nhân*; mục nào thuộc tính năng đang tắt thì ẩn.
-- Trên Vercel, API chạy trong chính app Next.js (một hàm, giới hạn 60 giây). File tải lên cần object storage: đặt `STORAGE_DRIVER=vercel-blob` với token Vercel Blob, hoặc driver tương thích S3 (xem `.env.example`). Thông báo dùng polling thay cho WebSocket.
-
-### Cách 2: Tự cài bằng Docker Compose
+Trinity chạy trên máy chủ của bạn (hoặc laptop) bằng Docker Compose. Cấu hình tối thiểu được hỗ trợ là máy 2 GB RAM.
 
 Cần Docker có Compose. Lần build đầu trên laptop mất khoảng 5 phút.
 
@@ -172,6 +110,11 @@ cd trinity
 `install.sh` tạo `.env` từ `.env.example` với các secret và mật khẩu admin ngẫu nhiên (không bao giờ ghi đè `.env` có sẵn nên chạy lại an toàn), in thông tin admin một lần, rồi chạy `docker compose up --build -d`. Mở http://localhost:3000 và đăng nhập bằng tài khoản admin vừa in. Mặc định không nạp dữ liệu demo; muốn dữ liệu demo thì đặt `SEED_DEMO_DATA=true` trong `.env` (hoặc chạy `SEED_DEMO_DATA=true ./install.sh`) trước lần khởi động đầu.
 
 Cách thủ công: `cp .env.example .env`, thay mọi giá trị `change-me-*` (`openssl rand -hex 32`), rồi `docker compose up --build -d`. Nếu `SEED_ADMIN_PASSWORD` để trống, mật khẩu sinh ra được in ở `docker compose logs migrate`.
+
+Lưu ý:
+
+- Admin đầu tiên chỉ được tạo khi chưa tồn tại; khởi động lại hay nâng cấp không bao giờ ghi đè mật khẩu.
+- Workspace mới cố ý bắt đầu trống: lần đăng nhập đầu tiên đi qua wizard bắt đầu (loại doanh nghiệp, phân hệ, *Dựng hệ thống*, khách đầu tiên) rồi mới vào app; người có tài khoản tạo sau khi hệ thống đã dựng vào thẳng app. Sau khi dựng, bộ cơ bản bật sẵn, phần còn lại là công tắc ở Cài đặt → *Tính năng*; ví dụ Zalo OA chưa bật thì trả 403. Cài đặt chia nhóm *Tính năng & Kết nối*, *Khách hàng*, *Công ty & Nhân sự*, *Cá nhân*; mục nào thuộc tính năng đang tắt thì ẩn.
 
 Mỗi bản phát hành gắn tag đẩy sẵn image lên GitHub Container Registry (`ghcr.io/tanthanhkid/trinity-api`, `ghcr.io/tanthanhkid/trinity-web`). Chi tiết ở [docs/deployment.md](docs/deployment.md).
 

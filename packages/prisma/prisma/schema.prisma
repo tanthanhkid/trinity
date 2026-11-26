@@ -1,7 +1,9 @@
 generator client {
   provider      = "prisma-client-js"
-  // "native" = máy dev/server; "rhel-openssl-3.0.x" = Vercel (Amazon Linux 2023, Node 20+).
-  binaryTargets = ["native", "rhel-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
+  // "native" = máy build (dev/CI/Docker). Các target còn lại cho bản build trên máy trạm rồi chép lên máy chủ
+  // (docs/runbooks/fast-delivery.md): "debian-openssl-3.0.x" = Debian/Ubuntu x64, "rhel-openssl-3.0.x" = RHEL/Amazon Linux x64,
+  // "linux-arm64-openssl-3.0.x" = máy chủ ARM. Bỏ target nào thì máy chủ dùng target đó hỏng engine Prisma.
+  binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
 }
 
 datasource db {

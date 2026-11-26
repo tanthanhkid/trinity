@@ -2,13 +2,9 @@
   "name": "@trinity/monolith",
   "version": "0.1.0",
   "private": true,
-  "main": "dist/serverless.js",
-  "exports": {
-    "./serverless": "./dist/serverless.js"
-  },
   "description": "Gộp các service NestJS (auth/crm/payroll/notification) vào 1 process",
   "scripts": {
-    "build": "tsc -p tsconfig.json && node scripts/write-serverless-shim.cjs",
+    "build": "tsc -p tsconfig.json",
     "start": "node dist/apps/monolith/src/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:rbac": "jest --config test/rbac/jest-e2e.json --runInBand --forceExit",

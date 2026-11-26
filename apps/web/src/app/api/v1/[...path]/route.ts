@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { isServerlessRuntime } from '@/lib/serverless-runtime'
-import { handleWithNest } from '@/lib/nest-bridge'
 import { CLIENT_IP_HEADER, clientIpFromEdge, isClientIpHeader, signClientIpHeader } from '@/lib/client-ip-headers'
-
-// Vercel serverless: Nest chạy TRONG app, KHÔNG proxy ra backend nào (phải khai ở đây: route handler
-// export `maxDuration` là trần của Vercel Hobby; chế độ Node server tự chạy bỏ qua giá trị này).
-export const maxDuration = 60
 
 // Runtime-only: NEXT_PUBLIC_API_URL được Next inline khi build (vd "/api/v1"),
 // sau khi strip "/api/v1" còn lại "" nên KHÔNG dùng làm fallback.
@@ -19,7 +13,7 @@ const BACKEND_URL = RAW_BACKEND_URL && RAW_BACKEND_URL.length > 0
   ? RAW_BACKEND_URL
   : 'http://localhost'
 
-if (!RAW_BACKEND_URL && process.env.NODE_ENV !== 'test' && !isServerlessRuntime()) {
+if (!RAW_BACKEND_URL && process.env.NODE_ENV !== 'test') {
   // eslint-disable-next-line no-console
   console.warn(
     '[API Proxy] ⚠ BACKEND_URL chưa set trong env; fallback http://localhost. ' +
@@ -110,18 +104,6 @@ function getBackendUrl(path: string): string {
 async function proxy(req: NextRequest) {
   // IP khách do tệp nạp trước xác định — đọc NGAY (trước khi đệm body), ký lại ngay trước khi gửi sang API.
   const clientIp = clientIpFromEdge(req.headers)
-  if (isServerlessRuntime()) {
-    try {
-      return await handleWithNest(req, clientIp)
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(`[Nest serverless] ${req.method} ${req.nextUrl.pathname} lỗi:`, err)
-      return NextResponse.json(
-        { error: 'Service unavailable', message: 'Dịch vụ chưa sẵn sàng, vui lòng thử lại.' },
-        { status: 503 },
-      )
-    }
-  }
   const path = req.nextUrl.pathname + req.nextUrl.search
   const backendBase = getBackendUrl(path)
   const url = `${backendBase}${path}`

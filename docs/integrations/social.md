@@ -1,7 +1,7 @@
 # Social posting (Đăng đa kênh)
 
 Module `services/crm/src/social/`. Write once, publish now (or schedule) to your linked Facebook Pages (Fanpage), track each channel's status and retry failures.
-Posts can be scheduled up to 90 days ahead (composer, calendar and the AI assistant's tools). A scheduled post can be edited (text, time, channels) until one minute before it goes out — *Bài đã đăng › Sửa* or `PATCH /social/posts/:id` — and dragged to another day on the calendar (`POST /social/posts/:id/reschedule`, keeps the time of day). On Vercel the daily cron is not enough for exact times: a due post goes out when a user with the `social.post` permission has the app open in a foreground tab (the page calls `POST /social/tick` every minute), otherwise at the next daily job. A self-hosted server runs the job every minute.
+Posts can be scheduled up to 90 days ahead (composer, calendar and the AI assistant's tools). A scheduled post can be edited (text, time, channels) until one minute before it goes out — *Bài đã đăng › Sửa* or `PATCH /social/posts/:id` — and dragged to another day on the calendar (`POST /social/posts/:id/reschedule`, keeps the time of day). The server runs the publishing job every minute.
 Organisation feature `social_posting` (`@RequireOrgFeature`). Screen: `/social` (tabs Soạn bài / Nháp / Lịch / Bài đã đăng / Thống kê / Thư viện / Kênh; the composer's right column switches between *Kênh* and *Xem trước*).
 
 | Network | Status |
@@ -21,7 +21,7 @@ Linked channels belong to the company: everyone with `social.post` can post to e
    Page videos are published with `pages_manage_posts` (no `publish_video`).
 2. `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` (shared with the Facebook inbox integration).
 3. Valid OAuth redirect URI in the Meta app: `https://<CRM domain>/api/v1/social/oauth/callback/facebook`.
-4. `INTEGRATIONS_PUBLIC_BASE_URL` (on Vercel it falls back to the production URL) and `INTEGRATIONS_SECRET_KEY` (tokens are stored AES-256-GCM encrypted).
+4. `INTEGRATIONS_PUBLIC_BASE_URL` and `INTEGRATIONS_SECRET_KEY` (tokens are stored AES-256-GCM encrypted).
 5. Public policy pages for app review: `https://<CRM domain>/privacy` (data deletion section `#xoa-du-lieu`) and `/terms`; contact email from `LEGAL_CONTACT_EMAIL`.
 6. In Development mode the app can post to Pages of people who have a role in the app. Other companies need App Review + Business Verification.
 
@@ -53,18 +53,17 @@ permissions as well, and every Page where `pages_manage_posts` was granted and y
   `FACEBOOK_GRAPH_BASE_URL` points them, video uploads included, at another base URL, for tests against a local fake server
   (`http://` only for loopback hosts). A bad value fails the call as a permanent Graph error (no retry).
 - Facebook: text only, 1 photo, up to 10 photos (album), or exactly 1 video (no mixing video with photos).
-- Vercel: the browser uploads straight to Blob (`POST /social/media/upload-token`, then `POST /social/media/register`); elsewhere `POST /social/media` (multipart `file`).
+- Upload: `POST /social/media` (multipart `file`).
 - Media library (tab "Thư viện"): every uploaded file is recorded in `social_media_assets` and shared inside the company, so it can be reused in later posts
   ("Chọn từ thư viện" in the composer). `GET /social/media` lists (filter `type`, `q`, cursor), `GET /social/media/:id/file` streams a file,
   `POST /social/media/:id/hide` hides it from the library (the file stays, posts that use it are unchanged). Migration `0004_social_media_library`.
 
 ## Publishing
 - "Đăng ngay" (and `create_social_post`) publishes in the background right after the request.
-- Job `social.publish` claims due targets with `FOR UPDATE SKIP LOCKED`. On a VPS, temporary errors and rate limits retry after 1, 5, 15, 60 minutes, then fail.
-  On Vercel there is no frequent background run, so they fail at once and the user presses Thử lại (or calls `retry_social_post_target`).
+- Job `social.publish` claims due targets with `FOR UPDATE SKIP LOCKED`. Temporary errors and rate limits retry after 1, 5, 15, 60 minutes, then fail.
   Access tokens that expire within 5 minutes are refreshed first and saved. A token error marks the channel `reauth` (relink it under Kênh). Other errors fail at once; the user fixes the cause and presses Thử lại.
 - A target stuck in "publishing" past its 15-minute lease is marked failed, never re-posted automatically, to avoid duplicate posts.
-- VPS: the job runs every minute in-process. Vercel: posting runs right after the request; the daily Vercel Cron tick only sweeps leftovers.
+- The job runs every minute in-process.
 - Facebook Page videos are uploaded in a session (`upload_phase` start → transfer in the chunks Facebook asks for → finish), each chunk
   its own short request. A single request carrying a video of tens of MB was often answered with HTTP 408 on slow uplinks; an HTTP 408 is
   now a temporary error and is retried.

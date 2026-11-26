@@ -1,6 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '@trinity/prisma';
-import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { oauthEnabled } from './oauth-config';
 import { tenantTimerTick } from '../../common/helpers/tenant-timer';
 
@@ -23,12 +22,6 @@ export class OauthPurgeService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit(): void {
-    cronRegistry.register({
-      name: 'integrations.oauth-purge',
-      budgetMs: 20_000,
-      run: async () => (oauthEnabled() ? this.runOnce() : { skipped: 'flag-off' }),
-    });
-    if (isServerless()) return;
     if (!oauthEnabled()) return;
     this.first = setTimeout(() => void this.timerTick(), FIRST_RUN_DELAY_MS);
     this.interval = setInterval(() => void this.timerTick(), SIX_HOURS_MS);

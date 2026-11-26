@@ -49,7 +49,7 @@ const avatarUrlPrefix = (): string => `/uploads/${avatarSubdir()}`;
 const AVATAR_DIR =
   process.env.EMPLOYEE_AVATAR_DIR ??
   path.resolve(process.cwd(), '..', 'auth', 'uploads', 'avatars');
-// Nhánh đĩa giữ đúng thư mục cũ (`EMPLOYEE_AVATAR_DIR`); `STORAGE_DRIVER=vercel-blob` → Blob.
+// Giữ đúng thư mục cũ (`EMPLOYEE_AVATAR_DIR`).
 const avatarStore = (): UploadsStore => createUploadsStore({ localRoot: path.dirname(AVATAR_DIR) });
 const AVATAR_DATA_URL_RE = /^data:image\/(jpeg|jpg|png|webp);base64,/;
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;

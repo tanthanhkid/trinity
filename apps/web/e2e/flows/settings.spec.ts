@@ -4,7 +4,6 @@ import { Api, BASE_URL } from '../helpers/api'
 import { prefix, requireWrite } from '../helpers/data'
 import { record, recordSoft, seeded } from '../helpers/manifest'
 import { throwawayPassword } from '../seed/lib'
-import { bypassHeaders } from '../helpers/vercel-bypass'
 
 /**
  * CÀI ĐẶT — (1) vai trò hẹp → user đăng nhập thấy/được phép đúng (API + UI) và quyền đổi NGAY khi sửa vai trò;
@@ -28,7 +27,7 @@ test('vai trò hẹp: user chỉ thấy theo quyền; sửa quyền có hiệu l
   test.skip(!narrow, 'Chưa seed user hẹp')
   const email = String(narrow.meta?.email)
   const roleId = Number(narrow.meta?.role_id)
-  const anon = await pwRequest.newContext({ extraHTTPHeaders: bypassHeaders() })
+  const anon = await pwRequest.newContext()
   const login = await anon.post(`${BASE_URL}/api/v1/auth/login`, { data: { email, password: throwawayPassword(email) } })
   expect(login.ok(), `đăng nhập user hẹp: HTTP ${login.status()}`).toBe(true)
   const token = ((await login.json()) as { access_token: string }).access_token

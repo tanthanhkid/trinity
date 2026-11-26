@@ -20,8 +20,8 @@ describe("nextTickMs — hẹn lượt nhắc máy chủ theo việc chờ sớm
   })
 })
 
-describe("inboxPollMs — giãn nhịp hộp thư trên bản serverless", () => {
-  it("VPS giữ nhịp cũ; Vercel: danh sách 60 giây, hội thoại đang mở 20 giây", () => {
+describe("inboxPollMs — giãn nhịp hộp thư ở chế độ poll", () => {
+  it("Socket giữ nhịp cũ; poll: danh sách 60 giây, hội thoại đang mở 20 giây", () => {
     expect(inboxPollMs("list", 15_000)).toBe(15_000)
     vi.stubEnv("NEXT_PUBLIC_REALTIME_MODE", "poll")
     expect(inboxPollMs("list", 15_000)).toBe(60_000)

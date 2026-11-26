@@ -4,17 +4,6 @@ Trinity ships as two container images built from the root `Dockerfile` (targets 
 `docker-compose.yml`. The same layout works on a single VM with Docker Compose, and the images can be used from any
 orchestrator.
 
-## Vercel (serverless)
-
-See the **Deploy** section of the [README](../README.md#deploy) for the button, the environment variables and the CLI steps.
-How it works: `apps/web/vercel.json` runs `pnpm build:vercel` from the repository root, which (1) generates the Prisma
-client, (2) runs `scripts/vercel/db-setup.sh` (`prisma migrate deploy` + idempotent seed; skipped on preview deployments
-unless `DB_SETUP_ON_PREVIEW=1`, or everywhere with `SKIP_DB_SETUP=1`; `SKIP_DB_SEED=1` keeps the migrations and skips only the seed), (3) builds the workspace packages and the monolith,
-(4) packs the monolith as a real package for the function (`scripts/vercel/prepare-nest-package.sh`) and (5) builds
-the web app with `TRINITY_RUNTIME=serverless`, so `/api/v1/*` is served by the NestJS app inside the same function.
-The first admin comes from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`; without a password one is generated and printed once
-in the build log, which every project member can read, so set `SEED_ADMIN_PASSWORD` yourself.
-
 ## Single VM with Docker Compose
 
 1. Provision a Linux VM (2 vCPU / 4 GB is comfortable), install Docker + Compose.
@@ -61,8 +50,6 @@ trusted unless `TRUSTED_PROXY` says the proxy in front of the edge writes it.
   `X-Real-IP`, `CF-Connecting-IP`, `Forwarded` or `True-Client-IP` from the browser.
 - **The API** (`resolveClientIp`, `packages/rbac-nest/src/client-ip.ts`) trusts the signed header, and applies its own
   `TRUSTED_PROXY` only to connections that reach it directly (no signed header).
-- **Vercel / serverless is not supported for office-IP checks**: there is no preload file, so every request is
-  "untrusted" (see below) — login Wi-Fi and attendance IP checks never compare addresses there.
 
 `TRUSTED_PROXY` applies to the **TCP peer** of the edge:
 
@@ -116,6 +103,18 @@ accepts either, like `@Internal` routes). It is valid for ±60 seconds and check
 upload does not expire it. A request carrying this header with a wrong or expired signature gets **400** (a mismatch
 of secrets between web and API shows up as 400 on every request and a log line saying so). A bare `untrusted` without
 a signature is accepted: it only lowers trust.
+
+## Moving files off Blob storage
+
+The Vercel deployment path and its Blob storage driver were removed. An instance that still has
+`STORAGE_DRIVER=vercel-blob` (or only `BLOB_READ_WRITE_TOKEN` set) refuses to start instead of silently writing to
+local disk. To move:
+
+1. Download every object of the Blob store, keeping its key.
+2. Keys that start with `uploads/` (avatars, product images) go to `<UPLOADS_LOCAL_ROOT>/<rest of the key>`
+   (default `<cwd>/uploads`); every other key (documents, newsfeed and social media, per company under `c<id>/`) goes to
+   `<STORAGE_LOCAL_ROOT>/<key>`. Alternatively copy all keys unchanged into an S3 bucket and use `STORAGE_DRIVER=s3`.
+3. Set `STORAGE_DRIVER=local` (or `s3`), remove `BLOB_READ_WRITE_TOKEN` and `BLOB_ACCESS`, then start the API.
 
 ## Updating
 
@@ -195,7 +194,7 @@ API returns a config).
 | `SENTRY_DSN_WEB` | Sentry DSN for the browser, served to the web app by `GET /api/v1/telemetry/config`. |
 | `SENTRY_ENVIRONMENT` | Environment label. Defaults to `NODE_ENV`. |
 | `SENTRY_TRACES_SAMPLE_RATE` | Trace sampling, 0 to 1. Default `0.1`. |
-| `TRINITY_RELEASE` | Release id. Falls back to `VERCEL_GIT_COMMIT_SHA` (first 7 chars), then to a `.release` file in `APP_ROOT` (or the working directory). |
+| `TRINITY_RELEASE` | Release id. Falls back to a `.release` file in `APP_ROOT` (or the working directory). |
 | `POSTHOG_KEY` | PostHog project key. Enables server events and browser page views. |
 | `POSTHOG_HOST` | PostHog ingestion host. Default `https://us.i.posthog.com`. |
 | `POSTHOG_REPLAY` | Set to exactly `true` to enable session replay. Default off. |

@@ -1,8 +1,5 @@
 import {
   ORG_FEATURE_KEYS,
-  applyFeatureLocks,
-  isServerlessRuntime,
-  lockedFeatureReasons,
   resolveOrgFeatures, PLANS, PLAN_KEYS, CHANNEL_LIMIT_KEYS, channelLimitsFor, PLAN_GATED_FEATURES, DEFAULT_PLAN, DEFAULT_SIGNUP_PLAN, resolvePlan, resolvePlanForCompany, applyPlanToFeatures, DEFAULT_OFF_FEATURES } from './org-features'
 import { PERMISSIONS } from './catalog'
 
@@ -26,12 +23,6 @@ describe('org-features', () => {
   })
   it('quyền settings.features có trong danh mục', () => {
     expect(PERMISSIONS['settings.features'].group).toBe('Hệ thống')
-  })
-  it('isServerlessRuntime chuẩn hoá giống web/monolith/rbac-nest; không đặt = server thường', () => {
-    expect(isServerlessRuntime({})).toBe(false)
-    expect(isServerlessRuntime({ TRINITY_RUNTIME: 'pm2' })).toBe(false)
-    expect(isServerlessRuntime({ TRINITY_RUNTIME: 'serverless' })).toBe(true)
-    expect(isServerlessRuntime({ TRINITY_RUNTIME: ' Serverless\n' })).toBe(true)
   })
 })
 

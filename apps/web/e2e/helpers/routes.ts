@@ -88,11 +88,10 @@ export function featureOn(features: OrgFeatures, key: OrgFeatureKey | null): boo
 }
 
 /**
- * Câu chữ màn "Tính năng đang tắt" — nguồn: components/feature-route-gate.tsx. Bản serverless khoá cố định
- * một số tính năng và hiện "Tính năng … không khả dụng trên bản này" — coi như cùng trạng thái "tắt".
+ * Câu chữ màn "Tính năng đang tắt" — nguồn: components/feature-route-gate.tsx.
  */
 export function featureOffText(key: OrgFeatureKey): RegExp {
   // Nhãn có thể chứa ký tự regex, vd "Bán hàng (POS)" — phải escape.
   const label = ORG_FEATURES[key].label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return new RegExp(`Tính năng (“${label}” đang tắt|${label} không khả dụng trên bản này)`)
+  return new RegExp(`Tính năng “${label}” đang tắt`)
 }

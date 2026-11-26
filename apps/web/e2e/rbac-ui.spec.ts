@@ -170,7 +170,7 @@ for (const role of ROLES) {
         await page.goto(r.path, { waitUntil: 'domcontentloaded' })
         // Tính năng tắt/khoá → cổng tính năng chặn TRƯỚC cổng quyền: màn "đang tắt" cũng là "không vào được".
         const feature = featureOfRoute(r.path)
-        // Chờ ĐÚNG màn chặn (không dừng ở h1 của trang — quyền tải sau h1, cold start serverless vài giây).
+        // Chờ ĐÚNG màn chặn (không dừng ở h1 của trang — quyền tải sau h1).
         const blocked = feature && !featureOn(features, feature) ? page.getByText(FORBIDDEN_TEXT).or(page.getByText(featureOffText(feature))) : page.getByText(FORBIDDEN_TEXT)
         await blocked.first().waitFor({ timeout: 15_000 }).catch(() => undefined)
         const offShown = !featureOn(features, feature) && (await page.getByText(featureOffText(feature!)).count()) > 0

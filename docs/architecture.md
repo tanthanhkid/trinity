@@ -34,7 +34,7 @@ browser ──► web (Next.js :3000) ──/api/v1/*──► api (NestJS monol
   one Postgres schema per company, every query routed by `PrismaService` to the company of the request (fail-closed).
   See [multi-tenant.md](multi-tenant.md).
 - **Feature flags default to OFF** for anything that reaches outside the system: webhooks, MCP.
-- **Storage drivers**: local disk (default), S3/MinIO, Vercel Blob (`packages/storage`).
+- **Storage drivers**: local disk (default), S3/MinIO (`packages/storage`).
 - **Employment periods.** Attendance and payroll count an employee on a day only if that day lies inside one of
   their `employment_periods`. Locking an employee or setting their status to `resigned` closes the open period, and
   unlocking or moving them back out of `resigned` opens a new one from today, so a lock/unlock cycle keeps the locked

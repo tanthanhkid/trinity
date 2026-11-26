@@ -1,5 +1,5 @@
 import { currentCompanyId } from '@trinity/prisma'
-import { runForEachCompany } from './cron-registry'
+import { runForEachCompany } from './for-each-company'
 
 jest.mock('@trinity/prisma', () => ({
   ...jest.requireActual('@trinity/prisma'),

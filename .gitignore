@@ -19,13 +19,13 @@ e2e-results/
 .DS_Store
 *.tsbuildinfo
 
-# agent skills dropped by `vercel integration add`
+# agent skill files
 .agents/
 .claude/
 skills-lock.json
 .vercel
 
-# Mọi biến thể .env (vd .env.production.local, file do `vercel env pull` tạo) — chỉ giữ file mẫu
+# Mọi biến thể .env (vd .env.production.local) — chỉ giữ file mẫu
 .env.*
 !.env.example
 !.env.*.example

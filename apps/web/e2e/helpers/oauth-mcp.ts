@@ -1,7 +1,6 @@
 import crypto from 'node:crypto'
 import { request as pwRequest, type APIRequestContext } from '@playwright/test'
 import { BASE_URL, type Api } from './api'
-import { bypassHeaders } from './vercel-bypass'
 
 /** Tiện ích OAuth 2.1 (PKCE S256) + MCP JSON-RPC cho flow kết nối. KHÔNG log token. */
 const b64url = (b: Buffer) => b.toString('base64url')
@@ -66,5 +65,5 @@ export async function mcp(ctx: APIRequestContext, token: string | null, method: 
 export const callTool = (ctx: APIRequestContext, token: string, name: string, args: unknown) => mcp(ctx, token, 'tools/call', { name, arguments: args })
 
 export function newCtx(): Promise<APIRequestContext> {
-  return pwRequest.newContext({ extraHTTPHeaders: bypassHeaders() })
+  return pwRequest.newContext()
 }

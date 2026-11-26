@@ -1,7 +1,7 @@
 /**
  * Chế độ thông báo thời gian thực.
  * - không đặt `NEXT_PUBLIC_REALTIME_MODE` → dùng Socket.IO như cũ (pm2/VPS);
- * - `poll` → KHÔNG mở socket (Vercel serverless không giữ được kết nối bền): hỏi API mỗi 30s + khi tab được focus.
+ * - `poll` → KHÔNG mở socket (vd proxy không cho WebSocket): hỏi API mỗi 30s + khi tab được focus.
  * Biến NEXT_PUBLIC_* được nhúng lúc build nên đọc trực tiếp `process.env` (không đọc qua biến trung gian).
  */
 export const NOTIFICATION_POLL_INTERVAL_MS = 60_000
@@ -11,8 +11,7 @@ export function isPollMode(): boolean {
 }
 
 /**
- * Nhịp làm mới hộp thư. Bản serverless (Vercel) tính CPU theo từng lượt gọi nên giãn ra: danh sách 60 giây, hội thoại đang mở
- * 20 giây. Bản VPS giữ nhịp cũ. Tab ẩn không hỏi (react-query mặc định `refetchIntervalInBackground: false`).
+ * Nhịp làm mới hộp thư ở chế độ poll: danh sách 60 giây, hội thoại đang mở 20 giây. Chế độ socket giữ nhịp cũ. Tab ẩn không hỏi (react-query mặc định `refetchIntervalInBackground: false`).
  */
 export function inboxPollMs(kind: "list" | "thread", vpsMs: number): number {
   if (!isPollMode()) return vpsMs
@@ -20,10 +19,9 @@ export function inboxPollMs(kind: "list" | "thread", vpsMs: number): number {
 }
 
 /**
- * Lượt "nhắc máy chủ chạy việc đến giờ" kế tiếp trên bản serverless: máy chủ trả `next_at` (giờ việc chờ sớm nhất).
+ * Lượt "nhắc máy chủ chạy việc đến giờ" kế tiếp (chế độ poll): máy chủ trả `next_at` (giờ việc chờ sớm nhất).
  * Có việc ⇒ hẹn đúng giờ đó (ít nhất 20 giây, nhiều nhất 10 phút); việc đang chạy ⇒ 60 giây; không còn gì chờ ⇒ 10 phút
- * (đề phòng việc do người khác / trợ lý AI tạo trong lúc tab đang mở). Chưa có dữ liệu (lỗi mạng, chưa trả lời) ⇒ 60 giây —
- * lượt tick này là thứ khởi động việc đến giờ trên Vercel nên không được chờ lâu khi lỗi.
+ * (đề phòng việc do người khác / trợ lý AI tạo trong lúc tab đang mở). Chưa có dữ liệu (lỗi mạng, chưa trả lời) ⇒ 60 giây.
  */
 export function nextTickMs(data: { due?: boolean; next_at?: string | null } | undefined, now = Date.now()): number {
   const MIN = 20_000

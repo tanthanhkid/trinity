@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { LeadScoringService } from './lead-scoring.service';
 import { tenantTimerTick } from '../common/helpers/tenant-timer';
 
@@ -20,12 +19,7 @@ export class LeadScoringJob implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly service: LeadScoringService) {}
 
   onModuleInit(): void {
-    cronRegistry.register({
-      name: 'lead-scoring.run',
-      budgetMs: 25_000,
-      run: async () => (leadScoringJobEnabled() ? this.service.runOnce() : { skipped: 'flag-off' }),
-    });
-    if (isServerless() || !leadScoringJobEnabled()) return;
+    if (!leadScoringJobEnabled()) return;
     this.first = setTimeout(() => void this.timerTick(), FIRST_RUN_DELAY_MS);
     this.interval = setInterval(() => void this.timerTick(), INTERVAL_MS);
     this.first.unref();

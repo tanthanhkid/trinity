@@ -22,9 +22,9 @@ function kindOf(fileName: string, videoMax: number = maxVideoBytes()): { ext: st
 
 const mb = (n: number) => `${Math.round(n / 1024 / 1024)} MB`;
 
-/** Tải từ link (AI đưa tệp nó vừa tạo): video trần thấp hơn tải trực tiếp vì cả tệp nằm trong RAM của hàm. */
+/** Tải từ link (AI đưa tệp nó vừa tạo): video trần thấp hơn tải trực tiếp vì cả tệp nằm trong RAM. */
 export const MAX_IMPORT_VIDEO_BYTES = 100 * 1024 * 1024;
-/** base64 đi trong thân request MCP (Vercel ≤ 4,5 MB) ⇒ chỉ hợp ảnh nhỏ. */
+/** base64 đi trong thân request MCP ⇒ chỉ hợp ảnh nhỏ. */
 export const MAX_BASE64_BYTES = 3 * 1024 * 1024;
 
 const CONTENT_TYPE_EXT: Record<string, string> = Object.fromEntries(
@@ -59,7 +59,7 @@ const LIBRARY_SELECT = { id: true, key: true, type: true, content_type: true, si
 export type LibraryItem = Pick<SocialMediaAsset, 'id' | 'key' | 'type' | 'content_type' | 'size' | 'name' | 'source' | 'uploaded_by' | 'created_at'>;
 
 /**
- * Tệp đính kèm bài đăng — nằm trong StorageService (Vercel Blob / đĩa VPS), khoá `social/u<userId>_<ts>_<rand><ext>`
+ * Tệp đính kèm bài đăng — nằm trong StorageService, khoá `social/u<userId>_<ts>_<rand><ext>`
  * mang id người tải để chỉ chính người đó gắn được vào bài.
  */
 @Injectable()
@@ -74,21 +74,18 @@ export class SocialMediaService {
   }
 
   /**
-   * Vercel: trình duyệt PUT thẳng lên Blob (body hàm ≤ 4,5 MB). Môi trường khác ⇒ 400, FE gửi multipart. Web LUÔN gọi đây
-   * trước, nên loại tệp và cỡ được kiểm TRƯỚC nhánh môi trường: tệp quá trần bị chặn trước khi gửi (sau proxy Cloudflare,
-   * gửi multipart quá 100 MB chỉ nhận lỗi 413 "Network Error"). Câu lỗi kèm `max_bytes` để web tự chặn.
+   * Kiểm trước khi tải (web LUÔN gọi đây trước): loại tệp và cỡ được kiểm trước khi gửi, nên tệp quá trần bị chặn
+   * trước khi gửi (sau proxy Cloudflare, multipart quá 100 MB chỉ nhận lỗi 413 "Network Error"). Tệp hợp lệ ⇒ 400
+   * "không dùng upload trực tiếp" (đường tải thẳng lên kho đã gỡ cùng Vercel Blob), web gửi multipart `POST /social/media`.
+   * Câu lỗi kèm `max_bytes` để web tự chặn.
    */
-  uploadToken(user: AuthUser, fileName: string, size: number) {
+  uploadToken(_user: AuthUser, fileName: string, size: number): never {
     const k = kindOf(fileName);
     if (size > k.max) throw new BadRequestException({ statusCode: 400, error: 'Bad Request', message: `Tệp quá lớn (tối đa ${mb(k.max)}).`, max_bytes: k.max });
-    if (!this.storage.isClientUploadSupported()) {
-      throw new BadRequestException({ statusCode: 400, error: 'Bad Request', message: 'Môi trường này không dùng upload trực tiếp — gửi tệp qua POST /social/media', max_bytes: k.max });
-    }
-    const key = this.newKey(user, k.ext);
-    return { key, type: k.type, content_type: k.content_type, max_bytes: k.max, ...this.storage.createClientUpload(key, k.content_type, k.max) };
+    throw new BadRequestException({ statusCode: 400, error: 'Bad Request', message: 'Môi trường này không dùng upload trực tiếp — gửi tệp qua POST /social/media', max_bytes: k.max });
   }
 
-  /** Multipart qua BE (VPS, hoặc tệp nhỏ trên Vercel). Tệp tạm của multer luôn bị xoá. */
+  /** Multipart qua BE. Tệp tạm của multer luôn bị xoá. */
   async uploadFile(user: AuthUser, file: { originalname: string; path: string; size: number } | undefined): Promise<SocialMedia> {
     if (!file) throw new BadRequestException('Thiếu tệp');
     try {
@@ -141,12 +138,6 @@ export class SocialMediaService {
       update: {},
       select: LIBRARY_SELECT,
     });
-  }
-
-  /** Sau khi trình duyệt PUT thẳng lên Blob: kiểm khoá (của chính người dùng, có thật) rồi đưa vào thư viện. */
-  async register(user: AuthUser, key: string, name?: string): Promise<LibraryItem> {
-    const [m] = await this.resolve(user, [key]);
-    return this.record(user, m, displayName(name, key), 'web');
   }
 
   /** Thư viện chung, mới nhất trước; lọc loại / tên. */

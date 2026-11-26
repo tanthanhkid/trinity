@@ -6,7 +6,7 @@ import { useFacebookDueTicker } from "@/app/(dashboard)/settings/_components/int
 import { usePermissions } from "@/lib/rbac"
 import { isPollMode } from "@/lib/realtime-mode"
 
-/** Không vẽ gì: nhắc máy chủ đăng bài hẹn giờ, bước kịch bản Messenger, tin gửi hàng loạt đúng giờ trên bản serverless (xem `useSocialDueTicker`). */
+/** Không vẽ gì: nhắc máy chủ đăng bài hẹn giờ, bước kịch bản Messenger, tin gửi hàng loạt đúng giờ ở chế độ poll (xem `useSocialDueTicker`). */
 export function SocialDueTicker() {
   const { can } = usePermissions()
   const { features } = useOrgFeatures()

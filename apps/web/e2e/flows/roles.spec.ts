@@ -3,7 +3,6 @@ import { storageStatePath } from '../helpers/roles'
 import { Api, BASE_URL } from '../helpers/api'
 import { mkUser } from '../seed/lib'
 import { Cleanup, prefix, requireWrite } from '../helpers/data'
-import { bypassHeaders } from '../helpers/vercel-bypass'
 
 /**
  * Cài đặt > Vai trò: tạo vai trò (UI) → tick quyền (UI) → gán cho user test → `/auth/me`
@@ -61,7 +60,7 @@ test('tạo vai trò, tick quyền, gán cho user test, /auth/me đổi ngay', a
   const u = await mkUser(api, 'user')
   const { email, password } = u
   userId = u.id
-  const anon = await pwRequest.newContext({ extraHTTPHeaders: bypassHeaders() })
+  const anon = await pwRequest.newContext()
   const login = await anon.post(`${BASE_URL}/api/v1/auth/login`, { data: { email, password } })
   expect(login.ok(), `Đăng nhập user test: HTTP ${login.status()}`).toBe(true)
   const token = ((await login.json()) as { access_token: string }).access_token

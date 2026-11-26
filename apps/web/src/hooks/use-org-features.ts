@@ -1,11 +1,11 @@
 import { useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { isOrgFeatureOn, resolveOrgFeatures } from "@trinity/rbac"
-import type { LockedFeatureReasons, OrgFeatureKey, OrgFeatures } from "@trinity/rbac"
+import type { OrgFeatureKey, OrgFeatures } from "@trinity/rbac"
 import apiClient from "@/lib/api-client"
 
-/** Phản hồi `GET /settings/org-features`: boolean theo khoá + `locked` (chỉ khi serverless). */
-export type OrgFeaturesPayload = OrgFeatures & { locked?: LockedFeatureReasons }
+/** Phản hồi `GET /settings/org-features`: boolean theo khoá. */
+export type OrgFeaturesPayload = OrgFeatures
 
 /**
  * "Tính năng của tổ chức" — công tắc ẩn/hiện theo TỔ CHỨC, ĐỘC LẬP
@@ -26,8 +26,6 @@ export function useOrgFeatures(): {
    * (vd kết nối tích hợp) — menu/UI vẫn đọc `features` fail-open.
    */
   isResolved: boolean
-  /** Khoá bị KHOÁ TẮT cố định ở runtime hiện tại → lý do (serverless). `{}` khi không khoá. */
-  locked: LockedFeatureReasons
 } {
   const { data, isLoading } = useQuery<OrgFeaturesPayload>({
     queryKey: ORG_FEATURES_KEY,
@@ -36,8 +34,7 @@ export function useOrgFeatures(): {
   })
   // useMemo: giữ tham chiếu ổn định để các useMemo phụ thuộc `features` (sidebar) không tính lại mỗi render.
   const features = useMemo(() => resolveOrgFeatures(data), [data])
-  const locked = useMemo<LockedFeatureReasons>(() => data?.locked ?? {}, [data])
-  return { features, isLoading, isResolved: data !== undefined, locked }
+  return { features, isLoading, isResolved: data !== undefined }
 }
 
 /** Tính năng `key` đang bật? (đang tải/lỗi → true). */

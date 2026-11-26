@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -34,7 +35,6 @@ import { NewsfeedService } from './newsfeed.service';
 import {
   CreatePostDto,
   CreatePostMultipartDto,
-  VideoUploadTokenDto,
 } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { CreatePostCommentDto } from './dto/create-comment.dto';
@@ -146,21 +146,18 @@ export class NewsfeedController {
       dto.content ?? '',
       files?.images,
       files?.videos,
-      (dto.video_keys ?? '')
-        .split(',')
-        .map((k) => k.trim())
-        .filter(Boolean),
     );
   }
 
+  /**
+   * Stub giữ MỘT bản phát hành sau khi gỡ Vercel Blob: bundle cũ nhận 400 ở video đầu tiên rồi tự gửi video qua
+   * multipart `/newsfeed/upload`. Gỡ ở bản kế.
+   */
   @Post('newsfeed/video-upload-token')
   @Can('newsfeed.post')
-  @ApiOperation({
-    summary:
-      'Cấp token upload video thẳng lên Blob (môi trường serverless giới hạn kích thước body); 400 nếu môi trường không hỗ trợ',
-  })
-  videoUploadToken(@Body() dto: VideoUploadTokenDto, @CurrentUser() user: AuthUser) {
-    return this.newsfeed.createVideoUploadToken(user, dto.file_name, dto.size);
+  @ApiOperation({ summary: 'Đã ngừng: luôn trả 400 — gửi video qua /newsfeed/upload (multipart)', deprecated: true })
+  videoUploadTokenGone(): never {
+    throw new BadRequestException('Môi trường này không dùng upload trực tiếp — gửi video qua /newsfeed/upload');
   }
 
   @Get('newsfeed/:id/image')

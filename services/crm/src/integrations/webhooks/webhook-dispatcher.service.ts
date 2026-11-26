@@ -7,7 +7,6 @@ import {
   isIntegrationEventType,
   type PendingIntegrationEvent,
 } from '@trinity/prisma';
-import { cronRegistry, isServerless, runInBackground } from '@trinity/rbac-nest';
 import { isSecretKeyConfigured } from './secret-crypto';
 import { WebhookActorService } from './webhook-actor.service';
 import { WebhookDeliveryWorker } from './webhook-delivery-worker.service';
@@ -25,8 +24,6 @@ const DELIVERY_RETENTION_DAYS = 30;
 const RECEIPT_RETENTION_DAYS = 180;
 const HOUSEKEEPING_EVERY_MS = 6 * 60 * 60 * 1000;
 const KEY_WARN_EVERY_MS = 10 * 60 * 1000;
-/** Serverless: số vòng gửi tối đa của MỘT lần kích (gom các commit đến trong lúc đang gửi). */
-const KICK_MAX_ROUNDS = 3;
 
 /**
  * Worker webhook ra. MẶC ĐỊNH TẮT — không timer nào được tạo khi `INTEGRATIONS_WEBHOOKS_ENABLED`
@@ -46,8 +43,6 @@ export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
   private readonly running = new Set<number>();
   private readonly lastHousekeeping = new Map<number, number>();
   private lastKeyWarn = 0;
-  /** Công ty đang có lượt kick chạy → cờ "còn sự kiện mới, chạy thêm vòng". */
-  private readonly kicks = new Map<number, { again: boolean }>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -57,18 +52,6 @@ export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit(): void {
-    // Cron tick: một lượt đầy đủ (outbox → delivery → gửi + thử lại việc đến hạn + dọn).
-    cronRegistry.register({
-      name: 'integrations.webhook-dispatch',
-      budgetMs: 30_000,
-      run: async () => {
-        if (!integrationFlags.webhooksEnabled()) return { skipped: 'flag-off' };
-        await this.tick();
-        return { ran: true };
-      },
-    });
-    // Serverless: KHÔNG timer; gửi ngay sau commit qua `kick()` + cron tick làm lưới an toàn/thử lại.
-    if (isServerless()) return;
     if (!integrationFlags.webhooksEnabled()) return;
     if (!isSecretKeyConfigured()) {
       this.logger.error(
@@ -84,39 +67,6 @@ export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
   onModuleDestroy(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
-  }
-
-  /**
-   * Serverless: kích gửi NGAY sau khi một request ghi đã commit sự kiện outbox (gọi từ `WebhookKickInterceptor`).
-   * Cơ chế: `runInBackground` → `waitUntil` của Vercel (hàm sống tới khi gửi xong, response không bị chặn);
-   * không có runtime Vercel thì fire-and-forget. Không housekeeping (để cron tick). Ngoài serverless/cờ tắt = no-op.
-   */
-  kick(): void {
-    if (!isServerless() || !integrationFlags.webhooksEnabled() || !isSecretKeyConfigured()) return;
-    // Đang gửi: đánh dấu để vòng sau nhặt sự kiện vừa commit (không bỏ sót, không chạy chồng).
-    const company = companyKey();
-    const active = this.kicks.get(company);
-    if (active) {
-      active.again = true;
-      return;
-    }
-    const state = { again: false };
-    this.kicks.set(company, state);
-    // Chạy trong ngữ cảnh công ty của request vừa commit (ALS đi theo chuỗi async của runInBackground).
-    runInBackground(
-      async () => {
-        try {
-          let rounds = 0;
-          do {
-            state.again = false;
-            await this.tick({ housekeeping: false });
-          } while (state.again && ++rounds < KICK_MAX_ROUNDS);
-        } finally {
-          this.kicks.delete(company);
-        }
-      },
-      (err) => this.logger.error(`Webhook kick lỗi: ${(err as Error)?.message}`),
-    );
   }
 
   /** Public cho test. Không ném lỗi, không chạy chồng trong cùng process. */

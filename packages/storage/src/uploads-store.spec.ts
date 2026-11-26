@@ -32,16 +32,13 @@ describe('uploads store', () => {
     }
   });
 
-  it('vercel-blob: ghi vào Blob với key uploads/…; thiếu token → throw', async () => {
+  it('cấu hình Blob cũ ⇒ ném lỗi kèm hướng dẫn chuyển dữ liệu, không rơi về đĩa', () => {
     process.env.STORAGE_DRIVER = 'vercel-blob';
-    delete process.env.BLOB_READ_WRITE_TOKEN;
+    expect(() => createUploadsStore()).toThrow(/không còn được hỗ trợ[\s\S]*UPLOADS_LOCAL_ROOT/);
+    delete process.env.STORAGE_DRIVER;
+    process.env.BLOB_READ_WRITE_TOKEN = 'x';
     expect(() => createUploadsStore()).toThrow(/BLOB_READ_WRITE_TOKEN/);
-
-    process.env.BLOB_READ_WRITE_TOKEN = 'vercel_blob_rw_s1_x';
-    const fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 200 }));
-    const s = createUploadsStore();
-    await s.save('products/p.png', Buffer.from('x'), 'image/png');
-    expect(String(fetchMock.mock.calls[0][0])).toContain('pathname=uploads%2Fproducts%2Fp.png');
-    fetchMock.mockRestore();
+    process.env.STORAGE_DRIVER = 'local';
+    expect(() => createUploadsStore({ localRoot: '/tmp/x' })).not.toThrow();
   });
 });

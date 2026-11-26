@@ -12,7 +12,7 @@ let features: OrgFeatures = resolveOrgFeatures(undefined)
 let pathname = "/dashboard"
 const replace = vi.fn()
 vi.mock("@/hooks/use-setup-status", () => ({ useSetupStatus: () => ({ status, isLoading: loading, data: undefined }) }))
-vi.mock("@/hooks/use-org-features", () => ({ useOrgFeatures: () => ({ features, isResolved: true, isLoading: false, locked: {} }) }))
+vi.mock("@/hooks/use-org-features", () => ({ useOrgFeatures: () => ({ features, isResolved: true, isLoading: false }) }))
 vi.mock("@/hooks/custom-objects/use-custom-objects", () => ({ useCustomNav: () => ({ data: [{ key: "khach_hang", label: "Khách mới", label_plural: "Khách mới", icon: null, nav_order: 1, href: "/x/khach_hang/v/kanban" }] }) }))
 vi.mock("@/lib/rbac", () => ({ usePermissions: () => ({ can: () => true, grants: {} }) }))
 vi.mock("next/navigation", () => ({ usePathname: () => pathname, useRouter: () => ({ replace, push: vi.fn() }) }))

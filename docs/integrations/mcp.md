@@ -1,7 +1,7 @@
 # AI connection (OAuth 2.1 + MCP; writes run directly within the user's permissions)
 
 Lets ChatGPT / Claude read CRM data **with exactly the permissions of the user who connected**, and (scope `crm.write`) **write** data **directly, within those same permissions** — no approval screen. An admin can switch on *Require approval for AI changes* (Settings → Integrations → AI connections; default off) to get the draft-then-approve flow instead (see the "Actions via AI" section at the end).
-Default **OFF** (invariant #4): needs both `INTEGRATIONS_MCP_ENABLED=true` and `INTEGRATIONS_PUBLIC_BASE_URL=https://<domain>` (on Vercel the platform's production hostname is used when it is unset; elsewhere it is required); if either is missing ⇒ every route `/api/v1/oauth/*`, `/api/v1/mcp`, `/integrations/ai-connections` returns 404.
+Default **OFF** (invariant #4): needs both `INTEGRATIONS_MCP_ENABLED=true` and `INTEGRATIONS_PUBLIC_BASE_URL=https://<domain>`; if either is missing ⇒ every route `/api/v1/oauth/*`, `/api/v1/mcp`, `/integrations/ai-connections` returns 404.
 
 ## URLs (replace `<domain>` with the real domain, e.g. `crm.example.com`)
 

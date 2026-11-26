@@ -95,7 +95,7 @@ export function BatDauScreen() {
             <p className="text-sm text-amber-700" data-testid="mcp-off-admin">
               Kết nối AI chưa được bật trên máy chủ. Đặt biến môi trường <code className="rounded bg-muted px-1">INTEGRATIONS_MCP_ENABLED=true</code> và{" "}
               <code className="rounded bg-muted px-1">INTEGRATIONS_SECRET_KEY</code> (tạo bằng <code className="rounded bg-muted px-1">openssl rand -base64 32</code>), rồi <strong>deploy lại / khởi động lại</strong> để có hiệu lực.
-              Nếu không chạy trên Vercel, cần thêm <code className="rounded bg-muted px-1">INTEGRATIONS_PUBLIC_BASE_URL</code> (địa chỉ công khai của hệ thống).
+              Cần thêm <code className="rounded bg-muted px-1">INTEGRATIONS_PUBLIC_BASE_URL</code> (địa chỉ công khai của hệ thống).
             </p>
           ) : (
             <p className="text-sm text-amber-700" data-testid="mcp-off-user">Tính năng Kết nối AI chưa được bật cho công ty bạn. Hãy nhờ quản trị viên Trinity bật tính năng này.</p>

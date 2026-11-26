@@ -1,6 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { IntegrationEventsService, integrationFlags } from '@trinity/prisma';
-import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { tenantTimerTick } from '../common/helpers/tenant-timer';
 
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
@@ -22,14 +21,6 @@ export class IntegrationOutboxPurgeService implements OnModuleInit, OnModuleDest
   constructor(private readonly events: IntegrationEventsService) {}
 
   onModuleInit(): void {
-    // Cron tick (serverless + gọi tay): cờ tắt = bỏ qua như timer.
-    cronRegistry.register({
-      name: 'integrations.outbox-purge',
-      budgetMs: 20_000,
-      run: async () => (integrationFlags.anyEnabled() ? this.runOnce() : { skipped: 'flag-off' }),
-    });
-    // Serverless: không timer nào — việc dọn do `/internal/cron/tick` làm.
-    if (isServerless()) return;
     if (!integrationFlags.anyEnabled()) return;
     this.first = setTimeout(() => void this.timerTick(), FIRST_RUN_DELAY_MS);
     this.interval = setInterval(() => void this.timerTick(), SIX_HOURS_MS);

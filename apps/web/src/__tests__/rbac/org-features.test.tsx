@@ -9,12 +9,11 @@ import { isOrgFeatureOn, resolveOrgFeatures, type OrgFeatures } from "@trinity/r
 import { useAuthStore } from "@/store/auth"
 
 let features: OrgFeatures = resolveOrgFeatures(undefined)
-let lockedReasons: Partial<Record<keyof OrgFeatures, string>> = {}
 let loading = false
 const mutate = vi.fn()
 vi.mock("@/hooks/use-org-features", () => ({
   ORG_FEATURES_KEY: ["settings", "org-features"],
-  useOrgFeatures: () => ({ features, isLoading: loading, locked: lockedReasons }),
+  useOrgFeatures: () => ({ features, isLoading: loading }),
   useOrgFeature: (k: Parameters<typeof isOrgFeatureOn>[1]) => isOrgFeatureOn(features, k),
   useUpdateOrgFeatures: () => ({ mutate, isPending: false }),
 }))
@@ -50,7 +49,6 @@ const ALL = { "kanban.view": "all", "reports.overview": "all" } as never
 
 beforeEach(() => {
   features = resolveOrgFeatures(undefined)
-  lockedReasons = {}
   loading = false
   pathname = "/"
   mutate.mockClear()
@@ -160,28 +158,5 @@ describe("Sản phẩm / POS", () => {
     expect(featureForPath("/projects/3")).toBe("products")
     expect(featureForPath("/pos")).toBe("pos")
     expect(featureForPath("/posts")).toBeNull()
-  })
-})
-
-describe("Tính năng bị khoá theo runtime", () => {
-  it("FeatureRouteGate: module bị khoá hiện 'không khả dụng trên bản này' + lý do, không link bật lại", () => {
-    features = off("pos")
-    lockedReasons = { pos: "Cần tiến trình chạy liên tục." }
-    pathname = "/pos"
-    render(<FeatureRouteGate><div>NOI-DUNG-POS</div></FeatureRouteGate>)
-    expect(screen.queryByText("NOI-DUNG-POS")).toBeNull()
-    expect(screen.getByText(/không khả dụng trên bản này/)).toBeTruthy()
-    expect(screen.getByText(/tiến trình chạy liên tục/)).toBeTruthy()
-    expect(screen.queryByText(/Bật lại ở Cài đặt/)).toBeNull()
-  })
-  it("Cài đặt > Tính năng: công tắc bị khoá vô hiệu + hiện lý do; bấm không gọi mutate", () => {
-    features = off("pos")
-    lockedReasons = { pos: "Cần tiến trình chạy liên tục." }
-    render(<SettingsFeatures />)
-    const sw = document.getElementById("feature-switch-pos") as HTMLElement
-    expect(sw.hasAttribute("disabled") || sw.getAttribute("data-disabled") !== null || sw.getAttribute("aria-disabled") === "true").toBe(true)
-    expect(screen.getByText(/tiến trình chạy liên tục/)).toBeTruthy()
-    fireEvent.click(sw)
-    expect(mutate).not.toHaveBeenCalled()
   })
 })

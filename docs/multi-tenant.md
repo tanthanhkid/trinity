@@ -26,8 +26,8 @@ The database role needs `CREATE` on the database (to create one schema per compa
 - **`PrismaService` routes every query.** It is a proxy that resolves each access against the company of the current
   async context (`AsyncLocalStorage`). With no company in context it throws (fail-closed) — a code path that forgot to
   choose a company errors instead of reading someone else's rows. Background jobs run once per company
-  (`cronRegistry`): a tick stops starting new companies when the job's budget is spent and the next tick resumes
-  where it stopped, and a company that fails is logged and reported without stopping the others.
+  (`runForEachCompany`, wrapped by `tenantTimerTick` for timers): a round stops starting new companies when the job's
+  budget is spent and the next round resumes where it stopped, and a company that fails is logged and reported without stopping the others.
 - **Choosing the company of a request**
   - Signed-in requests: the JWT carries `cid`; tokens without it belong to company 1.
   - Login: `platform.company_logins` maps the email to its company (an email belongs to one company only).
@@ -151,9 +151,9 @@ database (all schemas) before a migration.
 - One database client per active company (LRU, `TENANT_MAX_CLIENTS`). Background jobs walk every company, so with
   far more companies than the cap the pool keeps cycling; raise the cap (and Postgres `max_connections`) as the
   number of active companies grows.
-- A job's per-company work keeps the job's own budget. A tick stops starting new companies when its budget is
-  spent and the next tick resumes after the last company reached, so one busy company delays the others by
-  about one tick per company ahead of them.
+- A job's per-company work keeps the job's own budget. A timer round (`runForEachCompany`) stops starting new
+  companies when its budget is spent and the next round resumes after the last company reached, so one busy company
+  delays the others by about one round per company ahead of them.
 
 ## Tests
 

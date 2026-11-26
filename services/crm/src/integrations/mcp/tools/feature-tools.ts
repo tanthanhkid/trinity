@@ -7,25 +7,24 @@ import { ToolUserError, type ToolDef } from './tool-types';
 
 const KEY_LIST = Object.entries(ORG_FEATURES).map(([k, v]) => `${k}=${v.label}`).join('; ');
 
-/** Tính năng của tổ chức theo nhóm, kèm trạng thái bật/tắt (đã tính gói + khoá máy chủ). */
+/** Tính năng của tổ chức theo nhóm, kèm trạng thái bật/tắt (đã tính gói). */
 export const listFeaturesTool: ToolDef = {
   name: 'list_features',
   title: 'Tính năng đang bật / List features',
   description:
-    'Liệt kê các tính năng có sẵn của Trinity theo nhóm (Cơ bản, Kênh & hộp thư, Bán hàng, Nhân sự, Nâng cao): khoá, tên, mô tả một dòng, đang bật hay tắt, và locked = lý do không bật được (gói dịch vụ hoặc máy chủ không hỗ trợ) nếu có. ' +
+    'Liệt kê các tính năng có sẵn của Trinity theo nhóm (Cơ bản, Kênh & hộp thư, Bán hàng, Nhân sự, Nâng cao): khoá, tên, mô tả một dòng, đang bật hay tắt. ' +
     'Tính năng tắt thì ẩn khỏi menu và Cài đặt của cả công ty; dữ liệu vẫn giữ. Chỉ đọc. / Lists built-in features by group with on/off state. Read-only.',
   permissions: [],
   input: () => ({}),
   output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
   async run(_args, { deps }) {
     const f = await deps.orgFeatures.get();
-    const locked = f.locked ?? {};
     const groups = ORG_FEATURE_GROUPS.map((g) => ({
       group: g.key,
       label: g.label,
       features: (Object.keys(ORG_FEATURES) as OrgFeatureKey[])
         .filter((k) => ORG_FEATURES[k].group === g.key)
-        .map((k) => ({ key: k, label: ORG_FEATURES[k].label, description: ORG_FEATURES[k].description, enabled: f[k] !== false, ...(locked[k] ? { locked: locked[k] } : {}) })),
+        .map((k) => ({ key: k, label: ORG_FEATURES[k].label, description: ORG_FEATURES[k].description, enabled: f[k] !== false })),
     }));
     const out = wrapData({ basic: BASIC_FEATURES, groups });
     return { structured: out, text: JSON.stringify(out) };

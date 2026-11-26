@@ -538,7 +538,7 @@ export function determineClientIp(req: ClientIpRequest, env: NodeJS.ProcessEnv =
     return { ok: true, client: finalize(null, peer, 'tiến trình phía trước (web) không ký được IP khách: thiếu INTERNAL_SERVICE_SECRET/SERVICE_SECRET ở web', 'signed') }
   }
   const v = verifySigned(signed, cfg.keys, Math.floor(nowMs() / 1000))
-  if (!v.ok) return v
+  if ('error' in v) return v
   const peer = normalizeIp(req.socket?.remoteAddress) ?? ''
   if (v.value === UNTRUSTED_CLIENT_IP) {
     return {
@@ -573,7 +573,7 @@ export function clientIpMiddleware(
   next: () => void,
 ): void {
   const d = determineClientIp(req)
-  if (!d.ok) {
+  if ('error' in d) {
     logOnce(`bad:${d.log}`, `[client-ip] từ chối header ${CLIENT_IP_HEADER}: ${d.log} (peer ${req.socket?.remoteAddress ?? '?'})`)
     res.statusCode = 400
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -600,7 +600,7 @@ export function resolveClientIp(req: ClientIpRequest): ClientIp {
   if (!client) {
     const d = determineClientIp(req)
     const peer = normalizeIp(req.socket?.remoteAddress) ?? 'unknown'
-    client = d.ok ? d.client : { ip: null, rateKey: peer, untrustedReason: `header ${CLIENT_IP_HEADER} không hợp lệ: ${d.log}`, source: 'signed' }
+    client = 'client' in d ? d.client : { ip: null, rateKey: peer, untrustedReason: `header ${CLIENT_IP_HEADER} không hợp lệ: ${d.log}`, source: 'signed' }
     r[STORE] = client
   }
   if (client.untrustedReason) {

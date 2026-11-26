@@ -6378,6 +6378,637 @@
    "out": {
     "value": 8.4
    }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T10:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T10:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T20:00:00Z",
+    "ket_thuc": "2025-03-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T20:00:00Z",
+    "ket_thuc": "2025-03-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T20:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T20:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T10:00",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T10:00",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00:00+07:00",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00:00+07:00",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00:00.5Z",
+    "ket_thuc": "2025-04-01"
+   },
+   "out": {
+    "value": 31
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00:00.5Z",
+    "ket_thuc": "2025-04-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-3T10:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-3T10:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-13T10:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-13T10:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-00T10:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-00T10:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12T24:00Z",
+    "ket_thuc": "2026-01-01"
+   },
+   "out": {
+    "value": 30
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12T24:00Z",
+    "ket_thuc": "2026-01-01"
+   },
+   "out": {
+    "value": 0.966667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12T24:00:01Z",
+    "ket_thuc": "2026-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12T24:00:01Z",
+    "ket_thuc": "2026-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+002025T10:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+002025T10:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+002025-03T10:00Z",
+    "ket_thuc": "2025-04-01"
+   },
+   "out": {
+    "value": 31
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+002025-03T10:00Z",
+    "ket_thuc": "2025-04-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+275760-09-13T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+275760-09-13T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+275760-09-12T16:59:59Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+275760-09-12T16:59:59Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+275760-09-12T00:00:00Z",
+    "ket_thuc": "+275760-09-13T00:00:00Z"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+275760-09-12T00:00:00Z",
+    "ket_thuc": "+275760-09-13T00:00:00Z"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "-271821-04-20T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "-271821-04-20T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+010000-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+010000-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00Z",
+    "ket_thuc": "+275760-09-13T00:00:00Z"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00Z",
+    "ket_thuc": "+275760-09-13T00:00:00Z"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{gia_goc}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {gia_goc}"
+   }
+  },
+  {
+   "expr": "{gia_goc}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {gia_goc}"
+   }
+  },
+  {
+   "expr": "1+1",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"\""
+   }
+  },
+  {
+   "expr": "{ gia_goc }*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "value": 10
+   }
+  },
+  {
+   "expr": "{﻿gia_goc}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "value": 10
+   }
+  },
+  {
+   "expr": "{ gia_goc　}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "value": 10
+   }
+  },
+  {
+   "expr": "{᠎gia_goc}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {᠎gia_goc}"
+   }
+  },
+  {
+   "expr": "{​gia_goc}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {​gia_goc}"
+   }
+  },
+  {
+   "expr": "{\u000bgia_goc\f}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "value": 10
+   }
+  },
+  {
+   "expr": "1😀",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"😀\""
+   }
+  },
+  {
+   "expr": "😀",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"😀\""
+   }
+  },
+  {
+   "expr": "{😀}",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {😀}"
+   }
+  },
+  {
+   "expr": "{a😀b}",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {a😀b}"
+   }
+  },
+  {
+   "expr": "1 + 😀 + 2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"😀\""
+   }
+  },
+  {
+   "expr": "{ééééééééééééééééééééééééé😀xxxxxxxxxx}",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {ééééééééééééééééééééééééé😀xxxx}"
+   }
+  },
+  {
+   "expr": "{aaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀😀😀}",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {aaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀}"
+   }
+  },
+  {
+   "expr": "{éééééééééééééééééééééééééééééééééééééééé}",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {éééééééééééééééééééééééééééééé}"
+   }
+  },
+  {
+   "expr": "1 👨‍👩 2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"👨\""
+   }
+  },
+  {
+   "expr": "é+1",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"é\""
+   }
   }
  ],
  "js_round": [

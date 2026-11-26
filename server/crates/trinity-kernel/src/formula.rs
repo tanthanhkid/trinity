@@ -5,6 +5,8 @@
 //! Cú pháp: số (`12`, `3.5`), tham chiếu `{ten_truong}`, `+ - * /`, dấu trừ đơn ngôi, `round(x, n)` (n nguyên 0..6 viết
 //! thẳng), `months_between(d1, d2)`, `days_between(d1, d2)`. Thiếu giá trị hoặc chia cho 0 → kết quả `None`.
 //!
+//! Ký tự lạ ngoài BMP (emoji…) báo lỗi nguyên ký tự; bản TS đã sửa cùng cách (trước đây báo nửa cặp surrogate).
+//!
 //! Điểm khác bản TS (không có trong bảng ca): chuỗi ngày giờ có chữ `T` mà không có múi giờ (`2025-01-01T10:00`) bản TS
 //! hiểu theo múi giờ của tiến trình Node (UTC trên máy chủ), Rust hiểu là UTC; dạng không phải ISO 8601 mà `Date.parse`
 //! của V8 vẫn nhận (ví dụ `Tue Jan 01 2025 T`) Rust coi là không đọc được → `None`.
@@ -79,9 +81,10 @@ enum Tok {
     Comma,
 }
 
-/// `String.prototype.trim` của JS: khoảng trắng Unicode cộng BOM (`U+FEFF`).
+/// `String.prototype.trim` của JS: WhiteSpace + LineTerminator của ECMAScript = `White_Space` của Unicode trừ `U+0085`
+/// (NEL), cộng BOM (`U+FEFF`).
 fn js_trim(s: &str) -> &str {
-    s.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
+    s.trim_matches(|c: char| (c.is_whitespace() && c != '\u{85}') || c == '\u{feff}')
 }
 
 fn valid_ref_key(k: &str) -> bool {
@@ -360,7 +363,9 @@ fn type_of(node: &Node, ref_kind: &dyn Fn(&str) -> Option<RefKind>) -> Result<Re
 }
 
 fn call_type(f: FormulaFn, args: &[Node], ref_kind: &dyn Fn(&str) -> Option<RefKind>) -> Result<RefKind, FormulaError> {
-    let (a, b) = (&args[0], &args[1]);
+    let [a, b] = args else {
+        return err(format!("Hàm {} cần đúng 2 đối số", f.name()));
+    };
     if f == FormulaFn::Round {
         if type_of(a, ref_kind)? != RefKind::Num {
             return err("round(x, n): x phải là số");
@@ -462,10 +467,14 @@ fn parse_iso_ms(v: &str) -> Option<i64> {
         _ => digits(&mut i, 4)?,
     };
     let lit = |i: &mut usize, c: u8| -> Option<()> { (b.get(*i) == Some(&c)).then(|| *i += 1) };
-    lit(&mut i, b'-')?;
-    let month = digits(&mut i, 2)?;
-    lit(&mut i, b'-')?;
-    let day = digits(&mut i, 2)?;
+    // Dạng ngắn của V8: `YYYYTHH:mm…`, `YYYY-MMTHH:mm…` (tháng/ngày mặc định 1).
+    let (mut month, mut day) = (1, 1);
+    if lit(&mut i, b'-').is_some() {
+        month = digits(&mut i, 2)?;
+        if lit(&mut i, b'-').is_some() {
+            day = digits(&mut i, 2)?;
+        }
+    }
     lit(&mut i, b'T').or_else(|| lit(&mut i, b't'))?;
     let hour = digits(&mut i, 2)?;
     lit(&mut i, b':')?;
@@ -554,8 +563,11 @@ fn eval_node(node: &Node, get: &dyn Fn(&str) -> Option<Val>) -> Option<Val> {
             }))
         }
         Node::Call(f, args) => {
-            let a = eval_node(&args[0], get);
-            let b = eval_node(&args[1], get);
+            let [a, b] = args.as_slice() else {
+                return None;
+            };
+            let a = eval_node(a, get);
+            let b = eval_node(b, get);
             if *f == FormulaFn::Round {
                 return match (a, b) {
                     (Some(Val::Num(x)), Some(Val::Num(n))) => Some(Val::Num(round_formula(x, n))),

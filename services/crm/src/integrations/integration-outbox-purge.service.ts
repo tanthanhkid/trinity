@@ -14,7 +14,7 @@ const FIRST_RUN_DELAY_MS = 5 * 60 * 1000;
 export class IntegrationOutboxPurgeService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(IntegrationOutboxPurgeService.name);
   /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
-  private readonly timerTick = tenantTimerTick(this.logger, 'Outbox purge', () => this.runOnce());
+  private readonly timerTick = tenantTimerTick(this.logger, 'Outbox purge', () => this.runOnce(), undefined, 'integrations.outbox-purge');
   private interval: ReturnType<typeof setInterval> | null = null;
   private first: ReturnType<typeof setTimeout> | null = null;
 

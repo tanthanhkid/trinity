@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Cron } from '@nestjs/schedule'
-import { runForEachCompany } from '@trinity/rbac-nest'
+import { ownership, runForEachCompany } from '@trinity/rbac-nest'
 import { NotificationsService } from './notifications.service'
+
+/** Tên job trong tệp sở hữu (`TRINITY_OWNERSHIP_FILE`). */
+export const NOTIFICATION_SCHEDULED_JOB = 'notification.scheduled'
 
 @Injectable()
 export class NotificationsScheduler {
@@ -15,6 +18,8 @@ export class NotificationsScheduler {
    */
   @Cron('0 */2 * * * *')
   async processScheduledNotifications(): Promise<void> {
+    // Tệp sở hữu (T01): đọc lại mỗi lượt; job `notification.scheduled` đã giao cho Rust thì Node bỏ lượt.
+    if (!ownership.nodeRunsJob(NOTIFICATION_SCHEDULED_JOB)) return
     // @Cron chạy ngoài request (không có công ty) ⇒ chạy cho TỪNG công ty, mỗi công ty trong ngữ cảnh riêng.
     await runForEachCompany(async () => {
       const processed = await this.notificationsService.processScheduled()

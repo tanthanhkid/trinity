@@ -12,7 +12,7 @@ export const leadScoringJobEnabled = (): boolean => process.env.LEAD_SCORING_ENA
 export class LeadScoringJob implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(LeadScoringJob.name);
   /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
-  private readonly timerTick = tenantTimerTick(this.logger, 'Chấm điểm lead', () => this.tick());
+  private readonly timerTick = tenantTimerTick(this.logger, 'Chấm điểm lead', () => this.tick(), undefined, 'lead-scoring.run');
   private interval: ReturnType<typeof setInterval> | null = null;
   private first: ReturnType<typeof setTimeout> | null = null;
 

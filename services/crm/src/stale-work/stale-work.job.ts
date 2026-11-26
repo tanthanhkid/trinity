@@ -12,7 +12,7 @@ export const staleJobEnabled = (): boolean => process.env.STALE_REMINDERS_ENABLE
 export class StaleWorkJob implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(StaleWorkJob.name);
   /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
-  private readonly timerTick = tenantTimerTick(this.logger, 'Nhắc việc treo', () => this.tick());
+  private readonly timerTick = tenantTimerTick(this.logger, 'Nhắc việc treo', () => this.tick(), undefined, 'stale-work.digest');
   private interval: ReturnType<typeof setInterval> | null = null;
   private first: ReturnType<typeof setTimeout> | null = null;
 

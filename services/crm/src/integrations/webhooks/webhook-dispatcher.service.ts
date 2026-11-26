@@ -35,7 +35,7 @@ export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WebhookDispatcherService.name);
   private timer: ReturnType<typeof setInterval> | null = null;
   /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
-  private readonly timerTick = tenantTimerTick(this.logger, 'Webhook tick', () => this.tick());
+  private readonly timerTick = tenantTimerTick(this.logger, 'Webhook tick', () => this.tick(), undefined, 'integrations.webhook-dispatch');
   /**
    * Trạng thái theo công ty (multi-tenant): công ty A đang gửi không được chặn/nuốt lượt của công ty B, và
    * mốc dọn dẹp của A không được làm B bỏ lượt dọn.

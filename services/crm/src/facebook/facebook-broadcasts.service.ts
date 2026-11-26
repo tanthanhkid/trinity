@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException, Optional } 
 import type { FacebookBroadcast, FacebookConversation } from '@prisma/client';
 import { Prisma, PrismaService, publishIntegrationEvent, currentCompanyId } from '@trinity/prisma';
 import { publishMessengerEvent } from './facebook-events';
-import { runInBackground } from '@trinity/rbac-nest';
+import { runInBackground, ownership } from '@trinity/rbac-nest';
 import { MESSAGING_WINDOW_MS, isWithinMessagingWindow } from './channel';
 import { fillTemplate } from './facebook-comments.service';
 import { MAX_TEXT } from './facebook-messenger.service';
@@ -234,6 +234,7 @@ export class FacebookBroadcastsService {
 
   /** Gửi ngay sau request (chạy nền). Không chạy chồng trong cùng process. */
   kick(): void {
+    if (!ownership.nodeRunsJob('facebook.broadcasts')) return; // T01: job đã giao cho Rust
     const company = currentCompanyId() ?? 0;
     if (this.running.has(company)) return;
     this.running.add(company);
@@ -255,6 +256,7 @@ export class FacebookBroadcastsService {
   }
 
   async kickIfDue(now = Date.now()): Promise<{ due: boolean }> {
+    if (!ownership.nodeRunsJob('facebook.broadcasts')) return { due: false }; // T01
     const company = currentCompanyId() ?? 0;
     if (this.running.has(company) || now - (this.lastDueCheck.get(company) ?? 0) < 20_000) return { due: false };
     this.lastDueCheck.set(company, now);
@@ -270,6 +272,7 @@ export class FacebookBroadcastsService {
   async runDue(budgetMs: number, now = Date.now()): Promise<{ started: number; sent: number; failed: number; skipped: number }> {
     const t0 = Date.now();
     const out = { started: 0, sent: 0, failed: 0, skipped: 0 };
+    if (!ownership.nodeRunsJob('facebook.broadcasts')) return out; // T01
     const due = await this.prisma.facebookBroadcast.findMany({ where: { status: 'scheduled', scheduled_at: { lte: new Date(now) } }, orderBy: { scheduled_at: 'asc' }, take: 5 });
     for (const b of due) if (await this.start(b, now)) out.started++;
     await this.sweepStale(now);

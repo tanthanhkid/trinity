@@ -5,7 +5,7 @@ import * as path from 'node:path'
 import { requestPathMiddleware } from './request-path.context'
 import { ServiceAwareValidationPipe } from './service-aware-validation.pipe'
 import { LoggingInterceptor, ElkExceptionFilter } from '@trinity/logger'
-import { auditRoutes, clientIpMiddleware } from '@trinity/rbac-nest'
+import { auditRoutes, assertOwnershipLoadable, clientIpMiddleware, ownership } from '@trinity/rbac-nest'
 import { ensurePlatform, isMultiTenant, migrateAllCompanies, runInTenantScope } from '@trinity/prisma'
 
 // BigInt không serialize được mặc định trong JSON (cùng cách làm ở entrypoint của các service)
@@ -64,6 +64,8 @@ export async function configureApp(
   app: NestExpressApplication,
   opts: ConfigureAppOptions,
 ): Promise<void> {
+  // T01: đã đặt TRINITY_OWNERSHIP_FILE mà tệp hỏng/thiếu ⇒ từ chối khởi động (không rơi về "mọi thứ thuộc Node").
+  assertOwnershipLoadable()
   // PHẢI đứng trước mọi middleware khác — pipe đọc đường dẫn từ đây.
   app.use(requestPathMiddleware)
   // IP của khách: xác định (và kiểm chữ ký `x-trinity-client-ip`) NGAY khi nhận header — trước body-parser và multer, để
@@ -85,9 +87,14 @@ export async function configureApp(
     await ensurePlatform()
     // Company schemas are migrated by the deploy step (`pnpm --filter @trinity/prisma migrate:companies`); this
     // background pass only catches up stragglers, so a release never holds the API down for every company.
-    void migrateAllCompanies((msg) => console.log(`[tenant] ${msg}`)).catch((err) =>
-      console.error(`[tenant] migrateAllCompanies: ${err instanceof Error ? err.message : String(err)}`),
-    )
+    // Tệp sở hữu (T01): `migrate: rust` thì Rust lo bước này, Node bỏ qua (đọc ngay lúc boot).
+    if (ownership.nodeRunsMigrate()) {
+      void migrateAllCompanies((msg) => console.log(`[tenant] ${msg}`)).catch((err) =>
+        console.error(`[tenant] migrateAllCompanies: ${err instanceof Error ? err.message : String(err)}`),
+      )
+    } else {
+      console.log('[tenant] migrate nền thuộc Rust theo tệp sở hữu, Node bỏ qua')
+    }
   }
 
   app.enableCors({ origin: corsOrigin, credentials: true })

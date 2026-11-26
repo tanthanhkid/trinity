@@ -14,7 +14,7 @@ const FIRST_RUN_DELAY_MS = 8 * 60 * 1000;
 export class AiActionExpiryService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AiActionExpiryService.name);
   /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
-  private readonly timerTick = tenantTimerTick(this.logger, 'Dọn đề xuất AI', () => this.runOnce());
+  private readonly timerTick = tenantTimerTick(this.logger, 'Dọn đề xuất AI', () => this.runOnce(), undefined, 'integrations.ai-action-expiry');
   private interval: ReturnType<typeof setInterval> | null = null;
   private first: ReturnType<typeof setTimeout> | null = null;
 

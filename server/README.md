@@ -105,6 +105,13 @@ git add .sqlx
 đột. Tệp của truy vấn đã xoá được `prepare` dọn đi. Job `Rust pg tests` trên CI migrate một Postgres 16 bằng Prisma,
 chạy `cargo sqlx prepare --workspace --check` trên DB đó (không offline) rồi chạy mọi test `#[ignore]` bằng `--ignored`.
 
+## Bảng ca dùng chung TS ↔ Rust (`contracts/cases/`)
+
+Hàm thuần chuyển từ bản TS phải khớp từng byte: đầu vào và kết quả nằm trong một tệp JSON, bản TS sinh và kiểm cột
+kết quả, test Rust chạy cùng tệp. `contracts/cases/kernel.json` (K26: bỏ dấu, số điện thoại, khoảng ngày, định dạng
+số và ngày, so sánh chuỗi) chạy ở `services/crm/src/common/helpers/kernel-cases.spec.ts` và
+`crates/trinity-kernel/tests/shared_cases.rs`; cách thêm ca và quyết định từng chỗ: [`docs/rust/locale-vi.md`](../docs/rust/locale-vi.md).
+
 ## Hàng đợi biên dịch chung
 
 Máy phát triển 16 GB chỉ chịu **một tiến trình biên dịch Rust tại một lúc** (PLAN mục 11). Mọi agent và người dùng

@@ -65,6 +65,11 @@ jsonschema = "0.63"
 rust_decimal = "1.43"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
 chrono-tz = "0.10"
+# Tiếng Việt: chuẩn hoá NFD (fold_vi) và so sánh chuỗi theo locale như `localeCompare` của V8 (K26). Cùng họ ICU4X
+# 2.x mà url/idna đã kéo vào Cargo.lock.
+icu_collator = "2.4"
+icu_normalizer = "2.4"
+icu_locale_core = "2.4"
 moka = "0.12"
 
 # Realtime, lưu trữ, tài liệu

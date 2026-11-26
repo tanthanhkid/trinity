@@ -211,6 +211,10 @@ pub const ENV_VARS: &[EnvVar] = &[
     server("SHADOW_SAMPLE_RATE"),
     server("TRUSTED_PROXY"),
     server("CLOUDFLARE_IP_RANGES"),
+    // Thêm ở #283 (G16a): địa chỉ nghe của API (bắt buộc 127.0.0.1 với cloudflare-tunnel) và TRUSTED_PROXY riêng của
+    // container api trong Docker Compose.
+    server("LISTEN_HOST"),
+    elsewhere("API_TRUSTED_PROXY", COMPOSE),
     elsewhere("WEB_BIND", COMPOSE),
     elsewhere("API_PORT", COMPOSE),
     elsewhere("HOSTNAME", WEB),

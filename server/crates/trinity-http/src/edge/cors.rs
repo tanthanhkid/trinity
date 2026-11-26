@@ -206,7 +206,7 @@ mod tests {
         assert!(!prod("https://aexample.com", "*.example.com"));
         assert!(prod(
             "https://x.example.org",
-            "https://crm.example.com, *.example.org ,"
+            "*.example.org , https://crm.example.com"
         ));
     }
 }

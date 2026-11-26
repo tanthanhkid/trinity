@@ -194,7 +194,7 @@ async fn send(addr: SocketAddr, method: &str, path: &str, headers: &[(&str, &str
 
 #[tokio::test]
 async fn cors_wildcard_subdomain_va_origin_cau_hinh() {
-    let s = start("", true, "https://crm.example.com, *.example.org").await;
+    let s = start("", true, "*.example.org,https://crm.example.com").await;
     for (origin, ok) in [
         ("https://crm.example.com", true),
         ("https://a.example.org", true),

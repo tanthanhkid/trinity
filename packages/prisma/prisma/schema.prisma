@@ -2012,80 +2012,6 @@ model ZaloOaMessage {
   @@map("zalo_oa_messages")
 }
 
-// ==================== GOOGLE SHEETS ====================
-// Kết nối Google Sheet hai chiều. Token OAuth mã hoá AES-256-GCM (INTEGRATIONS_SECRET_KEY), KHÔNG BAO GIỜ trả ra API.
-// Liên kết ra ngoài (users, custom_objects) là soft ref, KHÔNG FK. Chỉ bảng MỚI.
-
-/// Kết nối Google của tổ chức (1 tài khoản Google ủy quyền). `status`: active | revoked | error.
-model GoogleConnection {
-  id                Int       @id @default(autoincrement())
-  google_email      String?   @db.VarChar(255)
-  refresh_token_enc String    @db.Text
-  access_token_enc  String?   @db.Text
-  token_expires_at  DateTime? @db.Timestamptz(3)
-  scopes            String[]  @default([])
-  status            String    @default("active") @db.VarChar(16)
-  last_error        String?   @db.VarChar(500)
-  created_by        Int
-  created_at        DateTime  @default(now()) @db.Timestamptz(3)
-  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
-
-  @@index([status])
-  @@map("google_connections")
-}
-
-/// Một cấu hình đồng bộ: nhập (Sheet → CRM) hoặc xuất (CRM → Sheet) cho một tab của một Sheet.
-/// `target_kind`: 'contact' | 'custom_object' (khi đó `target_object_key` = khoá thực thể). `column_map`: { khoá trường CRM: tên cột }.
-model GoogleSheetSync {
-  id                Int       @id @default(autoincrement())
-  name              String    @db.VarChar(100)
-  direction         String    @db.VarChar(8)
-  connection_id     Int
-  spreadsheet_id    String    @db.VarChar(128)
-  sheet_title       String    @db.VarChar(200)
-  target_kind       String    @db.VarChar(16)
-  target_object_key String?   @db.VarChar(48)
-  column_map        Json      @default("{}")
-  /// Khoá trường dùng khử trùng khi nhập ('phone' | 'email' | khoá trường tuỳ biến).
-  dedupe_key        String    @db.VarChar(48)
-  /// Nhập: người nhận khách / chủ bản ghi + tác nhân ghi. Xuất: người tạo cấu hình.
-  actor_user_id     Int
-  contact_source_id Int?
-  /// Chu kỳ tự chạy (phút); null = chỉ chạy tay.
-  schedule_minutes  Int?
-  is_active         Boolean   @default(true)
-  /// Xuất: id `integration_events` đã xử lý đến đâu (không đụng `dispatched_at` của webhook).
-  export_cursor     BigInt    @default(0)
-  last_run_at       DateTime? @db.Timestamptz(3)
-  last_status       String?   @db.VarChar(16)
-  last_error        String?   @db.VarChar(500)
-  created_by        Int
-  created_at        DateTime  @default(now()) @db.Timestamptz(3)
-  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
-  deleted_at        DateTime? @db.Timestamptz(3)
-
-  runs GoogleSheetSyncRun[]
-
-  @@index([is_active, deleted_at], map: "google_sheet_syncs_active_idx")
-  @@map("google_sheet_syncs")
-}
-
-/// Nhật ký mỗi lần chạy đồng bộ (không chứa SĐT/dữ liệu dòng — chỉ số đếm + lỗi tóm tắt).
-model GoogleSheetSyncRun {
-  id          BigInt          @id @default(autoincrement())
-  sync_id     Int
-  sync        GoogleSheetSync @relation(fields: [sync_id], references: [id], onDelete: Cascade)
-  trigger     String          @db.VarChar(16)
-  started_at  DateTime        @default(now()) @db.Timestamptz(3)
-  finished_at DateTime?       @db.Timestamptz(3)
-  status      String          @default("running") @db.VarChar(16)
-  stats       Json            @default("{}")
-  error       String?         @db.VarChar(500)
-
-  @@index([sync_id, started_at(sort: Desc)], map: "google_sheet_sync_runs_sync_idx")
-  @@map("google_sheet_sync_runs")
-}
-
 // ==================== BẢN TIN SÁNG/CHIỀU ====================
 // Mỗi người nhận có MỘT bản tin mỗi (slot, ngày VN) — unique chống gửi trùng khi cron chạy lặp/nhiều instance.
 // Soft-FK `user_id` → users.id (không @relation, tránh sửa model User dùng chung).
@@ -2763,4 +2689,75 @@ model ExtensionRun {
 
   @@index([extension_id, id(sort: Desc)], map: "extension_runs_ext_idx")
   @@map("extension_runs")
+}
+
+// Google Sheets + OAuth Google (đã gỡ ở G03). Token đã mã hoá (AES-256-GCM) nằm lại, không còn mã giải mã/dùng.
+/// Kết nối Google của tổ chức (1 tài khoản Google ủy quyền). `status`: active | revoked | error.
+model GoogleConnection {
+  id                Int       @id @default(autoincrement())
+  google_email      String?   @db.VarChar(255)
+  refresh_token_enc String    @db.Text
+  access_token_enc  String?   @db.Text
+  token_expires_at  DateTime? @db.Timestamptz(3)
+  scopes            String[]  @default([])
+  status            String    @default("active") @db.VarChar(16)
+  last_error        String?   @db.VarChar(500)
+  created_by        Int
+  created_at        DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+
+  @@index([status])
+  @@map("google_connections")
+}
+
+/// Một cấu hình đồng bộ: nhập (Sheet → CRM) hoặc xuất (CRM → Sheet) cho một tab của một Sheet.
+/// `target_kind`: 'contact' | 'custom_object' (khi đó `target_object_key` = khoá thực thể). `column_map`: { khoá trường CRM: tên cột }.
+model GoogleSheetSync {
+  id                Int       @id @default(autoincrement())
+  name              String    @db.VarChar(100)
+  direction         String    @db.VarChar(8)
+  connection_id     Int
+  spreadsheet_id    String    @db.VarChar(128)
+  sheet_title       String    @db.VarChar(200)
+  target_kind       String    @db.VarChar(16)
+  target_object_key String?   @db.VarChar(48)
+  column_map        Json      @default("{}")
+  /// Khoá trường dùng khử trùng khi nhập ('phone' | 'email' | khoá trường tuỳ biến).
+  dedupe_key        String    @db.VarChar(48)
+  /// Nhập: người nhận khách / chủ bản ghi + tác nhân ghi. Xuất: người tạo cấu hình.
+  actor_user_id     Int
+  contact_source_id Int?
+  /// Chu kỳ tự chạy (phút); null = chỉ chạy tay.
+  schedule_minutes  Int?
+  is_active         Boolean   @default(true)
+  /// Xuất: id `integration_events` đã xử lý đến đâu (không đụng `dispatched_at` của webhook).
+  export_cursor     BigInt    @default(0)
+  last_run_at       DateTime? @db.Timestamptz(3)
+  last_status       String?   @db.VarChar(16)
+  last_error        String?   @db.VarChar(500)
+  created_by        Int
+  created_at        DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+  deleted_at        DateTime? @db.Timestamptz(3)
+
+  runs GoogleSheetSyncRun[]
+
+  @@index([is_active, deleted_at], map: "google_sheet_syncs_active_idx")
+  @@map("google_sheet_syncs")
+}
+
+/// Nhật ký mỗi lần chạy đồng bộ (không chứa SĐT/dữ liệu dòng — chỉ số đếm + lỗi tóm tắt).
+model GoogleSheetSyncRun {
+  id          BigInt          @id @default(autoincrement())
+  sync_id     Int
+  sync        GoogleSheetSync @relation(fields: [sync_id], references: [id], onDelete: Cascade)
+  trigger     String          @db.VarChar(16)
+  started_at  DateTime        @default(now()) @db.Timestamptz(3)
+  finished_at DateTime?       @db.Timestamptz(3)
+  status      String          @default("running") @db.VarChar(16)
+  stats       Json            @default("{}")
+  error       String?         @db.VarChar(500)
+
+  @@index([sync_id, started_at(sort: Desc)], map: "google_sheet_sync_runs_sync_idx")
+  @@map("google_sheet_sync_runs")
 }

@@ -52,7 +52,7 @@ describe('Gói dịch vụ', () => {
     expect(PLANS.mac_dinh.maxUsers).toBe(10)
     expect([...PLANS.mac_dinh.features].sort()).toEqual([...PLAN_GATED_FEATURES].sort())
     const f = applyPlanToFeatures(resolveOrgFeatures({}), 'mac_dinh')
-    expect(f.facebook_page && f.zalo_oa && f.ai_briefing && f.google_sheets && f.lead_scoring && f.stale_reminders).toBe(true)
+    expect(f.facebook_page && f.zalo_oa && f.ai_briefing && f.lead_scoring && f.stale_reminders).toBe(true)
     expect(resolvePlanForCompany(undefined, 3)).toBe('mac_dinh')
     expect(resolvePlanForCompany('rác', 2)).toBe('mac_dinh')
     expect(resolvePlanForCompany(undefined, 1)).toBe('custom')
@@ -65,9 +65,10 @@ describe('Gói dịch vụ', () => {
       for (const f of PLANS[k].features) expect(PLAN_GATED_FEATURES).toContain(f)
     }
   })
-  it('Kết nối: chỉ sheets, 10 user; không gói nào có hạn mức AI (Trinity không chạy AI)', () => {
+  it('Kết nối: không còn tính năng theo gói, 10 user; không gói nào có hạn mức AI (Trinity không chạy AI)', () => {
     const f = applyPlanToFeatures(resolveOrgFeatures({}), 'ket_noi')
-    expect(f.google_sheets).toBe(true)
+    expect(PLANS.ket_noi.features).toEqual([])
+    expect(ORG_FEATURE_KEYS).not.toContain('google_sheets')
     expect(f.zalo_oa).toBe(false)
     expect(f.ai_briefing).toBe(false)
     expect(PLANS.ket_noi.maxUsers).toBe(10)
@@ -77,7 +78,7 @@ describe('Gói dịch vụ', () => {
   it('gói chỉ hạ cờ: cờ cũ giữ nguyên, admin tắt tay vẫn tắt', () => {
     const f = applyPlanToFeatures(resolveOrgFeatures({ lead_scoring: false, google_sheets: false }), 'tro_ly_van_hanh')
     expect(f.lead_scoring).toBe(false)
-    expect(f.google_sheets).toBe(false)
+    expect(f).not.toHaveProperty('google_sheets') // khoá cũ trong JSON bị bỏ qua
     expect(f.zalo_oa).toBe(true)
     expect(f.payroll).toBe(true)
   })

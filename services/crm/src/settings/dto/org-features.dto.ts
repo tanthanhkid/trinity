@@ -22,7 +22,6 @@ export class UpdateOrgFeaturesDto {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() ai_briefing?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() zalo_oa?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() lead_scoring?: boolean;
-  @ApiPropertyOptional() @IsOptional() @IsBoolean() google_sheets?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() stale_reminders?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() facebook_page?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() social_posting?: boolean;

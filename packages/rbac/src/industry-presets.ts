@@ -55,7 +55,7 @@ export const INDUSTRY_PRESETS: Record<IndustryKey, IndustryPreset> = {
     description: 'Dự án, sản phẩm (căn, lô), giữ chỗ, lịch dẫn khách xem.',
     icon: 'Building2',
     template: 'real_estate',
-    features: base('inbox', 'facebook_page', 'zalo_oa', 'social_posting', 'lead_scoring', 'stale_reminders', 'google_sheets', 'integrations'),
+    features: base('inbox', 'facebook_page', 'zalo_oa', 'social_posting', 'lead_scoring', 'stale_reminders', 'integrations'),
   },
   other: {
     label: 'Khác',

@@ -10,7 +10,6 @@ import { UpdateKanbanChecklistItemDto } from '../kanban/checklist/dto/update-che
 import { UpdateCandidateDto } from '../recruitment/dto/update-candidate.dto';
 import { UpdatePositionDto } from '../recruitment/dto/update-position.dto';
 import { UpdateOptionDto } from '../settings-options/dto/update-option.dto';
-import { UpdateSyncDto } from '../google/dto/google-sync.dto';
 
 /** `null` trên cột NOT NULL phải bị 400 ở pipe (không lọt xuống Prisma thành 500); cột nullable vẫn nhận `null` để xoá giá trị. */
 const pipe = new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true });
@@ -28,7 +27,6 @@ const NOT_NULL: Array<[unknown, string]> = [
   [UpdateCandidateDto, 'full_name'], [UpdateCandidateDto, 'stage'], [UpdateCandidateDto, 'decision'], [UpdateCandidateDto, 'recruitment_type'],
   [UpdatePositionDto, 'job_code'], [UpdatePositionDto, 'department'], [UpdatePositionDto, 'position_title'], [UpdatePositionDto, 'headcount'], [UpdatePositionDto, 'status'],
   [UpdateOptionDto, 'label'], [UpdateOptionDto, 'sort_order'], [UpdateOptionDto, 'is_active'],
-  [UpdateSyncDto, 'name'], [UpdateSyncDto, 'is_active'], [UpdateSyncDto, 'column_map'], [UpdateSyncDto, 'dedupe_key'],
 ];
 
 describe('CRM update DTO: null trên cột NOT NULL → 400', () => {

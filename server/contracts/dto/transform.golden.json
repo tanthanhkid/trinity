@@ -1,0 +1,8707 @@
+[
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": "  a b  ",
+  "output": "  a b  "
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": " 7 ",
+  "output": " 7 "
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": " 1 , 2 ",
+  "output": " 1 , 2 "
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": "true",
+  "output": true
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": "false",
+  "output": false
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "is_active",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": "  a b  ",
+  "output": "  a b  "
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": " 7 ",
+  "output": " 7 "
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": " 1 , 2 ",
+  "output": " 1 , 2 "
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": "true",
+  "output": true
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": "false",
+  "output": false
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "archived",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "ListProductsQueryDto",
+  "prop": "q",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "CloseShiftDto",
+  "prop": "note",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "store_name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "address",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "phone",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "receipt_footer",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateSettingsDto",
+  "prop": "bank_account_name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "MenuQueryDto",
+  "prop": "q",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "CreateAreaDto",
+  "prop": "name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateAreaDto",
+  "prop": "name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "CreateTableDto",
+  "prop": "name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateTableDto",
+  "prop": "name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "group_name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "CreateModifierDto",
+  "prop": "name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "group_name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateModifierDto",
+  "prop": "name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": "  a b  ",
+  "output": "  a b  "
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": " 7 ",
+  "output": " 7 "
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": " 1 , 2 ",
+  "output": " 1 , 2 "
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": "true",
+  "output": true
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": "false",
+  "output": false
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "ListModifiersQueryDto",
+  "prop": "include_inactive",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "OrderItemInputDto",
+  "prop": "note",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "OrderFieldsDto",
+  "prop": "note",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "CreateOrderDto",
+  "prop": "note",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateOrderDto",
+  "prop": "note",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "PaymentInputDto",
+  "prop": "reference",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "VoidOrderDto",
+  "prop": "reason",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": null,
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": "",
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": "  a b  ",
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": "5",
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": " 7 ",
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": "-3",
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": "3.7",
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": "0x1A",
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": "abc",
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": "1,2,x",
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": " 1 , 2 ",
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": "true",
+  "output": true
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": "false",
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": [
+   "x",
+   3
+  ],
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": 3,
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": 3.7,
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": 0,
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": true,
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "QueryNotificationDto",
+  "prop": "read",
+  "input": {
+   "a": 1
+  },
+  "output": false
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": null,
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": "",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": "  a b  ",
+  "output": [
+   "a b"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": "5",
+  "output": [
+   "5"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": " 7 ",
+  "output": [
+   "7"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": "-3",
+  "output": [
+   "-3"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": "3.7",
+  "output": [
+   "3.7"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": "0x1A",
+  "output": [
+   "0x1A"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": "abc",
+  "output": [
+   "abc"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": "1,2,x",
+  "output": [
+   "1",
+   "2",
+   "x"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": " 1 , 2 ",
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": "true",
+  "output": [
+   "true"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": "false",
+  "output": [
+   "false"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   "3"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": 3,
+  "output": [
+   "3"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": 3.7,
+  "output": [
+   "3.7"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": 0,
+  "output": [
+   "0"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": true,
+  "output": [
+   "true"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": false,
+  "output": [
+   "false"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "department",
+  "input": {
+   "a": 1
+  },
+  "output": [
+   "[object Object]"
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": null,
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": "",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": "  a b  ",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": "5",
+  "output": [
+   5
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": " 7 ",
+  "output": [
+   7
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": "-3",
+  "output": [
+   -3
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": "3.7",
+  "output": [
+   3
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": "0x1A",
+  "output": [
+   0
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": "abc",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": "1,2,x",
+  "output": [
+   1,
+   2
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": " 1 , 2 ",
+  "output": [
+   1,
+   2
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": "true",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": "false",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   1,
+   2
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   3
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": 3,
+  "output": [
+   3
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": 3.7,
+  "output": [
+   3
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": 0,
+  "output": [
+   0
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": true,
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": false,
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "team_id",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": null,
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": "",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": "  a b  ",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": "5",
+  "output": [
+   5
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": " 7 ",
+  "output": [
+   7
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": "-3",
+  "output": [
+   -3
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": "3.7",
+  "output": [
+   3
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": "0x1A",
+  "output": [
+   0
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": "abc",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": "1,2,x",
+  "output": [
+   1,
+   2
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": " 1 , 2 ",
+  "output": [
+   1,
+   2
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": "true",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": "false",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   1,
+   2
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   3
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": 3,
+  "output": [
+   3
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": 3.7,
+  "output": [
+   3
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": 0,
+  "output": [
+   0
+  ]
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": true,
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": false,
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAttendanceStatsDto",
+  "prop": "office_id",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "ContactCustomFieldDto",
+  "prop": "label",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateContactDto",
+  "prop": "full_name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "CreateContactDto",
+  "prop": "full_name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "PublicCreateContactDto",
+  "prop": "full_name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": null,
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": "",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": "  a b  ",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": "5",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": " 7 ",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": "-3",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": "3.7",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": "0x1A",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": "abc",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": "1,2,x",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": " 1 , 2 ",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": "true",
+  "output": true
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": "false",
+  "output": false
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": [
+   "x",
+   3
+  ],
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": 3,
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": 3.7,
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": 0,
+  "output": false
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "QueryOptionsDto",
+  "prop": "active",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": null,
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": "",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": "  a b  ",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": "5",
+  "output": 5
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": " 7 ",
+  "output": 7
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": "-3",
+  "output": -3
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": "3.7",
+  "output": 3
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": "0x1A",
+  "output": 26
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": "abc",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": "1,2,x",
+  "output": 1
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": " 1 , 2 ",
+  "output": 1
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": "true",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": "false",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": 1
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": [
+   "x",
+   3
+  ],
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": 3.7,
+  "output": 3
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": true,
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": false,
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "assigned_to",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": null,
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": "",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": "  a b  ",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": "5",
+  "output": 5
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": " 7 ",
+  "output": 7
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": "-3",
+  "output": -3
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": "3.7",
+  "output": 3
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": "0x1A",
+  "output": 26
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": "abc",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": "1,2,x",
+  "output": 1
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": " 1 , 2 ",
+  "output": 1
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": "true",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": "false",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": 1
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": [
+   "x",
+   3
+  ],
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": 3.7,
+  "output": 3
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": true,
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": false,
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "cursor",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": null,
+  "output": 20
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": "",
+  "output": 20
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": "  a b  ",
+  "output": 20
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": "5",
+  "output": 5
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": " 7 ",
+  "output": 7
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": "-3",
+  "output": 1
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": "3.7",
+  "output": 3
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": "0x1A",
+  "output": 26
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": "abc",
+  "output": 20
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": "1,2,x",
+  "output": 1
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": " 1 , 2 ",
+  "output": 1
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": "true",
+  "output": 20
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": "false",
+  "output": 20
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": 1
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": [
+   "x",
+   3
+  ],
+  "output": 20
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": 3.7,
+  "output": 3
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": 0,
+  "output": 20
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": true,
+  "output": 20
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": false,
+  "output": 20
+ },
+ {
+  "dto": "QueryDealDto",
+  "prop": "limit",
+  "input": {
+   "a": 1
+  },
+  "output": 20
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": "  a b  ",
+  "output": "  a b  "
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": " 7 ",
+  "output": " 7 "
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": " 1 , 2 ",
+  "output": " 1 , 2 "
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": "true",
+  "output": true
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": "false",
+  "output": false
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "QueryJobTitlesDto",
+  "prop": "is_active",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": null,
+  "output": 0
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": "",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": "  a b  ",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": "5",
+  "output": 5
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": " 7 ",
+  "output": 7
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": "-3",
+  "output": -3
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": "3.7",
+  "output": 3.7
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": "0x1A",
+  "output": 26
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": "abc",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": "1,2,x",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": " 1 , 2 ",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": "true",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": "false",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": [
+   "x",
+   3
+  ],
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": true,
+  "output": 1
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": false,
+  "output": 0
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "user_id",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": null,
+  "output": 0
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": "",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": "  a b  ",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": "5",
+  "output": 5
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": " 7 ",
+  "output": 7
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": "-3",
+  "output": -3
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": "3.7",
+  "output": 3.7
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": "0x1A",
+  "output": 26
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": "abc",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": "1,2,x",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": " 1 , 2 ",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": "true",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": "false",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": [
+   "x",
+   3
+  ],
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": true,
+  "output": 1
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": false,
+  "output": 0
+ },
+ {
+  "dto": "QueryAuditLogsDto",
+  "prop": "limit",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "CreateWebhookEndpointDto",
+  "prop": "url",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateWebhookEndpointDto",
+  "prop": "url",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": null,
+  "output": 0
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": "",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": "  a b  ",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": "5",
+  "output": 5
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": " 7 ",
+  "output": 7
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": "-3",
+  "output": -3
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": "3.7",
+  "output": 3.7
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": "0x1A",
+  "output": 26
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": "abc",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": "1,2,x",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": " 1 , 2 ",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": "true",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": "false",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": [
+   "x",
+   3
+  ],
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": true,
+  "output": 1
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": false,
+  "output": 0
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "endpoint_id",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": null,
+  "output": 0
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": "",
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": "  a b  ",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": "5",
+  "output": 5
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": " 7 ",
+  "output": 7
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": "-3",
+  "output": -3
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": "3.7",
+  "output": 3.7
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": "0x1A",
+  "output": 26
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": "abc",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": "1,2,x",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": " 1 , 2 ",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": "true",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": "false",
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": [
+   "x",
+   3
+  ],
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": true,
+  "output": 1
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": false,
+  "output": 0
+ },
+ {
+  "dto": "QueryWebhookDeliveriesDto",
+  "prop": "limit",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "$number": "NaN"
+  }
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "phone",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "email",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "note",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "source",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "InboundContactPayload",
+  "prop": "external_id",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "CreateInboundSourceDto",
+  "prop": "name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "UpdateInboundSourceDto",
+  "prop": "name",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": "  a b  ",
+  "output": "  a b  "
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": " 7 ",
+  "output": " 7 "
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": " 1 , 2 ",
+  "output": " 1 , 2 "
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": "true",
+  "output": true
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": "false",
+  "output": false
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "overdue",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": {
+   "$undefined": true
+  },
+  "output": {
+   "$undefined": true
+  }
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": null,
+  "output": null
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": "",
+  "output": ""
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": "  a b  ",
+  "output": "a b"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": "5",
+  "output": "5"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": " 7 ",
+  "output": "7"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": "-3",
+  "output": "-3"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": "3.7",
+  "output": "3.7"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": "0x1A",
+  "output": "0x1A"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": "abc",
+  "output": "abc"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": "1,2,x",
+  "output": "1,2,x"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": " 1 , 2 ",
+  "output": "1 , 2"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": "true",
+  "output": "true"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": "false",
+  "output": "false"
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": [
+   "1",
+   "2"
+  ],
+  "output": [
+   "1",
+   "2"
+  ]
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": [
+   "x",
+   3
+  ],
+  "output": [
+   "x",
+   3
+  ]
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": 3,
+  "output": 3
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": 3.7,
+  "output": 3.7
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": 0,
+  "output": 0
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": true,
+  "output": true
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": false,
+  "output": false
+ },
+ {
+  "dto": "QueryKanbanCardsDto",
+  "prop": "search",
+  "input": {
+   "a": 1
+  },
+  "output": {
+   "a": 1
+  }
+ }
+]

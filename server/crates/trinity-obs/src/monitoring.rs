@@ -78,7 +78,6 @@ pub fn client_options(cfg: &MonitoringConfig) -> ClientOptions {
         .environment(cfg.environment.clone())
         .send_default_pii(false)
         .max_request_body_size(MaxRequestBodySize::None)
-        .auto_session_tracking(false)
         .before_send(|ev: Event<'static>| {
             // Chỉ lỗi 5xx: sự kiện gắn mã trạng thái < 500 bị bỏ.
             let status = ev.tags.get("http.status_code").and_then(|s| s.parse::<u16>().ok());

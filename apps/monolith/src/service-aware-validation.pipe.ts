@@ -11,7 +11,7 @@ import { requestPathStorage } from './request-path.context'
  * ⚠️ `/api/v1/employees` (Payroll) KHÁC `/api/v1/management/employees` (CRM) —
  * khớp theo tiền tố nên không nhầm, nhưng đừng rút gọn thành `employees`.
  */
-const LENIENT_PREFIXES = [
+export const LENIENT_PREFIXES = [
   // auth
   '/api/v1/auth',
   '/api/v1/public/auth',

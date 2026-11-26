@@ -1572,10 +1572,6 @@
           },
           "content": {
             "type": "string"
-          },
-          "video_keys": {
-            "description": "Khoá video đã upload thẳng lên Blob, phân tách bằng dấu phẩy — lấy từ POST newsfeed/video-upload-token",
-            "type": "string"
           }
         },
         "required": [
@@ -1861,7 +1857,7 @@
             "type": "string"
           },
           "media_keys": {
-            "description": "Khoá tệp từ POST social/media hoặc social/media/upload-token",
+            "description": "Khoá tệp từ POST social/media",
             "items": {
               "type": "string"
             },
@@ -3268,20 +3264,6 @@
         "required": [
           "csv",
           "mode"
-        ],
-        "type": "object"
-      },
-      "SocialMediaRegisterDto": {
-        "properties": {
-          "key": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "key"
         ],
         "type": "object"
       },
@@ -5086,23 +5068,6 @@
         },
         "required": [
           "dates"
-        ],
-        "type": "object"
-      },
-      "VideoUploadTokenDto": {
-        "properties": {
-          "file_name": {
-            "description": "Tên file gốc (chỉ dùng lấy đuôi .mp4/.webm/.mov)",
-            "type": "string"
-          },
-          "size": {
-            "description": "Dung lượng video (byte)",
-            "type": "number"
-          }
-        },
-        "required": [
-          "file_name",
-          "size"
         ],
         "type": "object"
       },
@@ -16586,18 +16551,9 @@
     },
     "/api/v1/newsfeed/video-upload-token": {
       "post": {
-        "operationId": "NewsfeedController_videoUploadToken",
+        "deprecated": true,
+        "operationId": "NewsfeedController_videoUploadTokenGone",
         "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VideoUploadTokenDto"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "201": {
             "description": ""
@@ -16608,7 +16564,7 @@
             "bearer": []
           }
         ],
-        "summary": "Cấp token upload video thẳng lên Blob (môi trường serverless giới hạn kích thước body); 400 nếu môi trường không hỗ trợ",
+        "summary": "Đã ngừng: luôn trả 400 — gửi video qua /newsfeed/upload (multipart)",
         "tags": [
           "Newsfeed"
         ]
@@ -22026,36 +21982,6 @@
         ]
       }
     },
-    "/api/v1/social/media/register": {
-      "post": {
-        "operationId": "SocialController_register",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SocialMediaRegisterDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Đưa tệp vừa tải thẳng lên Blob vào thư viện media",
-        "tags": [
-          "Social"
-        ]
-      }
-    },
     "/api/v1/social/media/upload-token": {
       "post": {
         "operationId": "SocialController_uploadToken",
@@ -22080,7 +22006,7 @@
             "bearer": []
           }
         ],
-        "summary": "Token tải tệp thẳng lên Blob (Vercel); 400 nếu môi trường không hỗ trợ → dùng POST social/media",
+        "summary": "Kiểm loại/cỡ tệp trước khi tải: luôn 400 (quá trần ⇒ \"Tệp quá lớn\" + max_bytes; hợp lệ ⇒ dùng POST social/media)",
         "tags": [
           "Social"
         ]

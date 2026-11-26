@@ -240,6 +240,7 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 | `get_dashboard_overview` | read | Dashboard overview |
 | `get_report` | read | Custom report |
 | `get_setup_guide` | read | Setup guide |
+| `setup_build` | write · admins | Build the workspace in one call from an industry preset (`industry`, optional `features`): applies the template, saves the modules, adds a few sample records that delete themselves when real data arrives |
 | `install_object_template` | write · preview → `confirmed_by_user` | Install an industry template |
 | `list_crm_options` | read | List CRM options |
 | `list_features` | read | List features (by group, on/off) |

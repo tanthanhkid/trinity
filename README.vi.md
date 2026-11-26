@@ -25,13 +25,13 @@ Phần mềm quản lý nào cũng bắt bạn học menu. Trinity làm ngược
 - **"Chiến dịch quý 3 so với quý 2 thế nào?"** Trợ lý đọc dữ liệu, trả lời kèm biểu đồ.
 - **"Sáng nào cũng lấy đơn mới từ Google Sheet của tôi vào."** Trinity tự tạo một tiện ích nhỏ cho việc đó. Tiện ích chạy tách riêng, lỗi cũng không ảnh hưởng hệ thống chính.
 
-**Mở ra gọn, lớn lên cùng doanh nghiệp.** Lần đầu kết nối, AI hỏi về công việc của bạn, nhận file Excel/Google Sheet, rồi dựng quy trình và màn hình bạn cần. Bộ cơ bản (Tổng quan, Khách hàng, Công việc, Báo cáo, Hộp thư) bật sẵn; phần còn lại là công tắc ở Cài đặt › Tính năng, menu chỉ hiện thứ đang bật. AI bật giúp đúng tính năng cho ngành của bạn được.
+**Mở ra gọn, lớn lên cùng doanh nghiệp.** Lần đăng nhập đầu tiên mở một wizard ngắn: chọn loại doanh nghiệp (trung tâm giáo dục, bán lẻ và dịch vụ, phòng khám/spa/thú y, bất động sản, hoặc Khác), tick các phân hệ muốn dùng, bấm *Dựng hệ thống* là có sẵn danh sách, màn hình và menu, không cần AI. Vài bản ghi mẫu (dữ liệu giả, ghi rõ là mẫu) giúp bạn xem thử và tự xoá khi bạn thêm khách hoặc bản ghi thật đầu tiên. Bộ cơ bản (Tổng quan, Khách hàng, Công việc, Báo cáo) luôn bật; phần còn lại là công tắc ở Cài đặt › Tính năng, menu chỉ hiện thứ đang bật. Trợ lý AI vẫn dựng hoặc chỉnh hệ thống được (tool `setup_build`, `propose_workspace`).
 
 **Làm cho doanh nghiệp Việt trước tiên.** Zalo, VietQR, giao diện và định dạng dữ liệu tiếng Việt có sẵn. Đây là những thứ CRM nước ngoài không có.
 
 ## Cách hoạt động
 
-Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextprotocol.io)) đăng nhập bằng OAuth. Trong app, màn *Bắt đầu* hỏi bạn dùng trợ lý AI nào (ChatGPT, Claude, Claude Code, Antigravity, Gemini CLI, Cursor, Codex CLI, VS Code Copilot…) rồi chép sẵn một prompt: dán vào là trợ lý tự gắn máy chủ, mở trang đăng nhập và bắt đầu dựng hệ thống. Trợ lý AI nào hỗ trợ MCP cũng kết nối được và nhận bộ công cụ thao tác bản ghi, quy trình, báo cáo, tiện ích, theo đúng quyền của người kết nối. Máy chủ Trinity không tự gọi AI và không giữ khoá AI nào: trí tuệ đến từ trợ lý của chính bạn.
+Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextprotocol.io)) đăng nhập bằng OAuth. Nối trợ lý AI là tuỳ chọn: trong app, màn *Bắt đầu* hỏi bạn dùng trợ lý AI nào (ChatGPT, Claude, Claude Code, Antigravity, Gemini CLI, Cursor, Codex CLI, VS Code Copilot…) rồi chép sẵn một prompt: dán vào là trợ lý tự gắn máy chủ và mở trang đăng nhập. Trợ lý AI nào hỗ trợ MCP cũng kết nối được và nhận bộ công cụ thao tác bản ghi, quy trình, báo cáo, tiện ích, theo đúng quyền của người kết nối. Máy chủ Trinity không tự gọi AI và không giữ khoá AI nào: trí tuệ đến từ trợ lý của chính bạn.
 
 ## Tính năng
 
@@ -109,7 +109,7 @@ Trước khi điền form:
 1. **Bấm "Add Neon" trước.** Các ô biến môi trường bị khoá cho tới khi thêm xong cơ sở dữ liệu.
 2. **Tắt Neon Auth** khi Neon đề nghị. Trinity có đăng nhập riêng, không dùng; để bật chỉ sinh thêm các biến `NEON_AUTH_*` không dùng tới.
 3. **Chọn region gần người dùng** cho cả cơ sở dữ liệu Neon lẫn Vercel function (Project Settings → Functions → Function Region), ví dụ Singapore (`sin1`) cho Việt Nam. Mặc định là Washington (`iad1`), khiến lần gọi đầu từ Việt Nam mất khoảng 5 giây. Đặt cơ sở dữ liệu và function cùng một region.
-4. Sinh khoá trên máy bạn bằng `openssl rand -hex 32` (và `openssl rand -base64 32` cho `INTEGRATIONS_SECRET_KEY`), đặt `INTEGRATIONS_MCP_ENABLED` là `true`. Cả hai đều bắt buộc: workspace mới được dựng qua trợ lý AI của bạn, thiếu chúng thì không qua được màn *Bắt đầu*. Lỡ quên thì đặt ở Project Settings → Environment Variables rồi **deploy lại**.
+4. Sinh khoá trên máy bạn bằng `openssl rand -hex 32` (và `openssl rand -base64 32` cho `INTEGRATIONS_SECRET_KEY`), đặt `INTEGRATIONS_MCP_ENABLED` là `true`. Hai dòng này chỉ cần khi bạn muốn nối trợ lý AI (không bắt buộc để dựng hệ thống). Lỡ quên thì đặt ở Project Settings → Environment Variables rồi **deploy lại**.
 
 Mỗi lần build, Vercel cài workspace, build, chạy migration và tạo tài khoản admin đầu tiên (đều idempotent, deploy lại không sao). Không phải chạy thêm gì.
 
@@ -150,12 +150,12 @@ vercel deploy --prod
 
 - `vercel link` ghi file `.env.local` (token Vercel ngắn hạn) và thêm nó vào `.gitignore`; `vercel integration add neon` còn ghi file skill cho agent (`.agents/`, `.claude/`, `skills-lock.json`). Các file này đều được git bỏ qua, xoá đi cũng được.
 - Tạo Neon bằng dòng lệnh thì cơ sở dữ liệu nằm ở vùng mặc định và có bật Neon Auth (thêm biến `NEON_AUTH_*` không dùng tới, vô hại). Muốn chọn vùng cho cơ sở dữ liệu thì thêm Neon trong bảng điều khiển Vercel (Storage).
-- Hai dòng `INTEGRATIONS_*` là bắt buộc. Workspace mới được dựng qua trợ lý AI của bạn, thiếu chúng thì workspace đứng mãi ở màn "Bắt đầu". Lỡ quên thì thêm vào rồi deploy lại.
+- Hai dòng `INTEGRATIONS_*` chỉ cần khi bạn muốn nối trợ lý AI; không có chúng thì wizard bắt đầu vẫn dựng được hệ thống. Lỡ quên thì thêm vào rồi deploy lại.
 
 Rồi mở URL production và đăng nhập bằng tài khoản admin ở trên. Lưu ý:
 
 - Admin đầu tiên chỉ được tạo khi chưa tồn tại; deploy lại không bao giờ ghi đè mật khẩu.
-- Workspace mới cố ý bắt đầu trống: thanh bên chỉ có *Hoạt động AI* và *Cài đặt* cho tới khi trợ lý AI dựng workspace từ màn *Bắt đầu*. Sau đó bộ cơ bản bật sẵn, phần còn lại là công tắc ở Cài đặt → *Tính năng*; ví dụ Zalo OA chưa bật thì trả 403. Cài đặt chia nhóm *Tính năng & Kết nối*, *Khách hàng*, *Công ty & Nhân sự*, *Cá nhân*; mục nào thuộc tính năng đang tắt thì ẩn.
+- Workspace mới cố ý bắt đầu trống: lần đăng nhập đầu tiên đi qua wizard bắt đầu (loại doanh nghiệp, phân hệ, *Dựng hệ thống*, khách đầu tiên) rồi mới vào app; người có tài khoản tạo sau khi hệ thống đã dựng vào thẳng app. Sau khi dựng, bộ cơ bản bật sẵn, phần còn lại là công tắc ở Cài đặt → *Tính năng*; ví dụ Zalo OA chưa bật thì trả 403. Cài đặt chia nhóm *Tính năng & Kết nối*, *Khách hàng*, *Công ty & Nhân sự*, *Cá nhân*; mục nào thuộc tính năng đang tắt thì ẩn.
 - Trên Vercel, API chạy trong chính app Next.js (một hàm, giới hạn 60 giây). File tải lên cần object storage: đặt `STORAGE_DRIVER=vercel-blob` với token Vercel Blob, hoặc driver tương thích S3 (xem `.env.example`). Thông báo dùng polling thay cho WebSocket. Tiện ích (sandbox Deno, trang "Chương trình con") và tính năng dùng Redis cần máy chủ chạy liên tục, hãy dùng Cách 2.
 
 ### Cách 2: Tự cài bằng Docker Compose

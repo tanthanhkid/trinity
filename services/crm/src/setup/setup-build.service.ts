@@ -80,6 +80,7 @@ export class SetupBuildService {
       sampleRecords = r.sample_records;
     } else if (wantSamples && !(await this.samples.read())) {
       sampleContacts = (await this.prisma.$transaction((tx) => this.samples.seedContacts(tx, user.userId))).length;
+      await this.samples.dropContactCountCache();
     }
 
     await this.features.replaceAll(features, user.userId);

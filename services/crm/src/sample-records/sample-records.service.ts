@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@trinity/prisma';
+import type Redis from 'ioredis';
+import { REDIS_CLIENT } from '../common/redis.provider';
 
 /** 1 dòng `settings.sample_records` (JSON) giữ id các bản ghi MẪU còn lại — không cần migration, xoá xong thì xoá dòng này. */
 export const SAMPLE_RECORDS_KEY = 'sample_records';
@@ -35,7 +37,10 @@ export function parseSampleIds(raw: string | null | undefined): SampleIds | null
 export class SampleRecordsService {
   private readonly logger = new Logger(SampleRecordsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis,
+  ) {}
 
   async read(db: Pick<Prisma.TransactionClient, 'setting'> = this.prisma): Promise<SampleIds | null> {
     const row = await db.setting.findUnique({ where: { key: SAMPLE_RECORDS_KEY }, select: { value: true } });
@@ -80,11 +85,27 @@ export class SampleRecordsService {
         if (sample.records.length) await tx.customRecord.updateMany({ where: { id: { in: sample.records }, deleted_at: null }, data: { deleted_at: now } });
         await tx.setting.deleteMany({ where: { key: SAMPLE_RECORDS_KEY } });
       });
+      if (sample.contacts.length) await this.dropContactCountCache();
       this.logger.log(`đã xoá bản ghi mẫu (khách ${sample.contacts.length}, bản ghi ${sample.records.length}) vì có bản ghi thật đầu tiên`);
       return true;
     } catch (err) {
       this.logger.warn(`dọn bản ghi mẫu lỗi (bỏ qua): ${(err as Error)?.message}`);
       return false;
+    }
+  }
+
+  /** Danh sách khách lưu tổng số trong Redis 60 giây; xoá khách mẫu thì bỏ cache để tổng số không còn đếm cả mẫu. Lỗi Redis bỏ qua. */
+  async dropContactCountCache(): Promise<void> {
+    try {
+      if (!this.redis || typeof this.redis.scan !== 'function') return;
+      let cursor = '0';
+      do {
+        const [next, keys] = await this.redis.scan(cursor, 'MATCH', '*crm:contacts:count:*', 'COUNT', 200);
+        if (keys.length) await this.redis.del(...keys);
+        cursor = next;
+      } while (cursor !== '0');
+    } catch (err) {
+      this.logger.warn(`xoá cache tổng số khách lỗi (bỏ qua): ${(err as Error)?.message}`);
     }
   }
 

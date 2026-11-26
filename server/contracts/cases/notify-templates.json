@@ -1,0 +1,346 @@
+{
+ "_doc": "Ca render Handlebars: kết quả của handlebars.js (knownHelpersOnly) trên cùng dữ liệu. Sinh: node + services/notification/src/templates/__tests__/render-cases.spec.ts (UPDATE_NOTIFY_CASES=1).",
+ "data": {
+  "contactName": "Nguyễn <A> & \"B\"",
+  "n": 3,
+  "f": 1.5,
+  "big": 12345678901234567000,
+  "e21": 1e+21,
+  "small": 1e-7,
+  "zero": 0,
+  "neg": 0,
+  "t": true,
+  "fl": false,
+  "nul": null,
+  "s": "",
+  "list": [
+   "a",
+   "b",
+   "c"
+  ],
+  "nums": [
+   1,
+   2.5
+  ],
+  "nested": {
+   "a": {
+    "b": "deep"
+   },
+   "arr": [
+    {
+     "x": 1
+    },
+    {
+     "x": 2
+    }
+   ]
+  },
+  "obj": {
+   "k1": "v1",
+   "k2": "v2"
+  },
+  "month": "2026-11",
+  "totalAmount": 1234567,
+  "html": "<b>x</b>",
+  "quote": "it's `q` =",
+  "emptyList": [],
+  "u": "ü",
+  "emoji": "😀",
+  "foo": [
+   1,
+   2
+  ]
+ },
+ "render": [
+  {
+   "template": "Deal {{contactName}} chuyển bước",
+   "ok": "Deal Nguyễn &lt;A&gt; &amp; &quot;B&quot; chuyển bước"
+  },
+  {
+   "template": "{{{contactName}}}",
+   "ok": "Nguyễn <A> & \"B\""
+  },
+  {
+   "template": "{{n}} {{f}} {{big}} {{e21}} {{small}} {{zero}} {{neg}}",
+   "ok": "3 1.5 12345678901234567000 1e+21 1e-7 0 0"
+  },
+  {
+   "template": "{{t}} {{fl}} [{{nul}}] [{{s}}] [{{missing}}] [{{nested.a.b}}] [{{nested.zzz.q}}]",
+   "ok": "true false [] [] [] [deep] []"
+  },
+  {
+   "template": "{{list}} | {{nums}} | {{obj}} | {{emptyList}}",
+   "ok": "a,b,c | 1,2.5 | [object Object] | "
+  },
+  {
+   "template": "{{#each list}}{{@index}}:{{this}}{{#unless @last}},{{/unless}}{{/each}}",
+   "ok": "0:a,1:b,2:c"
+  },
+  {
+   "template": "{{#each obj}}{{@key}}={{this}};{{/each}}",
+   "ok": "k1=v1;k2=v2;"
+  },
+  {
+   "template": "{{#each nested.arr}}[{{x}}]{{/each}}",
+   "ok": "[1][2]"
+  },
+  {
+   "template": "{{#each emptyList}}x{{else}}empty{{/each}}",
+   "ok": "empty"
+  },
+  {
+   "template": "{{#if t}}yes{{else}}no{{/if}} {{#if fl}}yes{{else}}no{{/if}} {{#if emptyList}}y{{else}}n{{/if}} {{#if zero}}y{{else}}n{{/if}} {{#if s}}y{{else}}n{{/if}}",
+   "ok": "yes no n n n"
+  },
+  {
+   "template": "{{#unless fl}}U{{/unless}}",
+   "ok": "U"
+  },
+  {
+   "template": "{{#with nested}}{{a.b}}{{/with}}",
+   "ok": "deep"
+  },
+  {
+   "template": "{{lookup list 1}} {{lookup obj \"k2\"}} {{lookup nested.arr 0}}",
+   "ok": "b v2 [object Object]"
+  },
+  {
+   "template": "{{#each list}}{{../contactName}}{{/each}}",
+   "ok": "Nguyễn &lt;A&gt; &amp; &quot;B&quot;Nguyễn &lt;A&gt; &amp; &quot;B&quot;Nguyễn &lt;A&gt; &amp; &quot;B&quot;"
+  },
+  {
+   "template": "{{~n~}}   {{~f}}",
+   "ok": "31.5"
+  },
+  {
+   "template": "{{! comment }}A{{!-- c2 --}}B",
+   "ok": "AB"
+  },
+  {
+   "template": "\\{{escaped}} {{html}} {{{html}}}",
+   "ok": "{{escaped}} &lt;b&gt;x&lt;/b&gt; <b>x</b>"
+  },
+  {
+   "template": "{{quote}}",
+   "ok": "it&#x27;s &#x60;q&#x60; &#x3D;"
+  },
+  {
+   "template": "{{u}} {{emoji}}",
+   "ok": "ü 😀"
+  },
+  {
+   "template": "Phiếu lương tháng {{month}}: {{totalAmount}} VNĐ",
+   "ok": "Phiếu lương tháng 2026-11: 1234567 VNĐ"
+  },
+  {
+   "template": "{{this.n}} {{./n}}",
+   "ok": "3 3"
+  },
+  {
+   "template": "{{#if t}}{{#each list}}{{this}}{{/each}}{{/if}}",
+   "ok": "abc"
+  },
+  {
+   "template": "{{#each list}}{{#if @first}}F{{/if}}{{#if @last}}L{{/if}}{{/each}}",
+   "ok": "FL"
+  },
+  {
+   "template": "{{{{raw}}}}{{n}}{{{{/raw}}}}",
+   "ok": ""
+  },
+  {
+   "template": "plain text",
+   "ok": "plain text"
+  },
+  {
+   "template": "",
+   "ok": ""
+  },
+  {
+   "template": "{{#each nums}}{{this}}-{{/each}}",
+   "ok": "1-2.5-"
+  },
+  {
+   "template": "{{#with nul}}x{{else}}nul-else{{/with}}",
+   "ok": "nul-else"
+  },
+  {
+   "template": "{{lookup list 9}}|",
+   "ok": "|"
+  },
+  {
+   "template": "{{#if nested.arr}}has{{/if}}",
+   "ok": "has"
+  },
+  {
+   "template": "{{n}}{{#if t}}\n  line\n{{/if}}\nend",
+   "ok": "3\n  line\nend"
+  },
+  {
+   "template": "  {{#if t}}\n  A\n  {{/if}}\n",
+   "ok": "  A\n"
+  },
+  {
+   "template": "a {{contactName}}\n b",
+   "ok": "a Nguyễn &lt;A&gt; &amp; &quot;B&quot;\n b"
+  },
+  {
+   "template": "{{#foo}}x{{/foo}}",
+   "ok": "xx",
+   "rust_err": true
+  },
+  {
+   "template": "{{#nested.arr}}[{{x}}]{{/nested.arr}}",
+   "ok": "[1][2]",
+   "rust_err": true
+  },
+  {
+   "template": "{{#obj}}{{k1}}{{/obj}}",
+   "ok": "v1",
+   "rust_err": true
+  },
+  {
+   "template": "{{#missing}}x{{else}}none{{/missing}}",
+   "ok": "none",
+   "rust_err": true
+  },
+  {
+   "template": "{{#each list foo=1}}{{this}}{{/each}}",
+   "ok": "abc"
+  },
+  {
+   "template": "{{#raw}}x{{/raw}}",
+   "ok": ""
+  }
+ ],
+ "syntax": [
+  {
+   "template": "{{foo bar}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
+  },
+  {
+   "template": "{{eq a b}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper eq - 1:0"
+  },
+  {
+   "template": "{{#if a}}",
+   "ok": false,
+   "err": "Parse error on line 1:"
+  },
+  {
+   "template": "{{unclosed",
+   "ok": false,
+   "err": "Parse error on line 1:"
+  },
+  {
+   "template": "{{#each}}x{{/if}}",
+   "ok": false,
+   "err": "each doesn't match if - 1:3"
+  },
+  {
+   "template": "{{> partial}}",
+   "ok": true
+  },
+  {
+   "template": "{{lookup (upper x) 1}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper upper - 1:9"
+  },
+  {
+   "template": "{{{{raw}}}}",
+   "ok": false,
+   "err": "Parse error on line 1:"
+  },
+  {
+   "template": "{{raw x}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper raw - 1:0"
+  },
+  {
+   "template": "{{{raw x}}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper raw - 1:0"
+  },
+  {
+   "template": "{{{{raw}}}}x{{{{/raw}}}}",
+   "ok": true
+  },
+  {
+   "template": "{{#raw}}x{{/raw}}",
+   "ok": true
+  },
+  {
+   "template": "{{foo.bar x}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
+  },
+  {
+   "template": "{{foo x=1}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
+  },
+  {
+   "template": "{{#foo.bar x}}y{{/foo.bar}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
+  },
+  {
+   "template": "{{this.x y}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper x - 1:0"
+  },
+  {
+   "template": "{{@root.x y}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper root - 1:0"
+  },
+  {
+   "template": "{{foo}}",
+   "ok": true
+  },
+  {
+   "template": "{{foo.bar}}",
+   "ok": true
+  },
+  {
+   "template": "{{#each list foo=1}}x{{/each}}",
+   "ok": true
+  },
+  {
+   "template": "{{#foo}}x{{/foo}}",
+   "ok": true,
+   "rust": false
+  },
+  {
+   "template": "{{#foo.bar}}x{{/foo.bar}}",
+   "ok": true,
+   "rust": false
+  },
+  {
+   "template": "{{#foo x}}y{{/foo}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
+  },
+  {
+   "template": "{{lookup (lookup a b) c}}",
+   "ok": true
+  },
+  {
+   "template": "{{lookup (eq a b) c}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper eq - 1:9"
+  },
+  {
+   "template": "{{foo \"s\"}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
+  },
+  {
+   "template": "{{foo 1}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
+  }
+ ]
+}

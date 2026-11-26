@@ -30,6 +30,7 @@ trinity-ops = { path = "crates/trinity-ops" }
 trinity-testhooks = { path = "crates/trinity-testhooks" }
 trinity-integrations = { path = "crates/trinity-integrations" }
 mod-commerce = { path = "crates/mod-commerce" }
+mod-notify = { path = "crates/mod-notify" }
 
 # Runtime, HTTP
 tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync"] }

@@ -3,8 +3,10 @@
 //! K20: [`scheduler`] — job theo chu kỳ, mỗi lượt duyệt công ty đang hoạt động với con trỏ tiếp tục và budget như
 //! `runForEachCompany`; nhận lượt từng cặp (job, công ty) qua `platform.job_runs`. Hàng đợi `platform.jobs` (K21) thêm sau.
 
+pub mod queue;
 pub mod scheduler;
 
+pub use queue::{Job, NewJob, Queue, QueueError, Worker, WorkerConfig};
 pub use scheduler::{
     CompanyOutcome, JobFn, JobFuture, JobSpec, Scheduler, SchedulerError, TickReport, TickStatus, ensure_job_tables,
 };

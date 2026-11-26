@@ -51,6 +51,24 @@ const JOB_RUNS_DDL: &[&str] = &[
        last_error text,
        PRIMARY KEY (job, company_id)
      )",
+    // Hàng đợi việc một lần (K21, `queue.rs`).
+    "CREATE TABLE IF NOT EXISTS platform.jobs (
+       id bigserial PRIMARY KEY,
+       company_id int NOT NULL,
+       kind varchar(100) NOT NULL,
+       payload jsonb NOT NULL DEFAULT '{}',
+       status varchar(10) NOT NULL DEFAULT 'queued',
+       run_at timestamptz NOT NULL DEFAULT now(),
+       attempts int NOT NULL DEFAULT 0,
+       max_attempts int NOT NULL DEFAULT 5,
+       locked_at timestamptz,
+       locked_until timestamptz,
+       locked_by varchar(200),
+       last_error text,
+       dedupe_key varchar(200) UNIQUE,
+       created_at timestamptz NOT NULL DEFAULT now()
+     )",
+    "CREATE INDEX IF NOT EXISTS jobs_due_idx ON platform.jobs (run_at, id) WHERE status <> 'failed'",
 ];
 
 /// Tạo `platform.job_runs` (idempotent, cả ở chế độ một công ty). Nhiều tiến trình boot cùng lúc xếp hàng trên

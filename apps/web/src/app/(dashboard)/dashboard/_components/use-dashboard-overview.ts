@@ -50,7 +50,7 @@ export function useCanSeeOverview(): boolean {
   return usePermissions().can('reports.overview')
 }
 
-/** BE cache Redis 5' → FE làm mới 5', không poll nền. */
+/** BE cache 5' (RAM) → FE làm mới 5', không poll nền. */
 export function useDashboardOverview(filter: DashboardFilterValue) {
   const enabled = useCanSeeOverview()
   return useQuery<DashboardOverviewData>({

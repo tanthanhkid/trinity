@@ -88,9 +88,8 @@ describe('E2E — MCP server (đọc + ghi theo quyền)', () => {
     await prisma.$executeRawUnsafe(`DELETE FROM activities WHERE contact_id IN (SELECT id FROM contacts WHERE full_name LIKE 'E2E-MCP%')`)
     await prisma.$executeRawUnsafe(`DELETE FROM contacts WHERE full_name LIKE 'E2E-MCP%'`)
     await prisma.$executeRawUnsafe(`TRUNCATE TABLE oauth_clients, oauth_authorization_codes, oauth_tokens, integration_audit_logs RESTART IDENTITY`)
-    const redis = (app.get(require('../../../../services/crm/src/common/redis.provider').REDIS_CLIENT) as { keys: (p: string) => Promise<string[]>; del: (...k: string[]) => Promise<number> })
-    const keys = await redis.keys('mcp:rl:*')
-    if (keys.length) await redis.del(...keys)
+    const limiter = app.get(require('../../../../services/crm/src/integrations/mcp/mcp-rate-limiter').McpRateLimiter) as { reset: () => void }
+    limiter.reset()
     await prisma.$executeRawUnsafe(`DELETE FROM notification_logs WHERE recipient_id IN (SELECT id FROM users WHERE email LIKE '%@rbac-e2e.test')`)
     await resetDb(prisma)
   })

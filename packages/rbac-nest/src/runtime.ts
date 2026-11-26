@@ -1,10 +1,10 @@
 /**
  * Cờ runtime DUY NHẤT để chạy trên Vercel: `TRINITY_RUNTIME=serverless`.
- * Không đặt ⇒ hành vi chạy server thường: timer, Socket.IO, subscriber Redis chạy như trước.
+ * Không đặt ⇒ hành vi chạy server thường: timer, Socket.IO chạy như trước.
  */
 export function isServerless(): boolean {
   // Cùng cách chuẩn hoá ở mọi nơi đọc cờ này (monolith, web, logger):
-  // lệch cách đọc (vd giá trị env có khoảng trắng/xuống dòng thừa) = web coi là serverless còn Nest bật timer/Redis/Socket.IO.
+  // lệch cách đọc (vd giá trị env có khoảng trắng/xuống dòng thừa) = web coi là serverless còn Nest bật timer/Socket.IO.
   return process.env.TRINITY_RUNTIME?.trim().toLowerCase() === 'serverless'
 }
 

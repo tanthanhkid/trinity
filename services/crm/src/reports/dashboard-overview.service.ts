@@ -1,7 +1,6 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService, tenantKey } from '@trinity/prisma';
-import Redis from 'ioredis';
-import { REDIS_CLIENT } from '../common/redis.provider';
+import { ReadCache } from '../common/read-cache';
 import { scopeOf } from '@trinity/rbac';
 // ScopeService PHẢI import THẬT (không type-only) — DI của NestJS cần giá trị lúc chạy.
 import { ScopeService } from '@trinity/rbac-nest';
@@ -40,12 +39,11 @@ export interface DashboardOverviewResult {
 
 @Injectable()
 export class DashboardOverviewService {
-  private readonly logger = new Logger(DashboardOverviewService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: ScopeService,
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly cache: ReadCache,
   ) {}
 
   async getOverview(
@@ -60,18 +58,10 @@ export class DashboardOverviewService {
     const scopePart = scopeIds === 'all' ? 'all' : [...scopeIds].sort((a, b) => a - b).join('-');
     const fKey = filterCacheKey(user, filter);
     const key = `dashboard:overview:${CACHE_VERSION}:${user.userId}:${fKey}:${scopePart}`;
-    try {
-      const raw = await this.redis.get(tenantKey(key));
-      if (raw) return JSON.parse(raw) as DashboardOverviewResult;
-    } catch (err) {
-      this.logger.warn(`Redis get failed (${key}): ${err instanceof Error ? err.message : err}`);
-    }
+    const raw = this.cache.get(tenantKey(key));
+    if (raw) return JSON.parse(raw) as DashboardOverviewResult;
     const result = await this.compute(user, scopeIds, filterIds !== null);
-    try {
-      await this.redis.set(tenantKey(key), JSON.stringify(result), 'EX', OVERVIEW_CACHE_TTL_SEC);
-    } catch (err) {
-      this.logger.warn(`Redis set failed (${key}): ${err instanceof Error ? err.message : err}`);
-    }
+    this.cache.set(tenantKey(key), JSON.stringify(result), OVERVIEW_CACHE_TTL_SEC);
     return result;
   }
 

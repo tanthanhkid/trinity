@@ -179,7 +179,7 @@ Mỗi bản phát hành gắn tag đẩy sẵn image lên GitHub Container Regis
 
 Để trợ lý AI điều khiển Trinity, đặt `INTEGRATIONS_MCP_ENABLED=true`, một `INTEGRATIONS_PUBLIC_BASE_URL` công khai và `INTEGRATIONS_SECRET_KEY` trong `.env`, rồi làm theo [docs/integrations](docs/integrations/).
 
-Phát triển không dùng Docker: `pnpm install && pnpm dev` (cần Node 22, Postgres và Redis chạy cục bộ).
+Phát triển không dùng Docker: `pnpm install && pnpm dev` (cần Node 22 và Postgres chạy cục bộ).
 
 ## Vì sao mình làm Trinity
 

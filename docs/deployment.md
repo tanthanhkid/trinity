@@ -209,4 +209,4 @@ API returns a config).
 - [ ] `CORS_ORIGIN` lists only your real web origin(s).
 - [ ] TLS in front of the web container; port 4000 not exposed to the internet.
 - [ ] `TRUSTED_PROXY` set for your deployment (section "Client IP"); no client-IP warning banner after signing in as an admin.
-- [ ] Postgres and Redis not exposed publicly, backups scheduled.
+- [ ] Postgres not exposed publicly, backups scheduled.

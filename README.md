@@ -108,7 +108,7 @@ Details per connector: [docs/integrations/status.md](docs/integrations/status.md
 
 ## Tech stack
 
-Next.js 16 · React 19 · Tailwind 4 · NestJS 10 · Express · Prisma 6 · PostgreSQL 16 · Redis · pnpm monorepo.
+Next.js 16 · React 19 · Tailwind 4 · NestJS 10 · Express · Prisma 6 · PostgreSQL 16 · pnpm monorepo.
 
 ## Deploy
 
@@ -193,7 +193,7 @@ Tagged releases publish ready-made images to GitHub Container Registry (`ghcr.io
 
 To let your AI assistant drive Trinity, set `INTEGRATIONS_MCP_ENABLED=true`, a public `INTEGRATIONS_PUBLIC_BASE_URL` and an `INTEGRATIONS_SECRET_KEY` in `.env`, then follow [docs/integrations](docs/integrations/).
 
-For development without Docker: `pnpm install && pnpm dev` (needs Node 22, Postgres and Redis running locally).
+For development without Docker: `pnpm install && pnpm dev` (needs Node 22 and Postgres running locally).
 
 ### Monitoring (optional)
 

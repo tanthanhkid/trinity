@@ -1,7 +1,6 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService, tenantKey } from '@trinity/prisma';
 import { Prisma } from '@prisma/client';
-import Redis from 'ioredis';
 import type { Scope } from '@trinity/rbac';
 import { scopeOf } from '@trinity/rbac';
 import { ScopeService } from '@trinity/rbac-nest';
@@ -9,11 +8,11 @@ import { ScopeService } from '@trinity/rbac-nest';
 // cần class reference runtime cho `emitDecoratorMetadata`; import type ở đây
 // làm Nest resolve param type ra `Object` và ném lỗi không inject được.
 import type { AuthUser } from '@trinity/rbac-nest';
-import { REDIS_CLIENT } from '../common/redis.provider';
+import { ReadCache } from '../common/read-cache';
 
 export const CACHE_TTL_SEC = 15; // 15 giây — gần realtime cho dashboard Tổng quan
 /**
- * Bump khi đổi shape DashboardStatsTodayResult để tự orphan cache Redis cũ.
+ * Bump khi đổi shape DashboardStatsTodayResult để tự bỏ cache cũ.
  * Mỗi khối kiểm quyền NGUỒN riêng
  * (`contacts.view`); khối thiếu quyền trả `null` (KHÔNG `0` —
  * FE phân biệt "không có dữ liệu" với "không được xem"). `scope_label` suy
@@ -47,12 +46,11 @@ const SCOPE_LABEL: Record<Scope, string> = {
 
 @Injectable()
 export class DashboardStatsTodayService {
-  private readonly logger = new Logger(DashboardStatsTodayService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: ScopeService,
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly cache: ReadCache,
   ) {}
 
   /**
@@ -80,11 +78,11 @@ export class DashboardStatsTodayService {
     const reportsScope = scopeOf(user.grants, 'reports.overview');
 
     const cacheKey = this.buildCacheKey(user, contactsOwner);
-    const cached = await this.getFromRedis(cacheKey);
+    const cached = await this.getCached(cacheKey);
     if (cached) return cached;
 
     const result = await this.fetchStats(contactsOwner, reportsScope, overviewOwner);
-    await this.setInRedis(cacheKey, result);
+    await this.setCached(cacheKey, result);
     return result;
   }
 
@@ -101,23 +99,13 @@ export class DashboardStatsTodayService {
     return `dashboard:${CACHE_VERSION}:today:${user.userId}:k${part(contactsOwner)}`;
   }
 
-  private async getFromRedis(key: string): Promise<DashboardStatsTodayResult | null> {
-    try {
-      const raw = await this.redis.get(tenantKey(key));
-      if (!raw) return null;
-      return JSON.parse(raw) as DashboardStatsTodayResult;
-    } catch (err) {
-      this.logger.warn(`Redis get failed (${key}): ${err instanceof Error ? err.message : err}`);
-      return null;
-    }
+  private async getCached(key: string): Promise<DashboardStatsTodayResult | null> {
+    const raw = this.cache.get(tenantKey(key));
+    return raw ? (JSON.parse(raw) as DashboardStatsTodayResult) : null;
   }
 
-  private async setInRedis(key: string, data: DashboardStatsTodayResult): Promise<void> {
-    try {
-      await this.redis.set(tenantKey(key), JSON.stringify(data), 'EX', CACHE_TTL_SEC);
-    } catch (err) {
-      this.logger.warn(`Redis set failed (${key}): ${err instanceof Error ? err.message : err}`);
-    }
+  private async setCached(key: string, data: DashboardStatsTodayResult): Promise<void> {
+    this.cache.set(tenantKey(key), JSON.stringify(data), CACHE_TTL_SEC);
   }
 
   /**

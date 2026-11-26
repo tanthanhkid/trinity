@@ -33,7 +33,7 @@ export class DashboardOverviewController {
     summary: 'KPI + biểu đồ Tổng quan: khách hàng, cơ hội, doanh thu thương vụ thắng',
     description:
       'Phạm vi theo scope quyền `reports.overview` (own|team|subtree|all); bộ lọc Phòng/Team/NV (scope >= team) ' +
-      'AND-compose bên trong phạm vi. Cache Redis 5 phút per-user.',
+      'AND-compose bên trong phạm vi. Cache 5 phút per-user (RAM).',
   })
   @ApiResponse({ status: 200, description: 'DashboardOverviewResult' })
   getOverview(@CurrentUser() user: AuthUser, @Query() filter: DashboardFilterQuery) {

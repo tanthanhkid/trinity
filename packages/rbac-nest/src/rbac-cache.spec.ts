@@ -7,10 +7,6 @@ describe('RbacCache.invalidateUsers — không đè nhầm user id khác có chu
     cache = new RbacCache()
   })
 
-  afterEach(async () => {
-    await cache.onModuleDestroy()
-  })
-
   it('invalidate user 1 KHÔNG xoá cache của user 12/19 (bug cũ: startsWith trần)', async () => {
     cache.set('g:1', { grants: {}, isAdmin: false })
     cache.set('g:12', { grants: {}, isAdmin: false })
@@ -34,12 +30,10 @@ describe('RbacCache.invalidateUsers — không đè nhầm user id khác có chu
   })
 })
 
-describe('RbacCache — Redis tuỳ chọn', () => {
+describe('RbacCache — chỉ RAM (G12a bỏ Redis)', () => {
   const OLD = { ...process.env }
   afterEach(() => {
     process.env = { ...OLD }
-    jest.resetModules()
-    jest.dontMock('ioredis')
   })
 
   function load(env: Record<string, string | undefined>) {
@@ -47,38 +41,18 @@ describe('RbacCache — Redis tuỳ chọn', () => {
       if (v === undefined) delete process.env[k]
       else process.env[k] = v
     }
-    const ctor = jest.fn().mockImplementation(() => ({
-      subscribe: jest.fn().mockResolvedValue(undefined),
-      on: jest.fn(),
-      publish: jest.fn().mockResolvedValue(1),
-      quit: jest.fn().mockResolvedValue('OK'),
-    }))
-    jest.doMock('ioredis', () => ({ __esModule: true, default: ctor }))
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { RbacCache: C } = require('./rbac-cache') as typeof import('./rbac-cache')
-    return { cache: new C(), ctor }
+    return { cache: new RbacCache() }
   }
 
-  it('serverless + có REDIS_URL → KHÔNG mở kết nối Redis, cache RAM vẫn chạy', async () => {
-    const { cache, ctor } = load({ TRINITY_RUNTIME: 'serverless', REDIS_URL: 'redis://x:1' })
-    expect(ctor).not.toHaveBeenCalled()
+  it('có REDIS_URL cũng không mở kết nối nào; vô hiệu cục bộ chạy ngay', async () => {
+    const { cache } = load({ REDIS_URL: 'redis://x:1' })
     cache.set('g:1', 1)
     await cache.invalidateUsers([1])
     expect(cache.get('g:1')).toBeUndefined()
   })
 
-  it('không cờ + không REDIS_URL → không kết nối, không lỗi', () => {
-    const { ctor } = load({ TRINITY_RUNTIME: undefined, REDIS_URL: undefined })
-    expect(ctor).not.toHaveBeenCalled()
-  })
-
-  it('không cờ + có REDIS_URL → hành vi cũ: 2 kết nối (pub + sub)', () => {
-    const { ctor } = load({ TRINITY_RUNTIME: undefined, REDIS_URL: 'redis://x:1' })
-    expect(ctor).toHaveBeenCalledTimes(2)
-  })
-
   it('TTL mặc định 60s', () => {
-    const { cache } = load({ TRINITY_RUNTIME: 'serverless' })
+    const { cache } = load({})
     const now = Date.now()
     const spy = jest.spyOn(Date, 'now')
     spy.mockReturnValue(now)

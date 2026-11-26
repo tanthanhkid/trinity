@@ -39,7 +39,7 @@ describe('InternalPortsModule (nối dây gọi nội bộ in-process)', () => {
 
   @Global()
   @Module({
-    // `ScopeService` thật do `RbacModule` (@Global, cần DB + Redis) cấp — giả ở đây vì
+    // `ScopeService` thật do `RbacModule` (@Global, cần DB) cấp — giả ở đây vì
     // controller crm (ActivitiesController…) inject nó khi dựng DI thật.
     providers: [
       { provide: PrismaService, useValue: {} },

@@ -170,22 +170,14 @@ describe('registry tool', () => {
 });
 
 describe('McpRateLimiter', () => {
-  it('Redis lỗi ⇒ rơi về bộ đếm RAM (không bao giờ bỏ giới hạn)', async () => {
-    const redis = { incr: jest.fn().mockRejectedValue(new Error('down')), expire: jest.fn() };
-    const l = new McpRateLimiter(redis as never);
+  it('đếm trong RAM theo phút: chặn khi vượt, có retryAfterSec; reset() xoá bộ đếm', async () => {
+    const l = new McpRateLimiter();
     const r = [];
     for (let i = 0; i < 4; i += 1) r.push((await l.hit('call', 7, 3)).allowed);
     expect(r).toEqual([true, true, true, false]);
-  });
-  it('Redis ổn ⇒ INCR + EXPIRE lần đầu, chặn khi vượt', async () => {
-    let n = 0;
-    const redis = { incr: jest.fn().mockImplementation(async () => (n += 1)), expire: jest.fn().mockResolvedValue(1) };
-    const l = new McpRateLimiter(redis as never);
-    expect((await l.hit('call', 1, 2)).allowed).toBe(true);
-    expect((await l.hit('call', 1, 2)).allowed).toBe(true);
-    const third = await l.hit('call', 1, 2);
-    expect(third.allowed).toBe(false);
-    expect(third.retryAfterSec).toBeGreaterThanOrEqual(1);
-    expect(redis.expire).toHaveBeenCalledTimes(1);
+    expect((await l.hit('call', 7, 3)).retryAfterSec).toBeGreaterThanOrEqual(1);
+    expect((await l.hit('call', 8, 3)).allowed).toBe(true); // người khác không bị ảnh hưởng
+    l.reset();
+    expect((await l.hit('call', 7, 3)).allowed).toBe(true);
   });
 });

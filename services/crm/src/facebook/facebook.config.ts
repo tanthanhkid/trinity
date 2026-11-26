@@ -33,7 +33,9 @@ export function graphUrl(
   if (!isSafeGraphPath(path)) throw new Error('Đường dẫn Graph API không hợp lệ');
   const base = apiBaseUrl('FACEBOOK_GRAPH_BASE_URL', opts.video ? DEFAULT_GRAPH_VIDEO_BASE_URL : DEFAULT_GRAPH_BASE_URL, opts.env);
   const q = query?.toString();
-  return `${base}/${version}/${path.replace(/^\//, '')}${q ? `?${q}` : ''}`;
+  // Mã hoá từng đoạn: id/cạnh Graph chỉ gồm chữ, số, `_`, `.`, `-` nên không đổi; ký tự lạ không thành phần khác của URL.
+  const segments = path.replace(/^\//, '').split('/').map((seg) => encodeURIComponent(seg));
+  return `${base}/${encodeURIComponent(version)}/${segments.join('/')}${q ? `?${q}` : ''}`;
 }
 
 /**

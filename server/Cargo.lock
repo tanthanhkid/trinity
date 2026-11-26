@@ -3877,6 +3877,7 @@ dependencies = [
  "tracing",
  "trinity-auth",
  "trinity-db",
+ "trinity-kernel",
 ]
 
 [[package]]

@@ -6,9 +6,11 @@
 pub mod cache;
 pub mod catalog;
 pub mod grants;
+pub mod scope;
 pub mod service;
 
 pub use cache::RbacCache;
 pub use catalog::{Catalog, PermissionDef, catalog};
 pub use grants::{Grant, Grants, Scope, can, is_subset, merge_grants, normalize_grant, scope_of};
+pub use scope::{PhoneMasker, ScopeError, assert_in_scope, mask_phone, push_scope};
 pub use service::{GrantsResult, OwnerIds, PermissionService, ScopeService, admin_grants};

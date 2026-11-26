@@ -15,6 +15,7 @@ sqlx = { workspace = true }
 tracing = { workspace = true }
 trinity-auth = { workspace = true }
 trinity-db = { workspace = true }
+trinity-kernel = { workspace = true }
 
 [dev-dependencies]
 chrono = { workspace = true }

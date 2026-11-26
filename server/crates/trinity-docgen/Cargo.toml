@@ -10,11 +10,12 @@ publish.workspace = true
 
 [dependencies]
 rust_xlsxwriter = { workspace = true }
-calamine = { workspace = true }
+calamine = { workspace = true, features = ["dates"] }
 chrono = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+rust_xlsxwriter = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

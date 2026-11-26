@@ -22,6 +22,8 @@ pub const DATE_FORMAT: &str = "dd/mm/yyyy";
 pub const DATETIME_FORMAT: &str = "dd/mm/yyyy hh:mm";
 /// Giới hạn dòng của một trang tính Excel.
 pub const MAX_ROWS: usize = 1_048_576;
+/// Giới hạn cột của một trang tính Excel (XFD).
+pub const MAX_COLS: usize = 16_384;
 
 #[derive(Debug, thiserror::Error)]
 pub enum XlsxError {
@@ -33,6 +35,8 @@ pub enum XlsxError {
     NoSheet,
     #[error("quá {MAX_ROWS} dòng trong một trang tính")]
     TooManyRows,
+    #[error("quá {MAX_COLS} cột trong một trang tính")]
+    TooManyColumns,
 }
 
 /// Định dạng số của ô.
@@ -128,9 +132,17 @@ fn vn(dt: &DateTime<Utc>) -> NaiveDateTime {
     dt.with_timezone(&offset).naive_local()
 }
 
+/// Năm Excel ghi được kiểu ngày (hệ 1900): 1900–9999. Ngoài khoảng đó ô được ghi dạng chuỗi `dd/mm/yyyy`.
+fn in_excel_range(d: NaiveDate) -> bool {
+    (1900..=9999).contains(&d.year())
+}
+
 fn excel_date(d: NaiveDate) -> Result<ExcelDateTime, XlsxError> {
-    let y = u16::try_from(d.year()).map_err(|_| XlsxError::Read(format!("năm ngoài phạm vi: {d}")))?;
-    Ok(ExcelDateTime::from_ymd(y, d.month() as u8, d.day() as u8)?)
+    Ok(ExcelDateTime::from_ymd(
+        d.year() as u16,
+        d.month() as u8,
+        d.day() as u8,
+    )?)
 }
 
 fn excel_datetime(t: NaiveDateTime) -> Result<ExcelDateTime, XlsxError> {
@@ -208,11 +220,19 @@ fn write_cell(ws: &mut Worksheet, row: u32, col: u16, cell: &Cell, f: &Formats) 
         Cell::Bool(b) => {
             ws.write_boolean_with_format(row, col, *b, &f.general)?;
         }
-        Cell::Date(d) => {
+        Cell::Date(d) if in_excel_range(*d) => {
             ws.write_datetime_with_format(row, col, excel_date(*d)?, &f.date)?;
         }
+        Cell::Date(d) => {
+            ws.write_string_with_format(row, col, d.format("%d/%m/%Y").to_string(), &f.text)?;
+        }
         Cell::DateTime(t) => {
-            ws.write_datetime_with_format(row, col, excel_datetime(vn(t))?, &f.datetime)?;
+            let local = vn(t);
+            if in_excel_range(local.date()) {
+                ws.write_datetime_with_format(row, col, excel_datetime(local)?, &f.datetime)?;
+            } else {
+                ws.write_string_with_format(row, col, local.format("%d/%m/%Y %H:%M").to_string(), &f.text)?;
+            }
         }
     }
     Ok(())
@@ -222,12 +242,16 @@ fn write_cell(ws: &mut Worksheet, row: u32, col: u16, cell: &Cell, f: &Formats) 
 pub fn write_xlsx(sheets: &[SheetSpec]) -> Result<Vec<u8>, XlsxError> {
     let f = Formats::new();
     let mut wb = Workbook::new();
+    let mut used: Vec<String> = Vec::new();
     for spec in sheets {
-        let ws = wb.add_worksheet();
-        if !spec.name.is_empty() {
-            ws.set_name(sheet_name(&spec.name))?;
+        if spec.columns.len() > MAX_COLS || spec.rows.iter().any(|r| r.len() > MAX_COLS) {
+            return Err(XlsxError::TooManyColumns);
         }
-        let last_col = u16::try_from(spec.columns.len().max(1) - 1).map_err(|_| XlsxError::TooManyRows)?;
+        let name = unique_sheet_name(&spec.name, &used);
+        used.push(name.clone());
+        let ws = wb.add_worksheet();
+        ws.set_name(name)?;
+        let last_col = (spec.columns.len().max(1) - 1) as u16;
         let mut row: u32 = 0;
         for (text, fmt) in [(&spec.title, &f.title), (&spec.subtitle, &f.subtitle)] {
             if let Some(t) = text {
@@ -266,14 +290,39 @@ pub fn write_xlsx(sheets: &[SheetSpec]) -> Result<Vec<u8>, XlsxError> {
     Ok(wb.save_to_buffer()?)
 }
 
-/// Tên trang tính hợp lệ: bỏ `[]:*?/\`, tối đa 31 ký tự.
+/// Tên trang tính hợp lệ cho Excel: bỏ `[]:*?/\`, bỏ nháy `'` ở đầu/cuối, tối đa 31 ký tự, tránh tên dành riêng
+/// "History"; trống ⇒ "Sheet1".
 fn sheet_name(name: &str) -> String {
     let s: String = name
         .chars()
         .filter(|c| !matches!(c, '[' | ']' | ':' | '*' | '?' | '/' | '\\'))
-        .take(31)
         .collect();
-    if s.trim().is_empty() { "Sheet1".to_owned() } else { s }
+    let s = s.trim().trim_matches('\'').trim();
+    let s: String = s.chars().take(31).collect();
+    if s.is_empty() {
+        "Sheet1".to_owned()
+    } else if s.eq_ignore_ascii_case("history") {
+        format!("{s} (1)")
+    } else {
+        s
+    }
+}
+
+/// Tên không trùng (không phân biệt hoa thường) với các trang đã có: thêm " (2)", " (3)"… vẫn trong 31 ký tự.
+fn unique_sheet_name(name: &str, used: &[String]) -> String {
+    let base = sheet_name(name);
+    let taken = |n: &str| used.iter().any(|u| u.to_lowercase() == n.to_lowercase());
+    if !taken(&base) {
+        return base;
+    }
+    (2..)
+        .map(|i| {
+            let suffix = format!(" ({i})");
+            let head: String = base.chars().take(31 - suffix.chars().count()).collect();
+            format!("{head}{suffix}")
+        })
+        .find(|n| !taken(n))
+        .expect("luôn tìm được tên trống")
 }
 
 /// Giá trị một ô khi đọc.
@@ -290,51 +339,91 @@ pub enum ReadCell {
 }
 
 impl ReadCell {
-    /// Giá trị dạng chuỗi đã cắt khoảng trắng (như `parseCellRaw` của bản Node); ô trống ⇒ `None`.
+    /// Như `parseCellRaw` của bản Node: chuỗi đã cắt khoảng trắng (rỗng ⇒ `None`), số ⇒ chuỗi số như `String(n)` của
+    /// JS; ô đúng/sai, ngày giờ, lỗi, trống ⇒ `None`.
     pub fn as_trimmed_text(&self) -> Option<String> {
-        let s = match self {
-            Self::Text(s) => s.trim().to_owned(),
-            Self::Number(n) => format_number(*n),
-            Self::Bool(b) => b.to_string(),
-            Self::DateTime(t) => t.format("%Y-%m-%d %H:%M:%S").to_string(),
-            Self::Empty | Self::Error(_) => String::new(),
-        };
-        (!s.is_empty()).then_some(s)
+        match self {
+            Self::Text(s) => Some(s.trim()).filter(|t| !t.is_empty()).map(str::to_owned),
+            Self::Number(n) => Some(js_number_string(*n)),
+            Self::Bool(_) | Self::DateTime(_) | Self::Empty | Self::Error(_) => None,
+        }
     }
 }
 
-/// Số như `String(n)` của JS cho số nguyên và số thập phân thường gặp.
-fn format_number(n: f64) -> String {
-    if n.fract() == 0.0 && n.abs() < 1e15 {
-        format!("{}", n as i64)
-    } else {
-        format!("{n}")
+/// Số như `String(n)` của JS: dạng thường, dạng mũ khi |n| ≥ 1e21 hoặc < 1e-6 (`1e+21`, `1.5e-7`), `-0` ⇒ `0`.
+pub fn js_number_string(n: f64) -> String {
+    if n == 0.0 {
+        return "0".to_owned();
+    }
+    if !n.is_finite() {
+        return if n.is_nan() {
+            "NaN"
+        } else if n > 0.0 {
+            "Infinity"
+        } else {
+            "-Infinity"
+        }
+        .to_owned();
+    }
+    if (1e-6..1e21).contains(&n.abs()) {
+        return format!("{n}");
+    }
+    let e = format!("{n:e}");
+    match e.split_once('e') {
+        Some((m, exp)) if !exp.starts_with('-') => format!("{m}e+{exp}"),
+        _ => e,
     }
 }
 
-/// Một trang tính đã đọc: tên và các dòng (dòng 0 = dòng 1 của Excel); ô cuối dòng trống không được cắt.
+/// Một trang tính đã đọc. Dòng/cột tính từ ô A1; để không cấp phát cho vùng trống, dòng không lưu các cột trống chung
+/// ở đầu (trước `col_offset`) và bỏ ô trống ở cuối — đọc qua [`ReadSheet::cell`].
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReadSheet {
     pub name: String,
+    /// Chỉ số cột (từ 0, tính từ cột A) của phần tử đầu mỗi dòng trong `rows`.
+    pub col_offset: usize,
     pub rows: Vec<Vec<ReadCell>>,
 }
 
 impl ReadSheet {
-    /// Ô theo chỉ số dòng/cột từ 0; ngoài vùng có dữ liệu ⇒ [`ReadCell::Empty`].
+    /// Ô theo chỉ số dòng/cột từ 0 (tính từ A1); ngoài vùng có dữ liệu ⇒ [`ReadCell::Empty`].
     pub fn cell(&self, row: usize, col: usize) -> &ReadCell {
-        self.rows.get(row).and_then(|r| r.get(col)).unwrap_or(&ReadCell::Empty)
+        col.checked_sub(self.col_offset)
+            .and_then(|c| self.rows.get(row).and_then(|r| r.get(c)))
+            .unwrap_or(&ReadCell::Empty)
+    }
+
+    /// Số cột tính từ cột A của dòng (tới ô cuối có dữ liệu); dòng trống ⇒ 0.
+    pub fn row_width(&self, row: usize) -> usize {
+        self.rows
+            .get(row)
+            .map_or(0, |r| if r.is_empty() { 0 } else { self.col_offset + r.len() })
     }
 }
 
-const EXCEL_EPOCH_DAYS_TO_UNIX: f64 = 25_569.0;
-
-/// Số ngày Excel (hệ 1900) → ngày giờ, làm tròn tới giây.
-fn serial_to_datetime(serial: f64) -> Option<NaiveDateTime> {
-    let secs = ((serial - EXCEL_EPOCH_DAYS_TO_UNIX) * 86_400.0).round();
-    if !secs.is_finite() {
-        return None;
+/// Làm tròn tới giây (ô ngày giờ Excel lưu số thực).
+fn round_second(t: NaiveDateTime) -> NaiveDateTime {
+    let base = t.with_nanosecond(0).unwrap_or(t);
+    if t.nanosecond() >= 500_000_000 {
+        base + chrono::Duration::seconds(1)
+    } else {
+        base
     }
-    DateTime::from_timestamp(secs as i64, 0).map(|d| d.naive_utc())
+}
+
+/// Ngày giờ ISO trong ô (tệp ghi ngày dạng ISO): có/không phần giây lẻ, có múi giờ thì lấy giờ địa phương ghi trong chuỗi.
+fn parse_iso(s: &str) -> Option<NaiveDateTime> {
+    if let Ok(t) = DateTime::parse_from_rfc3339(s) {
+        return Some(t.naive_local());
+    }
+    for f in ["%Y-%m-%dT%H:%M:%S%.f", "%Y-%m-%d %H:%M:%S%.f", "%Y-%m-%dT%H:%M"] {
+        if let Ok(t) = NaiveDateTime::parse_from_str(s, f) {
+            return Some(t);
+        }
+    }
+    NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .ok()
+        .map(|d| d.and_time(chrono::NaiveTime::MIN))
 }
 
 fn read_cell(d: &Data) -> ReadCell {
@@ -344,48 +433,75 @@ fn read_cell(d: &Data) -> ReadCell {
         Data::Int(i) => ReadCell::Number(*i as f64),
         Data::Float(f) => ReadCell::Number(*f),
         Data::Bool(b) => ReadCell::Bool(*b),
-        Data::DateTime(t) => serial_to_datetime(t.as_f64()).map_or(ReadCell::Number(t.as_f64()), ReadCell::DateTime),
-        Data::DateTimeIso(s) => NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")
-            .or_else(|_| NaiveDate::parse_from_str(s, "%Y-%m-%d").map(|d| d.and_time(chrono::NaiveTime::MIN)))
-            .map_or_else(|_| ReadCell::Text(s.clone()), ReadCell::DateTime),
+        // `as_datetime` của calamine xử lý cả hệ ngày 1904 và lỗi năm nhuận 1900 của Excel.
+        Data::DateTime(t) if t.is_datetime() => t
+            .as_datetime()
+            .map_or(ReadCell::Number(t.as_f64()), |v| ReadCell::DateTime(round_second(v))),
+        Data::DateTime(t) => ReadCell::Number(t.as_f64()),
+        Data::DateTimeIso(s) => {
+            parse_iso(s).map_or_else(|| ReadCell::Text(s.clone()), |v| ReadCell::DateTime(round_second(v)))
+        }
         Data::DurationIso(s) => ReadCell::Text(s.clone()),
         Data::Error(e) => ReadCell::Error(e.to_string()),
     }
 }
 
+type Book<'a> = Xlsx<Cursor<&'a [u8]>>;
+
+fn open(bytes: &[u8]) -> Result<Book<'_>, XlsxError> {
+    open_workbook_from_rs(Cursor::new(bytes)).map_err(|e: calamine::XlsxError| XlsxError::Read(e.to_string()))
+}
+
+fn read_sheet(wb: &mut Book<'_>, name: String) -> Result<ReadSheet, XlsxError> {
+    let range = wb.worksheet_range(&name).map_err(|e| XlsxError::Read(e.to_string()))?;
+    let (r0, c0) = range.start().map_or((0, 0), |(r, c)| (r as usize, c as usize));
+    let mut rows: Vec<Vec<ReadCell>> = vec![Vec::new(); r0];
+    let mut lead = usize::MAX;
+    for r in range.rows() {
+        let mut cells: Vec<ReadCell> = r.iter().map(read_cell).collect();
+        while cells.last() == Some(&ReadCell::Empty) {
+            cells.pop();
+        }
+        if let Some(i) = cells.iter().position(|c| *c != ReadCell::Empty) {
+            lead = lead.min(i);
+        }
+        rows.push(cells);
+    }
+    while rows.last().is_some_and(Vec::is_empty) {
+        rows.pop();
+    }
+    // Bỏ các cột trống chung ở đầu mọi dòng và phần dung lượng thừa (tệp có ô lẻ ở cột/dòng rất xa không làm phình RAM).
+    let lead = if lead == usize::MAX { 0 } else { lead };
+    for r in &mut rows {
+        if !r.is_empty() {
+            r.drain(..lead.min(r.len()));
+        }
+        r.shrink_to_fit();
+    }
+    rows.shrink_to_fit();
+    Ok(ReadSheet {
+        name,
+        col_offset: c0 + lead,
+        rows,
+    })
+}
+
 /// Đọc mọi trang tính của tệp xlsx. Công thức đọc theo giá trị đã lưu (như `result` của exceljs), chữ nhiều kiểu
-/// (rich text) nối thành một chuỗi. Vị trí dòng/cột tính từ ô A1 (dòng trống ở đầu được giữ).
+/// (rich text) nối thành một chuỗi, ô phụ của vùng gộp là trống.
 pub fn read_xlsx(bytes: &[u8]) -> Result<Vec<ReadSheet>, XlsxError> {
-    let mut wb: Xlsx<Cursor<&[u8]>> =
-        open_workbook_from_rs(Cursor::new(bytes)).map_err(|e: calamine::XlsxError| XlsxError::Read(e.to_string()))?;
+    let mut wb = open(bytes)?;
     let names = wb.sheet_names();
     if names.is_empty() {
         return Err(XlsxError::NoSheet);
     }
-    let mut out = Vec::with_capacity(names.len());
-    for name in names {
-        let range = wb.worksheet_range(&name).map_err(|e| XlsxError::Read(e.to_string()))?;
-        let (r0, c0) = range.start().map_or((0, 0), |(r, c)| (r as usize, c as usize));
-        let mut rows: Vec<Vec<ReadCell>> = vec![Vec::new(); r0];
-        for r in range.rows() {
-            let mut cells = vec![ReadCell::Empty; c0];
-            cells.extend(r.iter().map(read_cell));
-            while cells.last() == Some(&ReadCell::Empty) {
-                cells.pop();
-            }
-            rows.push(cells);
-        }
-        while rows.last().is_some_and(Vec::is_empty) {
-            rows.pop();
-        }
-        out.push(ReadSheet { name, rows });
-    }
-    Ok(out)
+    names.into_iter().map(|n| read_sheet(&mut wb, n)).collect()
 }
 
-/// Đọc trang tính đầu tiên (các chỗ nhập chỉ đọc trang đầu, như `wb.worksheets[0]` của bản Node).
+/// Đọc riêng trang tính đầu tiên, không giải mã các trang khác (các chỗ nhập chỉ đọc `wb.worksheets[0]` như bản Node).
 pub fn read_first_sheet(bytes: &[u8]) -> Result<ReadSheet, XlsxError> {
-    read_xlsx(bytes)?.into_iter().next().ok_or(XlsxError::NoSheet)
+    let mut wb = open(bytes)?;
+    let name = wb.sheet_names().into_iter().next().ok_or(XlsxError::NoSheet)?;
+    read_sheet(&mut wb, name)
 }
 
 #[cfg(test)]
@@ -404,10 +520,32 @@ mod tests {
 
     #[test]
     fn so_ngay_excel() {
-        let t = serial_to_datetime(46_352.378_472_222_22).unwrap();
-        assert_eq!(t.to_string(), "2026-11-26 09:05:00");
-        assert_eq!(format_number(1_234_567.0), "1234567");
-        assert_eq!(format_number(85.5), "85.5");
+        assert_eq!(js_number_string(1_234_567.0), "1234567");
+        assert_eq!(js_number_string(85.5), "85.5");
+        assert_eq!(js_number_string(-0.0), "0");
+        assert_eq!(js_number_string(1e21), "1e+21");
+        assert_eq!(js_number_string(1.5e-7), "1.5e-7");
+        assert_eq!(js_number_string(1e20), "100000000000000000000");
         assert_eq!(sheet_name("Bảng [1]: a/b?"), "Bảng 1 ab");
+        assert_eq!(sheet_name("'Báo cáo'"), "Báo cáo");
+        assert_eq!(sheet_name("History"), "History (1)");
+        let used = vec!["Khách".to_owned(), "khách (2)".to_owned()];
+        assert_eq!(unique_sheet_name("Khách", &used), "Khách (3)");
+        assert_eq!(
+            unique_sheet_name(&"x".repeat(40), &["x".repeat(31)]).chars().count(),
+            31
+        );
+        assert_eq!(
+            parse_iso("2026-11-26T09:05:00.250+07:00").unwrap().to_string(),
+            "2026-11-26 09:05:00.250"
+        );
+        assert_eq!(
+            parse_iso("2026-11-26T09:05:00.5").unwrap().to_string(),
+            "2026-11-26 09:05:00.500"
+        );
+        assert_eq!(
+            round_second(parse_iso("2026-11-26T09:05:00.5").unwrap()).to_string(),
+            "2026-11-26 09:05:01"
+        );
     }
 }

@@ -7,7 +7,6 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "typecheck": "tsc --noEmit",
-    "typecheck:deno": "deno check --no-lock ext-deno/*.ts",
     "plan:set": "tsx scripts/set-plan.ts"
   },
   "dependencies": {
@@ -27,7 +26,6 @@
     "@prisma/client": "^6.19.3",
     "class-transformer": "^0.5",
     "class-validator": "^0.14",
-    "docx": "^9.5.1",
     "exceljs": "^4.4.0",
     "ioredis": "^5.10.1",
     "multer": "2.4.0",

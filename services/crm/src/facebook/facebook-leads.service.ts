@@ -5,6 +5,7 @@ import { PublicApiService } from '../public-api/public-api.service';
 import { parseLeadFields, type ParsedLead } from './facebook-lead-fields';
 import { FacebookPagesService } from './facebook-pages.service';
 import { GraphApiError, GraphClient } from './graph-client';
+import { phoneVariants } from '../common/helpers/phone.helper';
 
 export interface LeadgenChange {
   leadgen_id?: string;
@@ -13,9 +14,6 @@ export interface LeadgenChange {
 }
 
 export type LeadResult = 'created' | 'duplicate' | 'no_contact_info' | 'owner_inactive' | 'skipped' | 'already_processed';
-
-/** Số điện thoại 0xxxxxxxxx → các dạng đã lưu (cùng cách khử trùng của webhook vào). */
-const phoneVariants = (local: string): string[] => [local, `84${local.slice(1)}`, `+84${local.slice(1)}`];
 
 /**
  * Lead Ads (`leadgen`): webhook chỉ mang `leadgen_id` → gọi Graph lấy `field_data` bằng page token → tạo/ghép khách.
@@ -48,6 +46,10 @@ export class FacebookLeadsService {
       if (err instanceof GraphApiError && err.isTokenError) await this.pages.markTokenInvalid(pageId);
       // Giới hạn tần suất thường là HTTP 400 — KHÔNG được coi là vĩnh viễn, ném để webhook trả 5xx và Meta gửi lại.
       if (err instanceof GraphApiError && err.isRateLimit) throw err;
+      if (err instanceof GraphApiError && err.isConfigError) {
+        this.logger.error(`Lead ${leadgenId}: cấu hình Graph API sai (${err.message}) — bỏ qua, không để Meta gửi lại`);
+        return 'skipped';
+      }
       if (err instanceof GraphApiError && (err.isTokenError || err.isPermissionError || (err.httpStatus >= 400 && err.httpStatus < 500))) {
         this.logger.warn(`Lead ${leadgenId}: không đọc được (code=${err.code}) — bỏ qua`);
         return 'skipped';

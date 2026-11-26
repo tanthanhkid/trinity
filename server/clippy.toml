@@ -1,0 +1,2 @@
+# Ngưỡng của clippy; danh sách lint bật/tắt nằm ở [workspace.lints] trong Cargo.toml.
+msrv = "1.100.0"

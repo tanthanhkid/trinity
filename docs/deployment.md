@@ -128,7 +128,6 @@ Keep `INTEGRATIONS_SECRET_KEY` somewhere safe: losing it makes stored webhook se
 Build with `pnpm --filter "./packages/*" build && pnpm --filter @trinity/monolith build && pnpm --filter web build`,
 run `node apps/monolith/dist/apps/monolith/src/main.js` and `NODE_OPTIONS=--require ./apps/web/peer-ip.cjs node apps/web/.next/standalone/apps/web/server.js` (the web process also needs `TRUSTED_PROXY` and the internal secret, see "Client IP") under a
 process manager of your choice (systemd, pm2). Apply migrations with `pnpm --filter @trinity/prisma migrate:deploy`.
-The monolith locates `services/crm/ext-deno` by walking up from its install directory, so keep the repository layout.
 
 ## Fast updates without Docker
 
@@ -179,7 +178,7 @@ API returns a config).
 
 ## Production checklist
 
-- [ ] A reverse proxy in front of the API accepts uploads up to the app's limits (videos for social posting go up to 200 MB): with nginx, `client_max_body_size 210m;`. A smaller limit makes large uploads fail in the browser with a bare "Network Error".
+- [ ] A reverse proxy in front of the API accepts uploads up to the app's limits (videos for social posting go up to `SOCIAL_MAX_VIDEO_MB`, default 200 MB): with nginx, `client_max_body_size 210m;`. A smaller limit makes large uploads fail in the browser with a bare "Network Error". Behind the Cloudflare proxy (request body ≤ 100 MB) set `SOCIAL_MAX_VIDEO_MB=95`.
 
 - [ ] `/notif-ws/` reaches the API with WebSocket upgrade (a test request answers `101 Switching Protocols`, not a 404/499 from the web container).
 

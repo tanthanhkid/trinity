@@ -471,6 +471,13 @@ describe('FacebookLeadsService', () => {
     expect(pages.markTokenInvalid).toHaveBeenCalledWith('111');
   });
 
+  it('cấu hình Graph sai (GraphApiError(0) cờ cấu hình) ⇒ bỏ qua, KHÔNG ném (Meta không gửi lại mãi)', async () => {
+    const { svc, graph, pages } = mk();
+    graph.getLead.mockRejectedValue(new GraphApiError(0, null, null, 'FACEBOOK_GRAPH_BASE_URL: http:// chỉ dùng cho máy chủ cục bộ', true));
+    expect(await svc.handle(change)).toBe('skipped');
+    expect(pages.markTokenInvalid).not.toHaveBeenCalled();
+  });
+
   it('Graph lỗi 5xx ⇒ ném để Meta gửi lại', async () => {
     const { svc, graph } = mk();
     graph.getLead.mockRejectedValue(new GraphApiError(503, 2, null, 'tạm'));

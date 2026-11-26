@@ -1,5 +1,5 @@
 import type { PrismaService } from '@trinity/prisma';
-import { loadFacebookConfig } from '../facebook/facebook.config';
+import { graphUrl, loadFacebookConfig } from '../facebook/facebook.config';
 import { decryptSecret, loadSecretKey } from '../integrations/webhooks/secret-crypto';
 
 /** Bình luận đầu tiên — Facebook giới hạn 8.000 ký tự. */
@@ -18,8 +18,10 @@ export async function postFirstComment(prisma: PrismaService, pageId: string, ob
   const page = await prisma.facebookPage.findFirst({ where: { page_id: pageId, is_active: true }, select: { token_enc: true } });
   if (!page?.token_enc) return 'no_page';
   const token = decryptSecret(page.token_enc, loadSecretKey());
+  // Id bài là MỘT đoạn đường dẫn (vd `123_456`): `/` hay ký tự lạ không được thành đoạn mới của URL Graph.
+  if (!/^[\w.-]+$/.test(objectId)) throw new Error('Id bài Facebook không hợp lệ');
   const c = loadFacebookConfig();
-  const res = await fetch(`https://graph.facebook.com/${c.graphVersion}/${encodeURIComponent(objectId)}/comments`, {
+  const res = await fetch(graphUrl(c.graphVersion, `${objectId}/comments`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ message: message.slice(0, FIRST_COMMENT_MAX), access_token: token }).toString(),

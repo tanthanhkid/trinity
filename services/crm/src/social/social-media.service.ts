@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, PayloadTooLargeException, NotFoundException } from '@nestjs/common';
 import type { SocialMediaAsset } from '@prisma/client';
 import { PrismaService } from '@trinity/prisma';
 import { extname } from 'node:path';
@@ -8,14 +8,15 @@ import type { AuthUser } from '@trinity/rbac-nest';
 import { SafeGetError, safeGetMedia } from '../integrations/common/safe-http-get';
 import { StorageService } from '../storage/storage.service';
 import type { LoadedMedia, SocialMedia } from './providers/provider.types';
-import { IMAGE_EXT_CONTENT_TYPE, MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, VIDEO_EXT_CONTENT_TYPE } from './social.config';
+import { IMAGE_EXT_CONTENT_TYPE, MAX_IMAGE_BYTES, MAX_STORED_VIDEO_BYTES, VIDEO_EXT_CONTENT_TYPE, maxVideoBytes } from './social.config';
 
 const KEY_RE = /^social\/u(\d+)_\d+_[a-z0-9]+(\.[a-z0-9]+)$/;
 
-function kindOf(fileName: string): { ext: string; type: 'image' | 'video'; content_type: string; max: number } {
+/** `videoMax`: trần cho video MỚI theo env; tệp đã có trong kho truyền `MAX_STORED_VIDEO_BYTES`. */
+function kindOf(fileName: string, videoMax: number = maxVideoBytes()): { ext: string; type: 'image' | 'video'; content_type: string; max: number } {
   const ext = extname(fileName).toLowerCase();
   if (IMAGE_EXT_CONTENT_TYPE[ext]) return { ext, type: 'image', content_type: IMAGE_EXT_CONTENT_TYPE[ext], max: MAX_IMAGE_BYTES };
-  if (VIDEO_EXT_CONTENT_TYPE[ext]) return { ext, type: 'video', content_type: VIDEO_EXT_CONTENT_TYPE[ext], max: MAX_VIDEO_BYTES };
+  if (VIDEO_EXT_CONTENT_TYPE[ext]) return { ext, type: 'video', content_type: VIDEO_EXT_CONTENT_TYPE[ext], max: videoMax };
   throw new BadRequestException('Chỉ nhận ảnh JPG/PNG/WebP/GIF hoặc video MP4/MOV/WebM.');
 }
 
@@ -72,11 +73,17 @@ export class SocialMediaService {
     return `social/u${user.userId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
   }
 
-  /** Vercel: trình duyệt PUT thẳng lên Blob (body hàm ≤ 4,5 MB). Môi trường khác ⇒ 400, FE gửi multipart. */
+  /**
+   * Vercel: trình duyệt PUT thẳng lên Blob (body hàm ≤ 4,5 MB). Môi trường khác ⇒ 400, FE gửi multipart. Web LUÔN gọi đây
+   * trước, nên loại tệp và cỡ được kiểm TRƯỚC nhánh môi trường: tệp quá trần bị chặn trước khi gửi (sau proxy Cloudflare,
+   * gửi multipart quá 100 MB chỉ nhận lỗi 413 "Network Error"). Câu lỗi kèm `max_bytes` để web tự chặn.
+   */
   uploadToken(user: AuthUser, fileName: string, size: number) {
-    if (!this.storage.isClientUploadSupported()) throw new BadRequestException('Môi trường này không dùng upload trực tiếp — gửi tệp qua POST /social/media');
     const k = kindOf(fileName);
-    if (size > k.max) throw new BadRequestException(`Tệp quá lớn (tối đa ${mb(k.max)}).`);
+    if (size > k.max) throw new BadRequestException({ statusCode: 400, error: 'Bad Request', message: `Tệp quá lớn (tối đa ${mb(k.max)}).`, max_bytes: k.max });
+    if (!this.storage.isClientUploadSupported()) {
+      throw new BadRequestException({ statusCode: 400, error: 'Bad Request', message: 'Môi trường này không dùng upload trực tiếp — gửi tệp qua POST /social/media', max_bytes: k.max });
+    }
     const key = this.newKey(user, k.ext);
     return { key, type: k.type, content_type: k.content_type, max_bytes: k.max, ...this.storage.createClientUpload(key, k.content_type, k.max) };
   }
@@ -86,7 +93,8 @@ export class SocialMediaService {
     if (!file) throw new BadRequestException('Thiếu tệp');
     try {
       const k = kindOf(file.originalname);
-      if (file.size > k.max) throw new BadRequestException(`Tệp quá lớn (tối đa ${mb(k.max)}).`);
+      // 413 như lỗi vượt trần ở tầng multer (SocialUploadInterceptor) — cùng câu, cùng mã.
+      if (file.size > k.max) throw new PayloadTooLargeException(`Tệp quá lớn (tối đa ${mb(k.max)}).`);
       const key = this.newKey(user, k.ext);
       await this.storage.upload(key, createReadStream(file.path), k.content_type, file.size);
       const m: SocialMedia = { key, type: k.type, content_type: k.content_type, size: file.size };
@@ -109,7 +117,7 @@ export class SocialMediaService {
     for (const key of keys) {
       const m = KEY_RE.exec(key);
       if (!m || (Number(m[1]) !== user.userId && !shared.has(key))) throw new BadRequestException(`Tệp không hợp lệ: ${key.slice(0, 80)}`);
-      const k = kindOf(key);
+      const k = kindOf(key, MAX_STORED_VIDEO_BYTES);
       let size = 0;
       try {
         const probe = await this.storage.getObjectStreamRange(key, 'bytes=0-0');
@@ -226,7 +234,7 @@ export class SocialMediaService {
 
   /** Nạp nội dung tệp vào RAM để gửi lên mạng (trần theo loại). */
   async load(m: SocialMedia): Promise<LoadedMedia> {
-    const max = m.type === 'video' ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    const max = m.type === 'video' ? MAX_STORED_VIDEO_BYTES : MAX_IMAGE_BYTES;
     const obj = await this.storage.getObjectStream(m.key);
     const chunks: Buffer[] = [];
     let total = 0;

@@ -48,7 +48,7 @@ const MAX_VIDEOS = 5;
 // và service (`MAX_VIDEO_SIZE` newsfeed.service.ts).
 const UPLOAD_FIELD_SIZE_MAX = 40 * 1024 * 1024;
 const ALLOWED_IMAGE_MIME = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-// Video: chỉ check EXTENSION (KHÔNG check MIME thô) — MIME whitelist của multer làm hỏng
+// Video: chỉ check ĐUÔI TỆP (KHÔNG check MIME thô) — MIME whitelist của multer làm hỏng
 // upload cross-browser: trình duyệt/thiết bị
 // khác nhau có thể gửi mimetype video không nhất quán (vd video/quicktime vs
 // application/octet-stream trên 1 số Android). Đuôi file là tín hiệu ổn định hơn.

@@ -30,7 +30,7 @@ Most business software makes you learn its menus. Trinity flips that around: **y
 
 - **"Add Mr. Nam from Gò Vấp, interested in product A, call him back Friday."** Done: contact, deal and reminder are created.
 - **"How did the Q3 campaign do compared to Q2?"** Your assistant reads the data and answers with a chart.
-- **"Every morning, sync new orders from my Google Sheet."** Trinity builds a small add-on for it. The add-on runs in its own sandbox, so it can never break the main system.
+- **"Which customers haven't heard from us in two weeks? Make me a call list for tomorrow."** Your assistant reads the pipeline and creates the tasks.
 
 **Start lean, grow with you.** The first sign-in opens a short wizard: pick your type of business (education center, retail and services, clinic or spa, real estate, or Other), tick the modules you want, press *Build my system*, and the lists, screens and menu are ready, no AI needed. A few clearly fake sample records show you around and delete themselves when you add your first real customer or record. A core set (overview, customers, tasks, reports) is always on; everything else is a switch in Settings › Features, and the menu only shows what is on. Your AI assistant can still build or reshape the workspace (the `setup_build` and `propose_workspace` tools).
 
@@ -38,15 +38,13 @@ Most business software makes you learn its menus. Trinity flips that around: **y
 
 ## How it works
 
-Trinity ships a built-in **[Model Context Protocol (MCP)](https://modelcontextprotocol.io) server** with OAuth login. Connecting an assistant is optional: in the app, *Bắt đầu* ("Get started") asks which assistant you use (ChatGPT, Claude, Claude Code, Antigravity, Gemini CLI, Cursor, Codex CLI, VS Code Copilot…) and copies one prompt: paste it and the assistant adds the server and signs you in. Any MCP-capable assistant connects to it and gets tools for records, pipelines, reports and add-ons, scoped by the connecting user's role. The server itself never calls an AI model and holds no AI API keys: the intelligence comes from the assistant you bring.
+Trinity ships a built-in **[Model Context Protocol (MCP)](https://modelcontextprotocol.io) server** with OAuth login. Connecting an assistant is optional: in the app, *Bắt đầu* ("Get started") asks which assistant you use (ChatGPT, Claude, Claude Code, Antigravity, Gemini CLI, Cursor, Codex CLI, VS Code Copilot…) and copies one prompt: paste it and the assistant adds the server and signs you in. Any MCP-capable assistant connects to it and gets tools for records, pipelines and reports, scoped by the connecting user's role. The server itself never calls an AI model and holds no AI API keys: the intelligence comes from the assistant you bring.
 
 ```
 Your AI assistant (ChatGPT · Claude · Gemini · Cursor · OpenClaw …)
         │  MCP + OAuth
         ▼
 Trinity  ──  CRM · Sales · Zalo · HR · Reports
-        │
-        └── Add-ons (Deno sandbox, one process each)
 ```
 
 ## Features
@@ -54,7 +52,6 @@ Trinity  ──  CRM · Sales · Zalo · HR · Reports
 | Area | What you get |
 |---|---|
 | **AI control (MCP)** | Built-in MCP server: connect ChatGPT, Claude, Gemini, Cursor, OpenClaw or any MCP client. Read and write data directly within the connected user's permissions (writes need the `crm.write` scope; every action is listed under AI activity). Optional setting *Require approval for AI changes* turns on a draft-then-approve flow |
-| **Self-extending add-ons** | Ask your AI for a sync job, a custom workflow or a new integration. Each add-on runs isolated (separate process, sandboxed permissions, auto-disabled after repeated failures) |
 | **AI-native overview** | The home page shows which AI assistants are connected and active, what they did today, and every connected channel (Fanpage, Zalo OA, YouTube, payments, online store) with its status and today's counts. With no assistant yet, it walks you through connecting one |
 | **Connections** | One menu for every channel, payment, sales and data connector, grouped, each with its status and setup steps. Connecting a Facebook Page once covers both incoming messages and comments and posting |
 | **Feature switches** | Settings › Features: grouped cards (core, channels & inbox, sales, people, advanced), one switch each. Turning a feature off hides it for everyone and keeps the data. Your AI can list and switch features too (switching off needs your OK) |
@@ -112,7 +109,7 @@ Details per connector: [docs/integrations/status.md](docs/integrations/status.md
 
 ## Tech stack
 
-Next.js 16 · React 19 · Tailwind 4 · NestJS 10 · Express · Prisma 6 · PostgreSQL 16 · Redis · Deno (add-on sandbox) · pnpm monorepo.
+Next.js 16 · React 19 · Tailwind 4 · NestJS 10 · Express · Prisma 6 · PostgreSQL 16 · Redis · pnpm monorepo.
 
 ## Deploy
 
@@ -177,7 +174,7 @@ Then open the production URL and sign in with the admin account above. Notes:
 - The first admin is only created when it does not exist yet; redeploying never overwrites a password.
 - A new workspace starts empty on purpose: the first sign-in goes through the start wizard (type of business, modules, *Build my system*, first customer) before the app opens. Anyone whose account is created after the workspace was built goes straight into the app. After the build the core set is on and everything else is a switch in Settings → *Tính năng* ("Features"); Zalo OA, for example, answers 403 until its switch is on. Settings is grouped in the Vietnamese UI as *Tính năng & Kết nối* (features & connections), *Khách hàng* (customer lists), *Công ty & Nhân sự* (users, roles, teams) and *Cá nhân* (profile, notifications); a section only shows when its feature is on.
 - The interface is currently **Vietnamese only**. Your data and the AI tools work in any language.
-- Vercel runs the API inside the Next.js app (one function, 60 s limit). Uploaded files need object storage: set `STORAGE_DRIVER=vercel-blob` with a Vercel Blob token, or an S3-compatible driver (see `.env.example`). Notifications use polling instead of WebSockets. Add-ons (Deno sandbox, the "Extensions" page) and Redis-backed features need a long-running server, so use Option 2 for them.
+- Vercel runs the API inside the Next.js app (one function, 60 s limit). Uploaded files need object storage: set `STORAGE_DRIVER=vercel-blob` with a Vercel Blob token, or an S3-compatible driver (see `.env.example`). Notifications use polling instead of WebSockets. Redis-backed features need a long-running server, so use Option 2 for them.
 
 ### Option 2: Self-host with Docker Compose
 

@@ -174,7 +174,7 @@ export const uploadSocialMediaTool: ToolDef = {
   input: (z) => ({
     url: z.string().max(2000).optional().describe('Link https công khai trỏ thẳng tới tệp ảnh/video / Public https URL of the file'),
     data_base64: z.string().max(4_200_000).optional().describe('Nội dung ảnh dạng base64 (≤ 3 MB) — chỉ khi không có link / Base64 image when no URL'),
-    file_name: z.string().max(200).optional().describe('Tên tệp có đuôi, bắt buộc khi dùng data_base64 (vd banner.png) / File name with extension'),
+    file_name: z.string().max(200).optional().describe('Tên tệp có đuôi, bắt buộc khi dùng data_base64 (vd banner.png) / File name including its suffix (e.g. banner.png)'),
     name: z.string().max(200).optional().describe('Tên hiển thị trong thư viện (tuỳ chọn) / Display name'),
   }),
   output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),

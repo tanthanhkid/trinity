@@ -63,7 +63,7 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm --filter @trinity/prisma exec prisma migrate deploy
       - working-directory: services/crm
-        run: npx jest --testRegex '(\.pg\.spec|\.db\.spec|extensions\.service\.spec)\.ts$' --runInBand
+        run: npx jest --testRegex '(\.pg\.spec|\.db\.spec)\.ts$' --runInBand
       - working-directory: services/commerce
         run: npx jest --testRegex '(\.pg\.spec|pos-flow\.integration\.spec)\.ts$' --runInBand --passWithNoTests
       - run: |
@@ -162,6 +162,19 @@ jobs:
         with:
           node-version: 22
       - run: pnpm audit --prod --audit-level high
+
+  # Lỗ hổng RustSec mới công bố cho phụ thuộc Rust (server/Cargo.lock). Ở ci.yml, advisories chỉ chạy trên PR đổi phụ thuộc.
+  rust-advisories:
+    name: Rust advisories (cargo deny)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: EmbarkStudios/cargo-deny-action@81891abc19297b21343b15ef67dc61e4aea74fda # v2.1.4
+        with:
+          manifest-path: server/Cargo.toml
+          command: check
+          command-arguments: advisories
 
   osv:
     name: OSV-Scanner

@@ -21,8 +21,6 @@ import type { OrgFeaturesService } from '../../../settings/org-features.service'
 import type { SchemaVersionsService } from '../../../custom-objects/schema-versions.service';
 import type { z as ZType } from 'zod';
 import type { RecordRefsService } from '../../../custom-objects/refs/record-refs.service';
-import type { ExtensionsService } from '../../../extensions/extensions.service';
-import type { ExtensionsRuntime } from '../../../extensions/extensions.runtime';
 import type { SocialAccountsService } from '../../../social/social-accounts.service';
 import type { ChannelGuardService } from '../../../channel-guard/channel-guard.service';
 import type { SocialPostsService } from '../../../social/social-posts.service';
@@ -69,9 +67,6 @@ export interface McpDeps {
   versions: SchemaVersionsService;
   /** Mã chung: tra mã (HS001) / tên → bản ghi theo quyền xem (find_by_code, get_record theo mã). */
   refs: RecordRefsService;
-  /** Chương trình con (agent tự mở rộng): kho + luồng nháp–duyệt; chỉ có khi module được nối (test cũ không cần). */
-  extensions?: ExtensionsService;
-  extRuntime?: ExtensionsRuntime;
   /** Đăng đa kênh (Facebook Page…): kênh đã liên kết + bài/lịch đăng + bài nháp; chỉ có khi module được nối. */
   social?: { posts: SocialPostsService; accounts: SocialAccountsService; drafts: SocialDraftsService; queue: SocialQueueService; snippets: SocialSnippetsService; importer: SocialImportService; recurrences: SocialRecurrenceService };
   /** Bình luận Fanpage + luật tự xử lý (chỉ đọc); chỉ có khi module Facebook được nối. */

@@ -399,6 +399,7 @@ export class FacebookBroadcastsService {
       if (!delivered) await this.channelGuard?.refund('bulk_message', 1, bucket);
       if (err instanceof GraphApiError) {
         if (err.isOutsideWindow) return { status: 'skipped', note: 'Quá 24 giờ kể từ tin cuối của khách' };
+        if (err.isConfigError) return { status: 'failed', note: `Cấu hình kết nối Facebook của máy chủ sai: ${err.message.slice(0, 160)}`, stopAll: true };
         if (err.isTokenError) {
           await this.pages.markTokenInvalid(b.page_id);
           return { status: 'failed', note: 'Fanpage mất kết nối (token hết hạn) — kết nối lại rồi tạo lượt mới', stopAll: true };

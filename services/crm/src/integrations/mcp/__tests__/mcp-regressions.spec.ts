@@ -4,7 +4,6 @@ import { actionToolByName } from '../actions/action-registry';
 import { ActionUserError, type ActionCtx, type ActionDeps } from '../actions/action-types';
 import { McpServerService } from '../mcp-server.service';
 import type { McpPrincipal } from '../mcp-auth.service';
-import { EXTENSION_TOOL_NAMES } from '../tools/extension-tools';
 import { MCP_TOOLS } from '../mcp-tools.registry';
 import { CORE_EXTRAS, contactRecord, dealRecord, taskRecord } from '../tools/core-records';
 import { CORE_TABLES } from '../tools/schema-core';
@@ -179,8 +178,7 @@ describe(' tool list thật khớp những gì describe_schema quảng cáo', ()
     const advertised = [...data.structure.tools, ...data.tables.flatMap((t) => [...t.tools.read, ...t.tools.write])];
     expect(advertised).toEqual(expect.arrayContaining(['add_field', 'archive_record']));
     expect(advertised.filter((n) => !names.has(n))).toEqual([]);
-    // Cờ EXTENSIONS_ENABLED mặc định TẮT ⇒ 8 tool chương trình con bị ẩn khỏi tools/list.
-    expect(names.size).toBe(MCP_TOOLS.filter((t) => !EXTENSION_TOOL_NAMES.has(t.name)).length);
+    expect(names.size).toBe(MCP_TOOLS.length);
     for (const n of ['list_records', 'get_record', 'create_record', 'update_record']) {
       const desc = listed.find((t) => t.name === n)!.description ?? '';
       expect(desc).toMatch(/deals/);

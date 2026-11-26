@@ -1,0 +1,14 @@
+name: Rust toolchain
+description: Cài đúng toolchain ghim trong server/rust-toolchain.toml (rustup có sẵn trên runner) và đặt làm mặc định, để rust-cache (chạy ở gốc repo) lấy khoá cache theo đúng toolchain đó.
+runs:
+  using: composite
+  steps:
+    - name: Install Rust toolchain
+      shell: bash
+      working-directory: server
+      run: |
+        rustup toolchain install
+        tc=$(rustup show active-toolchain | cut -d' ' -f1)
+        rustup default "$tc"
+        echo "RUSTUP_TOOLCHAIN=$tc" >> "$GITHUB_ENV"
+        rustc --version

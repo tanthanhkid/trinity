@@ -10,6 +10,7 @@ import { ChannelGuardService } from '../channel-guard/channel-guard.service';
 import { GraphApiError, GraphClient } from './graph-client';
 import { ChannelNotificationsService } from '../notifications/channel-notifications.service';
 import { PublicApiService } from '../public-api/public-api.service';
+import { phoneVariants } from '../common/helpers/phone.helper';
 
 /** Giá trị `changes[].value` của webhook `feed` (chỉ phần dùng tới). Docs: webhooks-for-pages › feed. */
 export interface FeedChange {
@@ -306,6 +307,10 @@ export class FacebookCommentsService {
       this.logger.warn(`Bình luận: ${what} lỗi ${(err as Error).message}`);
       return `Không ${what} được (lỗi máy chủ).`;
     }
+    if (err.isConfigError) {
+      this.logger.error(`Bình luận: ${what} lỗi cấu hình Graph API: ${err.message}`);
+      return `Không ${what} được: cấu hình kết nối Facebook của máy chủ sai (${err.message.slice(0, 160)}).`;
+    }
     if (err.isTokenError) {
       await this.pages.markTokenInvalid(pageId);
       return `Không ${what} được: token Fanpage hết hạn, hãy kết nối lại Fanpage.`;
@@ -536,8 +541,6 @@ export class FacebookCommentsService {
     return d;
   }
 }
-
-const phoneVariants = (local: string): string[] => [local, `84${local.slice(1)}`, `+84${local.slice(1)}`];
 
 function toDate(v: number | string | undefined): Date {
   if (typeof v === 'number') return new Date(v < 1e12 ? v * 1000 : v);

@@ -1,0 +1,6 @@
+# Toolchain ghim cho cả workspace (PLAN 4.2, issue K01). rustup tự dùng bản này khi chạy cargo trong server/.
+# Nâng phiên bản: một PR riêng, chạy lại fmt + clippy + build hai kiến trúc.
+[toolchain]
+channel = "1.100.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

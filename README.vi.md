@@ -28,7 +28,7 @@ Phần mềm quản lý nào cũng bắt bạn học menu. Trinity làm ngược
 
 - **"Thêm anh Nam ở Gò Vấp, quan tâm sản phẩm A, thứ Sáu gọi lại."** Xong: có khách, có cơ hội, có lịch nhắc.
 - **"Chiến dịch quý 3 so với quý 2 thế nào?"** Trợ lý đọc dữ liệu, trả lời kèm biểu đồ.
-- **"Sáng nào cũng lấy đơn mới từ Google Sheet của tôi vào."** Trinity tự tạo một tiện ích nhỏ cho việc đó. Tiện ích chạy tách riêng, lỗi cũng không ảnh hưởng hệ thống chính.
+- **"Khách nào hai tuần nay chưa ai liên hệ? Lập danh sách gọi cho ngày mai."** Trợ lý đọc quy trình bán hàng và tạo sẵn các việc.
 
 **Mở ra gọn, lớn lên cùng doanh nghiệp.** Lần đăng nhập đầu tiên mở một wizard ngắn: chọn loại doanh nghiệp (trung tâm giáo dục, bán lẻ và dịch vụ, phòng khám/spa/thú y, bất động sản, hoặc Khác), tick các phân hệ muốn dùng, bấm *Dựng hệ thống* là có sẵn danh sách, màn hình và menu, không cần AI. Vài bản ghi mẫu (dữ liệu giả, ghi rõ là mẫu) giúp bạn xem thử và tự xoá khi bạn thêm khách hoặc bản ghi thật đầu tiên. Bộ cơ bản (Tổng quan, Khách hàng, Công việc, Báo cáo) luôn bật; phần còn lại là công tắc ở Cài đặt › Tính năng, menu chỉ hiện thứ đang bật. Trợ lý AI vẫn dựng hoặc chỉnh hệ thống được (tool `setup_build`, `propose_workspace`).
 
@@ -36,14 +36,13 @@ Phần mềm quản lý nào cũng bắt bạn học menu. Trinity làm ngược
 
 ## Cách hoạt động
 
-Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextprotocol.io)) đăng nhập bằng OAuth. Nối trợ lý AI là tuỳ chọn: trong app, màn *Bắt đầu* hỏi bạn dùng trợ lý AI nào (ChatGPT, Claude, Claude Code, Antigravity, Gemini CLI, Cursor, Codex CLI, VS Code Copilot…) rồi chép sẵn một prompt: dán vào là trợ lý tự gắn máy chủ và mở trang đăng nhập. Trợ lý AI nào hỗ trợ MCP cũng kết nối được và nhận bộ công cụ thao tác bản ghi, quy trình, báo cáo, tiện ích, theo đúng quyền của người kết nối. Máy chủ Trinity không tự gọi AI và không giữ khoá AI nào: trí tuệ đến từ trợ lý của chính bạn.
+Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextprotocol.io)) đăng nhập bằng OAuth. Nối trợ lý AI là tuỳ chọn: trong app, màn *Bắt đầu* hỏi bạn dùng trợ lý AI nào (ChatGPT, Claude, Claude Code, Antigravity, Gemini CLI, Cursor, Codex CLI, VS Code Copilot…) rồi chép sẵn một prompt: dán vào là trợ lý tự gắn máy chủ và mở trang đăng nhập. Trợ lý AI nào hỗ trợ MCP cũng kết nối được và nhận bộ công cụ thao tác bản ghi, quy trình, báo cáo, theo đúng quyền của người kết nối. Máy chủ Trinity không tự gọi AI và không giữ khoá AI nào: trí tuệ đến từ trợ lý của chính bạn.
 
 ## Tính năng
 
 | Mảng | Có gì |
 |---|---|
 | **Điều khiển bằng AI (MCP)** | MCP server có sẵn: kết nối ChatGPT, Claude, Gemini, Cursor, OpenClaw hay bất kỳ trợ lý nào hỗ trợ MCP; đọc và ghi dữ liệu trực tiếp trong phạm vi quyền của người đã kết nối (ghi cần scope `crm.write`; mọi thao tác hiện ở mục Hoạt động AI). Có tuỳ chọn *Yêu cầu duyệt thay đổi do AI*: bật lên thì AI chỉ soạn nháp, người duyệt |
-| **Tự mở rộng** | Nhờ AI làm tiện ích đồng bộ, quy trình riêng, tích hợp mới; mỗi tiện ích chạy cô lập, tự tắt khi lỗi lặp lại |
 | **Tổng quan kiểu AI** | Trang đầu cho thấy trợ lý AI nào đang kết nối và đang làm việc, hôm nay AI đã làm gì, và mọi kênh đã nối (Fanpage, Zalo OA, YouTube, thanh toán, trang bán hàng) kèm trạng thái và số liệu hôm nay. Chưa nối AI thì hướng dẫn nối từng bước |
 | **Bật/tắt tính năng** | Cài đặt › Tính năng: thẻ chia nhóm (cơ bản, kênh & hộp thư, bán hàng, nhân sự, nâng cao), mỗi tính năng một công tắc. Tắt thì ẩn với mọi người, dữ liệu vẫn giữ. AI cũng xem và bật/tắt được (tắt cần bạn đồng ý) |
 | **Kết nối** | Một menu cho mọi kênh, cổng thanh toán, phần mềm bán hàng và nguồn dữ liệu, chia nhóm, mỗi mục có trạng thái và các bước nối. Nối Fanpage Facebook một lần là có cả nhận tin, bình luận lẫn đăng bài |
@@ -161,7 +160,7 @@ Rồi mở URL production và đăng nhập bằng tài khoản admin ở trên.
 
 - Admin đầu tiên chỉ được tạo khi chưa tồn tại; deploy lại không bao giờ ghi đè mật khẩu.
 - Workspace mới cố ý bắt đầu trống: lần đăng nhập đầu tiên đi qua wizard bắt đầu (loại doanh nghiệp, phân hệ, *Dựng hệ thống*, khách đầu tiên) rồi mới vào app; người có tài khoản tạo sau khi hệ thống đã dựng vào thẳng app. Sau khi dựng, bộ cơ bản bật sẵn, phần còn lại là công tắc ở Cài đặt → *Tính năng*; ví dụ Zalo OA chưa bật thì trả 403. Cài đặt chia nhóm *Tính năng & Kết nối*, *Khách hàng*, *Công ty & Nhân sự*, *Cá nhân*; mục nào thuộc tính năng đang tắt thì ẩn.
-- Trên Vercel, API chạy trong chính app Next.js (một hàm, giới hạn 60 giây). File tải lên cần object storage: đặt `STORAGE_DRIVER=vercel-blob` với token Vercel Blob, hoặc driver tương thích S3 (xem `.env.example`). Thông báo dùng polling thay cho WebSocket. Tiện ích (sandbox Deno, trang "Chương trình con") và tính năng dùng Redis cần máy chủ chạy liên tục, hãy dùng Cách 2.
+- Trên Vercel, API chạy trong chính app Next.js (một hàm, giới hạn 60 giây). File tải lên cần object storage: đặt `STORAGE_DRIVER=vercel-blob` với token Vercel Blob, hoặc driver tương thích S3 (xem `.env.example`). Thông báo dùng polling thay cho WebSocket. Tính năng dùng Redis cần máy chủ chạy liên tục, hãy dùng Cách 2.
 
 ### Cách 2: Tự cài bằng Docker Compose
 

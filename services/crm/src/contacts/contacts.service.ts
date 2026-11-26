@@ -35,7 +35,7 @@ import { QueryContactDto } from './dto/query-contact.dto';
 import { deriveContactStage } from './helpers/derive-stage.helper';
 import { changedContactFields } from './helpers/contact-events.helper';
 import { buildScopedContactListWhere, MIN_MASKED_PHONE_SEARCH_DIGITS } from './helpers/build-contact-list-where.helper';
-import { normalizePhone, phoneVariants } from '../google/sheet-mapping';
+import { normalizePhone, phoneVariants } from '../common/helpers/phone.helper';
 import { RESTORE_WINDOW_MS } from '../common/helpers/restore-window';
 import { AuditService } from '../audit/audit.service';
 import { SampleRecordsService } from '../sample-records/sample-records.service';

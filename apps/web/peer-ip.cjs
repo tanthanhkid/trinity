@@ -235,16 +235,13 @@ function tunnelListenProblem(args, env = process.env) {
   return `TRUSTED_PROXY=cloudflare-tunnel nhưng web sắp nghe ${host || '(mọi giao diện)'}, không phải loopback: ai nối thẳng cổng web sẽ tự khai được IP. Đặt HOSTNAME=127.0.0.1 (docs/deployment.md, mục "Client IP").`
 }
 
-function insecureSecretProblems(env = process.env) {
-  if (env.NODE_ENV !== 'production') return []
-  const out = []
-  for (const k of ['INTERNAL_SERVICE_SECRET', 'SERVICE_SECRET']) {
+/** Production với bí mật nội bộ là giá trị mẫu hoặc ngắn hơn 32 ký tự (cùng luật `insecureSecrets()` của API). */
+function hasInsecureSecret(env = process.env) {
+  if (env.NODE_ENV !== 'production') return false
+  return ['INTERNAL_SERVICE_SECRET', 'SERVICE_SECRET'].some((k) => {
     const v = (env[k] || '').trim()
-    if (!v) continue
-    if (/change-me/i.test(v)) out.push(`${k} vẫn là giá trị mẫu change-me-*`)
-    else if (v.length < 32) out.push(`${k} ngắn hơn 32 ký tự`)
-  }
-  return out
+    return v !== '' && (/change-me/i.test(v) || v.length < 32)
+  })
 }
 
 function fatal(msg) {
@@ -258,8 +255,11 @@ function install() {
   } catch (e) {
     fatal(e.message)
   }
-  const bad = insecureSecretProblems()
-  if (bad.length) fatal(`bí mật nội bộ không an toàn: ${bad.join('; ')} — sinh mới bằng: openssl rand -hex 32`)
+  if (hasInsecureSecret()) {
+    // Câu cố định — không đưa gì dẫn từ giá trị bí mật vào log.
+    console.error('[peer-ip] Không khởi động: INTERNAL_SERVICE_SECRET/SERVICE_SECRET là giá trị mẫu change-me-* hoặc ngắn hơn 32 ký tự — sinh mới bằng: openssl rand -hex 32')
+    process.exit(1)
+  }
   if (!secrets().length) console.error('[peer-ip] LỖI CẤU HÌNH: web không có INTERNAL_SERVICE_SECRET/SERVICE_SECRET — API sẽ coi IP mọi khách là "không tin được".')
 
   const origCreate = http.createServer
@@ -285,4 +285,4 @@ function install() {
 
 if (process.env.TRINITY_PEER_IP_NO_INSTALL !== '1') install()
 
-module.exports = { HEADER, UNTRUSTED, determine, parseTrustedProxy, prepare, sign, verify, tunnelListenProblem, insecureSecretProblems, normalizeIp }
+module.exports = { HEADER, UNTRUSTED, determine, parseTrustedProxy, prepare, sign, verify, tunnelListenProblem, hasInsecureSecret, normalizeIp }

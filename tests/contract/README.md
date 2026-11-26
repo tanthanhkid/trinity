@@ -82,6 +82,24 @@ kịch bản lỗi và đọc lời gọi qua `lib/channels.ts`:
   ghi vào `CONTRACT_NET_VIOLATIONS`); có vi phạm thì hồ sơ đỏ. Bản Rust cần chặn tương đương ở mức hệ điều hành.
 - Máy chủ giả chạy trong tiến trình bộ chạy nên mọi lệnh con của bộ chạy phải bất đồng bộ (`spawnSync` làm nó đứng).
 
+## Ca e2e đã chuyển (C12a: webhook ra, `webhooks-out.e2e-spec.ts`, 34 ca)
+Bảng ánh xạ chỗ đổi env / gọi hàm nội bộ → hồ sơ / API điều khiển. 45 test chạy (34 `it` + `it.each` 11 đích SSRF; ca production nằm sẵn ở `cases/production`).
+
+| Ca gốc | Đổi gì ở e2e gốc | Chuyển sang |
+|---|---|---|
+| 403 mọi route; DTO sai/404/400; danh mục sự kiện; `it.each` SSRF ×11; sửa URL sang nội bộ | `enable()` bật cờ + khoá | `default` (`30-webhooks-out-config`). Danh mục: spec gốc đòi 15 sự kiện, danh mục hiện có nhiều hơn; ca so với `server/contracts/events.json`. Ca sửa URL: endpoint nội bộ seed bằng SQL (đường tạo không cho) |
+| cờ tắt → 404 | xoá `INTEGRATIONS_*` | `integrations-off` |
+| cờ TẮT: tick không làm gì | xoá cờ giữa ca rồi `dispatcher.tick()` | `integrations-off` (seed endpoint + outbox bằng SQL, `control.runJob('webhook-dispatch')` trả `skipped`) |
+| thiếu / sai `INTEGRATIONS_SECRET_KEY` (1 ca, 2 nửa) | đặt env giữa ca | tách theo hồ sơ: `no-secret-key` và `bad-secret-key` |
+| production giả lập vẫn chặn 127.0.0.1 | đặt `NODE_ENV=production` giữa ca | đã có ở `cases/production/01-production.test.ts` (C06a, binary/hồ sơ production thật) |
+| 2 ca CRUD + secret | `ALLOW_PRIVATE_TARGETS` | `private-targets` (`01`) |
+| 8 ca gửi thật; 4 ca thử lại; 5 ca chủ thể; 8 ca nhận việc + biên | `enable()` + `ALLOW_PRIVATE_TARGETS`, `dispatcher.tick()`, 62 lời gọi Prisma | `private-targets` (`02` đến `05`); `tick()` = `control.runJob('webhook-dispatch')`; Prisma → SQL; `publishIntegrationEvent` → `INSERT integration_events` |
+| `RbacCache.invalidateUsers` | gọi hàm trong tiến trình | `control.flushCache()` |
+| ca đổi khoá: secret cũ không giải mã được | đổi env giữa ca | seed bản mã của khoá khác bằng SQL (`encryptWithForeignKey`) |
+
+Ca bị chuyển loại phần gọi hàm: `dispatcher.dispatchEvents()` đứng riêng (không gửi) nay seed delivery chờ bằng SQL (`pendingDelivery`) rồi kiểm phần còn lại; `worker.claim()` hai lần đồng thời, ghi kết quả muộn của lượt nhận cũ (`processBatch(first)`) và
+`sweepExhausted()` đứng riêng không còn gọi được từ ngoài: phần "không nhận trùng / lease / trần 7 lần / quét dead" kiểm qua `tick`, phần ghi muộn và claim song song thật kiểm ở test Rust `webhooks_pg.rs`.
+
 ## Ca bị chuyển loại / chưa chuyển
 Đã chuyển (C11, hồ sơ `default`, 34 ca): `cases/default/20-commerce` (5, từ `commerce.e2e-spec`), `21-pos-dashboard` (6), `22-payroll-notification` (21), `23-notification-reaper` (2, `reapStuckProcessing(NOW)` → `control.runJob('notification.reap-stuck', { now })`, `createLog` → `POST /notifications/send` hẹn giờ + đọc log bằng SQL). Các ca e2e còn lại chuyển ở C07a và C08–C13. 10 ca mẫu ở `cases/` chứng minh từng khả năng: job (`04`), xoá cache (`05`), `now`
 (`04`), hồ sơ `production` (`cases/production`), response theo ngày (`06`), ba vai (`07`), công ty thứ hai (`03`), validation strict/lenient (`02`),

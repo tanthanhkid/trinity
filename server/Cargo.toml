@@ -33,7 +33,9 @@ axum = "0.8"
 hyper = "1.13"
 tower-http = "0.7"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
-reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
+# Feature `rustls` của reqwest 0.13 kéo aws-lc-rs (cần cmake/C); dùng `rustls-no-provider` và cài provider `ring`
+# một lần lúc khởi động (`rustls::crypto::ring::default_provider().install_default()`), cùng provider với sqlx.
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json", "charset", "http2"] }
 
 # Postgres: truy vấn kiểm lúc biên dịch, chế độ offline (.sqlx/), không ORM, không `sqlx migrate` (PLAN 4.4, 4.5)
 sqlx = { version = "0.9", default-features = false, features = [

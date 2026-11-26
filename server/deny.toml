@@ -49,6 +49,9 @@ deny = [
   # TLS chỉ dùng rustls (PLAN 4.2): không OpenSSL, không cmake.
   { name = "openssl-sys" },
   { name = "native-tls" },
+  # Provider crypto của rustls chỉ dùng ring; aws-lc cần cmake và trình biên dịch C.
+  { name = "aws-lc-sys" },
+  { name = "aws-lc-rs" },
 ]
 
 [sources]

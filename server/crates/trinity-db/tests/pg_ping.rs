@@ -1,15 +1,20 @@
-//! Test pg mẫu. Cần Postgres thật qua `TEST_DATABASE_URL`; thiếu biến thì bỏ qua (job `Rust pg tests` của CI đặt biến).
+//! Test pg mẫu, cần Postgres thật nên mặc định bị bỏ qua (`#[ignore]`). Chạy có chủ đích:
+//! `TEST_DATABASE_URL=postgresql://localhost/trinity_<tên> cargo test -p trinity-db -- --ignored`.
+//! Job test pg trên CI được thêm ở K02 và chạy các test này bằng `--ignored`.
 
 use sqlx::postgres::PgPoolOptions;
 
+fn test_database_url() -> String {
+    std::env::var("TEST_DATABASE_URL")
+        .expect("test pg cần TEST_DATABASE_URL (Postgres 16 đã migrate bằng Prisma, xem server/README.md)")
+}
+
 #[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
 async fn ping_tra_ve_1() {
-    let Ok(url) = std::env::var("TEST_DATABASE_URL") else {
-        return;
-    };
     let pool = PgPoolOptions::new()
         .max_connections(1)
-        .connect(&url)
+        .connect(&test_database_url())
         .await
         .expect("nối được TEST_DATABASE_URL");
     assert_eq!(trinity_db::ping(&pool).await.expect("ping"), 1);

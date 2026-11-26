@@ -60,7 +60,7 @@ Chạy trong `server/`. Trên máy dùng chung, thay `cargo` bằng `scripts/car
 | Định dạng | `cargo fmt --all` (CI: `cargo fmt --all --check`) |
 | Lint | `cargo clippy --workspace --all-targets -- -D warnings` |
 | Unit test một crate | `cargo test -p <crate> --lib` |
-| Test pg | `TEST_DATABASE_URL=postgresql://localhost/trinity_<tên> cargo test -p <crate>` |
+| Test pg (đánh dấu `#[ignore]`, chạy có chủ đích) | `TEST_DATABASE_URL=postgresql://localhost/trinity_<tên> cargo test -p <crate> -- --ignored` |
 | Giấy phép, lỗ hổng | `cargo deny check` (cần [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)) |
 
 Build release, test pg đầy đủ, bộ hợp đồng và build hai kiến trúc chạy trên CI ([`docs/ci.md`](../docs/ci.md)).
@@ -75,6 +75,7 @@ Không ORM, không `sqlx migrate` (lịch sử migration vẫn là thư mục Pr
   (`SQLX_OFFLINE=true but there is no cached data for this query`).
 - **Truy vấn có bộ lọc động** dùng `sqlx::QueryBuilder` hoặc `query_as` không macro, giá trị luôn đi qua bind (không
   nối chuỗi giá trị vào SQL). Loại này không được kiểm lúc biên dịch nên **bắt buộc có test pg**.
+  Test pg đánh dấu `#[ignore = "cần Postgres…"]` và đọc `TEST_DATABASE_URL`; thiếu biến thì test lỗi, không âm thầm qua.
 
 Khi thêm hoặc sửa một truy vấn tĩnh:
 

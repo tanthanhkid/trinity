@@ -2,7 +2,9 @@
 //!
 //! - `lint`: luật SQL và giữ kết nối của PLAN 4.3 (`src/lint.rs`) trên mọi tệp dưới `crates/`.
 //! - `gen-models`: sinh `crates/trinity-db/src/models.rs` từ `schema.prisma` (`src/gen_models.rs`, PLAN 4.4).
+//! - `gen-dto <Dto>…`: in khung struct Rust của DTO từ `contracts/dto/schema.json` (`src/gen_dto.rs`, K15).
 
+mod gen_dto;
 mod gen_models;
 mod lint;
 
@@ -15,7 +17,7 @@ fn main() -> ExitCode {
     match cmd.as_deref() {
         None | Some("help" | "--help" | "-h") => {
             eprintln!(
-                "cargo xtask <lệnh>\n\n  lint         cấm `SELECT *`/`RETURNING *`, cấm gọi HTTP khi đang giữ kết nối DB (PLAN 4.3)\n  gen-models   sinh crates/trinity-db/src/models.rs từ schema.prisma (PLAN 4.4)"
+                "cargo xtask <lệnh>\n\n  lint   cấm `SELECT *`/`RETURNING *`, cấm gọi HTTP khi đang giữ kết nối DB (PLAN 4.3)\n  gen-models   sinh crates/trinity-db/src/models.rs từ schema.prisma (PLAN 4.4)\n  gen-dto <Dto>…   in khung struct Rust của DTO từ contracts/dto/schema.json"
             );
             ExitCode::SUCCESS
         }
@@ -56,6 +58,23 @@ fn main() -> ExitCode {
                 }
                 Err(e) => {
                     eprintln!("xtask gen-models: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Some("gen-dto") => {
+            let names: Vec<String> = std::env::args().skip(2).collect();
+            let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../contracts/dto/schema.json");
+            match std::fs::read_to_string(&path)
+                .map_err(|e| e.to_string())
+                .and_then(|t| gen_dto::generate(&t, &names))
+            {
+                Ok(code) => {
+                    print!("{code}");
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("xtask gen-dto: {e}");
                     ExitCode::FAILURE
                 }
             }

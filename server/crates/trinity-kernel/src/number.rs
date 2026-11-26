@@ -51,3 +51,34 @@ pub fn format_vn_number(x: f64) -> String {
     }
     out
 }
+
+/// Như `Math.round` của JS: làm tròn nửa về phía +∞ (`-2.5` → `-2`, `2.5` → `3`), giữ `-0` cho khoảng `[-0.5, 0)`,
+/// `NaN`/`±∞` và số đã nguyên (|x| ≥ 2^52) giữ nguyên. Khác `f64::round` (nửa xa số 0). PLAN mục 10.3: một hàm duy nhất
+/// cho bộ tính lương (M30a) và bộ tính công thức bảng tuỳ biến (M57).
+pub fn js_round(x: f64) -> f64 {
+    if !x.is_finite() || x.abs() >= 4_503_599_627_370_496.0 {
+        return x;
+    }
+    if (-0.5..0.0).contains(&x) {
+        return -0.0;
+    }
+    let floor = x.floor();
+    // `x - floor` là phép trừ chính xác với f64 trong khoảng này, nên so với 0,5 không dính sai số cộng 0,5.
+    if x - floor >= 0.5 { floor + 1.0 } else { floor }
+}
+
+#[cfg(test)]
+mod js_round_tests {
+    use super::js_round;
+
+    #[test]
+    fn nua_ve_phia_duong_vo_cuc() {
+        assert_eq!(js_round(2.5), 3.0);
+        assert_eq!(js_round(-2.5), -2.0);
+        assert_eq!(js_round(0.49999999999999994), 0.0);
+        assert!(js_round(-0.2).is_sign_negative());
+        assert_eq!(js_round(-0.5), 0.0);
+        assert_eq!(js_round(-1.5), -1.0);
+        assert!(js_round(f64::NAN).is_nan());
+    }
+}

@@ -1,0 +1,7179 @@
+{
+ "_doc": "Bảng ca dùng chung TS ↔ Rust cho bộ phân tích/tính công thức bảng tuỳ biến (M57). `formula`: expr + vals (cả hai bên dùng cùng kiểu trường: gia_goc, uu_dai, so_buoi, don_gia, so_luong = số; bat_dau, ket_thuc, ngay_sinh = ngày; tên khác không tồn tại) chạy qua parse → check → evaluate; out = {value: số|null} hoặc {error: câu lỗi tiếng Việt}. `js_round`: in (số, hoặc chuỗi cho NaN/Infinity/-Infinity/-0), out tương tự. `collect_refs`: tập khoá tham chiếu đã sắp. Kết quả do bản TS sinh: UPDATE_FORMULA_CASES=1 chạy services/crm/src/custom-objects/__tests__/formula-cases.spec.ts. Rust: server/crates/trinity-kernel/tests/formula_cases.rs.",
+ "formula": [
+  {
+   "expr": "1+2*3",
+   "vals": {},
+   "out": {
+    "value": 7
+   }
+  },
+  {
+   "expr": "(1+2)*3",
+   "vals": {},
+   "out": {
+    "value": 9
+   }
+  },
+  {
+   "expr": "-2*-3",
+   "vals": {},
+   "out": {
+    "value": 6
+   }
+  },
+  {
+   "expr": "10/4",
+   "vals": {},
+   "out": {
+    "value": 2.5
+   }
+  },
+  {
+   "expr": "2 - 3 - 4",
+   "vals": {},
+   "out": {
+    "value": -5
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 9600000,
+    "uu_dai": 0.05
+   },
+   "out": {
+    "value": 9120000
+   }
+  },
+  {
+   "expr": "round({gia_goc}*(1-{uu_dai})/{so_buoi}, 0)",
+   "vals": {
+    "gia_goc": 9600000,
+    "uu_dai": 0.05,
+    "so_buoi": 24
+   },
+   "out": {
+    "value": 380000
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-04-01"
+   },
+   "out": {
+    "value": 3
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}), 1)",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-02-16"
+   },
+   "out": {
+    "value": 1.5
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-31"
+   },
+   "out": {
+    "value": 30
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-31",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": -30
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T18:00:00.000Z",
+    "ket_thuc": "2025-01-03"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "{gia_goc}*2",
+   "vals": {
+    "gia_goc": null
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{gia_goc}*2",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "1/0",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": null
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "rác",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "round(2.5, 0)",
+   "vals": {},
+   "out": {
+    "value": 3
+   }
+  },
+  {
+   "expr": "round(-2.5, 0)",
+   "vals": {},
+   "out": {
+    "value": -3
+   }
+  },
+  {
+   "expr": "round(1.005, 2)",
+   "vals": {},
+   "out": {
+    "value": 1.01
+   }
+  },
+  {
+   "expr": "process.exit(1)",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \".\""
+   }
+  },
+  {
+   "expr": "constructor",
+   "vals": {},
+   "out": {
+    "error": "Hàm không được hỗ trợ: constructor"
+   }
+  },
+  {
+   "expr": "__proto__",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"_\""
+   }
+  },
+  {
+   "expr": "{gia_goc}.toString()",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \".\""
+   }
+  },
+  {
+   "expr": "1; 2",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \";\""
+   }
+  },
+  {
+   "expr": "1 + ",
+   "vals": {},
+   "out": {
+    "error": "Công thức chưa hoàn chỉnh"
+   }
+  },
+  {
+   "expr": "(1+2",
+   "vals": {},
+   "out": {
+    "error": "Thiếu dấu ) đóng"
+   }
+  },
+  {
+   "expr": "1+2)",
+   "vals": {},
+   "out": {
+    "error": "Công thức thừa ký tự ở cuối"
+   }
+  },
+  {
+   "expr": "\"x\"",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"\"\""
+   }
+  },
+  {
+   "expr": "'x'",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"'\""
+   }
+  },
+  {
+   "expr": "`x`",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"`\""
+   }
+  },
+  {
+   "expr": "{a b}",
+   "vals": {},
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {a b}"
+   }
+  },
+  {
+   "expr": "{A}",
+   "vals": {},
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {A}"
+   }
+  },
+  {
+   "expr": "{}",
+   "vals": {},
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {}"
+   }
+  },
+  {
+   "expr": "{constructor.prototype}",
+   "vals": {},
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {constructor.prototype}"
+   }
+  },
+  {
+   "expr": "sin(1)",
+   "vals": {},
+   "out": {
+    "error": "Hàm không được hỗ trợ: sin"
+   }
+  },
+  {
+   "expr": "round(1)",
+   "vals": {},
+   "out": {
+    "error": "Hàm round cần đúng 2 đối số"
+   }
+  },
+  {
+   "expr": "round(1,2,3)",
+   "vals": {},
+   "out": {
+    "error": "Hàm round cần đúng 2 đối số"
+   }
+  },
+  {
+   "expr": "1 ? 2 : 3",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"?\""
+   }
+  },
+  {
+   "expr": "1 == 1",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"=\""
+   }
+  },
+  {
+   "expr": "2 ** 3",
+   "vals": {},
+   "out": {
+    "error": "Công thức sai cú pháp"
+   }
+  },
+  {
+   "expr": "1e3",
+   "vals": {},
+   "out": {
+    "error": "Công thức thừa ký tự ở cuối"
+   }
+  },
+  {
+   "expr": "0x10",
+   "vals": {},
+   "out": {
+    "error": "Công thức thừa ký tự ở cuối"
+   }
+  },
+  {
+   "expr": "ROUND(1,2)",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"R\""
+   }
+  },
+  {
+   "expr": "",
+   "vals": {},
+   "out": {
+    "error": "Công thức đang trống"
+   }
+  },
+  {
+   "expr": "  ",
+   "vals": {},
+   "out": {
+    "error": "Công thức đang trống"
+   }
+  },
+  {
+   "expr": "1.",
+   "vals": {},
+   "out": {
+    "error": "Số thập phân không hợp lệ (thiếu chữ số sau dấu chấm)"
+   }
+  },
+  {
+   "expr": "()",
+   "vals": {},
+   "out": {
+    "error": "Công thức sai cú pháp"
+   }
+  },
+  {
+   "expr": "x",
+   "vals": {},
+   "out": {
+    "error": "Hàm không được hỗ trợ: x"
+   }
+  },
+  {
+   "expr": "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1",
+   "vals": {},
+   "out": {
+    "error": "Công thức tối đa 300 ký tự"
+   }
+  },
+  {
+   "expr": "((((((((((((((((((((((((((((((((((((((((1))))))))))))))))))))))))))))))))))))))))",
+   "vals": {},
+   "out": {
+    "error": "Công thức lồng quá sâu"
+   }
+  },
+  {
+   "expr": "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1",
+   "vals": {},
+   "out": {
+    "error": "Công thức quá dài/phức tạp"
+   }
+  },
+  {
+   "expr": "------------------------------------------------------------1",
+   "vals": {},
+   "out": {
+    "error": "Công thức lồng quá sâu"
+   }
+  },
+  {
+   "expr": "{khong_co}+1",
+   "vals": {},
+   "out": {
+    "error": "Trường {khong_co} không tồn tại hoặc không dùng được trong công thức (chỉ số, tiền, %, ngày)"
+   }
+  },
+  {
+   "expr": "{bat_dau}+1",
+   "vals": {},
+   "out": {
+    "error": "Phép + − × ÷ chỉ dùng với số; dùng months_between/days_between để so sánh ngày"
+   }
+  },
+  {
+   "expr": "{bat_dau}",
+   "vals": {},
+   "out": {
+    "error": "Kết quả công thức phải là số (dùng months_between/days_between cho ngày)"
+   }
+  },
+  {
+   "expr": "-{bat_dau}",
+   "vals": {},
+   "out": {
+    "error": "Không thể đổi dấu một ngày"
+   }
+  },
+  {
+   "expr": "months_between({gia_goc},{ket_thuc})",
+   "vals": {},
+   "out": {
+    "error": "months_between(d1, d2): cả hai đối số phải là trường ngày, ví dụ months_between({bat_dau}, {ket_thuc})"
+   }
+  },
+  {
+   "expr": "months_between({bat_dau}, 5)",
+   "vals": {},
+   "out": {
+    "error": "months_between(d1, d2): cả hai đối số phải là trường ngày, ví dụ months_between({bat_dau}, {ket_thuc})"
+   }
+  },
+  {
+   "expr": "round({gia_goc}, {uu_dai})",
+   "vals": {},
+   "out": {
+    "error": "round(x, n): n phải là số nguyên từ 0 đến 6 viết thẳng"
+   }
+  },
+  {
+   "expr": "round({gia_goc}, 9)",
+   "vals": {},
+   "out": {
+    "error": "round(x, n): n phải là số nguyên từ 0 đến 6 viết thẳng"
+   }
+  },
+  {
+   "expr": "round({gia_goc}, 1.5)",
+   "vals": {},
+   "out": {
+    "error": "round(x, n): n phải là số nguyên từ 0 đến 6 viết thẳng"
+   }
+  },
+  {
+   "expr": "round({bat_dau}, 1)",
+   "vals": {},
+   "out": {
+    "error": "round(x, n): x phải là số"
+   }
+  },
+  {
+   "expr": "1+1",
+   "vals": {},
+   "out": {
+    "value": 2
+   }
+  },
+  {
+   "expr": "999999999999*999999999999",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "1 2",
+   "vals": {},
+   "out": {
+    "error": "Công thức thừa ký tự ở cuối"
+   }
+  },
+  {
+   "expr": "1..2",
+   "vals": {},
+   "out": {
+    "error": "Số thập phân không hợp lệ (thiếu chữ số sau dấu chấm)"
+   }
+  },
+  {
+   "expr": ".5",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \".\""
+   }
+  },
+  {
+   "expr": "5.",
+   "vals": {},
+   "out": {
+    "error": "Số thập phân không hợp lệ (thiếu chữ số sau dấu chấm)"
+   }
+  },
+  {
+   "expr": "{ten",
+   "vals": {},
+   "out": {
+    "error": "Thiếu dấu } đóng tham chiếu trường"
+   }
+  },
+  {
+   "expr": "{ ten }",
+   "vals": {},
+   "out": {
+    "error": "Trường {ten} không tồn tại hoặc không dùng được trong công thức (chỉ số, tiền, %, ngày)"
+   }
+  },
+  {
+   "expr": "{ten_dai_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}",
+   "vals": {},
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {ten_dai_xxxxxxxxxxxxxxxxxxxxxx}"
+   }
+  },
+  {
+   "expr": "{1abc}",
+   "vals": {},
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {1abc}"
+   }
+  },
+  {
+   "expr": "{a-b}",
+   "vals": {},
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {a-b}"
+   }
+  },
+  {
+   "expr": "round",
+   "vals": {},
+   "out": {
+    "error": "Thiếu dấu ( sau hàm round"
+   }
+  },
+  {
+   "expr": "round(",
+   "vals": {},
+   "out": {
+    "error": "Công thức chưa hoàn chỉnh"
+   }
+  },
+  {
+   "expr": "round(1,",
+   "vals": {},
+   "out": {
+    "error": "Công thức chưa hoàn chỉnh"
+   }
+  },
+  {
+   "expr": "round(1,2",
+   "vals": {},
+   "out": {
+    "error": "Thiếu dấu ) đóng"
+   }
+  },
+  {
+   "expr": "round(1,2))",
+   "vals": {},
+   "out": {
+    "error": "Công thức thừa ký tự ở cuối"
+   }
+  },
+  {
+   "expr": "round(,2)",
+   "vals": {},
+   "out": {
+    "error": "Công thức sai cú pháp"
+   }
+  },
+  {
+   "expr": "round()",
+   "vals": {},
+   "out": {
+    "error": "Công thức sai cú pháp"
+   }
+  },
+  {
+   "expr": "months_between()",
+   "vals": {},
+   "out": {
+    "error": "Công thức sai cú pháp"
+   }
+  },
+  {
+   "expr": "months_between({bat_dau})",
+   "vals": {},
+   "out": {
+    "error": "Hàm months_between cần đúng 2 đối số"
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc},{ket_thuc})",
+   "vals": {},
+   "out": {
+    "error": "Hàm days_between cần đúng 2 đối số"
+   }
+  },
+  {
+   "expr": "(",
+   "vals": {},
+   "out": {
+    "error": "Công thức chưa hoàn chỉnh"
+   }
+  },
+  {
+   "expr": "()+1",
+   "vals": {},
+   "out": {
+    "error": "Công thức sai cú pháp"
+   }
+  },
+  {
+   "expr": "1+*2",
+   "vals": {},
+   "out": {
+    "error": "Công thức sai cú pháp"
+   }
+  },
+  {
+   "expr": "*2",
+   "vals": {},
+   "out": {
+    "error": "Công thức sai cú pháp"
+   }
+  },
+  {
+   "expr": "1/",
+   "vals": {},
+   "out": {
+    "error": "Công thức chưa hoàn chỉnh"
+   }
+  },
+  {
+   "expr": "1 // 2",
+   "vals": {},
+   "out": {
+    "error": "Công thức sai cú pháp"
+   }
+  },
+  {
+   "expr": "--1",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "---1",
+   "vals": {},
+   "out": {
+    "value": -1
+   }
+  },
+  {
+   "expr": "+1",
+   "vals": {},
+   "out": {
+    "error": "Công thức sai cú pháp"
+   }
+  },
+  {
+   "expr": "1 + + 2",
+   "vals": {},
+   "out": {
+    "error": "Công thức sai cú pháp"
+   }
+  },
+  {
+   "expr": "1,2",
+   "vals": {},
+   "out": {
+    "error": "Công thức thừa ký tự ở cuối"
+   }
+  },
+  {
+   "expr": "round(1,2),3",
+   "vals": {},
+   "out": {
+    "error": "Công thức thừa ký tự ở cuối"
+   }
+  },
+  {
+   "expr": "a",
+   "vals": {},
+   "out": {
+    "error": "Hàm không được hỗ trợ: a"
+   }
+  },
+  {
+   "expr": "abc(1)",
+   "vals": {},
+   "out": {
+    "error": "Hàm không được hỗ trợ: abc"
+   }
+  },
+  {
+   "expr": "ROUND",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"R\""
+   }
+  },
+  {
+   "expr": "round (1,2)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round  (1, 2)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "Round(1,2)",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"R\""
+   }
+  },
+  {
+   "expr": "1 $ 2",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"$\""
+   }
+  },
+  {
+   "expr": "1 % 2",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"%\""
+   }
+  },
+  {
+   "expr": "1 ^ 2",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"^\""
+   }
+  },
+  {
+   "expr": "1 & 2",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"&\""
+   }
+  },
+  {
+   "expr": "#",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"#\""
+   }
+  },
+  {
+   "expr": "@",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"@\""
+   }
+  },
+  {
+   "expr": "[1]",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"[\""
+   }
+  },
+  {
+   "expr": "{x}}",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"}\""
+   }
+  },
+  {
+   "expr": "{{x}}",
+   "vals": {},
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {{x}"
+   }
+  },
+  {
+   "expr": "1}",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"}\""
+   }
+  },
+  {
+   "expr": "é",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"é\""
+   }
+  },
+  {
+   "expr": "1 + é",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"é\""
+   }
+  },
+  {
+   "expr": "日本",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"日\""
+   }
+  },
+  {
+   "expr": "1 + 2",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \" \""
+   }
+  },
+  {
+   "expr": "1− 2",
+   "vals": {},
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"−\""
+   }
+  },
+  {
+   "expr": "{é}",
+   "vals": {},
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {é}"
+   }
+  },
+  {
+   "expr": "round(1, -1)",
+   "vals": {},
+   "out": {
+    "error": "round(x, n): n phải là số nguyên từ 0 đến 6 viết thẳng"
+   }
+  },
+  {
+   "expr": "round(1, 7)",
+   "vals": {},
+   "out": {
+    "error": "round(x, n): n phải là số nguyên từ 0 đến 6 viết thẳng"
+   }
+  },
+  {
+   "expr": "round(1, 0.5)",
+   "vals": {},
+   "out": {
+    "error": "round(x, n): n phải là số nguyên từ 0 đến 6 viết thẳng"
+   }
+  },
+  {
+   "expr": "round(1, 2+1)",
+   "vals": {},
+   "out": {
+    "error": "round(x, n): n phải là số nguyên từ 0 đến 6 viết thẳng"
+   }
+  },
+  {
+   "expr": "round(1, {so_buoi})",
+   "vals": {},
+   "out": {
+    "error": "round(x, n): n phải là số nguyên từ 0 đến 6 viết thẳng"
+   }
+  },
+  {
+   "expr": "days_between({bat_dau}, {bat_dau} )",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau}, {ket_thuc}) + days_between({bat_dau}, 1)",
+   "vals": {},
+   "out": {
+    "error": "days_between(d1, d2): cả hai đối số phải là trường ngày, ví dụ days_between({bat_dau}, {ket_thuc})"
+   }
+  },
+  {
+   "expr": "days_between(1, 2)",
+   "vals": {},
+   "out": {
+    "error": "days_between(d1, d2): cả hai đối số phải là trường ngày, ví dụ days_between({bat_dau}, {ket_thuc})"
+   }
+  },
+  {
+   "expr": "-days_between({bat_dau},{ket_thuc})",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "(days_between({bat_dau},{ket_thuc}))*2",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{ngay_sinh}",
+   "vals": {},
+   "out": {
+    "error": "Kết quả công thức phải là số (dùng months_between/days_between cho ngày)"
+   }
+  },
+  {
+   "expr": "{ngay_sinh}-{bat_dau}",
+   "vals": {},
+   "out": {
+    "error": "Phép + − × ÷ chỉ dùng với số; dùng months_between/days_between để so sánh ngày"
+   }
+  },
+  {
+   "expr": "{ngay_sinh}*1",
+   "vals": {},
+   "out": {
+    "error": "Phép + − × ÷ chỉ dùng với số; dùng months_between/days_between để so sánh ngày"
+   }
+  },
+  {
+   "expr": "-{ngay_sinh}",
+   "vals": {},
+   "out": {
+    "error": "Không thể đổi dấu một ngày"
+   }
+  },
+  {
+   "expr": "round(months_between({ngay_sinh},{bat_dau}),2)",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({ngay_sinh},{ket_thuc})/12",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "round(round(1.5,0),0)",
+   "vals": {},
+   "out": {
+    "value": 2
+   }
+  },
+  {
+   "expr": "round({bat_dau},0)",
+   "vals": {},
+   "out": {
+    "error": "round(x, n): x phải là số"
+   }
+  },
+  {
+   "expr": "1+1",
+   "vals": {},
+   "out": {
+    "value": 2
+   }
+  },
+  {
+   "expr": "2*3.5",
+   "vals": {},
+   "out": {
+    "value": 7
+   }
+  },
+  {
+   "expr": "7/2",
+   "vals": {},
+   "out": {
+    "value": 3.5
+   }
+  },
+  {
+   "expr": "7/-2",
+   "vals": {},
+   "out": {
+    "value": -3.5
+   }
+  },
+  {
+   "expr": "-7/2",
+   "vals": {},
+   "out": {
+    "value": -3.5
+   }
+  },
+  {
+   "expr": "0.1+0.2",
+   "vals": {},
+   "out": {
+    "value": 0.3
+   }
+  },
+  {
+   "expr": "0.1*3",
+   "vals": {},
+   "out": {
+    "value": 0.3
+   }
+  },
+  {
+   "expr": "1/3",
+   "vals": {},
+   "out": {
+    "value": 0.333333
+   }
+  },
+  {
+   "expr": "2/3",
+   "vals": {},
+   "out": {
+    "value": 0.666667
+   }
+  },
+  {
+   "expr": "10/3",
+   "vals": {},
+   "out": {
+    "value": 3.333333
+   }
+  },
+  {
+   "expr": "100/7",
+   "vals": {},
+   "out": {
+    "value": 14.285714
+   }
+  },
+  {
+   "expr": "1e0",
+   "vals": {},
+   "out": {
+    "error": "Công thức thừa ký tự ở cuối"
+   }
+  },
+  {
+   "expr": "0.000001",
+   "vals": {},
+   "out": {
+    "value": 0.000001
+   }
+  },
+  {
+   "expr": "0.0000001",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "0.0000005",
+   "vals": {},
+   "out": {
+    "value": 0.000001
+   }
+  },
+  {
+   "expr": "0.0000015",
+   "vals": {},
+   "out": {
+    "value": 0.000002
+   }
+  },
+  {
+   "expr": "1.0000005",
+   "vals": {},
+   "out": {
+    "value": 1.000001
+   }
+  },
+  {
+   "expr": "123456789.123456789",
+   "vals": {},
+   "out": {
+    "value": 123456789.123457
+   }
+  },
+  {
+   "expr": "999999999999999",
+   "vals": {},
+   "out": {
+    "value": 999999999999999
+   }
+  },
+  {
+   "expr": "1000000000000000",
+   "vals": {},
+   "out": {
+    "value": 1000000000000000
+   }
+  },
+  {
+   "expr": "1000000000000001",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "9007199254740993",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "99999999999999999999",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "0",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "-0",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "0*-1",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "-0+0",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "0/5",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "-0/5",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "(((1)))",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "((1+2)*(3+4))",
+   "vals": {},
+   "out": {
+    "value": 21
+   }
+  },
+  {
+   "expr": "1-1-1-1",
+   "vals": {},
+   "out": {
+    "value": -2
+   }
+  },
+  {
+   "expr": "2*3*4*5",
+   "vals": {},
+   "out": {
+    "value": 120
+   }
+  },
+  {
+   "expr": "100/10/2",
+   "vals": {},
+   "out": {
+    "value": 5
+   }
+  },
+  {
+   "expr": "100/(10/2)",
+   "vals": {},
+   "out": {
+    "value": 20
+   }
+  },
+  {
+   "expr": "-(-(-1))",
+   "vals": {},
+   "out": {
+    "value": -1
+   }
+  },
+  {
+   "expr": "- - 1",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "-(1+2)*3",
+   "vals": {},
+   "out": {
+    "value": -9
+   }
+  },
+  {
+   "expr": "1+-2",
+   "vals": {},
+   "out": {
+    "value": -1
+   }
+  },
+  {
+   "expr": "1--2",
+   "vals": {},
+   "out": {
+    "value": 3
+   }
+  },
+  {
+   "expr": "1*-2",
+   "vals": {},
+   "out": {
+    "value": -2
+   }
+  },
+  {
+   "expr": "1/-2",
+   "vals": {},
+   "out": {
+    "value": -0.5
+   }
+  },
+  {
+   "expr": "(1)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "( 1 + 2 )",
+   "vals": {},
+   "out": {
+    "value": 3
+   }
+  },
+  {
+   "expr": "\t1\n+\r2",
+   "vals": {},
+   "out": {
+    "value": 3
+   }
+  },
+  {
+   "expr": "1/0.0",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "0/0",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "0.0/1",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "-1/0",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "1/(1-1)",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "1/(2-2)*5",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "3*(1/0)",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "round(1/0,2)",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "1/3*3",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "0.1+0.7",
+   "vals": {},
+   "out": {
+    "value": 0.8
+   }
+  },
+  {
+   "expr": "4.35*100",
+   "vals": {},
+   "out": {
+    "value": 435
+   }
+  },
+  {
+   "expr": "1.1*1.1",
+   "vals": {},
+   "out": {
+    "value": 1.21
+   }
+  },
+  {
+   "expr": "0.57*100",
+   "vals": {},
+   "out": {
+    "value": 57
+   }
+  },
+  {
+   "expr": "1.15*100",
+   "vals": {},
+   "out": {
+    "value": 115
+   }
+  },
+  {
+   "expr": "2.675*100",
+   "vals": {},
+   "out": {
+    "value": 267.5
+   }
+  },
+  {
+   "expr": "5e-7*0",
+   "vals": {},
+   "out": {
+    "error": "Công thức thừa ký tự ở cuối"
+   }
+  },
+  {
+   "expr": "12345678901234567890",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "0.1+0.2+0.3",
+   "vals": {},
+   "out": {
+    "value": 0.6
+   }
+  },
+  {
+   "expr": "1/7*7",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "33.33*3",
+   "vals": {},
+   "out": {
+    "value": 99.99
+   }
+  },
+  {
+   "expr": "99.995*100",
+   "vals": {},
+   "out": {
+    "value": 9999.5
+   }
+  },
+  {
+   "expr": "1.005*1000",
+   "vals": {},
+   "out": {
+    "value": 1005
+   }
+  },
+  {
+   "expr": "999999999999*1000",
+   "vals": {},
+   "out": {
+    "value": 999999999999000
+   }
+  },
+  {
+   "expr": "999999999999*1001",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "1000000*1000000*1000",
+   "vals": {},
+   "out": {
+    "value": 1000000000000000
+   }
+  },
+  {
+   "expr": "1000000*1000000*1000*1000",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "-1000000*1000000*1000*1000",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "0.0000004",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "0.0000006",
+   "vals": {},
+   "out": {
+    "value": 0.000001
+   }
+  },
+  {
+   "expr": "-0.0000004",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "-0.0000006",
+   "vals": {},
+   "out": {
+    "value": -0.000001
+   }
+  },
+  {
+   "expr": "-0.0000005",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "2.0000005",
+   "vals": {},
+   "out": {
+    "value": 2.000001
+   }
+  },
+  {
+   "expr": "2.0000015",
+   "vals": {},
+   "out": {
+    "value": 2.000002
+   }
+  },
+  {
+   "expr": "2.0000025",
+   "vals": {},
+   "out": {
+    "value": 2.000003
+   }
+  },
+  {
+   "expr": "1234.5678915",
+   "vals": {},
+   "out": {
+    "value": 1234.567892
+   }
+  },
+  {
+   "expr": "1234.5678925",
+   "vals": {},
+   "out": {
+    "value": 1234.567893
+   }
+  },
+  {
+   "expr": "round(0.5,0)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(0.5,1)",
+   "vals": {},
+   "out": {
+    "value": 0.5
+   }
+  },
+  {
+   "expr": "round(0.5,2)",
+   "vals": {},
+   "out": {
+    "value": 0.5
+   }
+  },
+  {
+   "expr": "round(0.5,3)",
+   "vals": {},
+   "out": {
+    "value": 0.5
+   }
+  },
+  {
+   "expr": "round(0.5,6)",
+   "vals": {},
+   "out": {
+    "value": 0.5
+   }
+  },
+  {
+   "expr": "round(1.5,0)",
+   "vals": {},
+   "out": {
+    "value": 2
+   }
+  },
+  {
+   "expr": "round(1.5,1)",
+   "vals": {},
+   "out": {
+    "value": 1.5
+   }
+  },
+  {
+   "expr": "round(1.5,2)",
+   "vals": {},
+   "out": {
+    "value": 1.5
+   }
+  },
+  {
+   "expr": "round(1.5,3)",
+   "vals": {},
+   "out": {
+    "value": 1.5
+   }
+  },
+  {
+   "expr": "round(1.5,6)",
+   "vals": {},
+   "out": {
+    "value": 1.5
+   }
+  },
+  {
+   "expr": "round(2.5,0)",
+   "vals": {},
+   "out": {
+    "value": 3
+   }
+  },
+  {
+   "expr": "round(2.5,1)",
+   "vals": {},
+   "out": {
+    "value": 2.5
+   }
+  },
+  {
+   "expr": "round(2.5,2)",
+   "vals": {},
+   "out": {
+    "value": 2.5
+   }
+  },
+  {
+   "expr": "round(2.5,3)",
+   "vals": {},
+   "out": {
+    "value": 2.5
+   }
+  },
+  {
+   "expr": "round(2.5,6)",
+   "vals": {},
+   "out": {
+    "value": 2.5
+   }
+  },
+  {
+   "expr": "round(3.5,0)",
+   "vals": {},
+   "out": {
+    "value": 4
+   }
+  },
+  {
+   "expr": "round(3.5,1)",
+   "vals": {},
+   "out": {
+    "value": 3.5
+   }
+  },
+  {
+   "expr": "round(3.5,2)",
+   "vals": {},
+   "out": {
+    "value": 3.5
+   }
+  },
+  {
+   "expr": "round(3.5,3)",
+   "vals": {},
+   "out": {
+    "value": 3.5
+   }
+  },
+  {
+   "expr": "round(3.5,6)",
+   "vals": {},
+   "out": {
+    "value": 3.5
+   }
+  },
+  {
+   "expr": "round((-0.5),0)",
+   "vals": {},
+   "out": {
+    "value": -1
+   }
+  },
+  {
+   "expr": "round((-0.5),1)",
+   "vals": {},
+   "out": {
+    "value": -0.5
+   }
+  },
+  {
+   "expr": "round((-0.5),2)",
+   "vals": {},
+   "out": {
+    "value": -0.5
+   }
+  },
+  {
+   "expr": "round((-0.5),3)",
+   "vals": {},
+   "out": {
+    "value": -0.5
+   }
+  },
+  {
+   "expr": "round((-0.5),6)",
+   "vals": {},
+   "out": {
+    "value": -0.5
+   }
+  },
+  {
+   "expr": "round((-1.5),0)",
+   "vals": {},
+   "out": {
+    "value": -2
+   }
+  },
+  {
+   "expr": "round((-1.5),1)",
+   "vals": {},
+   "out": {
+    "value": -1.5
+   }
+  },
+  {
+   "expr": "round((-1.5),2)",
+   "vals": {},
+   "out": {
+    "value": -1.5
+   }
+  },
+  {
+   "expr": "round((-1.5),3)",
+   "vals": {},
+   "out": {
+    "value": -1.5
+   }
+  },
+  {
+   "expr": "round((-1.5),6)",
+   "vals": {},
+   "out": {
+    "value": -1.5
+   }
+  },
+  {
+   "expr": "round((-2.5),0)",
+   "vals": {},
+   "out": {
+    "value": -3
+   }
+  },
+  {
+   "expr": "round((-2.5),1)",
+   "vals": {},
+   "out": {
+    "value": -2.5
+   }
+  },
+  {
+   "expr": "round((-2.5),2)",
+   "vals": {},
+   "out": {
+    "value": -2.5
+   }
+  },
+  {
+   "expr": "round((-2.5),3)",
+   "vals": {},
+   "out": {
+    "value": -2.5
+   }
+  },
+  {
+   "expr": "round((-2.5),6)",
+   "vals": {},
+   "out": {
+    "value": -2.5
+   }
+  },
+  {
+   "expr": "round((-3.5),0)",
+   "vals": {},
+   "out": {
+    "value": -4
+   }
+  },
+  {
+   "expr": "round((-3.5),1)",
+   "vals": {},
+   "out": {
+    "value": -3.5
+   }
+  },
+  {
+   "expr": "round((-3.5),2)",
+   "vals": {},
+   "out": {
+    "value": -3.5
+   }
+  },
+  {
+   "expr": "round((-3.5),3)",
+   "vals": {},
+   "out": {
+    "value": -3.5
+   }
+  },
+  {
+   "expr": "round((-3.5),6)",
+   "vals": {},
+   "out": {
+    "value": -3.5
+   }
+  },
+  {
+   "expr": "round(0.4,0)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0.4,1)",
+   "vals": {},
+   "out": {
+    "value": 0.4
+   }
+  },
+  {
+   "expr": "round(0.4,2)",
+   "vals": {},
+   "out": {
+    "value": 0.4
+   }
+  },
+  {
+   "expr": "round(0.4,3)",
+   "vals": {},
+   "out": {
+    "value": 0.4
+   }
+  },
+  {
+   "expr": "round(0.4,6)",
+   "vals": {},
+   "out": {
+    "value": 0.4
+   }
+  },
+  {
+   "expr": "round(0.6,0)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(0.6,1)",
+   "vals": {},
+   "out": {
+    "value": 0.6
+   }
+  },
+  {
+   "expr": "round(0.6,2)",
+   "vals": {},
+   "out": {
+    "value": 0.6
+   }
+  },
+  {
+   "expr": "round(0.6,3)",
+   "vals": {},
+   "out": {
+    "value": 0.6
+   }
+  },
+  {
+   "expr": "round(0.6,6)",
+   "vals": {},
+   "out": {
+    "value": 0.6
+   }
+  },
+  {
+   "expr": "round(0.49999999999999994,0)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(0.49999999999999994,1)",
+   "vals": {},
+   "out": {
+    "value": 0.5
+   }
+  },
+  {
+   "expr": "round(0.49999999999999994,2)",
+   "vals": {},
+   "out": {
+    "value": 0.5
+   }
+  },
+  {
+   "expr": "round(0.49999999999999994,3)",
+   "vals": {},
+   "out": {
+    "value": 0.5
+   }
+  },
+  {
+   "expr": "round(0.49999999999999994,6)",
+   "vals": {},
+   "out": {
+    "value": 0.5
+   }
+  },
+  {
+   "expr": "round(1.005,0)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(1.005,1)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(1.005,2)",
+   "vals": {},
+   "out": {
+    "value": 1.01
+   }
+  },
+  {
+   "expr": "round(1.005,3)",
+   "vals": {},
+   "out": {
+    "value": 1.005
+   }
+  },
+  {
+   "expr": "round(1.005,6)",
+   "vals": {},
+   "out": {
+    "value": 1.005
+   }
+  },
+  {
+   "expr": "round(1.015,0)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(1.015,1)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(1.015,2)",
+   "vals": {},
+   "out": {
+    "value": 1.02
+   }
+  },
+  {
+   "expr": "round(1.015,3)",
+   "vals": {},
+   "out": {
+    "value": 1.015
+   }
+  },
+  {
+   "expr": "round(1.015,6)",
+   "vals": {},
+   "out": {
+    "value": 1.015
+   }
+  },
+  {
+   "expr": "round(1.025,0)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(1.025,1)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(1.025,2)",
+   "vals": {},
+   "out": {
+    "value": 1.03
+   }
+  },
+  {
+   "expr": "round(1.025,3)",
+   "vals": {},
+   "out": {
+    "value": 1.025
+   }
+  },
+  {
+   "expr": "round(1.025,6)",
+   "vals": {},
+   "out": {
+    "value": 1.025
+   }
+  },
+  {
+   "expr": "round(2.675,0)",
+   "vals": {},
+   "out": {
+    "value": 3
+   }
+  },
+  {
+   "expr": "round(2.675,1)",
+   "vals": {},
+   "out": {
+    "value": 2.7
+   }
+  },
+  {
+   "expr": "round(2.675,2)",
+   "vals": {},
+   "out": {
+    "value": 2.68
+   }
+  },
+  {
+   "expr": "round(2.675,3)",
+   "vals": {},
+   "out": {
+    "value": 2.675
+   }
+  },
+  {
+   "expr": "round(2.675,6)",
+   "vals": {},
+   "out": {
+    "value": 2.675
+   }
+  },
+  {
+   "expr": "round(2.345,0)",
+   "vals": {},
+   "out": {
+    "value": 2
+   }
+  },
+  {
+   "expr": "round(2.345,1)",
+   "vals": {},
+   "out": {
+    "value": 2.3
+   }
+  },
+  {
+   "expr": "round(2.345,2)",
+   "vals": {},
+   "out": {
+    "value": 2.35
+   }
+  },
+  {
+   "expr": "round(2.345,3)",
+   "vals": {},
+   "out": {
+    "value": 2.345
+   }
+  },
+  {
+   "expr": "round(2.345,6)",
+   "vals": {},
+   "out": {
+    "value": 2.345
+   }
+  },
+  {
+   "expr": "round(1.45,0)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(1.45,1)",
+   "vals": {},
+   "out": {
+    "value": 1.5
+   }
+  },
+  {
+   "expr": "round(1.45,2)",
+   "vals": {},
+   "out": {
+    "value": 1.45
+   }
+  },
+  {
+   "expr": "round(1.45,3)",
+   "vals": {},
+   "out": {
+    "value": 1.45
+   }
+  },
+  {
+   "expr": "round(1.45,6)",
+   "vals": {},
+   "out": {
+    "value": 1.45
+   }
+  },
+  {
+   "expr": "round(8.345,0)",
+   "vals": {},
+   "out": {
+    "value": 8
+   }
+  },
+  {
+   "expr": "round(8.345,1)",
+   "vals": {},
+   "out": {
+    "value": 8.3
+   }
+  },
+  {
+   "expr": "round(8.345,2)",
+   "vals": {},
+   "out": {
+    "value": 8.35
+   }
+  },
+  {
+   "expr": "round(8.345,3)",
+   "vals": {},
+   "out": {
+    "value": 8.345
+   }
+  },
+  {
+   "expr": "round(8.345,6)",
+   "vals": {},
+   "out": {
+    "value": 8.345
+   }
+  },
+  {
+   "expr": "round(0.285,0)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0.285,1)",
+   "vals": {},
+   "out": {
+    "value": 0.3
+   }
+  },
+  {
+   "expr": "round(0.285,2)",
+   "vals": {},
+   "out": {
+    "value": 0.29
+   }
+  },
+  {
+   "expr": "round(0.285,3)",
+   "vals": {},
+   "out": {
+    "value": 0.285
+   }
+  },
+  {
+   "expr": "round(0.285,6)",
+   "vals": {},
+   "out": {
+    "value": 0.285
+   }
+  },
+  {
+   "expr": "round(10.075,0)",
+   "vals": {},
+   "out": {
+    "value": 10
+   }
+  },
+  {
+   "expr": "round(10.075,1)",
+   "vals": {},
+   "out": {
+    "value": 10.1
+   }
+  },
+  {
+   "expr": "round(10.075,2)",
+   "vals": {},
+   "out": {
+    "value": 10.07
+   }
+  },
+  {
+   "expr": "round(10.075,3)",
+   "vals": {},
+   "out": {
+    "value": 10.075
+   }
+  },
+  {
+   "expr": "round(10.075,6)",
+   "vals": {},
+   "out": {
+    "value": 10.075
+   }
+  },
+  {
+   "expr": "round(1.255,0)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(1.255,1)",
+   "vals": {},
+   "out": {
+    "value": 1.3
+   }
+  },
+  {
+   "expr": "round(1.255,2)",
+   "vals": {},
+   "out": {
+    "value": 1.26
+   }
+  },
+  {
+   "expr": "round(1.255,3)",
+   "vals": {},
+   "out": {
+    "value": 1.255
+   }
+  },
+  {
+   "expr": "round(1.255,6)",
+   "vals": {},
+   "out": {
+    "value": 1.255
+   }
+  },
+  {
+   "expr": "round((-1.005),0)",
+   "vals": {},
+   "out": {
+    "value": -1
+   }
+  },
+  {
+   "expr": "round((-1.005),1)",
+   "vals": {},
+   "out": {
+    "value": -1
+   }
+  },
+  {
+   "expr": "round((-1.005),2)",
+   "vals": {},
+   "out": {
+    "value": -1.01
+   }
+  },
+  {
+   "expr": "round((-1.005),3)",
+   "vals": {},
+   "out": {
+    "value": -1.005
+   }
+  },
+  {
+   "expr": "round((-1.005),6)",
+   "vals": {},
+   "out": {
+    "value": -1.005
+   }
+  },
+  {
+   "expr": "round((-2.675),0)",
+   "vals": {},
+   "out": {
+    "value": -3
+   }
+  },
+  {
+   "expr": "round((-2.675),1)",
+   "vals": {},
+   "out": {
+    "value": -2.7
+   }
+  },
+  {
+   "expr": "round((-2.675),2)",
+   "vals": {},
+   "out": {
+    "value": -2.68
+   }
+  },
+  {
+   "expr": "round((-2.675),3)",
+   "vals": {},
+   "out": {
+    "value": -2.675
+   }
+  },
+  {
+   "expr": "round((-2.675),6)",
+   "vals": {},
+   "out": {
+    "value": -2.675
+   }
+  },
+  {
+   "expr": "round(0,0)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0,1)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0,2)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0,3)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0,6)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0,0)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0,1)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0,2)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0,3)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0,6)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(123.456,0)",
+   "vals": {},
+   "out": {
+    "value": 123
+   }
+  },
+  {
+   "expr": "round(123.456,1)",
+   "vals": {},
+   "out": {
+    "value": 123.5
+   }
+  },
+  {
+   "expr": "round(123.456,2)",
+   "vals": {},
+   "out": {
+    "value": 123.46
+   }
+  },
+  {
+   "expr": "round(123.456,3)",
+   "vals": {},
+   "out": {
+    "value": 123.456
+   }
+  },
+  {
+   "expr": "round(123.456,6)",
+   "vals": {},
+   "out": {
+    "value": 123.456
+   }
+  },
+  {
+   "expr": "round((-123.456),0)",
+   "vals": {},
+   "out": {
+    "value": -123
+   }
+  },
+  {
+   "expr": "round((-123.456),1)",
+   "vals": {},
+   "out": {
+    "value": -123.5
+   }
+  },
+  {
+   "expr": "round((-123.456),2)",
+   "vals": {},
+   "out": {
+    "value": -123.46
+   }
+  },
+  {
+   "expr": "round((-123.456),3)",
+   "vals": {},
+   "out": {
+    "value": -123.456
+   }
+  },
+  {
+   "expr": "round((-123.456),6)",
+   "vals": {},
+   "out": {
+    "value": -123.456
+   }
+  },
+  {
+   "expr": "round(5e-7,0)",
+   "vals": {},
+   "out": {
+    "error": "Thiếu dấu ) đóng"
+   }
+  },
+  {
+   "expr": "round(5e-7,1)",
+   "vals": {},
+   "out": {
+    "error": "Thiếu dấu ) đóng"
+   }
+  },
+  {
+   "expr": "round(5e-7,2)",
+   "vals": {},
+   "out": {
+    "error": "Thiếu dấu ) đóng"
+   }
+  },
+  {
+   "expr": "round(5e-7,3)",
+   "vals": {},
+   "out": {
+    "error": "Thiếu dấu ) đóng"
+   }
+  },
+  {
+   "expr": "round(5e-7,6)",
+   "vals": {},
+   "out": {
+    "error": "Thiếu dấu ) đóng"
+   }
+  },
+  {
+   "expr": "round(999999.9999995,0)",
+   "vals": {},
+   "out": {
+    "value": 1000000
+   }
+  },
+  {
+   "expr": "round(999999.9999995,1)",
+   "vals": {},
+   "out": {
+    "value": 1000000
+   }
+  },
+  {
+   "expr": "round(999999.9999995,2)",
+   "vals": {},
+   "out": {
+    "value": 1000000
+   }
+  },
+  {
+   "expr": "round(999999.9999995,3)",
+   "vals": {},
+   "out": {
+    "value": 1000000
+   }
+  },
+  {
+   "expr": "round(999999.9999995,6)",
+   "vals": {},
+   "out": {
+    "value": 1000000
+   }
+  },
+  {
+   "expr": "round(100000000000000.5,0)",
+   "vals": {},
+   "out": {
+    "value": 100000000000001
+   }
+  },
+  {
+   "expr": "round(100000000000000.5,1)",
+   "vals": {},
+   "out": {
+    "value": 100000000000000.52
+   }
+  },
+  {
+   "expr": "round(100000000000000.5,2)",
+   "vals": {},
+   "out": {
+    "value": 100000000000000.52
+   }
+  },
+  {
+   "expr": "round(100000000000000.5,3)",
+   "vals": {},
+   "out": {
+    "value": 100000000000000.52
+   }
+  },
+  {
+   "expr": "round(100000000000000.5,6)",
+   "vals": {},
+   "out": {
+    "value": 100000000000000.52
+   }
+  },
+  {
+   "expr": "round(1000000000000000,0)",
+   "vals": {},
+   "out": {
+    "value": 1000000000000000
+   }
+  },
+  {
+   "expr": "round(1000000000000000,1)",
+   "vals": {},
+   "out": {
+    "value": 1000000000000000
+   }
+  },
+  {
+   "expr": "round(1000000000000000,2)",
+   "vals": {},
+   "out": {
+    "value": 1000000000000000
+   }
+  },
+  {
+   "expr": "round(1000000000000000,3)",
+   "vals": {},
+   "out": {
+    "value": 1000000000000000
+   }
+  },
+  {
+   "expr": "round(1000000000000000,6)",
+   "vals": {},
+   "out": {
+    "value": 1000000000000000
+   }
+  },
+  {
+   "expr": "round(4503599627370498,0)",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "round(4503599627370498,1)",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "round(4503599627370498,2)",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "round(4503599627370498,3)",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "round(4503599627370498,6)",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "round(0.045,0)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0.045,1)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0.045,2)",
+   "vals": {},
+   "out": {
+    "value": 0.05
+   }
+  },
+  {
+   "expr": "round(0.045,3)",
+   "vals": {},
+   "out": {
+    "value": 0.045
+   }
+  },
+  {
+   "expr": "round(0.045,6)",
+   "vals": {},
+   "out": {
+    "value": 0.045
+   }
+  },
+  {
+   "expr": "round(0.0045,0)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0.0045,1)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0.0045,2)",
+   "vals": {},
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(0.0045,3)",
+   "vals": {},
+   "out": {
+    "value": 0.005
+   }
+  },
+  {
+   "expr": "round(0.0045,6)",
+   "vals": {},
+   "out": {
+    "value": 0.0045
+   }
+  },
+  {
+   "expr": "round(-1.5,0)",
+   "vals": {},
+   "out": {
+    "value": -2
+   }
+  },
+  {
+   "expr": "round(-1.5,0)",
+   "vals": {},
+   "out": {
+    "value": -2
+   }
+  },
+  {
+   "expr": "round(-2.5,0)",
+   "vals": {},
+   "out": {
+    "value": -3
+   }
+  },
+  {
+   "expr": "round({gia_goc},2)",
+   "vals": {
+    "gia_goc": 1234.5678
+   },
+   "out": {
+    "value": 1234.57
+   }
+  },
+  {
+   "expr": "round({gia_goc},2)",
+   "vals": {
+    "gia_goc": -1234.5678
+   },
+   "out": {
+    "value": -1234.57
+   }
+  },
+  {
+   "expr": "round({gia_goc},2)",
+   "vals": {
+    "gia_goc": null
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "round({gia_goc},0)",
+   "vals": {
+    "gia_goc": 1000000000000000
+   },
+   "out": {
+    "value": 1000000000000000
+   }
+  },
+  {
+   "expr": "round({gia_goc},6)",
+   "vals": {
+    "gia_goc": 1000000000000000
+   },
+   "out": {
+    "value": 1000000000000000
+   }
+  },
+  {
+   "expr": "round({gia_goc},6)",
+   "vals": {
+    "gia_goc": -1000000000000000
+   },
+   "out": {
+    "value": -1000000000000000
+   }
+  },
+  {
+   "expr": "round(10/4,0)",
+   "vals": {},
+   "out": {
+    "value": 3
+   }
+  },
+  {
+   "expr": "round(-10/4,0)",
+   "vals": {},
+   "out": {
+    "value": -3
+   }
+  },
+  {
+   "expr": "round(7/3,6)",
+   "vals": {},
+   "out": {
+    "value": 2.333333
+   }
+  },
+  {
+   "expr": "round(1/3,3)*3",
+   "vals": {},
+   "out": {
+    "value": 0.999
+   }
+  },
+  {
+   "expr": "round(2/3, 4) + round(1/3, 4)",
+   "vals": {},
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(round(2.345,2),1)",
+   "vals": {},
+   "out": {
+    "value": 2.4
+   }
+  },
+  {
+   "expr": "round({gia_goc}*{uu_dai},0)",
+   "vals": {
+    "gia_goc": 105,
+    "uu_dai": 0.05
+   },
+   "out": {
+    "value": 5
+   }
+  },
+  {
+   "expr": "round({gia_goc}*{uu_dai},0)",
+   "vals": {
+    "gia_goc": 110,
+    "uu_dai": 0.05
+   },
+   "out": {
+    "value": 6
+   }
+  },
+  {
+   "expr": "round({gia_goc}*{uu_dai},0)",
+   "vals": {
+    "gia_goc": -110,
+    "uu_dai": 0.05
+   },
+   "out": {
+    "value": -6
+   }
+  },
+  {
+   "expr": "round({gia_goc}/{so_buoi},0)",
+   "vals": {
+    "gia_goc": 100,
+    "so_buoi": 8
+   },
+   "out": {
+    "value": 13
+   }
+  },
+  {
+   "expr": "round({gia_goc}/{so_buoi},0)",
+   "vals": {
+    "gia_goc": 100,
+    "so_buoi": 0
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "round({gia_goc}/{so_buoi},0)",
+   "vals": {
+    "gia_goc": -100,
+    "so_buoi": 8
+   },
+   "out": {
+    "value": -13
+   }
+  },
+  {
+   "expr": "round({gia_goc}/{so_buoi},1)",
+   "vals": {
+    "gia_goc": 1,
+    "so_buoi": 8
+   },
+   "out": {
+    "value": 0.1
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 9600000,
+    "uu_dai": 0.05
+   },
+   "out": {
+    "value": 9120000
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": 9600000,
+    "uu_dai": 0.05
+   },
+   "out": {
+    "value": 9600000.05
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": 9600000,
+    "uu_dai": 0.05
+   },
+   "out": {
+    "value": 192000000
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": 9600000,
+    "uu_dai": 0.05
+   },
+   "out": {
+    "value": -9600000.05
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 0,
+    "uu_dai": 0
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": 0,
+    "uu_dai": 0
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": 0,
+    "uu_dai": 0
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": 0,
+    "uu_dai": 0
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 1,
+    "uu_dai": 1
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": 1,
+    "uu_dai": 1
+   },
+   "out": {
+    "value": 2
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": 1,
+    "uu_dai": 1
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": 1,
+    "uu_dai": 1
+   },
+   "out": {
+    "value": -2
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": -5,
+    "uu_dai": 0.5
+   },
+   "out": {
+    "value": -2.5
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": -5,
+    "uu_dai": 0.5
+   },
+   "out": {
+    "value": -4.5
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": -5,
+    "uu_dai": 0.5
+   },
+   "out": {
+    "value": -10
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": -5,
+    "uu_dai": 0.5
+   },
+   "out": {
+    "value": 4.5
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 1000000000000000,
+    "uu_dai": 1
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": 1000000000000000,
+    "uu_dai": 1
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": 1000000000000000,
+    "uu_dai": 1
+   },
+   "out": {
+    "value": 1000000000000000
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": 1000000000000000,
+    "uu_dai": 1
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 1000000000000000,
+    "uu_dai": 2
+   },
+   "out": {
+    "value": -1000000000000000
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": 1000000000000000,
+    "uu_dai": 2
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": 1000000000000000,
+    "uu_dai": 2
+   },
+   "out": {
+    "value": 500000000000000
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": 1000000000000000,
+    "uu_dai": 2
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 0.1,
+    "uu_dai": 0.2
+   },
+   "out": {
+    "value": 0.08
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": 0.1,
+    "uu_dai": 0.2
+   },
+   "out": {
+    "value": 0.3
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": 0.1,
+    "uu_dai": 0.2
+   },
+   "out": {
+    "value": 0.5
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": 0.1,
+    "uu_dai": 0.2
+   },
+   "out": {
+    "value": -0.3
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 3,
+    "uu_dai": 0.3333333
+   },
+   "out": {
+    "value": 2
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": 3,
+    "uu_dai": 0.3333333
+   },
+   "out": {
+    "value": 3.333333
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": 3,
+    "uu_dai": 0.3333333
+   },
+   "out": {
+    "value": 9.000001
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": 3,
+    "uu_dai": 0.3333333
+   },
+   "out": {
+    "value": -3.333333
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 100,
+    "uu_dai": 0.075
+   },
+   "out": {
+    "value": 92.5
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": 100,
+    "uu_dai": 0.075
+   },
+   "out": {
+    "value": 100.075
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": 100,
+    "uu_dai": 0.075
+   },
+   "out": {
+    "value": 1333.333333
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": 100,
+    "uu_dai": 0.075
+   },
+   "out": {
+    "value": -100.075
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 2500000,
+    "uu_dai": 0.15
+   },
+   "out": {
+    "value": 2125000
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": 2500000,
+    "uu_dai": 0.15
+   },
+   "out": {
+    "value": 2500000.15
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": 2500000,
+    "uu_dai": 0.15
+   },
+   "out": {
+    "value": 16666666.666667
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": 2500000,
+    "uu_dai": 0.15
+   },
+   "out": {
+    "value": -2500000.15
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 19.99,
+    "uu_dai": 0.1
+   },
+   "out": {
+    "value": 17.991
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": 19.99,
+    "uu_dai": 0.1
+   },
+   "out": {
+    "value": 20.09
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": 19.99,
+    "uu_dai": 0.1
+   },
+   "out": {
+    "value": 199.9
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": 19.99,
+    "uu_dai": 0.1
+   },
+   "out": {
+    "value": -20.09
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 1e-7,
+    "uu_dai": 1
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": 1e-7,
+    "uu_dai": 1
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": 1e-7,
+    "uu_dai": 1
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": 1e-7,
+    "uu_dai": 1
+   },
+   "out": {
+    "value": -1
+   }
+  },
+  {
+   "expr": "{gia_goc}*(1-{uu_dai})",
+   "vals": {
+    "gia_goc": 123456789.5,
+    "uu_dai": 0.00001
+   },
+   "out": {
+    "value": 123455554.932105
+   }
+  },
+  {
+   "expr": "{gia_goc}+{uu_dai}",
+   "vals": {
+    "gia_goc": 123456789.5,
+    "uu_dai": 0.00001
+   },
+   "out": {
+    "value": 123456789.50001
+   }
+  },
+  {
+   "expr": "{gia_goc}/{uu_dai}",
+   "vals": {
+    "gia_goc": 123456789.5,
+    "uu_dai": 0.00001
+   },
+   "out": {
+    "value": 12345678949999.998
+   }
+  },
+  {
+   "expr": "-{gia_goc}-{uu_dai}",
+   "vals": {
+    "gia_goc": 123456789.5,
+    "uu_dai": 0.00001
+   },
+   "out": {
+    "value": -123456789.50001
+   }
+  },
+  {
+   "expr": "{don_gia}*{so_luong}",
+   "vals": {
+    "don_gia": 15000,
+    "so_luong": 3
+   },
+   "out": {
+    "value": 45000
+   }
+  },
+  {
+   "expr": "{don_gia}*{so_luong}",
+   "vals": {
+    "don_gia": 15000.5,
+    "so_luong": 3
+   },
+   "out": {
+    "value": 45001.5
+   }
+  },
+  {
+   "expr": "{don_gia}*{so_luong}",
+   "vals": {
+    "don_gia": 15000,
+    "so_luong": null
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{don_gia}*{so_luong}",
+   "vals": {
+    "don_gia": null,
+    "so_luong": null
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{don_gia}*{so_luong}+1",
+   "vals": {
+    "don_gia": 2,
+    "so_luong": 3
+   },
+   "out": {
+    "value": 7
+   }
+  },
+  {
+   "expr": "{ gia_goc }*2",
+   "vals": {
+    "gia_goc": 4
+   },
+   "out": {
+    "value": 8
+   }
+  },
+  {
+   "expr": "{gia_goc}*{gia_goc}",
+   "vals": {
+    "gia_goc": 300000000
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{gia_goc}*{gia_goc}",
+   "vals": {
+    "gia_goc": 30000000
+   },
+   "out": {
+    "value": 900000000000000
+   }
+  },
+  {
+   "expr": "{gia_goc}",
+   "vals": {
+    "gia_goc": 1.23456789
+   },
+   "out": {
+    "value": 1.234568
+   }
+  },
+  {
+   "expr": "{gia_goc}",
+   "vals": {
+    "gia_goc": -1.23456789
+   },
+   "out": {
+    "value": -1.234568
+   }
+  },
+  {
+   "expr": "{gia_goc}",
+   "vals": {
+    "gia_goc": 4e-7
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "{gia_goc}",
+   "vals": {
+    "gia_goc": "abc"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{gia_goc}*2",
+   "vals": {
+    "gia_goc": "5"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{gia_goc}",
+   "vals": {
+    "gia_goc": 10000000000000000
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{gia_goc}",
+   "vals": {
+    "gia_goc": 1000000000000000
+   },
+   "out": {
+    "value": 1000000000000000
+   }
+  },
+  {
+   "expr": "{gia_goc}",
+   "vals": {
+    "gia_goc": 1000000000000002
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{bat_dau}-{ket_thuc}",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "error": "Phép + − × ÷ chỉ dùng với số; dùng months_between/days_between để so sánh ngày"
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-31",
+    "ket_thuc": "2025-02-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-31",
+    "ket_thuc": "2025-02-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-31",
+    "ket_thuc": "2025-02-28"
+   },
+   "out": {
+    "value": 28
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-31",
+    "ket_thuc": "2025-02-28"
+   },
+   "out": {
+    "value": 0.9
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-31",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 29
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-31",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-28",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-28",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0.1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-02-28",
+    "ket_thuc": "2024-03-01"
+   },
+   "out": {
+    "value": 2
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-02-28",
+    "ket_thuc": "2024-03-01"
+   },
+   "out": {
+    "value": 0.1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-02-29",
+    "ket_thuc": "2024-03-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-02-29",
+    "ket_thuc": "2024-03-01"
+   },
+   "out": {
+    "value": 0.066667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-02-29",
+    "ket_thuc": "2025-02-28"
+   },
+   "out": {
+    "value": 365
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-02-29",
+    "ket_thuc": "2025-02-28"
+   },
+   "out": {
+    "value": 11.966667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-02-29",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 366
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-02-29",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 12.066667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2023-12-31",
+    "ket_thuc": "2024-01-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2023-12-31",
+    "ket_thuc": "2024-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-12-31",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-12-31",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12-31",
+    "ket_thuc": "2026-01-31"
+   },
+   "out": {
+    "value": 31
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12-31",
+    "ket_thuc": "2026-01-31"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-04-30",
+    "ket_thuc": "2025-05-31"
+   },
+   "out": {
+    "value": 31
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-04-30",
+    "ket_thuc": "2025-05-31"
+   },
+   "out": {
+    "value": 1.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-04-30",
+    "ket_thuc": "2025-05-30"
+   },
+   "out": {
+    "value": 30
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-04-30",
+    "ket_thuc": "2025-05-30"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-06-30",
+    "ket_thuc": "2025-07-30"
+   },
+   "out": {
+    "value": 30
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-06-30",
+    "ket_thuc": "2025-07-30"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-30",
+    "ket_thuc": "2025-02-28"
+   },
+   "out": {
+    "value": 29
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-30",
+    "ket_thuc": "2025-02-28"
+   },
+   "out": {
+    "value": 0.933333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-15",
+    "ket_thuc": "2025-02-15"
+   },
+   "out": {
+    "value": 31
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-15",
+    "ket_thuc": "2025-02-15"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-15",
+    "ket_thuc": "2025-02-14"
+   },
+   "out": {
+    "value": 30
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-15",
+    "ket_thuc": "2025-02-14"
+   },
+   "out": {
+    "value": 0.966667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-15",
+    "ket_thuc": "2025-03-16"
+   },
+   "out": {
+    "value": 60
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-15",
+    "ket_thuc": "2025-03-16"
+   },
+   "out": {
+    "value": 2.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03-31",
+    "ket_thuc": "2025-04-30"
+   },
+   "out": {
+    "value": 30
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03-31",
+    "ket_thuc": "2025-04-30"
+   },
+   "out": {
+    "value": 0.966667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-05-31",
+    "ket_thuc": "2025-06-30"
+   },
+   "out": {
+    "value": 30
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-05-31",
+    "ket_thuc": "2025-06-30"
+   },
+   "out": {
+    "value": 0.966667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-10-31",
+    "ket_thuc": "2025-11-30"
+   },
+   "out": {
+    "value": 30
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-10-31",
+    "ket_thuc": "2025-11-30"
+   },
+   "out": {
+    "value": 0.966667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2000-02-29",
+    "ket_thuc": "2100-02-28"
+   },
+   "out": {
+    "value": 36524
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2000-02-29",
+    "ket_thuc": "2100-02-28"
+   },
+   "out": {
+    "value": 1199.966667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1900-02-28",
+    "ket_thuc": "1900-03-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1900-02-28",
+    "ket_thuc": "1900-03-01"
+   },
+   "out": {
+    "value": 0.1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1970-01-01",
+    "ket_thuc": "1970-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1970-01-01",
+    "ket_thuc": "1970-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1969-12-31",
+    "ket_thuc": "1970-01-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1969-12-31",
+    "ket_thuc": "1970-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1999-12-31",
+    "ket_thuc": "2000-01-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1999-12-31",
+    "ket_thuc": "2000-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2026-01-01"
+   },
+   "out": {
+    "value": 365
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2026-01-01"
+   },
+   "out": {
+    "value": 12
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2035-01-01"
+   },
+   "out": {
+    "value": 3652
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2035-01-01"
+   },
+   "out": {
+    "value": 120
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": -334
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": -11
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03-31",
+    "ket_thuc": "2025-02-28"
+   },
+   "out": {
+    "value": -31
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03-31",
+    "ket_thuc": "2025-02-28"
+   },
+   "out": {
+    "value": -1.1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03-15",
+    "ket_thuc": "2025-01-15"
+   },
+   "out": {
+    "value": -59
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03-15",
+    "ket_thuc": "2025-01-15"
+   },
+   "out": {
+    "value": -2
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03-15",
+    "ket_thuc": "2025-01-16"
+   },
+   "out": {
+    "value": -58
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03-15",
+    "ket_thuc": "2025-01-16"
+   },
+   "out": {
+    "value": -1.966667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "0001-01-01",
+    "ket_thuc": "0001-01-02"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "0001-01-01",
+    "ket_thuc": "0001-01-02"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "0099-12-31",
+    "ket_thuc": "0100-01-01"
+   },
+   "out": {
+    "value": -693959
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "0099-12-31",
+    "ket_thuc": "0100-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "0000-01-01",
+    "ket_thuc": "0001-01-01"
+   },
+   "out": {
+    "value": 365
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "0000-01-01",
+    "ket_thuc": "0001-01-01"
+   },
+   "out": {
+    "value": 12
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "9999-12-31",
+    "ket_thuc": "9999-12-31"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "9999-12-31",
+    "ket_thuc": "9999-12-31"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "9999-01-01",
+    "ket_thuc": "9999-12-31"
+   },
+   "out": {
+    "value": 364
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "9999-01-01",
+    "ket_thuc": "9999-12-31"
+   },
+   "out": {
+    "value": 12
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-13-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": -365
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-13-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": -12
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-00-10",
+    "ket_thuc": "2025-01-10"
+   },
+   "out": {
+    "value": 31
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-00-10",
+    "ket_thuc": "2025-01-10"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-00",
+    "ket_thuc": "2025-01-31"
+   },
+   "out": {
+    "value": 31
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-00",
+    "ket_thuc": "2025-01-31"
+   },
+   "out": {
+    "value": 1.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-45",
+    "ket_thuc": "2025-02-01"
+   },
+   "out": {
+    "value": -13
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-45",
+    "ket_thuc": "2025-02-01"
+   },
+   "out": {
+    "value": -0.466667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-30",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": -1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-30",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-31",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": -2
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-31",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-99",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": -98
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-99",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": -3.266667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-99-99",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": -3079
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-99-99",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": -101.266667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-1-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-1-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "25-01-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "25-01-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025/01/01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025/01/01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "20250101",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "20250101",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": ""
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": ""
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "abc",
+    "ket_thuc": "def"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "abc",
+    "ket_thuc": "def"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01xyz",
+    "ket_thuc": "2025-01-02abc"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01xyz",
+    "ket_thuc": "2025-01-02abc"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01 10:00:00",
+    "ket_thuc": "2025-01-03 23:00:00"
+   },
+   "out": {
+    "value": 2
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01 10:00:00",
+    "ket_thuc": "2025-01-03 23:00:00"
+   },
+   "out": {
+    "value": 0.066667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": " 2025-01-01",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": " 2025-01-01",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": " 2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": " 2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "２０２５-01-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "２０２５-01-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T16:59:59.999Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T16:59:59.999Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T17:00:00.000Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T17:00:00.000Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T17:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T17:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T16:59:59Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T16:59:59Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T23:59:59Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": -1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T23:59:59Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": -0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T23:59:59Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T23:59:59Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00+07:00",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00+07:00",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T23:59:59+07:00",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T23:59:59+07:00",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00+07:00",
+    "ket_thuc": "2025-01-02T00:00:00+07:00"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00+07:00",
+    "ket_thuc": "2025-01-02T00:00:00+07:00"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T23:59:59.999+07:00",
+    "ket_thuc": "2025-01-02T00:00:00.000+07:00"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T23:59:59.999+07:00",
+    "ket_thuc": "2025-01-02T00:00:00.000+07:00"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00-05:00",
+    "ket_thuc": "2025-01-01T00:00:00Z"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00-05:00",
+    "ket_thuc": "2025-01-01T00:00:00Z"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T20:00:00-05:00",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T20:00:00-05:00",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T20:00:00-0500",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T20:00:00-0500",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00+0700",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00+0700",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-12-31T17:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-12-31T17:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-12-31T16:59:59Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-12-31T16:59:59Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-28T17:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-28T17:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-28T16:59:59Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-28T16:59:59Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0.1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-02-28T17:00:00Z",
+    "ket_thuc": "2024-02-29"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-02-28T17:00:00Z",
+    "ket_thuc": "2024-02-29"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-02-29T17:00:00Z",
+    "ket_thuc": "2024-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2024-02-29T17:00:00Z",
+    "ket_thuc": "2024-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03-31T17:00:00Z",
+    "ket_thuc": "2025-04-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03-31T17:00:00Z",
+    "ket_thuc": "2025-04-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-04-30T17:00:00Z",
+    "ket_thuc": "2025-05-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-04-30T17:00:00Z",
+    "ket_thuc": "2025-05-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12-31T17:00:00Z",
+    "ket_thuc": "2026-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12-31T17:00:00Z",
+    "ket_thuc": "2026-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12-31T16:59:59.999Z",
+    "ket_thuc": "2025-12-31"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12-31T16:59:59.999Z",
+    "ket_thuc": "2025-12-31"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00.000Z",
+    "ket_thuc": "2025-01-01T00:00:00.000Z"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00.000Z",
+    "ket_thuc": "2025-01-01T00:00:00.000Z"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-31T17:00:00Z"
+   },
+   "out": {
+    "value": 31
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-31T17:00:00Z"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00Z",
+    "ket_thuc": "2025-02-28T17:00:00Z"
+   },
+   "out": {
+    "value": 59
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T00:00:00Z",
+    "ket_thuc": "2025-02-28T17:00:00Z"
+   },
+   "out": {
+    "value": 2
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-31T17:00:00Z",
+    "ket_thuc": "2025-02-28T16:59:00Z"
+   },
+   "out": {
+    "value": 27
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-31T17:00:00Z",
+    "ket_thuc": "2025-02-28T16:59:00Z"
+   },
+   "out": {
+    "value": 0.9
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-06-15T12:30:45.123Z",
+    "ket_thuc": "2025-06-15T12:30:45.123Z"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-06-15T12:30:45.123Z",
+    "ket_thuc": "2025-06-15T12:30:45.123Z"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T24:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T24:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T24:00:00.000Z",
+    "ket_thuc": "2025-01-02T00:00:00Z"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T24:00:00.000Z",
+    "ket_thuc": "2025-01-02T00:00:00Z"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T24:00:01Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T24:00:01Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T25:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T25:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:60:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:60:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:60Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:60Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01t10:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01t10:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "T",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "T",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00.Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00.Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00+07",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00+07",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00+24:00",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00+24:00",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-30T00:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": -1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-30T00:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": -0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-31T00:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": -2
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-31T00:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": -0.066667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-32T00:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-02-32T00:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-13-01T00:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-13-01T00:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00Zjunk",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00Zjunk",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00,5Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00,5Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00.123456789Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00.123456789Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "0099-01-01T00:00:00Z",
+    "ket_thuc": "0099-01-02T00:00:00Z"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "0099-01-01T00:00:00Z",
+    "ket_thuc": "0099-01-02T00:00:00Z"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "0099-12-31T17:00:00Z",
+    "ket_thuc": "0100-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "0099-12-31T17:00:00Z",
+    "ket_thuc": "0100-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "0000-12-31T17:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 45291
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "0000-12-31T17:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 24288
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+002025-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+002025-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "-000001-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "-000001-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+010000-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+010000-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "9999-12-31T16:59:59Z",
+    "ket_thuc": "9999-12-31"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "9999-12-31T16:59:59Z",
+    "ket_thuc": "9999-12-31"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "9999-12-31T17:00:00Z",
+    "ket_thuc": "9999-12-31"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "9999-12-31T17:00:00Z",
+    "ket_thuc": "9999-12-31"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1969-12-31T17:00:00Z",
+    "ket_thuc": "1970-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1969-12-31T17:00:00Z",
+    "ket_thuc": "1970-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1969-12-31T16:59:59Z",
+    "ket_thuc": "1970-01-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1969-12-31T16:59:59Z",
+    "ket_thuc": "1970-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1900-01-01T00:00:00Z",
+    "ket_thuc": "1900-01-02T00:00:00Z"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "1900-01-01T00:00:00Z",
+    "ket_thuc": "1900-01-02T00:00:00Z"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "rác T",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "rác T",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "Tuesday",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "Tuesday",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),2)",
+   "vals": {
+    "bat_dau": "2025-01-31",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),0)",
+   "vals": {
+    "bat_dau": "2025-01-31",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),2)",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-02-16"
+   },
+   "out": {
+    "value": 1.5
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),0)",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-02-16"
+   },
+   "out": {
+    "value": 2
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),2)",
+   "vals": {
+    "bat_dau": "2025-01-10",
+    "ket_thuc": "2025-04-25"
+   },
+   "out": {
+    "value": 3.5
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),0)",
+   "vals": {
+    "bat_dau": "2025-01-10",
+    "ket_thuc": "2025-04-25"
+   },
+   "out": {
+    "value": 4
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),2)",
+   "vals": {
+    "bat_dau": "2024-05-17",
+    "ket_thuc": "2025-08-03"
+   },
+   "out": {
+    "value": 14.53
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),0)",
+   "vals": {
+    "bat_dau": "2024-05-17",
+    "ket_thuc": "2025-08-03"
+   },
+   "out": {
+    "value": 15
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),2)",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0.03
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),0)",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),2)",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-11"
+   },
+   "out": {
+    "value": 0.33
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),0)",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-11"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),2)",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-17"
+   },
+   "out": {
+    "value": 0.53
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),0)",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-17"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),2)",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-14"
+   },
+   "out": {
+    "value": 0.43
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),0)",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-14"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),2)",
+   "vals": {
+    "bat_dau": "2025-01-14",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": -0.43
+   }
+  },
+  {
+   "expr": "round(months_between({bat_dau},{ket_thuc}),0)",
+   "vals": {
+    "bat_dau": "2025-01-14",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})/12",
+   "vals": {
+    "bat_dau": "2000-01-01",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 25
+   }
+  },
+  {
+   "expr": "round(months_between({ngay_sinh},{ket_thuc})/12,1)",
+   "vals": {
+    "ngay_sinh": "1990-05-17",
+    "ket_thuc": "2025-11-26"
+   },
+   "out": {
+    "value": 35.5
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})*{don_gia}",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-31",
+    "don_gia": 10000
+   },
+   "out": {
+    "value": 300000
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})/0",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-01-31"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": 20250101,
+    "ket_thuc": "2025-01-31"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {},
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{bat_dau})",
+   "vals": {
+    "bat_dau": "2025-05-05"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({ngay_sinh},{ngay_sinh})",
+   "vals": {
+    "ngay_sinh": "2025-05-05"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})+months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 61
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})-days_between({ket_thuc},{bat_dau})",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 118
+   }
+  },
+  {
+   "expr": "round(days_between({bat_dau},{ket_thuc})/7,1)",
+   "vals": {
+    "bat_dau": "2025-01-01",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 8.4
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T10:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T10:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T20:00:00Z",
+    "ket_thuc": "2025-03-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T20:00:00Z",
+    "ket_thuc": "2025-03-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T20:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T20:00:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T10:00",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T10:00",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00:00+07:00",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00:00+07:00",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": 0
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00:00.5Z",
+    "ket_thuc": "2025-04-01"
+   },
+   "out": {
+    "value": 31
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T10:00:00.5Z",
+    "ket_thuc": "2025-04-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-3T10:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-3T10:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-13T10:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-13T10:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-00T10:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-00T10:00Z",
+    "ket_thuc": "2025-03-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025T",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-03T",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12T24:00Z",
+    "ket_thuc": "2026-01-01"
+   },
+   "out": {
+    "value": 30
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12T24:00Z",
+    "ket_thuc": "2026-01-01"
+   },
+   "out": {
+    "value": 0.966667
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12T24:00:01Z",
+    "ket_thuc": "2026-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-12T24:00:01Z",
+    "ket_thuc": "2026-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+002025T10:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+002025T10:00Z",
+    "ket_thuc": "2025-01-02"
+   },
+   "out": {
+    "value": 0.033333
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+002025-03T10:00Z",
+    "ket_thuc": "2025-04-01"
+   },
+   "out": {
+    "value": 31
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+002025-03T10:00Z",
+    "ket_thuc": "2025-04-01"
+   },
+   "out": {
+    "value": 1
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+275760-09-13T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+275760-09-13T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+275760-09-12T16:59:59Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+275760-09-12T16:59:59Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+275760-09-12T00:00:00Z",
+    "ket_thuc": "+275760-09-13T00:00:00Z"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+275760-09-12T00:00:00Z",
+    "ket_thuc": "+275760-09-13T00:00:00Z"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "-271821-04-20T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "-271821-04-20T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+010000-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "+010000-01-01T00:00:00Z",
+    "ket_thuc": "2025-01-01"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "days_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00Z",
+    "ket_thuc": "+275760-09-13T00:00:00Z"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "vals": {
+    "bat_dau": "2025-01-01T10:00:00Z",
+    "ket_thuc": "+275760-09-13T00:00:00Z"
+   },
+   "out": {
+    "value": null
+   }
+  },
+  {
+   "expr": "{gia_goc}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {gia_goc}"
+   }
+  },
+  {
+   "expr": "{gia_goc}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {gia_goc}"
+   }
+  },
+  {
+   "expr": "1+1",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"\""
+   }
+  },
+  {
+   "expr": "{ gia_goc }*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "value": 10
+   }
+  },
+  {
+   "expr": "{﻿gia_goc}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "value": 10
+   }
+  },
+  {
+   "expr": "{ gia_goc　}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "value": 10
+   }
+  },
+  {
+   "expr": "{᠎gia_goc}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {᠎gia_goc}"
+   }
+  },
+  {
+   "expr": "{​gia_goc}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {​gia_goc}"
+   }
+  },
+  {
+   "expr": "{\u000bgia_goc\f}*2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "value": 10
+   }
+  },
+  {
+   "expr": "1😀",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"😀\""
+   }
+  },
+  {
+   "expr": "😀",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"😀\""
+   }
+  },
+  {
+   "expr": "{😀}",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {😀}"
+   }
+  },
+  {
+   "expr": "{a😀b}",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {a😀b}"
+   }
+  },
+  {
+   "expr": "1 + 😀 + 2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"😀\""
+   }
+  },
+  {
+   "expr": "{ééééééééééééééééééééééééé😀xxxxxxxxxx}",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {ééééééééééééééééééééééééé😀xxxx}"
+   }
+  },
+  {
+   "expr": "{aaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀😀😀}",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {aaaaaaaaaaaaaaaaaaaaaaaaaaaaa😀}"
+   }
+  },
+  {
+   "expr": "{éééééééééééééééééééééééééééééééééééééééé}",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Tên trường tham chiếu không hợp lệ: {éééééééééééééééééééééééééééééé}"
+   }
+  },
+  {
+   "expr": "1 👨‍👩 2",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"👨\""
+   }
+  },
+  {
+   "expr": "é+1",
+   "vals": {
+    "gia_goc": 5
+   },
+   "out": {
+    "error": "Ký tự không được phép trong công thức: \"é\""
+   }
+  }
+ ],
+ "js_round": [
+  {
+   "in": 0.5,
+   "out": 1
+  },
+  {
+   "in": 1.5,
+   "out": 2
+  },
+  {
+   "in": 2.5,
+   "out": 3
+  },
+  {
+   "in": -0.5,
+   "out": "-0"
+  },
+  {
+   "in": -1.5,
+   "out": -1
+  },
+  {
+   "in": -2.5,
+   "out": -2
+  },
+  {
+   "in": 0.49999999999999994,
+   "out": 0
+  },
+  {
+   "in": -0.49999999999999994,
+   "out": "-0"
+  },
+  {
+   "in": -0.2,
+   "out": "-0"
+  },
+  {
+   "in": 0.2,
+   "out": 0
+  },
+  {
+   "in": 0,
+   "out": 0
+  },
+  {
+   "in": "-0",
+   "out": "-0"
+  },
+  {
+   "in": 1000000000000000.5,
+   "out": 1000000000000001
+  },
+  {
+   "in": 4503599627370495.5,
+   "out": 4503599627370496
+  },
+  {
+   "in": 4503599627370496,
+   "out": 4503599627370496
+  },
+  {
+   "in": -4503599627370495.5,
+   "out": -4503599627370495
+  },
+  {
+   "in": 1e+21,
+   "out": 1e+21
+  },
+  {
+   "in": -1e+21,
+   "out": -1e+21
+  },
+  {
+   "in": 123456789.5,
+   "out": 123456790
+  },
+  {
+   "in": -123456789.5,
+   "out": -123456789
+  },
+  {
+   "in": "NaN",
+   "out": "NaN"
+  },
+  {
+   "in": "Infinity",
+   "out": "Infinity"
+  },
+  {
+   "in": "-Infinity",
+   "out": "-Infinity"
+  },
+  {
+   "in": 2.4999999999999996,
+   "out": 2
+  },
+  {
+   "in": -2.5000000000000004,
+   "out": -3
+  },
+  {
+   "in": 0.5000000000000001,
+   "out": 1
+  },
+  {
+   "in": 1e-300,
+   "out": 0
+  }
+ ],
+ "collect_refs": [
+  {
+   "expr": "{a}+{b}*{a}+round({c},2)",
+   "out": [
+    "a",
+    "b",
+    "c"
+   ]
+  },
+  {
+   "expr": "1+2",
+   "out": []
+  },
+  {
+   "expr": "-{a}",
+   "out": [
+    "a"
+   ]
+  },
+  {
+   "expr": "round({a},2)",
+   "out": [
+    "a"
+   ]
+  },
+  {
+   "expr": "months_between({bat_dau},{ket_thuc})",
+   "out": [
+    "bat_dau",
+    "ket_thuc"
+   ]
+  },
+  {
+   "expr": "{a}*{b}-{c}/{d}",
+   "out": [
+    "a",
+    "b",
+    "c",
+    "d"
+   ]
+  },
+  {
+   "expr": "(({x1}))",
+   "out": [
+    "x1"
+   ]
+  },
+  {
+   "expr": "{b}+{a}",
+   "out": [
+    "a",
+    "b"
+   ]
+  }
+ ]
+}

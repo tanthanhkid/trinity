@@ -15,7 +15,7 @@ icu_collator = { workspace = true }
 icu_locale_core = { workspace = true }
 icu_normalizer = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true, features = ["raw_value", "preserve_order"] }
+serde_json = { workspace = true, features = ["raw_value", "preserve_order", "float_roundtrip"] }
 thiserror = { workspace = true }
 url = { workspace = true }
 

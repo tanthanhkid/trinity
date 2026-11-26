@@ -1480,6 +1480,9 @@ thực IEEE 754) và 17 chỗ phép toán `Decimal`. Dùng một kiểu duy nh�
 5. Tiền POS và trang bán hàng là số nguyên đồng (`BIGINT`), không qua số thực.
 6. Cùng hàm `js_round` dùng cho bộ tính công thức của bảng tuỳ biến (M57): `round(x, n)` ở đó là
    `Math.round(Math.abs(x) * f + Number.EPSILON * f) / f` rồi gắn lại dấu, và chuẩn hoá `Math.round(x * 1e6) / 1e6`.
+   **Đã làm ở M57** (`server/crates/trinity-kernel/src/{number,formula}.rs`): `js_round` ở `number.rs`; bảng 756 ca
+   `server/contracts/cases/formula.json` (TS sinh bằng `formula-cases.spec.ts`, Rust chạy ở `tests/formula_cases.rs`). Ngày giờ
+   có `T` mà không có múi giờ: TS hiểu theo múi giờ tiến trình Node, Rust hiểu UTC (không nằm trong bảng).
 
 ## 11. Thời gian và nguồn lực
 

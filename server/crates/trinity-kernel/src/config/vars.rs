@@ -73,8 +73,8 @@ pub const ENV_VARS: &[EnvVar] = &[
     server("DATABASE_URL"),
     // Tên cũ của DB_POOL_SIZE, vẫn nhận khi DB_POOL_SIZE không đặt (PLAN 4.4).
     server("PRISMA_CONNECTION_LIMIT"),
-    // Bỏ cache đọc trong bộ nhớ tiến trình (so hai backend); Rust chưa có cache này nên bỏ qua.
-    server("TRINITY_DISABLE_READ_CACHE"),
+    // Bản Node đọc; bản Rust chưa có cache đọc nên chưa dùng.
+    elsewhere("TRINITY_DISABLE_READ_CACHE", "bản Node (cache đọc trong bộ nhớ)"),
     retired("REDIS_URL", R_REDIS),
     server("JWT_SECRET"),
     server("INTERNAL_SERVICE_SECRET"),

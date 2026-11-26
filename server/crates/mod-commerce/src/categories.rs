@@ -80,9 +80,9 @@ pub async fn create(
     input: &CreateCategory,
     user_id: i32,
 ) -> Result<ProductCategory, AppError> {
-    // Như Prisma `equals` + `mode: 'insensitive'`: `ILIKE` với giá trị nguyên văn (`_` trong mã là ký tự đại diện).
+    // `lower(code) = lower($1)`: `_` trong mã là ký tự thường (bản Node dùng `ILIKE` không thoát, đã sửa cùng PR).
     let existing: Option<String> =
-        sqlx::query_scalar("SELECT code FROM product_categories WHERE code ILIKE $1 LIMIT 1")
+        sqlx::query_scalar("SELECT code FROM product_categories WHERE lower(code) = lower($1) LIMIT 1")
             .bind(&input.code)
             .fetch_optional(&mut *conn)
             .await

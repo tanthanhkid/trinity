@@ -244,11 +244,11 @@ async fn assert_category_usable(conn: &mut PgConnection, id: i32) -> Result<(), 
     }
 }
 
-/// Mã không phân biệt hoa/thường (index DB phân biệt). Như Prisma `equals` + `insensitive`: `ILIKE` với giá trị nguyên
-/// văn, nên `_` trong mã là ký tự đại diện (giữ đúng hành vi bản Node).
+/// Mã không phân biệt hoa/thường (index DB phân biệt). So bằng `lower(code) = lower($1)`: `_` trong mã là ký tự thường
+/// (bản Node trước đây dùng `ILIKE` không thoát nên `_` khớp mọi ký tự; đã sửa cùng PR).
 async fn assert_code_available(conn: &mut PgConnection, code: &str) -> Result<(), AppError> {
     let row: Option<(String, Option<Timestamp>)> =
-        sqlx::query_as("SELECT code, deleted_at FROM products WHERE code ILIKE $1 LIMIT 1")
+        sqlx::query_as("SELECT code, deleted_at FROM products WHERE lower(code) = lower($1) LIMIT 1")
             .bind(code)
             .fetch_optional(conn)
             .await
@@ -271,6 +271,7 @@ async fn resolve_attributes(
     conn: &mut PgConnection,
     category_id: Option<i32>,
     raw: Option<&Value>,
+    previous: Option<&serde_json::Map<String, Value>>,
 ) -> Result<String, AppError> {
     let defs = if let Some(c) = category_id {
         assert_category_usable(&mut *conn, c).await?;
@@ -278,7 +279,7 @@ async fn resolve_attributes(
     } else {
         Vec::new()
     };
-    let map = validate_product_attributes(&defs, raw)?;
+    let map = validate_product_attributes(&defs, raw, previous)?;
     Ok(js_json(&Value::Object(map)))
 }
 
@@ -288,7 +289,7 @@ pub async fn create(conn: &mut PgConnection, input: &CreateProduct, user_id: i32
         assert_project_usable(&mut *conn, p).await?;
     }
     assert_code_available(&mut *conn, &input.code).await?;
-    let attributes = resolve_attributes(&mut *conn, input.category_id, input.attributes.as_ref()).await?;
+    let attributes = resolve_attributes(&mut *conn, input.category_id, input.attributes.as_ref(), None).await?;
     let row = sqlx::query_as::<_, Product>(concat!(
         "INSERT INTO products (code, name, project_id, category_id, attributes, description, price, brand, color, tags, \
          is_featured, image_url, created_by, updated_at) \
@@ -335,7 +336,7 @@ pub async fn update(conn: &mut PgConnection, id: i32, input: &UpdateProduct) -> 
             Some(a) => a.as_ref(),
             None => Some(&existing.attributes.0),
         };
-        attributes = Some(resolve_attributes(&mut *conn, category, raw).await?);
+        attributes = Some(resolve_attributes(&mut *conn, category, raw, existing.attributes.0.as_object()).await?);
     }
     let mut qb = QueryBuilder::<Postgres>::new("UPDATE products SET updated_at = now()");
     if let Some(v) = &input.name {
@@ -442,7 +443,8 @@ pub async fn restore(conn: &mut PgConnection, id: i32, actor: Actor) -> Result<P
         .into());
     }
     sqlx::query_as::<_, Product>(concat!(
-        "UPDATE products SET deleted_at = NULL, deleted_by = NULL, updated_at = now() WHERE id = $1 RETURNING ",
+        "UPDATE products SET deleted_at = NULL, deleted_by = NULL, updated_at = now() \
+         WHERE id = $1 AND deleted_at IS NOT NULL RETURNING ",
         cols!()
     ))
     .bind(id)

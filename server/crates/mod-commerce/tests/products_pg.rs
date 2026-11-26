@@ -529,6 +529,13 @@ async fn san_pham_vong_doi() {
         (403, "Chỉ Quản trị mới xem được sản phẩm đã xoá".into())
     );
 
+    // `_` trong mã là ký tự thường: `M25_Z` và `M25-Z` là hai mã khác nhau (trước đây ILIKE coi trùng).
+    products::create(&mut c, &prod("M25_Z", "z1"), admin_id).await.unwrap();
+    products::create(&mut c, &prod("M25-Z", "z2"), admin_id)
+        .await
+        .expect("`_` không phải ký tự đại diện");
+    assert_eq!(e(products::create(&mut c, &prod("m25_z", "z3"), admin_id).await).0, 409);
+
     // Xoá mềm: lần hai 404; ẩn khỏi đọc thường; mã còn bị giữ; chỉ chủ xoá/Quản trị khôi phục.
     assert_eq!(
         products::remove(&mut c, b.id, sale).await.unwrap(),

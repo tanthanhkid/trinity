@@ -47,6 +47,7 @@ fn bad(msg: impl Into<String>) -> HttpError {
 pub fn validate_product_attributes(
     defs: &[AttributeDef],
     raw: Option<&Value>,
+    previous: Option<&Map<String, Value>>,
 ) -> Result<Map<String, Value>, HttpError> {
     let input = normalize_input(raw)?;
     if defs.is_empty() {
@@ -64,7 +65,8 @@ pub fn validate_product_attributes(
     }
     let mut out = Map::new();
     for def in defs {
-        out.insert(def.key.clone(), validate_one(def, input.get(&def.key))?);
+        let unchanged = previous.is_some_and(|p| p.get(&def.key).is_some() && p.get(&def.key) == input.get(&def.key));
+        out.insert(def.key.clone(), validate_one(def, input.get(&def.key), unchanged)?);
     }
     Ok(out)
 }
@@ -77,7 +79,9 @@ fn normalize_input(raw: Option<&Value>) -> Result<Map<String, Value>, HttpError>
     }
 }
 
-fn validate_one(def: &AttributeDef, value: Option<&Value>) -> Result<Value, HttpError> {
+/// `unchanged`: giá trị y hệt giá trị đang lưu của sản phẩm (PATCH) — kiểu `date` không kiểm lại, vì `Date.parse` của V8
+/// nhận nhiều dạng lạ mà [`is_date`] không nhận hết, và một giá trị đã lưu không được làm hỏng mọi lần sửa sau.
+fn validate_one(def: &AttributeDef, value: Option<&Value>, unchanged: bool) -> Result<Value, HttpError> {
     let value = match value {
         None | Some(Value::Null) => None,
         Some(Value::String(s)) if s.is_empty() => None,
@@ -102,7 +106,7 @@ fn validate_one(def: &AttributeDef, value: Option<&Value>) -> Result<Value, Http
             Ok(num(n))
         }
         "date" => match value {
-            Value::String(s) if is_date(s) => Ok(value.clone()),
+            Value::String(s) if unchanged || is_date(s) => Ok(value.clone()),
             _ => Err(bad(format!("Thuộc tính \"{label}\" phải là ngày hợp lệ (ISO 8601)"))),
         },
         "boolean" => match value {
@@ -235,11 +239,18 @@ fn js_string_to_number(s: &str) -> f64 {
     }
     for (prefix, radix) in [("0x", 16), ("0X", 16), ("0o", 8), ("0O", 8), ("0b", 2), ("0B", 2)] {
         if let Some(rest) = t.strip_prefix(prefix) {
-            return if rest.is_empty() {
-                f64::NAN
-            } else {
-                u128::from_str_radix(rest, radix).map_or(f64::NAN, |n| n as f64)
-            };
+            if rest.is_empty() {
+                return f64::NAN;
+            }
+            // Cộng dồn bằng f64 như JS: chuỗi rất dài ra số lớn (hoặc vô cực), không báo lỗi tràn.
+            let mut n = 0.0_f64;
+            for c in rest.chars() {
+                match c.to_digit(radix) {
+                    Some(d) => n = n * f64::from(radix) + f64::from(d),
+                    None => return f64::NAN,
+                }
+            }
+            return n;
         }
     }
     match t {
@@ -261,13 +272,36 @@ fn js_string_to_number(s: &str) -> f64 {
 // Date.parse
 
 const MONTHS: [&str; 12] = [
-    "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+];
+const WEEKDAYS: [&str; 7] = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
 ];
 
-/// Chuỗi có phải ngày mà `Date.parse` nhận (xem ghi chú đầu tệp về phạm vi).
+/// Chuỗi có phải ngày mà `Date.parse` nhận. Nhận: ISO 8601 (kể cả `2026T10:00`, `2026-11T10:00`), `toUTCString`
+/// (`Thu, 05 Nov 2026 10:00:00 GMT`), `Date.toString`, `Nov 5, 2026 10:00 PM`, `5 Nov 2026`, `11/5/2026 10:00:00 AM`,
+/// `2026-11-5`, `5-Nov-2026`. Không nhận chuỗi lạ mà V8 còn nhận (vd `"0"`, `"Nov 5"` thiếu năm). Chuỗi không phải ASCII
+/// (sau khi bỏ khoảng trắng đầu/cuối) là không hợp lệ, nên không bao giờ cắt giữa ký tự nhiều byte.
 pub fn is_date(s: &str) -> bool {
     let t = s.trim_matches(is_js_space);
-    !t.is_empty() && (iso(t) || numeric_date(t) || month_name_date(t))
+    t.is_ascii() && !t.is_empty() && (iso(t) || legacy(t))
 }
 
 fn digits(s: &str, min: usize, max: usize) -> Option<u32> {
@@ -276,9 +310,8 @@ fn digits(s: &str, min: usize, max: usize) -> Option<u32> {
         .flatten()
 }
 
-fn valid_ymd(y: u32, m: u32, d: u32) -> bool {
-    // V8 chỉ kiểm khoảng 1..31 cho ngày (30/2 vẫn nhận), không kiểm số ngày của tháng.
-    let _ = y;
+/// V8 chỉ kiểm khoảng 1..12 cho tháng và 1..31 cho ngày (30/2 vẫn nhận).
+fn valid_md(m: u32, d: u32) -> bool {
     (1..=12).contains(&m) && (1..=31).contains(&d)
 }
 
@@ -288,35 +321,25 @@ fn iso(t: &str) -> bool {
         None => (t, None),
     };
     // Năm: 4 chữ số hoặc `±` + 6 chữ số.
-    let (year, rest) = if let Some(r) = date.strip_prefix(['+', '-']) {
-        if r.len() < 6 {
+    let rest = if let Some(r) = date.strip_prefix(['+', '-']) {
+        if r.len() < 6 || digits(&r[..6], 6, 6).is_none() {
             return false;
         }
-        (digits(&r[..6], 6, 6), &r[6..])
+        &r[6..]
     } else {
-        if date.len() < 4 {
+        if date.len() < 4 || digits(&date[..4], 4, 4).is_none() {
             return false;
         }
-        (digits(&date[..4], 4, 4), &date[4..])
+        &date[4..]
     };
-    let Some(y) = year else { return false };
     let parts: Vec<&str> = rest.split('-').collect();
     let ok_date = match parts.as_slice() {
         [""] => true,
         ["", m] => digits(m, 2, 2).is_some_and(|m| (1..=12).contains(&m)),
-        ["", m, d] => match (digits(m, 2, 2), digits(d, 2, 2)) {
-            (Some(m), Some(d)) => valid_ymd(y, m, d),
-            _ => false,
-        },
+        ["", m, d] => matches!((digits(m, 2, 2), digits(d, 2, 2)), (Some(m), Some(d)) if valid_md(m, d)),
         _ => false,
     };
-    if !ok_date {
-        return false;
-    }
-    match time {
-        None => true,
-        Some(tm) => parts.len() == 3 && iso_time(tm),
-    }
+    ok_date && time.is_none_or(iso_time)
 }
 
 fn iso_time(t: &str) -> bool {
@@ -324,88 +347,182 @@ fn iso_time(t: &str) -> bool {
         Some(i) => (&t[..i], &t[i..]),
         None => (t, ""),
     };
-    let zone_ok = match zone {
-        "" | "Z" | "z" => true,
-        z => {
-            let z = &z[1..];
-            let z = z.replace(':', "");
-            digits(&z, 4, 4).is_some_and(|v| v / 100 < 24 && v % 100 < 60)
-        }
-    };
-    let mut it = clock.split(':');
-    let (h, m) = (
-        it.next().and_then(|v| digits(v, 2, 2)),
-        it.next().and_then(|v| digits(v, 2, 2)),
-    );
-    let (Some(h), Some(m)) = (h, m) else { return false };
-    let sec = match it.next() {
-        None => Some((0, None)),
-        Some(s) => {
-            let (whole, frac) = s.split_once('.').map_or((s, None), |(a, b)| (a, Some(b)));
-            digits(whole, 2, 2).map(|w| (w, frac))
-        }
-    };
-    let Some((sec, frac)) = sec else { return false };
-    if it.next().is_some() || m > 59 || sec > 59 || h > 24 || (h == 24 && (m != 0 || sec != 0)) {
-        return false;
-    }
-    if frac.is_some_and(|f| f.is_empty() || !f.bytes().all(|b| b.is_ascii_digit())) {
-        return false;
-    }
-    zone_ok
+    clock_ok(clock, true) && zone_ok(zone)
 }
 
-/// `Y/M/D`, `Y-M-D` (một chữ số được), `M/D/Y`, có thể kèm giờ `H:mm[:ss]` sau khoảng trắng.
-fn numeric_date(t: &str) -> bool {
-    let (date, time) = t.split_once(' ').map_or((t, None), |(a, b)| (a, Some(b.trim())));
-    if time.is_some_and(|tm| !clock_only(tm)) {
+/// `hh:mm[:ss[.fff]]`; `two`: bắt buộc hai chữ số mỗi phần (ISO).
+fn clock_ok(c: &str, two: bool) -> bool {
+    let (min, max) = if two { (2, 2) } else { (1, 2) };
+    let mut it = c.split(':');
+    let (Some(h), Some(m)) = (
+        it.next().and_then(|v| digits(v, min, max)),
+        it.next().and_then(|v| digits(v, min, max)),
+    ) else {
         return false;
+    };
+    let mut sec = 0;
+    if let Some(s) = it.next() {
+        let (whole, frac) = s.split_once('.').map_or((s, None), |(a, b)| (a, Some(b)));
+        let Some(w) = digits(whole, min, max) else { return false };
+        if frac.is_some_and(|f| f.is_empty() || !f.bytes().all(|b| b.is_ascii_digit())) {
+            return false;
+        }
+        sec = w;
     }
-    let sep = if date.contains('/') { '/' } else { '-' };
-    let p: Vec<&str> = date.split(sep).collect();
+    it.next().is_none() && m <= 59 && sec <= 59 && h <= 24 && (h < 24 || (m == 0 && sec == 0))
+}
+
+/// `""`, `Z`, `±hh:mm`, `±hhmm`, `±hh`.
+fn zone_ok(z: &str) -> bool {
+    if z.is_empty() || z.eq_ignore_ascii_case("z") {
+        return true;
+    }
+    let Some(body) = z.strip_prefix(['+', '-']) else {
+        return false;
+    };
+    let body = body.replace(':', "");
+    match body.len() {
+        1 | 2 => digits(&body, 1, 2).is_some_and(|h| h < 24),
+        4 => digits(&body, 4, 4).is_some_and(|v| v / 100 < 24 && v % 100 < 60),
+        _ => false,
+    }
+}
+
+/// Số khoảng 3+ chữ số là năm.
+fn is_year(s: &str) -> bool {
+    digits(s, 3, 4).is_some() || digits(s, 2, 2).is_some()
+}
+
+fn month_of(w: &str) -> Option<usize> {
+    let w = w.to_ascii_lowercase();
+    (w.len() >= 3)
+        .then(|| MONTHS.iter().position(|m| m.starts_with(&w)))
+        .flatten()
+}
+
+fn is_weekday(w: &str) -> bool {
+    let w = w.to_ascii_lowercase();
+    w.len() >= 3 && WEEKDAYS.iter().any(|d| d.starts_with(&w))
+}
+
+/// Ngày dạng một token `a/b/c` hoặc `a-b-c`; mỗi phần là số hoặc tên tháng.
+fn combined_date(tok: &str) -> bool {
+    let sep = if tok.contains('/') { '/' } else { '-' };
+    let p: Vec<&str> = tok.split(sep).collect();
     let [a, b, c] = p.as_slice() else { return false };
+    let months: Vec<usize> = p.iter().filter_map(|x| month_of(x)).collect();
+    if months.len() == 1 {
+        let nums: Vec<&&str> = p.iter().filter(|x| month_of(x).is_none()).collect();
+        let [x, y] = nums.as_slice() else { return false };
+        let day_year = |d: &str, yr: &str| digits(d, 1, 2).is_some_and(|d| (1..=31).contains(&d)) && is_year(yr);
+        return day_year(x, y) || day_year(y, x);
+    }
     let (Some(x), Some(y), Some(z)) = (digits(a, 1, 4), digits(b, 1, 2), digits(c, 1, 4)) else {
         return false;
     };
     if a.len() >= 3 {
-        valid_ymd(x, y, z)
-    } else if sep == '/' {
-        valid_ymd(z, x, y)
+        valid_md(y, z)
     } else {
-        // `5-11-2026`: V8 đọc tháng-ngày-năm.
-        c.len() >= 3 && valid_ymd(z, x, y)
+        // `M/D/Y`; `5-11-2026` V8 cũng đọc tháng-ngày-năm.
+        c.len() >= 2 && valid_md(x, y) && z <= 9999
     }
 }
 
-fn clock_only(t: &str) -> bool {
-    let parts: Vec<&str> = t.split(':').collect();
-    matches!(parts.len(), 2 | 3)
-        && parts.iter().all(|p| digits(p, 1, 2).is_some())
-        && digits(parts[0], 1, 2).is_some_and(|h| h <= 24)
-        && parts[1..].iter().all(|p| digits(p, 1, 2).is_some_and(|v| v <= 59))
-}
-
-/// `Nov 5, 2026`, `5 Nov 2026`, `November 5 2026`.
-fn month_name_date(t: &str) -> bool {
-    let cleaned = t.replace(',', " ");
-    let words: Vec<&str> = cleaned.split_whitespace().collect();
-    let month = |w: &str| {
-        let lw = w.to_ascii_lowercase();
-        lw.len() >= 3
-            && MONTHS
-                .iter()
-                .position(|m| {
-                    lw.starts_with(m)
-                        && "january february march april may june july august september october november december"
-                            .contains(&lw)
-                })
-                .is_some()
+fn legacy(t: &str) -> bool {
+    // Bỏ phần chú thích trong ngoặc (`(Indochina Time)`).
+    let mut plain = String::with_capacity(t.len());
+    let mut depth = 0;
+    for ch in t.chars() {
+        match ch {
+            '(' => depth += 1,
+            ')' if depth > 0 => depth -= 1,
+            c if depth == 0 => plain.push(c),
+            _ => {}
+        }
+    }
+    let (mut month, mut date, mut time, mut zone, mut numeric_zone, mut meridian) =
+        (false, false, false, false, false, None::<bool>);
+    let mut numbers: Vec<&str> = Vec::new();
+    let mut seen_value = false;
+    for tok in plain
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|x| !x.is_empty())
+    {
+        let lower = tok.to_ascii_lowercase();
+        let is_zone = lower == "z"
+            || lower.starts_with("gmt")
+            || lower.starts_with("utc")
+            || (lower.starts_with(['+', '-'])
+                && tok[1..].bytes().next().is_some_and(|b| b.is_ascii_digit())
+                && !tok[1..].contains(['-', '/']));
+        if is_zone {
+            let z = lower.trim_start_matches("gmt").trim_start_matches("utc");
+            if zone || !zone_ok(z) {
+                return false;
+            }
+            zone = true;
+            numeric_zone = tok.starts_with(['+', '-']);
+        } else if tok.contains(':') {
+            if time || !clock_ok(tok, false) {
+                return false;
+            }
+            time = true;
+        } else if lower == "am" || lower == "pm" {
+            if meridian.is_some() {
+                return false;
+            }
+            meridian = Some(lower == "pm");
+        } else if tok.contains(['/', '-']) {
+            if date || month || !numbers.is_empty() || !combined_date(tok) {
+                return false;
+            }
+            date = true;
+        } else if tok.bytes().all(|b| b.is_ascii_digit()) {
+            numbers.push(tok);
+            seen_value = true;
+        } else if tok.bytes().all(|b| b.is_ascii_alphabetic()) {
+            if let Some(_m) = month_of(tok) {
+                if month || date {
+                    return false;
+                }
+                month = true;
+                seen_value = true;
+            } else if is_weekday(tok) {
+                // bỏ qua thứ trong tuần
+            } else if seen_value {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+    let date_ok = if date {
+        numbers.is_empty() && !month
+    } else if month {
+        let day_ok = |d: &str| digits(d, 1, 2).is_some_and(|d| (1..=31).contains(&d));
+        match numbers.as_slice() {
+            [y] => is_year(y) || day_ok(y),
+            [a, b] => (day_ok(a) && is_year(b)) || (day_ok(b) && is_year(a)),
+            _ => false,
+        }
+    } else {
+        false
     };
-    match words.as_slice() {
-        [m, d, y] if month(m) => digits(d, 1, 2).is_some_and(|d| (1..=31).contains(&d)) && digits(y, 4, 4).is_some(),
-        [d, m, y] if month(m) => digits(d, 1, 2).is_some_and(|d| (1..=31).contains(&d)) && digits(y, 4, 4).is_some(),
-        _ => false,
+    // Múi giờ rời không có giờ (`Nov 5 2026 +0700`) V8 từ chối.
+    if !date_ok || (numeric_zone && !time) {
+        return false;
     }
+    // AM/PM chỉ đi với giờ 0..12.
+    if meridian.is_some() {
+        let hour = plain
+            .split(|c: char| c.is_whitespace() || c == ',')
+            .find(|x| x.contains(':'))
+            .and_then(|c| digits(c.split(':').next().unwrap_or(""), 1, 2));
+        if !hour.is_some_and(|h| (0..=12).contains(&h)) {
+            return false;
+        }
+    }
+    true
 }
 
 #[cfg(test)]
@@ -425,7 +542,7 @@ mod tests {
     }
 
     fn err(defs: &[AttributeDef], raw: Value) -> String {
-        match validate_product_attributes(defs, Some(&raw))
+        match validate_product_attributes(defs, Some(&raw), None)
             .unwrap_err()
             .body()
             .message
@@ -447,6 +564,9 @@ mod tests {
             (json!(["7"]), Some(7.0)),
             (json!([]), Some(0.0)),
             (json!("1_0"), None),
+            (json!("+0x1A"), None),
+            (json!("-0x1A"), None),
+            (json!("0b102"), None),
             (json!("inf"), None),
             (json!("nan"), None),
             (json!("1 2"), None),
@@ -482,6 +602,25 @@ mod tests {
             "11/05/2026",
             "Nov 5, 2026",
             " 2026-11-05 ",
+            "2026T10:00",
+            "2026-11T10:00",
+            "Thu, 05 Nov 2026 10:00:00 GMT",
+            "Thu Nov 05 2026 10:00:00 GMT+0700 (Indochina Time)",
+            "Nov 5, 2026 10:00",
+            "Nov 5, 2026 10:00 PM",
+            "Nov 5 26",
+            "5 Nov 2026 10:00:00 +0700",
+            "Thu, 05 Nov 2026",
+            "11/5/2026 10:00:00 AM",
+            "2026-11-05 10:00:00 UTC",
+            "Foo Nov 5 2026",
+            "November 5, 2026",
+            "5-Nov-2026",
+            "2026-Nov-5",
+            "Thu, 05 Nov 2026 10:00:00 GMT+7",
+            "Nov 5 2026 10:00 +07:00",
+            "Nov 5 2026 GMT+0700",
+            "Nov 5 26 0:30 AM",
         ] {
             assert!(is_date(ok), "{ok}");
         }
@@ -496,6 +635,35 @@ mod tests {
         ] {
             assert!(!is_date(no), "{no}");
         }
+    }
+
+    #[test]
+    fn hex_rat_dai_la_so_lon_khong_phai_loi_so() {
+        let defs = [def("n", "number", false, None)];
+        // 40 chữ số hex: số hữu hạn vượt trần, không phải "không phải số".
+        assert_eq!(
+            err(&defs, json!({"n": format!("0x{}", "f".repeat(40))})),
+            "Thuộc tính \"L-n\" vượt trần cho phép"
+        );
+        assert_eq!(err(&defs, json!({"n": "0x"})), "Thuộc tính \"L-n\" phải là số");
+        assert_eq!(err(&defs, json!({"n": "+0x10"})), "Thuộc tính \"L-n\" phải là số");
+        // Quá lớn tới vô cực (> 256 chữ số hex): giống JS, không hữu hạn.
+        assert_eq!(
+            err(&defs, json!({"n": format!("0x{}", "f".repeat(300))})),
+            "Thuộc tính \"L-n\" phải là số"
+        );
+    }
+
+    #[test]
+    fn gia_tri_ngay_da_luu_khong_kiem_lai_khi_khong_doi() {
+        let defs = [def("d", "date", false, None)];
+        let prev: Map<String, Value> = serde_json::from_str(r#"{"d": "Nov 5 12345 10:61"}"#).unwrap();
+        // Giá trị lạ đã lưu từ trước: gửi lại y nguyên thì qua; đổi sang giá trị lạ khác thì bị chặn.
+        let same = json!({"d": "Nov 5 12345 10:61"});
+        assert!(validate_product_attributes(&defs, Some(&same), Some(&prev)).is_ok());
+        assert!(validate_product_attributes(&defs, Some(&same), None).is_err());
+        let other = json!({"d": "Nov 6 12345 10:61"});
+        assert!(validate_product_attributes(&defs, Some(&other), Some(&prev)).is_err());
     }
 
     #[test]
@@ -549,7 +717,8 @@ mod tests {
             "Thuộc tính \"L-multi\" phải là mảng chuỗi"
         );
 
-        let ok = validate_product_attributes(&defs, Some(&json!({"qty": "12.50", "name": "x", "pct": 5}))).unwrap();
+        let ok =
+            validate_product_attributes(&defs, Some(&json!({"qty": "12.50", "name": "x", "pct": 5})), None).unwrap();
         assert_eq!(
             serde_json::to_string(&ok).unwrap(),
             r#"{"name":"x","qty":12.5,"pct":5,"tone":null,"multi":null}"#

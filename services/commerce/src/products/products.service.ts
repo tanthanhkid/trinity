@@ -17,6 +17,7 @@ import { ProductAttributeDefsService } from './attribute-defs/product-attribute-
 import { hardDeleteProduct } from './product-delete.helper';
 import { deleteProductImageFile } from './product-image-upload.helper';
 import { validateProductAttributes } from './product-attributes.validator';
+import { escapeIlike } from '../common/ilike';
 
 /** Cửa sổ Hoàn tác phía máy chủ (toast trên web chỉ 5 giây; để dư cho mạng chậm), giống khách hàng / card. */
 export const RESTORE_WINDOW_MS = 10 * 60 * 1000;
@@ -220,7 +221,7 @@ export class ProductsService {
    */
   private async assertCodeAvailable(code: string): Promise<void> {
     const existing = await this.prisma.product.findFirst({
-      where: { code: { equals: code, mode: 'insensitive' } },
+      where: { code: { equals: escapeIlike(code), mode: 'insensitive' } },
       select: { id: true, code: true, deleted_at: true },
     });
     if (existing?.deleted_at) {

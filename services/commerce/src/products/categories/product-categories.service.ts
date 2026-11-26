@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { Prisma, PrismaService } from '@trinity/prisma';
 import { CreateProductCategoryDto } from './dto/create-product-category.dto';
 import { UpdateProductCategoryDto } from './dto/update-product-category.dto';
+import { escapeIlike } from '../../common/ilike';
 
 /** `select` tường minh — KHÔNG `SELECT *`/`include` (coding-standards). */
 const CATEGORY_SELECT = {
@@ -94,7 +95,7 @@ export class ProductCategoriesService {
 
   private async assertCodeAvailable(code: string): Promise<void> {
     const existing = await this.prisma.productCategory.findFirst({
-      where: { code: { equals: code, mode: 'insensitive' } },
+      where: { code: { equals: escapeIlike(code), mode: 'insensitive' } },
       select: { id: true, code: true },
     });
     if (existing) {

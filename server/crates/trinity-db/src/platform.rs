@@ -5,7 +5,7 @@
 //!   (`channels_locked`, lý do, giờ) là công tắc của chủ nền tảng.
 //! - `company_logins`: email → công ty (một email thuộc đúng một công ty; đăng nhập tra ở đây).
 //! - `company_routes`: mã ngoài → công ty: Page Facebook, OA Zalo (webhook định tuyến theo bảng này), `state` OAuth
-//!   đang mở, gian hàng Shopee/Lazada, địa chỉ trang bán hàng.
+//!   đang mở, địa chỉ trang bán hàng.
 //!
 //! `company_logins`/`company_routes` (Page, OA) được trigger trong **mỗi** schema công ty giữ đồng bộ
 //! ([`SYNC_TRIGGER_VERSION`]); khoá chính làm công ty thứ hai nhận cùng email/Page lỗi ngay ở DB
@@ -44,14 +44,13 @@ pub const EMAIL_TAKEN_TRIGGER_MESSAGE: &str = "Email này đã được dùng ch
 /// Câu 409 của `elk-exception.filter.ts` khi trigger ném `TRINITY_ROUTE_TAKEN`.
 pub const ROUTE_TAKEN_TRIGGER_MESSAGE: &str = "Trang/kênh này đã được một công ty khác kết nối với Trinity";
 
-/// Loại mã ngoài trong `platform.company_routes.kind`.
+/// Loại mã ngoài trong `platform.company_routes.kind`. Dòng thuộc loại khác (vd `shopee_shop`, `lazada_seller` của
+/// kết nối đã gỡ ở G06) bị xoá khi [`Platform::backfill_setting_routes`] chạy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RouteKind {
     FacebookPage,
     ZaloOa,
     OauthState,
-    ShopeeShop,
-    LazadaSeller,
     StoreSlug,
 }
 
@@ -61,8 +60,6 @@ impl RouteKind {
             Self::FacebookPage => "facebook_page",
             Self::ZaloOa => "zalo_oa",
             Self::OauthState => "oauth_state",
-            Self::ShopeeShop => "shopee_shop",
-            Self::LazadaSeller => "lazada_seller",
             Self::StoreSlug => "store_slug",
         }
     }
@@ -72,8 +69,6 @@ impl RouteKind {
         match self {
             Self::FacebookPage => "Trang Facebook này đã được một công ty khác kết nối với Trinity",
             Self::ZaloOa => "Zalo OA này đã được một công ty khác kết nối với Trinity",
-            Self::ShopeeShop => "Gian hàng Shopee này đã được một công ty khác kết nối với Trinity",
-            Self::LazadaSeller => "Tài khoản Lazada này đã được một công ty khác kết nối với Trinity",
             Self::StoreSlug => "Địa chỉ trang bán hàng này đã có công ty khác dùng — chọn địa chỉ khác",
             Self::OauthState => ROUTE_TAKEN_TRIGGER_MESSAGE,
         }
@@ -81,7 +76,7 @@ impl RouteKind {
 
     /// Loại mà [`Platform::claim_route`] nhận: mã có thể bị bỏ rơi (ngắt kết nối, đổi slug).
     fn claimable(self) -> bool {
-        matches!(self, Self::ShopeeShop | Self::LazadaSeller | Self::StoreSlug)
+        matches!(self, Self::StoreSlug)
     }
 }
 
@@ -319,19 +314,12 @@ pub async fn install_sync_triggers(conn: &mut PgConnection, company: CompanyRef)
     Ok(())
 }
 
-/// SQL: schema `s` còn kết nối/trang bán hàng đang dùng mã này không (`$1` = mã).
-fn backed_by_sql(s: &str, kind: RouteKind) -> String {
-    match kind {
-        RouteKind::ShopeeShop => format!(
-            "SELECT 1 FROM {s}.connector_accounts WHERE provider = 'shopee' AND status <> 'disconnected' AND settings->>'shop_id' = $1"
-        ),
-        RouteKind::LazadaSeller => format!(
-            "SELECT 1 FROM {s}.connector_accounts WHERE provider = 'lazada' AND status <> 'disconnected' AND settings->>'seller_id' = $1"
-        ),
-        _ => format!(
-            "SELECT 1 FROM {s}.settings WHERE key = 'online_store' AND lower(trim((value::json)->>'slug')) = $1"
-        ),
-    }
+/// Các giá trị `kind` còn dùng (khớp `ROUTE_KINDS` của `packages/prisma/src/tenant/platform.ts`).
+const ROUTE_KIND_NAMES: [&str; 4] = ["facebook_page", "zalo_oa", "oauth_state", "store_slug"];
+
+/// SQL: schema `s` còn trang bán hàng đang dùng mã này không (`$1` = mã). Chỉ `store_slug` là mã có thể bị bỏ rơi.
+fn backed_by_sql(s: &str) -> String {
+    format!("SELECT 1 FROM {s}.settings WHERE key = 'online_store' AND lower(trim((value::json)->>'slug')) = $1")
 }
 
 /// `str.slice(0, n)` của JS: cắt theo đơn vị UTF-16, không cắt đôi ký tự (JS để lại nửa cặp surrogate, Postgres
@@ -513,44 +501,34 @@ impl Platform {
         Ok(())
     }
 
-    /// Mã có trước luật nhận mã: slug trang bán hàng và gian hàng Shopee/Lazada đang kết nối trong schema công ty
-    /// được ghi (công ty id nhỏ hơn thắng), để công ty mới hơn không chiếm được. Idempotent; schema có bảng hoặc
-    /// JSON không đọc được thì bỏ qua (`backfillSettingRoutes`).
+    /// Mã có trước luật nhận mã: slug trang bán hàng trong schema công ty được ghi (công ty id nhỏ hơn thắng), để
+    /// công ty mới hơn không chiếm được; dòng thuộc loại không còn dùng bị xoá. Idempotent; schema có bảng hoặc JSON
+    /// không đọc được thì bỏ qua (`backfillSettingRoutes`).
     pub async fn backfill_setting_routes(&self) -> Result<(), DbError> {
         let mut conn = self.db.acquire().await?;
+        sqlx::query("DELETE FROM platform.company_routes WHERE kind <> ALL($1::text[])")
+            .bind(&ROUTE_KIND_NAMES[..])
+            .execute(&mut *conn)
+            .await?;
         let companies: Vec<(i32, String)> =
             sqlx::query_as("SELECT id, schema_name FROM platform.companies ORDER BY id")
                 .fetch_all(&mut *conn)
                 .await?;
         for (id, schema) in companies {
             let s = quote_ident(&schema)?;
-            let statements = [
-                (
-                    RouteKind::StoreSlug,
-                    format!(
-                        "SELECT lower(trim(((value::json)->>'slug'))) AS ext FROM {s}.settings WHERE key = 'online_store'"
-                    ),
+            let statements = [(
+                RouteKind::StoreSlug,
+                format!(
+                    "SELECT lower(trim(((value::json)->>'slug'))) AS ext FROM {s}.settings WHERE key = 'online_store'"
                 ),
-                (
-                    RouteKind::ShopeeShop,
-                    format!(
-                        "SELECT (settings->>'shop_id') AS ext FROM {s}.connector_accounts WHERE provider = 'shopee' AND status <> 'disconnected'"
-                    ),
-                ),
-                (
-                    RouteKind::LazadaSeller,
-                    format!(
-                        "SELECT (settings->>'seller_id') AS ext FROM {s}.connector_accounts WHERE provider = 'lazada' AND status <> 'disconnected'"
-                    ),
-                ),
-            ];
+            )];
             for (kind, select) in statements {
                 let k = kind.as_str();
-                // Trước hết là mã mồ côi: công ty này giữ nhưng không còn kết nối/trang bán hàng nào dùng.
+                // Trước hết là mã mồ côi: công ty này giữ nhưng không còn trang bán hàng nào dùng.
                 let orphans = format!(
                     "DELETE FROM platform.company_routes r WHERE r.kind = '{k}' AND r.company_id = {id} AND r.created_at < now() - interval '2 minutes'
              AND NOT EXISTS ({})",
-                    backed_by_sql(&s, kind).replacen("= $1", "= r.external_id", 1)
+                    backed_by_sql(&s).replacen("= $1", "= r.external_id", 1)
                 );
                 let insert = format!(
                     "INSERT INTO platform.company_routes (kind, external_id, company_id)
@@ -732,7 +710,7 @@ impl Platform {
             .await
     }
 
-    /// Nhận mã ngoài (gian hàng Shopee/Lazada, slug trang bán hàng) cho công ty hiện tại; công ty đầu tiên thắng. Nhận
+    /// Nhận mã ngoài (slug trang bán hàng) cho công ty hiện tại; công ty đầu tiên thắng. Nhận
     /// lại mã của mình thì không làm gì. Mã của công ty khác mà công ty đó không còn dùng (mồ côi, nhận quá 2 phút)
     /// thì chuyển sang (`claimCompanyRoute`).
     pub async fn claim_route(
@@ -764,12 +742,12 @@ impl Platform {
         }
         let mut owner = self.company_for_route(kind, &id).await?;
         if let Some(holder) = owner.filter(|&o| o != me)
-            && !self.holder_still_uses_route(holder, kind, &id).await?
+            && !self.holder_still_uses_route(holder, &id).await?
         {
             {
-                // Bên giữ không còn kết nối/trang bán hàng nào dùng mã này: mã mồ côi, không được chặn chủ thật.
+                // Bên giữ không còn trang bán hàng nào dùng mã này: mã mồ côi, không được chặn chủ thật.
                 // Nguyên tử: chỉ khi vẫn của bên giữ và không vừa được nhận trong 2 phút (nhận trước khi lưu dòng
-                // kết nối/trang bán hàng).
+                // trang bán hàng).
                 let mut conn = self.db.acquire().await?;
                 sqlx::query(
                     "UPDATE platform.company_routes SET company_id = $4, created_at = now() WHERE kind = $1 AND external_id = $2 AND company_id = $3
@@ -791,9 +769,9 @@ impl Platform {
         }
     }
 
-    /// Đúng trừ khi công ty giữ đã mất hoặc chắc chắn không còn kết nối/trang bán hàng dùng mã này. Không đọc được
+    /// Đúng trừ khi công ty giữ đã mất hoặc chắc chắn không còn trang bán hàng dùng mã này. Không đọc được
     /// (thiếu bảng, JSON hỏng) tính là "còn dùng": không bao giờ chiếm mã khi còn nghi.
-    async fn holder_still_uses_route(&self, holder: i32, kind: RouteKind, id: &str) -> Result<bool, DbError> {
+    async fn holder_still_uses_route(&self, holder: i32, id: &str) -> Result<bool, DbError> {
         let mut conn = self.db.acquire().await?;
         let schema: Option<String> = sqlx::query_scalar("SELECT schema_name FROM platform.companies WHERE id = $1")
             .bind(holder)
@@ -801,7 +779,7 @@ impl Platform {
             .await?;
         let Some(schema) = schema else { return Ok(false) };
         let Ok(s) = quote_ident(&schema) else { return Ok(true) };
-        let hit: Result<Option<i32>, _> = sqlx::query_scalar(AssertSqlSafe(backed_by_sql(&s, kind)))
+        let hit: Result<Option<i32>, _> = sqlx::query_scalar(AssertSqlSafe(backed_by_sql(&s)))
             .bind(id)
             .fetch_optional(&mut *conn)
             .await;
@@ -943,7 +921,7 @@ mod tests {
         assert_eq!(js_trim("\u{85}a\u{85}"), "\u{85}a\u{85}");
         assert_eq!(js_trim("\u{a0}\u{2028}a\u{3000}"), "a");
         assert_eq!(route_key(RouteKind::StoreSlug, "Shop-Đ"), "shop-đ");
-        assert_eq!(route_key(RouteKind::ShopeeShop, "Shop-A"), "Shop-A");
+        assert_eq!(route_key(RouteKind::ZaloOa, "Shop-A"), "Shop-A");
         assert_eq!(company_ref(2, "c_2"), Some(CompanyRef::new(2).unwrap()));
         assert_eq!(company_ref(2, "c_3"), None);
         assert_eq!(company_ref(1, "public"), Some(CompanyRef::DEFAULT));

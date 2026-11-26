@@ -1149,6 +1149,13 @@ network namespace với Rust nên đổi sang cổng nội bộ khác (`PORT=300
 - Cho tới khi K18 bật và W02b xong, đường không phải API (trang, `/uploads`, `/.well-known`) được chuyển tiếp tới Next
   hoặc Node. Cấu hình lai (D01) vì vậy **không cần web tĩnh**. Thứ tự triển khai trong lai: migrate (Prisma) → khởi
   động Node → thay binary Rust, vì Rust trả 503 cho công ty chưa migrate tới bản nó biên dịch cùng.
+- **Đã làm ở K17** (`server/crates/trinity-http/src/strangler`): `OwnershipTable` (tệp `TRINITY_OWNERSHIP_FILE`, `reload` nguyên tử, tệp hỏng giữ bảng cũ
+  và ghi lỗi; `spawn_sighup_reloader`; `initial_from_routes_env` cho `TRINITY_RUST_ROUTES`: danh sách tiền tố thuộc Rust, chỉ là giá trị khởi tạo khi chưa có
+  tệp), `NodeProxy` (stream không đệm, giữ nguyên byte, nâng cấp WebSocket hai chiều, timeout 15 giây tính từ lúc request gửi xong và 120 giây cho `/export`,
+  502/504 dạng Nest; xoá `x-real-ip`, `x-forwarded-for`, `forwarded`, `cf-connecting-ip`, `x-trinity-client-ip`, `x-trinity-peer-ip` của client rồi gửi
+  `x-trinity-client-ip` ký NGAY lúc gửi header, giữ `Host` gốc; `/api`, `/notif-ws`, `/uploads`, `/.well-known`, `/docs` luôn đi Node, phần còn lại đi Next nếu
+  cấu hình `web`, không thì Node) và `dispatcher` (client_ip_layer một lần ở ngoài cùng; lớp CORS và mọi lớp khác của Rust chỉ nằm trong router thuộc Rust nên
+  route của Node chỉ có CORS của Node). Chưa nối vào binary vì chưa có lệnh `serve`; biến cho địa chỉ Next (`web`) thêm khi nối.
 - **Shadow:** chỉ cho route có `safe_for_shadow = true` trong `routes.json` (mặc định `false`; bật từng route sau khi
   rà mã là thuần đọc). Sau khi đã trả response của Node, theo tỉ lệ lấy mẫu, Rust tính response của mình với ba hàng
   rào: (1) phiên DB chỉ đọc, đặt ở mức phiên khi lấy kết nối cho shadow (`default_transaction_read_only = on`), vì

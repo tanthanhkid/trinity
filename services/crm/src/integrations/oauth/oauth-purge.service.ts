@@ -15,7 +15,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export class OauthPurgeService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OauthPurgeService.name);
   /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
-  private readonly timerTick = tenantTimerTick(this.logger, 'OAuth purge', () => this.runOnce());
+  private readonly timerTick = tenantTimerTick(this.logger, 'OAuth purge', () => this.runOnce(), undefined, 'integrations.oauth-purge');
   private interval: ReturnType<typeof setInterval> | null = null;
   private first: ReturnType<typeof setTimeout> | null = null;
 

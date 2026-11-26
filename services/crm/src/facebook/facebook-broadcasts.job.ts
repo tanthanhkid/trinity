@@ -9,7 +9,7 @@ const INTERVAL_MS = 60_000;
 export class FacebookBroadcastsJob implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(FacebookBroadcastsJob.name);
   /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
-  private readonly timerTick = tenantTimerTick(this.logger, 'Gửi hàng loạt', () => this.tick());
+  private readonly timerTick = tenantTimerTick(this.logger, 'Gửi hàng loạt', () => this.tick(), undefined, 'facebook.broadcasts');
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
 

@@ -12,7 +12,7 @@ const ONE_MIN_MS = 60_000;
 export class BriefingsScheduler implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BriefingsScheduler.name);
   /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
-  private readonly timerTick = tenantTimerTick(this.logger, 'Bản tin', () => this.tick());
+  private readonly timerTick = tenantTimerTick(this.logger, 'Bản tin', () => this.tick(), undefined, 'briefings.run-due');
   private interval: ReturnType<typeof setInterval> | null = null;
   private running = false;
 

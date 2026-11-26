@@ -16,8 +16,8 @@ const METRICS_INTERVAL_MS = 15 * 60_000;
 export class SocialPublishJob implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SocialPublishJob.name);
   /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
-  private readonly timerTick = tenantTimerTick(this.logger, 'Job đăng bài', () => this.tick());
-  private readonly metricsTick = tenantTimerTick(this.logger, 'Job lấy số bài', () => this.metrics());
+  private readonly timerTick = tenantTimerTick(this.logger, 'Job đăng bài', () => this.tick(), undefined, 'social.publish');
+  private readonly metricsTick = tenantTimerTick(this.logger, 'Job lấy số bài', () => this.metrics(), undefined, 'social.metrics');
   private timer: ReturnType<typeof setInterval> | null = null;
   private metricsTimer: ReturnType<typeof setInterval> | null = null;
 

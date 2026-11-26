@@ -9,7 +9,7 @@ const INTERVAL_MS = 60_000;
 export class FacebookFlowsJob implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(FacebookFlowsJob.name);
   /** Timer chạy ngoài request: mỗi lượt chạy cho từng công ty (multi-tenant). */
-  private readonly timerTick = tenantTimerTick(this.logger, 'Kịch bản nhắn tin', () => this.tick());
+  private readonly timerTick = tenantTimerTick(this.logger, 'Kịch bản nhắn tin', () => this.tick(), undefined, 'facebook.flows');
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly flows: FacebookFlowsService) {}

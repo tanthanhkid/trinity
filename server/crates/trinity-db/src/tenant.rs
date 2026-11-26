@@ -14,10 +14,10 @@
 //! - Statement cache của sqlx giữ bật; cấm `SELECT *`/`RETURNING *` (lint) và từ chối công ty có bản migration cũ hơn
 //!   [`LATEST_MIGRATION`] (R005: đổi kiểu cột giữa hai schema làm giao dịch lỗi 0A000).
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use sqlx::pool::PoolConnection;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
@@ -37,10 +37,9 @@ pub enum DbError {
     InvalidSchema(String),
     #[error("DATABASE_URL is not set")]
     MissingUrl,
-    #[error(
-        "Multi-tenant company schemas need a direct or session-mode Postgres URL: set TENANT_DATABASE_URL (or DIRECT_DATABASE_URL)"
-    )]
-    PoolerUrl,
+    /// URL pooler transaction-mode: `search_path` theo phiên bị chia sẻ giữa các client.
+    #[error("{}", pooler_message(*multi_tenant))]
+    PoolerUrl { multi_tenant: bool },
     #[error("cấu hình DB không hợp lệ: {0}")]
     Config(String),
     /// `MULTI_TENANT` tắt mà xin công ty khác 1.
@@ -48,6 +47,9 @@ pub enum DbError {
     SingleTenant(i32),
     #[error("không có công ty {0}")]
     UnknownCompany(i32),
+    /// Công ty có trong `platform.companies` nhưng `status` khác `active` (đang tạo, bị khoá…).
+    #[error("công ty {company} không hoạt động (status = {status})")]
+    CompanyInactive { company: i32, status: String },
     /// HTTP trả 503 kèm câu này cho tới khi migrate nền xong.
     #[error(
         "Dữ liệu công ty {company} đang được nâng cấp (đã migrate tới {have}, cần {need}). Vui lòng thử lại sau ít phút."
@@ -56,6 +58,29 @@ pub enum DbError {
     #[error(transparent)]
     Sqlx(#[from] sqlx::Error),
 }
+
+fn pooler_message(multi_tenant: bool) -> &'static str {
+    if multi_tenant {
+        "Multi-tenant company schemas need a direct or session-mode Postgres URL: set TENANT_DATABASE_URL (or DIRECT_DATABASE_URL)"
+    } else {
+        "The Rust server keeps per-session state (search_path) and needs a direct or session-mode Postgres URL: set DIRECT_DATABASE_URL"
+    }
+}
+
+/// URL trỏ vào pooler transaction-mode (`pgbouncer=true` hoặc host `-pooler.`, như `clients.ts`).
+pub fn is_pooler_url(url: &str) -> bool {
+    let (base, query) = url.split_once('?').unwrap_or((url, ""));
+    if query.split('&').any(|p| p == "pgbouncer=true") {
+        return true;
+    }
+    let host = base.split_once("://").map_or(base, |(_, r)| r);
+    let host = host.rsplit_once('@').map_or(host, |(_, h)| h);
+    host.split(['/', ':']).next().unwrap_or("").contains("-pooler.")
+}
+
+/// Kết quả cổng của một công ty được nhớ trong khoảng này (chỉ nhớ kết quả đạt): đổi `status` hay `migrated_to`
+/// có hiệu lực sau tối đa chừng ấy, như cache khoá kênh 10 giây của bản Node.
+pub const GATE_CACHE_TTL: Duration = Duration::from_secs(10);
 
 /// Một công ty. Công ty 1 = schema `public`, công ty N = `c_N`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -138,25 +163,31 @@ impl DbConfig {
         }
     }
 
-    /// Đọc env như bản Node: URL theo thứ tự `TENANT_DATABASE_URL`, `DIRECT_DATABASE_URL`, `DATABASE_URL` (khi đa
-    /// công ty; một công ty chỉ dùng `DATABASE_URL`); `DB_POOL_SIZE`, không có thì `PRISMA_CONNECTION_LIMIT`;
-    /// `DB_ACQUIRE_TIMEOUT_MS`, `DB_STATEMENT_TIMEOUT_MS`; `MULTI_TENANT=true`.
+    /// Đọc env. URL: đa công ty theo thứ tự `TENANT_DATABASE_URL`, `DIRECT_DATABASE_URL`, `DATABASE_URL` (như
+    /// `clients.ts`); một công ty `DATABASE_URL` rồi `DIRECT_DATABASE_URL`; lấy URL đầu tiên không phải pooler, tất cả
+    /// đều là pooler thì lỗi. `DB_POOL_SIZE`, không có mới đọc `PRISMA_CONNECTION_LIMIT`; `DB_ACQUIRE_TIMEOUT_MS`
+    /// (phải > 0), `DB_STATEMENT_TIMEOUT_MS` (0 = không giới hạn); `MULTI_TENANT=true`.
     pub fn from_env() -> Result<Self, DbError> {
-        let var = |k: &str| {
-            std::env::var(k)
-                .ok()
-                .map(|v| v.trim().to_owned())
-                .filter(|v| !v.is_empty())
-        };
-        let multi_tenant = std::env::var("MULTI_TENANT").as_deref() == Ok("true");
-        let url = if multi_tenant {
-            var("TENANT_DATABASE_URL")
-                .or_else(|| var("DIRECT_DATABASE_URL"))
-                .or_else(|| var("DATABASE_URL"))
+        Self::from_lookup(|k| std::env::var(k).ok())
+    }
+
+    /// Như [`Self::from_env`] với nguồn biến tuỳ ý (test).
+    pub fn from_lookup(get: impl Fn(&str) -> Option<String>) -> Result<Self, DbError> {
+        let var = |k: &str| get(k).map(|v| v.trim().to_owned()).filter(|v| !v.is_empty());
+        let multi_tenant = get("MULTI_TENANT").as_deref() == Some("true");
+        let keys: &[&str] = if multi_tenant {
+            &["TENANT_DATABASE_URL", "DIRECT_DATABASE_URL", "DATABASE_URL"]
         } else {
-            var("DATABASE_URL")
+            &["DATABASE_URL", "DIRECT_DATABASE_URL"]
+        };
+        let urls: Vec<String> = keys.iter().filter_map(|k| var(k)).collect();
+        if urls.is_empty() {
+            return Err(DbError::MissingUrl);
         }
-        .ok_or(DbError::MissingUrl)?;
+        let url = urls
+            .into_iter()
+            .find(|u| !is_pooler_url(u))
+            .ok_or(DbError::PoolerUrl { multi_tenant })?;
         let mut cfg = Self::new(url);
         cfg.multi_tenant = multi_tenant;
         let num = |k: &str| -> Result<Option<u64>, DbError> {
@@ -167,10 +198,17 @@ impl DbConfig {
                 })
                 .transpose()
         };
-        if let Some(n) = num("DB_POOL_SIZE")?.or(num("PRISMA_CONNECTION_LIMIT")?) {
+        let pool_size = match num("DB_POOL_SIZE")? {
+            Some(n) => Some(n),
+            None => num("PRISMA_CONNECTION_LIMIT")?,
+        };
+        if let Some(n) = pool_size {
             cfg.pool_size = u32::try_from(n.max(1)).unwrap_or(u32::MAX);
         }
         if let Some(ms) = num("DB_ACQUIRE_TIMEOUT_MS")? {
+            if ms == 0 {
+                return Err(DbError::Config("DB_ACQUIRE_TIMEOUT_MS phải lớn hơn 0".to_owned()));
+            }
             cfg.acquire_timeout = Duration::from_millis(ms);
         }
         if let Some(ms) = num("DB_STATEMENT_TIMEOUT_MS")? {
@@ -187,7 +225,11 @@ impl DbConfig {
         for pair in query.split('&').filter(|p| !p.is_empty()) {
             let (k, v) = pair.split_once('=').unwrap_or((pair, ""));
             match k {
-                "pgbouncer" if v == "true" => return Err(DbError::PoolerUrl),
+                "pgbouncer" if v == "true" => {
+                    return Err(DbError::PoolerUrl {
+                        multi_tenant: self.multi_tenant,
+                    });
+                }
                 "schema"
                 | "connection_limit"
                 | "pool_timeout"
@@ -201,7 +243,9 @@ impl DbConfig {
         let host = host.rsplit_once('@').map_or(host, |(_, h)| h);
         let host = host.split(['/', ':']).next().unwrap_or("");
         if host.contains("-pooler.") {
-            return Err(DbError::PoolerUrl);
+            return Err(DbError::PoolerUrl {
+                multi_tenant: self.multi_tenant,
+            });
         }
         let url = if kept.is_empty() {
             base.to_owned()
@@ -221,8 +265,8 @@ impl DbConfig {
 struct Inner {
     multi_tenant: bool,
     required_migration: String,
-    /// Công ty đã qua cổng migrate (chỉ nhớ kết quả đạt; migrate không lùi trong đời tiến trình).
-    migrated: RwLock<HashSet<i32>>,
+    /// Công ty đã qua cổng và lúc qua (chỉ nhớ kết quả đạt, trong [`GATE_CACHE_TTL`]).
+    passed: RwLock<HashMap<i32, Instant>>,
 }
 
 /// Pool dùng chung. Clone rẻ.
@@ -243,17 +287,24 @@ impl std::fmt::Debug for Db {
 impl Db {
     /// Mở pool (lười: kết nối tạo khi cần).
     pub fn connect_lazy(cfg: &DbConfig) -> Result<Self, DbError> {
+        if cfg.acquire_timeout.is_zero() {
+            return Err(DbError::Config("acquire_timeout phải lớn hơn 0".to_owned()));
+        }
         let pool = PgPoolOptions::new()
             .max_connections(cfg.pool_size)
             .acquire_timeout(cfg.acquire_timeout)
             .after_release(|conn, _meta| {
                 Box::pin(async move {
                     // ROLLBACK: giao dịch còn mở (chỉ là cảnh báo nếu không có). RESET ALL: về giá trị của gói khởi
-                    // động (schema không tồn tại, UTC, statement_timeout). Lỗi ⇒ đóng kết nối.
-                    let ok = sqlx::raw_sql("ROLLBACK; RESET ALL; SELECT pg_advisory_unlock_all()")
-                        .execute(&mut *conn)
-                        .await
-                        .is_ok();
+                    // động (schema không tồn tại, UTC, statement_timeout). DISCARD TEMP: bảng tạm của công ty trước
+                    // (pg_temp đứng đầu search_path, sẽ che bảng thật của công ty sau). UNLISTEN *: kênh LISTEN.
+                    // Không DISCARD ALL: nó xoá cả prepared statement mà statement cache của sqlx đang giữ.
+                    // Lỗi ⇒ đóng kết nối.
+                    let ok =
+                        sqlx::raw_sql("ROLLBACK; RESET ALL; DISCARD TEMP; UNLISTEN *; SELECT pg_advisory_unlock_all()")
+                            .execute(&mut *conn)
+                            .await
+                            .is_ok();
                     Ok(ok)
                 })
             })
@@ -263,7 +314,7 @@ impl Db {
             inner: Arc::new(Inner {
                 multi_tenant: cfg.multi_tenant,
                 required_migration: cfg.required_migration.clone(),
-                migrated: RwLock::new(HashSet::new()),
+                passed: RwLock::new(HashMap::new()),
             }),
         })
     }
@@ -295,23 +346,25 @@ impl Db {
         self.pool.close().await;
     }
 
-    /// Handle cho một công ty, sau khi qua cổng: bản một công ty chỉ có công ty 1; công ty phải migrate tới
-    /// `required_migration` (công ty 1 đọc `public._prisma_migrations` vì `platform.companies.migrated_to` không ghi
-    /// cho nó; công ty khác đọc `platform.companies.migrated_to`).
+    /// Handle cho một công ty, sau khi qua cổng: bản một công ty chỉ có công ty 1; công ty khác 1 phải có trong
+    /// `platform.companies` với `status = 'active'` (như `findActiveCompany`; công ty 1 không có dòng); công ty phải
+    /// migrate tới `required_migration` (công ty 1 đọc `public._prisma_migrations` vì `migrated_to` không ghi cho nó;
+    /// công ty khác đọc `platform.companies.migrated_to`).
     pub async fn tenant(&self, company: CompanyRef) -> Result<TenantDb, DbError> {
         if !self.inner.multi_tenant && company.id != 1 {
             return Err(DbError::SingleTenant(company.id));
         }
         let cached = self
             .inner
-            .migrated
+            .passed
             .read()
-            .map(|s| s.contains(&company.id))
-            .unwrap_or(false);
+            .ok()
+            .and_then(|m| m.get(&company.id).copied())
+            .is_some_and(|t| t.elapsed() < GATE_CACHE_TTL);
         if !cached {
-            self.check_migrated(company).await?;
-            if let Ok(mut s) = self.inner.migrated.write() {
-                s.insert(company.id);
+            self.check_company(company).await?;
+            if let Ok(mut m) = self.inner.passed.write() {
+                m.insert(company.id, Instant::now());
             }
         }
         Ok(TenantDb {
@@ -320,19 +373,25 @@ impl Db {
         })
     }
 
-    async fn check_migrated(&self, company: CompanyRef) -> Result<(), DbError> {
+    async fn check_company(&self, company: CompanyRef) -> Result<(), DbError> {
         let mut conn = self.pool.acquire().await?;
         let have: Option<String> = if company.id == 1 {
             latest_applied(&mut conn, "public").await?
         } else {
-            let row: Option<(Option<String>,)> =
-                sqlx::query_as("SELECT migrated_to FROM platform.companies WHERE id = $1")
+            let row: Option<(Option<String>, String)> =
+                sqlx::query_as("SELECT migrated_to, status FROM platform.companies WHERE id = $1")
                     .bind(company.id)
                     .fetch_optional(&mut *conn)
                     .await?;
             match row {
                 None => return Err(DbError::UnknownCompany(company.id)),
-                Some((m,)) => m,
+                Some((_, status)) if status != "active" => {
+                    return Err(DbError::CompanyInactive {
+                        company: company.id,
+                        status,
+                    });
+                }
+                Some((m, _)) => m,
             }
         };
         let need = &self.inner.required_migration;
@@ -571,14 +630,56 @@ mod tests {
         let ok = |u: &str| DbConfig::new(u).connect_options();
         assert!(matches!(
             ok("postgresql://u:p@h/db?pgbouncer=true"),
-            Err(DbError::PoolerUrl)
+            Err(DbError::PoolerUrl { multi_tenant: false })
         ));
         assert!(matches!(
             ok("postgresql://u:p@ep-x-pooler.neon.tech/db"),
-            Err(DbError::PoolerUrl)
+            Err(DbError::PoolerUrl { multi_tenant: false })
         ));
         assert!(ok("postgresql://u:p@h:5432/db?schema=public&connection_limit=5&sslmode=disable").is_ok());
         assert!(ok("postgresql://u:p@h/db?pgbouncer=false").is_ok());
+    }
+
+    fn env(pairs: &[(&str, &str)]) -> Result<DbConfig, DbError> {
+        let m: HashMap<String, String> = pairs.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect();
+        DbConfig::from_lookup(|k| m.get(k).cloned())
+    }
+
+    #[test]
+    fn doc_env() {
+        const POOLED: &str = "postgresql://u:p@ep-x-pooler.neon.tech/db";
+        const DIRECT: &str = "postgresql://u:p@ep-x.neon.tech/db";
+        // Một công ty: DATABASE_URL pooled ⇒ dùng DIRECT_DATABASE_URL.
+        let c = env(&[("DATABASE_URL", POOLED), ("DIRECT_DATABASE_URL", DIRECT)]).unwrap();
+        assert_eq!((c.url.as_str(), c.multi_tenant), (DIRECT, false));
+        let e = env(&[("DATABASE_URL", POOLED)]).unwrap_err();
+        assert!(matches!(e, DbError::PoolerUrl { multi_tenant: false }));
+        assert!(e.to_string().contains("DIRECT_DATABASE_URL") && !e.to_string().contains("Multi-tenant"));
+        // Đa công ty: TENANT trước.
+        let c = env(&[
+            ("MULTI_TENANT", "true"),
+            ("DATABASE_URL", POOLED),
+            ("TENANT_DATABASE_URL", "postgresql://t/db"),
+        ])
+        .unwrap();
+        assert_eq!(c.url, "postgresql://t/db");
+        let e = env(&[("MULTI_TENANT", "true"), ("DATABASE_URL", POOLED)]).unwrap_err();
+        assert!(e.to_string().contains("TENANT_DATABASE_URL"));
+        assert!(matches!(env(&[]), Err(DbError::MissingUrl)));
+        // DB_POOL_SIZE ưu tiên, PRISMA_CONNECTION_LIMIT hỏng không làm lỗi khi đã có DB_POOL_SIZE.
+        let c = env(&[
+            ("DATABASE_URL", DIRECT),
+            ("DB_POOL_SIZE", "4"),
+            ("PRISMA_CONNECTION_LIMIT", "x"),
+        ])
+        .unwrap();
+        assert_eq!(c.pool_size, 4);
+        let c = env(&[("DATABASE_URL", DIRECT), ("PRISMA_CONNECTION_LIMIT", "3")]).unwrap();
+        assert_eq!(c.pool_size, 3);
+        assert!(env(&[("DATABASE_URL", DIRECT), ("DB_POOL_SIZE", "x")]).is_err());
+        assert!(env(&[("DATABASE_URL", DIRECT), ("DB_ACQUIRE_TIMEOUT_MS", "0")]).is_err());
+        let c = env(&[("DATABASE_URL", DIRECT), ("DB_STATEMENT_TIMEOUT_MS", "0")]).unwrap();
+        assert!(c.statement_timeout.is_zero());
     }
 
     #[test]

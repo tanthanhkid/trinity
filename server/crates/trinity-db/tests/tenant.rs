@@ -353,3 +353,78 @@ async fn het_ket_noi_thi_cho_toi_acquire_timeout() {
     db.close().await;
     teardown(&[9241]).await;
 }
+
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn bang_tam_va_listen_cua_cong_ty_truoc_khong_sot_sang_cong_ty_sau() {
+    setup(&[9251, 9252], &[], Some(LATEST_MIGRATION)).await;
+    let db = Db::connect(&cfg(1)).await.unwrap();
+    let a = db.tenant(co(9251)).await.unwrap();
+    let b = db.tenant(co(9252)).await.unwrap();
+    {
+        let mut c = a.acquire().await.unwrap();
+        // pg_temp đứng trước mọi schema khi tìm bảng: bảng tạm cùng tên che bảng thật của công ty sau.
+        exec(
+            &mut c,
+            "CREATE TEMP TABLE k06_contacts (id int, company int, name text);
+             INSERT INTO k06_contacts VALUES (1, 9251, 'tam');
+             CREATE TEMP TABLE k06_scratch (x int);
+             LISTEN k06_kenh",
+        )
+        .await;
+        let n: i64 = sqlx::query_scalar("SELECT count(*) FROM pg_listening_channels()")
+            .fetch_one(&mut *c)
+            .await
+            .unwrap();
+        assert_eq!(n, 1);
+    }
+    let mut c = b.acquire().await.unwrap();
+    let row = sqlx::query(Q).bind(1).fetch_one(&mut *c).await.unwrap();
+    assert_eq!(
+        row.get::<i32, _>("company"),
+        9252,
+        "bảng tạm của công ty trước không được che bảng thật"
+    );
+    let r = sqlx::query(
+        "SELECT to_regclass('pg_temp.k06_scratch') IS NULL AS gone,
+                (SELECT count(*) FROM pg_listening_channels()) AS listening",
+    )
+    .fetch_one(&mut *c)
+    .await
+    .unwrap();
+    assert!(r.get::<bool, _>("gone"));
+    assert_eq!(r.get::<i64, _>("listening"), 0);
+    // Statement cache vẫn còn (không DISCARD ALL): cùng câu Q chỉ một prepared statement.
+    let prepared: i64 = sqlx::query_scalar("SELECT count(*) FROM pg_prepared_statements WHERE statement = $1")
+        .bind(Q)
+        .fetch_one(&mut *c)
+        .await
+        .unwrap();
+    assert_eq!(prepared, 1);
+    drop(c);
+    db.close().await;
+    teardown(&[9251, 9252]).await;
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn cong_ty_khong_active_bi_tu_choi() {
+    setup(&[9261], &[], Some(LATEST_MIGRATION)).await;
+    let mut c = PgConnection::connect(&url()).await.unwrap();
+    sqlx::query("UPDATE platform.companies SET status = 'provisioning' WHERE id = 9261")
+        .execute(&mut c)
+        .await
+        .unwrap();
+    let db = Db::connect(&cfg(1)).await.unwrap();
+    match db.tenant(co(9261)).await {
+        Err(DbError::CompanyInactive { company: 9261, status }) => assert_eq!(status, "provisioning"),
+        other => panic!("{other:?}"),
+    }
+    sqlx::query("UPDATE platform.companies SET status = 'active' WHERE id = 9261")
+        .execute(&mut c)
+        .await
+        .unwrap();
+    db.tenant(co(9261)).await.unwrap();
+    db.close().await;
+    teardown(&[9261]).await;
+}

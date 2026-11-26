@@ -172,7 +172,7 @@ jobs:
       - name: cargo xtask lint
         if: needs.rust-changes.outputs.rust == 'true'
         working-directory: server
-        run: cargo xtask lint
+        run: cargo run --locked --quiet --package xtask -- lint
 
   rust-unit:
     name: Rust unit

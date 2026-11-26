@@ -1,6 +1,6 @@
 //! Test pg mẫu, cần Postgres thật nên mặc định bị bỏ qua (`#[ignore]`). Chạy có chủ đích:
 //! `TEST_DATABASE_URL=postgresql://localhost/trinity_<tên> cargo test -p trinity-db -- --ignored`.
-//! Job test pg trên CI được thêm ở K02 và chạy các test này bằng `--ignored`.
+//! Job `Rust pg tests` trên CI (docs/ci.md) chạy các test này bằng `--ignored`.
 
 use sqlx::postgres::PgPoolOptions;
 

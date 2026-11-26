@@ -91,7 +91,8 @@ git add .sqlx
 ```
 
 `.sqlx/` giữ một tệp mỗi truy vấn (tên theo hash câu SQL), nên các PR song song chỉ thêm tệp mới và rebase không xung
-đột. Tệp của truy vấn đã xoá được `prepare` dọn đi. Job pg trên CI kiểm lại `.sqlx/` không cũ (K02).
+đột. Tệp của truy vấn đã xoá được `prepare` dọn đi. Job `Rust pg tests` trên CI migrate một Postgres 16 bằng Prisma,
+chạy `cargo sqlx prepare --workspace --check` trên DB đó (không offline) rồi chạy mọi test `#[ignore]` bằng `--ignored`.
 
 ## Hàng đợi biên dịch chung
 

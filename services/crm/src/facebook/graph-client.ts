@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { observeGraph } from '../channel-guard/graph-observer';
-import { loadFacebookConfig } from './facebook.config';
+import { graphUrl, loadFacebookConfig } from './facebook.config';
 
 export class GraphApiError extends Error {
   constructor(
@@ -75,17 +75,18 @@ export class GraphClient {
     const { graphVersion } = loadFacebookConfig();
     const qs = new URLSearchParams();
     for (const [k, v] of Object.entries(query)) if (v !== undefined) qs.set(k, v);
-    const q = qs.toString();
-    return `https://graph.facebook.com/${graphVersion}/${path.replace(/^\//, '')}${q ? `?${q}` : ''}`;
+    return graphUrl(graphVersion, path, qs);
   }
 
   private async call<T>(method: 'GET' | 'POST', path: string, opts: { token?: string; query?: Query; body?: unknown; send?: boolean } = {}): Promise<T> {
     const headers: Record<string, string> = {};
     if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
     if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
+    // Dựng URL ngoài try: cấu hình địa chỉ gốc sai (vd http:// ở production) phải báo đúng lỗi, không thành "không kết nối được".
+    const url = this.url(path, opts.query);
     let res: Response;
     try {
-      res = await fetch(this.url(path, opts.query), {
+      res = await fetch(url, {
         method,
         headers,
         body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,

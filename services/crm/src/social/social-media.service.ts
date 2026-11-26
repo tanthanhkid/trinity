@@ -8,14 +8,14 @@ import type { AuthUser } from '@trinity/rbac-nest';
 import { SafeGetError, safeGetMedia } from '../integrations/common/safe-http-get';
 import { StorageService } from '../storage/storage.service';
 import type { LoadedMedia, SocialMedia } from './providers/provider.types';
-import { IMAGE_EXT_CONTENT_TYPE, MAX_IMAGE_BYTES, MAX_VIDEO_BYTES, VIDEO_EXT_CONTENT_TYPE } from './social.config';
+import { IMAGE_EXT_CONTENT_TYPE, MAX_IMAGE_BYTES, VIDEO_EXT_CONTENT_TYPE, maxVideoBytes } from './social.config';
 
 const KEY_RE = /^social\/u(\d+)_\d+_[a-z0-9]+(\.[a-z0-9]+)$/;
 
 function kindOf(fileName: string): { ext: string; type: 'image' | 'video'; content_type: string; max: number } {
   const ext = extname(fileName).toLowerCase();
   if (IMAGE_EXT_CONTENT_TYPE[ext]) return { ext, type: 'image', content_type: IMAGE_EXT_CONTENT_TYPE[ext], max: MAX_IMAGE_BYTES };
-  if (VIDEO_EXT_CONTENT_TYPE[ext]) return { ext, type: 'video', content_type: VIDEO_EXT_CONTENT_TYPE[ext], max: MAX_VIDEO_BYTES };
+  if (VIDEO_EXT_CONTENT_TYPE[ext]) return { ext, type: 'video', content_type: VIDEO_EXT_CONTENT_TYPE[ext], max: maxVideoBytes() };
   throw new BadRequestException('Chỉ nhận ảnh JPG/PNG/WebP/GIF hoặc video MP4/MOV/WebM.');
 }
 
@@ -226,7 +226,7 @@ export class SocialMediaService {
 
   /** Nạp nội dung tệp vào RAM để gửi lên mạng (trần theo loại). */
   async load(m: SocialMedia): Promise<LoadedMedia> {
-    const max = m.type === 'video' ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    const max = m.type === 'video' ? maxVideoBytes() : MAX_IMAGE_BYTES;
     const obj = await this.storage.getObjectStream(m.key);
     const chunks: Buffer[] = [];
     let total = 0;

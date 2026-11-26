@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ZALO_URLS } from './zalo-oa.config';
+import { zaloUrls } from './zalo-oa.config';
 import { ZaloApiError } from './zalo-oa.errors';
 
 export interface ZaloTokenSet {
@@ -49,7 +49,7 @@ export class ZaloOaApiClient {
   }
 
   private tokenRequest(appId: string, appSecret: string, form: Record<string, string>): Promise<ZaloTokenSet> {
-    return this.call(ZALO_URLS.token, {
+    return this.call(zaloUrls().token, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', secret_key: appSecret },
       body: new URLSearchParams({ app_id: appId, ...form }).toString(),
@@ -66,7 +66,7 @@ export class ZaloOaApiClient {
   }
 
   async sendText(accessToken: string, userId: string, text: string): Promise<{ msg_id: string | null }> {
-    const b = await this.call(`${ZALO_URLS.api}/message/cs`, {
+    const b = await this.call(`${zaloUrls().api}/message/cs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', access_token: accessToken },
       body: JSON.stringify({ recipient: { user_id: userId }, message: { text } }),
@@ -81,7 +81,7 @@ export class ZaloOaApiClient {
     const body: Json = { phone: p.phone, template_id: p.templateId, template_data: p.templateData };
     if (p.trackingId) body.tracking_id = p.trackingId;
     if (p.mode) body.mode = p.mode;
-    const b = await this.call(ZALO_URLS.zns, {
+    const b = await this.call(zaloUrls().zns, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', access_token: accessToken },
       body: JSON.stringify(body),
@@ -92,7 +92,7 @@ export class ZaloOaApiClient {
 
   async getProfile(accessToken: string, userId: string): Promise<ZaloUserProfile> {
     const q = encodeURIComponent(JSON.stringify({ user_id: userId }));
-    const b = await this.call(`${ZALO_URLS.api}/user/detail?data=${q}`, { method: 'GET', headers: { access_token: accessToken } });
+    const b = await this.call(`${zaloUrls().api}/user/detail?data=${q}`, { method: 'GET', headers: { access_token: accessToken } });
     const d = (b.data ?? {}) as Json;
     const shared = (d.shared_info ?? {}) as Json;
     return {

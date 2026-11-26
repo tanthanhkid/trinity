@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { observeGraph } from '../../channel-guard/graph-observer';
-import { loadFacebookConfig } from '../../facebook/facebook.config';
+import { graphUrl, loadFacebookConfig } from '../../facebook/facebook.config';
 import {
   SocialPostGoneError,
   SocialPublishError,
@@ -27,7 +27,8 @@ export interface GraphCallOptions {
   query?: Query;
   body?: unknown;
   form?: FormData;
-  host?: string;
+  /** Gọi qua host video của Graph (tải video theo phiên). */
+  video?: boolean;
 }
 interface GraphErrorBody {
   error?: { message?: string; code?: number; error_subcode?: number; is_transient?: boolean; error_user_msg?: string };
@@ -155,7 +156,6 @@ export class FacebookSocialProvider implements SocialProvider {
    * vài chục MB hay bị Facebook trả HTTP 408 khi đường lên chậm. Docs: https://developers.facebook.com/docs/video-api/guides/publishing
    */
   private async uploadVideo(page: string, token: string, body: Buffer, contentType: string, fields: Record<string, string>): Promise<string> {
-    const host = 'graph-video.facebook.com';
     const phase = (values: Record<string, string>, chunk?: Buffer) => {
       const form = new FormData();
       for (const [k, v] of Object.entries(values)) form.set(k, v);
@@ -164,7 +164,7 @@ export class FacebookSocialProvider implements SocialProvider {
     };
     const start = await this.call<{ upload_session_id: string; video_id: string; start_offset: string; end_offset: string }>('POST', `${page}/videos`, {
       token,
-      host,
+      video: true,
       form: phase({ upload_phase: 'start', file_size: String(body.length) }),
     });
     let from = Number(start.start_offset);
@@ -172,13 +172,13 @@ export class FacebookSocialProvider implements SocialProvider {
     while (from < to) {
       const r = await this.call<{ start_offset: string; end_offset: string }>('POST', `${page}/videos`, {
         token,
-        host,
+        video: true,
         form: phase({ upload_phase: 'transfer', upload_session_id: start.upload_session_id, start_offset: String(from) }, body.subarray(from, to)),
       });
       from = Number(r.start_offset);
       to = Number(r.end_offset);
     }
-    await this.call('POST', `${page}/videos`, { token, host, form: phase({ upload_phase: 'finish', upload_session_id: start.upload_session_id, ...fields }) });
+    await this.call('POST', `${page}/videos`, { token, video: true, form: phase({ upload_phase: 'finish', upload_session_id: start.upload_session_id, ...fields }) });
     return start.video_id;
   }
 
@@ -228,7 +228,7 @@ export async function graphCall<T>(
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(opts.query ?? {})) if (v !== undefined) qs.set(k, v);
   if (opts.token) qs.set('appsecret_proof', createHmac('sha256', c.appSecret).update(opts.token).digest('hex'));
-  const url = `https://${opts.host ?? 'graph.facebook.com'}/${c.graphVersion}/${path.replace(/^\//, '')}${qs.size ? `?${qs.toString()}` : ''}`;
+  const url = graphUrl(c.graphVersion, path, qs, { video: opts.video });
   const headers: Record<string, string> = {};
   if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
   let payload: FormData | string | undefined;

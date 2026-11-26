@@ -19,6 +19,9 @@ Note: the docs.zalo site is an SPA, so the full text cannot be read automaticall
 5. `INTEGRATIONS_SECRET_KEY` (32 byte base64) — tokens are stored encrypted; without it, connecting fails.
 6. The OA id + the OA admin clicks "Kết nối Zalo OA" ("Connect Zalo OA") under Connections (Kết nối) > Zalo OA.
 7. A ZNS template approved by Zalo (template_id + parameter names) and the OA's ZNS permission.
+8. Optional, for tests only: `ZALO_OAUTH_BASE_URL`, `ZALO_OPENAPI_BASE_URL`, `ZALO_ZNS_BASE_URL` replace the base URLs
+   (`https://oauth.zaloapp.com`, `https://openapi.zalo.me`, `https://business.openapi.zalo.me`) so calls go to a local fake
+   server; `http://` is refused in production.
 
 ## Access model
 The Zalo OA inbox is an organisation-wide shared inbox: anyone with `contacts.update` (and the `zalo_oa` organisation feature) can list and reply to every conversation, regardless of their own/team data scope on contacts. Grant `contacts.update` only to roles that should see all OA conversations.

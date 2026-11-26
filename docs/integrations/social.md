@@ -73,7 +73,12 @@ permissions as well, and every Page where `pages_manage_posts` was granted and y
   Connections shows whether posting is connected, removed or not connected (`posting`).
 
 ## Media
-- Images JPG/PNG/WebP/GIF ≤ 10 MB, video MP4/MOV/WebM ≤ 200 MB, up to 10 files per post.
+- Images JPG/PNG/WebP/GIF ≤ 10 MB, video MP4/MOV/WebM ≤ 200 MB, up to 10 files per post. The video limit is `SOCIAL_MAX_VIDEO_MB`
+  (default 200) and applies to multipart uploads, upload tokens, imports from a link (capped at 100 MB) and loading the file to publish;
+  an install behind the Cloudflare proxy (request body ≤ 100 MB) sets 95 so a larger file gets Trinity's "Tệp quá lớn (tối đa 95 MB)."
+  instead of Cloudflare's 413.
+- Graph API calls (posting, first comment, Fanpage inbox) are built in one place (`graphUrl` in `facebook.config.ts`);
+  `FACEBOOK_GRAPH_BASE_URL` points them, video uploads included, at another base URL, for tests against a local fake server.
 - Facebook: text only, 1 photo, up to 10 photos (album), or exactly 1 video (no mixing video with photos).
 - YouTube (and TikTok later): exactly 1 video.
 - Vercel: the browser uploads straight to Blob (`POST /social/media/upload-token`, then `POST /social/media/register`); elsewhere `POST /social/media` (multipart `file`).

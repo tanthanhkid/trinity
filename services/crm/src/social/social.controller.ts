@@ -1,4 +1,3 @@
-import * as os from 'node:os';
 import {
   BadRequestException,
   Body,
@@ -18,14 +17,11 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { diskStorage } from 'multer';
 import { Can, CurrentUser, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
 import { CreateSocialPostDto, SocialDraftDto, SocialDraftPublishDto, SocialQueueSlotsDto, SocialSnippetDto, GoogleReviewReplyDto, SocialRescheduleDto, SocialConnectDto, SocialMediaRegisterDto, SocialUploadTokenDto, SocialImportDto, SocialImportPlanDto, SocialRecurrenceDto } from './dto-social';
-import { MAX_VIDEO_BYTES } from './social.config';
 import { SocialAccountsService } from './social-accounts.service';
 import { SocialDraftsService } from './social-drafts.service';
 import { SocialImportService } from './social-import.service';
@@ -34,6 +30,7 @@ import { SocialPostsService } from './social-posts.service';
 import { SocialRecurrenceService } from './social-recurrence.service';
 import { SocialQueueService } from './social-queue.service';
 import { SocialSnippetsService } from './social-snippets.service';
+import { SocialUploadInterceptor } from './social-upload.interceptor';
 
 /**
  * Đăng đa kênh. `social.manage` = liên kết/gỡ kênh, gỡ bài khỏi mạng; `social.post` = soạn, hẹn giờ, xem lịch, huỷ, thử lại.
@@ -134,15 +131,7 @@ export class SocialController {
   @Can('social.post')
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Tải một ảnh/video (multipart, trường `file`) → khoá dùng trong media_keys' })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: os.tmpdir(),
-        filename: (_req, _file, cb) => cb(null, `social_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
-      }),
-      limits: { fileSize: MAX_VIDEO_BYTES },
-    }),
-  )
+  @UseInterceptors(SocialUploadInterceptor)
   upload(@UploadedFile() file: Express.Multer.File | undefined, @CurrentUser() user: AuthUser) {
     return this.media.uploadFile(user, file);
   }

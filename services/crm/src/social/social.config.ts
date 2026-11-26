@@ -54,7 +54,17 @@ export function truncatedAt(network: SocialNetwork, text: string): number | null
 
 /** Trần một tệp đính kèm. Vercel: tệp > 4,5 MB phải tải thẳng lên Blob (upload-token). */
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-export const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+/** Trần video mặc định (MB). Bản cài sau proxy Cloudflare (body ≤ 100 MB) đặt `SOCIAL_MAX_VIDEO_MB=95`. */
+export const DEFAULT_MAX_VIDEO_MB = 200;
+
+/**
+ * Trần một video đăng bài (byte) theo `SOCIAL_MAX_VIDEO_MB` — dùng cho cả tải multipart lẫn nhập từ link/đăng lên mạng.
+ * Đọc env mỗi lần gọi (không chốt lúc nạp module, khi `.env` có thể chưa nạp). Trống/sai ⇒ mặc định 200.
+ */
+export function maxVideoBytes(env: NodeJS.ProcessEnv = process.env): number {
+  const mb = Number((env.SOCIAL_MAX_VIDEO_MB ?? '').trim());
+  return (Number.isFinite(mb) && mb > 0 ? mb : DEFAULT_MAX_VIDEO_MB) * 1024 * 1024;
+}
 export const MAX_MEDIA_PER_POST = 10;
 
 export const IMAGE_EXT_CONTENT_TYPE: Record<string, string> = {

@@ -1,3 +1,4 @@
+import { apiBaseUrl } from '../common/helpers/api-base-url';
 import { publicBaseUrl } from '../integrations/oauth/oauth-config';
 
 /**
@@ -6,6 +7,25 @@ import { publicBaseUrl } from '../integrations/oauth/oauth-config';
  * - Webhooks Messenger: https://developers.facebook.com/docs/messenger-platform/webhooks
  */
 export const DEFAULT_GRAPH_VERSION = 'v25.0';
+
+export const DEFAULT_GRAPH_BASE_URL = 'https://graph.facebook.com';
+/** Tải video theo phiên đi qua host riêng của Graph. */
+export const DEFAULT_GRAPH_VIDEO_BASE_URL = 'https://graph-video.facebook.com';
+
+/**
+ * Dựng URL Graph API — chỗ DUY NHẤT (GraphClient, Đăng đa kênh, bình luận đầu tiên). `FACEBOOK_GRAPH_BASE_URL` đổi địa
+ * chỉ gốc (máy chủ giả khi test); khi đặt, cả lời gọi video cũng đi về đó. Không đặt ⇒ URL như cũ.
+ */
+export function graphUrl(
+  version: string,
+  path: string,
+  query?: URLSearchParams,
+  opts: { video?: boolean; env?: NodeJS.ProcessEnv } = {},
+): string {
+  const base = apiBaseUrl('FACEBOOK_GRAPH_BASE_URL', opts.video ? DEFAULT_GRAPH_VIDEO_BASE_URL : DEFAULT_GRAPH_BASE_URL, opts.env);
+  const q = query?.toString();
+  return `${base}/${version}/${path.replace(/^\//, '')}${q ? `?${q}` : ''}`;
+}
 
 /**
  * Quyền xin khi đăng nhập Facebook — đúng bộ của use case Messenger trên app Meta (cần App Review ở chế độ Live).

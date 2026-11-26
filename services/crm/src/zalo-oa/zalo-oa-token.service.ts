@@ -5,7 +5,7 @@ import type { ZaloOaConnection } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 import { decryptSecret, encryptSecret, loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { ZaloOaApiClient, type ZaloTokenSet } from './zalo-oa-api.client';
-import { OAUTH_STATE_TTL_MS, REFRESH_SKEW_MS, ZALO_URLS, isZaloOaConfigured, zaloOaConfig } from './zalo-oa.config';
+import { OAUTH_STATE_TTL_MS, REFRESH_SKEW_MS, zaloUrls, isZaloOaConfigured, zaloOaConfig } from './zalo-oa.config';
 import { ZaloApiError } from './zalo-oa.errors';
 
 const REFRESH_TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000; // Zalo: refresh token sống ~3 tháng
@@ -57,7 +57,7 @@ export class ZaloOaTokenService {
       code_challenge_method: 'S256',
       state,
     });
-    return { authorize_url: `${ZALO_URLS.permission}?${q.toString()}` };
+    return { authorize_url: `${zaloUrls().permission}?${q.toString()}` };
   }
 
   /** Callback: kiểm state (dùng một lần, còn hạn) → đổi code → lưu. Trả oa_id đã kết nối. */

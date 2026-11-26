@@ -38,6 +38,7 @@ import { buildScopedContactListWhere, MIN_MASKED_PHONE_SEARCH_DIGITS } from './h
 import { normalizePhone, phoneVariants } from '../google/sheet-mapping';
 import { RESTORE_WINDOW_MS } from '../common/helpers/restore-window';
 import { AuditService } from '../audit/audit.service';
+import { SampleRecordsService } from '../sample-records/sample-records.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { foldedIds } from '../common/helpers/fold-search.helper';
 
@@ -192,6 +193,7 @@ export class ContactsService {
     private readonly scope: ScopeService,
     private readonly permissionService: PermissionService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    @Optional() private readonly sampleRecords?: SampleRecordsService,
   ) {}
 
   /**
@@ -723,6 +725,8 @@ export class ContactsService {
       { maxWait: 10000, timeout: 10000 },
     );
     const { contact, deal: createdDeal } = result;
+    // Khách THẬT đầu tiên ⇒ xoá bản ghi mẫu của hệ thống mới dựng (không bao giờ làm hỏng việc tạo khách).
+    await this.sampleRecords?.purgeIfReal();
 
     if (createdDeal) {
       this.notificationsService

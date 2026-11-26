@@ -32,13 +32,13 @@ Most business software makes you learn its menus. Trinity flips that around: **y
 - **"How did the Q3 campaign do compared to Q2?"** Your assistant reads the data and answers with a chart.
 - **"Every morning, sync new orders from my Google Sheet."** Trinity builds a small add-on for it. The add-on runs in its own sandbox, so it can never break the main system.
 
-**Start lean, grow with you.** On first connect, your AI asks about your business, imports your Excel/Google Sheet, and builds the pipelines and screens you need. A core set (overview, customers, tasks, reports, inbox) is on; everything else is a switch in Settings › Features, and the menu only shows what is on. Your AI can turn features on for your industry.
+**Start lean, grow with you.** The first sign-in opens a short wizard: pick your type of business (education center, retail and services, clinic or spa, real estate, or Other), tick the modules you want, press *Build my system*, and the lists, screens and menu are ready, no AI needed. A few clearly fake sample records show you around and delete themselves when you add your first real customer or record. A core set (overview, customers, tasks, reports) is always on; everything else is a switch in Settings › Features, and the menu only shows what is on. Your AI assistant can still build or reshape the workspace (the `setup_build` and `propose_workspace` tools).
 
 **Built for Vietnamese businesses first.** Zalo, VietQR, Vietnamese UI and data formats work out of the box. Global CRMs don't cover these.
 
 ## How it works
 
-Trinity ships a built-in **[Model Context Protocol (MCP)](https://modelcontextprotocol.io) server** with OAuth login. In the app, *Bắt đầu* ("Get started") asks which assistant you use (ChatGPT, Claude, Claude Code, Antigravity, Gemini CLI, Cursor, Codex CLI, VS Code Copilot…) and copies one prompt: paste it and the assistant adds the server, signs you in and starts setting up. Any MCP-capable assistant connects to it and gets tools for records, pipelines, reports and add-ons, scoped by the connecting user's role. The server itself never calls an AI model and holds no AI API keys: the intelligence comes from the assistant you bring.
+Trinity ships a built-in **[Model Context Protocol (MCP)](https://modelcontextprotocol.io) server** with OAuth login. Connecting an assistant is optional: in the app, *Bắt đầu* ("Get started") asks which assistant you use (ChatGPT, Claude, Claude Code, Antigravity, Gemini CLI, Cursor, Codex CLI, VS Code Copilot…) and copies one prompt: paste it and the assistant adds the server and signs you in. Any MCP-capable assistant connects to it and gets tools for records, pipelines, reports and add-ons, scoped by the connecting user's role. The server itself never calls an AI model and holds no AI API keys: the intelligence comes from the assistant you bring.
 
 ```
 Your AI assistant (ChatGPT · Claude · Gemini · Cursor · OpenClaw …)
@@ -161,8 +161,8 @@ openssl rand -hex 32 | vercel env add SERVICE_SECRET production --sensitive
 openssl rand -hex 32 | vercel env add CRON_SECRET production --sensitive
 printf '%s' you@example.com | vercel env add SEED_ADMIN_EMAIL production
 printf '%s' 'a-long-password' | vercel env add SEED_ADMIN_PASSWORD production --sensitive
-printf true | vercel env add INTEGRATIONS_MCP_ENABLED production       # connect your AI assistant
-openssl rand -base64 32 | tr -d '\n' | vercel env add INTEGRATIONS_SECRET_KEY production --sensitive
+printf true | vercel env add INTEGRATIONS_MCP_ENABLED production       # optional: lets you connect an AI assistant
+openssl rand -base64 32 | tr -d '\n' | vercel env add INTEGRATIONS_SECRET_KEY production --sensitive   # optional, with the line above
 vercel deploy --prod
 ```
 
@@ -175,7 +175,7 @@ Tried on a fresh Vercel account (2026-10-15): about 4 minutes from clone to sign
 Then open the production URL and sign in with the admin account above. Notes:
 
 - The first admin is only created when it does not exist yet; redeploying never overwrites a password.
-- A new workspace starts empty on purpose: the sidebar only shows *AI activity* and *Settings* until your AI assistant builds the workspace from the *Bắt đầu* ("Get started") screen. After that the core set is on and everything else is a switch in Settings → *Tính năng* ("Features"); Zalo OA, for example, answers 403 until its switch is on. Settings is grouped in the Vietnamese UI as *Tính năng & Kết nối* (features & connections), *Khách hàng* (customer lists), *Công ty & Nhân sự* (users, roles, teams) and *Cá nhân* (profile, notifications); a section only shows when its feature is on.
+- A new workspace starts empty on purpose: the first sign-in goes through the start wizard (type of business, modules, *Build my system*, first customer) before the app opens. Anyone whose account is created after the workspace was built goes straight into the app. After the build the core set is on and everything else is a switch in Settings → *Tính năng* ("Features"); Zalo OA, for example, answers 403 until its switch is on. Settings is grouped in the Vietnamese UI as *Tính năng & Kết nối* (features & connections), *Khách hàng* (customer lists), *Công ty & Nhân sự* (users, roles, teams) and *Cá nhân* (profile, notifications); a section only shows when its feature is on.
 - The interface is currently **Vietnamese only**. Your data and the AI tools work in any language.
 - Vercel runs the API inside the Next.js app (one function, 60 s limit). Uploaded files need object storage: set `STORAGE_DRIVER=vercel-blob` with a Vercel Blob token, or an S3-compatible driver (see `.env.example`). Notifications use polling instead of WebSockets. Add-ons (Deno sandbox, the "Extensions" page) and Redis-backed features need a long-running server, so use Option 2 for them.
 

@@ -27,7 +27,8 @@ describe("AiAssistantsHub", () => {
     const { container } = render(<AiAssistantsHub state="ready" rows={[]} showOwner={false} doneToday={null} now={NOW} />)
     const invite = screen.getByTestId("hub-ai-invite")
     expect(within(invite).getByRole("link", { name: /Kết nối trợ lý AI/ })).toHaveAttribute("href", CONNECT_AI_HREF)
-    expect(invite.querySelectorAll("ol li")).toHaveLength(3)
+    expect(invite.textContent).toMatch(/tuỳ chọn/)
+    expect(within(invite).getByRole("button", { name: /Ẩn gợi ý/ })).toBeTruthy()
     expect(container.textContent).not.toMatch(/MCP/)
   })
 

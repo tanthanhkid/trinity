@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma, type CustomRecord } from '@prisma/client';
 import { PrismaService, publishIntegrationEvent } from '@trinity/prisma';
 import { can } from '@trinity/rbac';
@@ -10,6 +10,7 @@ import { RecordPresenter, type RecordView } from './record-presenter.service';
 import { RecordValidator } from './record-validator.service';
 import type { CustomRecordBodyDto } from './dto/custom-record.dto';
 import { linkingFields, RecordLinksService } from './refs/record-links.service';
+import { SampleRecordsService } from '../sample-records/sample-records.service';
 
 const LOCK_NS = 7373;
 export interface MinimalRecord { id: number }
@@ -24,6 +25,7 @@ export class CustomRecordsService {
     private readonly validator: RecordValidator,
     private readonly presenter: RecordPresenter,
     private readonly links: RecordLinksService,
+    @Optional() private readonly sampleRecords?: SampleRecordsService,
   ) {}
 
   async create(user: AuthUser, key: string, dto: CustomRecordBodyDto): Promise<RecordView | MinimalRecord> {
@@ -43,6 +45,8 @@ export class CustomRecordsService {
       await this.links.sync(tx, { type: 'record', id: r.id }, targets, user.userId);
       return r;
     });
+    // Bản ghi THẬT đầu tiên ⇒ xoá bản ghi mẫu của hệ thống mới dựng (không bao giờ làm hỏng việc tạo).
+    await this.sampleRecords?.purgeIfReal();
     return this.respond(def, user, row);
   }
 

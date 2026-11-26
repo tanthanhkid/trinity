@@ -47,6 +47,17 @@ pnpm --filter @trinity/monolith build && pnpm --filter @trinity/monolith start
 pnpm --filter web dev
 ```
 
+## First sign-in: the start wizard
+
+A fresh system opens a short full-screen wizard (no AI assistant needed):
+
+1. **Type of business**: education center, retail and services, clinic/spa/vet, real estate, or *Other* (basic CRM). Each of the first four loads the matching custom-object template.
+2. **Modules**: switches ticked for your type (the core set is locked on); add or remove any, then press **Build my system**. This saves the feature switches, applies the template, adds 2–3 clearly fake **sample records** and marks the system built. Running it again is safe (existing tables are kept, no new samples).
+3. **First customer**: add one with the short form (or skip). Sample records delete themselves as soon as the first real customer or custom record exists, whether it was created in the UI, through the API or by an AI assistant. The ids of the samples live in the setting row `sample_records`, which is removed after the cleanup.
+4. **Channels and first post**: only when the server has social networks configured; both can be skipped.
+
+Accounts created after the system was built skip the wizard. The same build is available as `POST /api/v1/setup/build` (`{"industry": "education_center", "features": ["payments"]}`) and as the MCP tool `setup_build`. Connecting an AI assistant stays optional (Settings › Connections & AI).
+
 ## Useful commands
 
 | Command | Purpose |

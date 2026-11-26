@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@trinity/prisma';
 import { trackProductEvent } from '@trinity/logger';
@@ -9,6 +9,7 @@ import { validateFormula } from './field-definition';
 import { LIMITS, type FieldDef, type RecordData } from './field-types';
 import { normalizeOptions, normalizeValue } from './field-values';
 import { titleOf } from './record-events';
+import { SampleRecordsService } from '../sample-records/sample-records.service';
 import { findTemplate, CUSTOM_OBJECT_TEMPLATES, type CustomObjectTemplate, type TemplateField, type TemplateObject } from './templates';
 
 const LOCK_NS = 7374;
@@ -17,6 +18,17 @@ export interface ApplyTemplateResult {
   created: string[];
   existing: string[];
   sample_records: number;
+}
+
+/**
+ * Tuỳ chọn dùng khi DỰNG HỆ THỐNG từ wizard: chỉ sinh mẫu cho `sampleObjects` thực thể đầu của mẫu (vài bản ghi, đủ xem thử)
+ * và ghi id vào danh sách bản ghi mẫu để tự xoá khi có bản ghi thật đầu tiên.
+ */
+export interface ApplyTemplateOptions {
+  sampleObjects?: number;
+  trackSamples?: boolean;
+  /** Chạy TRONG cùng transaction với việc tạo bảng (hỏng ở đây thì bảng cũng rollback, thử lại được). */
+  after?: (tx: Prisma.TransactionClient, result: ApplyTemplateResult) => Promise<void>;
 }
 
 const vnToday = (): string => new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
@@ -31,7 +43,10 @@ const vnToday = (): string => new Date(Date.now() + 7 * 3_600_000).toISOString()
 export class CustomObjectTemplatesService {
   private readonly logger = new Logger(CustomObjectTemplatesService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly sampleRecords?: SampleRecordsService,
+  ) {}
 
   async list() {
     const live = await this.prisma.customObject.findMany({ where: { deleted_at: null }, select: { key: true } });
@@ -44,7 +59,7 @@ export class CustomObjectTemplatesService {
     }));
   }
 
-  async apply(user: AuthUser, templateKey: string, withSampleData: boolean): Promise<ApplyTemplateResult> {
+  async apply(user: AuthUser, templateKey: string, withSampleData: boolean, opts: ApplyTemplateOptions = {}): Promise<ApplyTemplateResult> {
     const tpl = findTemplate(templateKey);
     if (!tpl) throw new NotFoundException('Không tìm thấy mẫu này');
     if (withSampleData && !can(user.grants, 'custom_records.manage')) {
@@ -52,7 +67,7 @@ export class CustomObjectTemplatesService {
     }
     for (const o of tpl.objects) this.assertTemplateValid(o);
     const result = await this.prisma
-      .$transaction((tx) => this.applyInTx(tx, user, tpl, withSampleData), { timeout: 60_000, maxWait: 10_000 })
+      .$transaction((tx) => this.applyInTx(tx, user, tpl, withSampleData, opts), { timeout: 60_000, maxWait: 10_000 })
       .catch((e: unknown) => {
         // Có người vừa tạo thực thể trùng mã giữa lúc đọc và ghi (tạo thủ công không dùng chung khoá) → báo thử lại, không 500.
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('Vừa có người tạo tính năng trùng mã. Hãy thử áp mẫu lại.');
@@ -63,7 +78,7 @@ export class CustomObjectTemplatesService {
     return result;
   }
 
-  private async applyInTx(tx: Prisma.TransactionClient, user: AuthUser, tpl: CustomObjectTemplate, withSamples: boolean): Promise<ApplyTemplateResult> {
+  private async applyInTx(tx: Prisma.TransactionClient, user: AuthUser, tpl: CustomObjectTemplate, withSamples: boolean, opts: ApplyTemplateOptions): Promise<ApplyTemplateResult> {
     await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(${LOCK_NS}::int, 1)`);
     const live = await tx.customObject.findMany({ where: { deleted_at: null }, select: { id: true, key: true, nav_order: true } });
     const ids = new Map(live.map((o) => [o.key, o.id]));
@@ -79,8 +94,16 @@ export class CustomObjectTemplatesService {
     const defs = new Map<string, FieldDef[]>();
     for (const o of toCreate) defs.set(o.key, await this.createFields(tx, ids, o));
     let samples = 0;
-    if (withSamples && toCreate.length > 0) samples = await this.seedSamples(tx, user, tpl, new Set(toCreate.map((o) => o.key)), defs);
-    return { created: toCreate.map((o) => o.key), existing: tpl.objects.filter((o) => !toCreate.includes(o)).map((o) => o.key), sample_records: samples };
+    if (withSamples && toCreate.length > 0) {
+      // Chọn trong các thực thể MỚI tạo (không theo thứ tự thô của mẫu): thực thể đầu của mẫu đã có sẵn thì lấy thực thể mới kế tiếp.
+      const only = opts.sampleObjects ? new Set(toCreate.slice(0, opts.sampleObjects).map((o) => o.key)) : null;
+      const seeded = await this.seedSamples(tx, user, tpl, new Set(toCreate.map((o) => o.key)), defs, only);
+      samples = seeded.length;
+      if (opts.trackSamples && this.sampleRecords && seeded.length) await this.sampleRecords.register(tx, { records: seeded }, user.userId);
+    }
+    const result = { created: toCreate.map((o) => o.key), existing: tpl.objects.filter((o) => !toCreate.includes(o)).map((o) => o.key), sample_records: samples };
+    if (opts.after) await opts.after(tx, result);
+    return result;
   }
 
   private async createFields(tx: Prisma.TransactionClient, ids: Map<string, number>, obj: TemplateObject): Promise<FieldDef[]> {
@@ -135,13 +158,13 @@ export class CustomObjectTemplatesService {
     return ok;
   }
 
-  private async seedSamples(tx: Prisma.TransactionClient, user: AuthUser, tpl: CustomObjectTemplate, created: Set<string>, defs: Map<string, FieldDef[]>): Promise<number> {
+  private async seedSamples(tx: Prisma.TransactionClient, user: AuthUser, tpl: CustomObjectTemplate, created: Set<string>, defs: Map<string, FieldDef[]>, only: Set<string> | null = null): Promise<number[]> {
     const createdIds = new Map<string, number[]>();
     const seedable = this.seedableObjects(tpl, created);
     const objectIds = new Map((await tx.customObject.findMany({ where: { key: { in: [...created] }, deleted_at: null }, select: { id: true, key: true } })).map((o) => [o.key, o.id]));
-    let n = 0;
+    const made: number[] = [];
     for (const s of tpl.samples(vnToday())) {
-      if (!seedable.has(s.object)) continue;
+      if (!seedable.has(s.object) || (only && !only.has(s.object))) continue;
       const fields = defs.get(s.object) as FieldDef[];
       const data: RecordData = {};
       for (const [k, v] of Object.entries(s.data)) data[k] = normalizeValue(fields.find((f) => f.key === k) as FieldDef, v);
@@ -157,8 +180,8 @@ export class CustomObjectTemplatesService {
         data: { object_id: objectIds.get(s.object) as number, data: data as Prisma.InputJsonValue, title: titleOf({ obj: {} as never, fields }, data), owner_id: user.userId, created_by: user.userId },
       });
       createdIds.set(s.object, [...(createdIds.get(s.object) ?? []), row.id]);
-      n++;
+      made.push(row.id);
     }
-    return n;
+    return made;
   }
 }

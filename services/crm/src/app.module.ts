@@ -35,6 +35,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { BriefingsModule } from './briefings/briefings.module';
 import { RedisModule } from './common/redis.module';
+import { SampleRecordsModule } from './sample-records/sample-records.module';
 import { HealthController } from './health/health.controller';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
@@ -49,6 +50,7 @@ import { SecurityHeadersMiddleware } from './common/middleware/security-headers.
     PrismaModule, // Global — PrismaService available everywhere
     StorageModule, // Global — MinIO S3 storage
     RedisModule, // Global — REDIS_CLIENT token
+    SampleRecordsModule, // Global — bản ghi mẫu của hệ thống mới dựng
     ElkLoggerModule.forRoot({ service: 'crm' }),
     TelemetryModule,
     ContactsModule,

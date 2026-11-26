@@ -16,6 +16,7 @@ import type { LeadScoringService } from '../../../lead-scoring/lead-scoring.serv
 import type { LeadIntentService } from '../../../lead-scoring/lead-intent.service';
 import type { McpPrincipal } from '../mcp-auth.service';
 import type { SetupStatusService } from '../../../setup/setup-status.service';
+import type { SetupBuildService } from '../../../setup/setup-build.service';
 import type { OrgFeaturesService } from '../../../settings/org-features.service';
 import type { SchemaVersionsService } from '../../../custom-objects/schema-versions.service';
 import type { z as ZType } from 'zod';
@@ -61,6 +62,8 @@ export interface McpDeps {
   /** trạng thái dựng quy trình + tính năng đang bật (get_setup_guide, complete_setup). */
   setup: SetupStatusService;
   orgFeatures: OrgFeaturesService;
+  /** Dựng hệ thống theo loại doanh nghiệp + phân hệ (setup_build); chỉ có khi OnboardingModule được nối. */
+  setupBuild?: SetupBuildService;
   /** phiên bản cấu trúc (list_structure_versions). */
   versions: SchemaVersionsService;
   /** Mã chung: tra mã (HS001) / tên → bản ghi theo quyền xem (find_by_code, get_record theo mã). */

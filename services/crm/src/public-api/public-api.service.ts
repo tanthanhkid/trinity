@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import {
   PrismaService,
@@ -13,6 +14,7 @@ import type { Prisma } from '@prisma/client';
 import { PublicCreateContactDto } from './dto/public-create-contact.dto';
 import type { ValidatedApiKey } from './api-key.guard';
 import { normalizePhone, phoneVariants } from '../google/sheet-mapping';
+import { SampleRecordsService } from '../sample-records/sample-records.service';
 
 /**
  * Business logic cho endpoint `/public/*` — tạo contact qua API key.
@@ -27,7 +29,10 @@ import { normalizePhone, phoneVariants } from '../google/sheet-mapping';
 export class PublicApiService {
   private readonly logger = new Logger(PublicApiService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly sampleRecords?: SampleRecordsService,
+  ) {}
 
   async createContact(
     dto: PublicCreateContactDto,
@@ -73,6 +78,7 @@ export class PublicApiService {
       };
     });
 
+    await this.sampleRecords?.purgeIfReal();
     this.logger.log(
       `PublicApi contact created id=${contact.id} api_key=${apiKey.id} owner=${owner.id} had_duplicate=${existingDup !== null}`,
     );

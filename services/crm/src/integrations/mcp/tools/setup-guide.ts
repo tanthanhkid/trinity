@@ -13,6 +13,7 @@ export const SETUP_INTERVIEW: readonly { topic: string; ask: string; why: string
 
 export const SETUP_STEPS: readonly string[] = [
   '1. Hỏi từng câu trong interview, MỘT câu mỗi lượt, bằng tiếng Việt dễ hiểu; tóm tắt lại và hỏi khách xác nhận.',
+  '1b. Khách chỉ cần hệ thống gần với một ngành có sẵn (giáo dục, bất động sản, bán lẻ và dịch vụ, phòng khám, khác) thì gọi setup_build {industry, features?} — dựng đủ trong một lần, không cần propose_workspace.',
   '2. Có thể gọi list_object_templates để tham khảo mẫu ngành, nhưng dựng theo đúng lời khách.',
   '2b. TRA VAI TRÒ TRƯỚC: get_setup_guide.current.roles là các vai trò CÓ THẬT trong hệ thống. Chỉ dùng đúng tên đó cho menu.roles; vai trò khách nói mà chưa có (vd "Lễ tân") thì hỏi khách: bỏ trống (mọi người thấy) hoặc nhờ quản trị viên tạo ở Cài đặt › Vai trò rồi mới dựng.',
   '3. Gọi propose_workspace MỘT lần: objects (bảng + trường; bước quy trình = trường select có choices theo thứ tự), views (kanban group_by = trường trạng thái), menu, features (module có sẵn cần bật). Gói được dựng ngay theo quyền của khách. (Chỉ khi workspace bật "Yêu cầu duyệt thay đổi do AI": báo khách vào mục "Hoạt động AI" trong Trinity để duyệt.)',

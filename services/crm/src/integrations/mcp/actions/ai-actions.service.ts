@@ -22,6 +22,7 @@ import { CustomViewsService } from '../../../custom-objects/custom-views.service
 import { CustomMenuService } from '../../../custom-objects/custom-menu.service';
 import { OrgFeaturesService } from '../../../settings/org-features.service';
 import { SetupStatusService } from '../../../setup/setup-status.service';
+import { SetupBuildService } from '../../../setup/setup-build.service';
 import { SchemaVersionsService } from '../../../custom-objects/schema-versions.service';
 import type { Impact } from './impact';
 import { DealsService } from '../../../deals/deals.service';
@@ -40,7 +41,7 @@ import { inClientRegistry } from '../../oauth/oauth-clients.service';
 
 const ADVISORY_NS = 347;
 /** Thao tác đổi cấu trúc ⇒ lưu phiên bản cấu trúc trước khi chạy. */
-const STRUCTURE_TOOLS = new Set(['create_objects', 'create_object', 'update_object', 'add_field', 'update_field', 'archive_field', 'install_object_template', 'propose_workspace', 'create_view', 'update_view', 'set_menu', 'restore_structure_version']);
+const STRUCTURE_TOOLS = new Set(['create_objects', 'create_object', 'update_object', 'add_field', 'update_field', 'archive_field', 'install_object_template', 'setup_build', 'propose_workspace', 'create_view', 'update_view', 'set_menu', 'restore_structure_version']);
 const norm = (s: string | null | undefined): string => String(s ?? '').normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase();
 const NOTIFY_EVENT = 'ai_action.created';
 
@@ -104,9 +105,10 @@ export class AiActionsService {
     @Optional() socialSnippets?: SocialSnippetsService,
     @Optional() socialImport?: SocialImportService,
     @Optional() socialRecurrence?: SocialRecurrenceService,
+    @Optional() setupBuild?: SetupBuildService,
   ) {
     const social = socialPosts && socialAccounts && socialDrafts && socialQueue && socialSnippets && socialImport && socialRecurrence ? { posts: socialPosts, accounts: socialAccounts, drafts: socialDrafts, queue: socialQueue, snippets: socialSnippets, importer: socialImport, recurrences: socialRecurrence } : undefined;
-    this.deps = { prisma, scope, contacts, cards, activities, transfer, records, validator, deals, objects, fields, templates, views, menu, orgFeatures, setup, versions, refs, links, social };
+    this.deps = { prisma, scope, contacts, cards, activities, transfer, records, validator, deals, objects, fields, templates, views, menu, orgFeatures, setup, setupBuild, versions, refs, links, social };
   }
 
   reviewUrl(id?: number): string {

@@ -1,14 +1,13 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { AlertTriangle, Bot, FileSpreadsheet, History, Webhook } from "lucide-react"
+import { AlertTriangle, Bot, History, Webhook } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { BrandKey } from "@/lib/brand-logos"
 import { ConnectionGroup, ConnectionLogo, ConnectionRow, StatusPill, type ConnectionTone } from "@/components/ui/connection-row"
 import { STATUS_LABEL } from "@/components/ui/status-tag"
 import { useFacebookPages, useFacebookStatus } from "./use-facebook"
 import { useZaloOaStatus } from "./zalo-oa/use-zalo-oa"
-import { useGoogleStatus } from "./use-google-sheets"
 import { useAiConnections } from "./use-ai-connections"
 import { useInboundSources, useWebhookEndpoints } from "./use-webhooks"
 import { useConnectors } from "./payments/use-payments"
@@ -93,23 +92,6 @@ function ZaloRow({ open }: { open: Open }) {
           : { tone: "off", label: "Chưa kết nối" }
   }
   return <Row section="zalo-oa" open={open} logo={<ConnectionLogo brand="zalo" color="#0068FF" text="Z" />} title="Zalo Official Account" description="Hộp thư Zalo OA và thông báo ZNS" state={state} />
-}
-
-function GoogleRow({ open }: { open: Open }) {
-  const s = useGoogleStatus()
-  let state: RowState | null = null
-  if (s.isError) state = { tone: "warning", label: "Không đọc được trạng thái" }
-  else if (s.data) {
-    const c = s.data.connection
-    state = !s.data.configured
-      ? { tone: "off", label: "Máy chủ chưa cấu hình" }
-      : c && c.status === "active"
-        ? { tone: "connected", label: "Đã kết nối", detail: c.email ?? undefined }
-        : c
-          ? { tone: "warning", label: STATUS_LABEL.reauth }
-          : { tone: "off", label: "Chưa kết nối" }
-  }
-  return <Row section="google-sheets" open={open} logo={<ConnectionLogo brand="google_sheets" color="#0F9D58" icon={<FileSpreadsheet />} />} title="Google Sheets" description="Đồng bộ khách từ bảng tính" state={state} />
 }
 
 function AiRow({ open, enabled }: { open: Open; enabled: boolean | undefined }) {
@@ -215,7 +197,7 @@ export function IntegrationsOverview({ visible, status, statusError, open, audit
   const hooks = status?.webhooks_enabled
   const mcp = status?.mcp_enabled
   const channels = visible.has("facebook") || visible.has("zalo-oa")
-  const data = visible.has("google-sheets") || visible.has("webhook-out") || visible.has("webhook-in")
+  const data = visible.has("webhook-out") || visible.has("webhook-in")
   return (
     <div className="flex flex-col gap-6">
       {statusError && (
@@ -253,7 +235,6 @@ export function IntegrationsOverview({ visible, status, statusError, open, audit
       )}
       {data && (
         <ConnectionGroup label="Dữ liệu và tự động hoá">
-          {visible.has("google-sheets") && <GoogleRow open={open} />}
           {visible.has("webhook-out") && <WebhookOutRow open={open} enabled={hooks} />}
           {visible.has("webhook-in") && <WebhookInRow open={open} enabled={hooks} />}
           {auditVisible && (

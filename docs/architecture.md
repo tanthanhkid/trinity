@@ -12,7 +12,7 @@ browser ──► web (Next.js :3000) ──/api/v1/*──► api (NestJS monol
 | `apps/web` | Next.js UI. Proxies `/api/v1/*` to the monolith. |
 | `apps/monolith` | Single NestJS process that mounts the five domain services below; shared bootstrap (CORS, validation, RBAC boot check, Swagger). |
 | `services/auth` | Login, users, roles/permissions administration, API keys. |
-| `services/crm` | Contacts, deals, kanban, custom objects, reports, attendance, integrations (webhooks, MCP/OAuth, Google Sheets, Facebook, Zalo OA). |
+| `services/crm` | Contacts, deals, kanban, custom objects, reports, attendance, integrations (webhooks, MCP/OAuth, Facebook, Zalo OA). |
 | `services/commerce` | Products, product categories and attributes, POS, projects. |
 | `services/payroll` | Employees' payroll: salary rules, KPI, payslips. |
 | `services/notification` | In-app/real-time notifications. |

@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException, Optional } 
 import type { FacebookFlow, FacebookFlowRun } from '@prisma/client';
 import { Prisma, PrismaService, currentCompanyId } from '@trinity/prisma';
 import { publishMessengerEvent } from './facebook-events';
-import { runInBackground } from '@trinity/rbac-nest';
+import { runInBackground, ownership } from '@trinity/rbac-nest';
 import { isWithinMessagingWindow } from './channel';
 import { fillTemplate, matchesKeywords } from './facebook-comments.service';
 import { findVnPhone, MAX_TEXT, referralRef, type MessagingEvent } from './facebook-messenger.service';
@@ -417,6 +417,7 @@ export class FacebookFlowsService {
   }
 
   async kickIfDue(now = Date.now()): Promise<{ due: boolean }> {
+    if (!ownership.nodeRunsJob('facebook.flows')) return { due: false }; // T01: job đã giao cho Rust
     const company = currentCompanyId() ?? 0;
     if (this.running.has(company) || now - (this.lastDueCheck.get(company) ?? 0) < 20_000) return { due: false };
     this.lastDueCheck.set(company, now);
@@ -432,6 +433,7 @@ export class FacebookFlowsService {
 
   /** Job: gửi các bước đã tới giờ. Trả số lượt đã xử lý. */
   async runDue(budgetMs = 40_000): Promise<{ processed: number }> {
+    if (!ownership.nodeRunsJob('facebook.flows')) return { processed: 0 }; // T01
     const until = Date.now() + budgetMs;
     let processed = 0;
     while (Date.now() < until) {

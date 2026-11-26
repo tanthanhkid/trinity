@@ -5,14 +5,15 @@ Trong giai đoạn lai, mỗi job nền chỉ có một chủ (`rust` hoặc `no
 
 Phía Node (`packages/rbac-nest/src/ownership.ts`):
 
-- Đọc lại tệp ở **đầu mỗi lượt tick** (so thời điểm sửa, kích thước, inode nên đổi tên nguyên tử cũng nhận ra); không cần
-  khởi động lại. Job ghi `rust` thì Node bỏ lượt (lượt đang chạy dở chạy nốt); không ghi hoặc ghi `node` thì Node chạy.
-- Phạm vi: mọi timer qua `tenantTimerTick` (tham số `jobName`, 11 job của `cronRegistry`: `integrations.webhook-dispatch`,
-  `facebook.flows`, `facebook.broadcasts`, `social.publish`, `social.metrics`, `briefings.run-due`, `lead-scoring.run`,
-  `stale-work.digest`, `integrations.ai-action-expiry`, `integrations.outbox-purge`, `integrations.oauth-purge`),
-  `@Cron` của `notification.scheduled`, và migrate nền lúc boot (`migrate: rust` thì Node không chạy
-  `migrateAllCompanies`; chỉ đọc một lần lúc boot vì bước này chỉ chạy một lần).
-- Tệp hỏng hoặc không đọc được: giữ bảng đang dùng và ghi lỗi một lần cho mỗi phiên bản tệp; chưa có bảng nào thì mọi thứ
-  thuộc Node. Khoá lạ, chủ khác `rust|node`, tên job có khoảng trắng đầu/cuối bị từ chối như bộ đọc Rust. Khác biệt:
-  bộ đọc TS không bắt khoá `jobs` trùng và không kiểm sâu `routes` (Rust từ chối cả tệp).
+- Đọc lại tệp ở **đầu mỗi lượt tick** và so **nội dung** (tệp nhỏ; không dựa vào mtime/kích thước/inode). Job ghi `rust`
+  thì Node bỏ lượt (lượt đang chạy dở chạy nốt); không ghi hoặc ghi `node` thì Node chạy.
+- Phạm vi: mọi timer qua `tenantTimerTick` (tham số `jobName`, 11 job của `cronRegistry`), `@Cron` của
+  `notification.scheduled`, migrate nền lúc boot (`migrate: rust` thì Node không chạy `migrateAllCompanies`), và mọi
+  đường vào tay của ba job có `kick`: `kickIfDue`/`kick`/`runDue` của `social-posts` (`social.publish`),
+  `facebook-flows` (`facebook.flows`), `facebook-broadcasts` (`facebook.broadcasts`), nên controller tick cũng nhả.
+- Luật kiểm như bộ đọc Rust: khoá lạ hoặc trùng ở mọi cấp, chủ khác `rust|node`, tên job có khoảng trắng đầu/cuối, route
+  đủ `prefix` hợp lệ, `methods` hợp lệ (GET gồm HEAD), `owner`, và không xung đột tiền tố + phương thức. Tệp sai là hỏng cả tệp.
+- Tệp hỏng giữa chừng: giữ bảng đang dùng, ghi lỗi một lần cho mỗi phiên bản tệp. Đã đặt `TRINITY_OWNERSHIP_FILE` mà tệp
+  hỏng hoặc thiếu **lúc khởi động**: monolith từ chối khởi động (`assertOwnershipLoadable` trong `configureApp`); nếu vẫn
+  chạy thì Node bỏ mọi job và migrate cho tới khi tệp hợp lệ, không rơi về "mọi thứ thuộc Node" (sẽ chạy trùng với Rust).
 - Không có khoá chéo tiến trình ở Node: hai bên cùng đọc một tệp nên mỗi job chỉ một bên chạy.

@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, HttpException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService, publishIntegrationEvent, tenantKey, currentCompanyId } from '@trinity/prisma';
 import { trackProductEvent } from '@trinity/logger';
-import { runInBackground, type AuthUser } from '@trinity/rbac-nest';
+import { runInBackground, type AuthUser, ownership } from '@trinity/rbac-nest';
 import type { Prisma, SocialPost, SocialPostTarget } from '@prisma/client';
 import { ChannelGuardService } from '../channel-guard/channel-guard.service';
 import { SocialProviderRegistry } from './providers/provider.registry';
@@ -558,6 +558,7 @@ export class SocialPostsService {
   }
 
   async kickIfDue(now = Date.now()): Promise<{ due: boolean }> {
+    if (!ownership.nodeRunsJob('social.publish')) return { due: false }; // T01: job đã giao cho Rust
     const company = currentCompanyId() ?? 0;
     if (this.running.has(company) || now - (this.lastDueCheck.get(company) ?? 0) < 20_000) return { due: false };
     this.lastDueCheck.set(company, now);
@@ -572,6 +573,7 @@ export class SocialPostsService {
 
   /** Đăng ngay sau request (chạy nền). */
   kick(): void {
+    if (!ownership.nodeRunsJob('social.publish')) return; // T01
     runInBackground(
       () => this.runDue(40_000),
       (err) => this.logger.error(`Đăng bài nền lỗi: ${(err as Error)?.message}`),
@@ -584,6 +586,7 @@ export class SocialPostsService {
    */
   async runDue(budgetMs: number): Promise<{ published: number; failed: number; retry: number; stale: number }> {
     const out = { published: 0, failed: 0, retry: 0, stale: 0 };
+    if (!ownership.nodeRunsJob('social.publish')) return out; // T01
     const company = currentCompanyId() ?? 0;
     if (this.running.has(company)) return out;
     this.running.add(company);

@@ -5,7 +5,7 @@ import * as path from 'node:path'
 import { requestPathMiddleware } from './request-path.context'
 import { ServiceAwareValidationPipe } from './service-aware-validation.pipe'
 import { LoggingInterceptor, ElkExceptionFilter } from '@trinity/logger'
-import { auditRoutes, clientIpMiddleware, ownership } from '@trinity/rbac-nest'
+import { auditRoutes, assertOwnershipLoadable, clientIpMiddleware, ownership } from '@trinity/rbac-nest'
 import { ensurePlatform, isMultiTenant, migrateAllCompanies, runInTenantScope } from '@trinity/prisma'
 
 // BigInt không serialize được mặc định trong JSON (cùng cách làm ở entrypoint của các service)
@@ -64,6 +64,8 @@ export async function configureApp(
   app: NestExpressApplication,
   opts: ConfigureAppOptions,
 ): Promise<void> {
+  // T01: đã đặt TRINITY_OWNERSHIP_FILE mà tệp hỏng/thiếu ⇒ từ chối khởi động (không rơi về "mọi thứ thuộc Node").
+  assertOwnershipLoadable()
   // PHẢI đứng trước mọi middleware khác — pipe đọc đường dẫn từ đây.
   app.use(requestPathMiddleware)
   // IP của khách: xác định (và kiểm chữ ký `x-trinity-client-ip`) NGAY khi nhận header — trước body-parser và multer, để

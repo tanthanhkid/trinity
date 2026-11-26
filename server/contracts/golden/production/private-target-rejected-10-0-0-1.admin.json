@@ -2,7 +2,7 @@
   "status": 400,
   "body": {
     "error": "Bad Request",
-    "message": "Chỉ chấp nhận địa chỉ https://",
+    "message": "Địa chỉ IP nội bộ/không công cộng bị chặn",
     "statusCode": 400
   }
 }

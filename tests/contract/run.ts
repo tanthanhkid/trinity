@@ -2,12 +2,12 @@
  * Bộ chạy test hợp đồng HTTP hộp đen (PLAN mục 6.2). Với mỗi hồ sơ cấu hình (`profiles/*.env`): dựng DB riêng từ mẫu đã
  * migrate + seed, khởi động máy chủ MỘT lần với env của hồ sơ, chạy các ca trong `cases/<hồ sơ>/`, rồi tắt máy chủ.
  *
- *   pnpm --filter @trinity/contract-tests test                       # Node, mọi hồ sơ có ca
- *   pnpm --filter @trinity/contract-tests test -- --profile default  # một hồ sơ
+ *   pnpm --filter @trinity/contract-tests contract                       # Node, mọi hồ sơ có ca
+ *   pnpm --filter @trinity/contract-tests contract -- --profile default  # một hồ sơ
  *
  * Chọn máy chủ (`--target`):
- *   node (mặc định)  `node apps/monolith/dist/.../main.js` (tự build nếu chưa có)
- *   cmd              lệnh trong `SERVER_CMD` (vd binary Rust), nhận env của hồ sơ; hồ sơ `production` phải trỏ binary phát hành
+ *   node (mặc định)  `node apps/monolith/dist/.../main.js` (luôn build trước; `--no-build` để bỏ qua)
+ *   cmd              mảng JSON trong `SERVER_CMD` (vd `["/đường/dẫn/trinity"]`), nhận env của hồ sơ; hồ sơ `production` phải trỏ binary phát hành
  *                    qua `SERVER_CMD_PRODUCTION`
  *
  * So Node với Rust trong CÙNG lượt: `--mode record` (Node, ghi kết quả đã chuẩn hoá vào `--out`), rồi
@@ -16,6 +16,7 @@
  */
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import * as fs from 'node:fs'
+import * as net from 'node:net'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import pg from 'pg'
@@ -90,7 +91,7 @@ function cleanBase(): Record<string, string> {
 async function waitHealthy(base: string, child: ChildProcess, ms = 90_000): Promise<void> {
   const end = Date.now() + ms
   while (Date.now() < end) {
-    if (child.exitCode !== null) throw new Error(`Máy chủ thoát sớm (mã ${child.exitCode})`)
+    if (child.exitCode !== null || child.signalCode !== null) throw new Error(`Máy chủ thoát sớm (mã ${child.exitCode ?? child.signalCode})`)
     try {
       const r = await fetch(`${base}/api/v1/health`)
       if (r.status === 200) return
@@ -102,16 +103,59 @@ async function waitHealthy(base: string, child: ChildProcess, ms = 90_000): Prom
   throw new Error('Máy chủ không lên trong thời hạn')
 }
 
+/** `SERVER_CMD` là mảng JSON (lệnh + đối số), vd `["/đường/dẫn/trinity","--flag"]`: không tách theo khoảng trắng nên đường dẫn có dấu cách vẫn đúng. */
+function parseCmd(name: string, raw: string): { cmd: string; args: string[] } {
+  let v: unknown
+  try {
+    v = JSON.parse(raw)
+  } catch {
+    throw new Error(`${name} phải là mảng JSON, vd '["/đường/dẫn/trinity"]'`)
+  }
+  if (!Array.isArray(v) || v.length === 0 || v.some((x) => typeof x !== 'string')) throw new Error(`${name} phải là mảng JSON chuỗi, không rỗng`)
+  const [cmd, ...args] = v as string[]
+  return { cmd, args }
+}
+
+let built = false
 function serverCommand(profile: string): { cmd: string; args: string[] } {
   if (arg('target')[0] === 'cmd') {
-    const raw = (profile === 'production' ? process.env.SERVER_CMD_PRODUCTION : undefined) ?? process.env.SERVER_CMD
+    const prod = profile === 'production' ? process.env.SERVER_CMD_PRODUCTION : undefined
+    const raw = prod ?? process.env.SERVER_CMD
     if (!raw) throw new Error('--target cmd cần SERVER_CMD (và SERVER_CMD_PRODUCTION cho hồ sơ production)')
-    const [cmd, ...args] = raw.split(' ')
-    return { cmd, args }
+    return parseCmd(prod ? 'SERVER_CMD_PRODUCTION' : 'SERVER_CMD', raw)
   }
-  const main = path.join(root, 'apps/monolith/dist/apps/monolith/src/main.js')
-  if (!fs.existsSync(main)) sh('pnpm', ['--filter', '@trinity/monolith', 'build'], {})
-  return { cmd: process.execPath, args: [main] }
+  // Luôn build (tsc ghi đè dist, vài giây): dist cũ sẽ chạy mã không phải của nhánh hiện tại. `--no-build` để bỏ qua có chủ đích.
+  if (!built && !process.argv.includes('--no-build')) {
+    sh('pnpm', ['--filter', '@trinity/monolith', 'build'], {})
+    built = true
+  }
+  return { cmd: process.execPath, args: [path.join(root, 'apps/monolith/dist/apps/monolith/src/main.js')] }
+}
+
+/** Cổng phải trống trước khi khởi động: nếu không, health có thể đến từ tiến trình cũ chứ không phải pid vừa spawn. */
+async function assertPortFree(port: number): Promise<void> {
+  const used = await new Promise<boolean>((resolve) => {
+    const s = net.connect({ port, host: '127.0.0.1' })
+    s.once('connect', () => (s.destroy(), resolve(true)))
+    s.once('error', () => resolve(false))
+  })
+  if (used) throw new Error(`Cổng ${port} đang có tiến trình khác lắng nghe; đặt CONTRACT_PORT khác hoặc tắt nó`)
+}
+
+/** Đợi tiến trình con thoát (có hạn), rồi mới sang hồ sơ sau: cổng và DB phải được nhả trước. */
+async function stopServer(server: ChildProcess): Promise<void> {
+  const exited = (): boolean => server.exitCode !== null || server.signalCode !== null
+  if (!exited()) server.kill('SIGTERM')
+  const wait = async (ms: number): Promise<void> => {
+    const end = Date.now() + ms
+    while (!exited() && Date.now() < end) await new Promise((r) => setTimeout(r, 100))
+  }
+  await wait(10_000)
+  if (!exited()) {
+    server.kill('SIGKILL')
+    await wait(5_000)
+  }
+  if (!exited()) throw new Error(`Máy chủ pid ${server.pid} không thoát; dừng để không chồng cổng ${PORT}`)
 }
 
 async function main(): Promise<void> {
@@ -172,6 +216,7 @@ async function main(): Promise<void> {
       const work = fs.mkdtempSync(path.join(os.tmpdir(), `trinity-contract-${profile}-`))
       const { cmd, args } = serverCommand(profile)
       console.log(`[contract] hồ sơ ${profile}: khởi động máy chủ (${cmd} ${args.join(' ')})`)
+      await assertPortFree(PORT)
       const server = spawn(cmd, args, { cwd: work, env, stdio: ['ignore', 'pipe', 'pipe'] })
       const logFile = fs.createWriteStream(path.join(work, 'server.log'))
       server.stdout?.pipe(logFile)
@@ -201,10 +246,8 @@ async function main(): Promise<void> {
         failed = true
         console.error(`[contract] hồ sơ ${profile}: ${(e as Error).message}. Log máy chủ: ${path.join(work, 'server.log')}`)
       } finally {
-        server.kill('SIGTERM')
-        await new Promise((r) => setTimeout(r, 1500))
-        if (server.exitCode === null) server.kill('SIGKILL')
-        await recreateDb(dbName).then(() => admin((c) => c.query(`DROP DATABASE IF EXISTS "${dbName}" WITH (FORCE)`)))
+        await stopServer(server)
+        await admin((c) => c.query(`DROP DATABASE IF EXISTS "${dbName}" WITH (FORCE)`))
       }
     }
   } finally {

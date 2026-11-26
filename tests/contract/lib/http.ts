@@ -1,3 +1,4 @@
+import { expect } from 'vitest'
 import { config } from './config.js'
 
 export interface Res {
@@ -57,8 +58,17 @@ export const control = {
 }
 
 let ipSeq = 0
-/** IP giả duy nhất mỗi lần gọi (10.77.x.y), để các ca không chia chung xô giới hạn tốc độ theo IP. */
+/** Băm đường dẫn file ca đang chạy: mỗi file một dải IP riêng, nên thêm/bớt ca ở file khác không đổi IP (và xô giới hạn tốc độ) của file này. */
+function fileHash(): number {
+  const p = expect.getState().testPath ?? ''
+  let h = 2166136261
+  for (let i = 0; i < p.length; i++) h = Math.imul(h ^ p.charCodeAt(i), 16777619)
+  return h >>> 0
+}
+
+/** IP giả duy nhất trong file (10.<băm>.<băm>.n) để các ca không chia chung xô giới hạn tốc độ theo IP. */
 export function freshIp(): string {
   ipSeq += 1
-  return `10.77.${Math.floor(ipSeq / 250) % 250}.${(ipSeq % 250) + 1}`
+  const h = fileHash()
+  return `10.${(h % 200) + 20}.${((h >>> 8) % 200) + 20}.${(ipSeq % 250) + 1}`
 }

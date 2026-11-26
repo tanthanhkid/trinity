@@ -15,16 +15,19 @@ describe('hồ sơ production: không có API điều khiển, chỉ seed bằng
     golden('hooks-absent', 'anon', snap(flush))
   })
 
-  it('production từ chối webhook tới địa chỉ nội bộ dù INTEGRATIONS_ALLOW_PRIVATE_TARGETS=true', async () => {
-    const { token } = await loginAdmin()
-    const res = await api.post('/integrations/webhooks/endpoints', {
-      token,
-      body: { name: 'Nội bộ', url: 'http://127.0.0.1:9/hook', events: ['contact.created'] },
-      ip: freshIp(),
-    })
-    expect(res.status).toBe(400)
-    const rows = await q(`SELECT 1 FROM webhook_endpoints WHERE url LIKE 'http://127.0.0.1:9%'`)
-    expect(rows).toHaveLength(0)
-    golden('private-target-rejected', 'admin', snap(res))
-  })
+  it.each(['https://127.0.0.1/hook', 'https://10.0.0.1/hook'])(
+    'production từ chối webhook tới địa chỉ nội bộ %s dù INTEGRATIONS_ALLOW_PRIVATE_TARGETS=true',
+    async (url) => {
+      const { token } = await loginAdmin()
+      const res = await api.post('/integrations/webhooks/endpoints', {
+        token,
+        body: { name: 'Nội bộ', url, events: ['contact.created'] },
+        ip: freshIp(),
+      })
+      expect(res.status).toBe(400)
+      expect(JSON.stringify(res.body)).toContain('nội bộ')
+      expect(await q(`SELECT 1 FROM webhook_endpoints WHERE url = $1`, [url])).toHaveLength(0)
+      golden(`private-target-rejected-${new URL(url).hostname.replace(/\./g, '-')}`, 'admin', snap(res))
+    },
+  )
 })

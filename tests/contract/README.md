@@ -7,21 +7,21 @@ Chỉ dùng `fetch` tới một địa chỉ gốc; không import mã backend. C
 
 ```bash
 # Postgres 16 local (brew) là đủ; bộ chạy tự dựng/xoá các DB `trinity_contract_*`
-pnpm --filter @trinity/contract-tests test                        # Node, mọi hồ sơ có thư mục cases/<hồ sơ>
-pnpm --filter @trinity/contract-tests test -- --profile default   # một hồ sơ
-pnpm --filter @trinity/contract-tests test:unit                   # chỉ bộ chuẩn hoá
+pnpm --filter @trinity/contract-tests contract                    # Node, mọi hồ sơ có thư mục cases/<hồ sơ>
+pnpm --filter @trinity/contract-tests contract -- --profile default   # một hồ sơ
+pnpm --filter @trinity/contract-tests test                       # chỉ test đơn vị bộ chuẩn hoá (không cần Postgres)
 ```
 
 Bộ chạy (`run.ts`): dựng DB mẫu (migrate + seed admin), rồi với mỗi hồ sơ tạo DB từ mẫu, khởi động máy chủ **một lần** với env của
-hồ sơ, chạy `cases/<hồ sơ>/*.test.ts`, tắt máy chủ. Máy chủ chạy với `TZ=UTC`, cổng 4310 (`CONTRACT_PORT`), env sạch (không đọc `.env`).
+hồ sơ, chạy `cases/<hồ sơ>/*.test.ts`, tắt máy chủ. Luôn build monolith trước (`--no-build` để bỏ qua). Máy chủ chạy với `TZ=UTC`, cổng 4310 (`CONTRACT_PORT`), env sạch (không đọc `.env`).
 Từ chối bắt đầu trong khung 16:50-17:10 UTC (quanh nửa đêm Việt Nam, "hôm nay" đổi giữa lượt).
 
 ## So Node với Rust trong cùng lượt
 
 ```bash
-pnpm --filter @trinity/contract-tests test -- --mode record --out /tmp/c06a-node          # Node, ghi kết quả đã chuẩn hoá
-SERVER_CMD=/đường/dẫn/trinity SERVER_CMD_PRODUCTION=/đường/dẫn/trinity-release \
-  pnpm --filter @trinity/contract-tests test -- --target cmd --mode compare --baseline /tmp/c06a-node
+pnpm --filter @trinity/contract-tests contract -- --mode record --out /tmp/c06a-node          # Node, ghi kết quả đã chuẩn hoá
+SERVER_CMD='["/đường/dẫn/trinity"]' SERVER_CMD_PRODUCTION='["/đường/dẫn/trinity-release"]' \  # mảng JSON: lệnh + đối số
+  pnpm --filter @trinity/contract-tests contract -- --target cmd --mode compare --baseline /tmp/c06a-node
 ```
 
 `golden(tên, vai, snap(res))` ghi (record) hoặc so (compare) `<out>/<hồ sơ>/<tên>.<vai>.json`. Golden commit ở

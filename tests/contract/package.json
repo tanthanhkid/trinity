@@ -4,9 +4,8 @@
   "private": true,
   "description": "Test hợp đồng HTTP hộp đen: chỉ gọi BASE_URL bằng fetch, chạy được trên Node hoặc Rust",
   "scripts": {
-    "test": "tsx run.ts",
-    "test:unit": "CONTRACT_UNIT=1 vitest run --config vitest.config.ts",
-    "test:one": "vitest run --config vitest.config.ts",
+    "test": "CONTRACT_UNIT=1 vitest run --config vitest.config.ts",
+    "contract": "tsx run.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

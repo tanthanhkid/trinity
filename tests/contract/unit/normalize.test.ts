@@ -27,6 +27,25 @@ describe('Normalizer', () => {
     expect(a).toMatchObject({ created_at: '<now>', old_at: '<time:-3d>', days: ['<vn-day:-2>', '<vn-day:-1>', '<vn-day:0>'], token: '<token>' })
   })
 
+  it('id tham chiếu người dùng chung dãy; id khác đánh số theo khoá; ngày ngoài cửa sổ giữ nguyên', () => {
+    const out = new Normalizer(Date.UTC(2026, 10, 26)).normalize({
+      assigned_to: 41,
+      created_by: 42,
+      closed_to: 41,
+      contact_id: 9,
+      deal_id: 9,
+      fixed: '2019-05-01',
+    })
+    expect(out).toEqual({
+      assigned_to: '<user:1>',
+      created_by: '<user:2>',
+      closed_to: '<user:1>',
+      contact_id: '<id:contact_id:1>',
+      deal_id: '<id:deal_id:1>',
+      fixed: '2019-05-01',
+    })
+  })
+
   it('ngày Việt Nam: 17:30 UTC đã là ngày hôm sau theo giờ VN', () => {
     const t = Date.UTC(2026, 10, 26, 17, 30, 0)
     expect(new Normalizer(t).normalize({ d: '2026-11-27' })).toEqual({ d: '<vn-day:0>' })

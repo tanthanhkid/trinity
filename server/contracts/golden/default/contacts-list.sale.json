@@ -3,18 +3,18 @@
   "body": {
     "data": [
       {
-        "assigned_to": 3,
+        "assigned_to": "<user:1>",
         "assignee_email": "<email:1>",
         "assignee_name": "Contract sale",
         "contact_status": null,
         "created_at": "<time:-2d>",
         "creator": {
           "full_name": "Contract sale",
-          "id": "<id:1>",
-          "role": "contract-sale-2"
+          "id": "<id:id:1>",
+          "role": "contract-07-contacts-three-roles-sale-2"
         },
         "full_name": "Khách vai",
-        "id": "<id:2>",
+        "id": "<id:id:1>",
         "latest_deal": null,
         "lead_label": null,
         "lead_score": null,

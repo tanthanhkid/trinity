@@ -1,0 +1,28 @@
+[package]
+name = "mod-auth"
+description = "Module auth (M01): đăng nhập, làm mới, đăng xuất, hồ sơ, đổi mật khẩu, cấu hình Wi-Fi/một phiên. Logic + DB, nối route sau K14."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+trinity-auth = { workspace = true }
+trinity-db = { workspace = true }
+trinity-kernel = { workspace = true }
+trinity-storage = { workspace = true }
+trinity-docgen = { workspace = true }
+getrandom = "0.3"
+sqlx = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[lints]
+workspace = true

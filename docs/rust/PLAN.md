@@ -717,6 +717,12 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   `trinity_db::pg_error::{db_error, app_error}` đổi `sqlx::Error` thành `DbError` của kernel; unique violation chỉ bắt
   đúng tên ràng buộc (vd `projects_code_key`). Luật DTO không có trong `contracts/dto/schema.json` được viết thành hàm
   `validate()` cùng câu và thứ tự lỗi class-validator, cho tới khi DTO vào schema khi route được nối (K14/K11).
+- Thông báo (`mod-notify`, M32): mẫu render bằng `handlebars` Rust nhưng AST được viết lại để in đúng chữ của handlebars.js (mảng
+  `a,b`, đối tượng `[object Object]`, số kiểu JS, thoát `& < > " ' ` =`), gỡ các helper Rust thêm (`eq`, `and`, `len`…) và
+  từ chối helper ngoài `if/each/with/unless/lookup/log` ngay khi lưu; bảng ca `contracts/cases/notify-templates.json` do
+  handlebars.js sinh và Rust phải khớp từng byte. Phân trang `/notifications` giữ câu SQL của Prisma cursor + `skip: 1`
+  (`created_at <= (con trỏ)`, bỏ dòng đầu). Không có cache số chưa đọc 5 phút trong bộ nhớ (đếm thẳng DB). Phân phối không giữ
+  kết nối khi gọi webhook (qua lớp SSRF K35); thử lại `4^n × 250 ms` tối đa 3 lần; job `notification.scheduled` 2 phút/lần gồm reaper.
 - `updated_at`: mọi `UPDATE` do Rust viết phải gán `updated_at = now()`. Kiểm bằng lint trong `xtask` (câu `UPDATE`
   trên bảng có cột này mà thiếu gán thì báo lỗi) và bằng test so trạng thái DB.
 - Lỗi DB: bảng ánh xạ SQLSTATE sang hành vi của bản TS nằm ở một chỗ (K05): 23505 ↔ `P2002`, 23503 ↔ `P2003`,

@@ -12,7 +12,12 @@ publish.workspace = true
 name = "trinity"
 path = "src/main.rs"
 
+[features]
+# K34: API điều khiển test (`/internal/test/*`) và tắt scheduler/worker tự chạy. Binary phát hành KHÔNG bật cờ này.
+test-hooks = ["dep:trinity-testhooks", "trinity-testhooks/test-hooks"]
+
 [dependencies]
+trinity-testhooks = { workspace = true, optional = true }
 clap = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }

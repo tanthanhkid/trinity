@@ -6,6 +6,8 @@
 
 pub mod queue;
 pub mod scheduler;
+#[cfg(feature = "test-hooks")]
+pub mod test_hooks;
 
 pub use queue::{Job, NewJob, Queue, QueueError, Worker, WorkerConfig};
 pub use scheduler::{

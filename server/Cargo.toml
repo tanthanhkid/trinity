@@ -27,6 +27,7 @@ trinity-realtime = { path = "crates/trinity-realtime" }
 trinity-docgen = { path = "crates/trinity-docgen" }
 trinity-obs = { path = "crates/trinity-obs" }
 trinity-ops = { path = "crates/trinity-ops" }
+trinity-testhooks = { path = "crates/trinity-testhooks" }
 trinity-integrations = { path = "crates/trinity-integrations" }
 mod-commerce = { path = "crates/mod-commerce" }
 

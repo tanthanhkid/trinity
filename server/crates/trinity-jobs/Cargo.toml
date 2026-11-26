@@ -8,6 +8,11 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+# K34: khi bật (cờ biên dịch) và `TRINITY_TEST_HOOKS=1` ngoài production, scheduler và worker hàng đợi không tự chạy; job
+# chạy khi ca test gọi API điều khiển test. Binary phát hành không bật cờ này nên không chứa đoạn mã này.
+test-hooks = []
+
 [dependencies]
 serde_json = { workspace = true }
 sqlx = { workspace = true }

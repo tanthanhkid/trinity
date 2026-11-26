@@ -55,7 +55,9 @@ describe('parseWizardConfig', () => {
     expect(parseWizardConfig('{rác')).toEqual(def);
     expect(parseWizardConfig('{"enabled":true}')).toEqual(def);
     expect(parseWizardConfig('{"skippable":[]}')).toEqual({ ...def, skippable: [] });
-    expect(parseWizardConfig('{"skippable":["post","ai","xx"],"exempt_before":"không phải ngày"}')).toEqual({ ...def, skippable: ['post'] });
+    // config cũ chỉ có 'post' được hợp nhất với mặc định mới
+    expect(parseWizardConfig('{"skippable":["post","ai","xx"],"exempt_before":"không phải ngày"}')).toEqual(def);
+    expect(parseWizardConfig('{"skippable":["post"]}').skippable).toEqual(['data', 'channels', 'post']);
   });
 });
 
@@ -125,6 +127,7 @@ describe('OnboardingWizardService', () => {
     const built = JSON.stringify({ industry: 'clinic', built_at: '2026-10-13T00:00:00Z' });
     const later = make({ built: true, settings: { setup_built: built }, createdAt: new Date('2026-10-14') });
     expect((await later.svc.view(11, NOBODY)).completed).toBe(true);
+    expect(later.settings[wizardDoneKey(11)]).toBeDefined(); // ghi dấu xong để rebuild không đẩy lại wizard
     const first = make({ built: true, settings: { setup_built: built }, createdAt: new Date('2026-10-12') });
     expect((await first.svc.view(5, ADMIN)).completed).toBe(false);
   });

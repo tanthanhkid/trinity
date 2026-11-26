@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@trinity/prisma';
 import { trackProductEvent } from '@trinity/logger';
-import { can, INDUSTRY_PRESETS, isIndustryKey, resolveBuildFeatures, INDUSTRY_KEYS, type IndustryKey, type OrgFeatureKey } from '@trinity/rbac';
+import { can, INDUSTRY_PRESETS, isIndustryKey, resolveBuildFeatures, resolveOrgFeatures, LOCKED_FEATURES, ORG_FEATURE_KEYS, INDUSTRY_KEYS, type IndustryKey, type OrgFeatureKey } from '@trinity/rbac';
 import type { AuthUser } from '@trinity/rbac-nest';
 import { CustomObjectTemplatesService } from '../custom-objects/custom-object-templates.service';
 import { OrgFeaturesService } from '../settings/org-features.service';
@@ -65,7 +65,18 @@ export class SetupBuildService {
     if (input.features != null && !Array.isArray(input.features)) throw new BadRequestException('Danh sách phân hệ phải là mảng.');
     const industry = input.industry;
     const preset = INDUSTRY_PRESETS[industry];
-    const features = resolveBuildFeatures(industry, input.features);
+    // Đã dựng trước đó (lấy built_at lần ĐẦU để giữ nguyên): dựng lại KHÔNG truyền features thì giữ cấu hình đang lưu (không tắt gì,
+    // chỉ bật bộ cơ bản); có features thì mới thay theo danh sách đó.
+    const prev = await this.prisma.setting.findUnique({ where: { key: SETUP_BUILT_KEY }, select: { value: true } });
+    let firstBuiltAt: string | null = null;
+    try { firstBuiltAt = prev?.value ? ((JSON.parse(prev.value) as { built_at?: string }).built_at ?? null) : null; } catch { firstBuiltAt = null; }
+    let features: OrgFeatureKey[];
+    if (input.features == null && prev) {
+      const kept = resolveOrgFeatures(await this.features.stored());
+      features = ORG_FEATURE_KEYS.filter((k) => kept[k] || LOCKED_FEATURES.includes(k));
+    } else {
+      features = resolveBuildFeatures(industry, input.features);
+    }
     // Mẫu chỉ sinh khi công ty CHƯA có dữ liệu thật (dựng lại trên hệ thống đang chạy không chèn dữ liệu giả vào lẫn).
     const wantSamples = !(await this.samples.hasReal(await this.samples.read())) && can(user.grants, 'custom_records.manage');
 
@@ -78,13 +89,18 @@ export class SetupBuildService {
       created = r.created;
       existing = r.existing;
       sampleRecords = r.sample_records;
-    } else if (wantSamples && !(await this.samples.read())) {
-      sampleContacts = (await this.prisma.$transaction((tx) => this.samples.seedContacts(tx, user.userId))).length;
-      await this.samples.dropContactCountCache();
+    } else if (wantSamples) {
+      // Cùng khoá với nhánh mẫu bảng: 2 lần dựng đồng thời không tạo mẫu trùng; đọc lại danh sách mẫu TRONG khoá.
+      sampleContacts = await this.prisma.$transaction(async (tx) => {
+        await this.samples.lock(tx);
+        if (await this.samples.read(tx)) return 0;
+        return (await this.samples.seedContacts(tx, user.userId)).length;
+      });
+      if (sampleContacts) await this.samples.dropContactCountCache();
     }
 
     await this.features.replaceAll(features, user.userId);
-    const now = new Date().toISOString();
+    const now = firstBuiltAt && !Number.isNaN(Date.parse(firstBuiltAt)) ? firstBuiltAt : new Date().toISOString();
     const built = JSON.stringify({ industry, features, built_at: now, built_by: user.userId });
     await this.prisma.$transaction([
       this.prisma.setting.upsert({ where: { key: SETUP_INDUSTRY_KEY }, update: { value: industry, updated_by: user.userId }, create: { key: SETUP_INDUSTRY_KEY, value: industry, updated_by: user.userId } }),

@@ -39,6 +39,7 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
   const built = !!steps.find((s) => s.key === "modules")?.done
   const passed = !!step && (step.done || step.skipped)
   const last = index === steps.length - 1
+  const adminOnly = !!step?.needs_admin
 
   const goTo = (key: WizardStepKey | null) => {
     setMessage(null)
@@ -153,9 +154,14 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
                     Bước này cần quyền quản trị. Nếu bạn không làm được, hãy nhờ quản trị viên của công ty làm, xong thì bấm “Tôi đã làm xong”.
                   </p>
                 )}
+                {step.can_skip && (
+                  <p className="text-sm text-muted-foreground" data-testid="wizard-can-skip">Bước này bạn có thể bỏ qua và làm sau.</p>
+                )}
+                {!(adminOnly && (step.key === "industry" || step.key === "modules")) && (
                 <section className="rounded-2xl border bg-card p-4 sm:p-5">
-                  <StepBody step={step.key} onGoChannels={() => goTo("channels")} ctx={{ industry, onIndustry: pickIndustry, features, onFeatures: setFeatures, built }} />
+                  <StepBody step={step.key} onGoChannels={() => goTo("channels")} ctx={{ industry, onIndustry: pickIndustry, features, onFeatures: setFeatures, built, canSkip: step.can_skip }} />
                 </section>
+                )}
               </>
             )}
 
@@ -178,6 +184,10 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
                 {passed && !last ? (
                   <Button type="button" onClick={() => goTo(steps[index + 1].key)} className="max-sm:h-11" data-testid="wizard-next">
                     Tiếp tục <ArrowRight aria-hidden />
+                  </Button>
+                ) : adminOnly && (step.key === "industry" || step.key === "modules") ? (
+                  <Button type="button" disabled={busy} onClick={() => handle("confirm")} className="max-sm:h-11" data-testid="wizard-confirm">
+                    {busy && <Loader2 className="animate-spin" aria-hidden />} Tôi đã làm xong
                   </Button>
                 ) : step.key === "industry" ? (
                   <Button type="button" disabled={!industry || busy} onClick={() => goTo("modules")} className="max-sm:h-11" data-testid="wizard-next-industry">

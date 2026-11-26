@@ -131,4 +131,41 @@ d('Dựng hệ thống + bản ghi mẫu — DB thật', () => {
     const nobody: AuthUser = { ...admin, grants: {} as Grants };
     await expect(build.build(nobody, { industry: 'other' })).rejects.toThrow(/quản trị/);
   });
+
+  it('dựng lại giữ built_at lần đầu; không truyền features thì giữ phân hệ admin đã bật thêm', async () => {
+    await build.build(admin, { industry: 'clinic' });
+    const first = JSON.parse((await prisma.setting.findUnique({ where: { key: 'setup_built' } }))!.value).built_at;
+    await features.update({ payroll: true } as never, admin.userId);
+    await new Promise((r) => setTimeout(r, 20));
+    await build.build(admin, { industry: 'clinic' });
+    expect(JSON.parse((await prisma.setting.findUnique({ where: { key: 'setup_built' } }))!.value).built_at).toBe(first);
+    expect((await features.get()).payroll).toBe(true);
+    expect((await features.get()).pos).toBe(false);
+    // có features thì thay đúng theo danh sách
+    await build.build(admin, { industry: 'clinic', features: ['inbox'] });
+    const f = await features.get();
+    expect(f.payroll).toBe(false);
+    expect(f.inbox).toBe(true);
+  });
+
+  it('mẫu người dùng đã sửa, hoặc bị bản ghi thật liên kết tới, được GIỮ (thành dữ liệu thật); mẫu còn nguyên bị xoá', async () => {
+    await build.build(admin, { industry: 'education_center' });
+    const rows = await prisma.customRecord.findMany({ orderBy: { id: 'asc' } });
+    expect(rows).toHaveLength(3);
+    // sửa mẫu 1 (lùi created_at để vượt ngưỡng chỉnh sửa)
+    await prisma.customRecord.update({ where: { id: rows[0].id }, data: { created_at: new Date(Date.now() - 60_000), title: 'Đã sửa' } });
+    // bản ghi THẬT (học sinh) liên kết tới mẫu 2 ⇒ lần tạo này kích hoạt dọn mẫu
+    await records.create(admin, 'hoc_sinh', { data: { ho_ten: 'HS thật', phu_huynh: rows[1].id } });
+    const live = await prisma.customRecord.findMany({ where: { deleted_at: null }, select: { id: true } });
+    expect(live.map((r) => r.id)).toEqual(expect.arrayContaining([rows[0].id, rows[1].id]));
+    expect(live).toHaveLength(3); // mẫu 1 (đã sửa) + mẫu 2 (được liên kết) + học sinh thật
+    expect(live.map((r) => r.id)).not.toContain(rows[2].id);
+    expect(await prisma.setting.findUnique({ where: { key: SAMPLE_RECORDS_KEY } })).toBeNull();
+  });
+
+  it('hai lần dựng "Khác" đồng thời không tạo mẫu trùng, không mất id mẫu', async () => {
+    await Promise.all([build.build(admin, { industry: 'other' }), build.build(admin, { industry: 'other' })]);
+    expect(await liveContacts()).toBe(3);
+    expect((await samples.read())?.contacts).toHaveLength(3);
+  });
 });

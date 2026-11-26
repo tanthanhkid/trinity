@@ -83,7 +83,7 @@ export const setupBuildTool: ToolDef = {
   title: 'Dựng hệ thống theo loại doanh nghiệp / Build workspace from an industry preset',
   description:
     'Dựng CRM trong MỘT lần gọi, không cần phỏng vấn: chọn loại doanh nghiệp (industry) và các phân hệ muốn dùng (features). Trinity áp mẫu ngành (bảng + trường + liên kết), ' +
-    'lưu phân hệ, kèm vài bản ghi MẪU (dữ liệu giả, tự xoá khi có bản ghi thật đầu tiên) và đặt trạng thái đã dựng. Chạy lại được: bảng đã có thì giữ nguyên. ' +
+    'lưu phân hệ, kèm vài bản ghi MẪU (dữ liệu giả, tự xoá khi có bản ghi thật đầu tiên) và đặt trạng thái đã dựng. Chạy lại được: bảng đã có thì giữ nguyên; chạy lại KHÔNG truyền features thì giữ các phân hệ đang bật (không tắt gì), có truyền features thì thay đúng theo danh sách đó. ' +
     `industry: ${INDUSTRY_KEYS.map((k) => `${k}=${INDUSTRY_PRESETS[k].label}`).join('; ')}. ` +
     `features (tuỳ chọn; bỏ trống = bộ gợi ý của ngành; bộ cơ bản dashboard, contacts, kanban, reports luôn bật): ${Object.entries(ORG_FEATURES).map(([k, v]) => `${k}=${v.label}`).join('; ')}. ` +
     'Muốn bảng riêng theo lời khách thì dùng propose_workspace thay vì tool này. Chỉ quản trị viên. / Builds the workspace in one call from an industry preset (admins only).',

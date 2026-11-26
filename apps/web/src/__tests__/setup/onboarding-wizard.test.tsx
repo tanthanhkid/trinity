@@ -116,4 +116,25 @@ describe("OnboardingWizard", () => {
     render(<OnboardingWizard wizard={view([{ ...step("post"), can_skip: true }], "post")} />)
     expect(screen.getByTestId("wizard-skip")).toBeTruthy()
   })
+
+  it("người không có quyền quản trị ở bước dựng: không thấy lựa chọn/nút Dựng, có nút Tôi đã làm xong để đọc lại", () => {
+    const w = view([{ ...step("industry"), needs_admin: true }, { ...step("modules"), needs_admin: true }, step("data")], "industry")
+    const again = view([step("industry", true), step("modules", true), step("data")], "data", false, "clinic")
+    reply({ ok: true, message: null, wizard: again })
+    render(<OnboardingWizard wizard={w} />)
+    expect(screen.queryByRole("radiogroup")).toBeNull()
+    expect(screen.queryByTestId("wizard-build")).toBeNull()
+    fireEvent.click(screen.getByTestId("wizard-confirm"))
+    expect(mutate).toHaveBeenCalledWith("industry", expect.anything())
+    expect(screen.getByTestId("wizard-progress").textContent).toBe("Bước 3/3")
+  })
+
+  it("chữ 'bỏ qua được' chỉ hiện khi máy chủ cho bỏ qua bước đó", () => {
+    const first = render(<OnboardingWizard wizard={view([{ ...step("data"), can_skip: false }], "data")} />)
+    expect(screen.queryByTestId("wizard-can-skip")).toBeNull()
+    expect(screen.queryByText(/Bỏ qua bước này”/)).toBeNull()
+    first.unmount()
+    render(<OnboardingWizard wizard={view([{ ...step("data"), can_skip: true }], "data")} />)
+    expect(screen.getByTestId("wizard-can-skip")).toBeTruthy()
+  })
 })

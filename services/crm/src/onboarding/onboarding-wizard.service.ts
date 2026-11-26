@@ -78,7 +78,8 @@ export function parseWizardConfig(raw: string | null | undefined): WizardConfig 
     const v = JSON.parse(raw) as Partial<WizardConfig>;
     return {
       enabled: v.enabled !== false,
-      skippable: Array.isArray(v.skippable) ? v.skippable.filter(isWizardStep) : [...DEFAULT_WIZARD_CONFIG.skippable],
+      // Hợp nhất với mặc định mới (config cũ chỉ có 'post' vẫn được bỏ qua dữ liệu/kênh); muốn khoá hẳn thì tắt wizard hoặc đặt skippable rỗng.
+      skippable: Array.isArray(v.skippable) ? (v.skippable.length === 0 ? [] : [...new Set([...DEFAULT_WIZARD_CONFIG.skippable, ...v.skippable.filter(isWizardStep)])]) : [...DEFAULT_WIZARD_CONFIG.skippable],
       exempt_before: typeof v.exempt_before === 'string' && !Number.isNaN(Date.parse(v.exempt_before)) ? v.exempt_before : null,
     };
   } catch {
@@ -201,6 +202,8 @@ export class OnboardingWizardService {
       };
     });
     const current = list.find((s) => !s.done && !s.skipped)?.key ?? null;
+    // Người được cho qua vì vào sau lúc dựng: ghi dấu xong để rebuild sau này không đẩy họ lại wizard.
+    if (later && !doneFlag) await this.writeSetting(wizardDoneKey(userId), new Date().toISOString(), userId);
     return { enabled: true, completed: !!doneFlag || isExempt || later, industry: industry ?? null, current, steps: list };
   }
 

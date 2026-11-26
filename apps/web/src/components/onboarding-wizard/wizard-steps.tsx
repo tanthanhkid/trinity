@@ -110,7 +110,7 @@ function StepModules({ industry, features, onChange, built }: { industry: Indust
 }
 
 /** Bước 3: thêm khách đầu tiên bằng form ngắn (không cần AI). */
-function StepData() {
+function StepData({ canSkip }: { canSkip: boolean }) {
   const sources = useSettingsOptions("contact_source")
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
@@ -156,7 +156,7 @@ function StepData() {
       <Button type="button" onClick={submit} disabled={busy || !phone.trim()} data-testid="add-contact">
         {busy && <Loader2 className="animate-spin" aria-hidden />} Thêm khách
       </Button>
-      <p className="text-sm text-muted-foreground">Có sẵn danh sách trong Excel hoặc Google Sheet? Bấm “Bỏ qua bước này”, vào Trinity rồi nhập ở Cài đặt › Kết nối &amp; AI › Google Sheets.</p>
+      {canSkip && <p className="text-sm text-muted-foreground">Có sẵn danh sách trong Excel hoặc Google Sheet? Bấm “Bỏ qua bước này”, vào Trinity rồi nhập ở Cài đặt › Kết nối &amp; AI › Google Sheets.</p>}
     </div>
   )
 }
@@ -196,11 +196,11 @@ export const STEP_TEXT: Record<WizardStepKey, { title: string; why: string }> = 
   },
   channels: {
     title: "Kết nối Fanpage hoặc kênh YouTube",
-    why: "Nối kênh của công ty để đăng bài từ Trinity và để khách nhắn Fanpage tự thành khách hàng. Bạn có thể bỏ qua và nối sau.",
+    why: "Nối kênh của công ty để đăng bài từ Trinity và để khách nhắn Fanpage tự thành khách hàng.",
   },
   post: {
     title: "Đăng bài đầu tiên",
-    why: "Thử đăng một bài lên kênh vừa nối để chắc mọi thứ chạy đúng. Bạn có thể bỏ qua.",
+    why: "Thử đăng một bài lên kênh vừa nối để chắc mọi thứ chạy đúng.",
   },
 }
 
@@ -211,6 +211,8 @@ export interface StepContext {
   onFeatures: (f: OrgFeatureKey[]) => void
   /** Công ty đã dựng rồi (không đổi ngành/phân hệ ở đây nữa). */
   built: boolean
+  /** Máy chủ cho phép bỏ qua bước đang xem. */
+  canSkip: boolean
 }
 
 export function StepBody({ step, onGoChannels, ctx }: { step: WizardStepKey; onGoChannels: () => void; ctx: StepContext }): ReactNode {
@@ -220,7 +222,7 @@ export function StepBody({ step, onGoChannels, ctx }: { step: WizardStepKey; onG
     case "modules":
       return <StepModules industry={ctx.industry} features={ctx.features} onChange={ctx.onFeatures} built={ctx.built} />
     case "data":
-      return <StepData />
+      return <StepData canSkip={ctx.canSkip} />
     case "channels":
       return <StepChannels />
     case "post":

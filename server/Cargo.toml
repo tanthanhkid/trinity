@@ -53,7 +53,8 @@ sqlx = { version = "0.9", default-features = false, features = [
 
 # Dữ liệu, mã hoá, thời gian
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+# float_roundtrip: số thực đọc về đúng bit (mặc định serde_json làm tròn sai ở chữ số cuối, vd 106.66009616851807).
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
 url = "2.5"
 jsonwebtoken = "12"
 bcrypt = "0.19"

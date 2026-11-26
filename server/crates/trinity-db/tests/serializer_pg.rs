@@ -10,8 +10,8 @@ use serde::Serialize;
 use serde_json::Value;
 use sqlx::postgres::{PgPool, PgPoolOptions, PgRow};
 use sqlx::{FromRow, Row};
-use trinity_db::models::{Contact, LoginWifiCheckTarget, MODELS, Model, NewsfeedMediaType};
-use trinity_db::types::{DbDate, DecimalJs, JsBigInt, JsNumber, JsonValue, NaiveTimestamp, Timestamp};
+use trinity_db::models::{Contact, LoginWifiCheckTarget, MODELS, Model, NewsfeedMediaType, Product};
+use trinity_db::types::{DbDate, DecimalJs, JsBigInt, JsNumber, JsonValue, NaiveTimestamp, PgList, Timestamp};
 
 async fn pool() -> PgPool {
     let url = std::env::var("TEST_DATABASE_URL")
@@ -49,8 +49,8 @@ fn decode(tag: &str, row: &PgRow) -> String {
         "bigint" => json(&get::<JsBigInt>(row)),
         "float" => json(&get::<JsNumber>(row)),
         "json" => json(&get::<JsonValue>(row)),
-        "int_array" => json(&get::<Vec<i32>>(row)),
-        "text_array" => json(&get::<Vec<String>>(row)),
+        "int_array" => json(&get::<PgList<i32>>(row)),
+        "text_array" => json(&get::<PgList<String>>(row)),
         "uuid" => json(&get::<uuid::Uuid>(row)),
         "enum_newsfeed_media_type" => json(&get::<NewsfeedMediaType>(row)),
         "opt_timestamp" => json(&get::<Option<Timestamp>>(row)),
@@ -112,6 +112,7 @@ async fn serializer_khop_ban_node() {
         let got = match c["model"].as_str().expect("model") {
             "LoginWifiCheckTarget" => read_model::<LoginWifiCheckTarget>(&db).await,
             "Contact" => read_model::<Contact>(&db).await,
+            "Product" => read_model::<Product>(&db).await,
             other => panic!("model lạ: {other}"),
         };
         sqlx::query(sqlx::AssertSqlSafe(format!(
@@ -172,4 +173,22 @@ async fn models_khop_information_schema() {
         }
     }
     assert!(bad.is_empty(), "{} chỗ lệch:\n{}", bad.len(), bad.join("\n"));
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn jsonb_so_ngoai_f64_khong_lam_hong_ca_dong() {
+    let db = pool().await;
+    let sql = r#"SELECT '[1e999, {"a": -1e999, "b": 1.5, "c": 106.66009616851807}]'::jsonb AS v"#;
+    let row = sqlx::query(sql).fetch_one(&db).await.expect("jsonb");
+    // Prisma/Node báo lỗi cả dòng ở số này (`number out of range`); Rust ra `null` ở số đó, phần còn lại giữ nguyên.
+    assert_eq!(
+        json(&get::<JsonValue>(&row)),
+        r#"[null,{"a":null,"b":1.5,"c":106.66009616851807}]"#
+    );
+    let row = sqlx::query(r#"SELECT '{"x": 1e999}'::json AS v"#)
+        .fetch_one(&db)
+        .await
+        .expect("json");
+    assert_eq!(json(&get::<JsonValue>(&row)), r#"{"x":null}"#);
 }

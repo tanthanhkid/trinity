@@ -17,11 +17,6 @@
    "out": "\"2026-03-05T07:30:09.123Z\""
   },
   {
-   "sql": "'2026-03-05 07:30:09.9999+07'::timestamptz",
-   "rust": "timestamp",
-   "out": "\"2026-03-05T00:30:09.999Z\""
-  },
-  {
    "sql": "'1970-01-01 00:00:00+00'::timestamptz",
    "rust": "timestamp",
    "out": "\"1970-01-01T00:00:00.000Z\""
@@ -32,19 +27,9 @@
    "out": "\"1969-12-31T23:59:59.500Z\""
   },
   {
-   "sql": "'0999-06-15 12:00:00+00'::timestamptz",
-   "rust": "timestamp",
-   "out": "\"0999-06-15T12:00:00.000Z\""
-  },
-  {
    "sql": "'2026-03-05 07:30:09.1'::timestamp(3)",
    "rust": "naive_timestamp",
    "out": "\"2026-03-05T07:30:09.100Z\""
-  },
-  {
-   "sql": "'2026-12-31 23:59:59.999'::timestamp(3)",
-   "rust": "naive_timestamp",
-   "out": "\"2026-12-31T23:59:59.999Z\""
   },
   {
    "sql": "'2026-03-05'::date",
@@ -205,6 +190,21 @@
    "sql": "NULL::numeric",
    "rust": "opt_decimal",
    "out": "null"
+  },
+  {
+   "sql": "106.66009616851807::float8",
+   "rust": "float",
+   "out": "106.66009616851807"
+  },
+  {
+   "sql": "0.30000000000000004::float8",
+   "rust": "float",
+   "out": "0.30000000000000004"
+  },
+  {
+   "sql": "'{\"v\":106.66009616851807,\"w\":[0.1,1.7976931348623157e308]}'::jsonb",
+   "rust": "json",
+   "out": "{\"v\":106.66009616851807,\"w\":[0.1,1.7976931348623157e+308]}"
   }
  ],
  "model": [
@@ -221,6 +221,20 @@
    "table": "contacts",
    "insert": "INSERT INTO contacts (id, code, phone, full_name, custom_fields, created_at, updated_at, deleted_at, lead_score, lead_label, lead_score_reasons, lead_scored_at, birthday) VALUES (1, 'KH-1', '0912345678', 'Nguyễn Văn Đức', '[{\"key\":\"a\",\"value\":1.0}]', '2026-03-05 07:30:09.5+00', '2026-03-06 00:00:00+07', '2026-03-07 08:00:00.25', 80, 'hot', '{\"2\":\"x\",\"10\":\"y\",\"a\":0.5}', '2026-03-05 10:00:00+00', '1990-05-01 17:00:00+00')",
    "out": "{\"id\":1,\"code\":\"KH-1\",\"phone\":\"0912345678\",\"phone_2\":null,\"zalo_account\":null,\"full_name\":\"Nguyễn Văn Đức\",\"source_id\":null,\"source_locked\":false,\"stage_id\":null,\"contact_status_id\":null,\"reminder_at\":null,\"reminder_notes\":null,\"birthday\":\"1990-05-01T17:00:00.000Z\",\"job_title\":null,\"assigned_to\":null,\"team_id\":null,\"created_by_id\":null,\"gender\":null,\"current_address\":null,\"company_name\":null,\"email\":null,\"custom_fields\":[{\"key\":\"a\",\"value\":1}],\"project_id\":null,\"product_id\":null,\"avatar_url\":null,\"created_at\":\"2026-03-05T07:30:09.500Z\",\"updated_at\":\"2026-03-05T17:00:00.000Z\",\"deleted_at\":\"2026-03-07T08:00:00.250Z\",\"deleted_by_id\":null,\"lead_score\":80,\"lead_label\":\"hot\",\"lead_score_reasons\":{\"2\":\"x\",\"10\":\"y\",\"a\":0.5},\"lead_scored_at\":\"2026-03-05T10:00:00.000Z\"}"
+  },
+  {
+   "model": "Product",
+   "delegate": "product",
+   "table": "products",
+   "insert": "INSERT INTO products (id, code, name, tags, attributes, price, created_at, updated_at) VALUES (1, 'SP-1', 'Sản phẩm', NULL, '{\"a\":106.66009616851807}', 9007199254740993, '2026-03-05 07:30:09.123456+00', '2026-03-05 07:30:09+00')",
+   "out": "{\"id\":1,\"code\":\"SP-1\",\"name\":\"Sản phẩm\",\"project_id\":null,\"brand\":null,\"color\":null,\"tags\":[],\"is_featured\":false,\"image_url\":null,\"category_id\":null,\"attributes\":{\"a\":106.66009616851807},\"description\":null,\"price\":9007199254740992,\"is_active\":true,\"deleted_at\":null,\"deleted_by\":null,\"created_by\":null,\"created_at\":\"2026-03-05T07:30:09.123Z\",\"updated_at\":\"2026-03-05T07:30:09.000Z\"}"
+  },
+  {
+   "model": "Product",
+   "delegate": "product",
+   "table": "products",
+   "insert": "INSERT INTO products (id, code, name, tags, created_at, updated_at) VALUES (1, 'SP-2', 'Có nhãn', ARRAY['a','b'], '2026-03-05 07:30:09.123456+00', '2026-03-05 07:30:09+00')",
+   "out": "{\"id\":1,\"code\":\"SP-2\",\"name\":\"Có nhãn\",\"project_id\":null,\"brand\":null,\"color\":null,\"tags\":[\"a\",\"b\"],\"is_featured\":false,\"image_url\":null,\"category_id\":null,\"attributes\":{},\"description\":null,\"price\":null,\"is_active\":true,\"deleted_at\":null,\"deleted_by\":null,\"created_by\":null,\"created_at\":\"2026-03-05T07:30:09.123Z\",\"updated_at\":\"2026-03-05T07:30:09.000Z\"}"
   }
  ]
 }

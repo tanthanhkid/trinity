@@ -3,6 +3,10 @@
 //! 1. **`sql-star`**: chuỗi (kể cả trong macro như `sqlx::query!`) có `SELECT *`, `SELECT t.*`, `, *`, `RETURNING *`.
 //!    Khi hai schema công ty khác cột, statement cache gặp `cached plan must not change result type` (R005). Ngoại lệ
 //!    có chủ đích: đặt `/* trinity-lint: allow-star */` ngay trong câu SQL.
+//! 3. **`json-value`** (K10): `serde_json::to_value(..)`. Nó đổi struct model/kiểu cột sang `Value`:
+//!    mất chữ số thực (`1.0`→`1`), đổi thứ tự khoá (Value sắp theo tên), nên ra JSON khác bản Node. Ghi JSON từ struct
+//!    bằng `serde_json::to_string`/`to_writer`; không đưa model vào `json!` (clippy/review). Ngoại lệ có chủ đích (giá trị không phải model): chú thích
+//!    `// trinity-lint: allow-json-value` trên cùng dòng hoặc dòng ngay trên.
 //! 2. **`http-hold`**: lời gọi HTTP ra ngoài khi đang giữ kết nối. HTTP = đường dẫn có `reqwest`, hoặc `.send()` mà
 //!    chuỗi gọi trước nó có `.get/.post/.put/.patch/.delete/.head/.request(…)` (builder của reqwest). Giữ kết nối =
 //!    sau `let x = ….acquire()/.begin()…;` mà kiểu khai báo là `TenantConn`/`TenantTx`/`PlatformConn`/`PlatformTx`
@@ -15,6 +19,7 @@ use std::path::{Path, PathBuf};
 
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
+use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 use syn::{Block, Expr, ExprMethodCall, FnArg, ItemFn, LitStr, Local, Pat, Stmt};
 
@@ -28,6 +33,7 @@ pub struct Finding {
 }
 
 const ALLOW_STAR: &str = "trinity-lint: allow-star";
+const ALLOW_JSON_VALUE: &str = "trinity-lint: allow-json-value";
 const ALLOW_HTTP_HOLD: &str = "trinity-lint: allow-http-hold";
 const HTTP_BUILDERS: [&str; 7] = ["get", "post", "put", "patch", "delete", "head", "request"];
 const GUARD_TYPES: [&str; 4] = ["TenantConn", "TenantTx", "PlatformConn", "PlatformTx"];
@@ -157,6 +163,22 @@ impl<'ast> Visit<'ast> for Linter {
 
     fn visit_lit_str(&mut self, l: &'ast LitStr) {
         self.check_sql(&l.value(), l.span().start().line);
+    }
+
+    fn visit_expr_call(&mut self, c: &'ast syn::ExprCall) {
+        if let Expr::Path(p) = &*c.func
+            && p.path.segments.last().is_some_and(|s| s.ident == "to_value")
+        {
+            let line = p.path.span().start().line;
+            if !self.allowed(line, ALLOW_JSON_VALUE) {
+                self.push(
+                    line,
+                    "json-value",
+                    "`to_value` đổi model sang Value: dùng `serde_json::to_string`".to_owned(),
+                );
+            }
+        }
+        visit::visit_expr_call(self, c);
     }
 
     fn visit_macro(&mut self, m: &'ast syn::Macro) {
@@ -476,6 +498,19 @@ fn a() {
 }
 "#;
         assert_eq!(lint(src), vec![(3, "sql-star"), (4, "sql-star")]);
+    }
+
+    #[test]
+    fn luat_json_value() {
+        let src = r#"
+fn a(m: Model) {
+    let _ = serde_json::to_value(&m);
+    // trinity-lint: allow-json-value
+    let _ = serde_json::to_value(&m);
+    let _ = serde_json::to_string(&m);
+}
+"#;
+        assert_eq!(lint(src), vec![(3, "json-value")]);
     }
 
     #[test]

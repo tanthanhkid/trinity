@@ -1,4 +1,5 @@
-//! K30 — kích thước + định dạng đầu ra khớp bản Node (sharp) trên 10 ảnh mẫu, gồm ảnh có EXIF Orientation 3/6/8.
+//! K30 — kích thước + định dạng đầu ra khớp bản Node (sharp) trên 11 ảnh mẫu (gồm ảnh có EXIF Orientation 3/6/8, PNG
+//! có alpha, PNG 4 ô màu kiểm vùng cắt, JPEG hồ sơ màu Display P3), và màu RGBA tại 5 điểm lệch không quá [`TOLERANCE`].
 //! Bảng: `server/contracts/cases/images.json` (sinh bằng chính chuỗi sharp của bản Node ở
 //! `services/crm/src/common/helpers/__tests__/docgen-image-golden.spec.ts`).
 
@@ -22,6 +23,9 @@ fn format_name(f: ImageFormat) -> &'static str {
     }
 }
 
+/// Lệch màu tối đa mỗi kênh so với sharp: hai bộ lọc thu nhỏ và hai bộ nén có mất dữ liệu khác nhau.
+const TOLERANCE: i32 = 10;
+
 /// Đọc lại đầu ra bằng bộ giải mã độc lập với lời khai của hàm: định dạng theo nội dung, kích thước thật.
 fn check(out: &Encoded, want: &Value, label: &str) {
     let fmt = image::guess_format(&out.bytes).unwrap();
@@ -44,6 +48,24 @@ fn check(out: &Encoded, want: &Value, label: &str) {
         !out.bytes.windows(6).any(|w| w == b"Exif\0\0"),
         "{label}: đầu ra còn EXIF"
     );
+    let rgba = decoded.to_rgba8();
+    for s in want["samples"].as_array().unwrap() {
+        let (x, y) = (s["x"].as_u64().unwrap() as u32, s["y"].as_u64().unwrap() as u32);
+        let got = rgba.get_pixel(x, y).0;
+        let exp: Vec<i32> = s["rgba"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_i64().unwrap() as i32)
+            .collect();
+        let worst = got
+            .iter()
+            .zip(&exp)
+            .map(|(g, e)| (i32::from(*g) - e).abs())
+            .max()
+            .unwrap();
+        assert!(worst <= TOLERANCE, "{label} @({x},{y}): Rust {got:?} ≠ sharp {exp:?}");
+    }
 }
 
 #[test]
@@ -52,7 +74,7 @@ fn muoi_anh_mau_khop_ban_node() {
         serde_json::from_str(&std::fs::read_to_string(root().join("server/contracts/cases/images.json")).unwrap())
             .unwrap();
     let cases = golden["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 10);
+    assert_eq!(cases.len(), 11);
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/images");
     for c in cases {
         let file = c["file"].as_str().unwrap();

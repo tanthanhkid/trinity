@@ -82,6 +82,8 @@ printpdf = "0.13"
 # cần libwebp qua crate `webp` vì `image` chỉ mã hoá WebP lossless (PLAN 4.2, K30).
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
 webp = { version = "0.3", default-features = false }
+# Chuyển hồ sơ màu ICC (Display P3, Adobe RGB…) về sRGB như sharp; đã có sẵn trong cây phụ thuộc của `image`.
+moxcms = "0.8"
 handlebars = "6.4"
 rust-embed = "8.14"
 
@@ -140,6 +142,8 @@ opt-level = 3
 [profile.dev.package.fdeflate]
 opt-level = 3
 [profile.dev.package.libwebp-sys]
+opt-level = 3
+[profile.dev.package.moxcms]
 opt-level = 3
 
 [profile.release]

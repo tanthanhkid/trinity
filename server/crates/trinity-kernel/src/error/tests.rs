@@ -61,6 +61,20 @@ fn case(name: &str) -> (AppError, bool) {
         ),
         "missing_company_public" => (AppError::MissingCompanyContext, false),
         "missing_company_signed_in" => (AppError::MissingCompanyContext, true),
+        "not_found_empty_message" => h(HttpError::not_found("")),
+        "http_exception_empty_string" => h(HttpError::new(400, "")),
+        "field_errors_not_object" => h(HttpError::field_errors(
+            "Dữ liệu không hợp lệ",
+            json!("không phải object"),
+        )),
+        "field_errors_array" => h(HttpError::field_errors(
+            "Dòng lỗi",
+            json!([{ "row": 2, "reason": "thiếu tên" }]),
+        )),
+        "field_errors_key_order" => h(HttpError::field_errors(
+            "Sai",
+            json!({ "z_cuoi": "một", "a_dau": "hai" }),
+        )),
         other => panic!("ca golden {other} chưa có bản Rust"),
     }
 }
@@ -167,7 +181,40 @@ fn thieu_cong_ty() {
 }
 
 #[test]
-#[should_panic(expected = "Nest không có lớp lỗi cho mã 429")]
-fn nest_khong_co_lop_429() {
-    let _ = HttpError::nest(429, None);
+fn ma_khong_co_lop_nest_khong_panic() {
+    assert_eq!(HttpError::nest(429, None).body().error, "Too Many Requests");
+    let b = HttpError::nest(499, None).body();
+    assert_eq!((b.message, b.error), (Message::One("Error".into()), "Error".to_owned()));
+    let b = HttpError::nest(599, Some("x".into())).body();
+    assert_eq!(b.error, "Internal Server Error");
+}
+
+#[test]
+fn giu_thu_tu_khoa_errors_nhu_node() {
+    // Golden so bằng Value (không theo thứ tự); ở đây so chuỗi để chắc thứ tự khoá giữ như lúc dựng.
+    let (_, body) = AppError::Http(HttpError::field_errors(
+        "Sai",
+        json!({ "z_cuoi": "một", "a_dau": "hai" }),
+    ))
+    .response(false);
+    let text = serde_json::to_string(&body).unwrap();
+    assert!(text.ends_with(r#""errors":{"z_cuoi":"một","a_dau":"hai"}}"#), "{text}");
+    let golden: Value = serde_json::from_str(GOLDEN).unwrap();
+    let from_node = serde_json::to_string(&golden["field_errors_key_order"]["body"]).unwrap();
+    assert_eq!(text, from_node, "từng byte như Node");
+}
+
+#[test]
+fn internal_giu_loai_loi_ben_trong() {
+    let boxed: Box<dyn std::error::Error + Send + Sync> = Box::new(HttpError::not_found("Không tìm thấy đơn"));
+    assert_eq!(AppError::internal(boxed).response(false).0, 404);
+    let boxed: Box<dyn std::error::Error + Send + Sync> = Box::new(DbError::from_postgres(
+        Some("P0001"),
+        None,
+        "TRINITY_EMAIL_TAKEN: a@b.c",
+    ));
+    assert!(matches!(AppError::internal(boxed), AppError::Db(_)));
+    let boxed: Box<dyn std::error::Error + Send + Sync> = Box::new(AppError::MissingCompanyContext);
+    assert_eq!(AppError::internal(boxed).response(false).0, 404);
+    assert!(matches!(AppError::internal("boom"), AppError::Internal(_)));
 }

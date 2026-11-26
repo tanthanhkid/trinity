@@ -196,5 +196,55 @@
       "message": "Internal server error",
       "error": "Internal Server Error"
     }
+  },
+  "not_found_empty_message": {
+    "status": 404,
+    "body": {
+      "statusCode": 404,
+      "message": "Not Found",
+      "error": "Not Found"
+    }
+  },
+  "http_exception_empty_string": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": "",
+      "error": ""
+    }
+  },
+  "field_errors_not_object": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": "Dữ liệu không hợp lệ",
+      "error": "Dữ liệu không hợp lệ"
+    }
+  },
+  "field_errors_array": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": "Dòng lỗi",
+      "error": "Dòng lỗi",
+      "errors": [
+        {
+          "row": 2,
+          "reason": "thiếu tên"
+        }
+      ]
+    }
+  },
+  "field_errors_key_order": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": "Sai",
+      "error": "Sai",
+      "errors": {
+        "z_cuoi": "một",
+        "a_dau": "hai"
+      }
+    }
   }
 }

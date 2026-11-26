@@ -80,6 +80,11 @@ async function cases(): Promise<Record<string, { status: number; body: unknown }
     tenant_route_taken: run(new Error('ERROR: TRINITY_ROUTE_TAKEN: facebook_page 1 is connected to another company')),
     missing_company_public: run(named('No company context', 'MissingCompanyContextError')),
     missing_company_signed_in: run(named('No company context', 'MissingCompanyContextError'), true),
+    not_found_empty_message: run(new NotFoundException('')),
+    http_exception_empty_string: run(new HttpException('', HttpStatus.BAD_REQUEST)),
+    field_errors_not_object: run(new BadRequestException({ message: 'Dữ liệu không hợp lệ', errors: 'không phải object' })),
+    field_errors_array: run(new BadRequestException({ message: 'Dòng lỗi', errors: [{ row: 2, reason: 'thiếu tên' }] })),
+    field_errors_key_order: run(new BadRequestException({ message: 'Sai', errors: { z_cuoi: 'một', a_dau: 'hai' } })),
   }
 }
 

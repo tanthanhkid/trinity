@@ -75,6 +75,8 @@ pub fn nest_description(status: u16) -> Option<&'static str> {
         418 => "I'm a teapot",
         421 => "Misdirected",
         422 => "Unprocessable Entity",
+        // Không phải lớp có sẵn của Nest; câu của ThrottlerException.
+        429 => "Too Many Requests",
         500 => "Internal Server Error",
         501 => "Not Implemented",
         502 => "Bad Gateway",
@@ -110,10 +112,16 @@ impl HttpError {
     /// Lớp lỗi có sẵn của Nest, vd `new NotFoundException('câu')` hay `new NotFoundException()`:
     /// `error` = mô tả của lớp; không có câu thì `message` cũng là mô tả đó.
     ///
-    /// # Panics
-    /// Khi `status` không có lớp lỗi tương ứng trong Nest ([`nest_description`]).
+    /// Câu rỗng tính như không có câu (Nest kiểm `!objectOrError`). Mã không có lớp lỗi trong [`nest_description`]
+    /// dùng mô tả chung (`Internal Server Error` cho 5xx, `Error` cho mã khác) — không panic: bản release biên dịch với
+    /// `panic = "abort"`.
     pub fn nest(status: u16, message: Option<Message>) -> Self {
-        let description = nest_description(status).unwrap_or_else(|| panic!("Nest không có lớp lỗi cho mã {status}"));
+        let description = nest_description(status).unwrap_or(if status >= 500 {
+            "Internal Server Error"
+        } else {
+            "Error"
+        });
+        let message = message.filter(|m| !matches!(m, Message::One(s) if s.is_empty()));
         Self {
             status,
             message: message.unwrap_or_else(|| Message::One(description.to_owned())),
@@ -201,7 +209,12 @@ impl HttpError {
             status_code: self.status,
             message: self.message.clone(),
             error,
-            errors: if server { None } else { self.errors.clone() },
+            // Như bản Node: chỉ giữ `errors` là object/mảng (`typeof extra === 'object'`, khác null).
+            errors: if server {
+                None
+            } else {
+                self.errors.clone().filter(|e| e.is_object() || e.is_array())
+            },
         }
     }
 }
@@ -329,9 +342,22 @@ const EMAIL_TAKEN: &str = "Email này đã được dùng cho một công ty kh�
 const ROUTE_TAKEN: &str = "Trang/kênh này đã được một công ty khác kết nối với Trinity";
 
 impl AppError {
-    /// Lỗi nội bộ từ một giá trị lỗi bất kỳ.
+    /// Lỗi nội bộ từ một giá trị lỗi bất kỳ. Nếu bên trong thực ra là [`HttpError`], [`DbError`] hay [`AppError`] (vd
+    /// đi qua `?` của một hàm trả `Box<dyn Error>`) thì giữ nguyên loại đó, không biến thành 500.
     pub fn internal(e: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> Self {
-        Self::Internal(e.into())
+        let e = e.into();
+        let e = match e.downcast::<AppError>() {
+            Ok(app) => return *app,
+            Err(e) => e,
+        };
+        let e = match e.downcast::<HttpError>() {
+            Ok(h) => return Self::Http(*h),
+            Err(e) => e,
+        };
+        match e.downcast::<DbError>() {
+            Ok(d) => Self::Db(*d),
+            Err(e) => Self::Internal(e),
+        }
     }
 
     /// Dịch lỗi ngữ cảnh công ty như `translateTenantError()`. `authenticated`: request mang thông tin đăng nhập

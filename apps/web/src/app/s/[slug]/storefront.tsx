@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Check, Copy, Loader2, MapPin, Minus, Phone, Plus, ShoppingBag, X } from "lucide-react"
+import QRCode from "react-qr-code"
 
 /** Trang bán hàng công khai — fetch thẳng (không phiên đăng nhập, không tự chuyển về /login). */
 interface Product { id: number; name: string; price: number; image_url: string | null; description: string | null }
@@ -12,7 +13,8 @@ interface Store {
 }
 interface Placed {
   code: string; total: number; payment_method: "cod" | "bank_transfer"
-  payment: { qr_url: string | null; transfer_content: string; bank: { bank?: string; account_number?: string; account_name?: string | null } | null } | null
+  /** Chuyển khoản: `qr_data` = chuỗi VietQR máy chủ sinh (trình duyệt tự vẽ mã, không tải ảnh từ dịch vụ ngoài). */
+  payment: { qr_data: string; transfer_content: string; bank: { bin?: string; bank?: string; account_number?: string; account_name?: string | null } | null } | null
 }
 type Line = Product & { qty: number }
 
@@ -269,7 +271,7 @@ function Checkout({ store, t, lines, total, slug, add, onClose, onPlaced }: {
           </section>
           <section className="flex flex-col gap-3">
             <StepTitle n={3} t={t} accent={store.accent}>Thanh toán</StepTitle>
-            {store.payment.bank_transfer && pay("bank_transfer", "Chuyển khoản (quét mã QR)", "Cửa hàng tự nhận khi tiền về — không cần chụp màn hình")}
+            {store.payment.bank_transfer && pay("bank_transfer", "Chuyển khoản (quét mã QR)", "Quét mã bằng app ngân hàng — cửa hàng xác nhận khi nhận được tiền")}
             {store.payment.cod && pay("cod", "Trả tiền khi nhận hàng (COD)", "Thanh toán cho người giao hàng")}
           </section>
         </div>
@@ -302,7 +304,7 @@ function OrderDone({ store, t, slug, placed, onBack }: { store: Store; t: Theme;
   useEffect(() => { try { window.scrollTo({ top: 0 }) } catch { /* jsdom */ } }, [])
   useEffect(() => {
     if (!transfer || status === "paid") return
-    // Chờ tiền về (SePay tự khớp) — hỏi lại mỗi 5 giây, tối đa 20 phút.
+    // Chờ cửa hàng xác nhận đã nhận tiền (nhân viên đổi trạng thái đơn) — hỏi lại mỗi 5 giây, tối đa 20 phút.
     let n = 0
     const id = setInterval(async () => {
       if (++n > 240) return clearInterval(id)
@@ -325,10 +327,9 @@ function OrderDone({ store, t, slug, placed, onBack }: { store: Store; t: Theme;
       <p style={{ color: t.muted }}>Mã đơn <b style={{ color: t.ink }}>{placed.code}</b> · <span className="tabular-nums">{vnd(placed.total)}</span></p>
       {transfer && !paid ? (
         <div className="flex w-full flex-col items-center gap-4 border p-5 sm:p-6" style={{ borderColor: t.line, borderRadius: t.radius, background: t.surface }}>
-          {placed.payment!.qr_url && (
-            // eslint-disable-next-line @next/next/no-img-element -- ảnh QR từ qr.sepay.vn
-            <img src={placed.payment!.qr_url} alt={`Mã QR chuyển ${vnd(placed.total)}`} className="aspect-square w-full max-w-80 rounded-xl bg-white p-3" />
-          )}
+          <div className="w-full max-w-80 rounded-xl bg-white p-3" role="img" aria-label={`Mã QR chuyển ${vnd(placed.total)}`}>
+            <QRCode value={placed.payment!.qr_data} size={256} style={{ width: "100%", height: "auto" }} />
+          </div>
           <div className="flex w-full flex-col gap-2 text-left text-sm">
             <div className="flex flex-col gap-1.5">
               <span style={{ color: t.muted }}>Nội dung chuyển khoản</span>
@@ -340,7 +341,7 @@ function OrderDone({ store, t, slug, placed, onBack }: { store: Store; t: Theme;
             <div className="flex justify-between gap-3"><span style={{ color: t.muted }}>Số tiền</span><span className="font-semibold tabular-nums">{vnd(placed.total)}</span></div>
             {placed.payment!.bank && <div className="flex justify-between gap-3"><span style={{ color: t.muted }}>Tài khoản</span><span className="text-right">{[placed.payment!.bank.bank, placed.payment!.bank.account_number, placed.payment!.bank.account_name].filter(Boolean).join(" · ")}</span></div>}
           </div>
-          <p className="text-[13px]" style={{ color: t.muted }}>Giữ nguyên nội dung để cửa hàng tự nhận tiền. Trang tự cập nhật khi tiền về.</p>
+          <p className="text-[13px]" style={{ color: t.muted }}>Giữ nguyên nội dung để cửa hàng đối chiếu. Trang tự cập nhật khi cửa hàng xác nhận đã nhận tiền.</p>
         </div>
       ) : (
         <p style={{ color: t.muted }}>{store.name} sẽ gọi số {placed.phone} để xác nhận và giao hàng.</p>

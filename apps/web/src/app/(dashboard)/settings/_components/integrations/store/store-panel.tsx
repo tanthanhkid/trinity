@@ -25,6 +25,12 @@ export interface StoreSettings {
   slug: string; name: string; tagline: string | null; theme: "toi-gian" | "am-ap" | "soi-dong"; accent: string
   cover_url: string | null; logo_url: string | null
   phone: string | null; address: string | null; cod: boolean; bank_transfer: boolean; published: boolean; product_ids: number[]
+  /** Tài khoản nhận chuyển khoản — QR VietQR do máy chủ tự sinh, không cần cổng thanh toán. */
+  bank_bin?: string | null; bank_account?: string | null; bank_account_name?: string | null
+  /** Lời nhắc từ máy chủ (vd chuyển khoản tạm tắt vì chưa có tài khoản nhận tiền). */
+  bank_notice?: string | null
+  /** Ngân hàng nhận VietQR (máy chủ trả) để chọn. */
+  banks?: Array<{ bin: string; name: string }>
   /** Máy chủ trả: `/s/<slug>` kèm `?cid=` khi tài khoản không phải công ty 1. */
   public_path?: string | null
 }
@@ -132,8 +138,30 @@ function StoreSettingsForm({ initial }: { initial: StoreSettings }) {
             <Field>
               <FieldLabel>Cách thanh toán</FieldLabel>
               <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.cod} onChange={() => setF({ ...f, cod: !f.cod })} /> Trả tiền khi nhận hàng (COD)</label>
-              <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.bank_transfer} onChange={() => setF({ ...f, bank_transfer: !f.bank_transfer })} /> Chuyển khoản QR — tự khớp tiền về (cần kết nối SePay)</label>
+              <label className="flex items-center gap-2 text-sm"><Checkbox checked={f.bank_transfer} onChange={() => setF({ ...f, bank_transfer: !f.bank_transfer })} /> Chuyển khoản bằng mã QR (khách quét bằng app ngân hàng)</label>
+              {initial.bank_notice && <FieldError>{initial.bank_notice}</FieldError>}
             </Field>
+            {f.bank_transfer && (
+              <div className="grid gap-5 sm:grid-cols-3">
+                <Field>
+                  <FieldLabel htmlFor="st-bank">Ngân hàng nhận tiền</FieldLabel>
+                  <select id="st-bank" value={f.bank_bin ?? ""} onChange={(e) => setF({ ...f, bank_bin: e.target.value || null })}
+                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm">
+                    <option value="">Chọn ngân hàng</option>
+                    {(initial.banks ?? []).map((b) => <option key={b.bin} value={b.bin}>{b.name}</option>)}
+                  </select>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="st-acc">Số tài khoản</FieldLabel>
+                  <Input id="st-acc" maxLength={19} inputMode="numeric" value={f.bank_account ?? ""} onChange={(e) => setF({ ...f, bank_account: e.target.value })} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="st-acc-name">Tên chủ tài khoản</FieldLabel>
+                  <Input id="st-acc-name" maxLength={80} value={f.bank_account_name ?? ""} onChange={(e) => setF({ ...f, bank_account_name: e.target.value })} />
+                </Field>
+                <FieldDescription className="sm:col-span-3">Khách quét mã là điền sẵn số tiền và nội dung là mã đơn. Tiền vào thẳng tài khoản của bạn; khi thấy tiền về, đổi đơn sang «Đã thanh toán».</FieldDescription>
+              </div>
+            )}
           </FieldGroup>
         </div>
       </ConnectionGroup>

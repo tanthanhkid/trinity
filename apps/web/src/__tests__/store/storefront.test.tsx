@@ -28,7 +28,7 @@ describe("<Storefront>", () => {
     fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
       if (url === "/api/v1/store/public/cua-hang-abc") return new Response(JSON.stringify(STORE), { status: 200 })
       if (url === "/api/v1/store/public/cua-hang-abc/orders" && init?.method === "POST") {
-        return new Response(JSON.stringify({ code: "DH-ABCDEF", total: 65000, payment_method: "bank_transfer", payment: { qr_url: "https://qr.sepay.vn/img?x", transfer_content: "TRNABCDEF", bank: { bank: "MBBank", account_number: "0123" } } }), { status: 201 })
+        return new Response(JSON.stringify({ code: "DH-ABCDEF", total: 65000, payment_method: "bank_transfer", payment: { qr_data: "00020101021238540010A00000072701240006970422011001234567890208QRIBFTTA53037045405650005802VN62130809DH-ABCDEF6304XXXX", transfer_content: "DH-ABCDEF", bank: { bin: "970422", bank: "MBBank", account_number: "0123456789" } } }), { status: 201 })
       }
       return new Response(JSON.stringify({ status: "new" }), { status: 200 })
     })
@@ -45,8 +45,11 @@ describe("<Storefront>", () => {
     await waitFor(() => expect(screen.getByText("Quét mã để thanh toán")).toBeTruthy())
     const post = fetchMock.mock.calls.find((c) => c[1]?.method === "POST")!
     expect(JSON.parse(post[1].body)).toMatchObject({ name: "An", phone: "0912345678", payment_method: "bank_transfer", items: [{ product_id: 10, quantity: 2 }, { product_id: 11, quantity: 1 }] })
-    expect((screen.getByRole("img") as HTMLImageElement).src).toContain("qr.sepay.vn")
-    expect(screen.getByText("TRNABCDEF")).toBeTruthy()
+    // QR vẽ tại trình duyệt từ chuỗi VietQR (không tải ảnh từ dịch vụ ngoài).
+    const qr = screen.getByRole("img", { name: /Mã QR chuyển 65.000đ/ })
+    expect(qr.querySelector("svg")).toBeTruthy()
+    expect(document.querySelector('img[src*="sepay"]')).toBeNull()
+    expect(screen.getByText("DH-ABCDEF", { selector: "span.font-mono" })).toBeTruthy()
     expect(screen.getByRole("button", { name: "Sao chép nội dung chuyển khoản" })).toBeTruthy()
     // Nút ở thanh trên của trang kết quả quay lại mua tiếp (không phải nút chết).
     fireEvent.click(screen.getAllByRole("button", { name: "Tiếp tục mua" })[0])

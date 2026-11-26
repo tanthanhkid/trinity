@@ -11,9 +11,14 @@ A quick storefront for small shops, built on the CRM's own product catalog. It i
 ## What a buyer gets
 
 - Product grid, cart kept in the browser, checkout with name, phone and address.
-- **Cash on delivery**, or **bank transfer**. Bank transfer shows a VietQR code and needs SePay to be connected. When the money arrives, SePay matches it automatically and the order turns *paid* while the buyer is still on the page.
+- **Cash on delivery**, or **bank transfer**. For bank transfer the shop picks its bank and enters the account number (and holder name) in the store settings; no payment gateway or connection is needed. After ordering, the buyer sees a VietQR code with the account, the amount and the order code as the transfer note already filled in. The QR string is built on the server (EMVCo/NAPAS format, `services/crm/src/store/vietqr.ts`) and drawn in the browser; no outside QR service is called.
+- Money is not matched automatically: the order stays *new* until staff see the money in their account and set the order to *paid* (orders list, or `PATCH /store/orders/:id`). The buyer's page updates when that happens.
 - Prices always come from the catalog on the server. A buyer can only look up an order with its code and the phone number used to place it.
 - Orders are limited to 5 per 10 minutes per IP address, and to 300 per 10 minutes per shop.
+
+## Upgrading from the SePay version
+
+Earlier versions needed SePay for bank transfer. Migration `0022_store_vietqr` copies the bank and account number from the old SePay settings into the store settings (the bank name such as `MBBank` or `Vietcombank` is mapped to its NAPAS BIN). When it cannot (no SePay connection, unknown bank name), bank transfer is turned off, cash on delivery keeps working, and the store settings show a reminder to enter the account. Bank-transfer orders already waiting under the SePay flow stay as they are; staff confirm them by hand.
 
 ## What lands in the CRM
 

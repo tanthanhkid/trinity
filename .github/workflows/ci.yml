@@ -168,6 +168,11 @@ jobs:
         if: needs.rust-changes.outputs.rust == 'true'
         working-directory: server
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      # Luật PLAN 4.3: cấm `SELECT *`/`RETURNING *`, cấm gọi HTTP ra ngoài khi đang giữ kết nối DB.
+      - name: cargo xtask lint
+        if: needs.rust-changes.outputs.rust == 'true'
+        working-directory: server
+        run: cargo run --locked --quiet --package xtask -- lint
 
   rust-unit:
     name: Rust unit

@@ -658,6 +658,23 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   của job (`jobs`, `job_runs`, mục 4.9), không có bảng công ty/định tuyến.
 - Kiểm "đã migrate chưa" cho công ty 1: `platform.companies.migrated_to` không được ghi cho công ty 1
   (`provision.ts` lọc `id <> 1`), nên đọc `_prisma_migrations` của `public`.
+- **Đã làm ở K06** (`server/crates/trinity-db/src/tenant.rs`): `Db` (pool), `Db::tenant(CompanyRef)` → `TenantDb`
+  (handle) → `TenantConn`/`TenantTx`; `PlatformDb` → `PlatformConn`/`PlatformTx`. `search_path` không tồn tại,
+  `TimeZone=UTC`, `statement_timeout` gửi trong gói khởi động (thay cho `after_connect`, không thêm vòng gọi); trả kết
+  nối thì `ROLLBACK; RESET ALL; DISCARD TEMP; UNLISTEN *; SELECT pg_advisory_unlock_all()` (RESET ALL về đúng giá trị
+  khởi động, xoá mọi `SET` của handler; DISCARD TEMP vì `pg_temp` đứng đầu đường tìm bảng, bảng tạm cùng tên của công
+  ty trước sẽ che bảng thật của công ty sau; không `DISCARD ALL` vì nó xoá prepared statement của statement cache),
+  lỗi thì đóng kết nối. Cổng migrate: tên migration lớn nhất của thư mục Prisma ghi vào binary lúc biên
+  dịch (`LATEST_MIGRATION`); công ty N so `platform.companies.migrated_to`, công ty 1 so tên lớn nhất đã chạy xong
+  trong `public._prisma_migrations`; thiếu ⇒ `DbError::CompanyNotMigrated` (HTTP 503). Công ty khác 1 còn phải có
+  `status = 'active'` (như `findActiveCompany`), không thì `CompanyInactive`. Chỉ nhớ kết quả đạt, trong 10 giây. Env: `DATABASE_URL` (đa công ty: `TENANT_DATABASE_URL`, `DIRECT_DATABASE_URL` trước),
+  `DB_POOL_SIZE` (mặc định 8, không có thì `PRISMA_CONNECTION_LIMIT`), `DB_ACQUIRE_TIMEOUT_MS` (10 000),
+  `DB_STATEMENT_TIMEOUT_MS` (30 000), `MULTI_TENANT`; tham số riêng của Prisma trong URL (`schema`,
+  `connection_limit`…) bị bỏ. URL pooler (`pgbouncer=true`, host `-pooler.`) không dùng được kể cả bản một công ty
+  (Rust giữ `search_path` theo phiên): bản một công ty có `DATABASE_URL` pooled thì lấy `DIRECT_DATABASE_URL`. Lint `cargo xtask lint` (job clippy
+  của CI): `sql-star` (cả `schema.bảng.*`) và `http-hold` (theo cú pháp: biến từ `<db>.acquire()`/`.begin()` hoặc
+  khai kiểu/tham số `TenantConn`/`TenantTx`/`PlatformConn`/`PlatformTx`, tới câu lệnh cấp cao nhất `drop`/`commit`/
+  `rollback`; HTTP = `reqwest::…` hoặc `.send()` sau builder `.get/.post/…`; ngoại lệ `// trinity-lint: allow-http-hold`).
 
 ### 4.4 Tầng dữ liệu
 

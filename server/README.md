@@ -59,6 +59,7 @@ Chạy trong `server/`. Trên máy dùng chung, thay `cargo` bằng `scripts/car
 | Kiểm một crate | `cargo check -p <crate>` |
 | Định dạng | `cargo fmt --all` (CI: `cargo fmt --all --check`) |
 | Lint | `cargo clippy --workspace --all-targets -- -D warnings` |
+| Lint SQL và giữ kết nối (PLAN 4.3) | `cargo xtask lint` (ngoại lệ có chủ đích: `/* trinity-lint: allow-star */` trong câu SQL, `// trinity-lint: allow-http-hold` trên dòng gọi HTTP) |
 | Test không cần DB của một crate (unit, tests/, doctest) | `cargo test -p <crate>` |
 | Test pg (đánh dấu `#[ignore]`, chạy có chủ đích) | `TEST_DATABASE_URL=postgresql://$USER@localhost:5432/trinity_<tên> cargo test -p <crate> --tests -- --ignored` |
 | Giấy phép, lỗ hổng | `cargo deny check` (cần [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)) |

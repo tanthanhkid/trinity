@@ -268,7 +268,8 @@ async fn kieu_ket_qua_doi_ngoai_giao_dich_sqlx_tu_chuan_bi_lai_trong_giao_dich_t
     let companies = [9051, 9052, 9003];
     let mut conn = PgConnection::connect(&url()).await.unwrap();
     setup_named(&mut conn, &companies, &[9052]).await;
-    const STAR: &str = "SELECT * FROM spike_contacts WHERE id = $1";
+    // Cố ý dùng `SELECT *` để chứng minh lỗi 0A000: đánh dấu cho `cargo xtask lint`.
+    const STAR: &str = "SELECT * /* trinity-lint: allow-star */ FROM spike_contacts WHERE id = $1";
 
     // Ngoài giao dịch: luôn đúng dòng, đúng số cột.
     for i in 0..100 {

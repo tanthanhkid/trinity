@@ -28,6 +28,8 @@ The same label shows next to each item on **Connections (Kết nối)** in the a
 
 ## Connectors
 
+Trinity no longer creates new payment requests (SePay, VNPay, MoMo): requests created earlier are still marked paid when the money arrives (webhook / IPN).
+
 | Connector | Status | Notes |
 |---|---|---|
 | SePay | Ready — not yet tried with a real account | Bank-transfer payment requests with VietQR code; incoming transfers auto-matched by code and amount (webhook, `Authorization: Apikey`). Tested with SePay's official sample payload, not yet with a live account. |

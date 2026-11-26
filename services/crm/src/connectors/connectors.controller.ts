@@ -1,10 +1,10 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, HttpException, Logger, NotFoundException, Param, ParseIntPipe, Post, Put, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, GoneException, Headers, HttpCode, HttpException, Logger, NotFoundException, Param, ParseIntPipe, Post, Put, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Can, CurrentUser, Public, isPrivateIp, resolveClientIp, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
 import { OrgFeaturesService } from '../settings/org-features.service';
-import { CreatePaymentDto, SaveKiotVietDto, SaveMisaDto, SaveSapoDto, SaveWooDto, SaveMomoDto, SaveSepayDto, SaveVnpayDto } from './connectors.dto';
+import { SaveKiotVietDto, SaveMisaDto, SaveSapoDto, SaveWooDto, SaveMomoDto, SaveSepayDto, SaveVnpayDto } from './connectors.dto';
 import { KiotVietService } from './kiotviet.service';
 import { SapoService } from './sapo.service';
 import { MisaService } from './misa.service';
@@ -439,12 +439,17 @@ export class ConnectorsController {
     return this.payments.list({ status: status || undefined, limit: Number(limit) || undefined }, user);
   }
 
+  /**
+   * Ngừng tạo yêu cầu thanh toán mới (G07a, #105). Yêu cầu ĐANG CHỜ vẫn được ghi nhận: IPN VNPay/MoMo, trang trả về và
+   * webhook SePay vẫn chạy (các route ở trên), danh sách/xem/huỷ vẫn dùng được.
+   */
   @Post('payments')
   @Can('deals.manage')
   @RequireOrgFeature('payments')
-  @ApiOperation({ summary: 'Tạo yêu cầu thanh toán (mã + QR chuyển khoản khi đã nối SePay)' })
-  create(@Body() dto: CreatePaymentDto, @CurrentUser() user: AuthUser) {
-    return this.payments.create(dto, user.userId);
+  @HttpCode(410)
+  @ApiOperation({ summary: 'Đã ngừng: Trinity không tạo yêu cầu thanh toán mới (trả 410); yêu cầu đang chờ vẫn được ghi nhận khi tiền về' })
+  create(): never {
+    throw new GoneException(PAYMENT_CREATION_STOPPED);
   }
 
   @Get('payments/:id')
@@ -462,6 +467,9 @@ export class ConnectorsController {
     return this.payments.cancel(id, user);
   }
 }
+
+export const PAYMENT_CREATION_STOPPED =
+  'Trinity đã ngừng tạo yêu cầu thanh toán mới. Các yêu cầu đang chờ vẫn được tự đánh dấu đã trả khi tiền về; nhận tiền mới bằng QR chuyển khoản của ngân hàng hoặc công cụ của cổng thanh toán.';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 

@@ -95,4 +95,12 @@ describe("<PaymentsPanel>", () => {
     expect(img.getAttribute("src")).toContain("des=TRN7K2QXM")
     expect(screen.getAllByText("Đã thanh toán").length).toBeGreaterThan(0)
   })
+
+  it("ngừng tạo yêu cầu mới (#105): không có nút tạo, có câu giải thích, vẫn xem được yêu cầu cũ", async () => {
+    grant("deals.view", "deals.manage")
+    setup(sepay(), [payment()])
+    expect(await screen.findByText("TRN7K2QXM")).toBeTruthy()
+    expect(screen.getByTestId("payments-stopped").textContent).toContain("ngừng tạo yêu cầu thanh toán mới")
+    expect(screen.queryByRole("button", { name: /Tạo yêu cầu|Tạo mã/ })).toBeNull()
+  })
 })

@@ -8,9 +8,16 @@ use std::fmt::Write;
 
 use serde_json::Value;
 
+/// Từ khoá Rust (edition 2024, gồm từ dành riêng): viết được dạng thô `r#…`.
 const KEYWORDS: &[&str] = &[
-    "type", "match", "ref", "move", "loop", "fn", "mod", "use", "impl", "self", "where", "async",
+    "as", "break", "const", "continue", "else", "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let",
+    "loop", "match", "mod", "move", "mut", "pub", "ref", "return", "static", "struct", "trait", "true", "type",
+    "unsafe", "use", "where", "while", "async", "await", "dyn", "abstract", "become", "box", "do", "final", "macro",
+    "override", "priv", "typeof", "unsized", "virtual", "yield", "try", "gen",
 ];
+
+/// Từ khoá KHÔNG viết được dạng thô: đổi tên trường thành `<tên>_` và gắn `#[serde(rename)]`.
+const NON_RAW_KEYWORDS: &[&str] = &["self", "Self", "super", "crate"];
 
 pub fn generate(schema: &str, names: &[String]) -> Result<String, String> {
     let schema: Value = serde_json::from_str(schema).map_err(|e| format!("schema.json hỏng: {e}"))?;
@@ -143,10 +150,14 @@ fn gen_struct(name: &str, class: &Value, queue: &mut Vec<String>) -> String {
         let ty = if optional { format!("Option<{base}>") } else { base };
         let snake = prop.chars().any(|c| c.is_ascii_uppercase());
         let mut ident = if snake { to_snake(prop) } else { prop.to_owned() };
-        if KEYWORDS.contains(&ident.as_str()) {
+        let mut renamed = snake;
+        if NON_RAW_KEYWORDS.contains(&ident.as_str()) {
+            ident = format!("{ident}_");
+            renamed = true;
+        } else if KEYWORDS.contains(&ident.as_str()) {
             ident = format!("r#{ident}");
         }
-        if snake {
+        if renamed {
             let _ = writeln!(s, "    #[serde(rename = \"{prop}\")]");
         }
         if optional {
@@ -194,5 +205,27 @@ mod tests {
             "{code}"
         );
         assert!(generate(schema, &["KhongCo".into()]).is_err());
+    }
+
+    #[test]
+    fn tu_khoa_rust_thanh_ten_hop_le() {
+        let schema = r#"{"D":{"declared":[],"validated":["self","super","crate","type","as","yield"],"defaults":{},
+          "fields":{"self":{"rules":[{"name":"isString"}]},"super":{"rules":[{"name":"isString"}]},
+          "crate":{"rules":[{"name":"isString"}]},
+          "type":{"rules":[{"name":"isString"}]},"as":{"rules":[{"name":"isString"}]},"yield":{"rules":[{"name":"isString"}]}}}}"#;
+        let code = generate(schema, &["D".into()]).unwrap();
+        for (ident, prop) in [("self_", "self"), ("super_", "super"), ("crate_", "crate")] {
+            assert!(
+                code.contains(&format!("#[serde(rename = \"{prop}\")]\n    pub {ident}:")),
+                "{code}"
+            );
+        }
+        assert!(
+            code.contains("pub self_: String")
+                && code.contains("pub r#type: String")
+                && code.contains("pub r#as: String"),
+            "{code}"
+        );
+        assert!(code.contains("pub r#yield: String"), "{code}");
     }
 }

@@ -91,10 +91,32 @@ pub fn validate_value(name: &str, input: &Value, mode: Mode) -> Result<Value, Ap
     }
 }
 
-/// [`validate_value`] rồi deserialize vào `T`. Lệch kiểu giữa struct và schema là lỗi máy chủ (500).
+/// [`validate_value`] rồi deserialize vào `T`. Giá trị hợp lệ theo class-validator nhưng không nhét vừa kiểu Rust
+/// (số nguyên ngoài khoảng `i64`/`u32`…, số thực vào trường nguyên) là lỗi của dữ liệu vào ⇒ 400. Lệch kiểu giữa
+/// struct và schema (thiếu trường, sai kiểu chuỗi/mảng) là lỗi máy chủ (500).
+///
+/// Body mảng đã qua kiểm như Nest (xem `engine::run`); struct handler không thể nhận mảng nên được dựng từ `{}`.
 pub fn validate_into<T: Dto>(input: &Value, mode: Mode) -> Result<T, AppError> {
     let v = validate_value(T::NAME, input, mode)?;
-    serde_json::from_value(v).map_err(|e| AppError::internal(format!("struct {} lệch schema: {e}", T::NAME)))
+    let v = if v.is_array() {
+        Value::Object(serde_json::Map::new())
+    } else {
+        v
+    };
+    serde_json::from_value(v).map_err(|e| {
+        let msg = e.to_string();
+        let range = [
+            "out of range",
+            "invalid value: integer",
+            "invalid value: floating",
+            "invalid type: floating point",
+        ];
+        if range.iter().any(|p| msg.contains(p)) {
+            HttpError::nest(400, None).into()
+        } else {
+            AppError::internal(format!("struct {} lệch schema: {msg}", T::NAME))
+        }
+    })
 }
 
 #[cfg(test)]

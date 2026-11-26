@@ -208,6 +208,12 @@ const EXTRA_CASES: Array<[Cls, Mode, string, unknown]> = [
   [webhookEndpoint.CreateWebhookEndpointDto, 'strict', 'url', { url: 'ftp://example.com/hook', events: ['contact.created', 'không-có'] }],
   [webhookEndpoint.CreateWebhookEndpointDto, 'strict', 'url_ok', { url: 'https://hooks.example.com/in?x=1', events: ['contact.created'] }],
   [sendNotification.SendNotificationDto, 'lenient', 'enum', { channel: 'sms', user_ids: [1, 1] }],
+  // Body là mảng JSON: Nest kiểm mảng như một đối tượng của DTO (khoá là chỉ số)
+  [createContact.CreateContactDto, 'strict', 'array_body', [{ phone: '0901234567', full_name: 'A' }]],
+  [createContact.CreateContactDto, 'strict', 'array_body_empty', []],
+  [createContact.CreateContactDto, 'lenient', 'array_body', [{ phone: '0901234567', full_name: 'A' }, 5]],
+  [sendNotification.SendNotificationDto, 'lenient', 'array_body', [{ channel: 'sms' }]],
+  [sendNotification.SendNotificationDto, 'strict', 'array_body', [1, 2]],
 ]
 
 function fieldNames(schema: Record<string, any>, name: string): string[] {

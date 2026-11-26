@@ -12200,5 +12200,121 @@
     "body should not be empty"
    ]
   }
+ },
+ {
+  "dto": "CreateContactDto",
+  "mode": "strict",
+  "probe": "array_body",
+  "input": [
+   {
+    "phone": "0901234567",
+    "full_name": "A"
+   }
+  ],
+  "result": {
+   "status": 400,
+   "message": [
+    "property 0 should not exist",
+    "SĐT không hợp lệ. VD: 0900000001 hoặc +84900000001",
+    "phone must be a string",
+    "SĐT không được để trống",
+    "Họ tên phải từ 1 đến 100 ký tự",
+    "Họ tên không được để trống",
+    "full_name must be a string",
+    "source_id phải là số nguyên",
+    "Vui lòng chọn nguồn"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContactDto",
+  "mode": "strict",
+  "probe": "array_body_empty",
+  "input": [],
+  "result": {
+   "status": 400,
+   "message": [
+    "SĐT không hợp lệ. VD: 0900000001 hoặc +84900000001",
+    "phone must be a string",
+    "SĐT không được để trống",
+    "Họ tên phải từ 1 đến 100 ký tự",
+    "Họ tên không được để trống",
+    "full_name must be a string",
+    "source_id phải là số nguyên",
+    "Vui lòng chọn nguồn"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContactDto",
+  "mode": "lenient",
+  "probe": "array_body",
+  "input": [
+   {
+    "phone": "0901234567",
+    "full_name": "A"
+   },
+   5
+  ],
+  "result": {
+   "status": 400,
+   "message": [
+    "SĐT không hợp lệ. VD: 0900000001 hoặc +84900000001",
+    "phone must be a string",
+    "SĐT không được để trống",
+    "Họ tên phải từ 1 đến 100 ký tự",
+    "Họ tên không được để trống",
+    "full_name must be a string",
+    "source_id phải là số nguyên",
+    "Vui lòng chọn nguồn"
+   ]
+  }
+ },
+ {
+  "dto": "SendNotificationDto",
+  "mode": "lenient",
+  "probe": "array_body",
+  "input": [
+   {
+    "channel": "sms"
+   }
+  ],
+  "result": {
+   "status": 400,
+   "message": [
+    "user_id must be an integer number",
+    "user_id should not be empty",
+    "channel must be one of the following values: push, in_app, webhook",
+    "channel should not be empty",
+    "title must be a string",
+    "title should not be empty",
+    "body must be a string",
+    "body should not be empty"
+   ]
+  }
+ },
+ {
+  "dto": "SendNotificationDto",
+  "mode": "strict",
+  "probe": "array_body",
+  "input": [
+   1,
+   2
+  ],
+  "result": {
+   "status": 400,
+   "message": [
+    "property 0 should not exist",
+    "property 1 should not exist",
+    "user_id must be an integer number",
+    "user_id should not be empty",
+    "channel must be one of the following values: push, in_app, webhook",
+    "channel should not be empty",
+    "title must be a string",
+    "title should not be empty",
+    "body must be a string",
+    "body should not be empty"
+   ]
+  }
  }
 ]

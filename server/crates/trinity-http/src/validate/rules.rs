@@ -213,10 +213,14 @@ impl Rule {
             Self::ArrayMinSize(m) => arr.is_some_and(|a| a.len() as f64 >= *m),
             Self::ArrayNotEmpty => arr.is_some_and(|a| !a.is_empty()),
             Self::ArrayUnique => arr.is_some_and(|a| {
-                // `c.indexOf(a) === b`: so bằng ===, NaN và đối tượng không bao giờ trùng nhau.
-                a.iter()
-                    .enumerate()
-                    .all(|(i, x)| !a[..i].iter().any(|y| strict_eq(x, y)))
+                // class-validator: `array.filter((x, i, c) => c.indexOf(x) === i).length === array.length`.
+                // `indexOf` so bằng `===`: NaN không bao giờ tìm thấy (-1 ≠ i) nên mảng có NaN KHÔNG unique; mảng và
+                // đối tượng so theo tham chiếu, mỗi phần tử là một tham chiếu riêng nên luôn tìm thấy chính nó.
+                a.iter().enumerate().all(|(i, x)| match x {
+                    JsVal::Num(n) if n.is_nan() => false,
+                    JsVal::Arr(_) | JsVal::Obj(_) => true,
+                    _ => !a[..i].iter().any(|y| strict_eq(x, y)),
+                })
             }),
             Self::IsObject => matches!(v, JsVal::Obj(_)),
             Self::IsEmail => s.is_some_and(is_email),
@@ -270,22 +274,12 @@ impl Rule {
     }
 }
 
-/// `isLength` của validator.js: độ dài UTF-16 trừ cặp surrogate và chuỗi trình bày (ký tự + U+FE0E/U+FE0F).
+/// `isLength` của validator.js 13.15: độ dài UTF-16 trừ MỌI U+FE0E/U+FE0F (bộ chọn kiểu trình bày) và trừ số cặp
+/// surrogate.
 fn validator_len(s: &str) -> usize {
-    let units: Vec<u16> = s.encode_utf16().collect();
-    let vs = |u: u16| u == 0xFE0E || u == 0xFE0F;
-    let mut presentation = 0;
-    let mut i = 0;
-    while i + 1 < units.len() {
-        if !vs(units[i]) && vs(units[i + 1]) {
-            presentation += 1;
-            i += 2;
-        } else {
-            i += 1;
-        }
-    }
+    let selectors = s.encode_utf16().filter(|u| *u == 0xFE0E || *u == 0xFE0F).count();
     let surrogate_pairs = s.chars().filter(|c| u32::from(*c) > 0xFFFF).count();
-    units.len() - presentation - surrogate_pairs
+    utf16_len(s) - selectors - surrogate_pairs
 }
 
 /// Dịch regex JS (không cờ `u`) sang fancy-regex: `\d`, `\w`, `\D`, `\W` về dạng ASCII như JS.
@@ -409,8 +403,11 @@ fn is_email(s: &str) -> bool {
     if !is_fqdn(domain, true, false) {
         return false;
     }
-    if user.len() >= 2 && user.starts_with('"') && user.ends_with('"') {
-        return QUOTED_USER_UTF8.is_match(&user[1..user.len() - 1]).unwrap_or(false);
+    // validator 13.15.26: `user[0] === '"' && user[user.length - 1] === '"'` rồi `user.slice(1, user.length - 1)`. Một dấu `"`
+    // đơn lẻ vừa là ký tự đầu vừa là ký tự cuối (phần trong rỗng ⇒ khớp); `"a` (không đóng) thì không vào nhánh này.
+    if user.starts_with('"') && user.ends_with('"') {
+        let inner = if user.len() >= 2 { &user[1..user.len() - 1] } else { "" };
+        return QUOTED_USER_UTF8.is_match(inner).unwrap_or(false);
     }
     user.split('.').all(|p| EMAIL_USER_UTF8.is_match(p).unwrap_or(false))
 }
@@ -567,6 +564,16 @@ fn is_uuid(s: &str, version: Option<&str>) -> bool {
         }
         _ => false,
     }
+}
+
+#[cfg(test)]
+pub(super) fn is_email_for_test(s: &str) -> bool {
+    is_email(s)
+}
+
+#[cfg(test)]
+pub(super) fn validator_len_for_test(s: &str) -> usize {
+    validator_len(s)
 }
 
 #[cfg(test)]

@@ -51,7 +51,7 @@ pub enum TypeRef {
     Number,
     String,
     Boolean,
-    /// `Object`, `Date`, `Array`: class-transformer không đổi giá trị nguyên thuỷ.
+    /// `Object`, `Array`: class-transformer không đổi giá trị nguyên thuỷ. Kiểu khác (`Date`…) bị từ chối khi nạp.
     Other,
     Dto(String),
 }
@@ -124,16 +124,30 @@ impl Registry {
                         None => problems.push(format!("{name}.{prop}: @Transform chưa có bản Rust: {}", t.source)),
                     }
                 }
-                f.ty = rf.ty.map(|t| match t {
-                    Value::String(s) if s == "Number" => TypeRef::Number,
-                    Value::String(s) if s == "String" => TypeRef::String,
-                    Value::String(s) if s == "Boolean" => TypeRef::Boolean,
-                    Value::Object(o) => match o.get("dto") {
-                        Some(Value::String(d)) => TypeRef::Dto(d.clone()),
-                        _ => TypeRef::Other,
+                f.ty = match rf.ty {
+                    None | Some(Value::Null) => None,
+                    Some(Value::String(s)) => match s.as_str() {
+                        "Number" => Some(TypeRef::Number),
+                        "String" => Some(TypeRef::String),
+                        "Boolean" => Some(TypeRef::Boolean),
+                        "Object" | "Array" => Some(TypeRef::Other),
+                        other => {
+                            problems.push(format!("{name}.{prop}: @Type(() => {other}) chưa có bản Rust"));
+                            None
+                        }
                     },
-                    _ => TypeRef::Other,
-                });
+                    Some(Value::Object(o)) => match o.get("dto") {
+                        Some(Value::String(d)) => Some(TypeRef::Dto(d.clone())),
+                        _ => {
+                            problems.push(format!("{name}.{prop}: @Type có dạng lạ chưa có bản Rust: {o:?}"));
+                            None
+                        }
+                    },
+                    Some(other) => {
+                        problems.push(format!("{name}.{prop}: @Type có dạng lạ chưa có bản Rust: {other}"));
+                        None
+                    }
+                };
                 fields.insert(prop, f);
             }
             let defaults = rc

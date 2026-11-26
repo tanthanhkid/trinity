@@ -280,14 +280,39 @@ pub fn run(reg: &Registry, class: &Class, input: &JsVal, mode: Mode) -> Result<J
     } else {
         input.clone()
     };
-    let mut inst = plain_to_class(reg, class, &input);
-    let mut errors = Vec::new();
     let ex = Executor { reg, mode };
-    if matches!(inst, JsVal::Obj(_)) {
-        ex.execute(Some(class), &mut inst, &mut errors);
+    let mut errors = Vec::new();
+    let mut inst;
+    if let JsVal::Arr(items) = &input {
+        // Body là mảng: `plainToInstance` biến từng phần tử thành DTO, Nest gán `entity.constructor = metatype` cho
+        // chính mảng nên class-validator kiểm MẢNG như một đối tượng của DTO này: khoá của nó là các chỉ số
+        // ("0", "1"…), không có metadata ⇒ strict báo "property 0 should not exist", lenient `delete` khỏi mảng (để lại
+        // ô trống, JSON hoá thành null); các trường của DTO đều `undefined` nên luật bắt buộc báo lỗi như thường.
+        let elems: Vec<JsVal> = items.iter().map(|x| plain_to_class(reg, class, x)).collect();
+        let mut as_obj = JsVal::Obj(
+            elems
+                .iter()
+                .enumerate()
+                .map(|(i, v)| (i.to_string(), v.clone()))
+                .collect(),
+        );
+        ex.execute(Some(class), &mut as_obj, &mut errors);
+        inst = JsVal::Arr(
+            (0..elems.len())
+                .map(|i| match as_obj.get(&i.to_string()) {
+                    JsVal::Undefined => JsVal::Null,
+                    v => v.clone(),
+                })
+                .collect(),
+        );
     } else {
-        // Body không phải đối tượng (mảng, chuỗi): class-validator không thấy metadata.
-        ex.execute(None, &mut inst, &mut errors);
+        inst = plain_to_class(reg, class, &input);
+        if matches!(inst, JsVal::Obj(_)) {
+            ex.execute(Some(class), &mut inst, &mut errors);
+        } else {
+            // Body không phải đối tượng (chuỗi, số): class-validator không thấy metadata.
+            ex.execute(None, &mut inst, &mut errors);
+        }
     }
     let messages = flatten(errors);
     if messages.is_empty() { Ok(inst) } else { Err(messages) }

@@ -237,3 +237,167 @@ async fn extractor_query_chuyen_so() {
         ])
     );
 }
+
+#[tokio::test]
+async fn duong_dan_day_du_tu_original_uri_khi_nest_cat_tien_to() {
+    use axum::extract::{FromRequest, OriginalUri};
+    // Sau `nest("/api/v1/users", …)` axum cắt `uri()` còn "/x" ⇒ phải đọc `OriginalUri` để ra chế độ lenient.
+    let mut req = json_req("/x", r#"{"title":"A","assigned_to":3,"la":1}"#);
+    req.extensions_mut()
+        .insert(OriginalUri("/api/v1/users/x".parse().unwrap()));
+    assert!(ValidJson::<CreateDealDto>::from_request(req, &()).await.is_ok());
+    let mut req = json_req("/x", r#"{"title":"A","assigned_to":3,"la":1}"#);
+    req.extensions_mut()
+        .insert(OriginalUri("/api/v1/deals/x".parse().unwrap()));
+    assert!(ValidJson::<CreateDealDto>::from_request(req, &()).await.is_err());
+}
+
+#[tokio::test]
+async fn body_rong_hoac_khong_phai_json_la_object_rong_nhu_express() {
+    use axum::extract::FromRequest;
+    let required = serde_json::json!({
+        "statusCode": 400, "error": "Bad Request",
+        "message": ["title must be shorter than or equal to 255 characters", "title must be a string", "Tên thương vụ không được để trống", "assigned_to phải là số nguyên", "Phải chọn sale phụ trách"]
+    });
+    let empty = |ct: Option<&str>, body: &str| {
+        let mut b = axum::http::Request::builder().method("POST").uri("/api/v1/deals");
+        if let Some(ct) = ct {
+            b = b.header("content-type", ct);
+        }
+        b.body(axum::body::Body::from(body.to_owned())).unwrap()
+    };
+    for req in [
+        empty(Some("application/json"), ""),
+        empty(Some("application/json"), "  "),
+        empty(None, r#"{"title":"A"}"#),
+        empty(Some("text/plain"), "x"),
+    ] {
+        let err = ValidJson::<CreateDealDto>::from_request(req, &()).await.unwrap_err();
+        let (status, body) = body_json(err).await;
+        assert_eq!(status, 400);
+        // Câu lỗi của class-validator (trường bắt buộc), không phải câu của axum về Content-Type.
+        assert_eq!(body["message"], required["message"], "{body}");
+    }
+    // JSON hỏng hoặc gốc không phải `{`/`[` ⇒ 400.
+    for bad in ["{oops", "5", "\"x\""] {
+        let err = ValidJson::<CreateDealDto>::from_request(json_req("/api/v1/deals", bad), &())
+            .await
+            .unwrap_err();
+        assert_eq!(body_json(err).await.0, 400, "{bad}");
+    }
+}
+
+#[tokio::test]
+async fn so_nguyen_lon_ghi_integer_va_ngoai_khoang_la_400_khong_phai_500() {
+    use axum::extract::FromRequest;
+    // 2^53+1 (JS làm tròn về 2^53) vẫn ghi dạng số nguyên, không float.
+    let ok = ValidJson::<CreateDealDto>::from_request(
+        json_req(
+            "/api/v1/deals",
+            r#"{"title":"A","assigned_to":9007199254740993,"value":4611686018427387904}"#,
+        ),
+        &(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        (ok.0.assigned_to, ok.0.value),
+        (9_007_199_254_740_992, Some(4_611_686_018_427_387_904))
+    );
+    // Ngoài khoảng i64 ⇒ lỗi của dữ liệu vào (400), không phải lỗi máy chủ.
+    for v in ["1e30", "10000000000000000000000", "9223372036854775808"] {
+        let err = ValidJson::<CreateDealDto>::from_request(
+            json_req("/api/v1/deals", &format!(r#"{{"title":"A","assigned_to":{v}}}"#)),
+            &(),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(body_json(err).await.0, 400, "{v}");
+    }
+}
+
+#[test]
+fn query_string_nhu_qs() {
+    let cases: &[(&str, Value)] = &[
+        ("a=1&a=2", serde_json::json!({ "a": ["1", "2"] })),
+        ("a[]=1&a[]=2", serde_json::json!({ "a": ["1", "2"] })),
+        ("a[0]=x&a[1]=y", serde_json::json!({ "a": ["x", "y"] })),
+        ("a[2]=x", serde_json::json!({ "a": ["x"] })),
+        ("a[21]=x", serde_json::json!({ "a": { "21": "x" } })),
+        ("a[b]=1&a[c]=2", serde_json::json!({ "a": { "b": "1", "c": "2" } })),
+        ("a[b][c]=1", serde_json::json!({ "a": { "b": { "c": "1" } } })),
+        ("=x&b=1", serde_json::json!({ "b": "1" })),
+        (
+            "a[b][c][d][e][f][g]=1",
+            serde_json::json!({ "a": { "b": { "c": { "d": { "e": { "f": { "[g]": "1" } } } } } } }),
+        ),
+        (
+            "a[0][b]=1&a[1][b]=2",
+            serde_json::json!({ "a": [{ "b": "1" }, { "b": "2" }] }),
+        ),
+        ("[a]=1", serde_json::json!({ "a": "1" })),
+        ("a[b=1", serde_json::json!({ "a": { "[b": "1" } })),
+        ("a=&b", serde_json::json!({ "a": "", "b": "" })),
+        ("0=a&1=b", serde_json::json!({ "0": "a", "1": "b" })),
+    ];
+    for (q, want) in cases {
+        assert_eq!(&query_to_json(q), want, "{q}");
+    }
+}
+
+#[test]
+fn array_unique_co_nan_khong_unique_nhu_class_validator() {
+    use super::js::JsVal;
+    let rule = super::rules::Rule::ArrayUnique;
+    let n = JsVal::Num;
+    assert!(rule.check(&JsVal::Arr(vec![n(1.0), n(2.0)])));
+    assert!(!rule.check(&JsVal::Arr(vec![n(1.0), n(1.0)])));
+    assert!(!rule.check(&JsVal::Arr(vec![n(f64::NAN)])), "indexOf(NaN) = -1 ≠ 0");
+    assert!(!rule.check(&JsVal::Arr(vec![n(f64::NAN), n(f64::NAN)])));
+    assert!(
+        rule.check(&JsVal::Arr(vec![JsVal::Obj(vec![]), JsVal::Obj(vec![])])),
+        "đối tượng so theo tham chiếu"
+    );
+}
+
+#[test]
+fn is_email_dau_nhay_va_do_dai_theo_validator_js() {
+    use super::rules::{is_email_for_test, validator_len_for_test};
+    // Đối chiếu validator 13.15.26 chạy thật: `"a"@b.co` true, `"a@b.co` false, `"@b.co` true.
+    assert!(is_email_for_test("\"a\"@b.co"));
+    assert!(!is_email_for_test("\"a@b.co"));
+    assert!(is_email_for_test("\"@b.co"));
+    // Trừ MỌI U+FE0E/U+FE0F: "a" FE0F FE0F "b" FE0E = 2 ký tự; FE0F "a" "b" = 2.
+    assert_eq!(validator_len_for_test("a\u{FE0F}\u{FE0F}b\u{FE0E}"), 2);
+    assert_eq!(validator_len_for_test("\u{FE0F}ab"), 2);
+    assert_eq!(validator_len_for_test("a😀b"), 3);
+}
+
+#[test]
+fn body_mang_lam_nhu_validation_pipe_cua_nest() {
+    // Golden `array_body*` trong validation.golden.json (sinh bởi ValidationPipe thật) được `golden_20_dto_...` chạy.
+    let v = validate_value("SendNotificationDto", &serde_json::json!([1, 2]), Mode::Strict).unwrap_err();
+    let (status, body) = v.response(false);
+    assert_eq!(status, 400);
+    let msgs = serde_json::to_string(&body.message).unwrap();
+    assert!(
+        msgs.contains("property 0 should not exist") && msgs.contains("property 1 should not exist"),
+        "{msgs}"
+    );
+}
+
+#[test]
+fn type_la_bi_tu_choi_khi_nap_schema() {
+    let base = |ty: &str| {
+        format!(
+            r#"{{"D":{{"declared":["x"],"validated":["x"],"defaults":{{}},"fields":{{"x":{{"type":{ty},"rules":[],"transforms":[]}}}}}}}}"#
+        )
+    };
+    assert!(Registry::from_json(&base("\"Number\"")).is_ok());
+    assert!(Registry::from_json(&base("null")).is_ok());
+    assert!(Registry::from_json(&base("\"Array\"")).is_ok());
+    let e = Registry::from_json(&base("\"Date\"")).unwrap_err();
+    assert!(e.contains("D.x") && e.contains("Date"), "{e}");
+    assert!(Registry::from_json(&base("\"Symbol\"")).is_err());
+    assert!(Registry::from_json(&base("{\"weird\":1}")).is_err());
+}

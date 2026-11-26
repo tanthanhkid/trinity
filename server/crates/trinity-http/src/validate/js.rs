@@ -136,10 +136,15 @@ fn num_json(n: f64) -> Value {
     if !n.is_finite() {
         return Value::Null;
     }
-    if n.fract() == 0.0 && n.abs() < 9.007_199_254_740_992e15 {
-        // Số nguyên an toàn: ghi không có ".0" như JSON của JS. `-0` thành 0 như JSON.stringify.
-        #[allow(clippy::cast_possible_truncation)]
-        return Value::Number(Number::from(n as i64));
+    if n.fract() == 0.0 {
+        // JSON.stringify ghi số nguyên đủ chữ số (tới 1e21), không dạng mũ: số nguyên trong khoảng i64/u64 ghi như số
+        // nguyên (không ".0", `-0` thành 0); ngoài khoảng đó mới giữ dạng float (deserialize vào số nguyên sẽ lỗi 400).
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        if (-9_223_372_036_854_775_808.0..9_223_372_036_854_775_808.0).contains(&n) {
+            return Value::Number(Number::from(n as i64));
+        } else if (0.0..18_446_744_073_709_551_616.0).contains(&n) {
+            return Value::Number(Number::from(n as u64));
+        }
     }
     Number::from_f64(n).map_or(Value::Null, Value::Number)
 }

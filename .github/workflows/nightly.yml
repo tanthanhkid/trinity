@@ -1,0 +1,175 @@
+name: Nightly
+
+# Hằng đêm (≈02:00 giờ Việt Nam): chạy TOÀN BỘ test, test Postgres thật, e2e Playwright, kiểm lỗ hổng dependency.
+# Không bắt buộc cho merge; lỗi ở đây là việc cần xử lý, không chặn PR.
+on:
+  schedule:
+    - cron: "17 19 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DATABASE_URL: postgresql://test:test@localhost:5432/test
+  JWT_SECRET: ci-test-secret-not-real-do-not-use
+  SERVICE_SECRET: ci-test-service-secret-do-not-use
+  INTERNAL_SERVICE_SECRET: ci-test-service-secret-do-not-use
+  NEXT_PUBLIC_API_URL: /api/v1
+  NEXT_TELEMETRY_DISABLED: "1"
+  CI: "true"
+
+jobs:
+  full-test:
+    name: Full unit tests + typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      - run: pnpm -r --if-present typecheck
+      - run: pnpm -r --if-present lint
+      - run: pnpm -r --if-present test
+
+  db:
+    name: Postgres thật (toàn bộ *.pg / *.db spec)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: trinity_sql_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d trinity_sql_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
+      TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
+      POS_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
+      RBAC_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @trinity/prisma exec prisma migrate deploy
+      - working-directory: services/crm
+        run: npx jest --testRegex '(\.pg\.spec|\.db\.spec|extensions\.service\.spec)\.ts$' --runInBand
+      - working-directory: services/commerce
+        run: npx jest --testRegex '(\.pg\.spec|pos-flow\.integration\.spec)\.ts$' --runInBand --passWithNoTests
+      - run: |
+          (cd packages/rbac-nest && npx jest --testRegex 'scope\.service\.spec\.ts$' --runInBand)
+          (cd services/auth && npx jest --testRegex 'users-manager-cache-invalidation\.spec\.ts$' --runInBand)
+
+  e2e:
+    # Dựng cả hệ thống (Postgres + Redis + monolith + web) rồi chạy Playwright (smoke + rbac-ui + rbac-api) bằng tài khoản
+    # quản trị seed. Các role khác thiếu env nên tự bỏ qua (đã có trong thiết kế bộ e2e). Chỉ đọc, không ghi dữ liệu.
+    name: E2E Playwright (smoke)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: trinity_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d trinity_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/trinity_e2e
+      REDIS_URL: redis://localhost:6379/0
+      SEED_ADMIN_EMAIL: admin@example.com
+      SEED_ADMIN_PASSWORD: ci-e2e-admin-password-not-real
+      CORS_ORIGIN: http://localhost:3000
+      E2E_BASE_URL: http://localhost:3000
+      E2E_BROWSER_CHANNEL: chrome
+      E2E_ADMIN_EMAIL: admin@example.com
+      E2E_ADMIN_PASSWORD: ci-e2e-admin-password-not-real
+      E2E_WORKERS: "2"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @trinity/prisma exec prisma migrate deploy
+      - run: pnpm --filter @trinity/prisma seed
+      - run: pnpm --filter @trinity/monolith build
+      - name: Start monolith
+        run: |
+          PORT=4000 nohup pnpm --filter @trinity/monolith start > /tmp/api.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:4000/api/v1/health && exit 0; sleep 2; done
+          tail -n 100 /tmp/api.log; exit 1
+      - run: pnpm --filter ./apps/web build
+      - name: Start web (standalone)
+        working-directory: apps/web
+        run: |
+          cp -r .next/static .next/standalone/apps/web/.next/static
+          if [ -d public ]; then cp -r public .next/standalone/apps/web/public; fi
+          PORT=3000 HOSTNAME=127.0.0.1 MONOLITH_INTERNAL_URL=http://127.0.0.1:4000 BACKEND_URL=http://127.0.0.1:4000 AUTH_SERVICE_URL=http://127.0.0.1:4000 nohup node .next/standalone/apps/web/server.js > /tmp/web.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3000/login && exit 0; sleep 1; done
+          tail -n 100 /tmp/web.log; exit 1
+      - name: Playwright
+        working-directory: apps/web
+        run: pnpm e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Server logs (on failure)
+        if: failure()
+        run: |
+          tail -n 150 /tmp/api.log || true
+          tail -n 150 /tmp/web.log || true
+
+  audit:
+    name: Dependency audit (pnpm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 10.6.5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - run: pnpm audit --prod --audit-level high
+
+  osv:
+    name: OSV-Scanner
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@32d3cd482bdadfb38b186c0ad1b031902d55d932 # v2.7.1
+    with:
+      scan-args: |-
+        --lockfile=pnpm-lock.yaml

@@ -1,0 +1,16 @@
+name: Feature request · Đề xuất tính năng
+description: An idea to make Trinity better · Ý tưởng cho Trinity
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem you want solved · Vấn đề cần giải quyết
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea · Ý tưởng
+    validations:
+      required: true

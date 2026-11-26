@@ -1,62 +1,232 @@
 name: Docker image
 
-# Builds both image targets from the root Dockerfile and pushes them to GHCR, only for version tags (v*).
-# Not on PRs or main (Thanh 16/10: keep CI minimal); use workflow_dispatch to test a Dockerfile change.
+# Dựng hai image (api, web) đa nền tảng: amd64 trên runner x64, arm64 trên runner arm NATIVE (không QEMU), mỗi nền tảng đẩy
+# theo digest, rồi job gộp tạo manifest chung, kèm SBOM, provenance, attestation và chữ ký cosign (keyless) trên digest đã gộp.
+# Chạy khi: gắn tag v* bằng tay, release.yml gọi (workflow_call, push=true), hoặc chạy tay (workflow_dispatch).
+# Chạy tay KHÔNG đẩy (push=false) thì chỉ build thử amd64. Đẩy (push=true) thì luôn amd64 + arm64.
 on:
   push:
     tags: ["v*"]
+  workflow_call:
+    inputs:
+      tag:
+        description: Tag phát hành, vd v0.4.0
+        required: true
+        type: string
+      push:
+        description: Đẩy lên GHCR
+        type: boolean
+        default: true
+      latest:
+        description: Gắn thêm tag latest (đường release mặc định có)
+        type: boolean
+        default: true
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag để gắn cho image (vd v0.4.0), bỏ trống = chỉ gắn nhãn theo commit
+        required: false
+        type: string
+      push:
+        description: Đẩy lên GHCR (luôn amd64 + arm64)
+        type: boolean
+        default: false
+      latest:
+        description: Gắn thêm tag latest (chỉ khi đẩy một release thật)
+        type: boolean
+        default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  image:
-    name: Build ${{ matrix.target }}
+  plan:
+    name: Plan
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 5
+    outputs:
+      push: ${{ steps.p.outputs.push }}
+      tag: ${{ steps.p.outputs.tag }}
+      latest: ${{ steps.p.outputs.latest }}
+      sha: ${{ steps.p.outputs.sha }}
+      matrix: ${{ steps.p.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - id: p
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_PUSH: ${{ inputs.push }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_LATEST: ${{ inputs.latest }}
+        run: |
+          push=false
+          if [ "$EVENT" = "push" ] || [ "$INPUT_PUSH" = "true" ]; then push=true; fi
+          tag="$INPUT_TAG"
+          if [ -z "$tag" ] && [[ "$REF" == refs/tags/v* ]]; then tag="$REF_NAME"; fi
+          # latest: push tag, hoặc input latest (workflow_call từ release mặc định true; chạy tay mặc định false).
+          latest=false
+          if [ -n "$tag" ] && { [ "$EVENT" = "push" ] || [ "$INPUT_LATEST" = "true" ]; }; then latest=true; fi
+          {
+            echo "latest=$latest"
+            echo "push=$push"
+            echo "tag=$tag"
+            echo "sha=$(git rev-parse HEAD)"
+            if [ "$push" = "true" ]; then
+              echo 'matrix={"include":[{"target":"api","platform":"linux/amd64","runner":"ubuntu-latest"},{"target":"api","platform":"linux/arm64","runner":"ubuntu-24.04-arm"},{"target":"web","platform":"linux/amd64","runner":"ubuntu-latest"},{"target":"web","platform":"linux/arm64","runner":"ubuntu-24.04-arm"}]}'
+            else
+              echo 'matrix={"include":[{"target":"api","platform":"linux/amd64","runner":"ubuntu-latest"},{"target":"web","platform":"linux/amd64","runner":"ubuntu-latest"}]}'
+            fi
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.target }} (${{ matrix.platform }})
+    needs: plan
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
     strategy:
       fail-fast: false
-      matrix:
-        target: [api, web]
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      PUSH: ${{ needs.plan.outputs.push }}
+      IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.target }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
 
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Log in to GHCR
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: env.PUSH == 'true'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Image metadata
+      - name: Image labels
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
-          images: ghcr.io/${{ github.repository }}-${{ matrix.target }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=sha
+          images: ${{ env.IMAGE }}
+          labels: |
+            org.opencontainers.image.revision=${{ needs.plan.outputs.sha }}
 
-      - name: Build (and push on tags)
+      - name: Build
+        id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           target: ${{ matrix.target }}
-          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.target }}
-          cache-to: type=gha,scope=${{ matrix.target }},mode=max
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=${{ env.PUSH == 'true' }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=${{ matrix.target }}-${{ matrix.platform }}
+          cache-to: type=gha,scope=${{ matrix.target }}-${{ matrix.platform }},mode=max
+
+      - name: Export digest
+        if: env.PUSH == 'true'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
+          echo "PAIR=${{ matrix.target }}-${PLATFORM//\//-}" >> "$GITHUB_ENV"
+
+      - name: Upload digest
+        if: env.PUSH == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digests-${{ env.PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Publish ${{ matrix.target }}
+    needs: [plan, build]
+    if: needs.plan.outputs.push == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [api, web]
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.target }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.target }}-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image tags
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ${{ env.IMAGE }}
+          labels: |
+            org.opencontainers.image.revision=${{ needs.plan.outputs.sha }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.plan.outputs.tag }},enable=${{ needs.plan.outputs.tag != '' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.plan.outputs.tag }},enable=${{ needs.plan.outputs.tag != '' }}
+            type=raw,value=latest,enable=${{ needs.plan.outputs.latest == 'true' }}
+            type=raw,value=sha-${{ needs.plan.outputs.sha }}
+
+      - name: Create manifest list
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          # shellcheck disable=SC2046
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf "${IMAGE}@sha256:%s " *)
+
+      - name: Resolve merged digest
+        id: digest
+        env:
+          TAG: ${{ steps.meta.outputs.version }}
+        run: |
+          d=$(docker buildx imagetools inspect "${IMAGE}:${TAG}" --format '{{json .Manifest}}' | jq -r .digest)
+          echo "digest=$d" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.digest.outputs.digest }}
+          push-to-registry: true
+
+      - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
+
+      - name: Sign image (cosign keyless)
+        env:
+          DIGEST: ${{ steps.digest.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"

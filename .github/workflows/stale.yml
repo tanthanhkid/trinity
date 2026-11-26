@@ -1,0 +1,41 @@
+name: Stale
+
+# Nhẹ tay: chỉ nhắc rồi đóng issue/PR im lặng lâu. Không đụng nhãn pinned, security, roadmap, help wanted, good first issue.
+on:
+  schedule:
+    - cron: "41 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stale:
+    name: Stale
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@4391f3da665fdf50b6810c1a66712fb9ba21aa93 # v11.0.0
+        with:
+          days-before-issue-stale: 90
+          days-before-issue-close: 30
+          days-before-pr-stale: 45
+          days-before-pr-close: 21
+          exempt-issue-labels: pinned,security,roadmap,help wanted,good first issue
+          exempt-pr-labels: pinned,security,roadmap
+          exempt-all-milestones: true
+          exempt-draft-pr: true
+          operations-per-run: 60
+          stale-issue-label: stale
+          stale-pr-label: stale
+          stale-issue-message: >-
+            Issue này chưa có hoạt động 90 ngày nên được đánh dấu stale; sẽ tự đóng sau 30 ngày nữa nếu vẫn im lặng. Bình luận bất kỳ để giữ mở.
+            · This issue has had no activity for 90 days and is marked stale; it will close in 30 days unless there is new activity.
+          stale-pr-message: >-
+            PR này chưa có hoạt động 45 ngày nên được đánh dấu stale; sẽ tự đóng sau 21 ngày nếu vẫn im lặng. Có thể mở lại bất cứ lúc nào.
+            · This PR has had no activity for 45 days and is marked stale; it will close in 21 days unless there is new activity.
+          close-issue-message: Đóng vì không còn hoạt động. Mở lại nếu vẫn cần. · Closed for inactivity; reopen if still relevant.
+          close-pr-message: Đóng vì không còn hoạt động. Mở lại nếu vẫn cần. · Closed for inactivity; reopen if still relevant.

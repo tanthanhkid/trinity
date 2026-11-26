@@ -822,6 +822,11 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   vẫn cost 10 để Node đọc được nếu phải quay lại.
 - Blacklist và phiên đang hoạt động: trong RAM như hiện tại, cộng `NOTIFY` trong giai đoạn hai tiến trình. Sau X06 chỉ
   còn một tiến trình. Hành vi "khởi động lại thì quên" giữ như cũ (không tệ hơn hiện tại).
+- **Đã làm ở K11** (`server/crates/trinity-auth`): `jwt` (HS256, `leeway = 0`; jsonwebtoken 12 không có provider mặc định nên cài provider
+  HMAC-SHA256 riêng từ `hmac`/`sha2`, tránh `rsa` bị `cargo deny` chặn và `aws_lc_rs` cần cmake), `password` (bcrypt trong `spawn_blocking`),
+  `security` (blacklist + phiên: RAM, bảng `token_blacklist`/`active_sessions`, `NOTIFY trinity_sync` kind `token`/`session`, nạp lại khi khởi
+  động và sau khi nối lại kênh), `guard` (`Authenticator::authenticate`, 9 câu 401 nguyên văn, `check_service_secret`). Test pg:
+  `server/crates/trinity-auth/tests/pg_auth.rs`. Header JWT do Rust ghi `typ` trước `alg` (Node: `alg` trước); không ảnh hưởng việc kiểm ở hai phía.
 - Token mang tiền tố công ty (`cN.`), API key SHA-256, `x-service-secret`, consent HMAC: chuyển nguyên thuật toán.
 
 ### 4.7 RBAC

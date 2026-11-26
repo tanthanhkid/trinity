@@ -1,12 +1,14 @@
-//! Binary `trinity`. Có `check-config`, `migrate` (K07); `serve`, `seed`, `channel-lock`, `healthcheck` thêm ở các
+//! Binary `trinity`. Có `check-config`, `migrate` (K07); `seed`, `channel-lock` (K32); `serve`, `healthcheck` thêm ở các
 //! issue sau (docs/rust/PLAN.md mục 4.1).
 
+mod channel_lock;
 mod migrate;
 mod routes;
 
 // K34: nền móng, chưa mount. `serve` (chưa có) sẽ gọi `trinity_testhooks::TestHooks::router` khi build với `--features test-hooks`.
 #[cfg(feature = "test-hooks")]
 use trinity_testhooks as _;
+mod seed;
 
 use std::io::Write;
 use std::process::ExitCode;
@@ -42,6 +44,10 @@ enum Command {
     /// Bộ kiểm bất biến dữ liệu (X11, chỉ đọc DB): mã 0 sạch, mã 1 có vi phạm, mã 2 lỗi chạy.
     /// Chạy theo lịch mỗi giờ: docs/rust/invariants.md.
     CheckInvariants(InvariantsArgs),
+    /// Dữ liệu khởi tạo (vai trò Quản trị, tuỳ chọn cấu hình, tài khoản admin, bảng việc mặc định); chạy lặp lại không đổi dữ liệu.
+    Seed(seed::SeedArgs),
+    /// Công tắc khoá kênh gửi ra ngoài của một công ty (chủ nền tảng): list | lock | unlock | resume.
+    ChannelLock(channel_lock::ChannelLockArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -73,6 +79,8 @@ fn main() -> ExitCode {
         Some(Command::Migrate(args)) => migrate::run(args),
         Some(Command::CheckRoutes { require_all }) => check_routes(require_all),
         Some(Command::CheckInvariants(args)) => check_invariants(&args),
+        Some(Command::Seed(args)) => seed::run(&args),
+        Some(Command::ChannelLock(args)) => channel_lock::run(args),
     }
 }
 

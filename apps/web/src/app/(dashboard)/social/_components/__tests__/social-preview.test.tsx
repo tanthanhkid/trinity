@@ -13,7 +13,7 @@ vi.mock("@/hooks/use-social", async (orig) => ({
 }))
 
 const base: SocialTargetPreview = {
-  account_id: 1, account_name: "Fanpage", network: "facebook", text: "Xin chào", title: null, description: null, first_comment: null,
+  account_id: 1, account_name: "Fanpage", network: "facebook", text: "Xin chào", first_comment: null,
   length: 8, limit: 63206, truncated_at: null, media: [], warnings: [],
 }
 
@@ -27,7 +27,7 @@ describe("PreviewCard", () => {
 
   it("gập tại truncated_at, bấm Xem thêm thì hiện đủ, Thu gọn thì gập lại", () => {
     const text = "a".repeat(10) + "TAIL"
-    const { container } = render(<PreviewCard p={{ ...base, network: "instagram", text, length: 14, truncated_at: 10 }} />)
+    const { container } = render(<PreviewCard p={{ ...base, text, length: 14, truncated_at: 10 }} />)
     const body = () => container.querySelector("p.whitespace-pre-wrap")?.textContent ?? ""
     expect(body()).toContain("a".repeat(10) + "… ")
     expect(body()).not.toContain("TAIL")
@@ -38,18 +38,12 @@ describe("PreviewCard", () => {
   })
 
   it("cảnh báo hiện màu đỏ; vượt giới hạn thì bộ đếm đỏ", () => {
-    render(<PreviewCard p={{ ...base, length: 2300, limit: 2200, warnings: ["Instagram: cần ảnh hoặc video."] }} />)
-    const w = screen.getByText("Instagram: cần ảnh hoặc video.")
+    render(<PreviewCard p={{ ...base, length: 63300, limit: 63206, warnings: ["Facebook: cần ảnh hoặc video."] }} />)
+    const w = screen.getByText("Facebook: cần ảnh hoặc video.")
     expect(w.closest("ul")?.className).toContain("text-destructive")
-    expect(screen.getByText("2.300/2.200").className).toContain("text-destructive")
+    expect(screen.getByText("63.300/63.206").className).toContain("text-destructive")
   })
 
-  it("YouTube: tiêu đề + ô video + mô tả (gập theo mô tả)", () => {
-    render(<PreviewCard p={{ ...base, network: "youtube", account_name: "Kênh", title: "Tiêu đề video", text: "chữ chung", description: "m".repeat(200), truncated_at: 160, media: [{ key: "k", type: "video" }] }} />)
-    expect(screen.getByTestId("preview-title").textContent).toBe("Tiêu đề video")
-    expect(screen.getByText("Xem thêm")).toBeTruthy()
-    expect(screen.queryByText("chữ chung")).toBeNull()
-  })
 
   it("Facebook: bình luận đầu tiên dưới bài; ảnh/video dùng ô giữ chỗ khi không có renderMedia", () => {
     render(<PreviewCard p={{ ...base, first_comment: "Link mua hàng", media: [{ key: "a", type: "image" }, { key: "b", type: "video" }] }} />)

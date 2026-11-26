@@ -183,7 +183,7 @@ function StepData({ canSkip, hasSamples }: { canSkip: boolean; hasSamples: boole
 function StepChannels() {
   return (
     <div className="space-y-4">
-      <p className="text-sm">Bấm <b>Liên kết</b> ở Facebook (Fanpage) hoặc YouTube, đăng nhập và đồng ý trên trang của Facebook/Google. Xong sẽ quay lại đây, kênh hiện <b>Hoạt động</b>.</p>
+      <p className="text-sm">Bấm <b>Liên kết</b> ở Facebook (Fanpage), đăng nhập và đồng ý trên trang của Facebook. Xong sẽ quay lại đây, kênh hiện <b>Hoạt động</b>.</p>
       <SocialChannels />
     </div>
   )
@@ -214,7 +214,7 @@ export const STEP_TEXT: Record<WizardStepKey, { title: string; why: string }> = 
     why: "Đưa một khách thật vào để bắt đầu theo dõi.",
   },
   channels: {
-    title: "Kết nối Fanpage hoặc kênh YouTube",
+    title: "Kết nối Fanpage",
     why: "Nối kênh của công ty để đăng bài từ Trinity và để khách nhắn Fanpage tự thành khách hàng.",
   },
   post: {

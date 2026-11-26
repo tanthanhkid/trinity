@@ -10,7 +10,7 @@ export default function PrivacyPage() {
     <LegalPage title="Chính sách quyền riêng tư" updated="14/10/2026">
       <p>
         Trinity là phần mềm quản lý khách hàng (CRM) mã nguồn mở. Mỗi công ty dùng Trinity trên một bản cài riêng; dữ liệu nằm trong cơ sở dữ liệu của
-        bản cài đó. Trang này nói rõ Trinity nhận gì từ các mạng xã hội (Facebook, YouTube, TikTok) khi bạn liên kết kênh, dùng vào việc gì và cách xoá.
+        bản cài đó. Trang này nói rõ Trinity nhận gì từ Facebook khi bạn liên kết Fanpage, dùng vào việc gì và cách xoá.
       </p>
 
       <h2>Dữ liệu Trinity nhận khi bạn liên kết kênh</h2>

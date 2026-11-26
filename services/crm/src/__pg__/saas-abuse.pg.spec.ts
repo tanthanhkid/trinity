@@ -297,7 +297,7 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
       expect(r?.until).toBeInstanceOf(Date);
     });
 
-    it('tạm dừng do Graph chỉ áp cho Facebook/Instagram: phạm vi "other" (Zalo, YouTube, TikTok) vẫn gửi; khoá kênh thì chặn cả hai', async () => {
+    it('tạm dừng do Graph chỉ áp cho Facebook: phạm vi "other" (Zalo) vẫn gửi; khoá kênh thì chặn cả hai', async () => {
       await setPlan(A, 'custom');
       const g = new ChannelGuardService(db);
       await inCompany(A, async () => {

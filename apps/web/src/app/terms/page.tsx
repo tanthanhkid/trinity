@@ -18,7 +18,7 @@ export default function TermsPage() {
       <h2>Đăng bài lên mạng xã hội</h2>
       <ul>
         <li>Trinity chỉ đăng nội dung do người dùng soạn hoặc đồng ý (kể cả nội dung trợ lý AI soạn theo yêu cầu của người dùng), lên đúng kênh được chọn.</li>
-        <li>Người đăng chịu trách nhiệm về nội dung và phải tuân thủ điều khoản của từng mạng xã hội (Facebook, YouTube, TikTok).</li>
+        <li>Người đăng chịu trách nhiệm về nội dung và phải tuân thủ điều khoản của Facebook.</li>
         <li>Mạng xã hội có thể từ chối hoặc gỡ bài theo chính sách của họ; Trinity hiện lý do lỗi khi mạng trả về.</li>
       </ul>
 

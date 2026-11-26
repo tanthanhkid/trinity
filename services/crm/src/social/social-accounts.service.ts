@@ -6,7 +6,7 @@ import { pkceS256, randomToken } from '../integrations/oauth/oauth-crypto';
 import { IntegrationsKeyError, decryptSecret, encryptSecret, loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { SocialProviderRegistry } from './providers/provider.registry';
 import type { AccountForPublish } from './providers/provider.types';
-import { NETWORK_LABELS, socialBaseUrl, socialRedirectUri, type SocialNetwork } from './social.config';
+import { NETWORK_LABELS, SOCIAL_NETWORKS, isSocialNetwork, removedNetworkMessage, socialBaseUrl, socialRedirectUri } from './social.config';
 import { signSocialState, verifySocialState } from './social-oauth-state';
 
 /** Dạng trả ra API — KHÔNG có token. */
@@ -73,10 +73,13 @@ export class SocialAccountsService {
     }));
   }
 
-  /** Kênh đang dùng + kênh đã gỡ mà còn token (đánh dấu `removed`, để bật lại). Kênh gỡ và đã xoá token thì ẩn. */
+  /**
+   * Kênh đang dùng + kênh đã gỡ mà còn token (đánh dấu `removed`, để bật lại). Kênh gỡ và đã xoá token thì ẩn.
+   * Kênh của mạng Trinity đã ngừng hỗ trợ (YouTube, TikTok…) không hiện ở đây — bài cũ của chúng vẫn ở lịch sử bài đăng.
+   */
   async list(): Promise<SocialAccountView[]> {
     const rows = await this.prisma.socialAccount.findMany({
-      where: { OR: [{ status: { not: 'disabled' } }, { status: 'disabled', access_token_enc: { not: '' } }] },
+      where: { network: { in: [...SOCIAL_NETWORKS] }, OR: [{ status: { not: 'disabled' } }, { status: 'disabled', access_token_enc: { not: '' } }] },
       orderBy: [{ network: 'asc' }, { name: 'asc' }],
     });
     const fbIds = rows.filter((r) => r.network === 'facebook').map((r) => r.external_id);
@@ -96,12 +99,17 @@ export class SocialAccountsService {
   async enable(id: number): Promise<SocialAccountView> {
     const a = await this.prisma.socialAccount.findUnique({ where: { id } });
     if (!a) throw new NotFoundException('Không tìm thấy kênh');
+    const removed = removedNetworkMessage(a.network);
+    if (removed) throw new BadRequestException(removed);
     if (a.status !== 'disabled') throw new BadRequestException('Kênh này đang bật');
     if (!a.access_token_enc) throw new BadRequestException('Liên kết lại để bật kênh này');
     return toAccountView(await this.prisma.socialAccount.update({ where: { id }, data: { status: 'active', last_error: null } }));
   }
 
-  async connectUrl(network: SocialNetwork, actor: AuthUser): Promise<{ url: string }> {
+  async connectUrl(network: string, actor: AuthUser): Promise<{ url: string }> {
+    const removed = removedNetworkMessage(network);
+    if (removed) throw new BadRequestException(removed);
+    if (!isSocialNetwork(network)) throw new BadRequestException('Mạng không hợp lệ');
     const p = this.providers.get(network);
     if (!p.supported) throw new BadRequestException(`${NETWORK_LABELS[network]} chưa hỗ trợ.`);
     const base = socialBaseUrl();
@@ -115,7 +123,10 @@ export class SocialAccountsService {
   }
 
   /** Callback OAuth: lưu/ghi đè mọi tài khoản/trang nhận được (kênh đã gỡ giữ `disabled`). State sai/hết hạn ⇒ 400. */
-  async handleCallback(network: SocialNetwork, code: string, state: string): Promise<{ connected: number }> {
+  async handleCallback(network: string, code: string, state: string): Promise<{ connected: number }> {
+    const removed = removedNetworkMessage(network);
+    if (removed) throw new BadRequestException(removed);
+    if (!isSocialNetwork(network)) throw new BadRequestException('Mạng không hợp lệ');
     const st = verifySocialState(state, network);
     if (!st) throw new BadRequestException('Phiên liên kết không hợp lệ hoặc đã hết hạn. Hãy bấm "Liên kết" lại.');
     const p = this.providers.get(network);

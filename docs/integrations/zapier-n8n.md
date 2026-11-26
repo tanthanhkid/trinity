@@ -106,7 +106,7 @@ See the `POST /public/contacts` section of the API docs (`/docs` on the API serv
 1. Trigger: *Webhooks by Zapier › Catch Raw Hook*.
 2. Trinity: outgoing webhook with events `social_post.published` and `social_post.failed`. Only users who can post to social channels receive these events.
 3. Action: *Filter*, continue only if `type` is `social_post.failed` (or keep both and log every post to a sheet).
-4. Action: *Slack › Send Channel Message*. `data` has `post_id`, `network` (`facebook`, `youtube`), `account_id`, `url` (link to the live post, or empty) and `error`.
+4. Action: *Slack › Send Channel Message*. `data` has `post_id`, `network` (`facebook`), `account_id`, `url` (link to the live post, or empty) and `error`.
 
 Scheduled, queued, imported and recurring posts all send the same two events, once per channel, when they are published.
 

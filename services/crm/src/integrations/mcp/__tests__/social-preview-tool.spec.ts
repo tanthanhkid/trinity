@@ -17,7 +17,7 @@ describe('preview_social_post', () => {
     expect(Object.keys(previewSocialPostTool.input({ ...require('zod').z } as never))).not.toContain('confirmed_by_user');
   });
 
-  it('chuyển đầu vào (caption, tuỳ chọn YouTube, UTM, giờ VN) sang posts.preview và nói chưa đăng gì', async () => {
+  it('chuyển đầu vào (caption, bình luận đầu, UTM, giờ VN) sang posts.preview và nói chưa đăng gì; khoá YouTube cũ bị bỏ', async () => {
     const d = deps();
     const r = await previewSocialPostTool.run(
       { content: 'Chào', account_ids: [1, 2], captions: [{ account_id: 2, caption: 'Riêng', youtube_title: 'Tiêu đề', facebook_first_comment: 'cmt' }], scheduled_at: '2026-10-20T09:00', utm_campaign: 'thu' },
@@ -26,7 +26,7 @@ describe('preview_social_post', () => {
     const arg = d.social.posts.preview.mock.calls[0][1];
     expect(arg.targets).toEqual([
       { account_id: 1, caption: null, options: {} },
-      { account_id: 2, caption: 'Riêng', options: { title: 'Tiêu đề', first_comment: 'cmt' } },
+      { account_id: 2, caption: 'Riêng', options: { first_comment: 'cmt' } },
     ]);
     expect(arg.scheduled_at).toBe('2026-10-20T02:00:00.000Z');
     expect(arg.utm).toEqual({ campaign: 'thu' });

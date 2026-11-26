@@ -67,7 +67,7 @@ const DASHBOARD_CHANNELS = {
   channels: [
     { key: "fb-1", kind: "facebook_page", network: "facebook", name: "Trinity Coffee", state: "ok", note: "Đang nhận tin nhắn", today: { label: "tin nhắn", value: 12 }, href: "/connections" },
     { key: "zalo-1", kind: "zalo_oa", network: "zalo", name: "Trinity Coffee OA", state: "attention", note: "Cần kết nối lại", today: null, href: "/connections" },
-    { key: "yt-1", kind: "social", network: "youtube", name: "Trinity Coffee TV", state: "ok", note: "Đã đăng 1 bài tuần này", today: { label: "bài đăng", value: 0 }, href: "/social" },
+    { key: "fb-2", kind: "social", network: "facebook", name: "Trinity Coffee Q3", state: "ok", note: "Đã đăng 1 bài tuần này", today: { label: "bài đăng", value: 0 }, href: "/social" },
   ],
   available: [{ kind: "payment", label: "Thanh toán", href: "/connections" }],
 }
@@ -154,20 +154,20 @@ const cardsPage = (cards) => ({ cards, next_cursor: null, has_more: false })
 // ─── Đăng đa kênh ─────────────────────────────────────────────
 const SOCIAL_ACCOUNTS = [
   { id: 1, network: "facebook", name: "Trinity Coffee", avatar_url: null, status: "active", last_error: null, inbox: "on" },
-  { id: 2, network: "youtube", name: "Trinity Coffee TV", avatar_url: null, status: "reauth", last_error: "Quyền truy cập YouTube đã hết hạn, cần kết nối lại." },
+  { id: 2, network: "facebook", name: "Trinity Coffee Q3", avatar_url: null, status: "reauth", last_error: "Quyền truy cập Fanpage đã hết hạn, cần kết nối lại." },
 ]
 const target = (id, acc, status, extra = {}) => ({
   id, account_id: acc.id, account_name: acc.name, network: acc.network, caption: null, status, attempts: status === "queued" ? 0 : 1,
   url: null, last_error: null, published_at: null, options: null, metrics: null, metrics_at: null, ...extra,
 })
-const [FB, YT] = SOCIAL_ACCOUNTS
+const [FB, FB2] = SOCIAL_ACCOUNTS
 const SOCIAL_POSTS = [
   { id: 3, content: "Ưu đãi cuối tuần: mua 2 tặng 1 cho mọi món cà phê sữa ☕", media: [], scheduled_at: at(25, "19:00"), status: "scheduled", source: "web", created_at: at(TODAY, "08:00"),
     targets: [target(31, FB, "queued")] },
   { id: 2, content: "Video hướng dẫn pha cold brew tại nhà", media: [], scheduled_at: at(20, "20:00"), status: "partial", source: "web", created_at: at(20, "14:00"),
     targets: [
       target(21, FB, "published", { url: "https://facebook.com/", published_at: at(20, "20:00"), metrics: { views: 1240, reactions: 86, comments: 12, shares: 5 }, metrics_at: at(TODAY, "06:00") }),
-      target(22, YT, "failed", { attempts: 3, last_error: "YouTube từ chối: phiên đăng nhập đã hết hạn, hãy kết nối lại kênh." }),
+      target(22, FB2, "failed", { attempts: 3, last_error: "Facebook từ chối: phiên đăng nhập đã hết hạn, hãy kết nối lại Fanpage." }),
     ] },
   { id: 1, content: "Chào tháng 10 — menu mùa thu đã có mặt tại quán!", media: [], scheduled_at: null, status: "published", source: "ai", created_at: at(1, "09:00"),
     targets: [target(11, FB, "published", { url: "https://facebook.com/", published_at: at(1, "09:00"), metrics: { views: 3100, reactions: 210, comments: 34, shares: 18 }, metrics_at: at(TODAY, "06:00") })] },
@@ -176,9 +176,7 @@ const SOCIAL_DRAFTS = [
   { id: 1, title: "Khai trương chi nhánh Quận 3", content: "Sắp khai trương chi nhánh mới, giảm 30% tuần đầu…", media: [], targets: [{ account_id: 1 }], scheduled_at: null, ui: null, source: "web", created_at: at(19), updated_at: at(20) },
   { id: 2, title: null, content: "Ý tưởng: chuỗi video giới thiệu hạt cà phê Cầu Đất", media: [], targets: [], scheduled_at: null, ui: null, source: "ai", created_at: at(TODAY, "07:45"), updated_at: at(TODAY, "07:45") },
 ]
-const SOCIAL_NETWORKS = [
-  ["facebook", "Facebook"], ["instagram", "Instagram"], ["youtube", "YouTube"], ["tiktok", "TikTok"], ["google_business", "Google Business"],
-].map(([network, label]) => ({ network, label, supported: true, configured: network === "facebook" || network === "youtube", env: [], scopes: [], redirect_uri: null }))
+const SOCIAL_NETWORKS = [{ network: "facebook", label: "Facebook Page", supported: true, configured: true, env: [], scopes: [], redirect_uri: null }]
 
 // ─── Kết nối ──────────────────────────────────────────────────
 const FACEBOOK_STATUS = {

@@ -17,9 +17,11 @@ describe("sửa / dời bài hẹn giờ", () => {
     expect(movedSchedule("2026-10-15T16:15:00.000Z", "2026-10-20")).toBe("2026-10-20T16:15:00.000Z")
   })
 
-  it("gửi lại tuỳ chọn: ảnh thumbnail chuyển thành thumbnail_key, giữ các tuỳ chọn khác", () => {
-    expect(optionsForResubmit({ title: "A", thumbnail: { key: "social/t.png", type: "image" } })).toEqual({ title: "A", thumbnail_key: "social/t.png" })
-    expect(optionsForResubmit({ privacy_level: "SELF_ONLY" })).toEqual({ privacy_level: "SELF_ONLY" })
+  it("gửi lại tuỳ chọn đã lưu nguyên vẹn (bình luận đầu, UTM), không sửa vào bản gốc", () => {
+    const stored = { first_comment: "Link", utm: { campaign: "c" } }
+    const out = optionsForResubmit(stored)
+    expect(out).toEqual(stored)
+    expect(out).not.toBe(stored)
     expect(optionsForResubmit(null)).toEqual({})
   })
 })

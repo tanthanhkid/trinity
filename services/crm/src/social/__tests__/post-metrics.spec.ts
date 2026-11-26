@@ -1,6 +1,5 @@
 import { FacebookSocialProvider } from '../providers/facebook.provider';
 import { SocialPostGoneError, SocialPublishError, type AccountForPublish } from '../providers/provider.types';
-import { YoutubeSocialProvider } from '../providers/youtube.provider';
 import type { SocialProviderRegistry } from '../providers/provider.registry';
 import { SocialPostsService, engagementOf, metricsDue, sumMetrics } from '../social-posts.service';
 
@@ -64,24 +63,6 @@ describe('Facebook: lấy số bài', () => {
   });
 });
 
-describe('YouTube: lấy số video', () => {
-  const yt = new YoutubeSocialProvider();
-  const acc: AccountForPublish = { id: 2, external_id: 'UC1', name: 'Kênh', access_token: 'yt-token', refresh_token: 'r', token_expires_at: null };
-
-  it('statistics ⇒ lượt xem, thích, bình luận; không có chia sẻ', async () => {
-    const f = jest.spyOn(global, 'fetch').mockResolvedValueOnce(res(200, { items: [{ statistics: { viewCount: '120', likeCount: '7', commentCount: '2' } }] }));
-    expect(await yt.fetchMetrics(acc, 'vid1')).toEqual({ views: 120, reactions: 7, comments: 2, shares: null });
-    expect(String(f.mock.calls[0][0])).toBe('https://www.googleapis.com/youtube/v3/videos?part=statistics&id=vid1');
-  });
-
-  it('video ẩn số thích ⇒ null; video đã xoá ⇒ lỗi invalid', async () => {
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce(res(200, { items: [{ statistics: { viewCount: '3', commentCount: '0' } }] }));
-    expect(await yt.fetchMetrics(acc, 'v')).toEqual({ views: 3, reactions: null, comments: 0, shares: null });
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce(res(200, { items: [] }));
-    await expect(yt.fetchMetrics(acc, 'gone')).rejects.toBeInstanceOf(SocialPostGoneError);
-  });
-});
-
 describe('SocialPostsService: lấy số và thống kê', () => {
   const now = Date.now();
   const account = { id: 5, network: 'facebook', status: 'active', external_id: '555', name: 'Trang' };
@@ -111,6 +92,8 @@ describe('SocialPostsService: lấy số và thống kê', () => {
     expect(accounts.markReauth).not.toHaveBeenCalled();
     const where = prisma.socialPostTarget.findMany.mock.calls[0][0].where;
     expect(where.status).toBe('published');
+    // Bài cũ của mạng đã gỡ (YouTube, TikTok…) không bị gọi lấy số nữa.
+    expect(where.network).toEqual({ in: ['facebook'] });
     expect(where.published_at.gte.getTime()).toBe(now - 90 * 24 * H);
   });
 
@@ -137,7 +120,7 @@ describe('SocialPostsService: lấy số và thống kê', () => {
     expect(prisma.socialPostTarget.update.mock.calls[0][0].data).toEqual({ metrics_at: expect.any(Date) });
   });
 
-  it('thống kê: tổng, theo kênh, bài tương tác cao nhất, bài chưa có số', async () => {
+  it('thống kê: tổng, theo kênh, bài tương tác cao nhất, bài chưa có số (bài cũ YouTube vẫn tính — lịch sử)', async () => {
     const rows = [
       t({ id: 1, post_id: 1, account_id: 5, metrics: { views: null, reactions: 2, comments: 1, shares: 0 }, metrics_at: new Date(now - H) }),
       t({ id: 2, post_id: 1, account_id: 6, network: 'youtube', metrics: { views: 50, reactions: 5, comments: 3, shares: null }, metrics_at: new Date(now - 2 * H) }),

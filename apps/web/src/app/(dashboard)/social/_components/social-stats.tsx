@@ -13,6 +13,7 @@ import { SocialMetricsLine, formatCount } from "./social-metrics"
 import { formatCount as formatCountUnit, formatDateTime } from "@/lib/format"
 
 const RANGES = [7, 30, 90] as const
+/** Gồm cả mạng đã gỡ: thống kê vẫn tính bài cũ đã đăng trên đó. */
 const NETWORK_LABEL = { facebook: "Facebook", instagram: "Instagram", youtube: "YouTube", tiktok: "TikTok", google_business: "Google Business" } as const
 const fmt = (iso: string) => formatDateTime(iso)
 
@@ -43,7 +44,7 @@ export function SocialStats({ onOpen }: { onOpen: (postId: number) => void }) {
           <HomeStats
             items={[
               { key: "posts", label: "Bài đã đăng", value: formatCount(data.totals.posts), note: `${formatCount(data.totals.published)} lượt lên kênh` },
-              { key: "views", label: "Lượt xem", value: data.totals.views === null ? "—" : formatCount(data.totals.views), note: data.totals.views === null ? "Kênh chưa cung cấp" : "Video Facebook, YouTube" },
+              { key: "views", label: "Lượt xem", value: data.totals.views === null ? "—" : formatCount(data.totals.views), note: data.totals.views === null ? "Kênh chưa cung cấp" : "Video Facebook" },
               { key: "reactions", label: "Cảm xúc / thích", value: formatCount(data.totals.reactions) },
               { key: "comments", label: "Bình luận · chia sẻ", value: `${formatCount(data.totals.comments)} · ${formatCount(data.totals.shares)}` },
             ]}

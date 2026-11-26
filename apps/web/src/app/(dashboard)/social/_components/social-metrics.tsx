@@ -1,10 +1,10 @@
 import { Eye, MessageCircle, Share2, ThumbsUp, Trash2 } from "lucide-react"
-import type { SocialMetrics, SocialNetwork } from "@/hooks/use-social"
+import type { PostNetwork, SocialMetrics } from "@/hooks/use-social"
 
 const num = (n: number) => new Intl.NumberFormat("vi-VN").format(n)
 
-/** Nhãn số theo mạng: Facebook "cảm xúc", YouTube "thích"; YouTube không có số chia sẻ. */
-export function metricItems(m: SocialMetrics, network: SocialNetwork) {
+/** Nhãn số theo mạng: Facebook "cảm xúc", YouTube (bài cũ, mạng đã gỡ) "thích" và không có số chia sẻ. */
+export function metricItems(m: SocialMetrics, network: PostNetwork) {
   const items: Array<{ key: string; icon: typeof Eye; value: number; label: string }> = []
   if (m.views !== null) items.push({ key: "views", icon: Eye, value: m.views, label: "lượt xem" })
   if (m.reactions !== null) items.push({ key: "reactions", icon: ThumbsUp, value: m.reactions, label: network === "facebook" ? "cảm xúc" : "thích" })
@@ -14,7 +14,7 @@ export function metricItems(m: SocialMetrics, network: SocialNetwork) {
 }
 
 /** Một dòng số của bài trên một kênh. */
-export function SocialMetricsLine({ metrics, network }: { metrics: SocialMetrics; network: SocialNetwork }) {
+export function SocialMetricsLine({ metrics, network }: { metrics: SocialMetrics; network: PostNetwork }) {
   const items = metricItems(metrics, network)
   if (!items.length && !metrics.removed) return null
   return (

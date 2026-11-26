@@ -83,13 +83,12 @@ describe('firstUtmLink / applyUtmToTarget', () => {
     expect(firstUtmLink('a https://x.vn/1. b https://y.vn', P)).toBe(`https://x.vn/1?${Q}`);
     expect(firstUtmLink('không có', P)).toBeNull();
   });
-  it('áp lên nội dung, mô tả YouTube và bình luận đầu; không có options.utm ⇒ y nguyên', () => {
-    const o = { utm: { campaign: 'c' }, description: 'Mô tả https://a.vn', first_comment: 'Link: https://b.vn.', tags: ['x'] };
-    const r = applyUtmToTarget('youtube', 'Xem https://a.vn', o);
-    expect(r.text).toBe('Xem https://a.vn?utm_source=youtube&utm_medium=social&utm_campaign=c');
-    expect(r.options.description).toBe('Mô tả https://a.vn?utm_source=youtube&utm_medium=social&utm_campaign=c');
-    expect(r.options.first_comment).toBe('Link: https://b.vn?utm_source=youtube&utm_medium=social&utm_campaign=c.');
-    expect(o.description).toBe('Mô tả https://a.vn');
+  it('áp lên nội dung và bình luận đầu; không có options.utm ⇒ y nguyên', () => {
+    const o = { utm: { campaign: 'c' }, first_comment: 'Link: https://b.vn.' };
+    const r = applyUtmToTarget('facebook', 'Xem https://a.vn', o);
+    expect(r.text).toBe('Xem https://a.vn?utm_source=facebook&utm_medium=social&utm_campaign=c');
+    expect(r.options.first_comment).toBe('Link: https://b.vn?utm_source=facebook&utm_medium=social&utm_campaign=c.');
+    expect(o.first_comment).toBe('Link: https://b.vn.');
     const plain = { description: 'https://a.vn' };
     expect(applyUtmToTarget('facebook', 'https://a.vn', plain)).toEqual({ text: 'https://a.vn', options: plain });
   });
@@ -97,7 +96,7 @@ describe('firstUtmLink / applyUtmToTarget', () => {
 
 describe('SocialPostsService.validate — UTM', () => {
   const user = { userId: 1, email: 'a@x.vn', isAdmin: true, grants: {} } as never;
-  function setup(network = 'instagram') {
+  function setup(network = 'facebook') {
     const prisma = { socialAccount: { findMany: jest.fn(async () => [{ id: 3, network, name: 'Kênh', status: 'active' }]) } };
     const media = { resolve: jest.fn(async () => []) };
     const provider = { supported: true, validateMedia: () => null, validateOptions: jest.fn((..._a: unknown[]) => null as string | null) };
@@ -108,13 +107,13 @@ describe('SocialPostsService.validate — UTM', () => {
   it('utm của bài ⇒ lưu vào options từng kênh kèm source/medium; nội dung vẫn sạch', async () => {
     const { svc } = setup();
     const v = await svc.validate(user, { ...base, utm: { campaign: ' thu 2026 ', content: 'a' } } as never);
-    expect(v.targets[0].options).toEqual({ utm: { source: 'instagram', medium: 'social', campaign: 'thu-2026', content: 'a' } });
+    expect(v.targets[0].options).toEqual({ utm: { source: 'facebook', medium: 'social', campaign: 'thu-2026', content: 'a' } });
     expect(v.content).toBe('Xem https://shop.vn/sp');
   });
   it('options.utm sẵn có (sửa bài, nháp) được giữ; utm: null thì bỏ', async () => {
     const { svc } = setup();
     const t = [{ account_id: 3, options: { utm: { campaign: 'c' } } }];
-    expect((await svc.validate(user, { ...base, targets: t } as never)).targets[0].options.utm).toMatchObject({ campaign: 'c', source: 'instagram' });
+    expect((await svc.validate(user, { ...base, targets: t } as never)).targets[0].options.utm).toMatchObject({ campaign: 'c', source: 'facebook' });
     expect((await svc.validate(user, { ...base, targets: t, utm: null } as never)).targets[0].options.utm).toBeUndefined();
   });
   it('campaign sai ⇒ 400 tiếng Việt', async () => {
@@ -123,10 +122,10 @@ describe('SocialPostsService.validate — UTM', () => {
     await expect(svc.validate(user, { ...base, utm: { campaign: 'a'.repeat(101) } } as never)).rejects.toThrow(/tối đa 100/);
   });
   it('giới hạn ký tự tính SAU khi gắn UTM', async () => {
-    const { svc } = setup('google_business');
+    const { svc } = setup('facebook');
     const url = 'https://shop.vn/sp';
-    const content = `${'x'.repeat(1500 - url.length - 1)} ${url}`;
-    expect(content.length).toBeLessThanOrEqual(1500);
+    const content = `${'x'.repeat(63_206 - url.length - 1)} ${url}`;
+    expect(content.length).toBeLessThanOrEqual(63_206);
     await expect(svc.validate(user, { content, targets: [{ account_id: 3 }] } as never)).resolves.toBeDefined();
     await expect(svc.validate(user, { content, targets: [{ account_id: 3 }], utm: { campaign: 'c' } } as never)).rejects.toThrow(/đã tính tham số UTM/);
   });
@@ -139,21 +138,21 @@ describe('SocialPostsService.validate — UTM', () => {
 
 describe('SocialPostsService.processOne — UTM khi đăng', () => {
   it('gửi cho mạng bản có UTM (nội dung + bình luận đầu), bài lưu vẫn sạch', async () => {
-    const target = { id: 11, post_id: 3, account_id: 5, network: 'youtube', caption: null, options: { utm: { campaign: 'c' }, description: 'Mô tả https://a.vn' }, status: 'publishing', attempts: 1 };
+    const target = { id: 11, post_id: 3, account_id: 5, network: 'facebook', caption: null, options: { utm: { campaign: 'c' }, first_comment: 'Mua https://a.vn' }, status: 'publishing', attempts: 1 };
     const prisma = {
       socialPostTarget: { findUnique: jest.fn().mockResolvedValue(target), update: jest.fn().mockResolvedValue({}), findMany: jest.fn().mockResolvedValue([{ status: 'published' }]) },
       socialPost: { findUnique: jest.fn().mockResolvedValue({ id: 3, content: 'Xem https://shop.vn/sp.', media: [] }), update: jest.fn().mockResolvedValue({}) },
-      socialAccount: { findUnique: jest.fn().mockResolvedValue({ id: 5, network: 'youtube', status: 'active', external_id: '1', name: 'K' }) },
+      socialAccount: { findUnique: jest.fn().mockResolvedValue({ id: 5, network: 'facebook', status: 'active', external_id: '1', name: 'K' }) },
       integrationEvent: { create: jest.fn().mockResolvedValue({ id: 1n }) },
     };
     const accounts = { forPublish: jest.fn().mockReturnValue({ id: 5, external_id: '1', name: 'K', access_token: 't', refresh_token: null, token_expires_at: null }), markReauth: jest.fn() };
-    const publish = jest.fn().mockResolvedValue({ external_post_id: 'v1', url: 'https://youtu.be/v1' });
-    const svc = new SocialPostsService(prisma as never, accounts as never, {} as never, { get: () => ({ network: 'youtube', supported: true, publish }) } as never);
+    const publish = jest.fn().mockResolvedValue({ external_post_id: '1_2', url: 'https://www.facebook.com/1_2' });
+    const svc = new SocialPostsService(prisma as never, accounts as never, {} as never, { get: () => ({ network: 'facebook', supported: true, publish }) } as never);
     expect(await svc.processOne(11)).toBe('published');
     const input = publish.mock.calls[0][1];
-    expect(input.text).toBe('Xem https://shop.vn/sp?utm_source=youtube&utm_medium=social&utm_campaign=c.');
-    expect(input.options.description).toContain('https://a.vn?utm_source=youtube');
-    expect(target.options.description).toBe('Mô tả https://a.vn');
+    expect(input.text).toBe('Xem https://shop.vn/sp?utm_source=facebook&utm_medium=social&utm_campaign=c.');
+    expect(input.options.first_comment).toContain('https://a.vn?utm_source=facebook');
+    expect(target.options.first_comment).toBe('Mua https://a.vn');
   });
 });
 
@@ -216,11 +215,5 @@ describe('applyUtm — các ca sau rà soát', () => {
     expect(applyUtm(long, P)).toBe(long);
   });
 
-  it('YouTube không đặt title: tiêu đề chốt từ chữ sạch, không lộ utm', () => {
-    const r = applyUtmToTarget('youtube', 'Xem https://shop.example/khoa-hoc\nMô tả', { utm: { campaign: 'c' } });
-    expect(r.options.title).toBe('Xem https://shop.example/khoa-hoc');
-    expect(r.text).toContain('utm_source=youtube');
-    const withTitle = applyUtmToTarget('youtube', 'https://x.vn', { utm: { campaign: 'c' }, title: 'Tiêu đề' });
-    expect(withTitle.options.title).toBe('Tiêu đề');
-  });
+
 });

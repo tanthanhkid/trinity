@@ -3,7 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { currentCompanyId } from '@trinity/prisma';
 import { Public } from '@trinity/rbac-nest';
-import { isSocialNetwork, socialBaseUrl } from './social.config';
+import { isSocialNetwork, removedNetworkMessage, socialBaseUrl } from './social.config';
 import { SocialAccountsService } from './social-accounts.service';
 import { SocialMediaService } from './social-media.service';
 import { verifyMediaLink } from './social-media-link';
@@ -23,7 +23,7 @@ export class SocialPublicController {
     private readonly media: SocialMediaService,
   ) {}
 
-  /** Tệp cho mạng tải về khi đăng (Instagram chỉ nhận URL). Token ký HMAC, hạn 2 giờ — xem `social-media-link.ts`. */
+  /** Tệp cho mạng tải về khi đăng (mạng chỉ nhận URL). Token ký HMAC, hạn 2 giờ — xem `social-media-link.ts`. */
   @Get('media-link/:token/:name')
   @Public()
   @ApiOperation({ summary: 'Link tải tệp có chữ ký cho mạng xã hội lấy ảnh/video khi đăng' })
@@ -49,6 +49,8 @@ export class SocialPublicController {
   ) {
     const base = socialBaseUrl() ?? '';
     const back = (q: string) => res.redirect(`${base}/social?tab=channels&${q}`);
+    const removed = removedNetworkMessage(network);
+    if (removed) return back(`social=error&network=${encodeURIComponent(network)}&reason=${encodeURIComponent(removed)}`);
     if (!isSocialNetwork(network)) return back('social=error');
     if (error || !code || !state) return back(`social=cancelled&network=${network}`);
     try {

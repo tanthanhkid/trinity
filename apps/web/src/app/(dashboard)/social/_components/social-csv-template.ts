@@ -1,5 +1,5 @@
 /** Tệp CSV mẫu cho "Nhập nhiều bài từ CSV" — dựng ở trình duyệt, tiêu đề tiếng Việt khớp bí danh của máy chủ. */
-export const CSV_TEMPLATE_HEADER = ["noi_dung", "kenh", "gio_dang", "tep", "binh_luan_dau", "tieu_de_youtube", "utm"] as const
+export const CSV_TEMPLATE_HEADER = ["noi_dung", "kenh", "gio_dang", "tep", "binh_luan_dau", "utm"] as const
 
 const pad = (n: number) => String(n).padStart(2, "0")
 
@@ -21,8 +21,8 @@ export function buildCsvTemplate(channelNames: string[], now = new Date()): stri
   const [a, b] = [channelNames[0] ?? "Tên kênh", channelNames[1] ?? channelNames[0] ?? "Tên kênh"]
   const rows = [
     [...CSV_TEMPLATE_HEADER],
-    ["Khai trương chi nhánh mới — mời cả nhà ghé chơi!", a, vnTime(now, 2, "09:00"), "", "Địa chỉ: 12 Nguyễn Huệ, Q.1", "", "khai-truong"],
-    ["Mẹo nhỏ cuối tuần cho khách quen.", `${a}; ${b}`, "hàng đợi", "", "", "", ""],
+    ["Khai trương chi nhánh mới — mời cả nhà ghé chơi!", a, vnTime(now, 2, "09:00"), "", "Địa chỉ: 12 Nguyễn Huệ, Q.1", "khai-truong"],
+    ["Mẹo nhỏ cuối tuần cho khách quen.", `${a}; ${b}`, "hàng đợi", "", "", ""],
   ]
   return `﻿${rows.map((r) => r.map(csvCell).join(",")).join("\r\n")}\r\n`
 }

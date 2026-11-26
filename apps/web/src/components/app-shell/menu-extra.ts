@@ -31,7 +31,7 @@ const INBOX_ITEM: MenuItem = {
   icon: Inbox,
   href: "/inbox",
   iconColor: "text-blue-600 dark:text-blue-400",
-  anyOf: ["contacts.update", "integrations.webhooks", "social.post"],
+  anyOf: ["contacts.update", "integrations.webhooks"],
   feature: "inbox",
 }
 

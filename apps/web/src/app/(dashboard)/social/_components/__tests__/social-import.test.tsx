@@ -120,7 +120,7 @@ describe("SocialImportDialog", () => {
       r.onload = () => res(String(r.result))
       r.readAsText(blob!)
     })
-    expect(text).toContain("noi_dung,kenh,gio_dang,tep,binh_luan_dau,tieu_de_youtube,utm")
+    expect(text).toContain("noi_dung,kenh,gio_dang,tep,binh_luan_dau,utm")
     expect(text).toContain("Fanpage Quán")
     click.mockRestore()
   })

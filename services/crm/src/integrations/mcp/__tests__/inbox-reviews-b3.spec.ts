@@ -1,5 +1,4 @@
 import { getConversationMessagesTool, listConversationsTool } from '../tools/inbox-tools';
-import { listGoogleReviewsTool, replyToGoogleReviewTool } from '../tools/google-review-tools';
 import { ToolUserError } from '../tools/tool-types';
 
 const grants = (update: boolean) => (update ? { 'contacts.update': 'all' } : {}) as never;
@@ -60,44 +59,5 @@ describe('get_conversation_messages', () => {
     expect(r.data.messages[0]).toMatchObject({ from: 'customer', kind: 'image' });
     await expect(getConversationMessagesTool.run({ id: '12' }, ctx(deps()))).rejects.toBeInstanceOf(ToolUserError);
     await expect(getConversationMessagesTool.run({ id: 'zalo_oa:5' }, ctx(deps(), false))).rejects.toBeInstanceOf(ToolUserError);
-  });
-});
-
-function gdeps(places = [{ id: 9, network: 'google_business', name: 'Cửa hàng' }]) {
-  const posts = {
-    gbpReviews: jest.fn(async () => ({ reviews: [{ id: 'r1', reviewer: 'Chi', stars: 5, comment: 'Tốt', reply: null }, { id: 'r2', reviewer: 'Dũng', stars: 3, comment: 'Ổn', reply: { comment: 'Cảm ơn', updated_at: null } }], average: 4, total: 2, next_page_token: null })),
-    gbpReply: jest.fn(async () => ({})),
-  };
-  return { social: { posts, accounts: { list: jest.fn(async () => [...places, { id: 1, network: 'facebook', name: 'P' }]) } }, orgFeatures: { isEnabled: jest.fn(async () => true) } } as any;
-}
-
-describe('đánh giá Google', () => {
-  it('liệt kê, lọc chưa trả lời; một địa điểm thì tự chọn', async () => {
-    const r = (await listGoogleReviewsTool.run({ unanswered_only: true }, ctx(gdeps()))).structured as any;
-    expect(r.data.reviews.map((x: any) => x.review_id)).toEqual(['r1']);
-    await expect(listGoogleReviewsTool.run({}, ctx(gdeps([])))).rejects.toThrow(/Chưa liên kết/);
-  });
-
-  it('trả lời: thiếu đồng ý ⇒ xem trước, có đồng ý ⇒ gửi', async () => {
-    const d = gdeps();
-    const r = (await replyToGoogleReviewTool.run({ review_id: 'r1', comment: 'Cảm ơn chị' }, ctx(d))).structured as any;
-    expect(r.data.sent).toBe(false);
-    expect(d.social.posts.gbpReply).not.toHaveBeenCalled();
-    await replyToGoogleReviewTool.run({ review_id: 'r1', comment: 'Cảm ơn chị', confirmed_by_user: 'ok gửi đi' }, ctx(d));
-    expect(d.social.posts.gbpReply).toHaveBeenCalledWith(9, 'r1', 'Cảm ơn chị', expect.anything());
-  });
-
-  it('review ở trang sau ⇒ tìm qua trang; không thấy ⇒ không cho xem trước rỗng', async () => {
-    const d = gdeps();
-    d.social.posts.gbpReviews
-      .mockResolvedValueOnce({ reviews: [{ id: 'r1', reviewer: 'Chi', stars: 5, comment: 'Tốt', reply: null }], average: 4, total: 60, next_page_token: 'p2' })
-      .mockResolvedValueOnce({ reviews: [{ id: 'r60', reviewer: 'Lan', stars: 2, comment: 'Chậm', reply: null }], average: 4, total: 60, next_page_token: null });
-    const r = (await replyToGoogleReviewTool.run({ review_id: 'r60', comment: 'Xin lỗi chị' }, ctx(d))).structured as any;
-    expect(r.data.preview.review.reviewer).toBe('Lan');
-    expect(d.social.posts.gbpReviews).toHaveBeenLastCalledWith(9, 'p2');
-    await expect(replyToGoogleReviewTool.run({ review_id: 'khong-co', comment: 'x' }, ctx(gdeps()))).rejects.toThrow(/Không tìm thấy/);
-    const d2 = gdeps();
-    await replyToGoogleReviewTool.run({ review_id: 'r1', comment: 'x', page_token: 'p11' }, ctx(d2));
-    expect(d2.social.posts.gbpReviews).toHaveBeenCalledWith(9, 'p11');
   });
 });

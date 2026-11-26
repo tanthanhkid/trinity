@@ -25,7 +25,7 @@ export const ORG_FEATURES = {
   inbox: { label: 'Hộp thư', group: 'channels', description: 'Gom tin Messenger và Zalo OA vào một chỗ để trả lời khách.' },
   facebook_page: { label: 'Fanpage Facebook', group: 'channels', description: 'Nhận và trả lời tin Messenger, bình luận, lead từ Lead Ads vào khách hàng.' },
   zalo_oa: { label: 'Zalo OA', group: 'channels', description: 'Nhận và trả lời tin Zalo OA, gửi thông báo ZNS.' },
-  social_posting: { label: 'Đăng đa kênh', group: 'channels', description: 'Soạn một lần, đăng hoặc hẹn giờ ra Fanpage và YouTube; trợ lý AI soạn và đăng được.' },
+  social_posting: { label: 'Đăng đa kênh', group: 'channels', description: 'Soạn một lần, đăng hoặc hẹn giờ ra một hoặc nhiều Fanpage; trợ lý AI soạn và đăng được.' },
   products: { label: 'Sản phẩm', group: 'sales', description: 'Danh mục sản phẩm, dịch vụ và giá.' },
   pos: { label: 'Bán hàng (POS)', group: 'sales', description: 'Bán hàng tại quầy, in hoá đơn.' },
   payments: { label: 'Thanh toán & đối soát', group: 'sales', description: 'SePay, VNPay, MoMo: mã QR, link thanh toán, tự khớp tiền chuyển khoản.' },

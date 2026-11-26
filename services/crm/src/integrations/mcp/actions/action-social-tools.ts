@@ -1,6 +1,4 @@
 import type { Z } from '../tools/tool-types';
-import { tiktokPrivacy } from '../../../social/providers/tiktok.provider';
-import { YOUTUBE_CATEGORIES, youtubePrivacy, youtubeTitle, type YoutubeCategory } from '../../../social/providers/youtube.provider';
 import { optInt } from '../tools/tool-types';
 import { vnIso } from '../tools/ai-activity-tool';
 import { ActionUserError, type ActionDeps, type ActionToolDef, type DetailLine } from './action-types';
@@ -76,8 +74,6 @@ export function assertPostConfirmed(words: unknown, preview: DetailLine[]): void
   );
 }
 
-const YT_CATEGORIES = Object.keys(YOUTUBE_CATEGORIES) as [YoutubeCategory, ...YoutubeCategory[]];
-
 /** Nội dung riêng + tuỳ chọn từng kênh — dùng chung cho tạo bài và sửa bài hẹn giờ. */
 export const captionsParam = (z: Z) =>
   z
@@ -85,43 +81,23 @@ export const captionsParam = (z: Z) =>
       z.object({
         account_id: z.number().int().min(1).max(2_147_483_647),
         caption: z.string().max(63_206).optional(),
-        youtube_title: z.string().max(100).optional(),
-        youtube_privacy: z.enum(['private', 'unlisted', 'public']).optional(),
-        youtube_description: z.string().max(5000).optional().describe('Mô tả video (bỏ trống = nội dung bài) / Video description'),
-        youtube_tags: z.array(z.string().max(100)).max(30).optional().describe('Thẻ video / Video tags'),
-        youtube_category: z.enum(YT_CATEGORIES).optional().describe(`Danh mục YouTube: ${YT_CATEGORIES.map((k) => `${k}=${YOUTUBE_CATEGORIES[k]}`).join(', ')}; mặc định 22 / YouTube category id`),
-        youtube_made_for_kids: z.boolean().optional().describe('Video dành cho trẻ em (mặc định false) / Made for kids'),
-        youtube_thumbnail_media_key: z.string().max(200).optional().describe('media_key ảnh JPG/PNG ≤ 2 MB trong thư viện làm thumbnail / Thumbnail image media key'),
-        youtube_playlist_id: z.string().max(64).optional().describe('id playlist từ list_youtube_playlists / Playlist id'),
         facebook_first_comment: z.string().max(8000).optional().describe('Bình luận đầu tiên Fanpage tự đăng dưới bài (vd link, hashtag) / First comment on the Facebook post'),
       }),
     )
     .max(20)
     .optional()
-    .describe('Nội dung riêng và tuỳ chọn từng kênh: YouTube (tiêu đề, quyền xem, mô tả, thẻ, danh mục, trẻ em, thumbnail, playlist), Facebook (bình luận đầu tiên) / Per-account caption and options');
+    .describe('Nội dung riêng và tuỳ chọn từng Fanpage: bình luận đầu tiên / Per-Page caption and first comment');
 
 /** Một phần tử `captions` → tuỳ chọn gửi BE (chỉ những gì AI đã đặt). */
 export function optionsFromCaption(c: Record<string, unknown>): Record<string, unknown> {
   const o: Record<string, unknown> = {};
   const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
-  if (str(c.youtube_title)) o.title = str(c.youtube_title);
-  if (typeof c.youtube_privacy === 'string') o.privacy = c.youtube_privacy;
-  if (str(c.youtube_description)) o.description = str(c.youtube_description);
-  if (Array.isArray(c.youtube_tags)) o.tags = (c.youtube_tags as unknown[]).filter((t): t is string => typeof t === 'string');
-  if (typeof c.youtube_category === 'string') o.category_id = c.youtube_category;
-  if (typeof c.youtube_made_for_kids === 'boolean') o.made_for_kids = c.youtube_made_for_kids;
-  if (str(c.youtube_thumbnail_media_key)) o.thumbnail_key = str(c.youtube_thumbnail_media_key);
-  if (str(c.youtube_playlist_id)) o.playlist_id = str(c.youtube_playlist_id);
   if (str(c.facebook_first_comment)) o.first_comment = str(c.facebook_first_comment);
   return o;
 }
 
-/** Trường chuỗi gửi rỗng ("") khi sửa bài = bỏ tuỳ chọn đã lưu (playlist, thumbnail, mô tả riêng, bình luận đầu tiên, tiêu đề). */
+/** Trường chuỗi gửi rỗng ("") khi sửa bài = bỏ tuỳ chọn đã lưu (bình luận đầu tiên). */
 const CLEARABLE: Record<string, string> = {
-  youtube_title: 'title',
-  youtube_description: 'description',
-  youtube_thumbnail_media_key: 'thumbnail_key',
-  youtube_playlist_id: 'playlist_id',
   facebook_first_comment: 'first_comment',
 };
 
@@ -132,11 +108,9 @@ export function mergeOptions(stored: Record<string, unknown>, c: Record<string, 
   return o;
 }
 
-/** Tuỳ chọn đã lưu → gửi lại khi sửa (thumbnail chuyển về thumbnail_key để BE kiểm lại). */
+/** Tuỳ chọn đã lưu → gửi lại khi sửa. */
 function storedOptions(options: unknown): Record<string, unknown> {
-  const { thumbnail, ...rest } = (options && typeof options === 'object' ? options : {}) as Record<string, unknown>;
-  const key = thumbnail && typeof thumbnail === 'object' ? (thumbnail as { key?: unknown }).key : undefined;
-  return typeof key === 'string' ? { ...rest, thumbnail_key: key } : rest;
+  return options && typeof options === 'object' && !Array.isArray(options) ? { ...(options as Record<string, unknown>) } : {};
 }
 
 /** utm_campaign / utm_content dùng chung cho tạo bài, sửa bài hẹn giờ và lưu nháp. */
@@ -170,28 +144,11 @@ export function postDetails(v: Validated): DetailLine[] {
     line('Giờ đăng', v.scheduledAt ? `Hẹn lúc ${vnWhen(v.scheduledAt)}` : 'Đăng ngay'),
     line('Nội dung', v.content, 2000),
     ...v.targets.filter((t) => t.caption).map((t) => line(`Nội dung riêng — ${t.account.name}`, t.caption, 1000)),
-    ...v.targets
-      .filter((t) => t.account.network === 'youtube')
-      .map((t) => {
-        const o = t.options;
-        const extra = [
-          Array.isArray(o.tags) && o.tags.length ? `thẻ: ${(o.tags as string[]).join(', ')}` : null,
-          typeof o.category_id === 'string' ? `danh mục ${YOUTUBE_CATEGORIES[o.category_id as YoutubeCategory] ?? o.category_id}` : null,
-          o.made_for_kids === true ? 'dành cho trẻ em' : null,
-          o.thumbnail ? 'có ảnh thumbnail' : null,
-          typeof o.playlist_id === 'string' ? `thêm vào playlist ${o.playlist_id}` : null,
-        ].filter(Boolean);
-        return line(`YouTube — ${t.account.name}`, `tiêu đề "${youtubeTitle(t.caption ?? v.content, o)}", quyền xem ${youtubePrivacy(o)}${extra.length ? `, ${extra.join(', ')}` : ''}`);
-      }),
-    ...v.targets
-      .filter((t) => t.account.network === 'youtube' && typeof t.options.description === 'string')
-      .map((t) => line(`Mô tả YouTube — ${t.account.name}`, t.options.description as string, 2000)),
     ...v.targets.filter((t) => t.account.network === 'facebook' && typeof t.options.first_comment === 'string').map((t) => line(`Bình luận đầu tiên — ${t.account.name}`, t.options.first_comment as string, 500)),
     ...(() => {
       const u = v.targets.map((t) => t.options.utm as { campaign?: string; content?: string } | undefined).find((x) => x?.campaign);
       return u ? [line('UTM', `campaign=${u.campaign}${u.content ? `, content=${u.content}` : ''} (utm_source = tên mạng từng kênh, utm_medium=social; gắn vào các liên kết khi đăng)`)] : [];
     })(),
-    ...v.targets.filter((t) => t.account.network === 'tiktok').map((t) => line(`TikTok — ${t.account.name}`, `quyền xem ${tiktokPrivacy(t.options) ?? 'chưa chọn (TikTok chỉ đăng được từ màn Soạn bài trong Trinity)'}`)),
     line('Tệp đính kèm', v.media.length ? v.media.map((m) => m.type).join(', ') : null),
   );
 }
@@ -201,17 +158,17 @@ export const createSocialPostAction: ActionToolDef = {
   label: 'Đăng bài mạng xã hội',
   title: 'Đăng bài mạng xã hội / Create social post',
   description:
-    'Đăng bài lên Fanpage Facebook và kênh YouTube của công ty qua Trinity (tính năng Đăng đa kênh): đăng ngay, hoặc hẹn giờ đăng (scheduled_at), một bài ra một hoặc nhiều kênh đã liên kết (account_ids từ list_social_accounts). ' +
+    'Đăng bài lên Fanpage Facebook của công ty qua Trinity (tính năng Đăng đa kênh): đăng ngay, hoặc hẹn giờ đăng (scheduled_at), một bài ra một hoặc nhiều Fanpage đã liên kết (account_ids từ list_social_accounts). ' +
     'Người dùng nói một giờ cụ thể ("9 giờ sáng mai", "20/10 lúc 19h") thì đặt scheduled_at theo giờ Việt Nam; không nói giờ thì đăng ngay. Bài hẹn hiện ở trạng thái scheduled, huỷ được ở màn Đăng đa kênh của Trinity trước giờ đăng. use_queue = true đặt bài vào khung trống gần nhất của hàng đợi thay cho scheduled_at (khung giờ xem ở list_queue_slots; bản xem trước nêu đúng giờ đó). ' +
     'account_ids là đúng các kênh người dùng đã nêu; Trinity không có kênh mặc định hay kênh "hay dùng" — khi người dùng chưa nêu kênh, họ là người chọn. ' +
-    'captions đặt nội dung riêng cho từng kênh và tuỳ chọn: YouTube (youtube_title, youtube_privacy mặc định private, youtube_description, youtube_tags, youtube_category, youtube_made_for_kids, youtube_thumbnail_media_key, youtube_playlist_id từ list_youtube_playlists), Facebook (facebook_first_comment); utm_campaign (+ utm_content) gắn UTM vào các liên kết trong bài, mô tả YouTube và bình luận đầu để đo lượt truy cập từ bài này (utm_source là tên mạng, utm_medium=social; liên kết đã có utm_ giữ nguyên); YouTube cần đúng một video; media_keys là media_key của ảnh/video trong thư viện (list_social_media; ảnh/video bạn tạo thì đưa vào bằng upload_social_media trước). ' +
+    'captions đặt nội dung riêng cho từng Fanpage và bình luận đầu tiên (facebook_first_comment); utm_campaign (+ utm_content) gắn UTM vào các liên kết trong bài và bình luận đầu để đo lượt truy cập từ bài này (utm_source là tên mạng, utm_medium=social; liên kết đã có utm_ giữ nguyên); media_keys là media_key của ảnh/video trong thư viện (list_social_media; ảnh/video bạn tạo thì đưa vào bằng upload_social_media trước). ' +
     'Bài đăng công khai trên kênh của công ty nên cần confirmed_by_user — lời người dùng đồng ý sau khi xem nội dung và kênh. Bài đăng chạy nền; trạng thái từng kênh xem bằng get_social_post. / ' +
-    'Posts to the company\'s Facebook Pages and YouTube channels through Trinity (multi-channel posting): publishes a post now to one or more linked social accounts. account_ids are exactly the channels the user named; there is no default channel. Per-channel captions and YouTube title/privacy (default private); utm_campaign/utm_content tag the links in the post (and YouTube description / Facebook first comment) with UTM to measure traffic from this post (utm_source = the network, utm_medium=social); YouTube needs exactly one video; media_keys are media_key values from the library (list_social_media; upload your own with upload_social_media first). Requires confirmed_by_user. Publishing runs in the background — check with get_social_post. Set scheduled_at (Vietnam time, up to 90 days ahead) to schedule instead of posting now, or use_queue to take the nearest free weekly queue slot instead.',
+    'Posts to the company\'s Facebook Pages through Trinity: publishes a post now to one or more linked Pages. account_ids are exactly the Pages the user named; there is no default. Per-Page captions and first comment; utm_campaign/utm_content tag the links in the post (and the first comment) with UTM to measure traffic from this post (utm_source = the network, utm_medium=social); media_keys are media_key values from the library (list_social_media; upload your own with upload_social_media first). Requires confirmed_by_user. Publishing runs in the background — check with get_social_post. Set scheduled_at (Vietnam time, up to 90 days ahead) to schedule instead of posting now, or use_queue to take the nearest free weekly queue slot instead.',
   permissions: ['social.post'],
   destructive: false,
   idempotent: false,
   input: (z) => ({
-    content: z.string().max(63_206).optional().describe('Nội dung chung của bài (video YouTube có thể bỏ trống) / Post text, optional for a video-only post'),
+    content: z.string().max(63_206).optional().describe('Nội dung chung của bài (có thể bỏ trống nếu có ảnh/video) / Post text, optional when media is attached'),
     account_ids: z.array(z.number().int().min(1).max(2_147_483_647)).min(1).max(20).describe('id các kênh người dùng đã nêu, từ list_social_accounts; không có kênh mặc định / Account ids the user named; no default'),
     captions: captionsParam(z),
     media_keys: z.array(z.string().max(200)).max(10).optional().describe('media_key trong thư viện (list_social_media / upload_social_media) / Library media keys'),
@@ -313,7 +270,7 @@ export const updateScheduledPostAction: ActionToolDef = {
   label: 'Sửa bài đang hẹn giờ',
   title: 'Sửa bài đang hẹn giờ / Update scheduled post',
   description:
-    'Sửa một bài đăng đa kênh ĐANG HẸN GIỜ (chưa tới giờ, chưa kênh nào đăng): nội dung, giờ đăng, danh sách kênh, nội dung riêng và tuỳ chọn từng kênh. Trường nào bỏ trống thì giữ như cũ; account_ids có thì thay cả danh sách kênh; trong captions gửi chuỗi rỗng "" cho youtube_playlist_id / youtube_thumbnail_media_key / youtube_description / youtube_title / facebook_first_comment để bỏ tuỳ chọn đó. ' +
+    'Sửa một bài đăng đa kênh ĐANG HẸN GIỜ (chưa tới giờ, chưa kênh nào đăng): nội dung, giờ đăng, danh sách kênh, nội dung riêng và tuỳ chọn từng kênh. Trường nào bỏ trống thì giữ như cũ; account_ids có thì thay cả danh sách kênh; trong captions gửi chuỗi rỗng "" cho facebook_first_comment để bỏ bình luận đầu đã đặt. ' +
     'Chỉ đổi giờ thì dùng reschedule_social_post. utm_campaign / utm_content gắn UTM vào các liên kết trong bài (đo lượt truy cập từ bài này; utm_source là tên mạng, utm_medium=social), utm_campaign "" để bỏ. Bài sẽ lên công khai nên cần confirmed_by_user sau khi người dùng xem bản sửa. / ' +
     'Edits a scheduled post that has not started publishing: text, time, channels, per-channel caption and options. Omitted fields keep their current value; account_ids replaces the channel list. To only move the time use reschedule_social_post. Requires confirmed_by_user.',
   permissions: ['social.post'],
@@ -513,10 +470,10 @@ export const importSocialPostsAction: ActionToolDef = {
   label: 'Nhập nhiều bài mạng xã hội',
   title: 'Nhập nhiều bài mạng xã hội / Import social posts in bulk',
   description:
-    'Tạo nhiều bài đăng đa kênh một lần (tối đa 50 dòng): mỗi dòng là một bài với nội dung, kênh (account_ids từ list_social_accounts), giờ hẹn (scheduled_at giờ Việt Nam YYYY-MM-DDTHH:mm, hoặc use_queue = true lấy khung trống kế tiếp của hàng đợi; mỗi dòng hàng đợi một khung riêng), tệp (media_keys), first_comment (Facebook), youtube_title, utm_campaign. ' +
+    'Tạo nhiều bài đăng đa kênh một lần (tối đa 50 dòng): mỗi dòng là một bài với nội dung, kênh (account_ids từ list_social_accounts), giờ hẹn (scheduled_at giờ Việt Nam YYYY-MM-DDTHH:mm, hoặc use_queue = true lấy khung trống kế tiếp của hàng đợi; mỗi dòng hàng đợi một khung riêng), tệp (media_keys), first_comment (Facebook), utm_campaign. ' +
     'mode "drafts" = chỉ lưu thành bài nháp để người dùng xem trong Trinity, KHÔNG đăng gì, không cần confirmed_by_user (kênh và giờ có thể để trống). ' +
     'mode "schedule" = tạo bài hẹn giờ công khai trên kênh của công ty: mỗi dòng phải có kênh và giờ (hoặc use_queue), không có chế độ đăng ngay; gọi lần đầu KHÔNG có confirmed_by_user để nhận bản xem trước từng dòng (kênh, giờ, lỗi) và chưa tạo gì, người dùng xem rồi đồng ý thì gọi lại với đúng các dòng đó kèm confirmed_by_user. Nếu dữ liệu đổi giữa hai bước (kênh, tệp, giờ…) máy chủ từ chối và cần xem trước lại. Chỉ các dòng hợp lệ được tạo; dòng lỗi được báo trong skipped và không ảnh hưởng dòng khác. / ' +
-    'Creates many multi-channel posts at once (up to 50 rows). Each row: text, account_ids, scheduled_at (Vietnam time) or use_queue (each queue row gets its own free slot), media_keys, first_comment (Facebook), youtube_title, utm_campaign. mode "drafts" only saves drafts: nothing is published, no confirmation needed. mode "schedule" creates PUBLIC scheduled posts (every row needs channels and a time or use_queue; no post-now): call first without confirmed_by_user to get the per-row preview (channels, time, errors) and nothing is created; after the user approves, call again with the same rows and confirmed_by_user. The server re-checks at execution and refuses if anything changed since the preview. Only valid rows are created; failed rows are reported in skipped.',
+    'Creates many multi-channel posts at once (up to 50 rows). Each row: text, account_ids, scheduled_at (Vietnam time) or use_queue (each queue row gets its own free slot), media_keys, first_comment (Facebook), utm_campaign. mode "drafts" only saves drafts: nothing is published, no confirmation needed. mode "schedule" creates PUBLIC scheduled posts (every row needs channels and a time or use_queue; no post-now): call first without confirmed_by_user to get the per-row preview (channels, time, errors) and nothing is created; after the user approves, call again with the same rows and confirmed_by_user. The server re-checks at execution and refuses if anything changed since the preview. Only valid rows are created; failed rows are reported in skipped.',
   permissions: ['social.post'],
   destructive: false,
   idempotent: false,
@@ -530,7 +487,6 @@ export const importSocialPostsAction: ActionToolDef = {
           use_queue: z.boolean().optional().describe('true = khung trống kế tiếp của hàng đợi (mỗi dòng một khung) / next free queue slot'),
           media_keys: z.array(z.string().max(200)).max(10).optional().describe('media_key trong thư viện / Library media keys'),
           first_comment: z.string().max(8000).optional().describe('Bình luận đầu tiên (kênh Facebook của dòng) / Facebook first comment'),
-          youtube_title: z.string().max(100).optional().describe('Tiêu đề YouTube (kênh YouTube của dòng) / YouTube title'),
           utm_campaign: z.string().max(100).optional().describe('Tên chiến dịch UTM gắn vào liên kết trong bài / UTM campaign'),
         }),
       )

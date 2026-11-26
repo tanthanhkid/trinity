@@ -1872,6 +1872,7 @@ name = "trinity-bin"
 version = "0.3.0"
 dependencies = [
  "clap",
+ "trinity-kernel",
 ]
 
 [[package]]
@@ -1900,6 +1901,12 @@ version = "0.3.0"
 [[package]]
 name = "trinity-kernel"
 version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+ "url",
+]
 
 [[package]]
 name = "trinity-obs"

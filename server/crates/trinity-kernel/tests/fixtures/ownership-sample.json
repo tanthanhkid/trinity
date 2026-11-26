@@ -1,0 +1,14 @@
+{
+  "routes": [
+    { "prefix": "/api/v1/settings", "owner": "rust" },
+    { "prefix": "/api/v1/settings/channel-guard", "owner": "node" },
+    { "prefix": "/api/v1/public/auth", "owner": "rust" },
+    { "prefix": "/api/v1/public/contacts", "owner": "node" },
+    { "prefix": "/api/v1/contacts", "methods": ["GET"], "owner": "rust" },
+    { "prefix": "/api/v1/contacts", "owner": "node" },
+    { "prefix": "/api/v1/auth", "owner": "rust" },
+    { "prefix": "/api/v1/auth/teams", "methods": ["POST"], "owner": "node" }
+  ],
+  "jobs": { "lead-scoring.run": "rust", "stale-work.digest": "node" },
+  "migrate": "node"
+}

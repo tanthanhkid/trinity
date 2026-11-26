@@ -137,11 +137,12 @@ Binary đọc **cùng tên biến** với bản Node (`.env.example`, PLAN 4.13)
   `TRINITY_HTTP_PORT` (mặc định 3000), cổng tương thích từ `COMPAT_API_PORT` (mặc định 4000); hai cổng trùng là lỗi.
 
 Test bảng kiểm mọi biến trong `.env.example` có trong bảng: thêm biến vào `.env.example` thì thêm vào `vars.rs` cùng PR.
-Ở production, secret còn giá trị mẫu `change-me-*` hoặc ngắn hơn 32 ký tự làm binary dừng với mã khác 0 (cùng câu
+Ở production, thiếu `DATABASE_URL` hoặc secret còn giá trị mẫu `change-me-*` hay ngắn hơn 32 ký tự làm binary dừng với mã khác 0 (cùng câu
 báo như `insecureSecrets()` của bản Node). `DB_POOL_SIZE` (mặc định 8) thắng `PRISMA_CONNECTION_LIMIT`. Bốn biến địa
 chỉ gốc Graph/Zalo (`FACEBOOK_GRAPH_BASE_URL`, `ZALO_OAUTH_BASE_URL`, `ZALO_OPENAPI_BASE_URL`, `ZALO_ZNS_BASE_URL`)
 theo luật của bản TS: `http://` chỉ cho host loopback, không query; giá trị sai làm binary không khởi động.
 
+Hướng dẫn cho người vận hành (tiếng Anh): [docs/deployment.md](../docs/deployment.md#rust-server-configuration-preview).
 Kiểm cấu hình mà không chạy máy chủ: `trinity check-config` (mã 0 = dùng được, mã 1 = sẽ từ chối khởi động; cảnh báo
 và lỗi ra stderr).
 
@@ -155,13 +156,15 @@ Trong cấu hình lai, tệp JSON này ghi bên phục vụ (`rust` | `node`) c�
   "routes": [
     { "prefix": "/api/v1/settings", "owner": "rust" },
     { "prefix": "/api/v1/settings/channel-guard", "owner": "node" },
-    { "prefix": "/api/v1/contacts", "methods": ["GET", "HEAD"], "owner": "rust" }
+    { "prefix": "/api/v1/contacts", "methods": ["GET"], "owner": "rust" }
   ],
-  "jobs": { "lead-scoring": "rust" },
+  "jobs": { "lead-scoring.run": "rust" },
   "migrate": "node"
 }
 ```
 
-Luật khớp: tiền tố dài nhất (theo ranh giới `/`), rồi dòng ghi phương thức thắng dòng không ghi. Route, job không có
+Luật khớp: tiền tố dài nhất (theo ranh giới `/`), rồi dòng ghi phương thức thắng dòng không ghi; `GET` phủ luôn `HEAD`
+(ghi cả hai là lỗi), bỏ trường `methods` = mọi phương thức (`null` là lỗi). Tên job theo bản TS (`lead-scoring.run`,
+`stale-work.digest`…); tên lạ chỉ bị cảnh báo. Route, job không có
 dòng nào thuộc `node`. Hai dòng cùng tiền tố tranh một phương thức, job ghi hai lần, trường lạ đều làm tệp bị từ chối
 với lỗi chỉ dòng, cột.

@@ -79,10 +79,13 @@ fn tien_to_dai_nhat_va_phuong_thuc() {
 #[test]
 fn job_va_migrate() {
     let own = sample();
-    assert_eq!(own.job("lead-scoring"), Owner::Rust);
-    assert_eq!(own.job("stale-reminders"), Owner::Node);
+    assert_eq!(own.job("lead-scoring.run"), Owner::Rust);
+    assert_eq!(own.job("stale-work.digest"), Owner::Node);
     assert_eq!(own.job("chua-co"), Owner::Node);
     assert_eq!(own.migrate(), Owner::Node);
+    assert!(own.unknown_jobs().is_empty());
+    let typo = Ownership::parse(r#"{"jobs": {"lead-scoring": "rust"}}"#, "x").unwrap();
+    assert_eq!(typo.unknown_jobs(), ["lead-scoring"]);
     let empty = Ownership::parse("{}", "x").unwrap();
     assert_eq!(empty, Ownership::default());
     assert_eq!(empty.route("GET", "/api/v1/settings").owner, Owner::Node);
@@ -151,6 +154,22 @@ fn tep_hong_bi_tu_choi_voi_loi_chi_dong() {
         ),
         ("{\n\"route\": []}", 2, "unknown field"),
         ("{\"jobs\": {\n\"a\": \"rust\",\n\"a\": \"node\"}}", 3, "ghi hai lần"),
+        ("{\"jobs\": {\n\" a\": \"rust\"}}", 2, "khoảng trắng"),
+        (
+            "{\"routes\": [\n{\"prefix\": \"/a\", \"methods\": null, \"owner\": \"rust\"}]}",
+            2,
+            "invalid type: null",
+        ),
+        (
+            "{\"routes\": [\n{\"prefix\": \"/a\", \"methods\": [\"GET\", \"HEAD\"], \"owner\": \"rust\"}]}",
+            2,
+            "GET đã gồm HEAD",
+        ),
+        (
+            "{\"routes\": [{\"prefix\": \"/a\", \"methods\": [\"GET\"], \"owner\": \"rust\"},\n{\"prefix\": \"/a\", \"methods\": [\"HEAD\"], \"owner\": \"node\"}]}",
+            2,
+            "HEAD",
+        ),
     ] {
         let (line, msg) = bad(text);
         assert_eq!(line, want_line, "{text}: {msg}");

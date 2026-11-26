@@ -33,7 +33,14 @@ fn main() -> ExitCode {
 /// Log JSON (K04) chưa có: cảnh báo và lỗi ghi thẳng ra stderr.
 fn check_config() -> ExitCode {
     let mut err = std::io::stderr().lock();
-    let loaded = match Config::from_env(&process_env()) {
+    let (env, dropped) = process_env();
+    for name in &dropped {
+        let _ = writeln!(
+            err,
+            "cảnh báo: biến {name} có tên hoặc giá trị không phải UTF-8, bỏ qua"
+        );
+    }
+    let loaded = match Config::from_env(&env) {
         Ok(l) => l,
         Err(e) => {
             let _ = writeln!(err, "{e}");
@@ -43,11 +50,21 @@ fn check_config() -> ExitCode {
     for w in &loaded.warnings {
         let _ = writeln!(err, "cảnh báo: {w}");
     }
-    if let Some(path) = &loaded.config.ownership_file
-        && let Err(e) = Ownership::load(path)
-    {
-        let _ = writeln!(err, "{e}");
-        return ExitCode::FAILURE;
+    if let Some(path) = &loaded.config.ownership_file {
+        match Ownership::load(path) {
+            Ok(own) => {
+                for job in own.unknown_jobs() {
+                    let _ = writeln!(
+                        err,
+                        "cảnh báo: tệp sở hữu ghi job \"{job}\" mà Trinity không có (gõ nhầm?)"
+                    );
+                }
+            }
+            Err(e) => {
+                let _ = writeln!(err, "{e}");
+                return ExitCode::FAILURE;
+            }
+        }
     }
     ExitCode::SUCCESS
 }

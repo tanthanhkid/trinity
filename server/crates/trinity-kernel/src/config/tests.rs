@@ -159,6 +159,15 @@ fn insecure_secrets_giong_ban_node() {
 }
 
 #[test]
+fn thieu_database_url_o_production_la_loi() {
+    let mut e = good();
+    e.remove("DATABASE_URL");
+    assert_eq!(err(&e), vec!["Thiếu DATABASE_URL".to_owned()]);
+    let dev = with(e, &[("NODE_ENV", "development")]);
+    assert!(Config::from_env(&dev).is_ok(), "ngoài production chưa bắt buộc");
+}
+
+#[test]
 fn thieu_jwt_secret_ngoai_production_cung_loi() {
     assert_eq!(
         err(&env(&[("NODE_ENV", "development")])),
@@ -251,6 +260,9 @@ fn api_base_url_giong_ban_node() {
     assert!(f("ftp://x", "test").unwrap_err().contains("chỉ nhận https"));
     assert!(f("https://x/?a=1", "test").unwrap_err().contains("query"));
     assert!(f("https://x/#a", "test").unwrap_err().contains("query"));
+    // `?`/`#` trơ trọi cũng bị từ chối.
+    assert!(f("https://x/?", "test").unwrap_err().contains("query"));
+    assert!(f("https://x/#", "test").unwrap_err().contains("query"));
     assert!(is_loopback_host("127.1.2.3"));
     assert!(is_loopback_host("[::1]"));
     assert!(!is_loopback_host("localhost.example.com"));
@@ -278,14 +290,23 @@ fn cong_pool_tls_video() {
 
     let probs = err(&with(good(), &[("TRINITY_HTTP_PORT", "4000")]));
     assert!(probs[0].contains("trùng nhau"), "{probs:?}");
-    assert!(err(&with(good(), &[("COMPAT_API_PORT", "0")]))[0].contains("COMPAT_API_PORT=0"));
+    // Cổng sai chỉ báo một lỗi, không kéo theo "trùng nhau".
+    assert_eq!(
+        err(&with(good(), &[("COMPAT_API_PORT", "0")])),
+        vec!["COMPAT_API_PORT=0 không phải số cổng hợp lệ (1–65535)".to_owned()]
+    );
+    assert_eq!(
+        err(&with(good(), &[("TRINITY_HTTP_PORT", "x"), ("COMPAT_API_PORT", "y")])).len(),
+        2
+    );
+    assert_eq!(load(&with(good(), &[("TLS_MODE", "OFF")])).config.tls, TlsMode::Off);
     assert!(err(&with(good(), &[("DB_POOL_SIZE", "abc")]))[0].contains("DB_POOL_SIZE"));
     assert!(err(&with(good(), &[("TLS_MODE", "files")]))[0].contains("TLS_CERT_FILE"));
     assert!(err(&with(good(), &[("TLS_MODE", "auto")]))[0].contains("off | files"));
     let c = load(&with(
         good(),
         &[
-            ("TLS_MODE", "files"),
+            ("TLS_MODE", "Files"),
             ("TLS_CERT_FILE", "/c.pem"),
             ("TLS_KEY_FILE", "/k.pem"),
         ],

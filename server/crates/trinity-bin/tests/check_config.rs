@@ -38,6 +38,7 @@ fn cau_hinh_tot_thoat_0_va_canh_bao_bien_cu() {
     let (code, err) = run(&[
         ("NODE_ENV", "production"),
         ("JWT_SECRET", GOOD_JWT),
+        ("DATABASE_URL", "postgresql://trinity:Xy9@db:5432/trinity"),
         ("REDIS_URL", "redis://x"),
     ]);
     assert_eq!(code, 0, "{err}");
@@ -55,4 +56,28 @@ fn tep_so_huu_hong_thoat_ma_khac_0_va_chi_dong() {
     std::fs::remove_dir_all(&dir).ok();
     assert_ne!(code, 0, "{err}");
     assert!(err.contains("hỏng ở dòng 4"), "{err}");
+}
+
+#[test]
+fn production_thieu_database_url_thoat_ma_khac_0() {
+    let (code, err) = run(&[("NODE_ENV", "production"), ("JWT_SECRET", GOOD_JWT)]);
+    assert_ne!(code, 0, "{err}");
+    assert!(err.contains("Thiếu DATABASE_URL"), "{err}");
+}
+
+#[cfg(unix)]
+#[test]
+fn bien_ten_khong_utf8_duoc_bao() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+    let out = Command::new(env!("CARGO_BIN_EXE_trinity"))
+        .arg("check-config")
+        .env_clear()
+        .env("JWT_SECRET", GOOD_JWT)
+        .env(OsStr::from_bytes(b"BAD_\xff_NAME"), "1")
+        .output()
+        .expect("chạy được binary");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(0), "{err}");
+    assert!(err.contains("không phải UTF-8"), "{err}");
 }

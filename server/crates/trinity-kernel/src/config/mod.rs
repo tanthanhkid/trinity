@@ -21,11 +21,20 @@ use vars::VarKind;
 /// Bảng biến môi trường đã đọc (tên → giá trị).
 pub type EnvMap = BTreeMap<String, String>;
 
-/// Đọc toàn bộ biến môi trường của tiến trình (bỏ biến có giá trị không phải UTF-8).
-pub fn process_env() -> EnvMap {
-    std::env::vars_os()
-        .filter_map(|(k, v)| Some((k.into_string().ok()?, v.into_string().ok()?)))
-        .collect()
+/// Đọc toàn bộ biến môi trường của tiến trình. Biến có tên hoặc giá trị không phải UTF-8 bị bỏ; tên của chúng (đã
+/// thay ký tự hỏng) trả ở phần tử thứ hai để người gọi cảnh báo.
+pub fn process_env() -> (EnvMap, Vec<String>) {
+    let mut env = EnvMap::new();
+    let mut dropped = Vec::new();
+    for (k, v) in std::env::vars_os() {
+        match (k.to_str(), v.into_string()) {
+            (Some(k), Ok(v)) => {
+                env.insert(k.to_owned(), v);
+            }
+            _ => dropped.push(k.to_string_lossy().into_owned()),
+        }
+    }
+    (env, dropped)
 }
 
 /// Chế độ TLS của cổng chính (PLAN 4.13).
@@ -145,15 +154,21 @@ impl Config {
 
         if production {
             problems.extend(insecure_secrets(env));
+            if get(env, "DATABASE_URL").is_none() {
+                problems.push("Thiếu DATABASE_URL".to_owned());
+            }
         } else if get(env, "JWT_SECRET").is_none() {
             problems.push("Thiếu JWT_SECRET".to_owned());
         }
 
         let http_port = port(env, "TRINITY_HTTP_PORT", DEFAULT_HTTP_PORT, &mut problems);
         let compat_api_port = port(env, "COMPAT_API_PORT", DEFAULT_COMPAT_PORT, &mut problems);
-        if http_port == compat_api_port {
+        // Cổng sai đã báo ở trên; chỉ so trùng khi cả hai hợp lệ.
+        if let (Some(h), Some(c)) = (http_port, compat_api_port)
+            && h == c
+        {
             problems.push(format!(
-                "TRINITY_HTTP_PORT và COMPAT_API_PORT trùng nhau ({http_port}) — cổng chính và cổng tương thích phải khác nhau"
+                "TRINITY_HTTP_PORT và COMPAT_API_PORT trùng nhau ({h}) — cổng chính và cổng tương thích phải khác nhau"
             ));
         }
 
@@ -182,7 +197,8 @@ impl Config {
             },
         };
 
-        let tls = match get(env, "TLS_MODE").unwrap_or("off") {
+        let tls_mode = get(env, "TLS_MODE").unwrap_or("off").to_ascii_lowercase();
+        let tls = match tls_mode.as_str() {
             "off" => TlsMode::Off,
             "files" => match (get(env, "TLS_CERT_FILE"), get(env, "TLS_KEY_FILE")) {
                 (Some(c), Some(k)) => TlsMode::Files {
@@ -215,8 +231,8 @@ impl Config {
         let config = Config {
             swagger_enabled: !production || get(env, "SWAGGER_ENABLED") == Some("true"),
             node_env,
-            http_port,
-            compat_api_port,
+            http_port: http_port.unwrap_or(DEFAULT_HTTP_PORT),
+            compat_api_port: compat_api_port.unwrap_or(DEFAULT_COMPAT_PORT),
             database_url: get(env, "DATABASE_URL").map(str::to_owned),
             db_pool_size,
             jwt_secret: get(env, "JWT_SECRET").unwrap_or_default().to_owned(),
@@ -257,14 +273,15 @@ impl Config {
     }
 }
 
-fn port(env: &EnvMap, name: &str, default: u16, problems: &mut Vec<String>) -> u16 {
+/// Cổng đọc từ env (mặc định `default`); `None` khi giá trị sai (đã ghi vào `problems`).
+fn port(env: &EnvMap, name: &str, default: u16, problems: &mut Vec<String>) -> Option<u16> {
     match get(env, name) {
-        None => default,
+        None => Some(default),
         Some(v) => match v.parse::<u16>() {
-            Ok(p) if p > 0 => p,
+            Ok(p) if p > 0 => Some(p),
             _ => {
                 problems.push(format!("{name}={v} không phải số cổng hợp lệ (1–65535)"));
-                default
+                None
             }
         },
     }

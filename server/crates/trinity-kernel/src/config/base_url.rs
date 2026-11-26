@@ -69,7 +69,7 @@ impl ExternalApis {
     }
 }
 
-/// Không đặt (hoặc rỗng) ⇒ `fallback`. `http://` chỉ nhận host loopback, bất kể `NODE_ENV`; không nhận query hay `#`;
+/// Không đặt (hoặc rỗng) ⇒ `fallback`. `http://` chỉ nhận host loopback, bất kể `NODE_ENV`; không nhận `?` hay `#`;
 /// bỏ `/` cuối.
 pub fn api_base_url(name: &str, fallback: &str, env: &EnvMap) -> Result<String, String> {
     let Some(raw) = get(env, name) else {
@@ -87,8 +87,9 @@ pub fn api_base_url(name: &str, fallback: &str, env: &EnvMap) -> Result<String, 
         "https" => {}
         _ => return Err(format!("{name} chỉ nhận https:// (http:// cho máy chủ cục bộ)")),
     }
-    // `new URL('https://x/?')` của Node cho `search` rỗng; chỉ query/fragment có nội dung mới bị từ chối.
-    if url.query().is_some_and(|q| !q.is_empty()) || url.fragment().is_some_and(|f| !f.is_empty()) {
+    // Bản Node từ chối khi `url.search`/`url.hash` có nội dung; bản Rust từ chối luôn `?`/`#` trơ trọi
+    // (`https://x/?`), vì địa chỉ gốc không bao giờ cần chúng và nối đường dẫn sau đó sẽ sai.
+    if raw.contains(['?', '#']) {
         return Err(format!("{name} không được có query hay #"));
     }
     Ok(raw.trim_end_matches('/').to_owned())

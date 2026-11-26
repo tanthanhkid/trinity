@@ -8,14 +8,15 @@
 //!     { "prefix": "/api/v1/settings/channel-guard", "owner": "node" },
 //!     { "prefix": "/api/v1/contacts", "methods": ["GET"], "owner": "rust" }
 //!   ],
-//!   "jobs": { "lead-scoring": "rust" },
+//!   "jobs": { "lead-scoring.run": "rust" },
 //!   "migrate": "node"
 //! }
 //! ```
 //!
 //! Luật khớp route: **tiền tố dài nhất + phương thức**. Tiền tố khớp theo ranh giới đoạn (`/api/v1/settings` khớp
 //! `/api/v1/settings` và `/api/v1/settings/x`, không khớp `/api/v1/settings-x`). Cùng tiền tố thì dòng ghi phương thức
-//! cụ thể thắng dòng không ghi (mọi phương thức). Hai dòng cùng tiền tố có chung một phương thức là lỗi, nên mỗi route
+//! cụ thể thắng dòng không ghi (mọi phương thức). Dòng ghi `GET` phủ luôn `HEAD` (như router của Express và axum); ghi cả
+//! `GET` lẫn `HEAD` là lỗi. Hai dòng cùng tiền tố có chung một phương thức là lỗi, nên mỗi route
 //! có **đúng một** chủ. Route, job không có dòng nào thuộc Node (mặc định của cấu hình lai).
 //!
 //! Tệp hỏng bị từ chối với lỗi chỉ dòng, cột; người gọi (K17) giữ bảng đang dùng.
@@ -44,7 +45,7 @@ const METHODS: &[&str] = &["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPT
 pub struct RouteRule {
     /// Tiền tố đường dẫn, bắt đầu bằng `/`, không có `/` cuối (trừ `/`).
     pub prefix: String,
-    /// Phương thức (chữ hoa); `None` = mọi phương thức.
+    /// Phương thức (chữ hoa, đã thêm `HEAD` khi có `GET`); `None` = mọi phương thức.
     pub methods: Option<Vec<String>>,
     pub owner: Owner,
 }
@@ -53,10 +54,31 @@ pub struct RouteRule {
 #[serde(deny_unknown_fields)]
 struct RawRule {
     prefix: String,
-    #[serde(default)]
+    /// Bỏ trường = mọi phương thức; `null` bị từ chối (không đoán ý).
+    #[serde(default, deserialize_with = "some_list")]
     methods: Option<Vec<String>>,
     owner: Owner,
 }
+
+fn some_list<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Vec<String>>, D::Error> {
+    Vec::<String>::deserialize(d).map(Some)
+}
+
+/// Tên job của bản TS (`cronRegistry`, PLAN 1.9); tên khác trong tệp sở hữu chỉ bị cảnh báo.
+pub const KNOWN_JOBS: &[&str] = &[
+    "integrations.webhook-dispatch",
+    "facebook.flows",
+    "facebook.broadcasts",
+    "social.publish",
+    "social.metrics",
+    "briefings.run-due",
+    "lead-scoring.run",
+    "stale-work.digest",
+    "integrations.ai-action-expiry",
+    "integrations.outbox-purge",
+    "integrations.oauth-purge",
+    "notification.scheduled",
+];
 
 impl TryFrom<RawRule> for RouteRule {
     type Error = String;
@@ -90,6 +112,13 @@ impl TryFrom<RawRule> for RouteRule {
                         return Err(format!("tiền tố \"{p}\": phương thức {m} ghi hai lần"));
                     }
                     out.push(m);
+                }
+                let has = |x: &str| out.iter().any(|m| m == x);
+                if has("GET") && has("HEAD") {
+                    return Err(format!("tiền tố \"{p}\": GET đã gồm HEAD, bỏ HEAD"));
+                }
+                if has("GET") {
+                    out.push("HEAD".to_owned());
                 }
                 Some(out)
             }
@@ -268,6 +297,13 @@ impl Ownership {
             if name.trim().is_empty() {
                 return Err(invalid(line, column, "tên job rỗng".to_owned()));
             }
+            if name.trim() != name {
+                return Err(invalid(
+                    line,
+                    column,
+                    format!("tên job \"{name}\" có khoảng trắng đầu/cuối"),
+                ));
+            }
             let owner: Owner = serde_json::from_str(v.get()).map_err(|e| invalid(line, column, strip_pos(&e)))?;
             if jobs.insert(name.clone(), owner).is_some() {
                 return Err(invalid(line, column, format!("job \"{name}\" ghi hai lần")));
@@ -319,6 +355,15 @@ impl Ownership {
     /// Chủ của một job (không có trong tệp = Node).
     pub fn job(&self, name: &str) -> Owner {
         self.jobs.get(name).copied().unwrap_or(Owner::Node)
+    }
+
+    /// Tên job trong tệp mà bản TS không có (gõ nhầm?) — người gọi ghi cảnh báo.
+    pub fn unknown_jobs(&self) -> Vec<&str> {
+        self.jobs
+            .keys()
+            .map(String::as_str)
+            .filter(|j| !KNOWN_JOBS.contains(j))
+            .collect()
     }
 
     /// Chủ của migrate nền.

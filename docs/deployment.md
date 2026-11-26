@@ -66,6 +66,23 @@ build on a workstation (only the parts the diff touches), ship the build output,
 directory beside the app, restart, and move the previous release back if the health checks fail. Copy `.env` before every
 update; dump the database only when the update contains a migration (a rollback does not undo migrations).
 
+## Rust server configuration (preview)
+
+The Rust rewrite of the backend (`server/`, [docs/rust/PLAN.md](rust/PLAN.md)) is not released yet. It reads the same
+`.env` as the Node API, with these differences:
+
+- `PORT` is ignored (one warning line at startup). The main port is `TRINITY_HTTP_PORT` (default 3000, the port the
+  reverse proxy sends pages and `/api/v1` to); `COMPAT_API_PORT` (default 4000) keeps `/notif-ws` and `/api/v1` working
+  for proxies that still point at the old API port. The two must differ.
+- Variables that no longer apply (`REDIS_URL`, `BACKEND_URL`, `MONOLITH_INTERNAL_URL`, `AUTH_SERVICE_URL`, serverless and
+  Vercel Blob settings, removed connectors, `TENANT_MAX_CLIENTS`, …) are ignored with one warning line each.
+- `DB_POOL_SIZE` (default 8) sets the shared database pool; `PRISMA_CONNECTION_LIMIT` is still read when it is unset.
+- In production the binary refuses to start with `change-me-*` or short secrets (same check as the Node API) and without
+  `DATABASE_URL`. `trinity check-config` runs these checks and exits (0 = usable, 1 = would refuse to start).
+- In a hybrid install (Rust in front, Node behind), `TRINITY_OWNERSHIP_FILE` points at a JSON file saying which side
+  serves each route prefix and runs each background job. Format and matching rules (longest prefix, then method; `GET`
+  also covers `HEAD`): [server/README.md](../server/README.md#tệp-sở-hữu-trinity_ownership_file).
+
 ## Monitoring (optional)
 
 Trinity can report errors to [Sentry](https://sentry.io) and send anonymous product metrics to

@@ -12,6 +12,8 @@
 //! | Thư mục | 301 → Next đi theo → `index.html` nếu có, không thì 404 | như vậy |
 //! | Có file | 200, `Content-Type` theo mime 1.6, `nosniff`, `Cache-Control` 1 ngày | như vậy |
 //! | Header `Range` hợp lệ | bỏ qua (Next không chuyển tiếp), 200 cả file | **206** (khác có chủ đích, PLAN 4.11) |
+//! | `Accept-Ranges` | không có (Next bỏ header của monolith) | **`bytes`** (đi kèm Range) |
+//! | Tệp tạm `<tên>.tmp-<16 hex>` của ghi nguyên tử | 200 | **404** |
 //! | Phương thức khác GET/HEAD | 405 | 405 |
 //!
 //! Lỗi trả thân rỗng, không header riêng, như `new NextResponse(null, { status })`.
@@ -85,6 +87,10 @@ async fn serve(State(root): State<PathBuf>, req: Request) -> Response {
     if segments.last().is_some_and(|s| s.starts_with('.')) {
         return empty(StatusCode::NOT_FOUND);
     }
+    // Tệp tạm của ghi nguyên tử (đang ghi dở hoặc mồ côi) không bao giờ được phục vụ. Node phục vụ cả loại này.
+    if segments.last().is_some_and(|s| crate::is_tmp_name(s)) {
+        return empty(StatusCode::NOT_FOUND);
+    }
 
     let mut file_path = root.clone();
     for s in &segments {
@@ -113,6 +119,7 @@ async fn serve(State(root): State<PathBuf>, req: Request) -> Response {
             h.insert(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
             h.insert(header::CACHE_CONTROL, HeaderValue::from_static(UPLOADS_CACHE_CONTROL));
             h.insert(header::CONTENT_LENGTH, HeaderValue::from(len));
+            h.insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
             if let Some(cr) = content_range {
                 if let Ok(v) = HeaderValue::from_str(&cr) {
                     h.insert(header::CONTENT_RANGE, v);
@@ -127,6 +134,7 @@ async fn serve(State(root): State<PathBuf>, req: Request) -> Response {
 
 async fn open_ranged(path: &std::path::Path, range: Option<&str>) -> std::io::Result<(Body, u64, Option<String>)> {
     let mut file = tokio::fs::File::open(path).await?;
+    // Kích thước từ tệp đã mở: upload đè chen giữa không làm lệch Content-Length.
     let size = file.metadata().await?.len();
     let (len, cr) = match parse_range(range, size) {
         Some(r) => {

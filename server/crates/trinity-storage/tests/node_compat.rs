@@ -127,6 +127,7 @@ async fn uploads_khop_golden_cua_express_static() {
                 "public, max-age=86400, immutable"
             );
             assert_eq!(h.get(header::CONTENT_LENGTH).unwrap(), &body.len().to_string());
+            assert_eq!(h.get(header::ACCEPT_RANGES).unwrap(), "bytes");
         } else {
             assert!(body.is_empty(), "{uri}: lỗi trả thân rỗng");
         }
@@ -178,6 +179,7 @@ async fn uploads_range() {
     let res = call("/uploads/avatars/1_123.jpg", Some("bytes=1-3"), Method::GET).await;
     assert_eq!(res.status(), StatusCode::PARTIAL_CONTENT);
     assert_eq!(res.headers().get(header::CONTENT_RANGE).unwrap(), "bytes 1-3/7");
+    assert_eq!(res.headers().get(header::ACCEPT_RANGES).unwrap(), "bytes");
     assert_eq!(res.headers().get(header::CONTENT_LENGTH).unwrap(), "3");
     assert_eq!(res.headers().get(header::CONTENT_TYPE).unwrap(), "image/jpeg");
     assert_eq!(
@@ -191,4 +193,21 @@ async fn uploads_range() {
         assert_eq!(res.status(), StatusCode::OK, "{r}");
         assert_eq!(to_bytes(res.into_body(), usize::MAX).await.unwrap().len(), 7);
     }
+}
+
+#[tokio::test]
+async fn uploads_khong_phuc_vu_tep_tam() {
+    let root = std::env::temp_dir().join(format!("trinity-uploads-tmp-{}", std::process::id()));
+    std::fs::create_dir_all(root.join("avatars")).unwrap();
+    std::fs::write(root.join("avatars/a.jpg.tmp-0123456789abcdef"), b"half").unwrap();
+    std::fs::write(root.join("avatars/a.jpg"), b"full").unwrap();
+    let app = uploads_router(&root);
+    for (uri, st) in [
+        ("/uploads/avatars/a.jpg.tmp-0123456789abcdef", StatusCode::NOT_FOUND),
+        ("/uploads/avatars/a.jpg", StatusCode::OK),
+    ] {
+        let req = Request::builder().uri(uri).body(Body::empty()).unwrap();
+        assert_eq!(app.clone().oneshot(req).await.unwrap().status(), st, "{uri}");
+    }
+    let _ = std::fs::remove_dir_all(&root);
 }

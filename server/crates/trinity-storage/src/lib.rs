@@ -12,7 +12,7 @@ mod range;
 mod serve;
 mod uploads;
 
-pub use atomic::{write_atomic, write_atomic_reader};
+pub use atomic::{ORPHAN_TMP_AGE, is_tmp_name, remove_orphan_tmp, write_atomic, write_atomic_reader};
 pub use error::StorageError;
 pub use key::resolve_safe_key;
 pub use local::{LocalDiskDriver, Object, RangedObject};

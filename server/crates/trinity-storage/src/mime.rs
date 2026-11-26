@@ -4,7 +4,12 @@ use crate::mime_db::TYPES;
 /// `/` hoặc `\` cuối cùng, chữ thường; không có trong bảng ⇒ `application/octet-stream`) cộng `; charset=UTF-8`
 /// cho `text/*`, `application/javascript`, `application/json` (`mime.charsets.lookup`), đúng như gói `send` 0.19 ghép.
 pub fn content_type_for_path(path: &str) -> String {
-    let ext = path
+    // Regex `^.*[\.\/\\]` của JS không có cờ `s`: `.` không qua ký tự xuống dòng, nên chỉ tìm dấu ngăn cuối cùng
+    // trong dòng đầu; không có thì cả chuỗi là phần mở rộng.
+    let first_line = path
+        .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+        .map_or(path, |i| &path[..i]);
+    let ext = first_line
         .rfind(['.', '/', '\\'])
         .map_or(path, |i| &path[i + 1..])
         .to_lowercase();
@@ -50,6 +55,10 @@ mod tests {
             ("abc", "application/octet-stream"),
             // mime 1.6 coi cả tên không có dấu chấm là phần mở rộng.
             ("products/png", "image/png"),
+            // Ký tự xuống dòng: như regex JS chỉ xét dòng đầu.
+            ("a.png\nb", "application/octet-stream"),
+            ("a\nb.png", "application/octet-stream"),
+            ("x/y.a\u{2028}png", "application/octet-stream"),
         ] {
             assert_eq!(content_type_for_path(p), t, "{p}");
         }

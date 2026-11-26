@@ -59,7 +59,9 @@ impl LocalDiskDriver {
         &self.root
     }
 
-    /// `mkdir -p` root rồi ghi thử một byte (ghi nguyên tử) và xoá. Lỗi ở đây là lỗi cấu hình: tiến trình phải dừng.
+    /// `mkdir -p` root rồi ghi thử một byte (ghi nguyên tử) và xoá; sau đó dọn tệp tạm mồ côi (cũ hơn
+    /// [`crate::atomic::ORPHAN_TMP_AGE`], để không xoá tệp đang ghi dở của tiến trình khác). Lỗi ghi thử là lỗi cấu
+    /// hình: tiến trình phải dừng.
     pub async fn init(&self) -> Result<(), StorageError> {
         let rand = uuid::Uuid::new_v4().simple().to_string();
         let probe = self.root.join(format!(".write-test-{}", &rand[..12]));
@@ -70,6 +72,9 @@ impl LocalDiskDriver {
         }
         .await;
         let _ = tokio::fs::remove_file(&probe).await;
+        if res.is_ok() {
+            crate::atomic::remove_orphan_tmp(&self.root, crate::atomic::ORPHAN_TMP_AGE).await;
+        }
         res.map_err(|source| StorageError::RootNotWritable {
             root: self.root.to_string_lossy().into_owned(),
             source,
@@ -156,15 +161,16 @@ fn meta_path(path: &Path) -> PathBuf {
 }
 
 async fn open(path: &Path, key: &str) -> Result<(tokio::fs::File, u64), StorageError> {
-    let md = match tokio::fs::metadata(path).await {
-        Ok(m) => m,
+    // Kích thước lấy từ chính tệp đã mở: upload đè (rename) chen giữa không làm lệch kích thước với nội dung đọc.
+    let file = match tokio::fs::File::open(path).await {
+        Ok(f) => f,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Err(StorageError::NotFound(key.to_owned())),
         Err(e) => return Err(e.into()),
     };
+    let md = file.metadata().await?;
     if md.is_dir() {
         return Err(std::io::Error::from(std::io::ErrorKind::IsADirectory).into());
     }
-    let file = tokio::fs::File::open(path).await?;
     Ok((file, md.len()))
 }
 

@@ -34,6 +34,12 @@ impl LocalUploadsStore {
         &self.root
     }
 
+    /// Lúc khởi động: `mkdir -p` gốc rồi dọn tệp tạm mồ côi (cũ hơn [`crate::ORPHAN_TMP_AGE`]). Trả số tệp đã dọn.
+    pub async fn init(&self) -> Result<usize, StorageError> {
+        tokio::fs::create_dir_all(&self.root).await?;
+        Ok(crate::remove_orphan_tmp(&self.root, crate::ORPHAN_TMP_AGE).await)
+    }
+
     /// `rel_path` dạng `avatars/1_123.jpg`. `_content_type` giữ cho khớp giao diện TS (nhánh đĩa không lưu).
     pub async fn save(&self, rel_path: &str, body: &[u8], _content_type: &str) -> Result<(), StorageError> {
         let target = resolve_safe_key(&self.root, rel_path)?;

@@ -6,8 +6,8 @@ use crate::StorageError;
 /// `packages/storage/src/path-safety.ts`. Đây là tuyến chặn path traversal duy nhất của driver đĩa.
 ///
 /// Chặn: key rỗng; null byte; backslash; đường dẫn tuyệt đối (`/…`, `C:…`); `..` thoát khỏi root sau khi chuẩn
-/// hoá kiểu `path.posix.normalize` (key `documents/../notes/x.jpg` vẫn hợp lệ vì không ra ngoài root). Chuẩn hoá
-/// là thuần chữ (không đọc hệ thống file), giống `path.resolve` của Node.
+/// hoá kiểu `path.posix.normalize` (key `documents/../notes/x.jpg` vẫn hợp lệ vì không ra ngoài root); thêm so với
+/// TS: key chuẩn hoá về chính root. Chuẩn hoá là thuần chữ (không đọc hệ thống file), giống `path.resolve` của Node.
 pub fn resolve_safe_key(root: &Path, key: &str) -> Result<PathBuf, StorageError> {
     let invalid = |reason| StorageError::InvalidKey {
         key: key.to_owned(),
@@ -39,6 +39,11 @@ pub fn resolve_safe_key(root: &Path, key: &str) -> Result<PathBuf, StorageError>
             }
             s => parts.push(s),
         }
+    }
+
+    // Khác TS có chủ đích: key chuẩn hoá về rỗng (`a/..`, `x/./..`) trỏ vào chính root ⇒ từ chối (TS trả root).
+    if parts.is_empty() {
+        return Err(invalid("trỏ vào chính storage root"));
     }
 
     let root = absolute_lexical(root);
@@ -141,8 +146,10 @@ mod tests {
     #[test]
     fn chuan_hoa_nhu_posix_normalize() {
         assert_eq!(ok("a//b/./c/"), "/var/lib/trinity/storage/a/b/c");
-        // `a/..` chuẩn hoá thành `.`: Node trả chính root, Rust cũng vậy.
-        assert_eq!(ok("a/.."), "/var/lib/trinity/storage");
+        // `a/..` chuẩn hoá thành `.`: Node trả chính root, Rust từ chối.
+        assert_eq!(bad("a/.."), "trỏ vào chính storage root");
+        assert_eq!(bad("x/./.."), "trỏ vào chính storage root");
+        assert_eq!(bad("./"), "trỏ vào chính storage root");
     }
 
     #[test]

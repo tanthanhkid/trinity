@@ -854,9 +854,12 @@ vụ trực tiếp với cùng header (`nosniff`, cache 1 ngày). Driver S3 hỗ
   `..`, chứa `/` hoặc `\` sau giải mã; 404 cho dotfile ở segment cuối, null byte, không có file, `ENOTDIR`; thư mục
   phục vụ `index.html` nếu có; 308 bỏ `/` cuối. Golden status, `Content-Type` và thân lấy từ `express.static` thật
   (`tests/fixtures/node-uploads-golden.json`).
-- **Khác có chủ đích:** header `Range` hợp lệ ở `/uploads` được trả 206 (`Content-Range`); bản Node bỏ qua `Range`
-  (route Next không chuyển tiếp) và luôn trả 200 cả file. Request không có `Range` trả giống hệt. Rust stream thân
-  file thay vì đệm cả file vào RAM như route Next.
+- **Khác có chủ đích:** header `Range` hợp lệ ở `/uploads` được trả 206 (`Content-Range`) và mọi phản hồi có file kèm
+  `Accept-Ranges: bytes`; bản Node bỏ qua `Range` (route Next không chuyển tiếp) và luôn trả 200 cả file. Tệp tạm
+  `<tên>.tmp-<16 hex>` của ghi nguyên tử trả 404 (Node phục vụ được). Key chuẩn hoá về chính root (`a/..`) bị từ chối
+  (TS trả root). `init` dọn tệp tạm mồ côi cũ hơn 1 giờ (để không xoá tệp đang ghi dở của tiến trình Node chạy song
+  song). Kích thước lấy từ tệp đã mở, không lệch khi bị ghi đè chen giữa. Rust stream thân file thay vì đệm cả file
+  vào RAM như route Next.
 - Driver S3 (`object_store`, URL ký sẵn) thuộc K23.
 
 ### 4.12 Observability

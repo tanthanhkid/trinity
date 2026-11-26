@@ -51,6 +51,7 @@ async fn init_tao_root_long_nhau_va_khong_de_lai_file_thu() {
     assert!(list(&nested).is_empty());
 }
 
+#[cfg(unix)]
 #[tokio::test]
 async fn init_loi_ro_khi_root_khong_ghi_duoc() {
     use std::os::unix::fs::PermissionsExt;
@@ -210,4 +211,47 @@ async fn kho_uploads_ghi_xoa_tren_dia() {
     assert!(!s.remove("avatars/none.jpg").await);
     assert!(s.save("../evil", b"x", "t").await.is_err());
     assert!(!s.remove("../evil").await);
+}
+
+#[tokio::test]
+async fn init_don_tep_tam_mo_coi_cu_giu_tep_moi() {
+    let t = TempDir::new("orphan");
+    let old = t.0.join("a/b.jpg.tmp-0123456789abcdef");
+    let fresh = t.0.join("a/c.jpg.tmp-fedcba9876543210");
+    let keep = t.0.join("a/d.jpg");
+    std::fs::create_dir_all(t.0.join("a")).unwrap();
+    for p in [&old, &fresh, &keep] {
+        std::fs::write(p, b"x").unwrap();
+    }
+    let two_hours_ago = std::time::SystemTime::now() - std::time::Duration::from_secs(7200);
+    std::fs::File::options()
+        .write(true)
+        .open(&old)
+        .unwrap()
+        .set_modified(two_hours_ago)
+        .unwrap();
+    assert_eq!(LocalUploadsStore::new(&t.0).init().await.unwrap(), 1);
+    assert!(!old.exists() && fresh.exists() && keep.exists());
+
+    std::fs::write(&old, b"x").unwrap();
+    std::fs::File::options()
+        .write(true)
+        .open(&old)
+        .unwrap()
+        .set_modified(two_hours_ago)
+        .unwrap();
+    LocalDiskDriver::new(&t.0).init().await.unwrap();
+    assert!(!old.exists() && fresh.exists());
+}
+
+#[tokio::test]
+async fn kich_thuoc_theo_tep_da_mo_khi_bi_ghi_de_chen_giua() {
+    let t = TempDir::new("race");
+    let d = LocalDiskDriver::new(&t.0);
+    d.upload("a.bin", b"0123456789", "x/y").await.unwrap();
+    let o = d.get("a.bin").await.unwrap();
+    // Ghi đè (rename) sau khi đã mở: tệp đang mở vẫn là bản cũ, kích thước khớp bản cũ.
+    d.upload("a.bin", b"ab", "x/y").await.unwrap();
+    assert_eq!(o.size, 10);
+    assert_eq!(read_all(o.file, o.size).await, b"0123456789");
 }

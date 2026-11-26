@@ -4358,6 +4358,10 @@
           "online_store": {
             "type": "boolean"
           },
+          "payments": {
+            "deprecated": true,
+            "type": "boolean"
+          },
           "payroll": {
             "type": "boolean"
           },

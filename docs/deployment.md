@@ -173,6 +173,15 @@ update; dump the database only when the update contains a migration (a rollback 
 
 ## Rust server configuration (preview)
 
+### TLS at the origin
+
+TLS is terminated by Cloudflare. The Rust server never requests certificates (no ACME).
+
+- `TLS_MODE=off` (default): plain HTTP, for Cloudflare Tunnel or a reverse proxy on the same host.
+- `TLS_MODE=files`: HTTPS from PEM files, e.g. a Cloudflare Origin Certificate (set Cloudflare SSL mode to Full (strict)). Needs `TLS_CERT_FILE` (certificate chain) and `TLS_KEY_FILE` (private key); startup fails with a clear message if a file is missing, empty, or the key does not match. HTTP/2 and HTTP/1.1 are offered. Certificates are read at startup, so restart the service after renewing them.
+
+On SIGTERM or SIGINT the server stops accepting connections, lets requests already in progress finish (up to 30 seconds), then exits. Set the service manager's stop timeout above 30 seconds (systemd `TimeoutStopSec=45`).
+
 The Rust rewrite of the backend (`server/`, [docs/rust/PLAN.md](rust/PLAN.md)) is not released yet. It reads the same
 `.env` as the Node API, with these differences:
 

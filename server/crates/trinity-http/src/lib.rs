@@ -4,8 +4,10 @@
 //! - [`outbound`]: lớp chống SSRF dùng chung cho mọi lời gọi HTTP ra tới địa chỉ do người dùng nhập (webhook ra, tải
 //!   CIMD của OAuth, tải media) (K35).
 //! - [`validate`]: kiểm dữ liệu vào theo chế độ strict và lenient (K15).
+//! - [`serve`]: HTTP hoặc TLS từ tệp chứng chỉ (Cloudflare Origin Certificate), tắt máy êm khi nhận SIGTERM (K19).
 //! - [`edge`]: CORS, giới hạn body, raw body, multipart và IP thật của khách theo `TRUSTED_PROXY` (K16).
 
 pub mod edge;
 pub mod outbound;
+pub mod serve;
 pub mod validate;

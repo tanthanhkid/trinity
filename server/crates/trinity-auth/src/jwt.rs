@@ -89,17 +89,21 @@ pub const REFRESH_TTL_SECS: u64 = 7 * 24 * 3600;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: i64,
-    #[serde(default)]
+    /// Access token có email; refresh token của Node không có trường này (không ghi khi rỗng).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub email: String,
+    /// `refresh` cho refresh token: KHÔNG được dùng làm access token.
+    #[serde(default, rename = "type", skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
     /// Chỉ có khi tính năng một-phiên bật lúc đăng nhập; thiếu ⇒ fail-open.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sid: Option<String>,
     /// Công ty; thiếu = công ty 1 (token phát trước khi có đa công ty).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cid: Option<i64>,
-    /// `refresh` cho refresh token: KHÔNG được dùng làm access token.
-    #[serde(default, rename = "type", skip_serializing_if = "Option::is_none")]
-    pub kind: Option<String>,
+    /// Id PHIÊN đăng nhập (chỉ refresh token): giữ nguyên qua mọi lần làm mới; đăng xuất thu hồi theo id này.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jti: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "ser_time")]
     pub iat: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "ser_time")]
@@ -124,11 +128,27 @@ impl Claims {
         Self {
             sub,
             email: email.to_owned(),
+            kind: None,
             sid,
             cid,
-            kind: None,
+            jti: None,
             iat: Some(now as f64),
             exp: Some((now + ACCESS_TTL_SECS) as f64),
+            nbf: None,
+        }
+    }
+
+    /// Refresh token như `buildTokenResponse` của Node: `{ sub, type: 'refresh', sid?, cid?, jti? }`, hạn 7 ngày.
+    pub fn refresh(sub: i64, sid: Option<String>, cid: Option<i64>, jti: Option<String>, now: u64) -> Self {
+        Self {
+            sub,
+            email: String::new(),
+            kind: Some("refresh".to_owned()),
+            sid,
+            cid,
+            jti,
+            iat: Some(now as f64),
+            exp: Some((now + REFRESH_TTL_SECS) as f64),
             nbf: None,
         }
     }

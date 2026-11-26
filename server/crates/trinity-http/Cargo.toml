@@ -27,13 +27,17 @@ tokio = { workspace = true }
 tokio-rustls = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
+trinity-auth = { workspace = true }
+trinity-db = { workspace = true }
 trinity-kernel = { workspace = true }
+trinity-rbac = { workspace = true }
 url = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
 
 [dev-dependencies]
+sqlx = { workspace = true }
 rcgen = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "net"] }

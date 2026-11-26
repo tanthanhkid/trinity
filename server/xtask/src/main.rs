@@ -2,6 +2,7 @@
 //!
 //! - `lint`: luật SQL và giữ kết nối của PLAN 4.3 (`src/lint.rs`) trên mọi tệp dưới `crates/`.
 //! - `gen-models`: sinh `crates/trinity-db/src/models.rs` từ `schema.prisma` (`src/gen_models.rs`, PLAN 4.4).
+//! - `check-routes [--require-all]`: so bảng route Rust với `contracts/routes.json` (K14; chạy `trinity check-routes`).
 //! - `gen-dto <Dto>…`: in khung struct Rust của DTO từ `contracts/dto/schema.json` (`src/gen_dto.rs`, K15).
 
 mod gen_dto;
@@ -17,7 +18,7 @@ fn main() -> ExitCode {
     match cmd.as_deref() {
         None | Some("help" | "--help" | "-h") => {
             eprintln!(
-                "cargo xtask <lệnh>\n\n  lint   cấm `SELECT *`/`RETURNING *`, cấm gọi HTTP khi đang giữ kết nối DB (PLAN 4.3)\n  gen-models   sinh crates/trinity-db/src/models.rs từ schema.prisma (PLAN 4.4)\n  gen-dto <Dto>…   in khung struct Rust của DTO từ contracts/dto/schema.json"
+                "cargo xtask <lệnh>\n\n  lint   cấm `SELECT *`/`RETURNING *`, cấm gọi HTTP khi đang giữ kết nối DB (PLAN 4.3)\n  check-routes [--require-all]   so bảng route Rust với contracts/routes.json (K14)\n  gen-models   sinh crates/trinity-db/src/models.rs từ schema.prisma (PLAN 4.4)\n  gen-dto <Dto>…   in khung struct Rust của DTO từ contracts/dto/schema.json"
             );
             ExitCode::SUCCESS
         }
@@ -41,6 +42,22 @@ fn main() -> ExitCode {
                 }
                 Err(e) => {
                     eprintln!("xtask lint: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Some("check-routes") => {
+            let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
+            let status = std::process::Command::new(cargo)
+                .args(["run", "-q", "-p", "trinity-bin", "--", "check-routes"])
+                .args(std::env::args().skip(2))
+                .current_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join(".."))
+                .status();
+            match status {
+                Ok(s) if s.success() => ExitCode::SUCCESS,
+                Ok(_) => ExitCode::FAILURE,
+                Err(e) => {
+                    eprintln!("xtask check-routes: {e}");
                     ExitCode::FAILURE
                 }
             }

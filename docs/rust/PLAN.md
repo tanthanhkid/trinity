@@ -852,6 +852,14 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   API thêm route mà thiếu tham số này. Lúc boot và trong CI, bảng route của Rust được so với `contracts/routes.json`
   (đường dẫn, phương thức, loại truy cập, danh sách quyền, chế độ validation, mã trạng thái thành công, cổng tính năng,
   guard riêng, pipe của tham số).
+- **Đã làm ở K14** (`server/crates/trinity-http/src/router`): `ApiRouter::route(RouteSpec, handler)` là cách DUY NHẤT thêm route; `RouteSpec::new`
+  bắt buộc `Access` (`Can`, `CanAny`, `AuthOnly`, `Public`, `Internal`) nên thiếu khai báo không biên dịch được (doctest `compile_fail`); phương thức
+  lấy từ spec. Lớp thực thi theo `permission.guard.ts` (xác thực → nạp quyền → admin qua hết → 403 câu nguyên văn), rồi cổng tính năng tổ chức
+  (`OrgFeatureGate`, K25 cài đặt) chạy SAU phân quyền. `router::check` so bảng đã khai với `routes.json` (`access`, `permissions`, `permission_mode`,
+  `validation` theo bảng lenient/strict K15, `status_ok`, `org_feature`, `guards`, `param_pipes`) và tự kiểm hợp đồng (quyền, tính năng có trong
+  catalog; dòng trùng phải giống hệt: health/live/ready lặp 5 lần ở 5 service cũ). `trinity check-routes [--require-all]` / `cargo xtask check-routes`
+  là cổng CI "Rust contracts"; `--require-all` là cổng cuối X06. Module nào có route đầu tiên thêm `routes()` vào `declared_routes()` của `trinity-bin`.
+  `resolvePublicRouteCompany` (công ty của route công khai) chuyển cùng module đầu tiên cần nó.
 - `ScopeService` và bộ dựng điều kiện phạm vi chuyển kèm test pg hiện có (`scope.service.spec.ts`).
 - **Đã làm ở K12** (`server/crates/trinity-rbac`): `catalog` (nhúng `contracts/rbac.json`), `grants` (`normalize_grant`, `merge_grants`, `can`,
   `scope_of`, `is_subset`; bảng ca dùng chung `contracts/cases/rbac.json` do `packages/rbac/src/grants-cases.spec.ts` sinh, Rust chạy lại ở

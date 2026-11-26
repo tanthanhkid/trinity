@@ -3949,12 +3949,16 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "sqlx",
  "thiserror",
  "tokio",
  "tokio-rustls",
  "tower",
  "tracing",
+ "trinity-auth",
+ "trinity-db",
  "trinity-kernel",
+ "trinity-rbac",
  "url",
 ]
 

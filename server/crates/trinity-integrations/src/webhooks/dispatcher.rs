@@ -15,9 +15,12 @@ use trinity_jobs::{JobSpec, SchedulerError};
 use super::actors::ActorProvider;
 use super::payload::{ActorScopes, evaluate_event};
 use super::sender::Sender;
-use super::worker::{CLAIM_BATCH, Worker, WorkerError, claim, sweep_exhausted};
+use super::worker::{CLAIM_BATCH, SEND_MARGIN, Worker, WorkerError, claim, sweep_exhausted};
 
-pub const JOB_WEBHOOK_TICK: &str = "integrations.webhook-tick";
+/// Tên trong tệp sở hữu (`KNOWN_JOBS`).
+pub const JOB_WEBHOOK_DISPATCH: &str = "integrations.webhook-dispatch";
+/// Budget 30 giây theo PLAN 1.9.
+pub const BUDGET: Duration = Duration::from_secs(30);
 pub const TICK: Duration = Duration::from_secs(10);
 const EVENT_BATCH: i64 = 200;
 const MAX_EVENT_LOOPS: usize = 5;
@@ -52,6 +55,11 @@ impl Dispatcher {
 
     /// Một lượt cho một công ty. `enabled` = cờ `INTEGRATIONS_WEBHOOKS_ENABLED`. Khoá mã hoá thiếu ⇒ tạm dừng (ghi log).
     pub async fn tick(&self, tenant: &TenantDb, enabled: bool) -> Result<(), WorkerError> {
+        self.tick_until(tenant, enabled, Instant::now() + BUDGET).await
+    }
+
+    /// Như [`Self::tick`] với hạn rõ ràng: gần hết giờ thì không nhận thêm việc.
+    pub async fn tick_until(&self, tenant: &TenantDb, enabled: bool, deadline: Instant) -> Result<(), WorkerError> {
         if !enabled {
             return Ok(());
         }
@@ -62,10 +70,16 @@ impl Dispatcher {
         self.dispatch_events(tenant).await?;
         let mut conn = tenant.acquire().await?;
         sweep_exhausted(&mut conn).await?;
-        let rows = claim(&mut conn, CLAIM_BATCH).await?;
+        // Gần hết giờ thì không nhận thêm việc (mỗi lượt gửi có thể mất tới 10 giây).
+        let rows = if Instant::now() + SEND_MARGIN < deadline {
+            claim(&mut conn, CLAIM_BATCH).await?
+        } else {
+            Vec::new()
+        };
         drop(conn);
         if !rows.is_empty() {
             Worker {
+                deadline,
                 tenant,
                 sender: &self.sender,
                 actors: self.actors.as_ref(),
@@ -155,6 +169,7 @@ impl Dispatcher {
             }
             let Some(s) = scopes.get(&created_by).and_then(Option::as_ref) else {
                 Worker {
+                    deadline: Instant::now() + BUDGET,
                     tenant,
                     sender: &self.sender,
                     actors: self.actors.as_ref(),
@@ -242,17 +257,12 @@ pub fn webhook_tick_job(
         return Ok(None);
     }
     let db = db.clone();
-    JobSpec::new(
-        JOB_WEBHOOK_TICK,
-        TICK,
-        Duration::from_secs(55),
-        move |company: CompanyRef| {
-            let (db, d) = (db.clone(), std::sync::Arc::clone(&dispatcher));
-            async move {
-                let tenant = db.tenant(company).await.map_err(|e| e.to_string())?;
-                d.tick(&tenant, true).await.map_err(|e| e.to_string())
-            }
-        },
-    )
+    JobSpec::new(JOB_WEBHOOK_DISPATCH, TICK, BUDGET, move |company: CompanyRef| {
+        let (db, d) = (db.clone(), std::sync::Arc::clone(&dispatcher));
+        async move {
+            let tenant = db.tenant(company).await.map_err(|e| e.to_string())?;
+            d.tick(&tenant, true).await.map_err(|e| e.to_string())
+        }
+    })
     .map(Some)
 }

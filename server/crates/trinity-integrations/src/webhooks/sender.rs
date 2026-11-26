@@ -103,8 +103,9 @@ impl Sender {
         )
     }
 
-    /// Gửi một lần và ghi nhật ký `webhook_out` (nuốt lỗi ghi nhật ký).
-    pub async fn send(&self, audit_conn: &mut PgConnection, target: &SendTarget, item: &SendItem) -> PostResult {
+    /// Giải mã secret, ký và gửi MỘT lần. KHÔNG giữ kết nối DB trong lúc chờ HTTP (tối đa 10 giây): người gọi ghi nhật ký
+    /// bằng [`Self::record`] trên kết nối lấy lại sau đó.
+    pub async fn send(&self, target: &SendTarget, item: &SendItem) -> PostResult {
         let secret = (self.key)().and_then(|k| decrypt_secret(&target.secret_enc, &k));
         let secret = match secret {
             Ok(s) => s,
@@ -114,23 +115,18 @@ impl Sender {
                     "Webhook endpoint={}: không giải mã được secret ({code})",
                     target.endpoint_id
                 );
-                let res = PostResult {
+                return PostResult {
                     ok: false,
                     status_code: None,
                     error: Some(code.to_owned()),
                     duration_ms: 0,
                 };
-                self.record(audit_conn, target, item, &res).await;
-                return res;
             }
         };
         let body = Self::build_body(item);
         let signature = build_signature_header(&secret, body.as_bytes(), Utc::now().timestamp_millis());
-        let res = self
-            .post(&target.url, body, &item.event_type, &item.delivery_id, &signature)
-            .await;
-        self.record(audit_conn, target, item, &res).await;
-        res
+        self.post(&target.url, body, &item.event_type, &item.delivery_id, &signature)
+            .await
     }
 
     /// POST JSON, không theo chuyển hướng, hạn `timeout` cho cả lượt (gồm phân giải DNS kiểm đích).
@@ -177,8 +173,8 @@ impl Sender {
         }
     }
 
-    /// Nhật ký: KHÔNG ghi URL (có thể chứa token), KHÔNG ghi thân (có SĐT): chỉ định danh và kết quả.
-    async fn record(&self, conn: &mut PgConnection, target: &SendTarget, item: &SendItem, res: &PostResult) {
+    /// Ghi nhật ký `webhook_out` (nuốt lỗi ghi). Nhật ký: KHÔNG ghi URL (có thể chứa token), KHÔNG ghi thân (có SĐT): chỉ định danh và kết quả.
+    pub async fn record(&self, conn: &mut PgConnection, target: &SendTarget, item: &SendItem, res: &PostResult) {
         let mut e = AuditEntry::new(
             Channel::WebhookOut,
             &item.event_type,

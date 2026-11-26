@@ -15,13 +15,15 @@ use trinity_db::{CompanyRef, Db, DbConfig, TenantDb};
 use trinity_http::outbound::ssrf::{HostResolver, LookupFuture, SsrfPolicy, SystemResolver};
 use trinity_integrations::webhooks::actors::{ActorFuture, ActorProvider};
 use trinity_integrations::webhooks::deliveries::{self, DeliveryQuery};
-use trinity_integrations::webhooks::dispatcher::{Dispatcher, housekeeping_once};
+use trinity_integrations::webhooks::dispatcher::{
+    Dispatcher, JOB_WEBHOOK_DISPATCH, housekeeping_once, webhook_tick_job,
+};
 use trinity_integrations::webhooks::endpoints::{self, CreateEndpoint, EndpointError, UpdateEndpoint};
 use trinity_integrations::webhooks::payload::{ActorScopes, Scope};
 use trinity_integrations::webhooks::secret::{KeySource, decrypt_secret};
 use trinity_integrations::webhooks::sender::Sender;
 use trinity_integrations::webhooks::signature::verify_signature_header;
-use trinity_integrations::webhooks::worker::{claim, sweep_exhausted};
+use trinity_integrations::webhooks::worker::{Worker, claim, sweep_exhausted};
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -914,7 +916,7 @@ async fn gui_thu_ping_dong_bo_va_gui_lai() {
     let s = sender(true);
     let ok = mock(200).await;
     let (id, secret) = make_endpoint(&mut c, &s, &format!("{}/hook", ok.uri()), &["contact.created"], 1).await;
-    let r = endpoints::test(&mut c, &s, id, 1).await.unwrap();
+    let r = endpoints::test(&t.tenant().await, &s, id, 1).await.unwrap();
     assert_eq!(
         (r["ok"].clone(), r["status_code"].clone(), r["error"].clone()),
         (json!(true), json!(200), Value::Null)
@@ -952,7 +954,7 @@ async fn gui_thu_ping_dong_bo_va_gui_lai() {
     // Lỗi phía nhận: ping thất bại ghi dead, KHÔNG tăng consecutive_failures.
     let bad = mock(503).await;
     let (id2, _) = make_endpoint(&mut c, &s, &format!("{}/hook", bad.uri()), &["contact.created"], 1).await;
-    let r = endpoints::test(&mut c, &s, id2, 1).await.unwrap();
+    let r = endpoints::test(&t.tenant().await, &s, id2, 1).await.unwrap();
     assert_eq!((r["ok"].clone(), r["error"].clone()), (json!(false), json!("http_503")));
     assert_eq!(
         scalar_i64(
@@ -1038,5 +1040,130 @@ async fn don_delivery_cu_va_receipt() {
     assert_eq!(
         scalar_i64(&mut c, "SELECT count(*) FROM webhook_inbound_receipts").await,
         1
+    );
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn thong_bao_loi_khong_lam_mat_viec_tat_endpoint() {
+    let t = TestDb::new("notif").await;
+    let mut c = t.conn().await;
+    let s = sender(true);
+    let m = mock(500).await;
+    let (id, _) = make_endpoint(&mut c, &s, &format!("{}/hook", m.uri()), &["contact.created"], 1).await;
+    exec(
+        &mut c,
+        &format!("UPDATE webhook_endpoints SET consecutive_failures = 19 WHERE id = {id}"),
+    )
+    .await;
+    publish(&mut c, "contact.created", &contact_payload(), 1).await;
+    // Bảng thông báo hỏng ⇒ tạo thông báo lỗi; việc tắt vẫn phải còn.
+    exec(&mut c, "DROP TABLE notification_logs").await;
+    let d = Dispatcher::new(s, actors(&[1]));
+    d.tick(&t.tenant().await, true).await.unwrap();
+    let ep = sqlx::query("SELECT is_active, disabled_reason FROM webhook_endpoints WHERE id = $1")
+        .bind(id)
+        .fetch_one(&mut c)
+        .await
+        .unwrap();
+    assert_eq!(
+        (
+            ep.get::<bool, _>("is_active"),
+            ep.get::<Option<String>, _>("disabled_reason")
+        ),
+        (false, Some("consecutive_failures".to_owned()))
+    );
+    assert_eq!(
+        scalar_i64(
+            &mut c,
+            "SELECT count(*) FROM webhook_deliveries WHERE status IN ('pending', 'failed')"
+        )
+        .await,
+        0
+    );
+    // Cùng đường cho chủ thể mất quyền.
+    let (id2, _) = make_endpoint(
+        &mut c,
+        &sender(true),
+        &format!("{}/hook", m.uri()),
+        &["contact.created"],
+        5,
+    )
+    .await;
+    publish(&mut c, "contact.created", &contact_payload(), 2).await;
+    let d = Dispatcher::new(
+        sender(true),
+        Box::new(Actors(HashMap::from([(1, Some(admin_scopes())), (5, None)]))),
+    );
+    d.tick(&t.tenant().await, true).await.unwrap();
+    let r: (bool, Option<String>) =
+        sqlx::query_as("SELECT is_active, disabled_reason FROM webhook_endpoints WHERE id = $1")
+            .bind(id2)
+            .fetch_one(&mut c)
+            .await
+            .unwrap();
+    assert_eq!(r, (false, Some("creator_unauthorized".to_owned())));
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn het_gio_thi_khong_nhan_va_tra_lai_viec_da_nhan() {
+    let t = TestDb::new("deadline").await;
+    let mut c = t.conn().await;
+    let s = sender(true);
+    let m = mock(200).await;
+    let (id, _) = make_endpoint(&mut c, &s, &format!("{}/hook", m.uri()), &["contact.created"], 1).await;
+    exec(&mut c, &format!("INSERT INTO webhook_deliveries (endpoint_id, event_id, event_type, payload) SELECT {id}, g, 'contact.created', '{{}}' FROM generate_series(1, 5) g")).await;
+    let d = Dispatcher::new(s, actors(&[1]));
+    let tenant = t.tenant().await;
+    // Còn dưới mức chừa cho một lượt gửi ⇒ không nhận gì.
+    d.tick_until(&tenant, true, std::time::Instant::now() + Duration::from_secs(5))
+        .await
+        .unwrap();
+    assert!(m.received_requests().await.unwrap().is_empty());
+    assert_eq!(
+        scalar_i64(
+            &mut c,
+            "SELECT count(*) FROM webhook_deliveries WHERE attempts = 0 AND status = 'pending'"
+        )
+        .await,
+        5
+    );
+    // Đã nhận nhưng hết giờ trước khi gửi: trả lại, attempts về như cũ, nhận lại được ngay.
+    let rows = claim(&mut c, 20).await.unwrap();
+    assert_eq!(rows.len(), 5);
+    let s2 = sender(true);
+    let a = Actors(HashMap::from([(1, Some(admin_scopes()))]));
+    Worker {
+        deadline: std::time::Instant::now(),
+        tenant: &tenant,
+        sender: &s2,
+        actors: &a,
+    }
+    .process_batch(rows)
+    .await;
+    // timestamptz(3) làm tròn `now()` lên tới 0,5 ms: chờ một chút trước khi so với `now()`.
+    tokio::time::sleep(Duration::from_millis(20)).await;
+    assert!(m.received_requests().await.unwrap().is_empty());
+    assert_eq!(scalar_i64(&mut c, "SELECT count(*) FROM webhook_deliveries WHERE attempts = 0 AND status = 'pending' AND next_attempt_at <= now()").await, 5);
+    // Có đủ giờ thì gửi hết.
+    d.tick_until(&tenant, true, std::time::Instant::now() + Duration::from_secs(30))
+        .await
+        .unwrap();
+    assert_eq!(m.received_requests().await.unwrap().len(), 5);
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn job_dung_ten_trong_tep_so_huu_va_budget_30s() {
+    let t = TestDb::new("job").await;
+    assert_eq!(JOB_WEBHOOK_DISPATCH, "integrations.webhook-dispatch");
+    assert!(trinity_kernel::ownership::KNOWN_JOBS.contains(&JOB_WEBHOOK_DISPATCH));
+    let d = Arc::new(Dispatcher::new(sender(true), actors(&[1])));
+    assert!(webhook_tick_job(&t.db, Arc::clone(&d), false).unwrap().is_none());
+    let j = webhook_tick_job(&t.db, d, true).unwrap().unwrap();
+    assert_eq!(
+        (j.name.as_str(), j.interval, j.budget),
+        (JOB_WEBHOOK_DISPATCH, Duration::from_secs(10), Duration::from_secs(30))
     );
 }

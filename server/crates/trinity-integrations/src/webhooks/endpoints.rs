@@ -235,8 +235,12 @@ pub async fn update(
     if new_events.is_some() {
         fields.push("events");
     }
-    if dto.is_active.is_some() {
+    if let Some(active) = dto.is_active {
         fields.push("is_active");
+        // Bật lại còn xoá `disabled_reason` và đặt `consecutive_failures = 0` (Node ghi cả hai vào `data`; `disabled_reason` bị lọc).
+        if active {
+            fields.push("consecutive_failures");
+        }
     }
     let url_changed = new_url.is_some();
     let owner_changed = url_changed && cur_owner != user;
@@ -319,29 +323,34 @@ pub async fn rotate_secret(
     Ok(v)
 }
 
-/// Gửi sự kiện `ping` ĐỒNG BỘ, một lần, không thử lại, không tính vào bộ đếm lỗi liên tiếp.
-pub async fn test(conn: &mut PgConnection, sender: &Sender, id: i32, user: i32) -> Result<Value, EndpointError> {
+/// Gửi sự kiện `ping` ĐỒNG BỘ, một lần, không thử lại, không tính vào bộ đếm lỗi liên tiếp. Nhận `TenantDb` để KHÔNG giữ
+/// kết nối trong lúc chờ HTTP (tối đa 10 giây): lấy kết nối ngắn cho từng bước.
+pub async fn test(tenant: &trinity_db::TenantDb, sender: &Sender, id: i32, user: i32) -> Result<Value, EndpointError> {
     key(sender)?;
-    let ep = find(conn, id).await?;
+    let db_err = |e: trinity_db::DbError| EndpointError::Unavailable(e.to_string());
     let delivery_id = uuid::Uuid::new_v4().to_string();
     let now = Utc::now();
     let data = json!({"message": "Trinity webhook test"});
-    // `next_attempt_at` xa ⇒ worker không bao giờ nhận dòng ping (gửi đồng bộ ngay dưới).
-    sqlx::query(
-        "INSERT INTO webhook_deliveries (id, endpoint_id, event_type, payload, attempts, created_at, next_attempt_at) \
-         VALUES ($1::uuid, $2, 'ping', $3::text::jsonb, 1, $4, $4 + interval '1 day')",
-    )
-    .bind(&delivery_id)
-    .bind(id)
-    .bind(data.to_string())
-    .bind(now)
-    .execute(&mut *conn)
-    .await?;
-    let target = SendTarget {
-        endpoint_id: id,
-        url: ep.try_get("url")?,
-        secret_enc: ep.try_get("secret_enc")?,
-        created_by: user,
+    let target = {
+        let mut conn = tenant.acquire().await.map_err(db_err)?;
+        let ep = find(&mut conn, id).await?;
+        // `next_attempt_at` xa ⇒ worker không bao giờ nhận dòng ping (gửi đồng bộ ngay dưới).
+        sqlx::query(
+            "INSERT INTO webhook_deliveries (id, endpoint_id, event_type, payload, attempts, created_at, next_attempt_at) \
+             VALUES ($1::uuid, $2, 'ping', $3::text::jsonb, 1, $4, $4 + interval '1 day')",
+        )
+        .bind(&delivery_id)
+        .bind(id)
+        .bind(data.to_string())
+        .bind(now)
+        .execute(&mut *conn)
+        .await?;
+        SendTarget {
+            endpoint_id: id,
+            url: ep.try_get("url")?,
+            secret_enc: ep.try_get("secret_enc")?,
+            created_by: user,
+        }
     };
     let item = SendItem {
         delivery_id: delivery_id.clone(),
@@ -350,7 +359,9 @@ pub async fn test(conn: &mut PgConnection, sender: &Sender, id: i32, user: i32) 
         created_at: now,
         attempt: 1,
     };
-    let res = sender.send(conn, &target, &item).await;
+    let res = sender.send(&target, &item).await;
+    let mut conn = tenant.acquire().await.map_err(db_err)?;
+    sender.record(&mut conn, &target, &item, &res).await;
     sqlx::query(
         "UPDATE webhook_deliveries SET status = $2, delivered_at = CASE WHEN $3 THEN now() END, last_status_code = $4, last_error = $5 \
          WHERE id = $1::uuid",
@@ -370,7 +381,7 @@ pub async fn test(conn: &mut PgConnection, sender: &Sender, id: i32, user: i32) 
     .bind(id)
     .execute(&mut *conn)
     .await?;
-    log_ok(conn, user, "endpoint.tested", id, json!({"ok": res.ok})).await;
+    log_ok(&mut conn, user, "endpoint.tested", id, json!({"ok": res.ok})).await;
     Ok(
         json!({"delivery_id": delivery_id, "ok": res.ok, "status_code": res.status_code, "error": res.error, "duration_ms": res.duration_ms}),
     )

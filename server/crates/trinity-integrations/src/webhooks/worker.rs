@@ -4,6 +4,7 @@
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use serde_json::Value;
 use sqlx::{PgConnection, Row};
@@ -16,6 +17,8 @@ use super::retry::{AUTO_DISABLE_AFTER_FAILURES, MAX_ATTEMPTS, next_retry_delay_s
 use super::sender::{PostResult, SendItem, SendTarget, Sender};
 
 pub const CLAIM_BATCH: i64 = 20;
+/// Chừa đủ cho một lượt gửi (hạn 10 giây) cộng ghi kết quả.
+pub const SEND_MARGIN: Duration = Duration::from_secs(11);
 const CONCURRENCY: usize = 5;
 /// Hợp đồng thuê: việc đã nhận mà chưa ghi kết quả (crash) sẽ được nhận lại sau chừng này.
 pub const LEASE_SECONDS: f64 = 120.0;
@@ -97,6 +100,8 @@ struct EndpointRef {
 }
 
 pub struct Worker<'a> {
+    /// Quá mốc này thì không nhận thêm việc (chừa thời gian cho một lượt gửi dở) và trả lại việc chưa kịp xử lý.
+    pub deadline: Instant,
     pub tenant: &'a TenantDb,
     pub sender: &'a Sender,
     pub actors: &'a dyn ActorProvider,
@@ -108,7 +113,7 @@ impl Worker<'_> {
         let queue = Mutex::new(VecDeque::from(rows));
         let cache: Mutex<HashMap<i32, Option<ActorScopes>>> = Mutex::new(HashMap::new());
         let lanes = (0..CONCURRENCY.min(queue.lock().map_or(0, |q| q.len()))).map(|_| async {
-            loop {
+            while Instant::now() + SEND_MARGIN < self.deadline {
                 let next = queue.lock().ok().and_then(|mut q| q.pop_front());
                 let Some(row) = next else { break };
                 if let Err(e) = self.process_one(&row, &cache).await {
@@ -117,6 +122,28 @@ impl Worker<'_> {
             }
         });
         futures_util::future::join_all(lanes).await;
+        // Việc đã nhận mà chưa kịp gửi (hết giờ): trả lại để lượt sau nhận ngay, không bắt chờ hết lease và không tốn một lần gửi.
+        let left: Vec<Claimed> = queue.into_inner().map(Vec::from).unwrap_or_default();
+        if !left.is_empty()
+            && let Err(e) = self.release(&left).await
+        {
+            tracing::error!("Webhook: không trả lại được {} việc chưa gửi ({e})", left.len());
+        }
+    }
+
+    async fn release(&self, rows: &[Claimed]) -> Result<(), WorkerError> {
+        let mut conn = self.tenant.acquire().await?;
+        for r in rows {
+            sqlx::query(
+                "UPDATE webhook_deliveries SET attempts = attempts - 1, next_attempt_at = now() \
+                 WHERE id = $1::uuid AND attempts = $2 AND status IN ('pending', 'failed')",
+            )
+            .bind(&r.id)
+            .bind(r.attempts)
+            .execute(&mut *conn)
+            .await?;
+        }
+        Ok(())
     }
 
     async fn scopes(
@@ -195,9 +222,11 @@ impl Worker<'_> {
             created_at: row.created_at,
             attempt: row.attempts,
         };
-        let res = self.sender.send(&mut conn, &target, &item).await;
+        // Thả kết nối trước khi chờ HTTP (tối đa 10 giây); lấy kết nối mới để ghi nhật ký và kết quả.
         drop(conn);
+        let res = self.sender.send(&target, &item).await;
         let mut conn = self.tenant.acquire().await.map_err(|x| x.to_string())?;
+        self.sender.record(&mut conn, &target, &item, &res).await;
         self.settle(&mut conn, row, Outcome::Result(res), Some(&epr))
             .await
             .map_err(e)
@@ -279,7 +308,8 @@ impl Worker<'_> {
         Ok(())
     }
 
-    /// Tắt endpoint (idempotent: chỉ lần chuyển true sang false mới thông báo) và đưa việc chờ về `dead`.
+    /// Tắt endpoint (idempotent: chỉ lần chuyển true sang false mới thông báo) và đưa việc chờ về `dead`. Việc TẮT được commit
+    /// TRƯỚC; thông báo ở giao dịch riêng sau đó, lỗi thông báo chỉ ghi log và không làm mất việc tắt.
     pub async fn deactivate(
         &self,
         endpoint_id: i32,
@@ -301,6 +331,7 @@ impl Worker<'_> {
             .bind(endpoint_id)
             .execute(&mut *tx)
             .await?;
+        tx.commit().await?;
         tracing::warn!("Webhook endpoint={endpoint_id} tự tắt ({reason})");
         let why = if reason == "consecutive_failures" {
             format!("lỗi liên tiếp {AUTO_DISABLE_AFTER_FAILURES} lần")
@@ -314,10 +345,15 @@ impl Worker<'_> {
             body: format!("Endpoint \"{name}\" đã bị tắt: {why}. Kiểm tra rồi bật lại ở Cài đặt > Kết nối & AI."),
             action_url: Some("/connections?muc=webhook-out".into()),
         };
-        if let Err(e) = create_notification(&mut tx, &[note]).await {
+        if let Err(e) = self.notify(note).await {
             tracing::warn!("Không gửi được thông báo tắt webhook endpoint={endpoint_id}: {e}");
         }
-        tx.commit().await?;
         Ok(())
+    }
+
+    async fn notify(&self, note: NewNotification) -> Result<(), String> {
+        let mut tx = self.tenant.begin().await.map_err(|e| e.to_string())?;
+        create_notification(&mut tx, &[note]).await.map_err(|e| e.to_string())?;
+        tx.commit().await.map_err(|e| e.to_string())
     }
 }

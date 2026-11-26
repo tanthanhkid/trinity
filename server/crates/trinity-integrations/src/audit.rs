@@ -68,7 +68,7 @@ impl AuditStatus {
 // ---- Lọc dữ liệu trước khi ghi ----------------------------------------------------------------------------------
 
 /// Đúng tập `\s` của JS (ECMAScript WhiteSpace + LineTerminator): có U+FEFF, KHÔNG có U+0085 (regex mặc định thì ngược lại).
-const JS_WS: &str = r"\t\n\x0B\x0C\r \u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF";
+pub(crate) const JS_WS: &str = r"\t\n\x0B\x0C\r \u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF";
 
 fn re(cell: &'static OnceLock<Regex>, pat: &str) -> &'static Regex {
     cell.get_or_init(|| Regex::new(pat).expect("regex hợp lệ"))

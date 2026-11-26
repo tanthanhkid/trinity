@@ -20,27 +20,9 @@ pub fn any_enabled(env: &impl Fn(&str) -> Option<String>) -> bool {
     webhooks_enabled(env) || mcp_enabled(env)
 }
 
-/// `INTEGRATIONS_SECRET_KEY` hợp lệ: base64 (chuẩn hoặc url-safe, đệm `=` tuỳ chọn) giải ra đúng 32 byte.
+/// `INTEGRATIONS_SECRET_KEY` hợp lệ (cùng luật với [`crate::webhooks::secret::load_secret_key`]).
 pub fn secret_key_configured(env: &impl Fn(&str) -> Option<String>) -> bool {
-    let Some(raw) = env("INTEGRATIONS_SECRET_KEY") else {
-        return false;
-    };
-    let raw = raw.trim();
-    if raw.is_empty()
-        || !raw
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'/' | b'_' | b'-' | b'='))
-    {
-        return false;
-    }
-    // Node `Buffer.from(raw, 'base64')` bỏ ký tự thừa và nhận cả hai bảng chữ; độ dài giải mã = floor(n*6/8) trên phần
-    // trước dấu `=`. Chỉ nhận `=` ở cuối.
-    let body = raw.trim_end_matches('=');
-    if body.contains('=') {
-        return false;
-    }
-    // Node chỉ nhận tối đa hai dấu `=` đệm (`={0,2}`).
-    raw.len() - body.len() <= 2 && body.len() * 6 / 8 == 32
+    crate::webhooks::secret::load_secret_key(env).is_ok()
 }
 
 /// URL gốc công khai (`INTEGRATIONS_PUBLIC_BASE_URL`): https, hoặc http tới loopback khi `NODE_ENV` là test/development;

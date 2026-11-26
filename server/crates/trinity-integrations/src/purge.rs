@@ -16,6 +16,9 @@ pub const OUTBOX_UNDISPATCHED_RETENTION_DAYS: i64 = 90;
 const PURGE_BATCH: i64 = 2000;
 const PURGE_MAX_BATCHES: usize = 50;
 const INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
+/// Bản Node đặt `setTimeout` lượt đầu 5 phút (outbox) và 7 phút (OAuth) sau khởi động.
+const OUTBOX_FIRST_DELAY: Duration = Duration::from_secs(5 * 60);
+const OAUTH_FIRST_DELAY: Duration = Duration::from_secs(7 * 60);
 const BUDGET: Duration = Duration::from_secs(55);
 
 /// Xoá theo lô (không `DELETE` một phát hàng triệu dòng). `cond` là điều kiện cố định trong mã, tham số `$1` là mốc cắt.
@@ -123,7 +126,7 @@ pub fn outbox_purge_job(db: &Db, enabled: bool) -> Result<Option<JobSpec>, Sched
             Ok(())
         }
     })
-    .map(Some)
+    .map(|j| Some(j.with_first_delay(OUTBOX_FIRST_DELAY)))
 }
 
 /// Job dọn OAuth. `enabled` = `status::oauth_enabled`.
@@ -149,5 +152,5 @@ pub fn oauth_purge_job(db: &Db, enabled: bool) -> Result<Option<JobSpec>, Schedu
             Ok(())
         }
     })
-    .map(Some)
+    .map(|j| Some(j.with_first_delay(OAUTH_FIRST_DELAY)))
 }

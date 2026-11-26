@@ -67,6 +67,9 @@ impl AuditStatus {
 
 // ---- Lọc dữ liệu trước khi ghi ----------------------------------------------------------------------------------
 
+/// Đúng tập `\s` của JS (ECMAScript WhiteSpace + LineTerminator): có U+FEFF, KHÔNG có U+0085 (regex mặc định thì ngược lại).
+const JS_WS: &str = r"\t\n\x0B\x0C\r \u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF";
+
 fn re(cell: &'static OnceLock<Regex>, pat: &str) -> &'static Regex {
     cell.get_or_init(|| Regex::new(pat).expect("regex hợp lệ"))
 }
@@ -104,13 +107,21 @@ fn slice_utf16(s: &str, max: usize) -> Option<String> {
     None
 }
 
-/// Che SĐT (dãy từ 9 chữ số), `Bearer <token>` và chuỗi token dài; cắt còn `max` đơn vị UTF-16 kèm `…`.
+fn utf16_len(s: &str) -> usize {
+    s.chars().map(char::len_utf16).sum()
+}
+
+/// Che SĐT (dãy từ 9 chữ số), `Bearer <token>` và chuỗi token dài; cắt để tổng (kể cả `…`) ≤ `max` đơn vị UTF-16.
 pub fn sanitize_text(input: &str, max: usize) -> String {
     static BEARER: OnceLock<Regex> = OnceLock::new();
     static DIGITS: OnceLock<Regex> = OnceLock::new();
     static LONG: OnceLock<Regex> = OnceLock::new();
-    let s = re(&BEARER, r"(?i-u:bearer)\s+[A-Za-z0-9._~+/=-]+").replace_all(input, format!("Bearer {REDACTED}"));
-    let s = re(&DIGITS, r"\+?[0-9][0-9\s.\-]{7,}[0-9]").replace_all(&s, |c: &regex::Captures<'_>| {
+    let s = BEARER
+        .get_or_init(|| Regex::new(&format!("(?i-u:bearer)[{JS_WS}]+[A-Za-z0-9._~+/=-]+")).expect("regex hợp lệ"))
+        .replace_all(input, format!("Bearer {REDACTED}"));
+    let digits =
+        DIGITS.get_or_init(|| Regex::new(&format!(r"\+?[0-9][0-9{JS_WS}.\-]{{7,}}[0-9]")).expect("regex hợp lệ"));
+    let s = digits.replace_all(&s, |c: &regex::Captures<'_>| {
         let m = &c[0];
         if m.chars().filter(char::is_ascii_digit).count() >= 9 {
             mask_digits(m)
@@ -119,12 +130,13 @@ pub fn sanitize_text(input: &str, max: usize) -> String {
         }
     });
     let s = re(&LONG, r"(?-u:\b)[A-Za-z0-9_-]{32,}(?-u:\b)").replace_all(&s, REDACTED);
-    match slice_utf16(&s, max) {
-        Some(mut cut) => {
-            cut.push('…');
-            cut
-        }
-        None => s.into_owned(),
+    // Tổng độ dài kể cả dấu … ≤ max (cột `error` là varchar(500)).
+    if utf16_len(&s) > max {
+        let mut cut = slice_utf16(&s, max.saturating_sub(1)).unwrap_or_else(|| s.to_string());
+        cut.push('…');
+        cut
+    } else {
+        s.into_owned()
     }
 }
 
@@ -157,10 +169,18 @@ fn sanitize_object(o: &Map<String, Value>, depth: usize) -> Map<String, Value> {
         .collect()
 }
 
-/// `metadata` an toàn để lưu: luôn là object JSON thuần (không phải object ⇒ `{}`).
+/// `metadata` an toàn để lưu: luôn là object JSON thuần (mảng ⇒ khoá chỉ số như `Object.entries`; kiểu khác ⇒ `{}`).
 pub fn sanitize_metadata(meta: Option<&Value>) -> Value {
     match meta {
         Some(Value::Object(o)) => Value::Object(sanitize_object(o, 0)),
+        // `Object.entries` của mảng JS cho khoá chỉ số.
+        Some(Value::Array(a)) => Value::Object(
+            a.iter()
+                .enumerate()
+                .take(MAX_KEYS)
+                .map(|(i, v)| (i.to_string(), sanitize_value(&i.to_string(), v, 0)))
+                .collect(),
+        ),
         _ => json!({}),
     }
 }
@@ -225,7 +245,7 @@ pub async fn log(conn: &mut PgConnection, e: &AuditEntry) {
     .bind(e.user_id)
     .bind(slice_utf16(&e.action, 128).unwrap_or_else(|| e.action.clone()))
     .bind(cut(e.resource.as_deref(), 64))
-    .bind(cut(e.resource_id.as_deref(), 64))
+    .bind(e.resource_id.as_deref().map(|s| slice_utf16(s, 64).unwrap_or_else(|| s.to_owned())))
     .bind(e.status.as_str())
     .bind(clamp_int(e.http_status))
     .bind(clamp_int(e.duration_ms))

@@ -39,7 +39,8 @@ pub fn secret_key_configured(env: &impl Fn(&str) -> Option<String>) -> bool {
     if body.contains('=') {
         return false;
     }
-    body.len() * 6 / 8 == 32
+    // Node chỉ nhận tối đa hai dấu `=` đệm (`={0,2}`).
+    raw.len() - body.len() <= 2 && body.len() * 6 / 8 == 32
 }
 
 /// URL gốc công khai (`INTEGRATIONS_PUBLIC_BASE_URL`): https, hoặc http tới loopback khi `NODE_ENV` là test/development;
@@ -58,8 +59,8 @@ pub fn public_base_url(env: &impl Fn(&str) -> Option<String>) -> Option<String> 
     }
     if !u.username().is_empty()
         || u.password().is_some()
-        || u.query().is_some()
-        || u.fragment().is_some()
+        || u.query().is_some_and(|q| !q.is_empty())
+        || u.fragment().is_some_and(|f| !f.is_empty())
         || !matches!(u.path(), "/" | "")
     {
         return None;

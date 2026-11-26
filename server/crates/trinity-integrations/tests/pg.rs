@@ -123,14 +123,28 @@ async fn ghi_nhat_ky_co_loc_va_khong_nem_loi() {
     e.user_id = Some(7);
     e.http_status = Some(-5);
     e.duration_ms = Some(9_999_999_999);
+    e.resource = Some(String::new());
+    e.resource_id = Some(String::new());
     e.error = Some("lỗi gọi 0912345678 với Bearer abc.def".into());
     e.metadata = Some(json!({"phone": "0912345678", "token": "t", "note": "ok"}));
     audit::log(&mut c, &e).await;
-    let r = sqlx::query("SELECT action, http_status, duration_ms, error, metadata FROM integration_audit_logs")
-        .fetch_one(&mut c)
-        .await
-        .unwrap();
+    let r = sqlx::query(
+        "SELECT action, resource, resource_id, http_status, duration_ms, error, metadata FROM integration_audit_logs",
+    )
+    .fetch_one(&mut c)
+    .await
+    .unwrap();
     assert_eq!(r.get::<String, _>("action").len(), 128);
+    assert_eq!(
+        r.get::<Option<String>, _>("resource"),
+        None,
+        "resource rỗng ⇒ NULL (cut của Node)"
+    );
+    assert_eq!(
+        r.get::<Option<String>, _>("resource_id").as_deref(),
+        Some(""),
+        "resource_id rỗng giữ '' như Node"
+    );
     assert_eq!(r.get::<Option<i32>, _>("http_status"), Some(0));
     assert_eq!(r.get::<Option<i32>, _>("duration_ms"), Some(i32::MAX));
     assert_eq!(r.get::<String, _>("error"), "lỗi gọi ***678 với Bearer [redacted]");
@@ -350,6 +364,10 @@ async fn job_chi_co_khi_co_bat_va_chay_duoc_tren_cong_ty() {
     assert_eq!(
         (outbox.name.as_str(), oauth.name.as_str()),
         (JOB_OUTBOX_PURGE, JOB_OAUTH_PURGE)
+    );
+    assert_eq!(
+        (outbox.first_delay, oauth.first_delay),
+        (Duration::from_secs(300), Duration::from_secs(420))
     );
     let mut c = t.conn().await;
     exec(&mut c, "INSERT INTO integration_events (event_type, resource, resource_id, payload, dispatched_at) VALUES ('contact.created','contact','1','{}', now() - interval '40 days');

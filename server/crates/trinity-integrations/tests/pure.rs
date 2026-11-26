@@ -3,7 +3,9 @@
 use std::collections::HashMap;
 
 use serde_json::{Value, json};
-use trinity_integrations::audit::{MAX_STRING, decode_cursor, encode_cursor, sanitize_metadata, sanitize_text};
+use trinity_integrations::audit::{
+    MAX_ERROR, MAX_STRING, decode_cursor, encode_cursor, sanitize_metadata, sanitize_text,
+};
 use trinity_integrations::status;
 
 #[test]
@@ -16,8 +18,13 @@ fn loc_nhat_ky_khop_ban_node() {
     for m in g["metas"].as_array().unwrap() {
         assert_eq!(sanitize_metadata(Some(&m["in"])), m["out"], "meta {}", m["in"]);
     }
+    for t in g["errors"].as_array().unwrap() {
+        let out = sanitize_text(t["in"].as_str().unwrap(), MAX_ERROR);
+        assert_eq!(out, t["out"].as_str().unwrap());
+        assert!(out.encode_utf16().count() <= MAX_ERROR, "vượt varchar(500)");
+    }
     assert_eq!(sanitize_metadata(None), json!({}));
-    assert_eq!(sanitize_metadata(Some(&json!([1, 2]))), json!({}));
+    assert_eq!(sanitize_metadata(Some(&json!("chuoi"))), json!({}));
 }
 
 fn env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> + use<> {
@@ -92,6 +99,7 @@ fn url_goc_cong_khai_chi_nhan_dang_hop_le() {
         ("https://a.example.com/?q=1", "production"),
         ("https://u:p@a.example.com", "production"),
         ("https://a.example.com/#f", "production"),
+        ("https://a.example.com/?q", "production"),
         ("không phải url", "production"),
         ("", "production"),
     ] {

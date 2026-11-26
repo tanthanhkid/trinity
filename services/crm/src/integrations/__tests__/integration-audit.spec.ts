@@ -47,7 +47,10 @@ describe('sanitizeMetadata — KHÔNG để SĐT đầy đủ/secret vào nhật
     for (let i = 0; i < 100; i++) many[`k${i}`] = i;
     expect(Object.keys(sanitizeMetadata(many))).toHaveLength(30);
     expect((sanitizeMetadata({ arr: Array.from({ length: 100 }, (_, i) => i) }) as { arr: unknown[] }).arr).toHaveLength(20);
-    expect(((sanitizeMetadata({ s: 'x'.repeat(1000) }) as { s: string }).s).length).toBeLessThanOrEqual(301);
+    expect(((sanitizeMetadata({ s: 'x'.repeat(1000) }) as { s: string }).s).length).toBeLessThanOrEqual(300);
+    // `error` là varchar(500): kết quả kể cả dấu … không được vượt 500 ký tự.
+    expect(sanitizeText('y '.repeat(450), 500)).toHaveLength(500);
+    expect(sanitizeText('y '.repeat(250), 500)).toHaveLength(500);
     expect(sanitizeMetadata({ big: 5n })).toEqual({ big: '5' });
     expect(sanitizeMetadata(null)).toEqual({});
     expect(sanitizeMetadata(undefined)).toEqual({});

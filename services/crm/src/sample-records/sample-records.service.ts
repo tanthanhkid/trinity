@@ -173,7 +173,11 @@ export class SampleRecordsService {
 
   /** Danh sách khách lưu tổng số trong `ReadCache` 60 giây; xoá khách mẫu thì bỏ cache (của công ty này) để tổng số không còn đếm cả mẫu. */
   async dropContactCountCache(): Promise<void> {
-    this.cache?.deletePrefix(tenantKey('crm:contacts:count:'));
+    try {
+      this.cache?.deletePrefix(tenantKey('crm:contacts:count:'));
+    } catch {
+      // Không có công ty trong ngữ cảnh ⇒ không có khoá nào của công ty để xoá; cache chỉ là tăng tốc nên bỏ qua.
+    }
   }
 
   /** 3 khách MẪU cho hệ thống "Khác" (CRM cơ bản). Dữ liệu giả, tên ghi rõ "(mẫu)". Trả id đã tạo + đã ghi theo dõi. */

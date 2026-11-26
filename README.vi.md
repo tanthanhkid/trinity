@@ -159,7 +159,7 @@ Rồi mở URL production và đăng nhập bằng tài khoản admin ở trên.
 
 - Admin đầu tiên chỉ được tạo khi chưa tồn tại; deploy lại không bao giờ ghi đè mật khẩu.
 - Workspace mới cố ý bắt đầu trống: lần đăng nhập đầu tiên đi qua wizard bắt đầu (loại doanh nghiệp, phân hệ, *Dựng hệ thống*, khách đầu tiên) rồi mới vào app; người có tài khoản tạo sau khi hệ thống đã dựng vào thẳng app. Sau khi dựng, bộ cơ bản bật sẵn, phần còn lại là công tắc ở Cài đặt → *Tính năng*; ví dụ Zalo OA chưa bật thì trả 403. Cài đặt chia nhóm *Tính năng & Kết nối*, *Khách hàng*, *Công ty & Nhân sự*, *Cá nhân*; mục nào thuộc tính năng đang tắt thì ẩn.
-- Trên Vercel, API chạy trong chính app Next.js (một hàm, giới hạn 60 giây). File tải lên cần object storage: đặt `STORAGE_DRIVER=vercel-blob` với token Vercel Blob, hoặc driver tương thích S3 (xem `.env.example`). Thông báo dùng polling thay cho WebSocket. Tính năng dùng Redis cần máy chủ chạy liên tục, hãy dùng Cách 2.
+- Trên Vercel, API chạy trong chính app Next.js (một hàm, giới hạn 60 giây). File tải lên cần object storage: đặt `STORAGE_DRIVER=vercel-blob` với token Vercel Blob, hoặc driver tương thích S3 (xem `.env.example`). Thông báo dùng polling thay cho WebSocket.
 
 ### Cách 2: Tự cài bằng Docker Compose
 

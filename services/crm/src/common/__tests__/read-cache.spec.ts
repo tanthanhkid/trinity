@@ -42,4 +42,14 @@ describe('ReadCache (thay Redis, G12a)', () => {
     expect(c.get('k0')).toBeUndefined();
     expect(c.get(`k${ReadCache.MAX_KEYS}`)).toBe('x');
   });
+
+  it('quét khoá hết hạn theo chu kỳ, không quét ở mỗi lần ghi', () => {
+    const c = new ReadCache();
+    const t0 = 1_000_000;
+    c.set('old', 'x', 1, t0);
+    c.set('a', 'x', 60, t0 + 1_000); // chưa tới chu kỳ quét (lastSweep = t0): 'old' hết hạn nhưng vẫn nằm trong kho
+    expect(c.size).toBe(2);
+    c.set('b', 'x', 60, t0 + ReadCache.SWEEP_INTERVAL_MS + 1); // tới chu kỳ: quét
+    expect(c.size).toBe(2);
+  });
 });

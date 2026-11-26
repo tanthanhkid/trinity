@@ -19,7 +19,16 @@ interface Entry {
 @Injectable()
 export class ReadCache {
   static readonly MAX_KEYS = 5000;
+  /** Quét khoá hết hạn tối đa một lần mỗi chu kỳ này (không quét cả kho ở mỗi lần ghi). */
+  static readonly SWEEP_INTERVAL_MS = 30_000;
   private readonly store = new Map<string, Entry>();
+  private lastSweep = 0;
+
+  private sweepIfDue(now: number): void {
+    if (now - this.lastSweep < ReadCache.SWEEP_INTERVAL_MS) return;
+    this.lastSweep = now;
+    for (const [k, e] of this.store) if (e.expiresAt <= now) this.store.delete(k);
+  }
 
   get(key: string, now = Date.now()): string | undefined {
     if (isReadCacheDisabled()) return undefined;
@@ -34,13 +43,11 @@ export class ReadCache {
 
   set(key: string, value: string, ttlSec: number, now = Date.now()): void {
     if (isReadCacheDisabled() || !(ttlSec > 0)) return;
-    // Giữ bộ nhớ có trần: đầy thì bỏ khoá hết hạn trước, còn đầy thì bỏ khoá cũ nhất (Map giữ thứ tự chèn).
+    this.sweepIfDue(now);
+    // Giữ bộ nhớ có trần: vẫn đầy sau khi quét thì bỏ khoá cũ nhất (Map giữ thứ tự chèn).
     if (!this.store.has(key) && this.store.size >= ReadCache.MAX_KEYS) {
-      for (const [k, e] of this.store) if (e.expiresAt <= now) this.store.delete(k);
-      if (this.store.size >= ReadCache.MAX_KEYS) {
-        const first = this.store.keys().next();
-        if (!first.done) this.store.delete(first.value);
-      }
+      const first = this.store.keys().next();
+      if (!first.done) this.store.delete(first.value);
     }
     this.store.delete(key);
     this.store.set(key, { value, expiresAt: now + ttlSec * 1000 });

@@ -135,6 +135,29 @@ Build with `pnpm --filter "./packages/*" build && pnpm --filter @trinity/monolit
 run `node apps/monolith/dist/apps/monolith/src/main.js` and `NODE_OPTIONS=--require ./apps/web/peer-ip.cjs node apps/web/.next/standalone/apps/web/server.js` (the web process also needs `TRUSTED_PROXY` and the internal secret, see "Client IP") under a
 process manager of your choice (systemd, pm2). Apply migrations with `pnpm --filter @trinity/prisma migrate:deploy`.
 
+**Run exactly ONE API process.** Since Redis was removed (G12a), permission revocation (the role cache, 60 s TTL) and the
+MCP rate limits live in the memory of each process. With several workers a revoked permission can stay valid for up to
+60 seconds on the other workers and each worker counts rate limits on its own. Until cross-process invalidation through
+Postgres `NOTIFY` ships (G12b), the Node server supports a single API process only: do not use PM2 `exec_mode: 'cluster'`
+or `instances > 1`, and do not scale the compose service. The server logs a warning at startup when it detects PM2
+cluster mode. A sample PM2 file:
+
+```js
+// ecosystem.config.cjs
+module.exports = {
+  apps: [{
+    name: 'trinity-api',
+    script: 'apps/monolith/dist/apps/monolith/src/main.js',
+    exec_mode: 'fork', // not 'cluster'
+    instances: 1,      // must stay 1 until G12b
+  }],
+}
+```
+
+Read caches (customer counts, dashboard numbers) are kept in process memory with a short TTL. `TRINITY_DISABLE_READ_CACHE=1`
+turns them off so every read goes to the database (used for side-by-side comparison runs). `REDIS_URL` is no longer read
+by the Node server and is ignored if still set.
+
 ## Fast updates without Docker
 
 For a server run under a process manager, the maintainers' flow ([runbooks/fast-delivery.md](runbooks/fast-delivery.md)) is:

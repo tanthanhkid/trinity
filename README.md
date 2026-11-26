@@ -173,7 +173,7 @@ Then open the production URL and sign in with the admin account above. Notes:
 - The first admin is only created when it does not exist yet; redeploying never overwrites a password.
 - A new workspace starts empty on purpose: the first sign-in goes through the start wizard (type of business, modules, *Build my system*, first customer) before the app opens. Anyone whose account is created after the workspace was built goes straight into the app. After the build the core set is on and everything else is a switch in Settings → *Tính năng* ("Features"); Zalo OA, for example, answers 403 until its switch is on. Settings is grouped in the Vietnamese UI as *Tính năng & Kết nối* (features & connections), *Khách hàng* (customer lists), *Công ty & Nhân sự* (users, roles, teams) and *Cá nhân* (profile, notifications); a section only shows when its feature is on.
 - The interface is currently **Vietnamese only**. Your data and the AI tools work in any language.
-- Vercel runs the API inside the Next.js app (one function, 60 s limit). Uploaded files need object storage: set `STORAGE_DRIVER=vercel-blob` with a Vercel Blob token, or an S3-compatible driver (see `.env.example`). Notifications use polling instead of WebSockets. Redis-backed features need a long-running server, so use Option 2 for them.
+- Vercel runs the API inside the Next.js app (one function, 60 s limit). Uploaded files need object storage: set `STORAGE_DRIVER=vercel-blob` with a Vercel Blob token, or an S3-compatible driver (see `.env.example`). Notifications use polling instead of WebSockets.
 
 ### Option 2: Self-host with Docker Compose
 

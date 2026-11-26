@@ -1,0 +1,88 @@
+name: PR triage
+
+# Gắn nhãn theo đường dẫn + cỡ PR, kiểm tiêu đề conventional commits. KHÔNG checkout mã của PR (pull_request_target an toàn).
+# Không bắt buộc cho merge.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: pr-triage-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  labeler:
+    name: Label by path
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
+        with:
+          sync-labels: true
+
+  size:
+    name: Label by size
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner, repo: context.repo.repo, pull_number: pr.number, per_page: 100,
+            });
+            // Bỏ lockfile và tệp sinh tự động khi đo cỡ.
+            const skip = /(^|\/)(pnpm-lock\.yaml|package-lock\.json)$|\.snap$/;
+            const lines = files.filter((f) => !skip.test(f.filename)).reduce((n, f) => n + f.additions + f.deletions, 0);
+            const bands = [['size/XS', 10], ['size/S', 50], ['size/M', 250], ['size/L', 1000], ['size/XL', Infinity]];
+            const label = bands.find(([, max]) => lines <= max)[0];
+            const colors = { 'size/XS': '3fb950', 'size/S': '7ee787', 'size/M': 'd29922', 'size/L': 'db6d28', 'size/XL': 'f85149' };
+            for (const [name] of bands) {
+              try {
+                await github.rest.issues.createLabel({ ...context.repo, name, color: colors[name] });
+              } catch (e) { if (e.status !== 422) throw e; }
+            }
+            const current = pr.labels.map((l) => l.name);
+            for (const name of current.filter((n) => n.startsWith('size/') && n !== label)) {
+              await github.rest.issues.removeLabel({ ...context.repo, issue_number: pr.number, name });
+            }
+            if (!current.includes(label)) {
+              await github.rest.issues.addLabels({ ...context.repo, issue_number: pr.number, labels: [label] });
+            }
+            core.info(`${lines} dòng đổi → ${label}`);
+
+  title:
+    name: Conventional PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@66e72920af32222769c386d81f89656ebcb6d6d5 # v6.1.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            test
+            build
+            ci
+            chore
+            style
+            revert
+          requireScope: false

@@ -1,0 +1,29 @@
+name: Bug report · Báo lỗi
+description: Something is broken · Có gì đó không chạy
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste passwords, API keys, tokens or customers' phone numbers here. · Đừng dán mật khẩu, khoá API, token hay số điện thoại của khách vào đây.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened · Chuyện gì xảy ra
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce · Các bước tái hiện
+      placeholder: "1. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected · Mong đợi
+  - type: input
+    id: version
+    attributes:
+      label: Version, OS, browser · Phiên bản, hệ điều hành, trình duyệt

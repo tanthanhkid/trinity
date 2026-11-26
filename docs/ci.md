@@ -1,0 +1,45 @@
+# CI/CD và tính năng GitHub
+
+Nguyên tắc: check **bắt buộc** phải nhanh (mục tiêu ≤ 5 phút); việc nặng chạy song song, không bắt buộc, hoặc chạy hằng đêm.
+
+## Check bắt buộc cho merge vào `main`
+| Check | Workflow | Nội dung |
+|---|---|---|
+| `ci-ok` | `ci.yml` | Tổng hợp `Lint` + `Typecheck` + `Unit tests` + `Secret scan (gitleaks)` |
+| `Secret scan (gitleaks)` | `ci.yml` | gitleaks trên lịch sử PR |
+| `CLA` | `cla.yml` | Người góp mã ký CLA một lần bằng bình luận |
+
+## Không bắt buộc (chạy song song, xem kết quả khi cần)
+| Job | Workflow | Khi nào | Nội dung |
+|---|---|---|---|
+| `Build api (monolith)` | `ci.yml` | PR + push main | `tsc` build monolith |
+| `Tests with Postgres (migrate + db specs)` | `ci.yml` | PR (khi đổi SQL/migration) + push main | Postgres 16: migrate + `*.pg.spec` / `*.db.spec` |
+| `Web build and UI checks` | `ci.yml` | PR (khi đổi web/packages) + push main | `next build`, ngân sách JS, tương phản, UI audit, break-it |
+| `Dependency review` | `dependency-review.yml` | PR | Chặn dependency lỗ hổng ≥ high |
+| `Label by path / size`, `Conventional PR title` | `pr-triage.yml` | PR | Nhãn + kiểm tiêu đề `type(scope): …` |
+| `Nightly` (full test, Postgres, e2e Playwright, `pnpm audit`, OSV) | `nightly.yml` | 02:00 giờ VN + chạy tay | Toàn bộ test; báo cáo Playwright là artifact |
+| `Scorecard` | `scorecard.yml` | push main + hằng tuần | OpenSSF Scorecard → Code scanning |
+| CodeQL | "default setup" của GitHub | PR + push + hằng tuần | JavaScript/TypeScript, Actions |
+| `Stale` | `stale.yml` | Hằng ngày | Issue 90+30 ngày, PR 45+21 ngày; bỏ qua `pinned`, `security`, `roadmap`, `help wanted`, `good first issue` |
+
+PR chỉ lint/typecheck/test **gói bị đổi** (và gói phụ thuộc với typecheck); push `main` chạy tất cả.
+
+## Phát hành
+1. Commit theo conventional commits (`feat(web): …`, `fix: …`). Tiêu đề PR cũng theo dạng này vì repo chỉ cho squash merge và lấy tiêu đề PR làm commit.
+2. `release.yml` (release-please) mở **Release PR** tăng phiên bản trong `package.json`. `CHANGELOG.md` viết tay giữ nguyên; ghi chú tự sinh nằm trong GitHub Release.
+3. Merge Release PR → tag `vX.Y.Z` + GitHub Release → `docker.yml` dựng `trinity-api` / `trinity-web` (amd64 + arm64), đẩy GHCR, kèm SBOM, provenance (`actions/attest-build-provenance`) và chữ ký cosign keyless.
+4. Lưu ý: PR do `GITHUB_TOKEN` tạo không tự kích hoạt CI. Với Release PR, đóng rồi mở lại (hoặc bấm "Update branch") để các check chạy.
+
+Thử Dockerfile mà không phát hành: Actions → Docker image → Run workflow (chỉ amd64, không đẩy).
+
+Kiểm chứng chữ ký: `cosign verify ghcr.io/tanthanhkid/trinity-api:<tag> --certificate-identity-regexp 'https://github.com/tanthanhkid/trinity/' --certificate-oidc-issuer https://token.actions.githubusercontent.com`.
+
+## Chạy lại
+- Một job: trang PR → Checks → job → "Re-run".
+- Workflow chạy tay: Actions → chọn workflow → "Run workflow" (CI, Nightly, Docker, Scorecard, Stale, Release có `workflow_dispatch`).
+- CLA: bình luận `recheck`.
+
+## Quy ước
+- Mọi action ghim SHA kèm comment phiên bản; Dependabot (`github-actions`) cập nhật hằng tuần.
+- Mỗi job khai `permissions` tối thiểu; chỉ dùng `GITHUB_TOKEN`, không PAT/secret riêng.
+- Dependabot: npm gom minor/patch theo tuần (tối đa 5 PR), github-actions, docker.

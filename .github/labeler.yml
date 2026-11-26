@@ -1,0 +1,28 @@
+# actions/labeler v5+: nhãn theo đường dẫn tệp đổi.
+web:
+  - changed-files:
+      - any-glob-to-any-file: apps/web/**
+api:
+  - changed-files:
+      - any-glob-to-any-file: [apps/monolith/**, services/**]
+packages:
+  - changed-files:
+      - any-glob-to-any-file: packages/**
+database:
+  - changed-files:
+      - any-glob-to-any-file: packages/prisma/**
+ci:
+  - changed-files:
+      - any-glob-to-any-file: ['.github/**', Dockerfile, .dockerignore]
+docs:
+  - changed-files:
+      - any-glob-to-any-file: ['docs/**', '*.md']
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file: [pnpm-lock.yaml, '**/package.json']
+tests:
+  - changed-files:
+      - any-glob-to-any-file: ['**/*.spec.ts', '**/*.test.ts', 'tests/**', 'apps/web/e2e/**']
+integrations:
+  - changed-files:
+      - any-glob-to-any-file: integrations/**

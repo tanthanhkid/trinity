@@ -9,6 +9,11 @@ Tác giả: **Trần Tấn Thành** · [X @trntnthnh](https://x.com/trntnthnh) �
 
 [English](README.md) · [Website](https://phanmemtrinity.com) · [Triển khai](#triển-khai) · [Lộ trình](ROADMAP.md) · [Đóng góp](CONTRIBUTING.md)
 
+[![CI](https://github.com/tanthanhkid/trinity/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tanthanhkid/trinity/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/tanthanhkid/trinity/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/tanthanhkid/trinity/security/code-scanning)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/tanthanhkid/trinity/badge)](https://scorecard.dev/viewer/?uri=github.com/tanthanhkid/trinity)
+[![License: AGPL-3.0](https://img.shields.io/github/license/tanthanhkid/trinity)](LICENSE)
+
 </div>
 
 ---

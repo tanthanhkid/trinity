@@ -188,6 +188,17 @@ The Rust rewrite of the backend (`server/`, [docs/rust/PLAN.md](rust/PLAN.md)) i
   serves each route prefix and runs each background job. Format and matching rules (longest prefix, then method; `GET`
   also covers `HEAD`): [server/README.md](../server/README.md#tệp-sở-hữu-trinity_ownership_file).
 
+### TLS at the origin
+
+These settings apply once the `trinity serve` command exists; the building block (`trinity_http::serve`) is merged but not wired into a command yet.
+
+TLS is terminated by Cloudflare. The Rust server never requests certificates (no ACME).
+
+- `TLS_MODE=off` (default): plain HTTP, for Cloudflare Tunnel or a reverse proxy on the same host.
+- `TLS_MODE=files`: HTTPS from PEM files, e.g. a Cloudflare Origin Certificate (set Cloudflare SSL mode to Full (strict)). Needs `TLS_CERT_FILE` (certificate chain) and `TLS_KEY_FILE` (private key); startup fails with a clear message if a file is missing, empty, or the key does not match. HTTP/2 and HTTP/1.1 are offered. Certificates are read at startup, so restart the service after renewing them.
+
+On SIGTERM or SIGINT the server stops accepting connections, lets requests already in progress finish (up to 30 seconds), then exits. WebSocket and other upgraded connections (for example `/notif-ws`) are not drained: they are cut when the grace period ends, so clients must reconnect after a restart. Connections that never finish a TLS handshake (10 seconds), never send request headers (30 seconds), or go silent on HTTP/2 (ping every 30 seconds, closed 20 seconds after no answer) are dropped. Set the service manager's stop timeout above 30 seconds (systemd `TimeoutStopSec=45`).
+
 ## Monitoring (optional)
 
 Trinity can report errors to [Sentry](https://sentry.io) and send anonymous product metrics to

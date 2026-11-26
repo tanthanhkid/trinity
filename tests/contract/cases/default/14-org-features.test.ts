@@ -1,10 +1,23 @@
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { closeDb, q, seedUser, setSetting } from '../../lib/db.js'
 import { api, control, freshIp } from '../../lib/http.js'
 import { golden, snap } from '../../lib/golden.js'
 import { loginSeeded } from '../../lib/session.js'
 
-afterAll(closeDb)
+// Khôi phục `setup_status` và `org_features` như trước file này (các file sau chạy chung DB và máy chủ).
+let saved: Record<string, string | null> = {}
+beforeAll(async () => {
+  const rows = await q<{ key: string; value: string }>(`SELECT key, value FROM settings WHERE key IN ('setup_status', 'org_features')`)
+  saved = { setup_status: null, org_features: null, ...Object.fromEntries(rows.map((r) => [r.key, r.value])) }
+})
+afterAll(async () => {
+  for (const [key, value] of Object.entries(saved)) {
+    if (value === null) await q(`DELETE FROM settings WHERE key = $1`, [key])
+    else await setSetting(key, value)
+  }
+  await control.flushCache()
+  await closeDb()
+})
 
 /**
  * C08, từ `org-features.e2e-spec.ts` (4 ca). "Tính năng của tổ chức": GET = AuthOnly, PUT = `settings.features`; cập nhật một phần;

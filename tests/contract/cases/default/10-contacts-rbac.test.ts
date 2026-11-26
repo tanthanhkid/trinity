@@ -117,9 +117,14 @@ describe('RBAC — Contacts', () => {
     it('thiếu contacts.phone_full toàn công ty: tra < 9 chữ số → rỗng (chặn dò từng chữ số)', async () => {
       const u = await seedUser({ label: 'search2', grants: { 'contacts.create': null, 'contacts.phone_full': 'team' } })
       await makeContact({ phone: '0900000602', assignedTo: u.id, name: 'Khách tra trùng E2E' })
-      const res = await get('/contacts/search?q=98765', await token(u))
+      // Đoạn 7 chữ số CÓ trong SĐT đã seed: rỗng ở đây chứng minh bị chặn, không phải vì không khớp.
+      const res = await get('/contacts/search?q=0000602', await token(u))
       expect(res.status).toBe(200)
       expect((res.body as { data: unknown[] }).data).toHaveLength(0)
+      // Đối chứng: cùng truy vấn với phone_full toàn công ty thì tìm thấy đúng khách đó.
+      const full = await seedUser({ label: 'search2-full', grants: { 'contacts.create': null, 'contacts.phone_full': 'all' } })
+      const found = await get('/contacts/search?q=0000602', await token(full))
+      expect((found.body as { data: { phone: string }[] }).data.map((c) => c.phone)).toEqual(['0900000602'])
     })
 
     it('contacts.phone_full scope all: tra chuỗi ngắn được và thấy số thật', async () => {

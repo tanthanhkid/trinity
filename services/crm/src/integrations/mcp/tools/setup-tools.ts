@@ -1,4 +1,4 @@
-import { can, INDUSTRY_KEYS, INDUSTRY_PRESETS, ORG_FEATURES, type OrgFeatureKey } from '@trinity/rbac';
+import { can, ORG_FEATURES, type OrgFeatureKey } from '@trinity/rbac';
 import { isObjectVisible, loadObjectAccess } from '../../../custom-objects/custom-object-access';
 import { wrapData } from '../ai-output';
 import { SETUP_INTERVIEW, SETUP_STEPS } from './setup-guide';
@@ -74,35 +74,6 @@ export const completeSetupTool: ToolDef = {
     if (status === 'chua_dung') throw new ToolUserError('Chưa dựng: hãy phỏng vấn và dựng gói bằng propose_workspace (nếu workspace bật chế độ duyệt: chờ khách duyệt) rồi mới complete_setup.');
     if (status === 'dang_dung') await deps.setup.set('da_dung', principal.userId);
     const out = wrapData({ status: 'da_dung', message: 'Đã hoàn tất dựng CRM. Menu đầy đủ đã hiện cho mọi người.' });
-    return { structured: out, text: JSON.stringify(out) };
-  },
-};
-
-export const setupBuildTool: ToolDef = {
-  name: 'setup_build',
-  title: 'Dựng hệ thống theo loại doanh nghiệp / Build workspace from an industry preset',
-  description:
-    'Dựng CRM trong MỘT lần gọi, không cần phỏng vấn: chọn loại doanh nghiệp (industry) và các phân hệ muốn dùng (features). Trinity áp mẫu ngành (bảng + trường + liên kết), ' +
-    'lưu phân hệ, kèm vài bản ghi MẪU (dữ liệu giả, tự xoá khi có bản ghi thật đầu tiên) và đặt trạng thái đã dựng. Chạy lại được: bảng đã có thì giữ nguyên; chạy lại KHÔNG truyền features thì giữ các phân hệ đang bật (không tắt gì), có truyền features thì thay đúng theo danh sách đó. ' +
-    `industry: ${INDUSTRY_KEYS.map((k) => `${k}=${INDUSTRY_PRESETS[k].label}`).join('; ')}. ` +
-    `features (tuỳ chọn; bỏ trống = bộ gợi ý của ngành; bộ cơ bản dashboard, contacts, kanban, reports luôn bật): ${Object.entries(ORG_FEATURES).map(([k, v]) => `${k}=${v.label}`).join('; ')}. ` +
-    'Muốn bảng riêng theo lời khách thì dùng propose_workspace thay vì tool này. Chỉ quản trị viên. / Builds the workspace in one call from an industry preset (admins only).',
-  permissions: ['custom_objects.manage', 'settings.features'],
-  scope: 'crm.write',
-  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
-  input: (z) => ({
-    industry: z.enum(INDUSTRY_KEYS as unknown as [string, ...string[]]).describe('Loại doanh nghiệp / Industry preset'),
-    features: z.array(z.string().max(32)).max(30).optional().describe('Khoá phân hệ muốn dùng; bỏ trống = bộ gợi ý của ngành / Module keys; omit for the industry default'),
-  }),
-  output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
-  async run(args, { deps, principal }) {
-    if (!deps.setupBuild) throw new ToolUserError('Máy chủ này chưa bật tính năng dựng theo loại doanh nghiệp.');
-    const r = await deps.setupBuild.build(principal.user, { industry: String(args.industry), features: Array.isArray(args.features) ? args.features.map(String) : undefined });
-    const out = wrapData({
-      industry: r.industry, features_on: r.features, created_objects: r.created_objects, kept_objects: r.existing_objects,
-      sample_records: r.sample_records + r.sample_contacts, setup_status: r.setup_status,
-      message: 'Đã dựng xong. Bản ghi mẫu tự xoá khi người dùng tạo bản ghi thật đầu tiên.',
-    });
     return { structured: out, text: JSON.stringify(out) };
   },
 };

@@ -86,20 +86,30 @@ export class SampleRecordsService {
   /** Có bản ghi thật ⇒ xoá mẫu. Trả true nếu vừa xoá. Không bao giờ ném lỗi. */
   async purgeIfReal(): Promise<boolean> {
     try {
-      const sample = await this.read();
-      if (!sample) return false;
-      if (!(await this.hasReal(sample))) return false;
       const now = new Date();
       let removed = { contacts: 0, records: 0 };
+      let purged = false;
       await this.prisma.$transaction(async (tx) => {
         await this.lock(tx);
+        // Đọc lại danh sách và tính lại "có bản ghi thật" TRONG khoá: mẫu đăng ký giữa chừng không bị mất theo dõi.
+        const sample = await this.read(tx);
+        if (!sample || !(await this.hasReal(sample, tx))) return;
         // Chỉ xoá mẫu còn NGUYÊN: mẫu người dùng đã sửa hoặc đã có bản ghi thật liên kết tới được giữ lại (thành dữ liệu thật).
         const drop = await this.untouched(tx, sample);
         if (drop.contacts.length) await tx.contact.updateMany({ where: { id: { in: drop.contacts }, deleted_at: null }, data: { deleted_at: now } });
         if (drop.records.length) await tx.customRecord.updateMany({ where: { id: { in: drop.records }, deleted_at: null }, data: { deleted_at: now } });
         removed = { contacts: drop.contacts.length, records: drop.records.length };
-        await tx.setting.deleteMany({ where: { key: SAMPLE_RECORDS_KEY } });
+        // Mọi id đã đọc ở trên đều đã xử lý (xoá hoặc gỡ theo dõi); chỉ giữ lại id đăng ký sau đó (không có trong khoá này), dòng rỗng thì xoá.
+        const left = await this.read(tx);
+        const rest: SampleIds = { contacts: (left?.contacts ?? []).filter((id) => !sample.contacts.includes(id)), records: (left?.records ?? []).filter((id) => !sample.records.includes(id)) };
+        if (rest.contacts.length || rest.records.length) {
+          await tx.setting.update({ where: { key: SAMPLE_RECORDS_KEY }, data: { value: JSON.stringify(rest) } });
+        } else {
+          await tx.setting.deleteMany({ where: { key: SAMPLE_RECORDS_KEY } });
+        }
+        purged = true;
       });
+      if (!purged) return false;
       if (removed.contacts) await this.dropContactCountCache();
       this.logger.log(`đã xoá bản ghi mẫu (khách ${removed.contacts}, bản ghi ${removed.records}) vì có bản ghi thật đầu tiên`);
       return true;

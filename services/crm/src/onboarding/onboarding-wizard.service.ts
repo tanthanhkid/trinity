@@ -33,11 +33,11 @@ export const wizardDoneKey = (userId: number): string => `onboarding_done:user:$
 export const wizardSkipKey = (userId: number): string => `onboarding_skip:user:${userId}`;
 
 /** Quyền cần để TỰ làm bước (thiếu thì bước vẫn bắt buộc, màn hình nhờ quản trị viên làm). */
-const STEP_PERMISSION: Partial<Record<WizardStepKey, Parameters<typeof can>[1]>> = {
-  industry: 'custom_objects.manage',
-  modules: 'custom_objects.manage',
-  channels: 'social.manage',
-  post: 'social.post',
+const STEP_PERMISSION: Partial<Record<WizardStepKey, Parameters<typeof can>[1][]>> = {
+  industry: ['custom_objects.manage', 'settings.features'],
+  modules: ['custom_objects.manage', 'settings.features'],
+  channels: ['social.manage'],
+  post: ['social.post'],
 };
 
 /** Chưa đạt thì nói rõ thiếu gì và làm sao — lời cho người dùng thường, không thuật ngữ. */
@@ -72,14 +72,18 @@ export interface ConfirmResult {
   wizard: WizardView;
 }
 
+/** Mặc định CŨ là đúng ['post']: chỉ config đúng bằng giá trị đó mới được nâng lên mặc định mới; danh sách admin tự chọn thì giữ nguyên. */
+function upgradeSkippable(list: WizardStepKey[]): WizardStepKey[] {
+  return list.length === 1 && list[0] === 'post' ? [...DEFAULT_WIZARD_CONFIG.skippable] : list;
+}
+
 export function parseWizardConfig(raw: string | null | undefined): WizardConfig {
   if (!raw) return { ...DEFAULT_WIZARD_CONFIG };
   try {
     const v = JSON.parse(raw) as Partial<WizardConfig>;
     return {
       enabled: v.enabled !== false,
-      // Hợp nhất với mặc định mới (config cũ chỉ có 'post' vẫn được bỏ qua dữ liệu/kênh); muốn khoá hẳn thì tắt wizard hoặc đặt skippable rỗng.
-      skippable: Array.isArray(v.skippable) ? (v.skippable.length === 0 ? [] : [...new Set([...DEFAULT_WIZARD_CONFIG.skippable, ...v.skippable.filter(isWizardStep)])]) : [...DEFAULT_WIZARD_CONFIG.skippable],
+      skippable: Array.isArray(v.skippable) ? upgradeSkippable(v.skippable.filter(isWizardStep)) : [...DEFAULT_WIZARD_CONFIG.skippable],
       exempt_before: typeof v.exempt_before === 'string' && !Number.isNaN(Date.parse(v.exempt_before)) ? v.exempt_before : null,
     };
   } catch {
@@ -198,7 +202,7 @@ export class OnboardingWizardService {
         done: checks[key],
         skipped: !checks[key] && skipped.includes(key) && cfg.skippable.includes(key),
         can_skip: cfg.skippable.includes(key),
-        needs_admin: !!perm && !can(grants, perm),
+        needs_admin: !!perm && perm.some((p) => !can(grants, p)),
       };
     });
     const current = list.find((s) => !s.done && !s.skipped)?.key ?? null;

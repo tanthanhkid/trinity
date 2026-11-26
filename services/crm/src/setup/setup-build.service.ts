@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@trinity/prisma';
 import { trackProductEvent } from '@trinity/logger';
-import { can, INDUSTRY_PRESETS, isIndustryKey, resolveBuildFeatures, resolveOrgFeatures, LOCKED_FEATURES, ORG_FEATURE_KEYS, INDUSTRY_KEYS, type IndustryKey, type OrgFeatureKey } from '@trinity/rbac';
+import { SETUP_STATUS_SETTING_KEY, can, INDUSTRY_PRESETS, isIndustryKey, resolveBuildFeatures, resolveOrgFeatures, LOCKED_FEATURES, ORG_FEATURE_KEYS, INDUSTRY_KEYS, type IndustryKey, type OrgFeatureKey } from '@trinity/rbac';
 import type { AuthUser } from '@trinity/rbac-nest';
 import { CustomObjectTemplatesService } from '../custom-objects/custom-object-templates.service';
 import { OrgFeaturesService } from '../settings/org-features.service';
@@ -46,13 +46,30 @@ export class SetupBuildService {
     private readonly samples: SampleRecordsService,
   ) {}
 
-  /** Đã dựng (bấm Dựng hoặc bản cài cũ đã có bảng tuỳ biến do AI dựng). */
+  /**
+   * Đã dựng: bấm "Dựng" (`setup_built`), hoặc bản cài cũ — có bảng tuỳ biến do AI dựng, hoặc `setup_status` ĐÃ GHI là da_dung/dang_dung
+   * (luồng AI cũ: propose_workspace/complete_setup). DB mới từ migration khởi tạo là chua_dung nên vẫn vào wizard; dòng vắng không tính.
+   */
   async isBuilt(): Promise<boolean> {
-    const [row, obj] = await Promise.all([
+    const [row, obj, status] = await Promise.all([
       this.prisma.setting.findUnique({ where: { key: SETUP_BUILT_KEY }, select: { key: true } }),
       this.prisma.customObject.findFirst({ where: { deleted_at: null, is_active: true }, select: { id: true } }),
+      this.prisma.setting.findUnique({ where: { key: SETUP_STATUS_SETTING_KEY }, select: { value: true } }),
     ]);
-    return row != null || obj != null;
+    const s = status?.value?.trim();
+    return row != null || obj != null || s === 'da_dung' || s === 'dang_dung';
+  }
+
+  /** Phân hệ sẽ bật khi dựng (+ built_at lần đầu nếu đã dựng): dựng lại không truyền `features` thì GIỮ cấu hình đang lưu, không tắt gì. */
+  async plan(industry: IndustryKey, chosen?: string[] | null): Promise<{ features: OrgFeatureKey[]; firstBuiltAt: string | null; rebuild: boolean }> {
+    const prev = await this.prisma.setting.findUnique({ where: { key: SETUP_BUILT_KEY }, select: { value: true } });
+    let firstBuiltAt: string | null = null;
+    try { firstBuiltAt = prev?.value ? ((JSON.parse(prev.value) as { built_at?: string }).built_at ?? null) : null; } catch { firstBuiltAt = null; }
+    if (chosen == null && prev) {
+      const kept = resolveOrgFeatures(await this.features.stored());
+      return { features: ORG_FEATURE_KEYS.filter((k) => kept[k] || LOCKED_FEATURES.includes(k)), firstBuiltAt, rebuild: true };
+    }
+    return { features: resolveBuildFeatures(industry, chosen), firstBuiltAt, rebuild: !!prev };
   }
 
   async build(user: AuthUser, input: BuildInput): Promise<BuildResult> {
@@ -65,18 +82,7 @@ export class SetupBuildService {
     if (input.features != null && !Array.isArray(input.features)) throw new BadRequestException('Danh sách phân hệ phải là mảng.');
     const industry = input.industry;
     const preset = INDUSTRY_PRESETS[industry];
-    // Đã dựng trước đó (lấy built_at lần ĐẦU để giữ nguyên): dựng lại KHÔNG truyền features thì giữ cấu hình đang lưu (không tắt gì,
-    // chỉ bật bộ cơ bản); có features thì mới thay theo danh sách đó.
-    const prev = await this.prisma.setting.findUnique({ where: { key: SETUP_BUILT_KEY }, select: { value: true } });
-    let firstBuiltAt: string | null = null;
-    try { firstBuiltAt = prev?.value ? ((JSON.parse(prev.value) as { built_at?: string }).built_at ?? null) : null; } catch { firstBuiltAt = null; }
-    let features: OrgFeatureKey[];
-    if (input.features == null && prev) {
-      const kept = resolveOrgFeatures(await this.features.stored());
-      features = ORG_FEATURE_KEYS.filter((k) => kept[k] || LOCKED_FEATURES.includes(k));
-    } else {
-      features = resolveBuildFeatures(industry, input.features);
-    }
+    const { features, firstBuiltAt } = await this.plan(industry, input.features);
     // Mẫu chỉ sinh khi công ty CHƯA có dữ liệu thật (dựng lại trên hệ thống đang chạy không chèn dữ liệu giả vào lẫn).
     const wantSamples = !(await this.samples.hasReal(await this.samples.read())) && can(user.grants, 'custom_records.manage');
 

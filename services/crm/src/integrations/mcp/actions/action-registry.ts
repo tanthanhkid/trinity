@@ -4,7 +4,7 @@ import { createRecordAction, updateRecordAction } from './action-record-tools';
 import { archiveRecordAction } from './action-archive-record';
 import { addFieldAction, archiveFieldAction, updateFieldAction } from './action-field-tools';
 import { createObjectAction, createObjectsAction, updateObjectAction } from './action-structure-tools';
-import { installTemplateAction } from './action-template-tools';
+import { installTemplateAction, setupBuildAction } from './action-template-tools';
 import { createTaskAction } from './action-task-tool';
 import { createViewAction, setMenuAction, updateViewAction } from './action-view-tools';
 import { proposeWorkspaceAction } from './action-workspace';
@@ -16,7 +16,7 @@ import { createSocialPostAction, importSocialPostsAction, publishSocialDraftActi
 
 /** TOÀN BỘ thao tác ghi mà AI được ĐỀ XUẤT. Cố ý KHÔNG có xoá / xuất file / quản trị — thêm tool ghi mới = thêm vào đây. */
 export const ACTION_TOOLS: readonly ActionToolDef[] = [createContactAction, addNoteAction, updateStageAction, createTaskAction, assignContactAction, createRecordAction, updateRecordAction, archiveRecordAction,
-  createObjectsAction, createObjectAction, updateObjectAction, addFieldAction, updateFieldAction, archiveFieldAction, installTemplateAction,
+  createObjectsAction, createObjectAction, updateObjectAction, addFieldAction, updateFieldAction, archiveFieldAction, installTemplateAction, setupBuildAction,
   proposeWorkspaceAction, importRecordsAction, linkRecordsAction, createViewAction, updateViewAction, setMenuAction, restoreVersionAction,
   createSocialPostAction, retrySocialTargetAction, updateScheduledPostAction, rescheduleSocialPostAction, publishSocialDraftAction, importSocialPostsAction, createRecurringPostAction, updateRecurringPostAction, setRecurringPostActiveAction];
 

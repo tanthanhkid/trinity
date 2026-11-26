@@ -15,6 +15,7 @@ import type { CustomViewsService } from '../../../custom-objects/custom-views.se
 import type { CustomMenuService } from '../../../custom-objects/custom-menu.service';
 import type { OrgFeaturesService } from '../../../settings/org-features.service';
 import type { SetupStatusService } from '../../../setup/setup-status.service';
+import type { SetupBuildService } from '../../../setup/setup-build.service';
 import type { SchemaVersionsService } from '../../../custom-objects/schema-versions.service';
 import type { Z, ZodShape } from '../tools/tool-types';
 import type { RecordRefsService } from '../../../custom-objects/refs/record-refs.service';
@@ -50,6 +51,8 @@ export interface ActionDeps {
   /** gói dựng bật/tắt tính năng + chuyển trạng thái dựng. */
   orgFeatures: OrgFeaturesService;
   setup: SetupStatusService;
+  /** dựng hệ thống theo loại doanh nghiệp (setup_build); chỉ có khi OnboardingModule được nối. */
+  setupBuild?: SetupBuildService;
   /** phiên bản cấu trúc để quay lui. */
   versions: SchemaVersionsService;
   /** Mã chung + gắn thẻ: tra mã/khoá → bản ghi (theo quyền), ghi cạnh liên kết. */

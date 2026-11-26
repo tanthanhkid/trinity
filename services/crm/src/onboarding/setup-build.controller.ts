@@ -16,7 +16,7 @@ export class SetupBuildController {
   ) {}
 
   @Post()
-  @Can('custom_objects.manage')
+  @Can('custom_objects.manage', 'settings.features')
   @HttpCode(200)
   @ApiOperation({ summary: 'Dựng hệ thống: lưu phân hệ, áp mẫu ngành (bảng + trường), kèm vài bản ghi mẫu tự xoá khi có bản ghi thật đầu tiên. Chạy lại được.' })
   async run(@CurrentUser() user: AuthUser, @Body() dto: BuildSystemDto) {

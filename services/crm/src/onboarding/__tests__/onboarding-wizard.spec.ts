@@ -55,9 +55,7 @@ describe('parseWizardConfig', () => {
     expect(parseWizardConfig('{rác')).toEqual(def);
     expect(parseWizardConfig('{"enabled":true}')).toEqual(def);
     expect(parseWizardConfig('{"skippable":[]}')).toEqual({ ...def, skippable: [] });
-    // config cũ chỉ có 'post' được hợp nhất với mặc định mới
-    expect(parseWizardConfig('{"skippable":["post","ai","xx"],"exempt_before":"không phải ngày"}')).toEqual(def);
-    expect(parseWizardConfig('{"skippable":["post"]}').skippable).toEqual(['data', 'channels', 'post']);
+    expect(parseWizardConfig('{"skippable":["post","ai","xx"],"exempt_before":"không phải ngày"}')).toEqual(def); // = ['post'] sau khi lọc ⇒ nâng lên mặc định mới
   });
 });
 
@@ -81,6 +79,19 @@ describe('OnboardingWizardService', () => {
     expect(r.ok).toBe(false);
     expect(r.message).toMatch(/quản trị viên/);
     expect(r.wizard.steps.find((s) => s.key === 'modules')?.needs_admin).toBe(true);
+  });
+
+  it('needs_admin của bước dựng: thiếu BẤT KỲ quyền nào (cần cả custom_objects.manage và settings.features)', async () => {
+    const onlyObjects = { 'custom_objects.manage': true } as unknown as Grants;
+    const both = { 'custom_objects.manage': true, 'settings.features': true } as unknown as Grants;
+    expect((await make().svc.view(7, onlyObjects)).steps.find((s) => s.key === 'modules')?.needs_admin).toBe(true);
+    expect((await make().svc.view(7, both)).steps.find((s) => s.key === 'modules')?.needs_admin).toBe(false);
+  });
+
+  it('config: chỉ nâng đúng [post] (mặc định cũ); danh sách admin tự chọn thì giữ nguyên', () => {
+    expect(parseWizardConfig('{"skippable":["post"]}').skippable).toEqual(['data', 'channels', 'post']);
+    expect(parseWizardConfig('{"skippable":["channels"]}').skippable).toEqual(['channels']);
+    expect(parseWizardConfig('{"skippable":["data","post"]}').skippable).toEqual(['data', 'post']);
   });
 
   it('bản cài cũ đã có bảng tuỳ biến ⇒ hai bước đầu tự đạt', async () => {

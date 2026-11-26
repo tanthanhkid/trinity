@@ -168,4 +168,22 @@ d('Dựng hệ thống + bản ghi mẫu — DB thật', () => {
     expect(await liveContacts()).toBe(3);
     expect((await samples.read())?.contacts).toHaveLength(3);
   });
+
+  it('dọn mẫu: id đăng ký giữa chừng (sau lúc đọc) không bị mất theo dõi; dòng chỉ xoá khi rỗng', async () => {
+    await build.build(admin, { industry: 'other' });
+    const orig = samples.hasReal.bind(samples);
+    const extra = 999_999;
+    const spy = jest.spyOn(samples, 'hasReal').mockImplementation(async (...a: Parameters<typeof orig>) => {
+      const r = await orig(...a);
+      // Giả lập đăng ký đồng thời ngay giữa lúc dọn (ghi trực tiếp, ngoài khoá).
+      const cur = JSON.parse((await prisma.setting.findUnique({ where: { key: SAMPLE_RECORDS_KEY } }))!.value);
+      await prisma.setting.update({ where: { key: SAMPLE_RECORDS_KEY }, data: { value: JSON.stringify({ ...cur, records: [...cur.records, extra] }) } });
+      return r;
+    });
+    await prisma.contact.create({ data: { phone: '0988000111', full_name: 'Khách thật', assigned_to: admin.userId } });
+    expect(await samples.purgeIfReal()).toBe(true);
+    spy.mockRestore();
+    expect(await liveContacts()).toBe(1);
+    expect(await samples.read()).toEqual({ contacts: [], records: [extra] }); // id đăng ký sau vẫn được theo dõi
+  });
 });

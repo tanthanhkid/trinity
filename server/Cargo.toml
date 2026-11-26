@@ -51,6 +51,7 @@ sqlx = { version = "0.9", default-features = false, features = [
 # Dữ liệu, mã hoá, thời gian
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+url = "2.5"
 jsonwebtoken = "12"
 bcrypt = "0.19"
 aes-gcm = "0.11"

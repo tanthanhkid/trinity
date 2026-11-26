@@ -1,0 +1,22 @@
+[
+  { "method": "GET", "path": "/api/v1/settings" },
+  { "method": "PATCH", "path": "/api/v1/settings" },
+  { "method": "GET", "path": "/api/v1/settings/options" },
+  { "method": "GET", "path": "/api/v1/settings/org-features" },
+  { "method": "GET", "path": "/api/v1/settings/channel-guard" },
+  { "method": "PUT", "path": "/api/v1/settings/channel-guard/:id" },
+  { "method": "POST", "path": "/api/v1/public/auth/login" },
+  { "method": "POST", "path": "/api/v1/public/contacts" },
+  { "method": "GET", "path": "/api/v1/public/deals" },
+  { "method": "GET", "path": "/api/v1/contacts" },
+  { "method": "GET", "path": "/api/v1/contacts/:id" },
+  { "method": "POST", "path": "/api/v1/contacts" },
+  { "method": "DELETE", "path": "/api/v1/contacts/:id" },
+  { "method": "GET", "path": "/api/v1/contacts-export" },
+  { "method": "POST", "path": "/api/v1/auth/login" },
+  { "method": "GET", "path": "/api/v1/auth/teams" },
+  { "method": "POST", "path": "/api/v1/auth/teams" },
+  { "method": "GET", "path": "/api/v1/auth/invitations" },
+  { "method": "GET", "path": "/api/v1/deals" },
+  { "method": "POST", "path": "/api/v1/hooks/in/:token" }
+]

@@ -12,12 +12,25 @@ export class RateLimiterService {
   private readonly WINDOW_MS = 15 * 60 * 1000 // 15 minutes
   private readonly PUBLIC_MAX_ATTEMPTS = 5
   private readonly PUBLIC_WINDOW_MS = 15 * 60 * 1000
+  /**
+   * IP khách không tin được (TRUSTED_PROXY chưa khớp): khoá CHỈ theo email (`login-untrusted:<email>`), không gộp chung
+   * một IP peer cho mọi người — nếu gộp, ai cũng khoá được tài khoản người khác. Ngưỡng cao hơn vì mọi người dùng chung
+   * một khoá theo email, không còn tách theo IP.
+   */
+  private readonly UNTRUSTED_MAX_ATTEMPTS = 30
+  private readonly PUBLIC_UNTRUSTED_MAX_ATTEMPTS = 15
 
   isRateLimited(key: string): boolean {
     // Public third-party ("public-login:"): ngưỡng chặt. Login nội bộ ("login:"):
     // ngưỡng rộng hơn (key theo IP + email nên người dùng gõ nhầm vài lần không
     // bị khoá) nhưng vẫn chặn brute-force mật khẩu.
-    const limit = key.startsWith('public-login:') ? this.PUBLIC_MAX_ATTEMPTS : this.MAX_ATTEMPTS
+    const limit = key.startsWith('public-login-untrusted:')
+      ? this.PUBLIC_UNTRUSTED_MAX_ATTEMPTS
+      : key.startsWith('login-untrusted:')
+        ? this.UNTRUSTED_MAX_ATTEMPTS
+        : key.startsWith('public-login:')
+          ? this.PUBLIC_MAX_ATTEMPTS
+          : this.MAX_ATTEMPTS
     const entry = this.store.get(key)
     if (!entry) return false
     if (Date.now() > entry.expiresAt) {

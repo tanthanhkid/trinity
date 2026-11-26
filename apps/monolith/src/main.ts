@@ -19,7 +19,7 @@ async function bootstrap() {
     }
   }
 
-  // IP của khách (docs/deployment.md, "IP của khách"): `TRUSTED_PROXY` sai, hoặc còn cờ cũ `*_TRUST_*` mà chưa đặt
+  // IP của khách (docs/deployment.md, mục "Client IP"): `TRUSTED_PROXY` sai, hoặc còn cờ cũ `*_TRUST_*` mà chưa đặt
   // `TRUSTED_PROXY` ⇒ không khởi động (cờ cũ không được tự đổi sang giá trị mới). Áp mọi NODE_ENV.
   const ipProblems = clientIpStartupProblems(process.env)
   if (ipProblems.length) {

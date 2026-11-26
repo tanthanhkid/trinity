@@ -1,5 +1,5 @@
 import { createHmac, hkdfSync, timingSafeEqual } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { BlockList, isIP } from 'node:net'
 import { Logger } from '@nestjs/common'
 
@@ -88,7 +88,7 @@ export const TRUSTED_PROXY_GUIDE = [
   '  Docker Compose, Cloudflare nối thẳng cổng web                  cloudflare',
   '  Docker Compose sau Caddy/nginx trên host                       cidr:docker-gateway (hoặc cloudflare-behind:docker-gateway)',
   '  Cloudflare Tunnel (cổng chỉ nghe loopback)                     cloudflare-tunnel',
-  'Chi tiết: docs/deployment.md, mục "IP của khách".',
+  'Chi tiết: docs/deployment.md, mục "Client IP".',
 ].join('\n')
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -112,14 +112,55 @@ function isLoopback(ip: string): boolean {
   return ip === '::1' || ip.startsWith('127.') || ip === '0.0.0.0' || ip === '::'
 }
 
+/** Mạng riêng / link-local / ULA (RFC 1918, 3927, 4193, 4291) — địa chỉ của container/proxy nội bộ, không phải khách Internet. */
+const PRIVATE_NETS = (() => {
+  const b = new BlockList()
+  b.addSubnet('10.0.0.0', 8, 'ipv4')
+  b.addSubnet('172.16.0.0', 12, 'ipv4')
+  b.addSubnet('192.168.0.0', 16, 'ipv4')
+  b.addSubnet('169.254.0.0', 16, 'ipv4')
+  b.addSubnet('fc00::', 7, 'ipv6')
+  b.addSubnet('fe80::', 10, 'ipv6')
+  return b
+})()
+
+export function isPrivateIp(ip: string): boolean {
+  return PRIVATE_NETS.check(ip, isIP(ip) === 6 ? 'ipv6' : 'ipv4')
+}
+
 let routeTableOverride: string | null | undefined
+let containerOverride: boolean | undefined
+let containerCache: boolean | undefined
 let gatewayCache: { at: number; value: string | null } | null = null
 const GATEWAY_TTL_MS = 30_000
 
-/** Chỉ cho test: thay nội dung `/proc/net/route` (`null` = không có tệp; `undefined` = đọc tệp thật). */
-export function __setRouteTableForTest(text: string | null | undefined): void {
+/**
+ * Chỉ cho test: thay nội dung `/proc/net/route` (`null` = không có tệp; `undefined` = đọc tệp thật) và cờ "đang chạy
+ * trong container" (mặc định: có bảng tuyến giả ⇒ coi như trong container).
+ */
+export function __setRouteTableForTest(text: string | null | undefined, inContainer: boolean | undefined = text == null ? undefined : true): void {
   routeTableOverride = text
+  containerOverride = text === undefined ? undefined : inContainer
   gatewayCache = null
+}
+
+/**
+ * Tiến trình có chạy trong container không (`/.dockerenv`, `/run/.containerenv`, cgroup của PID 1). Ngoài container,
+ * tuyến mặc định là router của LAN — không có nghĩa "cổng Docker", nên luật cổng mặc định và `docker-gateway` không áp.
+ */
+export function runningInContainer(): boolean {
+  if (containerOverride !== undefined) return containerOverride
+  if (containerCache !== undefined) return containerCache
+  let yes = existsSync('/.dockerenv') || existsSync('/run/.containerenv')
+  if (!yes) {
+    try {
+      yes = /docker|kubepods|containerd|libpod/.test(readFileSync('/proc/1/cgroup', 'utf8'))
+    } catch {
+      /* không phải Linux */
+    }
+  }
+  containerCache = yes
+  return yes
 }
 
 /**
@@ -128,6 +169,7 @@ export function __setRouteTableForTest(text: string | null | undefined): void {
  * đổi khi mạng compose được tạo lại). Không có tệp (macOS, Windows) ⇒ null.
  */
 export function defaultGateway(now = Date.now()): string | null {
+  if (!runningInContainer()) return null
   if (gatewayCache && now - gatewayCache.at < GATEWAY_TTL_MS) return gatewayCache.value
   let text: string | null
   if (routeTableOverride !== undefined) text = routeTableOverride
@@ -269,7 +311,7 @@ function config(env: NodeJS.ProcessEnv = process.env): ResolvedConfig {
     // Khởi động đã chặn giá trị sai (`clientIpStartupProblems`); ở đây (test, serverless) coi như `none`.
     proxy = { mode: 'none' }
   }
-  const cfEntries = cfRaw?.trim() ? splitList(cfRaw) : [...DEFAULT_CLOUDFLARE_IP_RANGES]
+  const cfEntries = cfRaw?.trim() ? splitList(cfRaw).filter((e) => e !== 'docker-gateway') : [...DEFAULT_CLOUDFLARE_IP_RANGES]
   configCache = {
     raw,
     cfRaw,
@@ -295,7 +337,9 @@ export function clientIpStartupProblems(env: NodeJS.ProcessEnv = process.env): s
   }
   if (env.CLOUDFLARE_IP_RANGES?.trim()) {
     try {
-      validateCidrList(splitList(env.CLOUDFLARE_IP_RANGES).filter((e) => e !== 'docker-gateway'), 'CLOUDFLARE_IP_RANGES')
+      const entries = splitList(env.CLOUDFLARE_IP_RANGES)
+      if (entries.includes('docker-gateway')) throw new Error('CLOUDFLARE_IP_RANGES: từ khoá docker-gateway chỉ dùng trong TRUSTED_PROXY, không phải dải Cloudflare')
+      validateCidrList(entries, 'CLOUDFLARE_IP_RANGES')
     } catch (e) {
       out.push((e as Error).message)
     }
@@ -326,7 +370,7 @@ export function tunnelListenProblem(address: string | null | undefined, env: Nod
   if (ip && (ip === '::1' || ip.startsWith('127.'))) return null
   return (
     `TRUSTED_PROXY=cloudflare-tunnel nhưng tiến trình đang nghe ${address ?? '(không rõ)'}, không phải loopback: ai nối thẳng cổng này ` +
-    `sẽ tự khai được IP qua cf-connecting-ip. Đặt LISTEN_HOST=127.0.0.1 (API) / HOSTNAME=127.0.0.1 (web), hoặc chọn giá trị TRUSTED_PROXY khác.`
+    `sẽ tự khai được IP qua cf-connecting-ip. Đặt LISTEN_HOST=127.0.0.1 (API) / HOSTNAME=127.0.0.1 (web), hoặc chọn giá trị TRUSTED_PROXY khác. Docker Compose + Tunnel: không đặt cloudflare-tunnel cho api (web gọi api:4000 qua mạng Docker), xem docs/deployment.md mục "Client IP".`
   )
 }
 
@@ -438,7 +482,19 @@ function finalize(candidate: string | null, peer: string, why: string | null, so
 function fromEdge(req: ClientIpRequest, cfg: ResolvedConfig): ClientIp {
   const peer = normalizeIp(req.socket?.remoteAddress) ?? ''
   const p = cfg.proxy
-  const fin = (c: string | null, why: string | null = null) => finalize(c, peer, why, 'edge')
+  const fin = (c: string | null, why: string | null = null) => {
+    // Không chữ ký, không header tin được, peer là mạng riêng: đó là container/proxy nội bộ (vd container `web` gọi
+    // `api` trong Compose khi web chưa ký), không phải khách. Coi là không tin được — KHÔNG đem so IP văn phòng.
+    if (c !== null && c === peer && isPrivateIp(peer)) {
+      return finalize(
+        null,
+        peer,
+        `peer ${peer} là địa chỉ mạng riêng và request không có x-trinity-client-ip có chữ ký (tiến trình phía trước — vd web trong Docker Compose — chưa truyền IP khách)`,
+        'edge',
+      )
+    }
+    return finalize(c, peer, why, 'edge')
+  }
   if (!peer) return fin(null, 'không đọc được địa chỉ kết nối')
   switch (p.mode) {
     case 'none':
@@ -522,8 +578,9 @@ export function clientIpMiddleware(
   next()
 }
 
-// Trạng thái cho dải cảnh báo quản trị: kết quả lần dùng IP gần nhất (trong tiến trình).
-let lastUse: { at: number; reason: string | null } | null = null
+// Trạng thái cho dải cảnh báo quản trị: sự kiện "không tin được" gần nhất (trong tiến trình). Không bị request tin
+// được ghi đè (lưu lượng lẫn lộn không làm dải nhấp nháy); sửa cấu hình cần khởi động lại nên trạng thái tự xoá.
+let lastUntrusted: { at: number; reason: string } | null = null
 const WARNING_TTL_MS = 24 * 60 * 60_000
 
 /**
@@ -540,8 +597,8 @@ export function resolveClientIp(req: ClientIpRequest): ClientIp {
     client = d.ok ? d.client : { ip: null, rateKey: peer, untrustedReason: `header ${CLIENT_IP_HEADER} không hợp lệ: ${d.log}`, source: 'signed' }
     r[STORE] = client
   }
-  lastUse = { at: nowMs(), reason: client.untrustedReason }
   if (client.untrustedReason) {
+    lastUntrusted = { at: nowMs(), reason: client.untrustedReason }
     logOnce(
       `untrusted:${client.untrustedReason}`,
       `[client-ip] LỖI CẤU HÌNH: ${client.untrustedReason}. Kiểm Wi-Fi đăng nhập và kiểm IP chấm công đang CHO QUA (không khoá ai), ` +
@@ -551,18 +608,19 @@ export function resolveClientIp(req: ClientIpRequest): ClientIp {
   return client
 }
 
-/** Câu cảnh báo cho quản trị khi lần dùng IP gần nhất (trong 24 giờ) không tin được; `null` = ổn. */
+/** Câu cảnh báo cho quản trị khi trong 24 giờ qua có request dùng IP không tin được; `null` = ổn. */
 export function clientIpWarning(): string | null {
-  if (!lastUse?.reason || nowMs() - lastUse.at > WARNING_TTL_MS) return null
+  if (!lastUntrusted || nowMs() - lastUntrusted.at > WARNING_TTL_MS) return null
   return (
-    `Máy chủ không xác định được IP thật của người dùng (${lastUse.reason}). Kiểm IP văn phòng khi đăng nhập và chấm công đang tạm cho qua. ` +
-    'Người vận hành cần đặt TRUSTED_PROXY đúng cách triển khai (xem docs/deployment.md, mục "IP của khách").'
+    `Máy chủ không xác định được IP thật của người dùng (${lastUntrusted.reason}). Kiểm IP văn phòng khi đăng nhập và chấm công đang tạm cho qua. ` +
+    'Người vận hành cần đặt TRUSTED_PROXY đúng cách triển khai (xem docs/deployment.md, mục "Client IP").'
   )
 }
 
 /** Chỉ cho test: xoá trạng thái cảnh báo và bộ đếm log. */
 export function __resetClientIpStateForTest(): void {
-  lastUse = null
+  lastUntrusted = null
+  containerCache = undefined
   lastLogged.clear()
   configCache = null
   gatewayCache = null

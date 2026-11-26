@@ -6,6 +6,7 @@ import { createRequire } from 'node:module'
 import { Readable } from 'node:stream'
 import type { AddressInfo } from 'node:net'
 import { toNestPath } from '@/lib/serverless-runtime'
+import { isClientIpHeader } from '@/lib/client-ip-headers'
 import { loadNestModule, type NestModule } from "#nest-loader"
 
 /**
@@ -112,7 +113,8 @@ export async function handleWithNest(req: NextRequest): Promise<Response> {
 
   const headers: Record<string, string> = {}
   req.headers.forEach((value, key) => {
-    if (!HOP_BY_HOP.has(key)) headers[key] = value
+    // Header IP do client gửi KHÔNG được chuyển sang Nest (client tự khai IP được) — xem client-ip-headers.ts.
+    if (!HOP_BY_HOP.has(key) && !isClientIpHeader(key)) headers[key] = value
   })
 
   // Chạy NGAY trong context của request thật; chỉ bắt đầu chờ sau khi response đã gửi hết.

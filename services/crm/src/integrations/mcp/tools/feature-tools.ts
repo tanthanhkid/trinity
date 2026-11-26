@@ -128,7 +128,7 @@ export const getClientIpStatusTool: ToolDef = {
   title: 'Cảnh báo IP người dùng / Client IP warning',
   description:
     'Cho biết máy chủ có xác định được IP thật của người dùng không. warning khác null nghĩa là cấu hình proxy (TRUSTED_PROXY) chưa khớp cách triển khai: ' +
-    'kiểm IP văn phòng khi đăng nhập và khi chấm công đang tạm cho qua cho tới khi người vận hành sửa (xem docs/deployment.md, mục "IP của khách"). ' +
+    'kiểm IP văn phòng khi đăng nhập và khi chấm công đang tạm cho qua cho tới khi người vận hành sửa (xem docs/deployment.md, mục "Client IP"). ' +
     'Chỉ quản trị viên của công ty vận hành máy chủ nhận câu cảnh báo. Chỉ đọc. / Whether the server can determine users\' real IP (TRUSTED_PROXY). Read-only.',
   permissions: ['settings.integrations'],
   input: () => ({}),

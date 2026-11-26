@@ -16,7 +16,7 @@ export function normalizeIp(raw: string): string {
 
 /**
  * IP khách để chấm công — từ hàm dùng chung `resolveClientIp` (`@trinity/rbac-nest`, cấu hình `TRUSTED_PROXY`; xem
- * docs/deployment.md mục "IP của khách"). Không còn đọc header ở đây.
+ * docs/deployment.md mục "Client IP"). Không còn đọc header ở đây.
  *
  * `null` = IP KHÔNG tin được (thiếu cấu hình proxy: loopback, cổng mặc định của container, dấu "không tin được" của
  * tiến trình biên). Khi đó KHÔNG đem so với IP văn phòng và KHÔNG khoá nhân viên: chấm công cho qua, lỗi cấu hình đã

@@ -163,7 +163,10 @@ export class AuthService {
     // đúng 1 quota cho mọi biến thể hoa/thường của CÙNG email (điện thoại tự
     // viết hoa chữ cái đầu). Giá trị RAW `dto.email` (audit log, lookup) GIỮ
     // NGUYÊN — không đụng, vì đó là tín hiệu chẩn đoán chính.
-    const rateLimitKey = `login:${ipAddress ?? 'unknown'}:${this.normalizeEmailForKey(dto.email)}`
+    // IP không tin được ⇒ khoá theo email (ngưỡng cao hơn), không gộp mọi người vào xô IP peer chung.
+    const rateLimitKey = ipTrusted
+      ? `login:${ipAddress ?? 'unknown'}:${this.normalizeEmailForKey(dto.email)}`
+      : `login-untrusted:${this.normalizeEmailForKey(dto.email)}`
     // Multi-tenant: the email decides the company; everything below (audit log included) runs in its schema.
     await this.enterCompanyOfEmail(dto.email)
     await this.enforceRateLimit(rateLimitKey, dto.email, ipAddress)
@@ -464,11 +467,14 @@ export class AuthService {
     dto: LoginDto,
     ipAddress: string | null,
     expectedOwnerUserId: number,
+    ipTrusted = true,
   ) {
     // mirror `login()`: key rate-limit chuẩn hoá để KHÔNG cho
     // biến thể hoa/thường của cùng email né quota brute-force (nhánh này LUÔN
     // enforce thật — khác nhánh nội bộ đang tắt, xem `rate-limiter.service.ts`).
-    const rateLimitKey = `public-login:${ipAddress ?? 'unknown'}:${this.normalizeEmailForKey(dto.email)}`
+    const rateLimitKey = ipTrusted
+      ? `public-login:${ipAddress ?? 'unknown'}:${this.normalizeEmailForKey(dto.email)}`
+      : `public-login-untrusted:${this.normalizeEmailForKey(dto.email)}`
     await this.enforceRateLimit(rateLimitKey, dto.email, ipAddress)
 
     const user = await this.findUserByEmail(dto.email)

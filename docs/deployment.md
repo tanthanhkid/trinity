@@ -66,7 +66,8 @@ that header.
 | Docker Compose, `web` port published directly | `none` |
 | Docker Compose, Cloudflare connects straight to the `web` port | `cloudflare` |
 | Docker Compose behind Caddy/nginx on the host | `cidr:docker-gateway` (or `cloudflare-behind:docker-gateway`) |
-| Cloudflare Tunnel | `cloudflare-tunnel` |
+| Cloudflare Tunnel, process manager (API on `LISTEN_HOST=127.0.0.1`, web on `HOSTNAME=127.0.0.1`) | `cloudflare-tunnel` |
+| Cloudflare Tunnel with Docker Compose | leave the API at `none` for now: `web` reaches the API as `api:4000` over the Docker network, so the API cannot listen on loopback. The web process becomes the edge and checks the tunnel once it signs the IP (next release step) |
 
 Caddy always writes `X-Forwarded-For` itself. **nginx does not**: every `location` that points at the app needs
 `proxy_set_header X-Forwarded-For $remote_addr;` (overwrite, not append) and `proxy_set_header X-Real-IP "";`; without
@@ -74,13 +75,21 @@ the overwrite a client can fake its IP. Do not use `set_real_ip_from` alone (its
 `X-Real-IP`, i.e. the client's header). Use `cidr:` only when there really is a proxy in front and the app listens on
 loopback. Opening the origin only to Cloudflare's ranges (or using a Tunnel) remains a recommended second layer.
 
-**When the IP cannot be trusted** — the result is loopback, the container's default gateway (traffic through
-`docker-proxy`/NAT, e.g. `cidr:` with a wrong Docker range, or Cloudflare reaching the origin over IPv6), or the web
-process marked it untrusted — it is never compared with office IPs. Login Wi-Fi checks and attendance IP checks **let
-everyone through** (nobody is locked out), the server logs a configuration error, and admins of the operating company
-see a warning banner on every page (also `GET /api/v1/settings/client-ip/alerts` and the MCP tool
-`get_client_ip_status`) until the setting is fixed. Rate limits then fall back to the peer address, i.e. **one shared
-bucket for all clients**.
+**When the IP cannot be trusted** — the result is loopback, the container's default gateway (only inside a container:
+traffic through `docker-proxy`/NAT, e.g. `cidr:` with a wrong Docker range, or Cloudflare reaching the origin over
+IPv6), a private-network peer with no signed header (e.g. the `web` container calling the API in Docker Compose), or the
+web process marked it untrusted — it is never compared with office IPs. Login Wi-Fi checks and attendance IP checks
+**let the user through** instead of comparing a wrong address, the server logs a configuration error, and admins of the
+operating company see a warning banner on every page for 24 hours after the last such request (also
+`GET /api/v1/settings/client-ip/alerts` and the MCP tool `get_client_ip_status`). Rate limits on OAuth, MCP and the
+online store then fall back to the peer address, i.e. **one shared bucket for all clients**; login attempts are limited
+per email instead (30 failures per 15 minutes, 15 for the public login API) so nobody can lock other people out from the
+shared address.
+
+The web app no longer forwards `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`, `Forwarded` or `x-trinity-*` from
+the browser to the API. Until the web process determines and signs the client IP itself, the API therefore sees requests
+that come through `web` as "cannot be trusted" (let through + banner) whatever `TRUSTED_PROXY` says; the setting already
+applies to traffic that reaches the API directly.
 
 **Between Trinity processes** the IP travels in `x-trinity-client-ip: <ip or "untrusted">;<unix time>;<signature>`:
 HMAC-SHA256 over `<value>\n<unix time>` with a key derived by HKDF-SHA256 (empty salt, info

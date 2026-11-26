@@ -32,7 +32,7 @@ import { resolveClientIp } from '@trinity/rbac-nest'
  * khi thao tác Settings).
  *
  * IP khách lấy từ hàm dùng chung `resolveClientIp` (`@trinity/rbac-nest`, cấu hình `TRUSTED_PROXY`; xem
- * docs/deployment.md mục "IP của khách"). IP không tin được (thiếu cấu hình proxy) ⇒ gate CHO QUA và hiện dải cảnh báo
+ * docs/deployment.md mục "Client IP"). IP không tin được (thiếu cấu hình proxy) ⇒ gate CHO QUA và hiện dải cảnh báo
  * quản trị, không khoá ai.
  */
 

@@ -157,6 +157,24 @@ describe('AuthService', () => {
       ).rejects.toThrow(HttpException)
     })
 
+    it('IP không tin được: khoá theo email (ngưỡng 30), không gộp mọi người vào xô IP peer chung', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null)
+      // Kẻ gian sai mật khẩu 12 lần với email nạn nhân (cùng IP peer 127.0.0.1): vượt ngưỡng 10 của nhánh tin được
+      // nhưng chưa tới 30 ⇒ vẫn thử tiếp được; người khác (email khác, cùng peer) không bị ảnh hưởng.
+      for (let i = 0; i < 12; i++) {
+        await service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false).catch(() => undefined)
+      }
+      await expect(service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toThrow(UnauthorizedException)
+      await expect(service.login({ email: 'other@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toThrow(UnauthorizedException)
+      for (let i = 0; i < 20; i++) {
+        await service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false).catch(() => undefined)
+      }
+      // Quá 30 lần ⇒ email này bị giới hạn (429), email khác vẫn không.
+      await expect(service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toThrow(HttpException)
+      await expect(service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.not.toThrow(UnauthorizedException)
+      await expect(service.login({ email: 'other@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toThrow(UnauthorizedException)
+    })
+
     it('should log login attempt to audit log', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(mockUser)
       ;(bcrypt.compare as jest.Mock).mockResolvedValue(true)

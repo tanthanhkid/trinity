@@ -1,5 +1,6 @@
 import type { Request } from 'express'
 import { can, type Grants } from '@trinity/rbac'
+import { resolveClientIp } from '@trinity/rbac-nest'
 
 /**
  * Kiểm tra đăng nhập theo địa chỉ IP văn phòng (wifi).
@@ -30,84 +31,22 @@ import { can, type Grants } from '@trinity/rbac'
  * Người có quyền `settings.integrations` LUÔN bypass (không thể tự khoá chân mình
  * khi thao tác Settings).
  *
- * Gate này so IP client với IP văn phòng, nên chỉ hợp lệ khi `x-real-ip` do reverse
- * proxy đặt là IP thật của client. Nếu hệ thống nằm sau CDN/proxy khác (vd Cloudflare),
- * `x-real-ip` là IP của lớp proxy đó → gate không bao giờ khớp. Khi đó đặt
- * `LOGIN_WIFI_TRUST_CF_IP=true` để đọc `cf-connecting-ip` — chỉ bật khi thật sự nằm
- * sau Cloudflare.
+ * IP khách lấy từ hàm dùng chung `resolveClientIp` (`@trinity/rbac-nest`, cấu hình `TRUSTED_PROXY`; xem
+ * docs/deployment.md mục "IP của khách"). IP không tin được (thiếu cấu hình proxy) ⇒ gate CHO QUA và hiện dải cảnh báo
+ * quản trị, không khoá ai.
  */
 
 /**
- * Lấy IP client để check wifi lúc login.
- *
- * Tương đương `extractClientIp` của module chấm công của CRM — Auth là service
- * NestJS riêng (build/deploy độc lập, không import chéo giữa services) nên
- * duplicate có chú thích; đồng bộ tay nếu logic gốc đổi thứ tự ưu tiên.
- *
- * ⚠️ Auth service KHÔNG set `app.set('trust proxy', ...)` → Express
- * `req.ip`/`req.socket.remoteAddress` LUÔN là IP của reverse proxy (loopback,
- * vd 127.0.0.1), không phải IP thật của client. PHẢI đọc trực tiếp header
- * `x-real-ip` do reverse proxy đặt (`proxy_set_header X-Real-IP $remote_addr`) —
- * đây là nguồn chính khi không qua Cloudflare.
- *
- * ⚠️ BẢO MẬT — vì sao `cf-connecting-ip` phải sau CỜ ENV, KHÔNG đọc vô điều kiện:
- * header này chỉ đáng tin khi request THỰC SỰ đi qua Cloudflare. Nếu không qua
- * Cloudflare, client TỰ GỬI được `cf-connecting-ip: <IP văn phòng>` → giả mạo
- * đứng trong văn phòng, vô hiệu hoá toàn bộ gate. Vì vậy `LOGIN_WIFI_TRUST_CF_IP`
- * CHỈ được bật ở môi trường thật sự nằm sau Cloudflare. Cờ này TÁCH RIÊNG với
- * `ATTENDANCE_TRUST_CF_IP` của chấm công để bật gate login không kéo theo đổi
- * hành vi chấm công.
+ * Khoá IP cho giới hạn tốc độ và nhật ký đăng nhập: IP khách tin được, hoặc IP peer khi không tin được (một xô chung).
+ * KHÔNG dùng giá trị này để so IP văn phòng khi `loginClientIpTrusted(req)` là false.
  */
-/** Loopback / mạng riêng / link-local / ULA — địa chỉ của reverse proxy nội bộ. */
-function isPrivateOrLoopbackIp(raw: string | undefined | null): boolean {
-  if (!raw) return false
-  const ip = normalizeLoginIp(raw).toLowerCase()
-  if (ip === '::1' || ip.startsWith('fc') || ip.startsWith('fd') || ip.startsWith('fe80:')) return true
-  const m = /^(\d{1,3})\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/.exec(ip)
-  if (!m) return false
-  const a = Number(m[1])
-  const b = Number(m[2])
-  return a === 10 || a === 127 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254)
-}
-
-/**
- * Chỉ tin `x-real-ip`/`x-forwarded-for` khi socket tới từ proxy nội bộ (loopback/mạng riêng) hoặc
- * khi vận hành đặt `LOGIN_WIFI_TRUST_PROXY_HEADERS=true`. Gọi thẳng từ Internet thì client tự
- * gửi header được → bỏ qua, dùng IP socket.
- */
-function trustsProxyHeaders(req: Request): boolean {
-  if (process.env.LOGIN_WIFI_TRUST_PROXY_HEADERS === 'true') return true
-  const remote = (req.socket as { remoteAddress?: string })?.remoteAddress
-  return isPrivateOrLoopbackIp(remote)
-}
-
 export function extractLoginClientIp(req: Request): string | null {
-  if (process.env.LOGIN_WIFI_TRUST_CF_IP === 'true') {
-    const cf = req.headers['cf-connecting-ip']
-    if (typeof cf === 'string' && cf) return normalizeLoginIp(cf)
-  }
+  return resolveClientIp(req).rateKey
+}
 
-  if (trustsProxyHeaders(req)) {
-    const real = req.headers['x-real-ip']
-    if (typeof real === 'string' && real) return normalizeLoginIp(real)
-
-    const forwarded = req.headers['x-forwarded-for']
-    if (typeof forwarded === 'string' && forwarded) {
-      // Proxy tin cậy APPEND vào cuối chứ không thay entry đầu → entry đầu là phần client tự khai
-      // (giả được IP văn phòng). Đi từ phải sang, bỏ các hop proxy nội bộ, lấy IP công cộng
-      // ngoài cùng; toàn bộ là IP riêng (client trong LAN) thì dùng entry đầu như trước.
-      const hops = forwarded.split(',').map((h) => h.trim()).filter(Boolean)
-      const client = [...hops].reverse().find((h) => !isPrivateOrLoopbackIp(h)) ?? hops[0]
-      if (client) return normalizeLoginIp(client)
-    }
-  }
-
-  const remote = (req.socket as { remoteAddress?: string })?.remoteAddress
-  if (remote) return normalizeLoginIp(remote)
-
-  if (req.ip) return normalizeLoginIp(req.ip)
-
-  return null
+/** IP khách có tin được để so với IP văn phòng không (false ⇒ kiểm Wi-Fi cho qua + cảnh báo cấu hình). */
+export function loginClientIpTrusted(req: Request): boolean {
+  return resolveClientIp(req).ip !== null
 }
 
 export function normalizeLoginIp(raw: string): string {
@@ -116,9 +55,8 @@ export function normalizeLoginIp(raw: string): string {
 
 /**
  * IP loopback/không xác định (`127.0.0.1`, `::1`, `0.0.0.0`, `unknown`) KHÔNG
- * PHẢI là "IP văn phòng sai" — nó là dấu hiệu KHÔNG LẤY ĐƯỢC IP THẬT (vd reverse
- * proxy thiếu `proxy_set_header X-Real-IP`, hoặc request đi qua 1 proxy nội bộ
- * khác trước khi tới Auth service). Coi các giá trị này như
+ * PHẢI là "IP văn phòng sai" — nó là dấu hiệu KHÔNG LẤY ĐƯỢC IP THẬT (TRUSTED_PROXY
+ * chưa khớp proxy phía trước). Lớp chặn thứ hai sau `loginClientIpTrusted`. Coi các giá trị này như
  * "không xác định được IP" → fail-open, KHÔNG so khớp rồi chặn — tránh kịch bản
  * 1 thay đổi hạ tầng ngoài code này (reverse proxy) âm thầm biến `ipAddress` thành
  * loopback cho MỌI request, khiến TOÀN BỘ nhân viên (trừ super_admin) bị chặn

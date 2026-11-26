@@ -1,14 +1,10 @@
 import type { Request } from 'express';
+import { resolveClientIp } from '@trinity/rbac-nest';
 import { FixedWindowLimiter } from '../../common/helpers/fixed-window-limiter';
 
-/** IP client: `x-real-ip` do reverse proxy đặt = `$remote_addr` (client không ghi đè được) — cùng nguyên tắc `attendance-ip.helper`. */
+/** Khoá IP cho giới hạn tốc độ: hàm dùng chung (TRUSTED_PROXY); không tin được ⇒ IP peer (một xô chung, docs/deployment.md). */
 export function clientIp(req: Request): string {
-  const remote = (req.socket as { remoteAddress?: string })?.remoteAddress ?? '';
-  // Chỉ tin `x-real-ip` khi kết nối tới từ proxy cục bộ (proxy cùng máy). Nếu cổng ứng dụng lỡ mở ra ngoài ⇒ header tự đặt bị bỏ qua.
-  const fromLocalProxy = remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
-  const real = req.headers['x-real-ip'];
-  if (fromLocalProxy && typeof real === 'string' && real) return real.trim();
-  return req.ip ?? (req.socket as { remoteAddress?: string })?.remoteAddress ?? 'unknown';
+  return resolveClientIp(req).rateKey;
 }
 
 /** Giới hạn trong RAM (1 process). DCR: 10 đăng ký/giờ/IP (chống spam bảng client). Token/revoke: 60 req/phút/IP. */

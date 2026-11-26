@@ -75,7 +75,7 @@ export class PublicAuthController {
       // Guard phải attach apiKey — nếu thiếu là config bug, không leak stack.
       throw new InternalServerErrorException('Cấu hình public auth lỗi')
     }
-    // Cùng cách lấy IP với /auth/login: sau reverse proxy `req.ip` là IP proxy ⇒ mọi client chung một khoá rate-limit.
+    // Cùng hàm IP dùng chung với /auth/login (TRUSTED_PROXY).
     const ip = extractLoginClientIp(req)
     return this.authService.loginForThirdParty(dto, ip, apiKey.owner_user_id)
   }

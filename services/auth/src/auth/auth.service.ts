@@ -158,7 +158,7 @@ export class AuthService {
     return this.toMeResponse(user, grants, isAdmin, await this.companyInfo())
   }
 
-  async login(dto: LoginDto, ipAddress: string | null = null) {
+  async login(dto: LoginDto, ipAddress: string | null = null, ipTrusted = true) {
     // key rate-limit chuẩn hoá (trim + lowercase) CHỈ để gộp
     // đúng 1 quota cho mọi biến thể hoa/thường của CÙNG email (điện thoại tự
     // viết hoa chữ cái đầu). Giá trị RAW `dto.email` (audit log, lookup) GIỮ
@@ -195,7 +195,7 @@ export class AuthService {
     // 100%. KHÔNG tính vào rate-limit (không phải sai mật khẩu).
     if (await this.isLoginWifiCheckActive()) {
       const { grants } = await this.permissionService.grantsFor(user.id)
-      const wifiCheck = await this.checkLoginWifi(user.id, dto.email, grants, ipAddress)
+      const wifiCheck = await this.checkLoginWifi(user.id, dto.email, grants, ipAddress, ipTrusted)
       if (!wifiCheck.allowed) {
         this.logger.warn(
           `[login-wifi-check] BLOCKED user=${user.id} email=${dto.email} ip=${ipAddress ?? 'unknown'} reason=${wifiCheck.reason}`,
@@ -259,6 +259,7 @@ export class AuthService {
     email: string,
     grants: Grants,
     ipAddress: string | null,
+    ipTrusted = true,
   ): Promise<{ allowed: boolean; reason: string }> {
     try {
       // PHẢI truyền user.id THẬT: `LOGIN_WIFI_CHECK_BYPASS_EMAILS` nhận CẢ email
@@ -276,10 +277,13 @@ export class AuthService {
       if (!targeted) {
         return { allowed: true, reason: 'not_targeted' }
       }
-      // Loopback/IP không xác định (vd reverse proxy quên set x-real-ip) KHÔNG được coi
-      // là "sai văn phòng" — coi như không xác định được IP, fail-open (tránh 1
-      // thay đổi hạ tầng ngoài code khoá TOÀN BỘ nhân viên cùng lúc). Check `ipAddress == null` riêng trước để TS narrow sang
-      // `string` cho lời gọi `loginIpMatchesOffice` bên dưới (tránh non-null `!`).
+      // IP không tin được (TRUSTED_PROXY chưa khớp cách triển khai: loopback, cổng mặc định container, dấu "không tin
+      // được") KHÔNG được coi là "sai văn phòng": cho qua (tránh 1 thay đổi hạ tầng khoá TOÀN BỘ nhân viên);
+      // `resolveClientIp` đã ghi lỗi cấu hình và bật dải cảnh báo quản trị. Check `ipAddress == null` riêng để TS narrow
+      // sang `string` cho `loginIpMatchesOffice` bên dưới.
+      if (!ipTrusted) {
+        return { allowed: true, reason: 'fail_open_untrusted_ip' }
+      }
       if (ipAddress == null || isUnusableLoginIp(ipAddress)) {
         return { allowed: true, reason: 'fail_open_no_usable_ip' }
       }
@@ -987,7 +991,7 @@ export class AuthService {
    * Nhận lời mời: tạo user trong ĐÚNG công ty của lời mời (công ty đọc từ tiền tố token), gán vai trò chủ chọn lúc mời,
    * đăng nhập luôn. Lời mời dùng một lần (đánh dấu bằng UPDATE có điều kiện nên hai lần bấm cùng lúc chỉ một lần thắng).
    */
-  async acceptInvitation(dto: AcceptInvitationDto, ipAddress: string | null) {
+  async acceptInvitation(dto: AcceptInvitationDto, ipAddress: string | null, ipTrusted = true) {
     const rateLimitKey = `invite:${ipAddress ?? 'unknown'}`
     if (this.rateLimiter.isRateLimited(rateLimitKey)) {
       throw new HttpException('Quá nhiều lần thử, vui lòng thử lại sau', HttpStatus.TOO_MANY_REQUESTS)
@@ -1083,7 +1087,7 @@ export class AuthService {
     // "1 tài khoản 1 phiên" (đăng ký phiên mới để token có `sid`).
     if (await this.isLoginWifiCheckActive()) {
       const { grants } = await this.permissionService.grantsFor(user.id)
-      const wifiCheck = await this.checkLoginWifi(user.id, user.email, grants, ipAddress)
+      const wifiCheck = await this.checkLoginWifi(user.id, user.email, grants, ipAddress, ipTrusted)
       if (!wifiCheck.allowed) {
         await this.logLoginAttempt(user.id, user.email, false, ipAddress, 'wifi_blocked')
         throw new UnauthorizedException(

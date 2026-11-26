@@ -10,7 +10,8 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { AuthOnly, Can, CurrentUser as RbacCurrentUser } from '@trinity/rbac-nest';
+import { AuthOnly, Can, clientIpWarning, CurrentUser as RbacCurrentUser } from '@trinity/rbac-nest';
+import { can } from '@trinity/rbac';
 import type { AuthUser } from '@trinity/rbac-nest';
 import { SettingsService } from './settings.service';
 import { UpdateNotificationSoundDto } from './dto/notification-sound.dto';
@@ -47,6 +48,21 @@ export class SettingsController {
     @RbacCurrentUser() user: AuthUser,
   ) {
     return this.settingsService.updateNotificationSound(dto.sound_id, user.userId);
+  }
+
+  /**
+   * Dải cảnh báo "máy chủ không xác định được IP thật" (TRUSTED_PROXY chưa khớp cách triển khai). Lỗi của máy chủ, nên
+   * chỉ quản trị viên (`settings.integrations`) của công ty vận hành (công ty 1) thấy; người khác nhận `warning: null`.
+   */
+  @Get('client-ip/alerts')
+  @AuthOnly()
+  @ApiOperation({
+    summary: 'Cảnh báo cấu hình IP của khách (TRUSTED_PROXY) cho quản trị viên; người khác nhận warning null',
+  })
+  @ApiResponse({ status: 200 })
+  clientIpAlerts(@RbacCurrentUser() user: AuthUser): { warning: string | null } {
+    const operator = (user.companyId ?? 1) === 1 && can(user.grants, 'settings.integrations');
+    return { warning: operator ? clientIpWarning() : null };
   }
 
   // RBAC: đọc mở cho mọi người đã đăng nhập (dropdown

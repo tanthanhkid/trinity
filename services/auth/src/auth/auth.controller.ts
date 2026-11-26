@@ -31,7 +31,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto'
 import { UpdateLoginWifiCheckDto } from './dto/update-login-wifi-check.dto'
 import { UpdateSingleSessionDto } from './dto/update-single-session.dto'
 import { AuthOnly, Can, Public, CurrentUser, type AuthUser } from '@trinity/rbac-nest'
-import { extractLoginClientIp } from './login-wifi-check.helper'
+import { extractLoginClientIp, loginClientIpTrusted } from './login-wifi-check.helper'
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -47,11 +47,8 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Email hoặc mật khẩu không đúng' })
   @ApiResponse({ status: 429, description: 'Quá nhiều lần thử sai (10 lần/15 phút theo IP + email)' })
   async login(@Body() dto: LoginDto, @Req() req: Request) {
-    // dùng extractLoginClientIp (đọc x-real-ip do reverse proxy đặt) thay vì
-    // req.ip trần — Auth service KHÔNG set `trust proxy` nên req.ip luôn là IP
-    // loopback của proxy, không phải IP thật của client (xem chú thích helper).
-    const ip = extractLoginClientIp(req)
-    return this.authService.login(dto, ip)
+    // IP từ hàm dùng chung (TRUSTED_PROXY); không tin được ⇒ kiểm Wi-Fi cho qua, giới hạn tốc độ theo IP peer.
+    return this.authService.login(dto, extractLoginClientIp(req), loginClientIpTrusted(req))
   }
 
   @Post('register')

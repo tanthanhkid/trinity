@@ -16,7 +16,7 @@ import {
 import { PrismaService } from '@trinity/prisma'
 import { AuthService } from './auth.service'
 import { AcceptInvitationDto, CreateInvitationDto, InvitationTokenDto } from './dto/invitation.dto'
-import { extractLoginClientIp } from './login-wifi-check.helper'
+import { extractLoginClientIp, loginClientIpTrusted } from './login-wifi-check.helper'
 
 /**
  * Lời mời nhân viên bằng link. Đường `/auth/invitations` (không phải `/users/...`) để khỏi đụng `GET /users/:id` và
@@ -89,6 +89,6 @@ export class InvitationsController {
   @ApiResponse({ status: 409, description: 'Email đã dùng / hết chỗ theo gói' })
   @ApiResponse({ status: 410, description: 'Lời mời không còn hiệu lực' })
   async accept(@Body() dto: AcceptInvitationDto, @Req() req: Request) {
-    return this.authService.acceptInvitation(dto, extractLoginClientIp(req))
+    return this.authService.acceptInvitation(dto, extractLoginClientIp(req), loginClientIpTrusted(req))
   }
 }

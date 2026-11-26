@@ -12,9 +12,9 @@ import { ScopeService, type AuthUser } from '@trinity/rbac-nest';
 import type { Request } from 'express';
 import type { Readable } from 'stream';
 
-// Helper để tạo mock request với IP
+// Request với IP peer (TRUSTED_PROXY mặc định `none` ⇒ IP khách = peer; luật đầy đủ ở packages/rbac-nest client-ip.spec.ts).
 const makeReq = (ip: string): Request =>
-  ({ headers: { 'cf-connecting-ip': ip }, ip, socket: {} } as unknown as Request);
+  ({ headers: {}, socket: { remoteAddress: ip } } as unknown as Request);
 
 // Mock ảnh selfie (FileInterceptor memoryStorage → buffer sẵn có)
 const SELFIE = {
@@ -29,6 +29,7 @@ const makePrisma = (overrides: Record<string, unknown> = {}) =>
   ({
     attendanceOffice: {
       findMany: jest.fn(),
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
@@ -253,11 +254,34 @@ describe('AttendanceService — checkIn', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('should throw BadRequestException when no client IP detected', async () => {
-    const emptyReq = { headers: {}, socket: {} } as unknown as Request;
-    await expect(
-      service.checkIn(1, DEVICE_ID, emptyReq, undefined, SELFIE),
-    ).rejects.toThrow(BadRequestException);
+  it('IP không tin được (peer loopback, chưa đặt TRUSTED_PROXY) → KHÔNG khoá: chấm được, không so IP, ghi VP được gán', async () => {
+    (prisma.attendanceOffice.findMany as jest.Mock).mockResolvedValue([OFFICE]);
+    (prisma.attendanceOffice.findFirst as jest.Mock).mockResolvedValue({ id: OFFICE.id, name: OFFICE.name });
+    (prisma.employee.findUnique as jest.Mock).mockResolvedValue({ ...EMPLOYEE, office_id: OFFICE.id });
+    (prisma.attendanceRecord.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.attendanceRecord.upsert as jest.Mock).mockResolvedValue({ id: 2 });
+
+    const result = await service.checkIn(1, DEVICE_ID, makeReq('127.0.0.1'), undefined, SELFIE);
+
+    expect(prisma.attendanceOffice.findMany).not.toHaveBeenCalled();
+    expect(prisma.attendanceRecord.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ check_in_ip: null, check_in_office_id: OFFICE.id }) }),
+    );
+    expect(result.office).toBe('Hà Nội');
+  });
+
+  it('IP không tin được + chưa gán VP → chấm được, văn phòng để trống', async () => {
+    (prisma.employee.findUnique as jest.Mock).mockResolvedValue({ ...EMPLOYEE, office_id: null });
+    (prisma.attendanceRecord.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.attendanceRecord.upsert as jest.Mock).mockResolvedValue({ id: 3 });
+    const emptyReq = { headers: { 'cf-connecting-ip': OFFICE_IP }, socket: {} } as unknown as Request;
+
+    const result = await service.checkIn(1, DEVICE_ID, emptyReq, undefined, SELFIE);
+
+    expect(result.office).toBeNull();
+    expect(prisma.attendanceRecord.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ check_in_ip: null, check_in_office_id: null }) }),
+    );
   });
 
   describe('demo office', () => {

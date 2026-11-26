@@ -1,3 +1,4 @@
+import { __resetClientIpStateForTest, __setRouteTableForTest } from '@trinity/rbac-nest';
 import { normalizeIp, extractClientIp, ipMatchesOffice } from '../attendance-ip.helper';
 import type { Request } from 'express';
 
@@ -21,94 +22,47 @@ describe('normalizeIp', () => {
   });
 });
 
-const LOOPBACK = '127.0.0.1'; // proxy nội bộ nên được tin header
-
-describe('extractClientIp', () => {
-  const makeReq = (headers: Record<string, string | undefined>, ip?: string, remoteAddress?: string): Request => ({
-    headers,
-    ip,
-    socket: { remoteAddress },
-  } as unknown as Request);
-
-  const ORIGINAL_TRUST_CF = process.env.ATTENDANCE_TRUST_CF_IP;
+// Luật đầy đủ (5 giá trị TRUSTED_PROXY, chữ ký) test ở packages/rbac-nest/src/client-ip.spec.ts.
+describe('extractClientIp — qua hàm dùng chung resolveClientIp', () => {
+  const makeReq = (headers: Record<string, string | undefined>, remoteAddress?: string): Request =>
+    ({ headers, socket: { remoteAddress } }) as unknown as Request;
+  const ORIGINAL_TP = process.env.TRUSTED_PROXY;
+  beforeEach(() => {
+    __resetClientIpStateForTest();
+    __setRouteTableForTest(null);
+  });
   afterEach(() => {
-    if (ORIGINAL_TRUST_CF === undefined) delete process.env.ATTENDANCE_TRUST_CF_IP;
-    else process.env.ATTENDANCE_TRUST_CF_IP = ORIGINAL_TRUST_CF;
+    if (ORIGINAL_TP === undefined) delete process.env.TRUSTED_PROXY;
+    else process.env.TRUSTED_PROXY = ORIGINAL_TP;
+    __setRouteTableForTest(undefined);
   });
 
-  it('SECURITY: should prefer x-real-ip (nginx-set) over client-spoofable cf-connecting-ip by default', () => {
-    delete process.env.ATTENDANCE_TRUST_CF_IP;
-    const req = makeReq({ 'cf-connecting-ip': '203.0.113.108', 'x-real-ip': '10.0.0.1' }, undefined, LOOPBACK);
-    // KHÔNG được tin cf-connecting-ip (client tự gửi khi không có proxy) → dùng x-real-ip
-    expect(extractClientIp(req)).toBe('10.0.0.1');
-  });
-
-  it('SECURITY: should IGNORE cf-connecting-ip when no x-real-ip + env off (chống giả mạo)', () => {
-    delete process.env.ATTENDANCE_TRUST_CF_IP;
-    const req = makeReq({ 'cf-connecting-ip': '203.0.113.108' });
-    expect(extractClientIp(req)).toBeNull();
-  });
-
-  it('should trust cf-connecting-ip ONLY when ATTENDANCE_TRUST_CF_IP=true (sau Cloudflare)', () => {
-    process.env.ATTENDANCE_TRUST_CF_IP = 'true';
-    const req = makeReq({ 'cf-connecting-ip': '203.0.113.108', 'x-real-ip': '10.0.0.1' });
-    expect(extractClientIp(req)).toBe('203.0.113.108');
-  });
-
-  it('should use x-real-ip when present', () => {
-    const req = makeReq({ 'x-real-ip': '198.51.100.73' }, undefined, LOOPBACK);
-    expect(extractClientIp(req)).toBe('198.51.100.73');
-  });
-
-  it('should fall back to first x-forwarded-for entry', () => {
-    const req = makeReq({ 'x-forwarded-for': '203.0.113.189, 10.0.0.1' }, undefined, LOOPBACK);
-    expect(extractClientIp(req)).toBe('203.0.113.189');
-  });
-
-  it('SECURITY: x-forwarded-for do client chèn đầu danh sách → lấy IP proxy nối cuối, không lấy phần client tự gửi', () => {
-    const req = makeReq({ 'x-forwarded-for': '203.0.113.108, 198.51.100.73' }, undefined, LOOPBACK);
-    expect(extractClientIp(req)).toBe('198.51.100.73');
-  });
-
-  it('should fall back to req.ip', () => {
-    const req = makeReq({}, '203.0.113.123');
-    expect(extractClientIp(req)).toBe('203.0.113.123');
-  });
-
-  it('should fall back to socket.remoteAddress', () => {
-    const req = makeReq({}, undefined, '::ffff:203.0.113.108');
-    expect(extractClientIp(req)).toBe('203.0.113.108');
-  });
-
-  it('should return null when no IP available', () => {
-    const req = makeReq({});
-    expect(extractClientIp(req)).toBeNull();
-  });
-
-  it('SECURITY: gọi thẳng từ IP công cộng với x-real-ip/x-forwarded-for giả → bỏ qua header, dùng IP socket', () => {
-    const req = makeReq({ 'x-real-ip': '203.0.113.108', 'x-forwarded-for': '203.0.113.108' }, undefined, '198.51.100.9');
-    expect(extractClientIp(req)).toBe('198.51.100.9');
-  });
-
-  it('ATTENDANCE_TRUST_PROXY_HEADERS=true → tin header dù socket là IP công cộng', () => {
-    process.env.ATTENDANCE_TRUST_PROXY_HEADERS = 'true';
+  it('SECURITY: mặc định (none) gọi thẳng kèm cf-connecting-ip / x-real-ip / x-forwarded-for giả → IP peer', () => {
+    delete process.env.TRUSTED_PROXY;
+    process.env.ATTENDANCE_TRUST_CF_IP = 'true'; // cờ cũ không còn tác dụng
     try {
-      const req = makeReq({ 'x-real-ip': '203.0.113.5' }, undefined, '198.51.100.9');
-      expect(extractClientIp(req)).toBe('203.0.113.5');
+      const req = makeReq({ 'cf-connecting-ip': '203.0.113.108', 'x-real-ip': '203.0.113.108', 'x-forwarded-for': '203.0.113.108' }, '198.51.100.9');
+      expect(extractClientIp(req)).toBe('198.51.100.9');
     } finally {
-      delete process.env.ATTENDANCE_TRUST_PROXY_HEADERS;
+      delete process.env.ATTENDANCE_TRUST_CF_IP;
     }
   });
 
-  it('proxy mạng riêng (10.x, 192.168.x) được tin; 172.32.x thì không', () => {
-    expect(extractClientIp(makeReq({ 'x-real-ip': '203.0.113.5' }, undefined, '10.2.3.4'))).toBe('203.0.113.5');
-    expect(extractClientIp(makeReq({ 'x-real-ip': '203.0.113.5' }, undefined, '192.168.1.9'))).toBe('203.0.113.5');
-    expect(extractClientIp(makeReq({ 'x-real-ip': '203.0.113.5' }, undefined, '172.32.0.1'))).toBe('172.32.0.1');
+  it('peer loopback chưa khai báo proxy → null (không tin được: cho qua, không so IP văn phòng)', () => {
+    delete process.env.TRUSTED_PROXY;
+    expect(extractClientIp(makeReq({ 'x-real-ip': '203.0.113.5' }, '127.0.0.1'))).toBeNull();
   });
 
-  it('should normalize IPv4-mapped IPv6 from x-real-ip', () => {
-    const req = makeReq({ 'x-real-ip': '::ffff:198.51.100.73' }, undefined, LOOPBACK);
-    expect(extractClientIp(req)).toBe('198.51.100.73');
+  it('peer là cổng mặc định của container → null', () => {
+    delete process.env.TRUSTED_PROXY;
+    __setRouteTableForTest('Iface\tDestination\tGateway\tFlags\neth0\t00000000\t010012AC\t0003\n'); // 172.18.0.1
+    expect(extractClientIp(makeReq({}, '172.18.0.1'))).toBeNull();
+  });
+
+  it('cloudflare-behind:127.0.0.1/32 → cf-connecting-ip khi hop do proxy ghi thuộc dải Cloudflare', () => {
+    process.env.TRUSTED_PROXY = 'cloudflare-behind:127.0.0.1/32';
+    const req = makeReq({ 'x-forwarded-for': '1.2.3.4, 172.70.1.1', 'cf-connecting-ip': '203.0.113.108' }, '127.0.0.1');
+    expect(extractClientIp(req)).toBe('203.0.113.108');
   });
 });
 

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, NotFoundException, Param, ParseIntPipe, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { Can, CurrentUser, Public, type AuthUser } from '@trinity/rbac-nest';
+import { Can, CurrentUser, Public, resolveClientIp, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
 import { StoreService, type StoreSettings } from './store.service';
 import { withCompanyHint } from '../common/helpers/tenant-hint';
@@ -15,7 +15,8 @@ async function routeBySlug(slug: string): Promise<void> {
   if (!(await enterRoutedCompany('store_slug', slug))) throw new NotFoundException('Không có cửa hàng này.');
 }
 
-const clientIp = (req: Request) => (String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.ip || '0').replace(/^::ffff:/, '').slice(0, 45);
+/** IP khách cho giới hạn đặt đơn: hàm dùng chung (TRUSTED_PROXY). Bản cũ lấy phần tử ĐẦU của x-forwarded-for (client tự khai) — lỗi, đã bỏ. */
+const clientIp = (req: Request) => resolveClientIp(req).rateKey.slice(0, 45);
 
 /** Trang bán hàng online: phần công khai (/store/:slug) + quản trị (cấu hình, đơn). Cờ tổ chức `online_store` (mặc định tắt). */
 @ApiTags('Trang bán hàng')

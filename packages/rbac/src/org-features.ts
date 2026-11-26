@@ -96,32 +96,6 @@ export function isOrgFeatureOn(features: OrgFeatures, key: OrgFeatureKey): boole
   return features[key]
 }
 
-/**
- * Bản chạy serverless (Vercel, `TRINITY_RUNTIME=serverless`): một số
- * tính năng cần tiến trình sống lâu (nếu có) có thể bị KHOÁ TẮT cố định — không bật được từ Cài đặt. Nguồn duy nhất cho BE
- * (GET/PUT org-features) và FE (hiện lý do ở Cài đặt > Tính năng).
- */
-export const SERVERLESS_LOCKED_FEATURES = {} as const satisfies Partial<Record<OrgFeatureKey, string>>
-
-export type LockedFeatureReasons = Partial<Record<OrgFeatureKey, string>>
-
-/** Cờ chạy serverless: `TRINITY_RUNTIME` = `serverless` (bỏ khoảng trắng, không phân biệt hoa/thường — cùng cách đọc với web/monolith/rbac-nest); không đặt = hành vi VPS cũ. */
-export function isServerlessRuntime(env: Record<string, string | undefined> = process.env): boolean {
-  return env.TRINITY_RUNTIME?.trim().toLowerCase() === 'serverless'
-}
-
-/** Khoá → lý do bị khoá ở runtime hiện tại (rỗng khi không phải serverless). */
-export function lockedFeatureReasons(serverless: boolean): LockedFeatureReasons {
-  return serverless ? { ...SERVERLESS_LOCKED_FEATURES } : {}
-}
-
-/** Ép các khoá bị khoá về TẮT (ghi đè cấu hình đã lưu). */
-export function applyFeatureLocks(features: OrgFeatures, locked: LockedFeatureReasons): OrgFeatures {
-  const out = { ...features }
-  for (const key of Object.keys(locked) as OrgFeatureKey[]) out[key] = false
-  return out
-}
-
 // ─── Gói dịch vụ ────────────────────────────────────────────────
 
 /** Khoá gói bán. `custom` = không ràng buộc gì (mặc định cho bản cài đã có, để không vỡ khách đang chạy). */

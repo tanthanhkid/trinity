@@ -21,7 +21,6 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '#nest-loader': path.resolve(__dirname, './src/lib/nest-loader.ts'),
       '@': path.resolve(__dirname, './src'),
     },
   },

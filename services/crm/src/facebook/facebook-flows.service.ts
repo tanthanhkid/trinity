@@ -408,8 +408,7 @@ export class FacebookFlowsService {
   }
 
   /**
-   * Bước "chờ N phút" tới giờ khi không có timer (serverless; Vercel Cron gói thường chỉ chạy mỗi ngày): web đang mở gọi
-   * `POST facebook/tick` mỗi phút. Mỗi instance kiểm DB tối đa một lần mỗi 20 giây; không chạy chồng trong cùng process.
+   * Bước "chờ N phút" tới giờ: web đang mở gọi `POST facebook/tick` mỗi phút (bổ sung cho timer). Mỗi instance kiểm DB tối đa một lần mỗi 20 giây; không chạy chồng trong cùng process.
    */
   /** Giờ của bước kịch bản chờ sớm nhất (null = không có). */
   async nextDueAt(): Promise<Date | null> {

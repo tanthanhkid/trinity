@@ -2,7 +2,6 @@ import fs from 'node:fs'
 import { request as pwRequest, type APIRequestContext, type APIResponse, type Page } from '@playwright/test'
 import type { Grants } from '@trinity/rbac'
 import { storageStatePath, type RoleKey } from './roles'
-import { bypassHeaders } from './vercel-bypass'
 
 export const BASE_URL = process.env.E2E_BASE_URL || 'http://localhost:3000'
 const API = `${BASE_URL.replace(/\/$/, '')}/api/v1`
@@ -41,7 +40,7 @@ export class Api {
   ) {}
 
   static async forRole(role: RoleKey): Promise<Api> {
-    const ctx = await pwRequest.newContext({ extraHTTPHeaders: bypassHeaders() })
+    const ctx = await pwRequest.newContext()
     return new Api(ctx, readTokens(role))
   }
 

@@ -52,7 +52,7 @@ export class BriefingsService {
     @Inject(BRIEFING_CHANNELS) private readonly channels: BriefingChannel[],
   ) {}
 
-  /** Gọi mỗi phút (tiến trình dài) hoặc mỗi lượt cron tick (serverless): gửi slot nào đã đến giờ mà chưa gửi hôm nay. */
+  /** Gọi mỗi phút: gửi slot nào đã đến giờ mà chưa gửi hôm nay. */
   async runDue(now = new Date()): Promise<RunResult[] | { skipped: string }> {
     const cfg = await this.config.get();
     if (!cfg.enabled) return { skipped: 'config-off' };

@@ -8,9 +8,7 @@ import { createUploadsStore, type UploadsStore } from '@trinity/storage';
 export const PRODUCT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 /**
- * Thư mục con trong `uploads/` — `apps/monolith` phục vụ tĩnh ở `/uploads` (xem `main.ts`);
- * `STORAGE_DRIVER=vercel-blob`: lưu Blob key `uploads/products/<tên>`, web route
- * `/uploads/[...path]` đọc lại — URL lưu trong DB không đổi.
+ * Thư mục con trong `uploads/` — `apps/monolith` phục vụ tĩnh ở `/uploads` (xem `main.ts`).
  */
 export const PRODUCT_IMAGE_SUBDIR = 'products';
 
@@ -44,7 +42,7 @@ export function detectImageKind(buf: Buffer): ImageKind | null {
   return null;
 }
 
-/** `root` (test/legacy) ép nhánh đĩa dưới `<root>/uploads`; bỏ trống → theo env (đĩa mặc định hoặc Blob). */
+/** `root` (test/legacy) ép nhánh đĩa dưới `<root>/uploads`; bỏ trống → theo env (`UPLOADS_LOCAL_ROOT` hoặc `<cwd>/uploads`). */
 function uploadsStoreFor(root?: string): UploadsStore {
   return createUploadsStore(root ? { localRoot: path.join(root, 'uploads') } : {});
 }

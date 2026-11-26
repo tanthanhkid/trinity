@@ -48,7 +48,6 @@ export function initMonitoring(env: NodeJS.ProcessEnv = process.env): boolean {
         }
         Sentry.captureException(err)
       })
-      if (env.TRINITY_RUNTIME === 'serverless') void Sentry.flush(2000)
     })
     enabled = true
   }

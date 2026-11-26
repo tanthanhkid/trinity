@@ -48,7 +48,7 @@ type ContactRow = Prisma.ContactGetPayload<{ select: typeof EXPORT_SELECT }>;
 /** Cap cứng — bảo vệ memory/thời gian request (bảng lớn, scope `all` không
  * giới hạn). Vượt cap → cảnh báo ở dòng đầu file (KHÔNG âm thầm cắt cụt). */
 const EXPORT_LIMIT = 20_000;
-/** Ngày xuất theo giờ VN, không theo múi giờ máy chủ (UTC trên Vercel/VPS lệch ngày). */
+/** Ngày xuất theo giờ VN, không theo múi giờ máy chủ (máy chủ UTC lệch ngày). */
 const VN_TZ = { timeZone: 'Asia/Ho_Chi_Minh' } as const;
 const BATCH_SIZE = 500;
 

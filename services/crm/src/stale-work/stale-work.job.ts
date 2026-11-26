@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { StaleWorkService } from './stale-work.service';
 import { tenantTimerTick } from '../common/helpers/tenant-timer';
 
@@ -20,12 +19,7 @@ export class StaleWorkJob implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly service: StaleWorkService) {}
 
   onModuleInit(): void {
-    cronRegistry.register({
-      name: 'stale-work.digest',
-      budgetMs: 25_000,
-      run: async () => (staleJobEnabled() ? this.service.runOnce() : { skipped: 'flag-off' }),
-    });
-    if (isServerless() || !staleJobEnabled()) return;
+    if (!staleJobEnabled()) return;
     this.first = setTimeout(() => void this.timerTick(), FIRST_RUN_DELAY_MS);
     this.interval = setInterval(() => void this.timerTick(), INTERVAL_MS);
     this.first.unref();

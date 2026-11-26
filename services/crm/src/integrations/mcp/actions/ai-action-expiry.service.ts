@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { oauthEnabled } from '../../oauth/oauth-config';
 import { AiActionsService } from './ai-actions.service';
 import { tenantTimerTick } from '../../../common/helpers/tenant-timer';
@@ -22,13 +21,7 @@ export class AiActionExpiryService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly actions: AiActionsService) {}
 
   onModuleInit(): void {
-    // Hết hạn đề xuất AI + kẹt `executing` (expireOverdue xử lý cả hai) — chạy trong cron tick khi serverless.
-    cronRegistry.register({
-      name: 'integrations.ai-action-expiry',
-      budgetMs: 20_000,
-      run: async () => (oauthEnabled() ? this.runOnce() : { skipped: 'flag-off' }),
-    });
-    if (isServerless()) return;
+    // Hết hạn đề xuất AI + kẹt `executing` (expireOverdue xử lý cả hai).
     if (!oauthEnabled()) return;
     this.first = setTimeout(() => void this.timerTick(), FIRST_RUN_DELAY_MS);
     this.interval = setInterval(() => void this.timerTick(), TEN_MIN_MS);

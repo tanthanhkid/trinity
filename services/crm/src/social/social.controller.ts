@@ -21,7 +21,7 @@ import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '
 import type { Response } from 'express';
 import { Can, CurrentUser, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
-import { CreateSocialPostDto, SocialDraftDto, SocialDraftPublishDto, SocialQueueSlotsDto, SocialSnippetDto, SocialRescheduleDto, SocialConnectDto, SocialMediaRegisterDto, SocialUploadTokenDto, SocialImportDto, SocialImportPlanDto, SocialRecurrenceDto } from './dto-social';
+import { CreateSocialPostDto, SocialDraftDto, SocialDraftPublishDto, SocialQueueSlotsDto, SocialSnippetDto, SocialRescheduleDto, SocialConnectDto, SocialUploadTokenDto, SocialImportDto, SocialImportPlanDto, SocialRecurrenceDto } from './dto-social';
 import { SocialAccountsService } from './social-accounts.service';
 import { SocialDraftsService } from './social-drafts.service';
 import { SocialImportService } from './social-import.service';
@@ -93,7 +93,7 @@ export class SocialController {
   @Post('media/upload-token')
   @HttpCode(HttpStatus.OK)
   @Can('social.post')
-  @ApiOperation({ summary: 'Token tải tệp thẳng lên Blob (Vercel); 400 nếu môi trường không hỗ trợ → dùng POST social/media' })
+  @ApiOperation({ summary: 'Kiểm loại/cỡ tệp trước khi tải: luôn 400 (quá trần ⇒ "Tệp quá lớn" + max_bytes; hợp lệ ⇒ dùng POST social/media)' })
   uploadToken(@Body() dto: SocialUploadTokenDto, @CurrentUser() user: AuthUser) {
     return this.media.uploadToken(user, dto.file_name, dto.size);
   }
@@ -105,14 +105,6 @@ export class SocialController {
   @UseInterceptors(SocialUploadInterceptor)
   upload(@UploadedFile() file: Express.Multer.File | undefined, @CurrentUser() user: AuthUser) {
     return this.media.uploadFile(user, file);
-  }
-
-  @Post('media/register')
-  @HttpCode(HttpStatus.OK)
-  @Can('social.post')
-  @ApiOperation({ summary: 'Đưa tệp vừa tải thẳng lên Blob vào thư viện media' })
-  register(@Body() dto: SocialMediaRegisterDto, @CurrentUser() user: AuthUser) {
-    return this.media.register(user, dto.key, dto.name);
   }
 
   @Get('media')

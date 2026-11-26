@@ -10,7 +10,7 @@ vi.mock("@/hooks/use-setup-status", () => ({
 }))
 vi.mock("@/hooks/ai-actions/use-ai-actions", () => ({ useAiActionsPendingCount: () => ({ data: 0 }) }))
 vi.mock("@/hooks/use-onboarding", () => ({ useOnboarding: () => ({ data: { seen: true, ai_connected: false, workspace_built: false, has_data: false, channel_linked: false, first_post: false } }), useMarkOnboardingSeen: () => ({ mutate: vi.fn(), isIdle: true }) }))
-vi.mock("@/hooks/use-org-features", async () => { const { resolveOrgFeatures } = await import("@trinity/rbac"); return { useOrgFeatures: () => ({ features: resolveOrgFeatures(undefined), isResolved: true, isLoading: false, locked: {} }) } })
+vi.mock("@/hooks/use-org-features", async () => { const { resolveOrgFeatures } = await import("@trinity/rbac"); return { useOrgFeatures: () => ({ features: resolveOrgFeatures(undefined), isResolved: true, isLoading: false }) } })
 
 import { LoginBrandPanel } from "@/app/login/_components/login-brand-panel"
 import { BatDauScreen } from "@/app/(dashboard)/bat-dau/_components/bat-dau-screen"

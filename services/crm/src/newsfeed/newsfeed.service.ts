@@ -134,7 +134,6 @@ export class NewsfeedService {
     content: string,
     images?: Express.Multer.File[],
     videos?: Express.Multer.File[],
-    videoKeys: string[] = [],
   ) {
     const imageFiles = images?.filter(Boolean) ?? [];
     const videoFiles = videos?.filter(Boolean) ?? [];
@@ -145,7 +144,6 @@ export class NewsfeedService {
         content,
         imageFiles,
         videoFiles,
-        videoKeys,
       );
     } finally {
       // Dọn MỌI file tạm diskStorage (kể cả file chưa kịp xử lý khi lỗi giữa
@@ -164,13 +162,12 @@ export class NewsfeedService {
     content: string,
     imageFiles: Express.Multer.File[],
     videoFiles: Express.Multer.File[],
-    videoKeys: string[] = [],
   ) {
     // Quyền đăng bài (`newsfeed.post`) đã kiểm ở guard toàn cục
     // (`@Can('newsfeed.post')` — controller) — có quyền là đăng được MỌI
     // nhóm (không có allowlist theo category hay theo vai trò).
     const trimmed = content.trim();
-    if (!trimmed && imageFiles.length === 0 && videoFiles.length === 0 && videoKeys.length === 0) {
+    if (!trimmed && imageFiles.length === 0 && videoFiles.length === 0) {
       throw new BadRequestException(
         'Vui lòng nhập nội dung hoặc đính kèm ảnh/video',
       );
@@ -178,7 +175,7 @@ export class NewsfeedService {
     if (imageFiles.length > MAX_IMAGES_PER_POST) {
       throw new BadRequestException(`Tối đa ${MAX_IMAGES_PER_POST} ảnh mỗi bài`);
     }
-    if (videoFiles.length + videoKeys.length > MAX_VIDEOS_PER_POST) {
+    if (videoFiles.length > MAX_VIDEOS_PER_POST) {
       throw new BadRequestException(`Tối đa ${MAX_VIDEOS_PER_POST} video mỗi bài`);
     }
 
@@ -189,11 +186,6 @@ export class NewsfeedService {
       }
       for (const file of videoFiles) {
         uploaded.push({ key: await this.uploadVideo(file), mediaType: 'video' });
-      }
-      // video đã được trình duyệt đẩy thẳng lên Blob — kiểm khoá hợp lệ + của chính user + tồn tại.
-      for (const key of videoKeys) {
-        await this.assertOwnVideoKey(user, key);
-        uploaded.push({ key, mediaType: 'video' });
       }
       const post = await this.prisma.newsfeedPost.create({
         data: {
@@ -215,7 +207,6 @@ export class NewsfeedService {
       );
       // Fan-out thông báo tới mọi nhân viên (trừ người đăng). Fire-and-forget:
       // lỗi notify KHÔNG được ảnh hưởng tới việc đăng bài.
-      // Serverless: `runInBackground` giữ hàm sống tới khi fan-out xong (waitUntil/drain).
       runInBackground(
         () => this.notifyNewPost(post),
         (err) =>
@@ -511,43 +502,6 @@ export class NewsfeedService {
       return key;
     } finally {
       await unlink(file.path).catch(() => undefined);
-    }
-  }
-
-  /**
-   * cấp quyền upload video THẲNG từ trình duyệt lên Blob (Vercel chặn body function >4,5MB).
-   * Khoá `newsfeed/u<userId>_<ts>_<rand><ext>` mang id người đăng để `assertOwnVideoKey` chặn
-   * việc gắn file của người khác. Driver không hỗ trợ → 400 (FE rơi về multipart qua BE).
-   */
-  createVideoUploadToken(user: AuthUser, fileName: string, size: number) {
-    if (!this.storage.isClientUploadSupported()) {
-      throw new BadRequestException('Môi trường này không dùng upload trực tiếp — gửi video qua /newsfeed/upload');
-    }
-    const ext = extname(fileName).toLowerCase();
-    const contentType = VIDEO_EXT_CONTENT_TYPE[ext];
-    if (!contentType) throw new BadRequestException('Chỉ hỗ trợ video MP4, WebM, MOV');
-    if (size > MAX_VIDEO_SIZE) {
-      throw new BadRequestException(`Kích thước video tối đa ${MAX_VIDEO_SIZE / (1024 * 1024)}MB`);
-    }
-    const key = `newsfeed/u${user.userId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
-    return {
-      key,
-      max_bytes: MAX_VIDEO_SIZE,
-      ...this.storage.createClientUpload(key, contentType, MAX_VIDEO_SIZE),
-    };
-  }
-
-  private async assertOwnVideoKey(user: AuthUser, key: string): Promise<void> {
-    const re = new RegExp(`^newsfeed/u${user.userId}_\\d+_[a-z0-9]+\\.(mp4|webm|mov)$`);
-    if (!re.test(key)) throw new BadRequestException('Khoá video không hợp lệ');
-    try {
-      const probe = await this.storage.getObjectStreamRange(key, 'bytes=0-0');
-      probe.body.destroy();
-    } catch (err) {
-      if ((err as { name?: string }).name === 'NoSuchKey') {
-        throw new BadRequestException('Video chưa được tải lên hoặc đã hết hạn');
-      }
-      throw err;
     }
   }
 }

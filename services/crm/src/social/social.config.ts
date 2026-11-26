@@ -59,7 +59,7 @@ export function truncatedAt(network: SocialNetwork, text: string): number | null
   return cut < 0 ? null : cut;
 }
 
-/** Trần một tệp đính kèm. Vercel: tệp > 4,5 MB phải tải thẳng lên Blob (upload-token). */
+/** Trần một tệp đính kèm. */
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 /** Trần video mặc định (MB). Bản cài sau proxy Cloudflare (body ≤ 100 MB) đặt `SOCIAL_MAX_VIDEO_MB=95`. */
 export const DEFAULT_MAX_VIDEO_MB = 200;

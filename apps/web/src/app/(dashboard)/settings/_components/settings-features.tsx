@@ -22,7 +22,7 @@ import { errorMessage } from "@/lib/error-messages"
  * Chia theo nhóm (`ORG_FEATURE_GROUPS`). Tab này chỉ hiện với quyền `settings.features`.
  */
 export function SettingsFeatures() {
-  const { features, isLoading, locked = {} } = useOrgFeatures()
+  const { features, isLoading } = useOrgFeatures()
   const update = useUpdateOrgFeatures()
   const { can } = usePermissions()
 
@@ -65,7 +65,6 @@ export function SettingsFeatures() {
             <div className="grid gap-3 sm:grid-cols-2">
               {keys.map((key) => {
                 const { label, description } = ORG_FEATURES[key]
-                const lockedReason = locked[key]
                 const basic = (BASIC_FEATURES as readonly string[]).includes(key)
                 return (
                   <Card key={key} className={cn("rounded-2xl shadow-none transition-colors", features[key] && "border-[var(--ring)]/40 bg-[var(--accent)]/30")}>
@@ -77,11 +76,10 @@ export function SettingsFeatures() {
                             {basic && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 align-middle text-[11px] font-normal text-muted-foreground">Cơ bản</span>}
                           </p>
                           <p className="text-sm text-muted-foreground">{description}</p>
-                          {lockedReason && <p className="mt-1 text-xs text-amber-600">{lockedReason}</p>}
                         </div>
                         <Switch
                           checked={features[key]}
-                          disabled={update.isPending || Boolean(lockedReason)}
+                          disabled={update.isPending}
                           onCheckedChange={(v) => toggle(key, v)}
                           aria-labelledby={`feature-${key}`}
                           id={`feature-switch-${key}`}

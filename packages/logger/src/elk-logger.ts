@@ -43,10 +43,8 @@ function flattenStackTrace(): winston.Logform.Format {
 
 export function createElkLogger(options: ElkLoggerOptions): winston.Logger {
   const { service, level = 'info' } = options
-  const serverless = process.env.TRINITY_RUNTIME?.trim().toLowerCase() === 'serverless'
   const elasticsearchUrl = options.elasticsearchUrl || process.env.ELASTICSEARCH_URL || 'http://localhost:9200'
-  // Serverless: chỉ ghi console (Vercel gom stdout) — không file (đĩa chỉ đọc), không ES (không có Elasticsearch).
-  const logDir = serverless ? '' : getLogDir()
+  const logDir = getLogDir()
 
   const transports: winston.transport[] = [
     new winston.transports.Console({
@@ -60,12 +58,6 @@ export function createElkLogger(options: ElkLoggerOptions): winston.Logger {
       ),
     }),
   ]
-
-  if (serverless) {
-    const lean = winston.createLogger({ level, defaultMeta: { service }, transports })
-    lean.on('error', () => undefined)
-    return lean
-  }
 
   // JSON file transport for Filebeat pickup (primary ELK ingestion)
   // Each log entry MUST be a single JSON object on one line (ndjson).

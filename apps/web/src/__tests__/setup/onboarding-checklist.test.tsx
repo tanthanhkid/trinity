@@ -5,7 +5,7 @@ import { resolveOrgFeatures, type OrgFeatures } from "@trinity/rbac"
 
 let features: OrgFeatures = resolveOrgFeatures(undefined)
 let allowed: (p: string) => boolean = () => true
-vi.mock("@/hooks/use-org-features", () => ({ useOrgFeatures: () => ({ features, isResolved: true, isLoading: false, locked: {} }) }))
+vi.mock("@/hooks/use-org-features", () => ({ useOrgFeatures: () => ({ features, isResolved: true, isLoading: false }) }))
 vi.mock("@/lib/rbac", () => ({ usePermissions: () => ({ can: (p: string) => allowed(p), grants: {} }) }))
 vi.mock("next/link", () => ({ default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => <a href={href} className={className}>{children}</a> }))
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }))

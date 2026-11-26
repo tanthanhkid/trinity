@@ -29,11 +29,8 @@ The browser checks run on headless Chrome with a temporary profile. Every `/api/
 - the "break-it" scenarios (offline, 500/401, empty lists, expired channel token, failed post, undo).
 The Docker image builds only for `v*` tags (or by manual dispatch).
 
-## 3. Deploying — one command, targets in parallel
-The deploy script runs the serverless targets and the self-hosted server **at the same time**:
-- **Serverless (Vercel):** each project builds itself from the commit. Only the public demo deploys by default; a separate test
-  instance deploys only when asked for (a flag on the script), since it adds minutes and nobody reviews there. A long-lived instance that already has its admin deploys with
-  `SKIP_DB_SEED=1`: migrations still apply, the seed is skipped.
+## 3. Deploying — one command
+The deploy script builds and ships the self-hosted server:
 - **Self-hosted server (PM2):** build on the workstation, ship artifacts, restart.
   - **Selective build** from the diff between the server's `.deployed-commit` and the new commit: web only when `apps/web/` or `packages/` changed,
     `pnpm install` only when a `package.json` or the lockfile changed. Unchanged parts are not rebuilt or shipped; with only the API changed,
@@ -50,6 +47,5 @@ The deploy script runs the serverless targets and the self-hosted server **at th
 | Required CI on a pull request (`ci-ok`) | about 1.5–2 min; heavier jobs run in parallel and are not required |
 | Build packages + API + web with warm cache | ~10 s |
 | Ship + server switch + health | ~30 s |
-| Vercel demo build (parallel with the server) | ~2.5 min: API compile + packaging ~70 s, upload ~25 s; Next.js itself hits its cache (~2 s) |
 
-Turborepo remote caching does not apply: the workspace builds with pnpm filters, not Turborepo, and Next.js already reuses its own cache on Vercel.
+Turborepo remote caching does not apply: the workspace builds with pnpm filters, not Turborepo, and Next.js already reuses its own build cache.

@@ -34,7 +34,6 @@ import { NewsfeedService } from './newsfeed.service';
 import {
   CreatePostDto,
   CreatePostMultipartDto,
-  VideoUploadTokenDto,
 } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { CreatePostCommentDto } from './dto/create-comment.dto';
@@ -146,21 +145,7 @@ export class NewsfeedController {
       dto.content ?? '',
       files?.images,
       files?.videos,
-      (dto.video_keys ?? '')
-        .split(',')
-        .map((k) => k.trim())
-        .filter(Boolean),
     );
-  }
-
-  @Post('newsfeed/video-upload-token')
-  @Can('newsfeed.post')
-  @ApiOperation({
-    summary:
-      'Cấp token upload video thẳng lên Blob (môi trường serverless giới hạn kích thước body); 400 nếu môi trường không hỗ trợ',
-  })
-  videoUploadToken(@Body() dto: VideoUploadTokenDto, @CurrentUser() user: AuthUser) {
-    return this.newsfeed.createVideoUploadToken(user, dto.file_name, dto.size);
   }
 
   @Get('newsfeed/:id/image')

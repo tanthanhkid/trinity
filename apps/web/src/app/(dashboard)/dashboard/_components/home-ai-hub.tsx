@@ -268,12 +268,12 @@ function readDismissed(): boolean {
 
 export function FeatureSuggestions() {
   const { can } = usePermissions()
-  const { features, isLoading, locked = {} } = useOrgFeatures()
+  const { features, isLoading } = useOrgFeatures()
   const update = useUpdateOrgFeatures()
   const stored = useSyncExternalStore(noopSubscribe, readDismissed, () => true)
   const [hidden, setHidden] = useState(false)
   if (!can('settings.features') || isLoading || stored || hidden) return null
-  const off = SUGGESTED_FEATURES.filter((k) => !features[k] && !locked[k]).slice(0, 4)
+  const off = SUGGESTED_FEATURES.filter((k) => !features[k]).slice(0, 4)
   if (off.length === 0) return null
   const dismiss = () => {
     setHidden(true)

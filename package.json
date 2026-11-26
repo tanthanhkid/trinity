@@ -15,7 +15,6 @@
     "dev:all": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "build:web": "pnpm --filter web build",
-    "build:vercel": "pnpm db:generate && bash scripts/vercel/db-setup.sh && pnpm --filter \"./packages/*\" build && pnpm --filter @trinity/monolith build && bash scripts/vercel/prepare-nest-package.sh && TRINITY_RUNTIME=serverless NEXT_PUBLIC_REALTIME_MODE=poll pnpm --filter web build",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",

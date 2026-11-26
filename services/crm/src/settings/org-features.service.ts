@@ -7,14 +7,10 @@ import {
   ORG_FEATURE_KEYS,
   PLANS,
   PLAN_GATED_FEATURES,
-  applyFeatureLocks,
   applyPlanToFeatures,
   type OrgFeatureKey,
   type PlanKey,
-  isServerlessRuntime,
-  lockedFeatureReasons,
   resolveOrgFeatures,
-  type LockedFeatureReasons,
   type OrgFeatures,
 } from '@trinity/rbac';
 import type { UpdateOrgFeaturesDto } from './dto/org-features.dto';
@@ -24,8 +20,8 @@ const KEY = 'org_features';
 /** Gói dịch vụ của tổ chức — chuỗi khoá gói; vắng/rác = `custom` (không ràng buộc). */
 export const PLAN_SETTING_KEY = 'org_plan';
 
-/** Phản hồi GET/PUT: đủ khoá boolean; thêm `locked` (khoá → lý do) CHỈ khi runtime serverless. */
-export type OrgFeaturesResponse = OrgFeatures & { locked?: LockedFeatureReasons };
+/** Phản hồi GET/PUT: đủ khoá boolean. */
+export type OrgFeaturesResponse = OrgFeatures;
 
 /**
  * "Tính năng của tổ chức" — công tắc ẩn/hiện UI theo TỔ CHỨC, lưu
@@ -50,14 +46,14 @@ export class OrgFeaturesService {
   async get(): Promise<OrgFeaturesResponse> {
     try {
       const plan = await this.getPlan();
-      return this.withLocks(applyPlanToFeatures(resolveOrgFeatures(await this.readStored(), await this.defaults()), plan));
+      return applyPlanToFeatures(resolveOrgFeatures(await this.readStored(), await this.defaults()), plan);
     } catch (err) {
       this.logger.error(`getOrgFeatures failed: ${(err as Error)?.message}`);
-      return this.withLocks(resolveOrgFeatures(undefined));
+      return resolveOrgFeatures(undefined);
     }
   }
 
-  /** Tính năng `key` đang bật cho tổ chức (đã tính gói + khoá serverless) — dùng ở guard BE. Lỗi đọc = bật (fail-open như `get`). */
+  /** Tính năng `key` đang bật cho tổ chức (đã tính gói) — dùng ở guard BE. Lỗi đọc = bật (fail-open như `get`). */
   async isEnabled(key: OrgFeatureKey): Promise<boolean> {
     const f = await this.get();
     return f[key] !== false;
@@ -101,23 +97,8 @@ export class OrgFeaturesService {
     return plan;
   }
 
-  /**
-   * Serverless: khoá bị khoá luôn trả `false` + `locked[khoá]` = lý do.
-   * Không phải serverless → trả y nguyên như trước (không thêm `locked`).
-   */
-  private withLocks(features: OrgFeatures): OrgFeaturesResponse {
-    const locked = lockedFeatureReasons(isServerlessRuntime());
-    if (Object.keys(locked).length === 0) return features;
-    return { ...applyFeatureLocks(features, locked), locked };
-  }
-
   /** Cập nhật một phần: chỉ khoá gửi lên (≠ undefined) đổi, khoá vắng giữ nguyên. */
   async update(dto: UpdateOrgFeaturesDto, userId: number): Promise<OrgFeaturesResponse> {
-    const locked = lockedFeatureReasons(isServerlessRuntime());
-    for (const key of ORG_FEATURE_KEYS) {
-      const reason = locked[key];
-      if (reason && dto[key] === true) throw new BadRequestException(reason);
-    }
     const plan = await this.getPlan();
     const inPlan = new Set<string>(PLANS[plan].features);
     for (const key of PLAN_GATED_FEATURES) {
@@ -141,7 +122,7 @@ export class OrgFeaturesService {
       for (const key of ORG_FEATURE_KEYS) {
         if (dto[key] !== undefined) trackProductEvent('feature_toggled', userId, { feature: key, enabled: dto[key] === true });
       }
-      return this.withLocks(applyPlanToFeatures(next, plan));
+      return applyPlanToFeatures(next, plan);
     } catch (err) {
       this.logger.error(`updateOrgFeatures failed (user=${userId}): ${(err as Error)?.message}`);
       throw new InternalServerErrorException('Không cập nhật được tính năng của tổ chức');

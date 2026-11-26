@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, HttpException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService, publishIntegrationEvent, tenantKey, currentCompanyId } from '@trinity/prisma';
 import { trackProductEvent } from '@trinity/logger';
-import { isServerless, runInBackground, type AuthUser } from '@trinity/rbac-nest';
+import { runInBackground, type AuthUser } from '@trinity/rbac-nest';
 import type { Prisma, SocialPost, SocialPostTarget } from '@prisma/client';
 import { ChannelGuardService } from '../channel-guard/channel-guard.service';
 import { SocialProviderRegistry } from './providers/provider.registry';
@@ -547,8 +547,8 @@ export class SocialPostsService {
   }
 
   /**
-   * Nhặt bài đến hạn (bài hẹn giờ, lượt thử lại) khi có người đang mở Trinity. Serverless không có timer, còn Vercel Cron
-   * gói thường chỉ chạy mỗi ngày một lần, nên web gọi `POST social/tick` mỗi phút để bài hẹn lên đúng giờ.
+   * Nhặt bài đến hạn (bài hẹn giờ, lượt thử lại) khi có người đang mở Trinity: web gọi `POST social/tick` mỗi phút
+   * (bổ sung cho timer).
    * Mỗi instance kiểm DB tối đa một lần mỗi 20 giây; không có việc đến hạn thì không làm gì.
    */
   /** Giờ của bài chờ đăng / chờ thử lại sớm nhất (null = không còn gì chờ) — web hẹn lượt tick kế tiếp đúng giờ này. */
@@ -570,7 +570,7 @@ export class SocialPostsService {
     return { due: Boolean(due) };
   }
 
-  /** Đăng ngay sau request (serverless: giữ hàm sống tới khi xong; VPS: chạy nền). */
+  /** Đăng ngay sau request (chạy nền). */
   kick(): void {
     runInBackground(
       () => this.runDue(40_000),
@@ -885,8 +885,7 @@ export class SocialPostsService {
         await this.accounts.markReauth(account.id, e.message);
         return fail(e.message);
       }
-      // Serverless không có nhịp chạy nền thường xuyên ⇒ không tự thử lại; người dùng bấm Thử lại (retry_social_post_target).
-      const delay = isServerless() ? undefined : SOCIAL_RETRY_DELAYS_MS[t.attempts - 1];
+      const delay = SOCIAL_RETRY_DELAYS_MS[t.attempts - 1];
       if (e.retryable && delay !== undefined) {
         await this.prisma.socialPostTarget.update({
           where: { id: t.id },

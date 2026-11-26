@@ -146,7 +146,7 @@ export function SettingsIntegrations() {
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <span>
               Kênh này chưa được bật trên máy chủ. Quản trị hệ thống cần bật cờ{" "}
-              <code className="rounded bg-muted px-1">{flagEnvName(current.flag)}</code> rồi khởi động lại dịch vụ (trên Vercel: đặt biến trong Project Settings → Environment Variables rồi deploy lại).
+              <code className="rounded bg-muted px-1">{flagEnvName(current.flag)}</code> rồi khởi động lại dịch vụ.
             </span>
           </CardContent>
         </Card>

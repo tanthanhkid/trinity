@@ -51,15 +51,14 @@ export const NEST_CREATE_OPTIONS = { bodyParser: false } as const
 export interface ConfigureAppOptions {
   /** Chạy sau body parser, trước CORS/prefix (cách tắt process: shutdown hooks hay hàm tự lo). */
   afterBodyParser?: () => void
-  /** Phục vụ `/uploads` từ đĩa cục bộ (chế độ server thường). Serverless: false — file đi qua `@trinity/storage`. */
+  /** Phục vụ `/uploads` từ đĩa cục bộ. */
   serveUploads: boolean
-  /** Swagger `/docs`. Serverless mặc định tắt (tốn cold start). */
+  /** Swagger `/docs`. */
   swagger: boolean
 }
 
 /**
- * Cấu hình Nest dùng CHUNG cho `main.ts` (server thường) và `serverless.ts` (Vercel) — để 2 chế độ KHÔNG lệch
- * nhau: prefix `api/v1`, CORS, body parser 5mb + rawBody, pipe/interceptor/filter toàn cục.
+ * Cấu hình Nest dùng CHUNG cho `main.ts` và test harness — để không lệch nhau: prefix `api/v1`, CORS, body parser 5mb + rawBody, pipe/interceptor/filter toàn cục.
  */
 export async function configureApp(
   app: NestExpressApplication,
@@ -119,7 +118,7 @@ export async function configureApp(
 /**
  * RBAC quyền + phạm vi — boot-check deny-by-default.
  * `app.init()` chạy trước (idempotent) để route audit thấy đủ mọi controller.
- * Trả danh sách lỗi (rỗng = đạt); caller quyết định `process.exit` (server thường) hay throw (serverless).
+ * Trả danh sách lỗi (rỗng = đạt); caller quyết định `process.exit` hay throw.
  */
 export async function initAndAudit(app: NestExpressApplication): Promise<string[]> {
   await app.init()

@@ -1,7 +1,7 @@
 generator client {
   provider      = "prisma-client-js"
-  // "native" = máy dev/server; "rhel-openssl-3.0.x" = Vercel (Amazon Linux 2023, Node 20+).
-  binaryTargets = ["native", "rhel-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
+  // "native" = máy dev/server; "linux-arm64-openssl-3.0.x" = máy chủ ARM.
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
 }
 
 datasource db {

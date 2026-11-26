@@ -1,30 +1,8 @@
-import path from "node:path";
 import type { NextConfig } from "next";
-import { isServerlessRuntime, serverlessRewrites } from "./src/lib/serverless-runtime";
-
-// Vercel serverless: cờ ĐỌC LÚC BUILD (rewrites/tracing nằm trong manifest). Không đặt cờ = cấu hình cũ y nguyên.
-const serverless = isServerlessRuntime();
-// Bộ nạp Nest chọn lúc build: serverless = require tĩnh @trinity/monolith (Next vết vào hàm); còn lại = không require.
-const turbopackConfig = {
-  resolveAlias: {
-    "#nest-loader": serverless ? "./src/lib/nest-loader.serverless.ts" : "./src/lib/nest-loader.ts",
-  },
-};
 
 const nextConfig: NextConfig = {
-  // Standalone là kiểu đóng gói cho máy chủ tự quản; Vercel tự đóng gói hàm — standalone chỉ làm phình bundle.
-  ...(serverless ? {} : { output: "standalone" as const }),
-  // Serverless: gốc vết (trace) = gốc monorepo `trinity/` để hàm với tới `apps/monolith/dist`, `packages/*` và node_modules pnpm.
-  // Phần vết riêng của Nest (nạp bằng `require` động, Next không thấy) do `scripts/append-monolith-trace.cjs` nối vào
-  // `.next/server/app/api/v1/[...path]/route.js.nft.json` SAU `next build` — KHÔNG dùng `outputFileTracingIncludes` vì hàng nghìn
-  // đường dẫn làm glob Turbopack vượt giới hạn regex (`CompiledTooBig`).
-  ...(serverless && {
-    outputFileTracingRoot: path.join(__dirname, "../.."),
-    // Nest nạp bằng `require("@trinity/monolith/serverless")` TĨNH: external ⇒ Next không đóng gói (giữ decorator metadata,
-    // engine Prisma) nhưng VẪN vết đủ file + phụ thuộc pnpm vào hàm — cơ chế chính thức builder Vercel tôn trọng
-    // (bản nối nft.json tay bị builder Vercel mới bỏ qua).
-    serverExternalPackages: ["@trinity/monolith", "@prisma/client", ".prisma/client"],
-  }),
+  // Standalone: đóng gói cho máy chủ tự quản (Dockerfile / pm2).
+  output: "standalone",
   devIndicators: false,
   compress: true,
   poweredByHeader: false,
@@ -38,13 +16,10 @@ const nextConfig: NextConfig = {
       allowDevelopmentBuild: true,
     },
   }),
-  turbopack: turbopackConfig,
   // OAuth/MCP well-known. Reverse proxy chỉ chuyển `/api/v1/` → monolith, còn lại → Next, nên 2 URL khám phá nằm ở GỐC
   // (RFC 8414 §3.1 / RFC 9728 §3.1: `/.well-known/<loại>` + path của issuer/resource) phải được Next chuyển tiếp sang monolith.
   // Đích mặc định = monolith cục bộ :4000 (cùng giả định `LOCAL_ROUTES` ở app/api/v1/[...path]/route.ts).
   rewrites: async () => {
-    // Serverless: Nest chạy TRONG app (không còn monolith :4000) — xem `serverlessRewrites()`.
-    if (serverless) return { beforeFiles: serverlessRewrites(), afterFiles: [], fallback: [] };
     const monolith = (process.env.MONOLITH_INTERNAL_URL ?? "http://127.0.0.1:4000").replace(/\/+$/, "");
     const wellKnown = (source: string, destination: string) => [
       { source, destination: `${monolith}${destination}` },

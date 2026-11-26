@@ -37,9 +37,7 @@ const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
  * Phải là https (http chỉ cho localhost khi NODE_ENV=test|development), không path/query/fragment/userinfo.
  */
 export function publicBaseUrl(env: NodeJS.ProcessEnv = process.env): string | null {
-  let raw = (env.INTEGRATIONS_PUBLIC_BASE_URL ?? '').trim();
-  // Vercel injects the production hostname itself (system env, not client-controlled), so a fresh deploy needs no extra setting.
-  if (!raw && env.VERCEL === '1' && env.VERCEL_PROJECT_PRODUCTION_URL) raw = `https://${env.VERCEL_PROJECT_PRODUCTION_URL.trim()}`;
+  const raw = (env.INTEGRATIONS_PUBLIC_BASE_URL ?? '').trim();
   if (!raw) return null;
   let u: URL;
   try {

@@ -31,11 +31,6 @@ export class SocialUploadTokenDto {
   @ApiProperty() @IsInt() @Min(1) size!: number;
 }
 
-export class SocialMediaRegisterDto {
-  @ApiProperty() @IsString() @MaxLength(200) key!: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(255) name?: string;
-}
-
 export class SocialTargetDto {
   @ApiProperty({ description: 'id kênh (GET social/accounts)' }) @IsInt() @Min(1) account_id!: number;
   @ApiPropertyOptional({ description: 'Nội dung riêng cho kênh này; bỏ trống = dùng nội dung chung' })
@@ -52,7 +47,7 @@ export class SocialUtmDto {
 export class CreateSocialPostDto {
   @ApiProperty({ description: 'Nội dung chung' }) @IsString() @MaxLength(70_000) content!: string;
 
-  @ApiPropertyOptional({ type: [String], description: 'Khoá tệp từ POST social/media hoặc social/media/upload-token' })
+  @ApiPropertyOptional({ type: [String], description: 'Khoá tệp từ POST social/media' })
   @IsOptional() @IsArray() @ArrayMaxSize(10) @IsString({ each: true }) @MaxLength(200, { each: true }) media_keys?: string[];
 
   @ApiProperty({ type: [SocialTargetDto] })

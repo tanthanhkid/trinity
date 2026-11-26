@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect } from "react"
-import axios from "axios"
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import axios from "axios"
 import apiClient from "@/lib/api-client"
 import { nextTickMs } from "@/lib/realtime-mode"
 
@@ -494,31 +494,15 @@ export function useSocialMediaPreview(id: number, enabled: boolean) {
   return { url: q.data ?? null, isError: q.isError }
 }
 
-interface UploadGrant extends SocialMediaItem {
-  upload_url: string
-  headers: Record<string, string>
-}
-
 /**
- * Tải một tệp: Vercel → xin token rồi PUT thẳng lên Blob (body hàm ≤ 4,5 MB); môi trường khác (BE trả 400) → multipart qua BE.
+ * Tải một tệp: hỏi `POST /social/media/upload-token` trước để máy chủ kiểm loại và cỡ (tệp quá trần bị chặn trước khi gửi,
+ * kể cả khi trần thấp hơn giới hạn body của proxy); máy chủ luôn trả 400, câu "upload trực tiếp" nghĩa là tệp hợp lệ → multipart.
  */
 export async function uploadSocialFile(file: File, onProgress: (pct: number) => void): Promise<SocialMediaItem> {
-  let grant: UploadGrant | null = null
   try {
-    grant = (await apiClient.post<UploadGrant>("/social/media/upload-token", { file_name: file.name, size: file.size })).data
+    await apiClient.post("/social/media/upload-token", { file_name: file.name, size: file.size })
   } catch (err) {
     if (!(axios.isAxiosError(err) && err.response?.status === 400 && /upload trực tiếp/.test(String(err.response?.data?.message ?? "")))) throw err
-  }
-  if (grant) {
-    // axios trần (KHÔNG apiClient) — không gửi JWT của CRM sang Blob.
-    await axios.put(grant.upload_url, file, {
-      headers: grant.headers,
-      onUploadProgress: (e) => e.total && onProgress(Math.round((e.loaded / e.total) * 100)),
-    })
-    const item: SocialMediaItem = { key: grant.key, type: grant.type, content_type: grant.content_type, size: file.size }
-    // Đưa vào thư viện chung để dùng lại; lỗi ở bước này không chặn việc đăng bài.
-    await apiClient.post("/social/media/register", { key: grant.key, name: file.name }).catch(() => undefined)
-    return item
   }
   const form = new FormData()
   form.append("file", file)
@@ -529,15 +513,15 @@ export async function uploadSocialFile(file: File, onProgress: (pct: number) => 
 }
 
 /**
- * Bản serverless không có job nền chạy mỗi phút (Vercel Cron gói thường chỉ chạy mỗi ngày) → khi có người mở Trinity,
- * web nhắc máy chủ đăng các bài đã tới giờ hẹn / tới lượt thử lại. Bản VPS có timer riêng nên không gọi.
+ * Chế độ poll: khi có người mở Trinity, web nhắc máy chủ đăng các bài đã tới giờ hẹn / tới lượt thử lại (bổ sung cho timer).
+ * Chế độ socket không gọi.
  */
 export function useSocialDueTicker(enabled: boolean) {
   useQuery({
     queryKey: ["social", "tick"],
     queryFn: async () => (await apiClient.post<{ due: boolean; next_at?: string | null }>("/social/tick")).data,
     enabled,
-    // Hẹn lượt kế theo giờ bài chờ sớm nhất máy chủ báo (không gọi mỗi phút — CPU Vercel).
+    // Hẹn lượt kế theo giờ bài chờ sớm nhất máy chủ báo (không gọi mỗi phút).
     refetchInterval: (q) => nextTickMs(q.state.error ? undefined : q.state.data),
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,

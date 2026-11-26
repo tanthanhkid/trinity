@@ -59,7 +59,7 @@ export function cleanAudience(a: unknown): BroadcastAudience {
 /**
  * Gửi tin hàng loạt qua Messenger của Fanpage. Luật Meta: Page chỉ được nhắn chủ động trong 24 giờ kể từ tin cuối của khách
  * (ngoài cửa sổ cần message tag — không dùng cho tin quảng bá) ⇒ chỉ gửi khách còn trong cửa sổ, kiểm lại ngay trước khi gửi từng người.
- * Danh sách người nhận chốt lúc bắt đầu gửi. Gửi chạy nền theo lô (job mỗi phút / cron tick trên serverless).
+ * Danh sách người nhận chốt lúc bắt đầu gửi. Gửi chạy nền theo lô (job mỗi phút).
  */
 @Injectable()
 export class FacebookBroadcastsService {
@@ -232,7 +232,7 @@ export class FacebookBroadcastsService {
 
   /* ---------------- Chạy nền ---------------- */
 
-  /** Gửi ngay sau request (serverless: giữ hàm sống tới khi xong; VPS: chạy nền). Không chạy chồng trong cùng process. */
+  /** Gửi ngay sau request (chạy nền). Không chạy chồng trong cùng process. */
   kick(): void {
     const company = currentCompanyId() ?? 0;
     if (this.running.has(company)) return;
@@ -244,8 +244,7 @@ export class FacebookBroadcastsService {
   }
 
   /**
-   * Serverless không có timer và Vercel Cron gói thường chỉ chạy mỗi ngày ⇒ web đang mở gọi `POST facebook/broadcasts/tick` mỗi phút
-   * để lượt hẹn giờ / lượt đang gửi dở chạy tiếp. Mỗi instance kiểm DB tối đa một lần mỗi 20 giây.
+   * Web đang mở gọi `POST facebook/broadcasts/tick` mỗi phút để lượt hẹn giờ / lượt đang gửi dở chạy tiếp sớm (bổ sung cho timer). Mỗi instance kiểm DB tối đa một lần mỗi 20 giây.
    */
   /** Giờ lượt gửi hàng loạt kế tiếp: đang gửi dở ⇒ bây giờ; hẹn giờ ⇒ giờ hẹn sớm nhất; không có ⇒ null. */
   async nextDueAt(now = Date.now()): Promise<Date | null> {

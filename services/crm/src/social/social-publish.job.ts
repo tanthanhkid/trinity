@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { cronRegistry, isServerless } from '@trinity/rbac-nest';
 import { isSecretKeyConfigured } from '../integrations/webhooks/secret-crypto';
 import { SocialRecurrenceService } from './social-recurrence.service';
 import { SocialPostsService } from './social-posts.service';
@@ -11,7 +10,7 @@ const METRICS_INTERVAL_MS = 15 * 60_000;
 
 /**
  * Job đăng bài + thử lại có giãn cách, và lấy số liệu bài đã đăng. Bài được đăng ngay lúc tạo (kick nền); job này nhặt phần còn lại.
- * VPS: timer mỗi phút. Serverless: chỉ `/internal/cron/tick` (Vercel Cron) — không tự thử lại, người dùng bấm Thử lại.
+ * Timer mỗi phút.
  */
 @Injectable()
 export class SocialPublishJob implements OnModuleInit, OnModuleDestroy {
@@ -28,22 +27,6 @@ export class SocialPublishJob implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit(): void {
-    cronRegistry.register({
-      name: 'social.publish',
-      budgetMs: 40_000,
-      run: async () => {
-        if (!isSecretKeyConfigured()) return { skipped: 'no-secret-key' };
-        // Lịch lặp tạo bài kế tiếp trước, rồi mới đăng các bài đến hạn.
-        const recurring = await this.recurrences.materialize().catch(() => null);
-        return { ...(await this.posts.runDue(40_000)), recurring };
-      },
-    });
-    cronRegistry.register({
-      name: 'social.metrics',
-      budgetMs: 25_000,
-      run: async () => (isSecretKeyConfigured() ? this.posts.refreshMetricsDue(25_000) : { skipped: 'no-secret-key' }),
-    });
-    if (isServerless()) return;
     this.timer = setInterval(() => void this.timerTick(), INTERVAL_MS);
     this.timer.unref();
     this.metricsTimer = setInterval(() => void this.metricsTick(), METRICS_INTERVAL_MS);

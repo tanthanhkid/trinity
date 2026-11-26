@@ -4,21 +4,15 @@ import {
   LocalDiskStorageDriver,
   S3StorageDriver,
   StorageInvalidKeyError,
-  VercelBlobStorageDriver,
-  buildClientUploadTarget,
-  generateClientUploadToken,
-  resolveBlobAccess,
   resolveLocalStorageRoot,
-  resolveVercelBlobConfig,
   resolveStorageDriverMode,
   type ObjectStream,
   type RangedObjectStream,
-  type ClientUploadTarget,
   type StorageDriver,
 } from '@trinity/storage';
 import { requireCompany } from '@trinity/prisma';
 
-export type { ObjectStream, RangedObjectStream, ClientUploadTarget };
+export type { ObjectStream, RangedObjectStream };
 
 // Nhánh S3/MinIO CHỈ dùng khi STORAGE_DRIVER=s3 (đường quay lại).
 // Env giữ nguyên tên cũ để không phá cấu hình nào từng dùng MinIO thật.
@@ -65,10 +59,6 @@ export class StorageService implements OnModuleInit {
         },
         logger,
       );
-    }
-    // Vercel serverless — đĩa không bền, file nằm trên Vercel Blob (REST).
-    if (this.driverMode === 'vercel-blob') {
-      return new VercelBlobStorageDriver(resolveVercelBlobConfig(), logger);
     }
     return new LocalDiskStorageDriver(resolveLocalStorageRoot(), logger);
   }
@@ -136,30 +126,6 @@ export class StorageService implements OnModuleInit {
     range?: string,
   ): Promise<RangedObjectStream> {
     return this.driver.getObjectStreamRange(companyStorageKey(key), range);
-  }
-
-  /**
-   * Vercel giới hạn body function 4,5 MB nên file lớn (video Newsfeed ≤40MB) phải được
-   * trình duyệt PUT THẲNG lên Blob. Chỉ `STORAGE_DRIVER=vercel-blob` hỗ trợ; driver khác → `false`
-   * (FE rơi về multipart cũ qua BE).
-   */
-  isClientUploadSupported(): boolean {
-    return this.driverMode === 'vercel-blob';
-  }
-
-  /** Token + URL để trình duyệt tự upload đúng `key`, đúng loại, ≤ `maxBytes` (hết hạn sau 15 phút). */
-  createClientUpload(key: string, contentType: string, maxBytes: number): ClientUploadTarget {
-    if (!this.isClientUploadSupported()) {
-      throw new Error('Client upload chỉ hỗ trợ ở STORAGE_DRIVER=vercel-blob');
-    }
-    const { token } = resolveVercelBlobConfig();
-    const clientToken = generateClientUploadToken({
-      token,
-      pathname: companyStorageKey(key),
-      maximumSizeInBytes: maxBytes,
-      allowedContentTypes: [contentType],
-    });
-    return buildClientUploadTarget(clientToken, companyStorageKey(key), contentType, resolveBlobAccess());
   }
 
   /** Best-effort delete; logs warning nếu lỗi (vd đã xoá từ trước). */

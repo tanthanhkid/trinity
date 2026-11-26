@@ -4,17 +4,6 @@ Trinity ships as two container images built from the root `Dockerfile` (targets 
 `docker-compose.yml`. The same layout works on a single VM with Docker Compose, and the images can be used from any
 orchestrator.
 
-## Vercel (serverless)
-
-See the **Deploy** section of the [README](../README.md#deploy) for the button, the environment variables and the CLI steps.
-How it works: `apps/web/vercel.json` runs `pnpm build:vercel` from the repository root, which (1) generates the Prisma
-client, (2) runs `scripts/vercel/db-setup.sh` (`prisma migrate deploy` + idempotent seed; skipped on preview deployments
-unless `DB_SETUP_ON_PREVIEW=1`, or everywhere with `SKIP_DB_SETUP=1`; `SKIP_DB_SEED=1` keeps the migrations and skips only the seed), (3) builds the workspace packages and the monolith,
-(4) packs the monolith as a real package for the function (`scripts/vercel/prepare-nest-package.sh`) and (5) builds
-the web app with `TRINITY_RUNTIME=serverless`, so `/api/v1/*` is served by the NestJS app inside the same function.
-The first admin comes from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`; without a password one is generated and printed once
-in the build log, which every project member can read, so set `SEED_ADMIN_PASSWORD` yourself.
-
 ## Single VM with Docker Compose
 
 1. Provision a Linux VM (2 vCPU / 4 GB is comfortable), install Docker + Compose.
@@ -195,7 +184,7 @@ API returns a config).
 | `SENTRY_DSN_WEB` | Sentry DSN for the browser, served to the web app by `GET /api/v1/telemetry/config`. |
 | `SENTRY_ENVIRONMENT` | Environment label. Defaults to `NODE_ENV`. |
 | `SENTRY_TRACES_SAMPLE_RATE` | Trace sampling, 0 to 1. Default `0.1`. |
-| `TRINITY_RELEASE` | Release id. Falls back to `VERCEL_GIT_COMMIT_SHA` (first 7 chars), then to a `.release` file in `APP_ROOT` (or the working directory). |
+| `TRINITY_RELEASE` | Release id. Falls back to a `.release` file in `APP_ROOT` (or the working directory). |
 | `POSTHOG_KEY` | PostHog project key. Enables server events and browser page views. |
 | `POSTHOG_HOST` | PostHog ingestion host. Default `https://us.i.posthog.com`. |
 | `POSTHOG_REPLAY` | Set to exactly `true` to enable session replay. Default off. |

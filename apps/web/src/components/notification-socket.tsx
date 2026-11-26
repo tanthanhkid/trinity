@@ -104,7 +104,7 @@ export function NotificationSocket() {
     }
   }
 
-  // Chế độ poll (serverless): hỏi danh sách chưa đọc mỗi 60s + khi tab được focus; KHÔNG mở socket. Lượt hỏi này cũng
+  // Chế độ poll: hỏi danh sách chưa đọc mỗi 60s + khi tab được focus; KHÔNG mở socket. Lượt hỏi này cũng
   // làm mới hai con số trên chuông (chuông không tự hỏi riêng ở chế độ poll).
   useEffect(() => {
     if (!accessToken || !isPollMode()) return

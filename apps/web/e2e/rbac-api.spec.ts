@@ -5,7 +5,6 @@ import { Api, BASE_URL, type MeResponse } from './helpers/api'
 import { seeded } from './helpers/manifest'
 import { inScope, ownerIdsFor, scopeOf, type OrgUser } from './helpers/scope'
 import { userIds } from './seed/lib'
-import { bypassHeaders } from './helpers/vercel-bypass'
 
 /**
  * RBAC QUA API — ma trận quyền theo 5 tài khoản E2E (admin, hr, dept_head, lead, sale). Kỳ vọng tính từ
@@ -127,7 +126,7 @@ for (const role of ROLES) {
     })
 
     test('không token → 401 trên mọi route nghiệp vụ', async () => {
-      const anon = await pwRequest.newContext({ extraHTTPHeaders: bypassHeaders() })
+      const anon = await pwRequest.newContext()
       const bad: string[] = []
       for (const p of READS.filter((r) => r.perm)) {
         const st = (await anon.get(`${BASE_URL}/api/v1${p.url}`)).status()

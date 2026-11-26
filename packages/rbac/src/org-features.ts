@@ -28,7 +28,7 @@ export const ORG_FEATURES = {
   social_posting: { label: 'Đăng đa kênh', group: 'channels', description: 'Soạn một lần, đăng hoặc hẹn giờ ra một hoặc nhiều Fanpage; trợ lý AI soạn và đăng được.' },
   products: { label: 'Sản phẩm', group: 'sales', description: 'Danh mục sản phẩm, dịch vụ và giá.' },
   pos: { label: 'Bán hàng (POS)', group: 'sales', description: 'Bán hàng tại quầy, in hoá đơn.' },
-  payments: { label: 'Thanh toán & đối soát', group: 'sales', description: 'SePay, VNPay, MoMo: mã QR, link thanh toán, tự khớp tiền chuyển khoản.' },
+  payments: { label: 'Thanh toán & đối soát', group: 'sales', description: 'Đối soát yêu cầu thanh toán cũ: tự khớp tiền về qua SePay, VNPay, MoMo (không tạo yêu cầu mới).' },
   online_store: { label: 'Trang bán hàng', group: 'sales', description: 'Trang bán hàng online: khách đặt COD hoặc chuyển khoản QR, đơn vào thẳng CRM.' },
   commerce_connectors: { label: 'Kết nối bán hàng', group: 'sales', description: 'Đồng bộ khách, đơn, hàng hoá từ KiotViet, Sapo, iPOS, WooCommerce, Shopee, Lazada.' },
   management: { label: 'Quản lý nhân sự', group: 'people', description: 'Nhân viên, phòng ban, team, chức danh, hợp đồng, tuyển dụng.' },

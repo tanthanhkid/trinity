@@ -49,6 +49,7 @@ Each company has its own Postgres schema; authorization codes and access/refresh
 |---|---|---|
 | `search` (query) | ≥1 of `contacts.view`/`deals.view`/`kanban.view` | OpenAI format: `structuredContent.results[{id,title,url}]` + JSON in `content`; id `contact:12` / `deal:5` / `card:9`; matches name/title only |
 | `fetch` (id) | by id type | `{id,title,text,url,metadata}`; out of scope ⇒ tool error |
+| `list_payment_requests` | read | Payment requests created earlier and how far they were reconciled (no new requests are created) |
 | `list_contacts` | `contacts.view` | filters `stage_id`, `contact_status_id`, `source_id`, `assigned_to`, `name`, `uncontacted_days`; cursor |
 | `get_contact` / `list_contact_activities` | `contacts.view` | the address is not returned |
 | `list_deals` | `deals.view` | filters status/assigned_to/search; cursor |
@@ -212,8 +213,6 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 
 | Tool | Kind | What it does |
 |---|---|---|
-| `create_payment_request` | write | Create payment request |
-| `list_payment_requests` | read | List payment requests |
 | `list_sales_orders` | read | List synced sales orders |
 | `get_store_settings` | read (`pos.manage`) | Online store settings: name, page address, published, payment methods, the bank account used for VietQR transfers, and the list of supported banks (BIN + name) |
 | `update_store_settings` | write (`pos.manage`) | Changes the online store settings (only the fields sent), including the bank (BIN or name such as `MBBank`) and account number. Publishing the page (`published: true` while unpublished) needs `confirmed_by_user`. There is no tool to delete the store |

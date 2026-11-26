@@ -13,14 +13,6 @@ import { withCompanyHint } from '../common/helpers/tenant-hint';
 export const PAYMENT_SOURCE_TYPES = ['manual', 'deal', 'pos_order', 'store_order'] as const;
 export type PaymentSourceType = (typeof PAYMENT_SOURCE_TYPES)[number];
 
-export interface CreatePaymentInput {
-  amount: number;
-  description?: string | null;
-  source_type?: PaymentSourceType;
-  source_id?: number | null;
-  contact_id?: number | null;
-  expires_in_hours?: number | null;
-}
 
 export interface PaymentView {
   id: number;
@@ -57,7 +49,10 @@ export function newPaymentCode(prefix = DEFAULT_CODE_PREFIX): string {
 
 export type SepayOutcome = { status: 'duplicate' | 'ignored' | 'unmatched' | 'underpaid' | 'matched'; payment_intent_id?: number };
 
-/** Yêu cầu thanh toán + tự khớp tiền về (SePay). VNPay/MoMo sẽ dùng chung `markPaid`. */
+/**
+ * Đối soát yêu cầu thanh toán CŨ: tự khớp tiền về (webhook SePay, IPN VNPay/MoMo), xem, huỷ. Trinity đã ngừng tạo
+ * yêu cầu mới (G07a, #105).
+ */
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -77,38 +72,6 @@ export class PaymentsService {
     const ids = await this.scope.ownerIds(user, perm);
     if (ids === 'all') return {};
     return { created_by: { in: ids ?? [] } };
-  }
-
-  async create(input: CreatePaymentInput, userId: number | null): Promise<PaymentView> {
-    const amount = Math.round(Number(input.amount));
-    if (!Number.isSafeInteger(amount) || amount < 1000 || amount > 10_000_000_000) throw new BadRequestException('Số tiền phải từ 1.000đ tới 10 tỷ.');
-    const source_type = input.source_type ?? 'manual';
-    if (!PAYMENT_SOURCE_TYPES.includes(source_type)) throw new BadRequestException('source_type không hợp lệ.');
-    const hours = input.expires_in_hours == null ? null : Number(input.expires_in_hours);
-    if (hours != null && (!Number.isFinite(hours) || hours <= 0 || hours > 24 * 90)) throw new BadRequestException('Hạn thanh toán từ 1 giờ tới 90 ngày.');
-    const sepay = await this.connectors.active<SepaySettings>('sepay');
-    const prefix = sepay?.settings.code_prefix || DEFAULT_CODE_PREFIX;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        const row = await this.prisma.paymentIntent.create({
-          data: {
-            code: newPaymentCode(prefix),
-            amount: BigInt(amount),
-            description: input.description?.trim().slice(0, 200) || null,
-            source_type,
-            source_id: input.source_id ?? null,
-            contact_id: input.contact_id ?? null,
-            expires_at: hours ? new Date(Date.now() + hours * 3_600_000) : null,
-            created_by: userId,
-          },
-        });
-        return this.view(row, sepay?.settings ?? null, await this.gateways());
-      } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') continue; // trùng mã — sinh lại
-        throw err;
-      }
-    }
-    throw new BadRequestException('Không sinh được mã thanh toán, thử lại.');
   }
 
   async list(opts: { status?: string; limit?: number } = {}, user?: AuthUser): Promise<PaymentView[]> {

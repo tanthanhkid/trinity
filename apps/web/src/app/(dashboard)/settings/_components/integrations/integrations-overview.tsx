@@ -137,7 +137,7 @@ function SepayRow({ open }: { open: Open }) {
         ? { tone: "warning", label: "Có lỗi" }
         : { tone: "connected", label: "Đã kết nối", detail: sepay.settings?.bank ? `${sepay.settings.bank} · ${sepay.settings.account_number}` : undefined }
   }
-  return <Row section="payments" open={open} logo={<ConnectionLogo brand="sepay" color="#1d4ed8" text="SP" />} title="SePay" description="Tự khớp tiền chuyển khoản, tạo mã QR thanh toán" state={state} />
+  return <Row section="payments" open={open} logo={<ConnectionLogo brand="sepay" color="#1d4ed8" text="SP" />} title="SePay" description="Đối soát yêu cầu cũ: tự khớp tiền chuyển khoản về" state={state} />
 }
 
 function GatewayOverviewRow({ open, provider, title, color, text, description }: { open: Open; provider: "vnpay" | "momo"; title: string; color: string; text: string; description: string }) {
@@ -219,8 +219,8 @@ export function IntegrationsOverview({ visible, status, statusError, open, audit
       {visible.has("payments") && canPayConnect && (
         <ConnectionGroup label="Thanh toán">
           <SepayRow open={open} />
-          <GatewayOverviewRow open={open} provider="vnpay" title="VNPay" color="#e11d48" text="VN" description="Link thanh toán thẻ ATM, Visa/Master, QR ngân hàng" />
-          <GatewayOverviewRow open={open} provider="momo" title="MoMo" color="#a50064" text="M" description="Link thanh toán ví MoMo" />
+          <GatewayOverviewRow open={open} provider="vnpay" title="VNPay" color="#e11d48" text="VN" description="Đối soát yêu cầu cũ: tự khớp tiền về qua IPN" />
+          <GatewayOverviewRow open={open} provider="momo" title="MoMo" color="#a50064" text="M" description="Đối soát yêu cầu cũ: tự khớp tiền về qua IPN" />
         </ConnectionGroup>
       )}
       {visible.has("ban-hang") && canPayConnect && (

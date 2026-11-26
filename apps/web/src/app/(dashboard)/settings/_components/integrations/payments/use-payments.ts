@@ -111,14 +111,6 @@ export function usePayments(enabled = true) {
   })
 }
 
-export function useCreatePayment() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async (b: { amount: number; description?: string; expires_in_hours?: number }) => (await apiClient.post<Payment>("/payments", b)).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.payments }),
-  })
-}
-
 export function useCancelPayment() {
   const qc = useQueryClient()
   return useMutation({

@@ -376,7 +376,7 @@ Redis **đã là tuỳ chọn** ở một phần mã: `RbacCache` chạy chỉ b
 | Google Sheets + OAuth Google | 12 | 0 | GoogleConnection, GoogleSheetSync, GoogleSheetSyncRun | `google_sheets` (cũng là tính năng theo gói) | `google.sheet-sync` |
 | YouTube, TikTok, Google Business Profile (bài + đánh giá), Instagram | 4 | `list_youtube_playlists`, `list_google_reviews`, `reply_to_google_review` | (dòng trong `social_accounts`, `social_post_targets`) | | |
 | Shopee, Lazada, KiotViet, Sapo, WooCommerce, MISA (iPOS chưa có mã); gồm 4 đường chung của `connectors` | 27 | `list_sales_orders` | ConnectorAccount, ConnectorEvent, ConnectorRecord | `commerce_connectors` | |
-| SePay, VNPay, MoMo | 14 | `list_payment_requests`, `create_payment_request` | PaymentIntent | `payments` | |
+| SePay, VNPay, MoMo (đối soát yêu cầu cũ / tự khớp tiền về) | 14 | `list_payment_requests` (`create_payment_request` gỡ ở G07a) | PaymentIntent | `payments` | |
 | Đường Vercel serverless | 1 (`internal/cron/tick`), cộng 2–4 route chỉ phục vụ Vercel Blob (`social/media/upload-token`, `social/media/register`, token video bảng tin; hiện luôn trả 400 khi không có Blob), chốt số ở C02 | | | | |
 | **Tổng** | **68** | **14** | **10** | **3** | **2** |
 

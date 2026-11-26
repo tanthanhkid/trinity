@@ -2,10 +2,9 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { Loader2, Plus, QrCode, Wallet } from "lucide-react"
+import { Loader2, QrCode, Wallet } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { CurrencyInput } from "@/components/ui/currency-input"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ConnectionGroup, ConnectionLogo, ConnectionRow, StatusPill, type ConnectionTone } from "@/components/ui/connection-row"
@@ -16,7 +15,7 @@ import { usePermissions } from "@/lib/rbac"
 import { SecretRevealDialog, CopyButton } from "../secret-reveal-dialog"
 import { apiErrorMessage } from "../webhook-types"
 import {
-  useCancelPayment, useConnectors, useCreatePayment, useDisconnect, useDisconnectSepay, usePayments, useSaveGateway, useSaveSepay,
+  useCancelPayment, useConnectors, useDisconnect, useDisconnectSepay, usePayments, useSaveGateway, useSaveSepay,
   type ConnectorStatus, type GatewayProvider, type Payment, type SaveGatewayInput, type SaveSepayInput,
 } from "./use-payments"
 import { formatDateTimeShort, formatVnd } from "@/lib/format"
@@ -63,7 +62,7 @@ function SepayDialog({ open, onClose, current, onSaved }: {
         <form onSubmit={submit} className="flex flex-col gap-5">
           <DialogHeader>
             <DialogTitle>{current ? "Sửa tài khoản nhận tiền" : "Kết nối SePay"}</DialogTitle>
-            <DialogDescription>Tài khoản ngân hàng đã liên kết trong SePay. Trinity dùng nó để tạo mã QR và nhận báo tiền về.</DialogDescription>
+            <DialogDescription>Tài khoản ngân hàng đã liên kết trong SePay. Trinity dùng nó để nhận báo tiền về và tự khớp vào yêu cầu cũ.</DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field>
@@ -116,7 +115,7 @@ function SepaySection({ conn, canManage }: { conn: ConnectorStatus; canManage: b
         : { tone: "warning", label: "Chờ giao dịch đầu tiên" }
   const detail = conn.connected && s
     ? [`${s.bank} · ${s.account_number}`, conn.last_event_at ? `tiền về gần nhất ${when(conn.last_event_at)}` : "chưa nhận giao dịch nào", conn.last_error].filter(Boolean).join(" · ")
-    : "Tự khớp tiền chuyển khoản vào yêu cầu thanh toán, tạo mã QR"
+    : "Đối soát yêu cầu cũ: tự khớp tiền chuyển khoản về"
   return (
     <>
       <ConnectionGroup label="Cổng thanh toán">
@@ -179,7 +178,7 @@ function SepaySection({ conn, canManage }: { conn: ConnectorStatus; canManage: b
         title={confirm === "rotate" ? "Tạo khoá webhook mới?" : "Ngắt kết nối SePay?"}
         description={confirm === "rotate"
           ? "Khoá cũ hết hiệu lực ngay. Bạn phải dán khoá mới vào SePay, nếu không Trinity sẽ không nhận được báo tiền về."
-          : "Trinity sẽ thôi nhận báo tiền về và không tạo mã QR nữa. Các yêu cầu thanh toán cũ vẫn giữ."}
+          : "Trinity sẽ thôi nhận báo tiền về nên không tự khớp yêu cầu cũ nữa. Các yêu cầu thanh toán cũ vẫn giữ."}
         confirmLabel={confirm === "rotate" ? "Tạo khoá mới" : "Ngắt kết nối"}
         tone={confirm === "rotate" ? "default" : "destructive"}
         pending={save.isPending || disconnect.isPending}
@@ -208,7 +207,7 @@ const GATEWAY: Record<GatewayProvider, { title: string; color: string; text: str
     title: "VNPay",
     color: "#e11d48",
     text: "VN",
-    desc: "Link thanh toán thẻ ATM, Visa/Master, QR ngân hàng",
+    desc: "Đối soát yêu cầu cũ: tự khớp tiền về qua IPN",
     portal: "Lấy ở email VNPay gửi khi đăng ký (môi trường thử: sandbox.vnpayment.vn).",
     fields: [
       { key: "tmn_code", label: "Mã website (vnp_TmnCode)" },
@@ -219,7 +218,7 @@ const GATEWAY: Record<GatewayProvider, { title: string; color: string; text: str
     title: "MoMo",
     color: "#a50064",
     text: "M",
-    desc: "Link thanh toán ví MoMo",
+    desc: "Đối soát yêu cầu cũ: tự khớp tiền về qua IPN",
     portal: "Lấy ở business.momo.vn › Thông tin tích hợp.",
     fields: [
       { key: "partner_code", label: "Partner code" },
@@ -385,77 +384,27 @@ function PaymentDetail({ p, onClose }: { p: Payment; onClose: () => void }) {
   )
 }
 
-function CreatePaymentDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (p: Payment) => void }) {
-  const create = useCreatePayment()
-  const [amount, setAmount] = useState("")
-  const [desc, setDesc] = useState("")
-  const [hours, setHours] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    const n = Number(amount)
-    if (!n || n < 1000) return setError("Số tiền tối thiểu 1.000đ")
-    try {
-      onCreated(await create.mutateAsync({ amount: n, description: desc.trim() || undefined, expires_in_hours: hours ? Number(hours) : undefined }))
-    } catch (err) {
-      setError(apiErrorMessage(err, "Không tạo được yêu cầu"))
-    }
-  }
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-sm">
-        <form onSubmit={submit} className="flex flex-col gap-5">
-          <DialogHeader>
-            <DialogTitle>Tạo yêu cầu thanh toán</DialogTitle>
-            <DialogDescription>Trinity tạo mã và QR chuyển khoản; tiền về là tự đánh dấu đã thanh toán.</DialogDescription>
-          </DialogHeader>
-          <FieldGroup>
-            <Field invalid={!!error}>
-              <FieldLabel htmlFor="pay-amount">Số tiền (đ)</FieldLabel>
-              <CurrencyInput id="pay-amount" value={amount} onValueChange={setAmount} autoFocus />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="pay-desc">Ghi chú</FieldLabel>
-              <Input id="pay-desc" maxLength={200} placeholder="vd Học phí tháng 11 — bé An" value={desc} onChange={(e) => setDesc(e.target.value)} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="pay-exp">Hạn thanh toán</FieldLabel>
-              <select id="pay-exp" value={hours} onChange={(e) => setHours(e.target.value)} className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-[var(--shadow-field)] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20 max-sm:h-11">
-                <option value="">Không hạn</option>
-                <option value="24">24 giờ</option>
-                <option value="72">3 ngày</option>
-                <option value="168">7 ngày</option>
-              </select>
-            </Field>
-            {error && <FieldError>{error}</FieldError>}
-          </FieldGroup>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Huỷ</Button>
-            <Button type="submit" disabled={create.isPending}>{create.isPending && <Loader2 className="size-4 animate-spin" />} Tạo mã</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function PaymentsList({ canCreate }: { canCreate: boolean }) {
+/**
+ * Danh sách yêu cầu thanh toán — chỉ xem/huỷ. Trinity đã ngừng tạo yêu cầu mới (#105); yêu cầu đang chờ vẫn tự được
+ * đánh dấu đã trả khi tiền về (webhook SePay, IPN VNPay/MoMo).
+ */
+function PaymentsList() {
   const list = usePayments()
-  const [creating, setCreating] = useState(false)
   const [shown, setShown] = useState<Payment | null>(null)
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2 px-1">
         <h3 className="text-[13px] font-medium text-muted-foreground">Yêu cầu thanh toán</h3>
-        {canCreate && <Button variant="outline" onClick={() => setCreating(true)}><Plus className="size-4" /> Tạo yêu cầu</Button>}
       </div>
+      <p className="px-1 text-[13px] text-muted-foreground" data-testid="payments-stopped">
+        Trinity đã ngừng tạo yêu cầu thanh toán mới. Yêu cầu đang chờ vẫn tự đánh dấu đã trả khi tiền về.
+      </p>
       {list.isLoading ? (
         <div className="flex items-center gap-2 px-1 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang tải…</div>
       ) : list.isError ? (
         <p role="alert" className="px-1 text-sm text-destructive">Không tải được danh sách. Vui lòng thử lại.</p>
       ) : !list.data?.length ? (
-        <EmptyState icon={QrCode} title="Chưa có yêu cầu thanh toán" message="Tạo mã QR chuyển khoản cho khách; tiền về là Trinity tự đánh dấu đã trả." action={canCreate ? <Button variant="outline" onClick={() => setCreating(true)}>Tạo mã QR đầu tiên</Button> : undefined} />
+        <EmptyState icon={QrCode} title="Chưa có yêu cầu thanh toán" message="Các yêu cầu đã tạo trước đây hiện ở đây." />
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-xl bg-card ring-1 ring-foreground/8 shadow-[var(--shadow-card)]">
           {list.data.map((p) => (
@@ -472,7 +421,6 @@ function PaymentsList({ canCreate }: { canCreate: boolean }) {
           ))}
         </ul>
       )}
-      {creating && <CreatePaymentDialog onClose={() => setCreating(false)} onCreated={(p) => { setCreating(false); setShown(p) }} />}
       {shown && <PaymentDetail p={list.data?.find((x) => x.id === shown.id) ?? shown} onClose={() => setShown(null)} />}
     </section>
   )
@@ -499,7 +447,7 @@ export function PaymentsPanel() {
           </ConnectionGroup>
         </>
       ) : null)}
-      {can("deals.view") && <PaymentsList canCreate={can("deals.manage")} />}
+      {can("deals.view") && <PaymentsList />}
     </div>
   )
 }

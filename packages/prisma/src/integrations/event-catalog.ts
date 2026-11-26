@@ -33,6 +33,8 @@ export const INTEGRATION_EVENT_META = {
   'social_post.failed': { resource: 'social_post', label: 'Đăng bài: đăng lỗi' },
   'payment.received': { resource: 'payment_intent', label: 'Thanh toán: đã nhận tiền (SePay, VNPay, MoMo)' },
   'store_order.created': { resource: 'store_order', label: 'Trang bán hàng: có đơn mới' },
+  'store_order.paid': { resource: 'store_order', label: 'Trang bán hàng: đơn đã thanh toán (nhân viên xác nhận)' },
+  'store_order.status_changed': { resource: 'store_order', label: 'Trang bán hàng: đơn đổi trạng thái' },
 } as const satisfies Record<string, { resource: string; label: string }>
 
 export type IntegrationEventType = keyof typeof INTEGRATION_EVENT_META
@@ -227,4 +229,7 @@ export interface IntegrationEventMap {
   'social_post.failed': SocialPostEventRef
   'payment.received': PaymentEventRef
   'store_order.created': { order: StoreOrderEventSnapshot }
+  'store_order.paid': { order: StoreOrderEventSnapshot }
+  /** `previous_status` → `order.status` (new, confirmed, paid, shipped, done, cancelled). */
+  'store_order.status_changed': { order: StoreOrderEventSnapshot; previous_status: string }
 }

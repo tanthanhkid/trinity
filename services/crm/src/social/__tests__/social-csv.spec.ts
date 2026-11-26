@@ -34,10 +34,11 @@ describe('parseCsv — tiêu đề, bí danh, giới hạn', () => {
   it('map đủ cột (VN + EN) và tách kênh theo ; hoặc , , tệp theo ;', () => {
     const csv = ['noi_dung,kenh,gio_dang,tep,binh_luan_dau,tieu_de_youtube,utm', '"Bài 1","Fanpage; 12","2026-10-24 09:30","a.png;b mp4.mp4","bình luận","tiêu đề",thu-10'].join('\n');
     const { rows, unknown_columns } = parseCsv(csv);
-    expect(unknown_columns).toEqual([]);
-    expect(rows[0]).toEqual({ row: 2, content: 'Bài 1', channels: ['Fanpage', '12'], scheduled_at: '2026-10-24 09:30', media: ['a.png', 'b mp4.mp4'], first_comment: 'bình luận', youtube_title: 'tiêu đề', utm_campaign: 'thu-10' });
-    const en = parseCsv('Content,Channels,Scheduled_At,Media,First Comment,YouTube Title,UTM_Campaign\nx,"a,b",2026-10-24 09:30,k,c,t,u').rows[0];
-    expect(en).toMatchObject({ content: 'x', channels: ['a', 'b'], media: ['k'], first_comment: 'c', youtube_title: 't', utm_campaign: 'u' });
+    // Cột tiêu đề YouTube (mạng đã gỡ) không còn nhận: báo cột lạ, phần còn lại vẫn đọc.
+    expect(unknown_columns).toEqual(['tieu_de_youtube']);
+    expect(rows[0]).toEqual({ row: 2, content: 'Bài 1', channels: ['Fanpage', '12'], scheduled_at: '2026-10-24 09:30', media: ['a.png', 'b mp4.mp4'], first_comment: 'bình luận', utm_campaign: 'thu-10' });
+    const en = parseCsv('Content,Channels,Scheduled_At,Media,First Comment,UTM_Campaign\nx,"a,b",2026-10-24 09:30,k,c,u').rows[0];
+    expect(en).toMatchObject({ content: 'x', channels: ['a', 'b'], media: ['k'], first_comment: 'c', utm_campaign: 'u' });
   });
   it('gio_dang = queue / "hàng đợi" → use_queue, không có scheduled_at', () => {
     const { rows } = parseCsv('noi_dung,gio_dang\na,queue\nb,Hàng đợi\nc,\n');

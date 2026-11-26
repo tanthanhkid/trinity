@@ -4,7 +4,7 @@ import { activityRange, vnIso } from './ai-activity-tool';
 import { ActionUserError } from '../actions/action-types';
 import { describeRule, recurrenceStatus } from '../actions/action-recurring-tools';
 import { VN_WEEKDAYS, captionsParam, mergeOptions, optionsFromCaption, parseScheduledAt, utmFromArgs, utmParams, vnWhen } from '../actions/action-social-tools';
-import { ToolUserError, clampLimit, optInt, rejectDigitProbe, type McpDeps, type ToolDef } from './tool-types';
+import { ToolUserError, clampLimit, optInt, type McpDeps, type ToolDef } from './tool-types';
 
 const POST_STATUSES = ['scheduled', 'publishing', 'published', 'partial', 'failed', 'cancelled'] as const;
 
@@ -52,9 +52,9 @@ export const listSocialAccountsTool: ToolDef = {
   name: 'list_social_accounts',
   title: 'Kênh mạng xã hội đã liên kết / List social accounts',
   description:
-    'Bước đầu của việc đăng bài lên Fanpage Facebook hoặc kênh YouTube của công ty qua Trinity: các kênh mạng xã hội công ty đã liên kết với Trinity (Fanpage Facebook, kênh YouTube). Chưa có kênh thì người dùng liên kết ở màn Đăng đa kênh › Kênh. Trả về id kênh, mạng, tên, trạng thái (active = đăng được; reauth = cần liên kết lại trong Trinity), removed (true = người dùng đã gỡ kênh, KHÔNG đăng được; bật lại bằng enable_social_account hoặc liên kết lại), inbox (chỉ Fanpage: on/off/null = phần nhận tin nhắn của cùng Page đã nối, đang tắt, hay chưa nối). ' +
+    'Bước đầu của việc đăng bài lên Fanpage Facebook của công ty qua Trinity: các Fanpage công ty đã liên kết để đăng bài. Chưa có kênh thì người dùng liên kết ở màn Đăng đa kênh › Kênh. Trả về id kênh, mạng, tên, trạng thái (active = đăng được; reauth = cần liên kết lại trong Trinity), removed (true = người dùng đã gỡ kênh, KHÔNG đăng được; bật lại bằng enable_social_account hoặc liên kết lại), inbox (chỉ Fanpage: on/off/null = phần nhận tin nhắn của cùng Page đã nối, đang tắt, hay chưa nối). ' +
     'Kèm danh sách mạng và mạng nào đã hỗ trợ. account_id dùng cho create_social_post. Danh sách không xếp theo mức dùng và không có kênh mặc định. Chỉ đọc. / ' +
-    'First step for posting to the company\'s Facebook Page or YouTube channel through Trinity: social accounts linked to Trinity (Facebook Pages, YouTube channels); with none linked, the user links them in Trinity under Đăng đa kênh › Kênh. Returns id, network, name, status (active, or reauth = needs relinking in Trinity), removed (true = the user removed the channel; cannot post, re-enable with enable_social_account), inbox (Facebook only: on/off/null = whether the message inbox of the same Page is connected, off, or not connected), plus which networks are supported. Not ordered by usage; no default channel. Read-only.',
+    'First step for posting to the company\'s Facebook Page through Trinity: Facebook Pages linked for posting; with none linked, the user links them in Trinity under Đăng đa kênh › Kênh. Returns id, network, name, status (active, or reauth = needs relinking in Trinity), removed (true = the user removed the channel; cannot post, re-enable with enable_social_account), inbox (Facebook only: on/off/null = whether the message inbox of the same Page is connected, off, or not connected), plus which networks are supported. Not ordered by usage; no default channel. Read-only.',
   permissions: ['social.post'],
   input: () => ({}),
   output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
@@ -209,7 +209,7 @@ function captionFromTarget(t: DraftTargetLike) {
   const o = t.options ?? {};
   const out: Record<string, unknown> = { account_id: t.account_id };
   if (t.caption) out.caption = t.caption;
-  const map: Record<string, string> = { title: 'youtube_title', privacy: 'youtube_privacy', description: 'youtube_description', tags: 'youtube_tags', category_id: 'youtube_category', made_for_kids: 'youtube_made_for_kids', playlist_id: 'youtube_playlist_id', first_comment: 'facebook_first_comment', thumbnail_key: 'youtube_thumbnail_media_key' };
+  const map: Record<string, string> = { first_comment: 'facebook_first_comment' };
   for (const [k, v] of Object.entries(map)) if (o[k] !== undefined) out[v] = o[k];
   return out;
 }
@@ -360,9 +360,9 @@ export const previewSocialPostTool: ToolDef = {
   name: 'preview_social_post',
   title: 'Xem trước bài theo từng kênh / Preview social post per channel',
   description:
-    'Cho người dùng xem từng kênh sẽ hiện bài thế nào TRƯỚC khi đăng: chữ đúng như sẽ gửi (đã gắn UTM), tiêu đề + mô tả YouTube, bình luận đầu tiên Facebook, độ dài / giới hạn, điểm bị gập sau "Xem thêm" (truncated_at, xấp xỉ), tệp đính kèm và cảnh báo (quá giới hạn, thiếu tệp, kênh cần liên kết lại…). Nên gọi trước create_social_post để người dùng duyệt. ' +
+    'Cho người dùng xem từng kênh sẽ hiện bài thế nào TRƯỚC khi đăng: chữ đúng như sẽ gửi (đã gắn UTM), bình luận đầu tiên Facebook, độ dài / giới hạn, điểm bị gập sau "Xem thêm" (truncated_at, xấp xỉ), tệp đính kèm và cảnh báo (quá giới hạn, thiếu tệp, kênh cần liên kết lại…). Nên gọi trước create_social_post để người dùng duyệt. ' +
     'Nhận cùng đầu vào như create_social_post (account_ids, content, captions, media_keys, scheduled_at, use_queue, utm_campaign / utm_content) trừ confirmed_by_user. Chỉ đọc: KHÔNG đăng, không lưu gì, không giữ khung hàng đợi. / ' +
-    'Shows how each channel will render the post BEFORE posting: the exact text that will be sent (UTM applied), YouTube title + description, Facebook first comment, length vs limit, the approximate "See more" cut point (truncated_at), attachments and warnings (over limit, missing media, account needs re-linking…). Useful before create_social_post so the user can review. Same inputs as create_social_post except confirmed_by_user. Read-only: nothing is posted, saved or reserved in the queue.',
+    'Shows how each channel will render the post BEFORE posting: the exact text that will be sent (UTM applied), Facebook first comment, length vs limit, the approximate "See more" cut point (truncated_at), attachments and warnings (over limit, missing media, account needs re-linking…). Useful before create_social_post so the user can review. Same inputs as create_social_post except confirmed_by_user. Read-only: nothing is posted, saved or reserved in the queue.',
   permissions: ['social.post'],
   input: (z) => ({
     content: z.string().max(63_206).optional().describe('Nội dung chung của bài / Post text'),
@@ -526,10 +526,10 @@ export const getSocialPostStatsTool: ToolDef = {
   name: 'get_social_post_stats',
   title: 'Thống kê bài đăng mạng xã hội / Social post stats',
   description:
-    'Thống kê các bài công ty đã đăng qua Trinity lên Fanpage Facebook / kênh YouTube: tổng số bài, lượt xem, cảm xúc (Facebook) hoặc lượt thích (YouTube), bình luận, chia sẻ; tách theo từng kênh; và các bài tương tác cao nhất (tương tác = cảm xúc/thích + bình luận + chia sẻ). ' +
+    'Thống kê các bài công ty đã đăng qua Trinity lên Fanpage Facebook (gồm cả bài cũ trên các mạng Trinity đã ngừng hỗ trợ): tổng số bài, lượt xem, cảm xúc, bình luận, chia sẻ; tách theo từng kênh; và các bài tương tác cao nhất (tương tác = cảm xúc/thích + bình luận + chia sẻ). ' +
     'Dùng khi người dùng hỏi bài nào hiệu quả, tuần/tháng này đăng được bao nhiêu, kênh nào tốt hơn. Tính theo ngày bài lên mạng (giờ Việt Nam); bỏ trống from/to = 30 ngày gần nhất; from/to dạng YYYY-MM-DD, tối đa 92 ngày. ' +
     'Số do Trinity lấy tự động mỗi 1–6 giờ (xem updated_at); views = null nghĩa là mạng không cung cấp lượt xem cho loại bài đó (bài chữ/ảnh Facebook), không phải 0. posts_removed_on_channel = số bài đã bị xoá trên kênh (removed = true ở top_posts; số là lần lấy cuối) — báo người dùng là bài đã bị xoá, đừng nói là lỗi lấy số. Chỉ đọc. / ' +
-    'Stats for posts published through Trinity to the Facebook Page / YouTube channel: totals (posts, views, reactions or likes, comments, shares), per channel, and top posts by engagement (reactions + comments + shares). ' +
+    'Stats for posts published through Trinity to Facebook Pages (including older posts on networks Trinity no longer supports): totals (posts, views, reactions, comments, shares), per channel, and top posts by engagement (reactions + comments + shares). ' +
     'By publish date (Vietnam time); default last 30 days; from/to YYYY-MM-DD, max 92 days. Numbers refresh automatically every 1–6 hours (see updated_at); views = null means the network does not report views for that post type; posts_removed_on_channel counts posts deleted on the network. Read-only.',
   permissions: ['social.post'],
   input: (z) => ({
@@ -557,44 +557,6 @@ export const getSocialPostStatsTool: ToolDef = {
       posts_removed_on_channel: r.removed,
       updated_at: vnIso(r.updated_at),
     });
-    return { structured: out, text: JSON.stringify(out) };
-  },
-};
-
-/** Một trang playlist ≤ MAX_ITEMS của ai-output (mảng dài hơn bị cắt). */
-const PLAYLIST_PAGE = 50;
-
-export const listYoutubePlaylistsTool: ToolDef = {
-  name: 'list_youtube_playlists',
-  title: 'Playlist của kênh YouTube / List YouTube playlists',
-  description:
-    'Các playlist của một kênh YouTube đã liên kết (account_id từ list_social_accounts) — lấy id để đặt youtube_playlist_id khi đăng video. Tối đa 50 playlist mỗi lần; search lọc theo tên; còn nữa thì gọi lại với offset = next_offset. Chỉ đọc. / ' +
-    'Playlists of a linked YouTube channel (account_id from list_social_accounts), for youtube_playlist_id when posting. Up to 50 per call; search filters by title; call again with offset = next_offset for more. Read-only.',
-  permissions: ['social.post'],
-  input: (z) => ({
-    account_id: z.number().int().min(1).max(2_147_483_647).describe('id kênh YouTube / YouTube account id'),
-    search: z.string().max(100).optional().describe('Lọc theo tên playlist (không phân biệt hoa thường) / Filter by title'),
-    offset: z.number().int().min(0).max(5000).optional().describe('Bỏ qua bao nhiêu playlist đầu (lấy từ next_offset) / Skip this many'),
-  }),
-  output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
-  async run(args, { deps }) {
-    const s = await socialDeps(deps);
-    const id = optInt(args.account_id);
-    if (!id) throw new ToolUserError('account_id không hợp lệ.');
-    let playlists: Array<{ id: string; title: string }>;
-    try {
-      playlists = await s.posts.youtubePlaylists(id);
-    } catch (e) {
-      if (e instanceof BadRequestException || (e as { status?: number }).status === 404) throw new ToolUserError((e as Error).message);
-      throw e;
-    }
-    const q = typeof args.search === 'string' ? args.search.trim().toLowerCase() : '';
-    if (q) rejectDigitProbe(q); // tên playlist có thể chứa số bị che — không cho dò từng chữ số
-    const matched = q ? playlists.filter((p) => p.title.toLowerCase().includes(q)) : playlists;
-    const offset = typeof args.offset === 'number' ? Math.max(0, Math.trunc(args.offset)) : 0;
-    const page = matched.slice(offset, offset + PLAYLIST_PAGE);
-    const next = offset + PLAYLIST_PAGE < matched.length ? offset + PLAYLIST_PAGE : null;
-    const out = wrapData({ account_id: id, playlists: page.map((p) => ({ playlist_id: p.id, title: p.title })), total: matched.length, offset, next_offset: next });
     return { structured: out, text: JSON.stringify(out) };
   },
 };
@@ -694,7 +656,7 @@ export const enableSocialAccountTool: ToolDef = {
   },
 };
 
-export const SOCIAL_READ_TOOLS: readonly ToolDef[] = [listSocialAccountsTool, listSocialPostsTool, getSocialPostTool, getSocialPostStatsTool, listSocialMediaTool, listYoutubePlaylistsTool, listSocialDraftsTool, listQueueSlotsTool, listSocialSnippetsTool, previewSocialPostTool, listRecurringPostsTool];
+export const SOCIAL_READ_TOOLS: readonly ToolDef[] = [listSocialAccountsTool, listSocialPostsTool, getSocialPostTool, getSocialPostStatsTool, listSocialMediaTool, listSocialDraftsTool, listQueueSlotsTool, listSocialSnippetsTool, previewSocialPostTool, listRecurringPostsTool];
 
 /** Ghi (lưu số liệu mới) ⇒ cần crm.write. */
 export const SOCIAL_METRICS_TOOLS: readonly ToolDef[] = [refreshSocialPostMetricsTool, saveSocialDraftTool, setQueueSlotsTool, saveSocialSnippetTool, enableSocialAccountTool];

@@ -22,7 +22,7 @@ function toLocalInput(iso: string): string {
 
 /**
  * Sửa bài đang hẹn giờ: nội dung chung, giờ hẹn, kênh. Kênh giữ lại dùng nguyên nội dung riêng + tuỳ chọn đã chọn lúc soạn;
- * kênh thêm mới dùng mặc định (YouTube riêng tư). Tệp đính kèm giữ nguyên.
+ * kênh thêm mới dùng nội dung chung (và UTM của bài nếu có). Tệp đính kèm giữ nguyên.
  */
 export function SocialPostEdit({ post, onClose }: { post: SocialPost; onClose: () => void }) {
   const { data: accounts = [] } = useSocialAccounts()
@@ -52,8 +52,7 @@ export function SocialPostEdit({ post, onClose }: { post: SocialPost; onClose: (
             if (t) return { account_id: a.id, caption: t.caption, options: optionsForResubmit(t.options) }
             // Kênh mới thêm vào bài đang gắn UTM thì gắn theo.
             const utm = live.map((x) => (x.options as Record<string, unknown> | null)?.utm).find(Boolean)
-            const base = a.network === "youtube" ? { privacy: "private" } : {}
-            return { account_id: a.id, options: utm ? { ...base, utm } : a.network === "youtube" ? base : undefined }
+            return { account_id: a.id, options: utm ? { utm } : undefined }
           }),
         },
       },
@@ -83,15 +82,13 @@ export function SocialPostEdit({ post, onClose }: { post: SocialPost; onClose: (
           <div className="divide-y divide-border rounded-lg ring-1 ring-border">
             {active.map((a) => {
               const kept = live.some((t) => t.account_id === a.id)
-              // Kênh TikTok mới cần chọn quyền xem / tương tác như màn soạn bài ⇒ không thêm ở đây.
-              const blocked = !kept && a.network === "tiktok"
               return (
-              <label key={a.id} className={blocked ? "flex items-center gap-2.5 px-3 py-2 text-sm opacity-60" : "flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm"} title={blocked ? "Thêm kênh TikTok: soạn bài mới để chọn quyền xem" : undefined}>
-                <Checkbox checked={selected.includes(a.id)} disabled={blocked} onCheckedChange={(v) => setSelected((s) => (v ? [...s, a.id] : s.filter((x) => x !== a.id)))} />
+              <label key={a.id} className="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm">
+                <Checkbox checked={selected.includes(a.id)} onCheckedChange={(v) => setSelected((s) => (v ? [...s, a.id] : s.filter((x) => x !== a.id)))} />
                 <NetworkMark network={a.network} />
                 <span className="flex min-w-0 flex-1 flex-col leading-tight">
                   <span className="truncate font-medium">{a.name}</span>
-                  <span className="text-xs text-muted-foreground">{NETWORK_META[a.network]?.label ?? a.network}{kept ? "" : blocked ? " · thêm TikTok: soạn bài mới" : " · kênh mới"}</span>
+                  <span className="text-xs text-muted-foreground">{NETWORK_META[a.network]?.label ?? a.network}{kept ? "" : " · kênh mới"}</span>
                 </span>
               </label>
               )

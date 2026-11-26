@@ -99,7 +99,7 @@ export class PublicApiService {
   async createContactInTx(
     tx: Prisma.TransactionClient,
     data: Omit<Prisma.ContactUncheckedCreateInput, 'assigned_to' | 'team_id'>,
-    owner: { id: number; team_id: number | null },
+    owner: { id: number | null; team_id: number | null },
     origin: string,
   ) {
     const created = await tx.contact.create({

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   CompanyRef,
@@ -29,7 +31,9 @@ import { ShopeeService } from '../connectors/shopee.service';
 import { loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { PaymentsService } from '../connectors/payments.service';
 import { txnRefFor, vnpaySign } from '../connectors/vnpay';
+import { PublicApiService } from '../public-api/public-api.service';
 import { StoreService } from '../store/store.service';
+import { decodeEmv } from '../store/__tests__/emv-decoder';
 import { PG_URL, describePg, isLocalDbUrl } from './pg-harness';
 
 /**
@@ -297,7 +301,7 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
       expect(r?.until).toBeInstanceOf(Date);
     });
 
-    it('tạm dừng do Graph chỉ áp cho Facebook/Instagram: phạm vi "other" (Zalo, YouTube, TikTok) vẫn gửi; khoá kênh thì chặn cả hai', async () => {
+    it('tạm dừng do Graph chỉ áp cho Facebook: phạm vi "other" (Zalo) vẫn gửi; khoá kênh thì chặn cả hai', async () => {
       await setPlan(A, 'custom');
       const g = new ChannelGuardService(db);
       await inCompany(A, async () => {
@@ -475,7 +479,7 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
 
   describe('địa chỉ trang bán hàng (slug)', () => {
     const storeFor = () =>
-      new StoreService(db, { isEnabled: async () => true } as never, {} as never, {} as never, { active: async () => null } as never, {} as never);
+      new StoreService(db, { isEnabled: async () => true } as never, new PublicApiService(db), { ownerIds: async () => 'all' } as never);
 
     it('slug duy nhất toàn hệ; đổi slug nhả slug cũ; link không có ?cid= vẫn vào đúng công ty', async () => {
       const store = storeFor();
@@ -507,6 +511,54 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
       expect(await companyIdForRoute('store_slug', slug)).toBeNull();
       await inCompany(B, () => store.saveSettings({ slug }, 1));
       expect(await companyIdForRoute('store_slug', slug)).toBe(B.id);
+    });
+  });
+
+  describe('trang bán hàng: chuyển khoản bằng QR VietQR tự sinh (G05)', () => {
+    const storeFor = () => new StoreService(db, { isEnabled: async () => true } as never, new PublicApiService(db), { ownerIds: async () => 'all' } as never);
+    const MIGRATION_0022 = readFileSync(join(__dirname, '../../../../packages/prisma/prisma/migrations/0022_store_vietqr/migration.sql'), 'utf8');
+    const readStore = () => db.setting.findUnique({ where: { key: 'online_store' } }).then((r) => JSON.parse(r!.value) as Record<string, unknown>);
+
+    it('đơn chuyển khoản tạo được khi công ty KHÔNG có kết nối SePay; QR đúng tài khoản, số tiền, nội dung = mã đơn', async () => {
+      const store = storeFor();
+      const slug = `ck-${stamp}`;
+      const out = await inCompany(B, async () => {
+        expect(await db.connectorAccount.count({ where: { provider: 'sepay' } })).toBe(0);
+        const p = await db.product.create({ data: { code: `SP-${stamp}`, name: 'Áo thun', price: 199000 } });
+        await store.saveSettings({ slug, name: 'Shop B', published: true, cod: true, bank_transfer: true, bank_bin: 'MBBank', bank_account: '0123456789', bank_account_name: 'SHOP B', product_ids: [p.id] }, 1);
+        const placed = await store.placeOrder(slug, '10.1.1.1', { name: 'Khách B', phone: '0912 000 111', payment_method: 'bank_transfer', items: [{ product_id: p.id, quantity: 2 }] });
+        const row = await db.storeOrder.findUniqueOrThrow({ where: { code: placed.code } });
+        return { placed, row };
+      });
+      expect(out.row).toMatchObject({ status: 'new', payment_method: 'bank_transfer', total: 398000n, payment_intent_id: null });
+      expect(decodeEmv(out.placed.payment!.qr_data)).toMatchObject({ bin: '970422', account: '0123456789', amount: '398000', content: out.placed.code, crcOk: true });
+    });
+
+    it('migration 0022: chép tài khoản từ SePay cũ (ánh xạ tên → BIN); tên lạ ⇒ tắt chuyển khoản + nhắc; chạy lại không đổi', async () => {
+      const seed = (bank: string) =>
+        inCompany(A, async () => {
+          await db.setting.upsert({ where: { key: 'online_store' }, update: { value: JSON.stringify({ slug: `mg-${stamp}`, bank_transfer: true, cod: true }) }, create: { key: 'online_store', value: JSON.stringify({ slug: `mg-${stamp}`, bank_transfer: true, cod: true }) } });
+          await db.connectorAccount.deleteMany({ where: { provider: 'sepay' } });
+          await db.connectorAccount.create({ data: { provider: 'sepay', status: 'active', credentials_enc: 'x', settings: { bank, account_number: '0123 456 789', account_name: 'CUA HANG A', code_prefix: 'TRN' }, connected_by: 1 } });
+        });
+      const migrate = () => inCompany(A, () => db.$executeRawUnsafe(MIGRATION_0022));
+      try {
+        await seed('MB Bank');
+        await migrate();
+        await migrate();
+        expect(await inCompany(A, readStore)).toMatchObject({ bank_transfer: true, bank_bin: '970422', bank_account: '0123456789', bank_account_name: 'CUA HANG A' });
+        await seed('NganHangLa');
+        await migrate();
+        const off = await inCompany(A, readStore);
+        expect(off).toMatchObject({ bank_transfer: false, cod: true });
+        expect(String(off.bank_notice)).toMatch(/nhập ngân hàng/);
+        expect(off.bank_bin).toBeUndefined();
+      } finally {
+        await inCompany(A, async () => {
+          await db.setting.deleteMany({ where: { key: 'online_store' } });
+          await db.connectorAccount.deleteMany({ where: { provider: 'sepay' } });
+        });
+      }
     });
   });
 

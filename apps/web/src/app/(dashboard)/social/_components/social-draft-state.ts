@@ -1,6 +1,4 @@
 import type { SocialDraft, SocialMediaItem } from "@/hooks/use-social"
-import { youtubeChoiceFrom, type YoutubeChoice } from "./youtube-post-options"
-import type { TiktokChoice } from "./tiktok-post-options"
 import { utmChoiceFromTargets, type UtmChoice } from "./social-utm"
 import type { RecurrenceForm } from "./social-recurrence-rules"
 
@@ -10,9 +8,7 @@ export interface ComposerState {
   selected: number[]
   captions: Record<number, string>
   openCaption: Record<number, boolean>
-  ytChoice: Record<number, YoutubeChoice>
   fbFirst: Record<number, string>
-  ttChoice: Record<number, TiktokChoice>
   scheduleOn: boolean
   scheduleAt: string
   /** Chọn "Vào hàng đợi" (không lưu giờ — khung trống tính lúc đăng). */
@@ -27,7 +23,7 @@ export interface ComposerState {
 }
 
 export const EMPTY_COMPOSER_STATE: ComposerState = {
-  content: "", selected: [], captions: {}, openCaption: {}, ytChoice: {}, fbFirst: {}, ttChoice: {}, scheduleOn: false, scheduleAt: "", uploads: [],
+  content: "", selected: [], captions: {}, openCaption: {}, fbFirst: {}, scheduleOn: false, scheduleAt: "", uploads: [],
 }
 
 /** `Date` → giá trị ô `datetime-local` theo giờ máy người dùng (YYYY-MM-DDTHH:mm). */
@@ -40,14 +36,16 @@ const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 
 
 /**
  * Nháp → trạng thái ô soạn. Có `ui` (nháp lưu từ web) thì khôi phục nguyên; không (nháp do AI lưu) thì suy từ nội dung/kênh/tệp:
- * caption riêng → mở ô nội dung riêng, bình luận đầu tiên → fbFirst, tuỳ chọn YouTube → ytChoice (nhận ra qua `privacy`/`category_id`).
+ * caption riêng → mở ô nội dung riêng, bình luận đầu tiên → fbFirst.
+ * Nháp cũ lưu trước G04 có thể còn `ytChoice`/`ttChoice` trong `ui` (YouTube/TikTok đã gỡ): bỏ qua.
  */
 export function composerStateFrom(d: SocialDraft): ComposerState {
   const ui = d.ui
   if (isObj(ui) && typeof ui.content === "string" && Array.isArray(ui.selected)) {
-    return { ...EMPTY_COMPOSER_STATE, ...(ui as unknown as Partial<ComposerState>) }
+    const rest = Object.fromEntries(Object.entries(ui).filter(([k]) => k !== "ytChoice" && k !== "ttChoice"))
+    return { ...EMPTY_COMPOSER_STATE, ...(rest as unknown as Partial<ComposerState>) }
   }
-  const s: ComposerState = { ...EMPTY_COMPOSER_STATE, captions: {}, openCaption: {}, ytChoice: {}, fbFirst: {}, ttChoice: {} }
+  const s: ComposerState = { ...EMPTY_COMPOSER_STATE, captions: {}, openCaption: {}, fbFirst: {} }
   s.content = d.content
   for (const t of d.targets) {
     s.selected.push(t.account_id)
@@ -57,7 +55,6 @@ export function composerStateFrom(d: SocialDraft): ComposerState {
     }
     const o = t.options ?? {}
     if (typeof o.first_comment === "string" && o.first_comment) s.fbFirst[t.account_id] = o.first_comment
-    if ("title" in o || "description" in o || "privacy" in o || "category_id" in o || "made_for_kids" in o || "playlist_id" in o || "thumbnail_key" in o || "tags" in o) s.ytChoice[t.account_id] = youtubeChoiceFrom(o)
   }
   s.utm = utmChoiceFromTargets(d.targets) ?? undefined
   s.uploads = d.media.map((m) => ({ name: m.name ?? m.key.split("/").pop() ?? m.key, item: { key: m.key, type: m.type, content_type: m.content_type, size: m.size } }))

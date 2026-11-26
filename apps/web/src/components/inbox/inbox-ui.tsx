@@ -21,13 +21,12 @@ import { cn } from "@/lib/utils"
 import { ErrorState } from "@/components/ui/error-state"
 import { useOffline } from "@/components/offline-banner"
 
-export type InboxChannel = "zalo" | "facebook" | "google"
+export type InboxChannel = "zalo" | "facebook"
 
 /** Dấu kênh = logo chính thức (Messenger cho tin Fanpage). */
 const CHANNEL_MARK: Record<InboxChannel, { label: string; brand: BrandKey }> = {
   zalo: { label: "Zalo", brand: "zalo" },
   facebook: { label: "Messenger", brand: "messenger" },
-  google: { label: "Google", brand: "google_business" },
 }
 
 /** Giờ ngắn cho danh sách: hôm nay "09:31", hôm qua "Hôm qua", còn lại "dd/mm". */

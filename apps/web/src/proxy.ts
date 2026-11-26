@@ -7,7 +7,7 @@ import { loginPathWithNext } from '@/lib/oauth-authorize'
 // '/invite/' = trang nhận lời mời nhân viên (người được mời chưa có tài khoản).
 const PUBLIC_PATHS = ['/login', '/register', '/invite/', '/.well-known', '/s/']
 /** Path exact match (không dùng startsWith vì '/' match mọi thứ) */
-/** `/privacy`, `/terms`: trang chính sách công khai — Meta/Google/TikTok đọc khi duyệt ứng dụng đăng bài. */
+/** `/privacy`, `/terms`: trang chính sách công khai — Meta đọc khi duyệt ứng dụng đăng bài. */
 const PUBLIC_EXACT_PATHS: string[] = ['/privacy', '/terms']
 
 function withNoCacheHeaders(response: NextResponse): NextResponse {

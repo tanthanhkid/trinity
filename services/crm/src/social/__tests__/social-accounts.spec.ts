@@ -73,13 +73,32 @@ describe('SocialAccountsService.list', () => {
       { ...base, id: 1, network: 'facebook', external_id: '111', name: 'A', status: 'active' },
       { ...base, id: 2, network: 'facebook', external_id: '222', name: 'B', status: 'disabled' },
       { ...base, id: 3, network: 'facebook', external_id: '333', name: 'C', status: 'active' },
-      { ...base, id: 4, network: 'youtube', external_id: 'y', name: 'Y', status: 'active' },
     ]);
     prisma.facebookPage.findMany.mockResolvedValue([
       { page_id: '111', is_active: true, token_enc: 'x' },
       { page_id: '222', is_active: false, token_enc: '' },
     ]);
     const rows = await svc.list();
-    expect(rows.map((r) => [r.id, r.removed, r.inbox])).toEqual([[1, false, 'on'], [2, true, 'off'], [3, false, null], [4, false, undefined]]);
+    expect(rows.map((r) => [r.id, r.removed, r.inbox])).toEqual([[1, false, 'on'], [2, true, 'off'], [3, false, null]]);
+    // Kênh của mạng đã gỡ (YouTube, TikTok…) không lấy lên màn Kênh.
+    expect(prisma.socialAccount.findMany.mock.calls[0][0].where.network).toEqual({ in: ['facebook'] });
+  });
+});
+
+describe('Mạng đã gỡ (YouTube, TikTok, Google Business, Instagram)', () => {
+  const user = { userId: 5 } as never;
+  it.each(['youtube', 'tiktok', 'google_business', 'instagram'])('%s: liên kết, callback, bật lại đều báo rõ "đã ngừng hỗ trợ"', async (network) => {
+    const { svc, prisma, provider } = mk();
+    await expect(svc.connectUrl(network, user)).rejects.toThrow(/ngừng hỗ trợ/);
+    await expect(svc.handleCallback(network, 'CODE', 'state')).rejects.toThrow(/ngừng hỗ trợ/);
+    prisma.socialAccount.findUnique.mockResolvedValue({ id: 4, network, status: 'disabled', access_token_enc: 'còn token' });
+    await expect(svc.enable(4)).rejects.toThrow(/ngừng hỗ trợ/);
+    expect(prisma.socialAccount.update).not.toHaveBeenCalled();
+    expect(provider.exchange).not.toHaveBeenCalled();
+  });
+
+  it('mạng lạ ⇒ "Mạng không hợp lệ"', async () => {
+    const { svc } = mk();
+    await expect(svc.connectUrl('x', user)).rejects.toThrow('Mạng không hợp lệ');
   });
 });

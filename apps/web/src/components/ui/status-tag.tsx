@@ -65,7 +65,7 @@ export function ReconnectNotice({
   reconnecting = false,
   className,
 }: {
-  /** Tên kênh người dùng nhận ra được: "Fanpage AiiLab", "Zalo OA", "kênh YouTube". */
+  /** Tên kênh người dùng nhận ra được: "Fanpage AiiLab", "Zalo OA". */
   channel: string
   /** Vì sao (vd "Token hết hạn từ 12/10/2026"); mặc định nói chung về quyền truy cập. */
   reason?: string

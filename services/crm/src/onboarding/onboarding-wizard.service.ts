@@ -48,7 +48,7 @@ const MISSING: Record<WizardStepKey, string> = {
   industry: 'Bạn chưa chọn loại doanh nghiệp. Chọn một loại, chọn các phân hệ muốn dùng rồi bấm "Dựng hệ thống".',
   modules: 'Hệ thống chưa được dựng. Chọn các phân hệ muốn dùng rồi bấm "Dựng hệ thống".',
   data: 'Trinity chưa có khách hàng hay bản ghi thật nào (bản ghi mẫu không tính). Thêm một khách đầu tiên hoặc nhập file, xong thì bấm lại nút này.',
-  channels: 'Chưa có kênh nào đang hoạt động. Bấm "Liên kết" ở Facebook hoặc YouTube, đồng ý trên trang của Facebook/Google, chờ kênh hiện "Hoạt động" rồi bấm lại nút này.',
+  channels: 'Chưa có kênh nào đang hoạt động. Bấm "Liên kết" ở Facebook, đồng ý trên trang của Facebook, chờ kênh hiện "Hoạt động" rồi bấm lại nút này.',
   post: 'Chưa có bài nào đăng thành công. Soạn một bài, chọn kênh, bấm "Đăng ngay", chờ bài báo đã đăng rồi bấm lại nút này.',
 };
 /** Người thiếu quyền không tự làm được: không chỉ họ cách làm (chọn/bấm Dựng), chỉ nhờ quản trị viên. */

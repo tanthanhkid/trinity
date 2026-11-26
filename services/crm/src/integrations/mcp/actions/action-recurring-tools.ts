@@ -95,7 +95,7 @@ export const createRecurringPostAction: ActionToolDef = {
   idempotent: false,
   input: (z) => ({
     title: z.string().max(120).optional().describe('Tên gợi nhớ của lịch (bỏ trống = lấy đầu nội dung) / Short name'),
-    content: z.string().max(63_206).optional().describe('Nội dung chung của bài (video YouTube có thể bỏ trống) / Post text'),
+    content: z.string().max(63_206).optional().describe('Nội dung chung của bài (có thể bỏ trống nếu có ảnh/video) / Post text'),
     account_ids: z.array(z.number().int().min(1).max(2_147_483_647)).min(1).max(20).describe('id các kênh người dùng đã nêu, từ list_social_accounts; không có kênh mặc định / Account ids the user named'),
     captions: captionsParam(z),
     media_keys: z.array(z.string().max(200)).max(10).optional().describe('media_key trong thư viện (list_social_media / upload_social_media) / Library media keys'),

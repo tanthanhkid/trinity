@@ -97,7 +97,6 @@ export interface ImportRowInput {
   /** Khoá tệp hoặc tên tệp trong thư viện. */
   media: string[];
   first_comment?: string;
-  youtube_title?: string;
   utm_campaign?: string;
 }
 
@@ -124,8 +123,6 @@ const ALIASES: Record<string, keyof Omit<ImportRowInput, 'row' | 'use_queue'>> =
   tep: 'media',
   first_comment: 'first_comment',
   binh_luan_dau: 'first_comment',
-  youtube_title: 'youtube_title',
-  tieu_de_youtube: 'youtube_title',
   utm_campaign: 'utm_campaign',
   utm: 'utm_campaign',
 };

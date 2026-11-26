@@ -384,8 +384,9 @@ Sau khi gỡ: 571 endpoint; gộp 5 bộ health trùng đường dẫn thành m�
 tĩnh còn **101**. Mã backend giảm khoảng 8.400 dòng (connectors 3.588, extensions 1.815 + `ext-deno`, google 1.286 sau
 khi tách helper số điện thoại, 4 provider 1.083, 6 file tool MCP 637).
 
-**Trang bán hàng sau khi sửa (G05).** Hiện `store.service.ts` import ba service của `connectors` (dòng 8–10) và chuyển
-khoản cần kết nối SePay (dòng 123, 155, 232). Sau G05:
+**Trang bán hàng sau khi sửa (G05, đã làm).** Trước G05 `store.service.ts` import ba service của `connectors` và chuyển
+khoản cần kết nối SePay. Sau G05 (`store/vietqr.ts` sinh chuỗi, bảng ánh xạ tên ngân hàng → BIN dùng chung cho migration
+`0022_store_vietqr`; ghép khách qua `PublicApiService`; sự kiện `store_order.created` phát lúc tạo đơn cho cả hai cách):
 
 - Cấu hình cửa hàng (`settings.online_store`, JSON) thêm mã ngân hàng, số tài khoản, tên chủ tài khoản.
 - Máy chủ sinh **chuỗi VietQR** theo chuẩn EMVCo (có số tiền và nội dung = mã đơn, CRC16) bằng một hàm thuần;

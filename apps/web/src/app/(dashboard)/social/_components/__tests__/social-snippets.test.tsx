@@ -19,7 +19,6 @@ vi.mock("@/hooks/use-social", async (orig) => ({
   useQueueSlots: () => ({ data: [], isLoading: false, isSuccess: true }),
   useQueueNext: () => ({ data: [], isLoading: false, isSuccess: true }),
   useSocialAccounts: () => ({ data: [{ id: 3, network: "facebook", name: "Fanpage", avatar_url: null, status: "active", last_error: null }], isLoading: false }),
-  useTiktokCreatorInfos: () => ({}),
   useSocialMutations: () => ({
     create: { isPending: false, mutateAsync: vi.fn() },
     createRecurrence: { isPending: false, mutateAsync: vi.fn() },

@@ -36,11 +36,11 @@ export interface LoadedMedia extends SocialMedia {
 export interface PublishInput {
   text: string;
   media: SocialMedia[];
-  /** Tuỳ chọn riêng của mạng (vd YouTube: title/privacy; TikTok: privacy_level). */
+  /** Tuỳ chọn riêng của mạng (vd Facebook: first_comment). */
   options: Record<string, unknown>;
   /** Đọc nội dung tệp — chỉ gọi khi cần (tránh nạp video vào RAM nếu mạng không dùng). */
   load: (m: SocialMedia) => Promise<LoadedMedia>;
-  /** Link tải công khai có chữ ký (hạn 2 giờ) — cho mạng chỉ nhận URL (Instagram). */
+  /** Link tải công khai có chữ ký (hạn 2 giờ) — cho mạng chỉ nhận URL. */
   publicUrl: (m: SocialMedia) => string;
 }
 
@@ -102,10 +102,10 @@ export interface SocialProvider {
   readonly scopes: readonly string[];
   /** Kiểm tệp đính kèm hợp với mạng; trả thông điệp lỗi tiếng Việt hoặc null. */
   validateMedia(media: SocialMedia[]): string | null;
-  /** Kiểm tuỳ chọn riêng của mạng (vd YouTube: tiêu đề, quyền xem) với nội dung sẽ đăng; trả lỗi tiếng Việt hoặc null. */
+  /** Kiểm tuỳ chọn riêng của mạng (vd tiêu đề, quyền xem) với nội dung sẽ đăng; trả lỗi tiếng Việt hoặc null. */
   validateOptions?(text: string, options: Record<string, unknown>): string | null;
   authorizeUrl(state: string, redirectUri: string, pkceChallenge?: string): string;
-  /** Mạng dùng PKCE (X, TikTok…) */
+  /** Mạng dùng PKCE */
   readonly usesPkce: boolean;
   exchange(code: string, redirectUri: string, verifier?: string): Promise<ConnectedAccount[]>;
   /** Làm mới token sắp hết hạn; null = mạng không cần (token trang FB không hết hạn). */

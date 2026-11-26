@@ -3,11 +3,10 @@ import { Prisma, PrismaService, claimCompanyRoute, publishIntegrationEvent, rele
 import { ScopeService, assertInScope, makePhoneMasker, type AuthUser } from '@trinity/rbac-nest';
 import { randomInt } from 'node:crypto';
 import { FixedWindowLimiter } from '../common/helpers/fixed-window-limiter';
-import { normalizeVnPhone } from '../integrations/webhooks/inbound/inbound-payload';
+import { normalizePhone, phoneVariants } from '../common/helpers/phone.helper';
+import { PublicApiService } from '../public-api/public-api.service';
 import { OrgFeaturesService } from '../settings/org-features.service';
-import { CommerceSyncService } from '../connectors/commerce-sync.service';
-import { ConnectorsService } from '../connectors/connectors.service';
-import { PaymentsService } from '../connectors/payments.service';
+import { VIETQR_ACCOUNT_RE, VIETQR_BANKS, buildVietQr, findVietQrBank } from './vietqr';
 
 export const STORE_SETTING_KEY = 'online_store';
 export const STORE_THEMES = ['toi-gian', 'am-ap', 'soi-dong'] as const;
@@ -27,6 +26,12 @@ export interface StoreSettings {
   logo_url: string | null;
   cod: boolean;
   bank_transfer: boolean;
+  /** Tài khoản nhận chuyển khoản (QR VietQR tự sinh): BIN ngân hàng 6 số, số tài khoản, tên chủ tài khoản (hiển thị). */
+  bank_bin: string | null;
+  bank_account: string | null;
+  bank_account_name: string | null;
+  /** Nhắc chủ cửa hàng (vd migration 0022 tắt chuyển khoản vì không đọc được tài khoản SePay cũ); lưu tài khoản hợp lệ thì xoá. */
+  bank_notice: string | null;
   published: boolean;
   product_ids: number[];
   /** Người phụ trách khách mới tạo từ đơn online. */
@@ -35,7 +40,8 @@ export interface StoreSettings {
 
 const DEFAULTS: StoreSettings = {
   slug: '', name: '', tagline: null, theme: 'toi-gian', accent: '#2563eb', phone: null, address: null, cover_url: null, logo_url: null,
-  cod: true, bank_transfer: false, published: false, product_ids: [], owner_user_id: null,
+  cod: true, bank_transfer: false, bank_bin: null, bank_account: null, bank_account_name: null, bank_notice: null,
+  published: false, product_ids: [], owner_user_id: null,
 };
 const RESERVED = new Set(['admin', 'api', 'www', 'app', 'login', 'settings', 'static', 'trinity']);
 const vnd = (n: number) => `${Math.round(n).toLocaleString('vi-VN')}đ`;
@@ -75,6 +81,26 @@ export function cleanStoreSettings(input: Record<string, unknown>, current: Stor
     next.accent = String(input.accent);
   }
   for (const k of ['cod', 'bank_transfer', 'published'] as const) if (typeof input[k] === 'boolean') next[k] = input[k] as boolean;
+  if (input.bank_bin !== undefined) {
+    const raw = String(input.bank_bin ?? '').trim();
+    const bank = raw ? findVietQrBank(raw) : null;
+    if (raw && !bank) throw new BadRequestException('Ngân hàng không có trong danh sách nhận VietQR — chọn lại ngân hàng.');
+    next.bank_bin = bank?.bin ?? null;
+  }
+  if (input.bank_account !== undefined) {
+    const acc = String(input.bank_account ?? '').replace(/\s+/g, '');
+    if (acc && !VIETQR_ACCOUNT_RE.test(acc)) throw new BadRequestException('Số tài khoản: 4–19 chữ số hoặc chữ cái, không dấu cách.');
+    next.bank_account = acc || null;
+  }
+  const accName = str('bank_account_name', 80);
+  if (accName !== undefined) next.bank_account_name = accName || null;
+  // Chỉ bắt buộc tài khoản khi lần lưu này BẬT chuyển khoản hoặc sửa trường ngân hàng: lưu trường khác (tên, sản phẩm…)
+  // trên cấu hình cũ thiếu tài khoản vẫn được — trang công khai tự coi như chưa nhận chuyển khoản (bankAccountOf).
+  const touchesBank = input.bank_transfer === true || ['bank_bin', 'bank_account', 'bank_account_name'].some((k) => input[k] !== undefined);
+  if (next.bank_transfer && touchesBank && !(next.bank_bin && next.bank_account)) {
+    throw new BadRequestException('Chuyển khoản cần chọn ngân hàng và nhập số tài khoản nhận tiền.');
+  }
+  if ((next.bank_bin && next.bank_account) || !next.bank_transfer) next.bank_notice = null;
   if (Array.isArray(input.product_ids)) {
     const ids = [...new Set((input.product_ids as unknown[]).map(Number).filter((n) => Number.isSafeInteger(n) && n > 0))];
     if (ids.length > 200) throw new BadRequestException('Tối đa 200 sản phẩm trên trang.');
@@ -88,6 +114,33 @@ export function cleanStoreSettings(input: Record<string, unknown>, current: Stor
   return next;
 }
 
+type OrderRow = {
+  id: number; code: string; status: string; customer_name: string; customer_phone: string; customer_address: string | null; note: string | null;
+  items: Prisma.JsonValue; total: bigint; payment_method: string; contact_id: number | null; created_at: Date;
+};
+
+/** Ảnh chụp đơn cho sự kiện webhook (`store_order.*`) — chỉ trường lõi. */
+function orderSnapshot(row: OrderRow, assignedTo: number | null) {
+  const items = Array.isArray(row.items) ? (row.items as Array<Record<string, unknown>>) : [];
+  return {
+    id: row.id, code: row.code, status: row.status, customer_name: row.customer_name, customer_phone: row.customer_phone,
+    customer_address: row.customer_address, note: row.note,
+    items: items.map((l) => ({ product_id: Number(l.product_id), name: String(l.name ?? ''), quantity: Number(l.quantity), price: Number(l.price) })),
+    total: Number(row.total), payment_method: row.payment_method, contact_id: row.contact_id, contact_assigned_to: assignedTo,
+    created_at: row.created_at.toISOString(),
+  };
+}
+
+/** Tài khoản nhận chuyển khoản đang dùng được (bật + đủ BIN hợp lệ + số TK), không thì null. */
+export function bankAccountOf(s: StoreSettings): { bin: string; name: string; account: string; account_name: string | null } | null {
+  if (!s.bank_transfer || !s.bank_account || !VIETQR_ACCOUNT_RE.test(s.bank_account)) return null;
+  const bank = findVietQrBank(s.bank_bin);
+  return bank ? { bin: bank.bin, name: bank.name, account: s.bank_account, account_name: s.bank_account_name } : null;
+}
+
+/** Danh sách ngân hàng nhận VietQR cho màn cấu hình (BIN + tên). */
+export const STORE_BANKS = VIETQR_BANKS.map((b) => ({ bin: b.bin, name: b.name }));
+
 /** Trang bán hàng online nhanh: một trang / tổ chức, sản phẩm lấy từ danh mục Sản phẩm, đơn vào CRM. Cờ `online_store` (mặc định tắt). */
 @Injectable()
 export class StoreService {
@@ -99,9 +152,7 @@ export class StoreService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly features: OrgFeaturesService,
-    private readonly sync: CommerceSyncService,
-    private readonly payments: PaymentsService,
-    private readonly connectors: ConnectorsService,
+    private readonly publicApi: PublicApiService,
     private readonly scope: ScopeService,
   ) {}
 
@@ -120,9 +171,6 @@ export class StoreService {
   async saveSettings(input: Record<string, unknown>, userId: number): Promise<StoreSettings> {
     const current = await this.settings();
     const next = cleanStoreSettings(input, { ...current, owner_user_id: current.owner_user_id ?? userId });
-    if (next.bank_transfer && !(await this.connectors.active('sepay').catch(() => null))) {
-      throw new BadRequestException('Chuyển khoản cần kết nối SePay trước (Cài đặt › Kết nối & AI › Thanh toán).');
-    }
     // Multi-tenant: an address (slug) belongs to ONE company, so links work even without `?cid=`. First claim wins.
     if (next.slug && next.slug !== current.slug) {
       await claimCompanyRoute('store_slug', next.slug);
@@ -152,10 +200,9 @@ export class StoreService {
 
   async publicStore(slug: string) {
     const s = await this.openStore(slug);
-    const sepay = s.bank_transfer ? await this.connectors.active('sepay').catch(() => null) : null;
     return {
       name: s.name, tagline: s.tagline, theme: s.theme, accent: s.accent, phone: s.phone, address: s.address, cover_url: s.cover_url, logo_url: s.logo_url,
-      payment: { cod: s.cod, bank_transfer: s.bank_transfer && !!sepay },
+      payment: { cod: s.cod, bank_transfer: bankAccountOf(s) !== null },
       products: await this.products(s.product_ids),
     };
   }
@@ -167,7 +214,7 @@ export class StoreService {
       if (!r.allowed) throw new HttpException({ statusCode: 429, message: 'Bạn đặt quá nhiều đơn, vui lòng thử lại sau ít phút.', retryAfter: r.retryAfterSec }, HttpStatus.TOO_MANY_REQUESTS);
     }
     const name = String(input.name ?? '').trim().slice(0, 120);
-    const phone = normalizeVnPhone(String(input.phone ?? ''));
+    const phone = normalizePhone(String(input.phone ?? ''));
     const address = String(input.address ?? '').trim().slice(0, 300) || null;
     if (!name) throw new BadRequestException('Vui lòng nhập họ tên.');
     if (!phone) throw new BadRequestException('Số điện thoại không hợp lệ.');
@@ -187,28 +234,13 @@ export class StoreService {
     }
     if (!lines.length) throw new BadRequestException('Giỏ hàng trống hoặc sản phẩm không còn bán.');
     const total = lines.reduce((t, l) => t + l.price * l.quantity, 0);
-    // Kiểm giới hạn của yêu cầu thanh toán TRƯỚC khi lưu đơn (không để đơn mồ côi khi tạo thanh toán bị từ chối).
     if (method === 'bank_transfer' && (total < 1000 || total > 10_000_000_000)) throw new BadRequestException('Tổng đơn phải từ 1.000đ tới 10 tỷ để chuyển khoản.');
     const owner = await this.owner(s);
-    const contactId = await this.sync.contactFor('store', { name, phone }, owner);
+    const contactId = await this.contactFor({ name, phone }, owner);
     const assignedTo = contactId ? (await this.prisma.contact.findUnique({ where: { id: contactId }, select: { assigned_to: true } }))?.assigned_to ?? null : null;
-    // Sự kiện webhook "đơn mới" (Zapier/n8n) ghi outbox CÙNG transaction với lúc đơn chốt: COD = lúc tạo đơn; chuyển khoản = lúc gắn
-    // yêu cầu thanh toán (đơn bị gỡ khi tạo thanh toán lỗi thì không phát sự kiện).
-    const emit = (tx: Prisma.TransactionClient, row: { id: number; code: string; status: string; customer_name: string; customer_phone: string; customer_address: string | null; note: string | null; total: bigint; payment_method: string; contact_id: number | null; created_at: Date }) =>
-      publishIntegrationEvent(
-        tx,
-        'store_order.created',
-        {
-          order: {
-            id: row.id, code: row.code, status: row.status, customer_name: row.customer_name, customer_phone: row.customer_phone,
-            customer_address: row.customer_address, note: row.note,
-            items: lines.map((l) => ({ product_id: l.product_id, name: l.name, quantity: l.quantity, price: l.price })),
-            total: Number(row.total), payment_method: row.payment_method, contact_id: row.contact_id, contact_assigned_to: assignedTo,
-            created_at: row.created_at.toISOString(),
-          },
-        },
-        { resourceId: row.id },
-      );
+    // Sự kiện webhook "đơn mới" (Zapier/n8n) ghi outbox CÙNG transaction với lúc tạo đơn (COD và chuyển khoản như nhau).
+    const emit = (tx: Prisma.TransactionClient, row: OrderRow) =>
+      publishIntegrationEvent(tx, 'store_order.created', { order: orderSnapshot(row, assignedTo) }, { resourceId: row.id });
     let order: { id: number; code: string } | null = null;
     for (let attempt = 0; attempt < 5 && !order; attempt++) {
       let code = 'DH-';
@@ -218,7 +250,7 @@ export class StoreService {
           const row = await tx.storeOrder.create({
             data: { code, customer_name: name, customer_phone: phone, customer_address: address, note: String(input.note ?? '').trim().slice(0, 500) || null, items: lines as unknown as Prisma.InputJsonArray, total: BigInt(total), payment_method: method, contact_id: contactId },
           });
-          if (method !== 'bank_transfer') await emit(tx, row);
+          await emit(tx, row);
           return { id: row.id, code: row.code };
         });
       } catch (err) {
@@ -226,21 +258,16 @@ export class StoreService {
       }
     }
     if (!order) throw new BadRequestException('Không tạo được đơn, vui lòng thử lại.');
-    let payment: { qr_url: string | null; transfer_content: string; bank: unknown } | null = null;
-    if (method === 'bank_transfer') {
-      try {
-        const p = await this.payments.create({ amount: total, description: `Đơn online ${order.code}`, source_type: 'store_order', source_id: order.id, contact_id: contactId, expires_in_hours: 48 }, owner.id || null);
-        await this.prisma.$transaction(async (tx) => {
-          const row = await tx.storeOrder.update({ where: { id: order!.id }, data: { payment_intent_id: p.id } });
-          await emit(tx, row);
-        });
-        payment = { qr_url: p.qr_url, transfer_content: p.transfer_content, bank: p.bank };
-      } catch (err) {
-        // Không tạo được thanh toán ⇒ gỡ đơn vừa tạo (khách nhận lỗi và đặt lại, không để đơn mồ côi trùng lặp).
-        await this.prisma.storeOrder.delete({ where: { id: order.id } }).catch(() => undefined);
-        throw err;
-      }
-    }
+    // Chuyển khoản: QR VietQR tĩnh sinh tại chỗ (không gọi dịch vụ ngoài), nội dung = mã đơn. Không tự khớp tiền — đơn ở
+    // trạng thái "mới" tới khi nhân viên xác nhận (PATCH store/orders/:id).
+    const bank = method === 'bank_transfer' ? bankAccountOf(s) : null;
+    const payment = bank
+      ? {
+          qr_data: buildVietQr({ bin: bank.bin, account: bank.account, amount: total, content: order.code }),
+          transfer_content: order.code,
+          bank: { bin: bank.bin, bank: bank.name, account_number: bank.account, account_name: bank.account_name },
+        }
+      : null;
     if (contactId) {
       const items = lines.slice(0, 3).map((l) => `${l.name} ×${l.quantity}`).join(', ');
       await this.prisma.activity
@@ -253,7 +280,7 @@ export class StoreService {
   /** Khách xem lại đơn của mình: phải đúng mã + SĐT đặt hàng (không dò được đơn người khác). */
   async orderStatus(slug: string, code: string, phoneRaw: string) {
     await this.openStore(slug);
-    const phone = normalizeVnPhone(String(phoneRaw ?? ''));
+    const phone = normalizePhone(String(phoneRaw ?? ''));
     const o = await this.prisma.storeOrder.findUnique({ where: { code: String(code ?? '').toUpperCase() } });
     if (!o || !phone || o.customer_phone !== phone) throw new NotFoundException('Không tìm thấy đơn.');
     return { code: o.code, status: o.status, total: Number(o.total), payment_method: o.payment_method };
@@ -282,8 +309,18 @@ export class StoreService {
     const o = await this.prisma.storeOrder.findUnique({ where: { id } });
     if (!o) throw new NotFoundException('Không có đơn này.');
     // Ngoài phạm vi `deals.manage` ⇒ 404 (không lộ là có đơn).
-    await assertInScope(this.scope, user, 'deals.manage', [o.contact_id ? (await this.contactOwners([o.contact_id])).get(o.contact_id) : null]);
-    const u = await this.prisma.storeOrder.update({ where: { id }, data: { status } });
+    const assignedTo = o.contact_id ? (await this.contactOwners([o.contact_id])).get(o.contact_id) ?? null : null;
+    await assertInScope(this.scope, user, 'deals.manage', [assignedTo]);
+    if (o.status === status) return { ...o, total: Number(o.total) };
+    // Sự kiện ghi outbox CÙNG transaction với lúc đổi trạng thái: `store_order.status_changed` mọi lần đổi, thêm
+    // `store_order.paid` khi sang "đã thanh toán" (chuyển khoản do nhân viên xác nhận tay — không tự khớp tiền).
+    const u = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.storeOrder.update({ where: { id }, data: { status } });
+      const order = orderSnapshot(row, assignedTo);
+      await publishIntegrationEvent(tx, 'store_order.status_changed', { order, previous_status: o.status }, { resourceId: row.id });
+      if (status === 'paid') await publishIntegrationEvent(tx, 'store_order.paid', { order }, { resourceId: row.id });
+      return row;
+    });
     return { ...u, total: Number(u.total) };
   }
 
@@ -294,8 +331,22 @@ export class StoreService {
     return new Map(rows.map((r) => [r.id, r.assigned_to]));
   }
 
-  private async owner(s: StoreSettings): Promise<{ id: number; team_id: number | null }> {
+  /** Khách theo SĐT (trùng khách cũ ⇒ khách đó), chưa có thì tạo. Cùng khoá tư vấn theo SĐT với tạo khách tay / webhook vào. */
+  private async contactFor(c: { name: string; phone: string }, owner: { id: number | null; team_id: number | null }): Promise<number | null> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${c.phone}))`;
+      const dup = await tx.contact.findFirst({ where: { phone: { in: phoneVariants(c.phone) }, deleted_at: null }, orderBy: { id: 'asc' }, select: { id: true } });
+      if (dup) return dup.id;
+      // Nhãn nguồn `connector:store` giữ như trước để báo cáo theo nguồn không đứt.
+      const created = await this.publicApi.createContactInTx(tx, { phone: c.phone, full_name: c.name.slice(0, 255) || null, email: null }, owner, 'connector:store');
+      await tx.activity.create({ data: { contact_id: created.id, action: 'note', details: { description: 'Tạo từ trang bán hàng', source: 'connector:store' }, created_by: null } });
+      return created.id;
+    });
+  }
+
+  /** Người nhận khách mới; người cấu hình không còn tồn tại ⇒ khách chưa có người phụ trách (null), không gán id 0. */
+  private async owner(s: StoreSettings): Promise<{ id: number | null; team_id: number | null }> {
     const u = s.owner_user_id ? await this.prisma.user.findUnique({ where: { id: s.owner_user_id }, select: { id: true, team_id: true } }) : null;
-    return { id: u?.id ?? s.owner_user_id ?? 0, team_id: u?.team_id ?? null };
+    return { id: u?.id ?? null, team_id: u?.team_id ?? null };
   }
 }

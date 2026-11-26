@@ -23,13 +23,11 @@ import {
   useSocialAccounts,
   useSocialMutations,
   useSocialSnippets,
-  useTiktokCreatorInfos,
   type SocialAccount,
   type SocialDraft,
   type SocialLibraryItem,
   type SocialMediaItem,
 } from "@/hooks/use-social"
-import apiClient from "@/lib/api-client"
 import { SocialLibrary } from "./social-library"
 import { SocialPreviewPanel } from "./social-preview"
 import { queueWhenLabel } from "./social-queue"
@@ -39,8 +37,6 @@ import { composerStateFrom, type ComposerState } from "./social-draft-state"
 import { RecurrenceFields } from "./social-recurrence"
 import { emptyRecurrence, recurrenceError, recurrenceSchedule } from "./social-recurrence-rules"
 import { todayVn } from "@/lib/format"
-import { EMPTY_YOUTUBE_CHOICE, YoutubePostOptions, youtubeOptionsOf, type YoutubeChoice } from "./youtube-post-options"
-import { EMPTY_TIKTOK_CHOICE, TIKTOK_BRANDED_URL, TIKTOK_MUSIC_URL, TiktokPostOptions, tiktokBlocker, tiktokOptionsOf, type TiktokChoice } from "./tiktok-post-options"
 import { STATUS_LABEL } from "@/components/ui/status-tag"
 import { formatDateTime } from "@/lib/format"
 
@@ -52,25 +48,7 @@ interface Upload {
   pct: number
   item?: SocialMediaItem
   error?: string
-  /** Nguồn để đo thời lượng video (TikTok giới hạn theo tài khoản). */
-  file?: File
   libId?: number
-}
-
-/** Thời lượng video (giây) đọc từ metadata; null = trình duyệt không đọc được. */
-function measureVideo(src: string): Promise<number | null> {
-  return new Promise((resolve) => {
-    const v = document.createElement("video")
-    v.preload = "metadata"
-    const done = (d: number | null) => {
-      v.removeAttribute("src")
-      v.load()
-      resolve(d)
-    }
-    v.onloadedmetadata = () => done(Number.isFinite(v.duration) && v.duration > 0 ? v.duration : null)
-    v.onerror = () => done(null)
-    v.src = src
-  })
 }
 
 /** Hẹn tối đa 90 ngày tới — khớp `MAX_SCHEDULE_AHEAD_MS` phía BE. */
@@ -129,11 +107,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
   const [selected, setSelected] = useState<number[]>(init?.selected ?? [])
   const [captions, setCaptions] = useState<Record<number, string>>(init?.captions ?? {})
   const [openCaption, setOpenCaption] = useState<Record<number, boolean>>(init?.openCaption ?? {})
-  const [ytChoice, setYtChoice] = useState<Record<number, YoutubeChoice>>(init?.ytChoice ?? {})
   const [fbFirst, setFbFirst] = useState<Record<number, string>>(init?.fbFirst ?? {})
-  const [ttChoice, setTtChoice] = useState<Record<number, TiktokChoice>>(init?.ttChoice ?? {})
-  /** Thời lượng video theo media key: undefined = chưa đo xong, null = không đọc được. */
-  const [durations, setDurations] = useState<Record<string, number | null>>({})
   const [uploads, setUploads] = useState<Upload[]>(() =>
     (init?.uploads ?? []).map((u) => ({ id: `draft-${u.item.key}`, name: u.name, pct: 100, item: u.item, libId: u.libId })),
   )
@@ -175,7 +149,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
   const addFiles = (files: FileList | null) => {
     for (const file of Array.from(files ?? [])) {
       const id = `${Date.now()}-${Math.random()}`
-      setUploads((u) => [...u, { id, name: file.name, pct: 0, file }])
+      setUploads((u) => [...u, { id, name: file.name, pct: 0 }])
       const patch = (p: Partial<Upload>) => setUploads((u) => u.map((x) => (x.id === id ? { ...x, ...p } : x)))
       uploadSocialFile(file, (pct) => patch({ pct }))
         .then((item) => patch({ item, pct: 100 }))
@@ -193,43 +167,6 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
         : [...u, { id: `lib-${m.key}`, name: m.name, pct: 100, item: { key: m.key, type: m.type, content_type: m.content_type, size: m.size }, libId: m.id }],
     )
 
-  // Đo thời lượng mỗi video đính kèm một lần (tệp tải lên: đọc thẳng tệp; tệp thư viện: tải qua BE).
-  const tiktokChosen = chosen.filter((a) => a.network === "tiktok")
-  const videoUpload = uploads.find((u) => u.item?.type === "video")
-  const videoKey = videoUpload?.item?.key
-  useEffect(() => {
-    if (!videoUpload || !videoKey || tiktokChosen.length === 0 || videoKey in durations) return
-    let cancelled = false
-    const run = async () => {
-      let url: string | null = null
-      try {
-        url = videoUpload.file
-          ? URL.createObjectURL(videoUpload.file)
-          : videoUpload.libId
-            ? URL.createObjectURL((await apiClient.get<Blob>(`/social/media/${videoUpload.libId}/file`, { responseType: "blob" })).data)
-            : null
-        const d = url ? await measureVideo(url) : null
-        if (!cancelled) setDurations((x) => ({ ...x, [videoKey]: d }))
-      } catch {
-        if (!cancelled) setDurations((x) => ({ ...x, [videoKey]: null }))
-      } finally {
-        if (url) URL.revokeObjectURL(url)
-      }
-    }
-    void run()
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- đo lại khi đổi video hoặc khi vừa chọn kênh TikTok
-  }, [videoKey, tiktokChosen.length > 0])
-  const videoDuration = videoKey ? durations[videoKey] : null
-  const ttInfo = useTiktokCreatorInfos(tiktokChosen.map((a) => a.id))
-  const ttBlock = tiktokChosen.map((a) => tiktokBlocker(ttChoice[a.id] ?? EMPTY_TIKTOK_CHOICE, ttInfo[a.id], videoDuration)).find(Boolean) ?? null
-  const ttBranded = tiktokChosen.some((a) => {
-    const c = ttChoice[a.id]
-    return c?.commercial && c.brandContent
-  })
-
   const toggle = (a: SocialAccount) => setSelected((s) => (s.includes(a.id) ? s.filter((x) => x !== a.id) : [...s, a.id]))
 
   const utmCfg = utmPayload(utm, content)
@@ -239,21 +176,14 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
     chosen.map((a) => ({
       account_id: a.id,
       caption: openCaption[a.id] && captions[a.id]?.trim() ? captions[a.id] : null,
-      options:
-        a.network === "youtube"
-          ? youtubeOptionsOf(ytChoice[a.id] ?? EMPTY_YOUTUBE_CHOICE)
-          : a.network === "tiktok"
-            ? tiktokOptionsOf(ttChoice[a.id] ?? EMPTY_TIKTOK_CHOICE, ttInfo[a.id], videoDuration)
-            : a.network === "facebook" && fbFirst[a.id]?.trim()
-              ? { first_comment: fbFirst[a.id].trim() }
-              : undefined,
+      options: fbFirst[a.id]?.trim() ? { first_comment: fbFirst[a.id].trim() } : undefined,
     }))
 
   /** Toàn bộ trạng thái ô soạn ⇒ thân nháp (dùng cho Lưu nháp và trước khi đăng nháp đang mở). */
   const draftBody = () => {
     const at = scheduleOn && !useQueue && scheduleAt ? new Date(scheduleAt) : null
     const ui: ComposerState = {
-      content, selected, captions, openCaption, ytChoice, fbFirst, ttChoice, scheduleOn, scheduleAt, useQueue, utm, recurOn, recur,
+      content, selected, captions, openCaption, fbFirst, scheduleOn, scheduleAt, useQueue, utm, recurOn, recur,
       uploads: uploads.flatMap((u) => (u.item ? [{ name: u.name, item: u.item, libId: u.libId }] : [])),
     }
     return {
@@ -290,9 +220,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
         setSelected([])
         setCaptions({})
         setOpenCaption({})
-        setYtChoice({})
         setFbFirst({})
-        setTtChoice({})
         setUtm(EMPTY_UTM_CHOICE)
         setUploads([])
         setRecur(emptyRecurrence(todayVn()))
@@ -318,7 +246,6 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
           p.scheduled_at
             ? `Đã hẹn đăng bài #${p.id} lúc ${formatDateTime(p.scheduled_at)}`
             : `Đang đăng bài #${p.id} lên các kênh…`,
-          tiktokChosen.length ? { description: "TikTok cần vài phút để xử lý video trước khi video hiện trên hồ sơ." } : undefined,
         )
         setScheduleOn(false)
         setUseQueue(false)
@@ -327,9 +254,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
         setSelected([])
         setCaptions({})
         setOpenCaption({})
-        setYtChoice({})
         setFbFirst({})
-        setTtChoice({})
         setUtm(EMPTY_UTM_CHOICE)
         setUploads([])
         setDraftId(undefined)
@@ -358,7 +283,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
     return (
       <Card>
         <CardContent className="space-y-3 p-6 text-sm">
-          <p>Chưa có kênh nào được liên kết. Liên kết Fanpage Facebook hoặc kênh YouTube trước, rồi quay lại soạn bài.</p>
+          <p>Chưa có kênh nào được liên kết. Liên kết Fanpage Facebook trước, rồi quay lại soạn bài.</p>
           <Button variant="outline" onClick={onGoChannels}>Đến mục Kênh</Button>
         </CardContent>
       </Card>
@@ -381,7 +306,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
   const schedErr = mode === "schedule" ? scheduleError(scheduleAt) : null
   const recurErr = mode === "recurring" ? recurrenceError(recur) : null
   const queueBlock = mode === "queue" && (noSlots || (nextQ.isSuccess && !nextSlot))
-  const disabled = create.isPending || createRecurrence.isPending || saveDraft.isPending || publishDraft.isPending || uploading || chosen.length === 0 || empty || tooLong || Boolean(schedErr) || queueBlock || Boolean(ttBlock) || Boolean(recurErr)
+  const disabled = create.isPending || createRecurrence.isPending || saveDraft.isPending || publishDraft.isPending || uploading || chosen.length === 0 || empty || tooLong || Boolean(schedErr) || queueBlock || Boolean(recurErr)
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -511,21 +436,6 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
             )}
           </div>
 
-          {tiktokChosen.length > 0 && (
-            <div className="space-y-1 border-t border-border pt-4 text-xs text-muted-foreground">
-              {ttBlock && <p className="text-destructive">TikTok: {ttBlock}</p>}
-              <p>
-                Khi đăng lên TikTok, bạn đồng ý với{" "}
-                {ttBranded && (
-                  <>
-                    <a href={TIKTOK_BRANDED_URL} target="_blank" rel="noreferrer" className="text-primary hover:underline">Chính sách nội dung có thương hiệu</a> và{" "}
-                  </>
-                )}
-                <a href={TIKTOK_MUSIC_URL} target="_blank" rel="noreferrer" className="text-primary hover:underline">Xác nhận sử dụng âm nhạc (Music Usage Confirmation)</a> của TikTok.
-              </p>
-            </div>
-          )}
-
           <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[13px] text-muted-foreground" aria-live="polite">
               {/* Mất mạng: khoá nút gửi và nói rõ — bài đang soạn vẫn còn nguyên trên màn hình. */}
@@ -621,17 +531,6 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
                           onChange={(e) => setFbFirst((x) => ({ ...x, [a.id]: e.target.value }))} />
                         <p className="text-xs text-muted-foreground">Fanpage tự bình luận ngay dưới bài vừa đăng. Cần kết nối Fanpage này ở Cài đặt › Kết nối › Fanpage Facebook.</p>
                       </div>
-                    )}
-                    {a.network === "youtube" && (
-                      <YoutubePostOptions account={a} value={ytChoice[a.id] ?? EMPTY_YOUTUBE_CHOICE} onChange={(c) => setYtChoice((x) => ({ ...x, [a.id]: c }))} />
-                    )}
-                    {a.network === "tiktok" && (
-                      <TiktokPostOptions
-                        account={a}
-                        value={ttChoice[a.id] ?? EMPTY_TIKTOK_CHOICE}
-                        onChange={(c) => setTtChoice((x) => ({ ...x, [a.id]: c }))}
-                        durationSec={videoDuration}
-                      />
                     )}
                   </>
                 )}

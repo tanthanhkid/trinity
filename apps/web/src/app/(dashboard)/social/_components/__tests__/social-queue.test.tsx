@@ -18,7 +18,6 @@ vi.mock("@/hooks/use-social", async (orig) => ({
   useSocialAccounts: () => ({ data: [{ id: 3, network: "facebook", name: "Fanpage", avatar_url: null, status: "active", last_error: null }], isLoading: false }),
   useSocialSnippets: () => ({ data: [], isLoading: false, isSuccess: true }),
   useSnippetMutations: () => ({ save: { isPending: false, mutate: vi.fn() }, remove: { isPending: false, mutate: vi.fn() } }),
-  useTiktokCreatorInfos: () => ({}),
   useSocialMutations: () => ({
     create: { isPending: false, mutateAsync: state.create },
     createRecurrence: { isPending: false, mutateAsync: vi.fn() },

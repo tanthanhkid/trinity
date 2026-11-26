@@ -111,8 +111,7 @@ sends — **the company's bulk and automatic sending pauses** (broadcasts, flows
 for `CHANNEL_GUARD_PAUSE_HOURS` (default 6). A pause only **holds** work, it never cancels it: broadcast recipients stay
 queued and resume after the pause, flow steps and scheduled posts are re-scheduled to the end of the pause (a post does not
 use up a retry), and a comment that arrives during a pause stays "unanswered" for staff (hide-on-phone rules still run).
-Only a lock or an exhausted quota stops work for good. The pause covers Facebook/Instagram sending only; Zalo, YouTube,
-TikTok and Google are not paused by Graph errors (a lock still blocks them). The pause is stored in the company's
+Only a lock or an exhausted quota stops work for good. The pause covers Facebook/Instagram sending only; Zalo is not paused by Graph errors (a lock still blocks them). The pause is stored in the company's
 `channel_events` (an `auto_pause` event), so every instance sees it; staff replying by hand keep working. End a pause
 early with `channel:lock -- resume <companyId>`.
 App-wide limits (#4, #613, HTTP 429 on outgoing calls) are shared by all companies, so they are never charged to one

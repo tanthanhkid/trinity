@@ -43,8 +43,8 @@ const TARGET_STATUS: Record<SocialTarget["status"], { label: string; variant: "s
 /** Bài đã bị xoá thẳng trên mạng (Trinity phát hiện khi kiểm/lấy số). */
 const REMOVED_STATUS = { label: "Đã xoá trên mạng", variant: "secondary" } as const
 
-/** Mạng không cho gỡ bài qua API — người dùng gỡ trong ứng dụng của mạng. */
-const APP_ONLY_REMOVE: Partial<Record<SocialTarget["network"], string>> = { tiktok: "TikTok", instagram: "Instagram" }
+/** Bài cũ trên mạng Trinity đã gỡ (G04): không đăng lại / gỡ qua Trinity được nữa — người dùng gỡ trong ứng dụng của mạng. */
+const ARCHIVED_NETWORK: Partial<Record<SocialTarget["network"], string>> = { tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube", google_business: "Google Business" }
 
 const fmt = (iso: string) => formatDateTime(iso)
 
@@ -134,13 +134,13 @@ export function SocialPostsList({ highlight, onCompose }: { highlight?: number; 
                       </span>
                     ) : t.last_error && <span className={cn("w-full pl-6 text-xs", t.status === "cancelled" ? "text-muted-foreground" : t.status === "published" ? "text-[var(--color-app-tag-amber-ink)]" : "text-destructive")}>{t.last_error}</span>}
                     <span className="ml-auto flex gap-1">
-                      {t.status === "failed" && (
+                      {t.status === "failed" && !ARCHIVED_NETWORK[t.network] && (
                         <Button size="sm" variant="outline" disabled={m.retry.isPending} onClick={() => run(m.retry.mutateAsync(t.id), "Đã đưa vào hàng đăng lại.")}>
                           <RotateCcw className="size-3.5" /> Đăng lại
                         </Button>
                       )}
-                      {t.status === "published" && !gone && APP_ONLY_REMOVE[t.network] && <span className="text-xs text-muted-foreground">Gỡ trong ứng dụng {APP_ONLY_REMOVE[t.network]}</span>}
-                      {t.status === "published" && !gone && !APP_ONLY_REMOVE[t.network] && can("social.manage") && (
+                      {t.status === "published" && !gone && ARCHIVED_NETWORK[t.network] && <span className="text-xs text-muted-foreground">Gỡ trong ứng dụng {ARCHIVED_NETWORK[t.network]}</span>}
+                      {t.status === "published" && !gone && !ARCHIVED_NETWORK[t.network] && can("social.manage") && (
                         <Button size="sm" variant="ghost" onClick={() => setRemoving(t)}>
                           <Trash2 className="size-3.5" /> Gỡ khỏi mạng
                         </Button>

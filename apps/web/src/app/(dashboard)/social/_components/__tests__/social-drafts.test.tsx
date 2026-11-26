@@ -3,7 +3,6 @@ import { act, fireEvent, render, screen } from "@testing-library/react"
 import type { ReactElement } from "react"
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query"
 import type { SocialDraft } from "@/hooks/use-social"
-import { youtubeChoiceFrom, youtubeOptionsOf, EMPTY_YOUTUBE_CHOICE } from "../youtube-post-options"
 import { composerStateFrom } from "../social-draft-state"
 import { SocialDraftsList, draftLabel } from "../social-drafts-list"
 
@@ -40,18 +39,6 @@ const draft = (o: Partial<SocialDraft> = {}): SocialDraft => ({
   created_at: "2026-10-15T01:00:00Z", updated_at: "2026-10-15T02:00:00Z", ...o,
 })
 
-describe("youtubeChoiceFrom", () => {
-  it("đảo ngược youtubeOptionsOf", () => {
-    const c = { title: "Tiêu đề", privacy: "public" as const, description: "Mô tả", tags: "a, b", category: "27" as const, kids: true, playlist: "PL1", thumbnail: { key: "social/u1_1_t.png", name: "t.png" } }
-    const back = youtubeChoiceFrom(youtubeOptionsOf(c))
-    expect(back).toEqual({ ...c, thumbnail: { key: "social/u1_1_t.png", name: "u1_1_t.png" } })
-  })
-  it("thiếu / sai giá trị ⇒ mặc định", () => {
-    expect(youtubeChoiceFrom(undefined)).toEqual(EMPTY_YOUTUBE_CHOICE)
-    expect(youtubeChoiceFrom({ privacy: "bậy", category_id: "999", tags: [1, "x"] })).toEqual({ ...EMPTY_YOUTUBE_CHOICE, tags: "x" })
-  })
-})
-
 describe("composerStateFrom", () => {
   it("nháp của AI (không có ui): suy từ kênh, caption, tuỳ chọn, tệp, giờ", () => {
     const s = composerStateFrom(
@@ -60,7 +47,7 @@ describe("composerStateFrom", () => {
         media: [{ key: "social/u1_1_a.png", type: "image", content_type: "image/png", size: 5, name: "a.png" }],
         targets: [
           { account_id: 3, caption: "Riêng", options: { first_comment: "Link" } },
-          { account_id: 4, options: { title: "T", privacy: "unlisted" } },
+          { account_id: 4 },
         ],
         scheduled_at: "2030-01-01T00:00:00Z",
       }),
@@ -69,14 +56,20 @@ describe("composerStateFrom", () => {
     expect(s.captions[3]).toBe("Riêng")
     expect(s.openCaption[3]).toBe(true)
     expect(s.fbFirst[3]).toBe("Link")
-    expect(s.ytChoice[4]).toMatchObject({ title: "T", privacy: "unlisted" })
     expect(s.uploads[0]).toMatchObject({ name: "a.png", item: { key: "social/u1_1_a.png" } })
     expect(s.scheduleOn).toBe(true)
     expect(s.scheduleAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
   })
   it("nháp từ web: khôi phục nguyên ui", () => {
-    const ui = { content: "Ui", selected: [3], captions: { 3: "x" }, openCaption: { 3: true }, ytChoice: {}, fbFirst: {}, ttChoice: {}, scheduleOn: false, scheduleAt: "", uploads: [] }
+    const ui = { content: "Ui", selected: [3], captions: { 3: "x" }, openCaption: { 3: true }, fbFirst: {}, scheduleOn: false, scheduleAt: "", uploads: [] }
     expect(composerStateFrom(draft({ content: "Khác", ui }))).toEqual(ui)
+  })
+  it("nháp web cũ còn tuỳ chọn YouTube/TikTok (mạng đã gỡ) ⇒ bỏ qua phần đó", () => {
+    const ui = { content: "Ui", selected: [3], captions: {}, openCaption: {}, ytChoice: { 4: { title: "T" } }, fbFirst: {}, ttChoice: { 5: {} }, scheduleOn: false, scheduleAt: "", uploads: [] }
+    const s = composerStateFrom(draft({ ui }))
+    expect(s).not.toHaveProperty("ytChoice")
+    expect(s).not.toHaveProperty("ttChoice")
+    expect(s.content).toBe("Ui")
   })
 })
 

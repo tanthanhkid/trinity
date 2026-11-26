@@ -7,7 +7,7 @@ How well each channel and connector has been tested is tracked in [docs/integrat
 ## Done
 - [x] Built-in AI control: connect ChatGPT, Claude, Gemini, Cursor or any MCP client and work within the user's permissions
 - [x] CRM: contacts, Kanban pipelines, record codes and `@` links, newsfeed; sales, POS, HR, reports, roles and data scopes
-- [x] Multi-channel posting to Facebook Pages and YouTube, with scheduling, a content calendar, a media library and post stats
+- [x] Multi-channel posting to Facebook Pages (Fanpage only since #102), with scheduling, a content calendar, a media library and post stats
 - [x] Facebook comment automation: auto-replies, hiding phone numbers, private replies
 - [x] Chat links and QR codes that open a conversation, Messenger flows with a Get Started button
 - [x] Messenger inbox and broadcasts that respect the 24-hour messaging window
@@ -20,7 +20,6 @@ How well each channel and connector has been tested is tracked in [docs/integrat
 - [x] Online store MVP (off by default): a storefront at `/s/<name>` or a subdomain, three themes, cart, cash on delivery or bank-transfer QR, orders and customers land in the CRM
 
 ## In progress
-- [ ] Instagram posting (code ready, waiting for Meta App Review)
 - [ ] iPOS connector (waiting for iPOS to publish its partner API)
 
 ## Next

@@ -3,7 +3,7 @@ import { safeEqual } from '../integrations/oauth/oauth-crypto';
 import { currentCompanyId } from '@trinity/prisma';
 import type { SocialMedia } from './providers/provider.types';
 
-/** Hạn link: đủ cho mạng tải tệp (Instagram tải video có khi vài phút), không để link sống lâu. */
+/** Hạn link: đủ cho mạng tải tệp (tải video có khi vài phút), không để link sống lâu. */
 export const MEDIA_LINK_TTL_SEC = 2 * 60 * 60;
 
 function key(): Buffer {
@@ -13,7 +13,7 @@ function key(): Buffer {
 }
 
 /**
- * Link tải tệp CÔNG KHAI có chữ ký cho mạng chỉ nhận ảnh/video qua URL (Instagram). Chứa key tệp + loại + hạn, ký HMAC;
+ * Link tải tệp CÔNG KHAI có chữ ký cho mạng chỉ nhận ảnh/video qua URL (hiện Facebook Page không cần; giữ cho provider sau này). Chứa key tệp + loại + hạn, ký HMAC;
  * không đăng nhập vẫn tải được nhưng chỉ đúng tệp đó, tới hết hạn. Multi-tenant: token mang luôn công ty (`c`) — route công khai
  * chỉ mở tệp khi công ty trong token trùng công ty mà gợi ý `?cid=` đã chọn (token công ty này không mở được tệp công ty khác).
  */
@@ -38,7 +38,7 @@ export function verifyMediaLink(token: string, now = Date.now()): { key: string;
   }
 }
 
-/** Đuôi tệp theo loại — Instagram đọc loại từ URL/headers; thêm đuôi cho chắc. */
+/** Đuôi tệp theo loại — có mạng đọc loại từ URL/headers; thêm đuôi cho chắc. */
 export function mediaLinkExt(contentType: string): string {
   const map: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm' };
   return map[contentType] ?? 'bin';

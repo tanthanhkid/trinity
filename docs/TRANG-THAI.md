@@ -212,7 +212,7 @@ Chữ "MCP" không xuất hiện trên giao diện: hướng dẫn nối trợ l
 | `api-500-cac-man` | API chính của Kanban, Đăng đa kênh, Tổng quan trả 500 ⇒ mỗi màn hiện khung lỗi + Thử lại, không nói 'chưa có'/'0' | /kanban: đúng; /social?tab=posts: đúng; /dashboard: đúng | ✅ |
 | `api-401-het-phien` | Phiên hết hạn (401 và làm mới token cũng 401) ⇒ về trang đăng nhập, không kẹt màn trắng/lỗi | URL: /login | ✅ |
 | `danh-sach-trong` | Không có khách trong bộ lọc mặc định (7 ngày) ⇒ 'không khớp bộ lọc' + Xoá bộ lọc, nói một lần; bỏ lọc mà vẫn trống ⇒ 'Chưa có khách hàng nào' + Thêm khách; không có board ⇒ Tạo board | khách hàng: đúng; kanban: đúng | ✅ |
-| `token-kenh-het-han` | Fanpage hết hạn token ⇒ 'Fanpage … cần kết nối lại' + lý do + nút Kết nối lại; kênh YouTube mất quyền ở Đăng đa kênh cũng vậy | Fanpage: có thông báo + nút; Đăng đa kênh: có thông báo | ✅ |
+| `token-kenh-het-han` | Fanpage hết hạn token ⇒ 'Fanpage … cần kết nối lại' + lý do + nút Kết nối lại; kênh Fanpage mất quyền ở Đăng đa kênh cũng vậy | Fanpage: có thông báo + nút; Đăng đa kênh: có thông báo | ✅ |
 | `dang-bai-loi` | Bài đăng lỗi ⇒ 'Không đăng được lên <kênh>: <lý do>' + nút Đăng lại; bấm ⇒ gọi lệnh đăng lại | câu lỗi: đúng; nút: có; gọi đăng lại: có | ✅ |
 | `hoan-tac-xoa-nhap` | Xoá bài nháp ⇒ biến mất ngay + toast Hoàn tác; bấm Hoàn tác ⇒ hiện lại, KHÔNG gửi DELETE; xoá lại và chờ 5 giây ⇒ gửi DELETE | ẩn ngay: có; Hoàn tác hiện lại: có; không gửi khi hoàn tác: đúng; hết 5 giây gửi DELETE: có | ✅ |
 

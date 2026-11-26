@@ -12,7 +12,7 @@ afterAll(() => jest.useRealTimers());
 
 const row = (over: Record<string, unknown> = {}) => ({
   id: 4, title: 'Khuyến mãi', content: 'Nội dung', media: [{ key: 'social/u1_1_a.png', type: 'image', content_type: 'image/png', size: 5, name: 'a.png' }],
-  targets: [{ account_id: 3, caption: 'riêng', options: { title: 'Tiêu đề', privacy: 'public', first_comment: 'Link' } }],
+  targets: [{ account_id: 3, caption: 'riêng', options: { first_comment: 'Link', utm: { campaign: 'c' } } }],
   scheduled_at: new Date('2026-10-20T02:00:00Z'), ui: null, post_id: null, source: 'mcp', created_by: 1, created_at: NOW, updated_at: NOW, ...over,
 });
 
@@ -45,7 +45,7 @@ describe('list_social_drafts', () => {
       draft_id: 4, title: 'Khuyến mãi', scheduled_at: '2026-10-20T09:00:00+07:00', edit_url: 'https://crm.example.com/social?tab=drafts&draft=4',
       channels: [{ account_id: 3, name: 'Fanpage', network: 'facebook' }], media: [{ media_key: 'social/u1_1_a.png', type: 'image', name: 'a.png' }],
     });
-    expect(d.captions).toEqual([{ account_id: 3, caption: 'riêng', youtube_title: 'Tiêu đề', youtube_privacy: 'public', facebook_first_comment: 'Link' }]);
+    expect(d.captions).toEqual([{ account_id: 3, caption: 'riêng', facebook_first_comment: 'Link' }]);
   });
 });
 
@@ -60,10 +60,10 @@ describe('save_social_draft', () => {
 
   it('có draft_id ⇒ chỉ gửi trường đổi; captions không kèm account_ids giữ danh sách kênh và tuỳ chọn cũ', async () => {
     const d = deps();
-    await saveSocialDraftTool.run({ draft_id: 4, title: 'Tên khác', captions: [{ account_id: 3, youtube_privacy: 'private' }] }, ctx(d));
+    await saveSocialDraftTool.run({ draft_id: 4, title: 'Tên khác', captions: [{ account_id: 3, facebook_first_comment: 'Link mới' }] }, ctx(d));
     const [, id, input] = d.social.drafts.update.mock.calls[0];
     expect(id).toBe(4);
-    expect(input).toEqual({ title: 'Tên khác', targets: [{ account_id: 3, caption: 'riêng', options: { title: 'Tiêu đề', privacy: 'private', first_comment: 'Link' } }] });
+    expect(input).toEqual({ title: 'Tên khác', targets: [{ account_id: 3, caption: 'riêng', options: { first_comment: 'Link mới', utm: { campaign: 'c' } } }] });
   });
 
   it('scheduled_at rỗng ⇒ xoá giờ hẹn; account_ids thay danh sách; caption lạc kênh ⇒ lỗi', async () => {

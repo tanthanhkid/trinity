@@ -12,6 +12,7 @@ import { FacebookChatLinksService } from '../../facebook/facebook-chat-links.ser
 import { FacebookFlowsService } from '../../facebook/facebook-flows.service';
 import { FacebookBroadcastsService } from '../../facebook/facebook-broadcasts.service';
 import { PaymentsService } from '../../connectors/payments.service';
+import { StoreService } from '../../store/store.service';
 import { FacebookMessengerService } from '../../facebook/facebook-messenger.service';
 import { ZaloOaMessagingService } from '../../zalo-oa/zalo-oa-messaging.service';
 import type { Request, Response } from 'express';
@@ -112,9 +113,10 @@ export class McpServerService {
     @Optional() customReports?: CustomReportsService,
     @Optional() setupBuild?: SetupBuildService,
     @Optional() channelGuard?: ChannelGuardService,
+    @Optional() store?: StoreService,
   ) {
     const social = socialPosts && socialAccounts && socialDrafts && socialQueue && socialSnippets && socialImport && socialRecurrence ? { posts: socialPosts, accounts: socialAccounts, drafts: socialDrafts, queue: socialQueue, snippets: socialSnippets, importer: socialImport, recurrences: socialRecurrence } : undefined;
-    this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, payments, channels, interactions, customReports, setupBuild, channelGuard };
+    this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, payments, channels, interactions, customReports, setupBuild, channelGuard, store };
   }
 
   /** Dựng server + đăng ký tool cho 1 request (public để test gọi trực tiếp tool qua `execute`). */

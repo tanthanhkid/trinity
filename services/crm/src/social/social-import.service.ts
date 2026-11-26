@@ -6,7 +6,7 @@ import { NO_QUEUE_SLOTS, SocialQueueService } from './social-queue.service';
 import { SocialDraftsService, type DraftInput } from './social-drafts.service';
 import { SocialPostsService, type CreatePostInput } from './social-posts.service';
 import { IMPORT_MAX_ROWS, parseCsv, parseVnTime, type ImportRowInput } from './social-csv';
-import { MAX_MEDIA_PER_POST, MAX_SCHEDULE_AHEAD_MS } from './social.config';
+import { MAX_MEDIA_PER_POST, MAX_SCHEDULE_AHEAD_MS, SOCIAL_NETWORKS } from './social.config';
 import { normalizeUtm, type UtmInput } from './social-utm';
 
 const MINUTE = 60_000;
@@ -70,7 +70,7 @@ const rowMessage = (e: unknown): string => {
 
 /** Dòng nhập có cấu trúc (MCP) → dạng dùng chung với CSV. */
 export function rowsFromStructured(
-  rows: Array<{ content?: string; account_ids?: number[]; scheduled_at?: string; use_queue?: boolean; media_keys?: string[]; first_comment?: string; youtube_title?: string; utm_campaign?: string }>,
+  rows: Array<{ content?: string; account_ids?: number[]; scheduled_at?: string; use_queue?: boolean; media_keys?: string[]; first_comment?: string; utm_campaign?: string }>,
 ): ImportRowInput[] {
   return rows.map((r, i) => ({
     row: i + 1,
@@ -80,7 +80,6 @@ export function rowsFromStructured(
     use_queue: r.use_queue === true ? true : undefined,
     media: (r.media_keys ?? []).map((k) => k.trim()).filter(Boolean),
     first_comment: r.first_comment?.trim() || undefined,
-    youtube_title: r.youtube_title?.trim() || undefined,
     utm_campaign: r.utm_campaign?.trim() || undefined,
   }));
 }
@@ -150,7 +149,8 @@ export class SocialImportService {
     if (rows.length > IMPORT_MAX_ROWS) throw new BadRequestException(`Tối đa ${IMPORT_MAX_ROWS} dòng mỗi lần nhập.`);
     const now = Date.now();
 
-    const accounts = await this.prisma.socialAccount.findMany({ where: { status: { not: 'disabled' } } });
+    // Chỉ kênh của mạng còn hỗ trợ: tên kênh YouTube/TikTok cũ trong tệp nhập báo "Không tìm thấy kênh".
+    const accounts = await this.prisma.socialAccount.findMany({ where: { status: { not: 'disabled' }, network: { in: [...SOCIAL_NETWORKS] } } });
     const byId = new Map(accounts.map((a) => [a.id, a]));
     const byName = new Map<string, typeof accounts>();
     const byLower = new Map<string, typeof accounts>();
@@ -248,11 +248,9 @@ export class SocialImportService {
 
       // Tuỳ chọn riêng từng mạng.
       if (r.first_comment && !chosen.some((a) => a.network === 'facebook')) warnings.push('Không có kênh Facebook — bỏ qua bình luận đầu.');
-      if (r.youtube_title && !chosen.some((a) => a.network === 'youtube')) warnings.push('Không có kênh YouTube — bỏ qua tiêu đề YouTube.');
       const targets = chosen.map((a) => {
         const options: Record<string, unknown> = {};
         if (a.network === 'facebook' && r.first_comment) options.first_comment = r.first_comment;
-        if (a.network === 'youtube' && r.youtube_title) options.title = r.youtube_title;
         return { account_id: a.id, ...(Object.keys(options).length ? { options } : {}) };
       });
 
@@ -268,7 +266,7 @@ export class SocialImportService {
           content_excerpt: excerpt(content),
         },
       };
-      const norm = { row: r.row, content, account_ids: chosen.map((a) => a.id), scheduled_at: at ? at.toISOString() : null, use_queue: queue, media_keys: media, first_comment: r.first_comment ?? null, youtube_title: r.youtube_title ?? null, utm_campaign: utm?.campaign ?? null };
+      const norm = { row: r.row, content, account_ids: chosen.map((a) => a.id), scheduled_at: at ? at.toISOString() : null, use_queue: queue, media_keys: media, first_comment: r.first_comment ?? null, utm_campaign: utm?.campaign ?? null };
       const base = { content, media_keys: media, targets, ...(utm ? { utm } : {}) };
       const draft: DraftInput = { ...base, ...(queue ? { use_queue: true } : at ? { scheduled_at: at.toISOString() } : {}) };
       const post: CreatePostInput = { ...base, scheduled_at: at ? at.toISOString() : null, source: 'csv' };

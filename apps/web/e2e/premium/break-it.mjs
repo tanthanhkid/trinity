@@ -234,7 +234,7 @@ export const CASES = [
   },
   {
     name: "token-kenh-het-han",
-    expect: "Fanpage hết hạn token ⇒ 'Fanpage … cần kết nối lại' + lý do + nút Kết nối lại; kênh YouTube mất quyền ở Đăng đa kênh cũng vậy",
+    expect: "Fanpage hết hạn token ⇒ 'Fanpage … cần kết nối lại' + lý do + nút Kết nối lại; Fanpage mất quyền ở Đăng đa kênh cũng vậy",
     async run() {
       const a = await open("/connections?muc=facebook")
       let fb
@@ -246,7 +246,7 @@ export const CASES = [
       let social
       try {
         const notice = b.page.getByTestId("reconnect-notice")
-        social = (await visible(notice)) && /YouTube|Trinity Coffee TV/.test(await notice.first().innerText())
+        social = (await visible(notice)) && /Trinity Coffee Q3/.test(await notice.first().innerText())
       } finally { await b.close() }
       return { ok: fb && social, actual: `Fanpage: ${fb ? "có thông báo + nút" : "THIẾU"}; Đăng đa kênh: ${social ? "có thông báo" : "THIẾU"}` }
     },
@@ -258,7 +258,7 @@ export const CASES = [
       const h = await open("/social?tab=posts", { "/^POST \\/social\\/targets\\/\\d+\\/retry$/": json(200, {}) })
       try {
         const t = await text(h.page)
-        const said = /Không đăng được lên Trinity Coffee TV: YouTube từ chối/.test(t)
+        const said = /Không đăng được lên Trinity Coffee Q3: Facebook từ chối/.test(t)
         const btn = h.page.getByRole("button", { name: /Đăng lại/ })
         const has = await visible(btn)
         if (has) await btn.first().click()

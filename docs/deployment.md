@@ -216,6 +216,7 @@ API returns a config).
 - **PostHog server events** carry only keys, counts and booleans. Strings are cut at 60 characters, and any string
   containing `@` or a run of 8 or more digits is dropped. No names or record content is sent.
 - Sending is fire-and-forget and never affects a request. Events are not sent when `NODE_ENV=test`.
+- The Rust server (`server/crates/trinity-obs`) applies the same filters and variables: no `SENTRY_DSN` means no Sentry client, no `POSTHOG_KEY` or hash secret means no event, and in both cases no network call. Only status 500 and above reach Sentry; request bodies, cookies, headers, query strings, `extra` data and stack-frame variables are removed before an event leaves the process.
 
 ### Server events
 

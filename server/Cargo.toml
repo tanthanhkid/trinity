@@ -79,6 +79,8 @@ rust-embed = "8.14"
 
 # Quan sát, CLI, cấp phát
 tracing = "0.1"
+tracing-log = "0.2"
+log = "0.4"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 sentry = { version = "0.49", default-features = false }
 utoipa = "6.0"

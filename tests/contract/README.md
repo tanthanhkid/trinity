@@ -51,7 +51,17 @@ Hồ sơ `production` phía Rust chạy trên binary **phát hành** (không có
    `restricted-origins`, `production`. Bộ chạy mặc định chỉ chạy hồ sơ nào có thư mục `cases/<tên>/`; hiện có `default` và `production`,
    các hồ sơ còn lại chờ ca ở C12a–C13b.
 
+## Ca đã chuyển từ e2e cũ
+- C07b (32 ca): `cases/default/40-roles-admin` (20, từ `roles-admin.e2e-spec`), `41-session-lifecycle` (6), `42-route-audit` (2), `43-smoke` (4).
+  Dàn dựng viết lại bằng SQL: `seedAdmin` (vai trò hệ thống), `lockOtherAdmins` (ca "Quản trị cuối cùng": khoá các Quản trị còn lại rồi mở
+  lại, vì mọi ca chung một DB nên không `TRUNCATE user_roles` như bản cũ). Tên vai trò mang hậu tố riêng của lượt chạy.
+  `42-route-audit`: boot-check Nest (`auditRoutes`) không chạy được từ ngoài, nên ca kiểm kết quả của nó trên `server/contracts/routes.json`
+  (mọi route có khai báo quyền; route xuất file có `*.export`); `43-smoke` lấy số quyền/scope từ `server/contracts/rbac.json` thay vì hằng cứng
+  (e2e cũ ghi 62 quyền, hợp đồng hiện có 61). Bốn file này không có `RbacCache.invalidateUsers` trực tiếp (sửa vai trò qua API đã tự vô hiệu cache);
+  6 chỗ gọi `invalidateUsers` của e2e cũ nằm ở ca MCP/OAuth/webhook (C10 trở đi).
+- Hai bộ chạy song song trên cùng máy dùng chung tên DB `trinity_contract_*` và cổng 4310 sẽ giẫm nhau; đặt `CONTRACT_PORT` riêng và (nếu cần) đổi tên DB mẫu.
+
 ## Ca bị chuyển loại / chưa chuyển
-Khung này chưa chuyển ca e2e nào (việc của C07–C13); 10 ca mẫu ở `cases/` chứng minh từng khả năng: job (`04`), xoá cache (`05`), `now`
+Các ca e2e còn lại chuyển ở C07a và C08–C13; 10 ca mẫu ở `cases/` chứng minh từng khả năng: job (`04`), xoá cache (`05`), `now`
 (`04`), hồ sơ `production` (`cases/production`), response theo ngày (`06`), ba vai (`07`), công ty thứ hai (`03`), validation strict/lenient (`02`),
 ca sinh từ `routes.json` (`08`), đăng nhập (`02`), health (`01`).

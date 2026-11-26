@@ -63,6 +63,36 @@ export async function seedUser(opts: {
   return { id: u.id, email, password }
 }
 
+/** Người dùng giữ vai trò hệ thống "Quản trị" (mọi quyền, phạm vi `all`). */
+export async function seedAdmin(label: string, password = 'Contract-Pass-123'): Promise<SeededUser> {
+  seq += 1
+  const email = `${fileTag()}-${label}-${stamp}-${seq}@contract.test`
+  const [u] = await q<{ id: number }>(
+    `INSERT INTO users (email, password_hash, full_name, status, updated_at) VALUES ($1, $2, $3, 'active', now()) RETURNING id`,
+    [email, bcrypt.hashSync(password, 4), `Contract ${label}`],
+  )
+  await q(`INSERT INTO user_roles (user_id, role_id) SELECT $1, id FROM roles WHERE is_system ORDER BY id LIMIT 1`, [u.id])
+  return { id: u.id, email, password }
+}
+
+/**
+ * Cho ca "Quản trị cuối cùng": khoá mọi người đang giữ vai trò hệ thống trừ `keep` (Quản trị đang hoạt động mới được đếm), trả hàm
+ * mở khoá lại đúng những người đã khoá. Đăng nhập các người cần dùng TRƯỚC khi gọi (người bị khoá không đăng nhập được).
+ */
+export async function lockOtherAdmins(keep: number[]): Promise<() => Promise<void>> {
+  const rows = await q<{ id: number }>(
+    `UPDATE users SET status = 'locked'
+     WHERE status = 'active' AND id <> ALL($1::int[])
+       AND id IN (SELECT ur.user_id FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE r.is_system)
+     RETURNING id`,
+    [keep],
+  )
+  const ids = rows.map((r) => r.id)
+  return async () => {
+    await q(`UPDATE users SET status = 'active' WHERE id = ANY($1::int[])`, [ids])
+  }
+}
+
 /** Thêm quyền cho vai trò của người dùng đã seed (để thử "sửa quyền trong DB rồi gọi lại"; sau đó phải xoá cache bằng API điều khiển). */
 export async function grant(userId: number, permission: string, scope: Scope = null): Promise<void> {
   await q(

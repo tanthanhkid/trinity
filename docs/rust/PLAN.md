@@ -919,6 +919,14 @@ cần build lại web và binary. Spike R006 kiểm tương thích với `socket
 - Chưa đo: Safari bản máy thật (chỉ WebKit của Playwright), proxy ngược cắt WebSocket nhàn rỗi (cần ping của Socket.IO, mặc định 25 s
   vẫn giữ kết nối), tải nhiều kết nối. Đường lui SSE giữ nguyên (cờ thăm dò đang có sẵn).
 
+Đã làm ở K33 (`server/crates/trinity-realtime`): `NotifSocket::new` dựng layer socketioxide giữ đúng giao thức trên (path, namespace,
+room, hai sự kiện; JWT kiểm bằng `trinity_auth::jwt::verify`, cùng luật gateway Nest: chỉ chữ ký + hạn, `cid` ≤ 0 hoặc một công ty ⇒ công ty
+1; không token/sai ⇒ `disconnect()`). Bên phát truyền `company` rõ ràng (`send_to_user`, `emit_unread`, `push_local`). Chuông từ tiến
+trình kia: `spawn_bell_listener` nghe `trinity_sync` kind `bell`, đọc `notification_logs` theo id `n` rồi phát `notification:new` +
+`notification:count` (3 số như `emitUnreadCounts`, nhóm tin nhắn theo `MESSAGE_EVENT_TYPES`), như `onRemoteBell` của Node; thông báo tạo ở
+Rust (`create_notification`, K36) đẩy socket cục bộ bằng `push_local` và Node nhận qua `NOTIFY`. `cors_layer` làm lại `buildWsCorsOrigin`.
+Ca test dùng WebSocket thô (Engine.IO v4 / Socket.IO v5), không cần client Node.
+
 ### 4.11 Lưu trữ
 
 Driver local (ghi nguyên tử, chống thoát thư mục, phục vụ `Range`) và S3 qua `object_store`. `/uploads/*` do Rust phục

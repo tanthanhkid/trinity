@@ -6574,7 +6574,7 @@
     {
       "name": "list_features",
       "title": "Tính năng đang bật / List features",
-      "description": "Liệt kê các tính năng có sẵn của Trinity theo nhóm (Cơ bản, Kênh & hộp thư, Bán hàng, Nhân sự, Nâng cao): khoá, tên, mô tả một dòng, đang bật hay tắt, và locked = lý do không bật được (gói dịch vụ hoặc máy chủ không hỗ trợ) nếu có. Tính năng tắt thì ẩn khỏi menu và Cài đặt của cả công ty; dữ liệu vẫn giữ. Chỉ đọc. / Lists built-in features by group with on/off state. Read-only.",
+      "description": "Liệt kê các tính năng có sẵn của Trinity theo nhóm (Cơ bản, Kênh & hộp thư, Bán hàng, Nhân sự, Nâng cao): khoá, tên, mô tả một dòng, đang bật hay tắt. Tính năng tắt thì ẩn khỏi menu và Cài đặt của cả công ty; dữ liệu vẫn giữ. Chỉ đọc. / Lists built-in features by group with on/off state. Read-only.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",

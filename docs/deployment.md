@@ -176,10 +176,12 @@ in `routes.json`; a warning is logged at startup when they are on. In production
 start. While the flag is on, no background schedule is registered (all job timers, the notification `@Cron`, background tenant
 migration): jobs run only when called through the API. Never set the flag on a real deployment.
 
-The Rust server has the same two routes (K34), compiled only with the cargo feature `test-hooks`
-(`cargo build -p trinity-bin --features test-hooks`); release binaries are built without it and contain neither the routes nor
-the code that stops the scheduler and queue worker. With the feature built in, the routes and the "no automatic runs" switch still
-need `TRINITY_TEST_HOOKS=1` and `NODE_ENV` set to `test` or `development`.
+The Rust side (K34) is groundwork, **not mounted yet**: the `trinity-testhooks` crate (cargo feature `test-hooks`, off in release
+builds) implements the same two routes plus `POST /internal/test/queue/drain` (runs the queue worker until empty), and
+`trinity-jobs` stops the scheduler and queue worker when the feature is built in and `TRINITY_TEST_HOOKS=1` with `NODE_ENV` set to `test` or
+`development`. The `serve` command does not exist on `main` yet, so nothing calls `TestHooks::router`; wiring it into `serve`
+(under `--features test-hooks`, with each module registering its `now`-aware jobs and cache flushers) is part of the work that
+assembles the server. Until then these routes cannot be reached on a Rust binary.
 
 ## Fast updates without Docker
 

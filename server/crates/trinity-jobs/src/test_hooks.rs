@@ -70,11 +70,25 @@ mod tests {
             .with_first_delay(Duration::ZERO),
         );
         let worker = Worker::new(&Queue::new(&db, "t"), WorkerConfig::default()).with_automatic_runs_disabled(true);
-        let (_tx, rx) = tokio::sync::watch::channel(false);
-        // Cả hai trả về ngay (không chờ tắt máy); chờ thêm 3 chu kỳ rồi kiểm không có lượt nào.
-        sched.run(rx.clone()).await.unwrap();
-        worker.run(rx).await.unwrap();
+        let (tx, rx) = tokio::sync::watch::channel(false);
+        let s_task = tokio::spawn({
+            let rx = rx.clone();
+            async move { sched.run(rx).await }
+        });
+        let w_task = tokio::spawn(async move { worker.run(rx).await });
+        // Chờ hơn 3 chu kỳ (50 ms): không có lượt nào chạy VÀ cả hai chưa trả về (chỉ trả về khi tắt máy).
         tokio::time::sleep(Duration::from_millis(200)).await;
         assert_eq!(runs.load(Ordering::SeqCst), 0);
+        assert!(
+            !s_task.is_finished() && !w_task.is_finished(),
+            "run phải chờ tắt máy, không trả về sớm"
+        );
+        tx.send(true).unwrap();
+        tokio::time::timeout(Duration::from_secs(2), async {
+            s_task.await.unwrap().unwrap();
+            w_task.await.unwrap().unwrap();
+        })
+        .await
+        .expect("tắt máy phải kết thúc cả hai");
     }
 }

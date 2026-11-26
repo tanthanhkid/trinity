@@ -424,6 +424,12 @@ impl Worker {
         #[cfg(feature = "test-hooks")]
         if self.automatic_off {
             tracing::warn!("worker hàng đợi KHÔNG chạy: API điều khiển test đang bật (TRINITY_TEST_HOOKS=1)");
+            // Trả về CHỈ khi tắt máy (như scheduler); việc trong hàng đợi chỉ chạy khi ca test gọi `drain`.
+            while !*shutdown.borrow() {
+                if shutdown.changed().await.is_err() {
+                    break;
+                }
+            }
             return Ok(());
         }
         self.queue.ready().await?;

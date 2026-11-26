@@ -3,6 +3,10 @@
 
 mod migrate;
 
+// K34: nền móng, chưa mount. `serve` (chưa có) sẽ gọi `trinity_testhooks::TestHooks::router` khi build với `--features test-hooks`.
+#[cfg(feature = "test-hooks")]
+use trinity_testhooks as _;
+
 use std::io::Write;
 use std::process::ExitCode;
 

@@ -260,13 +260,23 @@ impl Scheduler {
         self
     }
 
-    /// K34: chạy job `name` cho đúng một công ty ngay, không nhận lượt qua bảng, không đụng con trỏ hay bảng sở hữu.
+    /// K34: chạy job `name` cho đúng một công ty ngay, không nhận lượt qua bảng, không đụng con trỏ hay bảng sở hữu. Job chạy
+    /// trong task riêng với hạn là `budget` của job: panic hoặc quá hạn thành `Err(thông điệp)` (không làm sập tiến trình, không
+    /// treo yêu cầu).
     #[cfg(feature = "test-hooks")]
     pub async fn run_job_for(&self, name: &str, company: CompanyRef) -> Result<Result<(), String>, SchedulerError> {
         let spec = self
             .spec(name)
             .ok_or_else(|| SchedulerError::UnknownJob(name.to_owned()))?;
-        Ok((spec.run)(company).await)
+        let mut task = tokio::spawn((spec.run)(company));
+        Ok(match tokio::time::timeout(spec.budget, &mut task).await {
+            Ok(Ok(r)) => r,
+            Ok(Err(join)) => Err(format!("job dừng bất thường: {join}")),
+            Err(_) => {
+                task.abort();
+                Err(format!("quá hạn {} ms", spec.budget.as_millis()))
+            }
+        })
     }
 
     /// K34: tên các job đã đăng ký.
@@ -471,6 +481,12 @@ impl Scheduler {
         #[cfg(feature = "test-hooks")]
         if self.automatic_off {
             tracing::warn!("scheduler KHÔNG chạy: API điều khiển test đang bật (TRINITY_TEST_HOOKS=1)");
+            // Trả về CHỈ khi tắt máy: trả về sớm khiến bên giám sát tưởng scheduler đã chết.
+            while !*shutdown.borrow() {
+                if shutdown.changed().await.is_err() {
+                    break;
+                }
+            }
             return Ok(());
         }
         self.tables.get_or_try_init(|| ensure_job_tables(&self.db)).await?;

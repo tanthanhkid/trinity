@@ -94,7 +94,7 @@ fn envelope_va_parse_bo_qua_tin_cua_minh_va_phien_ban_la() {
         sync::parse(r#"{"v":1,"o":"x","k":"token","c":0}"#, "y")
             .unwrap()
             .company,
-        1
+        0
     );
     assert!(sync::envelope("o", "k", 1, json!({ "x": "a".repeat(8000) })).is_none());
 }
@@ -107,4 +107,23 @@ fn cong_tat_dong_bo() {
         |k| (k == "TRINITY_RUNTIME").then(|| "serverless".to_owned())
     ));
     assert!(!sync::disabled(|_| None));
+}
+
+#[test]
+fn sid_rong_la_fail_open_va_tin_khong_cong_ty_bi_bo() {
+    let mut s = State::default();
+    s.apply_session(K, Some("cur".into()), 1);
+    assert!(s.is_current_session(K, Some("")));
+    s.handle(&msg("token", 0, json!({ "op": "block", "u": 7, "t": 5_000 })));
+    assert!(!s.is_blacklisted((0, 7), 5_001) && !s.is_blacklisted((1, 7), 5_001));
+}
+
+#[test]
+fn tra_blacklist_xoa_muc_het_han_tai_cho() {
+    let mut s = State::default();
+    for u in 0..1000 {
+        s.apply_token((1, u), true, 0);
+    }
+    assert!(!s.is_blacklisted((1, 5), TOKEN_TTL_MS + 1));
+    assert!(s.blocks.len() <= 1000);
 }

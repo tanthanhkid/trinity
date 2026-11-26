@@ -1,0 +1,4032 @@
+{
+ "normalize": [
+  {
+   "perm": "contacts.view",
+   "raw": null,
+   "out": "own"
+  },
+  {
+   "perm": "contacts.view",
+   "raw": "own",
+   "out": "own"
+  },
+  {
+   "perm": "contacts.view",
+   "raw": "team",
+   "out": "team"
+  },
+  {
+   "perm": "contacts.view",
+   "raw": "subtree",
+   "out": "subtree"
+  },
+  {
+   "perm": "contacts.view",
+   "raw": "all",
+   "out": "all"
+  },
+  {
+   "perm": "contacts.view",
+   "raw": "xyz",
+   "out": "own"
+  },
+  {
+   "perm": "contacts.view",
+   "raw": "",
+   "out": "own"
+  },
+  {
+   "perm": "contacts.create",
+   "raw": null,
+   "out": true
+  },
+  {
+   "perm": "contacts.create",
+   "raw": "own",
+   "out": true
+  },
+  {
+   "perm": "contacts.create",
+   "raw": "team",
+   "out": true
+  },
+  {
+   "perm": "contacts.create",
+   "raw": "subtree",
+   "out": true
+  },
+  {
+   "perm": "contacts.create",
+   "raw": "all",
+   "out": true
+  },
+  {
+   "perm": "contacts.create",
+   "raw": "xyz",
+   "out": true
+  },
+  {
+   "perm": "contacts.create",
+   "raw": "",
+   "out": true
+  },
+  {
+   "perm": "contacts.export",
+   "raw": null,
+   "out": "own"
+  },
+  {
+   "perm": "contacts.export",
+   "raw": "own",
+   "out": "own"
+  },
+  {
+   "perm": "contacts.export",
+   "raw": "team",
+   "out": "team"
+  },
+  {
+   "perm": "contacts.export",
+   "raw": "subtree",
+   "out": "subtree"
+  },
+  {
+   "perm": "contacts.export",
+   "raw": "all",
+   "out": "all"
+  },
+  {
+   "perm": "contacts.export",
+   "raw": "xyz",
+   "out": "own"
+  },
+  {
+   "perm": "contacts.export",
+   "raw": "",
+   "out": "own"
+  },
+  {
+   "perm": "payroll.view",
+   "raw": null,
+   "out": "own"
+  },
+  {
+   "perm": "payroll.view",
+   "raw": "own",
+   "out": "own"
+  },
+  {
+   "perm": "payroll.view",
+   "raw": "team",
+   "out": "team"
+  },
+  {
+   "perm": "payroll.view",
+   "raw": "subtree",
+   "out": "subtree"
+  },
+  {
+   "perm": "payroll.view",
+   "raw": "all",
+   "out": "all"
+  },
+  {
+   "perm": "payroll.view",
+   "raw": "xyz",
+   "out": "own"
+  },
+  {
+   "perm": "payroll.view",
+   "raw": "",
+   "out": "own"
+  },
+  {
+   "perm": "roles.manage",
+   "raw": null,
+   "out": true
+  },
+  {
+   "perm": "roles.manage",
+   "raw": "own",
+   "out": true
+  },
+  {
+   "perm": "roles.manage",
+   "raw": "team",
+   "out": true
+  },
+  {
+   "perm": "roles.manage",
+   "raw": "subtree",
+   "out": true
+  },
+  {
+   "perm": "roles.manage",
+   "raw": "all",
+   "out": true
+  },
+  {
+   "perm": "roles.manage",
+   "raw": "xyz",
+   "out": true
+  },
+  {
+   "perm": "roles.manage",
+   "raw": "",
+   "out": true
+  },
+  {
+   "perm": "deals.view",
+   "raw": null,
+   "out": "own"
+  },
+  {
+   "perm": "deals.view",
+   "raw": "own",
+   "out": "own"
+  },
+  {
+   "perm": "deals.view",
+   "raw": "team",
+   "out": "team"
+  },
+  {
+   "perm": "deals.view",
+   "raw": "subtree",
+   "out": "subtree"
+  },
+  {
+   "perm": "deals.view",
+   "raw": "all",
+   "out": "all"
+  },
+  {
+   "perm": "deals.view",
+   "raw": "xyz",
+   "out": "own"
+  },
+  {
+   "perm": "deals.view",
+   "raw": "",
+   "out": "own"
+  },
+  {
+   "perm": "x.y",
+   "raw": null,
+   "out": null
+  },
+  {
+   "perm": "x.y",
+   "raw": "own",
+   "out": null
+  },
+  {
+   "perm": "x.y",
+   "raw": "team",
+   "out": null
+  },
+  {
+   "perm": "x.y",
+   "raw": "subtree",
+   "out": null
+  },
+  {
+   "perm": "x.y",
+   "raw": "all",
+   "out": null
+  },
+  {
+   "perm": "x.y",
+   "raw": "xyz",
+   "out": null
+  },
+  {
+   "perm": "x.y",
+   "raw": "",
+   "out": null
+  },
+  {
+   "perm": "extensions.view",
+   "raw": null,
+   "out": null
+  },
+  {
+   "perm": "extensions.view",
+   "raw": "own",
+   "out": null
+  },
+  {
+   "perm": "extensions.view",
+   "raw": "team",
+   "out": null
+  },
+  {
+   "perm": "extensions.view",
+   "raw": "subtree",
+   "out": null
+  },
+  {
+   "perm": "extensions.view",
+   "raw": "all",
+   "out": null
+  },
+  {
+   "perm": "extensions.view",
+   "raw": "xyz",
+   "out": null
+  },
+  {
+   "perm": "extensions.view",
+   "raw": "",
+   "out": null
+  }
+ ],
+ "merge": [
+  {
+   "in": [],
+   "out": {}
+  },
+  {
+   "in": [
+    {},
+    {}
+   ],
+   "out": {}
+  },
+  {
+   "in": [
+    {},
+    {
+     "contacts.view": "own"
+    }
+   ],
+   "out": {
+    "contacts.view": "own"
+   }
+  },
+  {
+   "in": [
+    {},
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "contacts.view": "team",
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {},
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    }
+   ],
+   "out": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   }
+  },
+  {
+   "in": [
+    {},
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    }
+   ],
+   "out": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   }
+  },
+  {
+   "in": [
+    {},
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {},
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    }
+   ],
+   "out": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "own"
+    },
+    {}
+   ],
+   "out": {
+    "contacts.view": "own"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "own"
+    },
+    {
+     "contacts.view": "own"
+    }
+   ],
+   "out": {
+    "contacts.view": "own"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "own"
+    },
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "contacts.view": "team",
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "own"
+    },
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    }
+   ],
+   "out": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "own"
+    },
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    }
+   ],
+   "out": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "own"
+    },
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "contacts.view": "own",
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "own"
+    },
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    }
+   ],
+   "out": {
+    "contacts.view": "own",
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    },
+    {}
+   ],
+   "out": {
+    "contacts.view": "team",
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    },
+    {
+     "contacts.view": "own"
+    }
+   ],
+   "out": {
+    "contacts.view": "team",
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    },
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "contacts.view": "team",
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    },
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    }
+   ],
+   "out": {
+    "contacts.view": "subtree",
+    "contacts.create": true,
+    "contacts.export": "team",
+    "roles.manage": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    },
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    }
+   ],
+   "out": {
+    "contacts.view": "all",
+    "contacts.create": true,
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    },
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "contacts.view": "team",
+    "contacts.create": true,
+    "payroll.view": "team",
+    "payroll.manage": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    },
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    }
+   ],
+   "out": {
+    "contacts.view": "team",
+    "contacts.create": true,
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    },
+    {}
+   ],
+   "out": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    },
+    {
+     "contacts.view": "own"
+    }
+   ],
+   "out": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    },
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true,
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    },
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    }
+   ],
+   "out": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    },
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    }
+   ],
+   "out": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    },
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true,
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    },
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    }
+   ],
+   "out": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true,
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    },
+    {}
+   ],
+   "out": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    },
+    {
+     "contacts.view": "own"
+    }
+   ],
+   "out": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    },
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own",
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    },
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    }
+   ],
+   "out": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    },
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    }
+   ],
+   "out": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    },
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    },
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    }
+   ],
+   "out": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own",
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   }
+  },
+  {
+   "in": [
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    },
+    {}
+   ],
+   "out": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    },
+    {
+     "contacts.view": "own"
+    }
+   ],
+   "out": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true,
+    "contacts.view": "own"
+   }
+  },
+  {
+   "in": [
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    },
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true,
+    "contacts.view": "team"
+   }
+  },
+  {
+   "in": [
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    },
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    }
+   ],
+   "out": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true,
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   }
+  },
+  {
+   "in": [
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    },
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    }
+   ],
+   "out": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true,
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true
+   }
+  },
+  {
+   "in": [
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    },
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    },
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    }
+   ],
+   "out": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true,
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   }
+  },
+  {
+   "in": [
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    },
+    {}
+   ],
+   "out": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   }
+  },
+  {
+   "in": [
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    },
+    {
+     "contacts.view": "own"
+    }
+   ],
+   "out": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree",
+    "contacts.view": "own"
+   }
+  },
+  {
+   "in": [
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    },
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree",
+    "contacts.view": "team",
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    },
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    }
+   ],
+   "out": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree",
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   }
+  },
+  {
+   "in": [
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    },
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    }
+   ],
+   "out": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree",
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   }
+  },
+  {
+   "in": [
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    },
+    {
+     "payroll.view": "team",
+     "payroll.manage": true,
+     "contacts.create": true
+    }
+   ],
+   "out": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree",
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   }
+  },
+  {
+   "in": [
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    },
+    {
+     "deals.view": "own",
+     "deals.manage": "own",
+     "kanban.view": "subtree"
+    }
+   ],
+   "out": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   }
+  },
+  {
+   "in": [
+    {
+     "contacts.view": "team",
+     "contacts.create": true
+    },
+    {
+     "contacts.view": "subtree",
+     "contacts.export": "team",
+     "roles.manage": true
+    },
+    {
+     "contacts.view": "all",
+     "contacts.export": "all",
+     "roles.manage": true,
+     "payroll.view": "own"
+    }
+   ],
+   "out": {
+    "contacts.view": "all",
+    "contacts.create": true,
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   }
+  }
+ ],
+ "can": [
+  {
+   "grants": {},
+   "perm": "contacts.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.create",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.create",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.create",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.create",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.create",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.export",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.export",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.export",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.export",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "contacts.export",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "payroll.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "payroll.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "payroll.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "payroll.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "payroll.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "roles.manage",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "roles.manage",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "roles.manage",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "roles.manage",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "roles.manage",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "deals.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "deals.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "deals.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "deals.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {},
+   "perm": "deals.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.view",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.view",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.create",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.create",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.create",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.create",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.create",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.export",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.export",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.export",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.export",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.export",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "payroll.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "payroll.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "payroll.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "payroll.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "payroll.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "roles.manage",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "roles.manage",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "roles.manage",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "roles.manage",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "roles.manage",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "deals.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "deals.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "deals.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "deals.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "deals.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.view",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.view",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.view",
+   "min": "team",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.create",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.create",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.create",
+   "min": "team",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.create",
+   "min": "subtree",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.create",
+   "min": "all",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.export",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.export",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.export",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.export",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.export",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "payroll.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "payroll.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "payroll.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "payroll.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "payroll.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "roles.manage",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "roles.manage",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "roles.manage",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "roles.manage",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "roles.manage",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "deals.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "deals.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "deals.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "deals.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "deals.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.view",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.view",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.view",
+   "min": "team",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.view",
+   "min": "subtree",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.create",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.create",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.create",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.create",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.create",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.export",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.export",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.export",
+   "min": "team",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.export",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.export",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "payroll.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "payroll.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "payroll.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "payroll.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "payroll.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "roles.manage",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "roles.manage",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "roles.manage",
+   "min": "team",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "roles.manage",
+   "min": "subtree",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "roles.manage",
+   "min": "all",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "deals.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "deals.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "deals.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "deals.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "deals.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.view",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.view",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.view",
+   "min": "team",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.view",
+   "min": "subtree",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.view",
+   "min": "all",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.create",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.create",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.create",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.create",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.create",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.export",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.export",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.export",
+   "min": "team",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.export",
+   "min": "subtree",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.export",
+   "min": "all",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "payroll.view",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "payroll.view",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "payroll.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "payroll.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "payroll.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "roles.manage",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "roles.manage",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "roles.manage",
+   "min": "team",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "roles.manage",
+   "min": "subtree",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "roles.manage",
+   "min": "all",
+   "out": true
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "deals.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "deals.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "deals.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "deals.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "deals.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.create",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.create",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.create",
+   "min": "team",
+   "out": true
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.create",
+   "min": "subtree",
+   "out": true
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.create",
+   "min": "all",
+   "out": true
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.export",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.export",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.export",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.export",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.export",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "payroll.view",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "payroll.view",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "payroll.view",
+   "min": "team",
+   "out": true
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "payroll.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "payroll.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "roles.manage",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "roles.manage",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "roles.manage",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "roles.manage",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "roles.manage",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "deals.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "deals.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "deals.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "deals.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "deals.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.create",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.create",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.create",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.create",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.create",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.export",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.export",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.export",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.export",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.export",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "payroll.view",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "payroll.view",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "payroll.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "payroll.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "payroll.view",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "roles.manage",
+   "min": null,
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "roles.manage",
+   "min": "own",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "roles.manage",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "roles.manage",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "roles.manage",
+   "min": "all",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "deals.view",
+   "min": null,
+   "out": true
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "deals.view",
+   "min": "own",
+   "out": true
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "deals.view",
+   "min": "team",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "deals.view",
+   "min": "subtree",
+   "out": false
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "deals.view",
+   "min": "all",
+   "out": false
+  }
+ ],
+ "scope_of": [
+  {
+   "grants": {},
+   "perm": "contacts.view",
+   "out": null
+  },
+  {
+   "grants": {},
+   "perm": "contacts.create",
+   "out": null
+  },
+  {
+   "grants": {},
+   "perm": "contacts.export",
+   "out": null
+  },
+  {
+   "grants": {},
+   "perm": "payroll.view",
+   "out": null
+  },
+  {
+   "grants": {},
+   "perm": "roles.manage",
+   "out": null
+  },
+  {
+   "grants": {},
+   "perm": "deals.view",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.view",
+   "out": "own"
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.create",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "contacts.export",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "payroll.view",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "roles.manage",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "own"
+   },
+   "perm": "deals.view",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.view",
+   "out": "team"
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.create",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "contacts.export",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "payroll.view",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "roles.manage",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "perm": "deals.view",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.view",
+   "out": "subtree"
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.create",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "contacts.export",
+   "out": "team"
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "payroll.view",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "roles.manage",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "perm": "deals.view",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.view",
+   "out": "all"
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.create",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "contacts.export",
+   "out": "all"
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "payroll.view",
+   "out": "own"
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "roles.manage",
+   "out": null
+  },
+  {
+   "grants": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "perm": "deals.view",
+   "out": null
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.view",
+   "out": null
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.create",
+   "out": null
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "contacts.export",
+   "out": null
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "payroll.view",
+   "out": "team"
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "roles.manage",
+   "out": null
+  },
+  {
+   "grants": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "perm": "deals.view",
+   "out": null
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.view",
+   "out": null
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.create",
+   "out": null
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "contacts.export",
+   "out": null
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "payroll.view",
+   "out": null
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "roles.manage",
+   "out": null
+  },
+  {
+   "grants": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "perm": "deals.view",
+   "out": "own"
+  }
+ ],
+ "is_subset": [
+  {
+   "child": {},
+   "parent": {},
+   "out": true
+  },
+  {
+   "child": {},
+   "parent": {
+    "contacts.view": "own"
+   },
+   "out": true
+  },
+  {
+   "child": {},
+   "parent": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "out": true
+  },
+  {
+   "child": {},
+   "parent": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "out": true
+  },
+  {
+   "child": {},
+   "parent": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "out": true
+  },
+  {
+   "child": {},
+   "parent": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "out": true
+  },
+  {
+   "child": {},
+   "parent": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "out": true
+  },
+  {
+   "child": {
+    "contacts.view": "own"
+   },
+   "parent": {},
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "own"
+   },
+   "parent": {
+    "contacts.view": "own"
+   },
+   "out": true
+  },
+  {
+   "child": {
+    "contacts.view": "own"
+   },
+   "parent": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "out": true
+  },
+  {
+   "child": {
+    "contacts.view": "own"
+   },
+   "parent": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "out": true
+  },
+  {
+   "child": {
+    "contacts.view": "own"
+   },
+   "parent": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "out": true
+  },
+  {
+   "child": {
+    "contacts.view": "own"
+   },
+   "parent": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "own"
+   },
+   "parent": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "parent": {},
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "parent": {
+    "contacts.view": "own"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "parent": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "out": true
+  },
+  {
+   "child": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "parent": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "parent": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "parent": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "parent": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "parent": {},
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "parent": {
+    "contacts.view": "own"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "parent": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "parent": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "out": true
+  },
+  {
+   "child": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "parent": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "out": true
+  },
+  {
+   "child": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "parent": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "parent": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "parent": {},
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "parent": {
+    "contacts.view": "own"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "parent": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "parent": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "parent": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "out": true
+  },
+  {
+   "child": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "parent": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "parent": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "parent": {},
+   "out": false
+  },
+  {
+   "child": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "parent": {
+    "contacts.view": "own"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "parent": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "parent": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "parent": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "parent": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "out": true
+  },
+  {
+   "child": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "parent": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "parent": {},
+   "out": false
+  },
+  {
+   "child": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "parent": {
+    "contacts.view": "own"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "parent": {
+    "contacts.view": "team",
+    "contacts.create": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "parent": {
+    "contacts.view": "subtree",
+    "contacts.export": "team",
+    "roles.manage": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "parent": {
+    "contacts.view": "all",
+    "contacts.export": "all",
+    "roles.manage": true,
+    "payroll.view": "own"
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "parent": {
+    "payroll.view": "team",
+    "payroll.manage": true,
+    "contacts.create": true
+   },
+   "out": false
+  },
+  {
+   "child": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "parent": {
+    "deals.view": "own",
+    "deals.manage": "own",
+    "kanban.view": "subtree"
+   },
+   "out": true
+  }
+ ],
+ "admin": [
+  {
+   "out": {
+    "permissions": 61,
+    "scoped": 35
+   }
+  }
+ ]
+}

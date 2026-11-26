@@ -39,7 +39,8 @@ pub fn envelope(origin: &str, kind: &str, company: i32, fields: Value) -> Option
 #[derive(Debug, Clone, PartialEq)]
 pub struct Message {
     pub kind: String,
-    /// Công ty (`c` thiếu, 0 hoặc âm ⇒ 1, như `tenantKeyFor`).
+    /// Công ty nguyên văn của tin (`c`; thiếu hoặc không hợp lệ ⇒ 0 = không có ngữ cảnh công ty). Người nhận tự quyết:
+    /// `token`/`session` bỏ tin có `c < 1`; `rbac` coi 0 là "mọi công ty" (Node ở bản một công ty có thể gửi 0).
     pub company: i32,
     pub fields: Value,
 }
@@ -54,9 +55,9 @@ pub fn parse(payload: &str, own_origin: &str) -> Option<Message> {
     let company = v
         .get("c")
         .and_then(Value::as_i64)
-        .filter(|c| *c >= 1)
         .and_then(|c| i32::try_from(c).ok())
-        .unwrap_or(1);
+        .filter(|c| *c >= 0)
+        .unwrap_or(0);
     Some(Message {
         kind,
         company,

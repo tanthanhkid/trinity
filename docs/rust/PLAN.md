@@ -838,6 +838,11 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   (đường dẫn, phương thức, loại truy cập, danh sách quyền, chế độ validation, mã trạng thái thành công, cổng tính năng,
   guard riêng, pipe của tham số).
 - `ScopeService` và bộ dựng điều kiện phạm vi chuyển kèm test pg hiện có (`scope.service.spec.ts`).
+- **Đã làm ở K12** (`server/crates/trinity-rbac`): `catalog` (nhúng `contracts/rbac.json`), `grants` (`normalize_grant`, `merge_grants`, `can`,
+  `scope_of`, `is_subset`; bảng ca dùng chung `contracts/cases/rbac.json` do `packages/rbac/src/grants-cases.spec.ts` sinh, Rust chạy lại ở
+  `tests/shared_cases.rs`), `service` (`PermissionService::grants_for`, `ScopeService::owner_ids` theo cây `manager_id`), `cache` (TTL 60 giây theo
+  (công ty, người dùng), `invalidate_users` xoá ngay rồi `NOTIFY trinity_sync` kind `rbac`; nhận tin `rbac`, `c = 0` của Node = mọi công ty; nối lại
+  kênh thì xoá hết). Bộ dựng điều kiện phạm vi (`scope-where.ts`) chuyển cùng module đầu tiên dùng nó (M-issue), không ở K12. Test pg: `tests/pg_rbac.rs`.
 - Cache quyền TTL 60 giây bằng `moka`, khoá theo công ty; vô hiệu ngay trong tiến trình khi sửa vai trò.
 
 ### 4.8 MCP và OAuth

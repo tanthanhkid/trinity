@@ -1,0 +1,18 @@
+# Spike R006 (không thuộc workspace server/): socketioxide tương thích socket.io-client 4.7 cho /notif-ws.
+[package]
+name = "spike-r006"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync"] }
+socketioxide = "0.18"
+jsonwebtoken = { version = "12", features = ["rust_crypto"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tower-http = { version = "0.7", features = ["cors"] }
+tower = "0.5"
+
+[workspace]

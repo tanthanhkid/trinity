@@ -786,6 +786,12 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   mã khác 0 nếu có lỗi. Lúc boot chạy nền cho công ty còn chậm, như hiện tại.
 - `ensurePlatform`, trigger đồng bộ (`trinity-sync-v3`), `provisionCompany`, dọn đăng ký bỏ dở sau 15 phút: chuyển
   nguyên SQL, giữ nguyên số advisory lock.
+  **Đã làm ở K08** (`server/crates/trinity-db/src/platform.rs`): `Platform` (`ensure`, tra công ty/email/mã ngoài,
+  `state` OAuth, nhận/nhả mã, khoá kênh, cache 30 giây/10 giây như Node), `install_sync_triggers` cho provision (K09),
+  `conflict_from_trigger` (câu 409 của `elk-exception.filter.ts`). Truy vấn không dùng macro vì `platform` nằm ngoài
+  migration Prisma. Bản đóng băng `tests/fixtures/platform-schema.txt` sinh bằng mã Node
+  (`scripts/gen-platform-fixture.cjs`); test pg so từng byte với kết quả của Rust trên cùng dàn dựng. `C05` gộp phần
+  này vào `schema.sql` chung.
 - Sau X06: thư mục migration chuyển về `server/migrations/` (đổi đường dẫn, không đổi nội dung nên checksum không
   đổi); `schema.prisma` bỏ, struct model sửa tay theo migration.
 

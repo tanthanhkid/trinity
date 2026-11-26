@@ -8,6 +8,7 @@
 //! - truy vấn có bộ lọc động dùng `QueryBuilder`/`query_as` không macro, giá trị luôn bind, và bắt buộc có test pg.
 
 pub mod migrate;
+pub mod platform;
 pub mod prisma_migrate;
 mod tenant;
 

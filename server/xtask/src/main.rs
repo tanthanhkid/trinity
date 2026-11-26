@@ -1,9 +1,11 @@
 //! `cargo xtask <lệnh>` (alias trong `.cargo/config.toml`).
 //!
 //! - `lint`: luật SQL và giữ kết nối của PLAN 4.3 (`src/lint.rs`) trên mọi tệp dưới `crates/`.
+//! - `gen-models`: sinh `crates/trinity-db/src/models.rs` từ `schema.prisma` (`src/gen_models.rs`, PLAN 4.4).
 //! - `gen-dto <Dto>…`: in khung struct Rust của DTO từ `contracts/dto/schema.json` (`src/gen_dto.rs`, K15).
 
 mod gen_dto;
+mod gen_models;
 mod lint;
 
 use std::path::Path;
@@ -15,7 +17,7 @@ fn main() -> ExitCode {
     match cmd.as_deref() {
         None | Some("help" | "--help" | "-h") => {
             eprintln!(
-                "cargo xtask <lệnh>\n\n  lint   cấm `SELECT *`/`RETURNING *`, cấm gọi HTTP khi đang giữ kết nối DB (PLAN 4.3)\n  gen-dto <Dto>…   in khung struct Rust của DTO từ contracts/dto/schema.json"
+                "cargo xtask <lệnh>\n\n  lint   cấm `SELECT *`/`RETURNING *`, cấm gọi HTTP khi đang giữ kết nối DB (PLAN 4.3)\n  gen-models   sinh crates/trinity-db/src/models.rs từ schema.prisma (PLAN 4.4)\n  gen-dto <Dto>…   in khung struct Rust của DTO từ contracts/dto/schema.json"
             );
             ExitCode::SUCCESS
         }
@@ -39,6 +41,23 @@ fn main() -> ExitCode {
                 }
                 Err(e) => {
                     eprintln!("xtask lint: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Some("gen-models") => {
+            let (schema, out) = gen_models::paths(Path::new(env!("CARGO_MANIFEST_DIR")).join("..").as_path());
+            let result = std::fs::read_to_string(&schema)
+                .map_err(|e| format!("đọc {}: {e}", schema.display()))
+                .and_then(|text| gen_models::render(&text))
+                .and_then(|code| std::fs::write(&out, code).map_err(|e| format!("ghi {}: {e}", out.display())));
+            match result {
+                Ok(()) => {
+                    println!("xtask gen-models: đã ghi {}", out.display());
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("xtask gen-models: {e}");
                     ExitCode::FAILURE
                 }
             }

@@ -6,11 +6,13 @@
 //!   sinh kết quả, Rust chạy cùng bảng ở `tests/shared_cases.rs`): [`vi`] bỏ dấu tiếng Việt (`fold_vi`, bảng `translate`
 //!   của Postgres) và so sánh chuỗi như `localeCompare`; [`phone`] số điện thoại Việt Nam; [`vn_time`] giờ Việt Nam,
 //!   khoảng ngày lọc, định dạng ngày giờ; [`number`] định dạng số và `js_round`;
-//!   [`formula`] bộ phân tích và tính công thức của bảng tuỳ biến (M57, bảng ca `contracts/cases/formula.json`).
+//!   [`formula`] bộ phân tích và tính công thức của bảng tuỳ biến (M57, bảng ca `contracts/cases/formula.json`);
+//!   [`json`] serializer JSON thống nhất, ra đúng chữ như `JSON.stringify` của bản Node (K10).
 
 pub mod config;
 pub mod error;
 pub mod formula;
+pub mod json;
 pub mod number;
 pub mod ownership;
 pub mod phone;

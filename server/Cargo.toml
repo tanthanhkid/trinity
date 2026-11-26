@@ -48,11 +48,13 @@ sqlx = { version = "0.9", default-features = false, features = [
   "chrono",
   "json",
   "rust_decimal",
+  "uuid",
 ] }
 
 # Dữ liệu, mã hoá, thời gian
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+# float_roundtrip: số thực đọc về đúng bit (mặc định serde_json làm tròn sai ở chữ số cuối, vd 106.66009616851807).
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
 fancy-regex = "0.14"
 form_urlencoded = "1.2"
 url = "2.5"
@@ -102,7 +104,7 @@ thiserror = "2.0"
 syn = { version = "2", default-features = false, features = ["full", "visit", "parsing", "printing"] }
 proc-macro2 = { version = "1", default-features = false, features = ["span-locations"] }
 quote = { version = "1", default-features = false }
-uuid = { version = "1", default-features = false, features = ["std", "v4"] }
+uuid = { version = "1", default-features = false, features = ["std", "v4", "serde"] }
 anyhow = "1.0"
 
 # Test

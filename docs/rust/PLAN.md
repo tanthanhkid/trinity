@@ -690,6 +690,17 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
 - Struct model sinh bằng `xtask gen-models` từ `schema.prisma` (107 model còn dùng), kèm serializer thống nhất:
   thời gian → ISO 8601 UTC luôn 3 chữ số mili giây và `Z`; `@db.Date` → nửa đêm UTC dạng ISO đầy đủ (như Prisma);
   `Decimal` → chuỗi đã chuẩn hoá (bỏ số 0 thừa); `BigInt` → số JSON.
+  Số thực in như `Number.prototype.toString` (`serde_json` bật `float_roundtrip`: `106.66009616851807` đọc về đúng bit).
+  Cột mảng NULL → `[]` (kiểu bọc `PgList`, vì Prisma tạo cột `TEXT[]` không NOT NULL và client đọc NULL ra `[]`).
+  Cột `Json` đọc từ chữ JSON bằng đường số khoan dung: số ngoài khoảng f64 (`1e999`) → `null`; bản Node/Prisma thì lỗi
+  cả dòng ở số đó (đã đo), nên đây là chỗ Rust chịu lỗi hơn, không lệch dữ liệu hợp lệ.
+  Quy trình `gen-models`: sửa `schema.prisma` → `cargo xtask gen-models` → commit `models.rs` (test `models_rs_khop_schema`
+  đỏ khi tệp cũ). Generator ánh xạ `@@map`/`@map` (cột, enum, giá trị enum), đổi tên từ khoá Rust (`r#type`; `self`,
+  `super`, `crate`, `Self` thành `self_`… với `rename` giữ tên JSON/cột), bỏ `@ignore`/`@@ignore`, và **báo lỗi** với
+  `@db.*` hoặc kiểu chưa hỗ trợ (`Bytes`, `Real`, `Time`, `Money`, `Xml`…), không đoán. Thêm kiểu mới = thêm kiểu bọc
+  trong `trinity-db/src/types.rs` + ca trong `server/contracts/cases/serializer.json` (sinh cột `out` từ Node bằng
+  `UPDATE_SERIALIZER_CASES=1`). `cargo xtask lint` cấm `serde_json::to_value` (đổi model sang `Value` làm mất chữ
+  số thực và đảo thứ tự khoá); ghi JSON bằng `serde_json::to_string`.
 - `updated_at`: mọi `UPDATE` do Rust viết phải gán `updated_at = now()`. Kiểm bằng lint trong `xtask` (câu `UPDATE`
   trên bảng có cột này mà thiếu gán thì báo lỗi) và bằng test so trạng thái DB.
 - Lỗi DB: bảng ánh xạ SQLSTATE sang hành vi của bản TS nằm ở một chỗ (K05): 23505 ↔ `P2002`, 23503 ↔ `P2003`,

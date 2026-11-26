@@ -3,12 +3,12 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { Can, CurrentUser, Public, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
-import { StoreService, type StoreSettings } from './store.service';
+import { STORE_BANKS, StoreService, type StoreSettings } from './store.service';
 import { withCompanyHint } from '../common/helpers/tenant-hint';
 import { enterRoutedCompany } from '../common/helpers/routed-company';
 
-/** Multi-tenant: đường dẫn trang công khai kèm `?cid=` khi không phải công ty 1 (web ghép origin vào trước). */
-const withPublicPath = (s: StoreSettings) => ({ ...s, public_path: s.slug ? withCompanyHint(`/s/${s.slug}`) : null });
+/** Multi-tenant: đường dẫn trang công khai kèm `?cid=` khi không phải công ty 1 (web ghép origin vào trước). `banks`: ngân hàng nhận VietQR để chọn. */
+const withPublicPath = (s: StoreSettings) => ({ ...s, public_path: s.slug ? withCompanyHint(`/s/${s.slug}`) : null, banks: STORE_BANKS });
 
 /** Link không mang `?cid=`: chọn công ty theo địa chỉ cửa hàng (slug duy nhất toàn hệ). Có `?cid=` thì giữ nguyên — slug vẫn phải khớp trong công ty đó. */
 async function routeBySlug(slug: string): Promise<void> {
@@ -38,7 +38,7 @@ export class StoreController {
   @RequireOrgFeature('online_store')
   @ApiOperation({ summary: 'Lưu cấu hình trang bán hàng (địa chỉ, giao diện, sản phẩm, cách thanh toán, mở bán)' })
   async save(@Body() body: Record<string, unknown>, @CurrentUser() user: AuthUser) {
-    const { public_path: _p, ...rest } = body ?? {};
+    const { public_path: _p, banks: _b, bank_notice: _n, ...rest } = body ?? {};
     return withPublicPath(await this.store.saveSettings(rest, user.userId));
   }
 

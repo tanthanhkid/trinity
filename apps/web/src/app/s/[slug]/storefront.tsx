@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Check, Copy, Loader2, MapPin, Minus, Phone, Plus, ShoppingBag, X } from "lucide-react"
+import QRCode from "react-qr-code"
 
 /** Trang bán hàng công khai — fetch thẳng (không phiên đăng nhập, không tự chuyển về /login). */
 interface Product { id: number; name: string; price: number; image_url: string | null; description: string | null }
@@ -12,7 +13,8 @@ interface Store {
 }
 interface Placed {
   code: string; total: number; payment_method: "cod" | "bank_transfer"
-  payment: { qr_url: string | null; transfer_content: string; bank: { bank?: string; account_number?: string; account_name?: string | null } | null } | null
+  /** Chuyển khoản: `qr_data` = chuỗi VietQR máy chủ sinh (trình duyệt tự vẽ mã, không tải ảnh từ dịch vụ ngoài). */
+  payment: { qr_data: string; transfer_content: string; bank: { bin?: string; bank?: string; account_number?: string; account_name?: string | null } | null } | null
 }
 type Line = Product & { qty: number }
 
@@ -269,7 +271,7 @@ function Checkout({ store, t, lines, total, slug, add, onClose, onPlaced }: {
           </section>
           <section className="flex flex-col gap-3">
             <StepTitle n={3} t={t} accent={store.accent}>Thanh toán</StepTitle>
-            {store.payment.bank_transfer && pay("bank_transfer", "Chuyển khoản (quét mã QR)", "Cửa hàng tự nhận khi tiền về — không cần chụp màn hình")}
+            {store.payment.bank_transfer && pay("bank_transfer", "Chuyển khoản (quét mã QR)", "Quét mã bằng app ngân hàng — cửa hàng xác nhận khi nhận được tiền")}
             {store.payment.cod && pay("cod", "Trả tiền khi nhận hàng (COD)", "Thanh toán cho người giao hàng")}
           </section>
         </div>
@@ -295,40 +297,54 @@ function CopyText({ value, label }: { value: string; label: string }) {
   )
 }
 
+/** Trạng thái đơn đã chốt (không còn chờ tiền): câu riêng cho khách; đơn huỷ không hiện QR. */
+const FINAL: Record<string, { title: string; text: string; ok: boolean }> = {
+  paid: { title: "Đã nhận thanh toán", text: "Cửa hàng đã nhận tiền và sẽ liên hệ giao hàng.", ok: true },
+  confirmed: { title: "Cửa hàng đã xác nhận đơn", text: "Cửa hàng đã xác nhận đơn và sẽ liên hệ với bạn.", ok: true },
+  shipped: { title: "Đơn đang được giao", text: "Đơn hàng đang trên đường tới bạn.", ok: true },
+  done: { title: "Đơn đã hoàn tất", text: "Cảm ơn bạn đã mua hàng.", ok: true },
+  cancelled: { title: "Đơn đã bị huỷ", text: "Đơn này đã bị huỷ — vui lòng không chuyển khoản. Liên hệ cửa hàng nếu cần.", ok: false },
+}
+/** Chuyển khoản do nhân viên xác nhận tay ⇒ hỏi lại mỗi 15 giây, tối đa 1 giờ; hết giờ thì dừng và cho bấm kiểm tra lại. */
+const POLL_MS = 15_000
+const POLL_MAX = 240
+
 function OrderDone({ store, t, slug, placed, onBack }: { store: Store; t: Theme; slug: string; placed: Placed & { phone: string }; onBack: () => void }) {
   const [status, setStatus] = useState<string>("new")
+  const [round, setRound] = useState(0)
+  const [timedOut, setTimedOut] = useState(false)
   const transfer = placed.payment_method === "bank_transfer" && placed.payment
+  const final = FINAL[status]
   // Vào trang kết quả từ cuối trang sản phẩm ⇒ đưa về đầu để thấy QR ngay.
   useEffect(() => { try { window.scrollTo({ top: 0 }) } catch { /* jsdom */ } }, [])
   useEffect(() => {
-    if (!transfer || status === "paid") return
-    // Chờ tiền về (SePay tự khớp) — hỏi lại mỗi 5 giây, tối đa 20 phút.
+    if (!transfer || final) return
+    // Chờ cửa hàng xác nhận đã nhận tiền (nhân viên đổi trạng thái đơn). Mọi trạng thái khác "new" là kết thúc.
     let n = 0
-    const id = setInterval(async () => {
-      if (++n > 240) return clearInterval(id)
+    const check = async () => {
       const r = await api(`/${encodeURIComponent(slug)}/orders/${placed.code}?phone=${encodeURIComponent(placed.phone)}`).catch(() => null)
-      if (r?.ok) {
-        const j = await r.json()
-        setStatus(j.status)
-        if (j.status === "paid") clearInterval(id)
-      }
-    }, 5000)
+      if (r?.ok) setStatus((await r.json()).status)
+    }
+    if (round > 0) void check()
+    const id = setInterval(() => {
+      if (++n > POLL_MAX) { clearInterval(id); setTimedOut(true); return }
+      void check()
+    }, POLL_MS)
     return () => clearInterval(id)
-  }, [transfer, status, slug, placed])
-  const paid = status === "paid"
+  }, [transfer, final, slug, placed, round])
+  const waiting = transfer && !final
   return (
     <main className="mx-auto flex max-w-lg flex-col items-center gap-5 px-4 py-14 text-center sm:py-20">
-      <span className="grid size-14 place-items-center rounded-full text-white" style={{ background: paid || !transfer ? "#16a34a" : store.accent }}>
-        {paid || !transfer ? <Check className="size-7" /> : <Loader2 className="size-7 animate-spin" />}
+      <span className="grid size-14 place-items-center rounded-full text-white" style={{ background: final && !final.ok ? "#dc2626" : !waiting ? "#16a34a" : store.accent }}>
+        {final && !final.ok ? <X className="size-7" /> : !waiting ? <Check className="size-7" /> : timedOut ? <Loader2 className="size-7" /> : <Loader2 className="size-7 animate-spin" />}
       </span>
-      <h1 className="text-2xl sm:text-3xl" style={{ fontFamily: t.heading, fontWeight: t.weight }}>{paid ? "Đã nhận thanh toán" : transfer ? "Quét mã để thanh toán" : "Đặt hàng thành công"}</h1>
+      <h1 className="text-2xl sm:text-3xl" style={{ fontFamily: t.heading, fontWeight: t.weight }}>{final ? final.title : transfer ? "Quét mã để thanh toán" : "Đặt hàng thành công"}</h1>
       <p style={{ color: t.muted }}>Mã đơn <b style={{ color: t.ink }}>{placed.code}</b> · <span className="tabular-nums">{vnd(placed.total)}</span></p>
-      {transfer && !paid ? (
+      {waiting ? (
         <div className="flex w-full flex-col items-center gap-4 border p-5 sm:p-6" style={{ borderColor: t.line, borderRadius: t.radius, background: t.surface }}>
-          {placed.payment!.qr_url && (
-            // eslint-disable-next-line @next/next/no-img-element -- ảnh QR từ qr.sepay.vn
-            <img src={placed.payment!.qr_url} alt={`Mã QR chuyển ${vnd(placed.total)}`} className="aspect-square w-full max-w-80 rounded-xl bg-white p-3" />
-          )}
+          <div className="w-full max-w-80 rounded-xl bg-white p-3" role="img" aria-label={`Mã QR chuyển ${vnd(placed.total)}`}>
+            <QRCode value={placed.payment!.qr_data} size={256} style={{ width: "100%", height: "auto" }} />
+          </div>
           <div className="flex w-full flex-col gap-2 text-left text-sm">
             <div className="flex flex-col gap-1.5">
               <span style={{ color: t.muted }}>Nội dung chuyển khoản</span>
@@ -340,10 +356,17 @@ function OrderDone({ store, t, slug, placed, onBack }: { store: Store; t: Theme;
             <div className="flex justify-between gap-3"><span style={{ color: t.muted }}>Số tiền</span><span className="font-semibold tabular-nums">{vnd(placed.total)}</span></div>
             {placed.payment!.bank && <div className="flex justify-between gap-3"><span style={{ color: t.muted }}>Tài khoản</span><span className="text-right">{[placed.payment!.bank.bank, placed.payment!.bank.account_number, placed.payment!.bank.account_name].filter(Boolean).join(" · ")}</span></div>}
           </div>
-          <p className="text-[13px]" style={{ color: t.muted }}>Giữ nguyên nội dung để cửa hàng tự nhận tiền. Trang tự cập nhật khi tiền về.</p>
+          {timedOut ? (
+            <div className="flex flex-col items-center gap-2 text-[13px]" style={{ color: t.muted }}>
+              <p>Trang đã ngừng tự kiểm tra sau 1 giờ. Nếu bạn đã chuyển khoản, cửa hàng sẽ xác nhận khi thấy tiền về.</p>
+              <button type="button" onClick={() => { setTimedOut(false); setRound((r) => r + 1) }} className="h-10 px-5 text-sm font-semibold" style={{ border: `1px solid ${t.line}`, borderRadius: t.btnRadius, color: t.ink }}>Kiểm tra lại</button>
+            </div>
+          ) : (
+            <p className="text-[13px]" style={{ color: t.muted }}>Giữ nguyên nội dung để cửa hàng đối chiếu. Cửa hàng xác nhận tay khi thấy tiền về — trang tự cập nhật.</p>
+          )}
         </div>
       ) : (
-        <p style={{ color: t.muted }}>{store.name} sẽ gọi số {placed.phone} để xác nhận và giao hàng.</p>
+        <p style={{ color: t.muted }}>{final ? final.text : `${store.name} sẽ gọi số ${placed.phone} để xác nhận và giao hàng.`}</p>
       )}
       <button type="button" onClick={onBack} className="mt-2 h-11 px-6 text-sm font-semibold" style={{ border: `1px solid ${t.line}`, borderRadius: t.btnRadius }}>Tiếp tục mua</button>
     </main>

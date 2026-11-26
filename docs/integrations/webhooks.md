@@ -70,7 +70,7 @@ def verify(secret: str, raw_body: bytes, header: str, tolerance=300) -> bool:
 |---|---|
 | Customers | `contact.created`, `contact.updated`, `contact.stage_changed`, `contact.assigned`, `contact.deleted`, `contact.restored` (customer brought back by Undo within 10 minutes of deletion) |
 | Deals | `deal.created`, `deal.stage_changed`, `deal.won`, `deal.lost` |
-| Sales | `pos.order.completed`, `store_order.created` (new order from the online store), `payment.received` (SePay, VNPay, MoMo) |
+| Sales | `pos.order.completed`, `store_order.created` (new order from the online store, sent when the order is placed for both cash on delivery and bank transfer), `store_order.status_changed` (staff changed an order's status; `data.previous_status` → `data.order.status`), `store_order.paid` (staff marked an order as paid — bank transfers are confirmed by hand, money is not matched automatically; sent together with `store_order.status_changed`), `payment.received` (SePay, VNPay, MoMo) |
 | Custom objects | `custom_record.created`, `custom_record.updated`, `custom_record.deleted` (rows of [custom objects](../custom-objects.md)) |
 | Messaging | `zalo_oa.message_received`, `zalo_oa.message_sent`, `messenger.message_received`, `messenger.message_sent`, `messenger.broadcast_finished`, `facebook.comment_received` |
 | Posting | `social_post.published`, `social_post.failed` |

@@ -40,4 +40,25 @@ describe("<StorePanel>", () => {
     await waitFor(() => expect(mockPut).toHaveBeenCalledWith("/store/settings", expect.objectContaining({ name: "Cửa hàng ABC", slug: "cua-hang-abc", theme: "soi-dong", product_ids: [10], published: true })))
     expect(await screen.findByText("Chưa có đơn nào")).toBeTruthy()
   })
+
+  it("chuyển khoản: chọn ngân hàng VietQR + số tài khoản ⇒ PUT kèm bank_bin; lời nhắc của máy chủ hiện ra", async () => {
+    grant("pos.manage", "deals.view")
+    mockGet.mockImplementation(async (url: string) => {
+      if (url === "/store/settings") return { data: { ...SETTINGS, bank_notice: "Chuyển khoản đã tạm tắt: hãy nhập ngân hàng", banks: [{ bin: "970436", name: "Vietcombank" }, { bin: "970422", name: "MBBank" }] } }
+      if (url === "/store/orders") return { data: [] }
+      if (url.startsWith("/products")) return { data: [] }
+      throw new Error(url)
+    })
+    mockPut.mockImplementation(async (_u: string, b: unknown) => ({ data: b }))
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={qc}><StorePanel /></QueryClientProvider>)
+    expect(await screen.findByText(/Chuyển khoản đã tạm tắt/)).toBeTruthy()
+    expect(screen.queryByText(/SePay/)).toBeNull()
+    fireEvent.click(screen.getByLabelText(/Chuyển khoản bằng mã QR/))
+    fireEvent.change(screen.getByLabelText("Ngân hàng nhận tiền"), { target: { value: "970422" } })
+    fireEvent.change(screen.getByLabelText("Số tài khoản"), { target: { value: "0123456789" } })
+    fireEvent.change(screen.getByLabelText("Tên chủ tài khoản"), { target: { value: "CUA HANG ABC" } })
+    fireEvent.click(screen.getByRole("button", { name: "Lưu" }))
+    await waitFor(() => expect(mockPut).toHaveBeenCalledWith("/store/settings", expect.objectContaining({ bank_transfer: true, bank_bin: "970422", bank_account: "0123456789", bank_account_name: "CUA HANG ABC" })))
+  })
 })

@@ -34,6 +34,7 @@ import type { FacebookChatLinksService } from '../../../facebook/facebook-chat-l
 import type { FacebookFlowsService } from '../../../facebook/facebook-flows.service';
 import type { FacebookBroadcastsService } from '../../../facebook/facebook-broadcasts.service';
 import type { PaymentsService } from '../../../connectors/payments.service';
+import type { StoreService } from '../../../store/store.service';
 import type { FacebookMessengerService } from '../../../facebook/facebook-messenger.service';
 import type { ZaloOaMessagingService } from '../../../zalo-oa/zalo-oa-messaging.service';
 import type { CustomReportsService } from '../../../reports/custom/custom-reports.service';
@@ -79,6 +80,8 @@ export interface McpDeps {
   zaloOa?: ZaloOaMessagingService;
   /** Yêu cầu thanh toán + tự khớp tiền (SePay…); chỉ có khi module Connectors được nối. */
   payments?: PaymentsService;
+  /** Trang bán hàng online (cấu hình, tài khoản nhận chuyển khoản VietQR); chỉ có khi StoreModule được nối. */
+  store?: StoreService;
   /** Kênh đã kết nối + số liệu hôm nay (cùng dữ liệu khối "Kênh đã kết nối" ở Tổng quan). */
   channels?: DashboardChannelsService;
   /** Tương tác gộp (bình luận + tin nhắn các kênh) — màn Tương tác + list_interactions. */

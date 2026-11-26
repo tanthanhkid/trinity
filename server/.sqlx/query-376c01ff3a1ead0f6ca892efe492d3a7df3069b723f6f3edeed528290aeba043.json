@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT name, team_lead_id AS \"team_lead_id!\" FROM teams WHERE team_lead_id IS NOT NULL ORDER BY id ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "teams",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "team_lead_id!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "teams",
+            "name": "team_lead_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "376c01ff3a1ead0f6ca892efe492d3a7df3069b723f6f3edeed528290aeba043"
+}

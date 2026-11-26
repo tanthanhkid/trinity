@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE employees SET team_id = NULL WHERE user_id = $1 AND team_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6c5142ddbca064083d7b36366c4619b20d2591d9cd63ed5ef77f31b5a58bad12"
+}

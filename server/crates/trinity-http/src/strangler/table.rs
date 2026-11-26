@@ -12,7 +12,25 @@ pub struct OwnershipTable {
 }
 
 impl OwnershipTable {
-    /// Từ tệp: tệp phải đọc được lúc khởi động (lỗi thì binary không khởi động, như `check-config`).
+    /// Dựng bảng lúc khởi động. `path` (`TRINITY_OWNERSHIP_FILE`) luôn được giữ để `reload` nạp khi tệp xuất hiện.
+    /// Tệp có và hợp lệ: dùng tệp. Tệp CHƯA có: bắt đầu với `initial` (từ `TRINITY_RUST_ROUTES`, hoặc mặc định mọi thứ thuộc
+    /// Node), không lỗi. Tệp có mà hỏng hoặc không đọc được vì lý do khác: lỗi (binary không khởi động, như `check-config`).
+    pub fn new(path: Option<&Path>, initial: Ownership) -> Result<Self, OwnershipError> {
+        let current = match path {
+            Some(p) => match Ownership::load(p) {
+                Ok(own) => own,
+                Err(e) if is_missing(&e) => initial,
+                Err(e) => return Err(e),
+            },
+            None => initial,
+        };
+        Ok(Self {
+            current: RwLock::new(Arc::new(current)),
+            path: path.map(Path::to_owned),
+        })
+    }
+
+    /// Tệp bắt buộc có lúc khởi động.
     pub fn from_file(path: &Path) -> Result<Self, OwnershipError> {
         let own = Ownership::load(path)?;
         Ok(Self {
@@ -21,8 +39,7 @@ impl OwnershipTable {
         })
     }
 
-    /// Chưa có tệp: giá trị khởi tạo cố định (từ `TRINITY_RUST_ROUTES`, hoặc mặc định mọi thứ thuộc Node). `reload` không
-    /// làm gì cho tới khi có tệp.
+    /// Không có tệp: giá trị khởi tạo cố định. `reload` không làm gì.
     pub fn fixed(own: Ownership) -> Self {
         Self {
             current: RwLock::new(Arc::new(own)),
@@ -39,6 +56,11 @@ impl OwnershipTable {
     pub fn reload(&self) -> Result<bool, OwnershipError> {
         let Some(path) = &self.path else { return Ok(false) };
         match Ownership::load(path) {
+            // Tệp chưa có (hoặc vừa bị xoá): giữ bảng đang dùng, không phải lỗi; có tệp thì lần nạp sau lấy.
+            Err(e) if is_missing(&e) => {
+                tracing::debug!("[ownership] chưa có tệp {}, giữ bảng hiện tại", path.display());
+                Ok(false)
+            }
             Ok(new) => {
                 let mut cur = self.current.write().unwrap_or_else(std::sync::PoisonError::into_inner);
                 if **cur != new {
@@ -53,6 +75,10 @@ impl OwnershipTable {
             }
         }
     }
+}
+
+fn is_missing(e: &OwnershipError) -> bool {
+    matches!(e, OwnershipError::Io { source, .. } if source.kind() == std::io::ErrorKind::NotFound)
 }
 
 /// `TRINITY_RUST_ROUTES` làm giá trị khởi tạo: danh sách tiền tố cách nhau bằng dấu phẩy hoặc khoảng trắng, mỗi tiền tố

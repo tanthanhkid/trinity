@@ -92,6 +92,10 @@ async fn start_node(clock: Arc<AtomicU64>) -> Node {
                 "x-trinity-peer-ip",
                 "host",
                 "x-trinity-client-ip",
+                "true-client-ip",
+                "x-forwarded-proto",
+                "x-forwarded-host",
+                "x-secret-hop",
             ]
             .iter()
             .map(|n| {
@@ -115,6 +119,30 @@ async fn start_node(clock: Arc<AtomicU64>) -> Node {
             get(|| async {
                 tokio::time::sleep(Duration::from_millis(1500)).await;
                 "node-slow"
+            }),
+        )
+        .route(
+            "/api/v1/oauth/protected-resource",
+            get(|| async { "node-oauth-resource" }),
+        )
+        .route(
+            "/api/v1/hop",
+            get(|| async {
+                (
+                    [("connection", "x-node-hop"), ("x-node-hop", "1"), ("x-giu-lai", "2")],
+                    "hop",
+                )
+            }),
+        )
+        .route(
+            "/api/v1/stall",
+            post(|req: Request| async move {
+                // Đọc body; client ngừng gửi thì proxy phải cắt (không treo vô hạn).
+                if axum::body::to_bytes(req.into_body(), 1 << 20).await.is_err() {
+                    "body-error"
+                } else {
+                    "body-ok"
+                }
             }),
         )
         .route(
@@ -331,6 +359,7 @@ fn timeouts_fast() -> ProxyTimeouts {
         response: Duration::from_secs(15),
         export: Duration::from_secs(120),
         connect: Duration::from_secs(2),
+        body_idle: Duration::from_secs(30),
     }
 }
 
@@ -576,6 +605,7 @@ async fn timeout_response_va_export_dai_hon() {
         response: Duration::from_millis(500),
         export: Duration::from_secs(5),
         connect: Duration::from_secs(2),
+        body_idle: Duration::from_secs(30),
     };
     let f = front("", t, ALL_NODE).await;
     // /slow ngủ 1,5 giây > 500 ms ⇒ 504; /export/big ngủ 0,4 giây nhưng hạn 5 giây ⇒ qua.
@@ -619,6 +649,7 @@ async fn upload_200mb_stream_qua_proxy_khong_dem_vao_ram() {
         response: Duration::from_secs(30),
         export: Duration::from_secs(120),
         connect: Duration::from_secs(2),
+        body_idle: Duration::from_secs(30),
     };
     let f = front("", t, ALL_NODE).await;
     let total: usize = 200 * 1024 * 1024;
@@ -667,4 +698,141 @@ async fn upload_200mb_stream_qua_proxy_khong_dem_vao_ram() {
 #[allow(dead_code)]
 fn _unused(_: HeaderMap) -> impl IntoResponse {
     StatusCode::OK
+}
+
+#[tokio::test]
+async fn well_known_rewrite_sang_node_va_chi_api_v1_sang_node_khi_co_next() {
+    let f = front("", timeouts_fast(), ALL_NODE).await;
+    // Rewrite như Next: /.well-known/oauth-protected-resource -> /api/v1/oauth/protected-resource của Node.
+    assert_eq!(
+        send(f.addr, "GET", "/.well-known/oauth-protected-resource", &[], b"")
+            .await
+            .body,
+        "node-oauth-resource"
+    );
+    // Có Next: `/api/build-id` và trang đi Next, `/api/v1/...` đi Node.
+    let next = start_node(Arc::new(AtomicU64::new(NOW))).await;
+    let node = start_node(Arc::new(AtomicU64::new(NOW))).await;
+    let proxy = NodeProxy::new(
+        format!("http://{}", node.addr).parse().unwrap(),
+        Some(format!("http://{}", next.addr).parse().unwrap()),
+        None,
+        timeouts_fast(),
+    );
+    let app = dispatcher(
+        Arc::new(OwnershipTable::fixed(Default::default())),
+        Router::new(),
+        proxy,
+        resolver(&[]),
+    );
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(trinity_http::serve::serve(
+        listener,
+        app,
+        None,
+        std::future::pending(),
+        Duration::from_secs(1),
+    ));
+    for p in ["/api/build-id", "/api/fe-logging", "/trang"] {
+        send(addr, "GET", p, &[], b"").await;
+    }
+    assert_eq!(
+        (next.hits.load(Ordering::Relaxed), node.hits.load(Ordering::Relaxed)),
+        (3, 0)
+    );
+    send(addr, "GET", "/api/v1/oauth/protected-resource", &[], b"").await;
+    send(addr, "GET", "/.well-known/oauth-protected-resource", &[], b"").await;
+    assert_eq!(
+        (next.hits.load(Ordering::Relaxed), node.hits.load(Ordering::Relaxed)),
+        (3, 2)
+    );
+}
+
+#[tokio::test]
+async fn forwarded_proto_host_do_rust_dat_lai_va_header_connection_bi_bo() {
+    let f = front("", timeouts_fast(), ALL_NODE).await;
+    let r = send(
+        f.addr,
+        "POST",
+        "/api/v1/echo",
+        &[
+            ("X-Forwarded-Proto", "https"),
+            ("X-Forwarded-Host", "evil.example"),
+            ("True-Client-IP", FAKE),
+            ("Connection", "close, X-Secret-Hop"),
+            ("X-Secret-Hop", "1"),
+        ],
+        b"x",
+    )
+    .await;
+    let h = &r.json()["headers"];
+    assert_eq!(
+        h["x-forwarded-proto"], "http",
+        "đặt lại theo listener thật, không tin client"
+    );
+    assert_eq!(h["x-forwarded-host"], "crm.test", "host gốc");
+    assert_eq!(h["true-client-ip"], Value::Null);
+    assert_eq!(h["x-secret-hop"], Value::Null, "header Connection liệt kê bị bỏ");
+    // Response: header Node liệt kê trong Connection cũng bị bỏ, header khác giữ.
+    let r = send(f.addr, "GET", "/api/v1/hop", &[], b"").await;
+    assert!(
+        r.all("x-node-hop").is_empty() && r.all("x-giu-lai") == ["2"],
+        "{:?}",
+        r.headers
+    );
+}
+
+#[tokio::test]
+async fn tep_chua_co_luc_khoi_dong_giu_env_va_nap_khi_tep_xuat_hien() {
+    let dir = std::env::temp_dir().join(format!("trinity-k17-late-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("ownership.json");
+    let _ = std::fs::remove_file(&file);
+    let initial = initial_from_routes_env(Some("/api/v1/settings")).unwrap();
+    let t = OwnershipTable::new(Some(&file), initial.clone()).unwrap();
+    let owner = |t: &OwnershipTable, p: &str| t.current().route("GET", p).owner;
+    assert_eq!(
+        owner(&t, "/api/v1/settings"),
+        trinity_kernel::ownership::Owner::Rust,
+        "dùng TRINITY_RUST_ROUTES"
+    );
+    assert!(!t.reload().unwrap(), "chưa có tệp: giữ bảng, không lỗi");
+    assert_eq!(owner(&t, "/api/v1/settings"), trinity_kernel::ownership::Owner::Rust);
+    write_atomic(
+        &file,
+        r#"{ "routes": [ { "prefix": "/api/v1/kanban", "owner": "rust" } ] }"#,
+    );
+    assert!(t.reload().unwrap());
+    assert_eq!(owner(&t, "/api/v1/kanban"), trinity_kernel::ownership::Owner::Rust);
+    assert_eq!(
+        owner(&t, "/api/v1/settings"),
+        trinity_kernel::ownership::Owner::Node,
+        "tệp thay hẳn giá trị khởi tạo"
+    );
+    // Tệp bị xoá sau đó: giữ bảng đang dùng.
+    std::fs::remove_file(&file).unwrap();
+    assert!(!t.reload().unwrap());
+    assert_eq!(owner(&t, "/api/v1/kanban"), trinity_kernel::ownership::Owner::Rust);
+    // Tệp có mà hỏng lúc khởi động: lỗi.
+    write_atomic(&file, "{ khong phai json");
+    assert!(OwnershipTable::new(Some(&file), initial).is_err());
+}
+
+#[tokio::test]
+async fn client_ngung_gui_body_thi_proxy_cat_khong_treo_vo_han() {
+    let t = ProxyTimeouts {
+        response: Duration::from_secs(15),
+        export: Duration::from_secs(120),
+        connect: Duration::from_secs(2),
+        body_idle: Duration::from_millis(600),
+    };
+    let f = front("", t, ALL_NODE).await;
+    let mut s = TcpStream::connect(f.addr).await.unwrap();
+    s.write_all(b"POST /api/v1/stall HTTP/1.1\r\nHost: t\r\nConnection: close\r\nContent-Length: 100\r\n\r\nabc")
+        .await
+        .unwrap();
+    // Gửi 3/100 byte rồi im: không đóng kết nối. Phải có phản hồi (hoặc đóng) trong vài giây.
+    let r = tokio::time::timeout(Duration::from_secs(5), read_reply(&mut s)).await;
+    assert!(r.is_ok(), "proxy treo khi client ngừng gửi body");
 }

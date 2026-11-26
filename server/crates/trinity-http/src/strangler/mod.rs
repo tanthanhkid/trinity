@@ -22,7 +22,7 @@ use tower::ServiceExt;
 
 use crate::edge::client_ip::{ClientIpResolver, client_ip_layer};
 
-pub use proxy::{NodeProxy, ProxyTimeouts};
+pub use proxy::{ListenerScheme, NodeProxy, ProxyTimeouts};
 pub use table::{OwnershipTable, initial_from_routes_env, spawn_sighup_reloader};
 pub use trinity_kernel::ownership::Owner;
 

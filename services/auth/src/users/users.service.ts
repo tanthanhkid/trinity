@@ -18,6 +18,7 @@ import {
   makePhoneMasker,
   type AuthUser,
   assertUserSlotAvailable,
+  invitationScope,
   revokePendingInvitationsBy,
   revokePendingInvitationsForEmail,
 } from '@trinity/rbac-nest'
@@ -268,9 +269,11 @@ export class UsersService {
 
     // Gói dịch vụ: kiểm max_users (người active + lời mời đang chờ) và tạo user trong CÙNG transaction, dưới khoá
     // advisory của công ty — hai lượt tạo đồng thời ở ngưỡng chỉ một lượt qua.
+    const inviteOwners = actor ? await invitationScope(this.scope, actor) : 'all'
     const user = await this.prisma.$transaction(async (tx) => {
-      // Email đang có lời mời chờ: huỷ lời mời TRƯỚC khi kiểm chỗ (không tính hai chỗ cho một người).
-      await revokePendingInvitationsForEmail(tx, normalizedEmail)
+      // Email đang có lời mời chờ: huỷ lời mời TRƯỚC khi kiểm chỗ (không tính hai chỗ cho một người); lời mời của người
+      // ngoài phạm vi users.manage của mình thì 409 như createInvitation.
+      await revokePendingInvitationsForEmail(tx, normalizedEmail, inviteOwners)
       await assertUserSlotAvailable(tx)
       return tx.user.create({
         data: {

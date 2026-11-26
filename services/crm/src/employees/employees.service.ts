@@ -27,6 +27,7 @@ import {
   runInBackground,
   type AuthUser,
   assertUserSlotAvailable,
+  invitationScope,
   revokePendingInvitationsBy,
   revokePendingInvitationsForEmail,
 } from '@trinity/rbac-nest';
@@ -939,6 +940,7 @@ export class EmployeesService {
 
     // Gói dịch vụ: tạo user mới hoặc khôi phục user đã xoá mềm đều chiếm 1 chỗ trong max_users (kiểm trong transaction ghi, bên dưới).
     const takesSlot = !existingUser || existingUser.deleted_at != null;
+    const inviteOwners = actor && takesSlot ? await invitationScope(this.scope, actor) : 'all';
     // Multi-tenant: an email belongs to one company only (login looks the company up by email).
     if (!existingUser) await assertEmailAvailableForCurrentCompany(dto.email);
 
@@ -957,7 +959,7 @@ export class EmployeesService {
     const employee = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Email đang có lời mời chờ: huỷ lời mời trước khi kiểm chỗ (không tính hai chỗ cho một người).
       if (takesSlot) {
-        await revokePendingInvitationsForEmail(tx, dto.email);
+        await revokePendingInvitationsForEmail(tx, dto.email, inviteOwners);
         await assertUserSlotAvailable(tx);
       }
       // team_id/manager_id nay CHỈ theo lựa chọn Team tường minh (applyTeamAssignment ở

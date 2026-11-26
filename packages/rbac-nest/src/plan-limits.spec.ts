@@ -6,7 +6,7 @@ import { assertUserSlotAvailable, planFromSetting, type PlanLimitClient } from '
 const db = (plan: string | null, active: number, pending = 0): PlanLimitClient => ({
   setting: { findUnique: jest.fn().mockResolvedValue(plan === null ? null : { value: plan }) },
   user: { count: jest.fn().mockResolvedValue(active) },
-  userInvitation: { count: jest.fn().mockResolvedValue(pending) },
+  $queryRawUnsafe: jest.fn().mockResolvedValue([{ n: pending }]),
   $executeRaw: jest.fn().mockResolvedValue(1),
 });
 

@@ -34,12 +34,13 @@ import {
   enterTokenCompany,
   findPendingInvitation,
   INVITATION_GONE_MESSAGE,
-  invitationStatus,
+  grantsOfRoles,
+  lockUserSlots,
 } from '@trinity/rbac-nest'
 import type { RegisterDto } from './dto/register.dto'
 import type { AcceptInvitationDto } from './dto/invitation.dto'
 import { PermissionService } from '@trinity/rbac-nest'
-import { can, type Grants } from '@trinity/rbac'
+import { can, isSubset, type Grants } from '@trinity/rbac'
 import { LoginDto } from './dto/login.dto'
 import { UpdateProfileDto } from './dto/update-profile.dto'
 import { RateLimiterService } from './services/rate-limiter.service'
@@ -1003,59 +1004,78 @@ export class AuthService {
       this.rateLimiter.recordAttempt(rateLimitKey)
       throw err
     }
-    // Người mời phải còn hoạt động và còn quyền users.manage lúc nhận — mất quyền/bị khoá thì lời mời không còn giá trị.
-    const inviter =
-      inv.created_by === null
-        ? null
-        : await this.prisma.user.findFirst({ where: { id: inv.created_by, status: 'active', deleted_at: null }, select: { id: true } })
-    const inviterGrants = inviter ? await this.permissionService.grantsFor(inviter.id) : null
-    if (!inviterGrants || !(inviterGrants.isAdmin || can(inviterGrants.grants, 'users.manage'))) {
-      this.rateLimiter.recordAttempt(rateLimitKey)
-      throw new GoneException(INVITATION_GONE_MESSAGE)
-    }
-    if (inv.role_id === null || !(await this.prisma.role.findUnique({ where: { id: inv.role_id }, select: { id: true } }))) {
-      throw new ConflictException('Vai trò của lời mời này đã bị xoá. Hãy nhờ chủ công ty mời lại.')
-    }
     await assertEmailAvailableForCurrentCompany(inv.email)
-    const existing = await this.prisma.user.findFirst({
-      where: { email: { equals: inv.email, mode: 'insensitive' }, deleted_at: null },
-      select: { id: true },
-    })
-    if (existing) throw new ConflictException('Email này đã có tài khoản trong công ty — hãy đăng nhập')
-    const roleId = inv.role_id
     const passwordHash = await bcrypt.hash(dto.password, 10)
     const now = new Date()
-    const userId = await this.prisma.$transaction(async (tx) => {
-      // Giành lời mời trước (một lần; từ đây nó không còn tính là lời mời đang chờ), rồi mới kiểm chỗ trống theo gói (dưới khoá advisory) — hết chỗ thì cả giao dịch lùi lại, link vẫn còn dùng được.
-      const claimed = await tx.userInvitation.updateMany({
-        where: { id: inv.id, accepted_at: null, revoked_at: null, expires_at: { gt: now } },
-        data: { accepted_at: now },
+    let userId: number
+    try {
+      userId = await this.prisma.$transaction(async (tx) => {
+        // Khoá advisory của công ty là câu ĐẦU của giao dịch — cùng thứ tự với tạo/huỷ/mời lại (khoá advisory trước,
+        // dòng lời mời sau) nên không thể khoá chéo nhau. Mọi kiểm tra có tính quyết định chạy dưới khoá này.
+        await lockUserSlots(tx)
+        // Giành lời mời (một lần; từ đây nó không còn tính là lời mời đang chờ). Lùi lại cả giao dịch nếu bước sau lỗi: link còn dùng được.
+        const claimed = await tx.userInvitation.updateMany({
+          where: { id: inv.id, accepted_at: null, revoked_at: null, expires_at: { gt: now } },
+          data: { accepted_at: now },
+        })
+        if (claimed.count !== 1) throw new GoneException(INVITATION_GONE_MESSAGE)
+        // Người mời phải còn hoạt động, còn users.manage, và vai trò được mời không vượt quyền của họ (như lúc tạo lời mời).
+        const inviter =
+          inv.created_by === null
+            ? null
+            : await tx.user.findFirst({ where: { id: inv.created_by, status: 'active', deleted_at: null }, select: { id: true, team_id: true } })
+        const inviterGrants = inviter ? await this.permissionService.grantsFor(inviter.id) : null
+        if (!inviter || !inviterGrants || !(inviterGrants.isAdmin || can(inviterGrants.grants, 'users.manage'))) {
+          throw new GoneException(INVITATION_GONE_MESSAGE)
+        }
+        const role =
+          inv.role_id === null
+            ? null
+            : await tx.role.findUnique({
+                where: { id: inv.role_id },
+                select: { id: true, is_system: true, grants: { select: { permission: true, scope: true } } },
+              })
+        if (!role) throw new ConflictException('Vai trò của lời mời này đã bị xoá. Hãy nhờ chủ công ty mời lại.')
+        if (!inviterGrants.isAdmin && (role.is_system || !isSubset(grantsOfRoles([role]), inviterGrants.grants))) {
+          throw new GoneException(INVITATION_GONE_MESSAGE)
+        }
+        const existing = await tx.user.findFirst({
+          where: { email: { equals: inv.email, mode: 'insensitive' }, deleted_at: null },
+          select: { id: true },
+        })
+        if (existing) throw new ConflictException('Email này đã có tài khoản trong công ty — hãy đăng nhập')
+        await assertUserSlotAvailable(tx)
+        // Người mời có phạm vi hẹp (own/team/subtree): gắn người mới dưới người mời để họ quản lý được người họ mời.
+        const manage = inviterGrants.grants['users.manage']
+        const narrow = !inviterGrants.isAdmin && manage !== true && manage !== 'all'
+        // Soft-deleted user giữ email gốc → đổi tên để nhường chỗ (cùng cách users.service.create).
+        const old = await tx.user.findFirst({ where: { email: { equals: inv.email, mode: 'insensitive' }, deleted_at: { not: null } }, select: { id: true } })
+        if (old) await tx.user.update({ where: { id: old.id }, data: { email: `deleted_${old.id}_${Date.now()}@removed.invalid` } })
+        const user = await tx.user.create({
+          data: {
+            email: inv.email,
+            full_name: dto.full_name.trim(),
+            password_hash: passwordHash,
+            password_updated_at: now,
+            status: 'active',
+            ...(narrow ? { manager_id: inviter.id, team_id: manage === 'team' ? inviter.team_id : null } : {}),
+          },
+          select: { id: true },
+        })
+        await tx.userRole.create({ data: { user_id: user.id, role_id: role.id } })
+        // Mọi tài khoản CRM đồng thời là một nhân viên (cùng users.service.create).
+        await tx.employee.upsert({
+          where: { user_id: user.id },
+          create: { user_id: user.id, position: 'Chưa phân loại', status: 'active' },
+          update: {},
+        })
+        await tx.userInvitation.update({ where: { id: inv.id }, data: { accepted_user_id: user.id } })
+        return user.id
       })
-      if (claimed.count !== 1) throw new GoneException(INVITATION_GONE_MESSAGE)
-      await assertUserSlotAvailable(tx)
-      // Soft-deleted user giữ email gốc → đổi tên để nhường chỗ (cùng cách users.service.create).
-      const old = await tx.user.findFirst({ where: { email: { equals: inv.email, mode: 'insensitive' }, deleted_at: { not: null } }, select: { id: true } })
-      if (old) await tx.user.update({ where: { id: old.id }, data: { email: `deleted_${old.id}_${Date.now()}@removed.invalid` } })
-      const user = await tx.user.create({
-        data: {
-          email: inv.email,
-          full_name: dto.full_name.trim(),
-          password_hash: passwordHash,
-          password_updated_at: now,
-          status: 'active',
-        },
-        select: { id: true },
-      })
-      await tx.userRole.create({ data: { user_id: user.id, role_id: roleId } })
-      // Mọi tài khoản CRM đồng thời là một nhân viên (cùng users.service.create).
-      await tx.employee.upsert({
-        where: { user_id: user.id },
-        create: { user_id: user.id, position: 'Chưa phân loại', status: 'active' },
-        update: {},
-      })
-      await tx.userInvitation.update({ where: { id: inv.id }, data: { accepted_user_id: user.id } })
-      return user.id
-    })
+    } catch (err) {
+      if (err instanceof GoneException) this.rateLimiter.recordAttempt(rateLimitKey)
+      throw err
+    }
     await this.auditLog.logPasswordChange({ actorUserId: inv.created_by ?? null, targetUserId: userId, method: 'user_create', ipAddress })
     const user = await this.findUserById(userId)
     if (!user) throw new InternalServerErrorException('Chưa tạo được tài khoản, vui lòng thử lại')

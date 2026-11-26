@@ -23,6 +23,7 @@ import {
   createInvitation,
   revokePendingInvitationsBy,
   revokePendingInvitationsForEmail,
+  revokePendingInvitationsForRole,
   hashInviteToken,
   listInvitations,
   revokeInvitation,
@@ -59,6 +60,11 @@ describePg('mời nhân viên bằng link (Postgres, nhiều công ty)', () => {
   const prevMt = process.env.MULTI_TENANT
   /** Người mời đã mất quyền users.manage (giả lập qua PermissionService). */
   const noManage = new Set<number>()
+  let ipSeq = 0
+  /** Mỗi lần nhận một IP khác để bộ giới hạn tốc độ (theo IP) không chặn các ca không liên quan. */
+  const ip = () => `10.1.${Math.floor(ipSeq / 250)}.${(ipSeq++ % 250) + 1}`
+  /** Quyền giả lập theo người mời (thay cho PermissionService). */
+  const grantsOverride = new Map<number, { grants: Record<string, unknown>; isAdmin: boolean }>()
   const stamp = Date.now()
   const emailA = `chu-a-${stamp}@example.com`
   const emailB = `chu-b-${stamp}@example.com`
@@ -109,7 +115,10 @@ describePg('mời nhân viên bằng link (Postgres, nhiều công ty)', () => {
       new TokenBlacklistService(),
       new AuditLogService(db),
       new ActiveSessionService(),
-      { grantsFor: async (id: number) => (noManage.has(id) ? { grants: {}, isAdmin: false } : { grants: { 'users.manage': 'all' }, isAdmin: true }) } as never,
+      {
+        grantsFor: async (id: number) =>
+          grantsOverride.get(id) ?? (noManage.has(id) ? { grants: {}, isAdmin: false } : { grants: { 'users.manage': 'all' }, isAdmin: true }),
+      } as never,
     )
   }, 180_000)
 
@@ -396,5 +405,88 @@ describePg('mời nhân viên bằng link (Postgres, nhiều công ty)', () => {
     const sneaky = await mk('sneaky')
     await runWithCompany(A, () => db.user.update({ where: { id: inviterId }, data: { status: 'locked' } }))
     await expect(publicRequest(() => auth.acceptInvitation({ token: sneaky.token, full_name: 'Sót', password: 'matkhau-moi-1' }, null))).rejects.toBeInstanceOf(GoneException)
+  })
+
+  it('nhận lời mời đồng thời với mời lại / huỷ cùng email: không deadlock, không lỗi 500, tối đa một người được tạo', async () => {
+    for (let i = 0; i < 6; i++) {
+      const email = `race-${i}-${stamp}@example.com`
+      const inv = await runWithCompany(A, () => createInvitation(db, adminOf(ownerA), { email, roleId: staffRoleA }))
+      const results = await Promise.allSettled([
+        publicRequest(() => auth.acceptInvitation({ token: inv.token, full_name: 'Đua một', password: 'matkhau-moi-1' }, ip())),
+        runWithCompany(A, () => createInvitation(db, adminOf(ownerA), { email, roleId: staffRoleA })),
+        runWithCompany(A, () => revokeInvitation(db, inv.id)),
+      ])
+      for (const r of results) {
+        if (r.status === 'rejected') expect([GoneException, ConflictException, NotFoundException].some((E) => r.reason instanceof E)).toBe(true)
+      }
+      expect(await runWithCompany(A, () => db.user.count({ where: { email } }))).toBeLessThanOrEqual(1)
+      expect(await runWithCompany(A, () => db.userInvitation.count({ where: { email, accepted_at: null, revoked_at: null } }))).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('nhận lời mời kiểm lại không leo quyền: người mời không còn đủ quyền cho vai trò (hoặc vai trò hệ thống) thì 410', async () => {
+    const mgr = (await runWithCompany(A, () => db.user.create({ data: { email: `esc-${stamp}@example.com`, password_hash: 'x', full_name: 'Esc', status: 'active' } }))).id
+    grantsOverride.set(mgr, { grants: { 'users.manage': 'all', 'contacts.view': 'all' }, isAdmin: false })
+    const inv = await runWithCompany(A, () => createInvitation(db, { userId: mgr, email: 'm@t', isAdmin: false, grants: { 'users.manage': 'all', 'contacts.view': 'all' } }, { email: `esc-inv-${stamp}@example.com`, roleId: staffRoleA }))
+    // Người mời bị hạ quyền sau khi mời: vai trò Nhân viên (contacts.view) giờ vượt quyền của họ.
+    grantsOverride.set(mgr, { grants: { 'users.manage': 'all' }, isAdmin: false })
+    await expect(publicRequest(() => auth.acceptInvitation({ token: inv.token, full_name: 'Leo quyền', password: 'matkhau-moi-1' }, ip()))).rejects.toBeInstanceOf(GoneException)
+    expect(await runWithCompany(A, () => db.user.count({ where: { email: `esc-inv-${stamp}@example.com` } }))).toBe(0)
+    // Đủ quyền trở lại thì nhận được.
+    grantsOverride.set(mgr, { grants: { 'users.manage': 'all', 'contacts.view': 'all' }, isAdmin: false })
+    await expect(publicRequest(() => auth.acceptInvitation({ token: inv.token, full_name: 'Hợp lệ', password: 'matkhau-moi-1' }, ip()))).resolves.toMatchObject({ company: { id: A.id } })
+    grantsOverride.delete(mgr)
+  })
+
+  it('người mời phạm vi hẹp: người mới nằm dưới người mời (manager_id) để họ quản lý được', async () => {
+    const mgr = (await runWithCompany(A, () => db.user.create({ data: { email: `narrow-${stamp}@example.com`, password_hash: 'x', full_name: 'Hẹp', status: 'active' } }))).id
+    const g = { 'users.manage': 'subtree', 'contacts.view': 'all' } as const
+    grantsOverride.set(mgr, { grants: { ...g }, isAdmin: false })
+    const inv = await runWithCompany(A, () => createInvitation(db, { userId: mgr, email: 'n@t', isAdmin: false, grants: { ...g } }, { email: `narrow-inv-${stamp}@example.com`, roleId: staffRoleA }, [mgr]))
+    await publicRequest(() => auth.acceptInvitation({ token: inv.token, full_name: 'Dưới quyền', password: 'matkhau-moi-1' }, ip()))
+    expect((await runWithCompany(A, () => db.user.findFirstOrThrow({ where: { email: `narrow-inv-${stamp}@example.com` } }))).manager_id).toBe(mgr)
+    // Phạm vi rộng (all/admin): không gắn manager.
+    expect((await runWithCompany(A, () => db.user.findFirstOrThrow({ where: { email: `nv1-${stamp}@example.com` } }))).manager_id).toBeNull()
+    grantsOverride.delete(mgr)
+  })
+
+  it('lời mời không nhận được (người mời bị khoá, vai trò bị xoá) không giữ chỗ và hiện trạng thái hỏng; xoá vai trò huỷ lời mời của nó', async () => {
+    const c = (await provisionCompany({ companyName: 'Công ty F', adminEmail: `chu-f-${stamp}@example.com`, adminPassword: 'password-f-123', adminName: 'Chủ F' })).company
+    const owner = (await runWithCompany(c, () => db.user.findFirstOrThrow())).id
+    const adminRole = await runWithCompany(c, () => db.role.findFirstOrThrow({ where: { is_system: true } }))
+    const roleX = await runWithCompany(c, () => db.role.create({ data: { name: 'Tạm', is_system: false } }))
+    await runWithCompany(c, async () => {
+      for (let i = 0; i < 6; i++) await db.user.create({ data: { email: `f-fill-${i}-${stamp}@example.com`, password_hash: 'x', full_name: `F${i}`, status: 'active' } })
+    })
+    const mgr = (await runWithCompany(c, () => db.user.create({ data: { email: `f-mgr-${stamp}@example.com`, password_hash: 'x', full_name: 'Mgr', status: 'active' } }))).id
+    await runWithCompany(c, () => db.userRole.create({ data: { user_id: mgr, role_id: adminRole.id } }))
+    // 8 người; hai lời mời của người mời (admin) → đủ 10 chỗ.
+    await runWithCompany(c, () => createInvitation(db, adminOf(mgr), { email: `f-a-${stamp}@example.com`, roleId: adminRole.id }))
+    const bad = await runWithCompany(c, () => createInvitation(db, adminOf(mgr), { email: `f-b-${stamp}@example.com`, roleId: roleX.id }))
+    await expect(runWithCompany(c, () => db.$transaction((tx) => assertUserSlotAvailable(tx)))).rejects.toBeInstanceOf(ConflictException)
+    // Người mời bị khoá (không đi qua đường thu hồi): hai lời mời của họ hỏng, không giữ chỗ nữa.
+    await runWithCompany(c, () => db.user.update({ where: { id: mgr }, data: { status: 'locked' } }))
+    await expect(runWithCompany(c, () => db.$transaction((tx) => assertUserSlotAvailable(tx)))).resolves.toBeUndefined()
+    const listed = await runWithCompany(c, () => listInvitations(db, { pendingOnly: true }))
+    expect(listed.map((i) => i.status)).toEqual(['unusable', 'unusable'])
+    // Mở khoá lại: lời mời dùng được lại; xoá vai trò → huỷ lời mời của vai trò đó, không còn chiếm chỗ.
+    await runWithCompany(c, () => db.user.update({ where: { id: mgr }, data: { status: 'active' } }))
+    expect((await runWithCompany(c, () => listInvitations(db, { pendingOnly: true }))).map((i) => i.status).sort()).toEqual(['pending', 'pending'])
+    await runWithCompany(c, () =>
+      db.$transaction(async (tx) => {
+        await revokePendingInvitationsForRole(tx, roleX.id)
+        await tx.role.delete({ where: { id: roleX.id } })
+      }),
+    )
+    expect((await runWithCompany(c, () => db.userInvitation.findFirstOrThrow({ where: { id: bad.id } }))).revoked_at).not.toBeNull()
+    expect(owner).toBeGreaterThan(0)
+  })
+
+  it('tạo trực tiếp cho email có lời mời chờ của người ngoài phạm vi: 409 như khi mời', async () => {
+    const email = `scoped-direct-${stamp}@example.com`
+    await runWithCompany(A, () => createInvitation(db, adminOf(4242), { email, roleId: staffRoleA }))
+    const err = await runWithCompany(A, () => db.$transaction((tx) => revokePendingInvitationsForEmail(tx, email, [ownerA]))).catch((e) => e)
+    expect(err).toBeInstanceOf(ConflictException)
+    await expect(runWithCompany(A, () => db.$transaction((tx) => revokePendingInvitationsForEmail(tx, email, [ownerA, 4242])))).resolves.toBeUndefined()
   })
 })

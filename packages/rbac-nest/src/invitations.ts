@@ -3,7 +3,7 @@ import { ConflictException, ForbiddenException, GoneException, NotFoundException
 import { assertEmailAvailableForCurrentCompany, currentCompanyId, isMultiTenant, type Prisma, type PrismaService } from '@trinity/prisma';
 import { isSubset, mergeGrants, normalizeGrant, type Grants, type Permission } from '@trinity/rbac';
 import type { AuthUser } from './auth-user';
-import { assertUserSlotAvailable, lockUserSlots } from './plan-limits';
+import { USABLE_INVITATION_SQL, assertUserSlotAvailable, lockUserSlots } from './plan-limits';
 import type { ScopeService } from './scope.service';
 import { scopeWhere } from './scope-where';
 import { withCompanyPrefix } from './company-token';
@@ -18,7 +18,8 @@ import { withCompanyPrefix } from './company-token';
 export const INVITE_TTL_DAYS = 7;
 const INVITE_TTL_MS = INVITE_TTL_DAYS * 24 * 60 * 60 * 1000;
 
-export type InvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
+/** `unusable` = còn hạn nhưng không nhận được nữa (người mời mất quyền/bị khoá hoặc vai trò đã bị xoá) — nên huỷ và mời lại. */
+export type InvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired' | 'unusable';
 
 export function hashInviteToken(raw: string): string {
   return createHash('sha256').update(raw).digest('hex');
@@ -39,7 +40,7 @@ export function invitationStatus(row: { accepted_at: Date | null; revoked_at: Da
   return row.expires_at.getTime() <= now.getTime() ? 'expired' : 'pending';
 }
 
-function grantsOfRoles(roles: { grants: { permission: string; scope: string | null }[] }[]): Grants {
+export function grantsOfRoles(roles: { grants: { permission: string; scope: string | null }[] }[]): Grants {
   return mergeGrants(
     roles.map((r) => {
       const g: Grants = {};
@@ -125,7 +126,15 @@ export async function createInvitation(
     if (owners !== 'all' && old.some((o) => o.expires_at > now && (o.created_by === null || !owners.includes(o.created_by)))) {
       throw new ConflictException('Email này đã có lời mời do người khác tạo. Nhờ người đó huỷ lời mời trước khi mời lại.');
     }
-    if (old.length) await tx.userInvitation.updateMany({ where: { id: { in: old.map((o) => o.id) } }, data: { revoked_at: now } });
+    // Dưới khoá: kiểm lại email chưa có user (accept đồng thời có thể vừa tạo xong) rồi mới thay/ tạo lời mời.
+    const created = await tx.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' }, deleted_at: null }, select: { id: true } });
+    if (created) throw new ConflictException('Email này đã có tài khoản trong công ty của bạn');
+    if (old.length) {
+      await tx.userInvitation.updateMany({
+        where: { id: { in: old.map((o) => o.id) }, accepted_at: null, revoked_at: null },
+        data: { revoked_at: now },
+      });
+    }
     // Đếm người active + lời mời đang chờ dưới khoá advisory của công ty (cùng luật với mọi đường thêm người).
     await assertUserSlotAvailable(tx);
     return tx.userInvitation.create({
@@ -166,17 +175,33 @@ export async function invitationScope(scope: ScopeService, actor: AuthUser): Pro
 export async function revokePendingInvitationsForEmail(
   tx: Pick<Prisma.TransactionClient, 'userInvitation' | '$executeRaw'>,
   email: string,
+  /** Phạm vi users.manage của người thêm (`invitationScope`): lời mời còn hiệu lực của người ngoài phạm vi ⇒ 409 như `createInvitation`. */
+  owners: number[] | 'all' = 'all',
 ): Promise<void> {
   await lockUserSlots(tx);
-  await tx.userInvitation.updateMany({
+  const now = new Date();
+  const open = await tx.userInvitation.findMany({
     where: { email: email.trim().toLowerCase(), accepted_at: null, revoked_at: null },
-    data: { revoked_at: new Date() },
+    select: { id: true, created_by: true, expires_at: true },
   });
+  if (owners !== 'all' && open.some((o) => o.expires_at > now && (o.created_by === null || !owners.includes(o.created_by)))) {
+    throw new ConflictException('Email này đang có lời mời do người khác tạo. Nhờ người đó huỷ lời mời trước.');
+  }
+  if (open.length) {
+    await tx.userInvitation.updateMany({ where: { id: { in: open.map((o) => o.id) }, accepted_at: null, revoked_at: null }, data: { revoked_at: now } });
+  }
 }
 
 /** Người mời bị khoá/xoá: các lời mời còn chờ của họ chết cùng (không để link do tài khoản đã mất quyền tạo còn dùng được). */
-export async function revokePendingInvitationsBy(db: Pick<Prisma.TransactionClient, 'userInvitation'>, userId: number): Promise<void> {
+export async function revokePendingInvitationsBy(db: Pick<Prisma.TransactionClient, 'userInvitation' | '$executeRaw'>, userId: number): Promise<void> {
+  await lockUserSlots(db); // cùng thứ tự khoá với tạo/nhận lời mời: khoá advisory trước, dòng lời mời sau
   await db.userInvitation.updateMany({ where: { created_by: userId, accepted_at: null, revoked_at: null }, data: { revoked_at: new Date() } });
+}
+
+/** Vai trò bị xoá: lời mời vào vai trò đó không nhận được nữa — huỷ cùng giao dịch xoá. */
+export async function revokePendingInvitationsForRole(db: Pick<Prisma.TransactionClient, 'userInvitation' | '$executeRaw'>, roleId: number): Promise<void> {
+  await lockUserSlots(db);
+  await db.userInvitation.updateMany({ where: { role_id: roleId, accepted_at: null, revoked_at: null }, data: { revoked_at: new Date() } });
 }
 
 /** Lời mời gần đây (mới nhất trước). `pendingOnly` = chỉ cái còn hiệu lực; `owners` = phạm vi theo người tạo. */
@@ -198,12 +223,18 @@ export async function listInvitations(
   const roleIds = [...new Set(rows.map((r) => r.role_id).filter((x): x is number => x !== null))];
   const roles = roleIds.length ? await db.role.findMany({ where: { id: { in: roleIds } }, select: { id: true, name: true } }) : [];
   const names = new Map(roles.map((r) => [r.id, r.name]));
+  const pendingIds = rows.filter((r) => invitationStatus(r, now) === 'pending').map((r) => r.id);
+  const usable = new Set<number>(
+    pendingIds.length
+      ? (await db.$queryRawUnsafe<Array<{ id: number }>>(`SELECT i.id FROM user_invitations i WHERE i.id = ANY($1::int[]) AND ${USABLE_INVITATION_SQL}`, pendingIds)).map((x) => x.id)
+      : [],
+  );
   return rows.map((r) => ({
     id: r.id,
     email: r.email,
     role_id: r.role_id,
     role_name: r.role_id !== null ? (names.get(r.role_id) ?? null) : null,
-    status: invitationStatus(r, now),
+    status: ((s) => (s === 'pending' && !usable.has(r.id) ? 'unusable' : s))(invitationStatus(r, now)),
     expires_at: r.expires_at,
     created_at: r.created_at,
   }));
@@ -211,13 +242,16 @@ export async function listInvitations(
 
 /** Huỷ lời mời còn hiệu lực (link chết ngay). Đã dùng/đã huỷ/hết hạn thì báo rõ. */
 export async function revokeInvitation(db: PrismaService, id: number, owners: number[] | 'all' = 'all'): Promise<void> {
-  const row = await db.userInvitation.findUnique({ where: { id } });
-  // Ngoài phạm vi users.manage của người huỷ → 404 như chưa từng có.
-  if (!row || (owners !== 'all' && (row.created_by === null || !owners.includes(row.created_by)))) {
-    throw new NotFoundException('Không tìm thấy lời mời');
-  }
-  if (invitationStatus(row) !== 'pending') throw new ConflictException('Lời mời này không còn hiệu lực để huỷ');
-  await db.userInvitation.updateMany({ where: { id, accepted_at: null, revoked_at: null }, data: { revoked_at: new Date() } });
+  await db.$transaction(async (tx) => {
+    await lockUserSlots(tx); // cùng thứ tự khoá với tạo/nhận lời mời
+    const row = await tx.userInvitation.findUnique({ where: { id } });
+    // Ngoài phạm vi users.manage của người huỷ → 404 như chưa từng có.
+    if (!row || (owners !== 'all' && (row.created_by === null || !owners.includes(row.created_by)))) {
+      throw new NotFoundException('Không tìm thấy lời mời');
+    }
+    if (invitationStatus(row) !== 'pending') throw new ConflictException('Lời mời này không còn hiệu lực để huỷ');
+    await tx.userInvitation.updateMany({ where: { id, accepted_at: null, revoked_at: null }, data: { revoked_at: new Date() } });
+  });
 }
 
 export const INVITATION_GONE_MESSAGE = 'Lời mời không còn hiệu lực (đã dùng, đã bị huỷ hoặc hết hạn). Hãy nhờ chủ công ty gửi link mới.';

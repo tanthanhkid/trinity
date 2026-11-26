@@ -93,7 +93,8 @@ describe('EmployeesService', () => {
     jobTitle: { findUnique: jest.Mock };
     team: { findMany: jest.Mock };
     setting: { findUnique: jest.Mock };
-    userInvitation: { count: jest.Mock; updateMany: jest.Mock };
+    userInvitation: { count: jest.Mock; updateMany: jest.Mock; findMany: jest.Mock };
+    $queryRawUnsafe: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -119,7 +120,8 @@ describe('EmployeesService', () => {
         typeof arg === 'function' ? (arg as (tx: unknown) => unknown)(prisma) : Promise.all(arg as unknown[])),
       $executeRaw: jest.fn().mockResolvedValue(0),
       setting: { findUnique: jest.fn().mockResolvedValue(null) }, // gói mặc định custom
-      userInvitation: { count: jest.fn().mockResolvedValue(0), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+      $queryRawUnsafe: jest.fn().mockResolvedValue([{ n: 0 }]),
+      userInvitation: { count: jest.fn().mockResolvedValue(0), updateMany: jest.fn().mockResolvedValue({ count: 0 }), findMany: jest.fn().mockResolvedValue([]) },
       role: { findUnique: jest.fn() },
       userRole: { deleteMany: jest.fn(), create: jest.fn() },
       jobTitle: { findUnique: jest.fn() },
@@ -549,7 +551,8 @@ describe('EmployeesService', () => {
       const tx = {
         // assertUserSlotAvailable chạy trong transaction: gói mặc định custom ⇒ không giới hạn.
         setting: { findUnique: jest.fn().mockResolvedValue(null) },
-        userInvitation: { count: jest.fn().mockResolvedValue(0), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+        $queryRawUnsafe: jest.fn().mockResolvedValue([{ n: 0 }]),
+        userInvitation: { count: jest.fn().mockResolvedValue(0), updateMany: jest.fn().mockResolvedValue({ count: 0 }), findMany: jest.fn().mockResolvedValue([]) },
         $executeRaw: jest.fn().mockResolvedValue(0),
         user: {
           findUnique: jest.fn(),

@@ -209,7 +209,7 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 | Tool | Kind | What it does |
 |---|---|---|
 | `create_invitation` | write (`users.manage`) | One-time invitation link (7 days) for a new staff member of the user's own company; no email is sent, the user hands the link over. Needs a public base URL (otherwise a clear error, no invitation is created). Fails clearly when the plan's `maxUsers` is reached, the email belongs to another company or already has an account, or the role is above the user's own permissions (the AI cannot invite into the system "Quản trị" role) |
-| `list_invitations` | read (`users.manage`) | Pending invitations (all = include used/revoked/expired) and the roles one can invite to, within the user's `users.manage` scope (`all` sees every invitation, a narrow scope only those created by people in it). Links are never shown again |
+| `list_invitations` | read (`users.manage`) | Pending invitations (status `unusable` = the inviter lost the permission or the role was deleted; all = include used/revoked/expired) and the roles one can invite to, within the user's `users.manage` scope (`all` sees every invitation, a narrow scope only those created by people in it). Links are never shown again |
 | `cancel_invitation` | write (`users.manage`) | Cancels a pending invitation (the link stops working; nothing is deleted), same scope rule. There is deliberately no password-reset tool: the owner resets staff passwords in Settings › Users, so the AI never sees a password |
 
 ### Sales & payments

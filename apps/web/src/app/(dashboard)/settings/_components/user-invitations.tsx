@@ -16,7 +16,7 @@ export interface InvitationRow {
   email: string
   role_id: number | null
   role_name: string | null
-  status: 'pending' | 'accepted' | 'revoked' | 'expired'
+  status: 'pending' | 'accepted' | 'revoked' | 'expired' | 'unusable'
   expires_at: string
   created_at: string
 }
@@ -178,7 +178,7 @@ export function PendingInvitations() {
   if (data.length === 0) return null
   return (
     <section aria-label="Lời mời đang chờ" className="space-y-2 rounded-[var(--radius)] border bg-white p-4">
-      <h3 className="text-sm font-semibold">Lời mời đang chờ ({data.length})</h3>
+      <h3 className="text-sm font-semibold">Lời mời đang chờ ({data.filter((i) => i.status === 'pending').length})</h3>
       <ul className="divide-y">
         {data.map((inv) => (
           <li key={inv.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
@@ -187,6 +187,11 @@ export function PendingInvitations() {
               <div className="text-xs text-muted-foreground">
                 {inv.role_name ?? 'Chưa có vai trò'} · hết hạn {new Date(inv.expires_at).toLocaleDateString('vi-VN')}
               </div>
+              {inv.status === 'unusable' && (
+                <div className="text-xs font-medium text-destructive">
+                  Link này không dùng được nữa (người mời đã mất quyền hoặc vai trò đã bị xoá). Hãy huỷ và tạo link mới.
+                </div>
+              )}
             </div>
             <InviteByLinkButton prefill={{ email: inv.email, roleId: inv.role_id }} />
             <Button variant="ghost" className="h-11" disabled={revoke.isPending} onClick={() => revoke.mutate(inv.id)}>

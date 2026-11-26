@@ -3,7 +3,7 @@ import { Prisma, PrismaService } from '@trinity/prisma';
 import { ScopeService, type AuthUser } from '@trinity/rbac-nest';
 import { PublicApiService } from '../public-api/public-api.service';
 import { normalizeVnPhone } from '../integrations/webhooks/inbound/inbound-payload';
-import { phoneVariants } from '../google/sheet-mapping';
+import { phoneVariants } from '../common/helpers/phone.helper';
 
 /** Khách từ phần mềm bán hàng, đã chuẩn hoá. */
 export interface ExternalCustomer {

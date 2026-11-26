@@ -3,7 +3,8 @@ import type { GoogleSheetSync, Prisma } from '@prisma/client';
 import { PrismaService, publishIntegrationEvent, snapshotContact, CONTACT_EVENT_SELECT } from '@trinity/prisma';
 import { assertInScope, PermissionService, ScopeService, type AuthUser } from '@trinity/rbac-nest';
 import { PublicApiService } from '../public-api/public-api.service';
-import { normalizeEmail, normalizePhone, type MappedRow } from './sheet-mapping';
+import { normalizePhone } from '../common/helpers/phone.helper';
+import { normalizeEmail, type MappedRow } from './sheet-mapping';
 import { addError, type RunStats } from './sync-types';
 
 export const IMPORT_ORIGIN = 'google_sheet_import';

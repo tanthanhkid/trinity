@@ -1,18 +1,7 @@
 import { columnLetter, parseSpreadsheetId, a1Tab } from '../google-sheets-api';
 import { contactPatch } from '../sheet-import-contacts';
-import { dedupeValue, dropDuplicateRows, mapRows, normalizeEmail, normalizePhone } from '../sheet-mapping';
+import { dedupeValue, dropDuplicateRows, mapRows, normalizeEmail } from '../sheet-mapping';
 import { validateColumnMap, validateDedupe } from '../sync-validation';
-
-describe('normalizePhone', () => {
-  it.each([
-    ['0912345678', '0912345678'],
-    ['+84 912 345 678', '0912345678'],
-    ['84912345678', '0912345678'],
-    ['912345678', '0912345678'], // Sheet làm rụng số 0
-    ['0912.345.678', '0912345678'],
-  ])('%s → %s', (raw, out) => expect(normalizePhone(raw)).toBe(out));
-  it.each(['', 'abc', '12345', '091234567890123'])('từ chối %s', (raw) => expect(normalizePhone(raw)).toBeNull());
-});
 
 describe('normalizeEmail', () => {
   it('chữ thường + kiểm định dạng', () => {

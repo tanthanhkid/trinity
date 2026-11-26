@@ -705,3 +705,33 @@ fn cloudflare_tunnel_chi_nghe_loopback() {
     assert!(tunnel_listen_problem(Some("::1"), &e).is_none());
     assert!(tunnel_listen_problem(Some("0.0.0.0"), &env(&[("TRUSTED_PROXY", "none")])).is_none());
 }
+
+#[test]
+fn header_ip_khong_phai_ascii_la_400_va_localhost_la_loopback() {
+    let r = resolver(&env(&[]));
+    let mut h = HeaderMap::new();
+    h.insert("x-forwarded-for", HeaderValue::from_bytes(&[0xE9, b'1']).unwrap());
+    let d = r.determine(&Parts {
+        headers: &h,
+        peer: Some("198.51.100.9".parse().unwrap()),
+    });
+    assert!(matches!(d, Decision::Bad { .. }));
+    let e = env(&[("TRUSTED_PROXY", "cloudflare-tunnel")]);
+    assert!(tunnel_listen_problem(Some("localhost"), &e).is_none());
+}
+
+#[test]
+fn log_once_khoa_theo_loai_va_bi_chan() {
+    let r = resolver(&env(&[]));
+    for i in 0..500u32 {
+        let h = HeaderMap::new();
+        r.resolve(
+            None,
+            &Parts {
+                headers: &h,
+                peer: Some(format!("127.0.{}.{}", i / 250, i % 250 + 1).parse().unwrap()),
+            },
+        );
+    }
+    assert!(r.lock().logged.len() <= 1);
+}

@@ -115,6 +115,10 @@ pub async fn cors_layer(State(cfg): State<Arc<CorsConfig>>, req: Request, next: 
         .as_deref()
         .filter(|o| cfg.allows(o))
         .and_then(|o| HeaderValue::from_str(o).ok());
+    // Origin không được phép: không đụng tới response (như Express `cors` với hàm origin trả false).
+    if origin.is_some() && allowed.is_none() {
+        return next.run(req).await;
+    }
     let preflight = req.method() == Method::OPTIONS;
     let req_headers = req.headers().get(header::ACCESS_CONTROL_REQUEST_HEADERS).cloned();
 

@@ -230,6 +230,9 @@ pub fn tunnel_listen_problem(address: Option<&str>, env: &EnvMap) -> Option<Stri
     let Ok(TrustedProxy::CloudflareTunnel) = parse_trusted_proxy(env.get("TRUSTED_PROXY").map(String::as_str)) else {
         return None;
     };
+    if address.is_some_and(|a| a.trim().eq_ignore_ascii_case("localhost")) {
+        return None;
+    }
     if address.and_then(normalize_ip).is_some_and(|ip| ip.is_loopback()) {
         return None;
     }
@@ -462,7 +465,7 @@ struct GatewayCache {
 
 struct State_ {
     last_untrusted: Option<(u64, String)>,
-    logged: std::collections::HashMap<String, u64>,
+    logged: std::collections::HashMap<&'static str, u64>,
     gateway: Option<GatewayCache>,
 }
 
@@ -472,6 +475,8 @@ pub struct ClientIpResolver {
     cloudflare: Vec<IpNet>,
     keys: Vec<[u8; 32]>,
     probe: NetProbe,
+    /// Tính một lần lúc dựng (như `containerCache` của bản TS): đọc `/proc` mỗi request là tốn.
+    in_container: bool,
     clock_ms: Box<dyn Fn() -> u64 + Send + Sync>,
     state: Mutex<State_>,
     trusted_proxy_raw: String,
@@ -515,7 +520,9 @@ impl ClientIpResolver {
                 }
             }
         }
+        let in_container = probe.in_container();
         Ok(Self {
+            in_container,
             proxy,
             cloudflare,
             keys,
@@ -547,7 +554,7 @@ impl ClientIpResolver {
 
     /// Cổng mặc định của container (null ngoài container).
     fn gateway(&self) -> Option<IpAddr> {
-        if !self.probe.in_container() {
+        if !self.in_container {
             return None;
         }
         let now = self.now_ms();
@@ -690,6 +697,15 @@ impl ClientIpResolver {
 
     /// Xác định IP của một request (không lưu). Header có chữ ký sai/quá hạn ⇒ [`Decision::Bad`] (caller trả 400).
     pub fn determine(&self, p: &Parts<'_>) -> Decision {
+        // Header IP có byte ngoài ASCII hiển thị được: không đọc được ⇒ 400, không lặng lẽ bỏ qua rồi rơi về IP peer.
+        for name in [CLIENT_IP_HEADER, "x-forwarded-for", "x-real-ip", "cf-connecting-ip"] {
+            if p.headers.get_all(name).iter().any(|v| v.to_str().is_err()) {
+                return Decision::Bad {
+                    error: format!("Header {name} không hợp lệ"),
+                    log: format!("header {name} có byte ngoài ASCII"),
+                };
+            }
+        }
         let Some(signed) = header_joined(p.headers, CLIENT_IP_HEADER) else {
             return Decision::Ok(self.edge_ip(p));
         };
@@ -726,7 +742,9 @@ impl ClientIpResolver {
         Decision::Ok(self.finalize(Some(ip), peer, None, Source::Signed))
     }
 
-    fn log_once(&self, key: &str, msg: &str) {
+    /// `kind` là hằng cố định (không chứa chữ do client hay peer điều khiển) nên số khoá của bảng luôn bị chặn.
+    fn log_once(&self, kind: &'static str, msg: &str) {
+        let key = kind;
         let now = self.now_ms();
         {
             let mut st = self.lock();
@@ -737,7 +755,10 @@ impl ClientIpResolver {
             {
                 return;
             }
-            st.logged.insert(key.to_owned(), now);
+            if st.logged.len() >= 64 {
+                st.logged.clear();
+            }
+            st.logged.insert(key, now);
         }
         tracing::error!("{msg}");
     }
@@ -768,7 +789,7 @@ impl ClientIpResolver {
                 &self.trusted_proxy_raw
             };
             self.log_once(
-                &format!("untrusted:{reason}"),
+                "untrusted",
                 &format!("[client-ip] LỖI CẤU HÌNH: {reason}. Kiểm Wi-Fi đăng nhập và kiểm IP chấm công đang CHO QUA (không khoá ai), giới hạn tốc độ dùng chung một xô theo IP peer. Sửa TRUSTED_PROXY (TRUSTED_PROXY={shown})."),
             );
         }
@@ -805,7 +826,7 @@ pub async fn client_ip_layer(State(r): State<Arc<ClientIpResolver>>, mut req: Re
     }) {
         Decision::Bad { error, log } => {
             r.log_once(
-                &format!("bad:{log}"),
+                "bad-header",
                 &format!(
                     "[client-ip] từ chối header {CLIENT_IP_HEADER}: {log} (peer {})",
                     peer.map_or_else(|| "?".to_owned(), |p| p.to_string())

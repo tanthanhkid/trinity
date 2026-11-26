@@ -207,7 +207,7 @@ async fn cors_wildcard_subdomain_va_origin_cau_hinh() {
             assert_eq!(r.header("access-control-allow-origin"), Some(origin));
             assert_eq!(r.header("access-control-allow-credentials"), Some("true"));
         }
-        assert!(r.all("vary").iter().any(|v| v.contains("Origin")));
+        assert_eq!(r.all("vary").iter().any(|v| v.contains("Origin")), ok);
     }
 }
 
@@ -262,9 +262,9 @@ async fn json_5mb_vuot_thi_413_dang_nest_va_dung_han_thi_qua() {
         (v["statusCode"].as_u64(), v["message"].as_str()),
         (Some(413), Some("request entity too large"))
     );
-    let mut exact = vec![b'"'];
-    exact.extend(std::iter::repeat_n(b'a', JSON_LIMIT - 2));
-    exact.push(b'"');
+    let mut exact = br#"{"a":""#.to_vec();
+    exact.extend(std::iter::repeat_n(b'a', JSON_LIMIT - exact.len() - 2));
+    exact.extend_from_slice(b"\"}");
     assert_eq!(exact.len(), JSON_LIMIT);
     let r = send(s.addr, "POST", "/json", &[("Content-Type", "application/json")], &exact).await;
     assert_eq!(r.status, 200, "{}", &r.body[..r.body.len().min(200)]);
@@ -552,4 +552,45 @@ async fn body_nho_giot_61_giay_van_dung_ip_vi_kiem_luc_nhan_header() {
             .status,
         400
     );
+}
+
+#[tokio::test]
+async fn urlencoded_qs_chi_so_va_json_chi_application_json() {
+    let s = start("", false, "").await;
+    let r = send(
+        s.addr,
+        "POST",
+        "/json",
+        &[("Content-Type", "application/x-www-form-urlencoded")],
+        b"a[0]=x&a[1]=y&b[c][d]=1&k=1&k=2",
+    )
+    .await;
+    let v: Value = serde_json::from_str(&r.body).unwrap();
+    assert_eq!(
+        v["value"],
+        serde_json::json!({ "a": ["x", "y"], "b": { "c": { "d": "1" } }, "k": ["1", "2"] })
+    );
+    let r = send(
+        s.addr,
+        "POST",
+        "/json",
+        &[("Content-Type", "application/vnd.x+json")],
+        br#"{"a":1}"#,
+    )
+    .await;
+    assert_eq!(
+        serde_json::from_str::<Value>(&r.body).unwrap()["value"],
+        serde_json::json!({})
+    );
+    let r = send(
+        s.addr,
+        "POST",
+        "/json",
+        &[("Content-Type", "application/json"), ("Content-Encoding", "gzip")],
+        b"x",
+    )
+    .await;
+    assert_eq!(r.status, 415);
+    let r = send(s.addr, "POST", "/json", &[("Content-Type", "application/json")], b"5").await;
+    assert_eq!(r.status, 400);
 }

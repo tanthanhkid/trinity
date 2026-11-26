@@ -149,39 +149,10 @@ fn content_type(h: &HeaderMap) -> String {
         .unwrap_or_default()
 }
 
-fn insert_qs(root: &mut Map<String, Value>, key: &str, val: String) {
-    let (base, rest) = match key.find('[') {
-        Some(i) if key.ends_with(']') => (&key[..i], Some(&key[i + 1..key.len() - 1])),
-        _ => (key, None),
-    };
-    let v = Value::String(val);
-    match rest {
-        None => match root.get_mut(base) {
-            Some(Value::Array(a)) => a.push(v),
-            Some(old) => *old = Value::Array(vec![old.take(), v]),
-            None => {
-                root.insert(base.to_owned(), v);
-            }
-        },
-        Some("") => match root.entry(base.to_owned()).or_insert_with(|| Value::Array(vec![])) {
-            Value::Array(a) => a.push(v),
-            other => *other = Value::Array(vec![v]),
-        },
-        Some(inner) => {
-            let entry = root.entry(base.to_owned()).or_insert_with(|| Value::Object(Map::new()));
-            if let Value::Object(m) = entry {
-                m.insert(inner.to_owned(), v);
-            }
-        }
-    }
-}
-
+/// urlencoded theo `qs` extended (chung bộ phân tích với query string của K15): chỉ số mảng ≤ 20, ngoặc lồng ≤ 5,
+/// khoá trùng gộp thành mảng/đối tượng thay vì ghi đè.
 pub fn parse_urlencoded(bytes: &[u8]) -> Value {
-    let mut root = Map::new();
-    for (k, v) in url::form_urlencoded::parse(bytes) {
-        insert_qs(&mut root, &k, v.into_owned());
-    }
-    Value::Object(root)
+    crate::validate::query_to_json(&String::from_utf8_lossy(bytes))
 }
 
 impl<S, T> FromRequest<S> for ParsedBody<T>
@@ -194,7 +165,7 @@ where
     async fn from_request(req: Request, _state: &S) -> Result<Self, Self::Rejection> {
         let max = limit_of(&req);
         let ct = content_type(req.headers());
-        let is_json = ct == "application/json" || ct.ends_with("+json");
+        let is_json = ct == "application/json";
         let is_form = ct == "application/x-www-form-urlencoded";
         let empty = || {
             serde_json::from_value::<T>(Value::Object(Map::new()))
@@ -206,10 +177,34 @@ where
                 raw: None,
             });
         }
+        // Không giải nén: Content-Encoding khác identity ⇒ 415 (body-parser mặc định của Nest có giải nén, nhưng web/Caddy
+        // không gửi body nén tới API; từ chối rõ ràng tốt hơn đọc rác).
+        if let Some(enc) = req
+            .headers()
+            .get(header::CONTENT_ENCODING)
+            .and_then(|v| v.to_str().ok())
+            && !enc.trim().is_empty()
+            && !enc.trim().eq_ignore_ascii_case("identity")
+        {
+            return Err(error_response(&HttpError::with_label(
+                415,
+                "unsupported content encoding",
+                "Unsupported Media Type",
+            )));
+        }
         let bytes = read_limited(req.into_body(), max)
             .await
             .map_err(|e| error_response(&e))?;
         if is_json {
+            // Chế độ strict của body-parser: gốc phải là đối tượng hoặc mảng.
+            if !bytes.is_empty()
+                && !matches!(
+                    bytes.iter().find(|b| !b.is_ascii_whitespace()),
+                    Some(b'{' | b'[') | None
+                )
+            {
+                return Err(error_response(&HttpError::bad_request("Unexpected token in JSON")));
+            }
             let value = if bytes.is_empty() {
                 empty()?
             } else {

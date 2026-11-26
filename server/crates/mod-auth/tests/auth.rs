@@ -139,9 +139,9 @@ fn code(e: &AuthFail) -> u16 {
 }
 
 fn msg(e: &AuthFail) -> String {
-    match serde_json::to_value(&e.error().body().message).unwrap() {
-        Value::String(s) => s,
-        v => v.to_string(),
+    match e.error().body().message {
+        trinity_kernel::error::Message::One(s) => s,
+        many => serde_json::to_string(&many).unwrap(),
     }
 }
 

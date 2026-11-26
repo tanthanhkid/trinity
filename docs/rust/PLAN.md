@@ -1428,7 +1428,7 @@ Chạy ở gốc repo. `EX` = `--include='*.ts' --exclude='*.spec.ts' --exclude=
 
 ### Lượt 1 (26/11/2026)
 
-Nguồn: `docs/rust/reviews/REVIEW-1.md` (3 CHẶN, 17 QUAN TRỌNG, 16 NHỎ) và `docs/rust/DECISIONS.md` (8 quyết định). Số issue từ
+Nguồn: `docs/rust/REVIEW-1.md` (3 CHẶN, 17 QUAN TRỌNG, 16 NHỎ) và `docs/rust/DECISIONS.md` (8 quyết định). Số issue từ
 150 lên 175; ước lượng từ 94 lên 205 ngày-agent.
 
 **Quyết định của chủ dự án đã đưa vào:**
@@ -1497,7 +1497,7 @@ xem lượt 2):
 
 ### Lượt 2 (26/11/2026)
 
-Nguồn: `docs/rust/reviews/REVIEW-2.md` (1 CHẶN, 12 QUAN TRỌNG, 14 NHỎ; 3 mục lượt 1 xử lý sai, 1 mục chưa đủ) và hai câu trả
+Nguồn: `docs/rust/REVIEW-2.md` (1 CHẶN, 12 QUAN TRỌNG, 14 NHỎ; 3 mục lượt 1 xử lý sai, 1 mục chưa đủ) và hai câu trả
 lời cho mục 12. Số issue từ 175 lên 181; ước lượng từ 205 lên 250–300 ngày-agent (212 theo quy ước cỡ là khoảng dưới).
 
 **Mục lượt 1 xử lý sai hoặc chưa đủ, đã sửa:**
@@ -1553,7 +1553,7 @@ lời cho mục 12. Số issue từ 175 lên 181; ước lượng từ 205 lên 
 
 ### Lượt 3 (26/11/2026)
 
-Nguồn: `docs/rust/reviews/REVIEW-3.md` (1 CHẶN, 3 QUAN TRỌNG, 13 NHỎ; N-7 lượt 2 sửa nhầm cột; tiền đề của N-2 lượt 2 sai với
+Nguồn: `docs/rust/REVIEW-3.md` (1 CHẶN, 3 QUAN TRỌNG, 13 NHỎ; N-7 lượt 2 sửa nhầm cột; tiền đề của N-2 lượt 2 sai với
 một job). Số issue từ 181 lên 183 (W02 tách W02a/W02b; thêm X15); 214,5 ngày-agent theo quy ước cỡ, ước thực tế giữ
 250–300.
 
@@ -1587,7 +1587,7 @@ Không có phát hiện nào của lượt 3 bị từ chối. Một lựa chọ
 
 ### Lượt 4 (26/11/2026)
 
-Nguồn: `docs/rust/reviews/REVIEW-4.md` (0 CHẶN, 2 QUAN TRỌNG, 9 NHỎ). Số issue từ 183 lên 185 (thêm G16; X15 tách X15a/X15b);
+Nguồn: `docs/rust/REVIEW-4.md` (0 CHẶN, 2 QUAN TRỌNG, 9 NHỎ). Số issue từ 183 lên 185 (thêm G16; X15 tách X15a/X15b);
 216 ngày-agent theo quy ước cỡ, ước thực tế giữ 250–300.
 
 **Kiểm lại bằng `check-issues.py`** sau khi sửa: 185 issue = 38 S + 97 M + 50 L = 216 ngày-agent; 0 ID trùng; 0 tham
@@ -1613,7 +1613,7 @@ với gợi ý đó.
 
 ### Lượt 5 (26/11/2026)
 
-Nguồn: `docs/rust/reviews/REVIEW-5.md` (0 CHẶN, 2 QUAN TRỌNG, 7 NHỎ; hai mục lượt 4 sửa chưa trọn). Số issue giữ 185; G16 lên
+Nguồn: `docs/rust/REVIEW-5.md` (0 CHẶN, 2 QUAN TRỌNG, 7 NHỎ; hai mục lượt 4 sửa chưa trọn). Số issue giữ 185; G16 lên
 cỡ M nên theo quy ước cỡ là 216,5 ngày-agent; ước thực tế giữ 250–300.
 
 **Kiểm lại bằng `check-issues.py`** sau khi sửa: 185 issue = 37 S + 98 M + 50 L = 216,5 ngày-agent; 0 ID trùng; 0 tham
@@ -1638,7 +1638,7 @@ minh (Caddy/nginx), và mặc định là IP peer, để một proxy nội bộ 
 
 ### Lượt 6 (26/11/2026)
 
-Nguồn: `docs/rust/reviews/REVIEW-6.md` (0 CHẶN, 3 QUAN TRỌNG cùng ở luật IP, 8 NHỎ). Số issue từ 185 lên 186 (G16 tách G16a
+Nguồn: `docs/rust/REVIEW-6.md` (0 CHẶN, 3 QUAN TRỌNG cùng ở luật IP, 8 NHỎ). Số issue từ 185 lên 186 (G16 tách G16a
 cỡ L và G16b cỡ M); 218,5 ngày-agent theo quy ước cỡ; ước thực tế giữ 250–300.
 
 **Kiểm lại bằng `check-issues.py`** sau khi sửa: 186 issue = 37 S + 98 M + 51 L = 218,5 ngày-agent; 0 ID trùng; 0 tham
@@ -1668,7 +1668,7 @@ một biến `TRUSTED_PROXY` thay vì giữ hai cờ `TRUST_CF_IP`/`TRUST_PROXY_
 
 ### Lượt 7 (26/11/2026)
 
-Nguồn: `docs/rust/reviews/REVIEW-7.md` (0 CHẶN, 3 QUAN TRỌNG cùng ở luật IP, 8 NHỎ). Làm theo đúng đề xuất của reviewer. Số
+Nguồn: `docs/rust/REVIEW-7.md` (0 CHẶN, 3 QUAN TRỌNG cùng ở luật IP, 8 NHỎ). Làm theo đúng đề xuất của reviewer. Số
 issue giữ 186; G16b lên cỡ L nên theo quy ước cỡ là 219,5 ngày-agent; ước thực tế giữ 250–300.
 
 **Kiểm lại bằng `check-issues.py`** sau khi sửa: 186 issue = 37 S + 97 M + 52 L = 219,5 ngày-agent; 0 ID trùng; 0 tham
@@ -1692,7 +1692,7 @@ Không có phát hiện nào của lượt 7 bị từ chối.
 
 ### Lượt 8, lượt chốt (26/11/2026)
 
-Nguồn: `docs/rust/reviews/REVIEW-8.md` (0 CHẶN, 2 QUAN TRỌNG, 7 NHỎ; reviewer xác nhận sửa xong 2 QUAN TRỌNG là đủ để bắt đầu).
+Nguồn: `docs/rust/REVIEW-8.md` (0 CHẶN, 2 QUAN TRỌNG, 7 NHỎ; reviewer xác nhận sửa xong 2 QUAN TRỌNG là đủ để bắt đầu).
 Không thêm issue, không đổi cỡ.
 
 **Kiểm lại bằng `check-issues.py`** sau khi sửa: 186 issue = 37 S + 97 M + 52 L = 219,5 ngày-agent; 0 ID trùng; 0 tham

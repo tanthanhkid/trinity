@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { ConflictException, ForbiddenException, GoneException } from '@nestjs/common'
+import { ConflictException, ForbiddenException, GoneException, NotFoundException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import {
   CompanyRef,
@@ -19,6 +19,7 @@ import {
 import {
   ActiveSessionService,
   TokenBlacklistService,
+  assertUserSlotAvailable,
   createInvitation,
   hashInviteToken,
   listInvitations,
@@ -250,14 +251,20 @@ describePg('mời nhân viên bằng link (Postgres, nhiều công ty)', () => {
     // Huỷ một lời mời → chỗ trống lại.
     await runWithCompany(B, () => revokeInvitation(db, i2.id))
     const i3 = await runWithCompany(B, () => createInvitation(db, adminOf(owner), { email: `b-i3-${stamp}@example.com`, roleId: role.id }))
-    // Chủ công ty thêm trực tiếp 1 người nữa (9), nhận i1 (10) được; nhận i3 khi đã đủ 10 thì bị chặn và link còn nguyên.
+    // Thêm người trực tiếp (tạo user / mở khoá / nhân viên) cũng phải thấy hai lời mời đang chờ: 8 + 2 = 10 → chặn.
+    const direct = await runWithCompany(B, () => db.$transaction((tx) => assertUserSlotAvailable(tx))).catch((e) => e)
+    expect(direct).toBeInstanceOf(ConflictException)
+    // Một đường ghi thẳng bỏ qua kiểm (mô phỏng dữ liệu cũ) đẩy lên 9 người + 2 lời mời: nhận i1 bị chặn, link còn nguyên.
     await runWithCompany(B, () => db.user.create({ data: { email: `b-direct-${stamp}@example.com`, password_hash: 'x', full_name: 'Direct', status: 'active' } }))
-    await expect(publicRequest(() => auth.acceptInvitation({ token: i1.token, full_name: 'Người mười', password: 'matkhau-moi-1' }, null))).resolves.toMatchObject({ company: { id: B.id } })
-    const full = await publicRequest(() => auth.acceptInvitation({ token: i3.token, full_name: 'Người mười một', password: 'matkhau-moi-1' }, null)).catch((e) => e)
+    const full = await publicRequest(() => auth.acceptInvitation({ token: i1.token, full_name: 'Người mười', password: 'matkhau-moi-1' }, null)).catch((e) => e)
     expect(full).toBeInstanceOf(ConflictException)
     expect(full.message).toBe('Gói hiện tại tối đa 10 người, liên hệ để nâng gói.')
-    expect(await runWithCompany(B, () => db.user.count({ where: { email: `b-i3-${stamp}@example.com` } }))).toBe(0)
-    await expect(publicRequest(() => auth.previewInvitation(i3.token))).resolves.toMatchObject({ company_name: 'Công ty B' })
+    expect(await runWithCompany(B, () => db.user.count({ where: { email: `b-i1-${stamp}@example.com` } }))).toBe(0)
+    await expect(publicRequest(() => auth.previewInvitation(i1.token))).resolves.toMatchObject({ company_name: 'Công ty B' })
+    // Huỷ i3 → còn 9 người + 0 lời mời đang chờ khác → i1 nhận được.
+    await runWithCompany(B, () => revokeInvitation(db, i3.id))
+    await expect(publicRequest(() => auth.acceptInvitation({ token: i1.token, full_name: 'Người mười', password: 'matkhau-moi-1' }, null))).resolves.toMatchObject({ company: { id: B.id } })
+    expect(await runWithCompany(B, () => db.user.count({ where: { status: 'active' } }))).toBe(10)
   })
 
   it('gói tuỳ biến (custom) không giới hạn số lời mời', async () => {
@@ -266,5 +273,60 @@ describePg('mời nhân viên bằng link (Postgres, nhiều công ty)', () => {
       await runWithCompany(A, () => createInvitation(db, adminOf(ownerA), { email: `many-${i}-${stamp}@example.com`, roleId: staffRoleA }))
     }
     expect((await runWithCompany(A, () => listInvitations(db, { pendingOnly: true }))).length).toBeGreaterThanOrEqual(12)
+  })
+
+  it('công ty đăng ký mới được ghi gói mặc định có giới hạn; thiếu dòng gói vẫn không thành "không giới hạn"', async () => {
+    const plan = (c: CompanyRef) => runWithCompany(c, () => db.setting.findUnique({ where: { key: 'org_plan' } }))
+    expect((await plan(B))?.value).toBe('ket_noi')
+    const c = (await provisionCompany({ companyName: 'Công ty C', adminEmail: `chu-c-${stamp}@example.com`, adminPassword: 'password-c-123', adminName: 'Chủ C' })).company
+    expect((await plan(c))?.value).toBe('ket_noi')
+    // Xoá dòng gói (công ty cũ trước thay đổi này không có dòng): vẫn bị giới hạn 10 người như gói mặc định.
+    await runWithCompany(c, async () => {
+      await db.setting.delete({ where: { key: 'org_plan' } })
+      for (let i = 0; i < 9; i++) await db.user.create({ data: { email: `c-fill-${i}-${stamp}@example.com`, password_hash: 'x', full_name: `F${i}`, status: 'active' } })
+    })
+    const err = await runWithCompany(c, () => db.$transaction((tx) => assertUserSlotAvailable(tx))).catch((e) => e)
+    expect(err).toBeInstanceOf(ConflictException)
+  })
+
+  it('hai lượt thêm người đồng thời ở ngưỡng: chỉ một lượt qua (mọi đường dùng cùng khoá + cùng cách đếm, gồm lời mời đang chờ)', async () => {
+    const c = (await provisionCompany({ companyName: 'Công ty D', adminEmail: `chu-d-${stamp}@example.com`, adminPassword: 'password-d-123', adminName: 'Chủ D' })).company
+    await runWithCompany(c, async () => {
+      for (let i = 0; i < 8; i++) await db.user.create({ data: { email: `d-fill-${i}-${stamp}@example.com`, password_hash: 'x', full_name: `F${i}`, status: 'active' } })
+    })
+    // 9 người: còn đúng một chỗ.
+    const add = (n: number) =>
+      runWithCompany(c, () =>
+        db.$transaction(async (tx) => {
+          await assertUserSlotAvailable(tx)
+          await new Promise((r) => setTimeout(r, 150)) // giữ giao dịch mở để lượt kia phải chờ khoá
+          await tx.user.create({ data: { email: `d-race-${n}-${stamp}@example.com`, password_hash: 'x', full_name: `R${n}`, status: 'active' } })
+        }),
+      )
+    const results = await Promise.allSettled([add(1), add(2)])
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+    expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1)
+    expect(await runWithCompany(c, () => db.user.count())).toBe(10)
+    // Đủ 10: một lời mời mới cũng bị chặn, và huỷ chỗ trống rồi thì lượt thêm người trực tiếp thấy lời mời đang chờ.
+    await runWithCompany(c, () => db.user.update({ where: { email: `d-race-1-${stamp}@example.com` }, data: { status: 'locked' } }).catch(() => db.user.update({ where: { email: `d-race-2-${stamp}@example.com` }, data: { status: 'locked' } })))
+    const role = await runWithCompany(c, () => db.role.findFirstOrThrow())
+    const owner = await runWithCompany(c, () => db.user.findFirstOrThrow({ where: { email: `chu-d-${stamp}@example.com` } }))
+    await runWithCompany(c, () => createInvitation(db, adminOf(owner.id), { email: `d-inv-${stamp}@example.com`, roleId: role.id }))
+    await expect(runWithCompany(c, () => db.$transaction((tx) => assertUserSlotAvailable(tx)))).rejects.toBeInstanceOf(ConflictException)
+  })
+
+  it('list/huỷ theo phạm vi users.manage: scope hẹp chỉ thấy/huỷ lời mời của người trong phạm vi', async () => {
+    const role = staffRoleA
+    const mine = await runWithCompany(A, () => createInvitation(db, adminOf(ownerA), { email: `sc-mine-${stamp}@example.com`, roleId: role }))
+    const other = await runWithCompany(A, () => createInvitation(db, adminOf(4242), { email: `sc-other-${stamp}@example.com`, roleId: role }))
+    const emails = async (owners: number[] | 'all') => (await runWithCompany(A, () => listInvitations(db, { pendingOnly: true, owners }))).map((i) => i.email)
+    expect(await emails('all')).toEqual(expect.arrayContaining([mine.email, other.email]))
+    const narrow = await emails([ownerA])
+    expect(narrow).toContain(mine.email)
+    expect(narrow).not.toContain(other.email)
+    expect(await emails([])).toEqual([])
+    await expect(runWithCompany(A, () => revokeInvitation(db, other.id, [ownerA]))).rejects.toBeInstanceOf(NotFoundException)
+    await expect(runWithCompany(A, () => revokeInvitation(db, mine.id, [ownerA]))).resolves.toBeUndefined()
+    await expect(runWithCompany(A, () => revokeInvitation(db, other.id, 'all'))).resolves.toBeUndefined()
   })
 })

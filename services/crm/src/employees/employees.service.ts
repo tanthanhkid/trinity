@@ -935,10 +935,8 @@ export class EmployeesService {
       jobTitleName = jobTitle.name;
     }
 
-    // Gói dịch vụ: tạo user mới hoặc khôi phục user đã xoá mềm đều chiếm 1 chỗ trong max_users.
-    if (!existingUser || existingUser.deleted_at != null) {
-      await assertUserSlotAvailable(this.prisma);
-    }
+    // Gói dịch vụ: tạo user mới hoặc khôi phục user đã xoá mềm đều chiếm 1 chỗ trong max_users (kiểm trong transaction ghi, bên dưới).
+    const takesSlot = !existingUser || existingUser.deleted_at != null;
     // Multi-tenant: an email belongs to one company only (login looks the company up by email).
     if (!existingUser) await assertEmailAvailableForCurrentCompany(dto.email);
 
@@ -955,6 +953,7 @@ export class EmployeesService {
     } = { value: null };
 
     const employee = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      if (takesSlot) await assertUserSlotAvailable(tx);
       // team_id/manager_id nay CHỈ theo lựa chọn Team tường minh (applyTeamAssignment ở
       // trên) hoặc dto.manager_id — KHÔNG suy theo tên vai trò.
       const syncedTeamId = dto.team_id ?? null;
@@ -1349,9 +1348,8 @@ export class EmployeesService {
     }
     // Mở khoá chiếm lại 1 chỗ trong max_users của gói (chỗ đó có thể đã bị người khác dùng) — cùng luật với
     // đường mở khoá ở services/auth (users.service). Hết chỗ ⇒ lỗi của gói, không bật lại tài khoản.
-    await assertUserSlotAvailable(this.prisma);
-
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await assertUserSlotAvailable(tx);
       await tx.user.update({ where: { id: employee.user_id }, data: { status: 'active' } });
       await recordEmploymentStart(tx, id);
       await tx.employee.update({ where: { id }, data: { status: 'active', resigned_at: null } });

@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, GoneException, NotFoundException } from '@nestjs/common';
-import { createInvitation, listInvitations, INVITE_TTL_DAYS } from '@trinity/rbac-nest';
+import { createInvitation, invitationScope, listInvitations, revokeInvitation, INVITE_TTL_DAYS } from '@trinity/rbac-nest';
 import { wrapData } from '../ai-output';
 import { ToolUserError, type ToolDef } from './tool-types';
 
@@ -11,13 +11,15 @@ export const listInvitationsTool: ToolDef = {
   title: 'Lời mời nhân viên / List staff invitations',
   description:
     'Liệt kê lời mời nhân viên bằng link: email, vai trò, trạng thái (pending = còn hiệu lực, accepted = đã vào, revoked = đã huỷ, expired = hết hạn), hạn dùng; kèm roles = các vai trò có thể mời vào (id + tên). ' +
-    'Mặc định chỉ lời mời còn hiệu lực; all = true để xem cả cái đã dùng/huỷ/hết hạn. Link không xem lại được (chỉ hiện lúc tạo) — cần link mới thì create_invitation lại cho cùng email. Chỉ đọc. ' +
+    'Mặc định chỉ lời mời còn hiệu lực; all = true để xem cả cái đã dùng/huỷ/hết hạn. Link không xem lại được (chỉ hiện lúc tạo) — cần link mới thì create_invitation lại cho cùng email; huỷ một lời mời thì cancel_invitation. Chỉ đọc. ' +
     '/ Lists staff invitations (links are shown only once, at creation) plus the roles one can invite to. Read-only.',
   permissions: ['users.manage'],
   input: (z) => ({ all: z.boolean().optional().describe('true = cả lời mời đã dùng/huỷ/hết hạn / Include non-pending ones') }),
   output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
-  async run(args, { deps }) {
-    const rows = await listInvitations(deps.prisma, { pendingOnly: args.all !== true });
+  async run(args, { deps, principal }) {
+    // Theo phạm vi users.manage của người dùng: 'all' thấy hết, phạm vi hẹp chỉ lời mời của người trong phạm vi.
+    const owners = await invitationScope(deps.scope, principal.user);
+    const rows = await listInvitations(deps.prisma, { pendingOnly: args.all !== true, owners });
     const roles = await deps.prisma.role.findMany({ select: { id: true, name: true, is_system: true }, orderBy: { id: 'asc' }, take: 100 });
     const out = wrapData({
       invitations: rows.map((r) => ({ id: r.id, email: r.email, role: r.role_name, status: r.status, expires_at: iso(r.expires_at), created_at: iso(r.created_at) })),
@@ -36,7 +38,7 @@ export const createInvitationTool: ToolDef = {
     `Link hết hạn sau ${INVITE_TTL_DAYS} ngày, dùng một lần; người được mời mở link, nhập tên + mật khẩu là có tài khoản với vai trò đã chọn. ` +
     'Cần email và vai trò (role_id hoặc role_name, xem list_invitations → roles). Mời lại cùng email thì link cũ chết. ' +
     'Báo lỗi rõ khi: vượt số người của gói, email đã dùng ở công ty khác hoặc đã có tài khoản, vai trò to hơn quyền người dùng (vai trò Quản trị không mời qua AI được). ' +
-    'Chỉ tạo khi CHÍNH người dùng yêu cầu mời người đó. Không có công cụ xoá — huỷ lời mời làm trên màn Người dùng. ' +
+    'Chỉ tạo khi CHÍNH người dùng yêu cầu mời người đó. Huỷ lời mời: cancel_invitation (không xoá được gì; người dùng tự đặt lại mật khẩu nhân viên trên màn Người dùng — AI không đụng mật khẩu). ' +
     '/ Creates a one-time invitation link (7 days) for a new staff member; no email is sent — hand the link to the user.',
   permissions: ['users.manage'],
   scope: 'crm.write',
@@ -48,6 +50,11 @@ export const createInvitationTool: ToolDef = {
   }),
   output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
   async run(args, { deps, principal, baseUrl }) {
+    // Không có địa chỉ gốc công khai thì không thể dựng link dùng được — báo trước khi tạo, đừng để lại lời mời mồ côi.
+    const origin = (baseUrl ?? '').trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(origin)) {
+      throw new ToolUserError('Máy chủ chưa cấu hình địa chỉ công khai (INTEGRATIONS_PUBLIC_BASE_URL) nên chưa dựng được link mời; chưa tạo lời mời nào. Hãy báo quản trị máy chủ, hoặc mời bằng nút "Mời bằng link" trên màn Người dùng. / Public base URL is not configured; no invitation was created.');
+    }
     let roleId = typeof args.role_id === 'number' ? args.role_id : undefined;
     if (roleId === undefined && typeof args.role_name === 'string' && args.role_name.trim()) {
       const r = await deps.prisma.role.findFirst({ where: { name: { equals: args.role_name.trim(), mode: 'insensitive' } }, select: { id: true } });
@@ -57,7 +64,7 @@ export const createInvitationTool: ToolDef = {
     if (roleId === undefined) throw new ToolUserError('Cần role_id hoặc role_name (xem list_invitations → roles). / role_id or role_name is required.');
     try {
       const inv = await createInvitation(deps.prisma, principal.user, { email: String(args.email), roleId });
-      const link = `${(baseUrl ?? '').replace(/\/+$/, '')}${inv.path}`;
+      const link = `${origin}${inv.path}`;
       const out = wrapData({
         invitation_id: inv.id,
         email: inv.email,
@@ -76,5 +83,30 @@ export const createInvitationTool: ToolDef = {
   },
 };
 
-export const INVITATION_TOOLS: readonly ToolDef[] = [listInvitationsTool, createInvitationTool];
+/** Huỷ lời mời còn hiệu lực (link chết ngay). Không xoá bản ghi; muốn mời lại thì create_invitation. */
+export const cancelInvitationTool: ToolDef = {
+  name: 'cancel_invitation',
+  title: 'Huỷ lời mời nhân viên / Cancel a staff invitation',
+  description:
+    'Huỷ một lời mời còn hiệu lực (invitation_id lấy từ list_invitations): link chết ngay, người được mời không dùng được nữa. Không xoá gì, mời lại bằng create_invitation. ' +
+    'Chỉ huỷ lời mời trong phạm vi users.manage của người dùng; chỉ làm khi CHÍNH người dùng yêu cầu. / Cancels a pending invitation (the link stops working); nothing is deleted.',
+  permissions: ['users.manage'],
+  scope: 'crm.write',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+  input: (z) => ({ invitation_id: z.number().int().min(1).max(2_147_483_647).describe('Id lời mời (list_invitations) / Invitation id') }),
+  output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
+  async run(args, { deps, principal }) {
+    const id = Number(args.invitation_id);
+    try {
+      await revokeInvitation(deps.prisma, id, await invitationScope(deps.scope, principal.user));
+    } catch (e) {
+      if (e instanceof ConflictException || e instanceof NotFoundException) throw new ToolUserError(e.message);
+      throw e;
+    }
+    const out = wrapData({ invitation_id: id, status: 'revoked' });
+    return { structured: out, text: JSON.stringify(out) };
+  },
+};
+
+export const INVITATION_TOOLS: readonly ToolDef[] = [listInvitationsTool, createInvitationTool, cancelInvitationTool];
 

@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common';
-import { createInvitationTool, listInvitationsTool } from '../tools/invitation-tools';
+import { cancelInvitationTool, createInvitationTool, listInvitationsTool } from '../tools/invitation-tools';
 import { ToolUserError } from '../tools/tool-types';
 import { MCP_TOOLS } from '../mcp-tools.registry';
 
@@ -7,12 +7,15 @@ jest.mock('@trinity/rbac-nest', () => ({
   ...jest.requireActual('@trinity/rbac-nest'),
   createInvitation: jest.fn(),
   listInvitations: jest.fn(),
+  revokeInvitation: jest.fn(),
+  invitationScope: jest.fn().mockResolvedValue('all'),
 }));
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const rbac = require('@trinity/rbac-nest') as { createInvitation: jest.Mock; listInvitations: jest.Mock };
+const rbac = require('@trinity/rbac-nest') as { createInvitation: jest.Mock; listInvitations: jest.Mock; revokeInvitation: jest.Mock; invitationScope: jest.Mock };
 
 const actor = { userId: 7, email: 'chu@x', isAdmin: false, grants: {} };
-const ctx = (prisma: unknown) => ({ deps: { prisma }, baseUrl: 'https://crm.example/', principal: { userId: 7, user: actor } }) as never;
+const scope = { ownerIds: jest.fn() };
+const ctx = (prisma: unknown, baseUrl = 'https://crm.example/') => ({ deps: { prisma, scope }, baseUrl, principal: { userId: 7, user: actor } }) as never;
 const prisma = { role: { findFirst: jest.fn(), findMany: jest.fn() } };
 
 beforeEach(() => jest.clearAllMocks());
@@ -32,6 +35,13 @@ describe('create_invitation', () => {
     expect(rbac.createInvitation).toHaveBeenCalledWith(prisma, actor, { email: 'nv@x.vn', roleId: 2 });
     expect(r.data.invite_link).toBe('https://crm.example/invite/c3.AbCdEf_-123');
     expect(r.data.expires_at).toBe('2026-12-03T00:00:00.000Z');
+  });
+
+  it('thiếu địa chỉ công khai ⇒ lỗi rõ, KHÔNG tạo lời mời, không trả đường dẫn tương đối', async () => {
+    for (const bad of ['', '   ', '/']) {
+      await expect(createInvitationTool.run({ email: 'a@x.vn', role_id: 2 }, ctx(prisma, bad))).rejects.toThrow(/địa chỉ công khai/);
+    }
+    expect(rbac.createInvitation).not.toHaveBeenCalled();
   });
 
   it('role_name tra ra id; tên lạ báo lỗi, không tạo', async () => {
@@ -60,11 +70,35 @@ describe('list_invitations', () => {
     rbac.listInvitations.mockResolvedValue([{ id: 1, email: 'a@x.vn', role_id: 2, role_name: 'Nhân viên', status: 'pending', expires_at: new Date('2026-12-01T00:00:00Z'), created_at: new Date('2026-11-24T00:00:00Z') }]);
     prisma.role.findMany.mockResolvedValue([{ id: 2, name: 'Nhân viên', is_system: false }]);
     const r = (await listInvitationsTool.run({}, ctx(prisma))).structured as { data: { invitations: Array<Record<string, unknown>>; roles: unknown[] } };
-    expect(rbac.listInvitations).toHaveBeenCalledWith(prisma, { pendingOnly: true });
+    expect(rbac.listInvitations).toHaveBeenCalledWith(prisma, { pendingOnly: true, owners: 'all' });
     expect(r.data.invitations[0]).toMatchObject({ email: 'a@x.vn', role: 'Nhân viên', status: 'pending' });
     expect(JSON.stringify(r)).not.toMatch(/token|invite_link|invite\//);
     expect(r.data.roles).toEqual([{ id: 2, name: 'Nhân viên', system: false }]);
     await listInvitationsTool.run({ all: true }, ctx(prisma));
-    expect(rbac.listInvitations).toHaveBeenLastCalledWith(prisma, { pendingOnly: false });
+    expect(rbac.listInvitations).toHaveBeenLastCalledWith(prisma, { pendingOnly: false, owners: 'all' });
+  });
+  it('phạm vi hẹp của users.manage được chuyển xuống', async () => {
+    rbac.invitationScope.mockResolvedValueOnce([7, 8]);
+    rbac.listInvitations.mockResolvedValue([]);
+    prisma.role.findMany.mockResolvedValue([]);
+    await listInvitationsTool.run({}, ctx(prisma));
+    expect(rbac.listInvitations).toHaveBeenLastCalledWith(prisma, { pendingOnly: true, owners: [7, 8] });
+  });
+});
+
+describe('cancel_invitation', () => {
+  it('huỷ theo phạm vi; cần users.manage + crm.write; không đụng mật khẩu', async () => {
+    expect(cancelInvitationTool.permissions).toEqual(['users.manage']);
+    expect(cancelInvitationTool.scope).toBe('crm.write');
+    expect(MCP_TOOLS.some((t) => /password/i.test(t.name))).toBe(false);
+    rbac.invitationScope.mockResolvedValueOnce([7]);
+    rbac.revokeInvitation.mockResolvedValue(undefined);
+    const r = (await cancelInvitationTool.run({ invitation_id: 5 }, ctx(prisma))).structured as { data: Record<string, unknown> };
+    expect(rbac.revokeInvitation).toHaveBeenCalledWith(prisma, 5, [7]);
+    expect(r.data).toMatchObject({ invitation_id: 5, status: 'revoked' });
+  });
+  it('lời mời không còn hiệu lực / ngoài phạm vi ⇒ lỗi cho AI', async () => {
+    rbac.revokeInvitation.mockRejectedValueOnce(new ConflictException('Lời mời này không còn hiệu lực để huỷ'));
+    await expect(cancelInvitationTool.run({ invitation_id: 5 }, ctx(prisma))).rejects.toBeInstanceOf(ToolUserError);
   });
 });

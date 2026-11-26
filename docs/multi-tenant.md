@@ -55,10 +55,10 @@ There is no email service, so an invitation is a link the owner copies and sends
    `{ token, path }`; the web builds the link `<site>/invite/<token>`. The token is `cN.` + 32 random bytes (the prefix
    routes it to company *N*'s schema, like API keys), stored only as a SHA-256 hash, valid 7 days, single use.
 2. Checks at creation: the email must not belong to another company (`platform.company_logins`) or already have an
-   account here, and `active users + pending invitations` must stay below the plan's `maxUsers`
+   account here, and `active users + pending invitations` must stay below the plan's `maxUsers` (new companies get `DEFAULT_SIGNUP_PLAN`, `ket_noi`; a company ≥ 2 with no plan row is treated the same, only company 1 / single-company installs default to unlimited `custom`; every path that adds an active user takes one advisory lock per company)
    ("Gói hiện tại tối đa N người, liên hệ để nâng gói."; plan `custom` = unlimited). Inviting the same email again
    replaces the old link. Pending invitations are listed (`GET /auth/invitations`) and can be cancelled
-   (`POST /auth/invitations/:id/revoke`); the link itself is never shown again.
+   (`POST /auth/invitations/:id/revoke`), following the `users.manage` scope (`all` sees every invitation, a narrow scope only those created by people in it); the link itself is never shown again.
 3. The invitee opens `/invite/<token>` (public): `POST /auth/invitations/preview` shows company, email and role;
    `POST /auth/invitations/accept` takes a name and password, creates the user (and its employee record) in the
    invitation's company with the chosen role, and returns tokens like a login. The plan limit is checked again then,
@@ -67,7 +67,7 @@ There is no email service, so an invitation is a link the owner copies and sends
 4. Forgot password: the owner opens the user in Settings › Users › *Cài lại mật khẩu*; *Tạo mật khẩu tạm* fills a random
    password that is shown once after saving, to copy and send. (`PATCH /users/:id/reset-password` revokes the old
    sessions.)
-5. MCP: `create_invitation` (returns the link; never the *Quản trị* role through AI) and `list_invitations`.
+5. MCP: `create_invitation` (returns the link; needs a public base URL; never the *Quản trị* role through AI), `list_invitations` and `cancel_invitation`. No password tool: the AI never handles passwords.
 
 The old database trigger "one user per company" is gone: migration `0019_user_invitations` drops it in every schema
 (`migrate:companies`), and `installSyncTriggers` (version `trinity-sync-v3`) no longer creates it.

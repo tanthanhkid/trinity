@@ -1,7 +1,17 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseIntPipe, Post, Query, Req } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { Request } from 'express'
-import { Can, CurrentUser, Public, createInvitation, listInvitations, revokeInvitation, type AuthUser } from '@trinity/rbac-nest'
+import {
+  Can,
+  CurrentUser,
+  Public,
+  ScopeService,
+  createInvitation,
+  invitationScope,
+  listInvitations,
+  revokeInvitation,
+  type AuthUser,
+} from '@trinity/rbac-nest'
 import { PrismaService } from '@trinity/prisma'
 import { AuthService } from './auth.service'
 import { AcceptInvitationDto, CreateInvitationDto, InvitationTokenDto } from './dto/invitation.dto'
@@ -17,6 +27,7 @@ export class InvitationsController {
   constructor(
     private readonly authService: AuthService,
     private readonly prisma: PrismaService,
+    private readonly scope: ScopeService,
   ) {}
 
   @Post()
@@ -34,9 +45,10 @@ export class InvitationsController {
   @Get()
   @Can('users.manage')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Danh sách lời mời (mặc định chỉ những lời mời còn hiệu lực)' })
-  async list(@Query('all') all?: string) {
-    return { data: await listInvitations(this.prisma, { pendingOnly: all !== '1' && all !== 'true' }) }
+  @ApiOperation({ summary: 'Danh sách lời mời (mặc định chỉ còn hiệu lực); theo phạm vi users.manage: all thấy hết, phạm vi hẹp chỉ lời mời người trong phạm vi tạo' })
+  async list(@CurrentUser() actor: AuthUser, @Query('all') all?: string) {
+    const owners = await invitationScope(this.scope, actor)
+    return { data: await listInvitations(this.prisma, { pendingOnly: all !== '1' && all !== 'true', owners }) }
   }
 
   @Post(':id/revoke')
@@ -44,8 +56,8 @@ export class InvitationsController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Huỷ lời mời còn hiệu lực — link chết ngay' })
-  async revoke(@Param('id', ParseIntPipe) id: number) {
-    await revokeInvitation(this.prisma, id)
+  async revoke(@Param('id', ParseIntPipe) id: number, @CurrentUser() actor: AuthUser) {
+    await revokeInvitation(this.prisma, id, await invitationScope(this.scope, actor))
     return { message: 'Đã huỷ lời mời' }
   }
 

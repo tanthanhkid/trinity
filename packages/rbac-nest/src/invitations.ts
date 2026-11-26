@@ -4,6 +4,8 @@ import { assertEmailAvailableForCurrentCompany, currentCompanyId, isMultiTenant,
 import { isSubset, mergeGrants, normalizeGrant, type Grants, type Permission } from '@trinity/rbac';
 import type { AuthUser } from './auth-user';
 import { assertUserSlotAvailable } from './plan-limits';
+import type { ScopeService } from './scope.service';
+import { scopeWhere } from './scope-where';
 import { withCompanyPrefix } from './company-token';
 
 /**
@@ -15,8 +17,6 @@ import { withCompanyPrefix } from './company-token';
  */
 export const INVITE_TTL_DAYS = 7;
 const INVITE_TTL_MS = INVITE_TTL_DAYS * 24 * 60 * 60 * 1000;
-/** Khoá advisory: tuần tự hoá "đếm chỗ trống rồi tạo" trong một công ty (khoá theo schema vì mỗi công ty một DB schema). */
-const INVITE_LOCK = 726_354_004;
 
 export type InvitationStatus = 'pending' | 'accepted' | 'revoked' | 'expired';
 
@@ -100,14 +100,13 @@ export async function createInvitation(
   const token = newInviteToken(isMultiTenant() ? (currentCompanyId() ?? 1) : 1);
   const now = new Date();
   const row = await db.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${INVITE_LOCK})`;
     // Mời lại cùng email = thay lời mời cũ (link cũ chết), không giữ hai chỗ.
     await tx.userInvitation.updateMany({
       where: { email, accepted_at: null, revoked_at: null },
       data: { revoked_at: now },
     });
-    const pending = await tx.userInvitation.count({ where: { accepted_at: null, revoked_at: null, expires_at: { gt: now } } });
-    await assertUserSlotAvailable(tx, pending);
+    // Đếm người active + lời mời đang chờ dưới khoá advisory của công ty (cùng luật với mọi đường thêm người).
+    await assertUserSlotAvailable(tx);
     return tx.userInvitation.create({
       data: {
         email,
@@ -131,11 +130,27 @@ export async function createInvitation(
   };
 }
 
-/** Lời mời gần đây (mới nhất trước). `pendingOnly` = chỉ cái còn hiệu lực. */
-export async function listInvitations(db: PrismaService, opts: { pendingOnly?: boolean; limit?: number } = {}): Promise<InvitationView[]> {
+/**
+ * Phạm vi lời mời của người dùng theo `users.manage`: `'all'` thấy/huỷ mọi lời mời của công ty; phạm vi hẹp
+ * (own/team/subtree) chỉ lời mời do người trong phạm vi đó tạo.
+ */
+export async function invitationScope(scope: ScopeService, actor: AuthUser): Promise<number[] | 'all'> {
+  return (await scope.ownerIds(actor, 'users.manage')) ?? [];
+}
+
+/** Lời mời gần đây (mới nhất trước). `pendingOnly` = chỉ cái còn hiệu lực; `owners` = phạm vi theo người tạo. */
+export async function listInvitations(
+  db: PrismaService,
+  opts: { pendingOnly?: boolean; limit?: number; owners?: number[] | 'all' } = {},
+): Promise<InvitationView[]> {
   const now = new Date();
   const rows = await db.userInvitation.findMany({
-    where: opts.pendingOnly ? { accepted_at: null, revoked_at: null, expires_at: { gt: now } } : {},
+    where: {
+      AND: [
+        opts.pendingOnly ? { accepted_at: null, revoked_at: null, expires_at: { gt: now } } : {},
+        scopeWhere(opts.owners ?? 'all', ['created_by']),
+      ],
+    },
     orderBy: { id: 'desc' },
     take: Math.min(Math.max(opts.limit ?? 100, 1), 200),
   });
@@ -154,9 +169,12 @@ export async function listInvitations(db: PrismaService, opts: { pendingOnly?: b
 }
 
 /** Huỷ lời mời còn hiệu lực (link chết ngay). Đã dùng/đã huỷ/hết hạn thì báo rõ. */
-export async function revokeInvitation(db: PrismaService, id: number): Promise<void> {
+export async function revokeInvitation(db: PrismaService, id: number, owners: number[] | 'all' = 'all'): Promise<void> {
   const row = await db.userInvitation.findUnique({ where: { id } });
-  if (!row) throw new NotFoundException('Không tìm thấy lời mời');
+  // Ngoài phạm vi users.manage của người huỷ → 404 như chưa từng có.
+  if (!row || (owners !== 'all' && (row.created_by === null || !owners.includes(row.created_by)))) {
+    throw new NotFoundException('Không tìm thấy lời mời');
+  }
   if (invitationStatus(row) !== 'pending') throw new ConflictException('Lời mời này không còn hiệu lực để huỷ');
   await db.userInvitation.updateMany({ where: { id, accepted_at: null, revoked_at: null }, data: { revoked_at: new Date() } });
 }
@@ -169,5 +187,3 @@ export async function findPendingInvitation(db: PrismaService, rawToken: string)
   if (!row || invitationStatus(row) !== 'pending') throw new GoneException(INVITATION_GONE_MESSAGE);
   return row;
 }
-
-export { INVITE_LOCK };

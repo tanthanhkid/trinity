@@ -230,8 +230,6 @@ export class UsersService {
     // cạnh `carol@...` đã tồn tại sẽ lọt qua rồi làm login (lookup case-insensitive)
     // trở nên MƠ HỒ giữa 2 tài khoản.
     const normalizedEmail = dto.email.trim().toLowerCase()
-    // Gói dịch vụ: chặn vượt max_users TRƯỚC mọi thay đổi dữ liệu.
-    await assertUserSlotAvailable(this.prisma)
     await assertEmailAvailableForCurrentCompany(normalizedEmail)
     const existing = await this.prisma.user.findFirst({
       where: { email: { equals: normalizedEmail, mode: 'insensitive' } },
@@ -266,19 +264,24 @@ export class UsersService {
 
     const passwordHash = await bcrypt.hash(dto.password, 10)
 
-    const user = await this.prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        full_name: dto.full_name,
-        password_hash: passwordHash,
-        password_updated_at: new Date(),
-        team_id: dto.team_id ?? null,
-        manager_id: dto.manager_id ?? null,
-      },
-      select: {
-        id: true, email: true, full_name: true,
-        team_id: true, manager_id: true, status: true,
-      },
+    // Gói dịch vụ: kiểm max_users (người active + lời mời đang chờ) và tạo user trong CÙNG transaction, dưới khoá
+    // advisory của công ty — hai lượt tạo đồng thời ở ngưỡng chỉ một lượt qua.
+    const user = await this.prisma.$transaction(async (tx) => {
+      await assertUserSlotAvailable(tx)
+      return tx.user.create({
+        data: {
+          email: normalizedEmail,
+          full_name: dto.full_name,
+          password_hash: passwordHash,
+          password_updated_at: new Date(),
+          team_id: dto.team_id ?? null,
+          manager_id: dto.manager_id ?? null,
+        },
+        select: {
+          id: true, email: true, full_name: true,
+          team_id: true, manager_id: true, status: true,
+        },
+      })
     })
 
     // ghi vết ai tạo tài khoản này + mật khẩu ban đầu do ai đặt.
@@ -380,9 +383,7 @@ export class UsersService {
     // Khoá KHÔNG đổi email: mở khoá lại dùng được ngay. Chỉ "xoá vĩnh viễn" mới giải phóng email.
     const isLocking = dto.status === 'locked' && user.status !== 'locked'
     // Gói dịch vụ: mở khoá (locked → active) cũng chiếm một chỗ trong max_users.
-    if (dto.status === 'active' && user.status !== 'active') {
-      await assertUserSlotAvailable(this.prisma)
-    }
+    const isUnlocking = dto.status === 'active' && user.status !== 'active'
     let cascadeReassigned = 0
     if (isLocking) {
       // Quản trị cuối cùng (409) — cùng luật với DELETE /users/:id.
@@ -398,6 +399,8 @@ export class UsersService {
     // employee.updateMany fail SAU KHI user đã lock/unlock thành công mà không có tx,
     // sẽ để lại trạng thái lệch (users.status đã đổi nhưng employees chưa đồng bộ).
     const updated = await this.prisma.$transaction(async (tx) => {
+      // Mở khoá chiếm lại một chỗ: kiểm dưới khoá advisory ngay trong transaction ghi.
+      if (isUnlocking) await assertUserSlotAvailable(tx)
       if (isLocking) {
         // Kiểm lại DƯỚI khoá advisory — chống 2 Quản trị bị khoá song song.
         await lockAdminMutation(tx)

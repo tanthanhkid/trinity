@@ -34,7 +34,6 @@ import {
   enterTokenCompany,
   findPendingInvitation,
   INVITATION_GONE_MESSAGE,
-  INVITE_LOCK,
   invitationStatus,
 } from '@trinity/rbac-nest'
 import type { RegisterDto } from './dto/register.dto'
@@ -1017,8 +1016,7 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(dto.password, 10)
     const now = new Date()
     const userId = await this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${INVITE_LOCK})`
-      // Giành lời mời trước (một lần), rồi mới kiểm chỗ trống theo gói — hết chỗ thì cả giao dịch lùi lại, link vẫn còn dùng được.
+      // Giành lời mời trước (một lần; từ đây nó không còn tính là lời mời đang chờ), rồi mới kiểm chỗ trống theo gói (dưới khoá advisory) — hết chỗ thì cả giao dịch lùi lại, link vẫn còn dùng được.
       const claimed = await tx.userInvitation.updateMany({
         where: { id: inv.id, accepted_at: null, revoked_at: null, expires_at: { gt: now } },
         data: { accepted_at: now },

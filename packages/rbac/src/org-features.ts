@@ -131,6 +131,12 @@ export const PLAN_KEYS = ['ket_noi', 'tro_ly_giam_doc', 'tro_ly_kinh_doanh', 'tr
 export type PlanKey = (typeof PLAN_KEYS)[number]
 export const DEFAULT_PLAN: PlanKey = 'custom'
 
+/**
+ * Gói của công ty MỚI đăng ký (chế độ nhiều công ty) — có giới hạn người dùng. Công ty 1 và bản cài một công ty
+ * giữ `DEFAULT_PLAN` (không giới hạn). Đổi ở đây khi chủ dự án chốt giá.
+ */
+export const DEFAULT_SIGNUP_PLAN: PlanKey = 'ket_noi'
+
 /** Cờ mới do gói quyết định (các cờ cũ không bị gói đụng tới). */
 export const PLAN_GATED_FEATURES = ['ai_briefing', 'zalo_oa', 'lead_scoring', 'google_sheets', 'stale_reminders', 'facebook_page'] as const satisfies readonly OrgFeatureKey[]
 

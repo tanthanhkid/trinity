@@ -62,10 +62,11 @@ export default function InvitePage() {
   async function onSubmit(values: Values) {
     setError(null)
     try {
+      const res = await acceptInvitation({ token, full_name: values.full_name, password: values.password })
+      // Chỉ bỏ phiên đang đăng nhập (nếu có) SAU KHI nhận lời mời thành công — lỗi thì phiên cũ còn nguyên.
       queryClient.clear()
       clearTokens()
       clearAuth()
-      const res = await acceptInvitation({ token, full_name: values.full_name, password: values.password })
       setAccessToken(res.tokens.accessToken)
       setRefreshToken(res.tokens.refreshToken)
       setAuth({ user: res.user, roles: res.roles, permissions: res.permissions, isAdmin: res.isAdmin, company: res.company }, res.tokens)

@@ -39,12 +39,12 @@ The database role needs `CREATE` on the database (to create one schema per compa
   - Links Trinity hands out (webhook URLs, store and payment links, VNPay return/IPN URLs…) carry `?cid=N`. The hint
     only picks the schema; the secret token, slug or gateway signature must still match there. Links without a hint
     belong to company 1.
-  - Shopee shop ids, Lazada seller ids and online-store addresses (slugs) are claimed in `platform.company_routes`
-    (`shopee_shop`, `lazada_seller`, `store_slug`) — first company wins, a second one is refused, a disconnect or a
-    changed slug releases the claim. A route whose holder no longer has an active connection / store with that id (old
-    "last company wins" routes, a disconnect before release existed) is an orphan: the real owner can take it over
-    (routes younger than 2 minutes are never taken, a claim precedes its row), and boot cleans orphans up. Shopee/Lazada pushes arrive on one shared URL and are routed by that claim; a
-    store link without `?cid=` routes by its slug. Claims that predate this rule are registered at boot.
+  - Online-store addresses (slugs) are claimed in `platform.company_routes` (`store_slug`) — first company wins, a
+    second one is refused, a changed slug releases the claim. A route whose holder no longer has a store with that slug
+    (old "last company wins" routes) is an orphan: the real owner can take it over (routes younger than 2 minutes are
+    never taken, a claim precedes its row), and boot cleans orphans up. A store link without `?cid=` routes by its slug.
+    Claims that predate this rule are registered at boot; routes of kinds no longer used (the marketplace connections
+    removed in G06) are deleted at boot.
 - **State outside the database** — permission cache, token blacklist, sessions, rate limits, socket rooms, stored
   files — is keyed by company as well (`tenantKey`), since ids repeat across companies.
 - **Shared tables** live in the `platform` schema (created at boot, outside Prisma migrations): `companies` (also holds
@@ -158,7 +158,7 @@ database (all schemas) before a migration.
 ## Tests
 
 `services/crm/src/__pg__/saas-abuse.pg.spec.ts` covers channel limits (per company, atomic), the channel lock, auto-pause,
-and routing: a second company cannot claim another's Shopee shop, Lazada seller or store slug, store links route by slug,
+and routing: a second company cannot claim another's store slug, store links route by slug, retired route kinds are cleaned up,
 and VNPay return/IPN with `?cid=` only ever touch the right company's payments.
 
 `services/crm/src/__pg__/tenant-isolation.pg.spec.ts` signs up two companies on a real Postgres and checks that one

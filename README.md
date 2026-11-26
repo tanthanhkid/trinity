@@ -60,7 +60,6 @@ Trinity  ──  CRM · Sales · Zalo · HR · Reports
 | **Facebook Page automation** | Comment rules per Page or per post (including the cover photo): auto-replies, hiding phone numbers, private replies, each commenter linked to a customer; chat links and QR codes that open a conversation; Messenger flows; broadcasts within the 24-hour window. Rules, flows and broadcasts can also be created and edited from your AI assistant |
 | **Multi-channel posting** | Write once, publish or schedule to Facebook Pages (Fanpage), with a content calendar, a media library and post stats. Drafts, a weekly posting queue (time slots), reusable hashtag sets and signatures, UTM tagging of links, a per-channel preview of exactly what each network will show, bulk import from CSV, and recurring posts (daily, weekly or monthly). Large videos upload in parts, and posts deleted directly on the network show as deleted. All of it can also be driven from your AI assistant |
 | **Payments** | Reconciles payment requests created earlier: money arriving through SePay, VNPay or MoMo is matched to them automatically (no new requests are created) |
-| **Sales connectors** | KiotViet, Sapo, WooCommerce, MISA, Shopee, Lazada: what each platform's API allows (customers, orders and/or products) is synced into the CRM; customers are matched to contacts by phone where the platform shares it (Shopee masks buyer phones). Per-connector scope in [status.md](docs/integrations/status.md) |
 | **Online store** | A storefront at `/s/<name>` (or a subdomain) with three themes, a cart, cash on delivery or bank-transfer QR; orders and buyers land in the CRM. Off by default |
 | **CRM** | Contacts with your own sources, stages and statuses, Kanban pipelines, shared record codes and `@` linking across screens, newsfeed |
 | **Sales** | Products, POS |
@@ -83,9 +82,8 @@ Trinity  ──  CRM · Sales · Zalo · HR · Reports
 | Zalo OA | Incoming messages tried with a real account; replies and sender profile need a paid Zalo OA (Tier) plan, not yet tried |
 | VNPay | End to end on the VNPay sandbox |
 | MoMo | MoMo test environment |
-| WooCommerce | End to end with a test store |
 | n8n | Sample workflows run against a test server |
-| SePay, KiotViet, Sapo, MISA, Shopee, Lazada, Zapier, Make | Ready — not yet tried with a real account |
+| SePay, Zapier, Make | Ready — not yet tried with a real account |
 | iPOS | Not built yet — waiting for iPOS's partner API |
 
 Details per connector: [docs/integrations/status.md](docs/integrations/status.md). What comes next: [ROADMAP.md](ROADMAP.md).

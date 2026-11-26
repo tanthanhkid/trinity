@@ -36,13 +36,6 @@ x-api-env: &api-env
   INTEGRATIONS_PUBLIC_BASE_URL: ${INTEGRATIONS_PUBLIC_BASE_URL:-}
   INTEGRATIONS_SECRET_KEY: ${INTEGRATIONS_SECRET_KEY:-}
   SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
-  # Connector cần app đối tác của Trinity (để trống = dòng connector hiện "Máy chủ chưa cấu hình").
-  MISA_APP_ID: ${MISA_APP_ID:-}
-  SHOPEE_PARTNER_ID: ${SHOPEE_PARTNER_ID:-}
-  SHOPEE_PARTNER_KEY: ${SHOPEE_PARTNER_KEY:-}
-  SHOPEE_SANDBOX: ${SHOPEE_SANDBOX:-}
-  LAZADA_APP_KEY: ${LAZADA_APP_KEY:-}
-  LAZADA_APP_SECRET: ${LAZADA_APP_SECRET:-}
 
 services:
   postgres:

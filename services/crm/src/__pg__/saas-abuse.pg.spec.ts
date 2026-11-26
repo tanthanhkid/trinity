@@ -26,9 +26,6 @@ import { observeGraph } from '../channel-guard/graph-observer';
 import { enterRoutedCompany } from '../common/helpers/routed-company';
 import { withCompanyHint } from '../common/helpers/tenant-hint';
 import { ConnectorsService } from '../connectors/connectors.service';
-import { signState } from '../connectors/oauth-state';
-import { ShopeeService } from '../connectors/shopee.service';
-import { loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { PaymentsService } from '../connectors/payments.service';
 import { seedPendingPayment } from '../connectors/__tests__/seed-payment';
 import { txnRefFor, vnpaySign } from '../connectors/vnpay';
@@ -39,7 +36,7 @@ import { PG_URL, describePg, isLocalDbUrl } from './pg-harness';
 
 /**
  * SaaS đa công ty trên Postgres thật: (1) chống lạm dụng kênh theo công ty — hạn mức theo gói đếm nguyên tử, khoá kênh của
- * chủ nền tảng, tự tạm dừng khi Graph API báo chặn; (2) lỗ route: gian hàng Shopee/Lazada, địa chỉ cửa hàng, IPN/return VNPay
+ * chủ nền tảng, tự tạm dừng khi Graph API báo chặn; (2) lỗ route: địa chỉ cửa hàng, IPN/return VNPay
  * của công ty 2 không chạm công ty 1.
  */
 describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', () => {
@@ -390,81 +387,35 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
 
   // ───────────────────────── route theo công ty (việc 2)
 
-  describe('Shopee/Lazada: một gian hàng chỉ thuộc một công ty', () => {
-    it('công ty đến sau không giành được gian hàng; ngắt kết nối thì nhả ra; push route đúng công ty', async () => {
-      const shop = String(10_000 + (stamp % 1000));
-      await inCompany(A, () => claimCompanyRoute('shopee_shop', shop));
-      await inCompany(A, () => claimCompanyRoute('shopee_shop', shop)); // gọi lại: không sao
-      await expect(inCompany(B, () => claimCompanyRoute('shopee_shop', shop))).rejects.toBeInstanceOf(ConflictException);
-      expect(await companyIdForRoute('shopee_shop', shop)).toBe(A.id);
-      // B không nhả được route của A.
-      await inCompany(B, () => releaseCompanyRoute('shopee_shop', shop));
-      expect(await companyIdForRoute('shopee_shop', shop)).toBe(A.id);
-
-      await inCompany(A, () => db.connectorAccount.create({ data: { provider: 'shopee', status: 'active', credentials_enc: 'x', settings: { shop_id: Number(shop) }, connected_by: 1 } }));
-      const otherShop = String(Number(shop) + 1);
-      await inCompany(B, () => claimCompanyRoute('shopee_shop', otherShop));
-      await inCompany(B, () => db.connectorAccount.create({ data: { provider: 'shopee', status: 'active', credentials_enc: 'x', settings: { shop_id: Number(otherShop) }, connected_by: 1 } }));
-
-      const landed = async (shopId: string) =>
-        runInTenantScope(async () => {
-          await resolvePublicRouteCompany({ query: {}, headers: {} });
-          expect(await enterRoutedCompany('shopee_shop', shopId)).toBe(true);
-          const c = await db.connectorAccount.findUnique({ where: { provider: 'shopee' } });
-          return { company: currentCompany()?.id, shop: (c?.settings as { shop_id: number } | null)?.shop_id };
-        });
-      expect(await landed(shop)).toEqual({ company: A.id, shop: Number(shop) });
-      expect(await landed(otherShop)).toEqual({ company: B.id, shop: Number(otherShop) });
-
-      await inCompany(A, () => claimCompanyRoute('lazada_seller', 'seller-x'));
-      await expect(inCompany(B, () => claimCompanyRoute('lazada_seller', 'seller-x'))).rejects.toThrow(/Lazada/);
-      await inCompany(A, () => releaseCompanyRoute('lazada_seller', 'seller-x'));
-      await expect(inCompany(B, () => claimCompanyRoute('lazada_seller', 'seller-x'))).resolves.toBeUndefined();
-    });
-  });
-
-  describe('Shopee: claim sau khi token thành công', () => {
-    it('shop id giả (Shopee từ chối code) không chiếm route; code hợp lệ mới chiếm; công ty khác không giành được', async () => {
-      process.env.SHOPEE_PARTNER_ID = '1001';
-      process.env.SHOPEE_PARTNER_KEY = 'k'.repeat(32); // gitleaks:allow — khoá giả cho test
-      const shopId = 20_000 + (stamp % 1000);
-      // `state` mang company của người bắt đầu luồng cấp quyền.
-      const stateA = await inCompany(A, async () => signState('shopee', 1, loadSecretKey()));
-      const stateB = await inCompany(B, async () => signState('shopee', 1, loadSecretKey()));
-      const svc = new ShopeeService(db, { touch: async () => undefined, active: async () => null } as never, {} as never);
-      const reject = (async () => ({ ok: true, json: async () => ({ error: 'error_auth', message: 'invalid code' }) })) as never;
-      const accept = (async () => ({ ok: true, json: async () => ({ access_token: 'a', refresh_token: 'r', expire_in: 14400 }) })) as never;
-      await expect(inCompany(B, () => svc.completeConnect('code-gia', String(shopId), stateB, reject))).rejects.toThrow(/invalid code/);
-      expect(await companyIdForRoute('shopee_shop', String(shopId))).toBeNull();
-      await inCompany(A, () => svc.completeConnect('code-that', String(shopId), stateA, accept).catch(() => undefined));
-      expect(await companyIdForRoute('shopee_shop', String(shopId))).toBe(A.id);
-      await expect(inCompany(B, () => svc.completeConnect('code-that', String(shopId), stateB, accept))).rejects.toBeInstanceOf(ConflictException);
-    });
-  });
-
   describe('route mồ côi không chặn chủ thật', () => {
     const backdate = (kind: string, id: string) =>
       getBaseClient().$executeRawUnsafe(`UPDATE platform.company_routes SET created_at = now() - interval '1 hour' WHERE kind = $1 AND external_id = $2`, kind, id);
 
-    it('công ty đang giữ route nhưng KHÔNG có kết nối active với id đó ⇒ công ty thật chiếm được; còn kết nối active thì không', async () => {
-      const shop = String(30_000 + (stamp % 1000));
-      // A giữ route "last wins" cũ, không có connector nào.
-      await getBaseClient().$executeRawUnsafe(`INSERT INTO platform.company_routes (kind, external_id, company_id) VALUES ('shopee_shop', $1, $2)`, shop, A.id);
-      // Vừa mới claim (chưa kịp lưu connector) ⇒ chưa coi là mồ côi.
-      await expect(inCompany(B, () => claimCompanyRoute('shopee_shop', shop))).rejects.toBeInstanceOf(ConflictException);
-      await backdate('shopee_shop', shop);
-      await inCompany(B, () => claimCompanyRoute('shopee_shop', shop));
-      expect(await companyIdForRoute('shopee_shop', shop)).toBe(B.id);
-
-      // B có connector active với id đó ⇒ A không giành lại được dù route đã cũ.
-      await inCompany(B, () => db.connectorAccount.deleteMany({ where: { provider: 'shopee' } }));
-      await inCompany(B, () => db.connectorAccount.create({ data: { provider: 'shopee', status: 'active', credentials_enc: 'x', settings: { shop_id: Number(shop) }, connected_by: 1 } }));
-      await backdate('shopee_shop', shop);
-      await expect(inCompany(A, () => claimCompanyRoute('shopee_shop', shop))).rejects.toBeInstanceOf(ConflictException);
-      // Ngắt kết nối (không qua đường nhả) ⇒ lại thành mồ côi.
-      await inCompany(B, () => db.connectorAccount.updateMany({ where: { provider: 'shopee' }, data: { status: 'disconnected' } }));
-      await inCompany(A, () => claimCompanyRoute('shopee_shop', shop));
-      expect(await companyIdForRoute('shopee_shop', shop)).toBe(A.id);
+    it('công ty đang giữ slug nhưng KHÔNG có cửa hàng với slug đó ⇒ công ty thật chiếm được; còn cửa hàng thì không', async () => {
+      const slug = `mo-coi-giu-${stamp}`;
+      const setStore = async (value: string | null): Promise<void> => {
+        if (value === null) await db.setting.deleteMany({ where: { key: 'online_store' } });
+        else await db.setting.upsert({ where: { key: 'online_store' }, update: { value }, create: { key: 'online_store', value } });
+      };
+      // A giữ route "last wins" cũ, không có cửa hàng nào.
+      await getBaseClient().$executeRawUnsafe(`INSERT INTO platform.company_routes (kind, external_id, company_id) VALUES ('store_slug', $1, $2)`, slug, A.id);
+      // Vừa mới claim (chưa kịp lưu cửa hàng) ⇒ chưa coi là mồ côi.
+      await expect(inCompany(B, () => claimCompanyRoute('store_slug', slug))).rejects.toBeInstanceOf(ConflictException);
+      await backdate('store_slug', slug);
+      await inCompany(B, () => claimCompanyRoute('store_slug', slug));
+      expect(await companyIdForRoute('store_slug', slug)).toBe(B.id);
+      try {
+        // B có cửa hàng với slug đó ⇒ A không giành lại được dù route đã cũ.
+        await inCompany(B, () => setStore(JSON.stringify({ slug })));
+        await backdate('store_slug', slug);
+        await expect(inCompany(A, () => claimCompanyRoute('store_slug', slug))).rejects.toBeInstanceOf(ConflictException);
+        // B bỏ cửa hàng (không qua đường nhả) ⇒ lại thành mồ côi.
+        await inCompany(B, () => setStore(null));
+        await inCompany(A, () => claimCompanyRoute('store_slug', slug));
+        expect(await companyIdForRoute('store_slug', slug)).toBe(A.id);
+      } finally {
+        await inCompany(B, () => setStore(null));
+      }
     });
 
     it('slug cũ của công ty đã đổi địa chỉ (route còn sót) không chặn người khác; backfill dọn route mồ côi', async () => {
@@ -564,25 +515,33 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
   });
 
   describe('route có sẵn từ trước khi có luật "ai đến trước được"', () => {
-    it('cửa hàng và gian hàng đã kết nối ở công ty 1 được ghi route lúc khởi động, công ty mới không giành được', async () => {
+    it('cửa hàng ở công ty 1 được ghi route lúc khởi động, công ty mới không giành được', async () => {
       const slug = `co-san-${stamp}`;
       await runWithCompany(DEFAULT_COMPANY, async () => {
         await db.setting.upsert({ where: { key: 'online_store' }, update: { value: JSON.stringify({ slug }) }, create: { key: 'online_store', value: JSON.stringify({ slug }) } });
-        await db.connectorAccount.create({ data: { provider: 'lazada', status: 'active', credentials_enc: 'x', settings: { seller_id: `old-${stamp}` }, connected_by: 1 } });
       });
       try {
         await backfillSettingRoutes();
         await backfillSettingRoutes(); // chạy lại không sao
         expect(await companyIdForRoute('store_slug', slug)).toBe(1);
-        expect(await companyIdForRoute('lazada_seller', `old-${stamp}`)).toBe(1);
         await expect(inCompany(B, () => claimCompanyRoute('store_slug', slug))).rejects.toBeInstanceOf(ConflictException);
-        await expect(inCompany(B, () => claimCompanyRoute('lazada_seller', `old-${stamp}`))).rejects.toBeInstanceOf(ConflictException);
       } finally {
         await runWithCompany(DEFAULT_COMPANY, async () => {
           await db.setting.deleteMany({ where: { key: 'online_store' } });
-          await db.connectorAccount.deleteMany({ where: { provider: 'lazada' } });
         });
       }
+    });
+  });
+
+  describe('route của kết nối đã gỡ (G06)', () => {
+    it('loại route không còn dùng bị dọn lúc khởi động; loại còn dùng giữ nguyên', async () => {
+      const id = `retired-${stamp}`;
+      await getBaseClient().$executeRawUnsafe(`INSERT INTO platform.company_routes (kind, external_id, company_id) VALUES ('retired_kind_test', $1, 1)`, id);
+      await getBaseClient().$executeRawUnsafe(`INSERT INTO platform.company_routes (kind, external_id, company_id) VALUES ('oauth_state', $1, 1)`, id);
+      await backfillSettingRoutes();
+      expect(await companyIdForRoute('retired_kind_test' as never, id)).toBeNull();
+      expect(await companyIdForRoute('oauth_state', id)).toBe(1);
+      await getBaseClient().$executeRawUnsafe(`DELETE FROM platform.company_routes WHERE external_id = $1`, id);
     });
   });
 

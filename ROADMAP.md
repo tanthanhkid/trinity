@@ -15,7 +15,7 @@ How well each channel and connector has been tested is tracked in [docs/integrat
 - [x] Outgoing webhooks
 - [x] Manual replies to Facebook comments and an "awaiting reply" view across Messenger, comments and Zalo OA
 - [x] Payment requests with bank-transfer QR auto-matched by SePay, and VNPay / MoMo payment links — creating new requests stopped in #105; earlier requests are still reconciled (money arriving is matched automatically)
-- [x] Sales and accounting connectors: KiotViet, Sapo, WooCommerce, MISA, Shopee, Lazada (status per connector in [docs/integrations/status.md](docs/integrations/status.md))
+- [x] ~~Sales and accounting connectors: KiotViet, Sapo, WooCommerce, MISA, Shopee, Lazada~~ — removed in #104 (data kept as an archive)
 - [x] Polished forms, settings tabs, connection rows, inbox and posting screens
 - [x] Online store MVP (off by default): a storefront at `/s/<name>` or a subdomain, three themes, cart, cash on delivery or bank-transfer QR, orders and customers land in the CRM
 

@@ -63,16 +63,18 @@ describe('DashboardChannelsService', () => {
     expect(all.channels.map((c) => c.kind).sort()).toEqual(['payment', 'store']);
   });
 
-  it('bật kết nối bán hàng mà chưa nối ⇒ gợi ý nối', async () => {
-    const r = await make({ connectors: [{ id: 4, provider: 'sepay', status: 'active', last_event_at: null }] }).svc.get(ADMIN);
-    expect(r.available.map((a) => a.kind)).toContain('commerce');
+  it('kết nối bán hàng/sàn đã gỡ (G06): chỉ đọc dòng cổng thanh toán, không gợi ý nối', async () => {
+    const { svc, prisma } = make({ connectors: [{ id: 4, provider: 'sepay', status: 'active', last_event_at: null }] });
+    const r = await svc.get(ADMIN);
+    expect(r.available.map((a) => a.kind)).not.toContain('commerce');
+    expect(prisma.connectorAccount.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { provider: { in: ['sepay', 'vnpay', 'momo'] } } }));
   });
 
   it('kênh đăng bài, thanh toán, trang bán hàng', async () => {
     const { svc } = make({
       social: [{ id: 3, network: 'youtube', name: 'Kênh YT', status: 'needs_reauth' }],
       published: [{ account_id: 3, _count: { _all: 1 } }],
-      connectors: [{ id: 4, provider: 'sepay', status: 'active', last_event_at: null }, { id: 5, provider: 'kiotviet', status: 'error', last_event_at: null }],
+      connectors: [{ id: 4, provider: 'sepay', status: 'active', last_event_at: null }],
       paid: [{ paid_via: 'sepay', _count: { _all: 2 } }],
       store: JSON.stringify({ slug: 'cua-hang', name: 'Cửa hàng A', published: true }),
       orders: 4,
@@ -81,7 +83,6 @@ describe('DashboardChannelsService', () => {
     const by = (k: string) => r.channels.find((c) => c.key.startsWith(k))!;
     expect([by('social').state, by('social').today?.value]).toEqual(['attention', 1]);
     expect([by('payment').name, by('payment').today?.value]).toEqual(['SePay', 2]);
-    expect([by('commerce').state, by('commerce').today]).toEqual(['attention', null]);
     expect([by('store').state, by('store').today?.value]).toEqual(['ok', 4]);
   });
 });

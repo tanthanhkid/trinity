@@ -11,7 +11,6 @@ import { useZaloOaStatus } from "./zalo-oa/use-zalo-oa"
 import { useAiConnections } from "./use-ai-connections"
 import { useInboundSources, useWebhookEndpoints } from "./use-webhooks"
 import { useConnectors } from "./payments/use-payments"
-import { useSalesConnectors } from "./sales/use-sales"
 import type { IntegrationSection, IntegrationsStatus } from "./integrations-meta"
 
 type Open = (s: IntegrationSection) => void
@@ -27,7 +26,6 @@ const TESTED: Partial<Record<IntegrationSection, string>> = {
   facebook: "Đã thử với tài khoản thật (13/10/2026)",
   "zalo-oa": "Nhận tin đã thử thật (15/10/2026); trả lời + đọc hồ sơ cần OA gói Tier (chưa thử)",
   payments: "Chưa thử với tài khoản thật — đã thử bằng dữ liệu mẫu của SePay",
-  "ban-hang": "Chưa thử với tài khoản thật — đã thử bằng dữ liệu mẫu",
 }
 
 function Row({ section, open, logo, title, description, state, connectLabel = "Kết nối" }: {
@@ -165,16 +163,6 @@ function GatewayOverviewRow({ open, provider, title, color, text, description }:
   )
 }
 
-function ShopOverviewRow({ open, provider, title, color, text, description }: { open: Open; provider: "kiotviet" | "sapo" | "misa" | "woocommerce" | "shopee" | "lazada"; title: string; color: string; text: string; description: string }) {
-  const c = useSalesConnectors()
-  const conn = c.data?.find((x) => x.provider === provider)
-  let state: RowState | null = null
-  if (c.isError) state = httpStatus(c.error) === 403 ? { tone: "off", label: "Tính năng đang tắt" } : { tone: "warning", label: "Không đọc được trạng thái" }
-  else if (c.data && conn?.server_configured === false) state = { tone: "off", label: "Máy chủ chưa cấu hình" }
-  else if (c.data) state = !conn?.connected ? { tone: "off", label: "Chưa kết nối" } : conn.last_error ? { tone: "warning", label: "Có lỗi" } : { tone: "connected", label: "Đã kết nối", detail: typeof conn.settings?.retailer === "string" ? conn.settings.retailer : typeof conn.settings?.store === "string" ? conn.settings.store : typeof conn.settings?.url === "string" ? conn.settings.url.replace(/^https:\/\//, "") : undefined }
-  return <Row section="ban-hang" open={open} logo={<ConnectionLogo brand={provider} color={color} text={text} />} title={title} description={description} state={state} />
-}
-
 /** Connector đang làm — hiện để khách biết sắp có, nhãn rõ chưa thử với tài khoản thật. */
 const COMING: ReadonlyArray<{ name: string; desc: string; color: string; text: string; brand?: BrandKey }> = [
   { name: "iPOS", desc: "Khách, đơn từ máy bán hàng F&B", color: "#ea580c", text: "iP", brand: "ipos" },
@@ -221,16 +209,6 @@ export function IntegrationsOverview({ visible, status, statusError, open, audit
           <SepayRow open={open} />
           <GatewayOverviewRow open={open} provider="vnpay" title="VNPay" color="#e11d48" text="VN" description="Đối soát yêu cầu cũ: tự khớp tiền về qua IPN" />
           <GatewayOverviewRow open={open} provider="momo" title="MoMo" color="#a50064" text="M" description="Đối soát yêu cầu cũ: tự khớp tiền về qua IPN" />
-        </ConnectionGroup>
-      )}
-      {visible.has("ban-hang") && canPayConnect && (
-        <ConnectionGroup label="Bán hàng">
-          <ShopOverviewRow open={open} provider="kiotviet" title="KiotViet" color="#2563eb" text="K" description="Khách, đơn, hoá đơn, hàng hoá từ máy bán hàng" />
-          <ShopOverviewRow open={open} provider="sapo" title="Sapo" color="#0ea5e9" text="S" description="Khách, đơn, hàng hoá từ cửa hàng Sapo" />
-          <ShopOverviewRow open={open} provider="woocommerce" title="WooCommerce" color="#7f54b3" text="W" description="Khách, đơn, sản phẩm từ web bán hàng WordPress" />
-          <ShopOverviewRow open={open} provider="shopee" title="Shopee" color="#ee4d2d" text="Sh" description="Đơn hàng trên sàn Shopee" />
-          <ShopOverviewRow open={open} provider="lazada" title="Lazada" color="#0f146d" text="L" description="Đơn hàng trên sàn Lazada" />
-          <ShopOverviewRow open={open} provider="misa" title="MISA AMIS Kế toán" color="#0369a1" text="MI" description="Khách hàng và hàng hoá từ phần mềm kế toán" />
         </ConnectionGroup>
       )}
       {data && (

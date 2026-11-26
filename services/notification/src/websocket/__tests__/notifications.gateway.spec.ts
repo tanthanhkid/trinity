@@ -43,6 +43,32 @@ describe('NotificationsGateway', () => {
       expect(mockClient.disconnect).not.toHaveBeenCalled()
     })
 
+    it('từ chối refresh token', () => {
+      const token = jwt.sign({ sub: 1, email: 'test@example.net', type: 'refresh' }, TEST_SECRET)
+      const mockClient = { id: 'socket-r', handshake: { auth: { token } }, join: jest.fn(), disconnect: jest.fn() } as unknown as Socket
+      gateway.handleConnection(mockClient)
+      expect(mockClient.disconnect).toHaveBeenCalled()
+      expect(mockClient.join).not.toHaveBeenCalled()
+    })
+
+    it('từ chối sid đã bị phiên khác thay, nhận sid hiện tại', () => {
+      const isCurrentSession = jest.fn((_u: number, sid?: string) => sid === 'moi')
+      const g = new NotificationsGateway({ isCurrentSession } as never)
+      const mk = (sid: string) => ({
+        id: `s-${sid}`,
+        handshake: { auth: { token: jwt.sign({ sub: 1, email: 'a@b.c', sid }, TEST_SECRET) } },
+        join: jest.fn(),
+        disconnect: jest.fn(),
+      }) as unknown as Socket
+      const ok = mk('moi')
+      g.handleConnection(ok)
+      expect(ok.join).toHaveBeenCalledWith('user_1')
+      const old = mk('cu')
+      g.handleConnection(old)
+      expect(old.disconnect).toHaveBeenCalled()
+      expect(old.join).not.toHaveBeenCalled()
+    })
+
     it('should disconnect client without token', () => {
       const mockClient = {
         id: 'socket-2',

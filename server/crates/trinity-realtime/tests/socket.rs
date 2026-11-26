@@ -18,9 +18,17 @@ const SECRET: &str = "k33-test-secret-k33-test-secret-0123";
 type Ws = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 async fn serve(multi_tenant: bool) -> (String, NotifSocket) {
+    serve_with(multi_tenant, None).await
+}
+
+async fn serve_with(
+    multi_tenant: bool,
+    security: Option<std::sync::Arc<trinity_auth::Security>>,
+) -> (String, NotifSocket) {
     let (layer, socket) = NotifSocket::new(RealtimeConfig {
         jwt_secret: SECRET,
         multi_tenant,
+        security,
     });
     let app = axum::Router::new().layer(layer);
     let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -212,6 +220,85 @@ async fn token_het_han_bi_ngat() {
     assert!(got_disconnect);
 }
 
+#[tokio::test]
+async fn khong_mat_su_kien_ngay_sau_xac_nhan() {
+    let (url, socket) = serve(true).await;
+    for i in 0..30 {
+        let (mut ws, _) = connect(&url, json!({"token": token(7, Some(1))})).await;
+        // Phát NGAY khi vừa nhận xác nhận kết nối: room đã join trước xác nhận nên không được mất.
+        socket.send_to_user(1, 7, &payload(i)).await;
+        let got = next_text(&mut ws, Duration::from_secs(1)).await;
+        assert!(got.is_some(), "lần {i}: mất sự kiện ngay sau xác nhận");
+    }
+}
+
+#[tokio::test]
+async fn refresh_token_bi_ngat() {
+    let (url, _s) = serve(true).await;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let claims = Claims {
+        kind: Some("refresh".into()),
+        ..Claims::access(7, "u@example.com", None, None, now)
+    };
+    let tok = sign(&claims, SECRET).unwrap();
+    let (mut ws, _) = tokio_tungstenite::connect_async(&url).await.unwrap();
+    next_text(&mut ws, Duration::from_secs(2)).await.unwrap();
+    ws.send(Message::text(format!("40{NAMESPACE},{}", json!({"token": tok}))))
+        .await
+        .unwrap();
+    let mut disconnected = false;
+    while let Some(p) = next_text(&mut ws, Duration::from_secs(2)).await {
+        if p == format!("41{NAMESPACE},") {
+            disconnected = true;
+            break;
+        }
+    }
+    assert!(disconnected);
+}
+
+#[tokio::test]
+async fn sid_da_bi_phien_khac_thay_bi_ngat() {
+    use trinity_db::platform::Platform;
+    use trinity_db::{Db, DbConfig};
+    // Db lười: không cần Postgres vì chỉ dùng trạng thái RAM của `Security` (tin `session` áp trực tiếp).
+    let db = Db::connect_lazy(&DbConfig::new("postgresql://u@127.0.0.1:1/none")).unwrap();
+    let platform = Platform::new(&db, None);
+    let sec = trinity_auth::Security::new(db, platform, true);
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    sec.handle_payload(
+        &json!({"v": 1, "o": "x", "k": "session", "c": 1, "op": "start", "u": 7, "s": "moi", "t": now_ms}).to_string(),
+    );
+    let (url, socket) = serve_with(true, Some(sec)).await;
+    let mk = |sid: &str| {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        sign(
+            &Claims::access(7, "u@example.com", Some(sid.into()), Some(1), now),
+            SECRET,
+        )
+        .unwrap()
+    };
+    // sid khớp phiên hiện tại: vào được.
+    let (mut ok, _) = connect(&url, json!({"token": mk("moi")})).await;
+    socket.send_to_user(1, 7, &payload(1)).await;
+    assert!(next_text(&mut ok, Duration::from_secs(1)).await.is_some());
+    // sid cũ: bị ngắt, không nhận gì.
+    let (mut old, _) = connect(&url, json!({"token": mk("cu")})).await;
+    let mut got = Vec::new();
+    while let Some(p) = next_text(&mut old, Duration::from_secs(1)).await {
+        got.push(p);
+    }
+    assert!(got.contains(&format!("41{NAMESPACE},")), "{got:?}");
+}
+
 mod pg {
     use super::*;
     use sqlx::postgres::PgListener;
@@ -256,7 +343,7 @@ mod pg {
         let db = db().await;
         let (wsurl, socket) = serve(false).await;
         let rx = sync::listen(DbConfig::new(url()).connect_options().unwrap());
-        let _task = spawn_bell_listener(socket.clone(), db.clone(), rx);
+        let _task = spawn_bell_listener(socket.clone(), db.clone(), rx, None);
         tokio::time::sleep(Duration::from_millis(500)).await; // chờ LISTEN
 
         let (mut ws, _) = connect(&wsurl, json!({"token": token(4, None)})).await;
@@ -307,6 +394,63 @@ mod pg {
             next_text(&mut other, Duration::from_millis(400)).await.is_none(),
             "user 6 không nhận"
         );
+    }
+
+    /// Đa công ty: tin `bell` có `c` ≤ 0 bị bỏ (không quy về công ty 1); một công ty thì `c` = 0 vẫn phát vào công ty 1.
+    #[tokio::test]
+    #[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+    async fn bell_khong_co_cong_ty() {
+        let mut admin = PgConnection::connect(&url()).await.unwrap();
+        reset(&mut admin).await;
+        let id: i32 = sqlx::query_scalar("INSERT INTO notification_logs (recipient_id, event_type, channel, title, body, status, is_read, retry_count) VALUES (4, 'deal.assigned', 'in_app', 'T', 'B', 'sent', false, 0) RETURNING id")
+            .fetch_one(&mut admin)
+            .await
+            .unwrap();
+        for (multi, expect) in [(true, false), (false, true)] {
+            let db = db().await;
+            let (wsurl, socket) = serve(multi).await;
+            let (mut ws, _) = connect(&wsurl, json!({"token": token(4, None)})).await;
+            let (tx, rx) = tokio::sync::mpsc::channel(4);
+            let _task = spawn_bell_listener(socket.clone(), db, rx, None);
+            let msg = json!({"v": 1, "o": "node-test-2", "k": "bell", "c": 0, "u": [4], "n": [id]}).to_string();
+            tx.send(SyncEvent::Message(sync::parse_payload(&msg).unwrap()))
+                .await
+                .unwrap();
+            let got = next_text(&mut ws, Duration::from_millis(800)).await.is_some();
+            assert_eq!(got, expect, "multi_tenant={multi}");
+        }
+    }
+
+    /// Bên nghe không nuốt tin khác: tin không phải `bell` và `Resync` được chuyển tiếp; `Resync` phát lại số đếm.
+    #[tokio::test]
+    #[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+    async fn khong_nuot_tin_khac_va_resync_phat_lai_so_dem() {
+        let mut admin = PgConnection::connect(&url()).await.unwrap();
+        reset(&mut admin).await;
+        sqlx::query("INSERT INTO notification_logs (recipient_id, event_type, channel, title, body, status, is_read, retry_count) VALUES (4, 'deal.assigned', 'in_app', 'T', 'B', 'sent', false, 0)")
+            .execute(&mut admin)
+            .await
+            .unwrap();
+        let db = db().await;
+        let (wsurl, socket) = serve(false).await;
+        let (mut ws, _) = connect(&wsurl, json!({"token": token(4, None)})).await;
+        let (tx, rx) = tokio::sync::mpsc::channel(4);
+        let (ftx, mut frx) = tokio::sync::mpsc::channel(4);
+        let _task = spawn_bell_listener(socket.clone(), db, rx, Some(ftx));
+        let other = json!({"v": 1, "o": "node-test-3", "k": "rbac", "c": 1, "ids": [1]}).to_string();
+        tx.send(SyncEvent::Message(sync::parse_payload(&other).unwrap()))
+            .await
+            .unwrap();
+        tx.send(SyncEvent::Resync).await.unwrap();
+        assert!(matches!(frx.recv().await, Some(SyncEvent::Message(e)) if e.kind == "rbac"));
+        assert!(matches!(frx.recv().await, Some(SyncEvent::Resync)));
+        let (name, body) = event(
+            &next_text(&mut ws, Duration::from_secs(1))
+                .await
+                .expect("count sau Resync"),
+        );
+        assert_eq!(name, "notification:count");
+        assert_eq!(body["bell_count"], 1);
     }
 
     /// Rust tạo thông báo -> socket Rust cục bộ nhận ngay; tin `NOTIFY bell` kèm id tới tiến trình khác (Node đọc DB theo id).

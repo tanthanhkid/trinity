@@ -925,7 +925,11 @@ room, hai sự kiện; JWT kiểm bằng `trinity_auth::jwt::verify`, cùng lu�
 trình kia: `spawn_bell_listener` nghe `trinity_sync` kind `bell`, đọc `notification_logs` theo id `n` rồi phát `notification:new` +
 `notification:count` (3 số như `emitUnreadCounts`, nhóm tin nhắn theo `MESSAGE_EVENT_TYPES`), như `onRemoteBell` của Node; thông báo tạo ở
 Rust (`create_notification`, K36) đẩy socket cục bộ bằng `push_local` và Node nhận qua `NOTIFY`. `cors_layer` làm lại `buildWsCorsOrigin`.
-Ca test dùng WebSocket thô (Engine.IO v4 / Socket.IO v5), không cần client Node.
+Ca test dùng WebSocket thô (Engine.IO v4 / Socket.IO v5), không cần client Node. Chi tiết sau review: socketioxide gửi gói xác nhận
+kết nối **trước** khi chạy handler nên `join` nằm ở middleware (không từ chối, để vẫn là `io server disconnect`) và handler ngắt
+khi xác thực hỏng; handshake từ chối refresh token và `sid` đã bị phiên khác thay (cả hai bên Node và Rust); tin `bell` có `c` ≤ 0
+ở đa công ty bị bỏ; chỉ một bên nghe `trinity_sync`, `spawn_bell_listener` chuyển tiếp mọi tin khác và `Resync` sang bên dùng
+khác, `Resync` phát lại số chưa đọc cho mọi user đang nối.
 
 ### 4.11 Lưu trữ
 

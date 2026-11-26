@@ -4,16 +4,21 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets'
-import { Logger } from '@nestjs/common'
+import { Logger, Optional } from '@nestjs/common'
 import { Server, Socket } from 'socket.io'
 import * as jwt from 'jsonwebtoken'
-import { currentCompanyId, isMultiTenant } from '@trinity/prisma'
+import { companyRef, currentCompanyId, isMultiTenant, runWithCompany } from '@trinity/prisma'
+import { ActiveSessionService } from '@trinity/rbac-nest'
 
 interface JwtPayload {
   sub: number
   email: string
   /** Công ty của phiên (multi-tenant). Thiếu = công ty 1 (token cấp trước multi-tenant). */
   cid?: number
+  /** `refresh` cho refresh token: KHÔNG được dùng làm access token (như `JwtAuthGuard`). */
+  type?: string
+  /** Mã phiên (tính năng một-phiên/tài khoản). */
+  sid?: string
 }
 
 /**
@@ -70,6 +75,8 @@ export class NotificationsGateway
   private readonly logger = new Logger(NotificationsGateway.name)
   private readonly clientUserMap = new Map<string, { userId: number; companyId: number }>()
 
+  constructor(@Optional() private readonly activeSession?: ActiveSessionService) {}
+
   @WebSocketServer()
   server!: Server
 
@@ -85,10 +92,20 @@ export class NotificationsGateway
       const secret = process.env.JWT_SECRET
       if (!secret) throw new Error('JWT_SECRET not configured')
       const payload = jwt.verify(token, secret) as unknown as JwtPayload
+      // Cùng luật guard HTTP: refresh token không dùng làm access token.
+      if (payload.type === 'refresh') throw new Error('refresh token')
       const userId = payload.sub
       const companyId = Number.isInteger(payload.cid) && (payload.cid as number) > 0 ? (payload.cid as number) : 1
       // Single-tenant: mọi phiên thuộc công ty 1 (room như cũ) dù token có mang cid.
       const cid = isMultiTenant() ? companyId : 1
+
+      // Phiên đã bị lần đăng nhập khác thay (`sid` không khớp) ⇒ không nhận chuông.
+      if (
+        this.activeSession &&
+        !runWithCompany(companyRef(cid), () => this.activeSession!.isCurrentSession(userId, payload.sid))
+      ) {
+        throw new Error('session replaced')
+      }
 
       void client.join(userRoom(cid, userId))
       this.clientUserMap.set(client.id, { userId, companyId: cid })

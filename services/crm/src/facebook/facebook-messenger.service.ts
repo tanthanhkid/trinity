@@ -1,4 +1,4 @@
-import { Optional, BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { Optional, BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { FacebookPage } from '@prisma/client';
 import { Prisma, PrismaService, tenantKey } from '@trinity/prisma';
 import { publishMessengerEvent } from './facebook-events';
@@ -379,6 +379,10 @@ export class FacebookMessengerService implements MessagingChannel {
 
   private async mapSendError(err: unknown, pageId: string, humanAgent = false): Promise<Error> {
     if (!(err instanceof GraphApiError)) return err as Error;
+    if (err.isConfigError) {
+      this.logger.error(`Gửi tin: cấu hình Graph API sai: ${err.message}`);
+      return new InternalServerErrorException(`Cấu hình kết nối Facebook của máy chủ sai: ${err.message.slice(0, 160)}`);
+    }
     // Thẻ HUMAN_AGENT bị từ chối (app chưa được Meta duyệt quyền Human Agent).
     if (humanAgent && (err.isOutsideWindow || err.isPermissionError || /human.?agent|tag/i.test(err.message))) {
       this.logger.warn(`Gửi tin HUMAN_AGENT bị từ chối code=${err.code} subcode=${err.subcode}`);

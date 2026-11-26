@@ -108,7 +108,7 @@ API returns a config).
 
 ## Production checklist
 
-- [ ] A reverse proxy in front of the API accepts uploads up to the app's limits (videos for social posting go up to 200 MB): with nginx, `client_max_body_size 210m;`. A smaller limit makes large uploads fail in the browser with a bare "Network Error".
+- [ ] A reverse proxy in front of the API accepts uploads up to the app's limits (videos for social posting go up to `SOCIAL_MAX_VIDEO_MB`, default 200 MB): with nginx, `client_max_body_size 210m;`. A smaller limit makes large uploads fail in the browser with a bare "Network Error". Behind the Cloudflare proxy (request body ≤ 100 MB) set `SOCIAL_MAX_VIDEO_MB=95`.
 
 - [ ] `/notif-ws/` reaches the API with WebSocket upgrade (a test request answers `101 Switching Protocols`, not a 404/499 from the web container).
 

@@ -5,7 +5,7 @@ import type { ZaloOaConnection } from '@prisma/client';
 import { createHash, randomBytes } from 'node:crypto';
 import { decryptSecret, encryptSecret, loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { ZaloOaApiClient, type ZaloTokenSet } from './zalo-oa-api.client';
-import { OAUTH_STATE_TTL_MS, REFRESH_SKEW_MS, ZALO_URLS, isZaloOaConfigured, zaloOaConfig } from './zalo-oa.config';
+import { OAUTH_STATE_TTL_MS, REFRESH_SKEW_MS, zaloUrl, isZaloOaConfigured, zaloOaConfig } from './zalo-oa.config';
 import { ZaloApiError } from './zalo-oa.errors';
 
 const REFRESH_TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000; // Zalo: refresh token sống ~3 tháng
@@ -57,7 +57,13 @@ export class ZaloOaTokenService {
       code_challenge_method: 'S256',
       state,
     });
-    return { authorize_url: `${ZALO_URLS.permission}?${q.toString()}` };
+    let permission: string;
+    try {
+      permission = zaloUrl('permission');
+    } catch (err) {
+      throw new ServiceUnavailableException(`Cấu hình kết nối Zalo của máy chủ sai: ${(err as Error).message}`);
+    }
+    return { authorize_url: `${permission}?${q.toString()}` };
   }
 
   /** Callback: kiểm state (dùng một lần, còn hạn) → đổi code → lưu. Trả oa_id đã kết nối. */
@@ -71,7 +77,10 @@ export class ZaloOaTokenService {
     // Một OA chỉ một công ty (trigger DB vẫn là chốt chặn cứng).
     await assertRouteAvailableForCurrentCompany('zalo_oa', oaId);
     const key = this.key();
-    const tokens = await this.api.exchangeCode(cfg.appId as string, cfg.appSecret as string, code, decryptSecret(st.code_verifier_enc, key));
+    const tokens = await this.api.exchangeCode(cfg.appId as string, cfg.appSecret as string, code, decryptSecret(st.code_verifier_enc, key)).catch((err: unknown) => {
+      if (err instanceof ZaloApiError && err.isConfigError) throw new ServiceUnavailableException(`Cấu hình kết nối Zalo của máy chủ sai: ${err.message}`);
+      throw err;
+    });
     await this.save(oaId, tokens, st.user_id);
     return oaId;
   }
@@ -134,6 +143,11 @@ export class ZaloOaTokenService {
     } catch (err) {
       const again = await this.prisma.zaloOaConnection.findUnique({ where: { oa_id: conn.oa_id } });
       if (again && again.access_expires_at.getTime() - Date.now() > REFRESH_SKEW_MS) return decryptSecret(again.access_token_enc, key);
+      if (err instanceof ZaloApiError && err.isConfigError) {
+        // Refresh token vẫn tốt: không đánh dấu cần kết nối lại, không báo "tạm thời" (thử lại vẫn hỏng tới khi sửa env).
+        this.logger.error(`Làm mới token: cấu hình Zalo sai oa=${conn.oa_id}: ${err.message}`);
+        throw new ServiceUnavailableException(`Cấu hình kết nối Zalo của máy chủ sai: ${err.message}`);
+      }
       const msg = err instanceof ZaloApiError ? `Làm mới token thất bại (mã ${err.code})` : 'Làm mới token thất bại';
       this.logger.error(`${msg} oa=${conn.oa_id}`);
       // Lỗi tạm thời (mạng, Zalo 5xx, phản hồi không đọc được, lỗi DB) KHÔNG nghĩa là refresh token hỏng:

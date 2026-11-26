@@ -1,3 +1,6 @@
+/** Mã riêng của Trinity: địa chỉ gốc Zalo (`ZALO_*_BASE_URL`) cấu hình sai — chưa gửi gì tới Zalo. */
+export const ZALO_CONFIG_ERROR = -3;
+
 /** Lỗi trả về từ Zalo (`error` ≠ 0) hoặc lỗi mạng khi gọi Zalo. */
 export class ZaloApiError extends Error {
   constructor(
@@ -6,6 +9,11 @@ export class ZaloApiError extends Error {
     readonly httpStatus?: number,
   ) {
     super(message);
+  }
+
+  /** Cấu hình phía Trinity sai: không phải lỗi tạm thời, cũng không phải token hỏng. */
+  get isConfigError(): boolean {
+    return this.code === ZALO_CONFIG_ERROR;
   }
 
   /** Token sai/hết hạn/bị thu hồi ⇒ cần cấp quyền lại hoặc làm mới (-216 access token invalid, -124 hết hạn). */
@@ -22,6 +30,7 @@ export const ZALO_TIER_MESSAGE = 'Zalo OA chưa được dùng tính năng này:
  * `channel` = API đã gọi: cùng một mã (vd -224) mang nghĩa khác nhau giữa tin tư vấn và ZNS.
  */
 export function describeZaloError(e: ZaloApiError, channel: 'consult' | 'zns' = 'zns'): string {
+  if (e.isConfigError) return `Cấu hình kết nối Zalo của máy chủ sai: ${e.message}`;
   if (e.isAuthError) return 'Kết nối Zalo OA đã hết hạn hoặc bị thu hồi — cần kết nối lại.';
   if (/tier package|upgrade oa/i.test(e.message)) return ZALO_TIER_MESSAGE;
   if (channel === 'consult' && e.code === -224) return ZALO_TIER_MESSAGE;

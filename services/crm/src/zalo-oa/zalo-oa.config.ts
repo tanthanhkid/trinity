@@ -1,17 +1,39 @@
+import { apiBaseUrl } from '../common/helpers/api-base-url';
+
 /**
  * Cấu hình Zalo OA chính thức — toàn bộ qua env, KHÔNG có giá trị mặc định cho secret.
  * Nguồn tài liệu: https://developers.zalo.me/docs/official-account (OAuth v4 của OA, Webhook, API v3.0, ZNS).
  */
-export const ZALO_URLS = {
+export const DEFAULT_ZALO_OAUTH_BASE_URL = 'https://oauth.zaloapp.com';
+export const DEFAULT_ZALO_OPENAPI_BASE_URL = 'https://openapi.zalo.me';
+export const DEFAULT_ZALO_ZNS_BASE_URL = 'https://business.openapi.zalo.me';
+
+export type ZaloEndpoint =
   /** Trang người quản trị OA cấp quyền cho ứng dụng (OAuth v4, hỗ trợ PKCE). */
-  permission: 'https://oauth.zaloapp.com/v4/oa/permission',
+  | 'permission'
   /** Đổi code → token, và làm mới token (header `secret_key` = khoá bí mật của ứng dụng). */
-  token: 'https://oauth.zaloapp.com/v4/oa/access_token',
+  | 'token'
   /** OA API v3.0 (gửi tin tư vấn, lấy hồ sơ người dùng). */
-  api: 'https://openapi.zalo.me/v3.0/oa',
+  | 'api'
   /** ZNS: gửi tin thông báo theo mẫu đã duyệt. */
-  zns: 'https://business.openapi.zalo.me/message/template',
-} as const;
+  | 'zns';
+
+/**
+ * URL Zalo theo địa chỉ gốc `ZALO_OAUTH_BASE_URL` (permission, token), `ZALO_OPENAPI_BASE_URL` (api), `ZALO_ZNS_BASE_URL`
+ * (zns) — máy chủ giả khi test; không đặt ⇒ địa chỉ thật như cũ. Chỉ kiểm biến của đúng điểm cuối được gọi.
+ */
+export function zaloUrl(endpoint: ZaloEndpoint, env: NodeJS.ProcessEnv = process.env): string {
+  switch (endpoint) {
+    case 'permission':
+      return `${apiBaseUrl('ZALO_OAUTH_BASE_URL', DEFAULT_ZALO_OAUTH_BASE_URL, env)}/v4/oa/permission`;
+    case 'token':
+      return `${apiBaseUrl('ZALO_OAUTH_BASE_URL', DEFAULT_ZALO_OAUTH_BASE_URL, env)}/v4/oa/access_token`;
+    case 'api':
+      return `${apiBaseUrl('ZALO_OPENAPI_BASE_URL', DEFAULT_ZALO_OPENAPI_BASE_URL, env)}/v3.0/oa`;
+    case 'zns':
+      return `${apiBaseUrl('ZALO_ZNS_BASE_URL', DEFAULT_ZALO_ZNS_BASE_URL, env)}/message/template`;
+  }
+}
 
 /** Tin tư vấn chỉ gửi được trong 48 giờ kể từ tin gần nhất của khách. */
 export const CONSULT_WINDOW_MS = 48 * 60 * 60 * 1000;

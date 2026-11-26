@@ -1,3 +1,4 @@
+import { apiBaseUrl } from '../common/helpers/api-base-url';
 import { publicBaseUrl } from '../integrations/oauth/oauth-config';
 
 /**
@@ -6,6 +7,36 @@ import { publicBaseUrl } from '../integrations/oauth/oauth-config';
  * - Webhooks Messenger: https://developers.facebook.com/docs/messenger-platform/webhooks
  */
 export const DEFAULT_GRAPH_VERSION = 'v25.0';
+
+export const DEFAULT_GRAPH_BASE_URL = 'https://graph.facebook.com';
+/** Tải video theo phiên đi qua host riêng của Graph. */
+export const DEFAULT_GRAPH_VIDEO_BASE_URL = 'https://graph-video.facebook.com';
+
+/**
+ * Đường dẫn Graph (id, cạnh) không được thoát khỏi `/{version}/` hay chèn query: id lấy từ webhook/request nên chặn
+ * `..`, `.`, `?`, `#`, `\` và khoảng trắng.
+ */
+export function isSafeGraphPath(path: string): boolean {
+  return !/[?#\\\s]/.test(path) && !path.split('/').some((seg) => seg === '..' || seg === '.');
+}
+
+/**
+ * Dựng URL Graph API — chỗ DUY NHẤT (GraphClient, Đăng đa kênh, bình luận đầu tiên). `FACEBOOK_GRAPH_BASE_URL` đổi địa
+ * chỉ gốc (máy chủ giả khi test); khi đặt, cả lời gọi video cũng đi về đó. Không đặt ⇒ URL như cũ.
+ */
+export function graphUrl(
+  version: string,
+  path: string,
+  query?: URLSearchParams,
+  opts: { video?: boolean; env?: NodeJS.ProcessEnv } = {},
+): string {
+  if (!isSafeGraphPath(path)) throw new Error('Đường dẫn Graph API không hợp lệ');
+  const base = apiBaseUrl('FACEBOOK_GRAPH_BASE_URL', opts.video ? DEFAULT_GRAPH_VIDEO_BASE_URL : DEFAULT_GRAPH_BASE_URL, opts.env);
+  const q = query?.toString();
+  // Mã hoá từng đoạn: id/cạnh Graph chỉ gồm chữ, số, `_`, `.`, `-` nên không đổi; ký tự lạ không thành phần khác của URL.
+  const segments = path.replace(/^\//, '').split('/').map((seg) => encodeURIComponent(seg));
+  return `${base}/${encodeURIComponent(version)}/${segments.join('/')}${q ? `?${q}` : ''}`;
+}
 
 /**
  * Quyền xin khi đăng nhập Facebook — đúng bộ của use case Messenger trên app Meta (cần App Review ở chế độ Live).

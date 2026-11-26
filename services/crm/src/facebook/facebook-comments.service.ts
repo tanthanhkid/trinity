@@ -307,6 +307,10 @@ export class FacebookCommentsService {
       this.logger.warn(`Bình luận: ${what} lỗi ${(err as Error).message}`);
       return `Không ${what} được (lỗi máy chủ).`;
     }
+    if (err.isConfigError) {
+      this.logger.error(`Bình luận: ${what} lỗi cấu hình Graph API: ${err.message}`);
+      return `Không ${what} được: cấu hình kết nối Facebook của máy chủ sai (${err.message.slice(0, 160)}).`;
+    }
     if (err.isTokenError) {
       await this.pages.markTokenInvalid(pageId);
       return `Không ${what} được: token Fanpage hết hạn, hãy kết nối lại Fanpage.`;

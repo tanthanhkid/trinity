@@ -1,0 +1,15 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": [
+      "property truong_la should not exist",
+      "Họ tên phải từ 1 đến 100 ký tự",
+      "Họ tên không được để trống",
+      "full_name must be a string",
+      "source_id phải là số nguyên",
+      "Vui lòng chọn nguồn"
+    ],
+    "statusCode": 400
+  }
+}

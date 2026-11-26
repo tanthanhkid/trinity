@@ -7,7 +7,7 @@ use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
 use sqlx::{AssertSqlSafe, Connection, PgConnection, PgPool, Row};
 
 /// Schema không tồn tại: kết nối chưa gắn công ty mà chạy truy vấn không định danh schema sẽ lỗi (fail-closed).
-const NO_COMPANY: &str = "\"trinity_no_company\"";
+use trinity_db::prisma_migrate::NO_COMPANY_SEARCH_PATH as NO_COMPANY;
 
 fn url() -> String {
     std::env::var("TEST_DATABASE_URL").expect("test pg cần TEST_DATABASE_URL")

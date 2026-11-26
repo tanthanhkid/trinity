@@ -717,8 +717,12 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
     `prisma migrate deploy` song song trong `migrateAllCompanies` thực chất chạy lần lượt, và tiến trình nào chờ quá
     10 giây thì lỗi P1002 (công ty đó migrate lại ở lượt sau).
   - Ghi sổ: bảng `_prisma_migrations` đúng DDL của Prisma; mỗi migration một dòng lúc bắt đầu (`id` uuid v4,
-    `checksum`, `started_at`, `migration_name`), chạy script bằng simple query (nhiều câu, một giao dịch ngầm: lỗi thì
-    không để lại phần đã chạy), thành công thì `applied_steps_count + 1` rồi `finished_at`, lỗi thì ghi `logs` và dừng.
+    `checksum`, `started_at`, `migration_name`), chạy script bằng simple query (nhiều câu; script không có `BEGIN`
+    riêng thì là một giao dịch ngầm, lỗi không để lại phần đã chạy), thành công thì `applied_steps_count + 1` rồi
+    `finished_at`, lỗi thì ghi `logs` và dừng. Script có khối `BEGIN; … COMMIT;` riêng (Prisma sinh khi đổi enum) lỗi
+    giữa khối thì phiên ở giao dịch hỏng (25P02): migrator Rust `ROLLBACK` trước khi ghi `logs` và nhả khoá (có test với
+    migration enum dạng Prisma). Lỗi migration luôn được trả về, lỗi khi dọn (nhả khoá, đặt lại `search_path`) không
+    che nó; xong (kể cả lỗi) `search_path` về schema không tồn tại.
     Schema đã có bảng mà chưa có `_prisma_migrations` ⇒ từ chối (P3005); có dòng lỗi dở dang ⇒ từ chối (P3009).
   - Kết quả test hai chiều (Postgres 16.14, 22 migration của repo): (a) Prisma migrate → Rust: 22/22 checksum khớp
     **từng ký tự**, không còn gì phải chạy, `deploy` lần nữa rỗng; (b) Rust migrate → `prisma migrate status`: "Database
@@ -727,7 +731,8 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
     ghi thì Prisma đọc ra P3009 đúng tên.
   - **Khoá của Rust:** `pg_advisory_lock_shared(72707369)` cộng khoá exclusive theo schema
     `pg_advisory_lock(72707369::int4, hashtext(<schema>))` (không gian khoá hai số, không đụng khoá một số), chờ tối đa
-    10 giây bằng `lock_timeout`. Test đo được: Rust giữ khoá ⇒ Prisma chờ 10 giây rồi P1002; phiên giữ khoá exclusive
+    10 giây bằng `lock_timeout` rồi trả `lock_timeout` về giá trị cũ của phiên; lỗi hay xong đều chỉ nhả đúng hai khoá
+    này (không `pg_advisory_unlock_all()`, để không nhả khoá khác của phiên). Test đo được: Rust giữ khoá ⇒ Prisma chờ 10 giây rồi P1002; phiên giữ khoá exclusive
     như Prisma ⇒ Rust lỗi 55P03; hai worker Rust khác schema giữ khoá cùng lúc được, cùng schema thì không. Nhờ vậy
     `TENANT_MIGRATE_CONCURRENCY` của Rust chạy song song thật mà vẫn loại trừ Prisma.
   - Cạm bẫy đo được: Prisma hết 10 giây thì thoát, nhưng backend Postgres của nó vẫn **xếp hàng chờ khoá exclusive**

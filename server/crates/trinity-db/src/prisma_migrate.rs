@@ -12,6 +12,8 @@
 //!   `checksum`, `started_at`, `migration_name`), chạy script bằng simple query (nhiều câu, một giao dịch ngầm),
 //!   thành công thì `applied_steps_count + 1` rồi `finished_at`; lỗi thì ghi `logs` và dừng
 //!   (`schema-engine/commands/src/commands/apply_migrations.rs`).
+//! - script có `BEGIN;`/`COMMIT;` riêng (Prisma sinh cho enum) lỗi giữa chừng thì phiên ở giao dịch hỏng: Rust
+//!   `ROLLBACK` trước khi ghi `logs` (Prisma không làm bước này).
 //! - schema chưa có `_prisma_migrations` mà đã có bảng ⇒ từ chối (P3005 của Prisma).
 //!
 //! Khác Prisma có chủ đích: Rust lấy khoá 72707369 ở chế độ **shared** cộng một khoá riêng theo schema, nên nhiều
@@ -167,15 +169,15 @@ pub fn read_migrations_dir(dir: &Path) -> Result<Vec<Migration>, MigrateError> {
     Ok(out)
 }
 
-/// Tên schema được migrate: định danh Postgres thường (chữ thường, số, `_`), không quá 63 byte. Định tuyến công ty
-/// (PLAN 4.3) còn siết thêm về `public` hoặc `^c_[0-9]+$`.
+/// `search_path` của kết nối không gắn công ty (schema không tồn tại, PLAN 4.3): truy vấn không định danh schema lỗi.
+pub const NO_COMPANY_SEARCH_PATH: &str = "\"trinity_no_company\"";
+
+/// Tên schema công ty: chỉ `public` (công ty 1) hoặc `^c_[0-9]+$` (như `clients.ts`, PLAN 4.3).
 pub fn validate_schema(schema: &str) -> Result<(), MigrateError> {
-    let ok = !schema.is_empty()
-        && schema.len() <= 63
-        && schema.starts_with(|c: char| c.is_ascii_lowercase() || c == '_')
-        && schema
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
+    let ok = schema == "public"
+        || schema
+            .strip_prefix("c_")
+            .is_some_and(|n| !n.is_empty() && n.len() <= 20 && n.bytes().all(|b| b.is_ascii_digit()));
     if ok {
         Ok(())
     } else {
@@ -185,8 +187,12 @@ pub fn validate_schema(schema: &str) -> Result<(), MigrateError> {
 
 async fn use_schema(conn: &mut PgConnection, schema: &str) -> Result<(), MigrateError> {
     validate_schema(schema)?;
+    set_search_path(conn, &format!("\"{schema}\"")).await
+}
+
+async fn set_search_path(conn: &mut PgConnection, value: &str) -> Result<(), MigrateError> {
     sqlx::query("SELECT set_config('search_path', $1, false)")
-        .bind(format!("\"{schema}\""))
+        .bind(value)
         .execute(&mut *conn)
         .await?;
     Ok(())
@@ -200,19 +206,18 @@ async fn table_exists(conn: &mut PgConnection, schema: &str) -> Result<bool, Mig
     Ok(row.try_get::<bool, _>("ok")?)
 }
 
-/// Đọc `_prisma_migrations` của schema (rỗng nếu chưa có bảng).
+/// Đọc `_prisma_migrations` của schema (rỗng nếu chưa có bảng). Bảng luôn được định danh schema.
 pub async fn applied(conn: &mut PgConnection, schema: &str) -> Result<Vec<AppliedMigration>, MigrateError> {
-    use_schema(conn, schema).await?;
+    validate_schema(schema)?;
     if !table_exists(conn, schema).await? {
         return Ok(Vec::new());
     }
-    let rows = sqlx::query(
+    let sql = format!(
         "SELECT id, migration_name, checksum, finished_at IS NOT NULL AS finished, \
          rolled_back_at IS NOT NULL AS rolled_back, applied_steps_count \
-         FROM _prisma_migrations ORDER BY started_at, migration_name",
-    )
-    .fetch_all(&mut *conn)
-    .await?;
+         FROM \"{schema}\"._prisma_migrations ORDER BY started_at, migration_name"
+    );
+    let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut *conn).await?;
     rows.iter()
         .map(|r| {
             Ok(AppliedMigration {
@@ -227,12 +232,10 @@ pub async fn applied(conn: &mut PgConnection, schema: &str) -> Result<Vec<Applie
         .collect()
 }
 
-/// Trạng thái một schema so với thư mục migration; không ghi gì.
+/// Trạng thái một schema so với thư mục migration; không ghi gì, không đổi `search_path`.
 pub async fn status(conn: &mut PgConnection, schema: &str, migrations: &[Migration]) -> Result<Status, MigrateError> {
-    let initialized = {
-        use_schema(conn, schema).await?;
-        table_exists(conn, schema).await?
-    };
+    validate_schema(schema)?;
+    let initialized = table_exists(conn, schema).await?;
     let rows = applied(conn, schema).await?;
     let mut st = Status {
         initialized,
@@ -244,65 +247,91 @@ pub async fn status(conn: &mut PgConnection, schema: &str, migrations: &[Migrati
         .map(|r| r.migration_name.clone())
         .collect();
     for m in migrations {
-        let live = rows.iter().filter(|r| !r.rolled_back && r.migration_name == m.name);
-        let mut any = false;
-        for r in live {
-            any = true;
-            if r.checksum == m.checksum() {
-                st.exact_checksum += 1;
-            } else if !script_matches_checksum(&m.script, &r.checksum) {
-                st.checksum_mismatch.push(m.name.clone());
-            }
-        }
-        if !any {
+        // Mỗi migration đếm một lần dù có nhiều dòng sống cùng tên.
+        let live: Vec<&AppliedMigration> = rows
+            .iter()
+            .filter(|r| !r.rolled_back && r.migration_name == m.name)
+            .collect();
+        if live.is_empty() {
             st.pending.push(m.name.clone());
+        } else if live.iter().any(|r| r.checksum == m.checksum()) {
+            st.exact_checksum += 1;
+        } else if !live.iter().any(|r| script_matches_checksum(&m.script, &r.checksum)) {
+            st.checksum_mismatch.push(m.name.clone());
         }
     }
     Ok(st)
 }
 
 /// Lấy khoá migrate: shared trên khoá của Prisma (loại trừ `prisma migrate`), exclusive theo schema (loại trừ worker
-/// Rust khác cùng schema). Chờ tối đa [`LOCK_TIMEOUT_MS`]. Khoá cấp phiên: gọi [`unlock`] khi xong.
+/// Rust khác cùng schema). Chờ tối đa [`LOCK_TIMEOUT_MS`], sau đó trả `lock_timeout` về giá trị cũ của phiên. Lỗi thì
+/// chỉ nhả đúng khoá lần gọi này đã lấy. Khoá cấp phiên: gọi [`unlock`] với cùng `schema` khi xong.
 pub async fn lock(conn: &mut PgConnection, schema: &str) -> Result<(), MigrateError> {
     validate_schema(schema)?;
+    let old: String = sqlx::query_scalar("SELECT current_setting('lock_timeout')")
+        .fetch_one(&mut *conn)
+        .await?;
     sqlx::query("SELECT set_config('lock_timeout', $1, false)")
         .bind(format!("{LOCK_TIMEOUT_MS}ms"))
         .execute(&mut *conn)
         .await?;
-    let res = async {
+    let mut shared = false;
+    let mut per_schema = false;
+    let res: Result<(), sqlx::Error> = async {
         sqlx::query("SELECT pg_advisory_lock_shared($1)")
             .bind(PRISMA_MIGRATE_LOCK)
             .execute(&mut *conn)
             .await?;
+        shared = true;
         sqlx::query("SELECT pg_advisory_lock($1::int4, hashtext($2))")
             .bind(PRISMA_MIGRATE_LOCK as i32)
             .bind(schema)
             .execute(&mut *conn)
             .await?;
-        Ok::<_, sqlx::Error>(())
+        per_schema = true;
+        Ok(())
     }
     .await;
-    sqlx::query("SELECT set_config('lock_timeout', '0', false)")
+    let restore = sqlx::query("SELECT set_config('lock_timeout', $1, false)")
+        .bind(&old)
         .execute(&mut *conn)
-        .await?;
-    if res.is_err() {
-        sqlx::query("SELECT pg_advisory_unlock_all()")
-            .execute(&mut *conn)
-            .await?;
+        .await;
+    if res.is_err() || restore.is_err() {
+        // Nhả đúng phần đã lấy; lỗi khi nhả không che lỗi gốc.
+        let _ = release(conn, schema, shared, per_schema).await;
     }
-    Ok(res?)
-}
-
-/// Nhả mọi advisory lock cấp phiên của kết nối.
-pub async fn unlock(conn: &mut PgConnection) -> Result<(), MigrateError> {
-    sqlx::query("SELECT pg_advisory_unlock_all()")
-        .execute(&mut *conn)
-        .await?;
+    res?;
+    restore?;
     Ok(())
 }
 
+async fn release(conn: &mut PgConnection, schema: &str, shared: bool, per_schema: bool) -> Result<(), MigrateError> {
+    if per_schema {
+        sqlx::query("SELECT pg_advisory_unlock($1::int4, hashtext($2))")
+            .bind(PRISMA_MIGRATE_LOCK as i32)
+            .bind(schema)
+            .execute(&mut *conn)
+            .await?;
+    }
+    if shared {
+        sqlx::query("SELECT pg_advisory_unlock_shared($1)")
+            .bind(PRISMA_MIGRATE_LOCK)
+            .execute(&mut *conn)
+            .await?;
+    }
+    Ok(())
+}
+
+/// Nhả hai khoá mà [`lock`] đã lấy cho `schema` (không đụng advisory lock khác của phiên).
+pub async fn unlock(conn: &mut PgConnection, schema: &str) -> Result<(), MigrateError> {
+    validate_schema(schema)?;
+    release(conn, schema, true, true).await
+}
+
 /// Như `prisma migrate deploy` cho một schema: tạo schema nếu thiếu, giữ khoá, chạy migration còn thiếu theo thứ tự,
-/// ghi `_prisma_migrations` đúng cách Prisma ghi. Trả về tên các migration vừa chạy.
+/// ghi `_prisma_migrations` đúng cách Prisma ghi. Trả về tên các migration vừa chạy. Xong thì `search_path` về
+/// [`NO_COMPANY_SEARCH_PATH`]. Lỗi migration được trả về nguyên vẹn; nếu sau đó nhả khoá cũng lỗi thì kết nối nên bị
+/// đóng (đóng kết nối là nhả khoá).
 pub async fn deploy(
     conn: &mut PgConnection,
     schema: &str,
@@ -310,9 +339,17 @@ pub async fn deploy(
 ) -> Result<Vec<String>, MigrateError> {
     validate_schema(schema)?;
     lock(conn, schema).await?;
-    let res = deploy_locked(conn, schema, migrations).await;
-    unlock(conn).await?;
-    res
+    let res = match use_schema(conn, schema).await {
+        Ok(()) => deploy_locked(conn, schema, migrations).await,
+        Err(e) => Err(e),
+    };
+    // Dọn kể cả khi lỗi; lỗi migration được ưu tiên trả về.
+    let reset = set_search_path(conn, NO_COMPANY_SEARCH_PATH).await;
+    let unlocked = unlock(conn, schema).await;
+    let done = res?;
+    reset?;
+    unlocked?;
+    Ok(done)
 }
 
 async fn deploy_locked(
@@ -323,7 +360,6 @@ async fn deploy_locked(
     sqlx::raw_sql(AssertSqlSafe(format!("CREATE SCHEMA IF NOT EXISTS \"{schema}\"")))
         .execute(&mut *conn)
         .await?;
-    use_schema(conn, schema).await?;
     if !table_exists(conn, schema).await? {
         let n: i64 = sqlx::query_scalar("SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname = $1")
             .bind(schema)
@@ -346,38 +382,46 @@ async fn deploy_locked(
             names: failed,
         });
     }
+    let table = format!("\"{schema}\"._prisma_migrations");
     let mut done = Vec::new();
     for m in migrations {
         if rows.iter().any(|r| !r.rolled_back && r.migration_name == m.name) {
             continue;
         }
-        let id: String = sqlx::query_scalar(
-            "INSERT INTO _prisma_migrations (id, checksum, started_at, migration_name) \
-             VALUES (gen_random_uuid()::text, $1, now(), $2) RETURNING id",
-        )
+        // Như Prisma: id là uuid v4 sinh phía client.
+        let id = uuid::Uuid::new_v4().to_string();
+        sqlx::query(AssertSqlSafe(format!(
+            "INSERT INTO {table} (id, checksum, started_at, migration_name) VALUES ($1, $2, now(), $3)"
+        )))
+        .bind(&id)
         .bind(m.checksum())
         .bind(&m.name)
-        .fetch_one(&mut *conn)
+        .execute(&mut *conn)
         .await?;
         match sqlx::raw_sql(AssertSqlSafe(m.script.clone())).execute(&mut *conn).await {
             Ok(_) => {
-                // search_path có thể bị script đổi; ghi sổ luôn trỏ đúng schema.
+                // Script có thể đổi search_path; đặt lại cho migration sau.
                 use_schema(conn, schema).await?;
-                sqlx::query(
-                    "UPDATE _prisma_migrations SET applied_steps_count = applied_steps_count + 1 WHERE id = $1",
-                )
+                sqlx::query(AssertSqlSafe(format!(
+                    "UPDATE {table} SET applied_steps_count = applied_steps_count + 1 WHERE id = $1"
+                )))
                 .bind(&id)
                 .execute(&mut *conn)
                 .await?;
-                sqlx::query("UPDATE _prisma_migrations SET finished_at = now() WHERE id = $1")
-                    .bind(&id)
-                    .execute(&mut *conn)
-                    .await?;
+                sqlx::query(AssertSqlSafe(format!(
+                    "UPDATE {table} SET finished_at = now() WHERE id = $1"
+                )))
+                .bind(&id)
+                .execute(&mut *conn)
+                .await?;
                 done.push(m.name.clone());
             }
             Err(e) => {
+                // Script có `BEGIN;` riêng (Prisma sinh cho enum) lỗi giữa chừng thì phiên đang ở giao dịch hỏng
+                // (25P02): ROLLBACK trước rồi mới ghi sổ. Không có giao dịch mở thì ROLLBACK chỉ là cảnh báo.
+                sqlx::raw_sql("ROLLBACK").execute(&mut *conn).await?;
                 use_schema(conn, schema).await?;
-                sqlx::query("UPDATE _prisma_migrations SET logs = $1 WHERE id = $2")
+                sqlx::query(AssertSqlSafe(format!("UPDATE {table} SET logs = $1 WHERE id = $2")))
                     .bind(e.to_string())
                     .bind(&id)
                     .execute(&mut *conn)
@@ -437,10 +481,10 @@ mod tests {
 
     #[test]
     fn ten_schema() {
-        for ok in ["public", "c_2", "r005_a"] {
+        for ok in ["public", "c_2", "c_9001"] {
             assert!(validate_schema(ok).is_ok());
         }
-        for bad in ["", "C_2", "a-b", "x\"; drop", "2abc"] {
+        for bad in ["", "C_2", "c_", "c_1a", "r005_a", "a-b", "x\"; drop", "2abc", "Public"] {
             assert!(validate_schema(bad).is_err());
         }
     }

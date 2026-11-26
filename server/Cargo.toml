@@ -82,6 +82,7 @@ utoipa = "6.0"
 clap = { version = "4.6", features = ["derive"] }
 mimalloc = "0.1"
 thiserror = "2.0"
+uuid = { version = "1", default-features = false, features = ["std", "v4"] }
 anyhow = "1.0"
 
 # Test

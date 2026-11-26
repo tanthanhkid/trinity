@@ -5,6 +5,8 @@
 //!   `server/.sqlx/` (`SQLX_OFFLINE=true`), nên `cargo check` và CI không cần DB;
 //! - truy vấn có bộ lọc động dùng `QueryBuilder`/`query_as` không macro, giá trị luôn bind, và bắt buộc có test pg.
 
+pub mod prisma_migrate;
+
 use sqlx::PgExecutor;
 
 /// Truy vấn tĩnh mẫu: kiểm kết nối DB còn sống. Cũng là truy vấn giữ cho `cargo sqlx prepare --check` có dữ liệu

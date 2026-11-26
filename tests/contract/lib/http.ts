@@ -11,6 +11,8 @@ export interface Res {
 export interface ReqOpts {
   token?: string
   body?: unknown
+  /** Thân `application/x-www-form-urlencoded` (OAuth token/revoke). */
+  form?: Record<string, string>
   headers?: Record<string, string>
   /** IP khách giả qua `x-real-ip` (proxy cùng máy đã khai ở hồ sơ). Mỗi ca nên dùng IP riêng để không dính giới hạn tốc độ. */
   ip?: string
@@ -20,11 +22,12 @@ export async function call(method: string, path: string, opts: ReqOpts = {}): Pr
   const headers: Record<string, string> = { ...opts.headers }
   if (opts.token) headers.authorization = `Bearer ${opts.token}`
   if (opts.body !== undefined) headers['content-type'] = 'application/json'
+  if (opts.form) headers['content-type'] = 'application/x-www-form-urlencoded'
   if (opts.ip) headers['x-real-ip'] = opts.ip
   const res = await fetch(`${config.baseUrl}${path}`, {
     method,
     headers,
-    body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+    body: opts.form ? new URLSearchParams(opts.form).toString() : opts.body === undefined ? undefined : JSON.stringify(opts.body),
     redirect: 'manual',
   })
   const text = await res.text()

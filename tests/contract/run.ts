@@ -247,6 +247,7 @@ async function main(): Promise<void> {
         // Postgres không ở loopback (DATABASE_URL của hồ sơ, CONTRACT_PG_ADMIN_URL) vẫn được phép; mọi host khác bị chặn.
         env.CONTRACT_NET_ALLOW = [env.DATABASE_URL, adminUrl].map((u) => new URL(u).hostname).join(',')
       }
+      for (const [k, v] of Object.entries(env)) if (v === '@BASE@') env[k] = base
       // Hồ sơ ghi đè bí mật (production) thắng giá trị chung.
       for (const k of ['JWT_SECRET', 'SERVICE_SECRET', 'INTERNAL_SERVICE_SECRET']) {
         const own = profile === 'default' ? undefined : parseEnvFile(path.join(here, 'profiles', `${profile}.env`))[k]

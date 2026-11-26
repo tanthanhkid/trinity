@@ -15,6 +15,10 @@ export interface VietQrBank {
 }
 
 /**
+ * Nguồn: danh sách ngân hàng công khai của VietQR (https://api.vietqr.io/v2/banks, trường `bin`, `code`, `shortName`),
+ * đối chiếu ngày 26/11/2026: cả 45 BIN dưới đây khớp; mỗi dòng có đủ `code` và `shortName` của nguồn (đã bỏ dấu cách,
+ * viết thường) trong `aliases`. Danh sách nguồn có thêm ví điện tử/ngân hàng ít dùng (MoMo, ZaloPay, Citibank…) — chưa đưa vào.
+ *
  * Bảng ánh xạ tên ngân hàng (kiểu SePay: "MBBank", "Vietcombank"…, hoặc mã: "VCB", "ICB"…) → BIN. Tên so khớp sau khi bỏ
  * dấu cách, chấm, gạch và không phân biệt hoa thường. Migration `0022_store_vietqr` chép đúng bảng này (test kiểm khớp).
  */
@@ -52,13 +56,13 @@ export const VIETQR_BANKS: readonly VietQrBank[] = [
   { bin: '970430', name: 'PGBank', aliases: ['pgbank', 'pgb'] },
   { bin: '970408', name: 'GPBank', aliases: ['gpbank', 'gpb'] },
   { bin: '970414', name: 'MBV (OceanBank)', aliases: ['oceanbank', 'mbv'] },
-  { bin: '970406', name: 'Vikki Bank (DongA)', aliases: ['vikkibank', 'dongabank', 'dab'] },
+  { bin: '970406', name: 'Vikki Bank (DongA)', aliases: ['vikki', 'vikkibank', 'dongabank', 'dab'] },
   { bin: '546034', name: 'CAKE', aliases: ['cake'] },
   { bin: '546035', name: 'Ubank', aliases: ['ubank'] },
   { bin: '963388', name: 'Timo', aliases: ['timo'] },
   { bin: '970457', name: 'Woori', aliases: ['woori', 'wvn'] },
   { bin: '970424', name: 'Shinhan Bank', aliases: ['shinhanbank', 'shinhan', 'shbvn'] },
-  { bin: '970458', name: 'UOB', aliases: ['uob'] },
+  { bin: '970458', name: 'UOB', aliases: ['uob', 'unitedoverseas'] },
   { bin: '970439', name: 'Public Bank', aliases: ['publicbank', 'pbvn'] },
   { bin: '458761', name: 'HSBC', aliases: ['hsbc'] },
   { bin: '970434', name: 'Indovina', aliases: ['indovinabank', 'ivb'] },

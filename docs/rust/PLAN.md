@@ -398,8 +398,10 @@ khoản cần kết nối SePay (dòng 123, 155, 232). Sau G05:
 
 ### 2.2 Ảnh hưởng ngoài mã backend
 
-- **Phụ thuộc phải tách trước:** `normalizePhone`, `phoneVariants` nằm trong `google/sheet-mapping.ts` nhưng được
-  `contacts`, `public-api`, `connectors`, tool MCP dùng → chuyển sang `common/helpers` trước khi gỡ Google (G01).
+- **Phụ thuộc đã tách (G01):** `normalizePhone`, `phoneVariants` nằm ở `common/helpers/phone.helper.ts` — bộ chuẩn hoá SĐT
+  duy nhất (`normalizeVnPhone` của webhook vào uỷ quyền cho nó; các bản `phoneVariants` cục bộ ở Fanpage, webhook vào,
+  nhập Sheet, Zalo OA đã bỏ); `google/` không còn bị `contacts`, `public-api`, `connectors`, tool MCP import. Bản Rust
+  port đúng một hàm này (luật: `+84`, `84`, `0084`, `+84 (0)`; 9 số không mã nước chỉ nhận đầu di động 3/5/7/8/9).
 - **Web:** số file nhắc tới từng thứ (đếm `grep -l`): YouTube 25, payments 20, TikTok 19, SePay 16, extensions 16,
   Google Sheets 10, KiotViet 8, Google Business 7, Shopee/Lazada/Sapo/WooCommerce/MISA/VNPay/Instagram 6 mỗi thứ,
   MoMo 5. Gồm: trang `/extensions`, trang `/connections`, panel tích hợp trong Cài đặt, tuỳ chọn TikTok/YouTube ở màn

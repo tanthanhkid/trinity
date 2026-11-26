@@ -9,6 +9,7 @@ import { ChannelGuardService } from '../channel-guard/channel-guard.service';
 import { GraphApiError, GraphClient } from './graph-client';
 import { ChannelNotificationsService } from '../notifications/channel-notifications.service';
 import { PublicApiService } from '../public-api/public-api.service';
+import { phoneVariants } from '../common/helpers/phone.helper';
 
 interface Referral {
   ref?: string;
@@ -49,7 +50,6 @@ export function findVnPhone(text: string | null): string | null {
   }
   return null;
 }
-const phoneVariants = (local: string): string[] => [local, `84${local.slice(1)}`, `+84${local.slice(1)}`];
 
 /** Tên tạm khi chưa lấy được tên Facebook; lấy được tên sau thì chỉ thay khách còn đúng tên tạm này (không đè tên đã sửa tay). */
 export const placeholderName = (psid: string): string => `Khách Messenger ${psid.slice(-4)}`;

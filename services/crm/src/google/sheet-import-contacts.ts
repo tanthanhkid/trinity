@@ -3,15 +3,13 @@ import type { GoogleSheetSync, Prisma } from '@prisma/client';
 import { PrismaService, publishIntegrationEvent, snapshotContact, CONTACT_EVENT_SELECT } from '@trinity/prisma';
 import { assertInScope, PermissionService, ScopeService, type AuthUser } from '@trinity/rbac-nest';
 import { PublicApiService } from '../public-api/public-api.service';
-import { normalizePhone } from '../common/helpers/phone.helper';
+import { normalizePhone, phoneVariants } from '../common/helpers/phone.helper';
 import { normalizeEmail, type MappedRow } from './sheet-mapping';
 import { addError, type RunStats } from './sync-types';
 
 export const IMPORT_ORIGIN = 'google_sheet_import';
 const UPDATABLE = ['full_name', 'email', 'phone_2', 'zalo_account', 'job_title', 'company_name', 'current_address'] as const;
 type Updatable = (typeof UPDATABLE)[number];
-
-const phoneVariants = (local: string): string[] => [local, `84${local.slice(1)}`, `+84${local.slice(1)}`];
 
 /** Giá trị từng trường sau chuẩn hoá; chuỗi rỗng = "không đổi" (nhập KHÔNG bao giờ xoá dữ liệu CRM bằng ô trống). */
 export function contactPatch(fields: Record<string, string>): Partial<Record<Updatable | 'phone', string>> {

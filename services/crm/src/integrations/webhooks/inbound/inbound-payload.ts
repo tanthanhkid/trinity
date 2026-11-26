@@ -1,17 +1,10 @@
+import { normalizePhone } from '../../../common/helpers/phone.helper';
 import { plainToInstance, Transform } from 'class-transformer';
 import { IsEmail, IsObject, IsOptional, IsString, Length, Matches, MaxLength, validateSync } from 'class-validator';
 
-/** Chuẩn hoá SĐT VN về `0xxxxxxxxx` (cùng quy tắc `toLocalPhoneNumber` của contacts.service). Không ra dạng hợp lệ → null. */
+/** Chuẩn hoá SĐT VN về `0xxxxxxxxx` — uỷ quyền cho bộ chuẩn hoá chung `common/helpers/phone.helper`. */
 export function normalizeVnPhone(raw: string): string | null {
-  const cleaned = raw.replace(/[\s.\-()]/g, '');
-  if (!/^\+?\d+$/.test(cleaned)) return null;
-  const d = cleaned.replace(/\D/g, '');
-  let local: string;
-  if (d.startsWith('84') && d.length === 11) local = `0${d.slice(2)}`;
-  else if (d.startsWith('0') && d.length === 10) local = d;
-  else if (d.length === 9 && /^[35789]/.test(d)) local = `0${d}`;
-  else return null;
-  return /^0\d{9}$/.test(local) ? local : null; // cùng ràng buộc `POST /public/contacts` (0 + 9 số)
+  return normalizePhone(raw);
 }
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);

@@ -5,6 +5,7 @@ import { PublicApiService } from '../public-api/public-api.service';
 import { parseLeadFields, type ParsedLead } from './facebook-lead-fields';
 import { FacebookPagesService } from './facebook-pages.service';
 import { GraphApiError, GraphClient } from './graph-client';
+import { phoneVariants } from '../common/helpers/phone.helper';
 
 export interface LeadgenChange {
   leadgen_id?: string;
@@ -13,9 +14,6 @@ export interface LeadgenChange {
 }
 
 export type LeadResult = 'created' | 'duplicate' | 'no_contact_info' | 'owner_inactive' | 'skipped' | 'already_processed';
-
-/** Số điện thoại 0xxxxxxxxx → các dạng đã lưu (cùng cách khử trùng của webhook vào). */
-const phoneVariants = (local: string): string[] => [local, `84${local.slice(1)}`, `+84${local.slice(1)}`];
 
 /**
  * Lead Ads (`leadgen`): webhook chỉ mang `leadgen_id` → gọi Graph lấy `field_data` bằng page token → tạo/ghép khách.

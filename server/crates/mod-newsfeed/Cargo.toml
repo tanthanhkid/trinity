@@ -1,0 +1,29 @@
+[package]
+name = "mod-newsfeed"
+description = "Bảng tin nội bộ: bài đăng, ảnh/video, thích, bình luận, thông báo bài mới (M22)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+bytes = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true, features = ["fs", "io-util"] }
+tracing = { workspace = true }
+trinity-db = { workspace = true }
+trinity-docgen = { workspace = true }
+trinity-kernel = { workspace = true }
+trinity-storage = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-util"] }
+
+[lints]
+workspace = true

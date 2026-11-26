@@ -804,6 +804,9 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   migration Prisma. Bản đóng băng `tests/fixtures/platform-schema.txt` sinh bằng mã Node
   (`scripts/gen-platform-fixture.cjs`); test pg so từng byte với kết quả của Rust trên cùng dàn dựng. `C05` gộp phần
   này vào `schema.sql` chung.
+  **Đã làm ở K09** (`server/crates/trinity-db/src/provision.rs`): `provision_company` (khoá `SIGNUP_LOCK` theo email, migrate bằng K07, trigger K08,
+  dữ liệu đầu trong MỘT giao dịch), `reap_stale_provisioning` (15 phút), `migrate::boot_migrate_companies` (chỉ chạy khi tệp sở hữu
+  giao migrate cho Rust). Test pg: `server/crates/trinity-db/tests/provision.rs`.
 - Sau X06: thư mục migration chuyển về `server/migrations/` (đổi đường dẫn, không đổi nội dung nên checksum không
   đổi); `schema.prisma` bỏ, struct model sửa tay theo migration.
 

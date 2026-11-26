@@ -30,7 +30,7 @@ pub const SYNC_TRIGGER_VERSION: &str = "trinity-sync-v3";
 /// Advisory lock (mức giao dịch) của `ensure` và cài trigger: nhiều tiến trình boot cùng lúc xếp hàng ở đây.
 pub const PLATFORM_LOCK: i64 = 726_354_001;
 /// Advisory lock của đăng ký công ty theo email (`provision.ts`, K09).
-pub const SIGNUP_LOCK: i64 = 726_354_002;
+pub const SIGNUP_LOCK: i32 = 726_354_002;
 
 /// Tên công ty 1 khi không đặt `DEFAULT_COMPANY_NAME`.
 pub const DEFAULT_COMPANY_NAME: &str = "Công ty mặc định";

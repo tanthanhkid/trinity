@@ -14,6 +14,7 @@ pub mod platform;
 #[rustfmt::skip]
 pub mod models;
 pub mod prisma_migrate;
+pub mod provision;
 mod tenant;
 pub mod types;
 

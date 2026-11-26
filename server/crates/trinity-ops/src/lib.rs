@@ -47,6 +47,8 @@ pub const SOFT_FKS: &[(&str, &str, &str)] = &[
 pub enum OpsError {
     #[error("lỗi DB: {0}")]
     Db(#[from] sqlx::Error),
+    #[error("schema yêu cầu không tồn tại (hoặc không phải schema công ty đã migrate): {0}")]
+    UnknownSchema(String),
     #[error("tệp trạng thái {path}: {msg}")]
     State { path: String, msg: String },
 }
@@ -144,11 +146,34 @@ impl Snapshot {
             path: path.display().to_string(),
             msg,
         };
-        let tmp = path.with_extension("tmp");
+        // Tên tệp tạm có PID: hai lượt chạy chồng nhau không giẫm lên tệp tạm của nhau.
+        let tmp = path.with_extension(format!("{}.tmp", std::process::id()));
         let bytes = serde_json::to_vec_pretty(self).map_err(|e| state(e.to_string()))?;
         std::fs::write(&tmp, bytes).map_err(|e| state(e.to_string()))?;
         std::fs::rename(&tmp, path).map_err(|e| state(e.to_string()))
     }
+}
+
+impl Snapshot {
+    /// Mốc để lưu sau lượt chạy sạch. Chạy giới hạn schema (`scoped`) thì chỉ thay các schema vừa kiểm, giữ mốc
+    /// của schema còn lại; chạy đủ thì mốc mới thay hẳn.
+    pub fn next(prev: &Self, now: Self, scoped: bool) -> Self {
+        if !scoped {
+            return now;
+        }
+        let mut out = prev.clone();
+        out.schemas.extend(now.schemas);
+        out
+    }
+}
+
+/// Kết nối từ pool, phiên đặt chỉ đọc: mọi ghi đều bị Postgres từ chối.
+pub async fn read_only_conn(db: &Db) -> Result<sqlx::pool::PoolConnection<sqlx::Postgres>, OpsError> {
+    let mut conn = db.raw_pool().acquire().await?;
+    sqlx::raw_sql("SET default_transaction_read_only = on")
+        .execute(&mut *conn)
+        .await?;
+    Ok(conn)
 }
 
 fn q(ident: &str) -> String {
@@ -165,13 +190,35 @@ type TableCols = BTreeMap<String, BTreeMap<String, Column>>;
 
 /// Chạy mọi kiểm. `prev` là mốc lần sạch trước; trả về báo cáo và mốc mới đo lần này.
 pub async fn run(db: &Db, prev: &Snapshot, opts: &Options) -> Result<(Report, Snapshot), OpsError> {
-    let mut conn = db.raw_pool().acquire().await?;
-    sqlx::raw_sql("SET default_transaction_read_only = on")
-        .execute(&mut *conn)
-        .await?;
+    let mut conn = read_only_conn(db).await?;
     let mut report = Report::default();
     let mut now = Snapshot::default();
-    for schema in list_schemas(&mut conn, &opts.schemas).await? {
+    let existing = list_schemas(&mut conn).await?;
+    if let Some(bad) = opts.schemas.iter().find(|s| !existing.contains(s)) {
+        return Err(OpsError::UnknownSchema(bad.clone()));
+    }
+    let scoped = !opts.schemas.is_empty();
+    let wanted: Vec<String> = existing
+        .into_iter()
+        .filter(|s| !scoped || opts.schemas.contains(s))
+        .collect();
+    // Schema có trong mốc mà biến mất (chỉ khi chạy đủ; chạy giới hạn đã bắt schema không tồn tại ở trên).
+    if !scoped {
+        for (schema, tables) in &prev.schemas {
+            if !wanted.contains(schema) {
+                let rows = tables.values().map(|t| t.rows).sum();
+                report.violations.push(Violation {
+                    kind: Kind::RowCountDrop,
+                    schema: schema.clone(),
+                    table: "*".to_owned(),
+                    column: None,
+                    count: rows,
+                    detail: "mất schema".to_owned(),
+                });
+            }
+        }
+    }
+    for schema in wanted {
         let tables = load_columns(&mut conn, &schema).await?;
         let mut stats = BTreeMap::new();
         for (table, cols) in &tables {
@@ -187,6 +234,18 @@ pub async fn run(db: &Db, prev: &Snapshot, opts: &Options) -> Result<(Report, Sn
                     report.json_columns_checked += 1;
                     json_readable(&mut conn, &mut report, &schema, table, name, col).await?;
                 }
+            }
+        }
+        if let Some(old) = prev.schemas.get(&schema) {
+            for (table, stat) in old.iter().filter(|(t, _)| !tables.contains_key(*t)) {
+                report.violations.push(Violation {
+                    kind: Kind::RowCountDrop,
+                    schema: schema.clone(),
+                    table: table.clone(),
+                    column: None,
+                    count: stat.rows,
+                    detail: "mất bảng".to_owned(),
+                });
             }
         }
         for table in CODE_TABLES {
@@ -207,7 +266,7 @@ pub async fn run(db: &Db, prev: &Snapshot, opts: &Options) -> Result<(Report, Sn
     Ok((report, now))
 }
 
-async fn list_schemas(conn: &mut PgConnection, only: &[String]) -> Result<Vec<String>, OpsError> {
+async fn list_schemas(conn: &mut PgConnection) -> Result<Vec<String>, OpsError> {
     let rows = sqlx::query(
         "SELECT n.nspname FROM pg_namespace n
          WHERE (n.nspname = 'public' OR n.nspname ~ '^c_[0-9]+$')
@@ -216,12 +275,7 @@ async fn list_schemas(conn: &mut PgConnection, only: &[String]) -> Result<Vec<St
     )
     .fetch_all(&mut *conn)
     .await?;
-    let all: Vec<String> = rows.iter().map(|r| r.get::<String, _>(0)).collect();
-    Ok(if only.is_empty() {
-        all
-    } else {
-        all.into_iter().filter(|s| only.contains(s)).collect()
-    })
+    Ok(rows.iter().map(|r| r.get::<String, _>(0)).collect())
 }
 
 async fn load_columns(conn: &mut PgConnection, schema: &str) -> Result<TableCols, OpsError> {
@@ -327,21 +381,24 @@ async fn duplicate_codes(
     schema: &str,
     table: &str,
 ) -> Result<(), OpsError> {
+    // `count(*) OVER ()` là tổng số mã trùng thật; LIMIT chỉ cắt phần mã mẫu hiển thị.
     let sql = format!(
-        "SELECT code, count(*) FROM {s}.{t} WHERE code IS NOT NULL GROUP BY code HAVING count(*) > 1 ORDER BY code LIMIT 5",
+        "SELECT code, count(*) OVER () FROM (
+           SELECT code FROM {s}.{t} WHERE code IS NOT NULL GROUP BY code HAVING count(*) > 1) d
+         ORDER BY code LIMIT 5",
         s = q(schema),
         t = q(table)
     );
     let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut *conn).await?;
-    if !rows.is_empty() {
+    if let Some(first) = rows.first() {
         let codes: Vec<String> = rows.iter().map(|r| r.get::<String, _>(0)).collect();
         report.violations.push(Violation {
             kind: Kind::DuplicateCode,
             schema: schema.to_owned(),
             table: table.to_owned(),
             column: Some("code".to_owned()),
-            count: i64::try_from(rows.len()).unwrap_or(i64::MAX),
-            detail: format!("mã trùng (tối đa 5): {}", codes.join(", ")),
+            count: first.get::<i64, _>(1),
+            detail: format!("mã trùng (mẫu tối đa 5): {}", codes.join(", ")),
         });
     }
     Ok(())
@@ -368,35 +425,32 @@ async fn json_readable(
     col: &Column,
 ) -> Result<(), OpsError> {
     let (s, t, c) = (q(schema), q(table), q(column));
-    // Mã hoá hai lần: kiểu chuỗi mà nội dung là JSON đối tượng/mảng. Bộ đọc TS trả về nguyên chuỗi chứ không
-    // phải đối tượng, nên `.map`/truy cập trường sẽ hỏng.
-    let sql =
-        format!("SELECT ({c}::jsonb #>> '{{}}') FROM {s}.{t} WHERE jsonb_typeof({c}::jsonb) = 'string' LIMIT 1000");
-    let rows = sqlx::query(AssertSqlSafe(sql)).fetch_all(&mut *conn).await?;
-    let double = rows
-        .iter()
-        .filter(|r| {
-            r.get::<Option<String>, _>(0)
-                .and_then(|v| serde_json::from_str::<serde_json::Value>(v.trim()).ok())
-                .is_some_and(|v| v.is_object() || v.is_array())
-        })
-        .count();
+    // Mã hoá hai lần: kiểu chuỗi mà nội dung là JSON đối tượng/mảng (đếm trên cả bảng, bằng `IS JSON` của
+    // Postgres 16). Bộ đọc TS trả về nguyên chuỗi chứ không phải đối tượng nên `.map`/truy cập trường sẽ hỏng.
+    // JSON `null` không tính là lỗi.
+    let sql = format!(
+        "SELECT count(*) FROM {s}.{t} WHERE jsonb_typeof({c}::jsonb) = 'string'
+           AND (({c}::jsonb #>> '{{}}') IS JSON OBJECT OR ({c}::jsonb #>> '{{}}') IS JSON ARRAY)"
+    );
+    let double: i64 = sqlx::query_scalar(AssertSqlSafe(sql)).fetch_one(&mut *conn).await?;
     if double > 0 {
         report.violations.push(Violation {
             kind: Kind::JsonUnreadable,
             schema: schema.to_owned(),
             table: table.to_owned(),
             column: Some(column.to_owned()),
-            count: i64::try_from(double).unwrap_or(i64::MAX),
+            count: double,
             detail: "JSON bị mã hoá hai lần (chuỗi chứa JSON)".to_owned(),
         });
     }
     if let Some(want) = expected_type(col.default.as_deref()) {
-        let sql =
-            format!("SELECT count(*) FROM {s}.{t} WHERE {c} IS NOT NULL AND jsonb_typeof({c}::jsonb) <> '{want}'");
+        let sql = format!(
+            "SELECT count(*) FROM {s}.{t} WHERE {c} IS NOT NULL
+               AND jsonb_typeof({c}::jsonb) NOT IN ('{want}', 'null')"
+        );
         let n: i64 = sqlx::query_scalar(AssertSqlSafe(sql)).fetch_one(&mut *conn).await?;
         // Chuỗi mã hoá hai lần đã báo ở trên; ở đây chỉ đếm phần sai kiểu còn lại.
-        let n = n - i64::try_from(double).unwrap_or(0);
+        let n = n - double;
         if n > 0 {
             report.violations.push(Violation {
                 kind: Kind::JsonUnreadable,

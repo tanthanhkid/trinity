@@ -9,7 +9,7 @@ bật đợt cutover kế tiếp (PLAN mục 6.5, 6.6).
 | `row_count_drop` | số dòng mỗi bảng không sụt quá `--min-drop-rows` dòng **và** `--drop-pct` % so với lần chạy sạch trước (mặc định 10 dòng và 20%) |
 | `updated_at_regress` | `max(updated_at)` mỗi bảng không lùi so với lần trước; không dòng nào có `updated_at < created_at` |
 | `duplicate_code` | `code` của `contacts`, `deals`, `kanban_cards`, `custom_records`, `pos_orders`, `store_orders` không trùng |
-| `json_unreadable` | cột `json`/`jsonb` không bị mã hoá hai lần (chuỗi chứa đối tượng/mảng JSON) và đúng kiểu mà giá trị mặc định nêu (`'[]'` mảng, `'{}'` đối tượng), tức bộ đọc của bản TS dùng được ngay |
+| `json_unreadable` | cột `json`/`jsonb` không bị mã hoá hai lần (chuỗi chứa đối tượng/mảng JSON, đếm trên cả bảng, cần Postgres 16; JSON `null` không tính lỗi) và đúng kiểu mà giá trị mặc định nêu (`'[]'` mảng, `'{}'` đối tượng), tức bộ đọc của bản TS dùng được ngay |
 | `orphan_soft_fk` | không dòng mồ côi ở các soft-FK chính (`SOFT_FKS` trong `server/crates/trinity-ops/src/lib.rs`); cha bị soft-delete vẫn tính là có cha |
 
 Báo cáo chỉ có tên bảng, cột, số lượng, id/mã khoá mẫu; **không có giá trị dữ liệu**.
@@ -29,14 +29,19 @@ DATABASE_URL=postgresql://… trinity check-invariants --state /var/lib/trinity/
 
 ## Lịch
 
-Hằng ngày suốt giai đoạn lai; **mỗi giờ trong 72 giờ đầu của mỗi đợt** (dòng cron thứ hai bật khi bắt đầu đợt):
+Một lượt mỗi ngày suốt giai đoạn lai; **mỗi giờ trong 72 giờ đầu của mỗi đợt** thì đổi sang lịch giờ (bỏ dòng hằng
+ngày trong lúc đó, để không có hai lượt cùng ghi mốc). Bọc `flock -n` để lượt sau bỏ qua nếu lượt trước chưa xong:
 
 ```cron
-0 3 * * *  trinity check-invariants --state /var/lib/trinity/invariants.json || /usr/local/bin/bao-dong
-0 * * * *  trinity check-invariants --state /var/lib/trinity/invariants.json || /usr/local/bin/bao-dong   # 72 giờ đầu của đợt
+# hằng ngày
+0 3 * * *  flock -n /var/lock/trinity-invariants.lock trinity check-invariants --state /var/lib/trinity/invariants.json || /usr/local/bin/bao-dong
+# 72 giờ đầu của đợt (thay dòng trên)
+0 * * * *  flock -n /var/lock/trinity-invariants.lock trinity check-invariants --state /var/lib/trinity/invariants.json || /usr/local/bin/bao-dong
 ```
 
-Dùng chung một tệp `--state` cho hai dòng (không chạy chồng nhau; dùng `flock` nếu cần).
+Tệp mốc ghi qua tệp tạm có PID rồi đổi tên, nên không bao giờ để lại tệp dở. Chạy với `--schema` chỉ thay mốc của
+schema vừa kiểm; schema yêu cầu mà không tồn tại thì thoát mã 2. Bảng hoặc schema có trong mốc mà biến mất được báo như
+`row_count_drop` ("mất bảng", "mất schema"). Phiên chạy đặt `statement_timeout = 0` như `trinity migrate`.
 
 ## Thử
 

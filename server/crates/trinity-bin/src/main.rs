@@ -86,6 +86,8 @@ async fn run_invariants(args: &InvariantsArgs) -> Result<bool, String> {
     use trinity_ops::{Options, Snapshot};
     let mut cfg = trinity_db::DbConfig::from_env().map_err(|e| e.to_string())?;
     cfg.pool_size = 1;
+    // Như migrate: bảng lớn có thể đếm lâu hơn 30 giây mặc định.
+    cfg.statement_timeout = std::time::Duration::ZERO;
     let db = trinity_db::Db::connect(&cfg).await.map_err(|e| e.to_string())?;
     let prev = match &args.state {
         Some(p) => Snapshot::load(p).map_err(|e| e.to_string())?,
@@ -101,7 +103,9 @@ async fn run_invariants(args: &InvariantsArgs) -> Result<bool, String> {
     if let Some(p) = &args.state
         && (report.ok() || args.accept)
     {
-        now.save(p).map_err(|e| e.to_string())?;
+        trinity_ops::Snapshot::next(&prev, now, !args.schemas.is_empty())
+            .save(p)
+            .map_err(|e| e.to_string())?;
     }
     let mut out = std::io::stdout().lock();
     if args.json {

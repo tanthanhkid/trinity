@@ -151,9 +151,26 @@ async fn bat_du_nam_kieu_hong() {
         .expect("trùng mã");
     assert_eq!(
         (v.table.as_str(), v.detail.as_str()),
-        ("deals", "mã trùng (tối đa 5): DL-1")
+        ("deals", "mã trùng (mẫu tối đa 5): DL-1")
     );
+    assert_eq!(v.count, 1);
     assert!(CODE_TABLES.contains(&"deals"));
+    // count là tổng thật, không bị LIMIT 5 cắt
+    exec(
+        &mut c,
+        &format!("INSERT INTO {S}.deals (id, code) SELECT 200 + g, 'DL-' || (g % 7 + 1) FROM generate_series(1, 14) g"),
+    )
+    .await;
+    let (r, _) = run(&db, &base, &only()).await.unwrap();
+    assert_eq!(
+        r.violations
+            .iter()
+            .find(|v| v.kind == Kind::DuplicateCode)
+            .unwrap()
+            .count,
+        7,
+        "{r:?}"
+    );
 
     // 4. JSON: mã hoá hai lần, và sai kiểu so với mặc định (mảng bị ghi thành đối tượng)
     setup(&mut c).await;
@@ -182,14 +199,30 @@ async fn bat_du_nam_kieu_hong() {
             .any(|v| v.kind == Kind::JsonUnreadable && v.count == 3),
         "{r:?}"
     );
-    // chuỗi thường (không phải JSON) trong cột chuỗi-JSON hợp lệ không bị báo oan ở cột không có mặc định mảng/đối tượng
+    // chuỗi thường và JSON null không bị báo oan (chèn dòng thật vào rbac_audit_log và contacts)
     setup(&mut c).await;
     exec(
         &mut c,
-        &format!("UPDATE {S}.rbac_audit_log SET \"after\" = to_jsonb('xin chao'::text)"),
+        &format!(
+            "INSERT INTO {S}.rbac_audit_log (id, \"before\", \"after\") VALUES (1, 'null'::jsonb, to_jsonb('xin chao'::text));
+             UPDATE {S}.contacts SET custom_fields = 'null'::jsonb WHERE id <= 2"
+        ),
     )
     .await;
     assert!(run(&db, &base, &only()).await.unwrap().0.ok());
+    // chuỗi chứa JSON ở cột không có mặc định mảng/đối tượng vẫn là mã hoá hai lần
+    exec(
+        &mut c,
+        &format!("UPDATE {S}.rbac_audit_log SET \"after\" = to_jsonb('{{\"a\":1}}'::text)"),
+    )
+    .await;
+    let (r, _) = run(&db, &base, &only()).await.unwrap();
+    assert!(
+        r.violations
+            .iter()
+            .any(|v| v.kind == Kind::JsonUnreadable && v.table == "rbac_audit_log"),
+        "{r:?}"
+    );
 
     // 5. dòng mồ côi soft-FK; cha bị soft-delete thì vẫn là có cha
     setup(&mut c).await;
@@ -202,9 +235,53 @@ async fn bat_du_nam_kieu_hong() {
         (Kind::OrphanSoftFk, "kanban_cards", Some("contact_id"), 1)
     );
 
-    // Không ghi gì vào DB: phiên chỉ đọc.
+    // 6. bảng và schema có trong mốc mà biến mất
     setup(&mut c).await;
-    let _ = run(&db, &base, &only()).await.unwrap();
+    exec(&mut c, &format!("DROP TABLE {S}.deals")).await;
+    let (r, _) = run(&db, &base, &only()).await.unwrap();
+    assert!(
+        r.violations
+            .iter()
+            .any(|v| v.kind == Kind::RowCountDrop && v.table == "deals" && v.detail == "mất bảng"),
+        "{r:?}"
+    );
+    let mut gone = base.clone();
+    gone.schemas.insert("c_9399".to_owned(), base.schemas[S].clone());
+    let (r, _) = run(&db, &gone, &Options::default()).await.unwrap();
+    assert!(
+        r.violations
+            .iter()
+            .any(|v| v.schema == "c_9399" && v.detail == "mất schema"),
+        "{r:?}"
+    );
+
+    // --schema: schema không tồn tại là lỗi; mốc chỉ thay schema đã kiểm
+    let bad = Options {
+        schemas: vec!["c_9398".to_owned()],
+        ..Options::default()
+    };
+    assert!(matches!(
+        run(&db, &base, &bad).await,
+        Err(trinity_ops::OpsError::UnknownSchema(_))
+    ));
+    let next = Snapshot::next(&gone, base.clone(), true);
+    assert!(next.schemas.contains_key("c_9399") && next.schemas.contains_key(S));
+    assert!(
+        !Snapshot::next(&gone, base.clone(), false)
+            .schemas
+            .contains_key("c_9399")
+    );
+
+    // Chế độ chỉ đọc thật: kết nối của bộ kiểm từ chối mọi ghi.
+    setup(&mut c).await;
+    let mut ro = trinity_ops::read_only_conn(&db).await.unwrap();
+    let err = sqlx::raw_sql(AssertSqlSafe(format!("DELETE FROM {S}.contacts")))
+        .execute(&mut *ro)
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("read-only"), "{err}");
+    drop(ro);
 
     exec(&mut c, &format!("DROP SCHEMA {S} CASCADE")).await;
 }

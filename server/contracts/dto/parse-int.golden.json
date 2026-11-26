@@ -1,0 +1,88 @@
+[
+ {
+  "input": "12",
+  "result": {
+   "ok": 12
+  }
+ },
+ {
+  "input": "-3",
+  "result": {
+   "ok": -3
+  }
+ },
+ {
+  "input": "0",
+  "result": {
+   "ok": 0
+  }
+ },
+ {
+  "input": "007",
+  "result": {
+   "ok": 7
+  }
+ },
+ {
+  "input": "1.5",
+  "result": {
+   "status": 400,
+   "message": "Validation failed (numeric string is expected)"
+  }
+ },
+ {
+  "input": "abc",
+  "result": {
+   "status": 400,
+   "message": "Validation failed (numeric string is expected)"
+  }
+ },
+ {
+  "input": "",
+  "result": {
+   "status": 400,
+   "message": "Validation failed (numeric string is expected)"
+  }
+ },
+ {
+  "input": " 1",
+  "result": {
+   "status": 400,
+   "message": "Validation failed (numeric string is expected)"
+  }
+ },
+ {
+  "input": "1 ",
+  "result": {
+   "status": 400,
+   "message": "Validation failed (numeric string is expected)"
+  }
+ },
+ {
+  "input": "1e3",
+  "result": {
+   "status": 400,
+   "message": "Validation failed (numeric string is expected)"
+  }
+ },
+ {
+  "input": "+5",
+  "result": {
+   "status": 400,
+   "message": "Validation failed (numeric string is expected)"
+  }
+ },
+ {
+  "input": "0x10",
+  "result": {
+   "status": 400,
+   "message": "Validation failed (numeric string is expected)"
+  }
+ },
+ {
+  "input": "9007199254740991",
+  "result": {
+   "ok": 9007199254740991
+  }
+ }
+]

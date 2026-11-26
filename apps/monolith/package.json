@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/apps/monolith/src/main.js",
+    "contracts:openapi": "tsc -p tsconfig.json && node dist/apps/monolith/src/contracts/export-openapi.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:rbac": "jest --config test/rbac/jest-e2e.json --runInBand --forceExit",
     "test": "jest --passWithNoTests && tsx --test 'src/__tests__/*.test.ts'"

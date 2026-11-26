@@ -41,6 +41,54 @@ in the build log, which every project member can read, so set `SEED_ADMIN_PASSWO
 5. If you enable MCP/OAuth set `INTEGRATIONS_PUBLIC_BASE_URL=https://crm.example.com` and
    `INTEGRATIONS_SECRET_KEY` (`openssl rand -base64 32`), then `docker compose up -d`.
 
+## Client IP (`TRUSTED_PROXY`)
+
+Office-IP checks at login (`LOGIN_WIFI_CHECK_ENABLED`), attendance IP checks (they affect payroll), rate limits, login
+logs, VNPay and the online store all use the client's IP. The backend determines it in **one** function
+(`resolveClientIp`, `packages/rbac-nest/src/client-ip.ts`), once per request, as soon as the headers arrive (before the
+body is read). No header sent by the client is trusted unless `TRUSTED_PROXY` says the process in front of it writes
+that header.
+
+`TRUSTED_PROXY` applies to the **TCP peer** of the process that receives the connection first:
+
+| Value | Client IP |
+|---|---|
+| `none` (default) | The peer address. No header is trusted |
+| `cloudflare` | `CF-Connecting-IP`, only when the peer is in `CLOUDFLARE_IP_RANGES` (default: the list Cloudflare publishes at https://www.cloudflare.com/ips/; set the variable, comma-separated, when it changes); any other peer: the peer address |
+| `cloudflare-tunnel` | `CF-Connecting-IP`. The port must listen on loopback only: the process **refuses to start** otherwise (API: `LISTEN_HOST=127.0.0.1`) |
+| `cidr:<list>` | The **right-most** `X-Forwarded-For` entry, only when the peer is in the list (CIDR or IP, comma-separated; the keyword `docker-gateway` is the container's default gateway read from `/proc/net/route`). `X-Real-IP` only with an explicit `;header=x-real-ip` |
+| `cloudflare-behind:<list>` | Cloudflare → Caddy/nginx → app. When the peer is in the list: take the right-most `X-Forwarded-For` entry (written by that proxy); if it is in `CLOUDFLARE_IP_RANGES` use `CF-Connecting-IP`, otherwise that entry |
+
+| Deployment | `TRUSTED_PROXY` |
+|---|---|
+| Process manager, Caddy/nginx on the same machine → web → API | `cidr:127.0.0.1/32` |
+| Same, with Cloudflare in front of Caddy/nginx | `cloudflare-behind:127.0.0.1/32` |
+| Docker Compose, `web` port published directly | `none` |
+| Docker Compose, Cloudflare connects straight to the `web` port | `cloudflare` |
+| Docker Compose behind Caddy/nginx on the host | `cidr:docker-gateway` (or `cloudflare-behind:docker-gateway`) |
+| Cloudflare Tunnel | `cloudflare-tunnel` |
+
+Caddy always writes `X-Forwarded-For` itself. **nginx does not**: every `location` that points at the app needs
+`proxy_set_header X-Forwarded-For $remote_addr;` (overwrite, not append) and `proxy_set_header X-Real-IP "";`; without
+the overwrite a client can fake its IP. Do not use `set_real_ip_from` alone (its default `real_ip_header` is
+`X-Real-IP`, i.e. the client's header). Use `cidr:` only when there really is a proxy in front and the app listens on
+loopback. Opening the origin only to Cloudflare's ranges (or using a Tunnel) remains a recommended second layer.
+
+**When the IP cannot be trusted** — the result is loopback, the container's default gateway (traffic through
+`docker-proxy`/NAT, e.g. `cidr:` with a wrong Docker range, or Cloudflare reaching the origin over IPv6), or the web
+process marked it untrusted — it is never compared with office IPs. Login Wi-Fi checks and attendance IP checks **let
+everyone through** (nobody is locked out), the server logs a configuration error, and admins of the operating company
+see a warning banner on every page (also `GET /api/v1/settings/client-ip/alerts` and the MCP tool
+`get_client_ip_status`) until the setting is fixed. Rate limits then fall back to the peer address, i.e. **one shared
+bucket for all clients**.
+
+**Between Trinity processes** the IP travels in `x-trinity-client-ip: <ip or "untrusted">;<unix time>;<signature>`:
+HMAC-SHA256 over `<value>\n<unix time>` with a key derived by HKDF-SHA256 (empty salt, info
+`trinity x-trinity-client-ip v1`) from the internal secret (`INTERNAL_SERVICE_SECRET`, then `SERVICE_SECRET`; the API
+accepts either, like `@Internal` routes). It is valid for ±60 seconds and checked when the headers arrive, so a slow
+upload does not expire it. A request carrying this header with a wrong or expired signature gets **400** (a mismatch
+of secrets between web and API shows up as 400 on every request and a log line saying so).
+
 ## Updating
 
 ```bash
@@ -116,4 +164,5 @@ API returns a config).
 - [ ] Every `change-me-*` value replaced; secrets are random and at least 32 bytes.
 - [ ] `CORS_ORIGIN` lists only your real web origin(s).
 - [ ] TLS in front of the web container; port 4000 not exposed to the internet.
+- [ ] `TRUSTED_PROXY` set for your deployment (section "Client IP"); no client-IP warning banner after signing in as an admin.
 - [ ] Postgres and Redis not exposed publicly, backups scheduled.

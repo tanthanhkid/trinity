@@ -306,7 +306,8 @@ export interface AttendanceOffice {
 export interface CheckResult {
   record: AttendanceRecord
   already: boolean
-  office: string
+  /** null khi máy chủ không xác định được IP thật (lỗi cấu hình TRUSTED_PROXY): chấm công vẫn ghi, không gắn văn phòng. */
+  office: string | null
 }
 
 const KEY = "attendance"

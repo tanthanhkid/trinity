@@ -1098,7 +1098,7 @@
    "from": "2026-13-01",
    "to": null,
    "out": {
-    "error": "Invalid time value"
+    "invalid_date": "from"
    }
   },
   {
@@ -1121,21 +1121,21 @@
    "from": "2026-05-32",
    "to": null,
    "out": {
-    "error": "Invalid time value"
+    "invalid_date": "from"
    }
   },
   {
    "from": "2026-05-00",
    "to": null,
    "out": {
-    "error": "Invalid time value"
+    "invalid_date": "from"
    }
   },
   {
    "from": "2026-00-10",
    "to": null,
    "out": {
-    "error": "Invalid time value"
+    "invalid_date": "from"
    }
   },
   {
@@ -1152,6 +1152,13 @@
    "out": {
     "from": null,
     "to": "2026-07-01T16:59:59.999Z"
+   }
+  },
+  {
+   "from": "2026-05-01",
+   "to": "2026-02-31",
+   "out": {
+    "error": "Khoảng ngày không hợp lệ: ngày bắt đầu sau ngày kết thúc"
    }
   }
  ],
@@ -2277,6 +2284,96 @@
    "at": "2099-12-31T16:59:59Z",
    "style": "month_year_2",
    "out": "12/2099"
+  },
+  {
+   "at": "0999-06-15T00:00:00Z",
+   "style": "day_month_year",
+   "out": "15/6/999"
+  },
+  {
+   "at": "0999-06-15T00:00:00Z",
+   "style": "day_month_year_2",
+   "out": "15/06/999"
+  },
+  {
+   "at": "0999-06-15T00:00:00Z",
+   "style": "hour_minute",
+   "out": "07:06"
+  },
+  {
+   "at": "0999-06-15T00:00:00Z",
+   "style": "hour_minute_day_month_year_2",
+   "out": "07:06 15/06/999"
+  },
+  {
+   "at": "0999-06-15T00:00:00Z",
+   "style": "short_date_time",
+   "out": "07:06 15/6/99"
+  },
+  {
+   "at": "0999-06-15T00:00:00Z",
+   "style": "iso_date",
+   "out": "999-06-15"
+  },
+  {
+   "at": "0999-06-15T00:00:00Z",
+   "style": "iso_month",
+   "out": "999-06"
+  },
+  {
+   "at": "0999-06-15T00:00:00Z",
+   "style": "day_month_2",
+   "out": "15/06"
+  },
+  {
+   "at": "0999-06-15T00:00:00Z",
+   "style": "month_year_2",
+   "out": "06/999"
+  },
+  {
+   "at": "0099-01-01T12:00:00Z",
+   "style": "day_month_year",
+   "out": "1/1/99"
+  },
+  {
+   "at": "0099-01-01T12:00:00Z",
+   "style": "day_month_year_2",
+   "out": "01/01/99"
+  },
+  {
+   "at": "0099-01-01T12:00:00Z",
+   "style": "hour_minute",
+   "out": "19:06"
+  },
+  {
+   "at": "0099-01-01T12:00:00Z",
+   "style": "hour_minute_day_month_year_2",
+   "out": "19:06 01/01/99"
+  },
+  {
+   "at": "0099-01-01T12:00:00Z",
+   "style": "short_date_time",
+   "out": "19:06 1/1/99"
+  },
+  {
+   "at": "0099-01-01T12:00:00Z",
+   "style": "iso_date",
+   "out": "99-01-01"
+  },
+  {
+   "at": "0099-01-01T12:00:00Z",
+   "style": "iso_month",
+   "out": "99-01"
+  },
+  {
+   "at": "0099-01-01T12:00:00Z",
+   "style": "day_month_2",
+   "out": "01/01"
+  },
+  {
+   "at": "0099-01-01T12:00:00Z",
+   "style": "month_year_2",
+   "out": "01/99"
   }
  ],
  "compare": [
@@ -3334,6 +3431,66 @@
    "locale": "root",
    "a": "x-1",
    "b": "x_1",
+   "out": 1
+  },
+  {
+   "locale": "root",
+   "a": "Ăn",
+   "b": "Âu",
+   "out": -1
+  },
+  {
+   "locale": "root",
+   "a": "Ăn",
+   "b": "An",
+   "out": 1
+  },
+  {
+   "locale": "root",
+   "a": "Âu",
+   "b": "Ba",
+   "out": -1
+  },
+  {
+   "locale": "root",
+   "a": "Đ",
+   "b": "E",
+   "out": -1
+  },
+  {
+   "locale": "root",
+   "a": "Đa",
+   "b": "Dz",
+   "out": -1
+  },
+  {
+   "locale": "root",
+   "a": "đa",
+   "b": "De",
+   "out": -1
+  },
+  {
+   "locale": "root",
+   "a": "Ơn",
+   "b": "Ôm",
+   "out": 1
+  },
+  {
+   "locale": "root",
+   "a": "Ư",
+   "b": "V",
+   "out": -1
+  },
+  {
+   "locale": "root",
+   "a": "Bé Minh",
+   "b": "Be Minh",
+   "out": 1
+  },
+  {
+   "locale": "root",
+   "a": "Nguyễn",
+   "b": "Nguyen",
    "out": 1
   }
  ],

@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 use trinity_kernel::number::format_vn_number;
 use trinity_kernel::phone::{normalize_phone, phone_variants};
 use trinity_kernel::vi::{Collation, SQL_FOLD_FROM, SQL_FOLD_TO, compare, fold_contains, fold_vi};
-use trinity_kernel::vn_time::{VnDateStyle, format_vn_date, js_iso_string, parse_vn_date_range_optional};
+use trinity_kernel::vn_time::{VnDateStyle, VnRangeError, format_vn_date, js_iso_string, parse_vn_date_range_optional};
 
 fn table() -> Value {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../contracts/cases/kernel.json");
@@ -55,6 +55,9 @@ fn bang_ca_dung_chung_khop_ban_ts() {
                 "from": range.from.map(js_iso_string),
                 "to": range.to.map(js_iso_string),
             }),
+            // Bản TS để lọt `Invalid Date`; Rust trả lỗi 400 (xem `VnRangeError`). Bảng ghi điểm khác biệt này.
+            Err(VnRangeError::InvalidFrom) => json!({ "invalid_date": "from" }),
+            Err(VnRangeError::InvalidTo) => json!({ "invalid_date": "to" }),
             Err(e) => json!({ "error": e.to_string() }),
         },
     );

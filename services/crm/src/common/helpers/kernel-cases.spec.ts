@@ -59,8 +59,9 @@ const DATE_STYLES: Record<string, (d: Date) => string> = {
 const COMPARE: Record<string, (a: string, b: string) => number> = {
   vi: (a, b) => a.localeCompare(b, 'vi'),
   'en-numeric': (a, b) => a.localeCompare(b, 'en', { numeric: true }),
-  // Không truyền locale: locale mặc định của tiến trình (en-US trên máy chủ và CI).
-  root: (a, b) => a.localeCompare(b),
+  // Mã chạy thật gọi `localeCompare(b)` không locale = locale mặc định của tiến trình (en-US trên máy chủ và CI);
+  // ghim 'en-US' để kết quả của spec không phụ thuộc máy chạy.
+  root: (a, b) => a.localeCompare(b, 'en-US'),
 };
 
 function compute(t: Table): Table {
@@ -87,6 +88,9 @@ function compute(t: Table): Table {
           (r.from as string | null) ?? undefined,
           (r.to as string | null) ?? undefined,
         );
+        // Bản TS để lọt `Invalid Date` (rồi lỗi 500 ở truy vấn); Rust trả 400. Ghi lại biên nào hỏng.
+        if (dateFrom && Number.isNaN(dateFrom.getTime())) return { invalid_date: 'from' };
+        if (dateTo && Number.isNaN(dateTo.getTime())) return { invalid_date: 'to' };
         return { from: dateFrom?.toISOString() ?? null, to: dateTo?.toISOString() ?? null };
       }),
     })),
@@ -106,12 +110,11 @@ function compute(t: Table): Table {
 }
 
 describe('bảng ca dùng chung TS ↔ Rust (server/contracts/cases/kernel.json)', () => {
-  const table = JSON.parse(fs.readFileSync(FILE, 'utf8')) as Table;
-  const fresh = compute(table);
-
-  if (process.env.UPDATE_KERNEL_CASES === '1') {
-    fs.writeFileSync(FILE, `${JSON.stringify(fresh, null, 1)}\n`);
-  }
+  const fresh = compute(JSON.parse(fs.readFileSync(FILE, 'utf8')) as Table);
+  // Chế độ sinh lại: ghi bảng mới rồi so với chính nó (lượt này chỉ để sinh; lượt thường mới là lượt kiểm).
+  const update = process.env.UPDATE_KERNEL_CASES === '1';
+  if (update) fs.writeFileSync(FILE, `${JSON.stringify(fresh, null, 1)}\n`);
+  const table = update ? fresh : (JSON.parse(fs.readFileSync(FILE, 'utf8')) as Table);
 
   it('có ít nhất 300 ca', () => {
     const n = Object.values(fresh).reduce<number>((s, v) => s + (Array.isArray(v) ? v.length : 0), 0);

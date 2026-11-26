@@ -40,7 +40,7 @@ pub fn vn_clock_minutes(at: DateTime<Utc>) -> u32 {
 
 /// Thời điểm UTC của `date` lúc `time` theo UTC+7 cố định (như chuỗi `…T00:00:00+07:00` của bản TS).
 pub fn vn_to_utc(date: NaiveDate, time: NaiveTime) -> DateTime<Utc> {
-    (date.and_time(time) - Duration::seconds(i64::from(VN_OFFSET_SECS))).and_utc()
+    vn_to_utc_checked(date, time).unwrap_or(DateTime::<Utc>::MIN_UTC)
 }
 
 /// Chuỗi ISO 8601 giống `Date.prototype.toISOString` của JS: mili giây 3 chữ số, `Z`; năm ngoài 0000–9999 viết
@@ -88,7 +88,8 @@ pub enum VnDateStyle {
     MonthYear2,
 }
 
-/// Định dạng `at` theo giờ Việt Nam, khớp từng byte với cách gọi tương ứng của bản TS (xem [`VnDateStyle`]).
+/// Định dạng `at` theo giờ Việt Nam, khớp từng byte với cách gọi tương ứng của bản TS (xem [`VnDateStyle`]). Năm
+/// không đệm số 0 (`year: 'numeric'` của `Intl` in năm 999 là `999`).
 pub fn format_vn_date(at: DateTime<Utc>, style: VnDateStyle) -> String {
     let t = to_vn(at);
     let (y, m, d, hh, mm) = (t.year(), t.month(), t.day(), t.hour(), t.minute());
@@ -98,15 +99,17 @@ pub fn format_vn_date(at: DateTime<Utc>, style: VnDateStyle) -> String {
         VnDateStyle::HourMinute => format!("{hh:02}:{mm:02}"),
         VnDateStyle::HourMinuteDayMonthYear2 => format!("{hh:02}:{mm:02} {d:02}/{m:02}/{y}"),
         VnDateStyle::ShortDateTime => format!("{hh:02}:{mm:02} {d}/{m}/{:02}", y.rem_euclid(100)),
-        VnDateStyle::IsoDate => format!("{y:04}-{m:02}-{d:02}"),
-        VnDateStyle::IsoMonth => format!("{y:04}-{m:02}"),
+        VnDateStyle::IsoDate => format!("{y}-{m:02}-{d:02}"),
+        VnDateStyle::IsoMonth => format!("{y}-{m:02}"),
         VnDateStyle::DayMonth2 => format!("{d:02}/{m:02}"),
         VnDateStyle::MonthYear2 => format!("{m:02}/{y}"),
     }
 }
 
-/// Lỗi của bộ đọc khoảng ngày; `Display` là đúng câu bản TS trả cho người dùng (400), trừ [`Self::InvalidDate`]
-/// (bản TS để lọt `Invalid Date` xuống truy vấn).
+/// Lỗi của bộ đọc khoảng ngày; `Display` là câu trả người dùng (400).
+///
+/// Khác bản TS có chủ đích: chuỗi đúng dạng mà không thành ngày (tháng 13, ngày 32…) bản TS để lọt `Invalid Date`
+/// xuống truy vấn (500); Rust trả [`Self::InvalidFrom`]/[`Self::InvalidTo`] với cùng câu sai định dạng (400).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VnRangeError {
     /// `date_from` sai dạng `YYYY-MM-DD`.
@@ -115,17 +118,18 @@ pub enum VnRangeError {
     BadTo,
     /// Ngày bắt đầu sau ngày kết thúc.
     Reversed,
-    /// Đúng dạng nhưng không thành ngày được (tháng 13, ngày 32…).
-    InvalidDate,
+    /// `date_from` đúng dạng nhưng không thành ngày.
+    InvalidFrom,
+    /// `date_to` đúng dạng nhưng không thành ngày.
+    InvalidTo,
 }
 
 impl fmt::Display for VnRangeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::BadFrom => "date_from phải đúng định dạng YYYY-MM-DD",
-            Self::BadTo => "date_to phải đúng định dạng YYYY-MM-DD",
+            Self::BadFrom | Self::InvalidFrom => "date_from phải đúng định dạng YYYY-MM-DD",
+            Self::BadTo | Self::InvalidTo => "date_to phải đúng định dạng YYYY-MM-DD",
             Self::Reversed => "Khoảng ngày không hợp lệ: ngày bắt đầu sau ngày kết thúc",
-            Self::InvalidDate => "Invalid time value",
         })
     }
 }
@@ -161,18 +165,25 @@ fn js_calendar_date(s: &str) -> Option<NaiveDate> {
     if !(1..=31).contains(&d) {
         return None;
     }
-    NaiveDate::from_ymd_opt(y, m, 1)?.checked_add_signed(Duration::days(i64::from(d) - 1))
+    NaiveDate::from_ymd_opt(y, m, 1)?.checked_add_signed(Duration::try_days(i64::from(d) - 1)?)
 }
 
-fn day_start(s: &str) -> Result<DateTime<Utc>, VnRangeError> {
-    let date = js_calendar_date(s).ok_or(VnRangeError::InvalidDate)?;
-    Ok(vn_to_utc(date, NaiveTime::MIN))
+/// 00:00:00.000 giờ VN của ngày `s` (`None` nếu không thành ngày).
+fn day_start(s: &str) -> Option<DateTime<Utc>> {
+    vn_to_utc_checked(js_calendar_date(s)?, NaiveTime::MIN)
 }
 
-fn day_end(s: &str) -> Result<DateTime<Utc>, VnRangeError> {
-    let date = js_calendar_date(s).ok_or(VnRangeError::InvalidDate)?;
-    let end = NaiveTime::from_hms_milli_opt(23, 59, 59, 999).ok_or(VnRangeError::InvalidDate)?;
-    Ok(vn_to_utc(date, end))
+/// 23:59:59.999 giờ VN của ngày `s` (`None` nếu không thành ngày).
+fn day_end(s: &str) -> Option<DateTime<Utc>> {
+    vn_to_utc_checked(js_calendar_date(s)?, NaiveTime::from_hms_milli_opt(23, 59, 59, 999)?)
+}
+
+fn vn_to_utc_checked(date: NaiveDate, time: NaiveTime) -> Option<DateTime<Utc>> {
+    Some(
+        date.and_time(time)
+            .checked_sub_signed(Duration::try_seconds(i64::from(VN_OFFSET_SECS))?)?
+            .and_utc(),
+    )
 }
 
 /// Khoảng ngày lọc theo giờ VN, KHÔNG ép khoảng mặc định: biên nào không chọn (thiếu hoặc chuỗi rỗng) là `None`
@@ -187,8 +198,10 @@ pub fn parse_vn_date_range_optional(from: Option<&str>, to: Option<&str>) -> Res
         return Err(VnRangeError::BadTo);
     }
     let range = VnRange {
-        from: from.map(day_start).transpose()?,
-        to: to.map(day_end).transpose()?,
+        from: from
+            .map(|s| day_start(s).ok_or(VnRangeError::InvalidFrom))
+            .transpose()?,
+        to: to.map(|s| day_end(s).ok_or(VnRangeError::InvalidTo)).transpose()?,
     };
     if let (Some(a), Some(b)) = (range.from, range.to)
         && a > b
@@ -198,8 +211,9 @@ pub fn parse_vn_date_range_optional(from: Option<&str>, to: Option<&str>) -> Res
     Ok(range)
 }
 
-/// Khoảng ngày cho báo cáo (`parseVnDateRange`): luôn đủ hai biên. Thiếu hoặc sai dạng `from` → `now - default_days`
-/// ngày; thiếu hoặc sai dạng `to` → `now`. `strict` thì sai dạng là lỗi (câu không dấu như bản TS).
+/// Khoảng ngày cho báo cáo (`parseVnDateRange`): luôn đủ hai biên. Thiếu, sai dạng hoặc không thành ngày ở `from` →
+/// `now - default_days` ngày; ở `to` → `now`. `strict` thì sai dạng hoặc không thành ngày là lỗi 400 (câu không dấu như
+/// bản TS); bản TS để lọt `Invalid Date` ở cả hai chế độ, Rust không.
 pub fn parse_vn_date_range(
     from: Option<&str>,
     to: Option<&str>,
@@ -209,34 +223,29 @@ pub fn parse_vn_date_range(
 ) -> Result<(DateTime<Utc>, DateTime<Utc>), StrictRangeError> {
     let from = from.filter(|s| !s.is_empty());
     let to = to.filter(|s| !s.is_empty());
+    let date_from = from.filter(|s| is_date_only(s)).and_then(day_start);
+    let date_to = to.filter(|s| is_date_only(s)).and_then(day_end);
     if strict {
-        if from.is_some_and(|s| !is_date_only(s)) {
+        if from.is_some() && date_from.is_none() {
             return Err(StrictRangeError::BadFrom);
         }
-        if to.is_some_and(|s| !is_date_only(s)) {
+        if to.is_some() && date_to.is_none() {
             return Err(StrictRangeError::BadTo);
         }
     }
-    let date_from = match from.filter(|s| is_date_only(s)) {
-        Some(s) => day_start(s).map_err(|_| StrictRangeError::InvalidDate)?,
-        None => now - Duration::days(default_days),
-    };
-    let date_to = match to.filter(|s| is_date_only(s)) {
-        Some(s) => day_end(s).map_err(|_| StrictRangeError::InvalidDate)?,
-        None => now,
-    };
-    Ok((date_from, date_to))
+    let default_from = Duration::try_days(default_days)
+        .and_then(|d| now.checked_sub_signed(d))
+        .unwrap_or(DateTime::<Utc>::MIN_UTC);
+    Ok((date_from.unwrap_or(default_from), date_to.unwrap_or(now)))
 }
 
 /// Lỗi của [`parse_vn_date_range`] ở chế độ `strict` (câu không dấu, giữ nguyên bản TS).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StrictRangeError {
-    /// `date_from` sai dạng.
+    /// `date_from` sai dạng hoặc không thành ngày.
     BadFrom,
-    /// `date_to` sai dạng.
+    /// `date_to` sai dạng hoặc không thành ngày.
     BadTo,
-    /// Đúng dạng nhưng không thành ngày được.
-    InvalidDate,
 }
 
 impl fmt::Display for StrictRangeError {
@@ -244,7 +253,6 @@ impl fmt::Display for StrictRangeError {
         f.write_str(match self {
             Self::BadFrom => "date_from phai dung dinh dang YYYY-MM-DD",
             Self::BadTo => "date_to phai dung dinh dang YYYY-MM-DD",
-            Self::InvalidDate => "Invalid time value",
         })
     }
 }
@@ -298,6 +306,16 @@ mod tests {
         assert_eq!(e.to_string(), "date_from phai dung dinh dang YYYY-MM-DD");
         let e = parse_vn_date_range(None, Some("x"), 7, true, now).expect_err("strict");
         assert_eq!(e.to_string(), "date_to phai dung dinh dang YYYY-MM-DD");
+        // Không thành ngày: strict là lỗi 400, không strict rơi về khoảng mặc định.
+        let e = parse_vn_date_range(Some("2026-13-01"), None, 7, true, now).expect_err("strict");
+        assert_eq!(e, StrictRangeError::BadFrom);
+        let (a, b) = parse_vn_date_range(Some("2026-13-01"), Some("2026-05-32"), 7, false, now).expect("ok");
+        assert_eq!((a, b), (at("2026-05-03T03:00:00Z"), now));
+        // Số ngày mặc định quá lớn không làm tràn.
+        assert_eq!(
+            parse_vn_date_range(None, None, i64::MAX, false, now).expect("ok").0,
+            DateTime::<Utc>::MIN_UTC
+        );
     }
 
     // Ca từ services/notification/src/notifications/__tests__/timezone.helper.spec.ts.

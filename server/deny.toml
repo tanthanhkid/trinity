@@ -14,7 +14,12 @@ targets = [
 [advisories]
 # Mọi cảnh báo RustSec (lỗ hổng, crate bỏ bảo trì, bản bị rút) đều chặn; ngoại lệ ghi vào `ignore` kèm lý do.
 yanked = "deny"
-ignore = []
+ignore = [
+  # chrono và chrono-tz bị đánh dấu "không còn bảo trì", không phải lỗ hổng. chrono là lựa chọn của PLAN 4.2; chrono-tz
+  # cho múi Asia/Ho_Chi_Minh khớp Intl của bản TS (K26). Đánh giá thay bằng jiff: issue #301.
+  { id = "RUSTSEC-2026-0543", reason = "chrono không còn bảo trì, không có lỗ hổng; đánh giá jiff ở #301" },
+  { id = "RUSTSEC-2026-0555", reason = "chrono-tz không còn bảo trì, không có lỗ hổng; đánh giá jiff ở #301" },
+]
 
 [licenses]
 # Chỉ giấy phép tương thích để phân phối kèm bản AGPL-3.0-only.

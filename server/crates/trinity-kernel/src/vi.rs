@@ -29,10 +29,42 @@ pub const SQL_FOLD_FROM: &str = "àáảãạăằắẳẵặâầấẩẫậ�
 /// Đối số "sang" của `translate()`: từng ký tự của [`SQL_FOLD_FROM`] qua [`fold_vi`] (giống `SQL_FOLD_TO`).
 pub const SQL_FOLD_TO: &str = "aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd";
 
-/// Biểu thức SQL đã gập (chữ thường, bỏ dấu) của `expr`, tham số `$from`/`$to` lần lượt là [`SQL_FOLD_FROM`] và
-/// [`SQL_FOLD_TO`]: `translate(lower(expr), $from, $to)`. So với mẫu [`fold_contains`] bằng `LIKE … ESCAPE '\'`.
-pub fn fold_sql(expr: &str, from_param: &str, to_param: &str) -> String {
-    format!("translate(lower({expr}), {from_param}, {to_param})")
+/// Tên cột hoặc biểu thức định danh đưa thẳng vào SQL: chỉ nhận `[a-z_][a-z0-9_]*` (có thể có tiền tố `bảng.`), kiểm
+/// lúc tạo, để [`fold_sql`] không thành đường chèn SQL.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SqlIdent(&'static str);
+
+impl SqlIdent {
+    /// Định danh hằng; sai dạng thì dừng (lúc biên dịch nếu gọi trong ngữ cảnh `const`).
+    pub const fn new(s: &'static str) -> Self {
+        let b = s.as_bytes();
+        assert!(!b.is_empty(), "định danh SQL rỗng");
+        let mut i = 0;
+        let mut start = true;
+        while i < b.len() {
+            let c = b[i];
+            let ok = c == b'_' || c.is_ascii_lowercase() || (!start && c.is_ascii_digit());
+            assert!(
+                ok || (c == b'.' && !start && i + 1 < b.len()),
+                "định danh SQL chỉ gồm [a-z0-9_.]"
+            );
+            start = c == b'.';
+            i += 1;
+        }
+        Self(s)
+    }
+
+    /// Chuỗi định danh.
+    pub const fn as_str(self) -> &'static str {
+        self.0
+    }
+}
+
+/// Biểu thức SQL đã gập (chữ thường, bỏ dấu) của cột `column`, tham số `$from_param`/`$to_param` lần lượt là
+/// [`SQL_FOLD_FROM`] và [`SQL_FOLD_TO`]: `translate(lower(cột), $n, $m)`. So với mẫu [`fold_contains`] bằng
+/// `LIKE … ESCAPE '\'` (`foldSql` của bản TS).
+pub fn fold_sql(column: SqlIdent, from_param: u32, to_param: u32) -> String {
+    format!("translate(lower({}), ${from_param}, ${to_param})", column.as_str())
 }
 
 /// Thoát `\`, `%`, `_` cho mẫu `LIKE … ESCAPE '\'` (giống `escapeLike` của bản TS).
@@ -112,7 +144,15 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "định danh SQL")]
+    fn sql_ident_tu_choi_chuoi_la() {
+        let _ = SqlIdent::new("name; DROP TABLE x");
+    }
+
+    #[test]
     fn fold_sql_dung_hinh_dang() {
-        assert_eq!(fold_sql("full_name", "$1", "$2"), "translate(lower(full_name), $1, $2)");
+        const COL: SqlIdent = SqlIdent::new("c.full_name");
+        assert_eq!(fold_sql(COL, 1, 2), "translate(lower(c.full_name), $1, $2)");
+        assert_eq!(SqlIdent::new("title").as_str(), "title");
     }
 }

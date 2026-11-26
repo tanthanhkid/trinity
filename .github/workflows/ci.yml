@@ -200,6 +200,24 @@ jobs:
         working-directory: server
         run: cargo test --locked --workspace
 
+      # Bảng ca dùng chung TS ↔ Rust (server/contracts/cases/): phía TS sinh cột kết quả, nên PR chỉ đổi bảng hoặc mã
+      # Rust cũng phải chạy lại spec TS (job `Unit tests` chỉ chạy gói TS bị đổi).
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        if: needs.rust-changes.outputs.rust == 'true'
+        with:
+          version: 10.6.5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: needs.rust-changes.outputs.rust == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Bảng ca dùng chung (phía TS)
+        if: needs.rust-changes.outputs.rust == 'true'
+        run: |
+          pnpm install --frozen-lockfile --prefer-offline --filter "@trinity/crm..."
+          pnpm --filter @trinity/prisma generate
+          cd services/crm && npx jest --testPathPattern 'kernel-cases\.spec\.ts$'
+
   # Check bắt buộc duy nhất của luồng CI (cộng CLA ở workflow riêng). Chạy `always()` để job bị bỏ qua/huỷ không làm treo merge.
   ci-ok:
     name: ci-ok

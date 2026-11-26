@@ -8,7 +8,8 @@ Hàm chung nằm ở crate `trinity-kernel` (`server/crates/trinity-kernel/src/`
   gọi `toLocale*`/`Intl`/`localeCompare` đang dùng, rồi so với cột `out` (chạy trong `Unit tests` của CI);
 - Rust chạy cùng đầu vào ở `server/crates/trinity-kernel/tests/shared_cases.rs` (`Rust unit`);
 - thêm ca: thêm đầu vào vào nhóm tương ứng, chạy `UPDATE_KERNEL_CASES=1 npx jest kernel-cases` trong `services/crm`
-  để sinh cột `out`, rồi chạy test Rust. Số không biểu diễn được bằng JSON ghi dạng chuỗi (`"NaN"`, `"-0"`, `"Infinity"`).
+  để sinh cột `out` (lượt sinh không kiểm), chạy lại không có biến để kiểm, rồi chạy test Rust. CI chạy spec TS trong
+  job `Rust unit` mỗi khi `server/` đổi, kể cả khi PR không đụng mã TS. Số không biểu diễn được bằng JSON ghi dạng chuỗi (`"NaN"`, `"-0"`, `"Infinity"`).
 
 Thư viện: `icu_collator` và `icu_normalizer` (ICU4X 2.x, cùng họ dữ liệu CLDR với ICU của V8), `chrono-tz` cho múi
 `Asia/Ho_Chi_Minh`.
@@ -20,9 +21,14 @@ Thư viện: `icu_collator` và `icu_normalizer` (ICU4X 2.x, cùng họ dữ li�
 | `Intl.DateTimeFormat`/`toLocale*` với `timeZone: 'Asia/Ho_Chi_Minh'` | `vn_time::to_vn`, `format_vn_date`, `vn_date`, `vn_clock_minutes` | Theo cơ sở dữ liệu múi giờ: trước 13/06/1975 là UTC+8 (ngày sinh cũ, mốc 1970 có ca trong bảng) |
 | Chuỗi cứng `…T00:00:00+07:00`, cộng 7 giờ | `vn_time::vn_to_utc`, `parse_vn_date_range*`, `is_business_hours`, `next_business_start` | UTC+7 cố định |
 
-`new Date('YYYY-MM-DDT…')` của V8 nhận ngày 1–31 với mọi tháng và tràn sang tháng sau (`2026-02-30` → 02/03); tháng
-13, ngày 00 hoặc 32 thành `Invalid Date`. Rust làm y như vậy; `Invalid Date` thành lỗi `VnRangeError::InvalidDate`
-(bản TS để lọt xuống truy vấn rồi lỗi 500).
+`new Date('YYYY-MM-DDT…')` của V8 nhận ngày 1–31 với mọi tháng và tràn sang tháng sau (`2026-02-30` → 02/03); Rust
+làm y như vậy. Tháng 13, ngày 00 hoặc 32 thành `Invalid Date` ở bản TS và lọt xuống truy vấn (lỗi 500). **Khác có chủ
+đích:** Rust trả 400 với câu sai định dạng (`VnRangeError::InvalidFrom/InvalidTo`; chế độ `strict` của
+`parse_vn_date_range` cũng vậy), còn `parse_vn_date_range` không strict rơi về khoảng mặc định như khi sai dạng. Bảng ca
+ghi các ca này là `{"invalid_date": "from"|"to"}`.
+
+Năm không đệm số 0 (`year: 'numeric'` của `Intl` in năm 999 là `999`, `2-digit` lấy hai số cuối); bảng có ca năm 99
+và 999.
 
 ## 33 chỗ `toLocale*`/`Intl` của backend → hai hàm chung
 
@@ -65,7 +71,7 @@ giữ thứ tự cũ.
 | 1–3 | `attendance/attendance-org-sort.helper.ts:169`, `:177`, `:184` | phòng, nhóm, họ tên (`'vi'`) | `compare(.., Collation::Vi)` trong bộ nhớ (cây tổ chức dựng sau khi gom) |
 | 4 | `attendance/attendance.service.ts:1330` | họ tên (`'vi'`) | `Collation::Vi` |
 | 5 | `attendance/attendance.service.ts:2331` | phòng (`'vi'`), sau điểm | `Collation::Vi` |
-| 6–7 | `attendance/attendance.service.ts:2536`, `:2544` | họ tên, **không** truyền locale | `Collation::Root` (giữ đúng bản TS; khác `'vi'` ở thứ tự `ă/â/đ`, ghi nhận để thống nhất sau X06) |
+| 6–7 | `attendance/attendance.service.ts:2536`, `:2544` | họ tên, **không** truyền locale | `Collation::Root` (giữ đúng bản TS; khác `'vi'` ở thứ tự `ă/â/đ`, bảng có ca `Ăn/Âu`, `Đ/E`; ghi nhận để thống nhất sau X06) |
 | 8 | `contacts/contacts-export.service.ts:159` | khoá nhóm (`'vi'`) | `Collation::Vi` |
 | 9 | `contracts/contracts.service.ts:81` | họ tên (`'vi'`) | `Collation::Vi` |
 | 10 | `contracts/contracts.service.ts:228` | cột sắp động, `String(v)` (`'vi'`) | `Collation::Vi` |

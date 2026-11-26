@@ -17,7 +17,7 @@ import type { CreateAttendanceRequestDto } from './dto/create-attendance-request
 import type { UpdateRequestConfigDto } from './dto/update-request-config.dto';
 import type { QueryAttendanceRequestsDto } from './dto/query-attendance-requests.dto';
 import type { RejectRequestDto } from './dto/reject-request.dto';
-import { extractClientIp, ipMatchesOffice } from './attendance-ip.helper';
+import { ATTENDANCE_IP_UNVERIFIED, extractClientIp, ipMatchesOffice } from './attendance-ip.helper';
 import {
   MATRIX_RECORD_CAP,
   type MatrixRow,
@@ -840,7 +840,7 @@ export class AttendanceService {
     //    Chưa gán → mọi VP thật; super_admin → fallback VP demo.
     const matchedOffice = clientIp
       ? await this.resolveOfficeForCheck(clientIp, employee.office_id, isSuperAdmin)
-      : null; // IP chưa xác minh: KHÔNG gắn văn phòng (bản ghi có check_*_ip = null và văn phòng trống = "IP chưa xác minh")
+      : null; // IP chưa xác minh: KHÔNG gắn văn phòng; check_*_ip ghi dấu ATTENDANCE_IP_UNVERIFIED
 
     const now = new Date();
     const vnDateStr = getVnDateString(now);
@@ -877,7 +877,7 @@ export class AttendanceService {
           employee_id: employee.id,
           work_date: workDate,
           check_in_at: now,
-          check_in_ip: clientIp,
+          check_in_ip: clientIp ?? ATTENDANCE_IP_UNVERIFIED,
           check_in_office_id: matchedOffice?.id ?? null,
           device_id: deviceId,
           check_in_note: note ?? null,
@@ -887,7 +887,7 @@ export class AttendanceService {
         },
         update: {
           check_in_at: now,
-          check_in_ip: clientIp,
+          check_in_ip: clientIp ?? ATTENDANCE_IP_UNVERIFIED,
           check_in_office_id: matchedOffice?.id ?? null,
           device_id: deviceId,
           check_in_note: note ?? null,
@@ -932,7 +932,7 @@ export class AttendanceService {
     //    thật; super_admin → fallback VP demo. (Đã bỏ kiểm tra thiết bị.)
     const matchedOffice = clientIp
       ? await this.resolveOfficeForCheck(clientIp, employee.office_id, isSuperAdmin)
-      : null; // IP chưa xác minh: KHÔNG gắn văn phòng (bản ghi có check_*_ip = null và văn phòng trống = "IP chưa xác minh")
+      : null; // IP chưa xác minh: KHÔNG gắn văn phòng; check_*_ip ghi dấu ATTENDANCE_IP_UNVERIFIED
 
     const now = new Date();
     const vnDateStr = getVnDateString(now);
@@ -975,7 +975,7 @@ export class AttendanceService {
         where: { id: existing.id },
         data: {
           check_out_at: now,
-          check_out_ip: clientIp,
+          check_out_ip: clientIp ?? ATTENDANCE_IP_UNVERIFIED,
           check_out_office_id: matchedOffice?.id ?? null,
           check_out_note: note ?? null,
           check_out_proof_key: proofKey,

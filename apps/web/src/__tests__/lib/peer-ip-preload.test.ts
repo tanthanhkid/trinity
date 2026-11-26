@@ -30,7 +30,8 @@ const s = http.createServer((req, res) => { res.end(JSON.stringify(req.headers))
 s.listen(0, '127.0.0.1', () => {
   const r = http.request({ host: '127.0.0.1', port: s.address().port, headers: {
     'x-forwarded-for': '203.0.113.108', 'x-real-ip': '203.0.113.108', 'cf-connecting-ip': '203.0.113.108',
-    'x-trinity-client-ip': '203.0.113.108;1;forged', 'x-trinity-peer-ip': '203.0.113.108' } }, (res) => {
+    'x-trinity-client-ip': '203.0.113.108;1;forged', 'x-trinity-peer-ip': '203.0.113.108',
+    'x-trinity-signature': 't=1,v1=abc' } }, (res) => {
     let b = ''; res.on('data', (d) => b += d); res.on('end', () => { console.log(b); s.close() })
   })
   r.end()
@@ -42,6 +43,8 @@ describe("peer-ip.cjs", () => {
     expect(code).toBe(0)
     const headers = JSON.parse(out) as Record<string, string>
     expect(headers["x-trinity-peer-ip"]).toBeUndefined()
+    // Chữ ký webhook vào (X-Trinity-Signature) KHÔNG bị xoá.
+    expect(headers["x-trinity-signature"]).toBe("t=1,v1=abc")
     expect(verifyClientIpHeader(headers["x-trinity-client-ip"], { INTERNAL_SERVICE_SECRET: SECRET })).toBe("127.0.0.1")
   })
 
@@ -66,5 +69,18 @@ describe("peer-ip.cjs", () => {
   it("production với bí mật mẫu ⇒ không lên; TRUSTED_PROXY sai ⇒ không lên", async () => {
     expect((await run("", { NODE_ENV: "production", INTERNAL_SERVICE_SECRET: "change-me-generate-with-openssl-rand-hex-32" })).code).toBe(1)
     expect((await run("", { TRUSTED_PROXY: "yes" })).code).toBe(1)
+  })
+
+  it("header có chữ ký hợp lệ chỉ được giữ khi tới từ loopback/proxy khai báo; từ ngoài thì xác định lại từ peer", async () => {
+    process.env.TRINITY_PEER_IP_NO_INSTALL = "1"
+    const { createRequire } = await import("node:module")
+    const preload = createRequire(import.meta.url)(PRELOAD) as {
+      prepare(r: { headers: Record<string, string>; socket: { remoteAddress: string } }, e: Record<string, string>): string
+      sign(v: string, e: Record<string, string>): string
+    }
+    const e = { INTERNAL_SERVICE_SECRET: SECRET, TRUSTED_PROXY: "none" }
+    const signed = preload.sign("203.0.113.108", e)
+    expect(preload.prepare({ headers: { "x-trinity-client-ip": signed }, socket: { remoteAddress: "198.51.100.9" } }, e)).toBe("198.51.100.9")
+    expect(preload.prepare({ headers: { "x-trinity-client-ip": signed }, socket: { remoteAddress: "127.0.0.1" } }, e)).toBe("203.0.113.108")
   })
 })

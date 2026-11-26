@@ -157,15 +157,18 @@ describe('AuthService', () => {
       ).rejects.toThrow(HttpException)
     })
 
-    it('IP không tin được: KHÔNG 429 theo email (kẻ xấu không khoá được người khác) — chỉ làm chậm dần; trần theo IP peer', async () => {
+    it('IP không tin được: theo email chỉ làm chậm dần (dưới trần cứng 50) — người khác cùng IP peer không bị ảnh hưởng', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(null)
       const delays: number[] = []
       jest.spyOn(service as unknown as { loginDelay(ms: number): Promise<void> }, 'loginDelay').mockImplementation(async (ms: number) => {
         delays.push(ms)
       })
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < 49; i++) {
         await expect(service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toThrow(UnauthorizedException)
       }
+      // Lần thứ 51 chạm trần cứng theo email ⇒ 429.
+      await expect(service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toThrow(UnauthorizedException)
+      await expect(service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toMatchObject({ status: 429 })
       // Từ lần sai thứ 5 trễ 1 s, 2 s, 4 s… tối đa 15 s — không có 429.
       expect(delays.slice(0, 4)).toEqual([1000, 2000, 4000, 8000])
       expect(Math.max(...delays)).toBe(15_000)
@@ -175,10 +178,10 @@ describe('AuthService', () => {
       expect(delays).toEqual([])
     })
 
-    it('IP không tin được: trần chung theo IP peer (300 lần/15 phút) chống dò hàng loạt ⇒ 429', async () => {
+    it('IP không tin được: trần chung theo IP peer (3000 lần/15 phút) chống dò hàng loạt ⇒ 429', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(null)
       jest.spyOn(service as unknown as { loginDelay(ms: number): Promise<void> }, 'loginDelay').mockResolvedValue(undefined)
-      for (let i = 0; i < 300; i++) rateLimiter.recordAttempt('login-untrusted:127.0.0.1')
+      for (let i = 0; i < 3000; i++) rateLimiter.recordAttempt('login-untrusted:127.0.0.1')
       await expect(service.login({ email: 'x@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toMatchObject({ status: 429 })
     })
 

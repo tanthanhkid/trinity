@@ -7,11 +7,19 @@ import { isIP } from "node:net"
  * được IP (vd `X-Forwarded-For: <IP văn phòng>` qua Caddy → Next → API với `cidr:127.0.0.1/32`).
  * Thay vào đó web gửi IP đã xác định ở biên (`peer-ip.cjs`) bằng `x-trinity-client-ip` có chữ ký.
  */
-const CLIENT_IP_HEADERS = new Set(['x-forwarded-for', 'x-real-ip', 'cf-connecting-ip', 'forwarded', 'true-client-ip'])
+const CLIENT_IP_HEADERS = new Set([
+  'x-forwarded-for',
+  'x-real-ip',
+  'cf-connecting-ip',
+  'forwarded',
+  'true-client-ip',
+  'x-trinity-client-ip',
+  'x-trinity-peer-ip',
+])
 
+/** Chỉ header IP; header `x-trinity-*` khác (vd `X-Trinity-Signature` của webhook vào) được chuyển nguyên. */
 export function isClientIpHeader(name: string): boolean {
-  const k = name.toLowerCase()
-  return CLIENT_IP_HEADERS.has(k) || k.startsWith('x-trinity-')
+  return CLIENT_IP_HEADERS.has(name.toLowerCase())
 }
 
 // ---------------------------------------------------------------------------------------------------------------

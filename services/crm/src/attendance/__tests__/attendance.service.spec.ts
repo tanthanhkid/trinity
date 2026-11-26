@@ -264,7 +264,7 @@ describe('AttendanceService — checkIn', () => {
 
     expect(prisma.attendanceOffice.findMany).not.toHaveBeenCalled();
     expect(prisma.attendanceRecord.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ create: expect.objectContaining({ check_in_ip: null, check_in_office_id: null }) }),
+      expect.objectContaining({ create: expect.objectContaining({ check_in_ip: 'unverified', check_in_office_id: null }) }),
     );
     expect(result.office).toBeNull();
   });
@@ -279,7 +279,7 @@ describe('AttendanceService — checkIn', () => {
 
     expect(result.office).toBeNull();
     expect(prisma.attendanceRecord.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ create: expect.objectContaining({ check_in_ip: null, check_in_office_id: null }) }),
+      expect.objectContaining({ create: expect.objectContaining({ check_in_ip: 'unverified', check_in_office_id: null }) }),
     );
   });
 

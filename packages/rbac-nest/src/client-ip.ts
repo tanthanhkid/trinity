@@ -528,9 +528,13 @@ export function determineClientIp(req: ClientIpRequest, env: NodeJS.ProcessEnv =
   const cfg = config(env)
   const signed = header(req, CLIENT_IP_HEADER)
   if (signed === undefined) return { ok: true, client: fromEdge(req, cfg) }
-  // Dấu `untrusted` không chữ ký: web không có bí mật nội bộ để ký. Chỉ HẠ mức tin (không ai lợi gì khi giả nó) nên nhận.
+  // Dấu `untrusted` KHÔNG chữ ký (web thiếu bí mật nội bộ): chỉ nhận khi peer là loopback hoặc proxy khai trong
+  // TRUSTED_PROXY — tức đúng là tiến trình Trinity/proxy của mình phía trước. Ai gọi thẳng API mà gửi dấu này (để tắt
+  // kiểm Wi-Fi/chấm công) thì header bị bỏ qua và IP xác định từ peer như thường.
   if (signed.trim() === UNTRUSTED_CLIENT_IP) {
     const peer = normalizeIp(req.socket?.remoteAddress) ?? ''
+    const fromOwnProxy = !!peer && (isLoopback(peer) || (cfg.proxySet?.has(peer) ?? false))
+    if (!fromOwnProxy) return { ok: true, client: fromEdge(req, cfg) }
     return { ok: true, client: finalize(null, peer, 'tiến trình phía trước (web) không ký được IP khách: thiếu INTERNAL_SERVICE_SECRET/SERVICE_SECRET ở web', 'signed') }
   }
   const v = verifySigned(signed, cfg.keys, Math.floor(nowMs() / 1000))

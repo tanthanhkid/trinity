@@ -19,20 +19,22 @@ describe('RateLimiterService', () => {
   })
 
   describe('IP không tin được', () => {
-    it('khoá theo email chỉ để làm chậm, không bao giờ chặn', () => {
+    it('theo email: trần cứng 50 lần sai (ngoài trễ tăng dần)', () => {
       const rl = new RateLimiterService()
-      for (let i = 0; i < 100; i++) rl.recordAttempt('login-untrusted-email:a@b.c')
+      for (let i = 0; i < 49; i++) rl.recordAttempt('login-untrusted-email:a@b.c')
       expect(rl.isRateLimited('login-untrusted-email:a@b.c')).toBe(false)
-      expect(rl.attempts('login-untrusted-email:a@b.c')).toBe(100)
+      rl.recordAttempt('login-untrusted-email:a@b.c')
+      expect(rl.isRateLimited('login-untrusted-email:a@b.c')).toBe(true)
+      expect(rl.attempts('login-untrusted-email:a@b.c')).toBe(50)
     })
 
-    it('trần theo IP peer 300; đăng ký/nhận lời mời có trần chung riêng 200 và khoá riêng theo email/token (10)', () => {
+    it('trần theo IP peer 3000; đăng ký/nhận lời mời có trần chung riêng 500 và khoá riêng theo email/token (10)', () => {
       const rl = new RateLimiterService()
-      for (let i = 0; i < 299; i++) rl.recordAttempt('login-untrusted:127.0.0.1')
+      for (let i = 0; i < 2999; i++) rl.recordAttempt('login-untrusted:127.0.0.1')
       expect(rl.isRateLimited('login-untrusted:127.0.0.1')).toBe(false)
       rl.recordAttempt('login-untrusted:127.0.0.1')
       expect(rl.isRateLimited('login-untrusted:127.0.0.1')).toBe(true)
-      for (let i = 0; i < 199; i++) rl.recordAttempt('invite-untrusted-all')
+      for (let i = 0; i < 499; i++) rl.recordAttempt('invite-untrusted-all')
       expect(rl.isRateLimited('invite-untrusted-all')).toBe(false)
       rl.recordAttempt('invite-untrusted-all')
       expect(rl.isRateLimited('invite-untrusted-all')).toBe(true)

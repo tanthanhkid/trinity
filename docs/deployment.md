@@ -51,14 +51,18 @@ trusted unless `TRUSTED_PROXY` says the proxy in front of the edge writes it.
 - **Web is the edge** in every normal install (browser → [Caddy/nginx/Cloudflare] → web → API). The preload file
   `apps/web/peer-ip.cjs` does the work: start the web server with `NODE_OPTIONS=--require <repo>/apps/web/peer-ip.cjs`
   (the Docker image sets it). It drops every `x-trinity-*` header the client sent, determines the IP from the TCP peer
-  and `TRUSTED_PROXY`, and the `/api/v1` proxy re-signs it right before calling the API. The web process needs
+  and `TRUSTED_PROXY`, and the `/api/v1` proxy re-signs it right before calling the API. Only `x-trinity-client-ip` and `x-trinity-peer-ip`
+  are removed; other `x-trinity-*` headers (such as `X-Trinity-Signature` on incoming webhooks) pass through. A signed
+  `x-trinity-client-ip` arriving at web is kept only from loopback or a proxy listed in `TRUSTED_PROXY`. The web process needs
   `TRUSTED_PROXY`, `CLOUDFLARE_IP_RANGES` (optional) and the internal secret (`INTERNAL_SERVICE_SECRET` or
   `SERVICE_SECRET`, the same value the API has). Without the preload file, or without a secret, the web sends
-  "untrusted" and the API never sees a client-chosen address. The web proxy never forwards `X-Forwarded-For`,
+  "untrusted" and the API never sees a client-chosen address (the API accepts an unsigned "untrusted" only from
+  loopback or a proxy listed in its own `TRUSTED_PROXY`; from anywhere else it is ignored). The web proxy never forwards `X-Forwarded-For`,
   `X-Real-IP`, `CF-Connecting-IP`, `Forwarded` or `True-Client-IP` from the browser.
 - **The API** (`resolveClientIp`, `packages/rbac-nest/src/client-ip.ts`) trusts the signed header, and applies its own
   `TRUSTED_PROXY` only to connections that reach it directly (no signed header).
-- **Vercel** has no preload file: requests are "untrusted" (see below).
+- **Vercel / serverless is not supported for office-IP checks**: there is no preload file, so every request is
+  "untrusted" (see below) — login Wi-Fi and attendance IP checks never compare addresses there.
 
 `TRUSTED_PROXY` applies to the **TCP peer** of the edge:
 
@@ -95,13 +99,15 @@ loopback. Opening the origin only to Cloudflare's ranges (or using a Tunnel) rem
 traffic through `docker-proxy`/NAT, e.g. `cidr:` with a wrong Docker range, or Cloudflare reaching the origin over
 IPv6), or the web process sent "untrusted" (no preload file, no secret, a proxy in the list that did not send its
 header) — it is never compared with office IPs. Login Wi-Fi checks and attendance IP checks **let the user through**
-instead of comparing a wrong address (attendance records then have no office and show "IP not verified"), the server
+instead of comparing a wrong address (attendance records then have no office and are marked `unverified` when checking in, shown as "IP not verified"), the server
 logs a configuration error, and admins of the operating company see a warning banner on every page for 24 hours after
 the last such request (also `GET /api/v1/settings/client-ip/alerts` and the MCP tool `get_client_ip_status`). Rate
-limits do not collapse into one shared bucket: login keeps a high ceiling per peer address (300 failures per 15
-minutes, 100 for the public login API) and slows down failed attempts per email (1 s, 2 s, 4 s … up to 15 s) without
-blocking the account; sign-up and invitation acceptance limit per email/invitation plus a separate overall ceiling;
-OAuth, MCP and the online store limit per OAuth client, per bearer token and per buyer phone number.
+limits do not collapse into one bucket that one person could fill for everybody: login keeps a very high ceiling per
+peer address (3000 failures per 15 minutes, 1000 for the public login API) and, per email, slows failed attempts down
+(1 s, 2 s, 4 s … up to 15 s) with a hard cap of 50 failures per 15 minutes; sign-up and invitation acceptance count
+only failures, per email/invitation plus an overall ceiling; OAuth, MCP and the online store check **both** a ceiling
+per peer address and a per-client key (OAuth client, bearer token, buyer phone number), so changing the client-chosen
+key does not get around the ceiling. VNPay receives the client IP only when it is trusted and public.
 
 **Between Trinity processes** the IP travels in `x-trinity-client-ip: <ip or "untrusted">;<unix time>;<signature>`:
 HMAC-SHA256 over `<value>\n<unix time>` with a key derived by HKDF-SHA256 (empty salt, info

@@ -210,9 +210,16 @@ describe('x-trinity-client-ip có chữ ký', () => {
     expect(ip(req('10.0.0.5', signed(REAL, SECRET_B)), { SERVICE_SECRET: SECRET_B } as NodeJS.ProcessEnv)).toBe(REAL)
   })
 
-  it('dấu "untrusted" KHÔNG chữ ký (web thiếu bí mật) ⇒ nhận, không tin được (chỉ hạ mức tin)', () => {
-    const d = determineClientIp(req('172.18.0.3', { [CLIENT_IP_HEADER]: UNTRUSTED_CLIENT_IP }), env())
-    expect(d.ok && d.client).toMatchObject({ ip: null, rateKey: '172.18.0.3' })
+  it('dấu "untrusted" KHÔNG chữ ký từ web cùng máy (loopback) hoặc proxy khai trong TRUSTED_PROXY ⇒ không tin được', () => {
+    let d = determineClientIp(req('127.0.0.1', { [CLIENT_IP_HEADER]: UNTRUSTED_CLIENT_IP }), env())
+    expect(d.ok && d.client).toMatchObject({ ip: null, rateKey: '127.0.0.1' })
+    d = determineClientIp(req('10.0.0.7', { [CLIENT_IP_HEADER]: UNTRUSTED_CLIENT_IP }), env({ TRUSTED_PROXY: 'cidr:10.0.0.0/8' }))
+    expect(d.ok && d.client.ip).toBeNull()
+  })
+
+  it('dấu "untrusted" KHÔNG chữ ký gửi thẳng từ ngoài ⇒ bỏ qua header, IP từ peer (không tắt được kiểm Wi-Fi/chấm công)', () => {
+    expect(ip(req(PUBLIC_PEER, { [CLIENT_IP_HEADER]: UNTRUSTED_CLIENT_IP }), env())).toBe(PUBLIC_PEER)
+    expect(ip(req('192.168.1.20', { [CLIENT_IP_HEADER]: UNTRUSTED_CLIENT_IP }), env({ TRUSTED_PROXY: 'cidr:127.0.0.1/32' }))).toBe('192.168.1.20')
   })
 
   it('dấu "không tin được" do tiến trình biên ghi ⇒ ip null, khoá tốc độ = peer', () => {

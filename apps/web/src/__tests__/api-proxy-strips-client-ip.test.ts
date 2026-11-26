@@ -14,6 +14,7 @@ const SPOOF = {
   forwarded: "for=203.0.113.108",
   "x-trinity-peer-ip": "203.0.113.108",
   authorization: "Bearer t",
+  "x-trinity-signature": "t=1,v1=abc",
 }
 
 async function forwarded(extra: Record<string, string>) {
@@ -37,6 +38,8 @@ describe("proxy /api/v1 và IP khách", () => {
     for (const h of ["x-forwarded-for", "x-real-ip", "cf-connecting-ip", "forwarded", "x-trinity-peer-ip"]) expect(sent.get(h)).toBeNull()
     expect(verifyClientIpHeader(sent.get("x-trinity-client-ip"), { INTERNAL_SERVICE_SECRET: SECRET })).toBe("198.51.100.4")
     expect(sent.get("authorization")).toBe("Bearer t")
+    // Webhook vào ký bằng X-Trinity-Signature đi qua web nguyên vẹn.
+    expect(sent.get("x-trinity-signature")).toBe("t=1,v1=abc")
   })
 
   it("x-trinity-client-ip giả (thiếu tệp nạp trước) ⇒ gửi untrusted có chữ ký, không phải IP giả", async () => {

@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Headers, HttpCode, HttpException, Logger, NotFoundException, Param, ParseIntPipe, Post, Put, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Can, CurrentUser, Public, resolveClientIp, type AuthUser } from '@trinity/rbac-nest';
+import { Can, CurrentUser, Public, isPrivateIp, resolveClientIp, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
 import { OrgFeaturesService } from '../settings/org-features.service';
 import { CreatePaymentDto, SaveKiotVietDto, SaveMisaDto, SaveSapoDto, SaveWooDto, SaveMomoDto, SaveSepayDto, SaveVnpayDto } from './connectors.dto';
@@ -465,9 +465,13 @@ export class ConnectorsController {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-/** IP khách cho VNPay (bắt buộc `vnp_IpAddr`): hàm dùng chung (TRUSTED_PROXY); không tin được ⇒ IP peer. */
+/**
+ * IP khách cho VNPay (`vnp_IpAddr`): chỉ IP khách tin được và công khai. Không tin được, hoặc là địa chỉ nội bộ ⇒ chuỗi
+ * rỗng (vnpay.ts dùng giá trị mặc định), KHÔNG gửi IP proxy/container của mình.
+ */
 function clientIp(req: Request): string {
-  return resolveClientIp(req).rateKey.slice(0, 45);
+  const ip = resolveClientIp(req).ip;
+  return ip && !isPrivateIp(ip) ? ip.slice(0, 45) : '';
 }
 
 /** Trang kết quả gọn cho khách (không cần đăng nhập, không lộ dữ liệu CRM). */

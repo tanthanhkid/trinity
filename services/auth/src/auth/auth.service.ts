@@ -172,7 +172,10 @@ export class AuthService {
     // Multi-tenant: the email decides the company; everything below (audit log included) runs in its schema.
     await this.enterCompanyOfEmail(dto.email)
     await this.enforceRateLimit(rateLimitKey, dto.email, ipAddress)
-    if (slowKey) await this.slowDownUntrusted(slowKey)
+    if (slowKey) {
+      await this.enforceRateLimit(slowKey, dto.email, ipAddress)
+      await this.slowDownUntrusted(slowKey)
+    }
 
     const user = await this.findUserByEmail(dto.email)
     if (!user) {
@@ -481,7 +484,10 @@ export class AuthService {
       : `public-login-untrusted:${ipAddress ?? 'unknown'}`
     const slowKey = ipTrusted ? null : `login-untrusted-email:${this.normalizeEmailForKey(dto.email)}`
     await this.enforceRateLimit(rateLimitKey, dto.email, ipAddress)
-    if (slowKey) await this.slowDownUntrusted(slowKey)
+    if (slowKey) {
+      await this.enforceRateLimit(slowKey, dto.email, ipAddress)
+      await this.slowDownUntrusted(slowKey)
+    }
 
     const user = await this.findUserByEmail(dto.email)
     if (!user) {
@@ -974,13 +980,18 @@ export class AuthService {
     if (!this.signupEnabled()) throw new NotFoundException('Bản cài đặt này không mở đăng ký')
     // No company exists yet, so nothing is written to an audit log until the new one does.
     // IP không tin được: không gộp mọi người vào một xô IP peer — giới hạn theo email + một trần chung cao hơn.
+    // IP không tin được: không gộp mọi người vào xô IP peer; khoá theo email + trần chung, CHỈ đếm lần thất bại (đăng ký
+    // thành công của người này không làm hết lượt của người khác).
     const rateLimitKeys = ipTrusted
       ? [`register:${ipAddress ?? 'unknown'}`]
       : [`register-untrusted:${this.normalizeEmailForKey(dto.email)}`, 'register-untrusted-all']
     if (rateLimitKeys.some((k) => this.rateLimiter.isRateLimited(k))) {
       throw new HttpException('Quá nhiều lần đăng ký, vui lòng thử lại sau', HttpStatus.TOO_MANY_REQUESTS)
     }
-    rateLimitKeys.forEach((k) => this.rateLimiter.recordAttempt(k))
+    if (ipTrusted) rateLimitKeys.forEach((k) => this.rateLimiter.recordAttempt(k))
+    const recordRegisterFailure = () => {
+      if (!ipTrusted) rateLimitKeys.forEach((k) => this.rateLimiter.recordAttempt(k))
+    }
     let company
     try {
       ;({ company } = await provisionCompany({
@@ -990,6 +1001,7 @@ export class AuthService {
         adminName: dto.full_name,
       }))
     } catch (err) {
+      recordRegisterFailure()
       if (err instanceof EmailTakenError) {
         throw new HttpException('Email này đã được dùng — hãy đăng nhập', HttpStatus.CONFLICT)
       }

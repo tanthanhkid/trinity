@@ -22,6 +22,12 @@ export function normalizeIp(raw: string): string {
  * tiến trình biên). Khi đó KHÔNG đem so với IP văn phòng và KHÔNG khoá nhân viên: chấm công cho qua, lỗi cấu hình đã
  * được ghi log và dải cảnh báo quản trị bật (`resolveClientIp`).
  */
+/**
+ * Dấu ghi vào `check_in_ip`/`check_out_ip` khi chấm công lúc máy chủ không xác minh được IP (TRUSTED_PROXY chưa khớp):
+ * cờ rõ ràng ghi lúc chấm, giao diện và báo cáo hiện "IP chưa xác minh" theo dấu này.
+ */
+export const ATTENDANCE_IP_UNVERIFIED = 'unverified';
+
 export function extractClientIp(req: Request): string | null {
   return resolveClientIp(req).ip;
 }

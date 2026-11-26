@@ -1,8 +1,9 @@
-import { Body, Controller, Get, NotFoundException, Param, ParseIntPipe, Patch, Post, Put, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, NotFoundException, Param, ParseIntPipe, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { Can, CurrentUser, Public, resolveClientIp, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
+import { FixedWindowLimiter } from '../common/helpers/fixed-window-limiter';
 import { STORE_BANKS, StoreService, type StoreSettings } from './store.service';
 import { withCompanyHint } from '../common/helpers/tenant-hint';
 import { enterRoutedCompany } from '../common/helpers/routed-company';
@@ -16,14 +17,25 @@ async function routeBySlug(slug: string): Promise<void> {
 }
 
 /**
+ * Trần chung theo IP peer khi IP khách KHÔNG tin được (mọi khách chung một peer); khoá theo SĐT do khách tự khai nên không
+ * được là lớp duy nhất.
+ */
+const untrustedPeerOrders = new FixedWindowLimiter(100, 10 * 60 * 1000);
+
+/**
  * Khoá giới hạn đặt đơn: IP khách (hàm dùng chung, TRUSTED_PROXY; bản cũ lấy phần tử ĐẦU của x-forwarded-for do client
- * tự khai — lỗi, đã bỏ). IP không tin được ⇒ theo số điện thoại người đặt, để khách này không chặn khách khác.
+ * tự khai — lỗi, đã bỏ). IP không tin được ⇒ kiểm trần theo IP peer, rồi khoá theo SĐT người đặt (khách này không chặn
+ * khách khác).
  */
 const clientIp = (req: Request, body: Record<string, unknown>) => {
   const c = resolveClientIp(req);
   if (c.ip) return c.ip.slice(0, 45);
+  const peer = untrustedPeerOrders.hit(`peer:${c.rateKey}`);
+  if (!peer.allowed) {
+    throw new HttpException({ statusCode: 429, message: 'Bạn đặt quá nhiều đơn, vui lòng thử lại sau ít phút.', retryAfter: peer.retryAfterSec }, HttpStatus.TOO_MANY_REQUESTS);
+  }
   const phone = typeof body?.phone === 'string' ? body.phone.replace(/\D/g, '').slice(0, 20) : '';
-  return phone ? `u:phone:${phone}` : c.rateKey.slice(0, 45);
+  return `u:phone:${phone || 'none'}`;
 };
 
 /** Trang bán hàng online: phần công khai (/store/:slug) + quản trị (cấu hình, đơn). Cờ tổ chức `online_store` (mặc định tắt). */

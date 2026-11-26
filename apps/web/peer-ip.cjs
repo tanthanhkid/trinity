@@ -5,7 +5,7 @@
  * một lần khi nhận header rồi ký để API tin (docs/deployment.md, mục "Client IP"; docs/rust/PLAN.md mục 4.13).
  *
  * Next 16 không cho route handler biết địa chỉ kết nối, nên tệp này bọc `http.createServer`:
- * - với MỌI request: xoá `x-trinity-*` do client gửi (giữ `x-trinity-client-ip` chỉ khi chữ ký hợp lệ — do tiến trình
+ * - với MỌI request: xoá `x-trinity-client-ip`/`x-trinity-peer-ip` do client gửi (giữ `x-trinity-client-ip` chỉ khi chữ ký hợp lệ VÀ peer là loopback/proxy khai báo — do tiến trình
  *   Trinity phía trước ký, vd Rust trong cấu hình lai);
  * - xác định IP từ `req.socket.remoteAddress` theo `TRUSTED_PROXY` (cùng luật `packages/rbac-nest/src/client-ip.ts`;
  *   test đối chiếu ở `client-ip.spec.ts`), không xác định được ⇒ dấu `untrusted`;
@@ -61,33 +61,49 @@ function parseCidr(raw) {
 
 const splitList = (raw) => raw.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean)
 
+let containerCache = null
 function inContainer(env) {
   if (env.TRINITY_TEST_IN_CONTAINER !== undefined) return env.TRINITY_TEST_IN_CONTAINER === '1'
-  if (fs.existsSync('/.dockerenv') || fs.existsSync('/run/.containerenv')) return true
-  try {
-    return /docker|kubepods|containerd|libpod/.test(fs.readFileSync('/proc/1/cgroup', 'utf8'))
-  } catch {
-    return false
+  if (containerCache === null) {
+    let yes = fs.existsSync('/.dockerenv') || fs.existsSync('/run/.containerenv')
+    if (!yes) {
+      try {
+        yes = /docker|kubepods|containerd|libpod/.test(fs.readFileSync('/proc/1/cgroup', 'utf8'))
+      } catch {
+        yes = false
+      }
+    }
+    containerCache = yes // không đổi trong đời tiến trình
   }
+  return containerCache
 }
 
+const GATEWAY_TTL_MS = 30_000
+let gatewayCache = { at: 0, value: null }
+/** Cổng mặc định của container (đọc /proc/net/route, nhớ 30 giây — tuyến đổi khi mạng compose được tạo lại). */
 function defaultGateway(env) {
   if (!inContainer(env)) return null
   let text = env.TRINITY_TEST_ROUTE_TABLE
   if (text === undefined) {
+    if (Date.now() - gatewayCache.at < GATEWAY_TTL_MS) return gatewayCache.value
     try {
       text = fs.readFileSync('/proc/net/route', 'utf8')
     } catch {
-      return null
+      text = ''
     }
   }
+  let value = null
   for (const line of text.split('\n').slice(1)) {
     const c = line.trim().split(/\s+/)
     if (c.length < 3 || c[1] !== '00000000' || !/^[0-9a-f]{8}$/i.test(c[2])) continue
     const v = [6, 4, 2, 0].map((i) => parseInt(c[2].slice(i, i + 2), 16)).join('.')
-    if (v !== '0.0.0.0') return v
+    if (v !== '0.0.0.0') {
+      value = v
+      break
+    }
   }
-  return null
+  if (env.TRINITY_TEST_ROUTE_TABLE === undefined) gatewayCache = { at: Date.now(), value }
+  return value
 }
 
 function blockList(entries, env) {
@@ -145,27 +161,59 @@ function rightmostXff(req) {
   return normalizeIp(hops[hops.length - 1])
 }
 
+/**
+ * Cấu hình đã phân tích, nhớ theo giá trị biến môi trường (không phân tích lại mỗi request). Danh sách có
+ * `docker-gateway` dựng lại khi cổng mặc định đổi.
+ */
+let configCache = null
+function config(env) {
+  const key = `${env.TRUSTED_PROXY || ''}\u0000${env.CLOUDFLARE_IP_RANGES || ''}`
+  if (!configCache || configCache.key !== key) {
+    const p = parseTrustedProxy(env.TRUSTED_PROXY)
+    const cfEntries = env.CLOUDFLARE_IP_RANGES && env.CLOUDFLARE_IP_RANGES.trim() ? splitList(env.CLOUDFLARE_IP_RANGES).filter((e) => e !== 'docker-gateway') : DEFAULT_CLOUDFLARE_IP_RANGES
+    configCache = { key, p, cf: blockList(cfEntries, env), list: null, listGw: undefined }
+  }
+  const c = configCache
+  if (c.p.entries) {
+    const gw = c.p.entries.includes('docker-gateway') ? defaultGateway(env) : null
+    if (!c.list || c.listGw !== gw) {
+      c.list = blockList(c.p.entries, env)
+      c.listGw = gw
+    }
+  }
+  return c
+}
+
+/** Peer là proxy/tiến trình phía trước mà mình khai báo: loopback hoặc thuộc danh sách của TRUSTED_PROXY. */
+function fromTrustedUpstream(req, env) {
+  const peer = normalizeIp(req.socket && req.socket.remoteAddress)
+  if (!peer) return false
+  if (peer === '::1' || peer.startsWith('127.')) return true
+  const c = config(env)
+  return !!c.list && inList(c.list, peer)
+}
+
 /** IP khách theo `TRUSTED_PROXY` từ peer TCP; `null` = không xác định được (gửi dấu `untrusted`). */
 function determine(req, env = process.env) {
-  const p = parseTrustedProxy(env.TRUSTED_PROXY)
+  const c = config(env)
+  const p = c.p
   const peer = normalizeIp(req.socket && req.socket.remoteAddress)
   if (!peer) return null
-  const cf = () => blockList(env.CLOUDFLARE_IP_RANGES && env.CLOUDFLARE_IP_RANGES.trim() ? splitList(env.CLOUDFLARE_IP_RANGES).filter((e) => e !== 'docker-gateway') : DEFAULT_CLOUDFLARE_IP_RANGES, env)
   switch (p.mode) {
     case 'none':
       return peer
     case 'cloudflare':
-      return inList(cf(), peer) ? normalizeIp(headerOf(req, 'cf-connecting-ip')) : peer
+      return inList(c.cf, peer) ? normalizeIp(headerOf(req, 'cf-connecting-ip')) : peer
     case 'cloudflare-tunnel':
       return normalizeIp(headerOf(req, 'cf-connecting-ip'))
     case 'cidr':
-      if (!inList(blockList(p.entries, env), peer)) return peer
+      if (!inList(c.list, peer)) return peer
       return p.header === 'x-real-ip' ? normalizeIp(headerOf(req, 'x-real-ip')) : rightmostXff(req)
     case 'cloudflare-behind': {
-      if (!inList(blockList(p.entries, env), peer)) return peer
+      if (!inList(c.list, peer)) return peer
       const hop = rightmostXff(req)
       if (!hop) return null
-      return inList(cf(), hop) ? normalizeIp(headerOf(req, 'cf-connecting-ip')) : hop
+      return inList(c.cf, hop) ? normalizeIp(headerOf(req, 'cf-connecting-ip')) : hop
     }
   }
   return null
@@ -199,19 +247,26 @@ function verify(header, env = process.env, nowSec = Math.floor(Date.now() / 1000
 
 const als = globalThis[ALS_KEY] || (globalThis[ALS_KEY] = new AsyncLocalStorage())
 
-/** Xử lý một request: xoá `x-trinity-*` của client, xác định IP, đặt header có chữ ký. Trả giá trị (IP hoặc `untrusted`). */
+/**
+ * Header IP nội bộ của Trinity — xoá khi client gửi. CHỈ các header này: header `x-trinity-*` khác (vd
+ * `X-Trinity-Signature` của webhook vào) phải tới API nguyên vẹn.
+ */
+const INTERNAL_IP_HEADERS = new Set([HEADER, 'x-trinity-peer-ip'])
+
+/** Xử lý một request: xoá header IP nội bộ do client gửi, xác định IP, đặt header có chữ ký. Trả giá trị (IP hoặc `untrusted`). */
 function prepare(req, env = process.env) {
   const incoming = headerOf(req, HEADER)
-  for (const k of Object.keys(req.headers)) if (k.startsWith('x-trinity-')) delete req.headers[k]
+  for (const k of Object.keys(req.headers)) if (INTERNAL_IP_HEADERS.has(k)) delete req.headers[k]
   if (Array.isArray(req.rawHeaders)) {
     const raw = []
     for (let i = 0; i + 1 < req.rawHeaders.length; i += 2) {
-      if (!String(req.rawHeaders[i]).toLowerCase().startsWith('x-trinity-')) raw.push(req.rawHeaders[i], req.rawHeaders[i + 1])
+      if (!INTERNAL_IP_HEADERS.has(String(req.rawHeaders[i]).toLowerCase())) raw.push(req.rawHeaders[i], req.rawHeaders[i + 1])
     }
     req.rawHeaders.length = 0
     req.rawHeaders.push(...raw)
   }
-  let value = verify(incoming, env)
+  // Header có chữ ký chỉ được giữ khi tới từ tiến trình/proxy phía trước mình khai báo (vd Rust trên loopback).
+  let value = fromTrustedUpstream(req, env) ? verify(incoming, env) : null
   if (value === null) value = determine(req, env) || UNTRUSTED
   const signed = sign(value, env)
   req.headers[HEADER] = signed

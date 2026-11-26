@@ -17,6 +17,10 @@ on:
         description: Đẩy lên GHCR
         type: boolean
         default: true
+      latest:
+        description: Gắn thêm tag latest (đường release mặc định có)
+        type: boolean
+        default: true
   workflow_dispatch:
     inputs:
       tag:
@@ -67,9 +71,9 @@ jobs:
           if [ "$EVENT" = "push" ] || [ "$INPUT_PUSH" = "true" ]; then push=true; fi
           tag="$INPUT_TAG"
           if [ -z "$tag" ] && [[ "$REF" == refs/tags/v* ]]; then tag="$REF_NAME"; fi
-          # latest chỉ ở đường release (workflow_call / push tag); chạy tay phải bật input latest.
+          # latest: push tag, hoặc input latest (workflow_call từ release mặc định true; chạy tay mặc định false).
           latest=false
-          if [ -n "$tag" ] && { [ "$EVENT" != "workflow_dispatch" ] || [ "$INPUT_LATEST" = "true" ]; }; then latest=true; fi
+          if [ -n "$tag" ] && { [ "$EVENT" = "push" ] || [ "$INPUT_LATEST" = "true" ]; }; then latest=true; fi
           {
             echo "latest=$latest"
             echo "push=$push"

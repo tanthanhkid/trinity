@@ -327,8 +327,8 @@ Redis **đã là tuỳ chọn** ở một phần mã: `RbacCache` chạy chỉ b
 - Trả file / `Content-Disposition` ở 12 controller.
 - Thư viện phải có tương đương (17 file dùng): `exceljs` (xuất/nhập xlsx), `pdfkit` (phiếu lương, font
   `services/payroll/src/assets/fonts/Tinos-{Regular,Bold}.ttf`), `sharp` (3 chỗ: avatar, ảnh nhân viên, bảng tin),
-  `handlebars` (mẫu thông báo, không có helper tự đăng ký). Gói `docx` khai trong `package.json` nhưng **không file
-  nào import**; hợp đồng chỉ tải lên/tải xuống tệp Word. Không cần tương đương.
+  `handlebars` (mẫu thông báo, không có helper tự đăng ký). Gói `docx` (không file nào import) đã gỡ
+  khỏi crm và monolith ở G10; hợp đồng chỉ tải lên/tải xuống tệp Word. Không cần tương đương.
 - Bộ tính công thức của bảng tuỳ biến: `custom-objects/formula/formula-parser.ts` (310 dòng: phân tích, thẩm định kiểu,
   tính giá trị; `round` dựa trên `Math.round` và `Number.EPSILON`, ngày theo UTC+7, câu lỗi tiếng Việt trả 400). Giá trị
   được tính mỗi lần trả bản ghi và khi xuất tệp; spec hiện chỉ 11 ca.

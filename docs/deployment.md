@@ -136,12 +136,17 @@ Build with `pnpm --filter "./packages/*" build && pnpm --filter @trinity/monolit
 run `node apps/monolith/dist/apps/monolith/src/main.js` and `NODE_OPTIONS=--require ./apps/web/peer-ip.cjs node apps/web/.next/standalone/apps/web/server.js` (the web process also needs `TRUSTED_PROXY` and the internal secret, see "Client IP") under a
 process manager of your choice (systemd, pm2). Apply migrations with `pnpm --filter @trinity/prisma migrate:deploy`.
 
-**Run exactly ONE API process.** Since Redis was removed (G12a), permission revocation (the role cache, 60 s TTL) and the
-MCP rate limits live in the memory of each process. With several workers a revoked permission can stay valid for up to
-60 seconds on the other workers and each worker counts rate limits on its own. Until cross-process invalidation through
-Postgres `NOTIFY` ships (G12b), the Node server supports a single API process only: do not use PM2 `exec_mode: 'cluster'`
-or `instances > 1`, and do not scale the compose service. The server logs a warning at startup when it detects PM2
-cluster mode. A sample PM2 file:
+**Several API processes.** In-memory state is kept in step across processes (Node with Node, and Node with the Rust
+server during the migration) through Postgres `LISTEN/NOTIFY`: permission/role cache, token blacklist and active
+sessions, read caches (customer counts, dashboard numbers), the notification bell and payslip notices, and the Graph
+error window / app back-off of the channel guard. A revoked permission or a sign-out takes effect on the other processes
+in well under a second. Message formats: [sync-notify.md](sync-notify.md). The listener needs a direct (session-mode)
+Postgres connection: set `DIRECT_DATABASE_URL` when `DATABASE_URL` goes through a transaction pooler, or `TRINITY_SYNC=off`
+to turn the sync off (single process only). If the listener connection drops, caches fall back to their TTL (the role
+cache is 60 s) until it reconnects. Two limits remain: rate limits (MCP, public API, login) are counted per process, so
+with N workers the effective limit is up to N times higher; and scheduled jobs are not coordinated between Node
+processes, so keep the Node API at one process unless you run behind the job-ownership file of the migration.
+A sample PM2 file:
 
 ```js
 // ecosystem.config.cjs
@@ -149,8 +154,8 @@ module.exports = {
   apps: [{
     name: 'trinity-api',
     script: 'apps/monolith/dist/apps/monolith/src/main.js',
-    exec_mode: 'fork', // not 'cluster'
-    instances: 1,      // must stay 1 until G12b
+    exec_mode: 'fork',
+    instances: 1,
   }],
 }
 ```

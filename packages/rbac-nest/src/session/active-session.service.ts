@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common'
-import { tenantKey } from '@trinity/prisma'
+import { Injectable, OnModuleDestroy } from '@nestjs/common'
+import { currentCompanyId, syncBus, tenantKey, tenantKeyFor } from '@trinity/prisma'
 
 /**
  * Theo dõi phiên đăng nhập "đang sống" gần nhất của mỗi user —
@@ -25,13 +25,32 @@ import { tenantKey } from '@trinity/prisma'
  *   khi access token hết hạn rồi thử refresh — lúc đó mới bị từ chối.
  */
 @Injectable()
-export class ActiveSessionService {
+export class ActiveSessionService implements OnModuleDestroy {
   private readonly sessions = new Map<string, string>() // keyed by tenantKey(userId)
+  private readonly unsubscribe: Array<() => void> = []
+
+  constructor() {
+    // G12b: phiên mới/đăng xuất ở tiến trình khác (`NOTIFY session`).
+    this.unsubscribe.push(
+      syncBus.on('session', (m) => {
+        const u = Number(m['u'])
+        if (!Number.isInteger(u)) return
+        const key = tenantKeyFor(m.c, u)
+        if (m['op'] === 'clear') this.sessions.delete(key)
+        else if (m['op'] === 'start' && typeof m['s'] === 'string') this.sessions.set(key, m['s'])
+      }),
+    )
+  }
+
+  onModuleDestroy(): void {
+    for (const u of this.unsubscribe.splice(0)) u()
+  }
 
   /** Đăng ký phiên MỚI cho user — trả về sessionId để nhúng vào JWT. Ghi đè phiên cũ (nếu có). */
   startSession(userId: number): string {
     const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
     this.sessions.set(tenantKey(userId), sessionId)
+    void syncBus.publish('session', { op: 'start', u: userId, s: sessionId }, currentCompanyId())
     return sessionId
   }
 
@@ -50,6 +69,7 @@ export class ActiveSessionService {
   /** Gỡ theo dõi phiên của user (vd logout tường minh). Không bắt buộc gọi. */
   clearUser(userId: number): void {
     this.sessions.delete(tenantKey(userId))
+    void syncBus.publish('session', { op: 'clear', u: userId }, currentCompanyId())
   }
 
   /** Exposed for testing */

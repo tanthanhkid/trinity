@@ -4,7 +4,6 @@ import type { NestExpressApplication } from '@nestjs/platform-express'
 
 import { MonolithModule } from './app.module'
 import { NEST_CREATE_OPTIONS, configureApp, initAndAudit, insecureSecrets } from './bootstrap-app'
-import { clusterModeWarnings } from './single-process'
 import { ElkNestLogger } from '@trinity/logger'
 import { clientIpStartupProblems, clientIpStartupWarnings, tunnelListenProblem } from '@trinity/rbac-nest'
 
@@ -28,8 +27,6 @@ async function bootstrap() {
     process.exit(1)
   }
   for (const w of clientIpStartupWarnings(process.env)) elkLogger.warn(w, 'Bootstrap')
-
-  for (const w of clusterModeWarnings(process.env)) elkLogger.warn(w, 'Bootstrap')
 
   // `bodyParser: false` + `useBodyParser` — yêu cầu CHẶT NHẤT trong các service (crm).
   const app = await NestFactory.create<NestExpressApplication>(MonolithModule, {

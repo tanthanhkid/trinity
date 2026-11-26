@@ -19,7 +19,7 @@ describe('ContactsService — xoá ghi người xoá; restore (Hoàn tác phía 
     prisma.$transaction.mockImplementation((cb: (tx: unknown) => unknown) => cb(prisma));
     const audit = { writeInTx: jest.fn().mockResolvedValue(undefined) };
     const scope = { ownerIds: jest.fn().mockResolvedValue('all') };
-    const svc = new ContactsService(prisma as never, audit as never, {} as never, scope as never, {} as never, {} as never);
+    const svc = new ContactsService(prisma as never, audit as never, {} as never, scope as never, {} as never, { invalidatePrefix: jest.fn() } as never);
     return { svc, prisma, audit };
   };
   const owner = { userId: 5, isAdmin: false, grants: { 'contacts.delete': 'all' } } as never;

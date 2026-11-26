@@ -91,9 +91,9 @@ describe('InternalPortsModule (nối dây gọi nội bộ in-process)', () => {
   it('consumer THẬT nhận port: crm NotificationsService phát WS', async () => {
     const ref = await build()
     const prisma = ref.get(PrismaService) as unknown as {
-      notificationLog?: { createMany: jest.Mock }
+      notificationLog?: { createManyAndReturn: jest.Mock }
     }
-    prisma.notificationLog = { createMany: jest.fn().mockResolvedValue({ count: 1 }) }
+    prisma.notificationLog = { createManyAndReturn: jest.fn().mockResolvedValue([{ id: 55, recipient_id: 1 }]) }
 
     await ref.get(NotificationsService).createPendingLogs([7], 'deal.assigned', {
       title: 'T', body: 'B',

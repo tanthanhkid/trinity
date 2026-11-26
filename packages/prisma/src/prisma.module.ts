@@ -1,4 +1,5 @@
-import { Module, Global } from '@nestjs/common'
+import { Module, Global, OnModuleInit, OnModuleDestroy } from '@nestjs/common'
+import { syncBus, syncDisabled } from './sync/sync-bus'
 import { PrismaService, createPrismaService } from './prisma.service'
 import { IntegrationAuditService } from './integrations/integration-audit.service'
 import { IntegrationEventsService } from './integrations/integration-events.service'
@@ -22,4 +23,14 @@ export { PrismaService }
   ],
   exports: [PrismaService, IntegrationAuditService, IntegrationEventsService],
 })
-export class PrismaModule {}
+export class PrismaModule implements OnModuleInit, OnModuleDestroy {
+  /** G12b: nghe `NOTIFY` để vô hiệu cache giữa các tiến trình. Không có DB / serverless / `TRINITY_SYNC=off` ⇒ không nghe. */
+  async onModuleInit(): Promise<void> {
+    if (syncDisabled()) return
+    await syncBus.start()
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await syncBus.stop()
+  }
+}

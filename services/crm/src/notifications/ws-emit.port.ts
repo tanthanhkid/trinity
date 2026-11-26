@@ -12,6 +12,8 @@ export interface WsEmitItem {
   body: string;
   event_type: string;
   action_url: string | null;
+  /** `notification_logs.id` của dòng vừa ghi; có thì tiến trình khác (G12b `NOTIFY bell`) đọc nội dung theo id. */
+  log_id?: number | null;
 }
 
 export interface WsEmitPort {

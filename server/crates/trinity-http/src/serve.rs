@@ -6,22 +6,34 @@
 
 use std::future::Future;
 use std::io;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
 use axum::Router;
-use hyper_util::rt::{TokioExecutor, TokioIo};
+use axum::extract::ConnectInfo;
+use hyper::body::Incoming;
+use hyper::service::service_fn;
+use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
 use hyper_util::server::conn::auto::Builder;
 use hyper_util::server::graceful::GracefulShutdown;
-use hyper_util::service::TowerToHyperService;
 use rustls_pki_types::pem::PemObject;
 use rustls_pki_types::{CertificateDer, PrivateKeyDer};
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
+use tower::ServiceExt;
 
 /// Thời gian chờ request dở khi tắt máy nếu không cấu hình khác.
 pub const DEFAULT_GRACE: Duration = Duration::from_secs(30);
+
+/// Bắt tay TLS quá lâu thì bỏ kết nối.
+const TLS_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+/// Đọc xong header của một request (kể cả request kế tiếp trên kết nối keep-alive) quá lâu thì đóng (chống slowloris).
+const HEADER_READ_TIMEOUT: Duration = Duration::from_secs(30);
+/// HTTP/2: gửi PING mỗi chừng này khi im lặng; không trả lời sau `H2_KEEP_ALIVE_TIMEOUT` thì đóng.
+const H2_KEEP_ALIVE_INTERVAL: Duration = Duration::from_secs(30);
+const H2_KEEP_ALIVE_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// Lỗi nạp chứng chỉ TLS (lỗi cấu hình: tiến trình phải dừng khi khởi động).
 #[derive(Debug, thiserror::Error)]
@@ -64,7 +76,13 @@ pub fn load_tls_acceptor(cert: &Path, key: &Path) -> Result<TlsAcceptor, TlsErro
 }
 
 /// Chạy `app` trên `listener` tới khi `shutdown` xong, rồi chờ request dở tối đa `grace`. `tls = None` ⇒ HTTP thường.
-/// Trả `Ok` cả khi hết `grace` mà còn kết nối (ghi cảnh báo, kết nối bị cắt khi tiến trình thoát).
+/// Trả `Ok` cả khi hết `grace` mà còn kết nối (ghi cảnh báo, kết nối bị cắt khi tiến trình thoát). Lỗi `accept`
+/// nghiêm trọng thì cũng drain có hạn như khi tắt máy rồi mới trả lỗi.
+///
+/// Mỗi request mang `ConnectInfo<SocketAddr>` (địa chỉ peer TCP) trong extensions, nơi `edge::client_ip` đọc.
+///
+/// WebSocket và các kết nối đã nâng cấp (`/notif-ws`) KHÔNG được drain: chúng bị cắt khi hết `grace`, client phải nối
+/// lại sau khi khởi động lại.
 pub async fn serve(
     listener: TcpListener,
     app: Router,
@@ -74,6 +92,7 @@ pub async fn serve(
 ) -> io::Result<()> {
     let graceful = GracefulShutdown::new();
     tokio::pin!(shutdown);
+    let mut fatal = None;
     loop {
         let (stream, peer) = tokio::select! {
             () = &mut shutdown => break,
@@ -84,25 +103,45 @@ pub async fn serve(
                     tokio::time::sleep(Duration::from_millis(50)).await;
                     continue;
                 }
-                Err(e) => return Err(e),
+                Err(e) => {
+                    fatal = Some(e);
+                    break;
+                }
             },
         };
         let _ = stream.set_nodelay(true);
-        let svc = TowerToHyperService::new(app.clone());
+        let app = app.clone();
+        let svc = service_fn(move |mut req: hyper::Request<Incoming>| {
+            req.extensions_mut().insert(ConnectInfo::<SocketAddr>(peer));
+            app.clone().oneshot(req)
+        });
         let watcher = graceful.watcher();
         let tls = tls.clone();
         tokio::spawn(async move {
-            let builder = Builder::new(TokioExecutor::new());
+            let mut builder = Builder::new(TokioExecutor::new());
+            builder
+                .http1()
+                .timer(TokioTimer::new())
+                .header_read_timeout(HEADER_READ_TIMEOUT);
+            builder
+                .http2()
+                .timer(TokioTimer::new())
+                .keep_alive_interval(Some(H2_KEEP_ALIVE_INTERVAL))
+                .keep_alive_timeout(H2_KEEP_ALIVE_TIMEOUT);
             let res = match tls {
                 None => {
                     let conn = builder.serve_connection_with_upgrades(TokioIo::new(stream), svc);
                     watcher.watch(conn.into_owned()).await
                 }
                 Some(acceptor) => {
-                    let tls_stream = match acceptor.accept(stream).await {
-                        Ok(s) => s,
-                        Err(e) => {
+                    let tls_stream = match tokio::time::timeout(TLS_HANDSHAKE_TIMEOUT, acceptor.accept(stream)).await {
+                        Ok(Ok(s)) => s,
+                        Ok(Err(e)) => {
                             tracing::debug!("bắt tay TLS với {peer} lỗi: {e}");
+                            return;
+                        }
+                        Err(_) => {
+                            tracing::debug!("bắt tay TLS với {peer} quá {}s, bỏ", TLS_HANDSHAKE_TIMEOUT.as_secs());
                             return;
                         }
                     };
@@ -122,14 +161,25 @@ pub async fn serve(
             tracing::warn!("hết {}s chờ tắt máy êm, còn request dở bị cắt", grace.as_secs());
         }
     }
-    Ok(())
+    match fatal {
+        Some(e) => Err(e),
+        None => Ok(()),
+    }
 }
 
 fn is_transient_accept_error(e: &io::Error) -> bool {
-    matches!(
+    if matches!(
         e.kind(),
         io::ErrorKind::ConnectionAborted | io::ErrorKind::ConnectionReset | io::ErrorKind::Interrupted
-    ) || matches!(e.raw_os_error(), Some(23 | 24)) // ENFILE, EMFILE
+    ) {
+        return true;
+    }
+    // Hết bộ mô tả tệp (EMFILE, ENFILE): chờ rồi thử lại.
+    #[cfg(unix)]
+    if matches!(e.raw_os_error(), Some(libc::EMFILE | libc::ENFILE)) {
+        return true;
+    }
+    false
 }
 
 /// Xong khi nhận SIGTERM hoặc SIGINT (Unix) / Ctrl-C (nơi khác).
@@ -311,13 +361,73 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn request_mang_connect_info_cua_peer() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+        let app = Router::new().route(
+            "/ip",
+            get(|ConnectInfo(a): ConnectInfo<SocketAddr>| async move { a.to_string() }),
+        );
+        let dir = tmp();
+        let (c, k, der) = self_signed(&dir);
+        for tls in [None, Some(load_tls_acceptor(&c, &k).unwrap())] {
+            let https = tls.is_some();
+            let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let port = l.local_addr().unwrap().port();
+            let (tx, rx) = oneshot::channel::<()>();
+            let srv = tokio::spawn(serve(
+                l,
+                app.clone(),
+                tls,
+                async {
+                    let _ = rx.await;
+                },
+                Duration::from_secs(5),
+            ));
+            let client = reqwest::Client::builder()
+                .add_root_certificate(reqwest::Certificate::from_der(&der).unwrap())
+                .resolve("localhost", ([127, 0, 0, 1], port).into())
+                .build()
+                .unwrap();
+            let scheme = if https { "https" } else { "http" };
+            let body = client
+                .get(format!("{scheme}://localhost:{port}/ip"))
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap();
+            let peer: SocketAddr = body.parse().unwrap();
+            assert!(peer.ip().is_loopback() && peer.port() != port, "{body}");
+            tx.send(()).unwrap();
+            srv.await.unwrap().unwrap();
+        }
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
     async fn het_han_cho_thi_van_thoat() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+        let (started_tx, started_rx) = oneshot::channel::<()>();
+        let started = std::sync::Arc::new(std::sync::Mutex::new(Some(started_tx)));
+        let app = Router::new().route(
+            "/slow",
+            get(move || {
+                if let Some(t) = started.lock().ok().and_then(|mut g| g.take()) {
+                    let _ = t.send(());
+                }
+                async {
+                    tokio::time::sleep(Duration::from_millis(800)).await;
+                    "xong"
+                }
+            }),
+        );
         let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = l.local_addr().unwrap().port();
         let (tx, rx) = oneshot::channel::<()>();
         let srv = tokio::spawn(serve(
             l,
-            app(),
+            app,
             None,
             async {
                 let _ = rx.await;
@@ -325,7 +435,7 @@ mod tests {
             Duration::from_millis(200),
         ));
         let req = tokio::spawn(async move { reqwest::get(format!("http://127.0.0.1:{port}/slow")).await });
-        tokio::time::sleep(Duration::from_millis(100)).await;
+        started_rx.await.unwrap(); // handler đã chạy thật rồi mới "SIGTERM"
         tx.send(()).unwrap();
         let t = Instant::now();
         srv.await.unwrap().unwrap();

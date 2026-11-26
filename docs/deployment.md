@@ -173,15 +173,6 @@ update; dump the database only when the update contains a migration (a rollback 
 
 ## Rust server configuration (preview)
 
-### TLS at the origin
-
-TLS is terminated by Cloudflare. The Rust server never requests certificates (no ACME).
-
-- `TLS_MODE=off` (default): plain HTTP, for Cloudflare Tunnel or a reverse proxy on the same host.
-- `TLS_MODE=files`: HTTPS from PEM files, e.g. a Cloudflare Origin Certificate (set Cloudflare SSL mode to Full (strict)). Needs `TLS_CERT_FILE` (certificate chain) and `TLS_KEY_FILE` (private key); startup fails with a clear message if a file is missing, empty, or the key does not match. HTTP/2 and HTTP/1.1 are offered. Certificates are read at startup, so restart the service after renewing them.
-
-On SIGTERM or SIGINT the server stops accepting connections, lets requests already in progress finish (up to 30 seconds), then exits. Set the service manager's stop timeout above 30 seconds (systemd `TimeoutStopSec=45`).
-
 The Rust rewrite of the backend (`server/`, [docs/rust/PLAN.md](rust/PLAN.md)) is not released yet. It reads the same
 `.env` as the Node API, with these differences:
 
@@ -196,6 +187,17 @@ The Rust rewrite of the backend (`server/`, [docs/rust/PLAN.md](rust/PLAN.md)) i
 - In a hybrid install (Rust in front, Node behind), `TRINITY_OWNERSHIP_FILE` points at a JSON file saying which side
   serves each route prefix and runs each background job. Format and matching rules (longest prefix, then method; `GET`
   also covers `HEAD`): [server/README.md](../server/README.md#tệp-sở-hữu-trinity_ownership_file).
+
+### TLS at the origin
+
+These settings apply once the `trinity serve` command exists; the building block (`trinity_http::serve`) is merged but not wired into a command yet.
+
+TLS is terminated by Cloudflare. The Rust server never requests certificates (no ACME).
+
+- `TLS_MODE=off` (default): plain HTTP, for Cloudflare Tunnel or a reverse proxy on the same host.
+- `TLS_MODE=files`: HTTPS from PEM files, e.g. a Cloudflare Origin Certificate (set Cloudflare SSL mode to Full (strict)). Needs `TLS_CERT_FILE` (certificate chain) and `TLS_KEY_FILE` (private key); startup fails with a clear message if a file is missing, empty, or the key does not match. HTTP/2 and HTTP/1.1 are offered. Certificates are read at startup, so restart the service after renewing them.
+
+On SIGTERM or SIGINT the server stops accepting connections, lets requests already in progress finish (up to 30 seconds), then exits. WebSocket and other upgraded connections (for example `/notif-ws`) are not drained: they are cut when the grace period ends, so clients must reconnect after a restart. Connections that never finish a TLS handshake (10 seconds), never send request headers (30 seconds), or go silent on HTTP/2 (ping every 30 seconds, closed 20 seconds after no answer) are dropped. Set the service manager's stop timeout above 30 seconds (systemd `TimeoutStopSec=45`).
 
 ## Monitoring (optional)
 

@@ -53,8 +53,6 @@ export type EventStyle = { icon: typeof Bell; iconClass: string; dotClass: strin
 export const EVENT_CONFIG: Record<string, EventStyle> = {
   'deal.assigned': { icon: Inbox, iconClass: 'text-emerald-600 bg-emerald-50', dotClass: 'bg-emerald-500' },
   'ai_action.created': { icon: Bot, iconClass: 'text-indigo-600 bg-indigo-50', dotClass: 'bg-indigo-500' },
-  'extension.pending': { icon: Bot, iconClass: 'text-indigo-600 bg-indigo-50', dotClass: 'bg-indigo-500' },
-  'extension.auto_disabled': { icon: Info, iconClass: 'text-red-600 bg-red-50', dotClass: 'bg-red-500' },
   'chat.tag': { icon: MessageSquare, iconClass: 'text-violet-600 bg-violet-50', dotClass: 'bg-violet-500' },
   'payslip.approved': { icon: Wallet, iconClass: 'text-green-600 bg-green-50', dotClass: 'bg-green-500' },
   'newsfeed.post.created': { icon: Newspaper, iconClass: 'text-sky-600 bg-sky-50', dotClass: 'bg-sky-500' },

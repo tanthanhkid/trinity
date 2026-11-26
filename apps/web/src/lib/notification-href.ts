@@ -38,8 +38,6 @@ export function resolveNotificationHref(
   }
   // Hoạt động AI / đề xuất thao tác của AI chờ duyệt (chế độ duyệt) — fallback khi action_url (/ai-actions?id=N) không hợp lệ.
   if (eventType === 'ai_action.created') return '/ai-actions'
-  // Chương trình con do AI viết chờ duyệt / bị tự tắt — fallback khi action_url (/extensions?id=N) không hợp lệ.
-  if (eventType === 'extension.pending' || eventType === 'extension.auto_disabled') return '/extensions'
   if (eventType === 'payslip.approved') {
     return canManagePayroll ? '/payroll?tab=payslip' : '/payroll'
   }

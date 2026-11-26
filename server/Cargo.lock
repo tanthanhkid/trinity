@@ -2017,9 +2017,11 @@ name = "trinity-obs"
 version = "0.3.0"
 dependencies = [
  "hmac",
+ "log",
  "serde_json",
  "sha2",
  "tracing",
+ "tracing-log",
  "tracing-subscriber",
 ]
 

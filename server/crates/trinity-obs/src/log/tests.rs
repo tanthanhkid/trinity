@@ -26,7 +26,7 @@ impl<'a> MakeWriter<'a> for Buf {
 
 fn capture(f: impl FnOnce()) -> Vec<serde_json::Value> {
     let buf = Buf::default();
-    tracing::subscriber::with_default(json_subscriber(buf.clone()), f);
+    tracing::subscriber::with_default(json_subscriber(buf.clone(), EnvFilter::new("info")), f);
     let text = String::from_utf8(buf.0.lock().unwrap().clone()).unwrap();
     text.lines()
         .map(|l| serde_json::from_str(l).unwrap_or_else(|e| panic!("dòng log không phải JSON ({e}): {l}")))
@@ -35,13 +35,13 @@ fn capture(f: impl FnOnce()) -> Vec<serde_json::Value> {
 
 fn raw(f: impl FnOnce()) -> String {
     let buf = Buf::default();
-    tracing::subscriber::with_default(json_subscriber(buf.clone()), f);
+    tracing::subscriber::with_default(json_subscriber(buf.clone(), EnvFilter::new("info")), f);
     String::from_utf8(buf.0.lock().unwrap().clone()).unwrap()
 }
 
 #[test]
 fn token_trong_duong_dan_webhook_khong_vao_log() {
-    let hasher = UserIdHasher::new("khoa-thu");
+    let hasher = UserIdHasher::new("khoa-thu").unwrap();
     let user = hasher.hash("42");
     let req = RequestLog {
         correlation_id: "abc-1",
@@ -119,10 +119,49 @@ fn ma_tuong_quan() {
     }
     assert_ne!(correlation_id(Some(&"a".repeat(129))), "a".repeat(129));
     assert_ne!(new_correlation_id(), new_correlation_id());
+    // <tiến trình 8 hex>-<thời điểm>-<bộ đếm>; cùng tiến trình thì cùng phần đầu.
+    let (a, b) = (new_correlation_id(), new_correlation_id());
+    assert_eq!(a.split('-').count(), 3, "{a}");
+    assert_eq!(a.split('-').next().unwrap().len(), 8, "{a}");
+    assert_eq!(a.split('-').next(), b.split('-').next());
 }
 
 #[test]
 fn bam_user_id_giong_ban_node() {
     // createHmac('sha256', 'secret').update('42').digest('hex').slice(0, 24)
-    assert_eq!(UserIdHasher::new("secret").hash("42"), "93c121e7aa437a1e01e3c512");
+    assert_eq!(
+        UserIdHasher::new("secret").unwrap().hash("42"),
+        "93c121e7aa437a1e01e3c512"
+    );
+}
+
+#[test]
+fn khoa_bam_rong_bi_tu_choi() {
+    assert_eq!(UserIdHasher::new("").unwrap_err(), EmptyHashKey);
+}
+
+#[test]
+fn log_tu_crate_log_ra_json() {
+    // Cầu nối là toàn cục; test khác có thể đã cài — lỗi "đã cài" bỏ qua.
+    let _ = install_log_bridge();
+    let lines = capture(|| log::warn!(target: "sqlx::query", "slow statement: elapsed=1.2s"));
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert_eq!(lines[0]["level"], "WARN");
+    assert_eq!(lines[0]["message"], "slow statement: elapsed=1.2s");
+    assert_eq!(lines[0]["target"], "sqlx::query");
+}
+
+#[test]
+fn bo_loc_co_dinh_khong_doc_rust_log() {
+    // Mức debug bị lọc ở bộ lọc "info" của test, bất kể RUST_LOG của máy chạy test.
+    let lines = capture(|| tracing::debug!("ẩn"));
+    assert!(lines.is_empty());
+}
+
+#[test]
+fn rust_log_sai_cu_phap_bao_mot_cau() {
+    assert!(filter_from(None).1.is_none());
+    assert!(filter_from(Some("debug,hyper=warn")).1.is_none());
+    let (_, warn) = filter_from(Some("trinity=khongphaimuc"));
+    assert!(warn.unwrap().starts_with("RUST_LOG=trinity=khongphaimuc sai cú pháp"));
 }

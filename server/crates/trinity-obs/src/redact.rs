@@ -33,9 +33,9 @@ pub const SECRET_QUERY_KEYS: &[&str] = &[
     "oauth_token_secret",
 ];
 
-/// `\s` của JavaScript (gần đúng: khoảng trắng Unicode và U+FEFF).
+/// `\s` của JavaScript: khoảng trắng Unicode (`White_Space`) trừ U+0085, cộng U+FEFF.
 fn is_js_space(c: char) -> bool {
-    c.is_whitespace() || c == '\u{feff}'
+    (c.is_whitespace() && c != '\u{85}') || c == '\u{feff}'
 }
 
 /// Che token webhook trong đường dẫn và bí mật trong query.
@@ -180,5 +180,8 @@ mod tests {
         assert_eq!(r("/x?code"), "/x?code");
         assert_eq!(r("/x?keyboard=1&key=2"), "/x?keyboard=1&key=[redacted]");
         assert_eq!(r("/x?state=ẩn&a=b"), "/x?state=[redacted]&a=b");
+        // U+0085 không phải `\s` của JavaScript nên vẫn thuộc giá trị bị che; U+FEFF thì là.
+        assert_eq!(r("/x?code=a\u{85}b"), "/x?code=[redacted]");
+        assert_eq!(r("/x?code=a\u{feff}b"), "/x?code=[redacted]\u{feff}b");
     }
 }

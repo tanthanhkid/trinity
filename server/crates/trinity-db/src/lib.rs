@@ -13,6 +13,7 @@
 
 pub mod migrate;
 pub mod outbox;
+pub mod pg_error;
 pub mod platform;
 #[rustfmt::skip]
 pub mod models;

@@ -702,6 +702,12 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   trong `trinity-db/src/types.rs` + ca trong `server/contracts/cases/serializer.json` (sinh cột `out` từ Node bằng
   `UPDATE_SERIALIZER_CASES=1`). `cargo xtask lint` cấm `serde_json::to_value` (đổi model sang `Value` làm mất chữ
   số thực và đảo thứ tự khoá); ghi JSON bằng `serde_json::to_string`.
+- Module nghiệp vụ (`server/crates/mod-*`, mẫu đầu tiên `mod-commerce`, M28/M25): hàm repository nhận `&mut PgConnection`
+  (deref từ `TenantConn`/`TenantTx`), trả `AppError`; truy vấn cố định dùng `query_as!`/`query_scalar!` (kiểu cột
+  bọc K10 khai bằng `AS "col: Type"`) và `cargo sqlx prepare`, chỉ bộ lọc động dùng `QueryBuilder` kèm test pg;
+  `trinity_db::pg_error::{db_error, app_error}` đổi `sqlx::Error` thành `DbError` của kernel; unique violation chỉ bắt
+  đúng tên ràng buộc (vd `projects_code_key`). Luật DTO không có trong `contracts/dto/schema.json` được viết thành hàm
+  `validate()` cùng câu và thứ tự lỗi class-validator, cho tới khi DTO vào schema khi route được nối (K14/K11).
 - `updated_at`: mọi `UPDATE` do Rust viết phải gán `updated_at = now()`. Kiểm bằng lint trong `xtask` (câu `UPDATE`
   trên bảng có cột này mà thiếu gán thì báo lỗi) và bằng test so trạng thái DB.
 - Lỗi DB: bảng ánh xạ SQLSTATE sang hành vi của bản TS nằm ở một chỗ (K05): 23505 ↔ `P2002`, 23503 ↔ `P2003`,

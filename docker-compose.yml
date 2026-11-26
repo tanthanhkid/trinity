@@ -10,7 +10,6 @@
 #
 # Services
 #   postgres   PostgreSQL 16
-#   redis      Redis 7
 #   migrate    one-shot job: applies Prisma migrations + seeds (admin, options, optional demo data when SEED_DEMO_DATA=true)
 #   api        NestJS monolith (auth, crm, commerce, payroll, notification).
 #   web        Next.js UI
@@ -20,7 +19,6 @@ name: trinity
 x-api-env: &api-env
   NODE_ENV: production
   DATABASE_URL: postgresql://${POSTGRES_USER:-trinity}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-trinity}
-  REDIS_URL: redis://redis:6379/0
   JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
   SERVICE_SECRET: ${SERVICE_SECRET:?set SERVICE_SECRET in .env}
   INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-${SERVICE_SECRET}}
@@ -36,13 +34,6 @@ x-api-env: &api-env
   INTEGRATIONS_PUBLIC_BASE_URL: ${INTEGRATIONS_PUBLIC_BASE_URL:-}
   INTEGRATIONS_SECRET_KEY: ${INTEGRATIONS_SECRET_KEY:-}
   SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
-  # Connector cần app đối tác của Trinity (để trống = dòng connector hiện "Máy chủ chưa cấu hình").
-  MISA_APP_ID: ${MISA_APP_ID:-}
-  SHOPEE_PARTNER_ID: ${SHOPEE_PARTNER_ID:-}
-  SHOPEE_PARTNER_KEY: ${SHOPEE_PARTNER_KEY:-}
-  SHOPEE_SANDBOX: ${SHOPEE_SANDBOX:-}
-  LAZADA_APP_KEY: ${LAZADA_APP_KEY:-}
-  LAZADA_APP_SECRET: ${LAZADA_APP_SECRET:-}
 
 services:
   postgres:
@@ -58,18 +49,6 @@ services:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
-      retries: 20
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
       retries: 20
 
   migrate:
@@ -109,8 +88,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      redis:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
@@ -147,6 +124,5 @@ services:
 
 volumes:
   pgdata:
-  redisdata:
   storage:
   uploads:

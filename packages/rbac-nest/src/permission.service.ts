@@ -27,7 +27,7 @@ function toGrants(list: { permission: string; scope: string | null }[]): Grants 
 /**
  * `grants(user) = ⋃ role_permissions của mọi vai trò user giữ` —
  * trùng quyền lấy scope rộng nhất. Cache RAM theo user, vô hiệu qua RbacCache
- * (xoá cục bộ + publish Redis `rbac:invalidate`).
+ * (xoá cache RAM của tiến trình; đồng bộ giữa tiến trình qua Postgres `NOTIFY` là G12b).
  */
 @Injectable()
 export class PermissionService {

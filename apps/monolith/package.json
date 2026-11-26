@@ -42,7 +42,6 @@
     "class-validator": "^0.14",
     "exceljs": "^4.4.0",
     "handlebars": "^4.7.10",
-    "ioredis": "^5.10.1",
     "jsonwebtoken": "^9",
     "multer": "2.4.0",
     "node-cron": "^3",

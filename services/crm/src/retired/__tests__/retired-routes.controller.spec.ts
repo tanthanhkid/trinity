@@ -14,4 +14,19 @@ describe('đường công khai của tính năng đã gỡ', () => {
     expect((err as HttpException).getStatus()).toBe(410);
     expect(JSON.stringify((err as HttpException).getResponse())).toContain('Google Sheets');
   });
+
+  it.each([
+    ['salesWebhook', 'phần mềm bán hàng'],
+    ['marketplacePush', 'sàn thương mại điện tử'],
+    ['marketplaceCallback', 'sàn thương mại điện tử'],
+  ] as const)('G06: %s trả 410', (method, text) => {
+    let err: unknown;
+    try {
+      (new RetiredRoutesController() as unknown as Record<string, () => never>)[method]();
+    } catch (e) {
+      err = e;
+    }
+    expect((err as HttpException).getStatus()).toBe(410);
+    expect(JSON.stringify((err as HttpException).getResponse())).toContain(text);
+  });
 });

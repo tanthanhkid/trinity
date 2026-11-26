@@ -106,7 +106,7 @@ export function requireCompany(what = 'this operation'): CompanyRef {
 }
 
 /**
- * Key prefix for per-company in-memory / Redis state. Database ids (user 1, contact 1…) repeat across
+ * Key prefix for per-company in-memory state. Database ids (user 1, contact 1…) repeat across
  * companies, so any cache keyed by id must also carry the company.
  */
 export function tenantKey(key: string | number): string {

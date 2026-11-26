@@ -1,5 +1,4 @@
 import {
-  Inject,
   Injectable,
   NotFoundException,
   BadRequestException,
@@ -16,7 +15,6 @@ import {
   snapshotDeal,
   CONTACT_EVENT_SELECT, tenantKey } from '@trinity/prisma';
 import { Prisma } from '@prisma/client';
-import Redis from 'ioredis';
 import { createHash } from 'node:crypto';
 import {
   type AuthUser,
@@ -28,7 +26,7 @@ import {
   maskPhone,
   runInBackground,
 } from '@trinity/rbac-nest';
-import { REDIS_CLIENT } from '../common/redis.provider';
+import { ReadCache } from '../common/read-cache';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { QueryContactDto } from './dto/query-contact.dto';
@@ -147,9 +145,8 @@ const DEFAULT_STAGE_VALUE = 'new';
 
 /**
  * Cache count(*) cho contacts list — TTL 60s, tránh chạy COUNT trên bảng lớn
- * mỗi lần đổi page. Backend là Redis (shared cross-instance) thay cho in-memory
- * `Map` cũ — `Map` thất thoát hit rate khi PM2 cluster mở >1 worker và mỗi
- * worker có cache riêng.
+ * mỗi lần đổi page. Lưu trong `ReadCache` (RAM của tiến trình, G12a bỏ Redis);
+ * `TRINITY_DISABLE_READ_CACHE=1` ⇒ luôn đếm lại từ DB.
  */
 const COUNT_CACHE_TTL_SECONDS = 60;
 const COUNT_CACHE_KEY_PREFIX = 'crm:contacts:count:';
@@ -192,14 +189,13 @@ export class ContactsService {
     private readonly notificationsService: NotificationsService,
     private readonly scope: ScopeService,
     private readonly permissionService: PermissionService,
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly cache: ReadCache,
     @Optional() private readonly sampleRecords?: SampleRecordsService,
   ) {}
 
   /**
-   * Build Redis key cho count cache. Hash payload bằng SHA-1 để key ngắn (40 hex
-   * chars) — `JSON.stringify(where)` có thể dài vài KB khi user ràng filter
-   * nhiều, vượt giới hạn key Redis (512 MB technical, nhưng best practice <1 KB).
+   * Khoá count cache. Hash payload bằng SHA-1 để khoá ngắn (40 hex chars) —
+   * `JSON.stringify(where)` có thể dài vài KB khi user ràng filter nhiều.
    */
   private buildCountCacheKey(payload: {
     u: number;
@@ -212,33 +208,17 @@ export class ContactsService {
   }
 
   /**
-   * Get cached count từ Redis. Trả `undefined` khi miss / lỗi — caller fallback
-   * về DB count, KHÔNG crash request.
+   * Count đã cache. Trả `undefined` khi miss — caller đếm lại từ DB.
    */
   private async getCachedCount(key: string): Promise<number | undefined> {
-    try {
-      const raw = await this.redis.get(tenantKey(key));
-      if (raw == null) return undefined;
-      const parsed = Number(raw);
-      return Number.isFinite(parsed) ? parsed : undefined;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Redis count cache get failed (${key}): ${msg}`);
-      return undefined;
-    }
+    const raw = this.cache.get(tenantKey(key));
+    if (raw == null) return undefined;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 
-  /**
-   * Best-effort set; nếu Redis lỗi chỉ log warn — count cache không phải critical
-   * path (DB count vẫn chạy được).
-   */
   private async setCachedCount(key: string, total: number): Promise<void> {
-    try {
-      await this.redis.set(tenantKey(key), String(total), 'EX', COUNT_CACHE_TTL_SECONDS);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`Redis count cache set failed (${key}): ${msg}`);
-    }
+    this.cache.set(tenantKey(key), String(total), COUNT_CACHE_TTL_SECONDS);
   }
 
   /** `team_id` không nằm trong JWT/`AuthUser` (phạm vi chỉ
@@ -420,7 +400,7 @@ export class ContactsService {
       }
 
       // Cache COUNT theo (user + where) — bỏ orderBy vì không ảnh hưởng count.
-      // Backend Redis (TTL 60s, hash key SHA-1) — share cross-instance.
+      // ReadCache (TTL 60s, hash key SHA-1).
       const cacheKey = this.buildCountCacheKey({
         u: user.userId,
         r: user.isAdmin,
@@ -439,7 +419,6 @@ export class ContactsService {
       total = freshTotal;
       if (cachedTotal === undefined) {
         // Fire-and-forget — KHÔNG await để không thêm latency vào response.
-        // setCachedCount tự log warn nếu Redis fail.
         void this.setCachedCount(cacheKey, freshTotal);
       }
       pages = Math.max(1, Math.ceil(total / limit));

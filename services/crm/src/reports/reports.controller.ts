@@ -36,7 +36,7 @@ export class ReportsController {
     description:
       'Số liệu hôm nay (theo ngày Asia/Ho_Chi_Minh). ' +
       'Mỗi khối kiểm quyền NGUỒN riêng (`contacts.view`) — khối thiếu quyền trả `null`. ' +
-      'Cache Redis 15 giây per-user (gần realtime).',
+      'Cache 15 giây per-user trong RAM (gần realtime).',
   })
   @ApiResponse({ status: 200 })
   async getDashboardStatsToday(@CurrentUser() user: AuthUser) {

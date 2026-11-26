@@ -1,60 +1,17 @@
-import Redis from 'ioredis'
-import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common'
-import { isServerless } from './runtime'
+import { Injectable } from '@nestjs/common'
 import { currentCompanyId } from '@trinity/prisma'
 
 /** Cache keys and invalidations are per company: user ids repeat across companies. */
 const companyPrefix = (): string => `${currentCompanyId() ?? 0}|`
 
-const CHANNEL = 'rbac:invalidate'
-
 /**
- * Cache RAM (theo process) + pub/sub Redis để mọi process đồng bộ vô hiệu khi quyền/vai trò/cây quản lý đổi
- * "Không cần đăng nhập lại khi admin sửa quyền".
- *
- * Không có `REDIS_URL` → chỉ cache cục bộ, TTL an toàn 60s (đủ ngắn để không
- * cần cross-process invalidation trong dev đơn máy).
- *
- * Serverless (`TRINITY_RUNTIME=serverless`): LUÔN chỉ cache RAM của instance, KHÔNG mở kết nối Redis nào
- * (không giữ được subscriber lâu dài; mỗi cold start mở 2 kết nối là phí) dù có `REDIS_URL`. Sửa quyền xoá ngay
- * cache instance xử lý request, các instance khác tự hết hạn sau ≤ 60s (TTL mặc định `set`) ⇒ hiệu lực ≤ 60s.
+ * Cache quyền trong RAM của tiến trình, TTL mặc định 60 giây ("không cần đăng nhập lại khi admin sửa quyền"): sửa quyền /
+ * vai trò / cây quản lý xoá ngay cache của tiến trình xử lý request. G12a bỏ Redis pub/sub; khi chạy song song nhiều tiến
+ * trình (Node + Rust), vô hiệu chéo qua Postgres `NOTIFY` là việc của G12b — trước đó tiến trình khác tự hết hạn sau ≤ 60 giây.
  */
 @Injectable()
-export class RbacCache implements OnModuleDestroy {
-  private readonly log = new Logger('RbacCache')
+export class RbacCache {
   private readonly store = new Map<string, { v: unknown; exp: number }>()
-  private pub?: Redis
-  private sub?: Redis
-
-  constructor() {
-    if (isServerless()) {
-      this.log.debug('Serverless — cache quyền chỉ trong RAM instance, TTL 60s')
-      return
-    }
-    const url = process.env.REDIS_URL
-    if (!url) {
-      this.log.warn('Không có REDIS_URL — chỉ vô hiệu cache cục bộ, TTL 60s')
-      return
-    }
-    this.pub = new Redis(url, { maxRetriesPerRequest: 1, lazyConnect: false })
-    this.sub = new Redis(url, { maxRetriesPerRequest: null })
-    // Mất Redis không được làm sập process / spam log: cache RAM + TTL 60s vẫn đúng.
-    this.pub.on('error', (e) => this.warnThrottled(e))
-    this.sub.on('error', (e) => this.warnThrottled(e))
-    this.sub.subscribe(CHANNEL).catch((e) => this.log.warn(`subscribe lỗi: ${e.message}`))
-    this.sub.on('message', (_c, msg) => {
-      // "<companyId>|<ids or *>" (older processes publish without the prefix = company 1)
-      const [cid, body] = msg.includes('|') ? msg.split('|', 2) : ['1', msg]
-      this.dropLocal(`${cid}|`, body === '*' ? '*' : body.split(',').map(Number))
-    })
-  }
-
-  private lastWarn = 0
-  private warnThrottled(e: Error): void {
-    if (Date.now() - this.lastWarn < 60_000) return
-    this.lastWarn = Date.now()
-    this.log.warn(`Redis lỗi (${e.message}) — dùng cache RAM, TTL 60s`)
-  }
 
   get<T>(k: string): T | undefined {
     const key = companyPrefix() + k
@@ -99,12 +56,6 @@ export class RbacCache implements OnModuleDestroy {
   }
 
   async invalidateUsers(ids: number[] | '*'): Promise<void> {
-    const prefix = companyPrefix()
-    this.dropLocal(prefix, ids)
-    await this.pub?.publish(CHANNEL, prefix + (ids === '*' ? '*' : ids.join(','))).catch(() => undefined)
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await Promise.allSettled([this.pub?.quit(), this.sub?.quit()])
+    this.dropLocal(companyPrefix(), ids)
   }
 }

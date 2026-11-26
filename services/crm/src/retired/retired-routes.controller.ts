@@ -1,4 +1,4 @@
-import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpException, HttpStatus, Post } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { Public } from '@trinity/rbac-nest';
 
@@ -22,5 +22,31 @@ export class RetiredRoutesController {
   @Public()
   googleOAuthCallback(): never {
     throw goneError('Kết nối Google Sheets');
+  }
+
+  /**
+   * G06: kết nối phần mềm bán hàng và sàn TMĐT đã gỡ. Webhook (`/connectors/<nhà cung cấp>/webhook/<token>`), push của
+   * sàn (`/connectors/<sàn>/push`) và callback cấp quyền (`/connectors/<sàn>/callback`) trả 410 để phía gửi ngừng thử lại.
+   * Khai báo theo tham số (không liệt kê tên): không route còn sống nào có dạng này (`/connectors/sepay/webhook` không có
+   * token, IPN là `/ipn`).
+   */
+  @Post('connectors/:provider/webhook/:token')
+  @Public()
+  @HttpCode(410)
+  salesWebhook(): never {
+    throw goneError('Kết nối phần mềm bán hàng');
+  }
+
+  @Post('connectors/:provider/push')
+  @Public()
+  @HttpCode(410)
+  marketplacePush(): never {
+    throw goneError('Kết nối sàn thương mại điện tử');
+  }
+
+  @Get('connectors/:provider/callback')
+  @Public()
+  marketplaceCallback(): never {
+    throw goneError('Kết nối sàn thương mại điện tử');
   }
 }

@@ -2468,7 +2468,8 @@ model FacebookFlowRun {
   @@map("facebook_flow_runs")
 }
 
-/// Kết nối tới dịch vụ ngoài (SePay, VNPay, MoMo, KiotViet…) — mỗi nhà cung cấp một dòng. Khoá do khách dán, lưu mã hoá.
+/// Kết nối tới cổng thanh toán (SePay, VNPay, MoMo) — mỗi nhà cung cấp một dòng. Khoá do khách dán, lưu mã hoá.
+/// Dòng của kết nối bán hàng/sàn đã gỡ (G06) là lưu trữ: migration 0023 đặt `disconnected` và xoá khoá.
 model ConnectorAccount {
   id              Int       @id @default(autoincrement())
   /// 'sepay' | 'vnpay' | 'momo' | …
@@ -2534,34 +2535,6 @@ model PaymentIntent {
   @@index([status, created_at])
   @@index([source_type, source_id])
   @@map("payment_intents")
-}
-
-/// Bản ghi đồng bộ từ phần mềm bán hàng / sàn (KiotViet, Sapo, WooCommerce…): khách, đơn, hoá đơn, hàng hoá.
-/// Unique (provider, kind, external_id) ⇒ webhook/đồng bộ lặp chỉ cập nhật, không nhân đôi.
-model ConnectorRecord {
-  id                  Int       @id @default(autoincrement())
-  provider            String    @db.VarChar(32)
-  /// Tài khoản/gian hàng nguồn (vd tên gian hàng KiotViet) — id chỉ duy nhất trong một gian hàng
-  account             String    @default("") @db.VarChar(80)
-  /// 'customer' | 'order' | 'invoice' | 'product'
-  kind                String    @db.VarChar(16)
-  external_id         String    @db.VarChar(64)
-  code                String?   @db.VarChar(64)
-  name                String?   @db.VarChar(255)
-  /// Khách CRM đã ghép (theo SĐT)
-  contact_id          Int?
-  /// Tổng tiền (VND) với đơn/hoá đơn; giá bán với hàng hoá
-  amount              BigInt?
-  status              String?   @db.VarChar(40)
-  data                Json      @default("{}")
-  external_updated_at DateTime? @db.Timestamptz(3)
-  created_at          DateTime  @default(now()) @db.Timestamptz(3)
-  updated_at          DateTime  @updatedAt @db.Timestamptz(3)
-
-  @@unique([provider, account, kind, external_id])
-  @@index([kind, external_updated_at])
-  @@index([contact_id])
-  @@map("connector_records")
 }
 
 /// Đơn đặt từ trang bán hàng online (/s/:slug). Khách CRM ghép theo SĐT; chuyển khoản thì có yêu cầu thanh toán (SePay tự khớp).
@@ -2762,4 +2735,33 @@ model GoogleSheetSyncRun {
 
   @@index([sync_id, started_at(sort: Desc)], map: "google_sheet_sync_runs_sync_idx")
   @@map("google_sheet_sync_runs")
+}
+
+// Kết nối phần mềm bán hàng và sàn TMĐT (đã gỡ ở G06): bản ghi đã đồng bộ giữ nguyên làm lưu trữ.
+/// Bản ghi đồng bộ từ phần mềm bán hàng / sàn (KiotViet, Sapo, WooCommerce…): khách, đơn, hoá đơn, hàng hoá.
+/// Unique (provider, kind, external_id) ⇒ webhook/đồng bộ lặp chỉ cập nhật, không nhân đôi.
+model ConnectorRecord {
+  id                  Int       @id @default(autoincrement())
+  provider            String    @db.VarChar(32)
+  /// Tài khoản/gian hàng nguồn (vd tên gian hàng KiotViet) — id chỉ duy nhất trong một gian hàng
+  account             String    @default("") @db.VarChar(80)
+  /// 'customer' | 'order' | 'invoice' | 'product'
+  kind                String    @db.VarChar(16)
+  external_id         String    @db.VarChar(64)
+  code                String?   @db.VarChar(64)
+  name                String?   @db.VarChar(255)
+  /// Khách CRM đã ghép (theo SĐT)
+  contact_id          Int?
+  /// Tổng tiền (VND) với đơn/hoá đơn; giá bán với hàng hoá
+  amount              BigInt?
+  status              String?   @db.VarChar(40)
+  data                Json      @default("{}")
+  external_updated_at DateTime? @db.Timestamptz(3)
+  created_at          DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at          DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@unique([provider, account, kind, external_id])
+  @@index([kind, external_updated_at])
+  @@index([contact_id])
+  @@map("connector_records")
 }

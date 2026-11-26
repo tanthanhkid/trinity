@@ -1,0 +1,159 @@
+column companies #1 id integer null=NO default=nextval('platform.companies_id_seq'::regclass)
+column companies #2 name character varying(200) null=NO default=-
+column companies #3 schema_name character varying(63) null=NO default=-
+column companies #4 status character varying(20) null=NO default='active'::character varying
+column companies #5 created_at timestamp with time zone null=NO default=now()
+column companies #6 migrated_to character varying(255) null=YES default=-
+column companies #7 channels_locked boolean null=NO default=false
+column companies #8 channels_lock_reason text null=YES default=-
+column companies #9 channels_locked_at timestamp with time zone null=YES default=-
+column company_logins #1 email character varying(255) null=NO default=-
+column company_logins #2 company_id integer null=NO default=-
+column company_routes #1 kind character varying(32) null=NO default=-
+column company_routes #2 external_id character varying(255) null=NO default=-
+column company_routes #3 company_id integer null=NO default=-
+column company_routes #4 created_at timestamp with time zone null=NO default=now()
+constraint platform.companies companies_pkey PRIMARY KEY (id)
+constraint platform.companies companies_schema_name_key UNIQUE (schema_name)
+constraint platform.company_logins company_logins_company_id_fkey FOREIGN KEY (company_id) REFERENCES platform.companies(id)
+constraint platform.company_logins company_logins_pkey PRIMARY KEY (email)
+constraint platform.company_routes company_routes_company_id_fkey FOREIGN KEY (company_id) REFERENCES platform.companies(id)
+constraint platform.company_routes company_routes_pkey PRIMARY KEY (kind, external_id)
+index CREATE INDEX company_logins_company_idx ON platform.company_logins USING btree (company_id)
+index CREATE UNIQUE INDEX companies_pkey ON platform.companies USING btree (id)
+index CREATE UNIQUE INDEX companies_schema_name_key ON platform.companies USING btree (schema_name)
+index CREATE UNIQUE INDEX company_logins_pkey ON platform.company_logins USING btree (email)
+index CREATE UNIQUE INDEX company_routes_pkey ON platform.company_routes USING btree (kind, external_id)
+sequence platform.companies_id_seq integer
+function c_2.trinity_platform_sync_facebook_page() comment=-
+CREATE OR REPLACE FUNCTION c_2.trinity_platform_sync_facebook_page()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+      BEGIN
+        IF TG_OP IN ('UPDATE', 'DELETE') THEN
+          DELETE FROM platform.company_routes WHERE kind = 'facebook_page' AND external_id = OLD."page_id" AND company_id = 2;
+        END IF;
+        IF TG_OP IN ('INSERT', 'UPDATE') THEN
+          INSERT INTO platform.company_routes (kind, external_id, company_id) VALUES ('facebook_page', NEW."page_id", 2)
+          ON CONFLICT (kind, external_id) DO NOTHING;
+          IF NOT EXISTS (SELECT 1 FROM platform.company_routes
+                         WHERE kind = 'facebook_page' AND external_id = NEW."page_id" AND company_id = 2) THEN
+            RAISE EXCEPTION 'TRINITY_ROUTE_TAKEN: facebook_page % is connected to another company', NEW."page_id";
+          END IF;
+        END IF;
+        RETURN NULL;
+      END $function$
+
+function c_2.trinity_platform_sync_login() comment=trinity-sync-v3
+CREATE OR REPLACE FUNCTION c_2.trinity_platform_sync_login()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+    BEGIN
+      IF TG_OP IN ('UPDATE', 'DELETE') THEN
+        DELETE FROM platform.company_logins WHERE email = lower(OLD.email) AND company_id = 2;
+      END IF;
+      IF TG_OP IN ('INSERT', 'UPDATE') THEN
+        INSERT INTO platform.company_logins (email, company_id) VALUES (lower(NEW.email), 2)
+        ON CONFLICT (email) DO UPDATE SET company_id = EXCLUDED.company_id
+          WHERE platform.company_logins.company_id = 2;
+        IF NOT EXISTS (SELECT 1 FROM platform.company_logins WHERE email = lower(NEW.email) AND company_id = 2) THEN
+          RAISE EXCEPTION 'TRINITY_EMAIL_TAKEN: % already belongs to another company', NEW.email;
+        END IF;
+      END IF;
+      RETURN NULL;
+    END $function$
+
+function c_2.trinity_platform_sync_zalo_oa() comment=-
+CREATE OR REPLACE FUNCTION c_2.trinity_platform_sync_zalo_oa()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+      BEGIN
+        IF TG_OP IN ('UPDATE', 'DELETE') THEN
+          DELETE FROM platform.company_routes WHERE kind = 'zalo_oa' AND external_id = OLD."oa_id" AND company_id = 2;
+        END IF;
+        IF TG_OP IN ('INSERT', 'UPDATE') THEN
+          INSERT INTO platform.company_routes (kind, external_id, company_id) VALUES ('zalo_oa', NEW."oa_id", 2)
+          ON CONFLICT (kind, external_id) DO NOTHING;
+          IF NOT EXISTS (SELECT 1 FROM platform.company_routes
+                         WHERE kind = 'zalo_oa' AND external_id = NEW."oa_id" AND company_id = 2) THEN
+            RAISE EXCEPTION 'TRINITY_ROUTE_TAKEN: zalo_oa % is connected to another company', NEW."oa_id";
+          END IF;
+        END IF;
+        RETURN NULL;
+      END $function$
+
+function public.trinity_platform_sync_facebook_page() comment=-
+CREATE OR REPLACE FUNCTION public.trinity_platform_sync_facebook_page()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+      BEGIN
+        IF TG_OP IN ('UPDATE', 'DELETE') THEN
+          DELETE FROM platform.company_routes WHERE kind = 'facebook_page' AND external_id = OLD."page_id" AND company_id = 1;
+        END IF;
+        IF TG_OP IN ('INSERT', 'UPDATE') THEN
+          INSERT INTO platform.company_routes (kind, external_id, company_id) VALUES ('facebook_page', NEW."page_id", 1)
+          ON CONFLICT (kind, external_id) DO NOTHING;
+          IF NOT EXISTS (SELECT 1 FROM platform.company_routes
+                         WHERE kind = 'facebook_page' AND external_id = NEW."page_id" AND company_id = 1) THEN
+            RAISE EXCEPTION 'TRINITY_ROUTE_TAKEN: facebook_page % is connected to another company', NEW."page_id";
+          END IF;
+        END IF;
+        RETURN NULL;
+      END $function$
+
+function public.trinity_platform_sync_login() comment=trinity-sync-v3
+CREATE OR REPLACE FUNCTION public.trinity_platform_sync_login()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+    BEGIN
+      IF TG_OP IN ('UPDATE', 'DELETE') THEN
+        DELETE FROM platform.company_logins WHERE email = lower(OLD.email) AND company_id = 1;
+      END IF;
+      IF TG_OP IN ('INSERT', 'UPDATE') THEN
+        INSERT INTO platform.company_logins (email, company_id) VALUES (lower(NEW.email), 1)
+        ON CONFLICT (email) DO UPDATE SET company_id = EXCLUDED.company_id
+          WHERE platform.company_logins.company_id = 1;
+        IF NOT EXISTS (SELECT 1 FROM platform.company_logins WHERE email = lower(NEW.email) AND company_id = 1) THEN
+          RAISE EXCEPTION 'TRINITY_EMAIL_TAKEN: % already belongs to another company', NEW.email;
+        END IF;
+      END IF;
+      RETURN NULL;
+    END $function$
+
+function public.trinity_platform_sync_zalo_oa() comment=-
+CREATE OR REPLACE FUNCTION public.trinity_platform_sync_zalo_oa()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+      BEGIN
+        IF TG_OP IN ('UPDATE', 'DELETE') THEN
+          DELETE FROM platform.company_routes WHERE kind = 'zalo_oa' AND external_id = OLD."oa_id" AND company_id = 1;
+        END IF;
+        IF TG_OP IN ('INSERT', 'UPDATE') THEN
+          INSERT INTO platform.company_routes (kind, external_id, company_id) VALUES ('zalo_oa', NEW."oa_id", 1)
+          ON CONFLICT (kind, external_id) DO NOTHING;
+          IF NOT EXISTS (SELECT 1 FROM platform.company_routes
+                         WHERE kind = 'zalo_oa' AND external_id = NEW."oa_id" AND company_id = 1) THEN
+            RAISE EXCEPTION 'TRINITY_ROUTE_TAKEN: zalo_oa % is connected to another company', NEW."oa_id";
+          END IF;
+        END IF;
+        RETURN NULL;
+      END $function$
+
+trigger CREATE TRIGGER trinity_platform_sync_facebook_page AFTER INSERT OR DELETE OR UPDATE OF page_id ON c_2.facebook_pages FOR EACH ROW EXECUTE FUNCTION c_2.trinity_platform_sync_facebook_page()
+trigger CREATE TRIGGER trinity_platform_sync_facebook_page AFTER INSERT OR DELETE OR UPDATE OF page_id ON public.facebook_pages FOR EACH ROW EXECUTE FUNCTION public.trinity_platform_sync_facebook_page()
+trigger CREATE TRIGGER trinity_platform_sync_login AFTER INSERT OR DELETE OR UPDATE OF email ON c_2.users FOR EACH ROW EXECUTE FUNCTION c_2.trinity_platform_sync_login()
+trigger CREATE TRIGGER trinity_platform_sync_login AFTER INSERT OR DELETE OR UPDATE OF email ON public.users FOR EACH ROW EXECUTE FUNCTION public.trinity_platform_sync_login()
+trigger CREATE TRIGGER trinity_platform_sync_zalo_oa AFTER INSERT OR DELETE OR UPDATE OF oa_id ON c_2.zalo_oa_connections FOR EACH ROW EXECUTE FUNCTION c_2.trinity_platform_sync_zalo_oa()
+trigger CREATE TRIGGER trinity_platform_sync_zalo_oa AFTER INSERT OR DELETE OR UPDATE OF oa_id ON public.zalo_oa_connections FOR EACH ROW EXECUTE FUNCTION public.trinity_platform_sync_zalo_oa()
+company 1 Công ty mặc định public active migrated_to=- locked=f reason=- locked_at=f
+company 2 Công ty B c_2 active migrated_to=- locked=f reason=- locked_at=f
+login owner@example.com 1
+login staff@example.com 1
+route facebook_page page-public-1 1
+route zalo_oa oa-public-1 1

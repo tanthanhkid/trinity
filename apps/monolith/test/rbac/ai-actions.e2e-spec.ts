@@ -96,9 +96,8 @@ describe('E2E — MCP thao tác: ghi thẳng (mặc định) + chế độ duy�
     await prisma.$executeRawUnsafe(`DELETE FROM activities WHERE contact_id IN (SELECT id FROM contacts WHERE full_name LIKE 'E2E-ACT%')`)
     await prisma.$executeRawUnsafe(`DELETE FROM contacts WHERE full_name LIKE 'E2E-ACT%'`)
     await prisma.$executeRawUnsafe(`TRUNCATE TABLE oauth_clients, oauth_authorization_codes, oauth_tokens, integration_audit_logs, integration_events, ai_action_drafts RESTART IDENTITY`)
-    const redis = app.get(require('../../../../services/crm/src/common/redis.provider').REDIS_CLIENT) as { keys: (p: string) => Promise<string[]>; del: (...k: string[]) => Promise<number> }
-    const keys = await redis.keys('mcp:rl:*')
-    if (keys.length) await redis.del(...keys)
+    const limiter = app.get(require('../../../../services/crm/src/integrations/mcp/mcp-rate-limiter').McpRateLimiter) as { reset: () => void }
+    limiter.reset()
     await prisma.$executeRawUnsafe(`DELETE FROM notification_logs WHERE recipient_id IN (SELECT id FROM users WHERE email LIKE '%@rbac-e2e.test')`)
     await resetDb(prisma)
   })
@@ -378,11 +377,10 @@ describe('E2E — MCP thao tác: ghi thẳng (mặc định) + chế độ duy�
       expect(over.isError).toBe(true)
       expect(over.content[0].text).toContain('quá nhanh')
       // trần số lượng
-      const redis = app.get(require('../../../../services/crm/src/common/redis.provider').REDIS_CLIENT) as { keys: (p: string) => Promise<string[]>; del: (...k: string[]) => Promise<number> }
+      const limiter = app.get(require('../../../../services/crm/src/integrations/mcp/mcp-rate-limiter').McpRateLimiter) as { reset: () => void }
       const rows = Array.from({ length: 40 }, (_, i) => ({ user_id: u.id, client_id: `other-app-${i % 2}`, tool: 'add_contact_note', params: { contact_id: mine.id, note: `fill ${i}` }, summary: 'x', expires_at: new Date(Date.now() + 3_600_000) }))
       await prisma.aiActionDraft.createMany({ data: rows })
-      const keys = await redis.keys('mcp:rl:*')
-      if (keys.length) await redis.del(...keys)
+      limiter.reset()
       const full = await call(t.access, 'add_contact_note', { contact_id: mine.id, note: 'vượt trần' })
       expect(full.isError).toBe(true)
       expect(full.content[0].text).toContain('50')

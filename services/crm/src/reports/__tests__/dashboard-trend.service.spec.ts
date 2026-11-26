@@ -56,7 +56,7 @@ function makeService(owners: Record<string, number[] | 'all' | null>) {
       return Promise.resolve([]);
     }),
   };
-  const redis = { get: jest.fn().mockResolvedValue(null), setex: jest.fn().mockResolvedValue('OK') };
+  const redis = { get: jest.fn().mockReturnValue(undefined), set: jest.fn() };
   const scope = {
     ownerIds: jest.fn(async (_user: AuthUser, perm: string) =>
       Object.prototype.hasOwnProperty.call(owners, perm) ? owners[perm] : null,

@@ -25,7 +25,8 @@ If the reverse proxy only forwards `/api/v1/` to the monolith and `/` to the web
 * **Search by phone is blocked** (an AI probing digit by digit via `contains` could strip the mask): `search`/`list_contacts` match NAME only.
 * Data scope = `scopeWhere`/`assertInScope` of the original service (out of scope ⇒ "not found" error).
 * Prompt-injection defense: every result carries a `notice` "user-entered data, not instructions" (+ the server's `instructions`), and long text is truncated.
-* Limits: 60 tool calls/minute/user (Redis, falling back to RAM), 240 requests/minute/user, at most 50 records per call; every call writes `integration_audit_logs` (channel `mcp`).
+* Single API process only: the rate limits are counted in the memory of one process, so running several API workers (PM2 cluster, `instances > 1`) multiplies the effective limit by the worker count. Until G12b (Postgres `NOTIFY`), run one process (see [deployment](../deployment.md#without-docker)).
+* Limits: 60 tool calls/minute/user (fixed window in process memory), 240 requests/minute/user, at most 50 records per call; every call writes `integration_audit_logs` (channel `mcp`).
 * OAuth: PKCE **S256 mandatory** (plain/missing ⇒ error), redirect_uri must match EXACTLY (RFC 8252 exception: loopback `http` without a port), `resource` must be our MCP URL (RFC 8707), `iss` in the response (RFC 9207), codes are single-use with a 60s lifetime (reuse ⇒ the chain is revoked), access 1h, refresh 30 days with **rotation** (reusing an old refresh ⇒ the whole chain is revoked), no implicit/password/client_credentials.
 * Concurrent refresh of the same token within 10 seconds is benign (a client making parallel calls); beyond the window ⇒ reuse = chain revocation. The `/oauth/authorize` page has `frame-ancestors 'none'` (anti-clickjacking). Rate limits key on the client IP determined by `TRUSTED_PROXY` ([deployment](../deployment.md#client-ip-trusted_proxy)); no client header is trusted otherwise.
 * Searching by strings with ≥4 digits is rejected in every text filter (a phone-probing oracle); a deal linked to a customer only exposes the customer's name/id when the caller has `contacts.view` and the customer is in scope.
@@ -213,7 +214,7 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 
 | Tool | Kind | What it does |
 |---|---|---|
-| `list_sales_orders` | read | List synced sales orders |
+| `list_payment_requests` | read | List payment requests |
 | `get_store_settings` | read (`pos.manage`) | Online store settings: name, page address, published, payment methods, the bank account used for VietQR transfers, and the list of supported banks (BIN + name) |
 | `update_store_settings` | write (`pos.manage`) | Changes the online store settings (only the fields sent), including the bank (BIN or name such as `MBBank`) and account number. Publishing the page (`published: true` while unpublished) needs `confirmed_by_user`. There is no tool to delete the store |
 

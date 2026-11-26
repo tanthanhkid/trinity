@@ -133,7 +133,7 @@ describe('header + origin', () => {
 describe('registry tool', () => {
   const { z } = loadMcpSdk();
   it('đủ danh sách tool (đọc + list_crm_options + tool bảng + list_object_templates + thao tác ghi + get_action_status), tên duy nhất, mô tả song ngữ, schema dựng được', () => {
-    expect(MCP_TOOLS.map((t) => t.name).sort()).toEqual(['list_interactions', 'create_invitation', 'list_invitations', 'cancel_invitation', 'get_connected_channels', 'get_channel_limits', 'get_client_ip_status', 'list_features', 'set_features', 'save_crm_option', 'update_message_flow', 'create_comment_rule', 'update_comment_rule', 'test_comment_rule', 'update_messenger_broadcast', 'list_conversations', 'get_conversation_messages', 'cancel_scheduled_post', 'cancel_messenger_broadcast', 'add_contact_note', 'add_field', 'archive_field', 'archive_record', 'assign_contact', 'complete_setup', 'setup_build', 'create_contact', 'create_object', 'create_objects', 'create_record', 'create_social_post', 'create_chat_link', 'create_message_flow', 'list_message_flows', 'list_messenger_broadcasts', 'send_messenger_broadcast', 'list_payment_requests', 'list_sales_orders', 'get_store_settings', 'update_store_settings', 'list_unanswered_messages', 'reply_to_customer', 'list_chat_links', 'create_task', 'create_view', 'describe_schema', 'fetch', 'find_by_code', 'get_action_status', 'get_briefing_data', 'get_contact', 'get_dashboard_overview', 'get_record', 'get_report', 'get_setup_guide', 'get_social_post', 'get_social_post_stats', 'import_records', 'install_object_template', 'link_records', 'list_contact_activities', 'list_contacts', 'list_crm_options', 'list_deals', 'list_facebook_comment_rules', 'list_facebook_comments', 'list_leads_to_score', 'list_my_tasks', 'list_object_templates', 'list_ai_activity', 'list_records', 'list_screen_types', 'list_social_accounts', 'list_social_media', 'import_social_posts', 'list_social_posts', 'refresh_social_post_metrics', 'list_structure_versions', 'propose_workspace', 'restore_structure_version', 'retry_social_post_target', 'reschedule_social_post', 'update_scheduled_post', 'list_social_drafts', 'save_social_draft', 'publish_social_draft', 'list_queue_slots', 'set_queue_slots', 'list_social_snippets', 'list_recurring_posts', 'create_recurring_post', 'update_recurring_post', 'set_recurring_post_active', 'preview_social_post', 'save_social_snippet', 'enable_social_account', 'save_briefing', 'search', 'set_lead_intent', 'set_menu', 'update_contact_stage', 'update_field', 'update_object', 'update_record', 'update_view', 'upload_social_media'].sort());
+    expect(MCP_TOOLS.map((t) => t.name).sort()).toEqual(['list_interactions', 'create_invitation', 'list_invitations', 'cancel_invitation', 'get_connected_channels', 'get_channel_limits', 'get_client_ip_status', 'list_features', 'set_features', 'save_crm_option', 'update_message_flow', 'create_comment_rule', 'update_comment_rule', 'test_comment_rule', 'update_messenger_broadcast', 'list_conversations', 'get_conversation_messages', 'cancel_scheduled_post', 'cancel_messenger_broadcast', 'add_contact_note', 'add_field', 'archive_field', 'archive_record', 'assign_contact', 'complete_setup', 'setup_build', 'create_contact', 'create_object', 'create_objects', 'create_record', 'create_social_post', 'create_chat_link', 'create_message_flow', 'list_message_flows', 'list_messenger_broadcasts', 'send_messenger_broadcast', 'list_payment_requests', 'get_store_settings', 'update_store_settings', 'list_unanswered_messages', 'reply_to_customer', 'list_chat_links', 'create_task', 'create_view', 'describe_schema', 'fetch', 'find_by_code', 'get_action_status', 'get_briefing_data', 'get_contact', 'get_dashboard_overview', 'get_record', 'get_report', 'get_setup_guide', 'get_social_post', 'get_social_post_stats', 'import_records', 'install_object_template', 'link_records', 'list_contact_activities', 'list_contacts', 'list_crm_options', 'list_deals', 'list_facebook_comment_rules', 'list_facebook_comments', 'list_leads_to_score', 'list_my_tasks', 'list_object_templates', 'list_ai_activity', 'list_records', 'list_screen_types', 'list_social_accounts', 'list_social_media', 'import_social_posts', 'list_social_posts', 'refresh_social_post_metrics', 'list_structure_versions', 'propose_workspace', 'restore_structure_version', 'retry_social_post_target', 'reschedule_social_post', 'update_scheduled_post', 'list_social_drafts', 'save_social_draft', 'publish_social_draft', 'list_queue_slots', 'set_queue_slots', 'list_social_snippets', 'list_recurring_posts', 'create_recurring_post', 'update_recurring_post', 'set_recurring_post_active', 'preview_social_post', 'save_social_snippet', 'enable_social_account', 'save_briefing', 'search', 'set_lead_intent', 'set_menu', 'update_contact_stage', 'update_field', 'update_object', 'update_record', 'update_view', 'upload_social_media'].sort());
     expect(new Set(MCP_TOOLS.map((t) => t.name)).size).toBe(MCP_TOOLS.length);
     for (const t of MCP_TOOLS) {
       expect(t.title.length).toBeGreaterThan(5);
@@ -170,22 +170,14 @@ describe('registry tool', () => {
 });
 
 describe('McpRateLimiter', () => {
-  it('Redis lỗi ⇒ rơi về bộ đếm RAM (không bao giờ bỏ giới hạn)', async () => {
-    const redis = { incr: jest.fn().mockRejectedValue(new Error('down')), expire: jest.fn() };
-    const l = new McpRateLimiter(redis as never);
+  it('đếm trong RAM theo phút: chặn khi vượt, có retryAfterSec; reset() xoá bộ đếm', async () => {
+    const l = new McpRateLimiter();
     const r = [];
     for (let i = 0; i < 4; i += 1) r.push((await l.hit('call', 7, 3)).allowed);
     expect(r).toEqual([true, true, true, false]);
-  });
-  it('Redis ổn ⇒ INCR + EXPIRE lần đầu, chặn khi vượt', async () => {
-    let n = 0;
-    const redis = { incr: jest.fn().mockImplementation(async () => (n += 1)), expire: jest.fn().mockResolvedValue(1) };
-    const l = new McpRateLimiter(redis as never);
-    expect((await l.hit('call', 1, 2)).allowed).toBe(true);
-    expect((await l.hit('call', 1, 2)).allowed).toBe(true);
-    const third = await l.hit('call', 1, 2);
-    expect(third.allowed).toBe(false);
-    expect(third.retryAfterSec).toBeGreaterThanOrEqual(1);
-    expect(redis.expire).toHaveBeenCalledTimes(1);
+    expect((await l.hit('call', 7, 3)).retryAfterSec).toBeGreaterThanOrEqual(1);
+    expect((await l.hit('call', 8, 3)).allowed).toBe(true); // người khác không bị ảnh hưởng
+    l.reset();
+    expect((await l.hit('call', 7, 3)).allowed).toBe(true);
   });
 });

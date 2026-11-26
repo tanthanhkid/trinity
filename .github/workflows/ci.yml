@@ -3,6 +3,8 @@ name: CI
 # PR: lint / typecheck / unit (TS) và Rust fmt / clippy / unit chạy song song theo phần thay đổi; `ci-ok` là check bắt
 # buộc duy nhất (cùng gitleaks + CLA). Push main: chạy đủ (không lọc). Job nặng (Postgres thật, build + kiểm giao diện
 # web, build api, build Rust release, test pg Rust) KHÔNG bắt buộc.
+# Giai đoạn viết lại Rust (từ 26/11/2026, để hàng đợi runner ngắn): `Web build and UI checks` và `Rust build` KHÔNG chạy
+# trên PR (chỉ push main + chạy tay; Nightly chạy e2e web); `Tests with Postgres` trên PR chỉ khởi động khi PR đổi SQL.
 # Chi tiết: docs/ci.md.
 on:
   pull_request:
@@ -100,6 +102,8 @@ jobs:
   # - rust: server/, action rust-toolchain hoặc ci.yml → fmt, clippy, unit, build.
   # - rust_pg: thêm migration/schema Prisma (lệch schema chỉ lộ ra khi chạy trên DB thật) → Rust pg tests.
   # - rust_deps: Cargo.toml/Cargo.lock/deny.toml trong server/ hoặc ci.yml → Rust deny.
+  # - sql: migration, schema, test SQL (*.pg.spec.ts / *.db.spec.ts), mã có test DB thật hoặc file .ts có SQL viết tay
+  #   ($queryRaw/$executeRaw) → Tests with Postgres (lọc ở mức job: PR không đổi SQL thì không khởi động container Postgres).
   rust-changes:
     name: Rust changes
     runs-on: ubuntu-latest
@@ -108,6 +112,7 @@ jobs:
       rust: ${{ steps.f.outputs.rust }}
       rust_pg: ${{ steps.f.outputs.rust_pg }}
       rust_deps: ${{ steps.f.outputs.rust_deps }}
+      sql: ${{ steps.f.outputs.sql }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -116,7 +121,7 @@ jobs:
         id: f
         run: |
           if [ "${{ github.event_name }}" != "pull_request" ]; then
-            printf 'rust=true\nrust_pg=true\nrust_deps=true\n' >> "$GITHUB_OUTPUT"; exit 0
+            printf 'rust=true\nrust_pg=true\nrust_deps=true\nsql=true\n' >> "$GITHUB_OUTPUT"; exit 0
           fi
           files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
           has() { if echo "$files" | grep -qE "$1"; then echo true; else echo false; fi; }
@@ -125,6 +130,13 @@ jobs:
             echo "rust_pg=$(has '^(server/|packages/prisma/prisma/|\.github/workflows/ci\.yml$)')"
             echo "rust_deps=$(has '^(server/(.*/)?Cargo\.(toml|lock)$|server/deny\.toml$|\.github/workflows/ci\.yml$)')"
           } | tee -a "$GITHUB_OUTPUT"
+          sql=$(has '(prisma/migrations/|schema\.prisma$|\.(pg|db)\.spec\.ts$|services/commerce/src/pos/|packages/rbac-nest/src/|services/auth/src/users/|\.github/workflows/ci\.yml$)')
+          if [ "$sql" = false ]; then
+            for f in $(echo "$files" | grep -E '\.ts$' || true); do
+              if [ -f "$f" ] && grep -qE '\$(queryRaw|executeRaw)' "$f"; then sql=true; break; fi
+            done
+          fi
+          echo "sql=$sql" | tee -a "$GITHUB_OUTPUT"
 
   # Rust bắt buộc (docs/rust/PLAN.md mục 8): fmt, clippy, unit nằm trong `ci-ok`. Job luôn chạy (để `ci-ok` có kết quả)
   # nhưng các bước chỉ thực thi khi `rust-changes` báo rust=true; PR không đụng server/ thì mỗi job xong trong vài giây.
@@ -248,6 +260,8 @@ jobs:
     # Câu SQL raw / transaction chạy trên Postgres THẬT — unit test dùng mock không bắt được lỗi kiểu
     # `left(varchar, bigint)` (từng làm webhook SePay trả 500). Test: `**/*.pg.spec.ts`.
     name: Tests with Postgres (migrate + db specs)
+    needs: rust-changes
+    if: needs.rust-changes.outputs.sql == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -278,59 +292,38 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Chỉ chạy khi đổi migration, schema, test SQL (*.pg.spec.ts) hoặc file có SQL viết tay ($queryRaw/$executeRaw).
-      - name: Detect SQL changes
-        id: sql
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
-          if echo "$files" | grep -qE '(prisma/migrations/|schema\.prisma$|\.(pg|db)\.spec\.ts$|services/commerce/src/pos/|packages/rbac-nest/src/|services/auth/src/users/|\.github/workflows/ci\.yml$)'; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          for f in $(echo "$files" | grep -E '\.ts$' || true); do
-            if [ -f "$f" ] && grep -qE '\$(queryRaw|executeRaw)' "$f"; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          done
-          echo "run=false" >> "$GITHUB_OUTPUT"
-
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
-        if: steps.sql.outputs.run == 'true'
         with:
           version: 10.6.5
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        if: steps.sql.outputs.run == 'true'
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install dependencies
-        if: steps.sql.outputs.run == 'true'
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Generate Prisma clients
-        if: steps.sql.outputs.run == 'true'
         run: pnpm --filter @trinity/prisma generate
 
       - name: Build shared packages
-        if: steps.sql.outputs.run == 'true'
         run: pnpm --filter "./packages/*" build
 
       - name: Apply migrations
-        if: steps.sql.outputs.run == 'true'
         run: pnpm --filter @trinity/prisma exec prisma migrate deploy
 
       - name: SQL tests on Postgres
-        if: steps.sql.outputs.run == 'true'
         working-directory: services/crm
         run: npx jest --testRegex '(\.pg\.spec|\.db\.spec)\.ts$' --runInBand
 
       # services/commerce (sản phẩm, POS) có test SQL riêng — chạy trên cùng Postgres sau crm.
       - name: SQL tests on Postgres (commerce)
-        if: steps.sql.outputs.run == 'true'
         working-directory: services/commerce
         run: npx jest --testRegex '(\.pg\.spec|pos-flow\.integration\.spec)\.ts$' --runInBand --passWithNoTests
 
       # Phạm vi quyền (rbac-nest) và xoá cache quyền khi đổi quản lý (auth) — test DB thật, TRUNCATE users/user_roles.
       - name: SQL tests on Postgres (rbac + auth)
-        if: steps.sql.outputs.run == 'true'
         run: |
           (cd packages/rbac-nest && npx jest --testRegex 'scope\.service\.spec\.ts$' --runInBand)
           (cd services/auth && npx jest --testRegex '(users-manager-cache-invalidation\.spec|invitations\.pg\.spec)\.ts$' --runInBand)
@@ -340,6 +333,8 @@ jobs:
     # tương phản, nền tảng UI (vùng chạm, focus, tràn ngang, chuyển động) và "cố tình phá" (mất mạng, 500/401, trống,
     # token kênh hết hạn, đăng bài lỗi, hoàn tác). API giả qua CDP Fetch — không có máy chủ, không có dữ liệu thật.
     name: Web build and UI checks
+    # Không chạy trên PR trong giai đoạn viết lại Rust (đầu file); push main + chạy tay chạy đủ.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -352,42 +347,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Chỉ chạy khi PR đụng web hoặc gói dùng chung mà web phụ thuộc.
-      - name: Detect web changes
-        id: web
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(apps/web/|packages/|pnpm-lock\.yaml$|\.github/workflows/ci\.yml$)'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
-        if: steps.web.outputs.run == 'true'
         with:
           version: 10.6.5
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        if: steps.web.outputs.run == 'true'
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install dependencies
-        if: steps.web.outputs.run == 'true'
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Generate Prisma clients
-        if: steps.web.outputs.run == 'true'
         run: pnpm --filter @trinity/prisma generate
 
       - name: Build shared packages
-        if: steps.web.outputs.run == 'true'
         run: pnpm --filter "./packages/*" --if-present build
 
       - name: Cache next build
-        if: steps.web.outputs.run == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: apps/web/.next/cache
@@ -397,23 +375,19 @@ jobs:
             next-${{ runner.os }}-
 
       - name: next build
-        if: steps.web.outputs.run == 'true'
         run: pnpm --filter ./apps/web build
 
       # JS tải lần đầu theo route (gzip) so với apps/web/route-js-budget.json — bảng in vào tóm tắt job.
       - name: Route JS budget
-        if: steps.web.outputs.run == 'true'
         working-directory: apps/web
         run: node scripts/route-js-size.mjs
 
       - name: Contrast (design tokens)
-        if: steps.web.outputs.run == 'true'
         working-directory: apps/web
         run: node e2e/premium/contrast.mjs
 
       # Bản standalone (cách chạy trên máy chủ tự quản): chép static + public cạnh server.js rồi chạy ở cổng 3917.
       - name: Start web (standalone)
-        if: steps.web.outputs.run == 'true'
         working-directory: apps/web
         run: |
           cp -r .next/static .next/standalone/apps/web/.next/static
@@ -424,18 +398,16 @@ jobs:
 
       # Chrome có sẵn trên ubuntu-latest (channel "chrome"); hồ sơ tạm mỗi lần chạy.
       - name: UI audit (touch targets, focus, overflow, motion)
-        if: steps.web.outputs.run == 'true'
         working-directory: apps/web
         run: node e2e/premium/ui-audit.mjs > /tmp/ui-audit.json
 
       - name: Break-it scenarios
-        if: steps.web.outputs.run == 'true'
         working-directory: apps/web
         run: |
           if [ -f e2e/premium/break-it.mjs ]; then node e2e/premium/break-it.mjs; else echo "break-it.mjs chưa có trên nhánh này"; fi
 
       - name: Upload UI audit
-        if: always() && steps.web.outputs.run == 'true'
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-audit
@@ -444,16 +416,17 @@ jobs:
           retention-days: 7
 
       - name: Web server log (on failure)
-        if: failure() && steps.web.outputs.run == 'true'
+        if: failure()
         run: tail -n 200 /tmp/web.log || true
 
   # Backend Rust (docs/rust/PLAN.md mục 8): build release cho cả hai kiến trúc máy chủ. Không bắt buộc; fmt/clippy/unit
   # là các job `rust-*` trong `ci-ok`. Build offline (.sqlx/) không bắt được lệch schema Prisma, nên không chạy theo
-  # migration ở đây: việc đó thuộc `rust-pg`.
+  # migration ở đây: việc đó thuộc `rust-pg`. Không chạy trên PR trong giai đoạn viết lại Rust (đầu file): PR đã có
+  # clippy + unit trong `ci-ok`; push main + chạy tay vẫn build cả hai kiến trúc.
   rust-build:
     name: Rust build (${{ matrix.arch }})
     needs: rust-changes
-    if: needs.rust-changes.outputs.rust == 'true'
+    if: github.event_name != 'pull_request' && needs.rust-changes.outputs.rust == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     strategy:

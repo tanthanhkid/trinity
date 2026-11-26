@@ -60,7 +60,6 @@ Trinity  ──  CRM · Sales · Zalo · HR · Reports
 | **Facebook Page automation** | Comment rules per Page or per post (including the cover photo): auto-replies, hiding phone numbers, private replies, each commenter linked to a customer; chat links and QR codes that open a conversation; Messenger flows; broadcasts within the 24-hour window. Rules, flows and broadcasts can also be created and edited from your AI assistant |
 | **Multi-channel posting** | Write once, publish or schedule to Facebook Pages (Fanpage), with a content calendar, a media library and post stats. Drafts, a weekly posting queue (time slots), reusable hashtag sets and signatures, UTM tagging of links, a per-channel preview of exactly what each network will show, bulk import from CSV, and recurring posts (daily, weekly or monthly). Large videos upload in parts, and posts deleted directly on the network show as deleted. All of it can also be driven from your AI assistant |
 | **Payments** | Reconciles payment requests created earlier: money arriving through SePay, VNPay or MoMo is matched to them automatically (no new requests are created) |
-| **Sales connectors** | KiotViet, Sapo, WooCommerce, MISA, Shopee, Lazada: what each platform's API allows (customers, orders and/or products) is synced into the CRM; customers are matched to contacts by phone where the platform shares it (Shopee masks buyer phones). Per-connector scope in [status.md](docs/integrations/status.md) |
 | **Online store** | A storefront at `/s/<name>` (or a subdomain) with three themes, a cart, cash on delivery or bank-transfer QR; orders and buyers land in the CRM. Off by default |
 | **CRM** | Contacts with your own sources, stages and statuses, Kanban pipelines, shared record codes and `@` linking across screens, newsfeed |
 | **Sales** | Products, POS |
@@ -83,9 +82,8 @@ Trinity  ──  CRM · Sales · Zalo · HR · Reports
 | Zalo OA | Incoming messages tried with a real account; replies and sender profile need a paid Zalo OA (Tier) plan, not yet tried |
 | VNPay | End to end on the VNPay sandbox |
 | MoMo | MoMo test environment |
-| WooCommerce | End to end with a test store |
 | n8n | Sample workflows run against a test server |
-| SePay, KiotViet, Sapo, MISA, Shopee, Lazada, Zapier, Make | Ready — not yet tried with a real account |
+| SePay, Zapier, Make | Ready — not yet tried with a real account |
 | iPOS | Not built yet — waiting for iPOS's partner API |
 
 Details per connector: [docs/integrations/status.md](docs/integrations/status.md). What comes next: [ROADMAP.md](ROADMAP.md).
@@ -108,7 +106,7 @@ Details per connector: [docs/integrations/status.md](docs/integrations/status.md
 
 ## Tech stack
 
-Next.js 16 · React 19 · Tailwind 4 · NestJS 10 · Express · Prisma 6 · PostgreSQL 16 · Redis · pnpm monorepo.
+Next.js 16 · React 19 · Tailwind 4 · NestJS 10 · Express · Prisma 6 · PostgreSQL 16 · pnpm monorepo.
 
 ## Deploy
 
@@ -173,7 +171,7 @@ Then open the production URL and sign in with the admin account above. Notes:
 - The first admin is only created when it does not exist yet; redeploying never overwrites a password.
 - A new workspace starts empty on purpose: the first sign-in goes through the start wizard (type of business, modules, *Build my system*, first customer) before the app opens. Anyone whose account is created after the workspace was built goes straight into the app. After the build the core set is on and everything else is a switch in Settings → *Tính năng* ("Features"); Zalo OA, for example, answers 403 until its switch is on. Settings is grouped in the Vietnamese UI as *Tính năng & Kết nối* (features & connections), *Khách hàng* (customer lists), *Công ty & Nhân sự* (users, roles, teams) and *Cá nhân* (profile, notifications); a section only shows when its feature is on.
 - The interface is currently **Vietnamese only**. Your data and the AI tools work in any language.
-- Vercel runs the API inside the Next.js app (one function, 60 s limit). Uploaded files need object storage: set `STORAGE_DRIVER=vercel-blob` with a Vercel Blob token, or an S3-compatible driver (see `.env.example`). Notifications use polling instead of WebSockets. Redis-backed features need a long-running server, so use Option 2 for them.
+- Vercel runs the API inside the Next.js app (one function, 60 s limit). Uploaded files need object storage: set `STORAGE_DRIVER=vercel-blob` with a Vercel Blob token, or an S3-compatible driver (see `.env.example`). Notifications use polling instead of WebSockets.
 
 ### Option 2: Self-host with Docker Compose
 
@@ -193,7 +191,7 @@ Tagged releases publish ready-made images to GitHub Container Registry (`ghcr.io
 
 To let your AI assistant drive Trinity, set `INTEGRATIONS_MCP_ENABLED=true`, a public `INTEGRATIONS_PUBLIC_BASE_URL` and an `INTEGRATIONS_SECRET_KEY` in `.env`, then follow [docs/integrations](docs/integrations/).
 
-For development without Docker: `pnpm install && pnpm dev` (needs Node 22, Postgres and Redis running locally).
+For development without Docker: `pnpm install && pnpm dev` (needs Node 22 and Postgres running locally).
 
 ### Monitoring (optional)
 

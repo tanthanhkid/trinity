@@ -13,7 +13,7 @@ import { FixedWindowLimiter } from '../common/helpers/fixed-window-limiter';
 /**
  * Rate limit đơn giản in-memory cho /public/* — theo dõi theo `api_key_id`.
  * 100 req/min/key. Bucket tự reset
- * mỗi window. Không share cross-instance: khi cần strict hơn, chuyển sang Redis.
+ * mỗi window. Không share cross-instance (một tiến trình monolith).
  * Cơ chế đếm nằm ở `FixedWindowLimiter` (dùng chung với webhook vào).
  */
 @Injectable()

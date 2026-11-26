@@ -8,7 +8,7 @@ import type { ActorScopes } from './webhook-payload';
  * "Chủ thể" của endpoint = `created_by` (người tạo / sửa URL-sự kiện gần nhất). Payload gửi đi KHÔNG BAO GIỜ
  * rộng hơn quyền của chủ thể ( "không cấp thứ mình không có"). Trả `null` khi chủ thể không còn đủ
  * điều kiện (bị khoá/xoá, hoặc mất quyền `integrations.webhooks`) ⇒ endpoint phải ngừng gửi.
- * Quyền đọc qua `PermissionService.grantsFor` (DB/cache có Redis invalidate), KHÔNG từ JWT.
+ * Quyền đọc qua `PermissionService.grantsFor` (DB + cache RAM, vô hiệu khi đổi quyền), KHÔNG từ JWT.
  */
 @Injectable()
 export class WebhookActorService {

@@ -89,7 +89,7 @@ export const isNotFound = (err: unknown): boolean => (err as { response?: { stat
 export type ChannelState = 'ok' | 'attention' | 'off'
 export interface HomeChannel {
   key: string
-  kind: 'facebook_page' | 'zalo_oa' | 'social' | 'payment' | 'commerce' | 'store'
+  kind: 'facebook_page' | 'zalo_oa' | 'social' | 'payment' | 'store'
   network: string
   name: string
   state: ChannelState

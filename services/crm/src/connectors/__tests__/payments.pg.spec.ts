@@ -2,11 +2,9 @@ import type { PrismaService } from '@trinity/prisma';
 import { describePg, pgClient, resetTables } from '../../__pg__/pg-harness';
 import { PaymentsService } from '../payments.service';
 import { seedPendingPayment } from './seed-payment';
-import { CommerceSyncService } from '../commerce-sync.service';
-import { PublicApiService } from '../../public-api/public-api.service';
 import { parseSepayTransaction } from '../sepay';
 
-const TABLES = ['payment_intents', 'connector_events', 'integration_events', 'store_orders', 'connector_records', 'activities', 'contacts', 'users'];
+const TABLES = ['payment_intents', 'connector_events', 'integration_events', 'store_orders', 'activities', 'contacts', 'users'];
 const tx = (id: number, content: string, amount: number) =>
   parseSepayTransaction({ id, gateway: 'MBBank', transactionDate: '2026-10-15 09:00:00', accountNumber: '0123', code: null, content, transferType: 'in', transferAmount: amount, accumulated: 0, subAccount: null, referenceCode: 'FT', description: '' })!;
 
@@ -48,39 +46,5 @@ describePg('Thanh toán trên Postgres thật', () => {
     await db.paymentIntent.updateMany({ data: { expires_at: new Date(Date.now() - 60_000) } });
     expect(await svc.list({ status: 'expired' })).toHaveLength(1);
     expect(await svc.list({ status: 'pending' })).toHaveLength(0);
-  });
-});
-
-describePg('Đồng bộ bán hàng trên Postgres thật', () => {
-  let db: PrismaService;
-  let sync: CommerceSyncService;
-  let owner: { id: number; team_id: number | null };
-  beforeAll(() => {
-    db = pgClient();
-    sync = new CommerceSyncService(db, new PublicApiService(db), { ownerIds: async () => 'all' } as never);
-  });
-  beforeEach(async () => {
-    await resetTables(db, TABLES);
-    const u = await db.user.create({ data: { email: 'owner@test.local', password_hash: 'x', full_name: 'Chủ shop thử' } });
-    owner = { id: u.id, team_id: null };
-  });
-  afterAll(() => db.$disconnect());
-
-  it('ghép khách theo SĐT (khoá advisory + tạo khách + sự kiện), gọi lại không tạo trùng', async () => {
-    const a = await sync.contactFor('kiotviet', { name: 'An', phone: '0912 345 678' }, owner);
-    const b = await sync.contactFor('sapo', { phone: '+84912345678' }, owner);
-    expect(a).toBeGreaterThan(0);
-    expect(b).toBe(a);
-    expect(await db.contact.count()).toBe(1);
-  });
-
-  it('đơn mới ⇒ bản ghi + lịch sử; gửi lại ⇒ cập nhật, không thêm lịch sử; hai gian hàng trùng id không đè nhau', async () => {
-    const order = { kind: 'invoice' as const, external_id: '77', code: 'HD1', total: 350000, customer: { phone: '0912345678', name: 'An' } };
-    await expect(sync.upsertOrder('kiotviet', 'shop-a', order, owner)).resolves.toMatchObject({ created: true });
-    await expect(sync.upsertOrder('kiotviet', 'shop-a', { ...order, total: 360000 }, owner)).resolves.toMatchObject({ created: false });
-    await expect(sync.upsertOrder('kiotviet', 'shop-b', order, owner)).resolves.toMatchObject({ created: true });
-    expect(await db.connectorRecord.count()).toBe(2);
-    expect(Number((await db.connectorRecord.findFirstOrThrow({ where: { account: 'shop-a' } })).amount)).toBe(360000);
-    expect(await db.activity.count({ where: { action: 'note', details: { path: ['source'], equals: 'connector:kiotviet' } } })).toBe(3);
   });
 });

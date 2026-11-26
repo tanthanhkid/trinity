@@ -1,13 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { PrismaService, releaseCompanyRoute } from '@trinity/prisma';
-import { misaAppId } from './misa';
-import { shopeeConfig } from './shopee';
-import { lazadaConfig } from './lazada';
+import { PrismaService } from '@trinity/prisma';
 import { decryptSecret, encryptSecret, generateWebhookSecret, isSecretKeyConfigured, loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { withCompanyHint } from '../common/helpers/tenant-hint';
 
-/** Nhà cung cấp đã làm. Thêm connector mới = thêm vào đây + một provider riêng. */
-export const CONNECTOR_PROVIDERS = ['sepay', 'vnpay', 'momo', 'kiotviet', 'sapo', 'misa', 'woocommerce', 'shopee', 'lazada'] as const;
+/**
+ * Nhà cung cấp còn hỗ trợ (cổng thanh toán). Kết nối phần mềm bán hàng và sàn TMĐT đã gỡ ở G06: dòng cũ của chúng trong
+ * `connector_accounts` là lưu trữ (migration 0023 đặt `disconnected`, xoá khoá) và không hiện ở đây.
+ */
+export const CONNECTOR_PROVIDERS = ['sepay', 'vnpay', 'momo'] as const;
 export type ConnectorProvider = (typeof CONNECTOR_PROVIDERS)[number];
 
 export const DEFAULT_CODE_PREFIX = 'TRN';
@@ -40,11 +40,11 @@ export interface ConnectorStatus {
   webhook_path: string;
   /** Máy chủ có INTEGRATIONS_SECRET_KEY để mã hoá khoá chưa. */
   secret_key_configured: boolean;
-  /** Máy chủ đủ cấu hình riêng của nhà cung cấp chưa (vd MISA cần MISA_APP_ID). */
+  /** Máy chủ đủ cấu hình riêng của nhà cung cấp chưa (các cổng hiện có không cần gì thêm: luôn true). */
   server_configured: boolean;
 }
 
-const webhookPath = (p: ConnectorProvider) => (p === 'sepay' ? '/api/v1/connectors/sepay/webhook' : p === 'kiotviet' || p === 'sapo' || p === 'woocommerce' ? `/api/v1/connectors/${p}/webhook` : p === 'shopee' || p === 'lazada' ? `/api/v1/connectors/${p}/push` : `/api/v1/connectors/${p}/ipn`);
+const webhookPath = (p: ConnectorProvider) => (p === 'sepay' ? '/api/v1/connectors/sepay/webhook' : `/api/v1/connectors/${p}/ipn`);
 
 export function cleanSepaySettings(input: Record<string, unknown>): SepaySettings {
   const acc = String(input.account_number ?? '').replace(/\s+/g, '');
@@ -73,10 +73,10 @@ export class ConnectorsService {
         settings: r ? (r.settings as Record<string, unknown>) : null,
         last_event_at: r?.last_event_at?.toISOString() ?? null,
         last_error: r?.last_error ?? null,
-        // Multi-tenant: URL dán vào dịch vụ ngoài phải mang `cid` (Shopee/Lazada push là URL chung của app đối tác — công ty chọn theo shop/seller đã kết nối (claimCompanyRoute)).
-        webhook_path: p === 'shopee' || p === 'lazada' ? webhookPath(p) : withCompanyHint(webhookPath(p)),
+        // Multi-tenant: URL dán vào dịch vụ ngoài phải mang `cid`.
+        webhook_path: withCompanyHint(webhookPath(p)),
         secret_key_configured: isSecretKeyConfigured(),
-        server_configured: p === 'misa' ? misaAppId() !== null : p === 'shopee' ? shopeeConfig() !== null : p === 'lazada' ? lazadaConfig() !== null : true,
+        server_configured: true,
       };
     });
   }
@@ -135,10 +135,6 @@ export class ConnectorsService {
     if (!r) throw new NotFoundException('Chưa kết nối.');
     // Xoá khoá; giữ dòng để còn lịch sử sự kiện. Kết nối lại sẽ sinh khoá mới.
     await this.prisma.connectorAccount.update({ where: { provider }, data: { status: 'disconnected', credentials_enc: '' } });
-    // Multi-tenant: a disconnected shop/seller stops routing to this company, so its owner can connect it elsewhere.
-    const st = (r.settings ?? {}) as { shop_id?: number | string | null; seller_id?: string | null };
-    if (provider === 'shopee' && st.shop_id) await releaseCompanyRoute('shopee_shop', String(st.shop_id));
-    if (provider === 'lazada' && st.seller_id) await releaseCompanyRoute('lazada_seller', String(st.seller_id));
   }
 
   /** Khoá + cấu hình của kết nối đang chạy; chưa kết nối ⇒ null. */

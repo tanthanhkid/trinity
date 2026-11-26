@@ -22,7 +22,7 @@ d('POS luồng bán hàng (DB thật)', () => {
   // `describe.skip` vẫn chạy thân hàm → chỉ dựng client khi có DB.
   const prisma = (url ? new PrismaClient({ datasources: { db: { url } } }) : null) as PrismaClient;
   const p = prisma as never;
-  // Quyền + phạm vi: thu ngân = `own`; quản lý = `all` + pos.manage. Scope giả (không cần Redis/cây).
+  // Quyền + phạm vi: thu ngân = `own`; quản lý = `all` + pos.manage. Scope giả (không cần cây quản lý).
   const scope = {
     ownerIds: async (u: AuthUser, perm: string) => {
       const g = (u.grants as Record<string, unknown>)[perm];

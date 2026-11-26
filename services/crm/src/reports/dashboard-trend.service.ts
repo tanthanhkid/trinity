@@ -1,13 +1,12 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService, tenantKey } from '@trinity/prisma';
 import { Prisma } from '@prisma/client';
-import Redis from 'ioredis';
 import { ScopeService } from '@trinity/rbac-nest';
 // ScopeService PHẢI import THẬT (không type-only) — constructor DI của NestJS
 // cần class reference runtime cho `emitDecoratorMetadata`; import type ở đây
 // làm Nest resolve param type ra `Object` và ném lỗi không inject được.
 import type { AuthUser } from '@trinity/rbac-nest';
-import { REDIS_CLIENT } from '../common/redis.provider';
+import { ReadCache } from '../common/read-cache';
 
 /**
  * Đường xu hướng 14 ngày cho thẻ chỉ số màn Tổng quan.
@@ -41,7 +40,7 @@ function getVnDayRange(daysAgo = 0): { start: Date; end: Date } {
 const TREND_CACHE_TTL_SEC = 120;
 
 /**
- * Bump khi đổi shape `DashboardTrendResult` để tự orphan cache Redis cũ.
+ * Bump khi đổi shape `DashboardTrendResult` để tự bỏ cache cũ.
  * v4 — `series` nay là `Partial<...>` (khối thiếu quyền vắng mặt).
  */
 const TREND_CACHE_VERSION = 'v5';
@@ -63,12 +62,11 @@ interface DayCountRow {
 
 @Injectable()
 export class DashboardTrendService {
-  private readonly logger = new Logger(DashboardTrendService.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: ScopeService,
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly cache: ReadCache,
   ) {}
 
   async getTrend(user: AuthUser): Promise<DashboardTrendResult> {
@@ -164,20 +162,11 @@ export class DashboardTrendService {
   }
 
   private async readCache(key: string): Promise<DashboardTrendResult | null> {
-    try {
-      const raw = await this.redis.get(tenantKey(key));
-      return raw ? (JSON.parse(raw) as DashboardTrendResult) : null;
-    } catch (e) {
-      this.logger.warn(`Redis đọc lỗi (bỏ cache, vẫn trả số thật): ${String(e)}`);
-      return null;
-    }
+    const raw = this.cache.get(tenantKey(key));
+    return raw ? (JSON.parse(raw) as DashboardTrendResult) : null;
   }
 
   private async writeCache(key: string, value: DashboardTrendResult): Promise<void> {
-    try {
-      await this.redis.setex(tenantKey(key), TREND_CACHE_TTL_SEC, JSON.stringify(value));
-    } catch (e) {
-      this.logger.warn(`Redis ghi lỗi (bỏ qua): ${String(e)}`);
-    }
+    this.cache.set(tenantKey(key), JSON.stringify(value), TREND_CACHE_TTL_SEC);
   }
 }

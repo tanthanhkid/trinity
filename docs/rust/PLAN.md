@@ -601,7 +601,7 @@ Phiên bản là bản ổn định mới nhất trên crates.io ngày 26/11/202
 | Lưu trữ S3 | `object_store` | 0.14 | Nhẹ hơn AWS SDK |
 | xlsx | `rust_xlsxwriter` (ghi), `calamine` (đọc) | 0.104 / 0.38 | Thay exceljs |
 | pdf | `printpdf` | 0.13 | Thay pdfkit; nhúng font Tinos có sẵn trong repo |
-| Ảnh | `image` | 0.25 | Thay sharp cho 3 chỗ resize JPEG |
+| Ảnh | `image` (+ `webp` cho WebP có mất dữ liệu) | 0.25 / 0.3 | Thay sharp ở 3 chỗ: avatar và ảnh nhân viên JPEG 200×200, ảnh bảng tin WebP cạnh dài ≤ 1920 (K30; `image` chỉ mã hoá WebP lossless nên cần libwebp) |
 | Mẫu chữ | `handlebars` | 6.4 | Cùng cú pháp với mẫu thông báo |
 | Web nhúng | `rust-embed` | 8.14 | Một binary; có thể đè bằng thư mục ngoài |
 | Log / lỗi | `tracing`, `sentry` | 0.1 / 0.49 | |
@@ -786,6 +786,12 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   mã khác 0 nếu có lỗi. Lúc boot chạy nền cho công ty còn chậm, như hiện tại.
 - `ensurePlatform`, trigger đồng bộ (`trinity-sync-v3`), `provisionCompany`, dọn đăng ký bỏ dở sau 15 phút: chuyển
   nguyên SQL, giữ nguyên số advisory lock.
+  **Đã làm ở K08** (`server/crates/trinity-db/src/platform.rs`): `Platform` (`ensure`, tra công ty/email/mã ngoài,
+  `state` OAuth, nhận/nhả mã, khoá kênh, cache 30 giây/10 giây như Node), `install_sync_triggers` cho provision (K09),
+  `conflict_from_trigger` (câu 409 của `elk-exception.filter.ts`). Truy vấn không dùng macro vì `platform` nằm ngoài
+  migration Prisma. Bản đóng băng `tests/fixtures/platform-schema.txt` sinh bằng mã Node
+  (`scripts/gen-platform-fixture.cjs`); test pg so từng byte với kết quả của Rust trên cùng dàn dựng. `C05` gộp phần
+  này vào `schema.sql` chung.
 - Sau X06: thư mục migration chuyển về `server/migrations/` (đổi đường dẫn, không đổi nội dung nên checksum không
   đổi); `schema.prisma` bỏ, struct model sửa tay theo migration.
 

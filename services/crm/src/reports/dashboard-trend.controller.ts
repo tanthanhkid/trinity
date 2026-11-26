@@ -28,7 +28,7 @@ export class DashboardTrendController {
       'Trả `{ days[14], series }` cho các chỉ số của thẻ Tổng quan (quan tâm). Ngày theo Asia/Ho_Chi_Minh, CŨ → MỚI, điểm cuối là hôm nay. ' +
       'Ngày không phát sinh trả 0 (KHÔNG bỏ điểm) để đường xu hướng không bị co lại. ' +
       'Mỗi chuỗi kiểm quyền NGUỒN riêng (`contacts.view`) — chuỗi thiếu quyền vắng mặt ' +
-      'khỏi `series` (FE ẩn đường tương ứng). Cache Redis 120 giây per-user.',
+      'khỏi `series` (FE ẩn đường tương ứng). Cache 120 giây per-user (RAM).',
   })
   @ApiResponse({
     status: 200,

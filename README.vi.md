@@ -51,7 +51,6 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 | **Tự động hoá Fanpage** | Luật bình luận theo Page hoặc từng bài (kể cả ảnh bìa): tự trả lời, ẩn bình luận có số điện thoại, nhắn riêng, người bình luận tự gắn với khách hàng; link và mã QR mở thẳng cuộc chat; kịch bản Messenger; gửi tin hàng loạt trong cửa sổ 24 giờ. Luật, kịch bản, gửi hàng loạt cũng tạo và sửa được từ trợ lý AI |
 | **Đăng đa kênh** | Soạn một lần, đăng ngay hoặc hẹn giờ lên Fanpage Facebook; có lịch nội dung, thư viện ảnh/video, số liệu bài. Lưu nháp, hàng đợi theo khung giờ cố định mỗi tuần, bộ hashtag và chữ ký dùng lại, tự gắn UTM vào liên kết, xem trước bài trên từng kênh, nhập nhiều bài từ CSV, bài lặp lại (ngày, tuần, tháng). Video lớn tải lên từng phần; bài bị xoá thẳng trên mạng tự hiện là đã xoá. Mọi việc cũng làm được qua trợ lý AI |
 | **Thanh toán** | Đối soát yêu cầu thanh toán cũ: tiền về qua SePay, VNPay, MoMo tự khớp vào yêu cầu (không tạo yêu cầu mới) |
-| **Kết nối bán hàng** | KiotViet, Sapo, WooCommerce, MISA, Shopee, Lazada: đồng bộ về CRM những gì API từng bên cho (khách, đơn và/hoặc hàng hoá); khách được ghép theo số điện thoại khi nền tảng cung cấp (Shopee che số người mua). Phạm vi từng connector ở [status.md](docs/integrations/status.md) |
 | **Trang bán hàng** | Trang bán online `/s/<tên>` (hoặc tên miền phụ), 3 giao diện, giỏ hàng, COD hoặc chuyển khoản QR; đơn và người mua vào thẳng CRM. Mặc định tắt |
 | **CRM** | Danh bạ với nguồn, giai đoạn, trạng thái do bạn tự đặt, Kanban, mã bản ghi chung và gắn thẻ `@` giữa các màn, bảng tin |
 | **Bán hàng** | Sản phẩm, POS |
@@ -74,9 +73,8 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 | Zalo OA | Nhận tin đã thử thật; trả lời + đọc hồ sơ cần OA gói Tier (chưa thử) |
 | VNPay | Trọn vòng trên sandbox VNPay |
 | MoMo | Môi trường test của MoMo |
-| WooCommerce | Trọn vòng với một cửa hàng thử |
 | n8n | Workflow mẫu chạy thật với máy chủ thử |
-| SePay, KiotViet, Sapo, MISA, Shopee, Lazada, Zapier, Make | Connector có sẵn, chưa thử với tài khoản thật |
+| SePay, Zapier, Make | Connector có sẵn, chưa thử với tài khoản thật |
 | iPOS | Chưa làm — chờ iPOS cấp API đối tác |
 
 Chi tiết từng connector: [docs/integrations/status.md](docs/integrations/status.md). Việc sắp làm: [ROADMAP.md](ROADMAP.md).
@@ -159,7 +157,7 @@ Rồi mở URL production và đăng nhập bằng tài khoản admin ở trên.
 
 - Admin đầu tiên chỉ được tạo khi chưa tồn tại; deploy lại không bao giờ ghi đè mật khẩu.
 - Workspace mới cố ý bắt đầu trống: lần đăng nhập đầu tiên đi qua wizard bắt đầu (loại doanh nghiệp, phân hệ, *Dựng hệ thống*, khách đầu tiên) rồi mới vào app; người có tài khoản tạo sau khi hệ thống đã dựng vào thẳng app. Sau khi dựng, bộ cơ bản bật sẵn, phần còn lại là công tắc ở Cài đặt → *Tính năng*; ví dụ Zalo OA chưa bật thì trả 403. Cài đặt chia nhóm *Tính năng & Kết nối*, *Khách hàng*, *Công ty & Nhân sự*, *Cá nhân*; mục nào thuộc tính năng đang tắt thì ẩn.
-- Trên Vercel, API chạy trong chính app Next.js (một hàm, giới hạn 60 giây). File tải lên cần object storage: đặt `STORAGE_DRIVER=vercel-blob` với token Vercel Blob, hoặc driver tương thích S3 (xem `.env.example`). Thông báo dùng polling thay cho WebSocket. Tính năng dùng Redis cần máy chủ chạy liên tục, hãy dùng Cách 2.
+- Trên Vercel, API chạy trong chính app Next.js (một hàm, giới hạn 60 giây). File tải lên cần object storage: đặt `STORAGE_DRIVER=vercel-blob` với token Vercel Blob, hoặc driver tương thích S3 (xem `.env.example`). Thông báo dùng polling thay cho WebSocket.
 
 ### Cách 2: Tự cài bằng Docker Compose
 
@@ -179,7 +177,7 @@ Mỗi bản phát hành gắn tag đẩy sẵn image lên GitHub Container Regis
 
 Để trợ lý AI điều khiển Trinity, đặt `INTEGRATIONS_MCP_ENABLED=true`, một `INTEGRATIONS_PUBLIC_BASE_URL` công khai và `INTEGRATIONS_SECRET_KEY` trong `.env`, rồi làm theo [docs/integrations](docs/integrations/).
 
-Phát triển không dùng Docker: `pnpm install && pnpm dev` (cần Node 22, Postgres và Redis chạy cục bộ).
+Phát triển không dùng Docker: `pnpm install && pnpm dev` (cần Node 22 và Postgres chạy cục bộ).
 
 ## Vì sao mình làm Trinity
 

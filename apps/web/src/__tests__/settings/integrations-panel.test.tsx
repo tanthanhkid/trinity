@@ -94,7 +94,7 @@ describe("<SettingsIntegrations> — Tổng quan", () => {
     await waitFor(() => expect(out.textContent).toContain("Chưa có"))
     expect(screen.getByTestId("conn-facebook")).toBeTruthy()
     expect(screen.queryByTestId("conn-ai")).toBeNull()
-    expect(screen.getByText("SePay")).toBeTruthy()
+    expect(screen.queryByText("SePay")).toBeNull()
     fireEvent.click(within(out).getByRole("button", { name: "Thêm" }))
     await waitFor(() => expect(screen.getByText(/Chưa có endpoint nào/)).toBeTruthy())
     expect(screen.getByRole("button", { name: "Webhook ra" }).getAttribute("aria-current")).toBe("page")
@@ -156,7 +156,7 @@ describe("sectionFromParams — quay về từ OAuth mở đúng mục ở trang
   it("muc ưu tiên; facebook/zalo_oa suy ra mục; google (Sheets đã gỡ) về tổng quan; không có gì ⇒ tổng quan", async () => {
     const { sectionFromParams } = await import("@/app/(dashboard)/settings/_components/settings-integrations")
     const q = (s: string) => sectionFromParams(new URLSearchParams(s))
-    expect(q("muc=payments&google=connected")).toBe("payments")
+    expect(q("muc=payments&google=connected")).toBe("overview")
     expect(q("google=connected")).toBe("overview")
     expect(q("facebook=connected&pages=2")).toBe("facebook")
     expect(q("zalo_oa=connected")).toBe("zalo-oa")

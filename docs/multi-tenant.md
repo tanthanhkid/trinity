@@ -36,7 +36,7 @@ The database role needs `CREATE` on the database (to create one schema per compa
   - Facebook / Zalo webhooks: routed by Page id / OA id (`platform.company_routes`). A Page or OA can be connected by
     one company only.
   - API keys, MCP OAuth codes and tokens issued to company *N* start with `cN.`; unprefixed ones belong to company 1.
-  - Links Trinity hands out (webhook URLs, store and payment links, VNPay return/IPN URLs…) carry `?cid=N`. The hint
+  - Links Trinity hands out (webhook URLs, store links…) carry `?cid=N`. The hint
     only picks the schema; the secret token, slug or gateway signature must still match there. Links without a hint
     belong to company 1.
   - Online-store addresses (slugs) are claimed in `platform.company_routes` (`store_slug`) — first company wins, a
@@ -159,7 +159,7 @@ database (all schemas) before a migration.
 
 `services/crm/src/__pg__/saas-abuse.pg.spec.ts` covers channel limits (per company, atomic), the channel lock, auto-pause,
 and routing: a second company cannot claim another's store slug, store links route by slug, retired route kinds are cleaned up,
-and VNPay return/IPN with `?cid=` only ever touch the right company's payments.
+and store links only ever touch the right company.
 
 `services/crm/src/__pg__/tenant-isolation.pg.spec.ts` signs up two companies on a real Postgres and checks that one
 cannot read, count, update or delete the other's rows (models, raw SQL, transactions, guessed ids), that a Page and an

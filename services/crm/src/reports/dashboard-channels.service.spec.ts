@@ -2,7 +2,7 @@ import { DashboardChannelsService } from './dashboard-channels.service';
 
 const ALL_ON = new Proxy({}, { get: (_t, k) => (k === 'locked' ? {} : true) });
 
-function make(opts: { features?: Record<string, boolean>; pages?: any[]; msgs?: any[]; convs?: any[]; social?: any[]; published?: any[]; connectors?: any[]; paid?: any[]; store?: string | null; orders?: number } = {}) {
+function make(opts: { features?: Record<string, boolean>; pages?: any[]; msgs?: any[]; convs?: any[]; social?: any[]; published?: any[]; store?: string | null; orders?: number } = {}) {
   const prisma: any = {
     facebookPage: { findMany: jest.fn(async () => opts.pages ?? []) },
     facebookMessage: { groupBy: jest.fn(async () => opts.msgs ?? []) },
@@ -12,8 +12,6 @@ function make(opts: { features?: Record<string, boolean>; pages?: any[]; msgs?: 
     zaloOaMessage: { count: jest.fn(async () => 0) },
     socialAccount: { findMany: jest.fn(async () => opts.social ?? []) },
     socialPostTarget: { groupBy: jest.fn(async () => opts.published ?? []) },
-    connectorAccount: { findMany: jest.fn(async () => opts.connectors ?? []) },
-    paymentIntent: { groupBy: jest.fn(async () => opts.paid ?? []) },
     setting: { findUnique: jest.fn(async () => (opts.store ? { value: opts.store } : null)) },
     storeOrder: { count: jest.fn(async () => opts.orders ?? 0) },
   };
@@ -53,36 +51,26 @@ describe('DashboardChannelsService', () => {
   });
 
   it('chỉ quyền cập nhật khách ⇒ không thấy Fanpage; xem thương vụ phạm vi hẹp ⇒ không thấy số tiền/đơn cả công ty', async () => {
-    const { svc, prisma } = make({ pages: [PAGE], connectors: [{ id: 4, provider: 'sepay', status: 'active', last_event_at: null }], store: JSON.stringify({ slug: 'a', published: true }) });
+    const { svc, prisma } = make({ pages: [PAGE], store: JSON.stringify({ slug: 'a', published: true }) });
     const r = await svc.get({ 'contacts.update': 'own', 'deals.view': 'own' } as any);
     expect(r.channels).toEqual([]);
     expect(prisma.facebookPage.findMany).not.toHaveBeenCalled();
-    expect(prisma.paymentIntent.groupBy).not.toHaveBeenCalled();
     expect(prisma.storeOrder.count).not.toHaveBeenCalled();
     const all = await svc.get({ 'deals.view': 'all' } as any);
-    expect(all.channels.map((c) => c.kind).sort()).toEqual(['payment', 'store']);
+    expect(all.channels.map((c) => c.kind).sort()).toEqual(['store']);
   });
 
-  it('kết nối bán hàng/sàn đã gỡ (G06): chỉ đọc dòng cổng thanh toán, không gợi ý nối', async () => {
-    const { svc, prisma } = make({ connectors: [{ id: 4, provider: 'sepay', status: 'active', last_event_at: null }] });
-    const r = await svc.get(ADMIN);
-    expect(r.available.map((a) => a.kind)).not.toContain('commerce');
-    expect(prisma.connectorAccount.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { provider: { in: ['sepay', 'vnpay', 'momo'] } } }));
-  });
-
-  it('kênh đăng bài, thanh toán, trang bán hàng', async () => {
+  it('kênh đăng bài, trang bán hàng', async () => {
     const { svc } = make({
       social: [{ id: 3, network: 'youtube', name: 'Kênh YT', status: 'needs_reauth' }],
       published: [{ account_id: 3, _count: { _all: 1 } }],
-      connectors: [{ id: 4, provider: 'sepay', status: 'active', last_event_at: null }],
-      paid: [{ paid_via: 'sepay', _count: { _all: 2 } }],
       store: JSON.stringify({ slug: 'cua-hang', name: 'Cửa hàng A', published: true }),
       orders: 4,
     });
     const r = await svc.get(ADMIN);
     const by = (k: string) => r.channels.find((c) => c.key.startsWith(k))!;
     expect([by('social').state, by('social').today?.value]).toEqual(['attention', 1]);
-    expect([by('payment').name, by('payment').today?.value]).toEqual(['SePay', 2]);
+    expect(r.channels.some((c) => c.kind === ('payment' as string))).toBe(false);
     expect([by('store').state, by('store').today?.value]).toEqual(['ok', 4]);
   });
 });

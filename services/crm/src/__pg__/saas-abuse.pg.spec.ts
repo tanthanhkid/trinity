@@ -24,11 +24,6 @@ import { ChannelBlockedError } from '../channel-guard/channel-guard.errors';
 import { ChannelGuardService } from '../channel-guard/channel-guard.service';
 import { observeGraph } from '../channel-guard/graph-observer';
 import { enterRoutedCompany } from '../common/helpers/routed-company';
-import { withCompanyHint } from '../common/helpers/tenant-hint';
-import { ConnectorsService } from '../connectors/connectors.service';
-import { PaymentsService } from '../connectors/payments.service';
-import { seedPendingPayment } from '../connectors/__tests__/seed-payment';
-import { txnRefFor, vnpaySign } from '../connectors/vnpay';
 import { PublicApiService } from '../public-api/public-api.service';
 import { StoreService } from '../store/store.service';
 import { decodeEmv } from '../store/__tests__/emv-decoder';
@@ -36,8 +31,8 @@ import { PG_URL, describePg, isLocalDbUrl } from './pg-harness';
 
 /**
  * SaaS đa công ty trên Postgres thật: (1) chống lạm dụng kênh theo công ty — hạn mức theo gói đếm nguyên tử, khoá kênh của
- * chủ nền tảng, tự tạm dừng khi Graph API báo chặn; (2) lỗ route: địa chỉ cửa hàng, IPN/return VNPay
- * của công ty 2 không chạm công ty 1.
+ * chủ nền tảng, tự tạm dừng khi Graph API báo chặn; (2) lỗ route: địa chỉ cửa hàng của công ty 2
+ * không chạm công ty 1.
  */
 describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', () => {
   let db: PrismaService;
@@ -542,92 +537,6 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
       expect(await companyIdForRoute('retired_kind_test' as never, id)).toBeNull();
       expect(await companyIdForRoute('oauth_state', id)).toBe(1);
       await getBaseClient().$executeRawUnsafe(`DELETE FROM platform.company_routes WHERE external_id = $1`, id);
-    });
-  });
-
-  describe('VNPay: return/IPN mang ?cid= chỉ chạm đúng công ty', () => {
-    const SECRET_A = 'SecretKeyAAA12345'; // gitleaks:allow — khoá giả cho test
-    const SECRET_B = 'SecretKeyBBB67890'; // gitleaks:allow — khoá giả cho test
-    let payA: PaymentsService;
-    let payB: PaymentsService;
-    let intentA: { id: number; code: string };
-    let intentB: { id: number; code: string };
-
-    const ipnFor = (code: string, secret: string, cid?: number, amount = 150000) => {
-      const q: Record<string, string> = {
-        vnp_TmnCode: 'TESTTMN1',
-        vnp_Amount: String(amount * 100),
-        vnp_TxnRef: txnRefFor(code),
-        vnp_ResponseCode: '00',
-        vnp_TransactionStatus: '00',
-        vnp_TransactionNo: String(14_000_000 + Math.floor(Math.random() * 999_999)),
-        vnp_PayDate: '20261115083500',
-      };
-      const signed: Record<string, string> = { ...q, vnp_SecureHash: vnpaySign(q, secret) };
-      // Giống thật: VNPay nối tham số vào return URL đã có sẵn ?cid=.
-      return cid ? { ...signed, cid: String(cid) } : signed;
-    };
-    const asRequest = async <T>(q: Record<string, string>, fn: () => Promise<T>) =>
-      runInTenantScope(async () => {
-        await resolvePublicRouteCompany({ query: q, headers: {} });
-        return fn();
-      });
-
-    beforeAll(async () => {
-      const connA = new ConnectorsService(db);
-      const connB = new ConnectorsService(db);
-      payA = new PaymentsService(db, connA, { ownerIds: async () => 'all' } as never);
-      payB = new PaymentsService(db, connB, { ownerIds: async () => 'all' } as never);
-      await inCompany(A, () => connA.saveGateway('vnpay', { tmn_code: 'TESTTMN1', hash_secret: SECRET_A }, 1));
-      await inCompany(B, () => connB.saveGateway('vnpay', { tmn_code: 'TESTTMN1', hash_secret: SECRET_B }, 1));
-      intentA = await inCompany(A, () => seedPendingPayment(db, { amount: 150000, description: 'Đơn A' }));
-      intentB = await inCompany(B, () => seedPendingPayment(db, { amount: 150000, description: 'Đơn B' }));
-    });
-
-    const status = (c: CompanyRef, id: number) => inCompany(c, async () => (await db.paymentIntent.findUniqueOrThrow({ where: { id } })).status);
-
-    it('return URL do Trinity tạo mang ?cid= của công ty ≠ 1 (công ty 1 giữ nguyên)', async () => {
-      expect(await inCompany(B, async () => withCompanyHint('https://x.example/api/v1/pay/vnpay/return'))).toBe(`https://x.example/api/v1/pay/vnpay/return?cid=${B.id}`);
-      expect(await inCompany(DEFAULT_COMPANY, async () => withCompanyHint('https://x.example/api/v1/pay/vnpay/return'))).toBe('https://x.example/api/v1/pay/vnpay/return');
-    });
-
-    it('IPN ký bằng khoá của B + cid=B ⇒ chỉ đơn của B thành "paid"', async () => {
-      const q = ipnFor(intentB.code, SECRET_B, B.id);
-      await expect(asRequest(q, () => payB.handleVnpayIpn(q))).resolves.toEqual({ RspCode: '00', Message: 'Confirm Success' });
-      expect(await status(B, intentB.id)).toBe('paid');
-      expect(await status(A, intentA.id)).toBe('pending');
-    });
-
-    it('IPN không có ?cid= rơi vào công ty 1 (không có VNPay, khác khoá) ⇒ sai chữ ký, không đơn nào đổi', async () => {
-      const q = ipnFor(intentA.code, SECRET_A);
-      const r = await asRequest(q, () => payA.handleVnpayIpn(q));
-      expect(r.RspCode).toBe('97');
-      expect(await status(A, intentA.id)).toBe('pending');
-    });
-
-    it('?cid=A nhưng chữ ký của B ⇒ 97; ?cid=B với mã đơn của A ⇒ "không thấy đơn", đơn A không đổi', async () => {
-      const wrongKey = ipnFor(intentA.code, SECRET_B, A.id);
-      expect((await asRequest(wrongKey, () => payA.handleVnpayIpn(wrongKey))).RspCode).toBe('97');
-      const foreignCode = ipnFor(intentA.code, SECRET_B, B.id);
-      expect((await asRequest(foreignCode, () => payB.handleVnpayIpn(foreignCode))).RspCode).toBe('01');
-      expect(await status(A, intentA.id)).toBe('pending');
-    });
-
-    it('trang return: hợp lệ trong công ty đúng, không hợp lệ ở công ty khác; ?cid= không làm hỏng chữ ký', async () => {
-      const q = ipnFor(intentB.code, SECRET_B, B.id);
-      expect((await asRequest(q, () => payB.vnpayReturn(q))).valid).toBe(true);
-      const inA = { ...q, cid: String(A.id) };
-      expect((await asRequest(inA, () => payA.vnpayReturn(inA))).valid).toBe(false);
-    });
-
-    it('IPN của A đúng khoá + cid=A ⇒ đơn A paid, đơn B vẫn giữ nguyên trạng thái của nó', async () => {
-      const q = ipnFor(intentA.code, SECRET_A, A.id);
-      expect((await asRequest(q, () => payA.handleVnpayIpn(q))).RspCode).toBe('00');
-      expect(await status(A, intentA.id)).toBe('paid');
-      expect(await status(B, intentB.id)).toBe('paid');
-      // Sự kiện cổng không lẫn: A chỉ có giao dịch của A; B có giao dịch của B + lần tra mã lạ ("không thấy đơn").
-      expect(await inCompany(A, () => db.connectorEvent.count({ where: { provider: 'vnpay' } }))).toBe(1);
-      expect(await inCompany(B, () => db.connectorEvent.count({ where: { provider: 'vnpay', external_id: { not: '' } } }))).toBe(2);
     });
   });
 });

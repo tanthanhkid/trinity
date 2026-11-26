@@ -500,12 +500,6 @@
       "description": "Bán hàng tại quầy, in hoá đơn."
     },
     {
-      "key": "payments",
-      "label": "Thanh toán & đối soát",
-      "group": "sales",
-      "description": "Đối soát yêu cầu thanh toán cũ: tự khớp tiền về qua SePay, VNPay, MoMo (không tạo yêu cầu mới)."
-    },
-    {
       "key": "online_store",
       "label": "Trang bán hàng",
       "group": "sales",
@@ -582,7 +576,6 @@
     "social_posting": false,
     "products": false,
     "pos": false,
-    "payments": false,
     "online_store": false,
     "management": false,
     "attendance": false,
@@ -595,7 +588,8 @@
   },
   "retired_org_feature_keys": [
     "google_sheets",
-    "commerce_connectors"
+    "commerce_connectors",
+    "payments"
   ],
   "setup_statuses": [
     "chua_dung",
@@ -733,7 +727,7 @@
     "kanban",
     "reports"
   ],
-  "max_build_features": 20,
+  "max_build_features": 19,
   "industry_presets": {
     "education_center": {
       "label": "Trung tâm giáo dục",
@@ -749,7 +743,6 @@
         "facebook_page",
         "zalo_oa",
         "social_posting",
-        "payments",
         "lead_scoring",
         "stale_reminders",
         "integrations"
@@ -771,7 +764,6 @@
         "social_posting",
         "products",
         "pos",
-        "payments",
         "stale_reminders",
         "integrations"
       ]
@@ -790,7 +782,6 @@
         "facebook_page",
         "zalo_oa",
         "products",
-        "payments",
         "stale_reminders",
         "integrations"
       ]

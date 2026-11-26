@@ -22,7 +22,6 @@
     "facebook.comment_received",
     "social_post.published",
     "social_post.failed",
-    "payment.received",
     "store_order.created",
     "store_order.paid",
     "store_order.status_changed"
@@ -137,11 +136,6 @@
       "type": "social_post.failed",
       "resource": "social_post",
       "label": "Đăng bài: đăng lỗi"
-    },
-    {
-      "type": "payment.received",
-      "resource": "payment_intent",
-      "label": "Thanh toán: đã nhận tiền (SePay, VNPay, MoMo)"
     },
     {
       "type": "store_order.created",

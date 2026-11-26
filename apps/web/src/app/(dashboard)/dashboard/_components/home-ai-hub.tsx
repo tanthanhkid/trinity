@@ -5,7 +5,7 @@
 
 import { useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
-import { ArrowRight, CreditCard, Plug, Plus, ShoppingBag, Sparkles, X } from 'lucide-react'
+import { ArrowRight, Plug, Plus, ShoppingBag, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { ORG_FEATURES, type OrgFeatureKey } from '@trinity/rbac'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -157,7 +157,7 @@ const STATE_DOT: Record<ChannelState, string> = {
 /** Dấu nhận diện kênh: logo chính thức của hãng; trang bán hàng (của chính Trinity) và kênh lạ dùng biểu tượng chung. */
 export function ChannelMark({ c }: { c: Pick<HomeChannel, 'kind' | 'network'> }) {
   if (isBrandKey(c.network)) return <BrandLogo brand={c.network} size={32} className="rounded-lg" />
-  const Icon = c.kind === 'payment' ? CreditCard : c.kind === 'store' ? ShoppingBag : Plug
+  const Icon = c.kind === 'store' ? ShoppingBag : Plug
   return <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--muted)] text-[var(--foreground)]" aria-hidden><Icon className="size-4" /></span>
 }
 
@@ -210,7 +210,7 @@ export function ChannelsHub({ loading, error, data }: { loading: boolean; error:
           testId="channels-empty"
           action={<Link href="/settings?tab=features" className={SMALL_BTN}>Bật tính năng kênh</Link>}
         >
-          Chưa bật kênh nào. Bật Fanpage, Zalo OA, đăng đa kênh hoặc thanh toán ở Cài đặt › Tính năng để khách và đơn tự đổ về đây.
+          Chưa bật kênh nào. Bật Fanpage, Zalo OA hoặc đăng đa kênh ở Cài đặt › Tính năng để khách và đơn tự đổ về đây.
         </HomeEmpty>
       )}
       {!loading && !error && channels.length > 0 && (
@@ -255,7 +255,7 @@ export function ChannelsHub({ loading, error, data }: { loading: boolean; error:
 /* ------------------------------------------------------------------ */
 
 /** Tính năng hay dùng nhất để gợi ý, theo thứ tự ưu tiên. */
-export const SUGGESTED_FEATURES: readonly OrgFeatureKey[] = ['facebook_page', 'zalo_oa', 'social_posting', 'payments', 'online_store', 'products']
+export const SUGGESTED_FEATURES: readonly OrgFeatureKey[] = ['facebook_page', 'zalo_oa', 'social_posting', 'online_store', 'products']
 const DISMISS_KEY = 'trinity.home.feature-suggest.dismissed'
 const noopSubscribe = () => () => {}
 function readDismissed(): boolean {

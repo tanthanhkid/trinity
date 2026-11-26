@@ -10,7 +10,6 @@ import { useOrgFeatures } from "@/hooks/use-org-features"
 import { AiConnectionsPanel } from "./integrations/ai-connections-panel"
 import { IntegrationAuditLogs } from "./integrations/integration-audit-logs"
 import { ZaloOaPanel } from "./integrations/zalo-oa/zalo-oa-panel"
-import { PaymentsPanel } from "./integrations/payments/payments-panel"
 import { StorePanel } from "./integrations/store/store-panel"
 import { FacebookPanel } from "./integrations/facebook-panel"
 import { WebhookInPanel } from "./integrations/webhook-in-panel"
@@ -26,17 +25,17 @@ import {
   type IntegrationSection,
 } from "./integrations/integrations-meta"
 
-/** Tham số quay về từ OAuth (Facebook / Zalo) ⇒ mục cần mở; mục không còn (vd phần mềm bán hàng đã gỡ) ⇒ tổng quan. */
+/** Tham số quay về từ OAuth (Facebook / Zalo) ⇒ mục cần mở; mục không còn (vd thanh toán, phần mềm bán hàng đã gỡ) ⇒ tổng quan. */
 export function sectionFromParams(params: URLSearchParams): IntegrationSection | "overview" {
   const muc = params.get("muc")
-  if (muc) return muc as IntegrationSection
+  if (muc && INTEGRATION_SECTIONS.some((x) => x.value === muc)) return muc as IntegrationSection
   if (params.get("facebook") !== null) return "facebook"
   if (params.get("zalo_oa") !== null) return "zalo-oa"
   return "overview"
 }
 
 /**
- * Trang Kết nối (`/connections`, menu chính): cột trái nhóm theo loại (Trợ lý AI · Kênh khách · Thanh toán · Bán hàng ·
+ * Trang Kết nối (`/connections`, menu chính): cột trái nhóm theo loại (Trợ lý AI · Kênh khách · Bán hàng ·
  * Dữ liệu & tự động · Nhật ký), mặc định là lưới thẻ có logo + trạng thái; bấm một mục mở chi tiết mục đó. Mục nào hiện theo
  * QUYỀN + công tắc tính năng; chạy được hay không theo CỜ máy chủ (`GET /integrations/status`). FE chỉ ẩn/hiện, BE mới là cổng thật.
  * Mục đang mở nằm trên URL (`?muc=`) để link sâu và nút Back chạy đúng.
@@ -64,7 +63,7 @@ export function SettingsIntegrations() {
   const found = visible.find((s) => s.value === active)
   const overview = !found
   const current = found ?? visible[0]
-  const standalone = overview || current.value === "facebook" || current.value === "payments" || current.value === "ban-online"
+  const standalone = overview || current.value === "facebook" || current.value === "ban-online"
   const enabled = !overview && isSectionEnabled(current.flag, status.data)
   const open = (s: IntegrationSection | "overview") => {
     setActive(s)
@@ -119,11 +118,9 @@ export function SettingsIntegrations() {
           statusError={status.isError}
           open={open}
           auditVisible={visible.some((s) => s.value === "audit") && can("integrations.ai_admin")}
-          canPayConnect={can("integrations.webhooks")}
         />
       )}
       {!overview && current.value === "facebook" && <FacebookPanel />}
-      {!overview && current.value === "payments" && <PaymentsPanel />}
       {!overview && current.value === "ban-online" && <StorePanel />}
 
       {!standalone && status.isLoading && (

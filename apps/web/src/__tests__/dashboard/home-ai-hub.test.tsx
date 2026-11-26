@@ -103,9 +103,9 @@ describe("Logo chính thức", () => {
   it("kênh có hãng ⇒ logo chính thức (không chữ viết tắt); ô kết nối Cài đặt cũng vậy", async () => {
     const { ChannelMark } = await import("@/app/(dashboard)/dashboard/_components/home-ai-hub")
     const { ConnectionLogo } = await import("@/components/ui/connection-row")
-    const { container } = render(<div><ChannelMark c={{ kind: "payment", network: "sepay" }} /><ChannelMark c={{ kind: "social", network: "youtube" }} /><ConnectionLogo brand="momo" color="#000" text="K" /></div>)
+    const { container } = render(<div><ChannelMark c={{ kind: "social", network: "facebook" }} /><ChannelMark c={{ kind: "social", network: "youtube" }} /><ConnectionLogo brand="ipos" color="#000" text="K" /></div>)
     const imgs = [...container.querySelectorAll("img")].map((i) => i.getAttribute("src"))
-    expect(imgs).toEqual(["/brand/logos/sepay.png", "/brand/logos/youtube.svg", "/brand/logos/momo.png"])
+    expect(imgs).toEqual(["/brand/logos/facebook.svg", "/brand/logos/youtube.svg", "/brand/logos/ipos.png"])
     expect(container.textContent).not.toMatch(/\bK\b/)
   })
 })

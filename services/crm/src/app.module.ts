@@ -25,7 +25,6 @@ import { RetiredRoutesModule } from './retired/retired-routes.module';
 import { CustomObjectsModule } from './custom-objects/custom-objects.module';
 import { UsageModule } from './usage/usage.module';
 import { ZaloOaModule } from './zalo-oa/zalo-oa.module';
-import { ConnectorsModule } from './connectors/connectors.module';
 import { StoreModule } from './store/store.module';
 import { LeadScoringModule } from './lead-scoring/lead-scoring.module';
 import { StaleWorkModule } from './stale-work/stale-work.module';
@@ -80,7 +79,6 @@ import { SecurityHeadersMiddleware } from './common/middleware/security-headers.
     OnboardingModule,
     UsageModule,
     ZaloOaModule,
-    ConnectorsModule,
     StoreModule,
     LeadScoringModule,
     StaleWorkModule,

@@ -155,8 +155,6 @@ export function evaluateEvent(type: IntegrationEventType, payload: unknown, scop
     return { deliver: true, data };
   }
   if (type.startsWith('social_post.')) return scopes.canSocialPost ? { deliver: true, data } : none;
-  // Thanh toán: chỉ mã + số tiền + định danh nguồn, không SĐT/nội dung ⇒ chủ endpoint (đã có `integrations.webhooks`) nhận nguyên.
-  if (type === 'payment.received') return { deliver: true, data };
   // Đơn online: cùng phạm vi màn Đơn từ trang bán hàng (`deals.view` theo người phụ trách khách); không xem được SĐT ⇒ che SĐT người mua (và số lẫn trong tên/địa chỉ/ghi chú).
   if (type === 'store_order.created' || type === 'store_order.paid' || type === 'store_order.status_changed') {
     const o = asObj(data.order);

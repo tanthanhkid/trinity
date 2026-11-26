@@ -1003,6 +1003,16 @@ export class AuthService {
       this.rateLimiter.recordAttempt(rateLimitKey)
       throw err
     }
+    // Người mời phải còn hoạt động và còn quyền users.manage lúc nhận — mất quyền/bị khoá thì lời mời không còn giá trị.
+    const inviter =
+      inv.created_by === null
+        ? null
+        : await this.prisma.user.findFirst({ where: { id: inv.created_by, status: 'active', deleted_at: null }, select: { id: true } })
+    const inviterGrants = inviter ? await this.permissionService.grantsFor(inviter.id) : null
+    if (!inviterGrants || !(inviterGrants.isAdmin || can(inviterGrants.grants, 'users.manage'))) {
+      this.rateLimiter.recordAttempt(rateLimitKey)
+      throw new GoneException(INVITATION_GONE_MESSAGE)
+    }
     if (inv.role_id === null || !(await this.prisma.role.findUnique({ where: { id: inv.role_id }, select: { id: true } }))) {
       throw new ConflictException('Vai trò của lời mời này đã bị xoá. Hãy nhờ chủ công ty mời lại.')
     }
@@ -1049,8 +1059,22 @@ export class AuthService {
     await this.auditLog.logPasswordChange({ actorUserId: inv.created_by ?? null, targetUserId: userId, method: 'user_create', ipAddress })
     const user = await this.findUserById(userId)
     if (!user) throw new InternalServerErrorException('Chưa tạo được tài khoản, vui lòng thử lại')
+    // Cùng cổng với login(): kiểm Wi-Fi văn phòng (tài khoản đã tạo; chặn thì đăng nhập sau từ văn phòng) và
+    // "1 tài khoản 1 phiên" (đăng ký phiên mới để token có `sid`).
+    if (await this.isLoginWifiCheckActive()) {
+      const { grants } = await this.permissionService.grantsFor(user.id)
+      const wifiCheck = await this.checkLoginWifi(user.id, user.email, grants, ipAddress)
+      if (!wifiCheck.allowed) {
+        await this.logLoginAttempt(user.id, user.email, false, ipAddress, 'wifi_blocked')
+        throw new UnauthorizedException(
+          'Tài khoản đã được tạo, nhưng bạn đang không kết nối wifi của văn phòng công ty. Hãy kết nối wifi tại một văn phòng rồi đăng nhập.',
+        )
+      }
+    }
     await this.logLoginAttempt(user.id, user.email, true, ipAddress, 'ok')
-    return this.buildTokenResponse(user, undefined, crypto.randomUUID())
+    this.tokenBlacklist.removeUser(user.id)
+    const sid = (await this.isSingleSessionActive()) ? this.activeSession.startSession(user.id) : undefined
+    return this.buildTokenResponse(user, sid, crypto.randomUUID())
   }
 
   private verifyRefreshToken(token: string): RefreshPayload {

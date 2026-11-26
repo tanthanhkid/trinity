@@ -7,6 +7,7 @@ import {
   Public,
   ScopeService,
   createInvitation,
+  invitableRoles,
   invitationScope,
   listInvitations,
   revokeInvitation,
@@ -38,8 +39,16 @@ export class InvitationsController {
   @ApiResponse({ status: 201, description: 'Đã tạo lời mời (token chỉ hiện lần này)' })
   @ApiResponse({ status: 409, description: 'Vượt số người của gói, hoặc email đã dùng ở công ty khác / đã có trong công ty' })
   async create(@Body() dto: CreateInvitationDto, @CurrentUser() actor: AuthUser) {
-    const inv = await createInvitation(this.prisma, actor, { email: dto.email, roleId: dto.role_id })
+    const inv = await createInvitation(this.prisma, actor, { email: dto.email, roleId: dto.role_id }, await invitationScope(this.scope, actor))
     return inv
+  }
+
+  @Get('roles')
+  @Can('users.manage')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Vai trò có thể mời vào (đã lọc theo quyền của người mời, cùng luật với POST /auth/invitations)' })
+  async roles(@CurrentUser() actor: AuthUser) {
+    return { data: await invitableRoles(this.prisma, actor) }
   }
 
   @Get()

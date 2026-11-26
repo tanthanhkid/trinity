@@ -21,6 +21,8 @@ import {
   TokenBlacklistService,
   assertUserSlotAvailable,
   createInvitation,
+  revokePendingInvitationsBy,
+  revokePendingInvitationsForEmail,
   hashInviteToken,
   listInvitations,
   revokeInvitation,
@@ -55,6 +57,8 @@ describePg('mời nhân viên bằng link (Postgres, nhiều công ty)', () => {
   let ownerA: number
   let staffRoleA: number
   const prevMt = process.env.MULTI_TENANT
+  /** Người mời đã mất quyền users.manage (giả lập qua PermissionService). */
+  const noManage = new Set<number>()
   const stamp = Date.now()
   const emailA = `chu-a-${stamp}@example.com`
   const emailB = `chu-b-${stamp}@example.com`
@@ -105,7 +109,7 @@ describePg('mời nhân viên bằng link (Postgres, nhiều công ty)', () => {
       new TokenBlacklistService(),
       new AuditLogService(db),
       new ActiveSessionService(),
-      { grantsFor: async () => ({ grants: {}, isAdmin: false }) } as never,
+      { grantsFor: async (id: number) => (noManage.has(id) ? { grants: {}, isAdmin: false } : { grants: { 'users.manage': 'all' }, isAdmin: true }) } as never,
     )
   }, 180_000)
 
@@ -277,16 +281,18 @@ describePg('mời nhân viên bằng link (Postgres, nhiều công ty)', () => {
 
   it('công ty đăng ký mới được ghi gói mặc định có giới hạn; thiếu dòng gói vẫn không thành "không giới hạn"', async () => {
     const plan = (c: CompanyRef) => runWithCompany(c, () => db.setting.findUnique({ where: { key: 'org_plan' } }))
-    expect((await plan(B))?.value).toBe('ket_noi')
     const c = (await provisionCompany({ companyName: 'Công ty C', adminEmail: `chu-c-${stamp}@example.com`, adminPassword: 'password-c-123', adminName: 'Chủ C' })).company
-    expect((await plan(c))?.value).toBe('ket_noi')
-    // Xoá dòng gói (công ty cũ trước thay đổi này không có dòng): vẫn bị giới hạn 10 người như gói mặc định.
+    expect((await plan(c))?.value).toBe('mac_dinh')
+    // Xoá dòng gói (công ty cũ trước thay đổi này không có dòng): vẫn bị giới hạn 10 người như gói Mặc định, và vẫn bật được Fanpage / Zalo OA.
     await runWithCompany(c, async () => {
       await db.setting.delete({ where: { key: 'org_plan' } })
       for (let i = 0; i < 9; i++) await db.user.create({ data: { email: `c-fill-${i}-${stamp}@example.com`, password_hash: 'x', full_name: `F${i}`, status: 'active' } })
     })
     const err = await runWithCompany(c, () => db.$transaction((tx) => assertUserSlotAvailable(tx))).catch((e) => e)
     expect(err).toBeInstanceOf(ConflictException)
+    const { applyPlanToFeatures, resolveOrgFeatures, resolvePlanForCompany } = await import('@trinity/rbac')
+    const features = applyPlanToFeatures(resolveOrgFeatures({}), resolvePlanForCompany(undefined, c.id))
+    expect(features.facebook_page && features.zalo_oa && features.ai_briefing).toBe(true)
   })
 
   it('hai lượt thêm người đồng thời ở ngưỡng: chỉ một lượt qua (mọi đường dùng cùng khoá + cùng cách đếm, gồm lời mời đang chờ)', async () => {
@@ -328,5 +334,67 @@ describePg('mời nhân viên bằng link (Postgres, nhiều công ty)', () => {
     await expect(runWithCompany(A, () => revokeInvitation(db, other.id, [ownerA]))).rejects.toBeInstanceOf(NotFoundException)
     await expect(runWithCompany(A, () => revokeInvitation(db, mine.id, [ownerA]))).resolves.toBeUndefined()
     await expect(runWithCompany(A, () => revokeInvitation(db, other.id, 'all'))).resolves.toBeUndefined()
+  })
+
+  it('tạo user/nhân viên trực tiếp cho email đang có lời mời chờ: huỷ lời mời trước khi kiểm chỗ (không tính hai chỗ)', async () => {
+    const c = (await provisionCompany({ companyName: 'Công ty E', adminEmail: `chu-e-${stamp}@example.com`, adminPassword: 'password-e-123', adminName: 'Chủ E' })).company
+    const owner = (await runWithCompany(c, () => db.user.findFirstOrThrow())).id
+    const role = (await runWithCompany(c, () => db.role.findFirstOrThrow())).id
+    await runWithCompany(c, async () => {
+      for (let i = 0; i < 8; i++) await db.user.create({ data: { email: `e-fill-${i}-${stamp}@example.com`, password_hash: 'x', full_name: `F${i}`, status: 'active' } })
+    })
+    const email = `e-direct-${stamp}@example.com`
+    await runWithCompany(c, () => createInvitation(db, adminOf(owner), { email, roleId: role })) // 9 người + 1 lời mời = 10
+    // Không huỷ trước: đủ chỗ → bị chặn (đúng, vì lời mời giữ chỗ).
+    await expect(runWithCompany(c, () => db.$transaction((tx) => assertUserSlotAvailable(tx)))).rejects.toBeInstanceOf(ConflictException)
+    // Cùng transaction: huỷ lời mời của email đó rồi mới kiểm chỗ → qua, và chỉ tính một chỗ.
+    await runWithCompany(c, () =>
+      db.$transaction(async (tx) => {
+        await revokePendingInvitationsForEmail(tx, email.toUpperCase())
+        await assertUserSlotAvailable(tx)
+        await tx.user.create({ data: { email, password_hash: 'x', full_name: 'Direct', status: 'active' } })
+      }),
+    )
+    expect(await runWithCompany(c, () => db.userInvitation.count({ where: { email, accepted_at: null, revoked_at: null } }))).toBe(0)
+    expect(await runWithCompany(c, () => db.user.count())).toBe(10)
+  })
+
+  it('mời lại cùng email: chỉ thay lời mời trong phạm vi của mình, của người ngoài phạm vi thì 409; chỉ một lời mời mở mỗi email (index)', async () => {
+    const email = `rein-${stamp}@example.com`
+    const first = await runWithCompany(A, () => createInvitation(db, adminOf(4242), { email, roleId: staffRoleA }))
+    const err = await runWithCompany(A, () => createInvitation(db, adminOf(ownerA), { email, roleId: staffRoleA }, [ownerA])).catch((e) => e)
+    expect(err).toBeInstanceOf(ConflictException)
+    await expect(publicRequest(() => auth.previewInvitation(first.token))).resolves.toMatchObject({ email }) // vẫn còn nguyên
+    // Trong phạm vi (gồm người tạo 4242) thì thay được.
+    const second = await runWithCompany(A, () => createInvitation(db, adminOf(ownerA), { email, roleId: staffRoleA }, [ownerA, 4242]))
+    await expect(publicRequest(() => auth.previewInvitation(first.token))).rejects.toBeInstanceOf(GoneException)
+    await expect(publicRequest(() => auth.previewInvitation(second.token))).resolves.toMatchObject({ email })
+    // Chốt chặn ở DB: không chèn được lời mời mở thứ hai cho cùng email (kể cả viết hoa khác).
+    await expect(
+      runWithCompany(A, () =>
+        db.userInvitation.create({ data: { email: email.toUpperCase(), role_id: staffRoleA, token_hash: `x-${stamp}`, expires_at: new Date(Date.now() + 1e6) } }),
+      ),
+    ).rejects.toThrow()
+  })
+
+  it('người mời mất quyền users.manage / bị khoá thì lời mời không nhận được (410); khoá người mời huỷ lời mời của họ', async () => {
+    const inviterId = (await runWithCompany(A, () => db.user.create({ data: { email: `mgr-${stamp}@example.com`, password_hash: 'x', full_name: 'Quản lý', status: 'active' } }))).id
+    const mk = (n: string) => runWithCompany(A, () => createInvitation(db, adminOf(inviterId), { email: `${n}-${stamp}@example.com`, roleId: staffRoleA }))
+    const lost = await mk('lost')
+    noManage.add(inviterId)
+    await expect(publicRequest(() => auth.acceptInvitation({ token: lost.token, full_name: 'Mất quyền', password: 'matkhau-moi-1' }, null))).rejects.toBeInstanceOf(GoneException)
+    noManage.delete(inviterId)
+    await expect(publicRequest(() => auth.acceptInvitation({ token: lost.token, full_name: 'Có quyền lại', password: 'matkhau-moi-1' }, null))).resolves.toMatchObject({ company: { id: A.id } })
+    const pending = await mk('pend')
+    await runWithCompany(A, () => db.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: inviterId }, data: { status: 'locked' } })
+      await revokePendingInvitationsBy(tx, inviterId)
+    }))
+    await expect(publicRequest(() => auth.previewInvitation(pending.token))).rejects.toBeInstanceOf(GoneException)
+    // Người mời bị khoá mà lời mời còn sót (không đi qua đường khoá) cũng không nhận được.
+    await runWithCompany(A, () => db.user.update({ where: { id: inviterId }, data: { status: 'active' } }))
+    const sneaky = await mk('sneaky')
+    await runWithCompany(A, () => db.user.update({ where: { id: inviterId }, data: { status: 'locked' } }))
+    await expect(publicRequest(() => auth.acceptInvitation({ token: sneaky.token, full_name: 'Sót', password: 'matkhau-moi-1' }, null))).rejects.toBeInstanceOf(GoneException)
   })
 })

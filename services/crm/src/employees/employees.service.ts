@@ -27,6 +27,8 @@ import {
   runInBackground,
   type AuthUser,
   assertUserSlotAvailable,
+  revokePendingInvitationsBy,
+  revokePendingInvitationsForEmail,
 } from '@trinity/rbac-nest';
 import { isSubset } from '@trinity/rbac';
 
@@ -953,7 +955,11 @@ export class EmployeesService {
     } = { value: null };
 
     const employee = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      if (takesSlot) await assertUserSlotAvailable(tx);
+      // Email đang có lời mời chờ: huỷ lời mời trước khi kiểm chỗ (không tính hai chỗ cho một người).
+      if (takesSlot) {
+        await revokePendingInvitationsForEmail(tx, dto.email);
+        await assertUserSlotAvailable(tx);
+      }
       // team_id/manager_id nay CHỈ theo lựa chọn Team tường minh (applyTeamAssignment ở
       // trên) hoặc dto.manager_id — KHÔNG suy theo tên vai trò.
       const syncedTeamId = dto.team_id ?? null;
@@ -1299,6 +1305,7 @@ export class EmployeesService {
         where: { id: employee.user_id },
         data: { status: 'locked', tokens_valid_after: new Date() },
       });
+      await revokePendingInvitationsBy(tx, employee.user_id);
       // Đóng giai đoạn làm việc đang mở — mở khoá sau này KHÔNG xoá khoảng bị khoá khỏi chấm công cũ.
       await recordEmploymentEnd(tx, id);
       // resigned_at = mốc ngày nghỉ việc — dùng để loại NV khỏi chấm công KỂ TỪ ngày này.
@@ -1392,6 +1399,10 @@ export class EmployeesService {
       this.prisma.user.update({
         where: { id: employee.user_id },
         data: { status: 'locked', tokens_valid_after: new Date() },
+      }),
+      this.prisma.userInvitation.updateMany({
+        where: { created_by: employee.user_id, accepted_at: null, revoked_at: null },
+        data: { revoked_at: new Date() },
       }),
     ]);
     await this.rbacCache.invalidateUsers('*');

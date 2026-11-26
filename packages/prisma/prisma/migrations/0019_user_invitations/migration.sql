@@ -17,6 +17,8 @@ CREATE TABLE "user_invitations" (
 
 CREATE UNIQUE INDEX "user_invitations_token_hash_key" ON "user_invitations"("token_hash");
 CREATE INDEX "user_invitations_email_idx" ON "user_invitations"("email");
+-- Mỗi email tối đa một lời mời chưa dùng/chưa huỷ (Prisma không khai được unique một phần).
+CREATE UNIQUE INDEX "user_invitations_one_open_idx" ON "user_invitations"(lower("email")) WHERE "accepted_at" IS NULL AND "revoked_at" IS NULL;
 
 -- Bỏ ràng buộc "mỗi công ty đúng một người dùng" (trigger do ensurePlatform/provisionCompany dựng ở các schema công ty ≥ 2).
 -- Giới hạn số người nay do máy chủ kiểm theo `maxUsers` của gói. Schema nào không có trigger thì lệnh này không làm gì.

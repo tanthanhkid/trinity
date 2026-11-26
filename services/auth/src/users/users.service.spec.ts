@@ -26,6 +26,7 @@ interface MockPrisma {
   }
   team: { findUnique: jest.Mock }
   setting: { findUnique: jest.Mock }
+  userInvitation: { count: jest.Mock; updateMany: jest.Mock }
   employee: { upsert: jest.Mock; updateMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock }
   auditLog: { findMany: jest.Mock }
   $transaction: jest.Mock
@@ -46,6 +47,7 @@ const mockPrisma: MockPrisma = {
     findUnique: jest.fn(),
   },
   setting: { findUnique: jest.fn().mockResolvedValue(null) }, // gói mặc định
+  userInvitation: { count: jest.fn().mockResolvedValue(0), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
   employee: {
     upsert: jest.fn(),
     updateMany: jest.fn(),

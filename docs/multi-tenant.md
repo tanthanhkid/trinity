@@ -55,14 +55,14 @@ There is no email service, so an invitation is a link the owner copies and sends
    `{ token, path }`; the web builds the link `<site>/invite/<token>`. The token is `cN.` + 32 random bytes (the prefix
    routes it to company *N*'s schema, like API keys), stored only as a SHA-256 hash, valid 7 days, single use.
 2. Checks at creation: the email must not belong to another company (`platform.company_logins`) or already have an
-   account here, and `active users + pending invitations` must stay below the plan's `maxUsers` (new companies get `DEFAULT_SIGNUP_PLAN`, `ket_noi`; a company ≥ 2 with no plan row is treated the same, only company 1 / single-company installs default to unlimited `custom`; every path that adds an active user takes one advisory lock per company)
+   account here, and `active users + pending invitations` must stay below the plan's `maxUsers` (new companies get `DEFAULT_SIGNUP_PLAN`, `mac_dinh` = every plan-gated feature, 10 users; a company ≥ 2 with no plan row is treated the same everywhere (`resolvePlanForCompany`), only company 1 / single-company installs default to unlimited `custom`; every path that adds an active user takes one advisory lock per company)
    ("Gói hiện tại tối đa N người, liên hệ để nâng gói."; plan `custom` = unlimited). Inviting the same email again
-   replaces the old link. Pending invitations are listed (`GET /auth/invitations`) and can be cancelled
+   replaces the old link (only one inside your `users.manage` scope; another person's pending invitation answers 409; the database also allows one open invitation per email). Creating a user or employee directly for that email cancels the invitation first, and locking or deleting an inviter cancels theirs. Pending invitations are listed (`GET /auth/invitations`) and can be cancelled
    (`POST /auth/invitations/:id/revoke`), following the `users.manage` scope (`all` sees every invitation, a narrow scope only those created by people in it); the link itself is never shown again.
 3. The invitee opens `/invite/<token>` (public): `POST /auth/invitations/preview` shows company, email and role;
    `POST /auth/invitations/accept` takes a name and password, creates the user (and its employee record) in the
    invitation's company with the chosen role, and returns tokens like a login. The plan limit is checked again then,
-   inside the same transaction that marks the invitation used, so two clicks cannot both win. A used, cancelled,
+   inside the same transaction that marks the invitation used (the inviter must still be active with `users.manage`, else 410; the office Wi-Fi check and single-session start run as in login), so two clicks cannot both win. A used, cancelled,
    expired or unknown token all answer 410 with the same sentence.
 4. Forgot password: the owner opens the user in Settings › Users › *Cài lại mật khẩu*; *Tạo mật khẩu tạm* fills a random
    password that is shown once after saving, to copy and send. (`PATCH /users/:id/reset-password` revokes the old

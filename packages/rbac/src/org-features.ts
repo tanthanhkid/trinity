@@ -127,15 +127,16 @@ export function applyFeatureLocks(features: OrgFeatures, locked: LockedFeatureRe
 // ─── Gói dịch vụ ────────────────────────────────────────────────
 
 /** Khoá gói bán. `custom` = không ràng buộc gì (mặc định cho bản cài đã có, để không vỡ khách đang chạy). */
-export const PLAN_KEYS = ['ket_noi', 'tro_ly_giam_doc', 'tro_ly_kinh_doanh', 'tro_ly_van_hanh', 'custom'] as const
+export const PLAN_KEYS = ['mac_dinh', 'ket_noi', 'tro_ly_giam_doc', 'tro_ly_kinh_doanh', 'tro_ly_van_hanh', 'custom'] as const
 export type PlanKey = (typeof PLAN_KEYS)[number]
 export const DEFAULT_PLAN: PlanKey = 'custom'
 
 /**
- * Gói của công ty MỚI đăng ký (chế độ nhiều công ty) — có giới hạn người dùng. Công ty 1 và bản cài một công ty
- * giữ `DEFAULT_PLAN` (không giới hạn). Đổi ở đây khi chủ dự án chốt giá.
+ * Gói của công ty MỚI đăng ký (chế độ nhiều công ty): đủ mọi tính năng, tối đa 10 người. Chủ dự án chưa chốt giá nên
+ * KHÔNG cắt tính năng — chỉ giới hạn số người. Công ty 1 và bản cài một công ty giữ `DEFAULT_PLAN` (không giới hạn).
+ * Đổi ở đây khi chốt giá.
  */
-export const DEFAULT_SIGNUP_PLAN: PlanKey = 'ket_noi'
+export const DEFAULT_SIGNUP_PLAN: PlanKey = 'mac_dinh'
 
 /** Cờ mới do gói quyết định (các cờ cũ không bị gói đụng tới). */
 export const PLAN_GATED_FEATURES = ['ai_briefing', 'zalo_oa', 'lead_scoring', 'google_sheets', 'stale_reminders', 'facebook_page'] as const satisfies readonly OrgFeatureKey[]
@@ -149,6 +150,11 @@ export interface PlanDefinition {
 }
 
 export const PLANS: Record<PlanKey, PlanDefinition> = {
+  mac_dinh: {
+    label: 'Mặc định',
+    features: PLAN_GATED_FEATURES,
+    maxUsers: 10,
+  },
   ket_noi: {
     label: 'Kết nối',
     features: ['google_sheets'],
@@ -178,6 +184,16 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
 
 export function isPlanKey(x: unknown): x is PlanKey {
   return typeof x === 'string' && (PLAN_KEYS as readonly string[]).includes(x)
+}
+
+/**
+ * Gói đang áp cho một công ty. `companyId` = số công ty ở chế độ nhiều công ty, `null` = bản cài một công ty.
+ * Dòng gói hợp lệ thì theo dòng đó; thiếu/rác: công ty ≥ 2 = `DEFAULT_SIGNUP_PLAN` (có giới hạn, không phải `custom`),
+ * công ty 1 / một công ty = `DEFAULT_PLAN`. MỘT cách giải duy nhất cho giới hạn người dùng, tính năng và màn Cài đặt.
+ */
+export function resolvePlanForCompany(raw: unknown, companyId: number | null): PlanKey {
+  if (isPlanKey(raw)) return raw
+  return companyId !== null && companyId !== 1 ? DEFAULT_SIGNUP_PLAN : DEFAULT_PLAN
 }
 
 /** Giá trị thô đã lưu (JSON/chuỗi/rác) → khoá gói; không hợp lệ = `custom`. */

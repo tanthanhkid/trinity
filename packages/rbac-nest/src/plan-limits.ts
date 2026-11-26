@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { currentCompanyId, isMultiTenant } from '@trinity/prisma';
-import { DEFAULT_SIGNUP_PLAN, PLANS, isPlanKey, type PlanKey } from '@trinity/rbac';
+import { PLANS, resolvePlanForCompany, type PlanKey } from '@trinity/rbac';
 
 /** Khoá advisory tuần tự hoá "đếm chỗ trống rồi thêm người" trong một công ty (khoá đôi: loại khoá + id công ty). */
 export const USER_SLOT_LOCK = 726_354_004;
@@ -18,15 +18,17 @@ export function userLimitMessage(max: number): string {
   return `Gói hiện tại tối đa ${max} người, liên hệ để nâng gói.`;
 }
 
+/** Lấy khoá advisory số chỗ của công ty hiện tại (đến hết transaction). Gọi TRƯỚC khi đụng lời mời / đếm chỗ. */
+export async function lockUserSlots(db: Pick<PlanLimitClient, '$executeRaw'>): Promise<void> {
+  await db.$executeRaw`SELECT pg_advisory_xact_lock(${USER_SLOT_LOCK}::int, ${currentCompanyId() ?? 1}::int)`;
+}
+
 /**
  * Gói đang áp cho công ty hiện tại. Có dòng `org_plan` hợp lệ thì theo dòng đó. Thiếu dòng: công ty ≥ 2 của chế độ
  * nhiều công ty coi là gói đăng ký mặc định (có giới hạn); công ty 1 / bản cài một công ty = `custom` (không giới hạn).
  */
 export function planFromSetting(raw: string | null | undefined): PlanKey {
-  const v = raw?.trim();
-  if (isPlanKey(v)) return v;
-  const id = isMultiTenant() ? currentCompanyId() : null;
-  return id !== null && id !== 1 ? DEFAULT_SIGNUP_PLAN : 'custom';
+  return resolvePlanForCompany(raw?.trim(), isMultiTenant() ? currentCompanyId() : null);
 }
 
 /**
@@ -39,7 +41,7 @@ export async function assertUserSlotAvailable(db: PlanLimitClient): Promise<void
   const row = await db.setting.findUnique({ where: { key: 'org_plan' }, select: { value: true } });
   const max = PLANS[planFromSetting(row?.value)].maxUsers;
   if (max === null) return;
-  await db.$executeRaw`SELECT pg_advisory_xact_lock(${USER_SLOT_LOCK}::int, ${currentCompanyId() ?? 1}::int)`;
+  await lockUserSlots(db);
   const [active, pending] = await Promise.all([
     db.user.count({ where: { status: 'active', deleted_at: null } }),
     db.userInvitation.count({ where: { accepted_at: null, revoked_at: null, expires_at: { gt: new Date() } } }),

@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, GoneException, NotFoundException } from '@nestjs/common';
-import { createInvitation, invitationScope, listInvitations, revokeInvitation, INVITE_TTL_DAYS } from '@trinity/rbac-nest';
+import { createInvitation, invitableRoles, invitationScope, listInvitations, revokeInvitation, INVITE_TTL_DAYS } from '@trinity/rbac-nest';
 import { wrapData } from '../ai-output';
 import { ToolUserError, type ToolDef } from './tool-types';
 
@@ -20,7 +20,7 @@ export const listInvitationsTool: ToolDef = {
     // Theo phạm vi users.manage của người dùng: 'all' thấy hết, phạm vi hẹp chỉ lời mời của người trong phạm vi.
     const owners = await invitationScope(deps.scope, principal.user);
     const rows = await listInvitations(deps.prisma, { pendingOnly: args.all !== true, owners });
-    const roles = await deps.prisma.role.findMany({ select: { id: true, name: true, is_system: true }, orderBy: { id: 'asc' }, take: 100 });
+    const roles = await invitableRoles(deps.prisma, principal.user);
     const out = wrapData({
       invitations: rows.map((r) => ({ id: r.id, email: r.email, role: r.role_name, status: r.status, expires_at: iso(r.expires_at), created_at: iso(r.created_at) })),
       roles: roles.map((r) => ({ id: r.id, name: r.name, system: r.is_system })),
@@ -63,7 +63,7 @@ export const createInvitationTool: ToolDef = {
     }
     if (roleId === undefined) throw new ToolUserError('Cần role_id hoặc role_name (xem list_invitations → roles). / role_id or role_name is required.');
     try {
-      const inv = await createInvitation(deps.prisma, principal.user, { email: String(args.email), roleId });
+      const inv = await createInvitation(deps.prisma, principal.user, { email: String(args.email), roleId }, await invitationScope(deps.scope, principal.user));
       const link = `${origin}${inv.path}`;
       const out = wrapData({
         invitation_id: inv.id,

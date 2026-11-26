@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import apiClient from '@/lib/api-client'
-import { apiErrorMessage, useRoleList } from './roles/use-roles-api'
+import { apiErrorMessage } from './roles/use-roles-api'
 
 export interface InvitationRow {
   id: number
@@ -48,7 +48,12 @@ export function InviteByLinkButton({ prefill }: { prefill?: { email: string; rol
   const [email, setEmail] = useState('')
   const [roleId, setRoleId] = useState<number | null>(null)
   const [created, setCreated] = useState<CreatedInvitation | null>(null)
-  const { data: roles = [], isLoading: rolesLoading } = useRoleList(open)
+  // Server lọc theo đúng luật mời (ẩn vai trò Quản trị nếu không phải admin, ẩn vai trò có quyền vượt người mời).
+  const { data: roles = [], isLoading: rolesLoading } = useQuery({
+    queryKey: [...INVITES_KEY, 'roles'],
+    enabled: open,
+    queryFn: async () => (await apiClient.get<{ data: Array<{ id: number; name: string }> }>('/auth/invitations/roles')).data.data,
+  })
 
   const create = useMutation({
     mutationFn: async () =>
@@ -139,7 +144,7 @@ export function InviteByLinkButton({ prefill }: { prefill?: { email: string; rol
                     <option key={r.id} value={r.id}>{r.name}</option>
                   ))}
                 </select>
-                <p className="text-xs text-muted-foreground">Chỉ chọn được vai trò có quyền không vượt quá quyền của bạn.</p>
+                <p className="text-xs text-muted-foreground">Chỉ hiện vai trò có quyền không vượt quá quyền của bạn.</p>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" className="h-11" onClick={close}>Huỷ</Button>

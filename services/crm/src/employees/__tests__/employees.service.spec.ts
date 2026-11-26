@@ -93,7 +93,7 @@ describe('EmployeesService', () => {
     jobTitle: { findUnique: jest.Mock };
     team: { findMany: jest.Mock };
     setting: { findUnique: jest.Mock };
-    userInvitation: { count: jest.Mock };
+    userInvitation: { count: jest.Mock; updateMany: jest.Mock };
   };
 
   beforeEach(async () => {
@@ -119,7 +119,7 @@ describe('EmployeesService', () => {
         typeof arg === 'function' ? (arg as (tx: unknown) => unknown)(prisma) : Promise.all(arg as unknown[])),
       $executeRaw: jest.fn().mockResolvedValue(0),
       setting: { findUnique: jest.fn().mockResolvedValue(null) }, // gói mặc định custom
-      userInvitation: { count: jest.fn().mockResolvedValue(0) },
+      userInvitation: { count: jest.fn().mockResolvedValue(0), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       role: { findUnique: jest.fn() },
       userRole: { deleteMany: jest.fn(), create: jest.fn() },
       jobTitle: { findUnique: jest.fn() },
@@ -549,7 +549,8 @@ describe('EmployeesService', () => {
       const tx = {
         // assertUserSlotAvailable chạy trong transaction: gói mặc định custom ⇒ không giới hạn.
         setting: { findUnique: jest.fn().mockResolvedValue(null) },
-        userInvitation: { count: jest.fn().mockResolvedValue(0) },
+        userInvitation: { count: jest.fn().mockResolvedValue(0), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+        $executeRaw: jest.fn().mockResolvedValue(0),
         user: {
           findUnique: jest.fn(),
           create: jest.fn().mockResolvedValue({ id: 100 }),
@@ -558,7 +559,6 @@ describe('EmployeesService', () => {
         role: { findUnique: jest.fn().mockResolvedValue({ id: 5 }) },
         userRole: { deleteMany: jest.fn().mockResolvedValue({}), create: jest.fn().mockResolvedValue({}) },
         employee: { upsert: jest.fn().mockResolvedValue(makeEmployee()), findUnique: jest.fn().mockResolvedValue(null) },
-        $executeRaw: jest.fn().mockResolvedValue(0),
       };
       prisma.$transaction.mockImplementation(
         async (cb: (t: typeof tx) => unknown) => cb(tx),

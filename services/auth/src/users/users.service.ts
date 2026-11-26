@@ -18,6 +18,8 @@ import {
   makePhoneMasker,
   type AuthUser,
   assertUserSlotAvailable,
+  revokePendingInvitationsBy,
+  revokePendingInvitationsForEmail,
 } from '@trinity/rbac-nest'
 import { AuditLogService } from '../auth/services/audit-log.service'
 import { assertCanManageUser, assertNotLastAdmin, lockAdminMutation } from '../rbac-admin/role-guardrails'
@@ -267,6 +269,8 @@ export class UsersService {
     // Gói dịch vụ: kiểm max_users (người active + lời mời đang chờ) và tạo user trong CÙNG transaction, dưới khoá
     // advisory của công ty — hai lượt tạo đồng thời ở ngưỡng chỉ một lượt qua.
     const user = await this.prisma.$transaction(async (tx) => {
+      // Email đang có lời mời chờ: huỷ lời mời TRƯỚC khi kiểm chỗ (không tính hai chỗ cho một người).
+      await revokePendingInvitationsForEmail(tx, normalizedEmail)
       await assertUserSlotAvailable(tx)
       return tx.user.create({
         data: {
@@ -405,6 +409,7 @@ export class UsersService {
         // Kiểm lại DƯỚI khoá advisory — chống 2 Quản trị bị khoá song song.
         await lockAdminMutation(tx)
         await assertNotLastAdmin(tx, id)
+        await revokePendingInvitationsBy(tx, id)
         if (cascadeReassigned > 0) {
           await this.cascadeReassignManagedUsersTx(tx, id, cascadeReassigned, dto.reassign_to)
         }
@@ -609,6 +614,7 @@ export class UsersService {
           tokens_valid_after: new Date(),
         },
       })
+      await revokePendingInvitationsBy(tx, id)
 
       // Khoá = nghỉ việc → đồng bộ employees.status='resigned' + resigned_at.
       await this.syncEmployeeResignation(id, true, tx)
@@ -710,6 +716,7 @@ export class UsersService {
         )
       }
 
+      await revokePendingInvitationsBy(tx, id)
       await tx.user.update({
         where: { id },
         data: {

@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { ConflictException, ForbiddenException, GoneException, NotFoundException } from '@nestjs/common';
-import { assertEmailAvailableForCurrentCompany, currentCompanyId, isMultiTenant, type PrismaService } from '@trinity/prisma';
+import { assertEmailAvailableForCurrentCompany, currentCompanyId, isMultiTenant, type Prisma, type PrismaService } from '@trinity/prisma';
 import { isSubset, mergeGrants, normalizeGrant, type Grants, type Permission } from '@trinity/rbac';
 import type { AuthUser } from './auth-user';
-import { assertUserSlotAvailable } from './plan-limits';
+import { assertUserSlotAvailable, lockUserSlots } from './plan-limits';
 import type { ScopeService } from './scope.service';
 import { scopeWhere } from './scope-where';
 import { withCompanyPrefix } from './company-token';
@@ -52,6 +52,18 @@ function grantsOfRoles(roles: { grants: { permission: string; scope: string | nu
   );
 }
 
+/** Vai trò người dùng được phép mời vào — đúng luật của `createInvitation` (ẩn vai trò hệ thống nếu không phải Quản trị, ẩn vai trò có quyền vượt mình). */
+export async function invitableRoles(db: PrismaService, actor: AuthUser): Promise<Array<{ id: number; name: string; is_system: boolean }>> {
+  const roles = await db.role.findMany({
+    select: { id: true, name: true, is_system: true, grants: { select: { permission: true, scope: true } } },
+    orderBy: { id: 'asc' },
+    take: 200,
+  });
+  return roles
+    .filter((r) => actor.isAdmin || (!r.is_system && isSubset(grantsOfRoles([r]), actor.grants)))
+    .map(({ id, name, is_system }) => ({ id, name, is_system }));
+}
+
 /** Cùng luật chống leo thang quyền như gán vai trò: không mời được vào vai trò to hơn mình. */
 async function assertCanInviteToRole(db: PrismaService, actor: AuthUser, roleId: number) {
   const role = await db.role.findUnique({
@@ -86,6 +98,8 @@ export async function createInvitation(
   db: PrismaService,
   actor: AuthUser,
   input: { email: string; roleId: number },
+  /** Phạm vi users.manage của người mời (`invitationScope`): mời lại chỉ thay được lời mời trong phạm vi này. */
+  owners: number[] | 'all' = 'all',
 ): Promise<CreatedInvitation> {
   const email = input.email.trim().toLowerCase();
   const role = await assertCanInviteToRole(db, actor, input.roleId);
@@ -100,11 +114,18 @@ export async function createInvitation(
   const token = newInviteToken(isMultiTenant() ? (currentCompanyId() ?? 1) : 1);
   const now = new Date();
   const row = await db.$transaction(async (tx) => {
-    // Mời lại cùng email = thay lời mời cũ (link cũ chết), không giữ hai chỗ.
-    await tx.userInvitation.updateMany({
+    // Khoá TRƯỚC khi đụng lời mời: hai lượt mời cùng email đồng thời không cùng thấy "chưa có lời mời".
+    await lockUserSlots(tx);
+    // Mời lại cùng email = thay lời mời cũ (link cũ chết), không giữ hai chỗ — nhưng chỉ thay được lời mời còn hiệu lực
+    // do người trong phạm vi của mình tạo; của người ngoài phạm vi thì 409 (không huỷ lời mời mình không thấy).
+    const old = await tx.userInvitation.findMany({
       where: { email, accepted_at: null, revoked_at: null },
-      data: { revoked_at: now },
+      select: { id: true, created_by: true, expires_at: true },
     });
+    if (owners !== 'all' && old.some((o) => o.expires_at > now && (o.created_by === null || !owners.includes(o.created_by)))) {
+      throw new ConflictException('Email này đã có lời mời do người khác tạo. Nhờ người đó huỷ lời mời trước khi mời lại.');
+    }
+    if (old.length) await tx.userInvitation.updateMany({ where: { id: { in: old.map((o) => o.id) } }, data: { revoked_at: now } });
     // Đếm người active + lời mời đang chờ dưới khoá advisory của công ty (cùng luật với mọi đường thêm người).
     await assertUserSlotAvailable(tx);
     return tx.userInvitation.create({
@@ -136,6 +157,26 @@ export async function createInvitation(
  */
 export async function invitationScope(scope: ScopeService, actor: AuthUser): Promise<number[] | 'all'> {
   return (await scope.ownerIds(actor, 'users.manage')) ?? [];
+}
+
+/**
+ * Thêm người trực tiếp (tạo user / nhân viên) cho một email đang có lời mời chờ: lời mời đó hết ý nghĩa, huỷ nó TRONG
+ * transaction thêm người và TRƯỚC khi kiểm chỗ — nếu không email đó tính hai chỗ (người mới + lời mời cũ).
+ */
+export async function revokePendingInvitationsForEmail(
+  tx: Pick<Prisma.TransactionClient, 'userInvitation' | '$executeRaw'>,
+  email: string,
+): Promise<void> {
+  await lockUserSlots(tx);
+  await tx.userInvitation.updateMany({
+    where: { email: email.trim().toLowerCase(), accepted_at: null, revoked_at: null },
+    data: { revoked_at: new Date() },
+  });
+}
+
+/** Người mời bị khoá/xoá: các lời mời còn chờ của họ chết cùng (không để link do tài khoản đã mất quyền tạo còn dùng được). */
+export async function revokePendingInvitationsBy(db: Pick<Prisma.TransactionClient, 'userInvitation'>, userId: number): Promise<void> {
+  await db.userInvitation.updateMany({ where: { created_by: userId, accepted_at: null, revoked_at: null }, data: { revoked_at: new Date() } });
 }
 
 /** Lời mời gần đây (mới nhất trước). `pendingOnly` = chỉ cái còn hiệu lực; `owners` = phạm vi theo người tạo. */

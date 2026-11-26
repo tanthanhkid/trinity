@@ -9,9 +9,10 @@ jest.mock('@trinity/rbac-nest', () => ({
   listInvitations: jest.fn(),
   revokeInvitation: jest.fn(),
   invitationScope: jest.fn().mockResolvedValue('all'),
+  invitableRoles: jest.fn(),
 }));
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const rbac = require('@trinity/rbac-nest') as { createInvitation: jest.Mock; listInvitations: jest.Mock; revokeInvitation: jest.Mock; invitationScope: jest.Mock };
+const rbac = require('@trinity/rbac-nest') as { createInvitation: jest.Mock; listInvitations: jest.Mock; revokeInvitation: jest.Mock; invitationScope: jest.Mock; invitableRoles: jest.Mock };
 
 const actor = { userId: 7, email: 'chu@x', isAdmin: false, grants: {} };
 const scope = { ownerIds: jest.fn() };
@@ -32,7 +33,7 @@ describe('create_invitation', () => {
   it('trả invite_link đầy đủ theo địa chỉ gốc, bằng quyền (đã giới hạn cho AI) của người dùng', async () => {
     rbac.createInvitation.mockResolvedValue({ id: 5, email: 'nv@x.vn', role_name: 'Nhân viên', expires_at: new Date('2026-12-03T00:00:00Z'), path: '/invite/c3.AbCdEf_-123' });
     const r = (await createInvitationTool.run({ email: 'nv@x.vn', role_id: 2 }, ctx(prisma))).structured as { data: Record<string, unknown> };
-    expect(rbac.createInvitation).toHaveBeenCalledWith(prisma, actor, { email: 'nv@x.vn', roleId: 2 });
+    expect(rbac.createInvitation).toHaveBeenCalledWith(prisma, actor, { email: 'nv@x.vn', roleId: 2 }, 'all');
     expect(r.data.invite_link).toBe('https://crm.example/invite/c3.AbCdEf_-123');
     expect(r.data.expires_at).toBe('2026-12-03T00:00:00.000Z');
   });
@@ -68,7 +69,7 @@ describe('create_invitation', () => {
 describe('list_invitations', () => {
   it('liệt kê không kèm link/token, kèm vai trò mời được', async () => {
     rbac.listInvitations.mockResolvedValue([{ id: 1, email: 'a@x.vn', role_id: 2, role_name: 'Nhân viên', status: 'pending', expires_at: new Date('2026-12-01T00:00:00Z'), created_at: new Date('2026-11-24T00:00:00Z') }]);
-    prisma.role.findMany.mockResolvedValue([{ id: 2, name: 'Nhân viên', is_system: false }]);
+    rbac.invitableRoles.mockResolvedValue([{ id: 2, name: 'Nhân viên', is_system: false }]);
     const r = (await listInvitationsTool.run({}, ctx(prisma))).structured as { data: { invitations: Array<Record<string, unknown>>; roles: unknown[] } };
     expect(rbac.listInvitations).toHaveBeenCalledWith(prisma, { pendingOnly: true, owners: 'all' });
     expect(r.data.invitations[0]).toMatchObject({ email: 'a@x.vn', role: 'Nhân viên', status: 'pending' });
@@ -80,7 +81,7 @@ describe('list_invitations', () => {
   it('phạm vi hẹp của users.manage được chuyển xuống', async () => {
     rbac.invitationScope.mockResolvedValueOnce([7, 8]);
     rbac.listInvitations.mockResolvedValue([]);
-    prisma.role.findMany.mockResolvedValue([]);
+    rbac.invitableRoles.mockResolvedValue([]);
     await listInvitationsTool.run({}, ctx(prisma));
     expect(rbac.listInvitations).toHaveBeenLastCalledWith(prisma, { pendingOnly: true, owners: [7, 8] });
   });

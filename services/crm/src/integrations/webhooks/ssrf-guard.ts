@@ -3,7 +3,7 @@ import { lookup as dnsLookup, type LookupAddress } from 'node:dns';
 import { promises as dnsPromises } from 'node:dns';
 
 /**
- * Chống SSRF cho webhook ra. Máy chủ thường chạy chung Postgres/Redis ⇒ một URL trỏ vào
+ * Chống SSRF cho webhook ra. Máy chủ thường chạy chung Postgres ⇒ một URL trỏ vào
  * 127.0.0.1/10.x/169.254.169.254 là đường vào hạ tầng nội bộ.
  *
  * Phòng thủ:

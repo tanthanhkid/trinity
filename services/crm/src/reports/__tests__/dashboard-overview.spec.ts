@@ -145,7 +145,7 @@ describe('DashboardOverviewService', () => {
       contact: { count: jest.fn().mockResolvedValue(contactCount) },
       deal: deals,
     };
-    const redis = { get: jest.fn().mockResolvedValue(null), set: jest.fn() };
+    const redis = { get: jest.fn().mockReturnValue(undefined), set: jest.fn() };
     const scope = mkScope({ 'reports.overview': 'all' });
     return { redis, prisma, svc: new DashboardOverviewService(prisma as never, scope, redis as never) };
   };
@@ -163,7 +163,7 @@ describe('DashboardOverviewService', () => {
     expect(r.opportunities_by_month).toEqual([1, 1, 1, 1, 1, 1]);
     expect(r.opportunities.new_this_month).toBe(1);
     expect(r.scope_label).toBe('toàn hệ thống');
-    expect(redis.set).toHaveBeenCalledWith(expect.stringContaining('dashboard:overview:v3:'), expect.any(String), 'EX', 300);
+    expect(redis.set).toHaveBeenCalledWith(expect.stringContaining('dashboard:overview:v3:'), expect.any(String), 300);
   });
 
   it('cộng đúng doanh thu tháng, bỏ deal value null', async () => {
@@ -250,7 +250,7 @@ describe('bộ lọc Tổng quan', () => {
       contact: { count: jest.fn().mockResolvedValue(0) },
       deal: { groupBy: jest.fn().mockResolvedValue([]), findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
     };
-    const redis = { get: jest.fn().mockResolvedValue(null), set: jest.fn() };
+    const redis = { get: jest.fn().mockReturnValue(undefined), set: jest.fn() };
     const svc = new DashboardOverviewService(p as never, mkScope({ 'reports.overview': 'all' }), redis as never);
     const r = await svc.getOverview(ALL, { team_lead_id: 20 });
     expect(r.scope_label).toBe('theo bộ lọc');

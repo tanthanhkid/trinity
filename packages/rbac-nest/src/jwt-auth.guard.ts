@@ -113,7 +113,7 @@ export class JwtAuthGuard implements CanActivate {
    * Load chỉ những field cần thiết để gate request: deleted_at, status. Mỗi
    * request thêm 1 query DB — chấp nhận trade-off cho security (revoke token
    * tức thì khi soft-delete / lock user). Nếu performance critical, caller có
-   * thể bọc Redis cache TTL ngắn (60s) ở tầng trên.
+   * thể bọc cache TTL ngắn (60s) ở tầng trên.
    */
   private async loadAccountStatus(
     userId: number,

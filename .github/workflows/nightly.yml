@@ -71,7 +71,7 @@ jobs:
           (cd services/auth && npx jest --testRegex 'users-manager-cache-invalidation\.spec\.ts$' --runInBand)
 
   e2e:
-    # Dựng cả hệ thống (Postgres + Redis + monolith + web) rồi chạy Playwright (smoke + rbac-ui + rbac-api) bằng tài khoản
+    # Dựng cả hệ thống (Postgres + monolith + web) rồi chạy Playwright (smoke + rbac-ui + rbac-api) bằng tài khoản
     # quản trị seed. Các role khác thiếu env nên tự bỏ qua (đã có trong thiết kế bộ e2e). Chỉ đọc, không ghi dữ liệu.
     name: E2E Playwright (smoke)
     runs-on: ubuntu-latest
@@ -90,18 +90,8 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
     env:
       DATABASE_URL: postgresql://test:test@localhost:5432/trinity_e2e
-      REDIS_URL: redis://localhost:6379/0
       SEED_ADMIN_EMAIL: admin@example.com
       SEED_ADMIN_PASSWORD: ci-e2e-admin-password-not-real
       CORS_ORIGIN: http://localhost:3000

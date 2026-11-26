@@ -58,10 +58,6 @@ describeDb('ScopeService (Postgres thật)', () => {
     service = new ScopeService(prisma as unknown as PrismaService, cache)
   })
 
-  afterEach(async () => {
-    await cache.onModuleDestroy()
-  })
-
   it("scope 'own' → chỉ chính mình", async () => {
     const user = mkUser(ids.a, { 'contacts.view': 'own' })
     await expect(service.ownerIds(user, 'contacts.view')).resolves.toEqual([ids.a])

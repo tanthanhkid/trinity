@@ -25,7 +25,7 @@ const CACHE_KEY = Symbol.for('trinity.monolith.serverless.handler')
 type Cache = { [CACHE_KEY]?: Promise<ServerlessHandler> }
 
 async function createHandler(): Promise<ServerlessHandler> {
-  // Có gọi `getHandler()` là đang ở serverless — để mọi module tự gate timer/Redis/… theo cùng một cờ.
+  // Có gọi `getHandler()` là đang ở serverless — để mọi module tự gate timer/Socket.IO/… theo cùng một cờ.
   process.env.TRINITY_RUNTIME ??= 'serverless'
   initMonitoring()
 

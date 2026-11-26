@@ -14,10 +14,6 @@ describe('PermissionService', () => {
     service = new PermissionService(prisma as any, cache)
   })
 
-  afterEach(async () => {
-    await cache.onModuleDestroy()
-  })
-
   it('user giữ vai trò is_system → isAdmin true, mọi quyền scoped=all, không scoped=true', async () => {
     prisma.userRole.findMany.mockResolvedValue([
       { role: { is_system: true, grants: [] } },

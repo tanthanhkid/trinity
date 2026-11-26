@@ -2,7 +2,6 @@
 
 ```
 browser ──► web (Next.js :3000) ──/api/v1/*──► api (NestJS monolith :4000) ──► PostgreSQL (db: trinity)
-                                               └──► Redis (db 0: cache, rate limits, realtime)
 ```
 
 ## Repository layout

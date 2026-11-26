@@ -4,7 +4,7 @@ import type { Grants } from '@trinity/rbac';
 import { ScopeService } from '@trinity/rbac-nest';
 import type { AuthUser } from '@trinity/rbac-nest';
 import { DashboardStatsTodayService, CACHE_TTL_SEC } from '../dashboard-stats-today.service';
-import { REDIS_CLIENT } from '../../common/redis.provider';
+import { ReadCache } from '../../common/read-cache';
 
 /**
  * RBAC quyền + phạm vi — mỗi khối kiểm quyền NGUỒN riêng
@@ -15,7 +15,7 @@ const mockPrisma = {
   contact: { count: jest.fn() },
 };
 
-const mockRedis = {
+const mockCache = {
   get: jest.fn(),
   set: jest.fn(),
 };
@@ -40,7 +40,7 @@ describe('DashboardStatsTodayService', () => {
         DashboardStatsTodayService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: ScopeService, useValue: scope },
-        { provide: REDIS_CLIENT, useValue: mockRedis },
+        { provide: ReadCache, useValue: mockCache },
       ],
     }).compile();
     return module.get<DashboardStatsTodayService>(DashboardStatsTodayService);
@@ -48,8 +48,8 @@ describe('DashboardStatsTodayService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRedis.get.mockResolvedValue(null);
-    mockRedis.set.mockResolvedValue('OK');
+    mockCache.get.mockReturnValue(undefined);
+    mockCache.set.mockReturnValue(undefined);
     mockPrisma.contact.count.mockResolvedValue(0);
   });
 
@@ -139,8 +139,43 @@ describe('DashboardStatsTodayService', () => {
     });
   });
 
+  describe('ReadCache thật + TRINITY_DISABLE_READ_CACHE', () => {
+    async function build(scope: ScopeService) {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [DashboardStatsTodayService, ReadCache, { provide: PrismaService, useValue: mockPrisma }, { provide: ScopeService, useValue: scope }],
+      }).compile();
+      return module.get(DashboardStatsTodayService);
+    }
+    const OLD = process.env.TRINITY_DISABLE_READ_CACHE;
+    afterEach(() => {
+      if (OLD === undefined) delete process.env.TRINITY_DISABLE_READ_CACHE;
+      else process.env.TRINITY_DISABLE_READ_CACHE = OLD;
+    });
+
+    it('mặc định: lần gọi thứ hai lấy từ cache, không đọc DB', async () => {
+      delete process.env.TRINITY_DISABLE_READ_CACHE;
+      const service = await build(mkScope({ 'contacts.view': [1], 'reports.overview': [1] }));
+      const user = mkUser({ 'contacts.view': 'own', 'reports.overview': 'own' }, 1);
+      await service.getStats(user);
+      const first = mockPrisma.contact.count.mock.calls.length;
+      expect(first).toBeGreaterThan(0);
+      await service.getStats(user);
+      expect(mockPrisma.contact.count.mock.calls.length).toBe(first);
+    });
+
+    it('bật cờ: hai lần gọi liên tiếp đều đọc DB', async () => {
+      process.env.TRINITY_DISABLE_READ_CACHE = '1';
+      const service = await build(mkScope({ 'contacts.view': [1], 'reports.overview': [1] }));
+      const user = mkUser({ 'contacts.view': 'own', 'reports.overview': 'own' }, 1);
+      await service.getStats(user);
+      const first = mockPrisma.contact.count.mock.calls.length;
+      await service.getStats(user);
+      expect(mockPrisma.contact.count.mock.calls.length).toBe(2 * first);
+    });
+  });
+
   describe('edge cases', () => {
-    it('Redis cache hit: không gọi prisma', async () => {
+    it('cache hit: không gọi prisma', async () => {
       const scope = mkScope({ 'contacts.view': [1], 'reports.overview': [1] });
       const service = await buildService(scope);
       const user = mkUser({ 'contacts.view': 'own', 'reports.overview': 'own' }, 1);
@@ -149,7 +184,7 @@ describe('DashboardStatsTodayService', () => {
         team_size: null,
         scope_label: 'Của mình',
       };
-      mockRedis.get.mockResolvedValue(JSON.stringify(cachedData));
+      mockCache.get.mockReturnValue(JSON.stringify(cachedData));
 
       const result = await service.getStats(user);
 
@@ -163,10 +198,9 @@ describe('DashboardStatsTodayService', () => {
       const user = mkUser({ 'contacts.view': 'own', 'reports.overview': 'own' }, 1);
       await service.getStats(user);
 
-      expect(mockRedis.set).toHaveBeenCalledWith(
+      expect(mockCache.set).toHaveBeenCalledWith(
         expect.stringContaining('v22'),
         expect.any(String),
-        'EX',
         CACHE_TTL_SEC,
       );
       expect(CACHE_TTL_SEC).toBe(15);

@@ -13,7 +13,7 @@ docker compose up --build
 
 What happens:
 
-1. `postgres` and `redis` start.
+1. `postgres` starts.
 2. `migrate` applies the Prisma migrations and runs the seed: the system role, the setting options,
    the first admin account and (only when you set `SEED_DEMO_DATA=true`; default `false`) a few demo contacts with obviously fake data.
 3. `api` (NestJS monolith, port 4000) and `web` (Next.js, port 3000) start.
@@ -31,10 +31,10 @@ Stop and remove everything (including data): `docker compose down -v`.
 
 ## Option 2 — Local development
 
-Requirements: Node 22 (`.nvmrc`), pnpm 10, PostgreSQL 16, Redis 7.
+Requirements: Node 22 (`.nvmrc`), pnpm 10, PostgreSQL 16.
 
 ```bash
-cp .env.example .env            # edit DATABASE_URL / REDIS_URL / secrets
+cp .env.example .env            # edit DATABASE_URL / secrets
 set -a; source .env; set +a     # the apps read process.env
 pnpm install
 pnpm db:generate

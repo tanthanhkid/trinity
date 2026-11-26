@@ -76,10 +76,6 @@ describeDb('UsersService.update() → invalidate cache ScopeService (Postgres th
     )
   })
 
-  afterEach(async () => {
-    await cache.onModuleDestroy()
-  })
-
   it("đổi manager_id → ownerIds(scope='team') của manager mới thấy NGAY, không cần đợi TTL", async () => {
     const manager = mkUser(ids.manager)
 

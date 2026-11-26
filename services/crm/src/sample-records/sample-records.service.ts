@@ -1,8 +1,7 @@
-import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '@trinity/prisma';
-import type Redis from 'ioredis';
-import { REDIS_CLIENT } from '../common/redis.provider';
+import { PrismaService, tenantKey } from '@trinity/prisma';
+import { ReadCache } from '../common/read-cache';
 
 /** 1 dòng `settings.sample_records` (JSON) giữ id các bản ghi MẪU còn lại — không cần migration, xoá xong thì xoá dòng này. */
 export const SAMPLE_RECORDS_KEY = 'sample_records';
@@ -43,7 +42,7 @@ export class SampleRecordsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Optional() @Inject(REDIS_CLIENT) private readonly redis?: Redis,
+    @Optional() private readonly cache?: ReadCache,
   ) {}
 
   async read(db: Pick<Prisma.TransactionClient, 'setting'> = this.prisma): Promise<SampleIds | null> {
@@ -172,18 +171,12 @@ export class SampleRecordsService {
     return { contacts: cIds.filter((id) => !cRef.has(id)), records: rIds.filter((id) => !rRef.has(id)) };
   }
 
-  /** Danh sách khách lưu tổng số trong Redis 60 giây; xoá khách mẫu thì bỏ cache để tổng số không còn đếm cả mẫu. Lỗi Redis bỏ qua. */
+  /** Danh sách khách lưu tổng số trong `ReadCache` 60 giây; xoá khách mẫu thì bỏ cache (của công ty này) để tổng số không còn đếm cả mẫu. */
   async dropContactCountCache(): Promise<void> {
     try {
-      if (!this.redis || typeof this.redis.scan !== 'function') return;
-      let cursor = '0';
-      do {
-        const [next, keys] = await this.redis.scan(cursor, 'MATCH', '*crm:contacts:count:*', 'COUNT', 200);
-        if (keys.length) await this.redis.del(...keys);
-        cursor = next;
-      } while (cursor !== '0');
-    } catch (err) {
-      this.logger.warn(`xoá cache tổng số khách lỗi (bỏ qua): ${(err as Error)?.message}`);
+      this.cache?.deletePrefix(tenantKey('crm:contacts:count:'));
+    } catch {
+      // Không có công ty trong ngữ cảnh ⇒ không có khoá nào của công ty để xoá; cache chỉ là tăng tốc nên bỏ qua.
     }
   }
 

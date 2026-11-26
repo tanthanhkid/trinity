@@ -153,14 +153,15 @@ describe("<SettingsIntegrations> — Nhật ký tích hợp", () => {
 })
 
 describe("sectionFromParams — quay về từ OAuth mở đúng mục ở trang Kết nối", () => {
-  it("muc ưu tiên; facebook/zalo_oa/ket_noi suy ra mục; google (Sheets đã gỡ) về tổng quan; không có gì ⇒ tổng quan", async () => {
+  it("muc ưu tiên; facebook/zalo_oa suy ra mục; google (Sheets đã gỡ) về tổng quan; không có gì ⇒ tổng quan", async () => {
     const { sectionFromParams } = await import("@/app/(dashboard)/settings/_components/settings-integrations")
     const q = (s: string) => sectionFromParams(new URLSearchParams(s))
     expect(q("muc=payments&google=connected")).toBe("payments")
     expect(q("google=connected")).toBe("overview")
     expect(q("facebook=connected&pages=2")).toBe("facebook")
     expect(q("zalo_oa=connected")).toBe("zalo-oa")
-    expect(q("ket_noi=ok")).toBe("ban-hang")
+    // Phần mềm bán hàng đã gỡ (G06): link cũ ket_noi=… / muc=ban-hang về tổng quan.
+    expect(q("ket_noi=ok")).toBe("overview")
     expect(q("")).toBe("overview")
   })
 })

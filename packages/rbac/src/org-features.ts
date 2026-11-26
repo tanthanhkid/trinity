@@ -30,7 +30,6 @@ export const ORG_FEATURES = {
   pos: { label: 'Bán hàng (POS)', group: 'sales', description: 'Bán hàng tại quầy, in hoá đơn.' },
   payments: { label: 'Thanh toán & đối soát', group: 'sales', description: 'Đối soát yêu cầu thanh toán cũ: tự khớp tiền về qua SePay, VNPay, MoMo (không tạo yêu cầu mới).' },
   online_store: { label: 'Trang bán hàng', group: 'sales', description: 'Trang bán hàng online: khách đặt COD hoặc chuyển khoản QR, đơn vào thẳng CRM.' },
-  commerce_connectors: { label: 'Kết nối bán hàng', group: 'sales', description: 'Đồng bộ khách, đơn, hàng hoá từ KiotViet, Sapo, iPOS, WooCommerce, Shopee, Lazada.' },
   management: { label: 'Quản lý nhân sự', group: 'people', description: 'Nhân viên, phòng ban, team, chức danh, hợp đồng, tuyển dụng.' },
   attendance: { label: 'Chấm công', group: 'people', description: 'Nhân viên tự chấm công, quản lý ngày công.' },
   payroll: { label: 'Lương', group: 'people', description: 'Bảng lương và phiếu lương.' },
@@ -141,7 +140,7 @@ export const DEFAULT_SIGNUP_PLAN: PlanKey = 'mac_dinh'
  * Khoá công tắc của tính năng ĐÃ GỠ. API và AI nhận rồi bỏ qua (không lỗi) trong một bản phát hành để client cũ không
  * vỡ; JSON `org_features` cũ có khoá này cũng bị bỏ qua. Không dùng lại các khoá này cho tính năng mới.
  */
-export const RETIRED_ORG_FEATURE_KEYS: readonly string[] = ['google_sheets']
+export const RETIRED_ORG_FEATURE_KEYS: readonly string[] = ['google_sheets', 'commerce_connectors']
 
 export function isRetiredOrgFeatureKey(k: string): boolean {
   return RETIRED_ORG_FEATURE_KEYS.includes(k)

@@ -3,7 +3,7 @@ import apiClient from "@/lib/api-client"
 
 /** Khớp `ConnectorStatus` của BE (`GET /connectors`). */
 export interface ConnectorStatus {
-  provider: "sepay" | "vnpay" | "momo" | "kiotviet" | "sapo" | "misa" | "woocommerce" | "shopee" | "lazada"
+  provider: "sepay" | "vnpay" | "momo"
   connected: boolean
   status: "not_connected" | "active" | "error"
   settings: {

@@ -17,7 +17,10 @@ import { CompanyRef, DEFAULT_COMPANY, companyRef, currentCompany, isMultiTenant,
  * same email / Page fail at the database.
  */
 
-export type RouteKind = 'facebook_page' | 'zalo_oa' | 'oauth_state' | 'shopee_shop' | 'lazada_seller' | 'store_slug'
+export type RouteKind = 'facebook_page' | 'zalo_oa' | 'oauth_state' | 'store_slug'
+
+/** Mọi loại route còn dùng. Dòng mang loại khác (của kết nối đã gỡ, G06) bị dọn lúc khởi động (`backfillSettingRoutes`). */
+export const ROUTE_KINDS: readonly RouteKind[] = ['facebook_page', 'zalo_oa', 'oauth_state', 'store_slug']
 
 export interface CompanyRow {
   id: number
@@ -136,45 +139,34 @@ async function doEnsurePlatform(): Promise<void> {
 }
 
 /**
- * Routes that predate the claim rules: store slugs and marketplace shops/sellers already connected in a company
- * schema are registered (first company by id wins), so a newer company cannot take them over. Idempotent; a
- * schema whose tables or JSON are unreadable is skipped.
+ * Store slugs that predate the claim rules are registered (first company by id wins), so a newer company cannot take
+ * them over; routes of kinds no longer used (connections removed in G06) are deleted. Idempotent; a schema whose
+ * tables or JSON are unreadable is skipped.
  */
 export async function backfillSettingRoutes(db: ReturnType<typeof getBaseClient> = getBaseClient()): Promise<void> {
+  await db.$executeRawUnsafe(
+    `DELETE FROM platform.company_routes WHERE kind <> ALL($1::text[])`,
+    [...ROUTE_KINDS],
+  )
   const companies = await db.$queryRawUnsafe<Array<{ id: number; schema_name: string }>>(
     `SELECT id, schema_name FROM platform.companies ORDER BY id`,
   )
   for (const c of companies) {
     const s = quoteIdent(c.schema_name)
-    const statements: Array<[string, string]> = [
-      [
-        'store_slug',
-        `SELECT lower(trim(((value::json)->>'slug'))) AS ext FROM ${s}.settings WHERE key = 'online_store'`,
-      ],
-      [
-        'shopee_shop',
-        `SELECT (settings->>'shop_id') AS ext FROM ${s}.connector_accounts WHERE provider = 'shopee' AND status <> 'disconnected'`,
-      ],
-      [
-        'lazada_seller',
-        `SELECT (settings->>'seller_id') AS ext FROM ${s}.connector_accounts WHERE provider = 'lazada' AND status <> 'disconnected'`,
-      ],
-    ]
-    for (const [kind, select] of statements) {
-      try {
-        // Orphans first: routes this company holds but no longer backs with an active connection / store.
-        await db.$executeRawUnsafe(
-          `DELETE FROM platform.company_routes r WHERE r.kind = '${kind}' AND r.company_id = ${Number(c.id)} AND r.created_at < now() - interval '2 minutes'
-             AND NOT EXISTS (${backedBySql(s, kind as 'shopee_shop' | 'lazada_seller' | 'store_slug').replace('= $1', '= r.external_id')})`,
-        )
-        await db.$executeRawUnsafe(
-          `INSERT INTO platform.company_routes (kind, external_id, company_id)
-             SELECT '${kind}', ext, ${Number(c.id)} FROM (${select}) q WHERE ext IS NOT NULL AND ext <> ''
-           ON CONFLICT (kind, external_id) DO NOTHING`,
-        )
-      } catch {
-        // table or column missing in this schema (not migrated yet): nothing to backfill
-      }
+    const select = `SELECT lower(trim(((value::json)->>'slug'))) AS ext FROM ${s}.settings WHERE key = 'online_store'`
+    try {
+      // Orphans first: slugs this company holds but no longer backs with its store.
+      await db.$executeRawUnsafe(
+        `DELETE FROM platform.company_routes r WHERE r.kind = 'store_slug' AND r.company_id = ${Number(c.id)} AND r.created_at < now() - interval '2 minutes'
+           AND NOT EXISTS (${backedBySql(s).replace('= $1', '= r.external_id')})`,
+      )
+      await db.$executeRawUnsafe(
+        `INSERT INTO platform.company_routes (kind, external_id, company_id)
+           SELECT 'store_slug', ext, ${Number(c.id)} FROM (${select}) q WHERE ext IS NOT NULL AND ext <> ''
+         ON CONFLICT (kind, external_id) DO NOTHING`,
+      )
+    } catch {
+      // table or column missing in this schema (not migrated yet): nothing to backfill
     }
   }
 }
@@ -380,16 +372,15 @@ export async function rememberOauthState(state: string): Promise<void> {
 }
 
 /**
- * Claims `externalId` (a marketplace shop / seller id whose push webhooks arrive on one shared URL, or a store
- * slug) for the current company. First company wins: a second company claiming the same id is refused, so nobody
- * can take over another company's webhooks or public store address. Re-claiming your own id is a no-op.
+ * Claims a store slug for the current company. First company wins: a second company claiming the same slug is refused,
+ * so nobody can take over another company's public store address. Re-claiming your own slug is a no-op.
  */
-export async function claimCompanyRoute(kind: 'shopee_shop' | 'lazada_seller' | 'store_slug', externalId: string): Promise<void> {
+export async function claimCompanyRoute(kind: 'store_slug', externalId: string): Promise<void> {
   if (!isMultiTenant() || !externalId) return
   const c = currentCompany()
   if (!c) return
   await ensurePlatform()
-  const id = kind === 'store_slug' ? externalId.slice(0, 255).toLowerCase() : externalId.slice(0, 255)
+  const id = externalId.slice(0, 255).toLowerCase()
   const db = getBaseClient()
   const insert = () =>
     db.$executeRawUnsafe(
@@ -401,9 +392,10 @@ export async function claimCompanyRoute(kind: 'shopee_shop' | 'lazada_seller' | 
     )
   await insert()
   let owner = await companyIdForRoute(kind, id)
-  if (owner !== null && owner !== c.id && !(await holderStillUsesRoute(owner, kind, id))) {
-    // The holder no longer has an active connection / store with this id (an old "last company wins" route, a disconnect that
-    // predates release, a renamed slug): it is an orphan and must not lock out the real owner. Atomic: only if still that holder's, and not claimed in the last 2 minutes (a claim is made just before its connection/store row is saved).
+  if (owner !== null && owner !== c.id && !(await holderStillUsesRoute(owner, id))) {
+    // The holder no longer has a store with this slug (an old "last company wins" route, a renamed slug): it is an
+    // orphan and must not lock out the real owner. Atomic: only if still that holder's, and not claimed in the last 2
+    // minutes (a claim is made just before the store row is saved).
     await db.$executeRawUnsafe(
       `UPDATE platform.company_routes SET company_id = $4, created_at = now() WHERE kind = $1 AND external_id = $2 AND company_id = $3
           AND created_at < now() - interval '2 minutes'`,
@@ -415,45 +407,32 @@ export async function claimCompanyRoute(kind: 'shopee_shop' | 'lazada_seller' | 
     owner = await companyIdForRoute(kind, id)
   }
   if (owner !== null && owner !== c.id) {
-    throw new ConflictException(
-      kind === 'store_slug'
-        ? 'Địa chỉ trang bán hàng này đã có công ty khác dùng — chọn địa chỉ khác'
-        : kind === 'shopee_shop'
-          ? 'Gian hàng Shopee này đã được một công ty khác kết nối với Trinity'
-          : 'Tài khoản Lazada này đã được một công ty khác kết nối với Trinity',
-    )
+    throw new ConflictException('Địa chỉ trang bán hàng này đã có công ty khác dùng — chọn địa chỉ khác')
   }
 }
 
-/** SQL: does schema `s` hold an active connection / store with this id? (`$1` = id) */
-function backedBySql(s: string, kind: 'shopee_shop' | 'lazada_seller' | 'store_slug'): string {
-  switch (kind) {
-    case 'shopee_shop':
-      return `SELECT 1 FROM ${s}.connector_accounts WHERE provider = 'shopee' AND status <> 'disconnected' AND settings->>'shop_id' = $1`
-    case 'lazada_seller':
-      return `SELECT 1 FROM ${s}.connector_accounts WHERE provider = 'lazada' AND status <> 'disconnected' AND settings->>'seller_id' = $1`
-    case 'store_slug':
-      return `SELECT 1 FROM ${s}.settings WHERE key = 'online_store' AND lower(trim((value::json)->>'slug')) = $1`
-  }
+/** SQL: does schema `s` hold a store with this slug? (`$1` = slug) */
+function backedBySql(s: string): string {
+  return `SELECT 1 FROM ${s}.settings WHERE key = 'online_store' AND lower(trim((value::json)->>'slug')) = $1`
 }
 
 /**
- * True unless the holder company is gone or provably has no active connection/store with this id. Anything unreadable
- * (missing table, bad JSON) counts as "still uses it": never take a route over on doubt.
+ * True unless the holder company is gone or provably has no store with this slug. Anything unreadable (missing table,
+ * bad JSON) counts as "still uses it": never take a route over on doubt.
  */
-async function holderStillUsesRoute(holderId: number, kind: 'shopee_shop' | 'lazada_seller' | 'store_slug', id: string): Promise<boolean> {
+async function holderStillUsesRoute(holderId: number, id: string): Promise<boolean> {
   const rows = await getBaseClient().$queryRawUnsafe<Array<{ schema_name: string }>>(`SELECT schema_name FROM platform.companies WHERE id = $1`, holderId)
   if (!rows[0]) return false
   try {
-    const hit = await getBaseClient().$queryRawUnsafe<unknown[]>(backedBySql(quoteIdent(rows[0].schema_name), kind), id)
+    const hit = await getBaseClient().$queryRawUnsafe<unknown[]>(backedBySql(quoteIdent(rows[0].schema_name)), id)
     return hit.length > 0
   } catch {
     return true
   }
 }
 
-/** Releases a route this company holds (store slug changed, marketplace shop disconnected). Never touches another company's route. */
-export async function releaseCompanyRoute(kind: 'shopee_shop' | 'lazada_seller' | 'store_slug', externalId: string): Promise<void> {
+/** Releases a store slug this company holds (slug changed). Never touches another company's route. */
+export async function releaseCompanyRoute(kind: 'store_slug', externalId: string): Promise<void> {
   if (!isMultiTenant() || !externalId) return
   const c = currentCompany()
   if (!c) return
@@ -461,7 +440,7 @@ export async function releaseCompanyRoute(kind: 'shopee_shop' | 'lazada_seller' 
   await getBaseClient().$executeRawUnsafe(
     `DELETE FROM platform.company_routes WHERE kind = $1 AND external_id = $2 AND company_id = $3`,
     kind,
-    externalId.slice(0, 255),
+    externalId.slice(0, 255).toLowerCase(),
     c.id,
   )
 }

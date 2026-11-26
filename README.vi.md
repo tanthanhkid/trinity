@@ -51,7 +51,6 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 | **Tự động hoá Fanpage** | Luật bình luận theo Page hoặc từng bài (kể cả ảnh bìa): tự trả lời, ẩn bình luận có số điện thoại, nhắn riêng, người bình luận tự gắn với khách hàng; link và mã QR mở thẳng cuộc chat; kịch bản Messenger; gửi tin hàng loạt trong cửa sổ 24 giờ. Luật, kịch bản, gửi hàng loạt cũng tạo và sửa được từ trợ lý AI |
 | **Đăng đa kênh** | Soạn một lần, đăng ngay hoặc hẹn giờ lên Fanpage Facebook; có lịch nội dung, thư viện ảnh/video, số liệu bài. Lưu nháp, hàng đợi theo khung giờ cố định mỗi tuần, bộ hashtag và chữ ký dùng lại, tự gắn UTM vào liên kết, xem trước bài trên từng kênh, nhập nhiều bài từ CSV, bài lặp lại (ngày, tuần, tháng). Video lớn tải lên từng phần; bài bị xoá thẳng trên mạng tự hiện là đã xoá. Mọi việc cũng làm được qua trợ lý AI |
 | **Thanh toán** | Đối soát yêu cầu thanh toán cũ: tiền về qua SePay, VNPay, MoMo tự khớp vào yêu cầu (không tạo yêu cầu mới) |
-| **Kết nối bán hàng** | KiotViet, Sapo, WooCommerce, MISA, Shopee, Lazada: đồng bộ về CRM những gì API từng bên cho (khách, đơn và/hoặc hàng hoá); khách được ghép theo số điện thoại khi nền tảng cung cấp (Shopee che số người mua). Phạm vi từng connector ở [status.md](docs/integrations/status.md) |
 | **Trang bán hàng** | Trang bán online `/s/<tên>` (hoặc tên miền phụ), 3 giao diện, giỏ hàng, COD hoặc chuyển khoản QR; đơn và người mua vào thẳng CRM. Mặc định tắt |
 | **CRM** | Danh bạ với nguồn, giai đoạn, trạng thái do bạn tự đặt, Kanban, mã bản ghi chung và gắn thẻ `@` giữa các màn, bảng tin |
 | **Bán hàng** | Sản phẩm, POS |
@@ -74,9 +73,8 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 | Zalo OA | Nhận tin đã thử thật; trả lời + đọc hồ sơ cần OA gói Tier (chưa thử) |
 | VNPay | Trọn vòng trên sandbox VNPay |
 | MoMo | Môi trường test của MoMo |
-| WooCommerce | Trọn vòng với một cửa hàng thử |
 | n8n | Workflow mẫu chạy thật với máy chủ thử |
-| SePay, KiotViet, Sapo, MISA, Shopee, Lazada, Zapier, Make | Connector có sẵn, chưa thử với tài khoản thật |
+| SePay, Zapier, Make | Connector có sẵn, chưa thử với tài khoản thật |
 | iPOS | Chưa làm — chờ iPOS cấp API đối tác |
 
 Chi tiết từng connector: [docs/integrations/status.md](docs/integrations/status.md). Việc sắp làm: [ROADMAP.md](ROADMAP.md).

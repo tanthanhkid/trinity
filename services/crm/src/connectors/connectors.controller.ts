@@ -4,17 +4,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 import { Can, CurrentUser, Public, isPrivateIp, resolveClientIp, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
 import { OrgFeaturesService } from '../settings/org-features.service';
-import { SaveKiotVietDto, SaveMisaDto, SaveSapoDto, SaveWooDto, SaveMomoDto, SaveSepayDto, SaveVnpayDto } from './connectors.dto';
-import { KiotVietService } from './kiotviet.service';
-import { SapoService } from './sapo.service';
-import { MisaService } from './misa.service';
-import { WooCommerceService } from './woocommerce.service';
-import { ShopeeService } from './shopee.service';
-import { LazadaService } from './lazada.service';
-import { publicBaseUrl } from '../integrations/oauth/oauth-config';
-import { CommerceSyncService } from './commerce-sync.service';
-import type { KvWebhookBody } from './kiotviet';
-import { PrismaService } from '@trinity/prisma';
+import { SaveMomoDto, SaveSepayDto, SaveVnpayDto } from './connectors.dto';
 import type { MomoResult } from './momo';
 import { CONNECTOR_PROVIDERS, ConnectorsService, DEFAULT_CODE_PREFIX, type ConnectorProvider, type SepaySettings } from './connectors.service';
 import { PaymentsService } from './payments.service';
@@ -34,14 +24,6 @@ export class ConnectorsController {
     private readonly connectors: ConnectorsService,
     private readonly payments: PaymentsService,
     private readonly features: OrgFeaturesService,
-    private readonly kiotviet: KiotVietService,
-    private readonly prisma: PrismaService,
-    private readonly commerce: CommerceSyncService,
-    private readonly sapo: SapoService,
-    private readonly misa: MisaService,
-    private readonly woo: WooCommerceService,
-    private readonly shopee: ShopeeService,
-    private readonly lazada: LazadaService,
   ) {}
 
   @Get('connectors')
@@ -74,250 +56,6 @@ export class ConnectorsController {
   @ApiOperation({ summary: 'Lưu cấu hình MoMo (partner code, access key, secret key do MoMo cấp)' })
   saveMomo(@Body() dto: SaveMomoDto, @CurrentUser() user: AuthUser) {
     return this.connectors.saveGateway('momo', dto as unknown as Record<string, unknown>, user.userId);
-  }
-
-  @Delete('connectors/kiotviet')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @HttpCode(204)
-  @ApiOperation({ summary: 'Ngắt KiotViet (gỡ webhook, xoá khoá; dữ liệu đã đồng bộ vẫn giữ)' })
-  async disconnectKiotViet() {
-    await this.kiotviet.disconnect();
-  }
-
-  // ─── Phần mềm bán hàng (KiotViet…) ───
-
-  @Get('connectors/commerce')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @ApiOperation({ summary: 'Trạng thái connector bán hàng (KiotViet…) — không phụ thuộc tính năng Thanh toán' })
-  async salesConnectors() {
-    return (await this.connectors.list()).filter((c) => c.provider === 'kiotviet' || c.provider === 'sapo' || c.provider === 'misa' || c.provider === 'woocommerce' || c.provider === 'shopee' || c.provider === 'lazada');
-  }
-
-  @Put('connectors/kiotviet')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @ApiOperation({ summary: 'Kết nối KiotViet: kiểm khoá bằng token thật, đăng ký webhook, đồng bộ lần đầu (90 ngày)' })
-  saveKiotViet(@Body() dto: SaveKiotVietDto, @CurrentUser() user: AuthUser) {
-    return this.kiotviet.connect(dto, user.userId);
-  }
-
-  @Post('connectors/kiotviet/sync')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Đồng bộ tiếp khách, hàng, đơn, hoá đơn từ KiotViet (tối đa 300 bản ghi mỗi loại mỗi lần)' })
-  syncKiotViet() {
-    return this.kiotviet.runSync();
-  }
-
-  @Post('connectors/kiotviet/webhook/:token')
-  @Public()
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Webhook KiotViet (X-Hub-Signature HMAC-SHA256)' })
-  async kiotvietWebhook(@Param('token') token: string, @Req() req: Request, @Headers('x-hub-signature') sig: string | undefined, @Body() body: KvWebhookBody) {
-    if (!(await this.features.isEnabled('commerce_connectors'))) return { ok: true, ignored: 'feature_off' };
-    const out = await this.kiotviet.handleWebhook(token, (req as Request & { rawBody?: Buffer }).rawBody, sig, body);
-    if (!out.ok) throw new UnauthorizedException('Sai chữ ký');
-    return out;
-  }
-
-  @Put('connectors/sapo')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @ApiOperation({ summary: 'Kết nối Sapo (ứng dụng riêng): kiểm khoá, đăng ký webhook, đồng bộ lần đầu (90 ngày)' })
-  saveSapo(@Body() dto: SaveSapoDto, @CurrentUser() user: AuthUser) {
-    return this.sapo.connect(dto, user.userId);
-  }
-
-  @Post('connectors/sapo/sync')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Đồng bộ tiếp khách, hàng, đơn từ Sapo' })
-  syncSapo() {
-    return this.sapo.runSync();
-  }
-
-  @Delete('connectors/sapo')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @HttpCode(204)
-  @ApiOperation({ summary: 'Ngắt Sapo (gỡ webhook, xoá khoá; dữ liệu đã đồng bộ vẫn giữ)' })
-  async disconnectSapo() {
-    await this.sapo.disconnect();
-  }
-
-  @Post('connectors/sapo/webhook/:token')
-  @Public()
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Webhook Sapo — token đường dẫn (+ HMAC nếu có); bản ghi đọc lại từ API Sapo' })
-  async sapoWebhook(
-    @Param('token') token: string,
-    @Req() req: Request,
-    @Headers('x-sapo-topic') topicHeader: string | undefined,
-    @Query('topic') topicQuery: string | undefined,
-    @Headers('x-sapo-hmac-sha256') hmac: string | undefined,
-    @Body() body: Record<string, unknown>,
-  ) {
-    if (!(await this.features.isEnabled('commerce_connectors'))) return { ok: true, ignored: 'feature_off' };
-    const out = await this.sapo.handleWebhook(token, topicHeader || topicQuery, (req as Request & { rawBody?: Buffer }).rawBody, hmac, body);
-    if (!out.ok) throw new UnauthorizedException('Sai mã webhook');
-    return out;
-  }
-
-  @Put('connectors/misa')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @ApiOperation({ summary: 'Kết nối MISA AMIS Kế toán (mã kết nối + mã công ty), đồng bộ khách + hàng hoá' })
-  saveMisa(@Body() dto: SaveMisaDto, @CurrentUser() user: AuthUser) {
-    return this.misa.connect(dto, user.userId);
-  }
-
-  @Post('connectors/misa/sync')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Đồng bộ tiếp khách + hàng hoá từ MISA (MISA không có webhook)' })
-  syncMisa() {
-    return this.misa.runSync();
-  }
-
-  @Delete('connectors/misa')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @HttpCode(204)
-  async disconnectMisa() {
-    await this.connectors.disconnect('misa');
-  }
-
-  @Put('connectors/woocommerce')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @ApiOperation({ summary: 'Kết nối WooCommerce (REST API key): kiểm khoá, đăng ký webhook, đồng bộ lần đầu (90 ngày)' })
-  saveWoo(@Body() dto: SaveWooDto, @CurrentUser() user: AuthUser) {
-    return this.woo.connect(dto, user.userId);
-  }
-
-  @Post('connectors/woocommerce/sync')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @HttpCode(200)
-  syncWoo() {
-    return this.woo.runSync();
-  }
-
-  @Delete('connectors/woocommerce')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @HttpCode(204)
-  async disconnectWoo() {
-    await this.woo.disconnect();
-  }
-
-  @Post('connectors/woocommerce/webhook/:token')
-  @Public()
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Webhook WooCommerce (X-WC-Webhook-Signature HMAC-SHA256 base64)' })
-  async wooWebhook(
-    @Param('token') token: string,
-    @Req() req: Request,
-    @Headers('x-wc-webhook-topic') topic: string | undefined,
-    @Headers('x-wc-webhook-signature') sig: string | undefined,
-    @Body() body: Record<string, unknown>,
-  ) {
-    if (!(await this.features.isEnabled('commerce_connectors'))) return { ok: true, ignored: 'feature_off' };
-    const out = await this.woo.handleWebhook(token, topic, (req as Request & { rawBody?: Buffer }).rawBody, sig, body);
-    if (!out.ok) throw new UnauthorizedException('Sai chữ ký');
-    return out;
-  }
-
-  // ─── Sàn TMĐT (Shopee, Lazada): OAuth của sàn ───
-
-  @Post('connectors/:market/connect')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Bắt đầu cấp quyền shop Shopee/Lazada — trả URL chuyển sang sàn' })
-  marketConnect(@Param('market') market: string, @CurrentUser() user: AuthUser) {
-    if (market === 'shopee') return this.shopee.startConnect(user.userId);
-    if (market === 'lazada') return this.lazada.startConnect(user.userId);
-    throw new NotFoundException('Không có sàn này.');
-  }
-
-  @Get('connectors/shopee/callback')
-  @Public()
-  async shopeeCallback(@Query('code') code: string, @Query('shop_id') shopId: string, @Query('state') state: string, @Res() res: Response) {
-    await this.marketBack(res, () => this.shopee.completeConnect(code, shopId, state));
-  }
-
-  @Get('connectors/lazada/callback')
-  @Public()
-  async lazadaCallback(@Query('code') code: string, @Query('state') state: string, @Res() res: Response) {
-    await this.marketBack(res, () => this.lazada.completeConnect(code, state));
-  }
-
-  @Post('connectors/:market/sync')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @HttpCode(200)
-  marketSync(@Param('market') market: string) {
-    if (market === 'shopee') return this.shopee.runSync();
-    if (market === 'lazada') return this.lazada.runSync();
-    throw new NotFoundException('Không có sàn này.');
-  }
-
-  @Delete('connectors/shopee')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @HttpCode(204)
-  async disconnectShopee() {
-    await this.connectors.disconnect('shopee');
-  }
-
-  @Delete('connectors/lazada')
-  @Can('integrations.webhooks')
-  @RequireOrgFeature('commerce_connectors')
-  @HttpCode(204)
-  async disconnectLazada() {
-    await this.connectors.disconnect('lazada');
-  }
-
-  @Post('connectors/shopee/push')
-  @Public()
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Push Shopee (Authorization = HMAC-SHA256(partner_key, url|body))' })
-  async shopeePush(@Req() req: Request, @Headers('authorization') auth: string | undefined, @Body() body: Record<string, unknown>) {
-    if (!(await this.features.isEnabled('commerce_connectors'))) return {};
-    const base = publicBaseUrl() ?? '';
-    const out = await this.shopee.handlePush(`${base}/api/v1/connectors/shopee/push`, (req as Request & { rawBody?: Buffer }).rawBody, auth, body as never);
-    if (!out.ok) throw new UnauthorizedException('Sai chữ ký');
-    return {};
-  }
-
-  @Post('connectors/lazada/push')
-  @Public()
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Push Lazada (Authorization = HMAC-SHA256(app_secret, app_key + body))' })
-  async lazadaPush(@Req() req: Request, @Headers('authorization') auth: string | undefined, @Body() body: Record<string, unknown>) {
-    if (!(await this.features.isEnabled('commerce_connectors'))) return {};
-    const out = await this.lazada.handlePush((req as Request & { rawBody?: Buffer }).rawBody, auth, body as never);
-    if (!out.ok) throw new UnauthorizedException('Sai chữ ký');
-    return {};
-  }
-
-  @Get('connectors/records')
-  @Can('deals.view')
-  @RequireOrgFeature('commerce_connectors')
-  @ApiOperation({ summary: 'Bản ghi đã đồng bộ (khách/đơn/hoá đơn/hàng) từ phần mềm bán hàng' })
-  async records(@CurrentUser() user: AuthUser, @Query('provider') provider?: string, @Query('kind') kind?: string, @Query('limit') limit?: string) {
-    const rows = await this.prisma.connectorRecord.findMany({
-      where: { AND: [{ ...(provider ? { provider } : {}), ...(kind ? { kind } : {}) }, await this.commerce.scopeWhere(user)] },
-      orderBy: [{ external_updated_at: { sort: 'desc', nulls: 'last' } }, { id: 'desc' }],
-      take: Math.min(Math.max(Number(limit) || 50, 1), 200),
-    });
-    return rows.map((r) => ({ ...r, amount: r.amount == null ? null : Number(r.amount) }));
   }
 
   // ─── Link thanh toán công khai (gửi khách) + IPN của cổng ───
@@ -372,7 +110,7 @@ export class ConnectorsController {
     resultPage(res, r);
   }
 
-  // Route chung đặt CUỐI: Nest khớp theo thứ tự khai báo, đặt trước thì nuốt mất route ngắt riêng (kiotviet, sapo…).
+  // Route chung đặt CUỐI: Nest khớp theo thứ tự khai báo.
   @Delete('connectors/:provider')
   @Can('integrations.webhooks')
   @RequireOrgFeature('payments')
@@ -381,18 +119,6 @@ export class ConnectorsController {
   async disconnect(@Param('provider') provider: string) {
     if (!(CONNECTOR_PROVIDERS as readonly string[]).includes(provider)) throw new NotFoundException('Không có connector này.');
     await this.connectors.disconnect(provider as ConnectorProvider);
-  }
-
-  /** Về lại Cài đặt sau khi cấp quyền sàn, kèm kết quả. */
-  private async marketBack(res: Response, done: () => Promise<void>) {
-    const back = `${publicBaseUrl() ?? ''}/connections?muc=ban-hang`;
-    try {
-      await done();
-      res.redirect(302, `${back}&ket_noi=ok`);
-    } catch (err) {
-      this.logger.warn(`Cấp quyền sàn lỗi: ${(err as Error).message}`);
-      res.redirect(302, `${back}&ket_noi=loi&ly_do=${encodeURIComponent((err as Error).message.slice(0, 160))}`);
-    }
   }
 
   private async redirectOrPage(res: Response, make: () => Promise<string>) {

@@ -8,12 +8,12 @@ import { vnTodayRange } from './dashboard-overview.util';
 
 /** ok = đang chạy · attention = cần liên kết lại / lỗi · off = đã tắt. */
 export type ChannelState = 'ok' | 'attention' | 'off';
-export type ChannelKind = 'facebook_page' | 'zalo_oa' | 'social' | 'payment' | 'commerce' | 'store';
+export type ChannelKind = 'facebook_page' | 'zalo_oa' | 'social' | 'payment' | 'store';
 
 export interface ConnectedChannel {
   key: string;
   kind: ChannelKind;
-  /** facebook, zalo, sepay, vnpay, momo, kiotviet… — để FE chọn biểu tượng. */
+  /** facebook, zalo, sepay, vnpay, momo… — để FE chọn biểu tượng. */
   network: string;
   name: string;
   state: ChannelState;
@@ -41,8 +41,7 @@ export interface DashboardChannels {
 
 const PAYMENT_PROVIDERS = new Set(['sepay', 'vnpay', 'momo']);
 const PROVIDER_LABELS: Record<string, string> = {
-  sepay: 'SePay', vnpay: 'VNPay', momo: 'MoMo', kiotviet: 'KiotViet', sapo: 'Sapo', ipos: 'iPOS', woocommerce: 'WooCommerce',
-  shopee: 'Shopee', lazada: 'Lazada', misa: 'MISA',
+  sepay: 'SePay', vnpay: 'VNPay', momo: 'MoMo',
 };
 const NETWORK_LABELS: Record<string, string> = { facebook: 'Fanpage', zalo: 'Zalo OA' };
 
@@ -137,21 +136,17 @@ export class DashboardChannelsService {
       })());
     }
 
+    // Chỉ cổng thanh toán: dòng của kết nối bán hàng/sàn đã gỡ (G06) là lưu trữ, không hiện.
     const wantPayments = on('payments') && orgWideDeals;
-    const wantCommerce = on('commerce_connectors') && orgWideDeals;
-    if (wantPayments || wantCommerce) {
+    if (wantPayments) {
       tasks.push((async () => {
-        const accounts = await this.prisma.connectorAccount.findMany({ orderBy: { id: 'asc' }, select: { id: true, provider: true, status: true, last_event_at: true } });
-        const pay = accounts.filter((a) => PAYMENT_PROVIDERS.has(a.provider));
-        const shop = accounts.filter((a) => !PAYMENT_PROVIDERS.has(a.provider));
+        const pay = await this.prisma.connectorAccount.findMany({ where: { provider: { in: [...PAYMENT_PROVIDERS] } }, orderBy: { id: 'asc' }, select: { id: true, provider: true, status: true, last_event_at: true } });
         if (wantPayments && pay.length === 0) available.push({ kind: 'payment', label: 'Thanh toán (SePay, VNPay, MoMo)', href: `${INTEGRATIONS}?muc=payments` });
         if (wantPayments && pay.length) {
           const paid = await this.prisma.paymentIntent.groupBy({ by: ['paid_via'], where: { status: 'paid', paid_at: today }, _count: { _all: true } });
           const byVia = new Map(paid.map((r) => [r.paid_via ?? '', r._count._all]));
           for (const a of pay) channels.push(this.connector(a, 'payment', { label: 'lượt thanh toán', value: byVia.get(a.provider) ?? 0 }, `${INTEGRATIONS}?muc=payments`));
         }
-        if (wantCommerce && shop.length === 0) available.push({ kind: 'commerce', label: 'Kết nối bán hàng (KiotViet, Sapo…)', href: `${INTEGRATIONS}?muc=ban-hang` });
-        if (wantCommerce) for (const a of shop) channels.push(this.connector(a, 'commerce', null, `${INTEGRATIONS}?muc=ban-hang`));
       })());
     }
 
@@ -173,13 +168,13 @@ export class DashboardChannelsService {
     }
 
     await Promise.all(tasks.map((t) => t.catch((e: Error) => this.logger.warn(`Kênh Tổng quan lỗi: ${e.message}`))));
-    const order: ChannelKind[] = ['facebook_page', 'zalo_oa', 'social', 'payment', 'store', 'commerce'];
+    const order: ChannelKind[] = ['facebook_page', 'zalo_oa', 'social', 'payment', 'store'];
     channels.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
     available.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
     return { channels, available };
   }
 
-  private connector(a: { id: number; provider: string; status: string; last_event_at: Date | null }, kind: 'payment' | 'commerce', today: ConnectedChannel['today'], href: string): ConnectedChannel {
+  private connector(a: { id: number; provider: string; status: string; last_event_at: Date | null }, kind: 'payment', today: ConnectedChannel['today'], href: string): ConnectedChannel {
     const state: ChannelState = a.status === 'active' ? 'ok' : a.status === 'disconnected' ? 'off' : 'attention';
     return {
       key: `${kind}:${a.id}`, kind, network: a.provider, name: PROVIDER_LABELS[a.provider] ?? a.provider, state,

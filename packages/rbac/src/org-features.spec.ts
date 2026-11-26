@@ -69,6 +69,7 @@ describe('Gói dịch vụ', () => {
     const f = applyPlanToFeatures(resolveOrgFeatures({}), 'ket_noi')
     expect(PLANS.ket_noi.features).toEqual([])
     expect(ORG_FEATURE_KEYS).not.toContain('google_sheets')
+    expect(ORG_FEATURE_KEYS).not.toContain('commerce_connectors')
     expect(f.zalo_oa).toBe(false)
     expect(f.ai_briefing).toBe(false)
     expect(PLANS.ket_noi.maxUsers).toBe(10)

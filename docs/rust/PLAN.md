@@ -624,9 +624,23 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   hai kiểu này nếu thiếu `CompanyRef`. Truy vấn bảng dùng chung đi qua `PlatformDb` và luôn viết `platform.<bảng>`.
   Lỗi "quên chọn công ty" thành lỗi biên dịch thay vì lỗi lúc chạy.
 - Tên schema chỉ nhận `public` hoặc khớp `^c_[0-9]+$` (như `clients.ts`).
-- Prepared statement: Postgres lập lại kế hoạch khi `search_path` khác lúc chuẩn bị, nên statement cache theo kết nối
-  của sqlx không trỏ nhầm schema. Điều này được **chứng minh bằng test pg** ở spike R005 (hai công ty, cùng một kết
-  nối, cùng câu lệnh, xen kẽ) trước khi viết module nào; nếu test không đạt thì tắt statement cache cho `TenantConn`.
+- Prepared statement: Postgres (từ 9.3) phân tích lại statement đã chuẩn bị khi `search_path` khác lúc chuẩn bị, nên
+  statement cache theo kết nối của sqlx không trỏ nhầm schema. **Giữ statement cache bật.** Kết luận spike R005
+  (test pg `server/crates/trinity-db/tests/search_path.rs`, Postgres 16.14, sqlx 0.9.1):
+  - 1.000 lượt xen kẽ hai công ty trên **một** kết nối (pool 1 kết nối, cùng `pg_backend_pid`), cùng câu lệnh liệt kê
+    cột: 0 dòng sai công ty; `pg_prepared_statements` chỉ có **một** statement cho câu đó. Thêm 8 task × 250 lượt
+    trên pool 4 kết nối: 0 dòng sai.
+  - Hai schema khác cột (một bên thêm cột, thứ tự cột khác) với câu liệt kê cột, cả `UPDATE … RETURNING <cột>`, xen kẽ
+    trong và ngoài giao dịch: không gặp `cached plan must not change result type`.
+  - Kiểu kết quả **đổi** giữa hai schema (`SELECT *` khi khác cột, hoặc cùng tên cột khác kiểu như `text` ↔
+    `varchar(40)`): Postgres báo 0A000. sqlx 0.9.1 tự xử lý **ngoài giao dịch** (bỏ statement, chuẩn bị lại một lần:
+    đúng dữ liệu nhưng tốn thêm vòng gọi mỗi lần đổi công ty); **trong giao dịch** thì trả lỗi và giao dịch hỏng
+    (25P02), phải rollback. Vì vậy vẫn cấm `SELECT *`/`RETURNING *` và vẫn từ chối công ty có `migrated_to` cũ (mục
+    dưới): migration đổi kiểu cột là ca còn lại mà lint không bắt được.
+  - Kết nối mới (sau `after_connect`) và kết nối vừa trả về pool (sau `after_release`) chạy truy vấn không định danh
+    schema thì lỗi 42P01: fail-closed đạt.
+  - Cạm bẫy: `set_config('search_path', …, false)` chạy **trong** giao dịch mà giao dịch rollback thì bị hoàn tác.
+    `TenantTx` đặt `search_path` trước `BEGIN`; không đổi công ty giữa giao dịch.
 - Vẫn từ chối URL pooler transaction-mode, như hiện tại.
 - Ngữ cảnh request: struct `Ctx { company, user, db, now }` truyền tường minh; không dùng task-local ẩn. `db` là
   `TenantDb` (**handle**, lấy kết nối theo từng nhóm truy vấn), không phải kết nối giữ suốt request: nhiều handler gọi
@@ -692,6 +706,35 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
 - Cách tính `checksum` và số của advisory lock lấy từ mã nguồn Prisma đúng phiên bản đang dùng (6.19) và được **khoá
   bằng test hai chiều** ở R005/K07: (a) DB do Prisma migrate → Rust báo không còn gì phải chạy, checksum khớp;
   (b) DB do Rust migrate → `prisma migrate status` báo đã cập nhật.
+- **Kết luận spike R005** (bản mẫu `server/crates/trinity-db/src/prisma_migrate.rs`, test
+  `server/crates/trinity-db/tests/prisma_compat.rs`; nguồn: `prisma-engines` commit `c2990dca…` đi kèm `prisma` 6.19.3,
+  tệp `schema-connector/src/checksum.rs`, `sql-schema-connector/src/flavour/postgres.rs`,
+  `sql_migration_persistence.rs`, `commands/apply_migrations.rs`):
+  - `checksum` = SHA-256 của nội dung `migration.sql` nguyên văn, hex thường 64 ký tự. Khi so, Prisma chấp nhận cả bản
+    đổi `\r\n` ↔ `\n` và dạng hex cũ không đệm số 0 (prisma-engines#1887); Rust làm y hệt.
+  - Advisory lock: `pg_advisory_lock(72707369)`, chờ tối đa 10 giây rồi lỗi P1002, **một khoá cho cả DB** (không theo
+    schema), không mở khoá tường minh (nhả khi đóng kết nối). Hệ quả cho bản TS hiện tại: 4 tiến trình
+    `prisma migrate deploy` song song trong `migrateAllCompanies` thực chất chạy lần lượt, và tiến trình nào chờ quá
+    10 giây thì lỗi P1002 (công ty đó migrate lại ở lượt sau).
+  - Ghi sổ: bảng `_prisma_migrations` đúng DDL của Prisma; mỗi migration một dòng lúc bắt đầu (`id` uuid v4,
+    `checksum`, `started_at`, `migration_name`), chạy script bằng simple query (nhiều câu, một giao dịch ngầm: lỗi thì
+    không để lại phần đã chạy), thành công thì `applied_steps_count + 1` rồi `finished_at`, lỗi thì ghi `logs` và dừng.
+    Schema đã có bảng mà chưa có `_prisma_migrations` ⇒ từ chối (P3005); có dòng lỗi dở dang ⇒ từ chối (P3009).
+  - Kết quả test hai chiều (Postgres 16.14, 22 migration của repo): (a) Prisma migrate → Rust: 22/22 checksum khớp
+    **từng ký tự**, không còn gì phải chạy, `deploy` lần nữa rỗng; (b) Rust migrate → `prisma migrate status`: "Database
+    schema is up to date", `prisma migrate deploy`: "No pending migrations to apply", và `prisma migrate diff` giữa
+    schema do Rust migrate và schema cùng tên do Prisma migrate (DB khác) là migration rỗng; (c) migration hỏng do Rust
+    ghi thì Prisma đọc ra P3009 đúng tên.
+  - **Khoá của Rust:** `pg_advisory_lock_shared(72707369)` cộng khoá exclusive theo schema
+    `pg_advisory_lock(72707369::int4, hashtext(<schema>))` (không gian khoá hai số, không đụng khoá một số), chờ tối đa
+    10 giây bằng `lock_timeout`. Test đo được: Rust giữ khoá ⇒ Prisma chờ 10 giây rồi P1002; phiên giữ khoá exclusive
+    như Prisma ⇒ Rust lỗi 55P03; hai worker Rust khác schema giữ khoá cùng lúc được, cùng schema thì không. Nhờ vậy
+    `TENANT_MIGRATE_CONCURRENCY` của Rust chạy song song thật mà vẫn loại trừ Prisma.
+  - Cạm bẫy đo được: Prisma hết 10 giây thì thoát, nhưng backend Postgres của nó vẫn **xếp hàng chờ khoá exclusive**
+    (Postgres không biết client đã đi khi đang chờ khoá) cho tới khi người đang giữ nhả; trong lúc đó mọi yêu cầu
+    shared mới của Rust xếp sau nó và cũng hết giờ. Đặt `client_connection_check_interval` (Postgres 14+) ở DB làm hàng
+    chờ mồ côi tự hết vài giây sau khi tiến trình schema engine thoát. K07: worker Rust giữ khoá theo **từng schema**
+    (không giữ suốt lượt) và thử lại khi 55P03; tài liệu triển khai ghi khuyến nghị `client_connection_check_interval`.
 - Trong giai đoạn lai, Prisma vẫn là công cụ migrate cho **schema đã có** (bước deploy của Node). Ngoại lệ có chủ đích:
   từ đợt b, đăng ký công ty chạy ở Rust, nên migrator Rust **ghi** `_prisma_migrations` của schema công ty **mới**
   (bản TS làm việc này bằng `prisma migrate deploy` trong `provisionCompany`). Vì vậy test hai chiều của K07 là điều

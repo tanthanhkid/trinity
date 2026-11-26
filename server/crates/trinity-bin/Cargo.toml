@@ -17,6 +17,7 @@ clap = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
 trinity-db = { workspace = true }
+trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-ops = { workspace = true }
 serde_json = { workspace = true }

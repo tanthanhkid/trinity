@@ -81,3 +81,45 @@ fn bien_ten_khong_utf8_duoc_bao() {
     assert_eq!(out.status.code(), Some(0), "{err}");
     assert!(err.contains("không phải UTF-8"), "{err}");
 }
+
+fn base<'a>(extra: &[(&'a str, &'a str)]) -> Vec<(&'a str, &'a str)> {
+    let mut v = vec![
+        ("NODE_ENV", "production"),
+        ("JWT_SECRET", GOOD_JWT),
+        ("DATABASE_URL", "postgresql://trinity:Xy9@db:5432/trinity"),
+    ];
+    v.extend_from_slice(extra);
+    v
+}
+
+#[test]
+fn trusted_proxy_sai_hoac_co_cu_khong_kem_trusted_proxy_khong_khoi_dong() {
+    let (code, err) = run(&base(&[("TRUSTED_PROXY", "yes")]));
+    assert_ne!(code, 0, "{err}");
+    assert!(err.contains("TRUSTED_PROXY=\"yes\" không hợp lệ"), "{err}");
+    let (code, err) = run(&base(&[("ATTENDANCE_TRUST_CF_IP", "true")]));
+    assert_ne!(code, 0, "{err}");
+    assert!(err.contains("Cờ cũ ATTENDANCE_TRUST_CF_IP"), "{err}");
+    let (code, err) = run(&base(&[
+        ("ATTENDANCE_TRUST_CF_IP", "true"),
+        ("TRUSTED_PROXY", "cloudflare"),
+    ]));
+    assert_eq!(code, 0, "{err}");
+}
+
+#[test]
+fn cloudflare_tunnel_dia_chi_nghe_khong_phai_loopback_khong_khoi_dong() {
+    let (code, err) = run(&base(&[("TRUSTED_PROXY", "cloudflare-tunnel")]));
+    assert_ne!(code, 0, "{err}");
+    assert!(err.contains("không phải loopback"), "{err}");
+    let (code, err) = run(&base(&[
+        ("TRUSTED_PROXY", "cloudflare-tunnel"),
+        ("LISTEN_HOST", "0.0.0.0"),
+    ]));
+    assert_ne!(code, 0, "{err}");
+    let (code, err) = run(&base(&[
+        ("TRUSTED_PROXY", "cloudflare-tunnel"),
+        ("LISTEN_HOST", "127.0.0.1"),
+    ]));
+    assert_eq!(code, 0, "{err}");
+}

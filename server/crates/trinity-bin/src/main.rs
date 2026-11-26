@@ -7,6 +7,7 @@ use std::io::Write;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
+use trinity_http::edge::client_ip;
 use trinity_kernel::config::{Config, process_env};
 use trinity_kernel::ownership::Ownership;
 
@@ -157,6 +158,26 @@ fn check_config() -> ExitCode {
         }
     };
     for w in &loaded.warnings {
+        let _ = writeln!(err, "cảnh báo: {w}");
+    }
+    // IP của khách (K16): `TRUSTED_PROXY` sai, cờ cũ `*_TRUST_*` mà chưa đặt `TRUSTED_PROXY`, hoặc `cloudflare-tunnel`
+    // mà địa chỉ nghe (`LISTEN_HOST`, trống = mọi giao diện) không phải loopback ⇒ không khởi động.
+    let mut ip_problems = client_ip::startup_problems(&env);
+    let listen = env
+        .get("LISTEN_HOST")
+        .map(|h| h.trim())
+        .filter(|h| !h.is_empty())
+        .unwrap_or("::");
+    ip_problems.extend(client_ip::tunnel_listen_problem(Some(listen), &env));
+    if !ip_problems.is_empty() {
+        let _ = writeln!(
+            err,
+            "Không khởi động: cấu hình IP của khách sai:\n- {}",
+            ip_problems.join("\n- ")
+        );
+        return ExitCode::FAILURE;
+    }
+    for w in client_ip::startup_warnings(&env) {
         let _ = writeln!(err, "cảnh báo: {w}");
     }
     if let Some(path) = &loaded.config.ownership_file {

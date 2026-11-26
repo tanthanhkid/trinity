@@ -40,7 +40,6 @@
     "bcryptjs": "^2",
     "class-transformer": "^0.5",
     "class-validator": "^0.14",
-    "docx": "^9.5.1",
     "exceljs": "^4.4.0",
     "handlebars": "^4.7.10",
     "ioredis": "^5.10.1",

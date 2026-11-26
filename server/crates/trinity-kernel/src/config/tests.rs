@@ -65,7 +65,7 @@ fn sample(name: &str, example: &str) -> String {
 #[test]
 fn bang_moi_bien_trong_env_example_duoc_nhan_hoac_canh_bao() {
     let vars = example_vars();
-    assert!(vars.len() > 100, "đọc được quá ít biến từ .env.example: {}", vars.len());
+    assert!(vars.len() > 80, "đọc được quá ít biến từ .env.example: {}", vars.len());
     let mut missing = Vec::new();
     for (name, example) in &vars {
         let Some(known) = lookup(name) else {

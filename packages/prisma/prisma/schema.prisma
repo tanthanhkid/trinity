@@ -2470,75 +2470,6 @@ model FacebookFlowRun {
   @@map("facebook_flow_runs")
 }
 
-/// Kết nối tới cổng thanh toán (SePay, VNPay, MoMo) — mỗi nhà cung cấp một dòng. Khoá do khách dán, lưu mã hoá.
-/// Dòng của kết nối bán hàng/sàn đã gỡ (G06) là lưu trữ: migration 0023 đặt `disconnected` và xoá khoá.
-model ConnectorAccount {
-  id              Int       @id @default(autoincrement())
-  /// 'sepay' | 'vnpay' | 'momo' | …
-  provider        String    @unique @db.VarChar(32)
-  /// 'active' | 'error' | 'disconnected'
-  status          String    @default("active") @db.VarChar(16)
-  /// JSON khoá bí mật (api key, secret…) đã mã hoá bằng INTEGRATIONS_SECRET_KEY
-  credentials_enc String    @db.Text
-  /// Cấu hình không bí mật (số tài khoản, mã ngân hàng, tiền tố mã thanh toán…)
-  settings        Json      @default("{}")
-  last_error      String?   @db.VarChar(300)
-  last_event_at   DateTime? @db.Timestamptz(3)
-  connected_by    Int
-  created_at      DateTime  @default(now()) @db.Timestamptz(3)
-  updated_at      DateTime  @updatedAt @db.Timestamptz(3)
-
-  @@map("connector_accounts")
-}
-
-/// Sự kiện nhận từ dịch vụ ngoài (giao dịch ngân hàng, IPN…). Unique (provider, external_id) ⇒ nhận trùng không xử lý hai lần.
-model ConnectorEvent {
-  id                Int       @id @default(autoincrement())
-  provider          String    @db.VarChar(32)
-  external_id       String    @db.VarChar(100)
-  kind              String    @db.VarChar(32)
-  /// Số tiền (VND) — âm với tiền ra
-  amount            BigInt?
-  content           String?   @db.VarChar(500)
-  reference         String?   @db.VarChar(100)
-  /// 'matched' | 'unmatched' | 'ignored'
-  status            String    @db.VarChar(16)
-  payment_intent_id Int?
-  raw               Json      @default("{}")
-  occurred_at       DateTime? @db.Timestamptz(3)
-  created_at        DateTime  @default(now()) @db.Timestamptz(3)
-
-  @@unique([provider, external_id])
-  @@index([status, created_at])
-  @@map("connector_events")
-}
-
-/// Yêu cầu thanh toán: mã duy nhất khách ghi vào nội dung chuyển khoản (SePay) hoặc mã đơn gửi cổng (VNPay/MoMo).
-model PaymentIntent {
-  id           Int       @id @default(autoincrement())
-  code         String    @unique @db.VarChar(32)
-  amount       BigInt
-  description  String?   @db.VarChar(200)
-  /// 'pending' | 'paid' | 'cancelled' | 'expired'
-  status       String    @default("pending") @db.VarChar(16)
-  /// 'manual' | 'deal' | 'pos_order' | 'store_order'
-  source_type  String    @default("manual") @db.VarChar(20)
-  source_id    Int?
-  contact_id   Int?
-  paid_amount  BigInt?
-  /// 'sepay' | 'vnpay' | 'momo'
-  paid_via     String?   @db.VarChar(32)
-  paid_at      DateTime? @db.Timestamptz(3)
-  expires_at   DateTime? @db.Timestamptz(3)
-  created_by   Int?
-  created_at   DateTime  @default(now()) @db.Timestamptz(3)
-  updated_at   DateTime  @updatedAt @db.Timestamptz(3)
-
-  @@index([status, created_at])
-  @@index([source_type, source_id])
-  @@map("payment_intents")
-}
-
 /// Đơn đặt từ trang bán hàng online (/s/:slug). Khách CRM ghép theo SĐT; chuyển khoản thì có yêu cầu thanh toán (SePay tự khớp).
 model StoreOrder {
   id                Int       @id @default(autoincrement())
@@ -2786,4 +2717,73 @@ model ActiveSession {
   started_at DateTime @default(now()) @db.Timestamptz(3)
 
   @@map("active_sessions")
+}
+
+/// Kết nối tới cổng thanh toán (SePay, VNPay, MoMo) — mỗi nhà cung cấp một dòng. Khoá do khách dán, lưu mã hoá.
+/// Dòng của kết nối bán hàng/sàn đã gỡ (G06) là lưu trữ: migration 0023 đặt `disconnected` và xoá khoá.
+model ConnectorAccount {
+  id              Int       @id @default(autoincrement())
+  /// 'sepay' | 'vnpay' | 'momo' | …
+  provider        String    @unique @db.VarChar(32)
+  /// 'active' | 'error' | 'disconnected'
+  status          String    @default("active") @db.VarChar(16)
+  /// JSON khoá bí mật (api key, secret…) đã mã hoá bằng INTEGRATIONS_SECRET_KEY
+  credentials_enc String    @db.Text
+  /// Cấu hình không bí mật (số tài khoản, mã ngân hàng, tiền tố mã thanh toán…)
+  settings        Json      @default("{}")
+  last_error      String?   @db.VarChar(300)
+  last_event_at   DateTime? @db.Timestamptz(3)
+  connected_by    Int
+  created_at      DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at      DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@map("connector_accounts")
+}
+
+/// Sự kiện nhận từ dịch vụ ngoài (giao dịch ngân hàng, IPN…). Unique (provider, external_id) ⇒ nhận trùng không xử lý hai lần.
+model ConnectorEvent {
+  id                Int       @id @default(autoincrement())
+  provider          String    @db.VarChar(32)
+  external_id       String    @db.VarChar(100)
+  kind              String    @db.VarChar(32)
+  /// Số tiền (VND) — âm với tiền ra
+  amount            BigInt?
+  content           String?   @db.VarChar(500)
+  reference         String?   @db.VarChar(100)
+  /// 'matched' | 'unmatched' | 'ignored'
+  status            String    @db.VarChar(16)
+  payment_intent_id Int?
+  raw               Json      @default("{}")
+  occurred_at       DateTime? @db.Timestamptz(3)
+  created_at        DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@unique([provider, external_id])
+  @@index([status, created_at])
+  @@map("connector_events")
+}
+
+/// Yêu cầu thanh toán: mã duy nhất khách ghi vào nội dung chuyển khoản (SePay) hoặc mã đơn gửi cổng (VNPay/MoMo).
+model PaymentIntent {
+  id           Int       @id @default(autoincrement())
+  code         String    @unique @db.VarChar(32)
+  amount       BigInt
+  description  String?   @db.VarChar(200)
+  /// 'pending' | 'paid' | 'cancelled' | 'expired'
+  status       String    @default("pending") @db.VarChar(16)
+  /// 'manual' | 'deal' | 'pos_order' | 'store_order'
+  source_type  String    @default("manual") @db.VarChar(20)
+  source_id    Int?
+  contact_id   Int?
+  paid_amount  BigInt?
+  /// 'sepay' | 'vnpay' | 'momo'
+  paid_via     String?   @db.VarChar(32)
+  paid_at      DateTime? @db.Timestamptz(3)
+  expires_at   DateTime? @db.Timestamptz(3)
+  created_by   Int?
+  created_at   DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([status, created_at])
+  @@index([source_type, source_id])
+  @@map("payment_intents")
 }

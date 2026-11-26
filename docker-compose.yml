@@ -12,8 +12,7 @@
 #   postgres   PostgreSQL 16
 #   redis      Redis 7
 #   migrate    one-shot job: applies Prisma migrations + seeds (admin, options, optional demo data when SEED_DEMO_DATA=true)
-#   api        NestJS monolith (auth, crm, commerce, payroll, notification). Deno is built into
-#              this image — sandboxed add-ons run as child processes (EXTENSIONS_ENABLED=true).
+#   api        NestJS monolith (auth, crm, commerce, payroll, notification).
 #   web        Next.js UI
 
 name: trinity
@@ -32,7 +31,6 @@ x-api-env: &api-env
   INTEGRATIONS_MCP_ENABLED: ${INTEGRATIONS_MCP_ENABLED:-false}
   INTEGRATIONS_PUBLIC_BASE_URL: ${INTEGRATIONS_PUBLIC_BASE_URL:-}
   INTEGRATIONS_SECRET_KEY: ${INTEGRATIONS_SECRET_KEY:-}
-  EXTENSIONS_ENABLED: ${EXTENSIONS_ENABLED:-false}
   SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
   # Connector cần app đối tác của Trinity (để trống = dòng connector hiện "Máy chủ chưa cấu hình").
   MISA_APP_ID: ${MISA_APP_ID:-}

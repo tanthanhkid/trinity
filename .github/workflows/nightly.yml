@@ -63,7 +63,7 @@ jobs:
       - uses: ./.github/actions/setup
       - run: pnpm --filter @trinity/prisma exec prisma migrate deploy
       - working-directory: services/crm
-        run: npx jest --testRegex '(\.pg\.spec|\.db\.spec|extensions\.service\.spec)\.ts$' --runInBand
+        run: npx jest --testRegex '(\.pg\.spec|\.db\.spec)\.ts$' --runInBand
       - working-directory: services/commerce
         run: npx jest --testRegex '(\.pg\.spec|pos-flow\.integration\.spec)\.ts$' --runInBand --passWithNoTests
       - run: |

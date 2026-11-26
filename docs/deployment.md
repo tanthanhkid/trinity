@@ -58,7 +58,6 @@ Keep `INTEGRATIONS_SECRET_KEY` somewhere safe: losing it makes stored webhook se
 Build with `pnpm --filter "./packages/*" build && pnpm --filter @trinity/monolith build && pnpm --filter web build`,
 run `node apps/monolith/dist/apps/monolith/src/main.js` and `node apps/web/.next/standalone/apps/web/server.js` under a
 process manager of your choice (systemd, pm2). Apply migrations with `pnpm --filter @trinity/prisma migrate:deploy`.
-The monolith locates `services/crm/ext-deno` by walking up from its install directory, so keep the repository layout.
 
 ## Fast updates without Docker
 

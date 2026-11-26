@@ -95,7 +95,7 @@ Cách ghép câu:
 - Máy chủ đã viết câu tiếng Việt cụ thể (vd "Số điện thoại đã tồn tại") ⇒ dùng nguyên câu đó, vì nó rõ hơn câu chung.
 - Câu tiếng Anh hoặc mã lỗi của máy chủ ("Internal server error", "CONTACT_NOT_FOUND", "ThrottlerException…") không bao giờ hiện ra. Nhận biết bằng dấu tiếng Việt.
 - `ErrorState` dùng cùng bảng: hết phiên thì có nút "Đăng nhập lại"; thiếu quyền thì không có "Thử lại" (thử cũng không được), chỉ có cách xin quyền.
-- Các hàm lỗi riêng của từng mô-đun (`apiErrorMessage` ở webhook và vai trò, `aiActionErrorMessage`, `extensionErrorMessage`, lỗi chấm công) đều đi qua `errorMessage` của bảng chung.
+- Các hàm lỗi riêng của từng mô-đun (`apiErrorMessage` ở webhook và vai trò, `aiActionErrorMessage`, lỗi chấm công) đều đi qua `errorMessage` của bảng chung.
 - Trang lỗi toàn ứng dụng (`app/error.tsx`, `app/global-error.tsx`) không in `error.message`; lỗi đã gửi về nhật ký.
 
 **Khoá ở mức mã nguồn** (`apps/web/src/__tests__/repo/error-text-guard.test.ts`, chạy trong CI). Test đỏ khi:

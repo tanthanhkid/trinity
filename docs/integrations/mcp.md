@@ -220,19 +220,6 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 | `list_payment_requests` | read | List payment requests |
 | `list_sales_orders` | read | List synced sales orders |
 
-### Add-ons (extensions)
-
-| Tool | Kind | What it does |
-|---|---|---|
-| `create_extension` | write | Create extension |
-| `deploy_extension` | write | Deploy extension |
-| `disable_extension` | write | Disable extension |
-| `dry_run_extension` | write | Dry-run extension |
-| `list_extensions` | read | List extensions |
-| `logs_extension` | read | Extension logs |
-| `rollback_extension` | write | Rollback extension |
-| `update_extension` | write | Update extension |
-
 ### Setup & structure
 
 | Tool | Kind | What it does |

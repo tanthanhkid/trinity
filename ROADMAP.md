@@ -25,7 +25,6 @@ How well each channel and connector has been tested is tracked in [docs/integrat
 
 ## Next
 - [ ] Instagram direct messages (after Meta grants the messaging permission)
-- [ ] Marketplace of community add-ons
 - [ ] Anonymous, opt-in usage stats (off by default, see [PRIVACY.md](PRIVACY.md))
 - [ ] Upgrade NestJS 10 → 11 and Prisma 6 → 7 (clears the remaining dependency alerts that need a major version: `@nestjs/core`, `file-type`, `deepmerge-ts`)
 

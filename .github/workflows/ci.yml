@@ -245,6 +245,42 @@ jobs:
       - name: OpenAPI khớp server/contracts/openapi.json
         run: pnpm --filter @trinity/monolith contracts:openapi --check
 
+  # Driver S3 (K23) với MinIO thật. Không bắt buộc (không nằm trong `ci-ok`): cần docker và tải image.
+  rust-s3:
+    name: Rust S3 (MinIO)
+    needs: rust-changes
+    if: needs.rust-changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SQLX_OFFLINE: "true"
+      CARGO_INCREMENTAL: "0"
+      CARGO_TERM_COLOR: always
+      MINIO_ENDPOINT: http://127.0.0.1:9000
+      MINIO_ACCESS_KEY: ci-minio-access
+      MINIO_SECRET_KEY: ci-minio-secret-key
+      MINIO_BUCKET: trinity-test
+      MINIO_REGION: us-east-1
+      REQUIRE_MINIO: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/rust-toolchain
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: server
+          save-if: ${{ github.event_name != 'pull_request' }}
+      - name: Chạy MinIO và tạo bucket
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER="$MINIO_ACCESS_KEY" -e MINIO_ROOT_PASSWORD="$MINIO_SECRET_KEY" \
+            minio/minio server /data
+          for i in $(seq 30); do curl -sf http://127.0.0.1:9000/minio/health/ready && break; sleep 2; done
+          docker run --rm --network host --entrypoint sh minio/mc -c \
+            "mc alias set l http://127.0.0.1:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY && mc mb --ignore-existing l/$MINIO_BUCKET"
+      - name: cargo test (MinIO)
+        working-directory: server
+        run: cargo test --locked -p trinity-storage --test s3_minio -- --nocapture
+
   # Check bắt buộc duy nhất của luồng CI (cộng CLA ở workflow riêng). Chạy `always()` để job bị bỏ qua/huỷ không làm treo merge.
   ci-ok:
     name: ci-ok

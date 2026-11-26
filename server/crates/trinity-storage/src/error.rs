@@ -17,6 +17,9 @@ pub enum StorageError {
         "STORAGE_LOCAL_ROOT '{root}' không ghi được — kiểm tra quyền sở hữu/thư mục (chown/mkdir trước khi khởi động service). Lỗi gốc: {source}"
     )]
     RootNotWritable { root: String, source: std::io::Error },
+    /// Lỗi từ kho S3/MinIO (mạng, quyền, 5xx…); `NoSuchKey` đã tách thành [`StorageError::NotFound`].
+    #[error("{0}")]
+    Backend(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
@@ -28,7 +31,7 @@ impl StorageError {
             StorageError::NotFound(_) => "NoSuchKey",
             StorageError::InvalidKey { .. } => "StorageInvalidKeyError",
             StorageError::PresignNotSupported => "PresignNotSupportedError",
-            StorageError::RootNotWritable { .. } | StorageError::Io(_) => "Error",
+            StorageError::RootNotWritable { .. } | StorageError::Backend(_) | StorageError::Io(_) => "Error",
         }
     }
 }

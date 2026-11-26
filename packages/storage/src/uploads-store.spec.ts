@@ -31,4 +31,14 @@ describe('uploads store', () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('cấu hình Blob cũ ⇒ ném lỗi kèm hướng dẫn chuyển dữ liệu, không rơi về đĩa', () => {
+    process.env.STORAGE_DRIVER = 'vercel-blob';
+    expect(() => createUploadsStore()).toThrow(/không còn được hỗ trợ[\s\S]*UPLOADS_LOCAL_ROOT/);
+    delete process.env.STORAGE_DRIVER;
+    process.env.BLOB_READ_WRITE_TOKEN = 'x';
+    expect(() => createUploadsStore()).toThrow(/BLOB_READ_WRITE_TOKEN/);
+    process.env.STORAGE_DRIVER = 'local';
+    expect(() => createUploadsStore({ localRoot: '/tmp/x' })).not.toThrow();
+  });
 });

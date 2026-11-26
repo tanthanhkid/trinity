@@ -23,6 +23,7 @@ e2e-results/
 .agents/
 .claude/
 skills-lock.json
+.vercel
 
 # Mọi biến thể .env (vd .env.production.local) — chỉ giữ file mẫu
 .env.*

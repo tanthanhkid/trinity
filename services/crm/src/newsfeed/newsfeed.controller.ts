@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -146,6 +147,17 @@ export class NewsfeedController {
       files?.images,
       files?.videos,
     );
+  }
+
+  /**
+   * Stub giữ MỘT bản phát hành sau khi gỡ Vercel Blob: bundle cũ nhận 400 ở video đầu tiên rồi tự gửi video qua
+   * multipart `/newsfeed/upload`. Gỡ ở bản kế.
+   */
+  @Post('newsfeed/video-upload-token')
+  @Can('newsfeed.post')
+  @ApiOperation({ summary: 'Đã ngừng: luôn trả 400 — gửi video qua /newsfeed/upload (multipart)', deprecated: true })
+  videoUploadTokenGone(): never {
+    throw new BadRequestException('Môi trường này không dùng upload trực tiếp — gửi video qua /newsfeed/upload');
   }
 
   @Get('newsfeed/:id/image')

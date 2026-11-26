@@ -69,7 +69,7 @@ Trinity  ──  CRM · Sales · Zalo · HR · Reports
 
 ### How far it is tested
 
-- **Tested end to end on a fresh deploy** (a new Postgres database): first sign-in, connecting an AI assistant, building tables by chat, importing records, the AI tools.
+- **Tested end to end on a fresh deploy** (a new Postgres database; done on the former Vercel path, not yet repeated with Docker Compose): first sign-in, connecting an AI assistant, building tables by chat, importing records, the AI tools.
 - **Tested with real accounts**: publishing and scheduling posts to Facebook Pages, Messenger messages, Facebook comment rules (auto-replies, hiding phone numbers), the Interactions timeline, incoming Zalo OA messages.
 - **Tested with sample data only**: the posting queue, recurring posts and CSV import, dashboards and reports, the AI-native overview, feature switches, POS, HR, attendance and payroll, the online store (sample shop).
 - These areas have automated tests; connectors are listed below.

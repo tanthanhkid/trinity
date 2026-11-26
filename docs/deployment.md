@@ -50,8 +50,6 @@ trusted unless `TRUSTED_PROXY` says the proxy in front of the edge writes it.
   `X-Real-IP`, `CF-Connecting-IP`, `Forwarded` or `True-Client-IP` from the browser.
 - **The API** (`resolveClientIp`, `packages/rbac-nest/src/client-ip.ts`) trusts the signed header, and applies its own
   `TRUSTED_PROXY` only to connections that reach it directly (no signed header).
-- **Vercel / serverless is not supported for office-IP checks**: there is no preload file, so every request is
-  "untrusted" (see below) — login Wi-Fi and attendance IP checks never compare addresses there.
 
 `TRUSTED_PROXY` applies to the **TCP peer** of the edge:
 
@@ -105,6 +103,18 @@ accepts either, like `@Internal` routes). It is valid for ±60 seconds and check
 upload does not expire it. A request carrying this header with a wrong or expired signature gets **400** (a mismatch
 of secrets between web and API shows up as 400 on every request and a log line saying so). A bare `untrusted` without
 a signature is accepted: it only lowers trust.
+
+## Moving files off Blob storage
+
+The Vercel deployment path and its Blob storage driver were removed. An instance that still has
+`STORAGE_DRIVER=vercel-blob` (or only `BLOB_READ_WRITE_TOKEN` set) refuses to start instead of silently writing to
+local disk. To move:
+
+1. Download every object of the Blob store, keeping its key.
+2. Keys that start with `uploads/` (avatars, product images) go to `<UPLOADS_LOCAL_ROOT>/<rest of the key>`
+   (default `<cwd>/uploads`); every other key (documents, newsfeed and social media, per company under `c<id>/`) goes to
+   `<STORAGE_LOCAL_ROOT>/<key>`. Alternatively copy all keys unchanged into an S3 bucket and use `STORAGE_DRIVER=s3`.
+3. Set `STORAGE_DRIVER=local` (or `s3`), remove `BLOB_READ_WRITE_TOKEN` and `BLOB_ACCESS`, then start the API.
 
 ## Updating
 

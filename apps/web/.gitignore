@@ -48,3 +48,6 @@ next-env.d.ts
 /e2e/.seed-manifest.json
 /e2e/.cleanup-residual.json
 /e2e/.run-summary.json
+
+# vercel
+.vercel

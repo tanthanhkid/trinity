@@ -17,6 +17,7 @@ export { S3StorageDriver, type S3StorageDriverConfig } from './s3-driver';
 export {
   resolveStorageDriverMode,
   resolveLocalStorageRoot,
+  BLOB_REMOVED_MESSAGE,
   type StorageDriverMode,
 } from './env';
 export {

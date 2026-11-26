@@ -2,6 +2,7 @@ import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { LocalDiskStorageDriver } from './local-disk-driver';
 import { resolveSafeKey } from './path-safety';
+import { resolveStorageDriverMode } from './env';
 import type { MinimalLogger } from './types';
 
 /**
@@ -41,6 +42,7 @@ class LocalUploadsStore implements UploadsStore {
 export function createUploadsStore(
   opts: { localRoot?: string; logger?: MinimalLogger } = {},
 ): UploadsStore {
+  resolveStorageDriverMode(); // cấu hình Blob cũ ⇒ ném lỗi kèm hướng dẫn, không ghi nhầm ra đĩa
   const root =
     opts.localRoot ?? process.env.UPLOADS_LOCAL_ROOT?.trim() ?? join(process.cwd(), 'uploads');
   return new LocalUploadsStore(root || join(process.cwd(), 'uploads'));

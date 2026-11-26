@@ -60,7 +60,7 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 
 ### Đã thử tới đâu
 
-- **Thử trọn vòng trên bản cài mới** (cơ sở dữ liệu Postgres mới): đăng nhập lần đầu, nối trợ lý AI, dựng bảng bằng chat, nhập dữ liệu, các tool AI.
+- **Thử trọn vòng trên bản cài mới** (cơ sở dữ liệu Postgres mới; thử trên đường Vercel cũ, chưa thử lại với Docker Compose): đăng nhập lần đầu, nối trợ lý AI, dựng bảng bằng chat, nhập dữ liệu, các tool AI.
 - **Thử với tài khoản thật**: đăng ngay và hẹn giờ lên Fanpage, tin nhắn Messenger, luật bình luận Fanpage (tự trả lời, ẩn số điện thoại), dòng thời gian Tương tác, tin Zalo OA gửi đến.
 - **Mới thử với dữ liệu mẫu**: hàng đợi đăng bài, bài lặp lại, nhập CSV, dashboard và báo cáo, Tổng quan kiểu AI, bật/tắt tính năng, POS, nhân sự, chấm công, lương, trang bán hàng (cửa hàng mẫu).
 - Các mảng này có test tự động; connector ở bảng dưới.

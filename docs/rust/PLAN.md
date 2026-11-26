@@ -275,6 +275,8 @@ Mỗi job chạy theo từng công ty. `notification.scheduled` có hai đườn
 | Vòng lặp chương trình con (gỡ) | 30 giây | | `extensions/extensions.runtime.ts` |
 
 Ba job tắt mặc định bằng env: `LEAD_SCORING_ENABLED`, `STALE_REMINDERS_ENABLED`, `BRIEFING_CRON_ENABLED`.
+
+Ghi chú M23 (`mod-briefings`, bản Rust của `briefings.run-due`): job chỉ đăng ký khi `BRIEFING_CRON_ENABLED=true` và không ở chế độ API điều khiển test; một lượt giữ tối đa MỘT kết nối pool (đọc và dựng nội dung xong mới ghi), mỗi người nhận ghi bản tin, thông báo trong app và danh sách kênh trong MỘT giao dịch; trần 500 người nhận mỗi lượt, người đã nhận bị loại trước khi cắt trần; slot hẹn gần nửa đêm chạy trễ qua 00:00 (trong 4 giờ bù) mang NGÀY của slot (khoá `(user, slot, ngày)` và khung số liệu thuộc ngày đó); bảng "nổi bật" chỉ gồm người bán trong phạm vi quyền. Phần RBAC (người nhận, phạm vi `reports.overview`, cờ `ai_briefing`) đi qua trait `Ports` cho tới khi `trinity-rbac` có.
 Có 6 chỗ gọi "bắn rồi quên" (`void this.…`) và 25 `setTimeout` cần rà khi chuyển.
 Giờ địa phương: 23 lời gọi `getHours/setHours/getDate…` phụ thuộc múi giờ của tiến trình; `Dockerfile` không đặt `TZ`.
 

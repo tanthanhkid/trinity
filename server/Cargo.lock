@@ -1935,6 +1935,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-briefings"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "trinity-db",
+ "trinity-jobs",
+ "trinity-kernel",
+]
+
+[[package]]
 name = "mod-commerce"
 version = "0.3.0"
 dependencies = [

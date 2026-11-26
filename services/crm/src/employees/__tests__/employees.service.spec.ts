@@ -279,7 +279,7 @@ describe('EmployeesService', () => {
       prisma.employee.findFirst.mockResolvedValue(locked);
       prisma.setting.findUnique.mockResolvedValue({ value: 'ket_noi' }); // tối đa 10 người
       prisma.user.count.mockResolvedValue(10);
-      await expect(service.unlock(1, admin())).rejects.toThrow('tối đa 10 người dùng');
+      await expect(service.unlock(1, admin())).rejects.toThrow('tối đa 10 người');
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 

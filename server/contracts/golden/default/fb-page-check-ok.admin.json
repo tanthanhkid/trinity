@@ -1,0 +1,22 @@
+{
+  "status": 200,
+  "body": {
+    "connected_by": "<user:1>",
+    "contact_source_id": "<id:contact_source_id:1>",
+    "created_at": "<now>",
+    "data_access_expires_at": "2100-01-01T00:00:00.000Z",
+    "default_assignee_id": "<id:default_assignee_id:1>",
+    "disconnected": false,
+    "id": "<id:id:1>",
+    "is_active": true,
+    "name": "Page 1000001",
+    "page_id": "1000001",
+    "posting": null,
+    "project_id": null,
+    "subscribed": true,
+    "token_checked_at": "<token>",
+    "token_expires_at": null,
+    "token_status": "<token>",
+    "updated_at": "<now>"
+  }
+}

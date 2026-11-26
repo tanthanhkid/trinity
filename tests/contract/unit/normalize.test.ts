@@ -46,6 +46,10 @@ describe('Normalizer', () => {
     })
   })
 
+  it('id số dạng chuỗi được chuẩn hoá như id số', () => {
+    expect(new Normalizer().normalize({ contact_id: '9', assigned_to: '41', note: '123' })).toEqual({ contact_id: '<id:contact_id:1>', assigned_to: '<user:1>', note: '123' })
+  })
+
   it('ngày Việt Nam: 17:30 UTC đã là ngày hôm sau theo giờ VN', () => {
     const t = Date.UTC(2026, 10, 26, 17, 30, 0)
     expect(new Normalizer(t).normalize({ d: '2026-11-27' })).toEqual({ d: '<vn-day:0>' })

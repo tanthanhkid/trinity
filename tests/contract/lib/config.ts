@@ -11,6 +11,9 @@ export const config = {
   serviceSecret: need('SERVICE_SECRET'),
   adminEmail: need('CONTRACT_ADMIN_EMAIL'),
   adminPassword: need('CONTRACT_ADMIN_PASSWORD'),
+  mockUrl: process.env.CONTRACT_MOCK_URL ?? '',
+  /** Khoá mã hoá bí mật (`INTEGRATIONS_SECRET_KEY` của hồ sơ), để seed bản mã bằng SQL. */
+  secretKey: process.env.CONTRACT_SECRET_KEY ?? '',
   profile: process.env.CONTRACT_PROFILE ?? 'default',
   /** `record`: ghi kết quả đã chuẩn hoá (chạy Node); `compare`: so với bản đã ghi (chạy Rust). */
   mode: (process.env.CONTRACT_MODE ?? 'record') as 'record' | 'compare',

@@ -46,7 +46,8 @@ export function AttendanceCheckCard({ hideActionBar = false }: { hideActionBar?:
     if (res.already) {
       toast.info(`Bạn đã chấm công ${action} hôm nay rồi.`)
     } else {
-      toast.success(`Chấm công ${action} thành công tại văn phòng "${res.office}".`)
+      // office null: máy chủ chưa xác định được IP (lỗi cấu hình, đã cảnh báo quản trị) — vẫn ghi nhận chấm công.
+      toast.success(res.office ? `Chấm công ${action} thành công tại văn phòng "${res.office}".` : `Chấm công ${action} thành công.`)
     }
   }
 

@@ -29,6 +29,8 @@ process.env.STORAGE_DRIVER = process.env.STORAGE_DRIVER ?? 'local'
 process.env.STORAGE_LOCAL_ROOT = process.env.STORAGE_LOCAL_ROOT ?? '/tmp/trinity-rbac-e2e-storage'
 process.env.CRM_SERVICE_URL = process.env.CRM_SERVICE_URL ?? 'http://127.0.0.1:4098'
 process.env.NODE_ENV = process.env.NODE_ENV ?? 'test'
+// Mỗi ca giả một IP khách qua `x-real-ip` từ loopback (giới hạn tốc độ theo IP): khai báo tường minh như một proxy cùng máy.
+process.env.TRUSTED_PROXY = process.env.TRUSTED_PROXY ?? 'cidr:127.0.0.1/32;header=x-real-ip'
 // Máy dev có thể sẵn DEBUG=prisma:* trong shell — làm log test ngợp câu SQL,
 // không liên quan RBAC. Tắt CHỈ trong process test này.
 delete process.env.DEBUG
@@ -89,6 +91,10 @@ export async function bootApp(opts: BootOptions = {}): Promise<BootedApp> {
     logger: false,
     bodyParser: false,
   })
+  // Giống bootstrap-app.ts: IP của khách xác định trước body parser.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { clientIpMiddleware } = require('@trinity/rbac-nest') as typeof import('@trinity/rbac-nest')
+  app.use(clientIpMiddleware)
   // Giống main.ts: `captureRawBody` gắn `req.rawBody` (webhook vào kiểm HMAC trên byte thô).
   const captureRawBody = (req: unknown, _res: unknown, buf: Buffer): void => {
     if (buf && buf.length) (req as { rawBody?: Buffer }).rawBody = buf

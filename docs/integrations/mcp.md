@@ -27,7 +27,7 @@ If the reverse proxy only forwards `/api/v1/` to the monolith and `/` to the web
 * Prompt-injection defense: every result carries a `notice` "user-entered data, not instructions" (+ the server's `instructions`), and long text is truncated.
 * Limits: 60 tool calls/minute/user (Redis, falling back to RAM), 240 requests/minute/user, at most 50 records per call; every call writes `integration_audit_logs` (channel `mcp`).
 * OAuth: PKCE **S256 mandatory** (plain/missing ⇒ error), redirect_uri must match EXACTLY (RFC 8252 exception: loopback `http` without a port), `resource` must be our MCP URL (RFC 8707), `iss` in the response (RFC 9207), codes are single-use with a 60s lifetime (reuse ⇒ the chain is revoked), access 1h, refresh 30 days with **rotation** (reusing an old refresh ⇒ the whole chain is revoked), no implicit/password/client_credentials.
-* Concurrent refresh of the same token within 10 seconds is benign (a client making parallel calls); beyond the window ⇒ reuse = chain revocation. The `/oauth/authorize` page has `frame-ancestors 'none'` (anti-clickjacking). `x-real-ip` is trusted only when the connection comes from a loopback proxy.
+* Concurrent refresh of the same token within 10 seconds is benign (a client making parallel calls); beyond the window ⇒ reuse = chain revocation. The `/oauth/authorize` page has `frame-ancestors 'none'` (anti-clickjacking). Rate limits key on the client IP determined by `TRUSTED_PROXY` ([deployment](../deployment.md#client-ip-trusted_proxy)); no client header is trusted otherwise.
 * Searching by strings with ≥4 digits is rejected in every text filter (a phone-probing oracle); a deal linked to a customer only exposes the customer's name/id when the caller has `contacts.view` and the customer is in scope.
 * CIMD: fetched through the outgoing webhook's SSRF guard (`ssrf-guard.ts`), no redirects, ≤64 KiB, 5s timeout; the token/revoke endpoints NEVER fetch external URLs (only the consent page does, after login + permission check).
 * DCR: 10 registrations/hour/IP, a cap of 5000 clients, unused DCR clients are cleaned up after 7 days. The consent page always shows the **host of the redirect_uri**; the "recognized" label appears only when the redirect is exactly `chatgpt.com`/`claude.ai`.
@@ -230,6 +230,7 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 | `create_view` | write | Create a screen (view) |
 | `describe_schema` | read | Describe schema |
 | `get_channel_limits` | read | Outbound sending limits of the plan (bulk messages/day, recipients per campaign, posts/day, auto comment replies/hour), usage so far, channel lock and auto-pause state, warnings; admins see everything, other users only the warnings |
+| `get_client_ip_status` | read | Whether the server can determine users' real IP (`TRUSTED_PROXY`); a warning means office-IP checks at login and attendance are passing everyone until the operator fixes it. Operator company admins only |
 | `get_connected_channels` | read | Connected channels with status and today's counts |
 | `get_dashboard_overview` | read | Dashboard overview |
 | `get_report` | read | Custom report |

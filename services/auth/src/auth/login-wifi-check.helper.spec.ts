@@ -1,6 +1,8 @@
 import type { Request } from 'express'
+import { __resetClientIpStateForTest, __setRouteTableForTest } from '@trinity/rbac-nest'
 import {
   extractLoginClientIp,
+  loginClientIpTrusted,
   isLoginWifiCheckBypassed,
   isLoginWifiCheckEnabled,
   isUnusableLoginIp,
@@ -119,113 +121,49 @@ describe('login-wifi-check.helper', () => {
     })
   })
 
-  describe('extractLoginClientIp — thứ tự ưu tiên', () => {
-    it('ưu tiên x-real-ip (reverse proxy đặt = $remote_addr)', () => {
-      const req = buildReq({ 'x-real-ip': '203.0.113.5', 'x-forwarded-for': '9.9.9.9' }, PROXY)
-      expect(extractLoginClientIp(req)).toBe('203.0.113.5')
+  // Luật đầy đủ (5 giá trị TRUSTED_PROXY, chữ ký) test ở packages/rbac-nest/src/client-ip.spec.ts; ở đây chỉ kiểm
+  // helper đăng nhập đọc đúng hàm dùng chung và không còn tin header theo kiểu cũ.
+  describe('extractLoginClientIp / loginClientIpTrusted — qua hàm dùng chung', () => {
+    const ORIGINAL_TP = process.env.TRUSTED_PROXY
+    beforeEach(() => {
+      __resetClientIpStateForTest()
+      __setRouteTableForTest(null)
     })
-
-    it('fallback x-forwarded-for (entry đầu tiên) khi thiếu x-real-ip', () => {
-      const req = buildReq({ 'x-forwarded-for': '203.0.113.6, 10.0.0.1' }, PROXY)
-      expect(extractLoginClientIp(req)).toBe('203.0.113.6')
-    })
-
-    it('x-forwarded-for do client tự thêm entry đầu → lấy IP công cộng ngoài cùng (proxy append), không tin entry đầu', () => {
-      const req = buildReq({ 'x-forwarded-for': '203.0.113.99, 198.51.100.4, 10.0.0.1' }, PROXY)
-      expect(extractLoginClientIp(req)).toBe('198.51.100.4')
-    })
-
-    it('x-forwarded-for toàn IP riêng (client trong LAN) → entry đầu', () => {
-      const req = buildReq({ 'x-forwarded-for': '192.168.1.50, 10.0.0.1' }, PROXY)
-      expect(extractLoginClientIp(req)).toBe('192.168.1.50')
-    })
-
-    it('fallback req.ip khi thiếu cả 2 header', () => {
-      const req = buildReq({}, { ip: '203.0.113.7' })
-      expect(extractLoginClientIp(req)).toBe('203.0.113.7')
-    })
-
-    it('fallback socket.remoteAddress khi không có gì khác', () => {
-      const req = buildReq({}, { remoteAddress: '203.0.113.8' })
-      expect(extractLoginClientIp(req)).toBe('203.0.113.8')
-    })
-
-    it('trả null khi không xác định được IP nào (fail-open ở tầng gọi)', () => {
-      const req = buildReq({})
-      expect(extractLoginClientIp(req)).toBeNull()
-    })
-
-    it('chuẩn hoá bỏ prefix ::ffff: (IPv4-mapped IPv6)', () => {
-      const req = buildReq({ 'x-real-ip': '::ffff:203.0.113.9' }, PROXY)
-      expect(extractLoginClientIp(req)).toBe('203.0.113.9')
-    })
-  })
-
-  describe('x-real-ip chỉ được tin khi kết nối tới từ proxy nội bộ', () => {
     afterEach(() => {
-      delete process.env.LOGIN_WIFI_TRUST_PROXY_HEADERS
+      if (ORIGINAL_TP === undefined) delete process.env.TRUSTED_PROXY
+      else process.env.TRUSTED_PROXY = ORIGINAL_TP
+      __setRouteTableForTest(undefined)
     })
 
-    it('gọi thẳng từ IP công cộng + x-real-ip giả → bỏ qua header, dùng IP socket', () => {
-      const req = buildReq({ 'x-real-ip': '203.0.113.108', 'x-forwarded-for': '203.0.113.108' }, { remoteAddress: '198.51.100.9' })
+    it('TRUSTED_PROXY mặc định (none): x-real-ip / x-forwarded-for / cf-connecting-ip giả bị bỏ qua, dùng IP peer', () => {
+      delete process.env.TRUSTED_PROXY
+      const req = buildReq(
+        { 'x-real-ip': '203.0.113.108', 'x-forwarded-for': '203.0.113.108', 'cf-connecting-ip': '203.0.113.108' },
+        { remoteAddress: '198.51.100.9' },
+      )
       expect(extractLoginClientIp(req)).toBe('198.51.100.9')
+      expect(loginClientIpTrusted(req)).toBe(true)
     })
 
-    it('qua proxy mạng riêng (10.x / 172.16-31.x / 192.168.x / ::1) → tin header', () => {
-      for (const remote of ['10.1.2.3', '172.20.0.5', '192.168.1.1', '::1', '::ffff:127.0.0.1']) {
-        expect(extractLoginClientIp(buildReq({ 'x-real-ip': '203.0.113.5' }, { remoteAddress: remote }))).toBe('203.0.113.5')
-      }
-    })
-
-    it('172.32.x không phải mạng riêng → không tin header', () => {
-      expect(extractLoginClientIp(buildReq({ 'x-real-ip': '203.0.113.5' }, { remoteAddress: '172.32.0.1' }))).toBe('172.32.0.1')
-    })
-
-    it('LOGIN_WIFI_TRUST_PROXY_HEADERS=true → tin header dù socket là IP công cộng', () => {
-      process.env.LOGIN_WIFI_TRUST_PROXY_HEADERS = 'true'
-      expect(extractLoginClientIp(buildReq({ 'x-real-ip': '203.0.113.5' }, { remoteAddress: '198.51.100.9' }))).toBe('203.0.113.5')
-    })
-  })
-
-  describe('LOGIN_WIFI_TRUST_CF_IP — chỉ tin cf-connecting-ip khi ở sau Cloudflare', () => {
-    it('cờ TẮT: BỎ QUA cf-connecting-ip dù client có gửi (chống giả mạo khi không qua Cloudflare)', () => {
-      const req = buildReq({
-        'cf-connecting-ip': '203.0.113.108', // client tự bịa IP văn phòng
-        'x-real-ip': '1.2.3.4',
-      }, PROXY)
-      expect(extractLoginClientIp(req)).toBe('1.2.3.4')
-    })
-
-    it('cờ TẮT + CHỈ có cf-connecting-ip → vẫn không dùng, trả null (fail-open ở tầng gọi)', () => {
-      const req = buildReq({ 'cf-connecting-ip': '203.0.113.108' })
-      expect(extractLoginClientIp(req)).toBeNull()
-    })
-
-    it('cờ BẬT: ưu tiên cf-connecting-ip hơn x-real-ip (sau Cloudflare)', () => {
-      process.env.LOGIN_WIFI_TRUST_CF_IP = 'true'
-      const req = buildReq({
-        'cf-connecting-ip': '203.0.113.108', // IP THẬT của nhân viên
-        'x-real-ip': '198.51.100.7', // IP edge Cloudflare do reverse proxy đặt
-      })
-      expect(extractLoginClientIp(req)).toBe('203.0.113.108')
-    })
-
-    it('cờ BẬT nhưng thiếu cf-connecting-ip → rơi về x-real-ip như cũ', () => {
-      process.env.LOGIN_WIFI_TRUST_CF_IP = 'true'
+    it('peer loopback (proxy cùng máy, chưa đặt TRUSTED_PROXY) → không tin được, khoá tốc độ là IP peer', () => {
+      delete process.env.TRUSTED_PROXY
       const req = buildReq({ 'x-real-ip': '203.0.113.5' }, PROXY)
-      expect(extractLoginClientIp(req)).toBe('203.0.113.5')
+      expect(loginClientIpTrusted(req)).toBe(false)
+      expect(extractLoginClientIp(req)).toBe('127.0.0.1')
     })
 
-    it('cờ đặt giá trị khác chuỗi "true" → coi như TẮT', () => {
-      process.env.LOGIN_WIFI_TRUST_CF_IP = '1'
-      const req = buildReq({ 'cf-connecting-ip': '203.0.113.108', 'x-real-ip': '1.2.3.4' }, PROXY)
-      expect(extractLoginClientIp(req)).toBe('1.2.3.4')
+    it('cidr:127.0.0.1/32 → phần tử phải cùng của X-Forwarded-For; X-Real-IP giả bị bỏ qua', () => {
+      process.env.TRUSTED_PROXY = 'cidr:127.0.0.1/32'
+      const req = buildReq({ 'x-real-ip': '203.0.113.108', 'x-forwarded-for': '203.0.113.108, 198.51.100.4' }, { remoteAddress: '::ffff:127.0.0.1' })
+      expect(extractLoginClientIp(req)).toBe('198.51.100.4')
+      expect(loginClientIpTrusted(req)).toBe(true)
     })
 
-    it('cờ BẬT: chuẩn hoá cf-connecting-ip (trim + bỏ ::ffff:)', () => {
+    it('cờ cũ LOGIN_WIFI_TRUST_CF_IP không còn tác dụng: cf-connecting-ip giả không được tin', () => {
+      delete process.env.TRUSTED_PROXY
       process.env.LOGIN_WIFI_TRUST_CF_IP = 'true'
-      const req = buildReq({ 'cf-connecting-ip': ' ::ffff:203.0.113.108 ' })
-      expect(extractLoginClientIp(req)).toBe('203.0.113.108')
+      const req = buildReq({ 'cf-connecting-ip': '203.0.113.108' }, { remoteAddress: '198.51.100.9' })
+      expect(extractLoginClientIp(req)).toBe('198.51.100.9')
     })
   })
 

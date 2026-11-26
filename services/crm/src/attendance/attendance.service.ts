@@ -17,7 +17,7 @@ import type { CreateAttendanceRequestDto } from './dto/create-attendance-request
 import type { UpdateRequestConfigDto } from './dto/update-request-config.dto';
 import type { QueryAttendanceRequestsDto } from './dto/query-attendance-requests.dto';
 import type { RejectRequestDto } from './dto/reject-request.dto';
-import { extractClientIp, ipMatchesOffice } from './attendance-ip.helper';
+import { ATTENDANCE_IP_UNVERIFIED, extractClientIp, ipMatchesOffice } from './attendance-ip.helper';
 import {
   MATRIX_RECORD_CAP,
   type MatrixRow,
@@ -824,10 +824,8 @@ export class AttendanceService {
     selfie?: Express.Multer.File,
     isSuperAdmin = false,
   ) {
+    // null = IP không tin được (thiếu cấu hình proxy) ⇒ cho qua, không so IP văn phòng (xem extractClientIp).
     const clientIp = extractClientIp(req);
-    if (!clientIp) {
-      throw new BadRequestException('Không xác định được địa chỉ IP của thiết bị.');
-    }
 
     // 1. Load employee — cần office_id để xác định VĂN PHÒNG ĐƯỢC GÁN được phép chấm.
     const employee = await this.prisma.employee.findUnique({
@@ -840,11 +838,9 @@ export class AttendanceService {
 
     // 2. Validate IP — CHỈ chấp nhận đúng văn phòng được gán cho nhân viên (office_id).
     //    Chưa gán → mọi VP thật; super_admin → fallback VP demo.
-    const matchedOffice = await this.resolveOfficeForCheck(
-      clientIp,
-      employee.office_id,
-      isSuperAdmin,
-    );
+    const matchedOffice = clientIp
+      ? await this.resolveOfficeForCheck(clientIp, employee.office_id, isSuperAdmin)
+      : null; // IP chưa xác minh: KHÔNG gắn văn phòng; check_*_ip ghi dấu ATTENDANCE_IP_UNVERIFIED
 
     const now = new Date();
     const vnDateStr = getVnDateString(now);
@@ -855,7 +851,7 @@ export class AttendanceService {
       where: { user_id_work_date: { user_id: userId, work_date: workDate } },
     });
     if (existing?.check_in_at) {
-      return { record: existing, already: true, office: matchedOffice.name };
+      return { record: existing, already: true, office: matchedOffice?.name ?? null };
     }
 
     // 4. Ảnh selfie BẮT BUỘC.
@@ -881,8 +877,8 @@ export class AttendanceService {
           employee_id: employee.id,
           work_date: workDate,
           check_in_at: now,
-          check_in_ip: clientIp,
-          check_in_office_id: matchedOffice.id,
+          check_in_ip: clientIp ?? ATTENDANCE_IP_UNVERIFIED,
+          check_in_office_id: matchedOffice?.id ?? null,
           device_id: deviceId,
           check_in_note: note ?? null,
           check_in_proof_key: proofKey,
@@ -891,8 +887,8 @@ export class AttendanceService {
         },
         update: {
           check_in_at: now,
-          check_in_ip: clientIp,
-          check_in_office_id: matchedOffice.id,
+          check_in_ip: clientIp ?? ATTENDANCE_IP_UNVERIFIED,
+          check_in_office_id: matchedOffice?.id ?? null,
           device_id: deviceId,
           check_in_note: note ?? null,
           check_in_proof_key: proofKey,
@@ -903,9 +899,9 @@ export class AttendanceService {
     );
 
     this.logger.log(
-      `User ${userId} checked in at ${now.toISOString()} from IP ${clientIp} (${matchedOffice.name})`,
+      `User ${userId} checked in at ${now.toISOString()} from IP ${clientIp ?? 'không tin được (lỗi cấu hình TRUSTED_PROXY, cho qua)'} (${matchedOffice?.name ?? '-'})`,
     );
-    return { record, already: false, office: matchedOffice.name };
+    return { record, already: false, office: matchedOffice?.name ?? null };
   }
 
   /**
@@ -920,10 +916,8 @@ export class AttendanceService {
     selfie?: Express.Multer.File,
     isSuperAdmin = false,
   ) {
+    // null = IP không tin được (thiếu cấu hình proxy) ⇒ cho qua, không so IP văn phòng (xem extractClientIp).
     const clientIp = extractClientIp(req);
-    if (!clientIp) {
-      throw new BadRequestException('Không xác định được địa chỉ IP của thiết bị.');
-    }
 
     // 1. Load employee — cần office_id để xác định VĂN PHÒNG ĐƯỢC GÁN được phép chấm.
     const employee = await this.prisma.employee.findUnique({
@@ -936,11 +930,9 @@ export class AttendanceService {
 
     // 2. Validate IP — CHỈ chấp nhận đúng văn phòng được gán (office_id). Chưa gán → mọi VP
     //    thật; super_admin → fallback VP demo. (Đã bỏ kiểm tra thiết bị.)
-    const matchedOffice = await this.resolveOfficeForCheck(
-      clientIp,
-      employee.office_id,
-      isSuperAdmin,
-    );
+    const matchedOffice = clientIp
+      ? await this.resolveOfficeForCheck(clientIp, employee.office_id, isSuperAdmin)
+      : null; // IP chưa xác minh: KHÔNG gắn văn phòng; check_*_ip ghi dấu ATTENDANCE_IP_UNVERIFIED
 
     const now = new Date();
     const vnDateStr = getVnDateString(now);
@@ -957,7 +949,7 @@ export class AttendanceService {
       throw new BadRequestException('Chưa có check-in hôm nay, không thể check-out.');
     }
     if (existing.check_out_at) {
-      return { record: existing, already: true, office: matchedOffice.name };
+      return { record: existing, already: true, office: matchedOffice?.name ?? null };
     }
 
     // Ảnh selfie BẮT BUỘC (sau nhánh đã-check-out để double-click không bị 400 + không tạo ảnh mồ côi)
@@ -983,8 +975,8 @@ export class AttendanceService {
         where: { id: existing.id },
         data: {
           check_out_at: now,
-          check_out_ip: clientIp,
-          check_out_office_id: matchedOffice.id,
+          check_out_ip: clientIp ?? ATTENDANCE_IP_UNVERIFIED,
+          check_out_office_id: matchedOffice?.id ?? null,
           check_out_note: note ?? null,
           check_out_proof_key: proofKey,
           total_hours: totalHours ?? undefined,
@@ -996,9 +988,9 @@ export class AttendanceService {
     );
 
     this.logger.log(
-      `User ${userId} checked out at ${now.toISOString()} from IP ${clientIp} (${matchedOffice.name})`,
+      `User ${userId} checked out at ${now.toISOString()} from IP ${clientIp ?? 'không tin được (lỗi cấu hình TRUSTED_PROXY, cho qua)'} (${matchedOffice?.name ?? '-'})`,
     );
-    return { record, already: false, office: matchedOffice.name };
+    return { record, already: false, office: matchedOffice?.name ?? null };
   }
 
   // ============================================================

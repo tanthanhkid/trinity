@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isServerlessRuntime } from '@/lib/serverless-runtime'
 import { handleWithNest } from '@/lib/nest-bridge'
+import { CLIENT_IP_HEADER, clientIpFromEdge, isClientIpHeader, signClientIpHeader } from '@/lib/client-ip-headers'
 
 // Vercel serverless: Nest chạy TRONG app, KHÔNG proxy ra backend nào (phải khai ở đây: route handler
 // export `maxDuration` là trần của Vercel Hobby; chế độ Node server tự chạy bỏ qua giá trị này).
@@ -107,9 +108,11 @@ function getBackendUrl(path: string): string {
 }
 
 async function proxy(req: NextRequest) {
+  // IP khách do tệp nạp trước xác định — đọc NGAY (trước khi đệm body), ký lại ngay trước khi gửi sang API.
+  const clientIp = clientIpFromEdge(req.headers)
   if (isServerlessRuntime()) {
     try {
-      return await handleWithNest(req)
+      return await handleWithNest(req, clientIp)
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error(`[Nest serverless] ${req.method} ${req.nextUrl.pathname} lỗi:`, err)
@@ -130,6 +133,8 @@ async function proxy(req: NextRequest) {
   const headers = new Headers()
   req.headers.forEach((value, key) => {
     if (['host', 'connection', 'transfer-encoding'].includes(key)) return
+    // Header IP do client gửi KHÔNG được chuyển sang API (client tự khai IP được) — xem client-ip-headers.ts.
+    if (isClientIpHeader(key)) return
     headers.set(key, value)
   })
   // Set correct Host header for the backend server (reverse proxy khớp theo server_name)
@@ -148,6 +153,7 @@ async function proxy(req: NextRequest) {
       isExport ? 120_000 : 15_000,
     )
 
+    headers.set(CLIENT_IP_HEADER, signClientIpHeader(clientIp))
     const res = await fetch(url, {
       method: req.method,
       headers,

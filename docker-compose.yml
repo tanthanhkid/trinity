@@ -24,6 +24,10 @@ x-api-env: &api-env
   JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
   SERVICE_SECRET: ${SERVICE_SECRET:?set SERVICE_SECRET in .env}
   INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-${SERVICE_SECRET}}
+  # IP của khách (docs/deployment.md, "Client IP"). Trong Compose, web là tiến trình biên và ký IP cho api; TRUSTED_PROXY
+  # của api chỉ áp cho kết nối tới thẳng api (cổng loopback trên host), nên để riêng (mặc định none).
+  TRUSTED_PROXY: ${API_TRUSTED_PROXY:-none}
+  CLOUDFLARE_IP_RANGES: ${CLOUDFLARE_IP_RANGES:-}
   CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
   STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
   STORAGE_LOCAL_ROOT: /var/lib/trinity/storage
@@ -129,8 +133,14 @@ services:
       BACKEND_URL: http://api:4000
       MONOLITH_INTERNAL_URL: http://api:4000
       AUTH_SERVICE_URL: http://api:4000
+      # Web xác định IP khách (TRUSTED_PROXY áp lên peer TCP của web) và ký bằng cùng bí mật nội bộ với api.
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-${SERVICE_SECRET}}
+      TRUSTED_PROXY: ${TRUSTED_PROXY:-none}
+      CLOUDFLARE_IP_RANGES: ${CLOUDFLARE_IP_RANGES:-}
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      # WEB_BIND=127.0.0.1 khi có Caddy/nginx trên host phía trước (TRUSTED_PROXY=cidr:docker-gateway): không ai nối
+      # thẳng cổng web từ ngoài được.
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-3000}:3000"
     depends_on:
       api:
         condition: service_healthy

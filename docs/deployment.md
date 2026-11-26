@@ -41,6 +41,82 @@ in the build log, which every project member can read, so set `SEED_ADMIN_PASSWO
 5. If you enable MCP/OAuth set `INTEGRATIONS_PUBLIC_BASE_URL=https://crm.example.com` and
    `INTEGRATIONS_SECRET_KEY` (`openssl rand -base64 32`), then `docker compose up -d`.
 
+## Client IP (`TRUSTED_PROXY`)
+
+Office-IP checks at login (`LOGIN_WIFI_CHECK_ENABLED`), attendance IP checks (they affect payroll), rate limits, login
+logs, VNPay and the online store all use the client's IP. It is determined **once**, by the process that receives the
+connection first (the **edge**), as soon as the headers arrive, and passed inward signed. No header sent by the client is
+trusted unless `TRUSTED_PROXY` says the proxy in front of the edge writes it.
+
+- **Web is the edge** in every normal install (browser → [Caddy/nginx/Cloudflare] → web → API). The preload file
+  `apps/web/peer-ip.cjs` does the work: start the web server with `NODE_OPTIONS=--require <repo>/apps/web/peer-ip.cjs`
+  (the Docker image sets it). It drops every `x-trinity-*` header the client sent, determines the IP from the TCP peer
+  and `TRUSTED_PROXY`, and the `/api/v1` proxy re-signs it right before calling the API. Only `x-trinity-client-ip` and `x-trinity-peer-ip`
+  are removed; other `x-trinity-*` headers (such as `X-Trinity-Signature` on incoming webhooks) pass through. A signed
+  `x-trinity-client-ip` arriving at web is kept only from loopback or a proxy listed in `TRUSTED_PROXY`. The web process needs
+  `TRUSTED_PROXY`, `CLOUDFLARE_IP_RANGES` (optional) and the internal secret (`INTERNAL_SERVICE_SECRET` or
+  `SERVICE_SECRET`, the same value the API has). Without the preload file, or without a secret, the web sends
+  "untrusted" and the API never sees a client-chosen address (the API accepts an unsigned "untrusted" only from
+  loopback or a proxy listed in its own `TRUSTED_PROXY`; from anywhere else it is ignored). The web proxy never forwards `X-Forwarded-For`,
+  `X-Real-IP`, `CF-Connecting-IP`, `Forwarded` or `True-Client-IP` from the browser.
+- **The API** (`resolveClientIp`, `packages/rbac-nest/src/client-ip.ts`) trusts the signed header, and applies its own
+  `TRUSTED_PROXY` only to connections that reach it directly (no signed header).
+- **Vercel / serverless is not supported for office-IP checks**: there is no preload file, so every request is
+  "untrusted" (see below) — login Wi-Fi and attendance IP checks never compare addresses there.
+
+`TRUSTED_PROXY` applies to the **TCP peer** of the edge:
+
+| Value | Client IP |
+|---|---|
+| `none` (default) | The peer address (an on-premises LAN client with a private address counts as a real client). No header is trusted |
+| `cloudflare` | `CF-Connecting-IP`, only when the peer is in `CLOUDFLARE_IP_RANGES` (default: the list Cloudflare publishes at https://www.cloudflare.com/ips/; set the variable, comma-separated, when it changes); any other peer: the peer address |
+| `cloudflare-tunnel` | `CF-Connecting-IP`. The edge must listen on loopback only: it **refuses to start**, before opening the port, otherwise (web: `HOSTNAME=127.0.0.1`; API: `LISTEN_HOST=127.0.0.1`) |
+| `cidr:<list>` | The **right-most** `X-Forwarded-For` entry, only when the peer is in the list (CIDR or IP, comma-separated; the keyword `docker-gateway` is the container's default gateway read from `/proc/net/route`, only inside a container). `X-Real-IP` only with an explicit `;header=x-real-ip` |
+| `cloudflare-behind:<list>` | Cloudflare → Caddy/nginx → app. When the peer is in the list: take the right-most `X-Forwarded-For` entry (written by that proxy); if it is in `CLOUDFLARE_IP_RANGES` use `CF-Connecting-IP`, otherwise that entry |
+
+| Deployment | `TRUSTED_PROXY` (for web) |
+|---|---|
+| Process manager, Caddy/nginx on the same machine → web → API | `cidr:127.0.0.1/32` |
+| Same, with Cloudflare in front of Caddy/nginx | `cloudflare-behind:127.0.0.1/32` |
+| Docker Compose, `web` port published directly | `none` |
+| Docker Compose, Cloudflare connects straight to the `web` port | `cloudflare` |
+| Docker Compose behind Caddy/nginx on the host | `cidr:docker-gateway` (or `cloudflare-behind:docker-gateway`), and `WEB_BIND=127.0.0.1` |
+| Cloudflare Tunnel, process manager (web on `HOSTNAME=127.0.0.1`) | `cloudflare-tunnel` |
+| Cloudflare Tunnel with Docker Compose | not supported by the stock compose file yet (`cloudflared` must share the `web` container's network namespace so that web can listen on loopback); use one of the other values |
+
+In Docker Compose, `web` gets `TRUSTED_PROXY`, `CLOUDFLARE_IP_RANGES` and `INTERNAL_SERVICE_SECRET`
+(`${INTERNAL_SERVICE_SECRET:-${SERVICE_SECRET}}`, as for `api`); the `api` container gets `API_TRUSTED_PROXY`
+(default `none`), which only matters for connections to its loopback port on the host. With a process manager, the API
+reads `TRUSTED_PROXY` too; set `LISTEN_HOST=127.0.0.1` there when the API port should only be reachable locally.
+
+Caddy always writes `X-Forwarded-For` itself. **nginx does not**: every `location` that points at the app needs
+`proxy_set_header X-Forwarded-For $remote_addr;` (overwrite, not append) and `proxy_set_header X-Real-IP "";`; without
+the overwrite a client can fake its IP. Do not use `set_real_ip_from` alone (its default `real_ip_header` is
+`X-Real-IP`, i.e. the client's header). Use `cidr:` only when there really is a proxy in front and the app listens on
+loopback. Opening the origin only to Cloudflare's ranges (or using a Tunnel) remains a recommended second layer.
+
+**When the IP cannot be trusted** — the result is loopback, the container's default gateway (only inside a container:
+traffic through `docker-proxy`/NAT, e.g. `cidr:` with a wrong Docker range, or Cloudflare reaching the origin over
+IPv6), or the web process sent "untrusted" (no preload file, no secret, a proxy in the list that did not send its
+header) — it is never compared with office IPs. Login Wi-Fi checks and attendance IP checks **let the user through**
+instead of comparing a wrong address (attendance records then have no office and are marked `unverified` when checking in, shown as "IP not verified"), the server
+logs a configuration error, and admins of the operating company see a warning banner on every page for 24 hours after
+the last such request (also `GET /api/v1/settings/client-ip/alerts` and the MCP tool `get_client_ip_status`). Rate
+limits do not collapse into one bucket that one person could fill for everybody: login keeps a very high ceiling per
+peer address (3000 failures per 15 minutes, 1000 for the public login API) and, per email, slows failed attempts down
+(1 s, 2 s, 4 s … up to 15 s) with a hard cap of 50 failures per 15 minutes; sign-up and invitation acceptance count
+only failures, per email/invitation plus an overall ceiling; OAuth, MCP and the online store check **both** a ceiling
+per peer address and a per-client key (OAuth client, bearer token, buyer phone number), so changing the client-chosen
+key does not get around the ceiling. VNPay receives the client IP only when it is trusted and public.
+
+**Between Trinity processes** the IP travels in `x-trinity-client-ip: <ip or "untrusted">;<unix time>;<signature>`:
+HMAC-SHA256 over `<value>\n<unix time>` with a key derived by HKDF-SHA256 (empty salt, info
+`trinity x-trinity-client-ip v1`) from the internal secret (`INTERNAL_SERVICE_SECRET`, then `SERVICE_SECRET`; the API
+accepts either, like `@Internal` routes). It is valid for ±60 seconds and checked when the headers arrive, so a slow
+upload does not expire it. A request carrying this header with a wrong or expired signature gets **400** (a mismatch
+of secrets between web and API shows up as 400 on every request and a log line saying so). A bare `untrusted` without
+a signature is accepted: it only lowers trust.
+
 ## Updating
 
 ```bash
@@ -56,7 +132,7 @@ Keep `INTEGRATIONS_SECRET_KEY` somewhere safe: losing it makes stored webhook se
 ## Without Docker
 
 Build with `pnpm --filter "./packages/*" build && pnpm --filter @trinity/monolith build && pnpm --filter web build`,
-run `node apps/monolith/dist/apps/monolith/src/main.js` and `node apps/web/.next/standalone/apps/web/server.js` under a
+run `node apps/monolith/dist/apps/monolith/src/main.js` and `NODE_OPTIONS=--require ./apps/web/peer-ip.cjs node apps/web/.next/standalone/apps/web/server.js` (the web process also needs `TRUSTED_PROXY` and the internal secret, see "Client IP") under a
 process manager of your choice (systemd, pm2). Apply migrations with `pnpm --filter @trinity/prisma migrate:deploy`.
 
 ## Fast updates without Docker
@@ -132,4 +208,5 @@ API returns a config).
 - [ ] Every `change-me-*` value replaced; secrets are random and at least 32 bytes.
 - [ ] `CORS_ORIGIN` lists only your real web origin(s).
 - [ ] TLS in front of the web container; port 4000 not exposed to the internet.
+- [ ] `TRUSTED_PROXY` set for your deployment (section "Client IP"); no client-IP warning banner after signing in as an admin.
 - [ ] Postgres and Redis not exposed publicly, backups scheduled.

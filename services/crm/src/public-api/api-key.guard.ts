@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
+import { resolveClientIp } from '@trinity/rbac-nest';
 import * as crypto from 'crypto';
 import { PrismaService } from '@trinity/prisma';
 import { enterTokenCompany } from '../common/helpers/company-token';
@@ -110,7 +111,8 @@ export class ApiKeyGuard implements CanActivate {
       );
     }
 
-    const ip = request.ip ?? request.socket.remoteAddress ?? null;
+    // IP khách từ hàm dùng chung (TRUSTED_PROXY); không tin được ⇒ không ghi IP sai vào last_used_ip.
+    const ip = resolveClientIp(request).ip;
     this.prisma.apiKey
       .update({
         where: { id: record.id },

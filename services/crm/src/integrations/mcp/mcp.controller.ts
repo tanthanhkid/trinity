@@ -4,7 +4,7 @@ import type { Request, Response } from 'express';
 import { IntegrationAuditService } from '@trinity/prisma';
 import { Public } from '@trinity/rbac-nest';
 import { OAUTH_SCOPES, oauthEnabled, protectedResourceMetadataUrl, publicBaseUrl } from '../oauth/oauth-config';
-import { clientIp } from '../oauth/oauth-rate-limits';
+import { hitByClient } from '../oauth/oauth-rate-limits';
 import { FixedWindowLimiter } from '../../common/helpers/fixed-window-limiter';
 import { McpAuthError, McpAuthService } from './mcp-auth.service';
 import { MCP_AUTH_FAIL_PER_MINUTE, MCP_REQUESTS_PER_MINUTE, McpRateLimiter } from './mcp-rate-limiter';
@@ -67,7 +67,7 @@ export class McpController {
       principal = await this.auth.authenticate(req);
     } catch (err) {
       if (!(err instanceof McpAuthError)) throw err;
-      if (!authFailLimiter.hit(clientIp(req)).allowed) {
+      if (!hitByClient(authFailLimiter, 'mcp-auth', req, req.headers.authorization).allowed) {
         res.set('Retry-After', '60').status(429).json({ error: 'rate_limited', error_description: 'Quá nhiều yêu cầu xác thực sai' });
         return;
       }

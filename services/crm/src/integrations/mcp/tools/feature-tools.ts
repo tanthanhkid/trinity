@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { BASIC_FEATURES, can, ORG_FEATURE_GROUPS, ORG_FEATURES, isOrgFeatureKey, isRetiredOrgFeatureKey, type OrgFeatureKey } from '@trinity/rbac';
+import { clientIpWarning } from '@trinity/rbac-nest';
 import { wrapData } from '../ai-output';
 import { isUserConfirmation } from '../actions/user-confirmation';
 import { ToolUserError, type ToolDef } from './tool-types';
@@ -118,6 +119,24 @@ export const getChannelLimitsTool: ToolDef = {
     const full = can(principal.user.grants, 'settings.features');
     const data = full ? await deps.channelGuard.status() : await deps.channelGuard.alerts();
     const out = wrapData(data as unknown as Record<string, unknown>);
+    return { structured: out, text: JSON.stringify(out) };
+  },
+};
+
+/** Cảnh báo cấu hình IP của khách (TRUSTED_PROXY) — cùng dữ liệu với dải cảnh báo quản trị trên web. Chỉ đọc. */
+export const getClientIpStatusTool: ToolDef = {
+  name: 'get_client_ip_status',
+  title: 'Cảnh báo IP người dùng / Client IP warning',
+  description:
+    'Cho biết máy chủ có xác định được IP thật của người dùng không. warning khác null nghĩa là cấu hình proxy (TRUSTED_PROXY) chưa khớp cách triển khai: ' +
+    'kiểm IP văn phòng khi đăng nhập và khi chấm công đang tạm cho qua cho tới khi người vận hành sửa (xem docs/deployment.md, mục "Client IP"). ' +
+    'Chỉ quản trị viên của công ty vận hành máy chủ nhận câu cảnh báo. Chỉ đọc. / Whether the server can determine users\' real IP (TRUSTED_PROXY). Read-only.',
+  permissions: ['settings.integrations'],
+  input: () => ({}),
+  output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
+  async run(_args, { principal }) {
+    const operator = (principal.user.companyId ?? 1) === 1;
+    const out = wrapData({ warning: operator ? clientIpWarning() : null });
     return { structured: out, text: JSON.stringify(out) };
   },
 };

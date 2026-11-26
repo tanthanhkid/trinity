@@ -158,32 +158,41 @@ export class AuthService {
     return this.toMeResponse(user, grants, isAdmin, await this.companyInfo())
   }
 
-  async login(dto: LoginDto, ipAddress: string | null = null) {
+  async login(dto: LoginDto, ipAddress: string | null = null, ipTrusted = true) {
     // key rate-limit chuẩn hoá (trim + lowercase) CHỈ để gộp
     // đúng 1 quota cho mọi biến thể hoa/thường của CÙNG email (điện thoại tự
     // viết hoa chữ cái đầu). Giá trị RAW `dto.email` (audit log, lookup) GIỮ
     // NGUYÊN — không đụng, vì đó là tín hiệu chẩn đoán chính.
-    const rateLimitKey = `login:${ipAddress ?? 'unknown'}:${this.normalizeEmailForKey(dto.email)}`
+    // IP không tin được ⇒ trần cao theo IP peer + làm chậm dần theo email (không 429 theo email: người khác chung peer
+    // sẽ bị khoá oan). Xem RateLimiterService.
+    const rateLimitKey = ipTrusted
+      ? `login:${ipAddress ?? 'unknown'}:${this.normalizeEmailForKey(dto.email)}`
+      : `login-untrusted:${ipAddress ?? 'unknown'}`
+    const slowKey = ipTrusted ? null : `login-untrusted-email:${this.normalizeEmailForKey(dto.email)}`
     // Multi-tenant: the email decides the company; everything below (audit log included) runs in its schema.
     await this.enterCompanyOfEmail(dto.email)
     await this.enforceRateLimit(rateLimitKey, dto.email, ipAddress)
+    if (slowKey) {
+      await this.enforceRateLimit(slowKey, dto.email, ipAddress)
+      await this.slowDownUntrusted(slowKey)
+    }
 
     const user = await this.findUserByEmail(dto.email)
     if (!user) {
-      this.rateLimiter.recordAttempt(rateLimitKey)
+      this.recordLoginFailure(rateLimitKey, slowKey)
       await this.logLoginAttempt(null, dto.email, false, ipAddress, 'email_not_found')
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng')
     }
 
     const passwordValid = await bcrypt.compare(dto.password, user.password_hash)
     if (!passwordValid) {
-      this.rateLimiter.recordAttempt(rateLimitKey)
+      this.recordLoginFailure(rateLimitKey, slowKey)
       await this.logLoginAttempt(user.id, dto.email, false, ipAddress, 'bad_password')
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng')
     }
 
     if (user.status !== 'active') {
-      this.rateLimiter.recordAttempt(rateLimitKey)
+      this.recordLoginFailure(rateLimitKey, slowKey)
       await this.logLoginAttempt(user.id, dto.email, false, ipAddress, 'account_locked')
       throw new UnauthorizedException('Tài khoản đã bị khoá')
     }
@@ -195,7 +204,7 @@ export class AuthService {
     // 100%. KHÔNG tính vào rate-limit (không phải sai mật khẩu).
     if (await this.isLoginWifiCheckActive()) {
       const { grants } = await this.permissionService.grantsFor(user.id)
-      const wifiCheck = await this.checkLoginWifi(user.id, dto.email, grants, ipAddress)
+      const wifiCheck = await this.checkLoginWifi(user.id, dto.email, grants, ipAddress, ipTrusted)
       if (!wifiCheck.allowed) {
         this.logger.warn(
           `[login-wifi-check] BLOCKED user=${user.id} email=${dto.email} ip=${ipAddress ?? 'unknown'} reason=${wifiCheck.reason}`,
@@ -215,6 +224,7 @@ export class AuthService {
     }
 
     this.rateLimiter.resetAttempts(rateLimitKey)
+    if (slowKey) this.rateLimiter.resetAttempts(slowKey)
     await this.logLoginAttempt(user.id, dto.email, true, ipAddress, 'ok')
     // Clear blacklist khi login thành công: nếu user vừa logout/đổi role rồi login lại
     // bằng password đúng, họ phải được full access ngay (status check ở trên đã chặn user bị lock).
@@ -259,6 +269,7 @@ export class AuthService {
     email: string,
     grants: Grants,
     ipAddress: string | null,
+    ipTrusted = true,
   ): Promise<{ allowed: boolean; reason: string }> {
     try {
       // PHẢI truyền user.id THẬT: `LOGIN_WIFI_CHECK_BYPASS_EMAILS` nhận CẢ email
@@ -276,10 +287,13 @@ export class AuthService {
       if (!targeted) {
         return { allowed: true, reason: 'not_targeted' }
       }
-      // Loopback/IP không xác định (vd reverse proxy quên set x-real-ip) KHÔNG được coi
-      // là "sai văn phòng" — coi như không xác định được IP, fail-open (tránh 1
-      // thay đổi hạ tầng ngoài code khoá TOÀN BỘ nhân viên cùng lúc). Check `ipAddress == null` riêng trước để TS narrow sang
-      // `string` cho lời gọi `loginIpMatchesOffice` bên dưới (tránh non-null `!`).
+      // IP không tin được (TRUSTED_PROXY chưa khớp cách triển khai: loopback, cổng mặc định container, dấu "không tin
+      // được") KHÔNG được coi là "sai văn phòng": cho qua (tránh 1 thay đổi hạ tầng khoá TOÀN BỘ nhân viên);
+      // `resolveClientIp` đã ghi lỗi cấu hình và bật dải cảnh báo quản trị. Check `ipAddress == null` riêng để TS narrow
+      // sang `string` cho `loginIpMatchesOffice` bên dưới.
+      if (!ipTrusted) {
+        return { allowed: true, reason: 'fail_open_untrusted_ip' }
+      }
       if (ipAddress == null || isUnusableLoginIp(ipAddress)) {
         return { allowed: true, reason: 'fail_open_no_usable_ip' }
       }
@@ -460,29 +474,37 @@ export class AuthService {
     dto: LoginDto,
     ipAddress: string | null,
     expectedOwnerUserId: number,
+    ipTrusted = true,
   ) {
     // mirror `login()`: key rate-limit chuẩn hoá để KHÔNG cho
     // biến thể hoa/thường của cùng email né quota brute-force (nhánh này LUÔN
     // enforce thật — khác nhánh nội bộ đang tắt, xem `rate-limiter.service.ts`).
-    const rateLimitKey = `public-login:${ipAddress ?? 'unknown'}:${this.normalizeEmailForKey(dto.email)}`
+    const rateLimitKey = ipTrusted
+      ? `public-login:${ipAddress ?? 'unknown'}:${this.normalizeEmailForKey(dto.email)}`
+      : `public-login-untrusted:${ipAddress ?? 'unknown'}`
+    const slowKey = ipTrusted ? null : `login-untrusted-email:${this.normalizeEmailForKey(dto.email)}`
     await this.enforceRateLimit(rateLimitKey, dto.email, ipAddress)
+    if (slowKey) {
+      await this.enforceRateLimit(slowKey, dto.email, ipAddress)
+      await this.slowDownUntrusted(slowKey)
+    }
 
     const user = await this.findUserByEmail(dto.email)
     if (!user) {
-      this.rateLimiter.recordAttempt(rateLimitKey)
+      this.recordLoginFailure(rateLimitKey, slowKey)
       await this.logLoginAttempt(null, dto.email, false, ipAddress, 'email_not_found')
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng')
     }
 
     const passwordValid = await bcrypt.compare(dto.password, user.password_hash)
     if (!passwordValid) {
-      this.rateLimiter.recordAttempt(rateLimitKey)
+      this.recordLoginFailure(rateLimitKey, slowKey)
       await this.logLoginAttempt(user.id, dto.email, false, ipAddress, 'bad_password')
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng')
     }
 
     if (user.status !== 'active') {
-      this.rateLimiter.recordAttempt(rateLimitKey)
+      this.recordLoginFailure(rateLimitKey, slowKey)
       await this.logLoginAttempt(user.id, dto.email, false, ipAddress, 'account_locked')
       throw new UnauthorizedException('Tài khoản đã bị khoá')
     }
@@ -490,7 +512,7 @@ export class AuthService {
     if (user.id !== expectedOwnerUserId) {
       // API key cấp cho owner_user_id=X chỉ được đăng nhập dưới user X — tránh
       // dùng 1 key login lấy JWT của user khác (scope bypass).
-      this.rateLimiter.recordAttempt(rateLimitKey)
+      this.recordLoginFailure(rateLimitKey, slowKey)
       await this.logLoginAttempt(user.id, dto.email, false, ipAddress, 'owner_mismatch')
       throw new UnauthorizedException(
         'Email không khớp với owner của API key',
@@ -499,7 +521,7 @@ export class AuthService {
 
     const { grants, isAdmin } = await this.permissionService.grantsFor(user.id)
     if (isAdmin || !can(grants, 'contacts.create')) {
-      this.rateLimiter.recordAttempt(rateLimitKey)
+      this.recordLoginFailure(rateLimitKey, slowKey)
       await this.logLoginAttempt(user.id, dto.email, false, ipAddress, 'role_not_allowed')
       throw new UnauthorizedException(
         'Tài khoản này không được phép đăng nhập qua public API',
@@ -507,6 +529,7 @@ export class AuthService {
     }
 
     this.rateLimiter.resetAttempts(rateLimitKey)
+    if (slowKey) this.rateLimiter.resetAttempts(slowKey)
     await this.logLoginAttempt(user.id, dto.email, true, ipAddress, 'ok')
     this.tokenBlacklist.removeUser(user.id)
 
@@ -797,6 +820,26 @@ export class AuthService {
     return email.trim().toLowerCase()
   }
 
+  private recordLoginFailure(rateLimitKey: string, slowKey: string | null): void {
+    this.rateLimiter.recordAttempt(rateLimitKey)
+    if (slowKey) this.rateLimiter.recordAttempt(slowKey)
+  }
+
+  /**
+   * IP không tin được: sai mật khẩu nhiều lần với một email ⇒ trễ tăng dần (từ lần sai thứ 5: 1 s, 2 s, 4 s… tối đa
+   * 15 s), không chặn cứng. Brute-force một tài khoản bị kìm, người dùng thật cùng email vẫn đăng nhập được.
+   */
+  private async slowDownUntrusted(slowKey: string): Promise<void> {
+    const n = this.rateLimiter.attempts(slowKey)
+    if (n < 5) return
+    await this.loginDelay(Math.min(1000 * 2 ** (n - 5), 15_000))
+  }
+
+  /** Tách ra để test thay đồng hồ. */
+  protected loginDelay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
   /**
    * Request bị rate-limit vẫn được ghi vào `audit_logs` để phân biệt
    * "bị chặn vì thử quá nhiều" với các nhánh 401 khác khi điều tra.
@@ -933,14 +976,22 @@ export class AuthService {
    * Self-service sign-up: a new company (its own schema, empty CRM) whose only user is the owner, then the same
    * token response as a login, minted inside the new company.
    */
-  async register(dto: RegisterDto, ipAddress: string | null) {
+  async register(dto: RegisterDto, ipAddress: string | null, ipTrusted = true) {
     if (!this.signupEnabled()) throw new NotFoundException('Bản cài đặt này không mở đăng ký')
     // No company exists yet, so nothing is written to an audit log until the new one does.
-    const rateLimitKey = `register:${ipAddress ?? 'unknown'}`
-    if (this.rateLimiter.isRateLimited(rateLimitKey)) {
+    // IP không tin được: không gộp mọi người vào một xô IP peer — giới hạn theo email + một trần chung cao hơn.
+    // IP không tin được: không gộp mọi người vào xô IP peer; khoá theo email + trần chung, CHỈ đếm lần thất bại (đăng ký
+    // thành công của người này không làm hết lượt của người khác).
+    const rateLimitKeys = ipTrusted
+      ? [`register:${ipAddress ?? 'unknown'}`]
+      : [`register-untrusted:${this.normalizeEmailForKey(dto.email)}`, 'register-untrusted-all']
+    if (rateLimitKeys.some((k) => this.rateLimiter.isRateLimited(k))) {
       throw new HttpException('Quá nhiều lần đăng ký, vui lòng thử lại sau', HttpStatus.TOO_MANY_REQUESTS)
     }
-    this.rateLimiter.recordAttempt(rateLimitKey)
+    if (ipTrusted) rateLimitKeys.forEach((k) => this.rateLimiter.recordAttempt(k))
+    const recordRegisterFailure = () => {
+      if (!ipTrusted) rateLimitKeys.forEach((k) => this.rateLimiter.recordAttempt(k))
+    }
     let company
     try {
       ;({ company } = await provisionCompany({
@@ -950,6 +1001,7 @@ export class AuthService {
         adminName: dto.full_name,
       }))
     } catch (err) {
+      recordRegisterFailure()
       if (err instanceof EmailTakenError) {
         throw new HttpException('Email này đã được dùng — hãy đăng nhập', HttpStatus.CONFLICT)
       }
@@ -987,21 +1039,24 @@ export class AuthService {
    * Nhận lời mời: tạo user trong ĐÚNG công ty của lời mời (công ty đọc từ tiền tố token), gán vai trò chủ chọn lúc mời,
    * đăng nhập luôn. Lời mời dùng một lần (đánh dấu bằng UPDATE có điều kiện nên hai lần bấm cùng lúc chỉ một lần thắng).
    */
-  async acceptInvitation(dto: AcceptInvitationDto, ipAddress: string | null) {
-    const rateLimitKey = `invite:${ipAddress ?? 'unknown'}`
-    if (this.rateLimiter.isRateLimited(rateLimitKey)) {
+  async acceptInvitation(dto: AcceptInvitationDto, ipAddress: string | null, ipTrusted = true) {
+    // IP không tin được: không gộp mọi người vào một xô IP peer — giới hạn theo token (băm) + một trần chung cao hơn.
+    const tokenKey = crypto.createHash('sha256').update(dto.token.trim()).digest('hex').slice(0, 24)
+    const rateLimitKeys = ipTrusted ? [`invite:${ipAddress ?? 'unknown'}`] : [`invite-untrusted:${tokenKey}`, 'invite-untrusted-all']
+    const recordFailure = () => rateLimitKeys.forEach((k) => this.rateLimiter.recordAttempt(k))
+    if (rateLimitKeys.some((k) => this.rateLimiter.isRateLimited(k))) {
       throw new HttpException('Quá nhiều lần thử, vui lòng thử lại sau', HttpStatus.TOO_MANY_REQUESTS)
     }
     const token = dto.token.trim()
     if (!(await enterTokenCompany(token))) {
-      this.rateLimiter.recordAttempt(rateLimitKey)
+      recordFailure()
       throw new GoneException(INVITATION_GONE_MESSAGE)
     }
     let inv
     try {
       inv = await findPendingInvitation(this.prisma, token)
     } catch (err) {
-      this.rateLimiter.recordAttempt(rateLimitKey)
+      recordFailure()
       throw err
     }
     await assertEmailAvailableForCurrentCompany(inv.email)
@@ -1073,7 +1128,7 @@ export class AuthService {
         return user.id
       })
     } catch (err) {
-      if (err instanceof GoneException) this.rateLimiter.recordAttempt(rateLimitKey)
+      if (err instanceof GoneException) recordFailure()
       throw err
     }
     await this.auditLog.logPasswordChange({ actorUserId: inv.created_by ?? null, targetUserId: userId, method: 'user_create', ipAddress })
@@ -1083,7 +1138,7 @@ export class AuthService {
     // "1 tài khoản 1 phiên" (đăng ký phiên mới để token có `sid`).
     if (await this.isLoginWifiCheckActive()) {
       const { grants } = await this.permissionService.grantsFor(user.id)
-      const wifiCheck = await this.checkLoginWifi(user.id, user.email, grants, ipAddress)
+      const wifiCheck = await this.checkLoginWifi(user.id, user.email, grants, ipAddress, ipTrusted)
       if (!wifiCheck.allowed) {
         await this.logLoginAttempt(user.id, user.email, false, ipAddress, 'wifi_blocked')
         throw new UnauthorizedException(

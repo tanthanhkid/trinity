@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { clientIpFromEdge } from '@/lib/client-ip-headers'
 
 const ELK_URL = process.env.ELASTICSEARCH_URL || 'http://localhost:9200'
 const INDEX = `${process.env.FE_LOG_INDEX_PREFIX || 'app-logs-fe'}-${new Date().toISOString().slice(0, 10).replace(/-/g, '.')}`
@@ -49,7 +50,8 @@ function sanitizeFields(body: Record<string, unknown>): Record<string, string | 
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    // IP khách do tệp nạp trước xác định (không đọc x-forwarded-for do client tự khai); không có ⇒ một xô chung.
+    const ip = clientIpFromEdge(req.headers)
     if (rateLimited(ip)) return NextResponse.json({ ok: false }, { status: 429 })
 
     const raw = await req.text()

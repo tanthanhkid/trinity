@@ -6,6 +6,7 @@ import { createRequire } from 'node:module'
 import { Readable } from 'node:stream'
 import type { AddressInfo } from 'node:net'
 import { toNestPath } from '@/lib/serverless-runtime'
+import { CLIENT_IP_HEADER, clientIpFromEdge, isClientIpHeader, signClientIpHeader } from '@/lib/client-ip-headers'
 import { loadNestModule, type NestModule } from "#nest-loader"
 
 /**
@@ -107,16 +108,19 @@ async function drainNestBackground(): Promise<void> {
 const HOP_BY_HOP = new Set(['connection', 'keep-alive', 'transfer-encoding', 'upgrade', 'proxy-connection'])
 const NO_BODY_STATUS = new Set([101, 204, 205, 304])
 
-export async function handleWithNest(req: NextRequest): Promise<Response> {
+export async function handleWithNest(req: NextRequest, clientIp: string = clientIpFromEdge(req.headers)): Promise<Response> {
   const port = await ensureServer()
 
   const headers: Record<string, string> = {}
   req.headers.forEach((value, key) => {
-    if (!HOP_BY_HOP.has(key)) headers[key] = value
+    // Header IP do client gửi KHÔNG được chuyển sang Nest (client tự khai IP được) — xem client-ip-headers.ts.
+    if (!HOP_BY_HOP.has(key) && !isClientIpHeader(key)) headers[key] = value
   })
 
   // Chạy NGAY trong context của request thật; chỉ bắt đầu chờ sau khi response đã gửi hết.
   after(drainNestBackground)
+
+  headers[CLIENT_IP_HEADER] = signClientIpHeader(clientIp)
 
   return new Promise<Response>((resolve, reject) => {
     const up = http.request(

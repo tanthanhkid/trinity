@@ -1,14 +1,28 @@
+import { createHash } from 'node:crypto';
 import type { Request } from 'express';
+import { resolveClientIp } from '@trinity/rbac-nest';
 import { FixedWindowLimiter } from '../../common/helpers/fixed-window-limiter';
 
-/** IP client: `x-real-ip` do reverse proxy đặt = `$remote_addr` (client không ghi đè được) — cùng nguyên tắc `attendance-ip.helper`. */
-export function clientIp(req: Request): string {
-  const remote = (req.socket as { remoteAddress?: string })?.remoteAddress ?? '';
-  // Chỉ tin `x-real-ip` khi kết nối tới từ proxy cục bộ (proxy cùng máy). Nếu cổng ứng dụng lỡ mở ra ngoài ⇒ header tự đặt bị bỏ qua.
-  const fromLocalProxy = remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
-  const real = req.headers['x-real-ip'];
-  if (fromLocalProxy && typeof real === 'string' && real) return real.trim();
-  return req.ip ?? (req.socket as { remoteAddress?: string })?.remoteAddress ?? 'unknown';
+export type LimitHit = { allowed: boolean; retryAfterSec: number };
+
+/**
+ * Trần chung theo IP peer khi IP khách KHÔNG tin được (mọi khách chung một peer): cao hơn nhiều giới hạn từng client,
+ * chỉ chống dội hàng loạt; khoá riêng (`own`) do client chọn nên KHÔNG được là lớp duy nhất.
+ */
+export const untrustedPeerLimiter = new FixedWindowLimiter(600, 60 * 1000);
+
+/**
+ * Giới hạn tốc độ theo IP khách (hàm dùng chung, TRUSTED_PROXY). IP không tin được ⇒ kiểm CẢ HAI: trần chung theo IP
+ * peer (`untrustedPeerLimiter`) VÀ khoá riêng của client (`own`: client_id, token băm, …) trên `limiter` — đổi `own`
+ * không lách được trần peer, một client cũng không làm nghẽn client khác.
+ */
+export function hitByClient(limiter: FixedWindowLimiter, prefix: string, req: Request, own?: unknown): LimitHit {
+  const c = resolveClientIp(req);
+  if (c.ip) return limiter.hit(`${prefix}:${c.ip}`);
+  const peer = untrustedPeerLimiter.hit(`${prefix}:${c.rateKey}`);
+  const o = typeof own === 'string' ? own.trim().slice(0, 200) : '';
+  const mine = limiter.hit(`${prefix}:u:${createHash('sha256').update(o).digest('hex').slice(0, 24)}`);
+  return !peer.allowed ? peer : mine;
 }
 
 /** Giới hạn trong RAM (1 process). DCR: 10 đăng ký/giờ/IP (chống spam bảng client). Token/revoke: 60 req/phút/IP. */

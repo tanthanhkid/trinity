@@ -8,7 +8,7 @@ import { oauthEnabled, publicBaseUrl } from './oauth-config';
 import { authorizationServerMetadata, protectedResourceMetadata } from './oauth-metadata';
 import { OauthClientsService } from './oauth-clients.service';
 import { OauthTokenService } from './oauth-token.service';
-import { clientIp, registerLimiter, tokenLimiter } from './oauth-rate-limits';
+import { hitByClient, registerLimiter, tokenLimiter } from './oauth-rate-limits';
 
 const NO_STORE = { 'Cache-Control': 'no-store', Pragma: 'no-cache' } as const;
 const asBody = (b: unknown): Record<string, unknown> => (b && typeof b === 'object' && !Array.isArray(b) ? (b as Record<string, unknown>) : {});
@@ -72,7 +72,7 @@ export class OauthController {
   @Public()
   @HttpCode(201)
   async register(@Body() body: unknown, @Req() req: Request, @Res() res: Response): Promise<void> {
-    if (this.notFound(res) || this.limited(res, registerLimiter.hit(`reg:${clientIp(req)}`))) return;
+    if (this.notFound(res) || this.limited(res, hitByClient(registerLimiter, 'reg', req, JSON.stringify(asBody(body).redirect_uris ?? '')))) return;
     try {
       const out = await this.clients.register(asBody(body));
       await this.audit.log({ channel: 'mcp', action: 'oauth.register', status: 'ok', clientId: String(out.client_id), metadata: { client_name: out.client_name } });
@@ -86,7 +86,7 @@ export class OauthController {
   @Public()
   @HttpCode(200)
   async token(@Body() body: unknown, @Req() req: Request, @Res() res: Response): Promise<void> {
-    if (this.notFound(res) || this.limited(res, tokenLimiter.hit(`tok:${clientIp(req)}`))) return;
+    if (this.notFound(res) || this.limited(res, hitByClient(tokenLimiter, 'tok', req, asBody(body).client_id))) return;
     try {
       res.set(NO_STORE).status(200).json(await this.tokens.token(asBody(body)));
     } catch (err) {
@@ -98,7 +98,7 @@ export class OauthController {
   @Public()
   @HttpCode(200)
   async revoke(@Body() body: unknown, @Req() req: Request, @Res() res: Response): Promise<void> {
-    if (this.notFound(res) || this.limited(res, tokenLimiter.hit(`rev:${clientIp(req)}`))) return;
+    if (this.notFound(res) || this.limited(res, hitByClient(tokenLimiter, 'rev', req, asBody(body).client_id))) return;
     try {
       await this.tokens.revoke(asBody(body));
       res.set(NO_STORE).status(200).json({});

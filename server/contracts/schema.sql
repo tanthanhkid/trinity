@@ -199,6 +199,12 @@ CREATE TABLE platform.company_routes (
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
+CREATE TABLE public.active_sessions (
+    user_id integer NOT NULL,
+    session_id character varying(64) NOT NULL,
+    started_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
 CREATE TABLE public.activities (
     id integer NOT NULL,
     contact_id integer,
@@ -2714,6 +2720,12 @@ CREATE SEQUENCE public.teams_id_seq
 
 ALTER SEQUENCE public.teams_id_seq OWNED BY public.teams.id;
 
+CREATE TABLE public.token_blacklist (
+    user_id integer NOT NULL,
+    expires_at timestamp(3) with time zone NOT NULL,
+    updated_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
 CREATE TABLE public.user_invitations (
     id integer NOT NULL,
     email character varying(255) NOT NULL,
@@ -3179,6 +3191,9 @@ ALTER TABLE ONLY platform.company_logins
 ALTER TABLE ONLY platform.company_routes
     ADD CONSTRAINT company_routes_pkey PRIMARY KEY (kind, external_id);
 
+ALTER TABLE ONLY public.active_sessions
+    ADD CONSTRAINT active_sessions_pkey PRIMARY KEY (user_id);
+
 ALTER TABLE ONLY public.activities
     ADD CONSTRAINT activities_pkey PRIMARY KEY (id);
 
@@ -3496,6 +3511,9 @@ ALTER TABLE ONLY public.tax_brackets
 
 ALTER TABLE ONLY public.teams
     ADD CONSTRAINT teams_pkey PRIMARY KEY (id);
+
+ALTER TABLE ONLY public.token_blacklist
+    ADD CONSTRAINT token_blacklist_pkey PRIMARY KEY (user_id);
 
 ALTER TABLE ONLY public.user_invitations
     ADD CONSTRAINT user_invitations_pkey PRIMARY KEY (id);
@@ -3949,6 +3967,8 @@ CREATE INDEX store_orders_status_created_at_idx ON public.store_orders USING btr
 CREATE INDEX tax_brackets_is_active_bracket_order_idx ON public.tax_brackets USING btree (is_active, bracket_order);
 
 CREATE UNIQUE INDEX teams_name_key ON public.teams USING btree (name);
+
+CREATE INDEX token_blacklist_expires_at_idx ON public.token_blacklist USING btree (expires_at);
 
 CREATE INDEX user_invitations_email_idx ON public.user_invitations USING btree (email);
 

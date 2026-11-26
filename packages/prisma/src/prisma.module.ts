@@ -27,7 +27,8 @@ export class PrismaModule implements OnModuleInit, OnModuleDestroy {
   /** G12b: nghe `NOTIFY` để vô hiệu cache giữa các tiến trình. Không có DB / serverless / `TRINITY_SYNC=off` ⇒ không nghe. */
   async onModuleInit(): Promise<void> {
     if (syncDisabled()) return
-    await syncBus.start()
+    // Không chặn khởi động: nối thất bại tự báo lỗi rõ và thử lại nền (start chờ tối đa 5 giây cho lần nối đầu).
+    void syncBus.start()
   }
 
   async onModuleDestroy(): Promise<void> {

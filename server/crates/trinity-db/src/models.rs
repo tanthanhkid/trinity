@@ -3881,7 +3881,47 @@ impl Model for ChannelEvent {
     };
 }
 
-/// Mọi model còn dùng (107 model).
+/// Model `TokenBlacklist`, bảng `token_blacklist`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, sqlx::FromRow)]
+pub struct TokenBlacklist {
+    pub user_id: i32,
+    pub expires_at: Timestamp,
+    pub updated_at: Timestamp,
+}
+
+impl Model for TokenBlacklist {
+    const INFO: ModelInfo = ModelInfo {
+        name: "TokenBlacklist",
+        table: "token_blacklist",
+        columns: &[
+            Column { name: "user_id", pg_type: "int4", nullable: false },
+            Column { name: "expires_at", pg_type: "timestamptz", nullable: false },
+            Column { name: "updated_at", pg_type: "timestamptz", nullable: false },
+        ],
+    };
+}
+
+/// Model `ActiveSession`, bảng `active_sessions`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, sqlx::FromRow)]
+pub struct ActiveSession {
+    pub user_id: i32,
+    pub session_id: String,
+    pub started_at: Timestamp,
+}
+
+impl Model for ActiveSession {
+    const INFO: ModelInfo = ModelInfo {
+        name: "ActiveSession",
+        table: "active_sessions",
+        columns: &[
+            Column { name: "user_id", pg_type: "int4", nullable: false },
+            Column { name: "session_id", pg_type: "varchar", nullable: false },
+            Column { name: "started_at", pg_type: "timestamptz", nullable: false },
+        ],
+    };
+}
+
+/// Mọi model còn dùng (109 model).
 pub const MODELS: &[ModelInfo] = &[
     User::INFO,
     Role::INFO,
@@ -3990,4 +4030,6 @@ pub const MODELS: &[ModelInfo] = &[
     StoreOrder::INFO,
     ChannelUsage::INFO,
     ChannelEvent::INFO,
+    TokenBlacklist::INFO,
+    ActiveSession::INFO,
 ];

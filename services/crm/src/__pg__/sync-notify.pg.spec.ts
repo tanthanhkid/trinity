@@ -82,17 +82,17 @@ describePg('G12b: đồng bộ giữa tiến trình qua Postgres NOTIFY', () => 
     const sessionAtB = listen(B, 'session');
     await runWithCompany(DEFAULT_COMPANY, async () => {
       // B đăng xuất user 9 ⇒ A từ chối token của user 9; B mở lại ⇒ A cho qua
-      await B.publish('token', { op: 'block', u: 9 }, 1);
+      await B.publish('token', { op: 'block', u: 9, t: Date.now() }, 1);
       await within2s(() => bl.isBlacklisted(9));
-      await B.publish('token', { op: 'unblock', u: 9 }, 1);
+      await B.publish('token', { op: 'unblock', u: 9, t: Date.now() }, 1);
       await within2s(() => !bl.isBlacklisted(9));
       // A đăng xuất user 3 ⇒ B nhận
       bl.blacklistUser(3);
       // Phiên: B bắt đầu phiên "s-1" cho user 4 ⇒ A thấy phiên khác là hết hiệu lực
-      await B.publish('session', { op: 'start', u: 4, s: 's-1' }, 1);
+      await B.publish('session', { op: 'start', u: 4, s: 's-1', t: Date.now() }, 1);
       await within2s(() => !sessions.isCurrentSession(4, 'khac'));
       expect(sessions.isCurrentSession(4, 's-1')).toBe(true);
-      await B.publish('session', { op: 'clear', u: 4 }, 1);
+      await B.publish('session', { op: 'clear', u: 4, t: Date.now() + 1 }, 1);
       await within2s(() => sessions.isCurrentSession(4, 'khac'));
       const sid = sessions.startSession(8);
       await within2s(() => sessionAtB.some((m) => m['u'] === 8 && m['s'] === sid));
@@ -118,6 +118,54 @@ describePg('G12b: đồng bộ giữa tiến trình qua Postgres NOTIFY', () => 
     rc.onModuleDestroy();
   });
 
+  it('token/phiên lưu bền: nạp lại từ DB khi nối lại, không chỉ dựa NOTIFY', async () => {
+    await db.$executeRawUnsafe('DELETE FROM token_blacklist');
+    await db.$executeRawUnsafe('DELETE FROM active_sessions');
+    const bl = new TokenBlacklistService();
+    const sessions = new ActiveSessionService();
+    await runWithCompany(DEFAULT_COMPANY, async () => {
+      bl.blacklistUser(21);
+      const sid = sessions.startSession(22);
+      await within2s(async () => (await db.$queryRawUnsafe<unknown[]>('SELECT 1 FROM token_blacklist WHERE user_id = 21')).length === 1);
+      await within2s(async () => (await db.$queryRawUnsafe<unknown[]>('SELECT 1 FROM active_sessions WHERE user_id = 22')).length === 1);
+      // tiến trình KHÁC ghi thẳng DB rồi tin NOTIFY bị mất (không phát): chưa thấy cho tới khi nạp lại
+      await db.$executeRawUnsafe(`INSERT INTO token_blacklist (user_id, expires_at, updated_at) VALUES (23, now() + interval '10 minutes', now())`);
+      expect(bl.isBlacklisted(23)).toBe(false);
+      await bl.reload();
+      expect(bl.isBlacklisted(23)).toBe(true);
+      // "tiến trình mới" (RAM rỗng) tự nạp từ DB
+      const fresh = new TokenBlacklistService();
+      const freshSessions = new ActiveSessionService();
+      await fresh.reload();
+      await freshSessions.reload();
+      expect(fresh.isBlacklisted(21)).toBe(true);
+      expect(freshSessions.isCurrentSession(22, 'khac')).toBe(false);
+      expect(freshSessions.isCurrentSession(22, sid)).toBe(true);
+      // gỡ ở nơi khác (xoá hàng) rồi nạp lại ⇒ bỏ khỏi RAM sau khi mục đã đủ cũ
+      bl.removeUser(21);
+      await within2s(async () => (await db.$queryRawUnsafe<unknown[]>('SELECT 1 FROM token_blacklist WHERE user_id = 21')).length === 0);
+      fresh.onModuleDestroy();
+      freshSessions.onModuleDestroy();
+    });
+    bl.onModuleDestroy();
+    sessions.onModuleDestroy();
+  });
+
+  it('listener đứt rồi nối lại: onResync chạy và tin sau đó lại tới', async () => {
+    const resynced = jest.fn();
+    syncBus.onResync(resynced);
+    // cắt kết nối nghe của A từ phía máy chủ
+    await db.$executeRawUnsafe(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE application_name = 'trinity-sync' AND pid <> pg_backend_pid() AND datname = current_database() AND query LIKE 'LISTEN%'`);
+    await within2s(() => resynced.mock.calls.length > 0).catch(() => undefined);
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(syncBus.connected).toBe(true);
+    const rc = new ReadCache();
+    rc.set('crm:contacts:count:z', '1', 60);
+    await B.publish('cache', { p: 'crm:contacts:count:' }, 1);
+    await within2s(() => rc.get('crm:contacts:count:z') === undefined);
+    rc.onModuleDestroy();
+  }, 15_000);
+
   describe('đa công ty', () => {
     beforeAll(async () => {
       process.env.MULTI_TENANT = 'true';
@@ -140,6 +188,20 @@ describePg('G12b: đồng bộ giữa tiến trình qua Postgres NOTIFY', () => 
       expect(rc.get('crm:contacts:count:k')).toBe('1');
       expect(c1.id).toBe(1);
       rc.onModuleDestroy();
+    });
+
+    it('hai tiến trình cùng tạm dừng: chỉ MỘT sự kiện auto_pause được ghi (nguyên tử)', async () => {
+      const g1 = new ChannelGuardService(db);
+      const g2 = new ChannelGuardService(db);
+      await runWithCompany(C2, () => db.$executeRawUnsafe(`DELETE FROM channel_events`));
+      const v = { trip: true, reason: 'thử', calls: 2, blocks: 2, codes: { '368': 2 } };
+      await Promise.all([
+        runWithCompany(C2, () => (g1 as never as { pause(v: unknown): Promise<void> }).pause(v)),
+        runWithCompany(C2, () => (g2 as never as { pause(v: unknown): Promise<void> }).pause(v)),
+      ]);
+      const rows = await runWithCompany(C2, () => db.$queryRawUnsafe<Array<{ n: bigint }>>(`SELECT count(*) AS n FROM channel_events WHERE kind = 'auto_pause'`));
+      expect(Number(rows[0].n)).toBe(1);
+      await runWithCompany(C2, () => db.$executeRawUnsafe(`DELETE FROM channel_events`));
     });
 
     it('2 lỗi #368 do B báo ⇒ A tạm dừng gửi tự động; kết quả A ghi cũng tới B', async () => {

@@ -19,12 +19,16 @@ the contract both implementations follow.
 | Kind `k` | Fields | Receiver does |
 |---|---|---|
 | `rbac` | `ids`: user ids (array, at most 500) or `"*"` | Drop that company's permission-cache entries for those users (all users for `"*"`) |
-| `token` | `op`: `"block"` or `"unblock"`, `u`: user id | Add/remove the user in the token blacklist (15 minute TTL on add) |
-| `session` | `op`: `"start"` or `"clear"`, `u`: user id, `s`: session id (start only) | Set/remove the user's single active session |
+| `token` | `op`: `"block"` or `"unblock"`, `u`: user id, `t`: change time (ms) | Apply only if `t` is not older than the change already held; add/remove the user in the token blacklist (15 minute TTL from `t`) |
+| `session` | `op`: `"start"` or `"clear"`, `u`: user id, `s`: session id (start only), `t`: change time (ms) | Apply only if `t` is not older than the change already held; set/clear the user's single active session |
 | `cache` | `p`: key prefix without the company part, e.g. `crm:contacts:count:` or `dashboard:` | Delete read-cache keys of company `c` that start with `p` |
 | `bell` | `u`: user ids, `n`: `notification_logs` ids (each at most 200 per message; larger sets are split) | Read the rows from the database in company `c`, push `notification:new` to the sockets it holds, then recompute and push unread counts for `u` and the row owners. Empty `n`: only refresh unread counts |
 | `payslip` | `p`: payslip id, `u`: user id, `m`: month `YYYY-MM`, `a`: total amount | Node only: run the payslip-approved notification path (templates, dedup, bell). Sent by the Rust server; Node approvals call the path directly and reach other processes through `bell` |
 | `graph` | `ok`: boolean, `h`: HTTP status, `code`: Graph error code or null, `sub`: subcode or null, `send`: `true` | Add the outcome of an outgoing Graph call to the company's error window and the app-level back-off (only outgoing calls are sent) |
+
+Security state is durable: token blacklist and active sessions are also written to `token_blacklist` and `active_sessions`
+(per company schema). On start and after a listener reconnect every process reloads them from the tables, so a lost message
+cannot leave a revoked user usable. Writers (Rust included) should write the row first, then send the message.
 
 Notes for implementers: the cache key of company `c` is the bare key for company 1 and `c<id>:<key>` otherwise. A company
 other than 1 uses schema `c_<id>`; read rows inside that schema. Payslip notices assume one Node process handles them.

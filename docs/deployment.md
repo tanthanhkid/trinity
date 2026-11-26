@@ -140,12 +140,12 @@ process manager of your choice (systemd, pm2). Apply migrations with `pnpm --fil
 server during the migration) through Postgres `LISTEN/NOTIFY`: permission/role cache, token blacklist and active
 sessions, read caches (customer counts, dashboard numbers), the notification bell and payslip notices, and the Graph
 error window / app back-off of the channel guard. A revoked permission or a sign-out takes effect on the other processes
-in well under a second. Message formats: [sync-notify.md](sync-notify.md). The listener needs a direct (session-mode)
+in well under a second (token blacklist and sessions are also stored in the database and reloaded on restart or reconnect). Message formats: [sync-notify.md](sync-notify.md). The listener needs a direct (session-mode)
 Postgres connection: set `DIRECT_DATABASE_URL` when `DATABASE_URL` goes through a transaction pooler, or `TRINITY_SYNC=off`
 to turn the sync off (single process only). If the listener connection drops, caches fall back to their TTL (the role
 cache is 60 s) until it reconnects. Two limits remain: rate limits (MCP, public API, login) are counted per process, so
 with N workers the effective limit is up to N times higher; and scheduled jobs are not coordinated between Node
-processes, so keep the Node API at one process unless you run behind the job-ownership file of the migration.
+processes, so keep the Node API at one process unless you run behind the job-ownership file of the migration. The server logs a startup warning when it detects PM2 cluster mode.
 A sample PM2 file:
 
 ```js

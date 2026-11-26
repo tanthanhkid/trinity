@@ -72,6 +72,12 @@ describe('NotificationsService', () => {
       expect(prisma.notificationLog.createManyAndReturn).toHaveBeenCalledTimes(1);
     });
 
+    it('createManyAndReturn tra [] (trung het, skipDuplicates) => created 0, khong phat WS', async () => {
+      prisma.notificationLog.createManyAndReturn.mockResolvedValue([]);
+      const result = await service.createPendingLogs([1, 2], 'test.event', content);
+      expect(result.created).toBe(0);
+    });
+
     it('retry 1 lan khi DB fail, thanh cong lan 2', async () => {
       prisma.notificationLog.createManyAndReturn
         .mockRejectedValueOnce(new Error('pool timeout'))

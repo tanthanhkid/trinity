@@ -11,7 +11,8 @@ describe('SubscribersService — NOTIFY bell / payslip', () => {
   let service: SubscribersService
   let notifications: { send: jest.Mock; invalidateUnreadCache: jest.Mock; emitUnreadCounts: jest.Mock }
   let gateway: { sendToUser: jest.Mock }
-  let prisma: { notificationLog: { findMany: jest.Mock } }
+  let prisma: { notificationLog: { findMany: jest.Mock }; $transaction: jest.Mock }
+  let lockOk = true
 
   const wire = (k: string, extra: Record<string, unknown>, c = 1): string => JSON.stringify({ v: 1, o: other.origin, k, c, ...extra })
   const flush = () => new Promise((r) => setTimeout(r, 20))
@@ -19,7 +20,11 @@ describe('SubscribersService — NOTIFY bell / payslip', () => {
   beforeEach(() => {
     notifications = { send: jest.fn().mockResolvedValue({ id: 1, status: 'sent' }), invalidateUnreadCache: jest.fn(), emitUnreadCounts: jest.fn().mockResolvedValue(undefined) }
     gateway = { sendToUser: jest.fn() }
-    prisma = { notificationLog: { findMany: jest.fn() } }
+    lockOk = true
+    prisma = {
+      notificationLog: { findMany: jest.fn() },
+      $transaction: jest.fn(async (fn: (tx: unknown) => Promise<void>) => fn({ $queryRaw: jest.fn().mockImplementation(async () => [{ ok: lockOk }]) })),
+    }
     service = new SubscribersService(notifications as never, { renderByEventType: jest.fn().mockResolvedValue(null) } as never, gateway as never, prisma as never)
     service.onModuleInit()
   })
@@ -57,6 +62,14 @@ describe('SubscribersService — NOTIFY bell / payslip', () => {
     await flush()
     expect(notifications.send).toHaveBeenCalledTimes(1)
     expect(notifications.send.mock.calls[0][0]).toMatchObject({ user_id: 42, event_type: 'payslip.approved', entity_id: 12 })
+  })
+
+  it('phiếu lương: không giữ được khoá tư vấn (tiến trình khác đang xử lý) ⇒ không gửi trùng', async () => {
+    lockOk = false
+    syncBus.dispatch(wire('payslip', { p: 12, u: 42, m: '2026-11', a: 1 }))
+    await flush()
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1)
+    expect(notifications.send).not.toHaveBeenCalled()
   })
 
   it('phiếu lương thiếu trường: bỏ qua, không ném', async () => {

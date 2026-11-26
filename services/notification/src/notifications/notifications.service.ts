@@ -122,8 +122,8 @@ export class NotificationsService {
     })
 
     this.invalidateUnreadCache(userId)
+    publishBell([userId], []) // G12b: phát trước, để lỗi/độ trễ của đếm cục bộ không làm mất tin cho tiến trình khác
     await this.emitUnreadCounts(userId)
-    publishBell([userId], []) // G12b: socket + cache chưa-đọc của user này ở tiến trình khác cũng làm mới
     return { success: true }
   }
 
@@ -179,8 +179,8 @@ export class NotificationsService {
     this.invalidateUnreadCache(dto.user_id)
 
     if (dto.channel === NotifChannel.IN_APP) {
+      publishBell([dto.user_id], [log.id]) // G12b: trước khi đếm cục bộ (đếm lỗi không được chặn tin)
       await this.emitUnreadCounts(dto.user_id)
-      publishBell([dto.user_id], [log.id]) // G12b
     }
 
     return { id: log.id, status: finalStatus ?? 'sent' }

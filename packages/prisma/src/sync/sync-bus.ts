@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { Client } from 'pg'
 import { getBaseClient } from '../tenant/clients'
 import { currentCompanyId } from '../tenant/context'
@@ -43,6 +44,25 @@ export function listenConnectionString(env: NodeJS.ProcessEnv = process.env): st
   } catch {
     return null
   }
+}
+
+/**
+ * Tham số SSL của URL kiểu Prisma (`sslmode`, `sslaccept`, `sslrootcert`) → tuỳ chọn `ssl` của `pg` (hai bên hiểu khác nhau:
+ * `pg` coi `sslmode=require` là kiểm chứng chỉ đầy đủ ở một số bản). `require`/`verify-*` ⇒ bật TLS và kiểm chứng chỉ, trừ khi
+ * `sslaccept=accept_invalid_certs`; `disable`/`prefer`/vắng ⇒ không TLS. Trả URL đã bỏ các tham số đó.
+ */
+export function sslOptionsFromUrl(connectionString: string): { connectionString: string; ssl: false | { rejectUnauthorized: boolean; ca?: string } } {
+  const url = new URL(connectionString)
+  const mode = (url.searchParams.get('sslmode') ?? '').toLowerCase()
+  const accept = (url.searchParams.get('sslaccept') ?? '').toLowerCase()
+  const rootCert = url.searchParams.get('sslrootcert')
+  for (const p of ['sslmode', 'sslaccept', 'sslrootcert', 'sslcert', 'sslidentity', 'sslpassword', 'ssl', 'uselibpqcompat']) url.searchParams.delete(p)
+  if (!['require', 'verify-ca', 'verify-full', 'no-verify'].includes(mode)) return { connectionString: url.toString(), ssl: false }
+  const ssl: { rejectUnauthorized: boolean; ca?: string } = { rejectUnauthorized: !(mode === 'no-verify' || accept === 'accept_invalid_certs') }
+  if (rootCert) {
+    try { ssl.ca = readFileSync(rootCert, 'utf8') } catch { /* tệp CA không đọc được: để pg dùng kho hệ thống */ }
+  }
+  return { connectionString: url.toString(), ssl }
 }
 
 export function syncDisabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -120,7 +140,9 @@ export class SyncBus {
 
   private async connect(connectionString: string): Promise<void> {
     if (this.stopping) return
-    const client = new Client({ connectionString, application_name: 'trinity-sync' })
+    const { connectionString: cs, ssl } = sslOptionsFromUrl(connectionString)
+    // Hạn 5 giây: DB treo không được giữ khởi động (và `start` không bao giờ chờ vô hạn).
+    const client = new Client({ connectionString: cs, ssl, application_name: 'trinity-sync', connectionTimeoutMillis: 5_000 })
     try {
       client.on('error', (e) => this.lost(client, connectionString, e))
       client.on('end', () => this.lost(client, connectionString, new Error('kết nối đóng')))
@@ -153,8 +175,12 @@ export class SyncBus {
     client.on('error', () => undefined)
     void client.end().catch(() => undefined)
     if (this.stopping || !this.started || this.retryTimer) return
-    this.warnThrottled(`mất kết nối nghe (${err.message}) — cache RAM tự hết hạn, thử nối lại`)
     this.attempt++
+    // Lần đầu và khi kéo dài thì báo RÕ (không bị nuốt bởi throttle): không có đồng bộ giữa tiến trình tới khi nối được.
+    if (this.attempt === 1 || this.attempt === 5) {
+      // eslint-disable-next-line no-console
+      console.error(`[sync-bus] ${this.attempt === 1 ? 'không nối được' : 'vẫn chưa nối được sau nhiều lần thử'} kênh LISTEN (${err.message}). Đồng bộ trạng thái giữa các tiến trình đang TẮT: cache chỉ hết hạn theo TTL. Kiểm DATABASE_URL/DIRECT_DATABASE_URL (cần nối trực tiếp, không qua pooler) và tham số SSL; đặt TRINITY_SYNC=off nếu chỉ chạy một tiến trình.`)
+    } else this.warnThrottled(`mất kết nối nghe (${err.message}) — thử nối lại`)
     const delay = Math.min(30_000, 500 * 2 ** Math.min(this.attempt, 6))
     this.retryTimer = setTimeout(() => {
       this.retryTimer = null
@@ -204,7 +230,8 @@ export class SyncBus {
       await this.client.query('SELECT pg_notify($1, $2)', [SYNC_CHANNEL, payload])
       return
     }
-    await getBaseClient().$queryRaw`SELECT pg_notify(${SYNC_CHANNEL}, ${payload})`
+    // pg_notify trả void: `$queryRaw` không giải mã được kiểu `void` ⇒ dùng `$executeRaw`.
+    await getBaseClient().$executeRaw`SELECT pg_notify(${SYNC_CHANNEL}, ${payload})`
   }
 }
 

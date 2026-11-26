@@ -382,7 +382,27 @@ export class ChannelGuardService implements OnModuleInit, OnModuleDestroy {
     if (await this.autoPause()) return;
     const until = new Date(Date.now() + this.cfg.pauseMs).toISOString();
     this.logger.error(`Công ty ${id}: TỰ TẠM DỪNG gửi hàng loạt/tự động đến ${until} — ${v.reason} ${JSON.stringify(v.codes)}`);
-    await this.event('auto_pause', `Tự tạm dừng gửi hàng loạt và tự động: ${v.reason}.`, { until, reason: v.reason, calls: v.calls, blocks: v.blocks, codes: v.codes });
+    // Ghi NGUYÊN TỬ: khoá tư vấn theo công ty rồi chỉ chèn khi chưa có `auto_pause` còn hiệu lực — hai tiến trình cùng thấy đủ lỗi
+    // thì chỉ một sự kiện được ghi.
+    const meta = { until, reason: v.reason, calls: v.calls, blocks: v.blocks, codes: v.codes };
+    const message = `Tự tạm dừng gửi hàng loạt và tự động: ${v.reason}.`.slice(0, 1000);
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(hashtext($1))`, `channel_auto_pause:${id}`);
+        await tx.$executeRawUnsafe(
+          `INSERT INTO channel_events (kind, message, meta)
+           SELECT 'auto_pause', $1, $2::jsonb
+           WHERE NOT EXISTS (
+             SELECT 1 FROM (SELECT kind, meta FROM channel_events WHERE kind IN ('auto_pause', 'auto_resume') ORDER BY id DESC LIMIT 1) lp
+             WHERE lp.kind = 'auto_pause' AND (lp.meta->>'until')::timestamptz > now()
+           )`,
+          message,
+          JSON.stringify(meta),
+        );
+      });
+    } catch (err) {
+      this.logger.warn(`Không ghi được sự kiện kênh auto_pause: ${(err as Error).message}`);
+    }
     this.pauseCache.delete(id);
   }
 

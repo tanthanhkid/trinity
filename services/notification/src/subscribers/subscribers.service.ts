@@ -79,7 +79,20 @@ export class SubscribersService implements OnModuleInit, OnModuleDestroy {
     const payslipId = Number(m['p'])
     const userId = Number(m['u'])
     if (!Number.isInteger(payslipId) || !Number.isInteger(userId) || typeof m['m'] !== 'string') return
-    await this.onPayslipApproved({ payslipId, userId, month: m['m'], totalAmount: Number(m['a'] ?? 0) } as PayslipApprovedPayloadDto)
+    const payload = { payslipId, userId, month: m['m'], totalAmount: Number(m['a'] ?? 0) } as PayslipApprovedPayloadDto
+    if (!this.prisma) return await this.onPayslipApproved(payload)
+    // Nhận sự kiện NGUYÊN TỬ: nhiều tiến trình Node cùng nghe tin này ⇒ chỉ một bên giữ được khoá tư vấn mức giao dịch
+    // (theo công ty + phiếu + người nhận) và chạy; khoá giữ suốt lúc tạo thông báo nên bên đến sau (nếu lấy được khoá) đã thấy
+    // dòng thông báo trong `send` (dedup) và bỏ qua.
+    const key = `payslip.approved:${m.c}:${payslipId}:${userId}`
+    await this.prisma.$transaction(
+      async (tx) => {
+        const rows = await tx.$queryRaw<Array<{ ok: boolean }>>`SELECT pg_try_advisory_xact_lock(hashtext(${key})) AS ok`
+        if (!rows[0]?.ok) return
+        await this.onPayslipApproved(payload)
+      },
+      { maxWait: 5_000, timeout: 30_000 },
+    )
   }
 
   /**
@@ -98,6 +111,8 @@ export class SubscribersService implements OnModuleInit, OnModuleDestroy {
   async emitWsNotifications(items: WsEmitItemDto[]): Promise<{ emitted: number }> {
     if (items.length === 0) return { emitted: 0 }
     const now = new Date().toISOString()
+    // G12b: phát cho tiến trình khác TRƯỚC khi đẩy/đếm cục bộ — lỗi ở đó không được làm mất chuông bên kia. Nội dung đọc từ DB theo id.
+    publishBell([...new Set(items.map((i) => i.recipient_id))], items.map((i) => i.log_id).filter((n): n is number => typeof n === 'number'))
     for (const item of items) {
       this.gateway.sendToUser(item.recipient_id, {
         id: item.log_id ?? undefined,
@@ -120,8 +135,6 @@ export class SubscribersService implements OnModuleInit, OnModuleDestroy {
       this.notifications.invalidateUnreadCache(uid)
       await this.notifications.emitUnreadCounts(uid)
     }
-    // G12b: socket ở tiến trình khác cũng phải kêu chuông; bên nhận đọc nội dung từ DB theo id.
-    publishBell(recipientIds, items.map((i) => i.log_id).filter((n): n is number => typeof n === 'number'))
     this.logger.log(`emitWsNotifications: emitted ${items.length} WS events for ${recipientIds.length} recipients`)
     return { emitted: items.length }
   }

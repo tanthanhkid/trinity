@@ -92,14 +92,37 @@ async fn setup(c: &mut PgConnection, rows: &[(i32, &str, Option<&str>)]) {
     }
 }
 
+/// Dọn schema và dòng `platform.companies` khi test kết thúc, kể cả khi test hỏng giữa chừng.
+struct Cleanup(Vec<i32>);
+
+impl Drop for Cleanup {
+    fn drop(&mut self) {
+        let ids = std::mem::take(&mut self.0);
+        // Drop chạy trong runtime của test: dọn trên luồng riêng với runtime riêng.
+        let _ = std::thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            rt.block_on(async {
+                if let Ok(mut c) = PgConnection::connect(&url()).await {
+                    teardown(&mut c, &ids).await;
+                }
+            });
+        })
+        .join();
+    }
+}
+
 async fn teardown(c: &mut PgConnection, ids: &[i32]) {
     for id in ids {
-        exec(c, &format!("DROP SCHEMA IF EXISTS c_{id} CASCADE")).await;
-        sqlx::query("DELETE FROM platform.companies WHERE id = $1")
+        let _ = sqlx::raw_sql(AssertSqlSafe(format!("DROP SCHEMA IF EXISTS c_{id} CASCADE")))
+            .execute(&mut *c)
+            .await;
+        let _ = sqlx::query("DELETE FROM platform.companies WHERE id = $1")
             .bind(id)
             .execute(&mut *c)
-            .await
-            .unwrap();
+            .await;
     }
 }
 
@@ -120,6 +143,7 @@ fn outcome(r: &CompaniesReport, id: i32) -> Option<&Result<Vec<String>, String>>
 async fn migrate_moi_cong_ty_mot_cong_ty_loi_khong_chan_cong_ty_khac() {
     let _g = serial().lock().await;
     let ids = [9301, 9302, 9303, 9304, 9305, 9306];
+    let _cleanup = Cleanup(ids.to_vec());
     let mut c = PgConnection::connect(&url()).await.unwrap();
     setup(
         &mut c,
@@ -186,13 +210,62 @@ async fn migrate_moi_cong_ty_mot_cong_ty_loi_khong_chan_cong_ty_khac() {
     assert_eq!(migrated_to(&mut c, 9301).await.as_deref(), Some(LATEST_MIGRATION));
 
     p.close().await;
-    teardown(&mut c, &ids).await;
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres và Prisma CLI: xem đầu tệp"]
+async fn so_migrated_to_theo_byte_khong_theo_collation_cua_db() {
+    let _g = serial().lock().await;
+    let _cleanup = Cleanup(vec![9307]);
+    let mut c = PgConnection::connect(&url()).await.unwrap();
+    setup(&mut c, &[(9307, "c_9307", Some("0020_channel_guard"))]).await;
+    // Collation bỏ qua dấu câu như glibc en_US: `0020_channel_guard` "lớn hơn" `0020a_…`, còn theo byte thì nhỏ hơn.
+    exec(
+        &mut c,
+        "CREATE COLLATION IF NOT EXISTS k07_bo_dau_cau (provider = icu, locale = 'en-u-ka-shifted')",
+    )
+    .await;
+    let differs: bool = sqlx::query_scalar(
+        "SELECT '0020_channel_guard' COLLATE k07_bo_dau_cau > '0020a_go_quyen_chuong_trinh_con' COLLATE k07_bo_dau_cau",
+    )
+    .fetch_one(&mut c)
+    .await
+    .unwrap();
+    assert!(differs, "collation thử phải sắp khác thứ tự byte");
+    exec(
+        &mut c,
+        "ALTER TABLE platform.companies ALTER COLUMN migrated_to TYPE varchar(255) COLLATE k07_bo_dau_cau",
+    )
+    .await;
+
+    let all = migrate::embedded_migrations();
+    let upto = all
+        .iter()
+        .position(|m| m.name == "0020a_go_quyen_chuong_trinh_con")
+        .unwrap();
+    let ms = &all[..=upto];
+    let p = pool(2).await;
+    let res = migrate::migrate_companies(&p, ms, "0020a_go_quyen_chuong_trinh_con", 1).await;
+    exec(
+        &mut c,
+        "ALTER TABLE platform.companies ALTER COLUMN migrated_to TYPE varchar(255) COLLATE \"default\"",
+    )
+    .await;
+    let r = res.unwrap();
+    assert_eq!(outcome(&r, 9307).unwrap().as_ref().unwrap().len(), ms.len());
+    assert_eq!(
+        migrated_to(&mut c, 9307).await.as_deref(),
+        Some("0020a_go_quyen_chuong_trinh_con"),
+        "UPDATE phải so theo byte như Rust"
+    );
+    p.close().await;
 }
 
 #[tokio::test]
 #[ignore = "cần Postgres và Prisma CLI: xem đầu tệp"]
 async fn thu_lai_khi_prisma_dang_giu_khoa() {
     let _g = serial().lock().await;
+    let _cleanup = Cleanup(vec![9310]);
     let mut c = PgConnection::connect(&url()).await.unwrap();
     exec(&mut c, "DROP SCHEMA IF EXISTS c_9310 CASCADE").await;
 

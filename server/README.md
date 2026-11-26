@@ -125,7 +125,8 @@ số và ngày, so sánh chuỗi) chạy ở `services/crm/src/common/helpers/ke
 | Chỉ xem trạng thái (mã 1 khi còn thiếu) | thêm `--status` |
 | Dùng thư mục migration khác bộ nhúng | thêm `--dir <thư mục>` |
 
-URL lấy như máy chủ (`DATABASE_URL`; đa công ty `TENANT_DATABASE_URL`, `DIRECT_DATABASE_URL` trước). Nên đặt
+URL lấy như máy chủ (`DATABASE_URL`; đa công ty `TENANT_DATABASE_URL`, `DIRECT_DATABASE_URL` trước). `--companies` đọc
+`platform.companies`, bảng do bước `ensurePlatform` tạo (hiện là lúc khởi động bản Node với `MULTI_TENANT=true`). Nên đặt
 `ALTER DATABASE <db> SET client_connection_check_interval = '1s'` (Postgres 14+): khi `prisma migrate deploy` hết giờ
 chờ khoá, yêu cầu khoá mồ côi của nó tự hết thay vì chặn các lượt migrate sau.
 

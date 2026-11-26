@@ -19,8 +19,11 @@ use crate::{CompanyRef, LATEST_MIGRATION};
 
 include!(concat!(env!("OUT_DIR"), "/embedded_migrations.rs"));
 
-/// Số lần thử lấy khoá migrate (mỗi lần chờ tối đa [`pm::LOCK_TIMEOUT_MS`]).
+/// Số lần thử lấy khoá migrate, tính cả lần đầu (mỗi lần chờ tối đa [`pm::LOCK_TIMEOUT_MS`]).
 pub const LOCK_ATTEMPTS: u32 = 3;
+
+/// Trần số công ty migrate song song (mỗi công ty một kết nối).
+pub const MAX_CONCURRENCY: usize = 16;
 
 /// Bộ migration nhúng lúc biên dịch (nguyên văn từng byte `packages/prisma/prisma/migrations/*/migration.sql`).
 pub fn embedded_migrations() -> Vec<Migration> {
@@ -80,6 +83,14 @@ impl CompaniesReport {
         self.outcomes.iter().filter(|o| o.result.is_err())
     }
 
+    /// Công ty vừa chạy ít nhất một migration.
+    pub fn migrated(&self) -> usize {
+        self.outcomes
+            .iter()
+            .filter(|o| o.result.as_ref().is_ok_and(|d| !d.is_empty()))
+            .count()
+    }
+
     pub fn ok(&self) -> bool {
         self.failed().next().is_none()
     }
@@ -108,11 +119,12 @@ pub async fn migrate_companies(
             pending.push((id, schema));
         }
     }
+    let workers_n = concurrency.clamp(1, MAX_CONCURRENCY).min(pending.len());
     let queue = Arc::new(Mutex::new(pending.into_iter()));
     let outcomes = Arc::new(Mutex::new(Vec::new()));
     let migrations = Arc::new(migrations.to_vec());
     let mut workers = Vec::new();
-    for _ in 0..concurrency.max(1) {
+    for _ in 0..workers_n {
         let (queue, outcomes, migrations, pool, latest) = (
             queue.clone(),
             outcomes.clone(),
@@ -125,20 +137,45 @@ pub async fn migrate_companies(
                 let Some((id, schema)) = queue.lock().await.next() else {
                     break;
                 };
-                let result = migrate_one(&pool, id, &schema, &migrations, &latest)
-                    .await
-                    .map_err(|e| e.to_string());
+                // Mỗi công ty một task: panic ở một công ty thành lỗi của công ty đó, worker vẫn chạy tiếp.
+                let task = {
+                    let (pool, migrations, latest, schema) =
+                        (pool.clone(), migrations.clone(), latest.clone(), schema.clone());
+                    tokio::spawn(async move { migrate_one(&pool, id, &schema, &migrations, &latest).await })
+                };
+                let result = match task.await {
+                    Ok(r) => r.map_err(|e| e.to_string()),
+                    Err(e) => Err(format!("migrator dừng bất thường: {e}")),
+                };
                 outcomes.lock().await.push(CompanyOutcome { id, schema, result });
             }
         }));
     }
+    // Chờ hết mọi worker trước khi trả về (kể cả khi một worker hỏng), lỗi gom lại sau.
+    let mut join_errors = Vec::new();
     for w in workers {
-        w.await.map_err(|e| MigrateError::Io(std::io::Error::other(e)))?;
+        if let Err(e) = w.await {
+            join_errors.push(e.to_string());
+        }
     }
     let mut outcomes = std::mem::take(&mut *outcomes.lock().await);
     outcomes.sort_by_key(|o| o.id);
     report.outcomes = outcomes;
+    if !join_errors.is_empty() {
+        return Err(MigrateError::Io(std::io::Error::other(format!(
+            "worker migrate dừng bất thường: {}",
+            join_errors.join("; ")
+        ))));
+    }
     Ok(report)
+}
+
+/// `schema_name` phải đúng là schema của `id` (như `schemaForCompany`), không tin dữ liệu bảng.
+pub fn check_company_schema(id: i32, schema: &str) -> Result<(), MigrateError> {
+    match CompanyRef::new(i64::from(id)) {
+        Ok(c) if id != 1 && c.schema() == schema => Ok(()),
+        _ => Err(MigrateError::InvalidSchema(format!("{schema} (công ty {id})"))),
+    }
 }
 
 async fn migrate_one(
@@ -148,17 +185,14 @@ async fn migrate_one(
     migrations: &[Migration],
     latest: &str,
 ) -> Result<Vec<String>, MigrateError> {
-    // schema_name phải đúng là schema của id (như `schemaForCompany`), không tin dữ liệu bảng.
-    let expected = CompanyRef::new(i64::from(id))
-        .map(|c| c.schema())
-        .map_err(|_| MigrateError::InvalidSchema(schema.to_owned()))?;
-    if expected != schema {
-        return Err(MigrateError::InvalidSchema(schema.to_owned()));
-    }
+    check_company_schema(id, schema)?;
     let mut conn = pool.acquire().await?;
     let done = deploy_with_retry(&mut conn, schema, migrations, LOCK_ATTEMPTS, Duration::from_secs(1)).await?;
+    // So theo byte (COLLATE "C") như so chuỗi của Rust: collation của DB (vd en_US) bỏ qua `_` ở mức đầu nên
+    // `0020_x` có thể "lớn hơn" `0020a_y`.
     sqlx::query(
-        "UPDATE platform.companies SET migrated_to = $1 WHERE id = $2 AND (migrated_to IS NULL OR migrated_to < $1)",
+        "UPDATE platform.companies SET migrated_to = $1 \
+         WHERE id = $2 AND (migrated_to IS NULL OR migrated_to COLLATE \"C\" < $1::text COLLATE \"C\")",
     )
     .bind(latest)
     .bind(id)
@@ -167,7 +201,8 @@ async fn migrate_one(
     Ok(done)
 }
 
-/// Công ty khác 1 trong `platform.companies` (id, schema_name, migrated_to) theo id; chưa có bảng ⇒ rỗng.
+/// Công ty khác 1 trong `platform.companies` (id, schema_name, migrated_to) theo id; chưa có bảng ⇒ rỗng (bảng do
+/// `ensurePlatform` tạo: bản Node lúc khởi động, K08 ở Rust).
 pub async fn list_companies(conn: &mut PgConnection) -> Result<Vec<(i32, String, Option<String>)>, MigrateError> {
     let has_platform: bool = sqlx::query_scalar("SELECT to_regclass('platform.companies') IS NOT NULL")
         .fetch_one(&mut *conn)
@@ -182,12 +217,13 @@ pub async fn list_companies(conn: &mut PgConnection) -> Result<Vec<(i32, String,
     )
 }
 
-/// `TENANT_MIGRATE_CONCURRENCY` (mặc định 4, tối thiểu 1), như `migrateAllCompanies`.
+/// `TENANT_MIGRATE_CONCURRENCY` (mặc định 4, tối thiểu 1 như `migrateAllCompanies`, tối đa [`MAX_CONCURRENCY`]).
 pub fn concurrency_from_env(value: Option<&str>) -> usize {
     value
         .and_then(|v| v.trim().parse::<usize>().ok())
         .filter(|n| *n >= 1)
         .unwrap_or(4)
+        .min(MAX_CONCURRENCY)
 }
 
 /// Bản nhúng có tên mới nhất bằng [`LATEST_MIGRATION`] (cùng một thư mục lúc biên dịch).
@@ -219,5 +255,6 @@ mod tests {
         assert_eq!(concurrency_from_env(Some("2")), 2);
         assert_eq!(concurrency_from_env(Some("0")), 4);
         assert_eq!(concurrency_from_env(Some("x")), 4);
+        assert_eq!(concurrency_from_env(Some("500")), MAX_CONCURRENCY);
     }
 }

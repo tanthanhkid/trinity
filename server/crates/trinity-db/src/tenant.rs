@@ -418,7 +418,7 @@ pub(crate) async fn latest_applied(conn: &mut PgConnection, schema: &str) -> Res
         return Ok(None);
     }
     let sql = format!(
-        "SELECT max(migration_name)::text FROM \"{schema}\"._prisma_migrations \
+        "SELECT max(migration_name COLLATE \"C\")::text FROM \"{schema}\"._prisma_migrations \
          WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL"
     );
     Ok(sqlx::query_scalar(sqlx::AssertSqlSafe(sql))

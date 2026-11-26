@@ -126,7 +126,8 @@ async fn print_status(conn: &mut sqlx::PgConnection, schema: &str, migrations: &
             st.checksum_mismatch.join(", ")
         ));
     }
-    Ok(st.up_to_date())
+    // Nội dung migration đã sửa sau khi chạy cũng là lỗi (Prisma `migrate dev` cũng chặn).
+    Ok(st.up_to_date() && st.checksum_mismatch.is_empty())
 }
 
 async fn companies(
@@ -139,9 +140,20 @@ async fn companies(
     if status_only {
         let mut conn = pool.acquire().await.map_err(|e| e.to_string())?;
         let rows = migrate::list_companies(&mut conn).await.map_err(|e| e.to_string())?;
+        if rows.is_empty() {
+            no_companies_notice();
+        }
         let mut ok = true;
-        for (_, schema, _) in rows {
-            ok &= print_status(&mut conn, &schema, migrations).await?;
+        // Từng công ty riêng: lỗi của một công ty in ra rồi đi tiếp.
+        for (id, schema, _) in rows {
+            let res = match migrate::check_company_schema(id, &schema) {
+                Ok(()) => print_status(&mut conn, &schema, migrations).await,
+                Err(e) => Err(e.to_string()),
+            };
+            if let Err(e) = &res {
+                out(&format!("{schema} (công ty {id}): LỖI {e}"));
+            }
+            ok &= res.unwrap_or(false);
         }
         return Ok(ok);
     }
@@ -154,12 +166,27 @@ async fn companies(
             Err(e) => out(&format!("{} (công ty {}): LỖI {e}", o.schema, o.id)),
         }
     }
+    if report.outcomes.is_empty() && report.up_to_date == 0 {
+        no_companies_notice();
+    }
     let failed = report.failed().count();
+    let migrated = report.migrated();
     out(&format!(
-        "công ty: {} đã cập nhật từ trước, {} vừa migrate, {} lỗi",
+        "công ty: {} đã cập nhật từ trước, {} vừa migrate, {} không có gì mới, {} lỗi",
         report.up_to_date,
-        report.outcomes.len() - failed,
+        migrated,
+        report.outcomes.len() - failed - migrated,
         failed
     ));
     Ok(report.ok())
+}
+
+/// `platform.companies` do `ensurePlatform` tạo (bản Node lúc khởi động; ở Rust là K08). Chưa có thì không có công ty
+/// nào để migrate.
+fn no_companies_notice() {
+    let _ = writeln!(
+        std::io::stderr(),
+        "trinity migrate: không có công ty nào trong platform.companies (bảng do bước ensurePlatform tạo: khởi động bản \
+         Node với MULTI_TENANT=true trước, cho tới khi Rust có lệnh tương đương)"
+    );
 }

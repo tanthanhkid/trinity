@@ -95,6 +95,8 @@ pub struct JobSpec {
     pub interval: Duration,
     /// Trần thời gian của cả lượt; cũng là thời hạn thuê (`locked_until`) và trần của MỖI công ty.
     pub budget: Duration,
+    /// Chờ bao lâu trước lượt đầu của `run` (mặc định 0: chạy ngay, như `setInterval` không có `setTimeout` đi trước).
+    pub first_delay: Duration,
     pub run: JobFn,
 }
 
@@ -122,8 +124,16 @@ impl JobSpec {
             name: name.to_owned(),
             interval,
             budget,
+            first_delay: Duration::ZERO,
             run: Arc::new(move |c| Box::pin(run(c))),
         })
+    }
+
+    /// Lượt đầu chạy sau `delay` (job dọn của Node đợi 5 đến 7 phút sau khi khởi động).
+    #[must_use]
+    pub fn with_first_delay(mut self, delay: Duration) -> Self {
+        self.first_delay = delay;
+        self
     }
 }
 
@@ -415,7 +425,7 @@ impl Scheduler {
         for spec in specs {
             let (this, stop) = (self.clone(), shutdown.clone());
             tasks.spawn(async move {
-                let mut every = tokio::time::interval(spec.interval);
+                let mut every = tokio::time::interval_at(tokio::time::Instant::now() + spec.first_delay, spec.interval);
                 every.set_missed_tick_behavior(MissedTickBehavior::Skip);
                 loop {
                     if *stop.borrow() {

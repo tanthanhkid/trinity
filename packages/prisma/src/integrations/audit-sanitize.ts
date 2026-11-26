@@ -32,7 +32,8 @@ export function sanitizeText(input: string, max = MAX_STRING): string {
     .replace(BEARER, `Bearer ${REDACTED}`)
     .replace(DIGIT_RUN, (m) => (m.replace(/\D/g, '').length >= 9 ? maskDigits(m) : m))
     .replace(LONG_TOKEN, REDACTED)
-  return cleaned.length > max ? `${cleaned.slice(0, max)}…` : cleaned
+  // Tổng độ dài (kể cả dấu …) ≤ max: cột `error` là varchar(500), cắt max rồi thêm … sẽ vượt và làm câu INSERT lỗi.
+  return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned
 }
 
 function sanitizeValue(key: string, value: unknown, depth: number): unknown {

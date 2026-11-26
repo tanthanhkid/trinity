@@ -3608,6 +3608,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "trinity-integrations"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "regex",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "trinity-db",
+ "trinity-jobs",
+ "trinity-kernel",
+ "url",
+]
+
+[[package]]
 name = "trinity-jobs"
 version = "0.3.0"
 dependencies = [

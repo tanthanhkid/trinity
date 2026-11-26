@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button"
 import { getApiErrorMessage } from "@/lib/api-client"
 import { logout } from "@/lib/auth-api"
 import { useAuthStore } from "@/store/auth"
-import { useFinishWizard, useWizardAction, type WizardStepKey, type WizardView } from "@/hooks/use-onboarding-wizard"
+import { INDUSTRY_PRESETS, isIndustryKey, type IndustryKey, type OrgFeatureKey } from "@trinity/rbac"
+import { useBuildSystem, useFinishWizard, useWizardAction, type WizardStepKey, type WizardView } from "@/hooks/use-onboarding-wizard"
 import { STEP_TEXT, StepBody } from "./wizard-steps"
 
 /**
- * Wizard bắt đầu — TOÀN MÀN HÌNH, không menu: mỗi lúc một nhiệm vụ. "Tôi đã làm xong" gửi máy chủ kiểm thật;
+ * Wizard bắt đầu — TOÀN MÀN HÌNH, không menu: mỗi lúc một nhiệm vụ. Chọn loại doanh nghiệp → chọn chức năng → "Dựng hệ thống"
+ * (một lần bấm, không cần AI) → thêm khách đầu tiên → (tuỳ chọn) kênh, đăng bài. "Tôi đã làm xong" gửi máy chủ kiểm thật;
  * chưa đạt thì hiện việc còn thiếu và đứng yên ở bước đó. Bước công ty đã đạt hiện dấu xong, bấm Tiếp tục là qua.
  */
 export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
@@ -22,15 +24,19 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
   const finish = useFinishWizard()
   const confirm = useWizardAction("confirm")
   const skip = useWizardAction("skip")
+  const build = useBuildSystem()
   const [wizard, setWizard] = useState(initial)
   const steps = wizard.steps
   const startKey = wizard.current ?? steps[steps.length - 1]?.key
   const [index, setIndex] = useState(() => Math.max(0, steps.findIndex((s) => s.key === startKey)))
   const [message, setMessage] = useState<string | null>(null)
   const [finished, setFinished] = useState<WizardView | null>(null)
+  const [industry, setIndustry] = useState<IndustryKey | null>(isIndustryKey(initial.industry) ? initial.industry : null)
+  const [features, setFeatures] = useState<OrgFeatureKey[]>(() => (isIndustryKey(initial.industry) ? [...INDUSTRY_PRESETS[initial.industry].features] : []))
 
   const step = steps[index]
-  const busy = confirm.isPending || skip.isPending
+  const busy = confirm.isPending || skip.isPending || build.isPending
+  const built = !!steps.find((s) => s.key === "modules")?.done
   const passed = !!step && (step.done || step.skipped)
   const last = index === steps.length - 1
 
@@ -38,6 +44,28 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
     setMessage(null)
     const i = key ? steps.findIndex((s) => s.key === key) : steps.length - 1
     setIndex(i < 0 ? steps.length - 1 : i)
+  }
+
+  const pickIndustry = (k: IndustryKey) => {
+    setIndustry(k)
+    setFeatures([...INDUSTRY_PRESETS[k].features])
+  }
+
+  /** Bước "Dựng hệ thống": một lần bấm gửi ngành + phân hệ, máy chủ dựng rồi trả trạng thái wizard mới. */
+  const handleBuild = () => {
+    if (!industry) return
+    build.mutate(
+      { industry, features },
+      {
+        onSuccess: (r) => {
+          setWizard(r.wizard)
+          setMessage(null)
+          if (r.wizard.completed) return setFinished(r.wizard)
+          if (r.wizard.current) goTo(r.wizard.current)
+        },
+        onError: (err) => setMessage(getApiErrorMessage(err, "Chưa dựng được hệ thống, bạn thử bấm lại sau ít giây.")),
+      },
+    )
   }
 
   const handle = (kind: "confirm" | "skip") => {
@@ -92,7 +120,7 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
             <PartyPopper className="mx-auto size-10 text-primary" aria-hidden />
             <h1 className="text-2xl font-semibold">Xong rồi! Trinity đã sẵn sàng</h1>
             <p className="text-sm text-muted-foreground">
-              Từ giờ bạn làm việc với Trinity ngay trong khung chat với trợ lý AI: hỏi tình hình, thêm khách, giao việc bằng lời. Mọi việc AI làm đều ghi lại ở mục Hoạt động AI. Mở lại hướng dẫn ở mục Bắt đầu trên menu.
+              Menu và danh sách đã dựng theo công ty bạn. Dữ liệu mẫu sẽ tự mất khi bạn thêm khách hoặc dòng dữ liệu thật đầu tiên. Muốn dùng thêm trợ lý AI thì nối ở Cài đặt › Kết nối &amp; AI, không bắt buộc.
             </p>
             <Button type="button" size="lg" onClick={enterApp} data-testid="wizard-enter">
               Vào Trinity <ArrowRight aria-hidden />
@@ -113,16 +141,10 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
               <p className="text-sm text-muted-foreground">{STEP_TEXT[step.key].why}</p>
             </div>
 
-            {!steps.some((s) => s.key === "ai") && index === 0 && (
-              <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-200" data-testid="wizard-ai-off">
-                Máy chủ này chưa bật kết nối trợ lý AI nên chưa có bước nối AI. Người cài đặt máy chủ bật lại theo hướng dẫn cài đặt rồi triển khai lại.
-              </p>
-            )}
-
             {passed ? (
               <p className="flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" data-testid="wizard-step-done">
                 <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden />
-                {step.skipped ? "Bạn đã bỏ qua bước này." : step.key === "ai" ? "Trinity đã thấy trợ lý AI của bạn. Bước này đã xong." : "Công ty bạn đã làm xong bước này (có thể do đồng nghiệp làm)."}
+                {step.skipped ? "Bạn đã bỏ qua bước này." : step.key === "industry" || step.key === "modules" ? "Hệ thống của công ty đã được dựng xong ở bước này." : "Công ty bạn đã làm xong bước này (có thể do đồng nghiệp làm)."}
               </p>
             ) : (
               <>
@@ -132,7 +154,7 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
                   </p>
                 )}
                 <section className="rounded-2xl border bg-card p-4 sm:p-5">
-                  <StepBody step={step.key} onGoChannels={() => goTo("channels")} />
+                  <StepBody step={step.key} onGoChannels={() => goTo("channels")} ctx={{ industry, onIndustry: pickIndustry, features, onFeatures: setFeatures, built }} />
                 </section>
               </>
             )}
@@ -156,6 +178,14 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
                 {passed && !last ? (
                   <Button type="button" onClick={() => goTo(steps[index + 1].key)} className="max-sm:h-11" data-testid="wizard-next">
                     Tiếp tục <ArrowRight aria-hidden />
+                  </Button>
+                ) : step.key === "industry" ? (
+                  <Button type="button" disabled={!industry || busy} onClick={() => goTo("modules")} className="max-sm:h-11" data-testid="wizard-next-industry">
+                    Tiếp tục <ArrowRight aria-hidden />
+                  </Button>
+                ) : step.key === "modules" ? (
+                  <Button type="button" disabled={!industry || busy} onClick={handleBuild} className="max-sm:h-11" data-testid="wizard-build">
+                    {busy && <Loader2 className="animate-spin" aria-hidden />} Dựng hệ thống
                   </Button>
                 ) : (
                   <Button type="button" disabled={busy} onClick={() => handle("confirm")} className="max-sm:h-11" data-testid="wizard-confirm">

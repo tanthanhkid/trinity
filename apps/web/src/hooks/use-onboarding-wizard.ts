@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import apiClient from "@/lib/api-client"
 
-export type WizardStepKey = "ai" | "build" | "data" | "channels" | "post"
+export type WizardStepKey = "industry" | "modules" | "data" | "channels" | "post"
 
 export interface WizardStep {
   key: WizardStepKey
@@ -15,6 +15,8 @@ export interface WizardStep {
 export interface WizardView {
   enabled: boolean
   completed: boolean
+  /** Loại doanh nghiệp đã chọn khi dựng (null = chưa dựng). */
+  industry: string | null
   current: WizardStepKey | null
   steps: WizardStep[]
 }
@@ -47,4 +49,25 @@ export function useWizardAction(kind: "confirm" | "skip") {
 export function useFinishWizard() {
   const qc = useQueryClient()
   return (w: WizardView) => qc.setQueryData<WizardView>(WIZARD_KEY, { ...w, completed: true })
+}
+
+/** Kết quả `POST /setup/build` — kèm trạng thái wizard mới để đi tiếp ngay. */
+export interface BuildSystemResult {
+  industry: string
+  features: string[]
+  created_objects: string[]
+  sample_records: number
+  sample_contacts: number
+  wizard: WizardView
+}
+
+/** "Dựng hệ thống": một lần bấm, không cần AI. Dựng xong menu, tính năng và bảng đổi nên làm mới toàn bộ dữ liệu đang giữ. */
+export function useBuildSystem() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { industry: string; features: string[] }) => (await apiClient.post<BuildSystemResult>("/setup/build", body)).data,
+    onSuccess: () => {
+      void qc.invalidateQueries()
+    },
+  })
 }

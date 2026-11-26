@@ -1,67 +1,162 @@
 "use client"
 
 import { useState, type ReactNode } from "react"
-import { CopyButton } from "@/app/(dashboard)/settings/_components/integrations/secret-reveal-dialog"
-import { AgentConnect } from "./agent-connect"
-import { SETUP_PROMPTS } from "@/app/(dashboard)/bat-dau/_components/setup-prompts"
+import { Briefcase, Building2, GraduationCap, Loader2, Stethoscope, Store, type LucideIcon } from "lucide-react"
+import {
+  INDUSTRY_KEYS,
+  INDUSTRY_PRESETS,
+  LOCKED_FEATURES,
+  ORG_FEATURES,
+  ORG_FEATURE_GROUPS,
+  ORG_FEATURE_KEYS,
+  type IndustryKey,
+  type OrgFeatureKey,
+} from "@trinity/rbac"
+import { Switch } from "@/components/ui/switch"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import apiClient, { getApiErrorMessage } from "@/lib/api-client"
+import { useSettingsOptions } from "@/hooks/use-settings-options"
 import { SocialChannels } from "@/app/(dashboard)/social/_components/social-channels"
 import { SocialComposer } from "@/app/(dashboard)/social/_components/social-composer"
+import { cn } from "@/lib/utils"
 import type { WizardStepKey } from "@/hooks/use-onboarding-wizard"
 
-const prompt = (key: string) => SETUP_PROMPTS.find((p) => p.key === key)?.text ?? ""
+const ICONS: Record<string, LucideIcon> = { GraduationCap, Store, Stethoscope, Building2, Briefcase }
 
-/** Câu mẫu thêm cho wizard — lời người dùng thường, không tên công cụ. */
-export const WIZARD_PROMPTS = {
-  hello: "Trinity của mình đang có gì? Kể ngắn gọn cho mình nghe.",
-  contact: "Thêm giúp mình một khách hàng: tên <tên khách>, số điện thoại <số điện thoại>, ghi chú <khách quan tâm gì>.",
-  post: "Soạn giúp mình một bài ngắn giới thiệu công ty để đăng lên Fanpage. Cho mình xem trước, mình đồng ý thì đăng.",
-} as const
-
-export function PromptBox({ title, text }: { title: string; text: string }) {
+/** Bước 1: chọn loại doanh nghiệp (4 mẫu có sẵn + Khác). */
+function StepIndustry({ industry, onSelect, built }: { industry: IndustryKey | null; onSelect: (k: IndustryKey) => void; built: boolean }) {
   return (
-    <div className="space-y-1.5 rounded-xl border bg-background p-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">{title}</p>
-        <CopyButton value={text} label={title} />
+    <div className="space-y-3" data-testid="step-industry">
+      <div role="radiogroup" aria-label="Loại doanh nghiệp" className="grid gap-3 sm:grid-cols-2">
+        {INDUSTRY_KEYS.map((key) => {
+          const p = INDUSTRY_PRESETS[key]
+          const Icon = ICONS[p.icon] ?? Briefcase
+          const on = industry === key
+          return (
+            <button
+              key={key}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              disabled={built}
+              onClick={() => onSelect(key)}
+              data-testid={`industry-${key}`}
+              className={cn(
+                "flex min-h-24 items-start gap-3 rounded-2xl border bg-background p-4 text-left transition-colors hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-70",
+                on && "border-primary bg-accent/50 ring-2 ring-primary/40",
+              )}
+            >
+              <Icon className="mt-0.5 size-6 shrink-0 text-primary" aria-hidden />
+              <span className="min-w-0">
+                <span className="block font-medium">{p.label}</span>
+                <span className="block text-sm text-muted-foreground">{p.description}</span>
+              </span>
+            </button>
+          )
+        })}
       </div>
-      <p className="whitespace-pre-wrap text-sm text-muted-foreground">{text}</p>
+      {built && <p className="text-sm text-muted-foreground">Hệ thống đã được dựng nên không đổi loại doanh nghiệp ở đây được. Muốn thêm bảng riêng, vào Cài đặt sau.</p>}
     </div>
   )
 }
 
-function StepAi() {
+/** Bước 2: chọn phân hệ (tick sẵn theo ngành), bộ cơ bản luôn bật. */
+function StepModules({ industry, features, onChange, built }: { industry: IndustryKey | null; features: OrgFeatureKey[]; onChange: (f: OrgFeatureKey[]) => void; built: boolean }) {
+  const preset = industry ? INDUSTRY_PRESETS[industry] : null
+  const toggle = (key: OrgFeatureKey, next: boolean) => onChange(next ? [...new Set([...features, key])] : features.filter((k) => k !== key))
   return (
-    <div className="space-y-4">
-      <ol className="list-decimal space-y-1 pl-5 text-sm">
-        <li>Chọn trợ lý AI bạn đang dùng, bấm <b>Copy prompt</b>.</li>
-        <li>Dán vào trợ lý AI. Nó tự nối với Trinity và mở trang đăng nhập; bạn đăng nhập rồi bấm Cho phép.</li>
-        <li>Trợ lý AI hỏi bạn về công ty để dựng hệ thống. Thấy nó trả lời được là đã nối xong.</li>
-      </ol>
-      <AgentConnect />
+    <div className="space-y-4" data-testid="step-modules">
+      {preset && (
+        <p className="rounded-lg bg-muted p-3 text-sm">
+          <b>{preset.label}.</b> Đã tick sẵn các phân hệ hay dùng. Bạn thêm hoặc bớt tuỳ ý; sau này đổi lại ở Cài đặt › Tính năng.
+          {preset.template ? " Khi dựng, Trinity tạo luôn các danh sách của ngành này kèm vài dòng dữ liệu mẫu." : " Khi dựng, Trinity tạo sẵn vài khách hàng mẫu."}{" "}
+          Dữ liệu mẫu tự mất khi bạn thêm khách hoặc dòng dữ liệu thật đầu tiên.
+        </p>
+      )}
+      {ORG_FEATURE_GROUPS.map((group) => {
+        const keys = ORG_FEATURE_KEYS.filter((k) => ORG_FEATURES[k].group === group.key)
+        return (
+          <section key={group.key} aria-labelledby={`wiz-group-${group.key}`} className="space-y-2">
+            <h3 id={`wiz-group-${group.key}`} className="text-sm font-semibold">{group.label}</h3>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {keys.map((key) => {
+                const locked = (LOCKED_FEATURES as readonly string[]).includes(key)
+                const on = locked || features.includes(key)
+                return (
+                  <label
+                    key={key}
+                    htmlFor={`wiz-feature-${key}`}
+                    className={cn("flex min-h-14 cursor-pointer items-start justify-between gap-3 rounded-xl border p-3", on && "border-primary/40 bg-accent/30", (built || locked) && "cursor-default")}
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">
+                        {ORG_FEATURES[key].label}
+                        {locked && <span className="ml-2 rounded-full bg-muted px-2 py-0.5 align-middle text-[11px] font-normal text-muted-foreground">Cơ bản</span>}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">{ORG_FEATURES[key].description}</span>
+                    </span>
+                    <Switch id={`wiz-feature-${key}`} checked={on} disabled={locked || built} onCheckedChange={(v) => toggle(key, v)} />
+                  </label>
+                )
+              })}
+            </div>
+          </section>
+        )
+      })}
     </div>
   )
 }
 
-function StepBuild() {
-  return (
-    <div className="space-y-4">
-      <ol className="list-decimal space-y-1 pl-5 text-sm">
-        <li>Chép câu mẫu bên dưới, dán vào khung chat với trợ lý AI đã nối với Trinity.</li>
-        <li>Trả lời từng câu AI hỏi về cách công ty bạn đang làm.</li>
-        <li>AI tóm tắt lại, bạn đồng ý là AI dựng danh sách và màn hình trên Trinity.</li>
-      </ol>
-      <PromptBox title="Câu mẫu: dựng hệ thống" text={prompt("build")} />
-    </div>
-  )
-}
-
+/** Bước 3: thêm khách đầu tiên bằng form ngắn (không cần AI). */
 function StepData() {
+  const sources = useSettingsOptions("contact_source")
+  const [name, setName] = useState("")
+  const [phone, setPhone] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [added, setAdded] = useState<string | null>(null)
+  const source = sources.data?.find((o) => o.value === "other") ?? sources.data?.[0]
+
+  const submit = async () => {
+    setError(null)
+    if (!/^(0|\+84)\d{9}$/.test(phone.trim())) return setError("Số điện thoại cần bắt đầu bằng 0 hoặc +84 và có 10 chữ số.")
+    if (!source) return setError("Chưa tải được danh sách nguồn khách, bạn thử lại sau ít giây.")
+    setBusy(true)
+    try {
+      await apiClient.post("/contacts", { phone: phone.trim(), full_name: name.trim() || undefined, source_id: source.id })
+      setAdded(name.trim() || phone.trim())
+      setName("")
+      setPhone("")
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Chưa thêm được khách, bạn thử lại."))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
-    <div className="space-y-4">
-      <p className="text-sm">Đưa ít nhất một dữ liệu thật vào Trinity. Chọn một trong hai cách:</p>
-      <PromptBox title="Cách 1: nhập file đang dùng (Google Sheet, Excel)" text={prompt("import")} />
-      <PromptBox title="Cách 2: thêm một khách đầu tiên" text={WIZARD_PROMPTS.contact} />
-      <p className="text-sm text-muted-foreground">Thay phần trong dấu &lt; &gt; bằng thông tin thật trước khi gửi. Dữ liệu chỉ người trong công ty bạn xem được.</p>
+    <div className="space-y-4" data-testid="step-data">
+      <p className="text-sm">
+        Trinity đang có vài dòng <b>dữ liệu mẫu</b> để bạn xem thử. Thêm khách hàng thật đầu tiên, dữ liệu mẫu sẽ tự biến mất.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="wiz-contact-name">Tên khách</Label>
+          <Input id="wiz-contact-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ví dụ: Nguyễn Văn An" autoComplete="off" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="wiz-contact-phone">Số điện thoại</Label>
+          <Input id="wiz-contact-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0912345678" inputMode="tel" autoComplete="off" />
+        </div>
+      </div>
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      {added && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" data-testid="contact-added">Đã thêm “{added}”. Bấm “Tôi đã làm xong” để đi tiếp.</p>}
+      <Button type="button" onClick={submit} disabled={busy || !phone.trim()} data-testid="add-contact">
+        {busy && <Loader2 className="animate-spin" aria-hidden />} Thêm khách
+      </Button>
+      <p className="text-sm text-muted-foreground">Có sẵn danh sách trong Excel hoặc Google Sheet? Bấm “Bỏ qua bước này”, vào Trinity rồi nhập ở Cài đặt › Kết nối &amp; AI › Google Sheets.</p>
     </div>
   )
 }
@@ -82,40 +177,48 @@ function StepPost({ onGoChannels }: { onGoChannels: () => void }) {
       <p className="text-sm">Soạn một bài, chọn kênh rồi bấm <b>Đăng ngay</b>. Bài sẽ lên kênh thật của công ty, nên viết nội dung bạn muốn khách thấy.</p>
       {sent && <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" role="status">Đã gửi bài đi đăng. Chờ khoảng nửa phút rồi bấm “Tôi đã làm xong”.</p>}
       <SocialComposer onCreated={() => setSent(true)} onGoChannels={onGoChannels} />
-      <PromptBox title="Hoặc nhờ trợ lý AI soạn và đăng" text={WIZARD_PROMPTS.post} />
     </div>
   )
 }
 
 export const STEP_TEXT: Record<WizardStepKey, { title: string; why: string }> = {
-  ai: {
-    title: "Kết nối trợ lý AI của bạn",
-    why: "Trinity làm việc qua trợ lý AI bạn đang dùng (ChatGPT, Claude hoặc Gemini). Chưa nối thì chưa làm được gì, nên đây là bước đầu tiên.",
+  industry: {
+    title: "Công ty bạn làm nghề gì?",
+    why: "Chọn loại doanh nghiệp gần nhất, Trinity dựng sẵn các danh sách và màn hình hợp với nghề đó. Không có loại nào hợp thì chọn Khác.",
   },
-  build: {
-    title: "Dựng quy trình cho công ty",
-    why: "Kể cho trợ lý AI công ty bạn làm gì. AI hỏi vài câu rồi dựng danh sách, màn hình và các bước xử lý theo đúng cách công ty bạn đang làm.",
+  modules: {
+    title: "Chọn các chức năng bạn muốn dùng",
+    why: "Chức năng nào bật thì hiện ở menu, chức năng nào tắt thì ẩn cho gọn. Bấm Dựng hệ thống là xong, bạn đổi lại được bất cứ lúc nào.",
   },
   data: {
-    title: "Đưa dữ liệu đầu tiên vào",
-    why: "Trinity cần dữ liệu thật để bắt đầu theo dõi: danh sách khách, đơn hàng hay học viên bạn đang có.",
+    title: "Thêm khách hàng đầu tiên",
+    why: "Đưa một khách thật vào để bắt đầu theo dõi. Dữ liệu mẫu sẽ tự mất khi bạn thêm khách hoặc dòng dữ liệu thật đầu tiên.",
   },
   channels: {
     title: "Kết nối Fanpage hoặc kênh YouTube",
-    why: "Nối kênh của công ty để đăng bài từ Trinity và để khách nhắn Fanpage tự thành khách hàng.",
+    why: "Nối kênh của công ty để đăng bài từ Trinity và để khách nhắn Fanpage tự thành khách hàng. Bạn có thể bỏ qua và nối sau.",
   },
   post: {
     title: "Đăng bài đầu tiên",
-    why: "Thử đăng một bài lên kênh vừa nối để chắc mọi thứ chạy đúng.",
+    why: "Thử đăng một bài lên kênh vừa nối để chắc mọi thứ chạy đúng. Bạn có thể bỏ qua.",
   },
 }
 
-export function StepBody({ step, onGoChannels }: { step: WizardStepKey; onGoChannels: () => void }): ReactNode {
+export interface StepContext {
+  industry: IndustryKey | null
+  onIndustry: (k: IndustryKey) => void
+  features: OrgFeatureKey[]
+  onFeatures: (f: OrgFeatureKey[]) => void
+  /** Công ty đã dựng rồi (không đổi ngành/phân hệ ở đây nữa). */
+  built: boolean
+}
+
+export function StepBody({ step, onGoChannels, ctx }: { step: WizardStepKey; onGoChannels: () => void; ctx: StepContext }): ReactNode {
   switch (step) {
-    case "ai":
-      return <StepAi />
-    case "build":
-      return <StepBuild />
+    case "industry":
+      return <StepIndustry industry={ctx.industry} onSelect={ctx.onIndustry} built={ctx.built} />
+    case "modules":
+      return <StepModules industry={ctx.industry} features={ctx.features} onChange={ctx.onFeatures} built={ctx.built} />
     case "data":
       return <StepData />
     case "channels":

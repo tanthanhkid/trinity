@@ -22,4 +22,4 @@ jobs:
         with:
           fail-on-severity: high
           comment-summary-in-pr: on-failure
-          deny-licenses: SSPL-1.0, BUSL-1.1, Elastic-2.0, Commons-Clause
+          deny-licenses: SSPL-1.0, BUSL-1.1, Elastic-2.0

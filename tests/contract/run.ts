@@ -175,7 +175,8 @@ async function main(): Promise<void> {
   const unit = spawnSync('pnpm', ['exec', 'vitest', 'run', '--config', 'vitest.config.ts'], { cwd: here, env: { ...cleanBase(), CONTRACT_UNIT: '1', TZ: 'UTC' }, stdio: 'inherit' })
   if (unit.status !== 0) throw new Error('Test đơn vị của bộ chuẩn hoá đỏ')
 
-  const tpl = 'trinity_contract_tpl'
+  const dbPrefix = process.env.CONTRACT_DB_PREFIX ?? 'trinity_contract' // đặt tiền tố riêng khi nhiều lượt chạy cùng máy
+  const tpl = `${dbPrefix}_tpl`
   console.log(`[contract] dựng DB mẫu ${tpl} (migrate + seed admin)`)
   await recreateDb(tpl)
   const dbEnv = {
@@ -192,7 +193,7 @@ async function main(): Promise<void> {
   let failed = false
   try {
     for (const profile of profiles) {
-      const dbName = `trinity_contract_${profile.replace(/[^a-z0-9]/g, '_')}`
+      const dbName = `${dbPrefix}_${profile.replace(/[^a-z0-9]/g, '_')}`
       await recreateDb(dbName, tpl)
       const base = `http://127.0.0.1:${PORT}`
       const env: Record<string, string> = {

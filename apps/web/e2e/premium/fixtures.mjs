@@ -40,7 +40,7 @@ const ORG_FEATURES = {
   facebook_page: true, zalo_oa: true, social_posting: true,
   products: true, pos: true, payments: true, online_store: false, commerce_connectors: false,
   management: true, attendance: false, payroll: false, newsfeed: true,
-  integrations: true, ai_briefing: true, lead_scoring: true, stale_reminders: true, google_sheets: false,
+  integrations: true, ai_briefing: true, lead_scoring: true, stale_reminders: true,
 }
 
 // ─── Thông báo ────────────────────────────────────────────────

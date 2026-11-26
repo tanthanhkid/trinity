@@ -22,7 +22,6 @@ export const BRAND_LOGOS = {
   lazada: '/brand/logos/lazada.png',
   misa: '/brand/logos/misa.jpg',
   ipos: '/brand/logos/ipos.png',
-  google_sheets: '/brand/logos/google-sheets.svg',
   google_business: '/brand/logos/google-business.svg',
   n8n: '/brand/logos/n8n.svg',
   zapier: '/brand/logos/zapier.svg',

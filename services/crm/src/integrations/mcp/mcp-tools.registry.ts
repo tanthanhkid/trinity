@@ -24,6 +24,7 @@ import { FACEBOOK_FLOW_TOOLS } from './tools/facebook-flow-tools';
 import { INBOX_TOOLS } from './tools/inbox-tools';
 import { CANCEL_TOOLS } from './tools/cancel-tools';
 import { FACEBOOK_BROADCAST_TOOLS } from './tools/facebook-broadcast-tools';
+import { PAYMENT_TOOLS } from './tools/payment-tools';
 import { STORE_TOOLS } from './tools/store-tools';
 import { SALES_RECORD_TOOLS } from './tools/sales-records-tools';
 import { INVITATION_TOOLS } from './tools/invitation-tools';
@@ -78,6 +79,7 @@ export const MCP_TOOLS: readonly ToolDef[] = [
   ...FACEBOOK_BROADCAST_TOOLS,
   ...INBOX_TOOLS,
   ...CANCEL_TOOLS,
+  ...PAYMENT_TOOLS,
   ...STORE_TOOLS,
   ...SALES_RECORD_TOOLS,
   ...INVITATION_TOOLS,

@@ -62,7 +62,7 @@ function SepayDialog({ open, onClose, current, onSaved }: {
         <form onSubmit={submit} className="flex flex-col gap-5">
           <DialogHeader>
             <DialogTitle>{current ? "Sửa tài khoản nhận tiền" : "Kết nối SePay"}</DialogTitle>
-            <DialogDescription>Tài khoản ngân hàng đã liên kết trong SePay. Trinity dùng nó để tạo mã QR và nhận báo tiền về.</DialogDescription>
+            <DialogDescription>Tài khoản ngân hàng đã liên kết trong SePay. Trinity dùng nó để nhận báo tiền về và tự khớp vào yêu cầu cũ.</DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field>
@@ -115,7 +115,7 @@ function SepaySection({ conn, canManage }: { conn: ConnectorStatus; canManage: b
         : { tone: "warning", label: "Chờ giao dịch đầu tiên" }
   const detail = conn.connected && s
     ? [`${s.bank} · ${s.account_number}`, conn.last_event_at ? `tiền về gần nhất ${when(conn.last_event_at)}` : "chưa nhận giao dịch nào", conn.last_error].filter(Boolean).join(" · ")
-    : "Tự khớp tiền chuyển khoản vào yêu cầu thanh toán, tạo mã QR"
+    : "Đối soát yêu cầu cũ: tự khớp tiền chuyển khoản về"
   return (
     <>
       <ConnectionGroup label="Cổng thanh toán">
@@ -178,7 +178,7 @@ function SepaySection({ conn, canManage }: { conn: ConnectorStatus; canManage: b
         title={confirm === "rotate" ? "Tạo khoá webhook mới?" : "Ngắt kết nối SePay?"}
         description={confirm === "rotate"
           ? "Khoá cũ hết hiệu lực ngay. Bạn phải dán khoá mới vào SePay, nếu không Trinity sẽ không nhận được báo tiền về."
-          : "Trinity sẽ thôi nhận báo tiền về và không tạo mã QR nữa. Các yêu cầu thanh toán cũ vẫn giữ."}
+          : "Trinity sẽ thôi nhận báo tiền về nên không tự khớp yêu cầu cũ nữa. Các yêu cầu thanh toán cũ vẫn giữ."}
         confirmLabel={confirm === "rotate" ? "Tạo khoá mới" : "Ngắt kết nối"}
         tone={confirm === "rotate" ? "default" : "destructive"}
         pending={save.isPending || disconnect.isPending}
@@ -207,7 +207,7 @@ const GATEWAY: Record<GatewayProvider, { title: string; color: string; text: str
     title: "VNPay",
     color: "#e11d48",
     text: "VN",
-    desc: "Link thanh toán thẻ ATM, Visa/Master, QR ngân hàng",
+    desc: "Đối soát yêu cầu cũ: tự khớp tiền về qua IPN",
     portal: "Lấy ở email VNPay gửi khi đăng ký (môi trường thử: sandbox.vnpayment.vn).",
     fields: [
       { key: "tmn_code", label: "Mã website (vnp_TmnCode)" },
@@ -218,7 +218,7 @@ const GATEWAY: Record<GatewayProvider, { title: string; color: string; text: str
     title: "MoMo",
     color: "#a50064",
     text: "M",
-    desc: "Link thanh toán ví MoMo",
+    desc: "Đối soát yêu cầu cũ: tự khớp tiền về qua IPN",
     portal: "Lấy ở business.momo.vn › Thông tin tích hợp.",
     fields: [
       { key: "partner_code", label: "Partner code" },

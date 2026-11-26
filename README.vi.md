@@ -50,7 +50,7 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 | **Hộp thư chung** | Tin Messenger và Zalo OA ở một chỗ, có ô tìm và bộ lọc "Chưa trả lời"; trả lời đúng khung thời gian mỗi nền tảng cho phép (Messenger: 24 giờ; nhân viên tự gõ thì tới 7 ngày, khi app của bạn đã được Meta cấp quyền Human Agent). Mở hội thoại là đọc thêm tin thẳng từ Facebook, không sót tin khi thông báo không về |
 | **Tự động hoá Fanpage** | Luật bình luận theo Page hoặc từng bài (kể cả ảnh bìa): tự trả lời, ẩn bình luận có số điện thoại, nhắn riêng, người bình luận tự gắn với khách hàng; link và mã QR mở thẳng cuộc chat; kịch bản Messenger; gửi tin hàng loạt trong cửa sổ 24 giờ. Luật, kịch bản, gửi hàng loạt cũng tạo và sửa được từ trợ lý AI |
 | **Đăng đa kênh** | Soạn một lần, đăng ngay hoặc hẹn giờ lên Fanpage Facebook; có lịch nội dung, thư viện ảnh/video, số liệu bài. Lưu nháp, hàng đợi theo khung giờ cố định mỗi tuần, bộ hashtag và chữ ký dùng lại, tự gắn UTM vào liên kết, xem trước bài trên từng kênh, nhập nhiều bài từ CSV, bài lặp lại (ngày, tuần, tháng). Video lớn tải lên từng phần; bài bị xoá thẳng trên mạng tự hiện là đã xoá. Mọi việc cũng làm được qua trợ lý AI |
-| **Thanh toán** | Yêu cầu thanh toán kèm mã VietQR, SePay tự khớp khi tiền về; link thanh toán VNPay, MoMo |
+| **Thanh toán** | Đối soát yêu cầu thanh toán cũ: tiền về qua SePay, VNPay, MoMo tự khớp vào yêu cầu (không tạo yêu cầu mới) |
 | **Kết nối bán hàng** | KiotViet, Sapo, WooCommerce, MISA, Shopee, Lazada: đồng bộ về CRM những gì API từng bên cho (khách, đơn và/hoặc hàng hoá); khách được ghép theo số điện thoại khi nền tảng cung cấp (Shopee che số người mua). Phạm vi từng connector ở [status.md](docs/integrations/status.md) |
 | **Trang bán hàng** | Trang bán online `/s/<tên>` (hoặc tên miền phụ), 3 giao diện, giỏ hàng, COD hoặc chuyển khoản QR; đơn và người mua vào thẳng CRM. Mặc định tắt |
 | **CRM** | Danh bạ với nguồn, giai đoạn, trạng thái do bạn tự đặt, Kanban, mã bản ghi chung và gắn thẻ `@` giữa các màn, bảng tin |
@@ -90,7 +90,7 @@ Chi tiết từng connector: [docs/integrations/status.md](docs/integrations/sta
 </tr>
 <tr>
 <td><img src="docs/screenshots/posting-calendar.png" alt="Lịch đăng đa kênh với bài đã hẹn giờ và đã đăng"><br><sub>Lịch nội dung đăng đa kênh</sub></td>
-<td><img src="docs/screenshots/payments.png" alt="Thanh toán: SePay, VNPay, MoMo và yêu cầu thanh toán"><br><sub>Thanh toán: QR SePay, VNPay, MoMo</sub></td>
+<td><img src="docs/screenshots/payments.png" alt="Thanh toán: SePay, VNPay, MoMo đối soát yêu cầu cũ"><br><sub>Thanh toán: đối soát yêu cầu cũ</sub></td>
 </tr>
 </table>
 

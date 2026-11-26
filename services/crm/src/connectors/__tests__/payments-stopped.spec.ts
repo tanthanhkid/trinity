@@ -1,4 +1,17 @@
-import { GoneException } from '@nestjs/common';
+import 'reflect-metadata';
+import { GoneException, type INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import type { AddressInfo } from 'node:net';
+import { PrismaService } from '@trinity/prisma';
+import { ConnectorsService } from '../connectors.service';
+import { OrgFeaturesService } from '../../settings/org-features.service';
+import { KiotVietService } from '../kiotviet.service';
+import { CommerceSyncService } from '../commerce-sync.service';
+import { SapoService } from '../sapo.service';
+import { MisaService } from '../misa.service';
+import { WooCommerceService } from '../woocommerce.service';
+import { ShopeeService } from '../shopee.service';
+import { LazadaService } from '../lazada.service';
 import { vnpaySign } from '../vnpay';
 import { PaymentsService } from '../payments.service';
 import { ConnectorsController, PAYMENT_CREATION_STOPPED } from '../connectors.controller';
@@ -41,5 +54,42 @@ describe('Ngừng tạo yêu cầu thanh toán mới (#105)', () => {
     const q = { vnp_TmnCode: 'TESTTMN1', vnp_Amount: '15000000', vnp_TxnRef: 'TRN7K2QXM-ABC', vnp_ResponseCode: '00', vnp_TransactionStatus: '00', vnp_TransactionNo: '14123456', vnp_PayDate: '20261015083500' };
     await expect(ctrl.vnpayIpn({ ...q, vnp_SecureHash: vnpaySign(q, VN_SECRET) })).resolves.toEqual({ RspCode: '00', Message: 'Confirm Success' });
     expect(prisma.paymentIntent.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'paid' }) }));
+  });
+});
+
+describe('POST /payments qua HTTP (#105)', () => {
+  let app: INestApplication;
+  let url: string;
+  const features = { isEnabled: jest.fn().mockResolvedValue(false) };
+  beforeAll(async () => {
+    const stub = {};
+    const mod = await Test.createTestingModule({
+      controllers: [ConnectorsController],
+      providers: [
+        { provide: ConnectorsService, useValue: stub },
+        { provide: PaymentsService, useValue: stub },
+        { provide: OrgFeaturesService, useValue: features },
+        { provide: KiotVietService, useValue: stub },
+        { provide: PrismaService, useValue: stub },
+        { provide: CommerceSyncService, useValue: stub },
+        { provide: SapoService, useValue: stub },
+        { provide: MisaService, useValue: stub },
+        { provide: WooCommerceService, useValue: stub },
+        { provide: ShopeeService, useValue: stub },
+        { provide: LazadaService, useValue: stub },
+      ],
+    }).compile();
+    app = mod.createNestApplication({ logger: false });
+    app.setGlobalPrefix('api/v1');
+    await app.listen(0, '127.0.0.1');
+    url = `http://127.0.0.1:${(app.getHttpServer().address() as AddressInfo).port}/api/v1/payments`;
+  });
+  afterAll(() => app.close());
+
+  it('mọi caller (không đăng nhập, tính năng thanh toán đang tắt) nhận 410 + câu ngừng tạo', async () => {
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ amount: 150000 }) });
+    expect(res.status).toBe(410);
+    expect(await res.json()).toMatchObject({ statusCode: 410, message: PAYMENT_CREATION_STOPPED });
+    expect(features.isEnabled).not.toHaveBeenCalled();
   });
 });

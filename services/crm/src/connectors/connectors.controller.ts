@@ -443,9 +443,9 @@ export class ConnectorsController {
    * Ngừng tạo yêu cầu thanh toán mới (G07a, #105). Yêu cầu ĐANG CHỜ vẫn được ghi nhận: IPN VNPay/MoMo, trang trả về và
    * webhook SePay vẫn chạy (các route ở trên), danh sách/xem/huỷ vẫn dùng được.
    */
+  // Không kiểm quyền/công tắc: MỌI caller (kể cả chưa đăng nhập, tính năng tắt) nhận cùng một câu 410 rõ ràng.
   @Post('payments')
-  @Can('deals.manage')
-  @RequireOrgFeature('payments')
+  @Public()
   @HttpCode(410)
   @ApiOperation({ summary: 'Đã ngừng: Trinity không tạo yêu cầu thanh toán mới (trả 410); yêu cầu đang chờ vẫn được ghi nhận khi tiền về' })
   create(): never {

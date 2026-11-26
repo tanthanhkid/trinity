@@ -49,6 +49,7 @@ Each company has its own Postgres schema; authorization codes and access/refresh
 |---|---|---|
 | `search` (query) | ≥1 of `contacts.view`/`deals.view`/`kanban.view` | OpenAI format: `structuredContent.results[{id,title,url}]` + JSON in `content`; id `contact:12` / `deal:5` / `card:9`; matches name/title only |
 | `fetch` (id) | by id type | `{id,title,text,url,metadata}`; out of scope ⇒ tool error |
+| `list_payment_requests` | read | Payment requests created earlier and how far they were reconciled (no new requests are created) |
 | `list_contacts` | `contacts.view` | filters `stage_id`, `contact_status_id`, `source_id`, `assigned_to`, `name`, `uncontacted_days`; cursor |
 | `get_contact` / `list_contact_activities` | `contacts.view` | the address is not returned |
 | `list_deals` | `deals.view` | filters status/assigned_to/search; cursor |

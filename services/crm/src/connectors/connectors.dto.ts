@@ -1,6 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
-import { PAYMENT_SOURCE_TYPES } from './payments.service';
 
 export class SaveSepayDto {
   @ApiProperty({ example: '0123456789', description: 'Số tài khoản nhận tiền đã liên kết với SePay' })
@@ -29,44 +28,6 @@ export class SaveSepayDto {
   @IsOptional()
   @IsBoolean()
   rotate_key?: boolean;
-}
-
-export class CreatePaymentDto {
-  @ApiProperty({ example: 150000, description: 'Số tiền (VND)' })
-  @IsNumber()
-  @Min(1000)
-  @Max(10_000_000_000)
-  amount!: number;
-
-  @ApiPropertyOptional({ example: 'Học phí tháng 11 — bé An' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  description?: string;
-
-  @ApiPropertyOptional({ enum: PAYMENT_SOURCE_TYPES })
-  @IsOptional()
-  @IsIn(PAYMENT_SOURCE_TYPES as unknown as string[])
-  source_type?: (typeof PAYMENT_SOURCE_TYPES)[number];
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  source_id?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  contact_id?: number;
-
-  @ApiPropertyOptional({ description: 'Hạn thanh toán (giờ), bỏ trống = không hạn' })
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  @Max(24 * 90)
-  expires_in_hours?: number;
 }
 
 export class SaveVnpayDto {

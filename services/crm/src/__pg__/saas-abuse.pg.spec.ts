@@ -30,6 +30,7 @@ import { signState } from '../connectors/oauth-state';
 import { ShopeeService } from '../connectors/shopee.service';
 import { loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { PaymentsService } from '../connectors/payments.service';
+import { seedPendingPayment } from '../connectors/__tests__/seed-payment';
 import { txnRefFor, vnpaySign } from '../connectors/vnpay';
 import { PublicApiService } from '../public-api/public-api.service';
 import { StoreService } from '../store/store.service';
@@ -620,8 +621,8 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
       payB = new PaymentsService(db, connB, { ownerIds: async () => 'all' } as never);
       await inCompany(A, () => connA.saveGateway('vnpay', { tmn_code: 'TESTTMN1', hash_secret: SECRET_A }, 1));
       await inCompany(B, () => connB.saveGateway('vnpay', { tmn_code: 'TESTTMN1', hash_secret: SECRET_B }, 1));
-      intentA = await inCompany(A, () => payA.create({ amount: 150000, description: 'Đơn A' }, null));
-      intentB = await inCompany(B, () => payB.create({ amount: 150000, description: 'Đơn B' }, null));
+      intentA = await inCompany(A, () => seedPendingPayment(db, { amount: 150000, description: 'Đơn A' }));
+      intentB = await inCompany(B, () => seedPendingPayment(db, { amount: 150000, description: 'Đơn B' }));
     });
 
     const status = (c: CompanyRef, id: number) => inCompany(c, async () => (await db.paymentIntent.findUniqueOrThrow({ where: { id } })).status);

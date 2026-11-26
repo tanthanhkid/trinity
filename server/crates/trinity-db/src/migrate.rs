@@ -141,7 +141,7 @@ pub async fn migrate_companies(
                 let task = {
                     let (pool, migrations, latest, schema) =
                         (pool.clone(), migrations.clone(), latest.clone(), schema.clone());
-                    tokio::spawn(async move { migrate_one(&pool, id, &schema, &migrations, &latest).await })
+                    tokio::spawn(async move { migrate_company(&pool, id, &schema, &migrations, &latest).await })
                 };
                 let result = match task.await {
                     Ok(r) => r.map_err(|e| e.to_string()),
@@ -170,6 +170,21 @@ pub async fn migrate_companies(
     Ok(report)
 }
 
+/// Migrate nền lúc boot: chỉ chạy khi tệp sở hữu giao migrate cho Rust (`Ownership::migrate() == Owner::Rust`);
+/// bên kia (Node) đang giữ việc này thì trả `None` mà không đụng DB, để không hai tiến trình cùng migrate.
+pub async fn boot_migrate_companies(
+    rust_owns_migrate: bool,
+    pool: &PgPool,
+    migrations: &[Migration],
+    latest: &str,
+    concurrency: usize,
+) -> Result<Option<CompaniesReport>, MigrateError> {
+    if !rust_owns_migrate {
+        return Ok(None);
+    }
+    migrate_companies(pool, migrations, latest, concurrency).await.map(Some)
+}
+
 /// `schema_name` phải đúng là schema của `id` (như `schemaForCompany`), không tin dữ liệu bảng.
 pub fn check_company_schema(id: i32, schema: &str) -> Result<(), MigrateError> {
     match CompanyRef::new(i64::from(id)) {
@@ -178,7 +193,8 @@ pub fn check_company_schema(id: i32, schema: &str) -> Result<(), MigrateError> {
     }
 }
 
-async fn migrate_one(
+/// Migrate một schema công ty rồi ghi `platform.companies.migrated_to` (cho `migrate --companies` và provision).
+pub async fn migrate_company(
     pool: &PgPool,
     id: i32,
     schema: &str,

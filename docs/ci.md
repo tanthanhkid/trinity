@@ -5,14 +5,15 @@ Nguyên tắc: check **bắt buộc** phải nhanh (mục tiêu ≤ 5 phút); vi
 ## Giai đoạn viết lại Rust: CI nhẹ trên PR (từ 26/11/2026)
 Repo public dùng runner chung có giới hạn chạy đồng thời; nhiều PR cùng lúc (agent + Dependabot) làm hàng đợi dài. Trong lúc
 viết lại backend sang Rust (`docs/rust/PLAN.md`):
-- **Không chạy trên PR**, chỉ push `main` (+ chạy tay; e2e web có ở Nightly): `Web build and UI checks`, `Rust build (amd64/arm64)`, CodeQL.
+- **Không chạy trên PR**, chỉ push `main` (+ chạy tay; e2e web có ở Nightly): `Web build and UI checks`, `Rust build (amd64/arm64)`.
+- CodeQL là "default setup" của GitHub (chạy cả trên PR), không nằm trong repo nên PR này không đổi được. Muốn bớt hàng đợi: chủ repo vào Settings → Code security → CodeQL analysis → Configure → bỏ chạy trên pull request (chỉ push + lịch), hoặc `gh api -X PATCH repos/tanthanhkid/trinity/code-scanning/default-setup -f state=configured -f schedule=weekly` để chỉnh lại; không check bắt buộc nào phụ thuộc CodeQL.
 - `Tests with Postgres` lọc **ở mức job** (output `sql` của `Rust changes`): PR không đổi SQL thì job bị bỏ qua, không khởi động container Postgres.
 - Mọi workflow chạy trên PR có `concurrency` huỷ lượt cũ khi đẩy commit mới (`ci.yml`, `pr-triage.yml`, `dependency-review.yml`). `cla.yml` để nguyên (check bắt buộc, còn chạy theo bình luận ký CLA).
 - Dependabot: **đóng băng PR cập nhật phiên bản** (`open-pull-requests-limit: 0` mọi hệ); PR vá lỗ hổng (security updates) vẫn mở.
 - Check bắt buộc **không đổi**: `ci-ok`, `Secret scan (gitleaks)`, `CLA`.
 
 Hết giai đoạn: bỏ điều kiện `github.event_name != 'pull_request'` ở `web-ui` và `rust-build` trong `ci.yml`, trả giới hạn
-Dependabot về 5 / 3 / 3 / 2 (npm / cargo / github-actions / docker), thêm `pull_request` vào `codeql.yml` nếu muốn quét PR.
+Dependabot về 5 / 3 / 3 / 2 (npm / cargo / github-actions / docker).
 
 ## Check bắt buộc cho merge vào `main`
 | Check | Workflow | Nội dung |
@@ -35,7 +36,7 @@ Dependabot về 5 / 3 / 3 / 2 (npm / cargo / github-actions / docker), thêm `pu
 | `Label by path / size`, `Conventional PR title` | `pr-triage.yml` | PR | Nhãn + kiểm tiêu đề `type(scope): …` |
 | `Nightly` (full test, Postgres, e2e Playwright, `pnpm audit`, OSV, `Rust advisories (cargo deny)`) | `nightly.yml` | 02:00 giờ VN + chạy tay | Toàn bộ test; báo cáo Playwright là artifact |
 | `Scorecard` | `scorecard.yml` | push main + hằng tuần | OpenSSF Scorecard → Code scanning |
-| `CodeQL (<ngôn ngữ>)` | `codeql.yml` | push main + Chủ nhật hằng tuần + chạy tay (không chạy trên PR) | Actions, JavaScript/TypeScript, Rust (`build-mode: none`). Thay "default setup" của GitHub: default setup phải **tắt** thì kết quả của workflow mới được nhận — `gh api -X PATCH repos/tanthanhkid/trinity/code-scanning/default-setup -f state=not-configured` (chủ repo chạy; bật lại: `-f state=configured`) |
+| CodeQL | "default setup" của GitHub | PR + push + hằng tuần | JavaScript/TypeScript, Actions (cách giảm tải: mục "Giai đoạn viết lại Rust") |
 | `Stale` | `stale.yml` | Hằng ngày | Issue 90+30 ngày, PR 45+21 ngày; bỏ qua `pinned`, `security`, `roadmap`, `help wanted`, `good first issue` |
 
 PR chỉ lint/typecheck/test **gói bị đổi** (và gói phụ thuộc với typecheck); push `main` chạy tất cả.

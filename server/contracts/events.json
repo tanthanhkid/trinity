@@ -1,0 +1,162 @@
+{
+  "event_types": [
+    "contact.created",
+    "contact.updated",
+    "contact.stage_changed",
+    "contact.assigned",
+    "contact.deleted",
+    "contact.restored",
+    "deal.created",
+    "deal.stage_changed",
+    "deal.won",
+    "deal.lost",
+    "pos.order.completed",
+    "custom_record.created",
+    "custom_record.updated",
+    "custom_record.deleted",
+    "zalo_oa.message_received",
+    "zalo_oa.message_sent",
+    "messenger.message_received",
+    "messenger.message_sent",
+    "messenger.broadcast_finished",
+    "facebook.comment_received",
+    "social_post.published",
+    "social_post.failed",
+    "payment.received",
+    "store_order.created",
+    "store_order.paid",
+    "store_order.status_changed"
+  ],
+  "events": [
+    {
+      "type": "contact.created",
+      "resource": "contact",
+      "label": "Tạo khách hàng"
+    },
+    {
+      "type": "contact.updated",
+      "resource": "contact",
+      "label": "Sửa khách hàng"
+    },
+    {
+      "type": "contact.stage_changed",
+      "resource": "contact",
+      "label": "Đổi giai đoạn khách hàng"
+    },
+    {
+      "type": "contact.assigned",
+      "resource": "contact",
+      "label": "Gán / chuyển khách cho người khác"
+    },
+    {
+      "type": "contact.deleted",
+      "resource": "contact",
+      "label": "Xoá khách hàng"
+    },
+    {
+      "type": "contact.restored",
+      "resource": "contact",
+      "label": "Khôi phục khách hàng vừa xoá (Hoàn tác)"
+    },
+    {
+      "type": "deal.created",
+      "resource": "deal",
+      "label": "Tạo deal"
+    },
+    {
+      "type": "deal.stage_changed",
+      "resource": "deal",
+      "label": "Deal đổi trạng thái"
+    },
+    {
+      "type": "deal.won",
+      "resource": "deal",
+      "label": "Deal chốt thành công"
+    },
+    {
+      "type": "deal.lost",
+      "resource": "deal",
+      "label": "Deal thất bại"
+    },
+    {
+      "type": "pos.order.completed",
+      "resource": "pos_order",
+      "label": "Đơn POS hoàn tất (đã thu tiền)"
+    },
+    {
+      "type": "custom_record.created",
+      "resource": "custom_record",
+      "label": "Tạo bản ghi tính năng tuỳ biến"
+    },
+    {
+      "type": "custom_record.updated",
+      "resource": "custom_record",
+      "label": "Sửa bản ghi tính năng tuỳ biến"
+    },
+    {
+      "type": "custom_record.deleted",
+      "resource": "custom_record",
+      "label": "Xoá bản ghi tính năng tuỳ biến"
+    },
+    {
+      "type": "zalo_oa.message_received",
+      "resource": "zalo_oa_thread",
+      "label": "Zalo OA: khách nhắn tới"
+    },
+    {
+      "type": "zalo_oa.message_sent",
+      "resource": "zalo_oa_thread",
+      "label": "Zalo OA: gửi tin tư vấn / ZNS"
+    },
+    {
+      "type": "messenger.message_received",
+      "resource": "messenger_conversation",
+      "label": "Messenger: khách nhắn Fanpage"
+    },
+    {
+      "type": "messenger.message_sent",
+      "resource": "messenger_conversation",
+      "label": "Messenger: Fanpage gửi tin (nhân viên, kịch bản, gửi hàng loạt)"
+    },
+    {
+      "type": "messenger.broadcast_finished",
+      "resource": "messenger_broadcast",
+      "label": "Messenger: lượt gửi hàng loạt đã xong"
+    },
+    {
+      "type": "facebook.comment_received",
+      "resource": "facebook_comment",
+      "label": "Fanpage: có bình luận mới"
+    },
+    {
+      "type": "social_post.published",
+      "resource": "social_post",
+      "label": "Đăng bài: đã lên kênh"
+    },
+    {
+      "type": "social_post.failed",
+      "resource": "social_post",
+      "label": "Đăng bài: đăng lỗi"
+    },
+    {
+      "type": "payment.received",
+      "resource": "payment_intent",
+      "label": "Thanh toán: đã nhận tiền (SePay, VNPay, MoMo)"
+    },
+    {
+      "type": "store_order.created",
+      "resource": "store_order",
+      "label": "Trang bán hàng: có đơn mới"
+    },
+    {
+      "type": "store_order.paid",
+      "resource": "store_order",
+      "label": "Trang bán hàng: đơn đã thanh toán (nhân viên xác nhận)"
+    },
+    {
+      "type": "store_order.status_changed",
+      "resource": "store_order",
+      "label": "Trang bán hàng: đơn đổi trạng thái"
+    }
+  ]
+}

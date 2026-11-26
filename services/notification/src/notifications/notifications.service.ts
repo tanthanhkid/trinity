@@ -6,6 +6,7 @@ import { DeliveryService } from './delivery.service'
 import { NotificationsGateway } from '../websocket/notifications.gateway'
 import { isBusinessHours, getNextBusinessStart } from './helpers/timezone.helper'
 import { MESSAGE_EVENT_TYPES } from './helpers/event-category.helper'
+import { publishBell } from '../common/bell-sync'
 
 interface NotificationLog {
   id: number
@@ -121,6 +122,7 @@ export class NotificationsService {
     })
 
     this.invalidateUnreadCache(userId)
+    publishBell([userId], []) // G12b: phát trước, để lỗi/độ trễ của đếm cục bộ không làm mất tin cho tiến trình khác
     await this.emitUnreadCounts(userId)
     return { success: true }
   }
@@ -177,6 +179,7 @@ export class NotificationsService {
     this.invalidateUnreadCache(dto.user_id)
 
     if (dto.channel === NotifChannel.IN_APP) {
+      publishBell([dto.user_id], [log.id]) // G12b: trước khi đếm cục bộ (đếm lỗi không được chặn tin)
       await this.emitUnreadCounts(dto.user_id)
     }
 
@@ -271,6 +274,7 @@ export class NotificationsService {
       // Như send(): thông báo hẹn giờ vừa giao cũng phải làm mới cache chưa-đọc + đẩy lại số đếm, kẻo badge cũ tới 5 phút.
       this.invalidateUnreadCache(log.recipient_id)
       if (dto.channel === NotifChannel.IN_APP) {
+        publishBell([log.recipient_id], [log.id]) // G12b
         try {
           await this.emitUnreadCounts(log.recipient_id)
         } catch (err) {

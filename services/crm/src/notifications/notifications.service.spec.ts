@@ -16,7 +16,7 @@ function createMockPrisma() {
       findMany: jest.fn(),
     },
     notificationLog: {
-      createMany: jest.fn(),
+      createManyAndReturn: jest.fn(),
     },
     user: {
       findUnique: jest.fn(),
@@ -58,24 +58,30 @@ describe('NotificationsService', () => {
     it('return created:0 khi userIds rong', async () => {
       const result = await service.createPendingLogs([], 'test.event', content);
       expect(result.created).toBe(0);
-      expect(prisma.notificationLog.createMany).not.toHaveBeenCalled();
+      expect(prisma.notificationLog.createManyAndReturn).not.toHaveBeenCalled();
     });
 
     it('insert thanh cong lan dau, khong retry', async () => {
-      prisma.notificationLog.createMany.mockResolvedValue({ count: 2 });
+      prisma.notificationLog.createManyAndReturn.mockResolvedValue([{ id: 10, recipient_id: 1 }, { id: 11, recipient_id: 2 }]);
       const result = await service.createPendingLogs(
         [1, 2],
         'test.event',
         content,
       );
       expect(result.created).toBe(2);
-      expect(prisma.notificationLog.createMany).toHaveBeenCalledTimes(1);
+      expect(prisma.notificationLog.createManyAndReturn).toHaveBeenCalledTimes(1);
+    });
+
+    it('createManyAndReturn tra [] (trung het, skipDuplicates) => created 0, khong phat WS', async () => {
+      prisma.notificationLog.createManyAndReturn.mockResolvedValue([]);
+      const result = await service.createPendingLogs([1, 2], 'test.event', content);
+      expect(result.created).toBe(0);
     });
 
     it('retry 1 lan khi DB fail, thanh cong lan 2', async () => {
-      prisma.notificationLog.createMany
+      prisma.notificationLog.createManyAndReturn
         .mockRejectedValueOnce(new Error('pool timeout'))
-        .mockResolvedValueOnce({ count: 1 });
+        .mockResolvedValueOnce([{ id: 12, recipient_id: 99 }]);
 
       const promise = service.createPendingLogs(
         [99],
@@ -86,12 +92,12 @@ describe('NotificationsService', () => {
       const result = await promise;
 
       expect(result.created).toBe(1);
-      expect(prisma.notificationLog.createMany).toHaveBeenCalledTimes(2);
+      expect(prisma.notificationLog.createManyAndReturn).toHaveBeenCalledTimes(2);
     });
 
     it('throw err khi ca 4 lan (1 + 3 retry) deu fail', async () => {
       const err = new Error('DB down');
-      prisma.notificationLog.createMany.mockRejectedValue(err);
+      prisma.notificationLog.createManyAndReturn.mockRejectedValue(err);
 
       const promise = service.createPendingLogs(
         [7],
@@ -106,20 +112,20 @@ describe('NotificationsService', () => {
       const result = await caught;
 
       expect(result).toBe(err);
-      expect(prisma.notificationLog.createMany).toHaveBeenCalledTimes(4);
+      expect(prisma.notificationLog.createManyAndReturn).toHaveBeenCalledTimes(4);
     });
 
     it('pass skipDuplicates=true de dedupe (recipient_id, event_type) khi retry', async () => {
-      prisma.notificationLog.createMany.mockResolvedValue({ count: 1 });
+      prisma.notificationLog.createManyAndReturn.mockResolvedValue([{ id: 13, recipient_id: 1 }]);
       await service.createPendingLogs([1], 'test.event', content);
-      const call = prisma.notificationLog.createMany.mock.calls[0][0] as {
+      const call = prisma.notificationLog.createManyAndReturn.mock.calls[0][0] as {
         skipDuplicates: boolean;
       };
       expect(call.skipDuplicates).toBe(true);
     });
 
     it('emitWsFireAndForget: gọi port in-process đúng items (không HTTP)', async () => {
-      prisma.notificationLog.createMany.mockResolvedValue({ count: 2 });
+      prisma.notificationLog.createManyAndReturn.mockResolvedValue([{ id: 10, recipient_id: 1 }, { id: 11, recipient_id: 2 }]);
       await service.createPendingLogs([1, 2], 'test.event', content);
       expect(mockWsEmit).toHaveBeenCalledTimes(1);
       const items = mockWsEmit.mock.calls[0][0] as Array<Record<string, unknown>>;
@@ -133,13 +139,13 @@ describe('NotificationsService', () => {
     });
 
     it('emitWsFireAndForget: không phát khi không insert được dòng nào', async () => {
-      prisma.notificationLog.createMany.mockResolvedValue({ count: 0 });
+      prisma.notificationLog.createManyAndReturn.mockResolvedValue({ count: 0 });
       await service.createPendingLogs([1], 'test.event', content);
       expect(mockWsEmit).not.toHaveBeenCalled();
     });
 
     it('emitWsFireAndForget: không throw nhưng log ERROR (không nuốt âm thầm) khi port emit lỗi', async () => {
-      prisma.notificationLog.createMany.mockResolvedValue({ count: 1 });
+      prisma.notificationLog.createManyAndReturn.mockResolvedValue([{ id: 13, recipient_id: 1 }]);
       mockWsEmit.mockRejectedValueOnce(new Error('gateway down'));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const errorSpy = jest.spyOn((service as any).logger, 'error');
@@ -164,7 +170,7 @@ describe('NotificationsService', () => {
         ],
       }).compile();
       const svc = bare.get(NotificationsService);
-      prisma.notificationLog.createMany.mockResolvedValue({ count: 1 });
+      prisma.notificationLog.createManyAndReturn.mockResolvedValue([{ id: 13, recipient_id: 1 }]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const errorSpy = jest.spyOn((svc as any).logger, 'error');
 
@@ -181,7 +187,7 @@ describe('NotificationsService', () => {
 
   describe('notifyDealAssigned', () => {
     it('tạo 1 notification cho sale được giao thương vụ, action_url = /contacts/:id khi có contactId', async () => {
-      prisma.notificationLog.createMany.mockResolvedValue({ count: 1 });
+      prisma.notificationLog.createManyAndReturn.mockResolvedValue([{ id: 13, recipient_id: 1 }]);
       const result = await service.notifyDealAssigned({
         dealId: 10,
         dealTitle: 'Thương vụ A',
@@ -190,7 +196,7 @@ describe('NotificationsService', () => {
         contactId: 42,
       });
       expect(result.created).toBe(1);
-      const call = prisma.notificationLog.createMany.mock.calls[0][0] as {
+      const call = prisma.notificationLog.createManyAndReturn.mock.calls[0][0] as {
         data: Array<{ recipient_id: number; event_type: string; action_url: string | null }>;
       };
       expect(call.data).toEqual([
@@ -203,7 +209,7 @@ describe('NotificationsService', () => {
     });
 
     it('action_url = /contacts (list) khi deal không gắn contact', async () => {
-      prisma.notificationLog.createMany.mockResolvedValue({ count: 1 });
+      prisma.notificationLog.createManyAndReturn.mockResolvedValue([{ id: 13, recipient_id: 1 }]);
       await service.notifyDealAssigned({
         dealId: 11,
         dealTitle: 'Thương vụ B',
@@ -211,7 +217,7 @@ describe('NotificationsService', () => {
         creatorName: 'Admin Y',
         contactId: null,
       });
-      const call = prisma.notificationLog.createMany.mock.calls[0][0] as {
+      const call = prisma.notificationLog.createManyAndReturn.mock.calls[0][0] as {
         data: Array<{ action_url: string | null }>;
       };
       expect(call.data[0].action_url).toBe('/contacts');

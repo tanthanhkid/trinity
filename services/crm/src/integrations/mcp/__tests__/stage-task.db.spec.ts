@@ -4,6 +4,7 @@
  * Chỉ chạy khi có TEST_DATABASE_URL (DB đã migrate), vd:
  *   TEST_DATABASE_URL=postgresql://localhost:5432/trinity_e2e_fix pnpm --filter @trinity/crm test stage-task.db
  */
+import { ReadCache } from '../../../common/read-cache';
 import { PrismaClient } from '@prisma/client';
 import type { Grants } from '@trinity/rbac';
 import { ScopeService, type AuthUser } from '@trinity/rbac-nest';
@@ -44,7 +45,7 @@ d('Đổi giai đoạn khách + create_task — DB thật', () => {
   });
 
   describe('contact stage_change activity', () => {
-    const contacts = (): ContactsService => new ContactsService(prisma as never, {} as never, {} as never, scope, {} as never, {} as never);
+    const contacts = (): ContactsService => new ContactsService(prisma as never, {} as never, {} as never, scope, {} as never, new ReadCache());
     const setup = async () => {
       const [a, b] = await Promise.all(['moi', 'dang_tu_van'].map((value, i) =>
         prisma.settingOption.create({ data: { group_key: 'contact_stage', value, label: i ? 'Đang tư vấn' : 'Mới', sort_order: i } })));

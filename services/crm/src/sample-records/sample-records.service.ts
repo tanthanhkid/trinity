@@ -1,6 +1,6 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService, tenantKey } from '@trinity/prisma';
+import { PrismaService } from '@trinity/prisma';
 import { ReadCache } from '../common/read-cache';
 
 /** 1 dòng `settings.sample_records` (JSON) giữ id các bản ghi MẪU còn lại — không cần migration, xoá xong thì xoá dòng này. */
@@ -174,7 +174,7 @@ export class SampleRecordsService {
   /** Danh sách khách lưu tổng số trong `ReadCache` 60 giây; xoá khách mẫu thì bỏ cache (của công ty này) để tổng số không còn đếm cả mẫu. */
   async dropContactCountCache(): Promise<void> {
     try {
-      this.cache?.deletePrefix(tenantKey('crm:contacts:count:'));
+      this.cache?.invalidatePrefix('crm:contacts:count:');
     } catch {
       // Không có công ty trong ngữ cảnh ⇒ không có khoá nào của công ty để xoá; cache chỉ là tăng tốc nên bỏ qua.
     }

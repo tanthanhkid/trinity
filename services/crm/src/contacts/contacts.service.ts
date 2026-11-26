@@ -208,6 +208,15 @@ export class ContactsService {
   }
 
   /**
+   * Thêm/xoá/khôi phục khách làm đổi tổng số của danh sách và số liệu dashboard: xoá cache của công ty này ở MỌI tiến trình
+   * (`NOTIFY cache`, G12b) để người dùng nối vào tiến trình khác không thấy số cũ tới hết TTL.
+   */
+  private invalidateCountCaches(): void {
+    this.cache.invalidatePrefix(COUNT_CACHE_KEY_PREFIX);
+    this.cache.invalidatePrefix('dashboard:');
+  }
+
+  /**
    * Count đã cache. Trả `undefined` khi miss — caller đếm lại từ DB.
    */
   private async getCachedCount(key: string): Promise<number | undefined> {
@@ -704,6 +713,7 @@ export class ContactsService {
       { maxWait: 10000, timeout: 10000 },
     );
     const { contact, deal: createdDeal } = result;
+    this.invalidateCountCaches();
     // Khách THẬT đầu tiên ⇒ xoá bản ghi mẫu của hệ thống mới dựng (không bao giờ làm hỏng việc tạo khách).
     await this.sampleRecords?.purgeIfReal();
 
@@ -1098,6 +1108,7 @@ export class ContactsService {
       });
     });
 
+    this.invalidateCountCaches();
     this.logger.log(
       `Contact ID ${id} soft-deleted by user ID ${user.userId}`,
     );
@@ -1157,6 +1168,7 @@ export class ContactsService {
       });
     });
 
+    this.invalidateCountCaches();
     this.logger.log(`Contact ID ${id} restored by user ID ${user.userId}`);
     return { success: true, message: 'Đã khôi phục khách hàng' };
   }

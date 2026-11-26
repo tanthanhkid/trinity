@@ -20,11 +20,13 @@
     "@nestjs/common": "^10",
     "@prisma/client": "^6.19.3",
     "@trinity/rbac": "workspace:*",
-    "bcryptjs": "^2"
+    "bcryptjs": "^2",
+    "pg": "8"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2",
     "@types/node": "^22",
+    "@types/pg": "^8.23.1",
     "prisma": "^6.19.3",
     "ts-node": "^10",
     "typescript": "^5"

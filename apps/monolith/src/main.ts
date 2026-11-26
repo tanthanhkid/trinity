@@ -3,8 +3,8 @@ import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 
 import { MonolithModule } from './app.module'
-import { NEST_CREATE_OPTIONS, configureApp, initAndAudit, insecureSecrets } from './bootstrap-app'
 import { clusterModeWarnings } from './single-process'
+import { NEST_CREATE_OPTIONS, configureApp, initAndAudit, insecureSecrets } from './bootstrap-app'
 import { ElkNestLogger } from '@trinity/logger'
 import { clientIpStartupProblems, clientIpStartupWarnings, tunnelListenProblem } from '@trinity/rbac-nest'
 

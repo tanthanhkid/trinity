@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { PrismaService, currentCompany, currentCompanyId, getChannelLock, isMultiTenant, runWithCompany } from '@trinity/prisma';
+import { PrismaService, companyRef, currentCompany, currentCompanyId, getChannelLock, isMultiTenant, runWithCompany, syncBus } from '@trinity/prisma';
 import { channelLimitsFor, type ChannelLimits, type PlanKey } from '@trinity/rbac';
 import { planFromSetting } from '@trinity/rbac-nest';
 import { ChannelBlockedError } from './channel-guard.errors';
@@ -162,23 +162,39 @@ interface EventRow {
 export class ChannelGuardService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ChannelGuardService.name);
   private readonly cfg = graphGuardConfig();
-  /** Cửa sổ lời gọi Graph theo công ty (bộ nhớ từng tiến trình; trạng thái tạm dừng thì nằm ở DB nên mọi tiến trình cùng thấy). */
+  /** Cửa sổ lời gọi Graph theo công ty (bộ nhớ từng tiến trình, mỗi tiến trình cộng cả kết quả của tiến trình khác qua `NOTIFY graph`; trạng thái tạm dừng thì nằm ở DB nên mọi tiến trình cùng thấy). */
   private readonly windows = new Map<number, GraphWindowEvent[]>();
   private readonly pauseCache = new Map<number, { v: AutoPause | null; at: number }>();
   private readonly planCache = new Map<number, { v: PlanKey; at: number }>();
   private readonly loggedBuckets = new Set<string>();
-  /** Backoff cấp app (giới hạn tần suất dùng chung): trước mốc này, gửi tự động của MỌI công ty lùi lại. Theo từng tiến trình. */
+  /** Backoff cấp app (giới hạn tần suất dùng chung): trước mốc này, gửi tự động của MỌI công ty lùi lại. Mỗi tiến trình tự cộng (cả kết quả nhận qua `NOTIFY graph`). */
   private appBackoffUntil = 0;
   private appHits: number[] = [];
 
   constructor(private readonly prisma: PrismaService) {}
 
+  private unsubscribeSync: (() => void) | null = null;
+
   onModuleInit(): void {
     setGraphObserver((o) => this.recordGraph(o));
+    // G12b: kết quả gọi Graph ra của tiến trình khác (Node thứ hai, Rust) cũng vào cửa sổ lỗi và backoff của tiến trình này.
+    this.unsubscribeSync = syncBus.on('graph', (m) => {
+      const o: GraphOutcome = {
+        ok: m['ok'] === true,
+        httpStatus: Number(m['h'] ?? 0),
+        code: typeof m['code'] === 'number' ? m['code'] : null,
+        subcode: typeof m['sub'] === 'number' ? m['sub'] : null,
+        send: m['send'] !== false,
+      };
+      if (m.c > 0) runWithCompany(companyRef(m.c), () => this.applyGraph(o));
+      else this.applyGraph(o);
+    });
   }
 
   onModuleDestroy(): void {
     setGraphObserver(null);
+    this.unsubscribeSync?.();
+    this.unsubscribeSync = null;
   }
 
   /** Có áp hạn mức/khoá không (chỉ khi chạy nhiều công ty). */
@@ -324,6 +340,14 @@ export class ChannelGuardService implements OnModuleInit, OnModuleDestroy {
   /** Gọi từ cầu nối `observeGraph` (chạy trong ngữ cảnh công ty của lời gọi). */
   recordGraph(o: GraphOutcome): void {
     if (!this.enforced()) return;
+    this.applyGraph(o);
+    // Chỉ lời gọi GỬI mới tính vào ngưỡng ⇒ chỉ phát những lời gọi đó (đọc không đáng một NOTIFY).
+    if (o.send) void syncBus.publish('graph', { ok: o.ok, h: o.httpStatus, code: o.code, sub: o.subcode, send: true }, currentCompanyId());
+  }
+
+  /** Cộng một kết quả vào cửa sổ lỗi / backoff của tiến trình này (từ lời gọi cục bộ hoặc từ `NOTIFY graph`). */
+  private applyGraph(o: GraphOutcome): void {
+    if (!this.enforced()) return;
     const now = Date.now();
     // Lời gọi ĐỌC (insights, hội thoại, token…) không tính vào bất kỳ ngưỡng nào, kể cả backoff cấp app.
     if (!o.send) return;
@@ -353,10 +377,32 @@ export class ChannelGuardService implements OnModuleInit, OnModuleDestroy {
 
   private async pause(v: GraphVerdict): Promise<void> {
     const id = currentCompanyId() ?? 0;
+    // Hai tiến trình cùng thấy đủ lỗi (mỗi bên cộng kết quả của bên kia): đọc DB tươi để bên đến sau không ghi trùng sự kiện.
+    this.pauseCache.delete(id);
     if (await this.autoPause()) return;
     const until = new Date(Date.now() + this.cfg.pauseMs).toISOString();
     this.logger.error(`Công ty ${id}: TỰ TẠM DỪNG gửi hàng loạt/tự động đến ${until} — ${v.reason} ${JSON.stringify(v.codes)}`);
-    await this.event('auto_pause', `Tự tạm dừng gửi hàng loạt và tự động: ${v.reason}.`, { until, reason: v.reason, calls: v.calls, blocks: v.blocks, codes: v.codes });
+    // Ghi NGUYÊN TỬ: khoá tư vấn theo công ty rồi chỉ chèn khi chưa có `auto_pause` còn hiệu lực — hai tiến trình cùng thấy đủ lỗi
+    // thì chỉ một sự kiện được ghi.
+    const meta = { until, reason: v.reason, calls: v.calls, blocks: v.blocks, codes: v.codes };
+    const message = `Tự tạm dừng gửi hàng loạt và tự động: ${v.reason}.`.slice(0, 1000);
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(hashtext($1))`, `channel_auto_pause:${id}`);
+        await tx.$executeRawUnsafe(
+          `INSERT INTO channel_events (kind, message, meta)
+           SELECT 'auto_pause', $1, $2::jsonb
+           WHERE NOT EXISTS (
+             SELECT 1 FROM (SELECT kind, meta FROM channel_events WHERE kind IN ('auto_pause', 'auto_resume') ORDER BY id DESC LIMIT 1) lp
+             WHERE lp.kind = 'auto_pause' AND (lp.meta->>'until')::timestamptz > now()
+           )`,
+          message,
+          JSON.stringify(meta),
+        );
+      });
+    } catch (err) {
+      this.logger.warn(`Không ghi được sự kiện kênh auto_pause: ${(err as Error).message}`);
+    }
     this.pauseCache.delete(id);
   }
 

@@ -1,4 +1,5 @@
-import { Global, Injectable, Module } from '@nestjs/common';
+import { Global, Injectable, Module, OnModuleDestroy } from '@nestjs/common';
+import { currentCompanyId, syncBus, tenantKey, tenantKeyFor } from '@trinity/prisma';
 
 /** Cờ tắt cache đọc (đếm khách, dashboard): mọi lần gọi đọc thẳng DB. Dùng cho quét so sánh Node ↔ Rust (X13). */
 export const READ_CACHE_DISABLED_ENV = 'TRINITY_DISABLE_READ_CACHE';
@@ -13,16 +14,32 @@ interface Entry {
 /**
  * Cache đọc trong RAM của tiến trình (thay Redis, G12a): tổng số khách của danh sách, số liệu dashboard. Giá trị là chuỗi
  * (JSON), luôn có TTL; người gọi tự gắn công ty vào khoá bằng `tenantKey`. Hai tiến trình không thấy cache của nhau:
- * chấp nhận được vì TTL ngắn (15 giây – 5 phút); đồng bộ vô hiệu giữa tiến trình làm ở G12b (Postgres `NOTIFY`).
+ * chỉ còn là lưới an toàn vì TTL ngắn (15 giây – 5 phút): ghi dữ liệu gọi `invalidatePrefix` để xoá cả ở tiến trình khác
+ * qua Postgres `NOTIFY` kênh `cache` theo `(company, key_prefix)` (G12b, `docs/sync-notify.md`).
  * `TRINITY_DISABLE_READ_CACHE=1` ⇒ `get` luôn trượt, `set` không lưu.
  */
 @Injectable()
-export class ReadCache {
+export class ReadCache implements OnModuleDestroy {
   static readonly MAX_KEYS = 5000;
   /** Quét khoá hết hạn tối đa một lần mỗi chu kỳ này (không quét cả kho ở mỗi lần ghi). */
   static readonly SWEEP_INTERVAL_MS = 30_000;
   private readonly store = new Map<string, Entry>();
   private lastSweep = 0;
+  private readonly unsubscribe: Array<() => void> = [];
+
+  constructor() {
+    this.unsubscribe.push(
+      syncBus.on('cache', (m) => {
+        // `p` là tiền tố KHÔNG kèm công ty; bên nhận ghép công ty của tin (khoá thật có dạng `tenantKey`).
+        if (typeof m['p'] === 'string') this.deletePrefix(tenantKeyFor(m.c, m['p']));
+      }),
+      syncBus.onResync(() => this.store.clear()),
+    );
+  }
+
+  onModuleDestroy(): void {
+    for (const u of this.unsubscribe.splice(0)) u();
+  }
 
   private sweepIfDue(now: number): void {
     if (now - this.lastSweep < ReadCache.SWEEP_INTERVAL_MS) return;
@@ -62,6 +79,16 @@ export class ReadCache {
         n++;
       }
     }
+    return n;
+  }
+
+  /**
+   * Xoá mọi khoá của công ty HIỆN TẠI bắt đầu bằng `rawPrefix` (chưa gắn công ty) ở tiến trình này và phát `NOTIFY cache`
+   * để các tiến trình khác xoá theo. Gọi sau khi ghi dữ liệu làm đổi số đếm/số liệu dashboard.
+   */
+  invalidatePrefix(rawPrefix: string): number {
+    const n = this.deletePrefix(tenantKey(rawPrefix));
+    void syncBus.publish('cache', { p: rawPrefix }, currentCompanyId());
     return n;
   }
 

@@ -10,6 +10,9 @@ export * from './tenant/provision'
 
 export * from './integrations'
 
+export { SYNC_CHANNEL, SYNC_MAX_BYTES, SYNC_VERSION, SyncBus, listenConnectionString, sslOptionsFromUrl, syncBus, syncDisabled, tenantKeyFor } from './sync/sync-bus'
+export type { SyncEnvelope, SyncHandler, SyncKind } from './sync/sync-bus'
+
 export {
   recordEmploymentEnd,
   recordEmploymentStart,

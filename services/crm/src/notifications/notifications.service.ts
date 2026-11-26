@@ -59,6 +59,7 @@ export class NotificationsService {
     userIds: number[],
     eventType: string,
     content: { title: string; body: string; action_url?: string | null },
+    logIds: ReadonlyMap<number, number> = new Map(),
   ): void {
     if (!this.wsEmitPort) {
       this.logger.error(
@@ -73,6 +74,7 @@ export class NotificationsService {
       body: content.body,
       event_type: eventType,
       action_url: content.action_url ?? null,
+      log_id: logIds.get(uid) ?? null,
     }));
     void (async () => {
       try {
@@ -88,7 +90,7 @@ export class NotificationsService {
 
   /**
    * Layer 1 — Persist noti logs vao DB ngay lap tuc (source of truth).
-   * Wrap createMany boi retry loop 3 lan exponential backoff de chiu dung
+   * Wrap createManyAndReturn boi retry loop 3 lan exponential backoff de chiu dung
    * transient DB error (pool exhausted, replica lag, dead connection).
    * Dedupe (recipient_id, event_type) de tranh double-notify khi retry hit
    * duplicate unique constraint.
@@ -120,10 +122,13 @@ export class NotificationsService {
     let lastErr: unknown = null;
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
       try {
-        const result = await this.prisma.notificationLog.createMany({
+        // Trả id các dòng vừa tạo: tiến trình khác (G12b) đọc nội dung chuông theo id.
+        const rows = await this.prisma.notificationLog.createManyAndReturn({
           data,
           skipDuplicates: true,
+          select: { id: true, recipient_id: true },
         });
+        const result = { count: rows.length };
         if (attempt > 0) {
           this.logger.warn(
             `createPendingLogs: succeeded after ${attempt} retry (event=${eventType}, users=${userIds.length})`,
@@ -134,7 +139,7 @@ export class NotificationsService {
         // nhưng WebSocket gateway chỉ tồn tại trong notification service.
         // Fire-and-forget: lỗi WS emit KHÔNG block DB insert (chỉ log WARN).
         if (result.count > 0) {
-          this.emitWsFireAndForget(userIds, eventType, content);
+          this.emitWsFireAndForget(userIds, eventType, content, new Map(rows.map((r) => [r.recipient_id, r.id])));
         }
         return { created: result.count };
       } catch (err) {

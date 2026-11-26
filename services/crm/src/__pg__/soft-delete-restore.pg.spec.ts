@@ -1,3 +1,4 @@
+import { ReadCache } from '../common/read-cache';
 import { ConflictException, ForbiddenException, GoneException, NotFoundException } from '@nestjs/common';
 import type { PrismaService } from '@trinity/prisma';
 import type { AuthUser } from '@trinity/rbac-nest';
@@ -30,7 +31,7 @@ describePg('Khôi phục khách hàng vừa xoá (Postgres thật)', () => {
   beforeAll(() => {
     db = pgClient();
     const audit = { writeInTx: async () => undefined, write: async () => undefined };
-    svc = new ContactsService(db, audit as never, {} as never, scopeAll as never, {} as never, {} as never);
+    svc = new ContactsService(db, audit as never, {} as never, scopeAll as never, {} as never, new ReadCache());
   });
   beforeEach(async () => {
     await resetTables(db, TABLES);

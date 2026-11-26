@@ -2767,3 +2767,23 @@ model ConnectorRecord {
   @@index([contact_id])
   @@map("connector_records")
 }
+
+/// Người dùng bị thu hồi token truy cập (đăng xuất, khoá, đổi mật khẩu) tới `expires_at`. Soft-FK `user_id`. G12b: lưu bền để tiến trình
+/// khởi động lại hoặc nối lại NOTIFY nạp lại được; RAM + NOTIFY chỉ là lớp nhanh.
+model TokenBlacklist {
+  user_id    Int      @id
+  expires_at DateTime @db.Timestamptz(3)
+  updated_at DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([expires_at])
+  @@map("token_blacklist")
+}
+
+/// Phiên đăng nhập đang sống gần nhất của mỗi user (chế độ một phiên một người). Soft-FK `user_id`.
+model ActiveSession {
+  user_id    Int      @id
+  session_id String   @db.VarChar(64)
+  started_at DateTime @default(now()) @db.Timestamptz(3)
+
+  @@map("active_sessions")
+}

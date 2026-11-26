@@ -9,7 +9,19 @@ use sentry::{ClientInitGuard, ClientOptions, MaxRequestBodySize};
 
 use crate::{scrub_sentry_event, scrub_url};
 
-const DEFAULT_TRACES_SAMPLE_RATE: f32 = 0.1;
+/// Mặc định 0: SDK Rust không có `before_send_transaction`, nên transaction chưa lọc được; tỉ lệ này chỉ được áp vào
+/// client khi đã có bộ lọc transaction (hiện [`client_options`] chưa áp, kể cả khi `SENTRY_TRACES_SAMPLE_RATE` có giá trị).
+const DEFAULT_TRACES_SAMPLE_RATE: f32 = 0.0;
+
+/// Có provider TLS mặc định của rustls chưa. reqwest (`rustls-no-provider`) panic khi dựng client mà chưa có; `main`
+/// cài `ring` một lần lúc khởi động, thiếu thì Sentry/PostHog tắt kèm cảnh báo thay vì làm sập tiến trình.
+pub(crate) fn tls_provider_ready(what: &str) -> bool {
+    let ok = rustls::crypto::CryptoProvider::get_default().is_some();
+    if !ok {
+        tracing::warn!(target: "trinity::obs", "{what} tắt: chưa cài provider TLS (rustls ring) lúc khởi động");
+    }
+    ok
+}
 
 /// Cấu hình giám sát đọc từ biến môi trường.
 #[derive(Clone, PartialEq)]
@@ -22,6 +34,8 @@ pub struct MonitoringConfig {
     pub hash_secret: Option<String>,
     pub posthog_key: Option<String>,
     pub posthog_host: String,
+    /// `NODE_ENV`: `test` thì sự kiện sản phẩm tắt (như bản TS).
+    pub node_env: Option<String>,
 }
 
 impl std::fmt::Debug for MonitoringConfig {
@@ -45,7 +59,10 @@ impl MonitoringConfig {
             .unwrap_or(DEFAULT_TRACES_SAMPLE_RATE);
         Self {
             sentry_dsn: val("SENTRY_DSN"),
-            environment: val("SENTRY_ENVIRONMENT").unwrap_or_else(|| "production".to_owned()),
+            environment: val("SENTRY_ENVIRONMENT")
+                .or_else(|| val("NODE_ENV"))
+                .unwrap_or_else(|| "production".to_owned()),
+            node_env: val("NODE_ENV"),
             release: resolve_release(&get),
             traces_sample_rate: rate,
             hash_secret: val("MONITORING_HASH_SECRET").or_else(|| val("JWT_SECRET")),
@@ -91,7 +108,7 @@ pub fn client_options(cfg: &MonitoringConfig) -> ClientOptions {
                 return None;
             }
             if let Some(serde_json::Value::String(u)) = b.data.get_mut("url") {
-                *u = scrub_url(u);
+                *u = crate::scrub_text(&scrub_url(u));
             }
             if let Some(m) = b.message.as_mut() {
                 *m = crate::scrub_text(m);
@@ -101,13 +118,17 @@ pub fn client_options(cfg: &MonitoringConfig) -> ClientOptions {
     if let Some(r) = &cfg.release {
         opts = opts.release(r.clone());
     }
-    opts.traces_sample_rate(cfg.traces_sample_rate)
+    // Cố ý KHÔNG gọi `traces_sample_rate`: transaction không đi qua `before_send`, thà không gửi còn hơn gửi chưa lọc.
+    opts
 }
 
 /// Khởi tạo Sentry. `None` (không tạo client, không có kết nối mạng nào) khi thiếu `SENTRY_DSN` hoặc DSN sai. Giữ
 /// guard đến hết tiến trình: thả guard là xả hàng đợi và tắt client.
 pub fn init_sentry(cfg: &MonitoringConfig) -> Option<ClientInitGuard> {
     let dsn = cfg.sentry_dsn.as_deref()?;
+    if !tls_provider_ready("Sentry") {
+        return None;
+    }
     let opts = match dsn.parse::<sentry::types::Dsn>() {
         Ok(_) => client_options(cfg).dsn(dsn),
         Err(e) => {
@@ -175,7 +196,7 @@ mod tests {
     #[test]
     fn mac_dinh_va_ty_le_sai() {
         let c = MonitoringConfig::from_env(env(&[("SENTRY_TRACES_SAMPLE_RATE", "2")]));
-        assert_eq!((c.traces_sample_rate, c.environment.as_str()), (0.1, "production"));
+        assert_eq!((c.traces_sample_rate, c.environment.as_str()), (0.0, "production"));
         assert_eq!(c.posthog_host, "https://us.i.posthog.com");
         let c = MonitoringConfig::from_env(env(&[
             ("SENTRY_TRACES_SAMPLE_RATE", "0.25"),
@@ -189,6 +210,16 @@ mod tests {
         let c = MonitoringConfig::from_env(env(&[("MONITORING_HASH_SECRET", "m"), ("JWT_SECRET", "j")]));
         assert_eq!(c.hash_secret.as_deref(), Some("m"));
         assert!(format!("{c:?}").find("\"m\"").is_none());
+    }
+
+    #[test]
+    fn environment_theo_sentry_roi_node_env() {
+        assert_eq!(
+            MonitoringConfig::from_env(env(&[("NODE_ENV", "staging")])).environment,
+            "staging"
+        );
+        let c = MonitoringConfig::from_env(env(&[("NODE_ENV", "staging"), ("SENTRY_ENVIRONMENT", "qa")]));
+        assert_eq!(c.environment, "qa");
     }
 
     #[test]

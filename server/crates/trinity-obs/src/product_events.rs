@@ -172,12 +172,18 @@ impl ProductEvents {
     /// Bật khi có cả `POSTHOG_KEY` và khoá băm (như TS: không khoá băm thì không gửi gì, vì không định danh được).
     /// Provider TLS (`ring`) phải đã được cài trước khi gọi, như mọi client reqwest khác của tiến trình.
     pub fn from_config(cfg: &MonitoringConfig) -> Self {
+        if cfg.node_env.as_deref() == Some("test") {
+            return Self::disabled();
+        }
         let (Some(key), Some(secret)) = (cfg.posthog_key.as_deref(), cfg.hash_secret.as_deref()) else {
             return Self::disabled();
         };
         let Ok(hasher) = UserIdHasher::new(secret) else {
             return Self::disabled();
         };
+        if !crate::monitoring::tls_provider_ready("PostHog") {
+            return Self::disabled();
+        }
         let Ok(client) = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
@@ -319,6 +325,18 @@ mod tests {
         assert_eq!(p["distinct_id"], "anonymous-server");
         assert_eq!(p["properties"]["action"], "skip");
         assert_eq!(p["properties"]["$process_person_profile"], false);
+    }
+
+    #[test]
+    fn node_env_test_thi_tat() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+        let c = MonitoringConfig::from_env(|n| match n {
+            "POSTHOG_KEY" => Some("k".to_owned()),
+            "MONITORING_HASH_SECRET" => Some("s".to_owned()),
+            "NODE_ENV" => Some("test".to_owned()),
+            _ => None,
+        });
+        assert!(!ProductEvents::from_config(&c).enabled());
     }
 
     #[tokio::test]

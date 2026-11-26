@@ -69,7 +69,7 @@ fn scrub_breadcrumbs(crumbs: &mut Value) {
     for b in list {
         let Some(o) = b.as_object_mut() else { continue };
         if let Some(Value::Object(d)) = o.get_mut("data") {
-            scrub_str_field(d, "url", scrub_url);
+            scrub_str_field(d, "url", |u| scrub_text(&scrub_url(u)));
         }
         scrub_str_field(o, "message", scrub_text);
     }
@@ -107,7 +107,9 @@ pub fn scrub_event(event: &mut Value) {
     if let Some(exc) = ev.get_mut("exception").and_then(items_mut) {
         for v in exc {
             if let Some(o) = v.as_object_mut() {
-                scrub_str_field(o, "value", scrub_text);
+                for k in ["value", "type", "module"] {
+                    scrub_str_field(o, k, scrub_text);
+                }
                 // Biến cục bộ trong stacktrace có thể chứa dữ liệu khách.
                 if let Some(frames) = o
                     .get_mut("stacktrace")
@@ -145,7 +147,7 @@ pub fn scrub_event(event: &mut Value) {
             scrub_str_field(o, "description", |d| scrub_text(&scrub_url(d)));
             if let Some(Value::Object(d)) = o.get_mut("data") {
                 for k in ["url", "http.url", "url.full", "http.target"] {
-                    scrub_str_field(d, k, scrub_url);
+                    scrub_str_field(d, k, |u| scrub_text(&scrub_url(u)));
                 }
                 for k in ["http.query", "url.query"] {
                     if d.contains_key(k) {
@@ -208,12 +210,12 @@ mod tests {
             "logentry": {"message": "mail u@x.vn", "params": ["u@x.vn"]},
             "extra": {"body": "secret"},
             "tags": {"k": "u@x.vn"},
-            "exception": {"values": [{"value": "bad 0912345678", "stacktrace": {"frames": [{"function": "f", "vars": {"a": "u@x.vn"}}]}}]},
+            "exception": {"values": [{"value": "bad 0912345678", "type": "Err a@b.co", "module": "m 0912345678", "stacktrace": {"frames": [{"function": "f", "vars": {"a": "u@x.vn"}}]}}]},
             "breadcrumbs": {"values": [
                 {"category": "console", "message": "noise"},
-                {"category": "http", "message": "to u@x.vn", "data": {"url": "/x?a=b@c.de"}}]},
+                {"category": "http", "message": "to u@x.vn", "data": {"url": "/0912345678/x?a=b@c.de"}}]},
             "transaction": "GET /orders/0912345678?phone=1",
-            "spans": [{"description": "GET /x?email=a@b.co", "data": {"url": "/x?a=1", "http.query": "a=1"}}]
+            "spans": [{"description": "GET /x?email=a@b.co", "data": {"url": "/u/0912345678?a=1", "http.query": "a=1"}}]
         });
         scrub_event(&mut ev);
         let s = ev.to_string();

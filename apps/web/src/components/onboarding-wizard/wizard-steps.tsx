@@ -121,12 +121,13 @@ function StepData({ canSkip }: { canSkip: boolean }) {
 
   const submit = async () => {
     setError(null)
+    if (!name.trim()) return setError("Bạn nhập tên khách giúp mình nhé.")
     if (!/^(0|\+84)\d{9}$/.test(phone.trim())) return setError("Số điện thoại cần bắt đầu bằng 0 hoặc +84 và có 10 chữ số.")
     if (!source) return setError("Chưa tải được danh sách nguồn khách, bạn thử lại sau ít giây.")
     setBusy(true)
     try {
-      await apiClient.post("/contacts", { phone: phone.trim(), full_name: name.trim() || undefined, source_id: source.id })
-      setAdded(name.trim() || phone.trim())
+      await apiClient.post("/contacts", { phone: phone.trim(), full_name: name.trim(), source_id: source.id })
+      setAdded(name.trim())
       setName("")
       setPhone("")
     } catch (err) {
@@ -143,7 +144,7 @@ function StepData({ canSkip }: { canSkip: boolean }) {
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="wiz-contact-name">Tên khách</Label>
+          <Label htmlFor="wiz-contact-name">Tên khách (bắt buộc)</Label>
           <Input id="wiz-contact-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ví dụ: Nguyễn Văn An" autoComplete="off" />
         </div>
         <div className="space-y-1.5">
@@ -153,7 +154,7 @@ function StepData({ canSkip }: { canSkip: boolean }) {
       </div>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {added && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" data-testid="contact-added">Đã thêm “{added}”. Bấm “Tôi đã làm xong” để đi tiếp.</p>}
-      <Button type="button" onClick={submit} disabled={busy || !phone.trim()} data-testid="add-contact">
+      <Button type="button" onClick={submit} disabled={busy || !name.trim() || !phone.trim()} data-testid="add-contact">
         {busy && <Loader2 className="animate-spin" aria-hidden />} Thêm khách
       </Button>
       {canSkip && <p className="text-sm text-muted-foreground">Có sẵn danh sách trong Excel hoặc Google Sheet? Bấm “Bỏ qua bước này”, vào Trinity rồi nhập ở Cài đặt › Kết nối &amp; AI › Google Sheets.</p>}

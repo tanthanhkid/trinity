@@ -57,19 +57,28 @@ export class SetupBuildService {
       this.prisma.setting.findUnique({ where: { key: SETUP_STATUS_SETTING_KEY }, select: { value: true } }),
     ]);
     const s = status?.value?.trim();
-    return row != null || obj != null || s === 'da_dung' || s === 'dang_dung';
+    if (row != null || obj != null || s === 'da_dung' || s === 'dang_dung') return true;
+    // Fail-open: thiếu dòng setup_status mà đã có dữ liệu THẬT (khách/bản ghi; mẫu không tính) ⇒ hệ thống đang chạy, coi là đã dựng.
+    // DB mới từ migration khởi tạo có dòng chua_dung nên không rơi vào đây và vẫn vào wizard.
+    if (s === undefined || s === '') return this.samples.hasReal(await this.samples.read());
+    return false;
   }
 
   /** Phân hệ sẽ bật khi dựng (+ built_at lần đầu nếu đã dựng): dựng lại không truyền `features` thì GIỮ cấu hình đang lưu, không tắt gì. */
-  async plan(industry: IndustryKey, chosen?: string[] | null): Promise<{ features: OrgFeatureKey[]; firstBuiltAt: string | null; rebuild: boolean }> {
+  async plan(industry: IndustryKey, chosen?: string[] | null): Promise<{ features: OrgFeatureKey[]; firstBuiltAt: string | null; rebuild: boolean; seeded: boolean }> {
     const prev = await this.prisma.setting.findUnique({ where: { key: SETUP_BUILT_KEY }, select: { value: true } });
     let firstBuiltAt: string | null = null;
-    try { firstBuiltAt = prev?.value ? ((JSON.parse(prev.value) as { built_at?: string }).built_at ?? null) : null; } catch { firstBuiltAt = null; }
+    let seeded = false;
+    try {
+      const j = prev?.value ? (JSON.parse(prev.value) as { built_at?: string; samples_seeded?: boolean }) : {};
+      firstBuiltAt = j.built_at ?? null;
+      seeded = j.samples_seeded === true;
+    } catch { firstBuiltAt = null; }
     if (chosen == null && prev) {
       const kept = resolveOrgFeatures(await this.features.stored());
-      return { features: ORG_FEATURE_KEYS.filter((k) => kept[k] || LOCKED_FEATURES.includes(k)), firstBuiltAt, rebuild: true };
+      return { features: ORG_FEATURE_KEYS.filter((k) => kept[k] || LOCKED_FEATURES.includes(k)), firstBuiltAt, rebuild: true, seeded };
     }
-    return { features: resolveBuildFeatures(industry, chosen), firstBuiltAt, rebuild: !!prev };
+    return { features: resolveBuildFeatures(industry, chosen), firstBuiltAt, rebuild: !!prev, seeded };
   }
 
   async build(user: AuthUser, input: BuildInput): Promise<BuildResult> {
@@ -82,9 +91,9 @@ export class SetupBuildService {
     if (input.features != null && !Array.isArray(input.features)) throw new BadRequestException('Danh sách phân hệ phải là mảng.');
     const industry = input.industry;
     const preset = INDUSTRY_PRESETS[industry];
-    const { features, firstBuiltAt } = await this.plan(industry, input.features);
+    const { features, firstBuiltAt, seeded } = await this.plan(industry, input.features);
     // Mẫu chỉ sinh khi công ty CHƯA có dữ liệu thật (dựng lại trên hệ thống đang chạy không chèn dữ liệu giả vào lẫn).
-    const wantSamples = !(await this.samples.hasReal(await this.samples.read())) && can(user.grants, 'custom_records.manage');
+    const wantSamples = !seeded && !(await this.samples.hasReal(await this.samples.read())) && can(user.grants, 'custom_records.manage');
 
     let created: string[] = [];
     let existing: string[] = [];
@@ -107,7 +116,7 @@ export class SetupBuildService {
 
     await this.features.replaceAll(features, user.userId);
     const now = firstBuiltAt && !Number.isNaN(Date.parse(firstBuiltAt)) ? firstBuiltAt : new Date().toISOString();
-    const built = JSON.stringify({ industry, features, built_at: now, built_by: user.userId });
+    const built = JSON.stringify({ industry, features, built_at: now, built_by: user.userId, samples_seeded: seeded || sampleRecords + sampleContacts > 0 });
     await this.prisma.$transaction([
       this.prisma.setting.upsert({ where: { key: SETUP_INDUSTRY_KEY }, update: { value: industry, updated_by: user.userId }, create: { key: SETUP_INDUSTRY_KEY, value: industry, updated_by: user.userId } }),
       this.prisma.setting.upsert({ where: { key: SETUP_BUILT_KEY }, update: { value: built, updated_by: user.userId }, create: { key: SETUP_BUILT_KEY, value: built, updated_by: user.userId } }),

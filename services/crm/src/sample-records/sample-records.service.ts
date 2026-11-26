@@ -86,6 +86,8 @@ export class SampleRecordsService {
   /** Có bản ghi thật ⇒ xoá mẫu. Trả true nếu vừa xoá. Không bao giờ ném lỗi. */
   async purgeIfReal(): Promise<boolean> {
     try {
+      // Rẻ, ngoài transaction: không có dòng theo dõi (đa số hệ thống) thì xong ngay, không mở transaction hay khoá.
+      if (!(await this.read())) return false;
       const now = new Date();
       let removed = { contacts: 0, records: 0 };
       let purged = false;
@@ -108,7 +110,7 @@ export class SampleRecordsService {
           await tx.setting.deleteMany({ where: { key: SAMPLE_RECORDS_KEY } });
         }
         purged = true;
-      });
+      }, { timeout: 30_000, maxWait: 10_000 });
       if (!purged) return false;
       if (removed.contacts) await this.dropContactCountCache();
       this.logger.log(`đã xoá bản ghi mẫu (khách ${removed.contacts}, bản ghi ${removed.records}) vì có bản ghi thật đầu tiên`);
@@ -153,17 +155,18 @@ export class SampleRecordsService {
       (l.target_type === 'contact' ? cRef : rRef).add(l.target_id);
     }
     // Trường "relation" lưu id ngay trong JSON của bản ghi (không qua record_links): bản ghi thật khác trỏ tới mẫu cũng tính.
+    // (record/contact trỏ tới mẫu qua trường relation, id nằm trong JSON): chỉ truy vấn đúng các id mẫu bằng jsonb containment
+    // theo từng trường relation, không tải JSON của mọi bản ghi.
     const relFields = await tx.customField.findMany({ where: { type: 'relation' }, select: { key: true, object_id: true, options: true } });
     for (const f of relFields) {
-      const o = (f.options ?? {}) as { target?: string; target_object_id?: number };
-      const toContact = o.target === 'contact';
-      if (!toContact && !rIds.length) continue;
-      if (toContact && !cIds.length) continue;
-      const holders = await tx.customRecord.findMany({ where: { object_id: f.object_id, deleted_at: null, id: { notIn: sample.records } }, select: { data: true } });
-      for (const h of holders) {
-        const v = (h.data as Record<string, unknown> | null)?.[f.key];
-        for (const id of Array.isArray(v) ? v : [v]) if (typeof id === 'number') (toContact ? cRef : rRef).add(id);
-      }
+      const toContact = ((f.options ?? {}) as { target?: string }).target === 'contact';
+      const ids = toContact ? cIds : rIds;
+      if (!ids.length) continue;
+      const hit = await tx.$queryRaw<{ id: number }[]>(Prisma.sql`
+        SELECT s.id FROM unnest(${ids}::int[]) AS s(id)
+        WHERE EXISTS (SELECT 1 FROM custom_records r WHERE r.object_id = ${f.object_id} AND r.deleted_at IS NULL
+          AND r.id <> ALL(${sample.records}::int[]) AND (r.data -> ${f.key}) @> to_jsonb(s.id))`);
+      for (const h of hit) (toContact ? cRef : rRef).add(h.id);
     }
     return { contacts: cIds.filter((id) => !cRef.has(id)), records: rIds.filter((id) => !rRef.has(id)) };
   }

@@ -186,4 +186,34 @@ d('Dựng hệ thống + bản ghi mẫu — DB thật', () => {
     expect(await liveContacts()).toBe(1);
     expect(await samples.read()).toEqual({ contacts: [], records: [extra] }); // id đăng ký sau vẫn được theo dõi
   });
+
+  it('purgeIfReal không có dòng sample_records ⇒ trả ngay, KHÔNG mở transaction/khoá', async () => {
+    const tx = jest.spyOn(prisma, '$transaction');
+    expect(await samples.purgeIfReal()).toBe(false);
+    expect(tx).not.toHaveBeenCalled();
+    tx.mockRestore();
+  });
+
+  it('dựng lại "Khác" sau khi mẫu đã bị dọn KHÔNG tạo khách mẫu mới (cờ samples_seeded)', async () => {
+    await build.build(admin, { industry: 'other' });
+    await prisma.contact.create({ data: { phone: '0988222333', full_name: 'Khách thật', assigned_to: admin.userId } });
+    await samples.purgeIfReal();
+    expect(await liveContacts()).toBe(1);
+    await prisma.contact.updateMany({ where: { full_name: 'Khách thật' }, data: { deleted_at: new Date() } });
+    const again = await build.build(admin, { industry: 'other' });
+    expect(again.sample_contacts).toBe(0);
+    expect(await liveContacts()).toBe(0);
+    expect(JSON.parse((await prisma.setting.findUnique({ where: { key: 'setup_built' } }))!.value).samples_seeded).toBe(true);
+  });
+
+  it('nhiều bản ghi thật có relation: chỉ bản ghi trỏ tới mẫu mới giữ mẫu lại (truy vấn jsonb, không tải hết)', async () => {
+    await build.build(admin, { industry: 'education_center' });
+    const rows = await prisma.customRecord.findMany({ orderBy: { id: 'asc' } });
+    // 300 học sinh thật không trỏ tới phụ huynh nào + 1 trỏ tới mẫu thứ 3 (mảng/giá trị đơn đều được dò)
+    const obj = await prisma.customObject.findFirstOrThrow({ where: { key: 'hoc_sinh' } });
+    await prisma.customRecord.createMany({ data: Array.from({ length: 300 }, (_, i) => ({ object_id: obj.id, title: `HS ${i}`, data: { ho_ten: `HS ${i}` }, owner_id: admin.userId, created_by: admin.userId })) });
+    await records.create(admin, 'hoc_sinh', { data: { ho_ten: 'HS trỏ mẫu', phu_huynh: rows[2].id } });
+    const live = await prisma.customRecord.findMany({ where: { deleted_at: null, id: { in: rows.map((r) => r.id) } } });
+    expect(live.map((r) => r.id)).toEqual([rows[2].id]);
+  });
 });

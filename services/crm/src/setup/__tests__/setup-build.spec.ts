@@ -1,12 +1,12 @@
 import { SetupBuildService } from '../setup-build.service';
 import { setupBuildAction } from '../../integrations/mcp/actions/action-template-tools';
 
-function svc(settings: Record<string, string>, objects = false) {
+function svc(settings: Record<string, string>, objects = false, real = false) {
   const prisma = {
     setting: { findUnique: jest.fn(async ({ where }: { where: { key: string } }) => (where.key in settings ? { value: settings[where.key], key: where.key } : null)) },
     customObject: { findFirst: jest.fn().mockResolvedValue(objects ? { id: 1 } : null) },
   };
-  return new SetupBuildService(prisma as never, {} as never, { stored: jest.fn().mockResolvedValue({ payroll: true, pos: false }) } as never, {} as never, {} as never);
+  return new SetupBuildService(prisma as never, {} as never, { stored: jest.fn().mockResolvedValue({ payroll: true, pos: false }) } as never, {} as never, { read: jest.fn().mockResolvedValue(null), hasReal: jest.fn().mockResolvedValue(real) } as never);
 }
 
 describe('SetupBuildService.isBuilt', () => {
@@ -21,6 +21,11 @@ describe('SetupBuildService.isBuilt', () => {
   it('có bảng tuỳ biến hoặc setup_built ⇒ đã dựng', async () => {
     expect(await svc({ setup_status: 'chua_dung' }, true).isBuilt()).toBe(true);
     expect(await svc({ setup_built: '{}' }).isBuilt()).toBe(true);
+  });
+  it('fail-open: thiếu dòng setup_status mà đã có dữ liệu thật ⇒ đã dựng; DB mới có chua_dung thì vẫn chưa, dù có dữ liệu', async () => {
+    expect(await svc({}, false, true).isBuilt()).toBe(true);
+    expect(await svc({}, false, false).isBuilt()).toBe(false);
+    expect(await svc({ setup_status: 'chua_dung' }, false, true).isBuilt()).toBe(false);
   });
   it('plan: dựng lại không truyền features giữ phân hệ đang lưu (không tắt payroll), kèm built_at lần đầu', async () => {
     const p = await svc({ setup_built: JSON.stringify({ built_at: '2026-11-01T00:00:00Z' }) }).plan('clinic');

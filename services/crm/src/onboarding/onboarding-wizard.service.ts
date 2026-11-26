@@ -26,8 +26,11 @@ export interface WizardConfig {
   skippable: WizardStepKey[];
   /** Miễn wizard cho tài khoản tạo TRƯỚC thời điểm này (ISO) — dùng khi không muốn khoá người đang dùng. */
   exempt_before: string | null;
+  /** Phiên bản định dạng: < 2 (vắng) là config cũ, mặc định cũ đúng ['post'] được nâng cấp một lần; từ 2 trở đi giữ nguyên lựa chọn của admin. */
+  version: number;
 }
-export const DEFAULT_WIZARD_CONFIG: WizardConfig = { enabled: true, skippable: ['data', 'channels', 'post'], exempt_before: null };
+export const WIZARD_CONFIG_VERSION = 2;
+export const DEFAULT_WIZARD_CONFIG: WizardConfig = { enabled: true, skippable: ['data', 'channels', 'post'], exempt_before: null, version: WIZARD_CONFIG_VERSION };
 
 export const wizardDoneKey = (userId: number): string => `onboarding_done:user:${userId}`;
 export const wizardSkipKey = (userId: number): string => `onboarding_skip:user:${userId}`;
@@ -72,9 +75,10 @@ export interface ConfirmResult {
   wizard: WizardView;
 }
 
-/** Mặc định CŨ là đúng ['post']: chỉ config đúng bằng giá trị đó mới được nâng lên mặc định mới; danh sách admin tự chọn thì giữ nguyên. */
-function upgradeSkippable(list: WizardStepKey[]): WizardStepKey[] {
-  return list.length === 1 && list[0] === 'post' ? [...DEFAULT_WIZARD_CONFIG.skippable] : list;
+/** Config CHƯA có version (cũ) mà đúng ['post'] (mặc định cũ) thì nâng lên mặc định mới; config có version thì tôn trọng nguyên lựa chọn của admin. */
+function upgradeSkippable(list: WizardStepKey[], version: unknown): WizardStepKey[] {
+  const legacy = typeof version !== 'number' || version < WIZARD_CONFIG_VERSION;
+  return legacy && list.length === 1 && list[0] === 'post' ? [...DEFAULT_WIZARD_CONFIG.skippable] : list;
 }
 
 export function parseWizardConfig(raw: string | null | undefined): WizardConfig {
@@ -83,8 +87,9 @@ export function parseWizardConfig(raw: string | null | undefined): WizardConfig 
     const v = JSON.parse(raw) as Partial<WizardConfig>;
     return {
       enabled: v.enabled !== false,
-      skippable: Array.isArray(v.skippable) ? upgradeSkippable(v.skippable.filter(isWizardStep)) : [...DEFAULT_WIZARD_CONFIG.skippable],
+      skippable: Array.isArray(v.skippable) ? upgradeSkippable(v.skippable.filter(isWizardStep), v.version) : [...DEFAULT_WIZARD_CONFIG.skippable],
       exempt_before: typeof v.exempt_before === 'string' && !Number.isNaN(Date.parse(v.exempt_before)) ? v.exempt_before : null,
+      version: WIZARD_CONFIG_VERSION,
     };
   } catch {
     return { ...DEFAULT_WIZARD_CONFIG };

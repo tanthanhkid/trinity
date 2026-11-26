@@ -50,7 +50,7 @@ function make(d: Data = {}, features: Record<string, boolean> = {}, networks = [
 
 describe('parseWizardConfig', () => {
   it('vắng/rác ⇒ bật, được bỏ qua dữ liệu/kênh/đăng bài, không miễn', () => {
-    const def = { enabled: true, skippable: ['data', 'channels', 'post'], exempt_before: null };
+    const def = { enabled: true, skippable: ['data', 'channels', 'post'], exempt_before: null, version: 2 };
     expect(parseWizardConfig(null)).toEqual(def);
     expect(parseWizardConfig('{rác')).toEqual(def);
     expect(parseWizardConfig('{"enabled":true}')).toEqual(def);
@@ -88,10 +88,19 @@ describe('OnboardingWizardService', () => {
     expect((await make().svc.view(7, both)).steps.find((s) => s.key === 'modules')?.needs_admin).toBe(false);
   });
 
-  it('config: chỉ nâng đúng [post] (mặc định cũ); danh sách admin tự chọn thì giữ nguyên', () => {
+  it('config: chỉ config CŨ (không version) đúng [post] mới được nâng; có version thì giữ nguyên lựa chọn admin, kể cả chỉ [post]', () => {
     expect(parseWizardConfig('{"skippable":["post"]}').skippable).toEqual(['data', 'channels', 'post']);
+    expect(parseWizardConfig('{"skippable":["post"],"version":2}').skippable).toEqual(['post']);
     expect(parseWizardConfig('{"skippable":["channels"]}').skippable).toEqual(['channels']);
     expect(parseWizardConfig('{"skippable":["data","post"]}').skippable).toEqual(['data', 'post']);
+  });
+
+  it('setConfig ghi version mới ⇒ admin chọn "chỉ post bỏ qua" được và đọc lại vẫn đúng', async () => {
+    const { svc, settings } = make({ settings: { onboarding_wizard: '{"skippable":["post"]}' } });
+    expect((await svc.config()).skippable).toEqual(['data', 'channels', 'post']); // config cũ được nâng
+    await svc.setConfig({ skippable: ['post'] }, 1);
+    expect(JSON.parse(settings.onboarding_wizard).version).toBe(2);
+    expect((await svc.config()).skippable).toEqual(['post']);
   });
 
   it('bản cài cũ đã có bảng tuỳ biến ⇒ hai bước đầu tự đạt', async () => {

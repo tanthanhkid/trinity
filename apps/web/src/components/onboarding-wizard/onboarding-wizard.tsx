@@ -41,10 +41,11 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
   const last = index === steps.length - 1
   const adminOnly = !!step?.needs_admin
 
-  const goTo = (key: WizardStepKey | null) => {
+  /** Chuyển bước. `list` = danh sách bước MỚI nhất (sau Dựng/xác nhận danh sách có thể đổi), mặc định là danh sách đang hiện. */
+  const goTo = (key: WizardStepKey | null, list: WizardView["steps"] = steps) => {
     setMessage(null)
-    const i = key ? steps.findIndex((s) => s.key === key) : steps.length - 1
-    setIndex(i < 0 ? steps.length - 1 : i)
+    const i = key ? list.findIndex((s) => s.key === key) : list.length - 1
+    setIndex(i < 0 ? Math.max(0, list.length - 1) : i)
   }
 
   const pickIndustry = (k: IndustryKey) => {
@@ -62,7 +63,7 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
           setWizard(r.wizard)
           setMessage(null)
           if (r.wizard.completed) return setFinished(r.wizard)
-          if (r.wizard.current) goTo(r.wizard.current)
+          if (r.wizard.current) goTo(r.wizard.current, r.wizard.steps)
         },
         onError: (err) => setMessage(getApiErrorMessage(err, "Chưa dựng được hệ thống, bạn thử bấm lại sau ít giây.")),
       },
@@ -79,8 +80,8 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
         if (r.wizard.completed) return setFinished(r.wizard)
         // Đạt bước này: sang bước kế mà máy chủ báo còn phải làm (bỏ qua các bước công ty đã đạt sẵn).
         const next = r.wizard.current
-        if (next) goTo(next)
-        else setIndex((i) => Math.min(i + 1, steps.length - 1))
+        if (next) goTo(next, r.wizard.steps)
+        else setIndex((i) => Math.min(i + 1, r.wizard.steps.length - 1))
         setMessage(null)
       },
       onError: (err) => setMessage(getApiErrorMessage(err, "Chưa kiểm được, bạn thử bấm lại sau ít giây.")),

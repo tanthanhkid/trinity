@@ -137,4 +137,25 @@ describe("OnboardingWizard", () => {
     render(<OnboardingWizard wizard={view([{ ...step("data"), can_skip: true }], "data")} />)
     expect(screen.getByTestId("wizard-can-skip")).toBeTruthy()
   })
+
+  it("form thêm khách đầu tiên: bắt nhập tên và số, nút tắt khi thiếu tên", () => {
+    render(<OnboardingWizard wizard={view([step("industry", true), step("modules", true), step("data")], "data", false, "clinic")} />)
+    const btn = screen.getByTestId("add-contact") as HTMLButtonElement
+    fireEvent.change(screen.getByLabelText(/Số điện thoại/), { target: { value: "0912345678" } })
+    expect(btn.disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText(/Tên khách/), { target: { value: "An" } })
+    expect(btn.disabled).toBe(false)
+  })
+
+  it("sau Dựng, bước kế tính theo danh sách bước MỚI (không nhảy sai bước, thanh tiến độ đúng)", () => {
+    // danh sách mới ngắn hơn: bỏ bước channels/post; bước data nằm ở vị trí 3/3
+    buildMutate.mockImplementationOnce((_b: unknown, o: { onSuccess: (r: BuildSystemResult) => void }) =>
+      o.onSuccess(built(view([step("industry", true), step("modules", true), step("data")], "data", false, "other"))))
+    render(<OnboardingWizard wizard={empty()} />)
+    fireEvent.click(screen.getByTestId("industry-other"))
+    fireEvent.click(screen.getByTestId("wizard-next-industry"))
+    fireEvent.click(screen.getByTestId("wizard-build"))
+    expect(screen.getByTestId("wizard-progress").textContent).toBe("Bước 3/3")
+    expect(screen.getByTestId("step-data")).toBeTruthy()
+  })
 })

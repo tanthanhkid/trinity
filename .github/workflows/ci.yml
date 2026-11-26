@@ -244,6 +244,8 @@ jobs:
           packages: "true"
       - name: OpenAPI khớp server/contracts/openapi.json
         run: pnpm --filter @trinity/monolith contracts:openapi --check
+      - name: Bảng route khớp server/contracts/routes.json (và số route đã đăng ký)
+        run: pnpm --filter @trinity/monolith contracts:routes --check
 
   # Driver S3 (K23) với MinIO thật. Không bắt buộc (không nằm trong `ci-ok`): cần docker và tải image.
   rust-s3:

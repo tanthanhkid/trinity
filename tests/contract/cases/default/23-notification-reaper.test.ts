@@ -50,7 +50,7 @@ describe('thông báo hẹn giờ: webhook_url + reaper', () => {
     const u = await mk({ label: 'reap', grants: {} })
     const base = Date.now() - 400 * 86_400_000
     const at = (minutesAgo: number | null): string | null => (minutesAgo === null ? null : new Date(base - minutesAgo * 60_000).toISOString())
-    const mk = async (status: string, claimed: number | null, scheduled: number | null, retry: number): Promise<number> => {
+    const mkLog = async (status: string, claimed: number | null, scheduled: number | null, retry: number): Promise<number> => {
       const [r] = await q<{ id: number }>(
         `INSERT INTO notification_logs (recipient_id, channel, title, body, status, claimed_at, scheduled_at, retry_count)
          VALUES ($1, 'in_app', 't', 'b', $2, $3, $4, $5) RETURNING id`,
@@ -58,11 +58,11 @@ describe('thông báo hẹn giờ: webhook_url + reaper', () => {
       )
       return r.id
     }
-    const stuck = await mk('processing', 30, 31, 0)
-    const exhausted = await mk('processing', 30, 31, 2)
-    const legacy = await mk('processing', null, 60, 0)
-    const fresh = await mk('processing', 2, 3, 0)
-    const sent = await mk('sent', 90, null, 0)
+    const stuck = await mkLog('processing', 30, 31, 0)
+    const exhausted = await mkLog('processing', 30, 31, 2)
+    const legacy = await mkLog('processing', null, 60, 0)
+    const fresh = await mkLog('processing', 2, 3, 0)
+    const sent = await mkLog('sent', 90, null, 0)
 
     const res = await control.runJob('notification.reap-stuck', { now: new Date(base).toISOString() })
     expect(res.status).toBe(200)

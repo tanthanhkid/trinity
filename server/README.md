@@ -112,6 +112,24 @@ kết quả, test Rust chạy cùng tệp. `contracts/cases/kernel.json` (K26: b
 số và ngày, so sánh chuỗi) chạy ở `services/crm/src/common/helpers/kernel-cases.spec.ts` và
 `crates/trinity-kernel/tests/shared_cases.rs`; cách thêm ca và quyết định từng chỗ: [`docs/rust/locale-vi.md`](../docs/rust/locale-vi.md).
 
+## Migrate
+
+`trinity migrate` chạy bộ migration Prisma nhúng trong binary, ghi `_prisma_migrations` đúng như
+`prisma migrate deploy` (hai công cụ dùng chung lịch sử, loại trừ nhau bằng cùng advisory lock; PLAN 4.5).
+
+| Việc | Lệnh |
+|---|---|
+| Schema `public` (công ty 1) | `trinity migrate` |
+| Một schema | `trinity migrate --schema c_12` |
+| Mọi công ty (`MULTI_TENANT=true`), song song `TENANT_MIGRATE_CONCURRENCY` (4) | `trinity migrate --companies` |
+| Chỉ xem trạng thái (mã 1 khi còn thiếu) | thêm `--status` |
+| Dùng thư mục migration khác bộ nhúng | thêm `--dir <thư mục>` |
+
+URL lấy như máy chủ (`DATABASE_URL`; đa công ty `TENANT_DATABASE_URL`, `DIRECT_DATABASE_URL` trước). `--companies` đọc
+`platform.companies`, bảng do bước `ensurePlatform` tạo (hiện là lúc khởi động bản Node với `MULTI_TENANT=true`). Nên đặt
+`ALTER DATABASE <db> SET client_connection_check_interval = '1s'` (Postgres 14+): khi `prisma migrate deploy` hết giờ
+chờ khoá, yêu cầu khoá mồ côi của nó tự hết thay vì chặn các lượt migrate sau.
+
 ## Hàng đợi biên dịch chung
 
 Máy phát triển 16 GB chỉ chịu **một tiến trình biên dịch Rust tại một lúc** (PLAN mục 11). Mọi agent và người dùng

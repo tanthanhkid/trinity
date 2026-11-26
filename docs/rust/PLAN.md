@@ -259,7 +259,7 @@ Mỗi job chạy theo từng công ty. `notification.scheduled` có hai đườn
 
 | Job | Chu kỳ | Budget | File |
 |---|---|---|---|
-| `integrations.webhook-dispatch` | 10 giây | 30 s | `integrations/webhooks/webhook-dispatcher.service.ts` |
+| `integrations.webhook-dispatch` | 10 giây | 30 s | `integrations/webhooks/webhook-dispatcher.service.ts` (Rust: `trinity-integrations::webhooks::dispatcher`, M34) |
 | `facebook.flows` | 60 giây | 30 s | `facebook/facebook-flows.job.ts` |
 | `facebook.broadcasts` | 60 giây | 30 s | `facebook/facebook-broadcasts.job.ts` |
 | `social.publish` | 60 giây | 40 s | `social/social-publish.job.ts` |
@@ -277,6 +277,13 @@ Mỗi job chạy theo từng công ty. `notification.scheduled` có hai đườn
 Ba job tắt mặc định bằng env: `LEAD_SCORING_ENABLED`, `STALE_REMINDERS_ENABLED`, `BRIEFING_CRON_ENABLED`.
 Có 6 chỗ gọi "bắn rồi quên" (`void this.…`) và 25 `setTimeout` cần rà khi chuyển.
 Giờ địa phương: 23 lời gọi `getHours/setHours/getDate…` phụ thuộc múi giờ của tiến trình; `Dockerfile` không đặt `TZ`.
+
+**Webhook ra ở Rust (M34).** Cùng một job `integrations.webhook-dispatch` (tên khớp `KNOWN_JOBS` và tệp sở hữu), 10 giây một lượt, budget 30 s:
+outbox → delivery → nhận việc → gửi. Hàng đợi vẫn là chính bảng `webhook_deliveries` (nhận bằng `FOR UPDATE SKIP LOCKED`, lease 120 s,
+trần 7 lần gửi), không phải `platform.jobs` (K21): bản Node đọc bảng này suốt giai đoạn lai nên hai bên phải chia một hàng đợi. Worker
+thả kết nối DB trước khi chờ HTTP (hạn 10 s), chỉ lấy lại để ghi nhật ký và kết quả; còn dưới 11 s của budget thì không nhận thêm việc và
+trả lại việc đã nhận mà chưa kịp gửi (`attempts` về như cũ). Tắt endpoint commit trước, thông báo cho người tạo ở giao dịch riêng: lỗi
+thông báo không làm mất việc tắt.
 
 ### 1.10 Webhook vào
 

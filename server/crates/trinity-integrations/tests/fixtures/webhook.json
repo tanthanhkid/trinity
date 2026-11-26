@@ -1,0 +1,3884 @@
+{
+ "sig": [
+  {
+   "secret": "whsec_abc",
+   "t": 1700000000,
+   "body": "{\"a\":1}",
+   "sig": "3b843bacfb18cc5554542fdcc84d815b399c52758e508a6fcecf0a2af4efea2b",
+   "header": "t=1700000000,v1=3b843bacfb18cc5554542fdcc84d815b399c52758e508a6fcecf0a2af4efea2b"
+  },
+  {
+   "secret": "k",
+   "t": 1700000001,
+   "body": "{\"tên\":\"Nguyễn Văn A\",\"emoji\":\"😀\"}",
+   "sig": "a243e4dfe9d241e2c59c5f42ecf07a5102b307b57d132ea753b7c0c5792d9dae",
+   "header": "t=1700000001,v1=a243e4dfe9d241e2c59c5f42ecf07a5102b307b57d132ea753b7c0c5792d9dae"
+  },
+  {
+   "secret": "bí mật",
+   "t": 1700000002,
+   "body": "",
+   "sig": "44dd6563fc2955b057588792e75dfdb1ccdd7655bd7c2616f65e2ef2af3aa448",
+   "header": "t=1700000002,v1=44dd6563fc2955b057588792e75dfdb1ccdd7655bd7c2616f65e2ef2af3aa448"
+  },
+  {
+   "secret": "whsec_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+   "t": 1700000003,
+   "body": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sig": "74fb3484fde7dbdba13d0fc1bb857d67a5bc078d3c4816a2bbd3a287493e102c",
+   "header": "t=1700000003,v1=74fb3484fde7dbdba13d0fc1bb857d67a5bc078d3c4816a2bbd3a287493e102c"
+  }
+ ],
+ "verify": [
+  {
+   "name": "hợp lệ",
+   "header": "t=1700000000,v1=290eaab17a641484d858e5988ed30614b2d9abac3cde915a098f95f366ac973a",
+   "ok": true
+  },
+  {
+   "name": "quá hạn",
+   "header": "t=1699999000,v1=290eaab17a641484d858e5988ed30614b2d9abac3cde915a098f95f366ac973a",
+   "ok": false
+  },
+  {
+   "name": "t tương lai quá xa",
+   "header": "t=1700001000,v1=290eaab17a641484d858e5988ed30614b2d9abac3cde915a098f95f366ac973a",
+   "ok": false
+  },
+  {
+   "name": "sai chữ ký",
+   "header": "t=1700000000,v1=0000000000000000000000000000000000000000000000000000000000000000",
+   "ok": false
+  },
+  {
+   "name": "hai v1 một đúng",
+   "header": "t=1700000000,v1=1111111111111111111111111111111111111111111111111111111111111111,v1=290eaab17a641484d858e5988ed30614b2d9abac3cde915a098f95f366ac973a",
+   "ok": true
+  },
+  {
+   "name": "hoa",
+   "header": "t=1700000000,v1=290EAAB17A641484D858E5988ED30614B2D9ABAC3CDE915A098F95F366AC973A",
+   "ok": false
+  },
+  {
+   "name": "thiếu t",
+   "header": "v1=290eaab17a641484d858e5988ed30614b2d9abac3cde915a098f95f366ac973a",
+   "ok": false
+  },
+  {
+   "name": "thiếu v1",
+   "header": "t=1700000000",
+   "ok": false
+  },
+  {
+   "name": "khoảng trắng",
+   "header": " t = 1700000000 , v1 = 290eaab17a641484d858e5988ed30614b2d9abac3cde915a098f95f366ac973a ",
+   "ok": true
+  },
+  {
+   "name": "t 13 chữ số",
+   "header": "t=1700000000000,v1=290eaab17a641484d858e5988ed30614b2d9abac3cde915a098f95f366ac973a",
+   "ok": false
+  },
+  {
+   "name": "rỗng",
+   "header": "",
+   "ok": false
+  },
+  {
+   "name": "dài",
+   "header": "a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,a=1,",
+   "ok": false
+  }
+ ],
+ "now_ms": 1700000100000,
+ "enc": [
+  {
+   "plain": "whsec_abc",
+   "enc": "v1.93s4Ja80LHHk5KR1.9yoYIOKBm-qYk0HnubmOZQ.obn40oYcbcLg"
+  },
+  {
+   "plain": "tiếng Việt 😀",
+   "enc": "v1.wRd7oyqSpYVyw9n0.7TFnZ7PoEjx0HfkQW7shtg.fDtbX79IPJFMadk7MAphdJVdLg"
+  },
+  {
+   "plain": "",
+   "enc": "v1.U5hPDUv-Uho2N5u3.7E0KKlez2PqnywY64CvMLw."
+  }
+ ],
+ "key_b64": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
+ "retry": [
+  {
+   "attempts": 0,
+   "ms": 60000
+  },
+  {
+   "attempts": 1,
+   "ms": 60000
+  },
+  {
+   "attempts": 2,
+   "ms": 300000
+  },
+  {
+   "attempts": 3,
+   "ms": 1800000
+  },
+  {
+   "attempts": 4,
+   "ms": 7200000
+  },
+  {
+   "attempts": 5,
+   "ms": 21600000
+  },
+  {
+   "attempts": 6,
+   "ms": 43200000
+  },
+  {
+   "attempts": 7,
+   "ms": null
+  },
+  {
+   "attempts": 8,
+   "ms": null
+  }
+ ],
+ "keys": [
+  {
+   "raw": "",
+   "ok": false
+  },
+  {
+   "raw": "  ",
+   "ok": false
+  },
+  {
+   "raw": "abc",
+   "ok": false
+  },
+  {
+   "raw": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=",
+   "ok": true
+  },
+  {
+   "raw": "__________________________________________8",
+   "ok": true
+  },
+  {
+   "raw": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+   "ok": false
+  },
+  {
+   "raw": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+   "ok": true
+  },
+  {
+   "raw": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA====",
+   "ok": false
+  },
+  {
+   "raw": "QUJD!",
+   "ok": false
+  }
+ ],
+ "payload": [
+  {
+   "type": "contact.created",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 7,
+     "created_by_id": 8
+    }
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 7,
+     "created_by_id": 8
+    }
+   }
+  },
+  {
+   "type": "contact.created",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 7,
+     "created_by_id": 8
+    }
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.created",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 7,
+     "created_by_id": 8
+    }
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan ***678",
+     "phone": "***678",
+     "phone_2": "***678",
+     "zalo_account": "***321",
+     "email": "***678@gmail.com",
+     "assigned_to": 7,
+     "created_by_id": 8
+    }
+   }
+  },
+  {
+   "type": "contact.created",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 7,
+     "created_by_id": 8
+    }
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 7,
+     "created_by_id": 8
+    }
+   }
+  },
+  {
+   "type": "contact.created",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 7,
+     "created_by_id": 8
+    }
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan ***678",
+     "phone": "***678",
+     "phone_2": "***678",
+     "zalo_account": "***321",
+     "email": "***678@gmail.com",
+     "assigned_to": 7,
+     "created_by_id": 8
+    }
+   }
+  },
+  {
+   "type": "contact.updated",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 8
+    }
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 8
+    }
+   }
+  },
+  {
+   "type": "contact.updated",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 8
+    }
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.updated",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 8
+    }
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan ***678",
+     "phone": "***678",
+     "phone_2": "***678",
+     "zalo_account": "***321",
+     "email": "***678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 8
+    }
+   }
+  },
+  {
+   "type": "contact.updated",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 8
+    }
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.updated",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 8
+    }
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.assigned",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 9
+    },
+    "from_user_id": 7,
+    "to_user_id": 9,
+    "reason": "giao 0911222333 chăm"
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 9
+    },
+    "from_user_id": 7,
+    "to_user_id": 9,
+    "reason": "giao 0911222333 chăm"
+   }
+  },
+  {
+   "type": "contact.assigned",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 9
+    },
+    "from_user_id": 7,
+    "to_user_id": 9,
+    "reason": "giao 0911222333 chăm"
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.assigned",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 9
+    },
+    "from_user_id": 7,
+    "to_user_id": 9,
+    "reason": "giao 0911222333 chăm"
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan ***678",
+     "phone": "***678",
+     "phone_2": "***678",
+     "zalo_account": "***321",
+     "email": "***678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 9
+    },
+    "from_user_id": 7,
+    "to_user_id": 9,
+    "reason": "giao ***333 chăm"
+   }
+  },
+  {
+   "type": "contact.assigned",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 9
+    },
+    "from_user_id": 7,
+    "to_user_id": 9,
+    "reason": "giao 0911222333 chăm"
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 9
+    },
+    "from_user_id": 7,
+    "to_user_id": 9,
+    "reason": "giao 0911222333 chăm"
+   }
+  },
+  {
+   "type": "contact.assigned",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "0987654321",
+     "email": "0912345678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 9
+    },
+    "from_user_id": 7,
+    "to_user_id": 9,
+    "reason": "giao 0911222333 chăm"
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan ***678",
+     "phone": "***678",
+     "phone_2": "***678",
+     "zalo_account": "***321",
+     "email": "***678@gmail.com",
+     "assigned_to": 9,
+     "created_by_id": 9
+    },
+    "from_user_id": 7,
+    "to_user_id": 9,
+    "reason": "giao ***333 chăm"
+   }
+  },
+  {
+   "type": "contact.deleted",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "abc",
+     "email": "0912345678@gmail.com",
+     "assigned_to": null,
+     "created_by_id": null
+    }
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "abc",
+     "email": "0912345678@gmail.com",
+     "assigned_to": null,
+     "created_by_id": null
+    }
+   }
+  },
+  {
+   "type": "contact.deleted",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "abc",
+     "email": "0912345678@gmail.com",
+     "assigned_to": null,
+     "created_by_id": null
+    }
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.deleted",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "abc",
+     "email": "0912345678@gmail.com",
+     "assigned_to": null,
+     "created_by_id": null
+    }
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan ***678",
+     "phone": "***678",
+     "phone_2": "***678",
+     "zalo_account": "abc",
+     "email": "***678@gmail.com",
+     "assigned_to": null,
+     "created_by_id": null
+    }
+   }
+  },
+  {
+   "type": "contact.deleted",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "abc",
+     "email": "0912345678@gmail.com",
+     "assigned_to": null,
+     "created_by_id": null
+    }
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.deleted",
+   "payload": {
+    "contact": {
+     "id": 1,
+     "full_name": "Lan 0912345678",
+     "phone": "0912345678",
+     "phone_2": "***678",
+     "zalo_account": "abc",
+     "email": "0912345678@gmail.com",
+     "assigned_to": null,
+     "created_by_id": null
+    }
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "deal.created",
+   "payload": {
+    "deal": {
+     "id": 1,
+     "title": "Deal 0912345678",
+     "description": "gọi 091 234 5678",
+     "note": "x",
+     "assigned_to": 7,
+     "created_by": 1
+    }
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "deal": {
+     "id": 1,
+     "title": "Deal 0912345678",
+     "description": "gọi 091 234 5678",
+     "note": "x",
+     "assigned_to": 7,
+     "created_by": 1
+    }
+   }
+  },
+  {
+   "type": "deal.created",
+   "payload": {
+    "deal": {
+     "id": 1,
+     "title": "Deal 0912345678",
+     "description": "gọi 091 234 5678",
+     "note": "x",
+     "assigned_to": 7,
+     "created_by": 1
+    }
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "deal.created",
+   "payload": {
+    "deal": {
+     "id": 1,
+     "title": "Deal 0912345678",
+     "description": "gọi 091 234 5678",
+     "note": "x",
+     "assigned_to": 7,
+     "created_by": 1
+    }
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "deal": {
+     "id": 1,
+     "title": "Deal ***678",
+     "description": "gọi ***678",
+     "note": "x",
+     "assigned_to": 7,
+     "created_by": 1
+    }
+   }
+  },
+  {
+   "type": "deal.created",
+   "payload": {
+    "deal": {
+     "id": 1,
+     "title": "Deal 0912345678",
+     "description": "gọi 091 234 5678",
+     "note": "x",
+     "assigned_to": 7,
+     "created_by": 1
+    }
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "deal": {
+     "id": 1,
+     "title": "Deal 0912345678",
+     "description": "gọi 091 234 5678",
+     "note": "x",
+     "assigned_to": 7,
+     "created_by": 1
+    }
+   }
+  },
+  {
+   "type": "deal.created",
+   "payload": {
+    "deal": {
+     "id": 1,
+     "title": "Deal 0912345678",
+     "description": "gọi 091 234 5678",
+     "note": "x",
+     "assigned_to": 7,
+     "created_by": 1
+    }
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "deal": {
+     "id": 1,
+     "title": "Deal ***678",
+     "description": "gọi ***678",
+     "note": "x",
+     "assigned_to": 7,
+     "created_by": 1
+    }
+   }
+  },
+  {
+   "type": "deal.won",
+   "payload": {
+    "deal": {
+     "id": 1,
+     "title": "t",
+     "assigned_to": 9,
+     "created_by": 9
+    }
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "deal": {
+     "id": 1,
+     "title": "t",
+     "assigned_to": 9,
+     "created_by": 9
+    }
+   }
+  },
+  {
+   "type": "deal.won",
+   "payload": {
+    "deal": {
+     "id": 1,
+     "title": "t",
+     "assigned_to": 9,
+     "created_by": 9
+    }
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "deal.won",
+   "payload": {
+    "deal": {
+     "id": 1,
+     "title": "t",
+     "assigned_to": 9,
+     "created_by": 9
+    }
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "deal": {
+     "id": 1,
+     "title": "t",
+     "assigned_to": 9,
+     "created_by": 9
+    }
+   }
+  },
+  {
+   "type": "deal.won",
+   "payload": {
+    "deal": {
+     "id": 1,
+     "title": "t",
+     "assigned_to": 9,
+     "created_by": 9
+    }
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "deal.won",
+   "payload": {
+    "deal": {
+     "id": 1,
+     "title": "t",
+     "assigned_to": 9,
+     "created_by": 9
+    }
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "pos.order.completed",
+   "payload": {
+    "order": {
+     "id": 1,
+     "note": "sdt 0912345678",
+     "created_by": 7,
+     "paid_by": 2,
+     "payments": [
+      {
+       "reference": "ref 0912345678"
+      },
+      5,
+      null
+     ]
+    }
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "order": {
+     "id": 1,
+     "note": "sdt 0912345678",
+     "created_by": 7,
+     "paid_by": 2,
+     "payments": [
+      {
+       "reference": "ref 0912345678"
+      },
+      5,
+      null
+     ]
+    }
+   }
+  },
+  {
+   "type": "pos.order.completed",
+   "payload": {
+    "order": {
+     "id": 1,
+     "note": "sdt 0912345678",
+     "created_by": 7,
+     "paid_by": 2,
+     "payments": [
+      {
+       "reference": "ref 0912345678"
+      },
+      5,
+      null
+     ]
+    }
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "pos.order.completed",
+   "payload": {
+    "order": {
+     "id": 1,
+     "note": "sdt 0912345678",
+     "created_by": 7,
+     "paid_by": 2,
+     "payments": [
+      {
+       "reference": "ref 0912345678"
+      },
+      5,
+      null
+     ]
+    }
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "order": {
+     "id": 1,
+     "note": "sdt ***678",
+     "created_by": 7,
+     "paid_by": 2,
+     "payments": [
+      {
+       "reference": "ref ***678"
+      },
+      5,
+      null
+     ]
+    }
+   }
+  },
+  {
+   "type": "pos.order.completed",
+   "payload": {
+    "order": {
+     "id": 1,
+     "note": "sdt 0912345678",
+     "created_by": 7,
+     "paid_by": 2,
+     "payments": [
+      {
+       "reference": "ref 0912345678"
+      },
+      5,
+      null
+     ]
+    }
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "order": {
+     "id": 1,
+     "note": "sdt 0912345678",
+     "created_by": 7,
+     "paid_by": 2,
+     "payments": [
+      {
+       "reference": "ref 0912345678"
+      },
+      5,
+      null
+     ]
+    }
+   }
+  },
+  {
+   "type": "pos.order.completed",
+   "payload": {
+    "order": {
+     "id": 1,
+     "note": "sdt 0912345678",
+     "created_by": 7,
+     "paid_by": 2,
+     "payments": [
+      {
+       "reference": "ref 0912345678"
+      },
+      5,
+      null
+     ]
+    }
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "order": {
+     "id": 1,
+     "note": "sdt ***678",
+     "created_by": 7,
+     "paid_by": 2,
+     "payments": [
+      {
+       "reference": "ref ***678"
+      },
+      5,
+      null
+     ]
+    }
+   }
+  },
+  {
+   "type": "custom_record.created",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": true,
+     "visible_role_ids": [
+      3
+     ]
+    },
+    "record": {
+     "id": 1,
+     "title": "KH 0912345678",
+     "owner_id": 7,
+     "created_by": 7,
+     "phone_fields": [
+      "sdt"
+     ],
+     "data": {
+      "sdt": "0912345678",
+      "ghi_chu": "gọi 0912345678",
+      "n": 5
+     }
+    }
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.created",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": true,
+     "visible_role_ids": [
+      3
+     ]
+    },
+    "record": {
+     "id": 1,
+     "title": "KH 0912345678",
+     "owner_id": 7,
+     "created_by": 7,
+     "phone_fields": [
+      "sdt"
+     ],
+     "data": {
+      "sdt": "0912345678",
+      "ghi_chu": "gọi 0912345678",
+      "n": 5
+     }
+    }
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.created",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": true,
+     "visible_role_ids": [
+      3
+     ]
+    },
+    "record": {
+     "id": 1,
+     "title": "KH 0912345678",
+     "owner_id": 7,
+     "created_by": 7,
+     "phone_fields": [
+      "sdt"
+     ],
+     "data": {
+      "sdt": "0912345678",
+      "ghi_chu": "gọi 0912345678",
+      "n": 5
+     }
+    }
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.created",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": true,
+     "visible_role_ids": [
+      3
+     ]
+    },
+    "record": {
+     "id": 1,
+     "title": "KH 0912345678",
+     "owner_id": 7,
+     "created_by": 7,
+     "phone_fields": [
+      "sdt"
+     ],
+     "data": {
+      "sdt": "0912345678",
+      "ghi_chu": "gọi 0912345678",
+      "n": 5
+     }
+    }
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "object": {
+     "key": "o",
+     "is_active": true,
+     "visible_role_ids": [
+      3
+     ]
+    },
+    "record": {
+     "id": 1,
+     "title": "KH 0912345678",
+     "owner_id": 7,
+     "created_by": 7,
+     "phone_fields": [
+      "sdt"
+     ],
+     "data": {
+      "sdt": "0912345678",
+      "ghi_chu": "gọi 0912345678",
+      "n": 5
+     }
+    }
+   }
+  },
+  {
+   "type": "custom_record.created",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": true,
+     "visible_role_ids": [
+      3
+     ]
+    },
+    "record": {
+     "id": 1,
+     "title": "KH 0912345678",
+     "owner_id": 7,
+     "created_by": 7,
+     "phone_fields": [
+      "sdt"
+     ],
+     "data": {
+      "sdt": "0912345678",
+      "ghi_chu": "gọi 0912345678",
+      "n": 5
+     }
+    }
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "object": {
+     "key": "o",
+     "is_active": true,
+     "visible_role_ids": [
+      3
+     ]
+    },
+    "record": {
+     "id": 1,
+     "title": "KH ***678",
+     "owner_id": 7,
+     "created_by": 7,
+     "phone_fields": [
+      "sdt"
+     ],
+     "data": {
+      "sdt": "***678",
+      "ghi_chu": "gọi ***678",
+      "n": 5
+     }
+    }
+   }
+  },
+  {
+   "type": "custom_record.updated",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": false,
+     "visible_role_ids": []
+    },
+    "record": {
+     "id": 1,
+     "owner_id": 7,
+     "created_by": 7,
+     "data": {}
+    }
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.updated",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": false,
+     "visible_role_ids": []
+    },
+    "record": {
+     "id": 1,
+     "owner_id": 7,
+     "created_by": 7,
+     "data": {}
+    }
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.updated",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": false,
+     "visible_role_ids": []
+    },
+    "record": {
+     "id": 1,
+     "owner_id": 7,
+     "created_by": 7,
+     "data": {}
+    }
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.updated",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": false,
+     "visible_role_ids": []
+    },
+    "record": {
+     "id": 1,
+     "owner_id": 7,
+     "created_by": 7,
+     "data": {}
+    }
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.updated",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": false,
+     "visible_role_ids": []
+    },
+    "record": {
+     "id": 1,
+     "owner_id": 7,
+     "created_by": 7,
+     "data": {}
+    }
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.deleted",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": true,
+     "visible_role_ids": [
+      4
+     ]
+    },
+    "record": {
+     "id": 1,
+     "owner_id": 7,
+     "created_by": 7,
+     "data": {}
+    }
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.deleted",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": true,
+     "visible_role_ids": [
+      4
+     ]
+    },
+    "record": {
+     "id": 1,
+     "owner_id": 7,
+     "created_by": 7,
+     "data": {}
+    }
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.deleted",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": true,
+     "visible_role_ids": [
+      4
+     ]
+    },
+    "record": {
+     "id": 1,
+     "owner_id": 7,
+     "created_by": 7,
+     "data": {}
+    }
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.deleted",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": true,
+     "visible_role_ids": [
+      4
+     ]
+    },
+    "record": {
+     "id": 1,
+     "owner_id": 7,
+     "created_by": 7,
+     "data": {}
+    }
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.deleted",
+   "payload": {
+    "object": {
+     "key": "o",
+     "is_active": true,
+     "visible_role_ids": [
+      4
+     ]
+    },
+    "record": {
+     "id": 1,
+     "owner_id": 7,
+     "created_by": 7,
+     "data": {}
+    }
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.created",
+   "payload": {
+    "object": {
+     "key": "o"
+    },
+    "record": null
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.created",
+   "payload": {
+    "object": {
+     "key": "o"
+    },
+    "record": null
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.created",
+   "payload": {
+    "object": {
+     "key": "o"
+    },
+    "record": null
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.created",
+   "payload": {
+    "object": {
+     "key": "o"
+    },
+    "record": null
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "custom_record.created",
+   "payload": {
+    "object": {
+     "key": "o"
+    },
+    "record": null
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "zalo_oa.message_received",
+   "payload": {
+    "contact_assigned_to": 7,
+    "thread_id": 1
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact_assigned_to": 7,
+    "thread_id": 1
+   }
+  },
+  {
+   "type": "zalo_oa.message_received",
+   "payload": {
+    "contact_assigned_to": 7,
+    "thread_id": 1
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "zalo_oa.message_received",
+   "payload": {
+    "contact_assigned_to": 7,
+    "thread_id": 1
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact_assigned_to": 7,
+    "thread_id": 1
+   }
+  },
+  {
+   "type": "zalo_oa.message_received",
+   "payload": {
+    "contact_assigned_to": 7,
+    "thread_id": 1
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact_assigned_to": 7,
+    "thread_id": 1
+   }
+  },
+  {
+   "type": "zalo_oa.message_received",
+   "payload": {
+    "contact_assigned_to": 7,
+    "thread_id": 1
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact_assigned_to": 7,
+    "thread_id": 1
+   }
+  },
+  {
+   "type": "messenger.message_sent",
+   "payload": {
+    "contact_assigned_to": 9
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact_assigned_to": 9
+   }
+  },
+  {
+   "type": "messenger.message_sent",
+   "payload": {
+    "contact_assigned_to": 9
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "messenger.message_sent",
+   "payload": {
+    "contact_assigned_to": 9
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact_assigned_to": 9
+   }
+  },
+  {
+   "type": "messenger.message_sent",
+   "payload": {
+    "contact_assigned_to": 9
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "messenger.message_sent",
+   "payload": {
+    "contact_assigned_to": 9
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "facebook.comment_received",
+   "payload": {
+    "contact_assigned_to": null
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact_assigned_to": null
+   }
+  },
+  {
+   "type": "facebook.comment_received",
+   "payload": {
+    "contact_assigned_to": null
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "facebook.comment_received",
+   "payload": {
+    "contact_assigned_to": null
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact_assigned_to": null
+   }
+  },
+  {
+   "type": "facebook.comment_received",
+   "payload": {
+    "contact_assigned_to": null
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "facebook.comment_received",
+   "payload": {
+    "contact_assigned_to": null
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "messenger.broadcast_finished",
+   "payload": {
+    "name": "Đợt 0912345678",
+    "sent": 3
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "name": "Đợt 0912345678",
+    "sent": 3
+   }
+  },
+  {
+   "type": "messenger.broadcast_finished",
+   "payload": {
+    "name": "Đợt 0912345678",
+    "sent": 3
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": true,
+   "data": {
+    "name": "Đợt 0912345678",
+    "sent": 3
+   }
+  },
+  {
+   "type": "messenger.broadcast_finished",
+   "payload": {
+    "name": "Đợt 0912345678",
+    "sent": 3
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "name": "Đợt ***678",
+    "sent": 3
+   }
+  },
+  {
+   "type": "messenger.broadcast_finished",
+   "payload": {
+    "name": "Đợt 0912345678",
+    "sent": 3
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "name": "Đợt ***678",
+    "sent": 3
+   }
+  },
+  {
+   "type": "messenger.broadcast_finished",
+   "payload": {
+    "name": "Đợt 0912345678",
+    "sent": 3
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "name": "Đợt ***678",
+    "sent": 3
+   }
+  },
+  {
+   "type": "social_post.published",
+   "payload": {
+    "post_id": 1
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "post_id": 1
+   }
+  },
+  {
+   "type": "social_post.published",
+   "payload": {
+    "post_id": 1
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "social_post.published",
+   "payload": {
+    "post_id": 1
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "post_id": 1
+   }
+  },
+  {
+   "type": "social_post.published",
+   "payload": {
+    "post_id": 1
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "post_id": 1
+   }
+  },
+  {
+   "type": "social_post.published",
+   "payload": {
+    "post_id": 1
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "post_id": 1
+   }
+  },
+  {
+   "type": "payment.received",
+   "payload": {
+    "amount": 5
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "amount": 5
+   }
+  },
+  {
+   "type": "payment.received",
+   "payload": {
+    "amount": 5
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": true,
+   "data": {
+    "amount": 5
+   }
+  },
+  {
+   "type": "payment.received",
+   "payload": {
+    "amount": 5
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "amount": 5
+   }
+  },
+  {
+   "type": "payment.received",
+   "payload": {
+    "amount": 5
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "amount": 5
+   }
+  },
+  {
+   "type": "payment.received",
+   "payload": {
+    "amount": 5
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "amount": 5
+   }
+  },
+  {
+   "type": "store_order.created",
+   "payload": {
+    "order": {
+     "customer_phone": "0912345678",
+     "customer_name": "A 0912345678",
+     "customer_address": "1 đường 0912345678",
+     "note": "x",
+     "contact_assigned_to": 7
+    }
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "order": {
+     "customer_phone": "0912345678",
+     "customer_name": "A 0912345678",
+     "customer_address": "1 đường 0912345678",
+     "note": "x",
+     "contact_assigned_to": 7
+    }
+   }
+  },
+  {
+   "type": "store_order.created",
+   "payload": {
+    "order": {
+     "customer_phone": "0912345678",
+     "customer_name": "A 0912345678",
+     "customer_address": "1 đường 0912345678",
+     "note": "x",
+     "contact_assigned_to": 7
+    }
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "store_order.created",
+   "payload": {
+    "order": {
+     "customer_phone": "0912345678",
+     "customer_name": "A 0912345678",
+     "customer_address": "1 đường 0912345678",
+     "note": "x",
+     "contact_assigned_to": 7
+    }
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "order": {
+     "customer_phone": "***678",
+     "customer_name": "A ***678",
+     "customer_address": "1 đường ***678",
+     "note": "x",
+     "contact_assigned_to": 7
+    }
+   }
+  },
+  {
+   "type": "store_order.created",
+   "payload": {
+    "order": {
+     "customer_phone": "0912345678",
+     "customer_name": "A 0912345678",
+     "customer_address": "1 đường 0912345678",
+     "note": "x",
+     "contact_assigned_to": 7
+    }
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "order": {
+     "customer_phone": "0912345678",
+     "customer_name": "A 0912345678",
+     "customer_address": "1 đường 0912345678",
+     "note": "x",
+     "contact_assigned_to": 7
+    }
+   }
+  },
+  {
+   "type": "store_order.created",
+   "payload": {
+    "order": {
+     "customer_phone": "0912345678",
+     "customer_name": "A 0912345678",
+     "customer_address": "1 đường 0912345678",
+     "note": "x",
+     "contact_assigned_to": 7
+    }
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "order": {
+     "customer_phone": "***678",
+     "customer_name": "A ***678",
+     "customer_address": "1 đường ***678",
+     "note": "x",
+     "contact_assigned_to": 7
+    }
+   }
+  },
+  {
+   "type": "store_order.paid",
+   "payload": {
+    "order": {
+     "customer_phone": "",
+     "contact_assigned_to": 9
+    }
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "order": {
+     "customer_phone": "",
+     "contact_assigned_to": 9
+    }
+   }
+  },
+  {
+   "type": "store_order.paid",
+   "payload": {
+    "order": {
+     "customer_phone": "",
+     "contact_assigned_to": 9
+    }
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "store_order.paid",
+   "payload": {
+    "order": {
+     "customer_phone": "",
+     "contact_assigned_to": 9
+    }
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "order": {
+     "customer_phone": "",
+     "contact_assigned_to": 9
+    }
+   }
+  },
+  {
+   "type": "store_order.paid",
+   "payload": {
+    "order": {
+     "customer_phone": "",
+     "contact_assigned_to": 9
+    }
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "store_order.paid",
+   "payload": {
+    "order": {
+     "customer_phone": "",
+     "contact_assigned_to": 9
+    }
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "unknown.event",
+   "payload": {},
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "unknown.event",
+   "payload": {},
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "unknown.event",
+   "payload": {},
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "unknown.event",
+   "payload": {},
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "unknown.event",
+   "payload": {},
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.created",
+   "payload": null,
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {}
+  },
+  {
+   "type": "contact.created",
+   "payload": null,
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.created",
+   "payload": null,
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {}
+  },
+  {
+   "type": "contact.created",
+   "payload": null,
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.created",
+   "payload": null,
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.created",
+   "payload": {
+    "contact": "nope"
+   },
+   "scopes_name": "admin",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": "all",
+    "customView": "all",
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": "nope"
+   }
+  },
+  {
+   "type": "contact.created",
+   "payload": {
+    "contact": "nope"
+   },
+   "scopes_name": "none",
+   "scopes": {
+    "contactsView": null,
+    "dealsView": null,
+    "posSell": null,
+    "phoneFull": "all",
+    "customView": null,
+    "customPhoneFull": "all",
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": false
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.created",
+   "payload": {
+    "contact": "nope"
+   },
+   "scopes_name": "masked",
+   "scopes": {
+    "contactsView": "all",
+    "dealsView": "all",
+    "posSell": "all",
+    "phoneFull": null,
+    "customView": "all",
+    "customPhoneFull": null,
+    "roleIds": [],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": true,
+   "data": {
+    "contact": "nope"
+   }
+  },
+  {
+   "type": "contact.created",
+   "payload": {
+    "contact": "nope"
+   },
+   "scopes_name": "own7",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [
+     7
+    ],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [
+     7
+    ],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  },
+  {
+   "type": "contact.created",
+   "payload": {
+    "contact": "nope"
+   },
+   "scopes_name": "scoped",
+   "scopes": {
+    "contactsView": [
+     7
+    ],
+    "dealsView": [
+     7
+    ],
+    "posSell": [
+     7
+    ],
+    "phoneFull": [],
+    "customView": [
+     7
+    ],
+    "customPhoneFull": [],
+    "roleIds": [
+     3
+    ],
+    "canManageCustomObjects": false,
+    "canSocialPost": true
+   },
+   "deliver": false,
+   "data": null
+  }
+ ]
+}

@@ -9,7 +9,18 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+aes-gcm = { workspace = true }
+base64 = { workspace = true }
 chrono = { workspace = true }
+getrandom = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+subtle = { workspace = true }
+reqwest = { workspace = true }
+trinity-http = { workspace = true }
+tokio = { workspace = true }
+futures-util = { workspace = true }
+uuid = { workspace = true }
 regex = { workspace = true }
 url = { workspace = true }
 serde_json = { workspace = true }
@@ -21,6 +32,8 @@ trinity-jobs = { workspace = true }
 trinity-kernel = { workspace = true }
 
 [dev-dependencies]
+wiremock = { workspace = true }
+trinity-kernel = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 

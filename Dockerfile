@@ -41,7 +41,7 @@ RUN pnpm --filter web build
 # ---------------------------------------------------------------------------
 # api: monolith + migrate/seed job. Deno is installed for the add-on runner.
 # ---------------------------------------------------------------------------
-FROM denoland/deno:bin-2.1.4 AS deno-bin
+FROM denoland/deno:bin-2.9.8 AS deno-bin
 
 FROM build AS api
 ENV NODE_ENV=production PORT=4000

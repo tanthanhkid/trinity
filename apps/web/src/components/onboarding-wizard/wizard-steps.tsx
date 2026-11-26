@@ -175,7 +175,7 @@ function StepData({ canSkip, hasSamples }: { canSkip: boolean; hasSamples: boole
       </Button>
       </>
       )}
-      {canSkip && can("settings.features") && <p className="text-sm text-muted-foreground">Có sẵn danh sách trong Excel hoặc Google Sheet? Bấm “Bỏ qua bước này”, rồi gửi file cho trợ lý AI để nhập vào Trinity.</p>}
+      {canSkip && can("contacts.create") && <p className="text-sm text-muted-foreground" data-testid="import-hint">Có sẵn danh sách trong Excel hoặc Google Sheet? Bấm “Bỏ qua bước này”, rồi gửi file cho trợ lý AI để nhập vào Trinity.</p>}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { BASIC_FEATURES, can, ORG_FEATURE_GROUPS, ORG_FEATURES, isOrgFeatureKey, type OrgFeatureKey } from '@trinity/rbac';
+import { BASIC_FEATURES, can, ORG_FEATURE_GROUPS, ORG_FEATURES, isOrgFeatureKey, isRetiredOrgFeatureKey, type OrgFeatureKey } from '@trinity/rbac';
 import { wrapData } from '../ai-output';
 import { isUserConfirmation } from '../actions/user-confirmation';
 import { ToolUserError, type ToolDef } from './tool-types';
@@ -51,7 +51,8 @@ export const setFeaturesTool: ToolDef = {
   output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
   async run(args, { deps, principal }) {
     const keys = (v: unknown): OrgFeatureKey[] => {
-      const list = Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').map((x) => x.trim()) : [];
+      // Khoá của tính năng đã gỡ (vd google_sheets) bị bỏ qua, không lỗi.
+      const list = Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').map((x) => x.trim()).filter((x) => !isRetiredOrgFeatureKey(x)) : [];
       const bad = list.filter((k) => !isOrgFeatureKey(k));
       if (bad.length) throw new ToolUserError(`Khoá tính năng không có: ${bad.join(', ')}. Khoá hợp lệ: ${KEY_LIST}. / Unknown feature keys.`);
       return [...new Set(list as OrgFeatureKey[])];

@@ -137,6 +137,16 @@ export const DEFAULT_PLAN: PlanKey = 'custom'
  */
 export const DEFAULT_SIGNUP_PLAN: PlanKey = 'mac_dinh'
 
+/**
+ * Khoá công tắc của tính năng ĐÃ GỠ. API và AI nhận rồi bỏ qua (không lỗi) trong một bản phát hành để client cũ không
+ * vỡ; JSON `org_features` cũ có khoá này cũng bị bỏ qua. Không dùng lại các khoá này cho tính năng mới.
+ */
+export const RETIRED_ORG_FEATURE_KEYS: readonly string[] = ['google_sheets']
+
+export function isRetiredOrgFeatureKey(k: string): boolean {
+  return RETIRED_ORG_FEATURE_KEYS.includes(k)
+}
+
 /** Cờ mới do gói quyết định (các cờ cũ không bị gói đụng tới). */
 export const PLAN_GATED_FEATURES = ['ai_briefing', 'zalo_oa', 'lead_scoring', 'stale_reminders', 'facebook_page'] as const satisfies readonly OrgFeatureKey[]
 
@@ -177,7 +187,8 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
   },
   ket_noi: {
     label: 'Kết nối',
-    // Không còn tính năng theo gói (Google Sheets đã gỡ, G03): chỉ khác `mac_dinh` ở hạn mức kênh. Giữ khoá gói cho dòng cũ.
+    // Cùng hạn mức (người, kênh) với `mac_dinh` nhưng không có tính năng theo gói (Google Sheets đã gỡ, G03). Giá/gói do chủ
+    // dự án chốt sau; giữ khoá gói cho dòng cũ.
     features: [],
     maxUsers: 10,
     channelLimits: { bulkMessagesPerDay: 200, recipientsPerCampaign: 200, postsPerDay: 10, autoCommentRepliesPerHour: 60 },

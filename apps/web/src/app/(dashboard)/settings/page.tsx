@@ -213,7 +213,7 @@ function SettingsPageContent() {
 
   // Kết nối đã thành trang riêng (/connections). Link cũ và chỗ quay về từ OAuth (Facebook/Google/Zalo/phần mềm bán hàng)
   // vẫn trỏ /settings?tab=integrations… hoặc /settings?zalo_oa=… ⇒ chuyển hướng, giữ nguyên tham số để mục đích hiện đúng.
-  const toConnections = rawTab === "integrations" || ["facebook", "google", "zalo_oa", "ket_noi"].some((k) => searchParams.get(k) !== null)
+  const toConnections = rawTab === "integrations" || ["facebook", "zalo_oa", "ket_noi"].some((k) => searchParams.get(k) !== null)
   useEffect(() => {
     if (!toConnections) return
     const q = new URLSearchParams(searchParams.toString())

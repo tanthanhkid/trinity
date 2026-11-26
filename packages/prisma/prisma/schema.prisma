@@ -2691,12 +2691,13 @@ model ExtensionRun {
   @@map("extension_runs")
 }
 
-// Google Sheets + OAuth Google (đã gỡ ở G03). Token đã mã hoá (AES-256-GCM) nằm lại, không còn mã giải mã/dùng.
+// Google Sheets + OAuth Google (đã gỡ ở G03). Token OAuth đã xoá bằng migration 0020b (không thu hồi phía Google).
 /// Kết nối Google của tổ chức (1 tài khoản Google ủy quyền). `status`: active | revoked | error.
 model GoogleConnection {
   id                Int       @id @default(autoincrement())
   google_email      String?   @db.VarChar(255)
-  refresh_token_enc String    @db.Text
+  /// NULL sau migration 0020b (token đã xoá khi gỡ G03).
+  refresh_token_enc String?   @db.Text
   access_token_enc  String?   @db.Text
   token_expires_at  DateTime? @db.Timestamptz(3)
   scopes            String[]  @default([])

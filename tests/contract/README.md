@@ -71,3 +71,10 @@ Hồ sơ `production` phía Rust chạy trên binary **phát hành** (không có
 Đã chuyển (C11, hồ sơ `default`, 34 ca): `cases/default/20-commerce` (5, từ `commerce.e2e-spec`), `21-pos-dashboard` (6), `22-payroll-notification` (21), `23-notification-reaper` (2, `reapStuckProcessing(NOW)` → `control.runJob('notification.reap-stuck', { now })`, `createLog` → `POST /notifications/send` hẹn giờ + đọc log bằng SQL). Các ca e2e còn lại chuyển ở C07a và C08–C13. 10 ca mẫu ở `cases/` chứng minh từng khả năng: job (`04`), xoá cache (`05`), `now`
 (`04`), hồ sơ `production` (`cases/production`), response theo ngày (`06`), ba vai (`07`), công ty thứ hai (`03`), validation strict/lenient (`02`),
 ca sinh từ `routes.json` (`08`), đăng nhập (`02`), health (`01`).
+
+## Ca e2e đã chuyển
+- C08 (28 ca, hồ sơ `default`): `10-contacts-rbac` (12, từ `contacts.e2e-spec.ts`), `11-deals-rbac` (8, `deals.e2e-spec.ts`), `12-deals-won-date` (1; thay
+  `BriefingAggregatorService.collect(…, NOW)` trong tiến trình bằng `control.runJob('briefings.collect', { owner, slot, now })`),
+  `13-settings-options` (3), `14-org-features` (4; ca "mặc định bật hết" seed `setup_status=da_dung` vì DB mới ở trạng thái chưa dựng quy trình).
+  Ca đọc dữ liệu khách ghi golden 3 vai qua `lib/roles.ts`. Ghi chú đổi so với e2e gốc: `deals` ca "scope own" khẳng định thêm
+  KHÔNG thấy deal người khác; ca khoá lạ của `org-features` ghi golden thay vì giả định harness whitelist (máy chủ thật trả 400).

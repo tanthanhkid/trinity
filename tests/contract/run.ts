@@ -176,6 +176,7 @@ async function main(): Promise<void> {
   if (unit.status !== 0) throw new Error('Test đơn vị của bộ chuẩn hoá đỏ')
 
   const dbPrefix = process.env.CONTRACT_DB_PREFIX ?? 'trinity_contract' // đặt tiền tố riêng khi nhiều lượt chạy cùng máy
+  if (!/^[a-z][a-z0-9_]{0,40}$/.test(dbPrefix)) throw new Error(`CONTRACT_DB_PREFIX không hợp lệ (cần /^[a-z][a-z0-9_]{0,40}$/): ${dbPrefix}`)
   const tpl = `${dbPrefix}_tpl`
   console.log(`[contract] dựng DB mẫu ${tpl} (migrate + seed admin)`)
   await recreateDb(tpl)
@@ -205,7 +206,7 @@ async function main(): Promise<void> {
         JWT_SECRET: 'contract-jwt-secret-0123456789abcdef0123456789',
         SERVICE_SECRET,
         INTERNAL_SERVICE_SECRET: SERVICE_SECRET,
-        STORAGE_LOCAL_ROOT: path.join(os.tmpdir(), `trinity-contract-storage-${profile}`),
+        STORAGE_LOCAL_ROOT: path.join(os.tmpdir(), `${dbPrefix}-storage-${profile}`),
         LISTEN_HOST: '127.0.0.1',
         TZ: 'UTC',
       }

@@ -5,13 +5,6 @@ import type { AddressInfo } from 'node:net';
 import { PrismaService } from '@trinity/prisma';
 import { ConnectorsService } from '../connectors.service';
 import { OrgFeaturesService } from '../../settings/org-features.service';
-import { KiotVietService } from '../kiotviet.service';
-import { CommerceSyncService } from '../commerce-sync.service';
-import { SapoService } from '../sapo.service';
-import { MisaService } from '../misa.service';
-import { WooCommerceService } from '../woocommerce.service';
-import { ShopeeService } from '../shopee.service';
-import { LazadaService } from '../lazada.service';
 import { vnpaySign } from '../vnpay';
 import { PaymentsService } from '../payments.service';
 import { ConnectorsController, PAYMENT_CREATION_STOPPED } from '../connectors.controller';
@@ -30,7 +23,7 @@ function controller() {
   prisma.$transaction.mockImplementation((fn: (db: unknown) => unknown) => fn(prisma));
   const connectors = { touch: jest.fn(), active: jest.fn().mockResolvedValue({ credentials: { hash_secret: VN_SECRET }, settings: { tmn_code: 'TESTTMN1', sandbox: true } }) };
   const payments = new PaymentsService(prisma as never, connectors as never, { ownerIds: jest.fn() } as never);
-  const ctrl = new (ConnectorsController as unknown as new (...a: unknown[]) => ConnectorsController)(connectors, payments, ...Array(9).fill({}));
+  const ctrl = new (ConnectorsController as unknown as new (...a: unknown[]) => ConnectorsController)(connectors, payments, {});
   return { ctrl, prisma };
 }
 
@@ -69,14 +62,7 @@ describe('POST /payments qua HTTP (#105)', () => {
         { provide: ConnectorsService, useValue: stub },
         { provide: PaymentsService, useValue: stub },
         { provide: OrgFeaturesService, useValue: features },
-        { provide: KiotVietService, useValue: stub },
         { provide: PrismaService, useValue: stub },
-        { provide: CommerceSyncService, useValue: stub },
-        { provide: SapoService, useValue: stub },
-        { provide: MisaService, useValue: stub },
-        { provide: WooCommerceService, useValue: stub },
-        { provide: ShopeeService, useValue: stub },
-        { provide: LazadaService, useValue: stub },
       ],
     }).compile();
     app = mod.createNestApplication({ logger: false });

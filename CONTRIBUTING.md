@@ -24,7 +24,7 @@ On your first pull request the **CLA** check comments with a link. Sign by comme
 
 The check then turns green (comment `recheck` if it does not). Signatures are stored in the `cla-signatures` branch.
 
-`main` is protected: contributions go through a pull request, and three checks must pass before merging: **Secret scan (gitleaks)**, **CLA**, and **Typecheck and tests (changed packages)**. A fourth job, **SQL on Postgres**, runs real-database tests when your change touches migrations, the Prisma schema, `*.pg.spec.ts` or raw SQL. CI does not run lint or full builds, so run `pnpm lint` and the build of what you touched locally. How maintainers ship: [docs/runbooks/fast-delivery.md](docs/runbooks/fast-delivery.md).
+`main` is protected: contributions go through a pull request, and these checks must pass before merging: **ci-ok** (lint, typecheck and unit tests of the packages you changed, plus the secret scan), **Secret scan (gitleaks)** and **CLA**. Slower jobs (real-Postgres tests, web build and UI checks, API build) run in parallel and are not required; a nightly run does the full test suite and e2e. Run `pnpm lint` and the build of what you touched locally if you want to catch problems earlier. See [docs/ci.md](docs/ci.md). How maintainers ship: [docs/runbooks/fast-delivery.md](docs/runbooks/fast-delivery.md).
 
 ## Code of conduct
 By participating you agree to follow our [Code of Conduct](CODE_OF_CONDUCT.md).

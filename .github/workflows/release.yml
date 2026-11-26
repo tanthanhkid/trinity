@@ -46,3 +46,4 @@ jobs:
     uses: ./.github/workflows/docker.yml
     with:
       tag: ${{ needs.release-please.outputs.tag_name }}
+      push: true

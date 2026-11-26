@@ -32,12 +32,20 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
         with:
           prisma: "false"
           packages: "false"
+      # PR: chỉ package bị đổi ("[base]"). Push main: tất cả.
       - name: ESLint
-        run: pnpm -r --if-present lint
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            pnpm --filter "[origin/${{ github.base_ref }}]" --if-present lint
+          else
+            pnpm -r --if-present lint
+          fi
 
   typecheck:
     name: Typecheck

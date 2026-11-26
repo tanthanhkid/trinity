@@ -9,17 +9,18 @@ How the maintainers ship. The goal is a short loop: a fix is live minutes after 
   P2 review comments go to a follow-up pull request.
 - Contributors outside the owner account always go through a pull request (branch protection + CLA).
 
-## 2. CI (pull requests only)
+## 2. CI (pull requests and push to `main`)
+Full description: [docs/ci.md](../ci.md). Required to merge: `ci-ok`, `CLA`, `Secret scan (gitleaks)`.
 | Check | Runs | Typical time |
 |---|---|---|
+| Lint, Typecheck, Unit tests (feed `ci-ok`) | every PR, in parallel; only changed packages (typecheck also their dependents). Push to `main`: all packages | 1–2 min |
 | Secret scan (gitleaks) | every PR | ~10 s |
 | CLA | every PR | ~10 s |
-| Typecheck and tests (changed packages) | every PR; typecheck covers changed packages and their dependents, unit tests run in the changed packages only | 1–2 min |
-| SQL on Postgres | its steps run only when migrations, `schema.prisma`, `*.pg.spec.ts` or `$queryRaw`/`$executeRaw` code changed | ~20 s when skipped |
-| Web build and UI checks | its steps run only when `apps/web/`, `packages/`, the lockfile or the CI workflow changed. Runs `next build`, starts the standalone server, then runs the checks in `apps/web/e2e/premium/` (see its README) | ~20 s when skipped |
+| Build api (monolith) | every PR, not required | ~1 min |
+| Tests with Postgres (migrate + db specs) | PR steps run only when migrations, `schema.prisma`, `*.pg.spec.ts` or `$queryRaw`/`$executeRaw` code changed; always on `main`. Not required | ~2 min |
+| Web build and UI checks | PR steps run only when `apps/web/`, `packages/`, the lockfile or the CI workflow changed; always on `main`. Runs `next build`, starts the standalone server, then the checks in `apps/web/e2e/premium/` (see its README). Not required | ~5 min |
 
-Nothing runs on push to `main`. Lint and the full API build are not part of CI; the deploy build catches API build errors.
-Web PRs get a real `next build` plus the browser checks, so a web build no longer has to be run by hand before review.
+A nightly workflow runs the full test suite, the Playwright e2e and dependency audits.
 
 The browser checks run on headless Chrome with a temporary profile. Every `/api/v1` call is answered from fixtures through CDP `Fetch`, so no server or real data is involved. The checks are:
 
@@ -46,7 +47,7 @@ The deploy script runs the serverless targets and the self-hosted server **at th
 ## 4. Measured (October 2026)
 | Step | Time |
 |---|---|
-| CI on a pull request | under 1 min (was 5–9 min, plus ~9 min again on `main`) |
+| Required CI on a pull request (`ci-ok`) | about 1.5–2 min; heavier jobs run in parallel and are not required |
 | Build packages + API + web with warm cache | ~10 s |
 | Ship + server switch + health | ~30 s |
 | Vercel demo build (parallel with the server) | ~2.5 min: API compile + packaging ~70 s, upload ~25 s; Next.js itself hits its cache (~2 s) |

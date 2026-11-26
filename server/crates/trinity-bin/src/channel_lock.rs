@@ -74,7 +74,11 @@ async fn run_inner(action: Action) -> Result<ExitCode, String> {
     // Luôn đa công ty (như bản Node đặt `MULTI_TENANT=true`): đưa cờ vào lúc đọc cấu hình để thứ tự chọn URL cơ sở dữ liệu cũng theo
     // chế độ đa công ty (không chỉ đổi cờ sau khi URL đã chọn).
     let mut cfg = DbConfig::from_lookup(|k| {
-        if k == "MULTI_TENANT" { Some("true".to_owned()) } else { std::env::var(k).ok() }
+        if k == "MULTI_TENANT" {
+            Some("true".to_owned())
+        } else {
+            std::env::var(k).ok()
+        }
     })
     .map_err(|e| e.to_string())?;
     cfg.pool_size = 2;

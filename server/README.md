@@ -59,8 +59,8 @@ Chạy trong `server/`. Trên máy dùng chung, thay `cargo` bằng `scripts/car
 | Kiểm một crate | `cargo check -p <crate>` |
 | Định dạng | `cargo fmt --all` (CI: `cargo fmt --all --check`) |
 | Lint | `cargo clippy --workspace --all-targets -- -D warnings` |
-| Unit test một crate | `cargo test -p <crate> --lib` |
-| Test pg (đánh dấu `#[ignore]`, chạy có chủ đích) | `TEST_DATABASE_URL=postgresql://localhost/trinity_<tên> cargo test -p <crate> -- --ignored` |
+| Test không cần DB của một crate (unit, tests/, doctest) | `cargo test -p <crate>` |
+| Test pg (đánh dấu `#[ignore]`, chạy có chủ đích) | `TEST_DATABASE_URL=postgresql://$USER@localhost:5432/trinity_<tên> cargo test -p <crate> --tests -- --ignored` |
 | Giấy phép, lỗ hổng | `cargo deny check` (cần [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)) |
 
 Build release, test pg đầy đủ, bộ hợp đồng và build hai kiến trúc chạy trên CI ([`docs/ci.md`](../docs/ci.md)).
@@ -77,10 +77,20 @@ Không ORM, không `sqlx migrate` (lịch sử migration vẫn là thư mục Pr
   nối chuỗi giá trị vào SQL). Loại này không được kiểm lúc biên dịch nên **bắt buộc có test pg**.
   Test pg đánh dấu `#[ignore = "cần Postgres…"]` và đọc `TEST_DATABASE_URL`; thiếu biến thì test lỗi, không âm thầm qua.
 
+**Quy ước test pg** (CI dựa vào đây, docs/ci.md):
+
+- `#[ignore]` chỉ dành cho test cần Postgres; test chậm hay chưa xong không được đánh `#[ignore]` (dùng cờ khác).
+  Job `Rust unit` (bắt buộc) chạy `cargo test --workspace`, tức mọi test không `#[ignore]` kể cả `tests/` và doctest;
+  job `Rust pg tests` chạy `cargo test --workspace --tests -- --ignored` (không doctest) trên Postgres 16 đã migrate.
+- Test pg đặt trong `tests/` của crate, đọc `TEST_DATABASE_URL`; cần Prisma CLI thì đọc `PRISMA_BIN` (mặc định
+  `packages/prisma/node_modules/.bin/prisma`, có sau `pnpm install`).
+- URL DB luôn ghi rõ user (`postgresql://$USER@localhost:5432/...`): Prisma không tự lấy user hệ điều hành như
+  `psql`, thiếu user thì `prisma migrate deploy` báo `P1010`.
+
 Khi thêm hoặc sửa một truy vấn tĩnh:
 
 ```sh
-export DATABASE_URL=postgresql://localhost/trinity_<tên>
+export DATABASE_URL=postgresql://$USER@localhost:5432/trinity_<tên>
 # 1. Migrate DB riêng của mình bằng Prisma (ở gốc repo). Làm lại mỗi khi có migration mới.
 (cd .. && pnpm --filter @trinity/prisma exec prisma migrate deploy)
 # 2. Sinh lại dữ liệu kiểm truy vấn (sqlx-cli tự tắt chế độ offline trong lượt này)

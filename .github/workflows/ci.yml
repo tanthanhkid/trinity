@@ -96,138 +96,110 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Rust bắt buộc (docs/rust/PLAN.md mục 8): fmt, clippy, unit nằm trong `ci-ok`. Job luôn chạy (để `ci-ok` có kết quả)
-  # nhưng các bước chỉ thực thi khi PR đụng server/, migration/schema Prisma hoặc workflow này; PR chỉ đổi web thì mỗi
-  # job xong trong vài giây. Push main chạy đủ và lưu cache (rust-cache theo Cargo.lock + toolchain); PR chỉ đọc cache.
-  rust-fmt:
-    name: Rust fmt
+  # Lọc thay đổi cho mọi job Rust (một chỗ, để các job không lệch nhau). Push main / chạy tay: tất cả là true.
+  # - rust: server/, action rust-toolchain hoặc ci.yml → fmt, clippy, unit, build.
+  # - rust_pg: thêm migration/schema Prisma (lệch schema chỉ lộ ra khi chạy trên DB thật) → Rust pg tests.
+  # - rust_deps: Cargo.toml/Cargo.lock/deny.toml trong server/ hoặc ci.yml → Rust deny.
+  rust-changes:
+    name: Rust changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      rust: ${{ steps.f.outputs.rust }}
+      rust_pg: ${{ steps.f.outputs.rust_pg }}
+      rust_deps: ${{ steps.f.outputs.rust_deps }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
-
       - name: Detect Rust changes
-        id: rust
+        id: f
         run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(server/|packages/prisma/prisma/|\.github/workflows/ci\.yml$)'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            printf 'rust=true\nrust_pg=true\nrust_deps=true\n' >> "$GITHUB_OUTPUT"; exit 0
           fi
+          files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          has() { if echo "$files" | grep -qE "$1"; then echo true; else echo false; fi; }
+          {
+            echo "rust=$(has '^(server/|\.github/workflows/ci\.yml$)')"
+            echo "rust_pg=$(has '^(server/|packages/prisma/prisma/|\.github/workflows/ci\.yml$)')"
+            echo "rust_deps=$(has '^(server/(.*/)?Cargo\.(toml|lock)$|server/deny\.toml$|\.github/workflows/ci\.yml$)')"
+          } | tee -a "$GITHUB_OUTPUT"
 
-      - name: Install Rust toolchain
-        if: steps.rust.outputs.run == 'true'
-        working-directory: server
-        run: |
-          rustup toolchain install
-          tc=$(rustup show active-toolchain | cut -d' ' -f1)
-          rustup default "$tc"
-          echo "RUSTUP_TOOLCHAIN=$tc" >> "$GITHUB_ENV"
-          rustc --version
-
+  # Rust bắt buộc (docs/rust/PLAN.md mục 8): fmt, clippy, unit nằm trong `ci-ok`. Job luôn chạy (để `ci-ok` có kết quả)
+  # nhưng các bước chỉ thực thi khi `rust-changes` báo rust=true; PR không đụng server/ thì mỗi job xong trong vài giây.
+  # Cache rust-cache riêng từng job (clippy dựng .rmeta, test dựng thư viện đầy đủ: dùng chung khoá thì job lưu sau bị
+  # bỏ vì khoá cache không ghi đè được); lưu ở push main và chạy tay, PR chỉ đọc.
+  rust-fmt:
+    name: Rust fmt
+    needs: rust-changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        if: needs.rust-changes.outputs.rust == 'true'
+      - uses: ./.github/actions/rust-toolchain
+        if: needs.rust-changes.outputs.rust == 'true'
       - name: cargo fmt --check
-        if: steps.rust.outputs.run == 'true'
+        if: needs.rust-changes.outputs.rust == 'true'
         working-directory: server
         run: cargo fmt --all --check
 
   rust-clippy:
     name: Rust clippy
+    needs: rust-changes
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       SQLX_OFFLINE: "true"
       CARGO_INCREMENTAL: "0"
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
-
-      - name: Detect Rust changes
-        id: rust
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(server/|packages/prisma/prisma/|\.github/workflows/ci\.yml$)'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Install Rust toolchain
-        if: steps.rust.outputs.run == 'true'
-        working-directory: server
-        run: |
-          rustup toolchain install
-          tc=$(rustup show active-toolchain | cut -d' ' -f1)
-          rustup default "$tc"
-          echo "RUSTUP_TOOLCHAIN=$tc" >> "$GITHUB_ENV"
-          rustc --version
-
+        if: needs.rust-changes.outputs.rust == 'true'
+      - uses: ./.github/actions/rust-toolchain
+        if: needs.rust-changes.outputs.rust == 'true'
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        if: steps.rust.outputs.run == 'true'
+        if: needs.rust-changes.outputs.rust == 'true'
         with:
           workspaces: server
           save-if: ${{ github.event_name != 'pull_request' }}
-
       - name: cargo clippy
-        if: steps.rust.outputs.run == 'true'
+        if: needs.rust-changes.outputs.rust == 'true'
         working-directory: server
         run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
   rust-unit:
     name: Rust unit
+    needs: rust-changes
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       SQLX_OFFLINE: "true"
       CARGO_INCREMENTAL: "0"
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
-
-      - name: Detect Rust changes
-        id: rust
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(server/|packages/prisma/prisma/|\.github/workflows/ci\.yml$)'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Install Rust toolchain
-        if: steps.rust.outputs.run == 'true'
-        working-directory: server
-        run: |
-          rustup toolchain install
-          tc=$(rustup show active-toolchain | cut -d' ' -f1)
-          rustup default "$tc"
-          echo "RUSTUP_TOOLCHAIN=$tc" >> "$GITHUB_ENV"
-          rustc --version
-
+        if: needs.rust-changes.outputs.rust == 'true'
+      - uses: ./.github/actions/rust-toolchain
+        if: needs.rust-changes.outputs.rust == 'true'
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        if: steps.rust.outputs.run == 'true'
+        if: needs.rust-changes.outputs.rust == 'true'
         with:
           workspaces: server
           save-if: ${{ github.event_name != 'pull_request' }}
-
-      # Chỉ test trong thư viện (không cần DB). Test pg nằm ở tests/ và có #[ignore]: job `Rust pg tests` chạy chúng.
-      - name: cargo test --lib
-        if: steps.rust.outputs.run == 'true'
+      # Mọi test không cần DB: unit trong lib/bin, test tích hợp trong tests/, doctest. Test pg có #[ignore] nên bị bỏ
+      # qua ở đây; job `Rust pg tests` chạy chúng.
+      - name: cargo test
+        if: needs.rust-changes.outputs.rust == 'true'
         working-directory: server
-        run: cargo test --locked --workspace --lib
-
+        run: cargo test --locked --workspace
 
   # Check bắt buộc duy nhất của luồng CI (cộng CLA ở workflow riêng). Chạy `always()` để job bị bỏ qua/huỷ không làm treo merge.
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [lint, typecheck, unit, secret-scan, rust-fmt, rust-clippy, rust-unit]
+    needs: [lint, typecheck, unit, secret-scan, rust-changes, rust-fmt, rust-clippy, rust-unit]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -453,10 +425,12 @@ jobs:
         run: tail -n 200 /tmp/web.log || true
 
   # Backend Rust (docs/rust/PLAN.md mục 8): build release cho cả hai kiến trúc máy chủ. Không bắt buộc; fmt/clippy/unit
-  # là các job `rust-*` trong `ci-ok`. Job luôn chạy nhưng các bước chỉ thực thi khi PR đụng server/ hoặc workflow này.
-  # Build offline (.sqlx/) không bắt được lệch schema Prisma, nên không lọc theo migration ở đây: việc đó thuộc `rust-pg`.
+  # là các job `rust-*` trong `ci-ok`. Build offline (.sqlx/) không bắt được lệch schema Prisma, nên không chạy theo
+  # migration ở đây: việc đó thuộc `rust-pg`.
   rust-build:
     name: Rust build (${{ matrix.arch }})
+    needs: rust-changes
+    if: needs.rust-changes.outputs.rust == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     strategy:
@@ -474,51 +448,23 @@ jobs:
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
-
-      - name: Detect Rust changes
-        id: rust
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(server/|\.github/workflows/ci\.yml$)'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      # rustup có sẵn trên runner; không đối số = cài đúng bản ghim trong server/rust-toolchain.toml. Đặt luôn làm
-      # mặc định để rust-cache (chạy ở gốc repo) lấy khoá cache theo đúng toolchain đó.
-      - name: Install Rust toolchain
-        if: steps.rust.outputs.run == 'true'
-        working-directory: server
-        run: |
-          rustup toolchain install
-          tc=$(rustup show active-toolchain | cut -d' ' -f1)
-          rustup default "$tc"
-          echo "RUSTUP_TOOLCHAIN=$tc" >> "$GITHUB_ENV"
-          rustc --version
-
+      - uses: ./.github/actions/rust-toolchain
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        if: steps.rust.outputs.run == 'true'
         with:
           workspaces: server
-          save-if: ${{ github.event_name == 'push' }}
+          save-if: ${{ github.event_name != 'pull_request' }}
 
       - name: cargo build --release
-        if: steps.rust.outputs.run == 'true'
         working-directory: server
         run: cargo build --release --locked --workspace --all-targets
 
       - name: trinity --version
-        if: steps.rust.outputs.run == 'true'
         working-directory: server
         run: |
           ./target/release/trinity --version
           file ./target/release/trinity
 
       - name: Upload binary
-        if: steps.rust.outputs.run == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: trinity-linux-${{ matrix.arch }}
@@ -531,36 +477,28 @@ jobs:
   # đỏ push main khi không ai đổi phụ thuộc. Push main chỉ kiểm bans, licenses, sources.
   rust-deny:
     name: Rust deny
+    needs: rust-changes
+    if: needs.rust-changes.outputs.rust_deps == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
-
-      - name: Detect Rust dependency changes
-        id: rust
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(server/(.*/)?Cargo\.(toml|lock)$|server/deny\.toml$|\.github/workflows/ci\.yml$)'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: EmbarkStudios/cargo-deny-action@81891abc19297b21343b15ef67dc61e4aea74fda # v2.1.4
-        if: steps.rust.outputs.run == 'true'
         with:
           manifest-path: server/Cargo.toml
           command: check
           command-arguments: ${{ github.event_name == 'pull_request' && 'advisories bans licenses sources' || 'bans licenses sources' }}
 
   # Test pg của Rust trên Postgres 16 thật (PLAN mục 8). Không bắt buộc vì cần DB; K06–K21 lấy job này làm tiêu chí.
-  # - Migrate bằng Prisma (lịch sử migration vẫn là thư mục Prisma, PLAN 4.5); migrator Rust thêm vào đây khi có (K07).
+  # - Migrate bằng Prisma (lịch sử migration vẫn là thư mục Prisma, PLAN 4.5); migrator Rust thêm vào đây khi có.
   # - `cargo sqlx prepare --check` nối DB thật (không offline): `.sqlx/` cũ hoặc lệch schema Prisma thì đỏ.
-  # - Chạy các test `#[ignore]` (test pg) của cả workspace với TEST_DATABASE_URL.
+  # - Chạy các test `#[ignore]` (quy ước: chỉ test pg mới được #[ignore], server/README.md) trong lib/bin/tests/,
+  #   không chạy doctest. Prisma CLI có sẵn ở PRISMA_BIN cho test so với Prisma (prisma_compat); user `test` là
+  #   superuser nên test tạo được DB phụ.
   rust-pg:
     name: Rust pg tests
+    needs: rust-changes
+    if: needs.rust-changes.outputs.rust_pg == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -578,65 +516,43 @@ jobs:
           --health-timeout 5s
           --health-retries 20
     env:
+      # Luôn ghi rõ user trong URL: Prisma không tự lấy user hệ điều hành như libpq (thiếu thì P1010).
       DATABASE_URL: postgresql://test:test@localhost:5432/trinity_rust_test
       TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_rust_test
+      PRISMA_BIN: ${{ github.workspace }}/packages/prisma/node_modules/.bin/prisma
       CARGO_INCREMENTAL: "0"
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
 
-      - name: Detect Rust changes
-        id: rust
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(server/|packages/prisma/prisma/|\.github/workflows/ci\.yml$)'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      # Chỉ cài gói prisma (không build cả monorepo) để chạy `prisma migrate deploy`.
+      # Chỉ cài gói prisma (không build cả monorepo): `prisma migrate deploy` và Prisma CLI cho test.
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
-        if: steps.rust.outputs.run == 'true'
         with:
           version: 10.6.5
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        if: steps.rust.outputs.run == 'true'
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install prisma
-        if: steps.rust.outputs.run == 'true'
-        run: pnpm install --frozen-lockfile --prefer-offline --filter @trinity/prisma
+        run: |
+          pnpm install --frozen-lockfile --prefer-offline --filter @trinity/prisma
+          "$PRISMA_BIN" --version
 
       - name: Migrate (Prisma)
-        if: steps.rust.outputs.run == 'true'
         run: pnpm --filter @trinity/prisma exec prisma migrate deploy
 
-      - name: Install Rust toolchain
-        if: steps.rust.outputs.run == 'true'
-        working-directory: server
-        run: |
-          rustup toolchain install
-          tc=$(rustup show active-toolchain | cut -d' ' -f1)
-          rustup default "$tc"
-          echo "RUSTUP_TOOLCHAIN=$tc" >> "$GITHUB_ENV"
-          rustc --version
+      - uses: ./.github/actions/rust-toolchain
 
       # cache-bin (mặc định) giữ ~/.cargo/bin, nên sqlx-cli chỉ biên dịch lần đầu sau mỗi lần đổi khoá cache.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        if: steps.rust.outputs.run == 'true'
         with:
           workspaces: server
           save-if: ${{ github.event_name != 'pull_request' }}
 
       # Cùng phiên bản với server/README.md (khớp sqlx trong Cargo.lock).
       - name: Install sqlx-cli
-        if: steps.rust.outputs.run == 'true'
         run: |
           if ! cargo sqlx --version 2>/dev/null | grep -q ' 0\.9\.1$'; then
             cargo install sqlx-cli --version 0.9.1 --no-default-features --features postgres,rustls --locked
@@ -644,15 +560,13 @@ jobs:
           cargo sqlx --version
 
       - name: cargo sqlx prepare --check
-        if: steps.rust.outputs.run == 'true'
         working-directory: server
         env:
           SQLX_OFFLINE: "false"
         run: cargo sqlx prepare --workspace --check
 
-      - name: cargo test -- --ignored (test pg)
-        if: steps.rust.outputs.run == 'true'
+      - name: cargo test --tests -- --ignored (test pg)
         working-directory: server
         env:
           SQLX_OFFLINE: "true"
-        run: cargo test --locked --workspace -- --ignored
+        run: cargo test --locked --workspace --tests -- --ignored

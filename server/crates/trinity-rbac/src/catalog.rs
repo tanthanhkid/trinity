@@ -47,15 +47,11 @@ impl Catalog {
 }
 
 static CATALOG: LazyLock<Catalog> = LazyLock::new(|| {
-    // Tệp nhúng sai là lỗi dựng, không phải lỗi chạy: test `catalog_nap_duoc` bắt ở CI cục bộ.
-    let raw: Raw = serde_json::from_str(include_str!("../../../contracts/rbac.json")).unwrap_or_else(|e| {
-        tracing::error!("rbac.json nhúng hỏng: {e}");
-        Raw {
-            scope_order: vec![],
-            retired_permissions: vec![],
-            permissions: vec![],
-        }
-    });
+    // Tệp nhúng hỏng là lỗi dựng: panic (test `catalog_nap_duoc` bắt ở bước kiểm cục bộ), không rơi về catalog rỗng
+    // (rỗng = mọi quyền bị từ chối hoặc, tệ hơn, admin không có quyền nào được liệt kê).
+    #[allow(clippy::expect_used)]
+    let raw: Raw = serde_json::from_str(include_str!("../../../contracts/rbac.json")).expect("rbac.json nhúng hỏng");
+    assert!(!raw.permissions.is_empty(), "rbac.json nhúng không có quyền nào");
     let index = raw
         .permissions
         .iter()

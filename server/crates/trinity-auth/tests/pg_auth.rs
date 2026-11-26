@@ -118,8 +118,8 @@ async fn guard_dung_thu_tu_va_cau_loi() {
     );
     // leeway = 0: hết hạn 1 giây là từ chối.
     let expired = Claims {
-        exp: Some(now() - 1),
-        iat: Some(now() - 901),
+        exp: Some((now() - 1) as f64),
+        iat: Some((now() - 901) as f64),
         ..access(9101, None, None)
     };
     assert_eq!(

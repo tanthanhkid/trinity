@@ -181,11 +181,26 @@ async fn vo_hieu_cache_cheo_tien_trinh_qua_notify() {
     assert!(b.cache.get_grants(1, 9201).is_some(), "người khác giữ nguyên");
     a.cache.invalidate_users(1, trinity_rbac::cache::Users::All).await;
     eventually("B xoá hết", async || b.cache.get_grants(1, 9201).is_none()).await;
-    // Tin do Node gửi (c = 0: không có ngữ cảnh công ty) xoá mọi công ty.
+    // Tin của Node không có công ty hợp lệ (`c = 0`) bị bỏ; có `c = 1` và id dạng chuỗi thì được áp.
     b.perms.grants_for(CO, 9201).await.unwrap();
     let mut c = PgConnection::connect(&url()).await.unwrap();
+    for payload in [
+        r#"{"v":1,"o":"node-1-abc","k":"rbac","c":0,"ids":[9201]}"#,
+        r#"{"v":1,"o":"node-1-abc","k":"rbac","ids":[9201]}"#,
+    ] {
+        sqlx::query("SELECT pg_notify('trinity_sync', $1)")
+            .bind(payload)
+            .execute(&mut c)
+            .await
+            .unwrap();
+    }
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert!(
+        b.cache.get_grants(1, 9201).is_some(),
+        "tin không có công ty hợp lệ bị bỏ"
+    );
     sqlx::query("SELECT pg_notify('trinity_sync', $1)")
-        .bind(r#"{"v":1,"o":"node-1-abc","k":"rbac","c":0,"ids":[9201]}"#)
+        .bind(r#"{"v":1,"o":"node-1-abc","k":"rbac","c":1,"ids":["9201"]}"#)
         .execute(&mut c)
         .await
         .unwrap();
@@ -272,6 +287,35 @@ async fn pham_vi_own_team_subtree_all_va_vong_lap_quan_ly() {
         .await
         .unwrap();
     assert_eq!(ids(again), [9201, 9202, 9203]);
+    drop(p.db);
+    teardown().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn vo_hieu_den_giua_luc_doc_khong_de_lai_cache_cu() {
+    setup().await;
+    let p = proc().await;
+    let want = |v: &str| Some(Grant::Scope(Scope::parse(v).unwrap()));
+    for i in 0..40 {
+        let v = ["team", "subtree", "all", "own"][i % 4];
+        p.cache.clear();
+        exec(&format!(
+            "UPDATE role_permissions SET scope = '{v}' WHERE role_id = 9201 AND permission = 'contacts.view'"
+        ))
+        .await;
+        // Người đọc bắt đầu đọc DB trong lúc vô hiệu (sau commit) chạy đua với nó.
+        let (perms, cache) = (p.perms.clone(), p.cache.clone());
+        let reader = tokio::spawn(async move { perms.grants_for(CO, 9202).await.unwrap() });
+        tokio::task::yield_now().await;
+        cache
+            .invalidate_users(1, trinity_rbac::cache::Users::Ids(vec![9202]))
+            .await;
+        let _ = reader.await.unwrap();
+        // Sau vô hiệu, lần đọc kế tiếp (từ cache hoặc DB) PHẢI ra giá trị đúng của DB.
+        let got = p.perms.grants_for(CO, 9202).await.unwrap();
+        assert_eq!(got.grants.get("contacts.view").copied(), want(v), "vòng {i}");
+    }
     drop(p.db);
     teardown().await;
 }

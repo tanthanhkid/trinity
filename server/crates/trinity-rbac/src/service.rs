@@ -54,6 +54,8 @@ impl PermissionService {
         if let Some(hit) = self.cache.get_grants(company.id(), user) {
             return Ok(hit);
         }
+        // Chụp thế hệ TRƯỚC khi đọc: vô hiệu đến giữa chừng thì kết quả cũ không được ghi vào cache.
+        let generation = self.cache.generation();
         let tenant = self.db.tenant(company).await?;
         let mut conn = tenant.acquire().await?;
         let rows = sqlx::query(
@@ -82,7 +84,7 @@ impl PermissionService {
         };
         Ok(self
             .cache
-            .set_grants(company.id(), user, GrantsResult { grants, is_admin }))
+            .set_grants(generation, company.id(), user, GrantsResult { grants, is_admin }))
     }
 }
 
@@ -123,6 +125,7 @@ impl ScopeService {
         if let Some(hit) = self.cache.get_scope(company.id(), user, scope) {
             return Ok(Some(OwnerIds::Ids((*hit).clone())));
         }
+        let generation = self.cache.generation();
         let tenant = self.db.tenant(company).await?;
         let mut conn = tenant.acquire().await?;
         let ids: Vec<i32> = if scope == Scope::Team {
@@ -147,7 +150,7 @@ impl ScopeService {
             .await?;
             rows.into_iter().map(|r| r.0).collect()
         };
-        self.cache.set_scope(company.id(), user, scope, ids.clone());
+        self.cache.set_scope(generation, company.id(), user, scope, ids.clone());
         Ok(Some(OwnerIds::Ids(ids)))
     }
 }

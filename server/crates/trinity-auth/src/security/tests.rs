@@ -124,6 +124,23 @@ fn tra_blacklist_xoa_muc_het_han_tai_cho() {
     for u in 0..1000 {
         s.apply_token((1, u), true, 0);
     }
+    // Lần tra đầu quá 60 giây kể từ lần dọn cuối ⇒ dọn cả bảng: không còn mục hết hạn nào.
     assert!(!s.is_blacklisted((1, 5), TOKEN_TTL_MS + 1));
-    assert!(s.blocks.len() <= 1000);
+    assert!(s.blocks.is_empty());
+}
+
+#[test]
+fn tra_blacklist_duoi_60_giay_chi_xoa_dung_muc_vua_tra() {
+    let mut s = State::default();
+    let t0 = TOKEN_TTL_MS + 1;
+    assert!(!s.is_blacklisted((1, 0), t0)); // đặt mốc dọn
+    for u in 0..10 {
+        s.apply_token((1, u), true, 0); // hết hạn từ trước t0
+    }
+    // 30 giây sau mốc dọn: không quét cả bảng, chỉ xoá mục được tra.
+    assert!(!s.is_blacklisted((1, 3), t0 + 30_000));
+    assert_eq!(s.blocks.len(), 9);
+    // Mục chưa hết hạn vẫn bị chặn.
+    s.apply_token((1, 99), true, t0);
+    assert!(s.is_blacklisted((1, 99), t0 + 30_000));
 }

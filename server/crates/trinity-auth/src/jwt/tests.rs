@@ -60,7 +60,7 @@ fn leeway_bang_0_het_han_dung_giay_exp_va_1_giay_sau_deu_bi_tu_choi() {
 #[test]
 fn nbf_chua_toi_bi_tu_choi() {
     let c = Claims {
-        nbf: Some(NOW + 100),
+        nbf: Some((NOW + 100) as f64),
         ..Claims::access(7, "a@b.vn", None, None, NOW)
     };
     let t = sign(&c, SECRET).unwrap();
@@ -84,4 +84,17 @@ fn khong_co_exp_van_hop_le_nhu_node_va_alg_khac_bi_tu_choi() {
     parts[0] = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0".into();
     parts[2].clear();
     assert!(verify_at(&parts.join("."), SECRET, AT).is_err(), "alg none");
+}
+
+#[test]
+fn exp_nbf_so_thuc_nhu_node() {
+    // Node nhận `exp` thực: hết hạn đúng khi now >= exp.
+    let c = Claims {
+        exp: Some(NOW as f64 + 0.5),
+        ..Claims::access(7, "a@b.vn", None, None, NOW)
+    };
+    let t = sign(&c, SECRET).unwrap();
+    assert!(t.split('.').nth(1).unwrap().len() > 10);
+    assert!(verify_at(&t, SECRET, NOW).is_ok());
+    assert!(verify_at(&t, SECRET, NOW + 1).is_err());
 }

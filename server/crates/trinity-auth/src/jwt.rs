@@ -86,7 +86,7 @@ pub const ACCESS_TTL_SECS: u64 = 15 * 60;
 pub const REFRESH_TTL_SECS: u64 = 7 * 24 * 3600;
 
 /// Payload. Thứ tự trường là thứ tự Node ghi (để token Rust ký giống từng byte token Node với cùng đầu vào).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: i64,
     #[serde(default)]
@@ -100,13 +100,23 @@ pub struct Claims {
     /// `refresh` cho refresh token: KHÔNG được dùng làm access token.
     #[serde(default, rename = "type", skip_serializing_if = "Option::is_none")]
     pub kind: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub iat: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub exp: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "ser_time")]
+    pub iat: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "ser_time")]
+    pub exp: Option<f64>,
     /// Token phát bởi bản khác có thể mang `nbf`; Node kiểm nếu có.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub nbf: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "ser_time")]
+    pub nbf: Option<f64>,
+}
+
+/// Số nguyên ghi không có `.0` (như JSON.stringify), số thực giữ nguyên: `exp`/`iat`/`nbf` của Node có thể là số thực.
+fn ser_time<S: serde::Serializer>(v: &Option<f64>, s: S) -> Result<S::Ok, S::Error> {
+    match v {
+        #[allow(clippy::cast_possible_truncation)]
+        Some(t) if t.fract() == 0.0 && t.abs() < 9.0e15 => s.serialize_i64(*t as i64),
+        Some(t) => s.serialize_f64(*t),
+        None => s.serialize_none(),
+    }
 }
 
 impl Claims {
@@ -117,8 +127,8 @@ impl Claims {
             sid,
             cid,
             kind: None,
-            iat: Some(now),
-            exp: Some(now + ACCESS_TTL_SECS),
+            iat: Some(now as f64),
+            exp: Some((now + ACCESS_TTL_SECS) as f64),
             nbf: None,
         }
     }
@@ -160,6 +170,7 @@ pub fn verify_at(token: &str, secret: &str, now: u64) -> Result<Claims, Error> {
     install_provider();
     let claims =
         decode::<Claims>(token, &DecodingKey::from_secret(secret.as_bytes())?, &validation()).map(|d| d.claims)?;
+    let now = now as f64;
     if claims.exp.is_some_and(|e| now >= e) {
         return Err(new_error(ErrorKind::ExpiredSignature));
     }

@@ -10,7 +10,7 @@ the contract both implementations follow.
   - `v` format version, `1`. A listener ignores other versions.
   - `o` origin id of the sender (`node-<pid>-<hex>`, `rust-...`). A process ignores its own messages: it applies a change
     locally first, then announces it.
-  - `k` kind (below). `c` company id (`0` when there is no company context; single-company installs use `1`).
+  - `k` kind (below). `c` company id (single-company installs use `1`). `0` or missing means "no company context": `token`, `session` and `rbac` ignore such messages.
 - Sending is fire-and-forget: a failed `NOTIFY` is logged, never raised. Listening needs a direct or session-mode
   connection (not a transaction pooler). If the listener drops, it reconnects with back-off and then clears its caches
   (messages sent meanwhile are lost); TTLs are the safety net.
@@ -18,7 +18,7 @@ the contract both implementations follow.
 
 | Kind `k` | Fields | Receiver does |
 |---|---|---|
-| `rbac` | `ids`: user ids (array, at most 500) or `"*"` | Drop that company's permission-cache entries for those users (all users for `"*"`) |
+| `rbac` | `ids`: user ids (array, at most 500; numbers, numeric strings and integral floats accepted) or `"*"` | Drop that company's permission-cache entries for those users (all users for `"*"`). Ignored when `c` is missing, invalid or below 1 (no company to target). Call it only after the change has been committed |
 | `token` | `op`: `"block"` or `"unblock"`, `u`: user id, `t`: change time (ms) | Apply only if `t` is not older than the change already held; add/remove the user in the token blacklist (15 minute TTL from `t`) |
 | `session` | `op`: `"start"` or `"clear"`, `u`: user id, `s`: session id (start only), `t`: change time (ms) | Apply only if `t` is not older than the change already held; set/clear the user's single active session |
 | `cache` | `p`: key prefix without the company part, e.g. `crm:contacts:count:` or `dashboard:` | Delete read-cache keys of company `c` that start with `p` |

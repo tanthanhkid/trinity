@@ -5,13 +5,26 @@
 //! (URL phải ghi tên người dùng: Prisma không tự lấy như libpq và báo P1010). Mỗi test dùng schema riêng `c_91xx`
 //! trong DB đó, tự xoá trước khi chạy; test (b) tạo thêm DB `<tên>_ref` nếu chưa có. `PRISMA_BIN` đổi đường dẫn CLI.
 //! Test (c) đo thời gian chờ khoá 10 giây của Prisma nên chạy khoảng 35 giây.
+//!
+//! Các test trong tệp tự chạy TUẦN TỰ (khoá [`serial`]) kể cả khi không truyền `--test-threads=1` (CI chạy
+//! `cargo test --workspace --tests -- --ignored`, mặc định song song): `prisma migrate deploy` lấy khoá advisory
+//! 72707369 exclusive cho CẢ DB và chỉ chờ 10 giây, còn test (c) cố ý giữ khoá đó ~35 giây và đếm yêu cầu khoá mồ côi.
+//! Chạy song song thì Prisma ở (a), (b), (d) hết giờ (P1002), Rust ở (b) gặp `lock timeout`, (c) đếm thừa yêu cầu.
 
 use std::path::PathBuf;
 use std::process::{Command, Output};
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use sqlx::{AssertSqlSafe, Connection, PgConnection};
 use trinity_db::prisma_migrate::{self as pm, Migration};
+
+/// Khoá tuần tự cho mọi test của tệp (xem đầu tệp). `tokio::sync::Mutex` dùng được qua các runtime riêng của từng
+/// `#[tokio::test]` và không bị "poison" khi một test panic (guard được nhả khi unwind).
+fn serial() -> &'static tokio::sync::Mutex<()> {
+    static SERIAL: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
+    SERIAL.get_or_init(|| tokio::sync::Mutex::new(()))
+}
 
 fn url() -> String {
     std::env::var("TEST_DATABASE_URL").expect("test pg cần TEST_DATABASE_URL")
@@ -90,6 +103,7 @@ async fn drop_schema(c: &mut PgConnection, schema: &str) {
 #[tokio::test]
 #[ignore = "cần Postgres và Prisma CLI: xem đầu tệp"]
 async fn a_prisma_migrate_thi_rust_khong_con_gi_va_checksum_khop() {
+    let _serial = serial().lock().await;
     let schema = "c_9101";
     let mut c = conn().await;
     drop_schema(&mut c, schema).await;
@@ -121,6 +135,7 @@ async fn a_prisma_migrate_thi_rust_khong_con_gi_va_checksum_khop() {
 #[tokio::test]
 #[ignore = "cần Postgres và Prisma CLI: xem đầu tệp"]
 async fn b_rust_migrate_thi_prisma_bao_da_cap_nhat_va_schema_giong_het() {
+    let _serial = serial().lock().await;
     let schema = "c_9102";
     let mut c = conn().await;
     drop_schema(&mut c, schema).await;
@@ -196,6 +211,7 @@ fn ref_database() -> (String, String) {
 #[tokio::test]
 #[ignore = "cần Postgres và Prisma CLI: xem đầu tệp"]
 async fn c_khoa_rust_chan_prisma_va_khoa_prisma_chan_rust() {
+    let _serial = serial().lock().await;
     let mut rust = conn().await;
     let mut other = conn().await;
     drop_schema(&mut rust, "c_9103").await;
@@ -276,6 +292,7 @@ async fn c_khoa_rust_chan_prisma_va_khoa_prisma_chan_rust() {
 #[tokio::test]
 #[ignore = "cần Postgres và Prisma CLI: xem đầu tệp"]
 async fn d_migration_loi_rust_ghi_dong_prisma_doc_ra_p3009() {
+    let _serial = serial().lock().await;
     failing_case(
         "c_9106",
         &[("0001_hong", "CREATE TABLE r005_ok (id int);\nSELECT 1/0;\n")],
@@ -287,6 +304,7 @@ async fn d_migration_loi_rust_ghi_dong_prisma_doc_ra_p3009() {
 #[tokio::test]
 #[ignore = "cần Postgres và Prisma CLI: xem đầu tệp"]
 async fn e_migration_enum_co_begin_commit_loi_giua_chung() {
+    let _serial = serial().lock().await;
     // Dạng Prisma sinh khi bớt giá trị enum: khối `BEGIN; … COMMIT;` riêng. Dữ liệu có giá trị bị bỏ ⇒ lỗi ở câu
     // ALTER TABLE giữa khối ⇒ phiên ở giao dịch hỏng (25P02) nếu migrator không ROLLBACK.
     failing_case(

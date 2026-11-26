@@ -39,7 +39,6 @@ export const ORG_FEATURES = {
   ai_briefing: { label: 'Bản tin sáng/chiều', group: 'advanced', description: 'Bản tin số liệu sáng và chiều do trợ lý AI của bạn viết.' },
   lead_scoring: { label: 'Chấm điểm khách tiềm năng', group: 'advanced', description: 'Chấm điểm khách theo quy tắc; trợ lý AI chấm thêm ý định mua.' },
   stale_reminders: { label: 'Nhắc việc treo', group: 'advanced', description: 'Nhắc nhân viên liên hệ lại khách hoặc việc quá hạn.' },
-  google_sheets: { label: 'Google Sheets', group: 'advanced', description: 'Đồng bộ khách hàng với Google Sheets.' },
 } as const satisfies Record<string, { label: string; group: OrgFeatureGroup; description: string }>
 
 export type OrgFeatureKey = keyof typeof ORG_FEATURES
@@ -138,8 +137,18 @@ export const DEFAULT_PLAN: PlanKey = 'custom'
  */
 export const DEFAULT_SIGNUP_PLAN: PlanKey = 'mac_dinh'
 
+/**
+ * Khoá công tắc của tính năng ĐÃ GỠ. API và AI nhận rồi bỏ qua (không lỗi) trong một bản phát hành để client cũ không
+ * vỡ; JSON `org_features` cũ có khoá này cũng bị bỏ qua. Không dùng lại các khoá này cho tính năng mới.
+ */
+export const RETIRED_ORG_FEATURE_KEYS: readonly string[] = ['google_sheets']
+
+export function isRetiredOrgFeatureKey(k: string): boolean {
+  return RETIRED_ORG_FEATURE_KEYS.includes(k)
+}
+
 /** Cờ mới do gói quyết định (các cờ cũ không bị gói đụng tới). */
-export const PLAN_GATED_FEATURES = ['ai_briefing', 'zalo_oa', 'lead_scoring', 'google_sheets', 'stale_reminders', 'facebook_page'] as const satisfies readonly OrgFeatureKey[]
+export const PLAN_GATED_FEATURES = ['ai_briefing', 'zalo_oa', 'lead_scoring', 'stale_reminders', 'facebook_page'] as const satisfies readonly OrgFeatureKey[]
 
 export interface PlanDefinition {
   label: string
@@ -178,25 +187,27 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
   },
   ket_noi: {
     label: 'Kết nối',
-    features: ['google_sheets'],
+    // Cùng hạn mức (người, kênh) với `mac_dinh` nhưng không có tính năng theo gói (Google Sheets đã gỡ, G03). Giá/gói do chủ
+    // dự án chốt sau; giữ khoá gói cho dòng cũ.
+    features: [],
     maxUsers: 10,
     channelLimits: { bulkMessagesPerDay: 200, recipientsPerCampaign: 200, postsPerDay: 10, autoCommentRepliesPerHour: 60 },
   },
   tro_ly_giam_doc: {
     label: 'Trợ lý Giám đốc',
-    features: ['google_sheets', 'ai_briefing'],
+    features: ['ai_briefing'],
     maxUsers: 10,
     channelLimits: { bulkMessagesPerDay: 300, recipientsPerCampaign: 300, postsPerDay: 15, autoCommentRepliesPerHour: 60 },
   },
   tro_ly_kinh_doanh: {
     label: 'Trợ lý Kinh doanh',
-    features: ['google_sheets', 'ai_briefing', 'zalo_oa', 'lead_scoring', 'stale_reminders', 'facebook_page'],
+    features: ['ai_briefing', 'zalo_oa', 'lead_scoring', 'stale_reminders', 'facebook_page'],
     maxUsers: 30,
     channelLimits: { bulkMessagesPerDay: 1000, recipientsPerCampaign: 1000, postsPerDay: 40, autoCommentRepliesPerHour: 200 },
   },
   tro_ly_van_hanh: {
     label: 'Trợ lý Vận hành',
-    features: ['google_sheets', 'ai_briefing', 'zalo_oa', 'lead_scoring', 'stale_reminders', 'facebook_page'],
+    features: ['ai_briefing', 'zalo_oa', 'lead_scoring', 'stale_reminders', 'facebook_page'],
     maxUsers: 60,
     channelLimits: { bulkMessagesPerDay: 3000, recipientsPerCampaign: 2000, postsPerDay: 100, autoCommentRepliesPerHour: 500 },
   },

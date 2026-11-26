@@ -41,6 +41,12 @@ describe('set_features', () => {
     expect(d.orgFeatures.update).toHaveBeenCalledWith({ dashboard: false }, 7);
   });
 
+  it('khoá đã gỡ (google_sheets) bị bỏ qua, không lỗi', async () => {
+    const d = fdeps();
+    await setFeaturesTool.run({ enable: ['pos', 'google_sheets'] }, ctx(d));
+    expect(d.orgFeatures.update).toHaveBeenCalledWith({ pos: true }, 7);
+  });
+
   it('khoá lạ, trùng khoá, rỗng ⇒ báo lỗi, không ghi', async () => {
     const d = fdeps();
     await expect(setFeaturesTool.run({ enable: ['khong_co'] }, ctx(d))).rejects.toBeInstanceOf(ToolUserError);

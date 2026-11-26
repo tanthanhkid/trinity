@@ -21,7 +21,7 @@ import { RecruitmentModule } from './recruitment/recruitment.module';
 import { ManagementTeamsModule } from './teams/teams.module';
 import { KanbanModule } from './kanban/kanban.module';
 import { IntegrationsModule } from './integrations/integrations.module';
-import { GoogleModule } from './google/google.module';
+import { RetiredRoutesModule } from './retired/retired-routes.module';
 import { CustomObjectsModule } from './custom-objects/custom-objects.module';
 import { UsageModule } from './usage/usage.module';
 import { ZaloOaModule } from './zalo-oa/zalo-oa.module';
@@ -73,7 +73,7 @@ import { SecurityHeadersMiddleware } from './common/middleware/security-headers.
     ManagementTeamsModule,
     KanbanModule,
     IntegrationsModule,
-    GoogleModule,
+    RetiredRoutesModule,
     CustomObjectsModule,
     FacebookModule,
     SocialModule,

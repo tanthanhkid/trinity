@@ -22,7 +22,6 @@ export class UpdateOrgFeaturesDto {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() ai_briefing?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() zalo_oa?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() lead_scoring?: boolean;
-  @ApiPropertyOptional() @IsOptional() @IsBoolean() google_sheets?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() stale_reminders?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() facebook_page?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() social_posting?: boolean;
@@ -30,4 +29,6 @@ export class UpdateOrgFeaturesDto {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() commerce_connectors?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() online_store?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() inbox?: boolean;
+  /** ĐÃ GỠ (G03): nhận và BỎ QUA trong một bản phát hành để client cũ không bị 400; service chỉ duyệt khoá của danh mục. */
+  @ApiPropertyOptional({ deprecated: true }) @IsOptional() @IsBoolean() google_sheets?: boolean;
 }

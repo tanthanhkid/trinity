@@ -161,12 +161,20 @@ describe("OnboardingWizard", () => {
     expect(screen.getByTestId("step-data")).toBeTruthy()
   })
 
-  it("không có quyền thêm khách: ẩn form, gợi ý bấm Bỏ qua; gợi ý Google Sheets chỉ khi có quyền cấu hình", () => {
-    perms.delete("contacts.create"); perms.delete("settings.features")
+  it("không có quyền thêm khách: ẩn form, gợi ý bấm Bỏ qua; không gợi ý nhập file", () => {
+    perms.delete("contacts.create")
     render(<OnboardingWizard wizard={view([step("industry", true), step("modules", true), { ...step("data"), can_skip: true }], "data", false, "clinic")} />)
     expect(screen.queryByTestId("add-contact")).toBeNull()
     expect(screen.getByTestId("no-create-contact").textContent).toMatch(/Bỏ qua bước này/)
-    expect(document.body.textContent).not.toMatch(/Google Sheets/)
+    expect(screen.queryByTestId("import-hint")).toBeNull()
+  })
+
+  it("có quyền thêm khách (không cần quyền cấu hình): gợi ý gửi file Excel/Google Sheet cho trợ lý AI", () => {
+    perms.delete("settings.features")
+    render(<OnboardingWizard wizard={view([step("industry", true), step("modules", true), { ...step("data"), can_skip: true }], "data", false, "clinic")} />)
+    const hint = screen.getByTestId("import-hint").textContent ?? ""
+    expect(hint).toMatch(/gửi file cho trợ lý AI/)
+    expect(hint).not.toMatch(/Cài đặt › Kết nối/)
   })
 
   it("chỉ nói 'dữ liệu mẫu' ở bước dữ liệu khi máy chủ báo còn mẫu", () => {

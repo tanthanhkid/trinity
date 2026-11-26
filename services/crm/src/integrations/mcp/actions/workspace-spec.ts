@@ -1,5 +1,5 @@
 import type { CustomObject } from '@prisma/client';
-import { ORG_FEATURE_KEYS, ORG_FEATURES, type OrgFeatureKey } from '@trinity/rbac';
+import { isRetiredOrgFeatureKey, ORG_FEATURE_KEYS, ORG_FEATURES, type OrgFeatureKey } from '@trinity/rbac';
 import type { ObjectDef } from '../../../custom-objects/custom-object-access';
 import { buildOptions } from '../../../custom-objects/field-definition';
 import { TITLE_TYPES, type FieldDef } from '../../../custom-objects/field-types';
@@ -42,6 +42,7 @@ export function parseFeatures(raw: unknown): OrgFeatureKey[] {
   const out = new Set<OrgFeatureKey>();
   for (const k of raw) {
     const key = String(k) as OrgFeatureKey;
+    if (isRetiredOrgFeatureKey(key)) continue; // tính năng đã gỡ: bỏ qua, không lỗi
     if (!(ORG_FEATURE_KEYS as readonly string[]).includes(key)) {
       throw new ActionUserError(`Tính năng “${String(k).slice(0, 40)}” không có. Dùng: ${ORG_FEATURE_KEYS.map((x) => `${x} (${ORG_FEATURES[x].label})`).join(', ')}.`);
     }

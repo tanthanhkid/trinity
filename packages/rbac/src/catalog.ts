@@ -5,6 +5,12 @@ export const PERMISSION_GROUPS = [
 type Group = (typeof PERMISSION_GROUPS)[number]
 interface PermissionDef { group: Group; label: string; scoped: boolean; sensitive?: boolean }
 
+/**
+ * Khoá quyền đã gỡ: dòng `role_permissions` cũ đã xoá bằng migration, `normalizeGrant` bỏ qua nếu còn sót.
+ * KHÔNG dùng lại các khoá này cho quyền mới (vai trò cũ, bản sao lưu hay nhật ký quyền có thể còn nhắc tới).
+ */
+export const RETIRED_PERMISSIONS: readonly string[] = ['extensions.view', 'extensions.draft', 'extensions.approve']
+
 export const PERMISSIONS = {
   'contacts.view':       { group: 'Khách hàng', label: 'Xem khách hàng', scoped: true },
   'contacts.create':     { group: 'Khách hàng', label: 'Thêm khách hàng', scoped: false },
@@ -64,6 +70,7 @@ export const PERMISSIONS = {
   'settings.features':   { group: 'Hệ thống', label: 'Bật/tắt tính năng của tổ chức', scoped: false },
   'integrations.webhooks':   { group: 'Kết nối & AI', label: 'Quản lý webhook ra/vào', scoped: false, sensitive: true },
   'integrations.ai_connect': { group: 'Kết nối & AI', label: 'Nối tài khoản của mình vào ChatGPT/Claude (MCP)', scoped: false },
+  // Đã gỡ (G02, chương trình con): 'extensions.view', 'extensions.draft', 'extensions.approve' — xem RETIRED_PERMISSIONS, KHÔNG dùng lại.
   'integrations.ai_admin':   { group: 'Kết nối & AI', label: 'Xem/thu hồi mọi kết nối AI, xem nhật ký tích hợp toàn công ty', scoped: false, sensitive: true },
   'social.post':             { group: 'Kết nối & AI', label: 'Soạn và đăng bài lên các kênh mạng xã hội đã liên kết', scoped: false },
   'social.manage':           { group: 'Kết nối & AI', label: 'Liên kết / gỡ kênh mạng xã hội, gỡ bài đã đăng khỏi mạng', scoped: false, sensitive: true },

@@ -1,4 +1,5 @@
-import { PERMISSIONS, PERMISSION_GROUPS, isPermission } from './catalog'
+import { PERMISSIONS, PERMISSION_GROUPS, RETIRED_PERMISSIONS, isPermission } from './catalog'
+import { normalizeGrant } from './grants'
 
 it('khoá đúng dạng nhóm.hành_động (cho phép 1 tầng con)', () => {
   for (const k of Object.keys(PERMISSIONS)) expect(k).toMatch(/^[a-z_]+(\.[a-z_]+){1,2}$/)
@@ -37,4 +38,10 @@ it('nhóm Tính năng tuỳ biến: cấu hình không scoped; dữ liệu scope
   expect('sensitive' in PERMISSIONS['custom_records.view']).toBe(false)
   // : SĐT tuỳ biến KHÔNG dùng chung quyền SĐT của phân hệ khác
   expect(isPermission('custom_records.phone_full')).toBe(true)
+})
+it('khoá quyền đã gỡ không được dùng lại và bị bỏ qua khi đọc dòng cũ', () => {
+  for (const k of RETIRED_PERMISSIONS) {
+    expect(isPermission(k)).toBe(false)
+    expect(normalizeGrant(k, null)).toBeNull()
+  }
 })

@@ -42,12 +42,26 @@ pub fn slot_instant(time: &str, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
     Some(vn_day_start(now) + Duration::minutes(i64::from(h * 60 + m)))
 }
 
-/// Slot đã đến giờ gửi và còn trong thời gian bù.
+fn in_window(at: DateTime<Utc>, now: DateTime<Utc>) -> bool {
+    let diff = now - at;
+    diff >= Duration::zero() && diff < SLOT_GRACE
+}
+
+/// Slot đã đến giờ gửi và còn trong thời gian bù (xét cả giờ hẹn của ngày VN hôm trước, xem [`due_reference`]).
 pub fn is_slot_due(time: &str, now: DateTime<Utc>) -> bool {
-    slot_instant(time, now).is_some_and(|at| {
-        let diff = now - at;
-        diff >= Duration::zero() && diff < SLOT_GRACE
-    })
+    due_reference(time, now).is_some()
+}
+
+/// Mốc tham chiếu để gửi slot, hoặc `None` nếu chưa/không còn đến giờ. Giờ hẹn của ngày hôm nay còn trong thời gian bù ⇒
+/// mốc là `now`. Giờ hẹn của ngày VN hôm TRƯỚC còn trong thời gian bù (slot gần nửa đêm, vd 23:00 chạy trễ qua 00:00) ⇒
+/// mốc là giây cuối cùng của ngày hôm trước, để khoá ngày (`vn_day_key`) và khung số liệu thuộc về ngày của slot.
+pub fn due_reference(time: &str, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
+    let today = slot_instant(time, now)?;
+    if in_window(today, now) {
+        return Some(now);
+    }
+    let yesterday = slot_instant(time, now - Duration::days(1))?;
+    in_window(yesterday, now).then(|| vn_day_start(now) - Duration::seconds(1))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -121,6 +135,26 @@ mod tests {
         assert!(is_slot_due(t, at("2026-11-27T04:59:59Z")));
         assert!(!is_slot_due(t, at("2026-11-27T05:00:00Z")));
         assert!(!is_slot_due("bad", at("2026-11-27T01:00:00Z")));
+    }
+
+    #[test]
+    fn slot_gan_nua_dem_chay_tre_qua_ngay_moi() {
+        // 23:00 VN = 16:00 UTC. 00:30 VN ngày sau (17:30Z) vẫn trong 4 giờ bù: mang ngày hôm trước.
+        let now = at("2026-11-27T17:30:00Z");
+        let r = due_reference("23:00", now).unwrap();
+        assert_eq!(vn_day_key(r), "2026-11-27");
+        assert_eq!(vn_day_key(now), "2026-11-28");
+        assert_eq!(r, at("2026-11-27T16:59:59Z"));
+        // Hết thời gian bù lúc 03:00 VN.
+        assert!(due_reference("23:00", at("2026-11-27T19:59:59Z")).is_some());
+        assert!(due_reference("23:00", at("2026-11-27T20:00:00Z")).is_none());
+        // Trong ngày: mốc là now.
+        let t = at("2026-11-27T16:10:00Z");
+        assert_eq!(due_reference("23:00", t), Some(t));
+        assert!(due_reference("23:00", at("2026-11-27T15:59:00Z")).is_none());
+        // Giờ ban ngày không dây sang hôm sau.
+        assert!(due_reference("08:00", at("2026-11-27T17:00:00Z")).is_none());
+        assert!(due_reference("bad", now).is_none());
     }
 
     #[test]

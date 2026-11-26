@@ -23,12 +23,15 @@ fn now() -> DateTime<Utc> {
 
 struct TestPorts {
     feature: AtomicBool,
+    /// Thêm người nhận có id từ 10 (phạm vi rỗng) để thử trần số người nhận.
+    extra: i32,
 }
 
 impl TestPorts {
     fn new(feature: bool) -> Self {
         Self {
             feature: AtomicBool::new(feature),
+            extra: 0,
         }
     }
 }
@@ -38,13 +41,16 @@ impl Ports for TestPorts {
         self.feature.load(Ordering::SeqCst)
     }
     async fn recipients(&self, _conn: &mut PgConnection) -> Vec<i32> {
-        vec![4, 1, 2, 3, 2]
+        let mut v = vec![4, 1, 2, 3, 2];
+        v.extend(10..10 + self.extra);
+        v
     }
     async fn owners_for(&self, _conn: &mut PgConnection, user_id: i32, _email: &str) -> Option<Owners> {
         match user_id {
             1 => Some(Owners::All),
             2 => Some(Owners::Users(vec![2])),
             3 => Some(Owners::Users(vec![3, 2])),
+            10.. => Some(Owners::Users(vec![])),
             _ => None,
         }
     }
@@ -615,4 +621,177 @@ async fn danh_sach_nguoi_nhan_theo_quyen() {
         [1, 2],
         "quản trị luôn có; vai trò có quyền; không có quyền thì không; người bị khoá thì không"
     );
+}
+
+async fn small_pool_db() -> (Db, TenantDb) {
+    let url = std::env::var("TEST_DATABASE_URL").expect("test pg cần TEST_DATABASE_URL");
+    let mut cfg = DbConfig::new(url);
+    cfg.pool_size = 1;
+    cfg.acquire_timeout = std::time::Duration::from_secs(5);
+    let db = Db::connect(&cfg).await.expect("kết nối DB");
+    let t = db.tenant(CompanyRef::new(1).unwrap()).await.unwrap();
+    (db, t)
+}
+
+#[tokio::test]
+#[ignore = "cần TEST_DATABASE_URL"]
+async fn pool_mot_ket_noi_khong_bi_ket() {
+    let (_db, _t) = setup().await;
+    seed_metrics(&_t).await;
+    // Pool chỉ có 1 kết nối: gửi bản tin (đọc, dựng, rồi ghi từng người) không được giữ hai kết nối cùng lúc.
+    let (_db1, t1) = small_pool_db().await;
+    let ports = TestPorts::new(true);
+    let r = tokio::time::timeout(
+        std::time::Duration::from_secs(20),
+        mod_briefings::run_slot(&t1, &ports, Slot::Morning, None, now()),
+    )
+    .await
+    .expect("run_slot bị kẹt pool")
+    .unwrap();
+    assert_eq!((r.created, r.channels.get("in_app").copied()), (3, Some(3)));
+}
+
+#[tokio::test]
+#[ignore = "cần TEST_DATABASE_URL"]
+async fn ban_tin_va_thong_bao_cung_giao_dich() {
+    let (_db, t) = setup().await;
+    seed_metrics(&t).await;
+    let ports = TestPorts::new(true);
+    // Mỗi bản tin có đúng một thông báo cùng id trong action_url và `channels` khớp; không có bản tin thiếu thông báo.
+    mod_briefings::run_slot(&t, &ports, Slot::Morning, None, now())
+        .await
+        .unwrap();
+    assert_eq!(
+        count(&t, "SELECT count(*) FROM briefings b WHERE b.channels = '[\"in_app\"]'::jsonb AND EXISTS (SELECT 1 FROM notification_logs n WHERE n.recipient_id = b.user_id AND n.action_url = '/briefings?id=' || b.id)").await,
+        3
+    );
+}
+
+#[tokio::test]
+#[ignore = "cần TEST_DATABASE_URL"]
+async fn tran_nguoi_nhan_loc_nguoi_da_nhan_truoc() {
+    let (_db, t) = setup().await;
+    let mut c = t.acquire().await.unwrap();
+    exec(&mut c, "INSERT INTO users (id, email, password_hash, full_name, status, updated_at) SELECT g, 'x' || g || '@example.com', 'x', 'X', 'active', now() FROM generate_series(10, 609) g").await;
+    drop(c);
+    let mut ports = TestPorts::new(true);
+    ports.extra = 600;
+    let r = mod_briefings::run_slot(&t, &ports, Slot::Morning, None, now())
+        .await
+        .unwrap();
+    assert_eq!(r.recipients, 500, "trần 500 người mỗi lượt");
+    // Người 4 bị khoá nên không có bản tin: 500 người nhận, 499 bản tin.
+    assert_eq!(count(&t, "SELECT count(*) FROM briefings").await, 499);
+    // Lượt sau: người đã nhận bị loại TRƯỚC khi cắt trần, nên những người còn lại tới lượt.
+    let r2 = mod_briefings::run_slot(&t, &ports, Slot::Morning, None, now())
+        .await
+        .unwrap();
+    assert_eq!((r2.skipped, r2.recipients), (499, 105));
+    assert_eq!(count(&t, "SELECT count(*) FROM briefings").await, 603);
+}
+
+#[tokio::test]
+#[ignore = "cần TEST_DATABASE_URL"]
+async fn bang_noi_bat_chi_nguoi_trong_pham_vi_va_gia_tri_rong_xep_cuoi() {
+    let (_db, t) = setup().await;
+    seed_metrics(&t).await;
+    let mut c = t.acquire().await.unwrap();
+    // Deal do người trong nhóm tạo nhưng giao cho người 1 (ngoài nhóm [2, 3]): tính vào số liệu chung, không lên bảng.
+    exec(&mut c, "INSERT INTO deals (title, status, assigned_to, created_by, value, won_at, updated_at) VALUES ('ngoai', 'won', 1, 2, 9000000, '2026-11-26T04:00:00Z', '2026-11-26T04:00:00Z')").await;
+    let team = mod_briefings::aggregate::collect(&mut c, &Owners::Users(vec![2, 3]), Slot::Morning, now())
+        .await
+        .unwrap();
+    assert_eq!(team.metrics.deals_won.value, 4);
+    let ids: Vec<i32> = team.metrics.top_sellers.iter().map(|s| s.user_id).collect();
+    assert_eq!(ids, [2, 3], "người 1 ngoài phạm vi không hiện ở bảng nổi bật");
+    // Người bán chỉ có deal không giá trị (NULL) xếp CUỐI (như 0), không lên đầu bảng.
+    exec(&mut c, "DELETE FROM deals WHERE title = 'ngoai'").await;
+    exec(&mut c, "INSERT INTO deals (title, status, assigned_to, created_by, value, won_at, updated_at) VALUES ('rong', 'won', 1, 1, NULL, '2026-11-26T04:00:00Z', '2026-11-26T04:00:00Z')").await;
+    let all = mod_briefings::aggregate::collect(&mut c, &Owners::All, Slot::Morning, now())
+        .await
+        .unwrap();
+    let top: Vec<(i32, i64)> = all
+        .metrics
+        .top_sellers
+        .iter()
+        .map(|s| (s.user_id, s.won_value))
+        .collect();
+    assert_eq!(top, [(2, 1_250_000), (3, 500_000), (1, 0)]);
+}
+
+#[tokio::test]
+#[ignore = "cần TEST_DATABASE_URL"]
+async fn hai_lan_sua_cau_hinh_dong_thoi_khong_ghi_de_nhau() {
+    let (_db, t) = setup().await;
+    let (pa, pb, pc) = (
+        serde_json::json!({"morning_time": "06:00"}),
+        serde_json::json!({"evening_time": "19:00"}),
+        serde_json::json!({"enabled": true}),
+    );
+    let a = mod_briefings::update_config(&t, &pa, 1);
+    let b = mod_briefings::update_config(&t, &pb, 2);
+    let c = mod_briefings::update_config(&t, &pc, 3);
+    let (ra, rb, rc) = tokio::join!(a, b, c);
+    ra.unwrap();
+    rb.unwrap();
+    rc.unwrap();
+    let mut conn = t.acquire().await.unwrap();
+    let cfg = mod_briefings::config::get(&mut conn).await;
+    assert_eq!(
+        (cfg.morning_time.as_str(), cfg.evening_time.as_str(), cfg.enabled),
+        ("06:00", "19:00", true)
+    );
+}
+
+#[tokio::test]
+#[ignore = "cần TEST_DATABASE_URL"]
+async fn slot_gan_nua_dem_chay_tre_mang_ngay_cua_slot() {
+    let (_db, t) = setup().await;
+    seed_metrics(&t).await;
+    let ports = TestPorts::new(true);
+    mod_briefings::update_config(
+        &t,
+        &serde_json::json!({"enabled": true, "evening_time": "23:00", "morning_enabled": false}),
+        1,
+    )
+    .await
+    .unwrap();
+    // 00:30 ngày 28/11 giờ VN: slot 23:00 của 27/11 còn trong 4 giờ bù.
+    let late = at("2026-11-27T17:30:00Z");
+    let RunDue::Ran(runs) = mod_briefings::run_due(&t, &ports, late).await.unwrap() else {
+        panic!("phải chạy")
+    };
+    assert_eq!((runs.len(), runs[0].slot, runs[0].created), (1, Slot::Evening, 3));
+    assert_eq!(
+        count(
+            &t,
+            "SELECT count(*) FROM briefings WHERE day = '2026-11-27' AND slot = 'evening'"
+        )
+        .await,
+        3
+    );
+    // Lượt sau không gửi trùng; hết thời gian bù thì không gửi nữa.
+    let RunDue::Ran(runs) = mod_briefings::run_due(&t, &ports, at("2026-11-27T18:00:00Z"))
+        .await
+        .unwrap()
+    else {
+        panic!("phải chạy")
+    };
+    assert_eq!(runs[0].created, 0);
+    let RunDue::Ran(runs) = mod_briefings::run_due(&t, &ports, at("2026-11-27T20:00:00Z"))
+        .await
+        .unwrap()
+    else {
+        panic!("phải chạy")
+    };
+    assert!(runs.is_empty());
+    // Số liệu thuộc ngày của slot (27/11), không phải ngày mới.
+    let day: String = {
+        let mut c = t.acquire().await.unwrap();
+        sqlx::query_scalar("SELECT data->>'day' FROM briefings LIMIT 1")
+            .fetch_one(&mut *c)
+            .await
+            .unwrap()
+    };
+    assert_eq!(day, "2026-11-27");
 }

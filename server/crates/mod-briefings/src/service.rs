@@ -18,7 +18,7 @@ use trinity_kernel::vn_time::vn_clock_minutes;
 use crate::aggregate::collect;
 use crate::config::{self, Patch};
 use crate::text::{build_content, short_body};
-use crate::time::{is_slot_due, vn_day_key};
+use crate::time::{due_reference, vn_day_key};
 use crate::types::{BriefingData, Config, Content, Owners, Slot};
 
 /// Quyền để xem bản tin; người giữ quyền này là người nhận.
@@ -168,8 +168,10 @@ pub async fn get_config<P: Ports>(db: &TenantDb, ports: &P) -> Result<ConfigResp
 /// `PATCH /briefings/config` (`settings.integrations`): thân request thô, kiểm như DTO.
 pub async fn update_config(db: &TenantDb, body: &serde_json::Value, user_id: i32) -> Result<Config> {
     let patch = Patch::parse(body).map_err(Error::Http)?;
-    let mut conn = db.acquire().await?;
-    Ok(config::update(&mut conn, &patch, user_id).await?)
+    let mut tx = db.begin().await?;
+    let next = config::update(&mut tx, &patch, user_id).await?;
+    tx.commit().await?;
+    Ok(next)
 }
 
 /// Cổng `RequireOrgFeature('ai_briefing')`.
@@ -270,6 +272,9 @@ pub async fn one(db: &TenantDb, user_id: i32, id: i32) -> Result<Briefing> {
 }
 
 /// Job mỗi phút: gửi slot nào đã đến giờ mà chưa gửi hôm nay. Tắt bằng `enabled`/cờ ⇒ không làm gì.
+///
+/// Giờ hẹn gần nửa đêm (vd 23:00 với thời gian bù 4 giờ) còn "đến giờ" sau 00:00 ngày VN kế tiếp: khi đó bản tin mang
+/// NGÀY của slot (ngày hôm trước) và số liệu tính tới hết ngày đó, xem [`due_reference`].
 pub async fn run_due<P: Ports>(db: &TenantDb, ports: &P, now: DateTime<Utc>) -> Result<RunDue> {
     let cfg = {
         let mut conn = db.acquire().await?;
@@ -287,14 +292,25 @@ pub async fn run_due<P: Ports>(db: &TenantDb, ports: &P, now: DateTime<Utc>) -> 
         (Slot::Morning, cfg.morning_enabled, &cfg.morning_time),
         (Slot::Evening, cfg.evening_enabled, &cfg.evening_time),
     ] {
-        if on && is_slot_due(time, now) {
-            out.push(run_slot(db, ports, slot, Some(&cfg), now).await?);
+        if on && let Some(reference) = due_reference(time, now) {
+            out.push(run_slot(db, ports, slot, Some(&cfg), reference).await?);
         }
     }
     Ok(RunDue::Ran(out))
 }
 
-/// Dựng và gửi một slot cho mọi người giữ `reports.overview`. Idempotent: khoá duy nhất (user, slot, ngày) chặn gửi trùng.
+/// Một người nhận đã dựng xong nội dung, chờ ghi.
+struct Pending {
+    user_id: i32,
+    data: BriefingData,
+    content: Content,
+}
+
+/// Dựng và gửi một slot cho mọi người giữ `reports.overview`. `now` là mốc tham chiếu của số liệu và của khoá ngày
+/// (`vn_day_key(now)`). Idempotent: khoá duy nhất (user, slot, ngày) chặn gửi trùng.
+///
+/// Hai pha để mỗi lúc chỉ giữ MỘT kết nối của pool (pool nhỏ không bị kẹt): pha 1 đọc và dựng nội dung bằng một kết nối rồi
+/// trả về; pha 2 ghi từng người trong MỘT giao dịch riêng (bản tin + thông báo + danh sách kênh, cùng commit hoặc cùng huỷ).
 pub async fn run_slot<P: Ports>(
     db: &TenantDb,
     ports: &P,
@@ -302,62 +318,74 @@ pub async fn run_slot<P: Ports>(
     cfg: Option<&Config>,
     now: DateTime<Utc>,
 ) -> Result<RunResult> {
-    let mut conn = db.acquire().await?;
-    let config = match cfg {
-        Some(c) => c.clone(),
-        None => config::get(&mut conn).await,
-    };
     let day = vn_day_key(now);
-    let mut ids = ports.recipients(&mut conn).await;
-    ids.sort_unstable();
-    ids.dedup();
-    ids.truncate(MAX_RECIPIENTS);
-    let done: BTreeSet<i32> =
-        sqlx::query_scalar("SELECT user_id FROM briefings WHERE slot = $1 AND day = $2 AND user_id = ANY($3)")
-            .bind(slot.as_str())
-            .bind(&day)
-            .bind(&ids)
-            .fetch_all(&mut *conn)
-            .await?
-            .into_iter()
-            .collect();
-    let todo: Vec<i32> = ids.into_iter().filter(|id| !done.contains(id)).collect();
-    let mut result = RunResult {
-        slot,
-        recipients: todo.len() as i64,
-        created: 0,
-        skipped: done.len() as i64,
-        channels: BTreeMap::new(),
-    };
-    if todo.is_empty() {
-        return Ok(result);
-    }
-    let users: Vec<(i32, String)> = sqlx::query_as(
-        "SELECT id, email FROM users WHERE id = ANY($1) AND status = 'active' AND deleted_at IS NULL ORDER BY id",
-    )
-    .bind(&todo)
-    .fetch_all(&mut *conn)
-    .await?;
-    let mut groups: HashMap<String, (BriefingData, Content)> = HashMap::new();
-    for (user_id, email) in users {
-        let Some(owners) = ports.owners_for(&mut conn, user_id, &email).await else {
-            continue;
+    let (config, mut result, pending) = {
+        let mut conn = db.acquire().await?;
+        let config = match cfg {
+            Some(c) => c.clone(),
+            None => config::get(&mut conn).await,
         };
-        let key = match &owners {
-            Owners::All => "all".to_owned(),
-            Owners::Users(v) => {
-                let mut v = v.clone();
-                v.sort_unstable();
-                v.iter().map(i32::to_string).collect::<Vec<_>>().join(",")
-            }
+        let mut ids = ports.recipients(&mut conn).await;
+        ids.sort_unstable();
+        ids.dedup();
+        // Lọc người đã nhận TRƯỚC khi cắt trần, để người đứng sau trần vẫn tới lượt khi những người đứng trước đã nhận.
+        let done: BTreeSet<i32> =
+            sqlx::query_scalar("SELECT user_id FROM briefings WHERE slot = $1 AND day = $2 AND user_id = ANY($3)")
+                .bind(slot.as_str())
+                .bind(&day)
+                .bind(&ids)
+                .fetch_all(&mut *conn)
+                .await?
+                .into_iter()
+                .collect();
+        let mut todo: Vec<i32> = ids.into_iter().filter(|id| !done.contains(id)).collect();
+        todo.truncate(MAX_RECIPIENTS);
+        let result = RunResult {
+            slot,
+            recipients: todo.len() as i64,
+            created: 0,
+            skipped: done.len() as i64,
+            channels: BTreeMap::new(),
         };
-        if !groups.contains_key(&key) {
-            let data = collect(&mut conn, &owners, slot, now).await?;
-            let content = build_content(&data);
-            groups.insert(key.clone(), (data, content));
+        if todo.is_empty() {
+            return Ok(result);
         }
-        let (data, content) = &groups[&key];
-        deliver(db, &mut conn, data, content, slot, &day, user_id, &config, &mut result).await?;
+        let users: Vec<(i32, String)> = sqlx::query_as(
+            "SELECT id, email FROM users WHERE id = ANY($1) AND status = 'active' AND deleted_at IS NULL ORDER BY id",
+        )
+        .bind(&todo)
+        .fetch_all(&mut *conn)
+        .await?;
+        let mut groups: HashMap<String, (BriefingData, Content)> = HashMap::new();
+        let mut pending = Vec::with_capacity(users.len());
+        for (user_id, email) in users {
+            let Some(owners) = ports.owners_for(&mut conn, user_id, &email).await else {
+                continue;
+            };
+            let key = match &owners {
+                Owners::All => "all".to_owned(),
+                Owners::Users(v) => {
+                    let mut v = v.clone();
+                    v.sort_unstable();
+                    v.iter().map(i32::to_string).collect::<Vec<_>>().join(",")
+                }
+            };
+            if !groups.contains_key(&key) {
+                let data = collect(&mut conn, &owners, slot, now).await?;
+                let content = build_content(&data);
+                groups.insert(key.clone(), (data, content));
+            }
+            let (data, content) = &groups[&key];
+            pending.push(Pending {
+                user_id,
+                data: data.clone(),
+                content: content.clone(),
+            });
+        }
+        (config, result, pending)
+    };
+    for p in &pending {
+        deliver(db, p, slot, &day, &config, &mut result).await?;
     }
     tracing::info!(
         "Bản tin {}: {}/{} người, kênh {:?}",
@@ -369,70 +397,58 @@ pub async fn run_slot<P: Ports>(
     Ok(result)
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Ghi một bản tin: dòng `briefings`, thông báo trong app và danh sách kênh trong MỘT giao dịch. Lỗi tạo thông báo không
+/// làm hỏng bản tin (kênh đó không được ghi vào `channels`); lỗi DB thật thì cả giao dịch huỷ và không có gì nửa vời.
 async fn deliver(
     db: &TenantDb,
-    conn: &mut PgConnection,
-    data: &BriefingData,
-    content: &Content,
+    p: &Pending,
     slot: Slot,
     day: &str,
-    user_id: i32,
     cfg: &Config,
     result: &mut RunResult,
 ) -> Result<()> {
-    let data_json = serde_json::to_string(data).map_err(|e| Error::Internal(e.to_string()))?;
+    let data_json = serde_json::to_string(&p.data).map_err(|e| Error::Internal(e.to_string()))?;
+    let mut tx = db.begin().await?;
     let id: Option<i32> = sqlx::query_scalar(
         "INSERT INTO briefings (user_id, slot, day, title, text, data) VALUES ($1, $2, $3, $4, $5, $6::text::jsonb)
          ON CONFLICT (user_id, slot, day) DO NOTHING RETURNING id",
     )
-    .bind(user_id)
+    .bind(p.user_id)
     .bind(slot.as_str())
     .bind(day)
-    .bind(&content.title)
-    .bind(&content.text)
+    .bind(&p.content.title)
+    .bind(&p.content.text)
     .bind(data_json)
-    .fetch_optional(&mut *conn)
+    .fetch_optional(&mut *tx)
     .await?;
     let Some(id) = id else {
         result.skipped += 1;
         return Ok(());
     };
-    result.created += 1;
     let mut sent: Vec<&str> = Vec::new();
     if cfg.in_app {
-        // Lỗi một kênh không chặn việc gửi (bản tin đã lưu); kênh lỗi không ghi vào `channels`.
-        match notify_in_app(db, user_id, slot, id, content).await {
-            Ok(true) => {
-                sent.push(CHANNEL_IN_APP);
-                *result.channels.entry(CHANNEL_IN_APP.to_owned()).or_insert(0) += 1;
-            }
-            Ok(false) => {}
-            Err(e) => tracing::warn!("Gửi bản tin {id} qua {CHANNEL_IN_APP} lỗi: {e:?}"),
+        let item = NewNotification {
+            recipient_id: p.user_id,
+            event_type: format!("briefing.{}", slot.as_str()),
+            title: p.content.title.clone(),
+            body: short_body(&p.content),
+            action_url: Some(format!("/briefings?id={id}")),
+        };
+        match create_notification(&mut tx, &[item]).await {
+            Ok(created) if !created.is_empty() => sent.push(CHANNEL_IN_APP),
+            Ok(_) => {}
+            Err(e) => tracing::warn!("Gửi bản tin {id} qua {CHANNEL_IN_APP} lỗi: {e}"),
         }
     }
     sqlx::query("UPDATE briefings SET channels = $2::text::jsonb WHERE id = $1")
         .bind(id)
         .bind(serde_json::to_string(&sent).map_err(|e| Error::Internal(e.to_string()))?)
-        .execute(&mut *conn)
+        .execute(&mut *tx)
         .await?;
-    Ok(())
-}
-
-async fn notify_in_app(db: &TenantDb, user_id: i32, slot: Slot, briefing_id: i32, content: &Content) -> Result<bool> {
-    let mut tx = db.begin().await?;
-    let created = create_notification(
-        &mut tx,
-        &[NewNotification {
-            recipient_id: user_id,
-            event_type: format!("briefing.{}", slot.as_str()),
-            title: content.title.clone(),
-            body: short_body(content),
-            action_url: Some(format!("/briefings?id={briefing_id}")),
-        }],
-    )
-    .await
-    .map_err(|e| Error::Internal(e.to_string()))?;
     tx.commit().await?;
-    Ok(!created.is_empty())
+    result.created += 1;
+    for ch in sent {
+        *result.channels.entry(ch.to_owned()).or_insert(0) += 1;
+    }
+    Ok(())
 }

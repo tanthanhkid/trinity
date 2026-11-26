@@ -189,7 +189,9 @@ async fn callbacks(conn: &mut PgConnection, all: bool, ids: &[i32], r: Range) ->
         .await
 }
 
-/// Chỉ có nghĩa khi phạm vi > 1 người; top 3 theo giá trị deal thắng trong kỳ.
+/// Chỉ có nghĩa khi phạm vi > 1 người; top 3 theo giá trị deal thắng trong kỳ. Bảng chỉ gồm người trong phạm vi (deal do người
+/// trong nhóm tạo nhưng giao cho người ngoài nhóm vẫn tính vào số liệu chung, không hiện người ngoài nhóm ở bảng nổi bật).
+/// Giá trị rỗng xếp như 0 (không lên đầu bảng như `DESC` mặc định của Postgres).
 async fn top_sellers(conn: &mut PgConnection, owners: &Owners, r: Range) -> Result<Vec<TopSeller>, sqlx::Error> {
     if matches!(owners, Owners::Users(v) if v.len() <= 1) {
         return Ok(Vec::new());
@@ -198,8 +200,9 @@ async fn top_sellers(conn: &mut PgConnection, owners: &Owners, r: Range) -> Resu
     let rows: Vec<(i32, i64, Option<i64>)> = sqlx::query_as(
         "SELECT d.assigned_to, count(*), sum(d.value)::int8 FROM deals d
          WHERE ($1 OR d.assigned_to = ANY($2) OR d.created_by = ANY($2))
+           AND ($1 OR d.assigned_to = ANY($2))
            AND d.status = 'won' AND ((d.won_at >= $3 AND d.won_at < $4) OR (d.won_at IS NULL AND d.updated_at >= $3 AND d.updated_at < $4))
-         GROUP BY d.assigned_to ORDER BY sum(d.value) DESC, d.assigned_to LIMIT 3",
+         GROUP BY d.assigned_to ORDER BY COALESCE(sum(d.value), 0) DESC, d.assigned_to LIMIT 3",
     )
     .bind(all)
     .bind(&ids)

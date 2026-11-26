@@ -126,9 +126,35 @@ impl Patch {
     }
 }
 
+/// Đọc cấu hình để GỘP bản vá: lỗi truy vấn là lỗi (không lặng lẽ về mặc định rồi ghi đè cấu hình thật); JSON hỏng thì coi
+/// như chưa có cấu hình (cùng cách [`get`] đọc để chạy).
+async fn read_for_update(conn: &mut PgConnection) -> Result<Config, sqlx::Error> {
+    let text: Option<String> = sqlx::query_scalar("SELECT value FROM settings WHERE key = $1 FOR UPDATE")
+        .bind(KEY)
+        .fetch_optional(&mut *conn)
+        .await?;
+    Ok(match text {
+        None => Config::default(),
+        Some(t) => match serde_json::from_str::<Value>(&t) {
+            Ok(v) => normalize(Some(&v)),
+            Err(e) => {
+                tracing::warn!("Cấu hình bản tin hỏng, ghi đè bằng mặc định đã gộp bản vá: {e}");
+                Config::default()
+            }
+        },
+    })
+}
+
 /// Gộp bản vá vào cấu hình hiện tại, chuẩn hoá và lưu (`upsert` một dòng). Trả cấu hình mới.
+///
+/// PHẢI chạy trong một giao dịch (`update_config` của service làm việc đó): khoá tư vấn cùng khoá `settings` serialize hai
+/// lượt sửa đồng thời kể cả khi dòng chưa tồn tại (`FOR UPDATE` không khoá được dòng chưa có), nên bản vá không ghi đè nhau.
 pub async fn update(conn: &mut PgConnection, patch: &Patch, user_id: i32) -> Result<Config, sqlx::Error> {
-    let mut c = get(conn).await;
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1))")
+        .bind(KEY)
+        .execute(&mut *conn)
+        .await?;
+    let mut c = read_for_update(conn).await?;
     if let Some(v) = patch.enabled {
         c.enabled = v;
     }

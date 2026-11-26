@@ -27,6 +27,7 @@ trinity-realtime = { path = "crates/trinity-realtime" }
 trinity-docgen = { path = "crates/trinity-docgen" }
 trinity-obs = { path = "crates/trinity-obs" }
 trinity-ops = { path = "crates/trinity-ops" }
+trinity-integrations = { path = "crates/trinity-integrations" }
 
 # Runtime, HTTP
 tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync"] }

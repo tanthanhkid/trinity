@@ -1,0 +1,294 @@
+{
+ "texts": [
+  {
+   "in": "gọi 0912345678 lúc 9h",
+   "out": "gọi ***678 lúc 9h"
+  },
+  {
+   "in": "số +84 912 345 678 và 028.3822.1234",
+   "out": "số ***678 và ***234"
+  },
+  {
+   "in": "ngày 2026-11-27 mã 12345678",
+   "out": "ngày 2026-11-27 mã 12345678"
+  },
+  {
+   "in": "Bearer abc.def-ghi_jkl=",
+   "out": "Bearer [redacted]"
+  },
+  {
+   "in": "bearer   TOKENxyz",
+   "out": "Bearer [redacted]"
+  },
+  {
+   "in": "khoá aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa hết",
+   "out": "khoá [redacted] hết"
+  },
+  {
+   "in": "abababababababababababababababababababab",
+   "out": "[redacted]"
+  },
+  {
+   "in": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": "[redacted]"
+  },
+  {
+   "in": "đđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđ",
+   "out": "đđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđđ…"
+  },
+  {
+   "in": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+   "out": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀…"
+  },
+  {
+   "in": "lỗi 500 tại /api/v1/contacts/123456789",
+   "out": "lỗi 500 tại /api/v1/contacts/***789"
+  },
+  {
+   "in": "1 2 3 4 5 6 7 8 9",
+   "out": "***789"
+  },
+  {
+   "in": "12.345.678",
+   "out": "12.345.678"
+  },
+  {
+   "in": "",
+   "out": ""
+  },
+  {
+   "in": "plain",
+   "out": "plain"
+  }
+ ],
+ "metas": [
+  {
+   "in": {
+    "phone": "0912345678",
+    "name": "An",
+    "api_key": "sk-123",
+    "nested": {
+     "token": "x",
+     "msg": "gọi 0987654321",
+     "deep": {
+      "a": {
+       "b": {
+        "c": {
+         "d": 1
+        }
+       }
+      }
+     }
+    }
+   },
+   "out": {
+    "phone": "***678",
+    "name": "An",
+    "api_key": "[redacted]",
+    "nested": {
+     "token": "[redacted]",
+     "msg": "gọi ***321",
+     "deep": {
+      "a": {
+       "b": {
+        "c": "[truncated]"
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "in": {
+    "list": [
+     "item0",
+     "item1",
+     "item2",
+     "item3",
+     "item4",
+     "item5",
+     "item6",
+     "item7",
+     "item8",
+     "item9",
+     "item10",
+     "item11",
+     "item12",
+     "item13",
+     "item14",
+     "item15",
+     "item16",
+     "item17",
+     "item18",
+     "item19",
+     "item20",
+     "item21",
+     "item22",
+     "item23",
+     "item24"
+    ],
+    "n": 3,
+    "b": true,
+    "z": null
+   },
+   "out": {
+    "list": [
+     "item0",
+     "item1",
+     "item2",
+     "item3",
+     "item4",
+     "item5",
+     "item6",
+     "item7",
+     "item8",
+     "item9",
+     "item10",
+     "item11",
+     "item12",
+     "item13",
+     "item14",
+     "item15",
+     "item16",
+     "item17",
+     "item18",
+     "item19"
+    ],
+    "n": 3,
+    "b": true,
+    "z": null
+   }
+  },
+  {
+   "in": {
+    "k00": 0,
+    "k01": 1,
+    "k02": 2,
+    "k03": 3,
+    "k04": 4,
+    "k05": 5,
+    "k06": 6,
+    "k07": 7,
+    "k08": 8,
+    "k09": 9,
+    "k10": 10,
+    "k11": 11,
+    "k12": 12,
+    "k13": 13,
+    "k14": 14,
+    "k15": 15,
+    "k16": 16,
+    "k17": 17,
+    "k18": 18,
+    "k19": 19,
+    "k20": 20,
+    "k21": 21,
+    "k22": 22,
+    "k23": 23,
+    "k24": 24,
+    "k25": 25,
+    "k26": 26,
+    "k27": 27,
+    "k28": 28,
+    "k29": 29,
+    "k30": 30,
+    "k31": 31,
+    "k32": 32,
+    "k33": 33,
+    "k34": 34
+   },
+   "out": {
+    "k00": 0,
+    "k01": 1,
+    "k02": 2,
+    "k03": 3,
+    "k04": 4,
+    "k05": 5,
+    "k06": 6,
+    "k07": 7,
+    "k08": 8,
+    "k09": 9,
+    "k10": 10,
+    "k11": 11,
+    "k12": 12,
+    "k13": 13,
+    "k14": 14,
+    "k15": 15,
+    "k16": 16,
+    "k17": 17,
+    "k18": 18,
+    "k19": 19,
+    "k20": 20,
+    "k21": 21,
+    "k22": 22,
+    "k23": 23,
+    "k24": 24,
+    "k25": 25,
+    "k26": 26,
+    "k27": 27,
+    "k28": 28,
+    "k29": 29
+   }
+  },
+  {
+   "in": {
+    "Authorization": "Bearer abc",
+    "mobile": "+84 912 345 678",
+    "tel": "028 3822 1234",
+    "telephone": "1234567890",
+    "note": "Cookie=abc"
+   },
+   "out": {
+    "Authorization": "[redacted]",
+    "mobile": "***678",
+    "tel": "***234",
+    "telephone": "***890",
+    "note": "Cookie=abc"
+   }
+  },
+  {
+   "in": {
+    "arr": [
+     {
+      "secret": 1,
+      "ok": "fine"
+     },
+     [
+      [
+       [
+        "deep"
+       ]
+      ]
+     ]
+    ]
+   },
+   "out": {
+    "arr": [
+     {
+      "secret": "[redacted]",
+      "ok": "fine"
+     },
+     [
+      [
+       [
+        "deep"
+       ]
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "in": {},
+   "out": {}
+  },
+  {
+   "in": {
+    "s": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "out": {
+    "s": "[redacted]"
+   }
+  }
+ ]
+}

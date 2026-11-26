@@ -1,0 +1,833 @@
+{
+  "scope_order": [
+    "own",
+    "team",
+    "subtree",
+    "all"
+  ],
+  "permission_groups": [
+    "Khách hàng",
+    "Deal",
+    "Báo cáo",
+    "Công việc",
+    "Bảng tin",
+    "Nhân sự",
+    "Lương",
+    "Sản phẩm",
+    "Bán hàng (POS)",
+    "Tính năng tuỳ biến",
+    "Người dùng & tổ chức",
+    "Hệ thống",
+    "Kết nối & AI"
+  ],
+  "retired_permissions": [
+    "extensions.view",
+    "extensions.draft",
+    "extensions.approve"
+  ],
+  "permissions": [
+    {
+      "key": "contacts.view",
+      "group": "Khách hàng",
+      "label": "Xem khách hàng",
+      "scoped": true
+    },
+    {
+      "key": "contacts.create",
+      "group": "Khách hàng",
+      "label": "Thêm khách hàng",
+      "scoped": false
+    },
+    {
+      "key": "contacts.update",
+      "group": "Khách hàng",
+      "label": "Sửa khách hàng",
+      "scoped": true
+    },
+    {
+      "key": "contacts.delete",
+      "group": "Khách hàng",
+      "label": "Xoá khách hàng",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "contacts.transfer",
+      "group": "Khách hàng",
+      "label": "Chuyển khách cho người khác",
+      "scoped": true
+    },
+    {
+      "key": "contacts.export",
+      "group": "Khách hàng",
+      "label": "Xuất Excel khách hàng",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "contacts.phone_full",
+      "group": "Khách hàng",
+      "label": "Xem SĐT đầy đủ",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "contacts.catalog",
+      "group": "Khách hàng",
+      "label": "Cấu hình nguồn/giai đoạn/trạng thái",
+      "scoped": false
+    },
+    {
+      "key": "deals.view",
+      "group": "Deal",
+      "label": "Xem deal",
+      "scoped": true
+    },
+    {
+      "key": "deals.manage",
+      "group": "Deal",
+      "label": "Tạo/sửa deal",
+      "scoped": true
+    },
+    {
+      "key": "deals.delete",
+      "group": "Deal",
+      "label": "Xoá deal",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "reports.overview",
+      "group": "Báo cáo",
+      "label": "Báo cáo Tổng quan",
+      "scoped": true
+    },
+    {
+      "key": "reports.customers",
+      "group": "Báo cáo",
+      "label": "Báo cáo Khách hàng",
+      "scoped": true
+    },
+    {
+      "key": "reports.staff",
+      "group": "Báo cáo",
+      "label": "Báo cáo Hiệu suất nhân viên",
+      "scoped": true
+    },
+    {
+      "key": "reports.channels",
+      "group": "Báo cáo",
+      "label": "Báo cáo Kênh tương tác",
+      "scoped": true
+    },
+    {
+      "key": "reports.export",
+      "group": "Báo cáo",
+      "label": "Xuất báo cáo",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "kanban.view",
+      "group": "Công việc",
+      "label": "Xem công việc",
+      "scoped": true
+    },
+    {
+      "key": "kanban.manage",
+      "group": "Công việc",
+      "label": "Tạo/sửa thẻ",
+      "scoped": true
+    },
+    {
+      "key": "kanban.boards",
+      "group": "Công việc",
+      "label": "Tạo/cấu hình bảng",
+      "scoped": false
+    },
+    {
+      "key": "newsfeed.post",
+      "group": "Bảng tin",
+      "label": "Đăng bài",
+      "scoped": false
+    },
+    {
+      "key": "newsfeed.moderate",
+      "group": "Bảng tin",
+      "label": "Kiểm duyệt bài, ghim",
+      "scoped": false
+    },
+    {
+      "key": "employees.view",
+      "group": "Nhân sự",
+      "label": "Xem hồ sơ nhân viên",
+      "scoped": true
+    },
+    {
+      "key": "employees.manage",
+      "group": "Nhân sự",
+      "label": "Thêm/sửa nhân viên",
+      "scoped": false
+    },
+    {
+      "key": "employees.export",
+      "group": "Nhân sự",
+      "label": "Xuất Excel nhân viên",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "contracts.view",
+      "group": "Nhân sự",
+      "label": "Xem hợp đồng",
+      "scoped": true
+    },
+    {
+      "key": "contracts.manage",
+      "group": "Nhân sự",
+      "label": "Quản lý hợp đồng",
+      "scoped": false
+    },
+    {
+      "key": "recruitment.view",
+      "group": "Nhân sự",
+      "label": "Xem tuyển dụng",
+      "scoped": false
+    },
+    {
+      "key": "recruitment.manage",
+      "group": "Nhân sự",
+      "label": "Quản lý tuyển dụng",
+      "scoped": false
+    },
+    {
+      "key": "attendance.view",
+      "group": "Nhân sự",
+      "label": "Xem chấm công",
+      "scoped": true
+    },
+    {
+      "key": "attendance.manage",
+      "group": "Nhân sự",
+      "label": "Duyệt/sửa chấm công",
+      "scoped": true
+    },
+    {
+      "key": "attendance.export",
+      "group": "Nhân sự",
+      "label": "Xuất chấm công",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "attendance.config",
+      "group": "Nhân sự",
+      "label": "Cấu hình chấm công, ngày công",
+      "scoped": false
+    },
+    {
+      "key": "payroll.view",
+      "group": "Lương",
+      "label": "Xem phiếu lương",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "payroll.manage",
+      "group": "Lương",
+      "label": "Lập bảng lương, công thức, KPI, thuế, BH",
+      "scoped": false,
+      "sensitive": true
+    },
+    {
+      "key": "payroll.approve_team",
+      "group": "Lương",
+      "label": "Duyệt lương bước 1",
+      "scoped": true
+    },
+    {
+      "key": "payroll.approve_final",
+      "group": "Lương",
+      "label": "Duyệt lương bước 2",
+      "scoped": false,
+      "sensitive": true
+    },
+    {
+      "key": "payroll.export",
+      "group": "Lương",
+      "label": "Xuất bảng lương",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "products.view",
+      "group": "Sản phẩm",
+      "label": "Xem sản phẩm/dự án",
+      "scoped": false
+    },
+    {
+      "key": "products.manage",
+      "group": "Sản phẩm",
+      "label": "Quản lý sản phẩm/dự án, tài liệu",
+      "scoped": false
+    },
+    {
+      "key": "pos.sell",
+      "group": "Bán hàng (POS)",
+      "label": "Bán hàng: mở/đóng ca, tạo/sửa/thu/huỷ đơn (phạm vi = xem ca & đơn đã thu của ai)",
+      "scoped": true
+    },
+    {
+      "key": "pos.manage",
+      "group": "Bán hàng (POS)",
+      "label": "Quản lý POS: cấu hình quán, khu vực/bàn/tuỳ chọn món, huỷ đơn đã thu",
+      "scoped": false
+    },
+    {
+      "key": "pos.report",
+      "group": "Bán hàng (POS)",
+      "label": "Báo cáo doanh thu POS theo ngày",
+      "scoped": false
+    },
+    {
+      "key": "custom_objects.manage",
+      "group": "Tính năng tuỳ biến",
+      "label": "Định nghĩa tính năng tuỳ biến: thêm/sửa/xoá thực thể và trường, áp mẫu, chọn vai trò được thấy",
+      "scoped": false,
+      "sensitive": true
+    },
+    {
+      "key": "custom_records.view",
+      "group": "Tính năng tuỳ biến",
+      "label": "Xem dữ liệu của tính năng tuỳ biến",
+      "scoped": true
+    },
+    {
+      "key": "custom_records.manage",
+      "group": "Tính năng tuỳ biến",
+      "label": "Thêm/sửa dữ liệu của tính năng tuỳ biến",
+      "scoped": true
+    },
+    {
+      "key": "custom_records.delete",
+      "group": "Tính năng tuỳ biến",
+      "label": "Xoá dữ liệu của tính năng tuỳ biến",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "custom_records.export",
+      "group": "Tính năng tuỳ biến",
+      "label": "Xuất CSV dữ liệu của tính năng tuỳ biến",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "custom_records.phone_full",
+      "group": "Tính năng tuỳ biến",
+      "label": "Xem SĐT đầy đủ trong dữ liệu tuỳ biến",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "users.view",
+      "group": "Người dùng & tổ chức",
+      "label": "Xem người dùng",
+      "scoped": true
+    },
+    {
+      "key": "users.manage",
+      "group": "Người dùng & tổ chức",
+      "label": "Tạo/sửa/khoá/reset mật khẩu, gán vai trò",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "users.export",
+      "group": "Người dùng & tổ chức",
+      "label": "Xuất Excel người dùng",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "users.phone_full",
+      "group": "Người dùng & tổ chức",
+      "label": "Xem SĐT đầy đủ của người dùng",
+      "scoped": true,
+      "sensitive": true
+    },
+    {
+      "key": "roles.manage",
+      "group": "Người dùng & tổ chức",
+      "label": "Quản lý vai trò và quyền",
+      "scoped": false,
+      "sensitive": true
+    },
+    {
+      "key": "org.manage",
+      "group": "Người dùng & tổ chức",
+      "label": "Sơ đồ tổ chức, phòng ban, team, chức danh",
+      "scoped": false
+    },
+    {
+      "key": "settings.integrations",
+      "group": "Hệ thống",
+      "label": "Khoá API, cấu hình đăng nhập, Slack",
+      "scoped": false,
+      "sensitive": true
+    },
+    {
+      "key": "settings.features",
+      "group": "Hệ thống",
+      "label": "Bật/tắt tính năng của tổ chức",
+      "scoped": false
+    },
+    {
+      "key": "integrations.webhooks",
+      "group": "Kết nối & AI",
+      "label": "Quản lý webhook ra/vào",
+      "scoped": false,
+      "sensitive": true
+    },
+    {
+      "key": "integrations.ai_connect",
+      "group": "Kết nối & AI",
+      "label": "Nối tài khoản của mình vào ChatGPT/Claude (MCP)",
+      "scoped": false
+    },
+    {
+      "key": "integrations.ai_admin",
+      "group": "Kết nối & AI",
+      "label": "Xem/thu hồi mọi kết nối AI, xem nhật ký tích hợp toàn công ty",
+      "scoped": false,
+      "sensitive": true
+    },
+    {
+      "key": "social.post",
+      "group": "Kết nối & AI",
+      "label": "Soạn và đăng bài lên các kênh mạng xã hội đã liên kết",
+      "scoped": false
+    },
+    {
+      "key": "social.manage",
+      "group": "Kết nối & AI",
+      "label": "Liên kết / gỡ kênh mạng xã hội, gỡ bài đã đăng khỏi mạng",
+      "scoped": false,
+      "sensitive": true
+    }
+  ],
+  "org_feature_groups": [
+    {
+      "key": "core",
+      "label": "Cơ bản"
+    },
+    {
+      "key": "channels",
+      "label": "Kênh & hộp thư"
+    },
+    {
+      "key": "sales",
+      "label": "Bán hàng"
+    },
+    {
+      "key": "people",
+      "label": "Nhân sự"
+    },
+    {
+      "key": "advanced",
+      "label": "Nâng cao"
+    }
+  ],
+  "org_features": [
+    {
+      "key": "dashboard",
+      "label": "Tổng quan",
+      "group": "core",
+      "description": "Trang đầu: trợ lý AI đang làm gì, kênh đã kết nối, số liệu chính."
+    },
+    {
+      "key": "contacts",
+      "label": "Khách hàng",
+      "group": "core",
+      "description": "Danh bạ khách hàng, nguồn khách, giai đoạn chăm sóc."
+    },
+    {
+      "key": "kanban",
+      "label": "Công việc",
+      "group": "core",
+      "description": "Bảng công việc dạng thẻ (Kanban), giao việc và hạn chót."
+    },
+    {
+      "key": "reports",
+      "label": "Báo cáo",
+      "group": "core",
+      "description": "Báo cáo khách hàng, nhân viên, kênh."
+    },
+    {
+      "key": "inbox",
+      "label": "Hộp thư",
+      "group": "channels",
+      "description": "Gom tin Messenger và Zalo OA vào một chỗ để trả lời khách."
+    },
+    {
+      "key": "facebook_page",
+      "label": "Fanpage Facebook",
+      "group": "channels",
+      "description": "Nhận và trả lời tin Messenger, bình luận, lead từ Lead Ads vào khách hàng."
+    },
+    {
+      "key": "zalo_oa",
+      "label": "Zalo OA",
+      "group": "channels",
+      "description": "Nhận và trả lời tin Zalo OA, gửi thông báo ZNS."
+    },
+    {
+      "key": "social_posting",
+      "label": "Đăng đa kênh",
+      "group": "channels",
+      "description": "Soạn một lần, đăng hoặc hẹn giờ ra một hoặc nhiều Fanpage; trợ lý AI soạn và đăng được."
+    },
+    {
+      "key": "products",
+      "label": "Sản phẩm",
+      "group": "sales",
+      "description": "Danh mục sản phẩm, dịch vụ và giá."
+    },
+    {
+      "key": "pos",
+      "label": "Bán hàng (POS)",
+      "group": "sales",
+      "description": "Bán hàng tại quầy, in hoá đơn."
+    },
+    {
+      "key": "payments",
+      "label": "Thanh toán & đối soát",
+      "group": "sales",
+      "description": "Đối soát yêu cầu thanh toán cũ: tự khớp tiền về qua SePay, VNPay, MoMo (không tạo yêu cầu mới)."
+    },
+    {
+      "key": "online_store",
+      "label": "Trang bán hàng",
+      "group": "sales",
+      "description": "Trang bán hàng online: khách đặt COD hoặc chuyển khoản QR, đơn vào thẳng CRM."
+    },
+    {
+      "key": "management",
+      "label": "Quản lý nhân sự",
+      "group": "people",
+      "description": "Nhân viên, phòng ban, team, chức danh, hợp đồng, tuyển dụng."
+    },
+    {
+      "key": "attendance",
+      "label": "Chấm công",
+      "group": "people",
+      "description": "Nhân viên tự chấm công, quản lý ngày công."
+    },
+    {
+      "key": "payroll",
+      "label": "Lương",
+      "group": "people",
+      "description": "Bảng lương và phiếu lương."
+    },
+    {
+      "key": "newsfeed",
+      "label": "Bảng tin",
+      "group": "people",
+      "description": "Bảng tin nội bộ của công ty."
+    },
+    {
+      "key": "integrations",
+      "label": "Kết nối & AI",
+      "group": "advanced",
+      "description": "Kết nối trợ lý AI (ChatGPT, Claude, Gemini…), webhook và nhật ký tích hợp."
+    },
+    {
+      "key": "ai_briefing",
+      "label": "Bản tin sáng/chiều",
+      "group": "advanced",
+      "description": "Bản tin số liệu sáng và chiều do trợ lý AI của bạn viết."
+    },
+    {
+      "key": "lead_scoring",
+      "label": "Chấm điểm khách tiềm năng",
+      "group": "advanced",
+      "description": "Chấm điểm khách theo quy tắc; trợ lý AI chấm thêm ý định mua."
+    },
+    {
+      "key": "stale_reminders",
+      "label": "Nhắc việc treo",
+      "group": "advanced",
+      "description": "Nhắc nhân viên liên hệ lại khách hoặc việc quá hạn."
+    }
+  ],
+  "basic_features": [
+    "dashboard",
+    "contacts",
+    "kanban",
+    "reports",
+    "inbox",
+    "integrations"
+  ],
+  "default_off_features": [
+    "online_store"
+  ],
+  "blank_system_features": {
+    "dashboard": false,
+    "contacts": false,
+    "kanban": false,
+    "reports": false,
+    "inbox": false,
+    "facebook_page": false,
+    "zalo_oa": false,
+    "social_posting": false,
+    "products": false,
+    "pos": false,
+    "payments": false,
+    "online_store": false,
+    "management": false,
+    "attendance": false,
+    "payroll": false,
+    "newsfeed": false,
+    "integrations": true,
+    "ai_briefing": false,
+    "lead_scoring": false,
+    "stale_reminders": false
+  },
+  "serverless_locked_features": {},
+  "retired_org_feature_keys": [
+    "google_sheets",
+    "commerce_connectors"
+  ],
+  "setup_statuses": [
+    "chua_dung",
+    "dang_dung",
+    "da_dung"
+  ],
+  "setup_status_setting_key": "setup_status",
+  "plan_keys": [
+    "mac_dinh",
+    "ket_noi",
+    "tro_ly_giam_doc",
+    "tro_ly_kinh_doanh",
+    "tro_ly_van_hanh",
+    "custom"
+  ],
+  "default_plan": "custom",
+  "default_signup_plan": "mac_dinh",
+  "plan_gated_features": [
+    "ai_briefing",
+    "zalo_oa",
+    "lead_scoring",
+    "stale_reminders",
+    "facebook_page"
+  ],
+  "channel_limit_keys": [
+    "bulkMessagesPerDay",
+    "recipientsPerCampaign",
+    "postsPerDay",
+    "autoCommentRepliesPerHour"
+  ],
+  "plans": {
+    "mac_dinh": {
+      "label": "Mặc định",
+      "features": [
+        "ai_briefing",
+        "zalo_oa",
+        "lead_scoring",
+        "stale_reminders",
+        "facebook_page"
+      ],
+      "maxUsers": 10,
+      "channelLimits": {
+        "bulkMessagesPerDay": 200,
+        "recipientsPerCampaign": 200,
+        "postsPerDay": 10,
+        "autoCommentRepliesPerHour": 60
+      }
+    },
+    "ket_noi": {
+      "label": "Kết nối",
+      "features": [],
+      "maxUsers": 10,
+      "channelLimits": {
+        "bulkMessagesPerDay": 200,
+        "recipientsPerCampaign": 200,
+        "postsPerDay": 10,
+        "autoCommentRepliesPerHour": 60
+      }
+    },
+    "tro_ly_giam_doc": {
+      "label": "Trợ lý Giám đốc",
+      "features": [
+        "ai_briefing"
+      ],
+      "maxUsers": 10,
+      "channelLimits": {
+        "bulkMessagesPerDay": 300,
+        "recipientsPerCampaign": 300,
+        "postsPerDay": 15,
+        "autoCommentRepliesPerHour": 60
+      }
+    },
+    "tro_ly_kinh_doanh": {
+      "label": "Trợ lý Kinh doanh",
+      "features": [
+        "ai_briefing",
+        "zalo_oa",
+        "lead_scoring",
+        "stale_reminders",
+        "facebook_page"
+      ],
+      "maxUsers": 30,
+      "channelLimits": {
+        "bulkMessagesPerDay": 1000,
+        "recipientsPerCampaign": 1000,
+        "postsPerDay": 40,
+        "autoCommentRepliesPerHour": 200
+      }
+    },
+    "tro_ly_van_hanh": {
+      "label": "Trợ lý Vận hành",
+      "features": [
+        "ai_briefing",
+        "zalo_oa",
+        "lead_scoring",
+        "stale_reminders",
+        "facebook_page"
+      ],
+      "maxUsers": 60,
+      "channelLimits": {
+        "bulkMessagesPerDay": 3000,
+        "recipientsPerCampaign": 2000,
+        "postsPerDay": 100,
+        "autoCommentRepliesPerHour": 500
+      }
+    },
+    "custom": {
+      "label": "Tuỳ biến",
+      "features": [
+        "ai_briefing",
+        "zalo_oa",
+        "lead_scoring",
+        "stale_reminders",
+        "facebook_page"
+      ],
+      "maxUsers": null,
+      "channelLimits": {
+        "bulkMessagesPerDay": 5000,
+        "recipientsPerCampaign": 2000,
+        "postsPerDay": 200,
+        "autoCommentRepliesPerHour": 1000
+      }
+    }
+  },
+  "industry_keys": [
+    "education_center",
+    "retail_service",
+    "clinic",
+    "real_estate",
+    "other"
+  ],
+  "locked_features": [
+    "dashboard",
+    "contacts",
+    "kanban",
+    "reports"
+  ],
+  "max_build_features": 20,
+  "industry_presets": {
+    "education_center": {
+      "label": "Trung tâm giáo dục",
+      "description": "Phụ huynh, học sinh, khoá học, hoá đơn, ghi danh, thanh toán học phí.",
+      "icon": "GraduationCap",
+      "template": "education_center",
+      "features": [
+        "dashboard",
+        "contacts",
+        "kanban",
+        "reports",
+        "inbox",
+        "facebook_page",
+        "zalo_oa",
+        "social_posting",
+        "payments",
+        "lead_scoring",
+        "stale_reminders",
+        "integrations"
+      ]
+    },
+    "retail_service": {
+      "label": "Bán lẻ và dịch vụ",
+      "description": "Sản phẩm, khách thân thiết, đơn hàng; bán tại quầy và bán online.",
+      "icon": "Store",
+      "template": "retail_service",
+      "features": [
+        "dashboard",
+        "contacts",
+        "kanban",
+        "reports",
+        "inbox",
+        "facebook_page",
+        "zalo_oa",
+        "social_posting",
+        "products",
+        "pos",
+        "payments",
+        "stale_reminders",
+        "integrations"
+      ]
+    },
+    "clinic": {
+      "label": "Phòng khám, spa, thú y",
+      "description": "Bệnh nhân hoặc khách, lịch hẹn, hồ sơ điều trị.",
+      "icon": "Stethoscope",
+      "template": "clinic",
+      "features": [
+        "dashboard",
+        "contacts",
+        "kanban",
+        "reports",
+        "inbox",
+        "facebook_page",
+        "zalo_oa",
+        "products",
+        "payments",
+        "stale_reminders",
+        "integrations"
+      ]
+    },
+    "real_estate": {
+      "label": "Bất động sản",
+      "description": "Dự án, sản phẩm (căn, lô), giữ chỗ, lịch dẫn khách xem.",
+      "icon": "Building2",
+      "template": "real_estate",
+      "features": [
+        "dashboard",
+        "contacts",
+        "kanban",
+        "reports",
+        "inbox",
+        "facebook_page",
+        "zalo_oa",
+        "social_posting",
+        "lead_scoring",
+        "stale_reminders",
+        "integrations"
+      ]
+    },
+    "other": {
+      "label": "Khác",
+      "description": "CRM cơ bản: khách hàng, công việc, báo cáo. Thêm bảng riêng sau khi dùng.",
+      "icon": "Briefcase",
+      "template": null,
+      "features": [
+        "dashboard",
+        "contacts",
+        "kanban",
+        "reports",
+        "inbox",
+        "integrations"
+      ]
+    }
+  }
+}

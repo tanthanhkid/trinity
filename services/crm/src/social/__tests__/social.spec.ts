@@ -274,10 +274,32 @@ describe('SocialPostsService.nextDueAt — giờ bài chờ sớm nhất cho lư
 
 describe('SocialPostsService.validate — mạng đã gỡ', () => {
   const user = { userId: 1, email: 'a@x.vn', isAdmin: true, grants: {} } as never;
-  it('chọn kênh YouTube cũ ⇒ 400 "đã ngừng hỗ trợ", không tạo gì', async () => {
-    const prisma = { socialAccount: { findMany: jest.fn(async () => [{ id: 3, network: 'youtube', name: 'Kênh', status: 'disabled' }]) } };
-    const svc = new SocialPostsService(prisma as never, {} as never, { resolve: jest.fn(async () => []) } as never, { get: () => ({ supported: true }) } as never);
-    await expect(svc.validate(user, { content: 'x', targets: [{ account_id: 3 }] } as never)).rejects.toThrow(/Kênh "Kênh": Trinity đã ngừng hỗ trợ YouTube/);
+  const setup = (status: string) => {
+    const prisma = { socialAccount: { findMany: jest.fn(async () => [{ id: 3, network: 'youtube', name: 'Kênh Bí Mật', status }]) } };
+    return new SocialPostsService(prisma as never, {} as never, { resolve: jest.fn(async () => []) } as never, { get: () => ({ supported: true }) } as never);
+  };
+  it('kênh YouTube đã disabled (sau migration) ⇒ "Không tìm thấy kênh", validate và preview cùng câu, không lộ tên', async () => {
+    const svc = setup('disabled');
+    await expect(svc.validate(user, { content: 'x', targets: [{ account_id: 3 }] } as never)).rejects.toThrow('Không tìm thấy kênh #3.');
+    const p = await svc.preview(user, { content: 'x', targets: [{ account_id: 3 }] });
+    expect(p.targets[0]).toMatchObject({ account_name: '#3', network: null, warnings: ['Không tìm thấy kênh #3.'] });
+  });
+  it('kênh YouTube còn active (chưa migrate) ⇒ "ngừng hỗ trợ", validate và preview cùng câu, không lộ tên', async () => {
+    const svc = setup('active');
+    const msg = 'Kênh #3: Trinity đã ngừng hỗ trợ YouTube: chỉ còn đăng bài lên Fanpage Facebook. Bài cũ vẫn xem được trong lịch sử.';
+    await expect(svc.validate(user, { content: 'x', targets: [{ account_id: 3 }] } as never)).rejects.toThrow(msg);
+    const p = await svc.preview(user, { content: 'x', targets: [{ account_id: 3 }] });
+    expect(p.targets[0]).toMatchObject({ account_name: '#3', network: null, warnings: [msg] });
+    expect(JSON.stringify(p)).not.toContain('Bí Mật');
+  });
+
+  it('refreshPostMetricsReport bỏ qua đích của mạng đã gỡ (không gọi, không tính lỗi)', async () => {
+    const post = { id: 1, targets: [{ id: 9, status: 'published', external_post_id: 'v', network: 'youtube', metrics: null, metrics_at: null }] };
+    const svc = new SocialPostsService({} as never, {} as never, {} as never, {} as never);
+    jest.spyOn(svc, 'get').mockResolvedValue(post as never);
+    const fetch = jest.spyOn(svc as unknown as { fetchTargetMetrics: () => Promise<boolean> }, 'fetchTargetMetrics');
+    expect(await svc.refreshPostMetricsReport(1)).toMatchObject({ failed: [], throttled: [] });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
 

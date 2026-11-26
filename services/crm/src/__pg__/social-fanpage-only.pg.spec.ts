@@ -42,7 +42,7 @@ describePg('Migration 0021 — chỉ còn đăng bài Fanpage (Postgres thật)'
   async function seed() {
     const tok = encryptSecret('token-cũ', loadSecretKey());
     const acc = (id: number, network: string, status = 'active') =>
-      db.socialAccount.create({ data: { id, network, external_id: `x${id}`, name: `Kênh ${network}`, access_token_enc: tok, status, connected_by: 1 } });
+      db.socialAccount.create({ data: { id, network, external_id: `x${id}`, name: `Kênh ${network}`, access_token_enc: tok, refresh_token_enc: network === 'facebook' ? null : tok, token_expires_at: network === 'facebook' ? null : new Date(), status, connected_by: 1 } });
     await acc(1, 'facebook');
     await acc(2, 'youtube');
     await acc(3, 'tiktok', 'reauth');
@@ -85,7 +85,7 @@ describePg('Migration 0021 — chỉ còn đăng bài Fanpage (Postgres thật)'
     const snapshot = async () => ({
       targets: await db.socialPostTarget.findMany({ orderBy: { id: 'asc' }, select: { post_id: true, network: true, status: true, last_error: true, claimed_at: true } }),
       posts: await db.socialPost.findMany({ orderBy: { id: 'asc' }, select: { id: true, status: true } }),
-      accounts: await db.socialAccount.findMany({ orderBy: { id: 'asc' }, select: { id: true, network: true, status: true, last_error: true, access_token_enc: true } }),
+      accounts: await db.socialAccount.findMany({ orderBy: { id: 'asc' }, select: { id: true, network: true, status: true, last_error: true, access_token_enc: true, refresh_token_enc: true, token_expires_at: true } }),
       recurrences: await db.socialRecurrence.findMany({ orderBy: { id: 'asc' }, select: { id: true, active: true, template: true, last_error: true } }),
       drafts: await db.socialDraft.findMany({ select: { targets: true } }),
     });
@@ -109,7 +109,9 @@ describePg('Migration 0021 — chỉ còn đăng bài Fanpage (Postgres thật)'
     expect(s.accounts[0].last_error).toBeNull();
     expect(s.accounts[1].last_error).toBe('Trinity đã ngừng hỗ trợ YouTube: chỉ còn đăng bài lên Fanpage Facebook. Bài cũ vẫn xem được trong lịch sử.');
     expect(s.accounts[4].last_error).toMatch(/Google Business Profile/);
-    expect(s.accounts.every((a) => a.access_token_enc.startsWith('v1.'))).toBe(true); // không ghi đè token
+    // Token của kênh đã gỡ bị xoá trắng (không gọi thu hồi ra ngoài); Fanpage giữ nguyên.
+    expect(s.accounts[0].access_token_enc.startsWith('v1.')).toBe(true);
+    expect(s.accounts.slice(1).map((a) => [a.access_token_enc, a.refresh_token_enc, a.token_expires_at])).toEqual(Array(4).fill(['', null, null]));
 
     expect(s.recurrences[0]).toMatchObject({ active: true, last_error: null });
     expect((s.recurrences[0].template as { targets: unknown[] }).targets).toEqual([{ account_id: 1 }]);

@@ -166,9 +166,10 @@ export class SocialPostsService {
     const byId = new Map(accounts.map((a) => [a.id, a]));
     const resolved: Array<{ account: (typeof accounts)[number]; caption: string | null; options: Record<string, unknown> }> = targets.map((t) => {
       const a = byId.get(t.account_id);
-      const removed = a ? removedNetworkMessage(a.network) : null;
-      if (removed) throw new BadRequestException(`Kênh "${a!.name}": ${removed}`);
       if (!a || a.status === 'disabled') throw new BadRequestException(`Không tìm thấy kênh #${t.account_id}.`);
+      // Kênh mạng đã gỡ mà chưa qua migration 0021 (vẫn active): báo đúng lý do, không lộ tên kênh — cùng câu với preview.
+      const removed = removedNetworkMessage(a.network);
+      if (removed) throw new BadRequestException(`Kênh #${t.account_id}: ${removed}`);
       if (a.status !== 'active') throw new BadRequestException(`Kênh "${a.name}" cần liên kết lại trước khi đăng.`);
       if (!isSocialNetwork(a.network)) throw new BadRequestException(`Kênh "${a.name}" không hợp lệ.`);
       const p = this.providers.get(a.network);
@@ -268,7 +269,10 @@ export class SocialPostsService {
       seen.add(t.account_id);
       if (!a || a.status === 'disabled' || !isSocialNetwork(a.network)) {
         // Kênh đã gỡ / không dùng được: như validate — coi là không có, không trả tên/mạng thật.
-        out.push({ account_id: t.account_id, account_name: `#${t.account_id}`, network: null, text: '', first_comment: null, length: 0, limit: null, truncated_at: null, media: [], warnings: [...warnings, `Không tìm thấy kênh #${t.account_id}.`] });
+        // Cùng câu với validate: kênh mạng đã gỡ còn active (chưa qua migration 0021) ⇒ nói lý do, vẫn không lộ tên.
+        const removed = a && a.status !== 'disabled' ? removedNetworkMessage(a.network) : null;
+        const why = removed ? `Kênh #${t.account_id}: ${removed}` : `Không tìm thấy kênh #${t.account_id}.`;
+        out.push({ account_id: t.account_id, account_name: `#${t.account_id}`, network: null, text: '', first_comment: null, length: 0, limit: null, truncated_at: null, media: [], warnings: [...warnings, why] });
         continue;
       }
       const network = a.network;
@@ -693,7 +697,8 @@ export class SocialPostsService {
     // Vừa thử dưới 1 phút trước (thành công hay lỗi đều đóng mốc metrics_at) ⇒ không gọi mạng lại, báo riêng để không hiểu nhầm là số mới.
     const throttled: number[] = [];
     for (const t of p.targets) {
-      if (t.status !== 'published' || !t.external_post_id || isRemoved(t)) continue;
+      // Bài cũ trên mạng đã gỡ: chỉ còn là lịch sử, không lấy số (không tính là lỗi).
+      if (t.status !== 'published' || !t.external_post_id || isRemoved(t) || !isSocialNetwork(t.network)) continue;
       if (t.metrics_at && now - t.metrics_at.getTime() < MINUTE) {
         throttled.push(t.id);
         continue;

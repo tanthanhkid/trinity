@@ -1,5 +1,6 @@
 -- G04: đăng bài chỉ còn Fanpage Facebook. YouTube, TikTok, Google Business Profile và Instagram đã gỡ khỏi mã.
--- Dữ liệu cũ của bốn mạng này thành LƯU TRỮ: không xoá dòng nào, không đụng token đã lưu, không gọi nhà cung cấp.
+-- Dữ liệu cũ của bốn mạng này thành LƯU TRỮ: không xoá dòng nào, không gọi nhà cung cấp (không thu hồi token phía họ).
+-- Token đã lưu của các kênh này được xoá trắng (như 0020b với Google): không còn mã nào dùng, và người dùng không còn màn nào để tự gỡ.
 -- Bài đã đăng giữ nguyên (lịch sử, số liệu lần lấy cuối). Chạy lại nhiều lần vẫn cho cùng kết quả.
 
 -- 1. Đích chưa đăng trên bốn mạng: job đăng bài không còn provider cho chúng.
@@ -106,10 +107,13 @@ WHERE d."post_id" IS NULL
     WHERE CASE WHEN (x.t ->> 'account_id') ~ '^[0-9]{1,9}$' THEN (x.t ->> 'account_id')::int END IN (SELECT "id" FROM removed)
   );
 
--- 5. Kênh của bốn mạng: `disabled` kèm lý do. Token đã lưu giữ nguyên (đã mã hoá, không còn mã nào đọc); web và API
---    không còn liệt kê, bật lại hay liên kết các kênh này.
+-- 5. Kênh của bốn mạng: `disabled` kèm lý do, xoá trắng token (không gọi thu hồi ra ngoài). Web và API không còn liệt kê,
+--    bật lại hay liên kết các kênh này; tên kênh giữ để bài cũ trong lịch sử vẫn hiện đúng.
 UPDATE "social_accounts"
 SET "status" = 'disabled',
+    "access_token_enc" = '',
+    "refresh_token_enc" = NULL,
+    "token_expires_at" = NULL,
     "last_error" = 'Trinity đã ngừng hỗ trợ ' || CASE "network"
         WHEN 'youtube' THEN 'YouTube'
         WHEN 'tiktok' THEN 'TikTok'
@@ -118,4 +122,5 @@ SET "status" = 'disabled',
       END || ': chỉ còn đăng bài lên Fanpage Facebook. Bài cũ vẫn xem được trong lịch sử.',
     "updated_at" = CURRENT_TIMESTAMP
 WHERE "network" IN ('youtube', 'tiktok', 'google_business', 'instagram')
-  AND ("status" <> 'disabled' OR "last_error" IS NULL OR "last_error" NOT LIKE 'Trinity đã ngừng hỗ trợ %');
+  AND ("status" <> 'disabled' OR "last_error" IS NULL OR "last_error" NOT LIKE 'Trinity đã ngừng hỗ trợ %'
+       OR "access_token_enc" <> '' OR "refresh_token_enc" IS NOT NULL OR "token_expires_at" IS NOT NULL);

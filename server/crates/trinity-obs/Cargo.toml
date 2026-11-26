@@ -10,21 +10,14 @@ publish.workspace = true
 
 [dependencies]
 hmac = { workspace = true }
-regex = { workspace = true }
-reqwest = { workspace = true }
-sentry = { workspace = true }
-serde_json = { workspace = true }
 sha2 = { workspace = true }
-tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-log = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [dev-dependencies]
 log = { workspace = true }
-rustls = { workspace = true }
-sentry = { workspace = true, features = ["test"] }
-tokio = { workspace = true, features = ["io-util", "net", "rt-multi-thread", "macros", "time"] }
+serde_json = { workspace = true }
 
 [lints]
 workspace = true

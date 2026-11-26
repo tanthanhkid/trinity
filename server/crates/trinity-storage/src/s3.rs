@@ -9,7 +9,7 @@ use object_store::signer::Signer;
 use object_store::{Attribute, Attributes, GetOptions, GetRange, ObjectStore, ObjectStoreExt, PutPayload};
 use tokio::io::{AsyncRead, AsyncWriteExt};
 
-use crate::{ByteRange, StorageError, parse_range};
+use crate::{ByteRange, StorageError};
 
 const DEFAULT_CONTENT_TYPE: &str = "application/octet-stream";
 /// Khớp `DEFAULT_PRESIGN_EXPIRY_SECONDS` của `s3-driver.ts` (15 phút).
@@ -94,13 +94,14 @@ impl S3RangedObject {
 ///
 /// Khác bản TS có chủ đích: key đi qua `object_store::path::Path::parse`, nên key rỗng, bắt đầu bằng `/`, có đoạn
 /// rỗng (`a//b`) hoặc đoạn `.`/`..` bị từ chối (`InvalidKey`) thay vì gửi đi; key do hệ thống sinh không có các
-/// dạng này. `object_store` không có API tạo bucket: [`Self::init`] chỉ kiểm bucket truy cập được, bucket phải
-/// có sẵn (MinIO: `mc mb`).
+/// dạng này. [`Self::init`] kiểm bucket và tạo khi thiếu.
 #[derive(Debug, Clone)]
 pub struct S3Driver {
     store: AmazonS3,
     bucket: String,
+    region: String,
     presign_expiry: Duration,
+    http: reqwest::Client,
 }
 
 impl S3Driver {
@@ -118,16 +119,51 @@ impl S3Driver {
         Ok(Self {
             store,
             bucket: config.bucket.clone(),
+            region: config.region.clone(),
             presign_expiry: config.presign_expiry,
+            http: reqwest::Client::builder()
+                .timeout(Duration::from_secs(30))
+                .build()
+                .map_err(|e| StorageError::Backend(e.to_string()))?,
         })
     }
 
-    /// Kiểm bucket truy cập được; lỗi chỉ ghi cảnh báo (như TS: không làm dừng tiến trình).
-    pub async fn init(&self) {
-        let mut it = self.store.list(None);
-        if let Some(Err(e)) = it.next().await {
-            tracing::warn!("Could not verify S3 bucket '{}': {e}", self.bucket);
+    /// Kiểm bucket truy cập được; thiếu (hoặc không truy cập được) thì thử tạo bằng `PUT /{bucket}` ký sẵn như
+    /// `CreateBucketCommand` của bản TS. Không tạo được ⇒ lỗi khởi động (tiến trình phải dừng, đừng chạy với bucket
+    /// hỏng). Thiếu quyền tạo: tạo tay bằng `mc mb <alias>/<bucket>`.
+    pub async fn init(&self) -> Result<(), StorageError> {
+        let probe = self.store.list(None).next().await;
+        let Some(Err(probe_err)) = probe else { return Ok(()) };
+        tracing::warn!("S3 bucket '{}' chưa truy cập được ({probe_err}), thử tạo", self.bucket);
+        let url = self
+            .store
+            .signed_url(http::Method::PUT, &ObjectPath::default(), self.presign_expiry)
+            .await
+            .map_err(backend)?;
+        let body = if self.region == "us-east-1" {
+            String::new()
+        } else {
+            format!(
+                "<CreateBucketConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><LocationConstraint>{}</LocationConstraint></CreateBucketConfiguration>",
+                self.region
+            )
+        };
+        let resp = self
+            .http
+            .put(url)
+            .body(body)
+            .send()
+            .await
+            .map_err(|e| StorageError::Backend(format!("tạo bucket '{}': {e}", self.bucket)))?;
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if status.is_success() || text.contains("BucketAlreadyOwnedByYou") {
+            return Ok(());
         }
+        Err(StorageError::Backend(format!(
+            "bucket '{}' không truy cập được ({probe_err}) và tạo không được (HTTP {status}); tạo tay: mc mb <alias>/{}",
+            self.bucket, self.bucket
+        )))
     }
 
     /// Ghi object kèm `Content-Type`; trả lại `key`.
@@ -152,8 +188,16 @@ impl S3Driver {
         attributes.insert(Attribute::ContentType, content_type.to_owned().into());
         let mut w = object_store::buffered::BufWriter::new(std::sync::Arc::new(self.store.clone()), path)
             .with_attributes(attributes);
-        tokio::io::copy(body, &mut w).await?;
-        w.shutdown().await?;
+        let res = async {
+            tokio::io::copy(body, &mut w).await?;
+            w.shutdown().await
+        }
+        .await;
+        if let Err(e) = res {
+            // Lỗi giữa chừng: huỷ multipart đang dở, khỏi để rác trong bucket.
+            let _ = w.abort().await;
+            return Err(e.into());
+        }
         Ok(key.to_owned())
     }
 
@@ -181,16 +225,32 @@ impl S3Driver {
         })
     }
 
-    /// Đọc có `Range` (giá trị thô của header), cùng luật với driver đĩa: range không hợp lệ ⇒ cả object (200).
+    /// Đọc có `Range` (giá trị thô của header), cùng luật với driver đĩa: range không hợp lệ hoặc ngoài object ⇒ cả
+    /// object (200). Một request: kích thước và khoảng thực trả về lấy từ phản hồi.
     pub async fn get_range(&self, key: &str, range: Option<&str>) -> Result<S3RangedObject, StorageError> {
         let path = to_path(key)?;
-        let size = self.store.head(&path).await.map_err(|e| map_err(e, key))?.size;
-        let parsed = parse_range(range, size);
-        let opts = GetOptions {
-            range: parsed.map(|r| GetRange::Bounded(r.start..r.end + 1)),
-            ..Default::default()
+        let mut got = None;
+        if let Some(r) = range.and_then(syntactic_range) {
+            let opts = GetOptions {
+                range: Some(r),
+                ..Default::default()
+            };
+            match self.store.get_opts(&path, opts).await {
+                Ok(v) => got = Some((v, true)),
+                Err(object_store::Error::NotFound { .. }) => return Err(StorageError::NotFound(key.to_owned())),
+                // Khoảng ngoài object (hoặc object rỗng, S3 trả 416): như `parse_range` ⇒ cả object.
+                Err(_) => {}
+            }
+        }
+        let (res, ranged) = match got {
+            Some(v) => v,
+            None => (self.store.get(&path).await.map_err(|e| map_err(e, key))?, false),
         };
-        let res = self.store.get_opts(&path, opts).await.map_err(|e| map_err(e, key))?;
+        let size = res.meta.size;
+        let parsed = (ranged && res.range.end > res.range.start).then(|| ByteRange {
+            start: res.range.start,
+            end: res.range.end - 1,
+        });
         Ok(S3RangedObject {
             content_type: content_type_of(&res.attributes),
             len: parsed.map_or(size, |r| r.len()),
@@ -202,7 +262,13 @@ impl S3Driver {
 
     /// Xoá không ném lỗi (không có thì thôi; lỗi khác chỉ ghi cảnh báo), như bản TS.
     pub async fn delete(&self, key: &str) -> Result<(), StorageError> {
-        let path = to_path(key)?;
+        let path = match to_path(key) {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::warn!("Could not delete object {key}: {e}");
+                return Ok(());
+            }
+        };
         match self.store.delete(&path).await {
             Ok(()) | Err(object_store::Error::NotFound { .. }) => {}
             Err(e) => tracing::warn!("Could not delete object {key}: {e}"),
@@ -222,10 +288,37 @@ fn to_path(key: &str) -> Result<ObjectPath, StorageError> {
     if key.contains('\0') {
         return Err(invalid("chứa null byte"));
     }
+    if key.ends_with('/') {
+        // `Path::parse` bỏ `/` cuối ngầm ⇒ key `a/` và `a` thành một object; từ chối rõ ràng.
+        return Err(invalid("kết thúc bằng /"));
+    }
     if key.starts_with('/') {
         return Err(invalid("là đường dẫn tuyệt đối"));
     }
     ObjectPath::parse(key).map_err(|_| invalid("không dùng được làm key S3 (đoạn rỗng, `.` hoặc `..`)"))
+}
+
+/// Chỉ cú pháp `Range: bytes=…` một khoảng (`a-b`, `a-`, `-n`); khác ⇒ `None` (cả object).
+fn syntactic_range(h: &str) -> Option<GetRange> {
+    let rest = h.trim().strip_prefix("bytes=")?;
+    let (a, b) = rest.split_once('-')?;
+    let digits = |s: &str| s.bytes().all(|c| c.is_ascii_digit());
+    if !digits(a) || !digits(b) {
+        return None;
+    }
+    match (a.is_empty(), b.is_empty()) {
+        (true, true) => None,
+        (true, false) => b.parse().ok().filter(|n| *n > 0).map(GetRange::Suffix),
+        (false, true) => a.parse().ok().map(GetRange::Offset),
+        (false, false) => {
+            let (s, e): (u64, u64) = (a.parse().ok()?, b.parse().ok()?);
+            if s <= e {
+                Some(GetRange::Bounded(s..e.checked_add(1)?))
+            } else {
+                None
+            }
+        }
+    }
 }
 
 fn content_type_of(attrs: &Attributes) -> String {
@@ -293,9 +386,10 @@ mod tests {
     #[tokio::test]
     async fn key_xau_bi_tu_choi_truoc_khi_gui() {
         let d = S3Driver::new(&cfg()).unwrap();
-        for k in ["", "a\0b", "a//b", "/a", "a/../b", "a/./b"] {
+        for k in ["", "a\0b", "a//b", "/a", "a/", "a/../b", "a/./b"] {
             let e = d.get(k).await.err().unwrap();
             assert_eq!(e.name(), "StorageInvalidKeyError", "{k:?}");
+            assert!(d.delete(k).await.is_ok(), "delete nuốt key xấu {k:?}");
         }
     }
 }

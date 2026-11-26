@@ -22,8 +22,15 @@ async fn upload_get_range_presign_delete() {
         return;
     };
     let _ = rustls::crypto::ring::default_provider().install_default();
+    // `init` tạo bucket khi thiếu.
+    let fresh = S3Config {
+        bucket: format!("k23-init-{}", &uuid::Uuid::new_v4().simple().to_string()[..12]),
+        ..cfg.clone()
+    };
+    S3Driver::new(&fresh).unwrap().init().await.unwrap();
+
     let d = S3Driver::new(&cfg).unwrap();
-    d.init().await;
+    d.init().await.unwrap();
 
     let key = format!("k23-test/{}/hồ sơ (1).txt", uuid::Uuid::new_v4().simple());
     assert_eq!(

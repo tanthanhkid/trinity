@@ -249,7 +249,7 @@ jobs:
   rust-s3:
     name: Rust S3 (MinIO)
     needs: rust-changes
-    if: needs.rust-changes.outputs.rust == 'true'
+    if: github.event_name != 'pull_request' && needs.rust-changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:

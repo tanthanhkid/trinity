@@ -116,6 +116,8 @@ local disk. To move:
    `<STORAGE_LOCAL_ROOT>/<key>`. Alternatively copy all keys unchanged into an S3 bucket and use `STORAGE_DRIVER=s3`.
 3. Set `STORAGE_DRIVER=local` (or `s3`), remove `BLOB_READ_WRITE_TOKEN` and `BLOB_ACCESS`, then start the API.
 
+   With `STORAGE_DRIVER=s3` (variables `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, `MINIO_REGION`) the Rust server creates the bucket at startup when it is missing and stops if it cannot. If the access key may not create buckets, create it first: `mc mb <alias>/<bucket>`.
+
 ## Updating
 
 ```bash

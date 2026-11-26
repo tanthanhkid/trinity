@@ -1,0 +1,339 @@
+//! Xử lý ảnh tải lên (K30) — thay `sharp` ở 3 chỗ của bản Node, cùng kích thước và định dạng đầu ra:
+//! - [`avatar_jpeg`]: avatar người dùng (`auth.service.ts`) và ảnh nhân viên (`employees.service.ts`) —
+//!   `sharp(buf).resize(200, 200, { fit: 'cover' }).jpeg({ quality: 80 })`;
+//! - [`newsfeed_webp`]: ảnh bảng tin (`newsfeed.service.ts`) —
+//!   `sharp(path).resize(1920, 1920, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 })`.
+//!
+//! Như sharp mặc định:
+//! - KHÔNG tự xoay theo EXIF Orientation (bản Node không gọi `.rotate()`), không giữ EXIF/ICC ở đầu ra;
+//! - ảnh có hồ sơ màu ICC RGB (Display P3, Adobe RGB…) được chuyển về sRGB (moxcms);
+//! - thu nhỏ trên màu đã nhân alpha (premultiplied) nên viền trong suốt không bị loang màu; JPEG từ ảnh có alpha
+//!   trải trên nền đen; GIF/WebP động chỉ lấy khung đầu.
+//!
+//! Khác biệt còn lại (ghi nhận, không ảnh hưởng kích thước/định dạng): JPEG CMYK được `image` đổi sang RGB theo công
+//! thức đơn giản, không theo hồ sơ CMYK nhúng như libvips — màu có thể lệch so với bản Node.
+//!
+//! Bộ nhớ: từ chối trước khi giải mã ảnh quá [`MAX_INPUT_PIXELS`] điểm ảnh (như `limitInputPixels` của sharp); khi thu
+//! nhỏ, trước tiên giảm theo bậc bằng lọc trung bình vùng (số nguyên) xuống còn ≤ 2 lần đích, rồi mới lọc Lanczos3, nên
+//! bộ đệm số thực của bộ lọc (≈ rộng × cao × 16 byte) chỉ tính trên ảnh đã giảm, không trên ảnh gốc.
+
+use std::io::Cursor;
+
+use image::codecs::jpeg::JpegEncoder;
+use image::imageops::FilterType;
+use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, Limits, Pixel, RgbImage, RgbaImage};
+use moxcms::{ColorProfile, DataColorSpace, Layout, TransformOptions};
+
+/// Cạnh avatar (vuông).
+pub const AVATAR_SIZE: u32 = 200;
+/// Cạnh dài tối đa của ảnh bảng tin.
+pub const NEWSFEED_MAX_PX: u32 = 1920;
+/// Chất lượng nén JPEG/WebP (như `quality: 80` của bản Node).
+pub const QUALITY: u8 = 80;
+/// Số điểm ảnh tối đa của ảnh đầu vào — `limitInputPixels` mặc định của sharp (0x3FFF × 0x3FFF).
+pub const MAX_INPUT_PIXELS: u64 = 268_402_689;
+/// Bộ nhớ tối đa để giải mã (đủ cho ảnh RGBA 8 bit lớn nhất được nhận).
+pub const MAX_DECODE_BYTES: u64 = MAX_INPUT_PIXELS * 4 + 64 * 1024 * 1024;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ImageError {
+    /// Không phải ảnh, định dạng không hỗ trợ, tệp hỏng hoặc quá lớn — tầng HTTP trả 400 như bản Node.
+    #[error("tệp không phải ảnh hợp lệ: {0}")]
+    NotImage(String),
+    #[error("mã hoá ảnh lỗi: {0}")]
+    Encode(String),
+}
+
+/// Ảnh đầu ra: byte, kích thước, định dạng.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Encoded {
+    pub bytes: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+    pub format: ImageFormat,
+}
+
+impl Encoded {
+    /// Content-Type để lưu kho.
+    pub fn content_type(&self) -> &'static str {
+        match self.format {
+            ImageFormat::WebP => "image/webp",
+            _ => "image/jpeg",
+        }
+    }
+}
+
+fn not_image(e: impl std::fmt::Display) -> ImageError {
+    ImageError::NotImage(e.to_string())
+}
+
+fn reader(bytes: &[u8]) -> Result<ImageReader<Cursor<&[u8]>>, ImageError> {
+    let r = ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(not_image)?;
+    match r.format() {
+        Some(ImageFormat::Jpeg | ImageFormat::Png | ImageFormat::WebP | ImageFormat::Gif) => Ok(r),
+        Some(f) => Err(ImageError::NotImage(format!("định dạng {f:?} không hỗ trợ"))),
+        None => Err(ImageError::NotImage("không nhận ra định dạng".to_owned())),
+    }
+}
+
+/// Giải mã ảnh JPEG/PNG/WebP/GIF theo nội dung (không tin đuôi tệp hay mimetype client khai), kiểm số điểm ảnh từ phần
+/// đầu tệp TRƯỚC khi giải mã, rồi đưa màu về sRGB theo hồ sơ ICC nhúng (nếu có).
+pub fn decode(bytes: &[u8]) -> Result<DynamicImage, ImageError> {
+    let (w, h) = reader(bytes)?.into_dimensions().map_err(not_image)?;
+    if u64::from(w) * u64::from(h) > MAX_INPUT_PIXELS {
+        return Err(ImageError::NotImage(format!(
+            "ảnh {w}×{h} vượt giới hạn {MAX_INPUT_PIXELS} điểm ảnh"
+        )));
+    }
+    let mut dec = reader(bytes)?.into_decoder().map_err(not_image)?;
+    let mut limits = Limits::default();
+    limits.max_alloc = Some(MAX_DECODE_BYTES);
+    dec.set_limits(limits).map_err(not_image)?;
+    let icc = dec.icc_profile().ok().flatten();
+    let img = DynamicImage::from_decoder(dec).map_err(not_image)?;
+    Ok(match icc {
+        Some(p) => to_srgb(img, &p),
+        None => img,
+    })
+}
+
+/// Chuyển ảnh RGB có hồ sơ ICC về sRGB; hồ sơ không đọc được / không phải RGB ⇒ giữ nguyên (như ảnh không có hồ sơ).
+fn to_srgb(img: DynamicImage, icc: &[u8]) -> DynamicImage {
+    let Ok(src) = ColorProfile::new_from_slice(icc) else {
+        return img;
+    };
+    if src.color_space != DataColorSpace::Rgb {
+        return img;
+    }
+    let srgb = ColorProfile::new_srgb();
+    let opts = TransformOptions::default();
+    if img.color().has_alpha() {
+        let mut buf = img.to_rgba8();
+        let Ok(t) = src.create_transform_8bit(Layout::Rgba, &srgb, Layout::Rgba, opts) else {
+            return img;
+        };
+        let mut out = vec![0u8; buf.len()];
+        if t.transform(buf.as_raw(), &mut out).is_err() {
+            return img;
+        }
+        buf.copy_from_slice(&out);
+        DynamicImage::ImageRgba8(buf)
+    } else {
+        let mut buf = img.to_rgb8();
+        let Ok(t) = src.create_transform_8bit(Layout::Rgb, &srgb, Layout::Rgb, opts) else {
+            return img;
+        };
+        let mut out = vec![0u8; buf.len()];
+        if t.transform(buf.as_raw(), &mut out).is_err() {
+            return img;
+        }
+        buf.copy_from_slice(&out);
+        DynamicImage::ImageRgb8(buf)
+    }
+}
+
+/// Nhân màu với alpha (premultiply) — tại chỗ.
+fn premultiply(img: &mut RgbaImage) {
+    for p in img.pixels_mut() {
+        let a = u16::from(p[3]);
+        for c in &mut p.channels_mut()[..3] {
+            *c = ((u16::from(*c) * a + 127) / 255) as u8;
+        }
+    }
+}
+
+/// Chia lại cho alpha sau khi lọc.
+fn unpremultiply(img: &mut RgbaImage) {
+    for p in img.pixels_mut() {
+        let a = u16::from(p[3]);
+        if a == 0 {
+            continue;
+        }
+        for c in &mut p.channels_mut()[..3] {
+            *c = ((u16::from(*c) * 255 + a / 2) / a).min(255) as u8;
+        }
+    }
+}
+
+/// Thu/phóng tới đúng `w`×`h`: giảm theo bậc bằng trung bình vùng tới ≤ 2 lần đích, rồi Lanczos3. Gọi qua
+/// `DynamicImage` để dùng mã đã biên dịch tối ưu của crate `image`.
+fn resize_dyn(src: DynamicImage, w: u32, h: u32) -> DynamicImage {
+    if (src.width(), src.height()) == (w, h) {
+        return src;
+    }
+    let src = if src.width() >= w * 4 && src.height() >= h * 4 {
+        src.thumbnail_exact(w * 2, h * 2)
+    } else {
+        src
+    };
+    src.resize_exact(w, h, FilterType::Lanczos3)
+}
+
+fn resize_rgba(src: RgbaImage, w: u32, h: u32) -> RgbaImage {
+    resize_dyn(DynamicImage::ImageRgba8(src), w, h).into_rgba8()
+}
+
+fn resize_rgb(src: RgbImage, w: u32, h: u32) -> RgbImage {
+    resize_dyn(DynamicImage::ImageRgb8(src), w, h).into_rgb8()
+}
+
+fn jpeg(img: &RgbImage) -> Result<Vec<u8>, ImageError> {
+    let mut buf = Vec::new();
+    JpegEncoder::new_with_quality(&mut buf, QUALITY)
+        .encode_image(img)
+        .map_err(|e| ImageError::Encode(e.to_string()))?;
+    Ok(buf)
+}
+
+/// Avatar 200×200 JPEG (`fit: 'cover'`): cắt hình vuông ở giữa ảnh gốc rồi thu/phóng đúng 200×200 (ảnh nhỏ hơn cũng
+/// được phóng to); ảnh có alpha trải trên nền đen (= màu đã nhân alpha).
+pub fn avatar_jpeg(bytes: &[u8]) -> Result<Encoded, ImageError> {
+    let img = decode(bytes)?;
+    let (w, h) = (img.width(), img.height());
+    let side = w.min(h);
+    let square = img.crop_imm((w - side) / 2, (h - side) / 2, side, side);
+    drop(img);
+    let rgb = if square.color().has_alpha() {
+        let mut rgba = square.to_rgba8();
+        drop(square);
+        premultiply(&mut rgba);
+        let small = resize_rgba(rgba, AVATAR_SIZE, AVATAR_SIZE);
+        RgbImage::from_fn(AVATAR_SIZE, AVATAR_SIZE, |x, y| {
+            let p = small.get_pixel(x, y);
+            image::Rgb([p[0], p[1], p[2]])
+        })
+    } else {
+        resize_rgb(square.to_rgb8(), AVATAR_SIZE, AVATAR_SIZE)
+    };
+    Ok(Encoded {
+        bytes: jpeg(&rgb)?,
+        width: AVATAR_SIZE,
+        height: AVATAR_SIZE,
+        format: ImageFormat::Jpeg,
+    })
+}
+
+/// Kích thước sau `fit: 'inside', withoutEnlargement: true` trong khung `max`×`max`: cạnh dài về `max`, cạnh còn lại
+/// làm tròn (đo bằng sharp 0.35: 2560×1441 ⇒ 1920×1081, 5000×7 ⇒ 1920×3), không phóng to ảnh nhỏ hơn.
+pub fn fit_inside(width: u32, height: u32, max: u32) -> (u32, u32) {
+    let long = width.max(height);
+    if long <= max {
+        return (width, height);
+    }
+    let scale = f64::from(max) / f64::from(long);
+    let side = |d: u32| {
+        if d == long {
+            max
+        } else {
+            ((f64::from(d) * scale).round() as u32).max(1)
+        }
+    };
+    (side(width), side(height))
+}
+
+fn webp(raw: &[u8], w: u32, h: u32, alpha: bool) -> Result<Vec<u8>, ImageError> {
+    let enc = if alpha {
+        webp::Encoder::from_rgba(raw, w, h)
+    } else {
+        webp::Encoder::from_rgb(raw, w, h)
+    };
+    let mem = enc
+        .encode_simple(false, f32::from(QUALITY))
+        .map_err(|e| ImageError::Encode(format!("libwebp: {e:?}")))?;
+    if mem.is_empty() {
+        return Err(ImageError::Encode("libwebp trả ảnh rỗng".to_owned()));
+    }
+    Ok(mem.to_vec())
+}
+
+/// Ảnh bảng tin: cạnh dài tối đa 1920 (không phóng to), WebP có mất dữ liệu chất lượng 80; giữ kênh alpha.
+pub fn newsfeed_webp(bytes: &[u8]) -> Result<Encoded, ImageError> {
+    let img = decode(bytes)?;
+    let (w, h) = fit_inside(img.width(), img.height(), NEWSFEED_MAX_PX);
+    let out = if img.color().has_alpha() {
+        let mut rgba = img.to_rgba8();
+        drop(img);
+        premultiply(&mut rgba);
+        let mut small = resize_rgba(rgba, w, h);
+        unpremultiply(&mut small);
+        webp(small.as_raw(), w, h, true)?
+    } else {
+        let rgb = img.to_rgb8();
+        drop(img);
+        webp(resize_rgb(rgb, w, h).as_raw(), w, h, false)?
+    };
+    Ok(Encoded {
+        bytes: out,
+        width: w,
+        height: h,
+        format: ImageFormat::WebP,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kich_thuoc_inside_khop_sharp() {
+        for ((w, h), want) in [
+            ((3000, 1999), (1920, 1279)),
+            ((1999, 3000), (1279, 1920)),
+            ((2001, 2001), (1920, 1920)),
+            ((1921, 1000), (1920, 999)),
+            ((5000, 7), (1920, 3)),
+            ((7, 5000), (3, 1920)),
+            ((3333, 2222), (1920, 1280)),
+            ((2560, 1441), (1920, 1081)),
+            ((1920, 1081), (1920, 1081)),
+            ((4033, 3025), (1920, 1440)),
+            ((640, 480), (640, 480)),
+        ] {
+            assert_eq!(fit_inside(w, h, NEWSFEED_MAX_PX), want, "{w}×{h}");
+        }
+    }
+
+    #[test]
+    fn khong_phai_anh() {
+        assert!(matches!(avatar_jpeg(b"khong phai anh"), Err(ImageError::NotImage(_))));
+        assert!(matches!(newsfeed_webp(b"%PDF-1.7"), Err(ImageError::NotImage(_))));
+    }
+
+    #[test]
+    fn premultiply_roi_chia_lai() {
+        let mut img = RgbaImage::from_pixel(1, 1, image::Rgba([200, 100, 50, 128]));
+        premultiply(&mut img);
+        assert_eq!(img.get_pixel(0, 0).0, [100, 50, 25, 128]);
+        unpremultiply(&mut img);
+        assert_eq!(img.get_pixel(0, 0).0, [199, 100, 50, 128]);
+    }
+
+    fn crc32(data: &[u8]) -> u32 {
+        let mut c = 0xFFFF_FFFFu32;
+        for &b in data {
+            c ^= u32::from(b);
+            for _ in 0..8 {
+                c = if c & 1 == 1 { (c >> 1) ^ 0xEDB8_8320 } else { c >> 1 };
+            }
+        }
+        !c
+    }
+
+    #[test]
+    fn anh_qua_so_diem_anh_bi_tu_choi_truoc_khi_giai_ma() {
+        use image::ImageEncoder;
+        // PNG khai 20000×20000 (400 triệu điểm ảnh): bị từ chối chỉ từ phần đầu tệp, không cấp phát bộ đệm ảnh.
+        let mut png = Vec::new();
+        image::codecs::png::PngEncoder::new(&mut png)
+            .write_image(&[0u8; 3], 1, 1, image::ExtendedColorType::Rgb8)
+            .unwrap();
+        png[16..20].copy_from_slice(&20_000u32.to_be_bytes());
+        png[20..24].copy_from_slice(&20_000u32.to_be_bytes());
+        let crc = crc32(&png[12..29]);
+        png[29..33].copy_from_slice(&crc.to_be_bytes());
+        let err = newsfeed_webp(&png).unwrap_err();
+        assert!(err.to_string().contains("vượt giới hạn"), "{err}");
+    }
+}

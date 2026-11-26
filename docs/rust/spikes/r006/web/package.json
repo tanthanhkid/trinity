@@ -1,0 +1,1 @@
+{"name":"spike-r006-web","private":true,"type":"module","dependencies":{"jsonwebtoken":"9.0.2","playwright-core":"1.49.1","socket.io-client":"4.8.3"}}

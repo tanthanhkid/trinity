@@ -886,6 +886,27 @@ lúc build (`NEXT_PUBLIC_REALTIME_MODE`), nên được chuyển sang đọc lú
 cần build lại web và binary. Spike R006 kiểm tương thích với `socket.io-client` 4.7 trước khi chốt; nếu không
 đạt, chuyển sang SSE và sửa `apps/web/src/components/notification-socket.tsx`.
 
+**Quyết định R006 (27/11/2026): giữ Socket.IO bằng `socketioxide` 0.18, không chuyển SSE.** Mã spike ở
+`docs/rust/spikes/r006/` (axum 0.8 + socketioxide 0.18 + jsonwebtoken 12; ngoài workspace `server/`), kiểm bằng
+`socket.io-client` 4.8.3 (bản `pnpm-lock.yaml` đang khoá; `^4.7.5` trong `package.json`), cùng tuỳ chọn như
+`notification-socket.tsx` (`path: '/notif-ws'`, `transports: ['websocket']`, `auth` dạng hàm). Kết quả:
+
+| Ca | Kết quả |
+|---|---|
+| Handshake có JWT hợp lệ (`auth.token`, HS256, `sub`, `cid`) rồi vào room `user_<id>` / `c<cid>:user_<id>` | đạt |
+| Nhận `notification:new` và `notification:count` (đúng payload của gateway Nest) | đạt: Node, Chrome (Playwright, trang khác origin, có CORS), WebKit 18.2 (engine của Safari) |
+| Không token / token sai | máy chủ ngắt, client nhận `io server disconnect`, y hệt `client.disconnect()` của Nest |
+| Cách ly | user khác và công ty khác không nhận; công ty 2 chỉ nhận tin gửi vào room của nó |
+
+Điều cần nhớ khi làm thật (K-cổng realtime):
+
+- `Data<T>` của handler namespace nhận `auth`; lỗi xác thực dùng `disconnect()` trong handler như spike (khớp hành vi Nest, đã đo). Dùng middleware
+  từ chối kết nối thì client nhận `connect_error` thay vì `disconnect`: chưa thử, phải kiểm lại với bộ bắt `connect_error` của web.
+- Tính đa công ty ở room, vì `currentCompanyId()` của Nest không có tương đương ngoài request: bên phát phải truyền `cid` rõ ràng.
+- Phát từ ngoài kết nối (job, API) đi qua `io.of(ns).to(room).emit(...)`; một tiến trình duy nhất nên không cần adapter Redis.
+- Chưa đo: Safari bản máy thật (chỉ WebKit của Playwright), proxy ngược cắt WebSocket nhàn rỗi (cần ping của Socket.IO, mặc định 25 s
+  vẫn giữ kết nối), tải nhiều kết nối. Đường lui SSE giữ nguyên (cờ thăm dò đang có sẵn).
+
 ### 4.11 Lưu trữ
 
 Driver local (ghi nguyên tử, chống thoát thư mục, phục vụ `Range`) và S3 qua `object_store`. `/uploads/*` do Rust phục

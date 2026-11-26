@@ -194,5 +194,27 @@ describe('FacebookCommentsService.ingest — chống lạm dụng kênh', () => 
     expect(t.graph.replyToComment).not.toHaveBeenCalled();
     expect(t.saved()).toMatchObject({ status: 'skipped', hidden: true });
   });
+
+  it('hạn mức trả lời tự động chỉ tính khi luật có trả lời: luật chỉ ẩn SĐT không giữ chỗ', async () => {
+    const guard = { reserve: jest.fn(async () => new Date(0)), refund: jest.fn(), assertOutbound: jest.fn() };
+    const t = make([rule({ public_replies: [], private_reply: null })], { contactByPhone: true, guard });
+    await t.svc.ingest('111', change({ message: 'giá sao, gọi 0912 345 678' }));
+    expect(t.graph.hideComment).toHaveBeenCalled();
+    expect(guard.reserve).not.toHaveBeenCalled();
+  });
+
+  it('có trả lời: giữ chỗ 1; trả lời không tới Facebook ⇒ hoàn đúng khung; tới nơi ⇒ không hoàn', async () => {
+    const bucket = new Date(1_700_000_000_000);
+    const guard = { reserve: jest.fn(async () => bucket), refund: jest.fn(), assertOutbound: jest.fn() };
+    const ok = make([rule()], { guard });
+    await ok.svc.ingest('111', change());
+    expect(guard.reserve).toHaveBeenCalledWith('comment_reply');
+    expect(guard.refund).not.toHaveBeenCalled();
+    const bad = make([rule()], { guard });
+    bad.graph.replyToComment.mockRejectedValue(new GraphApiError(400, 100, null, 'lỗi'));
+    bad.graph.privateReply.mockRejectedValue(new GraphApiError(400, 100, null, 'lỗi'));
+    await bad.svc.ingest('111', change());
+    expect(guard.refund).toHaveBeenCalledWith('comment_reply', 1, bucket);
+  });
 });
 

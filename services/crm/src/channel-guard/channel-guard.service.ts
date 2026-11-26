@@ -117,6 +117,13 @@ export interface ChannelAlerts {
   warnings: string[];
 }
 
+/** Kết quả `prepareReserve`: hạn mức + khung đã đọc sẵn, dùng trong transaction. */
+export interface ReserveContext {
+  kind: QuotaKind;
+  limit: number;
+  bucket: Date;
+}
+
 export interface AutoPause {
   until: string;
   reason: string;
@@ -231,44 +238,64 @@ export class ChannelGuardService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Giữ chỗ `amount` đơn vị hạn mức một cách nguyên tử rồi mới gửi. Vượt ⇒ `ChannelBlockedError` (429) + log + sự kiện.
-   * `post` chỉ chịu khoá kênh (tạm dừng tự động xử lý lúc đăng); hai loại còn lại chịu cả tạm dừng.
+   * Chuẩn bị giữ chỗ: kiểm khoá/tạm dừng + đọc hạn mức của gói. Gọi TRƯỚC khi mở transaction rồi truyền `ctx` vào `reserve`,
+   * để bên trong transaction chỉ còn đúng một câu SQL trên chính kết nối của transaction (không kéo thêm kết nối từ pool).
+   * Trả null khi không áp hạn mức (bản cài một công ty).
    */
-  async reserve(kind: QuotaKind, amount = 1, db: RawDb = this.prisma, scope: OutboundScope = 'meta'): Promise<void> {
-    if (!this.enforced() || amount <= 0) return;
+  async prepareReserve(kind: QuotaKind, scope: OutboundScope = 'meta'): Promise<ReserveContext | null> {
+    if (!this.enforced()) return null;
     await this.assertOutbound(kind === 'post' ? 'manual' : 'auto', scope);
+    return { kind, limit: (await this.limits())[QUOTA[kind].limit], bucket: QUOTA[kind].bucket(Date.now()) };
+  }
+
+  /**
+   * Giữ chỗ `amount` đơn vị hạn mức một cách nguyên tử rồi mới gửi; trả khung (bucket) đã ghi để `refund` hoàn đúng khung đó.
+   * Vượt ⇒ `ChannelBlockedError` (429). `post` chỉ chịu khoá kênh (tạm dừng xử lý lúc đăng); hai loại còn lại chịu cả tạm dừng.
+   * Có `ctx` (đã `prepareReserve`) ⇒ không truy vấn nào ngoài `db`; sự kiện `limit_exceeded` KHÔNG ghi ngay mà nằm trong lỗi,
+   * người gọi ghi bằng `recordBlocked(err)` SAU transaction. Không `ctx` ⇒ tự chuẩn bị và tự ghi.
+   */
+  async reserve(kind: QuotaKind, amount = 1, db: RawDb = this.prisma, scope: OutboundScope = 'meta', ctx?: ReserveContext | null): Promise<Date | null> {
+    if (!this.enforced() || amount <= 0) return null;
+    const c = ctx ?? (await this.prepareReserve(kind, scope));
+    if (!c) return null;
     const q = QUOTA[kind];
-    const limit = (await this.limits())[q.limit];
-    const now = Date.now();
-    const bucket = q.bucket(now);
+    const { limit, bucket } = c;
     if (amount > limit) {
       // Một lần xin vượt cả hạn mức của khoảng: không phải "đã dùng hết", nên nói rõ trần một lần và không ghi limit_exceeded.
       throw new ChannelBlockedError('channel_quota', `Một lần chỉ được ${q.what} tối đa ${limit} (${q.per === 'giờ' ? 'mỗi giờ' : 'mỗi ngày'}) theo gói hiện tại, bạn đang xin ${amount}. Chia nhỏ hoặc nâng gói.`);
     }
-    {
-      const rows = await db.$queryRawUnsafe<Array<{ count: number }>>(
-        `INSERT INTO channel_usage (kind, bucket, count) VALUES ($1, $2::timestamptz, $3)
-         ON CONFLICT (kind, bucket) DO UPDATE SET count = channel_usage.count + EXCLUDED.count
-           WHERE channel_usage.count + EXCLUDED.count <= $4
-         RETURNING count`,
-        kind,
-        bucket.toISOString(),
-        amount,
-        limit,
-      );
-      if (rows.length) return;
-    }
+    const rows = await db.$queryRawUnsafe<Array<{ count: number }>>(
+      `INSERT INTO channel_usage (kind, bucket, count) VALUES ($1, $2::timestamptz, $3)
+       ON CONFLICT (kind, bucket) DO UPDATE SET count = channel_usage.count + EXCLUDED.count
+         WHERE channel_usage.count + EXCLUDED.count <= $4
+       RETURNING count`,
+      kind,
+      bucket.toISOString(),
+      amount,
+      limit,
+    );
+    if (rows.length) return bucket;
     const message = `Đã hết hạn mức ${q.what} của gói (${limit} ${q.what === 'lần trả lời bình luận tự động' ? 'lần' : q.what === 'bài đăng/hẹn giờ' ? 'bài' : 'tin'}/${q.per}). Thử lại ${q.per === 'giờ' ? 'ở giờ sau' : 'vào ngày mai'} hoặc nâng gói.`;
-    this.logger.warn(`Công ty ${currentCompanyId()}: vượt hạn mức ${kind} (${limit}/${q.per}), cần thêm ${amount}`);
-    await this.event('limit_exceeded', message, { quota: kind, limit, wanted: amount }, `${kind}:${bucket.getTime()}`);
-    throw new ChannelBlockedError('channel_quota', message);
+    const err = new ChannelBlockedError('channel_quota', message);
+    err.pendingEvent = { kind: 'limit_exceeded', message, meta: { quota: kind, limit, wanted: amount }, dedupe: `${kind}:${bucket.getTime()}`, log: `vượt hạn mức ${kind} (${limit}/${q.per}), cần thêm ${amount}` };
+    if (!ctx) await this.recordBlocked(err);
+    throw err;
   }
 
-  /** Hoàn `amount` đơn vị đã giữ chỗ (gửi thất bại / không có token ⇒ không tính vào hạn mức). Không bao giờ xuống dưới 0. */
-  async refund(kind: QuotaKind, amount = 1): Promise<void> {
+  /** Ghi log + sự kiện của một lần bị chặn (xem `reserve`). Gọi SAU transaction; lỗi khác loại thì bỏ qua. */
+  async recordBlocked(err: unknown): Promise<void> {
+    if (!(err instanceof ChannelBlockedError) || !err.pendingEvent) return;
+    const e = err.pendingEvent;
+    err.pendingEvent = undefined;
+    this.logger.warn(`Công ty ${currentCompanyId()}: ${e.log}`);
+    await this.event(e.kind, e.message, e.meta, e.dedupe);
+  }
+
+  /** Hoàn `amount` đơn vị đã giữ chỗ vào ĐÚNG khung (`bucket` do `reserve` trả) — gửi thất bại / không có token ⇒ không tính vào hạn mức. Không xuống dưới 0. */
+  async refund(kind: QuotaKind, amount = 1, bucket: Date | null = null): Promise<void> {
     if (!this.enforced() || amount <= 0) return;
     try {
-      await this.prisma.$executeRawUnsafe(`UPDATE channel_usage SET count = GREATEST(count - $3, 0) WHERE kind = $1 AND bucket = $2::timestamptz`, kind, QUOTA[kind].bucket(Date.now()).toISOString(), amount);
+      await this.prisma.$executeRawUnsafe(`UPDATE channel_usage SET count = GREATEST(count - $3, 0) WHERE kind = $1 AND bucket = $2::timestamptz`, kind, (bucket ?? QUOTA[kind].bucket(Date.now())).toISOString(), amount);
     } catch (err) {
       this.logger.warn(`Không hoàn được hạn mức ${kind}: ${(err as Error).message}`);
     }
@@ -277,7 +304,7 @@ export class ChannelGuardService implements OnModuleInit, OnModuleDestroy {
   /** Số người nhận tối đa của một chiến dịch. */
   async assertRecipients(count: number): Promise<void> {
     if (!this.enforced()) return;
-    await this.assertOutbound('auto');
+    await this.assertOutbound('manual'); // lúc lên lịch chỉ kiểm khoá; tạm dừng được kiểm theo giờ gửi (xem lượt gửi hàng loạt)
     const max = (await this.limits()).recipientsPerCampaign;
     if (count > max) {
       const message = `Chiến dịch có ${count} người nhận, gói hiện tại cho tối đa ${max} người mỗi chiến dịch. Lọc bớt đối tượng hoặc chia nhỏ chiến dịch.`;

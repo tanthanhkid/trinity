@@ -40,12 +40,12 @@ export function isGraphAppLevelLimit(o: Pick<GraphOutcome, 'httpStatus' | 'code'
 /**
  * Lỗi của lời gọi GỬI RA do hành vi của một công ty (tính vào ngưỡng tự tạm dừng): #368 vi phạm chính sách/spam, #551 người nhận
  * không khả dụng, #17 / #32 giới hạn theo người dùng / Page. KHÔNG tính: lời gọi đọc; giới hạn cấp app; ngoài cửa sổ 24h
- * (subcode 2018278, mã 1545041); token hết hạn (190); lỗi quyền thường gặp (#10, #200–#299 — Page thiếu quyền là việc cấu hình của chính công ty).
+ * (subcode 2018278 hoặc 1545041 — 1545041 là subcode của mã 551); token hết hạn (190); lỗi quyền thường gặp (#10, #200–#299 — Page thiếu quyền là việc cấu hình của chính công ty).
  */
 export function isGraphBlockOutcome(o: Pick<GraphOutcome, 'httpStatus' | 'code' | 'subcode' | 'send'>): boolean {
   if (!o.send) return false;
   if (isGraphAppLevelLimit(o)) return false;
-  if (o.subcode === 2018278 || o.code === 1545041) return false;
+  if (o.subcode === 2018278 || o.subcode === 1545041) return false;
   return o.code !== null && [368, 551, 17, 32].includes(o.code);
 }
 

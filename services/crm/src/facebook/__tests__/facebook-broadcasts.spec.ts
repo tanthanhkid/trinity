@@ -215,6 +215,7 @@ describe('gửi tin hàng loạt — chống lạm dụng kênh theo công ty', 
   beforeEach(() => jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate'] }));
   afterEach(() => jest.useRealTimers());
 
+  const BUCKET = new Date(Date.UTC(2026, 9, 13, 17));
   /** Guard giả: còn `left` tin trong hạn mức ngày; trần người nhận `max`. */
   const fakeGuard = (left: number, max = 2000, locked = false) => ({
     enforced: () => true,
@@ -230,6 +231,7 @@ describe('gửi tin hàng loạt — chống lạm dụng kênh theo công ty', 
     reserve: jest.fn(async () => {
       if (left <= 0) throw new ChannelBlockedError('channel_quota', 'Đã hết hạn mức tin gửi hàng loạt');
       left--;
+      return BUCKET;
     }),
   });
 
@@ -279,11 +281,12 @@ describe('gửi tin hàng loạt — chống lạm dụng kênh theo công ty', 
   });
 
   it('tạm dừng (Facebook báo chặn): người nhận GIỮ "chờ gửi", lượt vẫn "đang gửi", hết tạm dừng thì gửi tiếp — không bị huỷ vĩnh viễn', async () => {
-    let paused = true;
+    let paused = false;
     const guard = { ...fakeGuard(100), blockReason: jest.fn(async () => (paused ? { code: 'channel_paused', message: 'Đang tạm dừng', until: new Date(NOW + 3_600_000) } : null)) };
     const { svc, graph } = setup(guard);
     const b = await svc.create({ name: 'x', page_id: 'P', text: 'hi' }, 5);
     await svc.send(b.id, null, NOW);
+    paused = true; // Facebook báo chặn sau khi đã lên lịch
     expect(await svc.runDue(5_000, NOW)).toMatchObject({ started: 1, sent: 0, skipped: 0, failed: 0 });
     expect(graph.sendText).not.toHaveBeenCalled();
     expect((await svc.recipients(b.id)).map((r) => r.status)).toEqual(['queued', 'queued']);
@@ -312,6 +315,25 @@ describe('gửi tin hàng loạt — chống lạm dụng kênh theo công ty', 
     await svc.runDue(5_000, NOW);
     expect(guard.reserve).toHaveBeenCalledTimes(2);
     expect(guard.refund).toHaveBeenCalledTimes(2);
-    expect(guard.refund).toHaveBeenCalledWith('bulk_message');
+    expect(guard.refund).toHaveBeenCalledWith('bulk_message', 1, BUCKET); // đúng khung đã giữ chỗ
+  });
+
+  it('lên lịch: chỉ kiểm khoá; tạm dừng chỉ chặn khi giờ gửi còn trong lúc tạm dừng (hẹn sau đó thì nhận)', async () => {
+    const until = new Date(NOW + 3 * 3_600_000);
+    const guard = { ...fakeGuard(100), blockReason: jest.fn(async () => ({ code: 'channel_paused', message: 'Đang tạm dừng', until })) };
+    const { svc } = setup(guard);
+    const b = await svc.create({ name: 'x', page_id: 'P', text: 'hi' }, 5);
+    await expect(svc.send(b.id, null, NOW)).rejects.toBeInstanceOf(ChannelBlockedError); // gửi ngay: còn tạm dừng
+    await expect(svc.send(b.id, new Date(NOW + 3_600_000).toISOString(), NOW)).rejects.toBeInstanceOf(ChannelBlockedError); // hẹn 1 giờ: vẫn trong tạm dừng
+    const ok = await svc.send(b.id, new Date(NOW + 4 * 3_600_000).toISOString(), NOW); // hẹn sau khi hết tạm dừng: nhận
+    expect(ok.status).toBe('scheduled');
+    expect(guard.assertOutbound).toHaveBeenCalledWith('manual');
+  });
+
+  it('khoá kênh vẫn chặn lúc lên lịch dù hẹn giờ xa', async () => {
+    const { svc } = setup(fakeGuard(100, 2000, true));
+    const b = await svc.create({ name: 'x', page_id: 'P', text: 'hi' }, 5);
+    await expect(svc.send(b.id, new Date(NOW + 4 * 3_600_000).toISOString(), NOW)).rejects.toThrow(/tạm khoá/);
   });
 });
+

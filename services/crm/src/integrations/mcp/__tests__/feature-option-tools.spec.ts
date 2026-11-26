@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { listFeaturesTool, setFeaturesTool } from '../tools/feature-tools';
+import { getChannelLimitsTool, listFeaturesTool, setFeaturesTool } from '../tools/feature-tools';
 import { saveCrmOptionTool } from '../tools/options-tool';
 import { ToolUserError } from '../tools/tool-types';
 
@@ -98,5 +98,25 @@ describe('save_crm_option', () => {
   it('id thuộc danh mục khác ⇒ lỗi', async () => {
     const d = odeps(src);
     await expect(saveCrmOptionTool.run({ list: 'stages', id: 1, label: 'X' }, ctx(d))).rejects.toBeInstanceOf(ToolUserError);
+  });
+});
+
+describe('get_channel_limits', () => {
+  const guard = {
+    status: jest.fn(async () => ({ enforced: true, plan: 'ket_noi', limits: { bulkMessagesPerDay: 200 }, usage: { bulk_messages_today: 3 }, warnings: [], recent_events: [{ id: 1, kind: 'limit_exceeded', message: 'x', at: 'y' }] })),
+    alerts: jest.fn(async () => ({ enforced: true, locked: false, paused: true, warnings: ['Gửi tự động đang tạm dừng'] })),
+  };
+  const withGrants = (grants: Record<string, boolean>) => ({ deps: { channelGuard: guard }, baseUrl: 'https://crm.example', principal: { userId: 7, user: { userId: 7, grants } } }) as never;
+
+  it('quản trị viên (settings.features) xem đủ hạn mức, mức đã dùng, sự kiện', async () => {
+    const r = (await getChannelLimitsTool.run({}, withGrants({ 'settings.features': true }))).structured as any;
+    expect(r.data.limits.bulkMessagesPerDay).toBe(200);
+    expect(r.data.recent_events).toHaveLength(1);
+  });
+
+  it('người không có quyền chỉ nhận cảnh báo (khớp màn hình), không lộ hạn mức/sự kiện', async () => {
+    const r = (await getChannelLimitsTool.run({}, withGrants({ 'contacts.view': true }))).structured as any;
+    expect(r.data).toEqual({ enforced: true, locked: false, paused: true, warnings: ['Gửi tự động đang tạm dừng'] });
+    expect(r.data.limits).toBeUndefined();
   });
 });

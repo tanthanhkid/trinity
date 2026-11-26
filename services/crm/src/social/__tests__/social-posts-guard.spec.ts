@@ -17,7 +17,7 @@ function setup(opts: { dupe?: boolean; guard?: Record<string, unknown> } = {}) {
     socialPost: { findUnique: jest.fn() },
     socialAccount: { findUnique: jest.fn() },
   };
-  const guard = { assertOutbound: jest.fn(async () => undefined), reserve: jest.fn(async () => undefined), blockReason: jest.fn(async () => null), autoPause: jest.fn(async () => null), ...opts.guard };
+  const guard: Record<string, any> = { prepareReserve: jest.fn(async () => null), recordBlocked: jest.fn(async () => undefined), refund: jest.fn(async () => undefined), assertOutbound: jest.fn(async () => undefined), reserve: jest.fn(async () => undefined), blockReason: jest.fn(async () => null), autoPause: jest.fn(async () => null), ...opts.guard };
   const svc = new SocialPostsService(prisma, {} as never, {} as never, { get: () => ({}) } as never, undefined, guard as never);
   jest.spyOn(svc, 'validate').mockResolvedValue(validated as never);
   jest.spyOn(svc, 'get').mockResolvedValue({ id: 5 } as never);
@@ -34,10 +34,19 @@ describe('đăng bài — hạn mức và khoá kênh', () => {
     expect(guard.reserve).not.toHaveBeenCalled();
   });
 
-  it('tạo thành công: giữ chỗ đúng số kênh đích, CÙNG transaction (truyền tx)', async () => {
-    const { svc, guard, tx } = setup();
+  it('tạo thành công: hạn mức đọc TRƯỚC transaction, giữ chỗ đúng số kênh đích CÙNG transaction (truyền tx + ctx)', async () => {
+    const ctx = { kind: 'post', limit: 10, bucket: new Date() };
+    const { svc, guard, tx } = setup({ guard: { prepareReserve: jest.fn(async () => ctx) } });
     await svc.create(user, { content: 'x' } as never);
-    expect(guard.reserve).toHaveBeenCalledWith('post', 2, tx);
+    expect(guard.prepareReserve).toHaveBeenCalledWith('post');
+    expect(guard.reserve).toHaveBeenCalledWith('post', 2, tx, 'meta', ctx);
+  });
+
+  it('hết hạn mức trong transaction ⇒ sự kiện được ghi SAU transaction (recordBlocked)', async () => {
+    const err = new ChannelBlockedError('channel_quota', 'hết');
+    const { svc, guard } = setup({ guard: { reserve: jest.fn(async () => { throw err; }), recordBlocked: jest.fn(async () => undefined) } });
+    await expect(svc.create(user, { content: 'x' } as never)).rejects.toBe(err);
+    expect(guard.recordBlocked).toHaveBeenCalledWith(err);
   });
 
   it('hết hạn mức ⇒ transaction hỏng, không tạo bài', async () => {
@@ -63,17 +72,37 @@ describe('đăng bài — hạn mức và khoá kênh', () => {
     expect(guard.reserve).toHaveBeenCalledWith('post', 1);
     prisma.socialPostTarget.update.mockRejectedValueOnce(new Error('db'));
     await expect(svc.retry(7)).rejects.toThrow('db');
-    expect((guard as any).refund).toHaveBeenCalledWith('post');
+    expect(guard.refund).toHaveBeenCalledWith('post', 1, null);
   });
 
   it('sửa bài thêm kênh đích: chỉ giữ chỗ phần tăng thêm, cùng transaction', async () => {
     const { svc, tx, guard } = setup();
     const post = { id: 5, updated_at: new Date(), media: [] };
-    jest.spyOn(svc, 'editable').mockResolvedValue({ post, live: [{ id: 1 }] } as never);
+    // Đang chờ kênh account 1; sau khi sửa: account 1 + 2 ⇒ chỉ account 2 là mới.
+    jest.spyOn(svc, 'editable').mockResolvedValue({ post, live: [{ id: 1, account_id: 1 }] } as never);
     (tx as any).socialPostTarget.deleteMany = jest.fn(async () => ({ count: 1 }));
     (tx as any).socialPost.update = jest.fn(async () => ({}));
     await svc.update(user, 5, { content: 'x', scheduled_at: new Date(Date.now() + 3_600_000).toISOString() } as never);
-    expect(guard.reserve).toHaveBeenCalledWith('post', 1, tx); // 2 kênh đích − 1 kênh đang chờ
+    expect(guard.reserve).toHaveBeenCalledWith('post', 1, tx, 'meta', null);
+  });
+
+  it('sửa bài ĐỔI kênh (account 1 → account 2): vẫn tính 1 kênh mới, không bị bù trừ theo số lượng', async () => {
+    const { svc, tx, guard } = setup();
+    jest.spyOn(svc, 'editable').mockResolvedValue({ post: { id: 5, updated_at: new Date(), media: [] }, live: [{ id: 1, account_id: 9 }, { id: 2, account_id: 1 }] } as never);
+    (tx as any).socialPostTarget.deleteMany = jest.fn(async () => ({ count: 2 }));
+    (tx as any).socialPost.update = jest.fn(async () => ({}));
+    await svc.update(user, 5, { content: 'x', scheduled_at: new Date(Date.now() + 3_600_000).toISOString() } as never);
+    // đích mới = account 1, 2; cũ = 9, 1 ⇒ chỉ account 2 là mới (số lượng 2 = 2 nhưng vẫn phải tính 1)
+    expect(guard.reserve).toHaveBeenCalledWith('post', 1, tx, 'meta', null);
+  });
+
+  it('sửa bài không thêm kênh mới ⇒ không giữ chỗ', async () => {
+    const { svc, tx, guard } = setup();
+    jest.spyOn(svc, 'editable').mockResolvedValue({ post: { id: 5, updated_at: new Date(), media: [] }, live: [{ id: 1, account_id: 1 }, { id: 2, account_id: 2 }] } as never);
+    (tx as any).socialPostTarget.deleteMany = jest.fn(async () => ({ count: 2 }));
+    (tx as any).socialPost.update = jest.fn(async () => ({}));
+    await svc.update(user, 5, { content: 'x', scheduled_at: new Date(Date.now() + 3_600_000).toISOString() } as never);
+    expect(guard.reserve).not.toHaveBeenCalled();
   });
 });
 

@@ -20,10 +20,11 @@ describe('Zalo OA — ChannelGuard', () => {
 
   it('ZNS: giữ chỗ phạm vi "other" (tạm dừng do Graph không áp cho Zalo); Zalo không nhận ⇒ hoàn hạn mức', async () => {
     const sendZns = jest.fn(async () => { throw new Error('mạng lỗi'); });
-    const guard = { reserve: jest.fn(async () => undefined), refund: jest.fn(async () => undefined), assertOutbound: jest.fn() };
+    const bucket = new Date(1_700_000_000_000);
+    const guard = { reserve: jest.fn(async () => bucket), refund: jest.fn(async () => undefined), assertOutbound: jest.fn() };
     await expect(make(guard, sendZns).sendZns(zns)).rejects.toThrow();
     expect(guard.reserve).toHaveBeenCalledWith('bulk_message', 1, undefined, 'other');
-    expect(guard.refund).toHaveBeenCalledWith('bulk_message');
+    expect(guard.refund).toHaveBeenCalledWith('bulk_message', 1, bucket); // đúng khung đã giữ chỗ
   });
 
   it('ZNS gửi được ⇒ không hoàn', async () => {

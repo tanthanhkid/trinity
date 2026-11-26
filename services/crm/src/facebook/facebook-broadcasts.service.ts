@@ -198,7 +198,10 @@ export class FacebookBroadcastsService {
     const when = this.sendTime(at, now);
     // Chống lạm dụng app Meta dùng chung: khoá/tạm dừng thì không nhận lượt mới; chiến dịch quá trần người nhận bị từ chối ngay.
     if (this.channelGuard?.enforced()) {
-      await this.channelGuard.assertOutbound('auto');
+      // Lúc lên lịch chỉ kiểm khoá; tạm dừng chỉ chặn khi giờ gửi rơi vào lúc còn tạm dừng (hẹn sau đó thì cứ nhận).
+      await this.channelGuard.assertOutbound('manual');
+      const gate = await this.channelGuard.blockReason('auto');
+      if (gate?.code === 'channel_paused' && gate.until && when < gate.until) throw new ChannelBlockedError('channel_paused', gate.message);
       await this.channelGuard.assertRecipients((await this.audience(b.page_id, cleanAudience(b.audience), now)).eligible.length);
     }
     // Có điều kiện: luồng nền vừa chốt (đang gửi) thì không kéo lượt về "chờ gửi".
@@ -373,9 +376,10 @@ export class FacebookBroadcastsService {
     if (!isWithinMessagingWindow(conv.last_inbound_at)) return { status: 'skipped', note: 'Quá 24 giờ kể từ tin cuối của khách — Messenger không cho gửi' };
     const text = fillTemplate(b.text, conv.customer_name);
     // Hạn mức tin hàng loạt/ngày của gói (đếm nguyên tử trước khi gọi Meta); khoá kênh / tự tạm dừng cũng dừng ở đây.
+    let bucket: Date | null = null;
     if (this.channelGuard) {
       try {
-        await this.channelGuard.reserve('bulk_message');
+        bucket = await this.channelGuard.reserve('bulk_message');
       } catch (err) {
         if (err instanceof ChannelBlockedError) {
           if (err.blockCode === 'channel_paused') return { status: 'skipped', pause: true };
@@ -392,7 +396,7 @@ export class FacebookBroadcastsService {
       return { status: 'sent' };
     } catch (err) {
       // Tin chưa tới Facebook ⇒ hoàn hạn mức đã giữ chỗ.
-      if (!delivered) await this.channelGuard?.refund('bulk_message');
+      if (!delivered) await this.channelGuard?.refund('bulk_message', 1, bucket);
       if (err instanceof GraphApiError) {
         if (err.isOutsideWindow) return { status: 'skipped', note: 'Quá 24 giờ kể từ tin cuối của khách' };
         if (err.isTokenError) {

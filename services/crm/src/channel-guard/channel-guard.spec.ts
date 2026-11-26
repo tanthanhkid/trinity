@@ -1,3 +1,6 @@
+import { ChannelBlockedError } from './channel-guard.errors';
+import { ChannelGuardService } from './channel-guard.service';
+import { GraphApiError } from '../facebook/graph-client';
 import { dayBucket, evaluateGraphWindow, graphGuardConfig, hourBucket, type GraphWindowEvent } from './channel-guard.service';
 import { isGraphAppLevelLimit, isGraphBlockOutcome } from './graph-observer';
 
@@ -58,6 +61,9 @@ describe('isGraphBlockOutcome / isGraphAppLevelLimit', () => {
     [{ httpStatus: 400, code: 200, subcode: null, send }, false],
     [{ httpStatus: 400, code: 10, subcode: 2018278, send }, false],
     [{ httpStatus: 400, code: 551, subcode: 2018278, send }, false],
+    // 1545041 là SUBCODE của mã 551 (ngoài cửa sổ nhắn tin), không phải mã lỗi
+    [{ httpStatus: 400, code: 551, subcode: 1545041, send }, false],
+    [{ httpStatus: 400, code: 551, subcode: 1234, send }, true],
     [{ httpStatus: 400, code: 190, subcode: null, send }, false],
     // cấp app: không tính theo công ty
     [{ httpStatus: 400, code: 4, subcode: null, send }, false],
@@ -81,5 +87,52 @@ describe('khung đếm', () => {
   });
   it('giờ cắt đầu giờ', () => {
     expect(hourBucket(NOW).toISOString()).toBe('2026-11-26T03:00:00.000Z');
+  });
+});
+
+describe('GraphApiError.isOutsideWindow', () => {
+  it('subcode 2018278 hoặc 1545041 (subcode của mã 551) = ngoài cửa sổ nhắn tin; mã 551 thường thì không', () => {
+    expect(new GraphApiError(400, 10, 2018278, 'x').isOutsideWindow).toBe(true);
+    expect(new GraphApiError(400, 551, 1545041, 'x').isOutsideWindow).toBe(true);
+    expect(new GraphApiError(400, 551, null, 'x').isOutsideWindow).toBe(false);
+  });
+});
+
+describe('ChannelGuardService.reserve trong transaction', () => {
+  const ctx = { kind: 'post' as const, limit: 10, bucket: new Date(Date.UTC(2026, 10, 25, 17)) };
+  beforeEach(() => { process.env.MULTI_TENANT = 'true'; });
+  afterEach(() => { delete process.env.MULTI_TENANT; });
+
+  /** Pool "cạn": mọi truy vấn qua prisma ngoài transaction đều nổ — reserve có ctx chỉ được dùng `db` truyền vào. */
+  const exploding = () => new Proxy({}, { get: () => { throw new Error('truy vấn ngoài transaction'); } });
+
+  it('có ctx: chỉ chạy đúng một câu SQL trên db của transaction, trả bucket để hoàn đúng khung', async () => {
+    const guard = new ChannelGuardService(exploding() as never);
+    const db = { $queryRawUnsafe: jest.fn(async () => [{ count: 2 }]) };
+    await expect(guard.reserve('post', 2, db as never, 'meta', ctx)).resolves.toEqual(ctx.bucket);
+    expect(db.$queryRawUnsafe).toHaveBeenCalledTimes(1);
+    expect((db.$queryRawUnsafe.mock.calls[0] as unknown[]).slice(1)).toEqual(['post', ctx.bucket.toISOString(), 2, 10]);
+  });
+
+  it('hết hạn mức trong transaction: không ghi sự kiện ngay (nằm trong lỗi); recordBlocked ghi SAU transaction, một lần', async () => {
+    const exec = jest.fn(async () => 1);
+    const prisma = new Proxy({}, { get: (_t, k) => { if (k === '$executeRawUnsafe') return exec; throw new Error(`truy vấn ngoài transaction: ${String(k)}`); } });
+    const guard = new ChannelGuardService(prisma as never);
+    const db = { $queryRawUnsafe: jest.fn(async () => []) };
+    const err = await guard.reserve('post', 2, db as never, 'meta', ctx).catch((e) => e);
+    expect(err).toBeInstanceOf(ChannelBlockedError);
+    expect(exec).not.toHaveBeenCalled();
+    expect(err.pendingEvent).toMatchObject({ kind: 'limit_exceeded' });
+    await guard.recordBlocked(err);
+    expect(exec).toHaveBeenCalledTimes(1);
+    await guard.recordBlocked(err); // đã ghi, không ghi lại
+    expect(exec).toHaveBeenCalledTimes(1);
+  });
+
+  it('bản cài một công ty: không làm gì, không trả bucket', async () => {
+    process.env.MULTI_TENANT = 'false';
+    const guard = new ChannelGuardService(exploding() as never);
+    await expect(guard.reserve('post', 5, undefined, 'meta', null)).resolves.toBeNull();
+    await expect(guard.prepareReserve('post')).resolves.toBeNull();
   });
 });

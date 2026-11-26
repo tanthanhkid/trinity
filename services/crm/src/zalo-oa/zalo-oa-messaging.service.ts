@@ -64,12 +64,12 @@ export class ZaloOaMessagingService implements MessageChannel {
     const thread = await this.prisma.zaloOaThread.findFirst({ where: { phone: { in: this.linker.phoneVariants(phone) } }, select: { id: true } });
     // ZNS là tin gửi chủ động hàng loạt: tính vào hạn mức tin hàng loạt/ngày của gói (khoá kênh chặn; tạm dừng do Graph KHÔNG áp cho Zalo).
     // Giữ chỗ sau khi có token, hoàn lại nếu Zalo không nhận.
-    await this.channelGuard?.reserve('bulk_message', 1, undefined, 'other');
+    const bucket = (await this.channelGuard?.reserve('bulk_message', 1, undefined, 'other')) ?? null;
     let r: Awaited<ReturnType<ZaloOaApiClient['sendZns']>>;
     try {
       r = await this.api.sendZns(token, { phone, templateId: p.templateId, templateData: p.templateData, trackingId: p.trackingId, mode: zaloOaConfig().znsMode });
     } catch (err) {
-      await this.channelGuard?.refund('bulk_message');
+      await this.channelGuard?.refund('bulk_message', 1, bucket);
       throw await this.fail(err, thread?.id ?? null, null, p.sentBy);
     }
     if (thread) {

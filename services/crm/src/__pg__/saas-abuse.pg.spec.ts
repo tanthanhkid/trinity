@@ -100,7 +100,7 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
       await setPlan(B, 'ket_noi');
       await inCompany(A, () => guard.reserve('bulk_message', 200));
       await expect(inCompany(A, () => guard.reserve('bulk_message'))).rejects.toThrow(/hết hạn mức tin gửi hàng loạt/);
-      await expect(inCompany(B, () => guard.reserve('bulk_message', 150))).resolves.toBeUndefined();
+      await expect(inCompany(B, () => guard.reserve('bulk_message', 150))).resolves.toBeInstanceOf(Date);
       const sa = await inCompany(A, () => guard.status());
       const sb = await inCompany(B, () => guard.status());
       expect(sa.usage.bulk_messages_today).toBe(200);
@@ -151,7 +151,7 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
       process.env.MULTI_TENANT = 'false';
       try {
         const g = new ChannelGuardService(db);
-        await expect(g.reserve('bulk_message', 1_000_000)).resolves.toBeUndefined();
+        await expect(g.reserve('bulk_message', 1_000_000)).resolves.toBeNull();
         await expect(g.assertRecipients(1_000_000)).resolves.toBeUndefined();
         await expect(g.assertOutbound('auto')).resolves.toBeUndefined();
         expect((await g.status()).enforced).toBe(false);
@@ -305,7 +305,7 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
       });
       expect((await inCompany(A, () => g.blockReason('auto', 'meta')))?.code).toBe('channel_paused');
       expect(await inCompany(A, () => g.blockReason('auto', 'other'))).toBeNull();
-      await expect(inCompany(A, () => g.reserve('bulk_message', 1, undefined, 'other'))).resolves.toBeUndefined();
+      await expect(inCompany(A, () => g.reserve('bulk_message', 1, undefined, 'other'))).resolves.toBeInstanceOf(Date);
       await setChannelLock(A.id, true, 'thử');
       try {
         expect((await inCompany(A, () => g.blockReason('auto', 'other')))?.code).toBe('channel_locked');
@@ -336,18 +336,50 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
   });
 
   describe('giữ chỗ hạn mức trong transaction', () => {
-    it('transaction lỗi thì hạn mức hoàn lại; xin vượt trần một lần thì báo đúng nghĩa, không ghi limit_exceeded', async () => {
+    it('hạn mức đọc trước transaction; transaction lỗi thì hoàn lại; vượt trần một lần thì báo đúng nghĩa, không ghi limit_exceeded', async () => {
       await setPlan(A, 'ket_noi'); // 10 bài/ngày
       const g = new ChannelGuardService(db);
       const used = async () => (await inCompany(A, () => g.status())).usage.posts_today;
       const before = await used();
-      await expect(inCompany(A, () => db.$transaction(async (tx) => { await g.reserve('post', 3, tx as never); throw new Error('tạo bài lỗi'); }))).rejects.toThrow('tạo bài lỗi');
+      const ctx = await inCompany(A, () => g.prepareReserve('post'));
+      await expect(inCompany(A, () => db.$transaction(async (tx) => { await g.reserve('post', 3, tx as never, 'meta', ctx); throw new Error('tạo bài lỗi'); }))).rejects.toThrow('tạo bài lỗi');
       expect(await used()).toBe(before);
-      await inCompany(A, () => db.$transaction(async (tx) => { await g.reserve('post', 2, tx as never); }));
+      await inCompany(A, () => db.$transaction(async (tx) => { await g.reserve('post', 2, tx as never, 'meta', ctx); }));
       expect(await used()).toBe(before + 2);
       const evBefore = (await inCompany(A, () => g.status())).recent_events.length;
       await expect(inCompany(A, () => g.reserve('post', 11))).rejects.toThrow(/Một lần chỉ được bài đăng\/hẹn giờ tối đa 10/);
       expect((await inCompany(A, () => g.status())).recent_events.length).toBe(evBefore);
+    });
+
+    it('hết hạn mức TRONG transaction: sự kiện không ghi trong transaction, ghi sau khi gọi recordBlocked', async () => {
+      await setPlan(A, 'ket_noi');
+      const g = new ChannelGuardService(db);
+      const events = async () => (await inCompany(A, () => g.status())).recent_events.filter((e) => e.kind === 'limit_exceeded').length;
+      await inCompany(A, async () => {
+        const left = 10 - (await g.status()).usage.posts_today;
+        if (left > 0) await g.reserve('post', left); // dùng hết hạn mức ngày
+      });
+      const n0 = await events();
+      const ctx = await inCompany(A, () => g.prepareReserve('post'));
+      const err = await inCompany(A, () => db.$transaction(async (tx) => { await g.reserve('post', 1, tx as never, 'meta', ctx); }).catch((e) => e));
+      expect(err).toBeInstanceOf(ChannelBlockedError);
+      expect(await events()).toBe(n0);
+      await inCompany(A, () => g.recordBlocked(err));
+      expect(await events()).toBeGreaterThanOrEqual(n0); // dedupe theo khung: đã có sự kiện của khung này thì không ghi thêm
+    });
+
+    it('refund hoàn đúng khung do reserve trả về', async () => {
+      await setPlan(A, 'custom');
+      const g = new ChannelGuardService(db);
+      const bucket = await inCompany(A, () => g.reserve('bulk_message', 5));
+      expect(bucket).toBeInstanceOf(Date);
+      const rowCount = async (b: Date) => Number((await inCompany(A, () => db.$queryRawUnsafe<Array<{ count: number }>>(`SELECT count FROM channel_usage WHERE kind = 'bulk_message' AND bucket = $1::timestamptz`, b.toISOString())))[0]?.count ?? 0);
+      const c0 = await rowCount(bucket!);
+      await inCompany(A, () => g.refund('bulk_message', 2, bucket));
+      expect(await rowCount(bucket!)).toBe(c0 - 2);
+      // Khung khác (không có dòng) không bị ảnh hưởng và không âm
+      await inCompany(A, () => g.refund('bulk_message', 5, new Date(bucket!.getTime() - 86_400_000)));
+      expect(await rowCount(bucket!)).toBe(c0 - 2);
     });
   });
 

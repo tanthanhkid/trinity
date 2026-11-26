@@ -90,11 +90,12 @@ company's own `channel_usage` table, atomically — parallel requests cannot ove
 
 | Plan | Bulk messages / day | Recipients / campaign | Posts / day | Auto comment replies / hour |
 |---|---|---|---|---|
+| `mac_dinh` (plan of a newly signed-up company) | 200 | 200 | 10 | 60 |
 | `ket_noi` | 200 | 200 | 10 | 60 |
 | `tro_ly_giam_doc` | 300 | 300 | 15 | 60 |
 | `tro_ly_kinh_doanh` | 1000 | 1000 | 40 | 200 |
 | `tro_ly_van_hanh` | 3000 | 2000 | 100 | 500 |
-| `custom` (default plan; wide, still capped) | 5000 | 2000 | 200 | 1000 |
+| `custom` (single-company installs and company 1 when no plan is set; wide, still capped) | 5000 | 2000 | 200 | 1000 |
 
 "Bulk messages" = Messenger broadcast recipients and Zalo ZNS sends; "posts" = post targets created or scheduled (one
 per channel); days are Vietnam days. Over a limit the action is refused with a plain Vietnamese message (HTTP 429, code

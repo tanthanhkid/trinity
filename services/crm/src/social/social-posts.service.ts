@@ -413,17 +413,18 @@ export class SocialPostsService {
       input = { ...input, scheduled_at: slot.toISOString() };
     }
     const v = await this.validate(user, input);
-    // Khoá kênh: chặn sớm (rẻ). Hạn mức bài/ngày được giữ chỗ TRONG transaction, sau kiểm trùng (bản nhập trùng không ăn hạn mức).
-    await this.channelGuard?.assertOutbound('manual');
+    // Khoá kênh + hạn mức của gói đọc TRƯỚC khi mở transaction; hạn mức bài/ngày được giữ chỗ TRONG transaction, sau kiểm trùng
+    // (bản nhập trùng không ăn hạn mức) và chỉ bằng chính kết nối của transaction (không kéo thêm kết nối từ pool).
+    const quota = (await this.channelGuard?.prepareReserve('post')) ?? null;
     const now = new Date();
-    const post = await this.prisma.$transaction(async (tx) => {
+    const post = await this.withQuotaEvent(() => this.prisma.$transaction(async (tx) => {
       if (opts.dedupeSource) {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${opts.dedupeSource}))`;
         if (await tx.socialPost.findFirst({ where: { source: opts.dedupeSource }, select: { id: true } })) throw new ConflictException(ALREADY_CREATED);
         input = { ...input, source: opts.dedupeSource };
       }
       // Cùng transaction với việc tạo bài: tạo lỗi/hoàn tác thì hạn mức cũng hoàn lại.
-      await this.channelGuard?.reserve('post', v.targets.length, tx);
+      await this.channelGuard?.reserve('post', v.targets.length, tx, 'meta', quota);
       const p = await tx.socialPost.create({
         data: {
           content: v.content,
@@ -446,7 +447,7 @@ export class SocialPostsService {
       });
       if (opts.inTx) await opts.inTx(tx, p.id);
       return p;
-    });
+    }));
     trackProductEvent('post_published', user.userId, {
       networks: [...new Set(v.targets.map((t) => String(t.account.network)))].sort().join(','),
       scheduled: Boolean(v.scheduledAt),
@@ -454,6 +455,16 @@ export class SocialPostsService {
     });
     if (!v.scheduledAt) this.kick();
     return this.get(post.id);
+  }
+
+  /** Chạy `fn` (một transaction có giữ chỗ hạn mức); nếu bị chặn vì hết hạn mức thì ghi sự kiện SAU transaction rồi ném lại. */
+  private async withQuotaEvent<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (err) {
+      await this.channelGuard?.recordBlocked(err);
+      throw err;
+    }
   }
 
   /** Bài còn sửa được: đang hẹn giờ, còn hơn 1 phút mới tới giờ, mọi kênh chưa huỷ đều còn chờ (chưa kênh nào bắt đầu đăng). */
@@ -491,7 +502,11 @@ export class SocialPostsService {
     const at = this.newSchedule(input.scheduled_at);
     const stored = (Array.isArray(post.media) ? post.media : []) as unknown as SocialMedia[];
     const v = await this.validate(user, { ...input, scheduled_at: at.toISOString() }, { keepMedia: stored });
-    await this.prisma.$transaction(async (tx) => {
+    // Kênh đích MỚI (tài khoản chưa có trong các kênh đang chờ) mới tốn hạn mức; đổi kênh này lấy kênh khác vẫn là một kênh mới.
+    const existing = new Set(live.map((t) => t.account_id));
+    const added = v.targets.filter((t) => !existing.has(t.account.id)).length;
+    const quota = added > 0 ? ((await this.channelGuard?.prepareReserve('post')) ?? null) : null;
+    await this.withQuotaEvent(() => this.prisma.$transaction(async (tx) => {
       const removed = await tx.socialPostTarget.deleteMany({ where: { id: { in: live.map((t) => t.id) }, status: 'queued' } });
       if (removed.count !== live.length) throw new ConflictException('Bài vừa bắt đầu đăng — không sửa được nữa.');
       // Kênh từng huỷ nay chọn lại: xoá dòng đã huỷ (mỗi bài một dòng / kênh) rồi tạo mới bên dưới.
@@ -502,12 +517,11 @@ export class SocialPostsService {
         if (n.count !== 1) throw conflict();
       } else await tx.socialPost.update({ where: { id }, data });
       // Sửa bài thêm kênh đích ⇒ phần tăng thêm phải qua hạn mức/khoá kênh, cùng transaction (kênh cũ đã được tính lúc tạo).
-      const extra = v.targets.length - live.length;
-      if (extra > 0) await this.channelGuard?.reserve('post', extra, tx);
+      if (added > 0) await this.channelGuard?.reserve('post', added, tx, 'meta', quota);
       await tx.socialPostTarget.createMany({
         data: v.targets.map((t) => ({ post_id: id, account_id: t.account.id, network: t.account.network, caption: t.caption, options: t.options as Prisma.InputJsonValue, next_attempt_at: at })),
       });
-    });
+    }));
     await this.refreshStatus(id);
     return this.get(id);
   }
@@ -571,11 +585,11 @@ export class SocialPostsService {
     const a = await this.prisma.socialAccount.findUnique({ where: { id: t.account_id } });
     if (!a || a.status !== 'active') throw new BadRequestException('Kênh cần liên kết lại trước khi thử lại.');
     // Thử lại là một lượt đăng mới: qua hạn mức/khoá kênh như lúc tạo; cập nhật lỗi thì hoàn lại.
-    await this.channelGuard?.reserve('post', 1);
+    const bucket = (await this.channelGuard?.reserve('post', 1)) ?? null;
     try {
       await this.prisma.socialPostTarget.update({ where: { id: targetId }, data: { status: 'queued', attempts: 0, next_attempt_at: new Date(), last_error: null } });
     } catch (err) {
-      await this.channelGuard?.refund('post');
+      await this.channelGuard?.refund('post', 1, bucket);
       throw err;
     }
     await this.refreshStatus(t.post_id);

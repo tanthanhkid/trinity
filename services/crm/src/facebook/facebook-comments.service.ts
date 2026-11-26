@@ -177,7 +177,10 @@ export class FacebookCommentsService {
         note = 'Người này đã được trả lời ở bài này rồi (luật chỉ trả lời mỗi người một lần mỗi bài).';
       } else {
         actions = this.plan(rule, v.from?.name ?? null, phone);
-        const held = rule.mode === 'live' ? await this.holdAutoReply() : null;
+        // Hạn mức trả lời tự động chỉ tính khi luật THẬT SỰ trả lời (công khai hoặc nhắn riêng); luật chỉ ẩn bình luận thì không tốn.
+        const wantsReply = Boolean(actions.public_reply || actions.private_reply);
+        const gate = rule.mode === 'live' && wantsReply ? await this.holdAutoReply() : { held: null, bucket: null };
+        const held = gate.held;
         if (held) {
           // Không trả lời tự động lúc này (khoá kênh / tạm dừng / hết hạn mức giờ). Gỡ nội dung vẫn được phép: luật "ẩn bình luận có SĐT" vẫn chạy.
           if (actions.hide) ({ actions } = await this.execute(ctx, v.comment_id, { hide: actions.hide }));
@@ -187,6 +190,8 @@ export class FacebookCommentsService {
           note = held.message;
         } else if (rule.mode === 'live') {
           ({ actions, psid } = await this.execute(ctx, v.comment_id, actions));
+          // Không có lời trả lời nào tới Facebook ⇒ hoàn hạn mức đã giữ chỗ.
+          if (gate.bucket && !actions.public_reply?.id && !actions.private_reply?.message_id) await this.channelGuard?.refund('comment_reply', 1, gate.bucket);
           const errs = [actions.public_reply?.error, actions.private_reply?.error, actions.hide?.error].filter(Boolean);
           const ok = [actions.public_reply?.id, actions.private_reply?.message_id, actions.hide?.done].some(Boolean);
           status = errs.length && !ok ? 'failed' : 'done';
@@ -226,13 +231,12 @@ export class FacebookCommentsService {
   }
 
   /** Giữ chỗ hạn mức trả lời tự động; bị chặn ⇒ lời báo (không gửi), được ⇒ null. */
-  private async holdAutoReply(): Promise<{ message: string; pause: boolean } | null> {
-    if (!this.channelGuard) return null;
+  private async holdAutoReply(): Promise<{ held: { message: string; pause: boolean } | null; bucket: Date | null }> {
+    if (!this.channelGuard) return { held: null, bucket: null };
     try {
-      await this.channelGuard.reserve('comment_reply');
-      return null;
+      return { held: null, bucket: await this.channelGuard.reserve('comment_reply') };
     } catch (err) {
-      if (err instanceof ChannelBlockedError) return { message: err.message, pause: err.blockCode === 'channel_paused' };
+      if (err instanceof ChannelBlockedError) return { held: { message: err.message, pause: err.blockCode === 'channel_paused' }, bucket: null };
       throw err;
     }
   }

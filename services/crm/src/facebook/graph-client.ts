@@ -23,9 +23,9 @@ export class GraphApiError extends Error {
   get isRateLimit(): boolean {
     return this.httpStatus === 429 || (this.code !== null && [4, 17, 32, 613].includes(this.code));
   }
-  /** 1545041 / 10 (subcode 2018278) = ngoài cửa sổ nhắn tin. */
+  /** subcode 2018278 (mã 10) hoặc 1545041 (subcode của mã 551) = ngoài cửa sổ nhắn tin. */
   get isOutsideWindow(): boolean {
-    return this.subcode === 2018278 || this.code === 1545041;
+    return this.subcode === 2018278 || this.subcode === 1545041 || this.code === 1545041;
   }
 }
 

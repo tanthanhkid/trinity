@@ -40,7 +40,9 @@ function usage() {
       }
       const n = await runWithCompany(ref, async () => {
         const open = await db.$queryRawUnsafe(`SELECT kind, meta FROM channel_events WHERE kind IN ('auto_pause', 'auto_resume') ORDER BY id DESC LIMIT 1`)
-        if (!open[0] || open[0].kind !== 'auto_pause') return 0
+        // Only a pause still in the future: an expired pause is already over, nothing to resume.
+        const until = open[0] && open[0].meta && open[0].meta.until ? Date.parse(open[0].meta.until) : NaN
+        if (!open[0] || open[0].kind !== 'auto_pause' || !(until > Date.now())) return 0
         await db.$executeRawUnsafe(`INSERT INTO channel_events (kind, message, meta) VALUES ('auto_resume', 'Chủ nền tảng mở lại gửi tự động', '{}'::jsonb)`)
         return 1
       })

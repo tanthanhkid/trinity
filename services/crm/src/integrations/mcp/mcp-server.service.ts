@@ -44,11 +44,6 @@ import { SetupBuildService } from '../../setup/setup-build.service';
 import { OrgFeaturesService } from '../../settings/org-features.service';
 import { SchemaVersionsService } from '../../custom-objects/schema-versions.service';
 import { RecordRefsService } from '../../custom-objects/refs/record-refs.service';
-import { ExtensionsService } from '../../extensions/extensions.service';
-import { ExtensionsRuntime } from '../../extensions/extensions.runtime';
-import { extensionsEnabled } from '../../extensions/extension-flags';
-import { EXTENSION_TOOL_NAMES } from './tools/extension-tools';
-import { extensionToolDefs } from './tools/extension-dynamic';
 
 const MAX_TEXT = 40_000;
 
@@ -98,8 +93,6 @@ export class McpServerService {
     orgFeatures: OrgFeaturesService,
     versions: SchemaVersionsService,
     refs: RecordRefsService,
-    @Optional() extensions?: ExtensionsService,
-    @Optional() extRuntime?: ExtensionsRuntime,
     @Optional() socialPosts?: SocialPostsService,
     @Optional() socialAccounts?: SocialAccountsService,
     @Optional() facebookComments?: FacebookCommentsService,
@@ -121,14 +114,14 @@ export class McpServerService {
     @Optional() channelGuard?: ChannelGuardService,
   ) {
     const social = socialPosts && socialAccounts && socialDrafts && socialQueue && socialSnippets && socialImport && socialRecurrence ? { posts: socialPosts, accounts: socialAccounts, drafts: socialDrafts, queue: socialQueue, snippets: socialSnippets, importer: socialImport, recurrences: socialRecurrence } : undefined;
-    this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, extensions, extRuntime, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, payments, channels, interactions, customReports, setupBuild, channelGuard };
+    this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, payments, channels, interactions, customReports, setupBuild, channelGuard };
   }
 
   /** Dựng server + đăng ký tool cho 1 request (public để test gọi trực tiếp tool qua `execute`). */
   private buildServer(principal: McpPrincipal) {
     const { McpServer, z } = loadMcpSdk();
     const server = new McpServer({ name: 'trinity-crm', version: '1.0.0' }, { instructions: MCP_SERVER_INSTRUCTIONS });
-    for (const tool of this.visibleTools()) {
+    for (const tool of MCP_TOOLS) {
       server.registerTool(
         tool.name,
         {
@@ -142,12 +135,6 @@ export class McpServerService {
       );
     }
     return server;
-  }
-
-  /** Tool chương trình con ẩn hoàn toàn khi cờ tắt; tool động của chương trình con `active` được gộp vào mỗi lượt `tools/list`. */
-  private visibleTools(): readonly ToolDef[] {
-    if (!extensionsEnabled() || !this.deps.extRuntime) return MCP_TOOLS.filter((t) => !EXTENSION_TOOL_NAMES.has(t.name));
-    return [...MCP_TOOLS, ...extensionToolDefs(this.deps.extRuntime)];
   }
 
   /** Xử lý 1 POST /mcp (đã xác thực). */

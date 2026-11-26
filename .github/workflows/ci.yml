@@ -197,7 +197,7 @@ jobs:
       - name: SQL tests on Postgres
         if: steps.sql.outputs.run == 'true'
         working-directory: services/crm
-        run: npx jest --testRegex '(\.pg\.spec|\.db\.spec|extensions\.service\.spec)\.ts$' --runInBand
+        run: npx jest --testRegex '(\.pg\.spec|\.db\.spec)\.ts$' --runInBand
 
       # services/commerce (sản phẩm, POS) có test SQL riêng — chạy trên cùng Postgres sau crm.
       - name: SQL tests on Postgres (commerce)

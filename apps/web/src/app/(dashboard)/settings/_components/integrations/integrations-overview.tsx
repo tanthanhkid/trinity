@@ -1,7 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { AlertTriangle, Blocks, Bot, FileSpreadsheet, History, Webhook } from "lucide-react"
+import { AlertTriangle, Bot, FileSpreadsheet, History, Webhook } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { BrandKey } from "@/lib/brand-logos"
 import { ConnectionGroup, ConnectionLogo, ConnectionRow, StatusPill, type ConnectionTone } from "@/components/ui/connection-row"
@@ -215,7 +215,7 @@ export function IntegrationsOverview({ visible, status, statusError, open, audit
   const hooks = status?.webhooks_enabled
   const mcp = status?.mcp_enabled
   const channels = visible.has("facebook") || visible.has("zalo-oa")
-  const data = visible.has("google-sheets") || visible.has("webhook-out") || visible.has("webhook-in") || visible.has("extensions")
+  const data = visible.has("google-sheets") || visible.has("webhook-out") || visible.has("webhook-in")
   return (
     <div className="flex flex-col gap-6">
       {statusError && (
@@ -256,15 +256,6 @@ export function IntegrationsOverview({ visible, status, statusError, open, audit
           {visible.has("google-sheets") && <GoogleRow open={open} />}
           {visible.has("webhook-out") && <WebhookOutRow open={open} enabled={hooks} />}
           {visible.has("webhook-in") && <WebhookInRow open={open} enabled={hooks} />}
-          {visible.has("extensions") && (
-            <ConnectionRow
-              testId="conn-extensions"
-              logo={<ConnectionLogo color="#475569" icon={<Blocks />} />}
-              title="Chương trình con"
-              description="Tiện ích nhờ AI viết: đồng bộ, quy trình riêng, tích hợp mới"
-              action={<Button variant="outline" onClick={() => open("extensions")}>Mở</Button>}
-            />
-          )}
           {auditVisible && (
             <ConnectionRow
               testId="conn-audit"

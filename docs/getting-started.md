@@ -31,7 +31,7 @@ Stop and remove everything (including data): `docker compose down -v`.
 
 ## Option 2 — Local development
 
-Requirements: Node 22 (`.nvmrc`), pnpm 10, PostgreSQL 16, Redis 7. Deno >= 2 only if you use add-ons.
+Requirements: Node 22 (`.nvmrc`), pnpm 10, PostgreSQL 16, Redis 7.
 
 ```bash
 cp .env.example .env            # edit DATABASE_URL / REDIS_URL / secrets

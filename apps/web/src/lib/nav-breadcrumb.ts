@@ -34,7 +34,6 @@ function stripQuery(href: string): string {
 /** Trang có route nhưng không nằm trong menu (vào từ chuông, trang chủ…) — để topbar không ghi nhầm "Tổng quan". */
 const OFF_MENU_ENTRIES: Entry[] = [
   { path: "/briefings", title: "Bản tin" },
-  { path: "/extensions", title: "Chương trình con" },
   { path: "/bat-dau", title: "Bắt đầu" },
   { path: "/kanban/settings", title: "Cài đặt bảng", parentTitle: "Công việc" },
   { path: "/management/employees/stats", title: "Thống kê nhân sự", parentTitle: "Quản lý nhân viên" },

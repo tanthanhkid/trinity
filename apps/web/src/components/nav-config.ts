@@ -102,6 +102,6 @@ export const menuItems: readonly MenuItem[] = [
     ],
   },
   // Kết nối: trợ lý AI, Fanpage, Zalo OA, thanh toán, bán hàng, dữ liệu — tách khỏi Cài đặt cho gọn (nhóm theo loại bên trong).
-  { key: "connections", title: "Kết nối", icon: PlugZap, href: "/connections", iconColor: "text-violet-600 dark:text-violet-400", anyOf: ["integrations.webhooks", "integrations.ai_connect", "integrations.ai_admin", "contacts.update", "deals.view", "pos.manage", "extensions.view"], feature: "integrations" },
+  { key: "connections", title: "Kết nối", icon: PlugZap, href: "/connections", iconColor: "text-violet-600 dark:text-violet-400", anyOf: ["integrations.webhooks", "integrations.ai_connect", "integrations.ai_admin", "contacts.update", "deals.view", "pos.manage"], feature: "integrations" },
   { key: "settings", title: "Cài đặt", icon: Settings, href: "/settings", iconColor: "text-slate-600 dark:text-slate-400" },
 ] as const

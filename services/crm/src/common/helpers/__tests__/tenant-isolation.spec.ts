@@ -1,5 +1,5 @@
 /**
- * Multi-tenant: job nền chạy cho TỪNG công ty, trạng thái trong RAM / khoá lưu trữ / cổng dữ liệu chương trình con không lẫn
+ * Multi-tenant: job nền chạy cho TỪNG công ty, trạng thái trong RAM / khoá lưu trữ không lẫn
  * giữa hai công ty có cùng id (user 3, cấu hình 1…).
  */
 jest.mock('../../../../../../packages/prisma/src/tenant/platform', () => ({
@@ -14,7 +14,6 @@ import { companyRef, currentCompanyId, runWithCompany } from '@trinity/prisma';
 import { tenantTimerTick } from '../tenant-timer';
 import { companyStorageKey } from '../../../storage/storage.service';
 import { FacebookFlowsJob } from '../../../facebook/facebook-flows.job';
-import { InternalGateway, type DataPort } from '../../../extensions/runner/gateway';
 import { signMediaLink, verifyMediaLink } from '../../../social/social-media-link';
 
 const OLD_MT = process.env.MULTI_TENANT;
@@ -98,31 +97,5 @@ describe('link tệp công khai mạng xã hội mang công ty', () => {
   it('token ký trong công ty 5 trả companyId 5', () => {
     const t = runWithCompany(companyRef(5), () => signMediaLink({ key: 'social/u3_a.jpg', content_type: 'image/jpeg' }, 1_000));
     expect(verifyMediaLink(t, 1_000)).toEqual({ key: 'social/u3_a.jpg', contentType: 'image/jpeg', companyId: 5 });
-  });
-});
-
-describe('InternalGateway — lời gọi dữ liệu của chương trình con chạy trong công ty đã cấp token', () => {
-  it('token cấp ở công ty 5 ⇒ DataPort chạy với công ty 5; token công ty 1 ⇒ công ty 1', async () => {
-    const seen: Array<number | null> = [];
-    const port = {
-      create: jest.fn(),
-      list: jest.fn(async () => {
-        seen.push(currentCompanyId());
-        return { items: [], next_cursor: null };
-      }),
-    };
-    const gw = new InternalGateway(port as unknown as DataPort);
-    await gw.start();
-    try {
-      const t5 = runWithCompany(companyRef(5), () => gw.issueToken({ extId: 1, read: ['doc'], write: [], dryRun: false }));
-      const t1 = runWithCompany(companyRef(1), () => gw.issueToken({ extId: 1, read: ['doc'], write: [], dryRun: false }));
-      for (const t of [t5, t1]) {
-        const res = await fetch(`${gw.url}/records/doc`, { headers: { authorization: `Bearer ${t}` } });
-        expect(res.status).toBe(200);
-      }
-      expect(seen).toEqual([5, 1]);
-    } finally {
-      await gw.stop();
-    }
   });
 });

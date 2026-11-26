@@ -69,3 +69,14 @@ describe("<AiActionsNavBadge>", () => {
     expect(screen.queryByRole("status")).toBeNull()
   })
 })
+
+describe("thông báo cũ của chương trình con đã gỡ", () => {
+  it("không dẫn tới trang đã gỡ (404) mà về Hoạt động AI; vẫn có kiểu hiển thị riêng", () => {
+    expect(resolveNotificationHref(false, { event_type: "extension.pending", action_url: "/extensions?id=3" })).toBe("/ai-actions")
+    expect(resolveNotificationHref(false, { event_type: "extension.auto_disabled", action_url: null })).toBe("/ai-actions")
+    expect(resolveNotificationHref(false, { event_type: "khac", action_url: "/extensions/3" })).toBe("/ai-actions")
+    expect(resolveNotificationHref(false, { event_type: "khac", action_url: "/extensions-moi" })).toBe("/extensions-moi")
+    expect(EVENT_CONFIG["extension.pending"]).toBeDefined()
+    expect(EVENT_CONFIG["extension.auto_disabled"]).toBeDefined()
+  })
+})

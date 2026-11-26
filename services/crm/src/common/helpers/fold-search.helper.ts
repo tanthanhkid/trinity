@@ -4,7 +4,7 @@ import { escapeLike } from '../../custom-objects/record-query';
 
 /**
  * Ô tìm DÙNG CHUNG mọi bảng: không phân biệt hoa/thường, bỏ dấu tiếng Việt, khớp chuỗi con
- * ("minh" ra "Minh", "Bé Minh", "Mính"). Gập bằng `translate(lower())` — PG thuần, không cần extension `unaccent`.
+ * ("minh" ra "Minh", "Bé Minh", "Mính"). Gập bằng `translate(lower())` — PG thuần, không cần `unaccent`.
  */
 
 /** Biểu thức SQL đã gập (chữ thường, bỏ dấu) — so với `foldContains(q)`. */

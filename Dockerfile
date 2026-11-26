@@ -1,8 +1,7 @@
 # syntax=docker/dockerfile:1.7
 #
 # Multi-target image for Trinity. Targets:
-#   api    — NestJS monolith (also contains Deno for sandboxed add-ons) and the
-#            migrate/seed job (same image, different command)
+#   api    — NestJS monolith and the migrate/seed job (same image, different command)
 #   web    — Next.js standalone server
 #
 #   docker build --target api -t trinity-api .
@@ -39,13 +38,10 @@ ENV MONOLITH_INTERNAL_URL=${MONOLITH_INTERNAL_URL}
 RUN pnpm --filter web build
 
 # ---------------------------------------------------------------------------
-# api: monolith + migrate/seed job. Deno is installed for the add-on runner.
+# api: monolith + migrate/seed job.
 # ---------------------------------------------------------------------------
-FROM denoland/deno:bin-2.1.4 AS deno-bin
-
 FROM build AS api
 ENV NODE_ENV=production PORT=4000
-COPY --from=deno-bin /deno /usr/local/bin/deno
 RUN mkdir -p /var/lib/trinity/storage /app/uploads \
  && chown -R node:node /var/lib/trinity /app/uploads
 USER node

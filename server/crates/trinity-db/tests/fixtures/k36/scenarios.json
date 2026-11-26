@@ -1,0 +1,15 @@
+{
+  "note": "10 kịch bản mẫu K36: cùng đầu vào cho bản Node (gen.cjs, ghi expected.json) và bản Rust (tests/outbox.rs). Payload đã ở dạng JSON thuần (BigInt là chuỗi, ngày là chuỗi ISO).",
+  "scenarios": [
+    { "name": "contact.created", "event": { "type": "contact.created", "id": 101, "actor": 5, "payload": { "contact": { "id": 101, "full_name": "Nguyễn Văn A", "phone": "0900000001", "stage_id": 1 }, "origin": "manual" } } },
+    { "name": "contact.assigned", "event": { "type": "contact.assigned", "id": 101, "actor": 5, "payload": { "contact": { "id": 101, "assigned_to": 7 }, "previous_assigned_to": 5 } }, "notify": [ { "recipient_id": 7, "event_type": "deal.assigned", "title": "Bạn được giao thương vụ mới", "body": "\"Thương vụ từ khách hàng #101\" — giao bởi admin@example.com", "action_url": "/contacts/101" } ] },
+    { "name": "deal.won giá trị lớn", "event": { "type": "deal.won", "id": 55, "actor": null, "payload": { "deal": { "id": 55, "value": "9007199254740993", "status": "won", "closed_at": "2026-11-26T10:00:00.000Z" } } } },
+    { "name": "pos.order.completed", "event": { "type": "pos.order.completed", "id": "ORD-2026-0001", "actor": 3, "payload": { "order": { "code": "ORD-2026-0001", "total": "250000", "items": [ { "sku": "A", "qty": 2.5 }, { "sku": "B", "qty": 1 } ] } } } },
+    { "name": "store_order.paid", "event": { "type": "store_order.paid", "id": 9, "actor": 2, "payload": { "order": { "id": 9, "paid": true, "note": null } } } },
+    { "name": "thông báo nhiều người nhận", "notify": [ { "recipient_id": 4, "event_type": "task.due", "title": "Việc đến hạn", "body": "Gọi lại khách A", "action_url": "/tasks" }, { "recipient_id": 6, "event_type": "task.due", "title": "Việc đến hạn", "body": "Gọi lại khách A", "action_url": "/tasks" }, { "recipient_id": 4, "event_type": "task.due", "title": "Việc đến hạn", "body": "Gọi lại khách A", "action_url": "/tasks" } ] },
+    { "name": "thông báo không action_url, có tiếng Việt và ký tự đặc biệt", "notify": [ { "recipient_id": 8, "event_type": "payslip.approved", "title": "Phiếu lương đã duyệt", "body": "Phiếu lương tháng 2026-11: 15.000.000 VNĐ — \"đã duyệt\" <ok> & 'xong'", "action_url": null } ] },
+    { "name": "sự kiện + thông báo cùng giao dịch", "event": { "type": "deal.created", "id": 56, "actor": 5, "payload": { "deal": { "id": 56, "title": "Thương vụ từ khách hàng #101", "assigned_to": 7, "value": "0" } } }, "notify": [ { "recipient_id": 7, "event_type": "deal.assigned", "title": "Bạn được giao thương vụ mới", "body": "\"Thương vụ từ khách hàng #101\" — giao bởi Admin #5", "action_url": "/contacts" } ] },
+    { "name": "custom_record.updated số thực và lồng sâu", "event": { "type": "custom_record.updated", "id": "rec-1", "actor": 1, "payload": { "record": { "fields": { "ratio": 1.0, "score": 12.25, "tags": ["a", "b"], "nested": { "x": { "y": [1, 2, { "z": null }] } } } } } } },
+    { "name": "payment.received", "event": { "type": "payment.received", "id": 77, "actor": null, "payload": { "payment": { "id": 77, "amount": "1500000", "provider": "sepay", "paid_at": "2026-11-26T03:04:05.678Z" } } } }
+  ]
+}

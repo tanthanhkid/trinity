@@ -32,3 +32,21 @@ cannot leave a revoked user usable. Writers (Rust included) should write the row
 
 Notes for implementers: the cache key of company `c` is the bare key for company 1 and `c<id>:<key>` otherwise. A company
 other than 1 uses schema `c_<id>`; read rows inside that schema. Payslip notices assume one Node process handles them.
+
+## Rust side (K36)
+
+`trinity_db::sync` implements this contract: `publish_in_tx` / `publish_bell_in_tx` send with `pg_notify` on the business
+transaction (Postgres delivers it on commit only, so the row is always written before the message). `listen_from_env` opens
+its OWN connection (`DIRECT_DATABASE_URL`, then `TENANT_DATABASE_URL`, then `DATABASE_URL`; never the application pool),
+returns nothing when `TRINITY_SYNC=off` or `TRINITY_RUNTIME=serverless`, stops when the receiver is dropped, and emits a
+`Resync` event whenever the connection was lost (messages in between are gone: clear caches and reload the durable tables).
+A process never receives its own messages (origin `rust-<pid>-<hex>`): it applies the change locally first.
+
+Modules never write the tables or the message by hand. `trinity_db::outbox::publish_integration_event` writes
+`integration_events` (event types from `server/contracts/events.json`, numbers printed as `JSON.stringify` does).
+`create_notification(tx, items)` takes the company from the `TenantTx`, writes `notification_logs`, sends the `bell` message
+inside a savepoint (a failed send is logged and never breaks the business transaction) and returns the created rows (id,
+recipient, title, body, action URL): **the caller pushes its own in-process sockets from that data after commit**, because the
+`bell` message is not delivered back to the sender; other processes read the rows by id. The Node dispatcher picks
+Rust-written events up on its next 10 second tick. Known difference: Prisma rounds floats with more than 15 significant digits
+when it writes a JSON column; Rust keeps the value.

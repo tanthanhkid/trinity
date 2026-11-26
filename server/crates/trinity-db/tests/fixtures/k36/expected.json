@@ -1,0 +1,202 @@
+{
+  "scenarios": [
+    {
+      "name": "contact.created",
+      "events": [
+        {
+          "event_type": "contact.created",
+          "resource": "contact",
+          "resource_id": "101",
+          "payload": "{\"origin\": \"manual\", \"contact\": {\"id\": 101, \"phone\": \"0900000001\", \"stage_id\": 1, \"full_name\": \"Nguyễn Văn A\"}}",
+          "actor_user_id": 5,
+          "pending": true
+        }
+      ],
+      "notifications": []
+    },
+    {
+      "name": "contact.assigned",
+      "events": [
+        {
+          "event_type": "contact.assigned",
+          "resource": "contact",
+          "resource_id": "101",
+          "payload": "{\"contact\": {\"id\": 101, \"assigned_to\": 7}, \"previous_assigned_to\": 5}",
+          "actor_user_id": 5,
+          "pending": true
+        }
+      ],
+      "notifications": [
+        {
+          "recipient_id": 7,
+          "event_type": "deal.assigned",
+          "channel": "in_app",
+          "title": "Bạn được giao thương vụ mới",
+          "body": "\"Thương vụ từ khách hàng #101\" — giao bởi admin@example.com",
+          "status": "sent",
+          "retry_count": 0,
+          "is_read": false,
+          "action_url": "/contacts/101",
+          "sent": true
+        }
+      ]
+    },
+    {
+      "name": "deal.won giá trị lớn",
+      "events": [
+        {
+          "event_type": "deal.won",
+          "resource": "deal",
+          "resource_id": "55",
+          "payload": "{\"deal\": {\"id\": 55, \"value\": \"9007199254740993\", \"status\": \"won\", \"closed_at\": \"2026-11-26T10:00:00.000Z\"}}",
+          "actor_user_id": null,
+          "pending": true
+        }
+      ],
+      "notifications": []
+    },
+    {
+      "name": "pos.order.completed",
+      "events": [
+        {
+          "event_type": "pos.order.completed",
+          "resource": "pos_order",
+          "resource_id": "ORD-2026-0001",
+          "payload": "{\"order\": {\"code\": \"ORD-2026-0001\", \"items\": [{\"qty\": 2.5, \"sku\": \"A\"}, {\"qty\": 1, \"sku\": \"B\"}], \"total\": \"250000\"}}",
+          "actor_user_id": 3,
+          "pending": true
+        }
+      ],
+      "notifications": []
+    },
+    {
+      "name": "store_order.paid",
+      "events": [
+        {
+          "event_type": "store_order.paid",
+          "resource": "store_order",
+          "resource_id": "9",
+          "payload": "{\"order\": {\"id\": 9, \"note\": null, \"paid\": true}}",
+          "actor_user_id": 2,
+          "pending": true
+        }
+      ],
+      "notifications": []
+    },
+    {
+      "name": "thông báo nhiều người nhận",
+      "events": [],
+      "notifications": [
+        {
+          "recipient_id": 4,
+          "event_type": "task.due",
+          "channel": "in_app",
+          "title": "Việc đến hạn",
+          "body": "Gọi lại khách A",
+          "status": "sent",
+          "retry_count": 0,
+          "is_read": false,
+          "action_url": "/tasks",
+          "sent": true
+        },
+        {
+          "recipient_id": 6,
+          "event_type": "task.due",
+          "channel": "in_app",
+          "title": "Việc đến hạn",
+          "body": "Gọi lại khách A",
+          "status": "sent",
+          "retry_count": 0,
+          "is_read": false,
+          "action_url": "/tasks",
+          "sent": true
+        },
+        {
+          "recipient_id": 4,
+          "event_type": "task.due",
+          "channel": "in_app",
+          "title": "Việc đến hạn",
+          "body": "Gọi lại khách A",
+          "status": "sent",
+          "retry_count": 0,
+          "is_read": false,
+          "action_url": "/tasks",
+          "sent": true
+        }
+      ]
+    },
+    {
+      "name": "thông báo không action_url, có tiếng Việt và ký tự đặc biệt",
+      "events": [],
+      "notifications": [
+        {
+          "recipient_id": 8,
+          "event_type": "payslip.approved",
+          "channel": "in_app",
+          "title": "Phiếu lương đã duyệt",
+          "body": "Phiếu lương tháng 2026-11: 15.000.000 VNĐ — \"đã duyệt\" <ok> & 'xong'",
+          "status": "sent",
+          "retry_count": 0,
+          "is_read": false,
+          "action_url": null,
+          "sent": true
+        }
+      ]
+    },
+    {
+      "name": "sự kiện + thông báo cùng giao dịch",
+      "events": [
+        {
+          "event_type": "deal.created",
+          "resource": "deal",
+          "resource_id": "56",
+          "payload": "{\"deal\": {\"id\": 56, \"title\": \"Thương vụ từ khách hàng #101\", \"value\": \"0\", \"assigned_to\": 7}}",
+          "actor_user_id": 5,
+          "pending": true
+        }
+      ],
+      "notifications": [
+        {
+          "recipient_id": 7,
+          "event_type": "deal.assigned",
+          "channel": "in_app",
+          "title": "Bạn được giao thương vụ mới",
+          "body": "\"Thương vụ từ khách hàng #101\" — giao bởi Admin #5",
+          "status": "sent",
+          "retry_count": 0,
+          "is_read": false,
+          "action_url": "/contacts",
+          "sent": true
+        }
+      ]
+    },
+    {
+      "name": "custom_record.updated số thực và lồng sâu",
+      "events": [
+        {
+          "event_type": "custom_record.updated",
+          "resource": "custom_record",
+          "resource_id": "rec-1",
+          "payload": "{\"record\": {\"fields\": {\"tags\": [\"a\", \"b\"], \"ratio\": 1, \"score\": 12.25, \"nested\": {\"x\": {\"y\": [1, 2, {\"z\": null}]}}}}}",
+          "actor_user_id": 1,
+          "pending": true
+        }
+      ],
+      "notifications": []
+    },
+    {
+      "name": "payment.received",
+      "events": [
+        {
+          "event_type": "payment.received",
+          "resource": "payment_intent",
+          "resource_id": "77",
+          "payload": "{\"payment\": {\"id\": 77, \"amount\": \"1500000\", \"paid_at\": \"2026-11-26T03:04:05.678Z\", \"provider\": \"sepay\"}}",
+          "actor_user_id": null,
+          "pending": true
+        }
+      ],
+      "notifications": []
+    }
+  ]
+}

@@ -760,6 +760,16 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
     shared mới của Rust xếp sau nó và cũng hết giờ. Đặt `client_connection_check_interval` (Postgres 14+) ở DB làm hàng
     chờ mồ côi tự hết vài giây sau khi tiến trình schema engine thoát. K07: worker Rust giữ khoá theo **từng schema**
     (không giữ suốt lượt) và thử lại khi 55P03; tài liệu triển khai ghi khuyến nghị `client_connection_check_interval`.
+- **Đã làm ở K07** (`server/crates/trinity-db/src/migrate.rs`, lệnh `trinity migrate`): migration nhúng nguyên văn
+  vào binary lúc biên dịch (`build.rs`, `include_str!`, test so từng byte với thư mục), nên máy chủ không cần mã nguồn;
+  `--dir` đọc thư mục khác. `trinity migrate` = schema `public` (bước deploy của Node), `--schema <public|c_N>`,
+  `--companies` (cần `MULTI_TENANT=true`) thay `migrate-companies.cjs`, `--status` chỉ in trạng thái (mã 1 khi còn
+  thiếu/lỗi). Kết nối migrate không có `statement_timeout`. Lấy khoá hết giờ (55P03) thì thử lại tối đa 3 lần, mỗi
+  lần chờ 10 giây. `--companies`: chỉ công ty có `migrated_to` rỗng hoặc **nhỏ hơn** bản nhúng (TS chạy lại cả công
+  ty có `migrated_to` lớn hơn rồi ghi lùi về bản cũ khi binary cũ chạy trên DB mới), `schema_name` phải đúng
+  `c_<id>`, `migrated_to` chỉ ghi tiến; một công ty lỗi không chặn công ty khác, thoát mã 1 và liệt kê lỗi. Test
+  hai chiều: Prisma migrate `public` ⇒ `trinity migrate --status` đã cập nhật và `trinity migrate` rỗng; `trinity
+  migrate --schema`/`--companies` ⇒ `prisma migrate status` báo đã cập nhật; migrate lại là thao tác rỗng.
 - Trong giai đoạn lai, Prisma vẫn là công cụ migrate cho **schema đã có** (bước deploy của Node). Ngoại lệ có chủ đích:
   từ đợt b, đăng ký công ty chạy ở Rust, nên migrator Rust **ghi** `_prisma_migrations` của schema công ty **mới**
   (bản TS làm việc này bằng `prisma migrate deploy` trong `provisionCompany`). Vì vậy test hai chiều của K07 là điều

@@ -42,6 +42,7 @@ struct Sess {
 pub struct State {
     blocks: HashMap<Key, Block>,
     sessions: HashMap<Key, Sess>,
+    last_sweep: i64,
 }
 
 impl State {
@@ -66,14 +67,29 @@ impl State {
         self.sessions.insert(key, Sess { sid, at });
     }
 
+    /// O(1): tra một khoá, mục hết hạn thì xoá tại chỗ; dọn cả bảng tối đa mỗi 60 giây.
     pub fn is_blacklisted(&mut self, key: Key, now: i64) -> bool {
-        self.blocks.retain(|_, e| now <= e.expires_at);
-        self.blocks.get(&key).is_some_and(|e| e.blocked)
+        if now - self.last_sweep > 60_000 {
+            self.last_sweep = now;
+            self.blocks.retain(|_, e| now <= e.expires_at);
+        }
+        match self.blocks.get(&key) {
+            Some(e) if now > e.expires_at => {
+                self.blocks.remove(&key);
+                false
+            }
+            Some(e) => e.blocked,
+            None => false,
+        }
     }
 
     /// Fail-open: chưa theo dõi phiên nào, hoặc token không có `sid` ⇒ hợp lệ.
     pub fn is_current_session(&self, key: Key, sid: Option<&str>) -> bool {
-        match (self.sessions.get(&key).and_then(|s| s.sid.as_deref()), sid) {
+        // `!sessionId` của bản Node: chuỗi rỗng cũng là thiếu.
+        match (
+            self.sessions.get(&key).and_then(|s| s.sid.as_deref()),
+            sid.filter(|s| !s.is_empty()),
+        ) {
             (None, _) | (_, None) => true,
             (Some(cur), Some(s)) => cur == s,
         }
@@ -87,7 +103,11 @@ impl State {
         ) else {
             return;
         };
+        // Tin không có công ty (`c < 1`) bị bỏ: `tenantKeyFor` của Node cũng không cho khoá hợp lệ.
         let Ok(u) = i32::try_from(u) else { return };
+        if m.company < 1 {
+            return;
+        }
         let key = (m.company, u);
         let t = t as i64;
         let op = m.fields.get("op").and_then(Value::as_str);
@@ -158,7 +178,13 @@ pub struct Security {
     origin: String,
     sync_on: bool,
     state: Mutex<State>,
+    /// Bộ nghe tin của module khác dùng chung kênh (rbac…): nhận mọi tin đã qua lọc phiên bản và origin.
+    handlers: Mutex<Vec<MessageHandler>>,
+    resync: Mutex<Vec<ResyncHandler>>,
 }
+
+type MessageHandler = Arc<dyn Fn(&Message) + Send + Sync>;
+type ResyncHandler = Arc<dyn Fn() + Send + Sync>;
 
 impl Security {
     /// `sync_on = false` (`TRINITY_SYNC=off`): không nghe, không gửi; vẫn ghi bảng.
@@ -169,6 +195,8 @@ impl Security {
             origin: sync::new_origin(),
             sync_on,
             state: Mutex::new(State::default()),
+            handlers: Mutex::new(Vec::new()),
+            resync: Mutex::new(Vec::new()),
         })
     }
 
@@ -178,6 +206,33 @@ impl Security {
 
     pub fn db(&self) -> &Db {
         &self.db
+    }
+
+    /// Đăng ký bộ nghe cho mọi tin của kênh `trinity_sync` (không phải của chính tiến trình này).
+    pub fn on_message(&self, f: impl Fn(&Message) + Send + Sync + 'static) {
+        self.handlers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(Arc::new(f));
+    }
+
+    /// Đăng ký bộ gọi khi kênh vừa nối lại (tin trong lúc đứt đã mất): xoá cache, đọc lại từ DB.
+    pub fn on_resync(&self, f: impl Fn() + Send + Sync + 'static) {
+        self.resync
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(Arc::new(f));
+    }
+
+    fn fire_resync(&self) {
+        let hooks: Vec<ResyncHandler> = self
+            .resync
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        for h in hooks {
+            h();
+        }
     }
 
     pub fn origin(&self) -> &str {
@@ -203,10 +258,19 @@ impl Security {
         }
         if let Some(m) = sync::parse(payload, &self.origin) {
             self.st().handle(&m);
+            let hooks: Vec<MessageHandler> = self
+                .handlers
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            for h in hooks {
+                h(&m);
+            }
         }
     }
 
-    async fn notify(&self, kind: &str, company: i32, fields: Value) {
+    /// Gửi một tin lên kênh (fire-and-forget: lỗi chỉ ghi log). `company` 0 = không có ngữ cảnh công ty.
+    pub async fn publish(&self, kind: &str, company: i32, fields: Value) {
         if !self.sync_on {
             return;
         }
@@ -258,7 +322,7 @@ impl Security {
             .bind(ts(at + TOKEN_TTL_MS)),
         )
         .await;
-        self.notify("token", company, json!({ "op": "block", "u": user, "t": at }))
+        self.publish("token", company, json!({ "op": "block", "u": user, "t": at }))
             .await;
     }
 
@@ -271,7 +335,7 @@ impl Security {
             sqlx::query("DELETE FROM token_blacklist WHERE user_id = $1").bind(user),
         )
         .await;
-        self.notify("token", company, json!({ "op": "unblock", "u": user, "t": at }))
+        self.publish("token", company, json!({ "op": "unblock", "u": user, "t": at }))
             .await;
     }
 
@@ -291,7 +355,7 @@ impl Security {
             .bind(sid.clone()),
         )
         .await;
-        self.notify(
+        self.publish(
             "session",
             company,
             json!({ "op": "start", "u": user, "s": sid, "t": at }),
@@ -309,7 +373,7 @@ impl Security {
             sqlx::query("DELETE FROM active_sessions WHERE user_id = $1").bind(user),
         )
         .await;
-        self.notify("session", company, json!({ "op": "clear", "u": user, "t": at }))
+        self.publish("session", company, json!({ "op": "clear", "u": user, "t": at }))
             .await;
     }
 
@@ -376,11 +440,15 @@ impl Security {
                             backoff = Duration::from_secs(1);
                             // Tin đến trong lúc chưa nghe đã mất ⇒ nạp lại từ bảng.
                             this.reload().await;
+                            this.fire_resync();
                             loop {
                                 match l.try_recv().await {
                                     Ok(Some(n)) => this.handle_payload(n.payload()),
                                     // Kết nối đứt rồi được nối lại ngầm: tin trong lúc đứt đã mất.
-                                    Ok(None) => this.reload().await,
+                                    Ok(None) => {
+                                        this.reload().await;
+                                        this.fire_resync();
+                                    }
                                     Err(e) => {
                                         tracing::warn!("[sync] kênh lỗi: {e}");
                                         break;
@@ -394,6 +462,7 @@ impl Security {
                 tokio::time::sleep(backoff).await;
                 backoff = (backoff * 2).min(Duration::from_secs(30));
                 this.reload().await;
+                this.fire_resync();
             }
         })
     }

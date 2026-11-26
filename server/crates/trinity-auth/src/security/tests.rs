@@ -94,7 +94,7 @@ fn envelope_va_parse_bo_qua_tin_cua_minh_va_phien_ban_la() {
         sync::parse(r#"{"v":1,"o":"x","k":"token","c":0}"#, "y")
             .unwrap()
             .company,
-        1
+        0
     );
     assert!(sync::envelope("o", "k", 1, json!({ "x": "a".repeat(8000) })).is_none());
 }
@@ -107,4 +107,40 @@ fn cong_tat_dong_bo() {
         |k| (k == "TRINITY_RUNTIME").then(|| "serverless".to_owned())
     ));
     assert!(!sync::disabled(|_| None));
+}
+
+#[test]
+fn sid_rong_la_fail_open_va_tin_khong_cong_ty_bi_bo() {
+    let mut s = State::default();
+    s.apply_session(K, Some("cur".into()), 1);
+    assert!(s.is_current_session(K, Some("")));
+    s.handle(&msg("token", 0, json!({ "op": "block", "u": 7, "t": 5_000 })));
+    assert!(!s.is_blacklisted((0, 7), 5_001) && !s.is_blacklisted((1, 7), 5_001));
+}
+
+#[test]
+fn tra_blacklist_xoa_muc_het_han_tai_cho() {
+    let mut s = State::default();
+    for u in 0..1000 {
+        s.apply_token((1, u), true, 0);
+    }
+    // Lần tra đầu quá 60 giây kể từ lần dọn cuối ⇒ dọn cả bảng: không còn mục hết hạn nào.
+    assert!(!s.is_blacklisted((1, 5), TOKEN_TTL_MS + 1));
+    assert!(s.blocks.is_empty());
+}
+
+#[test]
+fn tra_blacklist_duoi_60_giay_chi_xoa_dung_muc_vua_tra() {
+    let mut s = State::default();
+    let t0 = TOKEN_TTL_MS + 1;
+    assert!(!s.is_blacklisted((1, 0), t0)); // đặt mốc dọn
+    for u in 0..10 {
+        s.apply_token((1, u), true, 0); // hết hạn từ trước t0
+    }
+    // 30 giây sau mốc dọn: không quét cả bảng, chỉ xoá mục được tra.
+    assert!(!s.is_blacklisted((1, 3), t0 + 30_000));
+    assert_eq!(s.blocks.len(), 9);
+    // Mục chưa hết hạn vẫn bị chặn.
+    s.apply_token((1, 99), true, t0);
+    assert!(s.is_blacklisted((1, 99), t0 + 30_000));
 }

@@ -64,6 +64,8 @@ fn verifier_factory(alg: &Algorithm, key: &DecodingKey) -> Result<Box<dyn JwtVer
     Ok(Box::new(Hs256Verifier(m)))
 }
 
+// Provider được cài MỘT lần cho cả tiến trình (`Once`); `Validation::new(HS256)` chỉ nhận header `alg` = HS256 nên
+// `signer_factory`/`verifier_factory` với thuật toán khác chỉ là lớp phòng thủ thứ hai.
 static PROVIDER: CryptoProvider = CryptoProvider {
     signer_factory,
     verifier_factory,
@@ -84,7 +86,7 @@ pub const ACCESS_TTL_SECS: u64 = 15 * 60;
 pub const REFRESH_TTL_SECS: u64 = 7 * 24 * 3600;
 
 /// Payload. Thứ tự trường là thứ tự Node ghi (để token Rust ký giống từng byte token Node với cùng đầu vào).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: i64,
     #[serde(default)]
@@ -98,10 +100,23 @@ pub struct Claims {
     /// `refresh` cho refresh token: KHÔNG được dùng làm access token.
     #[serde(default, rename = "type", skip_serializing_if = "Option::is_none")]
     pub kind: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub iat: Option<u64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub exp: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "ser_time")]
+    pub iat: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "ser_time")]
+    pub exp: Option<f64>,
+    /// Token phát bởi bản khác có thể mang `nbf`; Node kiểm nếu có.
+    #[serde(default, skip_serializing_if = "Option::is_none", serialize_with = "ser_time")]
+    pub nbf: Option<f64>,
+}
+
+/// Số nguyên ghi không có `.0` (như JSON.stringify), số thực giữ nguyên: `exp`/`iat`/`nbf` của Node có thể là số thực.
+fn ser_time<S: serde::Serializer>(v: &Option<f64>, s: S) -> Result<S::Ok, S::Error> {
+    match v {
+        #[allow(clippy::cast_possible_truncation)]
+        Some(t) if t.fract() == 0.0 && t.abs() < 9.0e15 => s.serialize_i64(*t as i64),
+        Some(t) => s.serialize_f64(*t),
+        None => s.serialize_none(),
+    }
 }
 
 impl Claims {
@@ -112,8 +127,9 @@ impl Claims {
             sid,
             cid,
             kind: None,
-            iat: Some(now),
-            exp: Some(now + ACCESS_TTL_SECS),
+            iat: Some(now as f64),
+            exp: Some((now + ACCESS_TTL_SECS) as f64),
+            nbf: None,
         }
     }
 
@@ -139,18 +155,37 @@ pub fn sign(claims: &Claims, secret: &str) -> Result<String, Error> {
 fn validation() -> Validation {
     let mut v = Validation::new(Algorithm::HS256);
     v.leeway = 0;
-    v.validate_exp = true;
-    v.validate_nbf = true;
-    // Như `jsonwebtoken` của Node: không bắt buộc có `exp`, kiểm `exp`/`nbf` khi có; không kiểm `aud`.
+    // `exp`/`nbf` kiểm tay ở `verify_at` (đồng hồ truyền vào được, và `exp == now` bị từ chối như Node).
+    v.validate_exp = false;
+    v.validate_nbf = false;
+    // Như `jsonwebtoken` của Node: không bắt buộc có `exp`, không kiểm `aud`.
     v.required_spec_claims.clear();
     v.validate_aud = false;
     v
 }
 
-/// Kiểm chữ ký HS256 và hạn (`leeway = 0`). Mọi lỗi gộp một loại: guard trả cùng một câu 401.
-pub fn verify(token: &str, secret: &str) -> Result<Claims, Error> {
+/// Kiểm chữ ký HS256 (chỉ nhận `alg` = HS256) và hạn tại thời điểm `now` (giây Unix), `leeway = 0`: Node từ chối khi
+/// `now >= exp` (token hết hạn đúng giây `exp` là hết) và khi `now < nbf`. Mọi lỗi gộp một loại: guard trả cùng một câu 401.
+pub fn verify_at(token: &str, secret: &str, now: u64) -> Result<Claims, Error> {
     install_provider();
-    decode::<Claims>(token, &DecodingKey::from_secret(secret.as_bytes())?, &validation()).map(|d| d.claims)
+    let claims =
+        decode::<Claims>(token, &DecodingKey::from_secret(secret.as_bytes())?, &validation()).map(|d| d.claims)?;
+    let now = now as f64;
+    if claims.exp.is_some_and(|e| now >= e) {
+        return Err(new_error(ErrorKind::ExpiredSignature));
+    }
+    if claims.nbf.is_some_and(|n| now < n) {
+        return Err(new_error(ErrorKind::ImmatureSignature));
+    }
+    Ok(claims)
+}
+
+/// [`verify_at`] với đồng hồ hệ thống.
+pub fn verify(token: &str, secret: &str) -> Result<Claims, Error> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    verify_at(token, secret, now)
 }
 
 #[cfg(test)]

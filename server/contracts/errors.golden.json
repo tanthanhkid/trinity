@@ -1,0 +1,250 @@
+{
+  "bad_request_message": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": "Số điện thoại không hợp lệ",
+      "error": "Bad Request"
+    }
+  },
+  "bad_request_default": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": "Bad Request",
+      "error": "Bad Request"
+    }
+  },
+  "validation_messages": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": [
+        "email must be an email",
+        "name should not be empty"
+      ],
+      "error": "Bad Request"
+    }
+  },
+  "field_errors": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": "Dữ liệu không hợp lệ",
+      "error": "Dữ liệu không hợp lệ",
+      "errors": {
+        "gia_goc": "phải là số nguyên"
+      }
+    }
+  },
+  "parse_int_pipe": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": "Validation failed (numeric string is expected)",
+      "error": "Bad Request"
+    }
+  },
+  "unauthorized_default": {
+    "status": 401,
+    "body": {
+      "statusCode": 401,
+      "message": "Unauthorized",
+      "error": "Unauthorized"
+    }
+  },
+  "unauthorized_message": {
+    "status": 401,
+    "body": {
+      "statusCode": 401,
+      "message": "Phiên đăng nhập đã hết hạn",
+      "error": "Unauthorized"
+    }
+  },
+  "forbidden_default": {
+    "status": 403,
+    "body": {
+      "statusCode": 403,
+      "message": "Forbidden",
+      "error": "Forbidden"
+    }
+  },
+  "forbidden_message": {
+    "status": 403,
+    "body": {
+      "statusCode": 403,
+      "message": "Bạn không có quyền thực hiện thao tác này",
+      "error": "Forbidden"
+    }
+  },
+  "not_found_default": {
+    "status": 404,
+    "body": {
+      "statusCode": 404,
+      "message": "Not Found",
+      "error": "Not Found"
+    }
+  },
+  "not_found_message": {
+    "status": 404,
+    "body": {
+      "statusCode": 404,
+      "message": "Không tìm thấy khách hàng",
+      "error": "Not Found"
+    }
+  },
+  "conflict_message": {
+    "status": 409,
+    "body": {
+      "statusCode": 409,
+      "message": "Mã sản phẩm đã tồn tại",
+      "error": "Conflict"
+    }
+  },
+  "payload_too_large": {
+    "status": 413,
+    "body": {
+      "statusCode": 413,
+      "message": "Tệp quá lớn",
+      "error": "Payload Too Large"
+    }
+  },
+  "http_exception_string": {
+    "status": 429,
+    "body": {
+      "statusCode": 429,
+      "message": "Quá nhiều yêu cầu, thử lại sau",
+      "error": "Quá nhiều yêu cầu, thử lại sau"
+    }
+  },
+  "http_exception_object": {
+    "status": 403,
+    "body": {
+      "statusCode": 403,
+      "message": "Tính năng chưa bật",
+      "error": "Feature Disabled"
+    }
+  },
+  "internal_plain_error": {
+    "status": 500,
+    "body": {
+      "statusCode": 500,
+      "message": "Internal server error",
+      "error": "Internal Server Error"
+    }
+  },
+  "internal_http_exception": {
+    "status": 500,
+    "body": {
+      "statusCode": 500,
+      "message": "Không tạo được phiếu",
+      "error": "Internal Server Error"
+    }
+  },
+  "service_unavailable": {
+    "status": 503,
+    "body": {
+      "statusCode": 503,
+      "message": "Máy chủ đang bảo trì",
+      "error": "Internal Server Error"
+    }
+  },
+  "prisma_p2002_uncaught": {
+    "status": 500,
+    "body": {
+      "statusCode": 500,
+      "message": "Internal server error",
+      "error": "Internal Server Error"
+    }
+  },
+  "prisma_p2025_uncaught": {
+    "status": 500,
+    "body": {
+      "statusCode": 500,
+      "message": "Internal server error",
+      "error": "Internal Server Error"
+    }
+  },
+  "tenant_email_taken": {
+    "status": 409,
+    "body": {
+      "statusCode": 409,
+      "message": "Email này đã được dùng cho một công ty khác trên Trinity",
+      "error": "Email này đã được dùng cho một công ty khác trên Trinity"
+    }
+  },
+  "tenant_route_taken": {
+    "status": 409,
+    "body": {
+      "statusCode": 409,
+      "message": "Trang/kênh này đã được một công ty khác kết nối với Trinity",
+      "error": "Trang/kênh này đã được một công ty khác kết nối với Trinity"
+    }
+  },
+  "missing_company_public": {
+    "status": 404,
+    "body": {
+      "statusCode": 404,
+      "message": "Không tìm thấy",
+      "error": "Không tìm thấy"
+    }
+  },
+  "missing_company_signed_in": {
+    "status": 500,
+    "body": {
+      "statusCode": 500,
+      "message": "Internal server error",
+      "error": "Internal Server Error"
+    }
+  },
+  "not_found_empty_message": {
+    "status": 404,
+    "body": {
+      "statusCode": 404,
+      "message": "Not Found",
+      "error": "Not Found"
+    }
+  },
+  "http_exception_empty_string": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": "",
+      "error": ""
+    }
+  },
+  "field_errors_not_object": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": "Dữ liệu không hợp lệ",
+      "error": "Dữ liệu không hợp lệ"
+    }
+  },
+  "field_errors_array": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": "Dòng lỗi",
+      "error": "Dòng lỗi",
+      "errors": [
+        {
+          "row": 2,
+          "reason": "thiếu tên"
+        }
+      ]
+    }
+  },
+  "field_errors_key_order": {
+    "status": 400,
+    "body": {
+      "statusCode": 400,
+      "message": "Sai",
+      "error": "Sai",
+      "errors": {
+        "z_cuoi": "một",
+        "a_dau": "hai"
+      }
+    }
+  }
+}

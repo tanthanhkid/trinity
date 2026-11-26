@@ -78,8 +78,8 @@ fn che_token_code_state_trong_query() {
         user_hash: None,
     };
     let text = raw(|| log_request(&req));
-    for secret in ["OAUTH_CODE_X", "STATE_Y", "TOK_Z"] {
-        assert!(!text.contains(secret), "{secret} lọt vào log: {text}");
+    for (i, needle) in ["OAUTH_CODE_X", "STATE_Y", "TOK_Z"].iter().enumerate() {
+        assert!(!text.contains(needle), "giá trị mẫu thứ {i} lọt vào log");
     }
     let l = &capture(|| log_request(&req))[0];
     assert_eq!(

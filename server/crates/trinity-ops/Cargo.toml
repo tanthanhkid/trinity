@@ -1,0 +1,22 @@
+[package]
+name = "trinity-ops"
+description = "Vận hành giai đoạn lai: bộ kiểm bất biến dữ liệu (X11), chỉ đọc DB."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+trinity-db = { workspace = true }
+sqlx = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { testHooksEnabled } from '@trinity/rbac-nest'
 import { ScheduleModule } from '@nestjs/schedule'
 import { NotificationsController } from './notifications.controller'
 import { NotificationsService } from './notifications.service'
@@ -10,7 +11,8 @@ import { WebhookChannel } from './channels/webhook.channel'
 import { WebsocketModule } from '../websocket/websocket.module'
 
 @Module({
-  imports: [ScheduleModule.forRoot(), WebsocketModule],
+  // API điều khiển test bật ⇒ không đăng ký lịch @Cron nào (C18)
+  imports: [...(testHooksEnabled() ? [] : [ScheduleModule.forRoot()]), WebsocketModule],
   controllers: [NotificationsController],
   providers: [
     NotificationsService,

@@ -31,6 +31,11 @@ export class FixedWindowLimiter {
     return { allowed: true, count: cur.count, retryAfterSec: 0 };
   }
 
+  /** Xoá mọi bộ đếm (API điều khiển test, C18). */
+  reset(): void {
+    this.buckets.clear();
+  }
+
   private sweep(now: number): void {
     if (now - this.lastSweep < this.windowMs) return;
     this.lastSweep = now;

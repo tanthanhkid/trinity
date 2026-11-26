@@ -164,6 +164,15 @@ Read caches (customer counts, dashboard numbers) are kept in process memory with
 turns them off so every read goes to the database (used for side-by-side comparison runs). `REDIS_URL` is no longer read
 by the Node server and is ignored if still set.
 
+### Test control API (non-production only)
+
+With `TRINITY_TEST_HOOKS=1` **and** `NODE_ENV` other than `production`, the monolith registers `POST /internal/test/jobs/:name/run`
+(one run of one background job for one company; `company_id` required when `MULTI_TENANT=true`; `now` is accepted only by
+`notification.reap-stuck` and `briefings.collect`) and `POST /internal/test/cache/flush` (permissions, read cache, token
+blacklist, rate limits). Both need `x-service-secret`, are hidden from Swagger and are not in `routes.json`. In production the routes do not
+exist (404) and the controller refuses to start. While the flag is on, no background schedule is registered (all job timers, the
+notification `@Cron`, background tenant migration): jobs run only when called through the API. Never set the flag on a real deployment.
+
 ## Fast updates without Docker
 
 For a server run under a process manager, the maintainers' flow ([runbooks/fast-delivery.md](runbooks/fast-delivery.md)) is:

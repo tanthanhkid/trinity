@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { testHooksEnabled } from '@trinity/rbac-nest';
 import { FacebookFlowsService } from './facebook-flows.service';
 import { tenantTimerTick } from '../common/helpers/tenant-timer';
 
@@ -15,6 +16,7 @@ export class FacebookFlowsJob implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly flows: FacebookFlowsService) {}
 
   onModuleInit(): void {
+    if (testHooksEnabled()) return; // API điều khiển test bật ⇒ không lịch tự động (C18)
     this.timer = setInterval(() => void this.timerTick(), INTERVAL_MS);
     this.timer.unref();
   }

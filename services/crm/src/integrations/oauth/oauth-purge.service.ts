@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { testHooksEnabled } from '@trinity/rbac-nest';
 import { PrismaService } from '@trinity/prisma';
 import { oauthEnabled } from './oauth-config';
 import { tenantTimerTick } from '../../common/helpers/tenant-timer';
@@ -22,6 +23,7 @@ export class OauthPurgeService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly prisma: PrismaService) {}
 
   onModuleInit(): void {
+    if (testHooksEnabled()) return; // API điều khiển test bật ⇒ không lịch tự động (C18)
     if (!oauthEnabled()) return;
     this.first = setTimeout(() => void this.timerTick(), FIRST_RUN_DELAY_MS);
     this.interval = setInterval(() => void this.timerTick(), SIX_HOURS_MS);

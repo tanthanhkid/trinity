@@ -6,6 +6,7 @@ import { AppModule as CrmModule } from '../../../services/crm/src/app.module'
 import { AppModule as CommerceModule } from '../../../services/commerce/src/app.module'
 import { AppModule as PayrollModule } from '../../../services/payroll/src/app.module'
 import { AppModule as NotificationModule } from '../../../services/notification/src/app.module'
+import { testHooksImports } from './test-hooks/test-hooks.module'
 import { InternalPortsModule } from './internal-ports/internal-ports.module'
 
 /**
@@ -34,6 +35,7 @@ import { InternalPortsModule } from './internal-ports/internal-ports.module'
     PayrollModule,
     NotificationModule,
     InternalPortsModule,
+    ...testHooksImports(),
   ],
 })
 export class MonolithModule {}

@@ -5,7 +5,7 @@ import * as path from 'node:path'
 import { requestPathMiddleware } from './request-path.context'
 import { ServiceAwareValidationPipe } from './service-aware-validation.pipe'
 import { LoggingInterceptor, ElkExceptionFilter } from '@trinity/logger'
-import { auditRoutes, assertOwnershipLoadable, clientIpMiddleware, ownership } from '@trinity/rbac-nest'
+import { auditRoutes, assertOwnershipLoadable, clientIpMiddleware, ownership, testHooksEnabled } from '@trinity/rbac-nest'
 import { ensurePlatform, isMultiTenant, migrateAllCompanies, runInTenantScope } from '@trinity/prisma'
 
 // BigInt không serialize được mặc định trong JSON (cùng cách làm ở entrypoint của các service)
@@ -88,7 +88,8 @@ export async function configureApp(
     // Company schemas are migrated by the deploy step (`pnpm --filter @trinity/prisma migrate:companies`); this
     // background pass only catches up stragglers, so a release never holds the API down for every company.
     // Tệp sở hữu (T01): `migrate: rust` thì Rust lo bước này, Node bỏ qua (đọc ngay lúc boot).
-    if (ownership.nodeRunsMigrate()) {
+    // API điều khiển test bật ⇒ không migrate nền (C18): ca test tự chạy migrate.
+    if (ownership.nodeRunsMigrate() && !testHooksEnabled()) {
       void migrateAllCompanies((msg) => console.log(`[tenant] ${msg}`)).catch((err) =>
         console.error(`[tenant] migrateAllCompanies: ${err instanceof Error ? err.message : String(err)}`),
       )

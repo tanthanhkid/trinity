@@ -32,6 +32,11 @@ export class RbacCache implements OnModuleDestroy {
     for (const u of this.unsubscribe.splice(0)) u()
   }
 
+  /** Xoá toàn bộ cache của tiến trình, mọi công ty (API điều khiển test, C18). */
+  clear(): void {
+    this.store.clear()
+  }
+
   get<T>(k: string): T | undefined {
     const key = companyPrefix() + k
     const e = this.store.get(key)

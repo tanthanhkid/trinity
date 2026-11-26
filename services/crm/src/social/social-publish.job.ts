@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { testHooksEnabled } from '@trinity/rbac-nest';
 import { isSecretKeyConfigured } from '../integrations/webhooks/secret-crypto';
 import { SocialRecurrenceService } from './social-recurrence.service';
 import { SocialPostsService } from './social-posts.service';
@@ -27,6 +28,7 @@ export class SocialPublishJob implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit(): void {
+    if (testHooksEnabled()) return; // API điều khiển test bật ⇒ không lịch tự động (C18)
     this.timer = setInterval(() => void this.timerTick(), INTERVAL_MS);
     this.timer.unref();
     this.metricsTimer = setInterval(() => void this.metricsTick(), METRICS_INTERVAL_MS);

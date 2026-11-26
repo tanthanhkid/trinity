@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { testHooksEnabled } from '@trinity/rbac-nest';
 import { BriefingsService } from './briefings.service';
 import { tenantTimerTick } from '../common/helpers/tenant-timer';
 
@@ -19,6 +20,7 @@ export class BriefingsScheduler implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly briefings: BriefingsService) {}
 
   onModuleInit(): void {
+    if (testHooksEnabled()) return; // API điều khiển test bật ⇒ không lịch tự động (C18)
     if (process.env.BRIEFING_CRON_ENABLED?.trim() !== 'true') return;
     this.interval = setInterval(() => void this.timerTick(), ONE_MIN_MS);
     this.interval.unref();

@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { testHooksEnabled } from '@trinity/rbac-nest';
 import {
   IntegrationEventsService,
   PrismaService,
@@ -52,6 +53,7 @@ export class WebhookDispatcherService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit(): void {
+    if (testHooksEnabled()) return; // API điều khiển test bật ⇒ không lịch tự động (C18)
     if (!integrationFlags.webhooksEnabled()) return;
     if (!isSecretKeyConfigured()) {
       this.logger.error(

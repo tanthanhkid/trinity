@@ -39,6 +39,7 @@ import { BriefingsService } from '../../briefings/briefings.service';
 import { LeadScoringService } from '../../lead-scoring/lead-scoring.service';
 import { LeadIntentService } from '../../lead-scoring/lead-intent.service';
 import { SetupStatusService } from '../../setup/setup-status.service';
+import { SetupBuildService } from '../../setup/setup-build.service';
 import { OrgFeaturesService } from '../../settings/org-features.service';
 import { SchemaVersionsService } from '../../custom-objects/schema-versions.service';
 import { RecordRefsService } from '../../custom-objects/refs/record-refs.service';
@@ -115,9 +116,10 @@ export class McpServerService {
     @Optional() channels?: DashboardChannelsService,
     @Optional() interactions?: InteractionsService,
     @Optional() customReports?: CustomReportsService,
+    @Optional() setupBuild?: SetupBuildService,
   ) {
     const social = socialPosts && socialAccounts && socialDrafts && socialQueue && socialSnippets && socialImport && socialRecurrence ? { posts: socialPosts, accounts: socialAccounts, drafts: socialDrafts, queue: socialQueue, snippets: socialSnippets, importer: socialImport, recurrences: socialRecurrence } : undefined;
-    this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, extensions, extRuntime, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, payments, channels, interactions, customReports };
+    this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, extensions, extRuntime, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, payments, channels, interactions, customReports, setupBuild };
   }
 
   /** Dựng server + đăng ký tool cho 1 request (public để test gọi trực tiếp tool qua `execute`). */

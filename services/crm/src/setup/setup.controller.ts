@@ -1,8 +1,9 @@
-import { BadRequestException, Controller, Get, HttpCode, NotFoundException, Post, Query } from '@nestjs/common';
+import { BadRequestException, Controller, Get, HttpCode, NotFoundException, Optional, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { can } from '@trinity/rbac';
 import { AuthOnly, Can, CurrentUser, type AuthUser } from '@trinity/rbac-nest';
 import { mcpResourceUrl, oauthEnabled, publicBaseUrl } from '../integrations/oauth/oauth-config';
+import { SampleRecordsService } from '../sample-records/sample-records.service';
 import { SetupStatusService } from './setup-status.service';
 import { buildConnectPrompt, CONNECT_AGENTS, isConnectAgent } from './connect-prompts';
 
@@ -11,12 +12,17 @@ import { buildConnectPrompt, CONNECT_AGENTS, isConnectAgent } from './connect-pr
 @ApiBearerAuth()
 @Controller('setup')
 export class SetupController {
-  constructor(private readonly setup: SetupStatusService) {}
+  constructor(
+    private readonly setup: SetupStatusService,
+    @Optional() private readonly sampleRecords?: SampleRecordsService,
+  ) {}
 
   @Get('status')
   @AuthOnly()
   @ApiOperation({ summary: 'Trạng thái dựng quy trình (chua_dung | dang_dung | da_dung) + MCP' })
   async status(@CurrentUser() user: AuthUser) {
+    // Mỗi trang đều hỏi trạng thái này ⇒ làm lưới an toàn dọn bản ghi mẫu khi đã có bản ghi thật (mọi đường tạo).
+    await this.sampleRecords?.purgeIfReal();
     const base = publicBaseUrl();
     const mcpOn = oauthEnabled();
     const [status, mine, anyone] = await Promise.all([this.setup.get(), this.setup.aiConnection(user.userId), this.setup.aiConnection()]);
@@ -28,6 +34,7 @@ export class SetupController {
       ai_last_active_at: mine.last_active_at,
       ai_connected_anyone: anyone.active,
       can_build: can(user.grants, 'custom_objects.manage'),
+      has_sample_data: (await this.sampleRecords?.remaining()) != null,
     };
   }
 

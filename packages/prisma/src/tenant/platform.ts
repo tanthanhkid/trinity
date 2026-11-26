@@ -136,7 +136,7 @@ type Exec = { $executeRawUnsafe(sql: string, ...values: unknown[]): Promise<numb
  * Bumped whenever the trigger functions below change. Boot only (re)installs triggers in schemas that lack this
  * version, so a normal restart takes no table locks.
  */
-const SYNC_TRIGGER_VERSION = 'trinity-sync-v2'
+const SYNC_TRIGGER_VERSION = 'trinity-sync-v3'
 
 async function syncTriggersInstalled(
   tx: { $queryRawUnsafe<T = unknown>(sql: string, ...values: unknown[]): Promise<T> },
@@ -187,23 +187,10 @@ export async function installSyncTriggers(tx: Exec, companyId: number, schema: s
     CREATE TRIGGER trinity_platform_sync_login AFTER INSERT OR DELETE OR UPDATE OF email ON ${s}.users
     FOR EACH ROW EXECUTE FUNCTION ${s}.trinity_platform_sync_login()`)
 
-  // One sign-up = one company = one user. Company 1 keeps its existing staff.
-  if (id !== 1) {
-    await tx.$executeRawUnsafe(`
-      CREATE OR REPLACE FUNCTION ${s}.trinity_single_user() RETURNS trigger LANGUAGE plpgsql AS $fn$
-      BEGIN
-        -- Serialise concurrent inserts in this company: the count below then sees the other, committed row.
-        PERFORM pg_advisory_xact_lock(726354003, ${id});
-        IF (SELECT count(*) FROM ${s}.users) > 1 THEN
-          RAISE EXCEPTION 'TRINITY_SINGLE_USER: a company has exactly one user' USING ERRCODE = '23514';
-        END IF;
-        RETURN NULL;
-      END $fn$`)
-    await tx.$executeRawUnsafe(`DROP TRIGGER IF EXISTS trinity_single_user ON ${s}.users`)
-    await tx.$executeRawUnsafe(`
-      CREATE CONSTRAINT TRIGGER trinity_single_user AFTER INSERT ON ${s}.users
-      DEFERRABLE INITIALLY IMMEDIATE FOR EACH ROW EXECUTE FUNCTION ${s}.trinity_single_user()`)
-  }
+  // Older versions kept one user per company with a trigger; the limit is now `maxUsers` of the plan, checked by
+  // the server. Drop what an earlier version installed.
+  await tx.$executeRawUnsafe(`DROP TRIGGER IF EXISTS trinity_single_user ON ${s}.users`)
+  await tx.$executeRawUnsafe(`DROP FUNCTION IF EXISTS ${s}.trinity_single_user()`)
 
   for (const r of ROUTE_TRIGGERS) {
     const fn = `trinity_platform_sync_${r.kind}`

@@ -767,6 +767,24 @@ model RevokedSession {
 
 // ==================== SYSTEM ====================
 
+/// Lời mời nhân viên bằng link (chế độ nhiều công ty). `token_hash` = SHA-256 của token (token gốc dạng `cN.xxxx` chỉ hiện lúc tạo).
+/// Trạng thái suy ra: accepted_at / revoked_at / expires_at. `role_id` soft ref tới roles (vai trò gán khi nhận lời mời).
+model UserInvitation {
+  id               Int       @id @default(autoincrement())
+  email            String    @db.VarChar(255)
+  role_id          Int?
+  token_hash       String    @unique @db.VarChar(64)
+  expires_at       DateTime  @db.Timestamptz(3)
+  accepted_at      DateTime? @db.Timestamptz(3)
+  accepted_user_id Int?
+  revoked_at       DateTime? @db.Timestamptz(3)
+  created_by       Int?
+  created_at       DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([email])
+  @@map("user_invitations")
+}
+
 model Setting {
   key        String   @id
   value      String   @db.Text

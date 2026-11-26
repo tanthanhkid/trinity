@@ -6,8 +6,8 @@
  *   (optional) LEGACY_EMAIL / LEGACY_PASSWORD = an existing company-1 account
  *
  * Signs up two companies through the public API, then checks over HTTP that company B cannot list, open, edit,
- * delete or restore company A's contact by guessing its id, that tokens carry their own company, that a second
- * user cannot be added to a company, and that the same email cannot sign up twice. Prints one line per step;
+ * delete or restore company A's contact by guessing its id, that tokens carry their own company, that the owner can invite staff by link
+ * (preview, accept, single use, right company, foreign email refused) and reset their password, and that the same email cannot sign up twice. Prints one line per step;
  * exit code 1 when any step fails.
  */
 const BASE = (process.env.BASE || 'http://localhost:4000').replace(/\/+$/, '') + '/api/v1';
@@ -77,7 +77,7 @@ await step('company A and company B sign up', async () => {
   A.cid = decode(A.token).cid;
   B.cid = decode(B.token).cid;
   expect(A.cid && B.cid && A.cid !== B.cid, `cid A=${A.cid} B=${B.cid}`);
-  expect(A.me.company?.single_user === true, 'company.single_user should be true');
+  expect(A.me.company?.multi_tenant === true && A.me.company?.id === A.cid, 'company info should carry id and multi_tenant');
   return `cid A=${A.cid}, B=${B.cid}`;
 });
 
@@ -153,13 +153,54 @@ await step('a ?cid= hint cannot switch a signed-in request to another company', 
   expect(r.status === 404 || r.status === 403, `HTTP ${r.status}`);
 });
 
-await step('a signed-up company cannot add a second user', async () => {
-  const r = await call('POST', '/users', {
-    token: A.token,
-    body: { email: `staff-${stamp}@example.test`, password: 'MatKhau-staff-1', full_name: 'Nhân viên', role_ids: [] },
-  });
-  expect(r.status === 409 || r.status === 403 || r.status === 400, `HTTP ${r.status} ${JSON.stringify(r.data)}`);
-  return `HTTP ${r.status}: ${r.data?.message ?? ''}`;
+const staffEmail = `staff-${stamp}@example.test`;
+const invite = {};
+await step('the owner invites staff by link (no email is sent); a foreign company email is refused', async () => {
+  const roles = await call('GET', '/roles', { token: A.token });
+  expect(roles.status === 200 && roles.data.length, `roles HTTP ${roles.status}`);
+  invite.role = roles.data.find((r) => !r.is_system) ?? roles.data[0];
+  const r = await call('POST', '/auth/invitations', { token: A.token, body: { email: staffEmail, role_id: invite.role.id } });
+  expect(r.status === 201 && r.data.token?.startsWith(`c${A.cid}.`) && r.data.path === `/invite/${r.data.token}`, `HTTP ${r.status} ${JSON.stringify(r.data)}`);
+  invite.token = r.data.token;
+  const taken = await call('POST', '/auth/invitations', { token: A.token, body: { email: B.email, role_id: invite.role.id } });
+  expect(taken.status === 409 && /công ty khác/.test(taken.data?.message ?? ''), `foreign email: HTTP ${taken.status} ${JSON.stringify(taken.data)}`);
+  const list = await call('GET', '/auth/invitations', { token: A.token });
+  expect(list.status === 200 && list.data.data.some((i) => i.email === staffEmail && i.status === 'pending'), 'pending list');
+  expect(!JSON.stringify(list.data).includes(invite.token), 'list must not expose the token');
+  const bList = await call('GET', '/auth/invitations', { token: B.token });
+  expect(!JSON.stringify(bList.data).includes(staffEmail), 'company B sees A invitations');
+  return `role ${invite.role.name}`;
+});
+
+await step('the public invite page works without a session; accepting creates the user in the right company', async () => {
+  const p = await call('POST', '/auth/invitations/preview', { body: { token: invite.token } });
+  expect(p.status === 200 && p.data.email === staffEmail, `preview HTTP ${p.status} ${JSON.stringify(p.data)}`);
+  const a = await call('POST', '/auth/invitations/accept', { body: { token: invite.token, full_name: 'Nhân viên mới', password: 'MatKhau-staff-1' } });
+  expect(a.status === 201 && decode(a.data.access_token).cid === A.cid, `accept HTTP ${a.status} ${JSON.stringify(a.data)}`);
+  invite.staff = a.data.access_token;
+  const again = await call('POST', '/auth/invitations/accept', { body: { token: invite.token, full_name: 'Nhận lại', password: 'MatKhau-staff-1' } });
+  expect(again.status === 410, `second use HTTP ${again.status}`);
+  const login = await call('POST', '/auth/login', { body: { email: staffEmail, password: 'MatKhau-staff-1' } });
+  expect(login.status === 200 && decode(login.data.access_token).cid === A.cid, `login HTTP ${login.status}`);
+});
+
+await step('the new staff member sees company A data only, and company B still cannot see A', async () => {
+  const mine = await call('GET', `/contacts/${A.contactId}`, { token: invite.staff });
+  const users = await call('GET', '/users?limit=100', { token: A.token });
+  expect(users.status === 200 && users.data.data.length === 2, `A users: ${users.data?.data?.length}`);
+  const bUsers = await call('GET', '/users?limit=100', { token: B.token });
+  expect(bUsers.data.data.length === 1 && !JSON.stringify(bUsers.data).includes(staffEmail), 'company B sees A staff');
+  return `staff GET A contact → ${mine.status} (own-scope role may hide it)`;
+});
+
+await step('the owner resets a staff password; the old one stops working, the new one works', async () => {
+  const users = await call('GET', '/users?limit=100', { token: A.token });
+  const staff = users.data.data.find((u) => u.email === staffEmail);
+  const r = await call('PATCH', `/users/${staff.id}/reset-password`, { token: A.token, body: { password: 'MatKhau-tam-9' } });
+  expect(r.status === 200, `HTTP ${r.status} ${JSON.stringify(r.data)}`);
+  const old = await call('POST', '/auth/login', { body: { email: staffEmail, password: 'MatKhau-staff-1' } });
+  const fresh = await call('POST', '/auth/login', { body: { email: staffEmail, password: 'MatKhau-tam-9' } });
+  expect(old.status === 401 && fresh.status === 200, `old ${old.status} new ${fresh.status}`);
 });
 
 await step('refresh keeps the company', async () => {

@@ -16,7 +16,11 @@ describe('assertUserSlotAvailable', () => {
     await expect(assertUserSlotAvailable(db('ket_noi', 9))).resolves.toBeUndefined();
     const err = await assertUserSlotAvailable(db('ket_noi', 10)).catch((e) => e);
     expect(err).toBeInstanceOf(ConflictException);
-    expect(err.message).toContain('tối đa 10 người dùng');
+    expect(err.message).toBe('Gói hiện tại tối đa 10 người, liên hệ để nâng gói.');
+  });
+  it('lời mời còn hiệu lực giữ chỗ: 8 người + 2 lời mời = đủ gói 10', async () => {
+    await expect(assertUserSlotAvailable(db('ket_noi', 8), 1)).resolves.toBeUndefined();
+    await expect(assertUserSlotAvailable(db('ket_noi', 8), 2)).rejects.toBeInstanceOf(ConflictException);
   });
   it('rác trong settings = custom', async () => {
     await expect(assertUserSlotAvailable(db('???', 500))).resolves.toBeUndefined();

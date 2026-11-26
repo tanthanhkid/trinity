@@ -105,13 +105,23 @@ export function EditUserDialog({ user, allUsers, onClose }: EditUserDialogProps)
     onError: (e) => toast.error(apiErrorMessage(e, 'Không lưu được thay đổi')),
   })
 
+  // Mật khẩu tạm do máy tạo: hiện MỘT lần sau khi cài lại để chủ công ty chép gửi cho nhân viên (quên mật khẩu).
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
+  const [issuedPassword, setIssuedPassword] = useState<string | null>(null)
+
   const resetPasswordMutation = useMutation({
     mutationFn: (payload: { password: string }) =>
       apiClient.patch<{ message: string }>(`/users/${user.id}/reset-password`, payload),
-    onSuccess: () => {
-      setShowResetConfirm(false)
+    onSuccess: (_res, payload) => {
       setCustomPasswordInput('')
       setShowCustomPassword(false)
+      if (generatedPassword && payload.password === generatedPassword) {
+        setIssuedPassword(generatedPassword)
+        setGeneratedPassword(null)
+        toast.success('Đã cài lại mật khẩu — chép mật khẩu tạm gửi cho nhân viên')
+        return
+      }
+      setShowResetConfirm(false)
       toast.success('Đã cài lại mật khẩu thành công')
     },
     onError: (err: unknown) => {
@@ -312,10 +322,32 @@ export function EditUserDialog({ user, allUsers, onClose }: EditUserDialogProps)
 
       <Dialog open={showResetConfirm} onOpenChange={(open) => {
         setShowResetConfirm(open)
-        if (!open) { setCustomPasswordInput(''); setShowCustomPassword(false) }
+        if (!open) { setCustomPasswordInput(''); setShowCustomPassword(false); setGeneratedPassword(null); setIssuedPassword(null) }
       }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Cài lại mật khẩu</DialogTitle></DialogHeader>
+          {issuedPassword ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Mật khẩu tạm của <span className="font-semibold">{userDisplayName}</span> — chỉ hiện lần này. Chép rồi gửi cho nhân viên (qua Zalo/Messenger), dặn đổi lại sau khi đăng nhập.
+              </p>
+              <div className="flex items-center gap-2">
+                <Input readOnly value={issuedPassword} className="h-11 font-mono" aria-label="Mật khẩu tạm" onFocus={(e) => e.currentTarget.select()} />
+                <Button
+                  type="button"
+                  className="h-11"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(issuedPassword).then(() => toast.success('Đã chép mật khẩu tạm'), () => toast.error('Không chép được, hãy bôi đen và chép tay'))
+                  }}
+                >
+                  Sao chép
+                </Button>
+              </div>
+              <DialogFooter>
+                <Button className="h-11" onClick={() => { setShowResetConfirm(false); setIssuedPassword(null) }}>Xong</Button>
+              </DialogFooter>
+            </div>
+          ) : (<>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Đặt mật khẩu mới cho{' '}
@@ -349,6 +381,19 @@ export function EditUserDialog({ user, allUsers, onClose }: EditUserDialogProps)
               {customPasswordInput.length > 0 && customPasswordInput.length < 8 && (
                 <p className="text-xs text-red-500">Mật khẩu phải có ít nhất 8 ký tự</p>
               )}
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-1 h-9"
+                onClick={() => {
+                  const pw = makeTempPassword()
+                  setGeneratedPassword(pw)
+                  setCustomPasswordInput(pw)
+                  setShowCustomPassword(true)
+                }}
+              >
+                Tạo mật khẩu tạm
+              </Button>
             </div>
           </div>
           <DialogFooter>
@@ -361,6 +406,7 @@ export function EditUserDialog({ user, allUsers, onClose }: EditUserDialogProps)
               {resetPasswordMutation.isPending ? 'Đang xử lý...' : 'Xác nhận reset'}
             </Button>
           </DialogFooter>
+          </>)}
         </DialogContent>
       </Dialog>
 
@@ -443,4 +489,12 @@ export function EditUserDialog({ user, allUsers, onClose }: EditUserDialogProps)
       </Dialog>
     </>
   )
+}
+
+/** Mật khẩu tạm 12 ký tự dễ đọc qua Zalo (bỏ 0/O/1/l/I), sinh bằng bộ ngẫu nhiên của trình duyệt. */
+function makeTempPassword(): string {
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = new Uint32Array(12)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('')
 }

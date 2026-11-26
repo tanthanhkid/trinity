@@ -56,7 +56,6 @@ describe('translateTenantError', () => {
   it('maps cross-company trigger errors to 409', () => {
     expect(run(new Error('ERROR: TRINITY_ROUTE_TAKEN: facebook_page 1 is connected to another company')).status).toBe(409)
     expect(run(new Error('TRINITY_EMAIL_TAKEN: a@b.c')).status).toBe(409)
-    expect(run(new Error('TRINITY_SINGLE_USER')).status).toBe(409)
   })
   it('keeps a missing company context on a signed-in request a 500', () => {
     const e = new Error('No company context'); e.name = 'MissingCompanyContextError'

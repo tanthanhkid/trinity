@@ -43,9 +43,34 @@ The database role needs `CREATE` on the database (to create one schema per compa
 - **Shared tables** live in the `platform` schema (created at boot, outside Prisma migrations): `companies`,
   `company_logins`, `company_routes`. Triggers in every company schema keep logins and Page/OA routes in sync, and
   their primary keys make a second company claiming the same email or Page fail at the database.
-- **One user per signed-up company.** A hosted company has exactly its owner: the server refuses a second user (and a
-  database trigger backs it up), and the web app hides staff, users, roles, departments and teams. Company 1 keeps
-  its existing users.
+- **Staff of a company** (see below): a signed-up company starts with its owner and grows by invitation, up to the
+  `maxUsers` of its plan. Company 1 keeps its existing users and plan rules.
+
+## Inviting staff
+
+There is no email service, so an invitation is a link the owner copies and sends through Zalo or Messenger.
+
+1. Settings › Users › *Mời bằng link* (needs `users.manage`): email + role. The role must not exceed the inviter's own
+   permissions, and the system *Quản trị* role is for administrators only. `POST /api/v1/auth/invitations` →
+   `{ token, path }`; the web builds the link `<site>/invite/<token>`. The token is `cN.` + 32 random bytes (the prefix
+   routes it to company *N*'s schema, like API keys), stored only as a SHA-256 hash, valid 7 days, single use.
+2. Checks at creation: the email must not belong to another company (`platform.company_logins`) or already have an
+   account here, and `active users + pending invitations` must stay below the plan's `maxUsers`
+   ("Gói hiện tại tối đa N người, liên hệ để nâng gói."; plan `custom` = unlimited). Inviting the same email again
+   replaces the old link. Pending invitations are listed (`GET /auth/invitations`) and can be cancelled
+   (`POST /auth/invitations/:id/revoke`); the link itself is never shown again.
+3. The invitee opens `/invite/<token>` (public): `POST /auth/invitations/preview` shows company, email and role;
+   `POST /auth/invitations/accept` takes a name and password, creates the user (and its employee record) in the
+   invitation's company with the chosen role, and returns tokens like a login. The plan limit is checked again then,
+   inside the same transaction that marks the invitation used, so two clicks cannot both win. A used, cancelled,
+   expired or unknown token all answer 410 with the same sentence.
+4. Forgot password: the owner opens the user in Settings › Users › *Cài lại mật khẩu*; *Tạo mật khẩu tạm* fills a random
+   password that is shown once after saving, to copy and send. (`PATCH /users/:id/reset-password` revokes the old
+   sessions.)
+5. MCP: `create_invitation` (returns the link; never the *Quản trị* role through AI) and `list_invitations`.
+
+The old database trigger "one user per company" is gone: migration `0019_user_invitations` drops it in every schema
+(`migrate:companies`), and `installSyncTriggers` (version `trinity-sync-v3`) no longer creates it.
 
 ## Deploying an update
 
@@ -71,4 +96,7 @@ database (all schemas) before a migration.
 
 `services/crm/src/__pg__/tenant-isolation.pg.spec.ts` signs up two companies on a real Postgres and checks that one
 cannot read, count, update or delete the other's rows (models, raw SQL, transactions, guessed ids), that a Page and an
-email belong to one company only, and that a company has exactly one user.
+email belong to one company only, and that a company can have several users.
+`services/auth/src/auth/invitations.pg.spec.ts` covers invitations on a real Postgres (create, preview, accept into the right
+company, single use, cancel, expiry, forged prefix, foreign email, `maxUsers`, the removed trigger).
+`tests/multi-tenant-e2e/run.mjs` runs the same flow over HTTP against a local server.

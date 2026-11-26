@@ -18,7 +18,7 @@ export function apiBaseUrl(name: string, fallback: string, env: NodeJS.ProcessEn
   } else if (url.protocol !== 'https:') {
     throw new Error(`${name} chỉ nhận https:// (http:// cho máy chủ cục bộ)`);
   }
-  if (url.search || url.hash) throw new Error(`${name} không được có query hay #`);
+  if (raw.includes('?') || raw.includes('#')) throw new Error(`${name} không được có query hay #`);
   return raw.replace(/\/+$/, '');
 }
 

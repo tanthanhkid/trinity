@@ -1,4 +1,5 @@
 import * as os from 'node:os';
+import { extname } from 'node:path';
 import {
   BadRequestException,
   HttpException,
@@ -10,7 +11,7 @@ import {
 } from '@nestjs/common';
 import type { Observable } from 'rxjs';
 import multer, { MulterError, diskStorage } from 'multer';
-import { MAX_IMAGE_BYTES, maxVideoBytes } from './social.config';
+import { IMAGE_EXT_CONTENT_TYPE, MAX_IMAGE_BYTES, maxVideoBytes } from './social.config';
 
 const storage = diskStorage({
   destination: os.tmpdir(),
@@ -26,11 +27,22 @@ const storage = diskStorage({
 export class SocialUploadInterceptor implements NestInterceptor {
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
     // Một trần cho cả ảnh lẫn video ở tầng multer; trần riêng theo loại tệp kiểm ở `SocialMediaService.uploadFile`.
-    const max = Math.max(maxVideoBytes(), MAX_IMAGE_BYTES);
-    const upload = multer({ storage, limits: { fileSize: max } }).single('file');
+    const videoMax = maxVideoBytes();
+    let fileName = '';
+    const upload = multer({
+      storage,
+      limits: { fileSize: Math.max(videoMax, MAX_IMAGE_BYTES) },
+      // Nhớ tên tệp để câu lỗi vượt trần nói đúng trần của loại tệp (ảnh 10 MB / video theo env).
+      fileFilter: (_req, file, cb) => {
+        fileName = file.originalname;
+        cb(null, true);
+      },
+    }).single('file');
     const http = context.switchToHttp();
     await new Promise<void>((resolve, reject) =>
-      upload(http.getRequest(), http.getResponse(), (err: unknown) => (err ? reject(uploadError(err, max)) : resolve())),
+      upload(http.getRequest(), http.getResponse(), (err: unknown) =>
+        err ? reject(uploadError(err, IMAGE_EXT_CONTENT_TYPE[extname(fileName).toLowerCase()] ? MAX_IMAGE_BYTES : videoMax)) : resolve(),
+      ),
     );
     return next.handle();
   }

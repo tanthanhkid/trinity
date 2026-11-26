@@ -18,6 +18,8 @@ export async function postFirstComment(prisma: PrismaService, pageId: string, ob
   const page = await prisma.facebookPage.findFirst({ where: { page_id: pageId, is_active: true }, select: { token_enc: true } });
   if (!page?.token_enc) return 'no_page';
   const token = decryptSecret(page.token_enc, loadSecretKey());
+  // Id bài là MỘT đoạn đường dẫn (vd `123_456`): `/` hay ký tự lạ không được thành đoạn mới của URL Graph.
+  if (!/^[\w.-]+$/.test(objectId)) throw new Error('Id bài Facebook không hợp lệ');
   const c = loadFacebookConfig();
   const res = await fetch(graphUrl(c.graphVersion, `${objectId}/comments`), {
     method: 'POST',

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, PayloadTooLargeException, NotFoundException } from '@nestjs/common';
 import type { SocialMediaAsset } from '@prisma/client';
 import { PrismaService } from '@trinity/prisma';
 import { extname } from 'node:path';
@@ -93,7 +93,8 @@ export class SocialMediaService {
     if (!file) throw new BadRequestException('Thiếu tệp');
     try {
       const k = kindOf(file.originalname);
-      if (file.size > k.max) throw new BadRequestException(`Tệp quá lớn (tối đa ${mb(k.max)}).`);
+      // 413 như lỗi vượt trần ở tầng multer (SocialUploadInterceptor) — cùng câu, cùng mã.
+      if (file.size > k.max) throw new PayloadTooLargeException(`Tệp quá lớn (tối đa ${mb(k.max)}).`);
       const key = this.newKey(user, k.ext);
       await this.storage.upload(key, createReadStream(file.path), k.content_type, file.size);
       const m: SocialMedia = { key, type: k.type, content_type: k.content_type, size: file.size };

@@ -8,8 +8,14 @@ export class GraphApiError extends Error {
     readonly code: number | null,
     readonly subcode: number | null,
     message: string,
+    /** Lỗi cấu hình phía Trinity (địa chỉ gốc Graph sai, đường dẫn lạ) — chưa gửi gì tới Facebook. */
+    readonly configError = false,
   ) {
     super(message);
+  }
+  /** Lỗi cấu hình: VĨNH VIỄN (gửi lại y nguyên vẫn hỏng) — không ném lại để webhook trả 5xx, Meta sẽ gửi lại mãi. */
+  get isConfigError(): boolean {
+    return this.configError;
   }
   /** 190 = token hết hạn/bị thu hồi. */
   get isTokenError(): boolean {
@@ -88,7 +94,7 @@ export class GraphClient {
       url = this.url(path, opts.query);
     } catch (err) {
       // Cấu hình địa chỉ gốc sai / đường dẫn lạ: lỗi Graph vĩnh viễn (không thử lại), không phải "không kết nối được".
-      throw new GraphApiError(0, null, null, (err as Error).message);
+      throw new GraphApiError(0, null, null, (err as Error).message, true);
     }
     let res: Response;
     try {

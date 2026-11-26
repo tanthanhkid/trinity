@@ -4,7 +4,8 @@ import { of } from 'rxjs';
 import * as safeGet from '../../integrations/common/safe-http-get';
 import { SocialMediaService } from '../social-media.service';
 import { DEFAULT_MAX_VIDEO_MB, MAX_STORED_VIDEO_BYTES, maxVideoBytes } from '../social.config';
-import { SocialUploadInterceptor } from '../social-upload.interceptor';
+import { MulterError } from 'multer';
+import { SocialUploadInterceptor, uploadError } from '../social-upload.interceptor';
 
 const MB = 1024 * 1024;
 const ENV = { ...process.env };
@@ -28,7 +29,11 @@ function multipartRequest(bytes: number, name = 'clip.mp4', truncated = false) {
 }
 
 async function upload(bytes: number, truncated = false) {
-  const req = multipartRequest(bytes, 'clip.mp4', truncated);
+  return uploadNamed(bytes, 'clip.mp4', truncated);
+}
+
+async function uploadNamed(bytes: number, name: string, truncated = false) {
+  const req = multipartRequest(bytes, name, truncated);
   const ctx = { switchToHttp: () => ({ getRequest: () => req, getResponse: () => ({}) }) };
   await new SocialUploadInterceptor().intercept(ctx as never, { handle: () => of('ok') });
   return (req as unknown as { file?: { size: number; path: string } }).file;
@@ -57,43 +62,53 @@ describe('SOCIAL_MAX_VIDEO_MB', () => {
     await import('node:fs/promises').then((fs) => fs.unlink(f!.path));
   });
 
-  it('tải multipart: đặt 95 ⇒ tệp 96 MB nhận câu lỗi của Trinity; tệp nhỏ vẫn qua', async () => {
-    process.env.SOCIAL_MAX_VIDEO_MB = '95';
-    const err = await upload(96 * MB).catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(PayloadTooLargeException);
-    expect((err as Error).message).toBe('Tệp quá lớn (tối đa 95 MB).');
-    const f = await upload(2 * MB);
-    expect(f?.size).toBe(2 * MB);
-    await import('node:fs/promises').then((fs) => fs.unlink(f!.path));
-  }, 30_000);
+  it('câu lỗi vượt trần: video theo env (95 ⇒ "tối đa 95 MB"), ảnh 10 MB; đều 413', () => {
+    const tooLarge = new MulterError('LIMIT_FILE_SIZE', 'file');
+    const v = uploadError(tooLarge, 95 * MB) as PayloadTooLargeException;
+    expect(v).toBeInstanceOf(PayloadTooLargeException);
+    expect(v.message).toBe('Tệp quá lớn (tối đa 95 MB).');
+    expect((uploadError(tooLarge, 10 * MB) as Error).message).toBe('Tệp quá lớn (tối đa 10 MB).');
+    expect(uploadError(new MulterError('LIMIT_UNEXPECTED_FILE', 'x'), MB)).toBeInstanceOf(BadRequestException);
+    const fsErr = Object.assign(new Error('ENOSPC'), { syscall: 'write' });
+    expect(uploadError(fsErr, MB)).toBe(fsErr);
+  });
 
-  it('nhập từ link và tải qua upload-token: đặt 95 ⇒ video 96 MB nhận câu lỗi của Trinity', async () => {
-    process.env.SOCIAL_MAX_VIDEO_MB = '95';
+  it('multer chặn thật ở trần: ảnh 11 MB ⇒ 413 "tối đa 10 MB"; uploadFile vượt trần loại ⇒ 413', async () => {
+    process.env.SOCIAL_MAX_VIDEO_MB = '1';
+    const err = await uploadNamed(11 * MB, 'anh.png').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(PayloadTooLargeException);
+    expect((err as Error).message).toBe('Tệp quá lớn (tối đa 10 MB).');
+    const svc = new SocialMediaService({ upload: jest.fn() } as never, {} as never);
+    await expect(svc.uploadFile({ userId: 1 } as never, { originalname: 'clip.mp4', path: '/nonexistent', size: 2 * MB })).rejects.toBeInstanceOf(PayloadTooLargeException);
+  });
+
+  it('nhập từ link và tải qua upload-token: video vượt trần env nhận câu lỗi của Trinity', async () => {
+    process.env.SOCIAL_MAX_VIDEO_MB = '1';
     const storage = { upload: jest.fn(), isClientUploadSupported: () => false, createClientUpload: jest.fn(() => ({})) };
     const prisma = { socialMediaAsset: { upsert: jest.fn() } };
     const svc = new SocialMediaService(storage as never, prisma as never);
-    jest.spyOn(safeGet, 'safeGetMedia').mockResolvedValueOnce({ contentType: 'video/mp4', body: Buffer.alloc(96 * MB) });
-    await expect(svc.importFromUrl({ userId: 1 } as never, 'https://cdn.example.com/clip.mp4')).rejects.toThrow('Tệp quá lớn (tối đa 95 MB).');
+    jest.spyOn(safeGet, 'safeGetMedia').mockResolvedValueOnce({ contentType: 'video/mp4', body: Buffer.alloc(2 * MB) });
+    await expect(svc.importFromUrl({ userId: 1 } as never, 'https://cdn.example.com/clip.mp4')).rejects.toThrow('Tệp quá lớn (tối đa 1 MB).');
     expect(storage.upload).not.toHaveBeenCalled();
     // upload-token kiểm cỡ TRƯỚC nhánh môi trường: VPS (không upload trực tiếp) cũng chặn tệp quá trần trước khi gửi.
-    const tooBig = (() => { try { svc.uploadToken({ userId: 1 } as never, 'clip.mp4', 96 * MB); } catch (e) { return e as BadRequestException; } })();
-    expect(tooBig?.getResponse()).toMatchObject({ message: 'Tệp quá lớn (tối đa 95 MB).', max_bytes: 95 * MB });
-    const vps = (() => { try { svc.uploadToken({ userId: 1 } as never, 'clip.mp4', 95 * MB); } catch (e) { return e as BadRequestException; } })();
-    expect(vps?.getResponse()).toMatchObject({ message: expect.stringMatching(/upload trực tiếp/), max_bytes: 95 * MB });
+    const tooBig = (() => { try { svc.uploadToken({ userId: 1 } as never, 'clip.mp4', 2 * MB); } catch (e) { return e as BadRequestException; } })();
+    expect(tooBig?.getResponse()).toMatchObject({ message: 'Tệp quá lớn (tối đa 1 MB).', max_bytes: MB });
+    const vps = (() => { try { svc.uploadToken({ userId: 1 } as never, 'clip.mp4', MB); } catch (e) { return e as BadRequestException; } })();
+    expect(vps?.getResponse()).toMatchObject({ message: expect.stringMatching(/upload trực tiếp/), max_bytes: MB });
     expect(() => svc.uploadToken({ userId: 1 } as never, 'a.txt', 1)).toThrow(/Chỉ nhận/);
   });
 
   it('hạ trần không làm hỏng video đã lưu: resolve/load dùng trần cứng 200 MB', async () => {
-    process.env.SOCIAL_MAX_VIDEO_MB = '95';
+    process.env.SOCIAL_MAX_VIDEO_MB = '1';
     const key = 'social/u1_1700000000000_abc123.mp4';
     const storage = {
       getObjectStreamRange: jest.fn().mockResolvedValue({ body: { destroy: jest.fn() }, contentRange: `bytes 0-0/${150 * MB}` }),
-      getObjectStream: jest.fn().mockResolvedValue({ body: Readable.from([Buffer.alloc(96 * MB)]) }),
+      getObjectStream: jest.fn().mockResolvedValue({ body: Readable.from([Buffer.alloc(2 * MB)]) }),
     };
     const prisma = { socialMediaAsset: { findMany: jest.fn().mockResolvedValue([]) } };
     const svc = new SocialMediaService(storage as never, prisma as never);
     await expect(svc.resolve({ userId: 1 } as never, [key])).resolves.toEqual([{ key, type: 'video', content_type: 'video/mp4', size: 150 * MB }]);
-    await expect(svc.load({ key, type: 'video', content_type: 'video/mp4', size: 96 * MB })).resolves.toBeDefined(); // 96 MB > env 95 vẫn nạp được
+    await expect(svc.load({ key, type: 'video', content_type: 'video/mp4', size: 2 * MB })).resolves.toBeDefined(); // 2 MB > env 1 MB vẫn nạp được
     expect(MAX_STORED_VIDEO_BYTES).toBe(200 * MB);
   });
 });

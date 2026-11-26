@@ -9,6 +9,7 @@ import { postFirstComment } from '../../../social/facebook-first-comment';
 import { graphCall } from '../../../social/providers/facebook.provider';
 import { ZaloOaApiClient } from '../../../zalo-oa/zalo-oa-api.client';
 import { zaloUrl } from '../../../zalo-oa/zalo-oa.config';
+import { ZaloApiError } from '../../../zalo-oa/zalo-oa.errors';
 import { apiBaseUrl, isLoopbackHost } from '../api-base-url';
 
 const ENV = { ...process.env };
@@ -47,6 +48,8 @@ describe('apiBaseUrl', () => {
     expect(() => apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'graph.example.com' })).toThrow(/không phải URL/);
     expect(() => apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'ftp://x' })).toThrow(/chỉ nhận https/);
     expect(() => apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'https://x/?a=1' })).toThrow(/query/);
+    expect(() => apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'https://x/?' })).toThrow(/query/);
+    expect(() => apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'https://x#' })).toThrow(/query/);
   });
 });
 
@@ -152,7 +155,11 @@ describe('đặt env ⇒ mọi lời gọi tới máy chủ giả', () => {
     const e2 = await graphCall('GET', 'me', { token: 't' }).catch((e: unknown) => e);
     expect(e2).toBeInstanceOf(SocialPublishError);
     expect((e2 as SocialPublishError).retryable).toBe(false);
-    await expect(new ZaloOaApiClient().sendText('AT', 'u1', 'x')).rejects.toThrow(/ZALO_OPENAPI_BASE_URL: http:\/\//);
+    const ze = await new ZaloOaApiClient().sendText('AT', 'u1', 'x').catch((e: unknown) => e);
+    expect(ze).toBeInstanceOf(ZaloApiError);
+    expect((ze as ZaloApiError).isConfigError).toBe(true);
+    expect((ze as ZaloApiError).message).toMatch(/ZALO_OPENAPI_BASE_URL: http:\/\//);
+    expect((e1 as GraphApiError).isConfigError).toBe(true);
     expect(() => zaloUrl('api')).toThrow(/ZALO_OPENAPI_BASE_URL/);
     expect(outbound).toEqual([]);
     expect(hits).toEqual([]);
@@ -165,10 +172,14 @@ describe('đặt env ⇒ mọi lời gọi tới máy chủ giả', () => {
     expect(() => zaloUrl('zns')).toThrow(/ZALO_ZNS_BASE_URL/);
   });
 
-  it('bình luận đầu tiên: id chỉ mã hoá một lần', async () => {
+  it('bình luận đầu tiên: id là một đoạn đường dẫn, không mã hoá hai lần', async () => {
     const token_enc = encryptSecret('page-token', loadSecretKey());
     const prisma = { facebookPage: { findFirst: jest.fn(async () => ({ token_enc })) } };
-    await postFirstComment(prisma as never, 'P1', 'P1:9', 'hi');
-    expect(outbound[0]).toBe(`${base}/fb/v25.0/P1%3A9/comments`);
+    await postFirstComment(prisma as never, 'P1', 'P1_9', 'hi');
+    expect(outbound).toEqual([`${base}/fb/v25.0/P1_9/comments`]);
+    for (const bad of ['P1/feed', 'P1/../x', 'P1:9', 'P1?x=1']) {
+      await expect(postFirstComment(prisma as never, 'P1', bad, 'hi')).rejects.toThrow(/không hợp lệ/);
+    }
+    expect(outbound).toHaveLength(1);
   });
 });

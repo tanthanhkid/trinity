@@ -593,7 +593,6 @@
     "lead_scoring": false,
     "stale_reminders": false
   },
-  "serverless_locked_features": {},
   "retired_org_feature_keys": [
     "google_sheets",
     "commerce_connectors"

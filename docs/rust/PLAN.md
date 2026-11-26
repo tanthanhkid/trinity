@@ -875,6 +875,10 @@ Hai cơ chế, cả hai chỉ dùng Postgres:
    Xử lý webhook Facebook/Zalo **giữ nguyên kiểu đồng bộ trong request** ở lần chuyển đầu (đúng hành vi hiện tại);
    chuyển sang "ghi nhận rồi xử lý qua hàng đợi" là cải tiến sau X06, không thuộc phạm vi tương thích.
 
+**Đã làm ở K20** (`server/crates/trinity-jobs/src/scheduler.rs`): `Scheduler` (đăng ký `JobSpec`, `tick`, `run` theo chu kỳ), con trỏ theo job trong RAM,
+nhận lượt `pg_try_advisory_xact_lock(hashtext('job_runs:<job>'), company)` + `locked_until = budget` rồi commit ngay (job chạy ngoài kết nối),
+`ensure_job_tables` (cả bản một công ty), chủ job từ `Ownership::job` (`set_ownership`/`reload_ownership`). Test pg: `tests/scheduler.rs`.
+
 Sở hữu job trong giai đoạn lai nằm trong tệp sở hữu chung (mục 4.14): Rust nạp lại khi nhận `SIGHUP` (K20), Node đọc
 lại tệp ở đầu mỗi lượt tick mà không cần khởi động lại (T01). `platform.job_runs` tồn tại cả ở chế độ một công ty.
 

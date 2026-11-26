@@ -179,8 +179,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn danh_muc_du_26_loai() {
-        assert_eq!(catalog().len(), 26);
+    fn danh_muc_du_25_loai() {
+        assert_eq!(catalog().len(), 25);
+        // G07b gỡ cổng thanh toán: `payment.received` không còn trong danh mục.
+        assert_eq!(event_resource("payment.received"), None);
         assert_eq!(event_resource("contact.created"), Some("contact"));
         assert_eq!(event_resource("pos.order.completed"), Some("pos_order"));
         assert_eq!(event_resource("store_order.status_changed"), Some("store_order"));

@@ -1,0 +1,22 @@
+{
+  "status": 200,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "ok"
+        }
+      ],
+      "structuredContent": {
+        "notice": "",
+        "data": {}
+      }
+    },
+    "jsonrpc": "2.0",
+    "id": 2
+  }
+}

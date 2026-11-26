@@ -21,9 +21,9 @@
     "@prisma/client": "^6.19.3",
     "axios": "^1",
     "exceljs": "^4.4.0",
-    "pdfkit": "^0.15",
+    "pdfkit": "^0.21",
     "class-transformer": "^0.5",
-    "class-validator": "^0.14",
+    "class-validator": "^0.15",
     "reflect-metadata": "^0.2",
     "rxjs": "^7"
   },

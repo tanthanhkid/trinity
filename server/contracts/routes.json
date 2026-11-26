@@ -172,7 +172,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.all:String"
+      ],
       "upload": null,
       "validation": "lenient"
     },
@@ -1054,7 +1056,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 204,
-      "transforms": [],
+      "transforms": [
+        "param.provider:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -1187,7 +1191,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 201,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "strict"
@@ -1407,7 +1411,10 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.cursor:String",
+        "query.limit:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -1725,7 +1732,7 @@
       "shape_permissions": [
         "contacts.phone_full"
       ],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [
         "QueryContactDto.assigned_to:@Type",
         "QueryContactDto.contact_status_id:@Type",
@@ -1799,7 +1806,9 @@
         "contacts.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.q:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -1889,7 +1898,9 @@
         "custom_records.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.key:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -1920,7 +1931,9 @@
         "custom_records.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.key:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -1950,7 +1963,9 @@
         "custom_records.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.key:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -1981,7 +1996,8 @@
       ],
       "status_ok": 201,
       "transforms": [
-        "CreateCustomFieldDto.options:@Type"
+        "CreateCustomFieldDto.options:@Type",
+        "param.key:String"
       ],
       "upload": null,
       "validation": "strict"
@@ -2012,7 +2028,10 @@
         "custom_records.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.fieldKey:String",
+        "param.key:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -2043,7 +2062,9 @@
       ],
       "status_ok": 200,
       "transforms": [
-        "UpdateCustomFieldDto.options:@Type"
+        "UpdateCustomFieldDto.options:@Type",
+        "param.fieldKey:String",
+        "param.key:String"
       ],
       "upload": null,
       "validation": "strict"
@@ -2074,7 +2095,9 @@
         "custom_records.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.key:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -2105,7 +2128,8 @@
       ],
       "status_ok": 200,
       "transforms": [
-        "LookupQueryDto.limit:@Type"
+        "LookupQueryDto.limit:@Type",
+        "param.key:String"
       ],
       "upload": null,
       "validation": "strict"
@@ -2138,7 +2162,8 @@
       "status_ok": 200,
       "transforms": [
         "ListCustomRecordsQueryDto.limit:@Type",
-        "ListCustomRecordsQueryDto.page:@Type"
+        "ListCustomRecordsQueryDto.page:@Type",
+        "param.key:String"
       ],
       "upload": null,
       "validation": "strict"
@@ -2171,7 +2196,8 @@
       ],
       "status_ok": 201,
       "transforms": [
-        "CustomRecordBodyDto.data:@Type"
+        "CustomRecordBodyDto.data:@Type",
+        "param.key:String"
       ],
       "upload": null,
       "validation": "strict"
@@ -2205,7 +2231,9 @@
         "custom_records.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.key:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -2237,7 +2265,9 @@
         "custom_records.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.key:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -2271,7 +2301,8 @@
       ],
       "status_ok": 200,
       "transforms": [
-        "CustomRecordBodyDto.data:@Type"
+        "CustomRecordBodyDto.data:@Type",
+        "param.key:String"
       ],
       "upload": null,
       "validation": "strict"
@@ -2304,7 +2335,9 @@
         "custom_records.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.key:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -2329,7 +2362,7 @@
         "custom_records.export"
       ],
       "raw_response": true,
-      "res_passthrough": false,
+      "res_passthrough": true,
       "safe_for_shadow": false,
       "shape_permissions": [
         "custom_records.phone_full"
@@ -2337,7 +2370,8 @@
       "status_ok": 200,
       "transforms": [
         "ListCustomRecordsQueryDto.limit:@Type",
-        "ListCustomRecordsQueryDto.page:@Type"
+        "ListCustomRecordsQueryDto.page:@Type",
+        "param.key:String"
       ],
       "upload": null,
       "validation": "strict"
@@ -2368,7 +2402,9 @@
         "custom_records.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.key:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -2398,7 +2434,10 @@
         "custom_records.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.key:String",
+        "param.view:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -2586,7 +2625,9 @@
         "custom_records.phone_full"
       ],
       "status_ok": 201,
-      "transforms": [],
+      "transforms": [
+        "param.template:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -2776,7 +2817,9 @@
         "contacts.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.q:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -3540,7 +3583,11 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.limit:String",
+        "query.status:String",
+        "query.unanswered:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -3570,7 +3617,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 201,
-      "transforms": [],
+      "transforms": [
+        "param.id:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -3630,7 +3679,10 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.limit:String",
+        "query.unanswered:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -3882,7 +3934,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.limit:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -3907,8 +3961,10 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
-      "transforms": [],
+      "status_ok": null,
+      "transforms": [
+        "param.code:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -3933,8 +3989,12 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
-      "transforms": [],
+      "status_ok": null,
+      "transforms": [
+        "query.code:String",
+        "query.error:String",
+        "query.state:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -4146,7 +4206,11 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.hub.challenge:String",
+        "query.hub.mode:String",
+        "query.hub.verify_token:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -4324,11 +4388,13 @@
       "permission_mode": null,
       "permissions": [],
       "raw_response": true,
-      "res_passthrough": false,
+      "res_passthrough": true,
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 201,
-      "transforms": [],
+      "transforms": [
+        "param.token:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -4692,7 +4758,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 204,
-      "transforms": [],
+      "transforms": [
+        "param.id:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -5331,7 +5399,18 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.before:String",
+        "query.channel:String",
+        "query.from:String",
+        "query.has_rule:String",
+        "query.limit:String",
+        "query.page_id:String",
+        "query.q:String",
+        "query.status:String",
+        "query.to:String",
+        "query.type:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -5357,7 +5436,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.id:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -5376,32 +5457,6 @@
       "org_feature": null,
       "param_pipes": [],
       "path": "/api/v1/interactions/stats",
-      "permission_mode": null,
-      "permissions": [],
-      "raw_response": false,
-      "res_passthrough": false,
-      "safe_for_shadow": false,
-      "shape_permissions": [],
-      "status_ok": 200,
-      "transforms": [],
-      "upload": null,
-      "validation": "strict"
-    },
-    {
-      "access": "public",
-      "body_limit_bytes": 5242880,
-      "cached": false,
-      "controller": "CronTickController",
-      "deprecated": false,
-      "guards": [],
-      "handler": "tick",
-      "headers": {},
-      "interceptors": [],
-      "method": "GET",
-      "min_samples": 50,
-      "org_feature": null,
-      "param_pipes": [],
-      "path": "/api/v1/internal/cron/tick",
       "permission_mode": null,
       "permissions": [],
       "raw_response": false,
@@ -5767,7 +5822,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.labelId:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -5797,7 +5854,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.labelId:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -7016,11 +7075,13 @@
         "attendance.view"
       ],
       "raw_response": true,
-      "res_passthrough": false,
+      "res_passthrough": true,
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.slot:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -7048,7 +7109,11 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.date:String",
+        "query.sort_by:String",
+        "query.sort_dir:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -7075,8 +7140,11 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
-      "transforms": [],
+      "status_ok": null,
+      "transforms": [
+        "query.sort_by:String",
+        "query.sort_dir:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -7159,7 +7227,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [
         "QueryAttendanceExportDto.job_title_id:@Type",
         "QueryAttendanceExportDto.team_id:@Type",
@@ -7635,7 +7703,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [
         "QueryAttendanceStatsDto.department:@Transform",
         "QueryAttendanceStatsDto.office_id:@Transform",
@@ -7667,7 +7735,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [
         "QueryAttendanceStatsDto.department:@Transform",
         "QueryAttendanceStatsDto.office_id:@Transform",
@@ -7699,7 +7767,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [
         "QueryAttendanceStatsDto.department:@Transform",
         "QueryAttendanceStatsDto.office_id:@Transform",
@@ -7731,7 +7799,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [
         "QueryAttendanceStatsDto.department:@Transform",
         "QueryAttendanceStatsDto.office_id:@Transform",
@@ -7763,7 +7831,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [
         "QueryAttendanceStatsDto.department:@Transform",
         "QueryAttendanceStatsDto.office_id:@Transform",
@@ -7854,7 +7922,10 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.month:String",
+        "query.user_id:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -7880,7 +7951,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.user_id:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -7906,7 +7979,10 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.date_from:String",
+        "query.date_to:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -7993,7 +8069,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [
         "QueryAttendanceExportDto.job_title_id:@Type",
         "QueryAttendanceExportDto.team_id:@Type",
@@ -8257,7 +8333,7 @@
         "contracts.view"
       ],
       "raw_response": true,
-      "res_passthrough": false,
+      "res_passthrough": true,
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
@@ -8379,7 +8455,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 201,
-      "transforms": [],
+      "transforms": [
+        "body.name:String"
+      ],
       "upload": "file",
       "validation": "strict"
     },
@@ -8435,7 +8513,7 @@
         "contracts.view"
       ],
       "raw_response": true,
-      "res_passthrough": false,
+      "res_passthrough": true,
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
@@ -8721,7 +8799,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [
         "BirthdayListQueryDto.job_title_id:@Type",
         "BirthdayListQueryDto.month:@Type",
@@ -8753,7 +8831,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [
         "QueryEmployeesDto.page:@Type",
         "QueryEmployeesDto.page_size:@Type"
@@ -9497,7 +9575,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.include_unled:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -9548,7 +9628,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "strict"
@@ -9574,7 +9654,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "strict"
@@ -9742,7 +9822,10 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.cursor:String",
+        "query.limit:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -9797,7 +9880,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "strict"
@@ -9826,7 +9909,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "strict"
@@ -9950,7 +10033,7 @@
       "controller": "NewsfeedController",
       "deprecated": false,
       "guards": [],
-      "handler": "videoUploadToken",
+      "handler": "videoUploadTokenGone",
       "headers": {},
       "interceptors": [],
       "method": "POST",
@@ -10104,7 +10187,7 @@
       "permission_mode": null,
       "permissions": [],
       "raw_response": true,
-      "res_passthrough": false,
+      "res_passthrough": true,
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
@@ -10189,7 +10272,7 @@
       "permission_mode": null,
       "permissions": [],
       "raw_response": true,
-      "res_passthrough": false,
+      "res_passthrough": true,
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
@@ -10296,8 +10379,10 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
-      "transforms": [],
+      "status_ok": null,
+      "transforms": [
+        "param.code:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -10322,8 +10407,10 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
-      "transforms": [],
+      "status_ok": null,
+      "transforms": [
+        "param.code:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -10348,7 +10435,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "strict"
@@ -10374,7 +10461,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "strict"
@@ -10405,7 +10492,10 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.limit:String",
+        "query.status:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -10675,7 +10765,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "lenient"
@@ -10705,7 +10795,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "lenient"
@@ -10791,7 +10881,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "lenient"
@@ -10819,7 +10909,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "lenient"
@@ -10847,7 +10937,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 201,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "lenient"
@@ -10905,7 +10995,7 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "lenient"
@@ -11852,7 +11942,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.include_inactive:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -12272,7 +12364,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.include_inactive:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -12793,7 +12887,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.type:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -12826,7 +12922,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.type:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -13026,7 +13124,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.id:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -13110,7 +13210,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 201,
-      "transforms": [],
+      "transforms": [
+        "param.key:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -13320,7 +13422,9 @@
       "raw_response": false,
       "res_passthrough": false,
       "safe_for_shadow": false,
-      "shape_permissions": [],
+      "shape_permissions": [
+        "contacts.phone_full"
+      ],
       "status_ok": 200,
       "transforms": [],
       "upload": null,
@@ -13446,7 +13550,7 @@
       "shape_permissions": [
         "contacts.phone_full"
       ],
-      "status_ok": 200,
+      "status_ok": null,
       "transforms": [],
       "upload": null,
       "validation": "strict"
@@ -13473,7 +13577,9 @@
       "raw_response": false,
       "res_passthrough": false,
       "safe_for_shadow": false,
-      "shape_permissions": [],
+      "shape_permissions": [
+        "contacts.phone_full"
+      ],
       "status_ok": 200,
       "transforms": [
         "QueryMarketingAccountReportDto.marketing_user_id:@Type"
@@ -13801,7 +13907,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.component_type:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -13917,7 +14025,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.position:String"
+      ],
       "upload": null,
       "validation": "lenient"
     },
@@ -14508,7 +14618,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.agent:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -15070,7 +15182,12 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.cursor:String",
+        "query.limit:String",
+        "query.q:String",
+        "query.type:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -15124,11 +15241,13 @@
       "permission_mode": null,
       "permissions": [],
       "raw_response": true,
-      "res_passthrough": false,
+      "res_passthrough": true,
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.token:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -15156,7 +15275,7 @@
         "social.post"
       ],
       "raw_response": true,
-      "res_passthrough": false,
+      "res_passthrough": true,
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
@@ -15183,36 +15302,6 @@
         "param.id:ParseIntPipe"
       ],
       "path": "/api/v1/social/media/:id/hide",
-      "permission_mode": "all",
-      "permissions": [
-        "social.post"
-      ],
-      "raw_response": false,
-      "res_passthrough": false,
-      "safe_for_shadow": false,
-      "shape_permissions": [],
-      "status_ok": 200,
-      "transforms": [],
-      "upload": null,
-      "validation": "strict"
-    },
-    {
-      "access": "can",
-      "body_limit_bytes": 5242880,
-      "cached": false,
-      "controller": "SocialController",
-      "deprecated": false,
-      "guards": [
-        "OrgFeatureGuard"
-      ],
-      "handler": "register",
-      "headers": {},
-      "interceptors": [],
-      "method": "POST",
-      "min_samples": 50,
-      "org_feature": "social_posting",
-      "param_pipes": [],
-      "path": "/api/v1/social/media/register",
       "permission_mode": "all",
       "permissions": [
         "social.post"
@@ -15307,8 +15396,13 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
-      "transforms": [],
+      "status_ok": null,
+      "transforms": [
+        "param.network:String",
+        "query.code:String",
+        "query.error:String",
+        "query.state:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -15338,7 +15432,13 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.cursor:String",
+        "query.from:String",
+        "query.limit:String",
+        "query.status:String",
+        "query.to:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -15687,7 +15787,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.count:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -15977,7 +16079,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.kind:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -16101,7 +16205,11 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.from:String",
+        "query.to:String",
+        "query.top:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -16343,7 +16451,10 @@
         "contacts.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.limit:String",
+        "query.status:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -16403,7 +16514,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.slug:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -16429,7 +16542,9 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 201,
-      "transforms": [],
+      "transforms": [
+        "param.slug:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -16455,7 +16570,11 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "param.code:String",
+        "param.slug:String",
+        "query.phone:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -16921,7 +17040,16 @@
         "users.phone_full"
       ],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.manager_id:String",
+        "query.role:String",
+        "query.roles:String",
+        "query.search:String",
+        "query.sort_by:String",
+        "query.sort_order:String",
+        "query.status:String",
+        "query.team_id:String"
+      ],
       "upload": null,
       "validation": "lenient"
     },
@@ -17234,8 +17362,17 @@
       "shape_permissions": [
         "users.phone_full"
       ],
-      "status_ok": 200,
-      "transforms": [],
+      "status_ok": null,
+      "transforms": [
+        "query.manager_id:String",
+        "query.role:String",
+        "query.roles:String",
+        "query.search:String",
+        "query.sort_by:String",
+        "query.sort_order:String",
+        "query.status:String",
+        "query.team_id:String"
+      ],
       "upload": null,
       "validation": "lenient"
     },
@@ -17376,8 +17513,12 @@
       "res_passthrough": false,
       "safe_for_shadow": false,
       "shape_permissions": [],
-      "status_ok": 200,
-      "transforms": [],
+      "status_ok": null,
+      "transforms": [
+        "query.code:String",
+        "query.oa_id:String",
+        "query.state:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -17437,7 +17578,11 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.cursor:String",
+        "query.limit:String",
+        "query.q:String"
+      ],
       "upload": null,
       "validation": "strict"
     },
@@ -17501,7 +17646,10 @@
       "safe_for_shadow": false,
       "shape_permissions": [],
       "status_ok": 200,
-      "transforms": [],
+      "transforms": [
+        "query.before:String",
+        "query.limit:String"
+      ],
       "upload": null,
       "validation": "strict"
     },

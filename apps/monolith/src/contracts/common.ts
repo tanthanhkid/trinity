@@ -59,6 +59,15 @@ export async function runExport(file: string, command: string, build: () => Prom
     const cur = fs.existsSync(out) ? fs.readFileSync(out, 'utf8') : ''
     if (cur !== text) {
       console.error(`server/contracts/${file} lệch với mã. Chạy: pnpm --filter @trinity/monolith ${command}`)
+      const a = cur.split('\n')
+      const b = text.split('\n')
+      let shown = 0
+      for (let i = 0; i < Math.max(a.length, b.length) && shown < 8; i++) {
+        if (a[i] !== b[i]) {
+          console.error(`  dòng ${i + 1}\n    file: ${(a[i] ?? '').slice(0, 200)}\n    mã:   ${(b[i] ?? '').slice(0, 200)}`)
+          shown++
+        }
+      }
       process.exit(1)
     }
     console.log(`${file} khớp`)

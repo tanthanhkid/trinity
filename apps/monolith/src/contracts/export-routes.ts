@@ -18,6 +18,7 @@ import {
   INTERCEPTORS_METADATA,
   METHOD_METADATA,
   PATH_METADATA,
+  RESPONSE_PASSTHROUGH_METADATA,
   ROUTE_ARGS_METADATA,
 } from '@nestjs/common/constants'
 import { RouteParamtypes } from '@nestjs/common/enums/route-paramtypes.enum'
@@ -40,26 +41,50 @@ const DEFAULT_MIN_SAMPLES = 50
 
 /**
  * Route có cache đọc phía Node (response có thể cũ tới TTL): chỉ so hình dạng trên lưu lượng thật (PLAN mục 4.14).
- * Khoá `<Controller>.<handler>`. Nguồn: ghi chú cache ở service tương ứng.
+ * Khoá `<tệp controller từ gốc repo>#<Class>.<handler>` (tên lớp trùng giữa các service, ví dụ `ReportsController`). Nguồn: ghi chú cache ở service tương ứng.
  */
 const CACHED_HANDLERS = new Set([
-  'DashboardOverviewController.getOverview', // dashboard-overview.service.ts: Redis 300 giây theo user
-  'DashboardTrendController.getDashboardTrend14d', // dashboard-trend.service.ts: Redis 120 giây
-  'ReportsController.getDashboardStatsToday', // dashboard-stats-today.service.ts: Redis, thẻ số "hôm nay"
-  'NotificationsController.getUnreadCount', // notifications.service.ts: unreadCache trong RAM
-  'ContactsController.findAll', // contacts.service.ts: cache COUNT(*) 60 giây
-  'StaleWorkController.summary', // stale-work.service.ts: scanCache 60 giây
+  'services/crm/src/reports/dashboard-overview.controller.ts#DashboardOverviewController.getOverview', // dashboard-overview.service.ts: Redis 300 giây theo user
+  'services/crm/src/reports/dashboard-trend.controller.ts#DashboardTrendController.getDashboardTrend14d', // dashboard-trend.service.ts: Redis 120 giây
+  'services/crm/src/reports/reports.controller.ts#ReportsController.getDashboardStatsToday', // dashboard-stats-today.service.ts: Redis, thẻ số "hôm nay"
+  'services/notification/src/notifications/notifications.controller.ts#NotificationsController.getUnreadCount', // notifications.service.ts: unreadCache trong RAM
+  'services/crm/src/contacts/contacts.controller.ts#ContactsController.findAll', // contacts.service.ts: cache COUNT(*) 60 giây
+  'services/crm/src/stale-work/stale-work.controller.ts#StaleWorkController.summary', // stale-work.service.ts: scanCache 60 giây
 ])
 
 /**
  * GET đã rà là thuần đọc: bật shadow (K28). Mặc định `false`; chỉ thêm sau khi rà mã từng handler.
  * Rỗng ở C02: danh sách mở ra dần ở issue shadow, không đoán từ phương thức HTTP (PLAN mục 1.10: có GET ghi DB hoặc gọi Graph).
  */
+/**
+ * Route thanh toán sẽ gỡ ở G07b (Rust không viết lại, Node vẫn phục vụ tới lúc đó): `deprecated: true`.
+ * Khoá `<Controller>#<METHOD> <đường dẫn>`; G07b/G08 gỡ route thì xoá dòng tương ứng cùng lúc chạy lại lệnh.
+ */
+const DEPRECATED_ROUTES = new Set<string>(
+  [
+    'PUT /connectors/sepay',
+    'PUT /connectors/vnpay',
+    'PUT /connectors/momo',
+    'GET /pay/:code/vnpay',
+    'GET /pay/:code/momo',
+    'GET /connectors/vnpay/ipn',
+    'GET /pay/vnpay/return',
+    'POST /connectors/momo/ipn',
+    'GET /pay/momo/return',
+    'POST /connectors/sepay/webhook',
+    'GET /payments',
+    'POST /payments',
+    'GET /payments/:id',
+    'POST /payments/:id/cancel',
+  ].map((r) => `ConnectorsController#${r.replace(/ \//, ' /api/v1/')}`),
+)
+
 const SAFE_FOR_SHADOW = new Set<string>([])
 
 /** Quyền đổi hình dạng response (không phải cổng): quét `<perm>` ở mã của thư mục controller, ngoài dòng `@Can`/`@CanAny`. */
 const SHAPE_PERMISSION_RE = /'((?:[a-z_]+)\.phone_full)'/g
 
+const PRIMITIVES = new Set<unknown>([String, Number, Boolean])
 const RES_TYPE = RouteParamtypes.RESPONSE
 const FILE_TYPES = new Set<number>([RouteParamtypes.FILE, RouteParamtypes.FILES])
 
@@ -71,7 +96,8 @@ export interface RouteRow {
   permission_mode: 'all' | 'any' | null
   validation: 'strict' | 'lenient'
   body_limit_bytes: number | null
-  status_ok: number
+  /** `null` khi handler tự đặt mã (`@Res()` trần, không `@HttpCode`). */
+  status_ok: number | null
   org_feature: string | null
   guards: string[]
   interceptors: string[]
@@ -100,29 +126,26 @@ function joinPath(...parts: (string | undefined)[]): string {
 }
 
 /** Tên class; mixin của Nest (`FileInterceptor`, `mixin()`) mang tên ngẫu nhiên mỗi lần chạy nên gộp thành `Mixin`. */
+const rawName = (x: unknown): string =>
+  typeof x === 'function' ? x.name : x && typeof x === 'object' ? (x as object).constructor.name : String(x)
 const nameOf = (x: unknown): string => {
-  const n = typeof x === 'function' ? x.name : x && typeof x === 'object' ? (x as object).constructor.name : String(x)
+  const n = rawName(x)
   return /^[0-9a-f]{12,}$/i.test(n) ? 'Mixin' : n
 }
 
 const asArray = <T>(x: T | T[] | undefined): T[] => (x === undefined ? [] : Array.isArray(x) ? x : [x])
 
-/** Ánh xạ tên class → tệp nguồn (để quét quyền đổi hình dạng theo thư mục controller). */
-function indexControllerDirs(root: string): Map<string, string> {
-  const out = new Map<string, string>()
-  const walk = (dir: string): void => {
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      const p = path.join(dir, e.name)
-      if (e.isDirectory()) {
-        if (e.name !== 'node_modules' && e.name !== 'dist' && e.name !== '__tests__') walk(p)
-      } else if (/\.controller\.ts$/.test(e.name)) {
-        for (const m of fs.readFileSync(p, 'utf8').matchAll(/export class (\w+)/g)) out.set(m[1], dir)
-      }
-    }
-  }
-  for (const s of ['services', 'apps/monolith/src']) {
-    const d = path.join(root, s)
-    if (fs.existsSync(d)) walk(d)
+/**
+ * Tệp nguồn của từng class controller, tìm theo định danh class trong `require.cache` (tên lớp trùng giữa các service).
+ * Đường dẫn bản dịch `dist/<đường dẫn nguồn>.js` đổi về `<gốc repo>/<đường dẫn nguồn>.ts`.
+ */
+function indexControllerFiles(root: string): Map<Function, string> {
+  const out = new Map<Function, string>()
+  for (const [file, mod] of Object.entries(require.cache)) {
+    if (!/\.controller\.js$/.test(file) || !mod) continue
+    const m = /\/dist\/(.+)\.js$/.exec(file)
+    const rel = m ? `${m[1]}.ts` : path.relative(root, file).replace(/\.js$/, '.ts')
+    for (const v of Object.values(mod.exports as Record<string, unknown>)) if (typeof v === 'function') out.set(v, rel)
   }
   return out
 }
@@ -185,7 +208,7 @@ export function collectRoutes(app: INestApplication): RouteRow[] {
   const scanner = app.get(MetadataScanner)
   const reflector = app.get(Reflector)
   const root = repoRoot()
-  const dirs = indexControllerDirs(root)
+  const files = indexControllerFiles(root)
   const shapeCache = new Map<string, string[]>()
   const rows: RouteRow[] = []
 
@@ -211,23 +234,25 @@ export function collectRoutes(app: INestApplication): RouteRow[] {
       >
       const types = (Reflect.getMetadata('design:paramtypes', proto, handler) ?? []) as Function[]
       let rawResponse = false
-      let passthrough = false
+      // Nest 10: `@Res({ passthrough: true })` ghi cờ lên constructor của controller, theo tên method.
+      const passthrough = Reflect.getMetadata(RESPONSE_PASSTHROUGH_METADATA, metatype, handler) === true
       let upload: RouteRow['upload'] = null
       const paramPipes: string[] = []
       const transforms: string[] = []
       for (const [key, a] of Object.entries(args)) {
         const type = Number(key.split(':')[0])
-        if (type === RES_TYPE) {
-          rawResponse = true
-          passthrough = Boolean((a.data as { passthrough?: boolean } | undefined)?.passthrough)
-        }
+        if (type === RES_TYPE) rawResponse = true
         if (FILE_TYPES.has(type)) upload = type === RouteParamtypes.FILE ? 'file' : 'files'
         const label =
           type === RouteParamtypes.BODY ? 'body' : type === RouteParamtypes.QUERY ? 'query' : type === RouteParamtypes.PARAM ? 'param' : null
         if (label) {
           const slot = typeof a.data === 'string' ? `${label}.${a.data}` : label
           for (const p of a.pipes ?? []) paramPipes.push(`${slot}:${nameOf(p)}`)
-          if (label !== 'param') transforms.push(...dtoTransforms(types[a.index]))
+          const t = types[a.index]
+          if (PRIMITIVES.has(t)) {
+            // Không có pipe: ValidationPipe toàn cục (`transform: true`) ép theo kiểu khai báo; Rust phải ép như vậy.
+            if (!(a.pipes ?? []).length) transforms.push(`${slot}:${t.name}`)
+          } else if (label !== 'param') transforms.push(...dtoTransforms(t))
         }
       }
 
@@ -235,25 +260,28 @@ export function collectRoutes(app: INestApplication): RouteRow[] {
         ...asArray<unknown>(Reflect.getMetadata(GUARDS_METADATA, metatype)),
         ...asArray<unknown>(Reflect.getMetadata(GUARDS_METADATA, ref)),
       ].map(nameOf)
-      const interceptors = [
+      const rawInterceptors = [
         ...asArray<unknown>(Reflect.getMetadata(INTERCEPTORS_METADATA, metatype)),
         ...asArray<unknown>(Reflect.getMetadata(INTERCEPTORS_METADATA, ref)),
-      ].map(nameOf)
-      if (!upload && interceptors.some((n) => /file|upload|selfie/i.test(n))) upload = 'interceptor'
+      ]
+      // Xét tên lớp gốc trước khi gộp mixin ngẫu nhiên thành `Mixin`.
+      if (!upload && rawInterceptors.some((x) => /file|upload|selfie/i.test(rawName(x)))) upload = 'interceptor'
+      const interceptors = rawInterceptors.map(nameOf)
 
       const code = Reflect.getMetadata(HTTP_CODE_METADATA, ref) as number | undefined
       const headersMeta = (Reflect.getMetadata(HEADERS_METADATA, ref) ?? []) as { name: string; value: string }[]
       const orgFeature = reflector.getAllAndOverride<string | undefined>(ORG_FEATURE_META, [ref, metatype]) ?? null
-      const dir = dirs.get(metatype.name)
+      const file = files.get(metatype)
+      if (!file) throw new Error(`không tìm thấy tệp nguồn của ${metatype.name}`)
+      const dir = path.join(root, path.dirname(file))
       const shape = access.kind === 'public' || access.kind === 'internal' || !dir ? [] : shapePermissionsOfDir(dir, shapeCache)
       const own = new Set(access.kind === 'can' ? access.permissions : [])
-      const handlerKey = `${metatype.name}.${handler}`
+      const handlerKey = `${file}#${metatype.name}.${handler}`
 
       for (const cp of classPaths) {
         for (const mp of asArray<string>(methodPathMeta)) {
           const p = joinPath(GLOBAL_PREFIX, cp, mp)
-          const deprecated =
-            metatype.name === 'ConnectorsController' && /(sepay|vnpay|momo|\/pay\/|\/payments)/.test(p)
+          const deprecated = DEPRECATED_ROUTES.has(`${metatype.name}#${method} ${p}`)
           rows.push({
             method,
             path: p,
@@ -262,7 +290,8 @@ export function collectRoutes(app: INestApplication): RouteRow[] {
             permission_mode: access.kind === 'can' ? access.mode : null,
             validation: LENIENT_PREFIXES.some((x) => p.startsWith(x)) ? 'lenient' : 'strict',
             body_limit_bytes: upload ? null : BODY_LIMIT_BYTES,
-            status_ok: code ?? (requestMethod === RequestMethod.POST ? 201 : 200),
+            // `@Res()` không passthrough và không `@HttpCode`: handler tự đặt mã, hợp đồng không cố định mã thành công.
+            status_ok: code ?? (rawResponse && !passthrough ? null : requestMethod === RequestMethod.POST ? 201 : 200),
             org_feature: orgFeature,
             guards,
             interceptors,

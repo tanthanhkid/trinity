@@ -6,6 +6,7 @@
 pub mod cache;
 pub mod catalog;
 pub mod grants;
+pub mod plan;
 pub mod scope;
 pub mod service;
 

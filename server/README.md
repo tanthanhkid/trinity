@@ -111,6 +111,9 @@ Hàm thuần chuyển từ bản TS phải khớp từng byte: đầu vào và k
 kết quả, test Rust chạy cùng tệp. `contracts/cases/kernel.json` (K26: bỏ dấu, số điện thoại, khoảng ngày, định dạng
 số và ngày, so sánh chuỗi) chạy ở `services/crm/src/common/helpers/kernel-cases.spec.ts` và
 `crates/trinity-kernel/tests/shared_cases.rs`; cách thêm ca và quyết định từng chỗ: [`docs/rust/locale-vi.md`](../docs/rust/locale-vi.md).
+`contracts/cases/plan.json` (K25: khoá và nhãn tính năng, gói, cổng tính năng 403, hạn mức người dùng, cửa sổ cố định của giới hạn tốc độ) chạy ở
+`services/crm/src/common/helpers/plan-cases.spec.ts`, `crates/trinity-rbac/tests/plan_cases.rs` và `crates/trinity-http/tests/rate_limit_cases.rs`;
+sinh lại: `UPDATE_PLAN_CASES=1 npx jest plan-cases` trong `services/crm`.
 
 ## Migrate
 

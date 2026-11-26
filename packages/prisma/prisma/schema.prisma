@@ -2737,3 +2737,26 @@ model StoreOrder {
   @@index([status, created_at])
   @@map("store_orders")
 }
+
+/// Bộ đếm kênh gửi ra ngoài theo công ty (chống lạm dụng app Meta/Zalo dùng chung). Một dòng = một khung giờ/ngày.
+model ChannelUsage {
+  kind   String   @db.VarChar(32)
+  bucket DateTime @db.Timestamptz(3)
+  count  Int      @default(0)
+
+  @@id([kind, bucket])
+  @@map("channel_usage")
+}
+
+/// Sự kiện an toàn kênh: vượt hạn mức, tự tạm dừng do lỗi Graph API, mở lại.
+model ChannelEvent {
+  id         Int      @id @default(autoincrement())
+  kind       String   @db.VarChar(32)
+  message    String   @db.Text
+  meta       Json?
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([kind, id], map: "channel_events_kind_id_idx")
+  @@index([created_at], map: "channel_events_created_idx")
+  @@map("channel_events")
+}

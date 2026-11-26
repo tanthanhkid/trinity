@@ -1,13 +1,19 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Put, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, ParseIntPipe, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { Can, CurrentUser, Public, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
 import { StoreService, type StoreSettings } from './store.service';
 import { withCompanyHint } from '../common/helpers/tenant-hint';
+import { enterRoutedCompany } from '../common/helpers/routed-company';
 
 /** Multi-tenant: đường dẫn trang công khai kèm `?cid=` khi không phải công ty 1 (web ghép origin vào trước). */
 const withPublicPath = (s: StoreSettings) => ({ ...s, public_path: s.slug ? withCompanyHint(`/s/${s.slug}`) : null });
+
+/** Link không mang `?cid=`: chọn công ty theo địa chỉ cửa hàng (slug duy nhất toàn hệ). Có `?cid=` thì giữ nguyên — slug vẫn phải khớp trong công ty đó. */
+async function routeBySlug(slug: string): Promise<void> {
+  if (!(await enterRoutedCompany('store_slug', slug))) throw new NotFoundException('Không có cửa hàng này.');
+}
 
 const clientIp = (req: Request) => (String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.ip || '0').replace(/^::ffff:/, '').slice(0, 45);
 
@@ -55,21 +61,24 @@ export class StoreController {
   @Get('public/:slug')
   @Public()
   @ApiOperation({ summary: 'Thông tin trang + sản phẩm đang bán (công khai)' })
-  publicStore(@Param('slug') slug: string) {
+  async publicStore(@Param('slug') slug: string) {
+    await routeBySlug(slug);
     return this.store.publicStore(slug);
   }
 
   @Post('public/:slug/orders')
   @Public()
   @ApiOperation({ summary: 'Khách đặt đơn (giá lấy từ danh mục; giới hạn 5 đơn/10 phút/IP)' })
-  placeOrder(@Param('slug') slug: string, @Req() req: Request, @Body() body: Record<string, unknown>) {
+  async placeOrder(@Param('slug') slug: string, @Req() req: Request, @Body() body: Record<string, unknown>) {
+    await routeBySlug(slug);
     return this.store.placeOrder(slug, clientIp(req), body as never);
   }
 
   @Get('public/:slug/orders/:code')
   @Public()
   @ApiOperation({ summary: 'Khách xem trạng thái đơn của mình (cần đúng SĐT)' })
-  orderStatus(@Param('slug') slug: string, @Param('code') code: string, @Query('phone') phone: string) {
+  async orderStatus(@Param('slug') slug: string, @Param('code') code: string, @Query('phone') phone: string) {
+    await routeBySlug(slug);
     return this.store.orderStatus(slug, code, phone);
   }
 }

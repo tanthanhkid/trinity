@@ -1,5 +1,5 @@
 import { BadRequestException, HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Prisma, PrismaService, publishIntegrationEvent } from '@trinity/prisma';
+import { Prisma, PrismaService, claimCompanyRoute, publishIntegrationEvent, releaseCompanyRoute } from '@trinity/prisma';
 import { ScopeService, assertInScope, makePhoneMasker, type AuthUser } from '@trinity/rbac-nest';
 import { randomInt } from 'node:crypto';
 import { FixedWindowLimiter } from '../common/helpers/fixed-window-limiter';
@@ -123,8 +123,13 @@ export class StoreService {
     if (next.bank_transfer && !(await this.connectors.active('sepay').catch(() => null))) {
       throw new BadRequestException('Chuyển khoản cần kết nối SePay trước (Cài đặt › Kết nối & AI › Thanh toán).');
     }
+    // Multi-tenant: an address (slug) belongs to ONE company, so links work even without `?cid=`. First claim wins.
+    if (next.slug && next.slug !== current.slug) {
+      await claimCompanyRoute('store_slug', next.slug);
+    }
     const value = JSON.stringify(next);
     await this.prisma.setting.upsert({ where: { key: STORE_SETTING_KEY }, update: { value, updated_by: userId }, create: { key: STORE_SETTING_KEY, value, updated_by: userId } });
+    if (current.slug && current.slug !== next.slug) await releaseCompanyRoute('store_slug', current.slug);
     return next;
   }
 

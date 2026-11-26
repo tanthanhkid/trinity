@@ -147,38 +147,64 @@ export interface PlanDefinition {
   features: readonly (typeof PLAN_GATED_FEATURES)[number][]
   /** null = không giới hạn. Gói KHÔNG có hạn mức AI: Trinity không chạy AI, khách trả tiền AI theo gói của chính họ. */
   maxUsers: number | null
+  /** Hạn mức kênh gửi ra ngoài (chống lạm dụng app Meta/Zalo dùng chung). Chỉ áp khi chạy nhiều công ty (`MULTI_TENANT=true`). */
+  channelLimits: ChannelLimits
 }
+
+/**
+ * Hạn mức kênh theo công ty. Mọi công ty dùng chung MỘT app Meta/Zalo: một công ty spam ⇒ Meta hạn chế cả app.
+ * Đếm ở máy chủ; vượt ⇒ từ chối kèm lời báo rõ. Gói `custom` rộng nhưng vẫn có TRẦN an toàn.
+ */
+export interface ChannelLimits {
+  /** Tin gửi hàng loạt (Messenger broadcast + ZNS Zalo) mỗi ngày. */
+  bulkMessagesPerDay: number
+  /** Số người nhận tối đa của MỘT chiến dịch gửi hàng loạt. */
+  recipientsPerCampaign: number
+  /** Số bài đăng/hẹn giờ (tính theo từng kênh đích) tạo mỗi ngày. */
+  postsPerDay: number
+  /** Số lần trả lời bình luận tự động (luật bình luận) mỗi giờ. */
+  autoCommentRepliesPerHour: number
+}
+
+export const CHANNEL_LIMIT_KEYS = ['bulkMessagesPerDay', 'recipientsPerCampaign', 'postsPerDay', 'autoCommentRepliesPerHour'] as const satisfies readonly (keyof ChannelLimits)[]
 
 export const PLANS: Record<PlanKey, PlanDefinition> = {
   mac_dinh: {
     label: 'Mặc định',
     features: PLAN_GATED_FEATURES,
     maxUsers: 10,
+    // Công ty mới đăng ký nhận đủ tính năng nhưng hạn mức kênh bằng gói thấp nhất (`ket_noi`) cho tới khi chốt gói.
+    channelLimits: { bulkMessagesPerDay: 200, recipientsPerCampaign: 200, postsPerDay: 10, autoCommentRepliesPerHour: 60 },
   },
   ket_noi: {
     label: 'Kết nối',
     features: ['google_sheets'],
     maxUsers: 10,
+    channelLimits: { bulkMessagesPerDay: 200, recipientsPerCampaign: 200, postsPerDay: 10, autoCommentRepliesPerHour: 60 },
   },
   tro_ly_giam_doc: {
     label: 'Trợ lý Giám đốc',
     features: ['google_sheets', 'ai_briefing'],
     maxUsers: 10,
+    channelLimits: { bulkMessagesPerDay: 300, recipientsPerCampaign: 300, postsPerDay: 15, autoCommentRepliesPerHour: 60 },
   },
   tro_ly_kinh_doanh: {
     label: 'Trợ lý Kinh doanh',
     features: ['google_sheets', 'ai_briefing', 'zalo_oa', 'lead_scoring', 'stale_reminders', 'facebook_page'],
     maxUsers: 30,
+    channelLimits: { bulkMessagesPerDay: 1000, recipientsPerCampaign: 1000, postsPerDay: 40, autoCommentRepliesPerHour: 200 },
   },
   tro_ly_van_hanh: {
     label: 'Trợ lý Vận hành',
     features: ['google_sheets', 'ai_briefing', 'zalo_oa', 'lead_scoring', 'stale_reminders', 'facebook_page'],
     maxUsers: 60,
+    channelLimits: { bulkMessagesPerDay: 3000, recipientsPerCampaign: 2000, postsPerDay: 100, autoCommentRepliesPerHour: 500 },
   },
   custom: {
     label: 'Tuỳ biến',
     features: PLAN_GATED_FEATURES,
     maxUsers: null,
+    channelLimits: { bulkMessagesPerDay: 5000, recipientsPerCampaign: 2000, postsPerDay: 200, autoCommentRepliesPerHour: 1000 },
   },
 }
 
@@ -212,3 +238,8 @@ export function applyPlanToFeatures(features: OrgFeatures, plan: PlanKey): OrgFe
   return out
 }
 
+
+/** Hạn mức kênh của gói (không có gói hợp lệ = `custom`). */
+export function channelLimitsFor(plan: PlanKey): ChannelLimits {
+  return { ...PLANS[plan].channelLimits }
+}

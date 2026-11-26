@@ -1,5 +1,6 @@
 import { ForbiddenException, HttpException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { SocialAccountsService } from '../../social/social-accounts.service';
+import { ChannelGuardService } from '../../channel-guard/channel-guard.service';
 import { SocialPostsService } from '../../social/social-posts.service';
 import { SocialDraftsService } from '../../social/social-drafts.service';
 import { SocialQueueService } from '../../social/social-queue.service';
@@ -117,9 +118,10 @@ export class McpServerService {
     @Optional() interactions?: InteractionsService,
     @Optional() customReports?: CustomReportsService,
     @Optional() setupBuild?: SetupBuildService,
+    @Optional() channelGuard?: ChannelGuardService,
   ) {
     const social = socialPosts && socialAccounts && socialDrafts && socialQueue && socialSnippets && socialImport && socialRecurrence ? { posts: socialPosts, accounts: socialAccounts, drafts: socialDrafts, queue: socialQueue, snippets: socialSnippets, importer: socialImport, recurrences: socialRecurrence } : undefined;
-    this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, extensions, extRuntime, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, payments, channels, interactions, customReports, setupBuild };
+    this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, extensions, extRuntime, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, payments, channels, interactions, customReports, setupBuild, channelGuard };
   }
 
   /** Dựng server + đăng ký tool cho 1 request (public để test gọi trực tiếp tool qua `execute`). */

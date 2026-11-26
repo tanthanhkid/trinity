@@ -5,6 +5,7 @@ import { publishMessengerEvent } from './facebook-events';
 import type { AuthUser } from '@trinity/rbac-nest';
 import { isWithinMessagingWindow, messengerReplyMode, type ChannelSendResult, type MessagingChannel } from './channel';
 import { FacebookPagesService } from './facebook-pages.service';
+import { ChannelGuardService } from '../channel-guard/channel-guard.service';
 import { GraphApiError, GraphClient } from './graph-client';
 import { ChannelNotificationsService } from '../notifications/channel-notifications.service';
 import { PublicApiService } from '../public-api/public-api.service';
@@ -84,6 +85,7 @@ export class FacebookMessengerService implements MessagingChannel {
     private readonly pages: FacebookPagesService,
     private readonly publicApi: PublicApiService,
     @Optional() private readonly notices?: ChannelNotificationsService,
+    @Optional() private readonly channelGuard?: ChannelGuardService,
   ) {}
 
   /** Lưu 1 sự kiện tin nhắn. Trùng `mid` ⇒ bỏ qua (Meta gửi lại khi lỗi). Trả true nếu có ghi mới. */
@@ -353,6 +355,7 @@ export class FacebookMessengerService implements MessagingChannel {
 
   /** `MessagingChannel`: gửi thẳng theo (pageId, psid), KHÔNG kiểm cửa sổ — dùng `reply` cho nhân viên. */
   async sendText(pageId: string, psid: string, text: string): Promise<ChannelSendResult> {
+    await this.channelGuard?.assertOutbound('manual');
     const ctx = await this.pages.activePageWithToken(pageId);
     if (!ctx) throw new BadRequestException('Fanpage chưa kết nối hoặc đã tắt');
     try {
@@ -364,6 +367,7 @@ export class FacebookMessengerService implements MessagingChannel {
 
   /** Tin nhân viên gõ: 24h–7 ngày sau tin khách thì kèm thẻ HUMAN_AGENT. */
   private async sendAsAgent(pageId: string, psid: string, text: string, humanAgent: boolean): Promise<ChannelSendResult> {
+    await this.channelGuard?.assertOutbound('manual');
     const ctx = await this.pages.activePageWithToken(pageId);
     if (!ctx) throw new BadRequestException('Fanpage chưa kết nối hoặc đã tắt');
     try {

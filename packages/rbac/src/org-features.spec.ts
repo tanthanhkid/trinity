@@ -3,7 +3,7 @@ import {
   applyFeatureLocks,
   isServerlessRuntime,
   lockedFeatureReasons,
-  resolveOrgFeatures, PLANS, PLAN_KEYS, PLAN_GATED_FEATURES, DEFAULT_PLAN, DEFAULT_SIGNUP_PLAN, resolvePlan, resolvePlanForCompany, applyPlanToFeatures, DEFAULT_OFF_FEATURES } from './org-features'
+  resolveOrgFeatures, PLANS, PLAN_KEYS, CHANNEL_LIMIT_KEYS, channelLimitsFor, PLAN_GATED_FEATURES, DEFAULT_PLAN, DEFAULT_SIGNUP_PLAN, resolvePlan, resolvePlanForCompany, applyPlanToFeatures, DEFAULT_OFF_FEATURES } from './org-features'
 import { PERMISSIONS } from './catalog'
 
 describe('org-features', () => {
@@ -87,5 +87,22 @@ describe('DEFAULT_OFF_FEATURES', () => {
   it('trang bán hàng mặc định TẮT; lưu bật thì bật', () => {
     expect(resolveOrgFeatures(undefined).online_store).toBe(false)
     expect(resolveOrgFeatures({ online_store: true }).online_store).toBe(true)
+  })
+
+  it('hạn mức kênh: mọi gói đủ khoá, số nguyên dương, tăng dần theo gói, custom vẫn có trần', () => {
+    for (const k of PLAN_KEYS) {
+      for (const key of CHANNEL_LIMIT_KEYS) {
+        const v = PLANS[k].channelLimits[key]
+        expect(Number.isInteger(v) && v > 0).toBe(true)
+      }
+    }
+    expect(PLANS.ket_noi.channelLimits.bulkMessagesPerDay).toBeLessThan(PLANS.tro_ly_kinh_doanh.channelLimits.bulkMessagesPerDay)
+    expect(PLANS.tro_ly_kinh_doanh.channelLimits.postsPerDay).toBeLessThan(PLANS.tro_ly_van_hanh.channelLimits.postsPerDay)
+    expect(Number.isFinite(PLANS.custom.channelLimits.bulkMessagesPerDay)).toBe(true)
+    // Gói đăng ký mặc định (công ty mới) có hạn mức kênh bằng `ket_noi`.
+    expect(PLANS.mac_dinh.channelLimits).toEqual(PLANS.ket_noi.channelLimits)
+    expect(channelLimitsFor(DEFAULT_SIGNUP_PLAN)).toEqual(PLANS.ket_noi.channelLimits)
+    expect(channelLimitsFor('custom')).toEqual(PLANS.custom.channelLimits)
+    expect(channelLimitsFor('custom')).not.toBe(PLANS.custom.channelLimits)
   })
 })

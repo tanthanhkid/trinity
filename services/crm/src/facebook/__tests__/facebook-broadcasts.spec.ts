@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { cleanAudience, FacebookBroadcastsService } from '../facebook-broadcasts.service';
 import { GraphApiError } from '../graph-client';
+import { ChannelBlockedError } from '../../channel-guard/channel-guard.errors';
 
 type Row = Record<string, any>;
 
@@ -61,7 +62,7 @@ function table(rows: Row[] = [], defaults: Row = {}) {
 const NOW = Date.UTC(2026, 9, 14, 8, 0, 0);
 const ago = (min: number) => new Date(NOW - min * 60_000);
 
-function setup() {
+function setup(guard?: unknown) {
   const prisma: any = {
     facebookPage: table([{ id: 1, page_id: 'P', name: 'Trang A', is_active: true }]),
     facebookBroadcast: table([], { status: 'draft', scheduled_at: null, total: 0, sent: 0, failed: 0, skipped: 0, started_at: null, finished_at: null }),
@@ -84,7 +85,7 @@ function setup() {
   };
   const graph = { sendText: jest.fn(async (_t: string, psid: string) => ({ message_id: `m-${psid}` })) };
   const pages = { activePageWithToken: jest.fn(async () => ({ token: 'tok' })), markTokenInvalid: jest.fn(async () => undefined) };
-  const svc = new FacebookBroadcastsService(prisma, graph as any, pages as any);
+  const svc = new FacebookBroadcastsService(prisma, graph as any, pages as any, guard as any);
   return { svc, prisma, graph, pages };
 }
 
@@ -209,3 +210,130 @@ describe('gửi tin hàng loạt', () => {
     await expect(svc.update(b.id, { text: 'mới' })).rejects.toThrow(/không sửa/);
   });
 });
+
+describe('gửi tin hàng loạt — chống lạm dụng kênh theo công ty', () => {
+  beforeEach(() => jest.useFakeTimers({ now: NOW, doNotFake: ['nextTick', 'setImmediate'] }));
+  afterEach(() => jest.useRealTimers());
+
+  const BUCKET = new Date(Date.UTC(2026, 9, 13, 17));
+  /** Guard giả: còn `left` tin trong hạn mức ngày; trần người nhận `max`. */
+  const fakeGuard = (left: number, max = 2000, locked = false) => ({
+    enforced: () => true,
+    blockReason: jest.fn(async () => (locked ? { code: 'channel_locked', message: 'Kênh đang bị tạm khoá' } : null)),
+    refund: jest.fn(async () => undefined),
+    assertOutbound: jest.fn(async () => {
+      if (locked) throw new ChannelBlockedError('channel_locked', 'Kênh đang bị tạm khoá');
+    }),
+    assertRecipients: jest.fn(async (n: number) => {
+      if (n > max) throw new ChannelBlockedError('channel_quota', `Chiến dịch có ${n} người nhận, gói cho tối đa ${max}`);
+    }),
+    recipientCap: jest.fn(async () => max),
+    reserve: jest.fn(async () => {
+      if (left <= 0) throw new ChannelBlockedError('channel_quota', 'Đã hết hạn mức tin gửi hàng loạt');
+      left--;
+      return BUCKET;
+    }),
+  });
+
+  it('hết hạn mức tin/ngày giữa chừng: tin trong hạn mức vẫn gửi, phần còn lại "bỏ qua" kèm lời báo, lượt kết thúc', async () => {
+    const guard = fakeGuard(1);
+    const { svc, graph } = setup(guard);
+    const b = await svc.create({ name: 'Khai giảng', page_id: 'P', text: 'hi' }, 5);
+    await svc.send(b.id, null, NOW);
+    const r = await svc.runDue(5_000, NOW);
+    expect(r).toMatchObject({ started: 1, sent: 1, failed: 0, skipped: 1 });
+    expect(graph.sendText).toHaveBeenCalledTimes(1);
+    const rec = await svc.recipients(b.id);
+    expect(rec.map((x) => x.status).sort()).toEqual(['sent', 'skipped']);
+    expect(rec.find((x) => x.status === 'skipped')?.note).toMatch(/hết hạn mức/);
+    expect(await svc.get(b.id)).toMatchObject({ status: 'done', sent: 1, skipped: 1 });
+  });
+
+  it('chiến dịch quá trần người nhận của gói bị từ chối ngay lúc bấm gửi (không đổi trạng thái)', async () => {
+    const { svc } = setup(fakeGuard(100, 1));
+    const b = await svc.create({ name: 'Lớn', page_id: 'P', text: 'hi' }, 5);
+    await expect(svc.send(b.id, null, NOW)).rejects.toBeInstanceOf(ChannelBlockedError);
+    expect(await svc.get(b.id)).toMatchObject({ status: 'draft' });
+  });
+
+  it('kênh bị khoá: không nhận lượt gửi mới', async () => {
+    const guard = fakeGuard(100, 2000, true);
+    const { svc, graph } = setup(guard);
+    const b = await svc.create({ name: 'x', page_id: 'P', text: 'hi' }, 5);
+    await expect(svc.send(b.id, null, NOW)).rejects.toThrow(/tạm khoá/);
+    expect(graph.sendText).not.toHaveBeenCalled();
+  });
+
+  it('chốt người nhận cắt theo trần của gói (phòng thủ khi danh sách phình lên sau lúc bấm gửi)', async () => {
+    const { svc, prisma } = setup(fakeGuard(100, 1));
+    const b = await svc.create({ name: 'x', page_id: 'P', text: 'hi' }, 5);
+    // Bỏ qua bước kiểm lúc bấm gửi: chuyển thẳng sang "chờ gửi".
+    await prisma.facebookBroadcast.update({ where: { id: b.id }, data: { status: 'scheduled', scheduled_at: new Date(NOW) } });
+    await svc.runDue(5_000, NOW);
+    expect(prisma.facebookBroadcastRecipient.rows).toHaveLength(1);
+  });
+
+  it('không có guard (bản cài một công ty): hành vi cũ, không hạn mức', async () => {
+    const { svc } = setup();
+    const b = await svc.create({ name: 'x', page_id: 'P', text: 'hi' }, 5);
+    await svc.send(b.id, null, NOW);
+    expect(await svc.runDue(5_000, NOW)).toMatchObject({ sent: 2 });
+  });
+
+  it('tạm dừng (Facebook báo chặn): người nhận GIỮ "chờ gửi", lượt vẫn "đang gửi", hết tạm dừng thì gửi tiếp — không bị huỷ vĩnh viễn', async () => {
+    let paused = false;
+    const guard = { ...fakeGuard(100), blockReason: jest.fn(async () => (paused ? { code: 'channel_paused', message: 'Đang tạm dừng', until: new Date(NOW + 3_600_000) } : null)) };
+    const { svc, graph } = setup(guard);
+    const b = await svc.create({ name: 'x', page_id: 'P', text: 'hi' }, 5);
+    await svc.send(b.id, null, NOW);
+    paused = true; // Facebook báo chặn sau khi đã lên lịch
+    expect(await svc.runDue(5_000, NOW)).toMatchObject({ started: 1, sent: 0, skipped: 0, failed: 0 });
+    expect(graph.sendText).not.toHaveBeenCalled();
+    expect((await svc.recipients(b.id)).map((r) => r.status)).toEqual(['queued', 'queued']);
+    expect(await svc.get(b.id)).toMatchObject({ status: 'sending', skipped: 0 });
+    paused = false;
+    expect(await svc.runDue(5_000, NOW)).toMatchObject({ sent: 2 });
+    expect(await svc.get(b.id)).toMatchObject({ status: 'done', sent: 2, skipped: 0 });
+  });
+
+  it('tạm dừng xuất hiện giữa lúc kiểm và lúc giữ chỗ: người nhận trả về "chờ gửi", không bị bỏ qua', async () => {
+    const guard = { ...fakeGuard(100), reserve: jest.fn(async () => { throw new ChannelBlockedError('channel_paused', 'Đang tạm dừng'); }) };
+    const { svc, graph } = setup(guard);
+    const b = await svc.create({ name: 'x', page_id: 'P', text: 'hi' }, 5);
+    await svc.send(b.id, null, NOW);
+    await svc.runDue(5_000, NOW);
+    expect(graph.sendText).not.toHaveBeenCalled();
+    expect((await svc.recipients(b.id)).map((r) => r.status)).toEqual(['queued', 'queued']);
+  });
+
+  it('Facebook không nhận tin ⇒ hoàn hạn mức đã giữ chỗ', async () => {
+    const guard = fakeGuard(100);
+    const { svc, graph } = setup(guard);
+    graph.sendText.mockRejectedValue(new GraphApiError(400, 100, null, 'lỗi'));
+    const b = await svc.create({ name: 'x', page_id: 'P', text: 'hi' }, 5);
+    await svc.send(b.id, null, NOW);
+    await svc.runDue(5_000, NOW);
+    expect(guard.reserve).toHaveBeenCalledTimes(2);
+    expect(guard.refund).toHaveBeenCalledTimes(2);
+    expect(guard.refund).toHaveBeenCalledWith('bulk_message', 1, BUCKET); // đúng khung đã giữ chỗ
+  });
+
+  it('lên lịch: chỉ kiểm khoá; tạm dừng chỉ chặn khi giờ gửi còn trong lúc tạm dừng (hẹn sau đó thì nhận)', async () => {
+    const until = new Date(NOW + 3 * 3_600_000);
+    const guard = { ...fakeGuard(100), blockReason: jest.fn(async () => ({ code: 'channel_paused', message: 'Đang tạm dừng', until })) };
+    const { svc } = setup(guard);
+    const b = await svc.create({ name: 'x', page_id: 'P', text: 'hi' }, 5);
+    await expect(svc.send(b.id, null, NOW)).rejects.toBeInstanceOf(ChannelBlockedError); // gửi ngay: còn tạm dừng
+    await expect(svc.send(b.id, new Date(NOW + 3_600_000).toISOString(), NOW)).rejects.toBeInstanceOf(ChannelBlockedError); // hẹn 1 giờ: vẫn trong tạm dừng
+    const ok = await svc.send(b.id, new Date(NOW + 4 * 3_600_000).toISOString(), NOW); // hẹn sau khi hết tạm dừng: nhận
+    expect(ok.status).toBe('scheduled');
+    expect(guard.assertOutbound).toHaveBeenCalledWith('manual');
+  });
+
+  it('khoá kênh vẫn chặn lúc lên lịch dù hẹn giờ xa', async () => {
+    const { svc } = setup(fakeGuard(100, 2000, true));
+    const b = await svc.create({ name: 'x', page_id: 'P', text: 'hi' }, 5);
+    await expect(svc.send(b.id, new Date(NOW + 4 * 3_600_000).toISOString(), NOW)).rejects.toThrow(/tạm khoá/);
+  });
+});
+

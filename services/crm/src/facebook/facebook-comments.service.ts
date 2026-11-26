@@ -5,6 +5,8 @@ import { trackProductEvent } from '@trinity/logger';
 import { publishMessengerEvent } from './facebook-events';
 import { FacebookPagesService } from './facebook-pages.service';
 import { findVnPhone } from './facebook-messenger.service';
+import { ChannelBlockedError } from '../channel-guard/channel-guard.errors';
+import { ChannelGuardService } from '../channel-guard/channel-guard.service';
 import { GraphApiError, GraphClient } from './graph-client';
 import { ChannelNotificationsService } from '../notifications/channel-notifications.service';
 import { PublicApiService } from '../public-api/public-api.service';
@@ -122,6 +124,7 @@ export class FacebookCommentsService {
     private readonly pages: FacebookPagesService,
     private readonly publicApi: PublicApiService,
     @Optional() private readonly notices?: ChannelNotificationsService,
+    @Optional() private readonly channelGuard?: ChannelGuardService,
   ) {}
 
   /** Một thay đổi `feed`. Chỉ xử lý bình luận MỚI của người khác (bỏ bình luận của chính Page ⇒ không tự trả lời mình). */
@@ -174,8 +177,21 @@ export class FacebookCommentsService {
         note = 'Người này đã được trả lời ở bài này rồi (luật chỉ trả lời mỗi người một lần mỗi bài).';
       } else {
         actions = this.plan(rule, v.from?.name ?? null, phone);
-        if (rule.mode === 'live') {
+        // Hạn mức trả lời tự động chỉ tính khi luật THẬT SỰ trả lời (công khai hoặc nhắn riêng); luật chỉ ẩn bình luận thì không tốn.
+        const wantsReply = Boolean(actions.public_reply || actions.private_reply);
+        const gate = rule.mode === 'live' && wantsReply ? await this.holdAutoReply() : { held: null, bucket: null };
+        const held = gate.held;
+        if (held) {
+          // Không trả lời tự động lúc này (khoá kênh / tạm dừng / hết hạn mức giờ). Gỡ nội dung vẫn được phép: luật "ẩn bình luận có SĐT" vẫn chạy.
+          if (actions.hide) ({ actions } = await this.execute(ctx, v.comment_id, { hide: actions.hide }));
+          else actions = {};
+          // Tạm dừng chỉ là tạm: bình luận còn "chưa trả lời" để nhân viên trả tay (không dán nhãn bỏ qua vĩnh viễn). Khoá/hạn mức: bỏ qua có ghi lý do.
+          status = held.pause ? 'received' : 'skipped';
+          note = held.message;
+        } else if (rule.mode === 'live') {
           ({ actions, psid } = await this.execute(ctx, v.comment_id, actions));
+          // Không có lời trả lời nào tới Facebook ⇒ hoàn hạn mức đã giữ chỗ.
+          if (gate.bucket && !actions.public_reply?.id && !actions.private_reply?.message_id) await this.channelGuard?.refund('comment_reply', 1, gate.bucket);
           const errs = [actions.public_reply?.error, actions.private_reply?.error, actions.hide?.error].filter(Boolean);
           const ok = [actions.public_reply?.id, actions.private_reply?.message_id, actions.hide?.done].some(Boolean);
           status = errs.length && !ok ? 'failed' : 'done';
@@ -212,6 +228,17 @@ export class FacebookCommentsService {
       actionUrl: '/inbox?kenh=tuong-tac',
     });
     return true;
+  }
+
+  /** Giữ chỗ hạn mức trả lời tự động; bị chặn ⇒ lời báo (không gửi), được ⇒ null. */
+  private async holdAutoReply(): Promise<{ held: { message: string; pause: boolean } | null; bucket: Date | null }> {
+    if (!this.channelGuard) return { held: null, bucket: null };
+    try {
+      return { held: null, bucket: await this.channelGuard.reserve('comment_reply') };
+    } catch (err) {
+      if (err instanceof ChannelBlockedError) return { held: { message: err.message, pause: err.blockCode === 'channel_paused' }, bucket: null };
+      throw err;
+    }
   }
 
   /** Việc luật sẽ làm (chưa gửi). */
@@ -388,6 +415,7 @@ export class FacebookCommentsService {
       if (privateReplied(c.actions)) throw new BadRequestException('Đã nhắn riêng cho bình luận này rồi — Facebook chỉ cho nhắn riêng một lần mỗi bình luận. Tiếp tục trong hộp thư Messenger.');
       if (now.getTime() - c.commented_at.getTime() > PRIVATE_REPLY_WINDOW_MS) throw new BadRequestException('Bình luận đã quá 7 ngày — Facebook không cho nhắn riêng nữa. Hãy trả lời công khai.');
     }
+    await this.channelGuard?.assertOutbound('manual');
     const ctx = await this.pages.activePageWithToken(c.page_id);
     if (!ctx) throw new BadRequestException('Fanpage chưa kết nối hoặc đã tắt');
     let replyId: string;

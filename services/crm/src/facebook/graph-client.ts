@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { observeGraph } from '../channel-guard/graph-observer';
 import { loadFacebookConfig } from './facebook.config';
 
 export class GraphApiError extends Error {
@@ -22,9 +23,9 @@ export class GraphApiError extends Error {
   get isRateLimit(): boolean {
     return this.httpStatus === 429 || (this.code !== null && [4, 17, 32, 613].includes(this.code));
   }
-  /** 1545041 / 10 (subcode 2018278) = ngoài cửa sổ nhắn tin. */
+  /** subcode 2018278 (mã 10) hoặc 1545041 (subcode của mã 551) = ngoài cửa sổ nhắn tin. */
   get isOutsideWindow(): boolean {
-    return this.subcode === 2018278 || this.code === 1545041;
+    return this.subcode === 2018278 || this.subcode === 1545041 || this.code === 1545041;
   }
 }
 
@@ -78,7 +79,7 @@ export class GraphClient {
     return `https://graph.facebook.com/${graphVersion}/${path.replace(/^\//, '')}${q ? `?${q}` : ''}`;
   }
 
-  private async call<T>(method: 'GET' | 'POST', path: string, opts: { token?: string; query?: Query; body?: unknown } = {}): Promise<T> {
+  private async call<T>(method: 'GET' | 'POST', path: string, opts: { token?: string; query?: Query; body?: unknown; send?: boolean } = {}): Promise<T> {
     const headers: Record<string, string> = {};
     if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
     if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
@@ -98,8 +99,10 @@ export class GraphClient {
     if (!res.ok || json.error) {
       const e = json.error ?? {};
       this.logger.warn(`Graph ${method} ${path}: HTTP ${res.status} code=${e.code ?? '-'} subcode=${e.error_subcode ?? '-'}`);
+      observeGraph({ ok: false, httpStatus: res.status, code: e.code ?? null, subcode: e.error_subcode ?? null, send: opts.send === true });
       throw new GraphApiError(res.status, e.code ?? null, e.error_subcode ?? null, e.message ?? `Facebook trả lỗi HTTP ${res.status}`);
     }
+    observeGraph({ ok: true, httpStatus: res.status, code: null, subcode: null, send: opts.send === true });
     return json;
   }
 
@@ -161,6 +164,7 @@ export class GraphClient {
     return this.call<{ message_id: string }>('POST', 'me/messages', {
       token: pageToken,
       body: { recipient: { id: psid }, ...kind, message: { text } },
+      send: true,
     });
   }
 
@@ -170,6 +174,7 @@ export class GraphClient {
     return this.call<{ message_id: string }>('POST', 'me/messages', {
       token: pageToken,
       body: { recipient: { id: psid }, messaging_type: 'RESPONSE', message: { text, quick_replies } },
+      send: true,
     });
   }
 
@@ -186,7 +191,7 @@ export class GraphClient {
 
   /** Trả lời công khai một bình luận. Cần `pages_manage_engagement`. */
   async replyToComment(pageToken: string, commentId: string, text: string): Promise<{ id: string }> {
-    return this.call<{ id: string }>('POST', `${commentId}/comments`, { token: pageToken, body: { message: text } });
+    return this.call<{ id: string }>('POST', `${commentId}/comments`, { token: pageToken, body: { message: text }, send: true });
   }
 
   /**
@@ -197,12 +202,13 @@ export class GraphClient {
     return this.call<{ message_id: string; recipient_id?: string }>('POST', `${pageId}/messages`, {
       token: pageToken,
       body: { recipient: { comment_id: commentId }, message: { text } },
+      send: true,
     });
   }
 
   /** Ẩn bình luận (người khác không thấy, người viết vẫn thấy). Cần `pages_manage_engagement`. */
   async hideComment(pageToken: string, commentId: string): Promise<void> {
-    await this.call('POST', commentId, { token: pageToken, body: { is_hidden: true } });
+    await this.call('POST', commentId, { token: pageToken, body: { is_hidden: true }, send: true });
   }
 
   /** Tên hiển thị của khách (best-effort — cần `pages_user_profile`/đã nhắn tin). */

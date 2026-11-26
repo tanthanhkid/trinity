@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { useOrgFeatures, useUpdateOrgFeatures } from "@/hooks/use-org-features"
 import { usePermissions } from "@/lib/rbac"
 import { SettingsPlanUsage } from "./settings-plan-usage"
+import { SettingsChannelLimits } from "./settings-channel-limits"
 import { CustomObjectsSection } from "./custom-objects/custom-objects-section"
 import { errorMessage } from "@/lib/error-messages"
 
@@ -47,6 +48,7 @@ export function SettingsFeatures() {
   return (
     <div className="space-y-4">
       <SettingsPlanUsage />
+      <SettingsChannelLimits />
       <p className="text-sm text-muted-foreground">
         Bật tính năng nào thì tính năng đó mới hiện ở menu. Tắt thì ẩn với <strong>mọi người</strong> trong công ty,
         dữ liệu vẫn giữ nguyên, bật lại là thấy. Quyền của từng người vẫn do mục “Vai trò” quyết định.

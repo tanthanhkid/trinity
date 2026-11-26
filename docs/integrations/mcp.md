@@ -244,6 +244,7 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 | `create_objects` | write · preview → `confirmed_by_user` | Build tables with fields |
 | `create_view` | write | Create a screen (view) |
 | `describe_schema` | read | Describe schema |
+| `get_channel_limits` | read | Outbound sending limits of the plan (bulk messages/day, recipients per campaign, posts/day, auto comment replies/hour), usage so far, channel lock and auto-pause state, warnings; admins see everything, other users only the warnings |
 | `get_connected_channels` | read | Connected channels with status and today's counts |
 | `get_dashboard_overview` | read | Dashboard overview |
 | `get_report` | read | Custom report |

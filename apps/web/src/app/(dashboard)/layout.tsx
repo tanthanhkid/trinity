@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { NotificationSocket } from "@/components/notification-socket"
 import { OfflineBanner } from "@/components/offline-banner"
+import { ChannelGuardBanner } from "@/components/channel-guard-banner"
 import { ShellSidebar } from "@/components/app-shell/sidebar"
 import { FeatureRouteGate } from "@/components/feature-route-gate"
 import { SetupGate } from "@/components/setup-gate"
@@ -76,6 +77,7 @@ export default function DashboardLayout({
       <SidebarInset className="bg-background">
         <ShellTopbar />
         <OfflineBanner />
+        <ChannelGuardBanner />
         <main className={MAIN_CLASS}>
           <SetupGate>
             <FeatureRouteGate>{children}</FeatureRouteGate>

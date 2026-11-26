@@ -12,7 +12,9 @@
     "studio": "prisma studio",
     "typecheck": "tsc --noEmit",
     "migrate:companies": "node scripts/migrate-companies.cjs",
-    "channel:lock": "node scripts/channel-lock.cjs"
+    "channel:lock": "node scripts/channel-lock.cjs",
+    "contract:schema": "node scripts/schema-snapshot.cjs --write",
+    "contract:schema:check": "node scripts/schema-snapshot.cjs --check"
   },
   "dependencies": {
     "@nestjs/common": "^10",

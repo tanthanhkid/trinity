@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": "Đã quá 24 giờ kể từ tin nhắn gần nhất của khách — Messenger không cho gửi tin chủ động.",
+    "statusCode": 400
+  }
+}

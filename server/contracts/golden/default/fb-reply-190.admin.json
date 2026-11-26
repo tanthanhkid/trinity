@@ -1,0 +1,8 @@
+{
+  "status": 503,
+  "body": {
+    "error": "Internal Server Error",
+    "message": "Token Fanpage đã hết hạn hoặc bị thu hồi — hãy kết nối lại Fanpage.",
+    "statusCode": 503
+  }
+}

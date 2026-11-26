@@ -1,0 +1,8 @@
+{
+  "status": 503,
+  "body": {
+    "error": "Internal Server Error",
+    "message": "Facebook không nhận tin nhắn, thử lại sau.",
+    "statusCode": 503
+  }
+}

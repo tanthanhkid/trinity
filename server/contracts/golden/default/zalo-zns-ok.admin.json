@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "body": {
+    "message_id": "zns_0001",
+    "quota": {
+      "dailyQuota": "500",
+      "remainingQuota": "499"
+    }
+  }
+}

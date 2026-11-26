@@ -17,6 +17,7 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as net from 'node:net'
+import { startMock, type Mock } from './mock/channels.js'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import pg from 'pg'
@@ -24,6 +25,7 @@ import pg from 'pg'
 const here = __dirname
 const root = path.resolve(here, '../..')
 const PORT = Number(process.env.CONTRACT_PORT ?? 4310)
+const MOCK_PORT = Number(process.env.CONTRACT_MOCK_PORT ?? 4311)
 
 function arg(name: string, multi = false): string[] {
   const out: string[] = []
@@ -78,6 +80,14 @@ const SERVICE_SECRET = 'contract-service-secret-0123456789abcdef0123'
 function sh(cmd: string, args: string[], env: Record<string, string>, cwd = root): void {
   const r = spawnSync(cmd, args, { cwd, env: { ...cleanBase(), ...env }, stdio: 'inherit' })
   if (r.status !== 0) throw new Error(`${cmd} ${args.join(' ')} thoát mã ${r.status}`)
+}
+
+function runAsync(cmd: string, args: string[], env: Record<string, string>): Promise<{ status: number | null }> {
+  return new Promise((resolve) => {
+    const c = spawn(cmd, args, { cwd: here, env, stdio: 'inherit' })
+    c.on('exit', (code) => resolve({ status: code }))
+    c.on('error', () => resolve({ status: 1 }))
+  })
 }
 
 /** Môi trường sạch: không thừa hưởng `.env` hay biến của shell, để mọi lượt chạy giống nhau. */
@@ -189,8 +199,17 @@ async function main(): Promise<void> {
   sh('pnpm', ['--filter', '@trinity/prisma', 'exec', 'prisma', 'migrate', 'deploy'], dbEnv)
   sh('pnpm', ['--filter', '@trinity/prisma', 'seed'], dbEnv)
 
+  // DB mới có `setup_status = chua_dung` (module cứng tắt, menu trống); các ca cần hệ thống đã dựng (như harness e2e cũ).
+  const tplClient = new pg.Client({ connectionString: dbUrl(tpl) })
+  await tplClient.connect()
+  await tplClient.query(`INSERT INTO settings (key, value, updated_at) VALUES ('setup_status', 'da_dung', now()) ON CONFLICT (key) DO UPDATE SET value = 'da_dung'`)
+  await tplClient.end()
+
   const defaults = parseEnvFile(path.join(here, 'profiles', 'default.env'))
   let failed = false
+  // Máy chủ giả Graph/Zalo: một cho cả lượt, ca test đặt lại trạng thái qua /__mock/reset.
+  await assertPortFree(MOCK_PORT)
+  const mock: Mock = await startMock(MOCK_PORT)
   try {
     for (const profile of profiles) {
       const dbName = `${dbPrefix}_${profile.replace(/[^a-z0-9]/g, '_')}`
@@ -208,6 +227,18 @@ async function main(): Promise<void> {
         STORAGE_LOCAL_ROOT: path.join(os.tmpdir(), `trinity-contract-storage-${profile}`),
         LISTEN_HOST: '127.0.0.1',
         TZ: 'UTC',
+        CHECKPOINT_DISABLE: '1',
+        FACEBOOK_GRAPH_BASE_URL: `${mock.url}/fb`,
+        ZALO_OAUTH_BASE_URL: `${mock.url}/zoauth`,
+        ZALO_OPENAPI_BASE_URL: `${mock.url}/zapi`,
+        ZALO_ZNS_BASE_URL: `${mock.url}/zns`,
+      }
+      const violationsFile = path.join(os.tmpdir(), `trinity-contract-net-${profile}-${process.pid}.txt`)
+      fs.rmSync(violationsFile, { force: true })
+      if (arg('target')[0] !== 'cmd') {
+        // Chặn mạng cho máy chủ Node: mọi kết nối ra ngoài loopback bị từ chối và ghi lại; có vi phạm thì hồ sơ đỏ.
+        env.NODE_OPTIONS = `--require ${path.join(here, 'mock', 'block-network.cjs')}`
+        env.CONTRACT_NET_VIOLATIONS = violationsFile
       }
       // Hồ sơ ghi đè bí mật (production) thắng giá trị chung.
       for (const k of ['JWT_SECRET', 'SERVICE_SECRET', 'INTERNAL_SERVICE_SECRET']) {
@@ -232,13 +263,25 @@ async function main(): Promise<void> {
           CONTRACT_ADMIN_EMAIL: ADMIN_EMAIL,
           CONTRACT_ADMIN_PASSWORD: ADMIN_PASSWORD,
           CONTRACT_PROFILE: profile,
+          CONTRACT_MOCK_URL: mock.url,
+          CONTRACT_SECRET_KEY: env.INTEGRATIONS_SECRET_KEY ?? '',
           CONTRACT_MODE: mode,
           CONTRACT_OUT_DIR: outDir,
           ...(baseline ? { CONTRACT_BASELINE_DIR: path.resolve(baseline) } : {}),
           ...(process.env.UPDATE_GOLDEN ? { UPDATE_GOLDEN: process.env.UPDATE_GOLDEN } : {}),
           TZ: 'UTC',
         }
-        const r = spawnSync('pnpm', ['exec', 'vitest', 'run', '--config', 'vitest.config.ts'], { cwd: here, env: testEnv, stdio: 'inherit' })
+        // Bất đồng bộ: máy chủ giả chạy trong tiến trình này, `spawnSync` sẽ chặn vòng lặp sự kiện và làm nó không trả lời được.
+        const r = await runAsync('pnpm', ['exec', 'vitest', 'run', '--config', 'vitest.config.ts'], testEnv)
+        const unexpected = (await (await fetch(`${mock.url}/__mock/calls`)).json()) as { unexpected: unknown[] }
+        if (unexpected.unexpected.length) {
+          failed = true
+          console.error(`[contract] hồ sơ ${profile}: ${unexpected.unexpected.length} lời gọi tới máy chủ giả không có kịch bản`)
+        }
+        if (fs.existsSync(violationsFile)) {
+          failed = true
+          console.error(`[contract] hồ sơ ${profile}: máy chủ gọi ra ngoài loopback (bị chặn):\n${fs.readFileSync(violationsFile, 'utf8')}`)
+        }
         if (r.status !== 0) {
           failed = true
           console.error(`[contract] hồ sơ ${profile} ĐỎ. Log máy chủ: ${path.join(work, 'server.log')}`)
@@ -252,6 +295,7 @@ async function main(): Promise<void> {
       }
     }
   } finally {
+    await mock.close()
     await admin((c) => c.query(`DROP DATABASE IF EXISTS "${tpl}" WITH (FORCE)`))
   }
   console.log(failed ? '[contract] CÓ HỒ SƠ ĐỎ' : `[contract] xanh; kết quả đã chuẩn hoá ở ${outDir}`)

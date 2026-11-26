@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": "Kết nối Zalo OA đã hết hạn hoặc bị thu hồi — cần kết nối lại.",
+    "statusCode": 400
+  }
+}

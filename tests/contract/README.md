@@ -67,6 +67,21 @@ Hồ sơ `production` phía Rust chạy trên binary **phát hành** (không có
   Mỗi ca bắt đầu bằng `resetCustom()` (TRUNCATE `custom_records/fields/objects`, `integration_events`) vì e2e gốc dọn ở `afterEach` và nhiều ca dùng cùng khoá
   thực thể (`hoc_sinh`) và đếm bảng. Các ca đếm bằng `prisma.*.count()` đổi thành SQL. Ca SĐT và danh sách mẫu ghi golden 3 vai (`lib/roles.ts`).
 
+## Máy chủ giả Graph và Zalo (C06b)
+
+Bộ chạy mở một máy chủ giả (`mock/channels.ts`, cổng 4311 hoặc `CONTRACT_MOCK_PORT`) và trỏ máy chủ Trinity tới nó bằng
+`FACEBOOK_GRAPH_BASE_URL`, `ZALO_OAUTH_BASE_URL`, `ZALO_OPENAPI_BASE_URL`, `ZALO_ZNS_BASE_URL`. Mặc định trả thành công; ca test đặt
+kịch bản lỗi và đọc lời gọi qua `lib/channels.ts`:
+
+- `mock.reset()` (đầu mỗi ca), `mock.rules({ match: 'POST me/messages', status, json, times? })`, `graphFail(match, code, subcode?)` (mã Graph
+  368/551/17/32/4/613/190), `mock.calls()` (đã ghi: phương thức, đường dẫn, dịch vụ, có/không header xác thực, thân; không ghi token),
+  `mock.unexpected()` (đường chưa có kịch bản: máy chủ giả trả 501, ca và bộ chạy đều coi là lỗi).
+- Seed kênh bằng SQL: `seedFacebookPage`, `seedFacebookConversation`, `seedZaloConnection`, `seedZaloThread`; bản mã token do `encryptSecret`
+  (cùng định dạng `secret-crypto.ts`, khoá của hồ sơ).
+- **Chặn mạng:** với `--target node`, máy chủ chạy với `--require mock/block-network.cjs` (từ chối kết nối TCP và tra DNS ngoài loopback,
+  ghi vào `CONTRACT_NET_VIOLATIONS`); có vi phạm thì hồ sơ đỏ. Bản Rust cần chặn tương đương ở mức hệ điều hành.
+- Máy chủ giả chạy trong tiến trình bộ chạy nên mọi lệnh con của bộ chạy phải bất đồng bộ (`spawnSync` làm nó đứng).
+
 ## Ca bị chuyển loại / chưa chuyển
 Các ca e2e còn lại chuyển ở C07a và C08–C13; 10 ca mẫu ở `cases/` chứng minh từng khả năng: job (`04`), xoá cache (`05`), `now`
 (`04`), hồ sơ `production` (`cases/production`), response theo ngày (`06`), ba vai (`07`), công ty thứ hai (`03`), validation strict/lenient (`02`),

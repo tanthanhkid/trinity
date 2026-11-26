@@ -18,7 +18,8 @@ Dependabot về 5 / 3 / 3 / 2 (npm / cargo / github-actions / docker).
 ## Check bắt buộc cho merge vào `main`
 | Check | Workflow | Nội dung |
 |---|---|---|
-| `ci-ok` | `ci.yml` | Tổng hợp `Lint` + `Typecheck` + `Unit tests` + `Secret scan (gitleaks)` + `Rust changes` + `Rust fmt` + `Rust clippy` + `Rust unit` |
+| `ci-ok` | `ci.yml` | Tổng hợp `Lint` + `Typecheck` + `Unit tests` + `Contracts` + `Secret scan (gitleaks)` + `Rust changes` + `Rust fmt` + `Rust clippy` + `Rust unit` |
+| `Contracts` (qua `ci-ok`) | `ci.yml` | Dựng monolith không cần DB, sinh lại `server/contracts/openapi.json` và so với file đã commit (`pnpm --filter @trinity/monolith contracts:openapi --check`); lệch thì đỏ. Sửa: chạy lệnh không có `--check` rồi commit file |
 | `Secret scan (gitleaks)` | `ci.yml` | gitleaks trên lịch sử PR |
 | `Rust fmt`, `Rust clippy`, `Rust unit` (qua `ci-ok`) | `ci.yml` | `cargo fmt --all --check`; `cargo clippy --locked --workspace --all-targets -- -D warnings`; `cargo test --locked --workspace` (mọi test không `#[ignore]`: unit, `tests/`, doctest), rồi spec TS của bảng ca dùng chung `server/contracts/cases/` (`kernel-cases.spec.ts`, `formula-cases.spec.ts`). Hai bước sau dùng `SQLX_OFFLINE=true` (không cần DB). Job `Rust changes` lọc một chỗ cho mọi job Rust: các bước chỉ thực thi khi PR đổi `server/`, `.github/actions/rust-toolchain/` hoặc `ci.yml`, nên PR không đụng backend Rust xong trong vài giây. Cache `Swatinem/rust-cache` riêng từng job, lưu ở push `main` (và chạy tay), PR chỉ đọc |
 | `CLA` | `cla.yml` | Người góp mã ký CLA một lần bằng bình luận |

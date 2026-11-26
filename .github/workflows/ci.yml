@@ -230,11 +230,25 @@ jobs:
           pnpm --filter @trinity/prisma generate
           cd services/crm && npx jest --testPathPattern '(kernel-cases|formula-cases)\.spec\.ts$'
 
+  # Hợp đồng đóng băng sinh từ monolith (docs/rust/PLAN.md mục 6.1): sinh lại và so với file đã commit.
+  contracts:
+    name: Contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+        with:
+          prisma: "true"
+          packages: "true"
+      - name: OpenAPI khớp server/contracts/openapi.json
+        run: pnpm --filter @trinity/monolith contracts:openapi --check
+
   # Check bắt buộc duy nhất của luồng CI (cộng CLA ở workflow riêng). Chạy `always()` để job bị bỏ qua/huỷ không làm treo merge.
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [lint, typecheck, unit, secret-scan, rust-changes, rust-fmt, rust-clippy, rust-unit]
+    needs: [lint, typecheck, unit, contracts, secret-scan, rust-changes, rust-fmt, rust-clippy, rust-unit]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

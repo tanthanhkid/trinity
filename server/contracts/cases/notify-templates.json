@@ -45,7 +45,11 @@
   "quote": "it's `q` =",
   "emptyList": [],
   "u": "ü",
-  "emoji": "😀"
+  "emoji": "😀",
+  "foo": [
+   1,
+   2
+  ]
  },
  "render": [
   {
@@ -179,6 +183,34 @@
   {
    "template": "a {{contactName}}\n b",
    "ok": "a Nguyễn &lt;A&gt; &amp; &quot;B&quot;\n b"
+  },
+  {
+   "template": "{{#foo}}x{{/foo}}",
+   "ok": "xx",
+   "rust_err": true
+  },
+  {
+   "template": "{{#nested.arr}}[{{x}}]{{/nested.arr}}",
+   "ok": "[1][2]",
+   "rust_err": true
+  },
+  {
+   "template": "{{#obj}}{{k1}}{{/obj}}",
+   "ok": "v1",
+   "rust_err": true
+  },
+  {
+   "template": "{{#missing}}x{{else}}none{{/missing}}",
+   "ok": "none",
+   "rust_err": true
+  },
+  {
+   "template": "{{#each list foo=1}}{{this}}{{/each}}",
+   "ok": "abc"
+  },
+  {
+   "template": "{{#raw}}x{{/raw}}",
+   "ok": ""
   }
  ],
  "syntax": [
@@ -220,6 +252,95 @@
    "template": "{{{{raw}}}}",
    "ok": false,
    "err": "Parse error on line 1:"
+  },
+  {
+   "template": "{{raw x}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper raw - 1:0"
+  },
+  {
+   "template": "{{{raw x}}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper raw - 1:0"
+  },
+  {
+   "template": "{{{{raw}}}}x{{{{/raw}}}}",
+   "ok": true
+  },
+  {
+   "template": "{{#raw}}x{{/raw}}",
+   "ok": true
+  },
+  {
+   "template": "{{foo.bar x}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
+  },
+  {
+   "template": "{{foo x=1}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
+  },
+  {
+   "template": "{{#foo.bar x}}y{{/foo.bar}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
+  },
+  {
+   "template": "{{this.x y}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper x - 1:0"
+  },
+  {
+   "template": "{{@root.x y}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper root - 1:0"
+  },
+  {
+   "template": "{{foo}}",
+   "ok": true
+  },
+  {
+   "template": "{{foo.bar}}",
+   "ok": true
+  },
+  {
+   "template": "{{#each list foo=1}}x{{/each}}",
+   "ok": true
+  },
+  {
+   "template": "{{#foo}}x{{/foo}}",
+   "ok": true,
+   "rust": false
+  },
+  {
+   "template": "{{#foo.bar}}x{{/foo.bar}}",
+   "ok": true,
+   "rust": false
+  },
+  {
+   "template": "{{#foo x}}y{{/foo}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
+  },
+  {
+   "template": "{{lookup (lookup a b) c}}",
+   "ok": true
+  },
+  {
+   "template": "{{lookup (eq a b) c}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper eq - 1:9"
+  },
+  {
+   "template": "{{foo \"s\"}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
+  },
+  {
+   "template": "{{foo 1}}",
+   "ok": false,
+   "err": "You specified knownHelpersOnly, but used the unknown helper foo - 1:0"
   }
  ]
 }

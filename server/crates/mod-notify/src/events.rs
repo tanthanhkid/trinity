@@ -11,7 +11,6 @@ use chrono::{DateTime, SecondsFormat, Utc};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use trinity_db::TenantDb;
-use trinity_kernel::error::AppError;
 use trinity_kernel::number::format_vn_number;
 use trinity_realtime::NotificationPayload;
 
@@ -148,9 +147,9 @@ pub struct Emitted {
 
 /// `POST /events/notify-ws-emit`: đẩy `notification:new` cho các dòng đã ghi sẵn trong `notification_logs`, báo tiến trình khác
 /// TRƯỚC (lỗi đếm cục bộ không làm mất chuông bên kia; nội dung bên kia đọc từ DB theo id), rồi số chưa đọc của từng người.
-pub async fn emit_ws_notifications(t: &TenantDb, d: &Deliverer, items: &[WsEmitItem]) -> Result<Emitted, AppError> {
+pub async fn emit_ws_notifications(t: &TenantDb, d: &Deliverer, items: &[WsEmitItem]) -> Emitted {
     if items.is_empty() {
-        return Ok(Emitted { emitted: 0 });
+        return Emitted { emitted: 0 };
     }
     let company = i64::from(t.company().id());
     let mut users: Vec<i32> = items.iter().map(|i| i.recipient_id).collect();
@@ -158,9 +157,16 @@ pub async fn emit_ws_notifications(t: &TenantDb, d: &Deliverer, items: &[WsEmitI
     let mut seen = std::collections::HashSet::new();
     users.retain(|u| seen.insert(*u));
     let ids: Vec<i32> = items.iter().filter_map(|i| i.log_id).collect();
-    let mut tx = t.begin().await.map_err(AppError::internal)?;
-    trinity_db::sync::publish_bell_best_effort(&mut tx, company, &users, &ids).await;
-    tx.commit().await.map_err(AppError::internal)?;
+    // Các dòng đã nằm trong DB; lỗi phát tin cho tiến trình khác chỉ ghi log, không làm request 500.
+    let bell = async {
+        let mut tx = t.begin().await.map_err(|e| e.to_string())?;
+        trinity_db::sync::publish_bell_best_effort(&mut tx, company, &users, &ids).await;
+        tx.commit().await.map_err(|e| e.to_string())
+    }
+    .await;
+    if let Err(e) = bell {
+        tracing::warn!("notify-ws-emit: không phát được tin bell: {e}");
+    }
     let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     for it in items {
         let payload = NotificationPayload {
@@ -183,5 +189,5 @@ pub async fn emit_ws_notifications(t: &TenantDb, d: &Deliverer, items: &[WsEmitI
         items.len(),
         users.len()
     );
-    Ok(Emitted { emitted: items.len() })
+    Emitted { emitted: items.len() }
 }

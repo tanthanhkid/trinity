@@ -162,6 +162,15 @@ impl Deliverer {
     #[allow(clippy::unused_self)]
     fn push(&self, meta: &Meta) -> DeliveryResult {
         if meta.fcm_token.is_none() {
+            // Dòng hẹn giờ không lưu token nên không bao giờ có: bỏ qua thay vì thử lại 3 lần rồi `failed`.
+            if meta.scheduled_row {
+                return DeliveryResult {
+                    error: Some("Khong co FCM token (thong bao hen gio khong luu token)".to_owned()),
+                    skipped: true,
+                    non_retryable: true,
+                    ..DeliveryResult::default()
+                };
+            }
             return DeliveryResult::fail("Khong co FCM token");
         }
         DeliveryResult {
@@ -208,6 +217,12 @@ impl Deliverer {
             action_url: dto.action_url.clone(),
             fcm_token: dto.metadata_str("fcm_token"),
             webhook_url: dto.metadata_str("webhook_url"),
+            scheduled_row: dto
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("scheduled_row"))
+                .and_then(Value::as_bool)
+                == Some(true),
         };
         match dto.channel {
             Channel::InApp => self.in_app(db, dto.user_id, &dto.title, &dto.body, &meta).await,
@@ -251,10 +266,10 @@ impl Deliverer {
             }
             exec(
                 db,
-                "UPDATE notification_logs SET retry_count = $3, error = $2 WHERE id = $1",
+                "UPDATE notification_logs SET retry_count = retry_count + $3, error = $2 WHERE id = $1",
                 log_id,
                 r.error.as_deref(),
-                Some(i32::try_from(attempt).unwrap_or(i32::MAX)),
+                Some(1),
             )
             .await?;
             if attempt < MAX_ATTEMPTS && !r.non_retryable {
@@ -283,6 +298,7 @@ struct Meta {
     action_url: Option<String>,
     fcm_token: Option<String>,
     webhook_url: Option<String>,
+    scheduled_row: bool,
 }
 
 /// Một câu UPDATE ngắn trên `notification_logs`: $1 = id, $2 = chuỗi, $3 = số (tuỳ câu).

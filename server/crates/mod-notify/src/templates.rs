@@ -4,11 +4,13 @@
 //!
 //! Mẫu do quản trị công ty sửa nên là dữ liệu không tin cậy: chỉ cho helper `if`, `each`, `with`, `unless`, `lookup`, `log`
 //! (như `knownHelpersOnly` của bản TS); engine Rust gỡ các helper thêm của nó (`eq`, `and`, `len`…) và [`check_syntax`] từ
-//! chối mọi lời gọi helper khác ngay khi lưu (400), thay vì để lỗi nổ lúc render.
+//! chối mọi lời gọi helper khác ngay khi lưu (400), thay vì để lỗi nổ lúc render. Khác handlebars.js: không hỗ trợ section
+//! `{{#ten}}…{{/ten}}` (blockHelperMissing); mẫu dùng section bị 400 khi lưu, dùng `#each`/`#with`/`#if`.
 
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
 
+use handlebars::Path;
 use handlebars::template::{Parameter, Subexpression, Template, TemplateElement};
 use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext};
 use serde::Deserialize;
@@ -22,7 +24,7 @@ use trinity_kernel::error::{AppError, HttpError};
 use crate::notifications::Channel;
 
 /// Helper được dùng trong mẫu.
-const ALLOWED_HELPERS: [&str; 7] = ["if", "each", "with", "unless", "lookup", "log", "raw"];
+const ALLOWED_HELPERS: [&str; 6] = ["if", "each", "with", "unless", "lookup", "log"];
 /// Helper Handlebars-rust có thêm mà handlebars.js không có: gỡ khỏi engine.
 const EXTRA_HELPERS: [&str; 11] = ["eq", "ne", "gt", "gte", "lt", "lte", "and", "or", "not", "len", "raw"];
 /// Helper nội bộ in giá trị đúng chữ của JS: biểu thức `{{x}}` được viết lại thành `{{__js_esc x}}` (và `{{{x}}}` thành `__js_raw`).
@@ -187,28 +189,63 @@ fn db(e: sqlx::Error) -> AppError {
     app_error(&e)
 }
 
+/// Tên helper được gọi (đoạn đầu của đường dẫn nếu là path), như thông báo lỗi của handlebars.js.
+fn callee(p: &Parameter) -> String {
+    let raw = match p {
+        Parameter::Name(n) => return n.clone(),
+        Parameter::Path(Path::Relative((_, raw)) | Path::Local((_, _, raw))) => raw.as_str(),
+        _ => return "?".to_owned(),
+    };
+    let mut parts = raw
+        .trim_start_matches(['@', '.', '/'])
+        .split(['.', '/'])
+        .filter(|w| !w.is_empty() && *w != "this" && *w != "..");
+    parts.next().unwrap_or("this").to_owned()
+}
+
+/// Quy tắc của `knownHelpersOnly`: một biểu thức/khối CÓ tham số hoặc hash là lời gọi helper, nên tên phải thuộc danh sách
+/// cho phép (kể cả khi viết dạng đường dẫn `foo.bar x`, `this.x y`, `@root.x y`); không tham số thì là tra cứu biến/section
+/// (`{{foo}}`, `{{#foo}}…{{/foo}}`) và luôn được. `{{{{raw}}}}…{{{{/raw}}}}` (khối) được lưu nhưng in rỗng; `{{raw x}}` bị chặn.
 fn walk(elements: &[TemplateElement], out: &mut Result<(), String>) {
     for el in elements {
-        let helper = match el {
-            TemplateElement::HtmlExpression(h) | TemplateElement::Expression(h) | TemplateElement::HelperBlock(h) => h,
+        let (helper, is_block) = match el {
+            TemplateElement::HtmlExpression(h) | TemplateElement::Expression(h) => (h, false),
+            TemplateElement::HelperBlock(h) => (h, true),
             _ => continue,
         };
-        // `{{ten}}` một mình là tra cứu biến (Path); chỉ lời gọi helper có tên (Name) mới bị kiểm.
-        if let Parameter::Name(n) = &helper.name
-            && !ALLOWED_HELPERS.contains(&n.as_str())
-        {
+        let name = callee(&helper.name);
+        let has_args = !helper.params.is_empty() || !helper.hash.is_empty();
+        let named_helper = matches!(&helper.name, Parameter::Name(_));
+        let raw_block = is_block && name == "raw";
+        // `Name` (không phải đường dẫn) ở biểu thức là lời gọi helper dù thiếu tham số; ở khối không tham số là section.
+        let is_call = has_args || (named_helper && !is_block);
+        // Khác handlebars.js: section `{{#ten}}…{{/ten}}` (blockHelperMissing, lặp mảng/vào đối tượng) engine Rust không có;
+        // từ chối khi lưu để người dùng đổi sang `#each`/`#with`/`#if` thay vì lỗi lúc render.
+        if is_block && !has_args && !raw_block && !ALLOWED_HELPERS.contains(&name.as_str()) {
             *out = Err(format!(
-                "You specified knownHelpersOnly, but used the unknown helper {n}"
+                "section {{{{#{name}}}}} chưa được hỗ trợ, dùng #each, #with hoặc #if"
+            ));
+            return;
+        }
+        if is_call && !raw_block && !ALLOWED_HELPERS.contains(&name.as_str()) {
+            *out = Err(format!(
+                "You specified knownHelpersOnly, but used the unknown helper {name}"
             ));
             return;
         }
         for p in helper.params.iter().chain(helper.hash.values()) {
             if let Parameter::Subexpression(s) = p {
                 walk(std::slice::from_ref(&*s.element), out);
+                if out.is_err() {
+                    return;
+                }
             }
         }
         for sub in [&helper.template, &helper.inverse].into_iter().flatten() {
             walk(&sub.elements, out);
+            if out.is_err() {
+                return;
+            }
         }
     }
 }

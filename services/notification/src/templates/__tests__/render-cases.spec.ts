@@ -10,8 +10,9 @@ import * as Handlebars from 'handlebars'
 const FILE = path.resolve(__dirname, '../../../../../server/contracts/cases/notify-templates.json')
 const OPTS = { knownHelpersOnly: true, strict: false }
 
-type Render = { template: string; ok?: string; err?: string }
-type Syntax = { template: string; ok: boolean; err?: string }
+/** `rust_err` / `rust`: lệch có chủ đích của bản Rust (section `{{#ten}}` không hỗ trợ), giữ nguyên khi sinh lại. */
+type Render = { template: string; ok?: string; err?: string; rust_err?: boolean }
+type Syntax = { template: string; ok: boolean; err?: string; rust?: boolean }
 type Table = { _doc: string; data: Record<string, unknown>; render: Render[]; syntax: Syntax[] }
 
 const first = (e: unknown) => String((e as Error).message).split('\n')[0]
@@ -20,19 +21,21 @@ describe('ca render và kiểm cú pháp mẫu thông báo (notify-templates.jso
   const table = JSON.parse(fs.readFileSync(FILE, 'utf8')) as Table
   const fresh: Table = {
     ...table,
-    render: table.render.map(({ template }) => {
+    render: table.render.map(({ template, rust_err }) => {
+      const flag = rust_err ? { rust_err } : {}
       try {
-        return { template, ok: Handlebars.compile(template, OPTS)(table.data) }
+        return { template, ok: Handlebars.compile(template, OPTS)(table.data), ...flag }
       } catch (e) {
-        return { template, err: first(e) }
+        return { template, err: first(e), ...flag }
       }
     }),
-    syntax: table.syntax.map(({ template }) => {
+    syntax: table.syntax.map(({ template, rust }) => {
+      const flag = rust === undefined ? {} : { rust }
       try {
         Handlebars.precompile(template, OPTS)
-        return { template, ok: true }
+        return { template, ok: true, ...flag }
       } catch (e) {
-        return { template, ok: false, err: first(e) }
+        return { template, ok: false, err: first(e), ...flag }
       }
     }),
   }

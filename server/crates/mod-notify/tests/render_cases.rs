@@ -20,7 +20,8 @@ fn render_giong_handlebars_js() {
     let list = c["render"].as_array().unwrap();
     for r in list {
         let t = r["template"].as_str().unwrap();
-        let want = r["ok"].as_str();
+        // `rust_err`: lệch có chủ đích đã ghi (section `{{#ten}}` không hỗ trợ): Rust phải lỗi.
+        let want = if r["rust_err"] == true { None } else { r["ok"].as_str() };
         match (render_source(t, data), want) {
             (Ok(got), Some(w)) if got == w => {}
             (Ok(got), Some(w)) => bad.push(format!("{t:?}\n  node: {w:?}\n  rust: {got:?}")),
@@ -44,7 +45,8 @@ fn kiem_cu_phap_khi_luu_giong_node() {
     let mut bad = Vec::new();
     for r in c["syntax"].as_array().unwrap() {
         let t = r["template"].as_str().unwrap();
-        let node_ok = r["ok"].as_bool().unwrap();
+        // `rust`: lệch có chủ đích (section bị từ chối khi lưu).
+        let node_ok = r["rust"].as_bool().unwrap_or_else(|| r["ok"].as_bool().unwrap());
         let rust_ok = check_syntax(&[Some(t)]).is_ok();
         if node_ok != rust_ok {
             bad.push(format!("{t:?}: node ok={node_ok}, rust ok={rust_ok}"));

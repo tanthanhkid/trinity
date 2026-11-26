@@ -21,7 +21,7 @@ use trinity_db::types::Timestamp;
 use trinity_kernel::error::{AppError, HttpError};
 
 use crate::delivery::Deliverer;
-use crate::helpers::{MESSAGE_EVENT_TYPES, is_business_hours, next_business_start};
+use crate::helpers::{MESSAGE_EVENT_TYPES, is_business_hours, next_business_start, parse_iso8601};
 
 /// Dòng `processing` quá ngần này thì coi là kẹt.
 pub const STUCK_PROCESSING: Duration = Duration::minutes(15);
@@ -195,11 +195,18 @@ pub async fn unread_count(
     Ok(Unread { count })
 }
 
-/// Phát tin `bell` cho các tiến trình khác (ghi DB trước, phát sau).
-async fn publish_bell(t: &TenantDb, users: &[i32], ids: &[i32]) -> Result<(), AppError> {
-    let mut tx = t.begin().await.map_err(AppError::internal)?;
-    trinity_db::sync::publish_bell_best_effort(&mut tx, i64::from(t.company().id()), users, ids).await;
-    tx.commit().await.map_err(AppError::internal)
+/// Phát tin `bell` cho các tiến trình khác (ghi DB trước, phát sau). Dòng đã ghi thành công nên lỗi phát chỉ ghi log,
+/// không làm request trả 500 (client thấy thông báo ở lần tải sau).
+async fn publish_bell(t: &TenantDb, users: &[i32], ids: &[i32]) {
+    let res = async {
+        let mut tx = t.begin().await.map_err(|e| e.to_string())?;
+        trinity_db::sync::publish_bell_best_effort(&mut tx, i64::from(t.company().id()), users, ids).await;
+        tx.commit().await.map_err(|e| e.to_string())
+    }
+    .await;
+    if let Err(e) = res {
+        tracing::warn!("không phát được tin bell: {e}");
+    }
 }
 
 /// `PATCH /notifications/:id/read`: thông báo của người khác hoặc không có ⇒ 404 (không 403).
@@ -220,7 +227,7 @@ pub async fn mark_as_read(t: &TenantDb, d: &Deliverer, id: i32, user_id: i32) ->
         .map_err(db)?;
     drop(c);
     // Phát trước, để lỗi/độ trễ của đếm cục bộ không làm mất tin cho tiến trình khác.
-    publish_bell(t, &[user_id], &[]).await?;
+    publish_bell(t, &[user_id], &[]).await;
     d.sink
         .refresh_unread(i64::from(t.company().id()), i64::from(user_id))
         .await;
@@ -247,7 +254,10 @@ async fn set_scheduled(t: &TenantDb, id: i32, at: DateTime<Utc>) -> Result<(), A
 /// Thông báo cùng sự kiện + người nhận + tiêu đề + nội dung trong 5 phút gần nhất là trùng (log chưa lưu `entity_id`,
 /// nên hai thực thể có nội dung khác nhau không bị nuốt).
 async fn is_duplicate(t: &TenantDb, dto: &SendNotification) -> Result<bool, AppError> {
-    let (Some(event), Some(_)) = (&dto.event_type, dto.entity_id.filter(|e| *e != 0)) else {
+    let (Some(event), Some(_)) = (
+        dto.event_type.as_ref().filter(|e| !e.is_empty()),
+        dto.entity_id.filter(|e| *e != 0),
+    ) else {
         return Ok(false);
     };
     let mut c = conn(t).await?;
@@ -286,12 +296,11 @@ async fn create_log(t: &TenantDb, dto: &SendNotification) -> Result<i32, AppErro
 }
 
 /// Sau khi giao in-app: báo các tiến trình khác rồi đẩy lại số đếm cục bộ.
-async fn after_in_app(t: &TenantDb, d: &Deliverer, user: i32, log_id: i32) -> Result<(), AppError> {
-    publish_bell(t, &[user], &[log_id]).await?;
+async fn after_in_app(t: &TenantDb, d: &Deliverer, user: i32, log_id: i32) {
+    publish_bell(t, &[user], &[log_id]).await;
     d.sink
         .refresh_unread(i64::from(t.company().id()), i64::from(user))
         .await;
-    Ok(())
 }
 
 /// `POST /notifications/send`. `now` là giờ hiện tại (đưa vào để test): lịch tương lai do người gọi chọn được giữ nguyên;
@@ -309,20 +318,23 @@ pub async fn send(
             status: "deduplicated".to_owned(),
         });
     }
+    // Kiểm trước khi ghi: `scheduled_at` sai dạng là 400, không lặng lẽ gửi ngay.
+    let scheduled = match dto.scheduled_at.as_deref() {
+        Some(s) => Some(
+            parse_iso8601(s)
+                .ok_or_else(|| HttpError::bad_request("scheduled_at must be a valid ISO 8601 date string"))?,
+        ),
+        None => None,
+    };
     let id = create_log(t, dto).await?;
-    if let Some(at) = dto
-        .scheduled_at
-        .as_deref()
-        .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+    if let Some(at) = scheduled
+        && at > now
     {
-        let at = at.with_timezone(&Utc);
-        if at > now {
-            set_scheduled(t, id, at).await?;
-            return Ok(SendResult {
-                id,
-                status: "scheduled".to_owned(),
-            });
-        }
+        set_scheduled(t, id, at).await?;
+        return Ok(SendResult {
+            id,
+            status: "scheduled".to_owned(),
+        });
     }
     if !is_business_hours(now) {
         set_scheduled(t, id, next_business_start(now)).await?;
@@ -333,7 +345,7 @@ pub async fn send(
     }
     let status = d.deliver_with_retry(t, id, dto).await?;
     if dto.channel == Channel::InApp {
-        after_in_app(t, d, dto.user_id, id).await?;
+        after_in_app(t, d, dto.user_id, id).await;
     }
     Ok(SendResult {
         id,
@@ -400,52 +412,70 @@ struct DueRow {
     id: i32,
 }
 
-/// Job `notification.scheduled` cho một công ty: reaper rồi giao tối đa 100 dòng đến hạn. Mỗi dòng được claim riêng
-/// (`scheduled` → `processing` có điều kiện) và chỉ dòng mà câu lệnh này thật sự đổi mới được giao, nên hai tiến trình
-/// không gửi đôi. KHÔNG chặn theo giờ hành chính ở đây (việc dời giờ đã nằm trong `scheduled_at`). Trả số dòng đã xử lý.
+/// Job `notification.scheduled` cho một công ty: reaper rồi giao tối đa 100 dòng đến hạn. Mỗi dòng được claim RIÊNG, ngay
+/// trước khi giao (`scheduled` → `processing` có điều kiện; chỉ dòng mà câu lệnh này thật sự đổi mới được giao), nên hai
+/// tiến trình không gửi đôi và lượt bị cắt giữa chừng (hết budget) chỉ để lại tối đa MỘT dòng `processing` cho reaper, không
+/// phải cả lô 100. KHÔNG chặn theo giờ hành chính ở đây (việc dời giờ đã nằm trong `scheduled_at`). Trả số dòng đã xử lý.
 pub async fn process_scheduled(t: &TenantDb, d: &Deliverer, now: DateTime<Utc>) -> Result<usize, AppError> {
     reap_stuck_processing(t, now).await?;
-    let mut c = conn(t).await?;
-    let due: Vec<i32> = sqlx::query_scalar(
-        "SELECT id FROM notification_logs WHERE status = 'scheduled' AND scheduled_at <= $1 \
-         ORDER BY scheduled_at ASC LIMIT 100",
-    )
-    .bind(now)
-    .fetch_all(&mut *c)
-    .await
-    .map_err(db)?;
-    let mut won = Vec::new();
-    for id in due {
-        let n = sqlx::query(
-            "UPDATE notification_logs SET status = 'processing', claimed_at = now() WHERE id = $1 AND status = 'scheduled'",
+    let due: Vec<i32> = {
+        let mut c = conn(t).await?;
+        sqlx::query_scalar(
+            "SELECT id FROM notification_logs WHERE status = 'scheduled' AND scheduled_at <= $1 \
+             ORDER BY scheduled_at ASC LIMIT 100",
         )
-        .bind(id)
-        .execute(&mut *c)
+        .bind(now)
+        .fetch_all(&mut *c)
         .await
         .map_err(db)?
-        .rows_affected();
-        if n == 1 {
-            won.push(id);
-        }
-    }
-    if won.is_empty() {
-        return Ok(0);
-    }
-    let pending: Vec<DueRow> = sqlx::query_as(
-        "SELECT id, recipient_id, channel, title, body, event_type, template_id, action_url, webhook_url \
-         FROM notification_logs WHERE id = ANY($1) ORDER BY scheduled_at ASC",
-    )
-    .bind(&won)
-    .fetch_all(&mut *c)
-    .await
-    .map_err(db)?;
-    drop(c); // không giữ kết nối khi gọi webhook
+    };
     let mut processed = 0;
-    for r in pending {
+    for id in due {
+        // Giữ kết nối chỉ cho hai câu lệnh ngắn; trả lại trước khi giao (webhook có thể chờ mạng).
+        let row: Option<DueRow> = {
+            let mut c = conn(t).await?;
+            let won = sqlx::query(
+                "UPDATE notification_logs SET status = 'processing', claimed_at = now() \
+                 WHERE id = $1 AND status = 'scheduled'",
+            )
+            .bind(id)
+            .execute(&mut *c)
+            .await
+            .map_err(db)?
+            .rows_affected();
+            if won == 1 {
+                sqlx::query_as(
+                    "SELECT id, recipient_id, channel, title, body, event_type, template_id, action_url, webhook_url \
+                     FROM notification_logs WHERE id = $1",
+                )
+                .bind(id)
+                .fetch_optional(&mut *c)
+                .await
+                .map_err(db)?
+            } else {
+                None
+            }
+        };
+        let Some(r) = row else { continue };
         let Some(channel) = Channel::parse(&r.channel) else {
-            tracing::error!("Notification {} có kênh lạ {:?}", r.id, r.channel);
+            // Kênh lạ: không thử lại được, đánh failed ngay.
+            let msg = format!("Kenh {} khong ho tro", r.channel);
+            let mut c = conn(t).await?;
+            sqlx::query("UPDATE notification_logs SET status = 'failed', error = $2 WHERE id = $1")
+                .bind(r.id)
+                .bind(&msg)
+                .execute(&mut *c)
+                .await
+                .map_err(db)?;
+            tracing::error!("Notification {} failed: {msg}", r.id);
+            processed += 1;
             continue;
         };
+        // Thông báo hẹn giờ không lưu `fcm_token`: push hẹn giờ ⇒ `skipped`, không thử lại vô ích.
+        let mut meta = r.webhook_url.map(|u| serde_json::json!({ "webhook_url": u }));
+        if channel == Channel::Push {
+            meta = Some(serde_json::json!({ "scheduled_row": true }));
+        }
         let dto = SendNotification {
             user_id: r.recipient_id,
             channel,
@@ -456,13 +486,11 @@ pub async fn process_scheduled(t: &TenantDb, d: &Deliverer, now: DateTime<Utc>) 
             entity_id: None,
             action_url: r.action_url,
             scheduled_at: None,
-            metadata: r.webhook_url.map(|u| serde_json::json!({ "webhook_url": u })),
+            metadata: meta,
         };
         d.deliver_with_retry(t, r.id, &dto).await?;
-        if channel == Channel::InApp
-            && let Err(e) = after_in_app(t, d, r.recipient_id, r.id).await
-        {
-            tracing::warn!("làm mới chuông sau processScheduled lỗi: {e:?}");
+        if channel == Channel::InApp {
+            after_in_app(t, d, r.recipient_id, r.id).await;
         }
         processed += 1;
     }

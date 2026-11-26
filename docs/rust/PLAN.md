@@ -722,7 +722,7 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   từ chối helper ngoài `if/each/with/unless/lookup/log` ngay khi lưu; bảng ca `contracts/cases/notify-templates.json` do
   handlebars.js sinh và Rust phải khớp từng byte. Phân trang `/notifications` giữ câu SQL của Prisma cursor + `skip: 1`
   (`created_at <= (con trỏ)`, bỏ dòng đầu). Không có cache số chưa đọc 5 phút trong bộ nhớ (đếm thẳng DB). Phân phối không giữ
-  kết nối khi gọi webhook (qua lớp SSRF K35); thử lại `4^n × 250 ms` tối đa 3 lần; job `notification.scheduled` 2 phút/lần gồm reaper.
+  kết nối khi gọi webhook (qua lớp SSRF K35); thử lại `4^n × 250 ms` tối đa 3 lần, `retry_count` cộng dồn qua các lần kẹt/thử (để reaper chạm trần); job `notification.scheduled` 2 phút/lần gồm reaper, claim và giao từng dòng (lượt bị cắt chỉ kẹt tối đa một dòng). `scheduled_at` sai dạng ISO 8601 là 400. Khác handlebars.js: section `{{#ten}}` bị từ chối khi lưu.
 - `updated_at`: mọi `UPDATE` do Rust viết phải gán `updated_at = now()`. Kiểm bằng lint trong `xtask` (câu `UPDATE`
   trên bảng có cột này mà thiếu gán thì báo lỗi) và bằng test so trạng thái DB.
 - Lỗi DB: bảng ánh xạ SQLSTATE sang hành vi của bản TS nằm ở một chỗ (K05): 23505 ↔ `P2002`, 23503 ↔ `P2003`,

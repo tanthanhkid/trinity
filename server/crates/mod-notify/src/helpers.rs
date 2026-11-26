@@ -1,6 +1,6 @@
 //! Hàm thuần của `notifications/helpers` (Node): giờ hành chính Việt Nam và nhóm sự kiện tin nhắn.
 
-use chrono::{DateTime, Duration, Timelike, Utc};
+use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, Timelike, Utc};
 
 /// Nhóm `event_type` của badge "tin nhắn & đề cập" (khớp `event-category.helper.ts` và web).
 pub const MESSAGE_EVENT_TYPES: [&str; 2] = ["chat.tag", "internal.message"];
@@ -22,6 +22,31 @@ pub fn next_business_start(now: DateTime<Utc>) -> DateTime<Utc> {
         .expect("08:00 hợp lệ")
         .and_utc();
     start - VN_OFFSET
+}
+
+/// Chuỗi ISO 8601 như `@IsISO8601` + `new Date(s)` của bản Node: chỉ ngày (`2026-11-26`, nửa đêm UTC), có giờ không múi
+/// giờ (tính là UTC, như máy chủ chạy UTC), `Z`, `+07:00`, `+0700`, `+07`; giờ `T` hoặc cách; giây và phần thập phân tuỳ chọn.
+/// Không đúng dạng ⇒ `None`.
+pub fn parse_iso8601(s: &str) -> Option<DateTime<Utc>> {
+    let s = s.trim();
+    if let Ok(d) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        return Some(d.and_hms_opt(0, 0, 0)?.and_utc());
+    }
+    let norm = s.replacen(' ', "T", 1);
+    let norm = norm
+        .strip_suffix(['Z', 'z'])
+        .map_or(norm.clone(), |h| format!("{h}+00:00"));
+    for f in ["%Y-%m-%dT%H:%M:%S%.f%#z", "%Y-%m-%dT%H:%M%#z"] {
+        if let Ok(d) = DateTime::parse_from_str(&norm, f) {
+            return Some(d.with_timezone(&Utc));
+        }
+    }
+    for f in ["%Y-%m-%dT%H:%M:%S%.f", "%Y-%m-%dT%H:%M"] {
+        if let Ok(d) = NaiveDateTime::parse_from_str(s.replacen(' ', "T", 1).as_str(), f) {
+            return Some(d.and_utc());
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -60,5 +85,46 @@ mod tests {
             next_business_start(t("2026-11-26T16:59:59Z")),
             t("2026-11-27T01:00:00Z")
         );
+    }
+
+    #[test]
+    fn iso8601_nhieu_dang() {
+        let u = |s: &str| parse_iso8601(s).map(|d| d.to_rfc3339());
+        assert_eq!(u("2026-11-26").as_deref(), Some("2026-11-26T00:00:00+00:00"));
+        assert_eq!(u("2026-11-26T10:30:15Z").as_deref(), Some("2026-11-26T10:30:15+00:00"));
+        assert_eq!(
+            u("2026-11-26T10:30:15.123Z").as_deref(),
+            Some("2026-11-26T10:30:15.123+00:00")
+        );
+        assert_eq!(u("2026-11-26T10:30:15").as_deref(), Some("2026-11-26T10:30:15+00:00"));
+        assert_eq!(u("2026-11-26T10:30").as_deref(), Some("2026-11-26T10:30:00+00:00"));
+        assert_eq!(
+            u("2026-11-26T17:00:00+0700").as_deref(),
+            Some("2026-11-26T10:00:00+00:00")
+        );
+        assert_eq!(
+            u("2026-11-26T17:00:00+07:00").as_deref(),
+            Some("2026-11-26T10:00:00+00:00")
+        );
+        assert_eq!(
+            u("2026-11-26T17:00:00+07").as_deref(),
+            Some("2026-11-26T10:00:00+00:00")
+        );
+        assert_eq!(
+            u("2026-11-26 17:00:00+07:00").as_deref(),
+            Some("2026-11-26T10:00:00+00:00")
+        );
+        assert_eq!(u("2026-11-26T17:00+0700").as_deref(), Some("2026-11-26T10:00:00+00:00"));
+        for bad in [
+            "",
+            "abc",
+            "2026-13-01",
+            "2026-11-26T25:00:00Z",
+            "26/11/2026",
+            "2026-11-26T10",
+            "1700000000",
+        ] {
+            assert_eq!(parse_iso8601(bad), None, "{bad}");
+        }
     }
 }

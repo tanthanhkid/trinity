@@ -42,12 +42,15 @@ impl InAppSink for Sink {
 struct Poster {
     codes: Mutex<Vec<u16>>,
     calls: Mutex<Vec<(String, String)>>,
+    delay: Mutex<Duration>,
 }
 
 impl WebhookPoster for Poster {
     fn post<'a>(&'a self, url: &'a str, payload: String) -> BoxFuture<'a, Result<u16, String>> {
         Box::pin(async move {
             self.calls.lock().unwrap().push((url.to_owned(), payload));
+            let delay = *self.delay.lock().unwrap();
+            tokio::time::sleep(delay).await;
             let mut c = self.codes.lock().unwrap();
             Ok(if c.is_empty() { 200 } else { c.remove(0) })
         })
@@ -298,6 +301,50 @@ async fn gui_thong_bao_va_kenh() {
     m.entity_id = None;
     assert_ne!(send(&t, &d, &m, at(BUSY)).await.unwrap().id, 0);
 
+    // event_type rỗng không dedup (falsy như bản TS).
+    let mut e = dto(U1, Channel::InApp);
+    e.event_type = Some(String::new());
+    e.entity_id = Some(9);
+    let a = send(&t, &d, &e, at(BUSY)).await.unwrap();
+    let b = send(&t, &d, &e, at(BUSY)).await.unwrap();
+    assert!(a.id != 0 && b.id != 0 && a.id != b.id);
+
+    // scheduled_at sai dạng ⇒ 400 và không ghi dòng nào; các dạng ISO hợp lệ được nhận.
+    let rows_before: i64 = sqlx::query_scalar("SELECT count(*) FROM notification_logs WHERE recipient_id = $1")
+        .bind(U1)
+        .fetch_one(&mut *t.acquire().await.unwrap())
+        .await
+        .unwrap();
+    let mut bad = dto(U1, Channel::InApp);
+    bad.scheduled_at = Some("ngày mai".into());
+    assert_eq!(
+        err(send(&t, &d, &bad, at(BUSY)).await.unwrap_err()),
+        (400, "scheduled_at must be a valid ISO 8601 date string".into())
+    );
+    let rows_after: i64 = sqlx::query_scalar("SELECT count(*) FROM notification_logs WHERE recipient_id = $1")
+        .bind(U1)
+        .fetch_one(&mut *t.acquire().await.unwrap())
+        .await
+        .unwrap();
+    assert_eq!(rows_before, rows_after);
+    for (s, want) in [
+        ("2026-12-01", "2026-12-01T00:00:00Z"),
+        ("2026-12-01T17:00:00", "2026-12-01T17:00:00Z"),
+        ("2026-12-01T17:00:00+0700", "2026-12-01T10:00:00Z"),
+        ("2026-12-01T17:00+07", "2026-12-01T10:00:00Z"),
+    ] {
+        let mut f = dto(U1, Channel::InApp);
+        f.scheduled_at = Some(s.into());
+        let r = send(&t, &d, &f, at(BUSY)).await.unwrap();
+        assert_eq!(r.status, "scheduled", "{s}");
+        let when: DateTime<Utc> = sqlx::query_scalar("SELECT scheduled_at FROM notification_logs WHERE id = $1")
+            .bind(r.id)
+            .fetch_one(&mut *t.acquire().await.unwrap())
+            .await
+            .unwrap();
+        assert_eq!(when, at(want), "{s}");
+    }
+
     // Ngoài giờ ⇒ dời 08:00 VN kế tiếp; lịch tương lai do người gọi chọn giữ nguyên.
     let night = send(&t, &d, &dto(U1, Channel::InApp), at("2026-11-26T14:00:00Z"))
         .await
@@ -507,7 +554,7 @@ async fn danh_sach_dem_va_doc() {
 #[tokio::test]
 #[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
 async fn job_hen_gio_va_reaper() {
-    let (_g, t, d, sink, _) = setup().await;
+    let (_g, t, d, sink, poster) = setup().await;
     let now = at("2026-11-26T05:00:00Z");
     let mut c = t.acquire().await.unwrap();
     let ins = "INSERT INTO notification_logs (recipient_id, event_type, channel, title, body, status, scheduled_at, claimed_at, retry_count) \
@@ -551,7 +598,28 @@ async fn job_hen_gio_va_reaper() {
     )
     .await;
     let old_unclaimed = add("old_unclaimed", "processing", "2026-11-26T04:00:00Z", None, 0).await;
+    // Dòng hẹn giờ đã từng kẹt (retry_count = 1) và webhook luôn 503: số lần thử CỘNG DỒN (1 + 3), không bị ghi đè về 3.
+    let acc = add("acc", "scheduled", "2026-11-26T04:00:00Z", None, 1).await;
+    let push = add("push", "scheduled", "2026-11-26T04:00:00Z", None, 0).await;
+    let strange = add("strange", "scheduled", "2026-11-26T04:00:00Z", None, 0).await;
     drop(add);
+    sqlx::query(
+        "UPDATE notification_logs SET channel = 'webhook', webhook_url = 'https://hooks.example.com/x' WHERE id = $1",
+    )
+    .bind(acc)
+    .execute(&mut *c)
+    .await
+    .unwrap();
+    sqlx::query("UPDATE notification_logs SET channel = 'push' WHERE id = $1")
+        .bind(push)
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE notification_logs SET channel = 'sms' WHERE id = $1")
+        .bind(strange)
+        .execute(&mut *c)
+        .await
+        .unwrap();
     drop(c);
 
     assert_eq!(reap_stuck_processing(&t, now).await.unwrap(), (2, 1));
@@ -562,9 +630,21 @@ async fn job_hen_gio_va_reaper() {
     assert!(e.unwrap().contains("quá số lần thử"));
     assert_eq!(row(&t, fresh).await.0, "processing", "dòng mới claim chưa kẹt");
 
-    // Job: giao các dòng đến hạn (due, stuck_a, old_unclaimed), không đụng dòng tương lai.
+    // Job: giao các dòng đến hạn (due, stuck_a, old_unclaimed, acc, push, strange), không đụng dòng tương lai.
+    *poster.codes.lock().unwrap() = vec![503, 503, 503];
     let n = process_scheduled(&t, &d, now).await.unwrap();
-    assert_eq!(n, 3);
+    assert_eq!(n, 6);
+    let (st, retry, e, _) = row(&t, acc).await;
+    assert_eq!((st.as_str(), retry, e.as_deref()), ("failed", 4, Some("HTTP 503")));
+    let (st, retry, e, _) = row(&t, push).await;
+    assert_eq!(
+        (st.as_str(), retry),
+        ("skipped", 0),
+        "push hẹn giờ thiếu fcm_token bị bỏ qua"
+    );
+    assert!(e.unwrap().contains("FCM"));
+    let (st, _, e, _) = row(&t, strange).await;
+    assert_eq!((st.as_str(), e.as_deref()), ("failed", Some("Kenh sms khong ho tro")));
     for id in [due, stuck_a, old_unclaimed] {
         assert_eq!(row(&t, id).await.0, "sent");
     }
@@ -681,7 +761,7 @@ async fn su_kien_noi_bo() {
             log_id: None,
         },
     ];
-    let r = emit_ws_notifications(&t, &d, &items).await.unwrap();
+    let r = emit_ws_notifications(&t, &d, &items).await;
     assert_eq!(r.emitted, 2);
     assert_eq!(sink.sent.lock().unwrap().len() - before, 2);
     assert_eq!(
@@ -693,6 +773,49 @@ async fn su_kien_noi_bo() {
             .count(),
         1
     );
-    assert_eq!(emit_ws_notifications(&t, &d, &[]).await.unwrap().emitted, 0);
+    assert_eq!(emit_ws_notifications(&t, &d, &[]).await.emitted, 0);
+    clean(&t).await;
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn lua_bi_cat_giua_chung_chi_ket_mot_dong() {
+    let (_g, t, d, _, poster) = setup().await;
+    let mut c = t.acquire().await.unwrap();
+    for i in 0..10 {
+        sqlx::query(
+            "INSERT INTO notification_logs (recipient_id, channel, title, body, status, scheduled_at, webhook_url) \
+             VALUES ($1, 'webhook', $2, 'b', 'scheduled', '2026-11-26T04:00:00Z', 'https://hooks.example.com/x')",
+        )
+        .bind(U1)
+        .bind(format!("w{i}"))
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    }
+    drop(c);
+    // Mỗi lần gọi webhook chậm 150 ms; hết "budget" 400 ms thì lượt bị huỷ giữa chừng (như scheduler cắt job).
+    *poster.delay.lock().unwrap() = Duration::from_millis(150);
+    let cut = tokio::time::timeout(
+        Duration::from_millis(400),
+        process_scheduled(&t, &d, at("2026-11-26T05:00:00Z")),
+    )
+    .await;
+    assert!(cut.is_err(), "lượt phải bị cắt");
+    let mut c = t.acquire().await.unwrap();
+    let by: Vec<(String, i64)> = sqlx::query_as(
+        "SELECT status, count(*) FROM notification_logs WHERE recipient_id = $1 GROUP BY status ORDER BY status",
+    )
+    .bind(U1)
+    .fetch_all(&mut *c)
+    .await
+    .unwrap();
+    let n = |s: &str| by.iter().find(|(st, _)| st == s).map_or(0, |(_, n)| *n);
+    assert!(n("processing") <= 1, "chỉ dòng đang giao dở có thể kẹt: {by:?}");
+    assert!(
+        n("sent") >= 1 && n("scheduled") >= 5,
+        "các dòng chưa tới vẫn là scheduled: {by:?}"
+    );
+    assert_eq!(n("sent") + n("processing") + n("scheduled"), 10);
     clean(&t).await;
 }

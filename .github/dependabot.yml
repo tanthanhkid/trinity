@@ -1,3 +1,7 @@
+# ĐÓNG BĂNG cập nhật phiên bản từ 26/11/2026 trong lúc viết lại backend sang Rust (docs/rust/PLAN.md): mỗi PR
+# Dependabot tốn cả lượt CI và làm hàng đợi runner dài thêm. `open-pull-requests-limit: 0` chỉ tắt PR cập nhật phiên
+# bản; PR vá lỗ hổng (Dependabot security updates, bật trong Settings → Code security) vẫn mở như cũ vì có giới hạn
+# riêng. Mở lại: trả các giới hạn về 5 / 3 / 3 / 2 (npm / cargo / github-actions / docker). Xem docs/ci.md.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -7,7 +11,7 @@ updates:
       day: monday
       time: "03:00"
       timezone: Asia/Ho_Chi_Minh
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "chore(deps)"
     labels: [dependencies]
@@ -21,7 +25,7 @@ updates:
       day: monday
       time: "03:00"
       timezone: Asia/Ho_Chi_Minh
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "chore(deps)"
     labels: [dependencies, server]
@@ -35,7 +39,7 @@ updates:
       day: monday
       time: "03:00"
       timezone: Asia/Ho_Chi_Minh
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "ci(deps)"
     labels: [dependencies, ci]
@@ -49,7 +53,7 @@ updates:
       day: monday
       time: "03:00"
       timezone: Asia/Ho_Chi_Minh
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 0
     commit-message:
       prefix: "build(deps)"
     labels: [dependencies]

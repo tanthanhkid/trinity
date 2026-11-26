@@ -10,7 +10,7 @@ Created by **Thanh Tran** · [X @trntnthnh](https://x.com/trntnthnh) · [YouTube
 [Tiếng Việt](README.vi.md) · [Website](https://phanmemtrinity.com) · [Deploy](#deploy) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
 
 [![CI](https://github.com/tanthanhkid/trinity/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/tanthanhkid/trinity/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/tanthanhkid/trinity/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/tanthanhkid/trinity/security/code-scanning)
+[![CodeQL](https://github.com/tanthanhkid/trinity/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/tanthanhkid/trinity/security/code-scanning)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/tanthanhkid/trinity/badge)](https://scorecard.dev/viewer/?uri=github.com/tanthanhkid/trinity)
 [![License: AGPL-3.0](https://img.shields.io/github/license/tanthanhkid/trinity)](LICENSE)
 ![Status: preview](https://img.shields.io/badge/status-preview-orange)

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Hàng đợi biên dịch chung cho mọi agent/người trên cùng một máy (docs/rust/PLAN.md mục 11, server/README.md).
+# Dùng thay `cargo`: `scripts/cargo-q check -p trinity-db`. Lệnh chỉ chạy khi giữ được khoá; ai tới sau thì chờ.
+# Khoá là flock trên một tệp, nên tiến trình chết (kể cả bị kill) thì khoá tự nhả.
+set -euo pipefail
+lock="${TRINITY_CARGO_LOCK:-$HOME/.cache/trinity/cargo.lock}"
+mkdir -p "$(dirname "$lock")"
+exec perl -MFcntl=:flock -e '
+  my $lock = shift @ARGV;
+  open(my $fh, ">>", $lock) or die "cargo-q: không mở được $lock: $!\n";
+  unless (flock($fh, LOCK_EX | LOCK_NB)) {
+    print STDERR "cargo-q: đang có lượt biên dịch khác, chờ...\n";
+    flock($fh, LOCK_EX) or die "cargo-q: flock lỗi: $!\n";
+  }
+  my $rc = system { "cargo" } "cargo", @ARGV;
+  exit($rc == -1 ? 127 : ($rc & 127) ? 128 + ($rc & 127) : $rc >> 8);
+' "$lock" "$@"

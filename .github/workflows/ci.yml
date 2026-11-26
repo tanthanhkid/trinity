@@ -323,3 +323,106 @@ jobs:
       - name: Web server log (on failure)
         if: failure() && steps.web.outputs.run == 'true'
         run: tail -n 200 /tmp/web.log || true
+
+  # Backend Rust (docs/rust/PLAN.md mục 8): build release cho cả hai kiến trúc máy chủ. Không bắt buộc; fmt/clippy/unit
+  # vào `ci-ok` ở K02. Job luôn chạy nhưng các bước chỉ thực thi khi PR đụng server/ hoặc workflow này. Build offline
+  # (.sqlx/) không bắt được lệch schema Prisma, nên không lọc theo migration ở đây: việc đó thuộc job pg của K02.
+  rust-build:
+    name: Rust build (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      # Kiểm truy vấn bằng server/.sqlx/, không cần DB.
+      SQLX_OFFLINE: "true"
+      CARGO_INCREMENTAL: "0"
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Detect Rust changes
+        id: rust
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(server/|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # rustup có sẵn trên runner; không đối số = cài đúng bản ghim trong server/rust-toolchain.toml. Đặt luôn làm
+      # mặc định để rust-cache (chạy ở gốc repo) lấy khoá cache theo đúng toolchain đó.
+      - name: Install Rust toolchain
+        if: steps.rust.outputs.run == 'true'
+        working-directory: server
+        run: |
+          rustup toolchain install
+          tc=$(rustup show active-toolchain | cut -d' ' -f1)
+          rustup default "$tc"
+          echo "RUSTUP_TOOLCHAIN=$tc" >> "$GITHUB_ENV"
+          rustc --version
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        if: steps.rust.outputs.run == 'true'
+        with:
+          workspaces: server
+          save-if: ${{ github.event_name == 'push' }}
+
+      - name: cargo build --release
+        if: steps.rust.outputs.run == 'true'
+        working-directory: server
+        run: cargo build --release --locked --workspace --all-targets
+
+      - name: trinity --version
+        if: steps.rust.outputs.run == 'true'
+        working-directory: server
+        run: |
+          ./target/release/trinity --version
+          file ./target/release/trinity
+
+      - name: Upload binary
+        if: steps.rust.outputs.run == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: trinity-linux-${{ matrix.arch }}
+          path: server/target/release/trinity
+          if-no-files-found: error
+          retention-days: 7
+
+  # Giấy phép tương thích AGPL-3.0, lỗ hổng RustSec, nguồn crate theo server/deny.toml. Không bắt buộc.
+  # Advisories (RustSec) chỉ chạy trên PR đổi phụ thuộc (và hằng đêm ở nightly.yml): advisory mới công bố không làm
+  # đỏ push main khi không ai đổi phụ thuộc. Push main chỉ kiểm bans, licenses, sources.
+  rust-deny:
+    name: Rust deny
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - name: Detect Rust dependency changes
+        id: rust
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qE '^(server/(.*/)?Cargo\.(toml|lock)$|server/deny\.toml$|\.github/workflows/ci\.yml$)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: EmbarkStudios/cargo-deny-action@81891abc19297b21343b15ef67dc61e4aea74fda # v2.1.4
+        if: steps.rust.outputs.run == 'true'
+        with:
+          manifest-path: server/Cargo.toml
+          command: check
+          command-arguments: ${{ github.event_name == 'pull_request' && 'advisories bans licenses sources' || 'bans licenses sources' }}

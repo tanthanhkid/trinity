@@ -1,0 +1,19 @@
+[package]
+name = "trinity-bin"
+description = "Binary `trinity`: serve | migrate | seed | channel-lock | healthcheck (lệnh được thêm dần theo issue)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "trinity"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+
+[lints]
+workspace = true

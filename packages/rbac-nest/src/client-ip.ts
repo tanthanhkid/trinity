@@ -6,7 +6,7 @@ import { Logger } from '@nestjs/common'
 /**
  * IP của khách — MỘT chỗ duy nhất đọc địa chỉ kết nối và header IP cho cả backend (docs/rust/PLAN.md mục 4.13).
  *
- * Mọi nơi cần IP (kiểm Wi-Fi đăng nhập, kiểm IP chấm công, giới hạn tốc độ, nhật ký, khoá API, VNPay, trang bán
+ * Mọi nơi cần IP (kiểm Wi-Fi đăng nhập, kiểm IP chấm công, giới hạn tốc độ, nhật ký, khoá API, trang bán
  * hàng) gọi `resolveClientIp(req)`; không file nào khác được đọc `x-real-ip`, `x-forwarded-for`,
  * `cf-connecting-ip`, `req.ip` hay `remoteAddress`.
  *

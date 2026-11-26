@@ -33,7 +33,7 @@ orchestrator.
 ## Client IP (`TRUSTED_PROXY`)
 
 Office-IP checks at login (`LOGIN_WIFI_CHECK_ENABLED`), attendance IP checks (they affect payroll), rate limits, login
-logs, VNPay and the online store all use the client's IP. It is determined **once**, by the process that receives the
+logs and the online store all use the client's IP. It is determined **once**, by the process that receives the
 connection first (the **edge**), as soon as the headers arrive, and passed inward signed. No header sent by the client is
 trusted unless `TRUSTED_PROXY` says the proxy in front of the edge writes it.
 
@@ -94,7 +94,7 @@ peer address (3000 failures per 15 minutes, 1000 for the public login API) and, 
 (1 s, 2 s, 4 s … up to 15 s) with a hard cap of 50 failures per 15 minutes; sign-up and invitation acceptance count
 only failures, per email/invitation plus an overall ceiling; OAuth, MCP and the online store check **both** a ceiling
 per peer address and a per-client key (OAuth client, bearer token, buyer phone number), so changing the client-chosen
-key does not get around the ceiling. VNPay receives the client IP only when it is trusted and public.
+key does not get around the ceiling.
 
 **Between Trinity processes** the IP travels in `x-trinity-client-ip: <ip or "untrusted">;<unix time>;<signature>`:
 HMAC-SHA256 over `<value>\n<unix time>` with a key derived by HKDF-SHA256 (empty salt, info

@@ -50,7 +50,6 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 | **Hộp thư chung** | Tin Messenger và Zalo OA ở một chỗ, có ô tìm và bộ lọc "Chưa trả lời"; trả lời đúng khung thời gian mỗi nền tảng cho phép (Messenger: 24 giờ; nhân viên tự gõ thì tới 7 ngày, khi app của bạn đã được Meta cấp quyền Human Agent). Mở hội thoại là đọc thêm tin thẳng từ Facebook, không sót tin khi thông báo không về |
 | **Tự động hoá Fanpage** | Luật bình luận theo Page hoặc từng bài (kể cả ảnh bìa): tự trả lời, ẩn bình luận có số điện thoại, nhắn riêng, người bình luận tự gắn với khách hàng; link và mã QR mở thẳng cuộc chat; kịch bản Messenger; gửi tin hàng loạt trong cửa sổ 24 giờ. Luật, kịch bản, gửi hàng loạt cũng tạo và sửa được từ trợ lý AI |
 | **Đăng đa kênh** | Soạn một lần, đăng ngay hoặc hẹn giờ lên Fanpage Facebook; có lịch nội dung, thư viện ảnh/video, số liệu bài. Lưu nháp, hàng đợi theo khung giờ cố định mỗi tuần, bộ hashtag và chữ ký dùng lại, tự gắn UTM vào liên kết, xem trước bài trên từng kênh, nhập nhiều bài từ CSV, bài lặp lại (ngày, tuần, tháng). Video lớn tải lên từng phần; bài bị xoá thẳng trên mạng tự hiện là đã xoá. Mọi việc cũng làm được qua trợ lý AI |
-| **Thanh toán** | Đối soát yêu cầu thanh toán cũ: tiền về qua SePay, VNPay, MoMo tự khớp vào yêu cầu (không tạo yêu cầu mới) |
 | **Trang bán hàng** | Trang bán online `/s/<tên>` (hoặc tên miền phụ), 3 giao diện, giỏ hàng, COD hoặc chuyển khoản QR; đơn và người mua vào thẳng CRM. Mặc định tắt |
 | **CRM** | Danh bạ với nguồn, giai đoạn, trạng thái do bạn tự đặt, Kanban, mã bản ghi chung và gắn thẻ `@` giữa các màn, bảng tin |
 | **Bán hàng** | Sản phẩm, POS |
@@ -71,10 +70,8 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 |---|---|
 | Fanpage Facebook | Với tài khoản thật |
 | Zalo OA | Nhận tin đã thử thật; trả lời + đọc hồ sơ cần OA gói Tier (chưa thử) |
-| VNPay | Trọn vòng trên sandbox VNPay |
-| MoMo | Môi trường test của MoMo |
 | n8n | Workflow mẫu chạy thật với máy chủ thử |
-| SePay, Zapier, Make | Connector có sẵn, chưa thử với tài khoản thật |
+| Zapier, Make | Connector có sẵn, chưa thử với tài khoản thật |
 | iPOS | Chưa làm — chờ iPOS cấp API đối tác |
 
 Chi tiết từng connector: [docs/integrations/status.md](docs/integrations/status.md). Việc sắp làm: [ROADMAP.md](ROADMAP.md).
@@ -83,12 +80,11 @@ Chi tiết từng connector: [docs/integrations/status.md](docs/integrations/sta
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/connections.png" alt="Cài đặt › Kết nối: mọi kênh, cổng thanh toán và connector bán hàng trên một màn kèm trạng thái"><br><sub>Mọi kênh và connector trên một màn</sub></td>
+<td width="50%"><img src="docs/screenshots/connections.png" alt="Cài đặt › Kết nối: mọi kênh và connector trên một màn kèm trạng thái"><br><sub>Mọi kênh và connector trên một màn</sub></td>
 <td width="50%"><img src="docs/screenshots/inbox.png" alt="Hộp thư chung có ô tìm và lọc chưa trả lời"><br><sub>Hộp thư chung Messenger + Zalo OA</sub></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/posting-calendar.png" alt="Lịch đăng đa kênh với bài đã hẹn giờ và đã đăng"><br><sub>Lịch nội dung đăng đa kênh</sub></td>
-<td><img src="docs/screenshots/payments.png" alt="Thanh toán: SePay, VNPay, MoMo đối soát yêu cầu cũ"><br><sub>Thanh toán: đối soát yêu cầu cũ</sub></td>
+<td colspan="2"><img src="docs/screenshots/posting-calendar.png" alt="Lịch đăng đa kênh với bài đã hẹn giờ và đã đăng"><br><sub>Lịch nội dung đăng đa kênh</sub></td>
 </tr>
 </table>
 

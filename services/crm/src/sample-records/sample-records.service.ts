@@ -140,6 +140,8 @@ export class SampleRecordsService {
         tx.kanbanCard.findMany({ where, select: { contact_id: true } }),
         tx.zaloOaThread.findMany({ where, select: { contact_id: true } }),
         tx.facebookConversation.findMany({ where, select: { contact_id: true } }),
+        // Ngoại lệ có chủ ý (G07b): cổng thanh toán đã gỡ, `payment_intents` là bảng lưu trữ nhưng vẫn có thể tham chiếu khách;
+        // chỉ ĐỌC để không xoá khách đang được tham chiếu. Giữ cả ở bản Rust.
         tx.paymentIntent.findMany({ where, select: { contact_id: true } }),
         tx.storeOrder.findMany({ where, select: { contact_id: true } }),
       ]);

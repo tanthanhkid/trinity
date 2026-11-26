@@ -72,7 +72,7 @@ const LOCAL_ROUTES: Record<string, string> = {
   // Fanpage Facebook: quản trị/hộp thư + webhook Meta + callback OAuth.
   '/api/v1/facebook': 'http://localhost:4000',
   '/api/v1/zalo-oa': 'http://localhost:4000',
-  // Connector (SePay/VNPay/MoMo), yêu cầu thanh toán, link thanh toán công khai + trang kết quả.
+  // Cổng thanh toán đã gỡ (G07b): các đường cũ chỉ còn phục vụ 410 ở API; thiếu prefix ở đây thì rơi về BACKEND_URL và lặp 504.
   '/api/v1/connectors': 'http://localhost:4000',
   '/api/v1/payments': 'http://localhost:4000',
   '/api/v1/pay/': 'http://localhost:4000',

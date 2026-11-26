@@ -38,7 +38,7 @@ const SETUP_STATUS = {
 const ORG_FEATURES = {
   dashboard: true, contacts: true, kanban: true, reports: true, inbox: true,
   facebook_page: true, zalo_oa: true, social_posting: true,
-  products: true, pos: true, payments: true, online_store: false, commerce_connectors: false,
+  products: true, pos: true, online_store: false, commerce_connectors: false,
   management: true, attendance: false, payroll: false, newsfeed: true,
   integrations: true, ai_briefing: true, lead_scoring: true, stale_reminders: true,
 }
@@ -69,7 +69,7 @@ const DASHBOARD_CHANNELS = {
     { key: "zalo-1", kind: "zalo_oa", network: "zalo", name: "Trinity Coffee OA", state: "attention", note: "Cần kết nối lại", today: null, href: "/connections" },
     { key: "fb-2", kind: "social", network: "facebook", name: "Trinity Coffee Q3", state: "ok", note: "Đã đăng 1 bài tuần này", today: { label: "bài đăng", value: 0 }, href: "/social" },
   ],
-  available: [{ kind: "payment", label: "Thanh toán", href: "/connections" }],
+  available: [],
 }
 
 const DASHBOARD_OVERVIEW = {
@@ -197,12 +197,6 @@ const ZALO_STATUS = {
   status: "needs_reauth", access_expires_at: at(18), refresh_expires_at: at(19),
   last_error: "Mã làm mới của Zalo đã hết hạn, cần kết nối lại OA.", redirect_uri: "https://crm.example.com/api/v1/zalo-oa/callback", webhook_path: "/api/v1/zalo-oa/webhook",
 }
-const connector = (provider, extra = {}) => ({ provider, connected: false, status: "not_connected", settings: null, last_event_at: null, last_error: null, webhook_path: `/api/v1/connectors/${provider}/webhook`, secret_key_configured: true, server_configured: true, ...extra })
-const CONNECTORS = [
-  connector("sepay", { connected: true, status: "active", settings: { bank: "Vietcombank", account_number: "0123***789", account_name: "TRINITY COFFEE", code_prefix: "TC" }, last_event_at: at(TODAY, "08:05") }),
-  connector("vnpay"),
-  connector("momo"),
-]
 const INTEGRATIONS_STATUS = { webhooks_enabled: true, mcp_enabled: true, secret_key_configured: true, mcp_base_url_configured: true, mcp_url: "https://crm.example.com/api/v1/mcp" }
 
 // ─── Tương tác / Hộp thư ──────────────────────────────────────
@@ -418,7 +412,6 @@ export const ROUTES = [
   ["GET /facebook/status", () => FACEBOOK_STATUS],
   ["GET /facebook/pages", () => ({ data: FACEBOOK_PAGES })],
   ["GET /zalo-oa/status", () => ZALO_STATUS],
-  ["GET /connectors", () => CONNECTORS],
   ["GET /integrations/webhooks/endpoints", () => ({ data: [] })],
   ["GET /integrations/webhooks/inbound-sources", () => ({ data: [] })],
 

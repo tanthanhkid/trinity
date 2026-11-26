@@ -60,14 +60,14 @@ d('Dựng hệ thống + bản ghi mẫu — DB thật', () => {
   const liveContacts = () => prisma.contact.count({ where: { deleted_at: null } });
 
   it('ngành Giáo dục: tạo bảng mẫu + 3 bản ghi mẫu (bảng đầu), lưu ngành/phân hệ, trạng thái đã dựng', async () => {
-    const r = await build.build(admin, { industry: 'education_center', features: ['payments', 'pos'] });
+    const r = await build.build(admin, { industry: 'education_center', features: ['pos'] });
     expect(r.created_objects).toEqual(['phu_huynh', 'hoc_sinh', 'khoa_hoc', 'hoa_don', 'ghi_danh', 'thanh_toan']);
     expect(r.sample_records).toBe(3);
     expect(await liveRecords()).toBe(3);
     expect(await liveContacts()).toBe(0);
-    expect(r.features).toEqual(expect.arrayContaining(['dashboard', 'contacts', 'kanban', 'reports', 'payments', 'pos']));
+    expect(r.features).toEqual(expect.arrayContaining(['dashboard', 'contacts', 'kanban', 'reports', 'pos']));
     const f = await features.get();
-    expect(f.payments).toBe(true);
+    expect(f.pos).toBe(true);
     expect(f.payroll).toBe(false);
     expect((await prisma.setting.findUnique({ where: { key: 'setup_industry' } }))?.value).toBe('education_center');
     expect((await prisma.setting.findUnique({ where: { key: 'setup_status' } }))?.value).toBe('da_dung');

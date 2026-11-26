@@ -28,15 +28,12 @@ The same label shows next to each item on **Connections (Kết nối)** in the a
 
 ## Connectors
 
-Trinity no longer creates new payment requests (SePay, VNPay, MoMo): requests created earlier are still marked paid when the money arrives (webhook / IPN).
+The SePay, VNPay and MoMo payment gateways were removed (#106): their webhook, IPN and return URLs and payment links answer 410, the connections are set to `disconnected` with their keys cleared, and payment requests and gateway events stay as an archive. Bank-transfer orders from the online store use a static VietQR code and are confirmed by hand.
 
 The sales and marketplace connectors (KiotViet, Sapo, WooCommerce, MISA, Shopee, Lazada) were removed in #104: their old webhook, push and authorization callback URLs answer 410, and data synced earlier is kept as an archive.
 
 | Connector | Status | Notes |
 |---|---|---|
-| SePay | Ready — not yet tried with a real account | Reconciles payment requests created earlier (no new ones since #105): incoming transfers auto-matched by code and amount (webhook, `Authorization: Apikey`). Tested with SePay's official sample payload, not yet with a live account. |
-| VNPay | Tested in sandbox / simulated webhooks only | Reconciles earlier requests (no new ones since #105). Tested end to end on the VNPay sandbox (2026-10-15): payment link → NCB test card → OTP → return page verified VNPay's signature, and VNPay's own IPN call marked the request paid within seconds (a repeated IPN answers 02). Not yet tested with a live merchant. |
-| MoMo | Tested in sandbox / simulated webhooks only | Reconciles earlier requests (no new ones since #105). Payment link per request (captureWallet, HMAC-SHA256). Creating a payment was accepted by the MoMo test environment with its public test keys (2026-10-15); IPN checked with signed samples. Not yet tested with a live merchant. |
 | iPOS | Not built yet | No code yet. iPOS.vn publishes no public API; waiting for iPOS to provide its partner API documentation. |
 | n8n | Tested in sandbox / simulated webhooks only | No marketplace app: outgoing webhooks + public API with an API key ([guide](zapier-n8n.md), sample n8n workflows in `integrations/n8n`). Tested 2026-10-15 with n8n 2.43 running locally behind a public HTTPS tunnel against the test server: an API key created a deal (with a new customer by phone) and a Kanban task linked to the same customer; Trinity's outgoing webhooks delivered `ping`, `contact.created` and `store_order.created`, the n8n workflows verified the signature and parsed the order; a forged signature was rejected. Zapier steps are written from Zapier's generic Webhooks/Code apps and not yet run in a Zapier account. |
 | Zapier, Make | Ready — not yet tried with a real account | Same webhooks and API key as n8n ([guide](zapier-n8n.md)); the Zapier steps are written from Zapier's generic Webhooks/Code apps |

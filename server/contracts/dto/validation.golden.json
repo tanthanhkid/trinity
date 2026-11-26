@@ -6712,7 +6712,7 @@
     "url must be a string",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -6737,7 +6737,7 @@
     "url must be a string",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -6759,7 +6759,7 @@
     "URL không hợp lệ",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -6780,7 +6780,7 @@
     "URL không hợp lệ",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -6805,7 +6805,7 @@
     "url must be a string",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -6830,7 +6830,7 @@
     "url must be a string",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -6855,7 +6855,7 @@
     "url must be a string",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -6880,7 +6880,7 @@
     "url must be a string",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -6941,7 +6941,7 @@
     "url must be a string",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -6963,7 +6963,7 @@
     "URL không hợp lệ",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -6984,7 +6984,7 @@
     "URL không hợp lệ",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -7005,7 +7005,7 @@
     "URL không hợp lệ",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -7026,7 +7026,7 @@
     "URL không hợp lệ",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -7085,7 +7085,7 @@
     "url must be a string",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -7107,7 +7107,7 @@
     "url must be a string",
     "Sự kiện không hợp lệ",
     "All events's elements must be unique",
-    "events must contain no more than 26 elements",
+    "events must contain no more than 25 elements",
     "Chọn ít nhất 1 sự kiện",
     "events must be an array"
    ]
@@ -7156,7 +7156,7 @@
    "status": 400,
    "message": [
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "cursor không hợp lệ"
    ]
   }
@@ -7178,7 +7178,7 @@
     "endpoint_id must not be less than 1",
     "endpoint_id must be an integer number",
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "cursor không hợp lệ",
     "limit must not be greater than 100",
     "limit must not be less than 1",
@@ -7202,7 +7202,7 @@
    "message": [
     "endpoint_id must be an integer number",
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "event_type must be a string",
     "cursor không hợp lệ",
     "limit must be an integer number"
@@ -7225,7 +7225,7 @@
    "message": [
     "endpoint_id must not be less than 1",
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "event_type must be a string",
     "cursor không hợp lệ",
     "limit must not be less than 1"
@@ -7248,7 +7248,7 @@
    "message": [
     "endpoint_id must not be less than 1",
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "event_type must be a string",
     "cursor không hợp lệ",
     "limit must not be less than 1"
@@ -7270,7 +7270,7 @@
    "status": 400,
    "message": [
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "event_type must be a string",
     "cursor không hợp lệ"
    ]
@@ -7308,7 +7308,7 @@
     "endpoint_id must not be less than 1",
     "endpoint_id must be an integer number",
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "event_type must be a string",
     "cursor không hợp lệ",
     "limit must not be greater than 100",
@@ -7344,7 +7344,7 @@
     "endpoint_id must not be less than 1",
     "endpoint_id must be an integer number",
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "event_type must be a string",
     "cursor không hợp lệ",
     "limit must not be greater than 100",
@@ -7370,7 +7370,7 @@
     "endpoint_id must not be less than 1",
     "endpoint_id must be an integer number",
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "cursor không hợp lệ",
     "limit must not be greater than 100",
     "limit must not be less than 1",
@@ -7395,7 +7395,7 @@
     "endpoint_id must not be less than 1",
     "endpoint_id must be an integer number",
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "cursor không hợp lệ",
     "limit must not be greater than 100",
     "limit must not be less than 1",
@@ -7418,7 +7418,7 @@
    "status": 400,
    "message": [
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "cursor không hợp lệ",
     "limit must not be greater than 100"
    ]
@@ -7441,7 +7441,7 @@
     "endpoint_id must not be less than 1",
     "endpoint_id must be an integer number",
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "cursor không hợp lệ",
     "limit must not be greater than 100",
     "limit must not be less than 1",
@@ -7491,7 +7491,7 @@
     "endpoint_id must not be less than 1",
     "endpoint_id must be an integer number",
     "status must be one of the following values: pending, success, failed, dead",
-    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, payment.received, store_order.created, store_order.paid, store_order.status_changed, ping",
+    "event_type must be one of the following values: contact.created, contact.updated, contact.stage_changed, contact.assigned, contact.deleted, contact.restored, deal.created, deal.stage_changed, deal.won, deal.lost, pos.order.completed, custom_record.created, custom_record.updated, custom_record.deleted, zalo_oa.message_received, zalo_oa.message_sent, messenger.message_received, messenger.message_sent, messenger.broadcast_finished, facebook.comment_received, social_post.published, social_post.failed, store_order.created, store_order.paid, store_order.status_changed, ping",
     "event_type must be a string",
     "cursor không hợp lệ",
     "limit must not be greater than 100",

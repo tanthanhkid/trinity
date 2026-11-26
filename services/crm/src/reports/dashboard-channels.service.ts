@@ -8,7 +8,7 @@ import { vnTodayRange } from './dashboard-overview.util';
 
 /** ok = đang chạy · attention = cần liên kết lại / lỗi · off = đã tắt. */
 export type ChannelState = 'ok' | 'attention' | 'off';
-export type ChannelKind = 'facebook_page' | 'zalo_oa' | 'social' | 'payment' | 'store';
+export type ChannelKind = 'facebook_page' | 'zalo_oa' | 'social' | 'store';
 
 export interface ConnectedChannel {
   key: string;
@@ -39,17 +39,13 @@ export interface DashboardChannels {
   available: AvailableChannel[];
 }
 
-const PAYMENT_PROVIDERS = new Set(['sepay', 'vnpay', 'momo']);
-const PROVIDER_LABELS: Record<string, string> = {
-  sepay: 'SePay', vnpay: 'VNPay', momo: 'MoMo',
-};
 const NETWORK_LABELS: Record<string, string> = { facebook: 'Fanpage', zalo: 'Zalo OA' };
 
 const INTEGRATIONS = '/connections';
 
 /**
- * "Kênh đã kết nối" cho trang Tổng quan (và tool get_connected_channels): Fanpage, Zalo OA, kênh đăng bài, thanh toán,
- * kết nối bán hàng, trang bán hàng — mỗi kênh một trạng thái + số liệu hôm nay. Chỉ trả nhóm kênh mà tính năng đang bật
+ * "Kênh đã kết nối" cho trang Tổng quan (và tool get_connected_channels): Fanpage, Zalo OA, kênh đăng bài,
+ * trang bán hàng — mỗi kênh một trạng thái + số liệu hôm nay. Chỉ trả nhóm kênh mà tính năng đang bật
  * VÀ người xem có quyền liên quan; không lộ khoá/token.
  */
 @Injectable()
@@ -136,20 +132,6 @@ export class DashboardChannelsService {
       })());
     }
 
-    // Chỉ cổng thanh toán: dòng của kết nối bán hàng/sàn đã gỡ (G06) là lưu trữ, không hiện.
-    const wantPayments = on('payments') && orgWideDeals;
-    if (wantPayments) {
-      tasks.push((async () => {
-        const pay = await this.prisma.connectorAccount.findMany({ where: { provider: { in: [...PAYMENT_PROVIDERS] } }, orderBy: { id: 'asc' }, select: { id: true, provider: true, status: true, last_event_at: true } });
-        if (wantPayments && pay.length === 0) available.push({ kind: 'payment', label: 'Thanh toán (SePay, VNPay, MoMo)', href: `${INTEGRATIONS}?muc=payments` });
-        if (wantPayments && pay.length) {
-          const paid = await this.prisma.paymentIntent.groupBy({ by: ['paid_via'], where: { status: 'paid', paid_at: today }, _count: { _all: true } });
-          const byVia = new Map(paid.map((r) => [r.paid_via ?? '', r._count._all]));
-          for (const a of pay) channels.push(this.connector(a, 'payment', { label: 'lượt thanh toán', value: byVia.get(a.provider) ?? 0 }, `${INTEGRATIONS}?muc=payments`));
-        }
-      })());
-    }
-
     if (on('online_store') && (any('pos.manage') || orgWideDeals)) {
       tasks.push((async () => {
         const row = await this.prisma.setting.findUnique({ where: { key: STORE_SETTING_KEY }, select: { value: true } });
@@ -168,19 +150,10 @@ export class DashboardChannelsService {
     }
 
     await Promise.all(tasks.map((t) => t.catch((e: Error) => this.logger.warn(`Kênh Tổng quan lỗi: ${e.message}`))));
-    const order: ChannelKind[] = ['facebook_page', 'zalo_oa', 'social', 'payment', 'store'];
+    const order: ChannelKind[] = ['facebook_page', 'zalo_oa', 'social', 'store'];
     channels.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
     available.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
     return { channels, available };
-  }
-
-  private connector(a: { id: number; provider: string; status: string; last_event_at: Date | null }, kind: 'payment', today: ConnectedChannel['today'], href: string): ConnectedChannel {
-    const state: ChannelState = a.status === 'active' ? 'ok' : a.status === 'disconnected' ? 'off' : 'attention';
-    return {
-      key: `${kind}:${a.id}`, kind, network: a.provider, name: PROVIDER_LABELS[a.provider] ?? a.provider, state,
-      note: state === 'ok' ? (kind === 'payment' ? 'Đang nhận tiền' : 'Đang đồng bộ') : state === 'off' ? 'Đã ngắt kết nối' : 'Có lỗi, cần kiểm tra',
-      today, href,
-    };
   }
 
   /** Số tin khách gửi tới hôm nay theo Fanpage: gom theo hội thoại (ít, chỉ trong ngày) rồi tra Page của hội thoại. */

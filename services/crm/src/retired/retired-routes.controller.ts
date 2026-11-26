@@ -27,8 +27,7 @@ export class RetiredRoutesController {
   /**
    * G06: kết nối phần mềm bán hàng và sàn TMĐT đã gỡ. Webhook (`/connectors/<nhà cung cấp>/webhook/<token>`), push của
    * sàn (`/connectors/<sàn>/push`) và callback cấp quyền (`/connectors/<sàn>/callback`) trả 410 để phía gửi ngừng thử lại.
-   * Khai báo theo tham số (không liệt kê tên): không route còn sống nào có dạng này (`/connectors/sepay/webhook` không có
-   * token, IPN là `/ipn`).
+   * Khai báo theo tham số (không liệt kê tên); các đường cổng thanh toán (G07b) khai báo riêng bên dưới.
    */
   @Post('connectors/:provider/webhook/:token')
   @Public()
@@ -48,5 +47,60 @@ export class RetiredRoutesController {
   @Public()
   marketplaceCallback(): never {
     throw goneError('Kết nối sàn thương mại điện tử');
+  }
+
+  /**
+   * G07b: cổng thanh toán SePay, VNPay, MoMo đã gỡ. Webhook SePay, IPN/return VNPay và MoMo, link thanh toán gửi khách,
+   * và tạo yêu cầu thanh toán trả 410. Đường cần đăng nhập (`/connectors`, `/payments`, kết nối/ngắt cổng) đã xoá hẳn ⇒ 404.
+   */
+  @Post('connectors/sepay/webhook')
+  @Public()
+  @HttpCode(410)
+  sepayWebhook(): never {
+    throw goneError('Cổng thanh toán SePay');
+  }
+
+  @Get('connectors/vnpay/ipn')
+  @Public()
+  vnpayIpn(): never {
+    throw goneError('Cổng thanh toán VNPay');
+  }
+
+  @Get('pay/vnpay/return')
+  @Public()
+  vnpayReturn(): never {
+    throw goneError('Cổng thanh toán VNPay');
+  }
+
+  @Get('pay/:code/vnpay')
+  @Public()
+  vnpayLink(): never {
+    throw goneError('Cổng thanh toán VNPay');
+  }
+
+  @Post('connectors/momo/ipn')
+  @Public()
+  @HttpCode(410)
+  momoIpn(): never {
+    throw goneError('Cổng thanh toán MoMo');
+  }
+
+  @Get('pay/momo/return')
+  @Public()
+  momoReturn(): never {
+    throw goneError('Cổng thanh toán MoMo');
+  }
+
+  @Get('pay/:code/momo')
+  @Public()
+  momoLink(): never {
+    throw goneError('Cổng thanh toán MoMo');
+  }
+
+  @Post('payments')
+  @Public()
+  @HttpCode(410)
+  createPayment(): never {
+    throw goneError('Yêu cầu thanh toán');
   }
 }

@@ -31,7 +31,6 @@ export const INTEGRATION_EVENT_META = {
   'facebook.comment_received': { resource: 'facebook_comment', label: 'Fanpage: có bình luận mới' },
   'social_post.published': { resource: 'social_post', label: 'Đăng bài: đã lên kênh' },
   'social_post.failed': { resource: 'social_post', label: 'Đăng bài: đăng lỗi' },
-  'payment.received': { resource: 'payment_intent', label: 'Thanh toán: đã nhận tiền (SePay, VNPay, MoMo)' },
   'store_order.created': { resource: 'store_order', label: 'Trang bán hàng: có đơn mới' },
   'store_order.paid': { resource: 'store_order', label: 'Trang bán hàng: đơn đã thanh toán (nhân viên xác nhận)' },
   'store_order.status_changed': { resource: 'store_order', label: 'Trang bán hàng: đơn đổi trạng thái' },
@@ -190,19 +189,6 @@ export interface StoreOrderEventSnapshot {
   created_at: string
 }
 
-/** Yêu cầu thanh toán đã nhận đủ tiền — chỉ định danh + số tiền, không nội dung chuyển khoản. */
-export interface PaymentEventRef {
-  payment_intent_id: number
-  code: string
-  amount: number
-  paid_amount: number
-  paid_via: string
-  source_type: string
-  source_id: number | null
-  contact_id: number | null
-  paid_at: string
-}
-
 /** Payload từng loại sự kiện. `origin` = kênh tạo (vd 'public_api', 'import', 'webhook') khi có. */
 export interface IntegrationEventMap {
   'contact.created': { contact: ContactEventSnapshot; origin?: string }
@@ -227,7 +213,6 @@ export interface IntegrationEventMap {
   'facebook.comment_received': FacebookCommentEventRef
   'social_post.published': SocialPostEventRef
   'social_post.failed': SocialPostEventRef
-  'payment.received': PaymentEventRef
   'store_order.created': { order: StoreOrderEventSnapshot }
   'store_order.paid': { order: StoreOrderEventSnapshot }
   /** `previous_status` → `order.status` (new, confirmed, paid, shipped, done, cancelled). */

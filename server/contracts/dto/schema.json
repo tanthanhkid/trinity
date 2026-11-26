@@ -3684,7 +3684,6 @@
         "facebook.comment_received",
         "social_post.published",
         "social_post.failed",
-        "payment.received",
         "store_order.created",
         "store_order.paid",
         "store_order.status_changed"
@@ -3704,7 +3703,7 @@
       "type": "customValidation",
       "name": "arrayMaxSize",
       "constraints": [
-       26
+       25
       ],
       "message": null,
       "each": false
@@ -6793,7 +6792,6 @@
         "facebook.comment_received",
         "social_post.published",
         "social_post.failed",
-        "payment.received",
         "store_order.created",
         "store_order.paid",
         "store_order.status_changed",
@@ -9538,7 +9536,6 @@
         "facebook.comment_received",
         "social_post.published",
         "social_post.failed",
-        "payment.received",
         "store_order.created",
         "store_order.paid",
         "store_order.status_changed"
@@ -9558,7 +9555,7 @@
       "type": "customValidation",
       "name": "arrayMaxSize",
       "constraints": [
-       26
+       25
       ],
       "message": null,
       "each": false

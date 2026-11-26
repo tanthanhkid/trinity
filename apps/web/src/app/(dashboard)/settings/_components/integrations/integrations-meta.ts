@@ -16,13 +16,12 @@ export const STATUS_LABELS: Record<IntegrationAuditStatus, string> = {
   error: "Lỗi",
 }
 
-export type IntegrationSection = "webhook-out" | "webhook-in" | "facebook" | "ai" | "audit" | "zalo-oa" | "payments" | "ban-online"
+export type IntegrationSection = "webhook-out" | "webhook-in" | "facebook" | "ai" | "audit" | "zalo-oa" | "ban-online"
 
 /** Nhóm ở cột trái trang Kết nối (thứ tự = thứ tự hiện). */
 export const INTEGRATION_GROUPS = [
   { key: "ai", label: "Trợ lý AI" },
   { key: "channels", label: "Kênh khách" },
-  { key: "payments", label: "Thanh toán" },
   { key: "commerce", label: "Bán hàng" },
   { key: "data", label: "Dữ liệu & tự động" },
   { key: "log", label: "Nhật ký" },
@@ -44,7 +43,6 @@ export const INTEGRATION_SECTIONS: ReadonlyArray<{
   { value: "facebook", label: "Fanpage Facebook", group: "channels", anyOf: ["integrations.webhooks"], flag: "always", feature: "facebook_page" },
   { value: "ai", label: "Trợ lý AI", group: "ai", anyOf: ["integrations.ai_connect", "integrations.ai_admin"], flag: "mcp" },
   { value: "zalo-oa", label: "Zalo OA", group: "channels", anyOf: ["integrations.webhooks", "contacts.update"], flag: "always", feature: "zalo_oa" },
-  { value: "payments", label: "Thanh toán", group: "payments", anyOf: ["integrations.webhooks", "deals.view"], flag: "always", feature: "payments" },
   { value: "ban-online", label: "Trang bán hàng", group: "commerce", anyOf: ["pos.manage", "deals.view"], flag: "always", feature: "online_store" },
   { value: "audit", label: "Nhật ký tích hợp", group: "log", anyOf: ["integrations.ai_admin"], flag: "any" },
 ]

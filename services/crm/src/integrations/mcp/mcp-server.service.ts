@@ -11,7 +11,6 @@ import { FacebookCommentsService } from '../../facebook/facebook-comments.servic
 import { FacebookChatLinksService } from '../../facebook/facebook-chat-links.service';
 import { FacebookFlowsService } from '../../facebook/facebook-flows.service';
 import { FacebookBroadcastsService } from '../../facebook/facebook-broadcasts.service';
-import { PaymentsService } from '../../connectors/payments.service';
 import { StoreService } from '../../store/store.service';
 import { FacebookMessengerService } from '../../facebook/facebook-messenger.service';
 import { ZaloOaMessagingService } from '../../zalo-oa/zalo-oa-messaging.service';
@@ -102,7 +101,6 @@ export class McpServerService {
     @Optional() facebookBroadcasts?: FacebookBroadcastsService,
     @Optional() facebookMessenger?: FacebookMessengerService,
     @Optional() zaloOa?: ZaloOaMessagingService,
-    @Optional() payments?: PaymentsService,
     @Optional() socialDrafts?: SocialDraftsService,
     @Optional() socialQueue?: SocialQueueService,
     @Optional() socialSnippets?: SocialSnippetsService,
@@ -116,7 +114,7 @@ export class McpServerService {
     @Optional() store?: StoreService,
   ) {
     const social = socialPosts && socialAccounts && socialDrafts && socialQueue && socialSnippets && socialImport && socialRecurrence ? { posts: socialPosts, accounts: socialAccounts, drafts: socialDrafts, queue: socialQueue, snippets: socialSnippets, importer: socialImport, recurrences: socialRecurrence } : undefined;
-    this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, payments, channels, interactions, customReports, setupBuild, channelGuard, store };
+    this.deps = { prisma, scope, contacts, deals, cards, activities, overview, actions, recordLists, templates, briefings, leadScoring, leadIntents, setup, orgFeatures, versions, refs, social, facebookComments, facebookChatLinks, facebookFlows, facebookBroadcasts, facebookMessenger, zaloOa, channels, interactions, customReports, setupBuild, channelGuard, store };
   }
 
   /** Dựng server + đăng ký tool cho 1 request (public để test gọi trực tiếp tool qua `execute`). */

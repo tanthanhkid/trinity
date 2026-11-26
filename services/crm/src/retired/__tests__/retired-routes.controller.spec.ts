@@ -30,3 +30,25 @@ describe('đường công khai của tính năng đã gỡ', () => {
     expect(JSON.stringify((err as HttpException).getResponse())).toContain(text);
   });
 });
+
+describe('G07b: cổng thanh toán đã gỡ', () => {
+  it.each([
+    ['sepayWebhook', 'SePay'],
+    ['vnpayIpn', 'VNPay'],
+    ['vnpayReturn', 'VNPay'],
+    ['vnpayLink', 'VNPay'],
+    ['momoIpn', 'MoMo'],
+    ['momoReturn', 'MoMo'],
+    ['momoLink', 'MoMo'],
+    ['createPayment', 'thanh toán'],
+  ] as const)('%s trả 410', (method, text) => {
+    let err: unknown;
+    try {
+      (new RetiredRoutesController() as unknown as Record<string, () => never>)[method]();
+    } catch (e) {
+      err = e;
+    }
+    expect((err as HttpException).getStatus()).toBe(410);
+    expect(JSON.stringify((err as HttpException).getResponse())).toContain(text);
+  });
+});

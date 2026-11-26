@@ -10,7 +10,6 @@ import { useFacebookPages, useFacebookStatus } from "./use-facebook"
 import { useZaloOaStatus } from "./zalo-oa/use-zalo-oa"
 import { useAiConnections } from "./use-ai-connections"
 import { useInboundSources, useWebhookEndpoints } from "./use-webhooks"
-import { useConnectors } from "./payments/use-payments"
 import type { IntegrationSection, IntegrationsStatus } from "./integrations-meta"
 
 type Open = (s: IntegrationSection) => void
@@ -25,7 +24,6 @@ interface RowState {
 const TESTED: Partial<Record<IntegrationSection, string>> = {
   facebook: "Đã thử với tài khoản thật (13/10/2026)",
   "zalo-oa": "Nhận tin đã thử thật (15/10/2026); trả lời + đọc hồ sơ cần OA gói Tier (chưa thử)",
-  payments: "Chưa thử với tài khoản thật — đã thử bằng dữ liệu mẫu của SePay",
 }
 
 function Row({ section, open, logo, title, description, state, connectLabel = "Kết nối" }: {
@@ -122,47 +120,6 @@ function WebhookInRow({ open, enabled }: { open: Open; enabled: boolean | undefi
   return <Row section="webhook-in" open={open} logo={<ConnectionLogo color="#0e7490" icon={<Webhook />} />} title="Webhook vào" description="Nhận khách từ form web, landing page, Zapier" state={state} connectLabel="Thêm" />
 }
 
-function SepayRow({ open }: { open: Open }) {
-  const c = useConnectors()
-  const sepay = c.data?.find((x) => x.provider === "sepay")
-  let state: RowState | null = null
-  // 403 = tính năng Thanh toán của tổ chức đang tắt — không phải lỗi.
-  if (c.isError) state = httpStatus(c.error) === 403 ? { tone: "off", label: "Tính năng đang tắt" } : { tone: "warning", label: "Không đọc được trạng thái" }
-  else if (sepay) {
-    state = !sepay.connected
-      ? { tone: "off", label: "Chưa kết nối" }
-      : sepay.last_error
-        ? { tone: "warning", label: "Có lỗi" }
-        : { tone: "connected", label: "Đã kết nối", detail: sepay.settings?.bank ? `${sepay.settings.bank} · ${sepay.settings.account_number}` : undefined }
-  }
-  return <Row section="payments" open={open} logo={<ConnectionLogo brand="sepay" color="#1d4ed8" text="SP" />} title="SePay" description="Đối soát yêu cầu cũ: tự khớp tiền chuyển khoản về" state={state} />
-}
-
-function GatewayOverviewRow({ open, provider, title, color, text, description }: { open: Open; provider: "vnpay" | "momo"; title: string; color: string; text: string; description: string }) {
-  const c = useConnectors()
-  const conn = c.data?.find((x) => x.provider === provider)
-  let state: RowState | null = null
-  if (c.isError) state = httpStatus(c.error) === 403 ? { tone: "off", label: "Tính năng đang tắt" } : { tone: "warning", label: "Không đọc được trạng thái" }
-  else if (c.data) {
-    state = !conn?.connected
-      ? { tone: "off", label: "Chưa kết nối" }
-      : conn.last_error
-        ? { tone: "warning", label: "Có lỗi" }
-        : { tone: "connected", label: "Đã kết nối", detail: conn.settings?.sandbox ? "môi trường thử" : undefined }
-  }
-  return (
-    <ConnectionRow
-      testId={`conn-${provider}`}
-      logo={<ConnectionLogo brand={provider} color={color} text={text} />}
-      title={title}
-      description={state?.detail ? `${description} · ${state.detail}` : description}
-      status={state ? <StatusPill tone={state.tone}>{state.label}</StatusPill> : <StatusPill tone="off">Đang kiểm tra…</StatusPill>}
-      note={provider === "momo" ? "Đã thử với môi trường thử của MoMo; chưa thử tài khoản thật" : "Đã thử trên sandbox VNPay (15/10/2026); chưa thử tài khoản thật"}
-      action={<Button variant="outline" onClick={() => open("payments")}>{state?.tone === "connected" || state?.tone === "warning" ? "Quản lý" : "Kết nối"}</Button>}
-    />
-  )
-}
-
 /** Connector đang làm — hiện để khách biết sắp có, nhãn rõ chưa thử với tài khoản thật. */
 const COMING: ReadonlyArray<{ name: string; desc: string; color: string; text: string; brand?: BrandKey }> = [
   { name: "iPOS", desc: "Khách, đơn từ máy bán hàng F&B", color: "#ea580c", text: "iP", brand: "ipos" },
@@ -172,10 +129,8 @@ const COMING: ReadonlyArray<{ name: string; desc: string; color: string; text: s
  * Tổng quan Kết nối & AI: mỗi kênh một dòng (logo · tên · trạng thái · nút). Chỉ hiện dòng của mục người dùng
  * được thấy (`visible`); bấm nút mở thẳng mục đó.
  */
-export function IntegrationsOverview({ visible, status, statusError, open, auditVisible, canPayConnect = false }: {
+export function IntegrationsOverview({ visible, status, statusError, open, auditVisible }: {
   visible: ReadonlySet<IntegrationSection>
-  /** Có quyền cấu hình connector (`integrations.webhooks`) — dòng SePay gọi `GET /connectors` cần quyền này. */
-  canPayConnect?: boolean
   status: IntegrationsStatus | undefined
   statusError?: boolean
   open: Open
@@ -202,13 +157,6 @@ export function IntegrationsOverview({ visible, status, statusError, open, audit
       {visible.has("ai") && (
         <ConnectionGroup label="Trợ lý AI">
           <AiRow open={open} enabled={mcp} />
-        </ConnectionGroup>
-      )}
-      {visible.has("payments") && canPayConnect && (
-        <ConnectionGroup label="Thanh toán">
-          <SepayRow open={open} />
-          <GatewayOverviewRow open={open} provider="vnpay" title="VNPay" color="#e11d48" text="VN" description="Đối soát yêu cầu cũ: tự khớp tiền về qua IPN" />
-          <GatewayOverviewRow open={open} provider="momo" title="MoMo" color="#a50064" text="M" description="Đối soát yêu cầu cũ: tự khớp tiền về qua IPN" />
         </ConnectionGroup>
       )}
       {data && (

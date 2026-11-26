@@ -6,5 +6,5 @@ Logos are trademarks of their owners and are used only to name the products Trin
 |---|---|
 | facebook.svg, zalo.svg | Wikimedia Commons (2023 Facebook icon.svg, Zalo icon.svg) |
 | messenger.svg, youtube.svg, instagram.svg, tiktok.svg, n8n.svg, zapier.svg, make.svg, google-business.svg | Simple Icons (CC0, simple-icons@13.21.0), brand colour |
-| sepay.png, vnpay.png, momo.png, ipos.png | The brand's own site icon (favicon / apple-touch-icon), resized to 128 px |
+| ipos.png | The brand's own site icon (favicon / apple-touch-icon), resized to 128 px |
 | ../ai/chatgpt.svg, ../ai/claude.svg, ../ai/gemini.svg | Wikimedia Commons (ChatGPT logo Square.svg, Claude AI symbol.svg, Google Gemini icon 2025.svg) |

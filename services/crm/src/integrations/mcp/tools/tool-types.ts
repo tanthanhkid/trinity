@@ -33,7 +33,6 @@ import type { FacebookCommentsService } from '../../../facebook/facebook-comment
 import type { FacebookChatLinksService } from '../../../facebook/facebook-chat-links.service';
 import type { FacebookFlowsService } from '../../../facebook/facebook-flows.service';
 import type { FacebookBroadcastsService } from '../../../facebook/facebook-broadcasts.service';
-import type { PaymentsService } from '../../../connectors/payments.service';
 import type { StoreService } from '../../../store/store.service';
 import type { FacebookMessengerService } from '../../../facebook/facebook-messenger.service';
 import type { ZaloOaMessagingService } from '../../../zalo-oa/zalo-oa-messaging.service';
@@ -78,8 +77,6 @@ export interface McpDeps {
   /** Hộp thư Messenger / Zalo OA — trả lời khách từ AI (list_unanswered_messages, reply_to_customer). */
   facebookMessenger?: FacebookMessengerService;
   zaloOa?: ZaloOaMessagingService;
-  /** Yêu cầu thanh toán + tự khớp tiền (SePay…); chỉ có khi module Connectors được nối. */
-  payments?: PaymentsService;
   /** Trang bán hàng online (cấu hình, tài khoản nhận chuyển khoản VietQR); chỉ có khi StoreModule được nối. */
   store?: StoreService;
   /** Kênh đã kết nối + số liệu hôm nay (cùng dữ liệu khối "Kênh đã kết nối" ở Tổng quan). */

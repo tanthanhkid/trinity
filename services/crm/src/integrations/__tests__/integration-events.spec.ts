@@ -22,7 +22,7 @@ describe('catalog sự kiện', () => {
         'custom_record.created', 'custom_record.updated', 'custom_record.deleted',
         'zalo_oa.message_received', 'zalo_oa.message_sent',
         'messenger.message_received', 'messenger.message_sent', 'messenger.broadcast_finished', 'facebook.comment_received',
-        'social_post.published', 'social_post.failed', 'payment.received', 'store_order.created', 'store_order.paid', 'store_order.status_changed',
+        'social_post.published', 'social_post.failed', 'store_order.created', 'store_order.paid', 'store_order.status_changed',
       ].sort(),
     );
     for (const t of INTEGRATION_EVENT_TYPES) {

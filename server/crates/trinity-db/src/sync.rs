@@ -4,14 +4,22 @@
 //!
 //! Luật ghi: **ghi DB trước rồi gửi tin**. [`publish_in_tx`] gửi bằng `pg_notify` trên chính giao dịch nghiệp vụ; Postgres
 //! chỉ phát `NOTIFY` khi giao dịch commit (rollback thì không), nên bên nghe không bao giờ thấy tin về dòng chưa tồn tại.
-//! Bên nghe: [`listen`] (nối lại có lùi bước; sau mỗi lần nối lại gửi [`SyncEvent::Resync`] để xoá cache và nạp lại từ DB).
+//! Bên nghe: [`listen_from_env`] / [`listen`] (kết nối RIÊNG, không mượn pool của app; nối lại có lùi bước; mỗi lần mất kết
+//! nối gửi [`SyncEvent::Resync`] để xoá cache và nạp lại từ các bảng bền). `TRINITY_SYNC=off` hoặc `TRINITY_RUNTIME=serverless`
+//! ⇒ không nghe, như bản Node ([`sync_enabled`]).
+//!
+//! Tin do chính tiến trình này phát bị lọc khỏi bên nghe: bên gọi tự áp dụng thay đổi cục bộ (vd đẩy socket nội bộ từ dữ liệu
+//! `create_notification` trả về) rồi mới gửi; chỉ các tiến trình khác nhận qua `NOTIFY`.
 
+use std::collections::HashSet;
 use std::sync::OnceLock;
 use std::time::Duration;
 
 use serde_json::{Map, Value};
-use sqlx::postgres::PgListener;
+use sqlx::postgres::{PgConnectOptions, PgListener, PgPoolOptions};
 use sqlx::{PgConnection, PgPool};
+
+use crate::{DbConfig, DbError};
 use tokio::sync::mpsc;
 
 pub const SYNC_CHANNEL: &str = "trinity_sync";
@@ -109,11 +117,7 @@ pub async fn publish_in_tx(
     fields: &Map<String, Value>,
 ) -> Result<(), SyncError> {
     let payload = build_payload(origin(), kind, company, fields)?;
-    sqlx::query("SELECT pg_notify($1, $2)")
-        .bind(SYNC_CHANNEL)
-        .bind(payload)
-        .execute(conn)
-        .await?;
+    send(conn, &payload).await?;
     Ok(())
 }
 
@@ -125,26 +129,18 @@ pub async fn publish_bell_in_tx(
     user_ids: &[i32],
     notification_ids: &[i32],
 ) -> Result<(), SyncError> {
-    let mut users: Vec<i32> = Vec::new();
-    for u in user_ids {
-        if !users.contains(u) {
-            users.push(*u);
-        }
-    }
-    let mut ids: Vec<i32> = Vec::new();
-    for n in notification_ids {
-        if !ids.contains(n) {
-            ids.push(*n);
-        }
-    }
+    let users = dedupe(user_ids);
+    let ids = dedupe(notification_ids);
     if users.is_empty() && ids.is_empty() {
         return Ok(());
     }
+    // Dựng HẾT payload trước khi gửi bất cứ tin nào: lỗi dựng (quá lớn) không để lại nửa chừng.
     let chunks = users
         .len()
         .div_ceil(BELL_CHUNK)
         .max(ids.len().div_ceil(BELL_CHUNK))
         .max(1);
+    let mut payloads = Vec::with_capacity(chunks);
     for i in 0..chunks {
         let slice = |v: &[i32]| -> Value {
             Value::Array(
@@ -158,9 +154,57 @@ pub async fn publish_bell_in_tx(
         let mut f = Map::new();
         f.insert("u".into(), slice(&users));
         f.insert("n".into(), slice(&ids));
-        publish_in_tx(&mut *conn, "bell", company, &f).await?;
+        payloads.push(build_payload(origin(), "bell", company, &f)?);
+    }
+    for p in payloads {
+        send(&mut *conn, &p).await?;
     }
     Ok(())
+}
+
+/// Như [`publish_bell_in_tx`] nhưng KHÔNG làm hỏng giao dịch nghiệp vụ: gửi trong một `SAVEPOINT` (câu lỗi trong giao dịch
+/// Postgres làm cả giao dịch hỏng, savepoint thì hoàn tác riêng phần tin); lỗi chỉ ghi log. Chỉ gọi trong giao dịch.
+pub async fn publish_bell_best_effort(
+    conn: &mut PgConnection,
+    company: i64,
+    user_ids: &[i32],
+    notification_ids: &[i32],
+) {
+    if sqlx::query("SAVEPOINT trinity_bell").execute(&mut *conn).await.is_err() {
+        tracing::warn!("sync: không tạo được savepoint cho tin bell (bỏ qua tin)");
+        return;
+    }
+    match publish_bell_in_tx(&mut *conn, company, user_ids, notification_ids).await {
+        Ok(()) => {
+            if let Err(e) = sqlx::query("RELEASE SAVEPOINT trinity_bell").execute(&mut *conn).await {
+                tracing::warn!("sync: RELEASE SAVEPOINT bell lỗi: {e}");
+            }
+        }
+        Err(e) => {
+            tracing::warn!("sync: không phát được tin bell (giao dịch nghiệp vụ vẫn giữ): {e}");
+            if let Err(e2) = sqlx::query("ROLLBACK TO SAVEPOINT trinity_bell")
+                .execute(&mut *conn)
+                .await
+            {
+                tracing::warn!("sync: ROLLBACK TO SAVEPOINT bell lỗi: {e2}");
+            }
+        }
+    }
+}
+
+async fn send(conn: &mut PgConnection, payload: &str) -> Result<(), sqlx::Error> {
+    sqlx::query("SELECT pg_notify($1, $2)")
+        .bind(SYNC_CHANNEL)
+        .bind(payload)
+        .execute(conn)
+        .await?;
+    Ok(())
+}
+
+/// Bỏ trùng, giữ thứ tự xuất hiện đầu tiên.
+fn dedupe(v: &[i32]) -> Vec<i32> {
+    let mut seen = HashSet::with_capacity(v.len());
+    v.iter().copied().filter(|x| seen.insert(*x)).collect()
 }
 
 /// Sự kiện từ [`listen`].
@@ -172,26 +216,69 @@ pub enum SyncEvent {
     Resync,
 }
 
-/// Nghe kênh `trinity_sync` trên `pool` (cần kết nối trực tiếp/session-mode). Trả bên nhận; tác vụ nền tự nối lại với lùi
-/// bước tối đa 30 giây và dừng khi bên nhận bị bỏ. Lần nối đầu thất bại không làm hỏng khởi động: lỗi được ghi `tracing::error`
-/// (lần 1 và lần 5) rồi thử lại nền.
-pub fn listen(pool: PgPool) -> mpsc::Receiver<SyncEvent> {
+/// Bật đồng bộ? `TRINITY_SYNC=off` hoặc `TRINITY_RUNTIME=serverless` ⇒ không (cùng luật `syncDisabled` của bản Node).
+pub fn sync_enabled(get: impl Fn(&str) -> Option<String>) -> bool {
+    let low = |k: &str| get(k).map(|v| v.trim().to_lowercase());
+    low("TRINITY_SYNC").as_deref() != Some("off") && low("TRINITY_RUNTIME").as_deref() != Some("serverless")
+}
+
+/// Nghe theo biến môi trường: URL là `DIRECT_DATABASE_URL`, rồi `TENANT_DATABASE_URL`, rồi `DATABASE_URL` (cần nối trực tiếp,
+/// không qua pooler). `Ok(None)` khi đồng bộ bị tắt. Lỗi chỉ khi URL thiếu/là pooler/không đọc được: người gọi báo rõ lúc khởi động.
+pub fn listen_from_env() -> Result<Option<mpsc::Receiver<SyncEvent>>, DbError> {
+    listen_with_lookup(|k| std::env::var(k).ok())
+}
+
+pub fn listen_with_lookup(get: impl Fn(&str) -> Option<String>) -> Result<Option<mpsc::Receiver<SyncEvent>>, DbError> {
+    if !sync_enabled(&get) {
+        return Ok(None);
+    }
+    let url = ["DIRECT_DATABASE_URL", "TENANT_DATABASE_URL", "DATABASE_URL"]
+        .iter()
+        .find_map(|k| get(k).map(|v| v.trim().to_owned()).filter(|v| !v.is_empty()))
+        .ok_or(DbError::MissingUrl)?;
+    let mut cfg = DbConfig::new(url);
+    cfg.multi_tenant = get("MULTI_TENANT").as_deref() == Some("true");
+    Ok(Some(listen(cfg.connect_options()?)))
+}
+
+/// Nghe kênh `trinity_sync` bằng kết nối RIÊNG (một pool một kết nối, không dùng chung pool của app). Tác vụ nền tự nối lại
+/// với lùi bước tối đa 30 giây và dừng ngay khi bên nhận bị bỏ (kể cả đang chờ tin hoặc đang chờ nối lại). Lần nối đầu thất
+/// bại không làm hỏng khởi động: lỗi ghi `tracing::error` (lần 1 và 5) rồi thử lại nền. Mất kết nối ⇒ [`SyncEvent::Resync`].
+pub fn listen(opts: PgConnectOptions) -> mpsc::Receiver<SyncEvent> {
     let (tx, rx) = mpsc::channel(1024);
     tokio::spawn(async move {
         let mut attempt: u32 = 0;
+        let mut was_connected = false;
         loop {
-            match connect(&pool).await {
+            let connected = tokio::select! {
+                () = tx.closed() => return,
+                r = connect(&opts) => r,
+            };
+            match connected {
                 Ok(mut l) => {
-                    if attempt > 0 && tx.send(SyncEvent::Resync).await.is_err() {
+                    attempt = 0;
+                    if was_connected && tx.send(SyncEvent::Resync).await.is_err() {
                         return;
                     }
+                    was_connected = true;
                     loop {
-                        match l.recv().await {
-                            Ok(n) => {
+                        let got = tokio::select! {
+                            () = tx.closed() => return,
+                            r = l.try_recv() => r,
+                        };
+                        match got {
+                            Ok(Some(n)) => {
                                 let Some(env) = parse_payload(n.payload()).filter(|e| e.origin != origin()) else {
                                     continue;
                                 };
                                 if tx.send(SyncEvent::Message(env)).await.is_err() {
+                                    return;
+                                }
+                            }
+                            // `None`: kết nối đứt và sqlx đã nối lại; tin trong lúc đứt đã mất.
+                            Ok(None) => {
+                                tracing::warn!("sync: mất kết nối nghe, đã nối lại: nạp lại trạng thái");
+                                if tx.send(SyncEvent::Resync).await.is_err() {
                                     return;
                                 }
                             }
@@ -201,30 +288,35 @@ pub fn listen(pool: PgPool) -> mpsc::Receiver<SyncEvent> {
                             }
                         }
                     }
-                    attempt = 1; // đã từng nối được: lần nối lại tiếp theo phải Resync
                 }
                 Err(e) => {
                     attempt += 1;
                     if attempt == 1 || attempt == 5 {
                         tracing::error!(
                             "sync: không nối được kênh LISTEN ({e}). Đồng bộ giữa tiến trình đang TẮT, cache chỉ hết hạn theo TTL. \
-                             Kiểm DATABASE_URL/DIRECT_DATABASE_URL (nối trực tiếp, không qua pooler) và tham số SSL."
+                             Kiểm DIRECT_DATABASE_URL/DATABASE_URL (nối trực tiếp, không qua pooler) và tham số SSL; \
+                             đặt TRINITY_SYNC=off nếu chỉ chạy một tiến trình."
                         );
                     }
                 }
             }
-            if tx.is_closed() {
-                return;
-            }
             let delay = Duration::from_millis((500u64 << attempt.clamp(1, 6)).min(30_000));
-            tokio::time::sleep(delay).await;
+            tokio::select! {
+                () = tx.closed() => return,
+                () = tokio::time::sleep(delay) => {}
+            }
         }
     });
     rx
 }
 
-async fn connect(pool: &PgPool) -> Result<PgListener, sqlx::Error> {
-    let mut l = PgListener::connect_with(pool).await?;
+async fn connect(opts: &PgConnectOptions) -> Result<PgListener, sqlx::Error> {
+    let pool: PgPool = PgPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::from_secs(5))
+        .connect_with(opts.clone())
+        .await?;
+    let mut l = PgListener::connect_with(&pool).await?;
     l.listen(SYNC_CHANNEL).await?;
     Ok(l)
 }
@@ -280,6 +372,23 @@ mod tests {
         assert!(parse_payload(r#"{"v":1,"o":"a","k":"la","c":1}"#).is_none());
         assert!(parse_payload(r#"{"v":1,"o":"a","k":"rbac"}"#).is_none());
         assert!(parse_payload(r#"{"v":1,"o":"a","k":"graph","c":0,"ok":true}"#).is_some());
+    }
+
+    #[test]
+    fn dedupe_giu_thu_tu() {
+        assert_eq!(dedupe(&[7, 6, 7, 1, 6]), vec![7, 6, 1]);
+    }
+
+    #[test]
+    fn tat_dong_bo_nhu_node() {
+        let env = |pairs: &'static [(&'static str, &'static str)]| {
+            move |k: &str| pairs.iter().find(|(a, _)| *a == k).map(|(_, v)| (*v).to_owned())
+        };
+        assert!(sync_enabled(env(&[])));
+        assert!(!sync_enabled(env(&[("TRINITY_SYNC", " OFF ")])));
+        assert!(!sync_enabled(env(&[("TRINITY_RUNTIME", "Serverless")])));
+        assert!(matches!(listen_with_lookup(env(&[("TRINITY_SYNC", "off")])), Ok(None)));
+        assert!(matches!(listen_with_lookup(env(&[])), Err(DbError::MissingUrl)));
     }
 
     #[test]

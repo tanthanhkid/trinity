@@ -18,10 +18,11 @@ const { scenarios } = require('./scenarios.json')
 async function main() {
   const prisma = new PrismaClient()
   await prisma.$executeRawUnsafe('TRUNCATE integration_events, notification_logs RESTART IDENTITY CASCADE')
-  await prisma.$executeRawUnsafe('SET session_replication_role = replica') // notification_logs.recipient_id có FK tới users; DB mẫu rỗng
   const out = []
   for (const s of scenarios) {
     await prisma.$transaction(async (tx) => {
+      // notification_logs.recipient_id có FK tới users; DB mẫu rỗng ⇒ bỏ kiểm FK CHỈ trong giao dịch này (SET LOCAL, không rò sang kết nối khác của pool)
+      await tx.$executeRawUnsafe('SET LOCAL session_replication_role = replica')
       if (s.event) await publishIntegrationEvent(tx, s.event.type, s.event.payload, { resourceId: s.event.id, actorUserId: s.event.actor })
       if (s.notify) {
         await tx.notificationLog.createMany({

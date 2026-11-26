@@ -15,6 +15,8 @@ use std::sync::OnceLock;
 use serde_json::Value;
 use sqlx::{PgConnection, Row};
 
+use crate::TenantTx;
+
 use crate::sync::{self, SyncError};
 
 const EVENTS_JSON: &str = include_str!("../../../contracts/events.json");
@@ -98,18 +100,24 @@ pub struct NewNotification {
     pub action_url: Option<String>,
 }
 
-/// Dòng đã tạo.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Dòng đã tạo, đủ dữ liệu để bên gọi đẩy socket NỘI BỘ sau khi commit (cùng thông tin `WsEmitItem` của bản Node + `log_id`).
+/// Tin `NOTIFY bell` bị lọc khỏi chính tiến trình phát, nên socket trong tiến trình này do bên gọi tự đẩy từ dữ liệu này;
+/// các tiến trình khác nhận qua `NOTIFY` và đọc nội dung từ DB theo id.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CreatedNotification {
     pub id: i32,
     pub recipient_id: i32,
+    pub event_type: String,
+    pub title: String,
+    pub body: String,
+    pub action_url: Option<String>,
 }
 
-/// Tạo thông báo cho nhiều người (một câu INSERT) rồi phát `NOTIFY bell` kèm id dòng. Gọi trên giao dịch nghiệp vụ: tin chỉ
-/// phát khi commit. `company` là id công ty của giao dịch (`TenantTx::company().id()`). Danh sách rỗng ⇒ không làm gì.
+/// Tạo thông báo cho nhiều người (một câu INSERT, kết quả theo đúng thứ tự `items`) rồi phát `NOTIFY bell` kèm id dòng. Công
+/// ty lấy từ giao dịch (`tx.company()`). Tin chỉ phát khi giao dịch commit. Việc gửi tin KHÔNG làm hỏng giao dịch nghiệp
+/// vụ: chạy trong savepoint, lỗi chỉ ghi log (người dùng vẫn thấy thông báo ở lần tải sau; cache có TTL). Danh sách rỗng ⇒ không làm gì.
 pub async fn create_notification(
-    conn: &mut PgConnection,
-    company: i32,
+    tx: &mut TenantTx,
     items: &[NewNotification],
 ) -> Result<Vec<CreatedNotification>, OutboxError> {
     if items.is_empty() {
@@ -124,34 +132,45 @@ pub async fn create_notification(
             return Err(OutboxError::InvalidActionUrl(u.to_owned()));
         }
     }
+    let company = i64::from(tx.company().id());
     let recipients: Vec<i32> = items.iter().map(|i| i.recipient_id).collect();
     let events: Vec<&str> = items.iter().map(|i| i.event_type.as_str()).collect();
     let titles: Vec<&str> = items.iter().map(|i| i.title.as_str()).collect();
     let bodies: Vec<&str> = items.iter().map(|i| i.body.as_str()).collect();
     let urls: Vec<Option<&str>> = items.iter().map(|i| i.action_url.as_deref()).collect();
-    let rows = sqlx::query(
+    // RETURNING không thấy cột nguồn (`ord`); câu INSERT … ORDER BY ord cấp id tăng dần theo thứ tự đó, nên sắp theo id là thứ tự đầu vào.
+    let mut rows = sqlx::query(
         "INSERT INTO notification_logs (recipient_id, event_type, channel, title, body, status, sent_at, action_url)
          SELECT r, e, 'in_app', t, b, 'sent', now(), u
          FROM unnest($1::int4[], $2::text[], $3::text[], $4::text[], $5::text[]) WITH ORDINALITY AS x(r, e, t, b, u, ord)
          ORDER BY ord
-         RETURNING id, recipient_id",
+         RETURNING id",
     )
     .bind(&recipients)
     .bind(&events)
     .bind(&titles)
     .bind(&bodies)
     .bind(&urls)
-    .fetch_all(&mut *conn)
-    .await?;
+    .fetch_all(&mut **tx)
+    .await?
+    .iter()
+    .map(|r| r.get::<i32, _>("id"))
+    .collect::<Vec<_>>();
+    rows.sort_unstable();
     let created: Vec<CreatedNotification> = rows
         .iter()
-        .map(|r| CreatedNotification {
-            id: r.get("id"),
-            recipient_id: r.get("recipient_id"),
+        .zip(items)
+        .map(|(id, it)| CreatedNotification {
+            id: *id,
+            recipient_id: it.recipient_id,
+            event_type: it.event_type.clone(),
+            title: it.title.clone(),
+            body: it.body.clone(),
+            action_url: it.action_url.clone(),
         })
         .collect();
     let ids: Vec<i32> = created.iter().map(|c| c.id).collect();
-    sync::publish_bell_in_tx(conn, i64::from(company), &recipients, &ids).await?;
+    sync::publish_bell_best_effort(tx, company, &recipients, &ids).await;
     Ok(created)
 }
 

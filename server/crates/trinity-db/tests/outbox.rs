@@ -150,12 +150,17 @@ async fn muoi_kich_ban_giong_ban_node() {
                     action_url: x["action_url"].as_str().map(str::to_owned),
                 })
                 .collect();
-            let made = create_notification(&mut tx, 1, &items)
+            let made = create_notification(&mut tx, &items)
                 .await
                 .unwrap_or_else(|e| panic!("{name}: {e}"));
             assert_eq!(made.len(), items.len(), "{name}");
             for (m, i) in made.iter().zip(&items) {
                 assert_eq!(m.recipient_id, i.recipient_id, "{name}: thứ tự trả về theo đầu vào");
+                assert_eq!(
+                    (&m.title, &m.body, &m.action_url),
+                    (&i.title, &i.body, &i.action_url),
+                    "{name}: dữ liệu để đẩy socket nội bộ"
+                );
             }
         }
         tx.commit().await.unwrap();
@@ -234,11 +239,11 @@ async fn bell_chi_phat_khi_commit_dung_khuon_va_listener_loc_tin_cua_minh() {
     // Người nghe thô (thấy cả tin của chính tiến trình này) + `sync::listen` (đã lọc tin của mình)
     let mut raw = PgListener::connect(&url()).await.unwrap();
     raw.listen(sync::SYNC_CHANNEL).await.unwrap();
-    let mut filtered = sync::listen(db.raw_pool().clone());
+    let mut filtered = sync::listen(DbConfig::new(url()).connect_options().unwrap());
     tokio::time::sleep(Duration::from_millis(400)).await;
 
     let mut tx = tenant.begin().await.unwrap();
-    create_notification(&mut tx, 1, &[note(7)]).await.unwrap();
+    create_notification(&mut tx, &[note(7)]).await.unwrap();
     tx.rollback().await.unwrap();
     assert!(
         tokio::time::timeout(Duration::from_millis(300), raw.recv())
@@ -249,7 +254,7 @@ async fn bell_chi_phat_khi_commit_dung_khuon_va_listener_loc_tin_cua_minh() {
 
     let t0 = std::time::Instant::now();
     let mut tx = tenant.begin().await.unwrap();
-    let made = create_notification(&mut tx, 1, &[note(7), note(6), note(7)])
+    let made = create_notification(&mut tx, &[note(7), note(6), note(7)])
         .await
         .unwrap();
     tx.commit().await.unwrap();
@@ -332,4 +337,76 @@ async fn bell_nhieu_nguoi_chia_lo_duoi_gioi_han() {
         total += e.fields["n"].as_array().unwrap().len();
     }
     assert_eq!(total, 450);
+}
+
+#[tokio::test]
+#[ignore = "cần TEST_DATABASE_URL"]
+async fn mat_ket_noi_nghe_thi_gui_resync_va_van_nhan_tin_sau_do() {
+    let mut admin = PgConnection::connect(&url()).await.unwrap();
+    let mut rx = sync::listen(DbConfig::new(url()).connect_options().unwrap());
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    // cắt kết nối nghe (kết nối riêng của listener, application_name mặc định của sqlx)
+    let killed: i64 = sqlx::query_scalar(
+        "SELECT count(pg_terminate_backend(pid)) FROM pg_stat_activity
+         WHERE datname = current_database() AND pid <> pg_backend_pid() AND query ILIKE 'LISTEN%trinity_sync%'",
+    )
+    .fetch_one(&mut admin)
+    .await
+    .unwrap();
+    assert!(killed >= 1, "phải có kết nối đang LISTEN");
+    let ev = tokio::time::timeout(Duration::from_secs(5), rx.recv())
+        .await
+        .expect("có Resync")
+        .unwrap();
+    assert_eq!(ev, SyncEvent::Resync);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let payload = sync::build_payload("node-9-abcd", "cache", 1, &Map::new()).unwrap();
+    sqlx::query("SELECT pg_notify($1, $2)")
+        .bind(sync::SYNC_CHANNEL)
+        .bind(payload)
+        .execute(&mut admin)
+        .await
+        .unwrap();
+    match tokio::time::timeout(Duration::from_secs(2), rx.recv())
+        .await
+        .unwrap()
+        .unwrap()
+    {
+        SyncEvent::Message(e) => assert_eq!(e.kind, "cache"),
+        SyncEvent::Resync => {
+            // nối lại có thể báo thêm một Resync trước tin: chấp nhận, rồi phải thấy tin
+            match tokio::time::timeout(Duration::from_secs(2), rx.recv())
+                .await
+                .unwrap()
+                .unwrap()
+            {
+                SyncEvent::Message(e) => assert_eq!(e.kind, "cache"),
+                SyncEvent::Resync => panic!("không thấy tin sau khi nối lại"),
+            }
+        }
+    }
+}
+
+#[tokio::test]
+#[ignore = "cần TEST_DATABASE_URL"]
+async fn bo_receiver_thi_ket_noi_nghe_dong_lai() {
+    let mut admin = PgConnection::connect(&url()).await.unwrap();
+    let before = listeners(&mut admin).await;
+    let rx = sync::listen(DbConfig::new(url()).connect_options().unwrap());
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    assert_eq!(listeners(&mut admin).await, before + 1);
+    drop(rx);
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    assert_eq!(
+        listeners(&mut admin).await,
+        before,
+        "task dừng và nhả kết nối khi receiver bị bỏ"
+    );
+}
+
+async fn listeners(c: &mut PgConnection) -> i64 {
+    sqlx::query_scalar("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND query ILIKE 'LISTEN%trinity_sync%'")
+        .fetch_one(c)
+        .await
+        .unwrap()
 }

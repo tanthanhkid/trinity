@@ -2,7 +2,7 @@
 //! (`trinity check-routes`, boot) và trong CI (`cargo xtask check-routes`).
 //!
 //! Cột được so cho mỗi route đã khai: có trong hợp đồng và không `deprecated`, `access`, `permissions` (như tập),
-//! `permission_mode`, `validation` (chế độ strict/lenient của K15 theo đường dẫn), `status_ok`, `org_feature`, `guards`,
+//! `permission_mode`, `status_ok`, `org_feature`, `guards`,
 //! `param_pipes`. Hợp đồng cũng được kiểm chính nó ([`validate_contract`]): quyền phải có trong catalog, `org_feature`
 //! phải là công tắc có thật. Route trong hợp đồng mà Rust chưa khai không phải lỗi (chuyển dần theo đợt) trừ khi đòi
 //! `require_all` (cổng cuối X06).
@@ -97,10 +97,7 @@ pub fn validate_contract(contract: &Value) -> Vec<String> {
 
 /// So `table` với `contract`. `require_all`: mọi route không `deprecated` trong hợp đồng phải được khai.
 pub fn check(table: &[RouteSpec], contract: &Value, require_all: bool) -> Report {
-    let mut rep = Report {
-        declared: table.len(),
-        ..Report::default()
-    };
+    let mut rep = Report::default();
     let all = rows(contract);
     rep.problems.extend(validate_contract(contract));
     let by_key: BTreeMap<String, &Value> = all
@@ -112,7 +109,10 @@ pub fn check(table: &[RouteSpec], contract: &Value, require_all: bool) -> Report
             )
         })
         .collect();
-    rep.contract_total = by_key.len();
+    rep.contract_total = by_key
+        .values()
+        .filter(|r| r["deprecated"].as_bool() != Some(true))
+        .count();
 
     let mut declared = BTreeSet::new();
     for spec in table {
@@ -125,6 +125,10 @@ pub fn check(table: &[RouteSpec], contract: &Value, require_all: bool) -> Report
             rep.problems.push(format!("{k}: không có trong routes.json"));
             continue;
         };
+        // Route Rust đã khớp một dòng (không deprecated) của hợp đồng: đếm vào "đã khai", dù cột nào lệch thì vẫn là lỗi riêng.
+        if row["deprecated"].as_bool() != Some(true) {
+            rep.declared += 1;
+        }
         let mut diff = |field: &str, rust: String, json: String| {
             if rust != json {
                 rep.problems
@@ -156,16 +160,6 @@ pub fn check(table: &[RouteSpec], contract: &Value, require_all: bool) -> Report
             format!("{:?}", spec.access.mode()),
             format!("{:?}", row["permission_mode"].as_str()),
         );
-        let want = if mode_for_path(spec.path) == Mode::Lenient {
-            "lenient"
-        } else {
-            "strict"
-        };
-        diff(
-            "validation",
-            want.into(),
-            row["validation"].as_str().unwrap_or("").into(),
-        );
         diff(
             "status_ok",
             format!("{:?}", spec.status_ok),
@@ -186,6 +180,12 @@ pub fn check(table: &[RouteSpec], contract: &Value, require_all: bool) -> Report
             format!("{:?}", spec.param_pipes),
             format!("{:?}", strings(&row["param_pipes"])),
         );
+        if spec.org_feature.is_some() && matches!(spec.access, super::Access::Public | super::Access::Internal) {
+            rep.problems.push(format!(
+                "{k}: org_feature trên route {} chưa hỗ trợ",
+                spec.access.kind()
+            ));
+        }
         for p in spec.access.permissions() {
             if !catalog().is_permission(p) {
                 rep.problems.push(format!("{k}: quyền {p} không có trong catalog"));

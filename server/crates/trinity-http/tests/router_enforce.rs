@@ -16,7 +16,9 @@ use trinity_auth::jwt::{self, Claims};
 use trinity_auth::{Authenticator, Security};
 use trinity_db::platform::Platform;
 use trinity_db::{CompanyRef, Db, DbConfig};
-use trinity_http::router::{Access, AccessDeps, ApiRouter, CurrentUser, FeatureFuture, OrgFeatureGate, RouteSpec};
+use trinity_http::router::{
+    Access, AccessDeps, ApiRouter, CurrentUser, FeatureFuture, GuardFuture, NamedGuard, OrgFeatureGate, RouteSpec,
+};
 use trinity_rbac::{PermissionService, RbacCache};
 
 const JWT: &str = "k14-jwt-secret-0123456789abcdef0123456789abcdef";
@@ -31,15 +33,38 @@ impl OrgFeatureGate for Gate {
     }
 }
 
-async fn app(url: &str, gate_on: bool) -> Router {
+/// Guard giả: chặn khi thiếu header `x-k14-guard: ok`.
+struct HeaderGuard;
+
+impl NamedGuard for HeaderGuard {
+    fn check<'a>(&'a self, req: &'a mut axum::extract::Request) -> GuardFuture<'a> {
+        let ok = req.headers().get("x-k14-guard").is_some_and(|v| v == "ok");
+        Box::pin(async move {
+            if ok {
+                Ok(())
+            } else {
+                Err(trinity_kernel::error::HttpError::forbidden("guard chặn"))
+            }
+        })
+    }
+}
+
+fn deps(url: &str, gate_on: bool) -> Arc<AccessDeps> {
     let db = Db::connect_lazy(&DbConfig::new(url)).unwrap();
     let security = Security::new(db.clone(), Platform::new(&db, None), false);
     let cache = RbacCache::new(security.clone());
-    let deps = Arc::new(AccessDeps {
+    Arc::new(AccessDeps {
         auth: Arc::new(Authenticator::new(security, JWT, &[SVC])),
         permissions: PermissionService::new(db, cache),
         features: Some(Arc::new(Gate(gate_on))),
-    });
+        guards: [("TestGuard", Arc::new(HeaderGuard) as Arc<dyn NamedGuard>)]
+            .into_iter()
+            .collect(),
+    })
+}
+
+async fn app(url: &str, gate_on: bool) -> Router {
+    let deps = deps(url, gate_on);
     async fn ok() -> &'static str {
         "ok"
     }
@@ -74,8 +99,28 @@ async fn app(url: &str, gate_on: bool) -> Router {
             RouteSpec::new(Method::GET, "/api/v1/zalo", Access::Can(&["contacts.view"])).org_feature("zalo_oa"),
             ok,
         )
+        .route(
+            RouteSpec::new(Method::GET, "/api/v1/guarded", Access::Public).guards(&["TestGuard"]),
+            ok,
+        )
+        .route(
+            RouteSpec::new(Method::POST, "/api/v1/created", Access::Public).status_ok(201),
+            ok,
+        )
+        .route(
+            RouteSpec::new(Method::GET, "/api/v1/int/{id}", Access::Public).param_pipes(&["param.id:ParseIntPipe"]),
+            ok,
+        )
+        .route(
+            RouteSpec::new(Method::GET, "/api/v1/int4/{id}", Access::Public).param_pipes(&["param.id:ParseInt4Pipe"]),
+            ok,
+        )
+        .route(
+            RouteSpec::new(Method::GET, "/api/v1/uuid/{id}", Access::Public).param_pipes(&["param.id:ParseUUIDPipe"]),
+            ok,
+        )
         .into_parts();
-    assert_eq!(table.len(), 7);
+    assert_eq!(table.len(), 12);
     router
 }
 
@@ -157,9 +202,116 @@ async fn public_internal_va_401_khong_can_db() {
         (s, b["message"].as_str()),
         (StatusCode::UNAUTHORIZED, Some("Token không hợp lệ hoặc đã hết hạn"))
     );
-    // Phương thức không khai báo: 405 từ router, không lọt vào handler.
-    let (s, _) = call(&app, Method::PUT, "/api/v1/pub", &[]).await;
-    assert_eq!(s, StatusCode::METHOD_NOT_ALLOWED);
+}
+
+#[tokio::test]
+async fn phuong_thuc_va_duong_dan_la_404_nhu_nest_truoc_moi_guard() {
+    let app = app("postgresql://u@localhost:1/x", true).await;
+    // Đường dẫn có GET và DELETE (cần đăng nhập) nhưng PUT không khai: 404, không phải 401 của guard route cuối.
+    for (m, p) in [
+        (Method::PUT, "/api/v1/can/1"),
+        (Method::PATCH, "/api/v1/internal"),
+        (Method::PUT, "/api/v1/pub"),
+        (Method::GET, "/api/v1/khong-co"),
+    ] {
+        let (s, b) = call(&app, m.clone(), p, &[]).await;
+        assert_eq!(s, StatusCode::NOT_FOUND, "{m} {p}");
+        assert_eq!(b["message"], format!("Cannot {m} {p}"));
+        assert_eq!(b["error"], "Not Found");
+    }
+}
+
+#[tokio::test]
+async fn guard_rieng_pipe_tham_so_va_ma_thanh_cong_duoc_thuc_thi() {
+    let app = app("postgresql://u@localhost:1/x", true).await;
+    let (s, b) = call(&app, Method::GET, "/api/v1/guarded", &[]).await;
+    assert_eq!((s, b["message"].as_str()), (StatusCode::FORBIDDEN, Some("guard chặn")));
+    assert_eq!(
+        call(&app, Method::GET, "/api/v1/guarded", &[("x-k14-guard", "ok".into())])
+            .await
+            .0,
+        StatusCode::OK
+    );
+    assert_eq!(
+        call(&app, Method::POST, "/api/v1/created", &[]).await.0,
+        StatusCode::CREATED
+    );
+    let msg = |b: &Value| b["message"].as_str().map(str::to_owned);
+    let (s, b) = call(&app, Method::GET, "/api/v1/int/abc", &[]).await;
+    assert_eq!(
+        (s, msg(&b).as_deref()),
+        (
+            StatusCode::BAD_REQUEST,
+            Some("Validation failed (numeric string is expected)")
+        )
+    );
+    assert_eq!(call(&app, Method::GET, "/api/v1/int/42", &[]).await.0, StatusCode::OK);
+    let (s, b) = call(&app, Method::GET, "/api/v1/int4/99999999999", &[]).await;
+    assert_eq!(
+        (s, msg(&b).as_deref()),
+        (StatusCode::BAD_REQUEST, Some("id vượt giới hạn số nguyên 32-bit"))
+    );
+    assert_eq!(
+        call(&app, Method::GET, "/api/v1/int4/0", &[]).await.0,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(call(&app, Method::GET, "/api/v1/int4/7", &[]).await.0, StatusCode::OK);
+    assert_eq!(
+        call(&app, Method::GET, "/api/v1/uuid/xyz", &[]).await.0,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        call(
+            &app,
+            Method::GET,
+            "/api/v1/uuid/123e4567-e89b-12d3-a456-426614174000",
+            &[]
+        )
+        .await
+        .0,
+        StatusCode::OK
+    );
+}
+
+fn route_panics(f: impl FnOnce() + std::panic::UnwindSafe) -> String {
+    let e = std::panic::catch_unwind(f).expect_err("phải dừng lúc khai báo");
+    e.downcast_ref::<String>()
+        .cloned()
+        .or_else(|| e.downcast_ref::<&str>().map(|s| (*s).to_owned()))
+        .unwrap_or_default()
+}
+
+#[tokio::test]
+async fn khai_bao_chua_co_cai_dat_thi_dung_luc_khoi_dong() {
+    async fn ok() {}
+    let d = || deps("postgresql://u@localhost:1/x", true);
+    let m = route_panics(|| {
+        let _ = ApiRouter::<()>::new(d()).route(
+            RouteSpec::new(Method::GET, "/a", Access::Public).guards(&["ApiKeyGuard"]),
+            ok,
+        );
+    });
+    assert!(m.contains("ApiKeyGuard"), "{m}");
+    let m = route_panics(|| {
+        let _ = ApiRouter::<()>::new(d()).route(
+            RouteSpec::new(Method::GET, "/a/{id}", Access::Public).param_pipes(&["param.id:PipeLa"]),
+            ok,
+        );
+    });
+    assert!(m.contains("PipeLa"), "{m}");
+    for access in [Access::Public, Access::Internal] {
+        let m = route_panics(|| {
+            let _ =
+                ApiRouter::<()>::new(d()).route(RouteSpec::new(Method::GET, "/a", access).org_feature("zalo_oa"), ok);
+        });
+        assert!(m.contains("org_feature"), "{m}");
+    }
+    let m = route_panics(|| {
+        let _ = ApiRouter::<()>::new(d())
+            .route(RouteSpec::new(Method::GET, "/a", Access::Public), ok)
+            .route(RouteSpec::new(Method::GET, "/a", Access::Public), ok);
+    });
+    assert!(m.contains("hai lần"), "{m}");
 }
 
 fn url() -> String {
@@ -258,5 +410,22 @@ async fn can_all_any_auth_admin_va_cong_tinh_nang() {
     );
     let (_, b) = call(&off, Method::GET, "/api/v1/zalo", &[bearer(9304)]).await;
     assert_eq!(b["message"].as_str(), forbidden);
+    teardown().await;
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres"]
+async fn loi_db_khi_nap_quyen_la_500_khong_phai_401() {
+    setup().await;
+    let on = app(&url(), true).await;
+    // Hỏng bảng vai trò sau khi xác thực qua được: nạp quyền lỗi ⇒ 500 (như Node, nằm ngoài try/catch của JwtAuthGuard).
+    exec("ALTER TABLE user_roles RENAME TO user_roles_k14_off").await;
+    let (s, b) = call(&on, Method::GET, "/api/v1/can/1", &[bearer(9302)]).await;
+    exec("ALTER TABLE user_roles_k14_off RENAME TO user_roles").await;
+    assert_eq!(
+        (s, b["statusCode"].as_u64()),
+        (StatusCode::INTERNAL_SERVER_ERROR, Some(500))
+    );
+    assert_eq!(b["message"], "Internal Server Error");
     teardown().await;
 }

@@ -2,6 +2,7 @@
 //! issue sau (docs/rust/PLAN.md mục 4.1).
 
 mod migrate;
+mod routes;
 
 use std::io::Write;
 use std::process::ExitCode;
@@ -147,14 +148,9 @@ async fn run_invariants(args: &InvariantsArgs) -> Result<bool, String> {
     Ok(report.ok())
 }
 
-/// Bảng route đã khai của binary: mỗi module thêm hàm `routes()` vào đây khi có route đầu tiên (K14).
-fn declared_routes() -> Vec<trinity_http::router::RouteSpec> {
-    Vec::new()
-}
-
 fn check_routes(require_all: bool) -> ExitCode {
     let mut err = std::io::stderr().lock();
-    let rep = trinity_http::router::check::check_embedded(&declared_routes(), require_all);
+    let rep = routes::check(require_all);
     for p in &rep.problems {
         let _ = writeln!(err, "{p}");
     }
@@ -203,6 +199,10 @@ fn check_config() -> ExitCode {
             "Không khởi động: cấu hình IP của khách sai:\n- {}",
             ip_problems.join("\n- ")
         );
+        return ExitCode::FAILURE;
+    }
+    if let Err(e) = routes::boot_check() {
+        let _ = writeln!(err, "{e}");
         return ExitCode::FAILURE;
     }
     for w in client_ip::startup_warnings(&env) {

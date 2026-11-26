@@ -9,7 +9,7 @@ fn contract() -> Value {
     serde_json::from_str(CONTRACT).unwrap()
 }
 
-/// Ba route thật của hợp đồng: một `can` có pipe, một `can` có tính năng tổ chức, một `public`.
+/// Hai route `can` thật của hợp đồng (một có pipe tham số); route có `org_feature` kiểm riêng ở test bên dưới.
 fn good() -> Vec<RouteSpec> {
     vec![
         RouteSpec::new(Method::GET, "/api/v1/api-keys", Access::Can(&["settings.integrations"])).status_ok(200),
@@ -169,4 +169,28 @@ fn hop_dong_hong_bi_bat() {
 fn duong_dan_axum_doi_dau_hai_cham() {
     let s = RouteSpec::new(Method::GET, "/api/v1/a/:id/b/:cardId", Access::Public);
     assert_eq!(s.axum_path(), "/api/v1/a/{id}/b/{cardId}");
+}
+
+#[test]
+fn dem_da_khai_chi_tinh_route_khop_va_org_feature_tren_public_bi_chan() {
+    let c = contract();
+    let mut table = good();
+    table.push(RouteSpec::new(Method::GET, "/api/v1/khong-co", Access::Public));
+    let rep = check(&table, &c, false);
+    assert_eq!(rep.declared, 2, "route không có trong hợp đồng không được đếm");
+    assert!(!rep.ok());
+    let rep = check(
+        &[RouteSpec::new(Method::GET, "/api/v1/live", Access::Public)
+            .status_ok(200)
+            .org_feature("zalo_oa")],
+        &c,
+        false,
+    );
+    assert!(
+        rep.problems
+            .iter()
+            .any(|p| p.contains("org_feature trên route public chưa hỗ trợ")),
+        "{:?}",
+        rep.problems
+    );
 }

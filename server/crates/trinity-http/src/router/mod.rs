@@ -29,7 +29,9 @@ use axum::http::Method;
 use axum::middleware::from_fn_with_state;
 use axum::routing::{MethodFilter, on};
 
-pub use enforce::{AccessDeps, CurrentUser, FeatureFuture, OrgFeatureGate, feature_disabled_message};
+pub use enforce::{
+    AccessDeps, CurrentUser, FeatureFuture, GuardFuture, NamedGuard, OrgFeatureGate, feature_disabled_message,
+};
 
 /// Loại truy cập của route, tương ứng `AccessMeta` của `@Can`/`@CanAny`/`@AuthOnly`/`@Public`/`@Internal`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -155,6 +157,11 @@ impl RouteSpec {
 /// Bảng route đã khai, để so với hợp đồng.
 pub type RouteTable = Vec<RouteSpec>;
 
+/// Đường dẫn không khớp route nào: 404 dạng Nest.
+async fn fallback_404(req: axum::extract::Request) -> axum::response::Response {
+    enforce::not_found(req.method(), req.uri().path())
+}
+
 /// Router chỉ nhận route kèm khai báo quyền.
 pub struct ApiRouter<S = ()> {
     router: Router<S>,
@@ -166,7 +173,7 @@ pub struct ApiRouter<S = ()> {
 impl<S: Clone + Send + Sync + 'static> ApiRouter<S> {
     pub fn new(deps: Arc<AccessDeps>) -> Self {
         Self {
-            router: Router::new(),
+            router: Router::new().fallback(fallback_404),
             table: Vec::new(),
             seen: BTreeSet::new(),
             deps,

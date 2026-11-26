@@ -12,7 +12,7 @@ other's data or connected channels. Self-hosted installs keep the default single
 | `DEFAULT_COMPANY_NAME` | `Công ty mặc định` | Name of company 1 (the data that existed before multi-tenancy). |
 | `TENANT_MAX_CLIENTS` | `30` | Database clients kept open at once (one per active company, LRU). |
 | `TENANT_CONNECTION_LIMIT` | `2` | Connections per company client. Size Postgres `max_connections` ≥ `TENANT_MAX_CLIENTS × TENANT_CONNECTION_LIMIT` + the main pool. |
-
+| `CHANNEL_GUARD_WINDOW_MIN` / `_MIN_CALLS` / `_MIN_BLOCKS` / `_MAX_BLOCK_RATE` / `_POLICY_BLOCKS` / `_PAUSE_HOURS` / `_APP_BACKOFF_MIN` | `60` / `20` / `10` / `0.3` / `2` / `6` / `5` | Auto-pause thresholds, see [Channel abuse protection](#channel-abuse-protection). |
 | `TENANT_DATABASE_URL` | `DIRECT_DATABASE_URL`, then `DATABASE_URL` | URL used for company schemas and their migrations. It must be a direct or session-mode connection: company clients rely on a per-connection `search_path`, which a transaction-mode pooler (PgBouncer, Neon pooled) shares between clients, so a pooled URL is refused. |
 
 The database role needs `CREATE` on the database (to create one schema per company).
@@ -36,12 +36,19 @@ The database role needs `CREATE` on the database (to create one schema per compa
   - Facebook / Zalo webhooks: routed by Page id / OA id (`platform.company_routes`). A Page or OA can be connected by
     one company only.
   - API keys, MCP OAuth codes and tokens issued to company *N* start with `cN.`; unprefixed ones belong to company 1.
-  - Links Trinity hands out (webhook URLs, store and payment links…) carry `?cid=N`. The hint only picks the schema;
-    the secret token or slug must still match there. Links without a hint belong to company 1.
+  - Links Trinity hands out (webhook URLs, store and payment links, VNPay return/IPN URLs…) carry `?cid=N`. The hint
+    only picks the schema; the secret token, slug or gateway signature must still match there. Links without a hint
+    belong to company 1.
+  - Shopee shop ids, Lazada seller ids and online-store addresses (slugs) are claimed in `platform.company_routes`
+    (`shopee_shop`, `lazada_seller`, `store_slug`) — first company wins, a second one is refused, a disconnect or a
+    changed slug releases the claim. A route whose holder no longer has an active connection / store with that id (old
+    "last company wins" routes, a disconnect before release existed) is an orphan: the real owner can take it over
+    (routes younger than 2 minutes are never taken, a claim precedes its row), and boot cleans orphans up. Shopee/Lazada pushes arrive on one shared URL and are routed by that claim; a
+    store link without `?cid=` routes by its slug. Claims that predate this rule are registered at boot.
 - **State outside the database** — permission cache, token blacklist, sessions, rate limits, socket rooms, stored
   files — is keyed by company as well (`tenantKey`), since ids repeat across companies.
-- **Shared tables** live in the `platform` schema (created at boot, outside Prisma migrations): `companies`,
-  `company_logins`, `company_routes`. Triggers in every company schema keep logins and Page/OA routes in sync, and
+- **Shared tables** live in the `platform` schema (created at boot, outside Prisma migrations): `companies` (also holds
+  the channel-lock columns), `company_logins`, `company_routes`. Triggers in every company schema keep logins and Page/OA routes in sync, and
   their primary keys make a second company claiming the same email or Page fail at the database.
 - **Staff of a company** (see below): a signed-up company starts with its owner and grows by invitation, up to the
   `maxUsers` of its plan. Company 1 keeps its existing users and plan rules.
@@ -72,6 +79,62 @@ There is no email service, so an invitation is a link the owner copies and sends
 The old database trigger "one user per company" is gone: migration `0019_user_invitations` drops it in every schema
 (`migrate:companies`), and `installSyncTriggers` (version `trinity-sync-v3`) no longer creates it.
 
+## Channel abuse protection
+
+Every company shares one Meta app (and Zalo / Google apps). A company that spams Messenger, comments or posts can get
+the **whole app** restricted, so outbound channels are limited per company. Everything below applies only when
+`MULTI_TENANT=true`; a single-company install has no limits, no lock and no pause.
+
+**Plan limits** (`PLANS[..].channelLimits` in `packages/rbac/src/org-features.ts`, counted on the server in the
+company's own `channel_usage` table, atomically — parallel requests cannot overshoot):
+
+| Plan | Bulk messages / day | Recipients / campaign | Posts / day | Auto comment replies / hour |
+|---|---|---|---|---|
+| `ket_noi` | 200 | 200 | 10 | 60 |
+| `tro_ly_giam_doc` | 300 | 300 | 15 | 60 |
+| `tro_ly_kinh_doanh` | 1000 | 1000 | 40 | 200 |
+| `tro_ly_van_hanh` | 3000 | 2000 | 100 | 500 |
+| `custom` (default plan; wide, still capped) | 5000 | 2000 | 200 | 1000 |
+
+"Bulk messages" = Messenger broadcast recipients and Zalo ZNS sends; "posts" = post targets created or scheduled (one
+per channel); days are Vietnam days. Over a limit the action is refused with a plain Vietnamese message (HTTP 429, code
+`channel_quota`), a warning is logged and a `limit_exceeded` event recorded. A broadcast that runs out of quota midway
+stops: the rest is marked skipped with the reason. A campaign over the recipient cap is refused when you press send.
+
+**Graph API error tracking.** Every *outgoing* Graph call (message, comment reply/hide, post) reports its outcome per company
+(in memory, last 60 minutes); read calls (insights, conversations, tokens) are ignored, so a Page missing `read_insights`
+never trips it. Counted as blocks: #368 (policy/spam), #551 (recipient unavailable), #17 and #32 (per-user / per-Page rate
+limits). Not counted: permission errors (#10, #200–#299 — the company's own setup), outside the 24-hour window
+(subcode 2018278), expired tokens (#190). Past the threshold — two #368, or at least 10 blocks and 30% of at least 20
+sends — **the company's bulk and automatic sending pauses** (broadcasts, flows, automatic comment replies, scheduled posts)
+for `CHANNEL_GUARD_PAUSE_HOURS` (default 6). A pause only **holds** work, it never cancels it: broadcast recipients stay
+queued and resume after the pause, flow steps and scheduled posts are re-scheduled to the end of the pause (a post does not
+use up a retry), and a comment that arrives during a pause stays "unanswered" for staff (hide-on-phone rules still run).
+Only a lock or an exhausted quota stops work for good. The pause covers Facebook/Instagram sending only; Zalo, YouTube,
+TikTok and Google are not paused by Graph errors (a lock still blocks them). The pause is stored in the company's
+`channel_events` (an `auto_pause` event), so every instance sees it; staff replying by hand keep working. End a pause
+early with `channel:lock -- resume <companyId>`.
+App-wide limits (#4, #613, HTTP 429 on outgoing calls) are shared by all companies, so they are never charged to one
+company: when they repeat (3 times within a minute, `CHANNEL_GUARD_APP_BACKOFF_HITS`) the instance backs off automatic
+Facebook/Instagram sending for every company for `CHANNEL_GUARD_APP_BACKOFF_MIN` minutes (default 5); one-off hits and read
+calls never trigger it. Quota is returned when a message does not reach the network (send failure, no token).
+
+**Channel lock (platform owner).** `platform.companies.channels_locked` (+ reason, time) blocks every outbound send of a
+company — bulk, automatic and manual, comments, posts; receiving messages and webhooks keeps working. The state is read
+at most 10 seconds stale on any instance.
+
+```bash
+MULTI_TENANT=true DATABASE_URL=... pnpm --filter @trinity/prisma channel:lock -- list
+MULTI_TENANT=true DATABASE_URL=... pnpm --filter @trinity/prisma channel:lock -- lock 7 "reported spam"
+MULTI_TENANT=true DATABASE_URL=... pnpm --filter @trinity/prisma channel:lock -- unlock 7
+MULTI_TENANT=true DATABASE_URL=... pnpm --filter @trinity/prisma channel:lock -- resume 7
+```
+
+**Seeing it.** `GET /settings/channel-guard` (admins; limits, usage, events), `GET /settings/channel-guard/alerts` (every signed-in user; only the warning text, feeds the banner) and the MCP tool `get_channel_limits` return the plan limits, usage so far,
+lock/pause state, warnings and the latest events. The app shows a banner when a company is locked, paused or at 80% of a
+limit, and Settings › Features shows the meters. Owners cannot change limits or the lock; only the plan (set by Trinity)
+moves the limits.
+
 ## Deploying an update
 
 1. `prisma migrate deploy` for `public` (company 1), as before.
@@ -93,6 +156,10 @@ database (all schemas) before a migration.
   about one tick per company ahead of them.
 
 ## Tests
+
+`services/crm/src/__pg__/saas-abuse.pg.spec.ts` covers channel limits (per company, atomic), the channel lock, auto-pause,
+and routing: a second company cannot claim another's Shopee shop, Lazada seller or store slug, store links route by slug,
+and VNPay return/IPN with `?cid=` only ever touch the right company's payments.
 
 `services/crm/src/__pg__/tenant-isolation.pg.spec.ts` signs up two companies on a real Postgres and checks that one
 cannot read, count, update or delete the other's rows (models, raw SQL, transactions, guessed ids), that a Page and an

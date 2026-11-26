@@ -17,7 +17,7 @@ import { CompanyRef, DEFAULT_COMPANY, companyRef, currentCompany, isMultiTenant,
  * same email / Page fail at the database.
  */
 
-export type RouteKind = 'facebook_page' | 'zalo_oa' | 'oauth_state' | 'shopee_shop' | 'lazada_seller'
+export type RouteKind = 'facebook_page' | 'zalo_oa' | 'oauth_state' | 'shopee_shop' | 'lazada_seller' | 'store_slug'
 
 export interface CompanyRow {
   id: number
@@ -42,6 +42,10 @@ const PLATFORM_DDL = [
      created_at timestamptz NOT NULL DEFAULT now(),
      migrated_to varchar(255)
    )`,
+  // Công tắc khoá kênh của chủ nền tảng: khoá ⇒ mọi gửi ra ngoài của công ty bị chặn, nhận tin vẫn chạy.
+  `ALTER TABLE platform.companies ADD COLUMN IF NOT EXISTS channels_locked boolean NOT NULL DEFAULT false`,
+  `ALTER TABLE platform.companies ADD COLUMN IF NOT EXISTS channels_lock_reason text`,
+  `ALTER TABLE platform.companies ADD COLUMN IF NOT EXISTS channels_locked_at timestamptz`,
   `CREATE TABLE IF NOT EXISTS platform.company_logins (
      email varchar(255) PRIMARY KEY,
      company_id int NOT NULL REFERENCES platform.companies(id)
@@ -127,6 +131,51 @@ async function doEnsurePlatform(): Promise<void> {
       },
       { timeout: 30_000 },
     )
+  }
+  await backfillSettingRoutes(db).catch((err) => console.warn(`platform: backfill routes failed: ${(err as Error).message}`))
+}
+
+/**
+ * Routes that predate the claim rules: store slugs and marketplace shops/sellers already connected in a company
+ * schema are registered (first company by id wins), so a newer company cannot take them over. Idempotent; a
+ * schema whose tables or JSON are unreadable is skipped.
+ */
+export async function backfillSettingRoutes(db: ReturnType<typeof getBaseClient> = getBaseClient()): Promise<void> {
+  const companies = await db.$queryRawUnsafe<Array<{ id: number; schema_name: string }>>(
+    `SELECT id, schema_name FROM platform.companies ORDER BY id`,
+  )
+  for (const c of companies) {
+    const s = quoteIdent(c.schema_name)
+    const statements: Array<[string, string]> = [
+      [
+        'store_slug',
+        `SELECT lower(trim(((value::json)->>'slug'))) AS ext FROM ${s}.settings WHERE key = 'online_store'`,
+      ],
+      [
+        'shopee_shop',
+        `SELECT (settings->>'shop_id') AS ext FROM ${s}.connector_accounts WHERE provider = 'shopee' AND status <> 'disconnected'`,
+      ],
+      [
+        'lazada_seller',
+        `SELECT (settings->>'seller_id') AS ext FROM ${s}.connector_accounts WHERE provider = 'lazada' AND status <> 'disconnected'`,
+      ],
+    ]
+    for (const [kind, select] of statements) {
+      try {
+        // Orphans first: routes this company holds but no longer backs with an active connection / store.
+        await db.$executeRawUnsafe(
+          `DELETE FROM platform.company_routes r WHERE r.kind = '${kind}' AND r.company_id = ${Number(c.id)} AND r.created_at < now() - interval '2 minutes'
+             AND NOT EXISTS (${backedBySql(s, kind as 'shopee_shop' | 'lazada_seller' | 'store_slug').replace('= $1', '= r.external_id')})`,
+        )
+        await db.$executeRawUnsafe(
+          `INSERT INTO platform.company_routes (kind, external_id, company_id)
+             SELECT '${kind}', ext, ${Number(c.id)} FROM (${select}) q WHERE ext IS NOT NULL AND ext <> ''
+           ON CONFLICT (kind, external_id) DO NOTHING`,
+        )
+      } catch {
+        // table or column missing in this schema (not migrated yet): nothing to backfill
+      }
+    }
   }
 }
 
@@ -331,21 +380,145 @@ export async function rememberOauthState(state: string): Promise<void> {
 }
 
 /**
- * Records that `externalId` (a marketplace shop / seller id whose push webhooks arrive on one shared URL) belongs
- * to the current company. The last company to connect the shop receives its pushes.
+ * Claims `externalId` (a marketplace shop / seller id whose push webhooks arrive on one shared URL, or a store
+ * slug) for the current company. First company wins: a second company claiming the same id is refused, so nobody
+ * can take over another company's webhooks or public store address. Re-claiming your own id is a no-op.
  */
-export async function registerCompanyRoute(kind: 'shopee_shop' | 'lazada_seller', externalId: string): Promise<void> {
+export async function claimCompanyRoute(kind: 'shopee_shop' | 'lazada_seller' | 'store_slug', externalId: string): Promise<void> {
+  if (!isMultiTenant() || !externalId) return
+  const c = currentCompany()
+  if (!c) return
+  await ensurePlatform()
+  const id = kind === 'store_slug' ? externalId.slice(0, 255).toLowerCase() : externalId.slice(0, 255)
+  const db = getBaseClient()
+  const insert = () =>
+    db.$executeRawUnsafe(
+      `INSERT INTO platform.company_routes (kind, external_id, company_id) VALUES ($1, $2, $3)
+       ON CONFLICT (kind, external_id) DO NOTHING`,
+      kind,
+      id,
+      c.id,
+    )
+  await insert()
+  let owner = await companyIdForRoute(kind, id)
+  if (owner !== null && owner !== c.id && !(await holderStillUsesRoute(owner, kind, id))) {
+    // The holder no longer has an active connection / store with this id (an old "last company wins" route, a disconnect that
+    // predates release, a renamed slug): it is an orphan and must not lock out the real owner. Atomic: only if still that holder's, and not claimed in the last 2 minutes (a claim is made just before its connection/store row is saved).
+    await db.$executeRawUnsafe(
+      `UPDATE platform.company_routes SET company_id = $4, created_at = now() WHERE kind = $1 AND external_id = $2 AND company_id = $3
+          AND created_at < now() - interval '2 minutes'`,
+      kind,
+      id,
+      owner,
+      c.id,
+    )
+    owner = await companyIdForRoute(kind, id)
+  }
+  if (owner !== null && owner !== c.id) {
+    throw new ConflictException(
+      kind === 'store_slug'
+        ? 'Địa chỉ trang bán hàng này đã có công ty khác dùng — chọn địa chỉ khác'
+        : kind === 'shopee_shop'
+          ? 'Gian hàng Shopee này đã được một công ty khác kết nối với Trinity'
+          : 'Tài khoản Lazada này đã được một công ty khác kết nối với Trinity',
+    )
+  }
+}
+
+/** SQL: does schema `s` hold an active connection / store with this id? (`$1` = id) */
+function backedBySql(s: string, kind: 'shopee_shop' | 'lazada_seller' | 'store_slug'): string {
+  switch (kind) {
+    case 'shopee_shop':
+      return `SELECT 1 FROM ${s}.connector_accounts WHERE provider = 'shopee' AND status <> 'disconnected' AND settings->>'shop_id' = $1`
+    case 'lazada_seller':
+      return `SELECT 1 FROM ${s}.connector_accounts WHERE provider = 'lazada' AND status <> 'disconnected' AND settings->>'seller_id' = $1`
+    case 'store_slug':
+      return `SELECT 1 FROM ${s}.settings WHERE key = 'online_store' AND lower(trim((value::json)->>'slug')) = $1`
+  }
+}
+
+/**
+ * True unless the holder company is gone or provably has no active connection/store with this id. Anything unreadable
+ * (missing table, bad JSON) counts as "still uses it": never take a route over on doubt.
+ */
+async function holderStillUsesRoute(holderId: number, kind: 'shopee_shop' | 'lazada_seller' | 'store_slug', id: string): Promise<boolean> {
+  const rows = await getBaseClient().$queryRawUnsafe<Array<{ schema_name: string }>>(`SELECT schema_name FROM platform.companies WHERE id = $1`, holderId)
+  if (!rows[0]) return false
+  try {
+    const hit = await getBaseClient().$queryRawUnsafe<unknown[]>(backedBySql(quoteIdent(rows[0].schema_name), kind), id)
+    return hit.length > 0
+  } catch {
+    return true
+  }
+}
+
+/** Releases a route this company holds (store slug changed, marketplace shop disconnected). Never touches another company's route. */
+export async function releaseCompanyRoute(kind: 'shopee_shop' | 'lazada_seller' | 'store_slug', externalId: string): Promise<void> {
   if (!isMultiTenant() || !externalId) return
   const c = currentCompany()
   if (!c) return
   await ensurePlatform()
   await getBaseClient().$executeRawUnsafe(
-    `INSERT INTO platform.company_routes (kind, external_id, company_id) VALUES ($1, $2, $3)
-     ON CONFLICT (kind, external_id) DO UPDATE SET company_id = EXCLUDED.company_id, created_at = now()`,
+    `DELETE FROM platform.company_routes WHERE kind = $1 AND external_id = $2 AND company_id = $3`,
     kind,
     externalId.slice(0, 255),
     c.id,
   )
+}
+
+// ---------------------------------------------------------------- channel lock (platform owner switch)
+
+export interface ChannelLock {
+  locked: boolean
+  reason: string | null
+  lockedAt: Date | null
+}
+
+const lockCache = new Map<number, { v: ChannelLock; at: number }>()
+const LOCK_CACHE_MS = 10_000
+const NOT_LOCKED: ChannelLock = { locked: false, reason: null, lockedAt: null }
+
+/** Owner switch of one company (cached 10 s). Single-company installs have no switch: never locked. */
+export async function getChannelLock(companyId: number): Promise<ChannelLock> {
+  if (!isMultiTenant()) return NOT_LOCKED
+  const hit = lockCache.get(companyId)
+  if (hit && Date.now() - hit.at < LOCK_CACHE_MS) return hit.v
+  await ensurePlatform()
+  const rows = await getBaseClient().$queryRawUnsafe<Array<{ channels_locked: boolean; channels_lock_reason: string | null; channels_locked_at: Date | null }>>(
+    `SELECT channels_locked, channels_lock_reason, channels_locked_at FROM platform.companies WHERE id = $1`,
+    companyId,
+  )
+  const r = rows[0]
+  const v: ChannelLock = r ? { locked: r.channels_locked, reason: r.channels_lock_reason, lockedAt: r.channels_locked_at } : NOT_LOCKED
+  lockCache.set(companyId, { v, at: Date.now() })
+  return v
+}
+
+/** Locks or unlocks outbound channels of a company (platform owner; used by the `channel:lock` / `channel:unlock` CLI). Returns false for an unknown company. */
+export async function setChannelLock(companyId: number, locked: boolean, reason?: string | null): Promise<boolean> {
+  if (!isMultiTenant()) throw new Error('Khoá kênh chỉ có khi MULTI_TENANT=true')
+  await ensurePlatform()
+  const n = await getBaseClient().$executeRawUnsafe(
+    `UPDATE platform.companies
+        SET channels_locked = $2,
+            channels_lock_reason = $3,
+            channels_locked_at = CASE WHEN $2 THEN now() ELSE NULL END
+      WHERE id = $1`,
+    companyId,
+    locked,
+    locked ? (reason?.trim() || 'Chủ nền tảng tạm khoá kênh gửi ra ngoài').slice(0, 500) : null,
+  )
+  lockCache.delete(companyId)
+  return n > 0
+}
+
+/** Every company with its channel-lock state (CLI listing). */
+export async function listChannelLocks(): Promise<Array<{ id: number; name: string; status: string } & ChannelLock>> {
+  await ensurePlatform()
+  const rows = await getBaseClient().$queryRawUnsafe<Array<{ id: number; name: string; status: string; channels_locked: boolean; channels_lock_reason: string | null; channels_locked_at: Date | null }>>(
+    `SELECT id, name, status, channels_locked, channels_lock_reason, channels_locked_at FROM platform.companies ORDER BY id`,
+  )
+  return rows.map((r) => ({ id: r.id, name: r.name, status: r.status, locked: r.channels_locked, reason: r.channels_lock_reason, lockedAt: r.channels_locked_at }))
 }
 
 export async function companyIdForOauthState(state: string): Promise<number | null> {

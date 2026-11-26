@@ -10,7 +10,7 @@ const rule = (o: Record<string, unknown> = {}) => ({
 });
 const change = (o: Record<string, unknown> = {}) => ({ item: 'comment', verb: 'add', comment_id: '111_9_1', post_id: '111_9', from: { id: 'u1', name: 'Lan' }, message: 'Cho xin GIA', created_time: 1760000000, ...o });
 
-function make(rules: unknown[] = [rule()], opts: { dupComment?: boolean; contactByPhone?: boolean; createErr?: unknown; convContact?: number } = {}) {
+function make(rules: unknown[] = [rule()], opts: { dupComment?: boolean; contactByPhone?: boolean; createErr?: unknown; convContact?: number; guard?: unknown } = {}) {
   const prisma: Record<string, any> = {
     facebookComment: {
       create: jest.fn(async () => { if (opts.createErr) throw opts.createErr; return { id: 10n }; }),
@@ -42,7 +42,7 @@ function make(rules: unknown[] = [rule()], opts: { dupComment?: boolean; contact
   };
   const pages = { activePageWithToken: jest.fn(async () => ({ page: PAGE, token: 'TK' })), markTokenInvalid: jest.fn() };
   const publicApi = { createContactInTx: jest.fn(async () => ({ id: 50 })) };
-  const svc = new FacebookCommentsService(prisma as never, graph as never, pages as never, publicApi as never);
+  const svc = new FacebookCommentsService(prisma as never, graph as never, pages as never, publicApi as never, undefined, opts.guard as never);
   const saved = () => (prisma.facebookComment.update.mock.calls.at(-1) as unknown as [{ data: Record<string, unknown> }])[0].data;
   return { svc, prisma, graph, pages, publicApi, saved };
 }
@@ -168,3 +168,31 @@ describe('dryRun', () => {
     expect(t.prisma.facebookComment.create).not.toHaveBeenCalled();
   });
 });
+
+describe('FacebookCommentsService.ingest — chống lạm dụng kênh', () => {
+  const blocked = (blockCode: string) => ({ reserve: jest.fn(async () => { const { ChannelBlockedError } = await import('../../channel-guard/channel-guard.errors'); throw new ChannelBlockedError(blockCode as never, 'Không gửi lúc này'); }), assertOutbound: jest.fn() });
+
+  it('tạm dừng: không trả lời tự động, bình luận còn "chưa trả lời" (không dán nhãn bỏ qua vĩnh viễn)', async () => {
+    const t = make([rule()], { guard: blocked('channel_paused') });
+    await t.svc.ingest('111', change());
+    expect(t.graph.replyToComment).not.toHaveBeenCalled();
+    expect(t.graph.privateReply).not.toHaveBeenCalled();
+    expect(t.saved()).toMatchObject({ status: 'received', note: 'Không gửi lúc này' });
+  });
+
+  it('hết hạn mức giờ: bỏ qua có ghi lý do', async () => {
+    const t = make([rule()], { guard: blocked('channel_quota') });
+    await t.svc.ingest('111', change());
+    expect(t.graph.replyToComment).not.toHaveBeenCalled();
+    expect(t.saved()).toMatchObject({ status: 'skipped' });
+  });
+
+  it('khoá kênh: vẫn ẩn bình luận có SĐT (gỡ nội dung không bị chặn), không gửi trả lời', async () => {
+    const t = make([rule()], { contactByPhone: true, guard: blocked('channel_locked') });
+    await t.svc.ingest('111', change({ message: 'giá sao, gọi 0912 345 678' }));
+    expect(t.graph.hideComment).toHaveBeenCalledWith('TK', '111_9_1');
+    expect(t.graph.replyToComment).not.toHaveBeenCalled();
+    expect(t.saved()).toMatchObject({ status: 'skipped', hidden: true });
+  });
+});
+

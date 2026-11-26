@@ -99,3 +99,21 @@ export const getConnectedChannelsTool: ToolDef = {
     return { structured: out, text: JSON.stringify(out) };
   },
 };
+
+/** Hạn mức kênh gửi ra ngoài của công ty: gói, đã dùng, khoá kênh, tạm dừng tự động, cảnh báo. Chỉ đọc (khoá/mở do chủ nền tảng). */
+export const getChannelLimitsTool: ToolDef = {
+  name: 'get_channel_limits',
+  title: 'Hạn mức kênh gửi / Channel sending limits',
+  description:
+    'Xem hạn mức gửi ra ngoài của công ty theo gói dịch vụ: tin gửi hàng loạt Messenger/Zalo mỗi ngày, số người nhận tối đa mỗi chiến dịch, số bài đăng/hẹn giờ mỗi ngày, số lần trả lời bình luận tự động mỗi giờ — kèm mức đã dùng hôm nay, ' +
+    'trạng thái kênh bị khoá (do Trinity) hoặc tạm dừng tự động (Facebook báo lỗi chặn/spam), các cảnh báo và sự kiện gần đây. Gọi trước khi gửi hàng loạt hay đăng nhiều bài để biết còn bao nhiêu. ' +
+    'enforced=false nghĩa là bản cài một công ty, không có hạn mức. Chỉ đọc. / Shows the company\'s outbound sending limits, usage today, lock and auto-pause state. Read-only.',
+  permissions: [],
+  input: () => ({}),
+  output: (z) => ({ notice: z.string(), data: z.record(z.string(), z.unknown()) }),
+  async run(_args, { deps }) {
+    if (!deps.channelGuard) throw new ToolUserError('Tính năng hạn mức kênh chưa được nối trên máy chủ này. / Channel limits are not available on this server.');
+    const out = wrapData(await deps.channelGuard.status() as unknown as Record<string, unknown>);
+    return { structured: out, text: JSON.stringify(out) };
+  },
+};

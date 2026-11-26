@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '@trinity/prisma';
+import { ChannelGuardService } from '../channel-guard/channel-guard.service';
 import type { MessageChannel, OutboundMessage, SendResult } from '../messaging/message-channel.interface';
 import { ZaloOaApiClient } from './zalo-oa-api.client';
 import { ZaloOaContactLinker } from './zalo-oa-contact-linker.service';
@@ -20,6 +21,7 @@ export class ZaloOaMessagingService implements MessageChannel {
     private readonly tokens: ZaloOaTokenService,
     private readonly threads: ZaloOaThreadsService,
     private readonly linker: ZaloOaContactLinker,
+    @Optional() private readonly channelGuard?: ChannelGuardService,
   ) {}
 
   async isReady(): Promise<boolean> {
@@ -32,6 +34,7 @@ export class ZaloOaMessagingService implements MessageChannel {
   }
 
   async sendText(threadId: number, text: string, sentBy: number | null): Promise<{ message_id: string | null }> {
+    await this.channelGuard?.assertOutbound('manual', 'other');
     const body = text.trim();
     if (!body || body.length > 2000) throw new BadRequestException('Nội dung tin phải từ 1 đến 2000 ký tự');
     const thread = await this.threads.get(threadId);
@@ -59,10 +62,14 @@ export class ZaloOaMessagingService implements MessageChannel {
     if (!phone) throw new BadRequestException('Số điện thoại không hợp lệ (cần SĐT Việt Nam)');
     const { token } = await this.tokens.getAccessToken();
     const thread = await this.prisma.zaloOaThread.findFirst({ where: { phone: { in: this.linker.phoneVariants(phone) } }, select: { id: true } });
+    // ZNS là tin gửi chủ động hàng loạt: tính vào hạn mức tin hàng loạt/ngày của gói (khoá kênh chặn; tạm dừng do Graph KHÔNG áp cho Zalo).
+    // Giữ chỗ sau khi có token, hoàn lại nếu Zalo không nhận.
+    await this.channelGuard?.reserve('bulk_message', 1, undefined, 'other');
     let r: Awaited<ReturnType<ZaloOaApiClient['sendZns']>>;
     try {
       r = await this.api.sendZns(token, { phone, templateId: p.templateId, templateData: p.templateData, trackingId: p.trackingId, mode: zaloOaConfig().znsMode });
     } catch (err) {
+      await this.channelGuard?.refund('bulk_message');
       throw await this.fail(err, thread?.id ?? null, null, p.sentBy);
     }
     if (thread) {
@@ -110,7 +117,7 @@ export class ZaloOaMessagingService implements MessageChannel {
       const r = await this.sendText(thread, m.text, m.sentBy ?? null);
       return { ok: true, messageId: r.message_id };
     } catch (err) {
-      return { ok: false, messageId: null, error: err instanceof BadRequestException ? err.message : 'Gửi Zalo OA thất bại' };
+      return { ok: false, messageId: null, error: err instanceof HttpException ? err.message : 'Gửi Zalo OA thất bại' };
     }
   }
 

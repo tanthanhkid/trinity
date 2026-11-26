@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import type { FacebookFlow, FacebookFlowRun } from '@prisma/client';
 import { Prisma, PrismaService, currentCompanyId } from '@trinity/prisma';
 import { publishMessengerEvent } from './facebook-events';
@@ -7,6 +7,7 @@ import { isWithinMessagingWindow } from './channel';
 import { fillTemplate, matchesKeywords } from './facebook-comments.service';
 import { findVnPhone, MAX_TEXT, referralRef, type MessagingEvent } from './facebook-messenger.service';
 import { FacebookPagesService } from './facebook-pages.service';
+import { ChannelGuardService } from '../channel-guard/channel-guard.service';
 import { GraphApiError, GraphClient } from './graph-client';
 
 export type FlowTrigger = 'keyword' | 'chat_link' | 'first_message';
@@ -162,6 +163,7 @@ export class FacebookFlowsService {
     private readonly prisma: PrismaService,
     private readonly graph: GraphClient,
     private readonly pages: FacebookPagesService,
+    @Optional() private readonly channelGuard?: ChannelGuardService,
   ) {}
 
   /* ---------------- Quản trị ---------------- */
@@ -503,6 +505,17 @@ export class FacebookFlowsService {
     }
     if (!isWithinMessagingWindow(conv.last_inbound_at)) {
       await this.finish(run.id, 'expired', 'Quá 24 giờ kể từ tin cuối của khách — Messenger không cho gửi chủ động');
+      return 'stopped';
+    }
+    // Kịch bản là gửi tự động: khoá kênh / tự tạm dừng (Facebook báo chặn, spam) ⇒ dừng lượt, không gửi thêm.
+    const blocked = await this.channelGuard?.blockReason('auto');
+    if (blocked) {
+      if (blocked.code === 'channel_paused' && blocked.until) {
+        // Tạm dừng: hẹn lại bước này sau khi hết tạm dừng (job "scheduled" gửi tiếp); không huỷ lượt.
+        await this.prisma.facebookFlowRun.update({ where: { id: run.id }, data: { status: 'scheduled', step_id: step.id, due_at: blocked.until, note: blocked.message.slice(0, 300) } });
+        return 'stopped';
+      }
+      await this.finish(run.id, 'stopped', blocked.message);
       return 'stopped';
     }
     const ctx = await this.pages.activePageWithToken(conv.page_id);

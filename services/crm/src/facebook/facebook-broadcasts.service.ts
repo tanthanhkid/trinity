@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import type { FacebookBroadcast, FacebookConversation } from '@prisma/client';
 import { Prisma, PrismaService, publishIntegrationEvent, currentCompanyId } from '@trinity/prisma';
 import { publishMessengerEvent } from './facebook-events';
@@ -7,6 +7,8 @@ import { MESSAGING_WINDOW_MS, isWithinMessagingWindow } from './channel';
 import { fillTemplate } from './facebook-comments.service';
 import { MAX_TEXT } from './facebook-messenger.service';
 import { FacebookPagesService } from './facebook-pages.service';
+import { ChannelBlockedError } from '../channel-guard/channel-guard.errors';
+import { ChannelGuardService } from '../channel-guard/channel-guard.service';
 import { GraphApiError, GraphClient } from './graph-client';
 
 export type BroadcastStatus = 'draft' | 'scheduled' | 'sending' | 'done' | 'cancelled';
@@ -70,6 +72,7 @@ export class FacebookBroadcastsService {
     private readonly prisma: PrismaService,
     private readonly graph: GraphClient,
     private readonly pages: FacebookPagesService,
+    @Optional() private readonly channelGuard?: ChannelGuardService,
   ) {}
 
   /* ---------------- Quản trị ---------------- */
@@ -193,6 +196,11 @@ export class FacebookBroadcastsService {
     const b = await this.get(id);
     if (b.status !== 'draft' && b.status !== 'scheduled') throw new BadRequestException('Lượt này đã gửi hoặc đã huỷ — tạo lượt mới.');
     const when = this.sendTime(at, now);
+    // Chống lạm dụng app Meta dùng chung: khoá/tạm dừng thì không nhận lượt mới; chiến dịch quá trần người nhận bị từ chối ngay.
+    if (this.channelGuard?.enforced()) {
+      await this.channelGuard.assertOutbound('auto');
+      await this.channelGuard.assertRecipients((await this.audience(b.page_id, cleanAudience(b.audience), now)).eligible.length);
+    }
     // Có điều kiện: luồng nền vừa chốt (đang gửi) thì không kéo lượt về "chờ gửi".
     const n = await this.prisma.facebookBroadcast.updateMany({ where: { id, status: { in: ['draft', 'scheduled'] } }, data: { status: 'scheduled', scheduled_at: when } });
     if (n.count !== 1) throw new BadRequestException('Lượt này vừa bắt đầu gửi — không đổi giờ được nữa.');
@@ -270,7 +278,7 @@ export class FacebookBroadcastsService {
         out.sent += r.sent;
         out.failed += r.failed;
         out.skipped += r.skipped;
-        if (r.left === 0) break;
+        if (r.left === 0 || r.paused) break;
       }
     }
     return out;
@@ -284,7 +292,11 @@ export class FacebookBroadcastsService {
     // Đọc lại SAU khi chốt: bản liệt kê có thể đã cũ (vừa sửa nội dung / bộ lọc); từ giờ lượt là "đang gửi" nên không ai sửa được nữa.
     const b = await this.prisma.facebookBroadcast.findUnique({ where: { id: due.id } });
     if (!b) return false;
-    const { eligible } = await this.audience(b.page_id, cleanAudience(b.audience), now);
+    const found = await this.audience(b.page_id, cleanAudience(b.audience), now);
+    // Phòng thủ: người nhận chốt lúc tới giờ có thể đã tăng so với lúc bấm gửi ⇒ cắt theo trần của gói.
+    const cap = (await this.channelGuard?.recipientCap()) ?? Number.MAX_SAFE_INTEGER;
+    if (found.eligible.length > cap) this.logger.warn(`Lượt gửi hàng loạt #${b.id}: ${found.eligible.length} người nhận, cắt còn ${cap} theo hạn mức gói`);
+    const eligible = found.eligible.slice(0, cap);
     if (eligible.length) {
       await this.prisma.facebookBroadcastRecipient.createMany({ data: eligible.map((c) => ({ broadcast_id: b.id, conversation_id: c.id })), skipDuplicates: true });
     }
@@ -304,8 +316,8 @@ export class FacebookBroadcastsService {
     }
   }
 
-  private async sendBatch(b: FacebookBroadcast): Promise<{ sent: number; failed: number; skipped: number; left: number }> {
-    const r = { sent: 0, failed: 0, skipped: 0, left: 0 };
+  private async sendBatch(b: FacebookBroadcast): Promise<{ sent: number; failed: number; skipped: number; left: number; paused?: boolean }> {
+    const r: { sent: number; failed: number; skipped: number; left: number; paused?: boolean } = { sent: 0, failed: 0, skipped: 0, left: 0 };
     const cur = await this.prisma.facebookBroadcast.findUnique({ where: { id: b.id }, select: { status: true } });
     if (cur?.status !== 'sending') return r;
     const queue = await this.prisma.facebookBroadcastRecipient.findMany({ where: { broadcast_id: b.id, status: 'queued' }, orderBy: { id: 'asc' }, take: BATCH });
@@ -315,17 +327,33 @@ export class FacebookBroadcastsService {
     }
     const ctx = await this.pages.activePageWithToken(b.page_id);
     for (const q of queue) {
+      // Tạm dừng (Facebook báo chặn/spam, hoặc giới hạn chung của app): GIỮ NGUYÊN người nhận ở "chờ gửi", lượt nền sau hết tạm dừng sẽ gửi tiếp.
+      // Khoá kênh thì dừng hẳn (xử lý ở `deliver`).
+      const gate = await this.channelGuard?.blockReason('auto');
+      if (gate?.code === 'channel_paused') {
+        r.paused = true;
+        r.left = await this.prisma.facebookBroadcastRecipient.count({ where: { broadcast_id: b.id, status: 'queued' } });
+        return r;
+      }
       const claim = await this.prisma.facebookBroadcastRecipient.updateMany({ where: { id: q.id, status: 'queued' }, data: { status: 'sending', claimed_at: new Date() } });
       if (claim.count === 0) continue;
       const res = await this.deliver(b, q.conversation_id, ctx);
+      if (res.pause) {
+        // Tạm dừng xuất hiện giữa lúc kiểm và lúc giữ chỗ: trả người nhận về "chờ gửi", không ghi gì.
+        await this.prisma.facebookBroadcastRecipient.update({ where: { id: q.id }, data: { status: 'queued', claimed_at: null } });
+        r.paused = true;
+        r.left = await this.prisma.facebookBroadcastRecipient.count({ where: { broadcast_id: b.id, status: 'queued' } });
+        return r;
+      }
       await this.prisma.facebookBroadcastRecipient.update({ where: { id: q.id }, data: { status: res.status, note: res.note?.slice(0, 300) ?? null, sent_at: res.status === 'sent' ? new Date() : null } });
       await this.prisma.facebookBroadcast.update({ where: { id: b.id }, data: { [res.status === 'sent' ? 'sent' : res.status === 'failed' ? 'failed' : 'skipped']: { increment: 1 } } });
       r[res.status]++;
       if (res.stopAll) {
-        // Page mất kết nối: phần còn lại báo lỗi luôn, không thử từng người.
-        const n = await this.prisma.facebookBroadcastRecipient.updateMany({ where: { broadcast_id: b.id, status: 'queued' }, data: { status: 'failed', note: res.note ?? 'Fanpage mất kết nối' } });
-        await this.prisma.facebookBroadcast.update({ where: { id: b.id }, data: { failed: { increment: n.count } } });
-        r.failed += n.count;
+        // Page mất kết nối: phần còn lại báo lỗi luôn, không thử từng người. Hết hạn mức/khoá/tạm dừng: bỏ qua phần còn lại.
+        const stop = res.stopStatus ?? 'failed';
+        const n = await this.prisma.facebookBroadcastRecipient.updateMany({ where: { broadcast_id: b.id, status: 'queued' }, data: { status: stop, note: res.note ?? 'Fanpage mất kết nối' } });
+        await this.prisma.facebookBroadcast.update({ where: { id: b.id }, data: { [stop]: { increment: n.count } } });
+        r[stop] += n.count;
         break;
       }
     }
@@ -338,17 +366,33 @@ export class FacebookBroadcastsService {
     b: FacebookBroadcast,
     conversationId: number,
     ctx: { token: string } | null,
-  ): Promise<{ status: 'sent' | 'failed' | 'skipped'; note?: string; stopAll?: boolean }> {
+  ): Promise<{ status: 'sent' | 'failed' | 'skipped'; note?: string; stopAll?: boolean; stopStatus?: 'failed' | 'skipped'; pause?: boolean }> {
     if (!ctx) return { status: 'failed', note: 'Fanpage đã tắt hoặc mất kết nối', stopAll: true };
     const conv = await this.prisma.facebookConversation.findUnique({ where: { id: conversationId } });
     if (!conv) return { status: 'skipped', note: 'Hội thoại không còn' };
     if (!isWithinMessagingWindow(conv.last_inbound_at)) return { status: 'skipped', note: 'Quá 24 giờ kể từ tin cuối của khách — Messenger không cho gửi' };
     const text = fillTemplate(b.text, conv.customer_name);
+    // Hạn mức tin hàng loạt/ngày của gói (đếm nguyên tử trước khi gọi Meta); khoá kênh / tự tạm dừng cũng dừng ở đây.
+    if (this.channelGuard) {
+      try {
+        await this.channelGuard.reserve('bulk_message');
+      } catch (err) {
+        if (err instanceof ChannelBlockedError) {
+          if (err.blockCode === 'channel_paused') return { status: 'skipped', pause: true };
+          return { status: 'skipped', note: err.message, stopAll: true, stopStatus: 'skipped' };
+        }
+        throw err;
+      }
+    }
+    let delivered = false;
     try {
       const res = await this.graph.sendText(ctx.token, conv.psid, text);
+      delivered = true;
       await this.recordOut(conv, res.message_id, text, b);
       return { status: 'sent' };
     } catch (err) {
+      // Tin chưa tới Facebook ⇒ hoàn hạn mức đã giữ chỗ.
+      if (!delivered) await this.channelGuard?.refund('bulk_message');
       if (err instanceof GraphApiError) {
         if (err.isOutsideWindow) return { status: 'skipped', note: 'Quá 24 giờ kể từ tin cuối của khách' };
         if (err.isTokenError) {

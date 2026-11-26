@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { PrismaService, registerCompanyRoute, rememberOauthState } from '@trinity/prisma';
+import { PrismaService, claimCompanyRoute, releaseCompanyRoute, rememberOauthState } from '@trinity/prisma';
 import { enterRoutedCompany } from '../common/helpers/routed-company';
 import { decryptSecret, encryptSecret, isSecretKeyConfigured, loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { publicBaseUrl } from '../integrations/oauth/oauth-config';
@@ -48,14 +48,16 @@ export class LazadaService {
     if (!st) throw new BadRequestException('Phiên cấp quyền không hợp lệ hoặc đã hết hạn — bấm Kết nối lại.');
     if (!code) throw new BadRequestException('Thiếu code từ Lazada.');
     const t = await new LazadaClient(cfg, fetchFn).token({ code });
+    // Multi-tenant: pushes arrive on the app's single URL, so a seller belongs to ONE company (first claim wins).
+    if (t.seller_id) await claimCompanyRoute('lazada_seller', String(t.seller_id));
     const creds: Creds = { access_token: t.access_token, refresh_token: t.refresh_token, expires_at: Date.now() + t.expires_in * 1000 };
     const old = await this.prisma.connectorAccount.findUnique({ where: { provider: 'lazada' } });
     const same = (old?.settings as LazadaSettings | undefined)?.seller_id === t.seller_id && old?.status !== 'disconnected';
     const settings: LazadaSettings = same ? { ...(old!.settings as unknown as LazadaSettings), account: t.account } : { seller_id: t.seller_id, account: t.account };
     const data = { status: 'active', credentials_enc: encryptSecret(JSON.stringify(creds), loadSecretKey()), settings: settings as object, last_error: null, connected_by: st.userId };
     await this.prisma.connectorAccount.upsert({ where: { provider: 'lazada' }, update: data, create: { provider: 'lazada', ...data } });
-    // Multi-tenant: pushes arrive on the app's single URL — remember which company this seller belongs to.
-    if (t.seller_id) await registerCompanyRoute('lazada_seller', String(t.seller_id));
+    // The previous seller (another account connected over it) no longer routes here.
+    if (old && old.status !== 'disconnected' && !same && (old.settings as unknown as LazadaSettings).seller_id) await releaseCompanyRoute('lazada_seller', String((old.settings as unknown as LazadaSettings).seller_id));
     await this.runSync(fetchFn).catch((e) => this.logger.warn(`Lazada đồng bộ lần đầu lỗi: ${(e as Error).message}`));
   }
 

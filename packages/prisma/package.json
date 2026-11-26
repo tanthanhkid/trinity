@@ -11,7 +11,8 @@
     "seed": "ts-node prisma/seed.ts",
     "studio": "prisma studio",
     "typecheck": "tsc --noEmit",
-    "migrate:companies": "node scripts/migrate-companies.cjs"
+    "migrate:companies": "node scripts/migrate-companies.cjs",
+    "channel:lock": "node scripts/channel-lock.cjs"
   },
   "dependencies": {
     "@nestjs/common": "^10",

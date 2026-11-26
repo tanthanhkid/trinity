@@ -3,6 +3,7 @@ import { PrismaService, publishIntegrationEvent, tenantKey, currentCompanyId } f
 import { trackProductEvent } from '@trinity/logger';
 import { isServerless, runInBackground, type AuthUser } from '@trinity/rbac-nest';
 import type { Prisma, SocialPost, SocialPostTarget } from '@prisma/client';
+import { ChannelGuardService } from '../channel-guard/channel-guard.service';
 import { SocialProviderRegistry } from './providers/provider.registry';
 import { SocialPostGoneError, SocialPublishError, type AccountForPublish, type PostMetrics, type SocialMedia, type SocialProvider } from './providers/provider.types';
 import { TiktokSocialProvider, type TiktokCreatorInfo } from './providers/tiktok.provider';
@@ -142,6 +143,7 @@ export class SocialPostsService {
     readonly media: SocialMediaService,
     private readonly providers: SocialProviderRegistry,
     @Optional() private readonly queue?: SocialQueueService,
+    @Optional() private readonly channelGuard?: ChannelGuardService,
   ) {}
 
   /** Kiểm toàn bộ bài (không ghi gì) — dùng cho cả web và bản xem trước của MCP. */
@@ -391,6 +393,7 @@ export class SocialPostsService {
 
   /** Trả lời công khai một đánh giá Google (gửi lại = sửa câu trả lời). */
   async gbpReply(accountId: number, reviewId: string, comment: string, user: AuthUser) {
+    await this.channelGuard?.assertOutbound('manual');
     const r = await this.gbpCall(accountId, (p, acc) => p.replyReview(acc, reviewId, comment));
     this.logger.log(`Trả lời đánh giá Google (kênh ${accountId}) bởi user ${user.userId}`);
     return r;
@@ -410,6 +413,8 @@ export class SocialPostsService {
       input = { ...input, scheduled_at: slot.toISOString() };
     }
     const v = await this.validate(user, input);
+    // Khoá kênh: chặn sớm (rẻ). Hạn mức bài/ngày được giữ chỗ TRONG transaction, sau kiểm trùng (bản nhập trùng không ăn hạn mức).
+    await this.channelGuard?.assertOutbound('manual');
     const now = new Date();
     const post = await this.prisma.$transaction(async (tx) => {
       if (opts.dedupeSource) {
@@ -417,6 +422,8 @@ export class SocialPostsService {
         if (await tx.socialPost.findFirst({ where: { source: opts.dedupeSource }, select: { id: true } })) throw new ConflictException(ALREADY_CREATED);
         input = { ...input, source: opts.dedupeSource };
       }
+      // Cùng transaction với việc tạo bài: tạo lỗi/hoàn tác thì hạn mức cũng hoàn lại.
+      await this.channelGuard?.reserve('post', v.targets.length, tx);
       const p = await tx.socialPost.create({
         data: {
           content: v.content,
@@ -494,6 +501,9 @@ export class SocialPostsService {
         const n = await tx.socialPost.updateMany({ where: { id, updated_at: opts.expectUpdatedAt }, data });
         if (n.count !== 1) throw conflict();
       } else await tx.socialPost.update({ where: { id }, data });
+      // Sửa bài thêm kênh đích ⇒ phần tăng thêm phải qua hạn mức/khoá kênh, cùng transaction (kênh cũ đã được tính lúc tạo).
+      const extra = v.targets.length - live.length;
+      if (extra > 0) await this.channelGuard?.reserve('post', extra, tx);
       await tx.socialPostTarget.createMany({
         data: v.targets.map((t) => ({ post_id: id, account_id: t.account.id, network: t.account.network, caption: t.caption, options: t.options as Prisma.InputJsonValue, next_attempt_at: at })),
       });
@@ -560,7 +570,14 @@ export class SocialPostsService {
     if (t.status !== 'failed') throw new BadRequestException('Chỉ thử lại được kênh đang báo lỗi.');
     const a = await this.prisma.socialAccount.findUnique({ where: { id: t.account_id } });
     if (!a || a.status !== 'active') throw new BadRequestException('Kênh cần liên kết lại trước khi thử lại.');
-    await this.prisma.socialPostTarget.update({ where: { id: targetId }, data: { status: 'queued', attempts: 0, next_attempt_at: new Date(), last_error: null } });
+    // Thử lại là một lượt đăng mới: qua hạn mức/khoá kênh như lúc tạo; cập nhật lỗi thì hoàn lại.
+    await this.channelGuard?.reserve('post', 1);
+    try {
+      await this.prisma.socialPostTarget.update({ where: { id: targetId }, data: { status: 'queued', attempts: 0, next_attempt_at: new Date(), last_error: null } });
+    } catch (err) {
+      await this.channelGuard?.refund('post');
+      throw err;
+    }
     await this.refreshStatus(t.post_id);
     this.kick();
     return this.get(t.post_id);
@@ -568,6 +585,7 @@ export class SocialPostsService {
 
   /** Gỡ bài đã đăng khỏi mạng (nếu mạng cho phép). */
   async deleteRemote(targetId: number): Promise<PostWithTargets> {
+    // Gỡ nội dung KHÔNG bị khoá kênh/tạm dừng chặn (gỡ bài là dọn, không phải gửi thêm).
     const t = await this.prisma.socialPostTarget.findUnique({ where: { id: targetId } });
     if (!t) throw new NotFoundException('Không tìm thấy kênh của bài');
     if (t.status !== 'published' || !t.external_post_id) throw new BadRequestException('Kênh này chưa có bài đã đăng để gỡ.');
@@ -876,6 +894,16 @@ export class SocialPostsService {
     ]);
     if (!post) return fail('Bài đăng không còn.');
     if (!account || account.status !== 'active' || !isSocialNetwork(account.network)) return fail('Kênh cần liên kết lại (hoặc đã bị gỡ).');
+    // Chống lạm dụng app dùng chung: khoá kênh ⇒ báo lỗi; tự tạm dừng (Facebook báo chặn/spam) ⇒ hẹn lại sau khi hết tạm dừng.
+    // Tạm dừng do Graph chỉ áp cho Facebook/Instagram; YouTube, TikTok, Google chỉ chịu khoá kênh.
+    const blocked = await this.channelGuard?.blockReason('auto', account.network === 'facebook' || account.network === 'instagram' ? 'meta' : 'other');
+    if (blocked) {
+      if (blocked.code === 'channel_locked') return fail(blocked.message);
+      const until = blocked.until ?? new Date(Date.now() + 30 * 60_000);
+      await this.prisma.socialPostTarget.update({ where: { id: t.id }, data: { status: 'queued', attempts: { decrement: 1 }, next_attempt_at: until, last_error: blocked.message.slice(0, 500) } });
+      await this.refreshStatus(t.post_id);
+      return 'retry';
+    }
     const provider = this.providers.get(account.network);
     try {
       const acc = await this.freshAccount(provider, account);

@@ -109,7 +109,7 @@ function fakeDb() {
   return { db, prisma };
 }
 
-function mk() {
+function mk(guard?: unknown) {
   const { db, prisma } = fakeDb();
   let mid = 0;
   const graph = {
@@ -117,7 +117,7 @@ function mk() {
     sendQuickReplies: jest.fn(async () => ({ message_id: `m${++mid}` })),
   };
   const pages = { activePageWithToken: jest.fn(async () => ({ token: 'T', page: {} })), markTokenInvalid: jest.fn() };
-  const svc = new FacebookFlowsService(prisma, graph as never, pages as never);
+  const svc = new FacebookFlowsService(prisma, graph as never, pages as never, guard as never);
   const addFlow = (f: Record<string, any>) => {
     const row = { id: db.flows.length + 1, page_id: 'P', is_active: true, keywords: [], chat_link_id: null, starts: 0, completes: 0, name: 'KB', ...f };
     db.flows.push(row);
@@ -258,3 +258,33 @@ describe('FacebookFlowsService — chạy kịch bản', () => {
     expect(pages.markTokenInvalid).toHaveBeenCalledWith('P');
   });
 });
+
+describe('kịch bản — chống lạm dụng kênh', () => {
+  const flowSteps = [{ id: 's1', text: 'Chào {ten}!' }, { id: 's2', text: 'Tiếp nhé' }];
+
+  it('tạm dừng: hẹn lại bước tới hết tạm dừng (scheduled), không huỷ; hết tạm dừng job gửi tiếp', async () => {
+    const until = new Date(Date.now() + 3_600_000);
+    let paused = true;
+    const guard = { blockReason: jest.fn(async () => (paused ? { code: 'channel_paused', message: 'Đang tạm dừng', until } : null)) };
+    const { db, svc, graph, addFlow, inbound } = mk(guard);
+    addFlow({ trigger: 'keyword', keywords: ['học phí'], steps: flowSteps });
+    await svc.handleEvent('P', inbound('học phí'), true);
+    expect(graph.sendText).not.toHaveBeenCalled();
+    expect(db.runs[0]).toMatchObject({ status: 'scheduled', step_id: 's1', due_at: until });
+    paused = false;
+    db.runs[0].due_at = new Date(Date.now() - 1000);
+    await svc.runDue();
+    expect(graph.sendText).toHaveBeenCalledWith('T', 'U', 'Chào Lan!');
+    expect(db.runs[0].status).toBe('done');
+  });
+
+  it('khoá kênh: dừng hẳn lượt, ghi lý do', async () => {
+    const guard = { blockReason: jest.fn(async () => ({ code: 'channel_locked', message: 'Kênh đang bị tạm khoá' })) };
+    const { db, svc, graph, addFlow, inbound } = mk(guard);
+    addFlow({ trigger: 'keyword', keywords: ['học phí'], steps: flowSteps });
+    await svc.handleEvent('P', inbound('học phí'), true);
+    expect(graph.sendText).not.toHaveBeenCalled();
+    expect(db.runs[0]).toMatchObject({ status: 'stopped', note: 'Kênh đang bị tạm khoá' });
+  });
+});
+

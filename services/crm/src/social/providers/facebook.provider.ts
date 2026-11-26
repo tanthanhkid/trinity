@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import { observeGraph } from '../../channel-guard/graph-observer';
 import { loadFacebookConfig } from '../../facebook/facebook.config';
 import {
   SocialPostGoneError,
@@ -243,7 +244,11 @@ export async function graphCall<T>(
     throw new SocialPublishError('temporary', `Không gọi được Facebook (${(err as Error).name})`);
   }
   const json = (await res.json().catch(() => ({}))) as T & GraphErrorBody;
-  if (!res.ok || json.error) throw classifyGraphError(res.status, json);
+  if (!res.ok || json.error) {
+    observeGraph({ ok: false, httpStatus: res.status, code: json.error?.code ?? null, subcode: json.error?.error_subcode ?? null, send: method === 'POST' });
+    throw classifyGraphError(res.status, json);
+  }
+  observeGraph({ ok: true, httpStatus: res.status, code: null, subcode: null, send: method === 'POST' });
   return json;
 }
 

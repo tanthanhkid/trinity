@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { PrismaService } from '@trinity/prisma';
+import { PrismaService, releaseCompanyRoute } from '@trinity/prisma';
 import { misaAppId } from './misa';
 import { shopeeConfig } from './shopee';
 import { lazadaConfig } from './lazada';
@@ -73,7 +73,7 @@ export class ConnectorsService {
         settings: r ? (r.settings as Record<string, unknown>) : null,
         last_event_at: r?.last_event_at?.toISOString() ?? null,
         last_error: r?.last_error ?? null,
-        // Multi-tenant: URL dán vào dịch vụ ngoài phải mang `cid` (Shopee/Lazada push là URL chung của app đối tác — công ty chọn theo shop/seller đã kết nối (registerCompanyRoute)).
+        // Multi-tenant: URL dán vào dịch vụ ngoài phải mang `cid` (Shopee/Lazada push là URL chung của app đối tác — công ty chọn theo shop/seller đã kết nối (claimCompanyRoute)).
         webhook_path: p === 'shopee' || p === 'lazada' ? webhookPath(p) : withCompanyHint(webhookPath(p)),
         secret_key_configured: isSecretKeyConfigured(),
         server_configured: p === 'misa' ? misaAppId() !== null : p === 'shopee' ? shopeeConfig() !== null : p === 'lazada' ? lazadaConfig() !== null : true,
@@ -135,6 +135,10 @@ export class ConnectorsService {
     if (!r) throw new NotFoundException('Chưa kết nối.');
     // Xoá khoá; giữ dòng để còn lịch sử sự kiện. Kết nối lại sẽ sinh khoá mới.
     await this.prisma.connectorAccount.update({ where: { provider }, data: { status: 'disconnected', credentials_enc: '' } });
+    // Multi-tenant: a disconnected shop/seller stops routing to this company, so its owner can connect it elsewhere.
+    const st = (r.settings ?? {}) as { shop_id?: number | string | null; seller_id?: string | null };
+    if (provider === 'shopee' && st.shop_id) await releaseCompanyRoute('shopee_shop', String(st.shop_id));
+    if (provider === 'lazada' && st.seller_id) await releaseCompanyRoute('lazada_seller', String(st.seller_id));
   }
 
   /** Khoá + cấu hình của kết nối đang chạy; chưa kết nối ⇒ null. */

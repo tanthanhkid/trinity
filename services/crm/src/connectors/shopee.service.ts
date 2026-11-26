@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { PrismaService, registerCompanyRoute, rememberOauthState } from '@trinity/prisma';
+import { PrismaService, claimCompanyRoute, releaseCompanyRoute, rememberOauthState } from '@trinity/prisma';
 import { enterRoutedCompany } from '../common/helpers/routed-company';
 import { decryptSecret, encryptSecret, isSecretKeyConfigured, loadSecretKey } from '../integrations/webhooks/secret-crypto';
 import { publicBaseUrl } from '../integrations/oauth/oauth-config';
@@ -52,14 +52,17 @@ export class ShopeeService {
     const shopId = Number(shopIdRaw);
     if (!code || !Number.isSafeInteger(shopId) || shopId <= 0) throw new BadRequestException('Thiếu code hoặc shop_id từ Shopee.');
     const t = await new ShopeeClient(cfg, fetchFn).token({ code, shopId });
+    // Multi-tenant: pushes arrive on the app's single URL, so a shop belongs to ONE company (first claim wins).
+    // Claimed only AFTER Shopee accepted the code for this shop id — a made-up shop id must not block the real owner.
+    await claimCompanyRoute('shopee_shop', String(shopId));
     const creds: Creds = { access_token: t.access_token, refresh_token: t.refresh_token, expires_at: Date.now() + t.expire_in * 1000 };
     const old = await this.prisma.connectorAccount.findUnique({ where: { provider: 'shopee' } });
     const sameShop = (old?.settings as ShopeeSettings | undefined)?.shop_id === shopId && old?.status !== 'disconnected';
     const settings: ShopeeSettings = sameShop ? { ...(old!.settings as unknown as ShopeeSettings) } : { shop_id: shopId };
     const data = { status: 'active', credentials_enc: encryptSecret(JSON.stringify(creds), loadSecretKey()), settings: settings as object, last_error: null, connected_by: st.userId };
     await this.prisma.connectorAccount.upsert({ where: { provider: 'shopee' }, update: data, create: { provider: 'shopee', ...data } });
-    // Multi-tenant: pushes arrive on the app's single URL — remember which company this shop belongs to.
-    await registerCompanyRoute('shopee_shop', String(shopId));
+    // The previous shop (another one connected over it) no longer routes here.
+    if (old && old.status !== 'disconnected' && !sameShop) await releaseCompanyRoute('shopee_shop', String((old.settings as unknown as ShopeeSettings).shop_id));
     await this.runSync(fetchFn).catch((e) => this.logger.warn(`Shopee đồng bộ lần đầu lỗi: ${(e as Error).message}`));
   }
 

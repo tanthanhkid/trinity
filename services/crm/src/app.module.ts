@@ -34,6 +34,7 @@ import { SocialModule } from './social/social.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { BriefingsModule } from './briefings/briefings.module';
+import { ChannelGuardModule } from './channel-guard/channel-guard.module';
 import { RedisModule } from './common/redis.module';
 import { SampleRecordsModule } from './sample-records/sample-records.module';
 import { HealthController } from './health/health.controller';
@@ -49,6 +50,7 @@ import { SecurityHeadersMiddleware } from './common/middleware/security-headers.
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule, // Global — PrismaService available everywhere
     StorageModule, // Global — MinIO S3 storage
+    ChannelGuardModule, // Global — hạn mức kênh, khoá kênh, tự tạm dừng (chỉ áp khi MULTI_TENANT=true)
     RedisModule, // Global — REDIS_CLIENT token
     SampleRecordsModule, // Global — bản ghi mẫu của hệ thống mới dựng
     ElkLoggerModule.forRoot({ service: 'crm' }),

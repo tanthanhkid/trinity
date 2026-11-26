@@ -28,6 +28,9 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/app/(dashboard)/settings/_components/settings-plan-usage", () => ({
   SettingsPlanUsage: () => null,
 }))
+vi.mock("@/app/(dashboard)/settings/_components/settings-channel-limits", () => ({
+  SettingsChannelLimits: () => null,
+}))
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
 }))

@@ -24,6 +24,7 @@ import type { RecordRefsService } from '../../../custom-objects/refs/record-refs
 import type { ExtensionsService } from '../../../extensions/extensions.service';
 import type { ExtensionsRuntime } from '../../../extensions/extensions.runtime';
 import type { SocialAccountsService } from '../../../social/social-accounts.service';
+import type { ChannelGuardService } from '../../../channel-guard/channel-guard.service';
 import type { SocialPostsService } from '../../../social/social-posts.service';
 import type { SocialDraftsService } from '../../../social/social-drafts.service';
 import type { SocialQueueService } from '../../../social/social-queue.service';
@@ -89,6 +90,8 @@ export interface McpDeps {
   interactions?: InteractionsService;
   /** Báo cáo dùng chung do quản trị viên cấu hình (#25) — `get_report`. */
   customReports?: CustomReportsService;
+  /** Hạn mức kênh, khoá kênh, tạm dừng tự động (get_channel_limits). */
+  channelGuard?: ChannelGuardService;
 }
 
 export interface ToolContext {

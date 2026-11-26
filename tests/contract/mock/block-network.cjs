@@ -1,15 +1,17 @@
 /**
  * Nạp bằng `--require` cho máy chủ Node khi chạy test hợp đồng: chặn mọi kết nối TCP và tra DNS tới địa chỉ KHÔNG phải loopback
- * (chặn mạng, không lời gọi nào ra Internet). Vi phạm được ghi vào tệp `CONTRACT_NET_VIOLATIONS`; bộ chạy đọc tệp này sau mỗi hồ sơ.
+ * (chặn mạng, không lời gọi nào ra Internet), trừ host Postgres khai trong `CONTRACT_NET_ALLOW`. Vi phạm được ghi vào tệp `CONTRACT_NET_VIOLATIONS`; bộ chạy đọc tệp này sau mỗi hồ sơ.
  */
 const fs = require('node:fs')
 const net = require('node:net')
 const dns = require('node:dns')
 
 const file = process.env.CONTRACT_NET_VIOLATIONS
+/** Host được phép ngoài loopback: Postgres của hồ sơ (DATABASE_URL, CONTRACT_PG_ADMIN_URL), bộ chạy truyền qua `CONTRACT_NET_ALLOW` (phân tách dấu phẩy). */
+const allow = new Set(String(process.env.CONTRACT_NET_ALLOW || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean))
 const loopback = (h) => {
   const x = String(h || '').toLowerCase().replace(/^\[|\]$/g, '')
-  return x === '' || x === 'localhost' || x === '::1' || x === '::' || x === '0.0.0.0' || /^127(\.\d{1,3}){3}$/.test(x) || x.startsWith('/')
+  return allow.has(x) || x === '' || x === 'localhost' || x === '::1' || x === '::' || x === '0.0.0.0' || /^127(\.\d{1,3}){3}$/.test(x) || x.startsWith('/')
 }
 const record = (kind, host) => {
   try {

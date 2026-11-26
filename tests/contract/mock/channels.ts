@@ -32,6 +32,8 @@ export interface Mock {
   url: string
   port: number
   close(): Promise<void>
+  /** Xoá cả `unexpected` (bộ chạy gọi trước mỗi hồ sơ). */
+  resetAll(): void
 }
 
 /** Thân lỗi Graph: `{ error: { message, type, code, error_subcode, fbtrace_id } }`. */
@@ -45,11 +47,22 @@ export async function startMock(port: number): Promise<Mock> {
   let unexpected: Call[] = []
   let seq = 0
 
-  const reset = (): void => {
+  /** Đặt lại kịch bản + lời gọi đã ghi + bộ đếm id. `unexpected` được GIỮ (ca kế tiếp reset không được xoá bằng chứng của ca trước); chỉ `all` mới xoá. */
+  const reset = (all = false): void => {
     calls = []
     rules = []
-    unexpected = []
     seq = 0
+    if (all) unexpected = []
+  }
+
+  /** Che giá trị nhạy cảm trước khi ghi lại (query lẫn thân): token, secret, mật khẩu, khoá. */
+  const SENSITIVE = /token|secret|password|authorization|api_?key|appsecret_proof/i
+  const redact = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(redact)
+    if (v && typeof v === 'object') {
+      return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, SENSITIVE.test(k) ? '<redacted>' : redact(x)]))
+    }
+    return v
   }
 
   const matches = (rule: Rule, method: string, path: string): boolean => {
@@ -110,9 +123,12 @@ export async function startMock(port: number): Promise<Mock> {
 
       // Điều khiển
       if (url.pathname.startsWith('/__mock/')) {
-        if (url.pathname === '/__mock/reset' && req.method === 'POST') return reset(), reply(200, { ok: true })
+        if (url.pathname === '/__mock/reset' && req.method === 'POST') return reset(url.searchParams.get('all') === '1'), reply(200, { ok: true })
         if (url.pathname === '/__mock/rules' && req.method === 'POST') {
           const add = body as Rule | Rule[]
+          for (const r of Array.isArray(add) ? add : [add]) {
+            if (typeof r?.match !== 'string' || !/^[A-Z]+ \S/.test(r.match)) return reply(400, { error: `match phải có dạng "METHOD đường-dẫn" (có dấu cách): ${JSON.stringify(r?.match)}` })
+          }
           rules.push(...(Array.isArray(add) ? add : [add]))
           return reply(200, { rules: rules.length })
         }
@@ -132,13 +148,13 @@ export async function startMock(port: number): Promise<Mock> {
         method: req.method ?? 'GET',
         path,
         service: service ?? 'graph',
-        query: Object.fromEntries(url.searchParams),
+        query: redact(Object.fromEntries(url.searchParams)) as Record<string, string>,
         auth: {
           bearer: /^Bearer\s+\S+/.test(String(req.headers.authorization ?? '')),
           access_token: Boolean(req.headers.access_token),
           secret_key: Boolean(req.headers.secret_key),
         },
-        body,
+        body: redact(body),
       }
       if (!service) {
         unexpected.push(call)
@@ -169,5 +185,6 @@ export async function startMock(port: number): Promise<Mock> {
     url: `http://127.0.0.1:${port}`,
     port,
     close: () => new Promise((resolve) => server.close(() => resolve())),
+    resetAll: () => reset(true),
   }
 }

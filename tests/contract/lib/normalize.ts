@@ -48,6 +48,11 @@ export class Normalizer {
   }
 
   private str(key: string, s: string): string {
+    // id số dạng chuỗi (Graph/Zalo, bigint serialize thành chuỗi): cùng nhãn như id số.
+    if (/^\d+$/.test(s)) {
+      if (USER_KEY.test(key)) return `<user:${this.label(this.bucket('user'), Number(s))}>`
+      if (ID_KEY.test(key)) return `<id:${key}:${this.label(this.bucket(key), Number(s))}>`
+    }
     if (SECRET_KEY.test(key) || JWT.test(s)) return '<token>'
     if (UUID.test(s)) return `<uuid:${this.label(this.uuids, s.toLowerCase())}>`
     if (s.endsWith('@contract.test')) return `<email:${this.label(this.emails, s)}>`

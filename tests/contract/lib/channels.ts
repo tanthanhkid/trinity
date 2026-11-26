@@ -13,10 +13,12 @@ async function ctl<T>(path: string, body?: unknown): Promise<T> {
     headers: { 'content-type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  return (await res.json()) as T
+  const json = (await res.json()) as T
+  if (!res.ok) throw new Error(`Máy chủ giả từ chối /__mock/${path}: ${JSON.stringify(json)}`)
+  return json
 }
 
-/** Máy chủ giả Graph/Zalo của bộ chạy: đặt lại, thêm kịch bản lỗi, đọc lời gọi đã ghi. */
+/** Máy chủ giả Graph/Zalo của bộ chạy: đặt lại (giữ `unexpected`), thêm kịch bản lỗi, đọc lời gọi đã ghi. */
 export const mock = {
   reset: (): Promise<unknown> => ctl('reset', {}),
   rules: (...rules: Rule[]): Promise<unknown> => ctl('rules', rules),

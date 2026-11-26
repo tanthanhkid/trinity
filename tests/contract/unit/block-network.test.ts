@@ -22,4 +22,16 @@ describe('block-network.cjs', () => {
     expect(r.stdout).toContain('blocked:ECONNREFUSED')
     expect(fs.readFileSync(log, 'utf8')).toContain('connect 93.184.216.34')
   })
+
+  it('host trong CONTRACT_NET_ALLOW (Postgres không ở loopback) không bị chặn', () => {
+    const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'bn-')), 'v.txt')
+    const code = `
+      const net = require('node:net');
+      const x = net.connect(9, '192.0.2.1'); // TEST-NET-1: không có ai trả lời
+      x.on('error', (e) => { console.log('code:' + e.code); process.exit(0) });
+      setTimeout(() => { console.log('code:TIMEOUT'); process.exit(0) }, 1500);`
+    const r = spawnSync(process.execPath, ['--require', preload, '-e', code], { env: { CONTRACT_NET_VIOLATIONS: log, CONTRACT_NET_ALLOW: '192.0.2.1' }, encoding: 'utf8' })
+    expect(r.stdout).not.toContain('ECONNREFUSED') // không phải lỗi do bộ chặn
+    expect(fs.existsSync(log)).toBe(false)
+  })
 })

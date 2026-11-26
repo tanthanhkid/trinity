@@ -143,7 +143,7 @@ function serverCommand(profile: string): { cmd: string; args: string[] } {
 }
 
 /** Cổng phải trống trước khi khởi động: nếu không, health có thể đến từ tiến trình cũ chứ không phải pid vừa spawn. */
-async function assertPortFree(port: number): Promise<void> {
+async function assertPortFree(port: number, envName = 'CONTRACT_PORT'): Promise<void> {
   const used = await new Promise<boolean>((resolve) => {
     const s = net.connect({ port, host: '127.0.0.1' })
     s.once('connect', () => (s.destroy(), resolve(true)))
@@ -208,10 +208,12 @@ async function main(): Promise<void> {
   const defaults = parseEnvFile(path.join(here, 'profiles', 'default.env'))
   let failed = false
   // Máy chủ giả Graph/Zalo: một cho cả lượt, ca test đặt lại trạng thái qua /__mock/reset.
-  await assertPortFree(MOCK_PORT)
-  const mock: Mock = await startMock(MOCK_PORT)
+  let mock: Mock | undefined
   try {
+    await assertPortFree(MOCK_PORT, 'CONTRACT_MOCK_PORT')
+    mock = await startMock(MOCK_PORT)
     for (const profile of profiles) {
+      mock.resetAll() // mỗi hồ sơ bắt đầu sạch: kịch bản, lời gọi và `unexpected` của hồ sơ trước không lọt sang
       const dbName = `${dbPrefix}_${profile.replace(/[^a-z0-9]/g, '_')}`
       await recreateDb(dbName, tpl)
       const base = `http://127.0.0.1:${PORT}`
@@ -237,8 +239,12 @@ async function main(): Promise<void> {
       fs.rmSync(violationsFile, { force: true })
       if (arg('target')[0] !== 'cmd') {
         // Chặn mạng cho máy chủ Node: mọi kết nối ra ngoài loopback bị từ chối và ghi lại; có vi phạm thì hồ sơ đỏ.
-        env.NODE_OPTIONS = `--require ${path.join(here, 'mock', 'block-network.cjs')}`
+        // Nối thêm vào NODE_OPTIONS sẵn có (không ghi đè), đường dẫn đặt trong ngoặc kép vì có thể chứa dấu cách.
+        const requireOpt = `--require "${path.join(here, 'mock', 'block-network.cjs')}"`
+        env.NODE_OPTIONS = [env.NODE_OPTIONS, requireOpt].filter(Boolean).join(' ')
         env.CONTRACT_NET_VIOLATIONS = violationsFile
+        // Postgres không ở loopback (DATABASE_URL của hồ sơ, CONTRACT_PG_ADMIN_URL) vẫn được phép; mọi host khác bị chặn.
+        env.CONTRACT_NET_ALLOW = [env.DATABASE_URL, adminUrl].map((u) => new URL(u).hostname).join(',')
       }
       // Hồ sơ ghi đè bí mật (production) thắng giá trị chung.
       for (const k of ['JWT_SECRET', 'SERVICE_SECRET', 'INTERNAL_SERVICE_SECRET']) {
@@ -295,7 +301,7 @@ async function main(): Promise<void> {
       }
     }
   } finally {
-    await mock.close()
+    await mock?.close()
     await admin((c) => c.query(`DROP DATABASE IF EXISTS "${tpl}" WITH (FORCE)`))
   }
   console.log(failed ? '[contract] CÓ HỒ SƠ ĐỎ' : `[contract] xanh; kết quả đã chuẩn hoá ở ${outDir}`)

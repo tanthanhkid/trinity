@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { closeDb, q } from '../../lib/db.js'
 import { api, freshIp } from '../../lib/http.js'
 import { config } from '../../lib/config.js'
@@ -22,11 +22,11 @@ beforeEach(async () => {
     adminId = (await q<{ id: number }>(`SELECT id FROM users WHERE email = $1`, [config.adminEmail]))[0].id
   }
 })
-afterAll(async () => {
-  // Không lời gọi nào tới đường mà máy chủ giả không có kịch bản.
+afterEach(async () => {
+  // Không lời gọi nào tới đường mà máy chủ giả không có kịch bản (reset không xoá `unexpected`, nên kiểm sau MỖI ca và cả lượt).
   expect(await mock.unexpected()).toEqual([])
-  await closeDb()
 })
+afterAll(closeDb)
 
 const authed = { get token(): string { return token } }
 

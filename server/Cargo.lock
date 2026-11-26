@@ -158,6 +158,7 @@ dependencies = [
  "matchit",
  "memchr",
  "mime",
+ "multer",
  "percent-encoding",
  "pin-project-lite",
  "serde_core",
@@ -1604,6 +1605,23 @@ checksum = "bb85c154ba489f01b25c0d36ae69a87e4a1c73a72631fc6c0eb6dde34a73e44b"
 dependencies = [
  "num-traits",
  "pxfm",
+]
+
+[[package]]
+name = "multer"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83e87776546dc87511aa5ee218730c92b666d7264ab6ed41f9d215af9cd5224b"
+dependencies = [
+ "bytes",
+ "encoding_rs",
+ "futures-util",
+ "http",
+ "httparse",
+ "memchr",
+ "mime",
+ "spin",
+ "version_check",
 ]
 
 [[package]]
@@ -3272,6 +3290,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "trinity-db",
+ "trinity-http",
  "trinity-kernel",
  "trinity-ops",
 ]
@@ -3315,12 +3334,16 @@ dependencies = [
  "axum",
  "fancy-regex",
  "form_urlencoded",
+ "hmac",
+ "http-body-util",
  "reqwest",
  "rustls",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror",
  "tokio",
+ "tracing",
  "trinity-kernel",
  "url",
 ]

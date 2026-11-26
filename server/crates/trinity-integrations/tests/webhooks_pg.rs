@@ -660,7 +660,11 @@ async fn loi_thu_lai_het_luot_chet_va_tu_tat() {
         // Chưa đến hạn thì không gửi lại.
         d.tick(&tenant, true).await.unwrap();
         assert_eq!(m.received_requests().await.unwrap().len(), i + 1);
-        exec(&mut c, "UPDATE webhook_deliveries SET next_attempt_at = now()").await;
+        exec(
+            &mut c,
+            "UPDATE webhook_deliveries SET next_attempt_at = now() - interval '1 second'",
+        )
+        .await;
     }
     d.tick(&tenant, true).await.unwrap();
     let r = sqlx::query("SELECT status, attempts FROM webhook_deliveries")

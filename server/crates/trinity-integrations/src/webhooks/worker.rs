@@ -135,7 +135,7 @@ impl Worker<'_> {
         let mut conn = self.tenant.acquire().await?;
         for r in rows {
             sqlx::query(
-                "UPDATE webhook_deliveries SET attempts = attempts - 1, next_attempt_at = now() \
+                "UPDATE webhook_deliveries SET attempts = attempts - 1, next_attempt_at = now() - interval '1 second' \
                  WHERE id = $1::uuid AND attempts = $2 AND status IN ('pending', 'failed')",
             )
             .bind(&r.id)

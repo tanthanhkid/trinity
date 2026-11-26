@@ -5,6 +5,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express'
 import { MonolithModule } from './app.module'
 import { NEST_CREATE_OPTIONS, configureApp, initAndAudit, insecureSecrets } from './bootstrap-app'
 import { ElkNestLogger } from '@trinity/logger'
+import { clientIpStartupProblems, tunnelListenProblem } from '@trinity/rbac-nest'
 
 async function bootstrap() {
   const elkLogger = new ElkNestLogger({ service: 'monolith' })
@@ -16,6 +17,14 @@ async function bootstrap() {
       elkLogger.error(`Không khởi động: cấu hình secret không an toàn:\n- ${bad.join('\n- ')}`, undefined, 'Bootstrap')
       process.exit(1)
     }
+  }
+
+  // IP của khách (docs/deployment.md, "IP của khách"): `TRUSTED_PROXY` sai, hoặc còn cờ cũ `*_TRUST_*` mà chưa đặt
+  // `TRUSTED_PROXY` ⇒ không khởi động (cờ cũ không được tự đổi sang giá trị mới). Áp mọi NODE_ENV.
+  const ipProblems = clientIpStartupProblems(process.env)
+  if (ipProblems.length) {
+    elkLogger.error(`Không khởi động: cấu hình IP của khách sai:\n- ${ipProblems.join('\n- ')}`, undefined, 'Bootstrap')
+    process.exit(1)
   }
 
   // `bodyParser: false` + `useBodyParser` — yêu cầu CHẶT NHẤT trong các service (crm).
@@ -48,7 +57,16 @@ async function bootstrap() {
   }
 
   const port = process.env.PORT || 4000
-  await app.listen(port)
+  // `LISTEN_HOST` trống = mọi giao diện (như cũ). `TRUSTED_PROXY=cloudflare-tunnel` bắt buộc loopback.
+  const host = process.env.LISTEN_HOST?.trim()
+  if (host) await app.listen(port, host)
+  else await app.listen(port)
+  const bound = app.getHttpServer().address()
+  const tunnelProblem = tunnelListenProblem(typeof bound === 'object' && bound ? bound.address : null, process.env)
+  if (tunnelProblem) {
+    elkLogger.error(`Không khởi động: ${tunnelProblem}`, undefined, 'Bootstrap')
+    process.exit(1)
+  }
   elkLogger.log(`Trinity monolith running on port ${port}`, 'Bootstrap')
 }
 bootstrap()

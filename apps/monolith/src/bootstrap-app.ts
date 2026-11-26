@@ -5,7 +5,7 @@ import * as path from 'node:path'
 import { requestPathMiddleware } from './request-path.context'
 import { ServiceAwareValidationPipe } from './service-aware-validation.pipe'
 import { LoggingInterceptor, ElkExceptionFilter } from '@trinity/logger'
-import { auditRoutes } from '@trinity/rbac-nest'
+import { auditRoutes, clientIpMiddleware } from '@trinity/rbac-nest'
 import { ensurePlatform, isMultiTenant, migrateAllCompanies, runInTenantScope } from '@trinity/prisma'
 
 // BigInt không serialize được mặc định trong JSON (cùng cách làm ở entrypoint của các service)
@@ -67,7 +67,9 @@ export async function configureApp(
 ): Promise<void> {
   // PHẢI đứng trước mọi middleware khác — pipe đọc đường dẫn từ đây.
   app.use(requestPathMiddleware)
-
+  // IP của khách: xác định (và kiểm chữ ký `x-trinity-client-ip`) NGAY khi nhận header — trước body-parser và multer, để
+  // body tải chậm không làm chữ ký hết hạn. Chữ ký sai/quá hạn ⇒ 400 tại đây. Xem `@trinity/rbac-nest` client-ip.ts.
+  app.use(clientIpMiddleware)
 
   const captureRawBody = (req: unknown, _res: unknown, buf: Buffer): void => {
     if (buf && buf.length) (req as { rawBody?: Buffer }).rawBody = buf

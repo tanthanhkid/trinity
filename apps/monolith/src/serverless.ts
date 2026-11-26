@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { NestFactory } from '@nestjs/core'
 import type { NestExpressApplication } from '@nestjs/platform-express'
 import { ElkNestLogger } from '@trinity/logger'
+import { clientIpStartupProblems } from '@trinity/rbac-nest'
 
 import { MonolithModule } from './app.module'
 import { initMonitoring } from './monitoring'
@@ -30,6 +31,10 @@ async function createHandler(): Promise<ServerlessHandler> {
 
   // Neon pooled: bổ sung `pgbouncer=true` + sàn `connection_limit=3` cho PrismaService (nó đọc DATABASE_URL lúc dựng client).
   if (process.env.DATABASE_URL) process.env.DATABASE_URL = withPooledParams(process.env.DATABASE_URL)
+
+  // Cùng luật với main.ts: cấu hình IP của khách sai ⇒ không dựng app (mỗi request 500 tới khi sửa).
+  const ipProblems = clientIpStartupProblems(process.env)
+  if (ipProblems.length) throw new Error(`Cấu hình IP của khách sai:\n- ${ipProblems.join('\n- ')}`)
 
   const logger = new ElkNestLogger({ service: 'monolith' })
   // Vercel keeps only the first ~256 log lines per invocation. Nest's ~250 "Mapped route" info lines would push the real

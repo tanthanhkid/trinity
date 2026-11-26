@@ -18,6 +18,7 @@ import { decryptSecret, IntegrationsKeyError, loadSecretKey } from '../secret-cr
 import { verifySignatureHeader } from '../signature';
 import { hashInboundToken, INBOUND_TOKEN_RE } from './inbound-token';
 import { MAX_BODY_BYTES, parseInboundPayload, type ParsedInbound } from './inbound-payload';
+import { phoneVariants } from '../../../common/helpers/phone.helper';
 
 export interface InboundRequest {
   rawBody: Buffer | undefined;
@@ -144,10 +145,6 @@ export class WebhookInboundService {
     }
   }
 
-  private phoneVariants(local: string): string[] {
-    return [local, `84${local.slice(1)}`, `+84${local.slice(1)}`];
-  }
-
   /** 1 transaction: idempotency (UNIQUE) → khoá theo SĐT → dedupe → (tạo khách + outbox | ghi activity). */
   private persist(src: WebhookInboundSource, p: ParsedInbound, owner: { id: number; team_id: number | null }): Promise<Outcome> {
     return this.prisma.$transaction(async (tx): Promise<Outcome> => {
@@ -165,7 +162,7 @@ export class WebhookInboundService {
       }
       // Cùng khoá với `ContactsService.create` (hashtext(phone)) ⇒ tạo tay và webhook vào cùng SĐT cũng tuần tự.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${p.phone}))`;
-      const dup = await tx.contact.findFirst({ where: { phone: { in: this.phoneVariants(p.phone) }, deleted_at: null }, orderBy: { id: 'asc' }, select: { id: true, assigned_to: true } });
+      const dup = await tx.contact.findFirst({ where: { phone: { in: phoneVariants(p.phone) }, deleted_at: null }, orderBy: { id: 'asc' }, select: { id: true, assigned_to: true } });
       let contactId: number;
       if (dup) {
         contactId = dup.id;

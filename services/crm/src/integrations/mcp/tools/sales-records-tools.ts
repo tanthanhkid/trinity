@@ -1,7 +1,7 @@
 import { wrapData } from '../ai-output';
 import { vnWhen } from '../actions/action-social-tools';
 import { ToolUserError, type ToolDef } from './tool-types';
-import { normalizePhone, phoneVariants } from '../../../google/sheet-mapping';
+import { normalizePhone, phoneVariants } from '../../../common/helpers/phone.helper';
 
 const PROVIDERS = ['kiotviet', 'sapo', 'ipos', 'woocommerce', 'shopee', 'lazada'] as const;
 

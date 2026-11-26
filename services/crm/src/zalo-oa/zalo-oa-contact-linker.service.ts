@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@trinity/prisma';
 import { PublicApiService } from '../public-api/public-api.service';
+import { phoneVariants } from '../common/helpers/phone.helper';
 import { toLocalPhone, toZaloPhone } from './zalo-oa.config';
 
 /**
@@ -18,8 +19,7 @@ export class ZaloOaContactLinker {
   ) {}
 
   phoneVariants(zaloPhone: string): string[] {
-    const local = toLocalPhone(zaloPhone);
-    return [local, `84${local.slice(1)}`, `+84${local.slice(1)}`];
+    return phoneVariants(toLocalPhone(zaloPhone));
   }
 
   async find(zaloUserId: string, phone: string | null): Promise<number | null> {

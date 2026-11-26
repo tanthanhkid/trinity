@@ -13,7 +13,7 @@ import {
 import type { Prisma } from '@prisma/client';
 import { PublicCreateContactDto } from './dto/public-create-contact.dto';
 import type { ValidatedApiKey } from './api-key.guard';
-import { normalizePhone, phoneVariants } from '../google/sheet-mapping';
+import { normalizePhone, phoneVariants } from '../common/helpers/phone.helper';
 import { SampleRecordsService } from '../sample-records/sample-records.service';
 
 /**

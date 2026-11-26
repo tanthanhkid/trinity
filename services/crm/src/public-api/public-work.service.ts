@@ -6,7 +6,7 @@ import { DealsService } from '../deals/deals.service';
 import { KanbanCardsService } from '../kanban/cards/kanban-cards.service';
 import { buildKanbanBoardVisibilityWhere, loadKanbanAccessContext, loadVisibleBoardOrNotFound } from '../kanban/common/kanban-rbac.helper';
 import { validateKanbanAttributes } from '../kanban/common/kanban-field.validator';
-import { normalizePhone, phoneVariants } from '../google/sheet-mapping';
+import { normalizePhone, phoneVariants } from '../common/helpers/phone.helper';
 import type { ValidatedApiKey } from './api-key.guard';
 import { PublicApiService } from './public-api.service';
 import type { PublicCreateDealDto, PublicCreateTaskDto } from './dto/public-work.dto';

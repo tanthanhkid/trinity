@@ -1110,6 +1110,39 @@ che `token`, `code`, `state` trong query):
 - Nếu cả hai không đạt: thay bộ định tuyến bằng SPA thuần (Vite + router phía trình duyệt), giữ nguyên component.
   Khối lượng: 89 câu import `next/link`/`next/navigation`, 6 `next/dynamic`.
 
+**Quyết định R004 (27/11/2026): chọn A, giữ URL.** Spike dựng bản xuất tĩnh `next@16.3.8` + `react@19.2.4` (đúng phiên bản của web)
+với 4 trang mô phỏng, chạy bằng máy chủ nhỏ đóng vai Rust, đo bằng Chrome thật (Playwright). Mã thử ở nhánh
+`spike/r004-xuat-tinh-route-dong` (không merge). `next build` không cảnh báo ở cả hai phương án.
+
+| Trang | Phương án | URL sâu | Điều hướng | Quay lại | Prefetch | Build sạch |
+|---|---|---|---|---|---|---|
+| `contacts/[id]` | A | đạt | đạt | đạt | đạt (không 4xx) | đạt |
+| `x/[objectKey]/v/[viewKey]` | A | đạt | đạt | đạt | đạt | đạt |
+| `s/[slug]` (`/s/<tên>`) | A | đạt | đạt | đạt | đạt | đạt |
+| `s/[slug]` (tên miền phụ, URL `/`) | A + slug trong `<meta>` | đạt | không áp dụng | không áp dụng | không áp dụng | đạt |
+| `invite/[token]` | A | đạt | đạt | đạt | đạt | đạt |
+| cùng 4 trang | B (query; token ở `#fragment`) | đạt | đạt | đạt | đạt | đạt |
+
+Điều kiện để A chạy (đều đã kiểm):
+
+- `generateStaticParams` trả một giá trị giữ chỗ `_` cho mỗi đoạn, kèm `dynamicParams = false`; bản xuất sinh `a/contacts/_.html` và các tệp
+  `__next.*.txt` đi kèm.
+- Rust thay **mọi** đoạn động trong đường dẫn bằng `_` trước khi tìm tệp, gồm cả các yêu cầu payload
+  (`/contacts/123/__next._tree.txt`, `/contacts/123/__next.contacts.$d$id.__PAGE__.txt`) và yêu cầu `HEAD` của prefetch.
+  Bảng luật (mẫu đường dẫn → giữ chỗ) sinh từ kết quả build, không viết tay.
+- Component đọc tham số bằng `usePathname()` và **chỉ sau khi mount** (`useEffect`); đọc ngay lúc vẽ gây lỗi hydrate React #418
+  vì HTML là trang giữ chỗ. `useParams()` / `use(params)` sẽ trả `_`, nên 8 trang động phải sửa chỗ này (W02a).
+- Tên miền phụ cửa hàng: Rust trả trang `s/_` cho `/`, chèn slug vào `<meta name="store-slug">` trong HTML; component đọc thẻ này
+  trong `useEffect` (đọc lúc vẽ cũng gây lỗi hydrate). Đọc thẻ lúc vẽ không dùng được.
+- Token mời nằm trong đường dẫn như hiện nay, nên bộ lọc log của Rust phải che đoạn `/invite/<token>` (kể cả trong yêu cầu payload).
+  Phương án B giữ token ngoài log bằng `#fragment` nhưng đổi URL mời đã gửi đi.
+
+Rủi ro còn lại của A: đặt tên tệp payload (`__next.<route>.$d$param...`) là chi tiết nội bộ của Next. Giảm bằng cách ghim phiên bản
+`next` và để W04 (Playwright trên binary) kiểm URL sâu + điều hướng cho 8 trang động mỗi lần nâng cấp. Nếu một lần nâng cấp làm A
+vỡ, chuyển sang B theo thứ tự: đổi sang query, Rust chuyển hướng URL cũ. Chưa đo: `useParams()` trả giá trị gì trong bản xuất,
+lượng payload prefetch của A so với B, và 4 trang còn lại trong 8 (`projects/[id]`, `x/[objectKey]`, `x/[objectKey]/[id]`,
+`x/[objectKey]/new`) cùng mẫu với `contacts/[id]` nên suy ra, không đo riêng.
+
 **Thứ tự merge để `main` luôn chạy được** (không vòng phụ thuộc):
 
 1. D01: Rust đứng trước, chuyển tiếp cả trang web sang Next. Không cần web tĩnh.

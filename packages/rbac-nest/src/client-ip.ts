@@ -344,7 +344,8 @@ export function clientIpStartupProblems(env: NodeJS.ProcessEnv = process.env): s
       out.push((e as Error).message)
     }
   }
-  const legacy = LEGACY_TRUST_FLAGS.filter((k) => /^(true|1|yes)$/i.test(env[k]?.trim() ?? ''))
+  // Bản cũ chỉ bật cờ khi giá trị đúng là chuỗi 'true' — chỉ giá trị đó mới chặn khởi động (giá trị khác: cảnh báo).
+  const legacy = LEGACY_TRUST_FLAGS.filter((k) => env[k]?.trim() === 'true')
   if (legacy.length && !env.TRUSTED_PROXY?.trim()) {
     out.push(
       `Cờ cũ ${legacy.join(', ')} không còn tác dụng và không được tự đổi sang cấu hình mới (nghĩa cũ không khớp chắc chắn giá trị nào). ` +
@@ -352,6 +353,12 @@ export function clientIpStartupProblems(env: NodeJS.ProcessEnv = process.env): s
     )
   }
   return out
+}
+
+/** Cảnh báo lúc khởi động (không chặn): cờ cũ còn trong môi trường với giá trị khác 'true' (vốn đã không có tác dụng). */
+export function clientIpStartupWarnings(env: NodeJS.ProcessEnv = process.env): string[] {
+  const stale = LEGACY_TRUST_FLAGS.filter((k) => env[k] !== undefined && env[k]?.trim() !== 'true')
+  return stale.length ? [`Cờ cũ ${stale.join(', ')} không còn tác dụng (thay bằng TRUSTED_PROXY, docs/deployment.md mục "Client IP"); có thể xoá.`] : []
 }
 
 /**
@@ -482,19 +489,9 @@ function finalize(candidate: string | null, peer: string, why: string | null, so
 function fromEdge(req: ClientIpRequest, cfg: ResolvedConfig): ClientIp {
   const peer = normalizeIp(req.socket?.remoteAddress) ?? ''
   const p = cfg.proxy
-  const fin = (c: string | null, why: string | null = null) => {
-    // Không chữ ký, không header tin được, peer là mạng riêng: đó là container/proxy nội bộ (vd container `web` gọi
-    // `api` trong Compose khi web chưa ký), không phải khách. Coi là không tin được — KHÔNG đem so IP văn phòng.
-    if (c !== null && c === peer && isPrivateIp(peer)) {
-      return finalize(
-        null,
-        peer,
-        `peer ${peer} là địa chỉ mạng riêng và request không có x-trinity-client-ip có chữ ký (tiến trình phía trước — vd web trong Docker Compose — chưa truyền IP khách)`,
-        'edge',
-      )
-    }
-    return finalize(c, peer, why, 'edge')
-  }
+  // Peer mạng riêng (khách LAN của bản cài tại chỗ) VẪN là khách thật với `none`/`cidr:`. Request đi qua web của Trinity
+  // luôn mang `x-trinity-client-ip` (có chữ ký, hoặc dấu `untrusted`), nên không rơi vào nhánh này.
+  const fin = (c: string | null, why: string | null = null) => finalize(c, peer, why, 'edge')
   if (!peer) return fin(null, 'không đọc được địa chỉ kết nối')
   switch (p.mode) {
     case 'none':
@@ -531,6 +528,11 @@ export function determineClientIp(req: ClientIpRequest, env: NodeJS.ProcessEnv =
   const cfg = config(env)
   const signed = header(req, CLIENT_IP_HEADER)
   if (signed === undefined) return { ok: true, client: fromEdge(req, cfg) }
+  // Dấu `untrusted` không chữ ký: web không có bí mật nội bộ để ký. Chỉ HẠ mức tin (không ai lợi gì khi giả nó) nên nhận.
+  if (signed.trim() === UNTRUSTED_CLIENT_IP) {
+    const peer = normalizeIp(req.socket?.remoteAddress) ?? ''
+    return { ok: true, client: finalize(null, peer, 'tiến trình phía trước (web) không ký được IP khách: thiếu INTERNAL_SERVICE_SECRET/SERVICE_SECRET ở web', 'signed') }
+  }
   const v = verifySigned(signed, cfg.keys, Math.floor(nowMs() / 1000))
   if (!v.ok) return v
   const peer = normalizeIp(req.socket?.remoteAddress) ?? ''

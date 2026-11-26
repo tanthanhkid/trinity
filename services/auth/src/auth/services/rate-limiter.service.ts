@@ -13,21 +13,25 @@ export class RateLimiterService {
   private readonly PUBLIC_MAX_ATTEMPTS = 5
   private readonly PUBLIC_WINDOW_MS = 15 * 60 * 1000
   /**
-   * IP khách không tin được (TRUSTED_PROXY chưa khớp): khoá CHỈ theo email (`login-untrusted:<email>`), không gộp chung
-   * một IP peer cho mọi người — nếu gộp, ai cũng khoá được tài khoản người khác. Ngưỡng cao hơn vì mọi người dùng chung
-   * một khoá theo email, không còn tách theo IP.
+   * IP khách không tin được (TRUSTED_PROXY chưa khớp): mọi người chung một IP peer, nên KHÔNG khoá cứng theo email (kẻ
+   * xấu sẽ khoá được người khác) mà chỉ giữ một TRẦN cao theo peer (`login-untrusted:<peer>`) chống dò hàng loạt; theo
+   * email chỉ làm CHẬM dần (`AuthService.slowDownUntrusted`, khoá `login-untrusted-email:` không bao giờ 429).
    */
-  private readonly UNTRUSTED_MAX_ATTEMPTS = 30
-  private readonly PUBLIC_UNTRUSTED_MAX_ATTEMPTS = 15
+  private readonly UNTRUSTED_PEER_MAX_ATTEMPTS = 300
+  private readonly PUBLIC_UNTRUSTED_PEER_MAX_ATTEMPTS = 100
+  /** Trần chung cho đăng ký / nhận lời mời khi IP không tin được (`register-untrusted-all`, `invite-untrusted-all`). */
+  private readonly UNTRUSTED_ALL_MAX_ATTEMPTS = 200
 
   isRateLimited(key: string): boolean {
     // Public third-party ("public-login:"): ngưỡng chặt. Login nội bộ ("login:"):
     // ngưỡng rộng hơn (key theo IP + email nên người dùng gõ nhầm vài lần không
     // bị khoá) nhưng vẫn chặn brute-force mật khẩu.
+    if (key.startsWith('login-untrusted-email:')) return false
+    if (key.endsWith('-untrusted-all')) return this.count(key) >= this.UNTRUSTED_ALL_MAX_ATTEMPTS
     const limit = key.startsWith('public-login-untrusted:')
-      ? this.PUBLIC_UNTRUSTED_MAX_ATTEMPTS
+      ? this.PUBLIC_UNTRUSTED_PEER_MAX_ATTEMPTS
       : key.startsWith('login-untrusted:')
-        ? this.UNTRUSTED_MAX_ATTEMPTS
+        ? this.UNTRUSTED_PEER_MAX_ATTEMPTS
         : key.startsWith('public-login:')
           ? this.PUBLIC_MAX_ATTEMPTS
           : this.MAX_ATTEMPTS
@@ -53,6 +57,17 @@ export class RateLimiterService {
         expiresAt: now + this.WINDOW_MS,
       })
     }
+  }
+
+  private count(key: string): number {
+    return this.attempts(key)
+  }
+
+  /** Số lần đã ghi trong cửa sổ hiện tại (0 nếu hết hạn/chưa có). */
+  attempts(key: string): number {
+    const entry = this.store.get(key)
+    if (!entry || Date.now() > entry.expiresAt) return 0
+    return entry.count
   }
 
   resetAttempts(key: string): void {

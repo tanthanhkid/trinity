@@ -15,8 +15,16 @@ async function routeBySlug(slug: string): Promise<void> {
   if (!(await enterRoutedCompany('store_slug', slug))) throw new NotFoundException('Không có cửa hàng này.');
 }
 
-/** IP khách cho giới hạn đặt đơn: hàm dùng chung (TRUSTED_PROXY). Bản cũ lấy phần tử ĐẦU của x-forwarded-for (client tự khai) — lỗi, đã bỏ. */
-const clientIp = (req: Request) => resolveClientIp(req).rateKey.slice(0, 45);
+/**
+ * Khoá giới hạn đặt đơn: IP khách (hàm dùng chung, TRUSTED_PROXY; bản cũ lấy phần tử ĐẦU của x-forwarded-for do client
+ * tự khai — lỗi, đã bỏ). IP không tin được ⇒ theo số điện thoại người đặt, để khách này không chặn khách khác.
+ */
+const clientIp = (req: Request, body: Record<string, unknown>) => {
+  const c = resolveClientIp(req);
+  if (c.ip) return c.ip.slice(0, 45);
+  const phone = typeof body?.phone === 'string' ? body.phone.replace(/\D/g, '').slice(0, 20) : '';
+  return phone ? `u:phone:${phone}` : c.rateKey.slice(0, 45);
+};
 
 /** Trang bán hàng online: phần công khai (/store/:slug) + quản trị (cấu hình, đơn). Cờ tổ chức `online_store` (mặc định tắt). */
 @ApiTags('Trang bán hàng')
@@ -72,7 +80,7 @@ export class StoreController {
   @ApiOperation({ summary: 'Khách đặt đơn (giá lấy từ danh mục; giới hạn 5 đơn/10 phút/IP)' })
   async placeOrder(@Param('slug') slug: string, @Req() req: Request, @Body() body: Record<string, unknown>) {
     await routeBySlug(slug);
-    return this.store.placeOrder(slug, clientIp(req), body as never);
+    return this.store.placeOrder(slug, clientIp(req, body), body as never);
   }
 
   @Get('public/:slug/orders/:code')

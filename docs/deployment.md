@@ -44,30 +44,46 @@ in the build log, which every project member can read, so set `SEED_ADMIN_PASSWO
 ## Client IP (`TRUSTED_PROXY`)
 
 Office-IP checks at login (`LOGIN_WIFI_CHECK_ENABLED`), attendance IP checks (they affect payroll), rate limits, login
-logs, VNPay and the online store all use the client's IP. The backend determines it in **one** function
-(`resolveClientIp`, `packages/rbac-nest/src/client-ip.ts`), once per request, as soon as the headers arrive (before the
-body is read). No header sent by the client is trusted unless `TRUSTED_PROXY` says the process in front of it writes
-that header.
+logs, VNPay and the online store all use the client's IP. It is determined **once**, by the process that receives the
+connection first (the **edge**), as soon as the headers arrive, and passed inward signed. No header sent by the client is
+trusted unless `TRUSTED_PROXY` says the proxy in front of the edge writes it.
 
-`TRUSTED_PROXY` applies to the **TCP peer** of the process that receives the connection first:
+- **Web is the edge** in every normal install (browser → [Caddy/nginx/Cloudflare] → web → API). The preload file
+  `apps/web/peer-ip.cjs` does the work: start the web server with `NODE_OPTIONS=--require <repo>/apps/web/peer-ip.cjs`
+  (the Docker image sets it). It drops every `x-trinity-*` header the client sent, determines the IP from the TCP peer
+  and `TRUSTED_PROXY`, and the `/api/v1` proxy re-signs it right before calling the API. The web process needs
+  `TRUSTED_PROXY`, `CLOUDFLARE_IP_RANGES` (optional) and the internal secret (`INTERNAL_SERVICE_SECRET` or
+  `SERVICE_SECRET`, the same value the API has). Without the preload file, or without a secret, the web sends
+  "untrusted" and the API never sees a client-chosen address. The web proxy never forwards `X-Forwarded-For`,
+  `X-Real-IP`, `CF-Connecting-IP`, `Forwarded` or `True-Client-IP` from the browser.
+- **The API** (`resolveClientIp`, `packages/rbac-nest/src/client-ip.ts`) trusts the signed header, and applies its own
+  `TRUSTED_PROXY` only to connections that reach it directly (no signed header).
+- **Vercel** has no preload file: requests are "untrusted" (see below).
+
+`TRUSTED_PROXY` applies to the **TCP peer** of the edge:
 
 | Value | Client IP |
 |---|---|
-| `none` (default) | The peer address. No header is trusted |
+| `none` (default) | The peer address (an on-premises LAN client with a private address counts as a real client). No header is trusted |
 | `cloudflare` | `CF-Connecting-IP`, only when the peer is in `CLOUDFLARE_IP_RANGES` (default: the list Cloudflare publishes at https://www.cloudflare.com/ips/; set the variable, comma-separated, when it changes); any other peer: the peer address |
-| `cloudflare-tunnel` | `CF-Connecting-IP`. The port must listen on loopback only: the process **refuses to start** otherwise (API: `LISTEN_HOST=127.0.0.1`) |
-| `cidr:<list>` | The **right-most** `X-Forwarded-For` entry, only when the peer is in the list (CIDR or IP, comma-separated; the keyword `docker-gateway` is the container's default gateway read from `/proc/net/route`). `X-Real-IP` only with an explicit `;header=x-real-ip` |
+| `cloudflare-tunnel` | `CF-Connecting-IP`. The edge must listen on loopback only: it **refuses to start**, before opening the port, otherwise (web: `HOSTNAME=127.0.0.1`; API: `LISTEN_HOST=127.0.0.1`) |
+| `cidr:<list>` | The **right-most** `X-Forwarded-For` entry, only when the peer is in the list (CIDR or IP, comma-separated; the keyword `docker-gateway` is the container's default gateway read from `/proc/net/route`, only inside a container). `X-Real-IP` only with an explicit `;header=x-real-ip` |
 | `cloudflare-behind:<list>` | Cloudflare → Caddy/nginx → app. When the peer is in the list: take the right-most `X-Forwarded-For` entry (written by that proxy); if it is in `CLOUDFLARE_IP_RANGES` use `CF-Connecting-IP`, otherwise that entry |
 
-| Deployment | `TRUSTED_PROXY` |
+| Deployment | `TRUSTED_PROXY` (for web) |
 |---|---|
 | Process manager, Caddy/nginx on the same machine → web → API | `cidr:127.0.0.1/32` |
 | Same, with Cloudflare in front of Caddy/nginx | `cloudflare-behind:127.0.0.1/32` |
 | Docker Compose, `web` port published directly | `none` |
 | Docker Compose, Cloudflare connects straight to the `web` port | `cloudflare` |
-| Docker Compose behind Caddy/nginx on the host | `cidr:docker-gateway` (or `cloudflare-behind:docker-gateway`) |
-| Cloudflare Tunnel, process manager (API on `LISTEN_HOST=127.0.0.1`, web on `HOSTNAME=127.0.0.1`) | `cloudflare-tunnel` |
-| Cloudflare Tunnel with Docker Compose | leave the API at `none` for now: `web` reaches the API as `api:4000` over the Docker network, so the API cannot listen on loopback. The web process becomes the edge and checks the tunnel once it signs the IP (next release step) |
+| Docker Compose behind Caddy/nginx on the host | `cidr:docker-gateway` (or `cloudflare-behind:docker-gateway`), and `WEB_BIND=127.0.0.1` |
+| Cloudflare Tunnel, process manager (web on `HOSTNAME=127.0.0.1`) | `cloudflare-tunnel` |
+| Cloudflare Tunnel with Docker Compose | not supported by the stock compose file yet (`cloudflared` must share the `web` container's network namespace so that web can listen on loopback); use one of the other values |
+
+In Docker Compose, `web` gets `TRUSTED_PROXY`, `CLOUDFLARE_IP_RANGES` and `INTERNAL_SERVICE_SECRET`
+(`${INTERNAL_SERVICE_SECRET:-${SERVICE_SECRET}}`, as for `api`); the `api` container gets `API_TRUSTED_PROXY`
+(default `none`), which only matters for connections to its loopback port on the host. With a process manager, the API
+reads `TRUSTED_PROXY` too; set `LISTEN_HOST=127.0.0.1` there when the API port should only be reachable locally.
 
 Caddy always writes `X-Forwarded-For` itself. **nginx does not**: every `location` that points at the app needs
 `proxy_set_header X-Forwarded-For $remote_addr;` (overwrite, not append) and `proxy_set_header X-Real-IP "";`; without
@@ -77,26 +93,23 @@ loopback. Opening the origin only to Cloudflare's ranges (or using a Tunnel) rem
 
 **When the IP cannot be trusted** — the result is loopback, the container's default gateway (only inside a container:
 traffic through `docker-proxy`/NAT, e.g. `cidr:` with a wrong Docker range, or Cloudflare reaching the origin over
-IPv6), a private-network peer with no signed header (e.g. the `web` container calling the API in Docker Compose), or the
-web process marked it untrusted — it is never compared with office IPs. Login Wi-Fi checks and attendance IP checks
-**let the user through** instead of comparing a wrong address, the server logs a configuration error, and admins of the
-operating company see a warning banner on every page for 24 hours after the last such request (also
-`GET /api/v1/settings/client-ip/alerts` and the MCP tool `get_client_ip_status`). Rate limits on OAuth, MCP and the
-online store then fall back to the peer address, i.e. **one shared bucket for all clients**; login attempts are limited
-per email instead (30 failures per 15 minutes, 15 for the public login API) so nobody can lock other people out from the
-shared address.
-
-The web app no longer forwards `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`, `Forwarded` or `x-trinity-*` from
-the browser to the API. Until the web process determines and signs the client IP itself, the API therefore sees requests
-that come through `web` as "cannot be trusted" (let through + banner) whatever `TRUSTED_PROXY` says; the setting already
-applies to traffic that reaches the API directly.
+IPv6), or the web process sent "untrusted" (no preload file, no secret, a proxy in the list that did not send its
+header) — it is never compared with office IPs. Login Wi-Fi checks and attendance IP checks **let the user through**
+instead of comparing a wrong address (attendance records then have no office and show "IP not verified"), the server
+logs a configuration error, and admins of the operating company see a warning banner on every page for 24 hours after
+the last such request (also `GET /api/v1/settings/client-ip/alerts` and the MCP tool `get_client_ip_status`). Rate
+limits do not collapse into one shared bucket: login keeps a high ceiling per peer address (300 failures per 15
+minutes, 100 for the public login API) and slows down failed attempts per email (1 s, 2 s, 4 s … up to 15 s) without
+blocking the account; sign-up and invitation acceptance limit per email/invitation plus a separate overall ceiling;
+OAuth, MCP and the online store limit per OAuth client, per bearer token and per buyer phone number.
 
 **Between Trinity processes** the IP travels in `x-trinity-client-ip: <ip or "untrusted">;<unix time>;<signature>`:
 HMAC-SHA256 over `<value>\n<unix time>` with a key derived by HKDF-SHA256 (empty salt, info
 `trinity x-trinity-client-ip v1`) from the internal secret (`INTERNAL_SERVICE_SECRET`, then `SERVICE_SECRET`; the API
 accepts either, like `@Internal` routes). It is valid for ±60 seconds and checked when the headers arrive, so a slow
 upload does not expire it. A request carrying this header with a wrong or expired signature gets **400** (a mismatch
-of secrets between web and API shows up as 400 on every request and a log line saying so).
+of secrets between web and API shows up as 400 on every request and a log line saying so). A bare `untrusted` without
+a signature is accepted: it only lowers trust.
 
 ## Updating
 
@@ -113,7 +126,7 @@ Keep `INTEGRATIONS_SECRET_KEY` somewhere safe: losing it makes stored webhook se
 ## Without Docker
 
 Build with `pnpm --filter "./packages/*" build && pnpm --filter @trinity/monolith build && pnpm --filter web build`,
-run `node apps/monolith/dist/apps/monolith/src/main.js` and `node apps/web/.next/standalone/apps/web/server.js` under a
+run `node apps/monolith/dist/apps/monolith/src/main.js` and `NODE_OPTIONS=--require ./apps/web/peer-ip.cjs node apps/web/.next/standalone/apps/web/server.js` (the web process also needs `TRUSTED_PROXY` and the internal secret, see "Client IP") under a
 process manager of your choice (systemd, pm2). Apply migrations with `pnpm --filter @trinity/prisma migrate:deploy`.
 The monolith locates `services/crm/ext-deno` by walking up from its install directory, so keep the repository layout.
 

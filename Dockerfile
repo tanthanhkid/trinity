@@ -61,6 +61,10 @@ WORKDIR /app
 COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build /app/apps/web/public ./apps/web/public
+# Tệp nạp trước: web là tiến trình biên — xác định IP khách theo TRUSTED_PROXY và ký x-trinity-client-ip cho API
+# (docs/deployment.md, mục "Client IP"). Thiếu tệp này thì API coi IP mọi khách là "không tin được".
+COPY --from=build /app/apps/web/peer-ip.cjs ./apps/web/peer-ip.cjs
+ENV NODE_OPTIONS="--require /app/apps/web/peer-ip.cjs"
 USER node
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]

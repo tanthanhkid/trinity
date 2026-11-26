@@ -67,7 +67,7 @@ export class McpController {
       principal = await this.auth.authenticate(req);
     } catch (err) {
       if (!(err instanceof McpAuthError)) throw err;
-      if (!authFailLimiter.hit(clientIp(req)).allowed) {
+      if (!authFailLimiter.hit(clientIp(req, req.headers.authorization)).allowed) {
         res.set('Retry-After', '60').status(429).json({ error: 'rate_limited', error_description: 'Quá nhiều yêu cầu xác thực sai' });
         return;
       }

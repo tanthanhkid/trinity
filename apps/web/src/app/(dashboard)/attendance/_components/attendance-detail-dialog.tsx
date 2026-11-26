@@ -110,10 +110,13 @@ function CheckLocation({
   officeName,
   lat,
   lng,
+  ipUnverified = false,
 }: {
   officeName: string | null | undefined
   lat: number | null
   lng: number | null
+  /** Đã chấm nhưng máy chủ không xác minh được IP (lỗi cấu hình TRUSTED_PROXY): không gắn văn phòng. */
+  ipUnverified?: boolean
 }) {
   if (officeName)
     return (
@@ -132,6 +135,12 @@ function CheckLocation({
       >
         Mở Google Maps
       </a>
+    )
+  if (ipUnverified)
+    return (
+      <span className="text-xs text-amber-700 dark:text-amber-300" data-testid="ip-unverified">
+        IP chưa xác minh (máy chủ chưa cấu hình IP người dùng)
+      </span>
     )
   return <span className="text-xs text-muted-foreground">—</span>
 }
@@ -337,6 +346,7 @@ function DetailBody({
               officeName={record.check_in_office_name}
               lat={record.check_in_lat}
               lng={record.check_in_lng}
+              ipUnverified={!!record.check_in_at && !record.check_in_ip}
             />
             {record.check_in_note && (
               <div className="text-xs text-muted-foreground">
@@ -358,6 +368,7 @@ function DetailBody({
               officeName={record.check_out_office_name}
               lat={record.check_out_lat}
               lng={record.check_out_lng}
+              ipUnverified={!!record.check_out_at && !record.check_out_ip}
             />
             {record.check_out_note && (
               <div className="text-xs text-muted-foreground">

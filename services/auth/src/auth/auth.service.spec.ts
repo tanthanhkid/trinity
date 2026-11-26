@@ -157,22 +157,29 @@ describe('AuthService', () => {
       ).rejects.toThrow(HttpException)
     })
 
-    it('IP không tin được: khoá theo email (ngưỡng 30), không gộp mọi người vào xô IP peer chung', async () => {
+    it('IP không tin được: KHÔNG 429 theo email (kẻ xấu không khoá được người khác) — chỉ làm chậm dần; trần theo IP peer', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(null)
-      // Kẻ gian sai mật khẩu 12 lần với email nạn nhân (cùng IP peer 127.0.0.1): vượt ngưỡng 10 của nhánh tin được
-      // nhưng chưa tới 30 ⇒ vẫn thử tiếp được; người khác (email khác, cùng peer) không bị ảnh hưởng.
-      for (let i = 0; i < 12; i++) {
-        await service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false).catch(() => undefined)
+      const delays: number[] = []
+      jest.spyOn(service as unknown as { loginDelay(ms: number): Promise<void> }, 'loginDelay').mockImplementation(async (ms: number) => {
+        delays.push(ms)
+      })
+      for (let i = 0; i < 40; i++) {
+        await expect(service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toThrow(UnauthorizedException)
       }
-      await expect(service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toThrow(UnauthorizedException)
+      // Từ lần sai thứ 5 trễ 1 s, 2 s, 4 s… tối đa 15 s — không có 429.
+      expect(delays.slice(0, 4)).toEqual([1000, 2000, 4000, 8000])
+      expect(Math.max(...delays)).toBe(15_000)
+      // Người khác cùng IP peer: không bị trễ, không bị chặn.
+      delays.length = 0
       await expect(service.login({ email: 'other@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toThrow(UnauthorizedException)
-      for (let i = 0; i < 20; i++) {
-        await service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false).catch(() => undefined)
-      }
-      // Quá 30 lần ⇒ email này bị giới hạn (429), email khác vẫn không.
-      await expect(service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toThrow(HttpException)
-      await expect(service.login({ email: 'victim@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.not.toThrow(UnauthorizedException)
-      await expect(service.login({ email: 'other@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toThrow(UnauthorizedException)
+      expect(delays).toEqual([])
+    })
+
+    it('IP không tin được: trần chung theo IP peer (300 lần/15 phút) chống dò hàng loạt ⇒ 429', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null)
+      jest.spyOn(service as unknown as { loginDelay(ms: number): Promise<void> }, 'loginDelay').mockResolvedValue(undefined)
+      for (let i = 0; i < 300; i++) rateLimiter.recordAttempt('login-untrusted:127.0.0.1')
+      await expect(service.login({ email: 'x@example.vn', password: 'wrong' }, '127.0.0.1', false)).rejects.toMatchObject({ status: 429 })
     })
 
     it('should log login attempt to audit log', async () => {

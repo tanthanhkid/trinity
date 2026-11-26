@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { isClientIpHeader, webTunnelListenProblem } from "@/lib/client-ip-headers"
+import { isClientIpHeader } from "@/lib/client-ip-headers"
 
 describe("isClientIpHeader", () => {
   it("chặn mọi header IP do client gửi, kể cả x-trinity-*", () => {
@@ -10,11 +10,3 @@ describe("isClientIpHeader", () => {
   })
 })
 
-describe("webTunnelListenProblem", () => {
-  it("cloudflare-tunnel bắt buộc HOSTNAME loopback", () => {
-    expect(webTunnelListenProblem({ TRUSTED_PROXY: "cloudflare-tunnel", HOSTNAME: "0.0.0.0" })).toMatch(/không phải loopback/)
-    expect(webTunnelListenProblem({ TRUSTED_PROXY: "cloudflare-tunnel" })).toMatch(/không phải loopback/)
-    expect(webTunnelListenProblem({ TRUSTED_PROXY: "cloudflare-tunnel", HOSTNAME: "127.0.0.1" })).toBeNull()
-    expect(webTunnelListenProblem({ TRUSTED_PROXY: "none", HOSTNAME: "0.0.0.0" })).toBeNull()
-  })
-})

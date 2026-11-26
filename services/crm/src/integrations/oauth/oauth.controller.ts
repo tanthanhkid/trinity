@@ -72,7 +72,7 @@ export class OauthController {
   @Public()
   @HttpCode(201)
   async register(@Body() body: unknown, @Req() req: Request, @Res() res: Response): Promise<void> {
-    if (this.notFound(res) || this.limited(res, registerLimiter.hit(`reg:${clientIp(req)}`))) return;
+    if (this.notFound(res) || this.limited(res, registerLimiter.hit(`reg:${clientIp(req, JSON.stringify(asBody(body).redirect_uris ?? ''))}`))) return;
     try {
       const out = await this.clients.register(asBody(body));
       await this.audit.log({ channel: 'mcp', action: 'oauth.register', status: 'ok', clientId: String(out.client_id), metadata: { client_name: out.client_name } });
@@ -86,7 +86,7 @@ export class OauthController {
   @Public()
   @HttpCode(200)
   async token(@Body() body: unknown, @Req() req: Request, @Res() res: Response): Promise<void> {
-    if (this.notFound(res) || this.limited(res, tokenLimiter.hit(`tok:${clientIp(req)}`))) return;
+    if (this.notFound(res) || this.limited(res, tokenLimiter.hit(`tok:${clientIp(req, asBody(body).client_id)}`))) return;
     try {
       res.set(NO_STORE).status(200).json(await this.tokens.token(asBody(body)));
     } catch (err) {
@@ -98,7 +98,7 @@ export class OauthController {
   @Public()
   @HttpCode(200)
   async revoke(@Body() body: unknown, @Req() req: Request, @Res() res: Response): Promise<void> {
-    if (this.notFound(res) || this.limited(res, tokenLimiter.hit(`rev:${clientIp(req)}`))) return;
+    if (this.notFound(res) || this.limited(res, tokenLimiter.hit(`rev:${clientIp(req, asBody(body).client_id)}`))) return;
     try {
       await this.tokens.revoke(asBody(body));
       res.set(NO_STORE).status(200).json({});

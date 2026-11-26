@@ -813,20 +813,6 @@ export class AttendanceService {
   }
 
   /**
-   * IP khách không tin được (TRUSTED_PROXY chưa khớp cách triển khai): KHÔNG so IP, KHÔNG khoá nhân viên. Ghi văn phòng
-   * được gán nếu còn hoạt động, không thì để trống. Lỗi cấu hình đã được ghi log + dải cảnh báo quản trị.
-   */
-  private async officeWhenIpUntrusted(
-    officeId: number | null,
-  ): Promise<{ id: number; name: string } | null> {
-    if (officeId == null) return null;
-    return this.prisma.attendanceOffice.findFirst({
-      where: { id: officeId, is_active: true, is_demo: false },
-      select: { id: true, name: true },
-    });
-  }
-
-  /**
    * Chấm công vào — xác thực IP ĐÚNG VĂN PHÒNG ĐƯỢC GÁN + ảnh selfie BẮT BUỘC.
    * (Đã bỏ kiểm tra thiết bị — IP văn phòng + selfie đã đủ chống gian lận.)
    */
@@ -854,7 +840,7 @@ export class AttendanceService {
     //    Chưa gán → mọi VP thật; super_admin → fallback VP demo.
     const matchedOffice = clientIp
       ? await this.resolveOfficeForCheck(clientIp, employee.office_id, isSuperAdmin)
-      : await this.officeWhenIpUntrusted(employee.office_id);
+      : null; // IP chưa xác minh: KHÔNG gắn văn phòng (bản ghi có check_*_ip = null và văn phòng trống = "IP chưa xác minh")
 
     const now = new Date();
     const vnDateStr = getVnDateString(now);
@@ -946,7 +932,7 @@ export class AttendanceService {
     //    thật; super_admin → fallback VP demo. (Đã bỏ kiểm tra thiết bị.)
     const matchedOffice = clientIp
       ? await this.resolveOfficeForCheck(clientIp, employee.office_id, isSuperAdmin)
-      : await this.officeWhenIpUntrusted(employee.office_id);
+      : null; // IP chưa xác minh: KHÔNG gắn văn phòng (bản ghi có check_*_ip = null và văn phòng trống = "IP chưa xác minh")
 
     const now = new Date();
     const vnDateStr = getVnDateString(now);

@@ -7,6 +7,7 @@ import {
   __setRouteTableForTest,
   clientIpMiddleware,
   clientIpStartupProblems,
+  clientIpStartupWarnings,
   clientIpWarning,
   defaultGateway,
   determineClientIp,
@@ -114,16 +115,15 @@ describe('bảng ca TRUSTED_PROXY × peer × header', () => {
     ['none, peer loopback (proxy chưa khai báo) ⇒ không tin được', 'none', '127.0.0.1', { 'x-real-ip': REAL }, null],
     ['none, peer ::ffff:127.0.0.1 ⇒ không tin được', 'none', '::ffff:127.0.0.1', {}, null],
     ['none, peer là cổng mặc định container (docker-proxy) ⇒ không tin được', 'none', GATEWAY, { 'x-forwarded-for': REAL }, null],
-    ['none, peer là container web trong Compose (mạng riêng, không chữ ký) ⇒ không tin được', 'none', '172.18.0.3', { 'x-forwarded-for': FAKE }, null],
-    ['none, peer mạng riêng 10.x / 192.168.x / fd00:: ⇒ không tin được', 'none', '192.168.1.20', {}, null],
-    ['none, peer IPv6 ULA ⇒ không tin được', 'none', 'fd00::5', {}, null],
+    ['none, khách LAN của bản cài tại chỗ (mạng riêng) là khách thật', 'none', '192.168.1.20', { 'x-forwarded-for': FAKE }, '192.168.1.20'],
+    ['none, khách LAN IPv6 ULA là khách thật', 'none', 'fd00::5', {}, 'fd00::5'],
     // cloudflare
     ['cloudflare, peer trong dải CF + cf-connecting-ip', 'cloudflare', CF_PEER, { 'cf-connecting-ip': REAL, 'x-real-ip': FAKE }, REAL],
     ['cloudflare, peer IPv6 trong dải CF', 'cloudflare', '2606:4700::1', { 'cf-connecting-ip': REAL }, REAL],
     ['cloudflare, peer ngoài dải + cf-connecting-ip giả ⇒ IP peer', 'cloudflare', PUBLIC_PEER, { 'cf-connecting-ip': FAKE }, PUBLIC_PEER],
     ['cloudflare, peer trong dải nhưng thiếu header ⇒ không tin được', 'cloudflare', CF_PEER, {}, null],
     ['cloudflare, peer là cổng mặc định (CF nối IPv6 qua docker-proxy) ⇒ không tin được', 'cloudflare', GATEWAY, { 'cf-connecting-ip': FAKE }, null],
-    ['cloudflare, peer là container web (mạng riêng) + cf-connecting-ip giả ⇒ không tin được', 'cloudflare', '172.18.0.3', { 'cf-connecting-ip': FAKE }, null],
+    ['cloudflare, peer mạng riêng ngoài dải CF + cf-connecting-ip giả ⇒ IP peer', 'cloudflare', '10.1.2.3', { 'cf-connecting-ip': FAKE }, '10.1.2.3'],
     // cloudflare-tunnel
     ['cloudflare-tunnel, cloudflared trên loopback + cf-connecting-ip', 'cloudflare-tunnel', '127.0.0.1', { 'cf-connecting-ip': REAL }, REAL],
     ['cloudflare-tunnel, thiếu header ⇒ không tin được', 'cloudflare-tunnel', '127.0.0.1', { 'x-real-ip': FAKE }, null],
@@ -133,7 +133,7 @@ describe('bảng ca TRUSTED_PROXY × peer × header', () => {
     ['cidr, Caddyfile mặc định + X-Real-IP giả ⇒ X-Real-IP bị bỏ qua', 'cidr:127.0.0.1/32', '127.0.0.1', { 'x-real-ip': FAKE, 'x-forwarded-for': REAL }, REAL],
     ['cidr, peer ::ffff:127.0.0.1 khớp 127.0.0.1/32', 'cidr:127.0.0.1/32', '::ffff:127.0.0.1', { 'x-forwarded-for': REAL }, REAL],
     ['cidr, peer ngoài danh sách + header giả ⇒ IP peer', 'cidr:127.0.0.1/32', PUBLIC_PEER, { 'x-forwarded-for': FAKE, 'x-real-ip': FAKE }, PUBLIC_PEER],
-    ['cidr, peer mạng riêng ngoài danh sách (container web) ⇒ không tin được', 'cidr:127.0.0.1/32', '172.18.0.3', { 'x-forwarded-for': FAKE }, null],
+    ['cidr, khách LAN ngoài danh sách + XFF giả ⇒ IP peer (khách thật)', 'cidr:127.0.0.1/32', '192.168.1.20', { 'x-forwarded-for': FAKE }, '192.168.1.20'],
     ['cidr, peer mạng riêng TRONG danh sách ⇒ XFF (proxy nội bộ khai báo tường minh)', 'cidr:10.0.0.0/8', '10.0.0.7', { 'x-forwarded-for': REAL }, REAL],
     ['cidr, peer trong danh sách nhưng thiếu XFF ⇒ không tin được', 'cidr:127.0.0.1/32', '127.0.0.1', { 'x-real-ip': REAL }, null],
     ['cidr ;header=x-real-ip, peer trong danh sách', 'cidr:127.0.0.1/32;header=x-real-ip', '127.0.0.1', { 'x-real-ip': REAL, 'x-forwarded-for': FAKE }, REAL],
@@ -148,6 +148,32 @@ describe('bảng ca TRUSTED_PROXY × peer × header', () => {
   ]
   it.each(rows)('%s', (_name, tp, peer, headers, expected) => {
     expect(ip(req(peer, headers), env({ TRUSTED_PROXY: tp }))).toBe(expected)
+  })
+
+  /**
+   * Đối chiếu tệp nạp trước của web (`apps/web/peer-ip.cjs`, JS thuần, chạy trong tiến trình Next) với hàm của API:
+   * web là biên, ký giá trị; API (peer = web trên loopback) kiểm chữ ký rồi áp luật "không tin được" — kết quả cuối
+   * phải trùng bảng ca ở trên.
+   */
+  describe('tệp nạp trước của web cho cùng kết quả', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const loadPreload = () => {
+      process.env.TRINITY_PEER_IP_NO_INSTALL = '1'
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      return require('../../../apps/web/peer-ip.cjs') as {
+        prepare(r: ClientIpRequest, e: NodeJS.ProcessEnv): string
+      }
+    }
+    it.each(rows)('%s', (_name, tp, peer, headers, expected) => {
+      const preload = loadPreload()
+      const e = env({ TRUSTED_PROXY: tp, TRINITY_TEST_ROUTE_TABLE: ROUTE_TABLE, TRINITY_TEST_IN_CONTAINER: '1' })
+      const atWeb = req(peer, { ...headers, [CLIENT_IP_HEADER]: 'giả;1;x', 'x-trinity-peer-ip': FAKE })
+      __setClockForTest(null) // preload ký theo đồng hồ thật
+      preload.prepare(atWeb, e)
+      expect(atWeb.headers['x-trinity-peer-ip']).toBeUndefined()
+      const atApi = req('127.0.0.1', atWeb.headers as Record<string, string>)
+      expect(ip(atApi, env({ TRUSTED_PROXY: 'none' }))).toBe(expected)
+    })
   })
 
   it('CLOUDFLARE_IP_RANGES ghi đè danh sách mặc định (Cloudflare giả trong phòng thử)', () => {
@@ -182,6 +208,11 @@ describe('x-trinity-client-ip có chữ ký', () => {
 
   it('API chỉ có SERVICE_SECRET, web ký bằng nó ⇒ hợp lệ', () => {
     expect(ip(req('10.0.0.5', signed(REAL, SECRET_B)), { SERVICE_SECRET: SECRET_B } as NodeJS.ProcessEnv)).toBe(REAL)
+  })
+
+  it('dấu "untrusted" KHÔNG chữ ký (web thiếu bí mật) ⇒ nhận, không tin được (chỉ hạ mức tin)', () => {
+    const d = determineClientIp(req('172.18.0.3', { [CLIENT_IP_HEADER]: UNTRUSTED_CLIENT_IP }), env())
+    expect(d.ok && d.client).toMatchObject({ ip: null, rateKey: '172.18.0.3' })
   })
 
   it('dấu "không tin được" do tiến trình biên ghi ⇒ ip null, khoá tốc độ = peer', () => {
@@ -288,8 +319,11 @@ describe('kiểm lúc khởi động', () => {
     }
   })
 
-  it('cờ cũ = false, hoặc đã có TRUSTED_PROXY ⇒ lên', () => {
+  it('cờ cũ = false / 1 / yes (bản cũ chỉ bật khi đúng "true"), hoặc đã có TRUSTED_PROXY ⇒ lên, chỉ cảnh báo', () => {
     expect(clientIpStartupProblems({ ATTENDANCE_TRUST_CF_IP: 'false' } as NodeJS.ProcessEnv)).toEqual([])
+    expect(clientIpStartupProblems({ ATTENDANCE_TRUST_CF_IP: '1', LOGIN_WIFI_TRUST_CF_IP: 'yes' } as NodeJS.ProcessEnv)).toEqual([])
+    expect(clientIpStartupWarnings({ ATTENDANCE_TRUST_CF_IP: '1' } as NodeJS.ProcessEnv)[0]).toMatch(/ATTENDANCE_TRUST_CF_IP/)
+    expect(clientIpStartupWarnings({} as NodeJS.ProcessEnv)).toEqual([])
     expect(clientIpStartupProblems({ ATTENDANCE_TRUST_CF_IP: 'true', TRUSTED_PROXY: 'cloudflare' } as NodeJS.ProcessEnv)).toEqual([])
   })
 

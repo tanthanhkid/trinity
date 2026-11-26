@@ -254,9 +254,8 @@ describe('AttendanceService — checkIn', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('IP không tin được (peer loopback, chưa đặt TRUSTED_PROXY) → KHÔNG khoá: chấm được, không so IP, ghi VP được gán', async () => {
+  it('IP không tin được (peer loopback, chưa đặt TRUSTED_PROXY) → KHÔNG khoá: chấm được, không so IP, văn phòng để trống (IP chưa xác minh)', async () => {
     (prisma.attendanceOffice.findMany as jest.Mock).mockResolvedValue([OFFICE]);
-    (prisma.attendanceOffice.findFirst as jest.Mock).mockResolvedValue({ id: OFFICE.id, name: OFFICE.name });
     (prisma.employee.findUnique as jest.Mock).mockResolvedValue({ ...EMPLOYEE, office_id: OFFICE.id });
     (prisma.attendanceRecord.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.attendanceRecord.upsert as jest.Mock).mockResolvedValue({ id: 2 });
@@ -265,9 +264,9 @@ describe('AttendanceService — checkIn', () => {
 
     expect(prisma.attendanceOffice.findMany).not.toHaveBeenCalled();
     expect(prisma.attendanceRecord.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ create: expect.objectContaining({ check_in_ip: null, check_in_office_id: OFFICE.id }) }),
+      expect.objectContaining({ create: expect.objectContaining({ check_in_ip: null, check_in_office_id: null }) }),
     );
-    expect(result.office).toBe('Hà Nội');
+    expect(result.office).toBeNull();
   });
 
   it('IP không tin được + chưa gán VP → chấm được, văn phòng để trống', async () => {

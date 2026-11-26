@@ -39,6 +39,25 @@ describe('giới hạn OAuth theo IP khách', () => {
   });
 });
 
+describe('IP không tin được: khoá theo thứ riêng của từng client, không một xô chung', () => {
+  it('OAuth token: theo client_id; MCP: theo Authorization; thiếu thì mới rơi về IP peer', () => {
+    delete process.env.TRUSTED_PROXY;
+    const r = req('127.0.0.1');
+    expect(clientIp(r, 'client-a')).not.toBe(clientIp(r, 'client-b'));
+    expect(clientIp(r, 'client-a')).toMatch(/^u:/);
+    expect(clientIp(r)).toBe('127.0.0.1');
+  });
+
+  it('đặt đơn: theo số điện thoại người đặt', async () => {
+    delete process.env.TRUSTED_PROXY;
+    const placeOrder = jest.fn().mockResolvedValue({ ok: true });
+    const ctrl = new StoreController({ placeOrder } as unknown as StoreService);
+    await ctrl.placeOrder('shop', req('127.0.0.1'), { phone: '0901 234 567' });
+    await ctrl.placeOrder('shop', req('127.0.0.1'), { phone: '0912345678' });
+    expect(placeOrder.mock.calls.map((c) => c[1])).toEqual(['u:phone:0901234567', 'u:phone:0912345678']);
+  });
+});
+
 describe('trang bán hàng: giới hạn đặt đơn theo IP khách', () => {
   it('không còn lấy phần tử ĐẦU của x-forwarded-for (client tự khai); hai client khác IP khác khoá', async () => {
     process.env.TRUSTED_PROXY = 'cidr:127.0.0.1/32';

@@ -60,7 +60,7 @@ export class AuthController {
   @ApiResponse({ status: 404, description: 'Bản cài đặt này không mở đăng ký' })
   @ApiResponse({ status: 409, description: 'Email đã được dùng' })
   async register(@Body() dto: RegisterDto, @Req() req: Request) {
-    return this.authService.register(dto, extractLoginClientIp(req))
+    return this.authService.register(dto, extractLoginClientIp(req), loginClientIpTrusted(req))
   }
 
   @Get('signup-enabled')

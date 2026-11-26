@@ -262,7 +262,7 @@ async fn c_loi_giua_chung_khong_de_lai_gi_va_nha_email() {
     let (db, platform) = t.db();
     let bad = vec![Migration {
         name: "0001_hong".to_owned(),
-        script: "SELECT * FROM bang_khong_ton_tai".to_owned(),
+        script: "SELECT a FROM bang_khong_ton_tai".to_owned(),
     }];
     let res = provision_company(&db, &platform, &bad, "0001_hong", &input("loi@thu.vn")).await;
     assert!(matches!(res, Err(ProvisionError::Migrate(_))), "{res:?}");

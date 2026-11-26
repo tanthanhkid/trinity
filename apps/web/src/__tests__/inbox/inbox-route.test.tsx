@@ -47,7 +47,7 @@ describe("Mục sidebar 'Hộp thư'", () => {
     expect(isItemVisible(inbox, {}, ALL_ON)).toBe(false)
     expect(isItemVisible(inbox, { "contacts.view": "all" }, ALL_ON)).toBe(false)
     expect(isItemVisible(inbox, { "contacts.update": "own" }, ALL_ON)).toBe(true)
-    expect(isItemVisible(inbox, { "social.post": true }, ALL_ON)).toBe(true) // chỉ trả lời đánh giá Google
+    expect(isItemVisible(inbox, { "social.post": true }, ALL_ON)).toBe(false) // đánh giá Google đã gỡ (G04): đăng bài không mở Hộp thư
     expect(isItemVisible(inbox, { "integrations.webhooks": true }, ALL_ON)).toBe(true)
     expect(isItemVisible(inbox, { "contacts.update": "all" }, off("inbox"))).toBe(false)
     expect(isItemVisible(inbox, { "contacts.update": "all" }, off("integrations"))).toBe(true)
@@ -77,16 +77,11 @@ describe("inboxChannels / tab", () => {
     expect(pickInboxTab("xyz", ["all", "zalo"])).toBe("all")
     expect(pickInboxTab(null, [])).toBeNull()
   })
-  it("đánh giá Google: cần social.post + công tắc social_posting + đã liên kết địa điểm; luôn là tab riêng", () => {
+  it("không còn tab đánh giá Google (G04): chỉ Zalo + Messenger", () => {
     const g: Grants = { ...both, "social.post": true }
     expect(inboxChannels(g, ALL_ON)).toEqual(["zalo", "facebook"])
-    expect(inboxChannels(g, ALL_ON, { hasGoogle: true })).toEqual(["zalo", "facebook", "google"])
-    expect(inboxChannels(both, ALL_ON, { hasGoogle: true })).toEqual(["zalo", "facebook"])
-    expect(inboxChannels(g, off("social_posting"), { hasGoogle: true })).toEqual(["zalo", "facebook"])
-    expect(inboxTabs(["zalo", "google"])).toEqual(["interactions", "zalo", "google"])
-    expect(inboxTabs(["zalo", "facebook", "google"])).toEqual(["interactions", "all", "zalo", "facebook", "google"])
-    expect(inboxTabs(["google"])).toEqual(["google"])
-    expect(pickInboxTab("google", ["zalo", "google"])).toBe("google")
+    expect(inboxTabs(["zalo", "facebook"])).toEqual(["interactions", "all", "zalo", "facebook"])
+    expect(pickInboxTab("google", ["interactions", "zalo"])).toBe("interactions")
   })
 })
 

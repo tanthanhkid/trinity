@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { can, type Grants, type OrgFeatureKey, type Permission } from '@trinity/rbac';
 import { PrismaService } from '@trinity/prisma';
 import { OrgFeaturesService } from '../settings/org-features.service';
+import { SOCIAL_NETWORKS } from '../social/social.config';
 import { STORE_SETTING_KEY } from '../store/store.service';
 import { vnTodayRange } from './dashboard-overview.util';
 
@@ -12,7 +13,7 @@ export type ChannelKind = 'facebook_page' | 'zalo_oa' | 'social' | 'payment' | '
 export interface ConnectedChannel {
   key: string;
   kind: ChannelKind;
-  /** facebook, youtube, zalo, sepay, vnpay, momo, kiotviet… — để FE chọn biểu tượng. */
+  /** facebook, zalo, sepay, vnpay, momo, kiotviet… — để FE chọn biểu tượng. */
   network: string;
   name: string;
   state: ChannelState;
@@ -43,7 +44,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   sepay: 'SePay', vnpay: 'VNPay', momo: 'MoMo', kiotviet: 'KiotViet', sapo: 'Sapo', ipos: 'iPOS', woocommerce: 'WooCommerce',
   shopee: 'Shopee', lazada: 'Lazada', misa: 'MISA',
 };
-const NETWORK_LABELS: Record<string, string> = { facebook: 'Fanpage', youtube: 'YouTube', tiktok: 'TikTok', zalo: 'Zalo OA' };
+const NETWORK_LABELS: Record<string, string> = { facebook: 'Fanpage', zalo: 'Zalo OA' };
 
 const INTEGRATIONS = '/connections';
 
@@ -117,8 +118,9 @@ export class DashboardChannelsService {
 
     if (on('social_posting') && any('social.post')) {
       tasks.push((async () => {
-        const accounts = await this.prisma.socialAccount.findMany({ orderBy: { id: 'asc' }, take: 20, select: { id: true, network: true, name: true, status: true } });
-        if (accounts.length === 0) available.push({ kind: 'social', label: 'Kênh đăng bài (Fanpage, YouTube)', href: '/social?tab=channels' });
+        // Kênh của mạng đã gỡ (YouTube, TikTok…) chỉ còn là lịch sử — không hiện ở Tổng quan.
+        const accounts = await this.prisma.socialAccount.findMany({ where: { network: { in: [...SOCIAL_NETWORKS] } }, orderBy: { id: 'asc' }, take: 20, select: { id: true, network: true, name: true, status: true } });
+        if (accounts.length === 0) available.push({ kind: 'social', label: 'Kênh đăng bài (Fanpage)', href: '/social?tab=channels' });
         const published = await this.prisma.socialPostTarget.groupBy({
           by: ['account_id'], where: { status: 'published', published_at: today, account_id: { in: accounts.map((a) => a.id) } }, _count: { _all: true },
         });

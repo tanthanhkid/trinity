@@ -55,13 +55,12 @@ describe('đăng bài — hạn mức và khoá kênh', () => {
     expect(tx.socialPost.create).not.toHaveBeenCalled();
   });
 
-  it('trả lời đánh giá Google bị chặn khi kênh bị khoá; gỡ bài trên mạng thì KHÔNG bị chặn (gỡ nội dung)', async () => {
+  it('gỡ bài trên mạng KHÔNG bị chặn khi kênh bị khoá (gỡ nội dung)', async () => {
     const locked = { assertOutbound: jest.fn(async () => { throw new ChannelBlockedError('channel_locked', 'Kênh đang bị tạm khoá'); }) };
     const { svc, prisma } = setup({ guard: locked });
-    await expect(svc.gbpReply(1, 'r1', 'Cảm ơn', user)).rejects.toThrow(/tạm khoá/);
     prisma.socialPostTarget.findUnique.mockResolvedValue(null);
     await expect(svc.deleteRemote(1)).rejects.toThrow(/Không tìm thấy/); // qua được cổng, dừng ở bước tìm bài
-    expect(locked.assertOutbound).toHaveBeenCalledTimes(1);
+    expect(locked.assertOutbound).not.toHaveBeenCalled();
   });
 
   it('retry() giữ chỗ 1 lượt; cập nhật lỗi thì hoàn lại', async () => {
@@ -126,15 +125,15 @@ describe('đăng bài — nhánh tạm dừng tự động', () => {
     });
   });
 
-  it('tạm dừng do Graph chỉ áp cho Facebook/Instagram: TikTok/YouTube hỏi guard với phạm vi "other"', async () => {
+  it('Facebook hỏi guard với phạm vi "meta"; đích sót trên mạng đã gỡ (YouTube) lỗi luôn, không hỏi guard', async () => {
     const { svc, prisma, guard } = paused('channel_paused');
-    prisma.socialAccount.findUnique.mockResolvedValue({ id: 1, network: 'youtube', status: 'active' });
     (guard.blockReason as jest.Mock).mockClear();
     await svc.processOne(7);
-    expect(guard.blockReason).toHaveBeenCalledWith('auto', 'other');
-    prisma.socialAccount.findUnique.mockResolvedValue({ id: 1, network: 'instagram', status: 'active' });
-    await svc.processOne(7);
     expect(guard.blockReason).toHaveBeenLastCalledWith('auto', 'meta');
+    (guard.blockReason as jest.Mock).mockClear();
+    prisma.socialAccount.findUnique.mockResolvedValue({ id: 1, network: 'youtube', status: 'active' });
+    expect(await svc.processOne(7)).toBe('failed');
+    expect(guard.blockReason).not.toHaveBeenCalled();
   });
 
   it('khoá kênh: báo lỗi, không xếp lại', async () => {

@@ -29,7 +29,7 @@ const FEATURES: readonly Feature[] = [
     key: "social",
     icon: Send,
     title: "Soạn một lần, đăng mọi kênh",
-    body: "Viết bài, gắn ảnh hoặc video, bấm một nút là lên Fanpage Facebook và kênh YouTube của công ty cùng lúc.",
+    body: "Viết bài, gắn ảnh hoặc video, bấm một nút là lên một hoặc nhiều Fanpage Facebook của công ty cùng lúc.",
     show: (f) => f.social_posting !== false,
   },
   {

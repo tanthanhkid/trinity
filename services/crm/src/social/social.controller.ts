@@ -21,7 +21,7 @@ import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '
 import type { Response } from 'express';
 import { Can, CurrentUser, type AuthUser } from '@trinity/rbac-nest';
 import { RequireOrgFeature } from '../usage/org-feature.guard';
-import { CreateSocialPostDto, SocialDraftDto, SocialDraftPublishDto, SocialQueueSlotsDto, SocialSnippetDto, GoogleReviewReplyDto, SocialRescheduleDto, SocialConnectDto, SocialMediaRegisterDto, SocialUploadTokenDto, SocialImportDto, SocialImportPlanDto, SocialRecurrenceDto } from './dto-social';
+import { CreateSocialPostDto, SocialDraftDto, SocialDraftPublishDto, SocialQueueSlotsDto, SocialSnippetDto, SocialRescheduleDto, SocialConnectDto, SocialMediaRegisterDto, SocialUploadTokenDto, SocialImportDto, SocialImportPlanDto, SocialRecurrenceDto } from './dto-social';
 import { SocialAccountsService } from './social-accounts.service';
 import { SocialDraftsService } from './social-drafts.service';
 import { SocialImportService } from './social-import.service';
@@ -88,35 +88,6 @@ export class SocialController {
   @ApiOperation({ summary: 'Gỡ kênh (xoá token; bài hẹn giờ còn chờ trên kênh này bị huỷ)' })
   disconnect(@Param('id', ParseIntPipe) id: number) {
     return this.accounts.disconnect(id);
-  }
-
-  @Get('accounts/:id/tiktok-creator')
-  @Can('social.post')
-  @ApiOperation({ summary: 'TikTok creator_info: tên/ảnh tài khoản, quyền xem được chọn, bình luận/Duet/Stitch bị tắt, thời lượng tối đa' })
-  async tiktokCreator(@Param('id', ParseIntPipe) id: number) {
-    return { data: await this.posts.tiktokCreatorInfo(id) };
-  }
-
-  @Get('accounts/:id/youtube-playlists')
-  @Can('social.post')
-  @ApiOperation({ summary: 'Playlist của kênh YouTube (chọn khi đăng video)' })
-  async youtubePlaylists(@Param('id', ParseIntPipe) id: number) {
-    return { data: await this.posts.youtubePlaylists(id) };
-  }
-
-  @Get('accounts/:id/google-reviews')
-  @Can('social.post')
-  @ApiOperation({ summary: 'Đánh giá Google của một địa điểm Google Business (mới cập nhật trước, 50/trang)' })
-  async googleReviews(@Param('id', ParseIntPipe) id: number, @Query('page_token') pageToken?: string) {
-    return { data: await this.posts.gbpReviews(id, pageToken || undefined) };
-  }
-
-  @Post('accounts/:id/google-reviews/:reviewId/reply')
-  @HttpCode(HttpStatus.OK)
-  @Can('social.post')
-  @ApiOperation({ summary: 'Trả lời công khai một đánh giá Google (gửi lại = sửa câu trả lời)' })
-  async replyGoogleReview(@Param('id', ParseIntPipe) id: number, @Param('reviewId') reviewId: string, @Body() dto: GoogleReviewReplyDto, @CurrentUser() user: AuthUser) {
-    return { data: await this.posts.gbpReply(id, reviewId, dto.comment, user) };
   }
 
   @Post('media/upload-token')

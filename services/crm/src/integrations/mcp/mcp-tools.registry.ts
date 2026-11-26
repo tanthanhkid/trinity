@@ -22,7 +22,6 @@ import { FACEBOOK_COMMENT_TOOLS } from './tools/facebook-comment-tools';
 import { FACEBOOK_CHAT_LINK_TOOLS } from './tools/facebook-chat-link-tools';
 import { FACEBOOK_FLOW_TOOLS } from './tools/facebook-flow-tools';
 import { INBOX_TOOLS } from './tools/inbox-tools';
-import { GOOGLE_REVIEW_TOOLS } from './tools/google-review-tools';
 import { CANCEL_TOOLS } from './tools/cancel-tools';
 import { FACEBOOK_BROADCAST_TOOLS } from './tools/facebook-broadcast-tools';
 import { PAYMENT_TOOLS } from './tools/payment-tools';
@@ -77,7 +76,6 @@ export const MCP_TOOLS: readonly ToolDef[] = [
   ...FACEBOOK_FLOW_TOOLS,
   ...FACEBOOK_BROADCAST_TOOLS,
   ...INBOX_TOOLS,
-  ...GOOGLE_REVIEW_TOOLS,
   ...CANCEL_TOOLS,
   ...PAYMENT_TOOLS,
   ...SALES_RECORD_TOOLS,

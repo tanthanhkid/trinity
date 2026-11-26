@@ -95,11 +95,10 @@ Missing permission ⇒ a clear `isError` tool result + a `denied` log entry. To 
 | `update_message_flow` (flow_id, name?, trigger?, keywords?, chat_link_id?, steps?, active?) | `integrations.webhooks` + org feature Facebook Page | `FacebookFlowsService.update`: only the fields sent change; `steps` replaces all steps; changing steps or turning the flow off stops runs in progress. No delete tool | false |
 | `update_messenger_broadcast` (broadcast_id, name?, text?, source_ids?, chat_link_ids?, scheduled_at? \| send_now?) | `integrations.webhooks` + org feature Facebook Page | edits a broadcast that has not run yet (draft/scheduled) via `FacebookBroadcastsService.update` + `send`; two steps: preview (recipient counts) → `confirmed_by_user` | false |
 | `list_conversations` / `get_conversation_messages` (read, scope `crm.read`; id `messenger:N` / `zalo_oa:N`) | `integrations.webhooks` + org feature Facebook Page; Zalo OA also needs `contacts.update` | every inbox conversation (not only unanswered ones) and the messages of one conversation, oldest first; reads the stored copy, does NOT mark anything as read; phone numbers masked | — |
-| `list_google_reviews` (read) / `reply_to_google_review` (review_id, comment, confirmed_by_user) | `social.post` + org feature social posting + a linked Google Business location | reads reviews live from Google (`SocialPostsService.gbpReviews`, no copy stored); the reply is public, so two steps: preview → `confirmed_by_user`. Only works once Google has approved the Business Profile API for the project (`GOOGLE_BUSINESS_ENABLED`) | false |
 | `save_social_draft` (draft_id?, title?, content?, account_ids?, captions?, media_keys?, scheduled_at?) | `social.post` + org feature social posting | `SocialDraftsService.create` / `update`: creates a draft, or updates the one given by `draft_id` (only the fields sent change; `account_ids` and `media_keys` replace the list). Nothing is published, so no confirmation; drafts may be incomplete and get only a light check. Direct write (no approval draft) | false |
 | `publish_social_draft` (draft_id, scheduled_at?, use_queue?, confirmed_by_user) | `social.post` + org feature social posting | `SocialDraftsService.publish`: builds the post from the draft and runs the same full validation as `create_social_post`; the draft is hidden afterwards. Two steps: preview → `confirmed_by_user`. `use_queue` (instead of `scheduled_at`) takes the nearest free queue slot, resolved to a concrete time at preview; error when both are given or no slots exist. Only `{draft_id, scheduled_at?}` is stored for approval, never a snapshot | false |
 | `set_queue_slots` (slots: [{weekday 0-6, time "HH:mm"}]) | `social.post` + org feature social posting | `SocialQueueService.setSlots`: replaces the WHOLE weekly slot list (Vietnam time; send existing slots plus new ones, read with `list_queue_slots` first; max 100, duplicates merged). Nothing is published, so no confirmation. Direct write (no approval draft) | false |
-| `preview_social_post` (read) | `social.post` + org feature social posting | `SocialPostsService.preview`: per-channel preview of what `create_social_post` would send (text after UTM, YouTube title/description, Facebook first comment, length/limit, approximate "See more" cut `truncated_at`, warnings). Same inputs minus `confirmed_by_user`; nothing is posted, saved or reserved in the queue | — |
+| `preview_social_post` (read) | `social.post` + org feature social posting | `SocialPostsService.preview`: per-channel preview of what `create_social_post` would send (text after UTM, Facebook first comment, length/limit, approximate "See more" cut `truncated_at`, warnings). Same inputs minus `confirmed_by_user`; nothing is posted, saved or reserved in the queue | — |
 | `enable_social_account` | write | Re-enable a removed social account |
 | `list_queue_slots` (read) | `social.post` + org feature social posting | weekly slots as `{weekday, weekday_text, time}` plus `next_free` (next 5 free times in Vietnam time); use `use_queue` on `create_social_post` / `publish_social_draft` to take the nearest one | — |
 | `list_social_snippets` (read) | `social.post` + org feature social posting | reusable hashtag sets and signatures as `{id, name, content, is_default}` grouped by kind; the assistant can append a snippet to the post text when the user asks | — |
@@ -157,7 +156,6 @@ Every tool the server exposes (112), generated from the tool registry. "write" t
 | `list_social_media` | read | List social media library |
 | `list_social_posts` | read | List social posts |
 | `list_social_snippets` | read | List social snippets |
-| `list_youtube_playlists` | read | List YouTube playlists |
 | `preview_social_post` | read | Preview social post per channel |
 | `publish_social_draft` | write · preview → `confirmed_by_user` | Publish social draft |
 | `refresh_social_post_metrics` | write | Refresh social post metrics |
@@ -199,10 +197,8 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 | `list_interactions` | read | Recent interactions: Fanpage comments, Messenger and Zalo OA conversations, with rule results and reply status |
 | `get_conversation_messages` | read | Read a conversation |
 | `list_conversations` | read | List inbox conversations |
-| `list_google_reviews` | read | List Google reviews |
 | `list_unanswered_messages` | read | List unanswered customer messages |
 | `reply_to_customer` | write · preview → `confirmed_by_user` | Reply to a customer |
-| `reply_to_google_review` | write · preview → `confirmed_by_user` | Reply to a Google review |
 
 ### Staff invitations
 
@@ -287,10 +283,10 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 
 - Every tool has unit tests (service + tool layer) and runs in CI.
 - Tool choice is checked with a small model (Haiku) on everyday Vietnamese requests for each batch of new tools (see "Testing tool descriptions" above).
-- Publishing, scheduling, first comments and metrics are verified end-to-end against real Facebook Pages and YouTube channels.
+- Publishing, scheduling, first comments and metrics are verified end-to-end against real Facebook Pages.
 - Drafts, the posting queue, hashtag sets and signatures, and the per-channel preview are verified through the API on a staging install.
 - UTM tagging is covered by unit tests, including link edge cases. It has not yet been observed on a live published post.
-- Instagram, TikTok and Google Business Profile tools are present but only work once the platform approves API access for the app.
+- Posting is Facebook Page only: the YouTube, TikTok, Instagram and Google Business Profile tools and options were removed (#102).
 
 ## Testing tool descriptions with a weak model (required)
 

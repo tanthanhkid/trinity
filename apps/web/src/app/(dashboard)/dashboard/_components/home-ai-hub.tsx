@@ -161,7 +161,7 @@ export function ChannelMark({ c }: { c: Pick<HomeChannel, 'kind' | 'network'> })
   return <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[var(--muted)] text-[var(--foreground)]" aria-hidden><Icon className="size-4" /></span>
 }
 
-const POST_NETWORK_LABELS: Record<string, string> = { facebook: 'Fanpage', youtube: 'kênh YouTube', tiktok: 'kênh TikTok' }
+const POST_NETWORK_LABELS: Record<string, string> = { facebook: 'Fanpage' }
 const STATE_RANK: Record<ChannelState, number> = { ok: 0, off: 1, attention: 2 }
 
 /**

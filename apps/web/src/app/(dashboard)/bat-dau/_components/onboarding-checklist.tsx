@@ -60,8 +60,8 @@ const STEPS: readonly Step[] = [
   },
   {
     key: "channels",
-    title: "Kết nối Fanpage và kênh YouTube",
-    body: "Nối Fanpage Facebook và kênh YouTube của công ty để đăng bài từ Trinity. Bật nhận tin nhắn Fanpage để người nhắn vào Page tự thành khách hàng.",
+    title: "Kết nối Fanpage",
+    body: "Nối Fanpage Facebook của công ty để đăng bài từ Trinity. Bật nhận tin nhắn Fanpage để người nhắn vào Page tự thành khách hàng.",
     done: (p) => p.channel_linked,
     shared: true,
     actions: [

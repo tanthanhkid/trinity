@@ -2220,14 +2220,15 @@ model FacebookLeadReceipt {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Đăng đa kênh (Facebook Page, YouTube, TikTok; X giữ chỗ): soạn 1 lần → đăng ngay/hẹn giờ ra nhiều kênh.
+// Đăng bài Fanpage: soạn 1 lần → đăng ngay/hẹn giờ ra nhiều Fanpage. Dòng cũ của YouTube/TikTok/Google Business/Instagram
+// (đã gỡ, migration 0021) giữ làm lịch sử: kênh `disabled`, đích chưa đăng `cancelled`.
 // Không FK (cùng quy ước nhóm tích hợp).
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// 1 kênh đã liên kết (1 Fanpage / 1 kênh YouTube / 1 tài khoản TikTok). Token mã hoá AES-256-GCM (INTEGRATIONS_SECRET_KEY) — KHÔNG trả ra API.
+/// 1 kênh đã liên kết (1 Fanpage). Token mã hoá AES-256-GCM (INTEGRATIONS_SECRET_KEY) — KHÔNG trả ra API.
 model SocialAccount {
   id                Int       @id @default(autoincrement())
-  /// 'facebook' | 'youtube' | 'tiktok' | 'x'
+  /// 'facebook'; dòng cũ có thể là 'youtube' | 'tiktok' | 'instagram' | 'google_business' (mạng đã gỡ, chỉ còn lịch sử)
   network           String    @db.VarChar(16)
   external_id       String    @db.VarChar(64)
   name              String    @db.VarChar(200)
@@ -2380,7 +2381,7 @@ model SocialPostTarget {
   network          String    @db.VarChar(16)
   /// null = dùng nội dung chung của bài.
   caption          String?   @db.Text
-  /// Tuỳ chọn riêng mạng (vd YouTube {title, privacy}, TikTok {privacy_level}).
+  /// Tuỳ chọn riêng mạng (vd Facebook {first_comment, utm}).
   options          Json      @default("{}")
   /// 'queued' | 'publishing' | 'published' | 'failed' | 'cancelled'
   status           String    @default("queued") @db.VarChar(16)

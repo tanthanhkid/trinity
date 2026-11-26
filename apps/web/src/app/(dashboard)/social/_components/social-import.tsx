@@ -117,7 +117,7 @@ export function SocialImportDialog({ open, onOpenChange }: { open: boolean; onOp
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Nhập nhiều bài từ CSV</DialogTitle>
-          <DialogDescription>Tối đa 200 dòng. Cột: noi_dung, kenh, gio_dang (giờ Việt Nam), tep, binh_luan_dau, tieu_de_youtube, utm.</DialogDescription>
+          <DialogDescription>Tối đa 200 dòng. Cột: noi_dung, kenh, gio_dang (giờ Việt Nam), tep, binh_luan_dau, utm.</DialogDescription>
         </DialogHeader>
 
         <div className="flex max-h-[65vh] flex-col gap-3 overflow-y-auto pr-1">

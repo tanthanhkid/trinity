@@ -17,12 +17,13 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { SOCIAL_NETWORKS } from './social.config';
+import { REMOVED_SOCIAL_NETWORKS, SOCIAL_NETWORKS } from './social.config';
 
 export class SocialConnectDto {
   @ApiProperty({ enum: SOCIAL_NETWORKS })
-  @IsIn(SOCIAL_NETWORKS as unknown as string[], { message: 'Mạng không hợp lệ' })
-  network!: (typeof SOCIAL_NETWORKS)[number];
+  // Nhận cả tên mạng đã gỡ để service trả câu báo rõ ràng ("đã ngừng hỗ trợ …") thay vì "Mạng không hợp lệ".
+  @IsIn([...SOCIAL_NETWORKS, ...Object.keys(REMOVED_SOCIAL_NETWORKS)], { message: 'Mạng không hợp lệ' })
+  network!: string;
 }
 
 export class SocialUploadTokenDto {
@@ -66,13 +67,6 @@ export class CreateSocialPostDto {
 
   @ApiPropertyOptional({ type: SocialUtmDto, nullable: true, description: 'Gắn UTM vào mọi liên kết http(s) khi đăng: utm_source = tên mạng, utm_medium = social, utm_campaign, utm_content. Liên kết đã có utm_ giữ nguyên.' })
   @IsOptional() @ValidateNested() @Type(() => SocialUtmDto) utm?: SocialUtmDto | null;
-}
-
-export class GoogleReviewReplyDto {
-  @ApiProperty({ example: 'Cảm ơn anh đã ghé quán!', description: 'Câu trả lời công khai (tối đa 4.096 byte)' })
-  @IsString()
-  @Length(1, 4096)
-  comment!: string;
 }
 
 export class SocialRescheduleDto {

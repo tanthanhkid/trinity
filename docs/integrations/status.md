@@ -21,14 +21,10 @@ The same label shows next to each item on **Connections (Kết nối)** in the a
 | Facebook comments — auto-replies, hide phone numbers | Tested with a real account (2026-10-13) | |
 | Interactions timeline (comments + Messenger + Zalo OA), comment rules on a cover photo | Tested with a real account (2026-10-16) | Counters, filters and rule results read from real Page comments; real-time bell notifications not yet tried with a live comment |
 | Facebook comments — manual replies | Tested in sandbox / simulated webhooks only | Public reply and one private reply per comment within 7 days |
-| YouTube — video upload | Tested with a real account (2026-10-13) | |
 | Zalo Official Account — connect, incoming messages | Tested with a real account (2026-10-15) | OAuth connection; a real user's message reached the CRM through the webhook and opened a conversation |
 | Zalo Official Account — replies (consultation messages), sender profile | Ready — not yet tried with a real account (needs a paid Zalo OA Tier plan) | Zalo rejects both on the free OA plan: the OA has to upgrade its Zalo OA Tier package. Without the profile, conversations have no name or phone and are not matched to contacts automatically (they can be linked by hand) |
 | Zalo ZNS | Not tested — no account yet | Needs approved ZNS templates |
-| Instagram — posting | Ready — not yet tried with a real account | Unit tests only. Needs Meta App Review before other accounts can connect |
 | Instagram — direct messages | Not built yet | See [ROADMAP](../../ROADMAP.md) |
-| TikTok — video posting | Ready — not yet tried with a real account | Unit tests with TikTok's documented payloads. Needs TikTok production approval; the app review has not been submitted yet |
-| Google Business Profile — updates, reviews | Ready — not yet tried with a real account | Code ready (`google-business.provider.ts`, tests with Google's documented payloads): each location is a channel, business updates with one photo, Google reviews in the inbox with public replies. Google's API quota is 0 until it approves Basic API Access — applied for on 2026-10-15; Google answers in 7–10 business days. Switched on with `GOOGLE_BUSINESS_ENABLED=true` |
 
 ## Connectors
 

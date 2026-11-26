@@ -22,7 +22,7 @@ describe('state OAuth đăng đa kênh', () => {
   });
   it('tráo mạng, sửa chữ ký, hết hạn ⇒ null', () => {
     const s = signSocialState(7, 'facebook');
-    expect(verifySocialState(s, 'youtube')).toBeNull();
+    expect(verifySocialState(s, 'youtube' as never)).toBeNull();
     expect(verifySocialState(`${s}x`, 'facebook')).toBeNull();
     expect(verifySocialState(signSocialState(7, 'facebook', undefined, Date.now() - 11 * 60_000), 'facebook')).toBeNull();
   });
@@ -210,27 +210,23 @@ describe('SocialPostsService.processOne', () => {
     expect(await svc.processOne(11)).toBe('failed');
     expect(publish).not.toHaveBeenCalled();
   });
+
+  it('đích còn sót trên mạng đã gỡ (YouTube, kênh vẫn active) ⇒ lỗi rõ, không gọi mạng, không ném', async () => {
+    const publish = jest.fn();
+    const { svc, prisma } = setup(publish);
+    prisma.socialAccount.findUnique.mockResolvedValue({ ...account, network: 'youtube' });
+    expect(await svc.processOne(11)).toBe('failed');
+    expect(publish).not.toHaveBeenCalled();
+    expect(prisma.socialPostTarget.update.mock.calls[0][0].data).toMatchObject({ status: 'failed' });
+  });
 });
 
-describe('SocialProviderRegistry: mạng đang mở', () => {
-  const fb = { network: 'facebook', supported: true } as never;
-  const yt = { network: 'youtube', supported: true } as never;
-  const off = (network: string) => ({ network, supported: true, configured: () => false }) as never;
-  const on = (network: string) => ({ network, supported: true, configured: () => true }) as never;
-
-  it('Instagram/TikTok/Google Business chưa có khoá ⇒ "Sắp có", không liên kết được; không còn X', () => {
-    const r = new SocialProviderRegistry(fb, off('instagram'), yt, off('tiktok'), off('google_business'));
-    expect(r.all().map((p) => p.network)).toEqual(['facebook', 'instagram', 'youtube', 'tiktok', 'google_business']);
-    expect(r.all().filter((p) => p.supported).map((p) => p.network)).toEqual(['facebook', 'youtube']);
-    for (const n of ['instagram', 'tiktok', 'google_business'] as const) {
-      expect(r.get(n).supported).toBe(false);
-      expect(() => r.get(n).authorizeUrl('s', 'u')).toThrow(/chưa hỗ trợ/);
-    }
-  });
-
-  it('máy chủ có khoá ⇒ Instagram/TikTok đăng được', () => {
-    const r = new SocialProviderRegistry(fb, on('instagram'), yt, on('tiktok'), on('google_business'));
-    expect(r.all().filter((p) => p.supported).map((p) => p.network)).toEqual(['facebook', 'instagram', 'youtube', 'tiktok', 'google_business']);
+describe('SocialProviderRegistry: chỉ còn Facebook Page', () => {
+  it('một mạng duy nhất là facebook', () => {
+    const fb = { network: 'facebook', supported: true } as never;
+    const r = new SocialProviderRegistry(fb);
+    expect(r.all().map((p) => p.network)).toEqual(['facebook']);
+    expect(r.get('facebook')).toBe(fb);
   });
 });
 
@@ -276,35 +272,34 @@ describe('SocialPostsService.nextDueAt — giờ bài chờ sớm nhất cho lư
   });
 });
 
-describe('SocialPostsService.validate — ảnh thumbnail YouTube', () => {
+describe('SocialPostsService.validate — mạng đã gỡ', () => {
   const user = { userId: 1, email: 'a@x.vn', isAdmin: true, grants: {} } as never;
-  const video = { key: 'social/v.mp4', type: 'video', content_type: 'video/mp4', size: 10 };
-  function setup(thumb: unknown) {
-    const prisma = { socialAccount: { findMany: jest.fn(async () => [{ id: 3, network: 'youtube', name: 'Kênh', status: 'active' }]) } };
-    const media = { resolve: jest.fn(async (_u: unknown, keys: string[]) => (keys[0] === 'social/v.mp4' ? [video] : thumb ? [thumb] : [])) };
-    const provider = { supported: true, validateMedia: () => null, validateOptions: () => null };
-    const svc = new SocialPostsService(prisma as never, {} as never, media as never, { get: () => provider } as never);
-    return { svc, media };
-  }
-  const input = (key: string) => ({ content: 'x', media_keys: ['social/v.mp4'], targets: [{ account_id: 3, options: { thumbnail_key: key } }] });
-
-  it('ảnh JPG/PNG trong thư viện ⇒ lưu sẵn thông tin tệp, bỏ thumbnail_key', async () => {
-    const { svc } = setup({ key: 'social/t.png', type: 'image', content_type: 'image/png', size: 1000 });
-    const v = await svc.validate(user, input('social/t.png') as never);
-    expect(v.targets[0].options).toEqual({ thumbnail: { key: 'social/t.png', type: 'image', content_type: 'image/png', size: 1000 } });
+  const setup = (status: string) => {
+    const prisma = { socialAccount: { findMany: jest.fn(async () => [{ id: 3, network: 'youtube', name: 'Kênh Bí Mật', status }]) } };
+    return new SocialPostsService(prisma as never, {} as never, { resolve: jest.fn(async () => []) } as never, { get: () => ({ supported: true }) } as never);
+  };
+  it('kênh YouTube đã disabled (sau migration) ⇒ "Không tìm thấy kênh", validate và preview cùng câu, không lộ tên', async () => {
+    const svc = setup('disabled');
+    await expect(svc.validate(user, { content: 'x', targets: [{ account_id: 3 }] } as never)).rejects.toThrow('Không tìm thấy kênh #3.');
+    const p = await svc.preview(user, { content: 'x', targets: [{ account_id: 3 }] });
+    expect(p.targets[0]).toMatchObject({ account_name: '#3', network: null, warnings: ['Không tìm thấy kênh #3.'] });
+  });
+  it('kênh YouTube còn active (chưa migrate) ⇒ "ngừng hỗ trợ", validate và preview cùng câu, không lộ tên', async () => {
+    const svc = setup('active');
+    const msg = 'Kênh #3: Trinity đã ngừng hỗ trợ YouTube: chỉ còn đăng bài lên Fanpage Facebook. Bài cũ vẫn xem được trong lịch sử.';
+    await expect(svc.validate(user, { content: 'x', targets: [{ account_id: 3 }] } as never)).rejects.toThrow(msg);
+    const p = await svc.preview(user, { content: 'x', targets: [{ account_id: 3 }] });
+    expect(p.targets[0]).toMatchObject({ account_name: '#3', network: null, warnings: [msg] });
+    expect(JSON.stringify(p)).not.toContain('Bí Mật');
   });
 
-  it('options.thumbnail do người gọi tự gửi bị bỏ (chỉ nhận qua thumbnail_key đã kiểm)', async () => {
-    const { svc, media } = setup(null);
-    const v = await svc.validate(user, { content: 'x', media_keys: ['social/v.mp4'], targets: [{ account_id: 3, options: { thumbnail: { key: 'private/khac.png', type: 'image', content_type: 'image/png', size: 1 } } }] } as never);
-    expect(v.targets[0].options).toEqual({});
-    expect(media.resolve).toHaveBeenCalledTimes(1); // chỉ resolve media của bài
-  });
-
-  it('không có trong thư viện / sai định dạng / quá 2 MB ⇒ 400', async () => {
-    await expect(setup(null).svc.validate(user, input('social/khong.png') as never)).rejects.toThrow(/JPG hoặc PNG/);
-    await expect(setup({ key: 'k', type: 'image', content_type: 'image/webp', size: 10 }).svc.validate(user, input('k') as never)).rejects.toThrow(/JPG hoặc PNG/);
-    await expect(setup({ key: 'k', type: 'image', content_type: 'image/jpeg', size: 3 * 1024 * 1024 }).svc.validate(user, input('k') as never)).rejects.toThrow(/2 MB/);
+  it('refreshPostMetricsReport bỏ qua đích của mạng đã gỡ (không gọi, không tính lỗi)', async () => {
+    const post = { id: 1, targets: [{ id: 9, status: 'published', external_post_id: 'v', network: 'youtube', metrics: null, metrics_at: null }] };
+    const svc = new SocialPostsService({} as never, {} as never, {} as never, {} as never);
+    jest.spyOn(svc, 'get').mockResolvedValue(post as never);
+    const fetch = jest.spyOn(svc as unknown as { fetchTargetMetrics: () => Promise<boolean> }, 'fetchTargetMetrics');
+    expect(await svc.refreshPostMetricsReport(1)).toMatchObject({ failed: [], throttled: [] });
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
 

@@ -5,9 +5,9 @@ import { NO_QUEUE_SLOTS } from '../social-queue.service';
 const user = { userId: 1 } as never;
 const ACCOUNTS = [
   { id: 1, network: 'facebook', name: 'Fanpage', status: 'active' },
-  { id: 2, network: 'youtube', name: 'Kênh YT', status: 'active' },
+  { id: 2, network: 'facebook', name: 'Kênh Hai', status: 'active' },
   { id: 3, network: 'facebook', name: 'Trùng', status: 'active' },
-  { id: 4, network: 'instagram', name: 'Trùng', status: 'active' },
+  { id: 4, network: 'facebook', name: 'Trùng', status: 'active' },
 ];
 const ASSETS = [
   { key: 'social/u1_2_b.png', name: 'logo.png' },
@@ -43,7 +43,7 @@ const csv = (...lines: string[]) => ['noi_dung,kenh,gio_dang,tep,binh_luan_dau,t
 describe('SocialImportService.plan — kênh, tệp, giờ', () => {
   it('tên kênh → id (đúng tên, không phân biệt hoa thường), id số, tên trùng ⇒ lỗi, tên lạ ⇒ lỗi', async () => {
     const { svc } = setup();
-    const p = await svc.plan(user, csv(`a,Fanpage,${vn(2)},,,,`, `b,"kênh yt; 1",${vn(2)},,,,`, `c,Trùng,${vn(2)},,,,`, `d,Không có,${vn(2)},,,,`, `e,2,${vn(2)},,,,`), 'schedule');
+    const p = await svc.plan(user, csv(`a,Fanpage,${vn(2)},,,,`, `b,"kênh hai; 1",${vn(2)},,,,`, `c,Trùng,${vn(2)},,,,`, `d,Không có,${vn(2)},,,,`, `e,2,${vn(2)},,,,`), 'schedule');
     expect(p.rows[0].preview.channels).toEqual([{ account_id: 1, name: 'Fanpage', network: 'facebook' }]);
     expect(p.rows[1].preview.channels.map((c) => c.account_id)).toEqual([2, 1]);
     expect(p.rows[2].errors.join()).toMatch(/trùng nhiều kênh/);
@@ -75,13 +75,15 @@ describe('SocialImportService.plan — kênh, tệp, giờ', () => {
     expect(p.rows[4].errors.join()).toMatch(/90 ngày/);
   });
 
-  it('first_comment chỉ áp cho Facebook, youtube_title chỉ cho YouTube, utm_campaign → utm; thiếu kênh phù hợp ⇒ cảnh báo', async () => {
-    const { svc, posts } = setup();
-    const p = await svc.plan(user, csv(`a,"Fanpage;Kênh YT",${vn(2)},social/u1_3_c.mp4,"bình luận","Tiêu đề",thu 10`, `b,Kênh YT,${vn(2)},,"x",,`), 'schedule');
+  it('first_comment áp cho từng Fanpage, utm_campaign → utm; cột tiêu đề YouTube cũ bị bỏ qua (báo cột lạ)', async () => {
+    const { svc, posts, prisma } = setup();
+    const p = await svc.plan(user, csv(`a,"Fanpage;Kênh Hai",${vn(2)},social/u1_3_c.mp4,"bình luận","Tiêu đề",thu 10`), 'schedule');
     const input = posts.validate.mock.calls[0][1];
-    expect(input.targets).toEqual([{ account_id: 1, options: { first_comment: 'bình luận' } }, { account_id: 2, options: { title: 'Tiêu đề' } }]);
+    expect(input.targets).toEqual([{ account_id: 1, options: { first_comment: 'bình luận' } }, { account_id: 2, options: { first_comment: 'bình luận' } }]);
     expect(input.utm).toEqual({ campaign: 'thu-10' });
-    expect(p.rows[1].warnings.join()).toMatch(/Không có kênh Facebook/);
+    expect(p.unknown_columns).toEqual(['tieu_de_youtube']);
+    // Chỉ tìm kênh của mạng còn hỗ trợ.
+    expect((prisma.socialAccount.findMany.mock.calls[0] as unknown[])[0]).toMatchObject({ where: { network: { in: ['facebook'] } } });
   });
 });
 
@@ -168,7 +170,7 @@ describe('chế độ drafts', () => {
 });
 
 describe('nhập thật', () => {
-  const text = csv(`a,Fanpage,${vn(2)},,,,`, `b,Kênh YT,${vn(3)},,,,`, `c,Fanpage,${vn(4)},,,,`, 'x,Fanpage,,,,,');
+  const text = csv(`a,Fanpage,${vn(2)},,,,`, `b,Kênh Hai,${vn(3)},,,,`, `c,Fanpage,${vn(4)},,,,`, 'x,Fanpage,,,,,');
 
   it('plan_hash khác ⇒ 409, không tạo gì', async () => {
     const { svc, posts } = setup();

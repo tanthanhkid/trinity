@@ -15,11 +15,10 @@ vi.mock("@/hooks/use-social", async (orig) => ({
   useSocialAccounts: () => ({
     data: [
       { id: 3, network: "facebook", name: "Fanpage", avatar_url: null, status: "active", last_error: null },
-      { id: 4, network: "google_business", name: "Quán", avatar_url: null, status: "active", last_error: null },
+      { id: 4, network: "facebook", name: "Quán", avatar_url: null, status: "active", last_error: null },
     ],
     isLoading: false,
   }),
-  useTiktokCreatorInfos: () => ({}),
   useSocialMutations: () => ({
     create: { isPending: false, mutateAsync: state.create },
     createRecurrence: { isPending: false, mutateAsync: vi.fn() },
@@ -126,7 +125,7 @@ describe("ô soạn — Gắn UTM", () => {
   it("giới hạn ký tự tính sau UTM: vừa đủ trước, quá sau khi bật", () => {
     render(<SocialComposer onCreated={vi.fn()} onGoChannels={vi.fn()} />)
     const url = "https://shop.vn/sp"
-    fireEvent.change(box(), { target: { value: `${"x".repeat(1500 - url.length - 1)} ${url}` } })
+    fireEvent.change(box(), { target: { value: `${"x".repeat(63_206 - url.length - 1)} ${url}` } })
     fireEvent.click(screen.getByRole("checkbox", { name: /Quán/ }))
     expect(screen.getByRole("button", { name: /Đăng ngay/ })).toBeEnabled()
     fireEvent.click(screen.getByLabelText("Gắn UTM vào liên kết"))

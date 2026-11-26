@@ -6,15 +6,12 @@ import type { Prisma, SocialPost, SocialPostTarget } from '@prisma/client';
 import { ChannelGuardService } from '../channel-guard/channel-guard.service';
 import { SocialProviderRegistry } from './providers/provider.registry';
 import { SocialPostGoneError, SocialPublishError, type AccountForPublish, type PostMetrics, type SocialMedia, type SocialProvider } from './providers/provider.types';
-import { TiktokSocialProvider, type TiktokCreatorInfo } from './providers/tiktok.provider';
-import { GoogleBusinessSocialProvider, type GbpReview } from './providers/google-business.provider';
-import { YoutubeSocialProvider, youtubeTitle } from './providers/youtube.provider';
 import { firstCommentOf, postFirstComment } from './facebook-first-comment';
 import { commentAutomationEnabled } from '../facebook/facebook.config';
 import { SocialAccountsService } from './social-accounts.service';
 import { SocialMediaService } from './social-media.service';
 import { NO_QUEUE_SLOTS, SocialQueueService } from './social-queue.service';
-import { CAPTION_LIMITS, MAX_MEDIA_PER_POST, MAX_SCHEDULE_AHEAD_MS, NETWORK_LABELS, isSocialNetwork, socialBaseUrl, truncatedAt, type SocialNetwork } from './social.config';
+import { CAPTION_LIMITS, MAX_MEDIA_PER_POST, MAX_SCHEDULE_AHEAD_MS, NETWORK_LABELS, SOCIAL_NETWORKS, isSocialNetwork, networkLabel, removedNetworkMessage, socialBaseUrl, truncatedAt, type SocialNetwork } from './social.config';
 import { mediaLinkExt, signMediaLink } from './social-media-link';
 import { applyUtmToTarget, normalizeUtm, type UtmInput } from './social-utm';
 import { withCompanyHint } from '../common/helpers/tenant-hint';
@@ -56,15 +53,11 @@ export interface TargetPreview {
   network: SocialNetwork | null;
   /** Chữ chung/riêng của kênh sau UTM — đúng chữ sẽ gửi. */
   text: string;
-  /** YouTube: tiêu đề sẽ dùng. */
-  title: string | null;
-  /** YouTube: mô tả sẽ dùng (sau UTM). */
-  description: string | null;
   /** Facebook: bình luận đầu tiên (sau UTM). */
   first_comment: string | null;
   length: number;
   limit: number | null;
-  /** Vị trí mạng gập "Xem thêm" (xấp xỉ; YouTube tính trên mô tả); null = hiện đủ. */
+  /** Vị trí mạng gập "Xem thêm" (xấp xỉ); null = hiện đủ. */
   truncated_at: number | null;
   media: Array<{ key: string; type: 'image' | 'video' }>;
   warnings: string[];
@@ -174,6 +167,9 @@ export class SocialPostsService {
     const resolved: Array<{ account: (typeof accounts)[number]; caption: string | null; options: Record<string, unknown> }> = targets.map((t) => {
       const a = byId.get(t.account_id);
       if (!a || a.status === 'disabled') throw new BadRequestException(`Không tìm thấy kênh #${t.account_id}.`);
+      // Kênh mạng đã gỡ mà chưa qua migration 0021 (vẫn active): báo đúng lý do, không lộ tên kênh — cùng câu với preview.
+      const removed = removedNetworkMessage(a.network);
+      if (removed) throw new BadRequestException(`Kênh #${t.account_id}: ${removed}`);
       if (a.status !== 'active') throw new BadRequestException(`Kênh "${a.name}" cần liên kết lại trước khi đăng.`);
       if (!isSocialNetwork(a.network)) throw new BadRequestException(`Kênh "${a.name}" không hợp lệ.`);
       const p = this.providers.get(a.network);
@@ -197,19 +193,6 @@ export class SocialPostsService {
       if (badOpt) throw new BadRequestException(badOpt);
       return { account: a, caption, options };
     });
-    // YouTube: ảnh thumbnail chọn từ thư viện ⇒ kiểm quyền + định dạng ngay khi tạo bài, lưu sẵn thông tin tệp để lúc đăng nạp lại.
-    // `options.thumbnail` CHỈ do máy chủ đặt từ `thumbnail_key` đã kiểm — bỏ mọi giá trị người gọi tự gửi (không thì đọc được
-    // tệp bất kỳ trong kho lưu trữ rồi đăng công khai làm thumbnail).
-    for (const r of resolved) {
-      const { thumbnail: _ignored, thumbnail_key: key, ...rest } = r.options;
-      r.options = rest;
-      if (r.account.network !== 'youtube' || key === undefined || key === null || key === '') continue;
-      if (typeof key !== 'string') throw new BadRequestException('YouTube: thumbnail_key không hợp lệ.');
-      const [img] = await this.media.resolve(user, [key]);
-      if (!img || img.type !== 'image' || !['image/jpeg', 'image/png'].includes(img.content_type)) throw new BadRequestException('YouTube: ảnh thumbnail phải là ảnh JPG hoặc PNG trong thư viện.');
-      if (img.size > 2 * 1024 * 1024) throw new BadRequestException('YouTube: ảnh thumbnail tối đa 2 MB.');
-      r.options = { ...rest, thumbnail: { key: img.key, type: img.type, content_type: img.content_type, size: img.size } };
-    }
     // Facebook — bình luận đầu tiên đăng bằng token của kết nối "Fanpage Facebook" có quyền bình luận: kiểm ngay lúc tạo bài
     // (không để bài báo "đã đăng" mà bình luận lặng lẽ không lên).
     for (const r of resolved) {
@@ -286,7 +269,10 @@ export class SocialPostsService {
       seen.add(t.account_id);
       if (!a || a.status === 'disabled' || !isSocialNetwork(a.network)) {
         // Kênh đã gỡ / không dùng được: như validate — coi là không có, không trả tên/mạng thật.
-        out.push({ account_id: t.account_id, account_name: `#${t.account_id}`, network: null, text: '', title: null, description: null, first_comment: null, length: 0, limit: null, truncated_at: null, media: [], warnings: [...warnings, `Không tìm thấy kênh #${t.account_id}.`] });
+        // Cùng câu với validate: kênh mạng đã gỡ còn active (chưa qua migration 0021) ⇒ nói lý do, vẫn không lộ tên.
+        const removed = a && a.status !== 'disabled' ? removedNetworkMessage(a.network) : null;
+        const why = removed ? `Kênh #${t.account_id}: ${removed}` : `Không tìm thấy kênh #${t.account_id}.`;
+        out.push({ account_id: t.account_id, account_name: `#${t.account_id}`, network: null, text: '', first_comment: null, length: 0, limit: null, truncated_at: null, media: [], warnings: [...warnings, why] });
         continue;
       }
       const network = a.network;
@@ -301,9 +287,7 @@ export class SocialPostsService {
       } catch (e) {
         warnings.push((e as Error).message);
       }
-      // Giống validate: `thumbnail` chỉ do máy chủ đặt — bỏ giá trị người gọi gửi.
-      const { thumbnail: _ignored, ...clean } = rest;
-      const options: Record<string, unknown> = utm ? { ...clean, utm: { source: network, medium: 'social', ...utm } } : clean;
+      const options: Record<string, unknown> = utm ? { ...rest, utm: { source: network, medium: 'social', ...utm } } : rest;
       const sent = applyUtmToTarget(network, caption ?? content, options);
       const limit = CAPTION_LIMITS[network];
       if (sent.text.length > limit) warnings.push(`${a.name}: nội dung dài ${sent.text.length} ký tự${utm ? ' (đã tính tham số UTM)' : ''}, ${NETWORK_LABELS[network]} cho tối đa ${limit}.`);
@@ -311,8 +295,6 @@ export class SocialPostsService {
       if (badMedia) warnings.push(badMedia);
       const badOpt = p.validateOptions?.(sent.text, sent.options);
       if (badOpt) warnings.push(badOpt);
-      const isYt = network === 'youtube';
-      const description = isYt ? (typeof sent.options.description === 'string' && sent.options.description.trim() ? (sent.options.description as string) : sent.text).replace(/[<>]/g, '') : null;
       const firstComment = network === 'facebook' ? firstCommentOf(sent.options) : null;
       if (firstComment && !commentAutomationEnabled()) warnings.push('Bình luận đầu tiên cần bật quyền bình luận Fanpage trên máy chủ (FACEBOOK_COMMENT_AUTOMATION).');
       out.push({
@@ -320,83 +302,15 @@ export class SocialPostsService {
         account_name: a.name,
         network,
         text: sent.text,
-        title: isYt ? youtubeTitle(sent.text, sent.options) : null,
-        description,
         first_comment: firstComment,
         length: sent.text.length,
         limit,
-        truncated_at: truncatedAt(network, description ?? sent.text),
+        truncated_at: truncatedAt(network, sent.text),
         media: media.map((m) => ({ key: m.key, type: m.type })),
         warnings,
       });
     }
     return { scheduled_at: scheduledAt ? scheduledAt.toISOString() : null, from_queue: fromQueue, warnings: general, targets: out };
-  }
-
-  /** creator_info của một kênh TikTok cho màn soạn (TikTok yêu cầu hiện tên/ảnh và chỉ cho chọn đúng những gì tài khoản được phép). */
-  async tiktokCreatorInfo(accountId: number): Promise<TiktokCreatorInfo> {
-    const a = await this.prisma.socialAccount.findUnique({ where: { id: accountId } });
-    if (!a || a.status === 'disabled' || a.network !== 'tiktok') throw new NotFoundException('Không tìm thấy kênh TikTok');
-    if (a.status !== 'active') throw new BadRequestException(`Kênh "${a.name}" cần liên kết lại trước khi đăng.`);
-    const p = this.providers.get('tiktok');
-    if (!(p instanceof TiktokSocialProvider)) throw new BadRequestException('TikTok chưa hỗ trợ.');
-    try {
-      return await p.creatorInfo(await this.freshAccount(p, a));
-    } catch (err) {
-      if (!(err instanceof SocialPublishError)) throw err;
-      if (err.kind === 'token') await this.accounts.markReauth(a.id, err.message);
-      throw new BadRequestException(err.message);
-    }
-  }
-
-  /** Kênh Google Business đang hoạt động + provider thật (chưa bật quyền API ⇒ 400 "chưa hỗ trợ"). */
-  private async gbp(accountId: number) {
-    const a = await this.prisma.socialAccount.findUnique({ where: { id: accountId } });
-    if (!a || a.status === 'disabled' || a.network !== 'google_business') throw new NotFoundException('Không tìm thấy hồ sơ Google Business');
-    if (a.status !== 'active') throw new BadRequestException(`Kênh "${a.name}" cần liên kết lại.`);
-    const p = this.providers.get('google_business');
-    if (!(p instanceof GoogleBusinessSocialProvider)) throw new BadRequestException('Google Business Profile chưa bật trên máy chủ này (chờ Google cấp quyền API).');
-    return { a, p };
-  }
-
-  private async gbpCall<T>(accountId: number, fn: (p: GoogleBusinessSocialProvider, acc: AccountForPublish) => Promise<T>): Promise<T> {
-    const { a, p } = await this.gbp(accountId);
-    try {
-      return await fn(p, await this.freshAccount(p, a));
-    } catch (err) {
-      if (!(err instanceof SocialPublishError)) throw err;
-      if (err.kind === 'token') await this.accounts.markReauth(a.id, err.message);
-      throw new BadRequestException(err.message);
-    }
-  }
-
-  /** Playlist của một kênh YouTube (để chọn khi đăng). */
-  async youtubePlaylists(accountId: number): Promise<Array<{ id: string; title: string }>> {
-    const a = await this.prisma.socialAccount.findUnique({ where: { id: accountId } });
-    if (!a || a.status === 'disabled' || a.network !== 'youtube') throw new NotFoundException('Không tìm thấy kênh YouTube');
-    if (a.status !== 'active') throw new BadRequestException(`Kênh "${a.name}" cần liên kết lại.`);
-    const p = this.providers.get('youtube');
-    if (!(p instanceof YoutubeSocialProvider)) throw new BadRequestException('YouTube chưa hỗ trợ.');
-    try {
-      return await p.listPlaylists(await this.freshAccount(p, a));
-    } catch (err) {
-      if (!(err instanceof SocialPublishError)) throw err;
-      if (err.kind === 'token') await this.accounts.markReauth(a.id, err.message);
-      throw new BadRequestException(err.message);
-    }
-  }
-
-  /** Đánh giá Google của một địa điểm (đọc thẳng từ Google, không lưu bản sao). */
-  async gbpReviews(accountId: number, pageToken?: string): Promise<{ reviews: GbpReview[]; average: number | null; total: number; next_page_token: string | null }> {
-    return this.gbpCall(accountId, (p, acc) => p.listReviews(acc, pageToken));
-  }
-
-  /** Trả lời công khai một đánh giá Google (gửi lại = sửa câu trả lời). */
-  async gbpReply(accountId: number, reviewId: string, comment: string, user: AuthUser) {
-    await this.channelGuard?.assertOutbound('manual');
-    const r = await this.gbpCall(accountId, (p, acc) => p.replyReview(acc, reviewId, comment));
-    this.logger.log(`Trả lời đánh giá Google (kênh ${accountId}) bởi user ${user.userId}`);
-    return r;
   }
 
   /** `opts.inTx`: việc ghi thêm trong CÙNG transaction tạo bài (vd gắn nháp ↔ bài) — lỗi thì bài cũng không được tạo. */
@@ -582,6 +496,8 @@ export class SocialPostsService {
     const t = await this.prisma.socialPostTarget.findUnique({ where: { id: targetId } });
     if (!t) throw new NotFoundException('Không tìm thấy kênh của bài');
     if (t.status !== 'failed') throw new BadRequestException('Chỉ thử lại được kênh đang báo lỗi.');
+    const removed = removedNetworkMessage(t.network);
+    if (removed) throw new BadRequestException(removed);
     const a = await this.prisma.socialAccount.findUnique({ where: { id: t.account_id } });
     if (!a || a.status !== 'active') throw new BadRequestException('Kênh cần liên kết lại trước khi thử lại.');
     // Thử lại là một lượt đăng mới: qua hạn mức/khoá kênh như lúc tạo; cập nhật lỗi thì hoàn lại.
@@ -603,6 +519,8 @@ export class SocialPostsService {
     const t = await this.prisma.socialPostTarget.findUnique({ where: { id: targetId } });
     if (!t) throw new NotFoundException('Không tìm thấy kênh của bài');
     if (t.status !== 'published' || !t.external_post_id) throw new BadRequestException('Kênh này chưa có bài đã đăng để gỡ.');
+    const removedNet = removedNetworkMessage(t.network);
+    if (removedNet) throw new BadRequestException(`${removedNet} Gỡ bài trực tiếp trên ${networkLabel(t.network)}.`);
     const a = await this.prisma.socialAccount.findUnique({ where: { id: t.account_id } });
     if (!a || a.status === 'disabled' || !isSocialNetwork(a.network)) throw new BadRequestException('Kênh đã bị gỡ khỏi Trinity — gỡ bài trực tiếp trên mạng.');
     const p = this.providers.get(a.network);
@@ -716,6 +634,8 @@ export class SocialPostsService {
     const rows = await this.prisma.socialPostTarget.findMany({
       where: {
         status: 'published',
+        // Bài cũ trên mạng đã gỡ (YouTube, TikTok…) chỉ còn là lịch sử: giữ số lần lấy cuối, không gọi mạng nữa.
+        network: { in: [...SOCIAL_NETWORKS] },
         external_post_id: { not: null },
         published_at: { gte: new Date(now - METRICS_WINDOW_MS) },
         OR: [{ metrics_at: null }, { metrics_at: { lt: new Date(now - 60 * MINUTE) } }],
@@ -747,6 +667,8 @@ export class SocialPostsService {
     const rows = await this.prisma.socialPostTarget.findMany({
       where: {
         status: 'published',
+        // Bài cũ trên mạng đã gỡ (YouTube, TikTok…) chỉ còn là lịch sử: giữ số lần lấy cuối, không gọi mạng nữa.
+        network: { in: [...SOCIAL_NETWORKS] },
         external_post_id: { not: null },
         published_at: { gte: new Date(now - 30 * 86_400_000) },
         OR: [{ metrics_at: null }, { metrics_at: { lt: new Date(now - 5 * MINUTE) } }],
@@ -775,7 +697,8 @@ export class SocialPostsService {
     // Vừa thử dưới 1 phút trước (thành công hay lỗi đều đóng mốc metrics_at) ⇒ không gọi mạng lại, báo riêng để không hiểu nhầm là số mới.
     const throttled: number[] = [];
     for (const t of p.targets) {
-      if (t.status !== 'published' || !t.external_post_id || isRemoved(t)) continue;
+      // Bài cũ trên mạng đã gỡ: chỉ còn là lịch sử, không lấy số (không tính là lỗi).
+      if (t.status !== 'published' || !t.external_post_id || isRemoved(t) || !isSocialNetwork(t.network)) continue;
       if (t.metrics_at && now - t.metrics_at.getTime() < MINUTE) {
         throttled.push(t.id);
         continue;
@@ -873,7 +796,7 @@ export class SocialPostsService {
     };
   }
 
-  /** Giải mã token; token sắp hết hạn (YouTube: 1 giờ) thì làm mới và lưu lại trước khi gọi mạng. */
+  /** Giải mã token; token sắp hết hạn (mạng có refresh token) thì làm mới và lưu lại trước khi gọi mạng. */
   private async freshAccount(provider: SocialProvider, account: Parameters<SocialAccountsService['forPublish']>[0]): Promise<AccountForPublish> {
     const acc = this.accounts.forPublish(account);
     if (!provider.refresh || !acc.token_expires_at || acc.token_expires_at.getTime() >= Date.now() + 5 * MINUTE) return acc;
@@ -909,8 +832,8 @@ export class SocialPostsService {
     if (!post) return fail('Bài đăng không còn.');
     if (!account || account.status !== 'active' || !isSocialNetwork(account.network)) return fail('Kênh cần liên kết lại (hoặc đã bị gỡ).');
     // Chống lạm dụng app dùng chung: khoá kênh ⇒ báo lỗi; tự tạm dừng (Facebook báo chặn/spam) ⇒ hẹn lại sau khi hết tạm dừng.
-    // Tạm dừng do Graph chỉ áp cho Facebook/Instagram; YouTube, TikTok, Google chỉ chịu khoá kênh.
-    const blocked = await this.channelGuard?.blockReason('auto', account.network === 'facebook' || account.network === 'instagram' ? 'meta' : 'other');
+    // Mạng còn lại duy nhất là Facebook ⇒ chịu cả tạm dừng do lỗi Graph (`meta`), không chỉ khoá kênh.
+    const blocked = await this.channelGuard?.blockReason('auto', 'meta');
     if (blocked) {
       if (blocked.code === 'channel_locked') return fail(blocked.message);
       const until = blocked.until ?? new Date(Date.now() + 30 * 60_000);

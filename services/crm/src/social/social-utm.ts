@@ -98,7 +98,7 @@ export function firstUtmLink(text: string, params: UtmParams | null | undefined)
   return params ? tag(url, params) : url;
 }
 
-/** Áp UTM của một kênh lên nội dung + các tuỳ chọn có chữ (mô tả YouTube, bình luận đầu Facebook). Không có `options.utm` ⇒ giữ nguyên. */
+/** Áp UTM của một kênh lên nội dung + bình luận đầu Facebook. Không có `options.utm` ⇒ giữ nguyên. */
 export function applyUtmToTarget(network: string, text: string, options: Record<string, unknown>): { text: string; options: Record<string, unknown> } {
   let utm: UtmInput | null = null;
   try {
@@ -109,11 +109,6 @@ export function applyUtmToTarget(network: string, text: string, options: Record<
   if (!utm) return { text, options };
   const params = utmParamsFor(network, utm);
   const next = { ...options };
-  // YouTube lấy tiêu đề từ dòng đầu nội dung khi không đặt title: chốt tiêu đề từ chữ SẠCH, tránh "?utm_source=…" lộ trên tiêu đề công khai.
-  if (network === 'youtube' && !(typeof next.title === 'string' && next.title.trim())) {
-    const first = text.split('\n').find((l) => l.trim());
-    if (first) next.title = first;
-  }
-  for (const k of ['description', 'first_comment'] as const) if (typeof next[k] === 'string') next[k] = applyUtm(next[k] as string, params);
+  for (const k of ['first_comment'] as const) if (typeof next[k] === 'string') next[k] = applyUtm(next[k] as string, params);
   return { text: applyUtm(text, params), options: next };
 }

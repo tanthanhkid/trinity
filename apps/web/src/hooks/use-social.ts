@@ -2,57 +2,19 @@
 
 import { useEffect } from "react"
 import axios from "axios"
-import { keepPreviousData, useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import apiClient from "@/lib/api-client"
 import { nextTickMs } from "@/lib/realtime-mode"
 
-export type SocialNetwork = "facebook" | "instagram" | "youtube" | "tiktok" | "google_business"
+/** Mạng đăng bài còn hỗ trợ — khớp `SOCIAL_NETWORKS` phía BE. */
+export type SocialNetwork = "facebook"
+/** Mạng đã gỡ (G04): chỉ còn gặp ở bài cũ trong lịch sử / thống kê. */
+export type ArchivedSocialNetwork = "instagram" | "youtube" | "tiktok" | "google_business"
+/** Mạng của một bài đã tạo (gồm bài cũ trên mạng đã gỡ). */
+export type PostNetwork = SocialNetwork | ArchivedSocialNetwork
 
 /** Giới hạn ký tự theo mạng — khớp `CAPTION_LIMITS` phía BE. */
-export const CAPTION_LIMITS: Record<SocialNetwork, number> = { facebook: 63_206, instagram: 2_200, youtube: 5_000, tiktok: 2_200, google_business: 1_500 }
-
-/** Quyền xem video YouTube — mặc định Riêng tư (khớp `youtubePrivacy` phía BE). */
-export const YOUTUBE_PRIVACY_LABELS = { private: "Riêng tư", unlisted: "Không công khai", public: "Công khai" } as const
-export type YoutubePrivacy = keyof typeof YOUTUBE_PRIVACY_LABELS
-
-/** Danh mục video YouTube — khớp `YOUTUBE_CATEGORIES` phía BE. */
-export const YOUTUBE_CATEGORY_LABELS = {
-  "22": "Mọi người & Blog",
-  "27": "Giáo dục",
-  "28": "Khoa học & Công nghệ",
-  "26": "Hướng dẫn & Phong cách",
-  "24": "Giải trí",
-  "10": "Âm nhạc",
-  "20": "Trò chơi",
-  "25": "Tin tức & Chính trị",
-  "17": "Thể thao",
-  "19": "Du lịch & Sự kiện",
-  "1": "Phim & Hoạt hình",
-  "2": "Ô tô & Xe cộ",
-  "15": "Thú cưng & Động vật",
-  "23": "Hài kịch",
-  "29": "Tổ chức phi lợi nhuận",
-} as const
-export type YoutubeCategory = keyof typeof YOUTUBE_CATEGORY_LABELS
-
-export function useYoutubePlaylists(accountId: number, enabled: boolean) {
-  return useQuery({
-    queryKey: [...KEY, "youtube-playlists", accountId],
-    queryFn: async () => (await apiClient.get<{ data: Array<{ id: string; title: string }> }>(`/social/accounts/${accountId}/youtube-playlists`)).data.data,
-    enabled,
-    staleTime: 5 * 60_000,
-    retry: false,
-  })
-}
-
-/** Quyền xem video TikTok. Không có mặc định: TikTok yêu cầu người đăng tự chọn, và chỉ trong các mức tài khoản cho phép. */
-export const TIKTOK_PRIVACY_LABELS = {
-  SELF_ONLY: "Chỉ mình tôi",
-  MUTUAL_FOLLOW_FRIENDS: "Bạn bè",
-  FOLLOWER_OF_CREATOR: "Người theo dõi",
-  PUBLIC_TO_EVERYONE: "Mọi người",
-} as const
-export type TiktokPrivacy = keyof typeof TIKTOK_PRIVACY_LABELS
+export const CAPTION_LIMITS: Record<SocialNetwork, number> = { facebook: 63_206 }
 
 export interface SocialNetworkInfo {
   network: SocialNetwork
@@ -88,14 +50,14 @@ export interface SocialTarget {
   id: number
   account_id: number
   account_name: string | null
-  network: SocialNetwork
+  network: PostNetwork
   caption: string | null
   status: "queued" | "publishing" | "published" | "failed" | "cancelled"
   attempts: number
   url: string | null
   last_error: string | null
   published_at: string | null
-  /** Tuỳ chọn riêng của kênh (tiêu đề/quyền xem YouTube, TikTok…) — dùng khi sửa bài hẹn giờ. */
+  /** Tuỳ chọn riêng của kênh (bình luận đầu, UTM) — dùng khi sửa bài hẹn giờ. */
   options?: Record<string, unknown> | null
   /** Số lấy từ mạng; null = chưa lấy được lần nào. Từng số null = mạng không cung cấp. */
   metrics?: SocialMetrics | null
@@ -115,12 +77,12 @@ export interface SocialStats {
   from: string
   to: string
   totals: { posts: number; published: number; views: number | null; reactions: number; comments: number; shares: number }
-  by_account: Array<{ account_id: number; account_name: string | null; network: SocialNetwork; published: number; with_metrics: number; views: number | null; reactions: number; comments: number; shares: number }>
+  by_account: Array<{ account_id: number; account_name: string | null; network: PostNetwork; published: number; with_metrics: number; views: number | null; reactions: number; comments: number; shares: number }>
   top: Array<{
     post_id: number
     target_id: number
     account_name: string | null
-    network: SocialNetwork
+    network: PostNetwork
     content: string
     url: string | null
     published_at: string | null
@@ -204,12 +166,10 @@ export interface SocialTargetPreview {
   account_name: string
   network: SocialNetwork | null
   text: string
-  title: string | null
-  description: string | null
   first_comment: string | null
   length: number
   limit: number | null
-  /** Vị trí mạng gập "Xem thêm" (xấp xỉ; YouTube tính trên mô tả); null = hiện đủ. */
+  /** Vị trí mạng gập "Xem thêm" (xấp xỉ); null = hiện đủ. */
   truncated_at: number | null
   media: Array<{ key: string; type: "image" | "video" }>
   warnings: string[]
@@ -348,35 +308,6 @@ export function useSocialAccounts(enabled = true, includeRemoved = false) {
     select: (rows) => (includeRemoved ? rows : rows.filter((a) => !a.removed)),
     enabled,
   })
-}
-
-/** creator_info của kênh TikTok (TikTok yêu cầu hiện trên màn soạn, lấy mới mỗi lần mở). */
-export interface TiktokCreatorInfo {
-  nickname: string | null
-  username: string | null
-  avatar_url: string | null
-  privacy_level_options: string[]
-  comment_disabled: boolean
-  duet_disabled: boolean
-  stitch_disabled: boolean
-  max_video_post_duration_sec: number | null
-}
-
-const tiktokCreatorQuery = (accountId: number) => ({
-  queryKey: [...KEY, "tiktok-creator", accountId],
-  queryFn: async () => (await apiClient.get<{ data: TiktokCreatorInfo }>(`/social/accounts/${accountId}/tiktok-creator`)).data.data,
-  staleTime: 30_000,
-  retry: false,
-})
-
-export function useTiktokCreatorInfo(accountId: number, enabled: boolean) {
-  return useQuery({ ...tiktokCreatorQuery(accountId), enabled })
-}
-
-/** creator_info của nhiều kênh TikTok cùng lúc (chung cache với `useTiktokCreatorInfo`). */
-export function useTiktokCreatorInfos(accountIds: number[]): Record<number, TiktokCreatorInfo | undefined> {
-  const qs = useQueries({ queries: accountIds.map(tiktokCreatorQuery) })
-  return Object.fromEntries(accountIds.map((id, i) => [id, qs[i]?.data]))
 }
 
 export function useSocialPosts() {
@@ -615,46 +546,6 @@ export function useSocialDueTicker(enabled: boolean) {
   })
 }
 
-/** Một đánh giá Google (đọc thẳng từ Google Business Profile, không lưu bản sao). */
-export interface GoogleReview {
-  id: string
-  reviewer: string
-  reviewer_photo: string | null
-  stars: number | null
-  comment: string | null
-  created_at: string | null
-  updated_at: string | null
-  reply: { comment: string; updated_at: string | null } | null
-}
-
-export interface GoogleReviewsPage {
-  reviews: GoogleReview[]
-  average: number | null
-  total: number
-  next_page_token: string | null
-}
-
-export function useGoogleReviews(accountId: number | null) {
-  return useInfiniteQuery({
-    queryKey: [...KEY, "google-reviews", accountId],
-    queryFn: async ({ pageParam }) =>
-      (await apiClient.get<{ data: GoogleReviewsPage }>(`/social/accounts/${accountId}/google-reviews`, { params: { page_token: pageParam } })).data.data,
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.next_page_token ?? undefined,
-    enabled: accountId !== null,
-    retry: false,
-  })
-}
-
-export function useReplyGoogleReview(accountId: number | null) {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ reviewId, comment }: { reviewId: string; comment: string }) =>
-      (await apiClient.post<{ data: { comment: string; updated_at: string | null } }>(`/social/accounts/${accountId}/google-reviews/${encodeURIComponent(reviewId)}/reply`, { comment })).data.data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: [...KEY, "google-reviews", accountId] }),
-  })
-}
-
 /** Bài còn sửa / đổi giờ được: đang hẹn giờ, còn hơn 1 phút mới tới giờ, mọi kênh chưa huỷ đều còn chờ (khớp kiểm tra phía BE). */
 export function isPostEditable(p: Pick<SocialPost, "status" | "scheduled_at" | "targets">, now = Date.now()): boolean {
   if (p.status !== "scheduled" || !p.scheduled_at) return false
@@ -669,9 +560,7 @@ export function movedSchedule(scheduledAt: string, day: string): string {
   return new Date(`${day}T${hm}:00+07:00`).toISOString()
 }
 
-/** `options` đã lưu của một kênh → gửi lại khi sửa: ảnh thumbnail YouTube gửi bằng `thumbnail_key` (BE kiểm lại). */
+/** `options` đã lưu của một kênh → gửi lại khi sửa. */
 export function optionsForResubmit(options: Record<string, unknown> | null | undefined): Record<string, unknown> {
-  const { thumbnail, ...rest } = options ?? {}
-  const key = thumbnail && typeof thumbnail === "object" ? (thumbnail as { key?: unknown }).key : undefined
-  return typeof key === "string" ? { ...rest, thumbnail_key: key } : rest
+  return { ...(options ?? {}) }
 }

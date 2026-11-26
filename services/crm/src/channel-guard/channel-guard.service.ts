@@ -99,7 +99,7 @@ const QUOTA: Record<QuotaKind, { limit: keyof ChannelLimits; bucket: (now: numbe
   comment_reply: { limit: 'autoCommentRepliesPerHour', bucket: hourBucket, per: 'giờ', what: 'lần trả lời bình luận tự động' },
 };
 
-/** `meta` = Facebook/Instagram (chịu tạm dừng do Graph); `other` = Zalo, YouTube, TikTok, Google (chỉ chịu khoá kênh). */
+/** `meta` = Facebook (chịu tạm dừng do Graph); `other` = Zalo (chỉ chịu khoá kênh). */
 export type OutboundScope = 'meta' | 'other';
 
 export interface BlockReason {
@@ -218,7 +218,7 @@ export class ChannelGuardService implements OnModuleInit, OnModuleDestroy {
     if (lock.locked) {
       return { code: 'channel_locked', message: `Kênh gửi tin/đăng bài của công ty đang bị tạm khoá${lock.reason ? ` (${lock.reason})` : ''}. Nhận tin vẫn chạy bình thường; liên hệ Trinity để mở lại.` };
     }
-    // Tạm dừng do lỗi Graph / backoff của Meta chỉ áp cho Facebook & Instagram; Zalo, YouTube, TikTok, Google không bị chặn theo.
+    // Tạm dừng do lỗi Graph / backoff của Meta chỉ áp cho Facebook; Zalo không bị chặn theo.
     if (mode === 'auto' && scope === 'meta') {
       if (Date.now() < this.appBackoffUntil) {
         return { code: 'channel_paused', until: new Date(this.appBackoffUntil), message: `Facebook đang giới hạn tần suất chung nên gửi hàng loạt và tự động tạm lùi đến ${formatVn(new Date(this.appBackoffUntil).toISOString())}. Thử lại sau vài phút; tin nhân viên tự trả lời vẫn gửi được.` };

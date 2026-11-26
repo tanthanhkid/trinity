@@ -49,9 +49,7 @@ function MediaBox({ type }: { type: "image" | "video" }) {
  */
 export function PreviewCard({ p, renderMedia }: { p: SocialTargetPreview; renderMedia?: (m: SocialTargetPreview["media"][number]) => ReactNode }) {
   const net = p.network
-  const yt = net === "youtube"
-  const video = p.media.find((m) => m.type === "video")
-  const body = yt ? (p.description ?? p.text) : p.text
+  const body = p.text
   return (
     <article className="space-y-2 rounded-lg border border-border bg-card p-3" aria-label={`Xem trước ${p.account_name}`} data-network={net ?? ""}>
       <header className="flex items-center gap-2">
@@ -63,18 +61,9 @@ export function PreviewCard({ p, renderMedia }: { p: SocialTargetPreview; render
         {net && <NetworkMark network={net} size="sm" />}
       </header>
 
-      {yt && (
-        <>
-          <div className="flex aspect-video items-center justify-center rounded-md bg-muted text-muted-foreground">
-            {video && renderMedia ? renderMedia(video) : <Play className="size-8" />}
-          </div>
-          <p className="text-sm font-semibold leading-5" data-testid="preview-title">{p.title || "(chưa có tiêu đề)"}</p>
-        </>
-      )}
-
       {body ? <ClampedText text={body} at={p.truncated_at} /> : <p className="text-xs italic text-muted-foreground">(chưa có chữ)</p>}
 
-      {!yt && p.media.length > 0 && (
+      {p.media.length > 0 && (
         <div className={cn("grid gap-1", p.media.length === 1 ? "grid-cols-1" : "grid-cols-3")}>
           {p.media.map((m) => (
             <div key={m.key} className="overflow-hidden rounded-md">{renderMedia ? renderMedia(m) : <MediaBox type={m.type} />}</div>

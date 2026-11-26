@@ -1,0 +1,34 @@
+{
+  "status": 200,
+  "body": {
+    "data": [
+      {
+        "assigned_to": "<user:1>",
+        "assignee_email": "<email:1>",
+        "assignee_name": "Contract sale",
+        "contact_status": null,
+        "created_at": "<time:-2d>",
+        "creator": {
+          "full_name": "Contract sale",
+          "id": "<id:id:1>",
+          "role": "contract-07-contacts-three-roles-sale-2"
+        },
+        "full_name": "Khách vai",
+        "id": "<id:id:1>",
+        "latest_deal": null,
+        "lead_label": null,
+        "lead_score": null,
+        "phone": "0922000111",
+        "source": null,
+        "stage": "Mới",
+        "stage_option": null,
+        "stage_source": "default",
+        "team_id": null,
+        "team_name": null
+      }
+    ],
+    "meta": {
+      "next_cursor": null
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "status": 404,
+  "body": {
+    "error": "Not Found",
+    "message": "Cannot POST /api/v1/internal/test/cache/flush",
+    "statusCode": 404
+  }
+}

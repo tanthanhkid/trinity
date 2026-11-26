@@ -232,7 +232,7 @@ function tunnelListenProblem(args, env = process.env) {
   else if (typeof args[0] === 'string' && !/^\d+$/.test(args[0])) return null // đường dẫn socket Unix
   else if (typeof args[1] === 'string') host = args[1]
   if (isLoopbackHost(host)) return null
-  return `TRUSTED_PROXY=cloudflare-tunnel nhưng web sắp nghe ${host || '(mọi giao diện)'}, không phải loopback: ai nối thẳng cổng web sẽ tự khai được IP. Đặt HOSTNAME=127.0.0.1 (docs/deployment.md, mục "Client IP").`
+  return 'TRUSTED_PROXY=cloudflare-tunnel nhưng web sắp nghe một địa chỉ không phải loopback: ai nối thẳng cổng web sẽ tự khai được IP. Đặt HOSTNAME=127.0.0.1 (docs/deployment.md, mục "Client IP").'
 }
 
 /** Production với bí mật nội bộ là giá trị mẫu hoặc ngắn hơn 32 ký tự (cùng luật `insecureSecrets()` của API). */
@@ -252,8 +252,9 @@ function fatal(msg) {
 function install() {
   try {
     parseTrustedProxy(process.env.TRUSTED_PROXY)
-  } catch (e) {
-    fatal(e.message)
+  } catch {
+    // Câu cố định (không lặp lại giá trị biến môi trường vào log).
+    fatal('TRUSTED_PROXY không hợp lệ — dùng none | cloudflare | cloudflare-tunnel | cidr:<danh sách>[;header=x-real-ip] | cloudflare-behind:<danh sách> (docs/deployment.md, mục "Client IP").')
   }
   if (hasInsecureSecret()) {
     // Câu cố định — không đưa gì dẫn từ giá trị bí mật vào log.

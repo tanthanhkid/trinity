@@ -39,6 +39,9 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 # một lần lúc khởi động (`rustls::crypto::ring::default_provider().install_default()`), cùng provider với sqlx.
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json", "charset", "http2"] }
 
+# URL theo chuẩn WHATWG (giống `new URL` của Node: chuẩn hoá IPv4 dạng thập phân/hex/bát phân) — chống SSRF (K35)
+url = "2.5"
+
 # Postgres: truy vấn kiểm lúc biên dịch, chế độ offline (.sqlx/), không ORM, không `sqlx migrate` (PLAN 4.4, 4.5)
 sqlx = { version = "0.9", default-features = false, features = [
   "runtime-tokio",

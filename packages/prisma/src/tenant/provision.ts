@@ -3,6 +3,7 @@ import { existsSync, readdirSync } from 'node:fs'
 import * as path from 'node:path'
 import { promisify } from 'node:util'
 import * as bcrypt from 'bcryptjs'
+import { DEFAULT_SIGNUP_PLAN } from '@trinity/rbac'
 import { clientForSchema, databaseUrlForSchema, getBaseClient } from './clients'
 import { CompanyRef, isMultiTenant, runWithCompany, schemaForCompany } from './context'
 import { ensurePlatform, forgetCompanyCache, installSyncTriggers } from './platform'
@@ -163,6 +164,12 @@ export async function provisionCompany(input: ProvisionInput): Promise<Provision
         where: { key: 'company_name' },
         update: { value: input.companyName.trim().slice(0, 200) },
         create: { key: 'company_name', value: input.companyName.trim().slice(0, 200) },
+      })
+      // Gói mặc định có giới hạn người dùng (không ghi thì thiếu dòng = không giới hạn ở bản cài một công ty).
+      await db.setting.upsert({
+        where: { key: 'org_plan' },
+        update: { value: DEFAULT_SIGNUP_PLAN },
+        create: { key: 'org_plan', value: DEFAULT_SIGNUP_PLAN },
       })
       return user.id
     })

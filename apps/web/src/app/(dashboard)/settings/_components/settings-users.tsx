@@ -19,6 +19,7 @@ import { RoleMultiSelect } from './roles/role-multi-select'
 import { apiErrorMessage, useRoleList } from './roles/use-roles-api'
 import { UserOrgTree } from './user-org-tree'
 import { SettingsSectionActions } from './settings-section-header'
+import { InviteByLinkButton, PendingInvitations } from './user-invitations'
 
 interface UsersResponse {
   data: EditableUser[]
@@ -153,6 +154,7 @@ export function SettingsUsers() {
         <div className="text-sm text-muted-foreground max-sm:flex-1 max-sm:text-xs">
           {usersQuery.isLoading ? 'Đang tải...' : `${allUsers.length} người dùng`}
         </div>
+        {canManage && <InviteByLinkButton />}
         {canExport && (
           <Button variant="outline" className="h-11" onClick={handleExport} disabled={isExporting || usersQuery.isLoading}>
             <Download className="mr-2 h-4 w-4" />
@@ -167,6 +169,8 @@ export function SettingsUsers() {
           </Button>
         </SettingsSectionActions>
       )}
+
+      {canManage && <PendingInvitations />}
 
       {usersQuery.isError && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

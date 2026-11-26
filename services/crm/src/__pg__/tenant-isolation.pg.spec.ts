@@ -20,7 +20,7 @@ import { PG_URL, describePg, isLocalDbUrl } from './pg-harness';
  * Multi-tenant isolation on a real Postgres: two companies signed up through `provisionCompany`, each in its own
  * schema. Company B must not read, count, update or delete anything of company A — not through Prisma models,
  * not through raw SQL, not by guessing ids — and the shared uniqueness rules (one email / one Facebook Page per
- * company, one user per company) hold at the database.
+ * company) hold at the database.
  */
 describePg('multi-tenant isolation (Postgres)', () => {
   let db: PrismaService;
@@ -150,13 +150,16 @@ describePg('multi-tenant isolation (Postgres)', () => {
     expect(await companyIdForEmail(emailA)).toBe(A.id);
   });
 
-  it('allows exactly one user per signed-up company', async () => {
+  it('lets a company have several users (staff), each routed to its own company by email', async () => {
+    const second = `second-${stamp}@example.com`;
+    await runWithCompany(A, () => db.user.create({ data: { email: second, password_hash: 'x', full_name: 'Second', status: 'active' } }));
+    expect(await companyIdForEmail(second)).toBe(A.id);
+    expect(await runWithCompany(A, () => db.user.count())).toBe(2);
+    expect(await runWithCompany(B, () => db.user.count())).toBe(1);
+    // A staff member's email is still unique across companies.
     await expect(
-      runWithCompany(A, () =>
-        db.user.create({ data: { email: `second-${stamp}@example.com`, password_hash: 'x', full_name: 'Second', status: 'active' } }),
-      ),
-    ).rejects.toThrow(/TRINITY_SINGLE_USER/);
-    expect(await companyIdForEmail(`second-${stamp}@example.com`)).toBeNull();
+      runWithCompany(B, () => db.user.create({ data: { email: second, password_hash: 'x', full_name: 'Copy', status: 'active' } })),
+    ).rejects.toThrow(/TRINITY_EMAIL_TAKEN/);
   });
 
   it('runs background work once per company, each in its own schema', async () => {

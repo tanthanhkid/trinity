@@ -1,7 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { PrismaService, Prisma } from '@trinity/prisma'
 import { normalizeGrant, type Grants, type Permission } from '@trinity/rbac'
-import { RbacCache, PermissionService, ScopeService, adminGrants, type AuthUser } from '@trinity/rbac-nest'
+import { RbacCache, PermissionService, ScopeService, adminGrants, revokePendingInvitationsForRole, type AuthUser } from '@trinity/rbac-nest'
 import {
   assertCanEditRole,
   assertCanGrantRoles,
@@ -135,6 +135,7 @@ export class RolesService {
       throw new ConflictException(`Không thể xoá vai trò đang có ${role._count.user_roles} người giữ`)
     }
     await this.prisma.$transaction(async (tx) => {
+      await revokePendingInvitationsForRole(tx, id)
       await tx.role.delete({ where: { id } })
       await this.audit.record(tx, {
         actorId: actor.userId,

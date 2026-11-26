@@ -27,6 +27,9 @@ import {
   runInBackground,
   type AuthUser,
   assertUserSlotAvailable,
+  invitationScope,
+  revokePendingInvitationsBy,
+  revokePendingInvitationsForEmail,
 } from '@trinity/rbac-nest';
 import { isSubset } from '@trinity/rbac';
 
@@ -935,10 +938,9 @@ export class EmployeesService {
       jobTitleName = jobTitle.name;
     }
 
-    // Gói dịch vụ: tạo user mới hoặc khôi phục user đã xoá mềm đều chiếm 1 chỗ trong max_users.
-    if (!existingUser || existingUser.deleted_at != null) {
-      await assertUserSlotAvailable(this.prisma);
-    }
+    // Gói dịch vụ: tạo user mới hoặc khôi phục user đã xoá mềm đều chiếm 1 chỗ trong max_users (kiểm trong transaction ghi, bên dưới).
+    const takesSlot = !existingUser || existingUser.deleted_at != null;
+    const inviteOwners = actor && takesSlot ? await invitationScope(this.scope, actor) : 'all';
     // Multi-tenant: an email belongs to one company only (login looks the company up by email).
     if (!existingUser) await assertEmailAvailableForCurrentCompany(dto.email);
 
@@ -955,6 +957,11 @@ export class EmployeesService {
     } = { value: null };
 
     const employee = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Email đang có lời mời chờ: huỷ lời mời trước khi kiểm chỗ (không tính hai chỗ cho một người).
+      if (takesSlot) {
+        await revokePendingInvitationsForEmail(tx, dto.email, inviteOwners);
+        await assertUserSlotAvailable(tx);
+      }
       // team_id/manager_id nay CHỈ theo lựa chọn Team tường minh (applyTeamAssignment ở
       // trên) hoặc dto.manager_id — KHÔNG suy theo tên vai trò.
       const syncedTeamId = dto.team_id ?? null;
@@ -1300,6 +1307,7 @@ export class EmployeesService {
         where: { id: employee.user_id },
         data: { status: 'locked', tokens_valid_after: new Date() },
       });
+      await revokePendingInvitationsBy(tx, employee.user_id);
       // Đóng giai đoạn làm việc đang mở — mở khoá sau này KHÔNG xoá khoảng bị khoá khỏi chấm công cũ.
       await recordEmploymentEnd(tx, id);
       // resigned_at = mốc ngày nghỉ việc — dùng để loại NV khỏi chấm công KỂ TỪ ngày này.
@@ -1349,9 +1357,8 @@ export class EmployeesService {
     }
     // Mở khoá chiếm lại 1 chỗ trong max_users của gói (chỗ đó có thể đã bị người khác dùng) — cùng luật với
     // đường mở khoá ở services/auth (users.service). Hết chỗ ⇒ lỗi của gói, không bật lại tài khoản.
-    await assertUserSlotAvailable(this.prisma);
-
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await assertUserSlotAvailable(tx);
       await tx.user.update({ where: { id: employee.user_id }, data: { status: 'active' } });
       await recordEmploymentStart(tx, id);
       await tx.employee.update({ where: { id }, data: { status: 'active', resigned_at: null } });
@@ -1394,6 +1401,10 @@ export class EmployeesService {
       this.prisma.user.update({
         where: { id: employee.user_id },
         data: { status: 'locked', tokens_valid_after: new Date() },
+      }),
+      this.prisma.userInvitation.updateMany({
+        where: { created_by: employee.user_id, accepted_at: null, revoked_at: null },
+        data: { revoked_at: new Date() },
       }),
     ]);
     await this.rbacCache.invalidateUsers('*');

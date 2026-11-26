@@ -93,6 +93,8 @@ describe('EmployeesService', () => {
     jobTitle: { findUnique: jest.Mock };
     team: { findMany: jest.Mock };
     setting: { findUnique: jest.Mock };
+    userInvitation: { count: jest.Mock; updateMany: jest.Mock; findMany: jest.Mock };
+    $queryRawUnsafe: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -118,6 +120,8 @@ describe('EmployeesService', () => {
         typeof arg === 'function' ? (arg as (tx: unknown) => unknown)(prisma) : Promise.all(arg as unknown[])),
       $executeRaw: jest.fn().mockResolvedValue(0),
       setting: { findUnique: jest.fn().mockResolvedValue(null) }, // gói mặc định custom
+      $queryRawUnsafe: jest.fn().mockResolvedValue([{ n: 0 }]),
+      userInvitation: { count: jest.fn().mockResolvedValue(0), updateMany: jest.fn().mockResolvedValue({ count: 0 }), findMany: jest.fn().mockResolvedValue([]) },
       role: { findUnique: jest.fn() },
       userRole: { deleteMany: jest.fn(), create: jest.fn() },
       jobTitle: { findUnique: jest.fn() },
@@ -279,8 +283,8 @@ describe('EmployeesService', () => {
       prisma.employee.findFirst.mockResolvedValue(locked);
       prisma.setting.findUnique.mockResolvedValue({ value: 'ket_noi' }); // tối đa 10 người
       prisma.user.count.mockResolvedValue(10);
-      await expect(service.unlock(1, admin())).rejects.toThrow('tối đa 10 người dùng');
-      expect(prisma.$transaction).not.toHaveBeenCalled();
+      await expect(service.unlock(1, admin())).rejects.toThrow('tối đa 10 người');
+      expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
     it('không phải Quản trị ⇒ 403, không đụng DB', async () => {
@@ -545,6 +549,11 @@ describe('EmployeesService', () => {
     // Dựng tx giả + nối vào $transaction callback
     function wireTransaction() {
       const tx = {
+        // assertUserSlotAvailable chạy trong transaction: gói mặc định custom ⇒ không giới hạn.
+        setting: { findUnique: jest.fn().mockResolvedValue(null) },
+        $queryRawUnsafe: jest.fn().mockResolvedValue([{ n: 0 }]),
+        userInvitation: { count: jest.fn().mockResolvedValue(0), updateMany: jest.fn().mockResolvedValue({ count: 0 }), findMany: jest.fn().mockResolvedValue([]) },
+        $executeRaw: jest.fn().mockResolvedValue(0),
         user: {
           findUnique: jest.fn(),
           create: jest.fn().mockResolvedValue({ id: 100 }),
@@ -553,7 +562,6 @@ describe('EmployeesService', () => {
         role: { findUnique: jest.fn().mockResolvedValue({ id: 5 }) },
         userRole: { deleteMany: jest.fn().mockResolvedValue({}), create: jest.fn().mockResolvedValue({}) },
         employee: { upsert: jest.fn().mockResolvedValue(makeEmployee()), findUnique: jest.fn().mockResolvedValue(null) },
-        $executeRaw: jest.fn().mockResolvedValue(0),
       };
       prisma.$transaction.mockImplementation(
         async (cb: (t: typeof tx) => unknown) => cb(tx),

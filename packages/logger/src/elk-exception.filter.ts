@@ -111,8 +111,5 @@ export function translateTenantError(e: unknown, authenticated = false): unknown
   if (msg.includes('TRINITY_ROUTE_TAKEN')) {
     return new HttpException('Trang/kênh này đã được một công ty khác kết nối với Trinity', HttpStatus.CONFLICT)
   }
-  if (msg.includes('TRINITY_SINGLE_USER')) {
-    return new HttpException('Mỗi công ty trên Trinity chỉ có một tài khoản chủ', HttpStatus.CONFLICT)
-  }
   return e
 }

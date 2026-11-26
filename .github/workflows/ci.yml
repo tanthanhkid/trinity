@@ -210,7 +210,7 @@ jobs:
         if: steps.sql.outputs.run == 'true'
         run: |
           (cd packages/rbac-nest && npx jest --testRegex 'scope\.service\.spec\.ts$' --runInBand)
-          (cd services/auth && npx jest --testRegex 'users-manager-cache-invalidation\.spec\.ts$' --runInBand)
+          (cd services/auth && npx jest --testRegex '(users-manager-cache-invalidation\.spec|invitations\.pg\.spec)\.ts$' --runInBand)
 
   web-ui:
     # Web: build thật (thay cho build tay trước khi duyệt) + đo trên Chrome headless (docs/TRANG-THAI.md):

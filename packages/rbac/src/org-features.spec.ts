@@ -3,7 +3,7 @@ import {
   applyFeatureLocks,
   isServerlessRuntime,
   lockedFeatureReasons,
-  resolveOrgFeatures, PLANS, PLAN_KEYS, PLAN_GATED_FEATURES, DEFAULT_PLAN, resolvePlan, applyPlanToFeatures, DEFAULT_OFF_FEATURES } from './org-features'
+  resolveOrgFeatures, PLANS, PLAN_KEYS, PLAN_GATED_FEATURES, DEFAULT_PLAN, DEFAULT_SIGNUP_PLAN, resolvePlan, resolvePlanForCompany, applyPlanToFeatures, DEFAULT_OFF_FEATURES } from './org-features'
 import { PERMISSIONS } from './catalog'
 
 describe('org-features', () => {
@@ -45,6 +45,20 @@ describe('Gói dịch vụ', () => {
     expect(ORG_FEATURE_KEYS.every((k) => f[k] === !DEFAULT_OFF_FEATURES.has(k))).toBe(true)
     expect(PLANS.custom.maxUsers).toBeNull()
     expect(PLANS.custom).not.toHaveProperty('quotas')
+  })
+  it('Mặc định (công ty đăng ký mới): đủ mọi tính năng của gói, tối đa 10 người; thiếu dòng gói giải cùng một cách ở mọi nơi', () => {
+    expect(DEFAULT_SIGNUP_PLAN).toBe('mac_dinh')
+    expect(PLANS.mac_dinh.label).toBe('Mặc định')
+    expect(PLANS.mac_dinh.maxUsers).toBe(10)
+    expect([...PLANS.mac_dinh.features].sort()).toEqual([...PLAN_GATED_FEATURES].sort())
+    const f = applyPlanToFeatures(resolveOrgFeatures({}), 'mac_dinh')
+    expect(f.facebook_page && f.zalo_oa && f.ai_briefing && f.google_sheets && f.lead_scoring && f.stale_reminders).toBe(true)
+    expect(resolvePlanForCompany(undefined, 3)).toBe('mac_dinh')
+    expect(resolvePlanForCompany('rác', 2)).toBe('mac_dinh')
+    expect(resolvePlanForCompany(undefined, 1)).toBe('custom')
+    expect(resolvePlanForCompany(undefined, null)).toBe('custom')
+    expect(resolvePlanForCompany('custom', 3)).toBe('custom')
+    expect(resolvePlanForCompany('ket_noi', 1)).toBe('ket_noi')
   })
   it('mọi gói đủ khoá, cờ thuộc danh mục', () => {
     for (const k of PLAN_KEYS) {

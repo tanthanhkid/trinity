@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, InternalServerErrorException, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '@trinity/prisma';
+import { planFromSetting } from '@trinity/rbac-nest';
 import { trackProductEvent } from '@trinity/logger';
 import {
   BLANK_SYSTEM_FEATURES,
@@ -8,7 +9,6 @@ import {
   PLAN_GATED_FEATURES,
   applyFeatureLocks,
   applyPlanToFeatures,
-  resolvePlan,
   type OrgFeatureKey,
   type PlanKey,
   isServerlessRuntime,
@@ -63,11 +63,11 @@ export class OrgFeaturesService {
     return f[key] !== false;
   }
 
-  /** Gói hiện tại; vắng/rác/lỗi đọc = `custom`. */
+  /** Gói hiện tại; vắng/rác = gói mặc định của công ty (công ty ≥ 2 = `mac_dinh`, còn lại `custom`); lỗi đọc = `custom`. */
   async getPlan(): Promise<PlanKey> {
     try {
       const row = await this.prisma.setting.findUnique({ where: { key: PLAN_SETTING_KEY }, select: { value: true } });
-      return resolvePlan(row?.value?.trim());
+      return planFromSetting(row?.value);
     } catch (err) {
       this.logger.error(`getPlan failed: ${(err as Error)?.message}`);
       return 'custom';

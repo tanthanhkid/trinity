@@ -7,6 +7,8 @@ import {
   HttpException,
   HttpStatus,
   InternalServerErrorException,
+  ConflictException,
+  GoneException,
 } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import * as bcrypt from 'bcryptjs'
@@ -16,6 +18,7 @@ import { createUploadsStore, uploadsRelPathFromUrl } from '@trinity/storage'
 import {
   PrismaService,
   EmailTakenError,
+  assertEmailAvailableForCurrentCompany,
   activeCompanyRef,
   companyIdForEmail,
   currentCompanyId,
@@ -26,10 +29,18 @@ import {
   provisionCompany,
   runWithCompany,
 } from '@trinity/prisma'
-import { isSingleUserCompany } from '@trinity/rbac-nest'
+import {
+  assertUserSlotAvailable,
+  enterTokenCompany,
+  findPendingInvitation,
+  INVITATION_GONE_MESSAGE,
+  grantsOfRoles,
+  lockUserSlots,
+} from '@trinity/rbac-nest'
 import type { RegisterDto } from './dto/register.dto'
+import type { AcceptInvitationDto } from './dto/invitation.dto'
 import { PermissionService } from '@trinity/rbac-nest'
-import { can, type Grants } from '@trinity/rbac'
+import { can, isSubset, type Grants } from '@trinity/rbac'
 import { LoginDto } from './dto/login.dto'
 import { UpdateProfileDto } from './dto/update-profile.dto'
 import { RateLimiterService } from './services/rate-limiter.service'
@@ -75,7 +86,6 @@ interface RefreshPayload {
 export interface CompanyInfo {
   id: number
   name: string
-  single_user: boolean
   multi_tenant: boolean
 }
 
@@ -110,13 +120,12 @@ export class AuthService {
   /** Hình dạng chung của `/auth/me` VÀ response login/refresh
    * FE có `permissions` ngay từ lúc đăng nhập, không cần gọi thêm request. */
   /**
-   * The user's company, for the web app: its name, and `single_user` (SaaS companies have exactly one user, so
-   * staff / user / team management screens are hidden).
+   * The user's company, for the web app: its id, name and whether this install hosts many companies.
    */
   private async companyInfo(): Promise<CompanyInfo> {
     const id = currentCompanyId() ?? 1
     const row = await getCompany(id)
-    return { id, name: row?.name ?? '', single_user: isSingleUserCompany(), multi_tenant: isMultiTenant() }
+    return { id, name: row?.name ?? '', multi_tenant: isMultiTenant() }
   }
 
   private toMeResponse(user: UserWithRole, grants: Grants, isAdmin: boolean, company?: CompanyInfo) {
@@ -954,6 +963,138 @@ export class AuthService {
       await this.logLoginAttempt(user.id, dto.email, true, ipAddress, 'ok')
       return this.buildTokenResponse(user, undefined, crypto.randomUUID())
     })
+  }
+
+  /**
+   * Trang nhận lời mời (công khai): cho người được mời thấy tên công ty + email + vai trò trước khi đặt mật khẩu.
+   * Token sai/hết hạn/đã dùng/đã huỷ đều trả cùng một câu 410 — không để dò token.
+   */
+  async previewInvitation(rawToken: string) {
+    const token = rawToken.trim()
+    if (!(await enterTokenCompany(token))) throw new GoneException(INVITATION_GONE_MESSAGE)
+    const inv = await findPendingInvitation(this.prisma, token)
+    const role = inv.role_id !== null ? await this.prisma.role.findUnique({ where: { id: inv.role_id }, select: { name: true } }) : null
+    const company = await getCompany(currentCompanyId() ?? 1)
+    return {
+      company_name: company?.name ?? '',
+      email: inv.email,
+      role_name: role?.name ?? null,
+      expires_at: inv.expires_at,
+    }
+  }
+
+  /**
+   * Nhận lời mời: tạo user trong ĐÚNG công ty của lời mời (công ty đọc từ tiền tố token), gán vai trò chủ chọn lúc mời,
+   * đăng nhập luôn. Lời mời dùng một lần (đánh dấu bằng UPDATE có điều kiện nên hai lần bấm cùng lúc chỉ một lần thắng).
+   */
+  async acceptInvitation(dto: AcceptInvitationDto, ipAddress: string | null) {
+    const rateLimitKey = `invite:${ipAddress ?? 'unknown'}`
+    if (this.rateLimiter.isRateLimited(rateLimitKey)) {
+      throw new HttpException('Quá nhiều lần thử, vui lòng thử lại sau', HttpStatus.TOO_MANY_REQUESTS)
+    }
+    const token = dto.token.trim()
+    if (!(await enterTokenCompany(token))) {
+      this.rateLimiter.recordAttempt(rateLimitKey)
+      throw new GoneException(INVITATION_GONE_MESSAGE)
+    }
+    let inv
+    try {
+      inv = await findPendingInvitation(this.prisma, token)
+    } catch (err) {
+      this.rateLimiter.recordAttempt(rateLimitKey)
+      throw err
+    }
+    await assertEmailAvailableForCurrentCompany(inv.email)
+    const passwordHash = await bcrypt.hash(dto.password, 10)
+    const now = new Date()
+    let userId: number
+    try {
+      userId = await this.prisma.$transaction(async (tx) => {
+        // Khoá advisory của công ty là câu ĐẦU của giao dịch — cùng thứ tự với tạo/huỷ/mời lại (khoá advisory trước,
+        // dòng lời mời sau) nên không thể khoá chéo nhau. Mọi kiểm tra có tính quyết định chạy dưới khoá này.
+        await lockUserSlots(tx)
+        // Giành lời mời (một lần; từ đây nó không còn tính là lời mời đang chờ). Lùi lại cả giao dịch nếu bước sau lỗi: link còn dùng được.
+        const claimed = await tx.userInvitation.updateMany({
+          where: { id: inv.id, accepted_at: null, revoked_at: null, expires_at: { gt: now } },
+          data: { accepted_at: now },
+        })
+        if (claimed.count !== 1) throw new GoneException(INVITATION_GONE_MESSAGE)
+        // Người mời phải còn hoạt động, còn users.manage, và vai trò được mời không vượt quyền của họ (như lúc tạo lời mời).
+        const inviter =
+          inv.created_by === null
+            ? null
+            : await tx.user.findFirst({ where: { id: inv.created_by, status: 'active', deleted_at: null }, select: { id: true, team_id: true } })
+        const inviterGrants = inviter ? await this.permissionService.grantsFor(inviter.id) : null
+        if (!inviter || !inviterGrants || !(inviterGrants.isAdmin || can(inviterGrants.grants, 'users.manage'))) {
+          throw new GoneException(INVITATION_GONE_MESSAGE)
+        }
+        const role =
+          inv.role_id === null
+            ? null
+            : await tx.role.findUnique({
+                where: { id: inv.role_id },
+                select: { id: true, is_system: true, grants: { select: { permission: true, scope: true } } },
+              })
+        if (!role) throw new ConflictException('Vai trò của lời mời này đã bị xoá. Hãy nhờ chủ công ty mời lại.')
+        if (!inviterGrants.isAdmin && (role.is_system || !isSubset(grantsOfRoles([role]), inviterGrants.grants))) {
+          throw new GoneException(INVITATION_GONE_MESSAGE)
+        }
+        const existing = await tx.user.findFirst({
+          where: { email: { equals: inv.email, mode: 'insensitive' }, deleted_at: null },
+          select: { id: true },
+        })
+        if (existing) throw new ConflictException('Email này đã có tài khoản trong công ty — hãy đăng nhập')
+        await assertUserSlotAvailable(tx)
+        // Người mời có phạm vi hẹp (own/team/subtree): gắn người mới dưới người mời để họ quản lý được người họ mời.
+        const manage = inviterGrants.grants['users.manage']
+        const narrow = !inviterGrants.isAdmin && manage !== true && manage !== 'all'
+        // Soft-deleted user giữ email gốc → đổi tên để nhường chỗ (cùng cách users.service.create).
+        const old = await tx.user.findFirst({ where: { email: { equals: inv.email, mode: 'insensitive' }, deleted_at: { not: null } }, select: { id: true } })
+        if (old) await tx.user.update({ where: { id: old.id }, data: { email: `deleted_${old.id}_${Date.now()}@removed.invalid` } })
+        const user = await tx.user.create({
+          data: {
+            email: inv.email,
+            full_name: dto.full_name.trim(),
+            password_hash: passwordHash,
+            password_updated_at: now,
+            status: 'active',
+            ...(narrow ? { manager_id: inviter.id, team_id: manage === 'team' ? inviter.team_id : null } : {}),
+          },
+          select: { id: true },
+        })
+        await tx.userRole.create({ data: { user_id: user.id, role_id: role.id } })
+        // Mọi tài khoản CRM đồng thời là một nhân viên (cùng users.service.create).
+        await tx.employee.upsert({
+          where: { user_id: user.id },
+          create: { user_id: user.id, position: 'Chưa phân loại', status: 'active' },
+          update: {},
+        })
+        await tx.userInvitation.update({ where: { id: inv.id }, data: { accepted_user_id: user.id } })
+        return user.id
+      })
+    } catch (err) {
+      if (err instanceof GoneException) this.rateLimiter.recordAttempt(rateLimitKey)
+      throw err
+    }
+    await this.auditLog.logPasswordChange({ actorUserId: inv.created_by ?? null, targetUserId: userId, method: 'user_create', ipAddress })
+    const user = await this.findUserById(userId)
+    if (!user) throw new InternalServerErrorException('Chưa tạo được tài khoản, vui lòng thử lại')
+    // Cùng cổng với login(): kiểm Wi-Fi văn phòng (tài khoản đã tạo; chặn thì đăng nhập sau từ văn phòng) và
+    // "1 tài khoản 1 phiên" (đăng ký phiên mới để token có `sid`).
+    if (await this.isLoginWifiCheckActive()) {
+      const { grants } = await this.permissionService.grantsFor(user.id)
+      const wifiCheck = await this.checkLoginWifi(user.id, user.email, grants, ipAddress)
+      if (!wifiCheck.allowed) {
+        await this.logLoginAttempt(user.id, user.email, false, ipAddress, 'wifi_blocked')
+        throw new UnauthorizedException(
+          'Tài khoản đã được tạo, nhưng bạn đang không kết nối wifi của văn phòng công ty. Hãy kết nối wifi tại một văn phòng rồi đăng nhập.',
+        )
+      }
+    }
+    await this.logLoginAttempt(user.id, user.email, true, ipAddress, 'ok')
+    this.tokenBlacklist.removeUser(user.id)
+    const sid = (await this.isSingleSessionActive()) ? this.activeSession.startSession(user.id) : undefined
+    return this.buildTokenResponse(user, sid, crypto.randomUUID())
   }
 
   private verifyRefreshToken(token: string): RefreshPayload {

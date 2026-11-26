@@ -46,6 +46,32 @@ export async function registerCompany(input: RegisterInput): Promise<LoginResult
   }
 }
 
+export interface InvitationPreview {
+  company_name: string
+  email: string
+  role_name: string | null
+  expires_at: string
+}
+
+/** Trang nhận lời mời (công khai): ai mời, vào công ty nào, vai trò gì. 410 = link hết hạn/đã dùng/đã huỷ. */
+export async function previewInvitation(token: string): Promise<InvitationPreview> {
+  const { data } = await apiClient.post<InvitationPreview>('/auth/invitations/preview', { token })
+  return data
+}
+
+/** Nhận lời mời: tạo tài khoản trong công ty của lời mời và đăng nhập luôn. */
+export async function acceptInvitation(input: { token: string; full_name: string; password: string }): Promise<LoginResult> {
+  const { data } = await apiClient.post<LoginResponseRaw>('/auth/invitations/accept', input)
+  return {
+    user: data.user,
+    roles: data.roles,
+    permissions: data.permissions,
+    isAdmin: data.isAdmin,
+    company: data.company,
+    tokens: { accessToken: data.access_token, refreshToken: data.refresh_token },
+  }
+}
+
 export async function isSignupEnabled(): Promise<boolean> {
   try {
     const { data } = await apiClient.get<{ enabled: boolean }>('/auth/signup-enabled')

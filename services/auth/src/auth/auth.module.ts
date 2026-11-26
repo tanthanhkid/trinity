@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { JwtModule } from '@nestjs/jwt'
 import { AuthController } from './auth.controller'
+import { InvitationsController } from './invitations.controller'
 import { AuthService } from './auth.service'
 import { RateLimiterService } from './services/rate-limiter.service'
 import { AuditLogService } from './services/audit-log.service'
@@ -25,7 +26,7 @@ import { LoginWifiCheckTargetsService } from './login-wifi-check-targets.service
       signOptions: { expiresIn: '15m' },
     }),
   ],
-  controllers: [AuthController, LoginWifiCheckTargetsController],
+  controllers: [AuthController, InvitationsController, LoginWifiCheckTargetsController],
   providers: [
     AuthService,
     RateLimiterService,

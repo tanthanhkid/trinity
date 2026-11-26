@@ -3394,6 +3394,14 @@ dependencies = [
 [[package]]
 name = "trinity-jobs"
 version = "0.3.0"
+dependencies = [
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "trinity-db",
+ "trinity-kernel",
+]
 
 [[package]]
 name = "trinity-kernel"

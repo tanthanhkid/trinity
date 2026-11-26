@@ -7,6 +7,8 @@
 #![allow(clippy::result_large_err)]
 
 use serde::Deserialize;
+
+use crate::nullable::some_nullable;
 use sqlx::PgConnection;
 use trinity_db::models::Project;
 use trinity_db::pg_error::db_error;
@@ -34,15 +36,6 @@ pub struct UpdateProject {
     pub color: Option<Option<String>>,
     #[serde(default)]
     pub is_active: Option<bool>,
-}
-
-/// Phân biệt "không có khoá" (`None`) với `null` (`Some(None)`).
-pub fn some_nullable<'de, T, D>(d: D) -> Result<Option<Option<T>>, D::Error>
-where
-    T: Deserialize<'de>,
-    D: serde::Deserializer<'de>,
-{
-    Option::<T>::deserialize(d).map(Some)
 }
 
 /// Độ dài như `String.length` của JS (đơn vị UTF-16), cho `@MinLength`/`@MaxLength`.

@@ -3,5 +3,6 @@
  * công tắc tắt mọi lịch tự động (setInterval của job, @Cron, migrate nền): job chỉ chạy khi ca test gọi qua API.
  */
 export function testHooksEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return (env.TRINITY_TEST_HOOKS ?? '').trim() === '1' && env.NODE_ENV !== 'production'
+  // NODE_ENV phải được đặt rõ là test/development: chưa đặt (cấu hình sót) không đủ để mở API này.
+  return (env.TRINITY_TEST_HOOKS ?? '').trim() === '1' && (env.NODE_ENV === 'test' || env.NODE_ENV === 'development')
 }

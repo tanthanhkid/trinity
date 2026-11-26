@@ -8,13 +8,31 @@ interface Bucket {
  * `/public/*` (theo api_key) và webhook vào (theo nguồn). Tự dọn bucket hết hạn để Map không phình vô hạn.
  */
 export class FixedWindowLimiter {
+  /** Mọi limiter đã tạo (tham chiếu yếu) — để API điều khiển test (C18) xoá hết bộ đếm một lần: `resetAll()`. */
+  private static readonly registry = new Set<WeakRef<FixedWindowLimiter>>();
   private readonly buckets = new Map<string, Bucket>();
   private lastSweep = 0;
 
   constructor(
     readonly max: number,
     readonly windowMs: number,
-  ) {}
+  ) {
+    FixedWindowLimiter.registry.add(new WeakRef(this));
+  }
+
+  /** Xoá bộ đếm của MỌI limiter trong tiến trình (chỉ dùng cho API điều khiển test). Trả số limiter đã xoá. */
+  static resetAll(): number {
+    let n = 0;
+    for (const ref of FixedWindowLimiter.registry) {
+      const l = ref.deref();
+      if (!l) FixedWindowLimiter.registry.delete(ref);
+      else {
+        l.reset();
+        n++;
+      }
+    }
+    return n;
+  }
 
   /** `retryAfterSec` > 0 khi bị chặn. */
   hit(key: string, now: number = Date.now()): { allowed: boolean; count: number; retryAfterSec: number } {

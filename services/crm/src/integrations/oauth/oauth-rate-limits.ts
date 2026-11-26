@@ -30,8 +30,3 @@ export const registerLimiter = new FixedWindowLimiter(10, 60 * 60 * 1000);
 export const tokenLimiter = new FixedWindowLimiter(60, 60 * 1000);
 /** Màn đồng ý: 30 lần/phút/người dùng. */
 export const consentLimiter = new FixedWindowLimiter(30, 60 * 1000);
-
-/** Xoá mọi bộ đếm giới hạn tốc độ OAuth (API điều khiển test, C18). */
-export function resetOauthLimiters(): void {
-  for (const l of [untrustedPeerLimiter, registerLimiter, tokenLimiter, consentLimiter]) l.reset();
-}

@@ -166,12 +166,15 @@ by the Node server and is ignored if still set.
 
 ### Test control API (non-production only)
 
-With `TRINITY_TEST_HOOKS=1` **and** `NODE_ENV` other than `production`, the monolith registers `POST /internal/test/jobs/:name/run`
-(one run of one background job for one company; `company_id` required when `MULTI_TENANT=true`; `now` is accepted only by
-`notification.reap-stuck` and `briefings.collect`) and `POST /internal/test/cache/flush` (permissions, read cache, token
-blacklist, rate limits). Both need `x-service-secret`, are hidden from Swagger and are not in `routes.json`. In production the routes do not
-exist (404) and the controller refuses to start. While the flag is on, no background schedule is registered (all job timers, the
-notification `@Cron`, background tenant migration): jobs run only when called through the API. Never set the flag on a real deployment.
+With `TRINITY_TEST_HOOKS=1` **and** `NODE_ENV` explicitly `test` or `development` (unset is not enough), the monolith registers
+`POST /api/v1/internal/test/jobs/:name/run` (one run of one background job for one company; `company_id` required when
+`MULTI_TENANT=true`, must be an active company, else 400) and `POST /api/v1/internal/test/cache/flush` (permissions, read cache,
+token blacklist, every in-memory rate limiter). `now` (ISO-8601 with a time zone) is accepted only by jobs whose code already takes a
+time argument: `notification.reap-stuck`, `briefings.collect`, `briefings.run-due`, `stale-work` (plus `force`), `oauth-purge`,
+`ai-action-expiry`, `facebook-broadcasts`; any other job gets 400. Both routes need `x-service-secret`, are hidden from Swagger and are not
+in `routes.json`; a warning is logged at startup when they are on. In production they do not exist (404) and the controller refuses to
+start. While the flag is on, no background schedule is registered (all job timers, the notification `@Cron`, background tenant
+migration): jobs run only when called through the API. Never set the flag on a real deployment.
 
 ## Fast updates without Docker
 

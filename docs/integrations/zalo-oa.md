@@ -21,7 +21,8 @@ Note: the docs.zalo site is an SPA, so the full text cannot be read automaticall
 7. A ZNS template approved by Zalo (template_id + parameter names) and the OA's ZNS permission.
 8. Optional, for tests only: `ZALO_OAUTH_BASE_URL`, `ZALO_OPENAPI_BASE_URL`, `ZALO_ZNS_BASE_URL` replace the base URLs
    (`https://oauth.zaloapp.com`, `https://openapi.zalo.me`, `https://business.openapi.zalo.me`) so calls go to a local fake
-   server; `http://` is refused in production.
+   server (only the variable of the endpoint being called is checked); `http://` is accepted only for loopback hosts
+   (`localhost`, `127.0.0.1`, `::1`).
 
 ## Access model
 The Zalo OA inbox is an organisation-wide shared inbox: anyone with `contacts.update` (and the `zalo_oa` organisation feature) can list and reply to every conversation, regardless of their own/team data scope on contacts. Grant `contacts.update` only to roles that should see all OA conversations.

@@ -19,7 +19,7 @@ export async function postFirstComment(prisma: PrismaService, pageId: string, ob
   if (!page?.token_enc) return 'no_page';
   const token = decryptSecret(page.token_enc, loadSecretKey());
   const c = loadFacebookConfig();
-  const res = await fetch(graphUrl(c.graphVersion, `${encodeURIComponent(objectId)}/comments`), {
+  const res = await fetch(graphUrl(c.graphVersion, `${objectId}/comments`), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ message: message.slice(0, FIRST_COMMENT_MAX), access_token: token }).toString(),

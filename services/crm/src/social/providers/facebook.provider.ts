@@ -228,7 +228,12 @@ export async function graphCall<T>(
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(opts.query ?? {})) if (v !== undefined) qs.set(k, v);
   if (opts.token) qs.set('appsecret_proof', createHmac('sha256', c.appSecret).update(opts.token).digest('hex'));
-  const url = graphUrl(c.graphVersion, path, qs, { video: opts.video });
+  let url: string;
+  try {
+    url = graphUrl(c.graphVersion, path, qs, { video: opts.video });
+  } catch (err) {
+    throw new SocialPublishError('invalid', (err as Error).message);
+  }
   const headers: Record<string, string> = {};
   if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
   let payload: FormData | string | undefined;

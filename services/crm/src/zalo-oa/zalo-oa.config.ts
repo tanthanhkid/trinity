@@ -8,29 +8,31 @@ export const DEFAULT_ZALO_OAUTH_BASE_URL = 'https://oauth.zaloapp.com';
 export const DEFAULT_ZALO_OPENAPI_BASE_URL = 'https://openapi.zalo.me';
 export const DEFAULT_ZALO_ZNS_BASE_URL = 'https://business.openapi.zalo.me';
 
-export interface ZaloUrls {
+export type ZaloEndpoint =
   /** Trang người quản trị OA cấp quyền cho ứng dụng (OAuth v4, hỗ trợ PKCE). */
-  permission: string;
+  | 'permission'
   /** Đổi code → token, và làm mới token (header `secret_key` = khoá bí mật của ứng dụng). */
-  token: string;
+  | 'token'
   /** OA API v3.0 (gửi tin tư vấn, lấy hồ sơ người dùng). */
-  api: string;
+  | 'api'
   /** ZNS: gửi tin thông báo theo mẫu đã duyệt. */
-  zns: string;
-}
+  | 'zns';
 
 /**
- * URL Zalo theo 3 địa chỉ gốc `ZALO_OAUTH_BASE_URL`, `ZALO_OPENAPI_BASE_URL`, `ZALO_ZNS_BASE_URL` (máy chủ giả khi test);
- * không đặt ⇒ địa chỉ thật như cũ. `http://` chỉ nhận ngoài production.
+ * URL Zalo theo địa chỉ gốc `ZALO_OAUTH_BASE_URL` (permission, token), `ZALO_OPENAPI_BASE_URL` (api), `ZALO_ZNS_BASE_URL`
+ * (zns) — máy chủ giả khi test; không đặt ⇒ địa chỉ thật như cũ. Chỉ kiểm biến của đúng điểm cuối được gọi.
  */
-export function zaloUrls(env: NodeJS.ProcessEnv = process.env): ZaloUrls {
-  const oauth = apiBaseUrl('ZALO_OAUTH_BASE_URL', DEFAULT_ZALO_OAUTH_BASE_URL, env);
-  return {
-    permission: `${oauth}/v4/oa/permission`,
-    token: `${oauth}/v4/oa/access_token`,
-    api: `${apiBaseUrl('ZALO_OPENAPI_BASE_URL', DEFAULT_ZALO_OPENAPI_BASE_URL, env)}/v3.0/oa`,
-    zns: `${apiBaseUrl('ZALO_ZNS_BASE_URL', DEFAULT_ZALO_ZNS_BASE_URL, env)}/message/template`,
-  };
+export function zaloUrl(endpoint: ZaloEndpoint, env: NodeJS.ProcessEnv = process.env): string {
+  switch (endpoint) {
+    case 'permission':
+      return `${apiBaseUrl('ZALO_OAUTH_BASE_URL', DEFAULT_ZALO_OAUTH_BASE_URL, env)}/v4/oa/permission`;
+    case 'token':
+      return `${apiBaseUrl('ZALO_OAUTH_BASE_URL', DEFAULT_ZALO_OAUTH_BASE_URL, env)}/v4/oa/access_token`;
+    case 'api':
+      return `${apiBaseUrl('ZALO_OPENAPI_BASE_URL', DEFAULT_ZALO_OPENAPI_BASE_URL, env)}/v3.0/oa`;
+    case 'zns':
+      return `${apiBaseUrl('ZALO_ZNS_BASE_URL', DEFAULT_ZALO_ZNS_BASE_URL, env)}/message/template`;
+  }
 }
 
 /** Tin tư vấn chỉ gửi được trong 48 giờ kể từ tin gần nhất của khách. */

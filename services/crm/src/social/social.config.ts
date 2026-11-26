@@ -56,14 +56,20 @@ export function truncatedAt(network: SocialNetwork, text: string): number | null
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 /** Trần video mặc định (MB). Bản cài sau proxy Cloudflare (body ≤ 100 MB) đặt `SOCIAL_MAX_VIDEO_MB=95`. */
 export const DEFAULT_MAX_VIDEO_MB = 200;
+/**
+ * Trần cứng của video ĐÃ có trong kho (nạp để đăng bài hẹn giờ, dùng lại từ thư viện): luôn 200 MB, KHÔNG theo env —
+ * hạ `SOCIAL_MAX_VIDEO_MB` không được làm hỏng bài đã hẹn hay video cũ trong thư viện.
+ */
+export const MAX_STORED_VIDEO_BYTES = DEFAULT_MAX_VIDEO_MB * 1024 * 1024;
 
 /**
- * Trần một video đăng bài (byte) theo `SOCIAL_MAX_VIDEO_MB` — dùng cho cả tải multipart lẫn nhập từ link/đăng lên mạng.
- * Đọc env mỗi lần gọi (không chốt lúc nạp module, khi `.env` có thể chưa nạp). Trống/sai ⇒ mặc định 200.
+ * Trần video MỚI tải lên / nhập từ link / xin upload-token (byte) theo `SOCIAL_MAX_VIDEO_MB` (số MB nguyên, 1–200; trống
+ * hoặc sai ⇒ 200). Đọc env mỗi lần gọi (không chốt lúc nạp module, khi `.env` có thể chưa nạp).
  */
 export function maxVideoBytes(env: NodeJS.ProcessEnv = process.env): number {
-  const mb = Number((env.SOCIAL_MAX_VIDEO_MB ?? '').trim());
-  return (Number.isFinite(mb) && mb > 0 ? mb : DEFAULT_MAX_VIDEO_MB) * 1024 * 1024;
+  const raw = (env.SOCIAL_MAX_VIDEO_MB ?? '').trim();
+  const mb = /^\d+$/.test(raw) ? Number(raw) : 0;
+  return (mb >= 1 ? Math.min(mb, DEFAULT_MAX_VIDEO_MB) : DEFAULT_MAX_VIDEO_MB) * 1024 * 1024;
 }
 export const MAX_MEDIA_PER_POST = 10;
 

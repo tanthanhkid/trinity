@@ -83,7 +83,13 @@ export class GraphClient {
     if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
     if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
     // Dựng URL ngoài try: cấu hình địa chỉ gốc sai (vd http:// ở production) phải báo đúng lỗi, không thành "không kết nối được".
-    const url = this.url(path, opts.query);
+    let url: string;
+    try {
+      url = this.url(path, opts.query);
+    } catch (err) {
+      // Cấu hình địa chỉ gốc sai / đường dẫn lạ: lỗi Graph vĩnh viễn (không thử lại), không phải "không kết nối được".
+      throw new GraphApiError(0, null, null, (err as Error).message);
+    }
     let res: Response;
     try {
       res = await fetch(url, {

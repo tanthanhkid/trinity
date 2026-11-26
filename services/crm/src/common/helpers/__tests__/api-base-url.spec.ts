@@ -3,11 +3,13 @@ import type { AddressInfo } from 'node:net';
 import { encryptSecret, loadSecretKey } from '../../../integrations/webhooks/secret-crypto';
 import { GraphClient } from '../../../facebook/graph-client';
 import { graphUrl } from '../../../facebook/facebook.config';
+import { GraphApiError } from '../../../facebook/graph-client';
+import { SocialPublishError } from '../../../social/providers/provider.types';
 import { postFirstComment } from '../../../social/facebook-first-comment';
 import { graphCall } from '../../../social/providers/facebook.provider';
 import { ZaloOaApiClient } from '../../../zalo-oa/zalo-oa-api.client';
-import { zaloUrls } from '../../../zalo-oa/zalo-oa.config';
-import { apiBaseUrl } from '../api-base-url';
+import { zaloUrl } from '../../../zalo-oa/zalo-oa.config';
+import { apiBaseUrl, isLoopbackHost } from '../api-base-url';
 
 const ENV = { ...process.env };
 const BASE_VARS = ['FACEBOOK_GRAPH_BASE_URL', 'ZALO_OAUTH_BASE_URL', 'ZALO_OPENAPI_BASE_URL', 'ZALO_ZNS_BASE_URL'] as const;
@@ -28,10 +30,17 @@ describe('apiBaseUrl', () => {
     expect(apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'https://fake.test/graph/' })).toBe('https://fake.test/graph');
   });
 
-  it('http:// chỉ nhận ngoài production', () => {
-    expect(apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'http://127.0.0.1:9000', NODE_ENV: 'test' })).toBe('http://127.0.0.1:9000');
-    expect(() => apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'http://127.0.0.1:9000', NODE_ENV: 'production' })).toThrow(/https:\/\/ ở production/);
+  it('http:// chỉ nhận host loopback, bất kể NODE_ENV', () => {
+    for (const NODE_ENV of ['production', 'development', 'test']) {
+      expect(apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'http://127.0.0.1:9000', NODE_ENV })).toBe('http://127.0.0.1:9000');
+      expect(apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'http://localhost:9000/fake', NODE_ENV })).toBe('http://localhost:9000/fake');
+      expect(apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'http://[::1]:9000', NODE_ENV })).toBe('http://[::1]:9000');
+      expect(() => apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'http://graph.example.com', NODE_ENV })).toThrow(/http:\/\/ chỉ dùng cho máy chủ cục bộ/);
+      expect(() => apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'http://10.0.0.5:9000', NODE_ENV })).toThrow(/máy chủ cục bộ/);
+    }
     expect(apiBaseUrl('X_BASE', 'https://a', { X_BASE: 'https://graph.example.com', NODE_ENV: 'production' })).toBe('https://graph.example.com');
+    expect(isLoopbackHost('127.1.2.3')).toBe(true);
+    expect(isLoopbackHost('localhost.example.com')).toBe(false);
   });
 
   it('từ chối URL hỏng, giao thức lạ, có query', () => {
@@ -56,12 +65,10 @@ describe('không đặt env ⇒ URL như cũ', () => {
   });
 
   it('Zalo OAuth, OpenAPI, ZNS', () => {
-    expect(zaloUrls()).toEqual({
-      permission: 'https://oauth.zaloapp.com/v4/oa/permission',
-      token: 'https://oauth.zaloapp.com/v4/oa/access_token',
-      api: 'https://openapi.zalo.me/v3.0/oa',
-      zns: 'https://business.openapi.zalo.me/message/template',
-    });
+    expect(zaloUrl('permission')).toBe('https://oauth.zaloapp.com/v4/oa/permission');
+    expect(zaloUrl('token')).toBe('https://oauth.zaloapp.com/v4/oa/access_token');
+    expect(zaloUrl('api')).toBe('https://openapi.zalo.me/v3.0/oa');
+    expect(zaloUrl('zns')).toBe('https://business.openapi.zalo.me/message/template');
   });
 });
 
@@ -133,16 +140,35 @@ describe('đặt env ⇒ mọi lời gọi tới máy chủ giả', () => {
       'GET /zapi/v3.0/oa/user/detail',
     ]);
     expect(outbound.every((u) => u.startsWith(`${base}/`))).toBe(true);
-    expect(zaloUrls().permission).toBe(`${base}/zoauth/v4/oa/permission`);
+    expect(zaloUrl('permission')).toBe(`${base}/zoauth/v4/oa/permission`);
   });
 
-  it('production đặt http:// ⇒ từ chối, không gửi request nào', async () => {
-    process.env.NODE_ENV = 'production';
-    await expect(new GraphClient().listPages('user-token')).rejects.toThrow(/FACEBOOK_GRAPH_BASE_URL phải dùng https/);
-    await expect(graphCall('GET', 'me', { token: 't' })).rejects.toThrow(/FACEBOOK_GRAPH_BASE_URL phải dùng https/);
-    await expect(new ZaloOaApiClient().sendText('AT', 'u1', 'x')).rejects.toThrow(/ZALO_\w+_BASE_URL phải dùng https/);
-    expect(() => zaloUrls()).toThrow(/ZALO_OAUTH_BASE_URL phải dùng https/);
+  it('http:// tới host không phải loopback ⇒ từ chối (lỗi Graph vĩnh viễn), không gửi request nào', async () => {
+    process.env.FACEBOOK_GRAPH_BASE_URL = 'http://graph.example.com';
+    process.env.ZALO_OPENAPI_BASE_URL = 'http://openapi.example.com';
+    const e1 = await new GraphClient().listPages('user-token').catch((e: unknown) => e);
+    expect(e1).toBeInstanceOf(GraphApiError);
+    expect((e1 as Error).message).toMatch(/FACEBOOK_GRAPH_BASE_URL: http:\/\/ chỉ dùng cho máy chủ cục bộ/);
+    const e2 = await graphCall('GET', 'me', { token: 't' }).catch((e: unknown) => e);
+    expect(e2).toBeInstanceOf(SocialPublishError);
+    expect((e2 as SocialPublishError).retryable).toBe(false);
+    await expect(new ZaloOaApiClient().sendText('AT', 'u1', 'x')).rejects.toThrow(/ZALO_OPENAPI_BASE_URL: http:\/\//);
+    expect(() => zaloUrl('api')).toThrow(/ZALO_OPENAPI_BASE_URL/);
     expect(outbound).toEqual([]);
     expect(hits).toEqual([]);
+  });
+
+  it('Zalo chỉ kiểm biến của điểm cuối được gọi', async () => {
+    process.env.ZALO_ZNS_BASE_URL = 'http://zns.example.com';
+    await new ZaloOaApiClient().sendText('AT', 'u1', 'chào');
+    expect(hits.map((h) => h.replace(/\?.*$/, ''))).toEqual(['POST /zapi/v3.0/oa/message/cs']);
+    expect(() => zaloUrl('zns')).toThrow(/ZALO_ZNS_BASE_URL/);
+  });
+
+  it('bình luận đầu tiên: id chỉ mã hoá một lần', async () => {
+    const token_enc = encryptSecret('page-token', loadSecretKey());
+    const prisma = { facebookPage: { findFirst: jest.fn(async () => ({ token_enc })) } };
+    await postFirstComment(prisma as never, 'P1', 'P1:9', 'hi');
+    expect(outbound[0]).toBe(`${base}/fb/v25.0/P1%3A9/comments`);
   });
 });

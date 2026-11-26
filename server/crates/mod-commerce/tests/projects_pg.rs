@@ -27,7 +27,7 @@ fn status(e: trinity_kernel::error::AppError) -> (u16, String) {
 #[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
 async fn vong_doi_du_an() {
     let mut c = conn().await;
-    sqlx::query("DELETE FROM projects WHERE code LIKE 'm28_%'")
+    sqlx::query("DELETE FROM projects WHERE code LIKE 'm28\\_%'")
         .execute(&mut *c)
         .await
         .unwrap();
@@ -147,7 +147,7 @@ async fn vong_doi_du_an() {
     let pos = |id| all.iter().position(|x| x.id == id).unwrap();
     assert!(pos(q.id) < pos(p.id));
 
-    sqlx::query("DELETE FROM projects WHERE code LIKE 'm28_%'")
+    sqlx::query("DELETE FROM projects WHERE code LIKE 'm28\\_%'")
         .execute(&mut *c)
         .await
         .unwrap();

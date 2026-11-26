@@ -5,6 +5,11 @@ on:
   pull_request:
     branches: [main]
 
+# Đẩy commit mới lên PR thì huỷ lượt cũ.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

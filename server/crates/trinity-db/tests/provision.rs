@@ -371,7 +371,7 @@ async fn e_migrate_nen_theo_chu_va_mot_cong_ty_loi_khong_chan_cong_ty_khac() {
     let latest = migrate::latest_embedded();
 
     // Node giữ migrate nền: Rust không đụng DB.
-    let none = boot_migrate_companies(false, db.raw_pool(), &migrations, latest, 4)
+    let none = boot_migrate_companies(false, &db, &migrations, latest, 4)
         .await
         .unwrap();
     assert!(none.is_none());
@@ -384,7 +384,7 @@ async fn e_migrate_nen_theo_chu_va_mot_cong_ty_loi_khong_chan_cong_ty_khac() {
         0
     );
 
-    let report = boot_migrate_companies(true, db.raw_pool(), &migrations, latest, 4)
+    let report = boot_migrate_companies(true, &db, &migrations, latest, 4)
         .await
         .unwrap()
         .unwrap();
@@ -395,5 +395,41 @@ async fn e_migrate_nen_theo_chu_va_mot_cong_ty_loi_khong_chan_cong_ty_khac() {
         .await
         .unwrap();
     assert_eq!(m5.as_deref(), Some(latest));
+    db.close().await;
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn f_huy_handler_giua_chung_van_dung_xong_va_remove_khong_xoa_cong_ty_active() {
+    let t = TestDb::new("f").await;
+    let (db, platform) = t.db();
+    let migrations = migrate::embedded_migrations();
+    let latest = migrate::latest_embedded();
+    // Huỷ future ngay sau khi bắt đầu: việc dựng vẫn chạy tới cùng trong task riêng.
+    let inp = input("huy@thu.vn");
+    let fut = provision_company(&db, &platform, &migrations, latest, &inp);
+    let _ = tokio::time::timeout(Duration::from_millis(150), fut).await;
+    let mut c = t.conn().await;
+    let mut status = String::new();
+    for _ in 0..100 {
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        status = sqlx::query_scalar("SELECT status FROM platform.companies WHERE id = 2")
+            .fetch_optional(&mut c)
+            .await
+            .unwrap()
+            .unwrap_or_default();
+        if status == "active" {
+            break;
+        }
+    }
+    assert_eq!(status, "active");
+    // Dọn nhầm công ty đã active: không làm gì.
+    exec(
+        &mut c,
+        "UPDATE platform.companies SET created_at = now() - interval '1 hour' WHERE id = 2",
+    )
+    .await;
+    assert_eq!(provision::reap_stale_provisioning(db.raw_pool()).await.unwrap(), 0);
+    assert_eq!(scalar_i64(&mut c, "SELECT count(*) FROM c_2.users").await, 1);
     db.close().await;
 }

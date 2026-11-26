@@ -15,7 +15,7 @@ use sqlx::{PgConnection, PgPool};
 use tokio::sync::Mutex;
 
 use crate::prisma_migrate::{self as pm, MigrateError, Migration};
-use crate::{CompanyRef, LATEST_MIGRATION};
+use crate::{CompanyRef, Db, LATEST_MIGRATION};
 
 include!(concat!(env!("OUT_DIR"), "/embedded_migrations.rs"));
 
@@ -170,17 +170,25 @@ pub async fn migrate_companies(
     Ok(report)
 }
 
-/// Migrate nền lúc boot: chỉ chạy khi tệp sở hữu giao migrate cho Rust (`Ownership::migrate() == Owner::Rust`);
-/// bên kia (Node) đang giữ việc này thì trả `None` mà không đụng DB, để không hai tiến trình cùng migrate.
+/// Migrate nền lúc boot: chỉ chạy khi bản cài nhiều công ty (`db.multi_tenant()`) và tệp sở hữu giao migrate cho
+/// Rust (`Ownership::migrate() == Owner::Rust`); ngược lại trả `None` mà không đụng DB, để không hai tiến trình
+/// cùng migrate. Pool phải không có `statement_timeout` (migration chạy lâu), không thì từ chối.
 pub async fn boot_migrate_companies(
     rust_owns_migrate: bool,
-    pool: &PgPool,
+    db: &Db,
     migrations: &[Migration],
     latest: &str,
     concurrency: usize,
 ) -> Result<Option<CompaniesReport>, MigrateError> {
-    if !rust_owns_migrate {
+    if !rust_owns_migrate || !db.multi_tenant() {
         return Ok(None);
+    }
+    let pool = db.raw_pool();
+    let timeout: String = sqlx::query_scalar("SHOW statement_timeout").fetch_one(pool).await?;
+    if timeout != "0" {
+        return Err(MigrateError::Io(std::io::Error::other(format!(
+            "pool migrate cần statement_timeout = 0 (đang là {timeout})"
+        ))));
     }
     migrate_companies(pool, migrations, latest, concurrency).await.map(Some)
 }

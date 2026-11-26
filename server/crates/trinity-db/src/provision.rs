@@ -123,15 +123,27 @@ pub async fn reap_stale_provisioning(pool: &PgPool) -> Result<usize, ProvisionEr
         if migrate::check_company_schema(id, &schema).is_err() {
             continue;
         }
-        remove_company(pool, id, &schema).await?;
-        n += 1;
+        match remove_company(pool, id, &schema).await {
+            Ok(()) => n += 1,
+            Err(e) => tracing::warn!("provision: dọn đăng ký bỏ dở của công ty {id} lỗi: {e}"),
+        }
     }
     Ok(n)
 }
 
 /// Xoá dòng định tuyến, schema và dòng công ty còn `provisioning`, trong một giao dịch.
+/// Khoá dòng công ty và kiểm lại `status = 'provisioning'`; không còn như vậy (đã active hoặc đã bị dọn) thì không
+/// làm gì: không bao giờ xoá công ty đang hoạt động.
 async fn remove_company(pool: &PgPool, id: i32, schema: &str) -> Result<(), sqlx::Error> {
     let mut tx = pool.begin().await?;
+    let still: Option<(i32,)> =
+        sqlx::query_as("SELECT id FROM platform.companies WHERE id = $1 AND status = 'provisioning' FOR UPDATE")
+            .bind(id)
+            .fetch_optional(&mut *tx)
+            .await?;
+    if still.is_none() {
+        return tx.rollback().await;
+    }
     sqlx::query("DELETE FROM platform.company_logins WHERE company_id = $1")
         .bind(id)
         .execute(&mut *tx)
@@ -153,6 +165,9 @@ async fn remove_company(pool: &PgPool, id: i32, schema: &str) -> Result<(), sqlx
 
 /// Tạo công ty mới. `migrations` là bộ migration (thường [`migrate::embedded_migrations`]), `latest` là tên bản mới
 /// nhất của nó.
+///
+/// Phần việc chạy trong một task riêng (`tokio::spawn`) và được chờ ở đây: handler HTTP bị huỷ giữa chừng (khách
+/// ngắt kết nối) thì việc dựng và dọn dẹp vẫn chạy tới cùng, email không bị khoá tới lúc dọn bỏ dở (15 phút).
 pub async fn provision_company(
     db: &Db,
     platform: &Platform,
@@ -163,6 +178,25 @@ pub async fn provision_company(
     if !db.multi_tenant() {
         return Err(ProvisionError::SingleTenant);
     }
+    let (db, platform, migrations, latest, input) = (
+        db.clone(),
+        platform.clone(),
+        migrations.to_vec(),
+        latest.to_owned(),
+        input.clone(),
+    );
+    tokio::spawn(async move { provision_inner(&db, &platform, &migrations, &latest, &input).await })
+        .await
+        .map_err(|e| ProvisionError::Hash(format!("tác vụ tạo công ty dừng bất thường: {e}")))?
+}
+
+async fn provision_inner(
+    db: &Db,
+    platform: &Platform,
+    migrations: &[Migration],
+    latest: &str,
+    input: &ProvisionInput,
+) -> Result<ProvisionResult, ProvisionError> {
     platform.ensure().await?;
     let pool = db.raw_pool();
     let email = js_trim(&input.admin_email).to_lowercase();
@@ -171,21 +205,17 @@ pub async fn provision_company(
         let n = js_slice(js_trim(&input.admin_name), 200);
         if n.is_empty() { "Quản trị viên" } else { n }.to_owned()
     };
-    // Băm trước (chậm, CPU) để khoá email chỉ giữ trong giao dịch giữ chỗ ngắn.
-    let password = input.admin_password.clone();
-    let password_hash = tokio::task::spawn_blocking(move || bcrypt::hash(password, 10))
-        .await
-        .map_err(|e| ProvisionError::Hash(e.to_string()))?
-        .map_err(|e| ProvisionError::Hash(e.to_string()))?;
-
-    reap_stale_provisioning(pool).await?;
+    // Dọn lỗi không được chặn đăng ký.
+    if let Err(e) = reap_stale_provisioning(pool).await {
+        tracing::warn!("provision: dọn đăng ký bỏ dở lỗi: {e}");
+    }
 
     // Giữ id và email trước, để hai đăng ký cùng email không cùng qua được.
     let company = {
         let mut tx = pool.begin().await?;
         // Nối tiếp đăng ký cùng email (bấm đúp, hai tab): bên sau chờ rồi thấy dòng của bên trước.
         sqlx::query("SELECT pg_advisory_xact_lock($1::int, hashtext($2))")
-            .bind(i32::try_from(SIGNUP_LOCK).unwrap_or(0))
+            .bind(SIGNUP_LOCK)
             .bind(&email)
             .execute(&mut *tx)
             .await?;
@@ -227,7 +257,7 @@ pub async fn provision_company(
         latest,
         company,
         &email,
-        &password_hash,
+        &input.admin_password,
         &company_name,
         &admin_name,
     )
@@ -255,10 +285,16 @@ async fn build(
     latest: &str,
     company: CompanyRef,
     email: &str,
-    password_hash: &str,
+    password: &str,
     company_name: &str,
     admin_name: &str,
 ) -> Result<i32, ProvisionError> {
+    // Đã giữ chỗ rồi mới băm (chậm, CPU): ca bỏ ngang vì email trùng không tốn băm.
+    let pw = password.to_owned();
+    let password_hash = tokio::task::spawn_blocking(move || bcrypt::hash(pw, 10))
+        .await
+        .map_err(|e| ProvisionError::Hash(e.to_string()))?
+        .map_err(|e| ProvisionError::Hash(e.to_string()))?;
     let schema = company.schema();
     migrate::migrate_company(pool, company.id(), &schema, migrations, latest).await?;
 
@@ -269,7 +305,7 @@ async fn build(
         .bind(format!("\"{schema}\""))
         .execute(&mut *tx)
         .await?;
-    let admin_id = seed(&mut tx, email, password_hash, company_name, admin_name).await?;
+    let admin_id = seed(&mut tx, email, &password_hash, company_name, admin_name).await?;
     sqlx::query("UPDATE platform.companies SET status = 'active' WHERE id = $1")
         .bind(company.id())
         .execute(&mut *tx)
@@ -306,8 +342,8 @@ async fn seed(
         .await?;
     }
     let (user_id,): (i32,) = sqlx::query_as(
-        "INSERT INTO users (email, password_hash, full_name, status, updated_at)
-         VALUES ($1, $2, $3, 'active', now()) RETURNING id",
+        "INSERT INTO users (email, password_hash, password_updated_at, full_name, status, updated_at)
+         VALUES ($1, $2, now(), $3, 'active', now()) RETURNING id",
     )
     .bind(email)
     .bind(password_hash)

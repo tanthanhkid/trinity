@@ -32,6 +32,8 @@ tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "tim
 axum = "0.8"
 hyper = "1.13"
 tower-http = "0.7"
+tower = { version = "0.5", default-features = false, features = ["util"] }
+tokio-util = { version = "0.7", default-features = false, features = ["io"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 # Feature `rustls` của reqwest 0.13 kéo aws-lc-rs (cần cmake/C); dùng `rustls-no-provider` và cài provider `ring`
 # một lần lúc khởi động (`rustls::crypto::ring::default_provider().install_default()`), cùng provider với sqlx.

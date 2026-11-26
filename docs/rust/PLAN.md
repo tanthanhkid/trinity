@@ -837,6 +837,31 @@ Driver local (ghi nguyên tử, chống thoát thư mục, phục vụ `Range`) 
 vụ trực tiếp với cùng header (`nosniff`, cache 1 ngày). Driver S3 hỗ trợ URL ký sẵn như `getSignedUrl` hiện có. Driver Vercel Blob bỏ cùng đường Vercel. Giữ nguyên
 `storage_key` và bố cục thư mục để file cũ đọc được.
 
+Đã làm ở K22 (`server/crates/trinity-storage`):
+
+- Driver đĩa `LocalDiskDriver` chuyển nguyên `packages/storage`: `resolve_safe_key` (chặn rỗng, null byte, `\`,
+  đường dẫn tuyệt đối, `..` thoát gốc theo `posix.normalize`), ghi nguyên tử `<đích>.tmp-<16 hex>` rồi `rename`,
+  `Content-Type` ở `<key>.meta.json` dạng `{"contentType":"…"}` (Rust ghi giống từng byte `JSON.stringify`),
+  `parse_range` như `range.ts` (Range lạ ⇒ 200 cả file, không có 416), xoá không lỗi khi không có, `init` ghi thử.
+  Spec TS chuyển sang test Rust; file do driver Node ghi (`tests/fixtures/node-written`, sinh bằng
+  `scripts/gen-node-fixture.cjs` từ `packages/storage/dist`) đọc đúng nội dung, `Content-Type` và `Range`.
+- Kho `uploads` (`LocalUploadsStore`): `<UPLOADS_LOCAL_ROOT hoặc cwd/uploads>/<thư mục>/<tên>`, không có meta. Ghi
+  nguyên tử (TS ghi thẳng; kết quả trên đĩa như nhau). Bản TS **phục vụ** từ `<cwd>/uploads` bất kể
+  `UPLOADS_LOCAL_ROOT`; Rust phục vụ từ cùng gốc với chỗ ghi.
+- Route `/uploads/*` (`uploads_router`) trả như trình duyệt thấy qua route Next + `express.static` của monolith:
+  `Content-Type` theo bảng mime 1.6 mà `send` 0.19 dùng (sinh vào `mime_db.rs`, kèm `; charset=UTF-8` cho kiểu chữ),
+  `X-Content-Type-Options: nosniff`, `Cache-Control: public, max-age=86400, immutable`; 400 cho segment rỗng, `.`,
+  `..`, chứa `/` hoặc `\` sau giải mã; 404 cho dotfile ở segment cuối, null byte, không có file, `ENOTDIR`; thư mục
+  phục vụ `index.html` nếu có; 308 bỏ `/` cuối. Golden status, `Content-Type` và thân lấy từ `express.static` thật
+  (`tests/fixtures/node-uploads-golden.json`).
+- **Khác có chủ đích:** header `Range` hợp lệ ở `/uploads` được trả 206 (`Content-Range`) và mọi phản hồi có file kèm
+  `Accept-Ranges: bytes`; bản Node bỏ qua `Range` (route Next không chuyển tiếp) và luôn trả 200 cả file. Tệp tạm
+  `<tên>.tmp-<16 hex>` của ghi nguyên tử trả 404 (Node phục vụ được). Key chuẩn hoá về chính root (`a/..`) bị từ chối
+  (TS trả root). `init` dọn tệp tạm mồ côi cũ hơn 1 giờ (để không xoá tệp đang ghi dở của tiến trình Node chạy song
+  song). Kích thước lấy từ tệp đã mở, không lệch khi bị ghi đè chen giữa. Rust stream thân file thay vì đệm cả file
+  vào RAM như route Next.
+- Driver S3 (`object_store`, URL ký sẵn) thuộc K23.
+
 ### 4.12 Observability
 
 - Log JSON ra stdout qua `tracing` (trường: correlation id, phương thức, đường dẫn đã che token, mã trạng thái, thời

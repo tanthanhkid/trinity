@@ -1,0 +1,136 @@
+[
+  {
+    "segments": [
+      "avatars",
+      "1_123.jpg"
+    ],
+    "status": 200,
+    "content_type": "image/jpeg",
+    "body_hex": "ffd8ffe0010203"
+  },
+  {
+    "segments": [
+      "c2",
+      "products",
+      "1700000000000_abcdef012345.png"
+    ],
+    "status": 200,
+    "content_type": "image/png",
+    "body_hex": "89504e4709"
+  },
+  {
+    "segments": [
+      "products",
+      "a b.webp"
+    ],
+    "status": 200,
+    "content_type": "image/webp",
+    "body_hex": "524946467878787857454250"
+  },
+  {
+    "segments": [
+      "products",
+      "x.gif"
+    ],
+    "status": 200,
+    "content_type": "image/gif",
+    "body_hex": "474946383961"
+  },
+  {
+    "segments": [
+      "products",
+      "X.JPG"
+    ],
+    "status": 200,
+    "content_type": "image/jpeg",
+    "body_hex": "7570706572"
+  },
+  {
+    "segments": [
+      "docs",
+      "readme.txt"
+    ],
+    "status": 200,
+    "content_type": "text/plain; charset=UTF-8",
+    "body_hex": "78696e206368c3a06f"
+  },
+  {
+    "segments": [
+      "docs",
+      "noext"
+    ],
+    "status": 200,
+    "content_type": "application/octet-stream",
+    "body_hex": "6e"
+  },
+  {
+    "segments": [
+      "docs",
+      ".secret"
+    ],
+    "status": 404,
+    "content_type": null,
+    "body_hex": null
+  },
+  {
+    "segments": [
+      ".hidden",
+      "ok.jpg"
+    ],
+    "status": 200,
+    "content_type": "image/jpeg",
+    "body_hex": "68"
+  },
+  {
+    "segments": [
+      "site"
+    ],
+    "status": 200,
+    "content_type": "text/html; charset=UTF-8",
+    "body_hex": "3c703e693c2f703e"
+  },
+  {
+    "segments": [
+      "emptydir"
+    ],
+    "status": 404,
+    "content_type": null,
+    "body_hex": null
+  },
+  {
+    "segments": [
+      "avatars",
+      "none.jpg"
+    ],
+    "status": 404,
+    "content_type": null,
+    "body_hex": null
+  },
+  {
+    "segments": [
+      "avatars",
+      "1_123.jpg",
+      "x"
+    ],
+    "status": 404,
+    "content_type": null,
+    "body_hex": null
+  },
+  {
+    "segments": [
+      "avatars",
+      "a\u0000b.jpg"
+    ],
+    "status": 404,
+    "content_type": null,
+    "body_hex": null
+  },
+  {
+    "segments": [
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.jpg"
+    ],
+    "status": 404,
+    "content_type": null,
+    "body_hex": null
+  }
+]

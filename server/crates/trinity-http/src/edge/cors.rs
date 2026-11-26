@@ -204,9 +204,6 @@ mod tests {
         assert!(!prod("https://a.b.example.com", "*.example.com"), "chỉ một cấp");
         assert!(!prod("https://a.example.com.evil.com", "*.example.com"));
         assert!(!prod("https://aexample.com", "*.example.com"));
-        assert!(prod(
-            "https://x.example.org",
-            "*.example.org , https://crm.example.com"
-        ));
+        assert!(prod("https://x.example.org", "*.example.org , https://crm.example.com"));
     }
 }

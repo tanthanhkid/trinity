@@ -22,7 +22,7 @@ use axum::http::{HeaderMap, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use hmac::{Hmac, KeyInit, Mac};
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 use trinity_kernel::config::EnvMap;
 use trinity_kernel::error::HttpError;
 
@@ -256,7 +256,10 @@ fn hmac(key: &[u8], parts: &[&[u8]]) -> [u8; 32] {
 
 /// Khoá ký dẫn từ một bí mật nội bộ (HKDF-SHA256, salt rỗng, info cố định, 32 byte): cùng kết quả với `hkdfSync`.
 pub fn derive_client_ip_key(secret: &str) -> [u8; 32] {
-    let prk = hmac(&[0u8; 32], &[secret.as_bytes()]);
+    // RFC 5869 mục 2.2: salt rỗng = chuỗi HashLen byte 0 (không phải khoá cố định: chỉ là tham số của bước Extract; bí mật
+    // thật là `secret`). Phải khớp `hkdfSync` của Node nên không thể đổi.
+    let salt = vec![0u8; Sha256::output_size()];
+    let prk = hmac(&salt, &[secret.as_bytes()]);
     hmac(&prk, &[HKDF_INFO, &[1u8]])
 }
 

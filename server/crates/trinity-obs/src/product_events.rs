@@ -274,6 +274,7 @@ mod tests {
 
     #[test]
     fn bay_su_kien_dung_ten_va_thuoc_tinh() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
         let ev = ProductEvents::from_config(&cfg(Some("phc_k"), Some("s"), "http://127.0.0.1:1"));
         let all = [
             (

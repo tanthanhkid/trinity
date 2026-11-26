@@ -18,9 +18,12 @@ test-hooks = ["dep:trinity-testhooks", "trinity-testhooks/test-hooks"]
 
 [dependencies]
 trinity-testhooks = { workspace = true, optional = true }
+base64 = { workspace = true }
 clap = { workspace = true }
+getrandom = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
+trinity-auth = { workspace = true }
 trinity-db = { workspace = true }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }

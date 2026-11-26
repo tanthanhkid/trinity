@@ -173,6 +173,8 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
     label: 'Mặc định',
     features: PLAN_GATED_FEATURES,
     maxUsers: 10,
+    // Công ty mới đăng ký nhận đủ tính năng nhưng hạn mức kênh bằng gói thấp nhất (`ket_noi`) cho tới khi chốt gói.
+    channelLimits: { bulkMessagesPerDay: 200, recipientsPerCampaign: 200, postsPerDay: 10, autoCommentRepliesPerHour: 60 },
   },
   ket_noi: {
     label: 'Kết nối',

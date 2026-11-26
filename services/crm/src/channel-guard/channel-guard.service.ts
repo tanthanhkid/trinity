@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaService, currentCompany, currentCompanyId, getChannelLock, isMultiTenant, runWithCompany } from '@trinity/prisma';
-import { channelLimitsFor, resolvePlan, type ChannelLimits, type PlanKey } from '@trinity/rbac';
+import { channelLimitsFor, type ChannelLimits, type PlanKey } from '@trinity/rbac';
+import { planFromSetting } from '@trinity/rbac-nest';
 import { ChannelBlockedError } from './channel-guard.errors';
 import { GRAPH_POLICY_CODE, isGraphAppLevelLimit, isGraphBlockOutcome, setGraphObserver, type GraphOutcome } from './graph-observer';
 
@@ -180,15 +181,16 @@ export class ChannelGuardService implements OnModuleInit, OnModuleDestroy {
 
   // ───────────────────────── hạn mức & chặn
 
-  /** Gói của công ty hiện tại (cache 30 giây). Vắng/rác = `custom`. */
+  /** Gói của công ty hiện tại (cache 30 giây). Vắng/rác: công ty ≥ 2 = gói đăng ký mặc định, còn lại `custom`. */
   async plan(): Promise<PlanKey> {
     const id = currentCompanyId() ?? 0;
     const hit = this.planCache.get(id);
     if (hit && Date.now() - hit.at < 30_000) return hit.v;
-    let v: PlanKey = 'custom';
+    let v: PlanKey = planFromSetting(undefined);
     try {
       const row = await this.prisma.setting.findUnique({ where: { key: PLAN_SETTING_KEY }, select: { value: true } });
-      v = resolvePlan(row?.value?.trim());
+      // Cùng một cách giải gói với giới hạn người dùng: thiếu dòng ở công ty ≥ 2 = gói đăng ký mặc định, không rơi về `custom`.
+      v = planFromSetting(row?.value);
     } catch (err) {
       this.logger.warn(`Không đọc được gói để tính hạn mức kênh: ${(err as Error).message}`);
     }

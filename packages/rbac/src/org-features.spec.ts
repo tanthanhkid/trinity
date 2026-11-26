@@ -99,6 +99,9 @@ describe('DEFAULT_OFF_FEATURES', () => {
     expect(PLANS.ket_noi.channelLimits.bulkMessagesPerDay).toBeLessThan(PLANS.tro_ly_kinh_doanh.channelLimits.bulkMessagesPerDay)
     expect(PLANS.tro_ly_kinh_doanh.channelLimits.postsPerDay).toBeLessThan(PLANS.tro_ly_van_hanh.channelLimits.postsPerDay)
     expect(Number.isFinite(PLANS.custom.channelLimits.bulkMessagesPerDay)).toBe(true)
+    // Gói đăng ký mặc định (công ty mới) có hạn mức kênh bằng `ket_noi`.
+    expect(PLANS.mac_dinh.channelLimits).toEqual(PLANS.ket_noi.channelLimits)
+    expect(channelLimitsFor(DEFAULT_SIGNUP_PLAN)).toEqual(PLANS.ket_noi.channelLimits)
     expect(channelLimitsFor('custom')).toEqual(PLANS.custom.channelLimits)
     expect(channelLimitsFor('custom')).not.toBe(PLANS.custom.channelLimits)
   })

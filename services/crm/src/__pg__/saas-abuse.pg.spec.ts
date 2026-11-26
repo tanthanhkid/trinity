@@ -138,6 +138,15 @@ describePg('SaaS: chống lạm dụng kênh + route theo công ty (Postgres)', 
       await expect(inCompany(A, () => new ChannelGuardService(db).assertRecipients(2001))).rejects.toBeInstanceOf(ChannelBlockedError);
     });
 
+    it('công ty ≥ 2 thiếu dòng org_plan dùng gói đăng ký mặc định (hạn mức ket_noi), không rơi về custom; công ty 1 vẫn custom', async () => {
+      await inCompany(B, () => db.setting.deleteMany({ where: { key: 'org_plan' } }));
+      await inCompany(DEFAULT_COMPANY, () => db.setting.deleteMany({ where: { key: 'org_plan' } }));
+      const g = new ChannelGuardService(db);
+      expect(await inCompany(B, () => g.limits())).toEqual({ bulkMessagesPerDay: 200, recipientsPerCampaign: 200, postsPerDay: 10, autoCommentRepliesPerHour: 60 });
+      expect((await inCompany(DEFAULT_COMPANY, () => g.limits())).bulkMessagesPerDay).toBe(5000);
+      await setPlan(B, 'ket_noi');
+    });
+
     it('bản cài một công ty (MULTI_TENANT=false) không bị hạn mức mới', async () => {
       process.env.MULTI_TENANT = 'false';
       try {

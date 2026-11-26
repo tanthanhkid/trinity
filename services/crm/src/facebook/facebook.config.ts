@@ -13,6 +13,14 @@ export const DEFAULT_GRAPH_BASE_URL = 'https://graph.facebook.com';
 export const DEFAULT_GRAPH_VIDEO_BASE_URL = 'https://graph-video.facebook.com';
 
 /**
+ * Đường dẫn Graph (id, cạnh) không được thoát khỏi `/{version}/` hay chèn query: id lấy từ webhook/request nên chặn
+ * `..`, `.`, `?`, `#`, `\` và khoảng trắng.
+ */
+export function isSafeGraphPath(path: string): boolean {
+  return !/[?#\\\s]/.test(path) && !path.split('/').some((seg) => seg === '..' || seg === '.');
+}
+
+/**
  * Dựng URL Graph API — chỗ DUY NHẤT (GraphClient, Đăng đa kênh, bình luận đầu tiên). `FACEBOOK_GRAPH_BASE_URL` đổi địa
  * chỉ gốc (máy chủ giả khi test); khi đặt, cả lời gọi video cũng đi về đó. Không đặt ⇒ URL như cũ.
  */
@@ -22,6 +30,7 @@ export function graphUrl(
   query?: URLSearchParams,
   opts: { video?: boolean; env?: NodeJS.ProcessEnv } = {},
 ): string {
+  if (!isSafeGraphPath(path)) throw new Error('Đường dẫn Graph API không hợp lệ');
   const base = apiBaseUrl('FACEBOOK_GRAPH_BASE_URL', opts.video ? DEFAULT_GRAPH_VIDEO_BASE_URL : DEFAULT_GRAPH_BASE_URL, opts.env);
   const q = query?.toString();
   return `${base}/${version}/${path.replace(/^\//, '')}${q ? `?${q}` : ''}`;

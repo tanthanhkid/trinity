@@ -48,6 +48,13 @@ describe('không đặt env ⇒ URL như cũ', () => {
     expect(graphUrl('v25.0', '555/videos', undefined, { video: true })).toBe('https://graph-video.facebook.com/v25.0/555/videos');
   });
 
+  it('đường dẫn Graph không thoát khỏi /{version}/ hay chèn query', () => {
+    for (const bad of ['../me', 'a/../../b', 'P1?access_token=x', 'P1#x', 'a b', 'a\\b']) {
+      expect(() => graphUrl('v25.0', bad)).toThrow(/không hợp lệ/);
+    }
+    expect(graphUrl('v25.0', '123_456/comments')).toBe('https://graph.facebook.com/v25.0/123_456/comments');
+  });
+
   it('Zalo OAuth, OpenAPI, ZNS', () => {
     expect(zaloUrls()).toEqual({
       permission: 'https://oauth.zaloapp.com/v4/oa/permission',

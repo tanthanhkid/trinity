@@ -12439,6 +12439,499 @@
   }
  },
  {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "confirm_text": null
+  },
+  "result": {
+   "ok": {
+    "confirm_text": null
+   }
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "confirm_text": ""
+  },
+  "result": {
+   "ok": {
+    "confirm_text": ""
+   }
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "confirm_text": "  x  "
+  },
+  "result": {
+   "ok": {
+    "confirm_text": "  x  "
+   }
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "confirm_text": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "confirm_text must be shorter than or equal to 200 characters",
+    "confirm_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "confirm_text": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "confirm_text must be shorter than or equal to 200 characters",
+    "confirm_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "confirm_text": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "confirm_text must be shorter than or equal to 200 characters",
+    "confirm_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "confirm_text": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "confirm_text must be shorter than or equal to 200 characters",
+    "confirm_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "confirm_text": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "confirm_text must be shorter than or equal to 200 characters",
+    "confirm_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "confirm_text": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "confirm_text must be shorter than or equal to 200 characters",
+    "confirm_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "confirm_text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "confirm_text must be shorter than or equal to 200 characters"
+   ]
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "confirm_text": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "ok": {
+    "confirm_text": "2026-11-26T10:00:00Z"
+   }
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "confirm_text": "123"
+  },
+  "result": {
+   "ok": {
+    "confirm_text": "123"
+   }
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "confirm_text": "a@example.com"
+  },
+  "result": {
+   "ok": {
+    "confirm_text": "a@example.com"
+   }
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "confirm_text": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "confirm_text must be shorter than or equal to 200 characters",
+    "confirm_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "confirm_text": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "ApproveAiActionDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "confirm_text": "x"
+  },
+  "result": {
+   "ok": {
+    "confirm_text": "x"
+   }
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "require_approval": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "require_approval": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "require_approval": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "require_approval": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "require_approval": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "require_approval": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "require_approval": true
+  },
+  "result": {
+   "ok": {
+    "require_approval": true
+   }
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "require_approval": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "require_approval": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "require_approval": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "require_approval": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "require_approval": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "require_approval": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "require_approval": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "require_approval": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAiActionSettingsDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "require_approval": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "require_approval must be a boolean value"
+   ]
+  }
+ },
+ {
   "dto": "CreateOptionDto",
   "mode": "strict",
   "probe": "empty_object",

@@ -60,8 +60,7 @@ const M_UTM_NESTED: &str = "nested property utm must be either object or array";
 const M_CAMPAIGN_STR: &str = "campaign must be a string";
 const M_CAMPAIGN_MIN: &str = "campaign must be longer than or equal to 1 characters";
 const M_CAMPAIGN_MAX: &str = "campaign must be shorter than or equal to 100 characters";
-const M_CAMPAIGN_RANGE: &str =
-    "campaign must be longer than or equal to 1 and shorter than or equal to 100 characters";
+const M_CAMPAIGN_RANGE: &str = "campaign must be longer than or equal to 1 and shorter than or equal to 100 characters";
 const M_UTM_CONTENT_MAX: &str = "content must be shorter than or equal to 100 characters";
 const M_UTM_CONTENT_STR: &str = "content must be a string";
 

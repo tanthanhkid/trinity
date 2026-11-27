@@ -31,7 +31,10 @@ pub enum FirstComment {
 
 /// Id bài là MỘT đoạn đường dẫn (vd `123_456`): `/` hay ký tự lạ không được thành đoạn mới của URL Graph.
 fn valid_object_id(id: &str) -> bool {
-    !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+    !id.is_empty()
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
 }
 
 /// Đăng bình luận đầu dưới `object_id` (bài vừa lên) của Page `page_id`. Lỗi ⇒ câu để ghi vào `last_error`; KHÔNG log token.

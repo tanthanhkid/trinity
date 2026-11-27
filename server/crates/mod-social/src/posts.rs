@@ -29,8 +29,8 @@ use trinity_kernel::vn_time::{from_millis, js_iso_string};
 
 use crate::accounts::for_publish;
 use crate::config::{
-    MAX_MEDIA_PER_POST, MAX_SCHEDULE_AHEAD_MS, REMOVED_SOCIAL_NETWORKS, caption_limit, is_social_network, network_label,
-    removed_network_message, truncated_at,
+    MAX_MEDIA_PER_POST, MAX_SCHEDULE_AHEAD_MS, REMOVED_SOCIAL_NETWORKS, caption_limit, is_social_network,
+    network_label, removed_network_message, truncated_at,
 };
 use crate::dto::{PostInput, TargetInput};
 use crate::first_comment::first_comment_of;
@@ -52,7 +52,8 @@ const TOO_FAR: &str = "Chỉ hẹn trước tối đa 90 ngày.";
 const NEED_CHANNEL: &str = "Chọn ít nhất một kênh.";
 const NEED_CONTENT: &str = "Bài cần có nội dung hoặc ảnh/video.";
 const MEDIA_UNAVAILABLE: &str = "Không kiểm tra được tệp đính kèm lúc này — thử lại sau.";
-const NO_COMMENT_PERM: &str = "Bình luận đầu tiên cần bật quyền bình luận Fanpage trên máy chủ (FACEBOOK_COMMENT_AUTOMATION)";
+const NO_COMMENT_PERM: &str =
+    "Bình luận đầu tiên cần bật quyền bình luận Fanpage trên máy chủ (FACEBOOK_COMMENT_AUTOMATION)";
 
 const ACCOUNTS_SQL: &str = "SELECT id, network, status, name, external_id FROM social_accounts WHERE id = ANY($1)";
 const PAGES_SQL: &str = "SELECT page_id FROM facebook_pages WHERE page_id = ANY($1) AND is_active = true";
@@ -161,8 +162,12 @@ pub fn aggregate_status(statuses: &[String], scheduled: bool) -> &'static str {
     if statuses.iter().all(|s| s == "cancelled") {
         return "cancelled";
     }
-    let live: Vec<&str> = statuses.iter().map(String::as_str).filter(|s| *s != "cancelled").collect();
-    let any = |name: &str| live.iter().any(|s| *s == name);
+    let live: Vec<&str> = statuses
+        .iter()
+        .map(String::as_str)
+        .filter(|s| *s != "cancelled")
+        .collect();
+    let any = |name: &str| live.contains(&name);
     let all = |name: &str| live.iter().all(|s| *s == name);
     if any("publishing") {
         return "publishing";
@@ -351,7 +356,11 @@ pub async fn validate(c: &PostCtx<'_>, input: &PostInput, keep: Option<&[SocialM
         return Err(bad(format!("Tối đa {MAX_TARGETS} kênh mỗi bài.")));
     }
     let mut seen: HashSet<i32> = HashSet::new();
-    let ids: Vec<i32> = targets.iter().map(|t| t.account_id).filter(|id| seen.insert(*id)).collect();
+    let ids: Vec<i32> = targets
+        .iter()
+        .map(|t| t.account_id)
+        .filter(|id| seen.insert(*id))
+        .collect();
     if ids.len() != targets.len() {
         return Err(bad("Mỗi kênh chỉ chọn một lần."));
     }
@@ -621,7 +630,13 @@ fn preview_target(
     let length = utf16_len(&text);
     let limit = caption_limit(network);
     if limit.is_some_and(|l| length > l) {
-        warnings.push(too_long(name, length, utm.is_some(), network, limit.unwrap_or(usize::MAX)));
+        warnings.push(too_long(
+            name,
+            length,
+            utm.is_some(),
+            network,
+            limit.unwrap_or(usize::MAX),
+        ));
     }
     warnings.extend(validate_media(media));
     warnings.extend(validate_options(&sent_options));
@@ -826,7 +841,9 @@ impl ListQuery {
         limit: Option<&str>,
         cursor: Option<&str>,
     ) -> Result<Self, HttpError> {
-        let digits = |v: Option<&str>| v.filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()));
+        fn digits(v: Option<&str>) -> Option<&str> {
+            v.filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
+        }
         let limit = digits(limit)
             .map(|s| i64::try_from(s.parse::<u64>().unwrap_or(u64::MAX)).unwrap_or(i64::MAX))
             .unwrap_or(DEFAULT_LIST_LIMIT)
@@ -1314,7 +1331,9 @@ mod tests {
         let t = TargetInput {
             account_id: 1,
             caption: None,
-            options: json!({"first_comment": "hi", "utm": {"campaign": "kenh"}}).as_object().cloned(),
+            options: json!({"first_comment": "hi", "utm": {"campaign": "kenh"}})
+                .as_object()
+                .cloned(),
         };
         // Không có UTM chung ⇒ theo options của kênh.
         let (o, utm) = target_options(&t, None, "facebook").unwrap();

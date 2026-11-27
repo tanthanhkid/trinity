@@ -227,7 +227,10 @@ mod tests {
         let mixed = validate_media(&media(&["video", "image"]));
         assert!(mixed.unwrap().contains("không ghép video với ảnh"));
         let many = ["image"; 11];
-        assert_eq!(validate_media(&media(&many)).unwrap(), "Facebook: tối đa 10 ảnh mỗi bài.");
+        assert_eq!(
+            validate_media(&media(&many)).unwrap(),
+            "Facebook: tối đa 10 ảnh mỗi bài."
+        );
 
         let opt = |v: Value| v.as_object().cloned().unwrap_or_default();
         assert_eq!(validate_options(&opt(serde_json::json!({}))), None);

@@ -69,10 +69,7 @@ pub async fn slots(conn: &mut PgConnection) -> Result<Vec<QueueSlot>, AppError> 
     let rows: Vec<(i32, i32)> = sqlx::query_as(SLOTS_SQL).fetch_all(conn).await.map_err(db)?;
     Ok(rows
         .into_iter()
-        .map(|(weekday, minute)| QueueSlot {
-            weekday,
-            minute,
-        })
+        .map(|(weekday, minute)| QueueSlot { weekday, minute })
         .collect())
 }
 
@@ -127,10 +124,7 @@ mod tests {
         let after = FRI_UTC + 3 * 3_600_000;
         assert_eq!(slot_after(slot, after), FRI_UTC + 2 * 3_600_000 + 7 * DAY_MS);
         // Thứ Bảy 01:00 VN = thứ Sáu 18:00 UTC.
-        let sat = QueueSlot {
-            weekday: 6,
-            minute: 60,
-        };
+        let sat = QueueSlot { weekday: 6, minute: 60 };
         assert_eq!(slot_after(sat, FRI_UTC), FRI_UTC + 18 * 3_600_000);
     }
 
@@ -141,10 +135,7 @@ mod tests {
                 weekday: 5,
                 minute: 9 * 60,
             },
-            QueueSlot {
-                weekday: 1,
-                minute: 0,
-            },
+            QueueSlot { weekday: 1, minute: 0 },
         ];
         let got = occurrences(&slots, FRI_UTC, FRI_UTC + 14 * DAY_MS);
         assert_eq!(got.len(), 4);

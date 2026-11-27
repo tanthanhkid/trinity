@@ -63,3 +63,45 @@ curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/settings/usage
 | 401 hàng loạt ở route cài đặt | `JWT_SECRET` hoặc `INTERNAL_SERVICE_SECRET` lệch giữa Rust và Node | sửa env, khởi động lại theo `hybrid.md`, không lui nếu chỉ do env |
 | Shadow báo khác biệt mới sau khi bật | route `cached` đổi hình dạng | lui nếu ảnh hưởng người dùng, ghi vào X12a |
 
+## Đợt b (X02b, #257) — đăng nhập, người dùng, vai trò, API key, đăng nhập công khai
+
+Module: M01–M05 (`mod-auth`, `mod-users`, `mod-rbac-admin`, `mod-apikeys`). Mẫu: `ownership-dot-b.json` = đợt a cộng `/api/v1/auth` (trừ `auth/settings/login-wifi-check-targets`, thuộc đợt d),
+`/users`, `/roles`, `/rbac`, `/api-keys`, `/public/auth`. **Bật cả cụm trong một lần ghi** (dùng chung trạng thái phiên). Điều kiện: đợt a đã qua 72 giờ đầu, bộ kiểm X11 xanh,
+test hai chiều của migrator (K07) đạt trên bản sao schema thật. Không còn việc chờ về mã.
+
+**Bật**
+
+1. Đợt a xanh; ghi lại mốc `check-invariants`; chọn giờ ít người đăng nhập.
+2. Thêm ngay trước khi bật: đếm phiên để so sau đó:
+   `psql "$DATABASE_URL" -Atc "select count(*) from active_sessions; select count(*) from revoked_sessions; select count(*) from token_blacklist"` (lặp cho schema công ty thử).
+3. Ghi `ownership-dot-b.json` thành tệp chạy và `SIGHUP` (`cutover.md` 4.1).
+
+**Kiểm sau khi bật**
+
+```
+curl -fsS -X POST $BASE/api/v1/auth/login -H 'content-type: application/json' -d '{"email":"<thử>","password":"<thử>"}'
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/auth/me
+curl -fsS -X POST $BASE/api/v1/auth/refresh --cookie "<cookie refresh của người thử>"
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/users?page=1
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/roles
+```
+
+- **Không ai bị đăng xuất**: một phiên mở sẵn từ **trước** khi bật (đăng nhập bằng Node) vẫn gọi được `auth/me` và làm mới được; số `active_sessions` không giảm bất thường; token ký ở Node xác minh được ở Rust và ngược lại.
+- Đăng ký **một công ty thử** bằng Rust (`POST /api/v1/auth/register`), rồi `prisma migrate status` trên schema công ty mới phải báo đã cập nhật và `trinity migrate --status` không còn mục chờ.
+- Đổi mật khẩu rồi đăng nhập bằng mật khẩu mới ở cả hai bên (hash giữ định dạng cũ); lời mời: tạo, xem trước, nhận.
+- Tạo API key ở công ty thử và dùng nó gọi `/api/v1/public/*` (route đó còn thuộc Node tới đợt e): key do Rust tạo Node phải chấp nhận.
+- Giới hạn tốc độ đăng nhập nằm ở RAM từng bên (I3): thử sai mật khẩu liên tiếp không khoá nhầm người dùng khác.
+
+**Lui**: `cutover.md` 4.2. Phiên và token đã cấp bởi Rust vẫn hợp lệ ở Node (cùng khoá ký, cùng định dạng); công ty đã đăng ký bằng Rust giữ nguyên, không xoá.
+
+**Dấu hiệu lỗi**
+
+| Dấu hiệu | Nguyên nhân hay gặp | Việc làm |
+|---|---|---|
+| Người dùng bị đăng xuất hàng loạt, `auth/refresh` 401 | lệch khoá ký hoặc định dạng cookie/refresh giữa hai bên | lui ngay, so `JWT_SECRET` và các khoá ký phiên giữa Rust và Node |
+| Mọi request 400 "chữ ký nội bộ" | `INTERNAL_SERVICE_SECRET` lệch (D01) | sửa env cả ba tiến trình |
+| `prisma migrate status` của công ty mới báo chưa cập nhật | migrator Rust ghi thiếu `_prisma_migrations` | lui đăng ký công ty (đưa `auth` về Node), mở X12b |
+| `users`, `user_roles` thiếu dòng so với trước | ghi sai ở M03/M04 | lui, đối chiếu dump theo `cutover.md` mục 6 (bảng nhóm b ở 6.1) |
+| Lời mời hay API key không dùng được ở bên kia | hash/định dạng token khác | lui, mở X12b |
+| `check-invariants` đỏ ở `updated_at` lùi hoặc mã trùng | đường ghi người dùng | dừng bật đợt c |
+

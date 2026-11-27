@@ -8,10 +8,12 @@ JSON thuần không có chỗ ghi chú nên việc chờ nằm ở bảng dướ
 | Đợt | Tệp | Tiền tố giao cho `rust` (thêm so với đợt trước) | Job | Số route `rust` |
 |---|---|---|---|---|
 | a | `ownership-dot-a.json` | `/health`, `/ready`, `/live`, `/telemetry`, `/site-config`, `/settings`; giữ `node`: `/settings/channel-guard` | — | 18 |
+| b | `ownership-dot-b.json` | `/auth`, `/users`, `/roles`, `/rbac`, `/api-keys`, `/public/auth`; giữ `node`: `/auth/settings/login-wifi-check-targets` | — | 69 |
 
 **Việc chờ trước khi bật** (issue còn mở lúc viết mẫu):
 
 - đợt a: không
+- đợt b: không
 
 Route không có dòng nào (`/notif-ws`, `/uploads`, `/.well-known`, `/docs`, 11 route đã gỡ của `RetiredRoutesController`) thuộc Node. `migrate` luôn `node`, `web` luôn `rust` (như `deploy/hybrid/ownership.json` mặc định).
-Nạp thử một mẫu: `TRINITY_OWNERSHIP_FILE=$PWD/deploy/hybrid/mau/ownership-dot-a.json trinity check-config`.
+Nạp thử một mẫu: `TRINITY_OWNERSHIP_FILE=$PWD/deploy/hybrid/mau/ownership-dot-b.json trinity check-config`.

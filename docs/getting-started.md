@@ -47,6 +47,21 @@ pnpm --filter @trinity/monolith build && pnpm --filter @trinity/monolith start
 pnpm --filter web dev
 ```
 
+## Option 3 — Rust backend on localhost (preview)
+
+For trying the Rust rewrite of the backend (`server/`), not for production. It needs the Rust toolchain from
+`server/rust-toolchain.toml`, PostgreSQL 14+ and `psql` on Linux, WSL or macOS:
+
+```bash
+cd server
+./scripts/localhost.sh      # creates the database if missing, then check-config, migrate, seed --sample, serve
+```
+
+Port 3000, sample accounts and how to reset the database: [rust/localhost.md](rust/localhost.md). Only the modules
+already ported are mounted (see [architecture.md](architecture.md#what-exists-on-main)), and the web UI is not served by
+the Rust binary yet. Options 1 and 2 above remain the way to run Trinity. Moving an existing install to the Rust release
+once it ships: [upgrade-from-node.md](upgrade-from-node.md) (Vietnamese).
+
 ## First sign-in: the start wizard
 
 A fresh system opens a short full-screen wizard (no AI assistant needed):

@@ -118,6 +118,8 @@ Mỗi bản phát hành gắn tag đẩy sẵn image lên GitHub Container Regis
 
 Phát triển không dùng Docker: `pnpm install && pnpm dev` (cần Node 22 và Postgres chạy cục bộ).
 
+**Backend đang được viết lại bằng Rust** (`server/`: một binary, không Redis, cùng cơ sở dữ liệu và hợp đồng API). Hướng dẫn ở trên vẫn là bản Node. Trạng thái: [docs/architecture.md](docs/architecture.md#rust-backend-in-progress); kế hoạch: [docs/rust/PLAN.md](docs/rust/PLAN.md); nâng cấp một bản cài sau này: [docs/upgrade-from-node.md](docs/upgrade-from-node.md).
+
 ## Vì sao mình làm Trinity
 
 > *Mình là Thành. Ngày nào mình cũng làm phần mềm cùng AI, và mình thấy các doanh nghiệp nhỏ ngập trong menu với bảng tính. Nên mình làm ra hệ thống mình muốn có: chỉ cần nói với AI việc cần làm. Mình mở miễn phí để ai cũng điều hành doanh nghiệp được theo cách này.* — Trần Tấn Thành

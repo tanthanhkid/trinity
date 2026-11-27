@@ -63,7 +63,8 @@ fn stored(t: &SocialPostTarget) -> Option<&Map<String, Value>> {
 
 fn num(m: &Map<String, Value>, key: &str) -> Option<i64> {
     let v = m.get(key)?;
-    v.as_i64().or_else(|| v.as_f64().filter(|f| f.is_finite()).map(|f| f as i64))
+    v.as_i64()
+        .or_else(|| v.as_f64().filter(|f| f.is_finite()).map(|f| f as i64))
 }
 
 fn is_null(m: &Map<String, Value>, key: &str) -> bool {
@@ -74,7 +75,9 @@ fn is_null(m: &Map<String, Value>, key: &str) -> bool {
 fn metrics_of(t: &SocialPostTarget) -> Option<&Map<String, Value>> {
     let m = stored(t)?;
     let removed = m.get("removed").and_then(Value::as_bool) == Some(true);
-    let empty = ["views", "reactions", "comments", "shares"].iter().all(|k| is_null(m, k));
+    let empty = ["views", "reactions", "comments", "shares"]
+        .iter()
+        .all(|k| is_null(m, k));
     if removed && empty { None } else { Some(m) }
 }
 
@@ -209,8 +212,18 @@ pub async fn stats(db: &Db, company: CompanyRef, q: &StatsQuery) -> Result<Value
     .fetch_all(&mut *conn)
     .await
     .map_err(AppError::internal)?;
-    let post_ids: Vec<i32> = targets.iter().map(|t| t.post_id).collect::<HashSet<_>>().into_iter().collect();
-    let account_ids: Vec<i32> = targets.iter().map(|t| t.account_id).collect::<HashSet<_>>().into_iter().collect();
+    let post_ids: Vec<i32> = targets
+        .iter()
+        .map(|t| t.post_id)
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    let account_ids: Vec<i32> = targets
+        .iter()
+        .map(|t| t.account_id)
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
     let posts: Vec<(i32, String)> = sqlx::query_as("SELECT id, content FROM social_posts WHERE id = ANY($1)")
         .bind(&post_ids)
         .fetch_all(&mut *conn)
@@ -252,7 +265,9 @@ pub async fn refresh_post(
         if skip {
             continue;
         }
-        if t.metrics_at.is_some_and(|m| now_ms - m.0.timestamp_millis() < THROTTLE_MS) {
+        if t.metrics_at
+            .is_some_and(|m| now_ms - m.0.timestamp_millis() < THROTTLE_MS)
+        {
             continue;
         }
         let row: Option<SocialPostTarget> = {
@@ -291,7 +306,9 @@ mod tests {
         assert_eq!(q.top, Some(7));
         assert_eq!(parse_stats_query(None, Some("zzz"), Some("-1"), now).unwrap().top, None);
         assert_eq!(
-            parse_stats_query(None, None, Some("99999999999999999999999"), now).unwrap().top,
+            parse_stats_query(None, None, Some("99999999999999999999999"), now)
+                .unwrap()
+                .top,
             Some(u64::MAX)
         );
         let e = parse_stats_query(Some("2031-01-01"), Some("2030-01-01"), None, now).unwrap_err();

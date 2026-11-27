@@ -1024,16 +1024,15 @@ async fn insert_post(
             .map_err(db)?;
     }
     if let Some(draft_id) = extra.draft {
-        let n = sqlx::query(
-            "UPDATE social_drafts SET post_id = $2, publishing_at = NULL WHERE id = $1 AND post_id = $3",
-        )
-        .bind(draft_id)
-        .bind(post_id)
-        .bind(crate::drafts::PUBLISHING)
-        .execute(&mut *tx)
-        .await
-        .map_err(db)?
-        .rows_affected();
+        let n =
+            sqlx::query("UPDATE social_drafts SET post_id = $2, publishing_at = NULL WHERE id = $1 AND post_id = $3")
+                .bind(draft_id)
+                .bind(post_id)
+                .bind(crate::drafts::PUBLISHING)
+                .execute(&mut *tx)
+                .await
+                .map_err(db)?
+                .rows_affected();
         if n != 1 {
             return Err(AppError::from(HttpError::new(409, "Nháp đang được đăng hoặc đã đăng.")).into());
         }

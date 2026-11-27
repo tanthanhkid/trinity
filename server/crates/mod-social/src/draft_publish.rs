@@ -159,7 +159,11 @@ mod tests {
 
     #[test]
     fn theo_nhap_khi_khong_ghi_de() {
-        let i = to_post_input(&draft(false, Some("2030-01-02T03:04:05Z")), &DraftPublish::default(), "web");
+        let i = to_post_input(
+            &draft(false, Some("2030-01-02T03:04:05Z")),
+            &DraftPublish::default(),
+            "web",
+        );
         assert_eq!(i.scheduled_at.as_deref(), Some("2030-01-02T03:04:05.000Z"));
         assert!(!i.use_queue);
         assert_eq!(i.media_keys, vec!["social/a.jpg".to_owned()]);

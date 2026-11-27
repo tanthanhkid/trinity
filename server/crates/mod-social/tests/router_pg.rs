@@ -570,12 +570,29 @@ async fn thong_ke_tick_so_lieu_va_dang_nhap() {
     assert_eq!(r.status.as_u16(), 200, "{}", r.body);
     assert!(r.body["checked"].is_u64() && r.body["removed"].is_u64());
     // Lấy số bài không có ⇒ 404.
-    let r = call(&a, Method::POST, &format!("{B}/posts/2147483000/metrics"), Some(POSTER), None).await;
+    let r = call(
+        &a,
+        Method::POST,
+        &format!("{B}/posts/2147483000/metrics"),
+        Some(POSTER),
+        None,
+    )
+    .await;
     assert_eq!(r.status.as_u16(), 404);
     // Đăng nháp: không có nháp ⇒ 404; body sai ⇒ 400; nháp đã đổi so với bản xem ⇒ 409.
     let none = format!("{B}/drafts/2147483000/publish");
-    assert_eq!(call(&a, Method::POST, &none, Some(POSTER), None).await.status.as_u16(), 404);
-    let r = call(&a, Method::POST, &none, Some(POSTER), Some(json!({ "la": 1, "use_queue": "x" }))).await;
+    assert_eq!(
+        call(&a, Method::POST, &none, Some(POSTER), None).await.status.as_u16(),
+        404
+    );
+    let r = call(
+        &a,
+        Method::POST,
+        &none,
+        Some(POSTER),
+        Some(json!({ "la": 1, "use_queue": "x" })),
+    )
+    .await;
     assert_eq!(r.status.as_u16(), 400);
     let r = call(
         &a,

@@ -53,6 +53,6 @@ pub mod recurrences;
 pub mod router;
 pub mod routes;
 pub mod snippets;
-pub mod stats;
 pub mod state;
+pub mod stats;
 pub mod utm;

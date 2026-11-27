@@ -32,6 +32,8 @@ const PATTERNS = {
 // "retired, handled on purpose" mentions belong here.
 const ALLOW = [
   [/^scripts\/check-removed-connectors\.mjs$/, true],
+  [/^server\/crates\/mod-system\/src\/tests\.rs$/, ['commerce']], // test: route shopee đã gỡ phải trả 410
+  [/^server\/crates\/mod-mcp\/src\/tools\/settings\.rs$/, ['google-sheets']], // test: khoá google_sheets đã gỡ phải bị loại
   [/^CHANGELOG\.md$/, true], // history
   [/^docs\/rust\//, true], // plan docs describe what was removed
   [/^docs\/ci\.md$/, true], // describes this check

@@ -212,11 +212,7 @@ pub async fn find_all(conn: &mut PgConnection, q: &QueryEmployee, scope: Option<
             .push(" ESCAPE '\\'");
     }
     qb.push(" ORDER BY e.id ASC");
-    let rows: Vec<ListRow> = qb
-        .build_query_as::<ListRow>()
-        .fetch_all(&mut *conn)
-        .await
-        .map_err(db)?;
+    let rows: Vec<ListRow> = qb.build_query_as::<ListRow>().fetch_all(&mut *conn).await.map_err(db)?;
     Ok(rows
         .into_iter()
         .map(|r| {
@@ -287,11 +283,10 @@ pub async fn find_by_id(conn: &mut PgConnection, id: i32, scope: Option<&[i32]>)
     .fetch_all(&mut *conn)
     .await
     .map_err(db)?;
-    let current: String =
-        sqlx::query_scalar("SELECT to_char(now() AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM')")
-            .fetch_one(&mut *conn)
-            .await
-            .map_err(db)?;
+    let current: String = sqlx::query_scalar("SELECT to_char(now() AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM')")
+        .fetch_one(&mut *conn)
+        .await
+        .map_err(db)?;
     let kpis: Vec<KpiRow> = sqlx::query_as::<_, KpiRow>(
         "SELECT month, metric_name, actual_value, target_value, achievement_rate FROM kpi_results \
          WHERE employee_id = $1 ORDER BY created_at DESC, id DESC LIMIT 30",
@@ -366,7 +361,8 @@ pub async fn create(conn: &mut PgConnection, input: &CreateEmployee) -> R<Brief>
     let joined = parse_instant_with(&input.joined_at, 0)
         .ok_or_else(|| HttpError::bad_request("joined_at must be a valid ISO 8601 date string"))?;
     let team = input.team_id.and_then(|t| i32::try_from(t).ok());
-    let rule = i32::try_from(input.salary_rule_id).map_err(|_| HttpError::bad_request("salary_rule_id không hợp lệ"))?;
+    let rule =
+        i32::try_from(input.salary_rule_id).map_err(|_| HttpError::bad_request("salary_rule_id không hợp lệ"))?;
     sqlx::query_as::<_, Brief>(sqlx::AssertSqlSafe(format!(
         "INSERT INTO employees (user_id, position, department, team_id, salary_rule_id, joined_at) \
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING {BRIEF}"
@@ -495,7 +491,13 @@ mod tests {
         let ok = create(json!({"user_id": 1, "position": "sales", "salary_rule_id": 2, "joined_at": "2026-01-15"}));
         assert!(ok.validate().is_ok());
         // Mọi dạng ISO của IsDateString.
-        for d in ["2026", "2026-01", "2026-01-15T08:00", "2026-01-15 08:00:00+0700", "2026-01-15T08:00:00.123Z"] {
+        for d in [
+            "2026",
+            "2026-01",
+            "2026-01-15T08:00",
+            "2026-01-15 08:00:00+0700",
+            "2026-01-15T08:00:00.123Z",
+        ] {
             let c = create(json!({"user_id": 1, "position": "hr", "salary_rule_id": 2, "joined_at": d}));
             assert!(c.validate().is_ok(), "{d}");
         }
@@ -524,7 +526,10 @@ mod tests {
         assert!(serde_json::from_value::<UpdateEmployee>(json!({"status": null})).is_err());
         let u: UpdateEmployee =
             serde_json::from_value(json!({"department": null, "team_id": null, "salary_rule_id": 4})).unwrap();
-        assert_eq!((u.department, u.team_id, u.salary_rule_id), (Some(None), Some(None), Some(Some(4))));
+        assert_eq!(
+            (u.department, u.team_id, u.salary_rule_id),
+            (Some(None), Some(None), Some(Some(4)))
+        );
         let bad: UpdateEmployee = serde_json::from_value(json!({"position": "x", "status": "gone"})).unwrap();
         assert_eq!(msgs(bad.validate()).len(), 2);
         assert!(UpdateEmployee::default().validate().is_ok());

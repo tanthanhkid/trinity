@@ -18,6 +18,7 @@
 
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
+#![recursion_limit = "256"]
 
 pub mod calc;
 pub mod components;

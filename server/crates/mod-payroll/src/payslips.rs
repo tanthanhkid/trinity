@@ -233,7 +233,9 @@ fn decimals(v: f64) -> usize {
 fn number_field(field: &str, v: f64, places: usize, min: f64, max: f64, out: &mut Vec<String>) {
     frange(field, v, Some(min), Some(max), out);
     if !v.is_finite() || decimals(v) > places {
-        out.push(format!("{field} must be a number conforming to the specified constraints"));
+        out.push(format!(
+            "{field} must be a number conforming to the specified constraints"
+        ));
     }
 }
 
@@ -441,7 +443,10 @@ fn serialize(p: &PayslipRow) -> Value {
     .into_iter()
     .fold(0_i64, i64::saturating_add);
     let tong_luong = cong_lcb.saturating_add(cong_thuong);
-    let tong_giam_tru = p.deductions.saturating_add(p.advances).saturating_add(p.personal_income_tax);
+    let tong_giam_tru = p
+        .deductions
+        .saturating_add(p.advances)
+        .saturating_add(p.personal_income_tax);
     let phu_cap = if p.insurance_base > 0 && p.base_salary > p.insurance_base {
         p.base_salary - p.insurance_base
     } else {
@@ -546,7 +551,10 @@ fn team_order(a: &PayslipRow, b: &PayslipRow) -> Ordering {
     if sa != sb {
         return sa.cmp(&sb);
     }
-    vi(a.u_full_name.as_deref().unwrap_or(""), b.u_full_name.as_deref().unwrap_or(""))
+    vi(
+        a.u_full_name.as_deref().unwrap_or(""),
+        b.u_full_name.as_deref().unwrap_or(""),
+    )
 }
 
 /// `GET /payslips?month=&team_id=&status=`: phiếu chưa loại khỏi kỳ trong phạm vi `payroll.view`. `team_id` chỉ có tác dụng
@@ -595,7 +603,8 @@ pub async fn find_by_id(conn: &mut PgConnection, id: i32, scope: Option<&[i32]>)
 /// `GET /payslips/me?month=`: phiếu của CHÍNH người gọi (chỉ cần đăng nhập), mới nhất trước.
 pub async fn find_mine(conn: &mut PgConnection, user_id: i32, month: Option<&str>) -> R<Vec<Value>> {
     let mut qb = QueryBuilder::<Postgres>::new(SELECT_P);
-    qb.push(" WHERE p.deleted_at IS NULL AND e.user_id = ").push_bind(user_id);
+    qb.push(" WHERE p.deleted_at IS NULL AND e.user_id = ")
+        .push_bind(user_id);
     if let Some(m) = month.filter(|m| !m.is_empty()) {
         qb.push(" AND p.month = ").push_bind(m.to_owned());
     }
@@ -635,7 +644,12 @@ pub async fn list_addable(conn: &mut PgConnection, month: &str) -> R<Vec<Value>>
     .fetch_all(&mut *conn)
     .await
     .map_err(db)?;
-    rows.sort_by(|a, b| vi(a.full_name.as_deref().unwrap_or(""), b.full_name.as_deref().unwrap_or("")));
+    rows.sort_by(|a, b| {
+        vi(
+            a.full_name.as_deref().unwrap_or(""),
+            b.full_name.as_deref().unwrap_or(""),
+        )
+    });
     Ok(rows
         .into_iter()
         .map(|r| {
@@ -775,10 +789,7 @@ async fn fetch_employees(conn: &mut PgConnection, ids: Option<&[i32]>) -> R<Vec<
 async fn fetch_employee_any(conn: &mut PgConnection, employee_id: i32) -> R<Option<Emp>> {
     let mut qb = QueryBuilder::<Postgres>::new(EMP_SELECT);
     qb.push(" WHERE e.id = ").push_bind(employee_id);
-    qb.build_query_as::<Emp>()
-        .fetch_optional(&mut *conn)
-        .await
-        .map_err(db)
+    qb.build_query_as::<Emp>().fetch_optional(&mut *conn).await.map_err(db)
 }
 
 /// Lương cơ bản của `assembleEngine`: chức danh (nếu > 0), rồi dòng `base` của bảng lương (số tiền khác 0, dòng sau thắng).
@@ -1067,7 +1078,9 @@ pub async fn remove_from_period(conn: &mut PgConnection, id: i32, actor: i32, ca
         .execute(&mut *conn)
         .await
         .map_err(db)?;
-    Ok(json!({ "id": id, "month": month, "employee_id": employee_id, "message": "Đã loại nhân viên khỏi kỳ lương này" }))
+    Ok(
+        json!({ "id": id, "month": month, "employee_id": employee_id, "message": "Đã loại nhân viên khỏi kỳ lương này" }),
+    )
 }
 
 // ---------------------------------------------------------------- duyệt
@@ -1370,13 +1383,27 @@ mod tests {
             Ok(_) => 200,
             Err(e) => e.response(true).0,
         };
-        assert_eq!(code(assert_step("pending_accountant", &approver(true, false, None), 5, true)), 403);
+        assert_eq!(
+            code(assert_step("pending_accountant", &approver(true, false, None), 5, true)),
+            403
+        );
         assert_eq!(
             assert_step("pending_accountant", &approver(false, true, None), 5, true).ok(),
             Some(Step::Final)
         );
-        assert_eq!(code(assert_step("pending_tl", &approver(false, true, None), 5, true)), 403);
-        assert_eq!(code(assert_step("pending_tl", &approver(true, false, Some(vec![9])), 5, true)), 404);
+        assert_eq!(
+            code(assert_step("pending_tl", &approver(false, true, None), 5, true)),
+            403
+        );
+        assert_eq!(
+            code(assert_step(
+                "pending_tl",
+                &approver(true, false, Some(vec![9])),
+                5,
+                true
+            )),
+            404
+        );
         assert_eq!(
             assert_step("draft", &approver(true, false, Some(vec![5])), 5, true).ok(),
             Some(Step::Team)

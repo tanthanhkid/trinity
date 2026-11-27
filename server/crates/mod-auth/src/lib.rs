@@ -8,8 +8,11 @@
 //!
 //! Quyền của người dùng (`grantsFor`) thuộc K12 nên đi qua [`GrantsSource`]; K12 xong thì nối bản thật.
 
+pub mod dto;
 mod invitations;
 mod rate_limit;
+pub mod routes;
+mod targets;
 mod wifi;
 
 use std::future::Future;
@@ -23,6 +26,7 @@ use trinity_auth::{Security, password};
 use trinity_db::platform::Platform;
 use trinity_db::{CompanyRef, Db};
 use trinity_kernel::error::HttpError;
+use trinity_rbac::PermissionService;
 use trinity_storage::{LocalUploadsStore, UPLOADS_URL_PREFIX, uploads_rel_path_from_url};
 
 pub use invitations::{
@@ -32,6 +36,7 @@ pub use invitations::{
     revoke_pending_invitations_for_email, revoke_pending_invitations_for_role, user_limit_message,
 };
 pub use rate_limit::{RateLimiter, untrusted_delay_ms};
+pub use routes::{AuthCtx, api_router, specs};
 pub use wifi::{
     TargetSets, bypass_listed, group_targets, is_targeted, is_unusable_login_ip, login_ip_matches_office,
     normalize_login_ip,
@@ -69,6 +74,23 @@ pub struct StaticGrants(pub UserGrants);
 impl GrantsSource for StaticGrants {
     async fn grants_for(&self, _company: CompanyRef, _user: i32) -> Result<UserGrants, String> {
         Ok(self.0.clone())
+    }
+}
+
+/// Nguồn quyền thật: `PermissionService.grantsFor` (có bộ nhớ đệm).
+pub struct PermGrants(pub PermissionService);
+
+impl GrantsSource for PermGrants {
+    async fn grants_for(&self, company: CompanyRef, user: i32) -> Result<UserGrants, String> {
+        let g = self.0.grants_for(company, user).await.map_err(|e| e.to_string())?;
+        let grants = match trinity_rbac::grants::grants_to_json(&g.grants) {
+            Value::Object(m) => m,
+            _ => Map::new(),
+        };
+        Ok(UserGrants {
+            grants,
+            is_admin: g.is_admin,
+        })
     }
 }
 

@@ -2222,9 +2222,11 @@ dependencies = [
 name = "mod-apikeys"
 version = "0.3.0"
 dependencies = [
+ "axum",
  "base64 0.23.1",
  "chrono",
  "http",
+ "mod-auth",
  "serde",
  "serde_json",
  "sha2",
@@ -2267,6 +2269,7 @@ dependencies = [
 name = "mod-auth"
 version = "0.3.0"
 dependencies = [
+ "axum",
  "base64 0.23.1",
  "chrono",
  "getrandom 0.3.4",
@@ -2278,6 +2281,7 @@ dependencies = [
  "trinity-auth",
  "trinity-db",
  "trinity-docgen",
+ "trinity-http",
  "trinity-kernel",
  "trinity-rbac",
  "trinity-storage",
@@ -4967,7 +4971,9 @@ dependencies = [
  "clap",
  "getrandom 0.4.3",
  "mod-ai-actions",
+ "mod-apikeys",
  "mod-attendance",
+ "mod-auth",
  "mod-channel-guard",
  "mod-contacts",
  "mod-custom",

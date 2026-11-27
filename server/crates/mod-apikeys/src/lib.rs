@@ -18,5 +18,27 @@
 
 pub mod api_keys;
 pub mod company_token;
+pub mod guards;
 pub mod routes;
 pub mod teams;
+
+use std::sync::Arc;
+
+use mod_auth::{AuthService, PermGrants};
+use trinity_db::Db;
+use trinity_db::platform::Platform;
+use trinity_http::edge::client_ip::ClientIpResolver;
+use trinity_rbac::PermissionService;
+
+pub use guards::named_guards;
+pub use routes::api_router;
+
+/// Phụ thuộc dùng chung của router M05, dựng một lần ở `serve`.
+pub struct ApiKeysCtx {
+    pub db: Db,
+    pub platform: Platform,
+    pub perms: PermissionService,
+    /// Cùng bản `AuthService` với router `/auth/*` (chung bộ giới hạn tốc độ đăng nhập).
+    pub auth: Arc<AuthService<PermGrants>>,
+    pub ip: Arc<ClientIpResolver>,
+}

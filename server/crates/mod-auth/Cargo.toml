@@ -9,7 +9,9 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+axum = { workspace = true }
 trinity-auth = { workspace = true }
+trinity-http = { workspace = true }
 trinity-db = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-storage = { workspace = true }

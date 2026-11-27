@@ -46,6 +46,7 @@ mod-apikeys = { workspace = true }
 mod-leads = { workspace = true }
 mod-channel-guard = { workspace = true }
 mod-store = { workspace = true }
+mod-commerce = { workspace = true }
 mod-oauth = { workspace = true }
 mod-mcp = { workspace = true }
 mod-ai-actions = { workspace = true }

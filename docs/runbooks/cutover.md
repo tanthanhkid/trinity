@@ -22,7 +22,7 @@ Ba nguyên tắc:
 | Lấy mẫu shadow (`SHADOW_SAMPLE_RATE`, `safe_for_shadow` và `min_samples` trong `server/contracts/routes.json`; K28) | mã có trong crate `trinity-http`, nhưng **chưa thấy nối vào `trinity serve`** và chưa có đường xuất báo cáo cho người vận hành: chưa có, kiểm lại trạng thái K28 trước khi tính 48 giờ shadow |
 | Script kiểm điều kiện đổi chủ `stale-work.digest` (mục 5) | chưa có tệp script riêng; mục 5 có đoạn SQL mẫu, chưa chạy thử trên DB thật |
 | Quét GET trên bản sao dữ liệu thật cho route thiếu mẫu | chưa có — issue X13 |
-| Mẫu tệp sở hữu cho đợt b–e | chưa có — cùng issue X02b–X02e |
+| Mẫu từng đợt `deploy/hybrid/mau/ownership-dot-<đợt>.json` (cộng dồn, chỉ là mẫu) và `docs/runbooks/cutover-cac-dot.md` | có cho đợt a; đợt sau chưa có — cùng issue X02b–X02e |
 | Script sao lưu tự động toàn bộ DB và volume trước đợt | chưa có; dùng lệnh ở mục 2 |
 | Lưu WAL (PITR) | tuỳ chọn, hướng dẫn mục 7; cấu hình Postgres chưa nằm trong compose |
 | Tệp sở hữu dùng khi chạy | `deploy/hybrid/ownership.json` (compose gắn thư mục `./deploy/hybrid` vào `/etc/trinity`, chỉ đọc) |

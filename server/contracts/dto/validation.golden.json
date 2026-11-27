@@ -28374,6 +28374,1131 @@
   }
  },
  {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "with_sample_data": null
+  },
+  "result": {
+   "ok": {
+    "with_sample_data": null
+   }
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "with_sample_data": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "with_sample_data": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "with_sample_data": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "with_sample_data": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "with_sample_data": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "with_sample_data": true
+  },
+  "result": {
+   "ok": {
+    "with_sample_data": true
+   }
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "with_sample_data": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "with_sample_data": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "with_sample_data": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "with_sample_data": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "with_sample_data": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "with_sample_data": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "with_sample_data": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "with_sample_data": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "with_sample_data": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "industry": null,
+   "features": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "industry": "",
+   "features": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "features must contain no more than 19 elements",
+    "features must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "industry": "  x  ",
+   "features": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "features must contain no more than 19 elements",
+    "features must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "industry": 12.5,
+   "features": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "each value in features must be a string",
+    "features must contain no more than 19 elements",
+    "features must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "industry": -1,
+   "features": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "each value in features must be a string",
+    "features must contain no more than 19 elements",
+    "features must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "industry": 0,
+   "features": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "each value in features must be a string",
+    "features must contain no more than 19 elements",
+    "features must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "industry": true,
+   "features": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "each value in features must be a string",
+    "features must contain no more than 19 elements",
+    "features must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "industry": [
+    "a",
+    1
+   ],
+   "features": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "each value in features must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "industry": {
+    "a": 1
+   },
+   "features": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "each value in features must be a string",
+    "features must contain no more than 19 elements",
+    "features must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "industry": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "features": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "features must contain no more than 19 elements",
+    "features must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "industry": "2026-11-26T10:00:00Z",
+   "features": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "features must contain no more than 19 elements",
+    "features must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "industry": "123",
+   "features": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "features must contain no more than 19 elements",
+    "features must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "industry": "a@example.com",
+   "features": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "features must contain no more than 19 elements",
+    "features must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "industry": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "features": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "each value in features must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "industry": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "industry": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "step": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "step": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "step": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "step": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "step": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "step": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "step": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "step": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "step": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "step": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "step": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "step": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "step": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "step": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "step": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "step": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "enabled": null,
+   "skippable": null,
+   "exempt_before": null
+  },
+  "result": {
+   "ok": {
+    "enabled": null,
+    "skippable": null,
+    "exempt_before": null
+   }
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "enabled": "",
+   "skippable": "",
+   "exempt_before": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "skippable must be an array",
+    "exempt_before must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "enabled": "  x  ",
+   "skippable": "  x  ",
+   "exempt_before": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "skippable must be an array",
+    "exempt_before must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "enabled": 12.5,
+   "skippable": 12.5,
+   "exempt_before": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "skippable must be an array",
+    "exempt_before must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "enabled": -1,
+   "skippable": -1,
+   "exempt_before": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "skippable must be an array",
+    "exempt_before must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "enabled": 0,
+   "skippable": 0,
+   "exempt_before": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "skippable must be an array",
+    "exempt_before must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "enabled": true,
+   "skippable": true,
+   "exempt_before": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "skippable must be an array",
+    "exempt_before must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "enabled": [
+    "a",
+    1
+   ],
+   "skippable": [
+    "a",
+    1
+   ],
+   "exempt_before": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "exempt_before must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "enabled": {
+    "a": 1
+   },
+   "skippable": {
+    "a": 1
+   },
+   "exempt_before": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "skippable must be an array",
+    "exempt_before must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "enabled": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "skippable": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "exempt_before": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "skippable must be an array",
+    "exempt_before must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "enabled": "2026-11-26T10:00:00Z",
+   "skippable": "2026-11-26T10:00:00Z",
+   "exempt_before": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "skippable must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "enabled": "123",
+   "skippable": "123",
+   "exempt_before": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "skippable must be an array",
+    "exempt_before must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "enabled": "a@example.com",
+   "skippable": "a@example.com",
+   "exempt_before": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "skippable must be an array",
+    "exempt_before must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "enabled": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "skippable": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "exempt_before": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "exempt_before must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "enabled": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "enabled must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "enabled": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "enabled must be a boolean value"
+   ]
+  }
+ },
+ {
   "dto": "CreateEmployeeDto",
   "mode": "strict",
   "probe": "valid",
@@ -29833,6 +30958,230 @@
     "date_from là bắt buộc",
     "date_to phải đúng định dạng YYYY-MM-DD",
     "date_to là bắt buộc"
+   ]
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "with_sample_data": true
+  },
+  "result": {
+   "ok": {
+    "with_sample_data": true
+   }
+  }
+ },
+ {
+  "dto": "ApplyTemplateDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "with_sample_data": "yes",
+   "x": 1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property x should not exist",
+    "with_sample_data phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "industry": "clinic",
+   "features": [
+    "inbox",
+    "pos"
+   ]
+  },
+  "result": {
+   "ok": {
+    "industry": "clinic",
+    "features": [
+     "inbox",
+     "pos"
+    ]
+   }
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "industry": "khac",
+   "features": [
+    "a",
+    1,
+    null
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other",
+    "each value in features must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "features_qua_nhieu",
+  "input": {
+   "industry": "other",
+   "features": [
+    "f0",
+    "f1",
+    "f2",
+    "f3",
+    "f4",
+    "f5",
+    "f6",
+    "f7",
+    "f8",
+    "f9",
+    "f10",
+    "f11",
+    "f12",
+    "f13",
+    "f14",
+    "f15",
+    "f16",
+    "f17",
+    "f18",
+    "f19",
+    "f20",
+    "f21",
+    "f22",
+    "f23",
+    "f24",
+    "f25",
+    "f26",
+    "f27",
+    "f28",
+    "f29",
+    "f30",
+    "f31",
+    "f32",
+    "f33",
+    "f34",
+    "f35",
+    "f36",
+    "f37",
+    "f38",
+    "f39"
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "features must contain no more than 19 elements"
+   ]
+  }
+ },
+ {
+  "dto": "BuildSystemDto",
+  "mode": "strict",
+  "probe": "thieu",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "industry must be one of the following values: education_center, retail_service, clinic, real_estate, other"
+   ]
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "step": "modules"
+  },
+  "result": {
+   "ok": {
+    "step": "modules"
+   }
+  }
+ },
+ {
+  "dto": "WizardStepDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "step": "khac"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "step must be one of the following values: industry, modules, data, channels, post"
+   ]
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "enabled": false,
+   "skippable": [
+    "data",
+    "post"
+   ],
+   "exempt_before": "2026-11-01T00:00:00Z"
+  },
+  "result": {
+   "ok": {
+    "enabled": false,
+    "skippable": [
+     "data",
+     "post"
+    ],
+    "exempt_before": "2026-11-01T00:00:00Z"
+   }
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "null_exempt",
+  "input": {
+   "exempt_before": null
+  },
+  "result": {
+   "ok": {
+    "exempt_before": null
+   }
+  }
+ },
+ {
+  "dto": "WizardConfigDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "enabled": "x",
+   "skippable": [
+    "a",
+    1
+   ],
+   "exempt_before": "hôm qua",
+   "y": 1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property y should not exist",
+    "enabled must be a boolean value",
+    "each value in skippable must be one of the following values: industry, modules, data, channels, post",
+    "exempt_before must be a valid ISO 8601 date string"
    ]
   }
  },

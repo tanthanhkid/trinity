@@ -1,0 +1,2182 @@
+{
+  "templates": [
+    {
+      "key": "education_center",
+      "label": "Trung tâm giáo dục",
+      "description": "Phụ huynh, Học sinh, Khoá học / Gói học phí, Hoá đơn, Ghi danh, Thanh toán — đã nối liên kết và công thức.",
+      "objects": [
+        {
+          "key": "phu_huynh",
+          "label": "Phụ huynh",
+          "label_plural": "Phụ huynh",
+          "icon": "users",
+          "description": "Phụ huynh / người giám hộ của học sinh",
+          "fields": [
+            {
+              "key": "ho_ten",
+              "label": "Họ và tên phụ huynh",
+              "type": "text",
+              "required": true,
+              "is_title": true
+            },
+            {
+              "key": "sdt",
+              "label": "Số điện thoại",
+              "type": "phone"
+            },
+            {
+              "key": "email",
+              "label": "Email",
+              "type": "email"
+            },
+            {
+              "key": "ghi_chu",
+              "label": "Ghi chú",
+              "type": "long_text",
+              "show_in_list": false
+            }
+          ]
+        },
+        {
+          "key": "hoc_sinh",
+          "label": "Học sinh",
+          "label_plural": "Học sinh",
+          "icon": "graduation-cap",
+          "description": "Học sinh và tình trạng học",
+          "fields": [
+            {
+              "key": "ho_ten",
+              "label": "Họ và tên học sinh",
+              "type": "text",
+              "required": true,
+              "is_title": true
+            },
+            {
+              "key": "tuoi",
+              "label": "Tuổi",
+              "type": "number"
+            },
+            {
+              "key": "gioi_tinh",
+              "label": "Giới tính",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "nam",
+                  "label": "Nam",
+                  "color": "blue"
+                },
+                {
+                  "value": "nu",
+                  "label": "Nữ",
+                  "color": "pink"
+                }
+              ]
+            },
+            {
+              "key": "phu_huynh",
+              "label": "Phụ huynh",
+              "type": "relation",
+              "relation": "phu_huynh"
+            },
+            {
+              "key": "tinh_trang_hoc",
+              "label": "Tình trạng học",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "dang_hoc",
+                  "label": "Đang học",
+                  "color": "green"
+                },
+                {
+                  "value": "tam_nghi",
+                  "label": "Tạm nghỉ",
+                  "color": "amber"
+                },
+                {
+                  "value": "khong_co_nhu_cau",
+                  "label": "Không có nhu cầu",
+                  "color": "gray"
+                },
+                {
+                  "value": "da_ket_thuc",
+                  "label": "Đã kết thúc",
+                  "color": "indigo"
+                }
+              ]
+            },
+            {
+              "key": "ma_he_thong",
+              "label": "Id hệ thống",
+              "type": "text",
+              "help_text": "Mã học sinh ở hệ thống ngoài (nếu có)",
+              "show_in_list": false
+            },
+            {
+              "key": "ghi_chu",
+              "label": "Ghi chú",
+              "type": "long_text",
+              "show_in_list": false
+            }
+          ]
+        },
+        {
+          "key": "khoa_hoc",
+          "label": "Khoá học",
+          "label_plural": "Khoá học / Gói",
+          "icon": "book-open",
+          "description": "Gói học phí: giá gốc, ưu đãi, giá thanh toán và đơn giá / buổi",
+          "fields": [
+            {
+              "key": "ten_goi",
+              "label": "Tên gói",
+              "type": "text",
+              "required": true,
+              "is_title": true
+            },
+            {
+              "key": "thoi_han_thang",
+              "label": "Thời hạn (tháng)",
+              "type": "number"
+            },
+            {
+              "key": "so_buoi",
+              "label": "Số buổi",
+              "type": "number",
+              "required": true
+            },
+            {
+              "key": "gia_goc",
+              "label": "Giá gốc",
+              "type": "currency",
+              "required": true
+            },
+            {
+              "key": "uu_dai",
+              "label": "Ưu đãi (%)",
+              "type": "percent",
+              "required": true,
+              "help_text": "Nhập 5 = ưu đãi 5%; nhập 0 nếu không ưu đãi (để trống thì các cột giá tính ra rỗng)"
+            },
+            {
+              "key": "thanh_toan",
+              "label": "Thanh toán",
+              "type": "formula",
+              "expression": "{gia_goc}*(1-{uu_dai})",
+              "format": "currency"
+            },
+            {
+              "key": "gia_gioi_thieu",
+              "label": "Giá giới thiệu",
+              "type": "formula",
+              "expression": "{gia_goc}*(1-{uu_dai})*0.9",
+              "format": "currency"
+            },
+            {
+              "key": "gia_nhom",
+              "label": "Giá nhóm",
+              "type": "formula",
+              "expression": "{gia_goc}*(1-{uu_dai})*0.8",
+              "format": "currency"
+            },
+            {
+              "key": "don_gia_buoi",
+              "label": "Đơn giá / buổi",
+              "type": "formula",
+              "expression": "round({gia_goc}*(1-{uu_dai})/{so_buoi}, 0)",
+              "format": "currency"
+            }
+          ]
+        },
+        {
+          "key": "hoa_don",
+          "label": "Hoá đơn",
+          "label_plural": "Hoá đơn",
+          "icon": "receipt",
+          "description": "Hoá đơn học phí theo học sinh và gói",
+          "fields": [
+            {
+              "key": "ma_hoa_don",
+              "label": "Mã hoá đơn",
+              "type": "text",
+              "required": true,
+              "is_unique": true,
+              "is_title": true
+            },
+            {
+              "key": "phu_huynh",
+              "label": "Phụ huynh",
+              "type": "relation",
+              "relation": "phu_huynh"
+            },
+            {
+              "key": "hoc_sinh",
+              "label": "Học sinh",
+              "type": "relation",
+              "relation": "hoc_sinh"
+            },
+            {
+              "key": "khoa_hoc",
+              "label": "Khoá học / Gói",
+              "type": "relation",
+              "relation": "khoa_hoc"
+            },
+            {
+              "key": "muc_gia",
+              "label": "Mức giá áp dụng",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "gia_thanh_toan",
+                  "label": "Giá thanh toán"
+                },
+                {
+                  "value": "gia_gioi_thieu",
+                  "label": "Giá giới thiệu"
+                },
+                {
+                  "value": "gia_nhom",
+                  "label": "Giá nhóm"
+                }
+              ]
+            },
+            {
+              "key": "so_tien",
+              "label": "Số tiền",
+              "type": "currency"
+            },
+            {
+              "key": "ngay_lap",
+              "label": "Ngày lập",
+              "type": "date"
+            },
+            {
+              "key": "trang_thai",
+              "label": "Trạng thái",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "chua_thanh_toan",
+                  "label": "Chưa thanh toán",
+                  "color": "amber"
+                },
+                {
+                  "value": "da_thanh_toan",
+                  "label": "Đã thanh toán",
+                  "color": "green"
+                },
+                {
+                  "value": "da_huy",
+                  "label": "Đã huỷ",
+                  "color": "gray"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "ghi_danh",
+          "label": "Ghi danh",
+          "label_plural": "Ghi danh",
+          "icon": "clipboard-list",
+          "description": "Đăng ký học: học sinh, gói, thời gian học thực tế",
+          "fields": [
+            {
+              "key": "ma_ghi_danh",
+              "label": "Mã ghi danh",
+              "type": "text",
+              "required": true,
+              "is_unique": true,
+              "is_title": true
+            },
+            {
+              "key": "hoc_sinh",
+              "label": "Học sinh",
+              "type": "relation",
+              "relation": "hoc_sinh",
+              "required": true
+            },
+            {
+              "key": "khoa_hoc",
+              "label": "Khoá học / Gói",
+              "type": "relation",
+              "relation": "khoa_hoc"
+            },
+            {
+              "key": "so_buoi_tuan",
+              "label": "Số buổi / tuần",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "1",
+                  "label": "1 buổi / tuần"
+                },
+                {
+                  "value": "2",
+                  "label": "2 buổi / tuần"
+                }
+              ]
+            },
+            {
+              "key": "thoi_han_thang",
+              "label": "Thời hạn gói (tháng)",
+              "type": "number"
+            },
+            {
+              "key": "trang_thai",
+              "label": "Trạng thái",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "dang_hoc",
+                  "label": "Đang học",
+                  "color": "green"
+                },
+                {
+                  "value": "hoan_thanh",
+                  "label": "Hoàn thành",
+                  "color": "indigo"
+                },
+                {
+                  "value": "tam_dung",
+                  "label": "Tạm dừng",
+                  "color": "amber"
+                },
+                {
+                  "value": "da_huy",
+                  "label": "Đã huỷ",
+                  "color": "gray"
+                }
+              ]
+            },
+            {
+              "key": "bat_dau",
+              "label": "Bắt đầu",
+              "type": "date"
+            },
+            {
+              "key": "ket_thuc",
+              "label": "Kết thúc",
+              "type": "date"
+            },
+            {
+              "key": "thuc_te_thang",
+              "label": "Thực tế (tháng)",
+              "type": "formula",
+              "expression": "round(months_between({bat_dau}, {ket_thuc}), 1)",
+              "format": "number",
+              "decimals": 1
+            },
+            {
+              "key": "hoa_don",
+              "label": "Mã hoá đơn",
+              "type": "relation",
+              "relation": "hoa_don"
+            }
+          ]
+        },
+        {
+          "key": "thanh_toan",
+          "label": "Thanh toán",
+          "label_plural": "Thanh toán",
+          "icon": "wallet",
+          "description": "Các lần thanh toán của hoá đơn",
+          "fields": [
+            {
+              "key": "ma_thanh_toan",
+              "label": "Mã thanh toán",
+              "type": "text",
+              "required": true,
+              "is_unique": true,
+              "is_title": true
+            },
+            {
+              "key": "hoa_don",
+              "label": "Hoá đơn",
+              "type": "relation",
+              "relation": "hoa_don"
+            },
+            {
+              "key": "phu_huynh",
+              "label": "Phụ huynh",
+              "type": "relation",
+              "relation": "phu_huynh"
+            },
+            {
+              "key": "hoc_sinh",
+              "label": "Học sinh",
+              "type": "relation",
+              "relation": "hoc_sinh"
+            },
+            {
+              "key": "so_tien",
+              "label": "Số tiền",
+              "type": "currency",
+              "required": true
+            },
+            {
+              "key": "ngay_thanh_toan",
+              "label": "Ngày thanh toán",
+              "type": "date"
+            },
+            {
+              "key": "phuong_thuc",
+              "label": "Phương thức",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "chuyen_khoan",
+                  "label": "Chuyển khoản"
+                },
+                {
+                  "value": "tien_mat",
+                  "label": "Tiền mặt"
+                },
+                {
+                  "value": "the",
+                  "label": "Thẻ"
+                },
+                {
+                  "value": "vi_dien_tu",
+                  "label": "Ví điện tử"
+                }
+              ]
+            },
+            {
+              "key": "trang_thai",
+              "label": "Trạng thái",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "da_thanh_toan",
+                  "label": "Đã thanh toán",
+                  "color": "green"
+                },
+                {
+                  "value": "cho_xac_nhan",
+                  "label": "Chờ xác nhận",
+                  "color": "amber"
+                },
+                {
+                  "value": "chua_thanh_toan",
+                  "label": "Chưa thanh toán",
+                  "color": "gray"
+                },
+                {
+                  "value": "hoan_tien",
+                  "label": "Hoàn tiền",
+                  "color": "red"
+                }
+              ]
+            },
+            {
+              "key": "ghi_chu",
+              "label": "Ghi chú",
+              "type": "long_text",
+              "show_in_list": false
+            }
+          ]
+        }
+      ],
+      "samples": [
+        {
+          "object": "phu_huynh",
+          "data": {
+            "ho_ten": "Phụ huynh Mẫu 01",
+            "sdt": "0900000001",
+            "email": "phuhuynh01@example.invalid"
+          }
+        },
+        {
+          "object": "phu_huynh",
+          "data": {
+            "ho_ten": "Phụ huynh Mẫu 02",
+            "sdt": "0900000002",
+            "email": "phuhuynh02@example.invalid"
+          }
+        },
+        {
+          "object": "phu_huynh",
+          "data": {
+            "ho_ten": "Phụ huynh Mẫu 03",
+            "sdt": "0900000003",
+            "email": "phuhuynh03@example.invalid"
+          }
+        },
+        {
+          "object": "hoc_sinh",
+          "data": {
+            "ho_ten": "Học sinh Mẫu 01",
+            "tuoi": 7,
+            "gioi_tinh": "nam",
+            "tinh_trang_hoc": "dang_hoc"
+          },
+          "refs": {
+            "phu_huynh": 0
+          }
+        },
+        {
+          "object": "hoc_sinh",
+          "data": {
+            "ho_ten": "Học sinh Mẫu 02",
+            "tuoi": 8,
+            "gioi_tinh": "nu",
+            "tinh_trang_hoc": "dang_hoc"
+          },
+          "refs": {
+            "phu_huynh": 1
+          }
+        },
+        {
+          "object": "hoc_sinh",
+          "data": {
+            "ho_ten": "Học sinh Mẫu 03",
+            "tuoi": 9,
+            "gioi_tinh": "nam",
+            "tinh_trang_hoc": "dang_hoc"
+          },
+          "refs": {
+            "phu_huynh": 2
+          }
+        },
+        {
+          "object": "hoc_sinh",
+          "data": {
+            "ho_ten": "Học sinh Mẫu 04",
+            "tuoi": 10,
+            "gioi_tinh": "nu",
+            "tinh_trang_hoc": "tam_nghi"
+          },
+          "refs": {
+            "phu_huynh": 0
+          }
+        },
+        {
+          "object": "khoa_hoc",
+          "data": {
+            "ten_goi": "Gói THÁNG",
+            "thoi_han_thang": 1,
+            "so_buoi": 8,
+            "gia_goc": 3000000,
+            "uu_dai": 0
+          }
+        },
+        {
+          "object": "khoa_hoc",
+          "data": {
+            "ten_goi": "Gói QUÝ (3 tháng)",
+            "thoi_han_thang": 3,
+            "so_buoi": 24,
+            "gia_goc": 9000000,
+            "uu_dai": 5
+          }
+        },
+        {
+          "object": "khoa_hoc",
+          "data": {
+            "ten_goi": "Gói HỌC KỲ (6 tháng)",
+            "thoi_han_thang": 6,
+            "so_buoi": 48,
+            "gia_goc": 18000000,
+            "uu_dai": 10
+          }
+        },
+        {
+          "object": "khoa_hoc",
+          "data": {
+            "ten_goi": "Gói NĂM (1 cấp độ)",
+            "thoi_han_thang": 12,
+            "so_buoi": 96,
+            "gia_goc": 36000000,
+            "uu_dai": 15
+          }
+        },
+        {
+          "object": "hoa_don",
+          "data": {
+            "ma_hoa_don": "HD-MAU-001",
+            "muc_gia": "gia_thanh_toan",
+            "so_tien": 8550000,
+            "ngay_lap": "{today}",
+            "trang_thai": "da_thanh_toan"
+          },
+          "refs": {
+            "phu_huynh": 0,
+            "hoc_sinh": 0,
+            "khoa_hoc": 1
+          }
+        },
+        {
+          "object": "hoa_don",
+          "data": {
+            "ma_hoa_don": "HD-MAU-002",
+            "muc_gia": "gia_thanh_toan",
+            "so_tien": 16200000,
+            "ngay_lap": "{today}",
+            "trang_thai": "chua_thanh_toan"
+          },
+          "refs": {
+            "phu_huynh": 1,
+            "hoc_sinh": 1,
+            "khoa_hoc": 2
+          }
+        },
+        {
+          "object": "hoa_don",
+          "data": {
+            "ma_hoa_don": "HD-MAU-003",
+            "muc_gia": "gia_thanh_toan",
+            "so_tien": 30600000,
+            "ngay_lap": "{today}",
+            "trang_thai": "chua_thanh_toan"
+          },
+          "refs": {
+            "phu_huynh": 2,
+            "hoc_sinh": 2,
+            "khoa_hoc": 3
+          }
+        },
+        {
+          "object": "ghi_danh",
+          "data": {
+            "ma_ghi_danh": "GD-MAU-001",
+            "so_buoi_tuan": "1",
+            "thoi_han_thang": 3,
+            "trang_thai": "dang_hoc",
+            "bat_dau": "{today}",
+            "ket_thuc": {
+              "$add_months": "thoi_han_thang"
+            }
+          },
+          "refs": {
+            "hoc_sinh": 0,
+            "khoa_hoc": 1,
+            "hoa_don": 0
+          }
+        },
+        {
+          "object": "ghi_danh",
+          "data": {
+            "ma_ghi_danh": "GD-MAU-002",
+            "so_buoi_tuan": "2",
+            "thoi_han_thang": 6,
+            "trang_thai": "dang_hoc",
+            "bat_dau": "{today}",
+            "ket_thuc": {
+              "$add_months": "thoi_han_thang"
+            }
+          },
+          "refs": {
+            "hoc_sinh": 1,
+            "khoa_hoc": 2,
+            "hoa_don": 1
+          }
+        },
+        {
+          "object": "ghi_danh",
+          "data": {
+            "ma_ghi_danh": "GD-MAU-003",
+            "so_buoi_tuan": "1",
+            "thoi_han_thang": 12,
+            "trang_thai": "dang_hoc",
+            "bat_dau": "{today}",
+            "ket_thuc": {
+              "$add_months": "thoi_han_thang"
+            }
+          },
+          "refs": {
+            "hoc_sinh": 2,
+            "khoa_hoc": 3,
+            "hoa_don": 2
+          }
+        },
+        {
+          "object": "thanh_toan",
+          "data": {
+            "ma_thanh_toan": "TT-MAU-001",
+            "so_tien": 8550000,
+            "ngay_thanh_toan": "{today}",
+            "phuong_thuc": "chuyen_khoan",
+            "trang_thai": "da_thanh_toan"
+          },
+          "refs": {
+            "hoa_don": 0,
+            "phu_huynh": 0,
+            "hoc_sinh": 0
+          }
+        },
+        {
+          "object": "thanh_toan",
+          "data": {
+            "ma_thanh_toan": "TT-MAU-002",
+            "so_tien": 16200000,
+            "ngay_thanh_toan": "{today}",
+            "phuong_thuc": "tien_mat",
+            "trang_thai": "cho_xac_nhan"
+          },
+          "refs": {
+            "hoa_don": 1,
+            "phu_huynh": 1,
+            "hoc_sinh": 1
+          }
+        },
+        {
+          "object": "thanh_toan",
+          "data": {
+            "ma_thanh_toan": "TT-MAU-003",
+            "so_tien": 30600000,
+            "ngay_thanh_toan": "{today}",
+            "phuong_thuc": "chuyen_khoan",
+            "trang_thai": "cho_xac_nhan"
+          },
+          "refs": {
+            "hoa_don": 2,
+            "phu_huynh": 2,
+            "hoc_sinh": 2
+          }
+        }
+      ]
+    },
+    {
+      "key": "real_estate",
+      "label": "Bất động sản",
+      "description": "Dự án, Sản phẩm/căn (giá/m² tự tính), Giữ chỗ/đặt cọc (tiền cọc tự tính), Lịch dẫn khách.",
+      "objects": [
+        {
+          "key": "bds_du_an",
+          "label": "Dự án",
+          "label_plural": "Dự án",
+          "icon": "building-2",
+          "description": "Dự án bất động sản đang phân phối",
+          "fields": [
+            {
+              "key": "ten_du_an",
+              "label": "Tên dự án",
+              "type": "text",
+              "required": true,
+              "is_title": true
+            },
+            {
+              "key": "chu_dau_tu",
+              "label": "Chủ đầu tư",
+              "type": "text"
+            },
+            {
+              "key": "dia_chi",
+              "label": "Địa chỉ",
+              "type": "text"
+            },
+            {
+              "key": "loai_hinh",
+              "label": "Loại hình",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "can_ho",
+                  "label": "Căn hộ",
+                  "color": "blue"
+                },
+                {
+                  "value": "nha_pho",
+                  "label": "Nhà phố",
+                  "color": "amber"
+                },
+                {
+                  "value": "biet_thu",
+                  "label": "Biệt thự",
+                  "color": "purple"
+                },
+                {
+                  "value": "dat_nen",
+                  "label": "Đất nền",
+                  "color": "green"
+                }
+              ]
+            },
+            {
+              "key": "trang_thai",
+              "label": "Tình trạng",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "sap_mo_ban",
+                  "label": "Sắp mở bán",
+                  "color": "amber"
+                },
+                {
+                  "value": "dang_ban",
+                  "label": "Đang bán",
+                  "color": "green"
+                },
+                {
+                  "value": "ngung_ban",
+                  "label": "Ngưng bán",
+                  "color": "gray"
+                }
+              ]
+            },
+            {
+              "key": "ngay_mo_ban",
+              "label": "Ngày mở bán",
+              "type": "date"
+            },
+            {
+              "key": "ghi_chu",
+              "label": "Ghi chú",
+              "type": "long_text",
+              "show_in_list": false
+            }
+          ]
+        },
+        {
+          "key": "bds_san_pham",
+          "label": "Sản phẩm / căn",
+          "label_plural": "Sản phẩm / căn",
+          "icon": "home",
+          "description": "Từng căn: mã căn, diện tích, giá, trạng thái",
+          "fields": [
+            {
+              "key": "ma_can",
+              "label": "Mã căn",
+              "type": "text",
+              "required": true,
+              "is_unique": true,
+              "is_title": true
+            },
+            {
+              "key": "du_an",
+              "label": "Dự án",
+              "type": "relation",
+              "relation": "bds_du_an",
+              "required": true
+            },
+            {
+              "key": "dien_tich",
+              "label": "Diện tích (m²)",
+              "type": "number",
+              "required": true
+            },
+            {
+              "key": "so_phong_ngu",
+              "label": "Số phòng ngủ",
+              "type": "number"
+            },
+            {
+              "key": "huong",
+              "label": "Hướng",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "dong",
+                  "label": "Đông"
+                },
+                {
+                  "value": "tay",
+                  "label": "Tây"
+                },
+                {
+                  "value": "nam",
+                  "label": "Nam"
+                },
+                {
+                  "value": "bac",
+                  "label": "Bắc"
+                },
+                {
+                  "value": "dong_nam",
+                  "label": "Đông Nam"
+                },
+                {
+                  "value": "tay_bac",
+                  "label": "Tây Bắc"
+                }
+              ]
+            },
+            {
+              "key": "gia_ban",
+              "label": "Giá bán",
+              "type": "currency",
+              "required": true
+            },
+            {
+              "key": "gia_m2",
+              "label": "Giá / m²",
+              "type": "formula",
+              "expression": "round({gia_ban}/{dien_tich}, 0)",
+              "format": "currency"
+            },
+            {
+              "key": "trang_thai",
+              "label": "Trạng thái",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "con_trong",
+                  "label": "Còn trống",
+                  "color": "green"
+                },
+                {
+                  "value": "giu_cho",
+                  "label": "Giữ chỗ",
+                  "color": "amber"
+                },
+                {
+                  "value": "da_coc",
+                  "label": "Đã đặt cọc",
+                  "color": "blue"
+                },
+                {
+                  "value": "da_ban",
+                  "label": "Đã bán",
+                  "color": "gray"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "bds_giu_cho",
+          "label": "Giữ chỗ / đặt cọc",
+          "label_plural": "Giữ chỗ / đặt cọc",
+          "icon": "clipboard-list",
+          "description": "Giữ chỗ và đặt cọc căn cho khách",
+          "fields": [
+            {
+              "key": "ma_giu_cho",
+              "label": "Mã giữ chỗ",
+              "type": "text",
+              "required": true,
+              "is_unique": true,
+              "is_title": true
+            },
+            {
+              "key": "khach_hang",
+              "label": "Khách hàng",
+              "type": "relation",
+              "relation": "contact"
+            },
+            {
+              "key": "san_pham",
+              "label": "Căn / sản phẩm",
+              "type": "relation",
+              "relation": "bds_san_pham",
+              "required": true
+            },
+            {
+              "key": "loai",
+              "label": "Loại",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "giu_cho",
+                  "label": "Giữ chỗ",
+                  "color": "amber"
+                },
+                {
+                  "value": "dat_coc",
+                  "label": "Đặt cọc",
+                  "color": "blue"
+                }
+              ]
+            },
+            {
+              "key": "gia_ban",
+              "label": "Giá chốt",
+              "type": "currency"
+            },
+            {
+              "key": "ty_le_coc",
+              "label": "Tỷ lệ cọc (%)",
+              "type": "percent"
+            },
+            {
+              "key": "tien_coc",
+              "label": "Tiền cọc",
+              "type": "formula",
+              "expression": "{gia_ban}*{ty_le_coc}",
+              "format": "currency"
+            },
+            {
+              "key": "ngay_coc",
+              "label": "Ngày giữ chỗ / cọc",
+              "type": "date"
+            },
+            {
+              "key": "han_coc",
+              "label": "Hạn giữ chỗ",
+              "type": "date"
+            },
+            {
+              "key": "trang_thai",
+              "label": "Trạng thái",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "hieu_luc",
+                  "label": "Còn hiệu lực",
+                  "color": "green"
+                },
+                {
+                  "value": "chuyen_hop_dong",
+                  "label": "Đã chuyển hợp đồng",
+                  "color": "indigo"
+                },
+                {
+                  "value": "het_han",
+                  "label": "Hết hạn",
+                  "color": "gray"
+                },
+                {
+                  "value": "huy",
+                  "label": "Đã huỷ",
+                  "color": "red"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "bds_lich_dan",
+          "label": "Lịch dẫn khách",
+          "label_plural": "Lịch dẫn khách",
+          "icon": "calendar-check",
+          "description": "Lịch hẹn dẫn khách đi xem dự án / căn",
+          "fields": [
+            {
+              "key": "ma_lich",
+              "label": "Mã lịch",
+              "type": "text",
+              "required": true,
+              "is_unique": true,
+              "is_title": true
+            },
+            {
+              "key": "khach_hang",
+              "label": "Khách hàng",
+              "type": "relation",
+              "relation": "contact"
+            },
+            {
+              "key": "du_an",
+              "label": "Dự án",
+              "type": "relation",
+              "relation": "bds_du_an"
+            },
+            {
+              "key": "san_pham",
+              "label": "Căn xem",
+              "type": "relation",
+              "relation": "bds_san_pham"
+            },
+            {
+              "key": "ngay_hen",
+              "label": "Ngày hẹn",
+              "type": "datetime"
+            },
+            {
+              "key": "nhan_vien",
+              "label": "Nhân viên dẫn",
+              "type": "user"
+            },
+            {
+              "key": "trang_thai",
+              "label": "Trạng thái",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "da_hen",
+                  "label": "Đã hẹn",
+                  "color": "blue"
+                },
+                {
+                  "value": "da_di",
+                  "label": "Đã dẫn xem",
+                  "color": "green"
+                },
+                {
+                  "value": "khach_huy",
+                  "label": "Khách huỷ",
+                  "color": "gray"
+                },
+                {
+                  "value": "khong_den",
+                  "label": "Khách không đến",
+                  "color": "red"
+                }
+              ]
+            },
+            {
+              "key": "phan_hoi",
+              "label": "Phản hồi của khách",
+              "type": "long_text",
+              "show_in_list": false
+            }
+          ]
+        }
+      ],
+      "samples": [
+        {
+          "object": "bds_du_an",
+          "data": {
+            "ten_du_an": "Dự án Mẫu 01",
+            "chu_dau_tu": "Chủ đầu tư Mẫu 01",
+            "dia_chi": "Địa chỉ mẫu 01",
+            "loai_hinh": "can_ho",
+            "trang_thai": "dang_ban",
+            "ngay_mo_ban": "{today}"
+          }
+        },
+        {
+          "object": "bds_du_an",
+          "data": {
+            "ten_du_an": "Dự án Mẫu 02",
+            "chu_dau_tu": "Chủ đầu tư Mẫu 02",
+            "dia_chi": "Địa chỉ mẫu 02",
+            "loai_hinh": "nha_pho",
+            "trang_thai": "dang_ban",
+            "ngay_mo_ban": "{today}"
+          }
+        },
+        {
+          "object": "bds_san_pham",
+          "data": {
+            "ma_can": "A-0101",
+            "dien_tich": 65,
+            "so_phong_ngu": 1,
+            "huong": "dong",
+            "gia_ban": 3250000000,
+            "trang_thai": "con_trong"
+          },
+          "refs": {
+            "du_an": 0
+          }
+        },
+        {
+          "object": "bds_san_pham",
+          "data": {
+            "ma_can": "A-0202",
+            "dien_tich": 82,
+            "so_phong_ngu": 2,
+            "huong": "nam",
+            "gia_ban": 4510000000,
+            "trang_thai": "giu_cho"
+          },
+          "refs": {
+            "du_an": 0
+          }
+        },
+        {
+          "object": "bds_san_pham",
+          "data": {
+            "ma_can": "A-0303",
+            "dien_tich": 120,
+            "so_phong_ngu": 3,
+            "huong": "dong_nam",
+            "gia_ban": 7800000000,
+            "trang_thai": "da_coc"
+          },
+          "refs": {
+            "du_an": 1
+          }
+        },
+        {
+          "object": "bds_san_pham",
+          "data": {
+            "ma_can": "A-0404",
+            "dien_tich": 95,
+            "so_phong_ngu": 1,
+            "huong": "tay_bac",
+            "gia_ban": 5700000000,
+            "trang_thai": "con_trong"
+          },
+          "refs": {
+            "du_an": 1
+          }
+        },
+        {
+          "object": "bds_giu_cho",
+          "data": {
+            "ma_giu_cho": "GC-MAU-01",
+            "loai": "giu_cho",
+            "gia_ban": 4510000000,
+            "ty_le_coc": 2,
+            "ngay_coc": "{today}",
+            "trang_thai": "hieu_luc"
+          },
+          "refs": {
+            "san_pham": 1
+          }
+        },
+        {
+          "object": "bds_giu_cho",
+          "data": {
+            "ma_giu_cho": "GC-MAU-02",
+            "loai": "dat_coc",
+            "gia_ban": 7800000000,
+            "ty_le_coc": 10,
+            "ngay_coc": "{today}",
+            "trang_thai": "hieu_luc"
+          },
+          "refs": {
+            "san_pham": 2
+          }
+        },
+        {
+          "object": "bds_lich_dan",
+          "data": {
+            "ma_lich": "LD-MAU-01",
+            "ngay_hen": "{today}T09:00:00+07:00",
+            "trang_thai": "da_hen"
+          },
+          "refs": {
+            "du_an": 0,
+            "san_pham": 0
+          }
+        },
+        {
+          "object": "bds_lich_dan",
+          "data": {
+            "ma_lich": "LD-MAU-02",
+            "ngay_hen": "{today}T15:30:00",
+            "trang_thai": "da_hen"
+          },
+          "refs": {
+            "du_an": 1,
+            "san_pham": 3
+          }
+        }
+      ]
+    },
+    {
+      "key": "retail_service",
+      "label": "Bán lẻ / dịch vụ",
+      "description": "Sản phẩm/dịch vụ (lãi gộp tự tính), Đơn hàng (thành tiền tự tính), Khách thân thiết (hạng, điểm).",
+      "objects": [
+        {
+          "key": "bl_san_pham",
+          "label": "Mặt hàng",
+          "label_plural": "Mặt hàng & dịch vụ",
+          "icon": "package",
+          "description": "Danh sách mặt hàng, dịch vụ bán ra: giá bán, giá vốn, tồn kho",
+          "fields": [
+            {
+              "key": "ten",
+              "label": "Tên mặt hàng",
+              "type": "text",
+              "required": true,
+              "is_title": true
+            },
+            {
+              "key": "ma_sku",
+              "label": "Mã SKU",
+              "type": "text",
+              "is_unique": true
+            },
+            {
+              "key": "loai",
+              "label": "Loại",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "san_pham",
+                  "label": "Sản phẩm",
+                  "color": "blue"
+                },
+                {
+                  "value": "dich_vu",
+                  "label": "Dịch vụ",
+                  "color": "purple"
+                }
+              ]
+            },
+            {
+              "key": "gia_ban",
+              "label": "Giá bán",
+              "type": "currency",
+              "required": true
+            },
+            {
+              "key": "gia_von",
+              "label": "Giá vốn",
+              "type": "currency"
+            },
+            {
+              "key": "loi_nhuan",
+              "label": "Lãi gộp",
+              "type": "formula",
+              "expression": "{gia_ban}-{gia_von}",
+              "format": "currency"
+            },
+            {
+              "key": "ton_kho",
+              "label": "Tồn kho",
+              "type": "number",
+              "help_text": "Bỏ trống nếu là dịch vụ"
+            },
+            {
+              "key": "dang_ban",
+              "label": "Đang kinh doanh",
+              "type": "boolean"
+            }
+          ]
+        },
+        {
+          "key": "bl_khach_than_thiet",
+          "label": "Khách thân thiết",
+          "label_plural": "Khách thân thiết",
+          "icon": "star",
+          "description": "Khách thành viên: hạng, điểm tích luỹ, chi tiêu",
+          "fields": [
+            {
+              "key": "ho_ten",
+              "label": "Họ tên khách",
+              "type": "text",
+              "required": true,
+              "is_title": true
+            },
+            {
+              "key": "khach_hang",
+              "label": "Liên hệ trong Danh bạ",
+              "type": "relation",
+              "relation": "contact"
+            },
+            {
+              "key": "hang",
+              "label": "Hạng",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "thuong",
+                  "label": "Thường",
+                  "color": "gray"
+                },
+                {
+                  "value": "bac",
+                  "label": "Bạc",
+                  "color": "blue"
+                },
+                {
+                  "value": "vang",
+                  "label": "Vàng",
+                  "color": "amber"
+                },
+                {
+                  "value": "kim_cuong",
+                  "label": "Kim cương",
+                  "color": "purple"
+                }
+              ]
+            },
+            {
+              "key": "diem",
+              "label": "Điểm tích luỹ",
+              "type": "number"
+            },
+            {
+              "key": "tong_chi_tieu",
+              "label": "Tổng chi tiêu",
+              "type": "currency"
+            },
+            {
+              "key": "ngay_tham_gia",
+              "label": "Ngày tham gia",
+              "type": "date"
+            },
+            {
+              "key": "lan_mua_cuoi",
+              "label": "Lần mua gần nhất",
+              "type": "date"
+            }
+          ]
+        },
+        {
+          "key": "bl_don_hang",
+          "label": "Đơn hàng",
+          "label_plural": "Đơn hàng",
+          "icon": "shopping-cart",
+          "description": "Đơn bán hàng / dịch vụ",
+          "fields": [
+            {
+              "key": "ma_don",
+              "label": "Mã đơn",
+              "type": "text",
+              "required": true,
+              "is_unique": true,
+              "is_title": true
+            },
+            {
+              "key": "khach",
+              "label": "Khách thân thiết",
+              "type": "relation",
+              "relation": "bl_khach_than_thiet"
+            },
+            {
+              "key": "san_pham",
+              "label": "Mặt hàng",
+              "type": "relation",
+              "relation": "bl_san_pham",
+              "required": true
+            },
+            {
+              "key": "so_luong",
+              "label": "Số lượng",
+              "type": "number",
+              "required": true
+            },
+            {
+              "key": "don_gia",
+              "label": "Đơn giá",
+              "type": "currency",
+              "required": true
+            },
+            {
+              "key": "giam_gia",
+              "label": "Giảm giá (%)",
+              "type": "percent",
+              "help_text": "Nhập 0 nếu không giảm (để trống thì thành tiền rỗng)"
+            },
+            {
+              "key": "thanh_tien",
+              "label": "Thành tiền",
+              "type": "formula",
+              "expression": "{so_luong}*{don_gia}*(1-{giam_gia})",
+              "format": "currency"
+            },
+            {
+              "key": "ngay_dat",
+              "label": "Ngày đặt",
+              "type": "date"
+            },
+            {
+              "key": "thanh_toan",
+              "label": "Thanh toán",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "tien_mat",
+                  "label": "Tiền mặt"
+                },
+                {
+                  "value": "chuyen_khoan",
+                  "label": "Chuyển khoản"
+                },
+                {
+                  "value": "the",
+                  "label": "Thẻ"
+                },
+                {
+                  "value": "vi_dien_tu",
+                  "label": "Ví điện tử"
+                }
+              ]
+            },
+            {
+              "key": "trang_thai",
+              "label": "Trạng thái",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "moi",
+                  "label": "Mới",
+                  "color": "blue"
+                },
+                {
+                  "value": "dang_giao",
+                  "label": "Đang giao",
+                  "color": "amber"
+                },
+                {
+                  "value": "hoan_thanh",
+                  "label": "Hoàn thành",
+                  "color": "green"
+                },
+                {
+                  "value": "da_huy",
+                  "label": "Đã huỷ",
+                  "color": "gray"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "samples": [
+        {
+          "object": "bl_san_pham",
+          "data": {
+            "ten": "Sản phẩm Mẫu 01",
+            "ma_sku": "SKU-MAU-01",
+            "loai": "san_pham",
+            "gia_ban": 250000,
+            "gia_von": 150000,
+            "ton_kho": 40,
+            "dang_ban": true
+          }
+        },
+        {
+          "object": "bl_san_pham",
+          "data": {
+            "ten": "Sản phẩm Mẫu 02",
+            "ma_sku": "SKU-MAU-02",
+            "loai": "san_pham",
+            "gia_ban": 480000,
+            "gia_von": 300000,
+            "ton_kho": 15,
+            "dang_ban": true
+          }
+        },
+        {
+          "object": "bl_san_pham",
+          "data": {
+            "ten": "Dịch vụ Mẫu 01",
+            "ma_sku": "SKU-MAU-03",
+            "loai": "dich_vu",
+            "gia_ban": 600000,
+            "gia_von": 200000,
+            "dang_ban": true
+          }
+        },
+        {
+          "object": "bl_khach_than_thiet",
+          "data": {
+            "ho_ten": "Khách Mẫu 01",
+            "hang": "thuong",
+            "diem": 120,
+            "tong_chi_tieu": 1200000,
+            "ngay_tham_gia": "{today}",
+            "lan_mua_cuoi": "{today}"
+          }
+        },
+        {
+          "object": "bl_khach_than_thiet",
+          "data": {
+            "ho_ten": "Khách Mẫu 02",
+            "hang": "bac",
+            "diem": 850,
+            "tong_chi_tieu": 8500000,
+            "ngay_tham_gia": "{today}",
+            "lan_mua_cuoi": "{today}"
+          }
+        },
+        {
+          "object": "bl_khach_than_thiet",
+          "data": {
+            "ho_ten": "Khách Mẫu 03",
+            "hang": "vang",
+            "diem": 2400,
+            "tong_chi_tieu": 24000000,
+            "ngay_tham_gia": "{today}",
+            "lan_mua_cuoi": "{today}"
+          }
+        },
+        {
+          "object": "bl_don_hang",
+          "data": {
+            "ma_don": "DH-MAU-01",
+            "so_luong": 1,
+            "don_gia": 250000,
+            "giam_gia": 0,
+            "ngay_dat": "{today}",
+            "thanh_toan": "tien_mat",
+            "trang_thai": "hoan_thanh"
+          },
+          "refs": {
+            "khach": 0,
+            "san_pham": 0
+          }
+        },
+        {
+          "object": "bl_don_hang",
+          "data": {
+            "ma_don": "DH-MAU-02",
+            "so_luong": 2,
+            "don_gia": 480000,
+            "giam_gia": 0,
+            "ngay_dat": "{today}",
+            "thanh_toan": "chuyen_khoan",
+            "trang_thai": "moi"
+          },
+          "refs": {
+            "khach": 1,
+            "san_pham": 1
+          }
+        },
+        {
+          "object": "bl_don_hang",
+          "data": {
+            "ma_don": "DH-MAU-03",
+            "so_luong": 3,
+            "don_gia": 600000,
+            "giam_gia": 10,
+            "ngay_dat": "{today}",
+            "thanh_toan": "tien_mat",
+            "trang_thai": "moi"
+          },
+          "refs": {
+            "khach": 2,
+            "san_pham": 2
+          }
+        }
+      ]
+    },
+    {
+      "key": "clinic",
+      "label": "Phòng khám (nha khoa / thú y)",
+      "description": "Bệnh nhân / thú cưng, Lịch hẹn, Điều trị (tổng chi phí tự tính).",
+      "objects": [
+        {
+          "key": "pk_benh_nhan",
+          "label": "Bệnh nhân / thú cưng",
+          "label_plural": "Bệnh nhân / thú cưng",
+          "icon": "heart-pulse",
+          "description": "Hồ sơ bệnh nhân hoặc thú cưng và chủ nuôi",
+          "fields": [
+            {
+              "key": "ten",
+              "label": "Tên bệnh nhân / thú cưng",
+              "type": "text",
+              "required": true,
+              "is_title": true
+            },
+            {
+              "key": "loai",
+              "label": "Đối tượng",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "nguoi",
+                  "label": "Người",
+                  "color": "blue"
+                },
+                {
+                  "value": "cho",
+                  "label": "Chó",
+                  "color": "amber"
+                },
+                {
+                  "value": "meo",
+                  "label": "Mèo",
+                  "color": "purple"
+                },
+                {
+                  "value": "khac",
+                  "label": "Khác",
+                  "color": "gray"
+                }
+              ]
+            },
+            {
+              "key": "chu_nuoi",
+              "label": "Chủ nuôi / người liên hệ",
+              "type": "relation",
+              "relation": "contact",
+              "help_text": "Chọn từ Danh bạ"
+            },
+            {
+              "key": "gioi_tinh",
+              "label": "Giới tính",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "duc_nam",
+                  "label": "Đực / Nam",
+                  "color": "blue"
+                },
+                {
+                  "value": "cai_nu",
+                  "label": "Cái / Nữ",
+                  "color": "pink"
+                }
+              ]
+            },
+            {
+              "key": "ngay_sinh",
+              "label": "Ngày sinh",
+              "type": "date"
+            },
+            {
+              "key": "can_nang",
+              "label": "Cân nặng (kg)",
+              "type": "number"
+            },
+            {
+              "key": "tien_su",
+              "label": "Tiền sử / dị ứng",
+              "type": "long_text",
+              "show_in_list": false
+            }
+          ]
+        },
+        {
+          "key": "pk_lich_hen",
+          "label": "Lịch hẹn",
+          "label_plural": "Lịch hẹn",
+          "icon": "calendar-check",
+          "description": "Lịch hẹn khám, tiêm phòng, điều trị",
+          "fields": [
+            {
+              "key": "ma_hen",
+              "label": "Mã lịch hẹn",
+              "type": "text",
+              "required": true,
+              "is_unique": true,
+              "is_title": true
+            },
+            {
+              "key": "benh_nhan",
+              "label": "Bệnh nhân / thú cưng",
+              "type": "relation",
+              "relation": "pk_benh_nhan",
+              "required": true
+            },
+            {
+              "key": "thoi_gian",
+              "label": "Thời gian hẹn",
+              "type": "datetime",
+              "required": true
+            },
+            {
+              "key": "dich_vu",
+              "label": "Dịch vụ",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "kham",
+                  "label": "Khám tổng quát",
+                  "color": "blue"
+                },
+                {
+                  "value": "tai_kham",
+                  "label": "Tái khám",
+                  "color": "teal"
+                },
+                {
+                  "value": "tiem_phong",
+                  "label": "Tiêm phòng",
+                  "color": "green"
+                },
+                {
+                  "value": "dieu_tri",
+                  "label": "Điều trị",
+                  "color": "amber"
+                },
+                {
+                  "value": "lay_cao",
+                  "label": "Lấy cao răng / vệ sinh",
+                  "color": "purple"
+                }
+              ]
+            },
+            {
+              "key": "bac_si",
+              "label": "Bác sĩ phụ trách",
+              "type": "user"
+            },
+            {
+              "key": "trang_thai",
+              "label": "Trạng thái",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "da_hen",
+                  "label": "Đã hẹn",
+                  "color": "blue"
+                },
+                {
+                  "value": "da_den",
+                  "label": "Đã đến",
+                  "color": "green"
+                },
+                {
+                  "value": "hoan_thanh",
+                  "label": "Hoàn thành",
+                  "color": "indigo"
+                },
+                {
+                  "value": "huy",
+                  "label": "Huỷ",
+                  "color": "gray"
+                },
+                {
+                  "value": "vang_mat",
+                  "label": "Không đến",
+                  "color": "red"
+                }
+              ]
+            },
+            {
+              "key": "ghi_chu",
+              "label": "Ghi chú",
+              "type": "long_text",
+              "show_in_list": false
+            }
+          ]
+        },
+        {
+          "key": "pk_dieu_tri",
+          "label": "Điều trị",
+          "label_plural": "Điều trị",
+          "icon": "stethoscope",
+          "description": "Chẩn đoán, phác đồ, chi phí và tái khám",
+          "fields": [
+            {
+              "key": "ma_dieu_tri",
+              "label": "Mã điều trị",
+              "type": "text",
+              "required": true,
+              "is_unique": true,
+              "is_title": true
+            },
+            {
+              "key": "benh_nhan",
+              "label": "Bệnh nhân / thú cưng",
+              "type": "relation",
+              "relation": "pk_benh_nhan",
+              "required": true
+            },
+            {
+              "key": "lich_hen",
+              "label": "Lịch hẹn",
+              "type": "relation",
+              "relation": "pk_lich_hen"
+            },
+            {
+              "key": "chan_doan",
+              "label": "Chẩn đoán",
+              "type": "text"
+            },
+            {
+              "key": "phac_do",
+              "label": "Phác đồ / thủ thuật",
+              "type": "long_text",
+              "show_in_list": false
+            },
+            {
+              "key": "chi_phi_thu_thuat",
+              "label": "Chi phí thủ thuật",
+              "type": "currency"
+            },
+            {
+              "key": "chi_phi_thuoc",
+              "label": "Chi phí thuốc",
+              "type": "currency"
+            },
+            {
+              "key": "tong_chi_phi",
+              "label": "Tổng chi phí",
+              "type": "formula",
+              "expression": "{chi_phi_thu_thuat}+{chi_phi_thuoc}",
+              "format": "currency"
+            },
+            {
+              "key": "ngay_dieu_tri",
+              "label": "Ngày điều trị",
+              "type": "date"
+            },
+            {
+              "key": "ngay_tai_kham",
+              "label": "Ngày tái khám",
+              "type": "date"
+            },
+            {
+              "key": "trang_thai",
+              "label": "Trạng thái",
+              "type": "select",
+              "choices": [
+                {
+                  "value": "dang_dieu_tri",
+                  "label": "Đang điều trị",
+                  "color": "amber"
+                },
+                {
+                  "value": "hoan_thanh",
+                  "label": "Hoàn thành",
+                  "color": "green"
+                },
+                {
+                  "value": "theo_doi",
+                  "label": "Theo dõi",
+                  "color": "blue"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "samples": [
+        {
+          "object": "pk_benh_nhan",
+          "data": {
+            "ten": "Bệnh nhân Mẫu 01",
+            "loai": "nguoi",
+            "gioi_tinh": "duc_nam",
+            "can_nang": 60
+          }
+        },
+        {
+          "object": "pk_benh_nhan",
+          "data": {
+            "ten": "Bệnh nhân Mẫu 02",
+            "loai": "nguoi",
+            "gioi_tinh": "cai_nu",
+            "can_nang": 52
+          }
+        },
+        {
+          "object": "pk_benh_nhan",
+          "data": {
+            "ten": "Thú cưng Mẫu 01",
+            "loai": "cho",
+            "gioi_tinh": "duc_nam",
+            "can_nang": 12
+          }
+        },
+        {
+          "object": "pk_lich_hen",
+          "data": {
+            "ma_hen": "LH-MAU-01",
+            "thoi_gian": "{today}T09:00:00+07:00",
+            "dich_vu": "lay_cao",
+            "trang_thai": "da_hen"
+          },
+          "refs": {
+            "benh_nhan": 0
+          }
+        },
+        {
+          "object": "pk_lich_hen",
+          "data": {
+            "ma_hen": "LH-MAU-02",
+            "thoi_gian": "{today}T10:00:00+07:00",
+            "dich_vu": "tiem_phong",
+            "trang_thai": "da_hen"
+          },
+          "refs": {
+            "benh_nhan": 1
+          }
+        },
+        {
+          "object": "pk_lich_hen",
+          "data": {
+            "ma_hen": "LH-MAU-03",
+            "thoi_gian": "{today}T11:00:00+07:00",
+            "dich_vu": "kham",
+            "trang_thai": "da_hen"
+          },
+          "refs": {
+            "benh_nhan": 2
+          }
+        },
+        {
+          "object": "pk_dieu_tri",
+          "data": {
+            "ma_dieu_tri": "DT-MAU-01",
+            "chan_doan": "Chẩn đoán mẫu 01",
+            "chi_phi_thu_thuat": 500000,
+            "chi_phi_thuoc": 120000,
+            "ngay_dieu_tri": "{today}",
+            "trang_thai": "dang_dieu_tri"
+          },
+          "refs": {
+            "benh_nhan": 0,
+            "lich_hen": 0
+          }
+        },
+        {
+          "object": "pk_dieu_tri",
+          "data": {
+            "ma_dieu_tri": "DT-MAU-02",
+            "chan_doan": "Chẩn đoán mẫu 02",
+            "chi_phi_thu_thuat": 350000,
+            "chi_phi_thuoc": 80000,
+            "ngay_dieu_tri": "{today}",
+            "trang_thai": "hoan_thanh"
+          },
+          "refs": {
+            "benh_nhan": 1,
+            "lich_hen": 1
+          }
+        }
+      ]
+    }
+  ],
+  "industries": [
+    {
+      "key": "education_center",
+      "label": "Trung tâm giáo dục",
+      "description": "Phụ huynh, học sinh, khoá học, hoá đơn, ghi danh, thanh toán học phí.",
+      "icon": "GraduationCap",
+      "template": "education_center",
+      "features": [
+        "dashboard",
+        "contacts",
+        "kanban",
+        "reports",
+        "inbox",
+        "facebook_page",
+        "zalo_oa",
+        "social_posting",
+        "lead_scoring",
+        "stale_reminders",
+        "integrations"
+      ]
+    },
+    {
+      "key": "retail_service",
+      "label": "Bán lẻ và dịch vụ",
+      "description": "Sản phẩm, khách thân thiết, đơn hàng; bán tại quầy và bán online.",
+      "icon": "Store",
+      "template": "retail_service",
+      "features": [
+        "dashboard",
+        "contacts",
+        "kanban",
+        "reports",
+        "inbox",
+        "facebook_page",
+        "zalo_oa",
+        "social_posting",
+        "products",
+        "pos",
+        "stale_reminders",
+        "integrations"
+      ]
+    },
+    {
+      "key": "clinic",
+      "label": "Phòng khám, spa, thú y",
+      "description": "Bệnh nhân hoặc khách, lịch hẹn, hồ sơ điều trị.",
+      "icon": "Stethoscope",
+      "template": "clinic",
+      "features": [
+        "dashboard",
+        "contacts",
+        "kanban",
+        "reports",
+        "inbox",
+        "facebook_page",
+        "zalo_oa",
+        "products",
+        "stale_reminders",
+        "integrations"
+      ]
+    },
+    {
+      "key": "real_estate",
+      "label": "Bất động sản",
+      "description": "Dự án, sản phẩm (căn, lô), giữ chỗ, lịch dẫn khách xem.",
+      "icon": "Building2",
+      "template": "real_estate",
+      "features": [
+        "dashboard",
+        "contacts",
+        "kanban",
+        "reports",
+        "inbox",
+        "facebook_page",
+        "zalo_oa",
+        "social_posting",
+        "lead_scoring",
+        "stale_reminders",
+        "integrations"
+      ]
+    },
+    {
+      "key": "other",
+      "label": "Khác",
+      "description": "CRM cơ bản: khách hàng, công việc, báo cáo. Thêm bảng riêng sau khi dùng.",
+      "icon": "Briefcase",
+      "template": null,
+      "features": [
+        "dashboard",
+        "contacts",
+        "kanban",
+        "reports",
+        "inbox",
+        "integrations"
+      ]
+    }
+  ],
+  "locked_features": [
+    "dashboard",
+    "contacts",
+    "kanban",
+    "reports"
+  ],
+  "max_build_features": 19,
+  "org_feature_keys": [
+    "dashboard",
+    "contacts",
+    "kanban",
+    "reports",
+    "inbox",
+    "facebook_page",
+    "zalo_oa",
+    "social_posting",
+    "products",
+    "pos",
+    "online_store",
+    "management",
+    "attendance",
+    "payroll",
+    "newsfeed",
+    "integrations",
+    "ai_briefing",
+    "lead_scoring",
+    "stale_reminders"
+  ],
+  "connect": {
+    "url_mark": "@@MCP_URL@@",
+    "agents": [
+      {
+        "key": "chatgpt",
+        "label": "ChatGPT"
+      },
+      {
+        "key": "claude",
+        "label": "Claude (web / Desktop)"
+      },
+      {
+        "key": "claude_code",
+        "label": "Claude Code"
+      },
+      {
+        "key": "antigravity",
+        "label": "Antigravity"
+      },
+      {
+        "key": "gemini_cli",
+        "label": "Gemini CLI"
+      },
+      {
+        "key": "cursor",
+        "label": "Cursor"
+      },
+      {
+        "key": "codex",
+        "label": "Codex CLI"
+      },
+      {
+        "key": "vscode",
+        "label": "VS Code Copilot"
+      },
+      {
+        "key": "other",
+        "label": "Agent khác"
+      }
+    ],
+    "prompts": {
+      "chatgpt": "Giúp mình nối ChatGPT với Trinity, phần mềm quản lý khách hàng (CRM) của công ty mình. Trinity mã nguồn mở, điều khiển bằng trợ lý AI: bạn đọc và ghi dữ liệu Trinity qua các tool của nó, theo đúng quyền của tài khoản mình.\n\n## Máy chủ\n- Địa chỉ MCP (Streamable HTTP): @@MCP_URL@@\n- Tên server nên đặt: trinity\n\n## Đăng nhập\n- Trinity chỉ dùng OAuth 2.1 (tự đăng ký client: DCR hoặc CIMD, có PKCE). Không có token tĩnh hay API key cho việc này.\n- Gọi thử mà nhận 401 kèm WWW-Authenticate là BÌNH THƯỜNG: đó là tín hiệu để client mở trang đăng nhập Trinity.\n- KHÔNG hỏi mình token, KHÔNG bảo mình dán Bearer token, KHÔNG dùng curl để lấy token, KHÔNG tự tạo file plugin trong thư mục dự án.\n- Khi trang đăng nhập Trinity mở ra: mình đăng nhập, giữ ô \"Cho phép AI thay đổi dữ liệu\" rồi bấm Cho phép.\n\n## Cách gắn vào ChatGPT\nChatGPT nối máy chủ trên web, không cần file. Hướng dẫn mình bấm (menu có thể đổi tên theo phiên bản):\n1. ChatGPT › Settings › Apps (hoặc Plugins / Apps & Connectors). Nếu có mục Advanced thì bật Developer mode.\n2. Chọn Create / Add custom MCP server: tên \"Trinity\", URL @@MCP_URL@@, xác thực OAuth.\n3. Bấm Connect, đăng nhập Trinity và bấm Cho phép.\n4. Mở cuộc trò chuyện mới, bật Trinity trong danh sách công cụ.\nGói Business/Enterprise dùng đầy đủ; trên gói Business có thể cần quản trị viên tạo kết nối.\n\n## Ghi nhớ khi làm việc với Trinity\n# Trinity CRM\nTrinity là CRM của công ty, nối qua MCP server \"trinity\". Khi người dùng nhắc tới khách hàng, đơn, việc, báo cáo, Fanpage, Zalo, đăng bài… thì dùng các tool của Trinity.\n- Đầu mỗi phiên làm việc với Trinity: gọi get_setup_guide trước và làm theo \"next\" trong kết quả.\n- Gặp mã như KH001, CV001, HS001: tra bằng find_by_code.\n- Trinity không có tool xoá. Muốn bỏ thứ gì thì báo người dùng làm trên giao diện Trinity.\n- Đăng bài công khai, gửi tin hàng loạt, tắt tính năng: cho người dùng xem trước và chỉ làm khi họ đồng ý (confirmed_by_user là lời đồng ý của họ, chép nguyên văn).\n- Trả lời người dùng bằng ngôn ngữ của họ (mặc định tiếng Việt).\n\n## Bước đầu tiên khi đã thấy tool của Trinity\nGọi get_setup_guide và làm theo kết quả:\n- status = chua_dung (CRM còn trống): phỏng vấn mình TỪNG câu một theo kịch bản trong kết quả, tóm tắt cho mình xác nhận, rồi propose_workspace → import_records (nếu mình có file) → complete_setup.\n- status = dang_dung: giúp mình nhập dữ liệu rồi complete_setup.\n- status = da_dung: hỏi mình muốn làm gì hôm nay.\n\nTrả lời mình bằng tiếng Việt (hoặc ngôn ngữ mình đang dùng). Báo ngắn từng bước bạn làm.",
+      "claude": "Giúp mình nối Claude (web / Desktop) với Trinity, phần mềm quản lý khách hàng (CRM) của công ty mình. Trinity mã nguồn mở, điều khiển bằng trợ lý AI: bạn đọc và ghi dữ liệu Trinity qua các tool của nó, theo đúng quyền của tài khoản mình.\n\n## Máy chủ\n- Địa chỉ MCP (Streamable HTTP): @@MCP_URL@@\n- Tên server nên đặt: trinity\n\n## Đăng nhập\n- Trinity chỉ dùng OAuth 2.1 (tự đăng ký client: DCR hoặc CIMD, có PKCE). Không có token tĩnh hay API key cho việc này.\n- Gọi thử mà nhận 401 kèm WWW-Authenticate là BÌNH THƯỜNG: đó là tín hiệu để client mở trang đăng nhập Trinity.\n- KHÔNG hỏi mình token, KHÔNG bảo mình dán Bearer token, KHÔNG dùng curl để lấy token, KHÔNG tự tạo file plugin trong thư mục dự án.\n- Khi trang đăng nhập Trinity mở ra: mình đăng nhập, giữ ô \"Cho phép AI thay đổi dữ liệu\" rồi bấm Cho phép.\n\n## Cách gắn vào Claude (web / Desktop)\nClaude nối máy chủ trên web hoặc Claude Desktop, không cần file. Hướng dẫn mình bấm:\n1. Gói Pro/Max: Customize › Connectors › + Add › Add custom connector. Gói Team/Enterprise: chủ tổ chức thêm ở Organization settings › Connectors › Add › Custom › Web, rồi từng người bấm Connect ở Customize › Connectors.\n2. Tên \"Trinity\", URL @@MCP_URL@@. Phần OAuth để mặc định (Register automatically).\n3. Bấm Connect, đăng nhập Trinity và bấm Cho phép.\n4. Trong cuộc trò chuyện, bật Trinity ở menu công cụ.\n\n## Ghi nhớ khi làm việc với Trinity\n# Trinity CRM\nTrinity là CRM của công ty, nối qua MCP server \"trinity\". Khi người dùng nhắc tới khách hàng, đơn, việc, báo cáo, Fanpage, Zalo, đăng bài… thì dùng các tool của Trinity.\n- Đầu mỗi phiên làm việc với Trinity: gọi get_setup_guide trước và làm theo \"next\" trong kết quả.\n- Gặp mã như KH001, CV001, HS001: tra bằng find_by_code.\n- Trinity không có tool xoá. Muốn bỏ thứ gì thì báo người dùng làm trên giao diện Trinity.\n- Đăng bài công khai, gửi tin hàng loạt, tắt tính năng: cho người dùng xem trước và chỉ làm khi họ đồng ý (confirmed_by_user là lời đồng ý của họ, chép nguyên văn).\n- Trả lời người dùng bằng ngôn ngữ của họ (mặc định tiếng Việt).\n\n## Bước đầu tiên khi đã thấy tool của Trinity\nGọi get_setup_guide và làm theo kết quả:\n- status = chua_dung (CRM còn trống): phỏng vấn mình TỪNG câu một theo kịch bản trong kết quả, tóm tắt cho mình xác nhận, rồi propose_workspace → import_records (nếu mình có file) → complete_setup.\n- status = dang_dung: giúp mình nhập dữ liệu rồi complete_setup.\n- status = da_dung: hỏi mình muốn làm gì hôm nay.\n\nTrả lời mình bằng tiếng Việt (hoặc ngôn ngữ mình đang dùng). Báo ngắn từng bước bạn làm.",
+      "claude_code": "Giúp mình nối Claude Code với Trinity, phần mềm quản lý khách hàng (CRM) của công ty mình. Trinity mã nguồn mở, điều khiển bằng trợ lý AI: bạn đọc và ghi dữ liệu Trinity qua các tool của nó, theo đúng quyền của tài khoản mình.\n\n## Máy chủ\n- Địa chỉ MCP (Streamable HTTP): @@MCP_URL@@\n- Tên server nên đặt: trinity\n\n## Đăng nhập\n- Trinity chỉ dùng OAuth 2.1 (tự đăng ký client: DCR hoặc CIMD, có PKCE). Không có token tĩnh hay API key cho việc này.\n- Gọi thử mà nhận 401 kèm WWW-Authenticate là BÌNH THƯỜNG: đó là tín hiệu để client mở trang đăng nhập Trinity.\n- KHÔNG hỏi mình token, KHÔNG bảo mình dán Bearer token, KHÔNG dùng curl để lấy token, KHÔNG tự tạo file plugin trong thư mục dự án.\n- Khi trang đăng nhập Trinity mở ra: mình đăng nhập, giữ ô \"Cho phép AI thay đổi dữ liệu\" rồi bấm Cho phép.\n\n## Cách gắn vào Claude Code\nChạy trong terminal:\n```\nclaude mcp add --transport http --scope user trinity @@MCP_URL@@\n```\nRồi trong phiên Claude Code gõ /mcp, chọn trinity › Authenticate (hoặc chạy `claude mcp login trinity`). Trình duyệt mở trang đăng nhập Trinity.\nKiểm: `claude mcp list` thấy trinity ở trạng thái connected.\n\n## Nếu không đăng nhập được\nNếu Claude Code không tự mở trang đăng nhập (không có nút Authenticate/Login cho server), thay cấu hình trên bằng cầu nối chạy cục bộ, cầu nối này tự làm OAuth trong trình duyệt:\n```\nnpx -y mcp-remote @@MCP_URL@@\n```\nKhai nó như một server stdio: command \"npx\", args [\"-y\", \"mcp-remote\", \"@@MCP_URL@@\"].\n\n## Sau khi nối xong: tạo rule cho chính bạn\nTạo skill tại ~/.claude/skills/trinity/SKILL.md (frontmatter: name: trinity, description: Dùng Trinity CRM qua MCP server trinity — khách hàng, việc, đơn, báo cáo, Fanpage, Zalo). Thân skill là nội dung dưới đây:\n```markdown\n# Trinity CRM\nTrinity là CRM của công ty, nối qua MCP server \"trinity\". Khi người dùng nhắc tới khách hàng, đơn, việc, báo cáo, Fanpage, Zalo, đăng bài… thì dùng các tool của Trinity.\n- Đầu mỗi phiên làm việc với Trinity: gọi get_setup_guide trước và làm theo \"next\" trong kết quả.\n- Gặp mã như KH001, CV001, HS001: tra bằng find_by_code.\n- Trinity không có tool xoá. Muốn bỏ thứ gì thì báo người dùng làm trên giao diện Trinity.\n- Đăng bài công khai, gửi tin hàng loạt, tắt tính năng: cho người dùng xem trước và chỉ làm khi họ đồng ý (confirmed_by_user là lời đồng ý của họ, chép nguyên văn).\n- Trả lời người dùng bằng ngôn ngữ của họ (mặc định tiếng Việt).\n```\n\nRồi tạo thêm một file ghi chú ngắn cho mình tên TRINITY-KET-NOI.md ở thư mục đang làm việc: đã nối server nào, địa chỉ, cách gọi lại Trinity (vd \"hỏi Trinity hôm nay có gì mới\"), cách đăng nhập lại nếu hết phiên.\n\n## Bước đầu tiên khi đã thấy tool của Trinity\nGọi get_setup_guide và làm theo kết quả:\n- status = chua_dung (CRM còn trống): phỏng vấn mình TỪNG câu một theo kịch bản trong kết quả, tóm tắt cho mình xác nhận, rồi propose_workspace → import_records (nếu mình có file) → complete_setup.\n- status = dang_dung: giúp mình nhập dữ liệu rồi complete_setup.\n- status = da_dung: hỏi mình muốn làm gì hôm nay.\n\nTrả lời mình bằng tiếng Việt (hoặc ngôn ngữ mình đang dùng). Báo ngắn từng bước bạn làm.",
+      "antigravity": "Giúp mình nối Antigravity với Trinity, phần mềm quản lý khách hàng (CRM) của công ty mình. Trinity mã nguồn mở, điều khiển bằng trợ lý AI: bạn đọc và ghi dữ liệu Trinity qua các tool của nó, theo đúng quyền của tài khoản mình.\n\n## Máy chủ\n- Địa chỉ MCP (Streamable HTTP): @@MCP_URL@@\n- Tên server nên đặt: trinity\n\n## Đăng nhập\n- Trinity chỉ dùng OAuth 2.1 (tự đăng ký client: DCR hoặc CIMD, có PKCE). Không có token tĩnh hay API key cho việc này.\n- Gọi thử mà nhận 401 kèm WWW-Authenticate là BÌNH THƯỜNG: đó là tín hiệu để client mở trang đăng nhập Trinity.\n- KHÔNG hỏi mình token, KHÔNG bảo mình dán Bearer token, KHÔNG dùng curl để lấy token, KHÔNG tự tạo file plugin trong thư mục dự án.\n- Khi trang đăng nhập Trinity mở ra: mình đăng nhập, giữ ô \"Cho phép AI thay đổi dữ liệu\" rồi bấm Cho phép.\n\n## Cách gắn vào Antigravity\nAntigravity đọc máy chủ từ file cấu hình chung ~/.gemini/config/mcp_config.json (hoặc .agents/mcp_config.json trong workspace). KHÔNG dùng thư mục .agents/plugins. Thêm (giữ các server đang có):\n```json\n{ \"mcpServers\": { \"trinity\": { \"serverUrl\": \"@@MCP_URL@@\" } } }\n```\nRồi mở Settings › Customizations, bấm Authenticate cạnh trinity, đăng nhập Trinity, bấm Cho phép; nếu trình duyệt hiện mã thì dán mã đó lại vào Antigravity.\n\n## Nếu không đăng nhập được\nNếu Antigravity không tự mở trang đăng nhập (không có nút Authenticate/Login cho server), thay cấu hình trên bằng cầu nối chạy cục bộ, cầu nối này tự làm OAuth trong trình duyệt:\n```\nnpx -y mcp-remote @@MCP_URL@@\n```\nKhai nó như một server stdio: command \"npx\", args [\"-y\", \"mcp-remote\", \"@@MCP_URL@@\"].\n\n## Sau khi nối xong: tạo rule cho chính bạn\nThêm vào ~/.gemini/GEMINI.md (tạo nếu chưa có; hoặc AGENTS.md ở thư mục workspace nếu chỉ dùng cho workspace này) mục sau:\n```markdown\n# Trinity CRM\nTrinity là CRM của công ty, nối qua MCP server \"trinity\". Khi người dùng nhắc tới khách hàng, đơn, việc, báo cáo, Fanpage, Zalo, đăng bài… thì dùng các tool của Trinity.\n- Đầu mỗi phiên làm việc với Trinity: gọi get_setup_guide trước và làm theo \"next\" trong kết quả.\n- Gặp mã như KH001, CV001, HS001: tra bằng find_by_code.\n- Trinity không có tool xoá. Muốn bỏ thứ gì thì báo người dùng làm trên giao diện Trinity.\n- Đăng bài công khai, gửi tin hàng loạt, tắt tính năng: cho người dùng xem trước và chỉ làm khi họ đồng ý (confirmed_by_user là lời đồng ý của họ, chép nguyên văn).\n- Trả lời người dùng bằng ngôn ngữ của họ (mặc định tiếng Việt).\n```\n\nRồi tạo thêm một file ghi chú ngắn cho mình tên TRINITY-KET-NOI.md ở thư mục đang làm việc: đã nối server nào, địa chỉ, cách gọi lại Trinity (vd \"hỏi Trinity hôm nay có gì mới\"), cách đăng nhập lại nếu hết phiên.\n\n## Bước đầu tiên khi đã thấy tool của Trinity\nGọi get_setup_guide và làm theo kết quả:\n- status = chua_dung (CRM còn trống): phỏng vấn mình TỪNG câu một theo kịch bản trong kết quả, tóm tắt cho mình xác nhận, rồi propose_workspace → import_records (nếu mình có file) → complete_setup.\n- status = dang_dung: giúp mình nhập dữ liệu rồi complete_setup.\n- status = da_dung: hỏi mình muốn làm gì hôm nay.\n\nTrả lời mình bằng tiếng Việt (hoặc ngôn ngữ mình đang dùng). Báo ngắn từng bước bạn làm.",
+      "gemini_cli": "Giúp mình nối Gemini CLI với Trinity, phần mềm quản lý khách hàng (CRM) của công ty mình. Trinity mã nguồn mở, điều khiển bằng trợ lý AI: bạn đọc và ghi dữ liệu Trinity qua các tool của nó, theo đúng quyền của tài khoản mình.\n\n## Máy chủ\n- Địa chỉ MCP (Streamable HTTP): @@MCP_URL@@\n- Tên server nên đặt: trinity\n\n## Đăng nhập\n- Trinity chỉ dùng OAuth 2.1 (tự đăng ký client: DCR hoặc CIMD, có PKCE). Không có token tĩnh hay API key cho việc này.\n- Gọi thử mà nhận 401 kèm WWW-Authenticate là BÌNH THƯỜNG: đó là tín hiệu để client mở trang đăng nhập Trinity.\n- KHÔNG hỏi mình token, KHÔNG bảo mình dán Bearer token, KHÔNG dùng curl để lấy token, KHÔNG tự tạo file plugin trong thư mục dự án.\n- Khi trang đăng nhập Trinity mở ra: mình đăng nhập, giữ ô \"Cho phép AI thay đổi dữ liệu\" rồi bấm Cho phép.\n\n## Cách gắn vào Gemini CLI\nGemini CLI (bản mới đã chuyển thành Antigravity CLI; nếu bạn là Antigravity thì làm theo cách của Antigravity). Thêm vào ~/.gemini/settings.json (giữ cấu hình đang có):\n```json\n{ \"mcpServers\": { \"trinity\": { \"httpUrl\": \"@@MCP_URL@@\" } } }\n```\nKhởi động lại Gemini CLI, gõ `/mcp auth trinity` để đăng nhập (cần trình duyệt trên máy). Kiểm bằng `/mcp`.\n\n## Nếu không đăng nhập được\nNếu Gemini CLI không tự mở trang đăng nhập (không có nút Authenticate/Login cho server), thay cấu hình trên bằng cầu nối chạy cục bộ, cầu nối này tự làm OAuth trong trình duyệt:\n```\nnpx -y mcp-remote @@MCP_URL@@\n```\nKhai nó như một server stdio: command \"npx\", args [\"-y\", \"mcp-remote\", \"@@MCP_URL@@\"].\n\n## Sau khi nối xong: tạo rule cho chính bạn\nThêm vào ~/.gemini/GEMINI.md (tạo nếu chưa có) mục sau:\n```markdown\n# Trinity CRM\nTrinity là CRM của công ty, nối qua MCP server \"trinity\". Khi người dùng nhắc tới khách hàng, đơn, việc, báo cáo, Fanpage, Zalo, đăng bài… thì dùng các tool của Trinity.\n- Đầu mỗi phiên làm việc với Trinity: gọi get_setup_guide trước và làm theo \"next\" trong kết quả.\n- Gặp mã như KH001, CV001, HS001: tra bằng find_by_code.\n- Trinity không có tool xoá. Muốn bỏ thứ gì thì báo người dùng làm trên giao diện Trinity.\n- Đăng bài công khai, gửi tin hàng loạt, tắt tính năng: cho người dùng xem trước và chỉ làm khi họ đồng ý (confirmed_by_user là lời đồng ý của họ, chép nguyên văn).\n- Trả lời người dùng bằng ngôn ngữ của họ (mặc định tiếng Việt).\n```\n\nRồi tạo thêm một file ghi chú ngắn cho mình tên TRINITY-KET-NOI.md ở thư mục đang làm việc: đã nối server nào, địa chỉ, cách gọi lại Trinity (vd \"hỏi Trinity hôm nay có gì mới\"), cách đăng nhập lại nếu hết phiên.\n\n## Bước đầu tiên khi đã thấy tool của Trinity\nGọi get_setup_guide và làm theo kết quả:\n- status = chua_dung (CRM còn trống): phỏng vấn mình TỪNG câu một theo kịch bản trong kết quả, tóm tắt cho mình xác nhận, rồi propose_workspace → import_records (nếu mình có file) → complete_setup.\n- status = dang_dung: giúp mình nhập dữ liệu rồi complete_setup.\n- status = da_dung: hỏi mình muốn làm gì hôm nay.\n\nTrả lời mình bằng tiếng Việt (hoặc ngôn ngữ mình đang dùng). Báo ngắn từng bước bạn làm.",
+      "cursor": "Giúp mình nối Cursor với Trinity, phần mềm quản lý khách hàng (CRM) của công ty mình. Trinity mã nguồn mở, điều khiển bằng trợ lý AI: bạn đọc và ghi dữ liệu Trinity qua các tool của nó, theo đúng quyền của tài khoản mình.\n\n## Máy chủ\n- Địa chỉ MCP (Streamable HTTP): @@MCP_URL@@\n- Tên server nên đặt: trinity\n\n## Đăng nhập\n- Trinity chỉ dùng OAuth 2.1 (tự đăng ký client: DCR hoặc CIMD, có PKCE). Không có token tĩnh hay API key cho việc này.\n- Gọi thử mà nhận 401 kèm WWW-Authenticate là BÌNH THƯỜNG: đó là tín hiệu để client mở trang đăng nhập Trinity.\n- KHÔNG hỏi mình token, KHÔNG bảo mình dán Bearer token, KHÔNG dùng curl để lấy token, KHÔNG tự tạo file plugin trong thư mục dự án.\n- Khi trang đăng nhập Trinity mở ra: mình đăng nhập, giữ ô \"Cho phép AI thay đổi dữ liệu\" rồi bấm Cho phép.\n\n## Cách gắn vào Cursor\nThêm vào ~/.cursor/mcp.json (dùng cho mọi dự án) hoặc .cursor/mcp.json (chỉ dự án này), giữ các server đang có:\n```json\n{ \"mcpServers\": { \"trinity\": { \"url\": \"@@MCP_URL@@\" } } }\n```\nMở Cursor Settings › MCP, bấm Login/Connect cạnh trinity để đăng nhập Trinity.\n\n## Nếu không đăng nhập được\nNếu Cursor không tự mở trang đăng nhập (không có nút Authenticate/Login cho server), thay cấu hình trên bằng cầu nối chạy cục bộ, cầu nối này tự làm OAuth trong trình duyệt:\n```\nnpx -y mcp-remote @@MCP_URL@@\n```\nKhai nó như một server stdio: command \"npx\", args [\"-y\", \"mcp-remote\", \"@@MCP_URL@@\"].\n\n## Sau khi nối xong: tạo rule cho chính bạn\nTạo rule .cursor/rules/trinity.mdc (frontmatter: description: Dùng Trinity CRM qua MCP server trinity; alwaysApply: false) với thân là nội dung:\n```markdown\n# Trinity CRM\nTrinity là CRM của công ty, nối qua MCP server \"trinity\". Khi người dùng nhắc tới khách hàng, đơn, việc, báo cáo, Fanpage, Zalo, đăng bài… thì dùng các tool của Trinity.\n- Đầu mỗi phiên làm việc với Trinity: gọi get_setup_guide trước và làm theo \"next\" trong kết quả.\n- Gặp mã như KH001, CV001, HS001: tra bằng find_by_code.\n- Trinity không có tool xoá. Muốn bỏ thứ gì thì báo người dùng làm trên giao diện Trinity.\n- Đăng bài công khai, gửi tin hàng loạt, tắt tính năng: cho người dùng xem trước và chỉ làm khi họ đồng ý (confirmed_by_user là lời đồng ý của họ, chép nguyên văn).\n- Trả lời người dùng bằng ngôn ngữ của họ (mặc định tiếng Việt).\n```\n\nRồi tạo thêm một file ghi chú ngắn cho mình tên TRINITY-KET-NOI.md ở thư mục đang làm việc: đã nối server nào, địa chỉ, cách gọi lại Trinity (vd \"hỏi Trinity hôm nay có gì mới\"), cách đăng nhập lại nếu hết phiên.\n\n## Bước đầu tiên khi đã thấy tool của Trinity\nGọi get_setup_guide và làm theo kết quả:\n- status = chua_dung (CRM còn trống): phỏng vấn mình TỪNG câu một theo kịch bản trong kết quả, tóm tắt cho mình xác nhận, rồi propose_workspace → import_records (nếu mình có file) → complete_setup.\n- status = dang_dung: giúp mình nhập dữ liệu rồi complete_setup.\n- status = da_dung: hỏi mình muốn làm gì hôm nay.\n\nTrả lời mình bằng tiếng Việt (hoặc ngôn ngữ mình đang dùng). Báo ngắn từng bước bạn làm.",
+      "codex": "Giúp mình nối Codex CLI với Trinity, phần mềm quản lý khách hàng (CRM) của công ty mình. Trinity mã nguồn mở, điều khiển bằng trợ lý AI: bạn đọc và ghi dữ liệu Trinity qua các tool của nó, theo đúng quyền của tài khoản mình.\n\n## Máy chủ\n- Địa chỉ MCP (Streamable HTTP): @@MCP_URL@@\n- Tên server nên đặt: trinity\n\n## Đăng nhập\n- Trinity chỉ dùng OAuth 2.1 (tự đăng ký client: DCR hoặc CIMD, có PKCE). Không có token tĩnh hay API key cho việc này.\n- Gọi thử mà nhận 401 kèm WWW-Authenticate là BÌNH THƯỜNG: đó là tín hiệu để client mở trang đăng nhập Trinity.\n- KHÔNG hỏi mình token, KHÔNG bảo mình dán Bearer token, KHÔNG dùng curl để lấy token, KHÔNG tự tạo file plugin trong thư mục dự án.\n- Khi trang đăng nhập Trinity mở ra: mình đăng nhập, giữ ô \"Cho phép AI thay đổi dữ liệu\" rồi bấm Cho phép.\n\n## Cách gắn vào Codex CLI\nChạy trong terminal:\n```\ncodex mcp add trinity --url @@MCP_URL@@\ncodex mcp login trinity\n```\nHoặc thêm tay vào ~/.codex/config.toml:\n```toml\n[mcp_servers.trinity]\nurl = \"@@MCP_URL@@\"\n```\nrồi chạy `codex mcp login trinity`. Kiểm bằng `codex mcp list`.\n\n## Nếu không đăng nhập được\nNếu Codex CLI không tự mở trang đăng nhập (không có nút Authenticate/Login cho server), thay cấu hình trên bằng cầu nối chạy cục bộ, cầu nối này tự làm OAuth trong trình duyệt:\n```\nnpx -y mcp-remote @@MCP_URL@@\n```\nKhai nó như một server stdio: command \"npx\", args [\"-y\", \"mcp-remote\", \"@@MCP_URL@@\"].\n\n## Sau khi nối xong: tạo rule cho chính bạn\nThêm vào AGENTS.md (ở thư mục đang làm việc, hoặc ~/.codex/AGENTS.md cho mọi dự án) mục sau:\n```markdown\n# Trinity CRM\nTrinity là CRM của công ty, nối qua MCP server \"trinity\". Khi người dùng nhắc tới khách hàng, đơn, việc, báo cáo, Fanpage, Zalo, đăng bài… thì dùng các tool của Trinity.\n- Đầu mỗi phiên làm việc với Trinity: gọi get_setup_guide trước và làm theo \"next\" trong kết quả.\n- Gặp mã như KH001, CV001, HS001: tra bằng find_by_code.\n- Trinity không có tool xoá. Muốn bỏ thứ gì thì báo người dùng làm trên giao diện Trinity.\n- Đăng bài công khai, gửi tin hàng loạt, tắt tính năng: cho người dùng xem trước và chỉ làm khi họ đồng ý (confirmed_by_user là lời đồng ý của họ, chép nguyên văn).\n- Trả lời người dùng bằng ngôn ngữ của họ (mặc định tiếng Việt).\n```\n\nRồi tạo thêm một file ghi chú ngắn cho mình tên TRINITY-KET-NOI.md ở thư mục đang làm việc: đã nối server nào, địa chỉ, cách gọi lại Trinity (vd \"hỏi Trinity hôm nay có gì mới\"), cách đăng nhập lại nếu hết phiên.\n\n## Bước đầu tiên khi đã thấy tool của Trinity\nGọi get_setup_guide và làm theo kết quả:\n- status = chua_dung (CRM còn trống): phỏng vấn mình TỪNG câu một theo kịch bản trong kết quả, tóm tắt cho mình xác nhận, rồi propose_workspace → import_records (nếu mình có file) → complete_setup.\n- status = dang_dung: giúp mình nhập dữ liệu rồi complete_setup.\n- status = da_dung: hỏi mình muốn làm gì hôm nay.\n\nTrả lời mình bằng tiếng Việt (hoặc ngôn ngữ mình đang dùng). Báo ngắn từng bước bạn làm.",
+      "vscode": "Giúp mình nối VS Code Copilot với Trinity, phần mềm quản lý khách hàng (CRM) của công ty mình. Trinity mã nguồn mở, điều khiển bằng trợ lý AI: bạn đọc và ghi dữ liệu Trinity qua các tool của nó, theo đúng quyền của tài khoản mình.\n\n## Máy chủ\n- Địa chỉ MCP (Streamable HTTP): @@MCP_URL@@\n- Tên server nên đặt: trinity\n\n## Đăng nhập\n- Trinity chỉ dùng OAuth 2.1 (tự đăng ký client: DCR hoặc CIMD, có PKCE). Không có token tĩnh hay API key cho việc này.\n- Gọi thử mà nhận 401 kèm WWW-Authenticate là BÌNH THƯỜNG: đó là tín hiệu để client mở trang đăng nhập Trinity.\n- KHÔNG hỏi mình token, KHÔNG bảo mình dán Bearer token, KHÔNG dùng curl để lấy token, KHÔNG tự tạo file plugin trong thư mục dự án.\n- Khi trang đăng nhập Trinity mở ra: mình đăng nhập, giữ ô \"Cho phép AI thay đổi dữ liệu\" rồi bấm Cho phép.\n\n## Cách gắn vào VS Code Copilot\nThêm vào .vscode/mcp.json của workspace (hoặc cấu hình MCP của người dùng qua lệnh \"MCP: Open User Configuration\"), giữ các server đang có:\n```json\n{ \"servers\": { \"trinity\": { \"type\": \"http\", \"url\": \"@@MCP_URL@@\" } } }\n```\nBấm Start cạnh trinity trong file; cửa sổ đăng nhập Trinity mở ra. Nếu VS Code đòi clientId thì dùng cách dự phòng mcp-remote bên dưới.\n\n## Nếu không đăng nhập được\nNếu VS Code Copilot không tự mở trang đăng nhập (không có nút Authenticate/Login cho server), thay cấu hình trên bằng cầu nối chạy cục bộ, cầu nối này tự làm OAuth trong trình duyệt:\n```\nnpx -y mcp-remote @@MCP_URL@@\n```\nKhai nó như một server stdio: command \"npx\", args [\"-y\", \"mcp-remote\", \"@@MCP_URL@@\"].\n\n## Sau khi nối xong: tạo rule cho chính bạn\nThêm vào .github/copilot-instructions.md của workspace (tạo nếu chưa có) mục sau:\n```markdown\n# Trinity CRM\nTrinity là CRM của công ty, nối qua MCP server \"trinity\". Khi người dùng nhắc tới khách hàng, đơn, việc, báo cáo, Fanpage, Zalo, đăng bài… thì dùng các tool của Trinity.\n- Đầu mỗi phiên làm việc với Trinity: gọi get_setup_guide trước và làm theo \"next\" trong kết quả.\n- Gặp mã như KH001, CV001, HS001: tra bằng find_by_code.\n- Trinity không có tool xoá. Muốn bỏ thứ gì thì báo người dùng làm trên giao diện Trinity.\n- Đăng bài công khai, gửi tin hàng loạt, tắt tính năng: cho người dùng xem trước và chỉ làm khi họ đồng ý (confirmed_by_user là lời đồng ý của họ, chép nguyên văn).\n- Trả lời người dùng bằng ngôn ngữ của họ (mặc định tiếng Việt).\n```\n\nRồi tạo thêm một file ghi chú ngắn cho mình tên TRINITY-KET-NOI.md ở thư mục đang làm việc: đã nối server nào, địa chỉ, cách gọi lại Trinity (vd \"hỏi Trinity hôm nay có gì mới\"), cách đăng nhập lại nếu hết phiên.\n\n## Bước đầu tiên khi đã thấy tool của Trinity\nGọi get_setup_guide và làm theo kết quả:\n- status = chua_dung (CRM còn trống): phỏng vấn mình TỪNG câu một theo kịch bản trong kết quả, tóm tắt cho mình xác nhận, rồi propose_workspace → import_records (nếu mình có file) → complete_setup.\n- status = dang_dung: giúp mình nhập dữ liệu rồi complete_setup.\n- status = da_dung: hỏi mình muốn làm gì hôm nay.\n\nTrả lời mình bằng tiếng Việt (hoặc ngôn ngữ mình đang dùng). Báo ngắn từng bước bạn làm.",
+      "other": "Giúp mình nối Agent khác với Trinity, phần mềm quản lý khách hàng (CRM) của công ty mình. Trinity mã nguồn mở, điều khiển bằng trợ lý AI: bạn đọc và ghi dữ liệu Trinity qua các tool của nó, theo đúng quyền của tài khoản mình.\n\n## Máy chủ\n- Địa chỉ MCP (Streamable HTTP): @@MCP_URL@@\n- Tên server nên đặt: trinity\n\n## Đăng nhập\n- Trinity chỉ dùng OAuth 2.1 (tự đăng ký client: DCR hoặc CIMD, có PKCE). Không có token tĩnh hay API key cho việc này.\n- Gọi thử mà nhận 401 kèm WWW-Authenticate là BÌNH THƯỜNG: đó là tín hiệu để client mở trang đăng nhập Trinity.\n- KHÔNG hỏi mình token, KHÔNG bảo mình dán Bearer token, KHÔNG dùng curl để lấy token, KHÔNG tự tạo file plugin trong thư mục dự án.\n- Khi trang đăng nhập Trinity mở ra: mình đăng nhập, giữ ô \"Cho phép AI thay đổi dữ liệu\" rồi bấm Cho phép.\n\n## Cách gắn vào Agent khác\nGắn máy chủ theo cách của chính bạn (agent). Đọc tài liệu của bạn về \"remote MCP server / Streamable HTTP\":\n- Nếu bạn hỗ trợ máy chủ HTTP có OAuth: khai URL @@MCP_URL@@ (thường là khoá \"url\", \"httpUrl\" hoặc \"serverUrl\" trong file cấu hình MCP của bạn), rồi dùng nút/lệnh đăng nhập của bạn.\n- Nếu bạn chỉ hỗ trợ máy chủ stdio: dùng cầu nối mcp-remote bên dưới.\n\n## Nếu không đăng nhập được\nNếu Agent khác không tự mở trang đăng nhập (không có nút Authenticate/Login cho server), thay cấu hình trên bằng cầu nối chạy cục bộ, cầu nối này tự làm OAuth trong trình duyệt:\n```\nnpx -y mcp-remote @@MCP_URL@@\n```\nKhai nó như một server stdio: command \"npx\", args [\"-y\", \"mcp-remote\", \"@@MCP_URL@@\"].\n\n## Sau khi nối xong: tạo rule cho chính bạn\nNếu bạn có cơ chế rule/skill/memory (vd AGENTS.md, GEMINI.md, CLAUDE.md, thư mục rules), tạo một mục \"trinity\" với nội dung:\n```markdown\n# Trinity CRM\nTrinity là CRM của công ty, nối qua MCP server \"trinity\". Khi người dùng nhắc tới khách hàng, đơn, việc, báo cáo, Fanpage, Zalo, đăng bài… thì dùng các tool của Trinity.\n- Đầu mỗi phiên làm việc với Trinity: gọi get_setup_guide trước và làm theo \"next\" trong kết quả.\n- Gặp mã như KH001, CV001, HS001: tra bằng find_by_code.\n- Trinity không có tool xoá. Muốn bỏ thứ gì thì báo người dùng làm trên giao diện Trinity.\n- Đăng bài công khai, gửi tin hàng loạt, tắt tính năng: cho người dùng xem trước và chỉ làm khi họ đồng ý (confirmed_by_user là lời đồng ý của họ, chép nguyên văn).\n- Trả lời người dùng bằng ngôn ngữ của họ (mặc định tiếng Việt).\n```\n\nRồi tạo thêm một file ghi chú ngắn cho mình tên TRINITY-KET-NOI.md ở thư mục đang làm việc: đã nối server nào, địa chỉ, cách gọi lại Trinity (vd \"hỏi Trinity hôm nay có gì mới\"), cách đăng nhập lại nếu hết phiên.\n\n## Bước đầu tiên khi đã thấy tool của Trinity\nGọi get_setup_guide và làm theo kết quả:\n- status = chua_dung (CRM còn trống): phỏng vấn mình TỪNG câu một theo kịch bản trong kết quả, tóm tắt cho mình xác nhận, rồi propose_workspace → import_records (nếu mình có file) → complete_setup.\n- status = dang_dung: giúp mình nhập dữ liệu rồi complete_setup.\n- status = da_dung: hỏi mình muốn làm gì hôm nay.\n\nTrả lời mình bằng tiếng Việt (hoặc ngôn ngữ mình đang dùng). Báo ngắn từng bước bạn làm."
+    },
+    "rule": "# Trinity CRM\nTrinity là CRM của công ty, nối qua MCP server \"trinity\". Khi người dùng nhắc tới khách hàng, đơn, việc, báo cáo, Fanpage, Zalo, đăng bài… thì dùng các tool của Trinity.\n- Đầu mỗi phiên làm việc với Trinity: gọi get_setup_guide trước và làm theo \"next\" trong kết quả.\n- Gặp mã như KH001, CV001, HS001: tra bằng find_by_code.\n- Trinity không có tool xoá. Muốn bỏ thứ gì thì báo người dùng làm trên giao diện Trinity.\n- Đăng bài công khai, gửi tin hàng loạt, tắt tính năng: cho người dùng xem trước và chỉ làm khi họ đồng ý (confirmed_by_user là lời đồng ý của họ, chép nguyên văn).\n- Trả lời người dùng bằng ngôn ngữ của họ (mặc định tiếng Việt)."
+  }
+}

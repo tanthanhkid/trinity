@@ -32,6 +32,7 @@ trinity-auth = { workspace = true }
 trinity-db = { workspace = true }
 mod-custom = { workspace = true }
 mod-reports = { workspace = true }
+mod-setup = { workspace = true }
 mod-users = { workspace = true }
 mod-attendance = { workspace = true }
 mod-leads = { workspace = true }

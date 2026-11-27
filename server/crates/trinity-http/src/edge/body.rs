@@ -52,8 +52,18 @@ pub async fn body_limit_layer(max: usize, mut req: Request, next: Next) -> Respo
     next.run(req).await
 }
 
+/// Hạn mức toàn cục ở lớp biên: 5 MB cho JSON/urlencoded/kiểu khác (như `useBodyParser` của Node). `multipart/form-data`
+/// KHÔNG chịu hạn mức JSON: bản Node chỉ giới hạn từng tệp bằng multer (`limits.fileSize`), nên ở đây chỉ chặn trần
+/// [`STREAM_LIMIT`] (200 MB, video lớn nhất của newsfeed) theo `Content-Length`; hạn mức thật của route do
+/// `DefaultBodyLimit::max(..)` trên route đó (tổng thân) và `read_field_limited` (từng tệp) đảm nhiệm. Route multipart
+/// quên `DefaultBodyLimit` vẫn rơi về mặc định 2 MB của axum, không rộng hơn trước.
 pub async fn json_limit(req: Request, next: Next) -> Response {
-    body_limit_layer(JSON_LIMIT, req, next).await
+    let max = if is_multipart(req.headers()) { STREAM_LIMIT } else { JSON_LIMIT };
+    body_limit_layer(max, req, next).await
+}
+
+fn is_multipart(h: &HeaderMap) -> bool {
+    content_type(h) == "multipart/form-data"
 }
 
 pub async fn stream_limit(req: Request, next: Next) -> Response {

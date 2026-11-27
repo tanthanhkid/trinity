@@ -963,6 +963,99 @@ async fn tool_ghi_chay_ngay_va_tao_de_xuat_khi_bat_che_do_duyet() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn tool_cau_truc_chay_ngay_roi_thanh_de_xuat_khi_bat_che_do_duyet() {
+    let e = env_with(mod_mcp::register_group3).await;
+    let mut c = e.conn().await;
+    let adm = e
+        .token("quantri-ct", e.admin, "{crm.read,crm.write}", RESOURCE, "1 hour", false)
+        .await;
+    let args = |label: &str| {
+        json!({ "label": label, "fields": [{ "label": "Mã", "type": "text" }], "confirmed_by_user": "ok tạo đi" })
+    };
+
+    // Chưa có lời đồng ý ⇒ không tạo gì, không có đề xuất.
+    let (err, text, _) = run(&e, &adm, "create_object", &json!({ "label": "Hợp đồng", "fields": [] })).await;
+    assert!(err && text.contains("Chưa tạo gì"), "{text}");
+    assert_eq!(e.scalar("SELECT count(*) FROM custom_objects").await, 0);
+
+    // Mặc định chạy ngay: bảng được tạo, đề xuất `executed`, phiên bản cấu trúc chụp TRƯỚC khi đổi gắn với đề xuất đó.
+    let (err, _, v) = run(&e, &adm, "create_object", &args("Hợp đồng")).await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["status"], "executed");
+    let aid = v["data"]["action_id"].as_i64().unwrap();
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM custom_objects WHERE key = 'hop_dong' AND deleted_at IS NULL")
+            .await,
+        1
+    );
+    assert_eq!(
+        e.scalar(&format!(
+            "SELECT count(*) FROM ai_action_drafts WHERE id = {aid} AND status = 'executed' AND tool = 'create_object'"
+        ))
+        .await,
+        1
+    );
+    assert_eq!(
+        e.scalar(&format!(
+            "SELECT count(*) FROM custom_schema_versions WHERE draft_id = {aid} AND tool = 'create_object'"
+        ))
+        .await,
+        1
+    );
+
+    // Sửa tên bảng cũng chạy ngay.
+    let (err, _, v) = run(
+        &e,
+        &adm,
+        "update_object",
+        &json!({ "object": "hop_dong", "patch": { "label": "Hợp đồng bán" } }),
+    )
+    .await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["status"], "executed");
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM custom_objects WHERE key = 'hop_dong' AND label = 'Hợp đồng bán'")
+            .await,
+        1
+    );
+
+    // Bật "Yêu cầu duyệt thay đổi do AI": chỉ tạo đề xuất, KHÔNG tạo bảng, KHÔNG chụp phiên bản; gọi lại y hệt ⇒ cùng đề xuất.
+    exec(
+        &mut c,
+        "INSERT INTO settings (key, value, updated_at) VALUES ('ai_require_approval', 'true', now())",
+    )
+    .await;
+    let versions_before = e.scalar("SELECT count(*) FROM custom_schema_versions").await;
+    let (err, _, v) = run(&e, &adm, "create_object", &args("Báo giá")).await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["status"], "pending");
+    assert_eq!(v["data"]["duplicate"], false);
+    let pid = v["data"]["action_id"].as_i64().unwrap();
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM custom_objects WHERE key = 'bao_gia'").await,
+        0
+    );
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM custom_schema_versions").await,
+        versions_before
+    );
+    let (_, _, again) = run(&e, &adm, "create_object", &args("Báo giá")).await;
+    assert_eq!(again["data"]["duplicate"], true);
+    assert_eq!(again["data"]["action_id"].as_i64(), Some(pid));
+
+    // Đổi cấu trúc khác (menu, màn xem) cũng chỉ thành đề xuất khi bật chế độ duyệt.
+    let (err, _, v) = run(&e, &adm, "set_menu", &json!({ "menu": [{ "object": "hop_dong" }] })).await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["status"], "pending");
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM ai_action_drafts WHERE status = 'pending'")
+            .await,
+        2
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
 async fn tool_dang_bai_kenh_va_thu_vien_media() {
     let e = env_with(|r| {
         let root = std::env::temp_dir().join(format!("m44a_media_{}", std::process::id()));

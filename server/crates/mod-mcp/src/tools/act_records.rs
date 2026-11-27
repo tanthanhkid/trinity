@@ -403,6 +403,7 @@ async fn core_create_prepare(cx: &ActionCx<'_>, key: &str, vals: &Map<String, Va
         params: json!({ "object": key, "values": p.params }),
         summary: p.summary,
         details: p.details,
+        impact: None,
     })
 }
 
@@ -489,6 +490,7 @@ async fn core_update_prepare(
             summary: shown(&format!("Sửa khách \"{name}\": {}", keys_of(&params)), 300),
             details: lines(details),
             params: json!({ "object": key, "id": id, "values": params }),
+            impact: None,
         });
     }
     if key != "tasks" {
@@ -529,6 +531,7 @@ async fn core_update_prepare(
         ),
         details: lines(details),
         params: json!({ "object": key, "id": id, "values": params }),
+        impact: None,
     })
 }
 
@@ -569,6 +572,7 @@ pub(crate) static CREATE_RECORD: ActionDef = ActionDef {
     permissions: &[],
     prepare: create_prepare,
     execute: create_execute,
+    structure: false,
 };
 
 fn create_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
@@ -605,6 +609,7 @@ fn create_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Re
                 300,
             ),
             details: lines(details),
+            impact: None,
         })
     })
 }
@@ -656,6 +661,7 @@ pub(crate) static UPDATE_RECORD: ActionDef = ActionDef {
     permissions: &[],
     prepare: update_prepare,
     execute: update_execute,
+    structure: false,
 };
 
 /// Dòng bản ghi tuỳ biến của bảng `object_id`: (chủ, người tạo, tiêu đề, dữ liệu dạng chuỗi JSON).
@@ -760,6 +766,7 @@ fn update_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Re
                 300,
             ),
             details: lines(details),
+            impact: None,
         })
     })
 }
@@ -806,6 +813,7 @@ pub(crate) static ARCHIVE_RECORD: ActionDef = ActionDef {
     permissions: &["custom_records.view", "custom_records.delete"],
     prepare: archive_prepare,
     execute: archive_execute,
+    structure: false,
 };
 
 fn archive_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
@@ -850,6 +858,7 @@ fn archive_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, R
                     600,
                 ),
             ]),
+            impact: None,
         })
     })
 }

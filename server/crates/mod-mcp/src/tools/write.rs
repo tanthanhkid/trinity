@@ -1,26 +1,16 @@
 //! Phần dùng chung của tool GHI cấu trúc (M43): lời đồng ý của người dùng (`user-confirmation.ts`), làm sạch văn bản AI gửi
 //! (`action-helpers.ts`), đổi lỗi dịch vụ sang lỗi tool, lưu phiên bản cấu trúc trước mỗi lần đổi, chặn khi bật "Yêu cầu duyệt".
 //!
-//! Khung đề xuất/duyệt (M42: `create_draft`, hạn mức ghi theo người/ứng dụng) CHƯA có trên main. Tới khi có, các tool ở đây chỉ
-//! chạy chế độ GHI NGAY; chế độ "Yêu cầu duyệt thay đổi do AI" bật thì từ chối (không ghi lặng lẽ) bằng [`assert_direct`].
-
-use std::future::Future;
+//! Các thao tác cấu trúc là `ActionDef` của khung đề xuất/duyệt M42 (`crate::actions`): `prepare` kiểm và KHÔNG ghi, `execute` ghi
+//! qua `mod-custom`/`mod-setup`; chạy ngay hoặc chờ duyệt do khung quyết định theo cài đặt "Yêu cầu duyệt thay đổi do AI".
 
 use serde_json::{Value, json};
 use trinity_kernel::error::{AppError, Message};
-use trinity_kernel::json::js_json;
 use trinity_kernel::vi::fold_vi;
 use unicode_normalization::UnicodeNormalization;
 
-use super::wrapped;
-use crate::ai_output::slice16;
-use crate::exec::{ToolCtx, ToolError, ToolOutput};
-
-/// Scope của mọi tool ghi.
-pub(super) const WRITE_SCOPE: &str = "crm.write";
-
-/// Khoá `settings` của "Yêu cầu duyệt thay đổi do AI" (`REQUIRE_APPROVAL_KEY`).
-const REQUIRE_APPROVAL_KEY: &str = "ai_require_approval";
+use crate::ai_output::{mask_phones_in_text, slice16};
+use crate::exec::ToolError;
 
 pub(super) type Detail = (String, String);
 
@@ -195,162 +185,43 @@ pub(super) fn line(label: &str, value: impl Into<String>, max: usize) -> Option<
     (!v.is_empty()).then(|| (label.to_owned(), slice16(&v, max)))
 }
 
-/// Chế độ "Yêu cầu duyệt thay đổi do AI" bật (hoặc không đọc được) ⇒ từ chối: khung đề xuất thuộc M42 (fail-closed, không ghi).
-pub(super) async fn assert_direct(ctx: &ToolCtx<'_>) -> Result<(), ToolError> {
-    let v: Option<String> = {
-        let mut c = ctx.deps.conn(ctx.principal.company).await?;
-        sqlx::query_scalar("SELECT value FROM settings WHERE key = $1")
-            .bind(REQUIRE_APPROVAL_KEY)
-            .fetch_optional(&mut *c)
-            .await
-            .map_err(internal)?
-    };
-    if v.as_deref() == Some("true") {
-        return Err(user(
-            "Workspace đang bật \"Yêu cầu duyệt thay đổi do AI\", nhưng bản máy chủ này chưa hỗ trợ tạo đề xuất chờ duyệt cho thay đổi cấu trúc. \
-             Chưa ghi gì: nhờ quản trị viên tắt tuỳ chọn đó (Cài đặt › Kết nối & AI) hoặc tự thao tác trên giao diện. / \
-             Approval mode is on and this server cannot queue structure drafts yet; nothing was changed.",
-        ));
-    }
-    Ok(())
-}
-
-/// Kết quả `prepare` của một thao tác: tham số đã chuẩn hoá, câu tóm tắt và các dòng chi tiết (văn bản thuần).
-pub(super) struct Prepared {
-    pub params: Value,
-    pub summary: String,
-    pub details: Vec<Detail>,
-}
-
-/// Vài dòng lỗi đầu của `result.errors` `[{row, reason}]` (import) để nêu ngay trong `message` (`rowErrorNote`).
-fn row_error_note(result: &Value) -> String {
-    let Some(errs) = result.get("errors").and_then(Value::as_array).filter(|a| !a.is_empty()) else {
-        return String::new();
-    };
-    let total = result
-        .get("error_total")
-        .and_then(Value::as_u64)
-        .unwrap_or(errs.len() as u64);
-    let mut rows: Vec<(i64, String)> = errs
-        .iter()
-        .map(|e| {
-            let obj = e
-                .get("object")
-                .and_then(Value::as_str)
-                .map(|o| format!("{o} "))
-                .unwrap_or_default();
-            let reason = e.get("reason").and_then(Value::as_str).unwrap_or_default();
-            let reason = if reason.chars().count() > 80 {
-                format!("{}…", reason.chars().take(80).collect::<String>())
-            } else {
-                reason.to_owned()
-            };
-            (
-                e.get("row").and_then(Value::as_i64).unwrap_or(0),
-                format!(
-                    "{obj}dòng {}: {reason}",
-                    e.get("row").and_then(Value::as_i64).unwrap_or(0)
-                ),
-            )
-        })
-        .collect();
-    rows.sort_by_key(|r| r.0);
-    let preview = rows.iter().take(3).map(|r| r.1.as_str()).collect::<Vec<_>>().join("; ");
-    format!(
-        ". {total} dòng lỗi không ghi: {preview}{}",
-        if total > 3 { " … (xem result.errors)" } else { "" }
-    )
-}
-
-/// Chạy NGAY một thao tác ghi (`executeNow` của `ai-actions.service.ts`, chưa có hạn mức ghi và chế độ duyệt của M42): ghi dòng
-/// `ai_action_drafts` trạng thái `approved` (lịch sử "Hoạt động AI"), lưu phiên bản cấu trúc nếu `structure`, chạy `exec`, rồi đặt
-/// `executed` + kết quả (hoặc `failed` + lỗi). Lỗi ghi lịch sử SAU khi đã chạy không biến thao tác thành thất bại.
-pub(super) async fn run_direct<F>(
-    ctx: &ToolCtx<'_>,
-    tool: &str,
-    structure: bool,
-    prepared: Prepared,
-    exec: F,
-) -> Result<ToolOutput, ToolError>
-where
-    F: Future<Output = Result<Value, ToolError>>,
-{
-    let p = ctx.principal;
-    let summary = slice16(&prepared.summary, 1000);
-    let details = Value::Array(
-        prepared
-            .details
+/// Kết quả `prepare` của khung M42 từ các phần của một thao tác cấu trúc: chi tiết (cặp nhãn/giá trị) đổi sang dòng JSON, SĐT
+/// trong văn bản tự do bị che, tóm tắt cắt 300 ký tự như `shown(summary)` của bản TS.
+pub(super) fn prepared(
+    params: Value,
+    summary: &str,
+    details: &[Detail],
+    impact: Option<Value>,
+) -> crate::actions::Prepared {
+    crate::actions::Prepared {
+        params,
+        summary: crate::actions::shown(summary, 300),
+        details: details
             .iter()
-            .map(|(l, v)| json!({ "label": l, "value": v }))
+            .map(|(l, v)| json!({ "label": l, "value": mask_phones_in_text(v) }))
             .collect(),
-    );
-    let id: i32 = {
-        let mut c = ctx.deps.conn(p.company).await?;
-        sqlx::query_scalar(
-            "INSERT INTO ai_action_drafts (user_id, client_id, tool, params, summary, details, status, decided_at, expires_at) \
-             VALUES ($1, $2, $3, $4::text::jsonb, $5, $6::text::jsonb, 'approved', now(), now() + interval '24 hours') RETURNING id",
-        )
-        .bind(p.user_id)
-        .bind(&p.client_id)
-        .bind(tool)
-        .bind(js_json(&prepared.params))
-        .bind(&summary)
-        .bind(js_json(&details))
-        .fetch_one(&mut *c)
-        .await
-        .map_err(internal)?
-    };
-    if structure {
-        // Phiên bản gắn với id đề xuất như bản TS (`versions.save(row.id, …)`).
-        let res = async {
-            let mut c = ctx.deps.conn(p.company).await.map_err(|e| format!("{e:?}"))?;
-            mod_custom::versions::save(&mut c, Some(id), tool, &summary, p.user_id)
-                .await
-                .map_err(|e| format!("{e:?}"))
-        }
-        .await;
-        if let Err(e) = res {
-            tracing::warn!("Không lưu được phiên bản cấu trúc trước {tool}: {e}");
-        }
+        impact,
     }
-    let result = match exec.await {
-        Ok(r) => r,
-        Err(e) => {
-            let why = match &e {
-                ToolError::User(m) | ToolError::Forbidden(m) | ToolError::Plain(m) | ToolError::Internal(m) => {
-                    m.clone()
-                }
-                ToolError::Http { message, .. } => message.clone(),
-                ToolError::NotFound => "not_found".to_owned(),
-            };
-            if let Ok(mut c) = ctx.deps.conn(p.company).await {
-                let _ = sqlx::query("UPDATE ai_action_drafts SET status = 'failed', error = $2 WHERE id = $1")
-                    .bind(id)
-                    .bind(slice16(&why, 1000))
-                    .execute(&mut *c)
-                    .await;
-            }
-            return Err(e);
-        }
-    };
-    match ctx.deps.conn(p.company).await {
-        Ok(mut c) => {
-            if let Err(e) =
-                sqlx::query("UPDATE ai_action_drafts SET status = 'executed', result = $2::text::jsonb WHERE id = $1")
-                    .bind(id)
-                    .bind(js_json(&result))
-                    .execute(&mut *c)
-                    .await
-            {
-                tracing::error!("Ghi kết quả thao tác AI #{id} lỗi: {e}");
-            }
-        }
-        Err(e) => tracing::error!("Ghi kết quả thao tác AI #{id} lỗi: {e:?}"),
-    }
-    let message = format!("Đã thực hiện: {summary}{}", row_error_note(&result));
-    wrapped(&json!({
-        "action_id": id, "status": "executed", "summary": summary, "result": result, "message": message,
-    }))
+}
+
+/// `makeImpact` của `impact.ts`: có bản ghi bị ảnh hưởng ⇒ `confirm_label` = tên bảng đầu tiên có bản ghi (người duyệt phải gõ đúng).
+pub(super) fn impact_json(tables: &[(String, String, i64)], lines: &[String]) -> Value {
+    let affected: i64 = tables.iter().map(|t| t.2).sum();
+    let confirm = tables
+        .iter()
+        .find(|t| t.2 > 0)
+        .filter(|_| affected > 0)
+        .map_or(Value::Null, |t| json!(t.1));
+    json!({
+        "affected_records": affected,
+        "confirm_label": confirm,
+        "lines": lines.iter().take(12).collect::<Vec<_>>(),
+        "tables": tables
+            .iter()
+            .take(20)
+            .map(|(k, l, n)| json!({ "key": k, "label": l, "records": n }))
+            .collect::<Vec<_>>(),
+    })
 }
 
 /// Số nguyên có dấu trong `Value` (JSON số nguyên hoặc số thực không phần lẻ).

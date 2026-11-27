@@ -910,14 +910,28 @@ fn tool_ghi_khop_hop_dong_va_khong_co_tool_xoa() {
         names,
         [
             "add_contact_note",
+            "add_field",
+            "archive_field",
             "archive_record",
             "assign_contact",
             "create_contact",
+            "create_object",
+            "create_objects",
             "create_record",
             "create_task",
+            "create_view",
             "get_action_status",
+            "import_records",
+            "install_object_template",
+            "propose_workspace",
+            "restore_structure_version",
+            "set_menu",
+            "setup_build",
             "update_contact_stage",
+            "update_field",
+            "update_object",
             "update_record",
+            "update_view",
         ]
     );
     let frozen = Frozen::embedded();

@@ -21,18 +21,19 @@ use super::structure::{
     ObjectSpec, app_msg, apply_objects, check_objects, load_def, object_details, parse_object, purge_created,
 };
 use super::view_tools::{assert_type_chosen, describe_view, parse_menu, parse_view, table_names};
-use super::write::{
-    Detail, Prepared, assert_confirmed, assert_direct, clean_text, internal, is_user_confirmation, line, run_direct,
-    user, user_err,
-};
-use crate::exec::{ToolCtx, ToolError, ToolOutput};
+use super::write::{Detail, assert_confirmed, clean_text, internal, is_user_confirmation, line, prepared, user, user_err};
+use crate::actions::{ActionCx, ActionDef, Prepared};
+use crate::exec::ToolError;
 use crate::protocol::BoxFuture;
+
+const MANAGE: &[&str] = &["custom_objects.manage"];
+const MANAGE_FEATURES: &[&str] = &["custom_objects.manage", "settings.features"];
 
 const MAX_PACKAGE_OBJECTS: usize = 8;
 const MAX_PACKAGE_VIEWS: usize = 20;
 const BASIC_FEATURES: [&str; 6] = ["dashboard", "contacts", "kanban", "reports", "inbox", "integrations"];
 
-async fn live_keys(ctx: &ToolCtx<'_>) -> Result<HashSet<String>, ToolError> {
+async fn live_keys(ctx: &ActionCx<'_>) -> Result<HashSet<String>, ToolError> {
     let mut c = ctx.deps.conn(ctx.principal.company).await?;
     let v: Vec<String> = sqlx::query_scalar("SELECT key FROM custom_objects WHERE deleted_at IS NULL LIMIT 200")
         .fetch_all(&mut *c)
@@ -69,23 +70,34 @@ fn confirmation(args: &Value) -> Option<&str> {
     args.get("confirmed_by_user").and_then(Value::as_str)
 }
 
-pub(super) fn install_object_template<'a>(
-    args: &'a Value,
-    ctx: &'a ToolCtx<'a>,
-) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+pub(crate) static INSTALL_OBJECT_TEMPLATE: ActionDef = ActionDef {
+    name: "install_object_template",
+    label: "Cài bảng mẫu",
+    permissions: MANAGE,
+    prepare: install_template_prepare,
+    execute: install_template_execute,
+    structure: true,
+};
+
+/// Dữ liệu mẫu cần thêm quyền ghi bản ghi (kiểm cả lúc đề xuất lẫn lúc chạy: người duyệt có thể khác người đề xuất).
+fn assert_sample_allowed(ctx: &ActionCx<'_>, sample: bool) -> Result<(), ToolError> {
+    if sample && !can(&ctx.principal.grants, "custom_records.manage", None) {
+        return Err(ToolError::Forbidden(
+            "Tạo dữ liệu mẫu cần thêm quyền “Thêm/sửa dữ liệu của tính năng tuỳ biến”".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn install_template_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
     Box::pin(async move {
-        assert_direct(ctx).await?;
         let key = clean_text(args.get("template"), 64);
         let Some(t) = find_template(&key) else {
             let all: Vec<&str> = catalog().templates.iter().map(|x| x.key.as_str()).collect();
             return Err(user(format!("Không có mẫu “{key}”. Mẫu hiện có: {}.", all.join(", "))));
         };
         let sample = args.get("with_sample_data").and_then(Value::as_bool) == Some(true);
-        if sample && !can(&ctx.principal.grants, "custom_records.manage", None) {
-            return Err(ToolError::Forbidden(
-                "Tạo dữ liệu mẫu cần thêm quyền “Thêm/sửa dữ liệu của tính năng tuỳ biến”".to_owned(),
-            ));
-        }
+        assert_sample_allowed(ctx, sample)?;
         let live = live_keys(ctx).await?;
         let fresh: Vec<&TObject> = t.objects.iter().filter(|o| !live.contains(&o.key)).collect();
         if !fresh.is_empty() {
@@ -108,39 +120,45 @@ pub(super) fn install_object_template<'a>(
             600,
         ));
         details.extend(line("Dữ liệu mẫu", if sample { "Có (giả)" } else { "Không" }, 600));
-        let prepared = Prepared {
-            params: json!({ "template": key, "with_sample_data": sample }),
-            summary: format!(
-                "Cài mẫu “{}”: tạo {} bảng{}{}",
-                t.label,
-                fresh.len(),
-                if kept > 0 {
-                    format!(", giữ {kept} bảng đã có")
-                } else {
-                    String::new()
-                },
-                if sample { ", kèm dữ liệu mẫu giả" } else { "" }
-            ),
-            details,
-        };
-        run_direct(ctx, "install_object_template", true, prepared, async {
-            let r = mod_setup::templates::apply(
-                &ctx.deps.setup_ctx(),
-                &ctx.deps.setup_actor(ctx.principal),
-                &key,
-                sample,
-            )
+        let summary = format!(
+            "Cài mẫu “{}”: tạo {} bảng{}{}",
+            t.label,
+            fresh.len(),
+            if kept > 0 {
+                format!(", giữ {kept} bảng đã có")
+            } else {
+                String::new()
+            },
+            if sample { ", kèm dữ liệu mẫu giả" } else { "" }
+        );
+        Ok(prepared(
+            json!({ "template": key, "with_sample_data": sample }),
+            &summary,
+            &details,
+            None,
+        ))
+    })
+}
+
+fn install_template_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
+    Box::pin(async move {
+        let key = params.get("template").and_then(Value::as_str).unwrap_or_default();
+        let sample = params.get("with_sample_data").and_then(Value::as_bool) == Some(true);
+        assert_sample_allowed(ctx, sample)?;
+        let r = mod_setup::templates::apply(&ctx.deps.setup_ctx(), &ctx.deps.setup_actor(ctx.principal), key, sample)
             .await
             .map_err(user_err)?;
-            Ok(json!({ "created": r["created"], "existing": r["existing"], "sample_records": r["sample_records"] }))
-        })
-        .await
+        Ok(json!({ "created": r["created"], "existing": r["existing"], "sample_records": r["sample_records"] }))
     })
 }
 
 /// Phân hệ SẼ bật khi dựng: dựng lại không truyền `features` ⇒ giữ nguyên các phân hệ đang bật.
 async fn build_features(
-    ctx: &ToolCtx<'_>,
+    ctx: &ActionCx<'_>,
     ind: &'static mod_setup::catalog::Industry,
     chosen: Option<&[String]>,
 ) -> Result<(Vec<&'static str>, Vec<&'static str>), ToolError> {
@@ -177,9 +195,23 @@ fn feature_label(k: &str) -> String {
         .map_or_else(|| k.to_owned(), |(_, l, _)| (*l).to_owned())
 }
 
-pub(super) fn setup_build<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+pub(crate) static SETUP_BUILD: ActionDef = ActionDef {
+    name: "setup_build",
+    label: "Dựng hệ thống theo loại doanh nghiệp",
+    permissions: MANAGE_FEATURES,
+    prepare: setup_build_prepare,
+    execute: setup_build_execute,
+    structure: true,
+};
+
+fn chosen_features(v: &Value) -> Option<Vec<String>> {
+    v.get("features")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_owned)).collect())
+}
+
+fn setup_build_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
     Box::pin(async move {
-        assert_direct(ctx).await?;
         let key = args.get("industry").and_then(Value::as_str).unwrap_or_default();
         let Some(ind) = industry::find(key) else {
             return Err(user(format!(
@@ -187,10 +219,7 @@ pub(super) fn setup_build<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutur
                 industry::industry_keys().join(", ")
             )));
         };
-        let chosen: Option<Vec<String>> = args
-            .get("features")
-            .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_owned)).collect());
+        let chosen = chosen_features(args);
         let (plan, off) = build_features(ctx, ind, chosen.as_deref()).await?;
         let tpl = ind.template.as_deref().and_then(find_template);
         let live = live_keys(ctx).await?;
@@ -233,36 +262,45 @@ pub(super) fn setup_build<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutur
             "Vài dòng giả, tự xoá khi có bản ghi thật đầu tiên",
             600,
         ));
-        let prepared = Prepared {
-            params: json!({ "industry": ind.key, "features": chosen, "resolved": plan }),
-            summary: format!(
-                "Dựng hệ thống “{}”: {} bảng mới, {} phân hệ bật{}",
-                ind.label,
-                fresh.len(),
-                plan.len(),
-                if off.is_empty() {
-                    String::new()
-                } else {
-                    format!(", tắt {}", off.len())
-                }
-            ),
-            details,
-        };
+        let summary = format!(
+            "Dựng hệ thống “{}”: {} bảng mới, {} phân hệ bật{}",
+            ind.label,
+            fresh.len(),
+            plan.len(),
+            if off.is_empty() {
+                String::new()
+            } else {
+                format!(", tắt {}", off.len())
+            }
+        );
+        Ok(prepared(
+            json!({ "industry": ind.key, "features": chosen, "resolved": plan }),
+            &summary,
+            &details,
+            None,
+        ))
+    })
+}
+
+fn setup_build_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
+    Box::pin(async move {
+        let key = params.get("industry").and_then(Value::as_str).unwrap_or_default();
         let input = BuildInput {
-            industry: ind.key.clone(),
-            features: chosen.clone(),
+            industry: key.to_owned(),
+            features: chosen_features(params),
         };
-        run_direct(ctx, "setup_build", true, prepared, async {
-            let r = mod_setup::build::build(&ctx.deps.setup_ctx(), &ctx.deps.setup_actor(ctx.principal), &input)
-                .await
-                .map_err(user_err)?;
-            let n = |k: &str| r[k].as_u64().unwrap_or(0);
-            Ok(json!({
-                "industry": r["industry"], "created_objects": r["created_objects"], "kept_objects": r["existing_objects"],
-                "sample_records": n("sample_records") + n("sample_contacts"),
-            }))
-        })
-        .await
+        let r = mod_setup::build::build(&ctx.deps.setup_ctx(), &ctx.deps.setup_actor(ctx.principal), &input)
+            .await
+            .map_err(user_err)?;
+        let n = |k: &str| r[k].as_u64().unwrap_or(0);
+        Ok(json!({
+            "industry": r["industry"], "created_objects": r["created_objects"], "kept_objects": r["existing_objects"],
+            "sample_records": n("sample_records") + n("sample_contacts"),
+        }))
     })
 }
 
@@ -373,7 +411,7 @@ fn default_menu(p: &Package) -> Vec<MenuEntry> {
 }
 
 /// Vai trò trong menu phải CÓ THẬT ngay lúc đề xuất.
-async fn check_roles(ctx: &ToolCtx<'_>, menu: &[MenuEntry]) -> Result<(), ToolError> {
+async fn check_roles(ctx: &ActionCx<'_>, menu: &[MenuEntry]) -> Result<(), ToolError> {
     let mut wanted: Vec<String> = Vec::new();
     for r in menu.iter().flat_map(|m| m.roles.iter().flatten()) {
         let r = r.trim().to_owned();
@@ -413,7 +451,7 @@ async fn check_roles(ctx: &ToolCtx<'_>, menu: &[MenuEntry]) -> Result<(), ToolEr
 }
 
 /// Kiểm cả gói KHÔNG ghi: bảng, màn (bảng tồn tại, loại màn do người dùng chọn, bảng có sẵn kiểm cả cấu hình), menu trỏ đúng chỗ.
-async fn check_package(ctx: &ToolCtx<'_>, p: &Package) -> Result<(), ToolError> {
+async fn check_package(ctx: &ActionCx<'_>, p: &Package) -> Result<(), ToolError> {
     check_objects(ctx, &p.objects).await?;
     let mut seen: Vec<(String, String)> = Vec::new();
     for v in &p.views {
@@ -542,7 +580,7 @@ struct NavSnapshot {
     views: Vec<(i32, bool, i32)>,
 }
 
-async fn snapshot_nav(ctx: &ToolCtx<'_>) -> Result<NavSnapshot, ToolError> {
+async fn snapshot_nav(ctx: &ActionCx<'_>) -> Result<NavSnapshot, ToolError> {
     let mut c = ctx.deps.conn(ctx.principal.company).await?;
     let objects = sqlx::query_as("SELECT id, show_in_nav, nav_order FROM custom_objects WHERE deleted_at IS NULL")
         .fetch_all(&mut *c)
@@ -555,7 +593,7 @@ async fn snapshot_nav(ctx: &ToolCtx<'_>) -> Result<NavSnapshot, ToolError> {
     Ok(NavSnapshot { objects, views })
 }
 
-async fn restore_nav(ctx: &ToolCtx<'_>, s: &NavSnapshot) {
+async fn restore_nav(ctx: &ActionCx<'_>, s: &NavSnapshot) {
     let Ok(mut c) = ctx.deps.conn(ctx.principal.company).await else {
         return;
     };
@@ -573,7 +611,7 @@ async fn restore_nav(ctx: &ToolCtx<'_>, s: &NavSnapshot) {
     }
 }
 
-async fn read_features_raw(ctx: &ToolCtx<'_>) -> Result<Option<String>, ToolError> {
+async fn read_features_raw(ctx: &ActionCx<'_>) -> Result<Option<String>, ToolError> {
     let mut c = ctx.deps.conn(ctx.principal.company).await?;
     sqlx::query_scalar("SELECT value FROM settings WHERE key = 'org_features'")
         .fetch_optional(&mut *c)
@@ -581,7 +619,7 @@ async fn read_features_raw(ctx: &ToolCtx<'_>) -> Result<Option<String>, ToolErro
         .map_err(internal)
 }
 
-async fn restore_features_raw(ctx: &ToolCtx<'_>, raw: Option<&str>) {
+async fn restore_features_raw(ctx: &ActionCx<'_>, raw: Option<&str>) {
     let Ok(mut c) = ctx.deps.conn(ctx.principal.company).await else {
         return;
     };
@@ -601,7 +639,7 @@ async fn restore_features_raw(ctx: &ToolCtx<'_>, raw: Option<&str>) {
 }
 
 /// Bật/tắt phân hệ: hệ thống mới ⇒ bộ cơ bản + phân hệ AI chọn bật, còn lại TẮT; hệ thống đang chạy ⇒ chỉ bật thêm.
-async fn apply_features(ctx: &ToolCtx<'_>, keys: &[String], blank: bool) -> Result<(), ToolError> {
+async fn apply_features(ctx: &ActionCx<'_>, keys: &[String], blank: bool) -> Result<(), ToolError> {
     let mut m = Map::new();
     if blank {
         for (k, _, _) in ORG_FEATURES.iter() {
@@ -628,7 +666,7 @@ async fn apply_features(ctx: &ToolCtx<'_>, keys: &[String], blank: bool) -> Resu
 }
 
 async fn build_package(
-    ctx: &ToolCtx<'_>,
+    ctx: &ActionCx<'_>,
     p: &Package,
     status: &str,
     created: &mut Vec<String>,
@@ -669,7 +707,7 @@ async fn build_package(
     Ok(())
 }
 
-async fn execute_package(ctx: &ToolCtx<'_>, p: &Package) -> Result<Value, ToolError> {
+async fn execute_package(ctx: &ActionCx<'_>, p: &Package) -> Result<Value, ToolError> {
     let status: String = {
         let mut c = ctx.deps.conn(ctx.principal.company).await?;
         mod_setup::status::get(&mut c).await.to_owned()
@@ -705,12 +743,28 @@ async fn execute_package(ctx: &ToolCtx<'_>, p: &Package) -> Result<Value, ToolEr
     }))
 }
 
-pub(super) fn propose_workspace<'a>(
-    args: &'a Value,
-    ctx: &'a ToolCtx<'a>,
-) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+pub(crate) static PROPOSE_WORKSPACE: ActionDef = ActionDef {
+    name: "propose_workspace",
+    label: "Dựng gói bảng + màn xem + menu",
+    permissions: MANAGE_FEATURES,
+    prepare: propose_workspace_prepare,
+    execute: propose_workspace_execute,
+    structure: true,
+};
+
+/// Phần của lời gọi được giữ trong đề xuất (bỏ `confirmed_by_user`): chạy lại bằng đúng [`parse_package`].
+fn package_params(args: &Value) -> Value {
+    let mut m = Map::new();
+    for k in ["title", "objects", "views", "menu", "features"] {
+        if let Some(v) = args.get(k).filter(|v| !v.is_null()) {
+            m.insert(k.to_owned(), v.clone());
+        }
+    }
+    Value::Object(m)
+}
+
+fn propose_workspace_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
     Box::pin(async move {
-        assert_direct(ctx).await?;
         let p = parse_package(args)?;
         check_package(ctx, &p).await?;
         let blank = {
@@ -719,32 +773,35 @@ pub(super) fn propose_workspace<'a>(
         };
         let details = describe(&p, blank);
         assert_confirmed(confirmation(args), &details)?;
-        let prepared = Prepared {
-            params: json!({
-                "title": p.title,
-                "objects": p.objects.iter().map(|o| o.key.clone()).collect::<Vec<_>>(),
-                "views": p.views.len(),
-                "features": p.features,
-            }),
-            summary: format!(
-                "Dựng gói “{}”: {} bảng ({}), {} màn xem{}",
-                p.title,
-                p.objects.len(),
-                p.objects
-                    .iter()
-                    .map(|o| o.label.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                p.views.len(),
-                if p.features.is_empty() {
-                    String::new()
-                } else {
-                    format!(", bật {} module", p.features.len())
-                }
-            ),
-            details,
-        };
-        run_direct(ctx, "propose_workspace", true, prepared, execute_package(ctx, &p)).await
+        let summary = format!(
+            "Dựng gói “{}”: {} bảng ({}), {} màn xem{}",
+            p.title,
+            p.objects.len(),
+            p.objects
+                .iter()
+                .map(|o| o.label.as_str())
+                .collect::<Vec<_>>()
+                .join(", "),
+            p.views.len(),
+            if p.features.is_empty() {
+                String::new()
+            } else {
+                format!(", bật {} module", p.features.len())
+            }
+        );
+        Ok(prepared(package_params(args), &summary, &details, None))
+    })
+}
+
+fn propose_workspace_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
+    Box::pin(async move {
+        let p = parse_package(params)?;
+        check_package(ctx, &p).await?;
+        execute_package(ctx, &p).await
     })
 }
 
@@ -781,5 +838,19 @@ mod tests {
         assert!(parse_features(Some(&json!(["khong_co"]))).is_err());
         assert!(parse_features(Some(&json!("pos"))).is_err());
         assert!(parse_features(None).unwrap().is_empty());
+    }
+
+    #[test]
+    fn goi_giu_nguyen_qua_params() {
+        let args = json!({
+            "title": "CRM", "confirmed_by_user": "ok", "agent": "claude",
+            "objects": [{ "label": "Đơn", "fields": [{ "label": "Mã", "type": "text" }] }],
+            "views": [], "features": ["pos"],
+        });
+        let params = package_params(&args);
+        assert!(params.get("confirmed_by_user").is_none() && params.get("agent").is_none());
+        let p = parse_package(&params).unwrap();
+        assert_eq!((p.title.as_str(), p.objects.len(), p.features.len()), ("CRM", 1, 1));
+        assert!(p.menu.is_none());
     }
 }

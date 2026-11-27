@@ -580,24 +580,28 @@ async fn gioi_han_dat_don_tra_cuu_va_trang_thai_don() {
     // Đổi trạng thái: sai giá trị ⇒ 400; ngoài phạm vi ⇒ 404; cùng trạng thái không ghi sự kiện; sang `paid` ghi thêm `store_order.paid`.
     let id = rows[0].id;
     assert_eq!(
-        msg(shop::update_order_status(&mut conn, Some(&all), id, "xong")
+        msg(shop::update_order_status(&mut conn, Some(&all), Some(&all), id, "xong")
             .await
             .unwrap_err()),
         "Trạng thái không hợp lệ."
     );
     assert_eq!(
-        msg(shop::update_order_status(&mut conn, Some(&other), id, "paid")
-            .await
-            .unwrap_err()),
+        msg(
+            shop::update_order_status(&mut conn, Some(&other), Some(&all), id, "paid")
+                .await
+                .unwrap_err()
+        ),
         "Không tìm thấy"
     );
     assert_eq!(
-        msg(shop::update_order_status(&mut conn, Some(&all), 999_999, "paid")
-            .await
-            .unwrap_err()),
+        msg(
+            shop::update_order_status(&mut conn, Some(&all), Some(&all), 999_999, "paid")
+                .await
+                .unwrap_err()
+        ),
         "Không có đơn này."
     );
-    let same = shop::update_order_status(&mut conn, Some(&all), id, "new")
+    let same = shop::update_order_status(&mut conn, Some(&all), Some(&all), id, "new")
         .await
         .unwrap();
     assert_eq!(same.status, "new");
@@ -609,7 +613,7 @@ async fn gioi_han_dat_don_tra_cuu_va_trang_thai_don() {
         .await,
         0
     );
-    let paid = shop::update_order_status(&mut conn, Some(&own), id, "paid")
+    let paid = shop::update_order_status(&mut conn, Some(&own), Some(&all), id, "paid")
         .await
         .unwrap();
     assert_eq!(paid.status, "paid");
@@ -638,7 +642,24 @@ async fn gioi_han_dat_don_tra_cuu_va_trang_thai_don() {
         (ev["previous_status"].as_str(), ev["order"]["status"].as_str()),
         (Some("new"), Some("paid"))
     );
-    shop::update_order_status(&mut conn, Some(&all), id, "done")
+    // PATCH che SĐT theo `contacts.phone_full`; không còn phát sự kiện khi trạng thái đã đúng (so trạng thái hiện tại).
+    let shipped = shop::update_order_status(&mut conn, Some(&all), None, id, "shipped")
+        .await
+        .unwrap();
+    assert!(shipped.customer_phone.starts_with("***"), "{}", shipped.customer_phone);
+    let again = shop::update_order_status(&mut conn, Some(&all), Some(&all), id, "shipped")
+        .await
+        .unwrap();
+    assert_eq!(again.customer_phone, "0900000098");
+    assert_eq!(
+        e.scalar(
+            a,
+            "SELECT count(*) FROM integration_events WHERE event_type = 'store_order.status_changed'"
+        )
+        .await,
+        2
+    );
+    shop::update_order_status(&mut conn, Some(&all), Some(&all), id, "done")
         .await
         .unwrap();
     assert_eq!(
@@ -649,4 +670,36 @@ async fn gioi_han_dat_don_tra_cuu_va_trang_thai_don() {
         .await,
         1
     );
+
+    // Người phụ trách bị khoá ⇒ khách mới chưa có người phụ trách (không gán cho tài khoản không hoạt động).
+    sqlx::query("UPDATE users SET status = 'locked' WHERE id = 1")
+        .execute(&mut e.conn(a).await)
+        .await
+        .unwrap();
+    order(&e, &limits, a, "shop-gh", "7.7.7.7", &body("0900000555"))
+        .await
+        .unwrap();
+    assert_eq!(
+        e.scalar(
+            a,
+            "SELECT count(*) FROM contacts WHERE phone = '0900000555' AND assigned_to IS NULL"
+        )
+        .await,
+        1
+    );
+
+    // Giá × số lượng tràn i64 ⇒ 400 (không panic).
+    let huge = product(&e, a, "SPX", "Tỷ phú", Some(i64::MAX / 50), true).await;
+    save(&e, a, json!({ "product_ids": [p, huge] })).await.unwrap();
+    let err = order(
+        &e,
+        &limits,
+        a,
+        "shop-gh",
+        "6.6.6.6",
+        &json!({ "name": "K", "phone": "0900000556", "address": "x", "items": [{ "product_id": huge, "quantity": 99 }] }),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(describe(err), "Tổng đơn quá lớn.");
 }

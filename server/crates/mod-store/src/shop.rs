@@ -143,7 +143,7 @@ async fn products(conn: &mut PgConnection, ids: &[i64]) -> Result<Vec<ProductOut
         })
         .collect::<Result<_, sqlx::Error>>()
         .map_err(db)?;
-    // Thứ tự theo danh sách của cửa hàng (sản phẩm lạ về cuối như `order.get(id) ?? 0`).
+    // Thứ tự theo danh sách của cửa hàng (`order.get(id) ?? 0` của bản TS: id không có trong danh sách xếp đầu; ở đây các dòng đều thuộc danh sách vì đã lọc theo `ANY($1)`).
     out.sort_by_key(|p| ids.iter().position(|i| *i == i64::from(p.id)).unwrap_or(0));
     Ok(out)
 }
@@ -395,7 +395,13 @@ pub async fn place_order(
     if lines.is_empty() {
         return Err(bad("Giỏ hàng trống hoặc sản phẩm không còn bán."));
     }
-    let total: i64 = lines.iter().map(|l| l.price * l.quantity).sum();
+    // Tổng đơn bằng số học kiểm tràn: giá × số lượng quá lớn ⇒ 400, không panic/tràn âm thầm.
+    let total = lines
+        .iter()
+        .try_fold(0_i64, |acc, l| {
+            l.price.checked_mul(l.quantity).and_then(|v| acc.checked_add(v))
+        })
+        .ok_or_else(|| bad("Tổng đơn quá lớn."))?;
     if method == "bank_transfer" && !(1000..=10_000_000_000).contains(&total) {
         return Err(bad("Tổng đơn phải từ 1.000đ tới 10 tỷ để chuyển khoản."));
     }
@@ -517,11 +523,12 @@ fn settings_trim(s: &str) -> &str {
 
 async fn owner_of(conn: &mut PgConnection, s: &StoreSettings) -> Result<Option<Owner>, AppError> {
     let Some(uid) = s.owner_user_id else { return Ok(None) };
-    let row: Option<(i32, Option<i32>)> = sqlx::query_as("SELECT id, team_id FROM users WHERE id = $1")
-        .bind(uid)
-        .fetch_optional(conn)
-        .await
-        .map_err(db)?;
+    let row: Option<(i32, Option<i32>)> =
+        sqlx::query_as("SELECT id, team_id FROM users WHERE id = $1 AND status = 'active' AND deleted_at IS NULL")
+            .bind(uid)
+            .fetch_optional(conn)
+            .await
+            .map_err(db)?;
     Ok(row.map(|(id, team_id)| Owner { id: Some(id), team_id }))
 }
 
@@ -684,62 +691,65 @@ fn js_num_str(s: &str) -> Option<f64> {
     js_num(&Value::String(s.to_owned()))
 }
 
-/// `PATCH /store/orders/:id`: đổi trạng thái. Ngoài phạm vi `deals.manage` (`manage`) ⇒ 404. Mọi lần đổi ghi
+/// `PATCH /store/orders/:id`: đổi trạng thái; SĐT trả về che theo `contacts.phone_full` (`phone_full`). Ngoài phạm vi `deals.manage` (`manage`) ⇒ 404. Mọi lần đổi ghi
 /// `store_order.status_changed`, thêm `store_order.paid` khi sang `paid` (chuyển khoản do nhân viên xác nhận tay).
 pub async fn update_order_status(
     conn: &mut PgConnection,
     manage: Option<&OwnerIds>,
+    phone_full: Option<&OwnerIds>,
     id: i32,
     status: &str,
 ) -> Result<OrderOut, AppError> {
     if !STORE_ORDER_STATUSES.contains(&status) {
         return Err(HttpError::bad_request("Trạng thái không hợp lệ.").into());
     }
-    let cur: Option<FullRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
-        "SELECT {FULL_COLS} FROM store_orders WHERE id = $1"
-    )))
-    .bind(id)
-    .fetch_optional(&mut *conn)
-    .await
-    .map_err(db)?;
-    let Some(cur) = cur else {
+    let cur: Option<(Option<i32>,)> = sqlx::query_as("SELECT contact_id FROM store_orders WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&mut *conn)
+        .await
+        .map_err(db)?;
+    let Some((contact_id,)) = cur else {
         return Err(not_found("Không có đơn này.").into());
     };
     // Ngoài phạm vi `deals.manage` ⇒ 404 (không lộ là có đơn).
-    let assigned = contact_owners(conn, &[cur.11])
+    let assigned = contact_owners(conn, &[contact_id])
         .await?
-        .get(&cur.11.unwrap_or(0))
+        .get(&contact_id.unwrap_or(0))
         .copied()
         .flatten();
     assert_in_scope(manage, &[assigned]).map_err(|e| AppError::from(*e))?;
-    if cur.2 == status {
-        let phone = cur.4.clone();
-        return Ok(out_of(cur, phone));
-    }
-    let previous = cur.2.clone();
+    // Khoá dòng đơn rồi so trạng thái HIỆN TẠI: hai người đổi cùng lúc thì người sau thấy trạng thái đã đổi, không phát sự kiện
+    // trùng và `previous_status` luôn đúng.
     let mut tx = conn.begin().await.map_err(db)?;
-    let row = sqlx::query(sqlx::AssertSqlSafe(format!(
-        "UPDATE store_orders SET status = $2, updated_at = now() WHERE id = $1 RETURNING {ORDER_COLS}"
-    )))
-    .bind(id)
-    .bind(status)
-    .fetch_one(&mut *tx)
-    .await
-    .map_err(db)?;
-    let order = snapshot(&row, assigned).map_err(db)?;
-    publish_integration_event(
-        &mut tx,
-        "store_order.status_changed",
-        &json!({ "order": order, "previous_status": previous }),
-        id,
-        None,
-    )
-    .await
-    .map_err(AppError::internal)?;
-    if status == "paid" {
-        publish_integration_event(&mut tx, "store_order.paid", &json!({ "order": order }), id, None)
-            .await
-            .map_err(AppError::internal)?;
+    let previous: String = sqlx::query_scalar("SELECT status FROM store_orders WHERE id = $1 FOR UPDATE")
+        .bind(id)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(db)?;
+    if previous != status {
+        let row = sqlx::query(sqlx::AssertSqlSafe(format!(
+            "UPDATE store_orders SET status = $2, updated_at = now() WHERE id = $1 RETURNING {ORDER_COLS}"
+        )))
+        .bind(id)
+        .bind(status)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(db)?;
+        let order = snapshot(&row, assigned).map_err(db)?;
+        publish_integration_event(
+            &mut tx,
+            "store_order.status_changed",
+            &json!({ "order": order, "previous_status": previous }),
+            id,
+            None,
+        )
+        .await
+        .map_err(AppError::internal)?;
+        if status == "paid" {
+            publish_integration_event(&mut tx, "store_order.paid", &json!({ "order": order }), id, None)
+                .await
+                .map_err(AppError::internal)?;
+        }
     }
     tx.commit().await.map_err(db)?;
     let full: FullRow = sqlx::query_as(sqlx::AssertSqlSafe(format!(
@@ -749,6 +759,9 @@ pub async fn update_order_status(
     .fetch_one(&mut *conn)
     .await
     .map_err(db)?;
-    let phone = full.4.clone();
+    // SĐT che theo `contacts.phone_full` như danh sách đơn.
+    let phone = PhoneMasker::new(phone_full.cloned())
+        .mask(&[assigned], Some(&full.4))
+        .unwrap_or_default();
     Ok(out_of(full, phone))
 }

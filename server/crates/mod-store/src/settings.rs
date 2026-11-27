@@ -18,7 +18,7 @@ pub const STORE_THEMES: [&str; 3] = ["toi-gian", "am-ap", "soi-dong"];
 const RESERVED: [&str; 8] = ["admin", "api", "www", "app", "login", "settings", "static", "trinity"];
 
 /// Cấu hình cửa hàng. Thứ tự trường như `DEFAULTS` của bản TS (thứ tự khoá JSON lưu trong DB).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct StoreSettings {
     pub slug: String,
@@ -43,6 +43,9 @@ pub struct StoreSettings {
     pub product_ids: Vec<i64>,
     /// Người phụ trách khách mới tạo từ đơn online.
     pub owner_user_id: Option<i32>,
+    /// Khoá lạ trong JSON đã lưu (bản TS giữ nguyên khi lưu lại, ta cũng vậy).
+    #[serde(flatten)]
+    pub extra: Map<String, Value>,
 }
 
 impl Default for StoreSettings {
@@ -66,6 +69,7 @@ impl Default for StoreSettings {
             published: false,
             product_ids: Vec::new(),
             owner_user_id: None,
+            extra: Map::new(),
         }
     }
 }
@@ -88,7 +92,7 @@ pub fn store_banks() -> Vec<BankOption> {
 }
 
 /// Phản hồi `GET`/`PUT /store/settings` (`withPublicPath`): cấu hình + `public_path` + `banks`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SettingsView {
     #[serde(flatten)]
     pub settings: StoreSettings,
@@ -203,11 +207,14 @@ fn valid_slug(s: &str) -> bool {
 }
 
 fn valid_https(s: &str) -> bool {
-    s.len() > 8
-        && s[..8].eq_ignore_ascii_case("https://")
-        && s[8..]
-            .chars()
-            .all(|c| !c.is_whitespace() && !matches!(c, '"' | '\'' | '<' | '>'))
+    // `get(..8)` (không cắt theo byte): ký tự nhiều byte ở đầu chuỗi không làm panic.
+    s.get(..8).is_some_and(|p| p.eq_ignore_ascii_case("https://"))
+        && s.get(8..).is_some_and(|rest| {
+            !rest.is_empty()
+                && rest
+                    .chars()
+                    .all(|c| !c.is_whitespace() && !matches!(c, '"' | '\'' | '<' | '>'))
+        })
 }
 
 fn valid_accent(s: &str) -> bool {
@@ -311,7 +318,10 @@ pub fn clean(input: &Map<String, Value>, current: &StoreSettings) -> Result<Stor
     if next.bank_transfer && touches_bank && !(next.bank_bin.is_some() && next.bank_account.is_some()) {
         return Err(bad("Chuyển khoản cần chọn ngân hàng và nhập số tài khoản nhận tiền."));
     }
-    if (next.bank_bin.is_some() && next.bank_account.is_some()) || !next.bank_transfer {
+    // Nhắc chỉ xoá khi đã có tài khoản nhận tiền DÙNG ĐƯỢC (ngân hàng trong bảng + số tài khoản hợp lệ).
+    let usable = next.bank_bin.as_deref().is_some_and(|b| vietqr::find_bank(b).is_some())
+        && next.bank_account.as_deref().is_some_and(vietqr::is_valid_account);
+    if usable {
         next.bank_notice = None;
     }
     if let Some(Value::Array(a)) = input.get("product_ids") {
@@ -364,11 +374,70 @@ pub async fn load(conn: &mut PgConnection) -> Result<StoreSettings, AppError> {
     let Some(row) = row else {
         return Ok(StoreSettings::default());
     };
-    let mut v: StoreSettings = serde_json::from_str(&row).unwrap_or_default();
+    Ok(from_stored(&row))
+}
+
+/// Gộp từng trường của JSON đã lưu lên mặc định như `{ ...DEFAULTS, ...parsed }` của TS: một trường sai kiểu chỉ rơi về mặc định
+/// của riêng nó (không reset cả cấu hình); khoá lạ được giữ. JSON rác (không phải object) ⇒ mặc định.
+pub fn from_stored(raw: &str) -> StoreSettings {
+    let Ok(Value::Object(m)) = serde_json::from_str::<Value>(raw) else {
+        return StoreSettings::default();
+    };
+    fn pick<T: serde::de::DeserializeOwned>(m: &Map<String, Value>, k: &str, d: T) -> T {
+        m.get(k)
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or(d)
+    }
+    const KNOWN: [&str; 18] = [
+        "slug",
+        "name",
+        "tagline",
+        "theme",
+        "accent",
+        "phone",
+        "address",
+        "cover_url",
+        "logo_url",
+        "cod",
+        "bank_transfer",
+        "bank_bin",
+        "bank_account",
+        "bank_account_name",
+        "bank_notice",
+        "published",
+        "product_ids",
+        "owner_user_id",
+    ];
+    let d = StoreSettings::default();
+    let mut v = StoreSettings {
+        slug: pick(&m, "slug", d.slug),
+        name: pick(&m, "name", d.name),
+        tagline: pick(&m, "tagline", d.tagline),
+        theme: pick(&m, "theme", d.theme),
+        accent: pick(&m, "accent", d.accent),
+        phone: pick(&m, "phone", d.phone),
+        address: pick(&m, "address", d.address),
+        cover_url: pick(&m, "cover_url", d.cover_url),
+        logo_url: pick(&m, "logo_url", d.logo_url),
+        cod: pick(&m, "cod", d.cod),
+        bank_transfer: pick(&m, "bank_transfer", d.bank_transfer),
+        bank_bin: pick(&m, "bank_bin", d.bank_bin),
+        bank_account: pick(&m, "bank_account", d.bank_account),
+        bank_account_name: pick(&m, "bank_account_name", d.bank_account_name),
+        bank_notice: pick(&m, "bank_notice", d.bank_notice),
+        published: pick(&m, "published", d.published),
+        product_ids: pick(&m, "product_ids", d.product_ids),
+        owner_user_id: pick(&m, "owner_user_id", d.owner_user_id),
+        extra: m
+            .iter()
+            .filter(|(k, _)| !KNOWN.contains(&k.as_str()))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect(),
+    };
     if v.theme == "dam-net" {
         v.theme = "soi-dong".to_owned();
     }
-    Ok(v)
+    v
 }
 
 /// `PUT /store/settings`: `input` đã bỏ `public_path`, `banks`, `bank_notice` (không cho client ghi). Bản nhiều công ty: địa chỉ
@@ -400,7 +469,7 @@ pub async fn save(
             })?;
     }
     let value = serde_json::to_string(&next).map_err(AppError::internal)?;
-    sqlx::query(
+    let saved = sqlx::query(
         "INSERT INTO settings (key, value, updated_by, updated_at) VALUES ($1, $2, $3, now())
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()",
     )
@@ -408,8 +477,17 @@ pub async fn save(
     .bind(&value)
     .bind(user_id)
     .execute(&mut *conn)
-    .await
-    .map_err(db)?;
+    .await;
+    if let Err(e) = saved {
+        // Ghi lỗi sau khi đã giữ địa chỉ mới: nhả lại để không để lại địa chỉ mồ côi chặn người khác.
+        if !next.slug.is_empty()
+            && next.slug != current.slug
+            && let Err(r) = platform.release_route(RouteKind::StoreSlug, &next.slug, company).await
+        {
+            tracing::warn!("Không nhả được địa chỉ cửa hàng sau lỗi lưu: {r}");
+        }
+        return Err(db(e));
+    }
     if !current.slug.is_empty() && current.slug != next.slug {
         platform
             .release_route(RouteKind::StoreSlug, &current.slug, company)
@@ -497,6 +575,46 @@ mod tests {
         assert!(run(json!({ "published": true })).is_err());
         assert!(run(json!({ "published": true, "slug": "abc", "name": "A", "cod": false })).is_err());
         assert!(run(json!({ "published": true, "slug": "abc", "name": "A" })).is_ok());
+    }
+
+    #[test]
+    fn gop_tung_truong_va_giu_khoa_la() {
+        let s = from_stored(r#"{"name":"A","cod":"co","theme":"dam-net","product_ids":[1,2],"zzz":{"k":1}}"#);
+        assert_eq!(
+            (s.name.as_str(), s.cod, s.theme.as_str(), s.product_ids.clone()),
+            ("A", true, "soi-dong", vec![1, 2])
+        );
+        assert_eq!(s.extra.get("zzz"), Some(&json!({ "k": 1 })));
+        assert_eq!(from_stored("rac"), StoreSettings::default());
+        // Giữ khoá lạ khi lưu lại.
+        assert!(serde_json::to_string(&s).unwrap().contains("\"zzz\""));
+    }
+
+    #[test]
+    fn https_khong_panic_voi_ky_tu_nhieu_byte() {
+        assert!(!valid_https("ééééé"));
+        assert!(!valid_https("https://"));
+        assert!(!valid_https("httpsé://x"));
+        assert!(valid_https("HTTPS://x.vn/a.png"));
+    }
+
+    #[test]
+    fn nhac_chi_xoa_khi_co_tai_khoan_dung_duoc() {
+        let with = StoreSettings {
+            bank_transfer: false,
+            bank_notice: Some("x".into()),
+            ..StoreSettings::default()
+        };
+        let s = clean(json!({ "name": "A" }).as_object().unwrap(), &with).unwrap();
+        assert_eq!(s.bank_notice.as_deref(), Some("x"));
+        let s = clean(
+            json!({ "bank_bin": "970422", "bank_account": "0123456789" })
+                .as_object()
+                .unwrap(),
+            &with,
+        )
+        .unwrap();
+        assert_eq!(s.bank_notice, None);
     }
 
     #[test]

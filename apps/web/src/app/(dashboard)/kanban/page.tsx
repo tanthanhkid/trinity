@@ -49,7 +49,7 @@ function KanbanScreen() {
   const { can } = usePermissions()
   const canConfigure = can("kanban.boards")
   const canCreateCard = can("kanban.manage")
-  const { data: boards = [], isLoading: boardsLoading, isError: boardsError, error: boardsErr, refetch: refetchBoards, isFetching: boardsFetching } = useKanbanBoards()
+  const { data: boards = [], isLoading: boardsLoading, isError: boardsError, error: boardsErr, refetch: refetchBoards, isFetching: boardsFetching } = useKanbanBoards({ overview: true })
   const [boardId, setBoardId] = useState<number | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>("board")
   const [addCardOpen, setAddCardOpen] = useState(false)

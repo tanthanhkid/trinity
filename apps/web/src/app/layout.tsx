@@ -41,7 +41,7 @@ export default function RootLayout({
     >
       <head>
         <meta name="google" content="notranslate" />
-        {/* Cấu hình lúc chạy (cờ ds-v2, realtime, pháp lý) nạp đồng bộ TRƯỚC mọi script khác để không nháy giao diện. */}
+        {/* Cấu hình lúc chạy (cờ ds-v2, realtime, pháp lý) áp cache ngay + fetch song song, không chặn. */}
         <script dangerouslySetInnerHTML={{ __html: SITE_CONFIG_INIT_SCRIPT }} />
         {/* Sáng/tối: gắn class `dark` trước khi vẽ để không nháy trắng (xem lib/theme.ts). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

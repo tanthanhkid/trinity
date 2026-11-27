@@ -10,6 +10,7 @@
  *  - Không dựng các thao tác chưa có BE hỗ trợ (tránh affordance giả).
  */
 import { useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import { Package, Plus, Settings2 } from "lucide-react"
 import { toast } from "sonner"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -24,15 +25,19 @@ import { useActiveProjects } from "@/hooks/use-projects"
 import axios from "axios"
 import { getApiErrorMessage } from "@/lib/api-client"
 import { useDeleteProduct, useProducts, useRestoreProduct, useUpdateProduct } from "@/hooks/products/use-products"
-import { ProductArchivedList } from "./product-archived-list"
 import { useProductCategories } from "@/hooks/products/use-product-categories"
 import type { Product } from "@/types/product"
 import { ProductCard } from "./product-card"
-import { ProductFormDialog } from "./product-form-dialog"
-import { ProductDetailModal } from "./product-detail-modal"
-import { ProductCategoryManagerDialog } from "./product-category-manager-dialog"
-import { ProductDeleteDialog } from "./product-delete-dialog"
 import { ALL_SENTINEL, ProductsFilterBar } from "./products-filter-bar"
+
+// Hộp thoại/khối chỉ mở khi người dùng bấm: tách chunk, chỉ tải khi cần (và chỉ gắn vào cây khi đang mở).
+const ProductArchivedList = dynamic(() => import("./product-archived-list").then((m) => ({ default: m.ProductArchivedList })))
+const ProductFormDialog = dynamic(() => import("./product-form-dialog").then((m) => ({ default: m.ProductFormDialog })))
+const ProductDetailModal = dynamic(() => import("./product-detail-modal").then((m) => ({ default: m.ProductDetailModal })))
+const ProductCategoryManagerDialog = dynamic(() =>
+  import("./product-category-manager-dialog").then((m) => ({ default: m.ProductCategoryManagerDialog })),
+)
+const ProductDeleteDialog = dynamic(() => import("./product-delete-dialog").then((m) => ({ default: m.ProductDeleteDialog })))
 
 export function ProductsScreen() {
   const { can, isAdmin } = usePermissions()
@@ -208,41 +213,38 @@ export function ProductsScreen() {
         </div>
       )}
 
-      <ProductDetailModal
-        product={detailProduct}
-        open={!!detailProduct}
-        onOpenChange={(o) => !o && setDetailProduct(null)}
-      />
+      {detailProduct && (
+        <ProductDetailModal product={detailProduct} open onOpenChange={(o) => !o && setDetailProduct(null)} />
+      )}
 
-      <ProductFormDialog
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        onSuccess={() => setShowCreate(false)}
-      />
+      {showCreate && (
+        <ProductFormDialog open onClose={() => setShowCreate(false)} onSuccess={() => setShowCreate(false)} />
+      )}
 
-      <ProductFormDialog
-        open={!!editProduct}
-        product={editProduct}
-        onClose={() => setEditProduct(undefined)}
-        onSuccess={() => setEditProduct(undefined)}
-      />
+      {editProduct && (
+        <ProductFormDialog
+          open
+          product={editProduct}
+          onClose={() => setEditProduct(undefined)}
+          onSuccess={() => setEditProduct(undefined)}
+        />
+      )}
 
-      <ProductCategoryManagerDialog
-        open={showCategoryManager}
-        onClose={() => setShowCategoryManager(false)}
-      />
+      {showCategoryManager && <ProductCategoryManagerDialog open onClose={() => setShowCategoryManager(false)} />}
 
       {/* Mục lưu trữ + "Xoá hẳn" — chỉ Quản trị. */}
       {isAdmin && <ProductArchivedList />}
 
-      <ProductDeleteDialog
-        product={deleteProduct}
-        pending={deleteMutation.isPending || updateMutation.isPending}
-        error={deleteError}
-        onCancel={closeDelete}
-        onConfirm={handleDelete}
-        onHide={handleHideFromDialog}
-      />
+      {deleteProduct && (
+        <ProductDeleteDialog
+          product={deleteProduct}
+          pending={deleteMutation.isPending || updateMutation.isPending}
+          error={deleteError}
+          onCancel={closeDelete}
+          onConfirm={handleDelete}
+          onHide={handleHideFromDialog}
+        />
+      )}
     </div>
   )
 }

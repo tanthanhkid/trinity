@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import apiClient from "@/lib/api-client"
+import { loadKanbanOverview } from "@/lib/kanban-overview"
 import type {
   CreateKanbanBoardPayload,
   KanbanBoard,
@@ -16,10 +17,16 @@ import type {
  */
 const BOARDS_KEY = "kanban-boards"
 
-export function useKanbanBoards() {
+/** `overview` (chỉ trang Kanban): lượt nạp đầu lấy cả board, thẻ từng cột, roster bằng `GET /kanban/overview`. */
+export function useKanbanBoards(opts: { overview?: boolean } = {}) {
+  const qc = useQueryClient()
   return useQuery<KanbanBoard[]>({
     queryKey: [BOARDS_KEY],
     queryFn: async () => {
+      if (opts.overview) {
+        const boards = await loadKanbanOverview(qc)
+        if (boards) return boards
+      }
       const res = await apiClient.get<KanbanBoard[]>("/kanban/boards")
       return Array.isArray(res.data) ? res.data : []
     },

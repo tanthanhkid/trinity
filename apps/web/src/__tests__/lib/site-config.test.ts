@@ -1,5 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
+  SITE_CONFIG_CACHE_KEY,
+  SITE_CONFIG_EVENT,
   SITE_CONFIG_GLOBAL,
   SITE_CONFIG_INIT_SCRIPT,
   fetchSiteConfig,
@@ -92,37 +94,56 @@ describe("fetchSiteConfig", () => {
 
 describe("SITE_CONFIG_INIT_SCRIPT", () => {
   const run = () => new Function(SITE_CONFIG_INIT_SCRIPT)()
-  const stubXhr = (status: number, body: string) => {
-    class X {
-      status = status
-      responseText = body
-      open() {}
-      setRequestHeader() {}
-      send() {}
-    }
-    vi.stubGlobal("XMLHttpRequest", X)
-  }
+  const flush = () => new Promise((r) => setTimeout(r, 0))
+  beforeEach(() => {
+    // jsdom của bộ test này không có Storage đầy đủ: dùng bản nhớ trong bộ nhớ.
+    const m = new Map<string, string>()
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => m.get(k) ?? null,
+      setItem: (k: string, v: string) => void m.set(k, v),
+      removeItem: (k: string) => void m.delete(k),
+    })
+  })
   afterEach(() => {
     vi.unstubAllGlobals()
     document.documentElement.removeAttribute("data-ds")
   })
-  it("ds_v2 true ⇒ lưu cấu hình và gắn data-ds=v2 trước lần vẽ đầu", () => {
-    stubXhr(200, JSON.stringify(full))
+  it("không dùng XHR đồng bộ", () => {
+    expect(SITE_CONFIG_INIT_SCRIPT).not.toContain("XMLHttpRequest")
+  })
+  it("có cache ⇒ áp ngay, không đợi mạng", () => {
+    localStorage.setItem(SITE_CONFIG_CACHE_KEY, JSON.stringify(full))
+    vi.stubGlobal("fetch", () => new Promise(() => {}))
     run()
     expect(win[SITE_CONFIG_GLOBAL]).toEqual(full)
     expect(document.documentElement.getAttribute("data-ds")).toBe("v2")
   })
-  it("ds_v2 false ⇒ gỡ data-ds", () => {
-    document.documentElement.setAttribute("data-ds", "v2")
-    stubXhr(200, JSON.stringify({ ...full, ds_v2: false }))
+  it("fetch về ⇒ lưu cache, áp data-ds, phát sự kiện", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => full }))
+    const ev = vi.fn()
+    window.addEventListener(SITE_CONFIG_EVENT, ev)
     run()
+    await flush()
+    window.removeEventListener(SITE_CONFIG_EVENT, ev)
+    expect(win[SITE_CONFIG_GLOBAL]).toEqual(full)
+    expect(document.documentElement.getAttribute("data-ds")).toBe("v2")
+    expect(JSON.parse(localStorage.getItem(SITE_CONFIG_CACHE_KEY) as string)).toEqual(full)
+    expect(ev).toHaveBeenCalled()
+  })
+  it("ds_v2 false từ máy chủ ⇒ gỡ data-ds của cache cũ", async () => {
+    localStorage.setItem(SITE_CONFIG_CACHE_KEY, JSON.stringify(full))
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ...full, ds_v2: false }) }))
+    run()
+    await flush()
     expect(document.documentElement.hasAttribute("data-ds")).toBe(false)
   })
-  it("404 / JSON hỏng ⇒ im lặng, không lưu gì", () => {
-    stubXhr(404, "")
+  it("404 / JSON hỏng ⇒ im lặng, không lưu gì", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
     run()
-    stubXhr(200, "{hỏng")
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => { throw new Error("x") } }))
     run()
+    await flush()
     expect(win[SITE_CONFIG_GLOBAL]).toBeUndefined()
+    expect(localStorage.getItem(SITE_CONFIG_CACHE_KEY)).toBeNull()
   })
 })

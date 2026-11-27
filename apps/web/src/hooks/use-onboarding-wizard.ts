@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import apiClient from "@/lib/api-client"
+import { fromBootstrap } from "@/lib/bootstrap"
 
 export type WizardStepKey = "industry" | "modules" | "data" | "channels" | "post"
 
@@ -34,7 +35,7 @@ export const WIZARD_KEY = ["setup", "wizard"] as const
 export function useWizard() {
   return useQuery<WizardView>({
     queryKey: WIZARD_KEY,
-    queryFn: async () => (await apiClient.get<WizardView>("/setup/wizard")).data,
+    queryFn: () => fromBootstrap("setup_wizard", async () => (await apiClient.get<WizardView>("/setup/wizard")).data),
     staleTime: 30_000,
     retry: 1,
   })

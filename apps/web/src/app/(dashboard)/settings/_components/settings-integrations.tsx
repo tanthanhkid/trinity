@@ -1,19 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import dynamic from "next/dynamic"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { AlertTriangle, ArrowLeft, LayoutGrid, Loader2, PlugZap } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/empty-state"
 import { usePermissions } from "@/lib/rbac"
 import { useOrgFeatures } from "@/hooks/use-org-features"
-import { AiConnectionsPanel } from "./integrations/ai-connections-panel"
-import { IntegrationAuditLogs } from "./integrations/integration-audit-logs"
-import { ZaloOaPanel } from "./integrations/zalo-oa/zalo-oa-panel"
-import { StorePanel } from "./integrations/store/store-panel"
-import { FacebookPanel } from "./integrations/facebook-panel"
-import { WebhookInPanel } from "./integrations/webhook-in-panel"
-import { WebhookOutPanel } from "./integrations/webhook-out-panel"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useIntegrationsStatus } from "./integrations/use-integrations"
 import { IntegrationsOverview } from "./integrations/integrations-overview"
 import { cn } from "@/lib/utils"
@@ -24,6 +19,16 @@ import {
   isSectionEnabled,
   type IntegrationSection,
 } from "./integrations/integrations-meta"
+
+// Mỗi mục chi tiết là một chunk riêng: trang mở mặc định ở "Tất cả kết nối" nên không tải panel nào cho tới khi người dùng chọn.
+const PanelSkeleton = () => <Skeleton className="h-64 w-full rounded-2xl" />
+const AiConnectionsPanel = dynamic(() => import("./integrations/ai-connections-panel").then((m) => ({ default: m.AiConnectionsPanel })), { loading: PanelSkeleton })
+const IntegrationAuditLogs = dynamic(() => import("./integrations/integration-audit-logs").then((m) => ({ default: m.IntegrationAuditLogs })), { loading: PanelSkeleton })
+const ZaloOaPanel = dynamic(() => import("./integrations/zalo-oa/zalo-oa-panel").then((m) => ({ default: m.ZaloOaPanel })), { loading: PanelSkeleton })
+const StorePanel = dynamic(() => import("./integrations/store/store-panel").then((m) => ({ default: m.StorePanel })), { loading: PanelSkeleton })
+const FacebookPanel = dynamic(() => import("./integrations/facebook-panel").then((m) => ({ default: m.FacebookPanel })), { loading: PanelSkeleton })
+const WebhookInPanel = dynamic(() => import("./integrations/webhook-in-panel").then((m) => ({ default: m.WebhookInPanel })), { loading: PanelSkeleton })
+const WebhookOutPanel = dynamic(() => import("./integrations/webhook-out-panel").then((m) => ({ default: m.WebhookOutPanel })), { loading: PanelSkeleton })
 
 /** Tham số quay về từ OAuth (Facebook / Zalo) ⇒ mục cần mở; mục không còn (vd thanh toán, phần mềm bán hàng đã gỡ) ⇒ tổng quan. */
 export function sectionFromParams(params: URLSearchParams): IntegrationSection | "overview" {

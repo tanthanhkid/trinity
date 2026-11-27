@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
+import { fromBootstrap } from '@/lib/bootstrap'
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000
 const HIDDEN_RELOAD_DELAY_MS = 60 * 1000
@@ -16,10 +17,13 @@ export function BuildIdWatcher() {
 
     async function fetchBuildId(): Promise<string | null> {
       try {
-        const res = await fetch('/api/build-id', { cache: 'no-store' })
-        if (!res.ok) return null
-        const data = (await res.json()) as { buildId?: string }
-        return data.buildId ?? null
+        // Lượt đầu lấy từ `GET /bootstrap` (đã gộp); các lượt poll sau đi thẳng endpoint.
+        const data = await fromBootstrap<{ buildId?: string }>('build_id', async () => {
+          const res = await fetch('/api/build-id', { cache: 'no-store' })
+          if (!res.ok) throw new Error('build-id')
+          return (await res.json()) as { buildId?: string }
+        })
+        return data?.buildId ?? null
       } catch {
         return null
       }

@@ -3,9 +3,9 @@
   "default_first_load_kb": 635,
   "routes": {
     "/contacts/[id]": 540,
-    "/connections": 570,
+    "/connections": 355,
     "/attendance": 525,
-    "/products": 510,
+    "/products": 365,
     "/pos": 510,
     "/contacts/new": 500,
     "/kanban": 490,

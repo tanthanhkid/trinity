@@ -69,8 +69,9 @@ async function startPostHog(cfg: NonNullable<TelemetryConfig['posthog']>): Promi
 async function run(): Promise<void> {
   let cfg: TelemetryConfig | null = null
   try {
-    const { data } = await apiClient.get<TelemetryConfig>('/telemetry/config')
-    cfg = data
+    cfg = await fromBootstrap<TelemetryConfig>('telemetry_config', async () =>
+      (await apiClient.get<TelemetryConfig>('/telemetry/config')).data,
+    )
   } catch {
     return
   }

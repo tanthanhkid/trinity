@@ -36,6 +36,16 @@ pub const LAYOUT_PARTS: &[(&str, &str)] = &[
     ("org_features", "/api/v1/settings/org-features"),
     ("setup_status", "/api/v1/setup/status"),
     ("site_config", "/api/v1/site-config"),
+    // Vòng 2: các lời gọi đợt hai của web (trước đây chờ site-config rồi mới phát) vào cùng một lượt.
+    ("build_id", "/api/build-id"),
+    ("setup_wizard", "/api/v1/setup/wizard"),
+    ("telemetry_config", "/api/v1/telemetry/config"),
+    (
+        "ai_actions_pending_count",
+        "/api/v1/integrations/ai-actions/pending-count",
+    ),
+    ("custom_nav", "/api/v1/custom-objects/nav"),
+    ("contacts_recent", "/api/v1/contacts/recent?limit=5"),
 ];
 
 /// Phần của trang Tổng quan (bộ lọc rỗng, đúng lời gọi mặc định của web).
@@ -97,7 +107,7 @@ fn plan(query: Option<&str>) -> Vec<(String, String)> {
 }
 
 /// Gọi một phần qua router; mọi lỗi ⇒ `None`.
-async fn fetch_part(
+pub(crate) async fn fetch_part(
     router: Router,
     path: String,
     headers: header::HeaderMap,
@@ -182,7 +192,7 @@ mod tests {
     #[test]
     fn moi_duong_la_get_noi_bo_duoi_api_v1() {
         for (_, p) in LAYOUT_PARTS.iter().chain(DASHBOARD_PARTS) {
-            assert!(p.starts_with("/api/v1/"), "{p}");
+            assert!(p.starts_with("/api/v1/") || p == &"/api/build-id", "{p}");
         }
     }
 

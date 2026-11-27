@@ -79,7 +79,8 @@ pub struct ActionDef {
 /// Mọi thao tác ghi (cố ý KHÔNG có xoá cứng, xuất file, quản trị người dùng/vai trò).
 pub fn all() -> [&'static ActionDef; 22] {
     use crate::tools::{
-        act_contacts as c, act_records as r, act_tasks as t, import as i, structure as s, template as tp, view_tools as v,
+        act_contacts as c, act_records as r, act_tasks as t, import as i, structure as s, template as tp,
+        view_tools as v,
     };
     [
         &c::CREATE_CONTACT,
@@ -1028,7 +1029,13 @@ mod tests {
         assert_eq!(st.len(), 13);
         assert!(is_structure("create_view") && is_structure("restore_structure_version"));
         // Nhập dữ liệu và thao tác bản ghi/khách/việc không đổi cấu trúc.
-        for n in ["import_records", "create_record", "create_contact", "create_task", "nope"] {
+        for n in [
+            "import_records",
+            "create_record",
+            "create_contact",
+            "create_task",
+            "nope",
+        ] {
             assert!(!is_structure(n), "{n}");
         }
     }

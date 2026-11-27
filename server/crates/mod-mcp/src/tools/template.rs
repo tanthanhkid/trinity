@@ -21,7 +21,9 @@ use super::structure::{
     ObjectSpec, app_msg, apply_objects, check_objects, load_def, object_details, parse_object, purge_created,
 };
 use super::view_tools::{assert_type_chosen, describe_view, parse_menu, parse_view, table_names};
-use super::write::{Detail, assert_confirmed, clean_text, internal, is_user_confirmation, line, prepared, user, user_err};
+use super::write::{
+    Detail, assert_confirmed, clean_text, internal, is_user_confirmation, line, prepared, user, user_err,
+};
 use crate::actions::{ActionCx, ActionDef, Prepared};
 use crate::exec::ToolError;
 use crate::protocol::BoxFuture;

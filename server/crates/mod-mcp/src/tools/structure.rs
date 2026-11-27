@@ -19,8 +19,8 @@ use super::write::{
     Detail, as_int, assert_confirmed, clean_text, impact_json, internal, line, opt_clean, prepared, user, user_err,
 };
 use crate::actions::{ActionCx, ActionDef, Prepared};
-use crate::protocol::BoxFuture;
 use crate::exec::ToolError;
+use crate::protocol::BoxFuture;
 
 const MAX_OBJECTS_PER_CALL: usize = 8;
 
@@ -523,11 +523,7 @@ fn summarize(specs: &[ObjectSpec]) -> (Value, String, Vec<Detail>) {
     )
 }
 
-async fn prepare_create(
-    ctx: &ActionCx<'_>,
-    raw: &[Value],
-    confirmation: Option<&str>,
-) -> Result<Prepared, ToolError> {
+async fn prepare_create(ctx: &ActionCx<'_>, raw: &[Value], confirmation: Option<&str>) -> Result<Prepared, ToolError> {
     if raw.is_empty() {
         return Err(user("Cần ít nhất một bảng."));
     }
@@ -1066,9 +1062,11 @@ fn update_field_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture
         let mut details: Vec<Detail> = Vec::new();
         details.extend(line("Bảng", format!("{} [{key}]", def.obj.label), 600));
         details.extend(line("Trường", format!("{} [{fkey}]", cur.label), 600));
-        details.extend(patch.iter().filter_map(|(k, v)| {
-            line(k, v.as_str().map_or_else(|| v.to_string(), str::to_owned), 600)
-        }));
+        details.extend(
+            patch
+                .iter()
+                .filter_map(|(k, v)| line(k, v.as_str().map_or_else(|| v.to_string(), str::to_owned), 600)),
+        );
         let summary = format!(
             "Sửa trường “{shown_name}” của bảng “{}”: {}",
             def.obj.label,

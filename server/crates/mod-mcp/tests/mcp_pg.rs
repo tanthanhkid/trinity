@@ -969,9 +969,7 @@ async fn tool_cau_truc_chay_ngay_roi_thanh_de_xuat_khi_bat_che_do_duyet() {
     let adm = e
         .token("quantri-ct", e.admin, "{crm.read,crm.write}", RESOURCE, "1 hour", false)
         .await;
-    let args = |label: &str| {
-        json!({ "label": label, "fields": [{ "label": "Mã", "type": "text" }], "confirmed_by_user": "ok tạo đi" })
-    };
+    let args = |label: &str| json!({ "label": label, "fields": [{ "label": "Mã", "type": "text" }], "confirmed_by_user": "ok tạo đi" });
 
     // Chưa có lời đồng ý ⇒ không tạo gì, không có đề xuất.
     let (err, text, _) = run(&e, &adm, "create_object", &json!({ "label": "Hợp đồng", "fields": [] })).await;
@@ -1032,7 +1030,8 @@ async fn tool_cau_truc_chay_ngay_roi_thanh_de_xuat_khi_bat_che_do_duyet() {
     assert_eq!(v["data"]["duplicate"], false);
     let pid = v["data"]["action_id"].as_i64().unwrap();
     assert_eq!(
-        e.scalar("SELECT count(*) FROM custom_objects WHERE key = 'bao_gia'").await,
+        e.scalar("SELECT count(*) FROM custom_objects WHERE key = 'bao_gia'")
+            .await,
         0
     );
     assert_eq!(

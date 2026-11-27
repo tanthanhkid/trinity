@@ -362,7 +362,9 @@ fn update_view_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<
         details.extend(line("Màn", format!("{cur_label} [{view_key}]"), 600));
         details.extend(line("Thay đổi", patch.to_string(), 600));
         let note = if remove {
-            format!("Màn “{cur_label}” sẽ bị xoá khỏi menu và danh sách màn; dữ liệu bản ghi không đổi (quay lui được).")
+            format!(
+                "Màn “{cur_label}” sẽ bị xoá khỏi menu và danh sách màn; dữ liệu bản ghi không đổi (quay lui được)."
+            )
         } else {
             format!("Đổi cách hiển thị màn “{cur_label}”; dữ liệu bản ghi không đổi.")
         };
@@ -582,7 +584,10 @@ mod tests {
         );
         assert_eq!(back.config, spec.config);
         assert_eq!((back.icon, back.show_in_nav), (spec.icon, spec.show_in_nav));
-        let menu = parse_menu(Some(&json!([{ "object": "a", "view": "v", "roles": ["Quản lý"] }, { "object": "b" }]))).unwrap();
+        let menu = parse_menu(Some(
+            &json!([{ "object": "a", "view": "v", "roles": ["Quản lý"] }, { "object": "b" }]),
+        ))
+        .unwrap();
         let again = parse_menu(Some(&menu_json(&menu))).unwrap();
         assert_eq!(again.len(), 2);
         assert_eq!(

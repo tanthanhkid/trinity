@@ -43,6 +43,7 @@ mod-users = { workspace = true }
 mod-contacts = { workspace = true }
 mod-auth = { workspace = true }
 mod-apikeys = { workspace = true }
+mod-exports = { workspace = true }
 mod-leads = { workspace = true }
 mod-channel-guard = { workspace = true }
 mod-store = { workspace = true }

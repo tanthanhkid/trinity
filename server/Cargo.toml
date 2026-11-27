@@ -33,6 +33,7 @@ mod-users = { path = "crates/mod-users" }
 mod-auth = { path = "crates/mod-auth" }
 mod-apikeys = { path = "crates/mod-apikeys" }
 mod-contacts = { path = "crates/mod-contacts" }
+mod-exports = { path = "crates/mod-exports" }
 mod-channel-guard = { path = "crates/mod-channel-guard" }
 mod-facebook = { path = "crates/mod-facebook" }
 mod-social = { path = "crates/mod-social" }

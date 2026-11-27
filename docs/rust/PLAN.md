@@ -1161,6 +1161,11 @@ Tài liệu triển khai vẫn khuyên chỉ mở cổng origin cho dải IP c�
   (`social-chunk-upload.ts`, video > 90 MB; máy chủ cũ không có route thì rơi về multipart). 5 route
   `/social/media/uploads...` chỉ có ở Rust (`routes::upload_routes`), chưa gộp vào `routes()`: gộp khi có router social và
   nới `RUST_ONLY_ROUTES` (hiện chỉ nhận route `Public`).
+  Đã làm phần khung (crate `mod-exports`): `POST /api/v1/exports/contacts` xếp việc `export.run`, `GET /exports/:id` trả
+  tiến độ, `GET /exports/:id/download` tải tệp (lưu `platform.export_files`, giữ 24 giờ, mỗi người ≤ 3 việc đang chạy;
+  phạm vi quyền chốt lúc xếp việc; worker gọi đúng hàm xuất đồng bộ nên tệp giống nhau). Danh sách route chuyển nền theo
+  kết quả X05 (chưa có trên main): mỗi route thêm một nhánh ở `worker::build` và một route xếp việc. Web thử xuất nền
+  trước, 404 (bản Node) thì rơi về xuất trực tiếp. Triển khai: bảng sở hữu phải có tiền tố `/api/v1/exports` thuộc Rust.
 
 **Cổng tương thích 4000.** `docs/deployment.md` hiện bắt reverse proxy trỏ `/notif-ws` thẳng vào API ở cổng 4000 (Next
 không chuyển tiếp WebSocket). Sau X06 không còn gì nghe ở đó và chuông realtime sẽ mất lặng lẽ. Binary vì vậy nghe

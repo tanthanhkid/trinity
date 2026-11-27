@@ -691,7 +691,7 @@ fn access_token(r: &Value) -> Result<String, GraphApiError> {
 }
 
 /// `s.slice(0, n)` của JS tính theo đơn vị UTF-16 (không cắt giữa cặp thay thế).
-pub(crate) fn utf16_prefix(s: &str, n: usize) -> String {
+pub fn utf16_prefix(s: &str, n: usize) -> String {
     let mut units = 0;
     let mut out = String::new();
     for c in s.chars() {

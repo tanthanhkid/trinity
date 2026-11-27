@@ -938,6 +938,7 @@ fn tool_ghi_khop_hop_dong_va_khong_co_tool_xoa() {
             "get_action_status",
             "import_records",
             "install_object_template",
+            "link_records",
             "propose_workspace",
             "restore_structure_version",
             "set_menu",

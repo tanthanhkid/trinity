@@ -21,7 +21,7 @@ use trinity_rbac::mask_phone;
 
 use super::act_contacts::CREATE_CONTACT;
 use super::act_tasks::CREATE_TASK;
-use super::records::{id_from_code, valid_table_key};
+use super::records::{id_from_code, read_codes, valid_table_key};
 use super::schema::is_core_key;
 use super::visible_contacts;
 use crate::actions::{
@@ -1019,6 +1019,215 @@ fn archive_execute<'a>(
             .await
             .map_err(app_err)?;
         Ok(json!({ "object": key, "record_id": id, "archived": true }))
+    })
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// link_records
+
+pub(crate) static LINK_RECORDS: ActionDef = ActionDef {
+    name: "link_records",
+    label: "Gắn liên kết",
+    permissions: &["custom_records.manage"],
+    prepare: link_prepare,
+    execute: link_execute,
+    structure: false,
+};
+
+/// Gắn / thay / gỡ liên kết bằng MÃ từ một bản ghi bảng tuỳ biến (qua trường kiểu `link`) tới bản ghi ở bảng bất kỳ
+/// (`actions/action-link-tools.ts` của bản Node).
+fn link_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
+    Box::pin(async move {
+        let p = cx.principal;
+        require_perm(p, "custom_records.manage")?;
+        let source = args.get("source").cloned().unwrap_or(Value::Null);
+        let (key, id) = id_from_code(cx.deps, p, &source, None).await?;
+        if is_core_key(&key) {
+            return Err(ToolError::User(
+                "Nguồn phải là bản ghi của bảng tuỳ biến (bảng lõi không có trường Liên kết). Đổi chiều: lấy bản ghi tuỳ biến làm nguồn."
+                    .to_owned(),
+            ));
+        }
+        let def = load_def(cx, &key).await?;
+        let links: Vec<&FieldDef> = def.fields.iter().filter(|f| f.kind == "link").collect();
+        let wanted = args
+            .get("field")
+            .and_then(Value::as_str)
+            .map(|f| clean_text(f, 48))
+            .unwrap_or_default();
+        let fkey = if !wanted.is_empty() {
+            wanted
+        } else if links.len() == 1 {
+            links[0].key.clone()
+        } else {
+            String::new()
+        };
+        let Some(field) = links.iter().find(|f| f.key == fkey) else {
+            return Err(ToolError::User(if links.is_empty() {
+                format!(
+                    "Bảng “{}” chưa có trường kiểu link — đề xuất add_field {{type:\"link\"}} trước.",
+                    def.obj.label
+                )
+            } else {
+                format!(
+                    "Chọn field là một trong: {}.",
+                    links.iter().map(|f| f.key.as_str()).collect::<Vec<_>>().join(", ")
+                )
+            }));
+        };
+        let Some((row_owner, row_creator, row_title, data_text)) = load_record_row(cx, def.obj.id, id).await? else {
+            return Err(ToolError::User(
+                "Không tìm thấy bản ghi nguồn hoặc nằm ngoài phạm vi quyền của bạn.".to_owned(),
+            ));
+        };
+        let manage = owner(cx, "custom_records.manage").await?;
+        if trinity_rbac::assert_in_scope(manage.as_ref(), &[row_owner, row_creator]).is_err() {
+            return Err(ToolError::User(
+                "Không tìm thấy bản ghi nguồn hoặc nằm ngoài phạm vi quyền của bạn.".to_owned(),
+            ));
+        }
+        let codes = read_codes(args.get("targets"), 50)?;
+        let found = {
+            let actor = cx.deps.custom_actor(p);
+            let owners = Owners::load(&cx.deps.custom_ctx(), &actor).await.map_err(app_err)?;
+            let mut conn = cx.deps.conn(p.company).await?;
+            let acc = RefAccess::build(&mut conn, &actor, owners).await.map_err(app_err)?;
+            resolve_codes(&mut conn, &acc, &codes).await.map_err(app_err)?
+        };
+        let missing: Vec<&str> = codes
+            .iter()
+            .filter(|c| !found.contains_key(*c))
+            .map(String::as_str)
+            .collect();
+        if !missing.is_empty() {
+            return Err(ToolError::User(format!(
+                "Không tìm thấy (hoặc không có quyền xem): {}. Kiểm bằng find_by_code.",
+                missing.join(", ")
+            )));
+        }
+        let before: Map<String, Value> = serde_json::from_str::<Value>(&data_text)
+            .ok()
+            .and_then(|v| v.as_object().cloned())
+            .unwrap_or_default();
+        let cur: Vec<String> = before
+            .get(&field.key)
+            .and_then(Value::as_array)
+            .map(|a| {
+                a.iter()
+                    .filter_map(Value::as_str)
+                    .filter(|s| parse_ref(s).is_some())
+                    .map(str::to_owned)
+                    .collect()
+            })
+            .unwrap_or_default();
+        let want: Vec<String> = codes
+            .iter()
+            .filter_map(|c| found.get(c))
+            .map(RefView::reference)
+            .collect();
+        let mode = args.get("mode").and_then(Value::as_str).unwrap_or("add");
+        let next: Vec<String> = match mode {
+            "replace" => {
+                let mut u: Vec<String> = Vec::new();
+                for w in &want {
+                    if !u.contains(w) {
+                        u.push(w.clone());
+                    }
+                }
+                u
+            }
+            "remove" => cur.iter().filter(|r| !want.contains(r)).cloned().collect(),
+            _ => {
+                let mut u = cur.clone();
+                for w in &want {
+                    if !u.contains(w) {
+                        u.push(w.clone());
+                    }
+                }
+                u
+            }
+        };
+        if next == cur {
+            return Err(ToolError::User(
+                "Không có thay đổi: các liên kết này đã có (hoặc chưa có để gỡ).".to_owned(),
+            ));
+        }
+        let mut patch = Map::new();
+        patch.insert(
+            field.key.clone(),
+            if next.is_empty() { Value::Null } else { json!(next) },
+        );
+        validate_for(cx, &def, &patch, Some(&before), Some(id)).await?;
+        let verb = match mode {
+            "remove" => "Gỡ liên kết",
+            "replace" => "Đặt lại liên kết",
+            _ => "Gắn liên kết",
+        };
+        let list = codes
+            .iter()
+            .map(|c| {
+                format!("{c} {}", found.get(c).map_or("", |v| v.title.as_str()))
+                    .trim()
+                    .to_owned()
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let src_code = args
+            .get("source")
+            .and_then(Value::as_str)
+            .map(|c| trim_js(c.strip_prefix('@').unwrap_or(c)).to_uppercase())
+            .unwrap_or_default();
+        let title_part = row_title.as_deref().map_or_else(String::new, |t| format!(" \"{t}\""));
+        let src_line = format!("{src_code} {} ({})", row_title.as_deref().unwrap_or(""), def.obj.label);
+        let after = format!("{} liên kết", next.len());
+        Ok(Prepared {
+            params: json!({ "object": key, "id": id, "field": field.key, "values": next }),
+            summary: shown(&format!("{verb} {src_code}{title_part} → {}", codes.join(", ")), 300),
+            details: lines(vec![
+                line("Bản ghi nguồn", Some(src_line.trim()), 600),
+                line("Trường", Some(field.label.as_str()), 600),
+                line(verb, Some(list.as_str()), 900),
+                line("Sau khi duyệt", Some(after.as_str()), 600),
+            ]),
+            impact: None,
+        })
+    })
+}
+
+fn link_execute<'a>(
+    params: &'a Value,
+    cx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
+    Box::pin(async move {
+        let p = cx.principal;
+        require_perm(p, "custom_records.manage")?;
+        let key = params.get("object").and_then(Value::as_str).unwrap_or("");
+        let field = params.get("field").and_then(Value::as_str).unwrap_or("");
+        let Some(id) = opt_int(params.get("id")) else {
+            return Err(bad("Dữ liệu đề xuất không hợp lệ"));
+        };
+        let values = params
+            .get("values")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let n = values.len();
+        let mut data = Map::new();
+        data.insert(
+            field.to_owned(),
+            if values.is_empty() {
+                Value::Null
+            } else {
+                Value::Array(values)
+            },
+        );
+        let body = json!({ "data": data });
+        let (ctx, actor) = (cx.deps.custom_ctx(), cx.deps.custom_actor(p));
+        let res = mod_custom::records::update(&ctx, &actor, key, i64::from(id), &body)
+            .await
+            .map_err(app_err)?;
+        Ok(json!({ "record_id": res["id"], "object": key, "links": n }))
     })
 }
 

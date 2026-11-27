@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { ArrowLeft, BarChart3, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { PermissionGate, usePermissions } from "@/lib/rbac"

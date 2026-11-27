@@ -7,7 +7,7 @@
  */
 import { useState } from "react"
 import { toast } from "sonner"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { ArrowLeft, Plus, ShieldOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { buttonVariants } from "@/components/ui/button-variants"

@@ -4,7 +4,7 @@
  * Chưa nối AI thì cả khối trái thành lời mời kết nối. Không dùng chữ "MCP" — với người dùng đây là "trợ lý AI". */
 
 import { useState, useSyncExternalStore } from 'react'
-import Link from 'next/link'
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { ArrowRight, Plug, Plus, ShoppingBag, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { ORG_FEATURES, type OrgFeatureKey } from '@trinity/rbac'

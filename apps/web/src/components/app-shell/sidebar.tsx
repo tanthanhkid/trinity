@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { usePathname } from "next/navigation"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import {
   Sidebar,
   SidebarContent,

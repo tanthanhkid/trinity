@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { KeyRound, LogOut, Moon, Sun, User as UserIcon } from "lucide-react"

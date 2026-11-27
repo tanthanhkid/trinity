@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { useEffect } from "react"
 import { ArrowRight, CheckCircle2, CircleDashed, Loader2, PlugZap, Sparkles } from "lucide-react"
 import { toast } from "sonner"

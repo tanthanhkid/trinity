@@ -2,7 +2,7 @@
 
 import { PermissionGate } from "@/lib/rbac"
 import { useState } from 'react'
-import Link from 'next/link'
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'

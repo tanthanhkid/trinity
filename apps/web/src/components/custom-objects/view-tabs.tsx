@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { CalendarDays, KanbanSquare, List, Table2 } from "lucide-react"
 import { useCustomViews } from "@/hooks/custom-objects/use-custom-views"
 import { cn } from "@/lib/utils"

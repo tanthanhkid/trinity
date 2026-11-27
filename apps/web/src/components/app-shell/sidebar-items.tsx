@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { ChevronDown, Pin } from "lucide-react"
 import type { Grants } from "@trinity/rbac"
 import {

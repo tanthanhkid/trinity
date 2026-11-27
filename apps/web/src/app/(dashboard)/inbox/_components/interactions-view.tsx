@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { ExternalLink, EyeOff, MessageSquare, Search } from "lucide-react"
 import { Input } from "@/components/ui/input"

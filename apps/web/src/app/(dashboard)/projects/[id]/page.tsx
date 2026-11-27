@@ -2,7 +2,7 @@
 
 import { PermissionGate } from "@/lib/rbac"
 import { useRouteParams } from '@/lib/route-params'
-import Link from 'next/link'
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, FolderOpen, Loader2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'

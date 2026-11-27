@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { ArrowLeft } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
 import { ShellPageHeader } from "@/components/app-shell/page-header"

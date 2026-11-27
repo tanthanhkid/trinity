@@ -17,13 +17,18 @@ import { usePermissions } from '@/lib/rbac'
 import { resolveNotificationHref } from '@/lib/notification-href'
 import { useState } from 'react'
 import { isPollMode } from '@/lib/realtime-mode'
-import { NotificationPanel } from '@/components/notification-panel'
+import dynamic from 'next/dynamic'
 import { type NotificationItem, type NotificationsPage } from '@/hooks/use-notifications-list'
 import { isMessageEvent } from '@/lib/notification-display'
-import { AnimatePresence, motion } from 'motion/react'
-import { motionTokens } from '@/lib/motion-tokens'
+
 import { RollingNumber } from '@/components/ui/rolling-number'
 import { cn } from '@/lib/utils'
+
+// Panel + `motion` chỉ nạp khi mở popover — không nằm trong JS lần đầu của mọi trang (topbar có chuông ở khắp nơi).
+const NotificationPanel = dynamic(() => import('@/components/notification-panel').then((m) => m.NotificationPanel), {
+  ssr: false,
+  loading: () => null,
+})
 
 /**
  * Biểu tượng + huy hiệu số chưa đọc — chuyển động phỏng theo `notification-center` của Arc Library
@@ -37,31 +42,22 @@ function TriggerIcon({ icon: Icon, open, count, badgeClass }: {
 }) {
   return (
     <>
-      <motion.span
-        className="inline-grid"
-        initial={false}
-        animate={{ rotate: open ? -12 : 0 }}
-        transition={motionTokens.spring.snappy}
+      <span
+        className="inline-grid transition-transform duration-200 ease-out motion-reduce:transition-none"
+        style={{ transform: open ? 'rotate(-12deg)' : 'rotate(0deg)' }}
       >
         <Icon className="size-5" />
-      </motion.span>
-      <AnimatePresence initial={false}>
-        {count > 0 && (
-          <motion.span
-            key="badge"
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.6, transition: { duration: motionTokens.duration.exit } }}
-            transition={motionTokens.spring.snappy}
-            className={cn(
-              'absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[12px] font-semibold leading-none tabular-nums text-white',
-              badgeClass,
-            )}
-          >
-            <RollingNumber text={count > 99 ? '99+' : String(count)} />
-          </motion.span>
-        )}
-      </AnimatePresence>
+      </span>
+      {count > 0 && (
+        <span
+          className={cn(
+            'absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[12px] font-semibold leading-none tabular-nums text-white',
+            badgeClass,
+          )}
+        >
+          <RollingNumber text={count > 99 ? '99+' : String(count)} />
+        </span>
+      )}
     </>
   )
 }

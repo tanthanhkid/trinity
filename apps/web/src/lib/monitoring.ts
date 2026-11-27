@@ -51,6 +51,7 @@ async function startPostHog(cfg: NonNullable<TelemetryConfig['posthog']>): Promi
   ph.init(cfg.key, {
     api_host: cfg.host,
     autocapture: false,
+    disable_surveys: true, // không nạp surveys.js (~khoảng 30 kB, không dùng khảo sát)
     capture_pageview: 'history_change',
     person_profiles: 'identified_only',
     disable_session_recording: !cfg.replay,
@@ -83,9 +84,18 @@ async function run(): Promise<void> {
   }
 }
 
+/** Chờ trình duyệt rảnh (tối đa 4 s) để SDK giám sát không tranh băng thông với lần vẽ đầu. */
+function whenIdle(): Promise<void> {
+  return new Promise((resolve) => {
+    const ric = (window as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback
+    if (ric) ric(() => resolve(), { timeout: 4000 })
+    else setTimeout(resolve, 2000)
+  })
+}
+
 export function bootMonitoring(): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve()
-  booting ??= run().catch(() => undefined)
+  booting ??= whenIdle().then(run).catch(() => undefined)
   return booting
 }
 

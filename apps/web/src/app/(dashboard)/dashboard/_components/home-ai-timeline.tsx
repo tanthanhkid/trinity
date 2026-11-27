@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { Sparkles } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { AiAction } from '@/lib/ai-actions'

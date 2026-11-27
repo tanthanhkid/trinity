@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { Inbox, Loader2 } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"

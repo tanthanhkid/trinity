@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Inbox, Settings2 } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"

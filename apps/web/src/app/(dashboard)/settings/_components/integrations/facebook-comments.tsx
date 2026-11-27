@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { AlertTriangle, ExternalLink, FlaskConical, Loader2, MessageCircle, Pencil, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"

@@ -1,7 +1,7 @@
 "use client"
 
 import { memo } from "react"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import type { Contact } from "@/hooks/use-contacts"
 import { formatDate, formatPhone } from "@/lib/format"
 import { EmployeeCell } from "@/components/employee-cell"

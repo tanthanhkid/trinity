@@ -188,11 +188,7 @@ async fn settings_put(
 ) -> Response {
     let co = company!(u);
     let input = if let Value::Object(m) = body { m } else { Map::new() };
-    let r = async {
-        let mut conn = c.conn(co).await?;
-        settings::save(&mut conn, &c.platform, co, &input, u.user.user_id).await
-    }
-    .await;
+    let r = async { settings::save(&c.db, &c.platform, co, &input, u.user.user_id).await }.await;
     ok(r.map(|s| settings::view(s, c.platform.multi_tenant(), co.id())))
 }
 
@@ -243,7 +239,7 @@ async fn order_update(
     ok(r)
 }
 
-/// Công ty của trang công khai: `?cid=`/`x-trinity-company` (số nguyên dương) hoặc chủ của địa chỉ cửa hàng, không có thì công ty 1.
+/// Công ty của trang công khai: `?cid=`/`x-trinity-company` (số nguyên dương; không có công ty đó hoặc bị treo ⇒ 404, KHÔNG rơi về công ty 1, như `resolvePublicRouteCompany` bản TS) hoặc chủ của địa chỉ cửa hàng; slug lạ giữ công ty 1 như `enterRoutedCompany` bản TS (handler vẫn kiểm slug trong công ty đó).
 /// Công ty không tồn tại hoặc bị treo ⇒ 404 "Không có cửa hàng này.".
 async fn public_company(
     c: &Ctx,
@@ -260,7 +256,7 @@ async fn public_company(
         .or_else(|| headers.get("x-trinity-company").and_then(|v| v.to_str().ok()));
     let hint = raw
         .and_then(|r| r.trim().parse::<f64>().ok())
-        .filter(|n| n.fract() == 0.0 && *n > 0.0 && *n <= f64::from(i32::MAX))
+        .filter(|n| n.fract() == 0.0 && *n > 0.0)
         .map(|n| n as i64);
     let id = match hint {
         Some(id) => id,

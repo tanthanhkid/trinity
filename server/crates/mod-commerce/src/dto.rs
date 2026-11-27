@@ -36,10 +36,12 @@ fn int_of(v: &Value) -> Option<f64> {
     v.as_f64().filter(|n| n.fract() == 0.0)
 }
 
+type StrPattern = (fn(&str) -> bool, &'static str);
+
 struct Str {
     min: Option<(usize, &'static str)>,
     max: Option<(usize, &'static str)>,
-    pat: Option<(fn(&str) -> bool, &'static str)>,
+    pat: Option<StrPattern>,
     is: &'static str,
 }
 
@@ -410,7 +412,11 @@ fn attribute_tail(o: &Map<String, Value>, out: &mut Vec<String>) {
 pub fn create_attribute_def(body: &Value) -> Result<CreateAttributeDef, HttpError> {
     let mut o = as_obj(body);
     let mut e = Vec::new();
-    unknown(&o, &["key", "label", "type", "options", "is_required", "sort_order"], &mut e);
+    unknown(
+        &o,
+        &["key", "label", "type", "options", "is_required", "sort_order"],
+        &mut e,
+    );
     let key = Str {
         min: Some((1, "key không được rỗng")),
         max: Some((64, "key tối đa 64 ký tự")),
@@ -464,7 +470,9 @@ fn project_color(o: &Map<String, Value>, out: &mut Vec<String>) {
 }
 
 fn project_code_ok(s: &str) -> bool {
-    !s.is_empty() && s.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+    !s.is_empty()
+        && s.bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
 }
 
 /// `CreateProjectDto`.

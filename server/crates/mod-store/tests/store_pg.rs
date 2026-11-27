@@ -154,8 +154,7 @@ fn input(v: &Value) -> serde_json::Map<String, Value> {
 }
 
 async fn save(e: &Env, c: CompanyRef, v: Value) -> Result<StoreSettings, trinity_kernel::error::AppError> {
-    let mut conn = e.tenant_conn(c).await;
-    settings::save(&mut conn, &e.platform, c, &input(&v), 1).await
+    settings::save(&e.db, &e.platform, c, &input(&v), 1).await
 }
 
 async fn product(e: &Env, c: CompanyRef, code: &str, name: &str, price: Option<i64>, active: bool) -> i32 {

@@ -24,6 +24,10 @@ pub fn plain_to_class(reg: &Registry, class: &Class, value: &JsVal) -> JsVal {
     let JsVal::Obj(pairs) = value else { return value.clone() };
     let mut inst = instantiate(class);
     for (k, v) in pairs {
+        // class-transformer bỏ `__proto__` và `constructor` (chống ô nhiễm prototype), kể cả ở đối tượng lồng.
+        if is_proto_key(k) {
+            continue;
+        }
         let field = class.fields.get(k);
         let ty = field.and_then(|f| f.ty.as_ref());
         let mut out = transform_value(reg, v, ty);
@@ -35,6 +39,10 @@ pub fn plain_to_class(reg: &Registry, class: &Class, value: &JsVal) -> JsVal {
         inst.set(k, out);
     }
     inst
+}
+
+fn is_proto_key(k: &str) -> bool {
+    k == "__proto__" || k == "constructor"
 }
 
 fn transform_value(reg: &Registry, v: &JsVal, ty: Option<&TypeRef>) -> JsVal {
@@ -51,6 +59,7 @@ fn transform_value(reg: &Registry, v: &JsVal, ty: Option<&TypeRef>) -> JsVal {
         (JsVal::Obj(pairs), _) => JsVal::Obj(
             pairs
                 .iter()
+                .filter(|(k, _)| !is_proto_key(k))
                 .map(|(k, x)| (k.clone(), transform_value(reg, x, None)))
                 .collect(),
         ),

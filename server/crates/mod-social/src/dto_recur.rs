@@ -530,7 +530,7 @@ mod tests {
     fn luat_freq_weekdays_time() {
         assert_eq!(
             rec(json!({"rule": {"freq": "yearly"}})),
-            vec!["freq phải là daily, weekly hoặc monthly"]
+            vec!["rule.freq phải là daily, weekly hoặc monthly"]
         );
         assert_eq!(
             rec(json!({"rule": {"weekdays": [7, -1, 1.5]}})),

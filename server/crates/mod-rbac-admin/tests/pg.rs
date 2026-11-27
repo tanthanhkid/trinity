@@ -727,3 +727,24 @@ async fn xoa_vai_tro_kiem_lai_nguoi_giu_trong_giao_dich_va_dat_ten_khong_trung_d
         1
     );
 }
+
+#[tokio::test]
+#[ignore = "cần TEST_DATABASE_URL"]
+async fn index_duy_nhat_lower_name_chan_ten_khac_hoa_thuong_o_tang_db() {
+    let env = setup().await;
+    let mut c = env.t.acquire().await.unwrap();
+    // Migration 0027: ghi thẳng (không qua assert_name_free) vẫn bị chặn, và service đổi 23505 thành 409.
+    let r = sqlx::query("INSERT INTO roles (name, is_system, updated_at) VALUES ('QUẢN LÝ', false, now())")
+        .execute(&mut *c)
+        .await;
+    let e = r.expect_err("index lower(name) phải chặn");
+    assert_eq!(e.as_database_error().and_then(|d| d.code()).as_deref(), Some("23505"));
+    assert_eq!(
+        count(
+            &env,
+            "SELECT count(*) FROM pg_indexes WHERE indexname = 'roles_name_lower_key'"
+        )
+        .await,
+        1
+    );
+}

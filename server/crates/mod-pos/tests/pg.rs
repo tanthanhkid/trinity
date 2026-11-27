@@ -318,6 +318,14 @@ async fn cau_hinh_va_menu() {
     let _g = serial().lock().await;
     let mut c = conn().await;
     clean(&mut c).await;
+    // Chụp lại cấu hình quán (bảng tạm của kết nối này) để trả nguyên trạng ở cuối test, không ghi đè dữ liệu thật.
+    let _ = catalog::get_settings(&mut c).await.unwrap();
+    exec(&mut c, "DROP TABLE IF EXISTS m26_settings_bak").await;
+    exec(
+        &mut c,
+        "CREATE TEMP TABLE m26_settings_bak AS SELECT * FROM pos_settings WHERE id = 1",
+    )
+    .await;
     exec(&mut c, "UPDATE pos_settings SET menu_category_ids = '{}'").await;
 
     let s = catalog::get_settings(&mut c).await.unwrap();
@@ -424,9 +432,13 @@ async fn cau_hinh_va_menu() {
 
     exec(
         &mut c,
-        "UPDATE pos_settings SET menu_category_ids = '{}', store_name = 'Quán của tôi', bank_bin = NULL",
+        "UPDATE pos_settings s SET store_name = b.store_name, address = b.address, phone = b.phone, \
+         receipt_footer = b.receipt_footer, bank_bin = b.bank_bin, bank_account_no = b.bank_account_no, \
+         bank_account_name = b.bank_account_name, menu_category_ids = b.menu_category_ids \
+         FROM m26_settings_bak b WHERE s.id = 1",
     )
     .await;
+    exec(&mut c, "DROP TABLE m26_settings_bak").await;
     clean(&mut c).await;
 }
 

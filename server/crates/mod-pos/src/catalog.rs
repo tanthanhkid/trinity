@@ -26,7 +26,7 @@ const SETTINGS_COLS: &str = "id, store_name, address, phone, receipt_footer, ban
 /// khoá = giữ nguyên. `store_name` không xoá được. `menu_category_ids` rỗng = menu lấy mọi danh mục.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct UpdateSettings {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "non_null")]
     pub store_name: Option<String>,
     #[serde(default, deserialize_with = "some_nullable")]
     pub address: Option<Option<String>>,
@@ -40,8 +40,17 @@ pub struct UpdateSettings {
     pub bank_account_no: Option<Option<String>>,
     #[serde(default, deserialize_with = "some_nullable")]
     pub bank_account_name: Option<Option<String>>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "non_null")]
     pub menu_category_ids: Option<Vec<i32>>,
+}
+
+/// Trường cột NOT NULL: vắng khoá = giữ nguyên, nhưng `null` là LỖI (400), không coi như vắng.
+fn non_null<'de, T, D>(d: D) -> Result<Option<T>, D::Error>
+where
+    T: serde::Deserialize<'de>,
+    D: serde::Deserializer<'de>,
+{
+    T::deserialize(d).map(Some)
 }
 
 fn digits(v: &str, min: usize, max: usize) -> bool {
@@ -79,12 +88,15 @@ impl UpdateSettings {
                 e.push(format!("{name} must be shorter than or equal to {max} characters"));
             }
         }
+        // `""` là cách xoá cấu hình (lưu NULL) nên không bị luật chữ số chặn.
         if let Some(Some(v)) = &self.bank_bin
+            && !v.is_empty()
             && !digits(v, 6, 6)
         {
             e.push("BIN ngân hàng gồm 6 chữ số".to_owned());
         }
         if let Some(Some(v)) = &self.bank_account_no
+            && !v.is_empty()
             && !digits(v, 4, 19)
         {
             e.push("Số tài khoản gồm 4–19 chữ số".to_owned());
@@ -226,6 +238,7 @@ pub async fn menu(conn: &mut PgConnection, q: &MenuQuery) -> Result<Menu, AppErr
     let products = sqlx::query_as::<_, MenuProduct>(
         "SELECT id, code, name, price, image_url, category_id FROM products \
          WHERE is_active AND deleted_at IS NULL AND price IS NOT NULL \
+           AND (category_id IS NULL OR category_id IN (SELECT id FROM product_categories WHERE is_active)) \
            AND ($1::int4[] IS NULL OR category_id = ANY($1)) \
            AND ($2::text IS NULL OR strpos(lower(name), lower($2)) > 0 OR strpos(lower(code), lower($2)) > 0) \
          ORDER BY is_featured DESC, name ASC, id ASC",
@@ -262,6 +275,14 @@ mod tests {
         s.bank_bin = Some(Some("97043".into()));
         s.bank_account_no = Some(Some("12a".into()));
         assert_eq!(s.validate().unwrap_err().status(), 400);
+        let clear = UpdateSettings {
+            bank_bin: Some(Some(String::new())),
+            bank_account_no: Some(Some(String::new())),
+            ..Default::default()
+        };
+        assert!(clear.validate().is_ok());
+        assert!(serde_json::from_str::<UpdateSettings>(r#"{"store_name":null}"#).is_err());
+        assert!(serde_json::from_str::<UpdateSettings>(r#"{"menu_category_ids":null}"#).is_err());
         let nul: UpdateSettings = serde_json::from_str(r#"{"address":null,"phone":""}"#).unwrap();
         assert_eq!(nul.address, Some(None));
         assert_eq!(nul.phone, Some(Some(String::new())));

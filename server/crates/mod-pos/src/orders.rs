@@ -580,7 +580,8 @@ async fn build_items(conn: &mut PgConnection, items: &[OrderItemInput]) -> Resul
         .collect();
     let products: Vec<(i32, String, i64, Option<i32>)> = sqlx::query_as(
         "SELECT id, name, price, category_id FROM products \
-         WHERE id = ANY($1) AND is_active AND deleted_at IS NULL AND price IS NOT NULL",
+         WHERE id = ANY($1) AND is_active AND deleted_at IS NULL AND price IS NOT NULL \
+           AND (category_id IS NULL OR category_id IN (SELECT id FROM product_categories WHERE is_active))",
     )
     .bind(&pids)
     .fetch_all(&mut *conn)
@@ -1015,8 +1016,8 @@ pub async fn qr(conn: &mut PgConnection, id: i32, requested: Option<i64>) -> Res
     .await
     .map_err(db)?;
     let (Some(bin), Some(acc)) = (
-        s.as_ref().and_then(|s| s.bank_bin.clone()),
-        s.as_ref().and_then(|s| s.bank_account_no.clone()),
+        s.as_ref().and_then(|s| s.bank_bin.clone()).filter(|b| !b.is_empty()),
+        s.as_ref().and_then(|s| s.bank_account_no.clone()).filter(|a| !a.is_empty()),
     ) else {
         return Err(HttpError::bad_request("Chưa cấu hình tài khoản nhận tiền (Cài đặt POS > Ngân hàng)").into());
     };

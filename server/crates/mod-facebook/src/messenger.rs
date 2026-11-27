@@ -479,7 +479,7 @@ impl FacebookIngest {
 }
 
 /// Người được giao khách (`assigned_to`), hoặc `None`.
-async fn assigned_to(conn: &mut PgConnection, contact_id: Option<i32>) -> Result<Option<i32>, AppError> {
+pub(crate) async fn assigned_to(conn: &mut PgConnection, contact_id: Option<i32>) -> Result<Option<i32>, AppError> {
     let Some(id) = contact_id else { return Ok(None) };
     let r: Option<Option<i32>> = sqlx::query_scalar("SELECT assigned_to FROM contacts WHERE id = $1")
         .bind(id)

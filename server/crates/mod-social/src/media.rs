@@ -154,7 +154,7 @@ pub fn mb(n: u64) -> String {
     format!("{} MB", ((n as f64) / 1024.0 / 1024.0).round())
 }
 
-fn too_large(max: u64) -> String {
+pub(crate) fn too_large(max: u64) -> String {
     format!("Tệp quá lớn (tối đa {}).", mb(max))
 }
 
@@ -202,7 +202,7 @@ pub fn parse_key(key: &str) -> Option<u64> {
     }
 }
 
-fn new_key(user_id: i32, ext: &str, now_ms: i64) -> String {
+pub(crate) fn new_key(user_id: i32, ext: &str, now_ms: i64) -> String {
     let rand = uuid::Uuid::new_v4().simple().to_string();
     format!("social/u{user_id}_{now_ms}_{}{ext}", &rand[..6])
 }
@@ -292,7 +292,7 @@ impl MediaStore {
         }
     }
 
-    async fn remove(&self, key: &str) {
+    pub(crate) async fn remove(&self, key: &str) {
         let r = match self {
             Self::Local(d) => d.delete(key).await,
             Self::S3(d) => d.delete(key).await,
@@ -337,6 +337,7 @@ impl<R: AsyncRead + Unpin> AsyncRead for LimitReader<R> {
             let total = self.count.fetch_add(n, Ordering::Relaxed) + n;
             if total > self.max {
                 self.exceeded.store(true, Ordering::Relaxed);
+                buf.set_filled(before);
                 return Poll::Ready(Err(std::io::Error::other("vượt trần kích thước")));
             }
         }
@@ -603,7 +604,12 @@ where
 }
 
 /// Ghi vào thư viện bằng một kết nối riêng; lỗi thì xoá tệp vừa đưa lên kho.
-async fn record_new(c: &MediaCtx<'_>, m: &SocialMedia, name: &str, source: &str) -> Result<LibraryItem, AppError> {
+pub(crate) async fn record_new(
+    c: &MediaCtx<'_>,
+    m: &SocialMedia,
+    name: &str,
+    source: &str,
+) -> Result<LibraryItem, AppError> {
     let rec = async {
         let mut conn = acquire(c.db, c.company).await?;
         record(&mut conn, c.user_id, m, name, source).await

@@ -1155,6 +1155,11 @@ Tài liệu triển khai vẫn khuyên chỉ mở cổng origin cho dải IP c�
 - X05 đo tệp xuất lớn nhất; đích dưới 100 giây.
 - Sau X06 (không thuộc phạm vi tương thích): X15a tải video theo phần ≤ 50 MB (máy chủ + web); X15b chuyển các route
   xuất mà X05 đo được trên 60 giây sang chạy nền qua `platform.jobs` rồi tải về sau.
+  X15a đã có tầng nghiệp vụ (`mod-social::chunked`, không thêm bảng: phiên là `social/chunks/<id>/meta.json` + các phần `p<n>`
+  trong kho tệp; phần mặc định 16 MB, trần 50 MB; trần video 200 MB không theo `SOCIAL_MAX_VIDEO_MB`) và bộ tải ở web
+  (`social-chunk-upload.ts`, video > 90 MB; máy chủ cũ không có route thì rơi về multipart). 5 route
+  `/social/media/uploads...` chỉ có ở Rust (`routes::upload_routes`), chưa gộp vào `routes()`: gộp khi có router social và
+  nới `RUST_ONLY_ROUTES` (hiện chỉ nhận route `Public`).
 
 **Cổng tương thích 4000.** `docs/deployment.md` hiện bắt reverse proxy trỏ `/notif-ws` thẳng vào API ở cổng 4000 (Next
 không chuyển tiếp WebSocket). Sau X06 không còn gì nghe ở đó và chuông realtime sẽ mất lặng lẽ. Binary vì vậy nghe

@@ -5,6 +5,7 @@ import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClie
 import axios from "axios"
 import apiClient from "@/lib/api-client"
 import { nextTickMs } from "@/lib/realtime-mode"
+import { CHUNKED_VIDEO_THRESHOLD, uploadVideoInChunks, type ChunkTransport } from "@/lib/social-chunk-upload"
 
 /** Mạng đăng bài còn hỗ trợ — khớp `SOCIAL_NETWORKS` phía BE. */
 export type SocialNetwork = "facebook"
@@ -494,11 +495,44 @@ export function useSocialMediaPreview(id: number, enabled: boolean) {
   return { url: q.data ?? null, isError: q.isError }
 }
 
+const socialChunkTransport: ChunkTransport<SocialMediaItem> = {
+  init: async (body) => (await apiClient.post("/social/media/uploads", body)).data,
+  status: async (id) => {
+    try {
+      return (await apiClient.get(`/social/media/uploads/${id}`)).data
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) return null
+      throw err
+    }
+  },
+  putPart: async (id, index, part, onSent, signal) => {
+    await apiClient.put(`/social/media/uploads/${id}/parts/${index}`, part, {
+      headers: { "Content-Type": "application/octet-stream" },
+      signal,
+      onUploadProgress: (e) => onSent(e.loaded),
+    })
+  },
+  complete: async (id) => (await apiClient.post<SocialMediaItem>(`/social/media/uploads/${id}/complete`)).data,
+  cancel: async (id) => {
+    await apiClient.delete(`/social/media/uploads/${id}`)
+  },
+}
+
 /**
  * Tải một tệp: hỏi `POST /social/media/upload-token` trước để máy chủ kiểm loại và cỡ (tệp quá trần bị chặn trước khi gửi,
  * kể cả khi trần thấp hơn giới hạn body của proxy); máy chủ luôn trả 400, câu "upload trực tiếp" nghĩa là tệp hợp lệ → multipart.
  */
-export async function uploadSocialFile(file: File, onProgress: (pct: number) => void): Promise<SocialMediaItem> {
+export async function uploadSocialFile(file: File, onProgress: (pct: number) => void, signal?: AbortSignal): Promise<SocialMediaItem> {
+  // Video lớn: tải theo phần để qua proxy giới hạn body 100 MB (máy chủ Rust, X15a). Máy chủ cũ không có route này (404/405):
+  // rơi về multipart một lần như trước.
+  if (file.type.startsWith("video/") && file.size > CHUNKED_VIDEO_THRESHOLD) {
+    try {
+      return await uploadVideoInChunks(file, socialChunkTransport, { onProgress, signal })
+    } catch (err) {
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined
+      if (status !== 404 && status !== 405) throw err
+    }
+  }
   try {
     await apiClient.post("/social/media/upload-token", { file_name: file.name, size: file.size })
   } catch (err) {

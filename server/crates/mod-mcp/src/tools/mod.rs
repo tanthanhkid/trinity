@@ -3,7 +3,7 @@
 //! scope, quyền và thân chạy. Mọi dữ liệu trả về đi qua [`crate::ai_output::wrap_data`] (SĐT luôn che) và dùng chính module nghiệp vụ
 //! (cùng phạm vi quyền với giao diện web) với `Principal` đã gỡ `*.phone_full`.
 //!
-//! Chưa có: `get_report` (báo cáo tuỳ chỉnh `CustomReportsService` chưa chuyển sang Rust; sẽ nằm ở issue của báo cáo tuỳ chỉnh).
+//! `get_report`, `get_briefing_data`, `save_briefing` nằm ở `report_briefing` (đăng ký bằng `register_report_briefing`).
 
 pub(crate) mod act_contacts;
 pub(crate) mod act_records;
@@ -20,6 +20,7 @@ mod invitations;
 mod options;
 mod payroll;
 mod records;
+mod report_briefing;
 mod schema;
 mod search;
 mod setup;
@@ -354,4 +355,22 @@ pub fn register_channels(r: &mut ToolRegistry, deps: Arc<ChannelsDeps>) {
         &["settings.integrations"],
         channels::get_client_ip_status,
     );
+}
+
+/// Đăng ký 3 tool báo cáo và bản tin: `get_report` (đọc, báo cáo tuỳ chỉnh theo phạm vi xem của bảng nguồn), `get_briefing_data` (đọc,
+/// `reports.overview`) và `save_briefing` (ghi bản tin của CHÍNH người gọi, `reports.overview`, scope `crm.write`). Không có tool xoá.
+pub fn register_report_briefing(r: &mut ToolRegistry) {
+    reg(r, "get_report", &[], report_briefing::get_report);
+    reg(
+        r,
+        "get_briefing_data",
+        &["reports.overview"],
+        report_briefing::get_briefing_data,
+    );
+    r.register(ToolSpec {
+        name: "save_briefing",
+        scope: Some("crm.write"),
+        permissions: &["reports.overview"],
+        runner: Arc::new(Tool(report_briefing::save_briefing)),
+    });
 }

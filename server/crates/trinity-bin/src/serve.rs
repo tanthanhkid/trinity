@@ -478,6 +478,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     let mut registry = mod_mcp::ToolRegistry::new();
     mod_mcp::register_group1(&mut registry);
     mod_mcp::register_group2(&mut registry);
+    mod_mcp::register_report_briefing(&mut registry);
     mod_mcp::register_group3(&mut registry);
     mod_mcp::register_structure(&mut registry);
     // M44c: hộp thư và lời mời. Facebook dùng bản `FacebookIngest` riêng (cùng `GraphClient`, chỉ khác bộ nhớ chống đồng bộ dồn).

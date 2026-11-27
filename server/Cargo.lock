@@ -2534,6 +2534,7 @@ dependencies = [
  "http",
  "jsonschema",
  "mod-auth",
+ "mod-briefings",
  "mod-channel-guard",
  "mod-contacts",
  "mod-custom",

@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useEffect } from "react"
+import { useEffect } from "react"
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,6 +17,7 @@ import { inboxDayLabel } from "@/components/inbox/inbox-ui"
 import { BOX } from "@/app/(dashboard)/dashboard/_components/home-box"
 import { StagePill } from "@/app/(dashboard)/contacts/_components/contact-row"
 import { useAuth } from "@/hooks/use-auth"
+import { useRouteParams } from "@/lib/route-params"
 import { Forbidden, usePermissions } from "@/lib/rbac"
 import { useMarkContactViewed } from "@/hooks/use-mark-contact-viewed"
 import { ZaloPhoneLink } from "@/components/zalo-phone-link"
@@ -178,16 +179,16 @@ function ContactDetailError({
  * `contacts.view`; thiếu quyền → `<Forbidden />`. BE vẫn là tuyến chặn thật
  * (khách ngoài phạm vi → 404).
  */
-export default function ContactDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function ContactDetailPage() {
+  const route = useRouteParams<"id">("/contacts/:id")
   const { isLoading } = useAuth()
   const { can } = usePermissions()
-  if (isLoading) return <Skeleton className="h-64 rounded-2xl" />
+  if (isLoading || !route) return <Skeleton className="h-64 rounded-2xl" />
   if (!can("contacts.view")) return <Forbidden message="Cần quyền Xem khách hàng." />
-  return <ContactDetailContent params={params} />
+  return <ContactDetailContent id={route.id} />
 }
 
-function ContactDetailContent({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+function ContactDetailContent({ id }: { id: string }) {
 
   const { data: contact, isLoading, isError, error: contactError, refetch: refetchContact } = useQuery<ContactDetail, unknown>({
     queryKey: ["contact", id],

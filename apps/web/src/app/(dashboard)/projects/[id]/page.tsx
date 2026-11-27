@@ -1,7 +1,7 @@
 'use client'
 
 import { PermissionGate } from "@/lib/rbac"
-import { use } from 'react'
+import { useRouteParams } from '@/lib/route-params'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, FolderOpen, Loader2 } from 'lucide-react'
@@ -12,22 +12,22 @@ import { fetchProject } from './_components/api'
 import { PROJECT_COLOR_MAP } from './_components/types'
 import { formatDate } from '@/lib/format'
 
-export default function ProjectDetailPage(props: {
-  params: Promise<{ id: string }>
-}) {
+export default function ProjectDetailPage() {
+  const route = useRouteParams<'id'>('/projects/:id')
   return (
     <PermissionGate permission="products.view">
-      <ProjectDetailScreen {...props} />
+      {route ? (
+        <ProjectDetailScreen id={route.id} />
+      ) : (
+        <div className="flex justify-center py-20">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
     </PermissionGate>
   )
 }
 
-function ProjectDetailScreen({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = use(params)
+function ProjectDetailScreen({ id }: { id: string }) {
   const projectId = Number(id)
 
   const { data: project, isLoading } = useQuery({

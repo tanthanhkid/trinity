@@ -1,16 +1,33 @@
 import type { NextConfig } from "next";
 
+/**
+ * `NEXT_OUTPUT=export` (đặt bởi `pnpm build:export`, scripts/build-export.mjs): xuất tĩnh ra `out/` song song với bản `standalone`,
+ * để Rust phục vụ (K18). Hai bản dùng chung mã nguồn; chỗ khác nhau:
+ *  - `pageExtensions`: `page.export.tsx` chỉ có trong bản xuất, `page.standalone.tsx` chỉ có trong bản standalone (`/privacy`, `/terms`:
+ *    cấu hình `force-dynamic` phải là hằng số nên không bật tắt theo biến build). Bản xuất bỏ `ts/js` nên `route.ts`
+ *    (`/api/v1`, `/uploads`, `/api/build-id`, `/api/fe-logging`) và `proxy.ts` — thứ `output: export` không hỗ trợ — không vào bản xuất;
+ *    bản standalone giữ nguyên chúng.
+ *  - `rewrites/redirects/headers`: bản xuất bỏ (Rust làm, K18); Next chỉ cảnh báo chúng không có tác dụng.
+ *  - `distDir` riêng để không đè `.next` của bản standalone.
+ */
+const isExport = process.env.NEXT_OUTPUT === "export"
+
 const nextConfig: NextConfig = {
   // Standalone: đóng gói cho máy chủ tự quản (Dockerfile / pm2).
-  output: "standalone",
+  output: isExport ? "export" : "standalone",
+  ...(isExport && { distDir: ".next-export" }),
+  pageExtensions: isExport ? ["export.tsx", "tsx"] : ["standalone.tsx", "tsx", "ts", "jsx", "js"],
+  env: { NEXT_PUBLIC_STATIC_EXPORT: isExport ? "1" : "" },
   devIndicators: false,
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
-  images: {
-    formats: ["image/avif", "image/webp"],
-    minimumCacheTTL: 60,
-  },
+  images: isExport
+    ? { unoptimized: true }
+    : {
+        formats: ["image/avif", "image/webp"],
+        minimumCacheTTL: 60,
+      },
   ...(process.env.NODE_ENV !== 'production' && {
     experimental: {
       allowDevelopmentBuild: true,
@@ -20,6 +37,7 @@ const nextConfig: NextConfig = {
   // (RFC 8414 §3.1 / RFC 9728 §3.1: `/.well-known/<loại>` + path của issuer/resource) phải được Next chuyển tiếp sang monolith.
   // Đích mặc định = monolith cục bộ :4000 (cùng giả định `LOCAL_ROUTES` ở app/api/v1/[...path]/route.ts).
   rewrites: async () => {
+    if (isExport) return []
     const monolith = (process.env.MONOLITH_INTERNAL_URL ?? "http://127.0.0.1:4000").replace(/\/+$/, "");
     const wellKnown = (source: string, destination: string) => [
       { source, destination: `${monolith}${destination}` },
@@ -35,11 +53,14 @@ const nextConfig: NextConfig = {
     };
   },
   // `/assistant` chuyển sang Cài đặt › Kết nối & AI — nơi kết nối ChatGPT/Claude/agent khác qua MCP.
-  redirects: async () => [
-    { source: "/assistant", destination: "/settings?tab=integrations", permanent: false },
-    { source: "/assistant/:path*", destination: "/settings?tab=integrations", permanent: false },
-  ],
-  headers: async () => [
+  redirects: async () =>
+    isExport
+      ? []
+      : [
+          { source: "/assistant", destination: "/settings?tab=integrations", permanent: false },
+          { source: "/assistant/:path*", destination: "/settings?tab=integrations", permanent: false },
+        ],
+  headers: async () => isExport ? [] : [
     // màn đồng ý OAuth KHÔNG được nhúng vào khung của trang khác (clickjacking: phủ lớp trong suốt lên nút "Cho phép").
     {
       source: "/oauth/authorize",

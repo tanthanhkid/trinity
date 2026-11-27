@@ -12,6 +12,7 @@ mọi trang mở được không lỗi, đúng phân quyền, các luồng nghi�
 | `seed/cleanup.teardown.ts` (project `cleanup`) | Teardown của `seed` khi chạy lẻ; `run-full` gọi riêng ở pha cuối ⇒ chạy **kể cả khi test đỏ**: xoá theo manifest NGƯỢC thứ tự qua API, quét sót `E2E-`, ghi `e2e/.cleanup-residual.json` (bản ghi chỉ xoá mềm được), rồi kiểm: không còn `E2E-` hoạt động + số bản ghi THẬT bằng trước seed. |
 | `smoke.spec.ts` | **Read-only.** Mỗi role × mỗi trang: không `pageerror`/console error/API 4xx-5xx, h1 đúng, trang không quyền hiện "Không có quyền", công tắc tính năng tắt hiện "Tính năng … đang tắt", không tràn ngang (1440 và 390px). |
 | `rbac-ui.spec.ts` | **Read-only.** Menu sidebar, tab Cài đặt/Báo cáo (theo quyền + công tắc tính năng), nút hành động, vào thẳng URL không quyền, phạm vi dữ liệu khách — kỳ vọng tính từ `/auth/me` của chính phiên đó. |
+| `static-web.spec.ts` (project `static-web`, W04) | **Read-only.** Web tĩnh do Rust phục vụ: `/` → `/login`, `/assistant`, `Cache-Control`, tệp `_next/static` immutable, URL sâu của các route động (`contacts/:id`, `projects/:id`, `x/…`, `invite/…`, `s/…`: 200, URL không đổi, không `pageerror`, không 4xx ở tệp tĩnh/payload), điều hướng trong app + quay lại. Chạy lại mỗi lần nâng `next`. |
 | `rbac-api.spec.ts` | **Ma trận quyền qua API** × 5 tài khoản: GET theo quyền (200/403), GHI không quyền → 403, không token → 401, phạm vi own/team/subtree/all trên khách/deal/thẻ Kanban của bộ seed, SĐT che theo `contacts.phone_full`, ngoài phạm vi theo id → 404. Phần dữ liệu cần seed; phần ma trận chạy được không cần seed. |
 | `design/*.spec.ts` (3 project `design-mobile` 390×844 · `design-tablet` 768×1024 · `design-desktop` 1440×900) | Chuẩn thiết kế: ≤1 nút nền đặc chủ đạo/màn; điện thoại: không tràn ngang + nút chính trong vùng ngón cái; khung cảm ứng (390 + 768): vùng chạm ≥40px; popup nằm trọn trong khung. Read-only, role ADMIN. |
 | `flows/*.spec.ts` | **GHI**, chỉ khi `E2E_ALLOW_WRITE=1`, chạy SAU các project đọc (có flow bật/tắt công tắc tính năng nên không được song song với smoke). Khách hàng, Kanban (kéo thả thật), sản phẩm, POS, bảng tin (+bình luận/thích), vai trò, dashboard, component dùng chung; **nhân sự** (`hr`), **chấm công** (`attendance`: tạo đơn → duyệt/từ chối), **lương** (`payroll`: xem theo quyền), **cài đặt** (`settings`: vai trò hẹp → đăng nhập kiểm, tuỳ chọn, khoá API, công tắc tính năng), **kết nối & AI** (`integrations`: webhook vào/ra, OAuth PKCE → MCP, duyệt đề xuất AI). |
@@ -47,6 +48,7 @@ cp e2e/.env.e2e.example e2e/.env.e2e      # file này gitignore — điền mậ
 set -a; source e2e/.env.e2e; set +a        # hoặc export từng biến trong shell
 
 pnpm e2e            # smoke + rbac-ui + rbac-api (read-only, an toàn chạy trên môi trường thật; rbac-api bỏ qua ca cần seed)
+pnpm e2e:static     # W04: như `e2e` + static-web, Playwright tự chạy binary Rust phục vụ web/out (cần `pnpm build:export` và `cargo build --release -p trinity-bin`; DATABASE_URL/JWT_SECRET... lấy từ môi trường)
 pnpm e2e:design     # 3 khung: 390×844, 768×1024, 1440×900 (read-only)
 pnpm e2e:full       # TOÀN BỘ: seed → mọi project → cleanup → tóm tắt (E2E_ALLOW_WRITE=1 tự bật)
 pnpm e2e:seed       # chỉ seed (để soi dữ liệu thử; nhớ pnpm e2e:cleanup sau đó)
@@ -57,6 +59,7 @@ pnpm e2e:report     # mở báo cáo HTML pha read (ảnh chụp, trace); pha kh
 Biến môi trường:
 
 - `E2E_BASE_URL` — mặc định `http://localhost:3000` (instance tự dựng). Chạy local: `http://localhost:3000`.
+- `E2E_SERVER=rust` — W04: `webServer` của Playwright khởi động `E2E_RUST_BIN` (mặc định `../../server/target/release/trinity`) `serve` với `WEB_DIR=E2E_WEB_DIR` (mặc định `./out`) ở cổng `E2E_RUST_PORT` (mặc định 3300); baseURL mặc định `http://127.0.0.1:<cổng>`. Không đặt: dùng instance có sẵn ở `E2E_BASE_URL`.
 - `E2E_BROWSER_CHANNEL=chrome` — dùng Google Chrome hệ thống (Chromium bundled trên máy dev hay hỏng). Mặc định `chromium`.
 - `E2E_<ROLE>_EMAIL` / `E2E_<ROLE>_PASSWORD` với ROLE ∈ `ADMIN, SALE, LEAD, DEPT_HEAD, HR`. **Không bao giờ ghi mật khẩu vào file được commit.** Role nào thiếu env thì test của role đó `skip` có lý do.
 - `E2E_ALLOW_WRITE=1` — bật seed/flows/cleanup (`pnpm e2e:full` tự đặt). `E2E_WORKERS` — số worker (mặc định 5; **trên máy yếu hoặc môi trường nhỏ nên đặt ≤ 3** — thấy 502/ChunkLoadError giả thì giảm xuống 2). Project `flows` luôn chạy 1 worker.

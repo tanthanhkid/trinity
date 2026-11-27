@@ -8,6 +8,7 @@
 pub(crate) mod act_contacts;
 pub(crate) mod act_records;
 pub(crate) mod act_tasks;
+mod channels;
 mod confirm;
 mod contacts;
 mod deals;
@@ -46,6 +47,7 @@ use trinity_kernel::json::js_json;
 use trinity_rbac::can;
 
 use crate::actions::{self, ActionTool};
+pub use channels::ChannelsDeps;
 pub use inbox::InboxDeps;
 pub use invitations::{AuthInvitations, InvitationsPort};
 
@@ -329,4 +331,27 @@ pub fn register_payroll(r: &mut ToolRegistry) {
         permissions: &["payroll.manage"],
         runner: Arc::new(Tool(payroll::apply_payslip_import)),
     });
+}
+
+/// Đăng ký 3 tool đọc về kênh: `get_connected_channels`, `get_channel_limits`, `get_client_ip_status`. Quyền như route tương ứng:
+/// `get_client_ip_status` cần `settings.integrations`; `get_channel_limits` mở cho mọi người (người không có `settings.features`
+/// chỉ thấy cảnh báo); `get_connected_channels` lọc nhóm kênh theo quyền ngay trong hàm báo cáo.
+pub fn register_channels(r: &mut ToolRegistry, deps: Arc<ChannelsDeps>) {
+    reg_state(
+        r,
+        &deps,
+        "get_connected_channels",
+        None,
+        &[],
+        channels::get_connected_channels,
+    );
+    reg_state(r, &deps, "get_channel_limits", None, &[], channels::get_channel_limits);
+    reg_state(
+        r,
+        &deps,
+        "get_client_ip_status",
+        None,
+        &["settings.integrations"],
+        channels::get_client_ip_status,
+    );
 }

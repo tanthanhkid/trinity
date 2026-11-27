@@ -86,6 +86,15 @@ jobs:
             pnpm -r --if-present test
           fi
 
+  # G14: không còn tham chiếu tới kết nối/nhà cung cấp/biến env đã gỡ (danh sách ngoại lệ trong script). Chỉ cần Node có sẵn trên runner.
+  removed-connectors:
+    name: Removed connectors
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - run: node scripts/check-removed-connectors.mjs
+
   secret-scan:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
@@ -287,7 +296,7 @@ jobs:
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [lint, typecheck, unit, contracts, secret-scan, rust-changes, rust-fmt, rust-clippy, rust-unit]
+    needs: [lint, typecheck, unit, contracts, removed-connectors, secret-scan, rust-changes, rust-fmt, rust-clippy, rust-unit]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

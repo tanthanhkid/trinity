@@ -10,12 +10,14 @@ JSON thuần không có chỗ ghi chú nên việc chờ nằm ở bảng dướ
 | a | `ownership-dot-a.json` | `/health`, `/ready`, `/live`, `/telemetry`, `/site-config`, `/settings`; giữ `node`: `/settings/channel-guard` | — | 18 |
 | b | `ownership-dot-b.json` | `/auth`, `/users`, `/roles`, `/rbac`, `/api-keys`, `/public/auth`; giữ `node`: `/auth/settings/login-wifi-check-targets` | — | 69 |
 | c | `ownership-dot-c.json` | `/contacts`, `/deals`, `/interactions`, `/kanban`, `/custom-objects`, `/refs`, `/reports`, `/setup` | — | 190 |
+| d | `ownership-dot-d.json` | `/employees`, `/management`, `/projects`, `/products`, `/product-categories`, `/product-attribute-defs`, `/pos`, `/store`, `/notifications`, `/newsfeed`, `/briefings`, `/templates`, `/events`, `/stale-work`, `/lead-scoring`, `/kpi`, `/tax-config`, `/insurance-settings`, `/payslips`, `/salary-components`, `/salary-rules`, `/auth/settings/login-wifi-check-targets` | `briefings.run-due`, `lead-scoring.run`, `stale-work.digest`, `notification.scheduled` | 417 |
 
 **Việc chờ trước khi bật** (issue còn mở lúc viết mẫu):
 
 - đợt a: không
 - đợt b: không
 - đợt c: không (G12b đã có)
+- đợt d: #203 (M14a), #204 (M14b), #222 (M31); job chưa đăng ký ở `serve`
 
 Route không có dòng nào (`/notif-ws`, `/uploads`, `/.well-known`, `/docs`, 11 route đã gỡ của `RetiredRoutesController`) thuộc Node. `migrate` luôn `node`, `web` luôn `rust` (như `deploy/hybrid/ownership.json` mặc định).
-Nạp thử một mẫu: `TRINITY_OWNERSHIP_FILE=$PWD/deploy/hybrid/mau/ownership-dot-c.json trinity check-config`.
+Nạp thử một mẫu: `TRINITY_OWNERSHIP_FILE=$PWD/deploy/hybrid/mau/ownership-dot-d.json trinity check-config`.

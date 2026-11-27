@@ -142,3 +142,52 @@ curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/reports/dashboard-overv
 | 5xx ở `custom-objects` | công thức/bộ phân tích (M57), `json!` lớn | xem log, lui nếu lặp |
 | `kanban_card_*` mồ côi | xoá thẻ không dọn bảng phụ | đối chiếu dump, sửa chọn lọc |
 
+## Đợt d (X02d, #259) — nhân sự, chấm công, lương, bán hàng, trang bán hàng, thông báo (chuyển cả job)
+
+Module: M09–M14b, M22–M32, M56. Mẫu: `ownership-dot-d.json` = đợt c cộng `/api/v1/employees`, `/management` (nhân sự, hợp đồng, tuyển dụng, chấm công, team), `/projects`, `/products`,
+`/product-categories`, `/product-attribute-defs`, `/pos`, `/store`, `/notifications`, `/newsfeed`, `/briefings`, `/templates`, `/events`, `/stale-work`, `/lead-scoring`, `/kpi`, `/tax-config`,
+`/insurance-settings`, `/payslips`, `/salary-components`, `/salary-rules`, và `auth/settings/login-wifi-check-targets` chuyển sang `rust`. **Job chuyển cùng lần ghi tệp**: `briefings.run-due` (M23),
+`lead-scoring.run` và `stale-work.digest` (M24), `notification.scheduled` (M32).
+
+**Chờ trước khi bật (đang mở trên GitHub lúc viết mẫu)**: #203 (M14a, đã có phần 1–3), #204 (M14b, xuất tệp chấm công), #222 (M31, nhập xuất phiếu lương, PDF, báo cáo). Tiền tố
+`/management` và `/payslips` giao cả nhóm, nên route chưa viết ở Rust sẽ trả 404 sau khi bật: `trinity check-routes` phải báo 100% cho module của đợt, hoặc thêm dòng `node` dài hơn cho route còn thiếu
+(ví dụ `/api/v1/management/attendance/export`) và ghi vào issue. Ngoài ra `serve` chưa đăng ký job nào vào scheduler (ghi chú trong `serve.rs`): **không đổi chủ job sang `rust` khi job chưa được đăng ký**, vì
+khi đó không ai chạy job (vi phạm nguyên tắc 3 của `cutover.md`). Cần T01 (phía Node nhận theo tệp sở hữu).
+
+**Bật**
+
+1. Đợt c qua 72 giờ đầu, X11 xanh. Người duyệt đã xem mẫu phiếu lương PDF và 4 tệp xuất chấm công do Rust sinh (đính kèm issue #259).
+2. Chạy script kiểm `stale-work.digest` ở `cutover.md` mục 5 ngay trước lần ghi tệp, phải ra NOTICE "an toàn"; làm ngoài khung giờ gửi (trước `digest_hour`). Xác nhận `TZ` của bản đang chạy (golden ghi với `TZ=UTC`).
+3. Dump + chụp thư mục `storage`/`uploads` (`cutover.md` mục 2). Ghi số dòng: `payslips`, `attendance_records`, `pos_orders`, `store_orders`, `notification_logs`.
+4. Ghi `ownership-dot-d.json` thành tệp chạy (route **và** job một lần), `SIGHUP`.
+
+**Kiểm sau khi bật**
+
+```
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/management/employees
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/management/attendance/today
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/payslips
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/pos/areas
+curl -fsS $BASE/api/v1/store/public/<slug-công-ty-thử>
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/notifications/unread-count
+```
+
+- **Mỗi job một bên chạy**: `select job, company_id, locked_by, last_started_at, last_error from platform.job_runs order by last_started_at desc` — bốn job trên do tiến trình Rust giữ khoá (`locked_by`), `last_error` rỗng; log Node không còn dòng chạy bốn job đó. Không có bản tổng hợp `stale-work` gửi hai lần trong ngày.
+- Lương: tạo phiếu ở công ty thử, duyệt (đẩy `events/payslip-approved`), tải PDF; chấm công: vào/ra, đơn từ, xuất bốn tệp; POS: mở ca, tạo đơn, thanh toán; trang bán hàng: đơn COD và QR.
+- Bản tin sáng chiều (`briefings`) chạy đúng giờ ở công ty thử, không gửi trùng.
+- Tệp xuất và PDF ra từ Rust mở được, số tiền và ngày đúng múi giờ Việt Nam.
+
+**Lui**: `cutover.md` 4.2, trả **cả route lẫn job** về Node trong một lần ghi; `stale-work.digest` kiểm lại mục 5 trước khi trả (chiều ngược lại cũng gửi trùng được). Phiếu lương, đơn đã ghi bằng Rust giữ nguyên.
+
+**Dấu hiệu lỗi**
+
+| Dấu hiệu | Nguyên nhân hay gặp | Việc làm |
+|---|---|---|
+| Hai bản tổng hợp `stale-work` trong một ngày | đổi chủ giữa `digest_hour` và lúc ghi dấu | lui, xoá không cần; ghi dấu `stale_work_last_digest` đúng ngày rồi thử lại sau |
+| Không có bản tin / không có thông báo hẹn giờ | job chuyển sang `rust` nhưng chưa đăng ký ở scheduler | trả job về Node ngay, mở issue |
+| 404 ở `management/...` hay `payslips/...` | route còn thiếu ở Rust (M14b, M31) trong prefix đã giao | thêm dòng `node` cho route đó hoặc lui |
+| Số lương, thuế, bảo hiểm lệch | bộ tính M30a, làm tròn, `TZ` | lui, đối chiếu `payslips` bằng dump (6.1) |
+| Lệch giờ chấm công (đi trễ/sớm sai) | múi giờ tiến trình khác `Asia/Ho_Chi_Minh` | kiểm `TZ`, lui |
+| POS thiếu tiền hoặc trùng thanh toán | ghi `pos_payments` không nguyên tử | lui, đối chiếu `pos_orders`/`pos_payments` |
+| PDF/tệp xuất lỗi font, tràn trang | `trinity-docgen` | giữ job ở Rust nhưng trả route xuất về Node, mở X12d |
+

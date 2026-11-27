@@ -19,6 +19,8 @@
 //! ở [`guardrails`]: một luật so theo quyền (không theo tên vai trò): người gọi không cấp/sửa/gán được thứ không phải tập
 //! con quyền của chính mình. `PermissionService`/`ScopeService` tự lấy kết nối từ pool, nên `Db` cần pool từ 2 kết nối.
 //!
+//! [`api_router`] nối 9 route vào axum (`PUT /users/:id/roles` do `mod-users` mount).
+//!
 //! [`routes::routes`] khai 10 route với `Access` và so với `contracts/routes.json` (K14); handler (extractor K15 → hàm ở đây
 //! → JSON) do tầng serve nối vào bảng này.
 //!
@@ -26,6 +28,7 @@
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
 
+pub mod api;
 pub mod audit;
 pub mod guardrails;
 pub mod roles;
@@ -37,6 +40,7 @@ use std::sync::Arc;
 use trinity_db::CompanyRef;
 use trinity_rbac::{Grants, PermissionService, RbacCache, ScopeService};
 
+pub use api::{RbacState, api_router};
 pub use validate::{
     AuditQuery, CreateRole, UpdateRole, validate_audit_query, validate_create_role, validate_set_grants,
     validate_set_user_roles, validate_update_role,

@@ -2062,5 +2062,6 @@ Lớp biên: `json_limit` 5 MB, CORS, `/notif-ws` (K33, chuông qua `trinity_syn
 Không có tệp sở hữu, `TRINITY_RUST_ROUTES` và `NODE_FALLBACK_URL`: Rust nhận mọi route (chạy localhost một mình). Có một trong ba thì theo bảng sở hữu
 và phần không thuộc Rust đi Node. Scheduler và worker hàng đợi chạy nền (chưa module nào đăng ký job; tự tắt khi bật `test-hooks`, K34); với
 `--features test-hooks` mount `/api/v1/internal/test/*`. Tắt êm khi Ctrl+C/SIGTERM (30 giây). `trinity healthcheck` gọi `GET /api/v1/health` loopback.
-**Chưa làm:** mount deals, kanban, payroll, facebook, store, commerce, notify, newsfeed, settings, rbac-admin, apikeys, auth
+**Đã mount thêm:** settings (12 route, `PlanTokenGuard` đọc `TRINITY_PLAN_ADMIN_TOKEN`), rbac-admin (9 route; `PUT /users/:id/roles` do users giữ), notify (4 route `/notifications`, chuông qua `RealtimeSink`).
+**Chưa làm:** mount deals, kanban, facebook, store, commerce, newsfeed (upload/media), notify `/templates` `/events`, apikeys, auth
 (chưa có router axum hoặc chưa nối trạng thái); đăng ký job nền của từng module; log từng request;.

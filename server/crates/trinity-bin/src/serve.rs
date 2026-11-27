@@ -403,8 +403,9 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             socket: payroll_socket.clone(),
         }),
     );
-    // CHƯA mount: mod-deals, mod-kanban,
-    // mod-facebook, mod-store (mới có bảng route, chưa có router axum). Route của chúng thuộc Node.
+    // CHƯA mount: mod-deals, mod-kanban, mod-newsfeed (cần multipart/media),
+    // mod-facebook, mod-store (chưa có router axum). Route của chúng thuộc Node. Đã mount: settings,
+    // rbac-admin (trừ `PUT /users/:id/roles`, do mod-users giữ), notify (4 route `/notifications`) ở sau khối realtime.
 
     // ── Scheduler và worker hàng đợi (nền). Chưa module nào đăng ký job ở đây; khi có, `scheduler.register(..)`.
     let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
@@ -465,6 +466,41 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             Err(e) => tracing::warn!("chuông realtime không nghe được trinity_sync: {e}"),
         }
     }
+
+    // ── settings, rbac-admin, notify (notify cần cổng socket nên mount sau khi dựng `socket`).
+    let plan_guards = mod_settings::named_guards(lookup(mod_settings::features::PLAN_TOKEN_ENV));
+    app = mount(
+        app,
+        mod_settings::api_router(mk_deps(plan_guards)),
+        Arc::new(mod_settings::SettingsState { db: db.clone() }),
+    );
+    app = mount(
+        app,
+        mod_rbac_admin::api_router(deps.clone()),
+        Arc::new(mod_rbac_admin::RbacState {
+            db: db.clone(),
+            permissions: perms.clone(),
+            scope: ScopeService::new(db.clone(), cache.clone()),
+            cache: cache.clone(),
+        }),
+    );
+    let ssrf_policy = trinity_http::outbound::ssrf::SsrfPolicy::from_env(lookup);
+    let webhook = mod_notify::delivery::SafeWebhookPoster::new(ssrf_policy).map_err(|e| format!("webhook: {e}"))?;
+    app = mount(
+        app,
+        mod_notify::api_router(deps.clone()),
+        Arc::new(mod_notify::NotifyState {
+            db: db.clone(),
+            deliverer: mod_notify::delivery::Deliverer::new(
+                Arc::new(mod_notify::delivery::RealtimeSink {
+                    socket: socket.clone(),
+                    db: db.clone(),
+                }),
+                Arc::new(webhook),
+                ssrf_policy,
+            ),
+        }),
+    );
 
     // ── Lớp biên rồi strangler
     let production = config.is_production();

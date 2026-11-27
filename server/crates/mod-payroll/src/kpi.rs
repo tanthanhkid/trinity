@@ -5,7 +5,7 @@
 //! - `GET /kpi` ("KPI của tôi") chỉ cần đăng nhập và chỉ trả KPI của CHÍNH hồ sơ nhân viên của người gọi; hồ sơ của người
 //!   khác ⇒ 404 (không cho quản lý xem cấp dưới qua route này).
 //! - Chưa có nguồn số liệu dựng sẵn: [`KpiAggregator`] trả giá trị thực tế theo tên chỉ số (chữ thường); chỉ số thiếu tính
-//!   là 0. Chưa cấu hình nguồn thì `POST /kpi/calculate` trả 501, vì bản Node (nguồn rỗng) ghi đè mọi chỉ số bằng 0.
+//!   là 0. Route dùng nguồn rỗng (`EmptyKpiSource`) như bản Node; `calculate` nhận `None` thì trả 501.
 
 use std::collections::HashMap;
 
@@ -176,9 +176,20 @@ pub async fn create_config(conn: &mut PgConnection, input: &CreateConfig) -> Res
 /// Số liệu thực tế của một nhân viên trong tháng, khoá là tên chỉ số viết thường.
 pub type AggregatedKpiData = HashMap<String, f64>;
 
-/// Nguồn số liệu KPI. Chưa có nguồn dựng sẵn: khi chưa có, [`calculate`] trả 501 thay vì ghi đè mọi chỉ số bằng 0.
+/// Nguồn số liệu KPI. Khi truyền `None`, [`calculate`] trả 501; route dùng [`EmptyKpiSource`] (khớp bản Node).
 pub trait KpiAggregator: Sync {
     fn aggregate_for_employee(&self, user_id: i32, month: &str) -> AggregatedKpiData;
+}
+
+/// Nguồn rỗng, giống `KpiAggregatorService` của bản Node: không có chỉ số dựng sẵn nên mọi chỉ số thực tế tính là 0.
+/// Là nguồn mặc định của `POST /kpi/calculate`; thay bằng nguồn thật khi có module cấp số liệu.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct EmptyKpiSource;
+
+impl KpiAggregator for EmptyKpiSource {
+    fn aggregate_for_employee(&self, _user_id: i32, _month: &str) -> AggregatedKpiData {
+        AggregatedKpiData::new()
+    }
 }
 
 /// Chỉ số theo ngày (`tasks/day`, `x_per_day`) nhân với số ngày làm việc; còn lại dùng thẳng.

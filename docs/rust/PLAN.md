@@ -1448,6 +1448,7 @@ bật đợt tiếp theo.
   ghi (danh sách bảng theo module nằm trong runbook X01); viết script sửa đúng các dòng lệch; chạy script trong một
   giao dịch có đếm số dòng trước và sau. X01 diễn tập quy trình này một lần.
 - Tuỳ chọn cho bản cài cần khôi phục theo thời điểm: lưu WAL (PITR), có hướng dẫn trong X01; không bắt buộc.
+- Quy trình đầy đủ (danh sách kiểm, thứ tự sửa tệp, lui, sửa có chọn lọc, bảng theo module, PITR): `docs/runbooks/cutover.md` (X01).
 - Toàn bộ: tệp sở hữu về "mọi thứ thuộc Node", hoặc trỏ origin thẳng về Next + Node như cũ. Giữ bản build Node sẵn
   sàng cho tới hết 14 ngày sau X06.
 

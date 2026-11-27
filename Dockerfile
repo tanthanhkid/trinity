@@ -64,3 +64,34 @@ ENV NODE_OPTIONS="--require /app/apps/web/peer-ip.cjs"
 USER node
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
+
+# ---------------------------------------------------------------------------
+# rust-build / trinity: binary Rust (chỉ dùng cho cấu hình lai, docs/runbooks/hybrid.md; không nằm trong compose mặc định).
+# Dựng từ nguồn trên máy người vận hành; bản chạy bằng trình quản lý tiến trình tải binary từ artifact CI thay vì dựng ở đây.
+#   docker build --target trinity -t trinity-rust .
+# ---------------------------------------------------------------------------
+FROM rust:1.100.0-slim-bookworm AS rust-build
+ENV SQLX_OFFLINE=true CARGO_TERM_COLOR=never
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends pkg-config libssl-dev ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+# Bộ migration nhúng lúc biên dịch đọc nguyên văn packages/prisma/prisma/migrations (trinity-db/src/migrate.rs).
+COPY packages/prisma/prisma ./packages/prisma/prisma
+COPY server ./server
+RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=cargo-target,target=/src/server/target \
+    cd server \
+ && cargo build --release --locked -p trinity-bin \
+ && cp target/release/trinity /usr/local/bin/trinity
+
+FROM debian:bookworm-slim AS trinity
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --uid 1000 --create-home trinity
+COPY --from=rust-build /usr/local/bin/trinity /usr/local/bin/trinity
+ENV NODE_ENV=production TRINITY_HTTP_PORT=3000
+USER trinity
+EXPOSE 3000
+CMD ["trinity", "serve"]

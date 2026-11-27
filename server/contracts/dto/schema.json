@@ -1438,6 +1438,207 @@
   },
   "defaults": {}
  },
+ "CreateContractDto": {
+  "declared": [
+   "employee_id",
+   "contract_type",
+   "signed_date",
+   "end_date",
+   "file_url",
+   "notes",
+   "is_terminated"
+  ],
+  "validated": [
+   "employee_id",
+   "contract_type",
+   "signed_date",
+   "end_date",
+   "file_url",
+   "notes",
+   "is_terminated"
+  ],
+  "fields": {
+   "employee_id": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "contract_type": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "hdld_vo_thoi_han",
+        "hdld_1",
+        "hdld_2",
+        "hdld_3",
+        "thu_viec",
+        "chinh_thuc",
+        "co_thoi_han",
+        "khong_thoi_han"
+       ]
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "signed_date": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isDateString",
+      "constraints": [
+       {
+        "$undefined": true
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "end_date": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isDateString",
+      "constraints": [
+       {
+        "$undefined": true
+       }
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "file_url": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       1000
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "notes": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       2000
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "is_terminated": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
  "CreateCustomFieldDto": {
   "declared": [
    "key",
@@ -9217,6 +9418,503 @@
   },
   "defaults": {}
  },
+ "QueryContractStatsDto": {
+  "declared": [
+   "date_from",
+   "date_to",
+   "department",
+   "team",
+   "employment_status"
+  ],
+  "validated": [
+   "date_from",
+   "date_to",
+   "department",
+   "team",
+   "employment_status"
+  ],
+  "fields": {
+   "date_from": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isDateString",
+      "constraints": [
+       {
+        "$undefined": true
+       }
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "date_to": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isDateString",
+      "constraints": [
+       {
+        "$undefined": true
+       }
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "department": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "team": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "employment_status": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "working",
+        "resigned"
+       ]
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
+ "QueryContractsDto": {
+  "declared": [
+   "page",
+   "page_size",
+   "search",
+   "department",
+   "position",
+   "status",
+   "contract_type",
+   "employment_status",
+   "team",
+   "sort_by",
+   "sort_dir"
+  ],
+  "validated": [
+   "page",
+   "page_size",
+   "search",
+   "department",
+   "position",
+   "status",
+   "contract_type",
+   "employment_status",
+   "team",
+   "sort_by",
+   "sort_dir"
+  ],
+  "fields": {
+   "page": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "page_size": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "max",
+      "constraints": [
+       200
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "search": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "department": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "position": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "status": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "active",
+        "expiring",
+        "expired",
+        "terminated",
+        "no_contract"
+       ]
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "contract_type": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "hdld_vo_thoi_han",
+        "hdld_1",
+        "hdld_2",
+        "hdld_3",
+        "thu_viec",
+        "chinh_thuc",
+        "co_thoi_han",
+        "khong_thoi_han"
+       ]
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "employment_status": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "working",
+        "resigned"
+       ]
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "team": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "sort_by": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "full_name",
+        "employee_code",
+        "signed_date",
+        "end_date",
+        "days_remaining",
+        "status",
+        "contract_type"
+       ]
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "sort_dir": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "asc",
+        "desc"
+       ]
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
  "QueryDealDto": {
   "declared": [
    "status",
@@ -12565,6 +13263,196 @@
     "type": {
      "dto": "ContactCustomFieldDto"
     }
+   }
+  },
+  "defaults": {}
+ },
+ "UpdateContractDto": {
+  "declared": [
+   "contract_type",
+   "signed_date",
+   "end_date",
+   "file_url",
+   "notes",
+   "is_terminated"
+  ],
+  "validated": [
+   "contract_type",
+   "signed_date",
+   "end_date",
+   "file_url",
+   "notes",
+   "is_terminated"
+  ],
+  "fields": {
+   "contract_type": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "hdld_vo_thoi_han",
+        "hdld_1",
+        "hdld_2",
+        "hdld_3",
+        "thu_viec",
+        "chinh_thuc",
+        "co_thoi_han",
+        "khong_thoi_han"
+       ]
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "signed_date": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isDateString",
+      "constraints": [
+       {
+        "$undefined": true
+       }
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "end_date": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isDateString",
+      "constraints": [
+       {
+        "$undefined": true
+       }
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "file_url": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       1000
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "notes": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       2000
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "is_terminated": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
    }
   },
   "defaults": {}

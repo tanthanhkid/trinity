@@ -23679,6 +23679,1943 @@
   }
  },
  {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "signed_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "employee_id": null,
+   "contract_type": null,
+   "signed_date": null,
+   "end_date": null,
+   "file_url": null,
+   "notes": null,
+   "is_terminated": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "signed_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "employee_id": "",
+   "contract_type": "",
+   "signed_date": "",
+   "end_date": "",
+   "file_url": "",
+   "notes": "",
+   "is_terminated": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "employee_id": "  x  ",
+   "contract_type": "  x  ",
+   "signed_date": "  x  ",
+   "end_date": "  x  ",
+   "file_url": "  x  ",
+   "notes": "  x  ",
+   "is_terminated": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "employee_id": 12.5,
+   "contract_type": 12.5,
+   "signed_date": 12.5,
+   "end_date": 12.5,
+   "file_url": 12.5,
+   "notes": 12.5,
+   "is_terminated": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must be an integer number",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "employee_id": -1,
+   "contract_type": -1,
+   "signed_date": -1,
+   "end_date": -1,
+   "file_url": -1,
+   "notes": -1,
+   "is_terminated": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "employee_id": 0,
+   "contract_type": 0,
+   "signed_date": 0,
+   "end_date": 0,
+   "file_url": 0,
+   "notes": 0,
+   "is_terminated": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "employee_id": true,
+   "contract_type": true,
+   "signed_date": true,
+   "end_date": true,
+   "file_url": true,
+   "notes": true,
+   "is_terminated": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "employee_id": [
+    "a",
+    1
+   ],
+   "contract_type": [
+    "a",
+    1
+   ],
+   "signed_date": [
+    "a",
+    1
+   ],
+   "end_date": [
+    "a",
+    1
+   ],
+   "file_url": [
+    "a",
+    1
+   ],
+   "notes": [
+    "a",
+    1
+   ],
+   "is_terminated": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "employee_id": {
+    "a": 1
+   },
+   "contract_type": {
+    "a": 1
+   },
+   "signed_date": {
+    "a": 1
+   },
+   "end_date": {
+    "a": 1
+   },
+   "file_url": {
+    "a": 1
+   },
+   "notes": {
+    "a": 1
+   },
+   "is_terminated": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "employee_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "contract_type": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "signed_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "end_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "file_url": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "notes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "is_terminated": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "employee_id": "2026-11-26T10:00:00Z",
+   "contract_type": "2026-11-26T10:00:00Z",
+   "signed_date": "2026-11-26T10:00:00Z",
+   "end_date": "2026-11-26T10:00:00Z",
+   "file_url": "2026-11-26T10:00:00Z",
+   "notes": "2026-11-26T10:00:00Z",
+   "is_terminated": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "employee_id": "123",
+   "contract_type": "123",
+   "signed_date": "123",
+   "end_date": "123",
+   "file_url": "123",
+   "notes": "123",
+   "is_terminated": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "employee_id": "a@example.com",
+   "contract_type": "a@example.com",
+   "signed_date": "a@example.com",
+   "end_date": "a@example.com",
+   "file_url": "a@example.com",
+   "notes": "a@example.com",
+   "is_terminated": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "employee_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "contract_type": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "signed_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "end_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "file_url": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "notes": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "is_terminated": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "employee_id": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "signed_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "employee_id": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "employee_id must be an integer number",
+    "signed_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "contract_type": null,
+   "signed_date": null,
+   "end_date": null,
+   "file_url": null,
+   "notes": null,
+   "is_terminated": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "contract_type": "",
+   "signed_date": "",
+   "end_date": "",
+   "file_url": "",
+   "notes": "",
+   "is_terminated": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "contract_type": "  x  ",
+   "signed_date": "  x  ",
+   "end_date": "  x  ",
+   "file_url": "  x  ",
+   "notes": "  x  ",
+   "is_terminated": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "contract_type": 12.5,
+   "signed_date": 12.5,
+   "end_date": 12.5,
+   "file_url": 12.5,
+   "notes": 12.5,
+   "is_terminated": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "contract_type": -1,
+   "signed_date": -1,
+   "end_date": -1,
+   "file_url": -1,
+   "notes": -1,
+   "is_terminated": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "contract_type": 0,
+   "signed_date": 0,
+   "end_date": 0,
+   "file_url": 0,
+   "notes": 0,
+   "is_terminated": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "contract_type": true,
+   "signed_date": true,
+   "end_date": true,
+   "file_url": true,
+   "notes": true,
+   "is_terminated": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "contract_type": [
+    "a",
+    1
+   ],
+   "signed_date": [
+    "a",
+    1
+   ],
+   "end_date": [
+    "a",
+    1
+   ],
+   "file_url": [
+    "a",
+    1
+   ],
+   "notes": [
+    "a",
+    1
+   ],
+   "is_terminated": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "contract_type": {
+    "a": 1
+   },
+   "signed_date": {
+    "a": 1
+   },
+   "end_date": {
+    "a": 1
+   },
+   "file_url": {
+    "a": 1
+   },
+   "notes": {
+    "a": 1
+   },
+   "is_terminated": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "contract_type": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "signed_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "end_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "file_url": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "notes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "is_terminated": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "contract_type": "2026-11-26T10:00:00Z",
+   "signed_date": "2026-11-26T10:00:00Z",
+   "end_date": "2026-11-26T10:00:00Z",
+   "file_url": "2026-11-26T10:00:00Z",
+   "notes": "2026-11-26T10:00:00Z",
+   "is_terminated": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "contract_type": "123",
+   "signed_date": "123",
+   "end_date": "123",
+   "file_url": "123",
+   "notes": "123",
+   "is_terminated": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "contract_type": "a@example.com",
+   "signed_date": "a@example.com",
+   "end_date": "a@example.com",
+   "file_url": "a@example.com",
+   "notes": "a@example.com",
+   "is_terminated": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "contract_type": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "signed_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "end_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "file_url": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "notes": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "is_terminated": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "file_url must be shorter than or equal to 1000 characters",
+    "file_url must be a string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "contract_type": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "contract_type": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "page": null,
+   "page_size": null,
+   "search": null,
+   "department": null,
+   "position": null,
+   "status": null,
+   "contract_type": null,
+   "employment_status": null,
+   "team": null,
+   "sort_by": null,
+   "sort_dir": null
+  },
+  "result": {
+   "ok": {
+    "page": null,
+    "page_size": null,
+    "search": null,
+    "department": null,
+    "position": null,
+    "status": null,
+    "contract_type": null,
+    "employment_status": null,
+    "team": null,
+    "sort_by": null,
+    "sort_dir": null
+   }
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "page": "",
+   "page_size": "",
+   "search": "",
+   "department": "",
+   "position": "",
+   "status": "",
+   "contract_type": "",
+   "employment_status": "",
+   "team": "",
+   "sort_by": "",
+   "sort_dir": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "page": "  x  ",
+   "page_size": "  x  ",
+   "search": "  x  ",
+   "department": "  x  ",
+   "position": "  x  ",
+   "status": "  x  ",
+   "contract_type": "  x  ",
+   "employment_status": "  x  ",
+   "team": "  x  ",
+   "sort_by": "  x  ",
+   "sort_dir": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 200",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "page": 12.5,
+   "page_size": 12.5,
+   "search": 12.5,
+   "department": 12.5,
+   "position": 12.5,
+   "status": 12.5,
+   "contract_type": 12.5,
+   "employment_status": 12.5,
+   "team": 12.5,
+   "sort_by": 12.5,
+   "sort_dir": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must be an integer number",
+    "page_size must be an integer number",
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "team must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "page": -1,
+   "page_size": -1,
+   "search": -1,
+   "department": -1,
+   "position": -1,
+   "status": -1,
+   "contract_type": -1,
+   "employment_status": -1,
+   "team": -1,
+   "sort_by": -1,
+   "sort_dir": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "team must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "page": 0,
+   "page_size": 0,
+   "search": 0,
+   "department": 0,
+   "position": 0,
+   "status": 0,
+   "contract_type": 0,
+   "employment_status": 0,
+   "team": 0,
+   "sort_by": 0,
+   "sort_dir": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "team must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "page": true,
+   "page_size": true,
+   "search": true,
+   "department": true,
+   "position": true,
+   "status": true,
+   "contract_type": true,
+   "employment_status": true,
+   "team": true,
+   "sort_by": true,
+   "sort_dir": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "team must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "page": [
+    "a",
+    1
+   ],
+   "page_size": [
+    "a",
+    1
+   ],
+   "search": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "position": [
+    "a",
+    1
+   ],
+   "status": [
+    "a",
+    1
+   ],
+   "contract_type": [
+    "a",
+    1
+   ],
+   "employment_status": [
+    "a",
+    1
+   ],
+   "team": [
+    "a",
+    1
+   ],
+   "sort_by": [
+    "a",
+    1
+   ],
+   "sort_dir": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 200",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "team must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "page": {
+    "a": 1
+   },
+   "page_size": {
+    "a": 1
+   },
+   "search": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "position": {
+    "a": 1
+   },
+   "status": {
+    "a": 1
+   },
+   "contract_type": {
+    "a": 1
+   },
+   "employment_status": {
+    "a": 1
+   },
+   "team": {
+    "a": 1
+   },
+   "sort_by": {
+    "a": 1
+   },
+   "sort_dir": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 200",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "team must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "page": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "page_size": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "search": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "position": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "contract_type": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "employment_status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sort_by": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sort_dir": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 200",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "page": "2026-11-26T10:00:00Z",
+   "page_size": "2026-11-26T10:00:00Z",
+   "search": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "position": "2026-11-26T10:00:00Z",
+   "status": "2026-11-26T10:00:00Z",
+   "contract_type": "2026-11-26T10:00:00Z",
+   "employment_status": "2026-11-26T10:00:00Z",
+   "team": "2026-11-26T10:00:00Z",
+   "sort_by": "2026-11-26T10:00:00Z",
+   "sort_dir": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 200",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "page": "123",
+   "page_size": "123",
+   "search": "123",
+   "department": "123",
+   "position": "123",
+   "status": "123",
+   "contract_type": "123",
+   "employment_status": "123",
+   "team": "123",
+   "sort_by": "123",
+   "sort_dir": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "page": "a@example.com",
+   "page_size": "a@example.com",
+   "search": "a@example.com",
+   "department": "a@example.com",
+   "position": "a@example.com",
+   "status": "a@example.com",
+   "contract_type": "a@example.com",
+   "employment_status": "a@example.com",
+   "team": "a@example.com",
+   "sort_by": "a@example.com",
+   "sort_dir": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 200",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "page": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "page_size": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "search": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "position": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "contract_type": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "employment_status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "sort_by": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "sort_dir": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 200",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "team must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "page": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "page must not be less than 1",
+    "page must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "page": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "date_from": null,
+   "date_to": null,
+   "department": null,
+   "team": null,
+   "employment_status": null
+  },
+  "result": {
+   "ok": {
+    "date_from": null,
+    "date_to": null,
+    "department": null,
+    "team": null,
+    "employment_status": null
+   }
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "date_from": "",
+   "date_to": "",
+   "department": "",
+   "team": "",
+   "employment_status": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "date_from": "  x  ",
+   "date_to": "  x  ",
+   "department": "  x  ",
+   "team": "  x  ",
+   "employment_status": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "date_from": 12.5,
+   "date_to": 12.5,
+   "department": 12.5,
+   "team": 12.5,
+   "employment_status": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "department must be a string",
+    "team must be a string",
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "date_from": -1,
+   "date_to": -1,
+   "department": -1,
+   "team": -1,
+   "employment_status": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "department must be a string",
+    "team must be a string",
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "date_from": 0,
+   "date_to": 0,
+   "department": 0,
+   "team": 0,
+   "employment_status": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "department must be a string",
+    "team must be a string",
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "date_from": true,
+   "date_to": true,
+   "department": true,
+   "team": true,
+   "employment_status": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "department must be a string",
+    "team must be a string",
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "date_from": [
+    "a",
+    1
+   ],
+   "date_to": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "team": [
+    "a",
+    1
+   ],
+   "employment_status": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "department must be a string",
+    "team must be a string",
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "date_from": {
+    "a": 1
+   },
+   "date_to": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "team": {
+    "a": 1
+   },
+   "employment_status": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "department must be a string",
+    "team must be a string",
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "date_from": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "date_to": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "employment_status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "date_from": "2026-11-26T10:00:00Z",
+   "date_to": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "team": "2026-11-26T10:00:00Z",
+   "employment_status": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "date_from": "123",
+   "date_to": "123",
+   "department": "123",
+   "team": "123",
+   "employment_status": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "date_from": "a@example.com",
+   "date_to": "a@example.com",
+   "department": "a@example.com",
+   "team": "a@example.com",
+   "employment_status": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "date_from": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "date_to": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "employment_status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "department must be a string",
+    "team must be a string",
+    "employment_status must be one of the following values: working, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date_from": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "date_from must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date_from": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
   "dto": "DashboardFilterQuery",
   "mode": "strict",
   "probe": "empty_object",
@@ -24497,6 +26434,205 @@
    "message": [
     "month must not be greater than 12",
     "office_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "employee_id": 12,
+   "contract_type": "hdld_2",
+   "signed_date": "2026-01-01",
+   "end_date": "2028-01-01",
+   "notes": "ghi chú",
+   "is_terminated": false
+  },
+  "result": {
+   "ok": {
+    "employee_id": 12,
+    "contract_type": "hdld_2",
+    "signed_date": "2026-01-01",
+    "end_date": "2028-01-01",
+    "notes": "ghi chú",
+    "is_terminated": false
+   }
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "employee_id": 0,
+   "contract_type": "khac",
+   "signed_date": "hôm qua",
+   "end_date": 5,
+   "notes": 7,
+   "is_terminated": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "employee_id must not be less than 1",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "end_date must be a valid ISO 8601 date string",
+    "notes must be shorter than or equal to 2000 characters",
+    "notes must be a string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateContractDto",
+  "mode": "strict",
+  "probe": "end_null",
+  "input": {
+   "employee_id": 1,
+   "signed_date": "2026-01-01",
+   "end_date": null,
+   "file_url": null,
+   "notes": null
+  },
+  "result": {
+   "ok": {
+    "employee_id": 1,
+    "signed_date": "2026-01-01",
+    "end_date": null,
+    "file_url": null,
+    "notes": null
+   }
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "contract_type": "hdld_vo_thoi_han",
+   "signed_date": "2026-02-02",
+   "end_date": null,
+   "is_terminated": true
+  },
+  "result": {
+   "ok": {
+    "contract_type": "hdld_vo_thoi_han",
+    "signed_date": "2026-02-02",
+    "end_date": null,
+    "is_terminated": true
+   }
+  }
+ },
+ {
+  "dto": "UpdateContractDto",
+  "mode": "strict",
+  "probe": "null_het",
+  "input": {
+   "contract_type": null,
+   "signed_date": null,
+   "is_terminated": null,
+   "notes": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "signed_date must be a valid ISO 8601 date string",
+    "is_terminated must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "page": "2",
+   "page_size": "50",
+   "search": "an",
+   "status": "expiring",
+   "contract_type": "hdld_1",
+   "employment_status": "working",
+   "team": "3",
+   "sort_by": "end_date",
+   "sort_dir": "desc"
+  },
+  "result": {
+   "ok": {
+    "page": 2,
+    "page_size": 50,
+    "search": "an",
+    "status": "expiring",
+    "contract_type": "hdld_1",
+    "employment_status": "working",
+    "team": "3",
+    "sort_by": "end_date",
+    "sort_dir": "desc"
+   }
+  }
+ },
+ {
+  "dto": "QueryContractsDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "page": "0",
+   "page_size": "201",
+   "status": "x",
+   "contract_type": "y",
+   "employment_status": "z",
+   "sort_by": "email",
+   "sort_dir": "up"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be greater than 200",
+    "status must be one of the following values: active, expiring, expired, terminated, no_contract",
+    "contract_type must be one of the following values: hdld_vo_thoi_han, hdld_1, hdld_2, hdld_3, thu_viec, chinh_thuc, co_thoi_han, khong_thoi_han",
+    "employment_status must be one of the following values: working, resigned",
+    "sort_by must be one of the following values: full_name, employee_code, signed_date, end_date, days_remaining, status, contract_type",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "date_from": "2026-01-01",
+   "date_to": "2026-12-31",
+   "department": "KD",
+   "team": "3",
+   "employment_status": "resigned"
+  },
+  "result": {
+   "ok": {
+    "date_from": "2026-01-01",
+    "date_to": "2026-12-31",
+    "department": "KD",
+    "team": "3",
+    "employment_status": "resigned"
+   }
+  }
+ },
+ {
+  "dto": "QueryContractStatsDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "date_from": "x",
+   "employment_status": "nghi"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "employment_status must be one of the following values: working, resigned"
    ]
   }
  },

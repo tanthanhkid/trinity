@@ -2163,6 +2163,7 @@ version = "0.3.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
+ "bytes",
  "chrono",
  "http",
  "mod-users",
@@ -2171,6 +2172,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tokio",
+ "tokio-util",
  "tower",
  "tracing",
  "trinity-auth",

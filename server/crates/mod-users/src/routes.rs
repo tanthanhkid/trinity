@@ -56,13 +56,28 @@ fn fail(e: impl Into<AppError>) -> Response {
         .into_response()
 }
 
-fn actor(u: &CurrentUser) -> Actor {
-    Actor {
-        user_id: u.user.user_id,
-        company: trinity_db::CompanyRef::new(i64::from(u.user.company_id)).unwrap_or(trinity_db::CompanyRef::DEFAULT),
-        grants: u.grants.grants.clone(),
-        is_admin: u.grants.is_admin,
+/// Người thực hiện. Công ty của token không hợp lệ ⇒ 401 (đóng, KHÔNG rơi về công ty mặc định: làm vậy là đọc/ghi nhầm
+/// dữ liệu của công ty 1).
+fn actor(u: &CurrentUser) -> Result<Actor, Response> {
+    match trinity_db::CompanyRef::new(i64::from(u.user.company_id)) {
+        Ok(company) => Ok(Actor {
+            user_id: u.user.user_id,
+            company,
+            grants: u.grants.grants.clone(),
+            is_admin: u.grants.is_admin,
+        }),
+        Err(_) => Err(fail(HttpError::unauthorized("Token không hợp lệ hoặc đã hết hạn"))),
     }
+}
+
+/// `actor(&u)` hoặc trả ngay phản hồi 401.
+macro_rules! act {
+    ($u:expr) => {
+        match actor(&$u) {
+            Ok(a) => a,
+            Err(r) => return r,
+        }
+    };
 }
 
 fn ok(r: Result<Value, AppError>) -> Response {
@@ -134,12 +149,14 @@ pub fn list_params(q: &HashMap<String, String>) -> ListParams {
     ListParams {
         page: get("page").and_then(js_number).map_or(1, |n| n as i64).max(1),
         limit: get("limit").and_then(js_number).map_or(20, |n| (n as i64).min(1000)),
-        team_id: int("team_id").and_then(|n| i32::try_from(n).ok()),
+        // `team_id=0` (hay NaN) falsy trong JS ⇒ không lọc, như controller của bản Node.
+        team_id: int("team_id").filter(|n| *n != 0).and_then(|n| i32::try_from(n).ok()),
         role: get("role").filter(|s| !s.is_empty()).map(str::to_owned),
         roles,
         manager: match get("manager_id") {
             Some("none") => ManagerFilter::Nobody,
             Some(s) if !s.is_empty() => int("manager_id")
+                .filter(|n| *n != 0)
                 .and_then(|n| i32::try_from(n).ok())
                 .map_or(ManagerFilter::Any, ManagerFilter::Is),
             _ => ManagerFilter::Any,
@@ -159,11 +176,7 @@ pub fn list_params(q: &HashMap<String, String>) -> ListParams {
 fn reassign_to(body: &Value) -> Result<Option<i32>, HttpError> {
     match body.get("reassign_to") {
         None | Some(Value::Null) => Ok(None),
-        Some(v) => match v
-            .as_i64()
-            .and_then(|n| i32::try_from(n).ok())
-            .filter(|_| v.is_i64() || v.is_u64())
-        {
+        Some(v) => match service::int4(v) {
             Some(n) => Ok(Some(n)),
             None => Err(HttpError::validation(vec![
                 "reassign_to must be an integer number".to_owned(),
@@ -177,7 +190,7 @@ async fn list(
     Extension(u): Extension<CurrentUser>,
     Query(q): Query<HashMap<String, String>>,
 ) -> Response {
-    ok(service::list(&c, &actor(&u), &list_params(&q)).await)
+    ok(service::list(&c, &act!(u), &list_params(&q)).await)
 }
 
 async fn export(
@@ -185,7 +198,7 @@ async fn export(
     Extension(u): Extension<CurrentUser>,
     Query(q): Query<HashMap<String, String>>,
 ) -> Response {
-    let rows = match service::export_rows(&c, &actor(&u), &list_params(&q)).await {
+    let rows = match service::export_rows(&c, &act!(u), &list_params(&q)).await {
         Ok(r) => r,
         Err(e) => return fail(e),
     };
@@ -250,14 +263,14 @@ async fn export(
 
 async fn get_one(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, Path(id): Path<String>) -> Response {
     match id_of(&id) {
-        Ok(id) => ok(service::find_by_id(&c, &actor(&u), id).await),
+        Ok(id) => ok(service::find_by_id(&c, &act!(u), id).await),
         Err(e) => fail(e),
     }
 }
 
 async fn create(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, JsonBody(body): JsonBody) -> Response {
     match CreateUser::parse(&body) {
-        Ok(input) => ok(service::create(&c, &actor(&u), &input).await),
+        Ok(input) => ok(service::create(&c, &act!(u), &input).await),
         Err(e) => fail(e),
     }
 }
@@ -273,7 +286,7 @@ async fn update(
         Err(e) => return fail(e),
     };
     match id_of(&id) {
-        Ok(id) => ok(service::update(&c, &actor(&u), id, &UpdateUser::from_validated(&v)).await),
+        Ok(id) => ok(service::update(&c, &act!(u), id, &UpdateUser::from_validated(&v)).await),
         Err(e) => fail(e),
     }
 }
@@ -289,7 +302,7 @@ async fn lock(
         Err(e) => return fail(e),
     };
     match id_of(&id) {
-        Ok(id) => ok(service::lock(&c, &actor(&u), id, to).await),
+        Ok(id) => ok(service::lock(&c, &act!(u), id, to).await),
         Err(e) => fail(e),
     }
 }
@@ -305,7 +318,7 @@ async fn permanent(
         Err(e) => return fail(e),
     };
     match id_of(&id) {
-        Ok(id) => ok(service::permanent_delete(&c, &actor(&u), id, to).await),
+        Ok(id) => ok(service::permanent_delete(&c, &act!(u), id, to).await),
         Err(e) => fail(e),
     }
 }
@@ -333,14 +346,14 @@ async fn reset_password(
         }
     };
     match id_of(&id) {
-        Ok(id) => ok(service::reset_password(&c, &actor(&u), id, pw.as_deref()).await),
+        Ok(id) => ok(service::reset_password(&c, &act!(u), id, pw.as_deref()).await),
         Err(e) => fail(e),
     }
 }
 
 async fn history(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, Path(id): Path<String>) -> Response {
     match id_of(&id) {
-        Ok(id) => ok(service::password_history(&c, &actor(&u), id).await),
+        Ok(id) => ok(service::password_history(&c, &act!(u), id).await),
         Err(e) => fail(e),
     }
 }
@@ -351,15 +364,11 @@ async fn team(
     Path(id): Path<String>,
     JsonBody(body): JsonBody,
 ) -> Response {
-    let Some(team_id) = body
-        .get("team_id")
-        .and_then(Value::as_i64)
-        .and_then(|n| i32::try_from(n).ok())
-    else {
+    let Some(team_id) = body.get("team_id").and_then(service::int4) else {
         return fail(HttpError::validation(vec!["team_id phải là số nguyên".to_owned()]));
     };
     match id_of(&id) {
-        Ok(id) => ok(service::assign_team(&c, &actor(&u), id, team_id).await),
+        Ok(id) => ok(service::assign_team(&c, &act!(u), id, team_id).await),
         Err(e) => fail(e),
     }
 }
@@ -375,13 +384,13 @@ async fn set_roles(
         Err(e) => return fail(e),
     };
     match id_of(&id) {
-        Ok(id) => ok(service::set_roles(&c, &actor(&u), id, &ids).await),
+        Ok(id) => ok(service::set_roles(&c, &act!(u), id, &ids).await),
         Err(e) => fail(e),
     }
 }
 
 async fn pinned_get(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>) -> Response {
-    let a = actor(&u);
+    let a = act!(u);
     let r = async {
         let mut conn = c.conn(a.company).await?;
         pinned::get(&mut conn, a.user_id).await
@@ -399,7 +408,7 @@ async fn pinned_put(
         Ok(k) => k,
         Err(e) => return fail(e),
     };
-    let a = actor(&u);
+    let a = act!(u);
     let r = async {
         let mut conn = c.conn(a.company).await?;
         pinned::update(&mut conn, a.user_id, keys).await
@@ -431,4 +440,36 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::GET, "/api/v1/users/:id/password-history"), history)
         .route(spec(&Method::PATCH, "/api/v1/users/:id/team"), team)
         .route(spec(&Method::PUT, "/api/v1/users/:id/roles"), set_roles)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn q(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+        pairs.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect()
+    }
+
+    #[test]
+    fn team_id_va_manager_id_bang_khong_la_khong_loc() {
+        let p = list_params(&q(&[("team_id", "0"), ("manager_id", "0")]));
+        assert_eq!(p.team_id, None);
+        assert!(matches!(p.manager, ManagerFilter::Any));
+        let p = list_params(&q(&[("team_id", "7"), ("manager_id", "9")]));
+        assert_eq!(p.team_id, Some(7));
+        assert!(matches!(p.manager, ManagerFilter::Is(9)));
+        let p = list_params(&q(&[("team_id", "abc"), ("manager_id", "none")]));
+        assert_eq!(p.team_id, None);
+        assert!(matches!(p.manager, ManagerFilter::Nobody));
+        // `3.0` (JS Number) vẫn là 3.
+        assert_eq!(list_params(&q(&[("team_id", "3.0")])).team_id, Some(3));
+    }
+
+    #[test]
+    fn reassign_to_nhan_so_thuc_nguyen() {
+        assert_eq!(reassign_to(&json!({ "reassign_to": 5.0 })).unwrap(), Some(5));
+        assert_eq!(reassign_to(&json!({ "reassign_to": null })).unwrap(), None);
+        assert!(reassign_to(&json!({ "reassign_to": 5.5 })).is_err());
+    }
 }

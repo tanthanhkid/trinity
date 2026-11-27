@@ -188,6 +188,13 @@ async fn danh_sach_chi_tiet_theo_pham_vi_va_che_so() {
     let bad = call(&a, Method::GET, "/api/v1/users/abc", Some(ADMIN), None).await;
     assert_eq!(bad.status, 400);
 
+    // Trang cực lớn không tràn số: 200 với danh sách rỗng; `team_id=0`/`manager_id=0` không lọc (như Node).
+    let big = call(&a, Method::GET, "/api/v1/users?page=9007199254740991&limit=1000", Some(MGR), None).await;
+    assert_eq!(big.status, 200, "{:?}", big.body);
+    assert_eq!(big.body["data"].as_array().map(Vec::len), Some(0));
+    let zero = call(&a, Method::GET, "/api/v1/users?limit=50&team_id=0&manager_id=0", Some(MGR), None).await;
+    assert_eq!(zero.body["total"].as_i64(), Some(3));
+
     // MGR (subtree) thấy mình và cấp dưới, SĐT chỉ thấy số của mình.
     let r = call(&a, Method::GET, "/api/v1/users?limit=50", Some(MGR), None).await;
     assert_eq!(r.status, 200, "{:?}", r.body);
@@ -735,6 +742,14 @@ async fn mat_khau_team_vai_tro() {
     let t = team(S1, json!({ "team_id": 9490 })).await;
     assert_eq!((t.status, t.body["team_id"].as_i64()), (StatusCode::OK, Some(9490)));
     assert_eq!(t.body.as_object().unwrap().len(), 4);
+    // Số thực nguyên (JS `3.0`) được nhận; người đã xoá mềm thì 404 như chưa từng có.
+    assert_eq!(team(S1, json!({ "team_id": 9490.0 })).await.status, StatusCode::OK);
+    exec(&format!("UPDATE users SET deleted_at = now() WHERE id = {S1}")).await;
+    assert_eq!(
+        msg(&team(S1, json!({ "team_id": 9490 })).await),
+        "Không tìm thấy người dùng"
+    );
+    exec(&format!("UPDATE users SET deleted_at = NULL WHERE id = {S1}")).await;
 
     // Gán vai trò: chống leo thang. MGR không gán được vai trò quyền cao hơn / hệ thống / cho chính mình / người to hơn.
     let roles = |id: i32, who: i32, body: Value| {

@@ -91,8 +91,14 @@ fn patch_of<T>(v: &Value, key: &str, get: impl Fn(&Value) -> Option<T>) -> Patch
     }
 }
 
-fn int4(v: &Value) -> Option<i32> {
-    v.as_i64().and_then(|n| i32::try_from(n).ok())
+/// Số nguyên như `@IsInt` của class-validator: `3` và `3.0` đều nhận (JS không phân biệt), `3.5` thì không.
+pub fn int4(v: &Value) -> Option<i32> {
+    let n = v.as_i64().or_else(|| {
+        v.as_f64()
+            .filter(|f| f.is_finite() && f.fract() == 0.0 && f.abs() < 9.0e15)
+            .map(|f| f as i64)
+    })?;
+    i32::try_from(n).ok()
 }
 
 fn text(v: &Value) -> Option<String> {
@@ -277,7 +283,8 @@ pub async fn list(ctx: &Ctx, actor: &Actor, p: &ListParams) -> R<Value> {
     qb.push(" LIMIT ")
         .push_bind(limit)
         .push(" OFFSET ")
-        .push_bind((page - 1) * limit);
+        // Trang rất lớn không được tràn số: quá giới hạn thì độ lệch lớn nhất (kết quả rỗng), không panic hay lỗi.
+        .push_bind((page - 1).checked_mul(limit).unwrap_or(i64::MAX));
     let rows: Vec<ListRow> = qb.build_query_as().fetch_all(&mut *conn).await.map_err(db)?;
 
     let mut cq = QueryBuilder::<Postgres>::new("SELECT count(*) FROM users u WHERE ");
@@ -569,7 +576,7 @@ impl CreateUser {
             match body.get(k) {
                 None | Some(Value::Null) => None,
                 Some(v) => {
-                    let n = int4(v).filter(|_| v.is_i64() || v.is_u64());
+                    let n = int4(v);
                     if n.is_none() {
                         errors.push(label.to_owned());
                     }
@@ -783,7 +790,7 @@ pub async fn update(ctx: &Ctx, actor: &Actor, id: i32, dto: &UpdateUser) -> R<Va
     let mut cascaded: i64 = 0;
     if locking {
         assert_not_last_admin(&mut conn, id).await?;
-        cascaded = sqlx::query_scalar("SELECT count(*) FROM users WHERE manager_id = $1")
+        cascaded = sqlx::query_scalar("SELECT count(*) FROM users WHERE manager_id = $1 AND deleted_at IS NULL")
             .bind(id)
             .fetch_one(&mut *conn)
             .await
@@ -1044,7 +1051,7 @@ pub async fn permanent_delete(ctx: &Ctx, actor: &Actor, id: i32, reassign_to: Op
 pub async fn assign_team(ctx: &Ctx, actor: &Actor, id: i32, team_id: i32) -> R<Value> {
     assert_can_manage_user(&ctx.scopes, &ctx.perms, actor, id).await?;
     let mut conn = ctx.conn(actor.company).await?;
-    let exists: Option<i32> = sqlx::query_scalar("SELECT id FROM users WHERE id = $1")
+    let exists: Option<i32> = sqlx::query_scalar("SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL")
         .bind(id)
         .fetch_optional(&mut *conn)
         .await
@@ -1070,6 +1077,8 @@ pub async fn assign_team(ctx: &Ctx, actor: &Actor, id: i32, team_id: i32) -> R<V
     .map_err(wr)?;
     drop(conn);
     ctx.security.blacklist_user(actor.company.id(), id).await;
+    // Như `update()`: đổi team đổi phạm vi dữ liệu (team/subtree) của người đó, cache quyền và phạm vi phải bỏ ngay.
+    ctx.invalidate_all(actor.company).await;
     Ok(json!({ "id": u.0, "email": u.1, "full_name": u.2, "team_id": u.3 }))
 }
 
@@ -1311,5 +1320,22 @@ mod tests {
         assert_eq!(patch_of(&v, "team_id", int4), Patch::Set(3));
         assert_eq!(patch_of(&v, "manager_id", int4), Patch::Keep);
         assert_eq!(patch_of(&v, "khong_co", int4), Patch::Keep);
+    }
+
+    #[test]
+    fn so_nguyen_nhan_ca_dang_thuc_nguyen() {
+        assert_eq!(int4(&json!(3)), Some(3));
+        assert_eq!(int4(&json!(3.0)), Some(3), "JS không phân biệt 3 và 3.0");
+        assert_eq!(int4(&json!(-2.0)), Some(-2));
+        assert_eq!(int4(&json!(3.5)), None);
+        assert_eq!(int4(&json!("3")), None);
+        assert_eq!(int4(&json!(1e12)), None, "ngoài int4");
+        assert_eq!(int4(&json!(2_147_483_648i64)), None);
+        assert_eq!(int4(&json!(null)), None);
+        // Tạo người dùng nhận `team_id: 3.0`, vẫn chặn `1.5`.
+        let v =
+            json!({ "email": "a@b.co", "full_name": "A", "password": "12345678", "team_id": 3.0, "manager_id": 4.0 });
+        let ok = CreateUser::parse(&v).unwrap();
+        assert_eq!((ok.team_id, ok.manager_id), (Some(3), Some(4)));
     }
 }

@@ -280,7 +280,7 @@ async function main(): Promise<void> {
           TZ: 'UTC',
         }
         // Bất đồng bộ: máy chủ giả chạy trong tiến trình này, `spawnSync` sẽ chặn vòng lặp sự kiện và làm nó không trả lời được.
-        const r = await runAsync('pnpm', ['exec', 'vitest', 'run', '--config', 'vitest.config.ts', ...arg('only', true)], testEnv)
+        const r = await runAsync('pnpm', ['exec', 'vitest', 'run', '--config', 'vitest.config.ts', ...arg('only', true), ...(arg('only', true).length ? ['--passWithNoTests'] : [])], testEnv)
         const unexpected = (await (await fetch(`${mock.url}/__mock/calls`)).json()) as { unexpected: unknown[] }
         if (unexpected.unexpected.length) {
           failed = true

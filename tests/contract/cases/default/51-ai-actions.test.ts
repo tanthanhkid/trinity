@@ -64,7 +64,7 @@ describe('luồng chính: tạo nháp → duyệt', () => {
     const u = await makeUser({ ...WRITER })
     const t = await connect(u.token, 'crm.read crm.write')
     expect(t.scopes).toEqual(['crm.read', 'crm.write'])
-    const r = await callTool(t.access, 'create_contact', { full_name: 'Trần Thị Nháp', phone: FULL_PHONE, source_id: sourceId, stage_id: stageA })
+    const r = await callTool(t.access, 'create_contact', { full_name: `${P} Trần Thị Nháp`, phone: FULL_PHONE, source_id: sourceId, stage_id: stageA })
     expect(r.isError).toBeUndefined()
     const d = r.structuredContent.data
     expect(d).toMatchObject({ status: 'pending', duplicate: false })
@@ -72,7 +72,7 @@ describe('luồng chính: tạo nháp → duyệt', () => {
     expect(d.message).toContain(`Đã tạo đề xuất #${d.action_id}, chờ người dùng duyệt`)
     expect(JSON.stringify(r)).not.toContain(FULL_PHONE)
     expect(d.summary).toContain('***321')
-    expect(await count(`contacts WHERE full_name = 'Trần Thị Nháp'`)).toBe(0)
+    expect(await count(`contacts WHERE full_name = '${P} Trần Thị Nháp'`)).toBe(0)
     expect(await count(`integration_events WHERE event_type = 'contact.created'`)).toBe(0)
     const noti = await q<{ action_url: string; body: string }>(`SELECT action_url, body FROM notification_logs WHERE recipient_id = $1 AND event_type = 'ai_action.created'`, [u.id])
     expect(noti).toHaveLength(1)
@@ -92,7 +92,7 @@ describe('luồng chính: tạo nháp → duyệt', () => {
     expect(done.status).toBe('approved')
     const contactId = done.result.contact_id
     const c = (await q<Record<string, unknown>>(`SELECT * FROM contacts WHERE id = $1`, [contactId]))[0]
-    expect(c).toMatchObject({ full_name: 'Trần Thị Nháp', phone: FULL_PHONE, assigned_to: u.id, source_id: sourceId })
+    expect(c).toMatchObject({ full_name: `${P} Trần Thị Nháp`, phone: FULL_PHONE, assigned_to: u.id, source_id: sourceId })
     const ev = await q<{ resource_id: string; actor_user_id: number }>(`SELECT resource_id, actor_user_id FROM integration_events WHERE event_type = 'contact.created'`)
     expect(ev).toHaveLength(1)
     expect(String(ev[0].resource_id)).toBe(String(contactId))
@@ -102,7 +102,7 @@ describe('luồng chính: tạo nháp → duyệt', () => {
     expect(st2.structuredContent.data).toMatchObject({ status: 'approved', result: { contact_id: contactId } })
     expect(JSON.stringify(st2)).not.toContain(FULL_PHONE)
     expect((await approve(u.token, d.action_id)).status).toBe(409)
-    expect(await count(`contacts WHERE full_name = 'Trần Thị Nháp'`)).toBe(1)
+    expect(await count(`contacts WHERE full_name = '${P} Trần Thị Nháp'`)).toBe(1)
   })
 
   it('add_contact_note / update_contact_stage / assign_contact / create_task: duyệt ⇒ activity, outbox contact.stage_changed + contact.assigned, thẻ giao cho NGƯỜI DUYỆT', async () => {
@@ -174,7 +174,7 @@ describe('quyền + phạm vi (lúc tạo nháp VÀ lúc duyệt)', () => {
   it('thiếu contacts.create ⇒ tool lỗi rõ ràng, KHÔNG có nháp; thiếu scope crm.write ⇒ insufficient_scope', async () => {
     const noCreate = await makeUser({ 'integrations.ai_connect': true, 'contacts.view': 'own' })
     const t1 = await connect(noCreate.token, 'crm.read crm.write')
-    const r = await callTool(t1.access, 'create_contact', { full_name: 'Không quyền', phone: FULL_PHONE, source_id: sourceId })
+    const r = await callTool(t1.access, 'create_contact', { full_name: `${P} Không quyền`, phone: FULL_PHONE, source_id: sourceId })
     expect(r.isError).toBe(true)
     expect(r.content[0].text).toContain('contacts.create')
     expect(await count('ai_action_drafts')).toBe(0)
@@ -183,7 +183,7 @@ describe('quyền + phạm vi (lúc tạo nháp VÀ lúc duyệt)', () => {
     const readOnly = await makeUser({ ...WRITER })
     const t2 = await connect(readOnly.token, 'crm.read crm.write', { granted: ['crm.read'] }) // người dùng BỎ tick quyền ghi ở màn đồng ý
     expect(t2.scopes).toEqual(['crm.read'])
-    const r2 = await callTool(t2.access, 'create_contact', { full_name: 'Chỉ đọc', phone: FULL_PHONE, source_id: sourceId })
+    const r2 = await callTool(t2.access, 'create_contact', { full_name: `${P} Chỉ đọc`, phone: FULL_PHONE, source_id: sourceId })
     expect(r2.isError).toBe(true)
     expect(r2.content[0].text).toContain('insufficient_scope')
     expect(await count('ai_action_drafts')).toBe(0)
@@ -217,13 +217,13 @@ describe('quyền + phạm vi (lúc tạo nháp VÀ lúc duyệt)', () => {
   it('quyền bị gỡ GIỮA CHỪNG ⇒ duyệt thất bại có lý do, không ghi; nháp chuyển failed', async () => {
     const u = await makeUser({ ...WRITER })
     const t = await connect(u.token, 'crm.read crm.write')
-    const id = await propose(t.access, 'create_contact', { full_name: 'Mất quyền', phone: FULL_PHONE, source_id: sourceId })
-    await q(`DELETE FROM role_permissions WHERE permission = 'contacts.create'`)
+    const id = await propose(t.access, 'create_contact', { full_name: `${P} Mất quyền`, phone: FULL_PHONE, source_id: sourceId })
+    await q(`DELETE FROM role_permissions WHERE role_id IN (SELECT role_id FROM user_roles WHERE user_id = $1) AND permission = 'contacts.create'`, [u.id])
     expect((await control.flushCache()).status).toBe(200)
     const r = await approve(u.token, id)
     expect(r.status).toBe(403)
     expect(JSON.stringify(r.body)).toContain('contacts.create')
-    expect(await count(`contacts WHERE full_name = 'Mất quyền'`)).toBe(0)
+    expect(await count(`contacts WHERE full_name = '${P} Mất quyền'`)).toBe(0)
     const row = await draftStatus(id)
     expect(row.status).toBe('failed')
     expect(row.error).toContain('contacts.create')
@@ -272,10 +272,10 @@ describe('không có đường nào để AI tự duyệt', () => {
   it('2 yêu cầu duyệt SONG SONG ⇒ đúng 1 thắng, thực thi đúng 1 lần', async () => {
     const u = await makeUser({ ...WRITER })
     const t = await connect(u.token, 'crm.read crm.write')
-    const id = await propose(t.access, 'create_contact', { full_name: 'Song song', phone: FULL_PHONE, source_id: sourceId })
+    const id = await propose(t.access, 'create_contact', { full_name: `${P} Song song`, phone: FULL_PHONE, source_id: sourceId })
     const rs = await Promise.all([approve(u.token, id), approve(u.token, id), approve(u.token, id)])
     expect(rs.map((r) => r.status).sort()).toEqual([200, 409, 409])
-    expect(await count(`contacts WHERE full_name = 'Song song'`)).toBe(1)
+    expect(await count(`contacts WHERE full_name = '${P} Song song'`)).toBe(1)
     expect(await count(`integration_events WHERE event_type = 'contact.created'`)).toBe(1)
   })
 
@@ -440,13 +440,13 @@ describe('ghi thẳng (cài đặt duyệt TẮT — mặc định)', () => {
   it('create_contact chạy NGAY: khách + outbox contact.created + audit ai_action.execute; không thông báo chờ duyệt; lịch sử executed; SĐT đầy đủ không lộ', async () => {
     const u = await makeUser({ ...WRITER })
     const t = await connect(u.token, 'crm.read crm.write')
-    const r = await callTool(t.access, 'create_contact', { full_name: 'Trần Thị Thẳng', phone: FULL_PHONE, source_id: sourceId, stage_id: stageA })
+    const r = await callTool(t.access, 'create_contact', { full_name: `${P} Trần Thị Thẳng`, phone: FULL_PHONE, source_id: sourceId, stage_id: stageA })
     expect(r.isError).toBeUndefined()
     const d = r.structuredContent.data
     expect(d).toMatchObject({ status: 'executed' })
     const contactId = d.result.contact_id as number
     expect(JSON.stringify(r)).not.toContain(FULL_PHONE)
-    expect((await q<Record<string, unknown>>(`SELECT * FROM contacts WHERE id = $1`, [contactId]))[0]).toMatchObject({ full_name: 'Trần Thị Thẳng', phone: FULL_PHONE, assigned_to: u.id, source_id: sourceId })
+    expect((await q<Record<string, unknown>>(`SELECT * FROM contacts WHERE id = $1`, [contactId]))[0]).toMatchObject({ full_name: `${P} Trần Thị Thẳng`, phone: FULL_PHONE, assigned_to: u.id, source_id: sourceId })
     const ev = await q<{ actor_user_id: number }>(`SELECT actor_user_id FROM integration_events WHERE event_type = 'contact.created'`)
     expect(ev).toHaveLength(1)
     expect(ev[0].actor_user_id).toBe(u.id)
@@ -480,7 +480,7 @@ describe('ghi thẳng (cài đặt duyệt TẮT — mặc định)', () => {
   it('thiếu quyền ⇒ lỗi và KHÔNG ghi gì; ngoài phạm vi ⇒ lỗi và KHÔNG ghi gì; token chỉ crm.read ⇒ insufficient_scope', async () => {
     const noCreate = await makeUser({ 'integrations.ai_connect': true, 'contacts.view': 'own' })
     const t1 = await connect(noCreate.token, 'crm.read crm.write')
-    const r = await callTool(t1.access, 'create_contact', { full_name: 'Không quyền thẳng', phone: FULL_PHONE, source_id: sourceId })
+    const r = await callTool(t1.access, 'create_contact', { full_name: `${P} Không quyền thẳng`, phone: FULL_PHONE, source_id: sourceId })
     expect(r.isError).toBe(true)
     expect(r.content[0].text).toContain('contacts.create')
 
@@ -495,7 +495,7 @@ describe('ghi thẳng (cài đặt duyệt TẮT — mặc định)', () => {
     expect((await q<{ stage_id: number }>(`SELECT stage_id FROM contacts WHERE id = $1`, [theirs.id]))[0].stage_id).toBe(stageA)
 
     const t3 = await connect(u.token, 'crm.read crm.write', { granted: ['crm.read'] })
-    const r4 = await callTool(t3.access, 'create_contact', { full_name: 'Chỉ đọc thẳng', phone: FULL_PHONE, source_id: sourceId })
+    const r4 = await callTool(t3.access, 'create_contact', { full_name: `${P} Chỉ đọc thẳng`, phone: FULL_PHONE, source_id: sourceId })
     expect(r4.isError).toBe(true)
     expect(r4.content[0].text).toContain('insufficient_scope')
     expect(await count(`contacts WHERE full_name IN ('Không quyền thẳng', 'Chỉ đọc thẳng')`)).toBe(0)
@@ -505,12 +505,12 @@ describe('ghi thẳng (cài đặt duyệt TẮT — mặc định)', () => {
   it('quyền bị gỡ sau khi kết nối ⇒ lần ghi kế tiếp bị từ chối (quyền kiểm lại mỗi lần gọi)', async () => {
     const u = await makeUser({ ...WRITER })
     const t = await connect(u.token, 'crm.read crm.write')
-    expect((await callTool(t.access, 'create_contact', { full_name: 'Trước khi gỡ', phone: '0987654322', source_id: sourceId })).isError).toBeUndefined()
+    expect((await callTool(t.access, 'create_contact', { full_name: `${P} Trước khi gỡ`, phone: '0987654322', source_id: sourceId })).isError).toBeUndefined()
     await q(`DELETE FROM role_permissions WHERE role_id IN (SELECT role_id FROM user_roles WHERE user_id = $1) AND permission = 'contacts.create'`, [u.id])
     expect((await control.flushCache()).status).toBe(200)
-    const r = await callTool(t.access, 'create_contact', { full_name: 'Sau khi gỡ', phone: '0987654323', source_id: sourceId })
+    const r = await callTool(t.access, 'create_contact', { full_name: `${P} Sau khi gỡ`, phone: '0987654323', source_id: sourceId })
     expect(r.isError).toBe(true)
-    expect(await count(`contacts WHERE full_name = 'Sau khi gỡ'`)).toBe(0)
+    expect(await count(`contacts WHERE full_name = '${P} Sau khi gỡ'`)).toBe(0)
   })
 
   it('cài đặt: mọi người đọc được, chỉ ai_admin ghi; bật ⇒ AI quay về nháp chờ duyệt (pending, không ghi), tắt ⇒ ghi thẳng lại', async () => {
@@ -521,11 +521,11 @@ describe('ghi thẳng (cài đặt duyệt TẮT — mặc định)', () => {
     expect((await api.patch(`${ACTIONS}/settings`, { token: u.token, body: { require_approval: true }, ip: freshIp() })).status).toBe(403)
     expect((await api.patch(`${ACTIONS}/settings`, { token: admin.token, body: { require_approval: 'yes' }, ip: freshIp() })).status).toBe(400)
     expect(ok(await api.patch(`${ACTIONS}/settings`, { token: admin.token, body: { require_approval: true }, ip: freshIp() }))).toEqual({ require_approval: true })
-    const pending = await callTool(t.access, 'create_contact', { full_name: 'Chờ duyệt thẳng', phone: FULL_PHONE, source_id: sourceId })
+    const pending = await callTool(t.access, 'create_contact', { full_name: `${P} Chờ duyệt thẳng`, phone: FULL_PHONE, source_id: sourceId })
     expect(pending.structuredContent.data.status).toBe('pending')
-    expect(await count(`contacts WHERE full_name = 'Chờ duyệt thẳng'`)).toBe(0)
+    expect(await count(`contacts WHERE full_name = '${P} Chờ duyệt thẳng'`)).toBe(0)
     expect((await api.patch(`${ACTIONS}/settings`, { token: admin.token, body: { require_approval: false }, ip: freshIp() })).status).toBe(200)
-    const direct = await callTool(t.access, 'create_contact', { full_name: 'Ghi thẳng lại', phone: '0987654324', source_id: sourceId })
+    const direct = await callTool(t.access, 'create_contact', { full_name: `${P} Ghi thẳng lại`, phone: '0987654324', source_id: sourceId })
     expect(direct.structuredContent.data.status).toBe('executed')
   })
 

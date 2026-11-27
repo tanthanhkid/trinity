@@ -53,7 +53,7 @@ describe('xác thực', () => {
     await q(`UPDATE oauth_tokens SET access_expires_at = now() + interval '1 hour'`)
     expect((await rpc(t.access, 'tools/list')).status).toBe(200)
 
-    await q(`DELETE FROM role_permissions WHERE permission = 'integrations.ai_connect'`)
+    await q(`DELETE FROM role_permissions WHERE role_id IN (SELECT role_id FROM user_roles WHERE user_id = $1) AND permission = 'integrations.ai_connect'`, [u.id])
     expect((await control.flushCache()).status).toBe(200)
     expect((await rpc(t.access, 'tools/list')).status).toBe(401)
     expect(await q(`SELECT 1 FROM integration_audit_logs WHERE action = 'auth' AND status = 'denied'`)).toHaveLength(1)
@@ -176,7 +176,7 @@ describe('phạm vi + quyền', () => {
   it('SĐT LUÔN che với AI — kể cả người có contacts.phone_full scope all; SĐT trong tên/ghi chú cũng bị che; địa chỉ không lộ', async () => {
     const me = await makeUser({ ...READ, 'contacts.view': 'all', 'contacts.phone_full': 'all', 'deals.view': 'all', 'kanban.view': 'all' })
     const [c] = await q<{ id: number }>(
-      `INSERT INTO contacts (phone, phone_2, full_name, assigned_to, reminder_notes, updated_at) VALUES ('0987654321', '0900000833', $1, $2, 'liên hệ lại số 0900000955 nhé', now()) RETURNING id`,
+      `INSERT INTO contacts (phone, phone_2, full_name, assigned_to, reminder_notes, current_address, custom_fields, updated_at) VALUES ('0987654321', '0900000833', $1, $2, 'liên hệ lại số 0900000955 nhé', '1 Example Street, Q1', '{"cccd":"079123456789","luong":"99 triệu","luong_so":99000000}'::jsonb, now()) RETURNING id`,
       [`${P} Khách 0901234567`, me.id],
     )
     await q(`INSERT INTO activities (contact_id, action, details, created_by) VALUES ($1, 'note', $2::jsonb, $3)`, [c.id, JSON.stringify({ text: 'Khách để lại 0900001066 và 0901 234 567', summary: 'Zalo: 84900000356' }), me.id])
@@ -194,7 +194,7 @@ describe('phạm vi + quyền', () => {
       await callTool(t.access, 'get_contact', { id: c.id }),
       await callTool(t.access, 'fetch', { id: `contact:${c.id}` }),
       await callTool(t.access, 'list_contact_activities', { contact_id: c.id }),
-      await callTool(t.access, 'list_deals', {}),
+      await callTool(t.access, 'list_deals', { search: P }),
       await callTool(t.access, 'search', { query: P }),
       await callTool(t.access, 'fetch', { id: `deal:${d.id}` }),
     ]
@@ -260,7 +260,7 @@ describe('phạm vi + quyền', () => {
     const c = await mkContact('Khách ẩn', { assigned_to: other.id })
     const [d] = await q<{ id: number }>(`INSERT INTO deals (title, status, assigned_to, created_by, contact_id, updated_at) VALUES ($1, 'open', $2, $2, $3, now()) RETURNING id`, [`${P} deal có khách`, me.id, c.id])
     const t = await connect(me.token)
-    const list = await callTool(t.access, 'list_deals', {})
+    const list = await callTool(t.access, 'list_deals', { search: P })
     expect(list.structuredContent.data.deals[0].contact_id).toBeNull()
     expect(JSON.stringify(await callTool(t.access, 'fetch', { id: `deal:${d.id}` }))).not.toContain('Khách ẩn')
     expect(JSON.stringify(await callTool(t.access, 'search', { query: P }))).not.toContain(`/contacts/${c.id}`)
@@ -285,7 +285,7 @@ describe('phạm vi + quyền', () => {
     await card(`${P} việc đã xong`, { assignee_id: me.id, created_by: me.id, completed: true })
     await card(`${P} việc người khác`, { assignee_id: other.id, created_by: other.id })
     const t = await connect(me.token)
-    const deals = await callTool(t.access, 'list_deals', {})
+    const deals = await callTool(t.access, 'list_deals', { search: P })
     expect((deals.structuredContent.data.deals as { title: string }[]).map((d) => d.title)).toEqual([`${P} deal của tôi`])
     const tasks = await callTool(t.access, 'list_my_tasks', {})
     expect((tasks.structuredContent.data.tasks as { id: number }[]).map((x) => x.id).sort()).toEqual([mine, co].sort())

@@ -23679,6 +23679,2124 @@
   }
  },
  {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name should not be empty",
+    "name must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "name": null,
+   "description": null,
+   "ips": null,
+   "is_active": null,
+   "is_demo": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name should not be empty",
+    "name must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "name": "",
+   "description": "",
+   "ips": "",
+   "is_active": "",
+   "is_demo": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name should not be empty",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "name": "  x  ",
+   "description": "  x  ",
+   "ips": "  x  ",
+   "is_active": "  x  ",
+   "is_demo": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "name": 12.5,
+   "description": 12.5,
+   "ips": 12.5,
+   "is_active": 12.5,
+   "is_demo": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "name": -1,
+   "description": -1,
+   "ips": -1,
+   "is_active": -1,
+   "is_demo": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "name": 0,
+   "description": 0,
+   "ips": 0,
+   "is_active": 0,
+   "is_demo": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "name": true,
+   "description": true,
+   "ips": true,
+   "is_active": true,
+   "is_demo": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "name": [
+    "a",
+    1
+   ],
+   "description": [
+    "a",
+    1
+   ],
+   "ips": [
+    "a",
+    1
+   ],
+   "is_active": [
+    "a",
+    1
+   ],
+   "is_demo": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "name": {
+    "a": 1
+   },
+   "description": {
+    "a": 1
+   },
+   "ips": {
+    "a": 1
+   },
+   "is_active": {
+    "a": 1
+   },
+   "is_demo": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "ips": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "is_active": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "is_demo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "name": "2026-11-26T10:00:00Z",
+   "description": "2026-11-26T10:00:00Z",
+   "ips": "2026-11-26T10:00:00Z",
+   "is_active": "2026-11-26T10:00:00Z",
+   "is_demo": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "name": "123",
+   "description": "123",
+   "ips": "123",
+   "is_active": "123",
+   "is_demo": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "name": "a@example.com",
+   "description": "a@example.com",
+   "ips": "a@example.com",
+   "is_active": "a@example.com",
+   "is_demo": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "name": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "description": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "ips": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "is_active": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "is_demo": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "name": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "name": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "name": null,
+   "description": null,
+   "ips": null,
+   "is_active": null,
+   "is_demo": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name should not be empty",
+    "name must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "name": "",
+   "description": "",
+   "ips": "",
+   "is_active": "",
+   "is_demo": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name should not be empty",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "name": "  x  ",
+   "description": "  x  ",
+   "ips": "  x  ",
+   "is_active": "  x  ",
+   "is_demo": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "name": 12.5,
+   "description": 12.5,
+   "ips": 12.5,
+   "is_active": 12.5,
+   "is_demo": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "name": -1,
+   "description": -1,
+   "ips": -1,
+   "is_active": -1,
+   "is_demo": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "name": 0,
+   "description": 0,
+   "ips": 0,
+   "is_active": 0,
+   "is_demo": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "name": true,
+   "description": true,
+   "ips": true,
+   "is_active": true,
+   "is_demo": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "name": [
+    "a",
+    1
+   ],
+   "description": [
+    "a",
+    1
+   ],
+   "ips": [
+    "a",
+    1
+   ],
+   "is_active": [
+    "a",
+    1
+   ],
+   "is_demo": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "name": {
+    "a": 1
+   },
+   "description": {
+    "a": 1
+   },
+   "ips": {
+    "a": 1
+   },
+   "is_active": {
+    "a": 1
+   },
+   "is_demo": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "ips": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "is_active": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "is_demo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "name": "2026-11-26T10:00:00Z",
+   "description": "2026-11-26T10:00:00Z",
+   "ips": "2026-11-26T10:00:00Z",
+   "is_active": "2026-11-26T10:00:00Z",
+   "is_demo": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "name": "123",
+   "description": "123",
+   "ips": "123",
+   "is_active": "123",
+   "is_demo": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "name": "a@example.com",
+   "description": "a@example.com",
+   "ips": "a@example.com",
+   "is_active": "a@example.com",
+   "is_demo": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "name": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "description": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "ips": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "is_active": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "is_demo": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name must be a string",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "each value in ips must be a string",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "name": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "name": "x"
+  },
+  "result": {
+   "ok": {
+    "name": "x"
+   }
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_start must be a string",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_end must be a string",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "late_after must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "work_start": null,
+   "work_end": null,
+   "late_after": null,
+   "lunch_start": null,
+   "lunch_end": null,
+   "review_max_hours": null,
+   "half_day_min_hours": null,
+   "full_day_min_hours": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_start must be a string",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_end must be a string",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "late_after must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "work_start": "",
+   "work_end": "",
+   "late_after": "",
+   "lunch_start": "",
+   "lunch_end": "",
+   "review_max_hours": "",
+   "half_day_min_hours": "",
+   "full_day_min_hours": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "work_start": "  x  ",
+   "work_end": "  x  ",
+   "late_after": "  x  ",
+   "lunch_start": "  x  ",
+   "lunch_end": "  x  ",
+   "review_max_hours": "  x  ",
+   "half_day_min_hours": "  x  ",
+   "full_day_min_hours": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "Ngưỡng \"Xem xét\" tối đa 24 giờ",
+    "Ngưỡng \"Xem xét\" tối thiểu 0 giờ",
+    "Ngưỡng \"Xem xét\" phải là số (giờ)",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối đa 24 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối thiểu 0 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" phải là số (giờ)",
+    "Số giờ đủ công tối đa 24 giờ",
+    "Số giờ đủ công tối thiểu 0 giờ",
+    "Số giờ đủ công phải là số (giờ)"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "work_start": 12.5,
+   "work_end": 12.5,
+   "late_after": 12.5,
+   "lunch_start": 12.5,
+   "lunch_end": 12.5,
+   "review_max_hours": 12.5,
+   "half_day_min_hours": 12.5,
+   "full_day_min_hours": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_start must be a string",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_end must be a string",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "late_after must be a string",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_start must be a string",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_end must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "work_start": -1,
+   "work_end": -1,
+   "late_after": -1,
+   "lunch_start": -1,
+   "lunch_end": -1,
+   "review_max_hours": -1,
+   "half_day_min_hours": -1,
+   "full_day_min_hours": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_start must be a string",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_end must be a string",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "late_after must be a string",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_start must be a string",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_end must be a string",
+    "Ngưỡng \"Xem xét\" tối thiểu 0 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối thiểu 0 giờ",
+    "Số giờ đủ công tối thiểu 0 giờ"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "work_start": 0,
+   "work_end": 0,
+   "late_after": 0,
+   "lunch_start": 0,
+   "lunch_end": 0,
+   "review_max_hours": 0,
+   "half_day_min_hours": 0,
+   "full_day_min_hours": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_start must be a string",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_end must be a string",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "late_after must be a string",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_start must be a string",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_end must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "work_start": true,
+   "work_end": true,
+   "late_after": true,
+   "lunch_start": true,
+   "lunch_end": true,
+   "review_max_hours": true,
+   "half_day_min_hours": true,
+   "full_day_min_hours": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_start must be a string",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_end must be a string",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "late_after must be a string",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_start must be a string",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_end must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "work_start": [
+    "a",
+    1
+   ],
+   "work_end": [
+    "a",
+    1
+   ],
+   "late_after": [
+    "a",
+    1
+   ],
+   "lunch_start": [
+    "a",
+    1
+   ],
+   "lunch_end": [
+    "a",
+    1
+   ],
+   "review_max_hours": [
+    "a",
+    1
+   ],
+   "half_day_min_hours": [
+    "a",
+    1
+   ],
+   "full_day_min_hours": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_start must be a string",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_end must be a string",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "late_after must be a string",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_start must be a string",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_end must be a string",
+    "Ngưỡng \"Xem xét\" tối đa 24 giờ",
+    "Ngưỡng \"Xem xét\" tối thiểu 0 giờ",
+    "Ngưỡng \"Xem xét\" phải là số (giờ)",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối đa 24 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối thiểu 0 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" phải là số (giờ)",
+    "Số giờ đủ công tối đa 24 giờ",
+    "Số giờ đủ công tối thiểu 0 giờ",
+    "Số giờ đủ công phải là số (giờ)"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "work_start": {
+    "a": 1
+   },
+   "work_end": {
+    "a": 1
+   },
+   "late_after": {
+    "a": 1
+   },
+   "lunch_start": {
+    "a": 1
+   },
+   "lunch_end": {
+    "a": 1
+   },
+   "review_max_hours": {
+    "a": 1
+   },
+   "half_day_min_hours": {
+    "a": 1
+   },
+   "full_day_min_hours": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_start must be a string",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_end must be a string",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "late_after must be a string",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_start must be a string",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_end must be a string",
+    "Ngưỡng \"Xem xét\" tối đa 24 giờ",
+    "Ngưỡng \"Xem xét\" tối thiểu 0 giờ",
+    "Ngưỡng \"Xem xét\" phải là số (giờ)",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối đa 24 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối thiểu 0 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" phải là số (giờ)",
+    "Số giờ đủ công tối đa 24 giờ",
+    "Số giờ đủ công tối thiểu 0 giờ",
+    "Số giờ đủ công phải là số (giờ)"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "work_start": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "work_end": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "late_after": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "lunch_start": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "lunch_end": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "review_max_hours": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "half_day_min_hours": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "full_day_min_hours": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "Ngưỡng \"Xem xét\" tối đa 24 giờ",
+    "Ngưỡng \"Xem xét\" tối thiểu 0 giờ",
+    "Ngưỡng \"Xem xét\" phải là số (giờ)",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối đa 24 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối thiểu 0 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" phải là số (giờ)",
+    "Số giờ đủ công tối đa 24 giờ",
+    "Số giờ đủ công tối thiểu 0 giờ",
+    "Số giờ đủ công phải là số (giờ)"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "work_start": "2026-11-26T10:00:00Z",
+   "work_end": "2026-11-26T10:00:00Z",
+   "late_after": "2026-11-26T10:00:00Z",
+   "lunch_start": "2026-11-26T10:00:00Z",
+   "lunch_end": "2026-11-26T10:00:00Z",
+   "review_max_hours": "2026-11-26T10:00:00Z",
+   "half_day_min_hours": "2026-11-26T10:00:00Z",
+   "full_day_min_hours": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "Ngưỡng \"Xem xét\" tối đa 24 giờ",
+    "Ngưỡng \"Xem xét\" tối thiểu 0 giờ",
+    "Ngưỡng \"Xem xét\" phải là số (giờ)",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối đa 24 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối thiểu 0 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" phải là số (giờ)",
+    "Số giờ đủ công tối đa 24 giờ",
+    "Số giờ đủ công tối thiểu 0 giờ",
+    "Số giờ đủ công phải là số (giờ)"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "work_start": "123",
+   "work_end": "123",
+   "late_after": "123",
+   "lunch_start": "123",
+   "lunch_end": "123",
+   "review_max_hours": "123",
+   "half_day_min_hours": "123",
+   "full_day_min_hours": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "Ngưỡng \"Xem xét\" tối đa 24 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối đa 24 giờ",
+    "Số giờ đủ công tối đa 24 giờ"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "work_start": "a@example.com",
+   "work_end": "a@example.com",
+   "late_after": "a@example.com",
+   "lunch_start": "a@example.com",
+   "lunch_end": "a@example.com",
+   "review_max_hours": "a@example.com",
+   "half_day_min_hours": "a@example.com",
+   "full_day_min_hours": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "Ngưỡng \"Xem xét\" tối đa 24 giờ",
+    "Ngưỡng \"Xem xét\" tối thiểu 0 giờ",
+    "Ngưỡng \"Xem xét\" phải là số (giờ)",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối đa 24 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối thiểu 0 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" phải là số (giờ)",
+    "Số giờ đủ công tối đa 24 giờ",
+    "Số giờ đủ công tối thiểu 0 giờ",
+    "Số giờ đủ công phải là số (giờ)"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "work_start": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "work_end": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "late_after": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "lunch_start": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "lunch_end": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "review_max_hours": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "half_day_min_hours": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "full_day_min_hours": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_start must be a string",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_end must be a string",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "late_after must be a string",
+    "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_start must be a string",
+    "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+    "lunch_end must be a string",
+    "Ngưỡng \"Xem xét\" tối đa 24 giờ",
+    "Ngưỡng \"Xem xét\" tối thiểu 0 giờ",
+    "Ngưỡng \"Xem xét\" phải là số (giờ)",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối đa 24 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối thiểu 0 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" phải là số (giờ)",
+    "Số giờ đủ công tối đa 24 giờ",
+    "Số giờ đủ công tối thiểu 0 giờ",
+    "Số giờ đủ công phải là số (giờ)"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "work_start": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_end must be a string",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "late_after must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "work_start": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "work_end must be a string",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "late_after must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_in must be a string",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "default_check_out must be a string",
+    "monthly_forgot_limit không được âm",
+    "monthly_forgot_limit phải là số nguyên",
+    "monthly_late_early_limit không được âm",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "default_check_in": null,
+   "default_check_out": null,
+   "monthly_forgot_limit": null,
+   "monthly_late_early_limit": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_in must be a string",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "default_check_out must be a string",
+    "monthly_forgot_limit không được âm",
+    "monthly_forgot_limit phải là số nguyên",
+    "monthly_late_early_limit không được âm",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "default_check_in": "",
+   "default_check_out": "",
+   "monthly_forgot_limit": "",
+   "monthly_late_early_limit": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "default_check_in": "  x  ",
+   "default_check_out": "  x  ",
+   "monthly_forgot_limit": "  x  ",
+   "monthly_late_early_limit": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "monthly_forgot_limit không được âm",
+    "monthly_forgot_limit phải là số nguyên",
+    "monthly_late_early_limit không được âm",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "default_check_in": 12.5,
+   "default_check_out": 12.5,
+   "monthly_forgot_limit": 12.5,
+   "monthly_late_early_limit": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_in must be a string",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "default_check_out must be a string",
+    "monthly_forgot_limit phải là số nguyên",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "default_check_in": -1,
+   "default_check_out": -1,
+   "monthly_forgot_limit": -1,
+   "monthly_late_early_limit": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_in must be a string",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "default_check_out must be a string",
+    "monthly_forgot_limit không được âm",
+    "monthly_late_early_limit không được âm"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "default_check_in": 0,
+   "default_check_out": 0,
+   "monthly_forgot_limit": 0,
+   "monthly_late_early_limit": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_in must be a string",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "default_check_out must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "default_check_in": true,
+   "default_check_out": true,
+   "monthly_forgot_limit": true,
+   "monthly_late_early_limit": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_in must be a string",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "default_check_out must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "default_check_in": [
+    "a",
+    1
+   ],
+   "default_check_out": [
+    "a",
+    1
+   ],
+   "monthly_forgot_limit": [
+    "a",
+    1
+   ],
+   "monthly_late_early_limit": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_in must be a string",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "default_check_out must be a string",
+    "monthly_forgot_limit không được âm",
+    "monthly_forgot_limit phải là số nguyên",
+    "monthly_late_early_limit không được âm",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "default_check_in": {
+    "a": 1
+   },
+   "default_check_out": {
+    "a": 1
+   },
+   "monthly_forgot_limit": {
+    "a": 1
+   },
+   "monthly_late_early_limit": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_in must be a string",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "default_check_out must be a string",
+    "monthly_forgot_limit không được âm",
+    "monthly_forgot_limit phải là số nguyên",
+    "monthly_late_early_limit không được âm",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "default_check_in": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "default_check_out": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "monthly_forgot_limit": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "monthly_late_early_limit": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "monthly_forgot_limit không được âm",
+    "monthly_forgot_limit phải là số nguyên",
+    "monthly_late_early_limit không được âm",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "default_check_in": "2026-11-26T10:00:00Z",
+   "default_check_out": "2026-11-26T10:00:00Z",
+   "monthly_forgot_limit": "2026-11-26T10:00:00Z",
+   "monthly_late_early_limit": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "monthly_forgot_limit không được âm",
+    "monthly_forgot_limit phải là số nguyên",
+    "monthly_late_early_limit không được âm",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "default_check_in": "123",
+   "default_check_out": "123",
+   "monthly_forgot_limit": "123",
+   "monthly_late_early_limit": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "default_check_in": "a@example.com",
+   "default_check_out": "a@example.com",
+   "monthly_forgot_limit": "a@example.com",
+   "monthly_late_early_limit": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "monthly_forgot_limit không được âm",
+    "monthly_forgot_limit phải là số nguyên",
+    "monthly_late_early_limit không được âm",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "default_check_in": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "default_check_out": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "monthly_forgot_limit": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "monthly_late_early_limit": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_in must be a string",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "default_check_out must be a string",
+    "monthly_forgot_limit không được âm",
+    "monthly_forgot_limit phải là số nguyên",
+    "monthly_late_early_limit không được âm",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "default_check_in": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "default_check_out must be a string",
+    "monthly_forgot_limit không được âm",
+    "monthly_forgot_limit phải là số nguyên",
+    "monthly_late_early_limit không được âm",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "default_check_in": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "default_check_out must be a string",
+    "monthly_forgot_limit không được âm",
+    "monthly_forgot_limit phải là số nguyên",
+    "monthly_late_early_limit không được âm",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "each value in dates must be a string",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "dates": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "each value in dates must be a string",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "dates": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "dates": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "dates": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "each value in dates must be a string",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "dates": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "each value in dates must be a string",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "dates": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "each value in dates must be a string",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "dates": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "each value in dates must be a string",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "dates": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "each value in dates must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "dates": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "each value in dates must be a string",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "dates": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "dates": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "dates": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "dates": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "dates": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "each value in dates must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "dates": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "dates": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "dates must be an array"
+   ]
+  }
+ },
+ {
   "dto": "CreateContractDto",
   "mode": "strict",
   "probe": "empty_object",
@@ -26434,6 +28552,263 @@
    "message": [
     "month must not be greater than 12",
     "office_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "name": "VP Hà Nội",
+   "description": "Trụ sở",
+   "ips": [
+    "203.0.113.1"
+   ],
+   "is_active": true,
+   "is_demo": false
+  },
+  "result": {
+   "ok": {
+    "name": "VP Hà Nội",
+    "description": "Trụ sở",
+    "ips": [
+     "203.0.113.1"
+    ],
+    "is_active": true,
+    "is_demo": false
+   }
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "name": "",
+   "ips": [],
+   "is_active": "x",
+   "is_demo": null,
+   "description": 5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name should not be empty",
+    "description must be shorter than or equal to 500 characters",
+    "description must be a string",
+    "ips should not be empty",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "CreateOfficeDto",
+  "mode": "strict",
+  "probe": "ips_khong_phai_chuoi",
+  "input": {
+   "name": "A",
+   "ips": [
+    1,
+    2
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in ips must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "description": null,
+   "ips": [
+    "1.2.3.4"
+   ],
+   "is_active": false
+  },
+  "result": {
+   "ok": {
+    "description": null,
+    "ips": [
+     "1.2.3.4"
+    ],
+    "is_active": false
+   }
+  }
+ },
+ {
+  "dto": "UpdateOfficeDto",
+  "mode": "strict",
+  "probe": "null_het",
+  "input": {
+   "name": null,
+   "ips": null,
+   "is_active": null,
+   "is_demo": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "name must be shorter than or equal to 100 characters",
+    "name should not be empty",
+    "name must be a string",
+    "each value in ips must be a string",
+    "ips should not be empty",
+    "ips must be an array",
+    "is_active must be a boolean value",
+    "is_demo must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "work_start": "08:00",
+   "work_end": "17:00",
+   "late_after": "08:10",
+   "lunch_start": "12:00",
+   "lunch_end": "13:30",
+   "review_max_hours": "1",
+   "half_day_min_hours": 4.5,
+   "full_day_min_hours": 8
+  },
+  "result": {
+   "ok": {
+    "work_start": "08:00",
+    "work_end": "17:00",
+    "late_after": "08:10",
+    "lunch_start": "12:00",
+    "lunch_end": "13:30",
+    "review_max_hours": 1,
+    "half_day_min_hours": 4.5,
+    "full_day_min_hours": 8
+   }
+  }
+ },
+ {
+  "dto": "UpdateAttendanceSettingsDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "work_start": "8:00",
+   "work_end": "24:00",
+   "late_after": 5,
+   "review_max_hours": -1,
+   "half_day_min_hours": 25,
+   "full_day_min_hours": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+    "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+    "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+    "late_after must be a string",
+    "Ngưỡng \"Xem xét\" tối thiểu 0 giờ",
+    "Ngưỡng \"Chưa đủ nửa ngày\" tối đa 24 giờ",
+    "Số giờ đủ công tối đa 24 giờ",
+    "Số giờ đủ công tối thiểu 0 giờ",
+    "Số giờ đủ công phải là số (giờ)"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "default_check_in": "08:00",
+   "default_check_out": "17:30",
+   "monthly_forgot_limit": "2",
+   "monthly_late_early_limit": 0
+  },
+  "result": {
+   "ok": {
+    "default_check_in": "08:00",
+    "default_check_out": "17:30",
+    "monthly_forgot_limit": 2,
+    "monthly_late_early_limit": 0
+   }
+  }
+ },
+ {
+  "dto": "UpdateRequestConfigDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "default_check_in": "8h",
+   "default_check_out": null,
+   "monthly_forgot_limit": -1,
+   "monthly_late_early_limit": 1.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "default_check_in phải có định dạng HH:MM (vd 08:00)",
+    "default_check_out phải có định dạng HH:MM (vd 17:30)",
+    "default_check_out must be a string",
+    "monthly_forgot_limit không được âm",
+    "monthly_late_early_limit phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "dates": [
+    "2026-06-06",
+    "2026-06-20"
+   ]
+  },
+  "result": {
+   "ok": {
+    "dates": [
+     "2026-06-06",
+     "2026-06-20"
+    ]
+   }
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "dates": [
+    "06/06/2026",
+    5,
+    "2026-06-6"
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Mỗi ngày phải có dạng YYYY-MM-DD",
+    "each value in dates must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateWorkingSaturdaysDto",
+  "mode": "strict",
+  "probe": "khong_phai_mang",
+  "input": {
+   "dates": "2026-06-06"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dates must be an array"
    ]
   }
  },

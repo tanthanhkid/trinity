@@ -4318,6 +4318,152 @@
   },
   "defaults": {}
  },
+ "CreateOfficeDto": {
+  "declared": [
+   "name",
+   "description",
+   "ips",
+   "is_active",
+   "is_demo"
+  ],
+  "validated": [
+   "name",
+   "description",
+   "ips",
+   "is_active",
+   "is_demo"
+  ],
+  "fields": {
+   "name": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       100
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isNotEmpty",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "description": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       500
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "ips": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "arrayNotEmpty",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isArray",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "is_active": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "is_demo": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
  "CreateOptionDto": {
   "declared": [
    "group_key",
@@ -12105,6 +12251,312 @@
   },
   "defaults": {}
  },
+ "UpdateAttendanceSettingsDto": {
+  "declared": [
+   "work_start",
+   "work_end",
+   "late_after",
+   "lunch_start",
+   "lunch_end",
+   "review_max_hours",
+   "half_day_min_hours",
+   "full_day_min_hours"
+  ],
+  "validated": [
+   "work_start",
+   "work_end",
+   "late_after",
+   "lunch_start",
+   "lunch_end",
+   "review_max_hours",
+   "half_day_min_hours",
+   "full_day_min_hours"
+  ],
+  "fields": {
+   "work_start": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "Giờ bắt đầu ca phải có định dạng HH:MM (00:00–23:59)",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "work_end": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "Giờ kết thúc ca phải có định dạng HH:MM (00:00–23:59)",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "late_after": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "Mốc đi muộn phải có định dạng HH:MM (00:00–23:59)",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "lunch_start": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "Giờ bắt đầu nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "lunch_end": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "Giờ kết thúc nghỉ trưa phải có định dạng HH:MM (00:00–23:59)",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "review_max_hours": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "max",
+      "constraints": [
+       24
+      ],
+      "message": "Ngưỡng \"Xem xét\" tối đa 24 giờ",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       0
+      ],
+      "message": "Ngưỡng \"Xem xét\" tối thiểu 0 giờ",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isNumber",
+      "constraints": [
+       {}
+      ],
+      "message": "Ngưỡng \"Xem xét\" phải là số (giờ)",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "half_day_min_hours": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "max",
+      "constraints": [
+       24
+      ],
+      "message": "Ngưỡng \"Chưa đủ nửa ngày\" tối đa 24 giờ",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       0
+      ],
+      "message": "Ngưỡng \"Chưa đủ nửa ngày\" tối thiểu 0 giờ",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isNumber",
+      "constraints": [
+       {}
+      ],
+      "message": "Ngưỡng \"Chưa đủ nửa ngày\" phải là số (giờ)",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "full_day_min_hours": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "max",
+      "constraints": [
+       24
+      ],
+      "message": "Số giờ đủ công tối đa 24 giờ",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       0
+      ],
+      "message": "Số giờ đủ công tối thiểu 0 giờ",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isNumber",
+      "constraints": [
+       {}
+      ],
+      "message": "Số giờ đủ công phải là số (giờ)",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   }
+  },
+  "defaults": {}
+ },
  "UpdateCandidateDto": {
   "declared": [
    "full_name",
@@ -15310,6 +15762,174 @@
   },
   "defaults": {}
  },
+ "UpdateOfficeDto": {
+  "declared": [
+   "name",
+   "description",
+   "ips",
+   "is_active",
+   "is_demo"
+  ],
+  "validated": [
+   "name",
+   "description",
+   "ips",
+   "is_active",
+   "is_demo"
+  ],
+  "fields": {
+   "name": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       100
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isNotEmpty",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "description": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       500
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "ips": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "arrayNotEmpty",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isArray",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "is_active": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "is_demo": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
  "UpdateOrderDto": {
   "declared": [
    "table_id",
@@ -15940,6 +16560,117 @@
       "each": false
      }
     ]
+   }
+  },
+  "defaults": {}
+ },
+ "UpdateRequestConfigDto": {
+  "declared": [
+   "default_check_in",
+   "default_check_out",
+   "monthly_forgot_limit",
+   "monthly_late_early_limit"
+  ],
+  "validated": [
+   "default_check_in",
+   "default_check_out",
+   "monthly_forgot_limit",
+   "monthly_late_early_limit"
+  ],
+  "fields": {
+   "default_check_in": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "default_check_in phải có định dạng HH:MM (vd 08:00)",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "default_check_out": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^([01]\\d|2[0-3]):[0-5]\\d$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "default_check_out phải có định dạng HH:MM (vd 17:30)",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "monthly_forgot_limit": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       0
+      ],
+      "message": "monthly_forgot_limit không được âm",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": "monthly_forgot_limit phải là số nguyên",
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "monthly_late_early_limit": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       0
+      ],
+      "message": "monthly_late_early_limit không được âm",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": "monthly_late_early_limit phải là số nguyên",
+      "each": false
+     }
+    ],
+    "type": "Number"
    }
   },
   "defaults": {}
@@ -16812,6 +17543,50 @@
         "$fn": "(_o, v) => v !== undefined"
        }
       ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
+ "UpdateWorkingSaturdaysDto": {
+  "declared": [
+   "dates"
+  ],
+  "validated": [
+   "dates"
+  ],
+  "fields": {
+   "dates": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^\\d{4}-\\d{2}-\\d{2}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "Mỗi ngày phải có dạng YYYY-MM-DD",
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "isArray",
+      "constraints": [],
       "message": null,
       "each": false
      }

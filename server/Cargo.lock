@@ -2038,6 +2038,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-attendance"
+version = "0.3.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "http",
+ "mod-hr",
+ "mod-users",
+ "regex",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tower",
+ "tracing",
+ "trinity-auth",
+ "trinity-db",
+ "trinity-http",
+ "trinity-kernel",
+ "trinity-rbac",
+ "trinity-storage",
+]
+
+[[package]]
 name = "mod-auth"
 version = "0.3.0"
 dependencies = [
@@ -4460,6 +4484,7 @@ dependencies = [
  "base64 0.23.1",
  "clap",
  "getrandom 0.4.3",
+ "mod-attendance",
  "mod-channel-guard",
  "mod-custom",
  "mod-deals",

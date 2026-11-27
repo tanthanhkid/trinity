@@ -100,6 +100,16 @@ Bảng ánh xạ chỗ đổi env / gọi hàm nội bộ → hồ sơ / API đi
 Ca bị chuyển loại phần gọi hàm: `dispatcher.dispatchEvents()` đứng riêng (không gửi) nay seed delivery chờ bằng SQL (`pendingDelivery`) rồi kiểm phần còn lại; `worker.claim()` hai lần đồng thời, ghi kết quả muộn của lượt nhận cũ (`processBatch(first)`) và
 `sweepExhausted()` đứng riêng không còn gọi được từ ngoài: phần "không nhận trùng / lease / trần 7 lần / quét dead" kiểm qua `tick`, phần ghi muộn và claim song song thật kiểm ở test Rust `webhooks_pg.rs`.
 
+## Phủ đủ route theo cụm (C14)
+`lib/route-cover.ts` suy từ `server/contracts/routes.json` các loại ca một route phải có: thiếu token 401 (mọi route cần đăng nhập), thiếu quyền 403 (route `can`),
+thành công đúng `status_ok`, id sai kiểu 400 (có `param_pipes`), và golden 3 vai cho route đọc dữ liệu khách (`shape_permissions`); công thức của route khai thêm
+đầu vào sai 400, id không có, ngoài phạm vi theo id, SĐT bị che. Mỗi ca ghi vào sổ, ca cuối của file so sổ với `routes.json` và đòi 100% (thêm route vào cụm mà chưa có
+công thức ⇒ đỏ).
+- C14b `cases/default/60-routes-khach-deal-kanban` (56 route: `/contacts` 15, `/deals` 6, `/kanban` 35). Mỗi route một công thức dựng dữ liệu riêng (SQL cho khách/deal, API cho kanban).
+  Ghi chú hành vi Node: các route kanban `labels` trả `{ labels }` (nhãn nằm trong board, không có id số); chuyển khách của người khác ngoài phạm vi trả 403 (không phải 404);
+  `field-defs/reorder` với board không có trả 400 (kiểm thân trước); thân hợp lệ phải đi cùng id sai kiểu vì pipe thân chạy trước pipe tham số. Ba route danh sách người dùng
+  (`assignable-sales`, `assignable-users`, `deals/search-sales`) ghi golden 3 vai nhưng vai thiếu quyền nhận 403.
+
 ## Ca bị chuyển loại / chưa chuyển
 Đã chuyển (C11, hồ sơ `default`, 34 ca): `cases/default/20-commerce` (5, từ `commerce.e2e-spec`), `21-pos-dashboard` (6), `22-payroll-notification` (21), `23-notification-reaper` (2, `reapStuckProcessing(NOW)` → `control.runJob('notification.reap-stuck', { now })`, `createLog` → `POST /notifications/send` hẹn giờ + đọc log bằng SQL). Các ca e2e còn lại chuyển ở C07a và C08–C13. 10 ca mẫu ở `cases/` chứng minh từng khả năng: job (`04`), xoá cache (`05`), `now`
 (`04`), hồ sơ `production` (`cases/production`), response theo ngày (`06`), ba vai (`07`), công ty thứ hai (`03`), validation strict/lenient (`02`),

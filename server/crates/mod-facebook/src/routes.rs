@@ -56,6 +56,22 @@ pub fn routes() -> Vec<RouteSpec> {
     ]
 }
 
+/// 7 route bình luận và luật tự động của `FacebookController` (M49). Tầng route (api_router) gộp vào bảng chung.
+pub fn comment_routes() -> Vec<RouteSpec> {
+    let manage = Access::Can(&["integrations.webhooks"]);
+    let r =
+        |m: Method, p: &'static str, ok: u16| RouteSpec::new(m, p, manage).status_ok(ok).org_feature("facebook_page");
+    vec![
+        r(Method::GET, "/api/v1/facebook/comments", 200),
+        r(Method::POST, "/api/v1/facebook/comments/:id/reply", 201),
+        r(Method::GET, "/api/v1/facebook/comment-rules", 200),
+        r(Method::POST, "/api/v1/facebook/comment-rules", 201),
+        r(Method::PATCH, "/api/v1/facebook/comment-rules/:id", 200).param_pipes(ID),
+        r(Method::DELETE, "/api/v1/facebook/comment-rules/:id", 204).param_pipes(ID),
+        r(Method::POST, "/api/v1/facebook/comment-rules/dry-run", 200),
+    ]
+}
+
 /// Dựng client Graph cho từng công ty: mỗi lời gọi báo kết quả cho `ChannelGuard` của công ty đó (M45).
 pub fn graph_factory(env: Env, guard: ChannelGuard) -> GraphFactory {
     let http = reqwest::Client::builder()
@@ -97,7 +113,9 @@ impl FacebookState {
                 platform: platform.clone(),
             }),
             features,
-            processor: Arc::new(FacebookIngest::new(db.clone(), env.clone(), graph_for.clone())),
+            processor: Arc::new(
+                FacebookIngest::new(db.clone(), env.clone(), graph_for.clone()).with_guard(Arc::new(guard.clone())),
+            ),
             forwarder: Arc::new(HttpForwarder {
                 http: reqwest::Client::new(),
             }),

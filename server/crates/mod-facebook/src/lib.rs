@@ -18,9 +18,12 @@
 //! - [`ingest`], [`messenger`], [`leads`] (M47b): [`ingest::FacebookIngest`] cài `EntryProcessor`: tin Messenger vào (hội thoại, khách, outbox
 //!   `messenger.message_*`, chuông) và Lead Ads (`leadgen` ⇒ Graph ⇒ khách, khử trùng theo `leadgen_id`).
 //!
-//! Chưa có ở đây (việc của M49 trở đi): bình luận, link mở chat, kịch bản nhắn tin, luật tự động. Sau `check_token`
+//! - [`comments`] (M49): bình luận Fanpage (webhook `feed`), luật tự động (trả lời công khai, ẩn khi có SĐT, nhắn riêng), trả lời tay.
+//!
+//! Chưa có ở đây (việc của M50): link mở chat, kịch bản nhắn tin. Sau `check_token`
 //! thành công tầng route còn gọi `FacebookIngest::refresh_missing_names` (M48).
 
+pub mod comments;
 pub mod config;
 pub mod graph;
 pub mod inbox;

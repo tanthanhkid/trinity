@@ -1,6 +1,6 @@
 //! Bản cài thật của các port tool Fanpage (`fanpage_deps`) trên Postgres thật: Page, luật bình luận, link chat, gửi hàng loạt
 //! (kiểm, xem trước, tạo, gửi, huỷ) và các câu lỗi nghiệp vụ trả thành `ToolError::User`. Không gọi Graph (mọi thao tác chỉ
-//! chạm DB). `FlowsPort` để trống.
+//! chạm DB). `FlowsPort` cắm sẵn (FlowsAdapter), không kiểm ở đây.
 //!
 //! Chạy: `TEST_DATABASE_URL=postgresql://$USER@localhost:5432/trinity_<tên> cargo test -p mod-mcp --test fanpage_ports_pg -- --ignored`
 //! Dữ liệu mang tiền tố `fp44`, tự dọn. Pool chỉ 1 kết nối: mã giữ kết nối khi gọi dịch vụ khác sẽ làm test treo rồi hết hạn chờ.
@@ -122,7 +122,8 @@ async fn page_va_flows_trong() {
     let _g = serial().lock().await;
     let f = setup().await;
     let ports = fanpage_deps(f.ingest.clone(), false, None, None);
-    assert!(ports.flows.is_none() && ports.posts.is_none());
+    // FlowsAdapter luôn được cắm; posts chỉ có khi truyền PostsDeps.
+    assert!(ports.flows.is_some() && ports.posts.is_none());
     let pages = ports.pages.as_ref().unwrap().pages(f.company).await.unwrap();
     let p = pages.iter().find(|p| p.page_id == "fp44p").expect("có Page fp44p");
     assert_eq!(p.name, "Quán FP44");

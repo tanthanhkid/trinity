@@ -49,6 +49,12 @@ pub fn routes() -> Vec<RouteSpec> {
         r(Method::GET, "/api/v1/facebook/conversations", 200),
         r(Method::GET, "/api/v1/facebook/conversations/:id/messages", 200).param_pipes(ID),
         r(Method::POST, "/api/v1/facebook/conversations/:id/messages", 201).param_pipes(ID),
+        // Link/QR mở chat (M50).
+        r(Method::GET, "/api/v1/facebook/chat-links", 200),
+        r(Method::POST, "/api/v1/facebook/chat-links", 201),
+        r(Method::PATCH, "/api/v1/facebook/chat-links/:id", 200).param_pipes(ID),
+        r(Method::DELETE, "/api/v1/facebook/chat-links/:id", 204).param_pipes(ID),
+        RouteSpec::new(Method::GET, "/api/v1/facebook/go/:code", Access::Public),
         RouteSpec::new(Method::GET, "/api/v1/facebook/oauth/callback", Access::Public),
         // Webhook của Meta (M47a): công khai, xác thực bằng verify token (GET) và chữ ký `X-Hub-Signature-256` (POST).
         RouteSpec::new(Method::GET, "/api/v1/facebook/webhook", Access::Public).status_ok(200),
@@ -412,9 +418,9 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = routes();
-        assert_eq!(table.len(), 12);
+        assert_eq!(table.len(), 17);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 12);
+        assert_eq!(rep.declared, 17);
     }
 }

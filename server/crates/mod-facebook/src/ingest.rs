@@ -102,6 +102,12 @@ impl FacebookIngest {
             };
             if let Some(events) = entry.get("messaging").and_then(Value::as_array) {
                 for ev in events {
+                    // Link/QR mở chat (M50): xử lý TRƯỚC tin để khách mới mang nguồn của link.
+                    match self.ingest_referral(company, &page_id, ev).await {
+                        Ok(true) => n += 1,
+                        Ok(false) => {}
+                        Err(e) => tracing::error!("Xử lý referral Facebook lỗi: {e}"),
+                    }
                     match self.ingest_message(company, &page_id, ev).await {
                         Ok(true) => n += 1,
                         Ok(false) => {}

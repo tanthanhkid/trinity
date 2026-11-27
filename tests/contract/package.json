@@ -6,6 +6,7 @@
   "scripts": {
     "test": "CONTRACT_UNIT=1 vitest run --config vitest.config.ts",
     "contract": "tsx run.ts",
+    "sweep": "tsx sweep/run.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

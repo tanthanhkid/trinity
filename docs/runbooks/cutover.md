@@ -21,7 +21,7 @@ Ba nguyên tắc:
 | `docs/rust/invariants.md` (lịch hằng ngày và hằng giờ) | có |
 | Lấy mẫu shadow (`SHADOW_SAMPLE_RATE`, `safe_for_shadow` và `min_samples` trong `server/contracts/routes.json`; K28) | mã có trong crate `trinity-http`, nhưng **chưa thấy nối vào `trinity serve`** và chưa có đường xuất báo cáo cho người vận hành: chưa có, kiểm lại trạng thái K28 trước khi tính 48 giờ shadow |
 | Script kiểm điều kiện đổi chủ `stale-work.digest` (mục 5) | chưa có tệp script riêng; mục 5 có đoạn SQL mẫu, chưa chạy thử trên DB thật |
-| Quét GET trên bản sao dữ liệu thật cho route thiếu mẫu | chưa có — issue X13 |
+| Quét GET trên bản sao dữ liệu thật cho route thiếu mẫu | có (X13): `docs/runbooks/sweep.md`, `tests/contract/sweep/` |
 | Mẫu từng đợt `deploy/hybrid/mau/ownership-dot-<đợt>.json` (cộng dồn, chỉ là mẫu) và `docs/runbooks/cutover-cac-dot.md` | có cho đợt a, b, c, d, e (đủ a–e) |
 | Script sao lưu tự động toàn bộ DB và volume trước đợt | chưa có; dùng lệnh ở mục 2 |
 | Lưu WAL (PITR) | tuỳ chọn, hướng dẫn mục 7; cấu hình Postgres chưa nằm trong compose |
@@ -34,7 +34,7 @@ Theo PLAN 6.5 và các dòng X02a–X02e trong `docs/rust/ISSUES.md`. Mọi ô p
 - [ ] Đợt trước (nếu có) đã qua 72 giờ đầu và bộ kiểm bất biến xanh.
 - [ ] 100% ca hợp đồng của các module trong đợt đạt trên Rust; độ phủ route 100% theo `routes.json` (`trinity check-routes`).
 - [ ] So trạng thái DB các kịch bản ghi: không khác biệt ngoài danh sách cho phép có lý do.
-- [ ] **48 giờ shadow** trên lưu lượng thật: mỗi route `safe_for_shadow` đạt `min_samples` (mặc định 50) hoặc được quét bù bằng X13 (chưa có — issue X13); tỉ lệ khác biệt bằng 0 sau khi trừ danh sách cho phép. Route `cached: true` chỉ so hình dạng trên lưu lượng thật.
+- [ ] **48 giờ shadow** trên lưu lượng thật: mỗi route `safe_for_shadow` đạt `min_samples` (mặc định 50) hoặc được quét bù bằng X13 (`docs/runbooks/sweep.md`); tỉ lệ khác biệt bằng 0 sau khi trừ danh sách cho phép. Route `cached: true` chỉ so hình dạng trên lưu lượng thật.
 - [ ] **Công ty thử chạy 24 giờ** cho mọi module có đường ghi trong đợt.
 - [ ] Không có lỗi 5xx mới so với trước đợt.
 - [ ] Bộ nhớ đỉnh của Rust khi chạy bộ hợp đồng không vượt ngưỡng (PLAN mục 9).

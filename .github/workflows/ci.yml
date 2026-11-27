@@ -280,14 +280,17 @@ jobs:
         with:
           workspaces: server
           save-if: ${{ github.event_name != 'pull_request' }}
+      # quay.io/minio/minio:latest trả 401 và dl.min.io/minio trả 410 (MinIO ngừng phát hành bản dựng sẵn). Dùng bản lưu của
+      # Bitnami (ghim thẻ + digest manifest, tạo bucket qua MINIO_DEFAULT_BUCKETS nên không cần ảnh `mc`).
       - name: Chạy MinIO và tạo bucket
         run: |
           docker run -d --name minio -p 9000:9000 \
             -e MINIO_ROOT_USER="$MINIO_ACCESS_KEY" -e MINIO_ROOT_PASSWORD="$MINIO_SECRET_KEY" \
-            quay.io/minio/minio server /data
-          for i in $(seq 30); do curl -sf http://127.0.0.1:9000/minio/health/ready && break; sleep 2; done
-          docker run --rm --network host --entrypoint sh quay.io/minio/mc -c \
-            "mc alias set l http://127.0.0.1:9000 $MINIO_ACCESS_KEY $MINIO_SECRET_KEY && mc mb --ignore-existing l/$MINIO_BUCKET"
+            -e MINIO_DEFAULT_BUCKETS="$MINIO_BUCKET" \
+            docker.io/bitnamilegacy/minio:2025.7.23-debian-12-r5@sha256:6dabb4a2088c9a79908de3bc05f4586c23ad2182c8908e7e3acbf61c1467fb20
+          ok=0
+          for i in $(seq 45); do curl -sf http://127.0.0.1:9000/minio/health/ready && { ok=1; break; }; sleep 2; done
+          [ "$ok" = 1 ] || { docker logs minio | tail -40; exit 1; }
       - name: cargo test (MinIO)
         working-directory: server
         run: cargo test --locked -p trinity-storage --test s3_minio -- --nocapture
@@ -383,7 +386,9 @@ jobs:
           SCHEMA_SNAPSHOT_ADMIN_URL: postgresql://test:test@localhost:5432/trinity_sql_test
         run: |
           if ! pg_dump --version 2>/dev/null | grep -q ' 16\.'; then
-            sudo apt-get update -qq
+            # Ảnh runner mới không còn postgresql-client-16 trong kho mặc định: thêm kho PGDG (apt.postgresql.org) trước.
+            sudo apt-get install -y -qq --no-install-recommends postgresql-common
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
             sudo apt-get install -y -qq --no-install-recommends postgresql-client-16
             export PATH=/usr/lib/postgresql/16/bin:$PATH
           fi

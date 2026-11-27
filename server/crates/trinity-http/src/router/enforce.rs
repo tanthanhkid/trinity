@@ -219,10 +219,7 @@ pub(super) async fn enforce(State(g): State<Arc<RouteGuard>>, mut req: Request, 
     if !g.digits.is_empty() {
         let (mut parts, body) = req.into_parts();
         let params = RawPathParams::from_request_parts(&mut parts, &()).await;
-        let mismatch = params.is_ok_and(|p| {
-            p.iter()
-                .any(|(k, v)| g.digits.iter().any(|d| d == k) && !is_digits(v))
-        });
+        let mismatch = params.is_ok_and(|p| p.iter().any(|(k, v)| g.digits.iter().any(|d| d == k) && !is_digits(v)));
         req = Request::from_parts(parts, body);
         if mismatch {
             return not_found(req.method(), req.uri().path());

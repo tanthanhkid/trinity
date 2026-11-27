@@ -264,7 +264,7 @@ fn filters(q: &QueryAttendanceDto, owner: &OwnerIds, with_search: bool) -> R<Fil
 const BASE_FROM: &str = " FROM attendance_records ar LEFT JOIN users u ON u.id = ar.user_id
     LEFT JOIN employees e ON e.user_id = ar.user_id";
 
-fn push_where(qb: &mut QueryBuilder<'_, Postgres>, f: &Filters) {
+fn push_where(qb: &mut QueryBuilder<Postgres>, f: &Filters) {
     qb.push(" WHERE TRUE");
     if let Some(d) = f.from {
         qb.push(" AND ar.work_date >= ").push_bind(d);
@@ -387,7 +387,10 @@ fn order_by(sort_by: Option<&str>, desc: bool) -> String {
 
 /// `None` = hai giá trị bằng nhau (xét tiêu chí kế); trống xếp cuối, còn lại so theo thứ tự chữ tiếng Việt.
 fn cmp_org_text(a: Option<&str>, b: Option<&str>) -> Option<Ordering> {
-    let (a, b) = (a.map(trim_js).filter(|s| !s.is_empty()), b.map(trim_js).filter(|s| !s.is_empty()));
+    let (a, b) = (
+        a.map(trim_js).filter(|s| !s.is_empty()),
+        b.map(trim_js).filter(|s| !s.is_empty()),
+    );
     if a == b {
         return None;
     }
@@ -455,7 +458,8 @@ pub async fn list(ctx: &Ctx, actor: &Actor, q: &QueryAttendanceDto) -> R<RecordP
     push_where(&mut qb, &f);
     qb.push(order_by(q.sort_by.as_deref(), q.sort_dir.as_deref() == Some("desc")));
     if app_side {
-        qb.push(" LIMIT ").push_bind(if org { ORG_SORT_CAP } else { STATUS_FILTER_CAP });
+        qb.push(" LIMIT ")
+            .push_bind(if org { ORG_SORT_CAP } else { STATUS_FILTER_CAP });
     } else {
         qb.push(" LIMIT ").push_bind(page_size);
         qb.push(" OFFSET ").push_bind(skip);
@@ -561,9 +565,7 @@ pub async fn get(ctx: &Ctx, actor: &Actor, id: i32) -> R<Detail> {
     .fetch_optional(&mut *conn)
     .await
     .map_err(db)?;
-    let row = row
-        .filter(|r| in_owner(&owner, r.rec.user_id))
-        .ok_or_else(not_found)?;
+    let row = row.filter(|r| in_owner(&owner, r.rec.user_id)).ok_or_else(not_found)?;
 
     let assigned = row.e_office_id;
     let mut office_ids: Vec<i32> = [row.rec.check_in_office_id, row.rec.check_out_office_id, assigned]
@@ -711,11 +713,12 @@ pub struct Deleted {
 pub async fn remove(ctx: &Ctx, actor: &Actor, id: i32) -> R<Deleted> {
     let owner = owner_of(ctx, actor, "attendance.manage").await?;
     let mut conn = ctx.conn(actor.company).await?;
-    let found: Option<(i32, DbDate)> = sqlx::query_as("SELECT user_id, work_date FROM attendance_records WHERE id = $1")
-        .bind(id)
-        .fetch_optional(&mut *conn)
-        .await
-        .map_err(db)?;
+    let found: Option<(i32, DbDate)> =
+        sqlx::query_as("SELECT user_id, work_date FROM attendance_records WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&mut *conn)
+            .await
+            .map_err(db)?;
     let (user_id, work_date) = found.filter(|(u, _)| in_owner(&owner, *u)).ok_or_else(not_found)?;
     sqlx::query("DELETE FROM attendance_records WHERE id = $1")
         .bind(id)
@@ -727,11 +730,7 @@ pub async fn remove(ctx: &Ctx, actor: &Actor, id: i32) -> R<Deleted> {
         work_date.0,
         actor.user_id
     );
-    Ok(Deleted {
-        ok: true,
-        id,
-        user_id,
-    })
+    Ok(Deleted { ok: true, id, user_id })
 }
 
 // ───────────────────────────── ảnh selfie ─────────────────────────────
@@ -1051,7 +1050,9 @@ struct EarlyLeave {
 }
 
 async fn early_leave(conn: &mut PgConnection, f: &Filters, user_id: Option<i64>) -> R<EarlyLeave> {
-    let mut qb = QueryBuilder::<Postgres>::new("SELECT user_id, work_date, status FROM attendance_requests WHERE type = 'early_leave'");
+    let mut qb = QueryBuilder::<Postgres>::new(
+        "SELECT user_id, work_date, status FROM attendance_requests WHERE type = 'early_leave'",
+    );
     if let Some(d) = f.from {
         qb.push(" AND work_date >= ").push_bind(d);
     }
@@ -1100,7 +1101,8 @@ pub async fn matrix(ctx: &Ctx, actor: &Actor, q: &QueryAttendanceDto) -> R<Matri
     qb.push(" LEFT JOIN teams t ON t.id = ");
     qb.push(RESOLVED_TEAM_ID);
     push_where(&mut qb, &f);
-    qb.push(" ORDER BY ar.user_id ASC, ar.work_date ASC LIMIT ").push_bind(MATRIX_RECORD_CAP);
+    qb.push(" ORDER BY ar.user_id ASC, ar.work_date ASC LIMIT ")
+        .push_bind(MATRIX_RECORD_CAP);
     let query = qb.build_query_as::<MxRow>();
     let records = query.fetch_all(&mut *conn).await.map_err(db)?;
     let el = early_leave(&mut conn, &f, q.user_id).await?;
@@ -1285,7 +1287,10 @@ mod tests {
         assert_eq!(days_in_month("2026-02-01"), 28);
         assert_eq!(days_in_month("2028-02-10"), 29);
         assert_eq!(notes_of(0, 0, 0, 0), "");
-        assert_eq!(notes_of(1, 2, 1, 3), "Thiếu vào/ra: 1 ngày · Chưa đủ công: 3 ngày · Đi muộn: 3 lần");
+        assert_eq!(
+            notes_of(1, 2, 1, 3),
+            "Thiếu vào/ra: 1 ngày · Chưa đủ công: 3 ngày · Đi muộn: 3 lần"
+        );
     }
 
     #[test]

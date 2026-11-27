@@ -30,6 +30,7 @@ trinity-ops = { path = "crates/trinity-ops" }
 trinity-testhooks = { path = "crates/trinity-testhooks" }
 mod-system = { path = "crates/mod-system" }
 mod-users = { path = "crates/mod-users" }
+mod-channel-guard = { path = "crates/mod-channel-guard" }
 trinity-integrations = { path = "crates/trinity-integrations" }
 mod-commerce = { path = "crates/mod-commerce" }
 mod-kanban = { path = "crates/mod-kanban" }

@@ -12,6 +12,7 @@ pub fn declared_routes() -> Vec<RouteSpec> {
     v.extend(mod_system::routes());
     v.extend(mod_users::specs());
     v.extend(mod_kanban::routes::routes());
+    v.extend(mod_channel_guard::specs());
     v
 }
 

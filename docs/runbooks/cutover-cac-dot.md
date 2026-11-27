@@ -105,3 +105,40 @@ curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/roles
 | Lời mời hay API key không dùng được ở bên kia | hash/định dạng token khác | lui, mở X12b |
 | `check-invariants` đỏ ở `updated_at` lùi hoặc mã trùng | đường ghi người dùng | dừng bật đợt c |
 
+## Đợt c (X02c, #258) — khách hàng, deal, kanban, bảng tuỳ biến, báo cáo, wizard dựng hệ thống
+
+Module: M07, M08, M15–M21 (`mod-contacts`, `mod-deals`, `mod-kanban`, `mod-custom`, `mod-reports`, `mod-setup`). Mẫu: `ownership-dot-c.json` = đợt b cộng `/api/v1/contacts`, `/deals`,
+`/interactions`, `/kanban`, `/custom-objects`, `/refs`, `/reports`, `/setup`. Điều kiện: đợt b qua 72 giờ đầu, X11 xanh, G12b (Node nhả việc nền theo tệp sở hữu) đã có. Không còn việc chờ về mã.
+
+**Bật**: như đợt b, thay mẫu bằng `ownership-dot-c.json`. Trước khi ghi tệp, ghi số dòng các bảng chính để so sau:
+`select (select count(*) from contacts), (select count(*) from deals), (select count(*) from kanban_cards), (select count(*) from custom_records)`.
+
+**Kiểm sau khi bật**
+
+```
+curl -fsS -H "Authorization: Bearer $TOKEN" "$BASE/api/v1/contacts?page=1"
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/deals
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/kanban/boards
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/custom-objects
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/reports/dashboard-overview
+```
+
+- Ghi: tạo khách, deal, thẻ kanban, bản ghi bảng tuỳ biến ở công ty thử; sửa, xoá mềm; đọc lại bằng chính API và SQL; nhập xuất bảng tuỳ biến một lần.
+- **Chuông thông báo tới client khi việc tạo ở Rust mà socket còn ở Node**: mở hai trình duyệt (người A, người B), A tạo thẻ kanban giao cho B (và gán một khách cho B); chuông của B hiện trong vài giây qua `/notif-ws`,
+  và có dòng mới trong `notification_logs`. Nếu có dòng mà không có chuông: kiểm đường `NOTIFY`/`trinity_sync` (K33) và route `POST /api/v1/events/notify-ws-emit` (còn ở Node tới đợt d).
+- Báo cáo: so `reports/dashboard-overview` và `reports/custom/...` giữa Rust và Node cho cùng khoảng ngày; số liệu bằng nhau (cache `cached: true` chỉ so hình dạng).
+- `setup/wizard`, `setup/build`: chỉ chạy thử ở công ty thử, không chạy ở công ty thật.
+- Lọc `LIKE` có ký tự `%` `_` `\` trong từ khoá tìm khách trả đúng (không khớp tràn).
+
+**Lui**: `cutover.md` 4.2. Khách, deal, thẻ ghi bằng Rust nằm cùng bảng nên Node đọc được ngay; không xoá gì.
+
+**Dấu hiệu lỗi**
+
+| Dấu hiệu | Nguyên nhân hay gặp | Việc làm |
+|---|---|---|
+| Không có chuông khi tạo việc ở Rust | thông báo ghi nhưng không đẩy tới socket Node | lui `kanban` và `contacts` về Node, mở X12c; kiểm `NOTIFY` |
+| Danh sách khách ít hơn Node | bộ lọc `0` = không lọc, `page` lớn, escape LIKE | lui, đối chiếu `contacts` theo 6.1 |
+| Số báo cáo lệch | múi giờ (`TZ` tiến trình khác UTC) hoặc cache | so `TZ` của hai bên, đợt d còn phụ thuộc điều này |
+| 5xx ở `custom-objects` | công thức/bộ phân tích (M57), `json!` lớn | xem log, lui nếu lặp |
+| `kanban_card_*` mồ côi | xoá thẻ không dọn bảng phụ | đối chiếu dump, sửa chọn lọc |
+

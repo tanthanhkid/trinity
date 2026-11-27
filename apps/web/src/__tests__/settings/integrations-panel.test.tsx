@@ -127,7 +127,8 @@ describe("<SettingsIntegrations> — Nhật ký tích hợp", () => {
     setStatus(false, true)
     renderPanel()
     openAudit()
-    await waitFor(() => expect(screen.getAllByText("tool_1").length).toBeGreaterThan(0))
+    // Panel là chunk tải động: lần đầu import có thể lâu hơn mặc định 1 s.
+    await waitFor(() => expect(screen.getAllByText("tool_1").length).toBeGreaterThan(0), { timeout: 10_000 })
     expect(auditCalls()[0][1].params).toMatchObject({ limit: 50 })
     expect(auditCalls()[0][1].params.cursor).toBeUndefined()
     expect(screen.getAllByText("Bị từ chối").length).toBeGreaterThan(0)

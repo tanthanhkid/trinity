@@ -2,6 +2,7 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import apiClient from "@/lib/api-client"
+import { fromBootstrap } from "@/lib/bootstrap"
 import type { AiAction, AiActionPage } from "@/lib/ai-actions"
 
 const BASE = "/integrations/ai-actions"
@@ -55,6 +56,11 @@ export function useUpdateAiActionSettings() {
   })
 }
 
+function toPendingCount(raw: unknown): number {
+  const n = (raw as { pending?: unknown } | null | undefined)?.pending
+  return typeof n === "number" && n > 0 ? n : 0
+}
+
 /** Số đề xuất đang chờ mình duyệt (badge). 404 (tính năng tắt) / lỗi ⇒ query lỗi ⇒ UI không hiện badge. */
 export function useAiActionsPendingCount(enabled = true) {
   return useQuery<number>({
@@ -63,10 +69,12 @@ export function useAiActionsPendingCount(enabled = true) {
     retry: false,
     staleTime: 30_000,
     refetchInterval: 60_000,
-    queryFn: async () => {
-      const n = (await apiClient.get<{ pending?: number }>(`${BASE}/pending-count`)).data?.pending
-      return typeof n === "number" && n > 0 ? n : 0
-    },
+    queryFn: () =>
+      fromBootstrap<number>(
+        "ai_actions_pending_count",
+        async () => toPendingCount((await apiClient.get<{ pending?: number }>(`${BASE}/pending-count`)).data),
+        (raw) => toPendingCount(raw),
+      ),
   })
 }
 

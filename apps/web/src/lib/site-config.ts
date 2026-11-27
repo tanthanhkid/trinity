@@ -2,8 +2,8 @@
  * Cấu hình lúc chạy do máy chủ trả ở `GET /api/v1/site-config` (K27, chỉ có ở Rust): thông tin pháp lý, chế độ realtime, cờ ds-v2.
  *
  * Đổi env rồi khởi động lại binary là đổi theo, không build lại web. Script `SITE_CONFIG_INIT_SCRIPT` trong `<head>` nạp
- * cấu hình ĐỒNG BỘ (một XHR) và lưu vào `window.__TRINITY_SITE_CONFIG__` trước khi bundle chạy, nên cờ giao diện đã có
- * ở lần vẽ đầu (không nháy). Không nạp được (máy chủ cũ không có route này, mất mạng) ⇒ lùi về `NEXT_PUBLIC_*` lúc build.
+ * cấu hình KHÔNG đồng bộ (cache localStorage áp ngay + `fetch` song song) vào `window.__TRINITY_SITE_CONFIG__`.
+ * Không nạp được (máy chủ cũ không có route này, mất mạng) ⇒ lùi về `NEXT_PUBLIC_*` lúc build.
  * Không import module client nào ở đây: file được dùng cả ở server component (layout) lẫn module-level (`design-system-flags`).
  */
 export const SITE_CONFIG_URL = "/api/v1/site-config"
@@ -75,9 +75,13 @@ export function resolvePollMode(): boolean {
   return cfg ? cfg.realtime_mode === "poll" : process.env.NEXT_PUBLIC_REALTIME_MODE === "poll"
 }
 
+export const SITE_CONFIG_CACHE_KEY = "trinity.site-config.v1"
+export const SITE_CONFIG_EVENT = "trinity:site-config"
+
 /**
- * Chạy ĐỒNG BỘ trong `<head>`, trước theme script và bundle: cờ ds-v2 phải có trước lần vẽ đầu và trước khi module
- * `design-system-flags` được nạp. XHR đồng bộ chỉ một lần, route nhỏ, cùng origin. Mọi lỗi đều nuốt (lùi về env lúc build).
- * Gắn luôn `data-ds="v2"` lên <html> để CSS token áp ngay.
+ * Chạy trong `<head>` nhưng KHÔNG chặn: (1) áp ngay bản cache ở localStorage (lần thăm sau đã đúng cờ ở lần vẽ đầu, không nháy);
+ * (2) gọi `fetch` bất đồng bộ song song với bundle/bootstrap, về thì lưu cache, áp lại `data-ds` và phát sự kiện
+ * `SITE_CONFIG_EVENT` cho `useSiteConfig`. Lần đầu chưa có cache ⇒ lùi về `NEXT_PUBLIC_*` lúc build tới khi fetch về
+ * (hằng số module như `DS_V2_ENABLED` chỉ đổi ở lần nạp sau). Mọi lỗi đều nuốt.
  */
-export const SITE_CONFIG_INIT_SCRIPT = `(function(){try{var x=new XMLHttpRequest();x.open('GET','${SITE_CONFIG_URL}',false);x.setRequestHeader('Accept','application/json');x.send(null);if(x.status!==200)return;var c=JSON.parse(x.responseText);if(!c||typeof c!=='object')return;window.${SITE_CONFIG_GLOBAL}=c;var r=document.documentElement;if(c.ds_v2===true)r.setAttribute('data-ds','v2');else r.removeAttribute('data-ds')}catch(e){}})();`
+export const SITE_CONFIG_INIT_SCRIPT = `(function(){var G='${SITE_CONFIG_GLOBAL}',K='${SITE_CONFIG_CACHE_KEY}',r=document.documentElement;function ap(c){window[G]=c;if(c.ds_v2===true)r.setAttribute('data-ds','v2');else r.removeAttribute('data-ds')}try{var s=localStorage.getItem(K);if(s){var c=JSON.parse(s);if(c&&typeof c==='object'&&!Array.isArray(c))ap(c)}}catch(e){}try{fetch('${SITE_CONFIG_URL}',{headers:{Accept:'application/json'}}).then(function(x){return x.ok?x.json():null}).then(function(c){if(!c||typeof c!=='object'||Array.isArray(c))return;try{localStorage.setItem(K,JSON.stringify(c))}catch(e){}ap(c);window.dispatchEvent(new Event('${SITE_CONFIG_EVENT}'))}).catch(function(){})}catch(e){}})();`

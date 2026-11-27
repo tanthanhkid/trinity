@@ -17,6 +17,7 @@
 
 pub mod bootstrap;
 pub mod fe_logging;
+pub mod kanban_overview;
 pub mod retired;
 
 use std::sync::Arc;
@@ -191,6 +192,7 @@ pub fn routes() -> Vec<RouteSpec> {
         RouteSpec::new(Method::GET, "/api/v1/telemetry/identity", Access::AuthOnly).status_ok(200),
         RouteSpec::new(Method::GET, "/api/v1/site-config", Access::Public).status_ok(200),
         RouteSpec::new(Method::GET, "/api/v1/bootstrap", Access::AuthOnly).status_ok(200),
+        RouteSpec::new(Method::GET, "/api/v1/kanban/overview", Access::AuthOnly).status_ok(200),
         RouteSpec::new(Method::POST, "/api/fe-logging", Access::Public).status_ok(204),
     ]
 }
@@ -256,8 +258,12 @@ pub fn api_router_with(deps: Arc<AccessDeps>, cfg: Arc<SystemConfig>, slot: boot
             let v = site.clone();
             async move { Json(v) }
         })
-        .route(spec("/api/v1/bootstrap"), move |req: Request| {
-            bootstrap::handle(slot.clone(), req)
+        .route(spec("/api/v1/bootstrap"), {
+            let slot = slot.clone();
+            move |req: Request| bootstrap::handle(slot.clone(), req)
+        })
+        .route(spec("/api/v1/kanban/overview"), move |req: Request| {
+            kanban_overview::handle(slot.clone(), req)
         })
         .route(
             spec("/api/fe-logging"),
@@ -333,6 +339,9 @@ mod doc {
     /// Bootstrap layout
     #[utoipa::path(get, path = "/api/v1/bootstrap", tag = "Site", summary = "Gộp các lời gọi layout/Tổng quan của web thành một lượt (phần lỗi trả null)", params(("include" = Option<String>, Query, description = "`dashboard` để thêm phần Tổng quan"), ("cc_from" = Option<String>, Query, description = "YYYY-MM-DD, đầu khoảng Trung tâm điều hành"), ("cc_to" = Option<String>, Query, description = "YYYY-MM-DD, cuối khoảng")), responses((status = 200, description = "Object khoá → phản hồi của endpoint gốc hoặc null")))]
     pub fn bootstrap() {}
+    /// Kanban overview
+    #[utoipa::path(get, path = "/api/v1/kanban/overview", tag = "Kanban", summary = "Board mặc định kèm cột, trang đầu thẻ mỗi cột và roster tối giản trong một lượt (phần lỗi trả null)", params(("limit" = Option<i64>, Query, description = "Thẻ mỗi cột, 1..=100, mặc định 30")), responses((status = 200, description = "{boards, board, cards: {columnId: trang}, users}")))]
+    pub fn kanban_overview() {}
     /// Build id
     #[utoipa::path(get, path = "/api/build-id", tag = "Site", summary = "Mã bản dựng của web", responses((status = 200, description = "{buildId}")))]
     pub fn build_id() {}

@@ -30,11 +30,11 @@ fn hop_dong_that_tu_khop_va_bang_dung_khop() {
     let rep = check(&good(), &c, false);
     assert!(rep.ok(), "{:?}", rep.problems);
     assert_eq!(rep.declared, 2);
-    assert_eq!(rep.contract_total, 571, "583 dòng, health/live/ready lặp 5 lần");
-    assert_eq!(rep.missing.len(), 569);
+    assert_eq!(rep.contract_total, 575, "583 dòng, health/live/ready lặp 5 lần");
+    assert_eq!(rep.missing.len(), 573);
     // Bảng rỗng cũng hợp lệ khi chưa đòi đủ; đòi đủ thì mọi route chưa khai là lỗi.
     assert!(check_embedded(&[], false).ok());
-    assert_eq!(check_embedded(&[], true).problems.len(), 571);
+    assert_eq!(check_embedded(&[], true).problems.len(), 575);
 }
 
 #[test]

@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import apiClient from "@/lib/api-client"
+import { fromBootstrap } from "@/lib/bootstrap"
 import { todayVn } from "@/lib/format"
 import type {
   CustomFieldDef, CustomLookupItem, CustomNavItem, CustomObjectDef, CustomObjectSummary, CustomRecord,
@@ -36,7 +37,12 @@ const base = (key: string) => `/custom-objects/${encodeURIComponent(key)}`
 export function useCustomNav(enabled: boolean) {
   return useQuery<CustomNavItem[]>({
     queryKey: customKeys.nav,
-    queryFn: async () => (await apiClient.get<CustomNavItem[]>("/custom-objects/nav")).data,
+    queryFn: () =>
+      fromBootstrap<CustomNavItem[]>(
+        "custom_nav",
+        async () => (await apiClient.get<CustomNavItem[]>("/custom-objects/nav")).data,
+        (raw) => (Array.isArray(raw) ? (raw as CustomNavItem[]) : undefined),
+      ),
     enabled,
     staleTime: 60_000,
   })

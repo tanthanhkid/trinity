@@ -32,7 +32,7 @@ pub const RUST_ONLY_AUTHED_ROUTES: &[&str] = &[
 
 /// Route chỉ có ở Rust, chỉ cần đăng nhập (`access: auth`): `GET /bootstrap` gộp các lời gọi layout của web thành một lượt
 /// (đợt cắt số round trip, 27/11). Không có tool MCP: chỉ là tối ưu truyền tải cho các endpoint đã có.
-pub const RUST_ONLY_AUTH_ROUTES: &[&str] = &["GET /api/v1/bootstrap"];
+pub const RUST_ONLY_AUTH_ROUTES: &[&str] = &["GET /api/v1/bootstrap", "GET /api/v1/kanban/overview"];
 
 /// Hợp đồng nhúng trong binary.
 /// Route Node đã gỡ có chủ đích khỏi bản Rust nhưng còn trong `routes.json` (hợp đồng đóng băng). Không tính vào "chưa khai"

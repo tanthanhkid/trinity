@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import apiClient from "@/lib/api-client"
+import { fromBootstrap } from "@/lib/bootstrap"
 import { usePermissions } from "@/lib/rbac"
 
 export interface RecentContact {
@@ -34,11 +35,14 @@ export function useRecentContacts() {
   const query = useQuery({
     queryKey: ["contacts", "recent"],
     queryFn: async () => {
-      const res = await apiClient.get<unknown>("/contacts/recent", { params: { limit: 5 } })
-      if (!isRecentContactArray(res.data)) {
+      const data = await fromBootstrap<unknown>(
+        "contacts_recent",
+        async () => (await apiClient.get<unknown>("/contacts/recent", { params: { limit: 5 } })).data,
+      )
+      if (!isRecentContactArray(data)) {
         throw new Error("contacts/recent: body không đúng shape")
       }
-      return res.data
+      return data
     },
     enabled,
     staleTime: 30_000,

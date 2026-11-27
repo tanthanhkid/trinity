@@ -57,11 +57,12 @@ function Row({ section, open, logo, title, description, state, connectLabel = "K
 
 function FacebookRow({ open }: { open: Open }) {
   const status = useFacebookStatus(true)
-  const pages = useFacebookPages(status.data?.configured === true)
+  // Chạy song song với `facebook/status` (không đợi nó): trước đây nối tiếp thêm một round trip. Kết quả chỉ dùng khi đã cấu hình.
+  const pages = useFacebookPages(true)
   let state: RowState | null = null
   if (status.isError) state = { tone: "warning", label: "Không đọc được trạng thái" }
   else if (status.data && !status.data.configured) state = { tone: "off", label: "Máy chủ chưa cấu hình" }
-  else if (pages.data) {
+  else if (status.data && pages.data) {
     const active = pages.data.filter((p) => p.is_active)
     const broken = active.filter((p) => p.token_status === "expired" || p.token_status === "invalid")
     state = active.length === 0
@@ -90,8 +91,10 @@ function ZaloRow({ open }: { open: Open }) {
   return <Row section="zalo-oa" open={open} logo={<ConnectionLogo brand="zalo" color="#0068FF" text="Z" />} title="Zalo Official Account" description="Hộp thư Zalo OA và thông báo ZNS" state={state} />
 }
 
+// Ba dòng dưới đây gọi dữ liệu ngay khi mở trang (`enabled !== false`), KHÔNG đợi `GET /integrations/status` về rồi mới gọi:
+// cờ máy chủ chỉ quyết định dòng hiện chữ gì; đợi nó là thêm một round trip nối tiếp (đo 27/11: dữ liệu hiện lúc ~2,7 s).
 function AiRow({ open, enabled }: { open: Open; enabled: boolean | undefined }) {
-  const s = useAiConnections(false, enabled === true)
+  const s = useAiConnections(false, enabled !== false)
   let state: RowState | null = null
   if (enabled === false) state = { tone: "off", label: "Chưa bật trên máy chủ" }
   else if (enabled === undefined) state = null
@@ -101,7 +104,7 @@ function AiRow({ open, enabled }: { open: Open; enabled: boolean | undefined }) 
 }
 
 function WebhookOutRow({ open, enabled }: { open: Open; enabled: boolean | undefined }) {
-  const s = useWebhookEndpoints(enabled === true)
+  const s = useWebhookEndpoints(enabled !== false)
   let state: RowState | null = null
   if (enabled === false) state = { tone: "off", label: "Chưa bật trên máy chủ" }
   else if (enabled === undefined) state = null
@@ -111,7 +114,7 @@ function WebhookOutRow({ open, enabled }: { open: Open; enabled: boolean | undef
 }
 
 function WebhookInRow({ open, enabled }: { open: Open; enabled: boolean | undefined }) {
-  const s = useInboundSources(enabled === true)
+  const s = useInboundSources(enabled !== false)
   let state: RowState | null = null
   if (enabled === false) state = { tone: "off", label: "Chưa bật trên máy chủ" }
   else if (enabled === undefined) state = null

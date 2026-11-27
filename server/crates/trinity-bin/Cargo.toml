@@ -35,6 +35,7 @@ mod-reports = { workspace = true }
 mod-users = { workspace = true }
 mod-leads = { workspace = true }
 mod-channel-guard = { workspace = true }
+mod-store = { workspace = true }
 mod-oauth = { workspace = true }
 mod-deals = { workspace = true }
 mod-public-api = { workspace = true }

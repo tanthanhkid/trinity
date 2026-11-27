@@ -175,7 +175,15 @@ pub async fn assert_can_grant_roles(
     if target == actor.user_id && !actor.is_admin {
         return Err(forbidden("Không thể tự đổi vai trò của mình"));
     }
-    if !next_has_system && target_is_admin {
+    // Người đang bị khoá/chưa kích hoạt không tính là Quản trị hoạt động: gỡ vai trò của họ không làm hụt Quản trị.
+    let target_active: bool =
+        sqlx::query_scalar("SELECT status = 'active' FROM users WHERE id = $1 AND deleted_at IS NULL")
+            .bind(target)
+            .fetch_optional(&mut *conn)
+            .await
+            .map_err(db)?
+            .unwrap_or(false);
+    if !next_has_system && target_is_admin && target_active {
         let remaining: i64 = sqlx::query_scalar(
             "SELECT count(*) FROM users u WHERE u.id <> $1 AND u.status = 'active' AND u.deleted_at IS NULL
                AND EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = u.id AND r.is_system)",

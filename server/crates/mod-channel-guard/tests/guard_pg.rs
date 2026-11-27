@@ -265,7 +265,7 @@ async fn hanmuc_khoa_tamdung_va_http() {
     // Lần vượt thành sự kiện của A, không lộ sang B.
     assert!(sa.recent_events.iter().any(|ev| ev.kind == "limit_exceeded"));
     assert!(!sb.recent_events.iter().any(|ev| ev.kind == "limit_exceeded"));
-    let v = serde_json::to_value(&sa).unwrap();
+    let v = serde_json::from_str::<serde_json::Value>(&serde_json::to_string(&sa).unwrap()).unwrap();
     assert_eq!(v["limits"]["bulkMessagesPerDay"], 200);
     assert_eq!(v["limits"]["autoCommentRepliesPerHour"], 60);
 
@@ -600,7 +600,8 @@ async fn hanmuc_khoa_tamdung_va_http() {
     );
 
     // Cảnh báo nhẹ chỉ có chữ, không lộ hạn mức hay sự kiện.
-    let al = serde_json::to_value(g10.alerts(a).await.unwrap()).unwrap();
+    let al = serde_json::from_str::<serde_json::Value>(&serde_json::to_string(&g10.alerts(a).await.unwrap()).unwrap())
+        .unwrap();
     let mut keys: Vec<_> = al.as_object().unwrap().keys().cloned().collect();
     keys.sort();
     assert_eq!(keys, ["enforced", "locked", "paused", "warnings"]);

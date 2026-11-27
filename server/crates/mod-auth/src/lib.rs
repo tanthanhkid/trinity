@@ -363,19 +363,26 @@ impl<G: GrantsSource> AuthService<G> {
         success: bool,
         ip: Option<&str>,
         reason: LoginReason,
-    ) -> Res<()> {
-        let mut c = self.conn(company).await?;
-        sqlx::query(
-            "INSERT INTO audit_logs (user_id, action, resource, ip_address, metadata) \
-             VALUES ($1, 'login', 'auth', $2, $3)",
-        )
-        .bind(user_id)
-        .bind(ip)
-        .bind(json!({ "email": email, "success": success, "reason": reason.as_str() }))
-        .execute(&mut *c)
-        .await
-        .map_err(|e| internal("nhật ký đăng nhập", e))?;
-        Ok(())
+    ) {
+        // Lỗi ghi nhật ký chỉ ghi log, không làm hỏng đăng nhập/đăng ký đã xong (như `log_password_change`).
+        let res = async {
+            let mut c = self.conn(company).await?;
+            sqlx::query(
+                "INSERT INTO audit_logs (user_id, action, resource, ip_address, metadata) \
+                 VALUES ($1, 'login', 'auth', $2, $3)",
+            )
+            .bind(user_id)
+            .bind(ip)
+            .bind(json!({ "email": email, "success": success, "reason": reason.as_str() }))
+            .execute(&mut *c)
+            .await
+            .map_err(|e| internal("nhật ký đăng nhập", e))?;
+            Ok::<(), AuthFail>(())
+        }
+        .await;
+        if res.is_err() {
+            tracing::error!("[auth] không ghi được nhật ký đăng nhập [reason={}]", reason.as_str());
+        }
     }
 
     /// Lỗi ghi nhật ký đổi mật khẩu chỉ ghi log, không làm hỏng việc đổi (như bản TS).
@@ -583,12 +590,8 @@ impl<G: GrantsSource> AuthService<G> {
     }
 
     async fn rate_limited(&self, company: CompanyRef, email: &str, ip: Option<&str>, retry: u64) -> AuthFail {
-        if let Err(e) = self
-            .log_login(company, None, email, false, ip, LoginReason::RateLimited)
-            .await
-        {
-            return e;
-        }
+        self.log_login(company, None, email, false, ip, LoginReason::RateLimited)
+            .await;
         AuthFail(Box::new(AuthFailBody {
             error: HttpError::new(429, "Quá nhiều lần thử, vui lòng thử lại sau"),
             retry_after: Some(retry),
@@ -632,19 +635,19 @@ impl<G: GrantsSource> AuthService<G> {
             password::verify(password_in.to_owned(), DUMMY_HASH.to_owned()).await;
             fail(self);
             self.log_login(company, None, email, false, ip, LoginReason::EmailNotFound)
-                .await?;
+                .await;
             return Err(unauthorized("Email hoặc mật khẩu không đúng"));
         };
         if !password::verify(password_in.to_owned(), user.password_hash.clone()).await {
             fail(self);
             self.log_login(company, Some(user.id), email, false, ip, LoginReason::BadPassword)
-                .await?;
+                .await;
             return Err(unauthorized("Email hoặc mật khẩu không đúng"));
         }
         if user.status != "active" {
             fail(self);
             self.log_login(company, Some(user.id), email, false, ip, LoginReason::AccountLocked)
-                .await?;
+                .await;
             return Err(unauthorized("Tài khoản đã bị khoá"));
         }
         if self.login_wifi_active(company).await {
@@ -657,7 +660,7 @@ impl<G: GrantsSource> AuthService<G> {
                     ip.unwrap_or("unknown")
                 );
                 self.log_login(company, Some(user.id), email, false, ip, LoginReason::WifiBlocked)
-                    .await?;
+                    .await;
                 return Err(unauthorized(
                     "Bạn đang không kết nối wifi của văn phòng công ty. Vui lòng kết nối wifi tại một trong các văn phòng rồi đăng nhập lại.",
                 ));
@@ -677,7 +680,7 @@ impl<G: GrantsSource> AuthService<G> {
             }
         }
         self.log_login(company, Some(user.id), email, true, ip, LoginReason::Ok)
-            .await?;
+            .await;
         // Đăng nhập thành công gỡ chặn: vừa đăng xuất/đổi vai trò rồi đăng nhập lại phải vào được ngay.
         self.security.remove_user(company.id(), user.id).await;
         let sid = if self.single_session_active(company).await {

@@ -138,6 +138,43 @@ pub struct Actor {
     pub grants: Grants,
 }
 
+/// Quyền của một người đọc thẳng trên kết nối đang dùng (`user_roles` + `role_permissions`), cùng luật gộp với
+/// `PermissionService.grantsFor`: có vai trò hệ thống ⇒ quản trị.
+async fn grants_in_tx(conn: &mut PgConnection, user: i32) -> Res<UserGrants> {
+    let rows: Vec<(i32, bool, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT r.id, r.is_system, rp.permission, rp.scope
+         FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+         LEFT JOIN role_permissions rp ON rp.role_id = r.id
+         WHERE ur.user_id = $1",
+    )
+    .bind(user)
+    .fetch_all(&mut *conn)
+    .await
+    .map_err(|e| fail_sql("quyền người mời", e))?;
+    let is_admin = rows.iter().any(|r| r.1);
+    let grants = if is_admin {
+        trinity_rbac::admin_grants()
+    } else {
+        let mut per_role: std::collections::BTreeMap<i32, Grants> = std::collections::BTreeMap::new();
+        for (role, _, perm, scope) in &rows {
+            let g = per_role.entry(*role).or_default();
+            if let Some(p) = perm
+                && let Some(v) = normalize_grant(p, scope.as_deref())
+            {
+                g.insert(p.clone(), v);
+            }
+        }
+        merge_grants(per_role.values())
+    };
+    Ok(UserGrants {
+        grants: match trinity_rbac::grants::grants_to_json(&grants) {
+            Value::Object(m) => m,
+            _ => Default::default(),
+        },
+        is_admin,
+    })
+}
+
 /// Một vai trò kèm quyền (`role_permissions`).
 #[derive(Debug, Clone)]
 struct RoleWithGrants {
@@ -228,6 +265,10 @@ fn plan_max_users(raw: Option<&str>, company: CompanyRef, multi_tenant: bool) ->
 /// Chặn thêm/kích hoạt user khi `người active + lời mời đang chờ` đã đạt `maxUsers` của gói (`custom` = không giới hạn). PHẢI gọi
 /// trong giao dịch và TRƯỚC khi ghi người mới: lấy khoá advisory đến hết giao dịch nên hai lượt đồng thời ở ngưỡng chỉ một lượt qua.
 pub async fn assert_user_slot_available(conn: &mut PgConnection, company: CompanyRef, multi_tenant: bool) -> Res<()> {
+    // Khoá TRƯỚC khi đọc cài đặt: đọc gói rồi mới khoá thì hai lượt đồng thời có thể thấy cùng một con số cũ.
+    lock_user_slots(conn, company)
+        .await
+        .map_err(|e| fail_sql("khoá chỗ", e))?;
     let raw: Option<String> = sqlx::query_scalar("SELECT value FROM settings WHERE key = 'org_plan'")
         .fetch_optional(&mut *conn)
         .await
@@ -235,9 +276,6 @@ pub async fn assert_user_slot_available(conn: &mut PgConnection, company: Compan
     let Some(max) = plan_max_users(raw.as_deref(), company, multi_tenant) else {
         return Ok(());
     };
-    lock_user_slots(conn, company)
-        .await
-        .map_err(|e| fail_sql("khoá chỗ", e))?;
     let active: i64 = sqlx::query_scalar("SELECT count(*) FROM users WHERE status = 'active' AND deleted_at IS NULL")
         .fetch_one(&mut *conn)
         .await
@@ -279,15 +317,33 @@ pub async fn invitable_roles(db: &Db, actor: &Actor) -> Res<Value> {
         .acquire()
         .await
         .map_err(|e| internal("acquire", e))?;
-    let ids: Vec<(i32,)> = sqlx::query_as("SELECT id FROM roles ORDER BY id ASC LIMIT 200")
-        .fetch_all(&mut *c)
-        .await
-        .map_err(|e| fail_sql("vai trò", e))?;
+    type Row = (i32, String, bool, Option<String>, Option<String>);
+    let rows: Vec<Row> = sqlx::query_as(
+        "SELECT r.id, r.name, r.is_system, rp.permission, rp.scope FROM
+           (SELECT id, name, is_system FROM roles ORDER BY id ASC LIMIT 200) r
+         LEFT JOIN role_permissions rp ON rp.role_id = r.id ORDER BY r.id ASC",
+    )
+    .fetch_all(&mut *c)
+    .await
+    .map_err(|e| fail_sql("vai trò", e))?;
+    let mut roles: Vec<RoleWithGrants> = Vec::new();
+    for (id, name, is_system, perm, scope) in rows {
+        if roles.last().is_none_or(|r| r.id != id) {
+            roles.push(RoleWithGrants {
+                id,
+                name,
+                is_system,
+                grants: Grants::new(),
+            });
+        }
+        if let (Some(p), Some(r)) = (perm, roles.last_mut())
+            && let Some(v) = normalize_grant(&p, scope.as_deref())
+        {
+            r.grants.insert(p, v);
+        }
+    }
     let mut data = Vec::new();
-    for (id,) in ids {
-        let Some(r) = load_role(&mut c, id).await.map_err(|e| fail_sql("vai trò", e))? else {
-            continue;
-        };
+    for r in roles {
         if actor.is_admin || (!r.is_system && is_subset(&grants_of_roles(&[&r]), &actor.grants)) {
             data.push(json!({ "id": r.id, "name": r.name, "is_system": r.is_system }));
         }
@@ -740,7 +796,7 @@ impl<G: GrantsSource> AuthService<G> {
             let (allowed, _reason) = self.check_login_wifi(company, &user, &grants, ip, ip_trusted).await;
             if !allowed {
                 self.log_login(company, Some(user.id), &user.email, false, ip, LoginReason::WifiBlocked)
-                    .await?;
+                    .await;
                 return Err(HttpError::unauthorized(
                     "Tài khoản đã được tạo, nhưng bạn đang không kết nối wifi của văn phòng công ty. Hãy kết nối wifi tại một văn phòng rồi đăng nhập.",
                 )
@@ -748,7 +804,7 @@ impl<G: GrantsSource> AuthService<G> {
             }
         }
         self.log_login(company, Some(user.id), &user.email, true, ip, LoginReason::Ok)
-            .await?;
+            .await;
         self.security.remove_user(company.id(), user.id).await;
         let sid = if self.single_session_active(company).await {
             Some(self.security.start_session(company.id(), user.id).await)
@@ -790,8 +846,9 @@ impl<G: GrantsSource> AuthService<G> {
             .await
             .map_err(|e| fail_sql("người mời", e))?,
         };
+        // Quyền người mời đọc trên CHÍNH giao dịch này (không xin kết nối thứ hai khi đang giữ khoá, không đọc cache).
         let inviter_grants: Option<UserGrants> = match inviter {
-            Some((id, _)) => Some(self.grants_of(company, id).await?),
+            Some((id, _)) => Some(grants_in_tx(&mut tx, id).await?),
             None => None,
         };
         let (Some((inviter_id, inviter_team)), Some(ig)) = (inviter, inviter_grants) else {
@@ -942,7 +999,7 @@ impl<G: GrantsSource> AuthService<G> {
         let migrations = trinity_db::migrate::embedded_migrations();
         let input = ProvisionInput {
             company_name: company_name.to_owned(),
-            admin_email: email.to_owned(),
+            admin_email: norm.clone(),
             admin_password: password_in.to_owned(),
             admin_name: full_name.to_owned(),
         };
@@ -962,14 +1019,14 @@ impl<G: GrantsSource> AuthService<G> {
             }
         };
         let company = result.company;
-        let user = self.find_by_email(company, email).await?.ok_or_else(|| {
+        let user = self.find_by_email(company, &norm).await?.ok_or_else(|| {
             AuthFail::from(HttpError::nest(
                 500,
                 Some("Chưa tạo được công ty, vui lòng thử lại".into()),
             ))
         })?;
-        self.log_login(company, Some(user.id), email, true, ip, LoginReason::Ok)
-            .await?;
+        self.log_login(company, Some(user.id), &norm, true, ip, LoginReason::Ok)
+            .await;
         self.token_response(company, &user, None, uuid::Uuid::new_v4().to_string())
             .await
     }

@@ -33,7 +33,11 @@ pub async fn invalidate_dashboard(db: &Db, reports: &mod_reports::Ctx, company: 
     .await;
     match conn {
         Ok(mut conn) => {
-            if let Err(e) = reports.cache.invalidate_prefix(&mut conn, company, DASHBOARD_PREFIX).await {
+            if let Err(e) = reports
+                .cache
+                .invalidate_prefix(&mut conn, company, DASHBOARD_PREFIX)
+                .await
+            {
                 tracing::warn!("xoá cache Tổng quan lỗi: {e}");
             }
         }

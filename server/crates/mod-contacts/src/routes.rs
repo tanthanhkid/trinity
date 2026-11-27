@@ -554,9 +554,7 @@ async fn update(
     if res.is_ok()
         && let Some(notes) = &dto.reminder_notes
     {
-        c.hooks
-            .after_update_notes(r.company, &u, id, notes.as_deref())
-            .await;
+        c.hooks.after_update_notes(r.company, &u, id, notes.as_deref()).await;
     }
     ok(res)
 }

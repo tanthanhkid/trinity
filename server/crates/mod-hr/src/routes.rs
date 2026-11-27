@@ -316,7 +316,15 @@ async fn read_upload(mut mp: Multipart, allowed: &[&str], bad_mime: &str) -> Res
             if name != "file" || out.file.is_some() {
                 return Err(HttpError::bad_request("Unexpected field").into());
             }
-            let mime = f.content_type().unwrap_or("text/plain").to_owned();
+            // Chuẩn hoá loại: bỏ phần sau `;` (charset…), cắt khoảng trắng, chữ thường rồi mới so với danh sách.
+            let mime = f
+                .content_type()
+                .unwrap_or("text/plain")
+                .split(';')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_ascii_lowercase();
             if !allowed.contains(&mime.as_str()) {
                 return Err(HttpError::bad_request(bad_mime).into());
             }

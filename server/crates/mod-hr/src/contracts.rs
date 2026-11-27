@@ -7,17 +7,20 @@
 //!   Khoá lưu trữ nằm ở `file_url` (hợp đồng) và `storage_key` (mẫu).
 //! - Ghi DB lỗi sau khi đã tải tệp lên ⇒ xoá tệp vừa tải (không mồ côi); thay/xoá tệp cũ làm best-effort sau khi DB đã đổi.
 //!
+//! Ghi (`POST/PATCH/DELETE`, tệp, mẫu) chỉ cần `contracts.manage`, KHÔNG kiểm phạm vi `contracts.view` theo nhân viên: đúng bản TS
+//! (chỉ các đường đọc kiểm phạm vi).
+//!
 //! Khác bản TS có chủ đích: ô `search` thoát `\ % _` (Node dùng `contains` không thoát); xoá tệp cũ chạy ngay trong request
 //! (best-effort, lỗi chỉ ghi log) thay vì nền.
 
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err, clippy::type_complexity)]
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use axum::body::Body;
 use bytes::Bytes;
-use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Utc};
+use chrono::{DateTime, Datelike, Duration, Utc};
 use mod_users::guards::{Actor, db, scope_err};
 use serde::Serialize;
 use sqlx::{AssertSqlSafe, PgConnection, Postgres, QueryBuilder};
@@ -204,19 +207,9 @@ fn ceil_div(a: i64, b: i64) -> i64 {
     a.div_euclid(b) + i64::from(a.rem_euclid(b) != 0)
 }
 
-/// `new Date(str)` cho chuỗi đã qua `@IsDateString`: ISO đầy đủ, hoặc ngày thuần (nửa đêm UTC).
+/// `new Date(str)` cho mọi dạng `@IsDateString` (dùng lại bộ phân tích của M10: `YYYY`, `YYYY-MM`, giờ, `Z`, `±HHmm`, dấu cách).
 fn parse_date(s: &str) -> R<DateTime<Utc>> {
-    if let Ok(d) = DateTime::parse_from_rfc3339(s) {
-        return Ok(d.with_timezone(&Utc));
-    }
-    for fmt in ["%Y-%m-%dT%H:%M:%S%.f", "%Y-%m-%dT%H:%M"] {
-        if let Ok(n) = NaiveDateTime::parse_from_str(s, fmt) {
-            return Ok(n.and_utc());
-        }
-    }
-    NaiveDate::parse_from_str(s, "%Y-%m-%d")
-        .map(|d| d.and_time(NaiveTime::MIN).and_utc())
-        .map_err(|_| http(HttpError::bad_request("Ngày không hợp lệ")))
+    crate::employees_write::instant(s)
 }
 
 // ───────────────────────────── hợp đồng một dòng ─────────────────────────────
@@ -728,7 +721,8 @@ pub async fn find_all(ctx: &Ctx, actor: &Actor, q: &QueryContractsDto, now: Date
     }
 
     let total = i64::try_from(mapped.len()).unwrap_or(i64::MAX);
-    let skip = usize::try_from((page - 1) * page_size).unwrap_or(usize::MAX);
+    // `page` rất lớn: nhân bão hoà rồi vượt số dòng ⇒ trang rỗng (không tràn số).
+    let skip = usize::try_from((page - 1).saturating_mul(page_size)).unwrap_or(usize::MAX);
     let take = usize::try_from(page_size).unwrap_or(25);
     let data: Vec<ContractRowOut> = mapped.into_iter().skip(skip).take(take).collect();
     Ok(ContractPage {
@@ -737,7 +731,7 @@ pub async fn find_all(ctx: &Ctx, actor: &Actor, q: &QueryContractsDto, now: Date
             page,
             page_size,
             total,
-            total_pages: (total + page_size - 1) / page_size,
+            total_pages: total.saturating_add(page_size - 1) / page_size,
         },
     })
 }
@@ -876,7 +870,7 @@ pub async fn upload_file(cc: &ContractsCtx, actor: &Actor, id: i32, file: Upload
             .fetch_optional(&mut *conn)
             .await
             .map_err(db)?;
-    let Some((employee_id, old_key)) = existing else {
+    let Some((employee_id, _)) = existing else {
         return Err(nf_contract());
     };
     let decoded = decode_multipart_filename(file.file_name.as_deref());
@@ -886,16 +880,27 @@ pub async fn upload_file(cc: &ContractsCtx, actor: &Actor, id: i32, file: Upload
         .put(&key, file.data, &file.mime)
         .await
         .map_err(AppError::internal)?;
-    let upd = sqlx::query("UPDATE employee_contracts SET file_url = $2, updated_at = now() WHERE id = $1")
-        .bind(id)
-        .bind(&key)
-        .execute(&mut *conn)
-        .await;
-    if let Err(e) = upd {
-        cc.store.remove(&key).await;
-        return Err(db(e));
-    }
-    if let Some(old) = old_key.filter(|o| *o != key) {
+    // Khoá cũ lấy NGAY trong câu UPDATE (không dùng giá trị đọc trước đó, có thể đã đổi nếu hai lượt tải song song).
+    let upd: Result<Option<Option<String>>, sqlx::Error> = sqlx::query_scalar(
+        "WITH old AS (SELECT id, file_url FROM employee_contracts WHERE id = $1 FOR UPDATE)
+         UPDATE employee_contracts c SET file_url = $2, updated_at = now() FROM old WHERE c.id = old.id RETURNING old.file_url",
+    )
+    .bind(id)
+    .bind(&key)
+    .fetch_optional(&mut *conn)
+    .await;
+    let replaced = match upd {
+        Ok(Some(old)) => old,
+        Ok(None) => {
+            cc.store.remove(&key).await;
+            return Err(nf_contract());
+        }
+        Err(e) => {
+            cc.store.remove(&key).await;
+            return Err(db(e));
+        }
+    };
+    if let Some(old) = replaced.filter(|o| *o != key) {
         cc.store.remove(&old).await;
     }
     let row = load_contract(&mut conn, id).await?.ok_or_else(nf_contract)?;
@@ -948,20 +953,20 @@ pub async fn stream_file(cc: &ContractsCtx, actor: &Actor, id: i32) -> R<FileOut
 /// `DELETE /management/contracts/:id/file`.
 pub async fn remove_file(cc: &ContractsCtx, actor: &Actor, id: i32, now: DateTime<Utc>) -> R<Contract> {
     let mut conn = cc.ctx.conn(actor.company).await?;
-    let file: Option<Option<String>> = sqlx::query_scalar("SELECT file_url FROM employee_contracts WHERE id = $1")
-        .bind(id)
-        .fetch_optional(&mut *conn)
-        .await
-        .map_err(db)?;
-    let Some(file) = file else { return Err(nf_contract()) };
-    if let Some(key) = file {
+    // Đổi DB trước (lấy khoá cũ ngay trong câu lệnh), xoá object sau: lỗi giữa chừng chỉ để lại object mồ côi, không để
+    // `file_url` trỏ vào tệp đã mất.
+    let old: Option<Option<String>> = sqlx::query_scalar(
+        "WITH old AS (SELECT id, file_url FROM employee_contracts WHERE id = $1 FOR UPDATE)
+         UPDATE employee_contracts c SET file_url = NULL, updated_at = now() FROM old WHERE c.id = old.id RETURNING old.file_url",
+    )
+    .bind(id)
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(db)?;
+    let Some(old) = old else { return Err(nf_contract()) };
+    if let Some(key) = old {
         cc.store.remove(&key).await;
     }
-    sqlx::query("UPDATE employee_contracts SET file_url = NULL, updated_at = now() WHERE id = $1")
-        .bind(id)
-        .execute(&mut *conn)
-        .await
-        .map_err(db)?;
     let row = load_contract(&mut conn, id).await?.ok_or_else(nf_contract)?;
     Ok(map_contract(row, now))
 }
@@ -1339,7 +1344,6 @@ pub async fn get_stats(ctx: &Ctx, actor: &Actor, q: &QueryContractStatsDto, now:
         bucket("m2", "Còn 1–2 tháng", exp2),
         bucket("m3", "Còn 2–3 tháng", exp3),
     ];
-    let _ = BTreeMap::<i32, i32>::new();
     Ok(ContractStats {
         total: i64::try_from(rows.len()).unwrap_or(i64::MAX),
         by_status,

@@ -452,6 +452,12 @@ async fn danh_sach_theo_nhan_vien_loc_sap_xep_va_thong_ke() {
         2,
         "trưởng nhóm + nhân viên của anh ta"
     );
+    let huge = get(q("page=9007199254740991&page_size=200")).await;
+    assert_eq!(
+        (huge.status.as_u16(), huge.body["data"].as_array().map(Vec::len)),
+        (200, Some(0)),
+        "trang quá lớn ⇒ rỗng, không tràn số"
+    );
     let p2 = get(q("page=2&page_size=4")).await;
     assert_eq!(
         (
@@ -556,6 +562,16 @@ async fn tep_hop_dong_tai_len_tai_xuong_thay_va_xoa() {
         .status,
         403
     );
+
+    // Loại tệp được chuẩn hoá (chữ hoa, tham số sau `;`) trước khi so danh sách.
+    let norm = upload(
+        &a,
+        &file_path,
+        MANAGER,
+        &[("file", Some("n.pdf"), Some("Application/PDF; charset=binary"), b"%PDF")],
+    )
+    .await;
+    assert_eq!(norm.status, 201, "{:?}", norm.body);
 
     // Tải lên: byte nhị phân (cả 0x00 và 0xFF) phải về đúng từng byte; tên tệp tiếng Việt được làm sạch trong khoá.
     let mut data: Vec<u8> = (0..=255u8).collect();

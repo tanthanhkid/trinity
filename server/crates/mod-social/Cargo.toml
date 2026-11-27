@@ -9,6 +9,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+axum = { workspace = true }
 base64 = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
@@ -35,6 +36,9 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 rustls = { workspace = true }
+tower = { workspace = true }
+trinity-auth = { workspace = true }
+trinity-rbac = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-util"] }
 wiremock = { workspace = true }
 

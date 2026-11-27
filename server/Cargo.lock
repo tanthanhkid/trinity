@@ -2763,6 +2763,7 @@ dependencies = [
 name = "mod-social"
 version = "0.3.0"
 dependencies = [
+ "axum",
  "base64 0.23.1",
  "bytes",
  "chrono",
@@ -2779,12 +2780,15 @@ dependencies = [
  "subtle",
  "tokio",
  "tokio-util",
+ "tower",
  "tracing",
+ "trinity-auth",
  "trinity-db",
  "trinity-http",
  "trinity-integrations",
  "trinity-jobs",
  "trinity-kernel",
+ "trinity-rbac",
  "trinity-storage",
  "uuid",
  "wiremock",

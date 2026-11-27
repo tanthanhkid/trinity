@@ -24,7 +24,7 @@ const user = async (label: string, grants: Parameters<typeof seedUser>[0]['grant
   const u = await seedUser({ label, grants })
   return { ...u, token: await tokenOf(u) }
 }
-const systemRoleId = async (): Promise<number> => (await q<{ id: number }>('SELECT id FROM roles WHERE is_system ORDER BY id LIMIT 1'))[0].id
+const systemRoleId = async (): Promise<number> => (await q<{ id: number }>(`SELECT id FROM roles WHERE is_system AND name = 'Quản trị' ORDER BY id LIMIT 1`))[0].id
 
 describe('vòng đời: tạo vai trò → gán user → /auth/me phản ánh NGAY → sửa grants phản ánh NGAY', () => {
   it('chạy đủ chuỗi, kèm danh sách/chi tiết/người giữ/nhật ký', async () => {
@@ -227,21 +227,34 @@ describe('gán vai trò cho người', () => {
 })
 
 describe('Quản trị cuối cùng', () => {
+  // Mở khoá chắc chắn ở afterAll (chạy trước `closeDb` của file) rồi xoá cache, kể cả khi ca đỏ giữa chừng: Quản trị bị khoá sẽ làm hỏng ca của file khác.
+  const unlocks: (() => Promise<void>)[] = []
+  const lock = async (keep: number[]): Promise<() => Promise<void>> => {
+    const unlock = await lock(keep)
+    unlocks.push(unlock)
+    return unlock
+  }
+  afterAll(async () => {
+    for (const unlock of unlocks) await unlock()
+    await control.flushCache()
+  })
+
   it('Quản trị duy nhất tự gỡ vai trò Quản trị → 409', async () => {
     const a = await admin('qc1')
-    const unlock = await lockOtherAdmins([a.id])
+    const unlock = await lock([a.id])
     try {
       expect((await call('put', `/users/${a.id}/roles`, a.token, { roleIds: [] })).status).toBe(409)
       expect((await me(a.token)).isAdmin).toBe(true)
     } finally {
       await unlock()
+      await control.flushCache()
     }
   })
 
   it('còn Quản trị khác ĐANG HOẠT ĐỘNG → gỡ được; Quản trị khác bị khoá không tính', async () => {
     const a = await admin('qc2a')
     const b = await admin('qc2b')
-    const unlock = await lockOtherAdmins([a.id, b.id])
+    const unlock = await lock([a.id, b.id])
     try {
       await q(`UPDATE users SET status = 'locked' WHERE id = $1`, [b.id])
       await control.flushCache()
@@ -253,6 +266,7 @@ describe('Quản trị cuối cùng', () => {
       expect((await call('put', `/users/${b.id}/roles`, b.token, { roleIds: [] })).status).toBe(409)
     } finally {
       await unlock()
+      await control.flushCache()
     }
   })
 

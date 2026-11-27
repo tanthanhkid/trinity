@@ -55,9 +55,9 @@ Hồ sơ `production` phía Rust chạy trên binary **phát hành** (không có
 ## Ca đã chuyển từ e2e cũ
 - C07b (32 ca): `cases/default/40-roles-admin` (20, từ `roles-admin.e2e-spec`), `41-session-lifecycle` (6), `42-route-audit` (2), `43-smoke` (4).
   Dàn dựng viết lại bằng SQL: `seedAdmin` (vai trò hệ thống), `lockOtherAdmins` (ca "Quản trị cuối cùng": khoá các Quản trị còn lại rồi mở
-  lại, vì mọi ca chung một DB nên không `TRUNCATE user_roles` như bản cũ). Tên vai trò mang hậu tố riêng của lượt chạy.
+  lại, vì mọi ca chung một DB nên không `TRUNCATE user_roles` như bản cũ). Tên vai trò mang hậu tố riêng của lượt chạy. Vai trò hệ thống chọn theo TÊN (`Quản trị`), không theo `ORDER BY id`; ca "Quản trị cuối cùng" mở khoá ở `afterAll` (trước `closeDb`) rồi xoá cache.
   `42-route-audit`: boot-check Nest (`auditRoutes`) không chạy được từ ngoài, nên ca kiểm kết quả của nó trên `server/contracts/routes.json`
-  (mọi route có khai báo quyền; route xuất file có `*.export`); `43-smoke` lấy số quyền/scope từ `server/contracts/rbac.json` thay vì hằng cứng
+  (mọi route có khai báo quyền; route xuất file có `*.export`); `42-route-audit` còn probe máy chủ thật (GET không token ⇒ 401 với route `auth`/`can`); `43-smoke` lấy số quyền/nhóm/scope từ `server/contracts/rbac.json` thay vì hằng cứng
   (e2e cũ ghi 62 quyền, hợp đồng hiện có 61). Bốn file này không có `RbacCache.invalidateUsers` trực tiếp (sửa vai trò qua API đã tự vô hiệu cache);
   6 chỗ gọi `invalidateUsers` của e2e cũ nằm ở ca MCP/OAuth/webhook (C10 trở đi).
 - Hai bộ chạy song song trên cùng máy dùng chung tên DB `trinity_contract_*` và cổng 4310 sẽ giẫm nhau; đặt `CONTRACT_PORT` riêng và (nếu cần) đổi tên DB mẫu.

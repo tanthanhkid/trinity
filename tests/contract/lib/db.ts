@@ -71,7 +71,7 @@ export async function seedAdmin(label: string, password = 'Contract-Pass-123'): 
     `INSERT INTO users (email, password_hash, full_name, status, updated_at) VALUES ($1, $2, $3, 'active', now()) RETURNING id`,
     [email, bcrypt.hashSync(password, 4), `Contract ${label}`],
   )
-  await q(`INSERT INTO user_roles (user_id, role_id) SELECT $1, id FROM roles WHERE is_system ORDER BY id LIMIT 1`, [u.id])
+  await q(`INSERT INTO user_roles (user_id, role_id) SELECT $1, id FROM roles WHERE is_system AND name = 'Quản trị' ORDER BY id LIMIT 1`, [u.id])
   return { id: u.id, email, password }
 }
 
@@ -83,7 +83,7 @@ export async function lockOtherAdmins(keep: number[]): Promise<() => Promise<voi
   const rows = await q<{ id: number }>(
     `UPDATE users SET status = 'locked'
      WHERE status = 'active' AND id <> ALL($1::int[])
-       AND id IN (SELECT ur.user_id FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE r.is_system)
+       AND id IN (SELECT ur.user_id FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE r.is_system AND r.name = 'Quản trị')
      RETURNING id`,
     [keep],
   )

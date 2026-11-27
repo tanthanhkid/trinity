@@ -54,7 +54,7 @@ describe('smoke RBAC', () => {
       scope_order: unknown[]
     }
     expect(b.permissions).toHaveLength(c.permissions.length)
-    expect(b.groups).toHaveLength(13)
+    expect(b.groups).toHaveLength(c.permission_groups.length)
     expect(b.scopes).toHaveLength(c.scope_order.length)
     expect(c.scope_order).toHaveLength(4)
   })

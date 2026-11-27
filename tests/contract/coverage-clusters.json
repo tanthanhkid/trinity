@@ -57,5 +57,26 @@
         "invalid": "không nhận thân và khoá mẫu lạ trả 404 (đã phủ ở loại missing): không có đầu vào nào trả 400"
       }
     }
+  },
+  "hr-attendance": {
+    "controllers": [
+      "AttendanceController",
+      "ContractsController",
+      "EmployeesController",
+      "JobTitlesController",
+      "RecruitmentController",
+      "TeamsController"
+    ],
+    "prefixes": [
+      "/management/"
+    ],
+    "waivers": {
+      "GET /management/attendance/:id(\\d+)": {
+        "invalid": "đường dẫn khai `:id(\\d+)`: id không phải số không khớp route nên Nest trả 404 (đã phủ ở loại missing), route không nhận thân nên không có đầu vào sai nào khác"
+      },
+      "DELETE /management/attendance/:id(\\d+)": {
+        "invalid": "đường dẫn khai `:id(\\d+)`: id không phải số không khớp route nên Nest trả 404 (đã phủ ở loại missing), route không nhận thân nên không có đầu vào sai nào khác"
+      }
+    }
   }
 }

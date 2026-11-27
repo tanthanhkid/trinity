@@ -84,6 +84,8 @@ export function matchRoute(routes: RouteRow[], method: string, p: string): Route
 export type Category = 'success' | 'deny' | 'invalid' | 'missing'
 export interface ClusterDef {
   controllers: string[]
+  /** Chỉ lấy route có đường dẫn (sau `/api/v1`) bắt đầu bằng một tiền tố trong danh sách: tên controller trùng giữa các service (`EmployeesController` của lương và của nhân sự). */
+  prefixes?: string[]
   /** Miễn trừ: `"METHOD /đường/dẫn"` → { loại → lý do }. */
   waivers: Record<string, Partial<Record<Category, string>>>
 }
@@ -123,13 +125,20 @@ function categoriesOf(r: RouteRow, calls: Call[]): Set<Category> {
   return got
 }
 
+/** Route thuộc cụm: đúng controller, chưa bỏ, và (nếu cụm khai tiền tố) đường dẫn bắt đầu bằng một tiền tố. */
+export function inClusterRoute(r: RouteRow, cluster: ClusterDef): boolean {
+  if (!cluster.controllers.includes(r.controller) || r.deprecated) return false
+  const p = r.path.startsWith(API) ? r.path.slice(API.length) : r.path
+  return !cluster.prefixes || cluster.prefixes.some((x) => p.startsWith(x))
+}
+
 export function computeCoverage(routes: RouteRow[], calls: Call[], cluster: ClusterDef): RouteCoverage[] {
   const byRoute = new Map<RouteRow, Call[]>()
   for (const c of calls) {
     const r = matchRoute(routes, c.method, c.path)
     if (r) byRoute.set(r, [...(byRoute.get(r) ?? []), c])
   }
-  const inCluster = routes.filter((r) => cluster.controllers.includes(r.controller) && !r.deprecated)
+  const inCluster = routes.filter((r) => inClusterRoute(r, cluster))
   return inCluster.map((r) => {
     const key = `${r.method} ${r.path.replace(API, '')}`
     const waived = cluster.waivers[key] ?? {}

@@ -462,6 +462,8 @@ CREATE TABLE public.connector_accounts (
     updated_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+COMMENT ON TABLE public.connector_accounts IS 'LƯU TRỮ: kết nối bán hàng/sàn và cổng thanh toán đã gỡ (G06/G07b), khoá đã xoá. Giữ dòng cũ.';
+
 CREATE SEQUENCE public.connector_accounts_id_seq
     AS integer
     START WITH 1
@@ -486,6 +488,8 @@ CREATE TABLE public.connector_events (
     occurred_at timestamp(3) with time zone,
     created_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+
+COMMENT ON TABLE public.connector_events IS 'LƯU TRỮ: sự kiện từ kết nối bán hàng/sàn và cổng thanh toán đã gỡ. Không còn mã đọc/ghi; giữ dữ liệu cũ.';
 
 CREATE SEQUENCE public.connector_events_id_seq
     AS integer
@@ -513,6 +517,8 @@ CREATE TABLE public.connector_records (
     created_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+
+COMMENT ON TABLE public.connector_records IS 'LƯU TRỮ: bản ghi đồng bộ từ phần mềm bán hàng/sàn đã gỡ (G06). Không còn mã đọc/ghi; giữ dữ liệu cũ.';
 
 CREATE SEQUENCE public.connector_records_id_seq
     AS integer
@@ -874,6 +880,8 @@ CREATE TABLE public.extension_runs (
     started_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+COMMENT ON TABLE public.extension_runs IS 'LƯU TRỮ: nhật ký chạy chương trình con đã gỡ (G02). Không còn mã đọc/ghi; giữ dữ liệu cũ.';
+
 CREATE SEQUENCE public.extension_runs_id_seq
     AS integer
     START WITH 1
@@ -898,6 +906,8 @@ CREATE TABLE public.extension_versions (
     reviewed_at timestamp(3) with time zone,
     created_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+
+COMMENT ON TABLE public.extension_versions IS 'LƯU TRỮ: phiên bản chương trình con đã gỡ (G02). Không còn mã đọc/ghi; giữ dữ liệu cũ.';
 
 CREATE SEQUENCE public.extension_versions_id_seq
     AS integer
@@ -925,6 +935,8 @@ CREATE TABLE public.extensions (
     updated_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     deleted_at timestamp(3) with time zone
 );
+
+COMMENT ON TABLE public.extensions IS 'LƯU TRỮ: chương trình con (extension) đã gỡ (G02). Không còn mã đọc/ghi; giữ dữ liệu cũ.';
 
 CREATE SEQUENCE public.extensions_id_seq
     AS integer
@@ -1221,6 +1233,8 @@ CREATE TABLE public.google_connections (
     updated_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+COMMENT ON TABLE public.google_connections IS 'LƯU TRỮ: tích hợp Google đã gỡ (G02/G03). Không còn mã đọc/ghi; giữ dữ liệu cũ.';
+
 CREATE SEQUENCE public.google_connections_id_seq
     AS integer
     START WITH 1
@@ -1241,6 +1255,8 @@ CREATE TABLE public.google_sheet_sync_runs (
     stats jsonb DEFAULT '{}'::jsonb NOT NULL,
     error character varying(500)
 );
+
+COMMENT ON TABLE public.google_sheet_sync_runs IS 'LƯU TRỮ: nhật ký đồng bộ Google Sheets đã gỡ. Không còn mã đọc/ghi; giữ dữ liệu cũ.';
 
 CREATE SEQUENCE public.google_sheet_sync_runs_id_seq
     START WITH 1
@@ -1275,6 +1291,8 @@ CREATE TABLE public.google_sheet_syncs (
     updated_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     deleted_at timestamp(3) with time zone
 );
+
+COMMENT ON TABLE public.google_sheet_syncs IS 'LƯU TRỮ: đồng bộ Google Sheets đã gỡ. Không còn mã đọc/ghi; giữ dữ liệu cũ.';
 
 CREATE SEQUENCE public.google_sheet_syncs_id_seq
     AS integer
@@ -1865,6 +1883,8 @@ CREATE TABLE public.payment_intents (
     created_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp(3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+
+COMMENT ON TABLE public.payment_intents IS 'LƯU TRỮ: yêu cầu thanh toán qua cổng đã gỡ (G07b). Không còn mã đọc/ghi; giữ dữ liệu cũ.';
 
 CREATE SEQUENCE public.payment_intents_id_seq
     AS integer

@@ -11,6 +11,7 @@ mod routes;
 use trinity_testhooks as _;
 mod seed;
 mod serve;
+mod shadow_report;
 
 use std::io::Write;
 use std::process::ExitCode;
@@ -54,6 +55,8 @@ enum Command {
     Serve(serve::ServeArgs),
     /// GET `/api/v1/health` trên loopback (cổng `TRINITY_HTTP_PORT`): mã 0 khi 200, mã 1 nếu không.
     Healthcheck,
+    /// Báo cáo shadow K28 từ tệp `serve` ghi (số mẫu theo route so với `min_samples`, đường dẫn khác biệt; không có giá trị dữ liệu): mã 0 khi mọi route đạt, 1 khi còn route chưa đạt, 2 khi không đọc được.
+    ShadowReport(shadow_report::ShadowReportArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -91,6 +94,7 @@ fn main() -> ExitCode {
         Some(Command::ChannelLock(args)) => channel_lock::run(args),
         Some(Command::Serve(args)) => serve::run(args),
         Some(Command::Healthcheck) => serve::healthcheck(),
+        Some(Command::ShadowReport(args)) => shadow_report::run(args),
     }
 }
 

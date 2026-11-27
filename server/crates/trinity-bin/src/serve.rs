@@ -29,7 +29,7 @@ use trinity_http::edge::client_ip::{ClientIpResolver, NetProbe};
 use trinity_http::edge::cors::{CorsConfig, cors_layer};
 use trinity_http::router::{AccessDeps, ApiRouter, NamedGuard};
 use trinity_http::strangler::{
-    ListenerScheme, NodeProxy, OwnershipTable, ProxyTimeouts, dispatcher, initial_from_routes_env,
+    ListenerScheme, NodeProxy, OwnershipTable, ProxyTimeouts, dispatcher_with_shadow, initial_from_routes_env,
     spawn_sighup_reloader,
 };
 use trinity_kernel::config::{Config, TlsMode, process_env};
@@ -625,7 +625,8 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         table
     };
     let _reloader = spawn_sighup_reloader(table.clone()).map_err(|e| format!("SIGHUP: {e}"))?;
-    let app = dispatcher(table, rust, proxy, ip.clone());
+    let shadow = crate::shadow_report::init(lookup)?;
+    let app = dispatcher_with_shadow(table, rust, proxy, ip.clone(), shadow);
 
     // ── Mở cổng và chạy
     let tls = match &config.tls {

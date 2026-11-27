@@ -218,6 +218,7 @@ pub const ENV_VARS: &[EnvVar] = &[
     server("TRINITY_OWNERSHIP_FILE"),
     server("TRINITY_RUST_ROUTES"),
     server("SHADOW_SAMPLE_RATE"),
+    server("SHADOW_REPORT_FILE"),
     server("TRUSTED_PROXY"),
     server("CLOUDFLARE_IP_RANGES"),
     // Thêm ở #283 (G16a): địa chỉ nghe của API (bắt buộc 127.0.0.1 với cloudflare-tunnel) và TRUSTED_PROXY riêng của

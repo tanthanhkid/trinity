@@ -147,6 +147,7 @@ Biến môi trường tối thiểu (cùng tên với bản Node):
 | `UPLOADS_DIR` | thư mục tệp tải lên (mặc định `./uploads`) |
 | `NODE_FALLBACK_URL`, `TRINITY_OWNERSHIP_FILE` | chỉ khi chạy lai với bản Node; không đặt thì Rust nhận mọi route |
 | `WEB_UPSTREAM_URL` | địa chỉ Next (ví dụ `http://127.0.0.1:3001`): trang web và `/_next` chưa thuộc Rust đi Next, `/api/v1`, `/notif-ws`, `/uploads`, `/docs` đi Node; không đặt thì mọi thứ đi Node |
+| `SHADOW_SAMPLE_RATE`, `SHADOW_REPORT_FILE` | chỉ khi chạy lai (K28): tỉ lệ lấy mẫu shadow 0..1 (mặc định 0 = tắt); `serve` ghi báo cáo mỗi 60 giây ra tệp (mặc định `./shadow-report.json`), xem bằng `trinity shadow-report` (chỉ route, số đếm, đường dẫn JSON khác biệt, không có giá trị dữ liệu) |
 
 ```sh
 export DATABASE_URL=postgresql://user:pass@localhost:5432/trinity JWT_SECRET=dev-secret-0123456789abcdef0123456789

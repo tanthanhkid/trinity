@@ -144,6 +144,16 @@ nginx: một `location /` với `proxy_http_version 1.1`, `Upgrade` và `Connect
 `proxy_set_header X-Forwarded-For $remote_addr;` cùng `proxy_set_header X-Real-IP "";` (xem "Client IP" trong `docs/deployment.md`).
 `TRUSTED_PROXY` đặt cho `trinity`.
 
+## 6b. Shadow (K28): bật và đọc báo cáo
+
+Dùng cho tiêu chí "48 giờ shadow, mỗi route `safe_for_shadow` đạt `min_samples`" của mỗi đợt (PLAN 6.5).
+
+1. Đặt `SHADOW_SAMPLE_RATE` cho `trinity` (ví dụ `0.1` = 10% GET `safe_for_shadow` do Node phục vụ; mặc định `0` = tắt hoàn toàn) và tuỳ chọn `SHADOW_REPORT_FILE` (mặc định `./shadow-report.json` trong thư mục chạy; đặt vào chỗ ghi được, ví dụ `/var/lib/trinity/shadow-report.json`). Khởi động lại `trinity`.
+2. Shadow chỉ chạy sau khi Node đã trả response (response chính đi nguyên, không đổi, không chờ), với phiên DB chỉ đọc, chặn gọi mạng, bỏ qua cache đếm. Tối đa 4 lần chạy song song, thân tối đa 1 MiB, hạn 10 giây; hết chỗ thì bỏ mẫu.
+3. Đọc báo cáo: `trinity shadow-report` (hoặc `--file <đường dẫn>`, `--json`). Mỗi dòng: `OK` hoặc `XX`, route, `mẫu <có>/<min_samples>`, giống, khác, lệch mã, bỏ; dòng `khác tại <đường dẫn JSON>` liệt kê chỗ khác (không có giá trị). Mã thoát 0 khi mọi route đạt, 1 khi còn route chưa đạt, 2 khi không đọc được tệp. Báo cáo ghi mỗi 60 giây; dòng đầu cho biết cửa sổ đo (giờ) và cảnh báo nếu tệp đã cũ.
+4. Bộ đếm nằm trong bộ nhớ: mỗi lần khởi động lại `trinity` (kể cả deploy) là đếm lại từ 0, nên cửa sổ 48 giờ phải liền mạch. Route `XX` do thiếu mẫu thì quét bù bằng X13; route ghi "KHÔNG SHADOW ĐƯỢC" cần rà lại `safe_for_shadow` của nó.
+5. Tắt: bỏ `SHADOW_SAMPLE_RATE` (hoặc đặt `0`) rồi khởi động lại.
+
 ## 7. Điểm chưa chắc
 
 - `trinity serve` có hai đích chuyển tiếp: `NODE_FALLBACK_URL` (Node, cổng 4000) và `WEB_UPSTREAM_URL` (Next, cổng 3001; compose lai đã đặt `http://127.0.0.1:3001`).

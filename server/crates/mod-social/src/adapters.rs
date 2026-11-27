@@ -43,19 +43,33 @@ pub fn draft_input(p: &PostInput) -> DraftInput {
     DraftInput {
         title: None,
         content: Some(Some(p.content.clone())),
-        media: Some(p.media_keys.iter().map(|k| MediaIn { key: k.clone(), name: None }).collect()),
+        media: Some(
+            p.media_keys
+                .iter()
+                .map(|k| MediaIn {
+                    key: k.clone(),
+                    name: None,
+                })
+                .collect(),
+        ),
         targets: Some(
             p.targets
                 .iter()
-                .map(|t| TargetIn { account_id: t.account_id, caption: t.caption.clone(), options: t.options.clone() })
+                .map(|t| TargetIn {
+                    account_id: t.account_id,
+                    caption: t.caption.clone(),
+                    options: t.options.clone(),
+                })
                 .collect(),
         ),
         scheduled_at: Some(p.scheduled_at.map(js_iso_string)),
         use_queue: Some(p.use_queue),
-        utm: p
-            .utm
-            .as_ref()
-            .map(|u| Some(UtmIn { campaign: u.campaign.clone(), content: u.content.clone() })),
+        utm: p.utm.as_ref().map(|u| {
+            Some(UtmIn {
+                campaign: u.campaign.clone(),
+                content: u.content.clone(),
+            })
+        }),
         ui: None,
     }
 }

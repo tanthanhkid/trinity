@@ -126,7 +126,10 @@ fn view(r: &SocialRecurrence, posts: &[PostRow], now: DateTime<Utc>) -> Result<R
         active: r.active,
     };
     let pending = posts.iter().any(|p| p.status == "scheduled");
-    let next_times = upcoming(&spec, pending, 3, now.timestamp_millis()).into_iter().map(Timestamp).collect();
+    let next_times = upcoming(&spec, pending, 3, now.timestamp_millis())
+        .into_iter()
+        .map(Timestamp)
+        .collect();
     Ok(RecurrenceView {
         id: r.id,
         title: r.title.clone(),
@@ -144,7 +147,11 @@ fn view(r: &SocialRecurrence, posts: &[PostRow], now: DateTime<Utc>) -> Result<R
         posts: posts
             .iter()
             .take(5)
-            .map(|p| PostRef { id: p.id, status: p.status.clone(), scheduled_at: p.scheduled_at })
+            .map(|p| PostRef {
+                id: p.id,
+                status: p.status.clone(),
+                scheduled_at: p.scheduled_at,
+            })
             .collect(),
     })
 }
@@ -203,7 +210,9 @@ pub async fn list(db_: &TenantDb, now: DateTime<Utc>) -> Result<Vec<RecurrenceVi
             by.entry(id).or_default().push(p);
         }
     }
-    rows.iter().map(|r| view(r, by.get(&r.id).map_or(&[][..], Vec::as_slice), now)).collect()
+    rows.iter()
+        .map(|r| view(r, by.get(&r.id).map_or(&[][..], Vec::as_slice), now))
+        .collect()
 }
 
 async fn posts_of(db_: &TenantDb, id: i32, limit: i64) -> Result<Vec<PostRow>, AppError> {
@@ -282,7 +291,10 @@ async fn normalized<P: PostsPort>(
     }
     let template = normalize_template(&merge(base.map(|b| &b.template.0), input.template.as_ref()))?;
     let rule = normalize_rule(&merge(base.map(|b| &b.rule.0), input.rule.as_ref()))?;
-    let starts_on = input.starts_on.clone().or_else(|| base.map(|b| day_string(b.starts_on.0)));
+    let starts_on = input
+        .starts_on
+        .clone()
+        .or_else(|| base.map(|b| day_string(b.starts_on.0)));
     let Some(starts_on) = starts_on.filter(|s| is_day(s)) else {
         return Err(bad("starts_on phải có dạng YYYY-MM-DD."));
     };
@@ -306,7 +318,14 @@ async fn normalized<P: PostsPort>(
         return Err(bad("max_count phải từ 1 đến 1000."));
     }
     posts.validate(user_id, &post_input(&template, None)).await?;
-    Ok(Normalized { title, template, rule, starts_on, ends_on, max_count })
+    Ok(Normalized {
+        title,
+        template,
+        rule,
+        starts_on,
+        ends_on,
+        max_count,
+    })
 }
 
 /// Lần đăng đầu tiên sau `now` còn nằm trong `ends_on` / `max_count`.
@@ -355,7 +374,9 @@ pub async fn preview<P: PostsPort>(
         }
         None => false,
     };
-    let count = base.as_ref().map_or(0, |b| i64::from((b.count - i32::from(pending)).max(0)));
+    let count = base
+        .as_ref()
+        .map_or(0, |b| i64::from((b.count - i32::from(pending)).max(0)));
     let spec = UpcomingSpec {
         rule: &v.rule,
         starts_on: &v.starts_on,
@@ -364,7 +385,10 @@ pub async fn preview<P: PostsPort>(
         count,
         active: true,
     };
-    let times = upcoming(&spec, false, 3, now.timestamp_millis()).into_iter().map(Timestamp).collect();
+    let times = upcoming(&spec, false, 3, now.timestamp_millis())
+        .into_iter()
+        .map(Timestamp)
+        .collect();
     Ok(RecurrencePreview { normalized: v, times })
 }
 
@@ -440,7 +464,14 @@ pub async fn update<P: PostsPort>(
     }
     cancel_pending(db_, posts, id).await?;
     let fresh = row(db_, id).await?;
-    let next = first_run(&v.rule, &v.starts_on, v.ends_on.as_deref(), v.max_count, i64::from(fresh.count), now);
+    let next = first_run(
+        &v.rule,
+        &v.starts_on,
+        v.ends_on.as_deref(),
+        v.max_count,
+        i64::from(fresh.count),
+        now,
+    );
     let template = serde_json::to_value(&v.template).map_err(AppError::internal)?;
     let rule = serde_json::to_value(&v.rule).map_err(AppError::internal)?;
     {
@@ -540,11 +571,13 @@ pub async fn remove<P: PostsPort>(db_: &TenantDb, posts: &P, id: i32) -> Result<
     row(db_, id).await?;
     {
         let mut c = conn(db_).await?;
-        sqlx::query("UPDATE social_recurrences SET active = false, next_run_at = NULL, updated_at = now() WHERE id = $1")
-            .bind(id)
-            .execute(&mut *c)
-            .await
-            .map_err(db)?;
+        sqlx::query(
+            "UPDATE social_recurrences SET active = false, next_run_at = NULL, updated_at = now() WHERE id = $1",
+        )
+        .bind(id)
+        .execute(&mut *c)
+        .await
+        .map_err(db)?;
     }
     cancel_pending(db_, posts, id).await?;
     let mut c = conn(db_).await?;
@@ -567,7 +600,11 @@ async fn cancel_pending<P: PostsPort>(db_: &TenantDb, posts: &P, id: i32) -> Res
     };
     if let Err(e) = posts.cancel(post_id).await {
         // Đã bắt đầu đăng / đã huỷ.
-        return if status_of(&e).is_some_and(|s| s < 500) { Ok(()) } else { Err(e) };
+        return if status_of(&e).is_some_and(|s| s < 500) {
+            Ok(())
+        } else {
+            Err(e)
+        };
     }
     let mut c = conn(db_).await?;
     // Bài huỷ trả lại khoá chống lặp (source): lần tạo lại cùng giờ (sửa / tạm dừng rồi tiếp tục) không bị coi là trùng mà mất bài.
@@ -699,7 +736,11 @@ async fn run_one<P: PostsPort>(
     let ends_on = ends_on_of(r);
     let max = r.max_count.map(i64::from);
     let after = |from: DateTime<Utc>, c: i64| -> Option<DateTime<Utc>> {
-        if max.is_some_and(|m| c >= m) { None } else { next_within(&rule, from, &starts_on, ends_on.as_deref()) }
+        if max.is_some_and(|m| c >= m) {
+            None
+        } else {
+            next_within(&rule, from, &starts_on, ends_on.as_deref())
+        }
     };
     let key = |d: DateTime<Utc>| format!("{RECUR_SOURCE_PREFIX}{}:{}", r.id, js_iso_string(d));
 
@@ -755,31 +796,36 @@ async fn run_one<P: PostsPort>(
     // Giờ hẹn phải cách bây giờ ≥ 1 phút (trễ ít thì đăng trong vài phút tới).
     let scheduled = from_millis(at.timestamp_millis().max(now_ms + 2 * MINUTE_MS));
     let input = post_input(&template_of(r)?, scheduled);
-    let guard = RecurrenceGuard { recurrence_id: r.id, at };
+    let guard = RecurrenceGuard {
+        recurrence_id: r.id,
+        at,
+    };
     match posts.create(r.created_by, &input, &key(at), Some(guard)).await {
         Ok(_) => {}
         Err(CreateFailure::Changed) => return Ok(Outcome::Skipped),
-        Err(CreateFailure::Failed(e)) => match status_of(&e) {
-            Some(409) => {
-                // Bài đã có (tick khác tạo) — chỉ dời nốt.
-                advance(db_, r.id, at, after(at, count + 1), 1).await?;
-                return Ok(Outcome::Skipped);
-            }
-            Some(s) if s < 500 => {
-                // Kênh gỡ liên kết, tệp mất… — dừng hẳn để khỏi lặp lỗi, người dùng sửa rồi bấm Tiếp tục.
-                let msg: String = message_of(&e).chars().take(1000).collect();
-                let mut c = conn(db_).await?;
-                sqlx::query("UPDATE social_recurrences SET active = false, last_error = $2, updated_at = now() WHERE id = $1")
+        Err(CreateFailure::Failed(e)) => {
+            match status_of(&e) {
+                Some(409) => {
+                    // Bài đã có (tick khác tạo) — chỉ dời nốt.
+                    advance(db_, r.id, at, after(at, count + 1), 1).await?;
+                    return Ok(Outcome::Skipped);
+                }
+                Some(s) if s < 500 => {
+                    // Kênh gỡ liên kết, tệp mất… — dừng hẳn để khỏi lặp lỗi, người dùng sửa rồi bấm Tiếp tục.
+                    let msg: String = message_of(&e).chars().take(1000).collect();
+                    let mut c = conn(db_).await?;
+                    sqlx::query("UPDATE social_recurrences SET active = false, last_error = $2, updated_at = now() WHERE id = $1")
                     .bind(r.id)
                     .bind(&msg)
                     .execute(&mut *c)
                     .await
                     .map_err(db)?;
-                tracing::warn!("Bài lặp lại #{} tạm dừng: {msg}", r.id);
-                return Ok(Outcome::Paused);
+                    tracing::warn!("Bài lặp lại #{} tạm dừng: {msg}", r.id);
+                    return Ok(Outcome::Paused);
+                }
+                _ => return Err(e),
             }
-            _ => return Err(e),
-        },
+        }
     }
     advance(db_, r.id, at, after(at, count + 1), 1).await?;
     Ok(Outcome::Created)

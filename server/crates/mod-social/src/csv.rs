@@ -57,7 +57,10 @@ impl Acc {
         let cells = std::mem::take(&mut self.cells);
         // Dòng trống hoàn toàn bị bỏ.
         if cells.iter().any(|c| !c.trim().is_empty()) {
-            self.records.push(CsvRecord { line: self.start_line, cells });
+            self.records.push(CsvRecord {
+                line: self.start_line,
+                cells,
+            });
         }
     }
 }
@@ -251,7 +254,10 @@ pub fn parse_csv(text: &str) -> Result<ParsedCsv, HttpError> {
     let rows = body
         .iter()
         .map(|r| {
-            let mut row = ImportRowInput { row: r.line, ..ImportRowInput::default() };
+            let mut row = ImportRowInput {
+                row: r.line,
+                ..ImportRowInput::default()
+            };
             for (i, key) in &cols {
                 let v = r.cells.get(*i).map_or("", |c| c.trim());
                 if v.is_empty() {
@@ -275,7 +281,11 @@ pub fn parse_csv(text: &str) -> Result<ParsedCsv, HttpError> {
             row
         })
         .collect();
-    Ok(ParsedCsv { delimiter, rows, unknown_columns: unknown })
+    Ok(ParsedCsv {
+        delimiter,
+        rows,
+        unknown_columns: unknown,
+    })
 }
 
 fn all_digits(s: &str, min: usize, max: usize) -> Option<u32> {
@@ -301,11 +311,25 @@ fn local_parts(s: &str) -> Option<(u32, u32, u32, u32, u32, u32)> {
     let (h, mi, sec) = hms(time)?;
     let iso: Vec<&str> = date.split('-').collect();
     if let [y, mo, d] = iso.as_slice() {
-        return Some((all_digits(y, 4, 4)?, all_digits(mo, 1, 2)?, all_digits(d, 1, 2)?, h, mi, sec));
+        return Some((
+            all_digits(y, 4, 4)?,
+            all_digits(mo, 1, 2)?,
+            all_digits(d, 1, 2)?,
+            h,
+            mi,
+            sec,
+        ));
     }
     let dmy: Vec<&str> = date.split('/').collect();
     if let [d, mo, y] = dmy.as_slice() {
-        return Some((all_digits(y, 4, 4)?, all_digits(mo, 1, 2)?, all_digits(d, 1, 2)?, h, mi, sec));
+        return Some((
+            all_digits(y, 4, 4)?,
+            all_digits(mo, 1, 2)?,
+            all_digits(d, 1, 2)?,
+            h,
+            mi,
+            sec,
+        ));
     }
     None
 }
@@ -321,11 +345,7 @@ fn iso_with_zone(s: &str) -> Option<DateTime<Utc>> {
     if !shape {
         return None;
     }
-    let date = NaiveDate::from_ymd_opt(
-        s[..4].parse().ok()?,
-        s[5..7].parse().ok()?,
-        s[8..10].parse().ok()?,
-    )?;
+    let date = NaiveDate::from_ymd_opt(s[..4].parse().ok()?, s[5..7].parse().ok()?, s[8..10].parse().ok()?)?;
     let rest = &s[11..];
     let zone_at = rest.rfind(['Z', 'z', '+', '-'])?;
     let (clock, zone) = rest.split_at(zone_at);
@@ -378,9 +398,7 @@ pub fn parse_vn_time(raw: &str) -> Result<DateTime<Utc>, String> {
     let s = raw.trim();
     let bad = || {
         let shown: String = s.chars().take(40).collect();
-        format!(
-            "Giờ \"{shown}\" không đúng dạng — dùng YYYY-MM-DD HH:mm hoặc DD/MM/YYYY HH:mm (giờ Việt Nam)."
-        )
+        format!("Giờ \"{shown}\" không đúng dạng — dùng YYYY-MM-DD HH:mm hoặc DD/MM/YYYY HH:mm (giờ Việt Nam).")
     };
     if let Some((y, mo, d, h, mi, sec)) = local_parts(s) {
         // Như bản Node: năm 0–99 bị `Date.UTC` đổi thành 19xx nên không khứ hồi được ⇒ coi là sai.
@@ -402,7 +420,9 @@ mod tests {
     use super::*;
 
     fn cells(rs: &[CsvRecord]) -> Vec<Vec<&str>> {
-        rs.iter().map(|r| r.cells.iter().map(String::as_str).collect()).collect()
+        rs.iter()
+            .map(|r| r.cells.iter().map(String::as_str).collect())
+            .collect()
     }
 
     fn iso(t: DateTime<Utc>) -> String {
@@ -411,8 +431,7 @@ mod tests {
 
     #[test]
     fn truong_trong_ngoac_kep() {
-        let (_, rs) =
-            parse_csv_records("a,b\n\"x, y\",\"dòng 1\ndòng 2\"\n\"nói \"\"hi\"\"\",z", None).unwrap();
+        let (_, rs) = parse_csv_records("a,b\n\"x, y\",\"dòng 1\ndòng 2\"\n\"nói \"\"hi\"\"\",z", None).unwrap();
         assert_eq!(
             cells(&rs),
             vec![vec!["a", "b"], vec!["x, y", "dòng 1\ndòng 2"], vec!["nói \"hi\"", "z"]]
@@ -471,8 +490,10 @@ mod tests {
         assert_eq!(r.media, vec!["a.png", "b mp4.mp4"]);
         assert_eq!(r.first_comment.as_deref(), Some("bình luận"));
         assert_eq!(r.utm_campaign.as_deref(), Some("thu-10"));
-        let en = parse_csv("Content,Channels,Scheduled_At,Media,First Comment,UTM_Campaign\nx,\"a,b\",2026-10-24 09:30,k,c,u")
-            .unwrap();
+        let en = parse_csv(
+            "Content,Channels,Scheduled_At,Media,First Comment,UTM_Campaign\nx,\"a,b\",2026-10-24 09:30,k,c,u",
+        )
+        .unwrap();
         assert_eq!(en.rows[0].channels, vec!["a", "b"]);
         assert_eq!(en.rows[0].utm_campaign.as_deref(), Some("u"));
     }
@@ -486,7 +507,10 @@ mod tests {
 
     #[test]
     fn loi_tieu_de() {
-        assert_eq!(parse_csv("content,ghi_chu\nx,y").unwrap().unknown_columns, vec!["ghi_chu"]);
+        assert_eq!(
+            parse_csv("content,ghi_chu\nx,y").unwrap().unknown_columns,
+            vec!["ghi_chu"]
+        );
         let msg = |s: &str| parse_csv(s).unwrap_err().to_string();
         assert!(msg("kenh,gio_dang\na,b").contains("content"));
         assert!(msg("content,noi_dung\na,b").contains("trùng"));
@@ -501,7 +525,12 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         assert_eq!(parse_csv(&ok).unwrap().rows.len(), IMPORT_MAX_ROWS);
-        assert!(parse_csv(&format!("{ok}\nbài thừa")).unwrap_err().to_string().contains("Tối đa 200 dòng"));
+        assert!(
+            parse_csv(&format!("{ok}\nbài thừa"))
+                .unwrap_err()
+                .to_string()
+                .contains("Tối đa 200 dòng")
+        );
         let big = format!("content\n{}", "x".repeat(1024 * 1024));
         assert!(parse_csv(&big).unwrap_err().to_string().contains("1 MB"));
     }
@@ -515,15 +544,39 @@ mod tests {
 
     #[test]
     fn gio_viet_nam() {
-        assert_eq!(iso(parse_vn_time("2026-10-24 09:30").unwrap()), "2026-10-24T02:30:00.000Z");
-        assert_eq!(iso(parse_vn_time("24/10/2026 09:30").unwrap()), "2026-10-24T02:30:00.000Z");
+        assert_eq!(
+            iso(parse_vn_time("2026-10-24 09:30").unwrap()),
+            "2026-10-24T02:30:00.000Z"
+        );
+        assert_eq!(
+            iso(parse_vn_time("24/10/2026 09:30").unwrap()),
+            "2026-10-24T02:30:00.000Z"
+        );
         assert_eq!(iso(parse_vn_time("4/1/2026 7:05").unwrap()), "2026-01-04T00:05:00.000Z");
-        assert_eq!(iso(parse_vn_time("2026-10-24 00:30").unwrap()), "2026-10-23T17:30:00.000Z");
-        assert_eq!(iso(parse_vn_time("2026-10-24T09:30").unwrap()), "2026-10-24T02:30:00.000Z");
-        assert_eq!(iso(parse_vn_time("2026-10-24T09:30:00+07:00").unwrap()), "2026-10-24T02:30:00.000Z");
-        assert_eq!(iso(parse_vn_time("2026-10-24T09:30:00+0700").unwrap()), "2026-10-24T02:30:00.000Z");
-        assert_eq!(iso(parse_vn_time("2026-10-24T02:30:00Z").unwrap()), "2026-10-24T02:30:00.000Z");
-        assert_eq!(iso(parse_vn_time("2026-10-24T02:30:00.5Z").unwrap()), "2026-10-24T02:30:00.500Z");
+        assert_eq!(
+            iso(parse_vn_time("2026-10-24 00:30").unwrap()),
+            "2026-10-23T17:30:00.000Z"
+        );
+        assert_eq!(
+            iso(parse_vn_time("2026-10-24T09:30").unwrap()),
+            "2026-10-24T02:30:00.000Z"
+        );
+        assert_eq!(
+            iso(parse_vn_time("2026-10-24T09:30:00+07:00").unwrap()),
+            "2026-10-24T02:30:00.000Z"
+        );
+        assert_eq!(
+            iso(parse_vn_time("2026-10-24T09:30:00+0700").unwrap()),
+            "2026-10-24T02:30:00.000Z"
+        );
+        assert_eq!(
+            iso(parse_vn_time("2026-10-24T02:30:00Z").unwrap()),
+            "2026-10-24T02:30:00.000Z"
+        );
+        assert_eq!(
+            iso(parse_vn_time("2026-10-24T02:30:00.5Z").unwrap()),
+            "2026-10-24T02:30:00.500Z"
+        );
     }
 
     #[test]

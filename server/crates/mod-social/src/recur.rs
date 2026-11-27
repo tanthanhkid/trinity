@@ -154,6 +154,7 @@ pub fn next_occurrence(rule: &RecurrenceRule, after: DateTime<Utc>, starts_on: &
     };
     let after_ms = after.timestamp_millis();
     let mut d = day_num_of(after_ms).max(start);
+    #[allow(clippy::explicit_counter_loop)]
     for _ in 0..800 {
         let dt = date_of(d)?;
         let hit = match rule.freq {
@@ -252,7 +253,13 @@ pub fn normalize_rule(raw: &Value) -> Result<RecurrenceRule, HttpError> {
     let Some(time) = time else {
         return Err(bad("time phải có dạng HH:mm (giờ Việt Nam)."));
     };
-    let mut out = RecurrenceRule { freq, interval, weekdays: None, month_day: None, time: time.to_owned() };
+    let mut out = RecurrenceRule {
+        freq,
+        interval,
+        weekdays: None,
+        month_day: None,
+        time: time.to_owned(),
+    };
     if freq == RecurFreq::Weekly
         && let Some(w) = r.get("weekdays").filter(|w| !w.is_null())
     {
@@ -333,14 +340,27 @@ pub fn normalize_template(raw: &Value) -> Result<RecurrenceTemplate, HttpError> 
             .filter(|c| !c.is_empty())
             .map(str::to_owned);
         let options = o.get("options").and_then(Value::as_object).cloned();
-        targets.push(TemplateTarget { account_id, caption, options });
+        targets.push(TemplateTarget {
+            account_id,
+            caption,
+            options,
+        });
     }
     let utm = t.get("utm").and_then(Value::as_object).and_then(|u| {
         let campaign = u.get("campaign").and_then(Value::as_str)?.to_owned();
-        let content = u.get("content").and_then(Value::as_str).filter(|c| !c.is_empty()).map(str::to_owned);
+        let content = u
+            .get("content")
+            .and_then(Value::as_str)
+            .filter(|c| !c.is_empty())
+            .map(str::to_owned);
         Some(TemplateUtm { campaign, content })
     });
-    Ok(RecurrenceTemplate { content, media_keys, targets, utm })
+    Ok(RecurrenceTemplate {
+        content,
+        media_keys,
+        targets,
+        utm,
+    })
 }
 
 #[cfg(test)]
@@ -350,7 +370,9 @@ mod tests {
     use super::*;
 
     fn vn(iso: &str) -> DateTime<Utc> {
-        DateTime::parse_from_rfc3339(&format!("{iso}+07:00")).unwrap().with_timezone(&Utc)
+        DateTime::parse_from_rfc3339(&format!("{iso}+07:00"))
+            .unwrap()
+            .with_timezone(&Utc)
     }
 
     fn iso(d: Option<DateTime<Utc>>) -> Option<String> {
@@ -362,7 +384,13 @@ mod tests {
     }
 
     fn daily() -> RecurrenceRule {
-        RecurrenceRule { freq: RecurFreq::Daily, interval: 1, weekdays: None, month_day: None, time: "09:00".into() }
+        RecurrenceRule {
+            freq: RecurFreq::Daily,
+            interval: 1,
+            weekdays: None,
+            month_day: None,
+            time: "09:00".into(),
+        }
     }
 
     #[test]
@@ -376,24 +404,39 @@ mod tests {
     #[test]
     fn hang_ngay_hom_nay_hay_mai() {
         let r = daily();
-        assert_eq!(iso(next_occurrence(&r, vn("2026-10-20T08:00:00"), "2026-10-01")), at("2026-10-20T09:00:00"));
-        assert_eq!(iso(next_occurrence(&r, vn("2026-10-20T09:00:00"), "2026-10-01")), at("2026-10-21T09:00:00"));
+        assert_eq!(
+            iso(next_occurrence(&r, vn("2026-10-20T08:00:00"), "2026-10-01")),
+            at("2026-10-20T09:00:00")
+        );
+        assert_eq!(
+            iso(next_occurrence(&r, vn("2026-10-20T09:00:00"), "2026-10-01")),
+            at("2026-10-21T09:00:00")
+        );
     }
 
     #[test]
     fn moi_3_ngay() {
         let r = RecurrenceRule { interval: 3, ..daily() };
-        assert_eq!(iso(next_occurrence(&r, vn("2026-10-02T10:00:00"), "2026-10-01")), at("2026-10-04T09:00:00"));
+        assert_eq!(
+            iso(next_occurrence(&r, vn("2026-10-02T10:00:00"), "2026-10-01")),
+            at("2026-10-04T09:00:00")
+        );
     }
 
     #[test]
     fn khong_truoc_ngay_bat_dau() {
-        assert_eq!(iso(next_occurrence(&daily(), vn("2026-09-01T00:00:00"), "2026-10-05")), at("2026-10-05T09:00:00"));
+        assert_eq!(
+            iso(next_occurrence(&daily(), vn("2026-09-01T00:00:00"), "2026-10-05")),
+            at("2026-10-05T09:00:00")
+        );
     }
 
     #[test]
     fn nua_dem_gio_vn_la_hom_truoc_theo_utc() {
-        let r = RecurrenceRule { time: "00:30".into(), ..daily() };
+        let r = RecurrenceRule {
+            time: "00:30".into(),
+            ..daily()
+        };
         assert_eq!(
             iso(next_occurrence(&r, vn("2026-10-20T00:00:00"), "2026-10-01")).as_deref(),
             Some("2026-10-19T17:30:00.000Z")
@@ -409,28 +452,62 @@ mod tests {
             ..daily()
         };
         // 2026-10-20 là Thứ Ba.
-        assert_eq!(iso(next_occurrence(&r, vn("2026-10-20T08:00:00"), "2026-10-01")), at("2026-10-22T19:30:00"));
-        assert_eq!(iso(next_occurrence(&r, vn("2026-10-22T20:00:00"), "2026-10-01")), at("2026-10-26T19:30:00"));
+        assert_eq!(
+            iso(next_occurrence(&r, vn("2026-10-20T08:00:00"), "2026-10-01")),
+            at("2026-10-22T19:30:00")
+        );
+        assert_eq!(
+            iso(next_occurrence(&r, vn("2026-10-22T20:00:00"), "2026-10-01")),
+            at("2026-10-26T19:30:00")
+        );
     }
 
     #[test]
     fn moi_2_tuan_tinh_tu_thu_hai() {
-        let r = RecurrenceRule { freq: RecurFreq::Weekly, interval: 2, weekdays: Some(vec![2]), ..daily() };
-        assert_eq!(iso(next_occurrence(&r, vn("2026-10-20T10:00:00"), "2026-10-20")), at("2026-11-03T09:00:00"));
+        let r = RecurrenceRule {
+            freq: RecurFreq::Weekly,
+            interval: 2,
+            weekdays: Some(vec![2]),
+            ..daily()
+        };
+        assert_eq!(
+            iso(next_occurrence(&r, vn("2026-10-20T10:00:00"), "2026-10-20")),
+            at("2026-11-03T09:00:00")
+        );
     }
 
     #[test]
     fn tuan_khong_co_thu_la_thu_cua_ngay_bat_dau() {
-        let r = RecurrenceRule { freq: RecurFreq::Weekly, ..daily() };
-        assert_eq!(iso(next_occurrence(&r, vn("2026-10-21T00:00:00"), "2026-10-20")), at("2026-10-27T09:00:00"));
+        let r = RecurrenceRule {
+            freq: RecurFreq::Weekly,
+            ..daily()
+        };
+        assert_eq!(
+            iso(next_occurrence(&r, vn("2026-10-21T00:00:00"), "2026-10-20")),
+            at("2026-10-27T09:00:00")
+        );
     }
 
     #[test]
     fn hang_thang_ngay_31_ket_ve_cuoi_thang() {
-        let r = RecurrenceRule { freq: RecurFreq::Monthly, month_day: Some(31), time: "08:00".into(), ..daily() };
-        assert_eq!(iso(next_occurrence(&r, vn("2026-01-31T09:00:00"), "2026-01-01")), at("2026-02-28T08:00:00"));
-        assert_eq!(iso(next_occurrence(&r, vn("2028-02-01T00:00:00"), "2026-01-01")), at("2028-02-29T08:00:00"));
-        assert_eq!(iso(next_occurrence(&r, vn("2026-04-30T09:00:00"), "2026-01-01")), at("2026-05-31T08:00:00"));
+        let r = RecurrenceRule {
+            freq: RecurFreq::Monthly,
+            month_day: Some(31),
+            time: "08:00".into(),
+            ..daily()
+        };
+        assert_eq!(
+            iso(next_occurrence(&r, vn("2026-01-31T09:00:00"), "2026-01-01")),
+            at("2026-02-28T08:00:00")
+        );
+        assert_eq!(
+            iso(next_occurrence(&r, vn("2028-02-01T00:00:00"), "2026-01-01")),
+            at("2028-02-29T08:00:00")
+        );
+        assert_eq!(
+            iso(next_occurrence(&r, vn("2026-04-30T09:00:00"), "2026-01-01")),
+            at("2026-05-31T08:00:00")
+        );
     }
 
     #[test]
@@ -442,21 +519,38 @@ mod tests {
             time: "08:00".into(),
             ..daily()
         };
-        assert_eq!(iso(next_occurrence(&r, vn("2026-10-16T00:00:00"), "2026-10-01")), at("2026-12-15T08:00:00"));
+        assert_eq!(
+            iso(next_occurrence(&r, vn("2026-10-16T00:00:00"), "2026-10-01")),
+            at("2026-12-15T08:00:00")
+        );
     }
 
     #[test]
     fn hang_thang_khong_co_ngay_la_ngay_bat_dau() {
-        let r = RecurrenceRule { freq: RecurFreq::Monthly, ..daily() };
-        assert_eq!(iso(next_occurrence(&r, vn("2026-10-01T00:00:00"), "2026-09-17")), at("2026-10-17T09:00:00"));
+        let r = RecurrenceRule {
+            freq: RecurFreq::Monthly,
+            ..daily()
+        };
+        assert_eq!(
+            iso(next_occurrence(&r, vn("2026-10-01T00:00:00"), "2026-09-17")),
+            at("2026-10-17T09:00:00")
+        );
     }
 
     #[test]
     fn next_within_dung_sau_ends_on() {
         let r = daily();
-        assert_eq!(next_within(&r, vn("2026-10-20T10:00:00"), "2026-10-01", Some("2026-10-20")), None);
         assert_eq!(
-            iso(next_within(&r, vn("2026-10-20T08:00:00"), "2026-10-01", Some("2026-10-20"))),
+            next_within(&r, vn("2026-10-20T10:00:00"), "2026-10-01", Some("2026-10-20")),
+            None
+        );
+        assert_eq!(
+            iso(next_within(
+                &r,
+                vn("2026-10-20T08:00:00"),
+                "2026-10-01",
+                Some("2026-10-20")
+            )),
             at("2026-10-20T09:00:00")
         );
     }
@@ -488,10 +582,25 @@ mod tests {
         assert_eq!(r.weekdays, Some(vec![1, 4]));
         assert_eq!(r.interval, 2);
         // Số thực nguyên vẫn là số nguyên như `Number.isInteger`.
-        assert_eq!(normalize_rule(&json!({"freq":"daily","interval":3.0,"time":"09:00"})).unwrap().interval, 3);
+        assert_eq!(
+            normalize_rule(&json!({"freq":"daily","interval":3.0,"time":"09:00"}))
+                .unwrap()
+                .interval,
+            3
+        );
         // weekdays chỉ có ý nghĩa với weekly; rỗng ⇒ bỏ.
-        assert_eq!(normalize_rule(&json!({"freq":"daily","weekdays":[9],"time":"09:00"})).unwrap().weekdays, None);
-        assert_eq!(normalize_rule(&json!({"freq":"weekly","weekdays":[],"time":"09:00"})).unwrap().weekdays, None);
+        assert_eq!(
+            normalize_rule(&json!({"freq":"daily","weekdays":[9],"time":"09:00"}))
+                .unwrap()
+                .weekdays,
+            None
+        );
+        assert_eq!(
+            normalize_rule(&json!({"freq":"weekly","weekdays":[],"time":"09:00"}))
+                .unwrap()
+                .weekdays,
+            None
+        );
     }
 
     #[test]
@@ -529,7 +638,13 @@ mod tests {
         assert_eq!(t.media_keys, vec!["a", "b"]);
         assert_eq!(t.targets[0].caption.as_deref(), Some("riêng"));
         assert_eq!(t.targets[1].caption, None);
-        assert_eq!(t.utm, Some(TemplateUtm { campaign: "thu-10".into(), content: None }));
+        assert_eq!(
+            t.utm,
+            Some(TemplateUtm {
+                campaign: "thu-10".into(),
+                content: None
+            })
+        );
         for bad in [
             json!(null),
             json!({"targets": []}),

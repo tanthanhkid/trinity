@@ -56,7 +56,8 @@ pub enum CreateFailure {
 /// `SocialPostsService` phần M55b cần.
 pub trait PostsPort: Send + Sync {
     /// Kiểm như lúc tạo bài (kênh, tệp, giờ hẹn, UTM, giới hạn) mà không ghi gì; lỗi 4xx tiếng Việt.
-    fn validate(&self, user_id: i32, input: &PostInput) -> impl Future<Output = Result<ValidatedPost, AppError>> + Send;
+    fn validate(&self, user_id: i32, input: &PostInput)
+    -> impl Future<Output = Result<ValidatedPost, AppError>> + Send;
 
     /// Tạo bài (hẹn giờ) cho `user_id`; trả id bài. `dedupe_source` ghi vào `social_posts.source`, trùng với bài đang có
     /// ⇒ `Failed(409)`. `guard` có thì cài đặt PHẢI gọi [`crate::recurrences::guard_holds`] trên chính kết nối của giao

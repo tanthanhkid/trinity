@@ -28,7 +28,9 @@ struct FakePosts {
 
 impl PostsPort for FakePosts {
     async fn validate(&self, _user: i32, input: &PostInput) -> Result<ValidatedPost, AppError> {
-        Ok(ValidatedPost { scheduled_at: input.scheduled_at })
+        Ok(ValidatedPost {
+            scheduled_at: input.scheduled_at,
+        })
     }
 
     async fn create(
@@ -160,9 +162,15 @@ async fn bai_lap_va_nhap_csv() {
 
     // ── Nhập CSV ──
     let drafts = FakeDrafts::default();
-    let ports = ImportPorts { posts: &posts, drafts: &drafts, queue: &NoQueue };
+    let ports = ImportPorts {
+        posts: &posts,
+        drafts: &drafts,
+        queue: &NoQueue,
+    };
     let csv = "noi_dung,kenh,gio_dang\nm55b một,m55b page,\nm55b hai,Không có kênh,\n";
-    let plan = import::plan(&tdb, &ports, user, csv, ImportMode::Drafts, now).await.unwrap();
+    let plan = import::plan(&tdb, &ports, user, csv, ImportMode::Drafts, now)
+        .await
+        .unwrap();
     assert_eq!((plan.total, plan.ok_count, plan.error_count), (2, 1, 1));
     assert_eq!(
         plan.rows[1].errors,

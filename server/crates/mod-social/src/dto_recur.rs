@@ -160,7 +160,13 @@ fn target_errors(o: &Map<String, Value>) -> Errs {
     let mut errs = Vec::new();
     unknown_keys(o, &["account_id", "caption", "options"], &mut errs);
     // `@IsInt() @Min(1)` bắt buộc: vắng ⇒ hỏng cả hai.
-    check_int("account_id", o.get("account_id").unwrap_or(&Value::Null), Some(1), None, &mut errs);
+    check_int(
+        "account_id",
+        o.get("account_id").unwrap_or(&Value::Null),
+        Some(1),
+        None,
+        &mut errs,
+    );
     if let Some(v) = o.get("account_id")
         && int_value(v).is_some_and(|n| n.fract() == 0.0 && n > f64::from(i32::MAX))
     {
@@ -319,7 +325,11 @@ impl RecurrenceBody {
         let empty = Map::new();
         let o = v.as_object().unwrap_or(&empty);
         let mut errs: Errs = Vec::new();
-        unknown_keys(o, &["title", "template", "rule", "starts_on", "ends_on", "max_count"], &mut errs);
+        unknown_keys(
+            o,
+            &["title", "template", "rule", "starts_on", "ends_on", "max_count"],
+            &mut errs,
+        );
         if let Some(t) = present(o, "title") {
             check_string("title", t, 200, &mut errs);
         }
@@ -367,9 +377,13 @@ fn csv_and_mode(o: &Map<String, Value>, errs: &mut Errs) {
     // `@IsString() @MaxLength(1_100_000)` bắt buộc.
     match o.get("csv").and_then(Value::as_str) {
         Some(s) if len(s) <= CSV_FIELD_MAX => {}
-        Some(_) => errs.push(format!("csv must be shorter than or equal to {CSV_FIELD_MAX} characters")),
+        Some(_) => errs.push(format!(
+            "csv must be shorter than or equal to {CSV_FIELD_MAX} characters"
+        )),
         None => {
-            errs.push(format!("csv must be shorter than or equal to {CSV_FIELD_MAX} characters"));
+            errs.push(format!(
+                "csv must be shorter than or equal to {CSV_FIELD_MAX} characters"
+            ));
             errs.push("csv must be a string".to_owned());
         }
     }
@@ -401,7 +415,10 @@ impl ImportPlanBody {
         if !errs.is_empty() {
             return Err(HttpError::validation(errs));
         }
-        Ok(Self { csv: text_of(o, "csv"), mode: mode_of(o) })
+        Ok(Self {
+            csv: text_of(o, "csv"),
+            mode: mode_of(o),
+        })
     }
 }
 
@@ -417,7 +434,11 @@ impl ImportBody {
         if !errs.is_empty() {
             return Err(HttpError::validation(errs));
         }
-        Ok(Self { csv: text_of(o, "csv"), mode: mode_of(o), plan_hash: text_of(o, "plan_hash") })
+        Ok(Self {
+            csv: text_of(o, "csv"),
+            mode: mode_of(o),
+            plan_hash: text_of(o, "plan_hash"),
+        })
     }
 }
 
@@ -455,7 +476,10 @@ mod tests {
         assert_eq!(b.rule.unwrap().len(), 4);
         let empty = RecurrenceBody::from_json(&json!({})).unwrap();
         assert_eq!(empty, RecurrenceBody::default());
-        assert_eq!(RecurrenceBody::from_json(&json!(null)).unwrap(), RecurrenceBody::default());
+        assert_eq!(
+            RecurrenceBody::from_json(&json!(null)).unwrap(),
+            RecurrenceBody::default()
+        );
         // null = vắng mặt (IsOptional), trừ ends_on/max_count mang nghĩa "xoá".
         let n = RecurrenceBody::from_json(&json!({"title": null, "template": null, "rule": null, "starts_on": null}))
             .unwrap();
@@ -468,7 +492,10 @@ mod tests {
             rec(json!({"foo": 1, "max_count": 0})),
             vec!["property foo should not exist", "max_count must not be less than 1"]
         );
-        assert_eq!(rec(json!({"rule": {"zzz": 1}})), vec!["rule.property zzz should not exist"]);
+        assert_eq!(
+            rec(json!({"rule": {"zzz": 1}})),
+            vec!["rule.property zzz should not exist"]
+        );
     }
 
     #[test]
@@ -481,18 +508,30 @@ mod tests {
                 "rule.interval must be an integer number"
             ]
         );
-        assert_eq!(rec(json!({"rule": {"interval": 13}})), vec!["rule.interval must not be greater than 12"]);
-        assert_eq!(rec(json!({"rule": {"interval": 0}})), vec!["rule.interval must not be less than 1"]);
+        assert_eq!(
+            rec(json!({"rule": {"interval": 13}})),
+            vec!["rule.interval must not be greater than 12"]
+        );
+        assert_eq!(
+            rec(json!({"rule": {"interval": 0}})),
+            vec!["rule.interval must not be less than 1"]
+        );
         assert_eq!(
             rec(json!({"rule": {"interval": 1.5}})),
             vec!["rule.interval must be an integer number"]
         );
-        assert_eq!(rec(json!({"max_count": 1001})), vec!["max_count must not be greater than 1000"]);
+        assert_eq!(
+            rec(json!({"max_count": 1001})),
+            vec!["max_count must not be greater than 1000"]
+        );
     }
 
     #[test]
     fn luat_freq_weekdays_time() {
-        assert_eq!(rec(json!({"rule": {"freq": "yearly"}})), vec!["freq phải là daily, weekly hoặc monthly"]);
+        assert_eq!(
+            rec(json!({"rule": {"freq": "yearly"}})),
+            vec!["freq phải là daily, weekly hoặc monthly"]
+        );
         assert_eq!(
             rec(json!({"rule": {"weekdays": [7, -1, 1.5]}})),
             vec![
@@ -507,7 +546,10 @@ mod tests {
         );
         assert_eq!(
             rec(json!({"rule": {"weekdays": "1"}})),
-            vec!["rule.weekdays must contain no more than 7 elements", "rule.weekdays must be an array"]
+            vec![
+                "rule.weekdays must contain no more than 7 elements",
+                "rule.weekdays must be an array"
+            ]
         );
         assert_eq!(
             rec(json!({"rule": {"time": "123456"}})),
@@ -515,7 +557,10 @@ mod tests {
         );
         assert_eq!(
             rec(json!({"rule": {"time": 9}})),
-            vec!["rule.time must be shorter than or equal to 5 characters", "rule.time must be a string"]
+            vec![
+                "rule.time must be shorter than or equal to 5 characters",
+                "rule.time must be a string"
+            ]
         );
     }
 
@@ -539,9 +584,10 @@ mod tests {
             rec(json!({"template": {"targets": [{"account_id": 3_000_000_000_i64}]}})),
             vec!["template.targets.0.account_id must not be greater than 2147483647"]
         );
-        assert_eq!(rec(json!({"template": {"targets": [{"account_id": 1, "options": []}]}})), vec![
-            "template.targets.0.options must be an object"
-        ]);
+        assert_eq!(
+            rec(json!({"template": {"targets": [{"account_id": 1, "options": []}]}})),
+            vec!["template.targets.0.options must be an object"]
+        );
         assert_eq!(
             rec(json!({"template": {"media_keys": [1, "a"]}})),
             vec![
@@ -549,8 +595,14 @@ mod tests {
                 "template.each value in media_keys must be a string"
             ]
         );
-        assert_eq!(rec(json!({"template": "x"})), vec!["nested property template must be either object or array"]);
-        assert_eq!(rec(json!({"rule": []})), vec!["nested property rule must be either object or array"]);
+        assert_eq!(
+            rec(json!({"template": "x"})),
+            vec!["nested property template must be either object or array"]
+        );
+        assert_eq!(
+            rec(json!({"rule": []})),
+            vec!["nested property rule must be either object or array"]
+        );
     }
 
     #[test]
@@ -573,12 +625,17 @@ mod tests {
                 "template.utm.campaign must be a string"
             ]
         );
-        assert!(RecurrenceBody::from_json(&json!({"template": {"utm": {"campaign": "thu-10", "content": "a"}}})).is_ok());
+        assert!(
+            RecurrenceBody::from_json(&json!({"template": {"utm": {"campaign": "thu-10", "content": "a"}}})).is_ok()
+        );
     }
 
     #[test]
     fn tieu_de_va_ngay_qua_dai() {
-        assert_eq!(rec(json!({"title": "x".repeat(201)})), vec!["title must be shorter than or equal to 200 characters"]);
+        assert_eq!(
+            rec(json!({"title": "x".repeat(201)})),
+            vec!["title must be shorter than or equal to 200 characters"]
+        );
         assert_eq!(
             rec(json!({"starts_on": "2026-10-20T00:00", "ends_on": 5})),
             vec![
@@ -620,7 +677,10 @@ mod tests {
         );
         assert_eq!(
             bad(json!({"csv": "a", "mode": "drafts"})),
-            vec!["plan_hash must be longer than or equal to 64 characters", "plan_hash must be a string"]
+            vec![
+                "plan_hash must be longer than or equal to 64 characters",
+                "plan_hash must be a string"
+            ]
         );
     }
 }

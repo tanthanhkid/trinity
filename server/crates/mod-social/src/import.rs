@@ -17,8 +17,8 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use trinity_db::{TenantConn, TenantDb};
 use trinity_db::pg_error::app_error;
+use trinity_db::{TenantConn, TenantDb};
 use trinity_kernel::error::{AppError, HttpError, Message};
 use trinity_kernel::vn_time::js_iso_string;
 
@@ -124,7 +124,12 @@ pub fn rows_from_structured(rows: &[StructuredRow]) -> Vec<ImportRowInput> {
             channels: r.account_ids.iter().map(ToString::to_string).collect(),
             scheduled_at: non_empty(&r.scheduled_at),
             use_queue: r.use_queue,
-            media: r.media_keys.iter().map(|k| k.trim().to_owned()).filter(|k| !k.is_empty()).collect(),
+            media: r
+                .media_keys
+                .iter()
+                .map(|k| k.trim().to_owned())
+                .filter(|k| !k.is_empty())
+                .collect(),
             first_comment: non_empty(&r.first_comment),
             utm_campaign: non_empty(&r.utm_campaign),
         })
@@ -173,7 +178,11 @@ fn row_message(e: &AppError) -> String {
 
 fn excerpt(s: &str) -> String {
     let t = s.split_whitespace().collect::<Vec<_>>().join(" ");
-    if t.chars().count() > 80 { format!("{}…", t.chars().take(79).collect::<String>()) } else { t }
+    if t.chars().count() > 80 {
+        format!("{}…", t.chars().take(79).collect::<String>())
+    } else {
+        t
+    }
 }
 
 fn head(s: &str, n: usize) -> String {
@@ -198,7 +207,10 @@ fn utm_slug(v: &str, label: &str) -> Result<String, String> {
 
 /// Chuẩn hoá UTM của dòng nhập (`normalizeUtm({ campaign })`). Thay bằng `crate::utm` khi rebase lên M54a.
 fn normalize_campaign(campaign: &str) -> Result<TemplateUtm, String> {
-    Ok(TemplateUtm { campaign: utm_slug(campaign, "tên chiến dịch (campaign)")?, content: None })
+    Ok(TemplateUtm {
+        campaign: utm_slug(campaign, "tên chiến dịch (campaign)")?,
+        content: None,
+    })
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -231,8 +243,12 @@ async fn load_ctx(db_: &TenantDb, rows: &[ImportRowInput]) -> Result<Ctx, AppErr
     .map_err(db)?;
     // Tệp: khoá trước, rồi tên gốc trong thư viện (nhiều tệp trùng tên ⇒ lấy tệp mới nhất + cảnh báo).
     let mut seen = HashSet::new();
-    let tokens: Vec<String> =
-        rows.iter().flat_map(|r| r.media.iter()).filter(|t| seen.insert((*t).clone())).cloned().collect();
+    let tokens: Vec<String> = rows
+        .iter()
+        .flat_map(|r| r.media.iter())
+        .filter(|t| seen.insert((*t).clone()))
+        .cloned()
+        .collect();
     let assets: Vec<(String, String)> = if tokens.is_empty() {
         Vec::new()
     } else {
@@ -258,7 +274,14 @@ async fn load_ctx(db_: &TenantDb, rows: &[ImportRowInput]) -> Result<Ctx, AppErr
     for (k, n) in assets {
         by_asset_name.entry(n).or_default().push(k);
     }
-    Ok(Ctx { accounts, by_id, by_name, by_lower, keys, by_asset_name })
+    Ok(Ctx {
+        accounts,
+        by_id,
+        by_name,
+        by_lower,
+        keys,
+        by_asset_name,
+    })
 }
 
 struct Item {
@@ -275,13 +298,22 @@ fn plan_row(r: &ImportRowInput, mode: ImportMode, now_ms: i64, cx: &Ctx) -> Item
     let content = r.content.as_deref().unwrap_or("").trim().to_owned();
     let mut chosen: Vec<&Acct> = Vec::new();
     for tok in &r.channels {
-        let id = if !tok.is_empty() && tok.bytes().all(|b| b.is_ascii_digit()) { tok.parse::<i32>().ok() } else { None };
+        let id = if !tok.is_empty() && tok.bytes().all(|b| b.is_ascii_digit()) {
+            tok.parse::<i32>().ok()
+        } else {
+            None
+        };
         let mut found = id.and_then(|i| cx.by_id.get(&i)).map(|i| &cx.accounts[*i]);
         // Số vừa là id một kênh vừa là tên kênh khác ⇒ không đoán.
         if let Some(a) = found
-            && cx.by_name.get(tok).is_some_and(|v| v.iter().any(|i| cx.accounts[*i].id != a.id))
+            && cx
+                .by_name
+                .get(tok)
+                .is_some_and(|v| v.iter().any(|i| cx.accounts[*i].id != a.id))
         {
-            errors.push(format!("\"{tok}\" vừa là id kênh vừa là tên một kênh khác — ghi rõ tên hoặc id."));
+            errors.push(format!(
+                "\"{tok}\" vừa là id kênh vừa là tên một kênh khác — ghi rõ tên hoặc id."
+            ));
             continue;
         }
         if found.is_none() {
@@ -365,7 +397,10 @@ fn plan_row(r: &ImportRowInput, mode: ImportMode, now_ms: i64, cx: &Ctx) -> Item
         } else if tok.starts_with("social/") {
             Some(tok.clone())
         } else {
-            errors.push(format!("Không thấy tệp \"{}\" trong thư viện (khoá hoặc tên tệp gốc).", head(tok, 80)));
+            errors.push(format!(
+                "Không thấy tệp \"{}\" trong thư viện (khoá hoặc tên tệp gốc).",
+                head(tok, 80)
+            ));
             None
         };
         if let Some(k) = key
@@ -406,7 +441,11 @@ fn plan_row(r: &ImportRowInput, mode: ImportMode, now_ms: i64, cx: &Ctx) -> Item
                 }
                 _ => None,
             };
-            TemplateTarget { account_id: a.id, caption: None, options }
+            TemplateTarget {
+                account_id: a.id,
+                caption: None,
+                options,
+            }
         })
         .collect();
 
@@ -418,7 +457,11 @@ fn plan_row(r: &ImportRowInput, mode: ImportMode, now_ms: i64, cx: &Ctx) -> Item
         preview: RowPreview {
             channels: chosen
                 .iter()
-                .map(|a| PreviewChannel { account_id: a.id, name: a.name.clone(), network: a.network.clone() })
+                .map(|a| PreviewChannel {
+                    account_id: a.id,
+                    name: a.name.clone(),
+                    network: a.network.clone(),
+                })
                 .collect(),
             scheduled_at: at.map(js_iso_string),
             use_queue: queue,
@@ -445,7 +488,12 @@ fn plan_row(r: &ImportRowInput, mode: ImportMode, now_ms: i64, cx: &Ctx) -> Item
         use_queue: mode == ImportMode::Drafts && queue,
         source: None,
     };
-    Item { plan, input, norm, queue }
+    Item {
+        plan,
+        input,
+        norm,
+        queue,
+    }
 }
 
 /// Kiểm toàn bộ các dòng (kiểu preview: gom lỗi theo dòng) + băm. Không ghi gì, không giữ khung hàng đợi.
@@ -469,16 +517,24 @@ async fn plan_rows<P: PostsPort, D: DraftsPort, Q: QueuePort>(
 
     // Hàng đợi (chỉ bài hẹn): xin MỘT lần đủ số khung cho mọi dòng hợp lệ, gán theo thứ tự dòng ⇒ hai dòng không bao giờ chung khung.
     if mode == ImportMode::Schedule {
-        let wanting: Vec<usize> =
-            items.iter().enumerate().filter(|(_, i)| i.queue && i.plan.errors.is_empty()).map(|(n, _)| n).collect();
+        let wanting: Vec<usize> = items
+            .iter()
+            .enumerate()
+            .filter(|(_, i)| i.queue && i.plan.errors.is_empty())
+            .map(|(n, _)| n)
+            .collect();
         if !wanting.is_empty() {
             let slots = ports.queue.next_free(wanting.len()).await?;
             for (n, idx) in wanting.into_iter().enumerate() {
                 let it = &mut items[idx];
                 match slots.get(n) {
                     None => it.plan.errors.push(
-                        if slots.is_empty() { NO_QUEUE_SLOTS } else { "Không đủ khung trống hàng đợi cho dòng này." }
-                            .to_owned(),
+                        if slots.is_empty() {
+                            NO_QUEUE_SLOTS
+                        } else {
+                            "Không đủ khung trống hàng đợi cho dòng này."
+                        }
+                        .to_owned(),
                     ),
                     Some(slot) => {
                         it.input.scheduled_at = Some(*slot);
@@ -495,7 +551,9 @@ async fn plan_rows<P: PostsPort, D: DraftsPort, Q: QueuePort>(
             let checked = match mode {
                 ImportMode::Drafts => ports.drafts.check(user_id, &it.input).await,
                 ImportMode::Schedule => match ports.posts.validate(user_id, &it.input).await {
-                    Ok(v) if v.scheduled_at.is_none() => Err(HttpError::bad_request("Giờ hẹn đã qua — chọn giờ trong tương lai.").into()),
+                    Ok(v) if v.scheduled_at.is_none() => {
+                        Err(HttpError::bad_request("Giờ hẹn đã qua — chọn giờ trong tương lai.").into())
+                    }
                     Ok(_) => Ok(()),
                     Err(e) => Err(e),
                 },
@@ -516,7 +574,11 @@ async fn plan_rows<P: PostsPort, D: DraftsPort, Q: QueuePort>(
         .map(|i| {
             if i.queue {
                 let mut v = i.norm.clone();
-                let slot = if mode == ImportMode::Schedule { i.input.scheduled_at.map(js_iso_string) } else { None };
+                let slot = if mode == ImportMode::Schedule {
+                    i.input.scheduled_at.map(js_iso_string)
+                } else {
+                    None
+                };
                 if let Some(o) = v.as_object_mut() {
                     o.insert("slot".to_owned(), slot.map_or(Value::Null, Value::String));
                 }
@@ -568,7 +630,9 @@ pub async fn plan_structured<P: PostsPort, D: DraftsPort, Q: QueuePort>(
     mode: ImportMode,
     now: DateTime<Utc>,
 ) -> Result<ImportPlan, AppError> {
-    Ok(plan_rows(db_, ports, user_id, &rows_from_structured(rows), mode, now).await?.0)
+    Ok(plan_rows(db_, ports, user_id, &rows_from_structured(rows), mode, now)
+        .await?
+        .0)
 }
 
 /// `POST /social/posts/import` ⇒ `{ ... }`: nhập CSV, kiểm lại, khác bản người dùng đã xem (`plan_hash`) ⇒ 409.
@@ -605,11 +669,18 @@ pub async fn import_rows<P: PostsPort, D: DraftsPort, Q: QueuePort>(
         )
         .into());
     }
-    let mut out = ImportResult { mode, created: Vec::new(), skipped: Vec::new() };
+    let mut out = ImportResult {
+        mode,
+        created: Vec::new(),
+        skipped: Vec::new(),
+    };
     for it in items {
         let row = it.plan.row;
         if !it.plan.ok {
-            out.skipped.push(Skipped { row, errors: it.plan.errors });
+            out.skipped.push(Skipped {
+                row,
+                errors: it.plan.errors,
+            });
             continue;
         }
         // Khoá chống lặp theo (lượt kiểm tra + dòng): gửi lại cùng lượt nhập (timeout, hai tab) không tạo bài lần hai.
@@ -618,10 +689,16 @@ pub async fn import_rows<P: PostsPort, D: DraftsPort, Q: QueuePort>(
             ImportMode::Drafts => ports.drafts.create(user_id, &it.input, source, &dedupe).await,
             ImportMode::Schedule => {
                 // Không bao giờ để `create` đăng ngay vì giờ hẹn đã trôi qua trong lúc nhập.
-                let lead = it.input.scheduled_at.map(|t| t.timestamp_millis() - Utc::now().timestamp_millis());
+                let lead = it
+                    .input
+                    .scheduled_at
+                    .map(|t| t.timestamp_millis() - Utc::now().timestamp_millis());
                 match lead {
                     Some(l) if l >= IMPORT_MIN_LEAD_MS => {
-                        let post = PostInput { source: Some(source.to_owned()), ..it.input.clone() };
+                        let post = PostInput {
+                            source: Some(source.to_owned()),
+                            ..it.input.clone()
+                        };
                         match ports.posts.create(user_id, &post, &dedupe, None).await {
                             Ok(id) => Ok(id),
                             Err(CreateFailure::Failed(e)) => Err(e),
@@ -636,7 +713,10 @@ pub async fn import_rows<P: PostsPort, D: DraftsPort, Q: QueuePort>(
             Ok(id) => out.created.push(Created { row, id }),
             Err(e) => {
                 tracing::warn!("Nhập dòng {row}: {e} (mã {:?})", status_of(&e));
-                out.skipped.push(Skipped { row, errors: vec![row_message(&e)] });
+                out.skipped.push(Skipped {
+                    row,
+                    errors: vec![row_message(&e)],
+                });
             }
         }
     }
@@ -649,12 +729,42 @@ mod tests {
 
     fn cx() -> Ctx {
         let accounts = vec![
-            Acct { id: 1, name: "Quán A".into(), network: "facebook".into(), status: "active".into() },
-            Acct { id: 2, name: "Quán B".into(), network: "facebook".into(), status: "reauth".into() },
-            Acct { id: 3, name: "Trùng".into(), network: "facebook".into(), status: "active".into() },
-            Acct { id: 4, name: "trùng".into(), network: "facebook".into(), status: "active".into() },
-            Acct { id: 5, name: "7".into(), network: "facebook".into(), status: "active".into() },
-            Acct { id: 7, name: "Số bảy".into(), network: "facebook".into(), status: "active".into() },
+            Acct {
+                id: 1,
+                name: "Quán A".into(),
+                network: "facebook".into(),
+                status: "active".into(),
+            },
+            Acct {
+                id: 2,
+                name: "Quán B".into(),
+                network: "facebook".into(),
+                status: "reauth".into(),
+            },
+            Acct {
+                id: 3,
+                name: "Trùng".into(),
+                network: "facebook".into(),
+                status: "active".into(),
+            },
+            Acct {
+                id: 4,
+                name: "trùng".into(),
+                network: "facebook".into(),
+                status: "active".into(),
+            },
+            Acct {
+                id: 5,
+                name: "7".into(),
+                network: "facebook".into(),
+                status: "active".into(),
+            },
+            Acct {
+                id: 7,
+                name: "Số bảy".into(),
+                network: "facebook".into(),
+                status: "active".into(),
+            },
         ];
         let mut by_id = HashMap::new();
         let mut by_name: HashMap<String, Vec<usize>> = HashMap::new();
@@ -677,7 +787,11 @@ mod tests {
     }
 
     fn row(f: impl FnOnce(&mut ImportRowInput)) -> ImportRowInput {
-        let mut r = ImportRowInput { row: 2, content: Some("Xin chào".into()), ..ImportRowInput::default() };
+        let mut r = ImportRowInput {
+            row: 2,
+            content: Some("Xin chào".into()),
+            ..ImportRowInput::default()
+        };
         f(&mut r);
         r
     }
@@ -699,7 +813,13 @@ mod tests {
         let it = plan_row(&r, ImportMode::Schedule, NOW, &cx());
         assert!(it.plan.errors.is_empty(), "{:?}", it.plan.errors);
         assert_eq!(it.plan.preview.channels.len(), 1);
-        assert_eq!(it.plan.warnings, vec!["Kênh \"Quán A\" ghi nhiều lần — chỉ tính một.", "Có 2 tệp tên \"a.png\" — dùng tệp mới nhất."]);
+        assert_eq!(
+            it.plan.warnings,
+            vec![
+                "Kênh \"Quán A\" ghi nhiều lần — chỉ tính một.",
+                "Có 2 tệp tên \"a.png\" — dùng tệp mới nhất."
+            ]
+        );
         // Tệp trùng tên lấy tệp mới nhất (đứng đầu danh sách), bỏ trùng.
         assert_eq!(it.input.media_keys, vec!["social/k2", "social/k1"]);
         let opts = it.input.targets[0].options.as_ref().unwrap();
@@ -717,10 +837,19 @@ mod tests {
             plan_row(&r, ImportMode::Schedule, NOW, &cx()).plan.errors
         };
         // "7" vừa là id kênh 7 vừa là tên kênh 5.
-        assert_eq!(msgs("7"), vec!["\"7\" vừa là id kênh vừa là tên một kênh khác — ghi rõ tên hoặc id."]);
-        assert_eq!(msgs("TRÙNG"), vec!["Tên kênh \"TRÙNG\" trùng nhiều kênh — dùng id kênh."]);
+        assert_eq!(
+            msgs("7"),
+            vec!["\"7\" vừa là id kênh vừa là tên một kênh khác — ghi rõ tên hoặc id."]
+        );
+        assert_eq!(
+            msgs("TRÙNG"),
+            vec!["Tên kênh \"TRÙNG\" trùng nhiều kênh — dùng id kênh."]
+        );
         assert_eq!(msgs("Không có"), vec!["Không tìm thấy kênh \"Không có\"."]);
-        assert!(msgs("quán a").is_empty(), "tên không phân biệt hoa thường khi không trùng");
+        assert!(
+            msgs("quán a").is_empty(),
+            "tên không phân biệt hoa thường khi không trùng"
+        );
         assert!(msgs("99999999999").iter().any(|m| m.starts_with("Không tìm thấy kênh")));
     }
 
@@ -736,15 +865,27 @@ mod tests {
         };
         assert_eq!(errs(None, false), vec!["Cần giờ đăng hoặc 'hàng đợi'."]);
         assert!(errs(None, true).is_empty());
-        assert_eq!(errs(Some(at(30_000)), false), vec!["Giờ hẹn phải sau bây giờ ít nhất 1 phút."]);
-        assert_eq!(errs(Some(at(91 * 86_400_000)), false), vec!["Chỉ hẹn trước tối đa 90 ngày."]);
-        assert_eq!(errs(Some(at(3_600_000)), true), vec!["Chỉ chọn một: giờ cụ thể hoặc 'hàng đợi'."]);
+        assert_eq!(
+            errs(Some(at(30_000)), false),
+            vec!["Giờ hẹn phải sau bây giờ ít nhất 1 phút."]
+        );
+        assert_eq!(
+            errs(Some(at(91 * 86_400_000)), false),
+            vec!["Chỉ hẹn trước tối đa 90 ngày."]
+        );
+        assert_eq!(
+            errs(Some(at(3_600_000)), true),
+            vec!["Chỉ chọn một: giờ cụ thể hoặc 'hàng đợi'."]
+        );
         assert!(errs(Some("mai 9h".into()), false)[0].contains("không đúng dạng"));
     }
 
     #[test]
     fn nhap_phai_co_kenh_va_noi_dung() {
-        let r = ImportRowInput { row: 3, ..ImportRowInput::default() };
+        let r = ImportRowInput {
+            row: 3,
+            ..ImportRowInput::default()
+        };
         let it = plan_row(&r, ImportMode::Schedule, NOW, &cx());
         assert!(it.plan.errors.contains(&"Cần ít nhất một kênh.".to_owned()));
         assert!(it.plan.errors.contains(&"Cần nội dung hoặc ảnh/video.".to_owned()));
@@ -752,7 +893,10 @@ mod tests {
         let d = row(|r| r.channels = vec!["Quán B".into()]);
         let it = plan_row(&d, ImportMode::Drafts, NOW, &cx());
         assert!(it.plan.errors.is_empty());
-        assert_eq!(it.plan.warnings, vec!["Kênh \"Quán B\" cần liên kết lại trước khi đăng."]);
+        assert_eq!(
+            it.plan.warnings,
+            vec!["Kênh \"Quán B\" cần liên kết lại trước khi đăng."]
+        );
     }
 
     #[test]
@@ -763,7 +907,10 @@ mod tests {
             r.media = vec!["la.png".into(), "social/chua-co".into()];
         });
         let it = plan_row(&r, ImportMode::Schedule, NOW, &cx());
-        assert_eq!(it.plan.errors, vec!["Không thấy tệp \"la.png\" trong thư viện (khoá hoặc tên tệp gốc)."]);
+        assert_eq!(
+            it.plan.errors,
+            vec!["Không thấy tệp \"la.png\" trong thư viện (khoá hoặc tên tệp gốc)."]
+        );
         // Khoá dạng social/… chưa có trong danh sách vẫn nhận (cổng kiểm tệp sẽ báo nếu không có thật).
         assert_eq!(it.input.media_keys, vec!["social/chua-co"]);
     }
@@ -778,8 +925,14 @@ mod tests {
         let it = plan_row(&r, ImportMode::Schedule, NOW, &cx());
         assert_eq!(it.input.utm.as_ref().unwrap().campaign, "thu-10");
         for (bad_utm, want) in [
-            ("a&b", "UTM: tên chiến dịch (campaign) không được chứa các ký tự & # = ? % /."),
-            ("x".repeat(101).leak() as &str, "UTM: tên chiến dịch (campaign) tối đa 100 ký tự."),
+            (
+                "a&b",
+                "UTM: tên chiến dịch (campaign) không được chứa các ký tự & # = ? % /.",
+            ),
+            (
+                "x".repeat(101).leak() as &str,
+                "UTM: tên chiến dịch (campaign) tối đa 100 ký tự.",
+            ),
         ] {
             let r = row(|r| {
                 r.channels = vec!["1".into()];

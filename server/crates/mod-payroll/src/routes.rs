@@ -67,6 +67,36 @@ pub fn payslip_specs() -> Vec<RouteSpec> {
     ]
 }
 
+/// 8 route xuất/nhập/PDF của `PayslipsController` (M31). Tệp trả về do handler tự đặt mã (`status_ok = null`); hai route nhập
+/// (multipart) trả 201 như `@Post`. `excel-bulk`, `excel-list`, `import-template`, `import/*` là đường tĩnh nên không bị `:id`
+/// nuốt (axum ưu tiên đường tĩnh).
+pub fn file_specs() -> Vec<RouteSpec> {
+    let export = Access::Can(&["payroll.export"]);
+    let manage = Access::Can(&["payroll.manage"]);
+    let raw = |m: Method, path: &'static str, a: Access| RouteSpec::new(m, path, a);
+    vec![
+        raw(Method::GET, "/api/v1/payslips/excel-bulk", export),
+        raw(Method::GET, "/api/v1/payslips/excel-list", export),
+        raw(Method::POST, "/api/v1/payslips/excel-list", export),
+        raw(Method::GET, "/api/v1/payslips/import-template", manage),
+        RouteSpec::new(Method::POST, "/api/v1/payslips/import/preview", manage).status_ok(201),
+        RouteSpec::new(Method::POST, "/api/v1/payslips/import/apply", manage).status_ok(201),
+        raw(Method::GET, "/api/v1/payslips/:id/pdf", export).param_pipes(ID),
+        raw(Method::GET, "/api/v1/payslips/:id/excel", export).param_pipes(ID),
+    ]
+}
+
+/// 3 route của `ReportsController` (M31): chi phí lương toàn công ty, chỉ `payroll.manage`.
+pub fn report_specs() -> Vec<RouteSpec> {
+    let manage = Access::Can(&["payroll.manage"]);
+    let r = |path: &'static str| RouteSpec::new(Method::GET, path, manage).status_ok(200);
+    vec![
+        r("/api/v1/reports/summary"),
+        r("/api/v1/reports/by-department"),
+        r("/api/v1/reports/comparison"),
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -78,6 +108,20 @@ mod tests {
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
         assert_eq!(rep.declared, 13);
+    }
+
+    #[test]
+    fn m31_khop_hop_dong_routes_json() {
+        let files = file_specs();
+        assert_eq!(files.len(), 8);
+        let rep = trinity_http::router::check::check_embedded(&files, false);
+        assert!(rep.ok(), "{:#?}", rep.problems);
+        assert_eq!(rep.declared, 8);
+        let reports = report_specs();
+        assert_eq!(reports.len(), 3);
+        let rep = trinity_http::router::check::check_embedded(&reports, false);
+        assert!(rep.ok(), "{:#?}", rep.problems);
+        assert_eq!(rep.declared, 3);
     }
 
     #[test]

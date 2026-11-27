@@ -191,3 +191,51 @@ curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/notifications/unread-co
 | POS thiếu tiền hoặc trùng thanh toán | ghi `pos_payments` không nguyên tử | lui, đối chiếu `pos_orders`/`pos_payments` |
 | PDF/tệp xuất lỗi font, tràn trang | `trinity-docgen` | giữ job ở Rust nhưng trả route xuất về Node, mở X12d |
 
+## Đợt e (X02e, #260) — tích hợp, webhook, OAuth, MCP, Facebook, Zalo, đăng bài (kênh bật cuối)
+
+Module: M33–M55b. Mẫu: `ownership-dot-e.json` = đợt d cộng `/api/v1/integrations`, `/hooks`, `/mcp`, `/oauth`, `/public` (toàn bộ, kể cả `public/contacts`, `public/deals`, `public/tasks` của API công khai bằng API key),
+`/facebook`, `/zalo-oa`, `/social`, và `settings/channel-guard` đổi sang `rust`. **Mọi route, job và tool MCP có gọi Graph/Zalo ra chuyển trong cùng một lần ghi tệp**; tám job chuyển cùng lúc:
+`integrations.webhook-dispatch`, `integrations.ai-action-expiry`, `integrations.outbox-purge`, `integrations.oauth-purge`, `facebook.flows`, `facebook.broadcasts`, `social.publish`, `social.metrics`.
+
+**Chờ trước khi bật (đang mở trên GitHub lúc viết mẫu)**: #234 (M43), #235 (M44a, mới có phần kênh và thư viện media), #237 (M44c) — tool ghi của MCP; #243 (M49), #244 (M50), #245 (M51) — bình luận, chat link,
+kịch bản, gửi hàng loạt; #249 (M54a), #250 (M54b), #251 (M55a), #252 (M55b) — đăng bài và hai job `social.*`; cộng đợt d (#259) và T01. Không bật nửa chừng (mục tiêu: không còn lời gọi Graph từ Node);
+tiền tố `/facebook` và `/social` giao cả nhóm nên route chưa viết sẽ 404. Các route đã gỡ (`connectors/*`, `pay/*`, `payments`) và `/.well-known`, `/uploads`, `/notif-ws` không nằm trong mẫu, Rust vẫn chuyển tiếp sang Node.
+
+**Bật**
+
+1. Đợt d qua 72 giờ đầu, X11 xanh. `trinity check-routes` 100% cho cả M33–M55b; X04 (e2e MCP) có kết quả trên Rust nếu đã làm.
+2. Công ty thử: bật Fanpage test, Zalo OA test; xác nhận webhook Meta và Zalo trỏ về cùng địa chỉ công khai như trước (không đổi cấu hình bên Meta/Zalo).
+3. Dump + chụp thư mục (`cutover.md` mục 2). Ghi số dòng: `facebook_messages`, `facebook_comments`, `social_posts`, `integration_events`, `webhook_deliveries`, `zalo_oa_messages`.
+4. Ghi `ownership-dot-e.json` thành tệp chạy (route, job một lần) và `SIGHUP`. Làm ngoài giờ cao điểm: bài hẹn giờ và gửi hàng loạt đang chạy dở sẽ do bên mới nhận ở lượt kế.
+
+**Kiểm sau khi bật**
+
+```
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/integrations/status
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/facebook/pages
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/social/accounts
+curl -fsS -H "Authorization: Bearer $TOKEN" $BASE/api/v1/zalo-oa/status
+curl -fsS $BASE/api/v1/facebook/webhook?hub.mode=subscribe\&hub.verify_token=<token-thử>\&hub.challenge=1
+```
+
+- **Chữ ký webhook**: gửi một webhook Facebook và một webhook Zalo có chữ ký đúng vào công ty thử → 200 và có dòng ở `facebook_messages`/`zalo_oa_messages`; chữ ký sai → bị từ chối. Webhook vào (`hooks/in/<token>`) và ra (`webhook_deliveries` có chữ ký, thử lại được).
+- **OAuth/MCP**: một AI client đã kết nối từ trước vẫn gọi được `/api/v1/mcp` (token ký ở Node xác minh được ở Rust); danh sách tool khớp `server/contracts/mcp`; thao tác ghi qua MCP đi qua hàng chờ duyệt.
+- **Job không chạy trùng**: `platform.job_runs` (`locked_by`, `last_started_at`, `last_error`) cho tám job chỉ có tiến trình Rust giữ khoá, log Node không còn dòng chạy chúng; một bài hẹn giờ ở công ty thử đăng đúng một lần; một đợt gửi hàng loạt nhỏ không gửi trùng người nhận.
+- **Không còn lời gọi Graph xuất phát từ Node**: sau khi đổi, 1 giờ log của Node không có yêu cầu tới máy chủ Graph (`grep -ci "graph.facebook.com\|openapi.zalo.me" <log node>` bằng 0 cho dòng sau thời điểm đổi); phía Rust có.
+- Hạn mức kênh (`channel-guard`) vẫn chặn khi vượt: một ca thử với hạn mức thấp ở công ty thử.
+
+**Lui**: `cutover.md` 4.2, trả **mọi** route, job và tool Graph/Zalo về Node trong một lần ghi (không lui nửa nhóm, vì sẽ có hai bên cùng gọi Graph hoặc không ai gọi). Tin và bài đã ghi bằng Rust vẫn nằm đúng bảng cho Node.
+Sau lui kiểm lại không còn lời gọi Graph từ Rust và job chỉ một bên chạy.
+
+**Dấu hiệu lỗi**
+
+| Dấu hiệu | Nguyên nhân hay gặp | Việc làm |
+|---|---|---|
+| Meta/Zalo báo webhook thất bại, mã 4xx/5xx | chữ ký, `FACEBOOK_APP_SECRET`/khoá Zalo lệch, hoặc route 404 | lui toàn đợt, kiểm env, so chữ ký bằng mẫu golden |
+| Tin trả lời gửi hai lần | hai bên cùng chạy job `facebook.flows`/`broadcasts` | kiểm `job_runs` và log Node, lui |
+| Bài đăng hai lần hoặc bỏ lỡ giờ | `social.publish` chạy trùng hoặc không ai chạy | kiểm `job_runs` và log Node, lui; không đăng lại bằng tay trước khi xem `social_posts` |
+| AI client mất kết nối | token OAuth không xác minh ở Rust hoặc metadata `/.well-known` sai | lui `oauth` và `mcp`, mở X12e |
+| Còn lời gọi Graph từ Node | một route/job còn thuộc Node | thêm vào tệp, `SIGHUP`, kiểm lại 1 giờ |
+| `channel-guard` không chặn | `settings/channel-guard` còn trỏ Node trong khi Graph gọi từ Rust | kiểm dòng `rust` của tiền tố này |
+| Hạn mức hoặc token Zalo hết hạn bất thường | job làm mới token (`integrations.oauth-purge`/Zalo) không chạy | kiểm `job_runs`, log Rust |
+

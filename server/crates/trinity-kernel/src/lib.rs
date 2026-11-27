@@ -7,6 +7,7 @@
 //!   của Postgres) và so sánh chuỗi như `localeCompare`; [`phone`] số điện thoại Việt Nam; [`vn_time`] giờ Việt Nam,
 //!   khoảng ngày lọc, định dạng ngày giờ; [`number`] định dạng số và `js_round`;
 //!   [`formula`] bộ phân tích và tính công thức của bảng tuỳ biến (M57, bảng ca `contracts/cases/formula.json`);
+//!   [`shadow`] cờ "đang shadow" cho ba hàng rào của K28 (DB chỉ đọc, chặn mạng, bỏ qua cache);
 //!   [`json`] serializer JSON thống nhất, ra đúng chữ như `JSON.stringify` của bản Node (K10).
 
 pub mod config;
@@ -17,5 +18,6 @@ pub mod json;
 pub mod number;
 pub mod ownership;
 pub mod phone;
+pub mod shadow;
 pub mod vi;
 pub mod vn_time;

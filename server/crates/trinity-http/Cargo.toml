@@ -10,6 +10,8 @@ publish.workspace = true
 
 [dependencies]
 axum = { workspace = true, features = ["multipart"] }
+chrono = { workspace = true }
+bytes = { workspace = true }
 fancy-regex = { workspace = true }
 form_urlencoded = { workspace = true }
 hmac = { workspace = true }

@@ -109,6 +109,8 @@ impl SafeWebhookPoster {
 impl WebhookPoster for SafeWebhookPoster {
     fn post<'a>(&'a self, url: &'a str, payload: String) -> BoxFuture<'a, Result<u16, String>> {
         Box::pin(async move {
+            // K28: đang shadow thì KHÔNG gửi webhook.
+            trinity_kernel::shadow::forbid_outbound("notify_webhook").map_err(|e| e.to_string())?;
             let res = self
                 .client
                 .post(url)

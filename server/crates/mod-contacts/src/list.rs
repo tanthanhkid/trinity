@@ -62,7 +62,8 @@ impl CountCache {
     }
 
     fn get(&self, key: &str) -> Option<i64> {
-        if self.disabled {
+        // Shadow (K28) bỏ qua cache: không đọc số cũ, không ghi số của lượt so sánh.
+        if self.disabled || trinity_kernel::shadow::active() {
             return None;
         }
         let map = self.map.lock().ok()?;
@@ -70,7 +71,7 @@ impl CountCache {
     }
 
     fn set(&self, key: String, total: i64) {
-        if self.disabled {
+        if self.disabled || trinity_kernel::shadow::active() {
             return;
         }
         if let Ok(mut map) = self.map.lock() {

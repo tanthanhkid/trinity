@@ -131,6 +131,15 @@ impl Sender {
 
     /// POST JSON, không theo chuyển hướng, hạn `timeout` cho cả lượt (gồm phân giải DNS kiểm đích).
     pub async fn post(&self, url: &str, body: String, event: &str, delivery_id: &str, signature: &str) -> PostResult {
+        // K28: đang shadow thì KHÔNG gửi webhook (ghi vi phạm, không thử lại).
+        if trinity_kernel::shadow::forbid_outbound("webhook").is_err() {
+            return PostResult {
+                ok: false,
+                status_code: None,
+                error: Some("shadow_denied".to_owned()),
+                duration_ms: 0,
+            };
+        }
         let started = Instant::now();
         let done = |ok: bool, status: Option<i32>, error: Option<String>| PostResult {
             ok,

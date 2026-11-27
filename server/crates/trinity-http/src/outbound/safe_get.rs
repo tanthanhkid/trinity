@@ -188,6 +188,10 @@ async fn safe_get_raw(
     user_agent: &str,
     accept_type: fn(&str) -> Option<&'static str>,
 ) -> Result<RawGet, SafeGetError> {
+    // K28: đang shadow thì KHÔNG ra mạng (ghi vi phạm, không thử lại).
+    if trinity_kernel::shadow::forbid_outbound("safe_get").is_err() {
+        return Err(SafeGetError::new("shadow_denied"));
+    }
     // Một hạn thời gian cho cả lượt, kể cả bước phân giải DNS để kiểm (DNS treo không giữ lời gọi quá hạn).
     let work = async {
         let target = assert_safe_url(raw_url, o.policy, o.resolver.as_ref())

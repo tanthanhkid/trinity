@@ -1,4 +1,4 @@
-//! Module bảng tuỳ biến, phần cấu trúc (M17, docs/rust/PLAN.md mục 4.7): bảng, trường, màn xem, phiên bản cấu trúc, menu và
+//! Module bảng tuỳ biến, phần cấu trúc (M17, docs/rust/PLAN.md mục 1.2 (module và endpoint) và 4.7 (RBAC)): bảng, trường, màn xem, phiên bản cấu trúc, menu và
 //! tra cứu. Chuyển từ `services/crm/src/custom-objects/*` (không gồm bản ghi, liên kết, nhập xuất: M18; mẫu bảng và dựng
 //! hệ thống: M19). 15 route `/api/v1/custom-objects` được nối qua router K14 ([`routes`]).
 //!

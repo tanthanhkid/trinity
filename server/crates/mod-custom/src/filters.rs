@@ -2,7 +2,7 @@
 //! chỉ KIỂM và dọn bộ lọc (màn xem lưu bộ lọc, M17); dựng SQL của danh sách bản ghi thuộc M18.
 
 use serde_json::{Map, Value};
-use sqlx::types::chrono::{DateTime, NaiveDate, NaiveDateTime};
+use sqlx::types::chrono::NaiveDate;
 
 use crate::types::{FILTERABLE_TYPES, FieldDef, Limits};
 use crate::{R, bad};
@@ -15,7 +15,7 @@ fn as_array(v: &Value) -> Vec<&Value> {
 }
 
 fn norm(s: &str) -> String {
-    trinity_kernel::vi::trim_js(s).to_lowercase()
+    trinity_kernel::vi::trim_js(&trinity_kernel::vi::nfc(s)).to_lowercase()
 }
 
 fn slice(s: &str, n: usize) -> String {
@@ -107,15 +107,62 @@ fn valid_ymd(s: &str) -> bool {
     is_ymd(s) && NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok()
 }
 
-/// `!Number.isNaN(Date.parse(s))` cho các dạng ISO-8601 thường gặp (ngày, ngày giờ, có hoặc không múi giờ).
+/// `!Number.isNaN(Date.parse(s))` cho ISO-8601: ngày; ngày giờ có hoặc không giây/phần lẻ; múi giờ `Z`, `±HH:MM`, `±HHMM`,
+/// `±HH`; dấu cách thay `T`. Giờ không hợp lệ (24:00, phút ≥ 60…) bị loại như `validTimestamp` của bản TS.
 fn parses_as_date(s: &str) -> bool {
     let t = trinity_kernel::vi::trim_js(s);
-    valid_ymd(t)
-        || DateTime::parse_from_rfc3339(t).is_ok()
-        || DateTime::parse_from_rfc3339(&t.replacen(' ', "T", 1)).is_ok()
-        || ["%Y-%m-%dT%H:%M:%S%.f", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S%.f"]
-            .iter()
-            .any(|f| NaiveDateTime::parse_from_str(t, f).is_ok())
+    if valid_ymd(t) {
+        return true;
+    }
+    let b = t.as_bytes();
+    if b.len() < 16 || !valid_ymd(&t[..10]) || !(b[10] == b'T' || b[10] == b' ') || !t.is_char_boundary(10) {
+        return false;
+    }
+    let rest = &t[11..];
+    let (time, zone) = match rest.find(['Z', '+', '-']) {
+        Some(i) => (&rest[..i], &rest[i..]),
+        None => (rest, ""),
+    };
+    let tb = time.as_bytes();
+    let two = |i: usize| {
+        tb.get(i..i + 2)
+            .filter(|x| x.iter().all(u8::is_ascii_digit))
+            .map(|x| u32::from(x[0] - b'0') * 10 + u32::from(x[1] - b'0'))
+    };
+    let (Some(h), Some(m)) = (two(0), two(3)) else {
+        return false;
+    };
+    if tb.get(2) != Some(&b':') || h >= 24 || m >= 60 {
+        return false;
+    }
+    let after = &time[5..];
+    if !after.is_empty() {
+        let ab = after.as_bytes();
+        let sec_ok = ab[0] == b':'
+            && ab.len() >= 3
+            && ab[1].is_ascii_digit()
+            && ab[2].is_ascii_digit()
+            && ((u32::from(ab[1] - b'0')) * 10 + u32::from(ab[2] - b'0')) < 60;
+        let frac = &after[3.min(after.len())..];
+        let frac_ok = frac.is_empty()
+            || (frac.starts_with('.') && frac.len() > 1 && frac[1..].bytes().all(|c| c.is_ascii_digit()));
+        if !(sec_ok && frac_ok) {
+            return false;
+        }
+    }
+    match zone {
+        "" | "Z" => true,
+        z => {
+            let d = &z[1..];
+            let digits: Vec<u8> = d.bytes().filter(|c| *c != b':').collect();
+            (z.starts_with('+') || z.starts_with('-'))
+                && (digits.len() == 2 || digits.len() == 4)
+                && digits.iter().all(u8::is_ascii_digit)
+                && (d.len() == digits.len() || (d.len() == 5 && d.as_bytes()[2] == b':'))
+                && u32::from(digits[0] - b'0') * 10 + u32::from(digits[1] - b'0') < 24
+                && (digits.len() == 2 || u32::from(digits[2] - b'0') * 10 + u32::from(digits[3] - b'0') < 60)
+        }
+    }
 }
 
 fn empty(v: Option<&Value>) -> bool {
@@ -308,6 +355,29 @@ mod tests {
         assert!(msg(r#"{"gia":{"min":"a"}}"#).contains("cần số hợp lệ"));
         assert!(msg(r#"{"ngay":{"from":"26/01/2026"}}"#).contains("cần ngày hợp lệ"));
         assert!(msg(r#"{"gio":{"to":"2026-02-30"}}"#).contains("cần ngày hợp lệ"));
+        for ok in [
+            "2026-01-02T10:30",
+            "2026-01-02T10:30Z",
+            "2026-01-02T10:30:15+07:00",
+            "2026-01-02 10:30:15.123-0700",
+            "2026-01-02T10:30+07",
+            "2026-01-02",
+        ] {
+            let raw = format!(r#"{{"gio":{{"from":"{ok}"}}}}"#);
+            assert!(validate_filters(&fs, &raw).is_ok(), "{ok}");
+        }
+        for bad in [
+            "2026-01-02T24:00",
+            "2026-01-02T10:60Z",
+            "2026-01-02T10:30:60",
+            "2026-01-02T10:30+25:00",
+            "2026-01-02T10",
+            "2026-01-02Tabc",
+            "hôm nay",
+        ] {
+            let raw = format!(r#"{{"gio":{{"from":"{bad}"}}}}"#);
+            assert!(validate_filters(&fs, &raw).is_err(), "{bad}");
+        }
         assert!(msg(r#"{"ok":"true"}"#).contains("cần đúng/sai"));
         assert!(msg(r#"{"nv":[]}"#).contains("cần mã hợp lệ"));
         assert!(msg(r#"{"tt":"a\u0000"}"#).contains("ký tự không hợp lệ"));
@@ -322,6 +392,8 @@ mod tests {
             choice_values(&fs[0], &json!(["mới", " XONG "])).unwrap(),
             ["moi", "xong"]
         );
+        // NFC hai phía: nhãn viết dạng tổ hợp (o + dấu móc + dấu sắc) vẫn khớp nhãn dựng sẵn.
+        assert_eq!(choice_values(&fs[0], &json!(["Mo\u{31b}\u{301}i"])).unwrap(), ["moi"]);
         let filter = json!({ "tt": ["moi", "da_xoa"], "gia": { "min": 1 }, "ten": "x", "khong_co": 1, "ngay": null });
         let out = prune_stale_filter(&fs, filter.as_object().unwrap());
         assert_eq!(

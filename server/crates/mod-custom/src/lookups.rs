@@ -57,11 +57,14 @@ pub async fn lookup_users(ctx: &Ctx, actor: &Actor, q: &LookupQuery) -> R<Value>
             .map(trinity_kernel::vi::trim_js)
             .filter(|t| !t.is_empty())
     {
-        let pat = format!("%{t}%");
+        // Thoát `\`, `%`, `_`: ký tự đại diện trong ô tìm không khớp mọi thứ.
+        let pat = format!("%{}%", trinity_kernel::vi::escape_like(t));
         qb.push(" AND (full_name ILIKE ")
             .push_bind(pat.clone())
+            .push(" ESCAPE '\\'")
             .push(" OR email ILIKE ")
             .push_bind(pat)
+            .push(" ESCAPE '\\'")
             .push(")");
     }
     qb.push(" ORDER BY full_name ASC LIMIT ")
@@ -89,7 +92,8 @@ pub async fn lookup_contacts(ctx: &Ctx, actor: &Actor, q: &LookupQuery) -> R<Val
     let mut qb = QueryBuilder::<Postgres>::new(
         "SELECT id, full_name FROM contacts WHERE deleted_at IS NULL AND full_name ILIKE ",
     );
-    qb.push_bind(format!("%{term}%")).push(" AND ");
+    qb.push_bind(format!("%{}%", trinity_kernel::vi::escape_like(term)))
+        .push(" ESCAPE '\\' AND ");
     push_scope(&mut qb, &owners, &["assigned_to", "created_by_id"]);
     qb.push(" ORDER BY id DESC LIMIT ")
         .push_bind(q.limit.unwrap_or(Limits::LOOKUP_LIMIT).min(50));

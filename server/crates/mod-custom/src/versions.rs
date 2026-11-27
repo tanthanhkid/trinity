@@ -122,6 +122,17 @@ fn same_field(a: &Value, b: &Value) -> bool {
     .all(|k| a.get(*k) == b.get(*k))
 }
 
+/// Mỗi dòng của ảnh chụp phải còn đúng một dòng trong DB; thiếu thì dừng (giao dịch của người gọi hoàn tác), không bỏ lặng.
+fn one_row(r: sqlx::postgres::PgQueryResult, what: &str, id: i64) -> R<()> {
+    if r.rows_affected() == 1 {
+        Ok(())
+    } else {
+        Err(crate::conflict(format!(
+            "Không khôi phục được: {what} #{id} trong phiên bản không còn trong hệ thống"
+        )))
+    }
+}
+
 fn s<'a>(v: &'a Value, k: &str) -> &'a str {
     v.get(k).and_then(Value::as_str).unwrap_or_default()
 }
@@ -232,7 +243,8 @@ pub async fn restore(conn: &mut PgConnection, id: i32, user_id: i32) -> R<Value>
         .bind(o.get("is_active").and_then(Value::as_bool).unwrap_or(true))
         .execute(&mut *conn)
         .await
-        .map_err(db)?;
+        .map_err(db)
+        .and_then(|r| one_row(r, "bảng", id_of(o)))?;
     }
     let field_ids: Vec<i32> = arr(&t, "fields").iter().map(|f| id_of(f) as i32).collect();
     sqlx::query("UPDATE custom_fields SET deleted_at = now(), updated_at = now() WHERE deleted_at IS NULL AND object_id = ANY($1) AND id <> ALL($2)")
@@ -264,7 +276,8 @@ pub async fn restore(conn: &mut PgConnection, id: i32, user_id: i32) -> R<Value>
         .bind(f.get("help_text").and_then(Value::as_str))
         .execute(&mut *conn)
         .await
-        .map_err(db)?;
+        .map_err(db)
+        .and_then(|r| one_row(r, "trường", id_of(f)))?;
     }
     let view_ids: Vec<i32> = arr(&t, "views").iter().map(|v| id_of(v) as i32).collect();
     sqlx::query("UPDATE custom_views SET deleted_at = now(), show_in_nav = false, updated_at = now() WHERE deleted_at IS NULL AND id <> ALL($1)").bind(&view_ids).execute(&mut *conn).await.map_err(db)?;
@@ -283,7 +296,8 @@ pub async fn restore(conn: &mut PgConnection, id: i32, user_id: i32) -> R<Value>
         .bind(ids(v, "visible_role_ids"))
         .execute(&mut *conn)
         .await
-        .map_err(db)?;
+            .map_err(db)
+            .and_then(|r| one_row(r, "màn xem", id_of(v)))?;
     }
     for f in arr(&t, "fields")
         .iter()

@@ -73,13 +73,26 @@ fn ok(r: Result<Value, AppError>) -> Response {
     }
 }
 
-fn actor(u: &CurrentUser) -> Actor {
-    Actor {
-        user_id: u.user.user_id,
-        company: trinity_db::CompanyRef::new(i64::from(u.user.company_id)).unwrap_or(trinity_db::CompanyRef::DEFAULT),
-        grants: u.grants.grants.clone(),
-        is_admin: u.grants.is_admin,
+/// Công ty trong token không hợp lệ ⇒ 401 như guard (không đoán công ty 1).
+fn actor(u: &CurrentUser) -> Result<Actor, Response> {
+    match trinity_db::CompanyRef::new(i64::from(u.user.company_id)) {
+        Ok(company) => Ok(Actor {
+            user_id: u.user.user_id,
+            company,
+            grants: u.grants.grants.clone(),
+            is_admin: u.grants.is_admin,
+        }),
+        Err(_) => Err(fail(HttpError::unauthorized("Token không hợp lệ hoặc đã hết hạn"))),
     }
+}
+
+macro_rules! ac {
+    ($u:expr) => {
+        match actor(&$u) {
+            Ok(a) => a,
+            Err(r) => return r,
+        }
+    };
 }
 
 /// Body JSON như `body-parser` của Express: không phải JSON hoặc rỗng ⇒ `{}`.
@@ -118,43 +131,43 @@ fn dto(name: &str, body: &Value) -> Result<Value, AppError> {
 }
 
 async fn list(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>) -> Response {
-    ok(objects::list(&c, &actor(&u)).await)
+    ok(objects::list(&c, &ac!(u)).await)
 }
 
 async fn create(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, JsonBody(b): JsonBody) -> Response {
     match dto("CreateCustomObjectDto", &b) {
-        Ok(v) => ok(objects::create(&c, &actor(&u), &CreateObject::from_validated(&v)).await),
+        Ok(v) => ok(objects::create(&c, &ac!(u), &CreateObject::from_validated(&v)).await),
         Err(e) => fail(e),
     }
 }
 
 async fn nav(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>) -> Response {
-    ok(objects::nav(&c, &actor(&u)).await)
+    ok(objects::nav(&c, &ac!(u)).await)
 }
 
 async fn lookup_users(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, uri: Uri) -> Response {
     match dto("LookupQueryDto", &query_to_json(uri.query().unwrap_or(""))) {
-        Ok(v) => ok(lookups::lookup_users(&c, &actor(&u), &LookupQuery::from_validated(&v)).await),
+        Ok(v) => ok(lookups::lookup_users(&c, &ac!(u), &LookupQuery::from_validated(&v)).await),
         Err(e) => fail(e),
     }
 }
 
 async fn lookup_contacts(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, uri: Uri) -> Response {
     match dto("LookupQueryDto", &query_to_json(uri.query().unwrap_or(""))) {
-        Ok(v) => ok(lookups::lookup_contacts(&c, &actor(&u), &LookupQuery::from_validated(&v)).await),
+        Ok(v) => ok(lookups::lookup_contacts(&c, &ac!(u), &LookupQuery::from_validated(&v)).await),
         Err(e) => fail(e),
     }
 }
 
 async fn preview(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, JsonBody(b): JsonBody) -> Response {
     match dto("FormulaPreviewDto", &b) {
-        Ok(v) => ok(fields::preview_formula(&c, &actor(&u), &v).await),
+        Ok(v) => ok(fields::preview_formula(&c, &ac!(u), &v).await),
         Err(e) => fail(e),
     }
 }
 
 async fn get_one(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, Path(key): Path<String>) -> Response {
-    ok(objects::get_definition(&c, &actor(&u), &key).await)
+    ok(objects::get_definition(&c, &ac!(u), &key).await)
 }
 
 async fn list_views(
@@ -162,7 +175,7 @@ async fn list_views(
     Extension(u): Extension<CurrentUser>,
     Path(key): Path<String>,
 ) -> Response {
-    ok(views::list(&c, &actor(&u), &key).await)
+    ok(views::list(&c, &ac!(u), &key).await)
 }
 
 async fn get_view(
@@ -170,7 +183,7 @@ async fn get_view(
     Extension(u): Extension<CurrentUser>,
     Path((key, view)): Path<(String, String)>,
 ) -> Response {
-    ok(views::get(&c, &actor(&u), &key, &view).await)
+    ok(views::get(&c, &ac!(u), &key, &view).await)
 }
 
 async fn update(
@@ -180,13 +193,13 @@ async fn update(
     JsonBody(b): JsonBody,
 ) -> Response {
     match dto("UpdateCustomObjectDto", &b) {
-        Ok(v) => ok(objects::update(&c, &actor(&u), &key, &UpdateObject::from_validated(&v)).await),
+        Ok(v) => ok(objects::update(&c, &ac!(u), &key, &UpdateObject::from_validated(&v)).await),
         Err(e) => fail(e),
     }
 }
 
 async fn remove(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, Path(key): Path<String>) -> Response {
-    ok(objects::remove(&c, &actor(&u), &key).await)
+    ok(objects::remove(&c, &ac!(u), &key).await)
 }
 
 async fn add_field(
@@ -196,7 +209,7 @@ async fn add_field(
     JsonBody(b): JsonBody,
 ) -> Response {
     match dto("CreateCustomFieldDto", &b) {
-        Ok(v) => ok(fields::create(&c, &actor(&u), &key, &CreateField::from_validated(&v)).await),
+        Ok(v) => ok(fields::create(&c, &ac!(u), &key, &CreateField::from_validated(&v)).await),
         Err(e) => fail(e),
     }
 }
@@ -214,7 +227,7 @@ async fn reorder(
                 .and_then(Value::as_array)
                 .map(|a| a.iter().filter_map(|k| k.as_str().map(str::to_owned)).collect())
                 .unwrap_or_default();
-            ok(fields::reorder(&c, &actor(&u), &key, &keys).await)
+            ok(fields::reorder(&c, &ac!(u), &key, &keys).await)
         }
         Err(e) => fail(e),
     }
@@ -227,7 +240,7 @@ async fn update_field(
     JsonBody(b): JsonBody,
 ) -> Response {
     match dto("UpdateCustomFieldDto", &b) {
-        Ok(v) => ok(fields::update(&c, &actor(&u), &key, &field, &UpdateField::from_validated(&v)).await),
+        Ok(v) => ok(fields::update(&c, &ac!(u), &key, &field, &UpdateField::from_validated(&v)).await),
         Err(e) => fail(e),
     }
 }
@@ -237,7 +250,7 @@ async fn remove_field(
     Extension(u): Extension<CurrentUser>,
     Path((key, field)): Path<(String, String)>,
 ) -> Response {
-    ok(fields::remove(&c, &actor(&u), &key, &field).await)
+    ok(fields::remove(&c, &ac!(u), &key, &field).await)
 }
 
 /// Router của module (người gọi gắn state `Arc<Ctx>` khi lắp `serve`).

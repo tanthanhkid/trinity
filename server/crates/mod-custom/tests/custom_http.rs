@@ -131,7 +131,6 @@ async fn teardown() {
           DELETE FROM custom_fields WHERE object_id IN (SELECT id FROM custom_objects WHERE key LIKE 'm17%');
           DELETE FROM custom_objects WHERE key LIKE 'm17%';
           DELETE FROM contacts WHERE phone LIKE 'm17-%';
-          DELETE FROM settings WHERE key = 'org_features';
           DELETE FROM user_roles WHERE user_id BETWEEN 9501 AND 9599;
           DELETE FROM role_permissions WHERE role_id BETWEEN 9501 AND 9599;
           DELETE FROM roles WHERE id BETWEEN 9501 AND 9599;
@@ -991,6 +990,20 @@ async fn man_xem_phien_ban_menu_tra_cuu() {
         ("Lịch mới", false, true)
     );
     assert!(err(views::update(&mut c, &def, "lich", &json!({}), MGR).await).contains("không có view “lich”"));
+    // `config: null` như không gửi: giữ cấu hình hiện tại.
+    let kept = views::update(
+        &mut c,
+        &def,
+        "bang",
+        &json!({ "config": null, "label": "Bảng hai" }),
+        MGR,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        (kept.label.as_str(), kept.config.0["group_by"].clone()),
+        ("Bảng hai", json!("trang_thai"))
+    );
 
     // Phiên bản cấu trúc: chụp, đổi, so, quay lui.
     let v1 = versions::save(&mut c, None, "m17-thu", "trước khi đổi", MGR)
@@ -1039,6 +1052,20 @@ async fn man_xem_phien_ban_menu_tra_cuu() {
         ["Tên", "Trạng thái", "Hạn", "Số"],
         "trường bị xoá hiện lại, nhãn trả về bản cũ"
     );
+
+    // Ảnh chụp có dòng không còn trong DB (xoá cứng): quay lui dừng với 409, không bỏ lặng.
+    let mut c = a.ctx.conn(CO).await.unwrap();
+    let v2 = versions::save(&mut c, None, "m17-thu", "trước khi xoá cứng", MGR)
+        .await
+        .unwrap();
+    drop(c);
+    exec(&format!(
+        "DELETE FROM custom_fields WHERE object_id = {oid} AND key = 'han'"
+    ))
+    .await;
+    let mut tx = a.ctx.begin(CO).await.unwrap();
+    assert!(err(versions::restore(&mut tx, v2, MGR).await).contains("Không khôi phục được: trường #"));
+    drop(tx);
 
     // Menu: đặt lại thứ tự và quyền thấy theo tên vai trò (không phân biệt hoa/thường); mục lặp bị từ chối.
     let entries = [
@@ -1090,6 +1117,11 @@ async fn man_xem_phien_ban_menu_tra_cuu() {
         u.body,
         json!([{ "id": VIEWER_A, "title": "Xem A" }, { "id": VIEWER_B, "title": "Xem B" }])
     );
+    // Ký tự đại diện của LIKE bị thoát: `_` và `%` không khớp mọi thứ.
+    for q in ["_", "%25", "%5C"] {
+        let r = call(&a, Method::GET, &format!("{B}/lookup/users?q={q}"), Some(MGR), None).await;
+        assert_eq!(r.body, json!([]), "q={q}");
+    }
     exec("INSERT INTO contacts (full_name, phone, assigned_to, updated_at) VALUES ('Trần Khách m17', 'm17-1', 9501, now()), ('Người lạ m17', 'm17-2', 9502, now())").await;
     let ct = call(&a, Method::GET, &format!("{B}/lookup/contacts?q=m17"), Some(MGR), None).await;
     assert_eq!(ct.body.as_array().unwrap().len(), 2);

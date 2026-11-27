@@ -125,8 +125,8 @@ pub fn present_view_for(def: &ObjectDef, v: &CustomView, object_key: &str) -> Va
 /// `GET /custom-objects/:key/views`.
 pub async fn list(ctx: &Ctx, actor: &Actor, object_key: &str) -> R<Value> {
     let mut c = ctx.conn(actor.company).await?;
-    let def = load_visible_object(&mut c, actor, object_key, None).await?;
     let access = load_access(&mut c, actor).await?;
+    let def = load_visible_object(&mut c, actor, object_key, Some(&access)).await?;
     let rows: Vec<CustomView> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT {VIEW_COLS} FROM custom_views WHERE object_id = $1 AND deleted_at IS NULL ORDER BY nav_order ASC, id ASC LIMIT {}",
         MAX_VIEWS_PER_OBJECT * 2
@@ -146,7 +146,8 @@ pub async fn list(ctx: &Ctx, actor: &Actor, object_key: &str) -> R<Value> {
 /// `GET /custom-objects/:key/views/:view`.
 pub async fn get(ctx: &Ctx, actor: &Actor, object_key: &str, view_key: &str) -> R<Value> {
     let mut c = ctx.conn(actor.company).await?;
-    let def = load_visible_object(&mut c, actor, object_key, None).await?;
+    let access = load_access(&mut c, actor).await?;
+    let def = load_visible_object(&mut c, actor, object_key, Some(&access)).await?;
     let v: Option<CustomView> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT {VIEW_COLS} FROM custom_views WHERE object_id = $1 AND key = $2 AND deleted_at IS NULL LIMIT 1"
     )))
@@ -155,7 +156,6 @@ pub async fn get(ctx: &Ctx, actor: &Actor, object_key: &str, view_key: &str) -> 
     .fetch_optional(&mut *c)
     .await
     .map_err(db)?;
-    let access = load_access(&mut c, actor).await?;
     let v = v
         .filter(|v| is_view_visible(v, &access))
         .ok_or_else(|| not_found("Không tìm thấy màn xem này"))?;
@@ -404,6 +404,7 @@ pub async fn update(
     let config = if patch.get("config").is_some() || patch.get("type").is_some() {
         let base = patch
             .get("config")
+            .filter(|c| !c.is_null()) // `config: null` như không gửi: giữ cấu hình hiện tại
             .cloned()
             .unwrap_or_else(|| present_view_for(def, &cur, &def.obj.key)["config"].clone());
         Some(normalize_view_config(def, &kind, &base)?)

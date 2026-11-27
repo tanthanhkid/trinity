@@ -2,26 +2,23 @@ import type { Metadata } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
-import { DS_V2_ENABLED } from "@/lib/design-system-flags";
+import { SITE_CONFIG_INIT_SCRIPT } from "@/lib/site-config";
 import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
 
 // Design system ds-v2 dùng font Montserrat. BẮT BUỘC subset "vietnamese" — thiếu là
 // mất dấu tiếng Việt trên glyph không có trong latin/latin-ext.
 //
-// Cờ môi trường quyết định font nào ÁP, nhưng `next/font/google`
-// KHÔNG được gọi có điều kiện — PHẢI nạp CẢ HAI font tại top-level module,
-// chỉ CHỌN `.variable` nào gắn vào <html> là theo cờ lúc build. Cả 2 cùng
-// bind chung tên biến CSS `--font-app` để globals.css/component không cần
-// biết đang chạy font nào.
+// Cờ ds-v2 nay đọc LÚC CHẠY (`/site-config`), không còn biết lúc build: nạp CẢ HAI font, gắn cả hai
+// biến CSS lên <html>; `globals.css` chọn `--font-app` theo `data-ds` (script <head> gắn attribute
+// trước lần vẽ đầu). `next/font/google` không được gọi có điều kiện nên hai font luôn có mặt.
 const montserratFont = Montserrat({
-  variable: "--font-app",
+  variable: "--font-montserrat",
   subsets: ["latin", "vietnamese"],
 });
 const interFont = Inter({
-  variable: "--font-app",
+  variable: "--font-inter",
   subsets: ["latin", "vietnamese"],
 });
-const appFont = DS_V2_ENABLED ? montserratFont : interFont;
 
 export const metadata: Metadata = {
   title: "Trinity CRM",
@@ -39,15 +36,14 @@ export default function RootLayout({
       // class `dark` do script chống nháy gắn trước hydrate ⇒ khác SSR là có chủ đích.
       suppressHydrationWarning
       translate="no"
-      // attribute scope cho token ds-v2 trong globals.css
-      // (`:root[data-ds="v2"]`) — React bỏ hẳn attribute khi giá trị là
-      // `undefined` nên cờ tắt = KHÔNG có data-ds, rơi về khối `:root` mặc
-      // định (diện mạo mặc định).
-      data-ds={DS_V2_ENABLED ? "v2" : undefined}
-      className={`${appFont.variable} h-full antialiased notranslate`}
+      // `data-ds="v2"` (scope token ds-v2 trong globals.css) KHÔNG gắn ở đây: do SITE_CONFIG_INIT_SCRIPT
+      // trong <head> gắn theo `ds_v2` của /site-config; thiếu attribute = diện mạo mặc định.
+      className={`${interFont.variable} ${montserratFont.variable} h-full antialiased notranslate`}
     >
       <head>
         <meta name="google" content="notranslate" />
+        {/* Cấu hình lúc chạy (cờ ds-v2, realtime, pháp lý) nạp đồng bộ TRƯỚC mọi script khác để không nháy giao diện. */}
+        <script dangerouslySetInnerHTML={{ __html: SITE_CONFIG_INIT_SCRIPT }} />
         {/* Sáng/tối: gắn class `dark` trước khi vẽ để không nháy trắng (xem lib/theme.ts). */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <script

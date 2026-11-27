@@ -8,7 +8,7 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { MAX_ERROR, MAX_STRING, sanitizeMetadata, sanitizeText } from '../../../../../packages/prisma/src/integrations/audit-sanitize';
+import { MAX_ERROR, MAX_STRING, sanitizeMetadata, sanitizeText } from '@trinity/prisma';
 
 const FILE = path.resolve(__dirname, '../../../../../server/contracts/cases/audit-sanitize.json');
 

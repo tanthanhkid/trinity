@@ -529,6 +529,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
+      # packages/prisma build (tsc) cần client đã generate (Prisma.sql, model integrationEvent...); #549.
+      - name: Generate Prisma clients
+        run: pnpm --filter @trinity/prisma generate
+
       - name: Build shared packages
         run: pnpm --filter "./packages/*" --if-present build
 

@@ -66,7 +66,7 @@ async fn app() -> Router {
         guards: Default::default(),
     });
     let (r, table) = router(deps).into_parts();
-    assert_eq!(table.len(), 15);
+    assert_eq!(table.len(), 22);
     r.with_state(ctx)
 }
 

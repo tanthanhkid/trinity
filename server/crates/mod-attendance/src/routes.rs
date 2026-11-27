@@ -9,7 +9,7 @@ use std::sync::Arc;
 use axum::Json;
 use axum::body::Body;
 use axum::extract::{DefaultBodyLimit, Extension, FromRequest, Multipart, Path, Request, State};
-use axum::http::{HeaderValue, Method, StatusCode, header};
+use axum::http::{HeaderValue, Method, StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
 use mod_hr::employees::Ctx;
 use mod_users::guards::Actor;
@@ -17,7 +17,7 @@ use serde::Serialize;
 use trinity_http::edge::body::read_field_limited;
 use trinity_http::edge::client_ip::resolve_client_ip;
 use trinity_http::router::{Access, AccessDeps, ApiRouter, CurrentUser, RouteSpec};
-use trinity_http::validate::{Mode, ValidJson, ValidQuery, validate_into};
+use trinity_http::validate::{Mode, ValidJson, ValidQuery, query_to_json, validate_into};
 use trinity_kernel::error::{AppError, HttpError};
 
 use crate::check::{self, CheckCtx, CheckInput, SELFIE_ALLOWED_MIME, SELFIE_MAX_SIZE, SELFIE_MIME_ERROR, Selfie};
@@ -25,12 +25,13 @@ use crate::dto::{
     CreateAttendanceRequestDto, CreateOfficeDto, DeviceCheckDto, QueryAttendanceRequestsDto, RejectRequestDto,
     UpdateAttendanceSettingsDto, UpdateOfficeDto, UpdateRequestConfigDto, UpdateWorkingSaturdaysDto,
 };
-use crate::{config, offices, requests};
+use crate::stats::QueryAttendanceStatsDto;
+use crate::{config, offices, requests, stats};
 
 const BASE: &str = "/api/v1/management/attendance";
 const ID: &[&str] = &["param.id:ParseIntPipe"];
 
-/// 17 route của M13a (cấu hình), M13b (chấm công vào/ra) và M14a (đơn từ) (bảng so với `routes.json` bởi `trinity check-routes`).
+/// 24 route của M13a (cấu hình), M13b (chấm công vào/ra) và M14a (đơn từ) (bảng so với `routes.json` bởi `trinity check-routes`).
 pub fn specs() -> Vec<RouteSpec> {
     let view = Access::Can(&["attendance.view"]);
     let cfg = Access::Can(&["attendance.config"]);
@@ -86,6 +87,28 @@ pub fn specs() -> Vec<RouteSpec> {
         )
         .status_ok(201)
         .param_pipes(ID),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats", view).status_ok(200),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/filters", view).status_ok(200),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/discipline", view).status_ok(200),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/leave-analytics", view).status_ok(200),
+        RouteSpec::new(
+            Method::GET,
+            "/api/v1/management/attendance/stats/weekly",
+            Access::AuthOnly,
+        )
+        .status_ok(200),
+        RouteSpec::new(
+            Method::GET,
+            "/api/v1/management/attendance/stats/monthly",
+            Access::AuthOnly,
+        )
+        .status_ok(200),
+        RouteSpec::new(
+            Method::GET,
+            "/api/v1/management/attendance/stats/weekly-hours",
+            Access::AuthOnly,
+        )
+        .status_ok(200),
     ]
 }
 
@@ -308,6 +331,45 @@ async fn request_reject(
     }
 }
 
+async fn stats_main(State(c): S, Extension(u): U, ValidQuery(q): ValidQuery<QueryAttendanceStatsDto>) -> Response {
+    let a = act!(u);
+    ok(stats::stats(&c, &a, &q).await)
+}
+
+async fn stats_filters(State(c): S, Extension(u): U) -> Response {
+    let a = act!(u);
+    ok(stats::filters(&c, &a).await)
+}
+
+async fn stats_discipline(
+    State(c): S,
+    Extension(u): U,
+    ValidQuery(q): ValidQuery<QueryAttendanceStatsDto>,
+) -> Response {
+    let a = act!(u);
+    ok(stats::discipline(&c, &a, &q).await)
+}
+
+async fn stats_leave(State(c): S, Extension(u): U, ValidQuery(q): ValidQuery<QueryAttendanceStatsDto>) -> Response {
+    let a = act!(u);
+    ok(stats::leave_analytics(&c, &a, &q).await)
+}
+
+async fn stats_weekly(State(c): S, Extension(u): U, uri: Uri) -> Response {
+    let a = act!(u);
+    ok(stats::weekly(&c, &a, &query_to_json(uri.query().unwrap_or(""))).await)
+}
+
+async fn stats_monthly(State(c): S, Extension(u): U, uri: Uri) -> Response {
+    let a = act!(u);
+    ok(stats::monthly(&c, &a, &query_to_json(uri.query().unwrap_or(""))).await)
+}
+
+async fn stats_weekly_hours(State(c): S, Extension(u): U, uri: Uri) -> Response {
+    let a = act!(u);
+    ok(stats::weekly_hours(&c, &a, &query_to_json(uri.query().unwrap_or(""))).await)
+}
+
 /// Router của M13a (state `Arc<Ctx>` của module nhân sự). Người gọi gắn state khi lắp `serve`.
 pub fn router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
     let s = specs();
@@ -334,6 +396,13 @@ pub fn router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::GET, &p("requests")), request_list)
         .route(spec(&Method::POST, &p("requests/:id/approve")), request_approve)
         .route(spec(&Method::POST, &p("requests/:id/reject")), request_reject)
+        .route(spec(&Method::GET, &p("stats")), stats_main)
+        .route(spec(&Method::GET, &p("stats/filters")), stats_filters)
+        .route(spec(&Method::GET, &p("stats/discipline")), stats_discipline)
+        .route(spec(&Method::GET, &p("stats/leave-analytics")), stats_leave)
+        .route(spec(&Method::GET, &p("stats/weekly")), stats_weekly)
+        .route(spec(&Method::GET, &p("stats/monthly")), stats_monthly)
+        .route(spec(&Method::GET, &p("stats/weekly-hours")), stats_weekly_hours)
 }
 
 // ───────────────────────────── chấm công vào/ra (M13b) ─────────────────────────────
@@ -457,9 +526,9 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = specs();
-        assert_eq!(table.len(), 17);
+        assert_eq!(table.len(), 24);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 17);
+        assert_eq!(rep.declared, 24);
     }
 }

@@ -69,7 +69,7 @@ export const hook = (token: string, body: unknown, headers: Record<string, strin
 
 /** POST thân THÔ (chữ ký tính trên byte, text/plain, thân quá lớn): `call()` luôn `JSON.stringify` nên dùng fetch trực tiếp. */
 export async function hookRaw(token: string, raw: string | Buffer, headers: Record<string, string>): Promise<Res> {
-  const res = await fetch(`${config.baseUrl}${HOOK}/${token}`, { method: 'POST', headers: { 'x-real-ip': freshIp(), ...headers }, body: raw })
+  const res = await fetch(`${config.baseUrl}${HOOK}/${token}`, { method: 'POST', headers: { 'x-real-ip': freshIp(), ...headers }, body: raw as BodyInit })
   const text = await res.text()
   let body: unknown = text
   try {

@@ -119,8 +119,8 @@ async function main() {
     return `benh_nhan ${bn.fields.length} trường; lich_hen ${lh.fields.length} trường`;
   });
   await step('create_objects trùng khoá / liên kết tới bảng không có / kiểu lạ ⇒ báo lỗi ngay, không ghi gì', async () => {
-    const a = await call(admin.mcp, 'create_objects', { objects: [{ key: 'benh_nhan', label: 'X' }] });
-    const b = await call(admin.mcp, 'create_object', { label: 'Y', fields: [{ label: 'T', type: 'text' }, { label: 'L', type: 'relation', target_object: 'khong_co' }] });
+    const a = await call(admin.mcp, 'create_objects', { objects: [{ key: 'benh_nhan', label: 'X' }], confirmed_by_user: 'ok' });
+    const b = await call(admin.mcp, 'create_object', { confirmed_by_user: 'ok', label: 'Y', fields: [{ label: 'T', type: 'text' }, { label: 'L', type: 'relation', target_object: 'khong_co' }] });
     assert(a.isError && /đã được dùng/.test(a.text), a.text);
     assert(b.isError && /liên kết/.test(b.text), b.text);
   });
@@ -145,9 +145,10 @@ async function main() {
   });
 
   // ===== TRỤ CỘT 3 — không vượt quyền: sale/lead không sửa được cấu trúc =====
-  const STRUCT = [['create_objects', { objects: [{ label: 'Hack', fields: [{ label: 'T', type: 'text' }] }] }], ['create_object', { label: 'Hack' }], ['update_object', { object: 'benh_nhan', label: 'Hack' }],
+  // confirmed_by_user bắt buộc ở schema (contracts/mcp/tools.json) cho các tool tạo: thiếu thì SDK từ chối -32602 trước khi tới kiểm quyền.
+  const STRUCT = [['create_objects', { confirmed_by_user: 'ok', objects: [{ label: 'Hack', fields: [{ label: 'T', type: 'text' }] }] }], ['create_object', { confirmed_by_user: 'ok', label: 'Hack' }], ['update_object', { object: 'benh_nhan', label: 'Hack' }],
     ['add_field', { object: 'benh_nhan', label: 'Hạng thành viên', type: 'text' }], ['update_field', { object: 'benh_nhan', field: 'ho_ten', label: 'Hack' }], ['archive_field', { object: 'benh_nhan', field: 'sdt' }],
-    ['list_object_templates', {}], ['install_object_template', { template: 'education_center' }]];
+    ['list_object_templates', {}], ['install_object_template', { confirmed_by_user: 'ok', template: 'education_center' }]];
   for (const a of [() => sale, () => lead, () => low]) {
     await step(`${a()?.label}: mọi tool sửa cấu trúc đều bị TỪ CHỐI (custom_objects.manage) + describe_schema.structure.can_edit=false`, async () => {
       for (const [tool, args] of STRUCT) { const r = await call(a().mcp, tool, args); assert(denied(r, 'custom_objects.manage'), `${tool} không bị từ chối: ${r.text.slice(0, 200)}`); }

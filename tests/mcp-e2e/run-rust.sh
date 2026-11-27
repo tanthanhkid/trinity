@@ -84,6 +84,12 @@ export SAMPLE_PASSWORD="${SAMPLE_PASSWORD:-Demo@12345}"
 export MCP_BASE="http://127.0.0.1:$port"
 export DEMO_DATABASE_URL="$DATABASE_URL"
 export MCP_LOG_DIR="$logs"
+export E2E_ALLOW_LOCAL_DB=1
+export E2E_RUST=1
+# OAuth + MCP chỉ bật khi có 3 biến này (giá trị thử tự sinh, không dùng khoá thật).
+export INTEGRATIONS_MCP_ENABLED=true
+export INTEGRATIONS_PUBLIC_BASE_URL="http://127.0.0.1:$port"
+export INTEGRATIONS_SECRET_KEY="${INTEGRATIONS_SECRET_KEY:-$(rand)}"
 
 step() { printf '\n=== %s\n' "$*"; }
 
@@ -108,6 +114,8 @@ for _ in $(seq 60); do
   sleep 1
 done
 [ "$ok" = 1 ] || { echo "serve không lên sau 60 giây:" >&2; tail -n 30 "$logs/serve.log" >&2; exit 1; }
+
+node "$here/setup-fixture.mjs" "$cred"
 
 fail=0
 run() { # run <tên> <lệnh...>: ghi log, không dừng khi một kịch bản đỏ để còn thấy hết

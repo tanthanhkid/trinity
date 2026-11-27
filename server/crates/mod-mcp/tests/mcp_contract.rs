@@ -781,6 +781,15 @@ async fn scope_quyen_va_anh_xa_loi() {
         ),
         (
             ToolError::Http {
+                status: 403,
+                message: "Bạn không có quyền thực hiện thao tác này (cần quyền custom_records.manage).".into(),
+            },
+            "Bạn không có quyền thực hiện thao tác này (cần quyền custom_records.manage).",
+            AuditStatus::Denied,
+            "forbidden",
+        ),
+        (
+            ToolError::Http {
                 status: 409,
                 message: "trùng".into(),
             },

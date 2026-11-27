@@ -28,11 +28,13 @@ await db.connect();
 const pw = () => randomBytes(12).toString('base64url');
 
 async function cloneRole(name, source, extra) {
-  const src = (await db.query('SELECT id FROM roles WHERE name = $1 LIMIT 1', [source])).rows[0];
+  // Nhiều tên nguồn: bản demo Neon dùng 'Nhân viên kinh doanh', `seed --sample` đặt tên 'Sale'.
+  const names = [].concat(source);
+  const src = (await db.query('SELECT id FROM roles WHERE name = ANY($1) ORDER BY id LIMIT 1', [names])).rows[0];
   const base = src ? (await db.query('SELECT permission, scope FROM role_permissions WHERE role_id = $1', [src.id])).rows : [];
   const role = (await db.query(
     `INSERT INTO roles (name, description) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
-    [name, `Vai trò thử e2e MCP (sao chép "${source}")`])).rows[0];
+    [name, `Vai trò thử e2e MCP (sao chép "${names[0]}")`])).rows[0];
   const merged = new Map(base.map((p) => [p.permission, p.scope]));
   for (const [k, v] of Object.entries(extra)) merged.set(k, v);
   await db.query('DELETE FROM role_permissions WHERE role_id = $1', [role.id]);
@@ -56,7 +58,7 @@ try {
   const admin = (await db.query("SELECT id FROM users WHERE email = 'mcp-test@example.com'")).rows[0];
   if (!admin) throw new Error('Chưa có mcp-test (chạy setup-users.mjs trước)');
   const leadRole = await cloneRole('MCP e2e - Trưởng nhóm', 'Trưởng nhóm', { 'integrations.ai_connect': null, 'contacts.create': null, 'custom_records.view': 'team', 'custom_records.manage': 'team', 'custom_records.delete': 'team' });
-  const saleRole = await cloneRole('MCP e2e - Sale', 'Nhân viên kinh doanh', { 'integrations.ai_connect': null, 'contacts.create': null, 'custom_records.view': 'own', 'custom_records.manage': 'own' });
+  const saleRole = await cloneRole('MCP e2e - Sale', ['Nhân viên kinh doanh', 'Sale'], { 'integrations.ai_connect': null, 'contacts.create': null, 'custom_records.view': 'own', 'custom_records.manage': 'own' });
   const [a, b, c] = [pw(), pw(), pw()];
   const lead = await upsertUser('mcp-lead@example.com', 'MCP Test (trưởng nhóm)', a, leadRole.id, null);
   const sale = await upsertUser('mcp-sale@example.com', 'MCP Test (sale cấp dưới)', b, saleRole.id, lead.id);

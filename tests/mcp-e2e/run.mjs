@@ -106,10 +106,14 @@ async function main() {
   console.log(`# E2E MCP → ${BASE}  (${new Date().toISOString()})`);
 
   await step('discovery: protected-resource + authorization-server (DCR, S256)', async () => {
-    const pr = await http('GET', '/.well-known/oauth-protected-resource/api/v1/mcp');
-    const prFallback = pr.status === 200 ? pr : await http('GET', '/.well-known/oauth-protected-resource');
+    // E2E_RUST=1: binary Rust chưa phục vụ /.well-known ở gốc (hiện do rewrite của Next/strangler sang Node, PLAN 4.14; Rust trả
+    // trực tiếp ở X06). Kiểm đúng đường Rust có: /api/v1/oauth/protected-resource và /api/v1/oauth/.well-known/...
+    const rust = process.env.E2E_RUST === '1';
+    const WK = rust ? '/api/v1/oauth' : '';
+    const pr = rust ? { status: 0 } : await http('GET', '/.well-known/oauth-protected-resource/api/v1/mcp');
+    const prFallback = pr.status === 200 ? pr : await http('GET', rust ? '/api/v1/oauth/protected-resource' : '/.well-known/oauth-protected-resource');
     assert(prFallback.status === 200 && prFallback.json?.resource === `${BASE}/api/v1/mcp`, `PRM => ${prFallback.status} ${prFallback.text.slice(0, 120)}`);
-    const as = await http('GET', '/.well-known/oauth-authorization-server');
+    const as = await http('GET', `${WK}/.well-known/oauth-authorization-server`);
     assert(as.status === 200 && as.json?.registration_endpoint && as.json.code_challenge_methods_supported?.includes('S256'), `AS metadata => ${as.status}`);
     return `resource=${prFallback.json.resource}; registration_endpoint có; scopes=${as.json.scopes_supported}`;
   });
@@ -135,7 +139,8 @@ async function main() {
     tools = (await admin.listTools()).tools;
     const names = tools.map((t) => t.name);
     for (const n of ['describe_schema', 'list_records', 'get_record', 'create_record', 'update_record']) assert(names.includes(n), `thiếu ${n}`);
-    assert(!names.some((n) => /delete|remove|drop|structure/i.test(n)), `có tool xoá: ${names}`);
+    // Tool cấu trúc (create_objects, restore_structure_version...) có từ sau bản 5 tool; chỉ cấm tool xoá cứng.
+    assert(!names.some((n) => /delete|remove|drop/i.test(n)), `có tool xoá: ${names}`);
     assert(tools.find((t) => t.name === 'create_record').annotations?.readOnlyHint === false, 'create_record phải readOnlyHint=false');
     return `${names.length} tool: ${names.join(', ')}`;
   });

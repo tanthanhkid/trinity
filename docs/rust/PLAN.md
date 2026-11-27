@@ -3,7 +3,7 @@
 Trạng thái: **plan chốt (26/11/2026)**, sau phản biện lượt 1 tới 8 và quyết định của chủ dự án · Ngày: 26/11/2026 · Cơ sở đo: `origin/main` tại commit `fef6dab`.
 Danh sách issue: [ISSUES.md](ISSUES.md).
 
-**X06 (gỡ backend Node, Redis, Prisma khỏi đường chạy): đang gỡ, Refs [#264](https://github.com/tanthanhkid/trinity/issues/264)** (cập nhật 27/11/2026; đánh dấu xong khi khối kiểm cuối merge).
+**X06 (gỡ backend Node, Redis, Prisma khỏi đường chạy): XONG, Closes [#264](https://github.com/tanthanhkid/trinity/issues/264)** (27/11/2026; sáu khối services, prisma, redis, deploy, docs, kiểm cuối; việc còn lại: cổng tương thích `COMPAT_API_PORT` chưa được binary nghe, theo dõi ở issue riêng).
 
 Mọi con số trong tài liệu này đo trực tiếp từ mã (lệnh đo ở [Phụ lục A](#phụ-lục-a--lệnh-đo)). Chỗ nào là **đích** hoặc
 **giả thuyết chưa đo** thì ghi rõ như vậy.

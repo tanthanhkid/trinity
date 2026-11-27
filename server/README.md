@@ -229,17 +229,14 @@ với lỗi chỉ dòng, cột.
 ## Kiểm dữ liệu vào (`trinity-http::validate`)
 
 Body và query được kiểm như `ServiceAwareValidationPipe` của bản TS: route có tiền tố trong `LENIENT_PREFIXES` (auth,
-payroll, notification) bỏ trường lạ, route khác trả 400 `property x should not exist`. Luật không chép tay: test
-`apps/monolith/src/__tests__/dto-validation-contract.spec.ts` xuất metadata class-validator/class-transformer thật của
-DTO ra `contracts/dto/schema.json`, kèm golden do `ValidationPipe` của Nest sinh (`validation.golden.json`,
+payroll, notification) bỏ trường lạ, route khác trả 400 `property x should not exist`. Luật không chép tay: `contracts/dto/schema.json` là metadata class-validator/class-transformer của DTO, kèm golden do
+`ValidationPipe` của Nest sinh lần cuối ở X03 (backend Node đã gỡ ở X06, các tệp này là dữ liệu đóng băng) (`validation.golden.json`,
 `transform.golden.json`, `parse-int.golden.json`). Bản Rust chạy cùng thuật toán trên JSON thô rồi mới deserialize vào
 struct, nên mảng câu lỗi 400 khớp bản TS từng câu (kể cả câu tiếng Việt, thứ tự decorator, lỗi lồng `items.0.x`).
 
 Thêm một DTO cho handler Rust:
 
-1. Thêm class vào `SAMPLES` (hoặc `TRANSFORM_MODULES`) trong spec trên, sinh lại:
-   `UPDATE_GOLDEN=1 pnpm --filter @trinity/monolith exec jest src/__tests__/dto-validation-contract` (cần
-   `pnpm --filter "./packages/*" build` trước).
+1. Thêm mục DTO mới vào `contracts/dto/schema.json` bằng tay theo mẫu các mục cũ (không còn spec Node để sinh lại).
 2. `cargo xtask gen-dto <TênDto>` in khung struct (kiểu suy từ luật, `impl Dto`); chép vào crate module rồi sửa kiểu.
 3. Handler dùng `ValidJson<T>` / `ValidQuery<T>`; tham số đường dẫn số dùng `parse_int_param` (thay `ParseIntPipe`).
 

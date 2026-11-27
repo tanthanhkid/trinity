@@ -3,7 +3,6 @@
 nonexistent-test-*.json
 
 # Ảnh sản phẩm người dùng tải lên (POST /products/upload-image)
-apps/monolith/uploads/
 
 # build / deps / local
 node_modules/

@@ -310,7 +310,9 @@ async fn timeline(
     Query(q): Query<HashMap<String, String>>,
 ) -> Response {
     let Ok(id) = contact_id.parse::<i32>() else {
-        return fail(HttpError::not_found(format!("Không tìm thấy khách hàng ID {contact_id}")));
+        return fail(HttpError::not_found(format!(
+            "Không tìm thấy khách hàng ID {contact_id}"
+        )));
     };
     let r = prep!(c, u);
     let res = async {

@@ -442,6 +442,7 @@ impl TenantDb {
     pub async fn acquire(&self) -> Result<TenantConn, DbError> {
         let mut conn = self.pool.acquire().await?;
         set_search_path(&mut conn, &self.company.search_path()).await?;
+        shadow_read_only(&mut conn).await?;
         Ok(TenantConn {
             conn,
             company: self.company,
@@ -452,12 +453,24 @@ impl TenantDb {
     pub async fn begin(&self) -> Result<TenantTx, DbError> {
         let mut conn = self.pool.acquire().await?;
         set_search_path(&mut conn, &self.company.search_path()).await?;
+        shadow_read_only(&mut conn).await?;
         let tx = Transaction::begin(conn, None).await?;
         Ok(TenantTx {
             tx,
             company: self.company,
         })
     }
+}
+
+/// Đang chạy shadow (K28) ⇒ phiên chỉ đọc. Đặt ở mức PHIÊN vì `TenantDb` lấy kết nối theo nhu cầu chứ không bọc cả handler trong
+/// một giao dịch; `RESET ALL` của `after_release` trả kết nối về nguyên trạng khi nó quay lại pool.
+async fn shadow_read_only(conn: &mut PgConnection) -> Result<(), DbError> {
+    if trinity_kernel::shadow::active() {
+        sqlx::query("SET default_transaction_read_only = on")
+            .execute(&mut *conn)
+            .await?;
+    }
+    Ok(())
 }
 
 async fn set_search_path(conn: &mut PgConnection, value: &str) -> Result<(), DbError> {
@@ -536,13 +549,14 @@ pub struct PlatformDb {
 
 impl PlatformDb {
     pub async fn acquire(&self) -> Result<PlatformConn, DbError> {
-        Ok(PlatformConn {
-            conn: self.pool.acquire().await?,
-        })
+        let mut conn = self.pool.acquire().await?;
+        shadow_read_only(&mut conn).await?;
+        Ok(PlatformConn { conn })
     }
 
     pub async fn begin(&self) -> Result<PlatformTx, DbError> {
-        let conn = self.pool.acquire().await?;
+        let mut conn = self.pool.acquire().await?;
+        shadow_read_only(&mut conn).await?;
         Ok(PlatformTx {
             tx: Transaction::begin(conn, None).await?,
         })

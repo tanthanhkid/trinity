@@ -168,6 +168,7 @@ impl S3Driver {
 
     /// Ghi object kèm `Content-Type`; trả lại `key`.
     pub async fn upload(&self, key: &str, body: Bytes, content_type: &str) -> Result<String, StorageError> {
+        deny_in_shadow()?;
         let path = to_path(key)?;
         let mut attributes = Attributes::new();
         attributes.insert(Attribute::ContentType, content_type.to_owned().into());
@@ -183,6 +184,7 @@ impl S3Driver {
     where
         R: AsyncRead + Unpin + ?Sized,
     {
+        deny_in_shadow()?;
         let path = to_path(key)?;
         let mut attributes = Attributes::new();
         attributes.insert(Attribute::ContentType, content_type.to_owned().into());
@@ -214,6 +216,7 @@ impl S3Driver {
 
     /// Đọc cả object.
     pub async fn get(&self, key: &str) -> Result<S3Object, StorageError> {
+        deny_in_shadow()?;
         let path = to_path(key)?;
         let res = self.store.get(&path).await.map_err(|e| map_err(e, key))?;
         let content_type = content_type_of(&res.attributes);
@@ -228,6 +231,7 @@ impl S3Driver {
     /// Đọc có `Range` (giá trị thô của header), cùng luật với driver đĩa: range không hợp lệ hoặc ngoài object ⇒ cả
     /// object (200). Một request: kích thước và khoảng thực trả về lấy từ phản hồi.
     pub async fn get_range(&self, key: &str, range: Option<&str>) -> Result<S3RangedObject, StorageError> {
+        deny_in_shadow()?;
         let path = to_path(key)?;
         let mut got = None;
         if let Some(r) = range.and_then(syntactic_range) {
@@ -262,6 +266,7 @@ impl S3Driver {
 
     /// Xoá không ném lỗi (không có thì thôi; lỗi khác chỉ ghi cảnh báo), như bản TS.
     pub async fn delete(&self, key: &str) -> Result<(), StorageError> {
+        deny_in_shadow()?;
         let path = match to_path(key) {
             Ok(p) => p,
             Err(e) => {
@@ -327,6 +332,11 @@ fn content_type_of(attrs: &Attributes) -> String {
         .map(|v| v.to_string())
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| DEFAULT_CONTENT_TYPE.to_owned())
+}
+
+/// K28: đang shadow thì KHÔNG gọi S3/MinIO (ghi vi phạm, không thử lại).
+fn deny_in_shadow() -> Result<(), StorageError> {
+    trinity_kernel::shadow::forbid_outbound("s3").map_err(|e| StorageError::Backend(e.to_string()))
 }
 
 fn backend(e: object_store::Error) -> StorageError {

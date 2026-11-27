@@ -4958,6 +4958,8 @@ name = "trinity-http"
 version = "0.3.0"
 dependencies = [
  "axum",
+ "bytes",
+ "chrono",
  "fancy-regex 0.14.0",
  "form_urlencoded",
  "hmac",
@@ -5042,6 +5044,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
  "url",
 ]
 
@@ -5127,6 +5130,7 @@ dependencies = [
  "tokio-util",
  "tower",
  "tracing",
+ "trinity-kernel",
  "url",
  "uuid",
 ]

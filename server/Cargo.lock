@@ -2266,6 +2266,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-payroll"
+version = "0.3.0"
+dependencies = [
+ "http",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "trinity-db",
+ "trinity-http",
+ "trinity-kernel",
+]
+
+[[package]]
 name = "mod-pos"
 version = "0.3.0"
 dependencies = [
@@ -4370,6 +4385,7 @@ dependencies = [
  "mod-hr",
  "mod-kanban",
  "mod-oauth",
+ "mod-payroll",
  "mod-pos",
  "mod-system",
  "mod-users",

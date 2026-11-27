@@ -748,3 +748,35 @@ async fn index_duy_nhat_lower_name_chan_ten_khac_hoa_thuong_o_tang_db() {
         1
     );
 }
+
+#[tokio::test]
+#[ignore = "cần TEST_DATABASE_URL"]
+async fn vai_tro_thanh_vien_co_dinh_khong_sua_khong_xoa() {
+    let env = setup().await;
+    let mut c = env.t.acquire().await.unwrap();
+    let id = trinity_rbac::fixed_roles::ensure_member_role(&mut c).await.unwrap();
+    // Tạo lười chạy lại cho cùng một dòng; tên tuỳ biến trùng đã bị đổi, không xoá.
+    assert_eq!(trinity_rbac::fixed_roles::ensure_member_role(&mut c).await.unwrap(), id);
+    assert_eq!(
+        count(&env, "SELECT count(*) FROM role_permissions WHERE role_id > 100").await,
+        trinity_rbac::fixed_roles::MEMBER_GRANTS.len() as i64
+    );
+    // Quản trị cũng không sửa tên, đổi quyền hay xoá được vai trò cố định.
+    let upd = validate_update_role(&json!({"name": "Khác"})).unwrap();
+    expect_err(roles::update(&mut c, &admin(1), id, &upd).await, 403, "cố định");
+    let grants = json!({"users.manage": "all"});
+    expect_err(
+        roles::set_grants(&mut c, &env.ctx, &admin(1), id, grants.as_object().unwrap()).await,
+        403,
+        "cố định",
+    );
+    expect_err(roles::remove(&mut c, &env.ctx, &admin(1), id).await, 403, "cố định");
+    assert_eq!(
+        count(
+            &env,
+            "SELECT count(*) FROM role_permissions WHERE role_id > 100 AND permission = 'users.manage'"
+        )
+        .await,
+        0
+    );
+}

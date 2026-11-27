@@ -8,6 +8,7 @@
 //! - [`routes`]: bảng route ([`routes::specs`], nạp vào `trinity-bin` để so với `routes.json`) và router axum.
 
 pub mod guards;
+pub mod members;
 pub mod pinned;
 pub mod routes;
 pub mod service;

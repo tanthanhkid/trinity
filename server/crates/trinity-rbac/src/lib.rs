@@ -5,6 +5,7 @@
 
 pub mod cache;
 pub mod catalog;
+pub mod fixed_roles;
 pub mod grants;
 pub mod plan;
 pub mod scope;

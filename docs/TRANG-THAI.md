@@ -79,7 +79,7 @@ Mỗi câu lỗi trả lời hai câu hỏi: **chuyện gì xảy ra** và **là
 | `network` | Không có phản hồi | Không kết nối được máy chủ. Kiểm tra Internet rồi thử lại. | Thử lại |
 | `timeout` | Quá giờ, 408, 504 | Máy chủ phản hồi quá lâu. Thử lại sau ít phút. | Thử lại |
 | `session` | 401 | Phiên đăng nhập đã hết hạn. Đăng nhập lại để tiếp tục — dữ liệu đã lưu không mất. | Đăng nhập lại |
-| `forbidden` | 403 | Tài khoản của bạn chưa có quyền làm việc này. Nhờ quản trị viên cấp quyền ở Cài đặt › Vai trò. | (không) |
+| `forbidden` | 403 | Tài khoản của bạn chưa có quyền làm việc này. Nhờ quản trị viên cấp quyền ở Cài đặt › Thành viên. | (không) |
 | `notFound` | 404 | Không tìm thấy dữ liệu. Có thể mục này đã bị xoá hoặc chuyển cho người khác — tải lại để xem bản mới nhất. | Thử lại |
 | `conflict` | 409, 412 | Dữ liệu vừa được người khác thay đổi. Tải lại để xem bản mới nhất rồi làm lại. | Thử lại |
 | `validation` | 400, 422 | Thông tin chưa hợp lệ. Kiểm tra lại các ô đã nhập. | (không) |

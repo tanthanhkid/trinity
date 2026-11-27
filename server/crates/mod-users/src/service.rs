@@ -40,7 +40,7 @@ impl Ctx {
         t.begin().await.map_err(AppError::internal)
     }
 
-    fn multi_tenant(&self) -> bool {
+    pub(crate) fn multi_tenant(&self) -> bool {
         self.platform.multi_tenant()
     }
 
@@ -790,6 +790,9 @@ pub async fn update(ctx: &Ctx, actor: &Actor, id: i32, dto: &UpdateUser) -> R<Va
     let mut cascaded: i64 = 0;
     if locking {
         assert_not_last_admin(&mut conn, id).await?;
+        if crate::members::owner_of(&mut conn).await? == Some(id) {
+            return Err(HttpError::forbidden("Không thể khoá Chủ sở hữu. Hãy chuyển quyền chủ trước.").into());
+        }
         cascaded = sqlx::query_scalar("SELECT count(*) FROM users WHERE manager_id = $1 AND deleted_at IS NULL")
             .bind(id)
             .fetch_one(&mut *conn)
@@ -907,6 +910,9 @@ pub async fn reset_password(ctx: &Ctx, actor: &Actor, id: i32, new_password: Opt
     assert_can_manage_user(&ctx.scopes, &ctx.perms, actor, id).await?;
     let mut conn = ctx.conn(actor.company).await?;
     let user = target(&mut conn, id).await?;
+    if crate::members::owner_of(&mut conn).await? == Some(id) {
+        return Err(HttpError::forbidden("Không thể đặt lại mật khẩu của Chủ sở hữu từ đây").into());
+    }
     let pw = new_password.filter(|p| !p.trim().is_empty());
     let Some(pw) = pw else {
         return Err(HttpError::bad_request("Vui lòng nhập mật khẩu mới").into());
@@ -992,6 +998,9 @@ pub async fn lock(ctx: &Ctx, actor: &Actor, id: i32, reassign_to: Option<i32>) -
     let mut tx = ctx.begin(actor.company).await?;
     lock_admin_mutation(&mut tx).await?;
     assert_not_last_admin(&mut tx, id).await?;
+    if crate::members::owner_of(&mut tx).await? == Some(id) {
+        return Err(HttpError::forbidden("Không thể khoá Chủ sở hữu. Hãy chuyển quyền chủ trước.").into());
+    }
     if managed > 0 {
         cascade_reassign(&mut tx, id, reassign_to).await?;
     }
@@ -1010,6 +1019,18 @@ pub async fn lock(ctx: &Ctx, actor: &Actor, id: i32, reassign_to: Option<i32>) -
 
 /// `DELETE /users/:id/permanent`: soft delete sâu (`deleted_at`, giải phóng email), không xoá cứng để giữ tham chiếu.
 pub async fn permanent_delete(ctx: &Ctx, actor: &Actor, id: i32, reassign_to: Option<i32>) -> R<Value> {
+    permanent_delete_with(ctx, actor, id, reassign_to, None).await
+}
+
+/// Như [`permanent_delete`], thêm `data_to`: chuyển khách, deal, việc kanban... của người bị xoá sang người này TRONG cùng
+/// giao dịch (xoá không chuyển được thì dữ liệu không bị đổi).
+pub async fn permanent_delete_with(
+    ctx: &Ctx,
+    actor: &Actor,
+    id: i32,
+    reassign_to: Option<i32>,
+    data_to: Option<i32>,
+) -> R<Value> {
     if actor.user_id == id {
         return Err(HttpError::forbidden("Không thể tự xoá vĩnh viễn tài khoản của mình").into());
     }
@@ -1018,6 +1039,9 @@ pub async fn permanent_delete(ctx: &Ctx, actor: &Actor, id: i32, reassign_to: Op
     let t = target(&mut tx, id).await?;
     lock_admin_mutation(&mut tx).await?;
     assert_not_last_admin(&mut tx, id).await?;
+    if crate::members::owner_of(&mut tx).await? == Some(id) {
+        return Err(HttpError::forbidden("Không thể xoá Chủ sở hữu. Hãy chuyển quyền chủ trước.").into());
+    }
     let managed: i64 = sqlx::query_scalar("SELECT count(*) FROM users WHERE manager_id = $1 AND deleted_at IS NULL")
         .bind(id)
         .fetch_one(&mut *tx)
@@ -1025,6 +1049,9 @@ pub async fn permanent_delete(ctx: &Ctx, actor: &Actor, id: i32, reassign_to: Op
         .map_err(db)?;
     if managed > 0 {
         cascade_reassign(&mut tx, id, reassign_to).await?;
+    }
+    if let Some(to) = data_to {
+        crate::members::transfer_data(&mut tx, id, to).await?;
     }
     revoke_pending_by(&mut tx, actor.company, id).await?;
     sqlx::query(
@@ -1197,6 +1224,11 @@ pub async fn set_roles(ctx: &Ctx, actor: &Actor, id: i32, role_ids: &[i32]) -> R
         if remaining == 0 {
             return Err(HttpError::conflict("Phải còn ít nhất 1 Quản trị").into());
         }
+    }
+    if !next_has_system && crate::members::owner_of(&mut conn).await? == Some(id) {
+        return Err(
+            HttpError::forbidden("Không gỡ được quyền Quản trị của Chủ sở hữu. Hãy chuyển quyền chủ trước.").into(),
+        );
     }
     drop(conn);
 

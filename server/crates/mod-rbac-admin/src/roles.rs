@@ -90,6 +90,14 @@ impl RoleRow {
     }
 }
 
+/// Vai trò Thành viên của mô hình ba vai trò là cố định: không đổi tên, không đổi quyền, không xoá.
+fn assert_not_fixed(role: &RoleRow) -> Result<(), AppError> {
+    if role.summary.description.as_deref() == Some(trinity_rbac::fixed_roles::MEMBER_ROLE_MARK) {
+        return Err(HttpError::forbidden("Vai trò Thành viên là cố định, không sửa hoặc xoá được").into());
+    }
+    Ok(())
+}
+
 macro_rules! summary_sql {
     () => {
         "SELECT r.id, r.name, r.description, r.is_system,
@@ -315,6 +323,7 @@ pub async fn update(
     input: &UpdateRole,
 ) -> Result<RoleDetail, AppError> {
     let role = load(conn, id).await?;
+    assert_not_fixed(&role)?;
     assert_can_modify_existing_role(actor, role.summary.is_system, &role.effective_grants())?;
     let name = input
         .name
@@ -379,6 +388,7 @@ pub async fn set_grants(
     input: &Map<String, Value>,
 ) -> Result<RoleDetail, AppError> {
     let role = load(conn, id).await?;
+    assert_not_fixed(&role)?;
     let before = role.effective_grants();
     assert_can_modify_existing_role(actor, role.summary.is_system, &before)?;
     let next = parse_grants_input(input)?;
@@ -418,6 +428,7 @@ pub async fn set_grants(
 /// giao dịch xoá.
 pub async fn remove(conn: &mut PgConnection, ctx: &Ctx, actor: &Actor, id: i32) -> Result<Message, AppError> {
     let role = load(conn, id).await?;
+    assert_not_fixed(&role)?;
     if role.summary.is_system {
         return Err(conflict("Không thể xoá vai trò hệ thống"));
     }

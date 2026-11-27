@@ -11412,6 +11412,131 @@
   },
   "defaults": {}
  },
+ "QueryMarketingAccountReportDto": {
+  "declared": [
+   "date_from",
+   "date_to",
+   "marketing_user_id"
+  ],
+  "validated": [
+   "date_from",
+   "date_to",
+   "marketing_user_id"
+  ],
+  "fields": {
+   "date_from": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^\\d{4}-\\d{2}-\\d{2}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "date_from phải đúng định dạng YYYY-MM-DD",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isDateString",
+      "constraints": [
+       {}
+      ],
+      "message": "date_from không hợp lệ",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "date_to": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^\\d{4}-\\d{2}-\\d{2}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "date_to phải đúng định dạng YYYY-MM-DD",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isDateString",
+      "constraints": [
+       {}
+      ],
+      "message": "date_to không hợp lệ",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "marketing_user_id": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   }
+  },
+  "defaults": {}
+ },
  "QueryNotificationDto": {
   "declared": [
    "cursor",
@@ -11951,6 +12076,114 @@
   },
   "defaults": {}
  },
+ "QueryReportUncontactedDto": {
+  "declared": [
+   "days",
+   "cursor",
+   "limit"
+  ],
+  "validated": [
+   "days",
+   "cursor",
+   "limit"
+  ],
+  "fields": {
+   "days": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        7,
+        14,
+        30
+       ]
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "cursor": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "limit": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   }
+  },
+  "defaults": {}
+ },
  "QueryWebhookDeliveriesDto": {
   "declared": [
    "endpoint_id",
@@ -12333,6 +12566,48 @@
   },
   "defaults": {}
  },
+ "RunCustomReportQueryDto": {
+  "declared": [
+   "period"
+  ],
+  "validated": [
+   "period"
+  ],
+  "fields": {
+   "period": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       20
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
  "SalaryRuleDetailDto": {
   "declared": [
    "component",
@@ -12475,6 +12750,28 @@
         "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
        }
       ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
+ "SaveCustomReportsDto": {
+  "declared": [
+   "reports"
+  ],
+  "validated": [
+   "reports"
+  ],
+  "fields": {
+   "reports": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isArray",
+      "constraints": [],
       "message": null,
       "each": false
      }

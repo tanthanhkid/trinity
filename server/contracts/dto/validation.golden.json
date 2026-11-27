@@ -30231,6 +30231,1189 @@
   }
  },
  {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "days": null,
+   "cursor": null,
+   "limit": null
+  },
+  "result": {
+   "ok": {
+    "days": null,
+    "cursor": null,
+    "limit": null
+   }
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "days": "",
+   "cursor": "",
+   "limit": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30",
+    "cursor must not be less than 1",
+    "limit must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "days": "  x  ",
+   "cursor": "  x  ",
+   "limit": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30",
+    "cursor must not be less than 1",
+    "cursor must be an integer number",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "days": 12.5,
+   "cursor": 12.5,
+   "limit": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30",
+    "cursor must be an integer number",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "days": -1,
+   "cursor": -1,
+   "limit": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30",
+    "cursor must not be less than 1",
+    "limit must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "days": 0,
+   "cursor": 0,
+   "limit": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30",
+    "cursor must not be less than 1",
+    "limit must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "days": true,
+   "cursor": true,
+   "limit": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "days": [
+    "a",
+    1
+   ],
+   "cursor": [
+    "a",
+    1
+   ],
+   "limit": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30",
+    "cursor must not be less than 1",
+    "cursor must be an integer number",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "days": {
+    "a": 1
+   },
+   "cursor": {
+    "a": 1
+   },
+   "limit": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30",
+    "cursor must not be less than 1",
+    "cursor must be an integer number",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "days": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "cursor": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "limit": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30",
+    "cursor must not be less than 1",
+    "cursor must be an integer number",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "days": "2026-11-26T10:00:00Z",
+   "cursor": "2026-11-26T10:00:00Z",
+   "limit": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30",
+    "cursor must not be less than 1",
+    "cursor must be an integer number",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "days": "123",
+   "cursor": "123",
+   "limit": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "days": "a@example.com",
+   "cursor": "a@example.com",
+   "limit": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30",
+    "cursor must not be less than 1",
+    "cursor must be an integer number",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "days": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "cursor": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "limit": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30",
+    "cursor must not be less than 1",
+    "cursor must be an integer number",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "days": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "days must be one of the following values: 7, 14, 30"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "days": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "days must be one of the following values: 7, 14, 30"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "date_from": null,
+   "date_to": null,
+   "marketing_user_id": null
+  },
+  "result": {
+   "ok": {
+    "date_from": null,
+    "date_to": null,
+    "marketing_user_id": null
+   }
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "date_from": "",
+   "date_to": "",
+   "marketing_user_id": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ",
+    "marketing_user_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "date_from": "  x  ",
+   "date_to": "  x  ",
+   "marketing_user_id": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ",
+    "marketing_user_id must not be less than 1",
+    "marketing_user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "date_from": 12.5,
+   "date_to": 12.5,
+   "marketing_user_id": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ",
+    "marketing_user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "date_from": -1,
+   "date_to": -1,
+   "marketing_user_id": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ",
+    "marketing_user_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "date_from": 0,
+   "date_to": 0,
+   "marketing_user_id": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ",
+    "marketing_user_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "date_from": true,
+   "date_to": true,
+   "marketing_user_id": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "date_from": [
+    "a",
+    1
+   ],
+   "date_to": [
+    "a",
+    1
+   ],
+   "marketing_user_id": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ",
+    "marketing_user_id must not be less than 1",
+    "marketing_user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "date_from": {
+    "a": 1
+   },
+   "date_to": {
+    "a": 1
+   },
+   "marketing_user_id": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ",
+    "marketing_user_id must not be less than 1",
+    "marketing_user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "date_from": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "date_to": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "marketing_user_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ",
+    "marketing_user_id must not be less than 1",
+    "marketing_user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "date_from": "2026-11-26T10:00:00Z",
+   "date_to": "2026-11-26T10:00:00Z",
+   "marketing_user_id": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "marketing_user_id must not be less than 1",
+    "marketing_user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "date_from": "123",
+   "date_to": "123",
+   "marketing_user_id": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "date_from": "a@example.com",
+   "date_to": "a@example.com",
+   "marketing_user_id": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ",
+    "marketing_user_id must not be less than 1",
+    "marketing_user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "date_from": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "date_to": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "marketing_user_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ",
+    "marketing_user_id must not be less than 1",
+    "marketing_user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date_from": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date_from": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "reports": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "reports": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "reports": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "reports": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "reports": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "reports": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "reports": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "reports": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "ok": {
+    "reports": [
+     "a",
+     1
+    ]
+   }
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "reports": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "reports": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "reports": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "reports": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "reports": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "reports": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "ok": {
+    "reports": [
+     {},
+     {
+      "__la__": 1
+     }
+    ]
+   }
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "reports": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "reports": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "period": null
+  },
+  "result": {
+   "ok": {
+    "period": null
+   }
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "period": ""
+  },
+  "result": {
+   "ok": {
+    "period": ""
+   }
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "period": "  x  "
+  },
+  "result": {
+   "ok": {
+    "period": "  x  "
+   }
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "period": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "period must be shorter than or equal to 20 characters",
+    "period must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "period": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "period must be shorter than or equal to 20 characters",
+    "period must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "period": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "period must be shorter than or equal to 20 characters",
+    "period must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "period": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "period must be shorter than or equal to 20 characters",
+    "period must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "period": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "period must be shorter than or equal to 20 characters",
+    "period must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "period": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "period must be shorter than or equal to 20 characters",
+    "period must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "period": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "period must be shorter than or equal to 20 characters"
+   ]
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "period": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "ok": {
+    "period": "2026-11-26T10:00:00Z"
+   }
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "period": "123"
+  },
+  "result": {
+   "ok": {
+    "period": "123"
+   }
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "period": "a@example.com"
+  },
+  "result": {
+   "ok": {
+    "period": "a@example.com"
+   }
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "period": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "period must be shorter than or equal to 20 characters",
+    "period must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "period": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "period": "x"
+  },
+  "result": {
+   "ok": {
+    "period": "x"
+   }
+  }
+ },
+ {
   "dto": "ApplyTemplateDto",
   "mode": "strict",
   "probe": "empty_object",
@@ -33092,6 +34275,179 @@
     "date_from là bắt buộc",
     "date_to phải đúng định dạng YYYY-MM-DD",
     "date_to là bắt buộc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "valid_query",
+  "input": {
+   "days": "14",
+   "cursor": "9",
+   "limit": "50"
+  },
+  "result": {
+   "ok": {
+    "days": 14,
+    "cursor": 9,
+    "limit": 50
+   }
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "query_sai",
+  "input": {
+   "days": "5",
+   "cursor": "0",
+   "limit": "x",
+   "y": "1"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property y should not exist",
+    "days must be one of the following values: 7, 14, 30",
+    "cursor must not be less than 1",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportUncontactedDto",
+  "mode": "strict",
+  "probe": "rong",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "valid_query",
+  "input": {
+   "date_from": "2026-06-01",
+   "date_to": "2026-06-30",
+   "marketing_user_id": "3"
+  },
+  "result": {
+   "ok": {
+    "date_from": "2026-06-01",
+    "date_to": "2026-06-30",
+    "marketing_user_id": 3
+   }
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "query_sai",
+  "input": {
+   "date_from": "2026-6-1",
+   "date_to": "abc",
+   "marketing_user_id": "0",
+   "z": "1"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property z should not exist",
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from không hợp lệ",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to không hợp lệ",
+    "marketing_user_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryMarketingAccountReportDto",
+  "mode": "strict",
+  "probe": "rong",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "reports": [
+    {
+     "id": "a"
+    }
+   ]
+  },
+  "result": {
+   "ok": {
+    "reports": [
+     {
+      "id": "a"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "reports": "x",
+   "la": 1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property la should not exist",
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "SaveCustomReportsDto",
+  "mode": "strict",
+  "probe": "thieu",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "reports must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "valid_query",
+  "input": {
+   "period": "month:2026-02"
+  },
+  "result": {
+   "ok": {
+    "period": "month:2026-02"
+   }
+  }
+ },
+ {
+  "dto": "RunCustomReportQueryDto",
+  "mode": "strict",
+  "probe": "query_sai",
+  "input": {
+   "period": "xxxxxxxxxxxxxxxxxxxxx",
+   "q": "1"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property q should not exist",
+    "period must be shorter than or equal to 20 characters"
    ]
   }
  },

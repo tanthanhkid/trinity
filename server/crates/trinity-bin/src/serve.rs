@@ -27,6 +27,7 @@ use trinity_db::{Db, DbConfig};
 use trinity_http::edge::body::{error_response, json_limit};
 use trinity_http::edge::client_ip::{ClientIpResolver, NetProbe};
 use trinity_http::edge::cors::{CorsConfig, cors_layer};
+use trinity_http::edge::security_headers::{SecurityHeadersConfig, security_headers_layer};
 use trinity_http::router::{AccessDeps, ApiRouter, NamedGuard};
 use trinity_http::strangler::{
     ListenerScheme, NodeProxy, OwnershipTable, ProxyTimeouts, dispatcher_full, initial_from_routes_env,
@@ -973,6 +974,15 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     let _reloader = spawn_sighup_reloader(table.clone()).map_err(|e| format!("SIGHUP: {e}"))?;
     let shadow = crate::shadow_report::init(lookup)?;
     let app = dispatcher_full(table, rust, proxy, ip.clone(), shadow, web);
+    // Header bảo mật chung ở lớp ngoài cùng (header đã có sẵn trong phản hồi được giữ nguyên).
+    let app = app.layer(from_fn_with_state(
+        Arc::new(SecurityHeadersConfig::from_lookup(
+            lookup,
+            production,
+            matches!(config.tls, TlsMode::Files { .. }),
+        )),
+        security_headers_layer,
+    ));
 
     // ── Mở cổng và chạy
     let tls = match &config.tls {

@@ -1217,10 +1217,37 @@ fn body_object(v: &Value) -> Result<&Map<String, Value>, HttpError> {
         .ok_or_else(|| HttpError::validation(vec!["body must be an object".to_owned()]))
 }
 
+/// Whitelist của ValidationPipe (`forbidNonWhitelisted`): khoá ngoài danh sách ⇒ "property <khoá> should not exist", xếp TRƯỚC lỗi luật.
+fn unknown_keys(o: &Map<String, Value>, allowed: &[&str], errors: &mut Vec<String>) {
+    for k in o.keys() {
+        if !allowed.contains(&k.as_str()) {
+            errors.push(format!("property {k} should not exist"));
+        }
+    }
+}
+
 /// `CommentRuleDto`: mọi trường tuỳ chọn (null như vắng). Trả object đã kiểm cho [`create_rule`]/[`update_rule`].
 pub fn validate_rule_body(v: &Value) -> Result<Map<String, Value>, HttpError> {
     let o = body_object(v)?;
     let mut e = Vec::new();
+    unknown_keys(
+        o,
+        &[
+            "name",
+            "page_id",
+            "post_id",
+            "keywords",
+            "exclude_keywords",
+            "public_replies",
+            "private_reply",
+            "hide_if_phone",
+            "once_per_user",
+            "mode",
+            "is_active",
+            "position",
+        ],
+        &mut e,
+    );
     opt_string(&mut e, o, "name", 120);
     opt_string(&mut e, o, "page_id", 40);
     opt_string(&mut e, o, "post_id", 500);

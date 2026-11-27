@@ -190,6 +190,15 @@ fn body_object(v: &Value) -> Result<&Map<String, Value>, HttpError> {
         .ok_or_else(|| HttpError::validation(vec!["body must be an object".to_owned()]))
 }
 
+/// Whitelist của ValidationPipe (`forbidNonWhitelisted`): khoá ngoài danh sách ⇒ "property <khoá> should not exist", xếp TRƯỚC lỗi luật.
+fn unknown_keys(o: &Map<String, Value>, allowed: &[&str], errors: &mut Vec<String>) {
+    for k in o.keys() {
+        if !allowed.contains(&k.as_str()) {
+            errors.push(format!("property {k} should not exist"));
+        }
+    }
+}
+
 /// `@IsOptional() @IsString() @MaxLength(max)`: vắng ⇒ `None`; `null` ⇒ chuỗi rỗng (class-validator bỏ qua, service coi là rỗng nên
 /// báo 400 "thiếu", không để NULL chạm cột NOT NULL); không phải chuỗi hoặc quá dài ⇒ ghi lỗi. Độ dài tính theo UTF-16.
 fn opt_string(o: &Map<String, Value>, key: &str, max: usize, errors: &mut Vec<String>) -> Option<String> {
@@ -226,6 +235,7 @@ impl BroadcastInput {
     pub fn from_json(v: &Value) -> Result<Self, HttpError> {
         let o = body_object(v)?;
         let mut e = Vec::new();
+        unknown_keys(o, &["name", "page_id", "text", "audience"], &mut e);
         let name = opt_string(o, "name", 120, &mut e);
         let page_id = opt_string(o, "page_id", 40, &mut e);
         let text = opt_string(o, "text", 2000, &mut e);
@@ -265,6 +275,11 @@ pub fn parse_preview(v: &Value) -> Result<(String, Audience), HttpError> {
 /// Body `POST /facebook/broadcasts/:id/send` (`BroadcastSendDto`): `scheduled_at` chuỗi ≤ 40, `null` như vắng.
 pub fn parse_send(v: &Value) -> Result<Option<String>, HttpError> {
     let o = body_object(v)?;
+    let mut e = Vec::new();
+    unknown_keys(o, &["scheduled_at"], &mut e);
+    if !e.is_empty() {
+        return Err(HttpError::validation(e));
+    }
     match o.get("scheduled_at") {
         None | Some(Value::Null) => Ok(None),
         Some(Value::String(s)) if s.encode_utf16().count() <= 40 => Ok(Some(s.clone())),

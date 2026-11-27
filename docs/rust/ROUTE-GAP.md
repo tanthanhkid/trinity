@@ -8,8 +8,8 @@ Là phép đếm tĩnh: dòng nào còn nghi thì để `cargo xtask check-route
 ## Kết quả
 
 - 583 route trong hợp đồng; **582 đã khai và mount**. Thiếu **0** route cần viết.
-- 1 route cố ý không port: `POST /api/v1/social/media/upload-token` (SocialController) — đã gỡ cùng Vercel Blob (G11).
-  Còn nằm trong `routes.json` nhưng đã đánh dấu bỏ ở `RUST_REMOVED_ROUTES`.
+- `POST /api/v1/social/media/upload-token` (SocialController): phần Vercel Blob đã gỡ (G11) nhưng route được khai lại (#612) chỉ để
+  kiểm loại/cỡ trước khi tải (luôn 400/413), vì web luôn hỏi route này trước khi gửi multipart. `RUST_REMOVED_ROUTES` hiện rỗng.
 - Chốt bằng máy (27/11, sau sửa): `cargo xtask check-routes --require-all` **đã khai 570/570 route, 0 lỗi**. Nhóm `rbac-admin` đã vào
   `declared_routes` (bỏ `PUT /users/:id/roles` vì mod-users đã khai); `POST /social/media/upload-token` nằm trong
   `RUST_REMOVED_ROUTES` (`trinity-http/src/router/check.rs`): không tính vào tổng, không báo thiếu, Rust khai lại thì lỗi.

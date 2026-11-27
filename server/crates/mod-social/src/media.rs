@@ -8,7 +8,7 @@
 //!   Video ĐÃ có trong kho dùng trần cứng 200 MB ([`MAX_STORED_VIDEO_BYTES`]).
 //! - Nhập từ link đi qua `trinity_http::outbound::safe_get` (chống SSRF dùng chung K35); như bản Node video qua link tối đa 100 MB.
 //! - Không giữ kết nối pool khi đọc/ghi kho tệp hay gọi mạng: mỗi bước DB xin một kết nối rồi nhả.
-//! - Route `POST /social/media/upload-token` đã gỡ cùng Vercel Blob (G11), không có ở đây.
+//! - `POST /social/media/upload-token` chỉ còn bước kiểm trước khi tải (router.rs `upload_token`); phần Vercel Blob đã gỡ (G11).
 
 use std::collections::HashSet;
 use std::pin::Pin;

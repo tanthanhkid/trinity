@@ -40,6 +40,7 @@ describe('Facebook: Page, trạng thái, kết nối', () => {
     ok(await api.get('/facebook/status', t()), 200, 'trạng thái')
     ok(await api.patch(`/facebook/pages/${pid}`, { ...t(), body: { is_active: false } }), 200, 'sửa Page')
     ok(await api.patch(`/facebook/pages/${pid}`, { ...t(), body: { is_active: 'khong-phai-bool' } }), 400, 'sửa Page sai kiểu')
+    ok(await api.post(`/facebook/pages/${pid}/check`, t()), 200, 'kiểm tra token Page')
     ok(await api.post('/facebook/connect-url', t()), 200, 'link kết nối')
     ok(await api.post('/facebook/tick', t()), 200, 'tick')
     ok(await api.del(`/facebook/pages/${pid}`, t()), 204, 'xoá Page')
@@ -139,6 +140,10 @@ describe('Facebook: luật bình luận, link mở chat, kịch bản, gửi hà
     ok(await api.post(`/facebook/broadcasts/${b.id}/send`, { ...t(), body: {} }), 200, 'gửi')
     ok(await api.post(`/facebook/broadcasts/${b.id}/cancel`, t()), [200, 400, 409], 'huỷ')
     ok(await api.del(`/facebook/broadcasts/${b.id}`, t()), [204, 400, 409], 'xoá')
+    // Hẹn giờ (3 ngày tới, trần 7 ngày) rồi huỷ: đường huỷ thành công (lượt gửi ngay đã kết thúc nên huỷ trả 400).
+    const later = ok<{ id: number }>(await api.post('/facebook/broadcasts', { ...t(), body: { name: 'Đợt hẹn giờ', page_id: page, text: 'Hẹn giờ', audience: {} } }), 201, 'tạo đợt hẹn giờ')
+    ok(await api.post(`/facebook/broadcasts/${later.id}/send`, { ...t(), body: { scheduled_at: new Date(Date.now() + 3 * 86_400_000).toISOString() } }), 200, 'hẹn giờ')
+    ok(await api.post(`/facebook/broadcasts/${later.id}/cancel`, t()), 200, 'huỷ lượt hẹn giờ')
   })
 })
 

@@ -203,6 +203,11 @@ impl UpdatePage {
             return Err(HttpError::validation(vec!["body must be an object".to_owned()]));
         };
         let mut e = Vec::new();
+        for k in o.keys() {
+            if !["default_assignee_id", "contact_source_id", "is_active"].contains(&k.as_str()) {
+                e.push(format!("property {k} should not exist"));
+            }
+        }
         let mut int = |name: &str| -> Option<i32> {
             let raw = o.get(name)?;
             let n = raw.as_i64().and_then(|n| i32::try_from(n).ok());

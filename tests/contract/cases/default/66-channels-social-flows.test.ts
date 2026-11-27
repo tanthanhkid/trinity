@@ -63,8 +63,7 @@ describe('kênh và mạng', () => {
 })
 
 describe('thư viện ảnh/video', () => {
-// SKIP #605: Rust chưa khớp hợp đồng Node ở ca này (POST /social/media/upload-token trả 404, chưa có route); bỏ skip khi sửa xong. Danh sách + lý do ở PR #605.
-  it.skip('kiểm trước khi tải, tải lên, thư viện, xem tệp, ẩn, link ký công khai', async () => {
+  it('kiểm trước khi tải, tải lên, thư viện, xem tệp, ẩn, link ký công khai', async () => {
     ok(await api.post('/social/media/upload-token', { ...t(), body: { file_name: 'a.png', size: 100 } }), 400, 'kiểm trước khi tải luôn 400')
     const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'))
     const upload = async (name: string, bytes: Uint8Array): Promise<{ status: number; json: { key?: string } }> => {

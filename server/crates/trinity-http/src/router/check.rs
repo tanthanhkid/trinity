@@ -33,8 +33,8 @@ pub const RUST_ONLY_AUTHED_ROUTES: &[&str] = &[
 /// Hợp đồng nhúng trong binary.
 /// Route Node đã gỡ có chủ đích khỏi bản Rust nhưng còn trong `routes.json` (hợp đồng đóng băng). Không tính vào "chưa khai"
 /// của `--require-all` và không tính vào tổng route phải khai; Rust mà khai lại thì là lỗi.
-/// - `POST /social/media/upload-token`: gỡ cùng Vercel Blob (G11); thay bằng tải theo phần `/social/media/uploads*`.
-pub const RUST_REMOVED_ROUTES: &[&str] = &["POST /api/v1/social/media/upload-token"];
+/// (Hiện không còn route nào: `POST /social/media/upload-token` đã khai lại ở mod-social, #612.)
+pub const RUST_REMOVED_ROUTES: &[&str] = &[];
 
 pub const CONTRACT: &str = include_str!("../../../../contracts/routes.json");
 

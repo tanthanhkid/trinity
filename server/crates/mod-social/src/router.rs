@@ -929,6 +929,20 @@ async fn import_posts(State(s): St, Extension(u): Usr, JsonBody(body): JsonBody)
     ok(r)
 }
 
+/// `POST /social/media/upload-token`: chỉ KIỂM trước khi tải (web luôn hỏi trước). Tên/đuôi không hợp lệ ⇒ 400, vượt trần ⇒ 413
+/// "Tệp quá lớn (tối đa N MB).", còn lại LUÔN 400 "upload trực tiếp" (tệp hợp lệ: gửi multipart `POST /social/media`).
+async fn upload_token(State(s): St, Extension(_u): Usr, JsonBody(body): JsonBody) -> Response {
+    let r: Result<serde_json::Value, AppError> = (|| {
+        let b = chunked::InitBody::from_json(&body)?;
+        let k = media::kind_of(&b.file_name, media::max_video_bytes(&s.env))?;
+        if b.size > k.max {
+            return Err(HttpError::payload_too_large(media::too_large(k.max)).into());
+        }
+        Err(HttpError::bad_request("Tệp hợp lệ: upload trực tiếp lên /social/media (multipart, trường file).").into())
+    })();
+    ok(r)
+}
+
 // ───────────────────────────── tải video theo phần (X15a) ─────────────────────────────
 
 async fn upload_init(State(s): St, Extension(u): Usr, JsonBody(body): JsonBody) -> Response {
@@ -1000,6 +1014,7 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<SocialState>> {
         .route(spec(&get, &p("/oauth/callback/:network")), oauth_callback)
         .route(spec(&get, &p("/media")), library)
         .route(spec(&post, &p("/media")), upload.layer(upload_limit()))
+        .route(spec(&post, &p("/media/upload-token")), upload_token)
         .route(spec(&get, &p("/media/:id/file")), media_file)
         .route(spec(&post, &p("/media/:id/hide")), media_hide)
         .route(spec(&get, &p("/media-link/:token/:name")), media_link)

@@ -384,8 +384,24 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             stale_job_enabled: mod_leads::jobs::stale_enabled(lookup),
         }),
     );
-    // CHƯA mount: mod-deals, mod-kanban,
-    // mod-payroll, mod-pos, mod-facebook, mod-store (mới có bảng route, chưa có router axum). Route của chúng thuộc Node.
+    // Deals (10 route) và thẻ Kanban (17 route; bảng/cột/nhãn/trường tuỳ biến chưa có bảng route nên vẫn thuộc Node).
+    app = mount(
+        app,
+        mod_deals::routes::api_router(deps.clone()),
+        Arc::new(mod_deals::routes::Ctx {
+            db: db.clone(),
+            scopes: ScopeService::new(db.clone(), cache.clone()),
+        }),
+    );
+    app = mount(
+        app,
+        mod_kanban::routes::api_router(deps.clone()),
+        Arc::new(mod_kanban::routes::Ctx {
+            db: db.clone(),
+            scopes: ScopeService::new(db.clone(), cache.clone()),
+        }),
+    );
+    // CHƯA mount: mod-payroll, mod-pos, mod-facebook, mod-store (mới có bảng route, chưa có router axum). Route của chúng thuộc Node.
 
     // ── Scheduler và worker hàng đợi (nền). Chưa module nào đăng ký job ở đây; khi có, `scheduler.register(..)`.
     let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);

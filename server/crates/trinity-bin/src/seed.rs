@@ -475,9 +475,29 @@ async fn sample_data(tx: &mut TenantTx, admin_id: i32, password: &str) -> Result
         .map_err(sql)?;
 
     // Vai trò + tài khoản.
-    let lead_role = ensure_role(tx, LEAD_ROLE_NAME, "Quản lý nhóm kinh doanh (xem/sửa dữ liệu trong nhóm)", &LEAD_GRANTS).await?;
-    let sale_role = ensure_role(tx, SALE_ROLE_NAME, "Nhân viên kinh doanh (chỉ dữ liệu của mình)", &SALE_GRANTS).await?;
-    let (lead_id, c1) = ensure_user(tx, "truongnhom@demo.local", "Đặng Minh Quân", lead_role, Some(team1), password).await?;
+    let lead_role = ensure_role(
+        tx,
+        LEAD_ROLE_NAME,
+        "Quản lý nhóm kinh doanh (xem/sửa dữ liệu trong nhóm)",
+        &LEAD_GRANTS,
+    )
+    .await?;
+    let sale_role = ensure_role(
+        tx,
+        SALE_ROLE_NAME,
+        "Nhân viên kinh doanh (chỉ dữ liệu của mình)",
+        &SALE_GRANTS,
+    )
+    .await?;
+    let (lead_id, c1) = ensure_user(
+        tx,
+        "truongnhom@demo.local",
+        "Đặng Minh Quân",
+        lead_role,
+        Some(team1),
+        password,
+    )
+    .await?;
     let (sale1_id, c2) = ensure_user(tx, "sale1@demo.local", "Vũ Thu Hà", sale_role, Some(team1), password).await?;
     let (sale2_id, c3) = ensure_user(tx, "sale2@demo.local", "Bùi Quốc Bảo", sale_role, Some(team2), password).await?;
     sqlx::query("UPDATE teams SET team_lead_id = $1 WHERE id = $2 AND team_lead_id IS NULL")
@@ -520,11 +540,12 @@ async fn sample_data(tx: &mut TenantTx, admin_id: i32, password: &str) -> Result
     let mut contact_ids: Vec<i32> = Vec::new();
     let mut new_contacts = 0;
     for (phone, full_name, source, stage, owner) in customers {
-        let existing: Option<i32> = sqlx::query_scalar("SELECT id FROM contacts WHERE phone = $1 AND deleted_at IS NULL LIMIT 1")
-            .bind(phone)
-            .fetch_optional(&mut **tx)
-            .await
-            .map_err(sql)?;
+        let existing: Option<i32> =
+            sqlx::query_scalar("SELECT id FROM contacts WHERE phone = $1 AND deleted_at IS NULL LIMIT 1")
+                .bind(phone)
+                .fetch_optional(&mut **tx)
+                .await
+                .map_err(sql)?;
         if let Some(id) = existing {
             contact_ids.push(id);
             continue;
@@ -551,7 +572,13 @@ async fn sample_data(tx: &mut TenantTx, admin_id: i32, password: &str) -> Result
     // Cơ hội: (tiêu đề, giá trị, trạng thái, khách (chỉ số), người phụ trách). Tiêu đề là khoá tự nhiên.
     let deals: [(&str, i64, &str, usize, i32); 4] = [
         ("Gói tư vấn CRM - Nguyễn Hoàng Anh", 15_000_000, "open", 0, sale1_id),
-        ("Triển khai quy trình bán hàng - Lê Quỳnh Dao", 42_000_000, "open", 2, sale1_id),
+        (
+            "Triển khai quy trình bán hàng - Lê Quỳnh Dao",
+            42_000_000,
+            "open",
+            2,
+            sale1_id,
+        ),
         ("Hợp đồng năm - Phạm Gia Huy", 80_000_000, "won", 3, sale1_id),
         ("Đào tạo đội sale - Ngô Đức Mạnh", 25_000_000, "open", 6, sale2_id),
     ];
@@ -567,7 +594,7 @@ async fn sample_data(tx: &mut TenantTx, admin_id: i32, password: &str) -> Result
         }
         sqlx::query(
             "INSERT INTO deals (title, value, status, assigned_to, created_by, contact_id, updated_at, won_at)
-             VALUES ($1, $2, $3, $4, $5, $6, now(), CASE WHEN $3 = 'won' THEN now() END)",
+             VALUES ($1, $2, $3, $4, $5, $6, now(), CASE WHEN $3::text = 'won' THEN now() END)",
         )
         .bind(title)
         .bind(value)
@@ -583,11 +610,12 @@ async fn sample_data(tx: &mut TenantTx, admin_id: i32, password: &str) -> Result
 
     // Thẻ việc trên bảng mặc định (bỏ qua nếu bảng đã bị đổi tên/xoá): (tiêu đề, cột, người nhận).
     let mut new_cards = 0;
-    let board: Option<i32> = sqlx::query_scalar("SELECT id FROM kanban_boards WHERE name = $1 AND deleted_at IS NULL LIMIT 1")
-        .bind(BOARD_NAME)
-        .fetch_optional(&mut **tx)
-        .await
-        .map_err(sql)?;
+    let board: Option<i32> =
+        sqlx::query_scalar("SELECT id FROM kanban_boards WHERE name = $1 AND deleted_at IS NULL LIMIT 1")
+            .bind(BOARD_NAME)
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(sql)?;
     if let Some(board) = board {
         let cards: [(&str, &str, i32); 5] = [
             ("Gọi lại khách Nguyễn Hoàng Anh", "Cần làm", sale1_id),
@@ -597,22 +625,24 @@ async fn sample_data(tx: &mut TenantTx, admin_id: i32, password: &str) -> Result
             ("Chốt hợp đồng Phạm Gia Huy", "Xong", sale1_id),
         ];
         for (i, (title, column, assignee)) in cards.iter().enumerate() {
-            let exists: Option<i32> =
-                sqlx::query_scalar("SELECT id FROM kanban_cards WHERE board_id = $1 AND title = $2 AND deleted_at IS NULL LIMIT 1")
-                    .bind(board)
-                    .bind(*title)
-                    .fetch_optional(&mut **tx)
-                    .await
-                    .map_err(sql)?;
+            let exists: Option<i32> = sqlx::query_scalar(
+                "SELECT id FROM kanban_cards WHERE board_id = $1 AND title = $2 AND deleted_at IS NULL LIMIT 1",
+            )
+            .bind(board)
+            .bind(*title)
+            .fetch_optional(&mut **tx)
+            .await
+            .map_err(sql)?;
             if exists.is_some() {
                 continue;
             }
-            let column_id: Option<i32> = sqlx::query_scalar("SELECT id FROM kanban_columns WHERE board_id = $1 AND name = $2 LIMIT 1")
-                .bind(board)
-                .bind(*column)
-                .fetch_optional(&mut **tx)
-                .await
-                .map_err(sql)?;
+            let column_id: Option<i32> =
+                sqlx::query_scalar("SELECT id FROM kanban_columns WHERE board_id = $1 AND name = $2 LIMIT 1")
+                    .bind(board)
+                    .bind(*column)
+                    .fetch_optional(&mut **tx)
+                    .await
+                    .map_err(sql)?;
             let Some(column_id) = column_id else { continue };
             sqlx::query(
                 "INSERT INTO kanban_cards (board_id, column_id, position, title, assignee_id, created_by, priority)
@@ -632,7 +662,10 @@ async fn sample_data(tx: &mut TenantTx, admin_id: i32, password: &str) -> Result
     }
 
     // Sản phẩm (cửa hàng); `code` duy nhất.
-    for (code, name, price) in [("SP-DEMO-01", "Gói CRM Cơ bản", 5_000_000_i64), ("SP-DEMO-02", "Gói CRM Nâng cao", 12_000_000_i64)] {
+    for (code, name, price) in [
+        ("SP-DEMO-01", "Gói CRM Cơ bản", 5_000_000_i64),
+        ("SP-DEMO-02", "Gói CRM Nâng cao", 12_000_000_i64),
+    ] {
         sqlx::query("INSERT INTO products (code, name, price, created_by) VALUES ($1, $2, $3, $4) ON CONFLICT (code) DO NOTHING")
             .bind(code)
             .bind(name)

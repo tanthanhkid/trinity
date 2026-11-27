@@ -29,6 +29,7 @@ pub mod offices;
 pub mod records;
 pub mod requests;
 pub mod routes;
+pub mod stats;
 
 use serde_json::Value;
 use sqlx::PgConnection;

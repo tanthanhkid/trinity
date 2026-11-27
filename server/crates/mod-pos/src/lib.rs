@@ -17,6 +17,7 @@
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
 
+pub mod api;
 pub mod catalog;
 pub mod layout;
 pub mod money;
@@ -26,7 +27,9 @@ pub mod routes;
 pub mod shifts;
 pub mod vietqr;
 
-use trinity_kernel::error::HttpError;
+use trinity_db::{CompanyRef, Db, TenantConn};
+use trinity_kernel::error::{AppError, HttpError};
+use trinity_rbac::ScopeService;
 
 /// Trần an toàn cho mọi số tiền (VND): 1.000 tỉ, xa dưới 2^53 nên số JSON không mất chính xác.
 pub const MAX_MONEY: i64 = 1_000_000_000_000;
@@ -93,4 +96,19 @@ where
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Actor {
     pub user_id: i32,
+}
+
+pub use api::api_router;
+
+/// Phụ thuộc của router: kho DB (kết nối gắn công ty) và dịch vụ phạm vi dữ liệu (K13).
+pub struct Ctx {
+    pub db: Db,
+    pub scopes: ScopeService,
+}
+
+impl Ctx {
+    pub async fn conn(&self, company: CompanyRef) -> Result<TenantConn, AppError> {
+        let t = self.db.tenant(company).await.map_err(AppError::internal)?;
+        t.acquire().await.map_err(AppError::internal)
+    }
 }

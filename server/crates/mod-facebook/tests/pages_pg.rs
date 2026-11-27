@@ -100,7 +100,9 @@ async fn mount_login(server: &MockServer) {
         .respond_with(ok(json!({ "data": [
             { "id": "m46a", "name": "Quán A", "access_token": "PTa", "tasks": ["MANAGE"], "picture": { "data": { "url": "https://img/a.png" } } },
             { "id": "m46b", "name": "Quán B", "access_token": "PTb" },
-            { "id": "m46c", "name": "Quán C", "access_token": "PTc", "tasks": ["MESSAGING"] }
+            { "id": "m46c", "name": "Quán C", "access_token": "PTc", "tasks": ["MESSAGING"] },
+            { "id": "m46d", "name": "Quán D không có token" },
+            "phần tử hỏng"
         ] })))
         .mount(server)
         .await;
@@ -243,7 +245,11 @@ async fn ket_noi_fanpage_day_du() {
 
     // Callback: 3 Page. A (MANAGE) và B (không có task) có phần đăng bài, C (chỉ MESSAGING) thì không.
     let r = pages::handle_callback(&ctx, "CODE", &state, NOW).await.unwrap();
-    assert_eq!((r.connected, r.failed, r.posting), (3, 0, 2));
+    assert_eq!(
+        (r.connected, r.failed, r.posting),
+        (3, 2, 2),
+        "Page thiếu access_token và phần tử hỏng chỉ tính là Page lỗi"
+    );
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
     let rows: Vec<PageRow> = sqlx::query_as(
         "SELECT page_id, name, subscribed, token_status, default_assignee_id, contact_source_id, connected_by, is_active FROM facebook_pages WHERE page_id LIKE 'm46%' ORDER BY page_id",
@@ -314,30 +320,24 @@ async fn ket_noi_fanpage_day_du() {
     let id_c = list.iter().find(|p| p.page_id == "m46c").unwrap().id;
 
     // Cập nhật: người nhận phải đang hoạt động; ngoài phạm vi contacts.transfer ⇒ 403; nguồn phải là contact_source đang bật.
-    let up = |a: Option<i64>, s: Option<i64>, act: Option<bool>| UpdatePage {
+    let up = |a: Option<i32>, s: Option<i32>, act: Option<bool>| UpdatePage {
         default_assignee_id: a,
         contact_source_id: s,
         is_active: act,
     };
-    let nobody = OwnerIds::Ids(vec![]);
+    let nobody: Option<&OwnerIds> = None; // không có quyền contacts.transfer: chỉ tự gán cho mình
     assert_eq!(
         status(
-            pages::update(
-                &mut c,
-                id_a,
-                &up(Some(i64::from(gone)), None, None),
-                actor,
-                &OwnerIds::All
-            )
-            .await
-            .unwrap_err()
+            pages::update(&mut c, id_a, &up(Some(gone), None, None), actor, Some(&OwnerIds::All))
+                .await
+                .unwrap_err()
         )
         .0,
         400
     );
     assert_eq!(
         status(
-            pages::update(&mut c, id_a, &up(Some(i64::from(other)), None, None), actor, &nobody)
+            pages::update(&mut c, id_a, &up(Some(other), None, None), actor, nobody)
                 .await
                 .unwrap_err()
         )
@@ -348,9 +348,9 @@ async fn ket_noi_fanpage_day_du() {
         &pages::update(
             &mut c,
             id_a,
-            &up(Some(i64::from(other)), Some(i64::from(src_other)), None),
+            &up(Some(other), Some(src_other), None),
             actor,
-            &OwnerIds::Ids(vec![other]),
+            Some(&OwnerIds::Ids(vec![other])),
         )
         .await
         .unwrap(),
@@ -360,14 +360,14 @@ async fn ket_noi_fanpage_day_du() {
         (Some(i64::from(other)), Some(i64::from(src_other)))
     );
     assert!(
-        pages::update(&mut c, id_a, &up(Some(i64::from(actor)), None, None), actor, &nobody)
+        pages::update(&mut c, id_a, &up(Some(actor), None, None), actor, nobody)
             .await
             .is_ok(),
         "tự gán cho mình thì không cần phạm vi"
     );
     assert_eq!(
         status(
-            pages::update(&mut c, id_a, &up(None, Some(i64::from(stage)), None), actor, &nobody)
+            pages::update(&mut c, id_a, &up(None, Some(stage), None), actor, nobody)
                 .await
                 .unwrap_err()
         )
@@ -376,7 +376,7 @@ async fn ket_noi_fanpage_day_du() {
     );
     assert_eq!(
         status(
-            pages::update(&mut c, id_a, &up(None, Some(2_000_000_000), None), actor, &nobody)
+            pages::update(&mut c, id_a, &up(None, Some(2_000_000_000), None), actor, nobody)
                 .await
                 .unwrap_err()
         )
@@ -385,7 +385,7 @@ async fn ket_noi_fanpage_day_du() {
     );
     assert_eq!(
         status(
-            pages::update(&mut c, 2_000_000_000, &up(None, None, Some(false)), actor, &nobody)
+            pages::update(&mut c, 2_000_000_000, &up(None, None, Some(false)), actor, nobody)
                 .await
                 .unwrap_err()
         )
@@ -393,7 +393,7 @@ async fn ket_noi_fanpage_day_du() {
         404
     );
     assert!(
-        !pages::update(&mut c, id_a, &up(None, None, Some(false)), actor, &nobody)
+        !pages::update(&mut c, id_a, &up(None, None, Some(false)), actor, nobody)
             .await
             .unwrap()
             .is_active
@@ -493,7 +493,7 @@ async fn ket_noi_fanpage_day_du() {
     assert_eq!(dv["disconnected"], true);
     assert_eq!(
         status(
-            pages::update(&mut c, id_c, &up(None, None, Some(true)), actor, &nobody)
+            pages::update(&mut c, id_c, &up(None, None, Some(true)), actor, nobody)
                 .await
                 .unwrap_err()
         )
@@ -514,7 +514,7 @@ async fn ket_noi_fanpage_day_du() {
     let again = pages::handle_callback(&ctx, "CODE", &state, NOW).await.unwrap();
     assert_eq!(
         (again.connected, again.failed, again.posting),
-        (3, 0, 1),
+        (3, 2, 1),
         "m46a bị gỡ đăng bài nên không tính"
     );
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
@@ -543,5 +543,25 @@ async fn ket_noi_fanpage_day_du() {
         json_of(lv.iter().find(|p| p.page_id == "m46a").unwrap())["posting"],
         "removed"
     );
+    // Token đã lưu không giải mã được (khoá đổi, dữ liệu hỏng) ⇒ 503 như lỗi Graph tạm thời, không 500.
+    exec(
+        &mut c,
+        "UPDATE facebook_pages SET token_enc = 'v1.hong.hong.hong' WHERE page_id = 'm46b'",
+    )
+    .await;
+    drop(c);
+    assert_eq!(
+        status(pages::check_token(&ctx, id_b, NOW).await.unwrap_err()),
+        (
+            503,
+            "\"Không kiểm tra được token với Facebook, thử lại sau.\"".to_owned()
+        )
+    );
+    let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
+    let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM facebook_pages WHERE page_id = 'm46d'")
+        .fetch_one(&mut *c)
+        .await
+        .unwrap();
+    assert_eq!(rows, 0, "Page thiếu token không được lưu");
     clean(&mut c).await;
 }

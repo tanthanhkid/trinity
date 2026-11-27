@@ -288,7 +288,7 @@ async fn hinh_dang_dang_nhap_danh_sach_page_va_webhook() {
     assert_eq!(pages.len(), 2);
     assert_eq!(
         (
-            pages[0].id.as_str(),
+            pages[0].id.as_deref().unwrap(),
             pages[0].tasks.as_deref().map(<[String]>::len),
             pages[0].picture_url()
         ),
@@ -508,4 +508,62 @@ async fn hinh_dang_gui_tin_binh_luan_va_hoi_thoai() {
         .await;
     let lead = c4.get_lead("L1", "PT").await.unwrap();
     assert_eq!(lead.field_data.as_ref().unwrap()[0].values, ["0901"]);
+}
+
+#[tokio::test]
+async fn me_accounts_phan_tu_hong_va_than_2xx_hong_khong_dem_la_thanh_cong() {
+    let server = MockServer::start().await;
+    let (c, seen) = client(&server.uri());
+    // Phần tử thiếu `access_token`/`name`, thiếu hẳn `id`, và không phải object: vẫn giải mã được cả danh sách.
+    mount(
+        &server,
+        "GET",
+        "/v25.0/me/accounts",
+        200,
+        json!({ "data": [{ "id": "P1", "name": "A", "access_token": "T" }, { "id": "P2" }, { "name": "B" }, "x", 5, null] }),
+    )
+    .await;
+    let pages = c.list_pages("U").await.unwrap();
+    assert_eq!(pages.len(), 6);
+    assert!(pages[0].id.is_some() && pages[0].access_token.is_some());
+    assert!(pages[1].access_token.is_none() && pages[2].id.is_none());
+    assert!(
+        pages[3..]
+            .iter()
+            .all(|p| p.id.is_none() && p.name.is_none() && p.access_token.is_none())
+    );
+    assert!(seen.lock().unwrap()[0].ok, "danh sách dùng được ⇒ ok");
+
+    // `data` không phải mảng ⇒ lỗi định dạng, kết quả báo `ok = false` với HTTP 2xx (không mã Graph): cửa sổ lỗi không đếm
+    // một phản hồi hỏng là thành công.
+    mount(&server, "GET", "/v25.0/me/permissions", 200, json!({ "data": [] })).await;
+    mount(&server, "GET", "/v25.0/debug_token", 200, json!({ "data": "hong" })).await;
+    mount(
+        &server,
+        "POST",
+        "/v25.0/me/messages",
+        200,
+        json!({ "khong_co": "message_id" }),
+    )
+    .await;
+    Mock::given(method("GET"))
+        .and(path("/v25.0/oauth/access_token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({ "token": "x" })))
+        .mount(&server)
+        .await;
+    mount(&server, "GET", "/v25.0/L1", 200, json!({ "created_time": "x" })).await;
+    assert!(c.debug_token("T").await.is_err());
+    assert!(c.send_text("T", "P", "x", false).await.is_err());
+    assert!(c.exchange_code("c", "https://x/cb").await.is_err());
+    assert!(c.get_lead("L1", "T").await.is_err());
+    let seen = seen.lock().unwrap();
+    for (i, send) in [(1, false), (2, true), (3, false), (4, false)] {
+        let o = seen[i];
+        assert_eq!(
+            (o.ok, o.http_status, o.code, o.subcode, o.send),
+            (false, 200, None, None, send),
+            "lời gọi thứ {i}"
+        );
+        assert!(!is_block_outcome(&o), "thân hỏng không phải lỗi chặn");
+    }
 }

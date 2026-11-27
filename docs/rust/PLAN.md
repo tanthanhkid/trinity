@@ -1464,7 +1464,8 @@ OAuth, MCP, rồi Facebook, Zalo, đăng bài: **mọi route, job và tool MCP g
 sở hữu**.
 
 **Đã làm ở M46** (`server/crates/mod-facebook`): Graph client (`graph.rs`, một chỗ duy nhất gọi Meta; token ở header
-`Authorization`, không ở URL; mọi kết quả trừ lỗi kết nối báo `GraphOutcome` cho `ChannelGuard::record_graph` của M45), URL Graph
+`Authorization`, chỉ tham số Graph bắt buộc ở query (`code`, `client_secret`, `fb_exchange_token`, `input_token`); log chỉ ghi dạng
+đường dẫn không id; mọi kết quả trừ lỗi kết nối báo `GraphOutcome` cho `ChannelGuard::record_graph` của M45, sau khi giải mã thân), URL Graph
 đọc `FACEBOOK_GRAPH_BASE_URL` mỗi lần gọi (chỉ `https://`, hoặc `http://` tới loopback), `state` OAuth ký HMAC giống bản Node,
 kết nối Fanpage (`pages.rs`: token mã hoá bằng `INTEGRATIONS_SECRET_KEY`, mỗi Page một giao dịch, phần đăng bài trong savepoint
 riêng, KHÔNG giữ kết nối pool khi gọi Graph) và 7 route K14. Test dùng máy chủ giả (wiremock, kịch bản và mã lỗi theo C06b:

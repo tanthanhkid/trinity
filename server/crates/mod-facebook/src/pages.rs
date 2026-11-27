@@ -6,7 +6,8 @@
 #![allow(clippy::result_large_err)]
 
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+use serde_json::Value;
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use trinity_db::models::FacebookPage;
 use trinity_db::pg_error::app_error;
@@ -22,6 +23,29 @@ use crate::config::{
     is_facebook_configured, load_facebook_config, oauth_redirect_uri, subscribed_fields,
 };
 use crate::graph::{GraphApiError, GraphClient, GraphPage, TokenDebug, utf16_prefix};
+
+/// Một Page đã đủ trường để nối (`id`, `name`, `access_token`).
+#[derive(Debug, Clone)]
+struct ConnectPage {
+    id: String,
+    name: String,
+    access_token: String,
+    tasks: Option<Vec<String>>,
+    picture: Option<String>,
+}
+
+impl ConnectPage {
+    /// Thiếu một trong ba trường ⇒ `None`: bản Node ném lỗi ở `slice`/`encryptSecret` và tính là Page lỗi.
+    fn from_graph(p: &GraphPage) -> Option<Self> {
+        Some(Self {
+            id: p.id.clone().filter(|s| !s.is_empty())?,
+            name: p.name.clone()?,
+            access_token: p.access_token.clone().filter(|s| !s.is_empty())?,
+            tasks: p.tasks.clone(),
+            picture: p.picture_url().map(str::to_owned),
+        })
+    }
+}
 use crate::state::{jwt_secret, sign_state, verify_state};
 
 #[allow(clippy::needless_pass_by_value)]
@@ -112,6 +136,8 @@ pub fn token_state_from_debug(d: &TokenDebug, now_ms: i64) -> TokenState {
     }
 }
 
+const CHECK_FAILED: &str = "Không kiểm tra được token với Facebook, thử lại sau.";
+
 /// Một Page trả cho giao diện: KHÔNG có `token_enc`; thứ tự khoá như `toPageView` của bản Node.
 #[derive(Debug, Clone, Serialize)]
 pub struct PageView {
@@ -159,39 +185,48 @@ pub fn to_page_view(p: FacebookPage, posting: Option<&'static str>) -> PageView 
     }
 }
 
-/// Body `PATCH /facebook/pages/:id` (`UpdateFacebookPageDto`). Số nguyên phải nằm trong `int4` (ngoài khoảng ⇒ 400, không
-/// để DB báo tràn); `is_active` nhận `null` như vắng.
-#[derive(Debug, Clone, Default, Deserialize)]
+/// Body `PATCH /facebook/pages/:id` (`UpdateFacebookPageDto`) đã kiểm. Dựng bằng [`UpdatePage::from_json`], vì thông điệp lỗi
+/// phải là của class-validator chứ không phải của serde.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct UpdatePage {
-    #[serde(default, deserialize_with = "not_null")]
-    pub default_assignee_id: Option<i64>,
-    #[serde(default, deserialize_with = "not_null")]
-    pub contact_source_id: Option<i64>,
-    #[serde(default)]
+    pub default_assignee_id: Option<i32>,
+    pub contact_source_id: Option<i32>,
     pub is_active: Option<bool>,
 }
 
-fn not_null<'de, T, D>(d: D) -> Result<Option<T>, D::Error>
-where
-    T: Deserialize<'de>,
-    D: serde::Deserializer<'de>,
-{
-    T::deserialize(d).map(Some)
-}
-
 impl UpdatePage {
-    pub fn validate(&self) -> Result<(), HttpError> {
+    /// `default_assignee_id`/`contact_source_id` (`@ValidateIf(v !== undefined) @IsInt()`): có khoá thì PHẢI là số nguyên trong
+    /// `int4` (`null`, chuỗi, số lẻ, số ngoài khoảng ⇒ 400, không để DB báo tràn hay lưu NULL); `is_active`
+    /// (`@IsOptional() @IsBoolean()`): `null` như vắng, còn lại phải là boolean. Báo đủ lỗi theo thứ tự thuộc tính.
+    pub fn from_json(v: &Value) -> Result<Self, HttpError> {
+        let Some(o) = v.as_object() else {
+            return Err(HttpError::validation(vec!["body must be an object".to_owned()]));
+        };
         let mut e = Vec::new();
-        for (name, v) in [
-            ("default_assignee_id", self.default_assignee_id),
-            ("contact_source_id", self.contact_source_id),
-        ] {
-            if v.is_some_and(|v| i32::try_from(v).is_err()) {
+        let mut int = |name: &str| -> Option<i32> {
+            let raw = o.get(name)?;
+            let n = raw.as_i64().and_then(|n| i32::try_from(n).ok());
+            if n.is_none() {
                 e.push(format!("{name} must be an integer number"));
             }
-        }
+            n
+        };
+        let assignee = int("default_assignee_id");
+        let source = int("contact_source_id");
+        let active = match o.get("is_active") {
+            None | Some(Value::Null) => None,
+            Some(Value::Bool(b)) => Some(*b),
+            Some(_) => {
+                e.push("is_active must be a boolean value".to_owned());
+                None
+            }
+        };
         if e.is_empty() {
-            Ok(())
+            Ok(Self {
+                default_assignee_id: assignee,
+                contact_source_id: source,
+                is_active: active,
+            })
         } else {
             Err(HttpError::validation(e))
         }
@@ -327,19 +362,28 @@ pub async fn handle_callback(ctx: &Ctx<'_>, code: &str, state: &str, now_ms: i64
         }
     };
     let (mut failed, mut posting) = (0, 0);
-    for p in &pages {
-        // Mỗi Page nối độc lập: một Page lỗi không chặn Page khác. Phần HTTP (đăng ký webhook, kiểm token) chạy TRƯỚC khi xin
-        // kết nối; phần ghi nằm trong một giao dịch, phần đăng bài trong savepoint riêng (lỗi không cuốn theo việc nối Page).
-        let Ok(pre) = prepare_page(ctx, p, now_ms).await else {
+    for raw in &pages {
+        // Page thiếu `id`/`name`/`access_token` chỉ tính là một Page lỗi, không làm hỏng cả lần kết nối.
+        let Some(p) = ConnectPage::from_graph(raw) else {
             failed += 1;
-            tracing::warn!("Kết nối Page {} lỗi", p.id);
+            tracing::warn!("Kết nối Page lỗi: phần tử me/accounts thiếu id, name hoặc access_token");
             continue;
         };
-        match write_page(ctx, p, &pre, &granted, user_id, source_id, &key).await {
-            Ok(has_posting) => posting += usize::from(has_posting),
-            Err(_) => {
+        // Mỗi Page nối độc lập: một Page lỗi không chặn Page khác. Phần HTTP (đăng ký webhook, kiểm token) chạy TRƯỚC khi xin
+        // kết nối; phần ghi nằm trong một giao dịch, phần đăng bài trong savepoint riêng (lỗi không cuốn theo việc nối Page).
+        let pre = match prepare_page(ctx, &p, now_ms).await {
+            Ok(x) => x,
+            Err(e) => {
                 failed += 1;
-                tracing::warn!("Kết nối Page {} lỗi", p.id);
+                tracing::warn!("Kết nối Page {} lỗi: {e}", p.id);
+                continue;
+            }
+        };
+        match write_page(ctx, &p, &pre, &granted, user_id, source_id, &key).await {
+            Ok(has_posting) => posting += usize::from(has_posting),
+            Err(e) => {
+                failed += 1;
+                tracing::warn!("Kết nối Page {} lỗi: {e}", p.id);
             }
         }
     }
@@ -362,7 +406,7 @@ struct Prepared {
 }
 
 /// Bước HTTP: kiểm Page chưa thuộc công ty khác, đăng ký webhook, kiểm token.
-async fn prepare_page(ctx: &Ctx<'_>, p: &GraphPage, now_ms: i64) -> Result<Prepared, AppError> {
+async fn prepare_page(ctx: &Ctx<'_>, p: &ConnectPage, now_ms: i64) -> Result<Prepared, AppError> {
     // Một Page chỉ một công ty: báo sớm, trước khi đăng ký webhook (trigger DB vẫn là chốt chặn cứng).
     ctx.platform
         .assert_route_available(RouteKind::FacebookPage, &p.id, ctx.company)
@@ -381,7 +425,7 @@ async fn prepare_page(ctx: &Ctx<'_>, p: &GraphPage, now_ms: i64) -> Result<Prepa
 /// Bước ghi: nối Page rồi (savepoint riêng) phần đăng bài. Trả `true` nếu Page có phần đăng bài sau lần nối.
 async fn write_page(
     ctx: &Ctx<'_>,
-    p: &GraphPage,
+    p: &ConnectPage,
     pre: &Prepared,
     granted: &[String],
     user_id: i32,
@@ -411,7 +455,7 @@ async fn write_page(
 
 async fn upsert_page(
     conn: &mut PgConnection,
-    p: &GraphPage,
+    p: &ConnectPage,
     pre: &Prepared,
     user_id: i32,
     source_id: i32,
@@ -449,7 +493,7 @@ async fn upsert_page(
 /// giữ `disabled`. Trả `true` nếu Page có phần đăng bài sau lần nối này.
 async fn save_social_account(
     conn: &mut PgConnection,
-    p: &GraphPage,
+    p: &ConnectPage,
     granted: &[String],
     user_id: i32,
     key: &Key,
@@ -479,7 +523,7 @@ async fn save_social_account(
             )
             .bind(&p.id)
             .bind(&name)
-            .bind(p.picture_url())
+            .bind(p.picture.as_deref())
             .bind(&token)
             .bind(&scopes)
             .bind(user_id)
@@ -498,7 +542,7 @@ async fn save_social_account(
             )
             .bind(id)
             .bind(&name)
-            .bind(p.picture_url())
+            .bind(p.picture.as_deref())
             .bind(&token)
             .bind(&scopes)
             .bind(user_id)
@@ -577,7 +621,7 @@ async fn find(conn: &mut PgConnection, id: i32) -> Result<FacebookPage, AppError
 async fn assert_assignable(
     conn: &mut PgConnection,
     actor: i32,
-    transfer: &OwnerIds,
+    transfer: Option<&OwnerIds>,
     assignee: i32,
 ) -> Result<(), AppError> {
     let u: Option<(String, Option<DateTime<Utc>>)> =
@@ -589,34 +633,25 @@ async fn assert_assignable(
     if !u.is_some_and(|(s, d)| s == "active" && d.is_none()) {
         return Err(HttpError::bad_request("Người nhận không tồn tại hoặc không còn hoạt động").into());
     }
-    if assignee == actor || transfer.contains_any(&[Some(assignee)]) {
+    if assignee == actor || transfer.is_some_and(|t| t.contains_any(&[Some(assignee)])) {
         return Ok(());
     }
     Err(HttpError::forbidden("Không có quyền gán khách cho người này (cần contacts.transfer phủ người nhận)").into())
 }
 
-/// `PATCH /facebook/pages/:id`. `transfer`: phạm vi `contacts.transfer` của người gọi.
+/// `PATCH /facebook/pages/:id`. `transfer`: phạm vi `contacts.transfer` của người gọi; `None` = không có quyền đó (chỉ tự gán cho mình).
 pub async fn update(
     conn: &mut PgConnection,
     id: i32,
     input: &UpdatePage,
     actor_user_id: i32,
-    transfer: &OwnerIds,
+    transfer: Option<&OwnerIds>,
 ) -> Result<PageView, AppError> {
     let current = find(&mut *conn, id).await?;
     if input.is_active == Some(true) && current.token_enc.is_empty() {
         return Err(HttpError::bad_request("Kết nối lại Facebook để bật lại Page này").into());
     }
-    let assignee = input
-        .default_assignee_id
-        .map(i32::try_from)
-        .transpose()
-        .map_err(|_| HttpError::bad_request("default_assignee_id không hợp lệ"))?;
-    let source = input
-        .contact_source_id
-        .map(i32::try_from)
-        .transpose()
-        .map_err(|_| HttpError::bad_request("contact_source_id không hợp lệ"))?;
+    let (assignee, source) = (input.default_assignee_id, input.contact_source_id);
     if let Some(a) = assignee {
         assert_assignable(&mut *conn, actor_user_id, transfer, a).await?;
     }
@@ -723,7 +758,8 @@ pub async fn check_token(ctx: &Ctx<'_>, id: i32, now_ms: i64) -> Result<PageView
         return Err(HttpError::bad_request("Page đã ngắt — kết nối lại Facebook để dùng").into());
     }
     let key = secret_key(ctx.env)?;
-    let token = decrypt_secret(&p.token_enc, &key).map_err(|e| HttpError::service_unavailable(e.0))?;
+    // Không giải mã được token đã lưu (khoá đổi, dữ liệu hỏng) cũng là "không kiểm tra được": 503 như lỗi Graph tạm thời.
+    let token = decrypt_secret(&p.token_enc, &key).map_err(|_| HttpError::service_unavailable(CHECK_FAILED))?;
     let mut subscribed_now = false;
     let state = match ctx.graph.debug_token(&token).await {
         Ok(d) => {
@@ -735,7 +771,7 @@ pub async fn check_token(ctx: &Ctx<'_>, id: i32, now_ms: i64) -> Result<PageView
         }
         Err(e) if e.is_token_error() => None,
         Err(_) => {
-            return Err(HttpError::service_unavailable("Không kiểm tra được token với Facebook, thử lại sau.").into());
+            return Err(HttpError::service_unavailable(CHECK_FAILED).into());
         }
     };
     let mut qb: QueryBuilder<Postgres> =
@@ -799,6 +835,7 @@ pub async fn mark_token_invalid(conn: &mut PgConnection, page_id: &str) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn trang_thai_token() {
@@ -855,38 +892,44 @@ mod tests {
 
     #[test]
     fn kiem_luat_dto_trang() {
-        assert!(UpdatePage::default().validate().is_ok());
-        assert!(
+        let ok = |v: serde_json::Value| UpdatePage::from_json(&v);
+        assert_eq!(ok(json!({})).unwrap(), UpdatePage::default());
+        assert_eq!(
+            ok(json!({ "default_assignee_id": 5, "contact_source_id": 2, "is_active": false })).unwrap(),
             UpdatePage {
                 default_assignee_id: Some(5),
                 contact_source_id: Some(2),
                 is_active: Some(false)
             }
-            .validate()
-            .is_ok()
         );
-        assert!(
-            UpdatePage {
-                default_assignee_id: Some(i64::from(i32::MAX) + 1),
-                ..Default::default()
-            }
-            .validate()
-            .is_err()
+        assert_eq!(
+            ok(json!({ "is_active": null })).unwrap().is_active,
+            None,
+            "null như vắng"
         );
-        assert!(
-            UpdatePage {
-                contact_source_id: Some(-i64::from(i32::MAX) - 2),
-                ..Default::default()
-            }
-            .validate()
-            .is_err()
-        );
-        assert!(serde_json::from_str::<UpdatePage>(r#"{"default_assignee_id":null}"#).is_err());
-        assert!(
-            serde_json::from_str::<UpdatePage>(r#"{"is_active":null}"#)
-                .unwrap()
-                .is_active
-                .is_none()
-        );
+        // Mọi giá trị không phải số nguyên int4 ⇒ câu của class-validator, báo đủ theo thứ tự thuộc tính.
+        for bad in [
+            json!(null),
+            json!("5"),
+            json!(1.5),
+            json!(2_147_483_648_i64),
+            json!(-2_147_483_649_i64),
+            json!(true),
+            json!([1]),
+        ] {
+            let e =
+                ok(json!({ "default_assignee_id": bad, "contact_source_id": bad, "is_active": "yes" })).unwrap_err();
+            let (_, body) = trinity_kernel::error::AppError::from(e).response(true);
+            assert_eq!(
+                serde_json::to_value(&body.message).unwrap(),
+                json!([
+                    "default_assignee_id must be an integer number",
+                    "contact_source_id must be an integer number",
+                    "is_active must be a boolean value"
+                ]),
+                "{bad}"
+            );
+        }
+        assert!(ok(json!([])).is_err());
     }
 }

@@ -1,5 +1,7 @@
-//! Client Graph API mỏng (`graph-client.ts`): MỘT chỗ duy nhất gọi Meta. Token gửi bằng header `Authorization: Bearer` (không
-//! nằm trong URL nên không lọt vào log truy cập); KHÔNG BAO GIỜ ghi token/secret vào log hay thông báo lỗi. Mọi kết quả
+//! Client Graph API mỏng (`graph-client.ts`): MỘT chỗ duy nhất gọi Meta. Token gửi bằng header `Authorization: Bearer`; chỉ
+//! các tham số Graph BẮT BUỘC đặt ở query mới nằm trong URL (`code`, `client_secret`, `fb_exchange_token` của
+//! `oauth/access_token`; `input_token` của `debug_token`). Log chỉ ghi dạng đường dẫn (`{page}/subscribed_apps`), KHÔNG BAO GIỜ ghi
+//! id, token hay secret. Mọi kết quả
 //! gọi (trừ lỗi kết nối) báo cho `observer` ([`GraphOutcome`]) để cửa sổ lỗi của [`mod_channel_guard::ChannelGuard`] phân loại.
 //! Docs: <https://developers.facebook.com/docs/graph-api/overview>.
 
@@ -65,12 +67,16 @@ impl GraphApiError {
     }
 }
 
-/// Page người dùng quản trị, kèm page token.
-#[derive(Debug, Clone, Deserialize)]
+/// Một phần tử của `me/accounts`. Mọi trường là `Option`: Page thiếu `access_token`/`name`/`id` (hoặc phần tử không phải
+/// object) KHÔNG được làm hỏng cả lần kết nối, mà chỉ tính là một Page lỗi như bản Node (`encryptSecret(undefined)` ném lỗi).
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct GraphPage {
-    pub id: String,
-    pub name: String,
-    pub access_token: String,
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub access_token: Option<String>,
     /// Việc người dùng làm được trên Page (`CREATE_CONTENT`, `MANAGE`, `MESSAGING`…).
     #[serde(default)]
     pub tasks: Option<Vec<String>>,
@@ -175,6 +181,13 @@ struct Opts {
     send: bool,
 }
 
+/// Phản hồi 2xx chưa giải mã: kết quả chỉ được báo cho `observer` SAU khi thân giải mã được ([`GraphClient::finish`]).
+struct Resp {
+    json: Value,
+    status: u16,
+    send: bool,
+}
+
 /// Client Graph. Rẻ để nhân bản (dùng chung `reqwest::Client`); dựng một cái cho mỗi công ty với `observer` riêng.
 #[derive(Clone)]
 pub struct GraphClient {
@@ -200,7 +213,8 @@ impl GraphClient {
         Self { env, http, observer }
     }
 
-    async fn call(&self, method: Method, path: &str, o: Opts) -> Result<Value, GraphApiError> {
+    /// `tpl`: dạng đường dẫn dùng khi GHI LOG (`{page}/subscribed_apps`): id khách, Page, bình luận không vào log.
+    async fn call(&self, method: Method, path: &str, tpl: &str, o: Opts) -> Result<Resp, GraphApiError> {
         let cfg = load_facebook_config(&self.env);
         // Dựng URL trước: cấu hình địa chỉ gốc sai (vd `http://` ngoài loopback) phải báo đúng là lỗi cấu hình vĩnh viễn,
         // không thành "không kết nối được".
@@ -211,6 +225,7 @@ impl GraphClient {
             message: m,
             config_error: true,
         })?;
+        let verb = if method == Method::Get { "GET" } else { "POST" };
         let mut req = if method == Method::Get {
             self.http.get(&url)
         } else {
@@ -225,12 +240,9 @@ impl GraphClient {
         let res = match req.timeout(GRAPH_TIMEOUT).send().await {
             Ok(r) => r,
             Err(e) => {
-                // Không ghi URL (có thể chứa id) hay chi tiết lỗi: chỉ loại lỗi.
+                // Không ghi URL hay chi tiết lỗi: chỉ loại lỗi.
                 let kind = if e.is_timeout() { "timeout" } else { "connect" };
-                tracing::warn!(
-                    "Graph {} {path}: không kết nối được ({kind})",
-                    if method == Method::Get { "GET" } else { "POST" }
-                );
+                tracing::warn!("Graph {verb} {tpl}: không kết nối được ({kind})");
                 return Err(GraphApiError::plain("Không kết nối được tới Facebook"));
             }
         };
@@ -246,7 +258,7 @@ impl GraphClient {
                 .and_then(Value::as_str)
                 .map_or_else(|| format!("Facebook trả lỗi HTTP {}", status.as_u16()), str::to_owned);
             tracing::warn!(
-                "Graph {path}: HTTP {} code={} subcode={}",
+                "Graph {verb} {tpl}: HTTP {} code={} subcode={}",
                 status.as_u16(),
                 code.map_or_else(|| "-".to_owned(), |c| c.to_string()),
                 subcode.map_or_else(|| "-".to_owned(), |c| c.to_string())
@@ -266,20 +278,36 @@ impl GraphClient {
                 config_error: false,
             });
         }
-        (self.observer)(GraphOutcome {
-            ok: true,
-            http_status: i64::from(status.as_u16()),
-            code: None,
-            subcode: None,
+        Ok(Resp {
+            json,
+            status: status.as_u16(),
             send: o.send,
-        });
-        Ok(json)
+        })
     }
 
-    async fn get(&self, path: &str, token: Option<&str>, query: Query) -> Result<Value, GraphApiError> {
+    /// Giải mã thân 2xx rồi MỚI báo kết quả: giải mã được ⇒ `ok`; thân hỏng ⇒ `ok = false` (HTTP 2xx, không mã Graph), để cửa
+    /// sổ lỗi không đếm nhầm một phản hồi dùng được.
+    fn finish<T>(&self, r: Resp, f: impl FnOnce(&Value) -> Result<T, GraphApiError>) -> Result<T, GraphApiError> {
+        let res = f(&r.json);
+        (self.observer)(GraphOutcome {
+            ok: res.is_ok(),
+            http_status: i64::from(r.status),
+            code: None,
+            subcode: None,
+            send: r.send,
+        });
+        res
+    }
+
+    fn done(&self, r: Resp) -> Result<(), GraphApiError> {
+        self.finish(r, |_| Ok(()))
+    }
+
+    async fn get(&self, path: &str, tpl: &str, token: Option<&str>, query: Query) -> Result<Resp, GraphApiError> {
         self.call(
             Method::Get,
             path,
+            tpl,
             Opts {
                 token: token.map(str::to_owned),
                 query,
@@ -292,14 +320,16 @@ impl GraphClient {
     async fn post(
         &self,
         path: &str,
+        tpl: &str,
         token: &str,
         query: Query,
         body: Option<Value>,
         send: bool,
-    ) -> Result<Value, GraphApiError> {
+    ) -> Result<Resp, GraphApiError> {
         self.call(
             Method::Post,
             path,
+            tpl,
             Opts {
                 token: Some(token.to_owned()),
                 query,
@@ -317,63 +347,65 @@ impl GraphClient {
     /// `code` (từ hộp thoại đăng nhập) ⇒ user token ngắn hạn.
     pub async fn exchange_code(&self, code: &str, redirect_uri: &str) -> Result<String, GraphApiError> {
         let c = load_facebook_config(&self.env);
+        let query = q(&[
+            ("client_id", &c.app_id),
+            ("client_secret", &c.app_secret),
+            ("redirect_uri", redirect_uri),
+            ("code", code),
+        ]);
         let r = self
-            .get(
-                "oauth/access_token",
-                None,
-                q(&[
-                    ("client_id", &c.app_id),
-                    ("client_secret", &c.app_secret),
-                    ("redirect_uri", redirect_uri),
-                    ("code", code),
-                ]),
-            )
+            .get("oauth/access_token", "oauth/access_token", None, query)
             .await?;
-        access_token(&r)
+        self.finish(r, access_token)
     }
 
     /// User token ngắn hạn ⇒ dài hạn (khoảng 60 ngày), để lấy page token KHÔNG hết hạn.
     pub async fn to_long_lived(&self, user_token: &str) -> Result<String, GraphApiError> {
         let c = load_facebook_config(&self.env);
+        let query = q(&[
+            ("grant_type", "fb_exchange_token"),
+            ("client_id", &c.app_id),
+            ("client_secret", &c.app_secret),
+            ("fb_exchange_token", user_token),
+        ]);
         let r = self
-            .get(
-                "oauth/access_token",
-                None,
-                q(&[
-                    ("grant_type", "fb_exchange_token"),
-                    ("client_id", &c.app_id),
-                    ("client_secret", &c.app_secret),
-                    ("fb_exchange_token", user_token),
-                ]),
-            )
+            .get("oauth/access_token", "oauth/access_token", None, query)
             .await?;
-        access_token(&r)
+        self.finish(r, access_token)
     }
 
-    /// Các Page người dùng quản trị kèm page token (từ user token dài hạn ⇒ page token không hết hạn).
+    /// Các Page người dùng quản trị kèm page token (từ user token dài hạn ⇒ page token không hết hạn). Giải mã TỪNG phần
+    /// tử: phần tử hỏng (thiếu trường, không phải object) thành một [`GraphPage`] rỗng để người gọi đếm là Page lỗi, thay vì
+    /// làm hỏng cả lần kết nối.
     pub async fn list_pages(&self, user_token: &str) -> Result<Vec<GraphPage>, GraphApiError> {
-        let r = self
-            .get(
-                "me/accounts",
-                Some(user_token),
-                q(&[("fields", "id,name,access_token,tasks,picture{url}"), ("limit", "100")]),
-            )
-            .await?;
-        Self::typed(r.get("data").cloned().unwrap_or_else(|| json!([])))
+        let query = q(&[("fields", "id,name,access_token,tasks,picture{url}"), ("limit", "100")]);
+        let r = self.get("me/accounts", "me/accounts", Some(user_token), query).await?;
+        self.finish(r, |v| match v.get("data") {
+            None | Some(Value::Null) => Ok(Vec::new()),
+            Some(Value::Array(a)) => Ok(a
+                .iter()
+                .map(|el| serde_json::from_value(el.clone()).unwrap_or_default())
+                .collect()),
+            Some(_) => Err(GraphApiError::plain("Facebook trả dữ liệu không đúng định dạng")),
+        })
     }
 
     /// Quyền người dùng đã THẬT SỰ cấp trong lần đăng nhập này (`status = granted`).
     pub async fn granted_permissions(&self, user_token: &str) -> Result<Vec<String>, GraphApiError> {
-        let r = self.get("me/permissions", Some(user_token), Vec::new()).await?;
-        Ok(r.get("data")
-            .and_then(Value::as_array)
-            .map(|a| {
-                a.iter()
-                    .filter(|x| x.get("status").and_then(Value::as_str) == Some("granted"))
-                    .filter_map(|x| x.get("permission").and_then(Value::as_str).map(str::to_owned))
-                    .collect()
-            })
-            .unwrap_or_default())
+        let r = self
+            .get("me/permissions", "me/permissions", Some(user_token), Vec::new())
+            .await?;
+        self.finish(r, |v| {
+            Ok(v.get("data")
+                .and_then(Value::as_array)
+                .map(|a| {
+                    a.iter()
+                        .filter(|x| x.get("status").and_then(Value::as_str) == Some("granted"))
+                        .filter_map(|x| x.get("permission").and_then(Value::as_str).map(str::to_owned))
+                        .collect()
+                })
+                .unwrap_or_default())
+        })
     }
 
     /// Đăng ký Page nhận webhook (messages, leadgen…). Cần `pages_manage_metadata`.
@@ -383,40 +415,45 @@ impl GraphClient {
         page_token: &str,
         fields: &[String],
     ) -> Result<(), GraphApiError> {
-        self.post(
-            &format!("{page_id}/subscribed_apps"),
-            page_token,
-            q(&[("subscribed_fields", &fields.join(","))]),
-            None,
-            false,
-        )
-        .await
-        .map(|_| ())
+        let r = self
+            .post(
+                &format!("{page_id}/subscribed_apps"),
+                "{page}/subscribed_apps",
+                page_token,
+                q(&[("subscribed_fields", &fields.join(","))]),
+                None,
+                false,
+            )
+            .await?;
+        self.done(r)
     }
 
     pub async fn unsubscribe_page(&self, page_id: &str, page_token: &str) -> Result<(), GraphApiError> {
-        self.post(
-            &format!("{page_id}/subscribed_apps"),
-            page_token,
-            q(&[("subscribed_fields", "")]),
-            None,
-            false,
-        )
-        .await
-        .map(|_| ())
+        let r = self
+            .post(
+                &format!("{page_id}/subscribed_apps"),
+                "{page}/subscribed_apps",
+                page_token,
+                q(&[("subscribed_fields", "")]),
+                None,
+                false,
+            )
+            .await?;
+        self.done(r)
     }
 
-    /// Kiểm hạn/hiệu lực token bằng app token `app_id|app_secret`.
+    /// Kiểm hạn/hiệu lực token bằng app token `app_id|app_secret` (header); `input_token` ở query vì Graph quy định.
     pub async fn debug_token(&self, input_token: &str) -> Result<TokenDebug, GraphApiError> {
         let c = load_facebook_config(&self.env);
         let r = self
             .get(
                 "debug_token",
+                "debug_token",
                 Some(&format!("{}|{}", c.app_id, c.app_secret)),
                 q(&[("input_token", input_token)]),
             )
             .await?;
-        Self::typed(r.get("data").cloned().unwrap_or(Value::Null))
+        self.finish(r, |v| Self::typed(v.get("data").cloned().unwrap_or(Value::Null)))
     }
 
     /// Chi tiết lead theo `leadgen_id` (dùng page token).
@@ -424,11 +461,12 @@ impl GraphClient {
         let r = self
             .get(
                 leadgen_id,
+                "{leadgen}",
                 Some(page_token),
                 q(&[("fields", "id,created_time,form_id,ad_id,field_data")]),
             )
             .await?;
-        Self::typed(r)
+        self.finish(r, |v| Self::typed(v.clone()))
     }
 
     /// Gửi tin văn bản: `messaging_type: RESPONSE` (trong cửa sổ 24 giờ). `human_agent`: tin nhân viên gõ, 24 giờ đến 7
@@ -448,10 +486,10 @@ impl GraphClient {
             body["messaging_type"] = json!("RESPONSE");
         }
         body["message"] = json!({ "text": text });
-        Self::typed(
-            self.post("me/messages", page_token, Vec::new(), Some(body), true)
-                .await?,
-        )
+        let r = self
+            .post("me/messages", "me/messages", page_token, Vec::new(), Some(body), true)
+            .await?;
+        self.finish(r, |v| Self::typed(v.clone()))
     }
 
     /// Gửi tin kèm nút trả lời nhanh (tối đa 13 nút, tiêu đề ≤ 20 ký tự); `payload` quay về trong `message.quick_reply`.
@@ -467,38 +505,44 @@ impl GraphClient {
             .map(|(title, payload)| json!({ "content_type": "text", "title": utf16_prefix(title, 20), "payload": utf16_prefix(payload, 1000) }))
             .collect();
         let body = json!({ "recipient": { "id": psid }, "messaging_type": "RESPONSE", "message": { "text": text, "quick_replies": quick } });
-        Self::typed(
-            self.post("me/messages", page_token, Vec::new(), Some(body), true)
-                .await?,
-        )
+        let r = self
+            .post("me/messages", "me/messages", page_token, Vec::new(), Some(body), true)
+            .await?;
+        self.finish(r, |v| Self::typed(v.clone()))
     }
 
     /// Bật nút "Bắt đầu" của Page nếu chưa có (không đè cấu hình sẵn). Trả `true` nếu vừa bật.
     pub async fn ensure_get_started(&self, page_token: &str) -> Result<bool, GraphApiError> {
-        let cur = self
+        let r = self
             .get(
+                "me/messenger_profile",
                 "me/messenger_profile",
                 Some(page_token),
                 q(&[("fields", "get_started")]),
             )
             .await?;
-        let has = cur.get("data").and_then(Value::as_array).is_some_and(|a| {
-            a.iter().any(|d| {
-                d.get("get_started")
-                    .is_some_and(|g| !g.is_null() && *g != Value::Bool(false))
-            })
-        });
+        let has = self.finish(r, |cur| {
+            Ok(cur.get("data").and_then(Value::as_array).is_some_and(|a| {
+                a.iter().any(|d| {
+                    d.get("get_started")
+                        .is_some_and(|g| !g.is_null() && *g != Value::Bool(false))
+                })
+            }))
+        })?;
         if has {
             return Ok(false);
         }
-        self.post(
-            "me/messenger_profile",
-            page_token,
-            Vec::new(),
-            Some(json!({ "get_started": { "payload": "GET_STARTED" } })),
-            false,
-        )
-        .await?;
+        let r = self
+            .post(
+                "me/messenger_profile",
+                "me/messenger_profile",
+                page_token,
+                Vec::new(),
+                Some(json!({ "get_started": { "payload": "GET_STARTED" } })),
+                false,
+            )
+            .await?;
+        self.done(r)?;
         Ok(true)
     }
 
@@ -512,13 +556,16 @@ impl GraphClient {
         let r = self
             .post(
                 &format!("{comment_id}/comments"),
+                "{comment}/comments",
                 page_token,
                 Vec::new(),
                 Some(json!({ "message": text })),
                 true,
             )
             .await?;
-        Ok(r.get("id").and_then(Value::as_str).unwrap_or_default().to_owned())
+        self.finish(r, |v| {
+            Ok(v.get("id").and_then(Value::as_str).unwrap_or_default().to_owned())
+        })
     }
 
     /// Private Reply: nhắn riêng người đã bình luận (1 tin mỗi bình luận, trong 7 ngày). Cần `pages_messaging`.
@@ -530,32 +577,47 @@ impl GraphClient {
         text: &str,
     ) -> Result<SentMessage, GraphApiError> {
         let body = json!({ "recipient": { "comment_id": comment_id }, "message": { "text": text } });
-        Self::typed(
-            self.post(&format!("{page_id}/messages"), page_token, Vec::new(), Some(body), true)
-                .await?,
-        )
+        let r = self
+            .post(
+                &format!("{page_id}/messages"),
+                "{page}/messages",
+                page_token,
+                Vec::new(),
+                Some(body),
+                true,
+            )
+            .await?;
+        self.finish(r, |v| Self::typed(v.clone()))
     }
 
     /// Ẩn bình luận (người khác không thấy, người viết vẫn thấy). Cần `pages_manage_engagement`.
     pub async fn hide_comment(&self, page_token: &str, comment_id: &str) -> Result<(), GraphApiError> {
-        self.post(
-            comment_id,
-            page_token,
-            Vec::new(),
-            Some(json!({ "is_hidden": true })),
-            true,
-        )
-        .await
-        .map(|_| ())
+        let r = self
+            .post(
+                comment_id,
+                "{comment}",
+                page_token,
+                Vec::new(),
+                Some(json!({ "is_hidden": true })),
+                true,
+            )
+            .await?;
+        self.done(r)
     }
 
     /// Tên hiển thị của khách (best-effort: cần `pages_user_profile` hoặc đã nhắn tin). Lỗi ⇒ `None`.
     pub async fn get_user_name(&self, psid: &str, page_token: &str) -> Option<String> {
         let r = self
-            .get(psid, Some(page_token), q(&[("fields", "name,first_name,last_name")]))
+            .get(
+                psid,
+                "{psid}",
+                Some(page_token),
+                q(&[("fields", "name,first_name,last_name")]),
+            )
             .await
             .ok()?;
-        let s = |k: &str| r.get(k).and_then(Value::as_str).map(str::to_owned);
+        let v = self.finish(r, |v| Ok(v.clone())).ok()?;
+        let s = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_owned);
         let name = s("name").unwrap_or_else(|| {
             format!(
                 "{} {}",
@@ -577,29 +639,35 @@ impl GraphClient {
         limit: u32,
     ) -> Result<Vec<ConversationMessage>, GraphApiError> {
         let fields = format!("messages.limit({limit}){{id,created_time,from,message}}");
+        let query = q(&[("platform", "messenger"), ("user_id", psid), ("fields", &fields)]);
         let r = self
             .get(
                 &format!("{page_id}/conversations"),
+                "{page}/conversations",
                 Some(page_token),
-                q(&[("platform", "messenger"), ("user_id", psid), ("fields", &fields)]),
+                query,
             )
             .await?;
-        let msgs = r.pointer("/data/0/messages/data").cloned().unwrap_or_else(|| json!([]));
-        Self::typed(msgs)
+        self.finish(r, |v| {
+            Self::typed(v.pointer("/data/0/messages/data").cloned().unwrap_or_else(|| json!([])))
+        })
     }
 
     /// Tên khách lấy từ hội thoại của Page (`participants`): đường dự phòng khi `/{PSID}` bị chặn (người nhắn không có vai
     /// trò trong app mà app chưa được duyệt Business Asset User Profile Access). Lỗi ⇒ `None`.
     pub async fn get_conversation_name(&self, page_id: &str, psid: &str, page_token: &str) -> Option<String> {
+        let query = q(&[("platform", "messenger"), ("user_id", psid), ("fields", "participants")]);
         let r = self
             .get(
                 &format!("{page_id}/conversations"),
+                "{page}/conversations",
                 Some(page_token),
-                q(&[("platform", "messenger"), ("user_id", psid), ("fields", "participants")]),
+                query,
             )
             .await
             .ok()?;
-        for c in r.get("data").and_then(Value::as_array)? {
+        let v = self.finish(r, |v| Ok(v.clone())).ok()?;
+        for c in v.get("data").and_then(Value::as_array)? {
             let found = c
                 .pointer("/participants/data")
                 .and_then(Value::as_array)

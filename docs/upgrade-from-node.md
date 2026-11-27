@@ -17,7 +17,7 @@ kéo bản mới ([rust/PLAN.md](rust/PLAN.md) mục 4.13 và 8). Kịch bản t
 | Service trong compose | `postgres`, `migrate`, `api`, `web` | `trinity`, `postgres` (migration chạy trong chính binary) |
 | Bỏ hẳn | Redis (đã bỏ từ bản Node cuối), Prisma lúc chạy, Next server | `migrate`, `api`, `web` |
 | Cổng chính | web `3000`, api `4000` | `3000` cho mọi thứ, gồm `/api/v1` và `/notif-ws` |
-| Cổng tương thích | | `COMPAT_API_PORT` (mặc định `4000`), chỉ để proxy cũ chưa kịp sửa; xem dưới |
+| Cổng tương thích | | `COMPAT_API_PORT` (compose và `.env.example` đặt `4000`; không đặt thì không mở), chỉ để proxy cũ chưa kịp sửa; xem dưới |
 | Biến `PORT` | `PORT=4000` trong `.env.example` | bị bỏ qua, in một dòng cảnh báo |
 | Người dùng trong container | `node` (uid 1000) | uid 1000, nên volume cũ vẫn ghi được |
 | Volume | `pgdata`, `storage` (`/var/lib/trinity/storage`), `uploads` (`/app/uploads`) | giữ nguyên tên và đường dẫn |
@@ -57,11 +57,11 @@ thông báo ở hai tab và xác nhận thông báo mới tới trong vài giây
 ## Cổng tương thích 4000
 
 Bản Node bắt reverse proxy trỏ `/notif-ws` thẳng vào cổng 4000; Next không chuyển tiếp WebSocket. Sau khi gỡ Node, nếu
-không có gì nghe ở đó thì chuông realtime mất mà không có lỗi nào. Vì vậy binary nghe thêm `COMPAT_API_PORT`; trong
+không có gì nghe ở đó thì chuông realtime mất mà không có lỗi nào. Vì vậy khi đặt `COMPAT_API_PORT` binary nghe thêm cổng đó (cùng router với cổng chính: `/api/v1`, `/notif-ws`, cách xác định IP khách y hệt; tắt êm cùng SIGTERM); trong
 container là `0.0.0.0:4000`, compose công bố `127.0.0.1:${API_PORT:-4000}` (biến `API_PORT` vẫn là biến phía host như
 trước). Với `TRUSTED_PROXY=cloudflare-tunnel` cổng này chỉ nghe loopback hoặc tắt. Cổng này **giữ tới hết bản phát hành lớn
 kế tiếp** sau bản đầu tiên phát hành bản Rust; số bản cụ thể sẽ ghi vào `CHANGELOG.md` khi X06 phát hành. Hai cổng không
-được trùng nhau (binary báo lỗi rõ và dừng).
+được trùng nhau và `COMPAT_API_PORT` phải là số 1–65535 (`trinity check-config` và lúc khởi động báo lỗi rõ rồi dừng).
 
 ## Lui về bản Node
 

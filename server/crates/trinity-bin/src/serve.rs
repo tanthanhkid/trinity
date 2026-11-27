@@ -988,7 +988,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         .layer(ws_layer);
     let node_url = config
         .var("NODE_FALLBACK_URL")
-        .map_or_else(|| format!("http://127.0.0.1:{}", config.compat_api_port), str::to_owned);
+        .map_or_else(|| "http://127.0.0.1:4000".to_owned(), str::to_owned);
     let scheme = match config.tls {
         TlsMode::Off => ListenerScheme::Http,
         TlsMode::Files { .. } => ListenerScheme::Https,
@@ -1070,6 +1070,30 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         Err(e) => return Err(format!("không mở được {host}:{port}: {e}")),
     };
     tracing::info!("trinity serve nghe tại {host}:{port} (Ctrl+C để dừng)");
+    // Cổng tương thích (#597): cùng router (`app.clone()`) nên `/api/v1`, `/notif-ws` và cách xác định IP khách y hệt cổng
+    // chính; HTTP thường (proxy cũ nói chuyện HTTP với cổng 4000). Dừng cùng tín hiệu qua `stop_rx`.
+    let compat = match config.compat_api_port {
+        None => None,
+        Some(cp) if cp == port => {
+            return Err(format!("cổng chính ({port}) trùng COMPAT_API_PORT ({cp})"));
+        }
+        Some(cp) => {
+            let chost = trinity_http::serve::compat_listen_host(&env, trinity_http::serve::running_in_container());
+            let l = tokio::net::TcpListener::bind((chost, cp))
+                .await
+                .map_err(|e| format!("không mở được cổng tương thích {chost}:{cp}: {e}"))?;
+            tracing::info!("cổng tương thích nghe tại {chost}:{cp} (/api/v1, /notif-ws)");
+            let mut rx = stop_rx.clone();
+            let app = app.clone();
+            Some(tokio::spawn(async move {
+                let stop = async move {
+                    let _ = rx.wait_for(|v| *v).await;
+                };
+                trinity_http::serve::serve(l, app, None, stop, trinity_http::serve::DEFAULT_GRACE).await
+            }))
+        }
+    };
+    let stop_tx2 = stop_tx.clone();
     let shutdown = async move {
         trinity_http::serve::shutdown_signal().await;
         tracing::info!("nhận tín hiệu dừng, tắt máy êm");
@@ -1078,6 +1102,14 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     trinity_http::serve::serve(listener, app, tls, shutdown, trinity_http::serve::DEFAULT_GRACE)
         .await
         .map_err(|e| format!("máy chủ dừng vì lỗi: {e}"))?;
+    if let Some(h) = compat {
+        let _ = stop_tx2.send(true);
+        match h.await {
+            Ok(Err(e)) => tracing::warn!("cổng tương thích dừng vì lỗi: {e}"),
+            Err(e) => tracing::warn!("cổng tương thích: {e}"),
+            Ok(Ok(())) => {}
+        }
+    }
     // Chờ scheduler/worker nhả lượt (chúng tự thoát khi `stop_tx` đã báo).
     tokio::time::sleep(Duration::from_millis(200)).await;
     db.close().await;

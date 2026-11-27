@@ -53,8 +53,9 @@ pub struct Config {
     pub node_env: String,
     /// Cổng chính (`TRINITY_HTTP_PORT`, mặc định 3000). `PORT` của bản Node bị bỏ qua.
     pub http_port: u16,
-    /// Cổng tương thích cho `/notif-ws` và `/api/v1` (`COMPAT_API_PORT`, mặc định 4000).
-    pub compat_api_port: u16,
+    /// Cổng tương thích cho `/notif-ws` và `/api/v1` (`COMPAT_API_PORT`). `None` = không đặt: không mở cổng thứ hai
+    /// (compose và `.env.example` đặt 4000 cho bản cài cũ).
+    pub compat_api_port: Option<u16>,
     /// `DATABASE_URL`.
     pub database_url: Option<String>,
     /// Kích thước pool dùng chung (`DB_POOL_SIZE`, rồi `PRISMA_CONNECTION_LIMIT`, mặc định 8).
@@ -162,7 +163,10 @@ impl Config {
         }
 
         let http_port = port(env, "TRINITY_HTTP_PORT", DEFAULT_HTTP_PORT, &mut problems);
-        let compat_api_port = port(env, "COMPAT_API_PORT", DEFAULT_COMPAT_PORT, &mut problems);
+        let compat_api_port = match get(env, "COMPAT_API_PORT") {
+            None => None,
+            Some(_) => port(env, "COMPAT_API_PORT", DEFAULT_COMPAT_PORT, &mut problems),
+        };
         // Cổng sai đã báo ở trên; chỉ so trùng khi cả hai hợp lệ.
         if let (Some(h), Some(c)) = (http_port, compat_api_port)
             && h == c
@@ -232,7 +236,7 @@ impl Config {
             swagger_enabled: !production || get(env, "SWAGGER_ENABLED") == Some("true"),
             node_env,
             http_port: http_port.unwrap_or(DEFAULT_HTTP_PORT),
-            compat_api_port: compat_api_port.unwrap_or(DEFAULT_COMPAT_PORT),
+            compat_api_port,
             database_url: get(env, "DATABASE_URL").map(str::to_owned),
             db_pool_size,
             jwt_secret: get(env, "JWT_SECRET").unwrap_or_default().to_owned(),

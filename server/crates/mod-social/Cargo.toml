@@ -10,7 +10,9 @@ publish.workspace = true
 
 [dependencies]
 base64 = { workspace = true }
+bytes = { workspace = true }
 chrono = { workspace = true }
+futures-util = { workspace = true }
 hmac = { workspace = true }
 http = { workspace = true }
 mod-facebook = { workspace = true }
@@ -19,15 +21,19 @@ serde_json = { workspace = true }
 sha2 = { workspace = true }
 sqlx = { workspace = true }
 subtle = { workspace = true }
+tokio = { workspace = true, features = ["fs", "io-util"] }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 trinity-db = { workspace = true }
 trinity-http = { workspace = true }
 trinity-integrations = { workspace = true }
 trinity-kernel = { workspace = true }
+trinity-storage = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 rustls = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "io-util"] }
 wiremock = { workspace = true }
 
 [lints]

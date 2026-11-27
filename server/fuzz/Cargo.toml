@@ -1,0 +1,63 @@
+# Harness cargo-fuzz (X10, PLAN 6.3). Nằm NGOÀI workspace (`crates/*` không chứa `fuzz/`), nên `cargo build --workspace`
+# và clippy của CI không dựng nó; chỉ nightly mới chạy (`cargo +nightly fuzz run <target>` trong server/).
+# Danh sách target, cách chạy, kết quả mong đợi: docs/rust/SECURITY-REVIEW.md mục 3.
+[package]
+name = "trinity-fuzz"
+version = "0.0.0"
+edition = "2024"
+license = "AGPL-3.0-only"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1.0"
+tokio = { version = "1.54", default-features = false, features = ["rt"] }
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+mod-mcp = { path = "../crates/mod-mcp" }
+mod-custom = { path = "../crates/mod-custom" }
+trinity-integrations = { path = "../crates/trinity-integrations" }
+trinity-docgen = { path = "../crates/trinity-docgen" }
+
+# Tách khỏi workspace cha để Cargo không đòi `fuzz` nằm trong `members`.
+[workspace]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "mcp_jsonrpc"
+path = "fuzz_targets/mcp_jsonrpc.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "signature"
+path = "fuzz_targets/signature.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "webhook_payload"
+path = "fuzz_targets/webhook_payload.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "csv_cell"
+path = "fuzz_targets/csv_cell.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "xlsx_read"
+path = "fuzz_targets/xlsx_read.rs"
+test = false
+doc = false
+bench = false

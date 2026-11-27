@@ -63,6 +63,8 @@ Chạy trong `server/`. Trên máy dùng chung, thay `cargo` bằng `scripts/car
 | Test không cần DB của một crate (unit, tests/, doctest) | `cargo test -p <crate>` |
 | Test pg (đánh dấu `#[ignore]`, chạy có chủ đích) | `TEST_DATABASE_URL=postgresql://$USER@localhost:5432/trinity_<tên> cargo test -p <crate> --tests -- --ignored` |
 | Giấy phép, lỗ hổng | `cargo deny check` (cần [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)) |
+| Lỗ hổng (RustSec, đêm) | `cargo audit --file Cargo.lock` (cấu hình `.cargo/audit.toml`) |
+| Fuzz (nightly, đêm; không chạy trong `ci-ok`) | `cargo +nightly fuzz run <target>` (target ở `fuzz/`, danh sách ở [`docs/rust/SECURITY-REVIEW.md`](../docs/rust/SECURITY-REVIEW.md)) |
 
 Build release, test pg đầy đủ, bộ hợp đồng và build hai kiến trúc chạy trên CI ([`docs/ci.md`](../docs/ci.md)).
 

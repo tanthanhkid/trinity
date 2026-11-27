@@ -8,6 +8,7 @@
 pub(crate) mod act_contacts;
 pub(crate) mod act_records;
 pub(crate) mod act_tasks;
+mod ai_activity;
 mod channels;
 mod confirm;
 mod contacts;
@@ -16,7 +17,9 @@ mod fanpage;
 mod fanpage_ports;
 pub(crate) mod import;
 mod inbox;
+mod interactions;
 mod invitations;
+mod lead_intent;
 mod options;
 mod payroll;
 mod records;
@@ -272,7 +275,8 @@ pub fn register_group2(r: &mut ToolRegistry) {
     reg(r, "list_features", &[], setup::list_features);
 }
 
-/// Đăng ký 9 tool của nhóm 1 vào `r`.
+/// Đăng ký 13 tool của nhóm 1 vào `r`: 9 tool đọc lõi cùng `list_leads_to_score`, `set_lead_intent` (ghi ý định mua của lead, cần scope
+/// `crm.write`; không có tool xoá), `list_ai_activity` và `list_interactions`.
 pub fn register_group1(r: &mut ToolRegistry) {
     reg(r, "search", &[], search::search);
     reg(r, "fetch", &[], search::fetch);
@@ -293,6 +297,20 @@ pub fn register_group1(r: &mut ToolRegistry) {
     );
     reg(r, "list_my_tasks", &["kanban.view"], deals::my_tasks);
     reg(r, "list_crm_options", &[], options::list_crm_options);
+    reg(
+        r,
+        "list_leads_to_score",
+        &["contacts.view"],
+        lead_intent::list_leads_to_score,
+    );
+    r.register(ToolSpec {
+        name: "set_lead_intent",
+        scope: Some("crm.write"),
+        permissions: &["contacts.view"],
+        runner: Arc::new(Tool(lead_intent::set_lead_intent)),
+    });
+    reg(r, "list_ai_activity", &[], ai_activity::list_ai_activity);
+    reg(r, "list_interactions", &[], interactions::list_interactions);
 }
 
 /// Đăng ký 6 tool phiếu lương (M31c): `export_payslip_excel`, `export_payslip_pdf`, `export_payslips_excel`,

@@ -879,7 +879,7 @@ async fn mark_failed(cx: &ActionCx<'_>, def: &ActionDef, id: i32, summary: &str,
 
 /// Trạng thái hiệu lực (không phụ thuộc job): `pending` quá hạn ⇒ `expired`; `approved` chưa có `result` ⇒ `executing` trong cửa sổ
 /// ngắn, quá cửa sổ ⇒ `failed`.
-fn effective_status(
+pub(crate) fn effective_status(
     status: &str,
     has_result: bool,
     decided_at: Option<DateTime<Utc>>,

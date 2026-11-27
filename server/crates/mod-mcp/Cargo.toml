@@ -22,6 +22,7 @@ mod-custom = { workspace = true }
 mod-deals = { workspace = true }
 mod-facebook = { workspace = true }
 mod-kanban = { workspace = true }
+mod-leads = { workspace = true }
 mod-oauth = { workspace = true }
 mod-payroll = { workspace = true }
 mod-reports = { workspace = true }

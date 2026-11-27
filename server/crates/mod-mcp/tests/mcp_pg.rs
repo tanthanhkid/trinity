@@ -1170,3 +1170,119 @@ async fn tool_dang_bai_kenh_va_thu_vien_media() {
     let (err, text, _) = run(&e, &adm, "list_social_media", &json!({})).await;
     assert!(err && text.contains("đang tắt"), "{text}");
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn tool_cham_y_dinh_lead_hoat_dong_ai_va_tuong_tac() {
+    let e = env_with(mod_mcp::register_group1).await;
+    let mut c = e.conn().await;
+    exec(
+        &mut c,
+        "INSERT INTO roles (name, is_system, updated_at) VALUES ('nv-lead', false, now());
+         INSERT INTO role_permissions (role_id, permission, scope)
+           SELECT r.id, p.permission, p.scope FROM roles r, (VALUES
+             ('integrations.ai_connect', NULL), ('contacts.view', 'own')) AS p(permission, scope) WHERE r.name = 'nv-lead';
+         INSERT INTO user_roles (user_id, role_id) SELECT u.id, r.id FROM users u, roles r WHERE u.email = 'staff@m39.test' AND r.name = 'nv-lead';",
+    )
+    .await;
+    let (admin, staff) = (e.admin, e.staff);
+    exec(
+        &mut c,
+        &format!(
+            "INSERT INTO contacts (phone, full_name, assigned_to, updated_at) VALUES
+               ('0912345011', 'Khách Của Quản Trị', {admin}, now()), ('0912345012', 'Khách Của Nhân Viên', {staff}, now());
+             INSERT INTO activities (contact_id, action, details, created_by)
+               SELECT id, 'note', '{{\"description\": \"Hỏi giá, gọi 0987 654 321 chốt đơn\"}}'::jsonb, {admin}
+               FROM contacts WHERE full_name = 'Khách Của Quản Trị';"
+        ),
+    )
+    .await;
+    let mine: i64 = e
+        .scalar("SELECT id::bigint FROM contacts WHERE full_name = 'Khách Của Quản Trị'")
+        .await;
+    let theirs: i64 = e
+        .scalar("SELECT id::bigint FROM contacts WHERE full_name = 'Khách Của Nhân Viên'")
+        .await;
+    let write = e
+        .token("lead-ghi", admin, "{crm.read,crm.write}", RESOURCE, "1 hour", false)
+        .await;
+    let read_only = e
+        .token("lead-doc", admin, "{crm.read}", RESOURCE, "1 hour", false)
+        .await;
+    let stf = e
+        .token("lead-nv", staff, "{crm.read,crm.write}", RESOURCE, "1 hour", false)
+        .await;
+
+    // Chưa chấm: cả hai khách có mặt, ghi chú có SĐT bị che.
+    let (err, _, v) = run(&e, &write, "list_leads_to_score", &json!({})).await;
+    assert!(!err, "{v}");
+    let leads = v["data"]["leads"].as_array().unwrap();
+    assert_eq!(leads.len(), 2, "{v}");
+    let a = leads.iter().find(|l| l["id"] == mine).unwrap();
+    assert!(a["intent"].is_null());
+    let notes = a["notes"].as_str().unwrap();
+    assert!(notes.contains("Hỏi giá") && !notes.contains("0987 654 321"), "{notes}");
+
+    // Ghi ý định: khách trong phạm vi ok + có điểm; id lạ báo lỗi từng dòng; thiếu scope ghi bị từ chối.
+    let items = json!({ "items": [
+        { "contact_id": mine, "intent": 0.9, "reason": "hỏi giá, muốn chốt" },
+        { "contact_id": 2_000_000_000, "intent": 0.5 },
+    ] });
+    let (err, _, v) = run(&e, &write, "set_lead_intent", &items).await;
+    assert!(!err, "{v}");
+    let res = v["data"]["results"].as_array().unwrap();
+    assert_eq!(res[0]["ok"], true, "{v}");
+    assert!(res[0]["lead_score"].is_number(), "{v}");
+    assert_eq!(res[1]["ok"], false);
+    let (err, _, _) = run(&e, &read_only, "set_lead_intent", &items).await;
+    assert!(err);
+    let (err, text, _) = run(&e, &write, "set_lead_intent", &json!({ "items": [] })).await;
+    assert!(err, "{text}");
+    // Nhân viên chỉ chấm được khách của mình.
+    let (_, _, v) = run(
+        &e,
+        &stf,
+        "set_lead_intent",
+        &json!({ "items": [{ "contact_id": mine, "intent": 1 }, { "contact_id": theirs, "intent": 0.1 }] }),
+    )
+    .await;
+    assert_eq!(v["data"]["results"][0]["ok"], false, "{v}");
+    assert_eq!(v["data"]["results"][1]["ok"], true, "{v}");
+    assert_eq!(
+        e.scalar(&format!(
+            "SELECT (intent * 100)::bigint FROM lead_ai_intents WHERE contact_id = {mine}"
+        ))
+        .await,
+        90
+    );
+
+    // Đã chấm thì không còn trong danh sách mặc định; only_missing=false vẫn thấy, kèm intent.
+    let (_, _, v) = run(&e, &write, "list_leads_to_score", &json!({})).await;
+    assert!(v["data"]["leads"].as_array().unwrap().is_empty(), "{v}");
+    let (_, _, v) = run(&e, &write, "list_leads_to_score", &json!({ "only_missing": false })).await;
+    let all = v["data"]["leads"].as_array().unwrap();
+    assert_eq!(all.len(), 2);
+    assert_eq!(all.iter().find(|l| l["id"] == mine).unwrap()["intent"], 0.9);
+
+    // Hoạt động AI: của mình mặc định; cả công ty cần integrations.ai_admin; ngày sai bị từ chối.
+    let (err, _, v) = run(&e, &write, "list_ai_activity", &json!({})).await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["who"], "chính bạn");
+    assert_eq!(v["data"]["timezone"], "Asia/Ho_Chi_Minh");
+    assert!(v["data"]["items"].is_array());
+    let (err, _, _) = run(&e, &stf, "list_ai_activity", &json!({ "all_users": true })).await;
+    assert!(err);
+    let (err, _, _) = run(&e, &write, "list_ai_activity", &json!({ "from": "27/11/2026" })).await;
+    assert!(err);
+
+    // Tương tác: khung thống kê luôn có; ngày sai và chuỗi nhiều chữ số bị từ chối.
+    let (err, _, v) = run(&e, &write, "list_interactions", &json!({ "limit": 5 })).await;
+    assert!(!err, "{v}");
+    assert!(v["data"]["items"].is_array());
+    assert!(v["data"]["stats_today"]["messages"].is_number());
+    assert_eq!(v["data"]["manage_url"], "/inbox?kenh=tuong-tac");
+    let (err, _, _) = run(&e, &write, "list_interactions", &json!({ "from": "hôm qua" })).await;
+    assert!(err);
+    let (err, _, _) = run(&e, &write, "list_interactions", &json!({ "q": "0912 345" })).await;
+    assert!(err);
+}

@@ -26,7 +26,7 @@ interface CreatedInvitation extends InvitationRow {
   path: string
 }
 
-const INVITES_KEY = ['users', 'invitations'] as const
+export const INVITES_KEY = ['users', 'invitations'] as const
 
 function inviteUrl(path: string): string {
   return `${window.location.origin}${path}`
@@ -42,19 +42,32 @@ async function copyText(text: string): Promise<void> {
 }
 
 /** Nút + hộp thoại "Mời bằng link": nhập email, chọn vai trò, nhận link để chép gửi qua Zalo/Messenger. */
-export function InviteByLinkButton({ prefill }: { prefill?: { email: string; roleId: number | null } }) {
+export function InviteByLinkButton({
+  prefill,
+  roles: fixedRoles,
+  disabled,
+  label,
+}: {
+  prefill?: { email: string; roleId: number | null }
+  /** Danh sách vai trò cố định (trang Thành viên); không truyền thì hỏi server như trước. */
+  roles?: Array<{ id: number; name: string }>
+  disabled?: boolean
+  label?: string
+}) {
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState('')
   const [roleId, setRoleId] = useState<number | null>(null)
   const [created, setCreated] = useState<CreatedInvitation | null>(null)
   // Server lọc theo đúng luật mời (ẩn vai trò Quản trị nếu không phải admin, ẩn vai trò có quyền vượt người mời).
-  const { data: roles = [], isLoading: rolesLoading } = useQuery({
+  const { data: fetchedRoles = [], isLoading: fetchedLoading } = useQuery({
     queryKey: [...INVITES_KEY, 'roles'],
-    enabled: open,
+    enabled: open && !fixedRoles,
     queryFn: async () => (await apiClient.get<{ data: Array<{ id: number; name: string }> }>('/auth/invitations/roles')).data.data,
   })
 
+  const roles = fixedRoles ?? fetchedRoles
+  const rolesLoading = fixedRoles ? false : fetchedLoading
   const create = useMutation({
     mutationFn: async () =>
       (await apiClient.post<CreatedInvitation>('/auth/invitations', { email: email.trim(), role_id: roleId })).data,
@@ -83,8 +96,8 @@ export function InviteByLinkButton({ prefill }: { prefill?: { email: string; rol
 
   return (
     <>
-      <Button variant="outline" className="h-11" onClick={start}>
-        <Link2 className="mr-2 h-4 w-4" /> {prefill ? 'Tạo link mới' : 'Mời bằng link'}
+      <Button variant={label && !prefill ? 'default' : 'outline'} className="h-11" onClick={start} disabled={disabled}>
+        <Link2 className="mr-2 h-4 w-4" /> {label ?? (prefill ? 'Tạo link mới' : 'Mời bằng link')}
       </Button>
       <Dialog open={open} onOpenChange={(o) => !o && close()}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -144,7 +157,7 @@ export function InviteByLinkButton({ prefill }: { prefill?: { email: string; rol
                     <option key={r.id} value={r.id}>{r.name}</option>
                   ))}
                 </select>
-                <p className="text-xs text-muted-foreground">Chỉ hiện vai trò có quyền không vượt quá quyền của bạn.</p>
+                {!fixedRoles && <p className="text-xs text-muted-foreground">Chỉ hiện vai trò có quyền không vượt quá quyền của bạn.</p>}
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" className="h-11" onClick={close}>Huỷ</Button>

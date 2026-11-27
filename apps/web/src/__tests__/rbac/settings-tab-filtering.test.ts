@@ -54,10 +54,22 @@ describe("Settings ALL_TABS — lọc theo permission (Grants)", () => {
   })
 
   it("cấp ĐÚNG 1 quyền → chỉ tab đó (+ tab mở-cho-mọi-người) hiện", () => {
-    const visible = visibleTabValues({ "users.view": "all" })
-    expect(visible).toContain("users")
-    expect(visible).not.toContain("roles")
+    const visible = visibleTabValues({ "users.manage": "all" })
+    expect(visible).toContain("members")
+    expect(visible).not.toContain("departments")
     expect(visible).not.toContain("api-keys")
+  })
+
+  it("Thành viên (không có users.manage) không thấy trang Thành viên", () => {
+    // Quyền cố định của vai trò Thành viên: có `users.view` nhưng không có quyền quản trị nào.
+    expect(visibleTabValues({ "users.view": "all", "contacts.view": "all" })).not.toContain("members")
+  })
+
+  it("Người dùng / Vai trò / Team đã gộp vào Thành viên: không còn tab riêng", () => {
+    const values: string[] = ALL_TABS.map((t): string => t.value)
+    for (const gone of ["users", "roles", "teams"]) expect(values).not.toContain(gone)
+    const grouped: string[] = TAB_GROUPS.flatMap((g) => g.tabs as readonly string[])
+    expect(grouped).toContain("members")
   })
 
   it("cấp đủ MỌI quyền còn lại → mọi tab không-hidden đều hiện", () => {

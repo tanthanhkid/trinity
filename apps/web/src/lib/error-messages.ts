@@ -34,7 +34,7 @@ export const ERROR_MESSAGES: Record<ErrorKind, ErrorCopy> = {
   network: { title: "Không kết nối được máy chủ", hint: "Kiểm tra Internet rồi thử lại.", retry: true },
   timeout: { title: "Máy chủ phản hồi quá lâu", hint: "Thử lại sau ít phút.", retry: true },
   session: { title: "Phiên đăng nhập đã hết hạn", hint: "Đăng nhập lại để tiếp tục — dữ liệu đã lưu không mất.", retry: false },
-  forbidden: { title: "Tài khoản của bạn chưa có quyền làm việc này", hint: "Nhờ quản trị viên cấp quyền ở Cài đặt › Vai trò.", retry: false },
+  forbidden: { title: "Tài khoản của bạn chưa có quyền làm việc này", hint: "Nhờ quản trị viên cấp quyền ở Cài đặt › Thành viên.", retry: false },
   notFound: { title: "Không tìm thấy dữ liệu", hint: "Có thể mục này đã bị xoá hoặc chuyển cho người khác — tải lại để xem bản mới nhất.", retry: true },
   conflict: { title: "Dữ liệu vừa được người khác thay đổi", hint: "Tải lại để xem bản mới nhất rồi làm lại.", retry: true },
   validation: { title: "Thông tin chưa hợp lệ", hint: "Kiểm tra lại các ô đã nhập.", retry: false },

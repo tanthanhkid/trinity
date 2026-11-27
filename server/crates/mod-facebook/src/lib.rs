@@ -13,11 +13,17 @@
 //!   chuyển tiếp nguyên byte, cổng tính năng; xử lý từng loại sự kiện đi qua [`webhook::EntryProcessor`] (M47b tin nhắn và Lead Ads,
 //!   M49 bình luận).
 //!
-//! Chưa có ở đây (việc của M47b trở đi): xử lý tin nhắn/leadgen/bình luận, link mở chat, hội thoại, luật tự động. Sau `check_token`
+//! - [`ingest`], [`messenger`], [`leads`] (M47b): [`ingest::FacebookIngest`] cài `EntryProcessor`: tin Messenger vào (hội thoại, khách, outbox
+//!   `messenger.message_*`, chuông) và Lead Ads (`leadgen` ⇒ Graph ⇒ khách, khử trùng theo `leadgen_id`).
+//!
+//! Chưa có ở đây (việc của M48/M49): bình luận, link mở chat, kịch bản nhắn tin, luật tự động. Sau `check_token`
 //! thành công tầng route còn gọi làm mới tên khách thiếu (`refreshMissingNames`, M48).
 
 pub mod config;
 pub mod graph;
+pub mod ingest;
+pub mod leads;
+pub mod messenger;
 pub mod pages;
 pub mod routes;
 pub mod state;

@@ -106,6 +106,7 @@ pub async fn find_or_create(conn: &mut PgConnection, p: &LinkInput<'_>) -> Resul
             job_title: None,
             reminder_notes: None,
             zalo_account: Some(p.zalo_user_id),
+            project_id: None,
         },
         &Owner { id: owner_id, team_id },
         "zalo_oa",

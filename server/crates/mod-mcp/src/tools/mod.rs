@@ -14,6 +14,7 @@ mod deals;
 mod fanpage;
 mod inbox;
 mod invitations;
+mod import;
 mod options;
 mod records;
 mod schema;
@@ -22,6 +23,10 @@ mod setup;
 mod social;
 
 pub use social::{SocialDeps, register_social};
+mod structure;
+mod template;
+mod view_tools;
+mod write;
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -220,6 +225,44 @@ pub fn register_inbox_invitations(r: &mut ToolRegistry, inbox: Arc<InboxDeps>, i
         users_manage,
         invitations::cancel_invitation,
     );
+}
+
+/// Như [`reg`] cho tool GHI: cần scope `crm.write`.
+fn reg_w(r: &mut ToolRegistry, name: &'static str, permissions: &'static [&'static str], run: RunFn) {
+    r.register(ToolSpec {
+        name,
+        scope: Some(write::WRITE_SCOPE),
+        permissions,
+        runner: Arc::new(Tool(run)),
+    });
+}
+
+/// Đăng ký 14 tool GHI của nhóm 3 (M43; cấu trúc, màn xem, mẫu, nhập liệu) vào `r`: `create_objects`, `create_object`,
+/// `update_object`, `add_field`, `update_field`, `archive_field`, `restore_structure_version`, `create_view`, `update_view`,
+/// `set_menu`, `install_object_template`, `setup_build`, `propose_workspace`, `import_records`. Chạy NGAY theo quyền người dùng
+/// (chế độ "Yêu cầu duyệt thay đổi do AI" bật ⇒ từ chối, khung đề xuất thuộc M42).
+pub fn register_structure(r: &mut ToolRegistry) {
+    const MANAGE: &[&str] = &["custom_objects.manage"];
+    const MANAGE_FEATURES: &[&str] = &["custom_objects.manage", "settings.features"];
+    reg_w(r, "create_objects", MANAGE, structure::create_objects);
+    reg_w(r, "create_object", MANAGE, structure::create_object);
+    reg_w(r, "update_object", MANAGE, structure::update_object);
+    reg_w(r, "add_field", MANAGE, structure::add_field);
+    reg_w(r, "update_field", MANAGE, structure::update_field);
+    reg_w(r, "archive_field", MANAGE, structure::archive_field);
+    reg_w(
+        r,
+        "restore_structure_version",
+        MANAGE_FEATURES,
+        structure::restore_structure_version,
+    );
+    reg_w(r, "create_view", MANAGE, view_tools::create_view);
+    reg_w(r, "update_view", MANAGE, view_tools::update_view);
+    reg_w(r, "set_menu", MANAGE, view_tools::set_menu);
+    reg_w(r, "install_object_template", MANAGE, template::install_object_template);
+    reg_w(r, "setup_build", MANAGE_FEATURES, template::setup_build);
+    reg_w(r, "propose_workspace", MANAGE_FEATURES, template::propose_workspace);
+    reg_w(r, "import_records", &["custom_records.manage"], import::import_records);
 }
 
 /// Đăng ký 9 tool đọc của nhóm 2 (M41) vào `r`: `get_setup_guide`, `describe_schema`, `list_records`, `get_record`,

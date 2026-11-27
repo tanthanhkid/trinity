@@ -15,8 +15,8 @@
 //!
 //! Mỗi hàm nhận kết nối đã gắn công ty (`&mut PgConnection` cho việc đọc, `&TenantDb` cho việc cần giao dịch), [`Actor`]
 //! (người gọi) và [`Scopes`] (tập chủ sở hữu theo từng quyền, do tầng route lấy từ `ScopeService` của K13), và trả
-//! `AppError` của K05, nên tầng route chỉ còn: guard + extractor K15 → hàm ở đây → JSON. Route được khai vào bảng route
-//! của `trinity-bin` ở bước nối router (bảng `declared_routes` hiện chưa có module nào khai).
+//! `AppError` của K05, nên tầng route chỉ còn: guard + extractor K15 → hàm ở đây → JSON.
+//! Bảng route (`specs`, 14 route) và `api_router` nằm ở [`routes`]; `trinity-bin` khai vào `declared_routes` và mount ở `serve`.
 //!
 //! Khác bản TS có chủ đích:
 //! - thông báo "được giao thương vụ" ([`write::Created::notifications`]) ghi trong CÙNG giao dịch tạo khách (K36 chạy trong
@@ -37,6 +37,7 @@ pub mod list;
 mod nullable;
 pub mod read;
 pub mod recent;
+pub mod routes;
 pub mod snapshot;
 pub mod third_party;
 pub mod transfer;

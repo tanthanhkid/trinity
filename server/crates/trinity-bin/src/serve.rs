@@ -179,12 +179,16 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     let perms = PermissionService::new(db.clone(), cache.clone());
     let secrets: Vec<&str> = config.service_secret.iter().map(String::as_str).collect();
     let auth = Arc::new(Authenticator::new(security.clone(), &config.jwt_secret, &secrets));
+    let gate: Arc<dyn trinity_http::router::OrgFeatureGate> = Arc::new(crate::feature_gate::OrgGate {
+        db: db.clone(),
+        multi_tenant: platform.multi_tenant(),
+    });
     let mk_deps = |guards: BTreeMap<&'static str, Arc<dyn NamedGuard>>| {
         Arc::new(AccessDeps {
             auth: auth.clone(),
             permissions: perms.clone(),
-            // Cổng tính năng tổ chức (`OrgFeatureGate`) chưa có bản dùng thật: các module đang mount không khai `org_feature`.
-            features: None,
+            // Cổng tính năng tổ chức: route khai `org_feature` (mod-leads) bị chặn 403 khi tổ chức tắt cờ.
+            features: Some(gate.clone()),
             guards,
         })
     };
@@ -361,7 +365,26 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             exec_timeout: Duration::from_secs(240),
         }),
     );
-    // CHƯA mount: mod-leads, mod-deals, mod-kanban,
+    app = mount(
+        app,
+        mod_contacts::routes::api_router(deps.clone()),
+        Arc::new(mod_contacts::routes::Ctx {
+            db: db.clone(),
+            scopes: ScopeService::new(db.clone(), cache.clone()),
+            cache: mod_contacts::list::CountCache::new(),
+        }),
+    );
+    app = mount(
+        app,
+        mod_leads::routes::api_router(deps.clone()),
+        Arc::new(mod_leads::routes::Ctx {
+            db: db.clone(),
+            scopes: ScopeService::new(db.clone(), cache.clone()),
+            lead_job_enabled: mod_leads::jobs::lead_enabled(lookup),
+            stale_job_enabled: mod_leads::jobs::stale_enabled(lookup),
+        }),
+    );
+    // CHƯA mount: mod-deals, mod-kanban,
     // mod-payroll, mod-pos, mod-facebook, mod-store (mới có bảng route, chưa có router axum). Route của chúng thuộc Node.
 
     // ── Scheduler và worker hàng đợi (nền). Chưa module nào đăng ký job ở đây; khi có, `scheduler.register(..)`.

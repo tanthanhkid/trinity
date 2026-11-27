@@ -6,8 +6,9 @@ chuyển sang bản một tiến trình viết bằng Rust.
 **Trạng thái.** Bản phát hành công khai hiện vẫn là bản Node; compose mặc định chưa đổi. Image `trinity` duy nhất, compose
 mới và lệnh `install.sh` mới nằm ở issue [#264](https://github.com/tanthanhkid/trinity/issues/264) (X06, đang làm). Các mục
 dưới đây ghi **thiết kế đã chốt cho bản đó** ([rust/PLAN.md](rust/PLAN.md) mục 4.13 và 8, [rust/ISSUES.md](rust/ISSUES.md)); tên tệp
-và giá trị cụ thể sẽ được đối chiếu lại khi X06 vào `main`. Kịch bản thử nâng cấp tự động:
-[#276](https://github.com/tanthanhkid/trinity/issues/276) (đang làm). Ai chạy cấu hình lai từ `main` thì đọc
+và giá trị cụ thể sẽ được đối chiếu lại khi X06 vào `main`. Kịch bản thử nâng cấp tự động
+([#276](https://github.com/tanthanhkid/trinity/issues/276)): `scripts/ops/upgrade-test.sh --new-ref <nhánh>`, hoặc workflow
+`Upgrade test` (chạy tay, tham số nhánh); dựng bản phát hành gần nhất bằng compose cũ có dữ liệu rồi nâng cấp tại chỗ. Ai chạy cấu hình lai từ `main` thì đọc
 [runbooks/hybrid.md](runbooks/hybrid.md).
 
 ## Tóm tắt thay đổi

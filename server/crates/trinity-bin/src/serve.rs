@@ -472,6 +472,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     let mcp_audit = Arc::new(mod_mcp::exec::DbAudit { db: db.clone() });
     let mut registry = mod_mcp::ToolRegistry::new();
     mod_mcp::register_group1(&mut registry);
+    mod_mcp::register_group2(&mut registry);
     mod_mcp::register_group3(&mut registry);
     mod_mcp::register_structure(&mut registry);
     // M44c: hộp thư và lời mời. Facebook dùng bản `FacebookIngest` riêng (cùng `GraphClient`, chỉ khác bộ nhớ chống đồng bộ dồn).
@@ -491,14 +492,30 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         }),
         Arc::new(mod_mcp::AuthInvitations(auth_svc.clone())),
     );
-    // Tool Fanpage (M44b): port bằng dịch vụ thật của mod-facebook/mod-social. `kick` và `PostsDeps` nối ở bước nối serve.
+    // M44a (một phần): 4 tool đăng bài. Kho tệp là thư mục `uploads` (khoá `social/u<id>_…`); `LocalDiskDriver` không giữ trạng
+    // thái nên router `/social` dựng bản `MediaStore::Local` cùng thư mục là dùng chung dữ liệu.
+    mod_mcp::register_social(
+        &mut registry,
+        Arc::new(mod_mcp::SocialDeps {
+            store: mod_social::media::MediaStore::Local(LocalDiskDriver::new(uploads_root.clone())),
+            env: channel_env.clone(),
+        }),
+    );
+    // Tool Fanpage (M44b): port bằng dịch vụ thật (`FacebookIngest` dùng chung với router; kho tệp là thư mục `uploads` như router
+    // `/social`). Không có `kick` riêng: job `facebook.broadcasts` (60 giây) nhặt lượt gửi mới.
     mod_mcp::register_fanpage(
         &mut registry,
         Arc::new(mod_mcp::fanpage_deps(
             fb_state.ingest.clone(),
             platform.multi_tenant(),
             None,
-            None,
+            Some(mod_mcp::PostsDeps {
+                store: Arc::new(mod_social::media::MediaStore::Local(LocalDiskDriver::new(
+                    uploads_root.clone(),
+                ))),
+                graph_for: fb_state.graph_for.clone(),
+                guard: guard.clone(),
+            }),
         )),
     );
     let tool_scopes = ScopeService::new(db.clone(), cache.clone());

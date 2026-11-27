@@ -87,12 +87,22 @@ pub fn specs() -> Vec<RouteSpec> {
         )
         .status_ok(201)
         .param_pipes(ID),
-RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats", view).status_ok(200),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats", view).status_ok(200),
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/filters", view).status_ok(200),
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/discipline", view).status_ok(200),
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/leave-analytics", view).status_ok(200),
-        RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/weekly", Access::AuthOnly).status_ok(200),
-        RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/monthly", Access::AuthOnly).status_ok(200),
+        RouteSpec::new(
+            Method::GET,
+            "/api/v1/management/attendance/stats/weekly",
+            Access::AuthOnly,
+        )
+        .status_ok(200),
+        RouteSpec::new(
+            Method::GET,
+            "/api/v1/management/attendance/stats/monthly",
+            Access::AuthOnly,
+        )
+        .status_ok(200),
         RouteSpec::new(
             Method::GET,
             "/api/v1/management/attendance/stats/weekly-hours",
@@ -340,11 +350,7 @@ async fn stats_discipline(
     ok(stats::discipline(&c, &a, &q).await)
 }
 
-async fn stats_leave(
-    State(c): S,
-    Extension(u): U,
-    ValidQuery(q): ValidQuery<QueryAttendanceStatsDto>,
-) -> Response {
+async fn stats_leave(State(c): S, Extension(u): U, ValidQuery(q): ValidQuery<QueryAttendanceStatsDto>) -> Response {
     let a = act!(u);
     ok(stats::leave_analytics(&c, &a, &q).await)
 }

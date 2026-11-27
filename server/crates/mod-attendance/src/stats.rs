@@ -233,17 +233,14 @@ impl Filter {
         qb.push(" AND ");
         push_scope(qb, &self.owner, &["e.user_id"]);
         if !self.departments.is_empty() {
-            qb.push(format!(" AND COALESCE(NULLIF(TRIM(e.department), ''), '{NO_DEPARTMENT}') = ANY("));
+            qb.push(format!(
+                " AND COALESCE(NULLIF(TRIM(e.department), ''), '{NO_DEPARTMENT}') = ANY("
+            ));
             qb.push_bind(self.departments.clone());
             qb.push(")");
         }
         if !self.teams.is_empty() {
-            let real: Vec<i32> = self
-                .teams
-                .iter()
-                .copied()
-                .filter(|t| *t != NO_TEAM_SENTINEL)
-                .collect();
+            let real: Vec<i32> = self.teams.iter().copied().filter(|t| *t != NO_TEAM_SENTINEL).collect();
             let has_real = !real.is_empty();
             qb.push(" AND (");
             if has_real {
@@ -329,7 +326,9 @@ impl Rec {
 
 /// Bản ghi trong khoảng ngày, của các user cho trước (`None` = mọi user), theo ngày rồi user.
 async fn load_records(conn: &mut PgConnection, users: Option<Vec<i32>>, from: NaiveDate, to: NaiveDate) -> R<Vec<Rec>> {
-    let mut qb = builder(&format!("SELECT {REC_COLS} FROM attendance_records WHERE work_date >= "));
+    let mut qb = builder(&format!(
+        "SELECT {REC_COLS} FROM attendance_records WHERE work_date >= "
+    ));
     qb.push_bind(from);
     qb.push(" AND work_date <= ");
     qb.push_bind(to);
@@ -874,10 +873,7 @@ pub async fn filters(ctx: &Ctx, actor: &Actor) -> R<FilterOptions> {
             .await
             .map_err(db)?;
 
-    let mut team_list: Vec<IdName> = teams
-        .into_iter()
-        .map(|(id, name)| IdName { id, name })
-        .collect();
+    let mut team_list: Vec<IdName> = teams.into_iter().map(|(id, name)| IdName { id, name }).collect();
     team_list.push(IdName {
         id: NO_TEAM_SENTINEL,
         name: "Chưa có team".to_owned(),
@@ -885,10 +881,7 @@ pub async fn filters(ctx: &Ctx, actor: &Actor) -> R<FilterOptions> {
     Ok(FilterOptions {
         departments,
         teams: team_list,
-        offices: offices
-            .into_iter()
-            .map(|(id, name)| IdName { id, name })
-            .collect(),
+        offices: offices.into_iter().map(|(id, name)| IdName { id, name }).collect(),
     })
 }
 
@@ -1050,10 +1043,7 @@ pub async fn discipline(ctx: &Ctx, actor: &Actor, q: &QueryAttendanceStatsDto) -
 
     let mut rec_by_user: HashMap<i32, HashMap<NaiveDate, &Rec>> = HashMap::new();
     for r in &records {
-        rec_by_user
-            .entry(r.user_id)
-            .or_default()
-            .insert(r.work_date.0, r);
+        rec_by_user.entry(r.user_id).or_default().insert(r.work_date.0, r);
     }
     let approved_early: HashSet<(i32, NaiveDate)> = approved.iter().map(|(u, d)| (*u, d.0)).collect();
 
@@ -1088,11 +1078,7 @@ pub async fn discipline(ctx: &Ctx, actor: &Actor, q: &QueryAttendanceStatsDto) -
             prev_absent = false;
             // Nghỉ phép/thai sản: giờ vào/ra chỉ là mốc tượng trưng ⇒ không tính trễ/sớm.
             let on_leave = rec.on_leave();
-            let lm = if on_leave {
-                0
-            } else {
-                i64::from(rec.late(late_after))
-            };
+            let lm = if on_leave { 0 } else { i64::from(rec.late(late_after)) };
             if lm > 0 {
                 late_min += lm;
                 late_count += 1;
@@ -1596,10 +1582,7 @@ pub async fn weekly_hours(ctx: &Ctx, actor: &Actor, q: &Value) -> R<WeeklyHoursO
     let (from_text, to_text) = match (date_from, date_to) {
         (Some(f), Some(t)) if is_ymd(&f) && is_ymd(&t) => ordered(f, t),
         _ => (
-            today
-                .checked_sub_days(Days::new(6))
-                .unwrap_or(today)
-                .to_string(),
+            today.checked_sub_days(Days::new(6)).unwrap_or(today).to_string(),
             today.to_string(),
         ),
     };
@@ -1610,18 +1593,12 @@ pub async fn weekly_hours(ctx: &Ctx, actor: &Actor, q: &Value) -> R<WeeklyHoursO
         from = to - chrono::Duration::days(MAX_RANGE_DAYS - 1);
         count = MAX_RANGE_DAYS;
     }
-    let dates: Vec<NaiveDate> = (0..count.max(0))
-        .map(|i| from + chrono::Duration::days(i))
-        .collect();
+    let dates: Vec<NaiveDate> = (0..count.max(0)).map(|i| from + chrono::Duration::days(i)).collect();
 
     let mut conn = ctx.conn(actor.company).await?;
     let conn: &mut PgConnection = &mut conn;
     let cfg = config::get_shift(conn).await?;
-    let users = if admin {
-        None
-    } else {
-        Some(vec![actor.user_id])
-    };
+    let users = if admin { None } else { Some(vec![actor.user_id]) };
     let records = load_records(conn, users, from, to).await?;
     let mut by_day: HashMap<NaiveDate, f64> = HashMap::new();
     for r in &records {

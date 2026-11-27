@@ -1,0 +1,11 @@
+# cargo-audit (nightly.yml, job `rust-audit`). Chạy trong server/: `cargo audit --file Cargo.lock`.
+# Ngoại lệ trùng `advisories.ignore` của deny.toml: sửa cả hai nơi.
+[advisories]
+ignore = [
+  "RUSTSEC-2026-0543", # chrono không còn bảo trì, không có lỗ hổng; đánh giá jiff ở #301
+  "RUSTSEC-2026-0555", # chrono-tz không còn bảo trì, không có lỗ hổng; đánh giá jiff ở #301
+]
+
+[output]
+# Cảnh báo (không còn bảo trì, unsound, bị rút) cũng làm job đỏ, như `yanked = "deny"` của deny.toml.
+deny = ["warnings"]

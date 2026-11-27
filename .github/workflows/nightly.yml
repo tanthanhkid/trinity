@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: "17 19 * * *"
   workflow_dispatch:
+    inputs:
+      fuzz_seconds:
+        description: "Giây chạy mỗi target fuzz (đêm: 600; kiểm tiêu chí X10 chạy tay: 3600)"
+        required: false
+        default: "600"
 
 concurrency:
   group: nightly
@@ -164,6 +169,54 @@ jobs:
           manifest-path: server/Cargo.toml
           command: check
           command-arguments: advisories
+
+  # cargo-audit: cơ sở dữ liệu RustSec đọc trực tiếp, độc lập với cargo-deny ở trên. Ngoại lệ ở server/.cargo/audit.toml
+  # (cùng danh sách với `advisories.ignore` của server/deny.toml; sửa cả hai nơi).
+  rust-audit:
+    name: Rust audit (cargo audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: cargo audit
+        working-directory: server
+        run: cargo audit --file Cargo.lock
+
+  # Fuzz libFuzzer (server/fuzz, PLAN 6.3, X10): mỗi target một lượt, đêm 10 phút; chạy tay có thể nâng tới 1 giờ.
+  rust-fuzz:
+    name: Rust fuzz (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [mcp_jsonrpc, signature, webhook_payload, csv_cell, xlsx_read]
+    env:
+      SQLX_OFFLINE: "true"
+      CARGO_INCREMENTAL: "0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install nightly + cargo-fuzz
+        run: |
+          rustup toolchain install nightly --profile minimal
+          cargo install cargo-fuzz --locked
+      - name: cargo fuzz run ${{ matrix.target }}
+        working-directory: server
+        env:
+          FUZZ_SECONDS: ${{ inputs.fuzz_seconds || '600' }}
+        run: |
+          cargo +nightly fuzz run "${{ matrix.target }}" -- \
+            -max_total_time="$FUZZ_SECONDS" -rss_limit_mb=2048 -timeout=10 \
+            "fuzz/seeds/${{ matrix.target }}"
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          path: server/fuzz/artifacts/${{ matrix.target }}
+          retention-days: 14
 
   osv:
     name: OSV-Scanner

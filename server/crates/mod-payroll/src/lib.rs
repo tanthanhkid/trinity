@@ -20,6 +20,7 @@
 #![allow(clippy::result_large_err)]
 #![recursion_limit = "256"]
 
+pub mod api;
 pub mod calc;
 pub mod components;
 pub mod employees;
@@ -31,6 +32,7 @@ pub mod routes;
 pub mod rules;
 pub mod tax;
 
+pub use api::{Ctx, api_router};
 use serde::Deserialize;
 use sqlx::{Postgres, QueryBuilder};
 use trinity_kernel::error::HttpError;

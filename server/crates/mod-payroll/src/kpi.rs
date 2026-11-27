@@ -177,7 +177,7 @@ pub async fn create_config(conn: &mut PgConnection, input: &CreateConfig) -> Res
 pub type AggregatedKpiData = HashMap<String, f64>;
 
 /// Nguồn số liệu KPI. Chưa có nguồn dựng sẵn: khi chưa có, [`calculate`] trả 501 thay vì ghi đè mọi chỉ số bằng 0.
-pub trait KpiAggregator {
+pub trait KpiAggregator: Sync {
     fn aggregate_for_employee(&self, user_id: i32, month: &str) -> AggregatedKpiData;
 }
 

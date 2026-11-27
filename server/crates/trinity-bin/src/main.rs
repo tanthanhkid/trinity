@@ -4,6 +4,7 @@
 mod channel_lock;
 mod contacts_hooks;
 mod feature_gate;
+mod kanban_mentions;
 mod migrate;
 mod routes;
 

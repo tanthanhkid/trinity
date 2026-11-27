@@ -14,6 +14,12 @@ use trinity_rbac::{Grants, can};
 
 use crate::{db, http};
 
+/// Cột của từng bảng, đúng thứ tự struct trong `trinity_db::models` (liệt kê tường minh thay cho `*`).
+const COMMENT_COLS: &str = "id, comment_id, page_id, post_id, parent_id, from_id, from_name, message, commented_at, contact_id, phone, rule_id, status, note, actions, hidden, created_at";
+const CONV_COLS: &str = "id, page_id, psid, customer_name, contact_id, last_inbound_at, last_message_at, last_message_preview, unread_count, entry_link_id, created_at";
+const THREAD_COLS: &str = "id, oa_id, zalo_user_id, display_name, avatar_url, phone, contact_id, last_message_preview, last_message_at, last_inbound_at, unread_count, created_at, updated_at";
+const MESSAGE_COLS: &str = "id, conversation_id, mid, direction, text, sent_by_user_id, sent_at";
+
 /// Facebook cho nhắn riêng một lần mỗi bình luận, trong 7 ngày.
 const PRIVATE_WINDOW_MS: i64 = 7 * 86_400_000;
 
@@ -276,7 +282,7 @@ pub async fn list(conn: &mut PgConnection, src: Sources, q: &InteractionQuery) -
     let take = if q.unanswered_only { (limit * 4).min(300) } else { limit };
 
     let comments: Vec<FacebookComment> = if want_comments {
-        let mut qb = QueryBuilder::<Postgres>::new("SELECT * FROM facebook_comments WHERE TRUE");
+        let mut qb = QueryBuilder::<Postgres>::new(format!("SELECT {COMMENT_COLS} FROM facebook_comments WHERE TRUE"));
         time_range(&mut qb, "commented_at", q);
         if let Some(p) = &q.page_id {
             qb.push(" AND page_id = ").push_bind(p.clone());
@@ -299,7 +305,8 @@ pub async fn list(conn: &mut PgConnection, src: Sources, q: &InteractionQuery) -
         Vec::new()
     };
     let convs: Vec<FacebookConversation> = if want_fb_msg {
-        let mut qb = QueryBuilder::<Postgres>::new("SELECT * FROM facebook_conversations WHERE TRUE");
+        let mut qb =
+            QueryBuilder::<Postgres>::new(format!("SELECT {CONV_COLS} FROM facebook_conversations WHERE TRUE"));
         time_range(&mut qb, "last_message_at", q);
         if let Some(p) = &q.page_id {
             qb.push(" AND page_id = ").push_bind(p.clone());
@@ -314,7 +321,9 @@ pub async fn list(conn: &mut PgConnection, src: Sources, q: &InteractionQuery) -
         Vec::new()
     };
     let threads: Vec<ZaloOaThread> = if want_zalo {
-        let mut qb = QueryBuilder::<Postgres>::new("SELECT * FROM zalo_oa_threads WHERE last_message_at IS NOT NULL");
+        let mut qb = QueryBuilder::<Postgres>::new(format!(
+            "SELECT {THREAD_COLS} FROM zalo_oa_threads WHERE last_message_at IS NOT NULL"
+        ));
         time_range(&mut qb, "last_message_at", q);
         if let Some(t) = text {
             contains(&mut qb, &["display_name", "last_message_preview"], t);
@@ -540,16 +549,18 @@ pub async fn thread(conn: &mut PgConnection, src: Sources, id: &str, now: DateTi
         return Err(nothing());
     }
     let id: i64 = id.parse().map_err(|_| nothing())?;
-    let c: FacebookComment = sqlx::query_as("SELECT * FROM facebook_comments WHERE id = $1")
-        .bind(id)
-        .fetch_optional(&mut *conn)
-        .await
-        .map_err(db)?
-        .ok_or_else(nothing)?;
+    let c: FacebookComment = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT {COMMENT_COLS} FROM facebook_comments WHERE id = $1"
+    )))
+    .bind(id)
+    .fetch_optional(&mut *conn)
+    .await
+    .map_err(db)?
+    .ok_or_else(nothing)?;
     let siblings: Vec<FacebookComment> = match &c.from_id {
-        Some(from) => sqlx::query_as(
-            "SELECT * FROM facebook_comments WHERE post_id = $1 AND from_id = $2 ORDER BY commented_at ASC, id ASC LIMIT 30",
-        )
+        Some(from) => sqlx::query_as(sqlx::AssertSqlSafe(format!(
+            "SELECT {COMMENT_COLS} FROM facebook_comments WHERE post_id = $1 AND from_id = $2 ORDER BY commented_at ASC, id ASC LIMIT 30"
+        )))
         .bind(&c.post_id)
         .bind(from)
         .fetch_all(&mut *conn)
@@ -558,9 +569,9 @@ pub async fn thread(conn: &mut PgConnection, src: Sources, id: &str, now: DateTi
         None => vec![c.clone()],
     };
     let conv: Option<FacebookConversation> = match c.contact_id {
-        Some(cid) => sqlx::query_as(
-            "SELECT * FROM facebook_conversations WHERE page_id = $1 AND contact_id = $2 ORDER BY last_message_at DESC, id DESC LIMIT 1",
-        )
+        Some(cid) => sqlx::query_as(sqlx::AssertSqlSafe(format!(
+            "SELECT {CONV_COLS} FROM facebook_conversations WHERE page_id = $1 AND contact_id = $2 ORDER BY last_message_at DESC, id DESC LIMIT 1"
+        )))
         .bind(&c.page_id)
         .bind(cid)
         .fetch_optional(&mut *conn)
@@ -569,9 +580,9 @@ pub async fn thread(conn: &mut PgConnection, src: Sources, id: &str, now: DateTi
         None => None,
     };
     let mut messages: Vec<FacebookMessage> = match &conv {
-        Some(v) => sqlx::query_as(
-            "SELECT * FROM facebook_messages WHERE conversation_id = $1 ORDER BY sent_at DESC, id DESC LIMIT 30",
-        )
+        Some(v) => sqlx::query_as(sqlx::AssertSqlSafe(format!(
+            "SELECT {MESSAGE_COLS} FROM facebook_messages WHERE conversation_id = $1 ORDER BY sent_at DESC, id DESC LIMIT 30"
+        )))
         .bind(v.id)
         .fetch_all(&mut *conn)
         .await

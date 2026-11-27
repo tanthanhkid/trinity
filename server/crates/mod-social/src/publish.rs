@@ -180,10 +180,7 @@ impl<'a> Cursor<'a> {
         }
         let chunk = self.read(len.min(MAX_CHUNK_BYTES)).await?;
         if chunk.is_empty() {
-            return Err(err(
-                PublishErrorKind::Invalid,
-                "Tệp video ngắn hơn kích thước đã khai.",
-            ));
+            return Err(err(PublishErrorKind::Invalid, "Tệp video ngắn hơn kích thước đã khai."));
         }
         Ok(chunk)
     }
@@ -218,7 +215,14 @@ fn offset_field(v: &Value, key: &str) -> Result<u64, PublishError> {
 async fn video_phase(graph: &GraphClient, token: &str, page: &str, form: Form) -> Result<Value, PublishError> {
     let (content_type, body) = form.finish();
     graph
-        .post_multipart(token, &format!("{page}/videos"), "{page}/videos", true, &content_type, body)
+        .post_multipart(
+            token,
+            &format!("{page}/videos"),
+            "{page}/videos",
+            true,
+            &content_type,
+            body,
+        )
         .await
         .map_err(|e| graph_err(&e))
 }
@@ -305,7 +309,14 @@ async fn upload_photo(
     let (content_type, body) = form.file("source", &name, &image.content_type, &data).finish();
     drop(data);
     graph
-        .post_multipart(token, &format!("{page}/photos"), "{page}/photos", false, &content_type, body)
+        .post_multipart(
+            token,
+            &format!("{page}/photos"),
+            "{page}/photos",
+            false,
+            &content_type,
+            body,
+        )
         .await
         .map_err(|e| graph_err(&e))
 }
@@ -467,11 +478,17 @@ mod tests {
             "shares": {"count": 2}
         });
         let m = metrics_from_post(&full, Some(100));
-        assert_eq!((m.views, m.reactions, m.comments, m.shares), (Some(100), Some(12), Some(3), Some(2)));
+        assert_eq!(
+            (m.views, m.reactions, m.comments, m.shares),
+            (Some(100), Some(12), Some(3), Some(2))
+        );
         // Chưa ai chia sẻ: Graph bỏ trường `shares` ⇒ 0, không phải null.
         let none = json!({"reactions": {"summary": {"total_count": 1}}, "comments": {"summary": {}}});
         let m = metrics_from_post(&none, None);
-        assert_eq!((m.views, m.reactions, m.comments, m.shares), (None, Some(1), Some(0), Some(0)));
+        assert_eq!(
+            (m.views, m.reactions, m.comments, m.shares),
+            (None, Some(1), Some(0), Some(0))
+        );
         assert_eq!(
             serde_json::to_value(&m).unwrap(),
             json!({"views": null, "reactions": 1, "comments": 0, "shares": 0})

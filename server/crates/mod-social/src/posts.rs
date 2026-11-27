@@ -35,8 +35,8 @@ use crate::config::{
 use crate::dto::{PostInput, TargetInput};
 use crate::first_comment::first_comment_of;
 use crate::media::{MediaCtx, MediaStore, SocialMedia, resolve as resolve_media};
-use crate::provider::{PublishErrorKind, classify_graph_error, validate_media, validate_options};
 use crate::ports::{CreateFailure, RecurrenceGuard};
+use crate::provider::{PublishErrorKind, classify_graph_error, validate_media, validate_options};
 use crate::queue::{NO_QUEUE_SLOTS, next_free};
 use crate::recurrences::guard_holds;
 use crate::utm::{UtmInput, apply_utm_to_target, js_trim, normalize_utm, utf16_len};
@@ -969,7 +969,7 @@ async fn insert_post(
     let mut tx = sqlx::Acquire::begin(&mut *conn).await.map_err(db)?;
     // Bài do lịch lặp tạo: khoá dòng lịch rồi kiểm còn nguyên NGAY TRONG giao dịch (M55b), sau đó chống trùng khoá nguồn.
     if let Some(g) = extra.guard
-        && !guard_holds(&mut *tx, g).await?
+        && !guard_holds(&mut tx, g).await?
     {
         return Err(InsertFail::Changed);
     }
@@ -1066,9 +1066,9 @@ pub(crate) async fn create_with(
     match inserted {
         Ok(id) => Ok(id),
         Err(InsertFail::Changed) => Err(CreateFailure::Changed),
-        Err(InsertFail::Duplicate) => {
-            Err(CreateFailure::Failed(HttpError::new(409, "Bài của lượt này đã được tạo").into()))
-        }
+        Err(InsertFail::Duplicate) => Err(CreateFailure::Failed(
+            HttpError::new(409, "Bài của lượt này đã được tạo").into(),
+        )),
         Err(InsertFail::Guard(mut e)) => {
             // Hết hạn mức: ghi sự kiện SAU giao dịch (đã nhả kết nối).
             c.guard.record_blocked(c.company, &mut e).await;

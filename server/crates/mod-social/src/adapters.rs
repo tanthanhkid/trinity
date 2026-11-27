@@ -12,13 +12,13 @@ use mod_facebook::config::Env;
 use mod_facebook::graph::GraphClient;
 use serde_json::{Value, json};
 use trinity_db::{CompanyRef, Db, TenantDb};
-use trinity_kernel::vn_time::from_millis;
 use trinity_kernel::error::AppError;
+use trinity_kernel::vn_time::from_millis;
 use trinity_kernel::vn_time::js_iso_string;
 
 use crate::drafts::{self, DraftInput, MediaIn, TargetIn, UtmIn};
-use crate::media::{MediaCtx, MediaStore};
 use crate::dto::{PostInput as DtoPostInput, TargetInput};
+use crate::media::{MediaCtx, MediaStore};
 use crate::ports::{CreateFailure, DraftsPort, PostInput, PostsPort, QueuePort, RecurrenceGuard, ValidatedPost};
 use crate::posts::{CreateExtra, PostCtx, cancel, create_with, validate};
 
@@ -138,7 +138,11 @@ pub fn post_dto(p: &PostInput) -> DtoPostInput {
         targets: p
             .targets
             .iter()
-            .map(|t| TargetInput { account_id: t.account_id, caption: t.caption.clone(), options: t.options.clone() })
+            .map(|t| TargetInput {
+                account_id: t.account_id,
+                caption: t.caption.clone(),
+                options: t.options.clone(),
+            })
             .collect(),
         scheduled_at: p.scheduled_at.map(js_iso_string),
         use_queue: p.use_queue,
@@ -156,7 +160,9 @@ pub fn post_dto(p: &PostInput) -> DtoPostInput {
 impl PostsPort for PostsAdapter<'_> {
     async fn validate(&self, user_id: i32, input: &PostInput) -> Result<ValidatedPost, AppError> {
         let v = validate(&self.ctx(user_id), &post_dto(input), None).await?;
-        Ok(ValidatedPost { scheduled_at: v.scheduled_at.and_then(from_millis) })
+        Ok(ValidatedPost {
+            scheduled_at: v.scheduled_at.and_then(from_millis),
+        })
     }
 
     async fn create(
@@ -168,7 +174,10 @@ impl PostsPort for PostsAdapter<'_> {
     ) -> Result<i32, CreateFailure> {
         let mut dto = post_dto(input);
         dto.source = Some(dedupe_source.to_owned());
-        let extra = CreateExtra { guard: guard.as_ref(), dedupe: true };
+        let extra = CreateExtra {
+            guard: guard.as_ref(),
+            dedupe: true,
+        };
         create_with(&self.ctx(user_id), &dto, &extra).await
     }
 

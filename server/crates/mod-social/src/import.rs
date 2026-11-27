@@ -397,7 +397,12 @@ fn plan_row(r: &ImportRowInput, mode: ImportMode, now_ms: i64, cx: &Ctx) -> Item
     let mut utm: Option<TemplateUtm> = None;
     if let Some(c) = &r.utm_campaign {
         match normalize_campaign(c) {
-            Ok(campaign) => utm = Some(TemplateUtm { campaign, content: None }),
+            Ok(campaign) => {
+                utm = Some(TemplateUtm {
+                    campaign,
+                    content: None,
+                })
+            }
             Err(m) => errors.push(m),
         }
     }

@@ -376,7 +376,14 @@ impl Runner {
     }
 
     /// Webhook ra ngoài cho một lượt đăng (lỗi phát sự kiện không làm hỏng việc đăng).
-    async fn event(&self, company: CompanyRef, t: &SocialPostTarget, kind: &str, url: Option<&str>, error: Option<&str>) {
+    async fn event(
+        &self,
+        company: CompanyRef,
+        t: &SocialPostTarget,
+        kind: &str,
+        url: Option<&str>,
+        error: Option<&str>,
+    ) {
         let payload = json!({
             "post_id": t.post_id,
             "target_id": t.id,
@@ -450,15 +457,16 @@ impl Runner {
         let account = match account {
             Some(a) if a.status == "active" && is_social_network(&a.network) => a,
             _ => {
-                return self
-                    .fail(company, &t, "Kênh cần liên kết lại (hoặc đã bị gỡ).")
-                    .await;
+                return self.fail(company, &t, "Kênh cần liên kết lại (hoặc đã bị gỡ).").await;
             }
         };
         // Chống lạm dụng app dùng chung: khoá kênh ⇒ báo lỗi; tự tạm dừng (Facebook báo chặn/spam) ⇒ hẹn lại sau khi hết
         // tạm dừng.
         let guard = &self.deps.guard;
-        match guard.block_reason(company, OutboundMode::Auto, OutboundScope::Meta).await {
+        match guard
+            .block_reason(company, OutboundMode::Auto, OutboundScope::Meta)
+            .await
+        {
             Ok(Some(blocked)) => {
                 if blocked.code == BlockCode::ChannelLocked {
                     return self.fail(company, &t, &blocked.message).await;
@@ -501,8 +509,8 @@ impl Runner {
             kind: PublishErrorKind::Temporary,
             message: "Lỗi máy chủ khi đăng (không giải mã được khoá của kênh).".to_owned(),
         })?;
-        let media = stored_media(&post.media);
-        let options: Map<String, Value> = t.options.as_object().cloned().unwrap_or_default();
+        let media = stored_media(&post.media.0);
+        let options: Map<String, Value> = t.options.0.as_object().cloned().unwrap_or_default();
         let base = t.caption.as_deref().unwrap_or(&post.content);
         let (text, sent_options) = apply_utm_to_target(&account.network, base, &options);
         let graph = (self.deps.graph_for)(company);
@@ -615,7 +623,13 @@ impl Runner {
         account: &SocialAccount,
         e: PublishError,
     ) -> Result<Outcome, String> {
-        tracing::warn!("Đăng kênh {} ({}) lỗi {:?}: {}", t.id, account.network, e.kind, e.message);
+        tracing::warn!(
+            "Đăng kênh {} ({}) lỗi {:?}: {}",
+            t.id,
+            account.network,
+            e.kind,
+            e.message
+        );
         if e.kind == PublishErrorKind::Token {
             {
                 let mut conn = acquire(&self.deps.db, company).await.map_err(|x| app_err(&x))?;
@@ -728,6 +742,7 @@ impl Runner {
                 let mut marked = t
                     .metrics
                     .clone()
+                    .map(|m| m.0)
                     .filter(Value::is_object)
                     .unwrap_or_else(|| serde_json::to_value(empty).unwrap_or(Value::Null));
                 if let Some(o) = marked.as_object_mut() {
@@ -786,7 +801,7 @@ impl Runner {
                 continue;
             };
             let due = metrics_due(ms_of(published_at), t.metrics_at.as_ref().map(ms_of), at_ms);
-            if !due || is_removed(t.metrics.as_ref()) {
+            if !due || is_removed(t.metrics.as_ref().map(|m| &m.0)) {
                 continue;
             }
             if self.fetch_target_metrics(company, &graph, t).await {
@@ -810,7 +825,7 @@ impl Runner {
         let started = Instant::now();
         let (mut checked, mut removed) = (0_usize, 0_usize);
         for t in &rows {
-            if is_removed(t.metrics.as_ref()) || started.elapsed() > SYNC_BUDGET {
+            if is_removed(t.metrics.as_ref().map(|m| &m.0)) || started.elapsed() > SYNC_BUDGET {
                 continue;
             }
             checked += 1;
@@ -845,7 +860,10 @@ impl Runner {
             guard: &self.deps.guard,
             now_ms: now_ms(),
         };
-        materialize(&tenant, &posts, Utc::now()).await.map(drop).map_err(|e| app_err(&e))
+        materialize(&tenant, &posts, Utc::now())
+            .await
+            .map(drop)
+            .map_err(|e| app_err(&e))
     }
 
     async fn tick_publish(self: &Arc<Self>, company: CompanyRef) -> Result<(), String> {
@@ -868,7 +886,9 @@ impl Runner {
         if !self.secret_configured() {
             return Ok(());
         }
-        self.refresh_metrics_due(company, METRICS_BUDGET, now_ms()).await.map(drop)
+        self.refresh_metrics_due(company, METRICS_BUDGET, now_ms())
+            .await
+            .map(drop)
     }
 }
 
@@ -964,7 +984,10 @@ mod tests {
 
     #[test]
     fn api_dieu_khien_test_tat_lich() {
-        assert!(test_hooks_enabled(&env(&[("TRINITY_TEST_HOOKS", "1"), ("NODE_ENV", "test")])));
+        assert!(test_hooks_enabled(&env(&[
+            ("TRINITY_TEST_HOOKS", "1"),
+            ("NODE_ENV", "test")
+        ])));
         let prod = env(&[("TRINITY_TEST_HOOKS", "1"), ("NODE_ENV", "production")]);
         assert!(!test_hooks_enabled(&prod));
         assert!(!test_hooks_enabled(&env(&[("NODE_ENV", "test")])));

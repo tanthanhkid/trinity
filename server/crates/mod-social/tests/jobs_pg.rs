@@ -191,7 +191,10 @@ async fn job_dang_bai_va_so_lieu() {
     assert_eq!((again.published, again.failed, again.retry, again.stale), (0, 0, 0, 0));
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
     let row = target_row(&mut c, t1).await;
-    assert_eq!((row.0.as_str(), row.1, row.2.as_deref()), ("published", 1, Some("m54bpage_1")));
+    assert_eq!(
+        (row.0.as_str(), row.1, row.2.as_deref()),
+        ("published", 1, Some("m54bpage_1"))
+    );
     let post_status: String = sqlx::query_scalar("SELECT status FROM social_posts WHERE id = $1")
         .bind(post1)
         .fetch_one(&mut *c)
@@ -213,7 +216,11 @@ async fn job_dang_bai_va_so_lieu() {
     assert_eq!((idle.published, idle.stale), (0, 0));
     // Hết hạn thuê ⇒ chuyển `failed` kèm câu nhắc, KHÔNG đăng lại (không có lời gọi Graph nào cho nội dung này).
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
-    exec(&mut c, &format!("UPDATE social_post_targets SET next_attempt_at = now() - interval '1 minute' WHERE id = {t2}")).await;
+    exec(
+        &mut c,
+        &format!("UPDATE social_post_targets SET next_attempt_at = now() - interval '1 minute' WHERE id = {t2}"),
+    )
+    .await;
     drop(c);
     let swept = runner.run_due(company, Duration::from_secs(50)).await.unwrap();
     assert_eq!((swept.stale, swept.published), (1, 0));
@@ -248,7 +255,13 @@ async fn job_dang_bai_va_so_lieu() {
     .unwrap();
     assert!((30.0..=61.0).contains(&wait), "hẹn lại sau ~1 phút, được {wait}");
     // Lượt thứ 5 mà vẫn lỗi ⇒ hết lượt thử: `failed` + sự kiện, không hẹn nữa.
-    exec(&mut c, &format!("UPDATE social_post_targets SET attempts = 4, next_attempt_at = now() - interval '1 second' WHERE id = {t3}")).await;
+    exec(
+        &mut c,
+        &format!(
+            "UPDATE social_post_targets SET attempts = 4, next_attempt_at = now() - interval '1 second' WHERE id = {t3}"
+        ),
+    )
+    .await;
     drop(c);
     let r = runner.run_due(company, Duration::from_secs(50)).await.unwrap();
     assert_eq!((r.failed, r.retry), (1, 0));
@@ -287,11 +300,18 @@ async fn job_dang_bai_va_so_lieu() {
     assert_eq!(outcome, Outcome::Failed);
     drop(expired);
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
-    exec(&mut c, &format!("UPDATE social_accounts SET status = 'active' WHERE id = {account}")).await;
+    exec(
+        &mut c,
+        &format!("UPDATE social_accounts SET status = 'active' WHERE id = {account}"),
+    )
+    .await;
     drop(c);
 
     // 5. Video tải theo phiên, đọc từng phần từ kho (không đọc cả tệp vào RAM).
-    store.put_bytes("social/u1_1_m54b01.mp4", b"abcd", "video/mp4").await.unwrap();
+    store
+        .put_bytes("social/u1_1_m54b01.mp4", b"abcd", "video/mp4")
+        .await
+        .unwrap();
     let media = json!([{ "key": "social/u1_1_m54b01.mp4", "type": "video", "content_type": "video/mp4", "size": 4 }]);
     let start = Mock::given(method("POST"))
         .and(path("/v25.0/m54bpage/videos"))
@@ -355,7 +375,10 @@ async fn job_dang_bai_va_so_lieu() {
     drop(c);
     let live = Mock::given(method("GET"))
         .and(path("/v25.0/m54bpage_live"))
-        .and(query_param("fields", "reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0),shares"))
+        .and(query_param(
+            "fields",
+            "reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0),shares",
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
             "reactions": { "summary": { "total_count": 12 } },
             "comments": { "summary": { "total_count": 3 } }
@@ -386,7 +409,10 @@ async fn job_dang_bai_va_so_lieu() {
         .fetch_one(&mut *c)
         .await
         .unwrap();
-    assert_eq!(live_metrics, json!({ "views": null, "reactions": 12, "comments": 3, "shares": 0 }));
+    assert_eq!(
+        live_metrics,
+        json!({ "views": null, "reactions": 12, "comments": 3, "shares": 0 })
+    );
     let gone_metrics: Value = sqlx::query_scalar("SELECT metrics FROM social_post_targets WHERE id = $1")
         .bind(gone)
         .fetch_one(&mut *c)

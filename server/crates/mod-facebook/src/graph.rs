@@ -629,7 +629,14 @@ impl GraphClient {
             body["attached_media"] = Value::Array(list);
         }
         let r = self
-            .post(&format!("{page_id}/feed"), "{page}/feed", page_token, Vec::new(), Some(body), true)
+            .post(
+                &format!("{page_id}/feed"),
+                "{page}/feed",
+                page_token,
+                Vec::new(),
+                Some(body),
+                true,
+            )
             .await?;
         self.finish(r, |v| {
             v.get("id")

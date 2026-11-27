@@ -88,6 +88,8 @@ export interface ClusterDef {
   prefixes?: string[]
   /** Miễn trừ: `"METHOD /đường/dẫn"` → { loại → lý do }. */
   waivers: Record<string, Partial<Record<Category, string>>>
+  /** Route mà thành công không phải 2xx (chuyển hướng 302 của callback OAuth, link mở chat): `"METHOD /đường/dẫn"` → mã tính là thành công. */
+  successStatus?: Record<string, number[]>
 }
 
 export interface RouteCoverage {
@@ -109,12 +111,12 @@ export function requiredCategories(r: RouteRow): Category[] {
   return out
 }
 
-function categoriesOf(r: RouteRow, calls: Call[]): Set<Category> {
+function categoriesOf(r: RouteRow, calls: Call[], extraSuccess: number[] = []): Set<Category> {
   const got = new Set<Category>()
   let unauth401 = false
   let forbidden403 = false
   for (const c of calls) {
-    if (c.status >= 200 && c.status < 300) got.add('success')
+    if ((c.status >= 200 && c.status < 300) || extraSuccess.includes(c.status)) got.add('success')
     else if (c.status === 401 && !c.authed) unauth401 = true
     else if (c.status === 403) forbidden403 = true
     else if (c.status === 400 || c.status === 422) got.add('invalid')
@@ -143,7 +145,7 @@ export function computeCoverage(routes: RouteRow[], calls: Call[], cluster: Clus
     const key = `${r.method} ${r.path.replace(API, '')}`
     const waived = cluster.waivers[key] ?? {}
     const required = requiredCategories(r)
-    const got = categoriesOf(r, byRoute.get(r) ?? [])
+    const got = categoriesOf(r, byRoute.get(r) ?? [], cluster.successStatus?.[key])
     const covered = required.filter((c) => got.has(c))
     const missing = required.filter((c) => !got.has(c) && !waived[c])
     return { route: key, required, covered, waived, missing }

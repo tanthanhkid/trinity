@@ -119,9 +119,7 @@ fn render(doc: &Value, now: u64) -> (String, bool) {
             row["route"].as_str().unwrap_or("?"),
             num(row, "equal"),
             num(row, "skipped"),
-            reason
-                .map(|r| format!("  KHÔNG SHADOW ĐƯỢC: {r}"))
-                .unwrap_or_default(),
+            reason.map(|r| format!("  KHÔNG SHADOW ĐƯỢC: {r}")).unwrap_or_default(),
         ));
         if let Some(paths) = row["diff_paths"].as_object() {
             for (p, n) in paths {

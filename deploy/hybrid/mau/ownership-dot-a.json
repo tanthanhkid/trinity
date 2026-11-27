@@ -1,0 +1,14 @@
+{
+  "routes": [
+    { "prefix": "/api/v1/health", "methods": ["GET"], "owner": "rust" },
+    { "prefix": "/api/v1/ready", "methods": ["GET"], "owner": "rust" },
+    { "prefix": "/api/v1/live", "methods": ["GET"], "owner": "rust" },
+    { "prefix": "/api/v1/telemetry", "methods": ["GET"], "owner": "rust" },
+    { "prefix": "/api/v1/site-config", "methods": ["GET"], "owner": "rust" },
+    { "prefix": "/api/v1/settings", "owner": "rust" },
+    { "prefix": "/api/v1/settings/channel-guard", "owner": "node" }
+  ],
+  "jobs": {},
+  "migrate": "node",
+  "web": "rust"
+}

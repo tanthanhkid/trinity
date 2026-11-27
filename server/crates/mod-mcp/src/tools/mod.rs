@@ -23,6 +23,7 @@ mod records;
 mod report_briefing;
 mod schema;
 mod search;
+mod settings;
 mod setup;
 mod social;
 pub(crate) mod social_act;
@@ -51,6 +52,7 @@ use crate::actions::{self, ActionTool};
 pub use channels::ChannelsDeps;
 pub use inbox::InboxDeps;
 pub use invitations::{AuthInvitations, InvitationsPort};
+pub use settings::SettingsDeps;
 
 use crate::ai_output::wrap_data;
 use crate::auth::Principal;
@@ -373,4 +375,10 @@ pub fn register_report_briefing(r: &mut ToolRegistry) {
         permissions: &["reports.overview"],
         runner: Arc::new(Tool(report_briefing::save_briefing)),
     });
+}
+
+/// Đăng ký 4 tool cài đặt (M06/M56): `set_features`, `save_crm_option`, `get_store_settings`, `update_store_settings`. Quyền như route
+/// tương ứng (`settings.features`, `contacts.catalog`, `pos.manage`); ba tool ghi cần scope `crm.write`. Không có tool xoá.
+pub fn register_settings(r: &mut ToolRegistry, d: Arc<SettingsDeps>) {
+    settings::register(r, d);
 }

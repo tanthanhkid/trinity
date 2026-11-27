@@ -48,6 +48,8 @@ pub fn declared_routes() -> Vec<RouteSpec> {
     v.extend(mod_public_api::specs());
     v.extend(trinity_integrations::routes::specs());
     v.extend(mod_notify::routes::specs());
+    // Đã mount ở serve nhưng trước đây chưa khai: cài đặt (RBAC admin khai riêng vì `PUT /users/:id/roles` trùng mod-users).
+    v.extend(mod_settings::routes::routes());
     v.extend(mod_newsfeed::routes::specs());
     v
 }

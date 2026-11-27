@@ -243,6 +243,13 @@ pub async fn stats(db: &Db, company: CompanyRef, q: &StatsQuery) -> Result<Value
     ))
 }
 
+/// Kết quả lấy số một bài: id kênh (target) không trả số lần này và id kênh bị bỏ qua vì vừa lấy dưới 1 phút.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RefreshOutcome {
+    pub failed: Vec<i32>,
+    pub throttled: Vec<i32>,
+}
+
 /// `POST /social/posts/:id/metrics`: lấy ngay mọi kênh đã đăng của bài (bỏ qua kênh vừa lấy dưới 1 phút, kênh trên mạng đã gỡ và
 /// kênh bài đã bị xoá) rồi trả bài. Mỗi bước DB một kết nối, nhả trước khi gọi Graph.
 pub async fn refresh_post(
@@ -253,10 +260,25 @@ pub async fn refresh_post(
     post_id: i32,
     now_ms: i64,
 ) -> Result<PostView, AppError> {
+    refresh_post_report(runner, db, company, graph, post_id, now_ms)
+        .await
+        .map(|(post, _)| post)
+}
+
+/// Như [`refresh_post`] nhưng báo thêm kênh nào không lấy được / bị bỏ qua (cho tool MCP).
+pub async fn refresh_post_report(
+    runner: &Runner,
+    db: &Db,
+    company: CompanyRef,
+    graph: &GraphClient,
+    post_id: i32,
+    now_ms: i64,
+) -> Result<(PostView, RefreshOutcome), AppError> {
     let post = {
         let mut conn = acquire(db, company).await?;
         get(&mut conn, post_id).await?
     };
+    let mut outcome = RefreshOutcome::default();
     for t in &post.targets {
         let skip = t.status != "published"
             || t.external_post_id.is_none()
@@ -268,6 +290,7 @@ pub async fn refresh_post(
         if t.metrics_at
             .is_some_and(|m| now_ms - m.0.timestamp_millis() < THROTTLE_MS)
         {
+            outcome.throttled.push(t.id);
             continue;
         }
         let row: Option<SocialPostTarget> = {
@@ -278,12 +301,14 @@ pub async fn refresh_post(
                 .await
                 .map_err(AppError::internal)?
         };
-        if let Some(row) = row {
-            runner.fetch_target_metrics(company, graph, &row).await;
+        if let Some(row) = row
+            && !runner.fetch_target_metrics(company, graph, &row).await
+        {
+            outcome.failed.push(t.id);
         }
     }
     let mut conn = acquire(db, company).await?;
-    get(&mut conn, post_id).await
+    Ok((get(&mut conn, post_id).await?, outcome))
 }
 
 #[cfg(test)]

@@ -501,7 +501,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     // thái nên router `/social` dựng bản `MediaStore::Local` cùng thư mục là dùng chung dữ liệu.
     // M44a: tool đăng bài. MỘT `Arc<SocialDeps>` dùng cho cả `register_social` lẫn `ToolDeps.social` (khung duyệt M42 lấy dịch vụ từ
     // đó). Kho tệp là thư mục `uploads` như router `/social`. Bài lặp và nhập hàng loạt đi qua `SocialAdapter` bọc `mod_social`
-    // (M55b); số liệu (M54b) và đăng nháp trong giao dịch chưa có dịch vụ dùng chung ⇒ `None`, tool trả "chưa có tính năng".
+    // (M55b), cùng bản này bọc số liệu (M54b) và đăng nháp.
     let post_infra = mod_mcp::PostInfra {
         guard: guard.clone(),
         graph_for: fb_state.graph_for.clone(),
@@ -511,6 +511,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         channel_env.clone(),
         mod_social::media::MediaStore::Local(LocalDiskDriver::new(uploads_root.clone())),
         post_infra.clone(),
+        social_runner.clone(),
     );
     let social_deps = {
         let mut d = mod_mcp::SocialDeps::new(
@@ -519,7 +520,9 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         );
         d.infra = Some(post_infra);
         d.recurrences = Some(social_adapter.clone());
-        d.importer = Some(social_adapter);
+        d.importer = Some(social_adapter.clone());
+        d.metrics = Some(social_adapter.clone());
+        d.draft_publisher = Some(social_adapter);
         Arc::new(d)
     };
     mod_mcp::register_social(&mut registry, social_deps.clone());

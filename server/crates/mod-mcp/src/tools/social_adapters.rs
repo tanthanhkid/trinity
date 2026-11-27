@@ -1,38 +1,49 @@
 //! Bộ chuyển (adapter) từ dịch vụ `mod_social` thật (M54a/M55b) sang các cổng của tool đăng bài: [`RecurrencePort`] (bài lặp) và
 //! [`ImportPort`] (nhập nhiều bài). Cùng một [`SocialAdapter`] dùng cho cả hai cổng.
 //!
-//! Chưa có dịch vụ trên `main` nên KHÔNG có adapter ở đây (`SocialDeps` để `None`, tool trả "chưa có tính năng"):
-//! - [`MetricsPort`]: thống kê tổng hợp (`stats`) vẫn ở bản Node; lấy số liệu một bài cần `Runner` của job M54b.
-//! - [`DraftPublishPort`]: `POST /social/drafts/:id/publish` chưa port (cần hàm tạo bài trong giao dịch giữ chỗ nháp).
+//! Cũng bọc [`MetricsPort`] (`mod_social::stats`, lấy số một bài qua `Runner` của job M54b) và [`DraftPublishPort`]
+//! (`mod_social::draft_publish`, kick `Runner` khi bài không hẹn giờ).
 //!
 //! Mỗi lời gọi tự xin kết nối ngắn của mình, không giữ kết nối khi gọi chỗ khác.
 
 use std::sync::Arc;
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use mod_facebook::config::Env;
 use mod_social::adapters::{DraftsAdapter, PostsAdapter, QueueAdapter};
+use mod_social::dto::DraftPublish;
 use mod_social::dto_recur::RecurrenceBody;
 use mod_social::import::{self, ImportMode, ImportPorts, StructuredRow};
+use mod_social::jobs::Runner;
 use mod_social::media::{self, MediaCtx, MediaStore};
-use mod_social::{accounts, recurrences};
+use mod_social::posts::PostCtx;
+use mod_social::{accounts, draft_publish, recurrences, stats};
 use serde::Serialize;
 use serde_json::{Value, json};
 use trinity_db::{CompanyRef, Db, TenantDb};
 use trinity_kernel::error::{AppError, HttpError};
 
-use super::social_ports::{ImportPort, PortFut, PostInfra, RecurrencePort};
+use super::social_ports::{
+    DraftOverrides, DraftPublishPort, ImportPort, MetricsPort, PortFut, PostInfra, RecurrencePort, RefreshReport,
+};
 
 pub struct SocialAdapter {
     pub db: Db,
     pub env: Env,
     pub store: MediaStore,
     pub infra: PostInfra,
+    pub runner: Arc<Runner>,
 }
 
 impl SocialAdapter {
-    pub fn new(db: Db, env: Env, store: MediaStore, infra: PostInfra) -> Arc<Self> {
-        Arc::new(Self { db, env, store, infra })
+    pub fn new(db: Db, env: Env, store: MediaStore, infra: PostInfra, runner: Arc<Runner>) -> Arc<Self> {
+        Arc::new(Self {
+            db,
+            env,
+            store,
+            infra,
+            runner,
+        })
     }
 
     async fn tenant(&self, company: CompanyRef) -> Result<TenantDb, AppError> {
@@ -289,6 +300,62 @@ impl ImportPort for SocialAdapter {
                 import::import_rows(&tdb, &ports, user_id, &rows, mode, &plan_hash, "mcp", Utc::now()).await?
             });
             js(&r)
+        })
+    }
+}
+
+impl MetricsPort for SocialAdapter {
+    fn stats(&self, company: CompanyRef, from: DateTime<Utc>, to: DateTime<Utc>, top: i64) -> PortFut<'_, Value> {
+        Box::pin(async move {
+            let top = u64::try_from(top).ok();
+            stats::stats(&self.db, company, &stats::StatsQuery { from, to, top }).await
+        })
+    }
+
+    fn refresh_post(&self, company: CompanyRef, post_id: i32) -> PortFut<'_, RefreshReport> {
+        Box::pin(async move {
+            let graph = (self.infra.graph_for)(company);
+            let (_, out) =
+                stats::refresh_post_report(&self.runner, &self.db, company, &graph, post_id, now_ms()).await?;
+            Ok(RefreshReport {
+                failed: out.failed,
+                throttled: out.throttled,
+            })
+        })
+    }
+}
+
+impl DraftPublishPort for SocialAdapter {
+    fn publish(
+        &self,
+        company: CompanyRef,
+        user_id: i32,
+        draft_id: i32,
+        overrides: DraftOverrides,
+        expect_updated_at: Option<DateTime<Utc>>,
+    ) -> PortFut<'_, Value> {
+        Box::pin(async move {
+            let input = DraftPublish {
+                scheduled_at: overrides.scheduled_at,
+                expected_updated_at: expect_updated_at,
+                use_queue: false,
+            };
+            let graph = (self.infra.graph_for)(company);
+            let ctx = PostCtx {
+                db: &self.db,
+                company,
+                env: &self.env,
+                store: &self.store,
+                graph: &graph,
+                guard: &self.infra.guard,
+                user_id,
+                now_ms: now_ms(),
+            };
+            let post = draft_publish::publish(&ctx, draft_id, &input).await?;
+            if post.scheduled_at.is_none() {
+                self.runner.kick(company);
+            }
+            js(&post)
         })
     }
 }

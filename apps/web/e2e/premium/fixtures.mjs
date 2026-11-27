@@ -38,7 +38,7 @@ const SETUP_STATUS = {
 const ORG_FEATURES = {
   dashboard: true, contacts: true, kanban: true, reports: true, inbox: true,
   facebook_page: true, zalo_oa: true, social_posting: true,
-  products: true, pos: true, online_store: false, commerce_connectors: false,
+  products: true, pos: true, online_store: false,
   management: true, attendance: false, payroll: false, newsfeed: true,
   integrations: true, ai_briefing: true, lead_scoring: true, stale_reminders: true,
 }

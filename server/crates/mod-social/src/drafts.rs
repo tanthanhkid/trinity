@@ -625,7 +625,9 @@ pub async fn create(
     let source = utf16_prefix(dedupe_source.unwrap_or(source), 80);
     let title = b.title.flatten();
     let content = b.content.unwrap_or_default();
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     let media = serde_json::to_value(b.media.unwrap_or_default()).map_err(AppError::internal)?;
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     let targets = serde_json::to_value(b.targets.unwrap_or_default()).map_err(AppError::internal)?;
     let scheduled = b.scheduled_at.flatten();
     let use_queue = b.use_queue.unwrap_or(false);
@@ -770,6 +772,7 @@ mod tests {
     fn msgs(v: &Value) -> Vec<String> {
         let e = DraftInput::from_json(v).unwrap_err();
         let (_, b) = AppError::from(e).response(true);
+        // trinity-lint: allow-json-value (thông báo lỗi/giá trị so sánh trong test, không phải model hay cột DB)
         serde_json::from_value(serde_json::to_value(&b.message).unwrap()).unwrap_or_default()
     }
 

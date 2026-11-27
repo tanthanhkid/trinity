@@ -183,7 +183,7 @@ pub async fn set_slots(conn: &mut PgConnection, list: &[QueueSlot]) -> Result<Ve
     if !data.is_empty() {
         let weekdays: Vec<i32> = data.iter().map(|s| s.weekday).collect();
         let minutes: Vec<i32> = data.iter().map(|s| s.minute).collect();
-        sqlx::query("INSERT INTO social_queue_slots (weekday, minute) SELECT * FROM UNNEST($1::int4[], $2::int4[])")
+        sqlx::query("INSERT INTO social_queue_slots (weekday, minute) SELECT w, m FROM UNNEST($1::int4[], $2::int4[]) AS u(w, m)")
             .bind(&weekdays)
             .bind(&minutes)
             .execute(&mut *tx)
@@ -340,6 +340,7 @@ mod tests {
         let e = parse_slots(v).unwrap_err();
         let (s, b) = AppError::from(e).response(true);
         assert_eq!(s, 400);
+        // trinity-lint: allow-json-value (thông báo lỗi/giá trị so sánh trong test, không phải model hay cột DB)
         serde_json::from_value(serde_json::to_value(&b.message).unwrap()).unwrap()
     }
 

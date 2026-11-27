@@ -44,6 +44,7 @@ fn fail(e: impl Into<AppError>) -> Response {
 
 fn out<T: Serialize>(r: Result<T, AppError>) -> Response {
     match r {
+        // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
         Ok(v) => match serde_json::to_value(v) {
             Ok(j) => Json(j).into_response(),
             Err(e) => fail(AppError::internal(e)),

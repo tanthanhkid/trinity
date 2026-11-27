@@ -186,6 +186,7 @@ async fn find_conversation(conn: &mut PgConnection, id: i32) -> Result<Option<Fa
 }
 
 fn conversation_json(c: &FacebookConversation) -> Result<serde_json::Map<String, Value>, AppError> {
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     match serde_json::to_value(c).map_err(AppError::internal)? {
         Value::Object(m) => Ok(m),
         _ => Err(AppError::internal("hội thoại không phải object")),
@@ -193,6 +194,7 @@ fn conversation_json(c: &FacebookConversation) -> Result<serde_json::Map<String,
 }
 
 fn message_json(m: &FacebookMessage) -> Result<Value, AppError> {
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     let mut v = serde_json::to_value(m).map_err(AppError::internal)?;
     // `id` là BigInt: bản Node trả chuỗi (`m.id.toString()`).
     v["id"] = json!(m.id.0.to_string());

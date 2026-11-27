@@ -196,6 +196,7 @@ mod tests {
         );
         for bad in ["2026-13", "2026-3", "", " 2026-03", "2026-03 "] {
             let err = QuerySummary { month: bad.into() }.validate().unwrap_err();
+            // trinity-lint: allow-json-value (thông báo lỗi/giá trị so sánh trong test, không phải model hay cột DB)
             let msg = serde_json::to_value(err.body().message).unwrap();
             assert_eq!(msg, serde_json::json!([MONTH_MSG]), "{bad:?}");
         }

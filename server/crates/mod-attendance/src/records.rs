@@ -822,6 +822,7 @@ pub async fn today(ctx: &Ctx, actor: &Actor, q: &QueryTodaySummaryDto) -> R<Valu
             Some(rec)
         }
     };
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     serde_json::to_value(TodayMine {
         work_date: date_str,
         record,

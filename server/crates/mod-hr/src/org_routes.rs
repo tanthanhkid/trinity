@@ -480,6 +480,7 @@ fn can_see_salary(a: &Actor) -> bool {
 
 /// Dòng trả về; người không được xem lương thì ba cột lương thành `null` (`redactSalary`).
 fn present(row: &JobTitleRow, see_salary: bool) -> Result<Value, AppError> {
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     let mut v = serde_json::to_value(row).map_err(AppError::internal)?;
     if !see_salary && let Some(o) = v.as_object_mut() {
         for k in ["base_salary", "standard_target", "default_insurance_salary"] {

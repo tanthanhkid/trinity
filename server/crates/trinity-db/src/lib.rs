@@ -32,6 +32,22 @@ use sqlx::PgExecutor;
 
 /// Truy vấn tĩnh mẫu: kiểm kết nối DB còn sống. Cũng là truy vấn giữ cho `cargo sqlx prepare --check` có dữ liệu
 /// để so ngay từ K01.
+/// `SELECT <cột> FROM <bảng> <phần sau>` với danh sách cột lấy từ model (luật `sql-star`: không dùng `SELECT *`, vì khi hai
+/// schema công ty khác cột thì statement cache gặp `cached plan must not change result type`). `tail` bắt đầu bằng
+/// khoảng trắng hoặc rỗng, ví dụ `" WHERE id = $1"`.
+#[must_use]
+pub fn select_from<M: models::Model>(tail: &'static str) -> sqlx::AssertSqlSafe<String> {
+    let info = M::INFO;
+    let cols = info
+        .columns
+        .iter()
+        .map(|c| format!("\"{}\"", c.name))
+        .collect::<Vec<_>>()
+        .join(", ");
+    // Tên cột/bảng là hằng của model sinh tự động và `tail` là literal: không có dữ liệu ngoài.
+    sqlx::AssertSqlSafe(format!("SELECT {cols} FROM \"{}\"{tail}", info.table))
+}
+
 pub async fn ping<'e>(db: impl PgExecutor<'e>) -> Result<i32, sqlx::Error> {
     sqlx::query_scalar!(r#"SELECT 1::int4 AS "one!""#).fetch_one(db).await
 }

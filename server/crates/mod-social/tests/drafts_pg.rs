@@ -24,6 +24,7 @@ const MINUTE: i64 = 60_000;
 
 fn status(e: AppError) -> (u16, Value) {
     let (s, b) = e.response(true);
+    // trinity-lint: allow-json-value (thông báo lỗi/giá trị so sánh trong test, không phải model hay cột DB)
     (s, serde_json::to_value(&b.message).unwrap())
 }
 

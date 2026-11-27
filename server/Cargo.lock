@@ -2165,6 +2165,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-pos"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "http",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "trinity-db",
+ "trinity-http",
+ "trinity-kernel",
+ "trinity-rbac",
+]
+
+[[package]]
 name = "mod-rbac-admin"
 version = "0.3.0"
 dependencies = [

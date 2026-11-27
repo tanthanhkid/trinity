@@ -15,6 +15,7 @@ use trinity_rbac::can;
 
 use crate::ai_output::{sanitize_for_ai, slice16};
 use crate::auth::Principal;
+use crate::deps::ToolDeps;
 use crate::limits::{MCP_CALLS_PER_MINUTE, McpLimits};
 use crate::protocol::{BoxFuture, CallResult, ToolHost};
 
@@ -46,6 +47,7 @@ pub struct ToolOutput {
 
 pub struct ToolCtx<'a> {
     pub principal: &'a Principal,
+    pub deps: &'a ToolDeps,
     pub base_url: &'a str,
 }
 
@@ -141,6 +143,8 @@ pub struct Executor {
     pub registry: ToolRegistry,
     pub limits: Arc<McpLimits>,
     pub audit: Arc<dyn AuditSink>,
+    /// DB, phạm vi và ngữ cảnh báo cáo cho tool.
+    pub deps: Arc<ToolDeps>,
     /// URL gốc công khai (cho tool dựng link).
     pub base_url: String,
 }
@@ -197,6 +201,7 @@ impl Executor {
         }
         let ctx = ToolCtx {
             principal: p,
+            deps: &self.deps,
             base_url: &self.base_url,
         };
         match spec.runner.run(args, &ctx).await {

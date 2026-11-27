@@ -377,6 +377,12 @@ pub struct ListCards {
     pub cursor: Option<i32>,
     #[serde(default)]
     pub limit: Option<i64>,
+    /// Chỉ MCP (`list_my_tasks`): thẻ có người này là phụ trách chính HOẶC đồng phụ trách. Không có ở `QueryKanbanCardsDto`.
+    #[serde(skip)]
+    pub involving: Option<i32>,
+    /// Chỉ MCP: chỉ thẻ chưa hoàn thành (`completed_at IS NULL`).
+    #[serde(skip)]
+    pub open_only: bool,
 }
 
 /// Body `POST /cards` (K15: tiêu đề 1..500, mô tả ≤ 10.000, nhãn ≤ 20 phần tử ≤ 64, người phụ trách ≤ 20…).
@@ -692,7 +698,30 @@ pub async fn list(conn: &mut PgConnection, actor: &Actor, q: &ListCards) -> Resu
             .push("]::text[]");
     }
     if let Some(s) = q.search.as_deref().filter(|s| !s.is_empty()) {
-        qb.push(" AND c.title ILIKE ").push_bind(format!("%{s}%"));
+        // Thoát `\`, `%`, `_` để chuỗi gõ khớp theo nghĩa đen.
+        let esc: String = s
+            .chars()
+            .flat_map(|c| {
+                if matches!(c, '\\' | '%' | '_') {
+                    vec!['\\', c]
+                } else {
+                    vec![c]
+                }
+            })
+            .collect();
+        qb.push(" AND c.title ILIKE ")
+            .push_bind(format!("%{esc}%"))
+            .push(" ESCAPE '\\'");
+    }
+    if let Some(u) = q.involving {
+        qb.push(" AND (c.assignee_id = ")
+            .push_bind(u)
+            .push(" OR EXISTS (SELECT 1 FROM kanban_card_assignees ia WHERE ia.card_id = c.id AND ia.user_id = ")
+            .push_bind(u)
+            .push("))");
+    }
+    if q.open_only {
+        qb.push(" AND c.completed_at IS NULL");
     }
     if q.overdue == Some(true) {
         qb.push(" AND c.due_at < now() AND c.completed_at IS NULL AND c.due_completed_at IS NULL");

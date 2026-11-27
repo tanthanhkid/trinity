@@ -469,7 +469,17 @@ impl AiActionsCtx {
                 .save_version(row.id, &row.tool, &row.summary, user)
                 .await?;
         }
-        self.executor.execute(&row.tool, &row.params, user, row.id).await
+        // Hạn thực thi (`exec_timeout`): quá hạn thì dừng chờ, đề xuất thành `failed` với lý do "kết quả không rõ"
+        // (thao tác có thể đã chạy một phần; AI/người duyệt phải kiểm lại thay vì tin là thất bại hẳn).
+        match tokio::time::timeout(
+            self.exec_timeout,
+            self.executor.execute(&row.tool, &row.params, user, row.id),
+        )
+        .await
+        {
+            Ok(r) => r,
+            Err(_) => Err(HttpError::new(504, MSG_QUA_HAN).into()),
+        }
     }
 
     async fn fail(&self, row: &Draft, user: &ActionUser, err: &AppError) {
@@ -500,8 +510,13 @@ fn norm(s: &str) -> String {
     s.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
 }
 
+/// Lý do lưu vào đề xuất khi thực thi quá hạn (chỉ ghi DB; phản hồi HTTP vẫn là 500 chung, xem `to_http`).
+const MSG_QUA_HAN: &str =
+    "Thao tác quá hạn thực thi, kết quả không rõ — hãy kiểm tra lại dữ liệu trước khi đề xuất lại";
+
 fn err_message(e: &AppError) -> String {
     match e {
+        AppError::Http(h) if h.status() == 504 => MSG_QUA_HAN.to_owned(),
         AppError::Http(h) if h.status() < 500 => match h.body().message {
             trinity_kernel::error::Message::One(m) => m,
             trinity_kernel::error::Message::Many(ms) => ms.join("; "),

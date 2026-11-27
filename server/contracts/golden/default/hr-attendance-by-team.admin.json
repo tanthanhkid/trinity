@@ -106,7 +106,7 @@
           ],
           [
             "1",
-            "NV0027",
+            "NV0028",
             "Contract checkin",
             "Chưa phân phòng",
             "Chưa có team",
@@ -190,7 +190,7 @@
           ],
           [
             "7",
-            "NV0028",
+            "NV0029",
             "Contract request",
             "Chưa phân phòng",
             "Chưa có team",
@@ -204,7 +204,7 @@
           ],
           [
             "8",
-            "NV0029",
+            "NV0030",
             "Contract stats",
             "Kinh doanh",
             "Chưa có team",
@@ -218,7 +218,7 @@
           ],
           [
             "9",
-            "NV0026",
+            "NV0027",
             "Contract team-member",
             "Chưa phân phòng",
             "Chưa có team",
@@ -246,7 +246,7 @@
           ],
           [
             "11",
-            "NV0023",
+            "NV0024",
             "Người dùng vòng đời",
             "Chưa phân phòng",
             "Chưa có team",
@@ -260,7 +260,7 @@
           ],
           [
             "12",
-            "NV0022",
+            "NV0023",
             "Người được mời",
             "Chưa phân phòng",
             "Chưa có team",

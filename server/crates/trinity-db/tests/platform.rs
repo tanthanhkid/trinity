@@ -427,6 +427,48 @@ async fn d_trigger_mat_thi_cai_lai_va_chep_bu_ma_cai_dat() {
 
 #[tokio::test]
 #[ignore = "cần Postgres"]
+async fn f_backfill_slug_mo_coi_va_cong_ty_2_giu_truoc() {
+    let t = TestDb::new("f").await;
+    let (db, p) = platform_with_company_2(&t).await;
+    let mut c = t.conn().await;
+    // Công ty 2 giữ `dung-chung` từ trước (đã quá 2 phút) và vẫn dùng; công ty 1 sau đó cũng lưu cùng slug.
+    // `mo-coi` (quá 2 phút) và `moi-nhan` (vừa nhận) đều không còn trang bán hàng nào dùng.
+    exec(
+        &mut c,
+        r#"INSERT INTO c_2.settings (key, value) VALUES ('online_store', '{"slug":"Dung-Chung"}');
+           INSERT INTO public.settings (key, value) VALUES ('online_store', '{"slug":" dung-chung "}');
+           INSERT INTO platform.company_routes (kind, external_id, company_id, created_at)
+             VALUES ('store_slug', 'dung-chung', 2, now() - interval '1 hour'),
+                    ('store_slug', 'mo-coi', 2, now() - interval '1 hour');
+           INSERT INTO platform.company_routes (kind, external_id, company_id)
+             VALUES ('store_slug', 'moi-nhan', 2);"#,
+    )
+    .await;
+    p.backfill_setting_routes().await.unwrap();
+    // Ngược thứ tự id: công ty 2 giữ trước thì GIỮ (công ty 1 chép bù không đè được), công ty 1 không giành được.
+    assert_eq!(
+        p.company_for_route(RouteKind::StoreSlug, "dung-chung").await.unwrap(),
+        Some(2)
+    );
+    // Mã mồ côi quá 2 phút bị dọn, mã vừa nhận được giữ.
+    assert_eq!(p.company_for_route(RouteKind::StoreSlug, "mo-coi").await.unwrap(), None);
+    assert_eq!(
+        p.company_for_route(RouteKind::StoreSlug, "moi-nhan").await.unwrap(),
+        Some(2)
+    );
+    // Chạy lại không đổi gì (idempotent).
+    p.backfill_setting_routes().await.unwrap();
+    let n: i64 = sqlx::query_scalar("SELECT count(*) FROM platform.company_routes WHERE kind = 'store_slug'")
+        .fetch_one(&mut c)
+        .await
+        .unwrap();
+    assert_eq!(n, 2);
+    db.close().await;
+    drop(c);
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres"]
 async fn e_ban_mot_cong_ty_khong_co_platform() {
     let t = TestDb::new("e").await;
     let db = t.db(false);

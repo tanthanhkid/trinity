@@ -44,8 +44,8 @@ pub const EMAIL_TAKEN_TRIGGER_MESSAGE: &str = "Email này đã được dùng ch
 /// Câu 409 của `elk-exception.filter.ts` khi trigger ném `TRINITY_ROUTE_TAKEN`.
 pub const ROUTE_TAKEN_TRIGGER_MESSAGE: &str = "Trang/kênh này đã được một công ty khác kết nối với Trinity";
 
-/// Loại mã ngoài trong `platform.company_routes.kind`. Dòng thuộc loại khác (vd `shopee_shop`, `lazada_seller` của
-/// kết nối đã gỡ ở G06) bị xoá khi [`Platform::backfill_setting_routes`] chạy.
+/// Loại mã ngoài trong `platform.company_routes.kind`. Dòng thuộc loại khác (vd `shopee_shop`, `lazada_seller` do mô-đun
+/// connectors đã gỡ ở G06 để lại) bị xoá khi [`Platform::backfill_setting_routes`] chạy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RouteKind {
     FacebookPage,
@@ -55,6 +55,10 @@ pub enum RouteKind {
 }
 
 impl RouteKind {
+    /// Mọi loại còn dùng, thứ tự như `ROUTE_KINDS` của `packages/prisma/src/tenant/platform.ts`. Danh sách `kind` hợp lệ
+    /// của backfill suy ra từ đây, nên thêm biến thể mà quên đưa vào đây bị test `all_khop_as_str` bắt.
+    pub const ALL: [Self; 4] = [Self::FacebookPage, Self::ZaloOa, Self::OauthState, Self::StoreSlug];
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::FacebookPage => "facebook_page",
@@ -314,8 +318,10 @@ pub async fn install_sync_triggers(conn: &mut PgConnection, company: CompanyRef)
     Ok(())
 }
 
-/// Các giá trị `kind` còn dùng (khớp `ROUTE_KINDS` của `packages/prisma/src/tenant/platform.ts`).
-const ROUTE_KIND_NAMES: [&str; 4] = ["facebook_page", "zalo_oa", "oauth_state", "store_slug"];
+/// Các giá trị `kind` còn dùng, suy từ [`RouteKind::ALL`] (không chép tay thêm một danh sách thứ hai).
+fn route_kind_names() -> Vec<&'static str> {
+    RouteKind::ALL.iter().map(|k| k.as_str()).collect()
+}
 
 /// SQL: schema `s` còn trang bán hàng đang dùng mã này không (`$1` = mã). Chỉ `store_slug` là mã có thể bị bỏ rơi.
 fn backed_by_sql(s: &str) -> String {
@@ -506,39 +512,39 @@ impl Platform {
     /// không đọc được thì bỏ qua (`backfillSettingRoutes`).
     pub async fn backfill_setting_routes(&self) -> Result<(), DbError> {
         let mut conn = self.db.acquire().await?;
-        sqlx::query("DELETE FROM platform.company_routes WHERE kind <> ALL($1::text[])")
-            .bind(&ROUTE_KIND_NAMES[..])
+        // Dọn loại đã gỡ là việc phụ: lỗi (khoá, đứt kết nối thoáng qua) chỉ ghi log, không chặn chép bù slug bên dưới.
+        if let Err(e) = sqlx::query("DELETE FROM platform.company_routes WHERE kind <> ALL($1::text[])")
+            .bind(route_kind_names())
             .execute(&mut *conn)
-            .await?;
+            .await
+        {
+            tracing::warn!("platform: không dọn được route loại cũ: {e}");
+        }
         let companies: Vec<(i32, String)> =
             sqlx::query_as("SELECT id, schema_name FROM platform.companies ORDER BY id")
                 .fetch_all(&mut *conn)
                 .await?;
         for (id, schema) in companies {
             let s = quote_ident(&schema)?;
-            let statements = [(
-                RouteKind::StoreSlug,
-                format!(
-                    "SELECT lower(trim(((value::json)->>'slug'))) AS ext FROM {s}.settings WHERE key = 'online_store'"
-                ),
-            )];
-            for (kind, select) in statements {
-                let k = kind.as_str();
-                // Trước hết là mã mồ côi: công ty này giữ nhưng không còn trang bán hàng nào dùng.
-                let orphans = format!(
-                    "DELETE FROM platform.company_routes r WHERE r.kind = '{k}' AND r.company_id = {id} AND r.created_at < now() - interval '2 minutes'
+            // Chỉ `store_slug` là mã có thể suy ra từ cài đặt của công ty (Page/OA do trigger lo).
+            let k = RouteKind::StoreSlug.as_str();
+            let select = format!(
+                "SELECT lower(trim(((value::json)->>'slug'))) AS ext FROM {s}.settings WHERE key = 'online_store'"
+            );
+            // Trước hết là mã mồ côi: công ty này giữ nhưng không còn trang bán hàng nào dùng.
+            let orphans = format!(
+                "DELETE FROM platform.company_routes r WHERE r.kind = '{k}' AND r.company_id = {id} AND r.created_at < now() - interval '2 minutes'
              AND NOT EXISTS ({})",
-                    backed_by_sql(&s).replacen("= $1", "= r.external_id", 1)
-                );
-                let insert = format!(
-                    "INSERT INTO platform.company_routes (kind, external_id, company_id)
+                backed_by_sql(&s).replacen("= $1", "= r.external_id", 1)
+            );
+            let insert = format!(
+                "INSERT INTO platform.company_routes (kind, external_id, company_id)
              SELECT '{k}', ext, {id} FROM ({select}) q WHERE ext IS NOT NULL AND ext <> ''
            ON CONFLICT (kind, external_id) DO NOTHING"
-                );
-                // Bảng hoặc cột chưa có (schema chưa migrate): không có gì để chép bù.
-                if exec(&mut conn, orphans).await.is_ok() {
-                    let _ = exec(&mut conn, insert).await;
-                }
+            );
+            // Bảng hoặc cột chưa có (schema chưa migrate): không có gì để chép bù.
+            if exec(&mut conn, orphans).await.is_ok() {
+                let _ = exec(&mut conn, insert).await;
             }
         }
         Ok(())
@@ -908,6 +914,19 @@ impl Platform {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `RouteKind::ALL` không trùng, đủ bốn biến thể (thêm biến thể thì sửa số này), tên suy ra đúng bốn giá trị của
+    /// `ROUTE_KINDS` bên TS.
+    #[test]
+    fn all_khop_as_str() {
+        assert_eq!(RouteKind::ALL.len(), 4);
+        assert_eq!(
+            route_kind_names(),
+            ["facebook_page", "zalo_oa", "oauth_state", "store_slug"]
+        );
+        let uniq: std::collections::HashSet<_> = RouteKind::ALL.iter().collect();
+        assert_eq!(uniq.len(), RouteKind::ALL.len());
+    }
 
     #[test]
     fn cat_chuoi_nhu_js() {

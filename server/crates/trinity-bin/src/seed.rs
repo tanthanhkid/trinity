@@ -12,6 +12,7 @@ use std::process::ExitCode;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use clap::Args;
+use trinity_db::platform::conflict_from_trigger;
 use trinity_db::{CompanyRef, Db, DbConfig, TenantTx};
 
 const ADMIN_ROLE_NAME: &str = "Quản trị";
@@ -131,8 +132,13 @@ fn resolve_admin_password(get: &dyn Fn(&str) -> Option<String>) -> Result<(Strin
     Ok((URL_SAFE_NO_PAD.encode(b), true))
 }
 
+/// Lỗi SQL ra chữ cho người chạy lệnh. Trigger đồng bộ ném `TRINITY_EMAIL_TAKEN` khi email admin đã thuộc một công ty
+/// khác (`--company` N dùng chung `SEED_ADMIN_EMAIL`): in câu 409 dễ hiểu thay vì lỗi thô của Postgres.
 fn sql(e: sqlx::Error) -> String {
-    e.to_string()
+    match conflict_from_trigger(&e) {
+        Some(msg) => format!("{msg} (đổi SEED_ADMIN_EMAIL hoặc email tài khoản mẫu rồi chạy lại)"),
+        None => e.to_string(),
+    }
 }
 
 /// Seed một công ty trong MỘT giao dịch (lỗi giữa chừng không để lại nửa vời). `get` tra biến môi trường.
@@ -709,5 +715,14 @@ mod sample_tests {
     #[test]
     fn mat_khau_mau_du_dai() {
         assert!(SAMPLE_PASSWORD_DEFAULT.len() >= 8);
+    }
+
+    #[test]
+    fn email_da_thuoc_cong_ty_khac_ra_cau_de_hieu() {
+        let e = sqlx::Error::Protocol("TRINITY_EMAIL_TAKEN".to_owned());
+        let msg = sql(e);
+        assert!(msg.starts_with("Email này đã được dùng cho một công ty khác"), "{msg}");
+        assert!(msg.contains("SEED_ADMIN_EMAIL"));
+        assert_eq!(sql(sqlx::Error::RowNotFound), sqlx::Error::RowNotFound.to_string());
     }
 }

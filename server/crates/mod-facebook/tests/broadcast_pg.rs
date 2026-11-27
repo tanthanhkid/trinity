@@ -67,7 +67,11 @@ async fn clean(c: &mut PgConnection) {
     )
     .await;
     exec(c, "DELETE FROM facebook_broadcasts WHERE page_id LIKE 'm51%'").await;
-    exec(c, "DELETE FROM integration_events WHERE payload->>'page_id' LIKE 'm51%'").await;
+    exec(
+        c,
+        "DELETE FROM integration_events WHERE payload->>'page_id' LIKE 'm51%'",
+    )
+    .await;
     exec(c, "DELETE FROM facebook_conversations WHERE page_id LIKE 'm51%'").await;
     exec(c, "DELETE FROM facebook_pages WHERE page_id LIKE 'm51%'").await;
     exec(c, "DELETE FROM setting_options WHERE value LIKE 'm51%'").await;
@@ -231,7 +235,10 @@ async fn cat_giua_chung_chay_lai_khong_gui_trung() {
     assert_eq!((run.sent, run.started), (2, 0));
     let b = ingest.get_broadcast(company, id).await.unwrap();
     assert_eq!(b["status"], "done");
-    assert_eq!((b["sent"].as_i64(), b["failed"].as_i64(), b["skipped"].as_i64()), (Some(2), Some(1), Some(0)));
+    assert_eq!(
+        (b["sent"].as_i64(), b["failed"].as_i64(), b["skipped"].as_i64()),
+        (Some(2), Some(1), Some(0))
+    );
 
     // Chạy lần nữa: không còn gì để gửi, không gọi Graph thêm (kiểm bằng `.expect` của máy chủ giả khi hết test).
     let run = ingest
@@ -258,7 +265,14 @@ async fn cat_giua_chung_chay_lai_khong_gui_trung() {
     assert_eq!(by(c1)["customer_name"], "Khách m51a");
 
     let mut c = f.db.tenant(company).await.unwrap().acquire().await.unwrap();
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_messages WHERE mid LIKE 'm51.out%' AND direction = 'out'").await, 2);
+    assert_eq!(
+        count(
+            &mut c,
+            "SELECT count(*) FROM facebook_messages WHERE mid LIKE 'm51.out%' AND direction = 'out'"
+        )
+        .await,
+        2
+    );
     assert_eq!(
         count(&mut c, "SELECT count(*) FROM facebook_broadcast_recipients r JOIN facebook_broadcasts b ON b.id = r.broadcast_id WHERE b.page_id = 'm51p' AND r.status IN ('queued', 'sending')").await,
         0
@@ -299,9 +313,10 @@ async fn token_het_han_dung_ca_luot() {
     // Graph báo token hết hạn (190): chỉ MỘT lời gọi, phần còn lại bị đánh `failed` luôn.
     Mock::given(method("POST"))
         .and(path("/v25.0/me/messages"))
-        .respond_with(ResponseTemplate::new(400).set_body_json(
-            json!({ "error": { "message": "token chết", "type": "OAuthException", "code": 190 } }),
-        ))
+        .respond_with(
+            ResponseTemplate::new(400)
+                .set_body_json(json!({ "error": { "message": "token chết", "type": "OAuthException", "code": 190 } })),
+        )
         .expect(1)
         .mount(&server)
         .await;
@@ -323,8 +338,18 @@ async fn token_het_han_dung_ca_luot() {
     assert_eq!(b["status"], "done");
     assert_eq!((b["sent"].as_i64(), b["failed"].as_i64()), (Some(0), Some(3)));
     let mut c = f.db.tenant(company).await.unwrap().acquire().await.unwrap();
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_pages WHERE page_id = 'm51p' AND token_status = 'invalid'").await, 1);
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_messages WHERE mid LIKE 'm51.%'").await, 0);
+    assert_eq!(
+        count(
+            &mut c,
+            "SELECT count(*) FROM facebook_pages WHERE page_id = 'm51p' AND token_status = 'invalid'"
+        )
+        .await,
+        1
+    );
+    assert_eq!(
+        count(&mut c, "SELECT count(*) FROM facebook_messages WHERE mid LIKE 'm51.%'").await,
+        0
+    );
     drop(c);
     clean_after(&f).await;
 }
@@ -339,10 +364,22 @@ async fn tao_sua_hen_gio_huy_xoa() {
 
     // Thiếu tên / Page sai / nội dung trống ⇒ 400.
     for bad in [
-        BroadcastInput { name: Some("  ".into()), ..input("x", "y") },
-        BroadcastInput { page_id: Some("khong-co".into()), ..input("x", "y") },
-        BroadcastInput { text: Some("   ".into()), ..input("x", "y") },
-        BroadcastInput { name: None, ..input("x", "y") },
+        BroadcastInput {
+            name: Some("  ".into()),
+            ..input("x", "y")
+        },
+        BroadcastInput {
+            page_id: Some("khong-co".into()),
+            ..input("x", "y")
+        },
+        BroadcastInput {
+            text: Some("   ".into()),
+            ..input("x", "y")
+        },
+        BroadcastInput {
+            name: None,
+            ..input("x", "y")
+        },
     ] {
         let e = ingest.create_broadcast(company, &bad, f.user, "web").await.unwrap_err();
         assert!(e.to_string().len() > 5, "{e}");
@@ -369,13 +406,26 @@ async fn tao_sua_hen_gio_huy_xoa() {
         .update_broadcast(
             company,
             id,
-            &BroadcastInput { name: Some("Tên mới".into()), ..Default::default() },
+            &BroadcastInput {
+                name: Some("Tên mới".into()),
+                ..Default::default()
+            },
         )
         .await
         .unwrap();
-    assert_eq!((u["name"].as_str(), u["text"].as_str()), (Some("Tên mới"), Some("Chào {ten}")));
+    assert_eq!(
+        (u["name"].as_str(), u["text"].as_str()),
+        (Some("Tên mới"), Some("Chào {ten}"))
+    );
     let e = ingest
-        .update_broadcast(company, id, &BroadcastInput { name: Some(String::new()), ..Default::default() })
+        .update_broadcast(
+            company,
+            id,
+            &BroadcastInput {
+                name: Some(String::new()),
+                ..Default::default()
+            },
+        )
         .await;
     assert!(e.is_err());
 
@@ -405,7 +455,14 @@ async fn tao_sua_hen_gio_huy_xoa() {
     assert!(ingest.cancel_broadcast(company, id).await.is_err(), "đã kết thúc");
     assert!(
         ingest
-            .update_broadcast(company, id, &BroadcastInput { name: Some("sau huỷ".into()), ..Default::default() })
+            .update_broadcast(
+                company,
+                id,
+                &BroadcastInput {
+                    name: Some("sau huỷ".into()),
+                    ..Default::default()
+                }
+            )
             .await
             .is_err()
     );

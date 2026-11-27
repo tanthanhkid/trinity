@@ -367,6 +367,7 @@ struct Done {
     stop_rest: Option<&'static str>,
 }
 
+#[allow(clippy::large_enum_variant)]
 enum Delivery {
     /// Tạm dừng xuất hiện giữa lúc kiểm và lúc giữ chỗ: trả người nhận về `queued`.
     Pause,
@@ -712,9 +713,7 @@ impl FacebookIngest {
         if let Some(g) = guard.filter(|g| g.enforced()) {
             g.assert_outbound(company, OutboundMode::Manual, OutboundScope::Meta)
                 .await?;
-            let gate = g
-                .block_reason(company, OutboundMode::Auto, OutboundScope::Meta)
-                .await?;
+            let gate = g.block_reason(company, OutboundMode::Auto, OutboundScope::Meta).await?;
             if let Some(r) = gate
                 && r.code == BlockCode::ChannelPaused
                 && r.until.is_some_and(|u| when < u)
@@ -994,9 +993,7 @@ impl FacebookIngest {
         for (rid, conv_id) in queue {
             // Tạm dừng (Facebook báo chặn/spam, hoặc giới hạn chung của app): GIỮ người nhận ở `queued`, lượt sau gửi tiếp.
             if let Some(g) = guard
-                && let Some(gate) = g
-                    .block_reason(company, OutboundMode::Auto, OutboundScope::Meta)
-                    .await?
+                && let Some(gate) = g.block_reason(company, OutboundMode::Auto, OutboundScope::Meta).await?
                 && gate.code == BlockCode::ChannelPaused
             {
                 r.paused = true;
@@ -1207,7 +1204,10 @@ impl FacebookIngest {
         )
         .bind(b.id)
         .bind(stop)
-        .bind(note.map(|n| utf16_prefix(n, 300)).unwrap_or_else(|| "Fanpage mất kết nối".to_owned()))
+        .bind(
+            note.map(|n| utf16_prefix(n, 300))
+                .unwrap_or_else(|| "Fanpage mất kết nối".to_owned()),
+        )
         .execute(&mut *tx)
         .await
         .map_err(db)?
@@ -1257,14 +1257,9 @@ impl FacebookIngest {
                 "broadcast_id": id, "page_id": page_id, "name": name, "status": "done",
                 "total": total, "sent": sent, "failed": failed, "skipped": skipped,
             });
-            let res = publish_integration_event(
-                &mut tx,
-                "messenger.broadcast_finished",
-                &payload,
-                id,
-                Some(created_by),
-            )
-            .await;
+            let res =
+                publish_integration_event(&mut tx, "messenger.broadcast_finished", &payload, id, Some(created_by))
+                    .await;
             side_end(&mut tx, res.is_ok()).await;
             if let Err(e) = res {
                 tracing::warn!("Sự kiện webhook lượt gửi #{id} xong lỗi: {e}");
@@ -1302,9 +1297,9 @@ async fn bc_record_out(
             .execute(&mut **tx)
             .await
             .map_err(db)?;
-        let assigned = assigned_to(&mut **tx, conv.contact_id).await?;
+        let assigned = assigned_to(tx, conv.contact_id).await?;
         publish_integration_event(
-            &mut **tx,
+            tx,
             "messenger.message_sent",
             &json!({
                 "conversation_id": conv.id, "page_id": conv.page_id, "contact_id": conv.contact_id,
@@ -1360,13 +1355,18 @@ mod tests {
 
     #[test]
     fn lam_sach_bo_loc() {
-        let a = Audience::from_value(&json!({ "source_ids": [3, 3, "4", 0, -1, 2.5, 3_000_000_000_i64, "x", null], "chat_link_ids": [7] }));
+        let a = Audience::from_value(
+            &json!({ "source_ids": [3, 3, "4", 0, -1, 2.5, 3_000_000_000_i64, "x", null], "chat_link_ids": [7] }),
+        );
         assert_eq!(a.source_ids, vec![3, 4]);
         assert_eq!(a.chat_link_ids, vec![7]);
         assert_eq!(a.to_value(), json!({ "source_ids": [3, 4], "chat_link_ids": [7] }));
         // Không phải object / mảng rỗng ⇒ bỏ khoá.
         assert_eq!(Audience::from_value(&json!(null)).to_value(), json!({}));
-        assert_eq!(Audience::from_value(&json!({ "source_ids": "1" })).to_value(), json!({}));
+        assert_eq!(
+            Audience::from_value(&json!({ "source_ids": "1" })).to_value(),
+            json!({})
+        );
         let many: Vec<i32> = (1..=80).collect();
         assert_eq!(
             Audience::from_value(&json!({ "source_ids": many })).source_ids.len(),
@@ -1395,21 +1395,30 @@ mod tests {
         let later = send_time(Some("2027-01-15T09:00:00Z"), now()).unwrap();
         assert_eq!(later.timestamp_millis(), NOW_MS + 3_600_000);
         // Quá 7 ngày hoặc rác ⇒ 400.
-        assert_eq!(send_time(Some("2027-02-15T09:00:00Z"), now()).unwrap_err().status(), 400);
+        assert_eq!(
+            send_time(Some("2027-02-15T09:00:00Z"), now()).unwrap_err().status(),
+            400
+        );
         assert_eq!(send_time(Some("không phải giờ"), now()).unwrap_err().status(), 400);
     }
 
     #[test]
     fn kiem_body_tao_sua() {
-        let ok = BroadcastInput::from_json(&json!({ "name": "A", "page_id": "p", "text": "t", "audience": { "source_ids": [1] } }))
-            .unwrap();
+        let ok = BroadcastInput::from_json(
+            &json!({ "name": "A", "page_id": "p", "text": "t", "audience": { "source_ids": [1] } }),
+        )
+        .unwrap();
         assert_eq!(ok.name.as_deref(), Some("A"));
         assert!(ok.audience.is_some());
-        assert_eq!(BroadcastInput::from_json(&json!({})).unwrap(), BroadcastInput::default());
+        assert_eq!(
+            BroadcastInput::from_json(&json!({})).unwrap(),
+            BroadcastInput::default()
+        );
         // null ⇒ chuỗi rỗng (service sẽ báo thiếu), không bao giờ NULL.
         let n = BroadcastInput::from_json(&json!({ "name": null })).unwrap();
         assert_eq!(n.name.as_deref(), Some(""));
-        let e = BroadcastInput::from_json(&json!({ "name": 5, "text": "x".repeat(2001), "page_id": "p".repeat(41) })).unwrap_err();
+        let e = BroadcastInput::from_json(&json!({ "name": 5, "text": "x".repeat(2001), "page_id": "p".repeat(41) }))
+            .unwrap_err();
         let m = msgs(&e);
         assert!(m.contains("name must be a string"), "{m}");
         assert!(m.contains("text must be shorter than or equal to 2000"), "{m}");
@@ -1427,7 +1436,9 @@ mod tests {
         assert_eq!(parse_send(&json!({})).unwrap(), None);
         assert_eq!(parse_send(&json!({ "scheduled_at": null })).unwrap(), None);
         assert_eq!(
-            parse_send(&json!({ "scheduled_at": "2027-01-01T00:00:00Z" })).unwrap().as_deref(),
+            parse_send(&json!({ "scheduled_at": "2027-01-01T00:00:00Z" }))
+                .unwrap()
+                .as_deref(),
             Some("2027-01-01T00:00:00Z")
         );
         assert!(parse_send(&json!({ "scheduled_at": 5 })).is_err());

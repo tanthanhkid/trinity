@@ -148,7 +148,10 @@ fn is_agent_tag_error(message: &str) -> bool {
 /// `mapSendError`: đổi lỗi Graph khi gửi thành lỗi tiếng Việt. giá trị thứ hai `true` = cần đánh dấu token Page hỏng (lỗi 190).
 pub fn map_send_error(err: &GraphApiError, human_agent: bool) -> (HttpError, bool) {
     if err.is_config_error() {
-        let msg = format!("Cấu hình kết nối Facebook của máy chủ sai: {}", utf16_prefix(&err.message, 160));
+        let msg = format!(
+            "Cấu hình kết nối Facebook của máy chủ sai: {}",
+            utf16_prefix(&err.message, 160)
+        );
         return (HttpError::new(500, msg), false);
     }
     // Thẻ HUMAN_AGENT bị từ chối (app chưa được Meta duyệt quyền Human Agent).
@@ -220,7 +223,9 @@ async fn stop_flow_runs_in_savepoint(tx: &mut TenantTx, conversation_id: i32) {
     .await;
     if let Err(e) = r {
         tracing::warn!("Không dừng được kịch bản của hội thoại {conversation_id}: {e}");
-        let _ = sqlx::query("ROLLBACK TO SAVEPOINT fb_stop_flows").execute(&mut **tx).await;
+        let _ = sqlx::query("ROLLBACK TO SAVEPOINT fb_stop_flows")
+            .execute(&mut **tx)
+            .await;
     }
     let _ = sqlx::query("RELEASE SAVEPOINT fb_stop_flows").execute(&mut **tx).await;
 }

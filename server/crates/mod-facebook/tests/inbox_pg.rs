@@ -58,7 +58,11 @@ async fn one_i32(c: &mut PgConnection, sql: &str) -> i32 {
 }
 
 async fn clean(c: &mut PgConnection) {
-    exec(c, "DELETE FROM integration_events WHERE payload->>'page_id' LIKE 'm48%'").await;
+    exec(
+        c,
+        "DELETE FROM integration_events WHERE payload->>'page_id' LIKE 'm48%'",
+    )
+    .await;
     exec(c, "DELETE FROM facebook_conversations WHERE page_id LIKE 'm48%'").await;
     exec(c, "DELETE FROM facebook_pages WHERE page_id LIKE 'm48%'").await;
     exec(c, "DELETE FROM setting_options WHERE value LIKE 'm48%'").await;
@@ -194,12 +198,33 @@ async fn tra_loi_theo_cua_so_24_gio_7_ngay() {
     assert!(missing.is_err());
 
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_messages WHERE mid LIKE 'm48.out%' AND direction = 'out'").await, 2);
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_messages WHERE mid LIKE 'm48.out%' AND sent_by_user_id IS NOT NULL").await, 2);
+    assert_eq!(
+        count(
+            &mut c,
+            "SELECT count(*) FROM facebook_messages WHERE mid LIKE 'm48.out%' AND direction = 'out'"
+        )
+        .await,
+        2
+    );
+    assert_eq!(
+        count(
+            &mut c,
+            "SELECT count(*) FROM facebook_messages WHERE mid LIKE 'm48.out%' AND sent_by_user_id IS NOT NULL"
+        )
+        .await,
+        2
+    );
     assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_conversations WHERE page_id = 'm48p' AND last_message_preview = 'dạ chào anh'").await, 1);
     assert_eq!(count(&mut c, "SELECT count(*) FROM integration_events WHERE event_type = 'messenger.message_sent' AND payload->>'page_id' = 'm48p' AND payload->>'origin' = 'agent'").await, 2);
     // Hội thoại bị từ chối không có tin ra.
-    assert_eq!(count(&mut c, &format!("SELECT count(*) FROM facebook_messages WHERE conversation_id IN ({refused}, {beyond_7d})")).await, 0);
+    assert_eq!(
+        count(
+            &mut c,
+            &format!("SELECT count(*) FROM facebook_messages WHERE conversation_id IN ({refused}, {beyond_7d})")
+        )
+        .await,
+        0
+    );
     drop(c);
 
     // Danh sách: `reply_mode` đúng theo thời gian; `unanswered` giữ hội thoại có tin cuối của khách.
@@ -222,7 +247,10 @@ async fn tra_loi_theo_cua_so_24_gio_7_ngay() {
     let only = only["data"].as_array().unwrap();
     assert!(only.iter().all(|v| v["awaiting_reply"] == true));
     assert!(only.iter().any(|v| v["id"] == beyond_7d));
-    assert!(!only.iter().any(|v| v["id"] == within_24h), "đã trả lời thì không còn chờ");
+    assert!(
+        !only.iter().any(|v| v["id"] == within_24h),
+        "đã trả lời thì không còn chờ"
+    );
 
     // Tin của hội thoại: có tin ra, đánh dấu đã đọc.
     let m = ingest.messages(company, within_24h, now_ms).await.unwrap();
@@ -232,6 +260,13 @@ async fn tra_loi_theo_cua_so_24_gio_7_ngay() {
     let missing = ingest.messages(company, 999_999_999, now_ms).await;
     assert!(missing.is_err());
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
-    assert_eq!(count(&mut c, &format!("SELECT count(*) FROM facebook_conversations WHERE id = {within_24h} AND unread_count = 0")).await, 1);
+    assert_eq!(
+        count(
+            &mut c,
+            &format!("SELECT count(*) FROM facebook_conversations WHERE id = {within_24h} AND unread_count = 0")
+        )
+        .await,
+        1
+    );
     clean(&mut c).await;
 }

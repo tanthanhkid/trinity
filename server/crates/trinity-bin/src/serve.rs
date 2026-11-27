@@ -708,10 +708,8 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             })),
         }),
     );
-    // CHƯA mount: mod-deals, mod-newsfeed (cần multipart/media). Route của chúng thuộc Node. Đã mount: settings,
-    // rbac-admin (trừ `PUT /users/:id/roles`, do mod-users giữ), notify (4 route `/notifications`) ở sau khối realtime.
-
-    // ── Scheduler và worker hàng đợi (nền). Chưa module nào đăng ký job ở đây; khi có, `scheduler.register(..)`.
+    // ── Scheduler và worker hàng đợi (nền). Mọi `scheduler.register(..)` phải xong TRƯỚC `scheduler.run` (chụp danh sách job lúc
+    // chạy); các job cần socket/chính sách SSRF nên khối đăng ký nằm sau khối integrations, rồi mới tới khối khởi chạy.
     let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
     let node_id = format!("trinity-{}", std::process::id());
     let table = Arc::new(
@@ -763,21 +761,6 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             store: mod_exports::store::Store::new(&db),
         }),
     );
-    {
-        let (s, rx) = (scheduler.clone(), stop_rx.clone());
-        tokio::spawn(async move {
-            if let Err(e) = s.run(rx).await {
-                tracing::error!("scheduler dừng vì lỗi: {e}");
-            }
-        });
-        let (w, rx) = (worker.clone(), stop_rx.clone());
-        tokio::spawn(async move {
-            if let Err(e) = w.run(rx).await {
-                tracing::error!("worker hàng đợi dừng vì lỗi: {e}");
-            }
-        });
-    }
-
     // K34: API điều khiển test, chỉ khi build với `--features test-hooks` VÀ TRINITY_TEST_HOOKS=1.
     #[cfg(feature = "test-hooks")]
     {
@@ -845,25 +828,23 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         }),
     );
     let ssrf_policy = trinity_http::outbound::ssrf::SsrfPolicy::from_env(lookup);
-    let webhook = mod_notify::delivery::SafeWebhookPoster::new(ssrf_policy).map_err(|e| format!("webhook: {e}"))?;
+    let webhook: Arc<dyn mod_notify::delivery::WebhookPoster> =
+        Arc::new(mod_notify::delivery::SafeWebhookPoster::new(ssrf_policy).map_err(|e| format!("webhook: {e}"))?);
+    let notify_sink: Arc<dyn mod_notify::delivery::InAppSink> = Arc::new(mod_notify::delivery::RealtimeSink {
+        socket: socket.clone(),
+        db: db.clone(),
+    });
     app = mount(
         app,
         mod_notify::api_router(deps.clone()),
         Arc::new(mod_notify::NotifyState {
             db: db.clone(),
-            deliverer: mod_notify::delivery::Deliverer::new(
-                Arc::new(mod_notify::delivery::RealtimeSink {
-                    socket: socket.clone(),
-                    db: db.clone(),
-                }),
-                Arc::new(webhook),
-                ssrf_policy,
-            ),
+            deliverer: mod_notify::delivery::Deliverer::new(notify_sink.clone(), webhook.clone(), ssrf_policy),
         }),
     );
     // Integrations (M33/M34): status, nhật ký, webhook ra, nguồn webhook vào và `POST /hooks/in/:token` (công khai theo token).
     // Chống SSRF dùng chung chính sách với kênh webhook của notify; khoá mã hoá secret là INTEGRATIONS_SECRET_KEY.
-    // Dispatcher/worker gửi webhook ra thuộc job riêng (chưa đăng ký ở đây).
+    // Dispatcher gửi webhook ra chạy ở job `webhook.dispatch`, đăng ký ở khối job nền bên dưới.
     let integ_vars = env.clone();
     let integ_env: trinity_integrations::routes::EnvFn = Arc::new(move |k: &str| integ_vars.get(k).cloned());
     let key_vars = env.clone();
@@ -886,10 +867,75 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             platform: platform.clone(),
             scopes: ScopeService::new(db.clone(), cache.clone()),
             env: integ_env,
-            sender: integ_sender,
+            sender: integ_sender.clone(),
             inbound: trinity_integrations::webhooks::inbound::receive::InboundService::new(secret_key, inbound_enabled),
         }),
     );
+
+    // Job nền còn lại (mỗi job tự tắt theo cờ env của module): lead-scoring + stale-work (mod-leads), notification.scheduled,
+    // integrations.ai-action-expiry, outbox/oauth purge, webhook dispatch.
+    {
+        let job_vars = env.clone();
+        let job_env = move |k: &str| job_vars.get(k).cloned();
+        let multi_tenant = db.multi_tenant();
+        match mod_leads::jobs::register_if_enabled_with(
+            &scheduler,
+            &db,
+            move |company| crate::job_ports::CompanyFeatures { company, multi_tenant },
+            lookup,
+        ) {
+            Ok(names) => tracing::info!("đã đăng ký job leads {names:?}"),
+            Err(e) => tracing::warn!("không đăng ký được job leads: {e}"),
+        }
+        let notify_deliverer = Arc::new(mod_notify::delivery::Deliverer::new(
+            notify_sink.clone(),
+            webhook.clone(),
+            ssrf_policy,
+        ));
+        let webhook_dispatcher = Arc::new(trinity_integrations::webhooks::dispatcher::Dispatcher::new(
+            integ_sender,
+            Box::new(crate::job_ports::RbacActors {
+                permissions: perms.clone(),
+                scopes: ScopeService::new(db.clone(), cache.clone()),
+            }),
+        ));
+        let (any_on, oauth_on, webhooks_on) = (
+            trinity_integrations::status::any_enabled(&job_env),
+            trinity_integrations::status::oauth_enabled(&job_env),
+            trinity_integrations::status::webhooks_enabled(&job_env),
+        );
+        let specs = [
+            mod_notify::jobs::scheduled_job(&db, notify_deliverer).map(Some),
+            mod_ai_actions::job::expiry_job(&db, oauth_on),
+            trinity_integrations::purge::outbox_purge_job(&db, any_on),
+            trinity_integrations::purge::oauth_purge_job(&db, oauth_on),
+            trinity_integrations::webhooks::dispatcher::webhook_tick_job(&db, webhook_dispatcher, webhooks_on),
+        ];
+        for spec in specs {
+            match spec {
+                Ok(Some(spec)) => {
+                    tracing::info!("đã đăng ký job {}", spec.name);
+                    scheduler.register(spec);
+                }
+                Ok(None) => {}
+                Err(e) => tracing::warn!("không đăng ký được job nền: {e}"),
+            }
+        }
+    }
+    {
+        let (s, rx) = (scheduler.clone(), stop_rx.clone());
+        tokio::spawn(async move {
+            if let Err(e) = s.run(rx).await {
+                tracing::error!("scheduler dừng vì lỗi: {e}");
+            }
+        });
+        let (w, rx) = (worker.clone(), stop_rx.clone());
+        tokio::spawn(async move {
+            if let Err(e) = w.run(rx).await {
+                tracing::error!("worker hàng đợi dừng vì lỗi: {e}");
+            }
+        });
+    }
 
     // Newsfeed: kho tệp theo `STORAGE_DRIVER` (local|s3, mặc định local) như `packages/storage`; ảnh/video khoá `newsfeed/...`.
     let newsfeed_store = match lookup("STORAGE_DRIVER")

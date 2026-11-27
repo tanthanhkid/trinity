@@ -9,7 +9,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::Utc;
-use trinity_db::Db;
+use sqlx::PgConnection;
+use trinity_db::{CompanyRef, Db};
 use trinity_jobs::{JobSpec, Scheduler, SchedulerError};
 
 use crate::{Features, lead, stale};
@@ -42,14 +43,33 @@ pub fn stale_enabled(get: impl Fn(&str) -> Option<String>) -> bool {
     get("STALE_REMINDERS_ENABLED").is_some_and(|v| v == "true")
 }
 
+/// Bản dùng chung một `Features` cho mọi công ty (test, hoặc cổng không phụ thuộc công ty).
+struct Shared<F>(Arc<F>);
+
+impl<F: Features> Features for Shared<F> {
+    async fn enabled(&self, conn: &mut PgConnection, key: &str) -> bool {
+        self.0.enabled(conn, key).await
+    }
+}
+
 pub fn lead_spec<F: Features + 'static>(db: Db, features: Arc<F>) -> Result<JobSpec, SchedulerError> {
+    lead_spec_with(db, move |_| Shared(Arc::clone(&features)))
+}
+
+/// Như [`lead_spec`] nhưng dựng `Features` theo từng công ty (gói của công ty quyết định cờ `lead_scoring`).
+pub fn lead_spec_with<F, M>(db: Db, make: M) -> Result<JobSpec, SchedulerError>
+where
+    F: Features + 'static,
+    M: Fn(CompanyRef) -> F + Send + Sync + 'static,
+{
+    let make = Arc::new(make);
     Ok(JobSpec::new(LEAD_JOB, LEAD_INTERVAL, BUDGET, move |company| {
         let db = db.clone();
-        let features = Arc::clone(&features);
+        let features = make(company);
         async move {
             let tenant = db.tenant(company).await.map_err(|e| e.to_string())?;
             let mut conn = tenant.acquire().await.map_err(|e| e.to_string())?;
-            lead::run_once(&mut conn, features.as_ref(), Utc::now())
+            lead::run_once(&mut conn, &features, Utc::now())
                 .await
                 .map(drop)
                 .map_err(|e| format!("{e:?}"))
@@ -59,12 +79,22 @@ pub fn lead_spec<F: Features + 'static>(db: Db, features: Arc<F>) -> Result<JobS
 }
 
 pub fn stale_spec<F: Features + 'static>(db: Db, features: Arc<F>) -> Result<JobSpec, SchedulerError> {
+    stale_spec_with(db, move |_| Shared(Arc::clone(&features)))
+}
+
+/// Như [`stale_spec`] nhưng dựng `Features` theo từng công ty.
+pub fn stale_spec_with<F, M>(db: Db, make: M) -> Result<JobSpec, SchedulerError>
+where
+    F: Features + 'static,
+    M: Fn(CompanyRef) -> F + Send + Sync + 'static,
+{
+    let make = Arc::new(make);
     Ok(JobSpec::new(STALE_JOB, STALE_INTERVAL, BUDGET, move |company| {
         let db = db.clone();
-        let features = Arc::clone(&features);
+        let features = make(company);
         async move {
             let tenant = db.tenant(company).await.map_err(|e| e.to_string())?;
-            stale::run_once(&tenant, features.as_ref(), Utc::now(), false)
+            stale::run_once(&tenant, &features, Utc::now(), false)
                 .await
                 .map(drop)
                 .map_err(|e| format!("{e:?}"))
@@ -80,13 +110,27 @@ pub fn register_if_enabled<F: Features + 'static>(
     features: Arc<F>,
     get: impl Fn(&str) -> Option<String>,
 ) -> Result<Vec<&'static str>, SchedulerError> {
+    register_if_enabled_with(scheduler, db, move |_| Shared(Arc::clone(&features)), get)
+}
+
+/// Như [`register_if_enabled`] nhưng `Features` dựng theo từng công ty (`make` gọi mỗi lượt job).
+pub fn register_if_enabled_with<F, M>(
+    scheduler: &Scheduler,
+    db: &Db,
+    make: M,
+    get: impl Fn(&str) -> Option<String>,
+) -> Result<Vec<&'static str>, SchedulerError>
+where
+    F: Features + 'static,
+    M: Fn(CompanyRef) -> F + Clone + Send + Sync + 'static,
+{
     let mut names = Vec::new();
     if flag(&get, "LEAD_SCORING_ENABLED") {
-        scheduler.register(lead_spec(db.clone(), Arc::clone(&features))?);
+        scheduler.register(lead_spec_with(db.clone(), make.clone())?);
         names.push(LEAD_JOB);
     }
     if flag(&get, "STALE_REMINDERS_ENABLED") {
-        scheduler.register(stale_spec(db.clone(), features)?);
+        scheduler.register(stale_spec_with(db.clone(), make)?);
         names.push(STALE_JOB);
     }
     Ok(names)

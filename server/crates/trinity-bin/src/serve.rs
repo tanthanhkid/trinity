@@ -552,6 +552,12 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             client_ip: ip.clone(),
         }),
     );
+    mod_mcp::register_settings(
+        &mut registry,
+        Arc::new(mod_mcp::SettingsDeps {
+            platform: platform.clone(),
+        }),
+    );
     let tool_scopes = ScopeService::new(db.clone(), cache.clone());
     let tool_deps = Arc::new(mod_mcp::deps::ToolDeps {
         db: db.clone(),

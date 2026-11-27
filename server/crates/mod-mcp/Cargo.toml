@@ -28,6 +28,7 @@ mod-reports = { workspace = true }
 mod-settings = { workspace = true }
 mod-setup = { workspace = true }
 mod-social = { workspace = true }
+mod-store = { workspace = true }
 mod-zalo = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }

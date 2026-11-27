@@ -2547,6 +2547,7 @@ dependencies = [
  "mod-settings",
  "mod-setup",
  "mod-social",
+ "mod-store",
  "mod-zalo",
  "regex",
  "serde",

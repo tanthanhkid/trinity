@@ -6,7 +6,7 @@
 #   DATABASE_URL=postgres://postgres:postgres@localhost:5432/trinity_e2e \
 #     tests/mcp-e2e/run-rust.sh [--with-model] [--runs N] [--bin <đường-dẫn-trinity>] [--port <cổng>] [--keep]
 #
-#   --with-model  thêm claude-code-roles.mjs (cần `claude` đã đăng nhập; tốn quota). Mặc định chỉ chạy phần tất định.
+#   --with-model  (hoặc E2E_WITH_MODEL=1) thêm claude-code-roles.mjs (cần `claude` đã đăng nhập; tốn quota). Mặc định chỉ chạy phần tất định.
 #   --runs N      với --with-model: chạy bộ nhiệm vụ N lần (mặc định 1; tham khảo PLAN 6.4 dùng 5).
 #   --keep        không xoá thư mục tạm (credentials, log) khi xong.
 #
@@ -20,7 +20,7 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
 
-with_model=0; runs=1; keep=0; port="${E2E_PORT:-4300}"
+with_model="${E2E_WITH_MODEL:-0}"; runs=1; keep=0; port="${E2E_PORT:-4300}"
 bin="${TRINITY_BIN:-${CARGO_TARGET_DIR:-$HOME/.cache/trinity/target}/release/trinity}"
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -126,8 +126,17 @@ run() { # run <tên> <lệnh...>: ghi log, không dừng khi một kịch bản 
 }
 run run node "$here/run.mjs" "$cred"
 run run-roles node "$here/run-roles.mjs" "$cred"
+# smoke OAuth + MCP bằng curl thuần (không SDK): cùng server, tài khoản admin thử.
+admin_email="$(sed -n 's/^MCP_ADMIN_EMAIL=//p' "$cred")"; admin_pw="$(sed -n 's/^MCP_ADMIN_PASSWORD=//p' "$cred")"
+run smoke-mcp env EXPECT_TOTAL="$(python3 -I -c 'import json,sys;d=json.load(open(sys.argv[1]));print(len(d if isinstance(d,list) else d["tools"]))' "$root/server/contracts/mcp/tools.json")" \
+  bash "$root/server/scripts/smoke-mcp.sh" "$MCP_BASE" "$admin_email" "$admin_pw"
+# Cuối cùng vì quét 110 tool chạm trần 60 lời gọi/phút của admin (có chờ).
+run tools-sweep node "$here/tools-sweep.mjs" "$cred"
 
-if [ "$with_model" = 1 ]; then
+if [ "$with_model" != 1 ]; then
+  step "SKIP  claude-code-roles.mjs (bộ nhiệm vụ bằng model)"
+  echo "SKIP  chưa chạy: cần \`claude\` đăng nhập (khoá/quota AI) — bật lại bằng --with-model hoặc E2E_WITH_MODEL=1 (X04, #262)"
+else
   for i in $(seq "$runs"); do
     mkdir -p "$logs/model-$i"
     run "claude-code-roles-$i" env MCP_LOG_DIR="$logs/model-$i" node "$here/claude-code-roles.mjs" "$cred" "$logs/model-$i"

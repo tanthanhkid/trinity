@@ -36,7 +36,9 @@ use crate::dto::{PostInput, TargetInput};
 use crate::first_comment::first_comment_of;
 use crate::media::{MediaCtx, MediaStore, SocialMedia, resolve as resolve_media};
 use crate::provider::{PublishErrorKind, classify_graph_error, validate_media, validate_options};
+use crate::ports::{CreateFailure, RecurrenceGuard};
 use crate::queue::{NO_QUEUE_SLOTS, next_free};
+use crate::recurrences::guard_holds;
 use crate::utm::{UtmInput, apply_utm_to_target, js_trim, normalize_utm, utf16_len};
 
 const MINUTE_MS: i64 = 60_000;
@@ -929,6 +931,32 @@ async fn prepare_quota(c: &PostCtx<'_>) -> Result<Option<ReserveContext>, AppErr
     Ok(reserved.await?)
 }
 
+/// Điều kiện thêm của giao dịch tạo bài (cổng M55b): lịch lặp còn nguyên, khoá nguồn chưa có bài.
+#[derive(Default)]
+pub(crate) struct CreateExtra<'a> {
+    pub guard: Option<&'a RecurrenceGuard>,
+    pub dedupe: bool,
+}
+
+/// Lỗi của [`insert_post`].
+pub(crate) enum InsertFail {
+    Guard(GuardError),
+    Changed,
+    Duplicate,
+}
+
+impl From<GuardError> for InsertFail {
+    fn from(e: GuardError) -> Self {
+        Self::Guard(e)
+    }
+}
+
+impl From<AppError> for InsertFail {
+    fn from(e: AppError) -> Self {
+        Self::Guard(e.into())
+    }
+}
+
 /// Ghi bài và các kênh trong MỘT giao dịch, giữ chỗ hạn mức cùng giao dịch (tạo lỗi thì hạn mức cũng hoàn lại).
 async fn insert_post(
     c: &PostCtx<'_>,
@@ -936,8 +964,31 @@ async fn insert_post(
     v: &Validated,
     source: &str,
     quota: Option<&ReserveContext>,
-) -> Result<i32, GuardError> {
+    extra: &CreateExtra<'_>,
+) -> Result<i32, InsertFail> {
     let mut tx = sqlx::Acquire::begin(&mut *conn).await.map_err(db)?;
+    // Bài do lịch lặp tạo: khoá dòng lịch rồi kiểm còn nguyên NGAY TRONG giao dịch (M55b), sau đó chống trùng khoá nguồn.
+    if let Some(g) = extra.guard
+        && !guard_holds(&mut *tx, g).await?
+    {
+        return Err(InsertFail::Changed);
+    }
+    if extra.dedupe {
+        let key = utf16_prefix(source, 80);
+        sqlx::query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))")
+            .bind(&key)
+            .execute(&mut *tx)
+            .await
+            .map_err(db)?;
+        let dup: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM social_posts WHERE source = $1)")
+            .bind(&key)
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(db)?;
+        if dup {
+            return Err(InsertFail::Duplicate);
+        }
+    }
     if let Some(q) = quota {
         let amount = u32::try_from(v.targets.len()).unwrap_or(u32::MAX);
         c.guard.reserve_in(&mut tx, q, amount).await?;
@@ -977,10 +1028,25 @@ async fn insert_post(
 /// `POST /social/posts` ⇒ 201 + bài: đăng ngay (bỏ trống `scheduled_at`) hoặc hẹn giờ ra nhiều kênh. `use_queue` đặt vào khung
 /// trống gần nhất của hàng đợi (không có khung ⇒ 400). Bài đăng ngay ở trạng thái `publishing`, việc đăng do job M54b nhận.
 pub async fn create(c: &PostCtx<'_>, input: &PostInput) -> Result<PostView, AppError> {
+    let id = match create_with(c, input, &CreateExtra::default()).await {
+        Ok(id) => id,
+        Err(CreateFailure::Failed(e)) => return Err(e),
+        // Không có điều kiện lịch lặp thì không bao giờ `Changed`.
+        Err(CreateFailure::Changed) => return Err(HttpError::new(409, "Lịch lặp đã đổi").into()),
+    };
+    reload(c, id).await
+}
+
+/// Lõi của [`create`], dùng chung với cổng `PostsPort` của bài lặp/nhập CSV (M55b): trả id bài.
+pub(crate) async fn create_with(
+    c: &PostCtx<'_>,
+    input: &PostInput,
+    extra: &CreateExtra<'_>,
+) -> Result<i32, CreateFailure> {
     let mut input = input.clone();
     let queued = input.scheduled_at.as_deref().is_some_and(|s| !s.is_empty());
     if input.use_queue && queued {
-        return Err(bad(ONE_OR_THE_OTHER));
+        return Err(CreateFailure::Failed(bad(ONE_OR_THE_OTHER)));
     }
     if input.use_queue {
         let slots = {
@@ -995,17 +1061,20 @@ pub async fn create(c: &PostCtx<'_>, input: &PostInput) -> Result<PostView, AppE
     let source = input.source.as_deref().unwrap_or("web");
     let inserted = {
         let mut conn = c.conn().await?;
-        insert_post(c, &mut conn, &v, source, quota.as_ref()).await
+        insert_post(c, &mut conn, &v, source, quota.as_ref(), extra).await
     };
-    let post_id = match inserted {
-        Ok(id) => id,
-        Err(mut e) => {
+    match inserted {
+        Ok(id) => Ok(id),
+        Err(InsertFail::Changed) => Err(CreateFailure::Changed),
+        Err(InsertFail::Duplicate) => {
+            Err(CreateFailure::Failed(HttpError::new(409, "Bài của lượt này đã được tạo").into()))
+        }
+        Err(InsertFail::Guard(mut e)) => {
             // Hết hạn mức: ghi sự kiện SAU giao dịch (đã nhả kết nối).
             c.guard.record_blocked(c.company, &mut e).await;
-            return Err(e.into());
+            Err(CreateFailure::Failed(e.into()))
         }
-    };
-    reload(c, post_id).await
+    }
 }
 
 // ───────────────────────────── sửa, đổi giờ ─────────────────────────────

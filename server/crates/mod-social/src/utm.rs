@@ -61,6 +61,11 @@ fn slug(v: &str, label: &str) -> Result<String, String> {
     Ok(s)
 }
 
+/// Chuẩn hoá tên chiến dịch của dòng nhập CSV (`normalizeUtm({ campaign })`): 1–100 ký tự, khoảng trắng → `-`.
+pub fn normalize_campaign(campaign: &str) -> Result<String, String> {
+    slug(campaign, "tên chiến dịch (campaign)")
+}
+
 /// Chuẩn hoá cấu hình UTM người dùng gửi: vắng/`null` ⇒ `None`; sai ⇒ câu lỗi tiếng Việt (`normalizeUtm`).
 pub fn normalize_utm(raw: Option<&Value>) -> Result<Option<UtmInput>, String> {
     let r = match raw {

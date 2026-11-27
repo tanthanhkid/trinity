@@ -1,6 +1,6 @@
-//! Cổng sang dịch vụ bài đăng (`SocialPostsService`, M54a — chưa có trên nhánh này), nháp và khung giờ hàng đợi (M55a).
+//! Cổng sang dịch vụ bài đăng (`SocialPostsService`, M54a: bản cài ở [`crate::adapters::PostsAdapter`]), nháp và khung giờ hàng đợi (M55a).
 //! Bài lặp và nhập CSV chỉ cần vài thao tác của chúng, nên khai ở đây dưới dạng trait. Nháp và hàng đợi đã có bản cài thật
-//! ở [`crate::adapters`]; `PostsPort` do M54a cài (bọc `posts.rs`) khi gộp, không đổi mã M55b.
+//! ở [`crate::adapters`]; `PostsPort` bọc `posts.rs` của M54a ở [`crate::adapters::PostsAdapter`].
 //!
 //! Quy ước chung của mọi cổng: mỗi lời gọi tự xin kết nối DB của mình (không nhận kết nối từ người gọi) nên người gọi
 //! KHÔNG được giữ kết nối khi gọi cổng (pool một kết nối sẽ treo; quy tắc "không giữ hai conn").
@@ -51,6 +51,12 @@ pub enum CreateFailure {
     Changed,
     /// Lỗi thường: 409 = khoá chống lặp đã có bài; 4xx khác = kênh/tệp hỏng; còn lại là lỗi hạ tầng.
     Failed(AppError),
+}
+
+impl From<AppError> for CreateFailure {
+    fn from(e: AppError) -> Self {
+        Self::Failed(e)
+    }
 }
 
 /// `SocialPostsService` phần M55b cần.

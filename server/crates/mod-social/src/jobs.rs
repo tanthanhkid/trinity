@@ -35,12 +35,14 @@ use trinity_jobs::{JobFn, JobSpec, Scheduler, SchedulerError};
 use trinity_kernel::error::AppError;
 
 use crate::accounts::{for_publish, mark_reauth};
+use crate::adapters::PostsAdapter;
 use crate::config::{SOCIAL_NETWORKS, is_social_network};
 use crate::first_comment::{FirstComment, first_comment_of, post_first_comment};
 use crate::media::MediaStore;
 use crate::posts::{acquire, refresh_status, stored_media};
 use crate::provider::{PublishError, PublishErrorKind};
 use crate::publish::{PostMetrics, Published, fetch_metrics, publish};
+use crate::recurrences::materialize;
 use crate::utm::apply_utm_to_target;
 
 pub const PUBLISH_JOB: &str = "social.publish";
@@ -157,7 +159,7 @@ pub struct JobDeps {
     pub store: Arc<MediaStore>,
     pub guard: ChannelGuard,
     pub graph_for: Arc<dyn Fn(CompanyRef) -> GraphClient + Send + Sync>,
-    /// Chạy ngay trước mỗi lượt đăng của công ty (M55a: sinh bài lặp). Lỗi chỉ ghi log, không chặn việc đăng.
+    /// Chạy ngay trước mỗi lượt đăng của công ty (ngoài việc sinh bài lặp đã có sẵn ở `tick_publish`). Lỗi chỉ ghi log, không chặn việc đăng.
     pub before_publish: Option<JobFn>,
     /// Job `social.publish` đang thuộc về Rust (tệp sở hữu)? Chỉ dùng cho [`Runner::kick`] / [`Runner::kick_if_due`];
     /// vắng ⇒ có.
@@ -830,9 +832,29 @@ impl Runner {
 
     // ─────────────── lịch ───────────────
 
+    /// `recurrences::materialize` với cổng bài đăng thật ([`PostsAdapter`]).
+    async fn materialize_recurrences(&self, company: CompanyRef) -> Result<(), String> {
+        let tenant = self.deps.db.tenant(company).await.map_err(|e| e.to_string())?;
+        let graph = (self.deps.graph_for)(company);
+        let posts = PostsAdapter {
+            db: &self.deps.db,
+            company,
+            env: &self.deps.env,
+            store: &self.deps.store,
+            graph: &graph,
+            guard: &self.deps.guard,
+            now_ms: now_ms(),
+        };
+        materialize(&tenant, &posts, Utc::now()).await.map(drop).map_err(|e| app_err(&e))
+    }
+
     async fn tick_publish(self: &Arc<Self>, company: CompanyRef) -> Result<(), String> {
         if !self.secret_configured() {
             return Ok(());
+        }
+        // Sinh bài kế tiếp của lịch lặp (M55b) trước mỗi lượt đăng; lỗi chỉ ghi log, không chặn việc đăng.
+        if let Err(e) = self.materialize_recurrences(company).await {
+            tracing::error!("Sinh bài lặp lỗi: {e}");
         }
         if let Some(before) = &self.deps.before_publish
             && let Err(e) = before(company).await

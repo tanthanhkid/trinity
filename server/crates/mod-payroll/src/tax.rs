@@ -6,7 +6,7 @@ use trinity_db::models::{PayrollTaxSetting, TaxBracket};
 use trinity_db::pg_error::app_error;
 use trinity_kernel::error::{AppError, HttpError};
 
-use crate::{dec, finish, frange, month, not_null, range, set, set_num, some_nullable};
+use crate::{assert_period, dec, finish, frange, month, not_null, range, set, set_num, some_nullable};
 
 const FROM_MSG: &str = "effective_from phải YYYY-MM";
 const TO_MSG: &str = "effective_to phải YYYY-MM";
@@ -252,6 +252,7 @@ pub async fn create_bracket(
     created_by: Option<i32>,
 ) -> Result<TaxBracket, AppError> {
     assert_range(input.lower_bound, input.upper_bound)?;
+    assert_period(&input.effective_from, input.effective_to.as_deref())?;
     sqlx::query_as::<_, TaxBracket>(sqlx::AssertSqlSafe(format!(
         "INSERT INTO tax_brackets (bracket_order, lower_bound, upper_bound, rate, effective_from, effective_to, is_active, created_by, updated_at) \
          VALUES ($1, $2, $3, $4::text::numeric, $5, $6, COALESCE($7, true), $8, now()) RETURNING {BRACKET_COLS}"
@@ -277,6 +278,13 @@ pub async fn update_bracket(conn: &mut PgConnection, id: i32, input: &UpdateBrac
         match input.upper_bound {
             Some(u) => u,
             None => cur.upper_bound.map(|v| v.0),
+        },
+    )?;
+    assert_period(
+        input.effective_from.as_deref().unwrap_or(&cur.effective_from),
+        match &input.effective_to {
+            Some(t) => t.as_deref(),
+            None => cur.effective_to.as_deref(),
         },
     )?;
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("UPDATE tax_brackets SET updated_at = now()");
@@ -324,6 +332,7 @@ pub async fn create_setting(
     input: &CreateSetting,
     created_by: Option<i32>,
 ) -> Result<PayrollTaxSetting, AppError> {
+    assert_period(&input.effective_from, input.effective_to.as_deref())?;
     sqlx::query_as::<_, PayrollTaxSetting>(sqlx::AssertSqlSafe(format!(
         "INSERT INTO payroll_tax_settings (personal_deduction, dependent_deduction, effective_from, effective_to, is_active, created_by, updated_at) \
          VALUES ($1, $2, $3, $4, COALESCE($5, true), $6, now()) RETURNING {SETTING_COLS}"
@@ -345,7 +354,14 @@ pub async fn update_setting(
     id: i32,
     input: &UpdateSetting,
 ) -> Result<PayrollTaxSetting, AppError> {
-    find_setting(&mut *conn, id).await?;
+    let cur = find_setting(&mut *conn, id).await?;
+    assert_period(
+        input.effective_from.as_deref().unwrap_or(&cur.effective_from),
+        match &input.effective_to {
+            Some(t) => t.as_deref(),
+            None => cur.effective_to.as_deref(),
+        },
+    )?;
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("UPDATE payroll_tax_settings SET updated_at = now()");
     if let Some(v) = input.personal_deduction {
         set(&mut qb, "personal_deduction", v);

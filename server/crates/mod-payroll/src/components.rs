@@ -9,7 +9,9 @@ use trinity_db::models::SalaryComponent;
 use trinity_db::pg_error::{app_error, db_error};
 use trinity_kernel::error::{AppError, DbErrorKind, HttpError};
 
-use crate::{dec, finish, frange, is_in, month, not_empty, not_null, range, set, set_num, some_nullable};
+use crate::{
+    assert_period, dec, finish, frange, is_in, month, not_empty, not_null, range, set, set_num, some_nullable,
+};
 
 const FROM_MSG: &str = "effective_from phải dạng YYYY-MM";
 const TO_MSG: &str = "effective_to phải dạng YYYY-MM";
@@ -226,6 +228,7 @@ pub async fn create(
     input: &CreateComponent,
     created_by: Option<i32>,
 ) -> Result<SalaryComponent, AppError> {
+    assert_period(&input.effective_from, input.effective_to.as_deref())?;
     let calc = input.calc_method.as_deref().unwrap_or("fixed");
     let fixed = (calc == "fixed").then(|| input.fixed_amount.unwrap_or(0));
     let percent = (calc == "percent_base").then(|| dec(input.percent_value.unwrap_or(0.0)));
@@ -257,12 +260,20 @@ pub async fn create(
 /// `PATCH /salary-components/:id`: không có ⇒ 404; mã trùng ⇒ 409. Đổi `calc_method` hay giá trị thì đặt trường tương ứng
 /// và LUÔN xoá trường đối lập (cách tính hiệu lực = `calc_method` gửi lên, không thì cách tính hiện tại).
 pub async fn update(conn: &mut PgConnection, id: i32, input: &UpdateComponent) -> Result<SalaryComponent, AppError> {
-    let existing: Option<String> = sqlx::query_scalar("SELECT calc_method FROM salary_components WHERE id = $1")
-        .bind(id)
-        .fetch_optional(&mut *conn)
-        .await
-        .map_err(db)?;
-    let existing = existing.ok_or_else(|| HttpError::not_found("Không tìm thấy thành phần lương"))?;
+    let cur: Option<(String, String, Option<String>)> =
+        sqlx::query_as("SELECT calc_method, effective_from, effective_to FROM salary_components WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&mut *conn)
+            .await
+            .map_err(db)?;
+    let (existing, cur_from, cur_to) = cur.ok_or_else(|| HttpError::not_found("Không tìm thấy thành phần lương"))?;
+    assert_period(
+        input.effective_from.as_deref().unwrap_or(&cur_from),
+        match &input.effective_to {
+            Some(t) => t.as_deref(),
+            None => cur_to.as_deref(),
+        },
+    )?;
     let mut qb: QueryBuilder<Postgres> = QueryBuilder::new("UPDATE salary_components SET updated_at = now()");
     if let Some(v) = &input.name {
         set(&mut qb, "name", v.trim().to_owned());
@@ -296,16 +307,36 @@ pub async fn update(conn: &mut PgConnection, id: i32, input: &UpdateComponent) -
     }
     if input.calc_method.is_some() || input.fixed_amount.is_some() || input.percent_value.is_some() {
         let method = input.calc_method.as_deref().unwrap_or(&existing);
+        // Đổi sang cách tính khác mà không gửi giá trị ⇒ mặc định 0 như lúc tạo; gửi giá trị của cách tính KHÔNG khớp ⇒ 400.
+        let switched = input.calc_method.as_deref().is_some_and(|m| m != existing);
         if method == "percent_base" {
+            if matches!(input.fixed_amount, Some(Some(_))) {
+                return Err(HttpError::bad_request("fixed_amount không dùng được với calc_method percent_base").into());
+            }
             set(&mut qb, "calc_method", "percent_base");
-            if let Some(v) = input.percent_value {
-                set_num(&mut qb, "percent_value", v);
+            match input.percent_value {
+                Some(Some(v)) => set_num(&mut qb, "percent_value", Some(v)),
+                Some(None) => {
+                    return Err(
+                        HttpError::bad_request("percent_value không được null với calc_method percent_base").into(),
+                    );
+                }
+                None if switched => set_num(&mut qb, "percent_value", Some(0.0)),
+                None => {}
             }
             qb.push(", fixed_amount = NULL");
         } else {
+            if matches!(input.percent_value, Some(Some(_))) {
+                return Err(HttpError::bad_request("percent_value không dùng được với calc_method fixed").into());
+            }
             set(&mut qb, "calc_method", "fixed");
-            if let Some(v) = input.fixed_amount {
-                set(&mut qb, "fixed_amount", v);
+            match input.fixed_amount {
+                Some(Some(v)) => set(&mut qb, "fixed_amount", v),
+                Some(None) => {
+                    return Err(HttpError::bad_request("fixed_amount không được null với calc_method fixed").into());
+                }
+                None if switched => set(&mut qb, "fixed_amount", 0_i64),
+                None => {}
             }
             qb.push(", percent_value = NULL");
         }

@@ -5,7 +5,7 @@
 
 use mod_payroll::components::{self, CreateComponent, UpdateComponent};
 use mod_payroll::insurance::{self, CreateInsurance, UpdateInsurance};
-use mod_payroll::kpi::{self, AggregatedKpiData, CreateConfig, KpiAggregator, NoSource};
+use mod_payroll::kpi::{self, AggregatedKpiData, CreateConfig, KpiAggregator};
 use mod_payroll::rules::{self, CreateRule, UpdateRule};
 use mod_payroll::tax::{self, CreateBracket, CreateSetting, UpdateBracket, UpdateSetting};
 use sqlx::PgConnection;
@@ -116,6 +116,25 @@ async fn thue_bac_va_giam_tru() {
         ["id", "bracket_order", "lower_bound", "upper_bound", "rate"]
     );
 
+    let rev_b: CreateBracket = from(
+        serde_json::json!({"bracket_order": 3, "lower_bound": 0, "rate": 1, "effective_from": "2099-05", "effective_to": "2099-04"}),
+    );
+    assert_eq!(
+        status(tax::create_bracket(&mut c, &rev_b, None).await.unwrap_err()).0,
+        400
+    );
+    let rev_s: CreateSetting = from(
+        serde_json::json!({"personal_deduction": 1, "dependent_deduction": 1, "effective_from": "2099-05", "effective_to": "2099-04"}),
+    );
+    assert_eq!(
+        status(tax::create_setting(&mut c, &rev_s, None).await.unwrap_err()).0,
+        400
+    );
+    let rev_u: UpdateBracket = from(serde_json::json!({"effective_to": "2098-12"}));
+    assert_eq!(
+        status(tax::update_bracket(&mut c, b1.id, &rev_u).await.unwrap_err()).0,
+        400
+    );
     // Cận trên ≤ cận dưới ⇒ 400 (tạo và sửa).
     let bad: CreateBracket = from(
         serde_json::json!({"bracket_order": 2, "lower_bound": 100, "upper_bound": 100, "rate": 10, "effective_from": "2099-01"}),
@@ -315,16 +334,61 @@ async fn thanh_phan_luong_chuan_hoa_cach_tinh() {
         ),
         ("percent_base", true, Some("12".to_owned()))
     );
+    // Gửi giá trị của cách tính KHÔNG khớp (cách tính hiện tại là percent_base) ⇒ 400, dòng giữ nguyên.
     let only_fixed: UpdateComponent = from(serde_json::json!({"fixed_amount": 7}));
-    let f3 = components::update(&mut c, f.id, &only_fixed).await.unwrap();
     assert_eq!(
-        (
-            f3.calc_method.as_str(),
-            f3.fixed_amount.is_none(),
-            f3.percent_value.is_none()
-        ),
-        ("percent_base", true, false),
-        "cách tính hiện tại là percent_base nên fixed_amount bị bỏ"
+        status(components::update(&mut c, f.id, &only_fixed).await.unwrap_err()).0,
+        400
+    );
+    let mismatch: UpdateComponent = from(serde_json::json!({"calc_method": "fixed", "percent_value": 5}));
+    assert_eq!(
+        status(components::update(&mut c, f.id, &mismatch).await.unwrap_err()).0,
+        400
+    );
+    assert_eq!(
+        ds(components::find_all(&mut c, None)
+            .await
+            .unwrap()
+            .iter()
+            .find(|x| x.id == f.id)
+            .unwrap()
+            .percent_value
+            .unwrap()),
+        "12"
+    );
+    // Đổi cách tính mà không gửi giá trị ⇒ mặc định 0 như lúc tạo; gửi lại cùng cách tính không đổi giá trị.
+    let to_fixed: UpdateComponent = from(serde_json::json!({"calc_method": "fixed"}));
+    let z = components::update(&mut c, f.id, &to_fixed).await.unwrap();
+    assert_eq!(
+        (z.fixed_amount.map(|v| v.0), z.percent_value.is_none()),
+        (Some(0), true)
+    );
+    let to_pct0: UpdateComponent = from(serde_json::json!({"calc_method": "percent_base"}));
+    let z = components::update(&mut c, f.id, &to_pct0).await.unwrap();
+    assert_eq!(
+        (z.fixed_amount.is_none(), z.percent_value.map(ds)),
+        (true, Some("0".to_owned()))
+    );
+    let keep: UpdateComponent = from(serde_json::json!({"calc_method": "percent_base", "percent_value": 12}));
+    components::update(&mut c, f.id, &keep).await.unwrap();
+    let keep2: UpdateComponent = from(serde_json::json!({"calc_method": "percent_base"}));
+    assert_eq!(
+        components::update(&mut c, f.id, &keep2)
+            .await
+            .unwrap()
+            .percent_value
+            .map(ds),
+        Some("12".to_owned())
+    );
+    // effective_to < effective_from ⇒ 400 (tạo và sửa).
+    let rev = mk(
+        serde_json::json!({"name": "x", "code": "m29_rev", "component_type": "bonus", "effective_from": "2026-07", "effective_to": "2026-06"}),
+    );
+    assert_eq!(status(components::create(&mut c, &rev, None).await.unwrap_err()).0, 400);
+    let rev_up: UpdateComponent = from(serde_json::json!({"effective_to": "2020-01"}));
+    assert_eq!(
+        status(components::update(&mut c, f.id, &rev_up).await.unwrap_err()).0,
+        400
     );
     let back: UpdateComponent = from(
         serde_json::json!({"calc_method": "fixed", "fixed_amount": 450_000, "description": null, "is_taxable": false}),
@@ -516,7 +580,17 @@ async fn kpi_cau_hinh_tinh_va_chot_thang() {
         404
     );
     let ids = [i64::from(eid), i64::from(eid2)];
-    let processed = kpi::calculate(&mut c, "2099-03", Some(&ids), &Fixed("m29 tasks/day", 60.0))
+    // Chưa có nguồn số liệu ⇒ 501 và không ghi gì (không ghi đè chỉ số bằng 0).
+    assert_eq!(
+        status(kpi::calculate(&mut c, "2099-03", Some(&ids), None).await.unwrap_err()).0,
+        501
+    );
+    let none: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM kpi_results WHERE month = '2099-03'")
+        .fetch_one(&mut *c)
+        .await
+        .unwrap();
+    assert_eq!(none, 0);
+    let processed = kpi::calculate(&mut c, "2099-03", Some(&ids), Some(&Fixed("m29 tasks/day", 60.0)))
         .await
         .unwrap();
     // Nhân viên `operations` không có cấu hình nên không sinh dòng nào, nhưng vẫn được duyệt.
@@ -549,7 +623,7 @@ async fn kpi_cau_hinh_tinh_va_chot_thang() {
         ]
     );
     // Tính lại cập nhật chứ không nhân đôi dòng.
-    kpi::calculate(&mut c, "2099-03", Some(&ids), &Fixed("m29 revenue", 1500.0))
+    kpi::calculate(&mut c, "2099-03", Some(&ids), Some(&Fixed("m29 revenue", 1500.0)))
         .await
         .unwrap();
     let again = json(&kpi::get_mine(&mut c, uid, eid, "2099-03").await.unwrap());
@@ -591,10 +665,45 @@ async fn kpi_cau_hinh_tinh_va_chot_thang() {
     );
     assert_eq!(status(kpi::close_month(&mut c, "2099-03").await.unwrap_err()).0, 409);
     assert_eq!(
-        status(kpi::calculate(&mut c, "2099-03", None, &NoSource).await.unwrap_err()).0,
+        status(
+            kpi::calculate(&mut c, "2099-03", None, Some(&Fixed("m29 revenue", 1.0)))
+                .await
+                .unwrap_err()
+        )
+        .0,
         400
     );
     let locked = json(&kpi::get_mine(&mut c, uid, eid, "2099-03").await.unwrap());
     assert_eq!(locked["is_locked"], true);
+    clean(&mut c).await;
+}
+
+/// Hai request đồng thời cùng mã và khoảng tháng chồng nhau: đúng một cái được ghi (khoá advisory theo mã).
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn bao_hiem_dong_thoi_khong_chong_lan() {
+    let _g = serial().lock().await;
+    let mut c = conn().await;
+    clean(&mut c).await;
+    for round in 0..10 {
+        let code = format!("m29_race{round}");
+        let mk = |name: &str| -> CreateInsurance {
+            from(serde_json::json!({"name": name, "code": code, "employee_rate": 8, "effective_from": "2024-07"}))
+        };
+        let (a, b) = (mk("a"), mk("b"));
+        let (mut ca, mut cb) = (conn().await, conn().await);
+        let (ta, tb) = (
+            tokio::spawn(async move { insurance::create(&mut ca, &a, None).await.map(|_| ()) }),
+            tokio::spawn(async move { insurance::create(&mut cb, &b, None).await.map(|_| ()) }),
+        );
+        let (ra, rb) = (ta.await.unwrap(), tb.await.unwrap());
+        assert_eq!(u8::from(ra.is_ok()) + u8::from(rb.is_ok()), 1, "vòng {round}");
+        let n: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM insurance_settings WHERE code = $1")
+            .bind(&code)
+            .fetch_one(&mut *c)
+            .await
+            .unwrap();
+        assert_eq!(n, 1, "vòng {round}");
+    }
     clean(&mut c).await;
 }

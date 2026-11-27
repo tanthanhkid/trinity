@@ -4,7 +4,7 @@
 //! hai lần: ghi bị từ chối (400).
 
 use serde::Deserialize;
-use sqlx::{PgConnection, Postgres, QueryBuilder};
+use sqlx::{Acquire, PgConnection, Postgres, QueryBuilder};
 use trinity_db::models::InsuranceSetting;
 use trinity_db::pg_error::app_error;
 use trinity_kernel::error::{AppError, HttpError};
@@ -161,6 +161,16 @@ pub fn overlaps(a_from: &str, a_to: Option<&str>, b_from: &str, b_to: Option<&st
     a_from <= b_to.unwrap_or("9999-12") && b_from <= a_to.unwrap_or("9999-12")
 }
 
+/// Khoá advisory theo giao dịch cho một mã bảo hiểm (có schema, nên mỗi công ty một khoá riêng).
+async fn lock_code(conn: &mut PgConnection, code: &str) -> Result<(), AppError> {
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext(current_schema() || '.insurance.' || $1))")
+        .bind(code)
+        .execute(conn)
+        .await
+        .map_err(db)?;
+    Ok(())
+}
+
 /// `effective_to >= effective_from` và (nếu đang áp dụng) không chồng lấn dòng đang áp dụng cùng mã.
 async fn assert_period_valid(
     conn: &mut PgConnection,
@@ -170,9 +180,7 @@ async fn assert_period_valid(
     active: bool,
     exclude_id: Option<i32>,
 ) -> Result<(), AppError> {
-    if to.is_some_and(|t| t < from) {
-        return Err(HttpError::bad_request("effective_to phải lớn hơn hoặc bằng effective_from").into());
-    }
+    crate::assert_period(from, to)?;
     if !active {
         return Ok(());
     }
@@ -201,8 +209,12 @@ pub async fn create(
     created_by: Option<i32>,
 ) -> Result<InsuranceSetting, AppError> {
     let code = input.code.trim();
+    // Kiểm chồng kỳ và ghi trong CÙNG giao dịch, dưới khoá advisory theo mã: hai request đồng thời cùng mã không cùng qua
+    // được bước kiểm rồi cùng ghi (sẽ trừ bảo hiểm hai lần).
+    let mut tx = conn.begin().await.map_err(db)?;
+    lock_code(&mut tx, code).await?;
     assert_period_valid(
-        &mut *conn,
+        &mut tx,
         code,
         &input.effective_from,
         input.effective_to.as_deref(),
@@ -210,7 +222,7 @@ pub async fn create(
         None,
     )
     .await?;
-    sqlx::query_as::<_, InsuranceSetting>(sqlx::AssertSqlSafe(format!(
+    let row = sqlx::query_as::<_, InsuranceSetting>(sqlx::AssertSqlSafe(format!(
         "INSERT INTO insurance_settings (name, code, employee_rate, base_cap, effective_from, effective_to, is_active, sort_order, created_by, updated_at) \
          VALUES ($1, $2, $3::text::numeric, $4, $5, $6, COALESCE($7, true), COALESCE($8, 0), $9, now()) RETURNING {COLS}"
     )))
@@ -223,15 +235,29 @@ pub async fn create(
     .bind(input.is_active)
     .bind(input.sort_order)
     .bind(created_by)
-    .fetch_one(conn)
+    .fetch_one(&mut *tx)
     .await
-    .map_err(db)
+    .map_err(db)?;
+    tx.commit().await.map_err(db)?;
+    Ok(row)
 }
 
 /// `PATCH /insurance-settings/:id`: không có ⇒ 404; kiểm khoảng thời gian trên giá trị sau khi gộp.
 pub async fn update(conn: &mut PgConnection, id: i32, input: &UpdateInsurance) -> Result<InsuranceSetting, AppError> {
-    let cur = get_or_throw(&mut *conn, id).await?;
-    let code = input.code.as_deref().map_or(cur.code.as_str(), str::trim).to_owned();
+    let before = get_or_throw(&mut *conn, id).await?;
+    let code = input.code.as_deref().map_or(before.code.as_str(), str::trim).to_owned();
+    let mut tx = conn.begin().await.map_err(db)?;
+    // Khoá cả mã cũ lẫn mã mới (theo thứ tự chữ để không bế tắc), rồi đọc lại dòng dưới khoá.
+    let mut codes = vec![before.code.clone(), code.clone()];
+    codes.sort();
+    codes.dedup();
+    for c in &codes {
+        lock_code(&mut tx, c).await?;
+    }
+    let cur = get_or_throw(&mut tx, id).await?;
+    if cur.code != before.code {
+        return Err(HttpError::conflict("Cấu hình vừa bị sửa ở nơi khác, tải lại rồi thử lại").into());
+    }
     let from = input
         .effective_from
         .clone()
@@ -241,7 +267,7 @@ pub async fn update(conn: &mut PgConnection, id: i32, input: &UpdateInsurance) -
         None => cur.effective_to.clone(),
     };
     assert_period_valid(
-        &mut *conn,
+        &mut tx,
         &code,
         &from,
         to.as_deref(),
@@ -275,10 +301,13 @@ pub async fn update(conn: &mut PgConnection, id: i32, input: &UpdateInsurance) -
         set(&mut qb, "sort_order", v);
     }
     qb.push(" WHERE id = ").push_bind(id).push(format!(" RETURNING {COLS}"));
-    qb.build_query_as::<InsuranceSetting>()
-        .fetch_one(conn)
+    let row = qb
+        .build_query_as::<InsuranceSetting>()
+        .fetch_one(&mut *tx)
         .await
-        .map_err(db)
+        .map_err(db)?;
+    tx.commit().await.map_err(db)?;
+    Ok(row)
 }
 
 /// `DELETE /insurance-settings/:id` ⇒ `{ ok: true, id }`.

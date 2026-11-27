@@ -131,6 +131,14 @@ pub(crate) fn dec(v: f64) -> String {
     v.to_string()
 }
 
+/// `effective_to >= effective_from` (tháng `YYYY-MM` so theo chữ); `to` trống = không giới hạn.
+pub(crate) fn assert_period(from: &str, to: Option<&str>) -> Result<(), trinity_kernel::error::AppError> {
+    if to.is_some_and(|t| t < from) {
+        return Err(HttpError::bad_request("effective_to phải lớn hơn hoặc bằng effective_from").into());
+    }
+    Ok(())
+}
+
 /// `, col = $n` cho giá trị bất kỳ.
 pub(crate) fn set<T>(qb: &mut QueryBuilder<Postgres>, col: &str, v: T)
 where

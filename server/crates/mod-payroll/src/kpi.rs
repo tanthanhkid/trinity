@@ -4,7 +4,8 @@
 //!   đòi `payroll.manage`.
 //! - `GET /kpi` ("KPI của tôi") chỉ cần đăng nhập và chỉ trả KPI của CHÍNH hồ sơ nhân viên của người gọi; hồ sơ của người
 //!   khác ⇒ 404 (không cho quản lý xem cấp dưới qua route này).
-//! - Chưa có nguồn số liệu dựng sẵn: [`KpiAggregator`] trả giá trị thực tế theo tên chỉ số (chữ thường); chỉ số thiếu tính là 0.
+//! - Chưa có nguồn số liệu dựng sẵn: [`KpiAggregator`] trả giá trị thực tế theo tên chỉ số (chữ thường); chỉ số thiếu tính
+//!   là 0. Chưa cấu hình nguồn thì `POST /kpi/calculate` trả 501, vì bản Node (nguồn rỗng) ghi đè mọi chỉ số bằng 0.
 
 use std::collections::HashMap;
 
@@ -173,19 +174,9 @@ pub async fn create_config(conn: &mut PgConnection, input: &CreateConfig) -> Res
 /// Số liệu thực tế của một nhân viên trong tháng, khoá là tên chỉ số viết thường.
 pub type AggregatedKpiData = HashMap<String, f64>;
 
-/// Nguồn số liệu KPI. Chưa có nguồn dựng sẵn: [`NoSource`] trả rỗng (mọi chỉ số tính là 0).
+/// Nguồn số liệu KPI. Chưa có nguồn dựng sẵn: khi chưa có, [`calculate`] trả 501 thay vì ghi đè mọi chỉ số bằng 0.
 pub trait KpiAggregator {
     fn aggregate_for_employee(&self, user_id: i32, month: &str) -> AggregatedKpiData;
-}
-
-/// Không có nguồn số liệu.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct NoSource;
-
-impl KpiAggregator for NoSource {
-    fn aggregate_for_employee(&self, _user_id: i32, _month: &str) -> AggregatedKpiData {
-        AggregatedKpiData::new()
-    }
 }
 
 /// Chỉ số theo ngày (`tasks/day`, `x_per_day`) nhân với số ngày làm việc; còn lại dùng thẳng.
@@ -207,14 +198,21 @@ pub fn achievement_rate(actual: f64, target: f64) -> f64 {
     }
 }
 
-/// `POST /kpi/calculate` ⇒ `{ processed }`: tháng đã chốt ⇒ 400; duyệt mọi nhân viên đang hoạt động (hoặc theo
+/// `POST /kpi/calculate` ⇒ `{ processed }`: chưa có nguồn số liệu ⇒ 501 (không ghi gì); tháng đã chốt ⇒ 400; duyệt mọi nhân viên đang hoạt động (hoặc theo
 /// `employee_ids`) theo lô 100, ghi/cập nhật `kpi_results` (không đụng dòng đã khoá).
 pub async fn calculate(
     conn: &mut PgConnection,
     month: &str,
     employee_ids: Option<&[i64]>,
-    source: &dyn KpiAggregator,
+    source: Option<&dyn KpiAggregator>,
 ) -> Result<serde_json::Value, AppError> {
+    let Some(source) = source else {
+        return Err(HttpError::new(
+            501,
+            "Chưa có nguồn số liệu KPI nên chưa tính được; cấu hình nguồn rồi thử lại",
+        )
+        .into());
+    };
     let locked: Option<i32> = sqlx::query_scalar("SELECT id FROM kpi_results WHERE month = $1 AND is_locked LIMIT 1")
         .bind(month)
         .fetch_optional(&mut *conn)
@@ -226,7 +224,7 @@ pub async fn calculate(
     let ids = employee_ids.filter(|i| !i.is_empty());
     let (mut processed, mut cursor) = (0_i64, 0_i32);
     loop {
-        let batch: Vec<(i32, i32, String)> = sqlx::query_as(
+        let batch: Vec<(i32, Option<i32>, Option<String>)> = sqlx::query_as(
             "SELECT id, user_id, position FROM employees WHERE status = 'active' AND deleted_at IS NULL AND id > $1 \
              AND ($2::int8[] IS NULL OR id = ANY($2)) ORDER BY id ASC LIMIT 100",
         )
@@ -237,6 +235,10 @@ pub async fn calculate(
         .map_err(db)?;
         let Some(last) = batch.last().map(|b| b.0) else { break };
         for (id, user_id, position) in &batch {
+            // Dòng thiếu `user_id` hoặc `position` (dữ liệu hỏng) thì bỏ qua, không làm hỏng cả lượt tính.
+            let (Some(user_id), Some(position)) = (user_id, position) else {
+                continue;
+            };
             calculate_for_employee(&mut *conn, *id, *user_id, position, month, source).await?;
             processed += 1;
         }

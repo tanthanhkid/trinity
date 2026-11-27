@@ -169,60 +169,67 @@ impl Parser {
         matches!(self.peek(), Some(Tok::Op(o)) if *o == op)
     }
 
-    /// Expression: `a, b, c`.
-    fn comma(&mut self) -> Option<()> {
-        self.add()?;
+    /// Expression: `a, b, c`. Mọi hàm bên dưới trả về "biểu thức này có phải đích gán hợp lệ không" (chỉ định danh,
+    /// truy cập thuộc tính, lời gọi và ngoặc bọc MỘT đích mới đúng; có toán tử là sai).
+    fn comma(&mut self) -> Option<bool> {
+        let mut t = self.add()?;
         while self.eat(&Tok::Comma) {
             self.add()?;
+            t = false;
         }
-        Some(())
+        Some(t)
     }
 
-    fn add(&mut self) -> Option<()> {
-        self.mul()?;
+    fn add(&mut self) -> Option<bool> {
+        let mut t = self.mul()?;
         while self.is_op("+") || self.is_op("-") {
             self.pos += 1;
             self.mul()?;
+            t = false;
         }
-        Some(())
+        Some(t)
     }
 
-    fn mul(&mut self) -> Option<()> {
-        self.exp()?;
+    fn mul(&mut self) -> Option<bool> {
+        let mut t = self.exp()?;
         while self.is_op("*") || self.is_op("/") {
             self.pos += 1;
             self.exp()?;
+            t = false;
         }
-        Some(())
+        Some(t)
     }
 
     /// `ExponentiationExpression`: vế trái của `**` không được là biểu thức một ngôi chưa bọc ngoặc.
-    fn exp(&mut self) -> Option<()> {
+    fn exp(&mut self) -> Option<bool> {
         if self.is_op("+") || self.is_op("-") {
             self.pos += 1;
             self.unary_operand()?;
-            return if self.is_op("**") { None } else { Some(()) };
+            return if self.is_op("**") { None } else { Some(false) };
         }
-        self.update()?;
+        let t = self.update()?;
         if self.is_op("**") {
             self.pos += 1;
             self.exp()?;
+            return Some(false);
         }
-        Some(())
+        Some(t)
     }
 
-    fn unary_operand(&mut self) -> Option<()> {
+    fn unary_operand(&mut self) -> Option<bool> {
         if self.is_op("+") || self.is_op("-") {
             self.pos += 1;
-            return self.unary_operand();
+            self.unary_operand()?;
+            return Some(false);
         }
         self.update()
     }
 
-    fn update(&mut self) -> Option<()> {
+    fn update(&mut self) -> Option<bool> {
         if self.is_op("++") || self.is_op("--") {
             self.pos += 1;
-            return self.lhs().map(|_| ());
+            // Toán hạng của `++x`/`--x` phải là đích gán hợp lệ (`++1`, `--(a + b)` là lỗi cú pháp).
+            return if self.lhs()? { Some(false) } else { None };
         }
         let target = self.lhs()?;
         if self.is_op("++") || self.is_op("--") {
@@ -230,11 +237,12 @@ impl Parser {
                 return None;
             }
             self.pos += 1;
+            return Some(false);
         }
-        Some(())
+        Some(target)
     }
 
-    /// Biểu thức vế trái; trả về "có phải đích gán hợp lệ" (định danh, truy cập thuộc tính, ngoặc bọc đích, lời gọi).
+    /// Biểu thức vế trái; trả về "có phải đích gán hợp lệ".
     fn lhs(&mut self) -> Option<bool> {
         let mut target = match self.peek()? {
             Tok::Num => {
@@ -247,13 +255,11 @@ impl Parser {
             }
             Tok::LParen => {
                 self.pos += 1;
-                let start = self.pos;
-                self.comma()?;
+                let inner = self.comma()?;
                 if !self.eat(&Tok::RParen) {
                     return None;
                 }
-                // `(a)` còn là đích gán; `(a, b)` hay `(1 + 2)` thì không. Đủ chính xác: chỉ coi là đích khi là một token.
-                self.pos - start == 2 && matches!(self.toks[start].tok, Tok::Ident)
+                inner
             }
             _ => return None,
         };
@@ -291,8 +297,37 @@ impl Parser {
     }
 }
 
-/// `validateFormula`: định danh/ký tự cho phép và cú pháp biểu thức hợp lệ.
+/// Bước 1 và 2 của `validateFormula` trên CHUỖI THÔ (kể cả trong chú thích): mọi định danh `[A-Za-z_][A-Za-z0-9_]*` phải
+/// thuộc danh sách cho phép, và mọi ký tự phải thuộc `[A-Za-z0-9_+\-*/(),.\s]`.
+fn whitelist_ok(src: &str) -> bool {
+    let cs: Vec<char> = src.chars().collect();
+    let mut i = 0;
+    while i < cs.len() {
+        let c = cs[i];
+        if is_id_start(c) {
+            let start = i;
+            while cs.get(i).is_some_and(|&c| is_id_part(c)) {
+                i += 1;
+            }
+            let w: String = cs[start..i].iter().collect();
+            if !VARS.contains(&w.as_str()) && !FUNCS.contains(&w.as_str()) {
+                return false;
+            }
+            continue;
+        }
+        if !(c.is_ascii_digit() || is_ws(c) || matches!(c, '+' | '-' | '*' | '/' | '(' | ')' | ',' | '.')) {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+/// `validateFormula`: định danh/ký tự cho phép (áp lên toàn chuỗi thô) rồi cú pháp biểu thức hợp lệ.
 pub fn validate_formula(formula: &str) -> bool {
+    if !whitelist_ok(formula) {
+        return false;
+    }
     let Some(toks) = lex(formula) else { return false };
     let mut p = Parser { toks, pos: 0 };
     p.comma().is_some() && p.pos == p.toks.len()
@@ -320,13 +355,17 @@ mod tests {
             "2 ** -1",
             "(-2) ** 2",
             "base ++ + 1",
-            "base /* ghi chú */ + 1",
-            "base // ghi chú\n + 1",
+            "base /* base */ + 1",
+            "base // base\n + 1",
             "max(1, 2,)",
             "max()",
             "min.max",
             "(base, revenue)",
             "base\n+ 1",
+            "((base))++",
+            "++(base)",
+            "++base.max",
+            "-++base",
         ] {
             assert!(ok(f), "{f:?} phải hợp lệ");
         }
@@ -359,8 +398,8 @@ mod tests {
             "1..2",
             "max(1,,2)",
             "(base,)",
-            "base // ghi chú",
-            "base /* chưa đóng",
+            "base // base",
+            "base /* base",
             "base\n++ + 1",
             "base é",
             "base[0]",
@@ -368,6 +407,15 @@ mod tests {
             "'a'",
             "a.b",
             "(/ /)",
+            "base /* x */",
+            "base // é\n + 1",
+            "base /* é */",
+            "++1",
+            "--(base + 1)",
+            "++(1)",
+            "(base + 1)++",
+            "(base, base)++",
+            "++(base, base)",
         ] {
             assert!(!ok(f), "{f:?} phải bị từ chối");
         }

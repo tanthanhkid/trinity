@@ -96,15 +96,11 @@ impl CreateRule {
 impl UpdateRule {
     pub fn validate(&self) -> Result<(), HttpError> {
         let mut e = Vec::new();
-        if let Some(p) = &self.position
-            && len16(p) > 50
-        {
-            e.push("position must be shorter than or equal to 50 characters".to_owned());
+        if let Some(p) = &self.position {
+            not_empty("position", p, 50, &mut e);
         }
-        if let Some(n) = &self.name
-            && len16(n) > 255
-        {
-            e.push("name must be shorter than or equal to 255 characters".to_owned());
+        if let Some(n) = &self.name {
+            not_empty("name", n, 255, &mut e);
         }
         if self
             .description
@@ -409,6 +405,12 @@ mod tests {
         assert!(CreateRule { details: vec![], ..ok }.validate().is_ok());
         let up: UpdateRule = serde_json::from_str(r#"{"description":null}"#).unwrap();
         assert_eq!(up.description, Some(None));
+        for body in [r#"{"position":""}"#, r#"{"name":""}"#] {
+            assert!(
+                serde_json::from_str::<UpdateRule>(body).unwrap().validate().is_err(),
+                "{body}"
+            );
+        }
     }
 
     #[test]

@@ -2367,6 +2367,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-store"
+version = "0.3.0"
+dependencies = [
+ "getrandom 0.4.3",
+ "http",
+ "mod-contacts",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "trinity-db",
+ "trinity-http",
+ "trinity-kernel",
+ "trinity-rbac",
+ "unicode-normalization",
+]
+
+[[package]]
 name = "mod-system"
 version = "0.3.0"
 dependencies = [
@@ -4425,6 +4444,7 @@ dependencies = [
  "mod-payroll",
  "mod-pos",
  "mod-reports",
+ "mod-store",
  "mod-system",
  "mod-users",
  "serde_json",

@@ -119,7 +119,7 @@ macro_rules! pid {
 macro_rules! input {
     ($ty:ty, $body:expr) => {
         match serde_json::from_value::<$ty>($body)
-            .map_err(|e| HttpError::bad_request(e.to_string()))
+            .map_err(|e| crate::serde_error(&e))
             .and_then(|d| d.validate().map(|()| d))
         {
             Ok(d) => d,

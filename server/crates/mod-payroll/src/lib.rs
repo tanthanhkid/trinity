@@ -43,6 +43,15 @@ pub(crate) fn len16(s: &str) -> usize {
     s.encode_utf16().count()
 }
 
+/// Lỗi đọc thân: khoá lạ ở DTO có `deny_unknown_fields` ⇒ cùng câu của `forbidNonWhitelisted` bên TS; còn lại 400 trơn.
+pub(crate) fn serde_error(e: &serde_json::Error) -> HttpError {
+    let msg = e.to_string();
+    match msg.strip_prefix("unknown field `").and_then(|r| r.split_once('`')) {
+        Some((name, _)) => HttpError::validation(vec![format!("property {name} should not exist")]),
+        None => HttpError::bad_request(msg),
+    }
+}
+
 pub(crate) fn finish(errors: Vec<String>) -> Result<(), HttpError> {
     if errors.is_empty() {
         Ok(())

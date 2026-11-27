@@ -40,6 +40,7 @@ pub struct CreateInsurance {
 
 /// Body `PATCH /insurance-settings/:id`: `base_cap`/`effective_to` nhận `null` (xoá).
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateInsurance {
     #[serde(default, deserialize_with = "not_null")]
     pub name: Option<String>,

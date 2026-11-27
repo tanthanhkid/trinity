@@ -7,17 +7,21 @@ import { call, control, freshIp } from '../../lib/http.js'
 import { loginAdmin } from '../../lib/session.js'
 import { makeUser, type U } from '../../lib/users.js'
 
-let savedSetup: string | null = null
+let saved: Record<string, string | null> = {}
 beforeAll(async () => {
-  // DB mới ở trạng thái "chưa dựng quy trình": module cứng tắt (trang bán hàng đòi tính năng `online_store`). Bật như hệ thống đã dựng.
-  const rows = await q<{ value: string }>(`SELECT value FROM settings WHERE key = 'setup_status'`)
-  savedSetup = rows[0]?.value ?? null
+  // DB mới ở trạng thái "chưa dựng quy trình": module cứng tắt. Bật như hệ thống đã dựng; trang bán hàng (`online_store`) mặc định TẮT
+  // (DEFAULT_OFF_FEATURES) nên bật rõ ràng, nếu không route ghi của `/store` trả 403 trước khi kiểm đầu vào.
+  const rows = await q<{ key: string; value: string }>(`SELECT key, value FROM settings WHERE key IN ('setup_status', 'org_features')`)
+  saved = { setup_status: null, org_features: null, ...Object.fromEntries(rows.map((r) => [r.key, r.value])) }
   await setSetting('setup_status', 'da_dung')
+  await setSetting('org_features', JSON.stringify({ online_store: true }))
   await control.flushCache()
 })
 afterAll(async () => {
-  if (savedSetup === null) await q(`DELETE FROM settings WHERE key = 'setup_status'`)
-  else await setSetting('setup_status', savedSetup)
+  for (const [key, value] of Object.entries(saved)) {
+    if (value === null) await q(`DELETE FROM settings WHERE key = $1`, [key])
+    else await setSetting(key, value)
+  }
   await control.flushCache()
   await closeDb()
 })
@@ -43,6 +47,8 @@ const INVALID_BODY: Record<string, unknown> = {
   'PATCH /employees/:id': { status: 'x' },
   'PATCH /payslips/:id': { base_salary: 'abc' },
   'PATCH /salary-rules/:id': { name: 5 },
+  // Lưu cấu hình trang bán hàng nhận mọi khoá lạ (bỏ qua); đầu vào sai là giá trị không hợp lệ của khoá có luật.
+  'PUT /store/settings': { slug: 'A' },
 }
 /** Thân hợp lệ tối thiểu cho ca "id không tồn tại" (route kiểm thân trước khi tìm theo id). */
 const MINIMAL_BODY: Record<string, unknown> = {
@@ -50,6 +56,7 @@ const MINIMAL_BODY: Record<string, unknown> = {
   'POST /pos/orders/:id/pay': { payments: [{ method: 'cash', amount: 1, tendered: 1 }] },
   'POST /pos/orders/:id/void': { reason: 'xxx' },
   'POST /pos/shifts/:id/close': { closing_cash_counted: 0 },
+  'PATCH /store/orders/:id': { status: 'confirmed' },
 }
 /** Route mà người dùng thường (kể cả có đủ quyền) không gọi được: cần Quản trị thật. */
 /** Đối tượng cha không tồn tại KHÔNG trả 404 (miễn trừ ở `coverage-clusters.json`). */
@@ -101,6 +108,8 @@ describe('cụm sales-payroll: ca sinh từ routes.json', () => {
     const list = routes.filter((r) => /:\w+/.test(r.path) && (r.access === 'auth' || r.access === 'can') && !isUpload(r) && !NO_404.has(asKey(r)))
     expect(list.length).toBeGreaterThan(30)
     const admin = await loginAdmin()
+    // Thu tiền đơn đòi ca đang mở (400 "chưa mở ca") TRƯỚC khi tìm đơn: mở ca cho người dùng thử rồi mới quét.
+    expect((await call('POST', '/api/v1/pos/shifts/open', { token: power.token, ip: freshIp(), body: { opening_cash: 0 } })).status).toBe(201)
     await sweep(list, [404], (r) => call(r.method, fill(r, '2147000000'), { token: ADMIN_ONLY.has(asKey(r)) ? admin.token : power.token, ip: freshIp(), body: hasBody(r) ? (MINIMAL_BODY[asKey(r)] ?? {}) : undefined }))
   })
 })

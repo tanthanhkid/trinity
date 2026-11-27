@@ -230,7 +230,7 @@ describe('Quản trị cuối cùng', () => {
   // Mở khoá chắc chắn ở afterAll (chạy trước `closeDb` của file) rồi xoá cache, kể cả khi ca đỏ giữa chừng: Quản trị bị khoá sẽ làm hỏng ca của file khác.
   const unlocks: (() => Promise<void>)[] = []
   const lock = async (keep: number[]): Promise<() => Promise<void>> => {
-    const unlock = await lock(keep)
+    const unlock = await lockOtherAdmins(keep)
     unlocks.push(unlock)
     return unlock
   }

@@ -288,6 +288,7 @@ async fn env_with(register: fn(&mut ToolRegistry)) -> Env {
             scopes,
             cache: mod_reports::cache::ReadCache::new(true),
         }),
+        social: None,
     });
     let endpoint = McpEndpoint {
         config: McpConfig::from_lookup(get),
@@ -1060,10 +1061,10 @@ async fn tool_dang_bai_kenh_va_thu_vien_media() {
         let root = std::env::temp_dir().join(format!("m44a_media_{}", std::process::id()));
         mod_mcp::register_social(
             r,
-            Arc::new(mod_mcp::SocialDeps {
-                store: mod_social::media::MediaStore::Local(trinity_storage::LocalDiskDriver::new(root)),
-                env: Arc::new(|_: &str| -> Option<String> { None }),
-            }),
+            Arc::new(mod_mcp::SocialDeps::new(
+                mod_social::media::MediaStore::Local(trinity_storage::LocalDiskDriver::new(root)),
+                Arc::new(|_: &str| -> Option<String> { None }),
+            )),
         );
     })
     .await;

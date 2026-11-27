@@ -109,7 +109,10 @@ pub fn all() -> [&'static ActionDef; 22] {
 }
 
 pub fn find(name: &str) -> Option<&'static ActionDef> {
-    all().into_iter().find(|a| a.name == name)
+    all()
+        .into_iter()
+        .find(|a| a.name == name)
+        .or_else(|| crate::tools::social_act::find(name))
 }
 
 /// Nhãn và quyền của một loại đề xuất (cho `mod-ai-actions`).

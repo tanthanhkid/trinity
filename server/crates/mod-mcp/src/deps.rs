@@ -16,6 +16,10 @@ pub struct ToolDeps {
     pub db: Db,
     pub scopes: ScopeService,
     pub reports: Arc<mod_reports::Ctx>,
+    /// Phụ thuộc đăng đa kênh (M44a): các thao tác ghi đi qua khung duyệt (`actions`, kể cả khi người dùng duyệt trên web) chỉ có
+    /// `ToolDeps` nên lấy dịch vụ bài/nháp/hàng đợi từ đây. `None` ⇒ máy chủ chưa có tính năng. Nên là CÙNG `Arc` đã đưa cho
+    /// `register_social`.
+    pub social: Option<Arc<crate::tools::SocialDeps>>,
 }
 
 /// `AppError` → lỗi tool theo nhánh của `failure()` bản TS: 404 ⇒ không thấy/ngoài phạm vi, 403 ⇒ từ chối, <500 ⇒ "Yêu cầu không

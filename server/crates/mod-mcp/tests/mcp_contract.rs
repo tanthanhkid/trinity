@@ -103,7 +103,12 @@ fn lazy_deps() -> Arc<ToolDeps> {
         scopes: scopes.clone(),
         cache: mod_reports::cache::ReadCache::new(true),
     });
-    Arc::new(ToolDeps { db, scopes, reports })
+    Arc::new(ToolDeps {
+        db,
+        scopes,
+        reports,
+        social: None,
+    })
 }
 
 struct Rig {

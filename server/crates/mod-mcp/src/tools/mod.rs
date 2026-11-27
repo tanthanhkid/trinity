@@ -22,8 +22,14 @@ mod schema;
 mod search;
 mod setup;
 mod social;
+pub(crate) mod social_act;
+mod social_ports;
+mod social_read;
 
 pub use social::{SocialDeps, register_social};
+pub use social_ports::{
+    DraftOverrides, DraftPublishPort, ImportPort, MetricsPort, PortFut, PostInfra, RecurrencePort, RefreshReport,
+};
 pub(crate) mod structure;
 pub(crate) mod template;
 pub(crate) mod view_tools;

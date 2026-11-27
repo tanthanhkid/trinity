@@ -48,8 +48,15 @@ PR chỉ lint/typecheck/test **gói bị đổi** (và gói phụ thuộc với 
 ## Phát hành
 1. Commit theo conventional commits (`feat(web): …`, `fix: …`). Tiêu đề PR cũng theo dạng này vì repo chỉ cho squash merge và lấy tiêu đề PR làm commit.
 2. `release.yml` (release-please) mở **Release PR** tăng phiên bản trong `package.json`. `CHANGELOG.md` viết tay giữ nguyên; ghi chú tự sinh nằm trong GitHub Release.
+   Từ X08, Release PR cũng tăng phiên bản workspace Rust (`server/Cargo.toml`, dòng có `x-release-please-version`); job `sync-lock` của `release.yml` chạy `cargo update --workspace` trên nhánh Release PR để `server/Cargo.lock` khớp (nếu không, `--locked` đỏ).
 3. Merge Release PR → tag `vX.Y.Z` + GitHub Release → `docker.yml` dựng `trinity-api` / `trinity-web` (amd64 trên runner x64, arm64 trên runner arm native, rồi gộp manifest), đẩy GHCR, kèm SBOM, provenance (`actions/attest-build-provenance`) và chữ ký cosign keyless.
 4. Lưu ý: PR do `GITHUB_TOKEN` tạo không tự kích hoạt CI. Với Release PR, đóng rồi mở lại (hoặc bấm "Update branch") để các check chạy.
+
+Từ X08, sau khi tạo Release, `release.yml` còn dựng binary `trinity` cho linux amd64 và arm64 (nhúng web export), đính vào Release: `trinity-<tag>-linux-<arch>.tar.gz`, `.sha256`, `.cosign.bundle` (cosign keyless, `cosign sign-blob`), attestation provenance, SBOM CycloneDX (`sbom-trinity-rust.cdx.json`; `sbom-web.cdx.json` khi pnpm có lệnh `sbom`) và `THIRD_PARTY_RUST.md` (`cargo about`). Phần ghi chú Release được nối đoạn "Kiểm chứng bản phát hành". Chạy cục bộ phần giấy phép/SBOM: `scripts/gen-notices.sh` (cần `cargo install --locked cargo-about cargo-cyclonedx`). Image `trinity` đa kiến trúc có ký vẫn đi theo `docker.yml` khi X06 đổi target; X08 chưa đổi `docker.yml`.
+
+### Giấy phép
+
+Giấy phép phụ thuộc Rust chỉ nhận loại tương thích AGPL-3.0: `server/deny.toml` (cổng `cargo deny`) và `server/about.toml` (`accepted`) giữ cùng một danh sách; đổi một nơi thì đổi nơi kia. Phân tích tương thích và bản đếm tay nằm ở `THIRD_PARTY_NOTICES.md`.
 
 Hiện `docker.yml` chỉ dựng hai image của bản Node. Image `trinity` duy nhất của bản Rust (target `trinity` đã có trong `Dockerfile`, dùng cho cấu hình lai) vào đường phát hành cùng X06 ([#264](https://github.com/tanthanhkid/trinity/issues/264), đang làm); ký, SBOM và `cargo about` cho workspace Rust: X08. Binary Rust cho người chạy bằng trình quản lý tiến trình lấy từ artifact `trinity-linux-*` của `contract-rust.yml` ([runbooks/hybrid.md](runbooks/hybrid.md), mục 3.1). Hướng dẫn nâng cấp: [upgrade-from-node.md](upgrade-from-node.md).
 

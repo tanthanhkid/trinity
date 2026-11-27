@@ -21,6 +21,32 @@ component (below). Please re-run the command before every release.
 | `jszip` | MIT OR GPL-3.0-or-later | Used under the MIT option. |
 | `caniuse-lite` | CC-BY-4.0 | Browser-support data used at build time. |
 
+## Rust dependencies (backend rewrite)
+
+The Rust workspace (`server/`) is compiled into the `trinity` binary. Its machine-generated list is produced by
+`scripts/gen-notices.sh` (`cargo about`, configured in `server/about.toml` and `server/about.hbs`) and attached to every
+GitHub Release as `THIRD_PARTY_RUST.md`, together with CycloneDX SBOMs (`sbom-*.cdx.json`).
+
+Hand-made count (read from the `license` field of each crate in `server/Cargo.lock`, 541 registry crates, 27 Nov 2026;
+the generated file supersedes it): all are permissive. Dominant expressions: `MIT OR Apache-2.0` (about 300 including
+slash and reversed forms), `MIT` (103), `Unicode-3.0` (22), `Zlib OR Apache-2.0 OR MIT` (15). Other expressions that
+occur: `ISC` (`rustls-webpki`, `untrusted`, `simple_asn1`), `Apache-2.0 AND ISC` (`ring`),
+`BSD-3-Clause` (`subtle`, `matchit` together with MIT), `CDLA-Permissive-2.0` (`webpki-roots`, `webpki-root-certs`: Mozilla
+root certificate data), `Unlicense OR MIT`, `Apache-2.0 OR BSL-1.0`, `CC0-1.0 OR MIT-0 OR Apache-2.0`. No crate is
+GPL-only, LGPL-only, MPL-only or has a non-commercial or "no warranty only" licence. One crate pair offers
+`LGPL-2.1-or-later` as a third alternative (`MIT OR Apache-2.0 OR LGPL-2.1-or-later`): Trinity uses the MIT option.
+`aws-lc-rs` / `aws-lc-sys` appear in `Cargo.lock` only as inactive optional dependencies (TLS uses `ring`); `cargo deny`
+(`bans`) fails the build if they ever enter the graph.
+
+### Compatibility with AGPL-3.0
+
+Trinity is AGPL-3.0-only. `server/deny.toml` (`cargo deny check licenses`) and `server/about.toml` accept only: Apache-2.0
+(also with LLVM exception), BSD-2/3-Clause, BSL-1.0, CC0-1.0, CDLA-Permissive-2.0, ISC, MIT, MIT-0, MPL-2.0,
+Unicode-3.0, Unlicense, Zlib. All are one-way compatible with AGPL-3.0: permissive licences may be included in an AGPL
+work; Apache-2.0 is compatible with GPLv3 and AGPLv3 (not with GPLv2-only); MPL-2.0 is compatible via its secondary-licence
+clause (section 3.3) and keeps file-level copyleft for MPL files; CDLA-Permissive-2.0 covers data only. Rejected by
+design: GPL-2.0-only, SSPL, BUSL, Commons Clause, CC-BY-NC and anything unlisted. Keep the two lists identical.
+
 ## Brand assets
 
 `apps/web/public/brand/*` and `apps/web/public/logo/*` are Trinity brand assets; see [TRADEMARK.md](TRADEMARK.md).

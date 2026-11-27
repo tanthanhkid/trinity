@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import {
   User,
   Users,
-  Shield,
   Bell,
   ChevronRight,
   ArrowLeft,
@@ -16,7 +15,6 @@ import {
   KeyRound,
   ChevronDown,
   Building2,
-  Users2,
   Wifi,
   ToggleRight,
   Sparkles,
@@ -43,12 +41,8 @@ const SettingsProfile = dynamic(
   () => import("./_components/settings-profile").then((m) => ({ default: m.SettingsProfile })),
   { loading: TabSkeleton },
 )
-const SettingsUsers = dynamic(
-  () => import("./_components/settings-users").then((m) => ({ default: m.SettingsUsers })),
-  { loading: TabSkeleton },
-)
-const SettingsRoles = dynamic(
-  () => import("./_components/roles/roles-page").then((m) => ({ default: m.RolesPage })),
+const SettingsMembers = dynamic(
+  () => import("./_components/members/settings-members").then((m) => ({ default: m.SettingsMembers })),
   { loading: TabSkeleton },
 )
 const SettingsNotifications = dynamic(
@@ -57,10 +51,6 @@ const SettingsNotifications = dynamic(
 )
 const SettingsDepartments = dynamic(
   () => import("./_components/settings-departments").then((m) => ({ default: m.SettingsDepartments })),
-  { loading: TabSkeleton },
-)
-const SettingsTeams = dynamic(
-  () => import("./_components/settings-teams").then((m) => ({ default: m.SettingsTeams })),
   { loading: TabSkeleton },
 )
 const SettingsCustomerLists = dynamic(
@@ -103,16 +93,14 @@ const SettingsBriefings = dynamic(
 // Exported để test đọc trực tiếp permission từng tab mà không cần render component client.
 // RBAC theo quyền + phạm vi — `permission`/`anyOf` quyết định tab nào hiện. Không khai gì
 // (cả 2 field `undefined`) = mở cho MỌI người đã đăng nhập (`@AuthOnly`, vd "Hồ sơ cá nhân"/
-// "Thông báo"). Bảng map: users→`users.view` · roles→`roles.manage` ·
-// departments/job-titles/teams→`org.manage` · contact-sources/stages/statuses (cùng
+// "Thông báo"). Bảng map: members→`users.manage` ·
+// departments/job-titles→`org.manage` · contact-sources/stages/statuses (cùng
 // nhóm catalog)→`contacts.catalog` · api-keys/wifi→`settings.integrations` ·
 // projects (Dự án)→`products.manage`.
 export const ALL_TABS = [
   { value: "profile", label: "Hồ sơ cá nhân", icon: User, description: "Thông tin tài khoản, mật khẩu" },
-  { value: "users", label: "Người dùng", icon: Users, description: "Quản lý tài khoản nhân viên", permission: "users.view" as Permission },
-  { value: "roles", label: "Vai trò", icon: Shield, description: "Phân quyền hệ thống", permission: "roles.manage" as Permission },
-  { value: "departments", label: "Phòng ban", icon: Building2, description: "Danh sách phòng ban dùng chung cho NV, hợp đồng, tuyển dụng", permission: "org.manage" as Permission, feature: "management" as OrgFeatureKey },
-  { value: "teams", label: "Team", icon: Users2, description: "Cấu hình Team (1 phòng ban nhiều team) + trưởng nhóm; gán NV vào Team tự set trưởng nhóm + phòng ban", permission: "org.manage" as Permission, feature: "management" as OrgFeatureKey },
+  { value: "members", label: "Thành viên", icon: Users, description: "Mời, đổi vai trò, khoá và xoá thành viên (Chủ sở hữu, Quản trị, Thành viên)", permission: "users.manage" as Permission },
+  { value: "departments", label: "Phòng ban (nhân sự)", icon: Building2, description: "Danh sách phòng ban dùng cho hồ sơ nhân viên, hợp đồng, chấm công, tuyển dụng", permission: "org.manage" as Permission, feature: "management" as OrgFeatureKey },
   { value: "customer-lists", label: "Danh mục khách hàng", icon: Tag, description: "Nguồn khách, giai đoạn và trạng thái chăm sóc: tự đặt theo cách công ty bạn làm việc", permission: "contacts.catalog" as Permission, feature: "contacts" as OrgFeatureKey },
   { value: "sales-assistant", label: "Trợ lý bán hàng", icon: Sparkles, description: "Quy tắc chấm điểm khách tiềm năng và ngưỡng nhắc việc treo", permission: "contacts.catalog" as Permission, feature: "contacts" as OrgFeatureKey },
   { value: "api-keys", label: "Khoá API bên thứ 3", icon: KeyRound, description: "Cấp khoá cho landing page / đối tác tạo khách hàng", permission: "settings.integrations" as Permission },
@@ -138,8 +126,12 @@ export const TAB_GROUPS = [
     tabs: ["customer-lists", "sales-assistant"],
   },
   {
-    label: "Công ty & Nhân sự",
-    tabs: ["users", "roles", "departments", "teams", "login-wifi-check"],
+    label: "Công ty",
+    tabs: ["members", "login-wifi-check"],
+  },
+  {
+    label: "Nhân sự (HR)",
+    tabs: ["departments"],
   },
   {
     label: "Cá nhân",
@@ -149,10 +141,8 @@ export const TAB_GROUPS = [
 
 const tabComponents: Record<TabValue, React.ComponentType> = {
   profile: SettingsProfile,
-  users: SettingsUsers,
-  roles: SettingsRoles,
+  members: SettingsMembers,
   departments: SettingsDepartments,
-  teams: SettingsTeams,
   "customer-lists": SettingsCustomerLists,
   "sales-assistant": SettingsSalesAssistant,
   "api-keys": SettingsApiKeys,
@@ -184,6 +174,10 @@ const LEGACY_TAB_ALIASES: Record<string, TabValue> = {
   "contact-sources": "customer-lists",
   "contact-stages": "customer-lists",
   "contact-statuses": "customer-lists",
+  // Người dùng, Vai trò, Team đã gộp vào trang Thành viên (3 vai trò cố định; Nhóm là mục thu gọn trong đó).
+  users: "members",
+  roles: "members",
+  teams: "members",
 }
 
 function isValidTabValue(value: string): value is TabValue {

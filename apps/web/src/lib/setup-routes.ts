@@ -14,5 +14,5 @@ export function isAllowedBeforeSetup(pathname: string | null | undefined): boole
 /** Khoá mục menu còn hiện khi chưa dựng. */
 export const SETUP_MENU_KEYS = ["bat_dau", "ai_actions", "connections", "settings"] as const
 
-/** Tab Cài đặt còn hiện khi chưa dựng (tối giản: tài khoản, người dùng, vai trò, team, thông báo; nối AI ở trang Kết nối). */
-export const SETUP_SETTINGS_TABS = ["profile", "users", "roles", "teams", "notifications"] as const
+/** Tab Cài đặt còn hiện khi chưa dựng (tối giản: tài khoản, thành viên, thông báo; nối AI ở trang Kết nối). */
+export const SETUP_SETTINGS_TABS = ["profile", "members", "notifications"] as const

@@ -29,9 +29,11 @@ export interface Receiver {
 export async function startReceiver(): Promise<Receiver> {
   const r: Receiver = { url: '', seen: [], status: 200, close: async () => undefined }
   const server = http.createServer((req, res) => {
-    let body = ''
-    req.on('data', (c) => (body += c))
+    const chunks: Buffer[] = []
+    req.on('data', (c: Buffer) => chunks.push(c))
     req.on('end', () => {
+      // Ghép byte rồi mới giải mã: nối chuỗi từng chunk làm hỏng ký tự UTF-8 bị cắt giữa hai chunk (chữ ký ký trên byte).
+      const body = Buffer.concat(chunks).toString('utf8')
       r.seen.push({ headers: req.headers, body })
       res.statusCode = r.status
       res.end('x')
@@ -105,9 +107,14 @@ export async function mkEndpoint(token: string, url: string, over: Record<string
 }
 
 // ---- DB ---------------------------------------------------------------------------------------------------------
-/** e2e gốc dọn ở `afterEach`; mỗi ca hộp đen tự dọn ở đầu (id và đếm bảng phải bắt đầu từ trống). */
+/**
+ * e2e gốc dọn ở `afterEach`; mỗi ca hộp đen tự dọn ở đầu (id và đếm bảng phải bắt đầu từ trống).
+ * Chỉ xoá phần của webhook ra: hai bảng webhook, nhật ký kênh `webhook_out` và outbox; không TRUNCATE nhật ký tích hợp dùng chung với MCP/OAuth/webhook vào.
+ */
 export async function resetWebhooks(): Promise<void> {
-  await q(`TRUNCATE TABLE webhook_deliveries, webhook_endpoints, integration_events, integration_audit_logs RESTART IDENTITY`)
+  await q(`TRUNCATE TABLE webhook_deliveries, webhook_endpoints RESTART IDENTITY`)
+  await q(`DELETE FROM integration_audit_logs WHERE channel = 'webhook_out'`)
+  await q(`DELETE FROM integration_events`)
 }
 
 export const n = async (sql: string, params: unknown[] = []): Promise<number> => Number((await q<{ n: string | number }>(sql, params))[0].n)

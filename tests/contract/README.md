@@ -113,6 +113,8 @@ Bảng ánh xạ chỗ đổi env / gọi hàm nội bộ → hồ sơ / API đi
 Ca bị chuyển loại phần gọi hàm: `dispatcher.dispatchEvents()` đứng riêng (không gửi) nay seed delivery chờ bằng SQL (`pendingDelivery`) rồi kiểm phần còn lại; `worker.claim()` hai lần đồng thời, ghi kết quả muộn của lượt nhận cũ (`processBatch(first)`) và
 `sweepExhausted()` đứng riêng không còn gọi được từ ngoài: phần "không nhận trùng / lease / trần 7 lần / quét dead" kiểm qua `tick`, phần ghi muộn và claim song song thật kiểm ở test Rust `webhooks_pg.rs`.
 
+C12a ghi chú: máy nhận (`startReceiver`) ghép byte bằng `Buffer.concat` rồi mới giải mã UTF-8; `resetWebhooks` chỉ xoá hai bảng webhook, nhật ký kênh `webhook_out` và outbox (không TRUNCATE nhật ký dùng chung); mỗi file hồ sơ `private-targets` gọi lại `resetWebhooks` ở `afterAll`.
+
 ## Phủ đủ route theo cụm (C14)
 Một hệ đo duy nhất: `lib/coverage.ts` (mỗi lời gọi của `call()` được ghi lại) + `coverage-clusters.json` (cụm theo controller, miễn trừ có lý do) + ca `99-coverage-<cụm>`
 chạy cuối cùng, đòi mỗi route đủ 4 loại ca (thành công, từ chối, đầu vào sai, không tồn tại) hoặc có miễn trừ.

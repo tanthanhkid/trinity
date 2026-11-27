@@ -10,7 +10,10 @@ let rx: Receiver
 beforeAll(async () => {
   rx = await startReceiver()
 })
-afterAll(async () => rx.close())
+afterAll(async () => {
+  await rx.close()
+  await resetWebhooks() // không để lại endpoint/delivery của ca cuối cho file sau
+})
 beforeEach(async () => {
   rx.seen.length = 0
   rx.status = 200
@@ -55,7 +58,7 @@ describe('thử lại + chết + tắt tự động + gửi lại', () => {
     await tick()
     expect(rx.seen.length).toBe(before) // dead không gửi nữa
     expect(await n(`SELECT consecutive_failures AS n FROM webhook_endpoints WHERE id = $1`, [ep.id])).toBe(7)
-    golden('webhooks-delivery-dead', 'admin', snap(await a((await mk({ 'integrations.webhooks': true })).token).get(`${B}/deliveries`, { endpoint_id: String(ep.id) })))
+    golden('webhooks-delivery-dead', 'admin', snap(await st(a((await mk({ 'integrations.webhooks': true })).token).get(`${B}/deliveries`, { endpoint_id: String(ep.id) }), 200)))
   })
 
   it('endpoint lỗi liên tiếp đủ 20 → tự tắt + thông báo người tạo; thành công giữa chừng reset bộ đếm', async () => {

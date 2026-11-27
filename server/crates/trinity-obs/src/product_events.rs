@@ -72,7 +72,7 @@ fn has_digit_run(s: &str, n: usize) -> bool {
     false
 }
 
-/// 7 sự kiện máy chủ hiện có (`docs/deployment.md`, mục "Server events").
+/// 8 sự kiện máy chủ hiện có (`docs/deployment.md`, mục "Server events").
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProductEvent<'a> {
     OnboardingStep {
@@ -102,6 +102,11 @@ pub enum ProductEvent<'a> {
         created: bool,
         actions: u32,
     },
+    /// Dựng hệ thống theo ngành (`industry`: khoá ngành trong danh mục, `features`: số phân hệ).
+    WorkspaceBuilt {
+        industry: &'a str,
+        features: u32,
+    },
 }
 
 impl ProductEvent<'_> {
@@ -114,6 +119,7 @@ impl ProductEvent<'_> {
             Self::TableUpdated { .. } => "table_updated",
             Self::PostPublished { .. } => "post_published",
             Self::CommentRuleSaved { .. } => "comment_rule_saved",
+            Self::WorkspaceBuilt { .. } => "workspace_built",
         }
     }
 
@@ -139,6 +145,9 @@ impl ProductEvent<'_> {
             ],
             Self::CommentRuleSaved { created, actions } => {
                 vec![("created", (*created).into()), ("actions", (*actions).into())]
+            }
+            Self::WorkspaceBuilt { industry, features } => {
+                vec![("industry", (*industry).into()), ("features", (*features).into())]
             }
         }
     }
@@ -314,6 +323,13 @@ mod tests {
                     actions: 3,
                 },
                 "comment_rule_saved",
+            ),
+            (
+                ProductEvent::WorkspaceBuilt {
+                    industry: "retail",
+                    features: 6,
+                },
+                "workspace_built",
             ),
         ];
         for (e, name) in &all {

@@ -186,6 +186,9 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
 
     // ── DB, xác thực, phân quyền
     let lookup = |k: &str| -> Option<String> { env.get(k).cloned() };
+    // Sự kiện sản phẩm (PostHog): tắt khi thiếu `POSTHOG_KEY`/khoá băm. reqwest cần provider TLS `ring` cài trước (một lần).
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let product_events = trinity_obs::ProductEvents::from_config(&trinity_obs::MonitoringConfig::from_env(lookup));
     let mut db_cfg = DbConfig::from_lookup(lookup).map_err(|e| e.to_string())?;
     db_cfg.pool_size = config.db_pool_size;
     let db = Db::connect(&db_cfg)
@@ -280,6 +283,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     // Router khách hàng dựng sau; dọn mẫu hàng loạt (wizard) cần xoá cache đếm của nó và cache Tổng quan.
     let contacts_slot: Arc<std::sync::OnceLock<Arc<mod_contacts::routes::Ctx>>> = Arc::new(std::sync::OnceLock::new());
     let mut setup_inner = mod_setup::Ctx::new(db.clone());
+    setup_inner.events = product_events.clone();
     {
         let (slot, reports, db) = (contacts_slot.clone(), reports_ctx.clone(), db.clone());
         let changed: mod_setup::ContactsChanged = Arc::new(move |company: trinity_db::CompanyRef| {
@@ -810,6 +814,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         Arc::new(mod_settings::SettingsState {
             db: db.clone(),
             client_ip: ip.clone(),
+            events: product_events.clone(),
         }),
     );
     app = mount(

@@ -19,6 +19,7 @@ tracing = { workspace = true }
 trinity-db = { workspace = true }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
+trinity-obs = { workspace = true }
 trinity-rbac = { workspace = true }
 
 [dev-dependencies]

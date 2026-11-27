@@ -2749,6 +2749,7 @@ dependencies = [
  "trinity-db",
  "trinity-http",
  "trinity-kernel",
+ "trinity-obs",
  "trinity-rbac",
 ]
 
@@ -2771,6 +2772,7 @@ dependencies = [
  "trinity-http",
  "trinity-integrations",
  "trinity-kernel",
+ "trinity-obs",
  "trinity-rbac",
 ]
 

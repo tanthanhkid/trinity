@@ -207,6 +207,13 @@ pub async fn build(ctx: &Ctx, actor: &Actor, input: &BuildInput) -> R<Value> {
     {
         f(actor.company);
     }
+    ctx.events.track(
+        &trinity_obs::ProductEvent::WorkspaceBuilt {
+            industry: &ind.key,
+            features: u32::try_from(plan.features.len()).unwrap_or(u32::MAX),
+        },
+        Some(&actor.user_id.to_string()),
+    );
     tracing::info!(
         "dựng hệ thống: ngành {}, {} phân hệ, bảng mới {:?}, mẫu {}",
         ind.key,

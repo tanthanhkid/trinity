@@ -369,7 +369,8 @@ API returns a config).
 
 `onboarding_step` (`step`, `action`: confirm or skip) · `feature_toggled` (`feature`, `enabled`) · `plan_changed`
 (`plan`) · `table_created` (`fields`) · `table_updated` (`fields`) · `post_published` (`networks`, `scheduled`,
-`source`: web, mcp or csv) · `comment_rule_saved` (`created`, `actions`).
+`source`: web, mcp or csv) · `comment_rule_saved` (`created`, `actions`) · `workspace_built` (`industry`,
+`features`).
 
 ## Production checklist
 

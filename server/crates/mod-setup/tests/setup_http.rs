@@ -72,6 +72,7 @@ async fn app() -> App {
         contacts_changed: Some(Arc::new(move |_| {
             r2.fetch_add(1, Ordering::SeqCst);
         })),
+        events: Default::default(),
     });
     let deps = Arc::new(AccessDeps {
         auth: Arc::new(Authenticator::new(security, JWT, &[])),

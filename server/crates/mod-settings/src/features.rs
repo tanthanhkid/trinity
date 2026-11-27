@@ -98,7 +98,7 @@ pub async fn get(conn: &mut PgConnection, ctx: Ctx) -> Result<Ordered, AppError>
 }
 
 /// Kết quả `PUT /settings/org-features`: `features` là phản hồi; `changed` cho tầng serve gọi `trackProductEvent`
-/// (`feature_toggled`, `{feature, enabled}`) sau khi ghi (TODO(serve): chưa có cổng đo ở Rust).
+/// (`feature_toggled`, `{feature, enabled}`) sau khi ghi (router `api.rs` gọi qua `trinity_obs::ProductEvents`).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Updated {
     pub features: Ordered,
@@ -176,7 +176,7 @@ pub async fn update(
     Ok(Updated { features, changed })
 }
 
-/// Kết quả [`set_plan`]: tầng serve dùng để gọi `trackProductEvent('plan_changed', user, { plan })` (TODO(serve)).
+/// Kết quả [`set_plan`]: tầng serve dùng để gọi `trackProductEvent('plan_changed', user, { plan })`; router `api.rs` gọi.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlanChange {
     pub from: PlanKey,

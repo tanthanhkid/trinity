@@ -370,7 +370,7 @@ pub async fn confirm(ctx: &Ctx, actor: &Actor, step: &str) -> R<Value> {
     confirm_inner(ctx, actor, step, false).await
 }
 
-async fn confirm_inner(ctx: &Ctx, actor: &Actor, step: &str, _skipped: bool) -> R<Value> {
+async fn confirm_inner(ctx: &Ctx, actor: &Actor, step: &str, skipped: bool) -> R<Value> {
     let mut wizard = view(ctx, actor).await?;
     let Some(s) = wizard.steps.iter().find(|x| x.key == step).cloned() else {
         return Err(bad("Bước này không có trong phần bắt đầu của công ty bạn."));
@@ -379,7 +379,13 @@ async fn confirm_inner(ctx: &Ctx, actor: &Actor, step: &str, _skipped: bool) -> 
         let msg = if s.needs_admin { ASK_ADMIN } else { missing(step) };
         return Ok(json!({ "ok": false, "message": msg, "wizard": wizard.to_json() }));
     }
-    // TODO(serve): sự kiện sản phẩm `onboarding_step` { step, action: skip | confirm } (chưa có cổng đo ở Rust).
+    ctx.events.track(
+        &trinity_obs::ProductEvent::OnboardingStep {
+            step,
+            confirmed: !skipped,
+        },
+        Some(&actor.user_id.to_string()),
+    );
     if !wizard.completed && wizard.current.is_none() {
         let mut c = ctx.conn(actor.company).await?;
         write_setting(&mut c, &done_key(actor.user_id), &now_iso(), Some(actor.user_id)).await?;

@@ -12,7 +12,7 @@
 //! sinh từ mã TS ([`catalog`]). Bản ghi mẫu ([`samples`]) là "dữ liệu giả để xem thử": tự xoá mềm khi có bản ghi thật đầu tiên;
 //! tầng route của khách/bản ghi gọi [`samples::purge_if_real`] sau khi tạo (lưới an toàn: màn trạng thái và wizard cũng gọi).
 //!
-//! Chưa nối ở đây (tầng serve): sự kiện sản phẩm `onboarding_step`, `table_created`, `workspace_built` (TODO(serve), như `mod-settings`);
+//! Sự kiện sản phẩm `onboarding_step`, `table_created`, `workspace_built` gửi qua [`Ctx::events`] (`trinity_obs::ProductEvents`);
 //! xoá cache đếm khách sau khi dọn mẫu qua [`Ctx::contacts_changed`].
 
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
@@ -53,6 +53,8 @@ pub struct Ctx {
     pub db: Db,
     pub env: Env,
     pub contacts_changed: Option<ContactsChanged>,
+    /// Sự kiện sản phẩm (`onboarding_step`, `table_created`, `workspace_built`); mặc định tắt.
+    pub events: trinity_obs::ProductEvents,
 }
 
 impl Ctx {
@@ -62,6 +64,7 @@ impl Ctx {
             db,
             env: Arc::new(|k| std::env::var(k).ok()),
             contacts_changed: None,
+            events: trinity_obs::ProductEvents::disabled(),
         }
     }
 

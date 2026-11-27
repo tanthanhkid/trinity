@@ -86,6 +86,15 @@ pub async fn apply(ctx: &Ctx, actor: &Actor, template: &str, with_sample_data: b
         r.existing,
         r.sample_records
     );
+    for o in &tpl.objects {
+        if r.created.contains(&o.key) {
+            let fields = u32::try_from(o.fields.len()).unwrap_or(u32::MAX);
+            ctx.events.track(
+                &trinity_obs::ProductEvent::TableCreated { fields },
+                Some(&actor.user_id.to_string()),
+            );
+        }
+    }
     Ok(r.to_json())
 }
 

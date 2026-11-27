@@ -1,9 +1,8 @@
 "use client"
 
-/* `"use client"`: trang dùng hook (`useAuth`, `usePermissions`) trong lời chào + widget theo quyền. */
+/* `"use client"`: trang dùng hook (`useAuth`, `usePermissions`) trong lời chào và các khối theo quyền. */
 import { DashboardHome } from "./_components/dashboard-home"
 import { DashboardFilterProvider } from "./_components/dashboard-filter-context"
-import { DashboardWidgets } from "./_components/dashboard-widgets"
 
 /**
  * Trang chủ "AI đã làm gì hôm nay" (bố cục bản demo): lời chào + tóm tắt → thẻ số →
@@ -15,9 +14,8 @@ import { DashboardWidgets } from "./_components/dashboard-widgets"
 export default function DashboardPage() {
   return (
     <DashboardFilterProvider>
-      <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-6 pt-2 md:gap-8 md:pt-5">
+      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 pt-2 md:gap-8 md:pt-5">
         <DashboardHome />
-        <DashboardWidgets />
       </div>
     </DashboardFilterProvider>
   )

@@ -296,7 +296,7 @@ async fn nhap_khung_gio_mau_chu() {
         user_id: user,
         now_ms: NOW,
     };
-    let png = vec![1_u8; 64];
+    let png = [1_u8; 64];
     let m = media::upload_stream(&ctx, "m55a-anh.png", &png[..]).await.unwrap();
 
     let d1 = drafts::create(&ctx, &draft(json!({"title":"m55a một"})), "web", None)
@@ -306,7 +306,7 @@ async fn nhap_khung_gio_mau_chu() {
         (d1.content.as_str(), d1.use_queue, d1.source.as_str()),
         ("", false, "web")
     );
-    assert_eq!((d1.media.clone(), d1.targets.clone()), (json!([]), json!([])));
+    assert_eq!((d1.media.0.clone(), d1.targets.0.clone()), (json!([]), json!([])));
     let d2 = drafts::create(
         &ctx,
         &draft(json!({
@@ -319,9 +319,9 @@ async fn nhap_khung_gio_mau_chu() {
     )
     .await
     .unwrap();
-    assert_eq!(d2.media[0]["name"], "ảnh");
+    assert_eq!(d2.media.0[0]["name"], "ảnh");
     assert_eq!(
-        d2.targets,
+        d2.targets.0,
         json!([{"account_id":account,"options":{"utm":{"campaign":"tết-2027"}}}])
     );
     assert_eq!(d2.scheduled_at.unwrap().0.timestamp(), 1_796_094_000);
@@ -377,7 +377,11 @@ async fn nhap_khung_gio_mau_chu() {
         (u.title.as_deref(), u.content.as_str()),
         (Some("m55a hai sửa"), "xin chào")
     );
-    assert_eq!(u.ui, Some(json!({"step":2})), "không đụng nội dung ⇒ giữ ui");
+    assert_eq!(
+        u.ui.map(|j| j.0),
+        Some(json!({"step":2})),
+        "không đụng nội dung ⇒ giữ ui"
+    );
     assert_eq!(u.targets, d2.targets, "không gửi targets ⇒ giữ nguyên");
     assert!(u.updated_at >= d2.updated_at);
     let u = drafts::update(&ctx, d2.id, &draft(json!({"content":"mới"})))
@@ -388,9 +392,9 @@ async fn nhap_khung_gio_mau_chu() {
     let u = drafts::update(&ctx, d2.id, &draft(json!({"targets":[{"account_id":account}]})))
         .await
         .unwrap();
-    assert_eq!(u.targets[0]["options"]["utm"]["campaign"], "tết-2027");
+    assert_eq!(u.targets.0[0]["options"]["utm"]["campaign"], "tết-2027");
     let u = drafts::update(&ctx, d2.id, &draft(json!({"utm":null}))).await.unwrap();
-    assert_eq!(u.targets, json!([{"account_id":account}]));
+    assert_eq!(u.targets.0, json!([{"account_id":account}]));
     // use_queue xoá giờ hẹn; scheduled_at đặt use_queue về false.
     let u = drafts::update(&ctx, d2.id, &draft(json!({"use_queue":true})))
         .await

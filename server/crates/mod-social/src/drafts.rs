@@ -683,8 +683,8 @@ pub async fn update(c: &MediaCtx<'_>, id: i32, input: &DraftInput) -> Result<Soc
     let Some(cur) = cur else {
         return Err(HttpError::not_found(NOT_FOUND).into());
     };
-    let cur_media: Vec<DraftMedia> = serde_json::from_value(cur.media.clone()).unwrap_or_default();
-    let cur_targets: Vec<DraftTarget> = serde_json::from_value(cur.targets.clone()).unwrap_or_default();
+    let cur_media: Vec<DraftMedia> = serde_json::from_value(cur.media.0.clone()).unwrap_or_default();
+    let cur_targets: Vec<DraftTarget> = serde_json::from_value(cur.targets.0.clone()).unwrap_or_default();
     let b = build(c, input, &cur_media, &cur_targets).await?;
     // Sửa nội dung/kênh/tệp/giờ mà không kèm trạng thái màn soạn (vd trợ lý AI sửa) ⇒ bỏ trạng thái cũ, màn soạn dựng lại.
     let touched = b.content.is_some()
@@ -876,13 +876,7 @@ mod tests {
             json!({"campaign":"a"})
         );
         for bad in ["a&b", "a=b", "a?b", "a#b", "a%b", "a/b", "a\\b", "   "] {
-            assert_eq!(
-                AppError::from(normalize_utm(&u(bad, None)).unwrap_err())
-                    .response(true)
-                    .0,
-                400,
-                "{bad}"
-            );
+            assert_eq!(normalize_utm(&u(bad, None)).unwrap_err().response(true).0, 400, "{bad}");
         }
         assert!(normalize_utm(&u(&"a".repeat(101), None)).is_err());
         assert!(normalize_utm(&u(&"a".repeat(100), None)).is_ok());

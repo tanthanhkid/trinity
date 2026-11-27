@@ -45,11 +45,9 @@ pub fn declared_routes() -> Vec<RouteSpec> {
     v.extend(mod_ai_actions::specs());
     v.extend(mod_deals::routes::routes());
     v.extend(mod_public_api::specs());
-<<<<<<< HEAD
     v.extend(trinity_integrations::routes::specs());
-=======
     v.extend(mod_notify::routes::specs());
->>>>>>> e58ae37d (feat(notify): route /templates (5) và /events (2), kiểm tay thân request)
+    v.extend(mod_newsfeed::routes::specs());
     v
 }
 

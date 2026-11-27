@@ -771,6 +771,36 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         }),
     );
 
+    // Newsfeed: kho tệp theo `STORAGE_DRIVER` (local|s3, mặc định local) như `packages/storage`; ảnh/video khoá `newsfeed/...`.
+    let newsfeed_store = match lookup("STORAGE_DRIVER")
+        .map(|v| v.trim().to_ascii_lowercase())
+        .as_deref()
+    {
+        None | Some("") | Some("local") => {
+            let root = lookup("STORAGE_LOCAL_ROOT")
+                .map(|v| v.trim().to_owned())
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| "/var/lib/trinity/storage".to_owned());
+            let driver = LocalDiskDriver::new(root);
+            driver.init().await.map_err(|e| format!("thư mục newsfeed: {e}"))?;
+            mod_newsfeed::routes::Store::Local(driver)
+        }
+        Some("s3") => {
+            let cfg = trinity_storage::S3Config::from_env(lookup).map_err(|e| e.to_string())?;
+            mod_newsfeed::routes::Store::S3(trinity_storage::S3Driver::new(&cfg).map_err(|e| format!("s3: {e}"))?)
+        }
+        Some(other) => return Err(format!("STORAGE_DRIVER '{other}' không hợp lệ (local|s3)")),
+    };
+    app = mount(
+        app,
+        mod_newsfeed::routes::api_router(deps.clone()),
+        Arc::new(mod_newsfeed::routes::Ctx {
+            db: db.clone(),
+            store: newsfeed_store,
+            push: mod_newsfeed::routes::socket_push(socket.clone(), db.clone()),
+        }),
+    );
+
     // ── Lớp biên rồi strangler
     let production = config.is_production();
     let rust = app

@@ -51,6 +51,7 @@ mod-kanban = { path = "crates/mod-kanban" }
 mod-payroll = { path = "crates/mod-payroll" }
 mod-pos = { path = "crates/mod-pos" }
 mod-notify = { path = "crates/mod-notify" }
+mod-newsfeed = { path = "crates/mod-newsfeed" }
 mod-hr = { path = "crates/mod-hr" }
 mod-attendance = { path = "crates/mod-attendance" }
 mod-briefings = { path = "crates/mod-briefings" }

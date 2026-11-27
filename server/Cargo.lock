@@ -5053,6 +5053,7 @@ dependencies = [
  "trinity-auth",
  "trinity-db",
  "trinity-http",
+ "trinity-integrations",
  "trinity-jobs",
  "trinity-kernel",
  "trinity-obs",
@@ -5136,6 +5137,7 @@ name = "trinity-integrations"
 version = "0.3.0"
 dependencies = [
  "aes-gcm",
+ "axum",
  "base64 0.23.1",
  "chrono",
  "futures-util",

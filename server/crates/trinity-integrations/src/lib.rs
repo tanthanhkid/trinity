@@ -2,15 +2,18 @@
 //! `services/crm/src/integrations/integrations.controller.ts`, `integration-outbox-purge.service.ts`,
 //! `oauth/oauth-purge.service.ts`, `packages/prisma/src/integrations/*`).
 //!
-//! Phạm vi: logic và truy vấn DB; chưa nối route (router/auth chưa có trên `main`). Hai endpoint cần nối sau:
+//! Phạm vi: logic và truy vấn DB (route nối ở [`routes`]). Hai endpoint của mô-đun:
 //! `GET /integrations/status` (quyền `integrations.webhooks` HOẶC `integrations.ai_connect` HOẶC `integrations.ai_admin`,
 //! luôn 200: [`status::status`]) và `GET /integrations/audit-logs` (quyền `integrations.ai_admin`; cả hai cờ tắt ⇒ 404;
 //! [`audit::list`], trả `{ data, meta: { next_cursor } }`). Phần GHI outbox (`publish_integration_event`) thuộc K36.
+//!
+//! Router: [`routes`] nối 19 route (status, audit-logs, 10 webhook ra, 6 nguồn vào, `POST /hooks/in/:token`) vào axum.
 //!
 //! M34: [`webhooks`] (webhook ra: 10 route dưới `/integrations/webhooks`, dispatcher, worker, chữ ký, che SĐT).
 
 pub mod audit;
 pub mod purge;
+pub mod routes;
 pub mod status;
 pub mod webhooks;
 

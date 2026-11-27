@@ -54,6 +54,7 @@ mod-mcp = { workspace = true }
 mod-ai-actions = { workspace = true }
 mod-deals = { workspace = true }
 mod-public-api = { workspace = true }
+trinity-integrations = { workspace = true }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-ops = { workspace = true }

@@ -59,6 +59,11 @@ pub struct AccessDeps {
     pub guards: BTreeMap<&'static str, Arc<dyn NamedGuard>>,
 }
 
+/// Handler đặt vào `Response::extensions_mut()` để GIỮ mã 200 dù route khai `status_ok` khác (như `res.status(200)` của
+/// Express với `@Res({ passthrough: true })`, vd `POST /hooks/in/:token`).
+#[derive(Debug, Clone, Copy)]
+pub struct KeepStatus;
+
 /// Người dùng đã xác thực kèm quyền: handler lấy từ `Extension<CurrentUser>` (như `req.user` của bản Node).
 #[derive(Debug, Clone)]
 pub struct CurrentUser {
@@ -297,6 +302,7 @@ pub(super) async fn enforce(State(g): State<Arc<RouteGuard>>, mut req: Request, 
     // `@HttpCode`: handler trả 200 mặc định thì đổi sang mã thành công đã khai; handler tự trả mã khác thì giữ.
     if let Some(code) = g.status_ok
         && resp.status() == StatusCode::OK
+        && resp.extensions().get::<KeepStatus>().is_none()
     {
         *resp.status_mut() = code;
     }

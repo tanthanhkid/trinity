@@ -53,7 +53,7 @@ static DATE_RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| 
 /// Chuỗi ngày giờ như `new Date(s)` cho mọi dạng `@IsDateString` nhận: `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, kèm `T` hoặc dấu
 /// cách + `HH:mm[:ss[.fff]]` + `Z`, `±HH:mm`, `±HHmm`, `±HH`. Không có múi giờ thì UTC (máy chủ Node chạy `TZ=UTC`). Tháng 1..12,
 /// ngày 1..31 (ngày 31 của tháng 30 ngày tràn sang tháng sau như V8), `24:00` được.
-pub(crate) fn instant(s: &str) -> R<DateTime<Utc>> {
+pub fn instant(s: &str) -> R<DateTime<Utc>> {
     let invalid = || bad("Ngày không hợp lệ");
     let t = s.trim();
     let caps = DATE_RE.captures(t).ok_or_else(invalid)?;
@@ -113,7 +113,7 @@ pub(crate) fn instant(s: &str) -> R<DateTime<Utc>> {
 }
 
 /// `dto.x ? new Date(dto.x) : null` (chuỗi rỗng ⇒ null).
-pub(crate) fn opt_instant(v: Option<&str>) -> R<Option<DateTime<Utc>>> {
+pub fn opt_instant(v: Option<&str>) -> R<Option<DateTime<Utc>>> {
     v.filter(|s| !s.is_empty()).map(instant).transpose()
 }
 

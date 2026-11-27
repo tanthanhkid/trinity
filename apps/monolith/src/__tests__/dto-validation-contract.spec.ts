@@ -51,6 +51,10 @@ import * as createContract from '../../../../services/crm/src/contracts/dto/crea
 import * as updateContract from '../../../../services/crm/src/contracts/dto/update-contract.dto'
 import * as queryContracts from '../../../../services/crm/src/contracts/dto/query-contracts.dto'
 import * as queryContractStats from '../../../../services/crm/src/contracts/dto/query-contract-stats.dto'
+import * as office from '../../../../services/crm/src/attendance/dto/office.dto'
+import * as attSettings from '../../../../services/crm/src/attendance/dto/update-attendance-settings.dto'
+import * as attRequestConfig from '../../../../services/crm/src/attendance/dto/update-request-config.dto'
+import * as attSaturdays from '../../../../services/crm/src/attendance/dto/update-working-saturdays.dto'
 import * as employeesStats from '../../../../services/crm/src/employees/dto/employees-stats.dto'
 import * as queryNotification from '../../../../services/notification/src/notifications/dto/query-notification.dto'
 import * as publicCreateContact from '../../../../services/crm/src/public-api/dto/public-create-contact.dto'
@@ -113,6 +117,11 @@ const SAMPLES: Array<[Cls, Mode]> = [
   [queryEmployees.QueryEmployeesDto, 'strict'],
   [employeesStats.HrStatsQueryDto, 'strict'],
   [employeesStats.BirthdayListQueryDto, 'strict'],
+  [office.CreateOfficeDto, 'strict'],
+  [office.UpdateOfficeDto, 'strict'],
+  [attSettings.UpdateAttendanceSettingsDto, 'strict'],
+  [attRequestConfig.UpdateRequestConfigDto, 'strict'],
+  [attSaturdays.UpdateWorkingSaturdaysDto, 'strict'],
   [createContract.CreateContractDto, 'strict'],
   [updateContract.UpdateContractDto, 'strict'],
   [queryContracts.QueryContractsDto, 'strict'],
@@ -244,6 +253,18 @@ const EXTRA_CASES: Array<[Cls, Mode, string, unknown]> = [
   [queryEmployees.QueryEmployeesDto, 'strict', 'valid', { page: '2', page_size: '50', search: 'minh', employment_state: 'active', sort_by: 'joined_at', sort_dir: 'desc', team: 'none' }],
   [queryEmployees.QueryEmployeesDto, 'strict', 'sai', { page: '0', page_size: '101', employment_state: 'x', sort_by: 'email', sort_dir: 'up' }],
   [employeesStats.BirthdayListQueryDto, 'strict', 'thang_sai', { month: '13', office_id: 'a' }],
+  [office.CreateOfficeDto, 'strict', 'valid', { name: 'VP Hà Nội', description: 'Trụ sở', ips: ['203.0.113.1'], is_active: true, is_demo: false }],
+  [office.CreateOfficeDto, 'strict', 'sai', { name: '', ips: [], is_active: 'x', is_demo: null, description: 5 }],
+  [office.CreateOfficeDto, 'strict', 'ips_khong_phai_chuoi', { name: 'A', ips: [1, 2] }],
+  [office.UpdateOfficeDto, 'strict', 'valid', { description: null, ips: ['1.2.3.4'], is_active: false }],
+  [office.UpdateOfficeDto, 'strict', 'null_het', { name: null, ips: null, is_active: null, is_demo: null }],
+  [attSettings.UpdateAttendanceSettingsDto, 'strict', 'valid', { work_start: '08:00', work_end: '17:00', late_after: '08:10', lunch_start: '12:00', lunch_end: '13:30', review_max_hours: '1', half_day_min_hours: 4.5, full_day_min_hours: 8 }],
+  [attSettings.UpdateAttendanceSettingsDto, 'strict', 'sai', { work_start: '8:00', work_end: '24:00', late_after: 5, review_max_hours: -1, half_day_min_hours: 25, full_day_min_hours: 'x' }],
+  [attRequestConfig.UpdateRequestConfigDto, 'strict', 'valid', { default_check_in: '08:00', default_check_out: '17:30', monthly_forgot_limit: '2', monthly_late_early_limit: 0 }],
+  [attRequestConfig.UpdateRequestConfigDto, 'strict', 'sai', { default_check_in: '8h', default_check_out: null, monthly_forgot_limit: -1, monthly_late_early_limit: 1.5 }],
+  [attSaturdays.UpdateWorkingSaturdaysDto, 'strict', 'valid', { dates: ['2026-06-06', '2026-06-20'] }],
+  [attSaturdays.UpdateWorkingSaturdaysDto, 'strict', 'sai', { dates: ['06/06/2026', 5, '2026-06-6'] }],
+  [attSaturdays.UpdateWorkingSaturdaysDto, 'strict', 'khong_phai_mang', { dates: '2026-06-06' }],
   [createContract.CreateContractDto, 'strict', 'valid', { employee_id: 12, contract_type: 'hdld_2', signed_date: '2026-01-01', end_date: '2028-01-01', notes: 'ghi chú', is_terminated: false }],
   [createContract.CreateContractDto, 'strict', 'sai', { employee_id: 0, contract_type: 'khac', signed_date: 'hôm qua', end_date: 5, notes: 7, is_terminated: 'x' }],
   [createContract.CreateContractDto, 'strict', 'end_null', { employee_id: 1, signed_date: '2026-01-01', end_date: null, file_url: null, notes: null }],

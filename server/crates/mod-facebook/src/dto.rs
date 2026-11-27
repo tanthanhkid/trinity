@@ -2,6 +2,8 @@
 //! chưa có trong `contracts/dto/schema.json` nên viết tay như `pages::UpdatePage::from_json`: thông điệp lỗi là của class-validator,
 //! lỗi trường lạ (`property x should not exist`) đứng trước, rồi lỗi từng thuộc tính theo thứ tự khai báo.
 
+#![allow(clippy::result_large_err)]
+
 use serde_json::{Map, Value};
 use trinity_kernel::error::HttpError;
 
@@ -135,7 +137,10 @@ mod tests {
         let mut e = Vec::new();
         unknown(o, &["is_active"], &mut e);
         assert_eq!(opt_bool(o, "is_active", &mut e), None);
-        assert_eq!(e, vec!["property x should not exist", "is_active must be a boolean value"]);
+        assert_eq!(
+            e,
+            vec!["property x should not exist", "is_active must be a boolean value"]
+        );
         assert!(finish(e).is_err());
         assert!(finish(Vec::new()).is_ok());
         assert!(object(&json!([1])).is_err());

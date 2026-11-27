@@ -38,7 +38,8 @@ const MAX_CODE_TRIES: usize = 5;
 /// Khách tạo từ Messenger trong khoảng này trước khi `ref` tới (tin đầu tới trước referral) vẫn được đổi sang nguồn của link.
 const LATE_REFERRAL_SECS: f64 = 600.0;
 
-const LINK_COLS: &str = "id, code, name, page_id, source_id, is_active, clicks, chats, created_by, created_at, updated_at";
+const LINK_COLS: &str =
+    "id, code, name, page_id, source_id, is_active, clicks, chats, created_by, created_at, updated_at";
 const NAME_MAX: usize = 120;
 const PAGE_ID_MAX: usize = 40;
 
@@ -47,11 +48,7 @@ const PAGE_ID_MAX: usize = 40;
 pub fn code_from_hex(hex: &str, len: usize) -> String {
     hex.as_bytes()
         .chunks(2)
-        .filter_map(|p| {
-            std::str::from_utf8(p)
-                .ok()
-                .and_then(|s| u8::from_str_radix(s, 16).ok())
-        })
+        .filter_map(|p| std::str::from_utf8(p).ok().and_then(|s| u8::from_str_radix(s, 16).ok()))
         .take(len)
         .map(|b| char::from(CODE_ALPHABET[usize::from(b) % CODE_ALPHABET.len()]))
         .collect()
@@ -459,14 +456,13 @@ impl FacebookIngest {
         .map_err(db)?;
         let (conv_id, conv_contact, conv_name) = conv;
         // Meta gửi lại / hai sự kiện cùng lúc: chỉ lượt giành được hội thoại chưa gắn link mới ghi tiếp.
-        let claimed = sqlx::query(
-            "UPDATE facebook_conversations SET entry_link_id = $2 WHERE id = $1 AND entry_link_id IS NULL",
-        )
-        .bind(conv_id)
-        .bind(link.id)
-        .execute(&mut *tx)
-        .await
-        .map_err(db)?;
+        let claimed =
+            sqlx::query("UPDATE facebook_conversations SET entry_link_id = $2 WHERE id = $1 AND entry_link_id IS NULL")
+                .bind(conv_id)
+                .bind(link.id)
+                .execute(&mut *tx)
+                .await
+                .map_err(db)?;
         if claimed.rows_affected() == 0 {
             return Ok(false);
         }

@@ -37,5 +37,5 @@ pub use exec::{ToolCtx, ToolError, ToolOutput, ToolRegistry, ToolRunner, ToolSpe
 pub use routes::{McpState, api_router, specs};
 pub use tools::{
     AuthInvitations, FanpagePorts, InboxDeps, InvitationsPort, SocialDeps, register_fanpage, register_group1,
-    register_group2, register_group3, register_inbox_invitations, register_social,
+    register_group2, register_group3, register_inbox_invitations, register_social, register_structure,
 };

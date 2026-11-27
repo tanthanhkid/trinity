@@ -189,10 +189,24 @@ async fn danh_sach_chi_tiet_theo_pham_vi_va_che_so() {
     assert_eq!(bad.status, 400);
 
     // Trang cực lớn không tràn số: 200 với danh sách rỗng; `team_id=0`/`manager_id=0` không lọc (như Node).
-    let big = call(&a, Method::GET, "/api/v1/users?page=9007199254740991&limit=1000", Some(MGR), None).await;
+    let big = call(
+        &a,
+        Method::GET,
+        "/api/v1/users?page=9007199254740991&limit=1000",
+        Some(MGR),
+        None,
+    )
+    .await;
     assert_eq!(big.status, 200, "{:?}", big.body);
     assert_eq!(big.body["data"].as_array().map(Vec::len), Some(0));
-    let zero = call(&a, Method::GET, "/api/v1/users?limit=50&team_id=0&manager_id=0", Some(MGR), None).await;
+    let zero = call(
+        &a,
+        Method::GET,
+        "/api/v1/users?limit=50&team_id=0&manager_id=0",
+        Some(MGR),
+        None,
+    )
+    .await;
     assert_eq!(zero.body["total"].as_i64(), Some(3));
 
     // MGR (subtree) thấy mình và cấp dưới, SĐT chỉ thấy số của mình.

@@ -1,0 +1,42 @@
+# Ngoại lệ lỗ hổng npm còn lại sau khi nâng bản (#561). Mỗi mục có lý do + hạn; hết hạn ⇒ OSV-Scanner báo lại.
+# Hạn 2027-02-28 (3 tháng): rà lại khi gỡ đường Node (#264) hoặc khi gói upstream ra bản sửa cùng major.
+
+[[IgnoredVulns]]
+id = "GHSA-rmxm-3fg6-px4f"
+ignoreUntil = 2027-02-28
+reason = "@hono/node-server 1.19.19: bản sửa chỉ ở 2.1.3 (đổi major), phụ thuộc bắc cầu của @modelcontextprotocol/sdk; chờ SDK nâng"
+
+[[IgnoredVulns]]
+id = "GHSA-36xv-jgw5-4q75"
+ignoreUntil = 2027-02-28
+reason = "@nestjs/core 10.4.22: sửa ở 11.x (đổi major Nest); chỉ đường chạy Node, biến mất khi gỡ Node (#264)"
+
+[[IgnoredVulns]]
+id = "GHSA-8988-4f7v-96qf"
+ignoreUntil = 2027-02-28
+reason = "@opentelemetry/core 1.30.1: sửa chỉ ở 2.x; kéo bởi elastic-apm-node 3.x (đường Node), chờ gỡ Node (#264)"
+
+[[IgnoredVulns]]
+id = "GHSA-5v7r-6r5c-r473"
+ignoreUntil = 2027-02-28
+reason = "file-type 20.4.1: sửa ở 21.x (đổi major), phụ thuộc của @nestjs/common 10; theo gỡ Node (#264)"
+
+[[IgnoredVulns]]
+id = "GHSA-j47w-4g3g-c36v"
+ignoreUntil = 2027-02-28
+reason = "file-type 20.4.1: như GHSA-5v7r-6r5c-r473"
+
+[[IgnoredVulns]]
+id = "GHSA-3g3m-2fjr-6pw4"
+ignoreUntil = 2027-02-28
+reason = "glob 10.5.0: sửa ở 14.x; chỉ @nestjs/cli (công cụ dựng, không vào binary chạy thật)"
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2027-02-28
+reason = "minimatch 9.x/10.x: sửa ở 11.x; chỉ glob 10 (nest cli), ts-morph, typescript-eslint (công cụ dev)"
+
+[[IgnoredVulns]]
+id = "GHSA-mrhx-c7xc-m3w5"
+ignoreUntil = 2027-02-28
+reason = "zod 3.25.76: dòng 3.x không có bản sửa (chỉ 4.6.6+); kéo bởi @modelcontextprotocol/sdk, shadcn, zod-to-json-schema cần zod 3; mã của repo đã dùng zod ^4.6.6"

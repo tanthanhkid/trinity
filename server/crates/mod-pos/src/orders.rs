@@ -1017,7 +1017,9 @@ pub async fn qr(conn: &mut PgConnection, id: i32, requested: Option<i64>) -> Res
     .map_err(db)?;
     let (Some(bin), Some(acc)) = (
         s.as_ref().and_then(|s| s.bank_bin.clone()).filter(|b| !b.is_empty()),
-        s.as_ref().and_then(|s| s.bank_account_no.clone()).filter(|a| !a.is_empty()),
+        s.as_ref()
+            .and_then(|s| s.bank_account_no.clone())
+            .filter(|a| !a.is_empty()),
     ) else {
         return Err(HttpError::bad_request("Chưa cấu hình tài khoản nhận tiền (Cài đặt POS > Ngân hàng)").into());
     };

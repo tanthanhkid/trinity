@@ -6,11 +6,11 @@ use std::sync::LazyLock;
 use chrono::{Datelike, NaiveDate, Weekday};
 use regex::Regex;
 use serde_json::{Map, Value, json};
-use sqlx::PgConnection;
+use sqlx::{Connection, PgConnection};
 use trinity_kernel::error::{AppError, HttpError};
 
 use crate::dto::{UpdateAttendanceSettingsDto, UpdateRequestConfigDto, UpdateWorkingSaturdaysDto};
-use crate::{R, js_num, put_setting, setting};
+use crate::{R, db, js_num, put_setting, setting};
 
 const SHIFT_KEY: &str = "attendance_shift_config";
 const REQUEST_KEY: &str = "attendance_request_config";
@@ -83,8 +83,21 @@ fn pick_num(v: Option<&Value>, fallback: f64) -> f64 {
         .unwrap_or(fallback)
 }
 
-/// `GET /settings`.
+/// `GET /settings` và mọi chỗ đọc cấu hình ca để tính công: đọc `settings` lỗi (kết nối, bảng) ⇒ cấu hình mặc định, không
+/// làm hỏng việc chính (chấm công, thống kê). Chỉ [`update_shift`] đọc nghiêm ([`read_shift`]) để không ghi đè cấu hình
+/// thật bằng mặc định.
 pub async fn get_shift(conn: &mut PgConnection) -> R<ShiftConfig> {
+    match read_shift(conn).await {
+        Ok(c) => Ok(c),
+        Err(e) => {
+            tracing::warn!("Đọc cấu hình ca lỗi, dùng mặc định: {e:?}");
+            Ok(ShiftConfig::default_config())
+        }
+    }
+}
+
+/// Đọc cấu hình ca; lỗi truy vấn ⇒ `Err` (nội dung rác trong `settings` vẫn ⇒ mặc định).
+async fn read_shift(conn: &mut PgConnection) -> R<ShiftConfig> {
     let d = ShiftConfig::default_config();
     let Some(text) = setting(conn, SHIFT_KEY).await? else {
         return Ok(d);
@@ -108,7 +121,15 @@ pub async fn get_shift(conn: &mut PgConnection) -> R<ShiftConfig> {
 /// `PATCH /settings`: trộn với cấu hình hiện có (nghỉ trưa và ngưỡng giờ không gửi thì giữ cũ), chặn nghỉ trưa đảo ngược và
 /// ba ngưỡng giờ không tăng dần.
 pub async fn update_shift(conn: &mut PgConnection, dto: &UpdateAttendanceSettingsDto, user: i32) -> R<ShiftConfig> {
-    let cur = get_shift(conn).await?;
+    // Đọc-trộn-ghi trong MỘT giao dịch có khoá advisory theo khoá cấu hình: hai PATCH đồng thời không ghi đè phần giữ cũ
+    // của nhau; khoá lấy TRƯỚC khi đọc cấu hình hiện có.
+    let mut tx = conn.begin().await.map_err(db)?;
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1))")
+        .bind(SHIFT_KEY)
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
+    let cur = read_shift(&mut tx).await?;
     let next = ShiftConfig {
         work_start: dto.work_start.clone(),
         work_end: dto.work_end.clone(),
@@ -129,7 +150,8 @@ pub async fn update_shift(conn: &mut PgConnection, dto: &UpdateAttendanceSetting
         ));
     }
     let text = serde_json::to_string(&next.to_json()).map_err(AppError::internal)?;
-    put_setting(conn, SHIFT_KEY, &text, user).await?;
+    put_setting(&mut tx, SHIFT_KEY, &text, user).await?;
+    tx.commit().await.map_err(db)?;
     tracing::info!("Attendance shift config updated by user {user}: {text}");
     Ok(next)
 }
@@ -227,8 +249,14 @@ fn pick_limit(v: Option<&Value>, fallback: i64) -> i64 {
 /// `GET /request-config`.
 pub async fn get_request_config(conn: &mut PgConnection) -> R<RequestConfig> {
     let d = RequestConfig::default_config();
-    let Some(text) = setting(conn, REQUEST_KEY).await? else {
-        return Ok(d);
+    // Đọc lỗi ⇒ mặc định (như `get_shift`); không có bước đọc-trộn-ghi nào cần đọc nghiêm.
+    let text = match setting(conn, REQUEST_KEY).await {
+        Ok(Some(t)) => t,
+        Ok(None) => return Ok(d),
+        Err(e) => {
+            tracing::warn!("Đọc cấu hình đơn lỗi, dùng mặc định: {e:?}");
+            return Ok(d);
+        }
     };
     let Ok(Value::Object(p)) = serde_json::from_str::<Value>(&text) else {
         return Ok(d);

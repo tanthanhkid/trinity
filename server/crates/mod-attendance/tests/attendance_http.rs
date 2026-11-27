@@ -131,7 +131,22 @@ async fn teardown() {
         .await;
 }
 
+/// Chụp các dòng cấu hình chấm công thật vào bảng phụ (giữ bản cũ nếu lần chạy trước chết giữa chừng) để test trả lại.
+async fn backup_settings() {
+    exec("CREATE TABLE IF NOT EXISTS m13a_settings_bak AS SELECT * FROM settings
+          WHERE key IN ('attendance_shift_config', 'attendance_request_config', 'attendance_working_saturdays')")
+        .await;
+}
+
+/// Trả lại cấu hình đã chụp sau `teardown` cuối test, rồi bỏ bảng phụ.
+async fn restore_settings() {
+    exec("INSERT INTO settings SELECT * FROM m13a_settings_bak ON CONFLICT (key) DO NOTHING;
+          DROP TABLE IF EXISTS m13a_settings_bak")
+        .await;
+}
+
 async fn setup() {
+    backup_settings().await;
     teardown().await;
     for (id, name) in [
         (CFG, "Cấu hình"),
@@ -330,6 +345,7 @@ async fn van_phong_quyen_kiem_dau_vao_va_dat_lai_thiet_bi() {
         (404, "Không tìm thấy hồ sơ nhân viên.".to_owned())
     );
     teardown().await;
+    restore_settings().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -458,4 +474,5 @@ async fn cau_hinh_ca_thu_bay_va_gioi_han_don() {
     }
     assert_eq!(call(&a, Method::GET, &r, Some(NOBODY), None).await.body, rs.body);
     teardown().await;
+    restore_settings().await;
 }

@@ -26,6 +26,9 @@ orchestrator.
    With nginx, add `location /notif-ws/ { proxy_pass http://127.0.0.1:4000; proxy_http_version 1.1;
    proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade"; }` before `location /`.
 
+   This two-port rule belongs to the Node stack the stock `docker-compose.yml` still runs. The Rust server needs no
+   such rule: everything, `/notif-ws/` included, goes to one port ([Reverse proxy for the Rust server](#reverse-proxy-for-the-rust-server-one-port)).
+
    For streaming / large uploads raise the proxy timeouts (large exports can take a while).
 5. If you enable MCP/OAuth set `INTEGRATIONS_PUBLIC_BASE_URL=https://crm.example.com` and
    `INTEGRATIONS_SECRET_KEY` (`openssl rand -base64 32`), then `docker compose up -d`.
@@ -176,12 +179,10 @@ in `routes.json`; a warning is logged at startup when they are on. In production
 start. While the flag is on, no background schedule is registered (all job timers, the notification `@Cron`, background tenant
 migration): jobs run only when called through the API. Never set the flag on a real deployment.
 
-The Rust side (K34) is groundwork, **not mounted yet**: the `trinity-testhooks` crate (cargo feature `test-hooks`, off in release
-builds) implements the same two routes plus `POST /internal/test/queue/drain` (runs the queue worker until empty), and
-`trinity-jobs` stops the scheduler and queue worker when the feature is built in and `TRINITY_TEST_HOOKS=1` with `NODE_ENV` set to `test` or
-`development`. The `serve` command does not exist on `main` yet, so nothing calls `TestHooks::router`; wiring it into `serve`
-(under `--features test-hooks`, with each module registering its `now`-aware jobs and cache flushers) is part of the work that
-assembles the server. Until then these routes cannot be reached on a Rust binary.
+The Rust side (K34): the `trinity-testhooks` crate (cargo feature `test-hooks`, off in release builds) implements the same two routes
+plus `POST /internal/test/queue/drain` (runs the queue worker until empty), and `trinity-jobs` stops the scheduler and queue worker when the
+feature is built in and `TRINITY_TEST_HOOKS=1` with `NODE_ENV` set to `test` or `development`. `trinity serve` mounts the routes only when
+built with `--features test-hooks`; individual modules registering their `now`-aware jobs and cache flushers is still in progress.
 
 ## Fast updates without Docker
 
@@ -217,9 +218,87 @@ three processes. Deploy order: Prisma migrate, start Node, swap the Rust binary 
 version it was built with). The public release keeps the stock `docker-compose.yml` until X06. Full procedure, health gates and
 rollback: [runbooks/hybrid.md](runbooks/hybrid.md) (Vietnamese).
 
+### Reverse proxy for the Rust server (one port)
+
+With the Rust server as the only process in front, the reverse proxy sends **everything** to its main port
+(`TRINITY_HTTP_PORT`, default 3000), pages, `/api/v1/*` and the WebSocket `/notif-ws/` alike. There is no separate rule
+for `/notif-ws/` and nothing to expose on port 4000:
+
+```
+crm.example.com {
+  reverse_proxy localhost:3000
+}
+```
+
+With nginx, one `location /` with `proxy_http_version 1.1`, `proxy_set_header Upgrade $http_upgrade` and
+`proxy_set_header Connection "upgrade"` covers the socket. Caddy needs nothing extra. The `X-Forwarded-For` rules of
+"Client IP" apply unchanged, and `TRUSTED_PROXY` is set on the Rust process.
+
+**Compatibility port.** Proxies still configured with the old rule (`/notif-ws/*` to port 4000) must keep working
+through an upgrade, otherwise the bell would stop updating without any error. For that the single-process release
+listens on a second port, `COMPAT_API_PORT` (default 4000), which answers `/notif-ws` and `/api/v1`:
+
+- It is a separate variable from `API_PORT`, which keeps its old meaning as the host-side port Compose publishes
+  (`127.0.0.1:${API_PORT:-4000}`). It must differ from `TRINITY_HTTP_PORT`.
+- Inside a container it listens on `0.0.0.0:4000` and Compose publishes it on the host loopback only. Outside Docker it
+  listens on loopback.
+- With `TRUSTED_PROXY=cloudflare-tunnel` it is loopback-only or off, because the tunnel points at the main port only.
+- It is only active when no Node process is behind (in the hybrid setup Node still holds port 4000).
+- **Removal:** it is kept until the end of the next major release after the first one that ships the single-process
+  server. The release numbers are fixed when that release is cut and will be written in `CHANGELOG.md`. Move the proxy rule to the main port at the next maintenance window.
+
+Status: the listener is part of the single-image release ([#264](https://github.com/tanthanhkid/trinity/issues/264), in
+progress). On `main` today the variable is read and validated but nothing listens on it yet; the hybrid setup is
+unaffected.
+
+### Behind the Cloudflare proxy: 100 MB and 100 seconds
+
+With the Cloudflare proxy enabled (orange cloud; Free and Pro plans, Tunnel included) the request body is capped at
+**100 MB** and the origin has **100 seconds** to start answering (otherwise Cloudflare returns 524). Two things in
+Trinity can exceed that today:
+
+- **Videos for social posting** (`POST /social/media`, up to `SOCIAL_MAX_VIDEO_MB`, default 200). Set
+  `SOCIAL_MAX_VIDEO_MB=95` so users get Trinity's own clear message instead of Cloudflare's bare 413. A video over
+  95 MB cannot be uploaded through the proxy until chunked upload exists (X15a,
+  [#277](https://github.com/tanthanhkid/trinity/issues/277), in progress).
+- **Long exports** (`/export` routes). They must finish within 100 seconds. Measuring the largest export is part of
+  [#263](https://github.com/tanthanhkid/trinity/issues/263) (in progress); moving the slow ones to a background job with a
+  download link afterwards is [#278](https://github.com/tanthanhkid/trinity/issues/278) (in progress).
+
+Do not point an unproxied host name at the origin to get around this: the origin would have to accept every IP address
+(losing the "only Cloudflare may connect" layer), it needs a public certificate the binary does not request, and the web
+app uploads to its own origin, which would then also need CORS.
+
+### PostgreSQL on small machines
+
+The reference machine is 2 GB with PostgreSQL on the same host; 1 GB is a best-effort target. The Rust server holds at
+most `DB_POOL_SIZE` connections (default 8) plus one direct connection for `LISTEN/NOTIFY` (see
+`DIRECT_DATABASE_URL`), so Postgres does not need the large defaults. Starting points (not measured yet, see
+[#263](https://github.com/tanthanhkid/trinity/issues/263); adjust after looking at `pg_stat_activity` and memory):
+
+| Setting | 2 GB machine | 1 GB machine |
+|---|---|---|
+| `DB_POOL_SIZE` (Trinity) | 8 | 4 |
+| `max_connections` | 30 | 20 |
+| `shared_buffers` | 256MB | 128MB |
+| `effective_cache_size` | 768MB | 384MB |
+| `work_mem` | 4MB | 2MB |
+| `maintenance_work_mem` | 64MB | 32MB |
+| `client_connection_check_interval` | `5s` | `5s` |
+
+`client_connection_check_interval` (PostgreSQL 14 and later) matters during upgrades: when a migration tool gives up
+waiting for a lock and exits, its backend would otherwise stay queued for the lock until the holder releases it and
+block every later request. With the setting, such an orphaned wait ends a few seconds after the client is gone.
+
+With the stock Compose file, pass the settings to the `postgres` service, for example
+`command: ["postgres", "-c", "shared_buffers=256MB", "-c", "max_connections=30", "-c", "work_mem=4MB", "-c", "client_connection_check_interval=5s"]`.
+The hybrid setup runs Node, Next and Rust at once and needs more: lower the Node pool as described in
+[runbooks/hybrid.md](runbooks/hybrid.md). Keep swap enabled on 1 GB machines and watch `max_connections` during
+upgrades, when old and new processes overlap.
+
 ### TLS at the origin
 
-These settings apply once the `trinity serve` command exists; the building block (`trinity_http::serve`) is merged but not wired into a command yet.
+These settings apply to `trinity serve` (the Rust server).
 
 TLS is terminated by Cloudflare. The Rust server never requests certificates (no ACME).
 
@@ -273,7 +352,7 @@ API returns a config).
 
 - [ ] A reverse proxy in front of the API accepts uploads up to the app's limits (videos for social posting go up to `SOCIAL_MAX_VIDEO_MB`, default 200 MB): with nginx, `client_max_body_size 210m;`. A smaller limit makes large uploads fail in the browser with a bare "Network Error". Behind the Cloudflare proxy (request body ≤ 100 MB) set `SOCIAL_MAX_VIDEO_MB=95`.
 
-- [ ] `/notif-ws/` reaches the API with WebSocket upgrade (a test request answers `101 Switching Protocols`, not a 404/499 from the web container).
+- [ ] `/notif-ws/` reaches the API with WebSocket upgrade (a test request answers `101 Switching Protocols`, not a 404/499 from the web container). Node stack: straight to port 4000. Rust server: the same port as everything else.
 
 - [ ] Every `change-me-*` value replaced; secrets are random and at least 32 bytes.
 - [ ] `CORS_ORIGIN` lists only your real web origin(s).

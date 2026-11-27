@@ -104,6 +104,8 @@ Details per connector: [docs/integrations/status.md](docs/integrations/status.md
 
 Next.js 16 · React 19 · Tailwind 4 · NestJS 10 · Express · Prisma 6 · PostgreSQL 16 · pnpm monorepo.
 
+**Backend rewrite in progress.** The backend is being rewritten in Rust (`server/`: one binary, no Redis, same database and API contract). The images and `docker-compose.yml` described below are still the Node stack. Status: [docs/architecture.md](docs/architecture.md#rust-backend-in-progress); plan: [docs/rust/PLAN.md](docs/rust/PLAN.md); moving an install later: [docs/upgrade-from-node.md](docs/upgrade-from-node.md).
+
 ## Deploy
 
 Trinity runs on your own server (or a laptop) with Docker Compose. A 2 GB machine is the supported minimum.

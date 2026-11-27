@@ -47,3 +47,50 @@ browser ──► web (Next.js :3000) ──/api/v1/*──► api (NestJS monol
 
 - `trinity` — main schema (`packages/prisma/prisma/schema.prisma`, a baseline migration plus additive follow-ups, with raw SQL for code
   generation triggers and partial indexes).
+
+## Rust backend (in progress)
+
+The backend is being rewritten in Rust (`server/`, plan: [rust/PLAN.md](rust/PLAN.md), decisions: [rust/DECISIONS.md](rust/DECISIONS.md)).
+The database schema, the HTTP contract (`server/contracts/`) and the behaviour stay the same; only the process that
+serves them changes. **The Node monolith above is still what the stock `docker-compose.yml` and the published images
+run.** The Rust binary is built from `main` by operators who opt in (hybrid deployment, see
+[runbooks/hybrid.md](runbooks/hybrid.md)) and by developers ([rust/localhost.md](rust/localhost.md)).
+
+```
+today (stock images)   browser ─► web (Next.js :3000) ─/api/v1─► api (NestJS :4000) ─► PostgreSQL
+hybrid (opt-in)        browser ─► trinity (Rust :3000) ─┬─ routes owned by Rust ─► PostgreSQL
+                                                        ├─ pages ─► Next (loopback)
+                                                        └─ other routes, /notif-ws ─► Node (loopback)
+target (after X06)     browser ─► trinity (Rust :3000, one process, one port) ─► PostgreSQL
+```
+
+### Layout of `server/`
+
+One Cargo workspace; many small crates so that they compile in parallel and each change touches few of them.
+
+| Crates | Role |
+|---|---|
+| `trinity-bin` | The `trinity` binary: `serve`, `migrate`, `seed`, `check-config`, `check-routes`, `check-invariants`, `channel-lock`, `healthcheck`. `serve.rs` assembles the server. |
+| `trinity-kernel`, `trinity-db`, `trinity-auth`, `trinity-rbac` | Configuration, errors, Vietnam-time helpers; pool and per-company `search_path` routing, embedded migrations compatible with Prisma's `_prisma_migrations`; JWT, sessions, API keys; permission catalog, scopes and cache. |
+| `trinity-http`, `trinity-realtime`, `trinity-jobs`, `trinity-storage`, `trinity-docgen`, `trinity-obs`, `trinity-ops` | Router and edge layer (client IP by `TRUSTED_PROXY`, CORS, body limits, TLS, proxy to the old processes); `/notif-ws`; scheduler and queue worker on Postgres only; local disk or S3 storage; xlsx/pdf/image generation; logs, Sentry, product events; operational checks. |
+| `mod-*` (one per domain) | Routes and logic of one module (`mod-users`, `mod-contacts`, `mod-hr`, `mod-pos`, `mod-mcp`, …). Each declares its routes (`RouteSpec`); `check-routes` compares them with the frozen `contracts/routes.json`. |
+
+What the Rust design changes, compared with the Node layout described above:
+
+- **One process, one binary** with the migrations embedded; no Redis (shared state goes through Postgres
+  `LISTEN/NOTIFY`, [sync-notify.md](sync-notify.md)), no Prisma at run time, no separate migrate container.
+- **Companies are routed by `search_path`** on one shared pool, so memory stays flat as the number of companies grows
+  ([multi-tenant.md](multi-tenant.md)).
+- **TLS is terminated by Cloudflare or a reverse proxy**; the binary never requests certificates (optional
+  `TLS_MODE=files` for an origin certificate).
+
+### What exists on `main`
+
+| Area | State |
+|---|---|
+| `trinity serve` | Works. Mounted: system (health, site-config, build id), users, custom objects, reports, setup, HR (employees, contracts), attendance, channel guard, public API, OAuth, MCP (read tools of groups 1 and 2), AI actions, POS, contacts, leads. `/notif-ws` is served. |
+| Not mounted yet | Deals, kanban, payroll, Facebook, store, commerce, notifications, newsfeed, settings, RBAC administration, API keys, auth (login). Their routes still belong to Node, so a Rust-only run (no Node behind it) has no sign-in route yet; the localhost run ([rust/localhost.md](rust/localhost.md)) is for exercising the mounted modules. In progress, tracked in [#426](https://github.com/tanthanhkid/trinity/issues/426). |
+| Web | Still the Next.js server, reached through the Rust proxy in hybrid. Static web served by Rust: in progress ([#185](https://github.com/tanthanhkid/trinity/issues/185)). |
+| Single image and default compose | In progress ([#264](https://github.com/tanthanhkid/trinity/issues/264), X06). Until it lands, `docker-compose.yml` is the Node stack. |
+| Upgrade path from Node | Written in [upgrade-from-node.md](upgrade-from-node.md); the automated upgrade test is in progress ([#276](https://github.com/tanthanhkid/trinity/issues/276)). |
+| Measured resource use | Targets only ([rust/PLAN.md](rust/PLAN.md) section 9); measurement in progress ([#263](https://github.com/tanthanhkid/trinity/issues/263)). |

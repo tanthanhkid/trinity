@@ -132,6 +132,17 @@ async fn ok(app: &App, method: Method, path: &str, user: i32, body: Option<Value
     r.body
 }
 
+async fn app_raw(app: &App, method: Method, path: &str, user: i32, body: &str) -> StatusCode {
+    let req = Request::builder()
+        .method(method)
+        .uri(path)
+        .header("authorization", format!("Bearer {}", token(user)))
+        .header("content-type", "application/json")
+        .body(Body::from(body.to_owned()))
+        .unwrap();
+    app.router.clone().oneshot(req).await.unwrap().status()
+}
+
 fn msg(r: &Res) -> String {
     match &r.body["message"] {
         Value::String(s) => s.clone(),
@@ -327,6 +338,24 @@ async fn quyen_va_kiem_du_lieu() {
         .await
         .status,
         400
+    );
+    // Dạng `@IsISO8601` cho qua mà V8 không đọc được ⇒ 400, không lặng lẽ thành "không miễn ai".
+    let r = call(
+        &a,
+        Method::PUT,
+        &format!("{S}/wizard/config"),
+        Some(ADMIN),
+        Some(json!({ "exempt_before": "20261101" })),
+    )
+    .await;
+    assert_eq!(
+        (r.status, msg(&r).as_str()),
+        (StatusCode::BAD_REQUEST, "exempt_before không phải ngày hợp lệ")
+    );
+    // Thân không phải JSON ⇒ 400.
+    assert_eq!(
+        app_raw(&a, Method::PUT, &format!("{S}/wizard/config"), ADMIN, "{rac").await,
+        StatusCode::BAD_REQUEST
     );
     assert_eq!(
         call(
@@ -741,6 +770,37 @@ async fn wizard_buoc_bo_qua_cau_hinh_va_nguoi_vao_sau() {
             "Bước này không có trong phần bắt đầu của công ty bạn."
         )
     );
+    // Bước không áp dụng cho công ty (chưa có mạng xã hội): bỏ qua cũng 400 và KHÔNG ghi gì.
+    ok(
+        &a,
+        Method::PUT,
+        &format!("{S}/wizard/config"),
+        ADMIN,
+        Some(json!({ "skippable": ["data", "channels", "post"] })),
+    )
+    .await;
+    let r = call(
+        &a,
+        Method::POST,
+        &format!("{S}/wizard/skip"),
+        Some(ADMIN),
+        Some(json!({ "step": "channels" })),
+    )
+    .await;
+    assert_eq!(
+        (r.status, msg(&r).as_str()),
+        (
+            StatusCode::BAD_REQUEST,
+            "Bước này không có trong phần bắt đầu của công ty bạn."
+        )
+    );
+    assert_eq!(
+        scalar::<i64>(&format!(
+            "SELECT count(*) FROM settings WHERE key = 'onboarding_skip:user:{ADMIN}'"
+        ))
+        .await,
+        0
+    );
     // Bước bắt buộc không bỏ qua được.
     let r = call(
         &a,
@@ -848,6 +908,20 @@ async fn wizard_buoc_bo_qua_cau_hinh_va_nguoi_vao_sau() {
         Some(json!({ "enabled": true, "exempt_before": "2999-01-01T00:00:00Z" })),
     )
     .await;
+    assert_eq!(
+        ok(&a, Method::GET, &format!("{S}/wizard"), MEMBER, None).await["completed"],
+        true
+    );
+    // Dạng ngắn của ISO 8601 được nhận và đọc đúng: tài khoản tạo trước 2999-01 được miễn.
+    let cfg = ok(
+        &a,
+        Method::PUT,
+        &format!("{S}/wizard/config"),
+        ADMIN,
+        Some(json!({ "exempt_before": "2999-01" })),
+    )
+    .await;
+    assert_eq!(cfg["exempt_before"], "2999-01");
     assert_eq!(
         ok(&a, Method::GET, &format!("{S}/wizard"), MEMBER, None).await["completed"],
         true

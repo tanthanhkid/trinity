@@ -31,7 +31,7 @@ pub mod wizard;
 
 use std::sync::Arc;
 
-use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use sqlx::PgConnection;
 use trinity_db::pg_error::app_error;
 use trinity_db::{CompanyRef, Db};
@@ -130,20 +130,8 @@ pub(crate) fn iso(d: DateTime<Utc>) -> String {
     d.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()
 }
 
-/// `Date.parse` cho các chuỗi ISO do máy chủ tự ghi hoặc do `@IsISO8601` cho qua: RFC 3339, giờ không múi (coi UTC),
-/// chỉ ngày (UTC 00:00). `None` = `NaN`.
+/// `Date.parse` cho mọi dạng `@IsISO8601` cho qua mà V8 đọc được (`YYYY`, `YYYY-MM`, `±hhmm`…); giờ không múi coi là giờ Việt
+/// Nam (máy chủ Node của Trinity chạy `TZ=Asia/Ho_Chi_Minh`). `None` = `NaN`. Dùng chung bộ đọc của M10.
 pub(crate) fn js_parse_date(s: &str) -> Option<DateTime<Utc>> {
-    let s = s.trim();
-    if let Ok(d) = DateTime::parse_from_rfc3339(s) {
-        return Some(d.with_timezone(&Utc));
-    }
-    for f in ["%Y-%m-%dT%H:%M:%S%.f", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S%.f"] {
-        if let Ok(n) = NaiveDateTime::parse_from_str(s, f) {
-            return Some(n.and_utc());
-        }
-    }
-    NaiveDate::parse_from_str(s, "%Y-%m-%d")
-        .ok()
-        .and_then(|d| d.and_hms_opt(0, 0, 0))
-        .map(|n| n.and_utc())
+    trinity_kernel::instant::parse_instant_with(s.trim(), 7 * 60)
 }

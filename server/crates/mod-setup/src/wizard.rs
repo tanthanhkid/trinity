@@ -137,6 +137,12 @@ async fn read_config(c: &mut PgConnection) -> R<Config> {
 
 /// `PUT /setup/wizard/config`: khoá nào gửi lên thì đè khoá hiện có, khoá vắng giữ nguyên; `exempt_before: null` bỏ miễn.
 pub async fn set_config(ctx: &Ctx, actor: &Actor, patch: &Value) -> R<Value> {
+    // `@IsISO8601` cho qua cả dạng mà `Date.parse` không đọc được: báo 400 thay vì lặng lẽ thành "không miễn ai".
+    if let Some(s) = patch.get("exempt_before").and_then(Value::as_str)
+        && js_parse_date(s).is_none()
+    {
+        return Err(bad("exempt_before không phải ngày hợp lệ"));
+    }
     let mut c = ctx.conn(actor.company).await?;
     let cur = read_config(&mut c).await?;
     let mut merged = cur.to_json().as_object().cloned().unwrap_or_default();
@@ -383,7 +389,7 @@ async fn confirm_inner(ctx: &Ctx, actor: &Actor, step: &str, _skipped: bool) -> 
     Ok(json!({ "ok": true, "message": Value::Null, "wizard": wizard.to_json() }))
 }
 
-/// `POST /setup/wizard/skip`: chỉ được khi cấu hình cho phép bỏ qua bước đó.
+/// `POST /setup/wizard/skip`: chỉ được khi cấu hình cho phép bỏ qua bước đó VÀ bước áp dụng cho công ty (kiểm TRƯỚC khi ghi).
 pub async fn skip(ctx: &Ctx, actor: &Actor, step: &str) -> R<Value> {
     {
         let mut c = ctx.conn(actor.company).await?;
@@ -391,6 +397,12 @@ pub async fn skip(ctx: &Ctx, actor: &Actor, step: &str) -> R<Value> {
         if !cfg.skippable.contains(&step) {
             return Err(HttpError::bad_request("Bước này bắt buộc, không bỏ qua được.").into());
         }
+    }
+    if !view(ctx, actor).await?.steps.iter().any(|s| s.key == step) {
+        return Err(bad("Bước này không có trong phần bắt đầu của công ty bạn."));
+    }
+    {
+        let mut c = ctx.conn(actor.company).await?;
         let mut cur = skipped(&mut c, actor.user_id).await?;
         if !cur.contains(&step) {
             cur.push(step_of(step).unwrap_or("post"));
@@ -409,6 +421,23 @@ pub async fn skip(ctx: &Ctx, actor: &Actor, step: &str) -> R<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ngay_iso_day_du_dang() {
+        let ms = |s: &str| crate::js_parse_date(s).map(|d| d.timestamp_millis());
+        let utc = |s: &str| chrono::DateTime::parse_from_rfc3339(s).unwrap().timestamp_millis();
+        assert_eq!(ms("2026"), Some(utc("2026-01-01T00:00:00Z")));
+        assert_eq!(ms("2026-11"), Some(utc("2026-11-01T00:00:00Z")));
+        assert_eq!(ms("2026-11-01"), Some(utc("2026-11-01T00:00:00Z")));
+        assert_eq!(ms("2026-11-01T10:00:00+0700"), Some(utc("2026-11-01T03:00:00Z")));
+        assert_eq!(ms("2026-11-01T10:00:00Z"), Some(utc("2026-11-01T10:00:00Z")));
+        // Giờ không múi là giờ Việt Nam.
+        assert_eq!(ms("2026-11-01T10:00:00"), Some(utc("2026-11-01T03:00:00Z")));
+        assert_eq!(ms("2026-11-01 10:00"), Some(utc("2026-11-01T03:00:00Z")));
+        // V8 không đọc YYYYMMDD ⇒ NaN.
+        assert_eq!(ms("20261101"), None);
+        assert_eq!(ms("hôm qua"), None);
+    }
 
     #[test]
     fn cau_hinh_cu_va_moi() {

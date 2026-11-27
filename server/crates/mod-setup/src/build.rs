@@ -134,7 +134,18 @@ pub async fn build(ctx: &Ctx, actor: &Actor, input: &BuildInput) -> R<Value> {
         )));
     };
     let may_seed = can(&actor.grants, "custom_records.manage", None);
+    // Mẫu bảng của ngành phải có trong danh mục: thiếu là lỗi cấu hình, không lặng lẽ bỏ qua bước áp mẫu.
+    let tpl = match ind.template.as_deref() {
+        Some(k) => Some(crate::catalog::find_template(k).ok_or_else(|| {
+            AppError::internal(format!("mẫu bảng “{k}” của ngành {} không có trong danh mục", ind.key))
+        })?),
+        None => None,
+    };
     let mut tx = ctx.begin(actor.company).await?;
+    // Thứ tự khoá như bản TS (khoá mẫu bảng 7374 rồi khoá danh sách mẫu 7375), tránh bế tắc khi Node và Rust cùng phục vụ.
+    if tpl.is_some() {
+        templates::lock(&mut tx).await?;
+    }
     samples::lock(&mut tx).await?;
     let plan = plan(&mut tx, ind, input.features.as_deref()).await?;
     // Mẫu chỉ sinh khi công ty CHƯA có dữ liệu thật (dựng lại trên hệ thống đang chạy không chèn dữ liệu giả vào lẫn).
@@ -151,7 +162,7 @@ pub async fn build(ctx: &Ctx, actor: &Actor, input: &BuildInput) -> R<Value> {
     let mut created: Vec<String> = Vec::new();
     let mut existing: Vec<String> = Vec::new();
     let (mut sample_records, mut sample_contacts) = (0_usize, 0_usize);
-    if let Some(tpl) = ind.template.as_deref().and_then(crate::catalog::find_template) {
+    if let Some(tpl) = tpl {
         for o in &tpl.objects {
             templates::assert_template_valid(o)?;
         }

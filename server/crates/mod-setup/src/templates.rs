@@ -89,6 +89,16 @@ pub async fn apply(ctx: &Ctx, actor: &Actor, template: &str, with_sample_data: b
     Ok(r.to_json())
 }
 
+/// Khoá giao dịch của việc áp mẫu (`7374`), PHẢI lấy trước khoá danh sách mẫu (`7375`) như bản TS.
+pub async fn lock(conn: &mut PgConnection) -> R<()> {
+    sqlx::query("SELECT pg_advisory_xact_lock($1, 1)")
+        .bind(LOCK_NS)
+        .execute(&mut *conn)
+        .await
+        .map_err(db)?;
+    Ok(())
+}
+
 /// Kiểm mẫu hợp lệ TRƯỚC khi ghi: đúng 1 tiêu đề, công thức qua parser hệ thống (không tham chiếu trường lạ / công thức khác).
 pub fn assert_template_valid(o: &TObject) -> R<()> {
     if o.fields.iter().filter(|f| f.is_title).count() != 1 {

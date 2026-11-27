@@ -4,11 +4,12 @@
 use std::sync::Arc;
 
 use axum::Json;
-use axum::body::{Bytes, to_bytes};
+use axum::body::Bytes;
 use axum::extract::{Extension, FromRequest, Path, Request, State};
 use axum::http::{Method, StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
 use serde_json::{Map, Value};
+use trinity_http::edge::body::read_limited;
 use trinity_http::router::{Access, AccessDeps, ApiRouter, CurrentUser, RouteSpec};
 use trinity_http::validate::extract::query_to_json;
 use trinity_http::validate::{Mode, validate_value};
@@ -102,9 +103,8 @@ impl<S: Send + Sync> FromRequest<S> for JsonBody {
                     .trim()
                     .eq_ignore_ascii_case("application/json")
             });
-        let bytes: Bytes = to_bytes(req.into_body(), 5 * 1024 * 1024)
-            .await
-            .map_err(|_| fail(HttpError::payload_too_large("request entity too large")))?;
+        // Quá hạn mức ⇒ 413; lỗi đọc body khác ⇒ 400.
+        let bytes: Bytes = read_limited(req.into_body(), 5 * 1024 * 1024).await.map_err(fail)?;
         if !is_json || bytes.iter().all(u8::is_ascii_whitespace) {
             return Ok(Self(Value::Object(Map::new())));
         }
@@ -185,8 +185,9 @@ async fn put_wizard_config(
     Extension(u): Extension<CurrentUser>,
     JsonBody(b): JsonBody,
 ) -> Response {
+    let a = ac!(u);
     match dto("WizardConfigDto", &b) {
-        Ok(v) => ok(wizard::set_config(&c, &ac!(u), &v).await),
+        Ok(v) => ok(wizard::set_config(&c, &a, &v).await),
         Err(e) => fail(e),
     }
 }
@@ -196,15 +197,17 @@ async fn post_confirm(
     Extension(u): Extension<CurrentUser>,
     JsonBody(b): JsonBody,
 ) -> Response {
+    let a = ac!(u);
     match dto("WizardStepDto", &b) {
-        Ok(v) => ok(wizard::confirm(&c, &ac!(u), &step_of(&v)).await),
+        Ok(v) => ok(wizard::confirm(&c, &a, &step_of(&v)).await),
         Err(e) => fail(e),
     }
 }
 
 async fn post_skip(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, JsonBody(b): JsonBody) -> Response {
+    let a = ac!(u);
     match dto("WizardStepDto", &b) {
-        Ok(v) => ok(wizard::skip(&c, &ac!(u), &step_of(&v)).await),
+        Ok(v) => ok(wizard::skip(&c, &a, &step_of(&v)).await),
         Err(e) => fail(e),
     }
 }
@@ -219,10 +222,11 @@ async fn apply_template(
     Path(template): Path<String>,
     JsonBody(b): JsonBody,
 ) -> Response {
+    let a = ac!(u);
     match dto("ApplyTemplateDto", &b) {
         Ok(v) => {
             let with = v.get("with_sample_data").and_then(Value::as_bool) == Some(true);
-            ok(templates::apply(&c, &ac!(u), &template, with).await)
+            ok(templates::apply(&c, &a, &template, with).await)
         }
         Err(e) => fail(e),
     }

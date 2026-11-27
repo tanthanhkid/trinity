@@ -25,6 +25,9 @@ mod-payroll = { workspace = true }
 mod-pos = { workspace = true }
 mod-hr = { workspace = true }
 mod-system = { workspace = true }
+mod-settings = { workspace = true }
+mod-rbac-admin = { workspace = true }
+mod-notify = { workspace = true }
 trinity-testhooks = { workspace = true, optional = true }
 base64 = { workspace = true }
 clap = { workspace = true }
@@ -39,7 +42,6 @@ mod-setup = { workspace = true }
 mod-users = { workspace = true }
 mod-contacts = { workspace = true }
 mod-leads = { workspace = true }
-mod-settings = { workspace = true }
 mod-channel-guard = { workspace = true }
 mod-store = { workspace = true }
 mod-oauth = { workspace = true }

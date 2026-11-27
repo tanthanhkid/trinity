@@ -15,6 +15,8 @@
 //! | `GET /settings/usage` | `settings.features` | [`features::usage_summary`] |
 //! | `PUT /settings/plan` | `settings.features` + `PlanTokenGuard` | [`features::set_plan`] (+ [`verify_plan_token`]) |
 //!
+//! [`api_router`] nối 12 route vào axum (state [`SettingsState`], guard [`named_guards`]).
+//!
 //! Hai đường `settings/channel-guard` thuộc M45; `settings/client-ip/alerts` thuộc K-biên. Hàm nhận `&mut PgConnection`
 //! đã gắn công ty và trả `AppError` của K05; tầng serve chỉ nối extractor K15 → `validate_*` → hàm → JSON. Bảng gói, nhãn
 //! và hạn mức nằm ở `trinity-rbac::plan` (K25). Bản Node không có giá gói trong các phản hồi này (giá hiển thị ở web), nên
@@ -26,6 +28,7 @@
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
 
+pub mod api;
 pub mod features;
 pub mod general;
 pub mod options;
@@ -37,6 +40,7 @@ use sqlx::PgConnection;
 use trinity_db::pg_error::app_error;
 use trinity_kernel::error::AppError;
 
+pub use api::{PlanTokenGuard, SettingsState, api_router, named_guards};
 pub use features::verify_plan_token;
 pub use validate::{
     CreateOption, QueryOptions, UpdateOption, validate_create_option, validate_org_features, validate_plan_body,

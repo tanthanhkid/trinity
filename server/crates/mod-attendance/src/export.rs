@@ -23,11 +23,11 @@ use trinity_docgen::xlsx::{Cell, Column, NumFormat, SheetSpec, js_number_string,
 use trinity_kernel::error::AppError;
 use trinity_kernel::vn_time::vn_date;
 
+use crate::R;
 use crate::dto::QueryAttendanceExportDto;
 use crate::records::{self, AbsentList, EXPORT_LIMIT, ExportData, Matrix};
 use crate::requests::parse_work_date;
 use crate::stats::{self, DisciplineOut, EmployeeSummary, OverviewExport, QueryAttendanceStatsDto};
-use crate::R;
 
 const COL_MIN_WIDTH: usize = 10;
 const STATS_COL_MIN_WIDTH: usize = 8;
@@ -320,11 +320,7 @@ fn matrix_sheet(m: &Matrix, q: &QueryAttendanceExportDto) -> SheetSpec {
         name_len = name_len.max(name.encode_utf16().count());
         let mut row = vec![
             stt(idx),
-            Cell::text(
-                r.employee_code
-                    .clone()
-                    .unwrap_or_else(|| format!("NV{:04}", r.user_id)),
-            ),
+            Cell::text(r.employee_code.clone().unwrap_or_else(|| format!("NV{:04}", r.user_id))),
             Cell::text(name),
             txt(r.team_name.as_deref()),
             txt(r.position.as_deref()),
@@ -549,7 +545,11 @@ fn employee_rows(list: &[EmployeeSummary]) -> Vec<Vec<Cell>> {
 }
 
 fn range_subtitle(from: &str, to: &str, count: usize, unit: &str) -> String {
-    format!("Từ {} đến {} · {count} {unit}", display_vn_date(from), display_vn_date(to))
+    format!(
+        "Từ {} đến {} · {count} {unit}",
+        display_vn_date(from),
+        display_vn_date(to)
+    )
 }
 
 fn employee_sheet(o: &OverviewExport) -> SheetSpec {

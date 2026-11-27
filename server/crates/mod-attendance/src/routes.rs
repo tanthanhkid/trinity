@@ -131,9 +131,21 @@ pub fn specs() -> Vec<RouteSpec> {
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/workdays-matrix/export", exp),
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/absent-export", exp),
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/export-by-team", exp),
-        RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/export-by-department", exp),
-        RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/export-top-absent", exp),
-        RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/export-top-late-early", exp),
+        RouteSpec::new(
+            Method::GET,
+            "/api/v1/management/attendance/stats/export-by-department",
+            exp,
+        ),
+        RouteSpec::new(
+            Method::GET,
+            "/api/v1/management/attendance/stats/export-top-absent",
+            exp,
+        ),
+        RouteSpec::new(
+            Method::GET,
+            "/api/v1/management/attendance/stats/export-top-late-early",
+            exp,
+        ),
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/export-by-gender", exp),
     ]
 }
@@ -495,7 +507,10 @@ async fn export_absent(State(c): S, Extension(u): U, uri: Uri) -> Response {
 
 async fn export_by_team(State(c): S, Extension(u): U, ValidQuery(q): ValidQuery<QueryAttendanceStatsDto>) -> Response {
     let a = act!(u);
-    xlsx(export::by_team_xlsx(&c, &a, &q).await, "thong-ke-cham-cong-theo-team.xlsx")
+    xlsx(
+        export::by_team_xlsx(&c, &a, &q).await,
+        "thong-ke-cham-cong-theo-team.xlsx",
+    )
 }
 
 async fn export_by_department(
@@ -587,9 +602,15 @@ pub fn router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::GET, &p("workdays-matrix/export")), export_matrix)
         .route(spec(&Method::GET, &p("absent-export")), export_absent)
         .route(spec(&Method::GET, &p("stats/export-by-team")), export_by_team)
-        .route(spec(&Method::GET, &p("stats/export-by-department")), export_by_department)
+        .route(
+            spec(&Method::GET, &p("stats/export-by-department")),
+            export_by_department,
+        )
         .route(spec(&Method::GET, &p("stats/export-top-absent")), export_top_absent)
-        .route(spec(&Method::GET, &p("stats/export-top-late-early")), export_top_late_early)
+        .route(
+            spec(&Method::GET, &p("stats/export-top-late-early")),
+            export_top_late_early,
+        )
         .route(spec(&Method::GET, &p("stats/export-by-gender")), export_by_gender)
 }
 

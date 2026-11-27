@@ -207,6 +207,16 @@ The Rust rewrite of the backend (`server/`, [docs/rust/PLAN.md](rust/PLAN.md)) i
   serves each route prefix and runs each background job. Format and matching rules (longest prefix, then method; `GET`
   also covers `HEAD`): [server/README.md](../server/README.md#tệp-sở-hữu-trinity_ownership_file).
 
+### Hybrid deployment (Rust in front)
+
+Maintainers building from `main` can run Rust on the public port 3000 with Node and Next behind it on loopback only
+(`docker-compose.hybrid.yml`: three containers sharing one network namespace; with a process manager, a CI binary checked
+against its SHA-256). Rust is then the only edge process: set `TRUSTED_PROXY` on it, send everything including `/notif-ws/` to
+port 3000 (the old rule pointing `/notif-ws/*` at port 4000 must go), and keep `INTERNAL_SERVICE_SECRET` identical for all
+three processes. Deploy order: Prisma migrate, start Node, swap the Rust binary (it answers 503 for companies not migrated to the
+version it was built with). The public release keeps the stock `docker-compose.yml` until X06. Full procedure, health gates and
+rollback: [runbooks/hybrid.md](runbooks/hybrid.md) (Vietnamese).
+
 ### TLS at the origin
 
 These settings apply once the `trinity serve` command exists; the building block (`trinity_http::serve`) is merged but not wired into a command yet.

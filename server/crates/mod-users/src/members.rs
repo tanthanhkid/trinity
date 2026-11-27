@@ -23,6 +23,14 @@ pub async fn owner_of(conn: &mut PgConnection) -> R<Option<i32>> {
     fixed_roles::owner_id(conn).await.map_err(db)
 }
 
+/// Id vai trò Thành viên, tạo nếu chưa có (công ty mới chưa có dòng này). Trong giao dịch để khoá advisory có tác dụng.
+async fn ensure_member_role(ctx: &Ctx, company: trinity_db::CompanyRef) -> R<i32> {
+    let mut tx = ctx.begin(company).await?;
+    let id = fixed_roles::ensure_member_role(&mut tx).await.map_err(db)?;
+    tx.commit().await.map_err(trinity_kernel::error::AppError::internal)?;
+    Ok(id)
+}
+
 /// Tên vai trò hiển thị: `owner` | `admin` | `member`.
 pub fn role_key(is_owner: bool, is_admin: bool) -> &'static str {
     if is_owner {
@@ -48,7 +56,7 @@ struct Row {
 pub async fn list(ctx: &Ctx, actor: &Actor) -> R<Value> {
     let mut conn = ctx.conn(actor.company).await?;
     let owner = owner_of(&mut conn).await?;
-    let member_role = fixed_roles::member_role_id(&mut conn).await.map_err(db)?;
+    let mut member_role = fixed_roles::member_role_id(&mut conn).await.map_err(db)?;
     let admin_role = fixed_roles::admin_role_id(&mut conn).await.map_err(db)?;
     let rows: Vec<Row> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT u.id, u.full_name, u.email, u.status, u.created_at, {IS_ADMIN_SQL} AS is_admin
@@ -59,6 +67,11 @@ pub async fn list(ctx: &Ctx, actor: &Actor) -> R<Value> {
     .map_err(db)?;
     // Người xem chỉ thấy email của người khác khi có quyền quản lý; Thành viên thấy tên và vai trò.
     let can_manage = actor.is_admin || trinity_rbac::can(&actor.grants, "users.manage", None);
+    if member_role.is_none() && can_manage {
+        drop(conn);
+        member_role = Some(ensure_member_role(ctx, actor.company).await?);
+        conn = ctx.conn(actor.company).await?;
+    }
     let me = rows
         .iter()
         .find(|r| r.id == actor.user_id)
@@ -106,13 +119,11 @@ pub async fn set_role(ctx: &Ctx, actor: &Actor, id: i32, role: &str) -> R<Value>
     if role != "admin" && role != "member" {
         return Err(HttpError::validation(vec!["role phải là admin hoặc member".to_owned()]).into());
     }
-    let role_id = {
+    let role_id = if role == "admin" {
         let mut conn = ctx.conn(actor.company).await?;
-        if role == "admin" {
-            fixed_roles::admin_role_id(&mut conn).await.map_err(db)?
-        } else {
-            Some(fixed_roles::ensure_member_role(&mut conn).await.map_err(db)?)
-        }
+        fixed_roles::admin_role_id(&mut conn).await.map_err(db)?
+    } else {
+        Some(ensure_member_role(ctx, actor.company).await?)
     }
     .ok_or_else(|| HttpError::not_found("Không tìm thấy vai trò"))?;
     service::set_roles(ctx, actor, id, &[role_id]).await?;

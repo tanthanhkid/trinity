@@ -500,3 +500,62 @@ async fn xoa_thanh_vien_chuyen_du_lieu_cho_nguoi_chon() {
     assert_eq!(role_of(&l.body, MEMBER), Value::Null);
     teardown().await;
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn cong_ty_moi_chua_co_vai_tro_thanh_vien_thi_tao_luoi_mot_lan() {
+    setup().await;
+    exec(&format!(
+        "DELETE FROM user_roles WHERE role_id = 9502; DELETE FROM role_permissions WHERE role_id = 9502; DELETE FROM roles WHERE id = 9502;
+         INSERT INTO user_roles (user_id, role_id) VALUES ({MEMBER}, 9501), ({MEMBER2}, 9501)"
+    ))
+    .await;
+    let a = app().await;
+    // Hai lần gọi đồng thời vẫn chỉ một dòng.
+    let (r1, r2) = tokio::join!(
+        call(&a, Method::GET, "/api/v1/members", Some(OWNER), None),
+        call(&a, Method::GET, "/api/v1/members", Some(ADMIN2), None)
+    );
+    assert_eq!(
+        (r1.status.as_u16(), r2.status.as_u16()),
+        (200, 200),
+        "{:?} {:?}",
+        r1.body,
+        r2.body
+    );
+    let id = r1.body["roles"]["member_role_id"]
+        .as_i64()
+        .expect("đã tạo vai trò Thành viên");
+    assert_eq!(r2.body["roles"]["member_role_id"].as_i64(), Some(id));
+    assert_eq!(
+        r1.body["roles"]["admin_role_id"].as_i64(),
+        Some(scalar::<i32>("SELECT min(id) FROM roles WHERE is_system").await.into())
+    );
+    assert_eq!(
+        scalar::<i64>(&format!(
+            "SELECT count(*) FROM roles WHERE description = '{}'",
+            trinity_rbac::fixed_roles::MEMBER_ROLE_MARK
+        ))
+        .await,
+        1
+    );
+    // Đổi một Quản trị xuống Thành viên dùng đúng vai trò đó.
+    let r = call(
+        &a,
+        Method::PUT,
+        &format!("/api/v1/members/{MEMBER}/role"),
+        Some(OWNER),
+        Some(json!({ "role": "member" })),
+    )
+    .await;
+    assert_eq!(r.status, 200, "{:?}", r.body);
+    assert_eq!(
+        scalar::<i64>(&format!(
+            "SELECT role_id::bigint FROM user_roles WHERE user_id = {MEMBER}"
+        ))
+        .await,
+        id
+    );
+    exec(&format!("DELETE FROM user_roles WHERE role_id = {id}; DELETE FROM role_permissions WHERE role_id = {id}; DELETE FROM roles WHERE id = {id}")).await;
+    teardown().await;
+}

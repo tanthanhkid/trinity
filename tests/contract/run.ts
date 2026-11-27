@@ -185,7 +185,8 @@ async function main(): Promise<void> {
   const unit = spawnSync('pnpm', ['exec', 'vitest', 'run', '--config', 'vitest.config.ts'], { cwd: here, env: { ...cleanBase(), CONTRACT_UNIT: '1', TZ: 'UTC' }, stdio: 'inherit' })
   if (unit.status !== 0) throw new Error('Test đơn vị của bộ chuẩn hoá đỏ')
 
-  const dbPrefix = process.env.CONTRACT_DB_PREFIX ?? 'trinity_contract' // đặt tiền tố riêng khi nhiều lượt chạy cùng máy
+  // Mặc định tiền tố theo cổng (4310 giữ tên cũ) để hai lượt khác cổng không giẫm DB của nhau; `CONTRACT_DB_PREFIX` thắng nếu đặt.
+  const dbPrefix = process.env.CONTRACT_DB_PREFIX ?? (PORT === 4310 ? 'trinity_contract' : `trinity_contract_${PORT}`)
   if (!/^[a-z][a-z0-9_]{0,40}$/.test(dbPrefix)) throw new Error(`CONTRACT_DB_PREFIX không hợp lệ (cần /^[a-z][a-z0-9_]{0,40}$/): ${dbPrefix}`)
   const tpl = `${dbPrefix}_tpl`
   console.log(`[contract] dựng DB mẫu ${tpl} (migrate + seed admin)`)

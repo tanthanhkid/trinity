@@ -14,7 +14,7 @@ pnpm --filter @trinity/contract-tests test                       # chỉ test đ
 
 Bộ chạy (`run.ts`): dựng DB mẫu (migrate + seed admin), rồi với mỗi hồ sơ tạo DB từ mẫu, khởi động máy chủ **một lần** với env của
 hồ sơ, chạy `cases/<hồ sơ>/*.test.ts`, tắt máy chủ. Luôn build monolith trước (`--no-build` để bỏ qua). Máy chủ chạy với `TZ=UTC`, cổng 4310 (`CONTRACT_PORT`), env sạch (không đọc `.env`).
-Nhiều lượt chạy cùng máy: đặt `CONTRACT_PORT` và `CONTRACT_DB_PREFIX` riêng (mặc định `trinity_contract`, cổng 4310) để không giẫm DB và cổng của nhau.
+Nhiều lượt chạy cùng máy: đặt `CONTRACT_PORT` và `CONTRACT_DB_PREFIX` riêng (mặc định `trinity_contract` ở cổng 4310; cổng khác thì tiền tố mặc định thành `trinity_contract_<cổng>`) để không giẫm DB và cổng của nhau.
 Từ chối bắt đầu trong khung 16:50-17:10 UTC (quanh nửa đêm Việt Nam, "hôm nay" đổi giữa lượt).
 
 ## So Node với Rust trong cùng lượt
@@ -69,6 +69,8 @@ Hồ sơ `production` phía Rust chạy trên binary **phát hành** (không có
 ## Ca e2e đã chuyển (C07a)
 - C07a: `cases/default/30-auth-users` (37 ca, từ `auth-users.e2e-spec.ts`): mỗi ca tự seed người dùng + vai trò bằng SQL rồi đăng nhập thật. Ca che SĐT tìm người dùng đích theo email
   (`/users?search=`), không đọc `limit=200` đầu tiên; ca từ chối PATCH `login-wifi-check` gửi `enabled: false` để cổng quyền hỏng cũng không bật cờ dùng chung.
+
+- C13a (OAuth, `40-oauth*`): `lib/http.ts` `call()` từ chối khi đặt cả `form` lẫn `body`; ca gỡ `integrations.ai_connect` chỉ xoá quyền của vai trò riêng của người dùng test (`40-oauth`, `50-mcp`).
 
 ## Ca e2e đã chuyển (C09)
 - C09 (22 ca, hồ sơ `default`): `20-custom-objects` (14, từ `custom-objects.e2e-spec.ts`) và `21-custom-object-templates` (8, từ `custom-objects-templates.e2e-spec.ts`).

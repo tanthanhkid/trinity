@@ -18,14 +18,16 @@ use trinity_http::validate::{Mode, validate_value};
 use trinity_kernel::error::{AppError, HttpError};
 
 use crate::guards::Actor;
+use crate::members;
 use crate::pinned;
 use crate::service::{self, CreateUser, Ctx, ListParams, ManagerFilter, SortBy, UpdateUser};
 
 const USERS: &str = "/api/v1/users";
+const MEMBERS: &str = "/api/v1/members";
 const ID_PIPE: &[&str] = &["param.id:ParseIntPipe"];
 const MANAGE: Access = Access::Can(&["users.manage"]);
 
-/// Bảng route của module (13 dòng), so với `routes.json` bởi `trinity check-routes`.
+/// Bảng route của module (13 dòng cũ + 4 dòng trang Thành viên), so với `routes.json` bởi `trinity check-routes`.
 pub fn specs() -> Vec<RouteSpec> {
     let by_id = |m: Method, suffix: &'static str, access: Access| {
         RouteSpec::new(m, suffix, access).status_ok(200).param_pipes(ID_PIPE)
@@ -44,6 +46,10 @@ pub fn specs() -> Vec<RouteSpec> {
         by_id(Method::GET, "/api/v1/users/:id/password-history", MANAGE),
         by_id(Method::PATCH, "/api/v1/users/:id/team", MANAGE),
         by_id(Method::PUT, "/api/v1/users/:id/roles", MANAGE),
+        RouteSpec::new(Method::GET, MEMBERS, Access::Can(&["users.view"])).status_ok(200),
+        RouteSpec::new(Method::POST, "/api/v1/members/transfer-owner", MANAGE).status_ok(200),
+        by_id(Method::PUT, "/api/v1/members/:id/role", MANAGE),
+        by_id(Method::DELETE, "/api/v1/members/:id", MANAGE),
     ]
 }
 
@@ -417,6 +423,50 @@ async fn pinned_put(
     ok(r)
 }
 
+async fn members_list(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>) -> Response {
+    ok(members::list(&c, &act!(u)).await)
+}
+
+async fn members_transfer_owner(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    JsonBody(body): JsonBody,
+) -> Response {
+    let Some(to) = body.get("user_id").and_then(service::int4) else {
+        return fail(HttpError::validation(vec!["user_id phải là số nguyên".to_owned()]));
+    };
+    ok(members::transfer_owner(&c, &act!(u), to).await)
+}
+
+async fn members_set_role(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(id): Path<String>,
+    JsonBody(body): JsonBody,
+) -> Response {
+    let role = body.get("role").and_then(Value::as_str).unwrap_or_default();
+    match id_of(&id) {
+        Ok(id) => ok(members::set_role(&c, &act!(u), id, role).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn members_remove(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(id): Path<String>,
+    JsonBody(body): JsonBody,
+) -> Response {
+    let to = match reassign_to(&body) {
+        Ok(t) => t,
+        Err(e) => return fail(e),
+    };
+    match id_of(&id) {
+        Ok(id) => ok(members::remove(&c, &act!(u), id, to).await),
+        Err(e) => fail(e),
+    }
+}
+
 /// Router của module: mọi route đi qua `ApiRouter` (khai quyền bắt buộc). Người gọi gắn state `Arc<Ctx>` khi lắp `serve`.
 pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
     let s = specs();
@@ -440,6 +490,13 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::GET, "/api/v1/users/:id/password-history"), history)
         .route(spec(&Method::PATCH, "/api/v1/users/:id/team"), team)
         .route(spec(&Method::PUT, "/api/v1/users/:id/roles"), set_roles)
+        .route(spec(&Method::GET, MEMBERS), members_list)
+        .route(
+            spec(&Method::POST, "/api/v1/members/transfer-owner"),
+            members_transfer_owner,
+        )
+        .route(spec(&Method::PUT, "/api/v1/members/:id/role"), members_set_role)
+        .route(spec(&Method::DELETE, "/api/v1/members/:id"), members_remove)
 }
 
 #[cfg(test)]

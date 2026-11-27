@@ -2314,6 +2314,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-reports"
+version = "0.3.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tower",
+ "tracing",
+ "trinity-auth",
+ "trinity-db",
+ "trinity-http",
+ "trinity-kernel",
+ "trinity-rbac",
+]
+
+[[package]]
 name = "mod-settings"
 version = "0.3.0"
 dependencies = [
@@ -4387,6 +4405,7 @@ dependencies = [
  "mod-oauth",
  "mod-payroll",
  "mod-pos",
+ "mod-reports",
  "mod-system",
  "mod-users",
  "serde_json",

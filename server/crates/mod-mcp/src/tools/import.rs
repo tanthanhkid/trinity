@@ -74,7 +74,9 @@ fn read_mapping(raw: Option<&Value>) -> Option<Vec<(String, String)>> {
 fn read_tables(args: &Value) -> Result<Vec<TableIn>, ToolError> {
     if let Some(tables) = args.get("tables").and_then(Value::as_array).filter(|t| !t.is_empty()) {
         if args.get("object").is_some() || args.get("rows").is_some() {
-            return Err(user("Dùng MỘT trong hai: object + rows (một bảng) HOẶC tables (nhiều bảng)."));
+            return Err(user(
+                "Dùng MỘT trong hai: object + rows (một bảng) HOẶC tables (nhiều bảng).",
+            ));
         }
         if tables.len() > MAX_TABLES {
             return Err(user(format!("Tối đa {MAX_TABLES} bảng mỗi lần.")));
@@ -111,7 +113,11 @@ fn error_preview(errors: &[RowError]) -> String {
         .take(3)
         .map(|x| {
             let r: String = x.reason.chars().take(80).collect();
-            format!("dòng {}: {r}{}", x.row, if x.reason.chars().count() > 80 { "…" } else { "" })
+            format!(
+                "dòng {}: {r}{}",
+                x.row,
+                if x.reason.chars().count() > 80 { "…" } else { "" }
+            )
         })
         .collect::<Vec<_>>()
         .join("; ")
@@ -135,12 +141,20 @@ fn cut200(s: String) -> String {
 
 fn source_of(args: &Value) -> String {
     let s = clean_text(args.get("source"), 300);
-    if s.is_empty() { "(AI không ghi nguồn)".to_owned() } else { s }
+    if s.is_empty() {
+        "(AI không ghi nguồn)".to_owned()
+    } else {
+        s
+    }
 }
 
 fn mapping_text(m: &Option<Vec<(String, String)>>, fallback: &Map<String, Value>) -> String {
     match m {
-        Some(m) => m.iter().map(|(a, b)| format!("{a} → {b}")).collect::<Vec<_>>().join("; "),
+        Some(m) => m
+            .iter()
+            .map(|(a, b)| format!("{a} → {b}"))
+            .collect::<Vec<_>>()
+            .join("; "),
         None => fallback.keys().cloned().collect::<Vec<_>>().join(", "),
     }
 }
@@ -204,10 +218,16 @@ fn contact_row(row: &Map<String, Value>, source_id: Option<i32>) -> Result<mod_c
     serde_json::from_value(Value::Object(plain)).map_err(|e| cut200(format!("dòng không hợp lệ: {e}")))
 }
 
-async fn write_contacts(ctx: &ToolCtx<'_>, rows: &[Map<String, Value>], source_id: Option<i32>) -> Result<Value, ToolError> {
+async fn write_contacts(
+    ctx: &ToolCtx<'_>,
+    rows: &[Map<String, Value>],
+    source_id: Option<i32>,
+) -> Result<Value, ToolError> {
     let p = ctx.principal;
     if !can(&p.grants, "contacts.create", None) {
-        return Err(ToolError::Forbidden("Bạn không còn quyền tạo khách hàng (contacts.create).".to_owned()));
+        return Err(ToolError::Forbidden(
+            "Bạn không còn quyền tạo khách hàng (contacts.create).".to_owned(),
+        ));
     }
     let scopes = ctx.deps.contact_scopes(p).await?;
     let actor = mod_contacts::Actor {
@@ -232,7 +252,10 @@ async fn write_contacts(ctx: &ToolCtx<'_>, rows: &[Map<String, Value>], source_i
         };
         match one {
             Ok(()) => created += 1,
-            Err(m) => errors.push(RowError { row: i + 1, reason: cut200(m) }),
+            Err(m) => errors.push(RowError {
+                row: i + 1,
+                reason: cut200(m),
+            }),
         }
     }
     if created == 0 {
@@ -263,7 +286,10 @@ async fn write_table(ctx: &ToolCtx<'_>, t: &TableIn, multi: bool) -> Result<(Val
             Err(e) => match user_err(e) {
                 ToolError::Forbidden(m) => return Err(ToolError::Forbidden(m)),
                 ToolError::User(m) | ToolError::Http { message: m, .. } => {
-                    errors.push(RowError { row: i + 1, reason: cut200(m) });
+                    errors.push(RowError {
+                        row: i + 1,
+                        reason: cut200(m),
+                    });
                 }
                 other => return Err(other),
             },
@@ -273,7 +299,11 @@ async fn write_table(ctx: &ToolCtx<'_>, t: &TableIn, multi: bool) -> Result<(Val
     if created == 0 {
         return Err(user(format!(
             "Không có dòng nào hợp lệ{} ({} dòng lỗi). {}",
-            if multi { format!(" ở bảng “{}”", t.object) } else { String::new() },
+            if multi {
+                format!(" ở bảng “{}”", t.object)
+            } else {
+                String::new()
+            },
             errors.len(),
             error_preview(&errors)
         )));
@@ -313,7 +343,10 @@ async fn write_custom(ctx: &ToolCtx<'_>, tables: &[TableIn]) -> Result<Value, To
     Ok(out)
 }
 
-pub(super) fn import_records<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+pub(super) fn import_records<'a>(
+    args: &'a Value,
+    ctx: &'a ToolCtx<'a>,
+) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
     Box::pin(async move {
         assert_direct(ctx).await?;
         let tables = read_tables(args)?;
@@ -370,12 +403,16 @@ mod tests {
 
     #[test]
     fn doc_lo_nhap() {
-        let t = read_tables(&json!({ "object": "khach", "rows": [{ "a": 1 }, { "a": 2 }], "mapping": { "Tên": "ten" } })).unwrap();
+        let t =
+            read_tables(&json!({ "object": "khach", "rows": [{ "a": 1 }, { "a": 2 }], "mapping": { "Tên": "ten" } }))
+                .unwrap();
         assert_eq!((t.len(), t[0].rows.len(), t[0].object.as_str()), (1, 2, "khach"));
         assert_eq!(t[0].mapping.as_ref().map(Vec::len), Some(1));
         assert!(read_tables(&json!({ "object": "x", "rows": [] })).is_err());
         assert!(read_tables(&json!({ "object": "x", "rows": [1] })).is_err());
-        assert!(read_tables(&json!({ "object": "x", "rows": [{}], "tables": [{ "object": "y", "rows": [{}] }] })).is_err());
+        assert!(
+            read_tables(&json!({ "object": "x", "rows": [{}], "tables": [{ "object": "y", "rows": [{}] }] })).is_err()
+        );
         assert!(read_tables(&json!({ "tables": [{ "object": "contacts", "rows": [{}] }] })).is_err());
         let many: Vec<Value> = (0..501).map(|_| json!({})).collect();
         assert!(read_tables(&json!({ "object": "x", "rows": many })).is_err());
@@ -391,12 +428,25 @@ mod tests {
         let bad_phone = json!({ "full_name": "Lan", "phone": "12345", "source_id": 1 });
         assert!(contact_row(bad_phone.as_object().unwrap(), None).is_err());
         let extra = json!({ "full_name": "Lan", "phone": "0901234567", "source_id": 1, "x": 1 });
-        assert!(contact_row(extra.as_object().unwrap(), None).unwrap_err().contains("không thuộc khách hàng"));
+        assert!(
+            contact_row(extra.as_object().unwrap(), None)
+                .unwrap_err()
+                .contains("không thuộc khách hàng")
+        );
     }
 
     #[test]
     fn bao_loi() {
-        let e = vec![RowError { row: 7, reason: "b".into() }, RowError { row: 3, reason: "a".into() }];
+        let e = vec![
+            RowError {
+                row: 7,
+                reason: "b".into(),
+            },
+            RowError {
+                row: 3,
+                reason: "a".into(),
+            },
+        ];
         assert_eq!(error_preview(&e), "dòng 3: a; dòng 7: b");
         assert_eq!(errors_json(&e, Some("khach"))[0]["row"], 3);
     }

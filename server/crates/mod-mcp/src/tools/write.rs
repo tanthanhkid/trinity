@@ -134,14 +134,10 @@ const YES: &[&str] = &[
     "lam ngay",
 ];
 const NO: &[&str] = &[
-    "khong", "ko", "k", "chua", "dung tao", "dung lam", "khoan", "doi", "sua lai", "them", "bot", "bo", "thay", "no", "not",
+    "khong", "ko", "k", "chua", "dung tao", "dung lam", "khoan", "doi", "sua lai", "them", "bot", "bo", "thay", "no",
+    "not",
 ];
-const NO_ASK: &[&str] = &[
-    "khong can hoi lai",
-    "khong can hoi",
-    "ko can hoi lai",
-    "ko can hoi",
-];
+const NO_ASK: &[&str] = &["khong can hoi lai", "khong can hoi", "ko can hoi lai", "ko can hoi"];
 const BENIGN: &[&str] = &[
     "khong can them gi",
     "khong can them",
@@ -166,10 +162,10 @@ pub(super) fn is_user_confirmation(words: Option<&str>) -> bool {
         w = w.replace(&format!(" {b} "), " ");
     }
     let has = |k: &&str| w.contains(&format!(" {k} "));
-    if NO.iter().any(|k| has(k)) {
+    if NO.iter().any(&has) {
         return false;
     }
-    YES.iter().any(|k| has(k))
+    YES.iter().any(has)
 }
 
 /// Không phải lời đồng ý ⇒ lỗi kèm bản xem trước để AI đưa người dùng xác nhận (`assertConfirmed`).
@@ -238,7 +234,11 @@ fn row_error_note(result: &Value) -> String {
     let mut rows: Vec<(i64, String)> = errs
         .iter()
         .map(|e| {
-            let obj = e.get("object").and_then(Value::as_str).map(|o| format!("{o} ")).unwrap_or_default();
+            let obj = e
+                .get("object")
+                .and_then(Value::as_str)
+                .map(|o| format!("{o} "))
+                .unwrap_or_default();
             let reason = e.get("reason").and_then(Value::as_str).unwrap_or_default();
             let reason = if reason.chars().count() > 80 {
                 format!("{}…", reason.chars().take(80).collect::<String>())
@@ -247,7 +247,10 @@ fn row_error_note(result: &Value) -> String {
             };
             (
                 e.get("row").and_then(Value::as_i64).unwrap_or(0),
-                format!("{obj}dòng {}: {reason}", e.get("row").and_then(Value::as_i64).unwrap_or(0)),
+                format!(
+                    "{obj}dòng {}: {reason}",
+                    e.get("row").and_then(Value::as_i64).unwrap_or(0)
+                ),
             )
         })
         .collect();
@@ -314,7 +317,9 @@ where
         Ok(r) => r,
         Err(e) => {
             let why = match &e {
-                ToolError::User(m) | ToolError::Forbidden(m) | ToolError::Plain(m) | ToolError::Internal(m) => m.clone(),
+                ToolError::User(m) | ToolError::Forbidden(m) | ToolError::Plain(m) | ToolError::Internal(m) => {
+                    m.clone()
+                }
                 ToolError::Http { message, .. } => message.clone(),
                 ToolError::NotFound => "not_found".to_owned(),
             };
@@ -330,11 +335,12 @@ where
     };
     match ctx.deps.conn(p.company).await {
         Ok(mut c) => {
-            if let Err(e) = sqlx::query("UPDATE ai_action_drafts SET status = 'executed', result = $2::text::jsonb WHERE id = $1")
-                .bind(id)
-                .bind(js_json(&result))
-                .execute(&mut *c)
-                .await
+            if let Err(e) =
+                sqlx::query("UPDATE ai_action_drafts SET status = 'executed', result = $2::text::jsonb WHERE id = $1")
+                    .bind(id)
+                    .bind(js_json(&result))
+                    .execute(&mut *c)
+                    .await
             {
                 tracing::error!("Ghi kết quả thao tác AI #{id} lỗi: {e}");
             }
@@ -350,9 +356,11 @@ where
 /// Số nguyên có dấu trong `Value` (JSON số nguyên hoặc số thực không phần lẻ).
 pub(super) fn as_int(v: Option<&Value>) -> Option<i64> {
     match v? {
-        Value::Number(n) => n
-            .as_i64()
-            .or_else(|| n.as_f64().filter(|f| f.fract() == 0.0 && f.abs() < 9.0e15).map(|f| f as i64)),
+        Value::Number(n) => n.as_i64().or_else(|| {
+            n.as_f64()
+                .filter(|f| f.fract() == 0.0 && f.abs() < 9.0e15)
+                .map(|f| f as i64)
+        }),
         _ => None,
     }
 }
@@ -375,7 +383,14 @@ mod tests {
         ] {
             assert!(is_user_confirmation(Some(ok)), "{ok}");
         }
-        for no in ["", "tạo cho mình bảng khách", "chưa, thêm cột email", "không", "đừng tạo", "ok nhưng bớt cột"] {
+        for no in [
+            "",
+            "tạo cho mình bảng khách",
+            "chưa, thêm cột email",
+            "không",
+            "đừng tạo",
+            "ok nhưng bớt cột",
+        ] {
             assert!(!is_user_confirmation(Some(no)), "{no}");
         }
         assert!(!is_user_confirmation(None));

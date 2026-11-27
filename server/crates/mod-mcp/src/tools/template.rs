@@ -9,19 +9,21 @@ use std::collections::HashSet;
 
 use mod_custom::menu::MenuEntry;
 use mod_custom::views;
+use mod_settings::validate::validate_org_features;
 use mod_setup::build::{BuildInput, SETUP_BUILT_KEY};
 use mod_setup::catalog::{TObject, catalog, find_template};
 use mod_setup::industry;
-use mod_settings::validate::validate_org_features;
 use serde_json::{Map, Value, json};
 use trinity_rbac::can;
 use trinity_rbac::plan::{ORG_FEATURES, is_org_feature_key};
 
-use super::structure::{ObjectSpec, apply_objects, check_objects, object_details, parse_object, purge_created, app_msg, load_def};
+use super::structure::{
+    ObjectSpec, app_msg, apply_objects, check_objects, load_def, object_details, parse_object, purge_created,
+};
 use super::view_tools::{assert_type_chosen, describe_view, parse_menu, parse_view, table_names};
 use super::write::{
-    Detail, Prepared, assert_confirmed, assert_direct, clean_text, internal, is_user_confirmation, line, run_direct, user,
-    user_err,
+    Detail, Prepared, assert_confirmed, assert_direct, clean_text, internal, is_user_confirmation, line, run_direct,
+    user, user_err,
 };
 use crate::exec::{ToolCtx, ToolError, ToolOutput};
 use crate::protocol::BoxFuture;
@@ -52,7 +54,11 @@ fn template_details(fresh: &[&TObject]) -> Vec<Detail> {
                 .join("; ");
             line(
                 &format!("Bảng {}", o.label_plural),
-                if cols.is_empty() { "(chưa có trường)".to_owned() } else { cols },
+                if cols.is_empty() {
+                    "(chưa có trường)".to_owned()
+                } else {
+                    cols
+                },
                 900,
             )
         })
@@ -93,7 +99,11 @@ pub(super) fn install_object_template<'a>(
             if fresh.is_empty() {
                 "(không — đã có đủ)".to_owned()
             } else {
-                fresh.iter().map(|o| o.label_plural.as_str()).collect::<Vec<_>>().join(", ")
+                fresh
+                    .iter()
+                    .map(|o| o.label_plural.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             },
             600,
         ));
@@ -104,15 +114,24 @@ pub(super) fn install_object_template<'a>(
                 "Cài mẫu “{}”: tạo {} bảng{}{}",
                 t.label,
                 fresh.len(),
-                if kept > 0 { format!(", giữ {kept} bảng đã có") } else { String::new() },
+                if kept > 0 {
+                    format!(", giữ {kept} bảng đã có")
+                } else {
+                    String::new()
+                },
                 if sample { ", kèm dữ liệu mẫu giả" } else { "" }
             ),
             details,
         };
         run_direct(ctx, "install_object_template", true, prepared, async {
-            let r = mod_setup::templates::apply(&ctx.deps.setup_ctx(), &ctx.deps.setup_actor(ctx.principal), &key, sample)
-                .await
-                .map_err(user_err)?;
+            let r = mod_setup::templates::apply(
+                &ctx.deps.setup_ctx(),
+                &ctx.deps.setup_actor(ctx.principal),
+                &key,
+                sample,
+            )
+            .await
+            .map_err(user_err)?;
             Ok(json!({ "created": r["created"], "existing": r["existing"], "sample_records": r["sample_records"] }))
         })
         .await
@@ -196,7 +215,11 @@ pub(super) fn setup_build<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutur
             if fresh.is_empty() {
                 "(không)".to_owned()
             } else {
-                fresh.iter().map(|o| o.label_plural.as_str()).collect::<Vec<_>>().join(", ")
+                fresh
+                    .iter()
+                    .map(|o| o.label_plural.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             },
             600,
         ));
@@ -205,7 +228,11 @@ pub(super) fn setup_build<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutur
             plan.iter().map(|k| feature_label(k)).collect::<Vec<_>>().join(", "),
             600,
         ));
-        details.extend(line("Dữ liệu mẫu", "Vài dòng giả, tự xoá khi có bản ghi thật đầu tiên", 600));
+        details.extend(line(
+            "Dữ liệu mẫu",
+            "Vài dòng giả, tự xoá khi có bản ghi thật đầu tiên",
+            600,
+        ));
         let prepared = Prepared {
             params: json!({ "industry": ind.key, "features": chosen, "resolved": plan }),
             summary: format!(
@@ -213,7 +240,11 @@ pub(super) fn setup_build<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutur
                 ind.label,
                 fresh.len(),
                 plan.len(),
-                if off.is_empty() { String::new() } else { format!(", tắt {}", off.len()) }
+                if off.is_empty() {
+                    String::new()
+                } else {
+                    format!(", tắt {}", off.len())
+                }
             ),
             details,
         };
@@ -257,7 +288,9 @@ fn parse_features(raw: Option<&Value>) -> Result<Vec<String>, ToolError> {
     let Some(a) = raw.filter(|v| !v.is_null()) else {
         return Ok(Vec::new());
     };
-    let a = a.as_array().ok_or_else(|| user("features phải là danh sách khoá tính năng."))?;
+    let a = a
+        .as_array()
+        .ok_or_else(|| user("features phải là danh sách khoá tính năng."))?;
     let mut out: Vec<String> = Vec::new();
     for k in a {
         let key = k.as_str().map_or_else(|| k.to_string(), str::to_owned);
@@ -284,7 +317,11 @@ fn parse_package(args: &Value) -> Result<Package, ToolError> {
     if title.is_empty() {
         return Err(user("Cần title cho gói dựng."));
     }
-    let raw = args.get("objects").and_then(Value::as_array).cloned().unwrap_or_default();
+    let raw = args
+        .get("objects")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     if raw.is_empty() || raw.len() > MAX_PACKAGE_OBJECTS {
         return Err(user(format!("Gói cần 1–{MAX_PACKAGE_OBJECTS} bảng.")));
     }
@@ -298,7 +335,10 @@ fn parse_package(args: &Value) -> Result<Package, ToolError> {
         .map(|v| {
             Ok(PackageView {
                 object: clean_text(v.get("object"), 48),
-                type_words: v.get("type_words").and_then(Value::as_str).map(|s| s.chars().take(200).collect()),
+                type_words: v
+                    .get("type_words")
+                    .and_then(Value::as_str)
+                    .map(|s| s.chars().take(200).collect()),
                 spec: parse_view(v)?,
             })
         })
@@ -364,7 +404,11 @@ async fn check_roles(ctx: &ToolCtx<'_>, menu: &[MenuEntry]) -> Result<(), ToolEr
         "Menu: không có vai trò {}. Vai trò hiện có: {}. Hãy dùng đúng tên vai trò có sẵn, bỏ trống roles (mọi người thấy), \
          hoặc nhờ quản trị viên tạo vai trò ở Cài đặt › Vai trò rồi đề xuất lại.",
         missing.join(", "),
-        if roles.is_empty() { "(chưa có)".to_owned() } else { roles.join(", ") }
+        if roles.is_empty() {
+            "(chưa có)".to_owned()
+        } else {
+            roles.join(", ")
+        }
     )))
 }
 
@@ -375,7 +419,10 @@ async fn check_package(ctx: &ToolCtx<'_>, p: &Package) -> Result<(), ToolError> 
     for v in &p.views {
         let in_pack = p.objects.iter().find(|o| o.key == v.object);
         let (names, def) = match in_pack {
-            Some(o) => (table_names(&o.key, &o.label, &o.label_plural, Some(&v.spec.label)), None),
+            Some(o) => (
+                table_names(&o.key, &o.label, &o.label_plural, Some(&v.spec.label)),
+                None,
+            ),
             None => {
                 let d = load_def(ctx, &v.object).await.map_err(|_| {
                     user(format!(
@@ -391,7 +438,10 @@ async fn check_package(ctx: &ToolCtx<'_>, p: &Package) -> Result<(), ToolError> 
         };
         assert_type_chosen(&v.spec.kind, v.type_words.as_deref(), &names)?;
         if seen.iter().any(|(o, k)| *o == v.object && *k == v.spec.key) {
-            return Err(user(format!("Bảng “{}” có hai màn trùng khoá “{}”.", v.object, v.spec.key)));
+            return Err(user(format!(
+                "Bảng “{}” có hai màn trùng khoá “{}”.",
+                v.object, v.spec.key
+            )));
         }
         if let Some(d) = def {
             let taken: Vec<String> = {
@@ -450,7 +500,11 @@ fn describe(p: &Package, blank: bool) -> Vec<Detail> {
         .join("; ");
     out.extend(line(
         "Màn xem",
-        if vs.is_empty() { "(chỉ danh sách mặc định)".to_owned() } else { vs },
+        if vs.is_empty() {
+            "(chỉ danh sách mặc định)".to_owned()
+        } else {
+            vs
+        },
         900,
     ));
     out.extend(line(
@@ -464,9 +518,18 @@ fn describe(p: &Package, blank: bool) -> Vec<Detail> {
             .join(" · "),
         900,
     ));
-    let on = p.features.iter().map(|k| feature_label(k)).collect::<Vec<_>>().join(", ");
+    let on = p
+        .features
+        .iter()
+        .map(|k| feature_label(k))
+        .collect::<Vec<_>>()
+        .join(", ");
     out.extend(line(
-        if blank { "Module bật (còn lại TẮT)" } else { "Module bật thêm" },
+        if blank {
+            "Module bật (còn lại TẮT)"
+        } else {
+            "Module bật thêm"
+        },
         if on.is_empty() { "(không)".to_owned() } else { on },
         900,
     ));
@@ -523,11 +586,17 @@ async fn restore_features_raw(ctx: &ToolCtx<'_>, raw: Option<&str>) {
         return;
     };
     let _ = match raw {
-        None => sqlx::query("DELETE FROM settings WHERE key = 'org_features'").execute(&mut *c).await,
-        Some(v) => sqlx::query("UPDATE settings SET value = $1 WHERE key = 'org_features'")
-            .bind(v)
-            .execute(&mut *c)
-            .await,
+        None => {
+            sqlx::query("DELETE FROM settings WHERE key = 'org_features'")
+                .execute(&mut *c)
+                .await
+        }
+        Some(v) => {
+            sqlx::query("UPDATE settings SET value = $1 WHERE key = 'org_features'")
+                .bind(v)
+                .execute(&mut *c)
+                .await
+        }
     };
 }
 
@@ -536,7 +605,10 @@ async fn apply_features(ctx: &ToolCtx<'_>, keys: &[String], blank: bool) -> Resu
     let mut m = Map::new();
     if blank {
         for (k, _, _) in ORG_FEATURES.iter() {
-            m.insert((*k).to_owned(), json!(BASIC_FEATURES.contains(k) || keys.iter().any(|x| x.as_str() == *k)));
+            m.insert(
+                (*k).to_owned(),
+                json!(BASIC_FEATURES.contains(k) || keys.iter().any(|x| x.as_str() == *k)),
+            );
         }
     } else if keys.is_empty() {
         return Ok(());
@@ -555,25 +627,44 @@ async fn apply_features(ctx: &ToolCtx<'_>, keys: &[String], blank: bool) -> Resu
     Ok(())
 }
 
-async fn build_package(ctx: &ToolCtx<'_>, p: &Package, status: &str, created: &mut Vec<String>) -> Result<(), ToolError> {
+async fn build_package(
+    ctx: &ToolCtx<'_>,
+    p: &Package,
+    status: &str,
+    created: &mut Vec<String>,
+) -> Result<(), ToolError> {
     let user_id = ctx.principal.user_id;
     *created = apply_objects(ctx, &p.objects).await?;
     for v in &p.views {
         let def = load_def(ctx, &v.object).await?;
-        let mut tx = ctx.deps.custom_ctx().begin(ctx.principal.company).await.map_err(user_err)?;
+        let mut tx = ctx
+            .deps
+            .custom_ctx()
+            .begin(ctx.principal.company)
+            .await
+            .map_err(user_err)?;
         views::create(&mut tx, &def, &v.spec, user_id).await.map_err(user_err)?;
         tx.commit().await.map_err(internal)?;
     }
     let menu = p.menu.clone().unwrap_or_else(|| default_menu(p));
     {
-        let mut tx = ctx.deps.custom_ctx().begin(ctx.principal.company).await.map_err(user_err)?;
-        mod_custom::menu::apply(&mut tx, &menu, user_id).await.map_err(user_err)?;
+        let mut tx = ctx
+            .deps
+            .custom_ctx()
+            .begin(ctx.principal.company)
+            .await
+            .map_err(user_err)?;
+        mod_custom::menu::apply(&mut tx, &menu, user_id)
+            .await
+            .map_err(user_err)?;
         tx.commit().await.map_err(internal)?;
     }
     apply_features(ctx, &p.features, status == "chua_dung").await?;
     if status != "da_dung" {
         let mut c = ctx.deps.conn(ctx.principal.company).await?;
-        mod_setup::status::set(&mut c, "dang_dung", Some(user_id)).await.map_err(user_err)?;
+        mod_setup::status::set(&mut c, "dang_dung", Some(user_id))
+            .await
+            .map_err(user_err)?;
     }
     Ok(())
 }
@@ -639,9 +730,17 @@ pub(super) fn propose_workspace<'a>(
                 "Dựng gói “{}”: {} bảng ({}), {} màn xem{}",
                 p.title,
                 p.objects.len(),
-                p.objects.iter().map(|o| o.label.as_str()).collect::<Vec<_>>().join(", "),
+                p.objects
+                    .iter()
+                    .map(|o| o.label.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", "),
                 p.views.len(),
-                if p.features.is_empty() { String::new() } else { format!(", bật {} module", p.features.len()) }
+                if p.features.is_empty() {
+                    String::new()
+                } else {
+                    format!(", bật {} module", p.features.len())
+                }
             ),
             details,
         };
@@ -664,8 +763,15 @@ mod tests {
         .unwrap();
         assert_eq!((p.objects.len(), p.views.len(), p.features.len()), (1, 1, 1));
         let m = default_menu(&p);
-        assert_eq!((m[0].object.as_str(), m[0].view.as_deref()), ("don_hang", Some("pipeline")));
-        assert!(describe(&p, true).iter().any(|(l, _)| l.starts_with("Module bật (còn lại TẮT)")));
+        assert_eq!(
+            (m[0].object.as_str(), m[0].view.as_deref()),
+            ("don_hang", Some("pipeline"))
+        );
+        assert!(
+            describe(&p, true)
+                .iter()
+                .any(|(l, _)| l.starts_with("Module bật (còn lại TẮT)"))
+        );
     }
 
     #[test]

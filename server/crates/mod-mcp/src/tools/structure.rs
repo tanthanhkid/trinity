@@ -74,10 +74,14 @@ fn assert_key(key: &str, what: &str, reserved: bool) -> Result<(), ToolError> {
         )));
     }
     if reserved && RESERVED_OBJECT_KEYS.contains(&key) {
-        return Err(user(format!("Khoá bảng “{key}” là từ khoá hệ thống, hãy chọn khoá khác.")));
+        return Err(user(format!(
+            "Khoá bảng “{key}” là từ khoá hệ thống, hãy chọn khoá khác."
+        )));
     }
     if !reserved && key == "constructor" {
-        return Err(user(format!("Khoá trường “{key}” là từ khoá hệ thống, hãy chọn khoá khác.")));
+        return Err(user(format!(
+            "Khoá trường “{key}” là từ khoá hệ thống, hãy chọn khoá khác."
+        )));
     }
     Ok(())
 }
@@ -170,7 +174,10 @@ pub(super) fn parse_object(raw: &Value) -> Result<ObjectSpec, ToolError> {
         return Err(user(format!("Bảng “{label}” có hai trường trùng khoá.")));
     }
     if fields.len() > Limits::MAX_FIELDS_PER_OBJECT {
-        return Err(user(format!("Mỗi bảng tối đa {} trường.", Limits::MAX_FIELDS_PER_OBJECT)));
+        return Err(user(format!(
+            "Mỗi bảng tối đa {} trường.",
+            Limits::MAX_FIELDS_PER_OBJECT
+        )));
     }
     let label_plural = opt_clean(raw.get("label_plural"), 100).unwrap_or_else(|| label.clone());
     let code_prefix = read_prefix(raw.get("code_prefix"), &label)?;
@@ -235,10 +242,17 @@ pub(super) fn to_create_field(f: &FieldSpec, target_id: Option<i64>) -> CreateFi
 }
 
 /// Chạy thử kiểm hợp lệ KHÔNG ghi: cùng luật với dịch vụ (kiểu, cờ, lựa chọn, công thức, đích liên kết) để báo lỗi sớm.
-pub(super) fn check_fields(fields: &[FieldSpec], existing: &[FieldDef], known_targets: &HashSet<String>) -> Result<(), ToolError> {
+pub(super) fn check_fields(
+    fields: &[FieldSpec],
+    existing: &[FieldDef],
+    known_targets: &HashSet<String>,
+) -> Result<(), ToolError> {
     let mut sib: Vec<FieldDef> = existing.to_vec();
     if sib.len() + fields.len() > Limits::MAX_FIELDS_PER_OBJECT {
-        return Err(user(format!("Mỗi bảng tối đa {} trường.", Limits::MAX_FIELDS_PER_OBJECT)));
+        return Err(user(format!(
+            "Mỗi bảng tối đa {} trường.",
+            Limits::MAX_FIELDS_PER_OBJECT
+        )));
     }
     let mut has_title = sib.iter().any(|x| x.is_title);
     for f in fields {
@@ -257,7 +271,11 @@ pub(super) fn check_fields(fields: &[FieldSpec], existing: &[FieldDef], known_ta
                 return Err(user(format!(
                     "Trường liên kết “{}” cần target_object là khoá một bảng có sẵn ({}) hoặc \"contacts\".",
                     f.label,
-                    if names.is_empty() { "chưa có bảng nào".to_owned() } else { names.join(", ") }
+                    if names.is_empty() {
+                        "chưa có bảng nào".to_owned()
+                    } else {
+                        names.join(", ")
+                    }
                 )));
             }
         }
@@ -343,7 +361,10 @@ fn describe_fields(s: &ObjectSpec) -> String {
                 f.label,
                 f.kind,
                 if f.required == Some(true) { ", bắt buộc" } else { "" },
-                f.target_object.as_deref().map(|t| format!(" → {t}")).unwrap_or_default()
+                f.target_object
+                    .as_deref()
+                    .map(|t| format!(" → {t}"))
+                    .unwrap_or_default()
             )
         })
         .collect::<Vec<_>>()
@@ -358,7 +379,11 @@ pub(super) fn object_details(specs: &[ObjectSpec]) -> Vec<Detail> {
             let body = describe_fields(s);
             line(
                 &format!("Bảng {} [{}]", s.label, s.key),
-                if body.is_empty() { "(chưa có trường)".to_owned() } else { body },
+                if body.is_empty() {
+                    "(chưa có trường)".to_owned()
+                } else {
+                    body
+                },
                 900,
             )
         })
@@ -490,9 +515,16 @@ fn confirmation_of(args: &Value) -> Option<&str> {
     args.get("confirmed_by_user").and_then(Value::as_str)
 }
 
-pub(super) fn create_objects<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+pub(super) fn create_objects<'a>(
+    args: &'a Value,
+    ctx: &'a ToolCtx<'a>,
+) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
     Box::pin(async move {
-        let raw = args.get("objects").and_then(Value::as_array).cloned().unwrap_or_default();
+        let raw = args
+            .get("objects")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
         create_flow(ctx, "create_objects", &raw, confirmation_of(args)).await
     })
 }
@@ -514,10 +546,14 @@ pub(super) fn create_object<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFut
 pub(super) async fn load_def(ctx: &ToolCtx<'_>, key: &str) -> Result<ObjectDef, ToolError> {
     let actor = ctx.deps.custom_actor(ctx.principal);
     let mut c = ctx.deps.conn(ctx.principal.company).await?;
-    load_visible_object(&mut c, &actor, key, None).await.map_err(|e| match user_err(e) {
-        ToolError::User(_) => user(format!("Không có bảng “{key}”. Hãy gọi describe_schema để lấy đúng khoá.")),
-        other => other,
-    })
+    load_visible_object(&mut c, &actor, key, None)
+        .await
+        .map_err(|e| match user_err(e) {
+            ToolError::User(_) => user(format!(
+                "Không có bảng “{key}”. Hãy gọi describe_schema để lấy đúng khoá."
+            )),
+            other => other,
+        })
 }
 
 fn object_key(args: &Value) -> String {
@@ -534,7 +570,12 @@ pub(super) fn update_object<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFut
         let key = object_key(args);
         let def = load_def(ctx, &key).await?;
         let mut patch = Map::new();
-        for (k, max) in [("label", 100), ("label_plural", 100), ("icon", 48), ("description", 500)] {
+        for (k, max) in [
+            ("label", 100),
+            ("label_plural", 100),
+            ("icon", 48),
+            ("description", 500),
+        ] {
             if let Some(v) = opt_clean(args.get(k), max) {
                 patch.insert(k.to_owned(), json!(v));
             }
@@ -582,16 +623,24 @@ pub(super) fn update_object<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFut
         } else {
             def.obj.label.trim().to_owned()
         };
-        let mut details: Vec<Detail> = line("Bảng", format!("{} [{key}]", def.obj.label), 600).into_iter().collect();
-        details.extend(patch.iter().filter_map(|(k, v)| {
-            line(k, v.as_str().map_or_else(|| v.to_string(), str::to_owned), 600)
-        }));
+        let mut details: Vec<Detail> = line("Bảng", format!("{} [{key}]", def.obj.label), 600)
+            .into_iter()
+            .collect();
+        details.extend(
+            patch
+                .iter()
+                .filter_map(|(k, v)| line(k, v.as_str().map_or_else(|| v.to_string(), str::to_owned), 600)),
+        );
         let prepared = Prepared {
             params: json!({ "object": key, "patch": Value::Object(patch.clone()) }),
             summary: format!(
                 "Sửa bảng “{shown_name}”: {}{}",
                 changed.join(", "),
-                if patch.get("is_active") == Some(&json!(false)) { " (ẨN bảng)" } else { "" }
+                if patch.get("is_active") == Some(&json!(false)) {
+                    " (ẨN bảng)"
+                } else {
+                    ""
+                }
             ),
             details,
         };
@@ -620,14 +669,23 @@ pub(super) fn add_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<
         details.extend(line("Bảng", format!("{} [{key}]", def.obj.label), 600));
         details.extend(line("Trường", format!("{} [{}]", f.label, f.key), 600));
         details.extend(line("Kiểu", f.kind.clone(), 600));
-        details.extend(line("Bắt buộc", if f.required == Some(true) { "Có" } else { "Không" }, 600));
+        details.extend(line(
+            "Bắt buộc",
+            if f.required == Some(true) { "Có" } else { "Không" },
+            600,
+        ));
         details.extend(line(
             "Lựa chọn",
             f.choices
                 .as_deref()
                 .unwrap_or_default()
                 .iter()
-                .map(|c| c.as_str().map_or_else(|| c.get("label").and_then(Value::as_str).unwrap_or_default().to_owned(), str::to_owned))
+                .map(|c| {
+                    c.as_str().map_or_else(
+                        || c.get("label").and_then(Value::as_str).unwrap_or_default().to_owned(),
+                        str::to_owned,
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join(", "),
             600,
@@ -684,11 +742,11 @@ pub(super) fn update_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutu
         let key = object_key(args);
         let fkey = clean_text(args.get("field"), 48);
         let def = load_def(ctx, &key).await?;
-        let cur = def
-            .fields
-            .iter()
-            .find(|x| x.key == fkey)
-            .ok_or_else(|| user(format!("Bảng “{key}” không có trường “{fkey}”. Gọi describe_schema để xem.")))?;
+        let cur = def.fields.iter().find(|x| x.key == fkey).ok_or_else(|| {
+            user(format!(
+                "Bảng “{key}” không có trường “{fkey}”. Gọi describe_schema để xem."
+            ))
+        })?;
         let label = opt_clean(args.get("label"), 100);
         let help = opt_clean(args.get("help_text"), 300);
         let options = options_patch(args, &cur.kind)?;
@@ -749,7 +807,9 @@ pub(super) fn update_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutu
         };
         run_direct(ctx, "update_field", true, prepared, async {
             let (cctx, actor) = custom_pair(ctx);
-            fields::update(&cctx, &actor, &key, &fkey, &dto).await.map_err(user_err)?;
+            fields::update(&cctx, &actor, &key, &fkey, &dto)
+                .await
+                .map_err(user_err)?;
             Ok(json!({ "object": key, "field": fkey }))
         })
         .await
@@ -782,10 +842,17 @@ pub(super) fn archive_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFut
         let mut details: Vec<Detail> = Vec::new();
         details.extend(line("Bảng", format!("{} [{key}]", def.obj.label), 600));
         details.extend(line("Trường", format!("{} [{fkey}]", cur.label), 600));
-        details.extend(line("Hậu quả", "Trường biến khỏi form/danh sách; dữ liệu cũ vẫn nằm trong bản ghi", 600));
+        details.extend(line(
+            "Hậu quả",
+            "Trường biến khỏi form/danh sách; dữ liệu cũ vẫn nằm trong bản ghi",
+            600,
+        ));
         let prepared = Prepared {
             params: json!({ "object": key, "field": fkey }),
-            summary: format!("Ẩn trường “{}” của bảng “{}” (dữ liệu giữ nguyên)", cur.label, def.obj.label),
+            summary: format!(
+                "Ẩn trường “{}” của bảng “{}” (dữ liệu giữ nguyên)",
+                cur.label, def.obj.label
+            ),
             details,
         };
         run_direct(ctx, "archive_field", true, prepared, async {
@@ -808,7 +875,12 @@ fn diff_tables(diff: &Value) -> Vec<(String, String, String, i64)> {
             a.iter()
                 .map(|t| {
                     let s = |k: &str| t.get(k).and_then(Value::as_str).unwrap_or_default().to_owned();
-                    (s("key"), s("label"), s("change"), t.get("records").and_then(Value::as_i64).unwrap_or(0))
+                    (
+                        s("key"),
+                        s("label"),
+                        s("change"),
+                        t.get("records").and_then(Value::as_i64).unwrap_or(0),
+                    )
                 })
                 .collect()
         })
@@ -826,10 +898,14 @@ pub(super) fn restore_structure_version<'a>(
             .ok_or_else(|| user("version_id phải là số nguyên dương (lấy từ list_structure_versions)."))?;
         let tables = {
             let mut c = ctx.deps.conn(p.company).await?;
-            let snap = mod_custom::versions::load(&mut c, id).await.map_err(|e| match user_err(e) {
-                ToolError::User(_) => user(format!("Không có phiên bản cấu trúc #{id}. Gọi list_structure_versions.")),
-                other => other,
-            })?;
+            let snap = mod_custom::versions::load(&mut c, id)
+                .await
+                .map_err(|e| match user_err(e) {
+                    ToolError::User(_) => user(format!(
+                        "Không có phiên bản cấu trúc #{id}. Gọi list_structure_versions."
+                    )),
+                    other => other,
+                })?;
             let diff = mod_custom::versions::diff(&mut c, &snap).await.map_err(user_err)?;
             diff_tables(&diff)
         };
@@ -854,7 +930,9 @@ pub(super) fn restore_structure_version<'a>(
             // Khôi phục phải chạy trong MỘT giao dịch (hàm của mod-custom không tự mở).
             let cctx = ctx.deps.custom_ctx();
             let mut tx = cctx.begin(p.company).await.map_err(user_err)?;
-            let r = mod_custom::versions::restore(&mut tx, id, p.user_id).await.map_err(user_err)?;
+            let r = mod_custom::versions::restore(&mut tx, id, p.user_id)
+                .await
+                .map_err(user_err)?;
             tx.commit().await.map_err(internal)?;
             Ok(r)
         })
@@ -869,7 +947,10 @@ mod tests {
     #[test]
     fn doc_truong_va_bang() {
         let f = parse_field(&json!({ "label": "Ngày sinh", "type": "date", "required": true })).unwrap();
-        assert_eq!((f.key.as_str(), f.kind.as_str(), f.required), ("ngay_sinh", "date", Some(true)));
+        assert_eq!(
+            (f.key.as_str(), f.kind.as_str(), f.required),
+            ("ngay_sinh", "date", Some(true))
+        );
         assert!(parse_field(&json!({ "label": "x", "type": "lạ" })).is_err());
         assert!(parse_field(&json!({ "type": "text" })).is_err());
         assert!(parse_field(&json!({ "label": "x", "type": "text", "key": "Bad Key" })).is_err());
@@ -878,9 +959,15 @@ mod tests {
             "fields": [{ "label": "Họ tên", "type": "text" }, { "label": "Ghi chú", "type": "long_text" }],
         }));
         let o = o.unwrap();
-        assert_eq!((o.key.as_str(), o.label_plural.as_str(), o.fields.len()), ("benh_nhan", "Bệnh nhân", 2));
-        assert!(parse_object(&json!({ "label": "A", "fields": [
-            { "label": "x", "type": "text" }, { "label": "x", "type": "number" }] })).is_err());
+        assert_eq!(
+            (o.key.as_str(), o.label_plural.as_str(), o.fields.len()),
+            ("benh_nhan", "Bệnh nhân", 2)
+        );
+        assert!(
+            parse_object(&json!({ "label": "A", "fields": [
+            { "label": "x", "type": "text" }, { "label": "x", "type": "number" }] }))
+            .is_err()
+        );
         assert!(parse_object(&json!({ "label": "A", "key": "new" })).is_err());
         assert!(parse_object(&json!({ "label": "A", "icon": "khong-co" })).is_err());
     }
@@ -895,9 +982,17 @@ mod tests {
         assert_eq!(o["choices"][0], json!({ "label": "Mới" }));
         assert_eq!(o["choices"][1]["label"], "Xong");
         let r = parse_field(&json!({ "label": "Khách", "type": "relation", "target_object": "contacts" })).unwrap();
-        assert_eq!(field_options(&r, None), json!({ "target": "contact", "multiple": false }));
-        let r2 = parse_field(&json!({ "label": "Đơn", "type": "relation", "target_object": "don_hang", "multiple": true })).unwrap();
-        assert_eq!(field_options(&r2, Some(7)), json!({ "target_object_id": 7, "multiple": true }));
+        assert_eq!(
+            field_options(&r, None),
+            json!({ "target": "contact", "multiple": false })
+        );
+        let r2 =
+            parse_field(&json!({ "label": "Đơn", "type": "relation", "target_object": "don_hang", "multiple": true }))
+                .unwrap();
+        assert_eq!(
+            field_options(&r2, Some(7)),
+            json!({ "target_object_id": 7, "multiple": true })
+        );
     }
 
     #[test]

@@ -32,7 +32,10 @@ const VIEW_TYPE_WORDS: [(&str, &[&str]); 4] = [
             "trello",
         ],
     ),
-    ("calendar", &["lich", "calendar", "theo ngay", "theo thang", "theo tuan"]),
+    (
+        "calendar",
+        &["lich", "calendar", "theo ngay", "theo thang", "theo tuan"],
+    ),
     (
         "table",
         &[
@@ -106,7 +109,9 @@ pub(super) fn parse_view(raw: &Value) -> Result<ViewSpec, ToolError> {
     }
     let kind = raw.get("type").and_then(Value::as_str).unwrap_or_default();
     if !VIEW_TYPES.contains(&kind) {
-        return Err(user(views::unsupported_view_type_message(raw.get("type").and_then(Value::as_str))));
+        return Err(user(views::unsupported_view_type_message(
+            raw.get("type").and_then(Value::as_str),
+        )));
     }
     let key = opt_clean(raw.get("key"), 48).unwrap_or_else(|| slugify_key(&label));
     let list = |k: &str| {
@@ -126,11 +131,19 @@ pub(super) fn parse_view(raw: &Value) -> Result<ViewSpec, ToolError> {
     if let Some(d) = opt_clean(raw.get("date_field"), 48) {
         cfg.insert("date_field".into(), json!(d));
     }
-    if let Some(m) = raw.get("mode").and_then(Value::as_str).filter(|m| *m == "week" || *m == "month") {
+    if let Some(m) = raw
+        .get("mode")
+        .and_then(Value::as_str)
+        .filter(|m| *m == "week" || *m == "month")
+    {
         cfg.insert("mode".into(), json!(m));
     }
     if let Some(f) = opt_clean(raw.get("sort_field"), 48) {
-        let dir = if raw.get("sort_dir").and_then(Value::as_str) == Some("desc") { "desc" } else { "asc" };
+        let dir = if raw.get("sort_dir").and_then(Value::as_str) == Some("desc") {
+            "desc"
+        } else {
+            "asc"
+        };
         cfg.insert("sort".into(), json!({ "field": f, "dir": dir }));
     }
     Ok(ViewSpec {
@@ -145,7 +158,13 @@ pub(super) fn parse_view(raw: &Value) -> Result<ViewSpec, ToolError> {
 
 /// Câu mô tả cấu hình màn (`describeView`).
 pub(super) fn describe_view(s: &ViewSpec) -> String {
-    let c = |k: &str| s.config.get(k).and_then(Value::as_str).unwrap_or("undefined").to_owned();
+    let c = |k: &str| {
+        s.config
+            .get(k)
+            .and_then(Value::as_str)
+            .unwrap_or("undefined")
+            .to_owned()
+    };
     match s.kind.as_str() {
         "kanban" => format!("Kanban theo “{}”", c("group_by")),
         "calendar" => format!(
@@ -182,12 +201,24 @@ pub(super) fn create_view<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutur
         details.extend(line("Cấu hình", ok.config.to_string(), 600));
         let prepared = Prepared {
             params: json!({ "object": key, "view": { "key": ok.key, "label": ok.label, "type": ok.kind } }),
-            summary: format!("Tạo màn “{}” cho bảng “{}”: {}", ok.label, def.obj.label, describe_view(&ok)),
+            summary: format!(
+                "Tạo màn “{}” cho bảng “{}”: {}",
+                ok.label,
+                def.obj.label,
+                describe_view(&ok)
+            ),
             details,
         };
         run_direct(ctx, "create_view", false, prepared, async {
-            let mut tx = ctx.deps.custom_ctx().begin(ctx.principal.company).await.map_err(user_err)?;
-            let v = views::create(&mut tx, &def, &ok, ctx.principal.user_id).await.map_err(user_err)?;
+            let mut tx = ctx
+                .deps
+                .custom_ctx()
+                .begin(ctx.principal.company)
+                .await
+                .map_err(user_err)?;
+            let v = views::create(&mut tx, &def, &ok, ctx.principal.user_id)
+                .await
+                .map_err(user_err)?;
             tx.commit().await.map_err(internal)?;
             Ok(json!({ "view": v.key, "open_at": format!("/x/{}/v/{}", def.obj.key, v.key) }))
         })
@@ -204,14 +235,24 @@ pub(super) fn update_view<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutur
         let cur = {
             let (cctx, actor) = (ctx.deps.custom_ctx(), ctx.deps.custom_actor(ctx.principal));
             views::get(&cctx, &actor, &key, &view_key).await.map_err(|e| {
-                user(format!("Bảng “{}” không có view “{view_key}”. ({})", def.obj.label, app_msg(e)))
+                user(format!(
+                    "Bảng “{}” không có view “{view_key}”. ({})",
+                    def.obj.label,
+                    app_msg(e)
+                ))
             })?
         };
         let cur_label = cur["label"].as_str().unwrap_or_default().to_owned();
         let cur_type = cur["type"].as_str().unwrap_or("list").to_owned();
         let remove = flag(args, "remove") == Some(true);
         let c = &cur["config"];
-        let pick = |k: &str| args.get(k).filter(|v| !v.is_null()).or_else(|| c.get(k)).cloned().unwrap_or(Value::Null);
+        let pick = |k: &str| {
+            args.get(k)
+                .filter(|v| !v.is_null())
+                .or_else(|| c.get(k))
+                .cloned()
+                .unwrap_or(Value::Null)
+        };
         let merged_raw = json!({
             "key": view_key,
             "label": args.get("label").cloned().unwrap_or_else(|| json!(cur_label)),
@@ -251,7 +292,11 @@ pub(super) fn update_view<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutur
             None => format!("XOÁ màn “{cur_label}” của bảng “{}”", def.obj.label),
             Some(m) => format!(
                 "Sửa màn “{}” của bảng “{}”: {}",
-                if m.label != cur_label { format!("{cur_label} → {}", m.label) } else { cur_label.clone() },
+                if m.label != cur_label {
+                    format!("{cur_label} → {}", m.label)
+                } else {
+                    cur_label.clone()
+                },
                 def.obj.label,
                 describe_view(m)
             ),
@@ -260,9 +305,18 @@ pub(super) fn update_view<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutur
         details.extend(line("Bảng", format!("{} [{key}]", def.obj.label), 600));
         details.extend(line("Màn", format!("{cur_label} [{view_key}]"), 600));
         details.extend(line("Thay đổi", patch.to_string(), 600));
-        let prepared = Prepared { params: json!({ "object": key, "view": view_key, "patch": patch }), summary, details };
+        let prepared = Prepared {
+            params: json!({ "object": key, "view": view_key, "patch": patch }),
+            summary,
+            details,
+        };
         run_direct(ctx, "update_view", false, prepared, async {
-            let mut tx = ctx.deps.custom_ctx().begin(ctx.principal.company).await.map_err(user_err)?;
+            let mut tx = ctx
+                .deps
+                .custom_ctx()
+                .begin(ctx.principal.company)
+                .await
+                .map_err(user_err)?;
             views::update(&mut tx, &def, &view_key, &patch, ctx.principal.user_id)
                 .await
                 .map_err(user_err)?;
@@ -305,7 +359,12 @@ pub(super) fn set_menu<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'
                 let roles = e.roles.as_ref().map(|r| format!(" — vai trò: {}", r.join(", ")));
                 line(
                     &format!("Mục {}", i + 1),
-                    format!("{}{}{}", e.object, e.view.as_ref().map(|v| format!(" / {v}")).unwrap_or_default(), roles.unwrap_or_default()),
+                    format!(
+                        "{}{}{}",
+                        e.object,
+                        e.view.as_ref().map(|v| format!(" / {v}")).unwrap_or_default(),
+                        roles.unwrap_or_default()
+                    ),
                     600,
                 )
             })
@@ -315,13 +374,24 @@ pub(super) fn set_menu<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'
             summary: format!(
                 "Đặt menu {} mục: {}",
                 entries.len(),
-                entries.iter().map(|e| e.object.as_str()).collect::<Vec<_>>().join(" · ")
+                entries
+                    .iter()
+                    .map(|e| e.object.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" · ")
             ),
             details,
         };
         run_direct(ctx, "set_menu", false, prepared, async {
-            let mut tx = ctx.deps.custom_ctx().begin(ctx.principal.company).await.map_err(user_err)?;
-            let r = menu::apply(&mut tx, &entries, ctx.principal.user_id).await.map_err(user_err)?;
+            let mut tx = ctx
+                .deps
+                .custom_ctx()
+                .begin(ctx.principal.company)
+                .await
+                .map_err(user_err)?;
+            let r = menu::apply(&mut tx, &entries, ctx.principal.user_id)
+                .await
+                .map_err(user_err)?;
             tx.commit().await.map_err(internal)?;
             Ok(r)
         })
@@ -337,7 +407,10 @@ mod tests {
     fn goi_ten_loai_man() {
         let none: Vec<String> = Vec::new();
         assert_eq!(view_types_in_words(Some("xem dạng lịch"), &none), vec!["calendar"]);
-        assert_eq!(view_types_in_words(Some("kéo thả theo trạng thái"), &none), vec!["kanban"]);
+        assert_eq!(
+            view_types_in_words(Some("kéo thả theo trạng thái"), &none),
+            vec!["kanban"]
+        );
         assert!(view_types_in_words(Some("ok tạo đi"), &none).is_empty());
         let ignore = table_names("lich_hen", "Lịch hẹn", "Lịch hẹn", None);
         assert!(view_types_in_words(Some("quản lý lịch hẹn"), &ignore).is_empty());
@@ -357,7 +430,13 @@ mod tests {
         assert_eq!(describe_view(&v), "Kanban theo “trang_thai”");
         assert!(parse_view(&json!({ "label": "x", "type": "gantt" })).is_err());
         assert!(parse_menu(Some(&json!([]))).is_err());
-        let m = parse_menu(Some(&json!([{ "object": "khach", "view": "kb", "roles": ["Quản lý", ""] }]))).unwrap();
-        assert_eq!((m[0].object.as_str(), m[0].roles.as_ref().map(Vec::len)), ("khach", Some(1)));
+        let m = parse_menu(Some(
+            &json!([{ "object": "khach", "view": "kb", "roles": ["Quản lý", ""] }]),
+        ))
+        .unwrap();
+        assert_eq!(
+            (m[0].object.as_str(), m[0].roles.as_ref().map(Vec::len)),
+            ("khach", Some(1))
+        );
     }
 }

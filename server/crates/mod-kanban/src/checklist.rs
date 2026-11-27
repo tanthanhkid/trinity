@@ -12,7 +12,9 @@ use trinity_kernel::error::AppError;
 use crate::activities::log_activity;
 use crate::cards::load_scoped;
 use crate::position::{append, renormalized};
-use crate::{Actor, CHECKLIST_ITEMS_MAX_PER_CARD, Deleted, bad_request, db, not_found};
+use trinity_kernel::error::HttpError;
+
+use crate::{Actor, CHECKLIST_ITEMS_MAX_PER_CARD, Deleted, bad_request, check_text, db, finish, not_found};
 
 const COLS: &str = "id, card_id, text, is_done, position, created_by, created_at, updated_at";
 
@@ -35,6 +37,42 @@ pub struct UpdateItem {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ReorderItems {
     pub item_ids: Vec<i32>,
+}
+
+pub const TEXT_MAX_LENGTH: usize = 500;
+
+impl CreateItem {
+    /// Luật của `CreateKanbanChecklistItemDto`: `text` 1..500 ký tự.
+    pub fn validate(&self) -> Result<(), HttpError> {
+        let mut e = Vec::new();
+        check_text("text", &self.text, TEXT_MAX_LENGTH, &mut e);
+        finish(e)
+    }
+}
+
+impl UpdateItem {
+    /// Luật của `UpdateKanbanChecklistItemDto`: trường vắng bỏ qua; `text` có mặt thì 1..500.
+    pub fn validate(&self) -> Result<(), HttpError> {
+        let mut e = Vec::new();
+        if let Some(t) = &self.text {
+            check_text("text", t, TEXT_MAX_LENGTH, &mut e);
+        }
+        finish(e)
+    }
+}
+
+impl ReorderItems {
+    /// Luật của `ReorderKanbanChecklistItemsDto`: 1..200 phần tử.
+    pub fn validate(&self) -> Result<(), HttpError> {
+        let mut e = Vec::new();
+        if self.item_ids.is_empty() {
+            e.push("item_ids không được rỗng".to_owned());
+        }
+        if i64::try_from(self.item_ids.len()).unwrap_or(i64::MAX) > CHECKLIST_ITEMS_MAX_PER_CARD {
+            e.push(format!("item_ids tối đa {CHECKLIST_ITEMS_MAX_PER_CARD} phần tử"));
+        }
+        finish(e)
+    }
 }
 
 async fn items(conn: &mut PgConnection, card_id: i32) -> Result<Vec<KanbanChecklistItem>, AppError> {
@@ -72,9 +110,16 @@ pub async fn create(
     input: &CreateItem,
 ) -> Result<KanbanChecklistItem, AppError> {
     load_scoped(conn, actor, card_id).await?;
+    let mut tx = conn.begin().await.map_err(db)?;
+    // Khoá hàng thẻ: đếm trần và đọc vị trí cuối trong cùng giao dịch, hai request cùng lúc không vượt trần hay trùng vị trí.
+    sqlx::query("SELECT id FROM kanban_cards WHERE id = $1 FOR UPDATE")
+        .bind(card_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM kanban_checklist_items WHERE card_id = $1")
         .bind(card_id)
-        .fetch_one(&mut *conn)
+        .fetch_one(&mut *tx)
         .await
         .map_err(db)?;
     if count >= CHECKLIST_ITEMS_MAX_PER_CARD {
@@ -86,10 +131,9 @@ pub async fn create(
         "SELECT position FROM kanban_checklist_items WHERE card_id = $1 ORDER BY position DESC LIMIT 1",
     )
     .bind(card_id)
-    .fetch_optional(&mut *conn)
+    .fetch_optional(&mut *tx)
     .await
     .map_err(db)?;
-    let mut tx = conn.begin().await.map_err(db)?;
     let created = sqlx::query_as::<_, KanbanChecklistItem>(sqlx::AssertSqlSafe(format!(
         "INSERT INTO kanban_checklist_items (card_id, text, position, created_by, updated_at) VALUES ($1, $2, $3, $4, now()) RETURNING {COLS}"
     )))
@@ -162,7 +206,10 @@ pub async fn reorder(
         .into_iter()
         .collect();
     let requested: HashSet<i32> = input.item_ids.iter().copied().collect();
-    if existing.len() != requested.len() || !input.item_ids.iter().all(|i| existing.contains(i)) {
+    if existing.len() != requested.len()
+        || input.item_ids.len() != existing.len()
+        || !input.item_ids.iter().all(|i| existing.contains(i))
+    {
         return Err(bad_request(
             "Danh sách mục không khớp — phải gồm ĐỦ và ĐÚNG các mục hiện có của card",
         ));
@@ -204,4 +251,49 @@ pub async fn remove(conn: &mut PgConnection, actor: &Actor, id: i32) -> Result<D
     .await?;
     tx.commit().await.map_err(db)?;
     Ok(Deleted { deleted: true })
+}
+
+#[cfg(test)]
+mod validate_tests {
+    use super::*;
+
+    fn msgs(r: Result<(), HttpError>) -> Vec<String> {
+        match r.unwrap_err().body().message {
+            trinity_kernel::error::Message::Many(m) => m,
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn validate_checklist() {
+        assert!(CreateItem { text: "a".into() }.validate().is_ok());
+        assert_eq!(
+            msgs(CreateItem { text: String::new() }.validate()),
+            ["text không được rỗng"]
+        );
+        assert_eq!(
+            msgs(CreateItem { text: "x".repeat(501) }.validate()),
+            ["text tối đa 500 ký tự"]
+        );
+        assert!(UpdateItem::default().validate().is_ok(), "trường vắng bỏ qua");
+        assert_eq!(
+            msgs(
+                UpdateItem {
+                    text: Some(String::new()),
+                    is_done: None
+                }
+                .validate()
+            ),
+            ["text không được rỗng"]
+        );
+        assert_eq!(
+            msgs(ReorderItems { item_ids: vec![] }.validate()),
+            ["item_ids không được rỗng"]
+        );
+        assert_eq!(
+            msgs(ReorderItems { item_ids: vec![1; 201] }.validate()),
+            ["item_ids tối đa 200 phần tử"]
+        );
+        assert!(ReorderItems { item_ids: vec![1; 200] }.validate().is_ok());
+    }
 }

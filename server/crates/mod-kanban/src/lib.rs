@@ -131,3 +131,34 @@ pub(crate) fn bad_request(msg: impl Into<trinity_kernel::error::Message>) -> App
 pub(crate) fn forbidden(msg: &str) -> AppError {
     HttpError::forbidden(msg).into()
 }
+
+const INT4_MAX: i64 = 2_147_483_647;
+
+/// `@Min(1)` (+ `@Max(INT4_MAX)` khi `cap`) cho id số nguyên tuỳ chọn.
+pub(crate) fn check_id(field: &str, v: Option<i64>, cap: bool, out: &mut Vec<String>) {
+    if let Some(v) = v {
+        if v < 1 {
+            out.push(format!("{field} không hợp lệ"));
+        } else if cap && v > INT4_MAX {
+            out.push(format!("{field} vượt trần cho phép"));
+        }
+    }
+}
+
+/// `@IsDateString`: ISO 8601 (`YYYY-MM-DD` hoặc có giờ); sai ⇒ lỗi `<field> phải là ngày ISO 8601 hợp lệ`.
+pub(crate) fn check_date(field: &str, v: Option<&str>, out: &mut Vec<String>) {
+    if let Some(v) = v
+        && !crate::attributes::valid_iso(v)
+    {
+        out.push(format!("{field} phải là ngày ISO 8601 hợp lệ"));
+    }
+}
+
+/// Chuỗi 1..max ký tự (UTF-16), như `@MinLength(1) @MaxLength(max)`.
+pub(crate) fn check_text(field: &str, v: &str, max: usize, out: &mut Vec<String>) {
+    if v.is_empty() {
+        out.push(format!("{field} không được rỗng"));
+    } else if len16(v) > max {
+        out.push(format!("{field} tối đa {max} ký tự"));
+    }
+}

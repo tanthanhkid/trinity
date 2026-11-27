@@ -18,6 +18,7 @@ trinity-db = { workspace = true }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-rbac = { workspace = true }
+url = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]

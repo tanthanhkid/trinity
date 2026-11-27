@@ -27,7 +27,7 @@ use crate::nullable::some_nullable;
 use crate::position::{append, between, renormalized};
 use crate::{
     Actor, BOARD_COLS, CARD_ASSIGNEES_MAX, CARD_COLS, CARDS_DEFAULT_LIMIT, CARDS_MAX_LIMIT, RESTORE_WINDOW_MINUTES,
-    bad_request, board_not_found, db, forbidden, not_found,
+    bad_request, board_not_found, check_date, check_id, check_text, db, finish, forbidden, len16, not_found,
 };
 
 const SELECT: &str = "SELECT c.id, c.code, c.board_id, c.column_id, c.position, c.title, c.description, c.contact_id, c.assignee_id, \
@@ -406,11 +406,13 @@ pub struct CreateCard {
 /// mặt trong body theo đúng thứ tự gửi (vào hoạt động `updated`).
 #[derive(Debug, Clone, Default)]
 pub struct UpdateCard {
-    pub title: Option<String>,
+    /// `null` ⇒ 400 (xem [`UpdateCard::validate`]); chỉ `Some(Some(_))` được ghi.
+    pub title: Option<Option<String>>,
     pub description: Option<Option<String>>,
     pub contact_id: Option<Option<i32>>,
     pub assignee_id: Option<Option<i32>>,
-    pub assignee_ids: Option<Vec<i32>>,
+    /// `null` ⇒ 400; mảng rỗng mới là "gỡ hết người phụ trách".
+    pub assignee_ids: Option<Option<Vec<i32>>>,
     pub due_at: Option<Option<String>>,
     pub due_completed_at: Option<Option<String>>,
     pub priority: Option<Option<String>>,
@@ -421,16 +423,16 @@ pub struct UpdateCard {
 
 #[derive(Deserialize, Default)]
 struct UpdateRaw {
-    #[serde(default)]
-    title: Option<String>,
+    #[serde(default, deserialize_with = "some_nullable")]
+    title: Option<Option<String>>,
     #[serde(default, deserialize_with = "some_nullable")]
     description: Option<Option<String>>,
     #[serde(default, deserialize_with = "some_nullable")]
     contact_id: Option<Option<i32>>,
     #[serde(default, deserialize_with = "some_nullable")]
     assignee_id: Option<Option<i32>>,
-    #[serde(default)]
-    assignee_ids: Option<Vec<i32>>,
+    #[serde(default, deserialize_with = "some_nullable")]
+    assignee_ids: Option<Option<Vec<i32>>>,
     #[serde(default, deserialize_with = "some_nullable")]
     due_at: Option<Option<String>>,
     #[serde(default, deserialize_with = "some_nullable")]
@@ -492,7 +494,137 @@ pub struct MoveCard {
     pub after_card_id: Option<i32>,
 }
 
-/// Ngày giờ ISO 8601 như `new Date(s)`: có múi giờ thì theo múi giờ, không có thì UTC; `YYYY-MM-DD` là 00:00 UTC.
+const PRIORITIES: [&str; 4] = ["low", "normal", "high", "urgent"];
+const TITLE_MAX: usize = 500;
+const DESCRIPTION_MAX: usize = 10_000;
+const LABELS_MAX_ITEMS: usize = 20;
+const LABEL_MAX: usize = 64;
+
+fn check_labels(labels: Option<&Vec<String>>, e: &mut Vec<String>) {
+    if let Some(l) = labels {
+        if l.len() > LABELS_MAX_ITEMS {
+            e.push(format!("labels tối đa {LABELS_MAX_ITEMS} phần tử"));
+        }
+        if l.iter().any(|x| len16(x) > LABEL_MAX) {
+            e.push(format!("mỗi label tối đa {LABEL_MAX} ký tự"));
+        }
+    }
+}
+
+fn check_priority(p: Option<&str>, e: &mut Vec<String>) {
+    if p.is_some_and(|p| !PRIORITIES.contains(&p)) {
+        e.push("priority không hợp lệ".to_owned());
+    }
+}
+
+fn check_assignees(ids: Option<&Vec<i32>>, e: &mut Vec<String>) {
+    if ids.is_some_and(|i| i.len() > CARD_ASSIGNEES_MAX) {
+        e.push(format!("assignee_ids tối đa {CARD_ASSIGNEES_MAX} người"));
+    }
+}
+
+fn check_description(d: Option<&str>, e: &mut Vec<String>) {
+    if d.is_some_and(|d| len16(d) > DESCRIPTION_MAX) {
+        e.push(format!("description tối đa {DESCRIPTION_MAX} ký tự"));
+    }
+}
+
+fn check_attributes(a: Option<&Value>, e: &mut Vec<String>) {
+    if a.is_some_and(|a| !a.is_object() && !a.is_null()) {
+        e.push("attributes phải là object".to_owned());
+    }
+}
+
+impl CreateCard {
+    /// Luật của `CreateKanbanCardDto`.
+    pub fn validate(&self) -> Result<(), HttpError> {
+        let mut e = Vec::new();
+        check_id("column_id", Some(i64::from(self.column_id)), false, &mut e);
+        check_text("title", &self.title, TITLE_MAX, &mut e);
+        check_description(self.description.as_deref(), &mut e);
+        check_id("contact_id", self.contact_id.map(i64::from), true, &mut e);
+        check_id("assignee_id", self.assignee_id.map(i64::from), true, &mut e);
+        check_assignees(self.assignee_ids.as_ref(), &mut e);
+        check_date("due_at", self.due_at.as_deref(), &mut e);
+        check_priority(self.priority.as_deref(), &mut e);
+        check_labels(self.labels.as_ref(), &mut e);
+        check_attributes(self.attributes.as_ref(), &mut e);
+        finish(e)
+    }
+}
+
+impl UpdateCard {
+    /// Luật của `UpdateKanbanCardDto` (trường vắng bỏ qua). `title` và `assignee_ids` không nhận `null`:
+    /// `PartialType` giữ `@IsString`/`@IsArray` cho chúng (`skipNullProperties: false`), nên `null` là 400 và không ghi gì.
+    pub fn validate(&self) -> Result<(), HttpError> {
+        let mut e = Vec::new();
+        match &self.title {
+            Some(None) => e.push("title phải là chuỗi".to_owned()),
+            Some(Some(t)) => check_text("title", t, TITLE_MAX, &mut e),
+            None => {}
+        }
+        check_description(self.description.as_ref().and_then(|v| v.as_deref()), &mut e);
+        check_id("contact_id", self.contact_id.flatten().map(i64::from), true, &mut e);
+        check_id("assignee_id", self.assignee_id.flatten().map(i64::from), true, &mut e);
+        match &self.assignee_ids {
+            Some(None) => e.push("assignee_ids phải là mảng".to_owned()),
+            Some(Some(ids)) => check_assignees(Some(ids), &mut e),
+            None => {}
+        }
+        check_date("due_at", self.due_at.as_ref().and_then(|v| v.as_deref()), &mut e);
+        check_date(
+            "due_completed_at",
+            self.due_completed_at.as_ref().and_then(|v| v.as_deref()),
+            &mut e,
+        );
+        check_priority(self.priority.as_ref().and_then(|v| v.as_deref()), &mut e);
+        check_labels(self.labels.as_ref().and_then(|v| v.as_ref()), &mut e);
+        check_attributes(self.attributes.as_ref().and_then(|v| v.as_ref()), &mut e);
+        finish(e)
+    }
+}
+
+impl MoveCard {
+    /// Luật của `MoveKanbanCardDto`.
+    pub fn validate(&self) -> Result<(), HttpError> {
+        let mut e = Vec::new();
+        check_id("column_id", Some(i64::from(self.column_id)), false, &mut e);
+        check_id("before_card_id", self.before_card_id.map(i64::from), false, &mut e);
+        check_id("after_card_id", self.after_card_id.map(i64::from), false, &mut e);
+        finish(e)
+    }
+}
+
+impl ListCards {
+    /// Luật của `QueryKanbanCardsDto`.
+    pub fn validate(&self) -> Result<(), HttpError> {
+        let mut e = Vec::new();
+        for (f, v) in [
+            ("board_id", self.board_id),
+            ("column_id", self.column_id),
+            ("contact_id", self.contact_id),
+            ("assignee_id", self.assignee_id),
+        ] {
+            check_id(f, v.map(i64::from), false, &mut e);
+        }
+        if self.label.as_deref().is_some_and(|l| len16(l) > LABEL_MAX) {
+            e.push(format!("label tối đa {LABEL_MAX} ký tự"));
+        }
+        if self.search.as_deref().is_some_and(|s| len16(s) > 255) {
+            e.push("search tối đa 255 ký tự".to_owned());
+        }
+        if let Some(l) = self.limit {
+            if l < 1 {
+                e.push("limit tối thiểu 1".to_owned());
+            } else if l > CARDS_MAX_LIMIT {
+                e.push(format!("limit tối đa {CARDS_MAX_LIMIT}"));
+            }
+        }
+        finish(e)
+    }
+}
+
+/// Ngày giờ ISO 8601 như `new Date(s)`: có múi giờ thì theo múi giờ, không có thì UTC (máy chủ Node chạy `TZ=UTC`); `YYYY-MM-DD` là 00:00 UTC.
 fn parse_instant(label: &str, s: &str) -> Result<DateTime<Utc>, AppError> {
     if let Ok(d) = DateTime::parse_from_rfc3339(s) {
         return Ok(d.with_timezone(&Utc));
@@ -519,6 +651,7 @@ pub struct CardList {
 /// `GET /cards`: board hiển thị AND phạm vi thẻ AND bộ lọc (bộ lọc không bao giờ ghi đè điều kiện phạm vi). Theo cột thì
 /// `position, id` tăng dần; xuyên board thì `id` giảm dần (mới nhất trước).
 pub async fn list(conn: &mut PgConnection, actor: &Actor, q: &ListCards) -> Result<CardList, AppError> {
+    q.validate()?;
     let limit = q.limit.unwrap_or(CARDS_DEFAULT_LIMIT).clamp(1, CARDS_MAX_LIMIT);
     let mut qb = QueryBuilder::<Postgres>::new(SELECT);
     qb.push(" JOIN kanban_boards b ON b.id = c.board_id WHERE c.deleted_at IS NULL AND b.deleted_at IS NULL");
@@ -619,6 +752,7 @@ async fn field_defs(conn: &mut PgConnection, board_id: i32) -> Result<Vec<Kanban
 /// `POST /cards`: cột phải tồn tại, chưa ẩn, board hiển thị với người gọi; khách gắn phải trong phạm vi `contacts.view`;
 /// `attributes` kiểm theo trường của board; thẻ nối cuối cột; vào cột "hoàn thành" thì có `completed_at` ngay.
 pub async fn create(conn: &mut PgConnection, actor: &Actor, input: &CreateCard) -> Result<CardDto, AppError> {
+    input.validate()?;
     let column = sqlx::query_as::<_, KanbanColumn>(AssertSqlSafe(format!(
         "SELECT {} FROM kanban_columns WHERE id = $1",
         crate::COLUMN_COLS
@@ -643,13 +777,6 @@ pub async fn create(conn: &mut PgConnection, actor: &Actor, input: &CreateCard) 
     let attrs = attributes::validate(&defs, input.attributes.as_ref(), false)?;
     let assignees = resolve_assignee_ids(input.assignee_ids.as_ref(), input.assignee_id.map(Some))?.unwrap_or_default();
     assert_assignable(conn, &assignees).await?;
-    let last: Option<f64> = sqlx::query_scalar(
-        "SELECT position FROM kanban_cards WHERE column_id = $1 AND deleted_at IS NULL ORDER BY position DESC LIMIT 1",
-    )
-    .bind(input.column_id)
-    .fetch_optional(&mut *conn)
-    .await
-    .map_err(db)?;
     let due = input
         .due_at
         .as_deref()
@@ -657,6 +784,19 @@ pub async fn create(conn: &mut PgConnection, actor: &Actor, input: &CreateCard) 
         .transpose()?;
 
     let mut tx = conn.begin().await.map_err(db)?;
+    // Khoá hàng cột: hai thẻ tạo cùng lúc trong một cột không cùng đọc "vị trí cuối" rồi trùng vị trí.
+    sqlx::query("SELECT id FROM kanban_columns WHERE id = $1 FOR UPDATE")
+        .bind(input.column_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
+    let last: Option<f64> = sqlx::query_scalar(
+        "SELECT position FROM kanban_cards WHERE column_id = $1 AND deleted_at IS NULL ORDER BY position DESC LIMIT 1",
+    )
+    .bind(input.column_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(db)?;
     let id: i32 = sqlx::query_scalar(
         "INSERT INTO kanban_cards (board_id, column_id, position, title, description, contact_id, assignee_id, created_by, due_at,
            priority, labels, attributes, completed_at, updated_at)
@@ -706,6 +846,7 @@ pub async fn create(conn: &mut PgConnection, actor: &Actor, input: &CreateCard) 
 /// đã khoá không làm hỏng việc sửa); `attributes` trộn vào giá trị cũ. Ghi hoạt động `contact_linked|unlinked`, `assigned` và
 /// `updated` (kèm danh sách khoá đã gửi) cùng giao dịch.
 pub async fn update(conn: &mut PgConnection, actor: &Actor, id: i32, input: &UpdateCard) -> Result<CardDto, AppError> {
+    input.validate()?;
     let Scoped {
         card: existing,
         assignee_ids: existing_assignees,
@@ -725,7 +866,7 @@ pub async fn update(conn: &mut PgConnection, actor: &Actor, id: i32, input: &Upd
         }
     };
     let single = input.assignee_id;
-    let assignees = resolve_assignee_ids(input.assignee_ids.as_ref(), single)?;
+    let assignees = resolve_assignee_ids(input.assignee_ids.as_ref().and_then(Option::as_ref), single)?;
     let assignees_changed = assignees
         .as_ref()
         .is_some_and(|a| a.len() != existing_assignees.len() || a.iter().any(|i| !existing_assignees.contains(i)));
@@ -746,7 +887,7 @@ pub async fn update(conn: &mut PgConnection, actor: &Actor, id: i32, input: &Upd
 
     let mut tx = conn.begin().await.map_err(db)?;
     let mut qb = QueryBuilder::<Postgres>::new("UPDATE kanban_cards SET updated_at = now()");
-    if let Some(v) = &input.title {
+    if let Some(Some(v)) = &input.title {
         qb.push(", title = ").push_bind(v.clone());
     }
     if let Some(v) = &input.description {
@@ -825,6 +966,7 @@ pub struct Moved {
 /// `POST /cards/:id/move`: chuyển cột và/hoặc đổi vị trí (chèn giữa `before`/`after` của cột đích; khoảng cách cạn thì sắp lại
 /// cả cột). Vào cột "hoàn thành" đặt `completed_at`, ra khỏi thì xoá. Vượt giới hạn WIP chỉ cảnh báo, không chặn.
 pub async fn move_card(conn: &mut PgConnection, actor: &Actor, id: i32, input: &MoveCard) -> Result<Moved, AppError> {
+    input.validate()?;
     let Scoped { card, .. } = load_scoped(conn, actor, id).await?;
     let mut tx = conn.begin().await.map_err(db)?;
     let col = sqlx::query_as::<_, KanbanColumn>(AssertSqlSafe(format!(
@@ -1008,4 +1150,136 @@ pub async fn restore(conn: &mut PgConnection, actor: &Actor, id: i32) -> Result<
     log_activity(&mut tx, id, actor.user_id, "restored", &json!({})).await?;
     tx.commit().await.map_err(db)?;
     Ok(Restored { restored: true })
+}
+
+#[cfg(test)]
+mod validate_tests {
+    use super::*;
+
+    fn msgs(r: Result<(), HttpError>) -> Vec<String> {
+        match r.unwrap_err().body().message {
+            trinity_kernel::error::Message::Many(m) => m,
+            other => panic!("{other:?}"),
+        }
+    }
+
+    fn card(v: Value) -> CreateCard {
+        serde_json::from_value(v).unwrap()
+    }
+
+    fn upd(v: &str) -> UpdateCard {
+        serde_json::from_str(v).unwrap()
+    }
+
+    #[test]
+    fn validate_tao_the() {
+        assert!(
+            card(json!({ "column_id": 1, "title": "ok", "priority": "high", "labels": ["a"], "due_at": "2026-01-01" }))
+                .validate()
+                .is_ok()
+        );
+        let bad = card(json!({
+            "column_id": 0, "title": "", "priority": "gấp", "labels": vec!["x".repeat(65)], "due_at": "hôm qua",
+            "contact_id": 0, "attributes": []
+        }));
+        assert_eq!(
+            msgs(bad.validate()),
+            [
+                "column_id không hợp lệ",
+                "title không được rỗng",
+                "contact_id không hợp lệ",
+                "due_at phải là ngày ISO 8601 hợp lệ",
+                "priority không hợp lệ",
+                "mỗi label tối đa 64 ký tự",
+                "attributes phải là object"
+            ]
+        );
+        assert_eq!(
+            msgs(card(json!({ "column_id": 1, "title": "x".repeat(501) })).validate()),
+            ["title tối đa 500 ký tự"]
+        );
+        assert_eq!(
+            msgs(card(json!({ "column_id": 1, "title": "a", "labels": vec!["l"; 21] })).validate()),
+            ["labels tối đa 20 phần tử"]
+        );
+        assert_eq!(
+            msgs(card(json!({ "column_id": 1, "title": "a", "assignee_ids": vec![1; 21] })).validate()),
+            ["assignee_ids tối đa 20 người"]
+        );
+    }
+
+    #[test]
+    fn sua_the_null_o_title_va_assignee_ids_la_400() {
+        assert!(upd("{}").validate().is_ok());
+        assert!(
+            upd(r#"{"description":null,"priority":null,"labels":null,"assignee_ids":[]}"#)
+                .validate()
+                .is_ok()
+        );
+        assert_eq!(msgs(upd(r#"{"title":null}"#).validate()), ["title phải là chuỗi"]);
+        assert_eq!(
+            msgs(upd(r#"{"assignee_ids":null}"#).validate()),
+            ["assignee_ids phải là mảng"]
+        );
+        assert_eq!(
+            msgs(upd(r#"{"title":"","priority":"x"}"#).validate()),
+            ["title không được rỗng", "priority không hợp lệ"]
+        );
+        // Thứ tự khoá gửi được giữ cho hoạt động `updated`; khoá lạ bị bỏ.
+        assert_eq!(
+            upd(r#"{"priority":"low","khac":1,"title":"a"}"#).fields,
+            ["priority", "title"]
+        );
+    }
+
+    #[test]
+    fn validate_chuyen_va_danh_sach() {
+        assert!(
+            MoveCard {
+                column_id: 1,
+                before_card_id: Some(2),
+                after_card_id: None
+            }
+            .validate()
+            .is_ok()
+        );
+        assert_eq!(
+            msgs(
+                MoveCard {
+                    column_id: 0,
+                    before_card_id: Some(0),
+                    after_card_id: None
+                }
+                .validate()
+            ),
+            ["column_id không hợp lệ", "before_card_id không hợp lệ"]
+        );
+        assert!(ListCards::default().validate().is_ok());
+        let bad = ListCards {
+            board_id: Some(0),
+            limit: Some(101),
+            label: Some("x".repeat(65)),
+            search: Some("s".repeat(256)),
+            ..ListCards::default()
+        };
+        assert_eq!(
+            msgs(bad.validate()),
+            [
+                "board_id không hợp lệ",
+                "label tối đa 64 ký tự",
+                "search tối đa 255 ký tự",
+                "limit tối đa 100"
+            ]
+        );
+        assert_eq!(
+            msgs(
+                ListCards {
+                    limit: Some(0),
+                    ..ListCards::default()
+                }
+                .validate()
+            ),
+            ["limit tối thiểu 1"]
+        );
+    }
 }

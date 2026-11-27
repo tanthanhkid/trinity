@@ -170,7 +170,7 @@ fn money(label: &str, v: &Value) -> Result<Value, AppError> {
 }
 
 /// Ngày ISO 8601: `YYYY-MM-DD` hoặc `YYYY-MM-DDTHH:mm[:ss[.fff]][Z|±HH:mm]` (tháng 1..12, ngày 1..31 như V8).
-fn valid_iso(s: &str) -> bool {
+pub(crate) fn valid_iso(s: &str) -> bool {
     let b = s.as_bytes();
     let digits = |r: std::ops::Range<usize>| b.get(r).is_some_and(|x| x.iter().all(u8::is_ascii_digit));
     let num = |r: std::ops::Range<usize>| s.get(r).and_then(|x| x.parse::<u32>().ok()).unwrap_or(99);

@@ -10,7 +10,9 @@ use trinity_kernel::vi::trim_js;
 
 use crate::activities::log_activity;
 use crate::cards::load_scoped;
-use crate::{ATTACHMENTS_MAX_PER_CARD, Actor, Deleted, bad_request, db, forbidden, not_found};
+use trinity_kernel::error::HttpError;
+
+use crate::{ATTACHMENTS_MAX_PER_CARD, Actor, Deleted, bad_request, db, finish, forbidden, len16, not_found};
 
 const COLS: &str = "id, card_id, url, title, created_by, created_at";
 
@@ -20,6 +22,40 @@ pub struct CreateAttachment {
     pub url: String,
     #[serde(default)]
     pub title: Option<String>,
+}
+
+pub const URL_MAX_LENGTH: usize = 2000;
+pub const TITLE_MAX_LENGTH: usize = 255;
+
+/// `@IsUrl({ protocols: ['http','https'], require_protocol: true })`: có giao thức http/https, có tên miền (chứa dấu chấm
+/// hoặc là địa chỉ IP), không có khoảng trắng. Chặt hơn `url::Url::parse` thuần (từ chối `http://localhost`, như `isURL`).
+fn is_http_url(v: &str) -> bool {
+    if v.chars().any(char::is_whitespace) {
+        return false;
+    }
+    let Ok(u) = url::Url::parse(v) else { return false };
+    matches!(u.scheme(), "http" | "https")
+        && u.host().is_some_and(|h| match h {
+            url::Host::Domain(d) => d.contains('.') && !d.starts_with('.') && !d.ends_with('.'),
+            _ => true,
+        })
+}
+
+impl CreateAttachment {
+    /// Luật của `CreateKanbanAttachmentDto`.
+    pub fn validate(&self) -> Result<(), HttpError> {
+        let mut e = Vec::new();
+        if !is_http_url(&self.url) {
+            e.push("url phải là đường dẫn http/https hợp lệ".to_owned());
+        }
+        if len16(&self.url) > URL_MAX_LENGTH {
+            e.push(format!("url tối đa {URL_MAX_LENGTH} ký tự"));
+        }
+        if self.title.as_deref().is_some_and(|t| len16(t) > TITLE_MAX_LENGTH) {
+            e.push(format!("title tối đa {TITLE_MAX_LENGTH} ký tự"));
+        }
+        finish(e)
+    }
 }
 
 /// `GET /cards/:cardId/attachments`: mới nhất trước.
@@ -42,16 +78,6 @@ pub async fn create(
     input: &CreateAttachment,
 ) -> Result<KanbanCardAttachment, AppError> {
     load_scoped(conn, actor, card_id).await?;
-    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM kanban_card_attachments WHERE card_id = $1")
-        .bind(card_id)
-        .fetch_one(&mut *conn)
-        .await
-        .map_err(db)?;
-    if count >= ATTACHMENTS_MAX_PER_CARD {
-        return Err(bad_request(format!(
-            "Card đã đạt trần {ATTACHMENTS_MAX_PER_CARD} đính kèm"
-        )));
-    }
     let title = input
         .title
         .as_deref()
@@ -59,6 +85,22 @@ pub async fn create(
         .filter(|t| !t.is_empty())
         .map(str::to_owned);
     let mut tx = conn.begin().await.map_err(db)?;
+    // Khoá hàng thẻ: hai request cùng lúc không cùng thấy "còn chỗ" rồi vượt trần.
+    sqlx::query("SELECT id FROM kanban_cards WHERE id = $1 FOR UPDATE")
+        .bind(card_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM kanban_card_attachments WHERE card_id = $1")
+        .bind(card_id)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(db)?;
+    if count >= ATTACHMENTS_MAX_PER_CARD {
+        return Err(bad_request(format!(
+            "Card đã đạt trần {ATTACHMENTS_MAX_PER_CARD} đính kèm"
+        )));
+    }
     let a = sqlx::query_as::<_, KanbanCardAttachment>(sqlx::AssertSqlSafe(format!(
         "INSERT INTO kanban_card_attachments (card_id, url, title, created_by) VALUES ($1, $2, $3, $4) RETURNING {COLS}"
     )))
@@ -111,4 +153,49 @@ pub async fn remove(conn: &mut PgConnection, actor: &Actor, id: i32) -> Result<D
     .await?;
     tx.commit().await.map_err(db)?;
     Ok(Deleted { deleted: true })
+}
+
+#[cfg(test)]
+mod validate_tests {
+    use super::*;
+
+    fn msgs(r: Result<(), HttpError>) -> Vec<String> {
+        match r.unwrap_err().body().message {
+            trinity_kernel::error::Message::Many(m) => m,
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn validate_dinh_kem() {
+        let ok = |url: &str| {
+            CreateAttachment {
+                url: url.into(),
+                title: None,
+            }
+            .validate()
+            .is_ok()
+        };
+        assert!(ok("https://example.com/a?b=1"));
+        assert!(ok("http://192.168.1.1/x"));
+        for bad in [
+            "ftp://example.com",
+            "example.com/a",
+            "javascript:alert(1)",
+            "https://",
+            "http://localhost/x",
+            "https://a b.com",
+            "",
+        ] {
+            assert!(!ok(bad), "{bad}");
+        }
+        let long = CreateAttachment {
+            url: format!("https://example.com/{}", "a".repeat(2000)),
+            title: Some("t".repeat(256)),
+        };
+        assert_eq!(
+            msgs(long.validate()),
+            ["url tối đa 2000 ký tự", "title tối đa 255 ký tự"]
+        );
+    }
 }

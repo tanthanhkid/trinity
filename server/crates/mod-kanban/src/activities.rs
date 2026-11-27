@@ -9,7 +9,9 @@ use trinity_db::models::KanbanCardActivity;
 use trinity_kernel::error::AppError;
 
 use crate::cards::load_scoped;
-use crate::{ACTIVITIES_MAX_LIMIT, Actor, db};
+use trinity_kernel::error::HttpError;
+
+use crate::{ACTIVITIES_MAX_LIMIT, Actor, check_text, db, finish};
 
 /// Ghi một dòng lịch sử NGAY TRONG giao dịch ghi (dữ liệu nghiệp vụ bắt buộc, không bỏ qua lỗi).
 pub(crate) async fn log_activity(
@@ -45,6 +47,15 @@ pub struct ActivityDto {
 #[derive(Debug, Clone, Deserialize)]
 pub struct CreateComment {
     pub content: String,
+}
+
+impl CreateComment {
+    /// Luật của `CreateKanbanCommentDto`: 1..5000 ký tự.
+    pub fn validate(&self) -> Result<(), HttpError> {
+        let mut e = Vec::new();
+        check_text("content", &self.content, 5000, &mut e);
+        finish(e)
+    }
 }
 
 /// `GET /cards/:id/activities`: mới nhất trước, tối đa 200 dòng (bảng nhỏ theo thẻ, chưa cần con trỏ).
@@ -84,4 +95,41 @@ pub async fn add_comment(
         activity,
         actor_name: None,
     })
+}
+
+#[cfg(test)]
+mod validate_tests {
+    use super::*;
+
+    fn msgs(r: Result<(), HttpError>) -> Vec<String> {
+        match r.unwrap_err().body().message {
+            trinity_kernel::error::Message::Many(m) => m,
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn validate_binh_luan() {
+        assert!(CreateComment { content: "ok".into() }.validate().is_ok());
+        assert_eq!(
+            msgs(CreateComment { content: String::new() }.validate()),
+            ["content không được rỗng"]
+        );
+        assert_eq!(
+            msgs(
+                CreateComment {
+                    content: "x".repeat(5001)
+                }
+                .validate()
+            ),
+            ["content tối đa 5000 ký tự"]
+        );
+        assert!(
+            CreateComment {
+                content: "x".repeat(5000)
+            }
+            .validate()
+            .is_ok()
+        );
+    }
 }

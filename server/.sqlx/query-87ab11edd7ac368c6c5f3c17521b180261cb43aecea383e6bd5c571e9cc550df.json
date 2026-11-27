@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE teams SET name = COALESCE($2, name),\n                  department = CASE WHEN $3 THEN $4 ELSE department END,\n                  description = CASE WHEN $5 THEN $6 ELSE description END,\n                  team_lead_id = CASE WHEN $7 THEN $8 ELSE team_lead_id END,\n                  color = CASE WHEN $9 THEN $10 ELSE color END\n           WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Bool",
+        "Text",
+        "Bool",
+        "Text",
+        "Bool",
+        "Int4",
+        "Bool",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "87ab11edd7ac368c6c5f3c17521b180261cb43aecea383e6bd5c571e9cc550df"
+}

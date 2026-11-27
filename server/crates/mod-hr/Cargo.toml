@@ -1,0 +1,22 @@
+[package]
+name = "mod-hr"
+description = "Nhân sự: team và chức danh (M09), chuyển từ services/crm."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+trinity-db = { workspace = true }
+trinity-kernel = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[lints]
+workspace = true

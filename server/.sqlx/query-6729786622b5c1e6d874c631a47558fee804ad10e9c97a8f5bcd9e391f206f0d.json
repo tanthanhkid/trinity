@@ -1,0 +1,172 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, category, rank_code, name, symbol, base_salary AS \"base_salary: JsBigInt\", standard_target AS \"standard_target: JsBigInt\",\n                  default_insurance_salary AS \"default_insurance_salary: JsBigInt\",\n                  review_cycle_months, is_active, sort_order,\n                  created_at AS \"created_at: Timestamp\", updated_at AS \"updated_at: Timestamp\"\n           FROM job_titles WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "category",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "category"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "rank_code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "rank_code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "symbol",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "symbol"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "base_salary: JsBigInt",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "base_salary"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "standard_target: JsBigInt",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "standard_target"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "default_insurance_salary: JsBigInt",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "default_insurance_salary"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "review_cycle_months",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "review_cycle_months"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "is_active",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "is_active"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "sort_order",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "sort_order"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "created_at: Timestamp",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "updated_at: Timestamp",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6729786622b5c1e6d874c631a47558fee804ad10e9c97a8f5bcd9e391f206f0d"
+}

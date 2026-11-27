@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT u.id, u.full_name FROM users u\n           WHERE u.status = 'active' AND u.deleted_at IS NULL\n             AND EXISTS (SELECT 1 FROM users m WHERE m.manager_id = u.id AND m.status = 'active' AND m.deleted_at IS NULL)\n           ORDER BY u.id ASC LIMIT 2000",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "full_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "full_name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "295aba675eaa440415bdd115911ff0c07d042f1ee3e987ba6859e3c575ed46d9"
+}

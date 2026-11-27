@@ -34,6 +34,7 @@ trinity-integrations = { path = "crates/trinity-integrations" }
 mod-commerce = { path = "crates/mod-commerce" }
 mod-kanban = { path = "crates/mod-kanban" }
 mod-notify = { path = "crates/mod-notify" }
+mod-hr = { path = "crates/mod-hr" }
 
 # Runtime, HTTP
 tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync"] }

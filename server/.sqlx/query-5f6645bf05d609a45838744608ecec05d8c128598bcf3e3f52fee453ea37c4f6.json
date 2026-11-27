@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.user_id, u.full_name, u.email,\n                  (SELECT r.name FROM user_roles ur JOIN roles r ON r.id = ur.role_id\n                    WHERE ur.user_id = u.id ORDER BY ur.id LIMIT 1) AS role\n           FROM employees e JOIN users u ON u.id = e.user_id\n           WHERE e.team_id = $1 AND e.deleted_at IS NULL\n           ORDER BY u.full_name ASC, e.id ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "user_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "employees",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "full_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "full_name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "email",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "email"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "role",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "5f6645bf05d609a45838744608ecec05d8c128598bcf3e3f52fee453ea37c4f6"
+}

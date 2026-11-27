@@ -1,0 +1,182 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE job_titles SET category = COALESCE($2, category), name = COALESCE($3, name),\n                  symbol = COALESCE($4, symbol), base_salary = COALESCE($5, base_salary),\n                  standard_target = COALESCE($6, standard_target),\n                  default_insurance_salary = CASE WHEN $7 THEN $8 ELSE default_insurance_salary END,\n                  review_cycle_months = COALESCE($9, review_cycle_months), is_active = COALESCE($10, is_active),\n                  sort_order = COALESCE($11, sort_order), updated_at = now()\n           WHERE id = $1\n           RETURNING id, category, rank_code, name, symbol, base_salary AS \"base_salary: JsBigInt\", standard_target AS \"standard_target: JsBigInt\",\n                  default_insurance_salary AS \"default_insurance_salary: JsBigInt\",\n                     review_cycle_months, is_active, sort_order,\n                     created_at AS \"created_at: Timestamp\", updated_at AS \"updated_at: Timestamp\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "category",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "category"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "rank_code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "rank_code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "symbol",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "symbol"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "base_salary: JsBigInt",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "base_salary"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "standard_target: JsBigInt",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "standard_target"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "default_insurance_salary: JsBigInt",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "default_insurance_salary"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "review_cycle_months",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "review_cycle_months"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "is_active",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "is_active"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "sort_order",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "sort_order"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "created_at: Timestamp",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "updated_at: Timestamp",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "job_titles",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Int8",
+        "Bool",
+        "Int8",
+        "Int4",
+        "Bool",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0340d963d296315d2ea5dd218c5890fc0f009d6c12881d996770fbf0494b7c77"
+}

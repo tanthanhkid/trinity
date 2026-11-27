@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE employees SET team_id = $1 WHERE user_id = ANY($2) AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "624ccbda12d0615cade9738652279786ce2437a06576af96b38fc9aeda44e88b"
+}

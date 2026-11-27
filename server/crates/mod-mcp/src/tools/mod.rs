@@ -8,7 +8,10 @@
 mod contacts;
 mod deals;
 mod options;
+mod records;
+mod schema;
 mod search;
+mod setup;
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -91,7 +94,31 @@ fn reg(r: &mut ToolRegistry, name: &'static str, permissions: &'static [&'static
     });
 }
 
-/// Đăng ký 9 tool của nhóm vào `r`.
+/// Đăng ký 9 tool đọc của nhóm 2 (M41) vào `r`: `get_setup_guide`, `describe_schema`, `list_records`, `get_record`,
+/// `find_by_code`, `list_object_templates`, `list_screen_types`, `list_structure_versions`, `list_features`.
+pub fn register_group2(r: &mut ToolRegistry) {
+    reg(r, "get_setup_guide", &[], setup::get_setup_guide);
+    reg(r, "describe_schema", &[], schema::describe_schema);
+    reg(r, "list_records", &[], records::list_records);
+    reg(r, "get_record", &[], records::get_record);
+    reg(r, "find_by_code", &[], records::find_by_code);
+    reg(
+        r,
+        "list_object_templates",
+        &["custom_objects.manage"],
+        schema::list_object_templates,
+    );
+    reg(r, "list_screen_types", &[], schema::list_screen_types);
+    reg(
+        r,
+        "list_structure_versions",
+        &["custom_objects.manage"],
+        schema::list_structure_versions,
+    );
+    reg(r, "list_features", &[], setup::list_features);
+}
+
+/// Đăng ký 9 tool của nhóm 1 vào `r`.
 pub fn register_group1(r: &mut ToolRegistry) {
     reg(r, "search", &[], search::search);
     reg(r, "fetch", &[], search::fetch);

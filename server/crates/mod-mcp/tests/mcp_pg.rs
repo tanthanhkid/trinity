@@ -711,3 +711,82 @@ async fn tool_doc_nhom_1_theo_pham_vi_va_che_sdt() {
             == 0
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn tool_doc_nhom_2_schema_ma_chung_va_tinh_nang() {
+    let e = env_with(mod_mcp::register_group2).await;
+    let mut c = e.conn().await;
+    exec(
+        &mut c,
+        "INSERT INTO roles (name, is_system, updated_at) VALUES ('nv-m41', false, now());
+         INSERT INTO role_permissions (role_id, permission, scope)
+           SELECT r.id, p.permission, p.scope FROM roles r, (VALUES
+             ('integrations.ai_connect', NULL), ('contacts.view', 'own')) AS p(permission, scope) WHERE r.name = 'nv-m41';
+         INSERT INTO user_roles (user_id, role_id) SELECT u.id, r.id FROM users u, roles r WHERE u.email = 'staff@m39.test' AND r.name = 'nv-m41';",
+    )
+    .await;
+    let adm = e
+        .token("quantri", e.admin, "{crm.read}", RESOURCE, "1 hour", false)
+        .await;
+    let stf = e
+        .token("nhanvien", e.staff, "{crm.read}", RESOURCE, "1 hour", false)
+        .await;
+
+    // describe_schema: nhân viên chỉ thấy bảng lõi họ có quyền xem; không sửa được cấu trúc.
+    let (err, _, v) = run(&e, &stf, "describe_schema", &json!({})).await;
+    assert!(!err, "{v}");
+    let tables = v["data"]["tables"].as_array().unwrap();
+    assert_eq!(tables.len(), 1, "{v}");
+    assert_eq!(tables[0]["key"], "contacts");
+    assert_eq!(tables[0]["data_scope"], "own");
+    assert_eq!(v["data"]["structure"]["can_edit"], false);
+    let (err, _, v) = run(&e, &adm, "describe_schema", &json!({ "object": "deals" })).await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["structure"]["can_edit"], true);
+    assert!(v["data"]["other_tables"].as_array().unwrap().iter().all(|t| t["key"] != "deals"));
+    let (err, text, _) = run(&e, &adm, "describe_schema", &json!({ "object": "khong_co" })).await;
+    assert!(err && text.starts_with("Không có bảng “khong_co”"), "{text}");
+
+    // list_records / get_record: khoá bảng sai dạng và bảng không có đều là lỗi AI sửa được.
+    let (err, text, _) = run(&e, &adm, "list_records", &json!({ "object": "Sai Khoa" })).await;
+    assert!(err && text.starts_with("object phải là khoá bảng"), "{text}");
+    let (err, text, _) = run(&e, &adm, "list_records", &json!({ "object": "khong_co" })).await;
+    assert!(err && text.contains("describe_schema"), "{text}");
+    let (err, text, _) = run(&e, &adm, "get_record", &json!({ "object": "contacts" })).await;
+    assert!(err && text.starts_with("Cần id"), "{text}");
+    let (err, text, _) = run(&e, &adm, "list_records", &json!({ "object": "deals", "filter": { "x": 1 } })).await;
+    assert!(err && text.contains("chỉ lọc được theo"), "{text}");
+
+    // find_by_code: mã không thấy nằm ở not_found; mã sai dạng bị từ chối.
+    let (err, _, v) = run(&e, &adm, "find_by_code", &json!({ "codes": ["kh999", "@KH999", "ZZ1"] })).await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["not_found"], json!(["KH999", "ZZ1"]));
+    let (err, text, _) = run(&e, &adm, "find_by_code", &json!({ "codes": ["###"] })).await;
+    assert!(err && text.contains("không phải mã bản ghi"), "{text}");
+
+    // Tool cấu trúc: chỉ người có custom_objects.manage.
+    let (err, _, v) = run(&e, &stf, "list_structure_versions", &json!({})).await;
+    assert!(err, "{v}");
+    let (err, _, v) = run(&e, &adm, "list_structure_versions", &json!({})).await;
+    assert!(!err && v["data"]["versions"].is_array(), "{v}");
+    let (err, _, v) = run(&e, &adm, "list_object_templates", &json!({})).await;
+    assert!(!err && v["data"]["templates"].is_array(), "{v}");
+    let (err, _, v) = run(&e, &stf, "list_screen_types", &json!({})).await;
+    assert!(!err && v["data"]["can_create"] == false, "{v}");
+    assert_eq!(v["data"]["screen_types"].as_array().unwrap().len(), 4);
+
+    // list_features: đủ 5 nhóm, 19 tính năng; get_setup_guide: nhân viên không thấy vai trò.
+    let (err, _, v) = run(&e, &stf, "list_features", &json!({})).await;
+    assert!(!err, "{v}");
+    let groups = v["data"]["groups"].as_array().unwrap();
+    assert_eq!(groups.len(), 5);
+    assert_eq!(groups.iter().map(|g| g["features"].as_array().unwrap().len()).sum::<usize>(), 19);
+    let (err, _, v) = run(&e, &stf, "get_setup_guide", &json!({})).await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["can_build"], false);
+    assert_eq!(v["data"]["current"]["roles"], json!([]));
+    let (_, _, v) = run(&e, &adm, "get_setup_guide", &json!({})).await;
+    assert_eq!(v["data"]["can_build"], true);
+    assert!(!v["data"]["current"]["roles"].as_array().unwrap().is_empty(), "{v}");
+}

@@ -104,3 +104,42 @@ impl ToolDeps {
         })
     }
 }
+
+/// Ngữ cảnh và người gọi của các module bảng tuỳ biến, dựng thẳng từ `db` + `scopes` (không thêm trường vào `ToolDeps`).
+impl ToolDeps {
+    pub fn custom_ctx(&self) -> mod_custom::Ctx {
+        mod_custom::Ctx {
+            db: self.db.clone(),
+            scopes: self.scopes.clone(),
+        }
+    }
+
+    pub fn custom_actor(&self, p: &Principal) -> mod_custom::Actor {
+        mod_custom::Actor {
+            user_id: p.user_id,
+            company: p.company,
+            grants: p.grants.clone(),
+            is_admin: false,
+        }
+    }
+
+    pub fn setup_ctx(&self) -> mod_setup::Ctx {
+        mod_setup::Ctx::new(self.db.clone())
+    }
+
+    pub fn setup_actor(&self, p: &Principal) -> mod_setup::Actor {
+        mod_setup::Actor {
+            user_id: p.user_id,
+            company: p.company,
+            grants: p.grants.clone(),
+            is_admin: false,
+        }
+    }
+
+    /// Ngữ cảnh công ty của `mod-settings` (gói mặc định theo công ty chỉ có nghĩa ở chế độ nhiều công ty).
+    pub fn settings_ctx(&self, p: &Principal) -> mod_settings::Ctx {
+        mod_settings::Ctx {
+            company_id: self.db.multi_tenant().then(|| p.company.id()),
+        }
+    }
+}

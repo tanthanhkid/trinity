@@ -162,6 +162,12 @@ fn clean_string(key: &str, s: &str) -> String {
 
 /// Chuẩn hoá giá trị bất kỳ về JSON thuần an toàn cho AI.
 pub fn sanitize_for_ai(value: &Value, key: &str, depth: usize) -> Value {
+    sanitize_at(value, key, i32::try_from(depth).unwrap_or(i32::MAX))
+}
+
+/// Như [`sanitize_for_ai`] nhưng độ sâu bắt đầu có thể ÂM (`sanitizeForAi(v, "", -1)` của `describe_schema`: cây bảng, trường, lựa chọn
+/// sâu hơn trần `MAX_DEPTH`).
+pub fn sanitize_at(value: &Value, key: &str, depth: i32) -> Value {
     match value {
         Value::Null | Value::Bool(_) => value.clone(),
         // SĐT lưu dạng SỐ lọt qua mọi bộ lọc chuỗi ⇒ khoá kiểu SĐT thì ép về chuỗi rồi che.
@@ -175,11 +181,11 @@ pub fn sanitize_for_ai(value: &Value, key: &str, depth: usize) -> Value {
             }
         }
         Value::String(s) => Value::String(clean_string(key, s)),
-        _ if depth >= MAX_DEPTH => Value::String("[đã cắt: quá sâu]".to_owned()),
+        _ if depth >= MAX_DEPTH as i32 => Value::String("[đã cắt: quá sâu]".to_owned()),
         Value::Array(a) => Value::Array(
             a.iter()
                 .take(MAX_ITEMS)
-                .map(|v| sanitize_for_ai(v, key, depth + 1))
+                .map(|v| sanitize_at(v, key, depth + 1))
                 .collect(),
         ),
         Value::Object(o) => {
@@ -188,7 +194,7 @@ pub fn sanitize_for_ai(value: &Value, key: &str, depth: usize) -> Value {
                 if DROP_KEY.is_match(k) {
                     continue;
                 }
-                out.insert(k.clone(), sanitize_for_ai(v, k, depth + 1));
+                out.insert(k.clone(), sanitize_at(v, k, depth + 1));
             }
             Value::Object(out)
         }

@@ -2074,6 +2074,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-channel-guard"
+version = "0.3.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tower",
+ "tracing",
+ "trinity-auth",
+ "trinity-db",
+ "trinity-http",
+ "trinity-kernel",
+ "trinity-rbac",
+]
+
+[[package]]
 name = "mod-commerce"
 version = "0.3.0"
 dependencies = [
@@ -4251,6 +4270,7 @@ dependencies = [
  "base64 0.23.1",
  "clap",
  "getrandom 0.4.3",
+ "mod-channel-guard",
  "mod-kanban",
  "mod-system",
  "mod-users",

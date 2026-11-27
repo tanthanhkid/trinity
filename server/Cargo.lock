@@ -2766,6 +2766,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-zalo"
+version = "0.3.0"
+dependencies = [
+ "base64 0.23.1",
+ "chrono",
+ "getrandom 0.4.3",
+ "http",
+ "mod-channel-guard",
+ "mod-public-api",
+ "mod-settings",
+ "reqwest",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "subtle",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "trinity-db",
+ "trinity-http",
+ "trinity-integrations",
+ "trinity-kernel",
+ "url",
+ "wiremock",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4909,6 +4938,7 @@ dependencies = [
  "mod-store",
  "mod-system",
  "mod-users",
+ "mod-zalo",
  "serde_json",
  "sqlx",
  "tokio",

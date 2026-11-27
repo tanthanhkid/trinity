@@ -19,6 +19,7 @@ test-hooks = ["dep:trinity-testhooks", "trinity-testhooks/test-hooks"]
 [dependencies]
 mod-facebook = { workspace = true }
 mod-kanban = { workspace = true }
+mod-zalo = { workspace = true }
 mod-payroll = { workspace = true }
 mod-pos = { workspace = true }
 mod-hr = { workspace = true }

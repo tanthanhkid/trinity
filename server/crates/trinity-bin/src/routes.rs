@@ -20,6 +20,7 @@ pub fn declared_routes() -> Vec<RouteSpec> {
     v.extend(mod_leads::routes::routes());
     v.extend(mod_facebook::routes::routes());
     v.extend(mod_kanban::routes::routes());
+    v.extend(mod_zalo::routes::routes());
     v.extend(mod_payroll::routes::routes());
     v.extend(mod_pos::routes::routes());
     v.extend(mod_channel_guard::specs());

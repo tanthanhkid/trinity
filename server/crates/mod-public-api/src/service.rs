@@ -73,11 +73,14 @@ async fn load_owner(conn: &mut PgConnection, id: i32) -> R<Owner> {
 
 pub struct NewContact<'a> {
     pub phone: &'a str,
-    pub full_name: &'a str,
+    /// Cột `full_name` cho phép NULL (webhook Zalo không phải lúc nào cũng có tên).
+    pub full_name: Option<&'a str>,
     pub source_id: Option<i32>,
     pub email: Option<&'a str>,
     pub job_title: Option<&'a str>,
     pub reminder_notes: Option<&'a str>,
+    /// Id Zalo của khách (webhook Zalo OA tạo khách mới).
+    pub zalo_account: Option<&'a str>,
 }
 
 /// LÕI tạo khách của bên thứ ba (`createContactInTx`): gán `assigned_to = owner`, kế thừa `team_id` của owner, ghi outbox
@@ -89,8 +92,8 @@ pub async fn create_contact_in_tx(
     origin: &str,
 ) -> R<(i32, DateTime<Utc>)> {
     let (id, created): (i32, Timestamp) = sqlx::query_as(
-        "INSERT INTO contacts (phone, full_name, source_id, email, job_title, reminder_notes, assigned_to, team_id, updated_at) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now()) RETURNING id, created_at",
+        "INSERT INTO contacts (phone, full_name, source_id, email, job_title, reminder_notes, zalo_account, assigned_to, team_id, updated_at) \
+         VALUES ($1, $2, $3, $4, $5, $6, $9, $7, $8, now()) RETURNING id, created_at",
     )
     .bind(c.phone)
     .bind(c.full_name)
@@ -100,6 +103,7 @@ pub async fn create_contact_in_tx(
     .bind(c.reminder_notes)
     .bind(owner.id)
     .bind(owner.team_id)
+    .bind(c.zalo_account)
     .fetch_one(&mut *conn)
     .await
     .map_err(db)?;
@@ -152,11 +156,12 @@ pub async fn create_contact(ctx: &PublicCtx, key: &KeyInfo, dto: &Map<String, Va
         &mut tx,
         &NewContact {
             phone: &phone,
-            full_name: &full_name,
+            full_name: Some(&full_name),
             source_id: i32::try_from(source_id).ok(),
             email: email.as_deref(),
             job_title: job.as_deref(),
             reminder_notes: notes.as_deref(),
+            zalo_account: None,
         },
         &owner,
         "public_api",
@@ -344,11 +349,12 @@ pub async fn resolve_contact(ctx: &PublicCtx, a: &Actor, dto: &Map<String, Value
         &mut tx,
         &NewContact {
             phone: &phone,
-            full_name: &name,
+            full_name: Some(&name),
             source_id: source.and_then(|s| i32::try_from(s).ok()),
             email: None,
             job_title: None,
             reminder_notes: None,
+            zalo_account: None,
         },
         &Owner {
             id: a.user_id,

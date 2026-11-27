@@ -1,0 +1,39 @@
+[package]
+name = "mod-zalo"
+description = "Zalo OA và ZNS (M52): OAuth v4 PKCE, làm mới token dưới khoá advisory, webhook, ghép khách, tin tư vấn và ZNS, chuyển từ services/crm/src/zalo-oa."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+base64 = { workspace = true }
+chrono = { workspace = true }
+getrandom = { workspace = true }
+http = { workspace = true }
+mod-channel-guard = { workspace = true }
+mod-public-api = { workspace = true }
+mod-settings = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sqlx = { workspace = true }
+subtle = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+trinity-db = { workspace = true }
+trinity-http = { workspace = true }
+trinity-integrations = { workspace = true }
+trinity-kernel = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+rustls = { workspace = true }
+tokio = { workspace = true }
+wiremock = { workspace = true }
+
+[lints]
+workspace = true

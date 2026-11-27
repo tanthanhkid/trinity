@@ -150,3 +150,18 @@ Khi so hai lượt bằng `diff -r`, thêm `-x coverage` (tên file đo độ ph
 - `cases/default/25-webhook-zalo` (18 ca): chữ ký, tin khách, tin OA, tệp, follow, sự kiện chưa hỗ trợ, gửi trùng `msg_id`, OA chưa nối, cờ `zalo_oa` tắt, lỗi lấy hồ sơ. Thân không phải JSON ⇒ 400 (bộ đọc thân từ chối trước chữ ký) — hành vi Node được ghi lại.
 - Hồ sơ `fb-forward` (`FACEBOOK_WEBHOOK_FORWARD_URL=@MOCK@/fwd/webhook`, 6 ca): lô có Page chưa nối được chuyển NGUYÊN VĂN (thân thô + chữ ký gốc + `x-trinity-forwarded: 1`) tới máy chủ giả; Page đã nối thì không chuyển; lô trộn xử lý phần của mình và chuyển cả lô; đã có header chuyển tiếp thì không chuyển nữa; chữ ký sai không chuyển; bản kia lỗi vẫn trả 200. Máy chủ giả có thêm dịch vụ `forward` (`/fwd/`) ghi thân thô và header; bộ chạy thay `@MOCK@` trong hồ sơ bằng địa chỉ máy chủ giả.
 - Seed Page/OA bằng SQL tự đăng ký tuyến công ty qua trigger (`platform.company_routes`); mỗi ca dùng Page, PSID, mã và SĐT riêng (khách tìm theo SĐT toàn công ty). Hồ sơ mới chưa dựng quy trình nên `facebook_page`/`zalo_oa` tắt: các file đặt `setup_status=da_dung` và khôi phục khi xong.
+
+## Webhook vào và tích hợp (C12b)
+
+Chuyển từ `webhooks-in.e2e-spec.ts` (25 ca) và `integrations.e2e-spec.ts` (18 ca). Bảng ánh xạ chỗ e2e gốc đổi `process.env` giữa ca sang hồ sơ:
+
+| Env ở e2e gốc | Hồ sơ | Ca |
+|---|---|---|
+| `INTEGRATIONS_WEBHOOKS_ENABLED=true` + khoá ngẫu nhiên (`enable()`) | `default` | `70-72-webhooks-in-*`, `73-integrations-status-audit` |
+| xoá `INTEGRATIONS_WEBHOOKS_ENABLED` (404 quản trị nguồn, 404 nhận khách) | `integrations-off` | `02-webhooks-in-off` |
+| xoá cờ (status báo false, audit-logs 404, outbox vẫn ghi) | `integrations-off` | `03-integrations-flags`, `04-outbox` |
+| thiếu `INTEGRATIONS_SECRET_KEY` (503 khi tạo; nguồn có chữ ký mất khoá → 503) | `no-secret-key` | `02-webhooks-in-no-key` |
+| khoá sai độ dài | `bad-secret-key` | `02-webhooks-in-bad-key` |
+| `INTEGRATIONS_ALLOW_PRIVATE_TARGETS=true` (khách vào → webhook ra) | `private-targets` | `06-webhooks-in-to-out` |
+
+2 ca gọi `IntegrationAuditService.log` (che SĐT/secret): thành bảng ca dùng chung `server/contracts/cases/audit-sanitize.json` + spec TS `services/crm/src/integrations/__tests__/audit-sanitize-cases.spec.ts` (hàm thuần `sanitizeText`/`sanitizeMetadata`); ca phân trang nhật ký seed dòng bằng SQL. Ca ROLLBACK gọi `publishIntegrationEvent` trong transaction Prisma: đổi thành đường HTTP (ghi bị từ chối 409 không để lại dòng outbox). Ca "vai Quản trị có đủ 3 quyền": nhóm "Kết nối & AI" nay có thêm quyền nên kiểm chứa đủ 3 quyền gốc.

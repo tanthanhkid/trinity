@@ -1,0 +1,290 @@
+{
+ "_doc": "Ca che dữ liệu nhật ký tích hợp (sanitizeText cho cột error, sanitizeMetadata cho metadata). Cột expect do spec TS sinh (UPDATE_AUDIT_CASES=1); leaks = chuỗi tuyệt đối không được còn trong kết quả.",
+ "limits": {
+  "max_string": 300,
+  "max_error": 500
+ },
+ "text": [
+  {
+   "name": "SĐT trong câu lỗi bị che",
+   "input": "SĐT 0912345678 trùng",
+   "leaks": [
+    "0912345678"
+   ],
+   "expect": "SĐT ***678 trùng"
+  },
+  {
+   "name": "SĐT +84 có khoảng trắng",
+   "input": "gọi +84 912 345 678 nhé",
+   "leaks": [
+    "912 345 678",
+    "+84 912"
+   ],
+   "expect": "gọi ***678 nhé"
+  },
+  {
+   "name": "dãy ngắn dưới 9 chữ số giữ nguyên",
+   "input": "mã đơn 12345678 hết hàng",
+   "leaks": [],
+   "expect": "mã đơn 12345678 hết hàng"
+  },
+  {
+   "name": "Bearer token",
+   "input": "Authorization: Bearer abc.DEF-123_xyz~tok=",
+   "leaks": [
+    "abc.DEF-123_xyz~tok="
+   ],
+   "expect": "Authorization: Bearer [redacted]"
+  },
+  {
+   "name": "chuỗi token dài",
+   "input": "khoá whsec_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA lộ",
+   "leaks": [
+    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+   ],
+   "expect": "khoá [redacted] lộ"
+  },
+  {
+   "name": "cắt theo độ dài (thêm dấu …)",
+   "input": "x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x ",
+   "max": 300,
+   "leaks": [],
+   "expect": "x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x…"
+  },
+  {
+   "name": "cột error cắt 500",
+   "input": "a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a ",
+   "max": 500,
+   "leaks": [],
+   "expect": "a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a…"
+  }
+ ],
+ "metadata": [
+  {
+   "name": "caller nhét SĐT, secret, thân có SĐT",
+   "input": {
+    "phone": "0912345678",
+    "client_secret": "topsecret",
+    "body": "gọi 0987654321 nhé"
+   },
+   "leaks": [
+    "0912345678",
+    "0987654321",
+    "topsecret"
+   ],
+   "expect": {
+    "phone": "***678",
+    "client_secret": "[redacted]",
+    "body": "gọi ***321 nhé"
+   }
+  },
+  {
+   "name": "khoá giống secret bị bỏ giá trị",
+   "input": {
+    "api_key": "k1",
+    "Authorization": "Bearer x",
+    "password_hash": "h",
+    "cookie": "c",
+    "note": "ok"
+   },
+   "leaks": [
+    "k1",
+    "Bearer x"
+   ],
+   "expect": {
+    "api_key": "[redacted]",
+    "Authorization": "[redacted]",
+    "password_hash": "[redacted]",
+    "cookie": "[redacted]",
+    "note": "ok"
+   }
+  },
+  {
+   "name": "khoá giống SĐT bị che",
+   "input": {
+    "sdt": "0912345678",
+    "mobile": "+84912345678",
+    "msisdn": "84912345678"
+   },
+   "leaks": [
+    "0912345678",
+    "84912345678"
+   ],
+   "expect": {
+    "sdt": "***678",
+    "mobile": "***678",
+    "msisdn": "***678"
+   }
+  },
+  {
+   "name": "lồng nhau và mảng",
+   "input": {
+    "a": {
+     "b": {
+      "phone": "0912345678",
+      "c": {
+       "d": {
+        "e": "quá sâu"
+       }
+      }
+     }
+    },
+    "list": [
+     "0912345678",
+     "bình thường"
+    ]
+   },
+   "leaks": [
+    "0912345678"
+   ],
+   "expect": {
+    "a": {
+     "b": {
+      "phone": "***678",
+      "c": {
+       "d": {
+        "e": "quá sâu"
+       }
+      }
+     }
+    },
+    "list": [
+     "***678",
+     "bình thường"
+    ]
+   }
+  },
+  {
+   "name": "số, boolean, null giữ nguyên",
+   "input": {
+    "n": 5,
+    "t": true,
+    "f": false,
+    "z": null
+   },
+   "leaks": [],
+   "expect": {
+    "n": 5,
+    "t": true,
+    "f": false,
+    "z": null
+   }
+  },
+  {
+   "name": "giới hạn số khoá và phần tử",
+   "input": {
+    "k0": 0,
+    "k1": 1,
+    "k2": 2,
+    "k3": 3,
+    "k4": 4,
+    "k5": 5,
+    "k6": 6,
+    "k7": 7,
+    "k8": 8,
+    "k9": 9,
+    "k10": 10,
+    "k11": 11,
+    "k12": 12,
+    "k13": 13,
+    "k14": 14,
+    "k15": 15,
+    "k16": 16,
+    "k17": 17,
+    "k18": 18,
+    "k19": 19,
+    "k20": 20,
+    "k21": 21,
+    "k22": 22,
+    "k23": 23,
+    "k24": 24,
+    "k25": 25,
+    "k26": 26,
+    "k27": 27,
+    "k28": 28,
+    "k29": 29,
+    "k30": 30,
+    "k31": 31,
+    "k32": 32,
+    "k33": 33,
+    "k34": 34,
+    "k35": 35,
+    "k36": 36,
+    "k37": 37,
+    "k38": 38,
+    "k39": 39,
+    "arr": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24,
+     25,
+     26,
+     27,
+     28,
+     29
+    ]
+   },
+   "leaks": [],
+   "expect": {
+    "k0": 0,
+    "k1": 1,
+    "k2": 2,
+    "k3": 3,
+    "k4": 4,
+    "k5": 5,
+    "k6": 6,
+    "k7": 7,
+    "k8": 8,
+    "k9": 9,
+    "k10": 10,
+    "k11": 11,
+    "k12": 12,
+    "k13": 13,
+    "k14": 14,
+    "k15": 15,
+    "k16": 16,
+    "k17": 17,
+    "k18": 18,
+    "k19": 19,
+    "k20": 20,
+    "k21": 21,
+    "k22": 22,
+    "k23": 23,
+    "k24": 24,
+    "k25": 25,
+    "k26": 26,
+    "k27": 27,
+    "k28": 28,
+    "k29": 29
+   }
+  },
+  {
+   "name": "metadata rỗng/null",
+   "input": null,
+   "leaks": [],
+   "expect": {}
+  }
+ ]
+}

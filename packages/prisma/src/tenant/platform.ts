@@ -17,10 +17,10 @@ import { CompanyRef, DEFAULT_COMPANY, companyRef, currentCompany, isMultiTenant,
  * same email / Page fail at the database.
  */
 
-export type RouteKind = 'facebook_page' | 'zalo_oa' | 'oauth_state' | 'store_slug'
-
 /** Mọi loại route còn dùng. Dòng mang loại khác (của kết nối đã gỡ, G06) bị dọn lúc khởi động (`backfillSettingRoutes`). */
-export const ROUTE_KINDS: readonly RouteKind[] = ['facebook_page', 'zalo_oa', 'oauth_state', 'store_slug']
+export const ROUTE_KINDS = ['facebook_page', 'zalo_oa', 'oauth_state', 'store_slug'] as const
+
+export type RouteKind = (typeof ROUTE_KINDS)[number]
 
 export interface CompanyRow {
   id: number

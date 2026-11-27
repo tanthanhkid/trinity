@@ -211,7 +211,7 @@ function SettingsPageContent() {
   const rawTab = searchParams.get("tab")
   const tabParam = rawTab && rawTab in LEGACY_TAB_ALIASES ? LEGACY_TAB_ALIASES[rawTab] : rawTab
 
-  // Kết nối đã thành trang riêng (/connections). Link cũ và chỗ quay về từ OAuth (Facebook/Google/Zalo/phần mềm bán hàng)
+  // Kết nối đã thành trang riêng (/connections). Link cũ và chỗ quay về từ OAuth (Facebook/Google/Zalo)
   // vẫn trỏ /settings?tab=integrations… hoặc /settings?zalo_oa=… ⇒ chuyển hướng, giữ nguyên tham số để mục đích hiện đúng.
   const toConnections = rawTab === "integrations" || ["facebook", "zalo_oa", "ket_noi"].some((k) => searchParams.get(k) !== null)
   useEffect(() => {

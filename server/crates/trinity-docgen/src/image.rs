@@ -318,13 +318,18 @@ mod tests {
     /// JPEG 4×2: nửa trái đỏ, nửa phải xanh, kèm EXIF Orientation `o` (APP1 little-endian, một mục 0x0112).
     fn jpeg_with_orientation(o: u8) -> Vec<u8> {
         let img = RgbImage::from_fn(4, 2, |x, _| {
-            if x < 2 { image::Rgb([255, 0, 0]) } else { image::Rgb([0, 0, 255]) }
+            if x < 2 {
+                image::Rgb([255, 0, 0])
+            } else {
+                image::Rgb([0, 0, 255])
+            }
         });
         let mut base = Vec::new();
-        JpegEncoder::new_with_quality(&mut base, 100).encode_image(&img).unwrap();
+        JpegEncoder::new_with_quality(&mut base, 100)
+            .encode_image(&img)
+            .unwrap();
         let exif: [u8; 28] = [
-            b'E', b'x', b'i', b'f', 0, 0, b'I', b'I', 42, 0, 8, 0, 0, 0, 1, 0, 0x12, 0x01, 3, 0, 1, 0, 0, 0, o, 0, 0,
-            0,
+            b'E', b'x', b'i', b'f', 0, 0, b'I', b'I', 42, 0, 8, 0, 0, 0, 1, 0, 0x12, 0x01, 3, 0, 1, 0, 0, 0, o, 0, 0, 0,
         ];
         // đoạn APP1: FFE1 + độ dài (gồm 2 byte độ dài) + dữ liệu + 4 byte kết thúc IFD (offset kế = 0)
         let len = (2 + exif.len() + 4) as u16;

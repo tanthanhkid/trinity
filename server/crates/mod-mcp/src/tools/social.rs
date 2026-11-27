@@ -2,21 +2,26 @@
 //! `upload_social_media` (`social-tools.ts`). Dùng chính `mod-social` (tài khoản M53a, thư viện media M53b). Tính năng tổ chức
 //! `social_posting` phải bật (`OrgFeaturesService.isEnabled`: chỉ `false` tường minh mới tắt).
 //!
-//! Chưa có (chờ M42 khung ghi, M54b/M55b dịch vụ bài/nháp/hàng đợi/lặp): 12 tool đọc/ghi bài, nháp, mẫu chữ, khung giờ và 9 tool
-//! "hành động" (6 đăng bài + 3 bài lặp, có `confirmed_by_user`). Phụ thuộc `SocialDeps` đưa vào lúc đăng ký (không thêm trường vào
-//! `ToolDeps`) nên không đụng chỗ dựng `ToolDeps` của serve/test.
+//! Phần 2 (M44a): 12 tool đọc/ghi bài, nháp, mẫu chữ, khung giờ ở `social_read.rs` và 9 tool "hành động" có
+//! `confirmed_by_user` ở `social_act.rs` (khung ghi M42). Dịch vụ chưa có trên `main` (M54b số liệu, M55b bài lặp/nhập, đăng nháp
+//! trong một giao dịch) đi qua các cổng ở `social_ports.rs`; cổng vắng ⇒ tool trả "chưa có tính năng".
 
 use std::sync::Arc;
 
 use mod_facebook::config::Env;
+use mod_facebook::graph::GraphClient;
 use mod_social::media::{self, LibraryItem, LibraryQuery, MediaCtx, MediaStore};
+use mod_social::posts::PostCtx;
 use serde_json::{Value, json};
 use trinity_db::types::Timestamp;
 use trinity_kernel::error::{AppError, Message};
 
-use super::wrapped;
+use super::social_ports::{DraftPublishPort, ImportPort, MetricsPort, PostInfra, RecurrencePort};
+use super::{social_act, social_read, wrapped};
+use crate::actions::ActionTool;
 use crate::args::{clamp_limit, opt_int, opt_str};
-use crate::deps::app_err;
+use crate::auth::Principal;
+use crate::deps::{ToolDeps, app_err};
 use crate::exec::{ToolCtx, ToolError, ToolOutput, ToolRegistry, ToolRunner, ToolSpec};
 use crate::protocol::BoxFuture;
 
@@ -24,9 +29,80 @@ use crate::protocol::BoxFuture;
 pub struct SocialDeps {
     pub store: MediaStore,
     pub env: Env,
+    /// Bộ chặn kênh + Graph theo công ty để dựng `PostCtx` (tạo/sửa/đổi giờ/thử lại/xem trước bài). Vắng ⇒ các tool đó báo chưa có.
+    pub infra: Option<PostInfra>,
+    /// Số liệu bài (M54b).
+    pub metrics: Option<Arc<dyn MetricsPort>>,
+    /// Bài lặp lại (M55b).
+    pub recurrences: Option<Arc<dyn RecurrencePort>>,
+    /// Nhập nhiều bài (M55b).
+    pub importer: Option<Arc<dyn ImportPort>>,
+    /// Đăng bài nháp trong một giao dịch.
+    pub draft_publisher: Option<Arc<dyn DraftPublishPort>>,
 }
 
-type RunFn = for<'a> fn(&'a SocialDeps, &'a Value, &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>>;
+const NO_INFRA: &str = "Máy chủ này chưa có tính năng đăng bài. / Social posting is not available on this server.";
+
+impl SocialDeps {
+    /// Chỉ kho tệp + env (4 tool kênh/media); gán thêm các trường còn lại khi có dịch vụ.
+    pub fn new(store: MediaStore, env: Env) -> Self {
+        Self {
+            store,
+            env,
+            infra: None,
+            metrics: None,
+            recurrences: None,
+            importer: None,
+            draft_publisher: None,
+        }
+    }
+
+    pub(super) fn infra(&self) -> Result<&PostInfra, ToolError> {
+        self.infra.as_ref().ok_or_else(|| ToolError::User(NO_INFRA.to_owned()))
+    }
+
+    pub(super) fn media_ctx<'a>(&'a self, deps: &'a ToolDeps, p: &Principal) -> MediaCtx<'a> {
+        MediaCtx {
+            db: &deps.db,
+            company: p.company,
+            store: &self.store,
+            env: &self.env,
+            user_id: p.user_id,
+            now_ms: chrono::Utc::now().timestamp_millis(),
+        }
+    }
+
+    pub(super) fn post_ctx<'a>(
+        &'a self,
+        deps: &'a ToolDeps,
+        p: &Principal,
+        infra: &'a PostInfra,
+        graph: &'a GraphClient,
+    ) -> PostCtx<'a> {
+        PostCtx {
+            db: &deps.db,
+            company: p.company,
+            env: &self.env,
+            store: &self.store,
+            graph,
+            guard: &infra.guard,
+            user_id: p.user_id,
+            now_ms: chrono::Utc::now().timestamp_millis(),
+        }
+    }
+}
+
+/// Cổng vắng ⇒ câu "chưa có tính năng" như bản Node (`deps.x` rỗng).
+pub(super) fn port<'a, T: ?Sized>(p: &'a Option<Arc<T>>, what: &str) -> Result<&'a T, ToolError> {
+    p.as_deref().ok_or_else(|| {
+        ToolError::User(format!(
+            "Máy chủ này chưa có tính năng {what}. / {what} is not available on this server."
+        ))
+    })
+}
+
+pub(super) type RunFn =
+    for<'a> fn(&'a SocialDeps, &'a Value, &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>>;
 
 struct SocialTool {
     deps: Arc<SocialDeps>,
@@ -39,7 +115,7 @@ impl ToolRunner for SocialTool {
     }
 }
 
-/// Đăng ký 4 tool đăng bài đã có nền vào `r`.
+/// Đăng ký 4 tool kênh/media cùng 12 tool đọc/ghi và 9 hành động đăng bài vào `r`.
 pub fn register_social(r: &mut ToolRegistry, deps: Arc<SocialDeps>) {
     let mut reg =
         |name: &'static str, scope: Option<&'static str>, permissions: &'static [&'static str], run: RunFn| {
@@ -67,10 +143,19 @@ pub fn register_social(r: &mut ToolRegistry, deps: Arc<SocialDeps>) {
         &["social.manage"],
         enable_social_account,
     );
+    social_read::register(&mut reg);
+    for def in social_act::all() {
+        r.register(ToolSpec {
+            name: def.name,
+            scope: Some("crm.write"),
+            permissions: def.permissions,
+            runner: Arc::new(ActionTool(def)),
+        });
+    }
 }
 
 /// Lỗi < 500 (và thoả `as_user`) ⇒ `ToolUserError` giữ nguyên câu; còn lại theo `app_err`.
-fn user_if(e: AppError, as_user: impl Fn(u16) -> bool) -> ToolError {
+pub(super) fn user_if(e: AppError, as_user: impl Fn(u16) -> bool) -> ToolError {
     let (status, body) = e.response(true);
     let message = match body.message {
         Message::One(s) => s,
@@ -89,8 +174,12 @@ const OFF: &str =
     "Tính năng \"Đăng đa kênh\" đang tắt (Cài đặt › Tính năng). / Social posting is turned off for this workspace.";
 
 /// Tính năng `social_posting` đang bật (chỉ `false` tường minh mới tắt).
-async fn ensure_enabled(ctx: &ToolCtx<'_>) -> Result<(), ToolError> {
-    let (p, deps) = (ctx.principal, ctx.deps);
+pub(super) async fn ensure_enabled(ctx: &ToolCtx<'_>) -> Result<(), ToolError> {
+    ensure_enabled_for(ctx.principal, ctx.deps).await
+}
+
+/// Như [`ensure_enabled`] cho nơi chỉ có người gọi + `ToolDeps` (hành động M42).
+pub(super) async fn ensure_enabled_for(p: &Principal, deps: &ToolDeps) -> Result<(), ToolError> {
     let settings = deps.settings_ctx(p);
     let mut conn = deps.conn(p.company).await?;
     let f = mod_settings::features::get(&mut conn, settings)

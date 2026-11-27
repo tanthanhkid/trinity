@@ -494,13 +494,11 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     );
     // M44a (một phần): 4 tool đăng bài. Kho tệp là thư mục `uploads` (khoá `social/u<id>_…`); `LocalDiskDriver` không giữ trạng
     // thái nên router `/social` dựng bản `MediaStore::Local` cùng thư mục là dùng chung dữ liệu.
-    mod_mcp::register_social(
-        &mut registry,
-        Arc::new(mod_mcp::SocialDeps {
-            store: mod_social::media::MediaStore::Local(LocalDiskDriver::new(uploads_root.clone())),
-            env: channel_env.clone(),
-        }),
-    );
+    let social_deps = Arc::new(mod_mcp::SocialDeps::new(
+        mod_social::media::MediaStore::Local(LocalDiskDriver::new(uploads_root.clone())),
+        channel_env.clone(),
+    ));
+    mod_mcp::register_social(&mut registry, social_deps.clone());
     // Tool Fanpage (M44b): port bằng dịch vụ thật (`FacebookIngest` dùng chung với router; kho tệp là thư mục `uploads` như router
     // `/social`). Không có `kick` riêng: job `facebook.broadcasts` (60 giây) nhặt lượt gửi mới.
     mod_mcp::register_fanpage(
@@ -523,6 +521,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         db: db.clone(),
         scopes: tool_scopes,
         reports: reports_ctx.clone(),
+        social: Some(social_deps),
     });
     let public_base = lookup("INTEGRATIONS_PUBLIC_BASE_URL").unwrap_or_else(|| format!("http://localhost:{port}"));
     let mcp_endpoint = mod_mcp::McpEndpoint {

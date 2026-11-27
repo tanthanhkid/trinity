@@ -302,7 +302,10 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<SettingsState>> {
             spec(&Method::PATCH, "/api/v1/settings/notification-sound"),
             sound_update,
         )
-        .route(spec(&Method::GET, "/api/v1/settings/client-ip/alerts"), client_ip_alerts)
+        .route(
+            spec(&Method::GET, "/api/v1/settings/client-ip/alerts"),
+            client_ip_alerts,
+        )
         .route(spec(&Method::GET, "/api/v1/settings/departments"), departments_get)
         .route(spec(&Method::PATCH, "/api/v1/settings/departments"), departments_update)
         .route(spec(&Method::GET, "/api/v1/settings/org-features"), features_get)

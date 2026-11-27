@@ -281,8 +281,16 @@ fn js_number_tien_to_co_so() {
 async fn duong_da_go_tra_410_cong_khai() {
     let (api, _) = retired::api_router(deps()).into_parts();
     for (m, p, what) in [
-        ("POST", "/api/v1/connectors/haravan/webhook/tok", "Kết nối phần mềm bán hàng"),
-        ("GET", "/api/v1/connectors/shopee/callback", "Kết nối sàn thương mại điện tử"),
+        (
+            "POST",
+            "/api/v1/connectors/haravan/webhook/tok",
+            "Kết nối phần mềm bán hàng",
+        ),
+        (
+            "GET",
+            "/api/v1/connectors/shopee/callback",
+            "Kết nối sàn thương mại điện tử",
+        ),
         ("POST", "/api/v1/connectors/momo/ipn", "Cổng thanh toán MoMo"),
         ("GET", "/api/v1/pay/abc/vnpay", "Cổng thanh toán VNPay"),
         ("POST", "/api/v1/payments", "Yêu cầu thanh toán"),

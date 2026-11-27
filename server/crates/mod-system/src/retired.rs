@@ -54,9 +54,7 @@ fn what_of(path: &str) -> &'static str {
         "/api/v1/connectors/vnpay/ipn" | "/api/v1/pay/vnpay/return" | "/api/v1/pay/:code/vnpay" => {
             "Cổng thanh toán VNPay"
         }
-        "/api/v1/connectors/momo/ipn" | "/api/v1/pay/momo/return" | "/api/v1/pay/:code/momo" => {
-            "Cổng thanh toán MoMo"
-        }
+        "/api/v1/connectors/momo/ipn" | "/api/v1/pay/momo/return" | "/api/v1/pay/:code/momo" => "Cổng thanh toán MoMo",
         _ => "Yêu cầu thanh toán",
     }
 }

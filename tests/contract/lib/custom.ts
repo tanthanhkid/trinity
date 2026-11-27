@@ -21,8 +21,10 @@ export interface U {
   token: string
 }
 
-/** Người dùng riêng với quyền cho trước (`true` = không giới hạn phạm vi, như `makeUser` của e2e gốc). */
-/** Tên hiển thị của người dùng nằm trong response nên nhãn phải ổn định giữa các lần chạy: đánh số tuần tự. */
+/**
+ * Người dùng riêng với quyền cho trước (`true` = không giới hạn phạm vi, như `makeUser` của e2e gốc).
+ * Tên hiển thị của người dùng nằm trong response nên nhãn phải ổn định giữa các lần chạy: đánh số tuần tự.
+ */
 let userSeq = 0
 export async function mk(grants: Grants, extra: { managerId?: number } = {}): Promise<U> {
   const g: Record<string, Scope> = {}
@@ -75,5 +77,6 @@ export type Body = any
 /** GET lấy byte thô: `Response.text()` của fetch tự bỏ BOM UTF-8, nên ca kiểm BOM phải đọc byte. */
 export async function getBytes(path: string, token: string): Promise<Uint8Array> {
   const res = await fetch(`${config.baseUrl}/api/v1${path}`, { headers: { authorization: `Bearer ${token}`, 'x-real-ip': freshIp() } })
+  expect(res.status, `GET ${path}`).toBe(200)
   return new Uint8Array(await res.arrayBuffer())
 }

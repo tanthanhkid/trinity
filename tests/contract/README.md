@@ -14,7 +14,7 @@ pnpm --filter @trinity/contract-tests test                       # chỉ test đ
 
 Bộ chạy (`run.ts`): dựng DB mẫu (migrate + seed admin), rồi với mỗi hồ sơ tạo DB từ mẫu, khởi động máy chủ **một lần** với env của
 hồ sơ, chạy `cases/<hồ sơ>/*.test.ts`, tắt máy chủ. Luôn build monolith trước (`--no-build` để bỏ qua). Máy chủ chạy với `TZ=UTC`, cổng 4310 (`CONTRACT_PORT`), env sạch (không đọc `.env`).
-Nhiều lượt chạy cùng máy: đặt `CONTRACT_PORT` và `CONTRACT_DB_PREFIX` riêng (mặc định `trinity_contract`, cổng 4310) để không giẫm DB và cổng của nhau.
+Nhiều lượt chạy cùng máy: đặt `CONTRACT_PORT` và `CONTRACT_DB_PREFIX` riêng (mặc định `trinity_contract` ở cổng 4310; cổng khác thì tiền tố mặc định thành `trinity_contract_<cổng>`) để không giẫm DB và cổng của nhau.
 Từ chối bắt đầu trong khung 16:50-17:10 UTC (quanh nửa đêm Việt Nam, "hôm nay" đổi giữa lượt).
 
 ## So Node với Rust trong cùng lượt
@@ -55,17 +55,30 @@ Hồ sơ `production` phía Rust chạy trên binary **phát hành** (không có
 ## Ca đã chuyển từ e2e cũ
 - C07b (32 ca): `cases/default/40-roles-admin` (20, từ `roles-admin.e2e-spec`), `41-session-lifecycle` (6), `42-route-audit` (2), `43-smoke` (4).
   Dàn dựng viết lại bằng SQL: `seedAdmin` (vai trò hệ thống), `lockOtherAdmins` (ca "Quản trị cuối cùng": khoá các Quản trị còn lại rồi mở
-  lại, vì mọi ca chung một DB nên không `TRUNCATE user_roles` như bản cũ). Tên vai trò mang hậu tố riêng của lượt chạy.
+  lại, vì mọi ca chung một DB nên không `TRUNCATE user_roles` như bản cũ). Tên vai trò mang hậu tố riêng của lượt chạy. Vai trò hệ thống chọn theo TÊN (`Quản trị`), không theo `ORDER BY id`; ca "Quản trị cuối cùng" mở khoá ở `afterAll` (trước `closeDb`) rồi xoá cache.
   `42-route-audit`: boot-check Nest (`auditRoutes`) không chạy được từ ngoài, nên ca kiểm kết quả của nó trên `server/contracts/routes.json`
-  (mọi route có khai báo quyền; route xuất file có `*.export`); `43-smoke` lấy số quyền/scope từ `server/contracts/rbac.json` thay vì hằng cứng
+  (mọi route có khai báo quyền; route xuất file có `*.export`); `42-route-audit` còn probe máy chủ thật (GET không token ⇒ 401 với route `auth`/`can`); `43-smoke` lấy số quyền/nhóm/scope từ `server/contracts/rbac.json` thay vì hằng cứng
   (e2e cũ ghi 62 quyền, hợp đồng hiện có 61). Bốn file này không có `RbacCache.invalidateUsers` trực tiếp (sửa vai trò qua API đã tự vô hiệu cache);
   6 chỗ gọi `invalidateUsers` của e2e cũ nằm ở ca MCP/OAuth/webhook (C10 trở đi).
 - Hai bộ chạy song song trên cùng máy dùng chung tên DB `trinity_contract_*` và cổng 4310 sẽ giẫm nhau; đặt `CONTRACT_PORT` riêng và (nếu cần) đổi tên DB mẫu.
+
+## Ca e2e đã chuyển (C10)
+- C10: `cases/default/10-nhan-su` (nhân sự, chấm công, hợp đồng, tuyển dụng, tổ chức) và `11-kanban-bao-cao-bang-tin` (kanban, báo cáo, bảng tin). `reports/overview`
+  có `shape_permissions: contacts.phone_full` nên ghi golden 3 vai; khoảng ngày tính từ hôm nay. Ca sửa `/settings/departments` khôi phục `settings.department_list` ở `afterAll`.
+
+## Ca e2e đã chuyển (C07a)
+- C07a: `cases/default/30-auth-users` (37 ca, từ `auth-users.e2e-spec.ts`): mỗi ca tự seed người dùng + vai trò bằng SQL rồi đăng nhập thật. Ca che SĐT tìm người dùng đích theo email
+  (`/users?search=`), không đọc `limit=200` đầu tiên; ca từ chối PATCH `login-wifi-check` gửi `enabled: false` để cổng quyền hỏng cũng không bật cờ dùng chung.
+
+- C13a (OAuth, `40-oauth*`): `lib/http.ts` `call()` từ chối khi đặt cả `form` lẫn `body`; ca gỡ `integrations.ai_connect` chỉ xoá quyền của vai trò riêng của người dùng test (`40-oauth`, `50-mcp`).
 
 ## Ca e2e đã chuyển (C09)
 - C09 (22 ca, hồ sơ `default`): `20-custom-objects` (14, từ `custom-objects.e2e-spec.ts`) và `21-custom-object-templates` (8, từ `custom-objects-templates.e2e-spec.ts`).
   Mỗi ca bắt đầu bằng `resetCustom()` (TRUNCATE `custom_records/fields/objects`, `integration_events`) vì e2e gốc dọn ở `afterEach` và nhiều ca dùng cùng khoá
   thực thể (`hoc_sinh`) và đếm bảng. Các ca đếm bằng `prisma.*.count()` đổi thành SQL. Ca SĐT và danh sách mẫu ghi golden 3 vai (`lib/roles.ts`).
+
+- C09 ghi chú: `STORAGE_LOCAL_ROOT` của bộ chạy theo tiền tố `CONTRACT_DB_PREFIX` (`<tmp>/<tiền tố>-storage-<hồ sơ>`, hai lượt song song không dùng chung thư mục); tiền tố phải khớp `/^[a-z][a-z0-9_]{0,40}$/`.
+  Golden `custom-object-created.admin` là response của người có `custom_objects.manage` (không phải vai trò hệ thống). `lib/custom.ts` `getBytes` đòi 200 trước khi đọc byte.
 
 ## Máy chủ giả Graph và Zalo (C06b)
 
@@ -99,6 +112,8 @@ Bảng ánh xạ chỗ đổi env / gọi hàm nội bộ → hồ sơ / API đi
 
 Ca bị chuyển loại phần gọi hàm: `dispatcher.dispatchEvents()` đứng riêng (không gửi) nay seed delivery chờ bằng SQL (`pendingDelivery`) rồi kiểm phần còn lại; `worker.claim()` hai lần đồng thời, ghi kết quả muộn của lượt nhận cũ (`processBatch(first)`) và
 `sweepExhausted()` đứng riêng không còn gọi được từ ngoài: phần "không nhận trùng / lease / trần 7 lần / quét dead" kiểm qua `tick`, phần ghi muộn và claim song song thật kiểm ở test Rust `webhooks_pg.rs`.
+
+C12a ghi chú: máy nhận (`startReceiver`) ghép byte bằng `Buffer.concat` rồi mới giải mã UTF-8; `resetWebhooks` chỉ xoá hai bảng webhook, nhật ký kênh `webhook_out` và outbox (không TRUNCATE nhật ký dùng chung); mỗi file hồ sơ `private-targets` gọi lại `resetWebhooks` ở `afterAll`.
 
 ## Phủ đủ route theo cụm (C14)
 Một hệ đo duy nhất: `lib/coverage.ts` (mỗi lời gọi của `call()` được ghi lại) + `coverage-clusters.json` (cụm theo controller, miễn trừ có lý do) + ca `99-coverage-<cụm>`

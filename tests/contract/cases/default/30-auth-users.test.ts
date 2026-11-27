@@ -60,14 +60,18 @@ describe('GET /users — Mẫu A (owner = chính user)', () => {
   })
 
   it('Mẫu C — thiếu users.phone_full → SĐT bị che; có → SĐT thật', async () => {
-    const target = await user()
+    const target = await seedUser({ label: 'au-phone', grants: {} })
     await q(`UPDATE users SET phone = '0912345678' WHERE id = $1`, [target.id])
+    // Tìm theo email (duy nhất) thay vì đọc 200 dòng đầu: DB dùng chung cả hồ sơ có thể nhiều hơn 200 người dùng.
+    const find = async (u: U) => {
+      const res = await get(`/users?search=${encodeURIComponent(target.email)}&limit=50`, u)
+      expect(res.status).toBe(200)
+      return (res.body as { data: { id: number; phone: string }[] }).data.find((r) => r.id === target.id)
+    }
     const masked = await user({ 'users.view': 'all' })
-    const rowMasked = ((await get('/users?limit=200', masked)).body as { data: { id: number; phone: string }[] }).data.find((r) => r.id === target.id)
-    expect(rowMasked?.phone).toBe('***678')
+    expect((await find(masked))?.phone).toBe('***678')
     const full = await user({ 'users.view': 'all', 'users.phone_full': 'all' })
-    const rowFull = ((await get('/users?limit=200', full)).body as { data: { id: number; phone: string }[] }).data.find((r) => r.id === target.id)
-    expect(rowFull?.phone).toBe('0912345678')
+    expect((await find(full))?.phone).toBe('0912345678')
   })
 })
 
@@ -288,7 +292,8 @@ describe('Auth settings — đọc @AuthOnly, ghi settings.integrations', () => 
 
   it('PATCH login-wifi-check không có settings.integrations → 403', async () => {
     const u = await user({})
-    expect((await patch('/auth/settings/login-wifi-check', u, { enabled: true })).status).toBe(403)
+    // Gửi `enabled: false` (giá trị vô hại): nếu cổng quyền hỏng thì ca đỏ mà không bật kiểm WiFi cho cả hồ sơ.
+    expect((await patch('/auth/settings/login-wifi-check', u, { enabled: false })).status).toBe(403)
   })
 
   it('PATCH login-wifi-check có settings.integrations → 200', async () => {

@@ -13,7 +13,10 @@ let rx: Receiver
 beforeAll(async () => {
   rx = await startReceiver()
 })
-afterAll(async () => rx.close())
+afterAll(async () => {
+  await rx.close()
+  await resetWebhooks() // không để lại endpoint/delivery của ca cuối cho file sau
+})
 beforeEach(async () => {
   rx.seen.length = 0
   rx.status = 200
@@ -89,8 +92,9 @@ describe('các ca biên: trần thử lại, tắt endpoint, ping, sự kiện c
     const [log] = await q<{ user_id: number }>(`SELECT user_id FROM integration_audit_logs WHERE action = 'ping'`)
     expect(log.user_id).toBe(clicker.id)
     await q(`UPDATE webhook_deliveries SET status = 'pending'`)
+    await forceDue() // đến hạn ngay: nếu worker nhận ping thì ca này mới bắt được
     await tick()
-    expect(rx.seen).toHaveLength(1) // next_attempt_at xa: không bị gửi lại
+    expect(rx.seen).toHaveLength(1) // ping không bị gửi lại
   })
 
   it('lỗi cấu hình khoá (đổi INTEGRATIONS_SECRET_KEY) KHÔNG tính vào bộ đếm tự tắt', async () => {

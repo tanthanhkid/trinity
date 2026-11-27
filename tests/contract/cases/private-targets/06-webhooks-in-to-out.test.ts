@@ -10,7 +10,10 @@ beforeAll(async () => {
   rx = await startReceiver()
   fx = await seedInboundFixtures()
 })
-afterAll(async () => rx.close())
+afterAll(async () => {
+  await rx.close()
+  await resetWebhooks() // không để lại endpoint/delivery của ca cuối cho file sau
+})
 beforeEach(async () => {
   rx.seen.length = 0
   rx.status = 200

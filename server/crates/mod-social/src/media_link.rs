@@ -103,8 +103,14 @@ mod tests {
     fn ky_va_kiem() {
         let t = sign_media_link("bi-mat", "social/u1_2_abc.png", "image/png", 3, NOW);
         let v = verify_media_link("bi-mat", &t, NOW + 1000).unwrap();
-        assert_eq!((v.key.as_str(), v.content_type.as_str(), v.company_id), ("social/u1_2_abc.png", "image/png", 3));
-        assert!(verify_media_link("bi-mat", &t, NOW + 2 * 3600 * 1000 + 1000).is_none(), "hết hạn");
+        assert_eq!(
+            (v.key.as_str(), v.content_type.as_str(), v.company_id),
+            ("social/u1_2_abc.png", "image/png", 3)
+        );
+        assert!(
+            verify_media_link("bi-mat", &t, NOW + 2 * 3600 * 1000 + 1000).is_none(),
+            "hết hạn"
+        );
         assert!(verify_media_link("khac", &t, NOW).is_none(), "sai khoá");
         assert!(verify_media_link("bi-mat", &format!("{t}.x"), NOW).is_none());
         assert!(verify_media_link("bi-mat", "", NOW).is_none());

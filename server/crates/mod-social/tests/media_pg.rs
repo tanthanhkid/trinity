@@ -77,7 +77,10 @@ async fn thu_vien_media_day_du() {
     assert_eq!(s, 400);
     let png = vec![1_u8; 2048];
     let m = media::upload_stream(&ctx, "m53b-anh.PNG", &png[..]).await.unwrap();
-    assert_eq!((m.r#type.as_str(), m.content_type.as_str(), m.size), ("image", "image/png", 2048));
+    assert_eq!(
+        (m.r#type.as_str(), m.content_type.as_str(), m.size),
+        ("image", "image/png", 2048)
+    );
     assert_eq!(media::parse_key(&m.key), Some(user as u64));
 
     // Video vượt trần env (1 MB) ⇒ 413 câu của Trinity, không để lại dòng thư viện.
@@ -92,14 +95,21 @@ async fn thu_vien_media_day_du() {
     assert_eq!(page.data.len(), 1);
     assert_eq!(page.data[0].name, "m53b-anh.PNG");
     let q = LibraryQuery::from_query(None, Some("m53b%"), None, None).unwrap();
-    assert!(media::list(&mut c, &q).await.unwrap().data.is_empty(), "% là ký tự thường");
+    assert!(
+        media::list(&mut c, &q).await.unwrap().data.is_empty(),
+        "% là ký tự thường"
+    );
     let id = page.data[0].id;
     drop(c);
 
     // resolve: của mình thì qua; khoá lạ ⇒ 400; khoá của người khác chỉ qua khi đang ở thư viện chung.
     let ok = media::resolve(&ctx, std::slice::from_ref(&m.key)).await.unwrap();
     assert_eq!(ok[0].size, 2048);
-    let (s, _) = status(media::resolve(&ctx, &["social/u999999_1_aaaaaa.png".to_owned()]).await.unwrap_err());
+    let (s, _) = status(
+        media::resolve(&ctx, &["social/u999999_1_aaaaaa.png".to_owned()])
+            .await
+            .unwrap_err(),
+    );
     assert_eq!(s, 400);
 
     // Xem trước rồi ẩn: sau khi ẩn ⇒ 404 và không còn trong thư viện, tệp trong kho vẫn còn.
@@ -109,7 +119,10 @@ async fn thu_vien_media_day_du() {
     assert_eq!(media::hide(&mut c, id).await.unwrap()["hidden"], true);
     assert_eq!(status(media::hide(&mut c, id).await.unwrap_err()).0, 404);
     drop(c);
-    assert_eq!(status(media::open(&db, company, &store, id).await.err().unwrap()).0, 404);
+    assert_eq!(
+        status(media::open(&db, company, &store, id).await.err().unwrap()).0,
+        404
+    );
 
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
     clean(&mut c).await;

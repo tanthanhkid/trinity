@@ -110,7 +110,12 @@ fn video_bytes_from(raw: Option<&str>) -> u64 {
     } else {
         0
     };
-    (if mb >= 1 { mb.min(DEFAULT_MAX_VIDEO_MB) } else { DEFAULT_MAX_VIDEO_MB }) * 1024 * 1024
+    (if mb >= 1 {
+        mb.min(DEFAULT_MAX_VIDEO_MB)
+    } else {
+        DEFAULT_MAX_VIDEO_MB
+    }) * 1024
+        * 1024
 }
 
 /// Loại tệp theo tên: đuôi, ảnh hay video, `Content-Type`, trần byte.
@@ -253,7 +258,10 @@ impl MediaStore {
     pub async fn put_bytes(&self, key: &str, body: &[u8], content_type: &str) -> Result<(), StorageError> {
         match self {
             Self::Local(d) => d.upload(key, body, content_type).await.map(drop),
-            Self::S3(d) => d.upload(key, Bytes::copy_from_slice(body), content_type).await.map(drop),
+            Self::S3(d) => d
+                .upload(key, Bytes::copy_from_slice(body), content_type)
+                .await
+                .map(drop),
         }
     }
 
@@ -386,7 +394,9 @@ impl LibraryQuery {
         limit: Option<&str>,
         cursor: Option<&str>,
     ) -> Result<Self, HttpError> {
-        let digits = |v: Option<&str>| v.filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()));
+        fn digits(v: Option<&str>) -> Option<&str> {
+            v.filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
+        }
         let limit = digits(limit)
             .map(|s| s.parse::<u64>().unwrap_or(u64::MAX))
             .unwrap_or(DEFAULT_LIBRARY_LIMIT)
@@ -405,16 +415,8 @@ impl LibraryQuery {
             Some("video") => Some("video"),
             _ => None,
         };
-        let q = q
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(|s| utf16_prefix(s, 100));
-        Ok(Self {
-            kind,
-            q,
-            limit,
-            cursor,
-        })
+        let q = q.map(str::trim).filter(|s| !s.is_empty()).map(|s| utf16_prefix(s, 100));
+        Ok(Self { kind, q, limit, cursor })
     }
 }
 
@@ -662,7 +664,11 @@ pub async fn import_from_url(c: &MediaCtx<'_>, url: &str, name: Option<&str>) ->
         .map_err(|e| HttpError::bad_request(import_error(&e.0)))?;
     let ext = ext_for(&got.content_type, Some(url)).ok_or_else(|| HttpError::bad_request(BAD_KIND))?;
     let from_path = name_from_url(url);
-    let fallback = if from_path.is_empty() { "tep-tu-link" } else { &from_path };
+    let fallback = if from_path.is_empty() {
+        "tep-tu-link"
+    } else {
+        &from_path
+    };
     store_bytes(c, &got.body, &ext, &display_name(name, fallback)).await
 }
 
@@ -710,7 +716,11 @@ async fn store_bytes(c: &MediaCtx<'_>, body: &[u8], ext: &str, name: &str) -> Re
     if body.is_empty() {
         return Err(HttpError::bad_request("Tệp rỗng.").into());
     }
-    let max = if k.kind == "video" { k.max.min(MAX_IMPORT_VIDEO_BYTES) } else { k.max };
+    let max = if k.kind == "video" {
+        k.max.min(MAX_IMPORT_VIDEO_BYTES)
+    } else {
+        k.max
+    };
     if body.len() as u64 > max {
         return Err(HttpError::bad_request(too_large(max)).into());
     }
@@ -743,7 +753,12 @@ pub async fn resolve(c: &MediaCtx<'_>, keys: &[String]) -> Result<Vec<SocialMedi
     };
     let mut out = Vec::with_capacity(keys.len());
     for key in keys {
-        let bad = || AppError::from(HttpError::bad_request(format!("Tệp không hợp lệ: {}", utf16_prefix(key, 80))));
+        let bad = || {
+            AppError::from(HttpError::bad_request(format!(
+                "Tệp không hợp lệ: {}",
+                utf16_prefix(key, 80)
+            )))
+        };
         let owner = parse_key(key).ok_or_else(bad)?;
         if owner != c.user_id as u64 && !shared.contains(key) {
             return Err(bad());
@@ -836,12 +851,17 @@ mod tests {
     #[test]
     fn query_thu_vien() {
         let q = LibraryQuery::from_query(Some("video"), Some("  Ab%  "), Some("5"), Some("0")).unwrap();
-        assert_eq!((q.kind, q.q.as_deref(), q.limit, q.cursor), (Some("video"), Some("Ab%"), 5, None));
+        assert_eq!(
+            (q.kind, q.q.as_deref(), q.limit, q.cursor),
+            (Some("video"), Some("Ab%"), 5, None)
+        );
         let q = LibraryQuery::from_query(Some("x"), Some("   "), Some("abc"), Some("12")).unwrap();
         assert_eq!((q.kind, q.q, q.limit, q.cursor), (None, None, 24, Some(12)));
         assert_eq!(LibraryQuery::from_query(None, None, Some("0"), None).unwrap().limit, 1);
         assert_eq!(
-            LibraryQuery::from_query(None, None, Some("99999999999999999999"), None).unwrap().limit,
+            LibraryQuery::from_query(None, None, Some("99999999999999999999"), None)
+                .unwrap()
+                .limit,
             100
         );
         assert!(LibraryQuery::from_query(None, None, None, Some("3000000000")).is_err());
@@ -850,11 +870,18 @@ mod tests {
 
     #[tokio::test]
     async fn limit_reader_chan_khi_vuot_tran() {
-        let data = vec![7_u8; 100];
+        let data = [7_u8; 100];
         let (mut r, count, exceeded) = LimitReader::new(&data[..], 100);
         let mut out = Vec::new();
         r.read_to_end(&mut out).await.unwrap();
-        assert_eq!((out.len(), count.load(Ordering::Relaxed), exceeded.load(Ordering::Relaxed)), (100, 100, false));
+        assert_eq!(
+            (
+                out.len(),
+                count.load(Ordering::Relaxed),
+                exceeded.load(Ordering::Relaxed)
+            ),
+            (100, 100, false)
+        );
         let (mut r, _, exceeded) = LimitReader::new(&data[..], 99);
         let mut out = Vec::new();
         assert!(r.read_to_end(&mut out).await.is_err());

@@ -12,6 +12,10 @@ use trinity_http::rate_limit::{FixedWindowLimiter, Hit, now_ms};
 pub const MCP_CALLS_PER_MINUTE: u32 = 60;
 pub const MCP_REQUESTS_PER_MINUTE: u32 = 240;
 pub const MCP_AUTH_FAIL_PER_MINUTE: u32 = 30;
+/// Ghi thẳng (chế độ mặc định): trần theo NGƯỜI DÙNG và theo ỨNG DỤNG AI mỗi phút; tạo đề xuất chờ duyệt: theo người dùng.
+pub const WRITES_PER_MINUTE: u32 = 30;
+pub const WRITES_PER_CLIENT_PER_MINUTE: u32 = 20;
+pub const DRAFTS_PER_MINUTE: u32 = 10;
 /// Trần chung theo IP peer khi IP khách KHÔNG tin được (mọi khách chung một peer).
 const UNTRUSTED_PEER_PER_MINUTE: u32 = 600;
 
@@ -35,6 +39,9 @@ pub struct McpLimits {
     requests: Arc<FixedWindowLimiter>,
     calls: Arc<FixedWindowLimiter>,
     auth_fail: Arc<FixedWindowLimiter>,
+    writes: Arc<FixedWindowLimiter>,
+    client_writes: Arc<FixedWindowLimiter>,
+    drafts: Arc<FixedWindowLimiter>,
     untrusted_peer: Arc<FixedWindowLimiter>,
 }
 
@@ -56,6 +63,9 @@ impl McpLimits {
             requests: FixedWindowLimiter::new(MCP_REQUESTS_PER_MINUTE, 60_000),
             calls: FixedWindowLimiter::new(MCP_CALLS_PER_MINUTE, 60_000),
             auth_fail: FixedWindowLimiter::new(MCP_AUTH_FAIL_PER_MINUTE, 60_000),
+            writes: FixedWindowLimiter::new(WRITES_PER_MINUTE, 60_000),
+            client_writes: FixedWindowLimiter::new(WRITES_PER_CLIENT_PER_MINUTE, 60_000),
+            drafts: FixedWindowLimiter::new(DRAFTS_PER_MINUTE, 60_000),
             untrusted_peer,
         }
     }
@@ -70,6 +80,27 @@ impl McpLimits {
     pub fn call(&self, company_id: i32, user_id: i32) -> Limit {
         self.calls
             .hit_company(company_id, &format!("call:{user_id}"), now_ms())
+            .into()
+    }
+
+    /// Ghi thẳng theo người dùng (`WRITES_PER_MINUTE`).
+    pub fn write(&self, company_id: i32, user_id: i32) -> Limit {
+        self.writes
+            .hit_company(company_id, &format!("write:{user_id}"), now_ms())
+            .into()
+    }
+
+    /// Ghi thẳng theo ỨNG DỤNG AI (client OAuth) của người dùng (`WRITES_PER_CLIENT_PER_MINUTE`).
+    pub fn write_app(&self, company_id: i32, user_id: i32, client_id: &str) -> Limit {
+        self.client_writes
+            .hit_company(company_id, &format!("write_app:{client_id}:{user_id}"), now_ms())
+            .into()
+    }
+
+    /// Tạo đề xuất chờ duyệt theo người dùng (`DRAFTS_PER_MINUTE`).
+    pub fn draft(&self, company_id: i32, user_id: i32) -> Limit {
+        self.drafts
+            .hit_company(company_id, &format!("draft:{user_id}"), now_ms())
             .into()
     }
 

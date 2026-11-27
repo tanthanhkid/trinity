@@ -814,3 +814,133 @@ async fn tool_doc_nhom_2_schema_ma_chung_va_tinh_nang() {
     assert_eq!(v["data"]["can_build"], true);
     assert!(!v["data"]["current"]["roles"].as_array().unwrap().is_empty(), "{v}");
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn tool_ghi_chay_ngay_va_tao_de_xuat_khi_bat_che_do_duyet() {
+    let e = env_with(mod_mcp::register_group3).await;
+    let mut c = e.conn().await;
+    exec(
+        &mut c,
+        "INSERT INTO setting_options (group_key, value, label, sort_order, is_active, is_system, updated_at) VALUES
+           ('contact_source', 'web', 'Website', 1, true, false, now()),
+           ('contact_stage', 'new', 'Mới', 1, true, false, now()),
+           ('contact_stage', 'won', 'Đã chốt', 2, true, false, now());
+         INSERT INTO roles (name, is_system, updated_at) VALUES ('nv-m42', false, now());
+         INSERT INTO role_permissions (role_id, permission, scope)
+           SELECT r.id, p.permission, p.scope FROM roles r, (VALUES
+             ('integrations.ai_connect', NULL), ('contacts.view', 'own')) AS p(permission, scope) WHERE r.name = 'nv-m42';
+         INSERT INTO user_roles (user_id, role_id) SELECT u.id, r.id FROM users u, roles r WHERE u.email = 'staff@m39.test' AND r.name = 'nv-m42';",
+    )
+    .await;
+    let source: i64 = e
+        .scalar("SELECT id::bigint FROM setting_options WHERE group_key = 'contact_source'")
+        .await;
+    let won: i64 = e
+        .scalar("SELECT id::bigint FROM setting_options WHERE group_key = 'contact_stage' AND value = 'won'")
+        .await;
+    let write = e
+        .token("quantri-ghi", e.admin, "{crm.read,crm.write}", RESOURCE, "1 hour", false)
+        .await;
+    let read_only = e
+        .token("quantri-doc", e.admin, "{crm.read}", RESOURCE, "1 hour", false)
+        .await;
+    let stf = e
+        .token("nhanvien-ghi", e.staff, "{crm.read,crm.write}", RESOURCE, "1 hour", false)
+        .await;
+
+    // Thiếu scope crm.write ⇒ từ chối; nhân viên thiếu quyền contacts.create ⇒ từ chối.
+    let args = json!({ "full_name": "Khách Ghi", "phone": "0900001234", "source_id": source });
+    let (err, text, _) = run(&e, &read_only, "create_contact", &args).await;
+    assert!(err && text.starts_with("insufficient_scope"), "{text}");
+    let (err, text, _) = run(&e, &stf, "create_contact", &args).await;
+    assert!(err && text.contains("cần quyền contacts.create"), "{text}");
+
+    // Mặc định chạy ngay: ghi khách, ghi lịch sử `executed`, SĐT đầy đủ không lọt vào kết quả.
+    let (err, _, v) = run(&e, &write, "create_contact", &args).await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["status"], "executed");
+    assert!(!v.to_string().contains("0900001234"), "{v}");
+    let cid = v["data"]["result"]["contact_id"].as_i64().unwrap();
+    let aid = v["data"]["action_id"].as_i64().unwrap();
+    assert_eq!(
+        e.scalar(&format!(
+            "SELECT count(*) FROM contacts WHERE id = {cid} AND full_name = 'Khách Ghi'"
+        ))
+        .await,
+        1
+    );
+    assert_eq!(
+        e.scalar(&format!(
+            "SELECT count(*) FROM ai_action_drafts WHERE id = {aid} AND status = 'executed' AND result IS NOT NULL"
+        ))
+        .await,
+        1
+    );
+    // Dữ liệu sai theo DTO ⇒ 400 nêu đúng thông điệp, không ghi gì.
+    let (err, text, _) = run(
+        &e,
+        &write,
+        "create_contact",
+        &json!({ "full_name": "X", "phone": "123456789012", "source_id": source }),
+    )
+    .await;
+    assert!(err && text.contains("SĐT không hợp lệ"), "{text}");
+
+    // Ghi chú và đổi giai đoạn; đổi sang đúng giai đoạn hiện tại bị từ chối.
+    let note = json!({ "contact_id": cid, "note": "Gọi lại chiều nay" });
+    let (err, _, v) = run(&e, &write, "add_contact_note", &note).await;
+    assert!(!err, "{v}");
+    assert_eq!(
+        e.scalar(&format!(
+            "SELECT count(*) FROM activities WHERE contact_id = {cid} AND action = 'note'"
+        ))
+        .await,
+        1
+    );
+    let stage = json!({ "contact_id": cid, "stage_id": won });
+    let (err, _, v) = run(&e, &write, "update_contact_stage", &stage).await;
+    assert!(!err, "{v}");
+    let (err, text, _) = run(&e, &write, "update_contact_stage", &stage).await;
+    assert!(err && text.contains("Khách đã ở giai đoạn"), "{text}");
+
+    // get_action_status: chỉ thấy thao tác của chính kết nối này; thiếu id là lỗi đối số.
+    let (err, _, v) = run(&e, &write, "get_action_status", &json!({ "action_id": aid })).await;
+    assert!(!err && v["data"]["status"] == "executed", "{v}");
+    let (err, text, _) = run(&e, &write, "get_action_status", &json!({ "action_id": 999_999 })).await;
+    assert!(err && text.starts_with("Không tìm thấy"), "{text}");
+    let (err, text, _) = run(&e, &write, "get_action_status", &json!({})).await;
+    assert!(err && text.starts_with("Cần action_id"), "{text}");
+
+    // Bật "Yêu cầu duyệt thay đổi do AI": chỉ tạo đề xuất, chưa ghi khách; gọi lại y hệt ⇒ cùng đề xuất (duplicate).
+    exec(
+        &mut c,
+        "INSERT INTO settings (key, value, updated_at) VALUES ('ai_require_approval', 'true', now())",
+    )
+    .await;
+    let args2 = json!({ "full_name": "Khách Chờ", "phone": "0900005678", "source_id": source });
+    let (err, _, v) = run(&e, &write, "create_contact", &args2).await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["status"], "pending");
+    assert_eq!(v["data"]["duplicate"], false);
+    assert!(v["data"]["review_url"].as_str().unwrap().starts_with(BASE), "{v}");
+    let pid = v["data"]["action_id"].as_i64().unwrap();
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM contacts WHERE full_name = 'Khách Chờ'").await,
+        0
+    );
+    let (_, _, again) = run(&e, &write, "create_contact", &args2).await;
+    assert_eq!(again["data"]["duplicate"], true);
+    assert_eq!(again["data"]["action_id"].as_i64(), Some(pid));
+    let (_, _, v) = run(&e, &write, "get_action_status", &json!({ "action_id": pid })).await;
+    assert_eq!(v["data"]["status"], "pending");
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM ai_action_drafts WHERE status = 'pending'").await,
+        1
+    );
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM notification_logs WHERE event_type = 'ai_action.created'")
+            .await,
+        1
+    );
+}

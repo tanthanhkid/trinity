@@ -5,6 +5,9 @@
 //!
 //! Chưa có: `get_report` (báo cáo tuỳ chỉnh `CustomReportsService` chưa chuyển sang Rust; sẽ nằm ở issue của báo cáo tuỳ chỉnh).
 
+pub(crate) mod act_contacts;
+pub(crate) mod act_records;
+pub(crate) mod act_tasks;
 mod contacts;
 mod deals;
 mod options;
@@ -20,6 +23,7 @@ use serde_json::Value;
 use trinity_kernel::json::js_json;
 use trinity_rbac::can;
 
+use crate::actions::{self, ActionTool};
 use crate::ai_output::wrap_data;
 use crate::auth::Principal;
 use crate::deps::app_err;
@@ -92,6 +96,20 @@ fn reg(r: &mut ToolRegistry, name: &'static str, permissions: &'static [&'static
         permissions,
         runner: Arc::new(Tool(run)),
     });
+}
+
+/// Đăng ký khung thao tác ghi (M42): 8 tool ghi (`create_contact`, `add_contact_note`, `update_contact_stage`, `assign_contact`,
+/// `create_task`, `create_record`, `update_record`, `archive_record`; cần scope `crm.write`) và `get_action_status`. KHÔNG có tool xoá.
+pub fn register_group3(r: &mut ToolRegistry) {
+    for def in actions::all() {
+        r.register(ToolSpec {
+            name: def.name,
+            scope: Some("crm.write"),
+            permissions: def.permissions,
+            runner: Arc::new(ActionTool(def)),
+        });
+    }
+    reg(r, "get_action_status", &[], actions::get_action_status);
 }
 
 /// Đăng ký 9 tool đọc của nhóm 2 (M41) vào `r`: `get_setup_guide`, `describe_schema`, `list_records`, `get_record`,

@@ -79,6 +79,8 @@ struct InvariantsArgs {
 }
 
 fn main() -> ExitCode {
+    // reqwest (rustls-no-provider) cần provider đã cài trước khi dựng Client; cùng `ring` với sqlx.
+    let _ = rustls::crypto::ring::default_provider().install_default();
     match Cli::parse().command {
         None => ExitCode::SUCCESS,
         Some(Command::CheckConfig) => check_config(),

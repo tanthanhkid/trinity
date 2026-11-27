@@ -453,9 +453,12 @@ async fn thong_ke_va_nguoi_phu_trach() {
       ('b', 'Facebook', 'interview', 'hired', 'internal', '2026-01-20', 200, now()), \
       ('c', NULL, 'applied', 'rejected', 'external', '2026-02-05', NULL, now()), \
       ('d', 'Zalo', 'offer', 'pending', 'external', NULL, 50, now())").await;
-    let s = rc::stats(&mut c, &query("QueryRecruitmentStatsDto", json!({})))
-        .await
-        .unwrap();
+    let s = serde_json::to_value(
+        rc::stats(&mut c, &query("QueryRecruitmentStatsDto", json!({})))
+            .await
+            .unwrap(),
+    )
+    .unwrap();
     assert_eq!(s["total"], 4);
     assert_eq!(s["total_cost"], 350);
     assert_eq!(s["by_source"], json!({"Facebook": 2, "Zalo": 1, "Không rõ": 1}));
@@ -468,24 +471,30 @@ async fn thong_ke_va_nguoi_phu_trach() {
         "dòng không có applied_date không vào theo tháng"
     );
     // Khoảng ngày: dòng không có applied_date bị loại khi có bộ lọc.
-    let r = rc::stats(
-        &mut c,
-        &query(
-            "QueryRecruitmentStatsDto",
-            json!({"date_from": "2026-01-15", "date_to": "2026-02-01T00:00:00Z"}),
-        ),
+    let r = serde_json::to_value(
+        rc::stats(
+            &mut c,
+            &query(
+                "QueryRecruitmentStatsDto",
+                json!({"date_from": "2026-01-15", "date_to": "2026-02-01T00:00:00Z"}),
+            ),
+        )
+        .await
+        .unwrap(),
     )
-    .await
     .unwrap();
     assert_eq!(
         (r["total"].clone(), r["total_cost"].clone(), r["by_month"].clone()),
         (json!(1), json!(200), json!([{"month": "2026-01", "count": 1}]))
     );
-    let none = rc::stats(
-        &mut c,
-        &query("QueryRecruitmentStatsDto", json!({"date_from": "2030-01-01"})),
+    let none = serde_json::to_value(
+        rc::stats(
+            &mut c,
+            &query("QueryRecruitmentStatsDto", json!({"date_from": "2030-01-01"})),
+        )
+        .await
+        .unwrap(),
     )
-    .await
     .unwrap();
     assert_eq!(
         (
@@ -507,5 +516,136 @@ async fn thong_ke_va_nguoi_phu_trach() {
     assert_eq!(
         js(&rs),
         r#"[{"id":2,"full_name":"An HR","email":"hr@x.vn"},{"id":1,"full_name":"Zed Admin","email":"ad@x.vn"}]"#
+    );
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn so_ngoai_int4_trang_qua_lon_va_thu_tu_khoa_stats() {
+    let mut c = setup().await;
+    // Số hợp lệ theo class-validator nhưng ngoài int4: 400, KHÔNG lưu NULL và KHÔNG xoá giá trị cũ.
+    let big = 3_000_000_000_i64;
+    expect_err(
+        rc::create_candidate(
+            &mut c,
+            &body("CreateCandidateDto", json!({"full_name": "A", "cost": big})),
+            1,
+        )
+        .await,
+        400,
+        "cost phải nhỏ hơn hoặc bằng 2147483647",
+    );
+    expect_err(
+        rc::create_candidate(
+            &mut c,
+            &body("CreateCandidateDto", json!({"full_name": "A", "recruiter_id": big})),
+            1,
+        )
+        .await,
+        400,
+        "recruiter_id",
+    );
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>("SELECT count(*) FROM recruitment_candidates")
+            .fetch_one(&mut c)
+            .await
+            .unwrap(),
+        0,
+        "không tạo dòng nào"
+    );
+    let a = rc::create_candidate(
+        &mut c,
+        &body(
+            "CreateCandidateDto",
+            json!({"full_name": "A", "cost": 100, "applied_date": "2026-03"}),
+        ),
+        1,
+    )
+    .await
+    .unwrap();
+    assert_eq!(a.applied_date.as_deref(), Some("2026-03-01"), "YYYY-MM");
+    expect_err(
+        rc::update_candidate(
+            &mut c,
+            a.id,
+            &body("UpdateCandidateDto", json!({"full_name": "B", "cost": big})),
+        )
+        .await,
+        400,
+        "cost phải nhỏ hơn hoặc bằng 2147483647",
+    );
+    let after = rc::list_candidates(&mut c, &query("QueryCandidatesDto", json!({})))
+        .await
+        .unwrap();
+    assert_eq!(
+        (after.data[0].cost, after.data[0].full_name.as_str()),
+        (Some(100), "A"),
+        "không đổi gì khi một trường lỗi"
+    );
+    let dto = |extra: Value| {
+        let mut v = json!({"job_code": "J", "department": "D", "position_title": "T", "headcount": 1, "recruiter_id": 1, "opened_date": "2026-01-01"});
+        v.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        v
+    };
+    expect_err(
+        rc::create_position(&mut c, &body("CreatePositionDto", dto(json!({"headcount": big}))), 1).await,
+        400,
+        "headcount",
+    );
+    expect_err(
+        rc::create_position(
+            &mut c,
+            &body("CreatePositionDto", dto(json!({"recruitment_cost": big}))),
+            1,
+        )
+        .await,
+        400,
+        "recruitment_cost",
+    );
+    // Các dạng ngày mà `@IsDateString` và `new Date` cùng nhận.
+    for (input, want) in [
+        ("2026", "2026-01-01"),
+        ("2026-03-10 01:00+07:00", "2026-03-09"),
+        ("2026-03-10T01:00+0700", "2026-03-09"),
+        ("2026-03-10T01:00Z", "2026-03-10"),
+        ("2026-02-30", "2026-03-02"),
+    ] {
+        let p = rc::create_position(
+            &mut c,
+            &body("CreatePositionDto", dto(json!({"opened_date": input}))),
+            1,
+        )
+        .await
+        .unwrap();
+        assert_eq!(p.opened_date.as_deref(), Some(want), "{input}");
+    }
+    // Trang quá lớn: trang rỗng, không tràn số.
+    let far = rc::list_candidates(
+        &mut c,
+        &query(
+            "QueryCandidatesDto",
+            json!({"page": "9007199254740991", "page_size": "100"}),
+        ),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        (far.data.len(), far.pagination.total, far.pagination.has_more),
+        (0, 1, false)
+    );
+    let far_p = rc::list_positions(&mut c, &query("QueryPositionsDto", json!({"page": "9007199254740991"})))
+        .await
+        .unwrap();
+    assert!(far_p.data.is_empty());
+    // Thứ tự khoá `/stats` như Node.
+    let s = js(&rc::stats(&mut c, &query("QueryRecruitmentStatsDto", json!({})))
+        .await
+        .unwrap());
+    assert!(s.starts_with(r#"{"total":1,"total_cost":100,"by_source":{"#), "{s}");
+    assert!(
+        s.find("by_stage").unwrap() < s.find("by_decision").unwrap()
+            && s.find("by_decision").unwrap() < s.find("by_type").unwrap()
+            && s.find("by_type").unwrap() < s.find("by_month").unwrap(),
+        "{s}"
     );
 }

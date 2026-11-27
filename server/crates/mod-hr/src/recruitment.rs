@@ -124,6 +124,16 @@ fn s(m: &Map<String, Value>, k: &str) -> Option<String> {
     m.get(k).and_then(Value::as_str).map(str::to_owned)
 }
 
+/// Cột `int4` từ thân đã kiểm: ngoài khoảng ⇒ 400 (không lưu NULL, không xoá giá trị cũ; Node để lỗi DB thành 500).
+fn int4(m: &Map<String, Value>, k: &str) -> Result<Option<i32>, AppError> {
+    match m.get(k).and_then(Value::as_i64) {
+        None => Ok(None),
+        Some(v) => i32::try_from(v)
+            .map(Some)
+            .map_err(|_| HttpError::bad_request(format!("{k} phải nhỏ hơn hoặc bằng {}", i32::MAX)).into()),
+    }
+}
+
 fn n(m: &Map<String, Value>, k: &str) -> Option<i64> {
     m.get(k).and_then(Value::as_i64)
 }
@@ -133,21 +143,51 @@ fn truthy(m: &Map<String, Value>, k: &str) -> Option<String> {
     s(m, k).filter(|v| !v.is_empty())
 }
 
-/// `new Date(str)` của JS cho chuỗi ISO 8601 mà `@IsDateString` cho qua (dạng thường gặp): ngày, ngày giờ, có/không múi giờ
-/// (không múi giờ = giờ máy chủ, chạy `TZ=UTC`). Không đọc được ⇒ `None`.
-fn parse_instant(v: &str) -> Option<DateTime<Utc>> {
-    if let Ok(d) = DateTime::parse_from_rfc3339(v) {
-        return Some(d.with_timezone(&Utc));
+/// `new Date(str)` của V8 cho mọi chuỗi mà `@IsDateString` (validator.js `isISO8601`) cho qua và V8 đọc được: `YYYY`,
+/// `YYYY-MM`, `YYYY-MM-DD` (UTC), `…T` hoặc dấu cách rồi `hh:mm[:ss[.fff…]]` kèm `Z`, `±hh:mm` hoặc `±hhmm` (không múi giờ =
+/// giờ máy chủ, chạy `TZ=UTC`). Như V8: ngày 1 đến 31 ở mọi tháng (`2026-02-30` thành `2026-03-02`), `24:00` là nửa đêm hôm sau,
+/// phần thập phân cắt ở mili giây. Dạng V8 không đọc được (tuần ISO, ngày thứ tự, `YYYYMMDD`, `T01` thiếu phút…) ⇒ `None`
+/// (Node: `Invalid Date`, Prisma lỗi 500). Đối chiếu bằng `tests/fixtures/dates.json` sinh từ `new Date()` thật.
+pub fn parse_instant(v: &str) -> Option<DateTime<Utc>> {
+    static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(
+            r"^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?(?:[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?(Z|[+-]\d{2}:?\d{2})?)? ?$",
+        )
+        .expect("regex hợp lệ")
+    });
+    let c = RE.captures(v)?;
+    let num = |i: usize| c.get(i).map(|m| m.as_str().parse::<i64>().unwrap_or(0));
+    let year = i32::try_from(num(1)?).ok()?;
+    let month = u32::try_from(num(2).unwrap_or(1)).ok()?;
+    let day = u32::try_from(num(3).unwrap_or(1)).ok()?;
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return None;
     }
-    if let Ok(d) = NaiveDate::parse_from_str(v, "%Y-%m-%d") {
-        return Some(d.and_time(chrono::NaiveTime::MIN).and_utc());
+    let (h, mi, sec) = (num(4).unwrap_or(0), num(5).unwrap_or(0), num(6).unwrap_or(0));
+    let ms = c.get(7).map_or(0, |m| {
+        format!("{:0<3}", &m.as_str()[..m.as_str().len().min(3)])
+            .parse::<i64>()
+            .unwrap_or(0)
+    });
+    if mi > 59 || sec > 59 || h > 24 || (h == 24 && (mi, sec, ms) != (0, 0, 0)) {
+        return None;
     }
-    for f in ["%Y-%m-%dT%H:%M:%S%.f", "%Y-%m-%dT%H:%M"] {
-        if let Ok(d) = NaiveDateTime::parse_from_str(v, f) {
-            return Some(d.and_utc());
+    let offset_min = match c.get(8).map(|m| m.as_str()) {
+        None | Some("Z") => 0,
+        Some(z) => {
+            let sign = if z.starts_with('-') { -1 } else { 1 };
+            let digits: String = z[1..].chars().filter(char::is_ascii_digit).collect();
+            let (oh, om) = (digits[..2].parse::<i64>().ok()?, digits[2..].parse::<i64>().ok()?);
+            if oh > 23 || om > 59 {
+                return None;
+            }
+            sign * (oh * 60 + om)
         }
-    }
-    None
+    };
+    let date = NaiveDate::from_ymd_opt(year, month, 1)?.checked_add_days(chrono::Days::new(u64::from(day - 1)))?;
+    let local =
+        date.and_time(chrono::NaiveTime::MIN) + chrono::Duration::milliseconds(((h * 60 + mi) * 60 + sec) * 1000 + ms);
+    Some((local - chrono::Duration::minutes(offset_min)).and_utc())
 }
 
 fn invalid_date(field: &str) -> AppError {
@@ -203,7 +243,10 @@ fn pagination(total: i64, page: i64, page_size: i64, returned: usize) -> Paginat
         page,
         page_size,
         total_pages: ((total + page_size - 1) / page_size).max(1),
-        has_more: (page - 1) * page_size + i64::try_from(returned).unwrap_or(i64::MAX) < total,
+        has_more: (page - 1)
+            .saturating_mul(page_size)
+            .saturating_add(i64::try_from(returned).unwrap_or(i64::MAX))
+            < total,
     }
 }
 
@@ -335,7 +378,7 @@ pub async fn list_candidates(conn: &mut PgConnection, q: &Map<String, Value>) ->
     qb.push(" LIMIT ")
         .push_bind(size)
         .push(" OFFSET ")
-        .push_bind((page - 1) * size);
+        .push_bind((page - 1).saturating_mul(size));
     let rows = qb.build().fetch_all(&mut *conn).await.map_err(db)?;
     let ids: Vec<Option<i32>> = rows.iter().map(|r| r.try_get("recruiter_id").unwrap_or(None)).collect();
     let names = recruiter_names(conn, &ids).await?;
@@ -386,12 +429,12 @@ pub async fn create_candidate(
     .bind(s(dto, "decision"))
     .bind(s(dto, "recruitment_type"))
     .bind(applied)
-    .bind(n(dto, "cost").and_then(|v| i32::try_from(v).ok()))
+    .bind(int4(dto, "cost")?)
     .bind(s(dto, "note"))
     .bind(s(dto, "gender"))
     .bind(interview)
     .bind(s(dto, "interview_time"))
-    .bind(n(dto, "recruiter_id").and_then(|v| i32::try_from(v).ok()))
+    .bind(int4(dto, "recruiter_id")?)
     .bind(created_by)
     .fetch_one(&mut *conn)
     .await
@@ -418,12 +461,19 @@ fn set_text(
     }
 }
 
-fn set_int(qb: &mut QueryBuilder<sqlx::Postgres>, first: &mut bool, dto: &Map<String, Value>, key: &str) {
-    if let Some(v) = dto.get(key) {
+fn set_int(
+    qb: &mut QueryBuilder<sqlx::Postgres>,
+    first: &mut bool,
+    dto: &Map<String, Value>,
+    key: &str,
+) -> Result<(), AppError> {
+    if dto.contains_key(key) {
+        let v = int4(dto, key)?;
         qb.push(if std::mem::take(first) { " SET " } else { ", " })
             .push(format!("{key} = "));
-        qb.push_bind(v.as_i64().and_then(|x| i32::try_from(x).ok()));
+        qb.push_bind(v);
     }
+    Ok(())
 }
 
 fn set_date(
@@ -468,8 +518,8 @@ pub async fn update_candidate(
     }
     set_date(&mut qb, &mut first, dto, "applied_date")?;
     set_date(&mut qb, &mut first, dto, "interview_date")?;
-    set_int(&mut qb, &mut first, dto, "cost");
-    set_int(&mut qb, &mut first, dto, "recruiter_id");
+    set_int(&mut qb, &mut first, dto, "cost")?;
+    set_int(&mut qb, &mut first, dto, "recruiter_id")?;
     qb.push(if std::mem::take(&mut first) { " SET " } else { ", " })
         .push("updated_at = now() WHERE id = ")
         .push_bind(id);
@@ -497,10 +547,22 @@ pub async fn remove_candidate(conn: &mut PgConnection, id: i32) -> Result<OkIdBo
     Ok(OkIdBody { ok: true, id })
 }
 
+/// Phản hồi `GET /stats`, thứ tự khoá như bản Node (khoá bên trong các bảng đếm theo chữ cái).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Stats {
+    pub total: i64,
+    pub total_cost: i64,
+    pub by_source: Map<String, Value>,
+    pub by_stage: Map<String, Value>,
+    pub by_decision: Map<String, Value>,
+    pub by_type: Map<String, Value>,
+    pub by_month: Vec<Value>,
+}
+
 // ---- Thống kê -----------------------------------------------------------------------------------------------------
 
 /// `GET /stats`: `date_from`/`date_to` lọc theo `applied_date` (so với thời điểm đọc từ chuỗi ISO, như `new Date(...)`).
-pub async fn stats(conn: &mut PgConnection, q: &Map<String, Value>) -> Result<Value, AppError> {
+pub async fn stats(conn: &mut PgConnection, q: &Map<String, Value>) -> Result<Stats, AppError> {
     let from = s(q, "date_from")
         .filter(|v| !v.is_empty())
         .map(|v| parse_instant(&v).ok_or_else(|| invalid_date("date_from")))
@@ -578,10 +640,15 @@ pub async fn stats(conn: &mut PgConnection, q: &Map<String, Value>) -> Result<Va
         it.next().unwrap_or_default(),
         it.next().unwrap_or_default(),
     );
-    Ok(serde_json::json!({
-        "total": total, "total_cost": total_cost, "by_source": by_source, "by_stage": by_stage,
-        "by_decision": by_decision, "by_type": by_type, "by_month": months,
-    }))
+    Ok(Stats {
+        total,
+        total_cost,
+        by_source,
+        by_stage,
+        by_decision,
+        by_type,
+        by_month: months,
+    })
 }
 
 // ---- Vị trí tuyển dụng --------------------------------------------------------------------------------------------
@@ -626,7 +693,7 @@ pub async fn list_positions(conn: &mut PgConnection, q: &Map<String, Value>) -> 
     qb.push(" LIMIT ")
         .push_bind(size)
         .push(" OFFSET ")
-        .push_bind((page - 1) * size);
+        .push_bind((page - 1).saturating_mul(size));
     let rows = qb.build().fetch_all(&mut *conn).await.map_err(db)?;
     let ids: Vec<Option<i32>> = rows.iter().map(|r| r.try_get("recruiter_id").unwrap_or(None)).collect();
     let names = recruiter_names(conn, &ids).await?;
@@ -670,13 +737,13 @@ pub async fn create_position(
     .bind(s(dto, "department"))
     .bind(s(dto, "team"))
     .bind(s(dto, "position_title"))
-    .bind(n(dto, "headcount").and_then(|v| i32::try_from(v).ok()))
-    .bind(n(dto, "recruiter_id").and_then(|v| i32::try_from(v).ok()))
+    .bind(int4(dto, "headcount")?)
+    .bind(int4(dto, "recruiter_id")?)
     .bind(opened)
     .bind(expected)
     .bind(s(dto, "description"))
     .bind(s(dto, "requirements"))
-    .bind(n(dto, "recruitment_cost").and_then(|v| i32::try_from(v).ok()))
+    .bind(int4(dto, "recruitment_cost")?)
     .bind(s(dto, "status"))
     .bind(created_by)
     .fetch_one(&mut *conn)
@@ -709,9 +776,9 @@ pub async fn update_position(
     for k in ["team", "description", "requirements"] {
         set_text(&mut qb, &mut first, dto, k, true);
     }
-    set_int(&mut qb, &mut first, dto, "headcount");
-    set_int(&mut qb, &mut first, dto, "recruiter_id");
-    set_int(&mut qb, &mut first, dto, "recruitment_cost");
+    set_int(&mut qb, &mut first, dto, "headcount")?;
+    set_int(&mut qb, &mut first, dto, "recruiter_id")?;
+    set_int(&mut qb, &mut first, dto, "recruitment_cost")?;
     set_date(&mut qb, &mut first, dto, "opened_date")?;
     set_date(&mut qb, &mut first, dto, "expected_start_date")?;
     qb.push(if std::mem::take(&mut first) { " SET " } else { ", " })

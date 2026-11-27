@@ -2,6 +2,7 @@
 //!
 //! Chạy: `TEST_DATABASE_URL=postgresql://$USER@localhost:5432/trinity_<tên> cargo test -p mod-contacts --test contacts_pg -- --ignored`
 
+use mod_contacts::activities::find_by_contact;
 use mod_contacts::export::export_xlsx;
 use mod_contacts::filter::ContactFilters;
 use mod_contacts::list::{ContactList, CountCache, ListQuery, Meta, find_all};
@@ -934,4 +935,63 @@ async fn invalidate_phat_notify_cache_dem_khach() {
     let env = sync::parse_payload(n.payload()).expect("payload hợp lệ");
     assert_eq!((env.kind.as_str(), env.company), ("cache", 1));
     assert_eq!(env.fields.get("p").and_then(Value::as_str), Some("crm:contacts:count:"));
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn timeline_hoat_dong_phan_trang_pham_vi_va_nguoi_tao() {
+    let _s = SERIAL.lock().await;
+    let db = tenant().await;
+    let mut c = db.acquire().await.unwrap();
+    clean(&mut c).await;
+    let staff = user(&mut c, 1, "Nhân viên", None).await;
+    let other = user(&mut c, 2, "Người ngoài", None).await;
+    let mine = contact(&mut c, "0907000201", "Khách của tôi", staff).await;
+    let theirs = contact(&mut c, "0907000202", "Khách người khác", other).await;
+    let mut ids = Vec::new();
+    for i in 0..3 {
+        let id: i32 = sqlx::query_scalar(
+            "INSERT INTO activities (contact_id, action, details, metadata, created_by) VALUES ($1, 'note', $2::text::jsonb, '{}'::jsonb, $3) RETURNING id",
+        )
+        .bind(mine)
+        .bind(json!({ "note": format!("ghi chú {i}") }).to_string())
+        .bind(if i == 0 { None } else { Some(staff) })
+        .fetch_one(&mut *c)
+        .await
+        .unwrap();
+        ids.push(id);
+    }
+    let scope = own(staff);
+    let view = scope.view.as_ref();
+
+    // Mới nhất trước; trang 1 có con trỏ, trang 2 hết.
+    let p1 = find_by_contact(&mut c, view, mine, None, 2).await.unwrap();
+    let j = js(&p1);
+    assert_eq!(j["data"].as_array().unwrap().len(), 2);
+    assert_eq!(j["data"][0]["id"], ids[2]);
+    assert_eq!(j["data"][0]["user"]["full_name"], "Nhân viên");
+    assert_eq!(j["next_cursor"], ids[1]);
+    assert!(j["data"][1]["user"].is_object());
+    let p2 = find_by_contact(&mut c, view, mine, Some(ids[1]), 2).await.unwrap();
+    let j = js(&p2);
+    assert_eq!(j["data"].as_array().unwrap().len(), 1);
+    assert_eq!(j["data"][0]["id"], ids[0]);
+    assert!(j["data"][0]["user"].is_null(), "created_by rỗng ⇒ user null");
+    assert!(j["next_cursor"].is_null());
+
+    // Con trỏ không còn ⇒ trang rỗng.
+    let gone = find_by_contact(&mut c, view, mine, Some(i32::MAX), 5).await.unwrap();
+    assert!(gone.data.is_empty() && gone.next_cursor.is_none());
+
+    // Ngoài phạm vi hoặc khách không có ⇒ 404; không có quyền xem ⇒ 404.
+    assert_eq!(
+        err(find_by_contact(&mut c, view, theirs, None, 5).await.unwrap_err()).0,
+        404
+    );
+    let (st, msg) = err(find_by_contact(&mut c, view, i32::MAX, None, 5).await.unwrap_err());
+    assert_eq!((st, msg.as_str()), (404, "Không tìm thấy khách hàng ID 2147483647"));
+    assert_eq!(
+        err(find_by_contact(&mut c, None, mine, None, 5).await.unwrap_err()).0,
+        404
+    );
 }

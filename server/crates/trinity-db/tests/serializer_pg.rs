@@ -24,7 +24,7 @@ async fn pool() -> PgPool {
 }
 
 fn table() -> Value {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../contracts/cases/serializer.json");
+    let path = format!("{}/../../contracts/cases/serializer.json", manifest_dir());
     serde_json::from_str(&std::fs::read_to_string(path).expect("đọc serializer.json")).expect("serializer.json hợp lệ")
 }
 
@@ -191,4 +191,10 @@ async fn jsonb_so_ngoai_f64_khong_lam_hong_ca_dong() {
         .await
         .expect("json");
     assert_eq!(json(&get::<JsonValue>(&row)), r#"{"x":null}"#);
+}
+
+/// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+/// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+fn manifest_dir() -> String {
+    std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
 }

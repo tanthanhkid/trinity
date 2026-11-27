@@ -12,7 +12,7 @@ use serde_json::{Value, json};
 use trinity_docgen::xlsx::{Cell, Column, NumFormat, ReadCell, SheetSpec, read_first_sheet, write_xlsx};
 
 fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
+    PathBuf::from(manifest_dir()).join("../../..")
 }
 
 fn cases() -> Value {
@@ -20,9 +20,7 @@ fn cases() -> Value {
 }
 
 fn fixture(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures")
-        .join(name)
+    PathBuf::from(manifest_dir()).join("tests/fixtures").join(name)
 }
 
 fn cell(v: &Value) -> Cell {
@@ -173,4 +171,10 @@ fn doc_mau_nhap_phieu_luong_cua_ban_node() {
     assert_eq!(sheet.cell(2, col("Ngày công")), &ReadCell::Number(22.5));
     assert_eq!(sheet.cell(3, 1).as_trimmed_text().as_deref(), Some("Lê Thị Đào"));
     assert_eq!(sheet.cell(3, col("Lương cơ bản")), &ReadCell::Empty);
+}
+
+/// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+/// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+fn manifest_dir() -> String {
+    std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
 }

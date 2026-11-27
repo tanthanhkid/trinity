@@ -9,8 +9,30 @@ mod gen_dto;
 mod gen_models;
 mod lint;
 
-use std::path::Path;
+use std::path::PathBuf;
 use std::process::ExitCode;
+
+/// Thư mục `server` lúc CHẠY, không nhúng lúc biên dịch: các worktree dùng chung `CARGO_TARGET_DIR` có thể chạy lại tệp
+/// thực thi do worktree khác biên dịch, và khi đó đường dẫn nhúng trỏ sang cây kia. Thứ tự: `CARGO_MANIFEST_DIR` của `xtask`
+/// (cargo đặt khi chạy `cargo xtask`/`cargo run -p xtask`), rồi đi ngược từ thư mục hiện tại tới nơi có `xtask/Cargo.toml`.
+pub(crate) fn root() -> PathBuf {
+    if let Some(m) = std::env::var_os("CARGO_MANIFEST_DIR").map(PathBuf::from)
+        && let Some(server) = m.parent()
+        && server.join("xtask/Cargo.toml").is_file()
+    {
+        return server.to_path_buf();
+    }
+    let cwd = std::env::current_dir().unwrap_or_default();
+    cwd.ancestors()
+        .find(|d| d.join("xtask/Cargo.toml").is_file())
+        .map(PathBuf::from)
+        .or_else(|| {
+            cwd.ancestors()
+                .find(|d| d.join("server/xtask/Cargo.toml").is_file())
+                .map(|d| d.join("server"))
+        })
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".."))
+}
 
 #[allow(clippy::print_stderr, clippy::print_stdout)]
 fn main() -> ExitCode {
@@ -23,14 +45,14 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Some("lint") => {
-            let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("../crates");
+            let crates = root().join("crates");
             match lint::lint_dir(&crates) {
                 Ok(findings) if findings.is_empty() => {
                     println!("xtask lint: sạch");
                     ExitCode::SUCCESS
                 }
                 Ok(findings) => {
-                    let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+                    let base = root();
                     let base = base.canonicalize().unwrap_or(base);
                     for f in &findings {
                         let file = f.file.canonicalize().unwrap_or_else(|_| f.file.clone());
@@ -51,7 +73,7 @@ fn main() -> ExitCode {
             let status = std::process::Command::new(cargo)
                 .args(["run", "-q", "-p", "trinity-bin", "--", "check-routes"])
                 .args(std::env::args().skip(2))
-                .current_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join(".."))
+                .current_dir(root())
                 .status();
             match status {
                 Ok(s) if s.success() => ExitCode::SUCCESS,
@@ -63,7 +85,7 @@ fn main() -> ExitCode {
             }
         }
         Some("gen-models") => {
-            let (schema, out) = gen_models::paths(Path::new(env!("CARGO_MANIFEST_DIR")).join("..").as_path());
+            let (schema, out) = gen_models::paths(root().as_path());
             let result = std::fs::read_to_string(&schema)
                 .map_err(|e| format!("đọc {}: {e}", schema.display()))
                 .and_then(|text| gen_models::render(&text))
@@ -81,7 +103,7 @@ fn main() -> ExitCode {
         }
         Some("gen-dto") => {
             let names: Vec<String> = std::env::args().skip(2).collect();
-            let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../contracts/dto/schema.json");
+            let path = root().join("contracts/dto/schema.json");
             match std::fs::read_to_string(&path)
                 .map_err(|e| e.to_string())
                 .and_then(|t| gen_dto::generate(&t, &names))

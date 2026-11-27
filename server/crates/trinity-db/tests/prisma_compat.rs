@@ -31,10 +31,7 @@ fn url() -> String {
 }
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../..")
-        .canonicalize()
-        .unwrap()
+    PathBuf::from(manifest_dir()).join("../../..").canonicalize().unwrap()
 }
 
 fn migrations_dir() -> PathBuf {
@@ -417,4 +414,10 @@ async fn failing_case(schema: &str, extra: &[(&str, &str)], failing: &str) {
 
     drop_schema(&mut c, schema).await;
     let _ = std::fs::remove_dir_all(&tmp);
+}
+
+/// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+/// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+fn manifest_dir() -> String {
+    std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
 }

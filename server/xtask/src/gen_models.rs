@@ -331,7 +331,7 @@ mod tests {
     use super::*;
 
     fn server() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("..")
+        crate::root()
     }
 
     /// "Sinh lại và so" (PLAN 6.1): tệp đã commit phải đúng bằng kết quả sinh từ schema hiện tại.

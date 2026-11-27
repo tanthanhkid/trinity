@@ -22,21 +22,37 @@ use trinity_kernel::error::{AppError, HttpError};
 
 use crate::check::{self, CheckCtx, CheckInput, SELFIE_ALLOWED_MIME, SELFIE_MAX_SIZE, SELFIE_MIME_ERROR, Selfie};
 use crate::dto::{
-    CreateAttendanceRequestDto, CreateOfficeDto, DeviceCheckDto, QueryAttendanceRequestsDto, RejectRequestDto,
-    UpdateAttendanceSettingsDto, UpdateOfficeDto, UpdateRequestConfigDto, UpdateWorkingSaturdaysDto,
+    CreateAttendanceRequestDto, CreateOfficeDto, DeviceCheckDto, PatchAttendanceDto, QueryAttendanceDto,
+    QueryAttendanceRequestsDto, QueryTodaySummaryDto, RejectRequestDto, UpdateAttendanceSettingsDto, UpdateOfficeDto,
+    UpdateRequestConfigDto, UpdateWorkingSaturdaysDto,
 };
 use crate::stats::QueryAttendanceStatsDto;
-use crate::{config, offices, requests, stats};
+use crate::{config, offices, records, requests, stats};
 
 const BASE: &str = "/api/v1/management/attendance";
 const ID: &[&str] = &["param.id:ParseIntPipe"];
+/// Đường dẫn khai dạng Express `:id(\\d+)` như `routes.json`; `ParseIntPipe` vẫn chạy sau khi khớp.
+const REC: &str = "/api/v1/management/attendance/:id(\\d+)";
+const PROOF: &str = "/api/v1/management/attendance/:id(\\d+)/proof/:slot";
 
-/// 24 route của M13a (cấu hình), M13b (chấm công vào/ra) và M14a (đơn từ) (bảng so với `routes.json` bởi `trinity check-routes`).
+/// 32 route của M13a (cấu hình), M13b (chấm công vào/ra) và M14a (đơn từ, thống kê, sổ chấm công) (bảng so với `routes.json` bởi `trinity check-routes`).
 pub fn specs() -> Vec<RouteSpec> {
     let view = Access::Can(&["attendance.view"]);
     let cfg = Access::Can(&["attendance.config"]);
     let manage = Access::Can(&["attendance.manage"]);
     vec![
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance", view).status_ok(200),
+        RouteSpec::new(Method::GET, REC, view).status_ok(200).param_pipes(ID),
+        RouteSpec::new(Method::PATCH, REC, manage)
+            .status_ok(200)
+            .param_pipes(ID),
+        RouteSpec::new(Method::DELETE, REC, manage)
+            .status_ok(200)
+            .param_pipes(ID),
+        RouteSpec::new(Method::GET, PROOF, view).status_ok(200).param_pipes(ID),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/absent", view).status_ok(200),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/today", Access::AuthOnly).status_ok(200),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/workdays-matrix", view).status_ok(200),
         RouteSpec::new(Method::POST, "/api/v1/management/attendance/check-in", Access::AuthOnly).status_ok(201),
         RouteSpec::new(
             Method::POST,
@@ -370,6 +386,59 @@ async fn stats_weekly_hours(State(c): S, Extension(u): U, uri: Uri) -> Response 
     ok(stats::weekly_hours(&c, &a, &query_to_json(uri.query().unwrap_or(""))).await)
 }
 
+async fn record_list(State(c): S, Extension(u): U, ValidQuery(q): ValidQuery<QueryAttendanceDto>) -> Response {
+    let a = act!(u);
+    ok(records::list(&c, &a, &q).await)
+}
+
+async fn record_get(State(c): S, Extension(u): U, Path(id): Path<String>) -> Response {
+    let a = act!(u);
+    match id_of(&id, "bản ghi chấm công.") {
+        Ok(id) => ok(records::get(&c, &a, id).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn record_patch(
+    State(c): S,
+    Extension(u): U,
+    Path(id): Path<String>,
+    ValidJson(dto): ValidJson<PatchAttendanceDto>,
+) -> Response {
+    let a = act!(u);
+    match id_of(&id, "bản ghi chấm công.") {
+        Ok(id) => ok(records::patch(&c, &a, id, &dto).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn record_delete(State(c): S, Extension(u): U, Path(id): Path<String>) -> Response {
+    let a = act!(u);
+    match id_of(&id, "bản ghi chấm công.") {
+        Ok(id) => ok(records::remove(&c, &a, id).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn today(State(c): S, Extension(u): U, ValidQuery(q): ValidQuery<QueryTodaySummaryDto>) -> Response {
+    let a = act!(u);
+    ok(records::today(&c, &a, &q).await)
+}
+
+/// `@Query('date'|'sort_by'|'sort_dir') x?: string`: không có DTO, giá trị không phải chuỗi (mảng, đối tượng) coi như vắng.
+async fn absent(State(c): S, Extension(u): U, uri: Uri) -> Response {
+    let a = act!(u);
+    let q = query_to_json(uri.query().unwrap_or(""));
+    let text = |k: &str| q.get(k).and_then(|v| v.as_str()).map(str::to_owned);
+    let (date, sort_by, sort_dir) = (text("date"), text("sort_by"), text("sort_dir"));
+    ok(records::absent(&c, &a, date.as_deref(), sort_by.as_deref(), sort_dir.as_deref()).await)
+}
+
+async fn workdays_matrix(State(c): S, Extension(u): U, ValidQuery(q): ValidQuery<QueryAttendanceDto>) -> Response {
+    let a = act!(u);
+    ok(records::matrix(&c, &a, &q).await)
+}
+
 /// Router của M13a (state `Arc<Ctx>` của module nhân sự). Người gọi gắn state khi lắp `serve`.
 pub fn router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
     let s = specs();
@@ -403,6 +472,50 @@ pub fn router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::GET, &p("stats/weekly")), stats_weekly)
         .route(spec(&Method::GET, &p("stats/monthly")), stats_monthly)
         .route(spec(&Method::GET, &p("stats/weekly-hours")), stats_weekly_hours)
+        .route(spec(&Method::GET, BASE), record_list)
+        .route(spec(&Method::GET, REC), record_get)
+        .route(spec(&Method::PATCH, REC), record_patch)
+        .route(spec(&Method::DELETE, REC), record_delete)
+        .route(spec(&Method::GET, &p("today")), today)
+        .route(spec(&Method::GET, &p("absent")), absent)
+        .route(spec(&Method::GET, &p("workdays-matrix")), workdays_matrix)
+}
+
+// ───────────────────────────── ảnh selfie (M14a) ─────────────────────────────
+
+/// `GET /:id/proof/:slot`: stream ảnh từ kho tệp nên cần `CheckCtx`; `Content-Disposition: inline` như bản TS.
+async fn record_proof(State(c): CC, Extension(u): U, Path((id, slot)): Path<(String, String)>) -> Response {
+    let a = act!(u);
+    let id = match id_of(&id, "bản ghi chấm công.") {
+        Ok(id) => id,
+        Err(e) => return fail(e),
+    };
+    match records::proof(&c, &a, id, &slot).await {
+        Ok(d) => {
+            let mut resp = Response::new(d.body);
+            let h = resp.headers_mut();
+            if let Ok(v) = HeaderValue::from_str(&d.content_type) {
+                h.insert(header::CONTENT_TYPE, v);
+            }
+            h.insert(header::CONTENT_DISPOSITION, HeaderValue::from_static("inline"));
+            if let Some(len) = d.content_length
+                && let Ok(v) = HeaderValue::from_str(&len.to_string())
+            {
+                h.insert(header::CONTENT_LENGTH, v);
+            }
+            resp
+        }
+        Err(e) => fail(e),
+    }
+}
+
+/// Router của ảnh selfie (state `Arc<CheckCtx>`, cùng state với [`check_router`]).
+pub fn proof_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<CheckCtx>> {
+    let spec = specs()
+        .into_iter()
+        .find(|x| x.method == Method::GET && x.path == PROOF)
+        .unwrap_or_else(|| panic!("thiếu spec GET {PROOF}"));
+    ApiRouter::new(deps).route(spec, record_proof)
 }
 
 // ───────────────────────────── chấm công vào/ra (M13b) ─────────────────────────────
@@ -526,9 +639,9 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = specs();
-        assert_eq!(table.len(), 24);
+        assert_eq!(table.len(), 32);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 24);
+        assert_eq!(rep.declared, 32);
     }
 }

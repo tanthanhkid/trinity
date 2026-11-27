@@ -271,6 +271,23 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         }),
     );
     app = mount(app, mod_attendance::routes::router(deps.clone()), Arc::new(hr_ctx()));
+    // Chấm công vào/ra (M13b) và ảnh selfie của sổ chấm công (M14a) dùng chung `CheckCtx`: kho tệp là thư mục `contracts` như
+    // hợp đồng (bộ ghi `LocalDiskDriver` không giữ trạng thái, thư mục đã `init` ở trên), IP khách qua `ClientIpResolver` chung.
+    let attendance_check = Arc::new(mod_attendance::check::CheckCtx {
+        ctx: Arc::new(hr_ctx()),
+        store: mod_hr::contracts::ContractStore::Local(LocalDiskDriver::new(uploads_root.join("contracts"))),
+        ip: ip.clone(),
+    });
+    app = mount(
+        app,
+        mod_attendance::routes::check_router(deps.clone()),
+        attendance_check.clone(),
+    );
+    app = mount(
+        app,
+        mod_attendance::routes::proof_router(deps.clone()),
+        attendance_check,
+    );
     // Facebook (M46, webhook M47a, tin nhắn/Lead Ads M47b) và Zalo OA (M52) dùng chung `ChannelGuard` với router kênh; URL Graph/Zalo
     // và khoá đọc từ env (G15). Chưa có `refreshMissingNames` (M48) sau `check`.
     let guard = mod_channel_guard::ChannelGuard::with_config(

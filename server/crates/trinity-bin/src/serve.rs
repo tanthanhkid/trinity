@@ -94,7 +94,10 @@ fn probe_health(port: u16) -> std::io::Result<bool> {
     let mut buf = Vec::new();
     s.read_to_end(&mut buf)?;
     let head = String::from_utf8_lossy(&buf);
-    Ok(head.lines().next().is_some_and(|l| l.split_whitespace().nth(1) == Some("200")))
+    Ok(head
+        .lines()
+        .next()
+        .is_some_and(|l| l.split_whitespace().nth(1) == Some("200")))
 }
 
 /// Đăng ký mọi route đã khai của `api` lên `outer`, chuyển tới router con đã gắn `state`.
@@ -129,7 +132,9 @@ fn uri_of(raw: &str, what: &str) -> Result<Uri, String> {
 async fn serve(args: ServeArgs) -> Result<(), String> {
     let (env, dropped) = process_env();
     for name in &dropped {
-        err(&format!("cảnh báo: biến {name} có tên hoặc giá trị không phải UTF-8, bỏ qua"));
+        err(&format!(
+            "cảnh báo: biến {name} có tên hoặc giá trị không phải UTF-8, bỏ qua"
+        ));
     }
     let loaded = Config::from_env(&env).map_err(|e| e.to_string())?;
     let config = loaded.config;
@@ -139,16 +144,20 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         tracing::warn!("{w}");
     }
     let mut problems = trinity_http::edge::client_ip::startup_problems(&env);
-    let listen_host = args
-        .host
-        .clone()
-        .or_else(|| env.get("LISTEN_HOST").map(|h| h.trim().to_owned()).filter(|h| !h.is_empty()));
+    let listen_host = args.host.clone().or_else(|| {
+        env.get("LISTEN_HOST")
+            .map(|h| h.trim().to_owned())
+            .filter(|h| !h.is_empty())
+    });
     problems.extend(trinity_http::edge::client_ip::tunnel_listen_problem(
         Some(listen_host.as_deref().unwrap_or("::")),
         &env,
     ));
     if !problems.is_empty() {
-        return Err(format!("Không khởi động: cấu hình IP của khách sai:\n- {}", problems.join("\n- ")));
+        return Err(format!(
+            "Không khởi động: cấu hình IP của khách sai:\n- {}",
+            problems.join("\n- ")
+        ));
     }
     crate::routes::boot_check()?;
     let port = args.port.unwrap_or(config.http_port);
@@ -157,7 +166,9 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     let lookup = |k: &str| -> Option<String> { env.get(k).cloned() };
     let mut db_cfg = DbConfig::from_lookup(lookup).map_err(|e| e.to_string())?;
     db_cfg.pool_size = config.db_pool_size;
-    let db = Db::connect(&db_cfg).await.map_err(|e| format!("không nối được DB: {e}"))?;
+    let db = Db::connect(&db_cfg)
+        .await
+        .map_err(|e| format!("không nối được DB: {e}"))?;
     let platform = Platform::new(&db, None);
     platform.ensure().await.map_err(|e| format!("platform: {e}"))?;
     let sync_on = trinity_db::sync::sync_enabled(lookup);
@@ -239,7 +250,11 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             cache: mod_reports::cache::ReadCache::new(false),
         }),
     );
-    app = mount(app, mod_setup::api_router(deps.clone()), Arc::new(mod_setup::Ctx::new(db.clone())));
+    app = mount(
+        app,
+        mod_setup::api_router(deps.clone()),
+        Arc::new(mod_setup::Ctx::new(db.clone())),
+    );
     app = mount(app, mod_hr::routes::employee_router(deps.clone()), Arc::new(hr_ctx()));
     app = mount(
         app,
@@ -450,7 +465,9 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     // ── Mở cổng và chạy
     let tls = match &config.tls {
         TlsMode::Off => None,
-        TlsMode::Files { cert, key } => Some(trinity_http::serve::load_tls_acceptor(cert, key).map_err(|e| e.to_string())?),
+        TlsMode::Files { cert, key } => {
+            Some(trinity_http::serve::load_tls_acceptor(cert, key).map_err(|e| e.to_string())?)
+        }
     };
     let host = listen_host.unwrap_or_else(|| "::".to_owned());
     let listener = match tokio::net::TcpListener::bind((host.as_str(), port)).await {
@@ -475,4 +492,3 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     db.close().await;
     Ok(())
 }
-

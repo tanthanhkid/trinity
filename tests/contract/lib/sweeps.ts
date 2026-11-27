@@ -6,7 +6,9 @@ import { loadRoutes, type ClusterDef, type RouteRow } from './coverage.js'
 /** Dùng chung cho ca sinh từ `routes.json` theo cụm (C14a, C14c): lọc route của cụm, điền tham số đường dẫn, quét và gom lỗi. */
 export function clusterRoutes(name: string): RouteRow[] {
   const clusters = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../coverage-clusters.json'), 'utf8')) as Record<string, ClusterDef>
-  return loadRoutes().filter((r) => clusters[name].controllers.includes(r.controller) && !r.deprecated)
+  const def = clusters[name]
+  if (!def) throw new Error(`Không có cụm "${name}" trong coverage-clusters.json (có: ${Object.keys(clusters).join(', ')})`)
+  return loadRoutes().filter((r) => def.controllers.includes(r.controller) && !r.deprecated)
 }
 
 export const hasBody = (r: RouteRow): boolean => ['POST', 'PUT', 'PATCH'].includes(r.method)

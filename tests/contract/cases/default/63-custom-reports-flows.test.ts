@@ -67,7 +67,7 @@ describe('bảng tuỳ biến: trường, màn xem, tra cứu', () => {
     await q(`INSERT INTO custom_views (object_id, key, label, type, config, created_by) VALUES ($1, 'tat_ca', 'Tất cả học sinh', 'list', '{}', $2)`, [objectId, admin.id])
     const views = ok<{ key?: string; id?: string; name?: string }[] | { views: { key?: string; id?: string }[] }>(await api.get('/custom-objects/hoc_sinh/views', t(admin)), 200, 'danh sách màn')
     const list = Array.isArray(views) ? views : views.views
-    expect(list.length, 'bảng mới phải có ít nhất màn danh sách').toBeGreaterThan(0)
+    expect(list.length, 'đã seed một màn danh sách bằng SQL nhưng danh sách màn rỗng').toBeGreaterThan(0)
     const view = list[0].key ?? list[0].id
     ok(await api.get(`/custom-objects/hoc_sinh/views/${view}`, t(admin)), 200, 'một màn')
   })
@@ -81,7 +81,13 @@ describe('bảng tuỳ biến: trường, màn xem, tra cứu', () => {
 describe('liên kết bản ghi (refs)', () => {
   it('gợi ý, giải mã theo mã, xem trước và liên kết ngược', async () => {
     ok(await api.get(qs('/refs/suggest', { q: 'HS' }), t(admin)), 200, 'gợi ý')
-    ok(await api.get(qs('/refs/resolve', { codes: recordCodes.slice(0, 2).join(',') || 'HS001' }), t(admin)), 200, 'giải mã')
+    expect(recordCodes, 'mỗi bản ghi tạo ra phải có mã').toHaveLength(5)
+    const resolved = ok<unknown>(await api.get(qs('/refs/resolve', { codes: recordCodes.slice(0, 2).join(',') }), t(admin)), 200, 'giải mã')
+    const text = JSON.stringify(resolved)
+    for (const [i, code] of recordCodes.slice(0, 2).entries()) {
+      expect(text, `giải mã phải trả mã ${code}`).toContain(code)
+      expect(text, `giải mã phải trả id bản ghi ${recordIds[i]}`).toMatch(new RegExp(`"id":\\s*${recordIds[i]}\\b`))
+    }
     ok(await api.get(`/refs/record/${recordIds[0]}/preview`, t(admin)), 200, 'xem trước')
     ok(await api.get(`/refs/record/${recordIds[0]}/backlinks`, t(admin)), 200, 'liên kết ngược')
   })
@@ -109,8 +115,8 @@ describe('báo cáo tuỳ biến', () => {
 })
 
 describe('báo cáo khách hàng và nhân viên: golden theo ba vai', () => {
-  const day = (offset: number): string => new Date(Date.now() + 7 * 3_600_000 + offset * 86_400_000).toISOString().slice(0, 10)
-  const RANGE = (): Record<string, string> => ({ date_from: day(-30), date_to: day(0) })
+  // Cửa sổ ngày CỐ ĐỊNH (rộng) để kết quả không phụ thuộc ngày chạy; dữ liệu seed tính tương đối nên luôn nằm trong cửa sổ.
+  const RANGE = (): Record<string, string> => ({ date_from: '2020-01-01', date_to: '2099-12-31' })
   const ROUTES: [string, string, () => Record<string, string>][] = [
     ['report-customers-overview', '/reports/customers/overview', RANGE],
     ['report-customers-uncontacted', '/reports/customers/uncontacted', () => ({ days: '7' })],
@@ -139,6 +145,16 @@ describe('báo cáo khách hàng và nhân viên: golden theo ba vai', () => {
         const res = await api.get(qs(p, range()), { token, ip: freshIp() })
         expect(res.status, `${p} (${role}): ${JSON.stringify(res.body).slice(0, 200)}`).toBe(200)
         golden(name, role, snap(res))
+        if (name === 'report-customers-uncontacted') {
+          const text = JSON.stringify(res.body)
+          if (role === 'sale') {
+            expect(text, 'sale (không có contacts.phone_full) không được thấy SĐT đầy đủ').not.toContain('0933111222')
+            expect(text).not.toContain('0933111333')
+          } else {
+            expect(text, `${role} phải thấy SĐT đầy đủ`).toContain('0933111222')
+            expect(text, `${role} phải thấy SĐT đầy đủ`).toContain('0933111333')
+          }
+        }
       }
     }
     // xuất báo cáo nhân viên: cần reports.export
@@ -160,6 +176,5 @@ describe('con trỏ phân trang do bên này phát, bên kia dùng', () => {
     const ids1 = page1.items.map((i) => i.id)
     const ids2 = (page2.body as { items: { id: number }[] }).items.map((i) => i.id)
     expect(ids2.filter((i) => ids1.includes(i)), 'trang 2 không trùng trang 1').toEqual([])
-    await q(`SELECT 1`)
   })
 })

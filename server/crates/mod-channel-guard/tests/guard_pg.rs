@@ -217,6 +217,17 @@ async fn env() -> Env {
     Env { t, db, platform, a, b }
 }
 
+/// `record_graph` ghi nền (như `void` của TS): chờ tới khi điều kiện đúng.
+async fn wait_until<F: std::future::Future<Output = bool>>(mut f: impl FnMut() -> F) {
+    for _ in 0..100 {
+        if f().await {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("hết giờ chờ");
+}
+
 fn blocked(r: Result<impl std::fmt::Debug, GuardError>) -> (BlockCode, String) {
     match r {
         Err(GuardError::Blocked(b)) => (b.code, b.message),
@@ -352,9 +363,10 @@ async fn hanmuc_khoa_tamdung_va_http() {
 
     // ───── tỉ lệ lỗi Graph → tạm dừng (A: hai lỗi #368)
     let g4 = e.guard();
-    g4.record_graph(a, OK).await;
-    g4.record_graph(a, send(Some(368), 400)).await;
-    g4.record_graph(a, send(Some(368), 400)).await;
+    g4.record_graph(a, OK);
+    g4.record_graph(a, send(Some(368), 400));
+    g4.record_graph(a, send(Some(368), 400));
+    wait_until(|| async { e.events(a, "auto_pause").await == 1 }).await;
     let r = g4.block_reason(a, auto, meta).await.unwrap().expect("A phải tạm dừng");
     assert_eq!(r.code, BlockCode::ChannelPaused);
     assert!(r.message.contains("tạm dừng đến"));
@@ -380,15 +392,16 @@ async fn hanmuc_khoa_tamdung_va_http() {
 
     // Lỗi thường (190) + thành công: không tạm dừng; #17/#32/#551 tỉ lệ cao thì tạm dừng.
     for _ in 0..30 {
-        g4.record_graph(b, send(Some(190), 400)).await;
+        g4.record_graph(b, send(Some(190), 400));
     }
     for _ in 0..30 {
-        g4.record_graph(b, OK).await;
+        g4.record_graph(b, OK);
     }
     assert!(g4.block_reason(b, auto, meta).await.unwrap().is_none());
     for i in 0..30 {
-        g4.record_graph(b, send(Some([17, 32, 551][i % 3]), 400)).await;
+        g4.record_graph(b, send(Some([17, 32, 551][i % 3]), 400));
     }
+    wait_until(|| async { e.events(b, "auto_pause").await == 1 }).await;
     assert_eq!(
         g4.block_reason(b, auto, meta).await.unwrap().unwrap().code,
         BlockCode::ChannelPaused
@@ -397,13 +410,13 @@ async fn hanmuc_khoa_tamdung_va_http() {
     // ───── không phải lỗi do công ty
     let g5 = e.guard();
     for i in 0..60 {
-        g5.record_graph(a, read_fail(if i % 2 == 1 { 10 } else { 200 })).await;
+        g5.record_graph(a, read_fail(if i % 2 == 1 { 10 } else { 200 }));
     }
     for _ in 0..5 {
-        g5.record_graph(a, OK).await;
+        g5.record_graph(a, OK);
     }
     for _ in 0..40 {
-        g5.record_graph(a, send(Some(200), 400)).await;
+        g5.record_graph(a, send(Some(200), 400));
     }
     for code in [10, 551] {
         for _ in 0..40 {
@@ -413,15 +426,14 @@ async fn hanmuc_khoa_tamdung_va_http() {
                     subcode: Some(2_018_278),
                     ..send(Some(code), 400)
                 },
-            )
-            .await;
+            );
         }
     }
     assert!(g5.block_reason(a, auto, meta).await.unwrap().is_none());
 
     // Backoff cấp app: một lần lẻ hoặc lời gọi ĐỌC không kích; lặp ≥ 3 lời gọi gửi thì cả app lùi (kể cả Zalo thì không), tin tay vẫn gửi.
     let g6 = e.guard();
-    g6.record_graph(a, send(Some(613), 400)).await;
+    g6.record_graph(a, send(Some(613), 400));
     for _ in 0..20 {
         g6.record_graph(
             a,
@@ -429,13 +441,12 @@ async fn hanmuc_khoa_tamdung_va_http() {
                 send: false,
                 ..send(None, 429)
             },
-        )
-        .await;
+        );
     }
     assert!(g6.block_reason(a, auto, meta).await.unwrap().is_none());
     let before = e.events(a, "auto_pause").await;
-    g6.record_graph(a, send(Some(4), 400)).await;
-    g6.record_graph(a, send(None, 429)).await;
+    g6.record_graph(a, send(Some(4), 400));
+    g6.record_graph(a, send(None, 429));
     let r = g6.block_reason(a, auto, meta).await.unwrap().unwrap();
     assert_eq!(r.code, BlockCode::ChannelPaused);
     assert!(r.message.contains("giới hạn tần suất chung"));
@@ -495,10 +506,11 @@ async fn hanmuc_khoa_tamdung_va_http() {
             .expect("nhận NOTIFY")
             .expect("kênh mở");
         if matches!(ev, SyncEvent::Message(_)) {
-            g8.on_sync_event(&ev).await;
+            g8.on_sync_event(&ev);
             got += 1;
         }
     }
+    wait_until(|| async { e.events(a, "auto_pause").await == a_before + 1 }).await;
     assert_eq!(
         e.events(a, "auto_pause").await,
         a_before + 1,
@@ -506,12 +518,12 @@ async fn hanmuc_khoa_tamdung_va_http() {
     );
     assert!(g8.block_reason(a, auto, meta).await.unwrap().is_some());
     // Resync xoá cache cục bộ.
-    g8.on_sync_event(&SyncEvent::Resync).await;
+    g8.on_sync_event(&SyncEvent::Resync);
 
     // ───── tin của chính mình lan sang tiến trình khác (record_graph phát NOTIFY với origin của tiến trình này)
     let mut rx2 = sync::listen(e.t.cfg(true).connect_options().unwrap());
     tokio::time::sleep(Duration::from_millis(500)).await;
-    g8.record_graph(b, send(Some(551), 400)).await;
+    g8.record_graph(b, send(Some(551), 400));
     // Cùng tiến trình ⇒ bị lọc ở bên nghe: không có Message nào về.
     assert!(
         tokio::time::timeout(Duration::from_millis(800), async {
@@ -552,6 +564,13 @@ async fn hanmuc_khoa_tamdung_va_http() {
         tx.rollback().await.unwrap();
     }
     assert_eq!(g9.status(a).await.unwrap().usage.bulk_messages_today, 0);
+    // Không xin gì (amount = 0) thì không giữ chỗ, kể cả khi hạn mức là 0.
+    {
+        let zero = mod_channel_guard::ReserveContext { limit: 0, ..ctx };
+        let mut c = e.t.conn().await;
+        assert!(g9.reserve_in(&mut c, &zero, 0).await.unwrap().is_none());
+        assert!(g9.reserve(a, QuotaKind::BulkMessage, 0, meta).await.unwrap().is_none());
+    }
     // Hết hạn mức TRONG giao dịch: sự kiện không ghi trong giao dịch, chỉ ghi sau `record_blocked`.
     e.set_plan(b, "ket_noi").await;
     let g10 = e.guard();
@@ -683,7 +702,7 @@ async fn ban_cai_mot_cong_ty_khong_bi_han_muc() {
     g.assert_recipients(c, u32::MAX).await.unwrap();
     assert_eq!(g.recipient_cap(c).await, u32::MAX);
     for _ in 0..50 {
-        g.record_graph(c, send(Some(368), 400)).await;
+        g.record_graph(c, send(Some(368), 400));
     }
     assert!(
         g.block_reason(c, OutboundMode::Auto, OutboundScope::Meta)

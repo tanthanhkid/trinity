@@ -406,7 +406,7 @@ impl ChannelGuard {
         }))
     }
 
-    /// Giữ chỗ `amount` đơn vị NGUYÊN TỬ trên `conn` (kết nối của giao dịch, đã gắn công ty) rồi mới gửi; trả khung đã ghi để
+    /// Giữ chỗ `amount` đơn vị NGUYÊN TỬ trên `conn` (kết nối của giao dịch, đã gắn công ty) rồi mới gửi; trả khung đã ghi (`None` khi `amount` = 0) để
     /// [`Self::refund`] hoàn đúng khung. Vượt ⇒ `channel_quota` (429); sự kiện `limit_exceeded` KHÔNG ghi ngay mà nằm trong lỗi,
     /// người gọi ghi bằng [`Self::record_blocked`] SAU giao dịch.
     pub async fn reserve_in(
@@ -414,7 +414,11 @@ impl ChannelGuard {
         conn: &mut PgConnection,
         ctx: &ReserveContext,
         amount: u32,
-    ) -> Result<DateTime<Utc>, GuardError> {
+    ) -> Result<Option<DateTime<Utc>>, GuardError> {
+        // Không xin gì thì không giữ chỗ (như `reserve` của TS trả null), kể cả khi hạn mức là 0.
+        if amount == 0 {
+            return Ok(None);
+        }
         let q = ctx.kind;
         let limit = ctx.limit;
         if amount > limit {
@@ -443,7 +447,7 @@ impl ChannelGuard {
         .await
         .map_err(|e| GuardError::App(internal(e)))?;
         if row.is_some() {
-            return Ok(ctx.bucket);
+            return Ok(Some(ctx.bucket));
         }
         let message = format!(
             "Đã hết hạn mức {} của gói ({limit} {}/{}). Thử lại {} hoặc nâng gói.",
@@ -484,7 +488,7 @@ impl ChannelGuard {
         };
         let mut conn = self.conn(company).await?;
         match self.reserve_in(&mut conn, &ctx, amount).await {
-            Ok(b) => Ok(Some(b)),
+            Ok(b) => Ok(b),
             Err(mut e) => {
                 self.record_blocked(company, &mut e).await;
                 Err(e)
@@ -566,17 +570,24 @@ impl ChannelGuard {
 
     /// Gọi sau mỗi lời gọi Graph của tiến trình này (công ty của lời gọi): cộng vào cửa sổ, tạm dừng nếu vượt ngưỡng, và
     /// phát `NOTIFY graph` cho tiến trình khác (chỉ lời gọi GỬI; đọc không đáng một `NOTIFY`).
-    pub async fn record_graph(&self, company: CompanyRef, o: GraphOutcome) {
+    pub fn record_graph(&self, company: CompanyRef, o: GraphOutcome) {
         if !self.enforced() {
             return;
         }
         let verdict = self.apply_graph(Some(company), &o);
-        if o.send {
-            self.publish_graph(company, &o).await;
+        if !o.send && verdict.is_none() {
+            return;
         }
-        if let Some(v) = verdict {
-            self.pause(company, &v).await;
-        }
+        // Chạy nền, như `void` của TS: lời gọi Graph thật không chờ ghi DB/phát tin. Cần chạy trong runtime tokio.
+        let g = self.clone();
+        tokio::spawn(async move {
+            if o.send {
+                g.publish_graph(company, &o).await;
+            }
+            if let Some(v) = verdict {
+                g.pause(company, &v).await;
+            }
+        });
     }
 
     async fn publish_graph(&self, company: CompanyRef, o: &GraphOutcome) {
@@ -600,7 +611,7 @@ impl ChannelGuard {
 
     /// Xử lý một sự kiện từ `trinity_sync` (`Message` loại `graph` của tiến trình khác cộng vào cửa sổ lỗi và backoff của
     /// tiến trình này; `Resync` xoá cache cục bộ, trạng thái tạm dừng và gói nạp lại từ DB).
-    pub async fn on_sync_event(&self, ev: &SyncEvent) {
+    pub fn on_sync_event(&self, ev: &SyncEvent) {
         match ev {
             SyncEvent::Resync => {
                 let mut s = self.st();
@@ -620,7 +631,8 @@ impl ChannelGuard {
                 if let Some(v) = self.apply_graph(company, &o)
                     && let Some(c) = company
                 {
-                    self.pause(c, &v).await;
+                    let g = self.clone();
+                    tokio::spawn(async move { g.pause(c, &v).await });
                 }
             }
             SyncEvent::Message(_) => {}

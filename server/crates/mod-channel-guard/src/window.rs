@@ -41,7 +41,7 @@ impl GraphGuardConfig {
                 .unwrap_or(d)
         };
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        let count = |k: &str, d: f64| num(k, d, 1.0) as usize;
+        let count = |k: &str, d: f64| num(k, d, 1.0).ceil() as usize;
         #[allow(clippy::cast_possible_truncation)]
         let ms = |k: &str, d: f64, unit: i64| (num(k, d, 1.0) * unit as f64) as i64;
         Self {
@@ -190,6 +190,9 @@ mod tests {
         assert_eq!(c.pause_ms, 2 * HOUR_MS);
         assert!((c.max_block_rate - 0.3).abs() < f64::EPSILON);
         assert_eq!(c.window_ms, 60 * 60_000);
+        // Ngưỡng đếm làm tròn lên: 2.5 lần ⇒ 3, không cắt xuống 2.
+        let c = GraphGuardConfig::from_lookup(|k| (k == "CHANNEL_GUARD_POLICY_BLOCKS").then(|| "2.5".to_owned()));
+        assert_eq!(c.policy_blocks, 3);
     }
 
     #[test]

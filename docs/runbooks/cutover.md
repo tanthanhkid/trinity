@@ -24,6 +24,7 @@ Ba nguyên tắc:
 | Quét GET trên bản sao dữ liệu thật cho route thiếu mẫu | có (X13): `docs/runbooks/sweep.md`, `tests/contract/sweep/` |
 | Mẫu từng đợt `deploy/hybrid/mau/ownership-dot-<đợt>.json` (cộng dồn, chỉ là mẫu) và `docs/runbooks/cutover-cac-dot.md` | có cho đợt a, b, c, d, e (đủ a–e) |
 | Script sao lưu tự động toàn bộ DB và volume trước đợt | chưa có; dùng lệnh ở mục 2 |
+| Script kiểm trước / bật / lui từng đợt a–e (`scripts/ops/cutover-dot.sh`; kiểm shadow, dump, X11, sao lưu và đổi tệp sở hữu; không dump) | có (X02a–e); xem `cutover-cac-dot.md` |
 | Lưu WAL (PITR) | tuỳ chọn, hướng dẫn mục 7; cấu hình Postgres chưa nằm trong compose |
 | Tệp sở hữu dùng khi chạy | `deploy/hybrid/ownership.json` (compose gắn thư mục `./deploy/hybrid` vào `/etc/trinity`, chỉ đọc) |
 

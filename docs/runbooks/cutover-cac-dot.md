@@ -21,6 +21,19 @@ trinity check-routes                # độ phủ route 100% theo routes.json ch
 trinity shadow-report --file "$SHADOW_REPORT_FILE"   # mã thoát 0 = mọi route safe_for_shadow đạt min_samples
 ```
 
+**Script cho từng đợt** (`scripts/ops/cutover-dot.sh`, thử bằng `bash scripts/ops/test-cutover-dot.sh`; cần `python3`, `trinity` trong PATH, chạy ở gốc repo):
+
+```
+scripts/ops/cutover-dot.sh kiem-truoc <a|b|c|d|e>   # chỉ đọc; mã 0 = đủ điều kiện máy đo được
+scripts/ops/cutover-dot.sh bat <đợt> [-n] [--khong-hup]   # kiem-truoc, sao lưu tệp sở hữu, ghép mẫu, mv nguyên tử, SIGHUP
+scripts/ops/cutover-dot.sh lui <đợt> [-n] [--khong-hup] [--tu <tệp>] [--ve-mac-dinh]
+```
+
+- `kiem-truoc` kiểm: mẫu nạp được (`check-config`), `check-routes`; mỗi route `safe_for_shadow` **mới của đợt** (thuộc `rust` ở mẫu đợt này, chưa ở mẫu đợt trước, luật khớp như `trinity-kernel`) có trong báo cáo shadow, đạt `min_samples`, không khác biệt, và cửa sổ đo đủ 48 giờ (`MIN_SHADOW_HOURS`); liệt kê **route thiếu mẫu cần quét bù X13**; bản dump `BACKUP_DIR/cutover-<ts>/db.dump` gần nhất (tuổi ≤ `MAX_DUMP_AGE_HOURS`, sha256, `pg_restore -l`); `check-invariants` xanh. Việc người làm (72 giờ đợt trước, công ty thử 24 giờ, chụp `storage`/`uploads`, người duyệt đợt d, job đã đăng ký ở `serve`) chỉ được nhắc, script không đo được.
+- Script **không dump DB và không chụp thư mục file**: làm theo `cutover.md` mục 2 ngay trước `bat`. Báo cáo shadow lấy từ `SHADOW_REPORT_FILE` (mục 6b của `hybrid.md`). Hợp đồng hiện chưa đánh dấu route nào `safe_for_shadow` thì danh sách route cần mẫu rỗng và mục đó đạt ngay.
+- `bat` lưu bản sao tệp sở hữu ở `BACKUP_DIR/cutover-<ts>/ownership.before.json` và nhớ đường dẫn cho `lui`; `lui` khôi phục đúng bản đó (hoặc `--tu`, hoặc `--ve-mac-dinh` = mọi thứ về Node) và giữ lại tệp vừa gỡ ở `BACKUP_DIR/ownership.sau-bat-dot-<đợt>.<ts>.json`. Cả hai chạy `check-config` trên tệp mới trước khi `mv`; lỗi thì không đổi gì. Docker: đặt `RELOAD_CMD` (lệnh `kill -s HUP` của compose). `-n` chỉ in việc sẽ làm.
+- Sau `bat` vẫn phải làm các lệnh "Kiểm sau khi bật" của từng đợt bên dưới và đặt cron `check-invariants` mỗi giờ trong 72 giờ.
+
 Cách bật, lui, sao lưu: `cutover.md` mục 2, 4.1, 4.2 (một lần ghi tệp, `mv` nguyên tử, `SIGHUP`; dưới 2 phút; không khởi động lại tiến trình nào). Ở các đoạn dưới, `$BASE` là địa chỉ
 biên của bản đang chạy (cổng Rust), `$TOKEN` là access token của người dùng thử ở công ty thử.
 

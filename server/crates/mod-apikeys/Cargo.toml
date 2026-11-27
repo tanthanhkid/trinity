@@ -12,6 +12,7 @@ publish.workspace = true
 axum = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true }
+getrandom = { workspace = true }
 http = { workspace = true }
 mod-auth = { workspace = true }
 serde = { workspace = true }
@@ -24,7 +25,6 @@ trinity-db = { workspace = true }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-rbac = { workspace = true }
-uuid = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

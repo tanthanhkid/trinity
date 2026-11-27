@@ -2225,6 +2225,7 @@ dependencies = [
  "axum",
  "base64 0.23.1",
  "chrono",
+ "getrandom 0.4.3",
  "http",
  "mod-auth",
  "serde",
@@ -2238,7 +2239,6 @@ dependencies = [
  "trinity-http",
  "trinity-kernel",
  "trinity-rbac",
- "uuid",
 ]
 
 [[package]]

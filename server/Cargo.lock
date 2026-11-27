@@ -2240,6 +2240,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-settings"
+version = "0.3.0"
+dependencies = [
+ "http",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "subtle",
+ "tokio",
+ "tracing",
+ "trinity-db",
+ "trinity-http",
+ "trinity-kernel",
+ "trinity-rbac",
+]
+
+[[package]]
 name = "mod-system"
 version = "0.3.0"
 dependencies = [

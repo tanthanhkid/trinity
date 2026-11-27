@@ -1,0 +1,1183 @@
+[
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "label": "Nhãn mới"
+  },
+  "result": {
+   "ok": {
+    "label": "Nhãn mới"
+   }
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "ok": {
+    "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   }
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Nhãn tối đa 100 ký tự"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "label": 5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Nhãn tối đa 100 ký tự",
+    "label must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "label": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Nhãn tối đa 100 ký tự",
+    "label must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "label": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+  },
+  "result": {
+   "ok": {
+    "label": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+   }
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "sort_order": 0
+  },
+  "result": {
+   "ok": {
+    "sort_order": 0
+   }
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "sort_order": 7
+  },
+  "result": {
+   "ok": {
+    "sort_order": 7
+   }
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "sort_order": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "sort_order phải >= 0"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "sort_order": 1.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "sort_order phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "sort_order": "3"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "sort_order phải >= 0",
+    "sort_order phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "sort_order": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "sort_order phải >= 0",
+    "sort_order phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "sort_order": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "sort_order phải >= 0",
+    "sort_order phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "is_active": false
+  },
+  "result": {
+   "ok": {
+    "is_active": false
+   }
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "is_active": "yes"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "is_active must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "is_active": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "is_active must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "is_active": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "is_active must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "metadata": {
+    "a": 1
+   }
+  },
+  "result": {
+   "ok": {
+    "metadata": {
+     "a": 1
+    }
+   }
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "metadata": null
+  },
+  "result": {
+   "ok": {
+    "metadata": null
+   }
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "metadata": []
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "metadata phải là object JSON"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "metadata": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "metadata phải là object JSON"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "metadata": 5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "metadata phải là object JSON"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "label": "a",
+   "sort_order": 2,
+   "is_active": true,
+   "metadata": {
+    "k": "v"
+   }
+  },
+  "result": {
+   "ok": {
+    "label": "a",
+    "sort_order": 2,
+    "is_active": true,
+    "metadata": {
+     "k": "v"
+    }
+   }
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "label": 1,
+   "sort_order": "x",
+   "is_active": "y",
+   "metadata": 3
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Nhãn tối đa 100 ký tự",
+    "label must be a string",
+    "sort_order phải >= 0",
+    "sort_order phải là số nguyên",
+    "is_active must be a boolean value",
+    "metadata phải là object JSON"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "group_key": "doi"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property group_key should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "value": "doi",
+   "label": "a"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property value should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "hack": 1,
+   "extra": 2
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property hack should not exist",
+    "property extra should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": {
+   "label": "a",
+   "hack": 1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property hack should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": [],
+  "result": {
+   "ok": []
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": "chuoi",
+  "result": {
+   "ok": "chuoi"
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": 5,
+  "result": {
+   "ok": 5
+  }
+ },
+ {
+  "dto": "UpdateOptionDto",
+  "payload": null,
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "UpdateNotificationSoundDto",
+  "payload": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "sound_id must be one of the following values: beep, ding-dong, chime, tri-tone, pop, sweep, bell, harp, water-drop, soft-bell, upbeat, power-up",
+    "sound_id must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateNotificationSoundDto",
+  "payload": {
+   "sound_id": "beep"
+  },
+  "result": {
+   "ok": {
+    "sound_id": "beep"
+   }
+  }
+ },
+ {
+  "dto": "UpdateNotificationSoundDto",
+  "payload": {
+   "sound_id": "power-up"
+  },
+  "result": {
+   "ok": {
+    "sound_id": "power-up"
+   }
+  }
+ },
+ {
+  "dto": "UpdateNotificationSoundDto",
+  "payload": {
+   "sound_id": "khong-co"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "sound_id must be one of the following values: beep, ding-dong, chime, tri-tone, pop, sweep, bell, harp, water-drop, soft-bell, upbeat, power-up"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateNotificationSoundDto",
+  "payload": {
+   "sound_id": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "sound_id must be one of the following values: beep, ding-dong, chime, tri-tone, pop, sweep, bell, harp, water-drop, soft-bell, upbeat, power-up"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateNotificationSoundDto",
+  "payload": {
+   "sound_id": 5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "sound_id must be one of the following values: beep, ding-dong, chime, tri-tone, pop, sweep, bell, harp, water-drop, soft-bell, upbeat, power-up",
+    "sound_id must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateNotificationSoundDto",
+  "payload": {
+   "sound_id": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "sound_id must be one of the following values: beep, ding-dong, chime, tri-tone, pop, sweep, bell, harp, water-drop, soft-bell, upbeat, power-up",
+    "sound_id must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateNotificationSoundDto",
+  "payload": {
+   "sound_id": [
+    "beep"
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "sound_id must be one of the following values: beep, ding-dong, chime, tri-tone, pop, sweep, bell, harp, water-drop, soft-bell, upbeat, power-up",
+    "sound_id must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateNotificationSoundDto",
+  "payload": {
+   "sound_id": "beep",
+   "hack": 1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property hack should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateNotificationSoundDto",
+  "payload": {
+   "hack": 1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property hack should not exist",
+    "sound_id must be one of the following values: beep, ding-dong, chime, tri-tone, pop, sweep, bell, harp, water-drop, soft-bell, upbeat, power-up",
+    "sound_id must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateNotificationSoundDto",
+  "payload": [],
+  "result": {
+   "status": 400,
+   "message": [
+    "sound_id must be one of the following values: beep, ding-dong, chime, tri-tone, pop, sweep, bell, harp, water-drop, soft-bell, upbeat, power-up",
+    "sound_id must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateNotificationSoundDto",
+  "payload": "x",
+  "result": {
+   "status": 400,
+   "message": [
+    "sound_id must be one of the following values: beep, ding-dong, chime, tri-tone, pop, sweep, bell, harp, water-drop, soft-bell, upbeat, power-up",
+    "sound_id must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in departments must be shorter than or equal to 100 characters",
+    "each value in departments must be a string",
+    "departments must contain no more than 50 elements",
+    "departments should not be empty",
+    "departments must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": [
+    "A"
+   ]
+  },
+  "result": {
+   "ok": {
+    "departments": [
+     "A"
+    ]
+   }
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": []
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "departments should not be empty"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": [
+    "A",
+    "B",
+    "C"
+   ]
+  },
+  "result": {
+   "ok": {
+    "departments": [
+     "A",
+     "B",
+     "C"
+    ]
+   }
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ]
+  },
+  "result": {
+   "ok": {
+    "departments": [
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    ]
+   }
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in departments must be shorter than or equal to 100 characters"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": [
+    "A",
+    5
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in departments must be shorter than or equal to 100 characters",
+    "each value in departments must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": [
+    null
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in departments must be shorter than or equal to 100 characters",
+    "each value in departments must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": [
+    "P0",
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6",
+    "P7",
+    "P8",
+    "P9",
+    "P10",
+    "P11",
+    "P12",
+    "P13",
+    "P14",
+    "P15",
+    "P16",
+    "P17",
+    "P18",
+    "P19",
+    "P20",
+    "P21",
+    "P22",
+    "P23",
+    "P24",
+    "P25",
+    "P26",
+    "P27",
+    "P28",
+    "P29",
+    "P30",
+    "P31",
+    "P32",
+    "P33",
+    "P34",
+    "P35",
+    "P36",
+    "P37",
+    "P38",
+    "P39",
+    "P40",
+    "P41",
+    "P42",
+    "P43",
+    "P44",
+    "P45",
+    "P46",
+    "P47",
+    "P48",
+    "P49"
+   ]
+  },
+  "result": {
+   "ok": {
+    "departments": [
+     "P0",
+     "P1",
+     "P2",
+     "P3",
+     "P4",
+     "P5",
+     "P6",
+     "P7",
+     "P8",
+     "P9",
+     "P10",
+     "P11",
+     "P12",
+     "P13",
+     "P14",
+     "P15",
+     "P16",
+     "P17",
+     "P18",
+     "P19",
+     "P20",
+     "P21",
+     "P22",
+     "P23",
+     "P24",
+     "P25",
+     "P26",
+     "P27",
+     "P28",
+     "P29",
+     "P30",
+     "P31",
+     "P32",
+     "P33",
+     "P34",
+     "P35",
+     "P36",
+     "P37",
+     "P38",
+     "P39",
+     "P40",
+     "P41",
+     "P42",
+     "P43",
+     "P44",
+     "P45",
+     "P46",
+     "P47",
+     "P48",
+     "P49"
+    ]
+   }
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": [
+    "P0",
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6",
+    "P7",
+    "P8",
+    "P9",
+    "P10",
+    "P11",
+    "P12",
+    "P13",
+    "P14",
+    "P15",
+    "P16",
+    "P17",
+    "P18",
+    "P19",
+    "P20",
+    "P21",
+    "P22",
+    "P23",
+    "P24",
+    "P25",
+    "P26",
+    "P27",
+    "P28",
+    "P29",
+    "P30",
+    "P31",
+    "P32",
+    "P33",
+    "P34",
+    "P35",
+    "P36",
+    "P37",
+    "P38",
+    "P39",
+    "P40",
+    "P41",
+    "P42",
+    "P43",
+    "P44",
+    "P45",
+    "P46",
+    "P47",
+    "P48",
+    "P49",
+    "P50"
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "departments must contain no more than 50 elements"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": "A"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "departments must contain no more than 50 elements",
+    "departments should not be empty",
+    "departments must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in departments must be shorter than or equal to 100 characters",
+    "departments must contain no more than 50 elements",
+    "departments should not be empty",
+    "departments must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": 5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in departments must be shorter than or equal to 100 characters",
+    "each value in departments must be a string",
+    "departments must contain no more than 50 elements",
+    "departments should not be empty",
+    "departments must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in departments must be shorter than or equal to 100 characters",
+    "each value in departments must be a string",
+    "departments must contain no more than 50 elements",
+    "departments should not be empty",
+    "departments must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in departments must be shorter than or equal to 100 characters",
+    "each value in departments must be a string",
+    "departments must contain no more than 50 elements",
+    "departments should not be empty",
+    "departments must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": [
+    "  ",
+    "a"
+   ]
+  },
+  "result": {
+   "ok": {
+    "departments": [
+     "  ",
+     "a"
+    ]
+   }
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "departments": [
+    "A"
+   ],
+   "hack": 1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property hack should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": {
+   "hack": 1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property hack should not exist",
+    "each value in departments must be shorter than or equal to 100 characters",
+    "each value in departments must be a string",
+    "departments must contain no more than 50 elements",
+    "departments should not be empty",
+    "departments must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": [],
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in departments must be shorter than or equal to 100 characters",
+    "each value in departments must be a string",
+    "departments must contain no more than 50 elements",
+    "departments should not be empty",
+    "departments must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateDepartmentsDto",
+  "payload": "x",
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in departments must be shorter than or equal to 100 characters",
+    "each value in departments must be a string",
+    "departments must contain no more than 50 elements",
+    "departments should not be empty",
+    "departments must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {
+   "kanban": false
+  },
+  "result": {
+   "ok": {
+    "kanban": false
+   }
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {
+   "kanban": true,
+   "pos": false
+  },
+  "result": {
+   "ok": {
+    "kanban": true,
+    "pos": false
+   }
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {
+   "kanban": "no"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "kanban must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {
+   "kanban": null
+  },
+  "result": {
+   "ok": {
+    "kanban": null
+   }
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {
+   "kanban": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "kanban must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {
+   "dashboard": 1,
+   "contacts": "x",
+   "reports": []
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dashboard must be a boolean value",
+    "contacts must be a boolean value",
+    "reports must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {
+   "google_sheets": true
+  },
+  "result": {
+   "ok": {
+    "google_sheets": true
+   }
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {
+   "commerce_connectors": false
+  },
+  "result": {
+   "ok": {
+    "commerce_connectors": false
+   }
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {
+   "payments": true
+  },
+  "result": {
+   "ok": {
+    "payments": true
+   }
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {
+   "hack": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property hack should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {
+   "kanban": false,
+   "hack": true,
+   "other": 1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property hack should not exist",
+    "property other should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": {
+   "ai_briefing": true,
+   "zalo_oa": true,
+   "lead_scoring": true,
+   "stale_reminders": true,
+   "facebook_page": true,
+   "online_store": true,
+   "inbox": false,
+   "social_posting": false
+  },
+  "result": {
+   "ok": {
+    "ai_briefing": true,
+    "zalo_oa": true,
+    "lead_scoring": true,
+    "stale_reminders": true,
+    "facebook_page": true,
+    "social_posting": false,
+    "online_store": true,
+    "inbox": false
+   }
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": [],
+  "result": {
+   "ok": []
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": "x",
+  "result": {
+   "ok": "x"
+  }
+ },
+ {
+  "dto": "UpdateOrgFeaturesDto",
+  "payload": null,
+  "result": {
+   "ok": {}
+  }
+ }
+]

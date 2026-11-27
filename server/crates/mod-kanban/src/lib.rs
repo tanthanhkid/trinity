@@ -17,6 +17,8 @@
 //! `restore`, `activities`, `comments` ([`cards`], [`activities`]); checklist 5 route ([`checklist`]); đính kèm dạng liên kết 3
 //! route ([`attachments`]). Quyền xem thẻ theo phạm vi `kanban.view` (người tạo hoặc người phụ trách nằm trong phạm vi) cộng
 //! board hiển thị với vai trò; endpoint con luôn gọi lại cổng của thẻ cha ([`cards::load_scoped`]), ngoài phạm vi là 404.
+//!
+//! Handler HTTP và `api_router` (35 route, bảng ở [`routes`]) nằm ở [`http`]; `trinity-bin` khai vào `declared_routes` và mount ở `serve`.
 
 #![allow(clippy::result_large_err, clippy::type_complexity)]
 
@@ -28,6 +30,7 @@ pub mod cards;
 pub mod checklist;
 pub mod columns;
 pub mod field_defs;
+pub mod http;
 pub mod labels;
 mod nullable;
 pub mod position;

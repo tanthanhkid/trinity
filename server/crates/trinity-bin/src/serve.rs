@@ -530,7 +530,15 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             uploads: LocalUploadsStore::new(uploads_root.clone()),
         }),
     );
-    // CHƯA mount: mod-deals, mod-kanban, mod-newsfeed (cần multipart/media). Route của chúng thuộc Node. Đã mount: settings,
+    app = mount(
+        app,
+        mod_kanban::http::api_router(deps.clone()),
+        Arc::new(mod_kanban::http::Ctx {
+            db: db.clone(),
+            scopes: ScopeService::new(db.clone(), cache.clone()),
+        }),
+    );
+    // CHƯA mount: mod-deals, mod-newsfeed (cần multipart/media). Route của chúng thuộc Node. Đã mount: settings,
     // rbac-admin (trừ `PUT /users/:id/roles`, do mod-users giữ), notify (4 route `/notifications`) ở sau khối realtime.
 
     // ── Scheduler và worker hàng đợi (nền). Chưa module nào đăng ký job ở đây; khi có, `scheduler.register(..)`.

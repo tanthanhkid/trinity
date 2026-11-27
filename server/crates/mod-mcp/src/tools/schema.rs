@@ -64,7 +64,13 @@ const CORE: [Core; 3] = [
         create: "contacts.create",
         update: "contacts.update",
         note: "Khách hàng: Sale thấy khách mình phụ trách, Trưởng nhóm thấy thêm khách của cấp dưới. Khách tạo mới do chính người dùng phụ trách. Không có tuỳ biến cấu trúc cho bảng lõi — muốn thêm dữ liệu theo ngành hãy tạo bảng tuỳ biến có trường liên kết tới khách hàng.",
-        filters: &["stage_id", "contact_status_id", "source_id", "assigned_to", "uncontacted_days"],
+        filters: &[
+            "stage_id",
+            "contact_status_id",
+            "source_id",
+            "assigned_to",
+            "uncontacted_days",
+        ],
         extras: &[
             ("id", "ID bản ghi"),
             ("code", "Mã chung (KH001…) — dùng để gắn liên kết"),
@@ -126,16 +132,44 @@ fn core_fields(key: &str) -> Vec<Value> {
     match key {
         "contacts" => vec![
             core_field("full_name", "Họ tên", "text", &CU, true, None),
-            core_field("phone", "SĐT (luôn bị che với AI; chỉ nhập khi tạo)", "phone", &["create"], true, None),
+            core_field(
+                "phone",
+                "SĐT (luôn bị che với AI; chỉ nhập khi tạo)",
+                "phone",
+                &["create"],
+                true,
+                None,
+            ),
             core_field("source_id", "Nguồn", "option", &CU, true, Some(OPT_HELP)),
             core_field("stage_id", "Giai đoạn", "option", &CU, false, Some(OPT_HELP)),
-            core_field("contact_status_id", "Trạng thái", "option", &["update"], false, Some(OPT_HELP)),
-            core_field("assigned_to", "Người phụ trách (đổi bằng assign_contact)", "user", &[], false, None),
+            core_field(
+                "contact_status_id",
+                "Trạng thái",
+                "option",
+                &["update"],
+                false,
+                Some(OPT_HELP),
+            ),
+            core_field(
+                "assigned_to",
+                "Người phụ trách (đổi bằng assign_contact)",
+                "user",
+                &[],
+                false,
+                None,
+            ),
             core_field("job_title", "Nghề nghiệp", "text", &CU, false, None),
             core_field("company_name", "Công ty", "text", &CU, false, None),
             core_field("email", "Email", "email", &CU, false, None),
             core_field("reminder_at", "Hẹn nhắc", "datetime", &["update"], false, None),
-            core_field("reminder_notes", "Ghi chú hẹn nhắc", "long_text", &["update"], false, None),
+            core_field(
+                "reminder_notes",
+                "Ghi chú hẹn nhắc",
+                "long_text",
+                &["update"],
+                false,
+                None,
+            ),
         ],
         "deals" => vec![
             core_field("title", "Tiêu đề", "text", &CU, true, None),
@@ -159,7 +193,14 @@ fn core_fields(key: &str) -> Vec<Value> {
             core_field("due_at", "Hạn (ISO 8601)", "datetime", &CU, false, None),
             core_field("priority", "Ưu tiên", "select", &CU, false, None),
             core_field("contact_id", "Khách hàng gắn kèm", "relation", &CU, false, None),
-            core_field("column_id", "Cột (chỉ khi tạo)", "option", &["create"], false, Some(OPT_HELP)),
+            core_field(
+                "column_id",
+                "Cột (chỉ khi tạo)",
+                "option",
+                &["create"],
+                false,
+                Some(OPT_HELP),
+            ),
         ],
     }
 }
@@ -202,7 +243,12 @@ fn describe_field(f: &FieldDef, key_by_id: &std::collections::HashMap<i32, Strin
     d.insert("is_title".into(), json!(f.is_title));
     d.insert("read_only".into(), json!(f.kind == "formula"));
     d.insert("help_text".into(), json!(f.help_text));
-    if let Some(choices) = f.options.get("choices").and_then(Value::as_array).filter(|c| !c.is_empty()) {
+    if let Some(choices) = f
+        .options
+        .get("choices")
+        .and_then(Value::as_array)
+        .filter(|c| !c.is_empty())
+    {
         let out: Vec<Value> = choices
             .iter()
             .map(|c| json!({ "value": c.get("value").cloned().unwrap_or(Value::Null), "label": c.get("label").cloned().unwrap_or(Value::Null) }))
@@ -225,7 +271,7 @@ fn describe_field(f: &FieldDef, key_by_id: &std::collections::HashMap<i32, Strin
         "long_text" if f.help_text.as_deref().is_none_or(str::is_empty) => {
             d.insert(
                 "help_text".into(),
-                    json!("Văn bản; gắn thẻ bản ghi khác bằng @MÃ (vd \"Khám cho @BN001\") — Trinity tự tạo liên kết."),
+                json!("Văn bản; gắn thẻ bản ghi khác bằng @MÃ (vd \"Khám cho @BN001\") — Trinity tự tạo liên kết."),
             );
         }
         "relation" => {
@@ -458,7 +504,10 @@ pub fn list_screen_types<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture
             "create_with".into(),
             json!("create_view (một màn) hoặc propose_workspace.views (khi dựng cả gói); sửa: update_view; đưa lên menu: show_in_nav hoặc set_menu."),
         );
-        data.insert("can_create".into(), json!(can(&p.grants, "custom_objects.manage", None)));
+        data.insert(
+            "can_create".into(),
+            json!(can(&p.grants, "custom_objects.manage", None)),
+        );
         let key = args
             .get("object")
             .and_then(Value::as_str)
@@ -491,7 +540,10 @@ pub fn list_screen_types<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture
                 obj.insert("key".into(), t["key"].clone());
                 obj.insert("label".into(), t["label"].clone());
                 obj.insert("existing_screens".into(), t["views"].clone());
-                obj.insert("list_table_columns".into(), json!("mọi trường của bảng (columns tuỳ chọn)"));
+                obj.insert(
+                    "list_table_columns".into(),
+                    json!("mọi trường của bảng (columns tuỳ chọn)"),
+                );
                 if selects.is_empty() {
                     obj.insert(
                         "kanban_missing".into(),
@@ -522,7 +574,10 @@ pub fn list_structure_versions<'a>(
 ) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
     Box::pin(async move {
         let (p, deps) = (ctx.principal, ctx.deps);
-        let limit = args.get("limit").and_then(Value::as_f64).map_or(20, |f| f.trunc() as i64);
+        let limit = args
+            .get("limit")
+            .and_then(Value::as_f64)
+            .map_or(20, |f| f.trunc() as i64);
         let mut conn = deps.conn(p.company).await?;
         let rows = mod_custom::versions::list(&mut conn, limit).await.map_err(app_err)?;
         let versions: Vec<Value> = rows
@@ -549,4 +604,3 @@ pub fn list_object_templates<'a>(
         wrapped(&json!({ "templates": templates }))
     })
 }
-

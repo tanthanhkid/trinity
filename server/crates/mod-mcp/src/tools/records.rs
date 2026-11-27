@@ -199,7 +199,9 @@ async fn id_from_code(
     if let Some(o) = object
         && o != key
     {
-        return Err(ToolError::User(format!("Mã {code} thuộc bảng “{key}”, không phải “{o}”.")));
+        return Err(ToolError::User(format!(
+            "Mã {code} thuộc bảng “{key}”, không phải “{o}”."
+        )));
     }
     Ok((key, v.id))
 }
@@ -207,7 +209,13 @@ async fn id_from_code(
 // ---------------------------------------------------------------------------------------------------------------
 // bảng lõi
 
-const CONTACT_FILTERS: [&str; 5] = ["stage_id", "contact_status_id", "source_id", "assigned_to", "uncontacted_days"];
+const CONTACT_FILTERS: [&str; 5] = [
+    "stage_id",
+    "contact_status_id",
+    "source_id",
+    "assigned_to",
+    "uncontacted_days",
+];
 const DEAL_FILTERS: [&str; 2] = ["status", "assigned_to"];
 const TASK_FILTERS: [&str; 5] = ["board_id", "column_id", "contact_id", "assignee_id", "overdue"];
 
@@ -309,7 +317,10 @@ async fn list_core(
             let mut conn = deps.conn(p.company).await?;
             let res = mod_kanban::cards::list(&mut conn, &actor, &q).await.map_err(app_err)?;
             let r = to_json(&res)?;
-            let records = r["cards"].as_array().map(|a| a.iter().map(task_record).collect()).unwrap_or_default();
+            let records = r["cards"]
+                .as_array()
+                .map(|a| a.iter().map(task_record).collect())
+                .unwrap_or_default();
             Ok(CoreList {
                 records,
                 next_cursor: next_of(&r["next_cursor"]),
@@ -325,7 +336,10 @@ async fn list_core(
             }
             let out = contacts::list_contacts(&Value::Object(f), ctx).await?;
             let d = unwrap_data(&out);
-            let records = d["contacts"].as_array().map(|a| a.iter().map(contact_record).collect()).unwrap_or_default();
+            let records = d["contacts"]
+                .as_array()
+                .map(|a| a.iter().map(contact_record).collect())
+                .unwrap_or_default();
             Ok(CoreList {
                 records,
                 next_cursor: next_of(&d["next_cursor"]),
@@ -361,7 +375,9 @@ async fn get_core(key: &str, id: i32, ctx: &ToolCtx<'_>) -> Result<Value, ToolEr
         "deals" => {
             let (dscopes, cscopes) = (deps.deal_scopes(p).await?, deps.contact_scopes(p).await?);
             let mut conn = deps.conn(p.company).await?;
-            let d = mod_deals::deals::find_one(&mut conn, &dscopes, id).await.map_err(app_err)?;
+            let d = mod_deals::deals::find_one(&mut conn, &dscopes, id)
+                .await
+                .map_err(app_err)?;
             let d = to_json(&d)?;
             let cid = d["contact_id"].as_i64().and_then(|n| i32::try_from(n).ok());
             let seen = super::visible_contacts(&cscopes, p, &mut conn, &[cid]).await?;
@@ -378,14 +394,23 @@ async fn get_core(key: &str, id: i32, ctx: &ToolCtx<'_>) -> Result<Value, ToolEr
         _ => {
             let actor = deps.kanban_actor(p).await?;
             let mut conn = deps.conn(p.company).await?;
-            let c = mod_kanban::cards::find_one(&mut conn, &actor, id).await.map_err(app_err)?;
+            let c = mod_kanban::cards::find_one(&mut conn, &actor, id)
+                .await
+                .map_err(app_err)?;
             let c = to_json(&c)?;
-            let (total, done) = (c["checklist_total"].as_i64().unwrap_or(0), c["checklist_done"].as_i64().unwrap_or(0));
+            let (total, done) = (
+                c["checklist_total"].as_i64().unwrap_or(0),
+                c["checklist_done"].as_i64().unwrap_or(0),
+            );
             let mut rec = task_record(&c);
             if let Some(m) = rec.as_object_mut() {
                 m.insert(
                     "checklist".into(),
-                    if total > 0 { json!(format!("{done}/{total}")) } else { Value::Null },
+                    if total > 0 {
+                        json!(format!("{done}/{total}"))
+                    } else {
+                        Value::Null
+                    },
                 );
                 m.insert("created_at".into(), c["created_at"].clone());
                 m.insert("updated_at".into(), c["updated_at"].clone());
@@ -409,8 +434,18 @@ pub fn list_records<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, 
         let limit = clamp_limit(args.get("limit"));
         let cursor = opt_str(args.get("cursor"), 400);
         if is_core_key(&key) {
-            let r = list_core(&key, args.get("filter"), search.as_deref(), limit, cursor.as_deref(), ctx).await?;
-            return wrapped(&json!({ "object": key, "total": null, "records": r.records, "next_cursor": r.next_cursor }));
+            let r = list_core(
+                &key,
+                args.get("filter"),
+                search.as_deref(),
+                limit,
+                cursor.as_deref(),
+                ctx,
+            )
+            .await?;
+            return wrapped(
+                &json!({ "object": key, "total": null, "records": r.records, "next_cursor": r.next_cursor }),
+            );
         }
         require_perm(p, "custom_records.view")?;
         let filter = args
@@ -430,7 +465,11 @@ pub fn list_records<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, 
         }
         q.insert(
             "dir".into(),
-            json!(if args.get("dir").and_then(Value::as_str) == Some("asc") { "asc" } else { "desc" }),
+            json!(if args.get("dir").and_then(Value::as_str) == Some("asc") {
+                "asc"
+            } else {
+                "desc"
+            }),
         );
         if let Some(f) = &filter {
             q.insert("filter".into(), json!(f));
@@ -469,7 +508,9 @@ pub fn get_record<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Re
         if let (Some((_, cid)), Some(rid)) = (&by_code, raw_id)
             && rid != *cid
         {
-            let shown = code.and_then(Value::as_str).map_or(String::new(), |c| trim_js(c).to_uppercase());
+            let shown = code
+                .and_then(Value::as_str)
+                .map_or(String::new(), |c| trim_js(c).to_uppercase());
             return Err(ToolError::User(format!(
                 "id {rid} và code {shown} (bản ghi #{cid}) không cùng một bản ghi — chỉ gửi một trong hai."
             )));

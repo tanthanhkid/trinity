@@ -744,7 +744,13 @@ async fn tool_doc_nhom_2_schema_ma_chung_va_tinh_nang() {
     let (err, _, v) = run(&e, &adm, "describe_schema", &json!({ "object": "deals" })).await;
     assert!(!err, "{v}");
     assert_eq!(v["data"]["structure"]["can_edit"], true);
-    assert!(v["data"]["other_tables"].as_array().unwrap().iter().all(|t| t["key"] != "deals"));
+    assert!(
+        v["data"]["other_tables"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|t| t["key"] != "deals")
+    );
     let (err, text, _) = run(&e, &adm, "describe_schema", &json!({ "object": "khong_co" })).await;
     assert!(err && text.starts_with("Không có bảng “khong_co”"), "{text}");
 
@@ -755,11 +761,23 @@ async fn tool_doc_nhom_2_schema_ma_chung_va_tinh_nang() {
     assert!(err && text.contains("describe_schema"), "{text}");
     let (err, text, _) = run(&e, &adm, "get_record", &json!({ "object": "contacts" })).await;
     assert!(err && text.starts_with("Cần id"), "{text}");
-    let (err, text, _) = run(&e, &adm, "list_records", &json!({ "object": "deals", "filter": { "x": 1 } })).await;
+    let (err, text, _) = run(
+        &e,
+        &adm,
+        "list_records",
+        &json!({ "object": "deals", "filter": { "x": 1 } }),
+    )
+    .await;
     assert!(err && text.contains("chỉ lọc được theo"), "{text}");
 
     // find_by_code: mã không thấy nằm ở not_found; mã sai dạng bị từ chối.
-    let (err, _, v) = run(&e, &adm, "find_by_code", &json!({ "codes": ["kh999", "@KH999", "ZZ1"] })).await;
+    let (err, _, v) = run(
+        &e,
+        &adm,
+        "find_by_code",
+        &json!({ "codes": ["kh999", "@KH999", "ZZ1"] }),
+    )
+    .await;
     assert!(!err, "{v}");
     assert_eq!(v["data"]["not_found"], json!(["KH999", "ZZ1"]));
     let (err, text, _) = run(&e, &adm, "find_by_code", &json!({ "codes": ["###"] })).await;
@@ -781,7 +799,13 @@ async fn tool_doc_nhom_2_schema_ma_chung_va_tinh_nang() {
     assert!(!err, "{v}");
     let groups = v["data"]["groups"].as_array().unwrap();
     assert_eq!(groups.len(), 5);
-    assert_eq!(groups.iter().map(|g| g["features"].as_array().unwrap().len()).sum::<usize>(), 19);
+    assert_eq!(
+        groups
+            .iter()
+            .map(|g| g["features"].as_array().unwrap().len())
+            .sum::<usize>(),
+        19
+    );
     let (err, _, v) = run(&e, &stf, "get_setup_guide", &json!({})).await;
     assert!(!err, "{v}");
     assert_eq!(v["data"]["can_build"], false);

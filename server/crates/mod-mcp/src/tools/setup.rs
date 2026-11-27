@@ -19,7 +19,10 @@ fn internal(e: sqlx::Error) -> ToolError {
 
 /// `(khoá, mô tả một dòng)` của `ORG_FEATURES`.
 const DESCRIPTIONS: [(&str, &str); 19] = [
-    ("dashboard", "Trang đầu: trợ lý AI đang làm gì, kênh đã kết nối, số liệu chính."),
+    (
+        "dashboard",
+        "Trang đầu: trợ lý AI đang làm gì, kênh đã kết nối, số liệu chính.",
+    ),
     ("contacts", "Danh bạ khách hàng, nguồn khách, giai đoạn chăm sóc."),
     ("kanban", "Bảng công việc dạng thẻ (Kanban), giao việc và hạn chót."),
     ("reports", "Báo cáo khách hàng, nhân viên, kênh."),
@@ -39,7 +42,10 @@ const DESCRIPTIONS: [(&str, &str); 19] = [
         "online_store",
         "Trang bán hàng online: khách đặt COD hoặc chuyển khoản QR, đơn vào thẳng CRM.",
     ),
-    ("management", "Nhân viên, phòng ban, team, chức danh, hợp đồng, tuyển dụng."),
+    (
+        "management",
+        "Nhân viên, phòng ban, team, chức danh, hợp đồng, tuyển dụng.",
+    ),
     ("attendance", "Nhân viên tự chấm công, quản lý ngày công."),
     ("payroll", "Bảng lương và phiếu lương."),
     ("newsfeed", "Bảng tin nội bộ của công ty."),
@@ -55,10 +61,7 @@ const DESCRIPTIONS: [(&str, &str); 19] = [
         "lead_scoring",
         "Chấm điểm khách theo quy tắc; trợ lý AI chấm thêm ý định mua.",
     ),
-    (
-        "stale_reminders",
-        "Nhắc nhân viên liên hệ lại khách hoặc việc quá hạn.",
-    ),
+    ("stale_reminders", "Nhắc nhân viên liên hệ lại khách hoặc việc quá hạn."),
 ];
 
 const GROUPS: [(&str, &str); 5] = [
@@ -115,7 +118,9 @@ pub fn get_setup_guide<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'
             .fetch_one(&mut *conn)
             .await
             .map_err(internal)?;
-        let features = mod_settings::features::get(&mut conn, settings).await.map_err(app_err)?;
+        let features = mod_settings::features::get(&mut conn, settings)
+            .await
+            .map_err(app_err)?;
         // Tên vai trò chỉ phục vụ menu.roles của propose_workspace/set_menu: người không dựng được cấu trúc không cần.
         let roles: Vec<String> = if can_build {
             sqlx::query_scalar("SELECT name FROM roles ORDER BY id ASC LIMIT 50")
@@ -187,7 +192,9 @@ pub fn list_features<'a>(_args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a
         let (p, deps) = (ctx.principal, ctx.deps);
         let settings = deps.settings_ctx(p);
         let mut conn = deps.conn(p.company).await?;
-        let f = mod_settings::features::get(&mut conn, settings).await.map_err(app_err)?;
+        let f = mod_settings::features::get(&mut conn, settings)
+            .await
+            .map_err(app_err)?;
         let groups: Vec<Value> = GROUPS
             .iter()
             .map(|(gk, gl)| {

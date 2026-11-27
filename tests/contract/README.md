@@ -101,14 +101,13 @@ Ca bị chuyển loại phần gọi hàm: `dispatcher.dispatchEvents()` đứng
 `sweepExhausted()` đứng riêng không còn gọi được từ ngoài: phần "không nhận trùng / lease / trần 7 lần / quét dead" kiểm qua `tick`, phần ghi muộn và claim song song thật kiểm ở test Rust `webhooks_pg.rs`.
 
 ## Phủ đủ route theo cụm (C14)
-`lib/route-cover.ts` suy từ `server/contracts/routes.json` các loại ca một route phải có: thiếu token 401 (mọi route cần đăng nhập), thiếu quyền 403 (route `can`),
-thành công đúng `status_ok`, id sai kiểu 400 (có `param_pipes`), và golden 3 vai cho route đọc dữ liệu khách (`shape_permissions`); công thức của route khai thêm
-đầu vào sai 400, id không có, ngoài phạm vi theo id, SĐT bị che. Mỗi ca ghi vào sổ, ca cuối của file so sổ với `routes.json` và đòi 100% (thêm route vào cụm mà chưa có
-công thức ⇒ đỏ).
-- C14b `cases/default/60-routes-khach-deal-kanban` (56 route: `/contacts` 15, `/deals` 6, `/kanban` 35). Mỗi route một công thức dựng dữ liệu riêng (SQL cho khách/deal, API cho kanban).
-  Ghi chú hành vi Node: các route kanban `labels` trả `{ labels }` (nhãn nằm trong board, không có id số); chuyển khách của người khác ngoài phạm vi trả 403 (không phải 404);
-  `field-defs/reorder` với board không có trả 400 (kiểm thân trước); thân hợp lệ phải đi cùng id sai kiểu vì pipe thân chạy trước pipe tham số. Ba route danh sách người dùng
-  (`assignable-sales`, `assignable-users`, `deals/search-sales`) ghi golden 3 vai nhưng vai thiếu quyền nhận 403.
+Một hệ đo duy nhất: `lib/coverage.ts` (mỗi lời gọi của `call()` được ghi lại) + `coverage-clusters.json` (cụm theo controller, miễn trừ có lý do) + ca `99-coverage-<cụm>`
+chạy cuối cùng, đòi mỗi route đủ 4 loại ca (thành công, từ chối, đầu vào sai, không tồn tại) hoặc có miễn trừ.
+- C14b `cases/default/60-routes-khach-deal-kanban` (56 route: khách 15, deal 6, kanban 35, cụm `khach-deal-kanban`): mỗi route một công thức dựng dữ liệu riêng (SQL cho khách/deal, API cho kanban) chạy
+  thiếu token 401, thiếu quyền 403, thành công đúng `status_ok`, id sai kiểu 400 (chỉ tham số có `ParseIntPipe`), đầu vào sai, id không có, ngoài phạm vi theo id. Route có `shape_permissions`:
+  đọc ⇒ golden 3 vai và vai sale thấy `***xxx`; ghi ⇒ kiểm phản hồi che SĐT, hoặc miễn trừ có lý do trong công thức.
+  Hành vi Node ghi lại: `POST /contacts` trả SĐT đầy đủ cho người tạo dù thiếu `contacts.phone_full` (golden vai sale); `labels` trả `{ labels }`; chuyển khách của người khác trả 403;
+  `field-defs/reorder` với board không có trả 400 (miễn trừ `missing`); thân hợp lệ phải đi cùng id sai kiểu vì pipe thân chạy trước pipe tham số.
 
 ## Ca bị chuyển loại / chưa chuyển
 Đã chuyển (C11, hồ sơ `default`, 34 ca): `cases/default/20-commerce` (5, từ `commerce.e2e-spec`), `21-pos-dashboard` (6), `22-payroll-notification` (21), `23-notification-reaper` (2, `reapStuckProcessing(NOW)` → `control.runJob('notification.reap-stuck', { now })`, `createLog` → `POST /notifications/send` hẹn giờ + đọc log bằng SQL). Các ca e2e còn lại chuyển ở C07a và C08–C13. 10 ca mẫu ở `cases/` chứng minh từng khả năng: job (`04`), xoá cache (`05`), `now`

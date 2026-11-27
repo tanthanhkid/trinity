@@ -4,7 +4,9 @@ import { call, freshIp, type Res } from '../../lib/http.js'
 import { golden, snap } from '../../lib/golden.js'
 import { threeRoleTokens } from '../../lib/roles.js'
 import { loginAdmin, loginSeeded } from '../../lib/session.js'
-import { clusterRoutes, coverage, keyOf, mark, type Kind, type RouteDef } from '../../lib/route-cover.js'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { loadRoutes, type ClusterDef, type RouteRow } from '../../lib/coverage.js'
 
 afterAll(closeDb)
 
@@ -14,8 +16,11 @@ afterAll(closeDb)
  * 400, và các loại công thức khai (đầu vào sai 400, id không có, ngoài phạm vi 404). Route đọc dữ liệu khách ghi golden 3 vai và có ca
  * SĐT bị che với vai không có `contacts.phone_full`. Ca cuối kiểm độ phủ = 100%.
  */
-const PREFIXES = ['/contacts', '/deals', '/kanban']
-const routes = clusterRoutes(PREFIXES)
+type RouteDef = RouteRow
+const clusters = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../coverage-clusters.json'), 'utf8')) as Record<string, ClusterDef>
+/** Cụm do `coverage-clusters.json` định nghĩa (cùng hệ đo độ phủ với C14a: `lib/coverage.ts`, ca `99-coverage-*`). */
+const routes = loadRoutes().filter((r) => clusters['khach-deal-kanban'].controllers.includes(r.controller) && !r.deprecated)
+const keyOf = (r: RouteDef): string => `${r.method} ${r.path.replace(/^\/api\/v1/, '')}`
 
 type Role = 'admin' | 'sale'
 interface Call {
@@ -31,7 +36,7 @@ interface Recipe {
   /** Đầu vào sai (thân hoặc query) ⇒ 400 (+ đoạn câu lỗi nếu có). */
   bad?: () => Promise<Call & { text?: string }>
   /** Id không tồn tại (thay mọi tham số `:xxx` bằng 999999) ⇒ mã này, bằng quyền Quản trị. */
-  missing?: { status: number; body?: unknown }
+  missing?: { status: number; body?: unknown | (() => unknown) }
   /** Ngoài phạm vi theo id: người `sale` (phạm vi own) gọi vào bản ghi của người khác ⇒ 404 (hoặc `outOfScopeStatus`). */
   outOfScope?: () => Promise<Call>
   outOfScopeStatus?: number
@@ -39,6 +44,12 @@ interface Recipe {
   readsContacts?: () => Promise<Call>
   /** Route danh sách người dùng (không có SĐT): vẫn ghi golden 3 vai nhưng không đòi 200 (vai thiếu quyền nhận 403) và không có ca SĐT. */
   usersOnly?: boolean
+  /** Route GHI có `shape_permissions`: gọi bằng `sale` (không có `contacts.phone_full`) và phản hồi phải có SĐT dạng `***xxx`. */
+  writeMasked?: () => Promise<Call>
+  /** Miễn trừ có lý do khi phản hồi của route (ghi hoặc tệp) không mang SĐT để kiểm. */
+  maskedWaiver?: string
+  /** Hành vi Node ghi lại: route ghi trả SĐT ĐẦY ĐỦ cho người tạo dù thiếu `contacts.phone_full` (golden vai sale để Rust phải khớp). */
+  writePlain?: () => Promise<Call>
 }
 
 // ---- Dữ liệu dùng chung --------------------------------------------------------------------------------------------
@@ -97,7 +108,9 @@ const mkItem = async (card: number): Promise<number> => idOf(ok(await post(`/kan
 /** Nhãn của board nằm trong `label_defs` của board (không có bảng riêng). */
 async function mkLabel(board: number): Promise<string> {
   const res = ok(await post(`/kanban/boards/${board}/labels`, { name: 'Gấp', color: '#eb5a46' }), 201)
-  return String((res.body as { labels: { id: string }[] }).labels.at(-1)?.id)
+  const id = (res.body as { labels?: { id?: string }[] }).labels?.at(-1)?.id
+  if (!id) throw new Error(`không có id nhãn trong ${JSON.stringify(res.body).slice(0, 200)}`)
+  return id
 }
 
 const BAD_ID = 'abc'
@@ -115,6 +128,7 @@ const RECIPES: Record<string, Recipe> = {
     },
   },
   'POST /contacts': {
+    writePlain: async () => ({ path: '/contacts', body: { phone: nextPhone(), full_name: 'Khách tạo, SĐT đầy đủ', source_id: sourceId } }),
     ok: async () => ({ path: '/contacts', body: { phone: nextPhone(), full_name: 'Khách tạo C14b', source_id: sourceId } }),
     bad: async () => ({ path: '/contacts', body: {} }),
   },
@@ -123,6 +137,7 @@ const RECIPES: Record<string, Recipe> = {
     missing: { status: 404 },
   },
   'DELETE /contacts/:id': {
+    maskedWaiver: 'phản hồi chỉ có cờ xoá, không mang dữ liệu khách',
     ok: async () => ({ path: `/contacts/${await mkContact()}` }),
     missing: { status: 404 },
     outOfScope: async () => ({ path: `/contacts/${await mkContact(otherId)}`, as: 'sale' }),
@@ -134,12 +149,14 @@ const RECIPES: Record<string, Recipe> = {
     readsContacts: async () => ({ path: `/contacts/${await mkContact()}` }),
   },
   'PATCH /contacts/:id': {
+    writeMasked: async () => ({ path: `/contacts/${await mkContact()}`, body: { full_name: 'Tên che SĐT' } }),
     ok: async () => ({ path: `/contacts/${await mkContact()}`, body: { full_name: 'Tên mới C14b' } }),
     bad: async () => ({ path: `/contacts/${await mkContact()}`, body: { full_name: 5 } }),
     missing: { status: 404, body: { full_name: 'x' } },
     outOfScope: async () => ({ path: `/contacts/${await mkContact(otherId)}`, body: { full_name: 'x' }, as: 'sale' }),
   },
   'POST /contacts/:id/restore': {
+    maskedWaiver: 'vai sale (phạm vi own) không khôi phục được khách đã xoá (bị chặn), nên không có phản hồi mang SĐT để kiểm',
     ok: async () => {
       const id = await mkContact()
       ok(await send('DELETE', `/contacts/${id}`, { token: tokens.admin }), 200)
@@ -148,14 +165,16 @@ const RECIPES: Record<string, Recipe> = {
     missing: { status: 404 },
   },
   'POST /contacts/:id/transfer': {
+    maskedWaiver: 'vai sale (phạm vi own) bị 403 khi chuyển khách sang người ngoài phạm vi; Quản trị chuyển thấy SĐT đầy đủ',
     ok: async () => ({ path: `/contacts/${await mkContact()}/transfer`, body: { new_assigned_to: otherId } }),
     bad: async () => ({ path: `/contacts/${await mkContact()}/transfer`, body: {} }),
-    missing: { status: 404, body: { new_assigned_to: otherId } },
+    missing: { status: 404, body: () => ({ new_assigned_to: otherId }) },
     outOfScope: async () => ({ path: `/contacts/${await mkContact(otherId)}/transfer`, body: { new_assigned_to: saleId }, as: 'sale' }),
     // Chuyển khách của người khác: Node từ chối 403 (quyền chuyển theo phạm vi), không che thành 404.
     outOfScopeStatus: 403,
   },
   'POST /contacts/:id/viewed': {
+    maskedWaiver: 'phản hồi chỉ có cờ đã xem, không mang dữ liệu khách',
     ok: async () => ({ path: `/contacts/${await mkContact()}/viewed` }),
     missing: { status: 404 },
     outOfScope: async () => ({ path: `/contacts/${await mkContact(otherId)}/viewed`, as: 'sale' }),
@@ -163,10 +182,12 @@ const RECIPES: Record<string, Recipe> = {
   'GET /contacts/assignable-sales': { ok: async () => ({ path: '/contacts/assignable-sales' }), readsContacts: async () => ({ path: '/contacts/assignable-sales' }), usersOnly: true },
   'GET /contacts/assignable-users': { ok: async () => ({ path: '/contacts/assignable-users' }), readsContacts: async () => ({ path: '/contacts/assignable-users' }), usersOnly: true },
   'POST /contacts/bulk-transfer': {
+    maskedWaiver: 'phản hồi là số lượng đã chuyển, không mang dữ liệu khách',
     ok: async () => ({ path: '/contacts/bulk-transfer', body: { contact_ids: [await mkContact()], new_assigned_to: otherId } }),
     bad: async () => ({ path: '/contacts/bulk-transfer', body: { contact_ids: [] } }),
   },
   'GET /contacts/export': {
+    maskedWaiver: 'tệp xlsx nhị phân: che SĐT ở xuất khẩu kiểm bằng ca export của C08 (quyền contacts.export + contacts.phone_full)',
     ok: async () => {
       await mkContact()
       return {
@@ -176,6 +197,7 @@ const RECIPES: Record<string, Recipe> = {
     },
   },
   'GET /contacts/recent': {
+    maskedWaiver: 'danh sách rút gọn của khách vừa xem không có trường SĐT (golden 3 vai vẫn ghi)',
     ok: async () => ({ path: '/contacts/recent' }),
     readsContacts: async () => {
       const id = await mkContact()
@@ -201,10 +223,12 @@ const RECIPES: Record<string, Recipe> = {
     },
   },
   'POST /deals': {
+    writeMasked: async () => ({ path: '/deals', body: { title: 'Deal che SĐT', assigned_to: saleId, contact_id: await mkContact() } }),
     ok: async () => ({ path: '/deals', body: { title: 'Deal tạo C14b', assigned_to: saleId } }),
     bad: async () => ({ path: '/deals', body: { title: '' } }),
   },
   'DELETE /deals/:id': {
+    maskedWaiver: 'phản hồi chỉ có cờ xoá, không mang dữ liệu khách',
     ok: async () => ({ path: `/deals/${await mkDeal()}` }),
     missing: { status: 404 },
     outOfScope: async () => ({ path: `/deals/${await mkDeal(otherId)}`, as: 'sale' }),
@@ -216,6 +240,7 @@ const RECIPES: Record<string, Recipe> = {
     readsContacts: async () => ({ path: `/deals/${await mkDeal(saleId, await mkContact())}` }),
   },
   'PATCH /deals/:id': {
+    writeMasked: async () => ({ path: `/deals/${await mkDeal(saleId, await mkContact())}`, body: { title: 'Deal đổi tên che SĐT' } }),
     ok: async () => ({ path: `/deals/${await mkDeal()}`, body: { title: 'Deal sửa C14b' } }),
     bad: async () => ({ path: `/deals/${await mkDeal()}`, body: { status: 'khong-co' } }),
     missing: { status: 404, body: { title: 'x' } },
@@ -425,13 +450,18 @@ const RECIPES: Record<string, Recipe> = {
 }
 
 // ---- Bộ chạy -------------------------------------------------------------------------------------------------------
-const declared: Record<string, Kind[]> = {}
-for (const [key, r] of Object.entries(RECIPES)) {
-  declared[key] = [...(r.bad ? (['badInput'] as Kind[]) : []), ...(r.missing ? (['missing'] as Kind[]) : []), ...(r.outOfScope ? (['outOfScope'] as Kind[]) : []), ...(r.readsContacts && !r.usersOnly ? (['masked'] as Kind[]) : [])]
-}
+const MASKED = /\*\*\*\d{3}/
+const PLAIN_PHONE = /0912\d{6}/
 
+const resolveBody = (b: unknown): unknown => (typeof b === 'function' ? (b as () => unknown)() : b)
+const bare = (p: string): string => p.replace(/^\/api\/v1/, '')
 /** Đường dẫn với mọi tham số `:xxx` thay bằng `value`. */
 const fill = (p: string, value: string | number): string => p.replace(/:[A-Za-z]+/g, String(value))
+/** Chỉ tham số có `ParseIntPipe` nhận `bad`; tham số khác (vd `labelId` là chuỗi) nhận `other`. */
+function fillInt(route: RouteDef, bad: string, other: string | number): string {
+  const ints = new Set(route.param_pipes.filter((x) => x.endsWith(':ParseIntPipe')).map((x) => x.slice('param.'.length, x.indexOf(':ParseIntPipe'))))
+  return bare(route.path).replace(/:([A-Za-z]+)/g, (_m, name: string) => (ints.has(name) ? bad : String(other)))
+}
 
 beforeAll(async () => {
   tokens.admin = (await loginAdmin()).token
@@ -450,43 +480,38 @@ beforeAll(async () => {
 }, 60_000)
 
 const tokenFor = (r: Role): string => tokens[r]
+const slug = (key: string): string => key.replace(/[^a-z0-9]+/gi, '-')
 
 describe.each(routes.map((r) => [keyOf(r), r] as [string, RouteDef]))('%s', (key, route) => {
   const recipe = RECIPES[key]
-  const generic = (): string => fill(route.path.replace(/^\/api\/v1/, ''), 1)
 
   it('có công thức', () => {
     expect(recipe, `route ${key} chưa có công thức trong RECIPES`).toBeDefined()
   })
 
-  it('thiếu token ⇒ 401', async () => {
-    const res = await send(route.method, generic())
+  it.skipIf(route.access === 'public')('thiếu token ⇒ 401', async () => {
+    const res = await send(route.method, fill(bare(route.path), 1))
     expect(res.status).toBe(401)
-    mark(key, 'unauth')
   })
 
   it.skipIf(route.access !== 'can')('không có quyền ⇒ 403', async () => {
-    const res = await send(route.method, generic(), { token: nobody, body: {} })
+    const res = await send(route.method, fill(bare(route.path), 1), { token: nobody, body: {} })
     expect(res.status).toBe(403)
-    mark(key, 'forbid')
   })
 
-  it.skipIf(route.param_pipes.length === 0)('id sai kiểu ⇒ 400', async () => {
+  it.skipIf(!route.param_pipes.some((x) => x.endsWith(':ParseIntPipe')))('id sai kiểu ⇒ 400', async () => {
     // Thân hợp lệ (lấy từ công thức) để lỗi duy nhất là id: pipe thân chạy trước pipe tham số.
     const body = recipe ? (await recipe.ok()).body : {}
-    const res = await send(route.method, fill(route.path.replace(/^\/api\/v1/, ''), BAD_ID), { token: tokens.admin, body })
+    const res = await send(route.method, fillInt(route, BAD_ID, 1), { token: tokens.admin, body })
     expect(res.status).toBe(400)
     expect(JSON.stringify(res.body)).toContain('Validation failed (numeric string is expected)')
-    mark(key, 'badId')
   })
 
   it('thành công đúng mã hợp đồng', async () => {
-    if (!recipe) return
     const c = await recipe.ok()
     const res = await send(route.method, c.path, { token: tokenFor(c.as ?? 'admin'), body: c.body, query: c.query })
     ok(res, route.status_ok ?? 200)
     c.check?.(res)
-    mark(key, 'ok')
   })
 
   it.skipIf(!RECIPES[key]?.bad)('đầu vào sai ⇒ 400', async () => {
@@ -494,24 +519,21 @@ describe.each(routes.map((r) => [keyOf(r), r] as [string, RouteDef]))('%s', (key
     const res = await send(route.method, c.path, { token: tokens.admin, body: c.body, query: c.query })
     expect(res.status).toBe(400)
     if (c.text) expect(JSON.stringify(res.body)).toContain(c.text)
-    golden(`route-bad-${key.replace(/[^a-z0-9]+/gi, '-')}`, 'admin', snap(res))
-    mark(key, 'badInput')
+    golden(`route-bad-${slug(key)}`, 'admin', snap(res))
   })
 
   it.skipIf(!RECIPES[key]?.missing)('id không có ⇒ mã đã định', async () => {
     const m = recipe.missing!
-    const res = await send(route.method, fill(route.path.replace(/^\/api\/v1/, ''), MISSING), { token: tokens.admin, body: m.body })
+    const res = await send(route.method, fill(bare(route.path), MISSING), { token: tokens.admin, body: resolveBody(m.body) })
     expect(res.status).toBe(m.status)
-    golden(`route-missing-${key.replace(/[^a-z0-9]+/gi, '-')}`, 'admin', snap(res))
-    mark(key, 'missing')
+    golden(`route-missing-${slug(key)}`, 'admin', snap(res))
   })
 
   it.skipIf(!RECIPES[key]?.outOfScope)('ngoài phạm vi theo id ⇒ 404', async () => {
     const c = await recipe.outOfScope!()
     const res = await send(route.method, c.path, { token: tokenFor(c.as ?? 'sale'), body: c.body, query: c.query })
     expect(res.status).toBe(recipe.outOfScopeStatus ?? 404)
-    golden(`route-out-of-scope-${key.replace(/[^a-z0-9]+/gi, '-')}`, 'sale', snap(res))
-    mark(key, 'outOfScope')
+    golden(`route-out-of-scope-${slug(key)}`, 'sale', snap(res))
   })
 
   it.skipIf(!RECIPES[key]?.readsContacts)('route đọc dữ liệu khách: golden 3 vai, SĐT bị che với vai không có contacts.phone_full', async () => {
@@ -520,23 +542,44 @@ describe.each(routes.map((r) => [keyOf(r), r] as [string, RouteDef]))('%s', (key
     for (const [role, token] of await threeRoleTokens(tokens.sale)) {
       const res = await send(route.method, c.path, { token, query: c.query })
       if (!recipe.usersOnly) expect(res.status, role).toBe(200)
-      golden(`route-3roles-${key.replace(/[^a-z0-9]+/gi, '-')}`, role, snap(res))
+      golden(`route-3roles-${slug(key)}`, role, snap(res))
       if (role === 'sale') saleBody = JSON.stringify(res.body)
     }
-    // Vai sale (không có contacts.phone_full): không có SĐT đầy đủ nào của dữ liệu seed `0912xxxxxx` trong response.
-    expect(saleBody).not.toMatch(/0912\d{6}/)
-    mark(key, 'golden3')
-    if (!recipe.usersOnly) mark(key, 'masked')
+    if (!recipe.usersOnly) {
+      // Bản ghi CÓ mặt và SĐT dạng `***xxx`; không có SĐT đầy đủ của dữ liệu seed `0912xxxxxx`.
+      if (!recipe.maskedWaiver) expect(saleBody).toMatch(MASKED)
+      expect(saleBody).not.toMatch(PLAIN_PHONE)
+    }
+  })
+
+  it.skipIf(!RECIPES[key]?.writeMasked)('route ghi: SĐT trong phản hồi bị che với vai không có contacts.phone_full', async () => {
+    const c = await recipe.writeMasked!()
+    const res = await send(route.method, c.path, { token: tokens.sale, body: c.body, query: c.query })
+    ok(res, route.status_ok ?? 200)
+    const text = JSON.stringify(res.body)
+    expect(text).toMatch(MASKED)
+    expect(text).not.toMatch(PLAIN_PHONE)
   })
 })
 
-describe('độ phủ route cụm khách hàng, deal, kanban', () => {
-  it('mọi route của cụm có đủ loại ca (100%)', () => {
+describe.each(routes.filter((r) => RECIPES[keyOf(r)]?.writePlain).map((r) => [keyOf(r), r] as [string, RouteDef]))('%s (SĐT trong phản hồi ghi)', (key, route) => {
+  it('người tạo thấy SĐT đầy đủ dù thiếu contacts.phone_full (hành vi Node ghi lại)', async () => {
+    const c = await RECIPES[key].writePlain!()
+    const res = await send(route.method, c.path, { token: tokens.sale, body: c.body, query: c.query })
+    ok(res, route.status_ok ?? 200)
+    expect(JSON.stringify(res.body)).toMatch(PLAIN_PHONE)
+    golden(`route-write-plain-${slug(key)}`, 'sale', snap(res))
+  })
+})
+
+describe('công thức đủ cho cụm khách hàng, deal, kanban', () => {
+  it('đủ 56 route; route có shape_permissions phải kiểm che SĐT (đọc 3 vai, ghi, hoặc miễn trừ có lý do)', () => {
     expect(routes.length).toBe(56)
-    const cov = coverage(routes, declared)
-    // eslint-disable-next-line no-console
-    console.log(`[C14b] độ phủ route: ${cov.complete}/${cov.total}`)
-    expect(cov.missing, cov.missing.join('\n')).toEqual([])
-    expect(cov.complete).toBe(cov.total)
+    const gaps = routes
+      .filter((r) => r.shape_permissions.length > 0)
+      .map((r) => keyOf(r))
+      .filter((k) => !(RECIPES[k]?.readsContacts || RECIPES[k]?.writeMasked || RECIPES[k]?.writePlain || RECIPES[k]?.maskedWaiver))
+    expect(gaps, `thiếu kiểm che SĐT hoặc miễn trừ: ${gaps.join(', ')}`).toEqual([])
+    expect(routes.filter((r) => !RECIPES[keyOf(r)]).map(keyOf)).toEqual([])
   })
 })

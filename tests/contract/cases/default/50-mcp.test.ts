@@ -95,8 +95,7 @@ describe('xác thực', () => {
 })
 
 describe('JSON-RPC thô (thay client SDK)', () => {
-// SKIP #605: Rust chưa khớp hợp đồng Node ở ca này (tools/list thiếu tool apply_payslip_import); bỏ skip khi sửa xong. Danh sách + lý do ở PR #605.
-  it.skip('initialize + tools/list + tools/call search/fetch; tool chỉ đọc có title, mô tả, output schema', async () => {
+  it('initialize + tools/list + tools/call search/fetch; tool chỉ đọc có title, mô tả, output schema', async () => {
     const me = await makeUser({ ...READ, 'contacts.view': 'own', 'deals.view': 'own', 'kanban.view': 'own' })
     const other = await makeUser({ 'contacts.view': 'own' })
     const mine = await mkContact('Nguyễn Của Tôi', { assigned_to: me.id })
@@ -111,7 +110,7 @@ describe('JSON-RPC thô (thay client SDK)', () => {
 
     const tools = (await rpc(t.access, 'tools/list')).body.result.tools as { name: string; title?: string; description?: string; outputSchema?: unknown; annotations?: Record<string, boolean> }[]
     expect(tools.map((x) => x.name)).toEqual(expect.arrayContaining(['add_contact_note', 'assign_contact', 'complete_setup', 'create_contact', 'create_task', 'fetch', 'get_action_status', 'get_contact', 'get_dashboard_overview', 'list_contact_activities', 'list_contacts', 'list_crm_options', 'list_deals', 'list_my_tasks', 'search', 'update_contact_stage']))
-    const writes = ['add_contact_note', 'add_field', 'archive_field', 'archive_record', 'assign_contact', 'cancel_invitation', 'cancel_messenger_broadcast', 'cancel_scheduled_post', 'complete_setup', 'create_chat_link', 'create_comment_rule', 'create_contact', 'create_invitation', 'create_message_flow', 'create_object', 'create_objects', 'create_record', 'create_recurring_post', 'create_social_post', 'create_task', 'create_view', 'enable_social_account', 'import_records', 'import_social_posts', 'install_object_template', 'link_records', 'propose_workspace', 'publish_social_draft', 'refresh_social_post_metrics', 'reply_to_customer', 'reschedule_social_post', 'restore_structure_version', 'retry_social_post_target', 'save_briefing', 'save_crm_option', 'save_social_draft', 'save_social_snippet', 'send_messenger_broadcast', 'set_features', 'set_lead_intent', 'set_menu', 'set_queue_slots', 'set_recurring_post_active', 'setup_build', 'update_comment_rule', 'update_contact_stage', 'update_field', 'update_message_flow', 'update_messenger_broadcast', 'update_object', 'update_record', 'update_recurring_post', 'update_scheduled_post', 'update_store_settings', 'update_view', 'upload_social_media']
+    const writes = ['add_contact_note', 'add_field', 'apply_payslip_import', 'archive_field', 'archive_record', 'assign_contact', 'cancel_invitation', 'cancel_messenger_broadcast', 'cancel_scheduled_post', 'complete_setup', 'create_chat_link', 'create_comment_rule', 'create_contact', 'create_invitation', 'create_message_flow', 'create_object', 'create_objects', 'create_record', 'create_recurring_post', 'create_social_post', 'create_task', 'create_view', 'enable_social_account', 'import_records', 'import_social_posts', 'install_object_template', 'link_records', 'propose_workspace', 'publish_social_draft', 'refresh_social_post_metrics', 'reply_to_customer', 'reschedule_social_post', 'restore_structure_version', 'retry_social_post_target', 'save_briefing', 'save_crm_option', 'save_social_draft', 'save_social_snippet', 'send_messenger_broadcast', 'set_features', 'set_lead_intent', 'set_menu', 'set_queue_slots', 'set_recurring_post_active', 'setup_build', 'update_comment_rule', 'update_contact_stage', 'update_field', 'update_message_flow', 'update_messenger_broadcast', 'update_object', 'update_record', 'update_recurring_post', 'update_scheduled_post', 'update_store_settings', 'update_view', 'upload_social_media']
     for (const tool of tools) {
       expect(tool.title, tool.name).toBeTruthy()
       expect(tool.description, tool.name).toBeTruthy()
@@ -309,8 +308,7 @@ describe('script hậu kiểm mcp-smoke.mjs', () => {
       )
     })
 
-// SKIP #605: Rust chưa khớp hợp đồng Node ở ca này (mcp-smoke: tool ghi/xuất lương không khớp annotations (cùng nguyên nhân ca tools/list)); bỏ skip khi sửa xong. Danh sách + lý do ở PR #605.
-  it.skip('chạy được với server thật: đạt hết khi có token; thiếu MCP_URL ⇒ mã 2; token sai ⇒ hỏng; không in token', async () => {
+  it('chạy được với server thật: đạt hết khi có token; thiếu MCP_URL ⇒ mã 2; token sai ⇒ hỏng; không in token', async () => {
     const me = await makeUser({ ...READ, 'contacts.view': 'own' })
     await mkContact('Smoke Khách', { assigned_to: me.id })
     const t = await connect(me.token, 'crm.read', { resource: MCP })

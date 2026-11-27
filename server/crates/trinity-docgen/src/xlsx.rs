@@ -508,9 +508,9 @@ fn read_sheet(wb: &mut Book<'_>, name: String) -> Result<ReadSheet, XlsxError> {
     let mut reader = wb
         .worksheet_cells_reader(&name)
         .map_err(|e| XlsxError::Read(e.to_string()))?;
-    let mut rows: Vec<Vec<ReadCell>> = Vec::new();
-    let mut slots: usize = 0;
+    let mut cells: Vec<(usize, usize, ReadCell)> = Vec::new();
     let mut min_col = usize::MAX;
+    let mut max_row = 0usize;
     while let Some(cell) = reader.next_cell().map_err(|e| XlsxError::Read(e.to_string()))? {
         let (r, c) = cell.get_position();
         let (r, c) = (r as usize, c as usize);
@@ -518,36 +518,28 @@ fn read_sheet(wb: &mut Book<'_>, name: String) -> Result<ReadSheet, XlsxError> {
         if value == ReadCell::Empty {
             continue;
         }
-        if r >= MAX_READ_ROWS {
+        if r >= MAX_READ_ROWS || cells.len() >= MAX_READ_CELLS {
             return Err(XlsxError::SheetTooLarge);
         }
         if c >= MAX_COLS {
             return Err(XlsxError::TooManyColumns);
         }
-        if rows.len() <= r {
-            rows.resize_with(r + 1, Vec::new);
-        }
-        let row = &mut rows[r];
-        if row.len() <= c {
-            slots += c + 1 - row.len();
-            if slots > MAX_READ_CELLS {
-                return Err(XlsxError::SheetTooLarge);
-            }
-            row.resize(c + 1, ReadCell::Empty);
-        }
-        row[c] = value;
         min_col = min_col.min(c);
+        max_row = max_row.max(r);
+        cells.push((r, c, value));
     }
-    while rows.last().is_some_and(Vec::is_empty) {
-        rows.pop();
-    }
-    // Bỏ các cột trống chung ở đầu mọi dòng.
+    // Bỏ các cột trống chung ở đầu mọi dòng; đệm ô trống trong dòng tính SAU khi bỏ (ô lẻ ở cột xa không làm phình RAM).
     let lead = if min_col == usize::MAX { 0 } else { min_col };
-    for r in &mut rows {
-        if !r.is_empty() {
-            r.drain(..lead.min(r.len()));
-        }
-        r.shrink_to_fit();
+    let mut widths = vec![0usize; if cells.is_empty() { 0 } else { max_row + 1 }];
+    for (r, c, _) in &cells {
+        widths[*r] = widths[*r].max(c - lead + 1);
+    }
+    if widths.iter().sum::<usize>() > MAX_READ_CELLS {
+        return Err(XlsxError::SheetTooLarge);
+    }
+    let mut rows: Vec<Vec<ReadCell>> = widths.iter().map(|w| vec![ReadCell::Empty; *w]).collect();
+    for (r, c, v) in cells {
+        rows[r][c - lead] = v;
     }
     rows.shrink_to_fit();
     Ok(ReadSheet {
@@ -657,10 +649,7 @@ mod tests {
     fn tran_so_muc() {
         let names: Vec<String> = (0..=MAX_READ_ENTRIES).map(|i| format!("f{i}.xml")).collect();
         let entries: Vec<(&str, usize)> = names.iter().map(|n| (n.as_str(), 1)).collect();
-        assert!(matches!(
-            read_xlsx(&zip_with(&entries)),
-            Err(XlsxError::TooManyEntries)
-        ));
+        assert!(matches!(read_xlsx(&zip_with(&entries)), Err(XlsxError::TooManyEntries)));
     }
 
     #[test]

@@ -27,6 +27,7 @@ const OWNER: i32 = 9801; // contacts.create/view(own), deals.manage(own), kanban
 const LIMITED: i32 = 9802; // chỉ contacts.create
 const ADMIN: i32 = 9803; // vai trò hệ thống
 const LOCKED: i32 = 9804; // đủ quyền nhưng bị khoá sau khi cấp khoá
+const NOVIEW: i32 = 9805; // deals.manage + contacts.create nhưng KHÔNG có contacts.view
 
 const K_OWNER: &str = "trinity_live_m36-owner-key-000000000000001";
 const K_LIMITED: &str = "trinity_live_m36-limited-key-0000000000002";
@@ -34,6 +35,7 @@ const K_ADMIN: &str = "trinity_live_m36-admin-key-000000000000003";
 const K_LOCKED: &str = "trinity_live_m36-locked-key-00000000000004";
 const K_NOSCOPE: &str = "trinity_live_m36-noscope-key-0000000000005";
 const K_REVOKED: &str = "trinity_live_m36-revoked-key-0000000000006";
+const K_NOVIEW: &str = "trinity_live_m36-noview-key-00000000000008";
 const K_EXPIRED: &str = "trinity_live_m36-expired-key-0000000000007";
 
 fn url() -> String {
@@ -161,6 +163,7 @@ async fn setup() {
         (LIMITED, "active"),
         (ADMIN, "active"),
         (LOCKED, "locked"),
+        (NOVIEW, "active"),
     ] {
         exec(&format!(
             "INSERT INTO users (id, email, password_hash, full_name, status, team_id, updated_at)
@@ -168,12 +171,13 @@ async fn setup() {
         ))
         .await;
     }
-    exec("INSERT INTO roles (id, name, is_system, updated_at) VALUES (9801, 'm36-owner', false, now()), (9802, 'm36-limited', false, now()), (9803, 'm36-admin', true, now());
+    exec("INSERT INTO roles (id, name, is_system, updated_at) VALUES (9801, 'm36-owner', false, now()), (9802, 'm36-limited', false, now()), (9803, 'm36-admin', true, now()), (9805, 'm36-noview', false, now());
           INSERT INTO role_permissions (role_id, permission, scope) VALUES
             (9801, 'contacts.create', NULL), (9801, 'contacts.view', 'own'), (9801, 'deals.manage', 'own'),
             (9801, 'kanban.manage', NULL), (9801, 'kanban.view', 'own'),
-            (9802, 'contacts.create', NULL);
-          INSERT INTO user_roles (user_id, role_id) VALUES (9801, 9801), (9802, 9802), (9803, 9803), (9804, 9801)").await;
+            (9802, 'contacts.create', NULL),
+            (9805, 'deals.manage', 'own'), (9805, 'contacts.create', NULL);
+          INSERT INTO user_roles (user_id, role_id) VALUES (9801, 9801), (9802, 9802), (9803, 9803), (9804, 9801), (9805, 9805)").await;
     exec("INSERT INTO setting_options (id, group_key, value, label, is_active, sort_order, updated_at) VALUES
             (101, 'contact_source', 'web', 'Website', true, 2, now()), (102, 'contact_source', 'zalo', 'Zalo', true, 1, now()),
             (103, 'contact_source', 'old', 'Cũ', false, 3, now()), (104, 'contact_stage', 'new', 'Mới', true, 1, now())").await;
@@ -200,6 +204,7 @@ async fn setup() {
             "NULL",
         ),
         (K_LOCKED, LOCKED, "ARRAY['contacts:create']", "NULL", "NULL"),
+        (K_NOVIEW, NOVIEW, "ARRAY['deals:create']", "NULL", "NULL"),
         (K_NOSCOPE, OWNER, "ARRAY['auth:login']", "NULL", "NULL"),
         (K_REVOKED, OWNER, "ARRAY['contacts:create']", "now()", "NULL"),
         (
@@ -519,6 +524,15 @@ async fn tao_thuong_vu_theo_quyen_chu_khoa() {
         .await,
         3
     );
+    // Chủ khoá thiếu contacts.view: khách mới sẽ nằm ngoài phạm vi xem ⇒ bị từ chối TRƯỚC khi tạo khách (không khách mồ côi).
+    let before = scalar::<i64>("SELECT count(*) FROM contacts").await;
+    let r = post(
+        K_NOVIEW,
+        json!({ "title": "x", "contact_phone": "0944444444", "contact_name": "Mồ côi" }),
+    )
+    .await;
+    assert_eq!(r.status, 404, "{:?}", r.body);
+    assert_eq!(scalar::<i64>("SELECT count(*) FROM contacts").await, before);
     // Body sai kiểu / trường lạ.
     let r = post(K_OWNER, json!({ "title": "", "value": -1, "hack": true })).await;
     assert_eq!(r.status, 400);

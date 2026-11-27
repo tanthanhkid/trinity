@@ -3,12 +3,12 @@
 use chrono::{DateTime, Utc};
 use serde_json::{Map, Value, json};
 use sqlx::{PgConnection, Row};
-use trinity_db::outbox::{NewNotification, create_notification, publish_integration_event};
-use trinity_db::types::{JsBigInt, Timestamp};
+use trinity_db::outbox::publish_integration_event;
+use trinity_db::types::Timestamp;
 use trinity_kernel::error::{AppError, HttpError, Message};
 use trinity_kernel::phone::{normalize_phone, phone_variants};
 use trinity_kernel::vn_time::js_iso_string;
-use trinity_rbac::{Grants, OwnerIds, PhoneMasker, can};
+use trinity_rbac::{Grants, OwnerIds, can};
 
 use crate::PublicCtx;
 use crate::guards::KeyInfo;
@@ -311,6 +311,9 @@ pub async fn resolve_contact(ctx: &PublicCtx, a: &Actor, dto: &Map<String, Value
         ));
     };
     need(a, "contacts.create", "tạo khách hàng")?;
+    // Khách mới gắn vào thương vụ/việc phải nằm trong phạm vi `contacts.view` của chủ khoá: kiểm TRƯỚC khi tạo để không để lại
+    // khách mồ côi khi bước sau từ chối.
+    trinity_rbac::assert_in_scope(view.as_ref(), &[Some(a.user_id), None]).map_err(|e| AppError::Http(*e))?;
     let source = dto.get("contact_source_id").and_then(Value::as_i64);
     if let Some(sid) = source {
         let opt: Option<(String, bool)> =
@@ -360,161 +363,50 @@ pub async fn resolve_contact(ctx: &PublicCtx, a: &Actor, dto: &Map<String, Value
 
 // ---------------------------------------------------------------- thương vụ
 
-#[derive(sqlx::FromRow)]
-struct DealView {
-    id: i32,
-    code: Option<String>,
-    title: String,
-    description: Option<String>,
-    value: Option<JsBigInt>,
-    status: String,
-    note: Option<String>,
-    assigned_to: i32,
-    created_by: i32,
+/// Tạo thương vụ qua `mod_deals::deals::create` (cùng luật với `POST /deals`: phạm vi `deals.manage`, `contacts.view`, outbox,
+/// thông báo "được giao thương vụ", SĐT khách che theo `contacts.phone_full`), gán cho chính chủ khoá.
+async fn insert_deal(
+    ctx: &PublicCtx,
+    a: &Actor,
+    scopes: &mod_deals::Scopes,
+    dto: &Map<String, Value>,
     contact_id: Option<i32>,
-    created_at: Timestamp,
-    updated_at: Timestamp,
-    a_name: Option<String>,
-    a_email: String,
-    c_name: Option<String>,
-    c_email: String,
-    ct_name: Option<String>,
-    ct_phone: Option<String>,
-    ct_assigned: Option<i32>,
-    ct_created: Option<i32>,
-}
-
-/// Tạo thương vụ (đường tạo của `DealsService.create`): gán cho chính chủ khoá, kiểm phạm vi `deals.manage` và `contacts.view`,
-/// ghi outbox cùng giao dịch, thông báo "được giao thương vụ", trả bản ghi kèm người phụ trách/người tạo/khách (SĐT che theo
-/// `contacts.phone_full`).
-async fn insert_deal(ctx: &PublicCtx, a: &Actor, dto: &Map<String, Value>, contact_id: Option<i32>) -> R<Value> {
-    let manage = owners(ctx, a, "deals.manage").await?;
-    let covers = match &manage {
-        Some(OwnerIds::All) => true,
-        Some(OwnerIds::Ids(ids)) => ids.contains(&a.user_id),
-        None => false,
-    };
-    if !covers {
-        return Err(forbidden("Không có quyền tạo thương vụ cho người này"));
-    }
+) -> R<Value> {
     let tenant = ctx.db.tenant(a.company).await.map_err(AppError::internal)?;
-    let mut c = tenant.acquire().await.map_err(AppError::internal)?;
-    let active: Option<i32> = sqlx::query_scalar("SELECT id FROM users WHERE id = $1 AND status = 'active'")
-        .bind(a.user_id)
-        .fetch_optional(&mut *c)
-        .await
-        .map_err(db)?;
-    if active.is_none() {
-        return Err(bad(
-            "Không tìm thấy nhân viên với ID này hoặc tài khoản không hoạt động",
-        ));
-    }
-    if let Some(cid) = contact_id {
-        let ct: Option<(Option<i32>, Option<i32>)> =
-            sqlx::query_as("SELECT assigned_to, created_by_id FROM contacts WHERE id = $1")
-                .bind(cid)
-                .fetch_optional(&mut *c)
-                .await
-                .map_err(db)?;
-        let Some((assigned, created_by)) = ct else {
-            return Err(bad("Không tìm thấy khách hàng với ID này"));
-        };
-        let view = owners(ctx, a, "contacts.view").await?;
-        trinity_rbac::assert_in_scope(view.as_ref(), &[assigned, created_by]).map_err(|e| AppError::Http(*e))?;
-    }
-    drop(c);
-    let status = dto.get("status").and_then(Value::as_str).unwrap_or("open");
-    let mut tx = tenant.begin().await.map_err(AppError::internal)?;
-    let created: mod_contacts::snapshot::DealEventRow = sqlx::query_as(sqlx::AssertSqlSafe(format!(
-        "INSERT INTO deals (title, description, value, status, won_at, note, assigned_to, created_by, contact_id, updated_at) \
-         VALUES ($1, $2, $3, $4, CASE WHEN $4 = 'won' THEN now() END, $5, $6, $6, $7, now()) RETURNING {}",
-        mod_contacts::snapshot::DEAL_EVENT_COLS
-    )))
-    .bind(dto.get("title").and_then(Value::as_str).unwrap_or(""))
-    .bind(dto.get("description").and_then(Value::as_str))
-    .bind(dto.get("value").and_then(Value::as_i64))
-    .bind(status)
-    .bind(dto.get("note").and_then(Value::as_str))
-    .bind(a.user_id)
-    .bind(contact_id)
-    .fetch_one(&mut *tx)
-    .await
-    .map_err(db)?;
-    let snap = created.snapshot();
-    publish_integration_event(
-        &mut tx,
-        "deal.created",
-        &json!({ "deal": snap }),
-        created.id,
-        Some(a.user_id),
-    )
-    .await
-    .map_err(AppError::internal)?;
-    if status == "won" || status == "lost" {
-        publish_integration_event(
-            &mut tx,
-            &format!("deal.{status}"),
-            &json!({ "deal": created.snapshot() }),
-            created.id,
-            Some(a.user_id),
-        )
-        .await
-        .map_err(AppError::internal)?;
-    }
-    let item = NewNotification {
-        recipient_id: a.user_id,
-        event_type: "deal.assigned".to_owned(),
-        title: "Bạn được giao thương vụ mới".to_owned(),
-        body: format!("\"{}\" — giao bởi {}", created.title, a.email),
-        action_url: Some(match created.contact_id {
-            Some(cid) => format!("/contacts/{cid}"),
-            None => "/contacts".to_owned(),
-        }),
+    let input = mod_deals::deals::CreateDeal {
+        title: dto.get("title").and_then(Value::as_str).unwrap_or("").to_owned(),
+        description: dto.get("description").and_then(Value::as_str).map(str::to_owned),
+        value: dto.get("value").and_then(Value::as_i64),
+        status: dto.get("status").and_then(Value::as_str).map(str::to_owned),
+        note: dto.get("note").and_then(Value::as_str).map(str::to_owned),
+        assigned_to: a.user_id,
+        contact_id,
     };
-    create_notification(&mut tx, &[item])
-        .await
-        .map_err(AppError::internal)?;
-    let id = created.id;
-    tx.commit().await.map_err(AppError::internal)?;
-    tracing::info!("deal.created: id={id} by={} assigned={}", a.user_id, a.user_id);
-
-    let mut c = tenant.acquire().await.map_err(AppError::internal)?;
-    let v: DealView = sqlx::query_as(
-        "SELECT d.id, d.code, d.title, d.description, d.value, d.status, d.note, d.assigned_to, d.created_by, d.contact_id, \
-           d.created_at, d.updated_at, ua.full_name AS a_name, ua.email AS a_email, uc.full_name AS c_name, uc.email AS c_email, \
-           ct.full_name AS ct_name, ct.phone AS ct_phone, ct.assigned_to AS ct_assigned, ct.created_by_id AS ct_created \
-         FROM deals d JOIN users ua ON ua.id = d.assigned_to JOIN users uc ON uc.id = d.created_by \
-         LEFT JOIN contacts ct ON ct.id = d.contact_id WHERE d.id = $1",
-    )
-    .bind(id)
-    .fetch_one(&mut *c)
-    .await
-    .map_err(db)?;
-    let mask = PhoneMasker::new(owners(ctx, a, "contacts.phone_full").await?);
-    let contact = v.contact_id.map(|cid| {
-        json!({
-            "id": cid, "full_name": v.ct_name,
-            "phone": mask.mask(&[v.ct_assigned, v.ct_created], v.ct_phone.as_deref()),
-            "assigned_to": v.ct_assigned, "created_by_id": v.ct_created,
-        })
-    });
-    Ok(json!({
-        "id": v.id, "code": v.code, "title": v.title, "description": v.description,
-        "value": v.value.map(|x| x.0), "status": v.status, "note": v.note,
-        "assigned_to": v.assigned_to, "created_by": v.created_by, "contact_id": v.contact_id,
-        "created_at": iso(v.created_at.0), "updated_at": iso(v.updated_at.0),
-        "assignee": { "id": v.assigned_to, "full_name": v.a_name, "email": v.a_email },
-        "creator": { "id": v.created_by, "full_name": v.c_name, "email": v.c_email },
-        "contact": contact,
-    }))
+    let actor = mod_deals::Actor {
+        user_id: a.user_id,
+        is_admin: false,
+        email: Some(a.email.clone()),
+    };
+    let created = mod_deals::deals::create(&tenant, scopes, &actor, &input).await?;
+    serde_json::to_value(created.deal).map_err(AppError::internal)
 }
 
 /// `POST /public/deals`. `dto` đã qua `PublicCreateDealDto`.
 pub async fn create_deal(ctx: &PublicCtx, key: &KeyInfo, dto: &Map<String, Value>) -> R<Value> {
     let a = actor(ctx, key).await?;
     need(&a, "deals.manage", "tạo thương vụ")?;
+    // Mọi kiểm phạm vi TRƯỚC khi có thể tạo khách mới: bị từ chối ở bước thương vụ thì không để lại khách mồ côi.
+    let scopes = mod_deals::Scopes::resolve(&ctx.scopes, a.company, a.user_id, &a.grants).await?;
+    let manage_ok = match &scopes.deals_manage {
+        Some(OwnerIds::All) => true,
+        Some(OwnerIds::Ids(ids)) => ids.contains(&a.user_id),
+        None => false,
+    };
+    if !manage_ok {
+        return Err(forbidden("Không có quyền tạo thương vụ cho người này"));
+    }
     let contact = resolve_contact(ctx, &a, dto).await?;
-    let deal = insert_deal(ctx, &a, dto, contact.map(|c| c.0)).await?;
+    let deal = insert_deal(ctx, &a, &scopes, dto, contact.map(|c| c.0)).await?;
     tracing::info!(
         "PublicApi deal created api_key={} owner={} contact_created={}",
         key.id,
@@ -646,40 +538,46 @@ pub async fn columns(ctx: &PublicCtx, key: &KeyInfo) -> R<Value> {
     .fetch_all(&mut *c)
     .await
     .map_err(db)?;
-    let mut data = Vec::with_capacity(boards.len());
-    for (id, name) in boards {
-        let cols: Vec<(i32, String)> = sqlx::query_as(
-            "SELECT id, name FROM kanban_columns WHERE board_id = $1 AND NOT is_archived ORDER BY position ASC, id ASC",
-        )
-        .bind(id)
-        .fetch_all(&mut *c)
-        .await
-        .map_err(db)?;
-        let fields = sqlx::query(
-            "SELECT key, label, type, options, required FROM kanban_field_defs WHERE board_id = $1 ORDER BY position ASC, id ASC",
-        )
-        .bind(id)
-        .fetch_all(&mut *c)
-        .await
-        .map_err(db)?;
-        let fields: Vec<Value> = fields
-            .iter()
-            .map(|r| {
-                json!({
-                    "key": r.get::<String, _>("key"),
-                    "label": r.get::<String, _>("label"),
-                    "type": r.get::<String, _>("type"),
-                    "options": r.get::<Option<Value>, _>("options"),
-                    "required": r.get::<bool, _>("required"),
+    let ids: Vec<i32> = boards.iter().map(|b| b.0).collect();
+    let cols: Vec<(i32, i32, String)> = sqlx::query_as(
+        "SELECT board_id, id, name FROM kanban_columns WHERE board_id = ANY($1) AND NOT is_archived \
+         ORDER BY position ASC, id ASC",
+    )
+    .bind(&ids)
+    .fetch_all(&mut *c)
+    .await
+    .map_err(db)?;
+    let defs = sqlx::query(
+        "SELECT board_id, key, label, type, options, required FROM kanban_field_defs WHERE board_id = ANY($1) \
+         ORDER BY position ASC, id ASC",
+    )
+    .bind(&ids)
+    .fetch_all(&mut *c)
+    .await
+    .map_err(db)?;
+    let data: Vec<Value> = boards
+        .into_iter()
+        .map(|(id, name)| {
+            let columns: Vec<Value> = cols
+                .iter()
+                .filter(|c| c.0 == id)
+                .map(|c| json!({ "column_id": c.1, "name": c.2 }))
+                .collect();
+            let fields: Vec<Value> = defs
+                .iter()
+                .filter(|r| r.get::<i32, _>("board_id") == id)
+                .map(|r| {
+                    json!({
+                        "key": r.get::<String, _>("key"),
+                        "label": r.get::<String, _>("label"),
+                        "type": r.get::<String, _>("type"),
+                        "options": r.get::<Option<Value>, _>("options"),
+                        "required": r.get::<bool, _>("required"),
+                    })
                 })
-            })
-            .collect();
-        data.push(json!({
-            "board_id": id,
-            "board": name,
-            "columns": cols.into_iter().map(|(cid, n)| json!({ "column_id": cid, "name": n })).collect::<Vec<_>>(),
-            "fields": fields,
-        }));
-    }
+                .collect();
+            json!({ "board_id": id, "board": name, "columns": columns, "fields": fields })
+        })
+        .collect();
     Ok(json!({ "data": data }))
 }

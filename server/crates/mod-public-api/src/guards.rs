@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use axum::extract::Request;
+use axum::extract::{MatchedPath, Request};
 use trinity_http::edge::client_ip::resolve_client_ip;
 use trinity_http::rate_limit::now_ms;
 use trinity_http::router::{GuardFuture, NamedGuard};
@@ -52,8 +52,14 @@ impl NamedGuard for ApiKeyGuard {
     fn check<'a>(&'a self, req: &'a mut Request) -> GuardFuture<'a> {
         Box::pin(async move {
             let ctx = &self.0;
-            let scope = scope_of(req.uri().path()).ok_or_else(|| {
-                tracing::error!("ApiKeyGuard áp vào route không có phạm vi: {}", req.uri().path());
+            // Phạm vi theo mẫu route đã khớp (`MatchedPath`), không theo đường dẫn thô của request.
+            let matched = req
+                .extensions()
+                .get::<MatchedPath>()
+                .map(|m| m.as_str().to_owned())
+                .unwrap_or_default();
+            let scope = scope_of(&matched).ok_or_else(|| {
+                tracing::error!("ApiKeyGuard áp vào route không có phạm vi: {matched}");
                 HttpError::nest(500, Some("Cấu hình API key guard lỗi".to_owned().into()))
             })?;
             let raw = req

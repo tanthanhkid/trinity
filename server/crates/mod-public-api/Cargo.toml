@@ -13,6 +13,7 @@ axum = { workspace = true }
 chrono = { workspace = true }
 mod-apikeys = { path = "../mod-apikeys" }
 mod-contacts = { path = "../mod-contacts" }
+mod-deals = { path = "../mod-deals" }
 mod-kanban = { path = "../mod-kanban" }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -49,7 +49,7 @@ interface Action {
 }
 
 const ACTIONS: Action[] = [
-  { where: '/contacts', perm: 'contacts.create', name: 'Thêm khách hàng', pageNeed: 'contacts.view' },
+  { where: '/contacts', perm: 'contacts.create', name: 'Thêm khách', pageNeed: 'contacts.view' },
   { where: '/contacts', perm: 'contacts.export', name: 'Xuất Excel', pageNeed: 'contacts.view' },
   { where: '/products', perm: 'products.manage', name: 'Thêm sản phẩm', pageNeed: 'products.view' },
   { where: '/products', perm: 'products.manage', name: 'Quản lý danh mục', pageNeed: 'products.view' },
@@ -155,10 +155,11 @@ for (const role of ROLES) {
       await page.goto('/reports')
       await settle(page)
       const texts = await page.locator('main button, main [role=tab]').evaluateAll((bs) => bs.map((b) => (b.textContent ?? '').trim()))
-      const allowedLabels = new Set(readReportTabs().filter((t) => can(me.permissions, t.permission)).map((t) => t.label))
+      const reportOk = (t: ReturnType<typeof readReportTabs>[number]) => (t.permission ? can(me.permissions, t.permission) : (t.anyOf ?? []).some((p) => can(me.permissions, p)))
+      const allowedLabels = new Set(readReportTabs().filter(reportOk).map((t) => t.label))
       for (const t of readReportTabs()) {
         if (allowedLabels.has(t.label)) continue
-        expect.soft(texts.includes(t.label), `Tab báo cáo "${t.label}" (${t.permission}) hiện dù thiếu quyền`).toBe(false)
+        expect.soft(texts.includes(t.label), `Tab báo cáo "${t.label}" (${t.permission ?? t.anyOf?.join('|')}) hiện dù thiếu quyền`).toBe(false)
       }
     })
 

@@ -8,9 +8,9 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::{PgConnection, Row};
+use trinity_db::TenantDb;
 use trinity_db::outbox::{NewNotification, create_notification};
 use trinity_db::types::Timestamp;
-use trinity_db::TenantDb;
 
 use crate::aggregate::collect;
 use crate::config;
@@ -201,12 +201,7 @@ pub async fn collect_details(
 }
 
 /// `agentData`: số liệu + chi tiết + bản mẫu cho người có phạm vi `owners`.
-pub async fn agent_data(
-    conn: &mut PgConnection,
-    owners: &Owners,
-    slot: Slot,
-    now: DateTime<Utc>,
-) -> Result<AgentData> {
+pub async fn agent_data(conn: &mut PgConnection, owners: &Owners, slot: Slot, now: DateTime<Utc>) -> Result<AgentData> {
     let data = collect(conn, owners, slot, now).await?;
     let details = collect_details(conn, owners, slot, now).await?;
     let template = build_content(&data);

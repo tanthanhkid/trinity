@@ -35,7 +35,9 @@ pub fn get_report<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Re
         let id = args.get("report_id").and_then(Value::as_str);
         let data = match id {
             None => {
-                let v = mod_reports::custom::list(&deps.reports, &actor).await.map_err(app_err)?;
+                let v = mod_reports::custom::list(&deps.reports, &actor)
+                    .await
+                    .map_err(app_err)?;
                 let reports: Vec<Value> = v["reports"]
                     .as_array()
                     .map(|a| {
@@ -88,7 +90,11 @@ fn report_data(r: &Value) -> Value {
     });
     let by_month: Vec<Value> = r["by_month"]
         .as_array()
-        .map(|ms| ms.iter().map(|m| json!({ "month": m["month"], "count": m["count"] })).collect())
+        .map(|ms| {
+            ms.iter()
+                .map(|m| json!({ "month": m["month"], "count": m["count"] }))
+                .collect()
+        })
         .unwrap_or_default();
     json!({
         "report": { "id": r["report"]["id"], "name": r["report"]["name"] },
@@ -185,9 +191,7 @@ pub fn save_briefing<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a,
             return Err(ToolError::User("Cần title và text (không rỗng).".into()));
         }
         let Some(owners) = owners else {
-            return Err(forbidden(
-                "Không có quyền xem báo cáo Tổng quan (reports.overview)",
-            ));
+            return Err(forbidden("Không có quyền xem báo cáo Tổng quan (reports.overview)"));
         };
         let tenant = deps.db.tenant(p.company).await.map_err(internal)?;
         let saved = save_from_agent(&tenant, p.user_id, &owners, slot, &title, &text, now)

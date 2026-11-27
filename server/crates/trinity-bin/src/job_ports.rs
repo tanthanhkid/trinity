@@ -58,11 +58,12 @@ impl RbacActors {
         if !matches!(account, Some((false, ref status)) if status == "active") {
             return Ok(None);
         }
-        let role_ids: Vec<(i32,)> = sqlx::query_as("SELECT role_id FROM user_roles WHERE user_id = $1 ORDER BY role_id")
-            .bind(user)
-            .fetch_all(&mut *conn)
-            .await
-            .map_err(|e| e.to_string())?;
+        let role_ids: Vec<(i32,)> =
+            sqlx::query_as("SELECT role_id FROM user_roles WHERE user_id = $1 ORDER BY role_id")
+                .bind(user)
+                .fetch_all(&mut *conn)
+                .await
+                .map_err(|e| e.to_string())?;
         drop(conn);
         let granted = self
             .permissions
@@ -108,6 +109,9 @@ mod tests {
     fn owner_ids_doi_sang_scope_webhook() {
         assert_eq!(to_webhook_scope(None), WhScope::None);
         assert_eq!(to_webhook_scope(Some(OwnerIds::All)), WhScope::All);
-        assert_eq!(to_webhook_scope(Some(OwnerIds::Ids(vec![1, 2]))), WhScope::Owners(vec![1, 2]));
+        assert_eq!(
+            to_webhook_scope(Some(OwnerIds::Ids(vec![1, 2]))),
+            WhScope::Owners(vec![1, 2])
+        );
     }
 }

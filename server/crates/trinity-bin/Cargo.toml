@@ -38,6 +38,7 @@ mod-leads = { workspace = true }
 mod-channel-guard = { workspace = true }
 mod-store = { workspace = true }
 mod-oauth = { workspace = true }
+mod-mcp = { workspace = true }
 mod-deals = { workspace = true }
 mod-public-api = { workspace = true }
 trinity-http = { workspace = true }

@@ -1,9 +1,6 @@
 name: Setup workspace
-description: Cài pnpm + Node 22, cài dependency (có cache), tuỳ chọn tạo Prisma client và build gói dùng chung.
+description: Cài pnpm + Node 22, cài dependency (có cache), tuỳ chọn build gói dùng chung (web tĩnh và công cụ TS; không còn backend Node).
 inputs:
-  prisma:
-    description: Tạo Prisma client
-    default: "true"
   packages:
     description: Build các gói trong packages/*
     default: "true"
@@ -20,10 +17,6 @@ runs:
     - name: Install dependencies
       shell: bash
       run: pnpm install --frozen-lockfile --prefer-offline
-    - name: Generate Prisma clients
-      if: inputs.prisma == 'true'
-      shell: bash
-      run: pnpm --filter @trinity/prisma generate
     - name: Build shared packages
       if: inputs.packages == 'true'
       shell: bash

@@ -1,44 +1,22 @@
-# Trinity — run the whole stack locally:
+# Trinity — chạy cả bộ trên máy:
 #
-#   ./install.sh --up         # creates .env with random secrets (never overwrites an existing one), then
-#                             # runs `docker compose up --build -d`
-#   (manual alternative: cp .env.example .env, replace every change-me-* value, docker compose up --build)
+#   ./install.sh --up         # tạo .env với khoá ngẫu nhiên (không bao giờ ghi đè .env có sẵn), rồi chạy
+#                             # `docker compose up --build -d`
+#   (cách tay: cp .env.example .env, thay mọi giá trị change-me-*, docker compose up --build)
 #
-# Web UI + API: http://localhost:3000  (Rust serves the static web app and the routes it owns; the rest goes to `api` inside the
-# same container network namespace, so /api/v1 is on port 3000 too. Swagger at /docs when SWAGGER_ENABLED=true)
-# First admin: SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD from .env (if the password is empty, a random one is
-# printed once in: docker compose logs seed)
+# Web + API: http://localhost:3000  (binary Rust `trinity` phục vụ web tĩnh và mọi route /api/v1 trên cùng cổng 3000;
+# Swagger tại /docs khi SWAGGER_ENABLED=true)
+# Quản trị đầu tiên: SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD trong .env (nếu mật khẩu để trống, một mật khẩu ngẫu nhiên
+# được in MỘT lần ở: docker compose logs trinity)
 #
-# Services
+# Dịch vụ (chỉ hai)
 #   postgres   PostgreSQL 16
-#   migrate    one-shot job: `trinity migrate` (lịch sử migration Prisma, chạy bằng binary Rust)
-#   seed       one-shot job: `trinity seed` (admin, options, optional demo data when SEED_DEMO_DATA=true)
-#   trinity    Rust binary: public port 3000, static web (WEB_DIR=/srv/web), routes owned by Rust, forwards the rest to `api`
-#   api        NestJS monolith (auth, crm, commerce, payroll, notification); loopback only, shares the network namespace of `trinity`
-#              (W02b: there is no Next server any more, the former `web` service is gone)
+#   trinity    binary Rust: khi khởi động chạy `trinity migrate` (migration) và `trinity seed` (quản trị, tuỳ chọn mặc định,
+#              dữ liệu mẫu khi SEED_DEMO_DATA=true; chạy lặp lại không đổi dữ liệu) rồi `trinity serve` trên cổng 3000
 #
 # Sau Cloudflare Tunnel: thêm tệp ghép docker-compose.tunnel.yml (Compose >= 2.24), xem tệp đó.
 
 name: trinity
-
-x-api-env: &api-env
-  NODE_ENV: production
-  DATABASE_URL: postgresql://${POSTGRES_USER:-trinity}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-trinity}
-  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
-  SERVICE_SECRET: ${SERVICE_SECRET:?set SERVICE_SECRET in .env}
-  INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-${SERVICE_SECRET}}
-  # IP của khách (docs/deployment.md, "Client IP"). Trong Compose, Rust (`trinity`) là tiến trình biên và ký IP cho api; peer của
-  # api luôn là loopback + header ký của Rust, nên TRUSTED_PROXY của api là none.
-  TRUSTED_PROXY: none
-  CLOUDFLARE_IP_RANGES: ${CLOUDFLARE_IP_RANGES:-}
-  CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-  STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
-  STORAGE_LOCAL_ROOT: /var/lib/trinity/storage
-  INTEGRATIONS_WEBHOOKS_ENABLED: ${INTEGRATIONS_WEBHOOKS_ENABLED:-false}
-  INTEGRATIONS_MCP_ENABLED: ${INTEGRATIONS_MCP_ENABLED:-false}
-  INTEGRATIONS_PUBLIC_BASE_URL: ${INTEGRATIONS_PUBLIC_BASE_URL:-}
-  INTEGRATIONS_SECRET_KEY: ${INTEGRATIONS_SECRET_KEY:-}
-  SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
 
 services:
   postgres:
@@ -56,39 +34,16 @@ services:
       timeout: 5s
       retries: 20
 
-  migrate:
-    build:
-      context: .
-      target: trinity
-    restart: "no"
-    command: ["trinity", "migrate"]
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-trinity}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-trinity}
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-  seed:
-    build:
-      context: .
-      target: trinity
-    restart: "no"
-    command: ["trinity", "seed"]
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-trinity}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-trinity}
-      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.com}
-      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
-      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-
   trinity:
     build:
       context: .
       target: trinity
     restart: unless-stopped
-    command: ["trinity", "serve"]
+    # Migrate rồi seed rồi phục vụ; một bước lỗi thì container dừng (không phục vụ trên schema dở dang).
+    command:
+      - sh
+      - -c
+      - trinity migrate && trinity seed && exec trinity serve
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-trinity}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-trinity}
@@ -101,59 +56,35 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
       STORAGE_LOCAL_ROOT: /var/lib/trinity/storage
+      INTEGRATIONS_WEBHOOKS_ENABLED: ${INTEGRATIONS_WEBHOOKS_ENABLED:-false}
+      INTEGRATIONS_MCP_ENABLED: ${INTEGRATIONS_MCP_ENABLED:-false}
       INTEGRATIONS_PUBLIC_BASE_URL: ${INTEGRATIONS_PUBLIC_BASE_URL:-}
       INTEGRATIONS_SECRET_KEY: ${INTEGRATIONS_SECRET_KEY:-}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       STORE_DOMAIN: ${STORE_DOMAIN:-}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       TRINITY_HTTP_PORT: "3000"
+      # Cổng tương thích cho reverse proxy cũ còn trỏ `/notif-ws` vào cổng 4000 (docs/deployment.md); phải khác 3000.
+      COMPAT_API_PORT: "4000"
       # Web tĩnh nằm sẵn trong image (/srv/web); đặt WEB_DIR khác để vá web mà không dựng lại binary.
       WEB_DIR: ${WEB_DIR:-/srv/web}
-      # Cổng tương thích 4000 đang do Node giữ trong cùng namespace, nên cổng của Rust đổi sang 4001 (phải khác 3000 và 4000).
-      COMPAT_API_PORT: "4001"
-      NODE_FALLBACK_URL: http://127.0.0.1:4000
-      TRINITY_OWNERSHIP_FILE: /etc/trinity/ownership.json
-      DB_POOL_SIZE: ${RUST_DB_POOL_SIZE:-4}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-8}
     volumes:
-      - ./deploy/hybrid:/etc/trinity:ro
       - storage:/var/lib/trinity/storage
       - uploads:/app/uploads
     ports:
-      # Cổng công khai duy nhất. WEB_BIND=127.0.0.1 khi có Caddy/nginx trên host (TRUSTED_PROXY=cidr:docker-gateway).
+      # Cổng công khai. WEB_BIND=127.0.0.1 khi có Caddy/nginx trên host (TRUSTED_PROXY=cidr:docker-gateway).
       - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-3000}:3000"
+      # Cổng tương thích chỉ ở loopback của host; API_PORT giữ nghĩa cũ (cổng phía host, có người đã đổi).
+      - "127.0.0.1:${API_PORT:-4000}:4000"
     depends_on:
-      seed:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     healthcheck:
-      # Đi qua toàn chuỗi: Rust -> Node (/api/v1/health). Image không có shell/node nên dùng lệnh của chính binary.
+      # Image không có curl/node nên dùng lệnh của chính binary (GET /api/v1/health trên loopback).
       test: ["CMD", "trinity", "healthcheck"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 40s
-
-  api:
-    build:
-      context: .
-      target: api
-    restart: unless-stopped
-    # Chung network namespace với `trinity`: chỉ nghe loopback, không công bố cổng; tên `api` không phân giải được,
-    # mọi địa chỉ phía Node dùng 127.0.0.1; `postgres` vẫn gọi được theo tên.
-    network_mode: service:trinity
-    environment:
-      <<: *api-env
-      PORT: "4000"
-      LISTEN_HOST: 127.0.0.1
-      TRINITY_OWNERSHIP_FILE: /etc/trinity/ownership.json
-    volumes:
-      - ./deploy/hybrid:/etc/trinity:ro
-      - storage:/var/lib/trinity/storage
-      - uploads:/app/uploads
-    depends_on:
-      trinity:
-        condition: service_started
-      seed:
-        condition: service_completed_successfully
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 12

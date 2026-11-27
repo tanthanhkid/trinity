@@ -10,7 +10,7 @@
 #
 # Cách hoạt động: `trinity` (Rust, biên duy nhất) không công bố cổng nào và chỉ nghe loopback (LISTEN_HOST=127.0.0.1; với
 # cloudflare-tunnel, Rust từ chối khởi động nếu địa chỉ nghe không phải loopback). `cloudflared` dùng chung network
-# namespace với `trinity` (cùng namespace với `api`) nên tới được 127.0.0.1:3000 và 127.0.0.1:4000; không ai khác tới được.
+# namespace với `trinity` nên tới được 127.0.0.1:3000 (cổng chính, tunnel chỉ trỏ cổng này); không ai khác tới được.
 # Tạo lại `trinity` thì `cloudflared` cũng được tạo lại (network_mode: service:trinity + depends_on.restart).
 
 services:

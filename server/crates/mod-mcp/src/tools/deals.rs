@@ -78,21 +78,13 @@ pub fn my_tasks<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Resu
             limit: Some(clamp_limit(args.get("limit"))),
             involving: Some(p.user_id),
             open_only: true,
+            order_by_due: true,
             ..ListCards::default()
         };
         let res = list(&mut conn, &actor, &q).await.map_err(app_err)?;
         let r = to_json(&res)?;
-        let mut cards: Vec<Value> = r["cards"].as_array().cloned().unwrap_or_default();
-        // Hạn gần nhất trước (không hạn xuống cuối), sắp trong trang đã lấy (≤ 50) để con trỏ theo id vẫn ổn định.
-        cards.sort_by(|a, b| {
-            let due = |c: &Value| s(c, "due_at").map(str::to_owned);
-            match (due(a), due(b)) {
-                (Some(x), Some(y)) => x.cmp(&y),
-                (Some(_), None) => std::cmp::Ordering::Less,
-                (None, Some(_)) => std::cmp::Ordering::Greater,
-                (None, None) => std::cmp::Ordering::Equal,
-            }
-        });
+        // Đã sắp theo hạn gần nhất trước (không hạn xuống cuối) ngay trong SQL; con trỏ cùng khoá nên không sắp lại trong trang.
+        let cards: Vec<Value> = r["cards"].as_array().cloned().unwrap_or_default();
         let tasks: Vec<Value> = cards
             .iter()
             .map(|c| {

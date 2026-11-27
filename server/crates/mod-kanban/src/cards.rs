@@ -383,6 +383,10 @@ pub struct ListCards {
     /// Chỉ MCP: chỉ thẻ chưa hoàn thành (`completed_at IS NULL`).
     #[serde(skip)]
     pub open_only: bool,
+    /// Chỉ MCP: sắp theo hạn gần nhất trước, thẻ không hạn xuống cuối (`due_at ASC NULLS LAST, id ASC`); con trỏ cùng khoá
+    /// (`due_at`, `id`), nên các trang nối tiếp nhau đúng thứ tự và không sắp lại trong trang.
+    #[serde(skip)]
+    pub order_by_due: bool,
 }
 
 /// Body `POST /cards` (K15: tiêu đề 1..500, mô tả ≤ 10.000, nhãn ≤ 20 phần tử ≤ 64, người phụ trách ≤ 20…).
@@ -698,17 +702,7 @@ pub async fn list(conn: &mut PgConnection, actor: &Actor, q: &ListCards) -> Resu
             .push("]::text[]");
     }
     if let Some(s) = q.search.as_deref().filter(|s| !s.is_empty()) {
-        // Thoát `\`, `%`, `_` để chuỗi gõ khớp theo nghĩa đen.
-        let esc: String = s
-            .chars()
-            .flat_map(|c| {
-                if matches!(c, '\\' | '%' | '_') {
-                    vec!['\\', c]
-                } else {
-                    vec![c]
-                }
-            })
-            .collect();
+        let esc = trinity_kernel::vi::escape_like(s);
         qb.push(" AND c.title ILIKE ")
             .push_bind(format!("%{esc}%"))
             .push(" ESCAPE '\\'");
@@ -729,7 +723,12 @@ pub async fn list(conn: &mut PgConnection, actor: &Actor, q: &ListCards) -> Resu
     let by_column = q.column_id.is_some();
     if let Some(cur) = q.cursor {
         // Con trỏ không còn tồn tại ⇒ không dòng nào khớp (như Prisma).
-        if by_column {
+        if q.order_by_due && !by_column {
+            let due = format!("(SELECT due_at FROM kanban_cards WHERE id = {cur})");
+            qb.push(format!(
+                " AND EXISTS (SELECT 1 FROM kanban_cards WHERE id = {cur}) AND (({due} IS NOT NULL AND (c.due_at > {due} OR (c.due_at = {due} AND c.id > {cur}) OR c.due_at IS NULL)) OR ({due} IS NULL AND c.due_at IS NULL AND c.id > {cur}))"
+            ));
+        } else if by_column {
             qb.push(format!(
                 " AND ((c.position > (SELECT position FROM kanban_cards WHERE id = {cur})) OR (c.position = (SELECT position FROM kanban_cards WHERE id = {cur}) AND c.id > {cur}))"
             ));
@@ -741,6 +740,8 @@ pub async fn list(conn: &mut PgConnection, actor: &Actor, q: &ListCards) -> Resu
     }
     qb.push(if by_column {
         " ORDER BY c.position ASC, c.id ASC"
+    } else if q.order_by_due {
+        " ORDER BY c.due_at ASC NULLS LAST, c.id ASC"
     } else {
         " ORDER BY c.id DESC"
     });

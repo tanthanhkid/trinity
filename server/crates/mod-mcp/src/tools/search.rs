@@ -11,7 +11,6 @@ use serde_json::{Map, Value, json};
 use sqlx::{Postgres, QueryBuilder};
 use trinity_rbac::can;
 
-use super::contacts::escape_like;
 use super::{done, forbidden, visible_contacts};
 use crate::ai_output::{DATA_NOTICE, mask_phones_in_text, sanitize_for_ai, slice16};
 use crate::args::{opt_str, reject_digit_probe, s};
@@ -48,8 +47,16 @@ pub fn search<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result
         }
         let base = ctx.base_url;
         // Phạm vi và người gọi lấy TRƯỚC khi giữ kết nối (không xin kết nối thứ hai khi đang giữ một).
-        let scopes = deps.contact_scopes(p).await?;
-        let dscopes = deps.deal_scopes(p).await?;
+        let scopes = if can_contacts || can_deals {
+            Some(deps.contact_scopes(p).await?)
+        } else {
+            None
+        };
+        let dscopes = if can_deals {
+            Some(deps.deal_scopes(p).await?)
+        } else {
+            None
+        };
         let actor = if can_cards {
             Some(deps.kanban_actor(p).await?)
         } else {
@@ -57,14 +64,14 @@ pub fn search<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result
         };
         let mut conn = deps.conn(p.company).await?;
         let mut results: Vec<Value> = Vec::new();
-        if can_contacts {
-            let wh = resolve(&mut conn, &scopes, &ContactFilters::default())
+        if let (true, Some(scopes)) = (can_contacts, &scopes) {
+            let wh = resolve(&mut conn, scopes, &ContactFilters::default())
                 .await
                 .map_err(app_err)?;
             let mut qb = QueryBuilder::<Postgres>::new("SELECT c.id, c.full_name FROM contacts c WHERE ");
             wh.push_aliased(&mut qb);
             qb.push(" AND c.full_name ILIKE ")
-                .push_bind(format!("%{}%", escape_like(&q)))
+                .push_bind(format!("%{}%", trinity_kernel::vi::escape_like(&q)))
                 .push(" ESCAPE '\\'");
             qb.push(" ORDER BY c.id DESC LIMIT ").push_bind(PER_TYPE);
             let rows: Vec<(i32, Option<String>)> = qb.build_query_as().fetch_all(&mut *conn).await.map_err(internal)?;
@@ -75,10 +82,10 @@ pub fn search<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result
                 }));
             }
         }
-        if can_deals {
+        if let (true, Some(dscopes), Some(scopes)) = (can_deals, &dscopes, &scopes) {
             let res = mod_deals::deals::find_all(
                 &mut conn,
-                &dscopes,
+                dscopes,
                 &DealQuery {
                     search: Some(q.clone()),
                     limit: Some(PER_TYPE),
@@ -93,7 +100,7 @@ pub fn search<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result
                 .iter()
                 .map(|d| d["contact_id"].as_i64().and_then(|n| i32::try_from(n).ok()))
                 .collect();
-            let seen = visible_contacts(&scopes, p, &mut conn, &ids).await?;
+            let seen = visible_contacts(scopes, p, &mut conn, &ids).await?;
             for (d, cid) in rows.iter().zip(&ids) {
                 let url = match cid {
                     Some(c) if seen.contains(c) => format!("{base}/contacts/{c}"),
@@ -180,7 +187,7 @@ async fn fetch_contact(id: i32, ctx: &ToolCtx<'_>) -> Result<Fetched, ToolError>
             .map_err(app_err)?,
     )?;
     let cid = c["id"].as_i64().unwrap_or(0);
-    let title = s(&c, "full_name").map_or_else(|| format!("Khách hàng #{cid}"), str::to_owned);
+    let title = s(&c, "full_name").map_or_else(|| format!("Khách hàng #{cid}"), one_line);
     let label = |k: &str| c.get(k).and_then(|o| o.get("label")).cloned();
     let name_of = |k: &str, f: &str| c.get(k).and_then(|o| o.get(f)).cloned();
     let deals: String = c["deals"]
@@ -192,8 +199,8 @@ async fn fetch_contact(id: i32, ctx: &ToolCtx<'_>) -> Result<Fetched, ToolError>
                     format!(
                         "  - deal:{} {} ({})",
                         d["id"],
-                        s(d, "title").unwrap_or(""),
-                        s(d, "status").unwrap_or("")
+                        one_line(s(d, "title").unwrap_or("")),
+                        one_line(s(d, "status").unwrap_or(""))
                     )
                 })
                 .collect::<Vec<_>>()
@@ -208,10 +215,12 @@ async fn fetch_contact(id: i32, ctx: &ToolCtx<'_>) -> Result<Fetched, ToolError>
                 .map(|x| {
                     let when: String = s(x, "created_at").unwrap_or("").chars().take(16).collect();
                     let details = match x.get("details") {
-                        Some(d) if !d.is_null() => format!(" — {}", slice16(&trinity_kernel::json::js_json(d), 300)),
+                        Some(d) if !d.is_null() => {
+                            format!(" — {}", slice16(&one_line(&trinity_kernel::json::js_json(d)), 300))
+                        }
                         _ => String::new(),
                     };
-                    format!("  - [{when}] {}{details}", s(x, "action").unwrap_or(""))
+                    format!("  - [{when}] {}{details}", one_line(s(x, "action").unwrap_or("")))
                 })
                 .collect::<Vec<_>>()
                 .join("\n")
@@ -265,7 +274,7 @@ async fn fetch_deal(id: i32, ctx: &ToolCtx<'_>) -> Result<Fetched, ToolError> {
     let see = visible_contacts(&cscopes, p, &mut conn, &[cid]).await?;
     let see_contact = cid.is_some_and(|c| see.contains(&c));
     let did = d["id"].as_i64().unwrap_or(0);
-    let title = s(&d, "title").unwrap_or("").to_owned();
+    let title = one_line(s(&d, "title").unwrap_or(""));
     let contact = d.get("contact").filter(|c| !c.is_null());
     let mut text = format!("Deal #{did}: {title}\n");
     for (l, v) in [
@@ -318,7 +327,7 @@ async fn fetch_card(id: i32, ctx: &ToolCtx<'_>) -> Result<Fetched, ToolError> {
             .map_err(app_err)?,
     )?;
     let cid = c["id"].as_i64().unwrap_or(0);
-    let title = s(&c, "title").unwrap_or("").to_owned();
+    let title = one_line(s(&c, "title").unwrap_or(""));
     let labels = c["labels"]
         .as_array()
         .map(|a| a.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(", "))

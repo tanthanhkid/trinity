@@ -2,7 +2,7 @@
 //! nhận khách). CHỈ ĐỌC, theo quyền.
 
 use serde_json::{Map, Value, json};
-use sqlx::{Postgres, QueryBuilder, Row};
+use sqlx::{Postgres, QueryBuilder};
 use trinity_rbac::{OwnerIds, can};
 
 use super::{forbidden, wrapped};
@@ -84,40 +84,41 @@ pub fn list_crm_options<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<
 }
 
 /// Bảng + cột công việc người gọi thấy được (`isBoardVisibleToUser`): quyền `kanban.boards` thấy hết, còn lại chỉ bảng đang bật và
-/// (không giới hạn vai trò hoặc có vai trò trùng). Lấy 30 bảng đầu rồi lọc, tối đa 10.
+/// (không giới hạn vai trò hoặc có vai trò trùng). Lọc ngay trong SQL (tối đa 10 bảng) và lấy cột của mọi bảng bằng MỘT truy vấn.
 async fn boards(actor: &mod_kanban::Actor, conn: &mut trinity_db::TenantConn) -> Result<Value, ToolError> {
-    let rows = sqlx::query(
-        "SELECT id, name, is_active, visibility_role_ids FROM kanban_boards WHERE deleted_at IS NULL ORDER BY id ASC LIMIT 30",
+    let rows: Vec<(i32, String)> = sqlx::query_as(
+        "SELECT id, name FROM kanban_boards
+         WHERE deleted_at IS NULL
+           AND ($1 OR (is_active AND (cardinality(visibility_role_ids) = 0 OR visibility_role_ids && $2)))
+         ORDER BY id ASC LIMIT 10",
     )
+    .bind(actor.access.can_manage_boards)
+    .bind(actor.access.role_ids.clone())
     .fetch_all(&mut **conn)
     .await
     .map_err(internal)?;
-    let mut out = Vec::new();
-    for r in rows {
-        let id: i32 = r.try_get("id").map_err(internal)?;
-        let active: bool = r.try_get("is_active").map_err(internal)?;
-        let roles: Vec<i32> = r.try_get("visibility_role_ids").map_err(internal)?;
-        let visible = actor.access.can_manage_boards
-            || (active && (roles.is_empty() || roles.iter().any(|x| actor.access.role_ids.contains(x))));
-        if !visible {
-            continue;
-        }
-        let cols: Vec<(i32, String, bool)> = sqlx::query_as(
-            "SELECT id, name, is_done FROM kanban_columns WHERE board_id = $1 AND NOT is_archived ORDER BY position ASC, id ASC LIMIT 20",
-        )
-        .bind(id)
-        .fetch_all(&mut **conn)
-        .await
-        .map_err(internal)?;
-        out.push(json!({
-            "id": id, "name": r.try_get::<String, _>("name").map_err(internal)?,
-            "columns": cols.into_iter().map(|(id, name, is_done)| json!({ "id": id, "name": name, "is_done": is_done })).collect::<Vec<_>>(),
-        }));
-        if out.len() == 10 {
-            break;
-        }
-    }
-    Ok(Value::Array(out))
+    let ids: Vec<i32> = rows.iter().map(|r| r.0).collect();
+    let cols: Vec<(i32, i32, String, bool)> = sqlx::query_as(
+        "SELECT board_id, id, name, is_done FROM kanban_columns
+         WHERE board_id = ANY($1) AND NOT is_archived ORDER BY board_id ASC, position ASC, id ASC",
+    )
+    .bind(&ids)
+    .fetch_all(&mut **conn)
+    .await
+    .map_err(internal)?;
+    Ok(Value::Array(
+        rows.into_iter()
+            .map(|(id, name)| {
+                let columns: Vec<Value> = cols
+                    .iter()
+                    .filter(|c| c.0 == id)
+                    .take(20)
+                    .map(|c| json!({ "id": c.1, "name": c.2, "is_done": c.3 }))
+                    .collect();
+                json!({ "id": id, "name": name, "columns": columns })
+            })
+            .collect(),
+    ))
 }
 
 /// Nhân viên có thể nhận khách (phạm vi `contacts.transfer`), lọc theo tên, tối đa 30.
@@ -139,7 +140,7 @@ async fn users(
     }
     if let Some(n) = name {
         qb.push(" AND full_name ILIKE ")
-            .push_bind(format!("%{}%", super::contacts::escape_like(n)))
+            .push_bind(format!("%{}%", trinity_kernel::vi::escape_like(n)))
             .push(" ESCAPE '\\'");
     }
     qb.push(" ORDER BY full_name ASC LIMIT 30");

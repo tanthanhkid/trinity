@@ -42,11 +42,11 @@ pub fn clamp_limit(v: Option<&Value>) -> i64 {
 }
 
 static PROBE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"[0-9][\s().\-_/,+]{0,3}[0-9][\s().\-_/,+]{0,3}[0-9][\s().\-_/,+]{0,3}[0-9]").expect("regex hợp lệ")
+    Regex::new(r"[0-9][^\p{L}\p{N}]{0,3}[0-9][^\p{L}\p{N}]{0,3}[0-9][^\p{L}\p{N}]{0,3}[0-9]").expect("regex hợp lệ")
 });
 
 /// Chặn oracle dò chữ số: bộ lọc văn bản khớp bằng `contains` mà phản hồi che SĐT, nhưng việc KHỚP không che, nên gọi lặp
-/// "0901", "09012"… lột được dãy số. Chuỗi có ≥ 4 chữ số (≤ 3 ký tự phân cách xen giữa, đã NFKC) ⇒ từ chối.
+/// "0901", "09012"… lột được dãy số. Chuỗi có ≥ 4 chữ số (≤ 3 ký tự phân cách xen giữa, MỌI ký tự không phải chữ/số đều là phân cách, đã NFKC) ⇒ từ chối.
 pub fn reject_digit_probe(q: &str) -> Result<(), ToolError> {
     let n: String = q
         .nfkc()
@@ -61,7 +61,7 @@ pub fn reject_digit_probe(q: &str) -> Result<(), ToolError> {
     Ok(())
 }
 
-/// `ISO` có mili giây như `Date.prototype.toISOString` cho chuỗi đã serialize từ `Timestamp`.
+/// Giá trị chuỗi của khoá `k` (nếu có và là chuỗi).
 pub fn s<'a>(v: &'a Value, k: &str) -> Option<&'a str> {
     v.get(k).and_then(Value::as_str)
 }

@@ -14,22 +14,11 @@ use crate::exec::{ToolCtx, ToolError, ToolOutput};
 use crate::protocol::BoxFuture;
 
 const DAY_MS: i64 = 86_400_000;
+/// Trần `uncontacted_days` (100 năm): lớn hơn thì mốc thời gian tràn.
+const MAX_DAYS: i32 = 36_500;
 
 fn internal(e: sqlx::Error) -> ToolError {
     ToolError::Internal(e.to_string())
-}
-
-/// Thoát `\`, `%`, `_` để chuỗi gõ khớp theo nghĩa đen trong `ILIKE … ESCAPE '\'`.
-pub(crate) fn escape_like(s: &str) -> String {
-    s.chars()
-        .flat_map(|c| {
-            if matches!(c, '\\' | '%' | '_') {
-                vec!['\\', c]
-            } else {
-                vec![c]
-            }
-        })
-        .collect()
 }
 
 fn ts(r: &sqlx::postgres::PgRow, c: &str) -> Result<Value, ToolError> {
@@ -43,6 +32,9 @@ pub fn list_contacts<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a,
         let (p, deps) = (ctx.principal, ctx.deps);
         let limit = clamp_limit(args.get("limit"));
         let days = opt_int(args.get("uncontacted_days"));
+        if days.is_some_and(|d| d > MAX_DAYS) {
+            return Err(ToolError::Plain(format!("uncontacted_days tối đa {MAX_DAYS}")));
+        }
         let name = opt_str(args.get("name"), 100);
         if let Some(n) = &name {
             reject_digit_probe(n)?;
@@ -71,11 +63,12 @@ pub fn list_contacts<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a,
         wh.push_aliased(&mut qb);
         if let Some(n) = &name {
             qb.push(" AND c.full_name ILIKE ")
-                .push_bind(format!("%{}%", escape_like(n)))
+                .push_bind(format!("%{}%", trinity_kernel::vi::escape_like(n)))
                 .push(" ESCAPE '\\'");
         }
         if let Some(d) = days {
-            let since = chrono_since(i64::from(d) * DAY_MS);
+            let since = chrono_since(i64::from(d) * DAY_MS)
+                .ok_or_else(|| ToolError::Plain(format!("uncontacted_days tối đa {MAX_DAYS}")))?;
             qb.push(" AND NOT EXISTS (SELECT 1 FROM activities a WHERE a.contact_id = c.id AND a.created_at >= ")
                 .push_bind(since)
                 .push(")");
@@ -122,8 +115,8 @@ pub fn list_contacts<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a,
 }
 
 /// Mốc `now - ms` (cho `a.created_at >= …`).
-fn chrono_since(ms: i64) -> chrono::DateTime<chrono::Utc> {
-    chrono::Utc::now() - chrono::Duration::milliseconds(ms)
+fn chrono_since(ms: i64) -> Option<chrono::DateTime<chrono::Utc>> {
+    chrono::Utc::now().checked_sub_signed(chrono::Duration::try_milliseconds(ms)?)
 }
 
 pub fn get_contact<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {

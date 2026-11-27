@@ -276,7 +276,11 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         platform.clone(),
         mod_channel_guard::GraphGuardConfig::from_lookup(lookup),
     );
-    app = mount(app, mod_channel_guard::api_router(deps.clone()), Arc::new(guard.clone()));
+    app = mount(
+        app,
+        mod_channel_guard::api_router(deps.clone()),
+        Arc::new(guard.clone()),
+    );
     // Route facebook/zalo-oa khai `org_feature`: cần `AccessDeps.features` (OrgGate của feat/x-router-contacts-leads); thiếu thì dừng.
     let Some(features) = deps.features.clone() else {
         return Err("thiếu cổng tính năng tổ chức (OrgGate) cho route facebook/zalo-oa".to_owned());

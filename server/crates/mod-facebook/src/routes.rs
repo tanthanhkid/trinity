@@ -335,7 +335,10 @@ async fn webhook_verify(State(s): State<Arc<FacebookState>>, Query(q): Query<Has
     let (mode, token, challenge) = (get("hub.mode"), get("hub.verify_token"), get("hub.challenge"));
     match verify(&s.env, mode, token, challenge) {
         Ok(challenge) => (
-            [(header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8"))],
+            [(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("text/html; charset=utf-8"),
+            )],
             challenge,
         )
             .into_response(),

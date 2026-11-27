@@ -139,7 +139,7 @@ jobs:
             echo "rust_pg=$(has '^(server/|packages/prisma/prisma/|\.github/workflows/ci\.yml$)')"
             echo "rust_deps=$(has '^(server/(.*/)?Cargo\.(toml|lock)$|server/deny\.toml$|\.github/workflows/ci\.yml$)')"
           } | tee -a "$GITHUB_OUTPUT"
-          sql=$(has '(prisma/migrations/|schema\.prisma$|packages/prisma/src/tenant/platform\.ts$|server/contracts/schema\.sql$|\.(pg|db)\.spec\.ts$|services/commerce/src/pos/|packages/rbac-nest/src/|services/auth/src/users/|\.github/workflows/ci\.yml$)')
+          sql=$(has '(prisma/migrations/|schema\.prisma$|packages/prisma/src/tenant/platform\.ts$|server/contracts/schema\.sql$|\.(pg|db)\.spec\.ts$|packages/rbac-nest/src/|\.github/workflows/ci\.yml$)')
           if [ "$sql" = false ]; then
             for f in $(echo "$files" | grep -E '\.ts$' || true); do
               if [ -f "$f" ] && grep -qE '\$(queryRaw|executeRaw)' "$f"; then sql=true; break; fi

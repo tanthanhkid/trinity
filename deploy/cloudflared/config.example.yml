@@ -1,13 +1,9 @@
 # Mẫu ingress cho docker-compose.tunnel.yml (G16b). Sao chép thành deploy/cloudflared/config.yml rồi sửa hostname.
 # Tệp này được gắn vào container `cloudflared`, dùng CHUNG network namespace với `trinity`:
-#   127.0.0.1:3000  = Rust (web tĩnh + route của Rust, phần còn lại chuyển cho Node)    127.0.0.1:4000 = Node (api)
+#   127.0.0.1:3000 = binary Rust (web tĩnh, /api/v1 và /notif-ws cùng một cổng)
 # Chỉ dùng tên miền ví dụ ở đây; đặt tên miền thật vào config.yml (không commit).
 credentials-file: /etc/cloudflared/credentials.json
 ingress:
-  # Chuông realtime (WebSocket) đi thẳng vào Node, không qua Rust: 
-  - hostname: crm.example.com
-    path: ^/notif-ws
-    service: http://127.0.0.1:4000
   - hostname: crm.example.com
     service: http://127.0.0.1:3000
   - service: http_status:404

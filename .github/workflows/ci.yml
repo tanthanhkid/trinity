@@ -1,10 +1,10 @@
 name: CI
 
 # PR: lint / typecheck / unit (TS) và Rust fmt / clippy / unit chạy song song theo phần thay đổi; `ci-ok` là check bắt
-# buộc duy nhất (cùng gitleaks + CLA). Push main: chạy đủ (không lọc). Job nặng (Postgres thật, build + kiểm giao diện
-# web, build api, build Rust release, test pg Rust) KHÔNG bắt buộc.
+# buộc duy nhất (cùng gitleaks + CLA). Push main: chạy đủ (không lọc). Job nặng (build + kiểm giao diện web, build Rust
+# release, test pg Rust) KHÔNG bắt buộc. Từ X06 (#264) không còn backend Node: chỉ còn web tĩnh (TS) và Rust.
 # Giai đoạn viết lại Rust (từ 26/11/2026, để hàng đợi runner ngắn): `Web build and UI checks` và `Rust build` KHÔNG chạy
-# trên PR (chỉ push main + chạy tay; Nightly chạy e2e web); `Tests with Postgres` trên PR chỉ khởi động khi PR đổi SQL.
+# trên PR (chỉ push main + chạy tay; Nightly chạy e2e web).
 # Chi tiết: docs/ci.md.
 on:
   pull_request:
@@ -39,7 +39,6 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup
         with:
-          prisma: "false"
           packages: "false"
       # PR: chỉ package bị đổi ("[base]"). Push main: tất cả.
       - name: ESLint
@@ -109,10 +108,8 @@ jobs:
 
   # Lọc thay đổi cho mọi job Rust (một chỗ, để các job không lệch nhau). Push main / chạy tay: tất cả là true.
   # - rust: server/, action rust-toolchain hoặc ci.yml → fmt, clippy, unit, build.
-  # - rust_pg: thêm migration/schema Prisma (lệch schema chỉ lộ ra khi chạy trên DB thật) → Rust pg tests.
+  # - rust_pg: server/ (gồm server/prisma/migrations: lệch schema chỉ lộ ra khi chạy trên DB thật) → Rust pg tests.
   # - rust_deps: Cargo.toml/Cargo.lock/deny.toml trong server/ hoặc ci.yml → Rust deny.
-  # - sql: migration, schema, test SQL (*.pg.spec.ts / *.db.spec.ts), mã có test DB thật hoặc file .ts có SQL viết tay
-  #   ($queryRaw/$executeRaw) → Tests with Postgres (lọc ở mức job: PR không đổi SQL thì không khởi động container Postgres).
   rust-changes:
     name: Rust changes
     runs-on: ubuntu-latest
@@ -121,7 +118,6 @@ jobs:
       rust: ${{ steps.f.outputs.rust }}
       rust_pg: ${{ steps.f.outputs.rust_pg }}
       rust_deps: ${{ steps.f.outputs.rust_deps }}
-      sql: ${{ steps.f.outputs.sql }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -130,7 +126,7 @@ jobs:
         id: f
         run: |
           if [ "${{ github.event_name }}" != "pull_request" ]; then
-            printf 'rust=true\nrust_pg=true\nrust_deps=true\nsql=true\n' >> "$GITHUB_OUTPUT"; exit 0
+            printf 'rust=true\nrust_pg=true\nrust_deps=true\n' >> "$GITHUB_OUTPUT"; exit 0
           fi
           files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
           has() { if echo "$files" | grep -qE "$1"; then echo true; else echo false; fi; }
@@ -139,13 +135,6 @@ jobs:
             echo "rust_pg=$(has '^(server/|\.github/workflows/ci\.yml$)')"
             echo "rust_deps=$(has '^(server/(.*/)?Cargo\.(toml|lock)$|server/deny\.toml$|\.github/workflows/ci\.yml$)')"
           } | tee -a "$GITHUB_OUTPUT"
-          sql=$(has '(prisma/migrations/|schema\.prisma$|packages/prisma/src/tenant/platform\.ts$|server/contracts/schema\.sql$|\.(pg|db)\.spec\.ts$|packages/rbac-nest/src/|\.github/workflows/ci\.yml$)')
-          if [ "$sql" = false ]; then
-            for f in $(echo "$files" | grep -E '\.ts$' || true); do
-              if [ -f "$f" ] && grep -qE '\$(queryRaw|executeRaw)' "$f"; then sql=true; break; fi
-            done
-          fi
-          echo "sql=$sql" | tee -a "$GITHUB_OUTPUT"
 
   # Rust bắt buộc (docs/rust/PLAN.md mục 8): fmt, clippy, unit nằm trong `ci-ok`. Job luôn chạy (để `ci-ok` có kết quả)
   # nhưng các bước chỉ thực thi khi `rust-changes` báo rust=true; PR không đụng server/ thì mỗi job xong trong vài giây.
@@ -277,80 +266,6 @@ jobs:
             echo "::error::Có job bắt buộc không xanh"; exit 1
           fi
 
-  sql-postgres:
-    # Câu SQL raw / transaction chạy trên Postgres THẬT — unit test dùng mock không bắt được lỗi kiểu
-    # `left(varchar, bigint)` (từng làm webhook SePay trả 500). Test: `**/*.pg.spec.ts`.
-    name: Tests with Postgres (migrate + db specs)
-    needs: rust-changes
-    if: needs.rust-changes.outputs.sql == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: trinity_sql_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U test -d trinity_sql_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-    env:
-      DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
-      TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
-      # Test DB thật vốn bị bỏ qua khi thiếu biến này (luồng POS, phạm vi quyền) — dùng chung Postgres của job.
-      POS_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
-      RBAC_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
-      JWT_SECRET: ci-test-secret-not-real-do-not-use
-      SERVICE_SECRET: ci-test-service-secret-do-not-use
-      CI: "true"
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
-
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
-        with:
-          version: 10.6.5
-
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Generate Prisma clients
-        run: pnpm --filter @trinity/prisma generate
-
-      - name: Build shared packages
-        run: pnpm --filter "./packages/*" build
-
-      - name: Apply migrations
-        run: pnpm --filter @trinity/prisma exec prisma migrate deploy
-
-      # Hợp đồng đóng băng `server/contracts/schema.sql` (C05): dựng DB tạm, migrate + schema `platform`, pg_dump chuẩn hoá,
-      # so với tệp đã commit. Đỏ khi migration (hoặc platform.ts) đổi schema mà chưa sinh lại:
-      # `pnpm --filter @trinity/prisma contract:schema` (cần psql + pg_dump 16).
-      - name: Schema snapshot (server/contracts/schema.sql)
-        env:
-          SCHEMA_SNAPSHOT_ADMIN_URL: postgresql://test:test@localhost:5432/trinity_sql_test
-        run: |
-          if ! pg_dump --version 2>/dev/null | grep -q ' 16\.'; then
-            # Ảnh runner mới không còn postgresql-client-16 trong kho mặc định: thêm kho PGDG (apt.postgresql.org) trước.
-            sudo apt-get install -y -qq --no-install-recommends postgresql-common
-            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-            sudo apt-get install -y -qq --no-install-recommends postgresql-client-16
-            export PATH=/usr/lib/postgresql/16/bin:$PATH
-          fi
-          pg_dump --version
-          pnpm --filter @trinity/prisma contract:schema:check
-
   web-ui:
     # Web: build thật (thay cho build tay trước khi duyệt) + đo trên Chrome headless (docs/TRANG-THAI.md):
     # tương phản, nền tảng UI (vùng chạm, focus, tràn ngang, chuyển động) và "cố tình phá" (mất mạng, 500/401, trống,
@@ -382,11 +297,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Generate Prisma clients
-        run: pnpm --filter @trinity/prisma generate
-
       - name: Build shared packages
-        run: pnpm --filter "./packages/*" --if-present build
+        run: pnpm --filter "web^..." --if-present build
 
       - name: Cache next build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -471,7 +383,7 @@ jobs:
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Build shared packages
-        run: pnpm --filter "./packages/*" --if-present build
+        run: pnpm --filter "web^..." --if-present build
 
       - name: next build (export)
         run: pnpm --filter ./apps/web build:export
@@ -571,10 +483,10 @@ jobs:
           command-arguments: ${{ github.event_name == 'pull_request' && 'advisories bans licenses sources' || 'bans licenses sources' }}
 
   # Test pg của Rust trên Postgres 16 thật (PLAN mục 8). Không bắt buộc vì cần DB; K06–K21 lấy job này làm tiêu chí.
-  # - Migrate bằng Prisma (lịch sử migration vẫn là thư mục Prisma, PLAN 4.5); migrator Rust thêm vào đây khi có.
+  # - Migrate bằng chính `trinity migrate` (bộ migration nhúng từ server/prisma/migrations, PLAN 4.5).
   # - `cargo sqlx prepare --check` nối DB thật (không offline): `.sqlx/` cũ hoặc lệch schema Prisma thì đỏ.
   # - Chạy các test `#[ignore]` (quy ước: chỉ test pg mới được #[ignore], server/README.md) trong lib/bin/tests/,
-  #   không chạy doctest. Prisma CLI có sẵn ở PRISMA_BIN cho test so với Prisma (prisma_compat); user `test` là
+  #   không chạy doctest. Prisma CLI cài toàn cục (PRISMA_BIN) chỉ để test so với Prisma (prisma_compat); user `test` là
   #   superuser nên test tạo được DB phụ.
   rust-pg:
     name: Rust pg tests
@@ -600,24 +512,18 @@ jobs:
       # Luôn ghi rõ user trong URL: Prisma không tự lấy user hệ điều hành như libpq (thiếu thì P1010).
       DATABASE_URL: postgresql://test:test@localhost:5432/trinity_rust_test
       TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_rust_test
-      PRISMA_BIN: ${{ github.workspace }}/.prisma-cli/node_modules/.bin/prisma
+      PRISMA_BIN: prisma
+      SQLX_OFFLINE: "true"
       CARGO_INCREMENTAL: "0"
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      # Chỉ cài Prisma CLI (không còn gói prisma trong monorepo): `prisma migrate deploy` và CLI cho test so với Prisma.
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 22
-
-      - name: Install prisma
+      # Prisma CLI chỉ để test `prisma_compat` so kết quả migrate của Rust với Prisma (không còn là đường chạy).
+      - name: Install Prisma CLI
         run: |
-          npm install --prefix .prisma-cli --no-save --no-audit --no-fund prisma@6.19.3
+          npm install -g prisma@6.19.3
           "$PRISMA_BIN" --version
-
-      - name: Migrate (Prisma)
-        run: '"$PRISMA_BIN" migrate deploy --schema server/prisma/schema.prisma'
 
       - uses: ./.github/actions/rust-toolchain
 
@@ -626,6 +532,10 @@ jobs:
         with:
           workspaces: server
           save-if: ${{ github.event_name != 'pull_request' }}
+
+      - name: Migrate (trinity migrate)
+        working-directory: server
+        run: cargo run --locked --quiet -p trinity-bin -- migrate
 
       # Cùng phiên bản với server/README.md (khớp sqlx trong Cargo.lock).
       - name: Install sqlx-cli

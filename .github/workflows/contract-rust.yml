@@ -1,9 +1,10 @@
 name: Contract (Rust)
 
-# Bộ hợp đồng HTTP hộp đen `tests/contract/` chạy trên binary Rust `trinity serve` và so với kết quả Node cùng lượt (issue K31).
+# Bộ hợp đồng HTTP hộp đen `tests/contract/` chạy trên binary Rust `trinity serve` và so với golden đóng băng ở `server/contracts/golden/` (ghi lần cuối từ bản Node ở X03;
+# từ X06 không còn Node để so cùng lượt, golden đó là chuẩn so).
 # Cũng build binary phát hành cho 2 kiến trúc kèm tệp SHA-256. KHÔNG bắt buộc cho merge (không nằm trong `ci-ok`).
 # Kiểm `.sqlx/` không cũ KHÔNG ở đây: nó nằm ở job `Rust pg tests` (`rust-pg` trong ci.yml, K02), cũng ngoài `ci-ok`.
-# Cũng như contract-node.yml: bộ chạy từ chối bắt đầu trong khung 16:50-17:10 UTC, cron đặt ngoài khung, bước "Chờ ngoài khung" đợi.
+# Bộ chạy từ chối bắt đầu trong khung 16:50-17:10 UTC (quanh nửa đêm giờ Việt Nam), cron đặt ngoài khung, bước "Chờ ngoài khung" đợi.
 on:
   pull_request:
     branches: [main]
@@ -15,7 +16,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "13 21 * * *" # 04:13 giờ Việt Nam, ngoài khung 16:50-17:10 UTC, lệch contract-node 30 phút
+    - cron: "13 21 * * *" # 04:13 giờ Việt Nam, ngoài khung 16:50-17:10 UTC
   workflow_dispatch:
 
 concurrency:
@@ -86,11 +87,7 @@ jobs:
             sleep "$wait"
           fi
 
-      # Chuẩn so là kết quả Node của cùng lượt (tests/contract/README.md): ghi trên Node rồi so trên Rust.
-      - name: Hợp đồng trên Node (ghi kết quả chuẩn hoá)
-        run: pnpm --filter @trinity/contract-tests contract -- --mode record --out /tmp/contract-node
-
-      - name: Hợp đồng trên Rust (so với Node; production chạy binary phát hành)
+      - name: Hợp đồng trên Rust (so với golden đóng băng; production chạy binary phát hành)
         env:
           # Mảng JSON (lệnh + đối số). Bọc bằng vmhwm-wrap.sh để in VmHWM của máy chủ mỗi hồ sơ.
           # `trinity serve` do issue khác thêm (CLI: serve | migrate | seed); binary đọc cấu hình từ env của hồ sơ.
@@ -98,7 +95,7 @@ jobs:
           SERVER_CMD_PRODUCTION: '["bash","${{ github.workspace }}/.github/scripts/vmhwm-wrap.sh","/tmp/bin/trinity-release","serve"]'
           VMHWM_LABEL: rust
         run: |
-          pnpm --filter @trinity/contract-tests contract -- --target cmd --mode compare --baseline /tmp/contract-node --out /tmp/contract-rust
+          pnpm --filter @trinity/contract-tests contract -- --target cmd --mode compare --baseline server/contracts/golden --out /tmp/contract-rust
 
       - name: Bộ nhớ đỉnh VmHWM của máy chủ Rust
         if: always()

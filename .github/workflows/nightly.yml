@@ -1,6 +1,6 @@
 name: Nightly
 
-# Hằng đêm (≈02:00 giờ Việt Nam): chạy TOÀN BỘ test, test Postgres thật, e2e Playwright, kiểm lỗ hổng dependency.
+# Hằng đêm (≈02:00 giờ Việt Nam): chạy TOÀN BỘ test, e2e Playwright trên binary Rust, fuzz, kiểm lỗ hổng dependency.
 # Không bắt buộc cho merge; lỗi ở đây là việc cần xử lý, không chặn PR.
 on:
   schedule:
@@ -39,35 +39,6 @@ jobs:
       - run: pnpm -r --if-present typecheck
       - run: pnpm -r --if-present lint
       - run: pnpm -r --if-present test
-
-  db:
-    name: Postgres thật (toàn bộ *.pg / *.db spec)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: trinity_sql_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U test -d trinity_sql_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-    env:
-      DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
-      TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
-      POS_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
-      RBAC_TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_sql_test
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: ./.github/actions/setup
-      - run: pnpm --filter @trinity/prisma exec prisma migrate deploy
-      - run: (cd packages/rbac-nest && npx jest --testRegex 'scope\.service\.spec\.ts$' --runInBand)
 
   # Job e2e cũ (monolith Node + serve-export.mjs) đã gỡ: đường Node bị bỏ (#264) và monolith không còn khởi động được trên runner
   # (STORAGE_LOCAL_ROOT, #563). Bộ smoke/rbac chạy qua job này, trên binary Rust.

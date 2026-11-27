@@ -1,6 +1,6 @@
 name: Docker image
 
-# Dựng hai image (api, web) đa nền tảng: amd64 trên runner x64, arm64 trên runner arm NATIVE (không QEMU), mỗi nền tảng đẩy
+# Dựng MỘT image (`trinity`: binary Rust + web tĩnh) đa nền tảng: amd64 trên runner x64, arm64 trên runner arm NATIVE (không QEMU), mỗi nền tảng đẩy
 # theo digest, rồi job gộp tạo manifest chung, kèm SBOM, provenance, attestation và chữ ký cosign (keyless) trên digest đã gộp.
 # Chạy khi: gắn tag v* bằng tay, release.yml gọi (workflow_call, push=true), hoặc chạy tay (workflow_dispatch).
 # Chạy tay KHÔNG đẩy (push=false) thì chỉ build thử amd64. Đẩy (push=true) thì luôn amd64 + arm64.
@@ -80,9 +80,9 @@ jobs:
             echo "tag=$tag"
             echo "sha=$(git rev-parse HEAD)"
             if [ "$push" = "true" ]; then
-              echo 'matrix={"include":[{"target":"api","platform":"linux/amd64","runner":"ubuntu-latest"},{"target":"api","platform":"linux/arm64","runner":"ubuntu-24.04-arm"},{"target":"web","platform":"linux/amd64","runner":"ubuntu-latest"},{"target":"web","platform":"linux/arm64","runner":"ubuntu-24.04-arm"}]}'
+              echo 'matrix={"include":[{"target":"trinity","platform":"linux/amd64","runner":"ubuntu-latest"},{"target":"trinity","platform":"linux/arm64","runner":"ubuntu-24.04-arm"}]}'
             else
-              echo 'matrix={"include":[{"target":"api","platform":"linux/amd64","runner":"ubuntu-latest"},{"target":"web","platform":"linux/amd64","runner":"ubuntu-latest"}]}'
+              echo 'matrix={"include":[{"target":"trinity","platform":"linux/amd64","runner":"ubuntu-latest"}]}'
             fi
           } >> "$GITHUB_OUTPUT"
 
@@ -99,7 +99,7 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
       PUSH: ${{ needs.plan.outputs.push }}
-      IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.target }}
+      IMAGE: ghcr.io/${{ github.repository }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -170,9 +170,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [api, web]
+        target: [trinity]
     env:
-      IMAGE: ghcr.io/${{ github.repository }}-${{ matrix.target }}
+      IMAGE: ghcr.io/${{ github.repository }}
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:

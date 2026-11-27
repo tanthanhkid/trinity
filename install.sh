@@ -173,9 +173,9 @@ if [ "$UP" = 1 ]; then
     grep -q '^COMPOSE_FILE=.*docker-compose.tunnel.yml' .env || { echo "error: TRUSTED_PROXY=cloudflare-tunnel needs COMPOSE_FILE=docker-compose.yml:docker-compose.tunnel.yml in .env" >&2; exit 1; }
     [ -f deploy/cloudflared/config.yml ] || { echo "error: deploy/cloudflared/config.yml is missing (copy deploy/cloudflared/config.example.yml)" >&2; exit 1; }
   fi
-  # --wait: fails when a service is unhealthy, including the trinity health check that calls /api/v1/health through Rust to Node.
+  # --wait: fails when a service is unhealthy, including the trinity health check (`trinity healthcheck`, GET /api/v1/health).
   docker compose up --build -d --wait --wait-timeout 300 || {
-    echo "error: the stack did not become healthy; see: docker compose ps && docker compose logs trinity api" >&2
+    echo "error: the stack did not become healthy; see: docker compose ps && docker compose logs trinity postgres" >&2
     exit 1
   }
   echo

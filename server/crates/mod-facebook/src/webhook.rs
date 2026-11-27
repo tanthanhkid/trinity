@@ -619,6 +619,8 @@ mod tests {
     async fn http_forwarder_chuyen_nguyen_van() {
         use wiremock::matchers::{header, method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
+        // reqwest dùng `rustls-no-provider`: test tự cài provider `ring` (cài lần hai chỉ trả Err, bỏ qua).
+        let _ = rustls::crypto::ring::default_provider().install_default();
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/hook"))

@@ -26,6 +26,8 @@ pub const RUST_ONLY_AUTHED_ROUTES: &[&str] = &[
     "PUT /api/v1/social/media/uploads/:id/parts/:index",
     "POST /api/v1/social/media/uploads/:id/complete",
     "DELETE /api/v1/social/media/uploads/:id",
+    // Trung tâm điều hành của trang Tổng quan (#606): phễu, nhiệt theo giờ, xếp hạng, tỉ lệ thắng; cần `reports.overview`.
+    "GET /api/v1/reports/dashboard-command-center",
 ];
 
 /// Hợp đồng nhúng trong binary.

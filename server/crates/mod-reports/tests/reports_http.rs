@@ -68,7 +68,7 @@ async fn app() -> App {
         guards: Default::default(),
     });
     let (router, table) = api_router(deps).into_parts();
-    assert_eq!(table.len(), 19);
+    assert_eq!(table.len(), 20);
     App {
         router: router.with_state(ctx.clone()),
         ctx,
@@ -307,6 +307,7 @@ async fn quyen_va_kiem_du_lieu() {
         "/api/v1/reports/dashboard-filter-roster",
         "/api/v1/reports/dashboard-stats-today",
         "/api/v1/reports/dashboard-trend-14d",
+        "/api/v1/reports/dashboard-command-center?date_from=2026-01-01&date_to=2026-01-02",
     ] {
         assert_eq!(get(&a, p, Some(NONE)).await.status, 403, "{p}");
     }
@@ -702,5 +703,69 @@ async fn kenh_da_ket_noi() {
             .iter()
             .all(|c| c["kind"] != "facebook_page")
     );
+    teardown().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn trung_tam_dieu_hanh_theo_pham_vi() {
+    setup().await;
+    seed_work().await;
+    // Thương vụ thắng của người ngoài cây DIR: ADMIN thấy, DIR và SALE_A không thấy.
+    exec(
+        "INSERT INTO deals (title, assigned_to, created_by, updated_at, value, status, won_at) VALUES
+           ('m20 thắng ngoài', 9606, 9606, now(), 9000000, 'won', now())",
+    )
+    .await;
+    let a = app().await;
+    let day: String = scalar("SELECT to_char((now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, 'YYYY-MM-DD')").await;
+    let p = format!("/api/v1/reports/dashboard-command-center?date_from={day}&date_to={day}");
+    // Thiếu / sai kỳ ⇒ 400, chưa đăng nhập ⇒ 401.
+    assert_eq!(
+        get(&a, "/api/v1/reports/dashboard-command-center", Some(ADMIN))
+            .await
+            .status,
+        400
+    );
+    assert_eq!(get(&a, &p, None).await.status, 401);
+
+    // SALE_A (own): chỉ số của mình; xếp hạng đúng một dòng, không lộ người khác.
+    let r = ok(&a, &p, SALE_A).await;
+    assert_eq!(r["scope_label"], "Của mình");
+    assert_eq!(r["funnel"]["by_status"]["won"], json!({ "count": 1, "value": 5000000 }));
+    assert_eq!(r["funnel"]["by_status"]["open"], json!({ "count": 1, "value": 1000 }));
+    assert_eq!(
+        r["funnel"]["stages"][0],
+        json!({ "key": "customers", "count": 2, "value": null })
+    );
+    assert_eq!(r["win_rate"]["rate"], json!(50));
+    assert_eq!(r["win_rate"]["previous"]["rate"], Value::Null);
+    let board = r["leaderboard"].as_array().unwrap();
+    assert_eq!(board.len(), 1);
+    assert_eq!(board[0]["user_id"], json!(SALE_A));
+    assert_eq!(board[0]["won_value"], json!(5000000));
+    assert_eq!(board[0]["tasks_done"], json!(1));
+    // Nhiệt: 2 hoạt động hôm nay + 1 hôm qua + 1 việc hoàn thành = 4 trong 7 ngày; ma trận 7 × 24.
+    assert_eq!(r["heatmap"]["total"], json!(4));
+    assert_eq!(r["heatmap"]["cells"].as_array().unwrap().len(), 7);
+
+    // DIR (subtree): vẫn không thấy thương vụ của OUT.
+    let r = ok(&a, &p, DIR).await;
+    assert_eq!(r["funnel"]["by_status"]["won"]["value"], json!(5000000));
+    assert!(
+        r["leaderboard"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|x| x["user_id"] != json!(OUT))
+    );
+
+    // ADMIN (all): thấy cả hai người, người thắng nhiều hơn đứng trước.
+    let r = ok(&a, &p, ADMIN).await;
+    assert_eq!(r["scope_label"], "Toàn công ty");
+    assert_eq!(r["funnel"]["by_status"]["won"]["value"], json!(14000000));
+    assert_eq!(r["leaderboard"][0]["user_id"], json!(OUT));
+    assert_eq!(r["leaderboard"][1]["user_id"], json!(SALE_A));
+    assert_eq!(r["win_rate"]["won"], json!(2));
     teardown().await;
 }

@@ -1463,6 +1463,14 @@ chung state phiên; từ đây Rust tạo schema cho công ty mới); (c) contac
 OAuth, MCP, rồi Facebook, Zalo, đăng bài: **mọi route, job và tool MCP gọi Graph/Zalo ra chuyển trong cùng một lần đổi
 sở hữu**.
 
+**Đã làm ở M46** (`server/crates/mod-facebook`): Graph client (`graph.rs`, một chỗ duy nhất gọi Meta; token ở header
+`Authorization`, không ở URL; mọi kết quả trừ lỗi kết nối báo `GraphOutcome` cho `ChannelGuard::record_graph` của M45), URL Graph
+đọc `FACEBOOK_GRAPH_BASE_URL` mỗi lần gọi (chỉ `https://`, hoặc `http://` tới loopback), `state` OAuth ký HMAC giống bản Node,
+kết nối Fanpage (`pages.rs`: token mã hoá bằng `INTEGRATIONS_SECRET_KEY`, mỗi Page một giao dịch, phần đăng bài trong savepoint
+riêng, KHÔNG giữ kết nối pool khi gọi Graph) và 7 route K14. Test dùng máy chủ giả (wiremock, kịch bản và mã lỗi theo C06b:
+368/551/17/32/4/613/190, subcode 2018278/1545041, HTTP 429): mã lỗi phân loại đúng và khớp phân loại chặn của M45; pool 1 kết nối
+chứng minh không giữ kết nối khi gọi HTTP. Webhook, link mở chat, hội thoại, bình luận, luật tự động thuộc M47a trở đi.
+
 Giai đoạn lai tốn RAM hơn cả hai đầu: Node (tới 65 kết nối DB theo cấu hình mặc định) + Next + Rust + Postgres. Trong
 lai đặt `TENANT_MAX_CLIENTS` và `TENANT_CONNECTION_LIMIT` của Node thấp, pool Rust 4; máy chạy lai và ngưỡng swap để
 lui được chốt bằng số đo ở R003. Đích 1–2 GB ở mục 9 chỉ áp dụng sau X06.

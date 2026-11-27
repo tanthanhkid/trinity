@@ -31,6 +31,25 @@ pub fn routes() -> Vec<RouteSpec> {
     ]
 }
 
+/// 5 route tải video theo phần (X15a, [`crate::chunked`]). Route CHỈ CÓ Ở RUST (không có trong `routes.json`) nên CHƯA gộp vào
+/// [`routes`]: `RUST_ONLY_ROUTES` của `trinity-http` hiện chỉ nhận route `Public`, còn các route này cần `social.post`. Gộp khi
+/// viết router social: thêm 5 khoá `METHOD /api/v1/social/media/uploads...` vào `RUST_ONLY_ROUTES` và nới luật "phải Public"
+/// cho chúng (X15a chỉ làm tầng nghiệp vụ; không có router social nào trên `main` để gắn handler).
+pub fn upload_routes() -> Vec<RouteSpec> {
+    let post = Access::Can(&["social.post"]);
+    let r = |m: Method, p: &'static str, ok: u16| {
+        RouteSpec::new(m, p, post).status_ok(ok).org_feature("social_posting")
+    };
+    vec![
+        r(Method::POST, "/api/v1/social/media/uploads", 201),
+        r(Method::GET, "/api/v1/social/media/uploads/:id", 200),
+        r(Method::PUT, "/api/v1/social/media/uploads/:id/parts/:index", 200)
+            .param_pipes(&["param.index:ParseIntPipe"]),
+        r(Method::POST, "/api/v1/social/media/uploads/:id/complete", 201),
+        r(Method::DELETE, "/api/v1/social/media/uploads/:id", 204),
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -42,5 +61,14 @@ mod tests {
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
         assert_eq!(rep.declared, 11);
+    }
+
+    #[test]
+    fn route_tai_theo_phan_khong_trung_hop_dong() {
+        let t = upload_routes();
+        assert_eq!(t.len(), 5);
+        // Chưa có trong `routes.json` (chỉ có ở Rust); không được trùng route đã khai ở `routes()`.
+        let declared: Vec<_> = routes().iter().map(|r| (r.method.clone(), r.path)).collect();
+        assert!(t.iter().all(|r| !declared.contains(&(r.method.clone(), r.path))));
     }
 }

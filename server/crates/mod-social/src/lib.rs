@@ -9,6 +9,7 @@
 //! - [`accounts`]: danh sách, bật lại, gỡ, URL kết nối, callback, giải mã token cho job đăng (M54b).
 //! - [`media`], [`media_link`]: thư viện media (M53b): tải multipart theo luồng, nhập từ link (chống SSRF K35), trần video theo
 //!   `SOCIAL_MAX_VIDEO_MB`, link công khai có chữ ký.
+//! - [`chunked`]: tải video theo phần (X15a) để qua proxy Cloudflare giới hạn 100 MB.
 //! - [`routes`]: bảng route K14 (6 route tài khoản + 5 route media; bài, nháp, mẫu chữ thuộc M54a trở đi).
 //!
 //! Token Fanpage mã hoá AES-256-GCM bằng `INTEGRATIONS_SECRET_KEY` (`trinity_integrations::webhooks::secret`), đúng như bản Node.
@@ -18,6 +19,7 @@
 #![allow(clippy::result_large_err)]
 
 pub mod accounts;
+pub mod chunked;
 pub mod config;
 pub mod dto;
 pub mod media;

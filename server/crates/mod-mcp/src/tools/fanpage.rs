@@ -103,7 +103,8 @@ pub trait BroadcastsPort: Send + Sync {
     /// `{ eligible, outside_window, sample }` (chỉ đếm; không ghi, không gửi).
     fn preview<'a>(&'a self, company: CompanyRef, page_id: &'a str, audience: &'a Value) -> PortFut<'a, Value>;
     /// Tạo lượt nháp; `source` = `"mcp"`.
-    fn create<'a>(&'a self, company: CompanyRef, user_id: i32, input: &'a Value, source: &'a str) -> PortFut<'a, Value>;
+    fn create<'a>(&'a self, company: CompanyRef, user_id: i32, input: &'a Value, source: &'a str)
+    -> PortFut<'a, Value>;
     fn update(&self, company: CompanyRef, id: i32, input: Map<String, Value>) -> PortFut<'_, Value>;
     /// Gửi ngay (`None`) hoặc hẹn giờ.
     fn send(&self, company: CompanyRef, id: i32, at: Option<DateTime<Utc>>) -> PortFut<'_, Value>;
@@ -212,7 +213,14 @@ pub fn register_fanpage(r: &mut ToolRegistry, ports: Arc<FanpagePorts>) {
     const WEBHOOKS: &[&str] = &["integrations.webhooks"];
     let p = &ports;
     reg(r, p, "list_facebook_comments", false, WEBHOOKS, list_facebook_comments);
-    reg(r, p, "list_facebook_comment_rules", false, WEBHOOKS, list_facebook_comment_rules);
+    reg(
+        r,
+        p,
+        "list_facebook_comment_rules",
+        false,
+        WEBHOOKS,
+        list_facebook_comment_rules,
+    );
     reg(r, p, "create_comment_rule", true, WEBHOOKS, create_comment_rule);
     reg(r, p, "update_comment_rule", true, WEBHOOKS, update_comment_rule);
     reg(r, p, "test_comment_rule", false, WEBHOOKS, test_comment_rule);
@@ -221,11 +229,46 @@ pub fn register_fanpage(r: &mut ToolRegistry, ports: Arc<FanpagePorts>) {
     reg(r, p, "list_message_flows", false, WEBHOOKS, list_message_flows);
     reg(r, p, "create_message_flow", true, WEBHOOKS, create_message_flow);
     reg(r, p, "update_message_flow", true, WEBHOOKS, update_message_flow);
-    reg(r, p, "list_messenger_broadcasts", false, WEBHOOKS, list_messenger_broadcasts);
-    reg(r, p, "send_messenger_broadcast", true, WEBHOOKS, send_messenger_broadcast);
-    reg(r, p, "update_messenger_broadcast", true, WEBHOOKS, update_messenger_broadcast);
-    reg(r, p, "cancel_messenger_broadcast", true, WEBHOOKS, cancel_messenger_broadcast);
-    reg(r, p, "cancel_scheduled_post", true, &["social.post"], cancel_scheduled_post);
+    reg(
+        r,
+        p,
+        "list_messenger_broadcasts",
+        false,
+        WEBHOOKS,
+        list_messenger_broadcasts,
+    );
+    reg(
+        r,
+        p,
+        "send_messenger_broadcast",
+        true,
+        WEBHOOKS,
+        send_messenger_broadcast,
+    );
+    reg(
+        r,
+        p,
+        "update_messenger_broadcast",
+        true,
+        WEBHOOKS,
+        update_messenger_broadcast,
+    );
+    reg(
+        r,
+        p,
+        "cancel_messenger_broadcast",
+        true,
+        WEBHOOKS,
+        cancel_messenger_broadcast,
+    );
+    reg(
+        r,
+        p,
+        "cancel_scheduled_post",
+        true,
+        &["social.post"],
+        cancel_scheduled_post,
+    );
 }
 
 // ------------------------------------------------------------------ hàm dùng chung
@@ -240,17 +283,57 @@ fn missing(vi: &str, en: &str) -> ToolError {
 
 /// Cụm từ (đã bỏ dấu) là lời đồng ý.
 const YES: &[&str] = &[
-    "ok", "oke", "okie", "okay", "dong y", "duoc", "dc", "chot", "u", "uh", "um", "uk", "yes", "y", "dung roi", "dung vay",
-    "chuan", "chuan roi", "lam di", "tao di", "lam luon", "tao luon", "lam vay", "nhu vay", "xac nhan", "duyet", "go", "on",
-    "oki", "vang", "da", "khoi hoi lai", "khoi hoi", "dung hoi lai", "tao ngay", "lam ngay",
+    "ok",
+    "oke",
+    "okie",
+    "okay",
+    "dong y",
+    "duoc",
+    "dc",
+    "chot",
+    "u",
+    "uh",
+    "um",
+    "uk",
+    "yes",
+    "y",
+    "dung roi",
+    "dung vay",
+    "chuan",
+    "chuan roi",
+    "lam di",
+    "tao di",
+    "lam luon",
+    "tao luon",
+    "lam vay",
+    "nhu vay",
+    "xac nhan",
+    "duyet",
+    "go",
+    "on",
+    "oki",
+    "vang",
+    "da",
+    "khoi hoi lai",
+    "khoi hoi",
+    "dung hoi lai",
+    "tao ngay",
+    "lam ngay",
 ];
 /// Cụm từ phủ định / còn đổi ý.
 const NO: &[&str] = &[
-    "khong", "ko", "k", "chua", "dung tao", "dung lam", "khoan", "doi", "sua lai", "them", "bot", "bo", "thay", "no", "not",
+    "khong", "ko", "k", "chua", "dung tao", "dung lam", "khoan", "doi", "sua lai", "them", "bot", "bo", "thay", "no",
+    "not",
 ];
 const NO_ASK: &[&str] = &["khong can hoi lai", "khong can hoi", "ko can hoi lai", "ko can hoi"];
 const BENIGN: &[&str] = &[
-    "khong can them gi", "khong can them", "khong can sua", "khong can", "khong sao", "khong van de", "khong co gi",
+    "khong can them gi",
+    "khong can them",
+    "khong can sua",
+    "khong can",
+    "khong sao",
+    "khong van de",
+    "khong co gi",
 ];
 
 /// `foldVi` của `view-config.ts`: NFD bỏ dấu, `đ` → `d`, chữ thường, mọi ký tự ngoài `[a-z0-9]` thành một khoảng trắng.
@@ -297,10 +380,22 @@ fn vn_dt(d: DateTime<Utc>) -> chrono::DateTime<chrono::FixedOffset> {
 /// `2026-10-12T18:26:05+07:00`; vắng/sai ⇒ `None` (`vnIso`).
 pub fn vn_iso(v: Option<&Value>) -> Option<String> {
     let t = DateTime::parse_from_rfc3339(v?.as_str()?).ok()?;
-    Some(vn_dt(t.with_timezone(&Utc)).format("%Y-%m-%dT%H:%M:%S+07:00").to_string())
+    Some(
+        vn_dt(t.with_timezone(&Utc))
+            .format("%Y-%m-%dT%H:%M:%S+07:00")
+            .to_string(),
+    )
 }
 
-const WEEKDAYS: [&str; 7] = ["Chủ nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+const WEEKDAYS: [&str; 7] = [
+    "Chủ nhật",
+    "Thứ Hai",
+    "Thứ Ba",
+    "Thứ Tư",
+    "Thứ Năm",
+    "Thứ Sáu",
+    "Thứ Bảy",
+];
 
 /// `09:00 Thứ Ba 20/10/2026 (giờ Việt Nam)` (`vnWhen`).
 pub fn vn_when(d: DateTime<Utc>) -> String {
@@ -323,7 +418,11 @@ pub fn parse_scheduled_at(raw: Option<&Value>) -> Result<Option<DateTime<Utc>>, 
     let parsed = DateTime::parse_from_rfc3339(&v)
         .map(|t| t.with_timezone(&Utc))
         .ok()
-        .or_else(|| DateTime::parse_from_str(&v, "%Y-%m-%dT%H:%M%:z").map(|t| t.with_timezone(&Utc)).ok())
+        .or_else(|| {
+            DateTime::parse_from_str(&v, "%Y-%m-%dT%H:%M%:z")
+                .map(|t| t.with_timezone(&Utc))
+                .ok()
+        })
         .or_else(|| {
             v.strip_suffix(['Z', 'z'])
                 .and_then(|x| NaiveDateTime::parse_from_str(x, "%Y-%m-%dT%H:%M").ok())
@@ -375,7 +474,9 @@ pub fn activity_range(
     };
     let (fr, tr) = (pick(from), pick(to));
     let f = fr.clone().or_else(|| tr.clone()).unwrap_or_else(|| today.clone());
-    let t = tr.clone().unwrap_or_else(|| if fr.is_some() { f.clone() } else { today });
+    let t = tr
+        .clone()
+        .unwrap_or_else(|| if fr.is_some() { f.clone() } else { today });
     for d in [&f, &t] {
         if vn_day_start(d).is_none() {
             return Err(ToolError::User(format!(
@@ -600,9 +701,18 @@ fn list_facebook_comments<'a>(
     Box::pin(async move {
         let svc = comments(p)?;
         let (from, to, label) = activity_range(args.get("from"), args.get("to"), env.now)?;
-        let status = s(args, "status").filter(|x| COMMENT_STATUSES.contains(x)).map(str::to_owned);
+        let status = s(args, "status")
+            .filter(|x| COMMENT_STATUSES.contains(x))
+            .map(str::to_owned);
         let rows = svc
-            .list_comments(env.company, CommentQuery { limit: 100, status, since: from })
+            .list_comments(
+                env.company,
+                CommentQuery {
+                    limit: 100,
+                    status,
+                    since: from,
+                },
+            )
             .await?;
         let keep = usize::try_from(clamp_limit(args.get("limit"))).unwrap_or(20);
         let comments: Vec<Value> = rows
@@ -681,7 +791,10 @@ fn rule_input(args: &Value) -> Map<String, Value> {
         }
     }
     if let Some(v) = args.get("private_reply") {
-        d.insert("private_reply".into(), if v.is_string() { v.clone() } else { Value::Null });
+        d.insert(
+            "private_reply".into(),
+            if v.is_string() { v.clone() } else { Value::Null },
+        );
     }
     for k in ["hide_if_phone", "once_per_user"] {
         if let Some(Value::Bool(b)) = args.get(k) {
@@ -1066,7 +1179,10 @@ fn create_message_flow<'a>(
             input.insert("chat_link_id".into(), json!(n));
         }
         input.insert("steps".into(), json_field(args, "steps"));
-        input.insert("is_active".into(), json!(args.get("active") == Some(&Value::Bool(true))));
+        input.insert(
+            "is_active".into(),
+            json!(args.get("active") == Some(&Value::Bool(true))),
+        );
         let f = svc.create(env.company, env.user_id, Value::Object(input)).await?;
         let next = if bool_of(&f, "is_active") {
             "Kịch bản đã bật."
@@ -1288,7 +1404,9 @@ fn update_messenger_broadcast<'a>(
     Box::pin(async move {
         let svc = broadcasts(p)?;
         if args.get("scheduled_at").is_some_and(Value::is_string) && args.get("send_now") == Some(&Value::Bool(true)) {
-            return Err(user("Chọn một: scheduled_at hoặc send_now. / Pass either scheduled_at or send_now."));
+            return Err(user(
+                "Chọn một: scheduled_at hoặc send_now. / Pass either scheduled_at or send_now.",
+            ));
         }
         let at = parse_scheduled_at(args.get("scheduled_at"))?;
         let id = id_arg(args, "broadcast_id")?;
@@ -1311,8 +1429,16 @@ fn update_messenger_broadcast<'a>(
         let has_link = args.get("chat_link_ids").is_some_and(Value::is_array);
         if has_src || has_link {
             let cur_aud = cur.get("audience");
-            let src = if has_src { args.get("source_ids") } else { cur_aud.and_then(|a| a.get("source_ids")) };
-            let lnk = if has_link { args.get("chat_link_ids") } else { cur_aud.and_then(|a| a.get("chat_link_ids")) };
+            let src = if has_src {
+                args.get("source_ids")
+            } else {
+                cur_aud.and_then(|a| a.get("source_ids"))
+            };
+            let lnk = if has_link {
+                args.get("chat_link_ids")
+            } else {
+                cur_aud.and_then(|a| a.get("chat_link_ids"))
+            };
             input.insert("audience".into(), clean_audience(src, lnk));
         }
         let send_now = args.get("send_now") == Some(&Value::Bool(true));
@@ -1323,14 +1449,21 @@ fn update_messenger_broadcast<'a>(
         svc.check_send_time(at)?;
         if !is_user_confirmation(args.get(CONFIRM_FIRST)) {
             let page_id = str_of(&cur, "page_id").unwrap_or("").to_owned();
-            let aud = input.get("audience").or_else(|| cur.get("audience")).cloned().unwrap_or_else(|| json!({}));
+            let aud = input
+                .get("audience")
+                .or_else(|| cur.get("audience"))
+                .cloned()
+                .unwrap_or_else(|| json!({}));
             let preview = svc.preview(env.company, &page_id, &aud).await?;
             let when = if send_now {
                 "Gửi ngay".to_owned()
             } else if let Some(t) = at {
                 format!("Hẹn gửi lúc {}", vn_when(t))
             } else if status == "scheduled" && cur.get("scheduled_at").is_some_and(|v| !v.is_null()) {
-                format!("Giữ giờ hẹn {}", vn_when_str(cur.get("scheduled_at")).unwrap_or_default())
+                format!(
+                    "Giữ giờ hẹn {}",
+                    vn_when_str(cur.get("scheduled_at")).unwrap_or_default()
+                )
             } else {
                 "Vẫn là nháp (chưa gửi)".to_owned()
             };
@@ -1353,7 +1486,10 @@ fn update_messenger_broadcast<'a>(
                 svc.kick();
             }
         }
-        out(&with_fields(broadcast_for_ai(&b, env.base_url), &[("saved", json!(true))]))
+        out(&with_fields(
+            broadcast_for_ai(&b, env.base_url),
+            &[("saved", json!(true))],
+        ))
     })
 }
 
@@ -1381,7 +1517,10 @@ fn cancel_messenger_broadcast<'a>(
             }));
         }
         let after = svc.cancel_pending(env.company, id).await?;
-        out(&with_fields(broadcast_for_ai(&after, env.base_url), &[("cancelled", json!(true))]))
+        out(&with_fields(
+            broadcast_for_ai(&after, env.base_url),
+            &[("cancelled", json!(true))],
+        ))
     })
 }
 
@@ -1413,7 +1552,11 @@ fn cancel_scheduled_post<'a>(
                 "Bài #{id} đang ở trạng thái \"{status}\" — chỉ huỷ được bài đang hẹn giờ, chưa kênh nào đăng. / Only scheduled, unpublished posts can be cancelled."
             )));
         }
-        let channels: Vec<String> = targets.iter().filter(|t| target_status(t) == "queued").map(account).collect();
+        let channels: Vec<String> = targets
+            .iter()
+            .filter(|t| target_status(t) == "queued")
+            .map(account)
+            .collect();
         if !is_user_confirmation(args.get(CONFIRM_FIRST)) {
             return out(&json!({
                 "cancelled": false,

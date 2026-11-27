@@ -31,7 +31,9 @@ fn env() -> Env<'static> {
         company: CompanyRef::DEFAULT,
         user_id: 7,
         base_url: "https://crm.example.test",
-        now: DateTime::parse_from_rfc3339("2026-11-27T03:00:00Z").unwrap().with_timezone(&Utc),
+        now: DateTime::parse_from_rfc3339("2026-11-27T03:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc),
     }
 }
 
@@ -54,7 +56,11 @@ struct FakePages;
 impl PagesPort for FakePages {
     fn pages(&self, _c: CompanyRef) -> PortFut<'_, Vec<PageRef>> {
         Box::pin(async {
-            Ok(vec![PageRef { page_id: "111".into(), name: "Shop A".into(), is_active: true }])
+            Ok(vec![PageRef {
+                page_id: "111".into(),
+                name: "Shop A".into(),
+                is_active: true,
+            }])
         })
     }
 }
@@ -67,7 +73,10 @@ struct FakeBroadcasts {
 
 impl FakeBroadcasts {
     fn with_status(status: &str) -> Self {
-        Self { log: Mutex::default(), status: status.into() }
+        Self {
+            log: Mutex::default(),
+            status: status.into(),
+        }
     }
 
     fn calls(&self) -> Vec<String> {
@@ -102,7 +111,9 @@ impl BroadcastsPort for FakeBroadcasts {
     }
     fn check_send_time(&self, at: Option<DateTime<Utc>>) -> Result<(), ToolError> {
         match at {
-            Some(t) if t > env().now + chrono::Duration::days(7) => Err(ToolError::User("Hẹn tối đa 7 ngày tới".into())),
+            Some(t) if t > env().now + chrono::Duration::days(7) => {
+                Err(ToolError::User("Hẹn tối đa 7 ngày tới".into()))
+            }
             _ => Ok(()),
         }
     }
@@ -191,7 +202,13 @@ fn ports(b: FakeBroadcasts) -> (Arc<FakeBroadcasts>, FanpagePorts) {
 
 #[test]
 fn loi_dong_y() {
-    for yes in ["ok gửi đi", "Được, làm vậy", "OK", "khỏi hỏi lại", "không cần thêm gì, ok"] {
+    for yes in [
+        "ok gửi đi",
+        "Được, làm vậy",
+        "OK",
+        "khỏi hỏi lại",
+        "không cần thêm gì, ok",
+    ] {
         assert!(is_user_confirmation(Some(&json!(yes))), "{yes}");
     }
     for no in ["", "không", "chưa, sửa lại", "ok nhưng thêm câu này", "gửi đi"] {
@@ -260,7 +277,10 @@ fn dang_ky_dung_15_tool_khong_co_xoa() {
         assert!(!n.contains("delete") && !n.contains("remove"), "{n}");
     }
     assert_eq!(r.get("cancel_scheduled_post").unwrap().permissions, &["social.post"]);
-    assert_eq!(r.get("send_messenger_broadcast").unwrap().permissions, &["integrations.webhooks"]);
+    assert_eq!(
+        r.get("send_messenger_broadcast").unwrap().permissions,
+        &["integrations.webhooks"]
+    );
 }
 
 // ------------------------------------------------------------------ gửi hàng loạt
@@ -275,7 +295,11 @@ async fn gui_hang_loat_xem_truoc_khong_gui() {
     assert_eq!(d["preview"]["outside_window"], json!(3));
     assert_eq!(d["preview"]["when"], json!("Gửi ngay"));
     assert!(d["next_step"].as_str().unwrap().starts_with("CHƯA GỬI"));
-    assert!(b.calls().is_empty(), "chưa có lời đồng ý thì không được tạo/gửi: {:?}", b.calls());
+    assert!(
+        b.calls().is_empty(),
+        "chưa có lời đồng ý thì không được tạo/gửi: {:?}",
+        b.calls()
+    );
     // Lời không phải đồng ý cũng không gửi.
     let args = json!({ "name": "x", "text": "y", "confirmed_by_user": "khoan, sửa lại" });
     let d = data(send_messenger_broadcast(&p, &args, &env()).await);
@@ -314,8 +338,16 @@ async fn gui_hang_loat_nhieu_page_bat_chon_page_id() {
         fn pages(&self, _c: CompanyRef) -> PortFut<'_, Vec<PageRef>> {
             Box::pin(async {
                 Ok(vec![
-                    PageRef { page_id: "1".into(), name: "A".into(), is_active: true },
-                    PageRef { page_id: "2".into(), name: "B".into(), is_active: true },
+                    PageRef {
+                        page_id: "1".into(),
+                        name: "A".into(),
+                        is_active: true,
+                    },
+                    PageRef {
+                        page_id: "2".into(),
+                        name: "B".into(),
+                        is_active: true,
+                    },
                 ])
             })
         }
@@ -338,10 +370,19 @@ async fn sua_va_huy_can_dong_y() {
     let d = data(cancel_messenger_broadcast(&p, &json!({ "broadcast_id": 5 }), &env()).await);
     assert_eq!(d["cancelled"], json!(false));
     assert!(b.calls().is_empty());
-    let d = data(cancel_messenger_broadcast(&p, &json!({ "broadcast_id": 5, "confirmed_by_user": "đồng ý" }), &env()).await);
+    let d = data(
+        cancel_messenger_broadcast(&p, &json!({ "broadcast_id": 5, "confirmed_by_user": "đồng ý" }), &env()).await,
+    );
     assert_eq!(d["cancelled"], json!(true));
     assert_eq!(d["status"], json!("cancelled"));
-    let d = data(update_messenger_broadcast(&p, &json!({ "broadcast_id": 5, "text": "mới", "confirmed_by_user": "ok" }), &env()).await);
+    let d = data(
+        update_messenger_broadcast(
+            &p,
+            &json!({ "broadcast_id": 5, "text": "mới", "confirmed_by_user": "ok" }),
+            &env(),
+        )
+        .await,
+    );
     assert_eq!(d["saved"], json!(true));
     assert_eq!(b.calls(), vec!["cancel", "update:1"]);
 }
@@ -349,14 +390,24 @@ async fn sua_va_huy_can_dong_y() {
 #[tokio::test]
 async fn khong_sua_khong_huy_luot_da_chay() {
     let (_, p) = ports(FakeBroadcasts::with_status("done"));
-    let e = update_messenger_broadcast(&p, &json!({ "broadcast_id": 5, "text": "x" }), &env()).await.err().unwrap();
-    assert!(user_msg(e).contains("đã xong"));
-    let e = cancel_messenger_broadcast(&p, &json!({ "broadcast_id": 5 }), &env()).await.err().unwrap();
-    assert!(user_msg(e).contains("chỉ huỷ được lượt đang chờ"));
-    let e = update_messenger_broadcast(&p, &json!({ "broadcast_id": 5, "scheduled_at": "2026-11-28T09:00", "send_now": true }), &env())
+    let e = update_messenger_broadcast(&p, &json!({ "broadcast_id": 5, "text": "x" }), &env())
         .await
         .err()
         .unwrap();
+    assert!(user_msg(e).contains("đã xong"));
+    let e = cancel_messenger_broadcast(&p, &json!({ "broadcast_id": 5 }), &env())
+        .await
+        .err()
+        .unwrap();
+    assert!(user_msg(e).contains("chỉ huỷ được lượt đang chờ"));
+    let e = update_messenger_broadcast(
+        &p,
+        &json!({ "broadcast_id": 5, "scheduled_at": "2026-11-28T09:00", "send_now": true }),
+        &env(),
+    )
+    .await
+    .err()
+    .unwrap();
     assert!(user_msg(e).contains("Chọn một"));
 }
 
@@ -367,7 +418,10 @@ async fn danh_sach_gui_hang_loat_doi_gio_viet_nam() {
     let b = &d["broadcasts"][0];
     assert_eq!(b["status_text"], json!("đã xong"));
     assert_eq!(b["scheduled_at"], json!("09:00 Thứ Bảy 28/11/2026 (giờ Việt Nam)"));
-    assert_eq!(b["url"], json!("https://crm.example.test/connections?muc=facebook&xem=gui-hang-loat&luot=5"));
+    assert_eq!(
+        b["url"],
+        json!("https://crm.example.test/connections?muc=facebook&xem=gui-hang-loat&luot=5")
+    );
 }
 
 #[tokio::test]
@@ -382,8 +436,14 @@ async fn port_vang_bao_chua_co_tinh_nang() {
 // ------------------------------------------------------------------ luật bình luận
 
 fn comments_ports() -> (Arc<FakeComments>, FanpagePorts) {
-    let c = Arc::new(FakeComments { created: Mutex::default() });
-    let p = FanpagePorts { pages: Some(Arc::new(FakePages)), comments: Some(c.clone()), ..FanpagePorts::default() };
+    let c = Arc::new(FakeComments {
+        created: Mutex::default(),
+    });
+    let p = FanpagePorts {
+        pages: Some(Arc::new(FakePages)),
+        comments: Some(c.clone()),
+        ..FanpagePorts::default()
+    };
     (c, p)
 }
 
@@ -408,12 +468,19 @@ async fn luat_thu_ghi_thang_luat_that_can_dong_y() {
 #[tokio::test]
 async fn luat_can_it_nhat_mot_viec_va_page_phai_co() {
     let (_, p) = comments_ports();
-    let e = create_comment_rule(&p, &json!({ "name": "x" }), &env()).await.err().unwrap();
-    assert!(user_msg(e).contains("ít nhất một việc"));
-    let e = create_comment_rule(&p, &json!({ "name": "x", "hide_if_phone": true, "page_id": "999" }), &env())
+    let e = create_comment_rule(&p, &json!({ "name": "x" }), &env())
         .await
         .err()
         .unwrap();
+    assert!(user_msg(e).contains("ít nhất một việc"));
+    let e = create_comment_rule(
+        &p,
+        &json!({ "name": "x", "hide_if_phone": true, "page_id": "999" }),
+        &env(),
+    )
+    .await
+    .err()
+    .unwrap();
     assert!(user_msg(e).contains("page_id = 999"));
     let e = create_comment_rule(
         &p,
@@ -438,12 +505,21 @@ async fn sua_luat_chi_doi_ten_khong_can_dong_y_con_bat_live_thi_can() {
     // Tắt luật ghi thẳng.
     let d = data(update_comment_rule(&p, &json!({ "rule_id": 3, "mode": "live", "active": false }), &env()).await);
     assert_eq!(d["saved"], json!(true));
-    let e = update_comment_rule(&p, &json!({ "rule_id": 3 }), &env()).await.err().unwrap();
+    let e = update_comment_rule(&p, &json!({ "rule_id": 3 }), &env())
+        .await
+        .err()
+        .unwrap();
     assert!(user_msg(e).contains("Không có trường nào"));
-    let e = update_comment_rule(&p, &json!({ "rule_id": 404, "name": "x" }), &env()).await.err().unwrap();
+    let e = update_comment_rule(&p, &json!({ "rule_id": 404, "name": "x" }), &env())
+        .await
+        .err()
+        .unwrap();
     assert!(user_msg(e).contains("rule_id = 404"));
     // Bỏ hết việc của luật đang bật bị chặn.
-    let e = update_comment_rule(&p, &json!({ "rule_id": 3, "public_replies": [] }), &env()).await.err().unwrap();
+    let e = update_comment_rule(&p, &json!({ "rule_id": 3, "public_replies": [] }), &env())
+        .await
+        .err()
+        .unwrap();
     assert!(user_msg(e).contains("không còn việc nào"));
 }
 

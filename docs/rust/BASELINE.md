@@ -1,6 +1,6 @@
 # Baseline bản Node (R003)
 
-Đo bằng `tests/load/baseline.sh` (một lệnh; xem đầu file), tải do `tests/load/run.mjs` tạo: `GET /health`, `GET /contacts?limit=20` (có đăng nhập), `POST /auth/login`; 15 giây mỗi kịch bản, 10 và 50 kết nối đồng thời; chạy trực tiếp vào Node rồi qua Next (rewrite sang Node). Script đặt bí mật ngẫu nhiên riêng cho mỗi lần chạy, chạy `NODE_ENV=production`, Redis cổng 6390, Node 4210, Next 3210, DB riêng đã seed (5 khách demo).
+Đo bằng `tests/load/baseline.sh` (đã gỡ cùng đường chạy Node/Redis ở X06; lấy lại bằng `git log -- tests/load/baseline.sh`), tải do `tests/load/run.mjs` tạo: `GET /health`, `GET /contacts?limit=20` (có đăng nhập), `POST /auth/login`; 15 giây mỗi kịch bản, 10 và 50 kết nối đồng thời; chạy trực tiếp vào Node rồi qua Next (rewrite sang Node). Script đặt bí mật ngẫu nhiên riêng cho mỗi lần chạy, chạy `NODE_ENV=production`, Redis cổng 6390, Node 4210, Next 3210, DB riêng đã seed (5 khách demo).
 
 ## Giới hạn của lần đo này (đọc trước khi dùng số)
 

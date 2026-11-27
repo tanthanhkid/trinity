@@ -6,14 +6,16 @@ use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 
 use axum::Json;
-use axum::body::{Bytes, to_bytes};
-use axum::extract::{Extension, FromRequest, Path, Query, Request, State};
-use axum::http::{Method, StatusCode, header};
+use axum::body::{Body, Bytes, to_bytes};
+use axum::extract::{DefaultBodyLimit, Extension, FromRequest, Multipart, Path, Query, Request, State};
+use axum::handler::Handler;
+use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use trinity_db::outbox::CreatedNotification;
 use trinity_db::{CompanyRef, Db, TenantConn, TenantTx};
+use trinity_http::edge::body::read_field_limited;
 use trinity_http::router::{AccessDeps, ApiRouter, CurrentUser};
 use trinity_kernel::error::{AppError, HttpError};
 use trinity_rbac::{Grants, OwnerIds, ScopeService, can};
@@ -23,7 +25,9 @@ use crate::components::{self, CreateComponent, UpdateComponent};
 use crate::employees::{self, CreateEmployee, QueryEmployee, UpdateEmployee};
 use crate::insurance::{self, CreateInsurance, UpdateInsurance};
 use crate::kpi::{self, CalculateInput, CreateConfig, KpiQuery};
+use crate::payslips::files::{self, FileOut, ListExcelInput, MISSING_FILE};
 use crate::payslips::{self, AddToPeriodInput, ApproveInput, Approver, GenerateInput, QueryPayslips, UpdatePayslip};
+use crate::reports::{self, QueryComparison, QuerySummary};
 use crate::rules::{self, CreateRule, UpdateRule};
 use crate::tax::{self, CreateBracket, CreateSetting, UpdateBracket, UpdateSetting};
 
@@ -555,6 +559,174 @@ async fn push_notifications(c: &Ctx, company: CompanyRef, items: &[CreatedNotifi
     }
 }
 
+// ---------------------------------------------------------------- tệp phiếu lương (M31)
+
+/// Tệp tải về như `res.set({...}); res.end(buffer)` của bản TS: kiểu nội dung và `attachment; filename="…"` (tên tệp chỉ gồm
+/// chữ số, chữ Latinh và `-`).
+fn file(r: R<FileOut>) -> Response {
+    let f = match r {
+        Ok(f) => f,
+        Err(e) => return fail(e),
+    };
+    let mut resp = Response::new(Body::from(f.bytes));
+    let h = resp.headers_mut();
+    h.insert(header::CONTENT_TYPE, HeaderValue::from_static(f.content_type));
+    if let Ok(v) = HeaderValue::from_str(&format!("attachment; filename=\"{}\"", f.filename)) {
+        h.insert(header::CONTENT_DISPOSITION, v);
+    }
+    resp
+}
+
+/// `BulkExcelPayslipsDto` ở query: `month` `YYYY-MM`.
+fn month_query(q: &HashMap<String, String>) -> Result<String, Response> {
+    let query = payslips::MonthQuery {
+        month: qstr(q, "month").unwrap_or_default(),
+    };
+    query.validate().map(|()| query.month).map_err(fail)
+}
+
+macro_rules! month {
+    ($q:expr) => {
+        match month_query(&$q) {
+            Ok(m) => m,
+            Err(r) => return r,
+        }
+    };
+}
+
+async fn slip_excel(State(c): St, Extension(u): Cu, Path(id): Id) -> Response {
+    let a = act!(u);
+    let id = pid!(id);
+    let scope = scope!(c, a, "payroll.export");
+    file(on_conn!(c, a, conn => files::export_excel(&mut conn, id, scope.as_deref()).await))
+}
+
+async fn slip_pdf(State(c): St, Extension(u): Cu, Path(id): Id) -> Response {
+    let a = act!(u);
+    let id = pid!(id);
+    let scope = scope!(c, a, "payroll.export");
+    file(on_conn!(c, a, conn => files::export_pdf(&mut conn, id, scope.as_deref()).await))
+}
+
+async fn slip_excel_bulk(State(c): St, Extension(u): Cu, Query(q): Q) -> Response {
+    let a = act!(u);
+    let month = month!(q);
+    let scope = scope!(c, a, "payroll.export");
+    file(on_conn!(c, a, conn => files::export_bulk(&mut conn, &month, scope.as_deref()).await))
+}
+
+async fn slip_excel_list(State(c): St, Extension(u): Cu, Query(q): Q) -> Response {
+    let a = act!(u);
+    let month = month!(q);
+    let scope = scope!(c, a, "payroll.export");
+    file(on_conn!(c, a, conn => files::export_list(&mut conn, &month, scope.as_deref(), None).await))
+}
+
+async fn slip_excel_list_ordered(State(c): St, Extension(u): Cu, JsonBody(b): JsonBody) -> Response {
+    let a = act!(u);
+    let input = input!(ListExcelInput, b);
+    let ids = input.ids();
+    let scope = scope!(c, a, "payroll.export");
+    file(on_conn!(c, a, conn => {
+        files::export_list(&mut conn, &input.month, scope.as_deref(), ids.as_deref()).await
+    }))
+}
+
+async fn slip_import_template(State(c): St, Extension(u): Cu, Query(q): Q) -> Response {
+    let a = act!(u);
+    let month = month!(q);
+    file(on_conn!(c, a, conn => files::import_template(&mut conn, &month).await))
+}
+
+/// Trần tệp nhập: bản TS không đặt `limits.fileSize` cho `FileInterceptor('file')`; Rust chặn ở 20 MB (mẫu có ~20 cột × vài
+/// nghìn dòng chỉ vài trăm KB) để tệp lớn bất thường không làm đầy bộ nhớ.
+const IMPORT_MAX_BYTES: usize = 20 * 1024 * 1024;
+
+/// Đọc multipart như `FileInterceptor('file')`: trường tệp duy nhất tên `file` (tệp khác tên hoặc trùng ⇒ 400 `Unexpected
+/// field`), vượt trần ⇒ 413 `File too large`. Trường chữ bị bỏ qua. Không có tệp ⇒ `None`.
+async fn read_file(mut mp: Multipart) -> R<Option<Bytes>> {
+    let mut file = None;
+    while let Some(mut f) = mp
+        .next_field()
+        .await
+        .map_err(|_| HttpError::bad_request("Bad Request"))?
+    {
+        if f.file_name().is_none() {
+            read_field_limited(&mut f, 1024 * 1024).await?;
+            continue;
+        }
+        if f.name() != Some("file") || file.is_some() {
+            return Err(HttpError::bad_request("Unexpected field").into());
+        }
+        file = Some(read_field_limited(&mut f, IMPORT_MAX_BYTES).await?);
+    }
+    Ok(file)
+}
+
+/// Thứ tự như bản TS: lỗi multipart → kiểm query (`BulkExcelPayslipsDto`) → thiếu tệp (400 `Thiếu file upload`).
+async fn upload(q: &HashMap<String, String>, mp: Multipart) -> Result<(String, Bytes), Response> {
+    let file = read_file(mp).await.map_err(fail)?;
+    let month = month_query(q)?;
+    match file {
+        Some(bytes) => Ok((month, bytes)),
+        None => Err(fail(HttpError::bad_request(MISSING_FILE))),
+    }
+}
+
+async fn slip_import_preview(State(c): St, Extension(u): Cu, Query(q): Q, mp: Multipart) -> Response {
+    let a = act!(u);
+    let (month, bytes) = match upload(&q, mp).await {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    ok(on_conn!(c, a, conn => files::preview_import(&mut conn, &bytes, &month).await))
+}
+
+async fn slip_import_apply(State(c): St, Extension(u): Cu, Query(q): Q, mp: Multipart) -> Response {
+    let a = act!(u);
+    let (month, bytes) = match upload(&q, mp).await {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    ok(in_tx!(c, a, tx => files::apply_import(&mut tx, &bytes, &month).await))
+}
+
+// ---------------------------------------------------------------- báo cáo (M31)
+
+async fn report_summary(State(c): St, Extension(u): Cu, Query(q): Q) -> Response {
+    let a = act!(u);
+    let query = QuerySummary {
+        month: qstr(&q, "month").unwrap_or_default(),
+    };
+    if let Err(e) = query.validate() {
+        return fail(e);
+    }
+    ok(on_conn!(c, a, conn => reports::summary(&mut conn, &query.month).await))
+}
+
+async fn report_by_department(State(c): St, Extension(u): Cu, Query(q): Q) -> Response {
+    let a = act!(u);
+    let query = QuerySummary {
+        month: qstr(&q, "month").unwrap_or_default(),
+    };
+    if let Err(e) = query.validate() {
+        return fail(e);
+    }
+    ok(on_conn!(c, a, conn => reports::by_department(&mut conn, &query.month).await))
+}
+
+async fn report_comparison(State(c): St, Extension(u): Cu, Query(q): Q) -> Response {
+    let a = act!(u);
+    let query = QueryComparison {
+        months: qstr(&q, "months").unwrap_or_default(),
+    };
+    if let Err(e) = query.validate() {
+        return fail(e);
+    }
+    let months = query.list();
+    ok(on_conn!(c, a, conn => reports::comparison(&mut conn, &months).await))
+}
+
 // ---------------------------------------------------------------- nhân viên (payroll)
 
 async fn employee_list(State(c): St, Extension(u): Cu, Query(q): Q) -> Response {
@@ -595,10 +767,14 @@ async fn employee_update(State(c): St, Extension(u): Cu, Path(id): Id, JsonBody(
     ok(in_tx!(c, a, tx => employees::update(&mut tx, id, &input).await))
 }
 
-/// Router của payroll: 23 route cấu hình/KPI + 13 route M30b (phiếu lương không trả tệp, nhân viên) = 36 route.
+/// Router của payroll: 23 route cấu hình/KPI + 13 route M30b (phiếu lương không trả tệp, nhân viên) + 11 route M31 (8 tệp/PDF,
+/// 3 báo cáo) = 47 route.
 pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
     let mut table = crate::routes::routes();
     table.extend(crate::routes::payslip_specs());
+    table.extend(crate::routes::file_specs());
+    table.extend(crate::routes::report_specs());
+    let limit = || DefaultBodyLimit::max(IMPORT_MAX_BYTES + 1024 * 1024);
     let spec = |m: &Method, p: &str| {
         table
             .iter()
@@ -646,4 +822,30 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::POST, "/api/v1/employees"), employee_create)
         .route(spec(&Method::GET, "/api/v1/employees/:id"), employee_get)
         .route(spec(&Method::PATCH, "/api/v1/employees/:id"), employee_update)
+        .route(spec(&Method::GET, "/api/v1/payslips/excel-bulk"), slip_excel_bulk)
+        .route(spec(&Method::GET, "/api/v1/payslips/excel-list"), slip_excel_list)
+        .route(
+            spec(&Method::POST, "/api/v1/payslips/excel-list"),
+            slip_excel_list_ordered,
+        )
+        .route(
+            spec(&Method::GET, "/api/v1/payslips/import-template"),
+            slip_import_template,
+        )
+        .route(
+            spec(&Method::POST, "/api/v1/payslips/import/preview"),
+            slip_import_preview.layer(limit()),
+        )
+        .route(
+            spec(&Method::POST, "/api/v1/payslips/import/apply"),
+            slip_import_apply.layer(limit()),
+        )
+        .route(spec(&Method::GET, "/api/v1/payslips/:id/pdf"), slip_pdf)
+        .route(spec(&Method::GET, "/api/v1/payslips/:id/excel"), slip_excel)
+        .route(spec(&Method::GET, "/api/v1/reports/summary"), report_summary)
+        .route(
+            spec(&Method::GET, "/api/v1/reports/by-department"),
+            report_by_department,
+        )
+        .route(spec(&Method::GET, "/api/v1/reports/comparison"), report_comparison)
 }

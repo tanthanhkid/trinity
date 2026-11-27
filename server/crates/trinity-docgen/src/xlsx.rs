@@ -309,7 +309,7 @@ fn sheet_name(name: &str) -> String {
 }
 
 /// Tên không trùng (không phân biệt hoa thường) với các trang đã có: thêm " (2)", " (3)"… vẫn trong 31 ký tự.
-fn unique_sheet_name(name: &str, used: &[String]) -> String {
+pub(crate) fn unique_sheet_name(name: &str, used: &[String]) -> String {
     let base = sheet_name(name);
     let taken = |n: &str| used.iter().any(|u| u.to_lowercase() == n.to_lowercase());
     if !taken(&base) {

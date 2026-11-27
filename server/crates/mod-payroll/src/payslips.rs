@@ -30,6 +30,8 @@ use trinity_kernel::vi::{Collation, compare};
 use crate::calc::{self, EmployeeInput, ManualInput, PayrollConfig, PayslipComputed};
 use crate::{dec, finish, frange, is_in, is_month, len16, range, set, set_num, some_nullable};
 
+pub mod files;
+
 type R<T> = Result<T, AppError>;
 
 const MONTH_MSG: &str = "month phải có định dạng YYYY-MM";

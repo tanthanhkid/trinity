@@ -61,12 +61,18 @@ mod tests {
         let html = "<html><head><title>a</title></head><body></body></html>";
         let out = insert_before_head_end(html, "<meta x>");
         assert_eq!(out, "<html><head><title>a</title><meta x></head><body></body></html>");
-        assert_eq!(insert_before_head_end("<p>khong head</p>", "<meta x>"), "<p>khong head</p>");
+        assert_eq!(
+            insert_before_head_end("<p>khong head</p>", "<meta x>"),
+            "<p>khong head</p>"
+        );
     }
 
     #[test]
     fn meta_slug_va_escape() {
-        assert_eq!(store_slug_meta("cua-hang-1"), r#"<meta name="store-slug" content="cua-hang-1">"#);
+        assert_eq!(
+            store_slug_meta("cua-hang-1"),
+            r#"<meta name="store-slug" content="cua-hang-1">"#
+        );
         assert_eq!(
             store_slug_meta(r#"a"><script>"#),
             r#"<meta name="store-slug" content="a&quot;&gt;&lt;script&gt;">"#

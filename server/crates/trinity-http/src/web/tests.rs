@@ -73,7 +73,14 @@ fn duong_dan_danh_rieng_khong_vao_web_tinh() {
     ] {
         assert!(!svc.handles(&Method::GET, p), "{p}");
     }
-    for p in ["/", "/login", "/apiary", "/contacts/1", "/api/build-id", "/_next/static/a.js"] {
+    for p in [
+        "/",
+        "/login",
+        "/apiary",
+        "/contacts/1",
+        "/api/build-id",
+        "/_next/static/a.js",
+    ] {
         assert!(svc.handles(&Method::GET, p), "{p}");
     }
     assert!(svc.handles(&Method::HEAD, "/login"));
@@ -158,7 +165,10 @@ async fn assistant_va_build_id_va_oauth_authorize() {
         .serve(get("/oauth/authorize?client_id=a", "app.test", Some("access_token=t")))
         .await;
     assert_eq!(r.status(), StatusCode::OK);
-    assert_eq!(header(&r, CONTENT_SECURITY_POLICY.as_str()), Some("frame-ancestors 'none'"));
+    assert_eq!(
+        header(&r, CONTENT_SECURITY_POLICY.as_str()),
+        Some("frame-ancestors 'none'")
+    );
     assert_eq!(header(&r, "x-frame-options"), Some("DENY"));
     let _ = std::fs::remove_dir_all(dir);
 }
@@ -170,7 +180,10 @@ async fn ten_mien_phu_chen_slug_vao_html() {
     assert_eq!(r.status(), StatusCode::OK);
     assert_eq!(header(&r, CACHE_CONTROL.as_str()), Some("no-store, must-revalidate"));
     let html = text(r).await;
-    assert!(html.contains(r#"<meta name="store-slug" content="cua-hang-1"></head>"#), "{html}");
+    assert!(
+        html.contains(r#"<meta name="store-slug" content="cua-hang-1"></head>"#),
+        "{html}"
+    );
     // Trang khác của tên miền phụ cũng là trang cửa hàng; tên miền chính thì không chèn.
     let r = svc.serve(get("/bat-ky", "cua-hang-1.shop.example.com", None)).await;
     assert!(text(r).await.contains("store-slug"));
@@ -184,7 +197,10 @@ async fn privacy_terms_chen_gia_tri_phap_ly() {
     let (svc, dir) = service("legal", None);
     for p in ["/privacy", "/terms"] {
         let html = text(svc.serve(get(p, "app.test", None)).await).await;
-        assert!(html.contains(r#"<script id="trinity-site-config" type="application/json">"#), "{p}");
+        assert!(
+            html.contains(r#"<script id="trinity-site-config" type="application/json">"#),
+            "{p}"
+        );
         assert!(html.contains("C\u{00f4}ng ty A \\u003cb\\u003e"), "{html}");
         assert!(html.contains("</script></head>"), "{p}");
     }

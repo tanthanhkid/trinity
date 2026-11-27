@@ -70,10 +70,10 @@ fn find_in(dir: &Path, segs: &[String]) -> Option<PathBuf> {
             }
         } else {
             let sub = dir.join(name);
-            if sub.is_dir() {
-                if let Some(found) = find_in(&sub, rest) {
-                    return Some(found);
-                }
+            if sub.is_dir()
+                && let Some(found) = find_in(&sub, rest)
+            {
+                return Some(found);
             }
         }
     }
@@ -137,7 +137,11 @@ mod tests {
     use super::*;
 
     fn tree() -> (PathBuf, WebAssets) {
-        let name = format!("trinity-web-assets-{}-{:?}", std::process::id(), std::thread::current().id());
+        let name = format!(
+            "trinity-web-assets-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        );
         let dir = std::env::temp_dir().join(name);
         let _ = std::fs::remove_dir_all(&dir);
         for f in [

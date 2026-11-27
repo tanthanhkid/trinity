@@ -33,9 +33,9 @@ use trinity_http::strangler::{
     spawn_sighup_reloader,
 };
 use trinity_http::web::{WebConfig, WebService};
-use trinity_kernel::ownership::Ownership;
 use trinity_kernel::config::{Config, TlsMode, process_env};
 use trinity_kernel::error::HttpError;
+use trinity_kernel::ownership::Ownership;
 use trinity_rbac::{PermissionService, RbacCache, ScopeService};
 use trinity_storage::{LocalDiskDriver, LocalUploadsStore};
 

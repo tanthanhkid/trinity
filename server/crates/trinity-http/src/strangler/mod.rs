@@ -83,10 +83,11 @@ pub fn dispatcher_full(
 async fn dispatch(State(d): State<Arc<Dispatch>>, req: Request) -> Response {
     let current = d.table.current();
     // Trang web (K18): chủ `web` là Rust thì phục vụ trước, kể cả khi bảng route giao `/` cho Rust (chạy một mình).
-    if let Some(web) = &d.web {
-        if current.web() == Owner::Rust && web.handles(req.method(), req.uri().path()) {
-            return web.serve(req).await;
-        }
+    if let Some(web) = &d.web
+        && current.web() == Owner::Rust
+        && web.handles(req.method(), req.uri().path())
+    {
+        return web.serve(req).await;
     }
     let owner = current.route(req.method().as_str(), req.uri().path()).owner;
     match owner {

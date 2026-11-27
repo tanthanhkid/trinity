@@ -20,7 +20,9 @@ use std::path::{Path, PathBuf};
 
 use axum::body::Body;
 use axum::extract::Request;
-use axum::http::header::{CACHE_CONTROL, CONTENT_LENGTH, CONTENT_SECURITY_POLICY, CONTENT_TYPE, COOKIE, HOST, LOCATION};
+use axum::http::header::{
+    CACHE_CONTROL, CONTENT_LENGTH, CONTENT_SECURITY_POLICY, CONTENT_TYPE, COOKIE, HOST, LOCATION,
+};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use axum::response::Response;
 use serde_json::Value;
@@ -83,7 +85,10 @@ impl WebService {
     pub fn new(config: WebConfig) -> Self {
         Self {
             assets: WebAssets::new(config.dir),
-            store_domain: config.store_domain.map(|d| d.trim().to_ascii_lowercase()).filter(|d| !d.is_empty()),
+            store_domain: config
+                .store_domain
+                .map(|d| d.trim().to_ascii_lowercase())
+                .filter(|d| !d.is_empty()),
             site_config: config.site_config,
             build_id: config.build_id,
         }
@@ -243,10 +248,10 @@ fn cookie_names_with_value(headers: &HeaderMap) -> Vec<&str> {
     for v in headers.get_all(COOKIE) {
         let Ok(s) = v.to_str() else { continue };
         for pair in s.split(';') {
-            if let Some((name, value)) = pair.trim().split_once('=') {
-                if !value.trim().is_empty() {
-                    out.push(name.trim());
-                }
+            if let Some((name, value)) = pair.trim().split_once('=')
+                && !value.trim().is_empty()
+            {
+                out.push(name.trim());
             }
         }
     }
@@ -281,7 +286,12 @@ fn bytes_response(status: StatusCode, ctype: &str, body: Vec<u8>, head: bool) ->
 }
 
 fn plain_not_found(head: bool) -> Response {
-    bytes_response(StatusCode::NOT_FOUND, "text/plain; charset=utf-8", b"Not Found".to_vec(), head)
+    bytes_response(
+        StatusCode::NOT_FOUND,
+        "text/plain; charset=utf-8",
+        b"Not Found".to_vec(),
+        head,
+    )
 }
 
 #[cfg(test)]

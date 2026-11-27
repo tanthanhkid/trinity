@@ -66,7 +66,10 @@ fn valid_slug(s: &str) -> bool {
 
 /// `{slug}.{STORE_DOMAIN}` ⇒ `slug`. `store_domain` đã `trim` + chữ thường; rỗng/`None` = tắt.
 fn store_slug(store_domain: Option<&str>, host: &str) -> Option<String> {
-    let domain = store_domain.map(str::trim).filter(|d| !d.is_empty())?.to_ascii_lowercase();
+    let domain = store_domain
+        .map(str::trim)
+        .filter(|d| !d.is_empty())?
+        .to_ascii_lowercase();
     let host = host.to_ascii_lowercase();
     // `.replace(/:\d+$/, '')`
     let host = match host.rsplit_once(':') {
@@ -131,7 +134,11 @@ pub fn decide(req: &NavRequest<'_>, store_domain: Option<&str>) -> Nav {
         return Nav::Pass { no_store: true };
     }
     let target = if path == "/oauth/authorize" {
-        let search = req.query.filter(|q| !q.is_empty()).map(|q| format!("?{q}")).unwrap_or_default();
+        let search = req
+            .query
+            .filter(|q| !q.is_empty())
+            .map(|q| format!("?{q}"))
+            .unwrap_or_default();
         login_path_with_next(&format!("{path}{search}"))
     } else {
         "/login".to_owned()
@@ -156,7 +163,9 @@ mod tests {
     }
 
     fn redirect(to: &str) -> Nav {
-        Nav::Redirect { location: to.to_owned() }
+        Nav::Redirect {
+            location: to.to_owned(),
+        }
     }
 
     /// Bảng 18 ca, đối chiếu từng dòng với `proxy.ts`.
@@ -166,26 +175,84 @@ mod tests {
         let pass = Nav::Pass { no_store: true };
         let skip = Nav::Pass { no_store: false };
         let cases: Vec<(&str, NavRequest<'_>, Nav)> = vec![
-            ("1 gốc, có access_token", req(app, "/", true, false), redirect("/dashboard")),
-            ("2 gốc, chỉ has_session", req(app, "/", false, true), redirect("/dashboard")),
+            (
+                "1 gốc, có access_token",
+                req(app, "/", true, false),
+                redirect("/dashboard"),
+            ),
+            (
+                "2 gốc, chỉ has_session",
+                req(app, "/", false, true),
+                redirect("/dashboard"),
+            ),
             ("3 gốc, chưa đăng nhập", req(app, "/", false, false), redirect("/login")),
             ("4 /login công khai", req(app, "/login", false, false), pass.clone()),
-            ("5 /register công khai", req(app, "/register", false, false), pass.clone()),
-            ("6 /invite/<token> công khai", req(app, "/invite/abc", false, false), pass.clone()),
-            ("7 /.well-known công khai", req(app, "/.well-known/x", false, false), pass.clone()),
-            ("8 /s/<slug> công khai", req(app, "/s/cua-hang", false, false), pass.clone()),
-            ("9 /privacy khớp nguyên đường dẫn", req(app, "/privacy", false, false), pass.clone()),
-            ("10 /terms khớp nguyên đường dẫn", req(app, "/terms", false, false), pass.clone()),
-            ("11 /privacy/x không công khai", req(app, "/privacy/x", false, false), redirect("/login")),
-            ("12 trang riêng, có access_token", req(app, "/contacts", true, false), pass.clone()),
-            ("13 trang riêng, chỉ has_session", req(app, "/contacts", false, true), pass.clone()),
-            ("14 trang riêng, chưa đăng nhập", req(app, "/contacts", false, false), redirect("/login")),
-            ("15 /_next/static bị matcher loại", req(app, "/_next/static/a.js", false, false), skip.clone()),
-            ("16 /uploads bị matcher loại", req(app, "/uploads/a.png", false, false), skip.clone()),
+            (
+                "5 /register công khai",
+                req(app, "/register", false, false),
+                pass.clone(),
+            ),
+            (
+                "6 /invite/<token> công khai",
+                req(app, "/invite/abc", false, false),
+                pass.clone(),
+            ),
+            (
+                "7 /.well-known công khai",
+                req(app, "/.well-known/x", false, false),
+                pass.clone(),
+            ),
+            (
+                "8 /s/<slug> công khai",
+                req(app, "/s/cua-hang", false, false),
+                pass.clone(),
+            ),
+            (
+                "9 /privacy khớp nguyên đường dẫn",
+                req(app, "/privacy", false, false),
+                pass.clone(),
+            ),
+            (
+                "10 /terms khớp nguyên đường dẫn",
+                req(app, "/terms", false, false),
+                pass.clone(),
+            ),
+            (
+                "11 /privacy/x không công khai",
+                req(app, "/privacy/x", false, false),
+                redirect("/login"),
+            ),
+            (
+                "12 trang riêng, có access_token",
+                req(app, "/contacts", true, false),
+                pass.clone(),
+            ),
+            (
+                "13 trang riêng, chỉ has_session",
+                req(app, "/contacts", false, true),
+                pass.clone(),
+            ),
+            (
+                "14 trang riêng, chưa đăng nhập",
+                req(app, "/contacts", false, false),
+                redirect("/login"),
+            ),
+            (
+                "15 /_next/static bị matcher loại",
+                req(app, "/_next/static/a.js", false, false),
+                skip.clone(),
+            ),
+            (
+                "16 /uploads bị matcher loại",
+                req(app, "/uploads/a.png", false, false),
+                skip.clone(),
+            ),
             (
                 "17 tên miền phụ cửa hàng",
                 req("abc-shop.shop.example.com", "/", false, false),
-                Nav::Store { slug: "abc-shop".to_owned() },
+                Nav::Store {
+                    slug: "abc-shop".to_owned(),
+                },
             ),
             (
                 "18 tên miền phụ: /_next/ đi thẳng",
@@ -219,7 +286,15 @@ mod tests {
 
     #[test]
     fn matcher_la_tien_to_thuan_nhu_regex() {
-        for p in ["/api/v1/x", "/apiary", "/favicon.ico", "/logo.svg", "/brand/a.png", "/_next/image", "/uploads"] {
+        for p in [
+            "/api/v1/x",
+            "/apiary",
+            "/favicon.ico",
+            "/logo.svg",
+            "/brand/a.png",
+            "/_next/image",
+            "/uploads",
+        ] {
             assert!(matcher_skips(p), "{p}");
         }
         for p in ["/", "/login", "/_next/other", "/dashboard"] {

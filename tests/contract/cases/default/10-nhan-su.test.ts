@@ -1,6 +1,6 @@
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { closeDb, q, seedUser, type Scope } from '../../lib/db.js'
-import { api, freshIp } from '../../lib/http.js'
+import { api, control, freshIp } from '../../lib/http.js'
 import { loginSeeded } from '../../lib/session.js'
 
 afterAll(closeDb)
@@ -192,6 +192,18 @@ describe('GET/POST /management/job-titles', () => {
 })
 
 describe('GET/PATCH /settings/departments', () => {
+  // PATCH ghi `settings.department_list` dùng chung cả hồ sơ: khôi phục đúng giá trị (hoặc xoá dòng) sau cụm này.
+  let savedDepartments: string | null | undefined
+  beforeAll(async () => {
+    const [row] = await q<{ value: string | null }>(`SELECT value FROM settings WHERE key = 'department_list'`)
+    savedDepartments = row ? row.value : undefined
+  })
+  afterAll(async () => {
+    if (savedDepartments === undefined) await q(`DELETE FROM settings WHERE key = 'department_list'`)
+    else await q(`UPDATE settings SET value = $1 WHERE key = 'department_list'`, [savedDepartments])
+    await control.flushCache()
+  })
+
   it('GET — AuthOnly, mọi người đã đăng nhập đọc được', async () => {
     const u = await as('dp-get', {})
     expect((await u.get('/settings/departments')).status).toBe(200)

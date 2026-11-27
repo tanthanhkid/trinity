@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { closeDb, seedUser, type Scope } from '../../lib/db.js'
 import { api, freshIp } from '../../lib/http.js'
+import { golden, snap, type Role } from '../../lib/golden.js'
 import { loginAdmin, loginSeeded } from '../../lib/session.js'
 
 afterAll(closeDb)
@@ -49,7 +50,9 @@ describe('POST /kanban/boards — kanban.boards (không dùng kanban.view)', () 
 })
 
 describe('GET /reports/overview — Mẫu A (reports.overview)', () => {
-  const RANGE = '?date_from=2026-09-01&date_to=2026-09-28'
+  // Khoảng ngày tương đối so với hôm nay (máy chủ chạy TZ=UTC), không hằng ngày cứng.
+  const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10)
+  const RANGE = `?date_from=${day(-27)}&date_to=${day(0)}`
 
   it('không có quyền reports.overview → 403', async () => {
     const u = await as('rp-none', {})
@@ -60,12 +63,32 @@ describe('GET /reports/overview — Mẫu A (reports.overview)', () => {
     const u = await as('rp-own', { 'reports.overview': 'own' })
     const res = await u.get(`/reports/overview${RANGE}`)
     expect(res.status).toBe(200)
-    expect(res.body).toBeDefined()
+    expect(typeof res.body).toBe('object')
+    expect(res.body).not.toBeNull()
   })
 
   it('scope all (chỉ là grant, không phải tên vai trò) vẫn 200', async () => {
     const u = await as('rp-all', { 'reports.overview': 'all' })
     expect((await u.get(`/reports/overview${RANGE}`)).status).toBe(200)
+  })
+
+  // `reports.overview` có `shape_permissions: contacts.phone_full`: golden ghi cho 3 vai (admin, leader, sale).
+  it('golden ba vai: admin, leader, sale', async () => {
+    const leader = await seedUser({
+      label: 'rp-leader',
+      grants: { 'reports.overview': 'all', 'contacts.view': 'all', 'contacts.phone_full': 'all' },
+    })
+    const sale = await seedUser({ label: 'rp-sale', grants: { 'reports.overview': 'own', 'contacts.view': 'own' } })
+    const tokens: [Role, string][] = [
+      ['admin', (await loginAdmin()).token],
+      ['leader', (await loginSeeded(leader)).token],
+      ['sale', (await loginSeeded(sale)).token],
+    ]
+    for (const [role, token] of tokens) {
+      const res = await api.get(`/reports/overview${RANGE}`, { token, ip: freshIp() })
+      expect(res.status, role).toBe(200)
+      golden('reports-overview', role, snap(res))
+    }
   })
 })
 

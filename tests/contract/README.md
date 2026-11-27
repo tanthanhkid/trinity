@@ -62,6 +62,10 @@ Hồ sơ `production` phía Rust chạy trên binary **phát hành** (không có
   6 chỗ gọi `invalidateUsers` của e2e cũ nằm ở ca MCP/OAuth/webhook (C10 trở đi).
 - Hai bộ chạy song song trên cùng máy dùng chung tên DB `trinity_contract_*` và cổng 4310 sẽ giẫm nhau; đặt `CONTRACT_PORT` riêng và (nếu cần) đổi tên DB mẫu.
 
+## Ca e2e đã chuyển (C10)
+- C10: `cases/default/10-nhan-su` (nhân sự, chấm công, hợp đồng, tuyển dụng, tổ chức) và `11-kanban-bao-cao-bang-tin` (kanban, báo cáo, bảng tin). `reports/overview`
+  có `shape_permissions: contacts.phone_full` nên ghi golden 3 vai; khoảng ngày tính từ hôm nay. Ca sửa `/settings/departments` khôi phục `settings.department_list` ở `afterAll`.
+
 ## Ca e2e đã chuyển (C09)
 - C09 (22 ca, hồ sơ `default`): `20-custom-objects` (14, từ `custom-objects.e2e-spec.ts`) và `21-custom-object-templates` (8, từ `custom-objects-templates.e2e-spec.ts`).
   Mỗi ca bắt đầu bằng `resetCustom()` (TRUNCATE `custom_records/fields/objects`, `integration_events`) vì e2e gốc dọn ở `afterEach` và nhiều ca dùng cùng khoá

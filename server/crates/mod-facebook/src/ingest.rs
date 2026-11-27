@@ -12,7 +12,8 @@
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use serde_json::Value;
 use trinity_db::pg_error::app_error;
@@ -56,11 +57,18 @@ pub struct FacebookIngest {
     pub db: Db,
     pub env: Env,
     pub graph_for: GraphFactory,
+    /// Lần đồng bộ hội thoại gần nhất (mili giây) theo (công ty, id hội thoại): mỗi hội thoại tối đa một lần mỗi phút (M48).
+    pub(crate) last_sync: Mutex<HashMap<(CompanyRef, i32), i64>>,
 }
 
 impl FacebookIngest {
     pub fn new(db: Db, env: Env, graph_for: GraphFactory) -> Self {
-        Self { db, env, graph_for }
+        Self {
+            db,
+            env,
+            graph_for,
+            last_sync: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Một kết nối đã gắn công ty cho MỘT bước DB; người gọi trả lại (drop) trước khi gọi Graph hoặc xin kết nối khác.

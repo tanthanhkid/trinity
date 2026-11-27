@@ -25,7 +25,7 @@ Cột "Mức rà": **đạt** = đã đọc mã và test hiện có phủ; **m�
 | Đường dẫn tệp (thoát thư mục) | `trinity-storage/src/key.rs` | đạt | Từ chối `..`, test cho `../../etc/passwd` |
 | CORS, CSRF | `trinity-http/src/edge/cors.rs` | chưa | CSRF không có bề mặt vì xác thực bằng header `Authorization` (PLAN 10.2); CORS chưa đọc kỹ |
 | Rate limit, IP thật | `trinity-http/src/rate_limit.rs`, `edge/client_ip*`, `mod-auth/src/rate_limit.rs` | chưa | Thuộc K16/K17, có ca test riêng; chưa rà ở X10 |
-| Header bảo mật của máy chủ | | mẫu | Có `nosniff` ở phục vụ tệp (`trinity-storage/src/serve.rs`); chưa có lớp chung cho phản hồi khác |
+| Header bảo mật của máy chủ | `trinity-http/src/edge/security_headers.rs` | đạt | Lớp chung ngoài cùng: `nosniff`, `X-Frame-Options`/`frame-ancestors`, `Referrer-Policy`, HSTS chỉ khi https (cấu hình `HSTS_MAX_AGE`, `TRUST_FORWARDED_PROTO`); giữ header đã có |
 
 ## 2. Phạm vi không nằm trong bản rà này
 

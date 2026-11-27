@@ -870,6 +870,12 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   gọi `routes::boot_check`), `trinity check-routes [--require-all]` / `cargo xtask check-routes`; lệnh `serve` (chưa có) gọi `boot_check` trước khi mở
   cổng. CI hiện đã tắt (chủ dự án: tự test local), nên đây là kiểm cục bộ, không phải job CI. `--require-all` là cổng cuối X06. Module nào có route
   đầu tiên thêm `routes()` vào `declared_routes()` của `trinity-bin`. `resolvePublicRouteCompany` chuyển cùng module đầu tiên cần nó.
+- **Đã làm ở M02** (`server/crates/mod-auth/src/invitations.rs`): đăng ký công ty (`register`, dựng schema bằng migrator Rust K07/K09, trả token như đăng nhập) và lời mời nhân viên
+  (tạo, danh sách, huỷ, vai trò mời được, xem, nhận): token `cN.` + 32 byte base64url, DB chỉ giữ SHA-256, hạn 7 ngày, một lần; hạn mức gói theo
+  `rbac.json` (`Catalog::resolve_plan_for_company`, công ty ≥ 2 thiếu dòng gói = gói đăng ký mặc định 10 người); khoá advisory theo công ty
+  (`USER_SLOT_LOCK`) là câu ĐẦU của mọi giao dịch đụng lời mời hoặc đếm chỗ; mời lại thay link cũ; luật chống leo thang quyền; phạm vi `users.manage`;
+  hàm thu hồi cho đường thêm người, khoá người dùng và xoá vai trò. Lớp logic + DB như M01 (nối route ở router). `invitations.pg.spec` chuyển thành
+  `tests/invitations.rs` (10 ca).
 - `ScopeService` và bộ dựng điều kiện phạm vi chuyển kèm test pg hiện có (`scope.service.spec.ts`).
 - **Đã làm ở K12** (`server/crates/trinity-rbac`): `catalog` (nhúng `contracts/rbac.json`), `grants` (`normalize_grant`, `merge_grants`, `can`,
   `scope_of`, `is_subset`; bảng ca dùng chung `contracts/cases/rbac.json` do `packages/rbac/src/grants-cases.spec.ts` sinh, Rust chạy lại ở

@@ -24,8 +24,18 @@ pub struct OrgFeatureDef {
     pub label: String,
 }
 
+/// Gói (`plans` trong `rbac.json`): chỉ phần Rust cần tới. `max_users = None` ⇒ không giới hạn.
+#[derive(Debug, Clone, Deserialize)]
+pub struct PlanDef {
+    #[serde(rename = "maxUsers")]
+    pub max_users: Option<i64>,
+}
+
 #[derive(Debug, Deserialize)]
 struct Raw {
+    plans: HashMap<String, PlanDef>,
+    default_plan: String,
+    default_signup_plan: String,
     org_features: Vec<OrgFeatureDef>,
     scope_order: Vec<String>,
     retired_permissions: Vec<String>,
@@ -39,6 +49,9 @@ pub struct Catalog {
     index: HashMap<String, usize>,
     pub scope_order: Vec<String>,
     pub retired: Vec<String>,
+    plans: HashMap<String, PlanDef>,
+    default_plan: String,
+    default_signup_plan: String,
 }
 
 impl Catalog {
@@ -56,6 +69,27 @@ impl Catalog {
 
     pub fn is_permission(&self, key: &str) -> bool {
         self.index.contains_key(key)
+    }
+
+    pub fn plan(&self, key: &str) -> Option<&PlanDef> {
+        self.plans.get(key)
+    }
+
+    /// `resolvePlanForCompany`: dòng gói hợp lệ thì theo dòng đó; thiếu hoặc rác: công ty ≥ 2 của chế độ đa công ty = gói đăng
+    /// ký mặc định (có giới hạn), còn lại (công ty 1, một công ty) = gói mặc định (`custom`, không giới hạn).
+    /// `company = None` là bản một công ty.
+    pub fn resolve_plan_for_company(&self, raw: Option<&str>, company: Option<i32>) -> &str {
+        if let Some(k) = raw.filter(|k| self.plans.contains_key(*k)) {
+            // Trả về khoá nằm trong catalog (không phải `raw`) để thời gian sống gắn với `self`.
+            if let Some((key, _)) = self.plans.get_key_value(k) {
+                return key;
+            }
+        }
+        if company.is_some_and(|c| c != 1) {
+            &self.default_signup_plan
+        } else {
+            &self.default_plan
+        }
     }
 }
 
@@ -77,6 +111,9 @@ static CATALOG: LazyLock<Catalog> = LazyLock::new(|| {
         index,
         scope_order: raw.scope_order,
         retired: raw.retired_permissions,
+        plans: raw.plans,
+        default_plan: raw.default_plan,
+        default_signup_plan: raw.default_signup_plan,
     }
 });
 

@@ -1,0 +1,56 @@
+name: Upgrade test
+
+# X14 — thử nâng cấp một bản cài Docker Compose có dữ liệu lên image dựng từ một nhánh cho trước (scripts/ops/upgrade-test.sh).
+# Chạy TAY (workflow_dispatch). X06 chạy nó trên nhánh của mình trước khi merge; nhánh `main` (Node -> Node) phải đạt.
+# Dựng cả hai bản bằng Docker trên runner nên nặng (Node ~10 phút mỗi bản, Rust thêm cargo build): đặt timeout rộng.
+on:
+  workflow_dispatch:
+    inputs:
+      new_ref:
+        description: Nhánh, tag hoặc sha cần thử nâng cấp lên
+        required: true
+        default: main
+      old_ref:
+        description: Bản cài cũ (tag v*); bỏ trống = bản phát hành gần nhất
+        required: false
+        default: ""
+      tunnel_file:
+        description: Tệp compose ghép tunnel trong nhánh mới (vd docker-compose.tunnel.yml); bỏ trống = bỏ ca tunnel
+        required: false
+        default: ""
+
+concurrency:
+  group: upgrade-test-${{ inputs.new_ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  upgrade:
+    name: Upgrade (API_PORT=${{ matrix.api_port }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        # 4000 = mặc định; 4100 = bản cài cũ đã đổi API_PORT (luật /notif-ws trỏ 4100 vẫn phải ra chuông).
+        api_port: ["4000", "4100"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+      - name: Chạy kịch bản nâng cấp
+        env:
+          NEW_REF: ${{ inputs.new_ref }}
+          OLD_REF: ${{ inputs.old_ref }}
+          TUNNEL_FILE: ${{ inputs.tunnel_file }}
+          API_PORT: ${{ matrix.api_port }}
+        run: |
+          set -euo pipefail
+          args=(--new-ref "$NEW_REF" --api-port "$API_PORT")
+          [ -n "$OLD_REF" ] && args+=(--old-ref "$OLD_REF")
+          [ -n "$TUNNEL_FILE" ] && args+=(--tunnel-file "$TUNNEL_FILE")
+          scripts/ops/upgrade-test.sh "${args[@]}"

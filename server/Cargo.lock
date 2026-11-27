@@ -4940,6 +4940,7 @@ dependencies = [
 name = "trinity-bin"
 version = "0.3.0"
 dependencies = [
+ "axum",
  "base64 0.23.1",
  "clap",
  "getrandom 0.4.3",
@@ -4967,11 +4968,17 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tokio",
+ "tracing",
  "trinity-auth",
  "trinity-db",
  "trinity-http",
+ "trinity-jobs",
  "trinity-kernel",
+ "trinity-obs",
  "trinity-ops",
+ "trinity-rbac",
+ "trinity-realtime",
+ "trinity-storage",
  "trinity-testhooks",
 ]
 

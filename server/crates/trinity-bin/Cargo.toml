@@ -37,7 +37,6 @@ mod-custom = { workspace = true }
 mod-reports = { workspace = true }
 mod-setup = { workspace = true }
 mod-users = { workspace = true }
-mod-attendance = { workspace = true }
 mod-leads = { workspace = true }
 mod-channel-guard = { workspace = true }
 mod-store = { workspace = true }
@@ -50,6 +49,14 @@ trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-ops = { workspace = true }
 serde_json = { workspace = true }
+axum = { workspace = true }
+tracing = { workspace = true }
+mod-attendance = { workspace = true }
+trinity-jobs = { workspace = true }
+trinity-obs = { workspace = true }
+trinity-rbac = { workspace = true }
+trinity-realtime = { workspace = true }
+trinity-storage = { workspace = true }
 
 [lints]
 workspace = true

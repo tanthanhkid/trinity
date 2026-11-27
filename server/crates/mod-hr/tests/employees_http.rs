@@ -222,6 +222,29 @@ async fn danh_sach_chi_tiet_theo_pham_vi_dto_va_thong_ke() {
     let unknown = call(&a, Method::GET, &format!("{B}?bua=1"), Some(HR), None).await;
     assert_eq!(unknown.status, 400, "chế độ strict: tham số lạ bị từ chối");
 
+    // Từ khoá là chuỗi chữ: `%` và `_` không phải ký tự đại diện (cả danh sách lẫn xuất file).
+    for pat in ["%25", "m10_test", "%5C"] {
+        let r = call(
+            &a,
+            Method::GET,
+            &format!("{B}?search={pat}&page_size=100"),
+            Some(HR),
+            None,
+        )
+        .await;
+        assert_eq!(r.status, 200, "{pat}: {:?}", r.body);
+        assert_eq!(
+            r.body["pagination"]["total"], 0,
+            "search={pat} không được khớp mọi dòng"
+        );
+    }
+    assert_eq!(
+        call(&a, Method::GET, &format!("{B}/export?search=%25"), Some(HR), None)
+            .await
+            .status,
+        200
+    );
+
     // Phạm vi: LOW chỉ thấy chính mình; HR thấy tất cả; mặc định sắp theo team → trưởng nhóm → thâm niên → tên.
     let own = call(&a, Method::GET, &format!("{B}?page_size=100"), Some(LOW), None).await;
     let ids: Vec<i64> = own.body["data"]
@@ -367,7 +390,7 @@ async fn them_sua_khoa_mo_khoa_xoa_va_giai_doan_lam_viec() {
         Method::POST,
         B,
         Some(HR),
-        Some(json!({ "email": "moi@m10.test", "full_name": "Nhân viên mới", "phone": "0910000099", "team_id": team_id, "gender": "F", "status": "probation", "birth_date": "1995-12-31" })),
+        Some(json!({ "email": "moi@m10.test", "full_name": "Nhân viên mới", "phone": "0910000099", "team_id": team_id, "gender": "F", "status": "probation", "birth_date": "1995-12-31T00:00Z", "education_level": "cao_dang", "recruitment_source": "hr", "joined_at": "2026-01-02 08:30" })),
     )
     .await;
     assert_eq!(created.status, 201, "{:?}", created.body);
@@ -377,6 +400,13 @@ async fn them_sua_khoa_mo_khoa_xoa_va_giai_doan_lam_viec() {
         (Some("Kinh doanh"), Some(i64::from(HR)))
     );
     assert_eq!(created.body["status"], "probation");
+    assert_eq!(
+        (
+            created.body["education_level"].as_str(),
+            created.body["recruitment_source"].as_str()
+        ),
+        (Some("cao_dang"), Some("hr"))
+    );
     let dup = call(
         &a,
         Method::POST,
@@ -588,6 +618,7 @@ async fn them_sua_khoa_mo_khoa_xoa_va_giai_doan_lam_viec() {
         "không dời ngày nghỉ sang hôm nay"
     );
 
+    // Xoá mềm cần `users.manage` phủ người đó: LOW không có ⇒ 403 ở route; HR đóng giai đoạn làm việc đang mở.
     // Xoá mềm: tài khoản bị khoá, hồ sơ mất khỏi danh sách; không xoá chính mình; xoá lại ⇒ 404.
     assert_eq!(
         call(&a, Method::DELETE, &format!("{B}/{hr_emp}"), Some(HR), None)
@@ -601,6 +632,14 @@ async fn them_sua_khoa_mo_khoa_xoa_va_giai_doan_lam_viec() {
         (StatusCode::OK, Some("Đã xoá nhân viên"))
     );
     assert_eq!(call(&a, Method::DELETE, &p, Some(HR), None).await.status, 404);
+    assert_eq!(
+        scalar::<i64>(&format!(
+            "SELECT count(*) FROM employment_periods WHERE employee_id = {new_id} AND ended_on IS NULL"
+        ))
+        .await,
+        0,
+        "xoá mềm đóng giai đoạn làm việc"
+    );
     let list = call(
         &a,
         Method::GET,

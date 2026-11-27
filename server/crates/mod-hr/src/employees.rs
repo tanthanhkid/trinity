@@ -24,7 +24,7 @@ use trinity_db::types::{JsBigInt, Timestamp};
 use trinity_db::{CompanyRef, Db};
 use trinity_kernel::error::{AppError, HttpError};
 use trinity_kernel::number::js_round;
-use trinity_kernel::vi::{Collation, compare, trim_js};
+use trinity_kernel::vi::{Collation, compare, escape_like, trim_js};
 use trinity_kernel::vn_time::to_vn;
 use trinity_rbac::{OwnerIds, PermissionService, RbacCache, ScopeService, push_scope};
 use trinity_storage::LocalUploadsStore;
@@ -376,13 +376,15 @@ async fn list_sorted(ctx: &Ctx, actor: &Actor, q: &QueryEmployeesDto, permission
         _ => {}
     }
     if let Some(term) = q.search.as_deref().map(trim_js).filter(|s| !s.is_empty()) {
+        // Escape `\ % _` để từ khoá là chuỗi chữ, không phải mẫu LIKE.
+        let pat = format!("%{}%", escape_like(term));
         qb.push(" AND (u.full_name ILIKE ")
-            .push_bind(format!("%{term}%"))
-            .push(" OR u.email ILIKE ")
-            .push_bind(format!("%{term}%"))
-            .push(" OR u.phone LIKE ")
-            .push_bind(format!("%{term}%"))
-            .push(")");
+            .push_bind(pat.clone())
+            .push(" ESCAPE '\\' OR u.email ILIKE ")
+            .push_bind(pat.clone())
+            .push(" ESCAPE '\\' OR u.phone LIKE ")
+            .push_bind(pat)
+            .push(" ESCAPE '\\')");
     }
     let mut conn = ctx.conn(actor.company).await?;
     let rows: Vec<Row> = qb.build_query_as().fetch_all(&mut *conn).await.map_err(db)?;

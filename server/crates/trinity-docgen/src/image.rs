@@ -36,8 +36,55 @@ pub const QUALITY: u8 = 70;
 pub const AVATAR_QUALITY: u8 = 70;
 /// Chất lượng JPEG khi bắt buộc JPEG (ảnh gửi sang Facebook/Zalo, chứng từ nhân sự).
 pub const COMPAT_JPEG_QUALITY: u8 = 75;
-/// Số điểm ảnh tối đa mà [`compress_upload`] chịu giải mã (40 megapixel): máy chủ chỉ có ~1 GB RAM.
-pub const UPLOAD_MAX_INPUT_PIXELS: u64 = 40_000_000;
+/// Số điểm ảnh tối đa mà [`compress_upload`] chịu giải mã (24 megapixel ≈ 96 MB RGBA): máy chủ chỉ có 1 GB RAM
+/// (systemd `MemoryMax=600M`). Quá trần ⇒ giữ nguyên byte.
+pub const UPLOAD_MAX_INPUT_PIXELS: u64 = 24_000_000;
+
+/// Số lượt nén chạy cùng lúc mặc định (env `IMAGE_COMPRESS_CONCURRENCY` ghi đè, tối thiểu 1).
+pub const DEFAULT_COMPRESS_CONCURRENCY: usize = 1;
+
+/// Semaphore đếm bằng `Mutex` + `Condvar` (hàm nén chạy trong `spawn_blocking` nên chờ chặn luồng là đúng chỗ).
+struct Gate {
+    free: std::sync::Mutex<usize>,
+    cv: std::sync::Condvar,
+}
+
+fn gate() -> &'static Gate {
+    static GATE: std::sync::OnceLock<Gate> = std::sync::OnceLock::new();
+    GATE.get_or_init(|| {
+        let n = std::env::var("IMAGE_COMPRESS_CONCURRENCY")
+            .ok()
+            .and_then(|v| v.trim().parse::<usize>().ok())
+            .unwrap_or(DEFAULT_COMPRESS_CONCURRENCY)
+            .max(1);
+        Gate {
+            free: std::sync::Mutex::new(n),
+            cv: std::sync::Condvar::new(),
+        }
+    })
+}
+
+/// Giữ một suất nén; trả lại khi bị huỷ (kể cả panic).
+struct Permit(&'static Gate);
+
+impl Permit {
+    fn acquire() -> Self {
+        let g = gate();
+        let mut free = g.free.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        while *free == 0 {
+            free = g.cv.wait(free).unwrap_or_else(std::sync::PoisonError::into_inner);
+        }
+        *free -= 1;
+        Self(g)
+    }
+}
+
+impl Drop for Permit {
+    fn drop(&mut self) {
+        *self.0.free.lock().unwrap_or_else(std::sync::PoisonError::into_inner) += 1;
+        self.0.cv.notify_one();
+    }
+}
 /// Số điểm ảnh tối đa của ảnh đầu vào — `limitInputPixels` mặc định của sharp (0x3FFF × 0x3FFF).
 pub const MAX_INPUT_PIXELS: u64 = 268_402_689;
 /// Bộ nhớ tối đa để giải mã (đủ cho ảnh RGBA 8 bit lớn nhất được nhận).
@@ -355,6 +402,14 @@ pub fn compress_upload(bytes: &[u8], target: UploadFormat) -> Compressed {
     if is_animated(bytes, mime) {
         return keep_original(bytes);
     }
+    // Một lúc chỉ nén tới `IMAGE_COMPRESS_CONCURRENCY` ảnh (mặc định 1) để không vượt RAM; kiểm kích thước từ phần đầu tệp
+    // trước khi chờ để ảnh quá trần không chiếm suất.
+    if let Ok((w, h)) = reader(bytes).and_then(|r| r.into_dimensions().map_err(not_image))
+        && u64::from(w) * u64::from(h) > UPLOAD_MAX_INPUT_PIXELS
+    {
+        return keep_original(bytes);
+    }
+    let _permit = Permit::acquire();
     let Ok(img) = decode_with(bytes, UPLOAD_MAX_INPUT_PIXELS) else {
         return keep_original(bytes);
     };
@@ -681,14 +736,27 @@ mod tests {
     }
 
     #[test]
-    fn anh_qua_40_megapixel_giu_nguyen() {
+    fn nen_dong_thoi_khong_deadlock_va_tra_suat() {
+        let src = jpeg_of(&noisy_rgb(300, 200), 95);
+        let hs: Vec<_> = (0..4)
+            .map(|_| {
+                let s = src.clone();
+                std::thread::spawn(move || !compress_upload(&s, UploadFormat::WebP).bytes.is_empty())
+            })
+            .collect();
+        assert!(hs.into_iter().all(|h| h.join().unwrap()));
+        assert!(*gate().free.lock().unwrap() >= 1);
+    }
+
+    #[test]
+    fn anh_qua_24_megapixel_giu_nguyen() {
         use image::ImageEncoder;
         let mut png = Vec::new();
         image::codecs::png::PngEncoder::new(&mut png)
             .write_image(&[0u8; 3], 1, 1, image::ExtendedColorType::Rgb8)
             .unwrap();
-        png[16..20].copy_from_slice(&7_000u32.to_be_bytes());
-        png[20..24].copy_from_slice(&7_000u32.to_be_bytes());
+        png[16..20].copy_from_slice(&5_000u32.to_be_bytes());
+        png[20..24].copy_from_slice(&5_000u32.to_be_bytes());
         let crc = crc32(&png[12..29]);
         png[29..33].copy_from_slice(&crc.to_be_bytes());
         let out = compress_upload(&png, UploadFormat::WebP);

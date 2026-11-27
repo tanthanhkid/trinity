@@ -194,7 +194,7 @@ pub fn resolve_target(metric_name: &str, target: f64, working_days: i32) -> f64 
 /// `Math.round(actual / target * 10000) / 100`; mục tiêu ≤ 0 ⇒ 0.
 pub fn achievement_rate(actual: f64, target: f64) -> f64 {
     if target > 0.0 {
-        js_round(actual / target * 10000.0) / 100.0
+        js_round(actual / target * 10000.0) / 100.0 + 0.0 // `+ 0.0`: -0 thành +0
     } else {
         0.0
     }
@@ -415,7 +415,7 @@ pub async fn get_by_employee(conn: &mut PgConnection, employee_id: i32, month: &
         .iter()
         .map(|r| r.3.and_then(|d| d.0.to_f64()).unwrap_or(0.0))
         .collect();
-    let overall = js_round(rates.iter().sum::<f64>() / rates.len() as f64 * 100.0) / 100.0;
+    let overall = js_round(rates.iter().sum::<f64>() / rates.len() as f64 * 100.0) / 100.0 + 0.0;
     let is_locked = rows.iter().all(|r| r.5);
     // `metrics[tên] = …`: trùng tên thì ghi đè giá trị nhưng giữ vị trí đầu tiên, như object JS.
     let mut metrics: Vec<(String, MetricView)> = Vec::new();

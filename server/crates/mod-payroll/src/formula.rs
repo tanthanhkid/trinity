@@ -12,7 +12,9 @@
 //!
 //! Công thức được ghép vào `return (…);` nên ngoặc không cần cân bằng riêng (`1) + (2` hợp lệ); hằng regex ở vị trí toán
 //! hạng cũng hợp lệ (kết quả `NaN`). Phép `+` với giá trị không phải số (hàm) ở JS ra chuỗi; ở đây ra một giá trị "chuỗi" mà mọi phép số học sau đó biến
-//! thành `NaN`, nên kết quả cuối cùng (lỗi không hữu hạn) giống nhau.
+//! thành `NaN`, nên kết quả cuối cùng (lỗi không hữu hạn) giống nhau. `obj.tên++` trên `Math.min`… (hàm) gán thuộc tính vào
+//! chính đối tượng dùng chung của tiến trình Node, nên ở Node công thức đó làm LẦN SAU thấy `min.tên = NaN` thay vì `undefined`
+//! (rò trạng thái); Rust mỗi lần tính một môi trường mới. Bảng ca so với lần chạy sạch.
 
 use std::collections::HashMap;
 
@@ -534,8 +536,10 @@ enum Val {
     Num(f64),
     Func(&'static str),
     Undefined,
-    /// Kết quả của `+` với một hàm: chuỗi ở JS; mọi phép số học sau đó cho `NaN`.
+    /// Kết quả của `+` với một hàm hay regex: chuỗi ở JS; mọi phép số học sau đó cho `NaN`.
     Str,
+    /// Hằng regex: object (gán được thuộc tính, không lặp được), số học trên nó cho `NaN`.
+    Regex,
 }
 
 impl Val {
@@ -593,10 +597,14 @@ impl Eval {
     fn eval(&mut self, e: &Expr) -> Result<Val, FormulaError> {
         Ok(match e {
             Expr::Num(n) => Val::Num(*n),
-            Expr::Regex => Val::Str,
+            Expr::Regex => Val::Regex,
             Expr::Var(name) => self.env.get(name).copied().unwrap_or(Val::Undefined),
             Expr::Member(obj) => {
-                self.eval(obj)?;
+                // Đọc thuộc tính của `undefined` là TypeError; của số, chuỗi, hàm, regex thì ra `undefined` (mọi tên cho phép
+                // đều không có trên các kiểu đó).
+                if self.eval(obj)? == Val::Undefined {
+                    return Err(FormulaError::Runtime);
+                }
                 Val::Undefined
             }
             Expr::Call(callee, args) => {
@@ -605,7 +613,14 @@ impl Eval {
                 for (spread, a) in args {
                     let v = self.eval(a)?;
                     if *spread {
-                        return Err(FormulaError::Runtime); // số/hàm/undefined không lặp được
+                        match v {
+                            // Chuỗi lặp được theo ký tự; chuỗi ở đây luôn bắt đầu bằng ký tự không phải số (`function…`, `/…`) nên
+                            // ký tự đầu là `NaN`: `floor/ceil/abs` lấy ký tự đầu, `min/max` gặp `NaN` đều ra `NaN`.
+                            Val::Str => vals.push(f64::NAN),
+                            // Số, hàm, regex, `undefined` không lặp được: TypeError.
+                            _ => return Err(FormulaError::Runtime),
+                        }
+                        continue;
                     }
                     vals.push(v.num());
                 }
@@ -630,7 +645,13 @@ impl Eval {
                     self.env.insert(name.clone(), Val::Num(new));
                     Val::Num(if *prefix { new } else { old })
                 }
-                // Gán vào thuộc tính của số/hàm (strict mode) hay vào kết quả lời gọi: lỗi lúc chạy.
+                // `obj.tên++`: đọc ra `undefined` ⇒ `NaN`. Gán thuộc tính vào object (hàm, regex) thành công ở strict mode nên
+                // kết quả là `NaN`; vào số, chuỗi, `undefined` (nguyên thuỷ) thì TypeError.
+                Expr::Member(obj) => match self.eval(obj)? {
+                    Val::Func(_) | Val::Regex => Val::Num(f64::NAN),
+                    _ => return Err(FormulaError::Runtime),
+                },
+                // Gán vào kết quả lời gọi: lỗi lúc chạy.
                 _ => {
                     self.eval(target)?;
                     return Err(FormulaError::Runtime);
@@ -639,7 +660,10 @@ impl Eval {
             Expr::Bin(op, l, r) => {
                 let a = self.eval(l)?;
                 let b = self.eval(r)?;
-                if *op == "+" && (matches!(a, Val::Func(_) | Val::Str) || matches!(b, Val::Func(_) | Val::Str)) {
+                if *op == "+"
+                    && (matches!(a, Val::Func(_) | Val::Str | Val::Regex)
+                        || matches!(b, Val::Func(_) | Val::Str | Val::Regex))
+                {
                     return Ok(Val::Str);
                 }
                 let (x, y) = (a.num(), b.num());

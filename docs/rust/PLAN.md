@@ -1648,7 +1648,7 @@ thực IEEE 754) và 17 chỗ phép toán `Decimal`. Dùng một kiểu duy nh�
    bảng ở `tests/payroll_cases.rs`: 700 ca bảo hiểm, 800 ca thuế quanh ngưỡng bậc, 400 ca thành phần (x,5 đồng), 100 phiếu mẫu
    so từng dòng, 7.629 ca tính công thức và 5.074 ca kiểm công thức (văn phạm + ngẫu nhiên) so với `new Function`/`evaluateFormula`.
    Phát hiện nhờ bảng: `validateFormula` bọc công thức vào `return (…);` nên `1) + (2` hợp lệ; chú thích dòng cuối công thức nuốt
-   `);`; hằng regex ở vị trí toán hạng hợp lệ. Bản Rust của M29 đã sửa theo. Tiền `i64` (tràn ⇒ lỗi), tỷ lệ `f64` đọc từ chuỗi
+   `);`; hằng regex ở vị trí toán hạng hợp lệ. Bản Rust của M29 đã sửa theo. Biên JS của bộ tính: đọc thuộc tính của `undefined` là lỗi lúc chạy; `obj.tên++` trên hàm hoặc regex cho `NaN`, trên số/chuỗi/`undefined` là lỗi lúc chạy; `...` trên chuỗi cho ký tự đầu `NaN`. Rò trạng thái ở Node: `min.max++` gán vào `Math.min` dùng chung nên các lần sau thấy `NaN`, Rust không rò. Tiền `i64` (tràn ⇒ lỗi), tỷ lệ `f64` đọc từ chuỗi
    `Decimal`, làm tròn bằng `trinity_kernel::number::js_round`.
 
 ## 11. Thời gian và nguồn lực

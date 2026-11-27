@@ -23,7 +23,9 @@
 //! - [`broadcast`] (M51): gửi tin hàng loạt (9 route `broadcasts`, job `facebook.broadcasts`), biên nhận theo người nhận nên job bị cắt giữa chừng
 //!   không gửi trùng, hoàn hạn mức khi không gửi được.
 //!
-//! Chưa có ở đây (việc của M50): link mở chat, kịch bản nhắn tin. Sau `check_token`
+//! - [`tick`]: phần gửi hàng loạt của `POST /facebook/tick`.
+//!
+//! Chưa có ở đây (việc của M50 phần 2): kịch bản nhắn tin (6 route `flows`, job, phần kịch bản của `tick`). Sau `check_token`
 //! thành công tầng route còn gọi `FacebookIngest::refresh_missing_names` (M48).
 
 pub mod broadcast;
@@ -39,4 +41,5 @@ pub mod messenger;
 pub mod pages;
 pub mod routes;
 pub mod state;
+pub mod tick;
 pub mod webhook;

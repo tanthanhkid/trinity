@@ -49,7 +49,10 @@ impl NamedGuard for PlanTokenGuard {
 
 /// Guard theo tên cho `AccessDeps::guards` của router này.
 pub fn named_guards(expected: Option<String>) -> BTreeMap<&'static str, Arc<dyn NamedGuard>> {
-    BTreeMap::from([("PlanTokenGuard", Arc::new(PlanTokenGuard { expected }) as Arc<dyn NamedGuard>)])
+    BTreeMap::from([(
+        "PlanTokenGuard",
+        Arc::new(PlanTokenGuard { expected }) as Arc<dyn NamedGuard>,
+    )])
 }
 
 fn fail(e: impl Into<AppError>) -> Response {
@@ -285,7 +288,10 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<SettingsState>> {
         .route(spec(&Method::PATCH, "/api/v1/settings/options/:id"), options_update)
         .route(spec(&Method::DELETE, "/api/v1/settings/options/:id"), options_remove)
         .route(spec(&Method::GET, "/api/v1/settings/notification-sound"), sound_get)
-        .route(spec(&Method::PATCH, "/api/v1/settings/notification-sound"), sound_update)
+        .route(
+            spec(&Method::PATCH, "/api/v1/settings/notification-sound"),
+            sound_update,
+        )
         .route(spec(&Method::GET, "/api/v1/settings/departments"), departments_get)
         .route(spec(&Method::PATCH, "/api/v1/settings/departments"), departments_update)
         .route(spec(&Method::GET, "/api/v1/settings/org-features"), features_get)

@@ -2540,6 +2540,7 @@ dependencies = [
 name = "mod-notify"
 version = "0.3.0"
 dependencies = [
+ "axum",
  "chrono",
  "handlebars",
  "reqwest",
@@ -2646,6 +2647,7 @@ dependencies = [
 name = "mod-rbac-admin"
 version = "0.3.0"
 dependencies = [
+ "axum",
  "http",
  "serde",
  "serde_json",
@@ -2683,6 +2685,7 @@ dependencies = [
 name = "mod-settings"
 version = "0.3.0"
 dependencies = [
+ "axum",
  "http",
  "serde",
  "serde_json",
@@ -4972,10 +4975,12 @@ dependencies = [
  "mod-kanban",
  "mod-leads",
  "mod-mcp",
+ "mod-notify",
  "mod-oauth",
  "mod-payroll",
  "mod-pos",
  "mod-public-api",
+ "mod-rbac-admin",
  "mod-reports",
  "mod-settings",
  "mod-setup",

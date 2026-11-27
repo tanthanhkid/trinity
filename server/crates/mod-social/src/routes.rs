@@ -28,6 +28,16 @@ pub fn routes() -> Vec<RouteSpec> {
         r(Method::GET, "/api/v1/social/media/:id/file", post, 200).param_pipes(ID),
         r(Method::POST, "/api/v1/social/media/:id/hide", post, 200).param_pipes(ID),
         RouteSpec::new(Method::GET, "/api/v1/social/media-link/:token/:name", Access::Public).status_ok(200),
+        // Bài đăng (M54a).
+        r(Method::GET, "/api/v1/social/posts", post, 200),
+        r(Method::POST, "/api/v1/social/posts", post, 201),
+        r(Method::POST, "/api/v1/social/posts/preview", post, 200),
+        r(Method::GET, "/api/v1/social/posts/:id", post, 200).param_pipes(ID),
+        r(Method::PATCH, "/api/v1/social/posts/:id", post, 200).param_pipes(ID),
+        r(Method::POST, "/api/v1/social/posts/:id/reschedule", post, 200).param_pipes(ID),
+        r(Method::POST, "/api/v1/social/posts/:id/cancel", post, 200).param_pipes(ID),
+        r(Method::POST, "/api/v1/social/targets/:id/retry", post, 200).param_pipes(ID),
+        r(Method::DELETE, "/api/v1/social/targets/:id/remote", manage, 200).param_pipes(ID),
     ]
 }
 
@@ -55,10 +65,10 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = routes();
-        assert_eq!(table.len(), 11);
+        assert_eq!(table.len(), 20);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 11);
+        assert_eq!(rep.declared, 20);
     }
 
     #[test]

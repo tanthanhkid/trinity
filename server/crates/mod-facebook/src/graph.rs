@@ -170,6 +170,7 @@ fn q(pairs: &[(&str, &str)]) -> Query {
 enum Method {
     Get,
     Post,
+    Delete,
 }
 
 #[derive(Default)]
@@ -225,11 +226,15 @@ impl GraphClient {
             message: m,
             config_error: true,
         })?;
-        let verb = if method == Method::Get { "GET" } else { "POST" };
-        let mut req = if method == Method::Get {
-            self.http.get(&url)
-        } else {
-            self.http.post(&url)
+        let verb = match method {
+            Method::Get => "GET",
+            Method::Post => "POST",
+            Method::Delete => "DELETE",
+        };
+        let mut req = match method {
+            Method::Get => self.http.get(&url),
+            Method::Post => self.http.post(&url),
+            Method::Delete => self.http.delete(&url),
         };
         if let Some(t) = &o.token {
             req = req.header(AUTHORIZATION, format!("Bearer {t}"));
@@ -588,6 +593,23 @@ impl GraphClient {
             )
             .await?;
         self.finish(r, |v| Self::typed(v.clone()))
+    }
+
+    /// Xoá một đối tượng của Page (bài đăng, video) bằng token Page. Không tính vào ngưỡng tự tạm dừng (gỡ bài là dọn dẹp,
+    /// không phải gửi thêm).
+    pub async fn delete_object(&self, page_token: &str, object_id: &str) -> Result<(), GraphApiError> {
+        let r = self
+            .call(
+                Method::Delete,
+                object_id,
+                "{object}",
+                Opts {
+                    token: Some(page_token.to_owned()),
+                    ..Opts::default()
+                },
+            )
+            .await?;
+        self.done(r)
     }
 
     /// Ẩn bình luận (người khác không thấy, người viết vẫn thấy). Cần `pages_manage_engagement`.

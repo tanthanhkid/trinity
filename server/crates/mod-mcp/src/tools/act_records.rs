@@ -1,7 +1,8 @@
 //! Thao tác ghi về bản ghi: `create_record`, `update_record`, `archive_record` (`actions/action-record-tools.ts`,
 //! `action-archive-record.ts`, `action-core-records.ts`). Bảng tuỳ biến đi qua `mod_custom::records` (cùng kiểm quyền, phạm vi và
 //! kiểm dữ liệu như giao diện web); bảng lõi `contacts`/`tasks` đi qua đúng thao tác `create_contact`/`create_task` và
-//! `mod-contacts`/`mod-kanban`. Chưa có: ghi thương vụ (`deals`) và liên kết theo khoá nghiệp vụ `{"trường": "giá trị"}`.
+//! `mod-contacts`/`mod-kanban`; thương vụ (`deals`) đi qua `mod_deals::deals::create/update` (cùng phạm vi `deals.manage` như web).
+//! Chưa có: liên kết theo khoá nghiệp vụ `{"trường": "giá trị"}`.
 
 use std::collections::HashMap;
 
@@ -10,6 +11,7 @@ use mod_custom::access::{ObjectDef, load_visible_object};
 use mod_custom::records::{Validated, assert_unique, title_of, validate};
 use mod_custom::refs::{Owners, RefAccess, RefType, RefView, parse_code, parse_ref, resolve_codes};
 use mod_custom::types::FieldDef;
+use mod_deals::deals::{CreateDeal, UpdateDeal};
 use mod_kanban::cards::UpdateCard;
 use serde_json::{Map, Value, json};
 use trinity_kernel::error::AppError;
@@ -23,8 +25,8 @@ use super::records::{id_from_code, valid_table_key};
 use super::schema::is_core_key;
 use super::visible_contacts;
 use crate::actions::{
-    ActionCx, ActionDef, Prepared, bad, clean_text, clean_value, covers, http_err, internal, line, lines, load_contact,
-    message_of, owner, renamed, require_perm, shown,
+    ActionCx, ActionDef, Prepared, bad, clean_text, clean_value, compact, covers, http_err, int_or_null, internal,
+    line, lines, load_contact, message_of, owner, renamed, require_perm, shown, validate_dto,
 };
 use crate::ai_output::slice16;
 use crate::args::opt_int;
@@ -34,7 +36,6 @@ use crate::protocol::BoxFuture;
 
 const MAX_VALUES_KEYS: usize = 60;
 const GONE: &str = "Không tìm thấy bản ghi hoặc nằm ngoài phạm vi quyền của bạn.";
-const DEALS_UNSUPPORTED: &str = "Ghi thương vụ (deals) qua MCP chưa chuyển sang Rust — hãy làm trên giao diện web.";
 const CONTACT_EDITABLE: [&str; 9] = [
     "full_name",
     "job_title",
@@ -47,6 +48,7 @@ const CONTACT_EDITABLE: [&str; 9] = [
     "reminder_notes",
 ];
 const TASK_EDITABLE: [&str; 5] = ["title", "description", "due_at", "priority", "contact_id"];
+const DEAL_EDITABLE: [&str; 5] = ["title", "description", "value", "status", "note"];
 
 // ---------------------------------------------------------------------------------------------------------------
 // Đối số và hiển thị
@@ -390,12 +392,101 @@ fn core_def(key: &str) -> Result<&'static ActionDef, ToolError> {
     match key {
         "contacts" => Ok(&CREATE_CONTACT),
         "tasks" => Ok(&CREATE_TASK),
-        _ => Err(ToolError::User(DEALS_UNSUPPORTED.to_owned())),
+        _ => Err(ToolError::User(
+            "Bảng lõi này không có thao tác tạo qua create_record.".to_owned(),
+        )),
     }
+}
+
+/// `prepareDealCreate`: làm sạch, mặc định người phụ trách = chính mình, kiểm DTO web (`CreateDealDto`), phạm vi giao việc
+/// (`deals.manage`) và khách gắn kèm (`contacts.view`).
+async fn deal_create_prepare(cx: &ActionCx<'_>, vals: &Map<String, Value>) -> Result<Prepared, ToolError> {
+    let p = cx.principal;
+    let mut params: Map<String, Value> = vals
+        .iter()
+        .map(|(k, v)| match v {
+            Value::String(s) => (k.clone(), json!(clean_text(s, 2000))),
+            other => (k.clone(), other.clone()),
+        })
+        .collect();
+    params.insert(
+        "assigned_to".into(),
+        json!(opt_int(vals.get("assigned_to")).unwrap_or(p.user_id)),
+    );
+    params.insert("contact_id".into(), int_or_null(vals.get("contact_id")));
+    let params = compact(params);
+    let dto = deal_create_dto(&params)?;
+    let manage = owner(cx, "deals.manage").await?;
+    if !covers(manage.as_ref(), dto.assigned_to) {
+        return Err(ToolError::User(
+            "Không giao được thương vụ cho người này (ngoài phạm vi của bạn).".to_owned(),
+        ));
+    }
+    if let Some(cid) = dto.contact_id {
+        load_contact(cx, cid, "contacts.view", false).await?;
+    }
+    let value_text = dto.value.map(|v| v.to_string());
+    let summary = format!(
+        "Tạo thương vụ \"{}\"{}",
+        dto.title,
+        value_text
+            .as_deref()
+            .map_or_else(String::new, |v| format!(", giá trị {v}"))
+    );
+    let assignee = format!("#{}", dto.assigned_to);
+    let contact = dto.contact_id.map(|c| format!("#{c}"));
+    Ok(Prepared {
+        summary: shown(&summary, 300),
+        details: lines(vec![
+            line("Tiêu đề", Some(dto.title.as_str()), 600),
+            line("Giá trị", value_text.as_deref(), 600),
+            line("Trạng thái", Some(dto.status.as_deref().unwrap_or("open")), 600),
+            line("Người phụ trách", Some(assignee.as_str()), 600),
+            line("Khách hàng", contact.as_deref(), 600),
+            line("Mô tả", dto.description.as_deref(), 600),
+            line("Ghi chú", dto.note.as_deref(), 600),
+        ]),
+        params,
+        impact: None,
+    })
+}
+
+/// Kiểm bằng metadata của `CreateDealDto` (web) rồi đọc vào `CreateDeal`.
+fn deal_create_dto(params: &Value) -> Result<CreateDeal, ToolError> {
+    let v = validate_dto("CreateDealDto", params)?;
+    serde_json::from_value(v).map_err(|e| bad(e.to_string()))
+}
+
+/// Kiểm bằng luật của `UpdateDealDto` (cùng hàm với `PATCH /deals/:id`): `null` ở mô tả/giá trị/ghi chú = xoá.
+fn deal_update_dto(params: &Value) -> Result<UpdateDeal, ToolError> {
+    mod_deals::routes::parse_update(params).map_err(app_err)
+}
+
+async fn deal_create_execute(cx: &ActionCx<'_>, params: &Value) -> Result<Value, ToolError> {
+    let p = cx.principal;
+    let dto = deal_create_dto(params)?;
+    let scopes = cx.deps.deal_scopes(p).await?;
+    let tenant = cx.deps.db.tenant(p.company).await.map_err(internal)?;
+    let actor = mod_deals::Actor {
+        user_id: p.user_id,
+        is_admin: false,
+        email: Some(p.email.clone()),
+    };
+    let created = mod_deals::deals::create(&tenant, &scopes, &actor, &dto)
+        .await
+        .map_err(app_err)?;
+    Ok(json!({ "record_id": created.deal.id }))
 }
 
 async fn core_create_prepare(cx: &ActionCx<'_>, key: &str, vals: &Map<String, Value>) -> Result<Prepared, ToolError> {
     require_perm(cx.principal, core_create_perm(key))?;
+    if key == "deals" {
+        let p = deal_create_prepare(cx, vals).await?;
+        return Ok(Prepared {
+            params: json!({ "object": key, "values": p.params }),
+            ..p
+        });
+    }
     let def = core_def(key)?;
     let input = Value::Object(vals.clone());
     let p = (def.prepare)(&input, cx).await?;
@@ -493,8 +584,40 @@ async fn core_update_prepare(
             impact: None,
         });
     }
-    if key != "tasks" {
-        return Err(ToolError::User(DEALS_UNSUPPORTED.to_owned()));
+    if key == "deals" {
+        only(values, &DEAL_EDITABLE, "thương vụ")?;
+        let params = clean_update(values);
+        if params.is_empty() {
+            return Err(ToolError::User("Không có giá trị nào để sửa.".to_owned()));
+        }
+        deal_update_dto(&Value::Object(params.clone()))?;
+        let scopes = cx.deps.deal_scopes(p).await?;
+        let mut conn = cx.deps.conn(p.company).await?;
+        let d = mod_deals::deals::find_one(&mut conn, &scopes, id)
+            .await
+            .map_err(app_err)?;
+        // Phạm vi SỬA (`deals.manage`); ngoài phạm vi ⇒ "không tìm thấy" như web.
+        if trinity_rbac::assert_in_scope(scopes.deals_manage.as_ref(), &[Some(d.assigned_to), Some(d.created_by)])
+            .is_err()
+        {
+            return Err(ToolError::NotFound);
+        }
+        let who = format!("{} (#{})", d.title, d.id);
+        let mut details = vec![line("Thương vụ", Some(who.as_str()), 600)];
+        details.extend(show_params(&params));
+        return Ok(Prepared {
+            summary: shown(
+                &format!(
+                    "Sửa thương vụ \"{}\": {}",
+                    renamed(Some(d.title.as_str()), params.get("title").and_then(Value::as_str)),
+                    keys_of(&params)
+                ),
+                300,
+            ),
+            details: lines(details),
+            params: json!({ "object": key, "id": id, "values": params }),
+            impact: None,
+        });
     }
     only(values, &TASK_EDITABLE, "việc")?;
     let params = clean_update(values);
@@ -557,8 +680,22 @@ async fn core_update_execute(cx: &ActionCx<'_>, key: &str, id: i32, values: &Val
         mod_kanban::cards::update(&mut conn, &actor, id, &dto)
             .await
             .map_err(app_err)?;
+    } else if key == "deals" {
+        let dto = deal_update_dto(values)?;
+        let scopes = cx.deps.deal_scopes(p).await?;
+        let tenant = cx.deps.db.tenant(p.company).await.map_err(internal)?;
+        let actor = mod_deals::Actor {
+            user_id: p.user_id,
+            is_admin: false,
+            email: Some(p.email.clone()),
+        };
+        mod_deals::deals::update(&tenant, &scopes, &actor, id, &dto)
+            .await
+            .map_err(app_err)?;
     } else {
-        return Err(ToolError::User(DEALS_UNSUPPORTED.to_owned()));
+        return Err(ToolError::User(
+            "Bảng lõi này không có thao tác sửa qua update_record.".to_owned(),
+        ));
     }
     Ok(json!({ "object": key, "record_id": id }))
 }
@@ -623,10 +760,13 @@ fn create_execute<'a>(
         let p = cx.principal;
         let key = params.get("object").and_then(Value::as_str).unwrap_or("");
         if is_core_key(key) {
-            let def = core_def(key)?;
             require_perm(p, core_create_perm(key))?;
             let inner = params.get("values").cloned().unwrap_or(Value::Null);
-            let res = (def.execute)(&inner, cx, draft_id).await?;
+            let res = if key == "deals" {
+                deal_create_execute(cx, &inner).await?
+            } else {
+                (core_def(key)?.execute)(&inner, cx, draft_id).await?
+            };
             let mut out = Map::new();
             out.insert("object".into(), json!(key));
             if let Value::Object(m) = res {

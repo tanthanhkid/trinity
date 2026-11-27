@@ -243,7 +243,7 @@ fn text_errors(name: &str, v: Option<&Value>, max: usize, out: &mut Vec<String>)
 
 /// `UpdateDealDto`: `title`/`status` chỉ nhận giá trị (`@ValidateIf(v !== undefined)`, `null` bị bắt); `description`, `value`,
 /// `note` nhận `null` để xoá.
-fn parse_update(body: &Value) -> Result<UpdateDeal, AppError> {
+pub fn parse_update(body: &Value) -> Result<UpdateDeal, AppError> {
     let mut errs: Vec<String> = body
         .as_object()
         .map(|o| {

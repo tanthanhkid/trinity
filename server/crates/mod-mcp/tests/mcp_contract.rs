@@ -969,3 +969,53 @@ fn tool_ghi_khop_hop_dong_va_khong_co_tool_xoa() {
             .all(|n| !n.contains("delete") && !n.contains("remove"))
     );
 }
+
+/// Ghi thương vụ qua `create_record`/`update_record` (issue #600): đăng ký thật nhóm ghi, DB lười (lỗi đọc cài đặt duyệt ⇒ chế độ
+/// đề xuất, `prepare` chạy trước mọi truy vấn khác). Vai không có `deals.manage` bị từ chối; vai có quyền đi qua kiểm DTO web.
+#[tokio::test]
+async fn ghi_thuong_vu_theo_vai_va_kiem_dto() {
+    let call = |name: &str, args: Value| rpc("tools/call", Some(json!({ "name": name, "arguments": args })));
+    let run = |grants: &[(&str, Grant)], name: &str, args: Value| {
+        let mut reg = ToolRegistry::new();
+        mod_mcp::register_group3(&mut reg);
+        let r = rig(Ok(principal(&["crm.read", "crm.write"], grants)), reg, true);
+        let c = call(name, args);
+        async move { text_of(&r, &c).await }
+    };
+    let create = json!({ "object": "deals", "values": { "title": "Gói niềng", "value": 45_000_000 } });
+    let update = json!({ "object": "deals", "id": 1, "values": { "value": 1 } });
+
+    // Bị từ chối: chỉ có deals.view / contacts.view, không có deals.manage.
+    let viewer = [
+        ("deals.view", Grant::Scope(Scope::Own)),
+        ("contacts.view", Grant::Scope(Scope::Own)),
+    ];
+    for (name, args) in [("create_record", &create), ("update_record", &update)] {
+        let (t, e) = run(&viewer, name, args.clone()).await;
+        assert!(e && t.contains("cần quyền deals.manage"), "{name}: {t}");
+    }
+
+    // Được phép (có deals.manage) nhưng dữ liệu sai ⇒ lỗi DTO/trường, không đụng DB.
+    let manager = [
+        ("deals.view", Grant::Scope(Scope::Own)),
+        ("deals.manage", Grant::Scope(Scope::Own)),
+    ];
+    let bad_status = json!({ "object": "deals", "values": { "title": "A", "status": "pending" } });
+    let (t, e) = run(&manager, "create_record", bad_status).await;
+    assert!(e && t.contains("status") && !t.contains("deals.manage"), "{t}");
+    let no_title = json!({ "object": "deals", "values": { "value": 5 } });
+    let (t, e) = run(&manager, "create_record", no_title).await;
+    assert!(e && t.contains("title"), "{t}");
+    let stranger = json!({ "object": "deals", "values": { "title": "A", "la": 1 } });
+    let (t, e) = run(&manager, "create_record", stranger).await;
+    assert!(e && t.contains("la"), "{t}");
+    let not_editable = json!({ "object": "deals", "id": 1, "values": { "assigned_to": 2 } });
+    let (t, e) = run(&manager, "update_record", not_editable).await;
+    assert!(e && t.contains("Bảng thương vụ chỉ sửa được"), "{t}");
+    let neg = json!({ "object": "deals", "id": 1, "values": { "value": -5 } });
+    let (t, e) = run(&manager, "update_record", neg).await;
+    assert!(e && t.contains("value"), "{t}");
+    let null_title = json!({ "object": "deals", "id": 1, "values": { "title": null } });
+    let (t, e) = run(&manager, "update_record", null_title).await;
+    assert!(e && t.contains("title"), "{t}");
+}

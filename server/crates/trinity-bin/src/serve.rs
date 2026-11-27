@@ -367,6 +367,14 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     );
     app = mount(
         app,
+        mod_pos::api_router(deps.clone()),
+        Arc::new(mod_pos::Ctx {
+            db: db.clone(),
+            scopes: ScopeService::new(db.clone(), cache.clone()),
+        }),
+    );
+    app = mount(
+        app,
         mod_contacts::routes::api_router(deps.clone()),
         Arc::new(mod_contacts::routes::Ctx {
             db: db.clone(),
@@ -385,7 +393,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         }),
     );
     // CHƯA mount: mod-deals, mod-kanban,
-    // mod-payroll, mod-pos, mod-facebook, mod-store (mới có bảng route, chưa có router axum). Route của chúng thuộc Node.
+    // mod-payroll, mod-facebook, mod-store (mới có bảng route, chưa có router axum). Route của chúng thuộc Node.
 
     // ── Scheduler và worker hàng đợi (nền). Chưa module nào đăng ký job ở đây; khi có, `scheduler.register(..)`.
     let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);

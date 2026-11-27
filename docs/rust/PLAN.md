@@ -2054,10 +2054,10 @@ Không có phát hiện nào của lượt 8 bị từ chối.
 Lệnh `serve` dựng pool DB, `Security`/`RbacCache`/`PermissionService`/`Authenticator`, rồi **mount router của từng module** bằng `mount`: mỗi
 `ApiRouter` có trạng thái riêng và `fallback` 404 riêng (axum không `merge` hai fallback), nên mỗi route đã khai (`RouteSpec`) được đăng ký
 lên router chung và chuyển nguyên request sang router con (vẫn qua lớp thực thi quyền K14 của nó). Đã mount: system (health, site-config, build-id),
-users, custom, reports, setup, hr (nhân viên, hợp đồng), attendance, channel-guard, public-api, oauth, mcp (nhóm tool 1), ai-actions (`NoTools`).
+users, custom, reports, setup, hr (nhân viên, hợp đồng), attendance, channel-guard, public-api, oauth, mcp (nhóm tool 1), ai-actions (`NoTools`), pos (25 route, `mod_pos::api_router`).
 Lớp biên: `json_limit` 5 MB, CORS, `/notif-ws` (K33, chuông qua `trinity_sync`); ngoài cùng là `strangler::dispatcher` (K17, IP khách K16).
 Không có tệp sở hữu, `TRINITY_RUST_ROUTES` và `NODE_FALLBACK_URL`: Rust nhận mọi route (chạy localhost một mình). Có một trong ba thì theo bảng sở hữu
 và phần không thuộc Rust đi Node. Scheduler và worker hàng đợi chạy nền (chưa module nào đăng ký job; tự tắt khi bật `test-hooks`, K34); với
 `--features test-hooks` mount `/api/v1/internal/test/*`. Tắt êm khi Ctrl+C/SIGTERM (30 giây). `trinity healthcheck` gọi `GET /api/v1/health` loopback.
-**Chưa làm:** mount deals, kanban, payroll, pos, facebook, store, commerce, notify, newsfeed, settings, rbac-admin, apikeys, auth
+**Chưa làm:** mount deals, kanban, payroll, facebook, store, commerce, notify, newsfeed, settings, rbac-admin, apikeys, auth
 (chưa có router axum hoặc chưa nối trạng thái); đăng ký job nền của từng module; log từng request;.

@@ -1,6 +1,6 @@
 //! Module lương (M29): cấu hình thành phần lương, bảo hiểm, thuế TNCN, bảng lương theo vị trí và KPI, chuyển từ
 //! `services/payroll` (`salary-components`, `insurance`, `tax`, `salary-rules`, `kpi`). Phiếu lương, nhân viên lương và
-//! báo cáo thuộc M30b/M31; bộ tính lương và thuế thuộc M30a.
+//! báo cáo thuộc M30b/M31. Bộ tính lương và thuế (hàm thuần, M30a) ở [`calc`]; công thức ở [`formula`].
 //!
 //! Mỗi hàm nhận `&mut PgConnection` đã gắn công ty và trả `AppError` của K05; tầng route chỉ việc: extractor K15 →
 //! `normalize()`/`validate()` của DTO → hàm ở đây → JSON. Bảng route (K14) ở [`routes`]. 23 endpoint:
@@ -19,6 +19,7 @@
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
 
+pub mod calc;
 pub mod components;
 pub mod formula;
 pub mod insurance;
@@ -156,12 +157,6 @@ pub(crate) fn set_num(qb: &mut QueryBuilder<Postgres>, col: &str, v: Option<f64>
         .push("::text::numeric");
 }
 
-/// Làm tròn như `Math.round` của JS (nửa làm tròn về +∞), không dùng `f64::round` (nửa làm tròn ra xa số 0).
-pub fn js_round(x: f64) -> f64 {
-    let f = x.floor();
-    if x - f >= 0.5 { f + 1.0 } else { f }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -170,15 +165,6 @@ mod tests {
     fn thang_va_lam_tron() {
         assert!(is_month("2026-03") && is_month("2026-12") && is_month("0000-01"));
         assert!(!is_month("2026-13") && !is_month("2026-00") && !is_month("2026-3") && !is_month("2026-03 "));
-        assert_eq!(
-            (
-                js_round(2.5),
-                js_round(-2.5),
-                js_round(0.49999999999999994),
-                js_round(1.4)
-            ),
-            (3.0, -2.0, 0.0, 1.0)
-        );
         assert_eq!(dec(10.5), "10.5");
     }
 }

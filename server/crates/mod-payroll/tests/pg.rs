@@ -707,3 +707,110 @@ async fn bao_hiem_dong_thoi_khong_chong_lan() {
     }
     clean(&mut c).await;
 }
+
+/// M30a: đọc cấu hình thật từ DB rồi tính phiếu; kết quả khớp tay (bảng bước tính ở `calc.rs`).
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn tinh_phieu_tu_cau_hinh_db() {
+    use mod_payroll::calc::{EmployeeInput, ManualInput, compute_payslip, kpi_achieved_count, load_config};
+    let _g = serial().lock().await;
+    let mut c = conn().await;
+    clean(&mut c).await;
+    // Cấu hình mẫu 2099: bảo hiểm 8% (trần 46,8tr) và 1,5%, giảm trừ 11tr/4,4tr, hai bậc thuế, một phụ cấp, một khấu trừ %.
+    for (code, rate, to) in [("m29_bhxh", 8.0, None::<&str>), ("m29_bhyt", 1.5, None)] {
+        let i: CreateInsurance = from(
+            serde_json::json!({"name": code, "code": code, "employee_rate": rate, "base_cap": 46_800_000, "effective_from": "2099-01", "effective_to": to, "sort_order": 1}),
+        );
+        insurance::create(&mut c, &i, None).await.unwrap();
+    }
+    let s: CreateSetting = from(
+        serde_json::json!({"personal_deduction": 11_000_000, "dependent_deduction": 4_400_000, "effective_from": "2099-01"}),
+    );
+    tax::create_setting(&mut c, &s, None).await.unwrap();
+    for (order, lo, up, rate) in [(1, 0, Some(5_000_000), 5), (2, 5_000_000, None, 10)] {
+        let b: CreateBracket = from(
+            serde_json::json!({"bracket_order": order, "lower_bound": lo, "upper_bound": up, "rate": rate, "effective_from": "2099-01"}),
+        );
+        tax::create_bracket(&mut c, &b, None).await.unwrap();
+    }
+    let a: CreateComponent = from(
+        serde_json::json!({"name": "ĐT", "code": "m29_phone", "component_type": "allowance", "fixed_amount": 500_000, "effective_from": "2099-01"}),
+    );
+    components::create(&mut c, &a, None).await.unwrap();
+    let d: CreateComponent = from(
+        serde_json::json!({"name": "Phạt", "code": "m29_late", "component_type": "deduction", "calc_method": "percent_base", "percent_value": 0.5, "effective_from": "2099-01"}),
+    );
+    components::create(&mut c, &d, None).await.unwrap();
+
+    let cfg = load_config(&mut c).await.unwrap();
+    let emp = EmployeeInput {
+        rank_code: None,
+        insurance_salary: None,
+        default_insurance_salary: None,
+        dependents_count: 1,
+    };
+    let manual = ManualInput {
+        working_days: Some(12.0),
+        standard_working_days: 24,
+        base_salary: 20_000_000,
+        training_salary: 0,
+        probation_allowance: 0,
+        bonus_sales_personal: 0,
+        bonus_cskh_team: 0,
+        bonus_milestone: 1_000_000,
+        bonus_referral: 0,
+        holiday_bonus: 0,
+        advances: 100_000,
+        personal_income_tax: 0,
+    };
+    // Tháng ngoài hiệu lực: không bảo hiểm, thuế, thành phần.
+    let before = compute_payslip(&cfg, "2098-12", 20_000_000, 0, &emp, &manual).unwrap();
+    // Tổng lương 10tr + 1tr = 11tr, trừ tạm ứng 100.000.
+    assert_eq!(
+        (
+            before.total,
+            before.deductions,
+            before.insurance_json.len(),
+            before.tax_json.is_none()
+        ),
+        (10_900_000, 0, 0, true)
+    );
+    let r = compute_payslip(&cfg, "2099-03", 20_000_000, 2, &emp, &manual).unwrap();
+    // Thực lĩnh LCB = 20tr × 12/24 = 10tr; + thưởng mốc 1tr ⇒ tổng lương 11tr. Lương đóng BH là lương HĐ (không theo ngày
+    // công): 20tr × 8% = 1.600.000, 20tr × 1,5% = 300.000 ⇒ 1.900.000. Thuế: 11tr − 1,9tr − 11tr − 4,4tr < 0 ⇒ 0.
+    // Khấu trừ cấu hình: 0,5% × 20tr = 100.000. Khấu trừ = 100.000 + 1.900.000 + 0 = 2.000.000.
+    // Thực nhận = 11.000.000 − 2.000.000 − 100.000 = 8.900.000. Phụ cấp 500.000 chỉ vào ảnh chụp thành phần.
+    assert_eq!(
+        (
+            r.base_salary_actual,
+            r.insurance_base,
+            r.deductions,
+            r.total,
+            r.kpi_bonus
+        ),
+        (10_000_000, 20_000_000, 2_000_000, 8_900_000, 1_000_000)
+    );
+    assert_eq!(r.insurance_json.len(), 2);
+    assert_eq!(r.components_json.len(), 2);
+    assert_eq!(r.tax_json.as_ref().unwrap()["taxable_income"], 0);
+    // Ca lên bậc: lương cao, nhiều bậc.
+    let high = ManualInput {
+        working_days: None,
+        base_salary: 60_000_000,
+        ..manual.clone()
+    };
+    let h = compute_payslip(&cfg, "2099-03", 60_000_000, 0, &emp, &high).unwrap();
+    // BH: min(60tr, 46,8tr) × 9,5% = 4.446.000. Tổng lương 61tr; chịu thuế = 61tr − 4,446tr − 11tr − 4,4tr = 41.154.000.
+    // Thuế = 5tr × 5% + 36.154.000 × 10% = 250.000 + 3.615.400 = 3.865.400.
+    let t = h.tax_json.unwrap();
+    assert_eq!(
+        (t["taxable_income"].as_i64(), t["tax"].as_i64()),
+        (Some(41_154_000), Some(3_865_400))
+    );
+    assert_eq!(h.deductions, 300_000 + 4_446_000 + 3_865_400);
+    // Số chỉ số KPI đạt đọc từ DB.
+    let (_u, eid) = employee(&mut c, "k", "sales").await;
+    exec(&mut c, &format!("INSERT INTO kpi_results (employee_id, month, metric_name, actual_value, target_value, achieved) VALUES ({eid}, '2099-03', 'm29 a', 1, 1, true), ({eid}, '2099-03', 'm29 b', 0, 1, false), ({eid}, '2099-03', 'm29 c', 2, 1, true)")).await;
+    assert_eq!(kpi_achieved_count(&mut c, eid, "2099-03").await.unwrap(), 2);
+    clean(&mut c).await;
+}

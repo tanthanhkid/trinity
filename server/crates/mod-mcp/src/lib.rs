@@ -39,5 +39,5 @@ pub use tools::{
     AuthInvitations, DraftOverrides, DraftPublishPort, FanpageDeps, FanpagePorts, ImportPort, InboxDeps,
     InvitationsPort, Kick, MetricsPort, PortFut, PostInfra, PostsDeps, RecurrencePort, RefreshReport, SocialAdapter,
     SocialDeps, fanpage_deps, register_fanpage, register_group1, register_group2, register_group3,
-    register_inbox_invitations, register_social, register_structure,
+    register_inbox_invitations, register_payroll, register_social, register_structure,
 };

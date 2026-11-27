@@ -93,3 +93,16 @@ pub struct UpdateWorkingSaturdaysDto {
 impl trinity_http::validate::Dto for UpdateWorkingSaturdaysDto {
     const NAME: &'static str = "UpdateWorkingSaturdaysDto";
 }
+
+/// Trường chữ của `POST /management/attendance/check-in|check-out` (`DeviceCheckDto`, multipart). Trường `selfie` (`@Allow`) chỉ
+/// để qua whitelist; tệp ảnh do lớp multipart tách ra trước khi kiểm.
+#[derive(Debug, Clone, Deserialize)]
+pub struct DeviceCheckDto {
+    pub device_id: String,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+impl trinity_http::validate::Dto for DeviceCheckDto {
+    const NAME: &'static str = "DeviceCheckDto";
+}

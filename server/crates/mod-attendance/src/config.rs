@@ -41,7 +41,7 @@ pub struct ShiftConfig {
 }
 
 impl ShiftConfig {
-    fn default_config() -> Self {
+    pub fn default_config() -> Self {
         Self {
             work_start: "08:00".into(),
             work_end: "17:00".into(),
@@ -198,7 +198,7 @@ pub struct RequestConfig {
 }
 
 impl RequestConfig {
-    fn default_config() -> Self {
+    pub fn default_config() -> Self {
         Self {
             default_check_in: "08:00".into(),
             default_check_out: "17:30".into(),

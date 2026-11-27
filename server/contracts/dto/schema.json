@@ -6360,6 +6360,90 @@
   },
   "defaults": {}
  },
+ "DeviceCheckDto": {
+  "declared": [
+   "device_id",
+   "note",
+   "selfie"
+  ],
+  "validated": [
+   "device_id",
+   "note",
+   "selfie"
+  ],
+  "fields": {
+   "device_id": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       255
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isNotEmpty",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "note": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       500
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "selfie": {
+    "rules": [
+     {
+      "type": "whitelistValidation",
+      "name": null,
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
  "FormulaPreviewDto": {
   "declared": [
    "object_key",

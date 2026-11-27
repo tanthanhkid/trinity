@@ -10,6 +10,9 @@
 //! | `GET/PATCH /working-saturdays` | [`config::get_saturdays`], [`config::set_saturdays`] | đăng nhập (xem), `attendance.config` |
 //! | `GET/PATCH /request-config` | [`config::get_request_config`], [`config::update_request_config`] | đăng nhập (xem), `attendance.config` |
 //!
+//! M13b: `POST /check-in`, `POST /check-out` (đăng nhập; multipart `device_id`, `note`, tệp `selfie`) ở [`check`]: kiểm IP văn phòng bằng IP
+//! khách từ hàm dùng chung `resolve_client_ip`, ngày làm việc theo giờ Việt Nam; router riêng [`routes::check_router`] (state `Arc<check::CheckCtx>`).
+//!
 //! Bảng `attendance_qr_sessions` (mô hình mã QR) không còn route nào dùng ở bản TS nên M13a không có endpoint QR; bảng giữ nguyên.
 //! Cấu hình lưu ở `settings` (JSON): `attendance_shift_config`, `attendance_request_config`, `attendance_working_saturdays`.
 //!
@@ -19,6 +22,7 @@
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
 
+pub mod check;
 pub mod config;
 pub mod dto;
 pub mod offices;

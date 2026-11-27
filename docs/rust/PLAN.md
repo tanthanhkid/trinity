@@ -1357,7 +1357,7 @@ Chỗ lệch/chờ: (1) `docker.yml` còn dựng target `web` (đã xoá) nên K
 2. W01: web chạy được cả sau Rust lẫn kiểu cũ; **giữ** route handler `/api/v1/[...path]`, `/uploads`, `/api/build-id`.
 3. W02a: thêm lệnh `build:export` **song song** với bản `standalone`; `proxy.ts` còn nguyên, bản đang chạy không đổi.
 4. K18: Rust phục vụ `out/` nhúng; bật bằng dòng `web: rust` trong tệp sở hữu, lui bằng `web: node`.
-5. W04: Playwright trên web do Rust phục vụ.
+5. W04: Playwright trên web do Rust phục vụ (`E2E_SERVER=rust` → `webServer` chạy binary với `WEB_DIR=out/`; project `static-web` kiểm URL sâu + điều hướng; job `e2e-static` ở nightly).
 6. W02b: bỏ `standalone`, `proxy.ts`, route handler và Next server. Là PR đầu của chồng **W02b → W03 → X06**: trong đồ thị nó
    phụ thuộc mọi thứ X06 chờ (X03, X04, X05, X09, X10, X14), nên sau nó chỉ còn W03 và X06, merge liền nhau trong cùng
    một bản phát hành. `main` vì vậy không có lúc nào thiếu cả Next lẫn image `trinity`, và không phải khoá bản sửa lỗi.

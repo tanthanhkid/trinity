@@ -9,6 +9,11 @@ import { FRAMES } from './e2e/helpers/frames'
  *   của Playwright trên máy dev hỏng); mặc định `chromium` (bundled).
  * - `E2E_ALLOW_WRITE=1`   — bật seed/flows/cleanup (luồng có GHI dữ liệu, tiền tố `E2E-`).
  * - `E2E_WORKERS`         — số worker (mặc định 5; máy yếu thì đặt thấp).
+ * - `E2E_SERVER=rust`     — W04: Playwright tự khởi động binary `trinity serve` phục vụ web tĩnh `out/` (K18, W02a:
+ *   `pnpm build:export` trước), thay cho `next start`/standalone. Biến phụ: `E2E_RUST_BIN` (mặc định
+ *   `../../server/target/release/trinity`), `E2E_WEB_DIR` (mặc định `./out`), `E2E_RUST_PORT` (mặc định 3300). Biến
+ *   của binary (DATABASE_URL, JWT_SECRET, ...) lấy từ môi trường chạy. Không đặt = như cũ, dùng instance có sẵn ở
+ *   `E2E_BASE_URL` (không tự khởi động gì).
  */
 const channel = process.env.E2E_BROWSER_CHANNEL
 const useChannel = channel && channel !== 'chromium' ? { channel } : {}
@@ -22,6 +27,13 @@ const allowWrite = process.env.E2E_ALLOW_WRITE === '1'
 const phase = process.env.E2E_PHASE as 'read' | 'flows' | undefined
 const tag = phase ?? 'all'
 const readDeps = allowWrite && phase !== 'flows' ? ['setup', 'seed'] : ['setup']
+/**
+ * Chế độ binary Rust. Binary chạy một mình (không tệp sở hữu, không NODE_FALLBACK_URL) nên Rust nhận mọi route và, vì
+ * có `WEB_DIR`, tự phục vụ trang web (xem `trinity-bin/src/serve.rs`). `/api/v1/health` là cổng sẵn sàng.
+ */
+const rustServer = process.env.E2E_SERVER === 'rust'
+const rustPort = Number(process.env.E2E_RUST_PORT || 3300)
+const rustUrl = `http://127.0.0.1:${rustPort}`
 const FRAME_KEYS = ['mobile', 'tablet', 'desktop'] as const
 
 export default defineConfig({
@@ -37,7 +49,7 @@ export default defineConfig({
     ['json', { outputFile: `test-results/report-${tag}.json` }],
   ],
   use: {
-    baseURL: process.env.E2E_BASE_URL || 'http://localhost:3000',
+    baseURL: process.env.E2E_BASE_URL || (rustServer ? rustUrl : 'http://localhost:3000'),
     headless: true,
     locale: 'vi-VN',
     timezoneId: 'Asia/Ho_Chi_Minh',
@@ -47,6 +59,23 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 },
     ...useChannel,
   },
+  ...(rustServer
+    ? {
+        webServer: {
+          command: `${process.env.E2E_RUST_BIN || '../../server/target/release/trinity'} serve`,
+          url: `${rustUrl}/api/v1/health`,
+          reuseExistingServer: !process.env.CI,
+          timeout: 120_000,
+          stdout: 'pipe' as const,
+          stderr: 'pipe' as const,
+          env: {
+            ...(process.env as Record<string, string>),
+            TRINITY_HTTP_PORT: String(rustPort),
+            WEB_DIR: process.env.E2E_WEB_DIR || './out',
+          },
+        },
+      }
+    : {}),
   projects: [
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     // ── Bộ GHI dữ liệu thử (E2E_ALLOW_WRITE=1): seed → (đọc) → flows → cleanup. `cleanup` là TEARDOWN của
@@ -58,6 +87,8 @@ export default defineConfig({
           { name: 'seed', testMatch: /seed\/seed\.setup\.ts/, dependencies: ['setup'], ...(phase ? {} : { teardown: 'cleanup' }) },
         ]
       : []),
+    // W04: web tĩnh do Rust phục vụ — URL sâu, điều hướng, nút quay lại, prefetch của 8 route động + luật điều hướng.
+    { name: 'static-web', testMatch: /static-web\.spec\.ts/, dependencies: ['setup'] },
     ...(phase === 'flows'
       ? []
       : [

@@ -143,6 +143,69 @@ jobs:
           tail -n 150 /tmp/api.log || true
           tail -n 150 /tmp/web.log || true
 
+  e2e-static:
+    # W04: cùng bộ smoke + rbac-ui + rbac-api, thêm `static-web`, nhưng web do binary Rust phục vụ từ `out/` (K18, W02a),
+    # không có Next server và không có monolith Node. Playwright tự khởi động binary (E2E_SERVER=rust). Chỉ đọc.
+    # Cần K18 và W02a trên main (`pnpm build:export`, `WEB_DIR`).
+    name: E2E Playwright (web tĩnh do Rust phục vụ)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: trinity_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d trinity_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      SQLX_OFFLINE: "true"
+      DATABASE_URL: postgresql://test:test@localhost:5432/trinity_e2e
+      JWT_SECRET: ci-e2e-jwt-secret-not-real-0123456789abcdef
+      INTERNAL_SERVICE_SECRET: ci-e2e-service-secret-not-real-0123456789
+      SEED_ADMIN_EMAIL: admin@example.com
+      SEED_ADMIN_PASSWORD: ci-e2e-admin-password-not-real
+      E2E_SERVER: rust
+      E2E_RUST_BIN: ${{ github.workspace }}/server/target/release/trinity
+      E2E_RUST_PORT: "3300"
+      E2E_BROWSER_CHANNEL: chrome
+      E2E_ADMIN_EMAIL: admin@example.com
+      E2E_ADMIN_PASSWORD: ci-e2e-admin-password-not-real
+      E2E_WORKERS: "2"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/rust-toolchain
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: server
+          save-if: false
+      - name: Build binary
+        working-directory: server
+        run: cargo build --release --locked -p trinity-bin
+      - run: ./server/target/release/trinity migrate
+      - run: ./server/target/release/trinity seed
+      - run: pnpm --filter ./apps/web build:export
+      - name: Playwright
+        working-directory: apps/web
+        run: pnpm e2e:static
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-static
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          if-no-files-found: ignore
+          retention-days: 14
+
   audit:
     name: Dependency audit (pnpm audit)
     runs-on: ubuntu-latest

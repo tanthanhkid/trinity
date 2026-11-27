@@ -12,7 +12,7 @@ const SRC = join(__dirname, "../..")
 // Bỏ CR: Windows (core.autocrlf) lấy tệp về với CRLF, còn chuỗi so sánh nhiều dòng trong test dùng LF.
 const read = (p: string) => readFileSync(join(SRC, p), "utf8").replace(/\r\n/g, "\n")
 
-describe("nhãn Mới không bị nút ghim đè", () => {
+describe("chấm Mới không bị nút ghim đè", () => {
   const css = read("styles/app-sidebar.css")
   it("dịch nhãn sang trái khi hover / focus bàn phím / mục đã ghim", () => {
     expect(css).toMatch(/sidebar-menu-item"\]:hover \.app-nav-tag/)
@@ -37,7 +37,9 @@ describe("thu gọn sidebar", () => {
   })
   it("menu chính vẫn hiện ở rail (không ẩn theo collapsible=icon), nhãn nhóm thì ẩn", () => {
     // Giao diện mới: menu chính không còn nút gập "TẤT CẢ" — luôn hiện, kể cả rail.
-    expect(sidebar).toContain("<SidebarGroup>\n          <SidebarGroupContent>\n            <SidebarMenu>{mainItems.map(renderItem)}</SidebarMenu>")
+    expect(sidebar).toContain("<SidebarGroup>\n          <SidebarGroupContent>\n            <SidebarMenu>{ungrouped.map(renderItem)}</SidebarMenu>")
+    // nhóm nghiệp vụ: ở rail luôn hiện đủ mục (kể cả nhóm đang thu gọn) — `collapsed` chỉ áp khi không compact.
+    expect(sidebar).toContain("collapsed={!compact && isCollapsed(section.key)}")
     expect(read("components/app-shell/sidebar-group-label.tsx")).toContain("group-data-[collapsible=icon]:hidden")
   })
   it("rail vẫn cuộn được khi danh sách dài (SidebarContent không bị overflow-hidden)", () => {

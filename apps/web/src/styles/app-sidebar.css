@@ -176,8 +176,8 @@ html:root[data-ui="app"] [data-slot="sidebar-menu-button"] {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 35px;
-  height: 35px;
+  min-height: 32px;
+  height: 32px;
   padding: 0 10px;
   border: none;
   border-radius: 8px;
@@ -252,6 +252,58 @@ html:root[data-ui="app"] .app-nav-tag[data-tone="new"],
 html:root[data-ui="app"] .app-nav-tag[data-tone="hot"] {
   background: #fdeed6;
   color: #a15c00;
+}
+
+/* chấm "Mới" cạnh tên mục (thay chip chữ) — dịch trái chừa chỗ nút ghim như nhãn cũ */
+html:root[data-ui="app"] .app-nav-dot {
+  flex: none;
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-app-primary, var(--primary));
+  transition: margin-right 0.15s;
+}
+html:root[data-ui="app"] [data-slot="sidebar-menu-item"]:hover .app-nav-dot,
+html:root[data-ui="app"] [data-slot="sidebar-menu-item"]:has(> button:focus-visible) .app-nav-dot,
+html:root[data-ui="app"] [data-slot="sidebar-menu-item"][data-pinned] .app-nav-dot {
+  margin-right: 22px;
+}
+
+/* tiêu đề nhóm nghiệp vụ — nút bấm thu gọn/mở */
+html:root[data-ui="app"] .app-nav-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 26px;
+  padding: 0 10px;
+  margin-top: 6px;
+  border-radius: 6px;
+  color: var(--color-app-sidebar-muted);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-align: left;
+  transition: color 0.15s;
+}
+html:root[data-ui="app"] .app-nav-group-head:hover {
+  color: var(--sidebar-foreground);
+}
+html:root[data-ui="app"] .app-nav-group-chev {
+  margin-left: auto;
+  width: 14px;
+  height: 14px;
+  transition: transform 0.15s;
+}
+html:root[data-ui="app"] [data-nav-group][data-collapsed] .app-nav-group-chev {
+  transform: rotate(-90deg);
+}
+/* rail icon: vạch mảnh thay tiêu đề */
+html:root[data-ui="app"] .app-nav-group-rule {
+  width: 18px;
+  margin: 6px auto 2px;
+  border-top: 1px solid var(--sidebar-border);
 }
 
 /* mũi tên nhóm con — LUÔN mũi xuống, xoay 180° khi mở */
@@ -348,6 +400,9 @@ html:root[data-ui="app"]
 html:root[data-ui="app"]
   [data-slot="sidebar"][data-collapsible="icon"]
   .app-nav-tag,
+html:root[data-ui="app"]
+  [data-slot="sidebar"][data-collapsible="icon"]
+  .app-nav-dot,
 html:root[data-ui="app"]
   [data-slot="sidebar"][data-collapsible="icon"]
   .app-side-me > button > span:last-child,

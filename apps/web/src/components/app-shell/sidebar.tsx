@@ -28,6 +28,10 @@ import { ShellQuickActions } from "@/components/app-shell/sidebar-quick-actions"
 import { ShellPinnedGroup } from "@/components/app-shell/sidebar-pinned-group"
 import { ShellRecentGroup } from "@/components/app-shell/sidebar-recent-group"
 import { ShellGroupLabel } from "@/components/app-shell/sidebar-group-label"
+import { ShellNavGroup } from "@/components/app-shell/sidebar-nav-group"
+import { groupMenuItems } from "@/components/app-shell/menu-groups"
+import { useNavGroupCollapse } from "@/hooks/use-nav-group-collapse"
+import { useAuth } from "@/hooks/use-auth"
 import { ShellSidebarUser } from "@/components/app-shell/sidebar-user"
 import { collectMenuHrefs, isItemActive, resolveActiveHref } from "@/components/app-shell/nav-active"
 import { resolvePinnedEntries, withoutPinned, type FlatMenuEntry } from "@/components/app-shell/menu-resolve"
@@ -149,6 +153,10 @@ export function ShellSidebar() {
     (item) => item.key !== "settings" && !item.key.startsWith(CUSTOM_ITEM_KEY_PREFIX),
   )
   const customItems = listedItems.filter((item) => item.key.startsWith(CUSTOM_ITEM_KEY_PREFIX))
+  // Tổng quan (không khai nhóm) đứng đầu, rồi các nhóm nghiệp vụ; nhóm rỗng tự ẩn.
+  const { ungrouped, sections } = groupMenuItems(mainItems)
+  const { user } = useAuth()
+  const { isCollapsed, toggle: toggleGroup } = useNavGroupCollapse(user?.id)
 
   const renderItem = (item: (typeof visibleItems)[number]) =>
     item.children ? (
@@ -182,6 +190,12 @@ export function ShellSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="group-data-[collapsible=icon]:overflow-auto">
+        {/* Menu chính — luôn hiện cả ở rail thu gọn (chỉ icon). Tổng quan đầu, sau đó các nhóm nghiệp vụ thu gọn được. */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>{ungrouped.map(renderItem)}</SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
         {!blank && <ShellPinnedGroup
           pinnedKeys={pinnedKeys}
           visibleFlatEntries={visibleFlatEntries}
@@ -190,12 +204,17 @@ export function ShellSidebar() {
           onNavigate={closeMobile}
         />}
 
-        {/* Menu chính — luôn hiện cả ở rail thu gọn (chỉ icon). */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>{mainItems.map(renderItem)}</SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {sections.map((section) => (
+          <ShellNavGroup
+            key={section.key}
+            groupKey={section.key}
+            title={section.title}
+            collapsed={!compact && isCollapsed(section.key)}
+            onToggle={() => toggleGroup(section.key)}
+          >
+            {section.items.map(renderItem)}
+          </ShellNavGroup>
+        ))}
 
         {customItems.length > 0 && (
           <SidebarGroup>

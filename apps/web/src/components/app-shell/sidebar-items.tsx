@@ -106,7 +106,9 @@ export function ShellLeafItem({
       >
         <NavIcon item={item} />
         <span className="truncate">{item.title}</span>
-        {item.badgeLabel && <i className="app-nav-tag" data-tone="label">{item.badgeLabel}</i>}
+        {item.badgeLabel && (
+          <span className="app-nav-dot" role="img" aria-label={item.badgeLabel} title={item.badgeLabel} />
+        )}
         {item.key === "ai_actions" && <AiActionsNavBadge />}
       </SidebarMenuButton>
       {onTogglePin && (

@@ -10,14 +10,15 @@ import { join } from "node:path"
 const SRC = join(__dirname, "../..")
 const read = (p: string) => readFileSync(join(SRC, p), "utf8")
 
-describe("Đã ghim nằm đầu thanh bên", () => {
+describe("Đã ghim nằm ngay sau Tổng quan, trước các nhóm nghiệp vụ", () => {
   const sidebar = read("components/app-shell/sidebar.tsx")
   const content = sidebar.slice(sidebar.indexOf("<SidebarContent"))
 
-  it("nhóm Đã ghim render trước menu chính, bảng tuỳ chỉnh và gần đây", () => {
+  it("Tổng quan (ungrouped) rồi Đã ghim, rồi nhóm nghiệp vụ, bảng tuỳ chỉnh và gần đây", () => {
     const pinned = content.indexOf("<ShellPinnedGroup")
     expect(pinned).toBeGreaterThan(-1)
-    expect(pinned).toBeLessThan(content.indexOf("mainItems.map"))
+    expect(content.indexOf("ungrouped.map")).toBeLessThan(pinned)
+    expect(pinned).toBeLessThan(content.indexOf("sections.map"))
     expect(pinned).toBeLessThan(content.indexOf("customItems.map"))
     expect(pinned).toBeLessThan(content.indexOf("<ShellRecentGroup"))
   })

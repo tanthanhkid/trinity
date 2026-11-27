@@ -189,6 +189,42 @@ impl trinity_http::validate::Dto for QueryAttendanceDto {
     const NAME: &'static str = "QueryAttendanceDto";
 }
 
+/// Query `GET /management/attendance/export` và `GET /workdays-matrix/export` (`QueryAttendanceExportDto`, M14b).
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct QueryAttendanceExportDto {
+    #[serde(default)]
+    pub date_from: Option<String>,
+    #[serde(default)]
+    pub date_to: Option<String>,
+    #[serde(default)]
+    pub user_id: Option<i64>,
+    #[serde(default)]
+    pub team_id: Option<i64>,
+    #[serde(default)]
+    pub department: Option<String>,
+    #[serde(default)]
+    pub job_title_id: Option<i64>,
+}
+
+impl trinity_http::validate::Dto for QueryAttendanceExportDto {
+    const NAME: &'static str = "QueryAttendanceExportDto";
+}
+
+impl QueryAttendanceExportDto {
+    /// Bộ lọc giống `QueryAttendanceDto` (không phân trang, tìm kiếm, sắp xếp, trạng thái).
+    pub fn to_query(&self) -> QueryAttendanceDto {
+        QueryAttendanceDto {
+            date_from: self.date_from.clone(),
+            date_to: self.date_to.clone(),
+            user_id: self.user_id,
+            team_id: self.team_id,
+            department: self.department.clone(),
+            job_title_id: self.job_title_id,
+            ..QueryAttendanceDto::default()
+        }
+    }
+}
+
 /// Query `GET /management/attendance/today` (`QueryTodaySummaryDto`).
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct QueryTodaySummaryDto {

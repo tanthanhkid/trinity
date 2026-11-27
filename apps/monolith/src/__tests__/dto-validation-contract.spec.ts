@@ -60,6 +60,7 @@ import * as attCreateRequest from '../../../../services/crm/src/attendance/dto/c
 import * as attRejectRequest from '../../../../services/crm/src/attendance/dto/reject-request.dto'
 import * as attQueryRequests from '../../../../services/crm/src/attendance/dto/query-attendance-requests.dto'
 import * as attQueryRecords from '../../../../services/crm/src/attendance/dto/query-attendance.dto'
+import * as attQueryExport from '../../../../services/crm/src/attendance/dto/query-attendance-export.dto'
 import * as attPatchRecord from '../../../../services/crm/src/attendance/dto/patch-attendance.dto'
 import * as attSaturdays from '../../../../services/crm/src/attendance/dto/update-working-saturdays.dto'
 import * as employeesStats from '../../../../services/crm/src/employees/dto/employees-stats.dto'
@@ -147,6 +148,7 @@ const SAMPLES: Array<[Cls, Mode]> = [
   [attQueryRequests.QueryAttendanceRequestsDto, 'strict'],
   [attQueryRecords.QueryAttendanceDto, 'strict'],
   [attQueryRecords.QueryTodaySummaryDto, 'strict'],
+  [attQueryExport.QueryAttendanceExportDto, 'strict'],
   [attPatchRecord.PatchAttendanceDto, 'strict'],
   [attSaturdays.UpdateWorkingSaturdaysDto, 'strict'],
   [createContract.CreateContractDto, 'strict'],

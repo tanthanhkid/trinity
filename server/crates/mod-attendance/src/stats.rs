@@ -369,15 +369,15 @@ struct GroupRaw {
 /// Số liệu nhóm kèm Chưa đủ công / Vắng / Tỷ lệ (`deriveGroupStat`).
 #[derive(Debug, Serialize)]
 pub struct Counts {
-    headcount: i32,
-    checked_in_people: i32,
-    present_people: i32,
-    late_people: i32,
-    total_late_minutes: i32,
-    insufficient_people: i32,
-    absent_people: i32,
+    pub(crate) headcount: i32,
+    pub(crate) checked_in_people: i32,
+    pub(crate) present_people: i32,
+    pub(crate) late_people: i32,
+    pub(crate) total_late_minutes: i32,
+    pub(crate) insufficient_people: i32,
+    pub(crate) absent_people: i32,
     #[serde(serialize_with = "num")]
-    attendance_rate: f64,
+    pub(crate) attendance_rate: f64,
 }
 
 fn derive_counts(r: &GroupRaw) -> Counts {
@@ -400,18 +400,18 @@ fn derive_counts(r: &GroupRaw) -> Counts {
 
 #[derive(Debug, Serialize)]
 pub struct TeamStat {
-    team_id: Option<i32>,
-    team_name: String,
+    pub(crate) team_id: Option<i32>,
+    pub(crate) team_name: String,
     #[serde(flatten)]
-    counts: Counts,
+    pub(crate) counts: Counts,
 }
 
 #[derive(Debug, Serialize)]
 pub struct DepartmentStat {
-    department: String,
+    pub(crate) department: String,
     #[serde(flatten)]
-    counts: Counts,
-    head_name: Option<String>,
+    pub(crate) counts: Counts,
+    pub(crate) head_name: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -899,54 +899,54 @@ struct RosterRow {
 
 #[derive(Debug, Serialize)]
 pub struct AbsentRow {
-    user_id: i32,
-    full_name: Option<String>,
-    employee_code: Option<String>,
-    team_name: String,
-    position: Option<String>,
-    absent_days: i64,
-    absent_occurrences: i64,
+    pub(crate) user_id: i32,
+    pub(crate) full_name: Option<String>,
+    pub(crate) employee_code: Option<String>,
+    pub(crate) team_name: String,
+    pub(crate) position: Option<String>,
+    pub(crate) absent_days: i64,
+    pub(crate) absent_occurrences: i64,
     #[serde(serialize_with = "num")]
-    absent_rate: f64,
+    pub(crate) absent_rate: f64,
 }
 
 #[derive(Debug, Serialize)]
 pub struct ViolationRow {
-    user_id: i32,
-    full_name: Option<String>,
-    employee_code: Option<String>,
-    team_name: String,
-    position: Option<String>,
-    late_minutes: i64,
-    early_minutes: i64,
-    violation_minutes: i64,
-    late_count: i64,
-    early_count: i64,
+    pub(crate) user_id: i32,
+    pub(crate) full_name: Option<String>,
+    pub(crate) employee_code: Option<String>,
+    pub(crate) team_name: String,
+    pub(crate) position: Option<String>,
+    pub(crate) late_minutes: i64,
+    pub(crate) early_minutes: i64,
+    pub(crate) violation_minutes: i64,
+    pub(crate) late_count: i64,
+    pub(crate) early_count: i64,
 }
 
 #[derive(Debug, Serialize)]
 pub struct GenderStat {
-    gender: &'static str,
-    gender_label: &'static str,
-    headcount: i64,
-    total_absent_days: i64,
-    total_late_count: i64,
-    total_early_count: i64,
+    pub(crate) gender: &'static str,
+    pub(crate) gender_label: &'static str,
+    pub(crate) headcount: i64,
+    pub(crate) total_absent_days: i64,
+    pub(crate) total_late_count: i64,
+    pub(crate) total_early_count: i64,
     #[serde(serialize_with = "num")]
-    full_attendance_rate: f64,
+    pub(crate) full_attendance_rate: f64,
     #[serde(serialize_with = "num")]
-    insufficient_rate: f64,
+    pub(crate) insufficient_rate: f64,
 }
 
 #[derive(Debug, Serialize)]
 pub struct DisciplineOut {
-    date_from: String,
-    date_to: String,
-    work_end: String,
-    total_workdays: i64,
-    top_absent: Vec<AbsentRow>,
-    top_violation: Vec<ViolationRow>,
-    by_gender: Vec<GenderStat>,
+    pub(crate) date_from: String,
+    pub(crate) date_to: String,
+    pub(crate) work_end: String,
+    pub(crate) total_workdays: i64,
+    pub(crate) top_absent: Vec<AbsentRow>,
+    pub(crate) top_violation: Vec<ViolationRow>,
+    pub(crate) by_gender: Vec<GenderStat>,
 }
 
 /// `buildWorkdayList`: T2–T6 và các thứ 7 trong `saturdays`; chủ nhật nghỉ.
@@ -1613,6 +1613,91 @@ pub async fn weekly_hours(ctx: &Ctx, actor: &Actor, q: &Value) -> R<WeeklyHoursO
                 total_hours: round2(by_day.get(d).copied().unwrap_or(0.0)),
             })
             .collect(),
+    })
+}
+
+// ───────────────────────────── dữ liệu xuất Excel (M14b) ─────────────────────────────
+
+/// Một nhân viên trong sheet "Chi tiết nhân viên" (`getEmployeeAttendanceSummary`): đếm theo NGÀY.
+#[derive(Debug, sqlx::FromRow)]
+pub(crate) struct EmployeeSummary {
+    pub(crate) employee_code: Option<String>,
+    pub(crate) full_name: Option<String>,
+    pub(crate) department: Option<String>,
+    pub(crate) team_name: Option<String>,
+    pub(crate) office_name: Option<String>,
+    pub(crate) full_days: i32,
+    pub(crate) insufficient_days: i32,
+    pub(crate) late_days: i32,
+    pub(crate) total_late_minutes: i32,
+    pub(crate) leave_days: i32,
+    pub(crate) checked_in_days: i32,
+}
+
+/// `getEmployeeAttendanceSummary`: 1 dòng/nhân viên thuộc bộ lọc, sắp theo team rồi tên.
+async fn employee_summary(conn: &mut PgConnection, range: &Range, f: &Filter) -> R<Vec<EmployeeSummary>> {
+    let (from, to) = (lit(range.from), lit(range.to));
+    let mut qb = builder(&format!(
+        "SELECT
+        COALESCE(NULLIF(TRIM(e.employee_code), ''), 'NV' || LPAD(e.id::text, 4, '0')) AS employee_code,
+        u.full_name AS full_name,
+        COALESCE(NULLIF(TRIM(e.department), ''), '{NO_DEPARTMENT}') AS department,
+        COALESCE(t.name, 'Chưa có team') AS team_name,
+        COALESCE(ao.name, '') AS office_name,
+        COUNT(ar.id) FILTER (WHERE ar.check_in_at IS NOT NULL AND ar.check_out_at IS NOT NULL)::int AS full_days,
+        COUNT(ar.id) FILTER (WHERE ar.check_in_at IS NOT NULL AND ar.check_out_at IS NULL)::int AS insufficient_days,
+        COUNT(ar.id) FILTER (WHERE ar.check_in_at IS NOT NULL AND COALESCE(ar.late_minutes, 0) > 0)::int AS late_days,
+        COALESCE(SUM(ar.late_minutes) FILTER (WHERE ar.check_in_at IS NOT NULL), 0)::int AS total_late_minutes,
+        COUNT(ar.id) FILTER (WHERE ar.status IN ('leave', 'maternity'))::int AS leave_days,
+        COUNT(ar.id) FILTER (WHERE ar.check_in_at IS NOT NULL)::int AS checked_in_days
+      FROM employees e
+      JOIN users u ON u.id = e.user_id AND u.deleted_at IS NULL
+      CROSS JOIN LATERAL (SELECT {RESOLVED_TEAM_ID} AS team_id) resolved
+      LEFT JOIN teams t ON t.id = resolved.team_id
+      LEFT JOIN attendance_offices ao ON ao.id = e.office_id
+      LEFT JOIN attendance_records ar ON ar.user_id = e.user_id
+        AND ar.work_date >= {from} AND ar.work_date <= {to}
+      WHERE e.deleted_at IS NULL AND {}",
+        employed(&from)
+    ));
+    f.push(&mut qb);
+    qb.push(" GROUP BY e.id, u.full_name, COALESCE(t.name, 'Chưa có team'), COALESCE(ao.name, '') ORDER BY team_name ASC, u.full_name ASC");
+    let query = qb.build_query_as::<EmployeeSummary>();
+    query.fetch_all(&mut *conn).await.map_err(db)
+}
+
+/// Dữ liệu hai sheet của `stats/export-by-team|export-by-department`.
+pub(crate) struct OverviewExport {
+    pub(crate) from_str: String,
+    pub(crate) to_str: String,
+    pub(crate) teams: Vec<TeamStat>,
+    pub(crate) departments: Vec<DepartmentStat>,
+    pub(crate) employees: Vec<EmployeeSummary>,
+}
+
+/// Số liệu cho tệp xuất theo Team (`by_department = false`) hoặc Phòng ban; phạm vi `attendance.view` như `resolveStatsScope`.
+pub(crate) async fn export_overview(
+    ctx: &Ctx,
+    actor: &Actor,
+    q: &QueryAttendanceStatsDto,
+    by_department: bool,
+) -> R<OverviewExport> {
+    let range = Range::of(q)?;
+    let f = Filter::new(view_scope(ctx, actor).await?, q)?;
+    let mut conn = ctx.conn(actor.company).await?;
+    let conn: &mut PgConnection = &mut conn;
+    let (teams, departments) = if by_department {
+        (Vec::new(), stats_by_department(conn, &range, &f).await?)
+    } else {
+        (stats_by_team(conn, &range, &f).await?, Vec::new())
+    };
+    let employees = employee_summary(conn, &range, &f).await?;
+    Ok(OverviewExport {
+        from_str: range.from_str,
+        to_str: range.to_str,
+        teams,
+        departments,
+        employees,
     })
 }
 

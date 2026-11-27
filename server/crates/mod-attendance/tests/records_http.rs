@@ -163,7 +163,8 @@ async fn setup() {
     exec("INSERT INTO employees (user_id, position, status, joined_at) VALUES (9832, 'Nhân viên', 'active', now()), (9833, 'Nhân viên', 'active', now());
           INSERT INTO roles (id, name, is_system, updated_at) VALUES (9831, 'm14a4-mgr', false, now());
           INSERT INTO role_permissions (role_id, permission, scope) VALUES
-            (9831, 'attendance.view', 'all'), (9831, 'attendance.manage', 'all');
+            (9831, 'attendance.view', 'all'), (9831, 'attendance.manage', 'all'),
+            (9831, 'attendance.export', 'all');
           INSERT INTO user_roles (user_id, role_id) VALUES (9831, 9831)")
         .await;
 }
@@ -360,5 +361,54 @@ async fn hom_nay_vang_ma_tran_va_anh() {
     assert_eq!(resp.headers()["content-disposition"], "inline");
     let raw = axum::body::to_bytes(resp.into_body(), 1 << 20).await.unwrap();
     assert_eq!(raw.as_ref(), b"\xff\xd8\xff");
+    teardown().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn xuat_xlsx_tam_loai() {
+    setup().await;
+    let a = app().await;
+    exec(
+        "INSERT INTO attendance_records (user_id, work_date, check_in_at, check_out_at, status, updated_at)
+          VALUES (9832, '2026-06-17', '2026-06-17 01:30:00+00', '2026-06-17 10:30:00+00', 'present', now())",
+    )
+    .await;
+    let paths = [
+        "/export?date_from=2026-06-01&date_to=2026-06-30",
+        "/workdays-matrix/export?date_from=2026-06-01&date_to=2026-06-30",
+        "/absent-export?date=2026-06-17",
+        "/stats/export-by-team?date_from=2026-06-01&date_to=2026-06-30",
+        "/stats/export-by-department?date_from=2026-06-01&date_to=2026-06-30",
+        "/stats/export-top-absent?date_from=2026-06-01&date_to=2026-06-30",
+        "/stats/export-top-late-early?date_from=2026-06-01&date_to=2026-06-30",
+        "/stats/export-by-gender?date_from=2026-06-01&date_to=2026-06-30",
+    ];
+    for p in paths {
+        let url = format!("{B}{p}");
+        assert_eq!(call(&a, Method::GET, &url, None, None).await.status, 401, "{p}");
+        assert_eq!(call(&a, Method::GET, &url, Some(EMP), None).await.status, 403, "{p}");
+        let req = Request::builder()
+            .uri(&url)
+            .header("authorization", format!("Bearer {}", token(MGR)))
+            .body(Body::empty())
+            .unwrap();
+        let resp = a.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), 200, "{p}");
+        assert!(
+            resp.headers()["content-type"]
+                .to_str()
+                .unwrap()
+                .contains("spreadsheetml"),
+            "{p}"
+        );
+        let raw = axum::body::to_bytes(resp.into_body(), 16 << 20).await.unwrap();
+        assert_eq!(&raw[..2], b"PK", "{p}");
+    }
+    // Query sai ⇒ 400.
+    for q in ["la=1", "date_from=17-06-2026", "user_id=abc"] {
+        let r = call(&a, Method::GET, &format!("{B}/export?{q}"), Some(MGR), None).await;
+        assert_eq!(r.status, 400, "{q}");
+    }
     teardown().await;
 }

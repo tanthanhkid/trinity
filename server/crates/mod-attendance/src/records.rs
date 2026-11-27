@@ -834,24 +834,24 @@ pub async fn today(ctx: &Ctx, actor: &Actor, q: &QueryTodaySummaryDto) -> R<Valu
 /// Nhân viên vắng (chưa chấm cả vào lẫn ra) trong một ngày.
 #[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct AbsentEmployee {
-    user_id: i32,
-    employee_code: Option<String>,
-    full_name: Option<String>,
-    email: Option<String>,
-    phone: Option<String>,
-    position: Option<String>,
-    department: Option<String>,
-    gender: Option<String>,
-    office_name: Option<String>,
-    team_name: Option<String>,
-    team_id: Option<i32>,
+    pub(crate) user_id: i32,
+    pub(crate) employee_code: Option<String>,
+    pub(crate) full_name: Option<String>,
+    pub(crate) email: Option<String>,
+    pub(crate) phone: Option<String>,
+    pub(crate) position: Option<String>,
+    pub(crate) department: Option<String>,
+    pub(crate) gender: Option<String>,
+    pub(crate) office_name: Option<String>,
+    pub(crate) team_name: Option<String>,
+    pub(crate) team_id: Option<i32>,
 }
 
 /// Kết quả `GET /absent`.
 #[derive(Debug, Serialize)]
 pub struct AbsentList {
-    absent_date: String,
-    absent_employees: Vec<AbsentEmployee>,
+    pub(crate) absent_date: String,
+    pub(crate) absent_employees: Vec<AbsentEmployee>,
 }
 
 /// `resolveVnDateParam`: đúng `YYYY-MM-DD` thì giữ, thiếu/sai dạng thì hôm nay (giờ VN).
@@ -938,53 +938,53 @@ pub async fn absent(
 // ───────────────────────────── ma trận công ─────────────────────────────
 
 #[derive(Debug, Serialize)]
-struct Cell {
-    day: u32,
-    status: String,
-    hours: Option<JsNumber>,
-    late_minutes: i32,
-    check_in: Option<String>,
-    check_out: Option<String>,
-    early_leave_compensated: bool,
+pub(crate) struct Cell {
+    pub(crate) day: u32,
+    pub(crate) status: String,
+    pub(crate) hours: Option<JsNumber>,
+    pub(crate) late_minutes: i32,
+    pub(crate) check_in: Option<String>,
+    pub(crate) check_out: Option<String>,
+    pub(crate) early_leave_compensated: bool,
 }
 
 #[derive(Debug, Serialize)]
 pub struct MatrixRow {
-    user_id: i32,
-    full_name: Option<String>,
-    email: Option<String>,
-    employee_code: Option<String>,
-    position: Option<String>,
-    department: Option<String>,
-    team_name: Option<String>,
-    total_work_days: JsNumber,
-    total_work_days_after_approval: JsNumber,
-    total_hours: JsNumber,
-    present_days: i64,
-    half_days: i64,
-    insufficient_days: i64,
-    incomplete_days: i64,
-    leave_days: i64,
-    maternity_days: i64,
-    late_days: i64,
-    total_late_minutes: i64,
-    early_leave_count: i64,
-    early_leave_approved: i64,
-    early_leave_rejected: i64,
-    early_leave_minutes: i64,
-    compensated_days: i64,
-    notes: String,
-    cells: BTreeMap<u32, Cell>,
+    pub(crate) user_id: i32,
+    pub(crate) full_name: Option<String>,
+    pub(crate) email: Option<String>,
+    pub(crate) employee_code: Option<String>,
+    pub(crate) position: Option<String>,
+    pub(crate) department: Option<String>,
+    pub(crate) team_name: Option<String>,
+    pub(crate) total_work_days: JsNumber,
+    pub(crate) total_work_days_after_approval: JsNumber,
+    pub(crate) total_hours: JsNumber,
+    pub(crate) present_days: i64,
+    pub(crate) half_days: i64,
+    pub(crate) insufficient_days: i64,
+    pub(crate) incomplete_days: i64,
+    pub(crate) leave_days: i64,
+    pub(crate) maternity_days: i64,
+    pub(crate) late_days: i64,
+    pub(crate) total_late_minutes: i64,
+    pub(crate) early_leave_count: i64,
+    pub(crate) early_leave_approved: i64,
+    pub(crate) early_leave_rejected: i64,
+    pub(crate) early_leave_minutes: i64,
+    pub(crate) compensated_days: i64,
+    pub(crate) notes: String,
+    pub(crate) cells: BTreeMap<u32, Cell>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct Matrix {
-    date_from: Option<String>,
-    date_to: Option<String>,
-    days_in_month: u32,
-    count: usize,
-    capped: bool,
-    rows: Vec<MatrixRow>,
+    pub(crate) date_from: Option<String>,
+    pub(crate) date_to: Option<String>,
+    pub(crate) days_in_month: u32,
+    pub(crate) count: usize,
+    pub(crate) capped: bool,
+    pub(crate) rows: Vec<MatrixRow>,
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -1086,7 +1086,12 @@ async fn early_leave(conn: &mut PgConnection, f: &Filters, user_id: Option<i64>)
 
 /// `GET /workdays-matrix`: lưới nhân viên × ngày; phạm vi `attendance.view`.
 pub async fn matrix(ctx: &Ctx, actor: &Actor, q: &QueryAttendanceDto) -> R<Matrix> {
-    let owner = owner_of(ctx, actor, "attendance.view").await?;
+    matrix_with(ctx, actor, q, "attendance.view").await
+}
+
+/// Như [`matrix`] nhưng phạm vi theo quyền `permission` (xuất Excel dùng `attendance.export`).
+pub(crate) async fn matrix_with(ctx: &Ctx, actor: &Actor, q: &QueryAttendanceDto, permission: &str) -> R<Matrix> {
+    let owner = owner_of(ctx, actor, permission).await?;
     let f = filters(q, &owner, false)?;
     let mut conn = ctx.conn(actor.company).await?;
     let cfg = config::get_shift(&mut conn).await?;
@@ -1220,6 +1225,126 @@ pub async fn matrix(ctx: &Ctx, actor: &Actor, q: &QueryAttendanceDto) -> R<Matri
         rows,
     })
 }
+
+// ───────────────────────────── dữ liệu xuất Excel (M14b) ─────────────────────────────
+
+/// Một dòng của tệp xuất chấm công theo khoảng ngày (`GET /export`).
+pub(crate) struct ExportRow {
+    pub(crate) full_name: String,
+    pub(crate) team_name: Option<String>,
+    pub(crate) department: Option<String>,
+    pub(crate) email: String,
+    pub(crate) position: Option<String>,
+    pub(crate) work_date: NaiveDate,
+    pub(crate) check_in: Option<String>,
+    pub(crate) check_out: Option<String>,
+    /// Tổng giờ tính lại (trừ nghỉ trưa); `None` khi thiếu giờ vào/ra.
+    pub(crate) total_hours: Option<f64>,
+    /// `late_minutes` đã lưu trong bản ghi (bản TS xuất `r.late_minutes ?? 0`, không tính lại).
+    pub(crate) late_minutes: i32,
+    /// Trạng thái hiển thị (tính lại từ giờ chấm).
+    pub(crate) status: String,
+    pub(crate) in_note: String,
+    pub(crate) out_note: String,
+}
+
+pub(crate) struct ExportData {
+    pub(crate) rows: Vec<ExportRow>,
+    /// Vượt `EXPORT_LIMIT` bản ghi (file chỉ giữ phần mới nhất).
+    pub(crate) truncated: bool,
+}
+
+/// Trần số bản ghi một tệp xuất (`EXPORT_LIMIT` của bản TS).
+pub(crate) const EXPORT_LIMIT: i64 = ORG_SORT_CAP;
+
+/// `AttendanceExportService.exportToExcel` phần dữ liệu: phạm vi `attendance.export`, bộ lọc ngày/nhân viên/team/phòng ban/chức
+/// danh, lấy `EXPORT_LIMIT + 1` bản ghi mới nhất rồi sắp theo sơ đồ tổ chức → ngày → id.
+pub(crate) async fn export_records(ctx: &Ctx, actor: &Actor, q: &QueryAttendanceDto) -> R<ExportData> {
+    let owner = owner_of(ctx, actor, "attendance.export").await?;
+    let f = filters(q, &owner, false)?;
+    let mut conn = ctx.conn(actor.company).await?;
+    let cfg = config::get_shift(&mut conn).await?;
+    let late_after = hm_minutes(&cfg.late_after);
+
+    let mut qb = QueryBuilder::<Postgres>::new("SELECT ");
+    qb.push(cols("ar"));
+    qb.push(
+        ", u.id AS u_id, u.full_name AS u_full_name, u.email AS u_email, u.manager_id AS u_manager_id,
+         e.id AS e_id, e.position AS e_position, e.team_id AS e_team_id, e.department AS e_department,
+         jt.sort_order AS jt_sort_order, t.name AS team_name",
+    );
+    qb.push(BASE_FROM);
+    qb.push(" LEFT JOIN job_titles jt ON jt.id = e.job_title_id LEFT JOIN teams t ON t.id = ");
+    qb.push(RESOLVED_TEAM_ID);
+    push_where(&mut qb, &f);
+    qb.push(" ORDER BY ar.work_date DESC, ar.user_id ASC LIMIT ")
+        .push_bind(EXPORT_LIMIT + 1);
+    let query = qb.build_query_as::<ListRow>();
+    let mut raw = query.fetch_all(&mut *conn).await.map_err(db)?;
+    drop(conn);
+    let truncated = i64::try_from(raw.len()).unwrap_or(i64::MAX) > EXPORT_LIMIT;
+    raw.truncate(usize::try_from(EXPORT_LIMIT).unwrap_or(usize::MAX));
+
+    let mut items: Vec<(Listed, i32)> = raw
+        .into_iter()
+        .map(|r| {
+            let stored_late = r.rec.late_minutes.unwrap_or(0);
+            (listed(r, &cfg, late_after), stored_late)
+        })
+        .collect();
+    items.sort_by(|(a, _), (b, _)| {
+        org_cmp(a, b)
+            .then_with(|| a.rec.work_date.cmp(&b.rec.work_date))
+            .then_with(|| a.rec.id.cmp(&b.rec.id))
+    });
+    let rows = items
+        .into_iter()
+        .map(|(l, stored_late)| {
+            let e = l.user.as_ref().and_then(|u| u.employee.as_ref());
+            ExportRow {
+                full_name: l.user.as_ref().and_then(|u| u.full_name.clone()).unwrap_or_default(),
+                team_name: e.and_then(|x| x.team_name.clone()),
+                department: e.and_then(|x| x.department.clone()),
+                email: l.user.as_ref().and_then(|u| u.email.clone()).unwrap_or_default(),
+                position: e.map(|x| x.position.clone()),
+                work_date: l.rec.work_date.0,
+                check_in: hhmm(l.rec.check_in_at),
+                check_out: hhmm(l.rec.check_out_at),
+                total_hours: l.rec.total_hours.map(|h| h.0),
+                late_minutes: stored_late,
+                status: l.rec.status.clone(),
+                in_note: l.rec.check_in_note.clone().unwrap_or_default(),
+                out_note: l.rec.check_out_note.clone().unwrap_or_default(),
+            }
+        })
+        .collect();
+    Ok(ExportData { rows, truncated })
+}
+
+#[cfg(test)]
+impl Matrix {
+    pub(crate) fn empty_for_test(days_in_month: u32) -> Self {
+        Self {
+            date_from: None,
+            date_to: None,
+            days_in_month,
+            count: 0,
+            capped: false,
+            rows: Vec::new(),
+        }
+    }
+}
+
+#[cfg(test)]
+impl AbsentList {
+    pub(crate) fn empty_for_test(date: &str) -> Self {
+        Self {
+            absent_date: date.to_owned(),
+            absent_employees: Vec::new(),
+        }
+    }
+}
+
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]

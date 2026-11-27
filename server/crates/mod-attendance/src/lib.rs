@@ -10,6 +10,8 @@
 //! | `GET/PATCH /working-saturdays` | [`config::get_saturdays`], [`config::set_saturdays`] | đăng nhập (xem), `attendance.config` |
 //! | `GET/PATCH /request-config` | [`config::get_request_config`], [`config::update_request_config`] | đăng nhập (xem), `attendance.config` |
 //!
+//! M14b: xuất xlsx (chấm công theo khoảng ngày, bảng công tháng, nhân viên vắng, 5 tệp thống kê) ở [`export`].
+//!
 //! M13b: `POST /check-in`, `POST /check-out` (đăng nhập; multipart `device_id`, `note`, tệp `selfie`) ở [`check`]: kiểm IP văn phòng bằng IP
 //! khách từ hàm dùng chung `resolve_client_ip`, ngày làm việc theo giờ Việt Nam; router riêng [`routes::check_router`] (state `Arc<check::CheckCtx>`).
 //!
@@ -25,6 +27,7 @@
 pub mod check;
 pub mod config;
 pub mod dto;
+pub mod export;
 pub mod offices;
 pub mod records;
 pub mod requests;

@@ -51,9 +51,13 @@ pub fn board_routes() -> Vec<RouteSpec> {
         RouteSpec::new(Method::POST, "/api/v1/kanban/boards/:boardId/field-defs", boards)
             .status_ok(201)
             .param_pipes(BOARD_ID),
-        RouteSpec::new(Method::POST, "/api/v1/kanban/boards/:boardId/field-defs/reorder", boards)
-            .status_ok(201)
-            .param_pipes(BOARD_ID),
+        RouteSpec::new(
+            Method::POST,
+            "/api/v1/kanban/boards/:boardId/field-defs/reorder",
+            boards,
+        )
+        .status_ok(201)
+        .param_pipes(BOARD_ID),
         RouteSpec::new(Method::PATCH, "/api/v1/kanban/field-defs/:id", boards)
             .status_ok(200)
             .param_pipes(ID),

@@ -32,9 +32,7 @@ use crate::checklist::{CreateItem, ReorderItems, UpdateItem};
 use crate::columns::{CreateColumn, ReorderColumns, UpdateColumn};
 use crate::field_defs::{CreateFieldDef, ReorderFieldDefs, UpdateFieldDef};
 use crate::labels::{CreateLabel, UpdateLabel};
-use crate::{
-    Access, Actor, activities, attachments, boards, cards, checklist, columns, field_defs, labels, routes,
-};
+use crate::{Access, Actor, activities, attachments, boards, cards, checklist, columns, field_defs, labels, routes};
 
 /// Trạng thái dùng chung của router Kanban.
 pub struct Ctx {
@@ -466,10 +464,7 @@ async fn create_field_def(
     JsonBody(body): JsonBody,
 ) -> Response {
     let res = async {
-        let input: CreateFieldDef = strict(
-            body,
-            &["key", "label", "type", "options", "required", "show_on_card"],
-        )?;
+        let input: CreateFieldDef = strict(body, &["key", "label", "type", "options", "required", "show_on_card"])?;
         input.validate()?;
         let board_id = id_of(&board_id, "board")?;
         let mut cn = conn(&c, company_of(&u)?).await?;

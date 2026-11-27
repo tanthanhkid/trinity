@@ -388,7 +388,8 @@ async fn insert_deal(
         email: Some(a.email.clone()),
     };
     let created = mod_deals::deals::create(&tenant, scopes, &actor, &input).await?;
-    serde_json::to_value(created.deal).map_err(AppError::internal)
+    let text = serde_json::to_string(&created.deal).map_err(AppError::internal)?;
+    serde_json::from_str(&text).map_err(AppError::internal)
 }
 
 /// `POST /public/deals`. `dto` đã qua `PublicCreateDealDto`.

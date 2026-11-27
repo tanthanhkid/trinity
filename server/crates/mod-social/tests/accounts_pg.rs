@@ -67,7 +67,11 @@ async fn one_i32(c: &mut PgConnection, sql: &str) -> i32 {
 }
 
 async fn clean(c: &mut PgConnection) {
-    exec(c, "DELETE FROM social_post_targets WHERE post_id IN (SELECT id FROM social_posts WHERE content LIKE 'm53a%')").await;
+    exec(
+        c,
+        "DELETE FROM social_post_targets WHERE post_id IN (SELECT id FROM social_posts WHERE content LIKE 'm53a%')",
+    )
+    .await;
     exec(c, "DELETE FROM social_posts WHERE content LIKE 'm53a%'").await;
     exec(c, "DELETE FROM social_accounts WHERE external_id LIKE 'm53a%'").await;
     exec(c, "DELETE FROM facebook_pages WHERE page_id LIKE 'm53a%'").await;
@@ -146,15 +150,30 @@ async fn tai_khoan_fanpage_day_du() {
     assert!(m.contains("Trinity đã ngừng hỗ trợ TikTok"), "{m}");
     let u = accounts::connect_url(&ctx, "facebook", actor, NOW).await.unwrap();
     let u = u["url"].as_str().unwrap().to_owned();
-    assert!(u.starts_with("https://www.facebook.com/v25.0/dialog/oauth?client_id=123"), "{u}");
-    assert!(u.contains("pages_manage_posts") && !u.contains("pages_messaging"), "{u}");
+    assert!(
+        u.starts_with("https://www.facebook.com/v25.0/dialog/oauth?client_id=123"),
+        "{u}"
+    );
+    assert!(
+        u.contains("pages_manage_posts") && !u.contains("pages_messaging"),
+        "{u}"
+    );
     assert!(!u.contains("shh"), "không lộ secret");
 
     // callback: state sai ⇒ 400; state đúng ⇒ chỉ Page đăng được (A, B) được lưu, token mã hoá.
-    let (s, _) = status(accounts::handle_callback(&ctx, "facebook", "CODE", "rac", NOW).await.unwrap_err());
+    let (s, _) = status(
+        accounts::handle_callback(&ctx, "facebook", "CODE", "rac", NOW)
+            .await
+            .unwrap_err(),
+    );
     assert_eq!(s, 400);
     let state = sign_social_state("bi-mat-jwt", actor, "facebook", None, None, NOW);
-    assert_eq!(accounts::handle_callback(&ctx, "facebook", "CODE", &state, NOW).await.unwrap(), 2);
+    assert_eq!(
+        accounts::handle_callback(&ctx, "facebook", "CODE", &state, NOW)
+            .await
+            .unwrap(),
+        2
+    );
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
     let rows: Vec<(String, String, String, String, i32)> = sqlx::query_as(
         "SELECT external_id, name, access_token_enc, status, connected_by FROM social_accounts WHERE external_id LIKE 'm53a%' ORDER BY external_id",
@@ -162,7 +181,10 @@ async fn tai_khoan_fanpage_day_du() {
     .fetch_all(&mut *c)
     .await
     .unwrap();
-    assert_eq!(rows.iter().map(|r| r.0.as_str()).collect::<Vec<_>>(), ["m53aa", "m53ab"]);
+    assert_eq!(
+        rows.iter().map(|r| r.0.as_str()).collect::<Vec<_>>(),
+        ["m53aa", "m53ab"]
+    );
     assert_eq!(decrypt_secret(&rows[0].2, &key).unwrap(), "PTa");
     assert_eq!((rows[0].3.as_str(), rows[0].4), ("active", actor));
     drop(c);
@@ -170,7 +192,13 @@ async fn tai_khoan_fanpage_day_du() {
     // list: không lộ token; có `removed`, `inbox` (Page chưa nối nhận tin ⇒ null).
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
     let list = json_of(&accounts::list(&mut c).await.unwrap());
-    let a = list.as_array().unwrap().iter().find(|x| x["external_id"] == "m53aa").unwrap().clone();
+    let a = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|x| x["external_id"] == "m53aa")
+        .unwrap()
+        .clone();
     assert_eq!(a["removed"], false);
     assert_eq!(a["inbox"], Value::Null);
     assert!(a.get("access_token_enc").is_none() && a.get("refresh_token_enc").is_none());
@@ -204,14 +232,20 @@ async fn tai_khoan_fanpage_day_du() {
     let (s, _) = status(accounts::disconnect(&mut c, id_a).await.unwrap_err());
     assert_eq!(s, 404);
     // Hết token ⇒ không bật lại được.
-    exec(&mut c, &format!("UPDATE social_accounts SET status = 'disabled' WHERE id = {id_a}")).await;
+    exec(
+        &mut c,
+        &format!("UPDATE social_accounts SET status = 'disabled' WHERE id = {id_a}"),
+    )
+    .await;
     let (s, m) = status(accounts::enable(&mut c, id_a).await.unwrap_err());
     assert_eq!((s, m.as_str()), (400, "\"Liên kết lại để bật kênh này\""));
     drop(c);
 
     // Nối lại kênh đã gỡ: làm mới token nhưng GIỮ `disabled`; sau đó có token ⇒ bật lại được.
     let state = sign_social_state("bi-mat-jwt", actor, "facebook", None, None, NOW);
-    accounts::handle_callback(&ctx, "facebook", "CODE", &state, NOW).await.unwrap();
+    accounts::handle_callback(&ctx, "facebook", "CODE", &state, NOW)
+        .await
+        .unwrap();
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
     let v = json_of(&accounts::enable(&mut c, id_a).await.unwrap());
     assert_eq!(v["status"], "active");
@@ -220,9 +254,15 @@ async fn tai_khoan_fanpage_day_du() {
     // callback_location: huỷ, mạng đã gỡ, state sai.
     drop(c);
     let loc = accounts::callback_location(&ctx, "facebook", None, None, Some("access_denied"), NOW).await;
-    assert_eq!(loc, "https://crm.example.test/social?tab=channels&social=cancelled&network=facebook");
+    assert_eq!(
+        loc,
+        "https://crm.example.test/social?tab=channels&social=cancelled&network=facebook"
+    );
     let loc = accounts::callback_location(&ctx, "facebook", Some("CODE"), Some("rac"), None, NOW).await;
-    assert!(loc.starts_with("https://crm.example.test/social?tab=channels&social=error&network=facebook&reason="), "{loc}");
+    assert!(
+        loc.starts_with("https://crm.example.test/social?tab=channels&social=error&network=facebook&reason="),
+        "{loc}"
+    );
     let loc = accounts::callback_location(&ctx, "zzz", Some("c"), Some("s"), None, NOW).await;
     assert_eq!(loc, "https://crm.example.test/social?tab=channels&social=error");
 

@@ -2707,6 +2707,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-social"
+version = "0.3.0"
+dependencies = [
+ "base64 0.23.1",
+ "chrono",
+ "hmac",
+ "http",
+ "mod-facebook",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "subtle",
+ "tokio",
+ "tracing",
+ "trinity-db",
+ "trinity-http",
+ "trinity-integrations",
+ "trinity-kernel",
+ "wiremock",
+]
+
+[[package]]
 name = "mod-store"
 version = "0.3.0"
 dependencies = [
@@ -4935,6 +4959,7 @@ dependencies = [
  "mod-public-api",
  "mod-reports",
  "mod-setup",
+ "mod-social",
  "mod-store",
  "mod-system",
  "mod-users",

@@ -36,7 +36,9 @@ mod tests {
     #[test]
     fn kiem_mang() {
         assert_eq!(
-            SocialConnect::from_json(&json!({"network":"facebook"})).unwrap().network,
+            SocialConnect::from_json(&json!({"network":"facebook"}))
+                .unwrap()
+                .network,
             "facebook"
         );
         assert!(SocialConnect::from_json(&json!({"network":"youtube"})).is_ok());
@@ -51,7 +53,11 @@ mod tests {
             let e = SocialConnect::from_json(&bad).unwrap_err();
             let (s, b) = trinity_kernel::error::AppError::from(e).response(true);
             assert_eq!(s, 400);
-            assert_eq!(serde_json::to_value(&b.message).unwrap(), json!(["Mạng không hợp lệ"]), "{bad}");
+            assert_eq!(
+                serde_json::to_value(&b.message).unwrap(),
+                json!(["Mạng không hợp lệ"]),
+                "{bad}"
+            );
         }
     }
 }

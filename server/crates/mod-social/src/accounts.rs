@@ -14,11 +14,11 @@ use mod_facebook::state::jwt_secret;
 use serde::Serialize;
 use serde_json::Value;
 use sqlx::PgConnection;
+use trinity_db::TenantConn;
 use trinity_db::models::SocialAccount;
 use trinity_db::pg_error::app_error;
 use trinity_db::platform::{PlatformError, RouteKind, conflict_from_trigger};
 use trinity_db::types::Timestamp;
-use trinity_db::TenantConn;
 use trinity_integrations::status::public_base_url;
 use trinity_integrations::webhooks::secret::{Key, decrypt_secret, encrypt_secret, load_secret_key};
 use trinity_kernel::error::{AppError, HttpError, Message};
@@ -59,8 +59,9 @@ async fn acquire(ctx: &Ctx<'_>) -> Result<TenantConn, AppError> {
 
 /// Khoá mã hoá token; thiếu hoặc sai ⇒ 503 (`INTEGRATIONS_SECRET_KEY` chưa đặt).
 fn secret_key(env: &Env) -> Result<Key, AppError> {
-    load_secret_key(&|k: &str| env(k))
-        .map_err(|_| HttpError::service_unavailable("Máy chủ chưa đặt INTEGRATIONS_SECRET_KEY (khoá mã hoá token).").into())
+    load_secret_key(&|k: &str| env(k)).map_err(|_| {
+        HttpError::service_unavailable("Máy chủ chưa đặt INTEGRATIONS_SECRET_KEY (khoá mã hoá token).").into()
+    })
 }
 
 /// Dạng trả ra API (`SocialAccountView`) — KHÔNG có token. `removed`/`inbox` chỉ có ở danh sách.
@@ -172,11 +173,13 @@ pub async fn list(conn: &mut PgConnection) -> Result<Vec<SocialAccountView>, App
 }
 
 async fn find(conn: &mut PgConnection, id: i32) -> Result<Option<SocialAccount>, AppError> {
-    sqlx::query_as::<_, SocialAccount>(sqlx::AssertSqlSafe(format!("SELECT {COLS} FROM social_accounts WHERE id = $1")))
-        .bind(id)
-        .fetch_optional(conn)
-        .await
-        .map_err(db)
+    sqlx::query_as::<_, SocialAccount>(sqlx::AssertSqlSafe(format!(
+        "SELECT {COLS} FROM social_accounts WHERE id = $1"
+    )))
+    .bind(id)
+    .fetch_optional(conn)
+    .await
+    .map_err(db)
 }
 
 /// `POST /social/accounts/:id/enable`: bật lại kênh đã gỡ, chỉ khi còn token (gỡ kênh xoá token nên thường phải liên kết lại).
@@ -268,7 +271,13 @@ async fn upsert_account(
 
 /// Callback OAuth (công khai, xác thực bằng `state`): lưu/ghi đè mọi Page nhận được. `state` sai/hết hạn/sai công ty/sai mạng ⇒ 400.
 /// Page đã thuộc công ty khác thì bỏ qua (không lưu token của họ vào công ty này); mọi Page bị bỏ ⇒ 409. Trả số Page đã nối.
-pub async fn handle_callback(ctx: &Ctx<'_>, network: &str, code: &str, state: &str, now_ms: i64) -> Result<usize, AppError> {
+pub async fn handle_callback(
+    ctx: &Ctx<'_>,
+    network: &str,
+    code: &str,
+    state: &str,
+    now_ms: i64,
+) -> Result<usize, AppError> {
     if let Some(m) = removed_network_message(network) {
         return Err(HttpError::bad_request(m).into());
     }
@@ -284,14 +293,15 @@ pub async fn handle_callback(ctx: &Ctx<'_>, network: &str, code: &str, state: &s
         ctx.platform.multi_tenant(),
         Some(ctx.company.id()),
     ) else {
-        return Err(HttpError::bad_request(
-            "Phiên liên kết không hợp lệ hoặc đã hết hạn. Hãy bấm \"Liên kết\" lại.",
-        )
-        .into());
+        return Err(
+            HttpError::bad_request("Phiên liên kết không hợp lệ hoặc đã hết hạn. Hãy bấm \"Liên kết\" lại.").into(),
+        );
     };
     let base = public_base_url(&|k: &str| (ctx.env)(k));
     let Some(base) = base.filter(|_| provider::configured(ctx.env)) else {
-        return Err(HttpError::service_unavailable(format!("Chưa cấu hình {} trên máy chủ.", network_label(network))).into());
+        return Err(
+            HttpError::service_unavailable(format!("Chưa cấu hình {} trên máy chủ.", network_label(network))).into(),
+        );
     };
     let key = secret_key(ctx.env)?;
     let accounts = provider::exchange(ctx.graph, code, &social_redirect_uri(&base, network))
@@ -319,7 +329,11 @@ pub async fn handle_callback(ctx: &Ctx<'_>, network: &str, code: &str, state: &s
     if skipped > 0 && skipped == accounts.len() {
         return Err(HttpError::conflict("Trang Facebook này đã được một công ty khác kết nối với Trinity").into());
     }
-    tracing::info!("Liên kết {network}: {} tài khoản (user {})", accounts.len() - skipped, st.user_id);
+    tracing::info!(
+        "Liên kết {network}: {} tài khoản (user {})",
+        accounts.len() - skipped,
+        st.user_id
+    );
     Ok(accounts.len() - skipped)
 }
 

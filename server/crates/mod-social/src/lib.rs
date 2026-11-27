@@ -12,6 +12,9 @@
 //! Token Fanpage mã hoá AES-256-GCM bằng `INTEGRATIONS_SECRET_KEY` (`trinity_integrations::webhooks::secret`), đúng như bản Node.
 //! "Làm mới token": token Page lấy từ user token dài hạn không hết hạn nên provider Facebook không có bước làm mới
 //! (`refresh` không có ở bản Node); chỉ có [`accounts::save_refreshed`] và [`accounts::mark_reauth`] cho job đăng.
+// AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
+#![allow(clippy::result_large_err)]
+
 
 pub mod accounts;
 pub mod config;

@@ -115,7 +115,10 @@ mod tests {
         let ok = verify_social_state("bi-mat", &s, "facebook", NOW, false, None).unwrap();
         assert_eq!((ok.user_id, ok.verifier), (42, None));
         assert!(verify_social_state("bi-mat", &s, "facebook", NOW + 601_000, false, None).is_none());
-        assert!(verify_social_state("bi-mat", &s, "youtube", NOW, false, None).is_none(), "sai mạng");
+        assert!(
+            verify_social_state("bi-mat", &s, "youtube", NOW, false, None).is_none(),
+            "sai mạng"
+        );
         assert!(verify_social_state("khac", &s, "facebook", NOW, false, None).is_none());
         assert!(verify_social_state("bi-mat", &format!("{s}.x"), "facebook", NOW, false, None).is_none());
         assert!(verify_social_state("bi-mat", "", "facebook", NOW, false, None).is_none());
@@ -132,7 +135,10 @@ mod tests {
             "eyJ1Ijo0MiwibiI6ImZhY2Vib29rIiwiZSI6MTgwMDAwMDYwMH0.O_dYbiyxljLJFhfgqwwkYfoiDSE-9pMuZG-pNreX-Y0"
         );
         let full = "eyJ1Ijo3LCJuIjoiZmFjZWJvb2siLCJlIjoxODAwMDAwNjAwLCJ2IjoidmVyIiwiYyI6M30.fpgDsl8mz0mBMMdFcN9widUysmmuLMSYg1V18GaJu00";
-        assert_eq!(sign_social_state("bi-mat", 7, "facebook", Some("ver"), Some(3), NOW), full);
+        assert_eq!(
+            sign_social_state("bi-mat", 7, "facebook", Some("ver"), Some(3), NOW),
+            full
+        );
         let st = verify_social_state("bi-mat", full, "facebook", NOW, true, Some(3)).unwrap();
         assert_eq!((st.user_id, st.verifier.as_deref()), (7, Some("ver")));
     }

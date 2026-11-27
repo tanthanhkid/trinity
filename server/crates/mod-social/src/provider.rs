@@ -24,7 +24,11 @@ pub fn authorize_url(env: &Env, state: &str, redirect_uri: &str) -> String {
         ("scope".to_owned(), FACEBOOK_SOCIAL_SCOPES.join(",")),
         ("response_type".to_owned(), "code".to_owned()),
     ];
-    format!("https://www.facebook.com/{}/dialog/oauth?{}", c.graph_version, form_encode(&query))
+    format!(
+        "https://www.facebook.com/{}/dialog/oauth?{}",
+        c.graph_version,
+        form_encode(&query)
+    )
 }
 
 /// Tài khoản/trang nhận được sau OAuth; token ở dạng THÔ, tầng lưu mã hoá trước khi ghi.
@@ -62,7 +66,11 @@ pub fn connected_from_pages(pages: &[GraphPage]) -> Vec<ConnectedAccount> {
 }
 
 /// `exchange`: `code` ⇒ user token ngắn ⇒ dài hạn ⇒ `me/accounts`. Token Page từ user token dài hạn không hết hạn.
-pub async fn exchange(graph: &GraphClient, code: &str, redirect_uri: &str) -> Result<Vec<ConnectedAccount>, GraphApiError> {
+pub async fn exchange(
+    graph: &GraphClient,
+    code: &str,
+    redirect_uri: &str,
+) -> Result<Vec<ConnectedAccount>, GraphApiError> {
     let short = graph.exchange_code(code, redirect_uri).await?;
     let long = graph.to_long_lived(&short).await?;
     let pages = graph.list_pages(&long).await?;
@@ -92,7 +100,10 @@ mod tests {
             page("4", None, Some(&["MANAGE"])),
             page("5", Some("t5"), Some(&["MANAGE", "MESSAGING"])),
         ];
-        let ids: Vec<String> = connected_from_pages(&pages).into_iter().map(|a| a.external_id).collect();
+        let ids: Vec<String> = connected_from_pages(&pages)
+            .into_iter()
+            .map(|a| a.external_id)
+            .collect();
         assert_eq!(ids, ["1", "3", "5"]);
     }
 

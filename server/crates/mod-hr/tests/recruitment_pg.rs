@@ -33,6 +33,10 @@ fn js<T: serde::Serialize>(v: &T) -> String {
     serde_json::to_string(v).unwrap()
 }
 
+fn val<T: serde::Serialize>(v: &T) -> Value {
+    serde_json::from_str(&js(v)).unwrap()
+}
+
 fn body(name: &str, v: Value) -> Map<String, Value> {
     rc::validate(name, &v).unwrap_or_else(|e| panic!("{name} {v}: {e:?}"))
 }
@@ -453,12 +457,9 @@ async fn thong_ke_va_nguoi_phu_trach() {
       ('b', 'Facebook', 'interview', 'hired', 'internal', '2026-01-20', 200, now()), \
       ('c', NULL, 'applied', 'rejected', 'external', '2026-02-05', NULL, now()), \
       ('d', 'Zalo', 'offer', 'pending', 'external', NULL, 50, now())").await;
-    let s = serde_json::to_value(
-        rc::stats(&mut c, &query("QueryRecruitmentStatsDto", json!({})))
-            .await
-            .unwrap(),
-    )
-    .unwrap();
+    let s = val(&rc::stats(&mut c, &query("QueryRecruitmentStatsDto", json!({})))
+        .await
+        .unwrap());
     assert_eq!(s["total"], 4);
     assert_eq!(s["total_cost"], 350);
     assert_eq!(s["by_source"], json!({"Facebook": 2, "Zalo": 1, "Không rõ": 1}));
@@ -471,31 +472,25 @@ async fn thong_ke_va_nguoi_phu_trach() {
         "dòng không có applied_date không vào theo tháng"
     );
     // Khoảng ngày: dòng không có applied_date bị loại khi có bộ lọc.
-    let r = serde_json::to_value(
-        rc::stats(
-            &mut c,
-            &query(
-                "QueryRecruitmentStatsDto",
-                json!({"date_from": "2026-01-15", "date_to": "2026-02-01T00:00:00Z"}),
-            ),
-        )
-        .await
-        .unwrap(),
+    let r = val(&rc::stats(
+        &mut c,
+        &query(
+            "QueryRecruitmentStatsDto",
+            json!({"date_from": "2026-01-15", "date_to": "2026-02-01T00:00:00Z"}),
+        ),
     )
-    .unwrap();
+    .await
+    .unwrap());
     assert_eq!(
         (r["total"].clone(), r["total_cost"].clone(), r["by_month"].clone()),
         (json!(1), json!(200), json!([{"month": "2026-01", "count": 1}]))
     );
-    let none = serde_json::to_value(
-        rc::stats(
-            &mut c,
-            &query("QueryRecruitmentStatsDto", json!({"date_from": "2030-01-01"})),
-        )
-        .await
-        .unwrap(),
+    let none = val(&rc::stats(
+        &mut c,
+        &query("QueryRecruitmentStatsDto", json!({"date_from": "2030-01-01"})),
     )
-    .unwrap();
+    .await
+    .unwrap());
     assert_eq!(
         (
             none["total"].clone(),

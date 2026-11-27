@@ -255,7 +255,7 @@ fn media_from_json(v: &Value) -> Option<SocialMedia> {
     })
 }
 
-fn stored_media(v: &Value) -> Vec<SocialMedia> {
+pub(crate) fn stored_media(v: &Value) -> Vec<SocialMedia> {
     let items = v.as_array().map(Vec::as_slice).unwrap_or_default();
     items.iter().filter_map(media_from_json).collect()
 }

@@ -180,7 +180,22 @@ struct Opts {
     body: Option<Value>,
     /// Lời gọi GỬI RA (tin, trả lời/ẩn bình luận, đăng bài): chỉ loại này tính vào ngưỡng tự tạm dừng.
     send: bool,
+    /// Gọi qua host video của Graph (tải video theo phiên).
+    video: bool,
+    /// Thân thô (multipart đã dựng sẵn); thay cho `body` JSON.
+    raw: Option<RawBody>,
+    /// Hạn riêng của lời gọi (mặc định [`GRAPH_TIMEOUT`]).
+    timeout: Option<Duration>,
 }
+
+/// Thân yêu cầu dựng sẵn kèm `Content-Type` (vd `multipart/form-data; boundary=…`).
+struct RawBody {
+    content_type: String,
+    bytes: Vec<u8>,
+}
+
+/// Hạn một lời gọi có tải tệp lên (ảnh, một phần video): `AbortSignal.timeout(120_000)` của bản Node.
+pub const GRAPH_UPLOAD_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Phản hồi 2xx chưa giải mã: kết quả chỉ được báo cho `observer` SAU khi thân giải mã được ([`GraphClient::finish`]).
 struct Resp {
@@ -215,11 +230,11 @@ impl GraphClient {
     }
 
     /// `tpl`: dạng đường dẫn dùng khi GHI LOG (`{page}/subscribed_apps`): id khách, Page, bình luận không vào log.
-    async fn call(&self, method: Method, path: &str, tpl: &str, o: Opts) -> Result<Resp, GraphApiError> {
+    async fn call(&self, method: Method, path: &str, tpl: &str, mut o: Opts) -> Result<Resp, GraphApiError> {
         let cfg = load_facebook_config(&self.env);
         // Dựng URL trước: cấu hình địa chỉ gốc sai (vd `http://` ngoài loopback) phải báo đúng là lỗi cấu hình vĩnh viễn,
         // không thành "không kết nối được".
-        let url = graph_url(&cfg.graph_version, path, &o.query, false, &self.env).map_err(|m| GraphApiError {
+        let url = graph_url(&cfg.graph_version, path, &o.query, o.video, &self.env).map_err(|m| GraphApiError {
             http_status: 0,
             code: None,
             subcode: None,
@@ -242,7 +257,10 @@ impl GraphClient {
         if let Some(b) = &o.body {
             req = req.header(CONTENT_TYPE, "application/json").body(b.to_string());
         }
-        let res = match req.timeout(GRAPH_TIMEOUT).send().await {
+        if let Some(raw) = o.raw.take() {
+            req = req.header(CONTENT_TYPE, raw.content_type).body(raw.bytes);
+        }
+        let res = match req.timeout(o.timeout.unwrap_or(GRAPH_TIMEOUT)).send().await {
             Ok(r) => r,
             Err(e) => {
                 // Không ghi URL hay chi tiết lỗi: chỉ loại lỗi.
@@ -340,6 +358,7 @@ impl GraphClient {
                 query,
                 body,
                 send,
+                ..Opts::default()
             },
         )
         .await
@@ -593,6 +612,71 @@ impl GraphClient {
             )
             .await?;
         self.finish(r, |v| Self::typed(v.clone()))
+    }
+
+    /// Đăng lên feed của Page (`POST {page}/feed`): chữ, hoặc chữ kèm các ảnh đã tải ở trạng thái chưa đăng
+    /// (`attached_media`). Trả id bài. Lời gọi gửi ra (tính vào ngưỡng tự tạm dừng).
+    pub async fn publish_feed(
+        &self,
+        page_token: &str,
+        page_id: &str,
+        message: &str,
+        attached_media: &[String],
+    ) -> Result<String, GraphApiError> {
+        let mut body = json!({ "message": message });
+        if !attached_media.is_empty() {
+            let list: Vec<Value> = attached_media.iter().map(|id| json!({ "media_fbid": id })).collect();
+            body["attached_media"] = Value::Array(list);
+        }
+        let r = self
+            .post(&format!("{page_id}/feed"), "{page}/feed", page_token, Vec::new(), Some(body), true)
+            .await?;
+        self.finish(r, |v| {
+            v.get("id")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .ok_or_else(|| GraphApiError::plain("Facebook trả dữ liệu không đúng định dạng"))
+        })
+    }
+
+    /// POST multipart đã dựng sẵn (`content_type` kèm boundary) tới `path`; `video` đi qua host video. Dùng cho ảnh
+    /// (`{page}/photos`) và từng bước tải video theo phiên (`{page}/videos`). Trả thân JSON. Lời gọi gửi ra.
+    pub async fn post_multipart(
+        &self,
+        page_token: &str,
+        path: &str,
+        tpl: &str,
+        video: bool,
+        content_type: &str,
+        body: Vec<u8>,
+    ) -> Result<Value, GraphApiError> {
+        let r = self
+            .call(
+                Method::Post,
+                path,
+                tpl,
+                Opts {
+                    token: Some(page_token.to_owned()),
+                    send: true,
+                    video,
+                    raw: Some(RawBody {
+                        content_type: content_type.to_owned(),
+                        bytes: body,
+                    }),
+                    timeout: Some(GRAPH_UPLOAD_TIMEOUT),
+                    ..Opts::default()
+                },
+            )
+            .await?;
+        self.finish(r, |v| Ok(v.clone()))
+    }
+
+    /// Đọc một đối tượng với `fields` (`GET {object}?fields=…`), vd số liệu bài. Không phải lời gọi gửi ra.
+    pub async fn get_object(&self, token: &str, object_id: &str, fields: &str) -> Result<Value, GraphApiError> {
+        let r = self
+            .get(object_id, "{object}", Some(token), q(&[("fields", fields)]))
+            .await?;
+        self.finish(r, |v| Ok(v.clone()))
     }
 
     /// Xoá một đối tượng của Page (bài đăng, video) bằng token Page. Không tính vào ngưỡng tự tạm dừng (gỡ bài là dọn dẹp,

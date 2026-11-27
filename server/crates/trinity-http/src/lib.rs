@@ -8,6 +8,7 @@
 //! - [`serve`]: HTTP hoặc TLS từ tệp chứng chỉ (Cloudflare Origin Certificate), tắt máy êm khi nhận SIGTERM (K19).
 //! - [`router`]: router bắt buộc khai quyền (`Access`) cho mọi route và kiểm bảng route với `contracts/routes.json` (K14).
 //! - [`strangler`]: proxy chuyển tiếp phần thuộc Node (stream, WebSocket, timeout), tệp sở hữu route nạp lại bằng SIGHUP (K17).
+//! - [`web`]: phục vụ bản xuất tĩnh của web (`WEB_DIR`) và luật điều hướng của `proxy.ts` (K18).
 //! - [`edge`]: CORS, giới hạn body, raw body, multipart và IP thật của khách theo `TRUSTED_PROXY` (K16).
 
 pub mod edge;
@@ -17,3 +18,4 @@ pub mod router;
 pub mod serve;
 pub mod strangler;
 pub mod validate;
+pub mod web;

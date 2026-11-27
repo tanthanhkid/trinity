@@ -9,7 +9,8 @@
 //!     { "prefix": "/api/v1/contacts", "methods": ["GET"], "owner": "rust" }
 //!   ],
 //!   "jobs": { "lead-scoring.run": "rust" },
-//!   "migrate": "node"
+//!   "migrate": "node",
+//!   "web": "rust"
 //! }
 //! ```
 //!
@@ -18,6 +19,9 @@
 //! cụ thể thắng dòng không ghi (mọi phương thức). Dòng ghi `GET` phủ luôn `HEAD` (như router của Express và axum); ghi cả
 //! `GET` lẫn `HEAD` là lỗi. Hai dòng cùng tiền tố có chung một phương thức là lỗi, nên mỗi route
 //! có **đúng một** chủ. Route, job không có dòng nào thuộc Node (mặc định của cấu hình lai).
+//!
+//! `web` (K18) là chủ của các trang web (HTML, `_next/*`): `rust` = Rust phục vụ bản xuất tĩnh từ `WEB_DIR`, `node` (mặc
+//! định) = chuyển tiếp sang Next. Đổi giá trị này rồi `SIGHUP` là bật hoặc lui, không cần khởi động lại.
 //!
 //! Tệp hỏng bị từ chối với lỗi chỉ dòng, cột; người gọi (K17) giữ bảng đang dùng.
 
@@ -176,6 +180,8 @@ struct RawFile<'a> {
     jobs: RawJobs<'a>,
     #[serde(default = "node")]
     migrate: Owner,
+    #[serde(default = "node")]
+    web: Owner,
 }
 
 /// Các cặp tên job → giá trị thô theo thứ tự trong tệp (giữ cả khoá trùng để báo lỗi).
@@ -219,6 +225,7 @@ pub struct Ownership {
     rules: Vec<RouteRule>,
     jobs: BTreeMap<String, Owner>,
     migrate: Owner,
+    web: Owner,
 }
 
 impl Default for Ownership {
@@ -228,6 +235,7 @@ impl Default for Ownership {
             rules: Vec::new(),
             jobs: BTreeMap::new(),
             migrate: Owner::Node,
+            web: Owner::Node,
         }
     }
 }
@@ -321,6 +329,7 @@ impl Ownership {
             rules,
             jobs,
             migrate: raw.migrate,
+            web: raw.web,
         })
     }
 
@@ -369,6 +378,11 @@ impl Ownership {
     /// Chủ của migrate nền.
     pub fn migrate(&self) -> Owner {
         self.migrate
+    }
+
+    /// Chủ của các trang web (K18): `Rust` = phục vụ bản xuất tĩnh, `Node` = chuyển tiếp sang Next.
+    pub fn web(&self) -> Owner {
+        self.web
     }
 
     /// Các dòng route theo thứ tự ưu tiên.

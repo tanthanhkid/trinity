@@ -31,6 +31,7 @@ tokio = { workspace = true }
 trinity-auth = { workspace = true }
 trinity-db = { workspace = true }
 mod-custom = { workspace = true }
+mod-reports = { workspace = true }
 mod-users = { workspace = true }
 mod-channel-guard = { workspace = true }
 mod-oauth = { workspace = true }

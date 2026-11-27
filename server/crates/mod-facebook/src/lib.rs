@@ -20,9 +20,13 @@
 //!
 //! - [`comments`] (M49): bình luận Fanpage (webhook `feed`), luật tự động (trả lời công khai, ẩn khi có SĐT, nhắn riêng), trả lời tay.
 //!
+//! - [`broadcast`] (M51): gửi tin hàng loạt (9 route `broadcasts`, job `facebook.broadcasts`), biên nhận theo người nhận nên job bị cắt giữa chừng
+//!   không gửi trùng, hoàn hạn mức khi không gửi được.
+//!
 //! Chưa có ở đây (việc của M50): link mở chat, kịch bản nhắn tin. Sau `check_token`
 //! thành công tầng route còn gọi `FacebookIngest::refresh_missing_names` (M48).
 
+pub mod broadcast;
 pub mod chat_links;
 pub mod comments;
 pub mod config;

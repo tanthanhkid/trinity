@@ -2441,6 +2441,7 @@ dependencies = [
  "trinity-db",
  "trinity-http",
  "trinity-integrations",
+ "trinity-jobs",
  "trinity-kernel",
  "trinity-rbac",
  "url",

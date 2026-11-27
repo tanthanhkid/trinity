@@ -12,14 +12,14 @@ use crate::{Actor, R, db};
 /// `DashboardFilterQuery` đã qua K15: ba mã tuỳ chọn.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Filter {
-    pub dept_head_id: Option<i32>,
-    pub team_lead_id: Option<i32>,
-    pub user_id: Option<i32>,
+    pub dept_head_id: Option<i64>,
+    pub team_lead_id: Option<i64>,
+    pub user_id: Option<i64>,
 }
 
 impl Filter {
     pub fn from_validated(v: &Value) -> Self {
-        let id = |k: &str| v.get(k).and_then(Value::as_i64).and_then(|n| i32::try_from(n).ok());
+        let id = |k: &str| v.get(k).and_then(Value::as_i64);
         Self {
             dept_head_id: id("dept_head_id"),
             team_lead_id: id("team_lead_id"),
@@ -91,17 +91,21 @@ pub async fn resolve_ids(conn: &mut PgConnection, actor: &Actor, f: &Filter) -> 
         return Ok(None);
     }
     let children = load_children(conn).await?;
+    // Mã ngoài miền i32 không thể là người dùng nào ⇒ điều kiện đó khớp rỗng.
     let mut sets: Vec<Vec<i32>> = Vec::new();
     if let Some(d) = f.dept_head_id {
-        sets.push(subtree_ids(&children, d));
+        sets.push(i32::try_from(d).map(|d| subtree_ids(&children, d)).unwrap_or_default());
     }
     if let Some(t) = f.team_lead_id {
-        let mut s = vec![t];
-        s.extend(children.get(&t).into_iter().flatten().copied());
-        sets.push(s);
+        sets.push(match i32::try_from(t) {
+            Ok(t) => std::iter::once(t)
+                .chain(children.get(&t).into_iter().flatten().copied())
+                .collect(),
+            Err(_) => Vec::new(),
+        });
     }
     if let Some(u) = f.user_id {
-        sets.push(vec![u]);
+        sets.push(i32::try_from(u).map(|u| vec![u]).unwrap_or_default());
     }
     let mut it = sets.into_iter();
     let first = it.next().unwrap_or_default();

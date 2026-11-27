@@ -8,7 +8,7 @@ use std::sync::Arc;
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use mod_reports::cache::ReadCache;
+use mod_reports::cache::{DASHBOARD_PREFIX, ReadCache};
 use mod_reports::{Ctx, api_router};
 use serde_json::{Value, json};
 use sqlx::{AssertSqlSafe, Connection, PgConnection};
@@ -17,7 +17,7 @@ use tower::ServiceExt;
 use trinity_auth::jwt::{self, Claims};
 use trinity_auth::{Authenticator, Security};
 use trinity_db::platform::Platform;
-use trinity_db::{Db, DbConfig};
+use trinity_db::{CompanyRef, Db, DbConfig};
 use trinity_http::router::AccessDeps;
 use trinity_rbac::{PermissionService, RbacCache, ScopeService};
 
@@ -48,6 +48,7 @@ async fn scalar<T: for<'r> sqlx::Decode<'r, sqlx::Postgres> + sqlx::Type<sqlx::P
 
 struct App {
     router: Router,
+    ctx: Arc<Ctx>,
 }
 
 async fn app() -> App {
@@ -69,7 +70,8 @@ async fn app() -> App {
     let (router, table) = api_router(deps).into_parts();
     assert_eq!(table.len(), 7);
     App {
-        router: router.with_state(ctx),
+        router: router.with_state(ctx.clone()),
+        ctx,
     }
 }
 
@@ -417,6 +419,22 @@ async fn dashboard_overview_loc_va_cache() {
     exec("INSERT INTO contacts (phone, full_name, assigned_to, updated_at) VALUES ('m20-7', 'thêm', 9604, now())")
         .await;
     assert_eq!(ok(&a, p, DIR).await["customers"]["total"], 4);
+    // Ghi dữ liệu gọi `invalidate_prefix("dashboard:")` (tiến trình khác nhận qua NOTIFY `cache`): số liệu mới hiện ngay.
+    let mut conn = PgConnection::connect(&url()).await.unwrap();
+    a.ctx
+        .cache
+        .invalidate_prefix(&mut conn, CompanyRef::DEFAULT, DASHBOARD_PREFIX)
+        .await
+        .unwrap();
+    assert_eq!(ok(&a, p, DIR).await["customers"]["total"], 5);
+    // Mã ngoài miền i32 không phải người dùng nào ⇒ khớp rỗng (không lỗi 500).
+    let big = ok(&a, &format!("{p}?user_id=99999999999"), DIR).await;
+    assert_eq!(
+        (big["customers"]["total"].clone(), big["scope_label"].clone()),
+        (json!(0), json!("theo bộ lọc"))
+    );
+    let t = ok(&a, "/api/v1/reports/dashboard-tasks?team_lead_id=99999999999", DIR).await;
+    assert_eq!(t["total"], 0);
 
     // Bộ lọc: người dùng cụ thể, và ngoài phạm vi thì rỗng.
     let f = ok(&a, &format!("{p}?user_id={SALE_B}"), DIR).await;

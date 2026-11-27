@@ -22,7 +22,9 @@ fn rank(kind: &str) -> usize {
     ORDER.iter().position(|k| *k == kind).unwrap_or(usize::MAX)
 }
 
-/// `OrgFeaturesService.get`: tính năng của tổ chức (đã tính gói); lỗi đọc ⇒ mặc định bật (fail-open).
+/// `OrgFeaturesService.get`: tính năng của tổ chức (đã tính gói). Lỗi đọc từng phần như bản TS: không đọc được gói ⇒ gói
+/// `custom`; không đọc được `setup_status` ⇒ coi như đã dựng; không đọc được hoặc không parse được `org_features` ⇒ mặc định
+/// bật hết (bỏ qua cả gói).
 pub async fn load_features(conn: &mut PgConnection, company_id: i32) -> OrgFeatures {
     async fn setting(conn: &mut PgConnection, k: &str) -> Result<Option<String>, sqlx::Error> {
         sqlx::query_scalar("SELECT value FROM settings WHERE key = $1")
@@ -30,25 +32,33 @@ pub async fn load_features(conn: &mut PgConnection, company_id: i32) -> OrgFeatu
             .fetch_optional(&mut *conn)
             .await
     }
-    async fn read(conn: &mut PgConnection, company_id: i32) -> Result<OrgFeatures, sqlx::Error> {
-        let plan_raw = setting(conn, "org_plan").await?;
-        let stored = setting(conn, "org_features").await?;
-        let setup = setting(conn, "setup_status").await?;
-        let plan: PlanKey = plan_from_setting(plan_raw.as_deref(), Some(company_id));
-        let raw: Value = stored
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or(Value::Null);
-        let blank = blank_system_features();
-        let defaults = (setup.as_deref().map(str::trim) == Some("chua_dung")).then_some(&blank);
-        Ok(apply_plan_to_features(&resolve_org_features(&raw, defaults), plan))
-    }
-    match read(conn, company_id).await {
-        Ok(f) => f,
+    let plan: PlanKey = match setting(conn, "org_plan").await {
+        Ok(raw) => plan_from_setting(raw.as_deref(), Some(company_id)),
         Err(e) => {
-            tracing::error!("getOrgFeatures failed: {e}");
-            resolve_org_features(&Value::Null, None)
+            tracing::error!("getPlan failed: {e}");
+            PlanKey::Custom
         }
-    }
+    };
+    let stored = match setting(conn, "org_features").await {
+        Ok(None) => Ok(Value::Null),
+        Ok(Some(s)) if s.is_empty() => Ok(Value::Null),
+        Ok(Some(s)) => serde_json::from_str::<Value>(&s).map_err(|e| e.to_string()),
+        Err(e) => Err(e.to_string()),
+    };
+    let setup = match setting(conn, "setup_status").await {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::error!("đọc setup_status lỗi: {e}");
+            None
+        }
+    };
+    let Ok(raw) = stored else {
+        tracing::error!("getOrgFeatures failed: không đọc được org_features");
+        return resolve_org_features(&Value::Null, None);
+    };
+    let blank = blank_system_features();
+    let defaults = (setup.as_deref().map(str::trim) == Some("chua_dung")).then_some(&blank);
+    apply_plan_to_features(&resolve_org_features(&raw, defaults), plan)
 }
 
 type Section = (Vec<Value>, Vec<Value>);

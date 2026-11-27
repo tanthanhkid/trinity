@@ -35,7 +35,11 @@ async fn get_headers(app: Router, path: &str, proto: Option<&str>) -> axum::http
     if let Some(p) = proto {
         b = b.header("x-forwarded-proto", p);
     }
-    app.oneshot(b.body(Body::empty()).unwrap()).await.unwrap().headers().clone()
+    app.oneshot(b.body(Body::empty()).unwrap())
+        .await
+        .unwrap()
+        .headers()
+        .clone()
 }
 
 #[tokio::test]
@@ -63,13 +67,22 @@ async fn hsts_theo_forwarded_proto_chi_khi_tin_proxy() {
     let khong_tin = get_headers(app(cfg(&[], true, false)), "/", Some("https")).await;
     assert!(khong_tin.get(header::STRICT_TRANSPORT_SECURITY).is_none());
     let tin = get_headers(
-        app(cfg(&[("TRUST_FORWARDED_PROTO", "true"), ("HSTS_MAX_AGE", "600")], true, false)),
+        app(cfg(
+            &[("TRUST_FORWARDED_PROTO", "true"), ("HSTS_MAX_AGE", "600")],
+            true,
+            false,
+        )),
         "/",
         Some("https, http"),
     )
     .await;
     assert_eq!(tin[header::STRICT_TRANSPORT_SECURITY], "max-age=600; includeSubDomains");
-    let http = get_headers(app(cfg(&[("TRUST_FORWARDED_PROTO", "true")], true, false)), "/", Some("http")).await;
+    let http = get_headers(
+        app(cfg(&[("TRUST_FORWARDED_PROTO", "true")], true, false)),
+        "/",
+        Some("http"),
+    )
+    .await;
     assert!(http.get(header::STRICT_TRANSPORT_SECURITY).is_none());
 }
 

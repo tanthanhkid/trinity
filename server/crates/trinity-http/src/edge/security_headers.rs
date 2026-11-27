@@ -41,7 +41,10 @@ pub struct SecurityHeadersConfig {
 impl SecurityHeadersConfig {
     /// Đọc từ biến môi trường qua `lookup`; `production` là `NODE_ENV=production`.
     pub fn from_lookup(lookup: impl Fn(&str) -> Option<String>, production: bool, listener_https: bool) -> Self {
-        let hsts_max_age = match lookup("HSTS_MAX_AGE").map(|v| v.trim().to_owned()).filter(|v| !v.is_empty()) {
+        let hsts_max_age = match lookup("HSTS_MAX_AGE")
+            .map(|v| v.trim().to_owned())
+            .filter(|v| !v.is_empty())
+        {
             Some(v) => v.parse::<u64>().ok().filter(|n| *n > 0),
             None => production.then_some(DEFAULT_HSTS_MAX_AGE),
         };

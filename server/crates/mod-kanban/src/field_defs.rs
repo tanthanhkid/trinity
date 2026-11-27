@@ -11,7 +11,7 @@ use trinity_db::models::KanbanFieldDef;
 use trinity_db::pg_error::db_error;
 use trinity_kernel::error::{AppError, DbErrorKind, HttpError};
 
-use crate::boards::assert_exists;
+use crate::boards::lock_board;
 use crate::nullable::some_nullable;
 use crate::position::{append, renormalized};
 use crate::{Deleted, FIELD_DEF_COLS, KANBAN_REORDER_MAX_ITEMS, db, finish, len16};
@@ -190,11 +190,13 @@ pub async fn create(
     board_id: i32,
     input: &CreateFieldDef,
 ) -> Result<KanbanFieldDef, AppError> {
-    assert_exists(&mut *conn, board_id).await?;
     assert_options_for_type(&input.r#type, input.options.as_deref())?;
+    // Khoá dòng board: hai lần thêm đồng thời không cùng lấy một `max(position)`.
+    let mut tx = conn.begin().await.map_err(db)?;
+    lock_board(&mut tx, board_id).await?;
     let last: Option<f64> = sqlx::query_scalar("SELECT max(position) FROM kanban_field_defs WHERE board_id = $1")
         .bind(board_id)
-        .fetch_one(&mut *conn)
+        .fetch_one(&mut *tx)
         .await
         .map_err(db)?;
     let row = sqlx::query_as::<_, KanbanFieldDef>(AssertSqlSafe(format!(
@@ -209,15 +211,17 @@ pub async fn create(
     .bind(input.required.unwrap_or(false))
     .bind(input.show_on_card.unwrap_or(false))
     .bind(append(last))
-    .fetch_one(conn)
+    .fetch_one(&mut *tx)
     .await;
-    row.map_err(|e| {
+    let row = row.map_err(|e| {
         if db_error(&e).is(DbErrorKind::UniqueViolation, None) {
             HttpError::conflict(format!("Trường \"{}\" đã tồn tại trong board này", input.key)).into()
         } else {
             db(e)
         }
-    })
+    })?;
+    tx.commit().await.map_err(db)?;
+    Ok(row)
 }
 
 /// `PATCH /field-defs/:id`. Gọi sau [`UpdateFieldDef::validate`].

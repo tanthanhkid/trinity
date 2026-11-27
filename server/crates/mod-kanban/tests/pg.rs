@@ -540,3 +540,53 @@ async fn nhan_mau_va_truong_tuy_bien() {
     );
     clean(&mut c).await;
 }
+
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn nit_385_sap_lai_trung_id_cot_board_xoa_va_cot_dich_an() {
+    let _g = serial().lock().await;
+    let mut c = conn().await;
+    clean(&mut c).await;
+    let uid: i32 = sqlx::query_scalar(
+        "INSERT INTO users (email, password_hash, full_name, updated_at) VALUES ('m15@test.local', 'x', 'M15', now()) RETURNING id",
+    )
+    .fetch_one(&mut *c)
+    .await
+    .unwrap();
+    let b = boards::create(&mut c, &board("m15 nit"), uid).await.unwrap();
+    let col = |name: &str| CreateColumn {
+        name: name.into(),
+        ..Default::default()
+    };
+    let a = columns::create(&mut c, b.id, &col("A")).await.unwrap();
+    let z = columns::create(&mut c, b.id, &col("Z")).await.unwrap();
+    // id trùng dù tập id vẫn đủ ⇒ 400, không ghi.
+    let dup = ReorderColumns {
+        column_ids: vec![a.id, a.id, z.id],
+    };
+    assert_eq!(status(columns::reorder(&mut c, b.id, &dup).await.unwrap_err()).0, 400);
+    // cột đích đã ẩn ⇒ 400 (cột nguồn còn card).
+    sqlx::query("UPDATE kanban_columns SET is_archived = true WHERE id = $1")
+        .bind(z.id)
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO kanban_cards (board_id, column_id, position, title, created_by, updated_at) VALUES ($1, $2, 1, 'c', $3, now())")
+        .bind(b.id)
+        .bind(a.id)
+        .bind(uid)
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    let r = columns::remove(&mut c, a.id, Some(z.id), uid).await.unwrap_err();
+    assert_eq!(status(r).0, 400);
+    // board đã xoá mềm ⇒ cột 404, sửa/xoá board lần hai 404.
+    boards::remove(&mut c, b.id).await.unwrap();
+    let u = UpdateColumn {
+        name: Some("B".into()),
+        ..Default::default()
+    };
+    assert_eq!(status(columns::update(&mut c, a.id, &u).await.unwrap_err()).0, 404);
+    assert_eq!(status(boards::remove(&mut c, b.id).await.unwrap_err()).0, 404);
+    clean(&mut c).await;
+}

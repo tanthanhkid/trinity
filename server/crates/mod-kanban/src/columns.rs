@@ -12,7 +12,7 @@ use sqlx::{AssertSqlSafe, Connection, PgConnection};
 use trinity_db::models::KanbanColumn;
 use trinity_kernel::error::{AppError, HttpError};
 
-use crate::boards::assert_exists;
+use crate::boards::lock_board;
 use crate::nullable::some_nullable;
 use crate::position::{append, renormalized};
 use crate::{COLUMN_COLS, KANBAN_REORDER_MAX_ITEMS, db, finish, is_hex_color, len16};
@@ -130,9 +130,13 @@ impl ReorderColumns {
     }
 }
 
-async fn load(conn: &mut PgConnection, id: i32) -> Result<KanbanColumn, AppError> {
+/// Nạp cột của board CHƯA xoá mềm (board đã xoá ⇒ 404 như không có cột). `lock` ⇒ `FOR UPDATE` dòng cột.
+async fn load_with(conn: &mut PgConnection, id: i32, lock: bool) -> Result<KanbanColumn, AppError> {
+    let suffix = if lock { " FOR UPDATE OF kanban_columns" } else { "" };
     sqlx::query_as::<_, KanbanColumn>(AssertSqlSafe(format!(
-        "SELECT {COLUMN_COLS} FROM kanban_columns WHERE id = $1"
+        "SELECT {COLUMN_COLS} FROM kanban_columns
+          WHERE id = $1 AND EXISTS (SELECT 1 FROM kanban_boards b
+                                     WHERE b.id = kanban_columns.board_id AND b.deleted_at IS NULL){suffix}"
     )))
     .bind(id)
     .fetch_optional(conn)
@@ -141,15 +145,17 @@ async fn load(conn: &mut PgConnection, id: i32) -> Result<KanbanColumn, AppError
     .ok_or_else(|| HttpError::not_found(format!("Không tìm thấy cột ID {id}")).into())
 }
 
-/// `POST /boards/:boardId/columns`: thêm vào cuối. Gọi sau [`CreateColumn::validate`].
+/// `POST /boards/:boardId/columns`: thêm vào cuối. Gọi sau [`CreateColumn::validate`]. Khoá dòng board để hai lần thêm
+/// đồng thời không cùng lấy một `max(position)`.
 pub async fn create(conn: &mut PgConnection, board_id: i32, input: &CreateColumn) -> Result<KanbanColumn, AppError> {
-    assert_exists(&mut *conn, board_id).await?;
+    let mut tx = conn.begin().await.map_err(db)?;
+    lock_board(&mut tx, board_id).await?;
     let last: Option<f64> = sqlx::query_scalar("SELECT max(position) FROM kanban_columns WHERE board_id = $1")
         .bind(board_id)
-        .fetch_one(&mut *conn)
+        .fetch_one(&mut *tx)
         .await
         .map_err(db)?;
-    sqlx::query_as::<_, KanbanColumn>(AssertSqlSafe(format!(
+    let created = sqlx::query_as::<_, KanbanColumn>(AssertSqlSafe(format!(
         "INSERT INTO kanban_columns (board_id, name, color, position, wip_limit, is_done, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, now()) RETURNING {COLUMN_COLS}"
     )))
@@ -159,16 +165,16 @@ pub async fn create(conn: &mut PgConnection, board_id: i32, input: &CreateColumn
     .bind(append(last))
     .bind(input.wip_limit)
     .bind(input.is_done.unwrap_or(false))
-    .fetch_one(conn)
+    .fetch_one(&mut *tx)
     .await
-    .map_err(db)
+    .map_err(db)?;
+    tx.commit().await.map_err(db)?;
+    Ok(created)
 }
 
 /// `PATCH /columns/:id`. Đổi cờ `is_done` thì đồng bộ `completed_at` của card đang nằm trong cột (cùng bất biến với
-/// khi chuyển card). Gọi sau [`UpdateColumn::validate`].
+/// khi chuyển card). Gọi sau [`UpdateColumn::validate`]. Đọc cờ cũ và ghi nằm cùng giao dịch, dòng cột bị khoá.
 pub async fn update(conn: &mut PgConnection, id: i32, input: &UpdateColumn) -> Result<KanbanColumn, AppError> {
-    let cur = load(&mut *conn, id).await?;
-    let done_changed = input.is_done.is_some_and(|d| d != cur.is_done);
     let (set_color, color) = match &input.color {
         Some(c) => (true, c.clone()),
         None => (false, None),
@@ -178,6 +184,8 @@ pub async fn update(conn: &mut PgConnection, id: i32, input: &UpdateColumn) -> R
         None => (false, None),
     };
     let mut tx = conn.begin().await.map_err(db)?;
+    let cur = load_with(&mut tx, id, true).await?;
+    let done_changed = input.is_done.is_some_and(|d| d != cur.is_done);
     let updated = sqlx::query_as::<_, KanbanColumn>(AssertSqlSafe(format!(
         "UPDATE kanban_columns SET name = COALESCE($2, name),
                 color = CASE WHEN $3 THEN $4 ELSE color END,
@@ -198,7 +206,7 @@ pub async fn update(conn: &mut PgConnection, id: i32, input: &UpdateColumn) -> R
     .map_err(db)?;
     if done_changed {
         let sql = if input.is_done == Some(true) {
-            "UPDATE kanban_cards SET completed_at = now(), updated_at = now()
+            "UPDATE kanban_cards SET completed_at = COALESCE(completed_at, now()), updated_at = now()
               WHERE column_id = $1 AND deleted_at IS NULL AND completed_at IS NULL"
         } else {
             "UPDATE kanban_cards SET completed_at = NULL, updated_at = now()
@@ -210,30 +218,33 @@ pub async fn update(conn: &mut PgConnection, id: i32, input: &UpdateColumn) -> R
     Ok(updated)
 }
 
-/// `POST /boards/:boardId/columns/reorder`: phải gồm ĐỦ và ĐÚNG các cột chưa ẩn của board. Gọi sau
-/// [`ReorderColumns::validate`].
+/// `POST /boards/:boardId/columns/reorder`: phải gồm ĐỦ và ĐÚNG các cột chưa ẩn của board, mỗi id MỘT lần. Gọi sau
+/// [`ReorderColumns::validate`]. Đọc danh sách cột và ghi vị trí cùng một giao dịch (khoá dòng board).
 pub async fn reorder(
     conn: &mut PgConnection,
     board_id: i32,
     input: &ReorderColumns,
 ) -> Result<Vec<KanbanColumn>, AppError> {
-    assert_exists(&mut *conn, board_id).await?;
+    let requested: HashSet<i32> = input.column_ids.iter().copied().collect();
+    if requested.len() != input.column_ids.len() {
+        return Err(HttpError::bad_request("column_ids có id trùng nhau").into());
+    }
+    let mut tx = conn.begin().await.map_err(db)?;
+    lock_board(&mut tx, board_id).await?;
     let existing: HashSet<i32> =
         sqlx::query_scalar::<_, i32>("SELECT id FROM kanban_columns WHERE board_id = $1 AND NOT is_archived")
             .bind(board_id)
-            .fetch_all(&mut *conn)
+            .fetch_all(&mut *tx)
             .await
             .map_err(db)?
             .into_iter()
             .collect();
-    let requested: HashSet<i32> = input.column_ids.iter().copied().collect();
-    if existing.len() != requested.len() || !input.column_ids.iter().all(|id| existing.contains(id)) {
+    if existing != requested {
         return Err(
             HttpError::bad_request("Danh sách cột không khớp — phải gồm ĐỦ và ĐÚNG các cột chưa ẩn của board").into(),
         );
     }
     let positions = renormalized(input.column_ids.len());
-    let mut tx = conn.begin().await.map_err(db)?;
     for (id, pos) in input.column_ids.iter().zip(positions) {
         sqlx::query("UPDATE kanban_columns SET position = $2, updated_at = now() WHERE id = $1")
             .bind(id)
@@ -253,23 +264,24 @@ pub async fn reorder(
 }
 
 /// `DELETE /columns/:id?move_to_column_id=`: bắt buộc `move_to_column_id` nếu cột còn card chưa xoá mềm; card dồn sang
-/// cuối cột đích kèm activity `moved` (`reason: column_deleted`); card đã xoá mềm trong cột bị dọn hẳn (khoá ngoại
-/// card→cột là Restrict). Tất cả trong một giao dịch.
+/// cuối cột đích (cột đích không được ẩn) kèm activity `moved` (`reason: column_deleted`); card đã xoá mềm trong cột bị
+/// dọn hẳn (khoá ngoại card→cột là Restrict). Mọi kiểm tra và ghi nằm trong MỘT giao dịch, khoá dòng cột nguồn rồi cột
+/// đích nên thêm/chuyển card đồng thời không lọt qua.
 pub async fn remove(
     conn: &mut PgConnection,
     id: i32,
     move_to_column_id: Option<i32>,
     actor_user_id: i32,
 ) -> Result<Removed, AppError> {
-    let column = load(&mut *conn, id).await?;
+    let mut tx = conn.begin().await.map_err(db)?;
+    let column = load_with(&mut tx, id, true).await?;
     let count: i64 =
         sqlx::query_scalar("SELECT count(*) FROM kanban_cards WHERE column_id = $1 AND deleted_at IS NULL")
             .bind(id)
-            .fetch_one(&mut *conn)
+            .fetch_one(&mut *tx)
             .await
             .map_err(db)?;
     if count == 0 {
-        let mut tx = conn.begin().await.map_err(db)?;
         purge(&mut tx, id).await?;
         tx.commit().await.map_err(db)?;
         return Ok(Removed {
@@ -283,12 +295,15 @@ pub async fn remove(
         ))
         .into());
     };
+    if target_id == column.id {
+        return Err(HttpError::bad_request("Cột đích phải khác cột đang xoá").into());
+    }
     let target = sqlx::query_as::<_, KanbanColumn>(AssertSqlSafe(format!(
-        "SELECT {COLUMN_COLS} FROM kanban_columns WHERE id = $1 AND board_id = $2"
+        "SELECT {COLUMN_COLS} FROM kanban_columns WHERE id = $1 AND board_id = $2 FOR UPDATE"
     )))
     .bind(target_id)
     .bind(column.board_id)
-    .fetch_optional(&mut *conn)
+    .fetch_optional(&mut *tx)
     .await
     .map_err(db)?
     .ok_or_else(|| {
@@ -296,11 +311,9 @@ pub async fn remove(
             "Cột đích không thuộc cùng board hoặc không tồn tại",
         ))
     })?;
-    if target.id == column.id {
-        return Err(HttpError::bad_request("Cột đích phải khác cột đang xoá").into());
+    if target.is_archived {
+        return Err(HttpError::bad_request("Cột đích đã bị ẩn — chọn cột đang hiển thị").into());
     }
-
-    let mut tx = conn.begin().await.map_err(db)?;
     let cards: Vec<i32> = sqlx::query_scalar(
         "SELECT id FROM kanban_cards WHERE column_id = $1 AND deleted_at IS NULL ORDER BY position ASC",
     )
@@ -308,14 +321,6 @@ pub async fn remove(
     .fetch_all(&mut *tx)
     .await
     .map_err(db)?;
-    let still: Option<i32> = sqlx::query_scalar("SELECT id FROM kanban_columns WHERE id = $1 FOR SHARE")
-        .bind(target.id)
-        .fetch_optional(&mut *tx)
-        .await
-        .map_err(db)?;
-    if still.is_none() {
-        return Err(HttpError::not_found("Cột đích không tồn tại").into());
-    }
     let mut cursor: Option<f64> =
         sqlx::query_scalar("SELECT max(position) FROM kanban_cards WHERE column_id = $1 AND deleted_at IS NULL")
             .bind(target.id)
@@ -331,7 +336,7 @@ pub async fn remove(
         cursor = Some(pos);
         sqlx::query(
             "UPDATE kanban_cards SET column_id = $2, position = $3,
-                    completed_at = CASE WHEN $4 THEN now() ELSE NULL END, updated_at = now()
+                    completed_at = CASE WHEN $4 THEN COALESCE(completed_at, now()) ELSE NULL END, updated_at = now()
               WHERE id = $1",
         )
         .bind(card)

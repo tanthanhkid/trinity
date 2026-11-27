@@ -166,14 +166,17 @@ async fn facebook(c: &mut PgConnection, t: VnRange) -> R<Section> {
             "Đang nhận tin"
         }
         .to_owned();
-        if cm > 0 {
-            note.push_str(&format!(" · {cm} bình luận hôm nay"));
-        }
         let posting = soc
             .iter()
             .rev()
             .find(|x| &x.0 == page_id)
             .map(|x| if x.1 == "disabled" { "removed" } else { "on" });
+        if state == "ok" && posting == Some("on") {
+            note.push_str(" · đăng bài được");
+        }
+        if cm > 0 {
+            note.push_str(&format!(" · {cm} bình luận hôm nay"));
+        }
         channels.push(json!({
             "key": format!("facebook_page:{id}"), "kind": "facebook_page", "network": "facebook", "name": name, "state": state, "note": note,
             "today": { "label": "tin nhắn mới", "value": inbound.iter().find(|x| &x.0 == page_id).map_or(0, |x| x.1) },
@@ -225,15 +228,20 @@ async fn zalo(c: &mut PgConnection, t: VnRange) -> R<Section> {
 
 async fn social(c: &mut PgConnection, t: VnRange) -> R<Section> {
     let networks: Vec<String> = SOCIAL_NETWORKS.iter().map(|s| (*s).to_owned()).collect();
-    let accounts: Vec<(i32, String, String, String)> = sqlx::query_as(
-        "SELECT id, network, name, status FROM social_accounts WHERE network = ANY($1) ORDER BY id ASC LIMIT 20",
+    // Tài khoản đăng bài của một Fanpage đã có thẻ Page ở nhóm facebook_page (kèm `posting`) ⇒ không đếm thành kênh riêng.
+    let all: Vec<(i32, String, String, String, bool)> = sqlx::query_as(
+        "SELECT a.id, a.network, a.name, a.status,
+                (a.network = 'facebook' AND EXISTS (SELECT 1 FROM facebook_pages p WHERE p.page_id = a.external_id))
+           FROM social_accounts a WHERE a.network = ANY($1) ORDER BY a.id ASC LIMIT 20",
     )
     .bind(&networks)
     .fetch_all(&mut *c)
     .await
     .map_err(db)?;
     let mut available = Vec::new();
-    if accounts.is_empty() {
+    let accounts: Vec<(i32, String, String, String)> =
+        all.iter().filter(|a| !a.4).map(|a| (a.0, a.1.clone(), a.2.clone(), a.3.clone())).collect();
+    if all.is_empty() {
         available.push(json!({ "kind": "social", "label": "Kênh đăng bài (Fanpage)", "href": "/social?tab=channels" }));
     }
     let ids: Vec<i32> = accounts.iter().map(|a| a.0).collect();

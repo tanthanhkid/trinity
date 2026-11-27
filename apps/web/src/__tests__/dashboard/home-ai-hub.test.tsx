@@ -85,6 +85,22 @@ describe("ChannelsHub", () => {
   })
 })
 
+describe("ChannelsHub đếm kênh", () => {
+  it("3 Page (đăng bài được ghi ở phụ đề) + 1 kênh YouTube ⇒ 4/4, không có dòng 'Đăng bài · N Fanpage'", () => {
+    const page = (id: number, name: string) => ({ key: `facebook_page:${id}`, kind: "facebook_page" as const, network: "facebook", name, state: "ok" as const, note: "Đang nhận tin · đăng bài được", today: { label: "tin nhắn mới", value: 0 }, href: "/x" })
+    render(
+      <ChannelsHub
+        loading={false}
+        error={false}
+        data={{ channels: [page(1, "A"), page(2, "B"), page(3, "C"), { key: "social:9", kind: "social", network: "youtube", name: "YT", state: "ok", note: "Đăng bài lên youtube", today: null, href: "/social?tab=channels" }], available: [] }}
+      />,
+    )
+    expect(screen.getByText("4/4 đang chạy")).toBeInTheDocument()
+    expect(screen.getByTestId("channels").textContent).not.toContain("Đăng bài ·")
+    expect(screen.getAllByText(/đăng bài được/)).toHaveLength(3)
+  })
+})
+
 describe("groupPostingChannels", () => {
   it("gộp kênh đăng bài cùng mạng thành một dòng, cộng số bài, trạng thái xấu nhất", async () => {
     const { groupPostingChannels } = await import("@/app/(dashboard)/dashboard/_components/home-ai-hub")

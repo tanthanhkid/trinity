@@ -308,12 +308,13 @@ impl FacebookIngest {
         let (contact_id, duplicate) = match (dup, p.phone.as_deref()) {
             (Some(id), _) => (id, true),
             (None, Some(phone)) => {
+                let source_id = pages::channel_source_id(&mut tx, "facebook_lead_ads", "Facebook Lead Ads").await?;
                 let (id, _) = create_contact_in_tx(
                     &mut tx,
                     &NewContact {
                         phone,
                         full_name: p.full_name.as_deref(),
-                        source_id: Some(page.contact_source_id),
+                        source_id: Some(source_id),
                         email: p.email.as_deref(),
                         job_title: None,
                         reminder_notes: None,

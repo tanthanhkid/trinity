@@ -1,0 +1,8 @@
+{
+  "status": 403,
+  "body": {
+    "error": "Forbidden",
+    "message": "Bạn không có quyền thực hiện thao tác này",
+    "statusCode": 403
+  }
+}

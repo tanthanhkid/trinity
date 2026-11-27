@@ -1,0 +1,107 @@
+{
+  "contacts": [
+    {
+      "assigned_to": "<users:ext1>",
+      "avatar_url": null,
+      "birthday": "1990-05-17T00:00:00.000Z",
+      "code": "<allowed>",
+      "company_name": null,
+      "contact_status_id": null,
+      "created_at": "<now>",
+      "created_by_id": "<users:ext1>",
+      "current_address": null,
+      "custom_fields": [],
+      "deleted_at": null,
+      "deleted_by_id": null,
+      "email": null,
+      "full_name": "DB State Cũ",
+      "gender": null,
+      "id": "<contacts:1>",
+      "job_title": null,
+      "lead_label": null,
+      "lead_score": null,
+      "lead_score_reasons": null,
+      "lead_scored_at": null,
+      "phone": "0933000333",
+      "phone_2": null,
+      "product_id": null,
+      "project_id": null,
+      "reminder_at": null,
+      "reminder_notes": null,
+      "source_id": "<setting_options:ext1>",
+      "source_locked": false,
+      "stage_id": "<setting_options:ext2>",
+      "team_id": null,
+      "updated_at": "<allowed>",
+      "zalo_account": null
+    }
+  ],
+  "deals": [],
+  "activities": [],
+  "audit_logs": [],
+  "integration_events": [
+    {
+      "actor_user_id": "<users:ext1>",
+      "created_at": "<now>",
+      "dispatched_at": null,
+      "event_type": "contact.updated",
+      "id": "<integration_events:1>",
+      "payload": {
+        "changed_fields": [
+          "birthday"
+        ],
+        "contact": {
+          "assigned_to": "<users:ext1>",
+          "contact_status_id": null,
+          "created_at": "<now>",
+          "created_by_id": "<users:ext1>",
+          "deleted_at": null,
+          "email": null,
+          "full_name": "DB State Cũ",
+          "id": "<contacts:1>",
+          "phone": "0933000333",
+          "phone_2": null,
+          "project_id": null,
+          "source_id": "<setting_options:ext1>",
+          "stage_id": "<setting_options:ext2>",
+          "team_id": null,
+          "updated_at": "<allowed>",
+          "zalo_account": null
+        }
+      },
+      "resource": "contact",
+      "resource_id": "<contacts:1>"
+    }
+  ],
+  "kanban_cards": [],
+  "newsfeed_posts": [],
+  "attendance_records": [
+    {
+      "check_in_at": null,
+      "check_in_ip": null,
+      "check_in_lat": null,
+      "check_in_lng": null,
+      "check_in_note": null,
+      "check_in_office_id": null,
+      "check_in_proof_key": null,
+      "check_out_at": null,
+      "check_out_ip": null,
+      "check_out_lat": null,
+      "check_out_lng": null,
+      "check_out_note": null,
+      "check_out_office_id": null,
+      "check_out_proof_key": null,
+      "created_at": "<now>",
+      "device_id": null,
+      "employee_id": null,
+      "id": "<attendance_records:1>",
+      "late_minutes": null,
+      "overtime_hours": null,
+      "status": "incomplete",
+      "total_hours": null,
+      "updated_at": "<allowed>",
+      "user_id": "<users:ext1>",
+      "work_date": "<vn-day:-1>"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "email": "<email:1>",
+      "full_name": "Contract c14b-sale",
+      "id": "<id:id:1>"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": "Chỉ chấp nhận địa chỉ https://",
+    "statusCode": 400
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "status": 200,
+  "body": {
+    "days": 7,
+    "next_cursor": null,
+    "rows": [
+      {
+        "assigned_to": "<user:1>",
+        "assignee_name": "Contract rp-sale",
+        "created_at": "<time:-10d>",
+        "full_name": "Khách báo cáo",
+        "id": "<id:id:1>",
+        "phone": "***222"
+      }
+    ]
+  }
+}

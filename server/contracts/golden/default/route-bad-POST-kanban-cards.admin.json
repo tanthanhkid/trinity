@@ -1,0 +1,12 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": [
+      "column_id không hợp lệ",
+      "column_id phải là số nguyên",
+      "title không được rỗng"
+    ],
+    "statusCode": 400
+  }
+}

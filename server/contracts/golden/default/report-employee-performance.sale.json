@@ -1,0 +1,12 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "activities_count": 0,
+      "email": "<email:1>",
+      "full_name": "Contract rp-sale",
+      "new_customers": 1,
+      "user_id": "<user:1>"
+    }
+  ]
+}

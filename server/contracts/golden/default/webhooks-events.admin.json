@@ -1,0 +1,130 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "label": "Tạo khách hàng",
+      "resource": "contact",
+      "type": "contact.created"
+    },
+    {
+      "label": "Sửa khách hàng",
+      "resource": "contact",
+      "type": "contact.updated"
+    },
+    {
+      "label": "Đổi giai đoạn khách hàng",
+      "resource": "contact",
+      "type": "contact.stage_changed"
+    },
+    {
+      "label": "Gán / chuyển khách cho người khác",
+      "resource": "contact",
+      "type": "contact.assigned"
+    },
+    {
+      "label": "Xoá khách hàng",
+      "resource": "contact",
+      "type": "contact.deleted"
+    },
+    {
+      "label": "Khôi phục khách hàng vừa xoá (Hoàn tác)",
+      "resource": "contact",
+      "type": "contact.restored"
+    },
+    {
+      "label": "Tạo deal",
+      "resource": "deal",
+      "type": "deal.created"
+    },
+    {
+      "label": "Deal đổi trạng thái",
+      "resource": "deal",
+      "type": "deal.stage_changed"
+    },
+    {
+      "label": "Deal chốt thành công",
+      "resource": "deal",
+      "type": "deal.won"
+    },
+    {
+      "label": "Deal thất bại",
+      "resource": "deal",
+      "type": "deal.lost"
+    },
+    {
+      "label": "Đơn POS hoàn tất (đã thu tiền)",
+      "resource": "pos_order",
+      "type": "pos.order.completed"
+    },
+    {
+      "label": "Tạo bản ghi tính năng tuỳ biến",
+      "resource": "custom_record",
+      "type": "custom_record.created"
+    },
+    {
+      "label": "Sửa bản ghi tính năng tuỳ biến",
+      "resource": "custom_record",
+      "type": "custom_record.updated"
+    },
+    {
+      "label": "Xoá bản ghi tính năng tuỳ biến",
+      "resource": "custom_record",
+      "type": "custom_record.deleted"
+    },
+    {
+      "label": "Zalo OA: khách nhắn tới",
+      "resource": "zalo_oa_thread",
+      "type": "zalo_oa.message_received"
+    },
+    {
+      "label": "Zalo OA: gửi tin tư vấn / ZNS",
+      "resource": "zalo_oa_thread",
+      "type": "zalo_oa.message_sent"
+    },
+    {
+      "label": "Messenger: khách nhắn Fanpage",
+      "resource": "messenger_conversation",
+      "type": "messenger.message_received"
+    },
+    {
+      "label": "Messenger: Fanpage gửi tin (nhân viên, kịch bản, gửi hàng loạt)",
+      "resource": "messenger_conversation",
+      "type": "messenger.message_sent"
+    },
+    {
+      "label": "Messenger: lượt gửi hàng loạt đã xong",
+      "resource": "messenger_broadcast",
+      "type": "messenger.broadcast_finished"
+    },
+    {
+      "label": "Fanpage: có bình luận mới",
+      "resource": "facebook_comment",
+      "type": "facebook.comment_received"
+    },
+    {
+      "label": "Đăng bài: đã lên kênh",
+      "resource": "social_post",
+      "type": "social_post.published"
+    },
+    {
+      "label": "Đăng bài: đăng lỗi",
+      "resource": "social_post",
+      "type": "social_post.failed"
+    },
+    {
+      "label": "Trang bán hàng: có đơn mới",
+      "resource": "store_order",
+      "type": "store_order.created"
+    },
+    {
+      "label": "Trang bán hàng: đơn đã thanh toán (nhân viên xác nhận)",
+      "resource": "store_order",
+      "type": "store_order.paid"
+    },
+    {
+      "label": "Trang bán hàng: đơn đổi trạng thái",
+      "resource": "store_order",
+      "type": "store_order.status_changed"
+    }
+  ]
+}

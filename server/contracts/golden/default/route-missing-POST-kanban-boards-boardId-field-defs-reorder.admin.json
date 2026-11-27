@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": "Danh sách trường không khớp — phải gồm ĐỦ và ĐÚNG các trường của board",
+    "statusCode": 400
+  }
+}

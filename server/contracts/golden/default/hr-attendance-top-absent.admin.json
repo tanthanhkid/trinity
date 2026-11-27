@@ -1,0 +1,145 @@
+{
+  "status": 200,
+  "body": {
+    "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "disposition": true,
+    "sheets": [
+      {
+        "name": "Top nghỉ nhiều",
+        "rows": [
+          [
+            "TOP NHÂN VIÊN NGHỈ NHIỀU NHẤT",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "Từ 01/11/2026 đến 27/11/2026 · 20 ngày làm việc · 10 nhân viên",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [],
+          [
+            "STT",
+            "Mã NV",
+            "Họ tên",
+            "Team",
+            "Chức vụ",
+            "Tổng ngày nghỉ",
+            "Tổng số lần nghỉ",
+            "Tỷ lệ nghỉ (%)"
+          ],
+          [
+            "1",
+            "",
+            "Contract checkin",
+            "Chưa có quản lý",
+            "NV",
+            "20",
+            "1",
+            "100"
+          ],
+          [
+            "2",
+            "",
+            "Contract ct-manage-ok",
+            "Chưa có quản lý",
+            "NV",
+            "20",
+            "1",
+            "100"
+          ],
+          [
+            "3",
+            "",
+            "Contract emp-id-other",
+            "Chưa có quản lý",
+            "NV",
+            "20",
+            "1",
+            "100"
+          ],
+          [
+            "4",
+            "",
+            "Contract emp-other",
+            "Chưa có quản lý",
+            "NV",
+            "20",
+            "1",
+            "100"
+          ],
+          [
+            "5",
+            "",
+            "Contract emp-own",
+            "Chưa có quản lý",
+            "NV",
+            "20",
+            "1",
+            "100"
+          ],
+          [
+            "6",
+            "",
+            "Contract emp-patch-target",
+            "Chưa có quản lý",
+            "NV",
+            "20",
+            "1",
+            "100"
+          ],
+          [
+            "7",
+            "",
+            "Contract request",
+            "Chưa có quản lý",
+            "NV",
+            "20",
+            "1",
+            "100"
+          ],
+          [
+            "8",
+            "",
+            "Contract team-member",
+            "Chưa có quản lý",
+            "NV",
+            "20",
+            "1",
+            "100"
+          ],
+          [
+            "9",
+            "",
+            "New 2",
+            "Chưa có quản lý",
+            "Chưa phân loại",
+            "20",
+            "1",
+            "100"
+          ],
+          [
+            "10",
+            "",
+            "Người dùng vòng đời",
+            "Chưa có quản lý",
+            "Chưa phân loại",
+            "20",
+            "1",
+            "100"
+          ]
+        ]
+      }
+    ]
+  }
+}

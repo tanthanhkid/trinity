@@ -1,0 +1,24 @@
+{
+  "status": 200,
+  "body": {
+    "ai_briefing": true,
+    "attendance": true,
+    "contacts": true,
+    "dashboard": true,
+    "facebook_page": true,
+    "inbox": true,
+    "integrations": true,
+    "kanban": false,
+    "lead_scoring": true,
+    "management": true,
+    "newsfeed": true,
+    "online_store": false,
+    "payroll": true,
+    "pos": false,
+    "products": true,
+    "reports": true,
+    "social_posting": true,
+    "stale_reminders": true,
+    "zalo_oa": true
+  }
+}

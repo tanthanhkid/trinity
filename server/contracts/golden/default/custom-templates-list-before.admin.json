@@ -1,0 +1,113 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "description": "Phụ huynh, Học sinh, Khoá học / Gói học phí, Hoá đơn, Ghi danh, Thanh toán — đã nối liên kết và công thức.",
+      "key": "education_center",
+      "label": "Trung tâm giáo dục",
+      "objects": [
+        {
+          "applied": false,
+          "key": "phu_huynh",
+          "label": "Phụ huynh"
+        },
+        {
+          "applied": false,
+          "key": "hoc_sinh",
+          "label": "Học sinh"
+        },
+        {
+          "applied": false,
+          "key": "khoa_hoc",
+          "label": "Khoá học / Gói"
+        },
+        {
+          "applied": false,
+          "key": "hoa_don",
+          "label": "Hoá đơn"
+        },
+        {
+          "applied": false,
+          "key": "ghi_danh",
+          "label": "Ghi danh"
+        },
+        {
+          "applied": false,
+          "key": "thanh_toan",
+          "label": "Thanh toán"
+        }
+      ]
+    },
+    {
+      "description": "Dự án, Sản phẩm/căn (giá/m² tự tính), Giữ chỗ/đặt cọc (tiền cọc tự tính), Lịch dẫn khách.",
+      "key": "real_estate",
+      "label": "Bất động sản",
+      "objects": [
+        {
+          "applied": false,
+          "key": "bds_du_an",
+          "label": "Dự án"
+        },
+        {
+          "applied": false,
+          "key": "bds_san_pham",
+          "label": "Sản phẩm / căn"
+        },
+        {
+          "applied": false,
+          "key": "bds_giu_cho",
+          "label": "Giữ chỗ / đặt cọc"
+        },
+        {
+          "applied": false,
+          "key": "bds_lich_dan",
+          "label": "Lịch dẫn khách"
+        }
+      ]
+    },
+    {
+      "description": "Sản phẩm/dịch vụ (lãi gộp tự tính), Đơn hàng (thành tiền tự tính), Khách thân thiết (hạng, điểm).",
+      "key": "retail_service",
+      "label": "Bán lẻ / dịch vụ",
+      "objects": [
+        {
+          "applied": false,
+          "key": "bl_san_pham",
+          "label": "Mặt hàng & dịch vụ"
+        },
+        {
+          "applied": false,
+          "key": "bl_khach_than_thiet",
+          "label": "Khách thân thiết"
+        },
+        {
+          "applied": false,
+          "key": "bl_don_hang",
+          "label": "Đơn hàng"
+        }
+      ]
+    },
+    {
+      "description": "Bệnh nhân / thú cưng, Lịch hẹn, Điều trị (tổng chi phí tự tính).",
+      "key": "clinic",
+      "label": "Phòng khám (nha khoa / thú y)",
+      "objects": [
+        {
+          "applied": false,
+          "key": "pk_benh_nhan",
+          "label": "Bệnh nhân / thú cưng"
+        },
+        {
+          "applied": false,
+          "key": "pk_lich_hen",
+          "label": "Lịch hẹn"
+        },
+        {
+          "applied": false,
+          "key": "pk_dieu_tri",
+          "label": "Điều trị"
+        }
+      ]
+    }
+  ]
+}

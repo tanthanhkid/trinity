@@ -1,0 +1,23 @@
+{
+  "status": 200,
+  "body": {
+    "data": [
+      {
+        "attempts": 1,
+        "created_at": "<now>",
+        "delivered_at": "<now>",
+        "endpoint_id": "<id:endpoint_id:1>",
+        "event_id": null,
+        "event_type": "ping",
+        "id": "<uuid:1>",
+        "last_error": null,
+        "last_status_code": 200,
+        "next_attempt_at": "<time:+1d>",
+        "status": "success"
+      }
+    ],
+    "meta": {
+      "next_cursor": null
+    }
+  }
+}

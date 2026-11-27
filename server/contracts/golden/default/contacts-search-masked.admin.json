@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "body": {
+    "data": [
+      {
+        "full_name": "Khách tra trùng E2E",
+        "id": "<id:id:1>",
+        "phone": "0900000501",
+        "source_id": null
+      }
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "status": 404,
+  "body": {
+    "error": "Not Found",
+    "message": "Không tìm thấy khách hàng ID 999999",
+    "statusCode": 404
+  }
+}

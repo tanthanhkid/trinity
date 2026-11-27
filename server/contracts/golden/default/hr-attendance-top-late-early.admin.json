@@ -1,0 +1,63 @@
+{
+  "status": 200,
+  "body": {
+    "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "disposition": true,
+    "sheets": [
+      {
+        "name": "Top đi muộn-về sớm",
+        "rows": [
+          [
+            "TOP NHÂN VIÊN ĐI MUỘN / VỀ SỚM NHIỀU NHẤT",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "Từ 01/11/2026 đến 27/11/2026 · 20 ngày làm việc · 1 nhân viên",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [],
+          [
+            "STT",
+            "Mã NV",
+            "Họ tên",
+            "Team",
+            "Chức vụ",
+            "Phút đi muộn",
+            "Phút về sớm",
+            "Phút vi phạm",
+            "Số lần đi muộn",
+            "Số lần về sớm"
+          ],
+          [
+            "1",
+            "",
+            "Contract stats",
+            "Chưa có quản lý",
+            "NV",
+            "0",
+            "1350",
+            "1350",
+            "0",
+            "3"
+          ]
+        ]
+      }
+    ]
+  }
+}

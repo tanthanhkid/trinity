@@ -1,0 +1,44 @@
+{
+  "contacts": [],
+  "deals": [],
+  "activities": [],
+  "audit_logs": [],
+  "integration_events": [],
+  "kanban_cards": [
+    {
+      "assignee_id": null,
+      "attributes": {},
+      "board_id": "<boards:ext1>",
+      "code": "<allowed>",
+      "column_id": "<columns:ext1>",
+      "completed_at": null,
+      "contact_id": null,
+      "created_at": "<now>",
+      "created_by": "<users:ext1>",
+      "deleted_at": null,
+      "deleted_by": null,
+      "description": null,
+      "due_at": null,
+      "due_completed_at": null,
+      "id": "<kanban_cards:1>",
+      "labels": [],
+      "position": 1024,
+      "priority": null,
+      "title": "Thẻ DB state",
+      "updated_at": "<allowed>"
+    }
+  ],
+  "newsfeed_posts": [
+    {
+      "author_id": "<authors:ext1>",
+      "category": "training",
+      "content": "Bài DB state",
+      "created_at": "<now>",
+      "edited_at": null,
+      "id": "<newsfeed_posts:1>",
+      "image_url": null,
+      "updated_at": "<allowed>"
+    }
+  ],
+  "attendance_records": []
+}

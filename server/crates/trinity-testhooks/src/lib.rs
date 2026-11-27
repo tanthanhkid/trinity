@@ -66,6 +66,8 @@ pub struct TestHooks {
     worker: Option<Worker>,
     timeout: std::time::Duration,
     timed: BTreeMap<String, TimedFn>,
+    /// Job không nhận `now` (khác `timed`): `now` trong body ⇒ 400. Dùng cho việc mà bản Node chạy được theo tên nhưng không có giờ giả.
+    plain: BTreeMap<String, TimedFn>,
     flushers: Vec<Flusher>,
     company: CompanyFn,
     multi_tenant: bool,
@@ -95,6 +97,7 @@ impl TestHooks {
             worker: None,
             timeout: TEST_JOB_TIMEOUT,
             timed: BTreeMap::new(),
+            plain: BTreeMap::new(),
             flushers: Vec::new(),
             company,
             multi_tenant,
@@ -120,6 +123,18 @@ impl TestHooks {
         self.timed
             .insert(name.to_owned(), Arc::new(move |c, n, b| Box::pin(f(c, n, b))));
         Ok(self)
+    }
+
+    /// Job chạy theo tên nhưng KHÔNG nhận `now` (`now` trong body ⇒ 400). `f(công ty, body)`.
+    #[must_use]
+    pub fn plain_job<F, Fut>(mut self, name: &str, f: F) -> Self
+    where
+        F: Fn(CompanyRef, Value) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<Value, String>> + Send + 'static,
+    {
+        self.plain
+            .insert(name.to_owned(), Arc::new(move |c, _now, b| Box::pin(f(c, b))));
+        self
     }
 
     /// Hàm xoá một cache trong RAM (quyền, đếm, dashboard, blacklist, giới hạn tốc độ…); `name` hiện trong kết quả của
@@ -195,10 +210,11 @@ async fn run_job(
             _ => return err(StatusCode::BAD_REQUEST, "body phải là một object JSON"),
         }
     };
-    let timed = h.timed.get(&name).cloned();
+    let now_job = h.timed.get(&name).cloned();
+    let timed = now_job.clone().or_else(|| h.plain.get(&name).cloned());
     let sched_has = h.scheduler.as_ref().is_some_and(|s| s.job_names().contains(&name));
     if timed.is_none() && !sched_has {
-        let mut names: Vec<String> = h.timed.keys().cloned().collect();
+        let mut names: Vec<String> = h.timed.keys().chain(h.plain.keys()).cloned().collect();
         if let Some(s) = &h.scheduler {
             names.extend(s.job_names());
         }
@@ -211,7 +227,7 @@ async fn run_job(
     let now = match body.get("now") {
         None => None,
         // `null` hay không phải chuỗi cũng là 400 (Node: `body.now !== undefined` rồi kiểm kiểu).
-        Some(_) if timed.is_none() => {
+        Some(_) if now_job.is_none() => {
             return err(
                 StatusCode::BAD_REQUEST,
                 format!("`now` chỉ nhận cho: {}", NOW_JOBS.join(", ")),

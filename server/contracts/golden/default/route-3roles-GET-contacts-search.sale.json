@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "body": {
+    "data": [
+      {
+        "full_name": "Khách tra trùng C14b",
+        "id": "<id:id:1>",
+        "phone": "***029",
+        "source_id": null
+      }
+    ]
+  }
+}

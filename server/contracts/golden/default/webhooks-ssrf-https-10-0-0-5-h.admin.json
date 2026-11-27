@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": "Địa chỉ IP nội bộ/không công cộng bị chặn",
+    "statusCode": 400
+  }
+}

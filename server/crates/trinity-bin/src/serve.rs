@@ -768,21 +768,6 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             store: mod_exports::store::Store::new(&db),
         }),
     );
-    // K34: API điều khiển test, chỉ khi build với `--features test-hooks` VÀ TRINITY_TEST_HOOKS=1.
-    #[cfg(feature = "test-hooks")]
-    {
-        let hooks = trinity_testhooks::TestHooks::new(auth.clone(), platform.clone(), config.multi_tenant)
-            .scheduler(scheduler.clone())
-            .worker(worker.clone());
-        if let Some(r) = hooks.router(lookup) {
-            app = app.merge(Router::new().nest("/api/v1", r));
-        }
-    }
-    #[cfg(not(feature = "test-hooks"))]
-    {
-        let _ = (&scheduler, &worker);
-    }
-
     // ── Realtime `/notif-ws` (K33)
     let (ws_layer, socket) = trinity_realtime::NotifSocket::new(trinity_realtime::RealtimeConfig {
         jwt_secret: &config.jwt_secret,
@@ -881,6 +866,9 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
 
     // Job nền còn lại (mỗi job tự tắt theo cờ env của module): lead-scoring + stale-work (mod-leads), notification.scheduled,
     // integrations.ai-action-expiry, outbox/oauth purge, webhook dispatch.
+    #[cfg(feature = "test-hooks")]
+    let hook_webhooks: std::sync::OnceLock<(Arc<trinity_integrations::webhooks::dispatcher::Dispatcher>, bool)> =
+        std::sync::OnceLock::new();
     {
         let job_vars = env.clone();
         let job_env = move |k: &str| job_vars.get(k).cloned();
@@ -911,6 +899,8 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             trinity_integrations::status::oauth_enabled(&job_env),
             trinity_integrations::status::webhooks_enabled(&job_env),
         );
+        #[cfg(feature = "test-hooks")]
+        let _ = hook_webhooks.set((webhook_dispatcher.clone(), webhooks_on));
         let specs = [
             mod_notify::jobs::scheduled_job(&db, notify_deliverer).map(Some),
             mod_ai_actions::job::expiry_job(&db, oauth_on),
@@ -929,6 +919,35 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             }
         }
     }
+    // K34: API điều khiển test, chỉ khi build với `--features test-hooks` VÀ TRINITY_TEST_HOOKS=1.
+    #[cfg(feature = "test-hooks")]
+    {
+        let hooks = trinity_testhooks::TestHooks::new(auth.clone(), platform.clone(), config.multi_tenant)
+            .scheduler(scheduler.clone())
+            .worker(worker.clone());
+        // `cache/flush`: xoá cache RAM mà ca test có thể làm cũ khi sửa DB bằng SQL (quyền/phạm vi, số liệu Tổng quan, đếm khách).
+        let hooks = {
+            let (rbac, reports, contacts) = (cache.clone(), reports_ctx.clone(), contacts_slot.clone());
+            hooks
+                .on_flush("permissions", move || rbac.clear())
+                .on_flush("reports-cache", move || reports.cache.clear())
+                .on_flush("contacts-cache", move || {
+                    if let Some(c) = contacts.get() {
+                        c.cache.clear();
+                    }
+                })
+        };
+        let hooks = crate::test_jobs::register(hooks, db.clone(), hook_webhooks.get().cloned(), lookup)
+            .map_err(|e| format!("test-hooks: {e}"))?;
+        if let Some(r) = hooks.router(lookup) {
+            app = app.merge(Router::new().nest("/api/v1", r));
+        }
+    }
+    #[cfg(not(feature = "test-hooks"))]
+    {
+        let _ = (&scheduler, &worker);
+    }
+
     {
         let (s, rx) = (scheduler.clone(), stop_rx.clone());
         tokio::spawn(async move {

@@ -1,0 +1,12 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": [
+      "Tên thương vụ không được để trống",
+      "assigned_to phải là số nguyên",
+      "Phải chọn sale phụ trách"
+    ],
+    "statusCode": 400
+  }
+}

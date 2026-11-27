@@ -1,0 +1,195 @@
+{
+  "status": 200,
+  "body": {
+    "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "disposition": true,
+    "sheets": [
+      {
+        "name": "NV chưa chấm công",
+        "rows": [
+          [
+            "DANH SÁCH NHÂN VIÊN CHƯA CHẤM CÔNG",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "Ngày: 27/11/2026 · Tổng 12 nhân viên vắng",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [],
+          [
+            "STT",
+            "Mã NV",
+            "Họ tên",
+            "SĐT",
+            "Email",
+            "Team",
+            "Chức danh",
+            "Bộ phận",
+            "Giới tính",
+            "Văn phòng"
+          ],
+          [
+            "1",
+            "NV0027",
+            "Contract checkin",
+            "",
+            "<email:1>",
+            "",
+            "NV",
+            "",
+            "",
+            ""
+          ],
+          [
+            "2",
+            "NV0006",
+            "Contract ct-manage-ok",
+            "",
+            "<email:2>",
+            "",
+            "NV",
+            "",
+            "",
+            ""
+          ],
+          [
+            "3",
+            "NV0003",
+            "Contract emp-id-other",
+            "",
+            "<email:3>",
+            "",
+            "NV",
+            "",
+            "",
+            ""
+          ],
+          [
+            "4",
+            "NV0002",
+            "Contract emp-other",
+            "",
+            "<email:4>",
+            "",
+            "NV",
+            "",
+            "",
+            ""
+          ],
+          [
+            "5",
+            "NV0001",
+            "Contract emp-own",
+            "",
+            "<email:5>",
+            "",
+            "NV",
+            "",
+            "",
+            ""
+          ],
+          [
+            "6",
+            "NV0005",
+            "Contract emp-patch-target",
+            "",
+            "<email:6>",
+            "",
+            "NV",
+            "",
+            "",
+            ""
+          ],
+          [
+            "7",
+            "NV0028",
+            "Contract request",
+            "",
+            "<email:7>",
+            "",
+            "NV",
+            "",
+            "",
+            ""
+          ],
+          [
+            "8",
+            "NV0029",
+            "Contract stats",
+            "",
+            "<email:8>",
+            "",
+            "NV",
+            "Kinh doanh",
+            "Nữ",
+            ""
+          ],
+          [
+            "9",
+            "NV0026",
+            "Contract team-member",
+            "",
+            "<email:9>",
+            "",
+            "NV",
+            "",
+            "",
+            ""
+          ],
+          [
+            "10",
+            "NV0021",
+            "New 2",
+            "",
+            "<email:10>",
+            "",
+            "Chưa phân loại",
+            "",
+            "",
+            ""
+          ],
+          [
+            "11",
+            "NV0022",
+            "Người được mời",
+            "",
+            "<email:11>",
+            "",
+            "Chưa phân loại",
+            "",
+            "",
+            ""
+          ],
+          [
+            "12",
+            "NV0004",
+            "NV Mới",
+            "",
+            "<email:12>",
+            "",
+            "Chưa phân loại",
+            "",
+            "",
+            ""
+          ]
+        ]
+      }
+    ]
+  }
+}

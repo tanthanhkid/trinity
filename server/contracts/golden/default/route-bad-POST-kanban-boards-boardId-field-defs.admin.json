@@ -1,0 +1,10 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": [
+      "key chỉ chứa chữ thường/số/gạch dưới, bắt đầu bằng chữ, tối đa 64 ký tự"
+    ],
+    "statusCode": 400
+  }
+}

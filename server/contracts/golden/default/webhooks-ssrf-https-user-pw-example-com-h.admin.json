@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": "URL không được chứa tài khoản/mật khẩu",
+    "statusCode": 400
+  }
+}

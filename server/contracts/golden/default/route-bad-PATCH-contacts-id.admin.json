@@ -1,0 +1,11 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": [
+      "Họ tên phải từ 1 đến 100 ký tự",
+      "full_name must be a string"
+    ],
+    "statusCode": 400
+  }
+}

@@ -392,8 +392,19 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             stale_job_enabled: mod_leads::jobs::stale_enabled(lookup),
         }),
     );
+    // Payroll: socket `/notif-ws` dựng sau cùng nên điền vào `payroll_socket` ở bước realtime bên dưới.
+    let payroll_socket = Arc::new(std::sync::OnceLock::new());
+    app = mount(
+        app,
+        mod_payroll::api_router(deps.clone()),
+        Arc::new(mod_payroll::Ctx {
+            db: db.clone(),
+            scopes: ScopeService::new(db.clone(), cache.clone()),
+            socket: payroll_socket.clone(),
+        }),
+    );
     // CHƯA mount: mod-deals, mod-kanban,
-    // mod-payroll, mod-facebook, mod-store (mới có bảng route, chưa có router axum). Route của chúng thuộc Node.
+    // mod-facebook, mod-store (mới có bảng route, chưa có router axum). Route của chúng thuộc Node.
 
     // ── Scheduler và worker hàng đợi (nền). Chưa module nào đăng ký job ở đây; khi có, `scheduler.register(..)`.
     let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
@@ -444,6 +455,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         multi_tenant: config.multi_tenant,
         security: Some(security.clone()),
     });
+    let _ = payroll_socket.set(socket.clone());
     if sync_on {
         match trinity_db::sync::listen_from_env() {
             Ok(Some(rx)) => {

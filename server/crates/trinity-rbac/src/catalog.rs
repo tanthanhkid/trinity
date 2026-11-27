@@ -38,6 +38,7 @@ struct Raw {
     default_signup_plan: String,
     org_features: Vec<OrgFeatureDef>,
     scope_order: Vec<String>,
+    permission_groups: Vec<String>,
     retired_permissions: Vec<String>,
     permissions: Vec<PermissionDef>,
 }
@@ -48,6 +49,7 @@ pub struct Catalog {
     org_features: Vec<OrgFeatureDef>,
     index: HashMap<String, usize>,
     pub scope_order: Vec<String>,
+    pub permission_groups: Vec<String>,
     pub retired: Vec<String>,
     plans: HashMap<String, PlanDef>,
     default_plan: String,
@@ -110,6 +112,7 @@ static CATALOG: LazyLock<Catalog> = LazyLock::new(|| {
         org_features: raw.org_features,
         index,
         scope_order: raw.scope_order,
+        permission_groups: raw.permission_groups,
         retired: raw.retired_permissions,
         plans: raw.plans,
         default_plan: raw.default_plan,

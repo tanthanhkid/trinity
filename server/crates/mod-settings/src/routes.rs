@@ -1,5 +1,5 @@
 //! Bảng route của M06 (K14): mỗi route khai `Access` bắt buộc; so với `contracts/routes.json` ở test cuối file và ở
-//! `trinity check-routes`. Hai đường `settings/channel-guard` thuộc M45.
+//! `trinity check-routes`. Hai đường `settings/channel-guard` thuộc M45; `settings/client-ip/alerts` do `api_router` mount.
 
 use http::Method;
 use trinity_http::router::{Access, RouteSpec};
@@ -7,7 +7,7 @@ use trinity_http::router::{Access, RouteSpec};
 const ID: &[&str] = &["param.id:ParseIntPipe"];
 const PLAN_GUARD: &[&str] = &["PlanTokenGuard"];
 
-/// 12 route của `SettingsOptionsController` (4), `SettingsController` (4, không kể `client-ip/alerts`),
+/// 13 route của `SettingsOptionsController` (4), `SettingsController` (5, kể cả `client-ip/alerts`),
 /// `OrgFeaturesController` (2) và `UsageController` (2).
 pub fn routes() -> Vec<RouteSpec> {
     let catalog = Access::Can(&["contacts.catalog"]);
@@ -28,6 +28,7 @@ pub fn routes() -> Vec<RouteSpec> {
             Access::Can(&["settings.integrations"]),
         )
         .status_ok(200),
+        RouteSpec::new(Method::GET, "/api/v1/settings/client-ip/alerts", Access::AuthOnly).status_ok(200),
         RouteSpec::new(Method::GET, "/api/v1/settings/departments", Access::AuthOnly).status_ok(200),
         RouteSpec::new(
             Method::PATCH,
@@ -51,9 +52,9 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = routes();
-        assert_eq!(table.len(), 12);
+        assert_eq!(table.len(), 13);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 12);
+        assert_eq!(rep.declared, 13);
     }
 }

@@ -13,6 +13,7 @@ pub fn declared_routes() -> Vec<RouteSpec> {
     v.extend(mod_reports::specs());
     v.extend(mod_setup::specs());
     v.extend(mod_system::routes());
+    v.extend(mod_system::retired::routes());
     v.extend(mod_hr::routes::employee_specs());
     v.extend(mod_attendance::routes::specs());
     v.extend(mod_hr::routes::contract_specs());

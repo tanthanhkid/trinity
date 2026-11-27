@@ -14,6 +14,8 @@
 //!
 //! `declared_routes()` của `trinity-bin` lấy [`routes`]; chưa có `serve` để lắp, nên `api_router`/`extra_router` được test ở đây.
 
+pub mod retired;
+
 use std::sync::Arc;
 
 use axum::Json;

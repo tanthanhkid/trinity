@@ -14,7 +14,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use serde_json::{Map, Value};
 use trinity_db::{CompanyRef, Db, TenantConn};
-use trinity_http::edge::client_ip::ClientIp;
+use trinity_http::edge::client_ip::{ClientIp, ClientIpResolver};
 use trinity_http::router::{AccessDeps, ApiRouter, CurrentUser, GuardFuture, NamedGuard, RouteSpec};
 use trinity_kernel::error::{AppError, HttpError};
 
@@ -27,6 +27,8 @@ use crate::{
 /// Trạng thái dùng chung của router: pool DB (công ty lấy từ token của từng request).
 pub struct SettingsState {
     pub db: Db,
+    /// Bộ xác định IP khách dùng chung của tiến trình: nguồn câu cảnh báo TRUSTED_PROXY.
+    pub client_ip: Arc<ClientIpResolver>,
 }
 
 /// `PlanTokenGuard`: `expected` là `TRINITY_PLAN_ADMIN_TOKEN` đọc lúc khởi động (rỗng/thiếu ⇒ khoá với mọi người).
@@ -209,6 +211,14 @@ async fn sound_update(
     ok(general::update_notification_sound(&mut c, &sound, u.user.user_id).await)
 }
 
+/// Cảnh báo "không xác định được IP thật" chỉ dành cho quản trị viên (`settings.integrations`) của công ty vận hành
+/// (công ty 1); người khác nhận `warning: null`.
+async fn client_ip_alerts(State(s): State<Arc<SettingsState>>, Extension(u): Extension<CurrentUser>) -> Response {
+    let operator = u.user.company_id == 1 && trinity_rbac::can(&u.grants.grants, "settings.integrations", None);
+    let warning = if operator { s.client_ip.warning() } else { None };
+    Json(serde_json::json!({ "warning": warning })).into_response()
+}
+
 async fn departments_get(State(s): State<Arc<SettingsState>>, Extension(u): Extension<CurrentUser>) -> Response {
     let (mut c, _) = open!(s, u);
     Json(general::get_departments(&mut c).await).into_response()
@@ -272,7 +282,7 @@ async fn plan_set(State(s): State<Arc<SettingsState>>, Extension(u): Extension<C
     ok(features::usage_summary(&mut c, ctx).await)
 }
 
-/// Router của module (12 route). Người gọi gắn state `Arc<SettingsState>`; `deps.guards` phải có `PlanTokenGuard`
+/// Router của module (13 route). Người gọi gắn state `Arc<SettingsState>`; `deps.guards` phải có `PlanTokenGuard`
 /// ([`named_guards`]).
 pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<SettingsState>> {
     let s = crate::routes::routes();
@@ -291,6 +301,10 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<SettingsState>> {
         .route(
             spec(&Method::PATCH, "/api/v1/settings/notification-sound"),
             sound_update,
+        )
+        .route(
+            spec(&Method::GET, "/api/v1/settings/client-ip/alerts"),
+            client_ip_alerts,
         )
         .route(spec(&Method::GET, "/api/v1/settings/departments"), departments_get)
         .route(spec(&Method::PATCH, "/api/v1/settings/departments"), departments_update)

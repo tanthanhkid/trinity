@@ -4,7 +4,7 @@
  * | Cần bạn xem · Trợ lý đang kết nối · gợi ý hỏi AI. Mọi số đều từ endpoint sẵn có (xem `use-home-data.ts`);
  * khối nào chưa có dữ liệu/không có quyền thì hiện trạng thái trống, KHÔNG số giả. */
 
-import { useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { getUserDisplayName } from '@/lib/user-identity'
 import { formatDate, formatTimeVn, todayVn } from '@/lib/format'
@@ -15,9 +15,13 @@ import { EMPTY_FILTER } from './dashboard-filter-utils'
 import { taskHref } from './dashboard-tasks-card'
 import { AiTimelineView, type TimelineState } from './home-ai-timeline'
 import { AskAiHint, NeedsReviewView, type ConnectionsState, type ReviewItem } from './home-side'
-import { AiAssistantsHub, ChannelsHub, FeatureSuggestions } from './home-ai-hub'
-import { HomeStats, type HomeStatItem } from './home-stats'
-import { formatMoneyCompact, homeSummary, isAiActionDone, todaysAiActions } from './home-utils'
+import { ChannelsHub, FeatureSuggestions } from './home-ai-hub'
+import { DashboardTasksCard } from './dashboard-tasks-card'
+import { FacebookNudge, FACEBOOK_CONNECT_HREF } from './facebook-nudge'
+import { FunnelCard, HeatmapCard, KpiStrip, LeaderboardCard, type KpiItem } from './command-center-cards'
+import { useCommandCenter } from './use-command-center'
+import { PERIODS, deltaOf, formatMoneyTr, formatPct, type PeriodKey } from './command-center-utils'
+import { homeSummary, isAiActionDone, todaysAiActions } from './home-utils'
 import { resolveNotificationHref } from '@/lib/notification-href'
 import { usePermissions } from '@/lib/rbac'
 import {
@@ -49,6 +53,8 @@ export function DashboardHome() {
   const canOverview = useCanSeeOverview()
   // Không có bộ lọc phạm vi trên giao diện: số liệu theo đúng quyền người đang xem (server tự giới hạn).
   const { effective } = useDashboardFilter()
+  const [period, setPeriod] = useState<PeriodKey>('7d')
+  const center = useCommandCenter(period)
   const overview = useDashboardOverview(effective)
   const tasks = useDashboardTasks(effective)
   // "Cần bạn xem" luôn là việc của CHÍNH mình, kể cả khi đang lọc xem người khác.
@@ -61,8 +67,6 @@ export function DashboardHome() {
   const unreadCount = useUnreadNotificationCount()
   const conns = useHomeAiConnections()
   const channels = useDashboardChannels()
-  // "Đang hoạt động" so với đồng hồ máy khách ⇒ chỉ tính sau mount (SSR và lần hydrate đầu cùng markup).
-  const nowMs = useSyncExternalStore(noopSubscribe, () => Math.floor(Date.now() / 60_000) * 60_000, () => null)
 
   /* ---- AI hôm nay ---- */
   const aiDisabled = recent.isError && isNotFound(recent.error)
@@ -111,84 +115,121 @@ export function DashboardHome() {
         : aiDisabled ? 'disabled' : 'ready'
   const connRows = conns.data ?? []
 
-  /* ---- Thẻ số ---- */
-  const aiStat: HomeStatItem = {
-    key: 'ai', label: 'AI đã làm hôm nay',
+  /* ---- Fanpage Facebook: chỉ endpoint kênh sẵn có. Người có quyền quản lý kết nối được trả `available` có Fanpage khi chưa nối. ---- */
+  const fbOffer = channels.data?.available.find((a) => a.kind === 'facebook_page')
+  const fbUnconnected = !!fbOffer && !(channels.data?.channels ?? []).some((c) => c.kind === 'facebook_page')
+
+  /* ---- Dải chỉ số (số lớn là chữ thường, KHÔNG số "lăn": số lăn kẹt ở 0 khi ô chưa được quan sát) ---- */
+  const ccLoading = center.isLoading
+  const aiItem: KpiItem = {
+    key: 'ai', label: 'AI đã làm hôm nay', dot: 'var(--color-app-chart-2)',
     value: aiDisabled ? '—' : `${nf(doneToday)}${truncated ? '+' : ''} việc`,
-    ...(aiDisabled
-      ? { note: 'Kết nối AI chưa bật', tone: 'muted' as const }
-      : failedToday > 0
-        ? { note: `${nf(failedToday)} việc không thực hiện được`, tone: 'warn' as const }
-        : todayRows[0]
-          ? { note: `Gần nhất lúc ${formatTimeVn(todayRows[0].created_at)}`, tone: 'ok' as const }
-          : { note: 'Chưa có việc nào hôm nay', tone: 'muted' as const }),
+    note: aiDisabled ? 'Kết nối AI chưa bật' : failedToday > 0 ? `${nf(failedToday)} việc lỗi` : todayRows[0] ? `gần nhất ${formatTimeVn(todayRows[0].created_at)}` : 'chưa có việc nào',
+    tone: failedToday > 0 ? 'warn' : 'ok',
   }
-  const stats: HomeStatItem[] = [aiStat]
+  const reviewItem: KpiItem = {
+    key: 'review', label: 'Cần bạn xem', dot: 'var(--color-app-chart-2)',
+    value: needReview === null ? '—' : nf(needReview),
+    note: needReview ? 'xem bên dưới' : 'không có gì chờ', tone: needReview ? 'warn' : 'ok',
+  }
   const ov = overview.data
-  if (canOverview) {
-    stats.push(
-      {
-        key: 'customers', label: 'Khách hàng', value: ov ? nf(ov.customers.total) : '—',
-        ...(ov && ov.customers.new_this_month > 0
-          ? { note: `+${nf(ov.customers.new_this_month)} khách mới tháng này`, tone: 'ok' as const }
-          : { note: 'Chưa có khách mới tháng này', tone: 'muted' as const }),
-      },
-      {
-        key: 'revenue', label: 'Doanh thu tháng này',
-        value: ov?.revenue.this_month != null ? formatMoneyCompact(ov.revenue.this_month) : '—',
-        title: ov?.revenue.this_month != null ? `${nf(ov.revenue.this_month)} ₫` : undefined,
-        note: ov ? `${nf(ov.opportunities.open)} cơ hội đang mở` : undefined, tone: 'muted',
-      },
-      {
-        key: 'tasks', label: 'Công việc', value: tasks.data ? nf(tasks.data.total) : '—',
-        ...(tasks.data && tasks.data.overdue > 0
-          ? { note: `${nf(tasks.data.overdue)} việc quá hạn`, tone: 'warn' as const }
-          : { note: tasks.data ? `${nf(tasks.data.due_today)} việc đến hạn hôm nay` : undefined, tone: 'muted' as const }),
-      },
-    )
-  } else {
-    stats.push({
-      key: 'review', label: 'Cần bạn xem', value: needReview === null ? '—' : nf(needReview),
-      note: needReview ? 'Xem ở khung bên phải' : 'Không có gì đang chờ', tone: needReview ? 'warn' : 'muted',
-    })
-  }
+  const win = center.data?.win_rate
+  const items: KpiItem[] = canOverview
+    ? [
+        {
+          key: 'revenue', label: 'Doanh thu tháng', dot: 'var(--color-app-primary)',
+          value: ov?.revenue.this_month != null ? formatMoneyTr(ov.revenue.this_month) : '—',
+          title: ov?.revenue.this_month != null ? `${nf(ov.revenue.this_month)} ₫` : undefined,
+          delta: ov && ov.revenue.this_month != null ? deltaOf(ov.revenue.this_month, ov.revenue.last_month ?? 0) : undefined,
+          note: ov && ov.revenue.this_month == null ? 'chưa có thương vụ thắng' : undefined,
+        },
+        {
+          key: 'customers', label: 'Khách hàng', dot: 'var(--color-app-chart-1)',
+          value: ov ? nf(ov.customers.total) : '—',
+          delta: ov ? deltaOf(ov.customers.new_this_month, ov.customers.new_last_month) : undefined,
+          note: ov && ov.customers.new_this_month === 0 && ov.customers.new_last_month === 0 ? 'chưa có khách mới tháng này' : ov ? 'mới tháng này' : undefined,
+        },
+        {
+          key: 'opps', label: 'Cơ hội đang mở', dot: 'var(--color-app-chart-4)',
+          value: ov ? nf(ov.opportunities.open) : '—',
+          delta: ov ? deltaOf(ov.opportunities.new_this_month, ov.opportunities.new_last_month) : undefined,
+          note: ov && ov.opportunities.new_this_month === 0 && ov.opportunities.new_last_month === 0 ? 'chưa có cơ hội mới' : ov ? 'mới tháng này' : undefined,
+        },
+        {
+          key: 'win', label: 'Tỉ lệ thắng', dot: 'var(--color-app-chart-5)',
+          value: win ? (win.rate === null ? '—' : formatPct(win.rate)) : '—',
+          note: win ? (win.won + win.lost > 0 ? `${nf(win.won)} / ${nf(win.won + win.lost)} thương vụ` : 'chưa có thương vụ đóng') : undefined,
+        },
+        {
+          key: 'overdue', label: 'Việc quá hạn', dot: 'var(--color-app-red)',
+          value: tasks.data ? nf(tasks.data.overdue) : '—',
+          note: tasks.data ? `${nf(tasks.data.due_today)} đến hạn hôm nay` : undefined,
+          tone: tasks.data && tasks.data.overdue > 0 ? 'bad' : 'ok',
+        },
+        reviewItem,
+      ]
+    : [aiItem, reviewItem]
+  const stripLoading = canOverview && (overview.isLoading || tasks.isLoading) && !ov
+  const periodAside = PERIODS.find((p) => p.key === period)?.aside ?? ''
+  const updatedAt = center.dataUpdatedAt || overview.dataUpdatedAt
 
   const summary = homeSummary(timelineState === 'ready' ? doneToday : null, needReview)
 
   return (
-    <div className="flex flex-col gap-5 md:gap-[22px]">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="flex flex-col gap-3 md:gap-3.5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-[24px] font-semibold leading-tight tracking-[-0.01em] text-[var(--foreground)] sm:text-[26px]">
-            {hour === null ? 'Xin chào' : greetingForHour(hour)}{name ? `, ${name}` : ''}
+          <h1 className="flex flex-wrap items-center gap-x-3 text-[20px] font-semibold leading-[26px] tracking-[-0.01em] text-[var(--foreground)]">
+            Trung tâm điều hành
+            {updatedAt > 0 && hour !== null && (
+              <span className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-[var(--color-app-tag-green-ink)]">
+                <i aria-hidden className="block size-2 rounded-full bg-[var(--color-app-green)]" />
+                Cập nhật {formatTimeVn(new Date(updatedAt))}
+              </span>
+            )}
           </h1>
-          <p className="mt-1 text-[15px] text-[var(--color-app-ink-2)]" aria-live="polite">
-            {summary || ' '}
+          <p className="mt-0.5 text-[14px] text-[var(--color-app-ink-2)]" aria-live="polite">
+            {hour === null ? 'Xin chào' : greetingForHour(hour)}{name ? `, ${name}` : ''}. {summary}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {hour !== null && (
-            <span className="text-[14px] text-muted-foreground max-sm:hidden">{formatLongDateVn(new Date())}</span>
+          {hour !== null && <span className="text-[14px] text-muted-foreground max-lg:hidden">{formatLongDateVn(new Date())}</span>}
+          {canOverview && (
+            <div role="group" aria-label="Kỳ xem" className="inline-flex rounded-[9px] border border-[var(--border)] bg-[var(--card)] p-0.5">
+              {PERIODS.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  aria-pressed={period === p.key}
+                  onClick={() => setPeriod(p.key)}
+                  className={`rounded-[7px] px-2.5 py-0.5 text-[14px] font-medium transition max-sm:min-h-11 ${period === p.key ? 'bg-[var(--foreground)] text-[var(--background)]' : 'text-[var(--color-app-ink-2)] hover:bg-[var(--muted)]'}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           )}
           <DashboardReportsButton />
         </div>
       </div>
 
-      {/* AI Native: trợ lý AI đang làm việc + kênh đã kết nối — thứ đầu tiên người dùng thấy. */}
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <AiAssistantsHub
-          state={connState}
-          rows={connRows}
-          showOwner={conns.all}
-          doneToday={aiDisabled || timelineState !== 'ready' ? null : `${nf(doneToday)}${truncated ? '+' : ''} việc`}
-          now={nowMs}
-        />
+      <FacebookNudge unconnected={fbUnconnected} canManage={can('integrations.webhooks')} href={fbOffer?.href ?? FACEBOOK_CONNECT_HREF} />
+
+      <KpiStrip items={items} loading={stripLoading} />
+
+      {canOverview && (
+        <div className="grid items-stretch gap-3 lg:grid-cols-[1fr_1.15fr_1.05fr]">
+          <FunnelCard data={center.data} loading={ccLoading} error={center.isError} aside={periodAside} />
+          <HeatmapCard data={center.data} loading={ccLoading} error={center.isError} />
+          <LeaderboardCard data={center.data} loading={ccLoading} error={center.isError} aside={periodAside} />
+        </div>
+      )}
+
+      <div className={canOverview ? 'grid items-start gap-3 lg:grid-cols-[1fr_1.15fr_1.05fr]' : 'grid items-start gap-3 lg:grid-cols-2'}>
         <ChannelsHub loading={channels.isLoading} error={channels.isError} data={channels.data} />
-      </div>
-
-      <HomeStats items={stats} />
-
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        {canOverview && (
+          <DashboardTasksCard tasks={tasks.data} isLoading={tasks.isLoading} error={tasks.error} onRetry={() => void tasks.refetch()} />
+        )}
         <AiTimelineView
           state={timelineState}
           rows={todayRows}
@@ -196,10 +237,11 @@ export function DashboardHome() {
           canConnect={conns.allowed}
           hasConnections={connRows.length > 0}
         />
-        <div className="flex min-w-0 flex-col gap-4">
-          <NeedsReviewView loading={!reviewReady} items={reviewItems} total={needReview} />
-          {connState === 'ready' && connRows.length > 0 && <AskAiHint />}
-        </div>
+      </div>
+
+      <div className="grid items-start gap-3 lg:grid-cols-2">
+        <NeedsReviewView loading={!reviewReady} items={reviewItems} total={needReview} />
+        {connState === 'ready' && connRows.length > 0 && <AskAiHint />}
       </div>
 
       <FeatureSuggestions />

@@ -3948,6 +3948,8 @@ CREATE INDEX revoked_sessions_user_id_idx ON public.revoked_sessions USING btree
 
 CREATE UNIQUE INDEX roles_name_key ON public.roles USING btree (name);
 
+CREATE UNIQUE INDEX roles_name_lower_key ON public.roles USING btree (lower((name)::text));
+
 CREATE UNIQUE INDEX salary_components_code_key ON public.salary_components USING btree (code);
 
 CREATE INDEX salary_components_component_type_is_active_idx ON public.salary_components USING btree (component_type, is_active);

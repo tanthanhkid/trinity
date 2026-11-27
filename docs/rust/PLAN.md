@@ -1641,6 +1641,15 @@ thực IEEE 754) và 17 chỗ phép toán `Decimal`. Dùng một kiểu duy nh�
    **Đã làm ở M57** (`server/crates/trinity-kernel/src/{number,formula}.rs`): `js_round` ở `number.rs`; bảng 756 ca
    `server/contracts/cases/formula.json` (TS sinh bằng `formula-cases.spec.ts`, Rust chạy ở `tests/formula_cases.rs`). Ngày giờ
    có `T` mà không có múi giờ: TS hiểu theo múi giờ tiến trình Node, Rust hiểu UTC (không nằm trong bảng).
+7. **Đã làm ở M30a** (`server/crates/mod-payroll/src/{calc,formula}.rs`): hàm thuần cho bảo hiểm, thành phần lương, thuế TNCN,
+   phiếu (`buildPayslipData`, `prorateBase`, KPI) và công thức bảng lương; **bảng bước tính nằm ở đầu `calc.rs`**. Bảng ca
+   `server/contracts/cases/payroll.json` do MÃ TS THẬT sinh (`services/payroll/scripts/gen-payroll-cases.mjs` cắt nguyên văn
+   các engine và các hàm của `payslips.service.ts`, bỏ kiểu rồi chạy với Prisma giả; không cần `node_modules`), Rust chạy cùng
+   bảng ở `tests/payroll_cases.rs`: 700 ca bảo hiểm, 800 ca thuế quanh ngưỡng bậc, 400 ca thành phần (x,5 đồng), 100 phiếu mẫu
+   so từng dòng, 7.629 ca tính công thức và 5.074 ca kiểm công thức (văn phạm + ngẫu nhiên) so với `new Function`/`evaluateFormula`.
+   Phát hiện nhờ bảng: `validateFormula` bọc công thức vào `return (…);` nên `1) + (2` hợp lệ; chú thích dòng cuối công thức nuốt
+   `);`; hằng regex ở vị trí toán hạng hợp lệ. Bản Rust của M29 đã sửa theo. Tiền `i64` (tràn ⇒ lỗi), tỷ lệ `f64` đọc từ chuỗi
+   `Decimal`, làm tròn bằng `trinity_kernel::number::js_round`.
 
 ## 11. Thời gian và nguồn lực
 

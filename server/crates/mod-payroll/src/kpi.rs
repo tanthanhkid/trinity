@@ -16,7 +16,9 @@ use trinity_db::pg_error::app_error;
 use trinity_db::types::DecimalJs;
 use trinity_kernel::error::{AppError, HttpError};
 
-use crate::{dec, finish, frange, is_month, js_round, range};
+use trinity_kernel::number::js_round;
+
+use crate::{dec, finish, frange, is_month, range};
 
 const ROLES: [&str; 4] = ["sales", "team_lead", "marketing", "operations"];
 const MONTH_MSG: &str = "month phai dung format YYYY-MM";

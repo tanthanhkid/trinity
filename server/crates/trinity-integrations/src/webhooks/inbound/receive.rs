@@ -309,7 +309,7 @@ async fn load_owner(db: &TenantDb, src: &Source) -> Result<Owner, InboundError> 
             .fetch_optional(&mut *c)
             .await?;
     match u {
-        Some((id, status, team_id, None)) if status == "active" => Ok(Owner { id, team_id }),
+        Some((id, status, team_id, None)) if status == "active" => Ok(Owner { id: Some(id), team_id }),
         _ => {
             tracing::warn!(
                 "Webhook vào source={}: người nhận mặc định {} không còn hoạt động",
@@ -403,7 +403,7 @@ async fn persist(
     };
     // Khách cũ của người KHÁC: chỉ ghi dấu vết ngắn (không `extra`, ghi chú cắt 500) — nguồn ngoài không gieo nội dung dài
     // vào hồ sơ người khác.
-    let foreign = matches!(dup, Some((_, a)) if a != Some(owner.id));
+    let foreign = matches!(dup, Some((_, a)) if a != owner.id);
     let (details, metadata) = activity(src, p, dup.is_some(), foreign);
     sqlx::query(
         "INSERT INTO activities (contact_id, action, details, metadata, created_by) \

@@ -1,0 +1,516 @@
+{
+  "_ghi_chu": "Bảng ca VietQR dùng chung TS và Rust (store/vietqr). Chuỗi mong đợi sinh bằng bản cài Python độc lập, CRC-16/CCITT-FALSE. TS: services/crm/src/store/__tests__/vietqr.spec.ts; Rust: server/crates/mod-store/tests/vietqr_cases.rs.",
+  "crc16": [
+    {
+      "input": "123456789",
+      "crc": "29B1"
+    }
+  ],
+  "samples": [
+    {
+      "bank": "MBBank",
+      "bin": "970422",
+      "account": "0123456789",
+      "amount": 199000,
+      "content": "DH-ABCDEF",
+      "qr": "00020101021238540010A00000072701240006970422011001234567890208QRIBFTTA530370454061990005802VN62130809DH-ABCDEF63046DD8"
+    },
+    {
+      "bank": "Vietcombank",
+      "bin": "970436",
+      "account": "1012345678",
+      "amount": 50000,
+      "content": "DH-2K7QXM",
+      "qr": "00020101021238540010A00000072701240006970436011010123456780208QRIBFTTA53037045405500005802VN62130809DH-2K7QXM63041C73"
+    },
+    {
+      "bank": "VietinBank",
+      "bin": "970415",
+      "account": "108000123456",
+      "amount": 1500000,
+      "content": "DH-PQRSTU",
+      "qr": "00020101021238560010A0000007270126000697041501121080001234560208QRIBFTTA5303704540715000005802VN62130809DH-PQRSTU63042760"
+    },
+    {
+      "bank": "BIDV",
+      "bin": "970418",
+      "account": "21510001234567",
+      "amount": 1000,
+      "content": "DH-AAAAAA",
+      "qr": "00020101021238580010A000000727012800069704180114215100012345670208QRIBFTTA5303704540410005802VN62130809DH-AAAAAA63047980"
+    },
+    {
+      "bank": "Techcombank",
+      "bin": "970407",
+      "account": "19036789012345",
+      "amount": 2500000,
+      "content": "DH-Z9Z9Z9",
+      "qr": "00020101021238580010A000000727012800069704070114190367890123450208QRIBFTTA5303704540725000005802VN62130809DH-Z9Z9Z963049EFE"
+    },
+    {
+      "bank": "ACB",
+      "bin": "970416",
+      "account": "12345678",
+      "amount": 10000000000,
+      "content": "DH-HJKLMN",
+      "qr": "00020101021238520010A000000727012200069704160108123456780208QRIBFTTA53037045411100000000005802VN62130809DH-HJKLMN6304548D"
+    },
+    {
+      "bank": "TPBank",
+      "bin": "970423",
+      "account": "00001234567",
+      "amount": 75500,
+      "content": "DH-BCDEFG",
+      "qr": "00020101021238550010A000000727012500069704230111000012345670208QRIBFTTA53037045405755005802VN62130809DH-BCDEFG63049DEF"
+    },
+    {
+      "bank": "LienVietPostBank",
+      "bin": "970449",
+      "account": "LPB0001234",
+      "amount": 320000,
+      "content": "DH-WXYZ23",
+      "qr": "00020101021238540010A000000727012400069704490110LPB00012340208QRIBFTTA530370454063200005802VN62130809DH-WXYZ23630430F1"
+    },
+    {
+      "bank": "HDBank",
+      "bin": "970437",
+      "account": "068704070001234",
+      "amount": 99000,
+      "content": "DH-456789",
+      "qr": "00020101021238590010A0000007270129000697043701150687040700012340208QRIBFTTA53037045405990005802VN62130809DH-4567896304437B"
+    },
+    {
+      "bank": "Nam A Bank",
+      "bin": "970428",
+      "account": "9999888877776666555",
+      "amount": 123456789,
+      "content": "DH-QWERTY",
+      "qr": "00020101021238630010A00000072701330006970428011999998888777766665550208QRIBFTTA530370454091234567895802VN62130809DH-QWERTY6304D2EA"
+    }
+  ],
+  "banks": [
+    {
+      "bin": "970436",
+      "name": "Vietcombank",
+      "aliases": [
+        "vietcombank",
+        "vcb"
+      ]
+    },
+    {
+      "bin": "970415",
+      "name": "VietinBank",
+      "aliases": [
+        "vietinbank",
+        "icb",
+        "ctg"
+      ]
+    },
+    {
+      "bin": "970418",
+      "name": "BIDV",
+      "aliases": [
+        "bidv"
+      ]
+    },
+    {
+      "bin": "970405",
+      "name": "Agribank",
+      "aliases": [
+        "agribank",
+        "vba"
+      ]
+    },
+    {
+      "bin": "970422",
+      "name": "MBBank",
+      "aliases": [
+        "mbbank",
+        "mb"
+      ]
+    },
+    {
+      "bin": "970407",
+      "name": "Techcombank",
+      "aliases": [
+        "techcombank",
+        "tcb"
+      ]
+    },
+    {
+      "bin": "970416",
+      "name": "ACB",
+      "aliases": [
+        "acb"
+      ]
+    },
+    {
+      "bin": "970432",
+      "name": "VPBank",
+      "aliases": [
+        "vpbank",
+        "vpb"
+      ]
+    },
+    {
+      "bin": "970423",
+      "name": "TPBank",
+      "aliases": [
+        "tpbank",
+        "tpb"
+      ]
+    },
+    {
+      "bin": "970403",
+      "name": "Sacombank",
+      "aliases": [
+        "sacombank",
+        "stb"
+      ]
+    },
+    {
+      "bin": "970437",
+      "name": "HDBank",
+      "aliases": [
+        "hdbank",
+        "hdb"
+      ]
+    },
+    {
+      "bin": "970441",
+      "name": "VIB",
+      "aliases": [
+        "vib"
+      ]
+    },
+    {
+      "bin": "970443",
+      "name": "SHB",
+      "aliases": [
+        "shb"
+      ]
+    },
+    {
+      "bin": "970431",
+      "name": "Eximbank",
+      "aliases": [
+        "eximbank",
+        "eib"
+      ]
+    },
+    {
+      "bin": "970426",
+      "name": "MSB",
+      "aliases": [
+        "msb",
+        "maritimebank"
+      ]
+    },
+    {
+      "bin": "970429",
+      "name": "SCB",
+      "aliases": [
+        "scb"
+      ]
+    },
+    {
+      "bin": "970440",
+      "name": "SeABank",
+      "aliases": [
+        "seabank",
+        "seab"
+      ]
+    },
+    {
+      "bin": "970448",
+      "name": "OCB",
+      "aliases": [
+        "ocb"
+      ]
+    },
+    {
+      "bin": "970449",
+      "name": "LPBank",
+      "aliases": [
+        "lpbank",
+        "lienvietpostbank",
+        "lpb"
+      ]
+    },
+    {
+      "bin": "970428",
+      "name": "Nam A Bank",
+      "aliases": [
+        "namabank",
+        "nab"
+      ]
+    },
+    {
+      "bin": "970412",
+      "name": "PVcomBank",
+      "aliases": [
+        "pvcombank",
+        "pvcb"
+      ]
+    },
+    {
+      "bin": "970409",
+      "name": "Bac A Bank",
+      "aliases": [
+        "bacabank",
+        "bab"
+      ]
+    },
+    {
+      "bin": "970425",
+      "name": "ABBANK",
+      "aliases": [
+        "abbank",
+        "abb"
+      ]
+    },
+    {
+      "bin": "970427",
+      "name": "VietABank",
+      "aliases": [
+        "vietabank",
+        "vab"
+      ]
+    },
+    {
+      "bin": "970419",
+      "name": "NCB",
+      "aliases": [
+        "ncb"
+      ]
+    },
+    {
+      "bin": "970452",
+      "name": "KienlongBank",
+      "aliases": [
+        "kienlongbank",
+        "klb"
+      ]
+    },
+    {
+      "bin": "970454",
+      "name": "BVBank",
+      "aliases": [
+        "bvbank",
+        "vietcapitalbank",
+        "vccb"
+      ]
+    },
+    {
+      "bin": "970433",
+      "name": "VietBank",
+      "aliases": [
+        "vietbank"
+      ]
+    },
+    {
+      "bin": "970438",
+      "name": "BaoViet Bank",
+      "aliases": [
+        "baovietbank",
+        "bvb"
+      ]
+    },
+    {
+      "bin": "970400",
+      "name": "SaigonBank",
+      "aliases": [
+        "saigonbank",
+        "sgicb"
+      ]
+    },
+    {
+      "bin": "970430",
+      "name": "PGBank",
+      "aliases": [
+        "pgbank",
+        "pgb"
+      ]
+    },
+    {
+      "bin": "970408",
+      "name": "GPBank",
+      "aliases": [
+        "gpbank",
+        "gpb"
+      ]
+    },
+    {
+      "bin": "970414",
+      "name": "MBV (OceanBank)",
+      "aliases": [
+        "oceanbank",
+        "mbv"
+      ]
+    },
+    {
+      "bin": "970406",
+      "name": "Vikki Bank (DongA)",
+      "aliases": [
+        "vikki",
+        "vikkibank",
+        "dongabank",
+        "dab"
+      ]
+    },
+    {
+      "bin": "546034",
+      "name": "CAKE",
+      "aliases": [
+        "cake"
+      ]
+    },
+    {
+      "bin": "546035",
+      "name": "Ubank",
+      "aliases": [
+        "ubank"
+      ]
+    },
+    {
+      "bin": "963388",
+      "name": "Timo",
+      "aliases": [
+        "timo"
+      ]
+    },
+    {
+      "bin": "970457",
+      "name": "Woori",
+      "aliases": [
+        "woori",
+        "wvn"
+      ]
+    },
+    {
+      "bin": "970424",
+      "name": "Shinhan Bank",
+      "aliases": [
+        "shinhanbank",
+        "shinhan",
+        "shbvn"
+      ]
+    },
+    {
+      "bin": "970458",
+      "name": "UOB",
+      "aliases": [
+        "uob",
+        "unitedoverseas"
+      ]
+    },
+    {
+      "bin": "970439",
+      "name": "Public Bank",
+      "aliases": [
+        "publicbank",
+        "pbvn"
+      ]
+    },
+    {
+      "bin": "458761",
+      "name": "HSBC",
+      "aliases": [
+        "hsbc"
+      ]
+    },
+    {
+      "bin": "970434",
+      "name": "Indovina",
+      "aliases": [
+        "indovinabank",
+        "ivb"
+      ]
+    },
+    {
+      "bin": "970421",
+      "name": "VRB",
+      "aliases": [
+        "vrb"
+      ]
+    },
+    {
+      "bin": "970410",
+      "name": "Standard Chartered",
+      "aliases": [
+        "standardchartered",
+        "scvn"
+      ]
+    }
+  ],
+  "content": [
+    {
+      "input": "Đơn hàng #12 — ổn!",
+      "output": "Don hang 12 on"
+    },
+    {
+      "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "output": "xxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    {
+      "input": "  DH-ABC  def  ",
+      "output": "DH-ABC def"
+    }
+  ],
+  "find_bank": [
+    {
+      "input": " mb bank ",
+      "bin": "970422"
+    },
+    {
+      "input": "VCB",
+      "bin": "970436"
+    },
+    {
+      "input": "970437",
+      "bin": "970437"
+    },
+    {
+      "input": "NganHangKhongCo",
+      "bin": null
+    },
+    {
+      "input": "123456",
+      "bin": null
+    },
+    {
+      "input": "",
+      "bin": null
+    }
+  ],
+  "errors": [
+    {
+      "bin": "97042",
+      "account": "0123456789",
+      "amount": 1000,
+      "content": "a",
+      "error": "BIN"
+    },
+    {
+      "bin": "970422",
+      "account": "01-23",
+      "amount": 1000,
+      "content": "a",
+      "error": "tài khoản"
+    },
+    {
+      "bin": "970422",
+      "account": "0123456789",
+      "amount": 0,
+      "content": "a",
+      "error": "Số tiền"
+    },
+    {
+      "bin": "970422",
+      "account": "0123456789",
+      "amount": 1.5,
+      "content": "a",
+      "error": "Số tiền"
+    }
+  ]
+}

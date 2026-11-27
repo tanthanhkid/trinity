@@ -23,7 +23,8 @@ pub struct ThirdPartyContact<'a> {
 /// Người sở hữu khách mới.
 #[derive(Debug, Clone, Copy)]
 pub struct Owner {
-    pub id: i32,
+    /// `None` = khách chưa có người phụ trách (người cấu hình không còn tồn tại).
+    pub id: Option<i32>,
     pub team_id: Option<i32>,
 }
 

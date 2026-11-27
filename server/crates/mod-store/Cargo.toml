@@ -1,0 +1,29 @@
+[package]
+name = "mod-store"
+description = "Trang bán hàng (M56): cấu hình, trang công khai, đặt đơn COD hoặc chuyển khoản bằng QR VietQR tĩnh, đơn và trạng thái, giữ chỗ địa chỉ cửa hàng."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+getrandom = { workspace = true }
+http = { workspace = true }
+mod-contacts = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tracing = { workspace = true }
+trinity-db = { workspace = true }
+trinity-http = { workspace = true }
+trinity-kernel = { workspace = true }
+trinity-rbac = { workspace = true }
+unicode-normalization = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[lints]
+workspace = true

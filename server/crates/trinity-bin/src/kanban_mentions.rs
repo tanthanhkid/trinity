@@ -2,14 +2,54 @@
 //! mô tả thẻ (`description`) và bình luận (`comment:<id>`) ghi cạnh nguồn `task` → bản ghi được nhắc mà NGƯỜI GHI thấy được.
 //! Router Kanban gọi sau khi ghi thành công, NGOÀI giao dịch ghi thẻ; lỗi chỉ ghi log (`mod_custom::refs::sync_mentions`).
 //!
-//! Chưa có router Kanban trên `main` (nhánh `feat/x-router-kanban`): khi nhánh đó vào, gọi
-//! `sync_on_create` sau `cards::create`, `sync_on_update` sau `cards::update`, `sync_comment` sau `activities::add_comment`.
-
-// Chưa có nơi gọi cho tới khi router Kanban được mount.
-#![allow(dead_code)]
+//! `mod-kanban` không phụ thuộc `mod-custom`, nên router phát [`MentionEvent`] qua cổng [`MentionSink`] (`Ctx::mentions`) và
+//! [`Sink`] ở đây nối vào `sync_on_create` / `sync_on_update` / `sync_comment`.
 
 use mod_custom::refs::{Ref, RefType};
 use mod_custom::{Actor, Ctx};
+use mod_kanban::http::{MentionEvent, MentionSink};
+use trinity_db::CompanyRef;
+use trinity_http::router::CurrentUser;
+
+/// Cài đặt [`MentionSink`] cho router Kanban.
+pub(crate) struct Sink {
+    pub(crate) ctx: Ctx,
+}
+
+/// Người gọi cho `mod-custom`; công ty token hỏng ⇒ `None` (bỏ qua, router đã trả 401 ở bước ghi).
+fn actor_of(u: &CurrentUser) -> Option<Actor> {
+    Some(Actor {
+        user_id: u.user.user_id,
+        company: CompanyRef::new(i64::from(u.user.company_id)).ok()?,
+        grants: u.grants.grants.clone(),
+        is_admin: u.grants.is_admin,
+    })
+}
+
+impl MentionSink for Sink {
+    fn notify<'a>(
+        &'a self,
+        user: &'a CurrentUser,
+        event: MentionEvent<'a>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'a>> {
+        Box::pin(async move {
+            let Some(actor) = actor_of(user) else { return };
+            match event {
+                MentionEvent::CardCreated { card_id, description } => {
+                    sync_on_create(&self.ctx, &actor, card_id, description).await
+                }
+                MentionEvent::CardUpdated { card_id, description } => {
+                    sync_on_update(&self.ctx, &actor, card_id, description).await
+                }
+                MentionEvent::Comment {
+                    card_id,
+                    activity_id,
+                    content,
+                } => sync_comment(&self.ctx, &actor, card_id, activity_id, content).await,
+            }
+        })
+    }
+}
 
 fn card(id: i32) -> Ref {
     Ref { ty: RefType::Task, id }

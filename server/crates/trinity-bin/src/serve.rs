@@ -289,26 +289,23 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     };
     let channel_vars = env.clone();
     let channel_env: mod_facebook::config::Env = Arc::new(move |k: &str| channel_vars.get(k).cloned());
-    app = mount(
-        app,
-        mod_facebook::routes::api_router(deps.clone()),
-        Arc::new(mod_facebook::routes::FacebookState::new(
-            db.clone(),
-            platform.clone(),
-            channel_env.clone(),
-            ScopeService::new(db.clone(), cache.clone()),
-            guard.clone(),
-            features.clone(),
-        )),
-    );
+    let fb_state = Arc::new(mod_facebook::routes::FacebookState::new(
+        db.clone(),
+        platform.clone(),
+        channel_env.clone(),
+        ScopeService::new(db.clone(), cache.clone()),
+        guard.clone(),
+        features.clone(),
+    ));
+    app = mount(app, mod_facebook::routes::api_router(deps.clone()), fb_state.clone());
     app = mount(
         app,
         mod_zalo::routes::api_router(deps.clone()),
         Arc::new(mod_zalo::routes::ZaloState::new(
             db.clone(),
             platform.clone(),
-            channel_env,
-            guard,
+            channel_env.clone(),
+            guard.clone(),
         )),
     );
 
@@ -346,6 +343,16 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     });
     app = mount(app, mod_oauth::api_router(deps.clone()), oauth.clone());
 
+    // Đăng nhập (M01) và API key (M05): chung một AuthService (chung bộ giới hạn tốc độ đăng nhập).
+    let auth_cfg = mod_auth::AuthConfig::from_lookup(lookup).ok_or_else(|| "thiếu JWT_SECRET".to_owned())?;
+    let auth_svc = Arc::new(mod_auth::AuthService::new(
+        db.clone(),
+        platform.clone(),
+        security.clone(),
+        mod_auth::PermGrants(perms.clone()),
+        LocalUploadsStore::new(uploads_root.clone()),
+        auth_cfg,
+    ));
     let mcp_limits = Arc::new(mod_mcp::limits::McpLimits::with_untrusted_peer(
         oauth.limits.untrusted_peer.clone(),
     ));
@@ -353,6 +360,23 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     let mut registry = mod_mcp::ToolRegistry::new();
     mod_mcp::register_group1(&mut registry);
     mod_mcp::register_group3(&mut registry);
+    // M44c: hộp thư và lời mời. Facebook dùng bản `FacebookIngest` riêng (cùng `GraphClient`, chỉ khác bộ nhớ chống đồng bộ dồn).
+    mod_mcp::register_inbox_invitations(
+        &mut registry,
+        Arc::new(mod_mcp::InboxDeps {
+            features: features.clone(),
+            facebook: Arc::new(mod_facebook::ingest::FacebookIngest::new(
+                db.clone(),
+                channel_env.clone(),
+                fb_state.graph_for.clone(),
+            )),
+            guard: guard.clone(),
+            zalo_client: mod_zalo::client::ZaloClient::new(channel_env.clone()),
+            zalo_env: channel_env.clone(),
+            platform: platform.clone(),
+        }),
+        Arc::new(mod_mcp::AuthInvitations(auth_svc.clone())),
+    );
     let tool_scopes = ScopeService::new(db.clone(), cache.clone());
     let tool_deps = Arc::new(mod_mcp::deps::ToolDeps {
         db: db.clone(),
@@ -437,16 +461,6 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             socket: payroll_socket.clone(),
         }),
     );
-    // Đăng nhập (M01) và API key (M05): chung một AuthService (chung bộ giới hạn tốc độ đăng nhập).
-    let auth_cfg = mod_auth::AuthConfig::from_lookup(lookup).ok_or_else(|| "thiếu JWT_SECRET".to_owned())?;
-    let auth_svc = Arc::new(mod_auth::AuthService::new(
-        db.clone(),
-        platform.clone(),
-        security.clone(),
-        mod_auth::PermGrants(perms.clone()),
-        LocalUploadsStore::new(uploads_root.clone()),
-        auth_cfg,
-    ));
     app = mount(
         app,
         mod_auth::api_router(deps.clone()),

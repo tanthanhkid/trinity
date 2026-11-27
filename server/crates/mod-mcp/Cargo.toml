@@ -13,6 +13,8 @@ axum = { workspace = true }
 chrono = { workspace = true }
 http = { workspace = true }
 jsonschema = { workspace = true }
+mod-auth = { workspace = true }
+mod-channel-guard = { workspace = true }
 mod-contacts = { workspace = true }
 mod-custom = { workspace = true }
 mod-deals = { workspace = true }
@@ -23,6 +25,7 @@ mod-reports = { workspace = true }
 mod-settings = { workspace = true }
 mod-setup = { workspace = true }
 mod-social = { workspace = true }
+mod-zalo = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

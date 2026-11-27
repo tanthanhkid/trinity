@@ -503,7 +503,19 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     );
     let scheduler = trinity_jobs::Scheduler::new(&db, &platform, (*table.current()).clone(), &node_id);
     let queue = trinity_jobs::Queue::new(&db, &node_id);
-    let worker = trinity_jobs::Worker::new(&queue, trinity_jobs::WorkerConfig::default());
+    let mut worker = trinity_jobs::Worker::new(&queue, trinity_jobs::WorkerConfig::default());
+    // X15b: xuất tệp dài chạy nền (`/api/v1/exports`, loại việc `export.run`). Bảng sở hữu cần tiền tố này thuộc Rust.
+    mod_exports::worker::register(&mut worker, &db);
+    app = mount(
+        app,
+        mod_exports::routes::api_router(deps.clone()),
+        Arc::new(mod_exports::routes::Ctx {
+            db: db.clone(),
+            scopes: ScopeService::new(db.clone(), cache.clone()),
+            queue: queue.clone(),
+            store: mod_exports::store::Store::new(&db),
+        }),
+    );
     {
         let (s, rx) = (scheduler.clone(), stop_rx.clone());
         tokio::spawn(async move {

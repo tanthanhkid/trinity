@@ -4,7 +4,7 @@
 //! giao diện. Bộ lọc không bao giờ ghi đè điều kiện phạm vi.
 
 use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, Utc};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
 use trinity_kernel::error::AppError;
 use trinity_kernel::vi::{SQL_FOLD_FROM, SQL_FOLD_TO, fold_contains, trim_js};
@@ -14,7 +14,7 @@ use trinity_rbac::{OwnerIds, push_scope};
 use crate::{MIN_MASKED_PHONE_SEARCH_DIGITS, Scopes, db};
 
 /// Bộ lọc của danh sách (đã qua K15). Số `0` coi như không lọc (như `if (filters.source_id)` của TS).
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct ContactFilters {
     #[serde(default)]
     pub source_id: Option<i32>,

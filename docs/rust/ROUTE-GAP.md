@@ -9,11 +9,10 @@ Là phép đếm tĩnh: dòng nào còn nghi thì để `cargo xtask check-route
 
 - 583 route trong hợp đồng; **582 đã khai và mount**. Thiếu **0** route cần viết.
 - 1 route cố ý không port: `POST /api/v1/social/media/upload-token` (SocialController) — đã gỡ cùng Vercel Blob (G11).
-  Còn nằm trong `routes.json`; `check-routes --require-all` sẽ báo thiếu cho tới khi bỏ khỏi hợp đồng hoặc đánh dấu bỏ.
-- Chốt bằng máy (27/11, `cargo xtask check-routes --require-all`): **đã khai 560/571 route, 11 lỗi** — 10 route nhóm `rbac-admin`
-  (`/roles*`, `/rbac/catalog`, `/rbac/audit`: mount riêng trong serve.rs, chưa vào `declared_routes` nên xtask báo "chưa khai")
-  + `POST /social/media/upload-token` (cố ý bỏ). Phép đếm tĩnh 582/583 ở trên và số 560/571 chênh nhau vì xtask chỉ đếm route khai qua
-  `declared_routes`; việc còn lại: đưa nhóm rbac-admin vào `declared_routes` hoặc đánh dấu bỏ upload-token để `--require-all` xanh.
+  Còn nằm trong `routes.json` nhưng đã đánh dấu bỏ ở `RUST_REMOVED_ROUTES`.
+- Chốt bằng máy (27/11, sau sửa): `cargo xtask check-routes --require-all` **đã khai 570/570 route, 0 lỗi**. Nhóm `rbac-admin` đã vào
+  `declared_routes` (bỏ `PUT /users/:id/roles` vì mod-users đã khai); `POST /social/media/upload-token` nằm trong
+  `RUST_REMOVED_ROUTES` (`trinity-http/src/router/check.rs`): không tính vào tổng, không báo thiếu, Rust khai lại thì lỗi.
 - Số 155/571 thiếu của lần 1 đã hết: #504–#541 phủ social, facebook, webhooks/tích hợp, HR, retired, newsfeed, notify,
   briefings, payroll, chấm công…
 - Route Rust không có trong hợp đồng (cố ý): `/api/v1/exports*` (mod-exports) và nhóm `rbac-admin` khai riêng.

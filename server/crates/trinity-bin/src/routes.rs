@@ -48,7 +48,13 @@ pub fn declared_routes() -> Vec<RouteSpec> {
     v.extend(mod_public_api::specs());
     v.extend(trinity_integrations::routes::specs());
     v.extend(mod_notify::routes::specs());
-    // Đã mount ở serve nhưng trước đây chưa khai: cài đặt (RBAC admin khai riêng vì `PUT /users/:id/roles` trùng mod-users).
+    // Đã mount ở serve nhưng trước đây chưa khai: cài đặt và RBAC admin. `PUT /users/:id/roles` của RBAC admin đã khai ở
+    // mod-users (cùng route, cùng quyền `users.manage`), bỏ ra để không báo "khai hai lần".
+    v.extend(
+        mod_rbac_admin::routes::routes()
+            .into_iter()
+            .filter(|s| !(s.method.as_str() == "PUT" && s.path == "/api/v1/users/:id/roles")),
+    );
     v.extend(mod_settings::routes::routes());
     v.extend(mod_newsfeed::routes::specs());
     v

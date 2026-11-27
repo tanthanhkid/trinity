@@ -29,6 +29,11 @@ pub const RUST_ONLY_AUTHED_ROUTES: &[&str] = &[
 ];
 
 /// Hợp đồng nhúng trong binary.
+/// Route Node đã gỡ có chủ đích khỏi bản Rust nhưng còn trong `routes.json` (hợp đồng đóng băng). Không tính vào "chưa khai"
+/// của `--require-all` và không tính vào tổng route phải khai; Rust mà khai lại thì là lỗi.
+/// - `POST /social/media/upload-token`: gỡ cùng Vercel Blob (G11); thay bằng tải theo phần `/social/media/uploads*`.
+pub const RUST_REMOVED_ROUTES: &[&str] = &["POST /api/v1/social/media/upload-token"];
+
 pub const CONTRACT: &str = include_str!("../../../../contracts/routes.json");
 
 #[derive(Debug, Default)]
@@ -123,8 +128,8 @@ pub fn check(table: &[RouteSpec], contract: &Value, require_all: bool) -> Report
         })
         .collect();
     rep.contract_total = by_key
-        .values()
-        .filter(|r| r["deprecated"].as_bool() != Some(true))
+        .iter()
+        .filter(|(k, r)| r["deprecated"].as_bool() != Some(true) && !RUST_REMOVED_ROUTES.contains(&k.as_str()))
         .count();
 
     let mut declared = BTreeSet::new();
@@ -132,6 +137,12 @@ pub fn check(table: &[RouteSpec], contract: &Value, require_all: bool) -> Report
         let k = key(spec.method.as_str(), spec.path);
         if !declared.insert(k.clone()) {
             rep.problems.push(format!("{k}: khai hai lần"));
+            continue;
+        }
+        if RUST_REMOVED_ROUTES.contains(&k.as_str()) {
+            rep.problems.push(format!(
+                "{k}: route đã gỡ có chủ đích (RUST_REMOVED_ROUTES), Rust không được khai"
+            ));
             continue;
         }
         let Some(row) = by_key.get(&k) else {
@@ -224,7 +235,11 @@ pub fn check(table: &[RouteSpec], contract: &Value, require_all: bool) -> Report
     }
     rep.missing = by_key
         .iter()
-        .filter(|(k, r)| !declared.contains(*k) && r["deprecated"].as_bool() != Some(true))
+        .filter(|(k, r)| {
+            !declared.contains(*k)
+                && r["deprecated"].as_bool() != Some(true)
+                && !RUST_REMOVED_ROUTES.contains(&k.as_str())
+        })
         .map(|(k, _)| k.clone())
         .collect();
     if require_all {

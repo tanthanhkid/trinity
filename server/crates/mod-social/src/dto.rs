@@ -315,6 +315,49 @@ pub fn parse_reschedule(v: &Value) -> Result<String, HttpError> {
     }
 }
 
+/// Body `POST /social/drafts/:id/publish` (`SocialDraftPublishDto`), cả ba trường đều tuỳ chọn.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct DraftPublish {
+    /// `None` = không gửi (giữ giờ của nháp); `Some(None)` = `null` (đăng ngay); `Some(Some(s))` = giờ hẹn ISO 8601.
+    pub scheduled_at: Option<Option<String>>,
+    /// `updated_at` của nháp người dùng đang xem; nháp đã đổi sau đó ⇒ 409.
+    pub expected_updated_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// Đặt vào khung trống gần nhất của hàng đợi (thay cho giờ hẹn).
+    pub use_queue: bool,
+}
+
+/// `SocialDraftPublishDto`: `@IsOptional() @IsISO8601()` (vắng hoặc `null` thì bỏ qua luật), `@IsBoolean()`; trường lạ ⇒ 400.
+pub fn parse_draft_publish(v: &Value) -> Result<DraftPublish, HttpError> {
+    let empty = Map::new();
+    let obj = v.as_object().unwrap_or(&empty);
+    let mut errs: Vec<String> = Vec::new();
+    unknown_keys(obj, "scheduled_at expected_updated_at use_queue", "", &mut errs);
+    let mut out = DraftPublish::default();
+    match obj.get("scheduled_at") {
+        None => {}
+        Some(Value::Null) => out.scheduled_at = Some(None),
+        Some(Value::String(s)) if parse_instant_with(s, 0).is_some() => out.scheduled_at = Some(Some(s.clone())),
+        Some(_) => errs.push(M_ISO.to_owned()),
+    }
+    match given(obj, "expected_updated_at") {
+        None => {}
+        Some(Value::String(s)) if parse_instant_with(s, 0).is_some() => {
+            out.expected_updated_at = parse_instant_with(s, 0);
+        }
+        Some(_) => errs.push("expected_updated_at phải là ISO 8601".to_owned()),
+    }
+    match given(obj, "use_queue") {
+        None => {}
+        Some(Value::Bool(b)) => out.use_queue = *b,
+        Some(_) => errs.push(M_QUEUE_BOOL.to_owned()),
+    }
+    if errs.is_empty() {
+        Ok(out)
+    } else {
+        Err(HttpError::validation(errs))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -448,5 +491,27 @@ mod tests {
         }
         let m = messages(parse_reschedule(&json!({"scheduled_at": "2026-12-01", "y": 1})).unwrap_err());
         assert_eq!(m, ["property y should not exist"]);
+    }
+
+    #[test]
+    fn dang_nhap_kiem_body() {
+        let d = parse_draft_publish(&json!({})).unwrap();
+        assert_eq!(d, DraftPublish::default());
+        let d = parse_draft_publish(&json!({"scheduled_at": null, "use_queue": true})).unwrap();
+        assert_eq!((d.scheduled_at, d.use_queue), (Some(None), true));
+        let d = parse_draft_publish(&json!({"scheduled_at": "2030-01-02T03:04:05Z"})).unwrap();
+        assert_eq!(d.scheduled_at, Some(Some("2030-01-02T03:04:05Z".to_owned())));
+        let d = parse_draft_publish(&json!({"expected_updated_at": "2030-01-02T03:04:05.000Z"})).unwrap();
+        assert!(d.expected_updated_at.is_some());
+        // `null` ở trường tuỳ chọn khác bị bỏ qua như `@IsOptional()`.
+        assert!(parse_draft_publish(&json!({"expected_updated_at": null, "use_queue": null})).is_ok());
+        let m = messages(
+            parse_draft_publish(&json!({"scheduled_at": "x", "expected_updated_at": 5, "use_queue": 1, "z": 1}))
+                .unwrap_err(),
+        );
+        assert_eq!(m[0], "property z should not exist");
+        assert!(m.contains(&"scheduled_at phải là ISO 8601".to_owned()));
+        assert!(m.contains(&"expected_updated_at phải là ISO 8601".to_owned()));
+        assert!(m.contains(&"use_queue must be a boolean value".to_owned()));
     }
 }

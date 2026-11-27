@@ -20,6 +20,7 @@ use axum::http::Uri;
 use axum::middleware::{from_fn, from_fn_with_state};
 use axum::response::Response;
 use clap::Args;
+use mod_social::media::MediaStore;
 use trinity_auth::{Authenticator, Security};
 use trinity_db::platform::Platform;
 use trinity_db::{Db, DbConfig};
@@ -36,7 +37,7 @@ use trinity_kernel::config::{Config, TlsMode, process_env};
 use trinity_kernel::error::HttpError;
 use trinity_kernel::ownership::Ownership;
 use trinity_rbac::{PermissionService, RbacCache, ScopeService};
-use trinity_storage::{LocalDiskDriver, LocalUploadsStore};
+use trinity_storage::{LocalDiskDriver, LocalUploadsStore, S3Config, S3Driver};
 
 #[derive(Debug, Args)]
 pub struct ServeArgs {
@@ -123,6 +124,31 @@ fn uri_of(raw: &str, what: &str) -> Result<Uri, String> {
     raw.trim()
         .parse::<Uri>()
         .map_err(|e| format!("{what}={raw} không phải URL hợp lệ: {e}"))
+}
+
+/// Kho tệp của đăng đa kênh theo `STORAGE_DRIVER` (như `StorageService` của Node): `s3` dùng MinIO/S3 (`MINIO_*`; endpoint và
+/// vùng có mặc định như Node), còn lại là thư mục uploads. Lấy tên khoá `social/...` ở cả hai nơi.
+async fn social_store(env: &BTreeMap<String, String>, uploads_root: &std::path::Path) -> Result<MediaStore, String> {
+    let s3 = env
+        .get("STORAGE_DRIVER")
+        .is_some_and(|v| v.trim().eq_ignore_ascii_case("s3"));
+    if !s3 {
+        return Ok(MediaStore::Local(LocalDiskDriver::new(uploads_root.to_path_buf())));
+    }
+    let get = |k: &str| {
+        env.get(k).cloned().or_else(|| match k {
+            "MINIO_ENDPOINT" => Some("http://127.0.0.1:9000".to_owned()),
+            "MINIO_REGION" => Some("ap-southeast-1".to_owned()),
+            _ => None,
+        })
+    };
+    let cfg = S3Config::from_env(get).map_err(|e| e.to_string())?;
+    let driver = S3Driver::new(&cfg).map_err(|e| format!("kho tệp S3 của đăng đa kênh: {e}"))?;
+    // Như Node: kho S3 chưa sẵn sàng chỉ cảnh báo, không chặn khởi động.
+    if let Err(e) = driver.init().await {
+        tracing::warn!("kho tệp S3 của đăng đa kênh chưa sẵn sàng: {e}");
+    }
+    Ok(MediaStore::S3(driver))
 }
 
 async fn serve(args: ServeArgs) -> Result<(), String> {
@@ -353,15 +379,27 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         )),
     );
 
-    // Đăng đa kênh (M53a/b, M54a, M55a, X15a): kho tệp là thư mục uploads (khoá `social/...`; S3 chưa nối ở đây), Graph theo công ty
-    // dùng chung bộ dựng của Facebook. Route M55b (import CSV, bài lặp) đi qua `PostsAdapter` của M54b.
+    // Đăng đa kênh (M53a/b, M54a, M55a, X15a): kho tệp theo `STORAGE_DRIVER` (mặc định thư mục uploads, khoá `social/...`; `s3` dùng
+    // MinIO/S3), Graph theo công ty dùng chung bộ dựng của Facebook. Route M55b (import CSV, bài lặp) đi qua `PostsAdapter` của
+    // M54b. `Runner` của M54b dùng chung cho `tick`, `posts/sync` và (đăng ký ở khối scheduler bên dưới) hai job `social.*`.
+    let social_runner = mod_social::jobs::Runner::new(mod_social::jobs::JobDeps {
+        db: db.clone(),
+        platform: platform.clone(),
+        env: channel_env.clone(),
+        store: Arc::new(social_store(&env, &uploads_root).await?),
+        guard: guard.clone(),
+        graph_for: fb_state.graph_for.clone(),
+        before_publish: None,
+        owns_publish: None,
+    });
     let social_state = Arc::new(mod_social::router::SocialState {
         db: db.clone(),
         platform: platform.clone(),
         env: channel_env.clone(),
         graph_for: fb_state.graph_for.clone(),
         guard: guard.clone(),
-        store: mod_social::media::MediaStore::Local(LocalDiskDriver::new(uploads_root.clone())),
+        store: social_store(&env, &uploads_root).await?,
+        runner: social_runner.clone(),
     });
     app = mount(app, mod_social::router::api_router(deps.clone()), social_state);
 
@@ -637,6 +675,12 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     );
     // M50b: job `facebook.flows` (60 giây): gửi tiếp bước kịch bản đã tới giờ, kể cả lượt hẹn lại khi kênh tạm dừng.
     scheduler.register(mod_facebook::flows::flows_job(fb_state.ingest.clone()).map_err(|e| e.to_string())?);
+    // M54b: job `social.publish` (60 giây) và `social.metrics` (15 phút); chủ job do bảng sở hữu quyết định, API điều khiển test
+    // bật thì không đăng ký.
+    match mod_social::jobs::register(&scheduler, &social_runner, lookup) {
+        Ok(names) => tracing::info!("đã đăng ký job {names:?}"),
+        Err(e) => tracing::warn!("không đăng ký được job đăng đa kênh: {e}"),
+    }
     let queue = trinity_jobs::Queue::new(&db, &node_id);
     let mut worker = trinity_jobs::Worker::new(&queue, trinity_jobs::WorkerConfig::default());
     // X15b: xuất tệp dài chạy nền (`/api/v1/exports`, loại việc `export.run`). Bảng sở hữu cần tiền tố này thuộc Rust.

@@ -814,3 +814,138 @@ async fn tinh_phieu_tu_cau_hinh_db() {
     assert_eq!(kpi_achieved_count(&mut c, eid, "2099-03").await.unwrap(), 2);
     clean(&mut c).await;
 }
+
+/// M30b: tạo, tính, sửa, duyệt hai bước (thông báo ghi cùng giao dịch), loại và khôi phục phiếu lương; hồ sơ nhân viên.
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn phieu_luong_tao_sua_duyet_loai() {
+    use mod_payroll::employees::{self, CreateEmployee, UpdateEmployee};
+    use mod_payroll::payslips::{
+        self, AddToPeriodInput, ApproveInput, Approver, GenerateInput, QueryPayslips, UpdatePayslip,
+    };
+    let _g = serial().lock().await;
+    let url = std::env::var("TEST_DATABASE_URL").expect("test pg cần TEST_DATABASE_URL");
+    let mut cfg = DbConfig::new(url);
+    cfg.pool_size = 2;
+    let db = Db::connect(&cfg).await.expect("nối DB");
+    let tenant = db.tenant(CompanyRef::DEFAULT).await.expect("tenant");
+    let mut c = tenant.acquire().await.expect("acquire");
+    exec(&mut c, "DELETE FROM payslips WHERE month = '2099-05'").await;
+    clean(&mut c).await;
+    let (u1, e1) = employee(&mut c, "p1", "sales").await;
+    let (u2, _) = employee(&mut c, "p2", "sales").await;
+
+    // Hồ sơ nhân viên: trùng user ⇒ 409; `null` ở cột bắt buộc không qua được serde.
+    let dup: CreateEmployee =
+        from(serde_json::json!({"user_id": u1, "position": "sales", "salary_rule_id": 1, "joined_at": "2026-01-15"}));
+    assert_eq!(status(employees::create(&mut c, &dup).await.unwrap_err()).0, 409);
+    let upd: UpdateEmployee = from(serde_json::json!({"department": "KD", "status": "resigned"}));
+    let brief = employees::update(&mut c, e1, &upd).await.unwrap();
+    assert_eq!(
+        (brief.department.as_deref(), brief.status.as_str()),
+        (Some("KD"), "resigned")
+    );
+    let back: UpdateEmployee = from(serde_json::json!({"status": "active"}));
+    employees::update(&mut c, e1, &back).await.unwrap();
+    let detail = employees::find_by_id(&mut c, e1, None).await.unwrap();
+    assert_eq!(detail["status"], "active");
+    assert_eq!(
+        status(employees::find_by_id(&mut c, e1, Some(&[u2])).await.unwrap_err()).0,
+        404
+    );
+
+    // Tạo phiếu: nhân viên active được tính; chạy lại giữ nháp.
+    let g: GenerateInput = from(serde_json::json!({"month": "2099-05", "employee_ids": [e1]}));
+    assert_eq!(payslips::generate(&mut c, &g).await.unwrap().generated, 1);
+    let q = QueryPayslips {
+        month: "2099-05".into(),
+        team_id: None,
+        status: None,
+    };
+    let list = payslips::find_all(&mut c, &q, None).await.unwrap();
+    let id = i32::try_from(list[0]["id"].as_i64().unwrap()).unwrap();
+    assert_eq!(list[0]["status"], "draft");
+    assert_eq!(payslips::find_all(&mut c, &q, Some(&[u2])).await.unwrap().len(), 0);
+    let patch: UpdatePayslip =
+        from(serde_json::json!({"base_salary": "10000000", "working_days": null, "advances": "100000"}));
+    let p = payslips::update(&mut c, id, &patch, None).await.unwrap();
+    assert_eq!(
+        (p["base_salary"].as_str(), p["advances"].as_str()),
+        (Some("10000000"), Some("100000"))
+    );
+    assert_eq!(payslips::find_mine(&mut c, u1, Some("2099-05")).await.unwrap().len(), 1);
+
+    // Loại khỏi kỳ rồi thêm lại.
+    let r = payslips::remove_from_period(&mut c, id, u2, false).await.unwrap();
+    assert_eq!(r["employee_id"], e1);
+    assert_eq!(status(payslips::find_by_id(&mut c, id, None).await.unwrap_err()).0, 404);
+    let again = payslips::add_to_period(
+        &mut c,
+        &AddToPeriodInput {
+            month: "2099-05".into(),
+            employee_id: i64::from(e1),
+        },
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(again["id"], id);
+    drop(c);
+
+    // Duyệt: bước 1 rồi bước 2 (thông báo cho chủ phiếu); tự duyệt ⇒ 403.
+    let mut tx = tenant.begin().await.expect("begin");
+    let ap = |user, team, fin| Approver {
+        user_id: user,
+        can_team: team,
+        can_final: fin,
+        team_scope: None,
+    };
+    let act = ApproveInput {
+        action: "approve".into(),
+        notes: None,
+    };
+    assert_eq!(
+        status(
+            payslips::approve(&mut tx, id, &act, &ap(u1, true, true))
+                .await
+                .unwrap_err()
+        )
+        .0,
+        403
+    );
+    let s1 = payslips::approve(&mut tx, id, &act, &ap(u2, true, false))
+        .await
+        .unwrap();
+    assert_eq!(s1.status, "pending_accountant");
+    assert_eq!(
+        status(
+            payslips::approve(&mut tx, id, &act, &ap(u2, true, false))
+                .await
+                .unwrap_err()
+        )
+        .0,
+        403
+    );
+    let s2 = payslips::approve(&mut tx, id, &act, &ap(u2, false, true))
+        .await
+        .unwrap();
+    assert_eq!(
+        (s2.status.as_str(), s2.notifications.len(), s2.notify_error.is_none()),
+        ("approved", 1, true)
+    );
+    assert_eq!(s2.notifications[0].recipient_id, u1);
+    assert_eq!(
+        status(
+            payslips::approve(&mut tx, id, &act, &ap(u2, true, true))
+                .await
+                .unwrap_err()
+        )
+        .0,
+        409
+    );
+    tx.rollback().await.expect("rollback");
+
+    let mut c = tenant.acquire().await.expect("acquire");
+    exec(&mut c, "DELETE FROM payslips WHERE month = '2099-05'").await;
+    clean(&mut c).await;
+}

@@ -1,6 +1,6 @@
 //! Module lương (M29): cấu hình thành phần lương, bảo hiểm, thuế TNCN, bảng lương theo vị trí và KPI, chuyển từ
-//! `services/payroll` (`salary-components`, `insurance`, `tax`, `salary-rules`, `kpi`). Phiếu lương, nhân viên lương và
-//! báo cáo thuộc M30b/M31. Bộ tính lương và thuế (hàm thuần, M30a) ở [`calc`]; công thức ở [`formula`].
+//! `services/payroll` (`salary-components`, `insurance`, `tax`, `salary-rules`, `kpi`). Phiếu lương và nhân viên lương (13 route, M30b) ở [`payslips`] và [`employees`];
+//! xuất/nhập tệp, PDF và báo cáo thuộc M31. Bộ tính lương và thuế (hàm thuần, M30a) ở [`calc`]; công thức ở [`formula`].
 //!
 //! Mỗi hàm nhận `&mut PgConnection` đã gắn công ty và trả `AppError` của K05; tầng route chỉ việc: extractor K15 →
 //! `normalize()`/`validate()` của DTO → hàm ở đây → JSON. Bảng route (K14) ở [`routes`]. 23 endpoint:
@@ -18,12 +18,15 @@
 
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
+#![recursion_limit = "256"]
 
 pub mod calc;
 pub mod components;
+pub mod employees;
 pub mod formula;
 pub mod insurance;
 pub mod kpi;
+pub mod payslips;
 pub mod routes;
 pub mod rules;
 pub mod tax;

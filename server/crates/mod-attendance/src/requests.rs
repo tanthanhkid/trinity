@@ -187,10 +187,10 @@ async fn assert_monthly_limit(conn: &mut PgConnection, user_id: i32, kind: &str,
     if limit <= 0 {
         return Ok(());
     }
-    let types: Vec<String> = if forgot {
-        vec!["forgot_check_in".to_owned(), "forgot_check_out".to_owned()]
+    let types: &[&str] = if forgot {
+        &["forgot_check_in", "forgot_check_out"]
     } else {
-        vec!["late_arrival".to_owned(), "early_leave".to_owned()]
+        &["late_arrival", "early_leave"]
     };
     let first = day.with_day(1).unwrap_or(day);
     let next = first
@@ -201,7 +201,7 @@ async fn assert_monthly_limit(conn: &mut PgConnection, user_id: i32, kind: &str,
            AND work_date >= $3 AND work_date < $4",
     )
     .bind(user_id)
-    .bind(&types)
+    .bind(types)
     .bind(first)
     .bind(next)
     .fetch_one(conn)

@@ -2067,6 +2067,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-contacts"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "trinity-db",
+ "trinity-docgen",
+ "trinity-kernel",
+ "trinity-rbac",
+]
+
+[[package]]
 name = "mod-hr"
 version = "0.3.0"
 dependencies = [

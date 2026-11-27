@@ -18779,6 +18779,3959 @@
   }
  },
  {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "email should not be empty",
+    "email must be an email",
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name should not be empty",
+    "full_name must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "email": null,
+   "full_name": null,
+   "password": null,
+   "employee_code": null,
+   "phone": null,
+   "team_id": null,
+   "manager_id": null,
+   "insurance_salary": null,
+   "position": null,
+   "department": null,
+   "gender": null,
+   "status": null,
+   "education_level": null,
+   "recruitment_source": null,
+   "joined_at": null,
+   "salary_rule_id": null,
+   "job_title_id": null,
+   "office_id": null,
+   "avatar_url": null,
+   "birth_date": null,
+   "id_card_number": null,
+   "id_card_issued_date": null,
+   "id_card_issued_place": null,
+   "permanent_address": null,
+   "current_address": null,
+   "bank_account_number": null,
+   "bank_name": null,
+   "bank_account_holder": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email should not be empty",
+    "email must be an email",
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name should not be empty",
+    "full_name must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "email": "",
+   "full_name": "",
+   "password": "",
+   "employee_code": "",
+   "phone": "",
+   "team_id": "",
+   "manager_id": "",
+   "insurance_salary": "",
+   "position": "",
+   "department": "",
+   "gender": "",
+   "status": "",
+   "education_level": "",
+   "recruitment_source": "",
+   "joined_at": "",
+   "salary_rule_id": "",
+   "job_title_id": "",
+   "office_id": "",
+   "avatar_url": "",
+   "birth_date": "",
+   "id_card_number": "",
+   "id_card_issued_date": "",
+   "id_card_issued_place": "",
+   "permanent_address": "",
+   "current_address": "",
+   "bank_account_number": "",
+   "bank_name": "",
+   "bank_account_holder": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email should not be empty",
+    "email must be an email",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name should not be empty",
+    "password must be longer than or equal to 8 characters",
+    "SĐT không hợp lệ",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "email": "  x  ",
+   "full_name": "  x  ",
+   "password": "  x  ",
+   "employee_code": "  x  ",
+   "phone": "  x  ",
+   "team_id": "  x  ",
+   "manager_id": "  x  ",
+   "insurance_salary": "  x  ",
+   "position": "  x  ",
+   "department": "  x  ",
+   "gender": "  x  ",
+   "status": "  x  ",
+   "education_level": "  x  ",
+   "recruitment_source": "  x  ",
+   "joined_at": "  x  ",
+   "salary_rule_id": "  x  ",
+   "job_title_id": "  x  ",
+   "office_id": "  x  ",
+   "avatar_url": "  x  ",
+   "birth_date": "  x  ",
+   "id_card_number": "  x  ",
+   "id_card_issued_date": "  x  ",
+   "id_card_issued_place": "  x  ",
+   "permanent_address": "  x  ",
+   "current_address": "  x  ",
+   "bank_account_number": "  x  ",
+   "bank_name": "  x  ",
+   "bank_account_holder": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "password must be longer than or equal to 8 characters",
+    "SĐT không hợp lệ",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_issued_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "email": 12.5,
+   "full_name": 12.5,
+   "password": 12.5,
+   "employee_code": 12.5,
+   "phone": 12.5,
+   "team_id": 12.5,
+   "manager_id": 12.5,
+   "insurance_salary": 12.5,
+   "position": 12.5,
+   "department": 12.5,
+   "gender": 12.5,
+   "status": 12.5,
+   "education_level": 12.5,
+   "recruitment_source": 12.5,
+   "joined_at": 12.5,
+   "salary_rule_id": 12.5,
+   "job_title_id": 12.5,
+   "office_id": 12.5,
+   "avatar_url": 12.5,
+   "birth_date": 12.5,
+   "id_card_number": 12.5,
+   "id_card_issued_date": 12.5,
+   "id_card_issued_place": 12.5,
+   "permanent_address": 12.5,
+   "current_address": 12.5,
+   "bank_account_number": 12.5,
+   "bank_name": 12.5,
+   "bank_account_holder": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "password must be longer than or equal to 8 characters",
+    "password must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "email": -1,
+   "full_name": -1,
+   "password": -1,
+   "employee_code": -1,
+   "phone": -1,
+   "team_id": -1,
+   "manager_id": -1,
+   "insurance_salary": -1,
+   "position": -1,
+   "department": -1,
+   "gender": -1,
+   "status": -1,
+   "education_level": -1,
+   "recruitment_source": -1,
+   "joined_at": -1,
+   "salary_rule_id": -1,
+   "job_title_id": -1,
+   "office_id": -1,
+   "avatar_url": -1,
+   "birth_date": -1,
+   "id_card_number": -1,
+   "id_card_issued_date": -1,
+   "id_card_issued_place": -1,
+   "permanent_address": -1,
+   "current_address": -1,
+   "bank_account_number": -1,
+   "bank_name": -1,
+   "bank_account_holder": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "password must be longer than or equal to 8 characters",
+    "password must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "email": 0,
+   "full_name": 0,
+   "password": 0,
+   "employee_code": 0,
+   "phone": 0,
+   "team_id": 0,
+   "manager_id": 0,
+   "insurance_salary": 0,
+   "position": 0,
+   "department": 0,
+   "gender": 0,
+   "status": 0,
+   "education_level": 0,
+   "recruitment_source": 0,
+   "joined_at": 0,
+   "salary_rule_id": 0,
+   "job_title_id": 0,
+   "office_id": 0,
+   "avatar_url": 0,
+   "birth_date": 0,
+   "id_card_number": 0,
+   "id_card_issued_date": 0,
+   "id_card_issued_place": 0,
+   "permanent_address": 0,
+   "current_address": 0,
+   "bank_account_number": 0,
+   "bank_name": 0,
+   "bank_account_holder": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "password must be longer than or equal to 8 characters",
+    "password must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "email": true,
+   "full_name": true,
+   "password": true,
+   "employee_code": true,
+   "phone": true,
+   "team_id": true,
+   "manager_id": true,
+   "insurance_salary": true,
+   "position": true,
+   "department": true,
+   "gender": true,
+   "status": true,
+   "education_level": true,
+   "recruitment_source": true,
+   "joined_at": true,
+   "salary_rule_id": true,
+   "job_title_id": true,
+   "office_id": true,
+   "avatar_url": true,
+   "birth_date": true,
+   "id_card_number": true,
+   "id_card_issued_date": true,
+   "id_card_issued_place": true,
+   "permanent_address": true,
+   "current_address": true,
+   "bank_account_number": true,
+   "bank_name": true,
+   "bank_account_holder": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "password must be longer than or equal to 8 characters",
+    "password must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "email": [
+    "a",
+    1
+   ],
+   "full_name": [
+    "a",
+    1
+   ],
+   "password": [
+    "a",
+    1
+   ],
+   "employee_code": [
+    "a",
+    1
+   ],
+   "phone": [
+    "a",
+    1
+   ],
+   "team_id": [
+    "a",
+    1
+   ],
+   "manager_id": [
+    "a",
+    1
+   ],
+   "insurance_salary": [
+    "a",
+    1
+   ],
+   "position": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "gender": [
+    "a",
+    1
+   ],
+   "status": [
+    "a",
+    1
+   ],
+   "education_level": [
+    "a",
+    1
+   ],
+   "recruitment_source": [
+    "a",
+    1
+   ],
+   "joined_at": [
+    "a",
+    1
+   ],
+   "salary_rule_id": [
+    "a",
+    1
+   ],
+   "job_title_id": [
+    "a",
+    1
+   ],
+   "office_id": [
+    "a",
+    1
+   ],
+   "avatar_url": [
+    "a",
+    1
+   ],
+   "birth_date": [
+    "a",
+    1
+   ],
+   "id_card_number": [
+    "a",
+    1
+   ],
+   "id_card_issued_date": [
+    "a",
+    1
+   ],
+   "id_card_issued_place": [
+    "a",
+    1
+   ],
+   "permanent_address": [
+    "a",
+    1
+   ],
+   "current_address": [
+    "a",
+    1
+   ],
+   "bank_account_number": [
+    "a",
+    1
+   ],
+   "bank_name": [
+    "a",
+    1
+   ],
+   "bank_account_holder": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "password must be longer than or equal to 8 characters",
+    "password must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "email": {
+    "a": 1
+   },
+   "full_name": {
+    "a": 1
+   },
+   "password": {
+    "a": 1
+   },
+   "employee_code": {
+    "a": 1
+   },
+   "phone": {
+    "a": 1
+   },
+   "team_id": {
+    "a": 1
+   },
+   "manager_id": {
+    "a": 1
+   },
+   "insurance_salary": {
+    "a": 1
+   },
+   "position": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "gender": {
+    "a": 1
+   },
+   "status": {
+    "a": 1
+   },
+   "education_level": {
+    "a": 1
+   },
+   "recruitment_source": {
+    "a": 1
+   },
+   "joined_at": {
+    "a": 1
+   },
+   "salary_rule_id": {
+    "a": 1
+   },
+   "job_title_id": {
+    "a": 1
+   },
+   "office_id": {
+    "a": 1
+   },
+   "avatar_url": {
+    "a": 1
+   },
+   "birth_date": {
+    "a": 1
+   },
+   "id_card_number": {
+    "a": 1
+   },
+   "id_card_issued_date": {
+    "a": 1
+   },
+   "id_card_issued_place": {
+    "a": 1
+   },
+   "permanent_address": {
+    "a": 1
+   },
+   "current_address": {
+    "a": 1
+   },
+   "bank_account_number": {
+    "a": 1
+   },
+   "bank_name": {
+    "a": 1
+   },
+   "bank_account_holder": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "password must be longer than or equal to 8 characters",
+    "password must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "email": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "full_name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "password": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "employee_code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "phone": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "manager_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "insurance_salary": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "position": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "gender": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "education_level": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "recruitment_source": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "joined_at": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "salary_rule_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "job_title_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "office_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "avatar_url": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "birth_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "id_card_number": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "id_card_issued_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "id_card_issued_place": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "permanent_address": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "current_address": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "bank_account_number": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "bank_name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "bank_account_holder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "full_name must be shorter than or equal to 100 characters",
+    "employee_code must be shorter than or equal to 50 characters",
+    "SĐT không hợp lệ",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "position must be shorter than or equal to 100 characters",
+    "department must be shorter than or equal to 100 characters",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_account_holder must be shorter than or equal to 255 characters"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "email": "2026-11-26T10:00:00Z",
+   "full_name": "2026-11-26T10:00:00Z",
+   "password": "2026-11-26T10:00:00Z",
+   "employee_code": "2026-11-26T10:00:00Z",
+   "phone": "2026-11-26T10:00:00Z",
+   "team_id": "2026-11-26T10:00:00Z",
+   "manager_id": "2026-11-26T10:00:00Z",
+   "insurance_salary": "2026-11-26T10:00:00Z",
+   "position": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "gender": "2026-11-26T10:00:00Z",
+   "status": "2026-11-26T10:00:00Z",
+   "education_level": "2026-11-26T10:00:00Z",
+   "recruitment_source": "2026-11-26T10:00:00Z",
+   "joined_at": "2026-11-26T10:00:00Z",
+   "salary_rule_id": "2026-11-26T10:00:00Z",
+   "job_title_id": "2026-11-26T10:00:00Z",
+   "office_id": "2026-11-26T10:00:00Z",
+   "avatar_url": "2026-11-26T10:00:00Z",
+   "birth_date": "2026-11-26T10:00:00Z",
+   "id_card_number": "2026-11-26T10:00:00Z",
+   "id_card_issued_date": "2026-11-26T10:00:00Z",
+   "id_card_issued_place": "2026-11-26T10:00:00Z",
+   "permanent_address": "2026-11-26T10:00:00Z",
+   "current_address": "2026-11-26T10:00:00Z",
+   "bank_account_number": "2026-11-26T10:00:00Z",
+   "bank_name": "2026-11-26T10:00:00Z",
+   "bank_account_holder": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "SĐT không hợp lệ",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "email": "123",
+   "full_name": "123",
+   "password": "123",
+   "employee_code": "123",
+   "phone": "123",
+   "team_id": "123",
+   "manager_id": "123",
+   "insurance_salary": "123",
+   "position": "123",
+   "department": "123",
+   "gender": "123",
+   "status": "123",
+   "education_level": "123",
+   "recruitment_source": "123",
+   "joined_at": "123",
+   "salary_rule_id": "123",
+   "job_title_id": "123",
+   "office_id": "123",
+   "avatar_url": "123",
+   "birth_date": "123",
+   "id_card_number": "123",
+   "id_card_issued_date": "123",
+   "id_card_issued_place": "123",
+   "permanent_address": "123",
+   "current_address": "123",
+   "bank_account_number": "123",
+   "bank_name": "123",
+   "bank_account_holder": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "password must be longer than or equal to 8 characters",
+    "SĐT không hợp lệ",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_issued_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "email": "a@example.com",
+   "full_name": "a@example.com",
+   "password": "a@example.com",
+   "employee_code": "a@example.com",
+   "phone": "a@example.com",
+   "team_id": "a@example.com",
+   "manager_id": "a@example.com",
+   "insurance_salary": "a@example.com",
+   "position": "a@example.com",
+   "department": "a@example.com",
+   "gender": "a@example.com",
+   "status": "a@example.com",
+   "education_level": "a@example.com",
+   "recruitment_source": "a@example.com",
+   "joined_at": "a@example.com",
+   "salary_rule_id": "a@example.com",
+   "job_title_id": "a@example.com",
+   "office_id": "a@example.com",
+   "avatar_url": "a@example.com",
+   "birth_date": "a@example.com",
+   "id_card_number": "a@example.com",
+   "id_card_issued_date": "a@example.com",
+   "id_card_issued_place": "a@example.com",
+   "permanent_address": "a@example.com",
+   "current_address": "a@example.com",
+   "bank_account_number": "a@example.com",
+   "bank_name": "a@example.com",
+   "bank_account_holder": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "SĐT không hợp lệ",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_issued_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "email": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "full_name": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "password": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "employee_code": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "phone": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "manager_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "insurance_salary": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "position": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "gender": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "education_level": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "recruitment_source": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "joined_at": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "salary_rule_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "job_title_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "office_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "avatar_url": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "birth_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "id_card_number": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "id_card_issued_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "id_card_issued_place": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "permanent_address": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "current_address": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "bank_account_number": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "bank_name": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "bank_account_holder": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "password must be longer than or equal to 8 characters",
+    "password must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "email": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "email must be an email",
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name should not be empty",
+    "full_name must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "email": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name should not be empty",
+    "full_name must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "full_name": null,
+   "phone": null,
+   "employee_code": null,
+   "team_id": null,
+   "manager_id": null,
+   "insurance_salary": null,
+   "position": null,
+   "department": null,
+   "gender": null,
+   "status": null,
+   "education_level": null,
+   "recruitment_source": null,
+   "joined_at": null,
+   "salary_rule_id": null,
+   "job_title_id": null,
+   "office_id": null,
+   "avatar_url": null,
+   "birth_date": null,
+   "id_card_number": null,
+   "id_card_issued_date": null,
+   "id_card_issued_place": null,
+   "permanent_address": null,
+   "current_address": null,
+   "bank_account_number": null,
+   "bank_name": null,
+   "bank_account_holder": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "joined_at must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "full_name": "",
+   "phone": "",
+   "employee_code": "",
+   "team_id": "",
+   "manager_id": "",
+   "insurance_salary": "",
+   "position": "",
+   "department": "",
+   "gender": "",
+   "status": "",
+   "education_level": "",
+   "recruitment_source": "",
+   "joined_at": "",
+   "salary_rule_id": "",
+   "job_title_id": "",
+   "office_id": "",
+   "avatar_url": "",
+   "birth_date": "",
+   "id_card_number": "",
+   "id_card_issued_date": "",
+   "id_card_issued_place": "",
+   "permanent_address": "",
+   "current_address": "",
+   "bank_account_number": "",
+   "bank_name": "",
+   "bank_account_holder": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be longer than or equal to 2 characters",
+    "SĐT không hợp lệ",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "full_name": "  x  ",
+   "phone": "  x  ",
+   "employee_code": "  x  ",
+   "team_id": "  x  ",
+   "manager_id": "  x  ",
+   "insurance_salary": "  x  ",
+   "position": "  x  ",
+   "department": "  x  ",
+   "gender": "  x  ",
+   "status": "  x  ",
+   "education_level": "  x  ",
+   "recruitment_source": "  x  ",
+   "joined_at": "  x  ",
+   "salary_rule_id": "  x  ",
+   "job_title_id": "  x  ",
+   "office_id": "  x  ",
+   "avatar_url": "  x  ",
+   "birth_date": "  x  ",
+   "id_card_number": "  x  ",
+   "id_card_issued_date": "  x  ",
+   "id_card_issued_place": "  x  ",
+   "permanent_address": "  x  ",
+   "current_address": "  x  ",
+   "bank_account_number": "  x  ",
+   "bank_name": "  x  ",
+   "bank_account_holder": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "SĐT không hợp lệ",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_issued_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "full_name": 12.5,
+   "phone": 12.5,
+   "employee_code": 12.5,
+   "team_id": 12.5,
+   "manager_id": 12.5,
+   "insurance_salary": 12.5,
+   "position": 12.5,
+   "department": 12.5,
+   "gender": 12.5,
+   "status": 12.5,
+   "education_level": 12.5,
+   "recruitment_source": 12.5,
+   "joined_at": 12.5,
+   "salary_rule_id": 12.5,
+   "job_title_id": 12.5,
+   "office_id": 12.5,
+   "avatar_url": 12.5,
+   "birth_date": 12.5,
+   "id_card_number": 12.5,
+   "id_card_issued_date": 12.5,
+   "id_card_issued_place": 12.5,
+   "permanent_address": 12.5,
+   "current_address": 12.5,
+   "bank_account_number": 12.5,
+   "bank_name": 12.5,
+   "bank_account_holder": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "full_name": -1,
+   "phone": -1,
+   "employee_code": -1,
+   "team_id": -1,
+   "manager_id": -1,
+   "insurance_salary": -1,
+   "position": -1,
+   "department": -1,
+   "gender": -1,
+   "status": -1,
+   "education_level": -1,
+   "recruitment_source": -1,
+   "joined_at": -1,
+   "salary_rule_id": -1,
+   "job_title_id": -1,
+   "office_id": -1,
+   "avatar_url": -1,
+   "birth_date": -1,
+   "id_card_number": -1,
+   "id_card_issued_date": -1,
+   "id_card_issued_place": -1,
+   "permanent_address": -1,
+   "current_address": -1,
+   "bank_account_number": -1,
+   "bank_name": -1,
+   "bank_account_holder": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "full_name": 0,
+   "phone": 0,
+   "employee_code": 0,
+   "team_id": 0,
+   "manager_id": 0,
+   "insurance_salary": 0,
+   "position": 0,
+   "department": 0,
+   "gender": 0,
+   "status": 0,
+   "education_level": 0,
+   "recruitment_source": 0,
+   "joined_at": 0,
+   "salary_rule_id": 0,
+   "job_title_id": 0,
+   "office_id": 0,
+   "avatar_url": 0,
+   "birth_date": 0,
+   "id_card_number": 0,
+   "id_card_issued_date": 0,
+   "id_card_issued_place": 0,
+   "permanent_address": 0,
+   "current_address": 0,
+   "bank_account_number": 0,
+   "bank_name": 0,
+   "bank_account_holder": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "full_name": true,
+   "phone": true,
+   "employee_code": true,
+   "team_id": true,
+   "manager_id": true,
+   "insurance_salary": true,
+   "position": true,
+   "department": true,
+   "gender": true,
+   "status": true,
+   "education_level": true,
+   "recruitment_source": true,
+   "joined_at": true,
+   "salary_rule_id": true,
+   "job_title_id": true,
+   "office_id": true,
+   "avatar_url": true,
+   "birth_date": true,
+   "id_card_number": true,
+   "id_card_issued_date": true,
+   "id_card_issued_place": true,
+   "permanent_address": true,
+   "current_address": true,
+   "bank_account_number": true,
+   "bank_name": true,
+   "bank_account_holder": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "full_name": [
+    "a",
+    1
+   ],
+   "phone": [
+    "a",
+    1
+   ],
+   "employee_code": [
+    "a",
+    1
+   ],
+   "team_id": [
+    "a",
+    1
+   ],
+   "manager_id": [
+    "a",
+    1
+   ],
+   "insurance_salary": [
+    "a",
+    1
+   ],
+   "position": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "gender": [
+    "a",
+    1
+   ],
+   "status": [
+    "a",
+    1
+   ],
+   "education_level": [
+    "a",
+    1
+   ],
+   "recruitment_source": [
+    "a",
+    1
+   ],
+   "joined_at": [
+    "a",
+    1
+   ],
+   "salary_rule_id": [
+    "a",
+    1
+   ],
+   "job_title_id": [
+    "a",
+    1
+   ],
+   "office_id": [
+    "a",
+    1
+   ],
+   "avatar_url": [
+    "a",
+    1
+   ],
+   "birth_date": [
+    "a",
+    1
+   ],
+   "id_card_number": [
+    "a",
+    1
+   ],
+   "id_card_issued_date": [
+    "a",
+    1
+   ],
+   "id_card_issued_place": [
+    "a",
+    1
+   ],
+   "permanent_address": [
+    "a",
+    1
+   ],
+   "current_address": [
+    "a",
+    1
+   ],
+   "bank_account_number": [
+    "a",
+    1
+   ],
+   "bank_name": [
+    "a",
+    1
+   ],
+   "bank_account_holder": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "full_name": {
+    "a": 1
+   },
+   "phone": {
+    "a": 1
+   },
+   "employee_code": {
+    "a": 1
+   },
+   "team_id": {
+    "a": 1
+   },
+   "manager_id": {
+    "a": 1
+   },
+   "insurance_salary": {
+    "a": 1
+   },
+   "position": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "gender": {
+    "a": 1
+   },
+   "status": {
+    "a": 1
+   },
+   "education_level": {
+    "a": 1
+   },
+   "recruitment_source": {
+    "a": 1
+   },
+   "joined_at": {
+    "a": 1
+   },
+   "salary_rule_id": {
+    "a": 1
+   },
+   "job_title_id": {
+    "a": 1
+   },
+   "office_id": {
+    "a": 1
+   },
+   "avatar_url": {
+    "a": 1
+   },
+   "birth_date": {
+    "a": 1
+   },
+   "id_card_number": {
+    "a": 1
+   },
+   "id_card_issued_date": {
+    "a": 1
+   },
+   "id_card_issued_place": {
+    "a": 1
+   },
+   "permanent_address": {
+    "a": 1
+   },
+   "current_address": {
+    "a": 1
+   },
+   "bank_account_number": {
+    "a": 1
+   },
+   "bank_name": {
+    "a": 1
+   },
+   "bank_account_holder": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "full_name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "phone": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "employee_code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "manager_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "insurance_salary": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "position": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "gender": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "education_level": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "recruitment_source": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "joined_at": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "salary_rule_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "job_title_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "office_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "avatar_url": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "birth_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "id_card_number": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "id_card_issued_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "id_card_issued_place": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "permanent_address": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "current_address": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "bank_account_number": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "bank_name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "bank_account_holder": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 100 characters",
+    "SĐT không hợp lệ",
+    "employee_code must be shorter than or equal to 50 characters",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "position must be shorter than or equal to 100 characters",
+    "department must be shorter than or equal to 100 characters",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_account_holder must be shorter than or equal to 255 characters"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "full_name": "2026-11-26T10:00:00Z",
+   "phone": "2026-11-26T10:00:00Z",
+   "employee_code": "2026-11-26T10:00:00Z",
+   "team_id": "2026-11-26T10:00:00Z",
+   "manager_id": "2026-11-26T10:00:00Z",
+   "insurance_salary": "2026-11-26T10:00:00Z",
+   "position": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "gender": "2026-11-26T10:00:00Z",
+   "status": "2026-11-26T10:00:00Z",
+   "education_level": "2026-11-26T10:00:00Z",
+   "recruitment_source": "2026-11-26T10:00:00Z",
+   "joined_at": "2026-11-26T10:00:00Z",
+   "salary_rule_id": "2026-11-26T10:00:00Z",
+   "job_title_id": "2026-11-26T10:00:00Z",
+   "office_id": "2026-11-26T10:00:00Z",
+   "avatar_url": "2026-11-26T10:00:00Z",
+   "birth_date": "2026-11-26T10:00:00Z",
+   "id_card_number": "2026-11-26T10:00:00Z",
+   "id_card_issued_date": "2026-11-26T10:00:00Z",
+   "id_card_issued_place": "2026-11-26T10:00:00Z",
+   "permanent_address": "2026-11-26T10:00:00Z",
+   "current_address": "2026-11-26T10:00:00Z",
+   "bank_account_number": "2026-11-26T10:00:00Z",
+   "bank_name": "2026-11-26T10:00:00Z",
+   "bank_account_holder": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "SĐT không hợp lệ",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "full_name": "123",
+   "phone": "123",
+   "employee_code": "123",
+   "team_id": "123",
+   "manager_id": "123",
+   "insurance_salary": "123",
+   "position": "123",
+   "department": "123",
+   "gender": "123",
+   "status": "123",
+   "education_level": "123",
+   "recruitment_source": "123",
+   "joined_at": "123",
+   "salary_rule_id": "123",
+   "job_title_id": "123",
+   "office_id": "123",
+   "avatar_url": "123",
+   "birth_date": "123",
+   "id_card_number": "123",
+   "id_card_issued_date": "123",
+   "id_card_issued_place": "123",
+   "permanent_address": "123",
+   "current_address": "123",
+   "bank_account_number": "123",
+   "bank_name": "123",
+   "bank_account_holder": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "SĐT không hợp lệ",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_issued_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "full_name": "a@example.com",
+   "phone": "a@example.com",
+   "employee_code": "a@example.com",
+   "team_id": "a@example.com",
+   "manager_id": "a@example.com",
+   "insurance_salary": "a@example.com",
+   "position": "a@example.com",
+   "department": "a@example.com",
+   "gender": "a@example.com",
+   "status": "a@example.com",
+   "education_level": "a@example.com",
+   "recruitment_source": "a@example.com",
+   "joined_at": "a@example.com",
+   "salary_rule_id": "a@example.com",
+   "job_title_id": "a@example.com",
+   "office_id": "a@example.com",
+   "avatar_url": "a@example.com",
+   "birth_date": "a@example.com",
+   "id_card_number": "a@example.com",
+   "id_card_issued_date": "a@example.com",
+   "id_card_issued_place": "a@example.com",
+   "permanent_address": "a@example.com",
+   "current_address": "a@example.com",
+   "bank_account_number": "a@example.com",
+   "bank_name": "a@example.com",
+   "bank_account_holder": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "SĐT không hợp lệ",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_issued_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "full_name": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "phone": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "employee_code": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "manager_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "insurance_salary": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "position": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "gender": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "education_level": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "recruitment_source": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "joined_at": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "salary_rule_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "job_title_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "office_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "avatar_url": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "birth_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "id_card_number": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "id_card_issued_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "id_card_issued_place": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "permanent_address": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "current_address": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "bank_account_number": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "bank_name": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "bank_account_holder": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "SĐT không hợp lệ",
+    "phone must be a string",
+    "employee_code must be shorter than or equal to 50 characters",
+    "employee_code must be a string",
+    "team_id must be an integer number",
+    "manager_id must be an integer number",
+    "insurance_salary must be an integer number",
+    "position must be shorter than or equal to 100 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "education_level must be one of the following values: dai_hoc_tro_len, cao_dang, trung_cap, thpt_12, thcs, khac",
+    "recruitment_source must be one of the following values: hr, internal",
+    "joined_at must be a valid ISO 8601 date string",
+    "salary_rule_id must be an integer number",
+    "job_title_id must be an integer number",
+    "office_id must be an integer number",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string",
+    "birth_date must be a valid ISO 8601 date string",
+    "id_card_number must be shorter than or equal to 20 characters",
+    "id_card_number must be a string",
+    "id_card_issued_date must be a valid ISO 8601 date string",
+    "id_card_issued_place must be shorter than or equal to 255 characters",
+    "id_card_issued_place must be a string",
+    "permanent_address must be shorter than or equal to 500 characters",
+    "permanent_address must be a string",
+    "current_address must be shorter than or equal to 500 characters",
+    "current_address must be a string",
+    "bank_account_number must be shorter than or equal to 30 characters",
+    "bank_account_number must be a string",
+    "bank_name must be shorter than or equal to 255 characters",
+    "bank_name must be a string",
+    "bank_account_holder must be shorter than or equal to 255 characters",
+    "bank_account_holder must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "full_name": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "full_name must be longer than or equal to 2 characters"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "full_name": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be longer than or equal to 2 characters"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {
+    "page": 1,
+    "page_size": 25
+   }
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "page": null,
+   "page_size": null,
+   "search": null,
+   "department": null,
+   "position": null,
+   "status": null,
+   "team": null,
+   "employment_state": null,
+   "sort_by": null,
+   "sort_dir": null
+  },
+  "result": {
+   "ok": {
+    "page": null,
+    "page_size": null,
+    "search": null,
+    "department": null,
+    "position": null,
+    "status": null,
+    "team": null,
+    "employment_state": null,
+    "sort_by": null,
+    "sort_dir": null
+   }
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "page": "",
+   "page_size": "",
+   "search": "",
+   "department": "",
+   "position": "",
+   "status": "",
+   "team": "",
+   "employment_state": "",
+   "sort_by": "",
+   "sort_dir": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "employment_state must be one of the following values: active, resigned, all",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "page": "  x  ",
+   "page_size": "  x  ",
+   "search": "  x  ",
+   "department": "  x  ",
+   "position": "  x  ",
+   "status": "  x  ",
+   "team": "  x  ",
+   "employment_state": "  x  ",
+   "sort_by": "  x  ",
+   "sort_dir": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "employment_state must be one of the following values: active, resigned, all",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "page": 12.5,
+   "page_size": 12.5,
+   "search": 12.5,
+   "department": 12.5,
+   "position": 12.5,
+   "status": 12.5,
+   "team": 12.5,
+   "employment_state": 12.5,
+   "sort_by": 12.5,
+   "sort_dir": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must be an integer number",
+    "page_size must be an integer number",
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be a string",
+    "team must be a string",
+    "employment_state must be one of the following values: active, resigned, all",
+    "employment_state must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "page": -1,
+   "page_size": -1,
+   "search": -1,
+   "department": -1,
+   "position": -1,
+   "status": -1,
+   "team": -1,
+   "employment_state": -1,
+   "sort_by": -1,
+   "sort_dir": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be a string",
+    "team must be a string",
+    "employment_state must be one of the following values: active, resigned, all",
+    "employment_state must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "page": 0,
+   "page_size": 0,
+   "search": 0,
+   "department": 0,
+   "position": 0,
+   "status": 0,
+   "team": 0,
+   "employment_state": 0,
+   "sort_by": 0,
+   "sort_dir": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be a string",
+    "team must be a string",
+    "employment_state must be one of the following values: active, resigned, all",
+    "employment_state must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "page": true,
+   "page_size": true,
+   "search": true,
+   "department": true,
+   "position": true,
+   "status": true,
+   "team": true,
+   "employment_state": true,
+   "sort_by": true,
+   "sort_dir": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be a string",
+    "team must be a string",
+    "employment_state must be one of the following values: active, resigned, all",
+    "employment_state must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "page": [
+    "a",
+    1
+   ],
+   "page_size": [
+    "a",
+    1
+   ],
+   "search": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "position": [
+    "a",
+    1
+   ],
+   "status": [
+    "a",
+    1
+   ],
+   "team": [
+    "a",
+    1
+   ],
+   "employment_state": [
+    "a",
+    1
+   ],
+   "sort_by": [
+    "a",
+    1
+   ],
+   "sort_dir": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be a string",
+    "team must be a string",
+    "employment_state must be one of the following values: active, resigned, all",
+    "employment_state must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "page": {
+    "a": 1
+   },
+   "page_size": {
+    "a": 1
+   },
+   "search": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "position": {
+    "a": 1
+   },
+   "status": {
+    "a": 1
+   },
+   "team": {
+    "a": 1
+   },
+   "employment_state": {
+    "a": 1
+   },
+   "sort_by": {
+    "a": 1
+   },
+   "sort_dir": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be a string",
+    "team must be a string",
+    "employment_state must be one of the following values: active, resigned, all",
+    "employment_state must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "page": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "page_size": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "search": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "position": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "employment_state": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sort_by": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sort_dir": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "employment_state must be one of the following values: active, resigned, all",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "page": "2026-11-26T10:00:00Z",
+   "page_size": "2026-11-26T10:00:00Z",
+   "search": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "position": "2026-11-26T10:00:00Z",
+   "status": "2026-11-26T10:00:00Z",
+   "team": "2026-11-26T10:00:00Z",
+   "employment_state": "2026-11-26T10:00:00Z",
+   "sort_by": "2026-11-26T10:00:00Z",
+   "sort_dir": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "employment_state must be one of the following values: active, resigned, all",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "page": "123",
+   "page_size": "123",
+   "search": "123",
+   "department": "123",
+   "position": "123",
+   "status": "123",
+   "team": "123",
+   "employment_state": "123",
+   "sort_by": "123",
+   "sort_dir": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page_size must not be greater than 100",
+    "employment_state must be one of the following values: active, resigned, all",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "page": "a@example.com",
+   "page_size": "a@example.com",
+   "search": "a@example.com",
+   "department": "a@example.com",
+   "position": "a@example.com",
+   "status": "a@example.com",
+   "team": "a@example.com",
+   "employment_state": "a@example.com",
+   "sort_by": "a@example.com",
+   "sort_dir": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "employment_state must be one of the following values: active, resigned, all",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "page": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "page_size": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "search": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "position": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "employment_state": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "sort_by": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "sort_dir": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "search must be a string",
+    "department must be a string",
+    "position must be a string",
+    "status must be a string",
+    "team must be a string",
+    "employment_state must be one of the following values: active, resigned, all",
+    "employment_state must be a string",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "page": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "page must not be less than 1",
+    "page must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "page": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "office_id": null,
+   "department": null,
+   "team": null,
+   "job_title_id": null
+  },
+  "result": {
+   "ok": {
+    "office_id": null,
+    "department": null,
+    "team": null,
+    "job_title_id": null
+   }
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "office_id": "",
+   "department": "",
+   "team": "",
+   "job_title_id": ""
+  },
+  "result": {
+   "ok": {
+    "office_id": 0,
+    "department": "",
+    "team": "",
+    "job_title_id": 0
+   }
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "office_id": "  x  ",
+   "department": "  x  ",
+   "team": "  x  ",
+   "job_title_id": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "office_id must be an integer number",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "office_id": 12.5,
+   "department": 12.5,
+   "team": 12.5,
+   "job_title_id": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "office_id must be an integer number",
+    "department must be a string",
+    "team must be a string",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "office_id": -1,
+   "department": -1,
+   "team": -1,
+   "job_title_id": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "department must be a string",
+    "team must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "office_id": 0,
+   "department": 0,
+   "team": 0,
+   "job_title_id": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "department must be a string",
+    "team must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "office_id": true,
+   "department": true,
+   "team": true,
+   "job_title_id": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "department must be a string",
+    "team must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "office_id": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "team": [
+    "a",
+    1
+   ],
+   "job_title_id": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "office_id must be an integer number",
+    "department must be a string",
+    "team must be a string",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "office_id": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "team": {
+    "a": 1
+   },
+   "job_title_id": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "office_id must be an integer number",
+    "department must be a string",
+    "team must be a string",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "office_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "job_title_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "office_id must be an integer number",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "office_id": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "team": "2026-11-26T10:00:00Z",
+   "job_title_id": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "office_id must be an integer number",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "office_id": "123",
+   "department": "123",
+   "team": "123",
+   "job_title_id": "123"
+  },
+  "result": {
+   "ok": {
+    "office_id": 123,
+    "department": "123",
+    "team": "123",
+    "job_title_id": 123
+   }
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "office_id": "a@example.com",
+   "department": "a@example.com",
+   "team": "a@example.com",
+   "job_title_id": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "office_id must be an integer number",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "office_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "job_title_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "office_id must be an integer number",
+    "department must be a string",
+    "team must be a string",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "office_id": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "office_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "HrStatsQueryDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "office_id": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "office_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "month": null,
+   "office_id": null,
+   "department": null,
+   "team": null,
+   "job_title_id": null
+  },
+  "result": {
+   "ok": {
+    "office_id": null,
+    "department": null,
+    "team": null,
+    "job_title_id": null,
+    "month": null
+   }
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "month": "",
+   "office_id": "",
+   "department": "",
+   "team": "",
+   "job_title_id": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "month": "  x  ",
+   "office_id": "  x  ",
+   "department": "  x  ",
+   "team": "  x  ",
+   "job_title_id": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be greater than 12",
+    "month must not be less than 1",
+    "month must be an integer number",
+    "office_id must be an integer number",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "month": 12.5,
+   "office_id": 12.5,
+   "department": 12.5,
+   "team": 12.5,
+   "job_title_id": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be greater than 12",
+    "month must be an integer number",
+    "office_id must be an integer number",
+    "department must be a string",
+    "team must be a string",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "month": -1,
+   "office_id": -1,
+   "department": -1,
+   "team": -1,
+   "job_title_id": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be less than 1",
+    "department must be a string",
+    "team must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "month": 0,
+   "office_id": 0,
+   "department": 0,
+   "team": 0,
+   "job_title_id": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be less than 1",
+    "department must be a string",
+    "team must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "month": true,
+   "office_id": true,
+   "department": true,
+   "team": true,
+   "job_title_id": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "department must be a string",
+    "team must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "month": [
+    "a",
+    1
+   ],
+   "office_id": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "team": [
+    "a",
+    1
+   ],
+   "job_title_id": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be greater than 12",
+    "month must not be less than 1",
+    "month must be an integer number",
+    "office_id must be an integer number",
+    "department must be a string",
+    "team must be a string",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "month": {
+    "a": 1
+   },
+   "office_id": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "team": {
+    "a": 1
+   },
+   "job_title_id": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be greater than 12",
+    "month must not be less than 1",
+    "month must be an integer number",
+    "office_id must be an integer number",
+    "department must be a string",
+    "team must be a string",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "month": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "office_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "job_title_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be greater than 12",
+    "month must not be less than 1",
+    "month must be an integer number",
+    "office_id must be an integer number",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "month": "2026-11-26T10:00:00Z",
+   "office_id": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "team": "2026-11-26T10:00:00Z",
+   "job_title_id": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be greater than 12",
+    "month must not be less than 1",
+    "month must be an integer number",
+    "office_id must be an integer number",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "month": "123",
+   "office_id": "123",
+   "department": "123",
+   "team": "123",
+   "job_title_id": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be greater than 12"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "month": "a@example.com",
+   "office_id": "a@example.com",
+   "department": "a@example.com",
+   "team": "a@example.com",
+   "job_title_id": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be greater than 12",
+    "month must not be less than 1",
+    "month must be an integer number",
+    "office_id must be an integer number",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "month": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "office_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "job_title_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be greater than 12",
+    "month must not be less than 1",
+    "month must be an integer number",
+    "office_id must be an integer number",
+    "department must be a string",
+    "team must be a string",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "month": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "month must not be greater than 12",
+    "month must not be less than 1",
+    "month must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "month": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be greater than 12",
+    "month must not be less than 1",
+    "month must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "email": "nv@example.vn",
+   "full_name": "Nguyễn Văn A",
+   "phone": "+84901234567",
+   "team_id": "3",
+   "insurance_salary": "5000000",
+   "gender": "M",
+   "birth_date": "1990-05-17",
+   "joined_at": "2026-01-02"
+  },
+  "result": {
+   "ok": {
+    "email": "nv@example.vn",
+    "full_name": "Nguyễn Văn A",
+    "phone": "+84901234567",
+    "team_id": 3,
+    "insurance_salary": 5000000,
+    "gender": "M",
+    "status": "active",
+    "joined_at": "2026-01-02",
+    "birth_date": "1990-05-17"
+   }
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "sai_tieng_viet",
+  "input": {
+   "email": "khong-email",
+   "full_name": "A",
+   "password": "123",
+   "phone": "0123",
+   "status": "nghi",
+   "gender": "X",
+   "avatar_url": 5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "email must be an email",
+    "full_name must be longer than or equal to 2 characters",
+    "password must be longer than or equal to 8 characters",
+    "SĐT không hợp lệ",
+    "gender must be one of the following values: M, F",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned",
+    "Ảnh đại diện quá lớn — tối đa 5MB",
+    "avatar_url must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateEmployeeDto",
+  "mode": "strict",
+  "probe": "rong_birth_date",
+  "input": {
+   "email": "nv@example.vn",
+   "full_name": "Trần B",
+   "birth_date": "",
+   "id_card_issued_date": null
+  },
+  "result": {
+   "ok": {
+    "email": "nv@example.vn",
+    "full_name": "Trần B",
+    "status": "active",
+    "birth_date": "",
+    "id_card_issued_date": null
+   }
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "null_het",
+  "input": {
+   "manager_id": null,
+   "insurance_salary": null,
+   "birth_date": null,
+   "avatar_url": null,
+   "department": null,
+   "full_name": null,
+   "status": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 100 characters",
+    "full_name must be longer than or equal to 2 characters",
+    "full_name must be a string",
+    "status must be one of the following values: unclassified, active, on_leave, probation, waiting, resigned"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateEmployeeDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "full_name": " Lê C ",
+   "manager_id": "4",
+   "status": "resigned",
+   "birth_date": "",
+   "id_card_number": "0123456789"
+  },
+  "result": {
+   "ok": {
+    "full_name": " Lê C ",
+    "manager_id": 4,
+    "status": "resigned",
+    "birth_date": "",
+    "id_card_number": "0123456789"
+   }
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "page": "2",
+   "page_size": "50",
+   "search": "minh",
+   "employment_state": "active",
+   "sort_by": "joined_at",
+   "sort_dir": "desc",
+   "team": "none"
+  },
+  "result": {
+   "ok": {
+    "page": 2,
+    "page_size": 50,
+    "search": "minh",
+    "team": "none",
+    "employment_state": "active",
+    "sort_by": "joined_at",
+    "sort_dir": "desc"
+   }
+  }
+ },
+ {
+  "dto": "QueryEmployeesDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "page": "0",
+   "page_size": "101",
+   "employment_state": "x",
+   "sort_by": "email",
+   "sort_dir": "up"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be greater than 100",
+    "employment_state must be one of the following values: active, resigned, all",
+    "sort_by must be one of the following values: full_name, employee_code, position, department, status, joined_at",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "BirthdayListQueryDto",
+  "mode": "strict",
+  "probe": "thang_sai",
+  "input": {
+   "month": "13",
+   "office_id": "a"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "month must not be greater than 12",
+    "office_id must be an integer number"
+   ]
+  }
+ },
+ {
   "dto": "CreateDealDto",
   "mode": "strict",
   "probe": "valid",

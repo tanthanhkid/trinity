@@ -162,7 +162,11 @@ async fn quyen_va_tinh_nang_to_chuc() {
     for path in ["conversations", "comments", "comment-rules", "chat-links", "broadcasts"] {
         let u = format!("{B}/{path}");
         assert_eq!(call(&a, Method::GET, &u, None, None).await.status, 401, "{path}");
-        assert_eq!(call(&a, Method::GET, &u, Some(NOBODY), None).await.status, 403, "{path}");
+        assert_eq!(
+            call(&a, Method::GET, &u, Some(NOBODY), None).await.status,
+            403,
+            "{path}"
+        );
         assert_eq!(call(&a, Method::GET, &u, Some(ADMIN), None).await.status, 200, "{path}");
     }
     let off = app(false).await;
@@ -267,7 +271,14 @@ async fn luat_binh_luan_va_gui_hang_loat() {
     )
     .await;
     assert_eq!(r.status.as_u16(), 400);
-    let r = call(&a, Method::DELETE, &format!("{B}/comment-rules/{rule}"), Some(ADMIN), None).await;
+    let r = call(
+        &a,
+        Method::DELETE,
+        &format!("{B}/comment-rules/{rule}"),
+        Some(ADMIN),
+        None,
+    )
+    .await;
     assert_eq!(r.status.as_u16(), 204);
 
     // Gửi hàng loạt: nháp 201, xem trước, xoá 204; thiếu Page ⇒ 400.
@@ -290,7 +301,12 @@ async fn luat_binh_luan_va_gui_hang_loat() {
         Some(json!({ "page_id": "xrfp" })),
     )
     .await;
-    assert_eq!((r.status.as_u16(), r.body["eligible"].as_i64()), (200, Some(0)), "{}", r.body);
+    assert_eq!(
+        (r.status.as_u16(), r.body["eligible"].as_i64()),
+        (200, Some(0)),
+        "{}",
+        r.body
+    );
     let r = call(
         &a,
         Method::POST,
@@ -308,7 +324,10 @@ async fn luat_binh_luan_va_gui_hang_loat() {
         None,
     )
     .await;
-    assert_eq!((r.status.as_u16(), r.body["data"].as_array().map(Vec::len)), (200, Some(0)));
+    assert_eq!(
+        (r.status.as_u16(), r.body["data"].as_array().map(Vec::len)),
+        (200, Some(0))
+    );
     let r = call(&a, Method::DELETE, &format!("{B}/broadcasts/{id}"), Some(ADMIN), None).await;
     assert_eq!(r.status.as_u16(), 204);
 

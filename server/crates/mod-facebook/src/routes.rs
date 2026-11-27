@@ -520,8 +520,7 @@ async fn conversations(
     Query(q): Query<HashMap<String, String>>,
 ) -> Response {
     let company = company!(u);
-    ok(s
-        .ingest
+    ok(s.ingest
         .list_conversations(company, param(&q, "limit"), param(&q, "unanswered"), now_ms())
         .await)
 }
@@ -554,8 +553,7 @@ async fn conversation_reply(
         Ok(id) => id,
         Err(e) => return fail(e),
     };
-    ok(s
-        .ingest
+    ok(s.ingest
         .reply(company, Some(&s.guard), id, &text, u.user.user_id, Utc::now())
         .await)
 }

@@ -2098,6 +2098,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-rbac-admin"
+version = "0.3.0"
+dependencies = [
+ "http",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "trinity-auth",
+ "trinity-db",
+ "trinity-http",
+ "trinity-kernel",
+ "trinity-rbac",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

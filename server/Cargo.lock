@@ -2202,6 +2202,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-leads"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "http",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "trinity-db",
+ "trinity-http",
+ "trinity-jobs",
+ "trinity-kernel",
+ "trinity-rbac",
+]
+
+[[package]]
 name = "mod-newsfeed"
 version = "0.3.0"
 dependencies = [
@@ -4402,6 +4420,7 @@ dependencies = [
  "mod-deals",
  "mod-hr",
  "mod-kanban",
+ "mod-leads",
  "mod-oauth",
  "mod-payroll",
  "mod-pos",

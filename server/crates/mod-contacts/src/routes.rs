@@ -1,5 +1,5 @@
-//! Bảng route và handler của khách hàng (M07, K14): 15 route `/api/v1/contacts` (14 của `ContactsController` + timeline
-//! `GET /contacts/:contactId/activities` của `ActivitiesController`), quyền và mã thành công khớp `contracts/routes.json`.
+//! Bảng route và handler của khách hàng (M07, K14): 14 route `/api/v1/contacts`, quyền và mã thành công khớp
+//! `contracts/routes.json`. Route `GET /contacts/:contactId/activities` thuộc module hoạt động, không khai ở đây.
 //!
 //! Dữ liệu vào: query của danh sách/xuất và body tạo/sửa đi qua metadata THẬT của class-validator (`ValidQuery`/`ValidJson`
 //! đọc `contracts/dto/schema.json`); body chuyển quyền phụ trách chưa có trong `schema.json` nên kiểm tay đúng thứ tự câu
@@ -35,7 +35,7 @@ use trinity_rbac::ScopeService;
 
 use crate::list::{CountCache, ListQuery};
 use crate::write::{CreateContact, UpdateContact};
-use crate::{Actor, Scopes, activities, export, list, read, recent, transfer, write};
+use crate::{Actor, Scopes, export, list, read, recent, transfer, write};
 
 const BASE: &str = "/api/v1/contacts";
 const ID: &[&str] = &["param.id:ParseIntPipe"];
@@ -101,7 +101,7 @@ pub struct Ctx {
     pub hooks: Arc<dyn Hooks>,
 }
 
-/// 15 route (bảng so với `routes.json` bởi `trinity check-routes`).
+/// 14 route của `ContactsController` (bảng so với `routes.json` bởi `trinity check-routes`).
 pub fn specs() -> Vec<RouteSpec> {
     let by_id = |m: Method, suffix: &'static str, a: Access, code: u16| {
         RouteSpec::new(m, suffix, a).status_ok(code).param_pipes(ID)
@@ -121,10 +121,6 @@ pub fn specs() -> Vec<RouteSpec> {
         by_id(Method::GET, "/api/v1/contacts/:id", VIEW, 200),
         by_id(Method::PATCH, "/api/v1/contacts/:id", UPDATE, 200),
         by_id(Method::DELETE, "/api/v1/contacts/:id", DELETE, 200),
-        // `ActivitiesController`: chỉ `AuthOnly`, cổng thật là phạm vi `contacts.view` ở handler (404 ngoài phạm vi).
-        RouteSpec::new(Method::GET, "/api/v1/contacts/:contactId/activities", Access::AuthOnly)
-            .status_ok(200)
-            .param_pipes(&["param.contactId:ParseIntPipe"]),
     ]
 }
 
@@ -521,28 +517,6 @@ async fn get_one(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>
     ok(res)
 }
 
-async fn activities(
-    State(c): State<Arc<Ctx>>,
-    Extension(u): Extension<CurrentUser>,
-    Path(id): Path<String>,
-    Query(q): Query<HashMap<String, String>>,
-) -> Response {
-    // `ParseIntPipe` đã chạy ở router: số ngoài int4 thì không có khách nào.
-    let id = match id.parse::<i32>() {
-        Ok(id) => id,
-        Err(_) => return fail(HttpError::not_found(format!("Không tìm thấy khách hàng ID {id}"))),
-    };
-    let r = prep!(c, u);
-    let res = async {
-        let cursor = activities::parse_cursor(q.get("cursor").map(String::as_str))?;
-        let limit = activities::parse_limit(q.get("limit").map(String::as_str))?;
-        let mut cn = conn(&c, r.company).await?;
-        activities::find_by_contact(&mut cn, r.scopes.view.as_ref(), id, cursor, limit).await
-    }
-    .await;
-    ok(res)
-}
-
 async fn create(
     State(c): State<Arc<Ctx>>,
     Extension(u): Extension<CurrentUser>,
@@ -645,7 +619,6 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         )
         .route(spec(&Method::POST, "/api/v1/contacts/bulk-transfer"), bulk_transfer)
         .route(spec(&Method::GET, "/api/v1/contacts/recent"), recent_list)
-        .route(spec(&Method::GET, "/api/v1/contacts/:contactId/activities"), activities)
         .route(spec(&Method::POST, "/api/v1/contacts/:id/transfer"), transfer_one)
         .route(spec(&Method::POST, "/api/v1/contacts/:id/viewed"), viewed)
         .route(spec(&Method::POST, "/api/v1/contacts/:id/restore"), restore)
@@ -673,10 +646,10 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = specs();
-        assert_eq!(table.len(), 15);
+        assert_eq!(table.len(), 14);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 15);
+        assert_eq!(rep.declared, 14);
     }
 
     #[test]

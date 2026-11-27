@@ -1,5 +1,4 @@
-//! Module khách hàng (M07), chuyển từ `services/crm/src/contacts` (14 endpoint `/api/v1/contacts`, thêm timeline
-//! `GET /contacts/:contactId/activities` của `ActivitiesController`, [`activities::find_by_contact`]):
+//! Module khách hàng (M07), chuyển từ `services/crm/src/contacts` (14 endpoint `/api/v1/contacts`):
 //!
 //! | Route | Hàm |
 //! |---|---|
@@ -17,7 +16,7 @@
 //! Mỗi hàm nhận kết nối đã gắn công ty (`&mut PgConnection` cho việc đọc, `&TenantDb` cho việc cần giao dịch), [`Actor`]
 //! (người gọi) và [`Scopes`] (tập chủ sở hữu theo từng quyền, do tầng route lấy từ `ScopeService` của K13), và trả
 //! `AppError` của K05, nên tầng route chỉ còn: guard + extractor K15 → hàm ở đây → JSON.
-//! Bảng route (`specs`, 15 route) và `api_router` nằm ở [`routes`]; `trinity-bin` khai vào `declared_routes` và mount ở `serve`.
+//! Bảng route (`specs`, 14 route) và `api_router` nằm ở [`routes`]; `trinity-bin` khai vào `declared_routes` và mount ở `serve`.
 //!
 //! Khác bản TS có chủ đích:
 //! - thông báo "được giao thương vụ" ([`write::Created::notifications`]) ghi trong CÙNG giao dịch tạo khách (K36 chạy trong
@@ -33,7 +32,6 @@
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err, clippy::type_complexity)]
 
-pub mod activities;
 pub mod export;
 pub mod filter;
 pub mod list;

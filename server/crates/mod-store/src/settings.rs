@@ -5,12 +5,12 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sqlx::PgConnection;
-use trinity_db::CompanyRef;
 use trinity_db::platform::{Platform, PlatformError, RouteKind};
+use trinity_db::{CompanyRef, Db};
 use trinity_kernel::error::{AppError, HttpError};
 use trinity_kernel::vi::trim_js;
 
-use crate::db;
+use crate::db as db_err;
 use crate::vietqr::{self, VIETQR_BANKS};
 
 pub const STORE_SETTING_KEY: &str = "online_store";
@@ -370,7 +370,7 @@ pub async fn load(conn: &mut PgConnection) -> Result<StoreSettings, AppError> {
         .bind(STORE_SETTING_KEY)
         .fetch_optional(conn)
         .await
-        .map_err(db)?;
+        .map_err(db_err)?;
     let Some(row) = row else {
         return Ok(StoreSettings::default());
     };
@@ -442,23 +442,31 @@ pub fn from_stored(raw: &str) -> StoreSettings {
 
 /// `PUT /store/settings`: `input` đã bỏ `public_path`, `banks`, `bank_notice` (không cho client ghi). Bản nhiều công ty: địa chỉ
 /// (slug) thuộc MỘT công ty, ai đến trước giữ ([`Platform::claim_route`]); đổi slug thì nhả slug cũ.
+///
+/// Nhận `Db` (không nhận kết nối): kết nối tenant chỉ giữ lúc đọc rồi lúc ghi, KHÔNG giữ khi gọi `claim_route`/`release_route`
+/// (hai hàm đó tự lấy kết nối platform từ pool; giữ cả hai cùng lúc có thể cạn pool).
 pub async fn save(
-    conn: &mut PgConnection,
+    db: &Db,
     platform: &Platform,
     company: CompanyRef,
     input: &Map<String, Value>,
     user_id: i32,
 ) -> Result<StoreSettings, AppError> {
-    let current = load(conn).await?;
-    let base = StoreSettings {
-        owner_user_id: current.owner_user_id.or(Some(user_id)),
-        ..current.clone()
+    let tenant = db.tenant(company).await.map_err(AppError::internal)?;
+    let (current, next) = {
+        let mut conn = tenant.acquire().await.map_err(AppError::internal)?;
+        let current = load(&mut conn).await?;
+        let base = StoreSettings {
+            owner_user_id: current.owner_user_id.or(Some(user_id)),
+            ..current.clone()
+        };
+        let mut input = input.clone();
+        for k in ["public_path", "banks", "bank_notice"] {
+            input.remove(k);
+        }
+        let next = clean(&input, &base)?;
+        (current, next)
     };
-    let mut input = input.clone();
-    for k in ["public_path", "banks", "bank_notice"] {
-        input.remove(k);
-    }
-    let next = clean(&input, &base)?;
     if !next.slug.is_empty() && next.slug != current.slug {
         platform
             .claim_route(RouteKind::StoreSlug, &next.slug, company)
@@ -469,15 +477,18 @@ pub async fn save(
             })?;
     }
     let value = serde_json::to_string(&next).map_err(AppError::internal)?;
-    let saved = sqlx::query(
-        "INSERT INTO settings (key, value, updated_by, updated_at) VALUES ($1, $2, $3, now())
-         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()",
-    )
-    .bind(STORE_SETTING_KEY)
-    .bind(&value)
-    .bind(user_id)
-    .execute(&mut *conn)
-    .await;
+    let saved = {
+        let mut conn = tenant.acquire().await.map_err(AppError::internal)?;
+        sqlx::query(
+            "INSERT INTO settings (key, value, updated_by, updated_at) VALUES ($1, $2, $3, now())
+             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = now()",
+        )
+        .bind(STORE_SETTING_KEY)
+        .bind(&value)
+        .bind(user_id)
+        .execute(&mut *conn)
+        .await
+    };
     if let Err(e) = saved {
         // Ghi lỗi sau khi đã giữ địa chỉ mới: nhả lại để không để lại địa chỉ mồ côi chặn người khác.
         if !next.slug.is_empty()
@@ -486,7 +497,7 @@ pub async fn save(
         {
             tracing::warn!("Không nhả được địa chỉ cửa hàng sau lỗi lưu: {r}");
         }
-        return Err(db(e));
+        return Err(db_err(e));
     }
     if !current.slug.is_empty() && current.slug != next.slug {
         platform

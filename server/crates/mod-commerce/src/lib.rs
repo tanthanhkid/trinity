@@ -7,10 +7,14 @@
 pub mod attribute_defs;
 pub mod attributes;
 pub mod categories;
+pub mod dto;
 pub mod image;
 mod nullable;
 pub mod products;
 pub mod projects;
+pub mod routes;
+
+pub use routes::{Ctx, api_router, specs};
 
 /// Người gọi, đủ cho các kiểm quyền theo dữ liệu (xoá, khôi phục, xoá hẳn). Do guard xác thực (K11) điền vào.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -718,6 +718,7 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   `trinity_db::pg_error::{db_error, app_error}` đổi `sqlx::Error` thành `DbError` của kernel; unique violation chỉ bắt
   đúng tên ràng buộc (vd `projects_code_key`). Luật DTO không có trong `contracts/dto/schema.json` được viết thành hàm
   `validate()` cùng câu và thứ tự lỗi class-validator, cho tới khi DTO vào schema khi route được nối (K14/K11).
+- Router `serve` cho `mod-store` (7 route) và `mod-commerce` (21 route: sản phẩm, danh mục, thuộc tính, ảnh, dự án): `api_router` + `Ctx` trong `routes.rs` mỗi crate, mount ở `trinity-bin/src/serve.rs`. Store: 3 route công khai tự chọn công ty (`?cid=`/`x-trinity-company`, hoặc chủ của slug qua `Platform::company_for_route`, không có thì công ty 1), IP đặt đơn từ `resolve_client_ip`, 429 kèm `Retry-After`; 4 route quản trị khai `org_feature` nên cần `OrgGate` (`feat/x-router-contacts-leads`). Commerce: DTO không có trong `schema.json` (các `Update*Dto`, danh mục, thuộc tính, dự án) được kiểm bằng `mod-commerce/src/dto.rs`; tải ảnh multipart trần 5MB.
 - Thông báo (`mod-notify`, M32): mẫu render bằng `handlebars` Rust nhưng AST được viết lại để in đúng chữ của handlebars.js (mảng
   `a,b`, đối tượng `[object Object]`, số kiểu JS, thoát `& < > " ' ` =`), gỡ các helper Rust thêm (`eq`, `and`, `len`…) và
   từ chối helper ngoài `if/each/with/unless/lookup/log` ngay khi lưu; bảng ca `contracts/cases/notify-templates.json` do

@@ -466,8 +466,27 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         mod_apikeys::api_router(mk_deps(mod_apikeys::named_guards(&keys_ctx))),
         keys_ctx,
     );
-    // CHƯA mount: mod-deals, mod-kanban, mod-newsfeed (cần multipart/media),
-    // mod-store (chưa có router axum). Route của chúng thuộc Node. Đã mount: settings,
+    // Trang bán hàng (route công khai tự chọn công ty theo `?cid=`/slug; IP khách qua `ClientIpResolver`) và commerce.
+    app = mount(
+        app,
+        mod_store::api_router(deps.clone()),
+        Arc::new(mod_store::Ctx {
+            db: db.clone(),
+            platform: platform.clone(),
+            scopes: ScopeService::new(db.clone(), cache.clone()),
+            ip: ip.clone(),
+            limits: mod_store::shop::OrderLimits::default(),
+        }),
+    );
+    app = mount(
+        app,
+        mod_commerce::api_router(deps.clone()),
+        Arc::new(mod_commerce::Ctx {
+            db: db.clone(),
+            uploads: LocalUploadsStore::new(uploads_root.clone()),
+        }),
+    );
+    // CHƯA mount: mod-deals, mod-kanban, mod-newsfeed (cần multipart/media). Route của chúng thuộc Node. Đã mount: settings,
     // rbac-admin (trừ `PUT /users/:id/roles`, do mod-users giữ), notify (4 route `/notifications`) ở sau khối realtime.
 
     // ── Scheduler và worker hàng đợi (nền). Chưa module nào đăng ký job ở đây; khi có, `scheduler.register(..)`.

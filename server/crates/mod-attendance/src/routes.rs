@@ -17,23 +17,24 @@ use serde::Serialize;
 use trinity_http::edge::body::read_field_limited;
 use trinity_http::edge::client_ip::resolve_client_ip;
 use trinity_http::router::{Access, AccessDeps, ApiRouter, CurrentUser, RouteSpec};
-use trinity_http::validate::{Mode, ValidJson, validate_into};
+use trinity_http::validate::{Mode, ValidJson, ValidQuery, validate_into};
 use trinity_kernel::error::{AppError, HttpError};
 
 use crate::check::{self, CheckCtx, CheckInput, SELFIE_ALLOWED_MIME, SELFIE_MAX_SIZE, SELFIE_MIME_ERROR, Selfie};
 use crate::dto::{
-    CreateOfficeDto, DeviceCheckDto, UpdateAttendanceSettingsDto, UpdateOfficeDto, UpdateRequestConfigDto,
-    UpdateWorkingSaturdaysDto,
+    CreateAttendanceRequestDto, CreateOfficeDto, DeviceCheckDto, QueryAttendanceRequestsDto, RejectRequestDto,
+    UpdateAttendanceSettingsDto, UpdateOfficeDto, UpdateRequestConfigDto, UpdateWorkingSaturdaysDto,
 };
-use crate::{config, offices};
+use crate::{config, offices, requests};
 
 const BASE: &str = "/api/v1/management/attendance";
 const ID: &[&str] = &["param.id:ParseIntPipe"];
 
-/// 13 route của M13a (cấu hình) và M13b (chấm công vào/ra) (bảng so với `routes.json` bởi `trinity check-routes`).
+/// 17 route của M13a (cấu hình), M13b (chấm công vào/ra) và M14a (đơn từ) (bảng so với `routes.json` bởi `trinity check-routes`).
 pub fn specs() -> Vec<RouteSpec> {
     let view = Access::Can(&["attendance.view"]);
     let cfg = Access::Can(&["attendance.config"]);
+    let manage = Access::Can(&["attendance.manage"]);
     vec![
         RouteSpec::new(Method::POST, "/api/v1/management/attendance/check-in", Access::AuthOnly).status_ok(201),
         RouteSpec::new(
@@ -69,6 +70,14 @@ pub fn specs() -> Vec<RouteSpec> {
         )
         .status_ok(200),
         RouteSpec::new(Method::PATCH, "/api/v1/management/attendance/request-config", cfg).status_ok(200),
+        RouteSpec::new(Method::POST, "/api/v1/management/attendance/requests", Access::AuthOnly).status_ok(201),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/requests", view).status_ok(200),
+        RouteSpec::new(Method::POST, "/api/v1/management/attendance/requests/:id/approve", manage)
+            .status_ok(201)
+            .param_pipes(ID),
+        RouteSpec::new(Method::POST, "/api/v1/management/attendance/requests/:id/reject", manage)
+            .status_ok(201)
+            .param_pipes(ID),
     ]
 }
 
@@ -256,6 +265,45 @@ async fn request_config_update(
     }
 }
 
+async fn request_create(
+    State(c): S,
+    Extension(u): U,
+    ValidJson(dto): ValidJson<CreateAttendanceRequestDto>,
+) -> Response {
+    let a = act!(u);
+    respond(requests::create(&c, &a, &dto).await, StatusCode::CREATED)
+}
+
+async fn request_list(
+    State(c): S,
+    Extension(u): U,
+    ValidQuery(q): ValidQuery<QueryAttendanceRequestsDto>,
+) -> Response {
+    let a = act!(u);
+    ok(requests::list(&c, &a, &q).await)
+}
+
+async fn request_approve(State(c): S, Extension(u): U, Path(id): Path<String>) -> Response {
+    let a = act!(u);
+    match id_of(&id, "đơn chấm công.") {
+        Ok(id) => respond(requests::approve(&c, &a, id).await, StatusCode::CREATED),
+        Err(e) => fail(e),
+    }
+}
+
+async fn request_reject(
+    State(c): S,
+    Extension(u): U,
+    Path(id): Path<String>,
+    ValidJson(dto): ValidJson<RejectRequestDto>,
+) -> Response {
+    let a = act!(u);
+    match id_of(&id, "đơn chấm công.") {
+        Ok(id) => respond(requests::reject(&c, &a, id, &dto).await, StatusCode::CREATED),
+        Err(e) => fail(e),
+    }
+}
+
 /// Router của M13a (state `Arc<Ctx>` của module nhân sự). Người gọi gắn state khi lắp `serve`.
 pub fn router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
     let s = specs();
@@ -278,6 +326,10 @@ pub fn router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::PATCH, &p("working-saturdays")), saturdays_update)
         .route(spec(&Method::GET, &p("request-config")), request_config_get)
         .route(spec(&Method::PATCH, &p("request-config")), request_config_update)
+        .route(spec(&Method::POST, &p("requests")), request_create)
+        .route(spec(&Method::GET, &p("requests")), request_list)
+        .route(spec(&Method::POST, &p("requests/:id/approve")), request_approve)
+        .route(spec(&Method::POST, &p("requests/:id/reject")), request_reject)
 }
 
 // ───────────────────────────── chấm công vào/ra (M13b) ─────────────────────────────
@@ -401,9 +453,9 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = specs();
-        assert_eq!(table.len(), 13);
+        assert_eq!(table.len(), 17);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 13);
+        assert_eq!(rep.declared, 17);
     }
 }

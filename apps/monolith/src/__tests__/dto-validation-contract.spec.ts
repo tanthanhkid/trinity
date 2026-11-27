@@ -56,6 +56,9 @@ import * as office from '../../../../services/crm/src/attendance/dto/office.dto'
 import * as attSettings from '../../../../services/crm/src/attendance/dto/update-attendance-settings.dto'
 import * as attRequestConfig from '../../../../services/crm/src/attendance/dto/update-request-config.dto'
 import * as attDeviceCheck from '../../../../services/crm/src/attendance/dto/device-check.dto'
+import * as attCreateRequest from '../../../../services/crm/src/attendance/dto/create-attendance-request.dto'
+import * as attRejectRequest from '../../../../services/crm/src/attendance/dto/reject-request.dto'
+import * as attQueryRequests from '../../../../services/crm/src/attendance/dto/query-attendance-requests.dto'
 import * as attSaturdays from '../../../../services/crm/src/attendance/dto/update-working-saturdays.dto'
 import * as employeesStats from '../../../../services/crm/src/employees/dto/employees-stats.dto'
 import * as queryNotification from '../../../../services/notification/src/notifications/dto/query-notification.dto'
@@ -137,6 +140,9 @@ const SAMPLES: Array<[Cls, Mode]> = [
   [attSettings.UpdateAttendanceSettingsDto, 'strict'],
   [attRequestConfig.UpdateRequestConfigDto, 'strict'],
   [attDeviceCheck.DeviceCheckDto, 'strict'],
+  [attCreateRequest.CreateAttendanceRequestDto, 'strict'],
+  [attRejectRequest.RejectRequestDto, 'strict'],
+  [attQueryRequests.QueryAttendanceRequestsDto, 'strict'],
   [attSaturdays.UpdateWorkingSaturdaysDto, 'strict'],
   [createContract.CreateContractDto, 'strict'],
   [updateContract.UpdateContractDto, 'strict'],

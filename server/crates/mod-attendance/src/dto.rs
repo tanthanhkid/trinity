@@ -106,3 +106,52 @@ pub struct DeviceCheckDto {
 impl trinity_http::validate::Dto for DeviceCheckDto {
     const NAME: &'static str = "DeviceCheckDto";
 }
+
+/// Body `POST /management/attendance/requests` (`CreateAttendanceRequestDto`). Giờ đề nghị nhận `null` như bỏ trống (`@IsOptional`).
+#[derive(Debug, Clone, Deserialize)]
+pub struct CreateAttendanceRequestDto {
+    pub work_date: String,
+    #[serde(rename = "type")]
+    pub kind: String,
+    #[serde(default)]
+    pub requested_check_in: Option<String>,
+    #[serde(default)]
+    pub requested_check_out: Option<String>,
+    pub reason: String,
+}
+
+impl trinity_http::validate::Dto for CreateAttendanceRequestDto {
+    const NAME: &'static str = "CreateAttendanceRequestDto";
+}
+
+/// Body `POST /management/attendance/requests/:id/reject` (`RejectRequestDto`).
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct RejectRequestDto {
+    #[serde(default)]
+    pub review_note: Option<String>,
+}
+
+impl trinity_http::validate::Dto for RejectRequestDto {
+    const NAME: &'static str = "RejectRequestDto";
+}
+
+/// Query `GET /management/attendance/requests` (`QueryAttendanceRequestsDto`).
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct QueryAttendanceRequestsDto {
+    #[serde(default)]
+    pub status: Option<String>,
+    #[serde(default)]
+    pub page: Option<i64>,
+    #[serde(default)]
+    pub page_size: Option<i64>,
+    #[serde(default)]
+    pub team_id: Option<i64>,
+    #[serde(default)]
+    pub department: Option<String>,
+    #[serde(default)]
+    pub job_title_id: Option<i64>,
+}
+
+impl trinity_http::validate::Dto for QueryAttendanceRequestsDto {
+    const NAME: &'static str = "QueryAttendanceRequestsDto";
+}

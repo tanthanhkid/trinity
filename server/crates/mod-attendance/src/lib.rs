@@ -1,6 +1,6 @@
 //! Chấm công, phần cấu hình (M13a): 11 endpoint `/api/v1/management/attendance/*` chuyển từ `services/crm/src/attendance`
 //! (phần văn phòng, cấu hình ca, thứ 7 đi làm, cấu hình đơn, đặt lại thiết bị). Chấm công vào/ra và kiểm IP là M13b; danh sách,
-//! thống kê, đơn từ là M14.
+//! thống kê là M14; đơn từ (M14a) ở [`requests`]: `POST/GET /requests`, `POST /requests/:id/approve|reject`.
 //!
 //! | Route | Hàm | Quyền |
 //! |---|---|---|
@@ -26,6 +26,7 @@ pub mod check;
 pub mod config;
 pub mod dto;
 pub mod offices;
+pub mod requests;
 pub mod routes;
 
 use serde_json::Value;

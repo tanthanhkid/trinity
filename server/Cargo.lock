@@ -2297,6 +2297,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-public-api"
+version = "0.3.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "mod-apikeys",
+ "mod-contacts",
+ "mod-deals",
+ "mod-kanban",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "tokio",
+ "tower",
+ "tracing",
+ "trinity-auth",
+ "trinity-db",
+ "trinity-http",
+ "trinity-kernel",
+ "trinity-rbac",
+]
+
+[[package]]
 name = "mod-rbac-admin"
 version = "0.3.0"
 dependencies = [
@@ -4405,6 +4429,7 @@ dependencies = [
  "mod-oauth",
  "mod-payroll",
  "mod-pos",
+ "mod-public-api",
  "mod-reports",
  "mod-system",
  "mod-users",

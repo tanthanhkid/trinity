@@ -28,11 +28,8 @@ trinity-docgen = { path = "crates/trinity-docgen" }
 trinity-obs = { path = "crates/trinity-obs" }
 trinity-ops = { path = "crates/trinity-ops" }
 trinity-testhooks = { path = "crates/trinity-testhooks" }
-<<<<<<< HEAD
 mod-system = { path = "crates/mod-system" }
-=======
 mod-users = { path = "crates/mod-users" }
->>>>>>> 625464a (fix(users): assign_team bỏ cache, actor đóng khi công ty lỗi, trang không tràn, 0 = không lọc, số thực nguyên)
 trinity-integrations = { path = "crates/trinity-integrations" }
 mod-commerce = { path = "crates/mod-commerce" }
 mod-kanban = { path = "crates/mod-kanban" }

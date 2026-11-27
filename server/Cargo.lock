@@ -2151,6 +2151,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-users"
+version = "0.3.0"
+dependencies = [
+ "axum",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tower",
+ "tracing",
+ "trinity-auth",
+ "trinity-db",
+ "trinity-docgen",
+ "trinity-http",
+ "trinity-kernel",
+ "trinity-rbac",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4160,6 +4179,7 @@ dependencies = [
  "clap",
  "getrandom 0.4.3",
  "mod-system",
+ "mod-users",
  "serde_json",
  "sqlx",
  "tokio",

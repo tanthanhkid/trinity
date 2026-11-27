@@ -271,6 +271,8 @@ pub async fn close(
     user_id: i32,
     owner: &OwnerIds,
 ) -> Result<ShiftWithSummary, AppError> {
+    // Kiểm phạm vi trước khi khoá: người ngoài phạm vi nhận 404 mà không chiếm khoá dòng ca của người khác.
+    get_owned(&mut *conn, id, owner).await?;
     // Khoá dòng ca trước khi đọc tổng kết: thu tiền và tạo đơn (M27) khoá cùng dòng này, nên tổng kết và các đơn `open`
     // đọc ở đây không đổi cho tới khi đóng xong.
     let mut tx = conn.begin().await.map_err(db)?;

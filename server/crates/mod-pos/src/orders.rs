@@ -78,6 +78,12 @@ fn items_errors(items: &[OrderItemInput], out: &mut Vec<String>) {
             for id in m {
                 range("each value in modifier_ids", (*id).into(), 1, INT4_MAX, &mut e);
             }
+            let mut seen = m.clone();
+            seen.sort_unstable();
+            seen.dedup();
+            if seen.len() != m.len() {
+                e.push("modifier_ids must not contain duplicate values".to_owned());
+            }
         }
         if it.note.as_deref().is_some_and(|n| len16(n) > 255) {
             e.push("note must be shorter than or equal to 255 characters".to_owned());
@@ -207,6 +213,9 @@ impl UpdateOrder {
         );
         if let Some(i) = &self.items {
             items_errors(i, &mut e);
+        }
+        if self.discount_type.as_deref().is_some_and(|t| t != "none") && self.discount_value.is_none() {
+            e.push("discount_value là bắt buộc khi đổi discount_type".to_owned());
         }
         finish(e)
     }
@@ -648,17 +657,29 @@ async fn lock_products(conn: &mut PgConnection, items: &[BuiltItem]) -> Result<(
     if ids.is_empty() {
         return Ok(());
     }
-    let found: Vec<i32> =
-        sqlx::query_scalar("SELECT id FROM products WHERE id = ANY($1) AND deleted_at IS NULL ORDER BY id FOR SHARE")
-            .bind(&ids)
-            .fetch_all(conn)
-            .await
-            .map_err(db)?;
-    if found.len() == ids.len() {
-        Ok(())
-    } else {
-        Err(HttpError::conflict("Có món vừa bị xoá khỏi danh mục sản phẩm — tải lại menu rồi tạo lại đơn").into())
+    let found: Vec<(i32, bool, Option<i64>)> = sqlx::query_as(
+        "SELECT id, is_active, price FROM products WHERE id = ANY($1) AND deleted_at IS NULL ORDER BY id FOR SHARE",
+    )
+    .bind(&ids)
+    .fetch_all(conn)
+    .await
+    .map_err(db)?;
+    if found.len() != ids.len() {
+        return Err(
+            HttpError::conflict("Có món vừa bị xoá khỏi danh mục sản phẩm — tải lại menu rồi tạo lại đơn").into(),
+        );
     }
+    // Khoá đã giữ nên giá và trạng thái không đổi được nữa: kiểm lại với giá lúc dựng dòng (đã đọc trước khi khoá).
+    let stale = items.iter().any(|i| {
+        found
+            .iter()
+            .find(|f| f.0 == i.product_id)
+            .is_none_or(|f| !f.1 || f.2 != Some(i.unit_price))
+    });
+    if stale {
+        return Err(HttpError::conflict("Giá hoặc trạng thái món vừa thay đổi — tải lại menu rồi tạo lại đơn").into());
+    }
+    Ok(())
 }
 
 async fn insert_items(conn: &mut PgConnection, order_id: i32, items: &[BuiltItem]) -> Result<(), AppError> {
@@ -697,17 +718,18 @@ async fn assert_table(conn: &mut PgConnection, table_id: Option<i32>) -> Result<
 
 /// Mã đơn kế tiếp `YYYYMMDD-NNNN` (giờ VN). Khoá advisory theo giao dịch để hai đơn đồng thời không trùng mã.
 async fn next_code(conn: &mut PgConnection, now: DateTime<Utc>) -> Result<String, AppError> {
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtext('pos_orders.code'))")
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext(current_schema() || '.pos_orders.code'))")
         .execute(&mut *conn)
         .await
         .map_err(db)?;
     let ymd = today_vn(now).format("%Y%m%d").to_string();
-    let last: Option<String> =
-        sqlx::query_scalar("SELECT code FROM pos_orders WHERE code LIKE $1 ORDER BY code DESC LIMIT 1")
-            .bind(format!("{ymd}-%"))
-            .fetch_optional(conn)
-            .await
-            .map_err(db)?;
+    let last: Option<String> = sqlx::query_scalar(
+        "SELECT code FROM pos_orders WHERE code LIKE $1 ORDER BY length(code) DESC, code DESC LIMIT 1",
+    )
+    .bind(format!("{ymd}-%"))
+    .fetch_optional(conn)
+    .await
+    .map_err(db)?;
     let n = last
         .and_then(|c| c.get(9..).and_then(|s| s.parse::<u32>().ok()))
         .unwrap_or(0)
@@ -868,7 +890,17 @@ pub async fn pay(
     if order.status != "open" {
         return Err(HttpError::conflict("Đơn đã được thanh toán hoặc đã huỷ").into());
     }
-    let rows = build_payment_rows(&input.payments, order.total.0)?;
+    let mut rows = build_payment_rows(&input.payments, order.total.0)?;
+    if rows.is_empty() {
+        // Đơn 0đ vẫn cần một dòng thu 0đ: số đơn đã thu của ca đếm theo dòng thanh toán, và dòng này gắn đơn vào ca.
+        rows.push(crate::money::PaymentRow {
+            method: "cash".into(),
+            amount: 0,
+            tendered: Some(0),
+            change: 0,
+            reference: None,
+        });
+    }
     sqlx::query(
         "UPDATE pos_orders SET status = 'paid', paid_by = $2, paid_at = now(), updated_at = now() WHERE id = $1",
     )
@@ -931,20 +963,39 @@ pub async fn void_order(
     if cur.status == "paid" && !can_manage {
         return Err(HttpError::forbidden("Cần quyền quản lý POS (pos.manage) để huỷ đơn đã thu tiền").into());
     }
-    let res = sqlx::query(
+    let mut tx = conn.begin().await.map_err(db)?;
+    if cur.status == "paid" {
+        // Huỷ đơn đã thu làm đổi tiền của các ca nhận tiền: khoá các ca đó `FOR UPDATE` (cùng thứ tự id, và TRƯỚC khoá dòng
+        // đơn như `pay`, để không bế tắc), nên đóng ca không thể chen giữa. Ca đã đóng thì số liệu đã chốt: 409.
+        let shifts: Vec<(i32, String)> = sqlx::query_as(
+            "SELECT id, status FROM pos_shifts WHERE id IN (SELECT shift_id FROM pos_payments WHERE order_id = $1) \
+             ORDER BY id FOR UPDATE",
+        )
+        .bind(id)
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(db)?;
+        if shifts.iter().any(|s| s.1 != "open") {
+            return Err(HttpError::conflict("Ca nhận tiền của đơn đã đóng, không huỷ được đơn đã thu").into());
+        }
+    }
+    let locked = fetch_order(&mut tx, id, true)
+        .await?
+        .ok_or_else(|| HttpError::not_found(NOT_FOUND))?;
+    if locked.status != cur.status {
+        return Err(HttpError::conflict("Trạng thái đơn vừa thay đổi, tải lại").into());
+    }
+    sqlx::query(
         "UPDATE pos_orders SET status = 'void', voided_by = $2, voided_at = now(), void_reason = $3, updated_at = now() \
-         WHERE id = $1 AND status = $4",
+         WHERE id = $1",
     )
     .bind(id)
     .bind(user_id)
     .bind(&input.reason)
-    .bind(&cur.status)
-    .execute(&mut *conn)
+    .execute(&mut *tx)
     .await
     .map_err(db)?;
-    if res.rows_affected() != 1 {
-        return Err(HttpError::conflict("Trạng thái đơn vừa thay đổi, tải lại").into());
-    }
+    tx.commit().await.map_err(db)?;
     get_by_id(conn, id, owner).await
 }
 

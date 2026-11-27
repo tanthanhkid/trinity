@@ -659,3 +659,241 @@ async fn dong_ca_khong_lech_khi_thu_tien_song_song() {
     }
     clean(&mut c).await;
 }
+
+/// Các lỗ hổng review #393: huỷ đơn đã thu khi ca đã đóng, mã đơn qua 9999, đổi loại giảm giá, tuỳ chọn trùng, giá đổi
+/// sau khi dựng dòng, đơn 0đ.
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn huy_don_da_thu_ca_dong_va_cac_bien() {
+    let _g = serial().lock().await;
+    let mut c = conn().await;
+    clean(&mut c).await;
+    let me = user(&mut c, "a").await;
+    let mine = OwnerIds::Ids(vec![me]);
+    let now = Utc::now();
+    let p = product(&mut c, "m27-p", 10_000).await;
+    let free = product(&mut c, "m27-free", 0).await;
+    let size: i32 = sqlx::query_scalar(
+        "INSERT INTO pos_modifiers (group_name, name, price_delta) VALUES ('m27 Size', 'L', 1000) RETURNING id",
+    )
+    .fetch_one(&mut *c)
+    .await
+    .unwrap();
+    let body = serde_json::json!({"items": [{"product_id": p, "quantity": 1}]});
+    let sh = shifts::open(&mut c, me, &OpenShift { opening_cash: 0 }).await.unwrap();
+
+    // Tuỳ chọn trùng id ⇒ 400 ở DTO.
+    let dup: CreateOrder = serde_json::from_value(
+        serde_json::json!({"items": [{"product_id": p, "quantity": 1, "modifier_ids": [size, size]}]}),
+    )
+    .unwrap();
+    assert!(dup.validate().is_err());
+    // Đổi loại giảm giá mà không gửi giá trị ⇒ 400.
+    let up: UpdateOrder = serde_json::from_value(serde_json::json!({"discount_type": "percent"})).unwrap();
+    assert!(up.validate().is_err());
+    let up_ok: UpdateOrder = serde_json::from_value(serde_json::json!({"discount_type": "none"})).unwrap();
+    assert!(up_ok.validate().is_ok());
+
+    // Mã đơn qua 9999: sắp theo độ dài rồi chữ, nên 10000 lớn hơn 9999.
+    let ymd = (now + chrono::Duration::hours(7)).format("%Y%m%d").to_string();
+    let seed = orders::create(&mut c, me, &create_of(body.clone()), now, &mine)
+        .await
+        .unwrap();
+    exec(
+        &mut c,
+        format!("UPDATE pos_orders SET code = '{ymd}-9999' WHERE id = {}", seed.id),
+    )
+    .await;
+    let next = orders::create(&mut c, me, &create_of(body.clone()), now, &mine)
+        .await
+        .unwrap();
+    assert_eq!(next.code, format!("{ymd}-10000"));
+    let next2 = orders::create(&mut c, me, &create_of(body.clone()), now, &mine)
+        .await
+        .unwrap();
+    assert_eq!(next2.code, format!("{ymd}-10001"));
+    for id in [seed.id, next.id, next2.id] {
+        orders::void_order(&mut c, id, me, &VoidOrder { reason: "dọn".into() }, true, &mine)
+            .await
+            .unwrap();
+    }
+
+    // Đơn 0đ: thu không cần dòng thanh toán, nhưng có một dòng 0đ gắn vào ca nên tính vào số đơn đã thu.
+    let z = orders::create(
+        &mut c,
+        me,
+        &create_of(serde_json::json!({"items": [{"product_id": free, "quantity": 2}]})),
+        now,
+        &mine,
+    )
+    .await
+    .unwrap();
+    assert_eq!(z.total.0, 0);
+    let zp = orders::pay(&mut c, z.id, me, &pay_of(serde_json::json!({"payments": []})), &mine)
+        .await
+        .unwrap();
+    assert_eq!(
+        (
+            zp.status.as_str(),
+            zp.payments.len(),
+            zp.payments[0].amount.0,
+            zp.payments[0].shift_id
+        ),
+        ("paid", 1, 0, sh.id)
+    );
+    let s = shifts::summary(&mut c, sh.id, &mine).await.unwrap().summary.unwrap();
+    assert_eq!((s.paid_orders, s.cash_sales), (1, 0));
+
+    // Giá đổi giữa lúc dựng dòng và lúc khoá ⇒ 409 (mô phỏng bằng khoá chia sẻ thấy giá mới): dựng xong, đổi giá, tạo lại.
+    let o = orders::create(&mut c, me, &create_of(body.clone()), now, &mine)
+        .await
+        .unwrap();
+    let paid = orders::pay(
+        &mut c,
+        o.id,
+        me,
+        &pay_of(serde_json::json!({"payments": [{"method": "cash", "amount": 10_000}]})),
+        &mine,
+    )
+    .await
+    .unwrap();
+    assert_eq!(paid.status, "paid");
+    exec(&mut c, format!("UPDATE products SET is_active = false WHERE id = {p}")).await;
+    assert_eq!(
+        status(
+            orders::create(&mut c, me, &create_of(body.clone()), now, &mine)
+                .await
+                .unwrap_err()
+        )
+        .0,
+        400
+    );
+    exec(&mut c, format!("UPDATE products SET is_active = true WHERE id = {p}")).await;
+
+    // Huỷ đơn đã thu: ca còn mở thì được (tiền rời khỏi tổng kết); ca đã đóng ⇒ 409 và đơn giữ nguyên.
+    let o2 = orders::create(&mut c, me, &create_of(body.clone()), now, &mine)
+        .await
+        .unwrap();
+    orders::pay(
+        &mut c,
+        o2.id,
+        me,
+        &pay_of(serde_json::json!({"payments": [{"method": "cash", "amount": 10_000}]})),
+        &mine,
+    )
+    .await
+    .unwrap();
+    let reason = VoidOrder {
+        reason: "nhầm đơn".into(),
+    };
+    orders::void_order(&mut c, o2.id, me, &reason, true, &mine)
+        .await
+        .unwrap();
+    let s = shifts::summary(&mut c, sh.id, &mine).await.unwrap().summary.unwrap();
+    assert_eq!(s.cash_sales, 10_000, "chỉ còn đơn o");
+    shifts::close(
+        &mut c,
+        sh.id,
+        &CloseShift {
+            closing_cash_counted: 10_000,
+            note: None,
+        },
+        me,
+        &mine,
+    )
+    .await
+    .unwrap();
+    let (code, msg) = status(
+        orders::void_order(&mut c, o.id, me, &reason, true, &mine)
+            .await
+            .unwrap_err(),
+    );
+    assert_eq!(code, 409, "{msg}");
+    assert_eq!(orders::get_by_id(&mut c, o.id, &mine).await.unwrap().status, "paid");
+    let after = shifts::summary(&mut c, sh.id, &mine).await.unwrap();
+    assert_eq!(after.summary.unwrap().expected_cash, 10_000);
+    // Đơn mở huỷ được kể cả khi không còn ca mở.
+    clean(&mut c).await;
+}
+
+/// Huỷ đơn đã thu chạy song song với đóng ca: ca đóng thì tiền mặt dự kiến luôn khớp các khoản còn tính.
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn huy_don_da_thu_song_song_voi_dong_ca() {
+    let _g = serial().lock().await;
+    let mut c = conn().await;
+    clean(&mut c).await;
+    let me = user(&mut c, "a").await;
+    let mine = OwnerIds::Ids(vec![me]);
+    let now = Utc::now();
+    let p = product(&mut c, "m27-p", 10_000).await;
+    let body = serde_json::json!({"items": [{"product_id": p, "quantity": 1}]});
+    for round in 0..12 {
+        let sh = shifts::open(&mut c, me, &OpenShift { opening_cash: 0 }).await.unwrap();
+        let o = orders::create(&mut c, me, &create_of(body.clone()), now, &mine)
+            .await
+            .unwrap();
+        orders::pay(
+            &mut c,
+            o.id,
+            me,
+            &pay_of(serde_json::json!({"payments": [{"method": "cash", "amount": 10_000}]})),
+            &mine,
+        )
+        .await
+        .unwrap();
+        let (mut vc, mut cc) = (conn().await, conn().await);
+        let (m1, m2) = (mine.clone(), mine.clone());
+        let t_void = tokio::spawn(async move {
+            orders::void_order(
+                &mut vc,
+                o.id,
+                me,
+                &VoidOrder {
+                    reason: "song song".into(),
+                },
+                true,
+                &m1,
+            )
+            .await
+            .map(|_| ())
+        });
+        let t_close = tokio::spawn(async move {
+            shifts::close(
+                &mut cc,
+                sh.id,
+                &CloseShift {
+                    closing_cash_counted: 0,
+                    note: None,
+                },
+                me,
+                &m2,
+            )
+            .await
+            .map(|_| ())
+        });
+        let (rv, rc) = (t_void.await.unwrap(), t_close.await.unwrap());
+        assert!(rc.is_ok(), "vòng {round}: ca không còn đơn mở nên đóng được");
+        let (expected,): (Option<i64>,) = sqlx::query_as("SELECT expected_cash FROM pos_shifts WHERE id = $1")
+            .bind(sh.id)
+            .fetch_one(&mut *c)
+            .await
+            .unwrap();
+        let live: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(SUM(p.amount), 0)::int8 FROM pos_payments p JOIN pos_orders o ON o.id = p.order_id WHERE p.shift_id = $1 AND o.status = 'paid' AND p.method = 'cash'",
+        )
+        .bind(sh.id)
+        .fetch_one(&mut *c)
+        .await
+        .unwrap();
+        // Huỷ trước đóng ca ⇒ dự kiến 0 và đơn đã huỷ; đóng ca trước ⇒ huỷ bị 409 và dự kiến 10.000.
+        match rv {
+            Ok(()) => assert_eq!((expected, live), (Some(0), 0), "vòng {round}"),
+            Err(e) => {
+                assert_eq!(status(e).0, 409, "vòng {round}");
+                assert_eq!((expected, live), (Some(10_000), 10_000), "vòng {round}");
+            }
+        }
+    }
+    clean(&mut c).await;
+}

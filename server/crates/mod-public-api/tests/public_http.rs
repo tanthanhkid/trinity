@@ -99,6 +99,7 @@ async fn app() -> App {
         scopes: ScopeService::new(db, cache),
         ip,
         limiter: PublicCtx::new_limiter(),
+        contact_created: None,
     });
     let deps = Arc::new(AccessDeps {
         auth: Arc::new(Authenticator::new(security, JWT, &[])),

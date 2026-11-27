@@ -2,6 +2,7 @@
 //! mục 4.1).
 
 mod channel_lock;
+mod contacts_hooks;
 mod feature_gate;
 mod migrate;
 mod routes;

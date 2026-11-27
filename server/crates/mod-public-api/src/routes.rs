@@ -109,7 +109,15 @@ async fn create_contact(State(c): State<Arc<PublicCtx>>, Extension(k): Extension
         Err(r) => return r,
     };
     match dto("PublicCreateContactDto", &b) {
-        Ok(d) => ok(service::create_contact(&c, &k, &d).await),
+        Ok(d) => {
+            let res = service::create_contact(&c, &k, &d).await;
+            if res.is_ok()
+                && let Some(f) = &c.contact_created
+            {
+                f(k.company);
+            }
+            ok(res)
+        }
         Err(r) => r,
     }
 }

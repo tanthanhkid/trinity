@@ -2292,15 +2292,19 @@ dependencies = [
 name = "mod-briefings"
 version = "0.3.0"
 dependencies = [
+ "axum",
  "chrono",
+ "mod-settings",
  "serde",
  "serde_json",
  "sqlx",
  "tokio",
  "tracing",
  "trinity-db",
+ "trinity-http",
  "trinity-jobs",
  "trinity-kernel",
+ "trinity-rbac",
 ]
 
 [[package]]
@@ -5015,6 +5019,7 @@ dependencies = [
  "mod-apikeys",
  "mod-attendance",
  "mod-auth",
+ "mod-briefings",
  "mod-channel-guard",
  "mod-commerce",
  "mod-contacts",

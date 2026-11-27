@@ -53,6 +53,7 @@ mod-pos = { path = "crates/mod-pos" }
 mod-notify = { path = "crates/mod-notify" }
 mod-hr = { path = "crates/mod-hr" }
 mod-attendance = { path = "crates/mod-attendance" }
+mod-briefings = { path = "crates/mod-briefings" }
 mod-leads = { path = "crates/mod-leads" }
 mod-settings = { path = "crates/mod-settings" }
 mod-rbac-admin = { path = "crates/mod-rbac-admin" }

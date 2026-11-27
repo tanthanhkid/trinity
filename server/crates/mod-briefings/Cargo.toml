@@ -9,14 +9,18 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+axum = { workspace = true }
 chrono = { workspace = true }
+mod-settings = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 tracing = { workspace = true }
 trinity-db = { workspace = true }
+trinity-http = { workspace = true }
 trinity-jobs = { workspace = true }
 trinity-kernel = { workspace = true }
+trinity-rbac = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

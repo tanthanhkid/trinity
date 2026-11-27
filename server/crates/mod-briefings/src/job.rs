@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use chrono::Utc;
-use trinity_db::Db;
+use trinity_db::{CompanyRef, Db};
 use trinity_jobs::{JobSpec, Scheduler, SchedulerError};
 
 use crate::service::{Ports, run_due};
@@ -26,14 +26,20 @@ pub fn job_enabled(get: impl Fn(&str) -> Option<String>) -> bool {
     !test_hooks_enabled(&get) && get("BRIEFING_CRON_ENABLED").is_some_and(|v| v.trim() == "true")
 }
 
-/// Khai báo job (không đăng ký).
-pub fn job_spec<P: Ports>(db: Db, ports: Arc<P>) -> Result<JobSpec, SchedulerError> {
+/// Khai báo job (không đăng ký). `ports` dựng [`Ports`] của từng công ty (cờ gói và phạm vi quyền phụ thuộc công ty).
+pub fn job_spec<P, F>(db: Db, ports: F) -> Result<JobSpec, SchedulerError>
+where
+    P: Ports,
+    F: Fn(CompanyRef) -> P + Send + Sync + 'static,
+{
+    let ports = Arc::new(ports);
     JobSpec::new(JOB_NAME, INTERVAL, BUDGET, move |company| {
         let db = db.clone();
         let ports = Arc::clone(&ports);
         async move {
             let tenant = db.tenant(company).await.map_err(|e| e.to_string())?;
-            run_due(&tenant, ports.as_ref(), Utc::now())
+            let p = (ports.as_ref())(company);
+            run_due(&tenant, &p, Utc::now())
                 .await
                 .map(drop)
                 .map_err(|e| format!("{e:?}"))
@@ -42,12 +48,16 @@ pub fn job_spec<P: Ports>(db: Db, ports: Arc<P>) -> Result<JobSpec, SchedulerErr
 }
 
 /// Đăng ký job khi env bật; trả `true` nếu đã đăng ký.
-pub fn register_if_enabled<P: Ports>(
+pub fn register_if_enabled<P, F>(
     scheduler: &Scheduler,
     db: &Db,
-    ports: Arc<P>,
+    ports: F,
     get: impl Fn(&str) -> Option<String>,
-) -> Result<bool, SchedulerError> {
+) -> Result<bool, SchedulerError>
+where
+    P: Ports,
+    F: Fn(CompanyRef) -> P + Send + Sync + 'static,
+{
     if !job_enabled(get) {
         return Ok(false);
     }

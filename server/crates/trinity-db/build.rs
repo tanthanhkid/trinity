@@ -8,11 +8,17 @@ use std::fmt::Write as _;
 use std::path::Path;
 
 fn main() {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+    // Đọc lúc CHẠY script, không `env!` lúc biên dịch script: thư mục build dùng chung giữa các worktree nên binary script
+    // có thể là bản đã dựng ở worktree khác, và đường dẫn nướng sẵn trong đó sẽ nhúng nhầm migration của worktree kia.
+    let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR");
+    let dir = Path::new(&manifest)
         .join("../../../packages/prisma/prisma/migrations")
         .canonicalize()
         .expect("có thư mục packages/prisma/prisma/migrations");
     println!("cargo::rerun-if-changed={}", dir.display());
+    println!("cargo::rerun-if-changed=build.rs");
+    // Đường dẫn tuyệt đối vào môi trường của crate: đổi worktree thì giá trị đổi.
+    println!("cargo::rustc-env=TRINITY_MIGRATIONS_DIR={}", dir.display());
     let mut names: Vec<String> = std::fs::read_dir(&dir)
         .unwrap_or_else(|e| panic!("không đọc được {}: {e}", dir.display()))
         .filter_map(Result::ok)

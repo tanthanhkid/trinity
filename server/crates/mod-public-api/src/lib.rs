@@ -17,8 +17,8 @@
 //! - [`routes`]: bảng route (nạp vào `trinity-bin` để so với `routes.json`) và router axum.
 //!
 //! Khác bản TS có chủ đích: việc tạo thương vụ ([`service::create_deal`]) nằm ở đây vì module deal (M08) chưa chuyển; khi M08
-//! xong, hàm này gọi lại service của M08. Việc dọn bản ghi mẫu sau khách thật đầu tiên (`SampleRecordsService.purgeIfReal`) chưa
-//! có bản Rust nên chưa chạy ở đây.
+//! xong, hàm này gọi lại service của M08. Việc dọn bản ghi mẫu sau khách thật đầu tiên (`SampleRecordsService.purgeIfReal`) và xoá
+//! cache sau khi tạo khách đi qua [`PublicCtx::contact_created`] do tầng `serve` cài.
 
 #![allow(clippy::result_large_err)]
 
@@ -46,6 +46,10 @@ pub struct PublicCtx {
     pub ip: Arc<ClientIpResolver>,
     /// 100 yêu cầu mỗi phút mỗi khoá (RAM, một tiến trình): dựng bằng [`PublicCtx::new_limiter`].
     pub limiter: Arc<FixedWindowLimiter>,
+    /// Gọi sau `POST /public/contacts` thành công (tầng `serve` cài): xoá cache đếm khách và cache Tổng quan, dọn bản ghi
+    /// mẫu sau khách thật đầu tiên (`ContactsService.create` + `SampleRecordsService.purgeIfReal` của bản Node). Hàm không
+    /// được chặn (việc nặng chạy nền) và không làm hỏng việc chính.
+    pub contact_created: Option<Arc<dyn Fn(trinity_db::CompanyRef) + Send + Sync>>,
 }
 
 impl PublicCtx {

@@ -22,9 +22,9 @@
 //! - thông báo "được giao thương vụ" ([`write::Created::notifications`]) ghi trong CÙNG giao dịch tạo khách (K36 chạy trong
 //!   savepoint nên lỗi gửi tin không làm hỏng việc tạo); bản TS gửi sau commit. Socket nội bộ do tầng route đẩy từ danh
 //!   sách trả về;
-//! - việc dọn bản ghi mẫu sau khi có khách thật đầu tiên (`SampleRecordsService.purgeIfReal`) và xoá cache dashboard thuộc
-//!   module khác: tầng route gọi sau [`write::create`] (hàm trả `Created`), và gọi [`list::CountCache::clear`] sau khi tạo,
-//!   xoá, khôi phục;
+//! - việc dọn bản ghi mẫu sau khi có khách thật đầu tiên (`SampleRecordsService.purgeIfReal`), xoá cache dashboard, đồng bộ
+//!   thẻ @ và đẩy socket thuộc module khác: tầng route gọi [`routes::Hooks`] (do `serve` cài) sau [`write::create`] (hàm trả
+//!   `Created`) và các thao tác ghi khác, và gọi [`list::CountCache::clear`] sau khi tạo, xoá, khôi phục;
 //! - cache đếm tổng của danh sách ([`list::CountCache`]) nằm trong RAM từng tiến trình, như `ReadCache` của TS; chưa có
 //!   `NOTIFY cache` giữa các tiến trình (G12b) nên tiến trình khác thấy số cũ tới hết TTL 60 giây.
 

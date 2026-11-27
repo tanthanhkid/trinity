@@ -241,20 +241,33 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             scopes: ScopeService::new(db.clone(), cache.clone()),
         }),
     );
-    app = mount(
-        app,
-        mod_reports::api_router(deps.clone()),
-        Arc::new(mod_reports::Ctx {
-            db: db.clone(),
-            scopes: ScopeService::new(db.clone(), cache.clone()),
-            cache: mod_reports::cache::ReadCache::new(false),
-        }),
-    );
-    app = mount(
-        app,
-        mod_setup::api_router(deps.clone()),
-        Arc::new(mod_setup::Ctx::new(db.clone())),
-    );
+    // Một bộ nhớ đệm số liệu Tổng quan dùng chung cho router báo cáo, tool MCP và việc xoá cache sau khi ghi khách.
+    let reports_ctx = Arc::new(mod_reports::Ctx {
+        db: db.clone(),
+        scopes: ScopeService::new(db.clone(), cache.clone()),
+        cache: mod_reports::cache::ReadCache::new(false),
+    });
+    app = mount(app, mod_reports::api_router(deps.clone()), reports_ctx.clone());
+    // Socket `/notif-ws` dựng sau cùng: các router cần đẩy thông báo nội bộ (payroll, khách hàng) giữ ô này và điền ở bước realtime.
+    let socket_slot: Arc<std::sync::OnceLock<trinity_realtime::NotifSocket>> = Arc::new(std::sync::OnceLock::new());
+    // Router khách hàng dựng sau; dọn mẫu hàng loạt (wizard) cần xoá cache đếm của nó và cache Tổng quan.
+    let contacts_slot: Arc<std::sync::OnceLock<Arc<mod_contacts::routes::Ctx>>> = Arc::new(std::sync::OnceLock::new());
+    let mut setup_inner = mod_setup::Ctx::new(db.clone());
+    {
+        let (slot, reports, db) = (contacts_slot.clone(), reports_ctx.clone(), db.clone());
+        let changed: mod_setup::ContactsChanged = Arc::new(move |company: trinity_db::CompanyRef| {
+            if let Some(c) = slot.get() {
+                c.cache.clear();
+            }
+            let (reports, db) = (reports.clone(), db.clone());
+            tokio::spawn(async move {
+                crate::contacts_hooks::invalidate_dashboard(&db, &reports, company).await;
+            });
+        });
+        setup_inner.contacts_changed = Some(changed);
+    }
+    let setup_ctx = Arc::new(setup_inner);
+    app = mount(app, mod_setup::api_router(deps.clone()), setup_ctx.clone());
     app = mount(app, mod_hr::routes::employee_router(deps.clone()), Arc::new(hr_ctx()));
     app = mount(
         app,
@@ -339,6 +352,25 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         scopes: ScopeService::new(db.clone(), cache.clone()),
         ip: ip.clone(),
         limiter: mod_public_api::PublicCtx::new_limiter(),
+        // Tạo khách qua API công khai cũng như `ContactsService.create`: xoá cache, dọn bản ghi mẫu.
+        contact_created: Some({
+            let (slot, reports, setup, db) = (
+                contacts_slot.clone(),
+                reports_ctx.clone(),
+                setup_ctx.clone(),
+                db.clone(),
+            );
+            Arc::new(move |company: trinity_db::CompanyRef| {
+                if let Some(c) = slot.get() {
+                    c.cache.clear();
+                }
+                let (reports, setup, db) = (reports.clone(), setup.clone(), db.clone());
+                tokio::spawn(async move {
+                    crate::contacts_hooks::invalidate_dashboard(&db, &reports, company).await;
+                    mod_setup::samples::purge_if_real(&setup, company).await;
+                });
+            }) as Arc<dyn Fn(trinity_db::CompanyRef) + Send + Sync>
+        }),
     });
     app = mount(
         app,
@@ -404,12 +436,8 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     let tool_scopes = ScopeService::new(db.clone(), cache.clone());
     let tool_deps = Arc::new(mod_mcp::deps::ToolDeps {
         db: db.clone(),
-        scopes: tool_scopes.clone(),
-        reports: Arc::new(mod_reports::Ctx {
-            db: db.clone(),
-            scopes: tool_scopes,
-            cache: mod_reports::cache::ReadCache::new(false),
-        }),
+        scopes: tool_scopes,
+        reports: reports_ctx.clone(),
     });
     let public_base = lookup("INTEGRATIONS_PUBLIC_BASE_URL").unwrap_or_else(|| format!("http://localhost:{port}"));
     let mcp_endpoint = mod_mcp::McpEndpoint {
@@ -455,15 +483,20 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             scopes: ScopeService::new(db.clone(), cache.clone()),
         }),
     );
-    app = mount(
-        app,
-        mod_contacts::routes::api_router(deps.clone()),
-        Arc::new(mod_contacts::routes::Ctx {
+    let contacts_ctx = Arc::new(mod_contacts::routes::Ctx {
+        db: db.clone(),
+        scopes: ScopeService::new(db.clone(), cache.clone()),
+        cache: mod_contacts::list::CountCache::new(),
+        hooks: Arc::new(crate::contacts_hooks::ContactsHooks {
             db: db.clone(),
             scopes: ScopeService::new(db.clone(), cache.clone()),
-            cache: mod_contacts::list::CountCache::new(),
+            reports: reports_ctx.clone(),
+            setup: setup_ctx.clone(),
+            socket: socket_slot.clone(),
         }),
-    );
+    });
+    let _ = contacts_slot.set(contacts_ctx.clone());
+    app = mount(app, mod_contacts::routes::api_router(deps.clone()), contacts_ctx);
     app = mount(
         app,
         mod_leads::routes::api_router(deps.clone()),
@@ -490,7 +523,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         Arc::new(mod_briefings::routes::Ctx { db: db.clone() }),
     );
     // Payroll: socket `/notif-ws` dựng sau cùng nên điền vào `payroll_socket` ở bước realtime bên dưới.
-    let payroll_socket = Arc::new(std::sync::OnceLock::new());
+    let payroll_socket = socket_slot.clone();
     app = mount(
         app,
         mod_payroll::api_router(deps.clone()),
@@ -632,7 +665,17 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     if sync_on {
         match trinity_db::sync::listen_from_env() {
             Ok(Some(rx)) => {
-                trinity_realtime::spawn_bell_listener(socket.clone(), db.clone(), rx, None);
+                // Chỉ MỘT bên được nghe `trinity_sync`: chuông tự xử lý tin `bell`, mọi tin khác (kể cả `Resync`) chuyển tiếp
+                // cho cache số liệu Tổng quan (tin `cache`) và ChannelGuard (tin `graph`).
+                let (fwd_tx, mut fwd_rx) = tokio::sync::mpsc::channel::<trinity_db::sync::SyncEvent>(1024);
+                trinity_realtime::spawn_bell_listener(socket.clone(), db.clone(), rx, Some(fwd_tx));
+                let (reports, guard) = (reports_ctx.clone(), guard.clone());
+                tokio::spawn(async move {
+                    while let Some(ev) = fwd_rx.recv().await {
+                        reports.cache.on_sync_event(&ev);
+                        guard.on_sync_event(&ev);
+                    }
+                });
             }
             Ok(None) => {}
             Err(e) => tracing::warn!("chuông realtime không nghe được trinity_sync: {e}"),

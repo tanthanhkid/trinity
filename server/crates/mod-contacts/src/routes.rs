@@ -5,13 +5,17 @@
 //! đọc `contracts/dto/schema.json`); body chuyển quyền phụ trách chưa có trong `schema.json` nên kiểm tay đúng thứ tự câu
 //! lỗi của class-validator (whitelist trước, rồi từng thuộc tính theo thứ tự khai, decorator khai sau chạy trước).
 //!
-//! Chưa làm ở tầng route (module khác chưa có bản Rust): `SampleRecordsService.purgeIfReal` sau khi tạo khách, đồng bộ thẻ @
-//! của `reminder_notes` (`RecordLinksService.syncMentions`) và đẩy socket nội bộ cho thông báo giao thương vụ.
+//! Việc phụ thuộc module khác đi qua [`Hooks`] (tầng `serve` cài, mặc định [`NoHooks`] không làm gì): dọn bản ghi mẫu
+//! (`SampleRecordsService.purgeIfReal`) và xoá cache Tổng quan sau khi tạo/xoá/khôi phục khách, đồng bộ thẻ @ của
+//! `reminder_notes` (`RecordLinksService.syncMentions`) và đẩy socket nội bộ cho thông báo giao thương vụ. Mọi hook chạy
+//! SAU khi việc chính đã commit và không bao giờ làm hỏng nó.
 
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
 
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 use axum::Json;
@@ -22,6 +26,7 @@ use axum::response::{IntoResponse, Response};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
+use trinity_db::outbox::CreatedNotification;
 use trinity_db::{CompanyRef, Db, TenantConn};
 use trinity_http::router::{Access, AccessDeps, ApiRouter, CurrentUser, RouteSpec};
 use trinity_http::validate::{Dto, ValidJson, ValidQuery};
@@ -41,12 +46,59 @@ const DELETE: Access = Access::Can(&["contacts.delete"]);
 const TRANSFER: Access = Access::Can(&["contacts.transfer"]);
 const EXPORT: Access = Access::Can(&["contacts.export"]);
 
+/// Future của một hook (không trả gì: lỗi của hook tự ghi log).
+pub type HookFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
+
+/// Việc phụ sau khi ghi khách thành công, do module khác sở hữu. Gọi SAU commit; không được làm hỏng việc chính.
+pub trait Hooks: Send + Sync {
+    /// Sau `POST /contacts`: xoá cache Tổng quan, dọn bản ghi mẫu khi đã có khách thật, đẩy socket cho `notifications`
+    /// (thông báo "được giao thương vụ" đã ghi trong giao dịch tạo khách).
+    fn after_create<'a>(&'a self, company: CompanyRef, notifications: &'a [CreatedNotification]) -> HookFuture<'a>;
+
+    /// Sau xoá hoặc khôi phục khách: xoá cache Tổng quan.
+    fn after_remove_or_restore(&self, company: CompanyRef) -> HookFuture<'_>;
+
+    /// Sau `PATCH /contacts/:id` có gửi `reminder_notes` (`Some(None)` = `null`): đồng bộ thẻ @ trong ghi chú nhắc việc.
+    fn after_update_notes<'a>(
+        &'a self,
+        company: CompanyRef,
+        user: &'a CurrentUser,
+        contact_id: i32,
+        reminder_notes: Option<&'a str>,
+    ) -> HookFuture<'a>;
+}
+
+/// Không làm gì (test, môi trường chưa nối module phụ).
+pub struct NoHooks;
+
+impl Hooks for NoHooks {
+    fn after_create<'a>(&'a self, _company: CompanyRef, _notifications: &'a [CreatedNotification]) -> HookFuture<'a> {
+        Box::pin(async {})
+    }
+
+    fn after_remove_or_restore(&self, _company: CompanyRef) -> HookFuture<'_> {
+        Box::pin(async {})
+    }
+
+    fn after_update_notes<'a>(
+        &'a self,
+        _company: CompanyRef,
+        _user: &'a CurrentUser,
+        _contact_id: i32,
+        _reminder_notes: Option<&'a str>,
+    ) -> HookFuture<'a> {
+        Box::pin(async {})
+    }
+}
+
 /// Trạng thái dùng chung của router khách hàng.
 pub struct Ctx {
     pub db: Db,
     pub scopes: ScopeService,
     /// Cache đếm tổng của danh sách (xoá sau khi tạo, xoá, khôi phục).
     pub cache: CountCache,
+    /// Việc phụ sau khi ghi (module khác); `Arc::new(NoHooks)` khi không có.
+    pub hooks: Arc<dyn Hooks>,
 }
 
 /// 14 route của `ContactsController` (bảng so với `routes.json` bởi `trinity check-routes`).
@@ -476,8 +528,9 @@ async fn create(
         write::create(&t, &r.scopes, &r.actor, &dto).await
     }
     .await;
-    if res.is_ok() {
+    if let Ok(created) = &res {
         c.cache.clear();
+        c.hooks.after_create(r.company, &created.notifications).await;
     }
     ok(res)
 }
@@ -498,6 +551,13 @@ async fn update(
         write::update(&t, &r.scopes, &r.actor, id, &dto).await
     }
     .await;
+    if res.is_ok()
+        && let Some(notes) = &dto.reminder_notes
+    {
+        c.hooks
+            .after_update_notes(r.company, &u, id, notes.as_deref())
+            .await;
+    }
     ok(res)
 }
 
@@ -514,6 +574,7 @@ async fn remove(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>,
     .await;
     if res.is_ok() {
         c.cache.clear();
+        c.hooks.after_remove_or_restore(r.company).await;
     }
     ok(res)
 }
@@ -531,6 +592,7 @@ async fn restore(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>
     .await;
     if res.is_ok() {
         c.cache.clear();
+        c.hooks.after_remove_or_restore(r.company).await;
     }
     ok(res)
 }
@@ -635,6 +697,17 @@ mod tests {
         );
         let e = parse_bulk(&json!({ "contact_ids": [1, "a"], "new_assigned_to": 9 })).unwrap_err();
         assert_eq!(messages(e), ["contact_ids phải là mảng số nguyên"]);
+    }
+
+    #[test]
+    fn no_hooks_dung_lam_hooks_mac_dinh() {
+        let hooks: Arc<dyn Hooks> = Arc::new(NoHooks);
+        let company = CompanyRef::new(1).unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        rt.block_on(async {
+            hooks.after_create(company, &[]).await;
+            hooks.after_remove_or_restore(company).await;
+        });
     }
 
     #[test]

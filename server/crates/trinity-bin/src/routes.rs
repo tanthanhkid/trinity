@@ -21,6 +21,7 @@ pub fn declared_routes() -> Vec<RouteSpec> {
     v.extend(mod_channel_guard::specs());
     v.extend(mod_oauth::specs());
     v.extend(mod_deals::routes::routes());
+    v.extend(mod_public_api::specs());
     v
 }
 

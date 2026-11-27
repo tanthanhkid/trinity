@@ -2058,12 +2058,13 @@ Không có phát hiện nào của lượt 8 bị từ chối.
 Lệnh `serve` dựng pool DB, `Security`/`RbacCache`/`PermissionService`/`Authenticator`, rồi **mount router của từng module** bằng `mount`: mỗi
 `ApiRouter` có trạng thái riêng và `fallback` 404 riêng (axum không `merge` hai fallback), nên mỗi route đã khai (`RouteSpec`) được đăng ký
 lên router chung và chuyển nguyên request sang router con (vẫn qua lớp thực thi quyền K14 của nó). Đã mount: system (health, site-config, build-id),
-users, custom, reports, setup, hr (nhân viên, hợp đồng), attendance, channel-guard, public-api, oauth, mcp (nhóm tool 1), ai-actions (`NoTools`), pos (25 route, `mod_pos::api_router`).
+users, custom, reports, setup, hr (nhân viên, hợp đồng), attendance, channel-guard, public-api, oauth, mcp (nhóm tool 1), ai-actions (`NoTools`), pos (25 route, `mod_pos::api_router`),
+**auth** (`mod_auth::api_router`: 23 route `/auth/*`, đăng nhập/làm mới/đăng xuất/hồ sơ/avatar/đổi mật khẩu/lời mời/cấu hình Wi-Fi và một phiên; token trong body, không cookie như bản TS; DTO kiểm tay trong `mod-auth/src/dto.rs` vì chưa có trong `schema.json`) và **apikeys** (`mod_apikeys::api_router`: `/api-keys*`, `/auth/teams`, `POST /public/auth/login` với `ApiKeyGuard` riêng phạm vi `auth:login`); hai module dùng chung một `AuthService`.
 Lớp biên: `json_limit` 5 MB, CORS, `/notif-ws` (K33, chuông qua `trinity_sync`); ngoài cùng là `strangler::dispatcher` (K17, IP khách K16).
 Không có tệp sở hữu, `TRINITY_RUST_ROUTES` và `NODE_FALLBACK_URL`: Rust nhận mọi route (chạy localhost một mình). Có một trong ba thì theo bảng sở hữu
 và phần không thuộc Rust đi Node. Scheduler và worker hàng đợi chạy nền (chưa module nào đăng ký job; tự tắt khi bật `test-hooks`, K34); với
 `--features test-hooks` mount `/api/v1/internal/test/*`. Tắt êm khi Ctrl+C/SIGTERM (30 giây). `trinity healthcheck` gọi `GET /api/v1/health` loopback.
 **Đã mount thêm:** settings (12 route, `PlanTokenGuard` đọc `TRINITY_PLAN_ADMIN_TOKEN`), rbac-admin (9 route; `PUT /users/:id/roles` do users giữ), notify (4 route `/notifications`, chuông qua `RealtimeSink`).
-**Chưa làm:** mount deals, kanban, store, commerce, newsfeed (upload/media), notify `/templates` `/events`, apikeys, auth
+**Chưa làm:** mount deals, kanban, store, commerce, newsfeed (upload/media), notify `/templates` `/events`
 (chưa có router axum hoặc chưa nối trạng thái); đăng ký job nền của từng module; log từng request;.
 **Router kênh (đã làm):** `mod-facebook::routes::api_router` (9 route: status, connect-url, pages, PATCH/check/DELETE page, callback OAuth 302, webhook GET/POST; thân thô cho chữ ký, xử lý bằng `FacebookIngest` M47b) và `mod-zalo::routes::api_router` (11 route; webhook đọc `Bytes`). Dùng chung `ChannelGuard` với router kênh; URL Graph/Zalo từ env (G15). `OrgFeatureGate` thật đọc cờ gói từ `mod-settings` (fail-open).

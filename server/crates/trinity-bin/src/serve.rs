@@ -434,6 +434,39 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             socket: payroll_socket.clone(),
         }),
     );
+    // Đăng nhập (M01) và API key (M05): chung một AuthService (chung bộ giới hạn tốc độ đăng nhập).
+    let auth_cfg = mod_auth::AuthConfig::from_lookup(lookup)
+        .ok_or_else(|| "thiếu JWT_SECRET".to_owned())?;
+    let auth_svc = Arc::new(mod_auth::AuthService::new(
+        db.clone(),
+        platform.clone(),
+        security.clone(),
+        mod_auth::PermGrants(perms.clone()),
+        LocalUploadsStore::new(uploads_root.clone()),
+        auth_cfg,
+    ));
+    app = mount(
+        app,
+        mod_auth::api_router(deps.clone()),
+        Arc::new(mod_auth::AuthCtx {
+            auth: auth_svc.clone(),
+            db: db.clone(),
+            scopes: ScopeService::new(db.clone(), cache.clone()),
+            ip: ip.clone(),
+        }),
+    );
+    let keys_ctx = Arc::new(mod_apikeys::ApiKeysCtx {
+        db: db.clone(),
+        platform: platform.clone(),
+        perms: perms.clone(),
+        auth: auth_svc,
+        ip: ip.clone(),
+    });
+    app = mount(
+        app,
+        mod_apikeys::api_router(mk_deps(mod_apikeys::named_guards(&keys_ctx))),
+        keys_ctx,
+    );
     // CHƯA mount: mod-deals, mod-kanban, mod-newsfeed (cần multipart/media),
     // mod-store (chưa có router axum). Route của chúng thuộc Node. Đã mount: settings,
     // rbac-admin (trừ `PUT /users/:id/roles`, do mod-users giữ), notify (4 route `/notifications`) ở sau khối realtime.

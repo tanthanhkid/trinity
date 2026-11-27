@@ -9,6 +9,7 @@
 //! | `GET /reports/dashboard-channels` | [`channels::get`] |
 //! | `GET /reports/dashboard-stats-today` | [`stats_today::get`] (cache 15 giây) |
 //! | `GET /reports/dashboard-trend-14d` | [`trend::get`] (cache 120 giây) |
+//! | `GET /reports/dashboard-command-center` | [`command_center::get`] (cache 120 giây; chỉ có ở Rust, #606) |
 //!
 //! Mỗi hàm nhận [`Ctx`] và [`Actor`] (do guard của router điền), trả `Value` đúng hình dạng bản TS. Router nối ở [`routes`].
 
@@ -17,6 +18,7 @@
 pub mod buckets;
 pub mod cache;
 pub mod channels;
+pub mod command_center;
 pub mod custom;
 pub mod custom_def;
 pub mod custom_presets;

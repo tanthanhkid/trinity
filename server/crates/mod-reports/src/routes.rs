@@ -1,4 +1,4 @@
-//! Bảng route và handler (K14) của 19 route `/api/v1/reports/…`: 7 route Tổng quan (M20) và 12 route khách hàng, hiệu suất, tuyển dụng,
+//! Bảng route và handler (K14) của 20 route `/api/v1/reports/…`: 8 route Tổng quan (M20 + `dashboard-command-center` của #606) và 12 route khách hàng, hiệu suất, tuyển dụng,
 //! báo cáo tuỳ biến (M21). Quyền, mã thành công và chế độ kiểm dữ liệu (strict) khớp `contracts/routes.json`.
 
 use std::sync::Arc;
@@ -18,8 +18,8 @@ use crate::customers::Uncontacted;
 use crate::filter::Filter;
 use crate::recruitment::Query as RecruitmentQuery;
 use crate::{
-    Actor, Ctx, channels, custom, customers, dashboard, overview, performance, recruitment, roster, stats_today, tasks,
-    trend,
+    Actor, Ctx, channels, command_center, custom, customers, dashboard, overview, performance, recruitment, roster,
+    stats_today, tasks, trend,
 };
 
 const OVERVIEW: Access = Access::Can(&["reports.overview"]);
@@ -27,7 +27,7 @@ const CUSTOMERS: Access = Access::Can(&["reports.customers"]);
 const STAFF: Access = Access::Can(&["reports.staff"]);
 const CONFIG: Access = Access::Can(&["custom_objects.manage"]);
 
-/// 19 dòng của bảng route, so với `routes.json` bởi `trinity check-routes`.
+/// 20 dòng của bảng route, so với `routes.json` bởi `trinity check-routes`.
 pub fn specs() -> Vec<RouteSpec> {
     let s = |p: &'static str, a: Access| RouteSpec::new(Method::GET, p, a).status_ok(200);
     let custom = |m: Method, p: &'static str, a: Access, ok: u16| RouteSpec::new(m, p, a).status_ok(ok);
@@ -39,6 +39,7 @@ pub fn specs() -> Vec<RouteSpec> {
         s("/api/v1/reports/dashboard-channels", Access::AuthOnly),
         s("/api/v1/reports/dashboard-stats-today", OVERVIEW),
         s("/api/v1/reports/dashboard-trend-14d", OVERVIEW),
+        s("/api/v1/reports/dashboard-command-center", OVERVIEW),
         s("/api/v1/reports/customers/overview", CUSTOMERS),
         s("/api/v1/reports/customers/uncontacted", CUSTOMERS),
         s("/api/v1/reports/employee-performance", STAFF),
@@ -137,6 +138,17 @@ async fn get_roster(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUs
 
 async fn get_channels(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>) -> Response {
     ok(channels::get(&c, &ac!(u)).await)
+}
+
+async fn get_command_center(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, uri: Uri) -> Response {
+    let a = ac!(u);
+    match query("QueryReportRangeDto", &uri) {
+        Ok(v) => {
+            let s = |k: &str| v.get(k).and_then(Value::as_str).map(str::to_owned);
+            ok(command_center::get(&c, &a, s("date_from").as_deref(), s("date_to").as_deref()).await)
+        }
+        Err(e) => fail(e),
+    }
 }
 
 async fn get_stats(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>) -> Response {
@@ -313,6 +325,7 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(get("/api/v1/reports/dashboard-channels"), get_channels)
         .route(get("/api/v1/reports/dashboard-stats-today"), get_stats)
         .route(get("/api/v1/reports/dashboard-trend-14d"), get_trend)
+        .route(get("/api/v1/reports/dashboard-command-center"), get_command_center)
         .route(get("/api/v1/reports/customers/overview"), customers_overview)
         .route(get("/api/v1/reports/customers/uncontacted"), customers_uncontacted)
         .route(get("/api/v1/reports/employee-performance"), employee_performance)

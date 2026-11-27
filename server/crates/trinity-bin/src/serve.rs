@@ -19,7 +19,6 @@ use axum::extract::Request;
 use axum::http::Uri;
 use axum::middleware::{from_fn, from_fn_with_state};
 use axum::response::Response;
-use axum::routing::{MethodFilter, on_service};
 use clap::Args;
 use trinity_auth::{Authenticator, Security};
 use trinity_db::platform::Platform;
@@ -102,18 +101,13 @@ fn probe_health(port: u16) -> std::io::Result<bool> {
         .is_some_and(|l| l.split_whitespace().nth(1) == Some("200")))
 }
 
-/// Đăng ký mọi route đã khai của `api` lên `outer`, chuyển tới router con đã gắn `state`.
+/// Gộp router của `api` (đã gắn `state`) vào `outer`.
+///
+/// Không dùng `route(.., on_service(router))`: router con khớp đường dẫn lần hai và axum nối tham số URL
+/// vào lần khớp ngoài, làm `Path<..>` thấy gấp đôi tham số ("Expected 1 but got 2" → 500).
 fn mount<S: Clone + Send + Sync + 'static>(outer: Router, api: ApiRouter<S>, state: S) -> Router {
-    let (router, table) = api.into_parts();
-    let router: Router = router.with_state(state);
-    let mut outer = outer;
-    for spec in table {
-        let Ok(filter) = MethodFilter::try_from(spec.method.clone()) else {
-            continue;
-        };
-        outer = outer.route(&spec.axum_path(), on_service(filter, router.clone()));
-    }
-    outer
+    let (router, _table) = api.into_parts();
+    outer.merge(router.with_state(state).reset_fallback())
 }
 
 /// 404 dạng Nest cho đường dẫn không thuộc module nào.

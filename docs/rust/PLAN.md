@@ -561,6 +561,7 @@ server/
   xtask/                          # codegen model, kiểm route, xuất OpenAPI
   crates/
     trinity-bin        # CLI: serve | migrate [--companies] | seed | channel-lock | healthcheck
+                       # chạy thử localhost với dữ liệu mẫu (seed --sample): docs/rust/localhost.md
     trinity-kernel     # config, lỗi → JSON, giờ VN, fold_vi, số điện thoại, tiền, serializer JSON
     trinity-db         # pool, TenantDb/PlatformDb, migrator, platform, provision, model sinh tự động
     trinity-auth       # JWT, mật khẩu, phiên, API key, internal secret, tiền tố token công ty

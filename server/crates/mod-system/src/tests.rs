@@ -276,3 +276,30 @@ fn js_number_tien_to_co_so() {
     assert_eq!(js_number("1e-1"), 0.1);
     assert_eq!(js_number(".5"), 0.5);
 }
+
+#[tokio::test]
+async fn duong_da_go_tra_410_cong_khai() {
+    let (api, _) = retired::api_router(deps()).into_parts();
+    for (m, p, what) in [
+        ("POST", "/api/v1/connectors/haravan/webhook/tok", "Kết nối phần mềm bán hàng"),
+        ("GET", "/api/v1/connectors/shopee/callback", "Kết nối sàn thương mại điện tử"),
+        ("POST", "/api/v1/connectors/momo/ipn", "Cổng thanh toán MoMo"),
+        ("GET", "/api/v1/pay/abc/vnpay", "Cổng thanh toán VNPay"),
+        ("POST", "/api/v1/payments", "Yêu cầu thanh toán"),
+    ] {
+        let res = api
+            .clone()
+            .oneshot(Request::builder().method(m).uri(p).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::GONE, "{m} {p}");
+        let b = res.into_body().collect().await.unwrap().to_bytes();
+        let v: Value = serde_json::from_slice(&b).unwrap();
+        assert_eq!(v["statusCode"], 410);
+        assert_eq!(v["error"], "Gone");
+        assert_eq!(
+            v["message"],
+            format!("{what} đã ngừng hỗ trợ trên Trinity. / This integration has been removed.")
+        );
+    }
+}

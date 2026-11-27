@@ -220,6 +220,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     let system_cfg = Arc::new(mod_system::SystemConfig::from_lookup(lookup));
     app = mount(app, mod_system::api_router(deps.clone(), system_cfg.clone()), ());
     app = app.merge(mod_system::extra_router(&system_cfg));
+    app = mount(app, mod_system::retired::api_router(deps.clone()), ());
 
     app = mount(
         app,
@@ -687,7 +688,10 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     app = mount(
         app,
         mod_settings::api_router(mk_deps(plan_guards)),
-        Arc::new(mod_settings::SettingsState { db: db.clone() }),
+        Arc::new(mod_settings::SettingsState {
+            db: db.clone(),
+            client_ip: ip.clone(),
+        }),
     );
     app = mount(
         app,

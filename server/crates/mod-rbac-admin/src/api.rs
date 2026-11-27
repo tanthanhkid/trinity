@@ -235,7 +235,49 @@ async fn audit_list(
     ok(audit::list(&mut c, &query).await)
 }
 
-/// Router của module (9 route; `PUT /users/:id/roles` do `mod-users` mount). Người gọi gắn state `Arc<RbacState>`.
+/// Bốn mức phạm vi cho màn Vai trò (`SCOPES` của `RbacCatalogController`).
+const SCOPE_LABELS: [(&str, &str); 4] = [
+    ("own", "Của mình"),
+    ("team", "Cấp dưới trực tiếp"),
+    ("subtree", "Toàn bộ cấp dưới"),
+    ("all", "Toàn công ty"),
+];
+
+/// Nội dung `GET /rbac/catalog`: nhóm, quyền (`key, group, label, scoped`, `sensitive` chỉ khi true) và các mức phạm vi.
+pub fn catalog_json() -> Value {
+    let cat = trinity_rbac::catalog();
+    let permissions: Vec<Value> = cat
+        .permissions()
+        .iter()
+        .map(|p| {
+            let mut m = Map::new();
+            m.insert("key".into(), Value::String(p.key.clone()));
+            m.insert("group".into(), Value::String(p.group.clone()));
+            m.insert("label".into(), Value::String(p.label.clone()));
+            m.insert("scoped".into(), Value::Bool(p.scoped));
+            if p.sensitive {
+                m.insert("sensitive".into(), Value::Bool(true));
+            }
+            Value::Object(m)
+        })
+        .collect();
+    let scopes: Vec<Value> = SCOPE_LABELS
+        .iter()
+        .map(|(value, label)| serde_json::json!({ "value": value, "label": label }))
+        .collect();
+    serde_json::json!({
+        "groups": cat.permission_groups,
+        "permissions": permissions,
+        "scopes": scopes,
+    })
+}
+
+/// Đã đăng nhập là đọc được (chỉ khoá + nhãn, không nhạy cảm).
+async fn catalog_get() -> Response {
+    Json(catalog_json()).into_response()
+}
+
+/// Router của module (10 route; `PUT /users/:id/roles` do `mod-users` mount). Người gọi gắn state `Arc<RbacState>`.
 pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<RbacState>> {
     let s = crate::routes::routes();
     let spec = |m: &Method, p: &str| -> RouteSpec {
@@ -254,4 +296,26 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<RbacState>> {
         .route(spec(&Method::DELETE, "/api/v1/roles/:id"), remove)
         .route(spec(&Method::GET, "/api/v1/roles/:id/members"), members)
         .route(spec(&Method::GET, "/api/v1/rbac/audit"), audit_list)
+        .route(spec(&Method::GET, "/api/v1/rbac/catalog"), catalog_get)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn catalog_dung_hinh_ban_node() {
+        let v = catalog_json();
+        assert_eq!(v["groups"][0], "Khách hàng");
+        assert_eq!(v["scopes"].as_array().map(Vec::len), Some(4));
+        assert_eq!(v["scopes"][3]["label"], "Toàn công ty");
+        let perms = v["permissions"].as_array().unwrap();
+        assert_eq!(perms.len(), trinity_rbac::catalog().permissions().len());
+        let first = perms[0].as_object().unwrap();
+        // Quyền không nhạy cảm không có khoá `sensitive` (như `{ key, ...def }` của Node).
+        assert_eq!(first.len(), 4);
+        assert!(!first.contains_key("sensitive"));
+        let del = perms.iter().find(|p| p["key"] == "contacts.delete").unwrap();
+        assert_eq!(del["sensitive"], true);
+    }
 }

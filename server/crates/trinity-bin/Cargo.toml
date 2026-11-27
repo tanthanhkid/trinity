@@ -59,6 +59,7 @@ axum = { workspace = true }
 tracing = { workspace = true }
 mod-attendance = { workspace = true }
 trinity-jobs = { workspace = true }
+rustls = { workspace = true }
 trinity-obs = { workspace = true }
 trinity-rbac = { workspace = true }
 trinity-realtime = { workspace = true }

@@ -4997,6 +4997,7 @@ dependencies = [
  "mod-system",
  "mod-users",
  "mod-zalo",
+ "rustls",
  "serde_json",
  "sqlx",
  "tokio",

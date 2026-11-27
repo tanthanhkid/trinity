@@ -32,4 +32,4 @@ pub mod tools;
 pub use endpoint::{HttpIn, HttpOut, McpConfig, McpEndpoint};
 pub use exec::{ToolCtx, ToolError, ToolOutput, ToolRegistry, ToolRunner, ToolSpec};
 pub use routes::{McpState, api_router, specs};
-pub use tools::register_group1;
+pub use tools::{register_group1, register_group2};

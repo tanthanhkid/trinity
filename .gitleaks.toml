@@ -1,0 +1,26 @@
+# Cấu hình gitleaks: dùng bộ luật mặc định, chỉ cho phép các fixture giả của test (không có bí mật thật).
+# Mỗi mục khoá theo ĐÚNG luật + ĐÚNG file; thêm file/luật mới phải tự thêm mục tại đây.
+title = "trinity gitleaks"
+
+[extend]
+useDefault = true
+
+# JWT dựng sẵn bằng khoá test ("m01-test-secret" và khoá hằng trong test) để kiểm tương thích Node/Rust.
+[[allowlists]]
+description = "JWT mẫu trong test auth (ký bằng khoá test)"
+targetRules = ["jwt"]
+paths = [
+  '''^server/crates/mod-auth/tests/auth\.rs$''',
+  '''^server/crates/trinity-auth/src/jwt/tests\.rs$''',
+]
+
+# Mật khẩu / khoá giả trong test và profile hợp đồng.
+[[allowlists]]
+description = "Khoá và mật khẩu giả trong test, profile hợp đồng"
+targetRules = ["generic-api-key"]
+paths = [
+  '''^tests/multi-tenant-e2e/run\.mjs$''',
+  '''^server/crates/trinity-http/tests/strangler\.rs$''',
+  '''^server/crates/trinity-integrations/tests/pure\.rs$''',
+  '''^tests/contract/profiles/(default|bad-secret-key)\.env$''',
+]

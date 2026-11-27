@@ -47,7 +47,8 @@ const YES: &[&str] = &[
 
 /// Cụm từ phủ định hoặc còn đổi ý: có mặt thì không tính là đồng ý.
 const NO: &[&str] = &[
-    "khong", "ko", "k", "chua", "dung tao", "dung lam", "khoan", "doi", "sua lai", "them", "bot", "bo", "thay", "no", "not",
+    "khong", "ko", "k", "chua", "dung tao", "dung lam", "khoan", "doi", "sua lai", "them", "bot", "bo", "thay", "no",
+    "not",
 ];
 
 /// "không cần hỏi lại" là bảo làm ngay: đổi về "khỏi hỏi lại" trước khi xét phủ định.
@@ -129,7 +130,16 @@ mod tests {
 
     #[test]
     fn khong_dong_y() {
-        for bad in ["", "   ", "không", "chưa gửi", "ok nhưng sửa lại", "khoan đã", "thêm câu chào", "hmm"] {
+        for bad in [
+            "",
+            "   ",
+            "không",
+            "chưa gửi",
+            "ok nhưng sửa lại",
+            "khoan đã",
+            "thêm câu chào",
+            "hmm",
+        ] {
             assert!(!is_user_confirmation(Some(bad)), "{bad}");
         }
         assert!(!is_user_confirmation(None));

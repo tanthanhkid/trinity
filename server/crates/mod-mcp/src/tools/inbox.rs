@@ -125,12 +125,10 @@ struct ZaloThread {
     unread_count: i32,
 }
 
-const ZALO_COLS: &str = "id, display_name, contact_id, last_message_preview, last_message_at, last_inbound_at, unread_count";
+const ZALO_COLS: &str =
+    "id, display_name, contact_id, last_message_preview, last_message_at, last_inbound_at, unread_count";
 
-async fn find_conversation(
-    conn: &mut sqlx::PgConnection,
-    id: i32,
-) -> Result<Option<FacebookConversation>, ToolError> {
+async fn find_conversation(conn: &mut sqlx::PgConnection, id: i32) -> Result<Option<FacebookConversation>, ToolError> {
     sqlx::query_as::<_, FacebookConversation>(sqlx::AssertSqlSafe(format!(
         "SELECT {CONV_COLS} FROM facebook_conversations WHERE id = $1"
     )))
@@ -209,12 +207,16 @@ pub(crate) fn list_unanswered_messages<'a>(
                     Value::Array(data.iter().map(|c| unanswered_messenger_row(c, base)).collect()),
                 );
             } else {
-                notes.push(json!("Messenger: tính năng Fanpage đang tắt hoặc chưa có trên máy chủ."));
+                notes.push(json!(
+                    "Messenger: tính năng Fanpage đang tắt hoặc chưa có trên máy chủ."
+                ));
             }
         }
         if want("facebook_comment") {
             // M49: chưa có dịch vụ bình luận ⇒ nhánh "dịch vụ vắng" của bản TS.
-            notes.push(json!("Bình luận Fanpage: tính năng Fanpage đang tắt hoặc chưa có trên máy chủ."));
+            notes.push(json!(
+                "Bình luận Fanpage: tính năng Fanpage đang tắt hoặc chưa có trên máy chủ."
+            ));
         }
         if want("zalo_oa") {
             if !zalo_enabled(d, p).await {
@@ -514,7 +516,9 @@ pub(crate) fn reply_to_customer<'a>(
         let preview: Value = match channel {
             "messenger" => {
                 if !fb_enabled(d, p).await {
-                    return Err(user("Messenger chưa bật trên máy chủ này. / Messenger is not available."));
+                    return Err(user(
+                        "Messenger chưa bật trên máy chủ này. / Messenger is not available.",
+                    ));
                 }
                 let mut c = {
                     let mut conn = ctx.deps.conn(p.company).await?;
@@ -536,7 +540,9 @@ pub(crate) fn reply_to_customer<'a>(
                 }
                 let reply = reply_mode(ms_of(c.last_inbound_at), now_ms);
                 if reply == ReplyMode::Closed {
-                    return Err(ToolError::User(format!("{MESSENGER_CLOSED} / Outside the 7-day window.")));
+                    return Err(ToolError::User(format!(
+                        "{MESSENGER_CLOSED} / Outside the 7-day window."
+                    )));
                 }
                 json!({ "channel": channel, "customer": c.customer_name, "text": text, "reply_mode": reply.as_str() })
             }
@@ -640,7 +646,9 @@ mod tests {
 
     #[test]
     fn gio_viet_nam() {
-        let t = DateTime::parse_from_rfc3339("2026-10-12T11:26:05Z").unwrap().with_timezone(&Utc);
+        let t = DateTime::parse_from_rfc3339("2026-10-12T11:26:05Z")
+            .unwrap()
+            .with_timezone(&Utc);
         assert_eq!(vn_iso(t), "2026-10-12T18:26:05+07:00");
         assert_eq!(vn_iso_ms(0).as_deref(), Some("1970-01-01T07:00:00+07:00"));
     }

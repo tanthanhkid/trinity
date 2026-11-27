@@ -250,8 +250,14 @@ mod tests {
 
     #[test]
     fn goc_cong_khai() {
-        assert_eq!(public_origin("https://crm.example.test/").as_deref(), Some("https://crm.example.test"));
-        assert_eq!(public_origin(" HTTP://localhost:3000// ").as_deref(), Some("HTTP://localhost:3000"));
+        assert_eq!(
+            public_origin("https://crm.example.test/").as_deref(),
+            Some("https://crm.example.test")
+        );
+        assert_eq!(
+            public_origin(" HTTP://localhost:3000// ").as_deref(),
+            Some("HTTP://localhost:3000")
+        );
         for bad in ["", "   ", "crm.example.test", "ftp://x", "/relative"] {
             assert_eq!(public_origin(bad), None, "{bad}");
         }
@@ -263,7 +269,10 @@ mod tests {
         assert!(matches!(auth_err(&conflict, &[403, 404, 409, 410]), ToolError::User(m) if m == "trùng"));
         // Ngoài danh sách thì giữ mã: 409 khi huỷ không nằm trong {404, 409}? có; 403 khi huỷ thì không.
         let forbidden: AuthFail = HttpError::forbidden("cấm").into();
-        assert!(matches!(auth_err(&forbidden, &[404, 409]), ToolError::Http { status: 403, .. }));
+        assert!(matches!(
+            auth_err(&forbidden, &[404, 409]),
+            ToolError::Http { status: 403, .. }
+        ));
         let gone: AuthFail = HttpError::nest(410, Some("hết".into())).into();
         assert!(matches!(auth_err(&gone, &[403, 404, 409, 410]), ToolError::User(m) if m == "hết"));
         let boom: AuthFail = HttpError::nest(500, None).into();

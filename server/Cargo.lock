@@ -2443,7 +2443,7 @@ dependencies = [
  "subtle",
  "thiserror",
  "tokio",
- "tower 0.5.3",
+ "tower",
  "tracing",
  "trinity-auth",
  "trinity-db",

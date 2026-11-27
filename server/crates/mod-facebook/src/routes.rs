@@ -416,11 +416,13 @@ async fn callback(State(s): State<Arc<FacebookState>>, Query(q): Query<HashMap<S
     };
     let graph = (s.graph_for)(company);
     match pages::handle_callback(&s.pages_ctx(&graph, company), code, state, now_ms()).await {
+        // Khách đăng nhập xong nhưng không có Page nào trả về: thường do không là quản trị Page hoặc bỏ chọn hết.
+        Ok(r) if r.connected == 0 && r.failed == 0 => back("facebook=error&reason=no_page"),
         Ok(r) => back(&format!(
             "facebook=connected&pages={}&failed={}&posting={}",
             r.connected, r.failed, r.posting
         )),
-        Err(_) => back("facebook=error"),
+        Err(e) => back(&format!("facebook=error&reason={}", pages::failure_reason_of(&e))),
     }
 }
 

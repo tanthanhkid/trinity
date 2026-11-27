@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import apiClient, { getApiErrorMessage } from "@/lib/api-client"
+import { goToFacebookDialog, useFacebookPageMutations, useFacebookStatus } from "@/app/(dashboard)/settings/_components/integrations/use-facebook"
 import { useSettingsOptions } from "@/hooks/use-settings-options"
 import { SocialChannels } from "@/app/(dashboard)/social/_components/social-channels"
 import { SocialComposer } from "@/app/(dashboard)/social/_components/social-composer"
@@ -180,10 +181,33 @@ function StepData({ canSkip, hasSamples }: { canSkip: boolean; hasSamples: boole
   )
 }
 
+/** Một bấm: đăng nhập Facebook, chọn Page; Trinity tự nối Page, đăng ký nhận tin và bật nhận tin. Xong quay lại đúng bước này. */
+function FacebookConnect() {
+  const status = useFacebookStatus(true)
+  const { connect } = useFacebookPageMutations()
+  const [error, setError] = useState<string | null>(null)
+  const ready = !!status.data?.configured && !!status.data.secret_key_configured
+  const go = () => {
+    setError(null)
+    connect.mutate(undefined, { onSuccess: goToFacebookDialog, onError: (e) => setError(getApiErrorMessage(e, "Chưa mở được hộp thoại Facebook, bạn thử lại sau ít giây.")) })
+  }
+  return (
+    <div className="space-y-2 rounded-xl border bg-background p-4" data-testid="wizard-facebook">
+      <p className="text-sm">Bấm nút dưới, đăng nhập Facebook và chọn các Page bạn quản lý. Trinity tự nối Page và bật nhận tin nhắn, bạn không phải làm thêm gì.</p>
+      <Button type="button" onClick={go} disabled={!ready || connect.isPending} className="max-sm:h-11" data-testid="wizard-facebook-connect">
+        {connect.isPending && <Loader2 className="animate-spin" aria-hidden />} Kết nối Facebook
+      </Button>
+      {status.data && !ready && <p className="text-sm text-muted-foreground" data-testid="wizard-facebook-unavailable">Kết nối Facebook chưa sẵn sàng trên hệ thống này, bạn bấm “Để sau” và làm lại ở mục Kết nối.</p>}
+      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+    </div>
+  )
+}
+
 function StepChannels() {
   return (
     <div className="space-y-4">
-      <p className="text-sm">Bấm <b>Liên kết</b> ở Facebook (Fanpage), đăng nhập và đồng ý trên trang của Facebook. Xong sẽ quay lại đây, kênh hiện <b>Hoạt động</b>.</p>
+      <FacebookConnect />
+      <p className="text-sm">Cũng có thể bấm <b>Liên kết</b> ở các kênh khác dưới đây, đăng nhập và đồng ý trên trang của kênh đó. Xong sẽ quay lại đây, kênh hiện <b>Hoạt động</b>.</p>
       <SocialChannels />
     </div>
   )

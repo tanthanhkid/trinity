@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, type CSSProperties } from "react"
+import { Suspense, useCallback, type CSSProperties } from "react"
+import { FacebookReturnHandler } from "@/components/facebook-return-handler"
 import dynamic from "next/dynamic"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { NotificationSocket } from "@/components/notification-socket"
@@ -64,7 +65,14 @@ export default function DashboardLayout({
   // Đang tải ⇒ chờ (không nháy ứng dụng); lỗi ⇒ fail-open, vào ứng dụng như cũ.
   const wizard = useWizard()
   if (wizard.isLoading) return WIZARD_LOADING
-  if (wizard.data?.enabled && !wizard.data.completed) return <OnboardingWizard wizard={wizard.data} />
+  if (wizard.data?.enabled && !wizard.data.completed) {
+    return (
+      <>
+        <Suspense fallback={null}><FacebookReturnHandler /></Suspense>
+        <OnboardingWizard wizard={wizard.data} />
+      </>
+    )
+  }
 
   return (
     <SidebarProvider
@@ -87,6 +95,7 @@ export default function DashboardLayout({
         </main>
       </SidebarInset>
       <NotificationSocket />
+      <Suspense fallback={null}><FacebookReturnHandler /></Suspense>
     </SidebarProvider>
   )
 }

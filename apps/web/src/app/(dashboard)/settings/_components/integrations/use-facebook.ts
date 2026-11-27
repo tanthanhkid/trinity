@@ -16,6 +16,30 @@ export interface FacebookStatus {
   scopes: string[]
   /** Máy chủ đã bật nhận bình luận Page (ứng dụng Facebook đã có quyền đọc/trả lời bình luận). */
   comment_automation?: boolean
+  /** Máy chủ dùng Facebook Login for Business (quyền do cấu hình Meta quyết định, khách chỉ chọn Page). */
+  login_for_business?: boolean
+}
+
+/** Câu tiếng Việt cho từng lý do kết nối Facebook thất bại / bị huỷ (tham số `facebook` + `reason` trên URL quay về). */
+export function facebookResultMessage(result: string | null, reason: string | null): { kind: "success" | "info" | "error"; text: string } | null {
+  if (result === "cancelled") return { kind: "info", text: "Bạn đã huỷ kết nối Facebook. Khi nào sẵn sàng, bấm Kết nối Fanpage để thử lại." }
+  if (result !== "error") return null
+  if (reason === "no_page") return { kind: "error", text: "Facebook không trả về Page nào. Hãy đăng nhập bằng tài khoản là quản trị viên của Page và chọn ít nhất một Page trong hộp thoại." }
+  if (reason === "permission") return { kind: "error", text: "Tài khoản Facebook của bạn chưa đủ quyền quản trị Page hoặc chưa cho phép đủ quyền. Hãy nhờ quản trị viên Page cấp quyền, rồi kết nối lại." }
+  if (reason === "token") return { kind: "error", text: "Phiên đăng nhập Facebook đã hết hạn. Bấm Kết nối Fanpage để đăng nhập lại." }
+  return { kind: "error", text: "Chưa kết nối được Facebook. Bạn thử bấm Kết nối Fanpage lại sau ít phút." }
+}
+
+export const FB_RETURN_KEY = "trinity.facebook.return"
+
+/** Nhớ màn đang đứng rồi chuyển sang hộp thoại Facebook; xong callback đưa về `/connections`, `FacebookReturnHandler` đưa lại màn này. */
+export function goToFacebookDialog(url: string) {
+  try {
+    sessionStorage.setItem(FB_RETURN_KEY, window.location.pathname + window.location.search)
+  } catch {
+    // sessionStorage không dùng được: về trang Kết nối như cũ.
+  }
+  window.location.href = url
 }
 
 export type TokenStatus = "active" | "expired" | "invalid" | "unknown"

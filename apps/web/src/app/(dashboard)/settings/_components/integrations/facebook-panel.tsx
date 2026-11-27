@@ -20,7 +20,7 @@ import { FacebookFlows } from "./facebook-flows"
 import { FacebookBroadcasts } from "./facebook-broadcasts"
 import { FacebookComments } from "./facebook-comments"
 import { OptionSelect } from "./option-select"
-import { TOKEN_STATUS_LABELS, useFacebookPageMutations, useFacebookPages, useFacebookStatus, type FacebookPageView } from "./use-facebook"
+import { TOKEN_STATUS_LABELS, facebookResultMessage, goToFacebookDialog, useFacebookPageMutations, useFacebookPages, useFacebookStatus, type FacebookPageView } from "./use-facebook"
 import { useAssignableUsers, useContactSourceOptions } from "./use-webhooks"
 import { apiErrorMessage, type SimpleOption } from "./webhook-types"
 
@@ -32,7 +32,25 @@ function Row({ k, v }: { k: string; v: string }) {
   return <div className="flex flex-wrap gap-x-2 text-xs"><span className="text-muted-foreground">{k}</span><code className="break-all rounded bg-muted px-1">{v}</code></div>
 }
 
-function SetupHelp({ s }: { s: NonNullable<ReturnType<typeof useFacebookStatus>["data"]> }) {
+type FbStatus = NonNullable<ReturnType<typeof useFacebookStatus>["data"]>
+
+/** Máy chủ đã đủ cấu hình để khách bấm Kết nối: không cần hiện app id, webhook hay quyền cho khách. */
+export function facebookReady(s: FbStatus) {
+  return s.configured && s.verify_token_set && s.secret_key_configured
+}
+
+function SetupHelp({ s, admin }: { s: FbStatus; admin: boolean }) {
+  if (facebookReady(s)) return null
+  // Khách (không phải quản trị) không cần thấy tên biến môi trường hay cách khai ứng dụng Meta.
+  if (!admin) {
+    return (
+      <Card>
+        <CardContent className="py-4 text-sm" data-testid="fb-not-ready">
+          <p className="flex items-start gap-2 text-amber-700"><AlertTriangle className="mt-0.5 size-4 shrink-0" />Kết nối Facebook chưa sẵn sàng trên hệ thống này. Bạn liên hệ quản trị viên để được bật.</p>
+        </CardContent>
+      </Card>
+    )
+  }
   const missing = [
     !s.app_id_set && "FACEBOOK_APP_ID",
     !s.app_secret_set && "FACEBOOK_APP_SECRET",
@@ -49,7 +67,7 @@ function SetupHelp({ s }: { s: NonNullable<ReturnType<typeof useFacebookStatus>[
         <p className="text-xs text-muted-foreground">Trong Meta for Developers (ứng dụng Facebook của công ty), khai các giá trị sau:</p>
         {s.webhook_url && <Row k="Callback URL của Webhooks (Page):" v={s.webhook_url} />}
         {s.oauth_redirect_uri && <Row k="Valid OAuth Redirect URI:" v={s.oauth_redirect_uri} />}
-        <p className="text-xs text-muted-foreground">Đăng ký trường webhook <code>messages</code>, <code>messaging_postbacks</code>, <code>messaging_referrals</code> (link/QR mở chat), <code>leadgen</code>{s.comment_automation && <>, <code>feed</code></>}. Quyền cần: <code>{s.scopes.join(", ")}</code> (chế độ Live cần Meta duyệt App Review).</p>
+        <p className="text-xs text-muted-foreground">Đăng ký trường webhook <code>messages</code>, <code>messaging_postbacks</code>, <code>messaging_referrals</code> (link/QR mở chat), <code>leadgen</code>{s.comment_automation && <>, <code>feed</code></>}. {s.login_for_business ? <>Quyền do cấu hình Facebook Login for Business quyết định (<code>FACEBOOK_LOGIN_CONFIG_ID</code>).</> : <>Quyền cần: <code>{s.scopes.join(", ")}</code>.</>} Chế độ Live cần Meta duyệt App Review.</p>
       </CardContent>
     </Card>
   )
@@ -120,6 +138,7 @@ export function FacebookPanel() {
   const params = useSearchParams()
   const { can } = usePermissions()
   const me = useAuthStore((s) => s.user)
+  const isAdmin = useAuthStore((s) => s.isAdmin)
   const status = useFacebookStatus(true)
   const pages = useFacebookPages(true)
   const m = useFacebookPageMutations()
@@ -134,18 +153,23 @@ export function FacebookPanel() {
   const assignees: SimpleOption[] = canTransfer ? (roster.data ?? []) : me ? [{ id: me.id, label: me.full_name }] : []
 
   const result = params.get("facebook")
+  const reason = params.get("reason")
   useEffect(() => {
     if (result === "connected") {
-      const n = Number(params.get("posting") ?? 0)
-      toast.success(`Đã kết nối ${params.get("pages") ?? ""} Fanpage` + (n > 0 ? `, ${n} Page dùng được cả để đăng bài` : ""))
+      const n = Number(params.get("pages") ?? 0)
+      const posting = Number(params.get("posting") ?? 0)
+      const failed = Number(params.get("failed") ?? 0)
+      toast.success(`Đã kết nối ${n} Page` + (posting > 0 ? `, ${posting} Page dùng được cả để đăng bài` : ""))
+      if (failed > 0) toast.error(`${failed} Page chưa kết nối được (có thể đã thuộc công ty khác hoặc thiếu quyền). Bạn thử lại sau.`)
+    } else {
+      const m = facebookResultMessage(result, reason)
+      if (m) (m.kind === "info" ? toast.message : toast.error)(m.text)
     }
-    else if (result === "cancelled") toast.message("Đã huỷ kết nối Facebook")
-    else if (result === "error") toast.error("Kết nối Facebook thất bại — kiểm tra cấu hình ứng dụng rồi thử lại")
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result])
 
   function connect() {
-    m.connect.mutate(undefined, { onSuccess: (url) => { window.location.href = url }, onError: (e) => toast.error(apiErrorMessage(e, "Không mở được hộp thoại Facebook")) })
+    m.connect.mutate(undefined, { onSuccess: goToFacebookDialog, onError: (e) => toast.error(apiErrorMessage(e, "Không mở được hộp thoại Facebook")) })
   }
 
   return (
@@ -170,7 +194,7 @@ export function FacebookPanel() {
           <p className="text-sm text-muted-foreground">Kết nối Fanpage để nhận và trả lời tin Messenger ngay trong CRM. Mỗi người nhắn vào Page thành một khách hàng, tin nhắn ghi vào lịch sử chăm sóc (tin có SĐT trùng khách cũ thì ghi vào khách đó). Khách gửi form Lead Ads cũng tự thành khách hàng.</p>
           {status.isLoading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang kiểm tra cấu hình...</div>}
           {status.isError && <ErrorState compact title="Không đọc được cấu hình Facebook" error={status.error} onRetry={() => void status.refetch()} retrying={status.isFetching} />}
-          {status.data && <SetupHelp s={status.data} />}
+          {status.data && <SetupHelp s={status.data} admin={isAdmin} />}
           <Button onClick={connect} disabled={!status.data?.configured || !status.data.secret_key_configured || m.connect.isPending} className="max-sm:h-11">
             {m.connect.isPending ? <Loader2 className="mr-1 size-4 animate-spin" /> : <Plus className="mr-1 size-4" />}Kết nối Fanpage
           </Button>

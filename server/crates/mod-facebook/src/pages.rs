@@ -19,8 +19,8 @@ use trinity_kernel::error::{AppError, HttpError};
 use trinity_rbac::OwnerIds;
 
 use crate::config::{
-    Env, FACEBOOK_SOCIAL_SCOPES, SUBSCRIBED_FIELDS, comment_automation_enabled, connect_scopes, form_encode,
-    is_facebook_configured, load_facebook_config, oauth_redirect_uri, subscribed_fields,
+    Env, FACEBOOK_SOCIAL_SCOPES, SUBSCRIBED_FIELDS, comment_automation_enabled, connect_scopes, dialog_auth_params,
+    form_encode, is_facebook_configured, load_facebook_config, login_config_id, oauth_redirect_uri, subscribed_fields,
 };
 use crate::graph::{GraphApiError, GraphClient, GraphPage, TokenDebug, utf16_prefix};
 
@@ -252,6 +252,8 @@ pub struct Status {
     pub oauth_redirect_uri: Option<String>,
     pub scopes: Vec<String>,
     pub comment_automation: bool,
+    /// Đang dùng Facebook Login for Business (`FACEBOOK_LOGIN_CONFIG_ID` có giá trị).
+    pub login_for_business: bool,
 }
 
 pub fn status(env: &Env) -> Status {
@@ -268,6 +270,7 @@ pub fn status(env: &Env) -> Status {
         graph_version: c.graph_version,
         scopes: connect_scopes(env),
         comment_automation: comment_automation_enabled(env),
+        login_for_business: login_config_id(env).is_some(),
     }
 }
 
@@ -289,13 +292,12 @@ pub async fn connect_url(ctx: &Ctx<'_>, actor_user_id: i32, now_ms: i64) -> Resu
         .remember_oauth_state(&state, ctx.company)
         .await
         .map_err(platform_db)?;
-    let query = vec![
+    let mut query = vec![
         ("client_id".to_owned(), c.app_id.clone()),
         ("redirect_uri".to_owned(), oauth_redirect_uri(&c)),
         ("state".to_owned(), state),
-        ("scope".to_owned(), connect_scopes(ctx.env).join(",")),
-        ("response_type".to_owned(), "code".to_owned()),
     ];
+    query.extend(dialog_auth_params(ctx.env, &connect_scopes(ctx.env)));
     Ok(
         serde_json::json!({ "url": format!("https://www.facebook.com/{}/dialog/oauth?{}", c.graph_version, form_encode(&query)) }),
     )
@@ -399,9 +401,34 @@ pub async fn handle_callback(ctx: &Ctx<'_>, code: &str, state: &str, now_ms: i64
     })
 }
 
-/// Lỗi Graph ở bước đăng nhập ⇒ 502 với thông báo của Facebook (callback công khai sẽ chuyển thành `facebook=error`).
+/// Nhóm lý do lỗi đăng nhập Facebook, để callback công khai báo câu tiếng Việt đúng chỗ: `token` (mã hết hạn/đã dùng, code 190),
+/// `permission` (thiếu quyền/không phải quản trị Page, code 10/200/283), còn lại `error`.
+pub fn graph_failure_reason(code: Option<i64>) -> &'static str {
+    match code {
+        Some(190) => "token",
+        Some(10 | 200 | 283) => "permission",
+        _ => "error",
+    }
+}
+
+/// Lý do (`token` / `permission` / `error`) của lỗi do `handle_callback` trả, đọc từ mã HTTP `graph_to_app` chọn
+/// (401 = token, 403 = quyền, còn lại = lỗi chung).
+pub fn failure_reason_of(e: &AppError) -> &'static str {
+    match e {
+        AppError::Http(h) if h.status() == 401 => "token",
+        AppError::Http(h) if h.status() == 403 => "permission",
+        _ => "error",
+    }
+}
+
+/// Lỗi Graph ở bước đăng nhập ⇒ 502 với thông báo của Facebook (401 token / 403 quyền theo mã lỗi Graph; callback công khai chuyển thành `facebook=error&reason=...`).
 fn graph_to_app(e: GraphApiError) -> AppError {
-    HttpError::new(502, e.message).into()
+    let status = match graph_failure_reason(e.code) {
+        "token" => 401,
+        "permission" => 403,
+        _ => 502,
+    };
+    HttpError::new(status, e.message).into()
 }
 
 /// Kết quả bước HTTP của một Page.
@@ -467,14 +494,15 @@ async fn upsert_page(
     key: &Key,
 ) -> Result<(), AppError> {
     let state = pre.state.as_ref();
-    // KHÔNG đụng `is_active` ở nhánh update: Page người dùng đã tắt/gỡ không tự bật lại khi nối lại.
+    // Nhánh update: Page người dùng chỉ TẮT (còn token) giữ nguyên tắt; Page đã GỠ (hết token) mà khách chọn lại ở hộp thoại thì tự bật.
     sqlx::query(
         "INSERT INTO facebook_pages (page_id, name, token_enc, subscribed, token_status, token_checked_at, token_expires_at, \
          data_access_expires_at, is_active, default_assignee_id, contact_source_id, connected_by, updated_at) \
          VALUES ($1, $2, $3, $4, $5, now(), $6, $7, true, $8, $9, $8, now()) \
          ON CONFLICT (page_id) DO UPDATE SET name = EXCLUDED.name, token_enc = EXCLUDED.token_enc, subscribed = EXCLUDED.subscribed, \
          token_status = EXCLUDED.token_status, token_checked_at = EXCLUDED.token_checked_at, \
-         token_expires_at = EXCLUDED.token_expires_at, data_access_expires_at = EXCLUDED.data_access_expires_at, updated_at = now()",
+         token_expires_at = EXCLUDED.token_expires_at, data_access_expires_at = EXCLUDED.data_access_expires_at, \
+         is_active = facebook_pages.is_active OR facebook_pages.token_enc = '', updated_at = now()",
     )
     .bind(&p.id)
     .bind(utf16_prefix(&p.name, 200))
@@ -936,5 +964,31 @@ mod tests {
             );
         }
         assert!(ok(json!([])).is_err());
+    }
+}
+
+#[cfg(test)]
+mod callback_reason_tests {
+    use super::*;
+
+    #[test]
+    fn ly_do_loi_dang_nhap() {
+        assert_eq!(graph_failure_reason(Some(190)), "token");
+        assert_eq!(graph_failure_reason(Some(200)), "permission");
+        assert_eq!(graph_failure_reason(Some(10)), "permission");
+        assert_eq!(graph_failure_reason(Some(1)), "error");
+        assert_eq!(graph_failure_reason(None), "error");
+        let mk = |code| {
+            graph_to_app(GraphApiError {
+                http_status: 400,
+                code,
+                subcode: None,
+                message: "x".to_owned(),
+                config_error: false,
+            })
+        };
+        assert_eq!(failure_reason_of(&mk(Some(190))), "token");
+        assert_eq!(failure_reason_of(&mk(Some(283))), "permission");
+        assert_eq!(failure_reason_of(&mk(None)), "error");
     }
 }

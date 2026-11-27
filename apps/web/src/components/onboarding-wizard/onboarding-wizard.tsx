@@ -178,7 +178,7 @@ export function OnboardingWizard({ wizard: initial }: { wizard: WizardView }) {
               <div className="flex flex-wrap gap-2">
                 {step.can_skip && !passed && (
                   <Button type="button" variant="ghost" disabled={busy} onClick={() => handle("skip")} className="max-sm:h-11" data-testid="wizard-skip">
-                    Bỏ qua bước này
+                    {step.key === "channels" ? "Để sau" : "Bỏ qua bước này"}
                   </Button>
                 )}
                 {passed && !last ? (

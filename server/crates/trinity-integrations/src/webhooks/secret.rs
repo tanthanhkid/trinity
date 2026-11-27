@@ -67,7 +67,7 @@ pub fn load_secret_key(get: &impl Fn(&str) -> Option<String>) -> Result<Key, Key
     })
 }
 
-fn random<const N: usize>() -> [u8; N] {
+pub(crate) fn random<const N: usize>() -> [u8; N] {
     let mut b = [0u8; N];
     getrandom::fill(&mut b).expect("hệ điều hành cấp được byte ngẫu nhiên");
     b

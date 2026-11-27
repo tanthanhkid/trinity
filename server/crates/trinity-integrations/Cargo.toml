@@ -27,9 +27,11 @@ serde_json = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+mod-contacts = { workspace = true }
 trinity-db = { workspace = true }
 trinity-jobs = { workspace = true }
 trinity-kernel = { workspace = true }
+trinity-rbac = { workspace = true }
 
 [dev-dependencies]
 wiremock = { workspace = true }

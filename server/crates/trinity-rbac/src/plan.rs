@@ -63,6 +63,13 @@ impl OrgFeatures {
         self.0.get(key).copied()
     }
 
+    /// Đặt một khoá có trong danh mục (khoá lạ bị bỏ qua): dùng khi `PUT /settings/org-features` cập nhật một phần.
+    pub fn set(&mut self, key: &str, value: bool) {
+        if let Some((k, _, _)) = ORG_FEATURES.iter().find(|(k, _, _)| *k == key) {
+            self.0.insert(k, value);
+        }
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (&'static str, bool)> + '_ {
         ORG_FEATURES.iter().map(|(k, _, _)| (*k, self.0[k]))
     }

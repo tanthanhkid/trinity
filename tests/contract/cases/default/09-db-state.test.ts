@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { closeDb, q, seedUser } from '../../lib/db.js'
 import { dbGolden, dump, mark, type TableSpec } from '../../lib/dbdump.js'
-import { api, control, freshIp } from '../../lib/http.js'
+import { api, control, freshIp, type Res } from '../../lib/http.js'
 import { loginSeeded } from '../../lib/session.js'
 
 afterAll(closeDb)
@@ -18,6 +18,7 @@ const TABLES: TableSpec[] = [
   { table: 'integration_events' },
   { table: 'kanban_cards' },
   { table: 'newsfeed_posts' },
+  { table: 'attendance_records' },
 ]
 
 describe('trạng thái DB sau kịch bản ghi', () => {
@@ -35,43 +36,57 @@ describe('trạng thái DB sau kịch bản ghi', () => {
   })
   const call = (m: 'post' | 'patch' | 'del', p: string, body?: unknown) => api[m](p, { token, body, ip: freshIp() })
 
+  /** Kiểm mã trạng thái TRƯỚC khi đọc body (body lỗi không có trường mong đợi). */
+  const ok = <T>(res: Res, status: number | number[], what: string): T => {
+    expect([status].flat(), `${what}: ${res.status} ${JSON.stringify(res.body)}`).toContain(res.status)
+    return res.body as T
+  }
+
   it('khách hàng: tạo, sửa, xoá mềm, khôi phục', async () => {
     const before = await mark(TABLES)
-    const created = await call('post', '/contacts', { phone: '0933000111', full_name: 'DB State Một', source_id: sourceId })
-    expect(created.status, JSON.stringify(created.body)).toBe(201)
-    const id = (created.body as { contact: { id: number } }).contact.id
-    expect(id, JSON.stringify(created.body)).toBeTypeOf('number')
-    const up = await call('patch', `/contacts/${id}`, { full_name: 'DB State Hai', zalo_account: 'dbstate.zalo' })
-    expect(up.status, JSON.stringify(up.body)).toBe(200)
-    expect((await call('del', `/contacts/${id}`)).status).toBeLessThan(300)
-    expect((await call('post', `/contacts/${id}/restore`)).status).toBeLessThan(300)
+    const { contact } = ok<{ contact: { id: number } }>(await call('post', '/contacts', { phone: '0933000111', full_name: 'DB State Một', source_id: sourceId }), 201, 'tạo khách')
+    ok(await call('patch', `/contacts/${contact.id}`, { full_name: 'DB State Hai', zalo_account: 'dbstate.zalo' }), 200, 'sửa khách')
+    ok(await call('del', `/contacts/${contact.id}`), [200, 204], 'xoá khách')
+    ok(await call('post', `/contacts/${contact.id}/restore`), [200, 201], 'khôi phục khách')
     await control.flushCache()
     dbGolden('contact-lifecycle', await dump(TABLES, before))
   })
 
   it('deal: tạo, đổi trạng thái thắng', async () => {
     const before = await mark(TABLES)
-    const c = await call('post', '/contacts', { phone: '0933000222', full_name: 'DB State Deal', source_id: sourceId })
-    const contactId = (c.body as { contact: { id: number } }).contact.id
-    const d = await call('post', '/deals', { title: 'Thương vụ DB state', contact_id: contactId, value: 1500000, assigned_to: userId })
-    expect(d.status, JSON.stringify(d.body)).toBe(201)
-    const id = (d.body as { id: number }).id
-    expect((await call('patch', `/deals/${id}`, { status: 'won' })).status, 'won').toBe(200)
+    const { contact } = ok<{ contact: { id: number } }>(await call('post', '/contacts', { phone: '0933000222', full_name: 'DB State Deal', source_id: sourceId }), 201, 'tạo khách')
+    const deal = ok<{ id: number }>(await call('post', '/deals', { title: 'Thương vụ DB state', contact_id: contact.id, value: 1500000, assigned_to: userId }), 201, 'tạo deal')
+    ok(await call('patch', `/deals/${deal.id}`, { status: 'won' }), 200, 'deal thắng')
     dbGolden('deal-won', await dump(TABLES, before))
   })
 
   it('kanban và bảng tin: thẻ tạo, di chuyển; bài đăng', async () => {
     const before = await mark(TABLES)
-    const boards = await api.get('/kanban/boards', { token, ip: freshIp() })
-    const first = (boards.body as { id: number }[])[0]
-    const board = (await api.get(`/kanban/boards/${first.id}`, { token, ip: freshIp() })).body as { columns: { id: number; is_archived: boolean }[] }
+    const boards = ok<{ id: number }[]>(await api.get('/kanban/boards', { token, ip: freshIp() }), 200, 'danh sách board')
+    expect(boards.length).toBeGreaterThan(0)
+    const board = ok<{ columns: { id: number; is_archived: boolean }[] }>(await api.get(`/kanban/boards/${boards[0].id}`, { token, ip: freshIp() }), 200, 'board')
     const cols = board.columns.filter((c) => !c.is_archived)
-    const card = await call('post', '/kanban/cards', { column_id: cols[0].id, title: 'Thẻ DB state' })
-    expect(card.status, JSON.stringify(card.body)).toBe(201)
-    const cardId = (card.body as { id: number }).id
-    const mv = await call('post', `/kanban/cards/${cardId}/move`, { column_id: cols[1].id })
-    expect(mv.status, JSON.stringify(mv.body)).toBeLessThan(300)
-    expect((await call('post', '/newsfeed', { category: 'training', content: 'Bài DB state' })).status).toBeLessThan(300)
+    expect(cols.length, 'board mặc định cần ít nhất 2 cột để kiểm di chuyển').toBeGreaterThanOrEqual(2)
+    const card = ok<{ id: number }>(await call('post', '/kanban/cards', { column_id: cols[0].id, title: 'Thẻ DB state' }), 201, 'tạo thẻ')
+    ok(await call('post', `/kanban/cards/${card.id}/move`, { column_id: cols[1].id }), [200, 201], 'di chuyển thẻ')
+    ok(await call('post', '/newsfeed', { category: 'training', content: 'Bài DB state' }), [200, 201], 'đăng bài')
+    const [row] = await q<{ column_id: number }>(`SELECT column_id FROM kanban_cards WHERE id = $1`, [card.id])
+    expect(row.column_id, 'thẻ phải nằm ở cột đích').toBe(cols[1].id)
     dbGolden('kanban-newsfeed', await dump(TABLES, before))
+  })
+
+  it('sửa dòng có sẵn vẫn vào dump; cột date ra nhãn ngày', async () => {
+    const { contact } = ok<{ contact: { id: number } }>(await call('post', '/contacts', { phone: '0933000333', full_name: 'DB State Cũ', source_id: sourceId }), 201, 'tạo khách trước kịch bản')
+    await new Promise((r) => setTimeout(r, 50))
+    const before = await mark(TABLES)
+    ok(await call('patch', `/contacts/${contact.id}`, { birthday: '1990-05-17' }), 200, 'đặt ngày sinh')
+    const out = await dump(TABLES, before)
+    const rows = out.contacts as { birthday: unknown; full_name: string }[]
+    expect(rows, 'dòng cũ bị sửa phải có trong dump').toHaveLength(1)
+    // Cột `date` thật (attendance_records.work_date, chèn bằng SQL vì chấm công cần thiết bị): phải ra nhãn ngày, không thành timestamp.
+    await q(`INSERT INTO attendance_records (user_id, work_date, updated_at) VALUES ($1, now()::date - 1, now())`, [userId])
+    const withDate = await dump(TABLES, before)
+    expect((withDate.attendance_records as { work_date: string }[])[0].work_date).toBe('<vn-day:-1>')
+    dbGolden('contact-modified-existing', withDate)
   })
 })

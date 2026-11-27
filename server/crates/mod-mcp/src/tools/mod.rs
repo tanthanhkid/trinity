@@ -51,8 +51,8 @@ use trinity_rbac::can;
 use crate::actions::{self, ActionTool};
 pub use channels::ChannelsDeps;
 pub use inbox::InboxDeps;
-pub use settings::SettingsDeps;
 pub use invitations::{AuthInvitations, InvitationsPort};
+pub use settings::SettingsDeps;
 
 use crate::ai_output::wrap_data;
 use crate::auth::Principal;

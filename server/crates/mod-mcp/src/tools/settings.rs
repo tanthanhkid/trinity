@@ -136,8 +136,7 @@ pub fn set_features<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, 
         for k in &off {
             body.insert((*k).to_owned(), Value::Bool(false));
         }
-        let dto = mod_settings::validate_org_features(&Value::Object(body))
-            .map_err(|e| biz_err(AppError::from(e)))?;
+        let dto = mod_settings::validate_org_features(&Value::Object(body)).map_err(|e| biz_err(AppError::from(e)))?;
         let settings = deps.settings_ctx(p);
         let mut conn = deps.conn(p.company).await?;
         let updated = mod_settings::features::update(&mut conn, settings, &dto, p.user_id)
@@ -203,7 +202,11 @@ fn int_arg(args: &Value, key: &str, min: i64, max: i64) -> Result<Option<i32>, T
             .filter(|v| (min..=max).contains(v))
             .and_then(|v| i32::try_from(v).ok())
             .map(Some)
-            .ok_or_else(|| user(format!("{key} phải là số nguyên từ {min} đến {max}. / {key} out of range."))),
+            .ok_or_else(|| {
+                user(format!(
+                    "{key} phải là số nguyên từ {min} đến {max}. / {key} out of range."
+                ))
+            }),
         Some(_) => Err(user(format!("{key} phải là số nguyên. / {key} must be an integer."))),
     }
 }
@@ -235,12 +238,13 @@ pub fn save_crm_option<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'
             .await
             .map_err(internal)?;
         let row: OptionRow = if let Some(id) = id {
-            let cur: Option<i32> = sqlx::query_scalar("SELECT id FROM setting_options WHERE id = $1 AND group_key = $2")
-                .bind(id)
-                .bind(group)
-                .fetch_optional(&mut *tx)
-                .await
-                .map_err(internal)?;
+            let cur: Option<i32> =
+                sqlx::query_scalar("SELECT id FROM setting_options WHERE id = $1 AND group_key = $2")
+                    .bind(id)
+                    .bind(group)
+                    .fetch_optional(&mut *tx)
+                    .await
+                    .map_err(internal)?;
             let Some(cur) = cur else {
                 return Err(user(format!(
                     "Không có mục id {id} trong {group_label} (xem list_crm_options). / No such item in this list."
@@ -301,11 +305,12 @@ pub fn save_crm_option<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'
                 value = format!("{base}_{n}");
                 n += 1;
             }
-            let last: Option<i32> = sqlx::query_scalar("SELECT MAX(sort_order) FROM setting_options WHERE group_key = $1")
-                .bind(group)
-                .fetch_one(&mut *tx)
-                .await
-                .map_err(internal)?;
+            let last: Option<i32> =
+                sqlx::query_scalar("SELECT MAX(sort_order) FROM setting_options WHERE group_key = $1")
+                    .bind(group)
+                    .fetch_one(&mut *tx)
+                    .await
+                    .map_err(internal)?;
             let order = sort.unwrap_or_else(|| last.unwrap_or(0).saturating_add(1));
             sqlx::query_as(
                 "INSERT INTO setting_options (group_key, value, label, sort_order, is_active, is_system, metadata, updated_by, \
@@ -336,7 +341,9 @@ async fn require_store_feature(ctx: &ToolCtx<'_>) -> Result<(), ToolError> {
     let (p, deps) = (ctx.principal, ctx.deps);
     let settings = deps.settings_ctx(p);
     let mut conn = deps.conn(p.company).await?;
-    let f = mod_settings::features::get(&mut conn, settings).await.map_err(app_err)?;
+    let f = mod_settings::features::get(&mut conn, settings)
+        .await
+        .map_err(app_err)?;
     if f.0.iter().any(|(k, v)| *k == STORE_FEATURE && *v == Some(true)) {
         Ok(())
     } else {
@@ -364,12 +371,10 @@ fn banks_json() -> Value {
 /// `storeForAi`: cấu hình hiển thị cho AI (không trả khoá lạ hay `owner_user_id`).
 fn store_for_ai(s: &StoreSettings) -> Map<String, Value> {
     let bank = store::bank_account_of(s);
-    let bank_name = bank.as_ref().map(|b| b.name).or_else(|| {
-        s.bank_bin
-            .as_deref()
-            .and_then(vietqr::find_bank)
-            .map(|b| b.name)
-    });
+    let bank_name = bank
+        .as_ref()
+        .map(|b| b.name)
+        .or_else(|| s.bank_bin.as_deref().and_then(vietqr::find_bank).map(|b| b.name));
     let page_path = (!s.slug.is_empty()).then(|| format!("/s/{}", s.slug));
     let Value::Object(m) = json!({
         "name": s.name,
@@ -481,7 +486,13 @@ pub(crate) fn register(r: &mut crate::exec::ToolRegistry, d: Arc<SettingsDeps>) 
             runner: Arc::new(super::Tool(run)),
         });
     };
-    reg(r, "set_features", Some("crm.write"), &["settings.features"], set_features);
+    reg(
+        r,
+        "set_features",
+        Some("crm.write"),
+        &["settings.features"],
+        set_features,
+    );
     reg(
         r,
         "save_crm_option",
@@ -537,7 +548,12 @@ mod tests {
         // `Platform` cần DB thật; chỉ kiểm tên/phạm vi qua hợp đồng đóng băng.
         let _ = &mut r;
         let frozen = crate::frozen::Frozen::embedded();
-        for n in ["set_features", "save_crm_option", "get_store_settings", "update_store_settings"] {
+        for n in [
+            "set_features",
+            "save_crm_option",
+            "get_store_settings",
+            "update_store_settings",
+        ] {
             assert!(frozen.tool(n).is_some(), "{n}");
             assert!(!n.contains("delete") && !n.contains("remove"), "{n}");
         }

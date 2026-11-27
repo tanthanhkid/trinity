@@ -122,13 +122,8 @@ impl<St: Send + Sync> FromRequest<St> for JsonBody {
 /// Kiểm theo metadata DTO thật (`schema.json`, chế độ strict của POS) rồi deserialize vào struct.
 fn dto<T: DeserializeOwned>(name: &str, input: &Value) -> Result<T, AppError> {
     let v = validate_value(name, input, Mode::Strict)?;
-    let v = if v.is_array() {
-        Value::Object(Map::new())
-    } else {
-        v
-    };
-    serde_json::from_value(v)
-        .map_err(|e| HttpError::bad_request(e.to_string()).into())
+    let v = if v.is_array() { Value::Object(Map::new()) } else { v };
+    serde_json::from_value(v).map_err(|e| HttpError::bad_request(e.to_string()).into())
 }
 
 fn query_of(uri: &Uri) -> Value {

@@ -1,0 +1,65 @@
+name: Báo lỗi (có mức độ và module)
+description: Ghi một lỗi kèm mức P0/P1/P2 và module bị ảnh hưởng
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Đừng dán mật khẩu, khoá API, token hay số điện thoại của khách vào đây.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Các bước làm
+      placeholder: "1. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Mong đợi
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Thực tế
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: Ảnh hoặc video
+      description: Kéo thả tệp vào ô này.
+  - type: input
+    id: when
+    attributes:
+      label: Thời điểm xảy ra
+      placeholder: "2026-11-27 14:30 (giờ VN)"
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Mức độ
+      options:
+        - P0 (chặn, không dùng được)
+        - P1 (lỗi nặng, có cách tạm)
+        - P2 (lỗi nhẹ)
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      options:
+        - auth
+        - contacts
+        - deals
+        - kanban
+        - hr
+        - payroll
+        - pos
+        - store
+        - facebook
+        - zalo
+        - social
+        - mcp
+        - web

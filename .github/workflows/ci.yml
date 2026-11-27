@@ -496,13 +496,56 @@ jobs:
         if: failure()
         run: tail -n 200 /tmp/web.log || true
 
+  # Bản xuất tĩnh của web (W02a: `build:export`, kết quả `apps/web/out`) làm artifact để job build Rust nhúng vào binary
+  # (W05, rust-embed; K18 là phía đọc). Chỉ chạy một lần cho cả hai kiến trúc. Cùng điều kiện với `rust-build` (không
+  # chạy trên PR trong giai đoạn viết lại Rust). Phụ thuộc: script `build:export` do W02a thêm, thư mục nhúng do K18 chốt.
+  web-export:
+    name: Web export (static)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_API_URL: /api/v1
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: 10.6.5
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Build shared packages
+        run: pnpm --filter "./packages/*" --if-present build
+
+      - name: next build (export)
+        run: pnpm --filter ./apps/web build:export
+
+      - name: Check export
+        run: scripts/check-web-export.sh apps/web/out
+
+      - name: Upload web export
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: web-out
+          path: apps/web/out
+          if-no-files-found: error
+          retention-days: 7
+
   # Backend Rust (docs/rust/PLAN.md mục 8): build release cho cả hai kiến trúc máy chủ. Không bắt buộc; fmt/clippy/unit
   # là các job `rust-*` trong `ci-ok`. Build offline (.sqlx/) không bắt được lệch schema Prisma, nên không chạy theo
   # migration ở đây: việc đó thuộc `rust-pg`. Không chạy trên PR trong giai đoạn viết lại Rust (đầu file): PR đã có
   # clippy + unit trong `ci-ok`; push main + chạy tay vẫn build cả hai kiến trúc.
   rust-build:
     name: Rust build (${{ matrix.arch }})
-    needs: rust-changes
+    needs: [rust-changes, web-export]
     if: github.event_name != 'pull_request' && needs.rust-changes.outputs.rust == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
@@ -527,6 +570,16 @@ jobs:
           workspaces: server
           save-if: ${{ github.event_name != 'pull_request' }}
 
+      # Web tĩnh phải có trước khi biên dịch: rust-embed đọc `apps/web/out` lúc build (thư mục do K18 chốt).
+      - name: Download web export
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: web-out
+          path: apps/web/out
+
+      - name: Check web export
+        run: scripts/check-web-export.sh apps/web/out
+
       - name: cargo build --release
         working-directory: server
         run: cargo build --release --locked --workspace --all-targets
@@ -536,6 +589,13 @@ jobs:
         run: |
           ./target/release/trinity --version
           file ./target/release/trinity
+
+      # Binary đã nhúng web: in kích thước, đỏ khi >= 80 MB (PLAN mục 10).
+      - name: Binary size (web embedded)
+        run: |
+          echo '| Binary | Kích thước | Giới hạn |' >> "$GITHUB_STEP_SUMMARY"
+          echo '|---|---|---|' >> "$GITHUB_STEP_SUMMARY"
+          server/scripts/check-binary-size.sh server/target/release/trinity 80
 
       - name: Upload binary
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

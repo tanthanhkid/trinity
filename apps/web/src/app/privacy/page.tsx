@@ -1,14 +1,9 @@
 import type { Metadata } from "next"
 import { LegalContact, LegalPage } from "@/components/legal-page"
 
-<<<<<<<< HEAD:apps/web/src/app/privacy/page.tsx
 export const metadata: Metadata = { title: "Chính sách quyền riêng tư — Trinity" }
 
 export default function PrivacyPage() {
-========
-/** Nội dung trang `/privacy` của bản xuất tĩnh (page.tsx). */
-export function PrivacyBody({ contact }: { contact: ReactNode }) {
->>>>>>>> 873bcd3b (feat(web)!: chuyển hẳn sang web tĩnh do Rust phục vụ, bỏ Next server (W02b, #185)):apps/web/src/app/privacy/privacy-body.tsx
   return (
     <LegalPage title="Chính sách quyền riêng tư" updated="14/10/2026">
       <p>

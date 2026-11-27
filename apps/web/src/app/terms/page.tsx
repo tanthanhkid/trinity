@@ -1,14 +1,9 @@
 import type { Metadata } from "next"
 import { LegalContact, LegalPage } from "@/components/legal-page"
 
-<<<<<<<< HEAD:apps/web/src/app/terms/page.tsx
 export const metadata: Metadata = { title: "Điều khoản sử dụng — Trinity" }
 
 export default function TermsPage() {
-========
-/** Nội dung trang `/terms` của bản xuất tĩnh (page.tsx). */
-export function TermsBody({ contact }: { contact: ReactNode }) {
->>>>>>>> 873bcd3b (feat(web)!: chuyển hẳn sang web tĩnh do Rust phục vụ, bỏ Next server (W02b, #185)):apps/web/src/app/terms/terms-body.tsx
   return (
     <LegalPage title="Điều khoản sử dụng" updated="14/10/2026">
       <p>

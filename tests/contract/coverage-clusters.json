@@ -78,5 +78,54 @@
         "invalid": "đường dẫn khai `:id(\\d+)`: id không phải số không khớp route nên Nest trả 404 (đã phủ ở loại missing), route không nhận thân nên không có đầu vào sai nào khác"
       }
     }
+  },
+  "channels": {
+    "controllers": [
+      "FacebookController",
+      "FacebookPublicController",
+      "ZaloOaController",
+      "SocialController",
+      "SocialPublicController"
+    ],
+    "waivers": {
+      "POST /facebook/connect-url": {
+        "invalid": "không nhận thân: không có đầu vào nào để sai"
+      },
+      "POST /facebook/tick": {
+        "invalid": "không nhận thân: không có đầu vào nào để sai"
+      },
+      "POST /social/tick": {
+        "invalid": "không nhận thân: không có đầu vào nào để sai"
+      },
+      "POST /social/posts/sync": {
+        "invalid": "không nhận thân: không có đầu vào nào để sai"
+      },
+      "POST /zalo-oa/connect": {
+        "invalid": "không nhận thân: không có đầu vào nào để sai"
+      },
+      "POST /facebook/webhook": {
+        "invalid": "webhook công khai: đầu vào sai là chữ ký sai, trả 401 (phủ ở ca 65), không có đường trả 400"
+      },
+      "POST /zalo-oa/webhook": {
+        "invalid": "webhook công khai: đầu vào sai là chữ ký sai, trả 401 (phủ ở ca 65), không có đường trả 400"
+      },
+      "POST /social/media/upload-token": {
+        "success": "theo thiết kế luôn trả 400 (kiểm loại/cỡ rồi chỉ đường dùng POST /social/media); ca kiểm đúng hành vi đó ở loại invalid"
+      }
+    },
+    "successStatus": {
+      "GET /facebook/go/:code": [
+        302
+      ],
+      "GET /facebook/oauth/callback": [
+        302
+      ],
+      "GET /zalo-oa/oauth/callback": [
+        302
+      ],
+      "GET /social/oauth/callback/:network": [
+        302
+      ]
+    }
   }
 }

@@ -12,6 +12,7 @@ mod confirm;
 mod contacts;
 mod deals;
 mod fanpage;
+mod fanpage_ports;
 pub(crate) mod import;
 mod inbox;
 mod invitations;
@@ -49,6 +50,7 @@ pub use fanpage::{
     BroadcastsPort, ChatLinksPort, CommentQuery, CommentsPort, FanpagePorts, FlowsPort, PageRef, PagesPort,
     ScheduledPostsPort, register_fanpage,
 };
+pub use fanpage_ports::FacebookFanpagePorts;
 
 type RunFn = for<'a> fn(&'a Value, &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>>;
 

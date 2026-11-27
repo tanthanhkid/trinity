@@ -7,7 +7,7 @@
 //! - Lead: lỗi tạm của Graph được ném ra ⇒ route trả 5xx ⇒ Meta gửi lại; idempotent theo `leadgen_id`.
 //! - Không giữ kết nối pool khi gọi Graph và không bao giờ giữ hai kết nối cùng lúc.
 //!
-//! Chưa có (việc của M48/M49): link/QR mở chat (`ingestReferral`), kịch bản nhắn tin (`flows.handleEvent`), bình luận (`feed`).
+//! Sau mỗi sự kiện nhắn tin gọi thêm kịch bản nhắn tin ([`crate::flows`], M50b, `flows.handleEvent`).
 
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
@@ -62,6 +62,8 @@ pub struct FacebookIngest {
     pub(crate) last_sync: Mutex<HashMap<(CompanyRef, i32), i64>>,
     /// Hạn mức trả lời bình luận tự động (M49); `None` = không áp (bản một công ty hoặc test).
     pub guard: Option<Arc<ChannelGuard>>,
+    /// Chống dồn `POST /facebook/tick` (M50b): (công ty, loại việc) → (lần kiểm gần nhất ms, đang chạy nền).
+    pub(crate) kick_gate: Mutex<HashMap<(CompanyRef, u8), (i64, bool)>>,
 }
 
 impl FacebookIngest {
@@ -72,6 +74,7 @@ impl FacebookIngest {
             graph_for,
             last_sync: Mutex::new(HashMap::new()),
             guard: None,
+            kick_gate: Mutex::new(HashMap::new()),
         }
     }
 
@@ -108,11 +111,21 @@ impl FacebookIngest {
                         Ok(false) => {}
                         Err(e) => tracing::error!("Xử lý referral Facebook lỗi: {e}"),
                     }
-                    match self.ingest_message(company, &page_id, ev).await {
-                        Ok(true) => n += 1,
-                        Ok(false) => {}
+                    let is_new = match self.ingest_message(company, &page_id, ev).await {
+                        Ok(true) => {
+                            n += 1;
+                            true
+                        }
+                        Ok(false) => false,
                         // Lỗi DB của 1 tin không được làm hỏng cả lô (và gây Meta gửi lại tin đã xử lý).
-                        Err(e) => tracing::error!("Xử lý sự kiện Facebook lỗi: {e}"),
+                        Err(e) => {
+                            tracing::error!("Xử lý sự kiện Facebook lỗi: {e}");
+                            false
+                        }
+                    };
+                    // Kịch bản nhắn tin (M50b): lỗi của MỘT sự kiện chỉ ghi log như `safe()` của bản Node.
+                    if let Err(e) = self.handle_flow_event(company, &page_id, ev, is_new).await {
+                        tracing::error!("Xử lý kịch bản nhắn tin lỗi: {e}");
                     }
                 }
             }

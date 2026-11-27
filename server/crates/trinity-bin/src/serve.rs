@@ -336,6 +336,12 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         features.clone(),
     ));
     app = mount(app, mod_facebook::routes::api_router(deps.clone()), fb_state.clone());
+    // M50b: kịch bản nhắn tin, link/QR mở chat, `tick` (một khối liền, cùng `FacebookState` và OrgGate với router kết nối).
+    app = mount(
+        app,
+        mod_facebook::flows_routes::api_router(deps.clone()),
+        fb_state.clone(),
+    );
     app = mount(
         app,
         mod_zalo::routes::api_router(deps.clone()),
@@ -446,6 +452,19 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             platform: platform.clone(),
         }),
         Arc::new(mod_mcp::AuthInvitations(auth_svc.clone())),
+    );
+    // M50b: tool Fanpage (M44b) nối link chat và kịch bản vào dịch vụ thật; các port còn lại (M49/M51/M54a) nối khi có.
+    let fanpage_flows = Arc::new(mod_mcp::FacebookFanpagePorts {
+        ingest: fb_state.ingest.clone(),
+        multi_tenant: platform.multi_tenant(),
+    });
+    mod_mcp::register_fanpage(
+        &mut registry,
+        Arc::new(mod_mcp::FanpagePorts {
+            chat_links: Some(fanpage_flows.clone()),
+            flows: Some(fanpage_flows),
+            ..mod_mcp::FanpagePorts::default()
+        }),
     );
     let tool_scopes = ScopeService::new(db.clone(), cache.clone());
     let tool_deps = Arc::new(mod_mcp::deps::ToolDeps {
@@ -616,6 +635,8 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         mod_facebook::broadcast::broadcast_job(fb_state.ingest.clone(), Some(Arc::new(guard.clone())))
             .map_err(|e| format!("job facebook.broadcasts: {e}"))?,
     );
+    // M50b: job `facebook.flows` (60 giây): gửi tiếp bước kịch bản đã tới giờ, kể cả lượt hẹn lại khi kênh tạm dừng.
+    scheduler.register(mod_facebook::flows::flows_job(fb_state.ingest.clone()).map_err(|e| e.to_string())?);
     let queue = trinity_jobs::Queue::new(&db, &node_id);
     let mut worker = trinity_jobs::Worker::new(&queue, trinity_jobs::WorkerConfig::default());
     // X15b: xuất tệp dài chạy nền (`/api/v1/exports`, loại việc `export.run`). Bảng sở hữu cần tiền tố này thuộc Rust.

@@ -62,7 +62,7 @@ Each company has its own Postgres schema; authorization codes and access/refresh
 | `get_record` (object, id) **or** (code) | per table (as above) | one record (custom or core) + relation labels; out of scope/missing ⇒ "not found". Accepts the shared `code` (HS001; an old code from before a prefix change still resolves) |
 | `find_by_code` (codes[] ≤50) | — (filtered by view permission per table) | code → `{object, id, title, table, open_at}`; codes not found go in `not_found` (no distinction between "does not exist" and "no permission"). Every returned record carries `code`; `describe_schema` returns each table's `code_prefix` (core: KH/DL/CV) |
 
-Missing permission ⇒ a clear `isError` tool result + a `denied` log entry. To add a tool: add a `ToolDef` to `services/crm/src/integrations/mcp/mcp-tools.registry.ts`.
+Missing permission ⇒ a clear `isError` tool result + a `denied` log entry. To add a tool: add a tool in `server/crates/mod-mcp/src/tools/`.
 
 ## Actions via AI — writes run directly within the user's permissions
 
@@ -326,8 +326,8 @@ Redirect URIs verified against documentation: Claude (web/Desktop/mobile/Cowork)
 
 ## Configure / enable / post-checks
 
-1. Deploy the code (needs `pnpm install --frozen-lockfile` because `@modelcontextprotocol/sdk` + `zod` were added; the migration only CREATEs TABLEs; **rsync the whole migrations directory before `migrate deploy`**). Flag off ⇒ the deploy is INERT.
-2. Enable: add to the `.env` file `INTEGRATIONS_MCP_ENABLED=true` + `INTEGRATIONS_PUBLIC_BASE_URL=https://<domain>` then restart the monolith **and build/restart the web app** (the rewrite lives in the Next build).
+1. Deploy the new `trinity` binary or image (the migration only CREATEs TABLEs and `trinity migrate` applies it before the server starts). Flag off ⇒ the deploy is INERT.
+2. Enable: add to the `.env` file `INTEGRATIONS_MCP_ENABLED=true` + `INTEGRATIONS_PUBLIC_BASE_URL=https://<domain>` then restart `trinity`. The `/.well-known/oauth-*` and `/mcp` addresses are served by the same process, so no separate web restart is needed.
 3. Grant `integrations.ai_connect` to roles that need it; `integrations.ai_admin` to supervisors.
 4. Post-check: `MCP_URL=https://<domain>/api/v1/mcp node scripts/ops/mcp-smoke.mjs` (no token: checks 401 + metadata + rewrite); add `MCP_TOKEN=<access token just connected>` to check initialize/tools/list/search/fetch.
 5. Use in ChatGPT (Business/Enterprise: Settings → Apps/Connectors → create app → paste the MCP URL) or Claude (Settings → Connectors → Add custom connector → paste the URL). See Settings > Connections & AI > AI connection.

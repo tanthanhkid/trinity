@@ -4,12 +4,9 @@ Hàm chung nằm ở crate `trinity-kernel` (`server/crates/trinity-kernel/src/`
 `phone`, `vn_time`, `number`. Hành vi khớp từng byte với bản TS qua **bảng ca dùng chung**
 `server/contracts/cases/kernel.json`:
 
-- bản TS là chuẩn: `services/crm/src/common/helpers/kernel-cases.spec.ts` tính lại mọi ca bằng helper TS và đúng kiểu
-  gọi `toLocale*`/`Intl`/`localeCompare` đang dùng, rồi so với cột `out` (chạy trong `Unit tests` của CI);
+- cột `out` do bản TS cũ (đã gỡ ở X06) sinh bằng đúng kiểu gọi `toLocale*`/`Intl`/`localeCompare` và đã đóng băng; từ X06 tệp này là chuẩn;
 - Rust chạy cùng đầu vào ở `server/crates/trinity-kernel/tests/shared_cases.rs` (`Rust unit`);
-- thêm ca: thêm đầu vào vào nhóm tương ứng, chạy `UPDATE_KERNEL_CASES=1 npx jest kernel-cases` trong `services/crm`
-  để sinh cột `out` (lượt sinh không kiểm), chạy lại không có biến để kiểm, rồi chạy test Rust. CI chạy spec TS trong
-  job `Rust unit` mỗi khi `server/` đổi, kể cả khi PR không đụng mã TS. Số không biểu diễn được bằng JSON ghi dạng chuỗi (`"NaN"`, `"-0"`, `"Infinity"`).
+- thêm ca: thêm đầu vào vào nhóm tương ứng kèm cột `out` ghi tay theo luật nghiệp vụ, rồi chạy test Rust. Số không biểu diễn được bằng JSON ghi dạng chuỗi (`"NaN"`, `"-0"`, `"Infinity"`).
 
 Thư viện: `icu_collator` và `icu_normalizer` (ICU4X 2.x, cùng họ dữ liệu CLDR với ICU của V8), `chrono-tz` cho múi
 `Asia/Ho_Chi_Minh`.
@@ -57,7 +54,7 @@ ngày giờ. Phần lấy ngày/tháng theo giờ VN dùng `vn_date`/`vn_clock_m
 | `notification/subscribers/subscribers.service.ts:117` | `format_vn_number` |
 | `payroll/employees/employees.service.ts:241` | `format_vn_date(.., IsoMonth)` |
 | `payroll/payslips/payslip-import.helper.ts:149` (`toLocaleString('en-US')` của hằng `MONEY_MAX`) | Chuỗi hằng trong mã (giá trị cố định, không cần hàm) |
-| `packages/utils` `formatVND`, `formatCurrencyShort`, `formatDate`, `formatDateTime` (4 chỗ) | Không có chỗ gọi trong backend; kiểu `HourMinuteDayMonthYear2`/`DayMonthYear2` đã có nếu cần |
+| `formatVND`, `formatCurrencyShort`, `formatDate`, `formatDateTime` (4 chỗ) | Không có chỗ gọi trong backend; kiểu `HourMinuteDayMonthYear2`/`DayMonthYear2` đã có nếu cần |
 
 ## 21 chỗ `localeCompare`: sắp ở đâu
 

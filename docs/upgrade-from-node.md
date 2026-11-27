@@ -3,13 +3,11 @@
 Hướng dẫn cho người đã cài Trinity bằng `docker-compose.yml` (hai image `trinity-api`, `trinity-web`, Node + Next) và sẽ
 chuyển sang bản một tiến trình viết bằng Rust.
 
-**Trạng thái.** Bản phát hành công khai hiện vẫn là bản Node; compose mặc định chưa đổi. Image `trinity` duy nhất, compose
-mới và lệnh `install.sh` mới nằm ở issue [#264](https://github.com/tanthanhkid/trinity/issues/264) (X06, đang làm). Các mục
-dưới đây ghi **thiết kế đã chốt cho bản đó** ([rust/PLAN.md](rust/PLAN.md) mục 4.13 và 8, [rust/ISSUES.md](rust/ISSUES.md)); tên tệp
-và giá trị cụ thể sẽ được đối chiếu lại khi X06 vào `main`. Kịch bản thử nâng cấp tự động
+**Trạng thái.** Từ X06 ([#264](https://github.com/tanthanhkid/trinity/issues/264)) repo và compose mặc định chỉ còn bản Rust
+(`trinity` + `postgres`), không còn Node, Redis hay Prisma lúc chạy. Các mục dưới đây là việc người đã cài bản Node cần làm khi
+kéo bản mới ([rust/PLAN.md](rust/PLAN.md) mục 4.13 và 8). Kịch bản thử nâng cấp tự động
 ([#276](https://github.com/tanthanhkid/trinity/issues/276)): `scripts/ops/upgrade-test.sh --new-ref <nhánh>`, hoặc workflow
-`Upgrade test` (chạy tay, tham số nhánh); dựng bản phát hành gần nhất bằng compose cũ có dữ liệu rồi nâng cấp tại chỗ. Ai chạy cấu hình lai từ `main` thì đọc
-[runbooks/hybrid.md](runbooks/hybrid.md).
+`Upgrade test` (chạy tay, tham số nhánh); dựng bản phát hành gần nhất bằng compose cũ có dữ liệu rồi nâng cấp tại chỗ.
 
 ## Tóm tắt thay đổi
 
@@ -38,7 +36,7 @@ Dữ liệu, tài khoản, phiên đăng nhập, tệp tải lên và khóa `INT
    trình biên (trước đây là `web`), nên giá trị áp lên kết nối TCP tới nó. Quên bước này thì kiểm tra IP đăng nhập và chấm
    công không chạy theo IP thật, và quản trị viên thấy biểu ngữ cảnh báo.
 4. **Sửa reverse proxy**: gỡ luật `/notif-ws/*` trỏ cổng 4000, trỏ mọi thứ về cổng chính
-   ([deployment.md](deployment.md#reverse-proxy-for-the-rust-server-one-port)). Chưa kịp sửa thì chuông realtime vẫn chạy nhờ cổng
+   ([deployment.md](deployment.md#reverse-proxy-one-port)). Chưa kịp sửa thì chuông realtime vẫn chạy nhờ cổng
    tương thích, nhưng cổng đó sẽ bị gỡ (xem dưới).
 5. **Bỏ đặt `PORT`** trong `.env` nếu có; không bắt buộc, chỉ để hết cảnh báo. Biến của phần đã gỡ (`REDIS_URL`, `BACKEND_URL`,
    `MONOLITH_INTERNAL_URL`, `AUTH_SERVICE_URL`, cấu hình Vercel Blob và kết nối đã gỡ, …) cũng bị bỏ qua kèm một dòng cảnh báo mỗi biến.
@@ -74,7 +72,6 @@ bản phát hành.
 
 ## Chưa có trong bản đầu
 
-- Web tĩnh do Rust phục vụ ([#185](https://github.com/tanthanhkid/trinity/issues/185)): cho tới lúc đó giao diện vẫn là Next, do cấu hình lai chuyển tiếp.
 - Tải video theo phần và xuất tệp dài chạy nền khi đứng sau proxy Cloudflare ([#277](https://github.com/tanthanhkid/trinity/issues/277), [#278](https://github.com/tanthanhkid/trinity/issues/278)).
 - Số đo RAM và CPU trên máy 2 GB và 1 GB ([#263](https://github.com/tanthanhkid/trinity/issues/263)); cấu hình Postgres cho máy nhỏ trong
   [deployment.md](deployment.md#postgresql-on-small-machines) là điểm khởi đầu, chưa phải số đã đo.

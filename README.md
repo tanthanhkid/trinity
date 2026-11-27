@@ -102,13 +102,13 @@ Details per connector: [docs/integrations/status.md](docs/integrations/status.md
 
 ## Tech stack
 
-Next.js 16 · React 19 · Tailwind 4 · NestJS 10 · Express · Prisma 6 · PostgreSQL 16 · pnpm monorepo.
+Rust (one binary, `trinity`: `serve`, `migrate`, `seed`, `check-config`) · PostgreSQL 16 (the only runtime dependency) · Next.js 16 · React 19 · Tailwind 4 (built as a static export that the Rust binary serves).
 
-**Backend rewrite in progress.** The backend is being rewritten in Rust (`server/`: one binary, no Redis, same database and API contract). The images and `docker-compose.yml` described below are still the Node stack. Status: [docs/architecture.md](docs/architecture.md#rust-backend-in-progress); plan: [docs/rust/PLAN.md](docs/rust/PLAN.md); moving an install later: [docs/upgrade-from-node.md](docs/upgrade-from-node.md).
+There is no Node backend, no Redis and no Prisma at run time. Architecture: [docs/architecture.md](docs/architecture.md); how the Rust rewrite was planned: [docs/rust/PLAN.md](docs/rust/PLAN.md); moving an install made with the older Node images: [docs/upgrade-from-node.md](docs/upgrade-from-node.md).
 
 ## Deploy
 
-Trinity runs on your own server (or a laptop) with Docker Compose. A 2 GB machine is the supported minimum.
+Trinity runs on your own server (or a laptop) with Docker Compose. A 2 GB machine is the supported minimum. The stack is `trinity` (the application) and `postgres`; migration and seed run as short one-shot steps before `trinity` starts.
 
 You need Docker with Compose. On a laptop the first build takes about 5 minutes.
 
@@ -120,7 +120,7 @@ cd trinity
 
 `install.sh` creates `.env` from `.env.example` with freshly generated random secrets and admin password (it never overwrites an existing `.env`, so it is safe to re-run), prints the admin credentials once, and starts the stack with `docker compose up --build -d`. Open http://localhost:3000 and sign in with the printed admin account. No demo data is seeded by default; if you want demo data, set `SEED_DEMO_DATA=true` in `.env` (or run `SEED_DEMO_DATA=true ./install.sh`) before the first start.
 
-Manual alternative: `cp .env.example .env`, replace every `change-me-*` value (`openssl rand -hex 32`), then `docker compose up --build -d`. If `SEED_ADMIN_PASSWORD` is empty, the generated password is printed by `docker compose logs migrate`.
+Manual alternative: `cp .env.example .env`, replace every `change-me-*` value (`openssl rand -hex 32`), then `docker compose up --build -d`. If `SEED_ADMIN_PASSWORD` is empty, the generated password is printed once in the seed output (`docker compose logs | grep -A2 "Admin account"`).
 
 Notes:
 
@@ -128,16 +128,16 @@ Notes:
 - A new workspace starts empty on purpose: the first sign-in goes through the start wizard (type of business, modules, *Build my system*, first customer) before the app opens. Anyone whose account is created after the workspace was built goes straight into the app. After the build the core set is on and everything else is a switch in Settings → *Tính năng* ("Features"); Zalo OA, for example, answers 403 until its switch is on. Settings is grouped in the Vietnamese UI as *Tính năng & Kết nối* (features & connections), *Khách hàng* (customer lists), *Công ty & Nhân sự* (users, roles, teams) and *Cá nhân* (profile, notifications); a section only shows when its feature is on.
 - The interface is currently **Vietnamese only**. Your data and the AI tools work in any language.
 
-Tagged releases publish ready-made images to GitHub Container Registry (`ghcr.io/tanthanhkid/trinity-api`, `ghcr.io/tanthanhkid/trinity-web`). More in [docs/deployment.md](docs/deployment.md).
+Tagged releases publish ready-made images to GitHub Container Registry (`ghcr.io/tanthanhkid/trinity`) and attach the `trinity` binary (linux amd64 and arm64, web included) to the GitHub Release. More in [docs/deployment.md](docs/deployment.md).
 
 To let your AI assistant drive Trinity, set `INTEGRATIONS_MCP_ENABLED=true`, a public `INTEGRATIONS_PUBLIC_BASE_URL` and an `INTEGRATIONS_SECRET_KEY` in `.env`, then follow [docs/integrations](docs/integrations/).
 
-For development without Docker: `pnpm install && pnpm dev` (needs Node 22 and Postgres running locally).
+For development without Docker: run the backend with Rust and Postgres (`cd server && ./scripts/localhost.sh`, see [docs/rust/localhost.md](docs/rust/localhost.md)); the web app is developed separately with `pnpm --filter web dev` (Node 22) against that backend. Details: [docs/getting-started.md](docs/getting-started.md).
 
 ### Monitoring (optional)
 
 Error reporting (Sentry) and anonymous product metrics (PostHog) are **off by default**: no network call is made and
-no SDK is loaded until you set the variables. Variables: `SENTRY_DSN` (API), `SENTRY_DSN_WEB` (browser),
+no SDK is loaded until you set the variables. Variables: `SENTRY_DSN` (server), `SENTRY_DSN_WEB` (browser),
 `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE`, `TRINITY_RELEASE`, `POSTHOG_KEY`, `POSTHOG_HOST`, `POSTHOG_REPLAY`,
 `MONITORING_HASH_SECRET`. User ids are hashed (HMAC) before they leave your server; request bodies, cookies, headers,
 query strings, emails and phone numbers are stripped; session replay (if enabled) masks all text and inputs. Server

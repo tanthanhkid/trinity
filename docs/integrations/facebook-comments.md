@@ -1,6 +1,6 @@
 # Facebook Page comments, Messenger and the Interactions screen
 
-Module `services/crm/src/facebook/` (comments, Messenger, webhook) and `services/crm/src/interactions/` (the combined timeline).
+Crate `server/crates/mod-facebook` (comments, Messenger, webhook) and the combined timeline of interactions.
 Connection status per feature: [status.md](status.md). AI tools: [mcp.md](mcp.md#facebook-page--messenger).
 
 ## Webhook: one Meta app, one deployment

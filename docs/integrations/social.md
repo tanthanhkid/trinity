@@ -1,6 +1,6 @@
 # Social posting (Đăng đa kênh)
 
-Module `services/crm/src/social/`. Write once, publish now (or schedule) to your linked Facebook Pages (Fanpage), track each channel's status and retry failures.
+Crate `server/crates/mod-social`. Write once, publish now (or schedule) to your linked Facebook Pages (Fanpage), track each channel's status and retry failures.
 Posts can be scheduled up to 90 days ahead (composer, calendar and the AI assistant's tools). A scheduled post can be edited (text, time, channels) until one minute before it goes out — *Bài đã đăng › Sửa* or `PATCH /social/posts/:id` — and dragged to another day on the calendar (`POST /social/posts/:id/reschedule`, keeps the time of day). The server runs the publishing job every minute.
 Organisation feature `social_posting` (`@RequireOrgFeature`). Screen: `/social` (tabs Soạn bài / Nháp / Lịch / Bài đã đăng / Thống kê / Thư viện / Kênh; the composer's right column switches between *Kênh* and *Xem trước*).
 

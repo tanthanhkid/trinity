@@ -1,5 +1,7 @@
 # Runbook — Bật từng đợt a–e (mẫu tệp sở hữu và kiểm sau khi bật)
 
+> **Lưu trữ (X06, 27/11/2026).** Cấu hình lai Rust + Node đã bị gỡ khỏi repo: backend là một binary Rust, không còn tiến trình Node, tệp sở hữu hay `docker-compose.hybrid.yml`. Tài liệu này chỉ còn để tham khảo cho đường lui 14 ngày (checkout tag phát hành trước X06) và để hiểu lịch sử các đợt chuyển; đường dẫn tới mã Node trong đó trỏ vào lịch sử git, không còn trong cây hiện tại. Cài đặt hiện hành: [deployment.md](../deployment.md).
+
 Issue X02a–X02e (#256–#260; PLAN mục 6.5, 4.14). Bổ sung cho `docs/runbooks/cutover.md`: file đó nói **cách** đổi sở hữu (sao lưu, ghi tệp nguyên tử, `SIGHUP`, lui, sửa dữ liệu
 có chọn lọc); file này nói **bật cái gì** ở mỗi đợt, kiểm gì, lui ra sao và dấu hiệu lỗi riêng của đợt.
 

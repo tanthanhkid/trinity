@@ -20,11 +20,11 @@ The database role needs `CREATE` on the database (to create one schema per compa
 ## How isolation works
 
 - **One Postgres schema per company.** Company 1 is `public` (existing data stays where it is, nothing is migrated);
-  company *N* is `c_N`, created at sign-up with every migration applied (`prisma migrate deploy` against that schema).
+  company *N* is `c_N`, created at sign-up with every migration applied (the same embedded migrations, run against that schema).
   Tables, raw SQL, triggers and code sequences (`KH-0001`…) are all per company, so a guessed id from another company
   simply does not exist in yours.
-- **`PrismaService` routes every query.** It is a proxy that resolves each access against the company of the current
-  async context (`AsyncLocalStorage`). With no company in context it throws (fail-closed) — a code path that forgot to
+- **Every query is routed by company.** The database layer (`trinity-db`) sets the `search_path` of the connection to the
+  company of the current request. With no company in context it refuses (fail-closed) — a code path that forgot to
   choose a company errors instead of reading someone else's rows. Background jobs run once per company
   (`runForEachCompany`, wrapped by `tenantTimerTick` for timers): a round stops starting new companies when the job's
   budget is spent and the next round resumes where it stopped, and a company that fails is logged and reported without stopping the others.
@@ -47,7 +47,7 @@ The database role needs `CREATE` on the database (to create one schema per compa
     removed in G06) are deleted at boot.
 - **State outside the database** — permission cache, token blacklist, sessions, rate limits, socket rooms, stored
   files — is keyed by company as well (`tenantKey`), since ids repeat across companies.
-- **Shared tables** live in the `platform` schema (created at boot, outside Prisma migrations): `companies` (also holds
+- **Shared tables** live in the `platform` schema (created at boot, outside the numbered migrations): `companies` (also holds
   the channel-lock columns), `company_logins`, `company_routes`. Triggers in every company schema keep logins and Page/OA routes in sync, and
   their primary keys make a second company claiming the same email or Page fail at the database.
 - **Staff of a company** (see below): a signed-up company starts with its owner and grows by invitation, up to the
@@ -124,10 +124,10 @@ company — bulk, automatic and manual, comments, posts; receiving messages and 
 at most 10 seconds stale on any instance.
 
 ```bash
-MULTI_TENANT=true DATABASE_URL=... pnpm --filter @trinity/prisma channel:lock -- list
-MULTI_TENANT=true DATABASE_URL=... pnpm --filter @trinity/prisma channel:lock -- lock 7 "reported spam"
-MULTI_TENANT=true DATABASE_URL=... pnpm --filter @trinity/prisma channel:lock -- unlock 7
-MULTI_TENANT=true DATABASE_URL=... pnpm --filter @trinity/prisma channel:lock -- resume 7
+MULTI_TENANT=true DATABASE_URL=... trinity channel-lock list
+MULTI_TENANT=true DATABASE_URL=... trinity channel-lock lock 7 "reported spam"
+MULTI_TENANT=true DATABASE_URL=... trinity channel-lock unlock 7
+MULTI_TENANT=true DATABASE_URL=... trinity channel-lock resume 7
 ```
 
 **Seeing it.** `GET /settings/channel-guard` (admins; limits, usage, events), `GET /settings/channel-guard/alerts` (every signed-in user; only the warning text, feeds the banner) and the MCP tool `get_channel_limits` return the plan limits, usage so far,
@@ -137,10 +137,10 @@ moves the limits.
 
 ## Deploying an update
 
-1. `prisma migrate deploy` for `public` (company 1), as before.
-2. `MULTI_TENANT=true pnpm --filter @trinity/prisma migrate:companies` — every company schema, 4 at a time
+1. `trinity migrate` for `public` (company 1).
+2. `MULTI_TENANT=true trinity migrate --companies` — every company schema, 4 at a time
    (`TENANT_MIGRATE_CONCURRENCY`); exits non-zero if a company failed.
-3. Restart. Boot runs `ensurePlatform()` and, in the background, migrates any company still behind (a company
+3. Restart. Boot ensures the `platform` schema and, in the background, migrates any company still behind (a company
    whose migration fails is logged; the others keep working). Sync triggers are reinstalled only when
 their version changes, so a restart takes no table locks. A sign-up abandoned mid-way (process killed while
 migrating) is cleaned up after 15 minutes, freeing its email. Back up the whole
@@ -157,13 +157,13 @@ database (all schemas) before a migration.
 
 ## Tests
 
-`services/crm/src/__pg__/saas-abuse.pg.spec.ts` covers channel limits (per company, atomic), the channel lock, auto-pause,
+The Postgres tests of `server/crates/mod-channel-guard` (`tests/guard_pg.rs`) and the routing tests of `trinity-db` cover channel limits (per company, atomic), the channel lock, auto-pause,
 and routing: a second company cannot claim another's store slug, store links route by slug, retired route kinds are cleaned up,
 and store links only ever touch the right company.
 
-`services/crm/src/__pg__/tenant-isolation.pg.spec.ts` signs up two companies on a real Postgres and checks that one
+The tenant-isolation tests (`server/crates/trinity-db/tests/`) sign up two companies on a real Postgres and checks that one
 cannot read, count, update or delete the other's rows (models, raw SQL, transactions, guessed ids), that a Page and an
 email belong to one company only, and that a company can have several users.
-`services/auth/src/auth/invitations.pg.spec.ts` covers invitations on a real Postgres (create, preview, accept into the right
+`server/crates/mod-auth/tests/invitations.rs` covers invitations on a real Postgres (create, preview, accept into the right
 company, single use, cancel, expiry, forged prefix, foreign email, `maxUsers`, the removed trigger).
 `tests/multi-tenant-e2e/run.mjs` runs the same flow over HTTP against a local server.

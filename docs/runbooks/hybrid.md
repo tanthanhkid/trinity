@@ -1,5 +1,7 @@
 # Runbook — Rust trước, Node phía sau (không còn Next)
 
+> **Lưu trữ (X06, 27/11/2026).** Cấu hình lai Rust + Node đã bị gỡ khỏi repo: backend là một binary Rust, không còn tiến trình Node, tệp sở hữu hay `docker-compose.hybrid.yml`. Tài liệu này chỉ còn để tham khảo cho đường lui 14 ngày (checkout tag phát hành trước X06) và để hiểu lịch sử các đợt chuyển; đường dẫn tới mã Node trong đó trỏ vào lịch sử git, không còn trong cây hiện tại. Cài đặt hiện hành: [deployment.md](../deployment.md).
+
 Issue D01 (PLAN mục 4.13, 4.14), cập nhật ở W02b. Rust nhận cổng công khai 3000, phục vụ web tĩnh (`WEB_DIR`, thư mục `out/` của `next build`), tự xử lý route đã
 được giao cho nó trong tệp sở hữu và chuyển tiếp phần còn lại (`/api/v1`, `/notif-ws`, `/uploads`, `/.well-known`) sang Node. Từ W02b không còn tiến trình Next:
 `docker-compose.yml` mặc định chính là cấu hình này (tệp `docker-compose.hybrid.yml` đã gộp vào đó).
@@ -100,7 +102,7 @@ Cả hai tiến trình, theo thứ tự; mỗi cổng phải xanh trước khi t
 | 5 | **`migrated_to`**: không công ty nào cũ hơn migration mới nhất | lệnh dưới, kết quả phải rỗng |
 
 ```
-LATEST=$(ls packages/prisma/prisma/migrations | grep -v toml | LC_ALL=C sort | tail -1)
+LATEST=$(ls server/prisma/migrations | grep -v toml | LC_ALL=C sort | tail -1)
 psql "$DATABASE_URL" -Atc "select id from platform.companies where migrated_to is null or migrated_to < '$LATEST' collate \"C\""
 ```
 

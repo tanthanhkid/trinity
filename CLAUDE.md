@@ -1,11 +1,16 @@
 # Working on Trinity
 
+## Stack and layout
+- Backend: Rust workspace in `server/`, one binary `trinity` (`serve`, `migrate`, `seed`, `check-config`, …). PostgreSQL 16 is the only runtime dependency: no Node backend, no Redis, no Prisma at run time. Migrations live in `server/prisma/migrations/` and are embedded in the binary.
+- Web: `apps/web` (Next.js), built with `build:export` into a static site that `trinity` serves. `packages/rbac` is the TypeScript view of `server/contracts/rbac.json`.
+- Local run: `cd server && ./scripts/localhost.sh` ([docs/rust/localhost.md](docs/rust/localhost.md)); Rust commands on a shared machine go through `server/scripts/cargo-q`. Architecture: [docs/architecture.md](docs/architecture.md).
+
 ## Shipping
 - Workflow: [docs/runbooks/fast-delivery.md](docs/runbooks/fast-delivery.md).
 - Small changes (wording, UI, an obvious bug) go straight to `main` from the owner account. Large or schema changes go through a pull request that merges as soon as the fast CI job is green. Review comments (Codex) are handled afterwards: a P1 is fixed in the next commit, P2s in a follow-up.
 - Tasks the maintainer assigned ship to production once the checks pass. Report what shipped (commit, screens); no screenshot-approval round.
 - Every production deploy: copy `.env` first, dump the database when the change has a migration, check health and the screens you touched, roll back at once on errors. Never delete customer data.
-- CI (details: `docs/ci.md`): on pull requests `ci-ok` (lint, typecheck, unit tests of changed packages + gitleaks; plus `Rust fmt`, `Rust clippy`, `Rust unit` when `server/` changes), `CLA` and gitleaks are required; Postgres tests, Rust pg tests, Rust build, API build and "Web build and UI checks" (a real `next build`, UI audit, break-it scenarios) run in parallel and are not required. Push to `main` runs everything; a nightly run adds full tests, e2e and dependency audits.
+- CI (details: `docs/ci.md`): on pull requests `ci-ok` (lint, typecheck, unit tests of changed packages + gitleaks; plus `Rust fmt`, `Rust clippy`, `Rust unit` when `server/` changes), `CLA` and gitleaks are required; Postgres tests, Rust pg tests, Rust build and "Web build and UI checks" (a real `next build`, UI audit, break-it scenarios) run in parallel and are not required. Push to `main` runs everything; a nightly run adds full tests, e2e and dependency audits.
 
 ## Public repository rules
 - No deployment-specific details in the repo: hostnames, IPs, server paths, SSH aliases, Page or account ids, keys. Docs describe the generic flow; maintainers keep their own environment notes outside the repo.

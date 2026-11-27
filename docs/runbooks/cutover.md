@@ -1,5 +1,7 @@
 # Runbook — Bật một đợt và lui không mất dữ liệu
 
+> **Lưu trữ (X06, 27/11/2026).** Cấu hình lai Rust + Node đã bị gỡ khỏi repo: backend là một binary Rust, không còn tiến trình Node, tệp sở hữu hay `docker-compose.hybrid.yml`. Tài liệu này chỉ còn để tham khảo cho đường lui 14 ngày (checkout tag phát hành trước X06) và để hiểu lịch sử các đợt chuyển; đường dẫn tới mã Node trong đó trỏ vào lịch sử git, không còn trong cây hiện tại. Cài đặt hiện hành: [deployment.md](../deployment.md).
+
 Issue X01 (PLAN mục 6.5 và 6.6; tệp sở hữu: PLAN 4.14, `docs/rust/ownership-node.md`). Áp dụng cho các issue X02a–X02e và cho mọi lần đổi sở hữu
 route hoặc job giữa Node và Rust trên bản đang chạy cấu hình lai (`docs/runbooks/hybrid.md`).
 
@@ -15,7 +17,7 @@ Ba nguyên tắc:
 | Thành phần | Trạng thái trên `main` |
 |---|---|
 | `docs/runbooks/hybrid.md`, `docker-compose.hybrid.yml`, `deploy/hybrid/ownership.json` (mặc định mọi thứ thuộc Node) | có (D01) |
-| Tệp sở hữu: Rust nạp lại khi `SIGHUP`, Node đọc lại ở đầu mỗi lượt tick (`packages/rbac-nest/src/ownership.ts`, K17, T01); tệp hỏng thì giữ bảng cũ và ghi lỗi | có |
+| Tệp sở hữu: Rust nạp lại khi `SIGHUP`, Node đọc lại ở đầu mỗi lượt tick (bản TS, đã gỡ ở X06; K17, T01); tệp hỏng thì giữ bảng cũ và ghi lỗi | có |
 | Mẫu tệp đợt a: `server/contracts/ownership-wave-a.json` | có (chỉ 5 route health/ready/live/telemetry/site-config) |
 | `trinity check-config` (kiểm cả tệp sở hữu), `trinity check-invariants` (X11), `trinity check-routes`, `trinity migrate --status`, `trinity healthcheck` | có (`server/crates/trinity-bin/src/main.rs`) |
 | `docs/rust/invariants.md` (lịch hằng ngày và hằng giờ) | có |
@@ -135,7 +137,7 @@ Lui cả cấu hình lai (đưa origin thẳng về Next + Node): `docs/runbooks
 
 ## 5. Job `stale-work.digest`: điều kiện đổi chủ
 
-Job này **không** nhận việc nguyên tử: `runOnce` (`services/crm/src/stale-work/stale-work.service.ts`) đọc dấu "đã gửi hôm nay" (`settings.key = 'stale_work_last_digest'`, giá trị là ngày Việt Nam `YYYY-MM-DD`), gửi cho mọi người, rồi mới ghi dấu. Chồng một lượt khi đổi chủ là gửi trùng bản tổng hợp cho cả công ty. Job gửi ở **mọi lượt** từ `digest_hour` trở đi tới khi ghi được dấu (lần gửi lỗi thì không ghi dấu, thử lại cả ngày).
+Job này **không** nhận việc nguyên tử: `runOnce` của bản Node cũ (đã gỡ ở X06) đọc dấu "đã gửi hôm nay" (`settings.key = 'stale_work_last_digest'`, giá trị là ngày Việt Nam `YYYY-MM-DD`), gửi cho mọi người, rồi mới ghi dấu. Chồng một lượt khi đổi chủ là gửi trùng bản tổng hợp cho cả công ty. Job gửi ở **mọi lượt** từ `digest_hour` trở đi tới khi ghi được dấu (lần gửi lỗi thì không ghi dấu, thử lại cả ngày).
 
 Chỉ đổi chủ (cả hai chiều) khi, **với mọi công ty** (schema `public` và `c_<id>`), có ít nhất một điều đúng:
 

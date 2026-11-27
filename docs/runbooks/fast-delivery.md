@@ -16,8 +16,8 @@ Full description: [docs/ci.md](../ci.md). Required to merge: `ci-ok`, `CLA`, `Se
 | Lint, Typecheck, Unit tests (feed `ci-ok`) | every PR, in parallel; only changed packages (typecheck also their dependents). Push to `main`: all packages | 1–2 min |
 | Secret scan (gitleaks) | every PR | ~10 s |
 | CLA | every PR | ~10 s |
-| Build api (monolith) | every PR, not required | ~1 min |
-| Tests with Postgres (migrate + db specs) | PR steps run only when migrations, `schema.prisma`, `*.pg.spec.ts` or `$queryRaw`/`$executeRaw` code changed; always on `main`. Not required | ~2 min |
+| Rust build and Rust pg tests | `main` and manual runs (pg tests also on PRs that change `server/`); not required | several min |
+| Tests with Postgres (migrate + db specs) | PR steps run only when migrations, the schema contract or Postgres test code changed; always on `main`. Not required | ~2 min |
 | Web build and UI checks | PR steps run only when `apps/web/`, `packages/`, the lockfile or the CI workflow changed; always on `main`. Runs `next build` (static export to `apps/web/out`), checks the export, starts the test static server, then the checks in `apps/web/e2e/premium/` (see its README). Not required | ~5 min |
 
 A nightly workflow runs the full test suite, the Playwright e2e and dependency audits.
@@ -31,21 +31,21 @@ The Docker image builds only for `v*` tags (or by manual dispatch).
 
 ## 3. Deploying — one command
 The deploy script builds and ships the self-hosted server:
-- **Self-hosted server (PM2):** build on the workstation, ship artifacts, restart.
-  - **Selective build** from the diff between the server's `.deployed-commit` and the new commit: web only when `apps/web/` or `packages/` changed,
-    `pnpm install` only when a `package.json` or the lockfile changed. Unchanged parts are not rebuilt or shipped; with only the API changed,
-    only the API process restarts. The Next.js and TypeScript build caches stay in the build checkout, so repeat builds take seconds.
+- **Self-hosted server (process manager):** build on the workstation, ship the binary, restart.
+  - **Selective build** from the diff between the server's `.deployed-commit` and the new commit: the web export only when `apps/web/` changed,
+    `pnpm install` only when a `package.json` or the lockfile changed; the Rust binary (which embeds the web export) is rebuilt when `server/` or the web export changed.
+    Build caches (`cargo`, Next.js) stay in the build checkout, so repeat builds are fast.
   - **Build errors stop the deploy** before anything is shipped; the server keeps running the previous release.
   - **Backups:** `.env` is copied (mode 600) every time. The database is dumped **only when the diff contains a migration or a schema change**.
   - **Previous release kept as a directory** (moved aside, not archived; the last three are kept), so rollback is a move back plus a restart.
-  - **Health gate:** API health and the web login page must answer 200 within 40 s, otherwise the script rolls back automatically.
+  - **Health gate:** `/api/v1/health` and the web login page must answer 200 within 40 s, otherwise the script rolls back automatically.
     A rollback after a migration does not undo the database; restore the dump taken just before.
 
 ## 4. Measured (October 2026)
 | Step | Time |
 |---|---|
 | Required CI on a pull request (`ci-ok`) | about 1.5–2 min; heavier jobs run in parallel and are not required |
-| Build packages + API + web with warm cache | ~10 s |
+| Build with warm cache (varies with what changed: web export, Rust binary) | seconds to a few minutes |
 | Ship + server switch + health | ~30 s |
 
 Turborepo remote caching does not apply: the workspace builds with pnpm filters, not Turborepo, and Next.js already reuses its own build cache.

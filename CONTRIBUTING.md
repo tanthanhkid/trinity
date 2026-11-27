@@ -11,7 +11,7 @@ Thanks for helping build Trinity. Issues and pull requests in English or Vietnam
 ## Pull requests
 1. Fork, create a branch from `main`.
 2. Keep each PR to one change. Add or update tests.
-3. Run `pnpm lint` and `pnpm --filter <package> typecheck` / `test` for the packages you changed before pushing.
+3. Before pushing, run the checks for what you changed. Backend (`server/`): `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test -p <crate>` (setup and Postgres tests: [server/README.md](server/README.md)). Web (`apps/web`): `pnpm --filter web lint` and `pnpm --filter web typecheck`.
 4. Describe what changed and why. Screenshots for UI changes.
 5. Changing an MCP tool (description, schema, error text)? Test it with a small model (Haiku) using everyday user prompts — see "Testing tool descriptions with a weak model" in [docs/integrations/mcp.md](docs/integrations/mcp.md).
 
@@ -24,7 +24,7 @@ On your first pull request the **CLA** check comments with a link. Sign by comme
 
 The check then turns green (comment `recheck` if it does not). Signatures are stored in the `cla-signatures` branch.
 
-`main` is protected: contributions go through a pull request, and these checks must pass before merging: **ci-ok** (lint, typecheck and unit tests of the packages you changed, plus the secret scan), **Secret scan (gitleaks)** and **CLA**. Slower jobs (real-Postgres tests, web build and UI checks, API build) run in parallel and are not required; a nightly run does the full test suite and e2e. Run `pnpm lint` and the build of what you touched locally if you want to catch problems earlier. See [docs/ci.md](docs/ci.md). How maintainers ship: [docs/runbooks/fast-delivery.md](docs/runbooks/fast-delivery.md).
+`main` is protected: contributions go through a pull request, and these checks must pass before merging: **ci-ok** (lint, typecheck and unit tests of what you changed, Rust fmt/clippy/unit when `server/` changes, plus the secret scan), **Secret scan (gitleaks)** and **CLA**. Slower jobs (real-Postgres tests, Rust build, web build and UI checks) run in parallel and are not required; a nightly run does the full test suite and e2e. Run the lint and build of what you touched locally if you want to catch problems earlier. See [docs/ci.md](docs/ci.md). How maintainers ship: [docs/runbooks/fast-delivery.md](docs/runbooks/fast-delivery.md).
 
 ## Code of conduct
 By participating you agree to follow our [Code of Conduct](CODE_OF_CONDUCT.md).

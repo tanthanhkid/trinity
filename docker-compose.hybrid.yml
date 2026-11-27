@@ -45,6 +45,8 @@ services:
       # Cổng tương thích 4000 đang do Node giữ trong cùng namespace, nên cổng của Rust đổi sang 4001 (phải khác 3000 và 4000).
       COMPAT_API_PORT: "4001"
       NODE_FALLBACK_URL: http://127.0.0.1:4000
+      # Next (3001) nhận trang web; không đặt thì mọi thứ không thuộc Rust rơi về Node.
+      WEB_UPSTREAM_URL: http://127.0.0.1:3001
       <<: *ownership-file
       DB_POOL_SIZE: ${HYBRID_RUST_DB_POOL_SIZE:-4}
     volumes:

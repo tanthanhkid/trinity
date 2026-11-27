@@ -213,6 +213,7 @@ pub const ENV_VARS: &[EnvVar] = &[
     server("TLS_KEY_FILE"),
     server("WEB_DIR"),
     server("NODE_FALLBACK_URL"),
+    server("WEB_UPSTREAM_URL"),
     server("TRINITY_OWNERSHIP_FILE"),
     server("TRINITY_RUST_ROUTES"),
     server("SHADOW_SAMPLE_RATE"),

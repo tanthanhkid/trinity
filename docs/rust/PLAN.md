@@ -1199,7 +1199,7 @@ network namespace với Rust nên đổi sang cổng nội bộ khác (`PORT=300
   `/notif-ws`, `/uploads`, `/docs` đi Node; `/.well-known/oauth-authorization-server` và `/oauth-protected-resource` được rewrite như `next.config` sang
   `/api/v1/oauth/...` rồi đi Node (Node không có `/.well-known`); còn lại (`/api/build-id`, `/api/fe-logging`, trang) đi Next nếu cấu hình `web`, không thì Node.
   `dispatcher`: `client_ip_layer` một lần ở ngoài cùng; lớp CORS và mọi lớp khác của Rust chỉ nằm trong router thuộc Rust nên route của Node chỉ có CORS của
-  Node. Đã nối vào `trinity serve` (`NODE_FALLBACK_URL`, `ListenerScheme` theo `TLS_MODE`); địa chỉ Next (`web`) chưa có biến, truyền `None`.
+  Node. Đã nối vào `trinity serve` (`NODE_FALLBACK_URL`, `ListenerScheme` theo `TLS_MODE`); địa chỉ Next (`web`) đọc từ `WEB_UPSTREAM_URL` (không đặt thì `None`, mọi thứ rơi về Node).
 - **Shadow:** chỉ cho route có `safe_for_shadow = true` trong `routes.json` (mặc định `false`; bật từng route sau khi
   rà mã là thuần đọc). Sau khi đã trả response của Node, theo tỉ lệ lấy mẫu, Rust tính response của mình với ba hàng
   rào: (1) phiên DB chỉ đọc, đặt ở mức phiên khi lấy kết nối cho shadow (`default_transaction_read_only = on`), vì

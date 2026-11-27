@@ -439,9 +439,13 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         TlsMode::Off => ListenerScheme::Http,
         TlsMode::Files { .. } => ListenerScheme::Https,
     };
+    let web_url = config
+        .var("WEB_UPSTREAM_URL")
+        .map(|raw| uri_of(raw, "WEB_UPSTREAM_URL"))
+        .transpose()?;
     let proxy = NodeProxy::new(
         uri_of(&node_url, "NODE_FALLBACK_URL")?,
-        None,
+        web_url,
         config.service_secret.clone(),
         ProxyTimeouts::default(),
     )

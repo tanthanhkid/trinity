@@ -146,6 +146,6 @@ nginx: một `location /` với `proxy_http_version 1.1`, `Upgrade` và `Connect
 
 ## 7. Điểm chưa chắc
 
-- `trinity serve` (đã merge) chỉ có một đích chuyển tiếp là `NODE_FALLBACK_URL` (Node, cổng 4000); chưa có biến địa chỉ Next riêng.
-  Route trang web (Next, cổng 3001) chưa được Rust chuyển tới Next — cần issue riêng thêm upstream web cho `serve` trước khi dùng cấu hình này cho trang.
+- `trinity serve` có hai đích chuyển tiếp: `NODE_FALLBACK_URL` (Node, cổng 4000) và `WEB_UPSTREAM_URL` (Next, cổng 3001; compose lai đã đặt `http://127.0.0.1:3001`).
+  Trang web và `/_next` đi Next, `/api/v1`, `/notif-ws`, `/uploads`, `/docs` chưa thuộc Rust đi Node. Không đặt `WEB_UPSTREAM_URL` thì mọi thứ không thuộc Rust rơi về Node. WebSocket HMR của Next chưa được chuyển tiếp (chỉ cần khi dev).
 - Compose lai chưa được chạy thử (nơi viết không có Docker); các tiêu chí mục 4 cần chạy trên máy thử trước khi dùng thật.

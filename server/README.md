@@ -146,6 +146,7 @@ Biến môi trường tối thiểu (cùng tên với bản Node):
 | `CORS_ORIGIN` | origin của web (mặc định `http://localhost:3000`; chạy web Next ở cổng khác thì đặt cho khớp) |
 | `UPLOADS_DIR` | thư mục tệp tải lên (mặc định `./uploads`) |
 | `NODE_FALLBACK_URL`, `TRINITY_OWNERSHIP_FILE` | chỉ khi chạy lai với bản Node; không đặt thì Rust nhận mọi route |
+| `WEB_UPSTREAM_URL` | địa chỉ Next (ví dụ `http://127.0.0.1:3001`): trang web và `/_next` chưa thuộc Rust đi Next, `/api/v1`, `/notif-ws`, `/uploads`, `/docs` đi Node; không đặt thì mọi thứ đi Node |
 
 ```sh
 export DATABASE_URL=postgresql://user:pass@localhost:5432/trinity JWT_SECRET=dev-secret-0123456789abcdef0123456789

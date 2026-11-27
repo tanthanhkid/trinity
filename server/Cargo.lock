@@ -2352,6 +2352,9 @@ name = "mod-custom"
 version = "0.3.0"
 dependencies = [
  "axum",
+ "base64 0.23.1",
+ "chrono",
+ "regex",
  "serde",
  "serde_json",
  "sqlx",
@@ -2360,9 +2363,11 @@ dependencies = [
  "tracing",
  "trinity-auth",
  "trinity-db",
+ "trinity-docgen",
  "trinity-http",
  "trinity-kernel",
  "trinity-rbac",
+ "url",
 ]
 
 [[package]]

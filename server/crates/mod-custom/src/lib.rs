@@ -1,20 +1,31 @@
-//! Module bảng tuỳ biến, phần cấu trúc (M17, docs/rust/PLAN.md mục 1.2 (module và endpoint) và 4.7 (RBAC)): bảng, trường, màn xem, phiên bản cấu trúc, menu và
-//! tra cứu. Chuyển từ `services/crm/src/custom-objects/*` (không gồm bản ghi, liên kết, nhập xuất: M18; mẫu bảng và dựng
-//! hệ thống: M19). 15 route `/api/v1/custom-objects` được nối qua router K14 ([`routes`]).
+//! Module bảng tuỳ biến (docs/rust/PLAN.md mục 1.2 (module và endpoint) và 4.7 (RBAC)). M17: bảng, trường, màn xem, phiên bản
+//! cấu trúc, menu và tra cứu. M18: bản ghi, liên kết (`record_links`, thẻ @), xuất tệp. Chuyển từ
+//! `services/crm/src/custom-objects/*` (mẫu bảng và dựng hệ thống: M19). 27 route (15 cấu trúc + 8 bản ghi + 4 `/refs`) được nối
+//! qua router K14 ([`routes`]).
 //!
 //! - [`access`]: quyền thấy bảng theo vai trò, nạp định nghĩa + trường.
 //! - [`objects`], [`fields`], [`views`]: ba nhóm nghiệp vụ; [`versions`] và [`menu`]: dùng cho công cụ MCP/dựng hệ thống.
-//! - [`values`], [`filters`], [`codes`], [`types`]: chuẩn hoá giá trị, bộ lọc của màn xem, tiền tố mã, hằng số.
+//! - [`values`], [`filters`], [`codes`], [`types`]: chuẩn hoá lựa chọn và tuỳ chọn, bộ lọc của màn xem, tiền tố mã, hằng số.
+//! - [`record_values`], [`dates`]: chuẩn hoá MỘT giá trị bản ghi theo kiểu trường; [`record_query`]: lọc, sắp xếp, con trỏ, ô tìm.
+//! - [`records`]: kiểm dữ liệu, tạo, sửa, xoá, danh sách, chi tiết; [`present`]: dựng bản ghi trả ra (che SĐT, công thức, nhãn).
+//! - [`refs`]: tham chiếu `loại:id`, mã, gợi ý, liên kết ngược, xem nhanh; [`export`]: CSV và xlsx chống chèn công thức.
 
 #![allow(clippy::result_large_err)]
 
 pub mod access;
 pub mod codes;
+pub mod dates;
+pub mod export;
 pub mod fields;
 pub mod filters;
 pub mod lookups;
 pub mod menu;
 pub mod objects;
+pub mod present;
+pub mod record_query;
+pub mod record_values;
+pub mod records;
+pub mod refs;
 pub mod routes;
 pub mod types;
 pub mod values;
@@ -72,6 +83,14 @@ pub(crate) fn bad(m: impl Into<String>) -> AppError {
 
 pub(crate) fn conflict(m: impl Into<String>) -> AppError {
     HttpError::conflict(m.into()).into()
+}
+
+pub(crate) fn internal(m: &str) -> AppError {
+    AppError::internal(m.to_owned())
+}
+
+pub(crate) fn forbidden(m: &str) -> AppError {
+    HttpError::forbidden(m).into()
 }
 
 pub(crate) fn not_found(m: &str) -> AppError {

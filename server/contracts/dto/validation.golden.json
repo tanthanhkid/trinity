@@ -16841,6 +16841,1370 @@
   }
  },
  {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "data": null,
+   "owner_id": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "data": "",
+   "owner_id": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id must not be less than 1",
+    "owner_id phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "data": "  x  ",
+   "owner_id": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id must not be less than 1",
+    "owner_id phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "data": 12.5,
+   "owner_id": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "data": -1,
+   "owner_id": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "data": 0,
+   "owner_id": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "data": true,
+   "owner_id": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id must not be less than 1",
+    "owner_id phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "data": [
+    "a",
+    1
+   ],
+   "owner_id": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id must not be less than 1",
+    "owner_id phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "data": {
+    "a": 1
+   },
+   "owner_id": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "owner_id must not be less than 1",
+    "owner_id phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "data": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "owner_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id must not be less than 1",
+    "owner_id phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "data": "2026-11-26T10:00:00Z",
+   "owner_id": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id must not be less than 1",
+    "owner_id phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "data": "123",
+   "owner_id": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id must not be less than 1",
+    "owner_id phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "data": "a@example.com",
+   "owner_id": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id must not be less than 1",
+    "owner_id phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "data": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "owner_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id must not be less than 1",
+    "owner_id phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "data": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "data phải là object"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "data": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "q": null,
+   "limit": null,
+   "cursor": null,
+   "page": null,
+   "sort": null,
+   "dir": null,
+   "filter": null
+  },
+  "result": {
+   "ok": {
+    "q": null,
+    "limit": null,
+    "cursor": null,
+    "page": null,
+    "sort": null,
+    "dir": null,
+    "filter": null
+   }
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "q": "",
+   "limit": "",
+   "cursor": "",
+   "page": "",
+   "sort": "",
+   "dir": "",
+   "filter": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be less than 1",
+    "page must not be less than 1",
+    "dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "q": "  x  ",
+   "limit": "  x  ",
+   "cursor": "  x  ",
+   "page": "  x  ",
+   "sort": "  x  ",
+   "dir": "  x  ",
+   "filter": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 100",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "page must not be greater than 100000",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "q": 12.5,
+   "limit": 12.5,
+   "cursor": 12.5,
+   "page": 12.5,
+   "sort": 12.5,
+   "dir": 12.5,
+   "filter": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Từ khoá chứa ký tự không hợp lệ",
+    "Từ khoá tối đa 100 ký tự",
+    "q must be a string",
+    "limit must be an integer number",
+    "cursor must match /^[^\\u0000]*$/ regular expression",
+    "cursor must be shorter than or equal to 400 characters",
+    "cursor must be a string",
+    "page must be an integer number",
+    "sort must match /^[^\\u0000]*$/ regular expression",
+    "sort must be shorter than or equal to 60 characters",
+    "sort must be a string",
+    "dir must be one of the following values: asc, desc",
+    "filter must be shorter than or equal to 2000 characters",
+    "filter must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "q": -1,
+   "limit": -1,
+   "cursor": -1,
+   "page": -1,
+   "sort": -1,
+   "dir": -1,
+   "filter": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Từ khoá chứa ký tự không hợp lệ",
+    "Từ khoá tối đa 100 ký tự",
+    "q must be a string",
+    "limit must not be less than 1",
+    "cursor must match /^[^\\u0000]*$/ regular expression",
+    "cursor must be shorter than or equal to 400 characters",
+    "cursor must be a string",
+    "page must not be less than 1",
+    "sort must match /^[^\\u0000]*$/ regular expression",
+    "sort must be shorter than or equal to 60 characters",
+    "sort must be a string",
+    "dir must be one of the following values: asc, desc",
+    "filter must be shorter than or equal to 2000 characters",
+    "filter must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "q": 0,
+   "limit": 0,
+   "cursor": 0,
+   "page": 0,
+   "sort": 0,
+   "dir": 0,
+   "filter": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Từ khoá chứa ký tự không hợp lệ",
+    "Từ khoá tối đa 100 ký tự",
+    "q must be a string",
+    "limit must not be less than 1",
+    "cursor must match /^[^\\u0000]*$/ regular expression",
+    "cursor must be shorter than or equal to 400 characters",
+    "cursor must be a string",
+    "page must not be less than 1",
+    "sort must match /^[^\\u0000]*$/ regular expression",
+    "sort must be shorter than or equal to 60 characters",
+    "sort must be a string",
+    "dir must be one of the following values: asc, desc",
+    "filter must be shorter than or equal to 2000 characters",
+    "filter must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "q": true,
+   "limit": true,
+   "cursor": true,
+   "page": true,
+   "sort": true,
+   "dir": true,
+   "filter": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Từ khoá chứa ký tự không hợp lệ",
+    "Từ khoá tối đa 100 ký tự",
+    "q must be a string",
+    "cursor must match /^[^\\u0000]*$/ regular expression",
+    "cursor must be shorter than or equal to 400 characters",
+    "cursor must be a string",
+    "sort must match /^[^\\u0000]*$/ regular expression",
+    "sort must be shorter than or equal to 60 characters",
+    "sort must be a string",
+    "dir must be one of the following values: asc, desc",
+    "filter must be shorter than or equal to 2000 characters",
+    "filter must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "q": [
+    "a",
+    1
+   ],
+   "limit": [
+    "a",
+    1
+   ],
+   "cursor": [
+    "a",
+    1
+   ],
+   "page": [
+    "a",
+    1
+   ],
+   "sort": [
+    "a",
+    1
+   ],
+   "dir": [
+    "a",
+    1
+   ],
+   "filter": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Từ khoá chứa ký tự không hợp lệ",
+    "Từ khoá tối đa 100 ký tự",
+    "q must be a string",
+    "limit must not be greater than 100",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "cursor must match /^[^\\u0000]*$/ regular expression",
+    "cursor must be shorter than or equal to 400 characters",
+    "cursor must be a string",
+    "page must not be greater than 100000",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "sort must match /^[^\\u0000]*$/ regular expression",
+    "sort must be shorter than or equal to 60 characters",
+    "sort must be a string",
+    "dir must be one of the following values: asc, desc",
+    "filter must be shorter than or equal to 2000 characters",
+    "filter must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "q": {
+    "a": 1
+   },
+   "limit": {
+    "a": 1
+   },
+   "cursor": {
+    "a": 1
+   },
+   "page": {
+    "a": 1
+   },
+   "sort": {
+    "a": 1
+   },
+   "dir": {
+    "a": 1
+   },
+   "filter": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Từ khoá chứa ký tự không hợp lệ",
+    "Từ khoá tối đa 100 ký tự",
+    "q must be a string",
+    "limit must not be greater than 100",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "cursor must match /^[^\\u0000]*$/ regular expression",
+    "cursor must be shorter than or equal to 400 characters",
+    "cursor must be a string",
+    "page must not be greater than 100000",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "sort must match /^[^\\u0000]*$/ regular expression",
+    "sort must be shorter than or equal to 60 characters",
+    "sort must be a string",
+    "dir must be one of the following values: asc, desc",
+    "filter must be shorter than or equal to 2000 characters",
+    "filter must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "q": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "limit": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "cursor": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "page": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sort": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "dir": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "filter": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Từ khoá tối đa 100 ký tự",
+    "limit must not be greater than 100",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "page must not be greater than 100000",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "sort must be shorter than or equal to 60 characters",
+    "dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "q": "2026-11-26T10:00:00Z",
+   "limit": "2026-11-26T10:00:00Z",
+   "cursor": "2026-11-26T10:00:00Z",
+   "page": "2026-11-26T10:00:00Z",
+   "sort": "2026-11-26T10:00:00Z",
+   "dir": "2026-11-26T10:00:00Z",
+   "filter": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 100",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "page must not be greater than 100000",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "q": "123",
+   "limit": "123",
+   "cursor": "123",
+   "page": "123",
+   "sort": "123",
+   "dir": "123",
+   "filter": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 100",
+    "dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "q": "a@example.com",
+   "limit": "a@example.com",
+   "cursor": "a@example.com",
+   "page": "a@example.com",
+   "sort": "a@example.com",
+   "dir": "a@example.com",
+   "filter": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 100",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "page must not be greater than 100000",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "q": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "limit": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "cursor": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "page": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "sort": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "dir": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "filter": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Từ khoá chứa ký tự không hợp lệ",
+    "Từ khoá tối đa 100 ký tự",
+    "q must be a string",
+    "limit must not be greater than 100",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "cursor must match /^[^\\u0000]*$/ regular expression",
+    "cursor must be shorter than or equal to 400 characters",
+    "cursor must be a string",
+    "page must not be greater than 100000",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "sort must match /^[^\\u0000]*$/ regular expression",
+    "sort must be shorter than or equal to 60 characters",
+    "sort must be a string",
+    "dir must be one of the following values: asc, desc",
+    "filter must be shorter than or equal to 2000 characters",
+    "filter must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "q": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "q": "x"
+  },
+  "result": {
+   "ok": {
+    "q": "x"
+   }
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "q": null,
+   "limit": null
+  },
+  "result": {
+   "ok": {
+    "q": null,
+    "limit": null
+   }
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "q": "",
+   "limit": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "q": "  x  ",
+   "limit": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 20",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "q": 12.5,
+   "limit": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must be shorter than or equal to 60 characters",
+    "q must be a string",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "q": -1,
+   "limit": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must be shorter than or equal to 60 characters",
+    "q must be a string",
+    "limit must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "q": 0,
+   "limit": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must be shorter than or equal to 60 characters",
+    "q must be a string",
+    "limit must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "q": true,
+   "limit": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must be shorter than or equal to 60 characters",
+    "q must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "q": [
+    "a",
+    1
+   ],
+   "limit": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must be shorter than or equal to 60 characters",
+    "q must be a string",
+    "limit must not be greater than 20",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "q": {
+    "a": 1
+   },
+   "limit": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must be shorter than or equal to 60 characters",
+    "q must be a string",
+    "limit must not be greater than 20",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "q": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "limit": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must be shorter than or equal to 60 characters",
+    "limit must not be greater than 20",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "q": "2026-11-26T10:00:00Z",
+   "limit": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 20",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "q": "123",
+   "limit": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 20"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "q": "a@example.com",
+   "limit": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 20",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "q": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "limit": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must be shorter than or equal to 60 characters",
+    "q must be a string",
+    "limit must not be greater than 20",
+    "limit must not be less than 1",
+    "limit must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "q": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "q": "x"
+  },
+  "result": {
+   "ok": {
+    "q": "x"
+   }
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "codes must be shorter than or equal to 600 characters",
+    "codes must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "codes": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "codes must be shorter than or equal to 600 characters",
+    "codes must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "codes": ""
+  },
+  "result": {
+   "ok": {
+    "codes": ""
+   }
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "codes": "  x  "
+  },
+  "result": {
+   "ok": {
+    "codes": "  x  "
+   }
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "codes": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "codes must be shorter than or equal to 600 characters",
+    "codes must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "codes": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "codes must be shorter than or equal to 600 characters",
+    "codes must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "codes": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "codes must be shorter than or equal to 600 characters",
+    "codes must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "codes": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "codes must be shorter than or equal to 600 characters",
+    "codes must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "codes": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "codes must be shorter than or equal to 600 characters",
+    "codes must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "codes": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "codes must be shorter than or equal to 600 characters",
+    "codes must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "codes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "ok": {
+    "codes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   }
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "codes": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "ok": {
+    "codes": "2026-11-26T10:00:00Z"
+   }
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "codes": "123"
+  },
+  "result": {
+   "ok": {
+    "codes": "123"
+   }
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "codes": "a@example.com"
+  },
+  "result": {
+   "ok": {
+    "codes": "a@example.com"
+   }
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "codes": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "codes must be shorter than or equal to 600 characters",
+    "codes must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "codes": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "codes": "x"
+  },
+  "result": {
+   "ok": {
+    "codes": "x"
+   }
+  }
+ },
+ {
   "dto": "UpdateCandidateDto",
   "mode": "strict",
   "probe": "empty_object",
@@ -31366,6 +32730,283 @@
     "q must match /^[^\\u0000]*$/ regular expression",
     "limit must not be greater than 50",
     "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "data": {
+    "ten": "A",
+    "gia": 5
+   },
+   "owner_id": 3
+  },
+  "result": {
+   "ok": {
+    "data": {
+     "ten": "A",
+     "gia": 5
+    },
+    "owner_id": 3
+   }
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "valid_min",
+  "input": {
+   "data": {}
+  },
+  "result": {
+   "ok": {
+    "data": {}
+   }
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "data_proto",
+  "input": {
+   "data": {
+    "__proto__": {
+     "x": 1
+    },
+    "constructor": {
+     "a": 1
+    }
+   }
+  },
+  "result": {
+   "ok": {
+    "data": {}
+   }
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "data": "x",
+   "owner_id": 1.5,
+   "la": 1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property la should not exist",
+    "data phải là object",
+    "owner_id phải là số nguyên"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "sai_2",
+  "input": {
+   "data": [],
+   "owner_id": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object",
+    "owner_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "thieu",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "data phải là object"
+   ]
+  }
+ },
+ {
+  "dto": "CustomRecordBodyDto",
+  "mode": "strict",
+  "probe": "owner_null",
+  "input": {
+   "data": {},
+   "owner_id": null
+  },
+  "result": {
+   "ok": {
+    "data": {},
+    "owner_id": null
+   }
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "valid_query",
+  "input": {
+   "q": "an",
+   "limit": "20",
+   "cursor": "abc",
+   "page": "2",
+   "sort": "field:gia",
+   "dir": "asc",
+   "filter": "{\"a\":1}"
+  },
+  "result": {
+   "ok": {
+    "q": "an",
+    "limit": 20,
+    "cursor": "abc",
+    "page": 2,
+    "sort": "field:gia",
+    "dir": "asc",
+    "filter": "{\"a\":1}"
+   }
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "query_sai",
+  "input": {
+   "q": "a\u0000",
+   "limit": "101",
+   "page": "0",
+   "dir": "up",
+   "sort": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "filter": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+   "la": "1"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property la should not exist",
+    "Từ khoá chứa ký tự không hợp lệ",
+    "limit must not be greater than 100",
+    "page must not be less than 1",
+    "sort must be shorter than or equal to 60 characters",
+    "dir must be one of the following values: asc, desc",
+    "filter must be shorter than or equal to 2000 characters"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "query_so",
+  "input": {
+   "limit": "abc",
+   "page": "1.5",
+   "cursor": "a\u0000"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 100",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "cursor must match /^[^\\u0000]*$/ regular expression",
+    "page must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "ListCustomRecordsQueryDto",
+  "mode": "strict",
+  "probe": "query_rong",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "valid_query",
+  "input": {
+   "q": "HS",
+   "limit": "8"
+  },
+  "result": {
+   "ok": {
+    "q": "HS",
+    "limit": 8
+   }
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "query_sai",
+  "input": {
+   "q": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "limit": "21"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must be shorter than or equal to 60 characters",
+    "limit must not be greater than 20"
+   ]
+  }
+ },
+ {
+  "dto": "RefSuggestQueryDto",
+  "mode": "strict",
+  "probe": "query_rong",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "valid_query",
+  "input": {
+   "codes": "HS001,KH002"
+  },
+  "result": {
+   "ok": {
+    "codes": "HS001,KH002"
+   }
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "query_sai",
+  "input": {
+   "codes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "la": "1"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property la should not exist",
+    "codes must be shorter than or equal to 600 characters"
+   ]
+  }
+ },
+ {
+  "dto": "RefResolveQueryDto",
+  "mode": "strict",
+  "probe": "thieu",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "codes must be shorter than or equal to 600 characters",
+    "codes must be a string"
    ]
   }
  },

@@ -58,6 +58,19 @@ impl Limits {
     pub const MAX_FILTER_KEYS: usize = 10;
     pub const MAX_FILTER_VALUES: usize = 50;
     pub const LOOKUP_LIMIT: i64 = 20;
+    pub const MAX_MULTI_VALUES: usize = 50;
+    pub const MAX_RELATION_VALUES: usize = 50;
+    pub const MAX_LINK_VALUES: usize = 50;
+    pub const MAX_DATA_BYTES: usize = 32 * 1024;
+    pub const MAX_LONG_TEXT: usize = 10_000;
+    pub const MAX_URL: usize = 2_000;
+    pub const MAX_NUMBER: f64 = 1e15;
+    pub const MAX_CURRENCY: f64 = 1e13;
+    pub const MAX_LIST_LIMIT: i64 = 100;
+    pub const DEFAULT_LIST_LIMIT: i64 = 30;
+    pub const EXPORT_ROW_CAP: i64 = 20_000;
+    pub const RELATED_PER_GROUP: i64 = 20;
+    pub const MAX_RELATED_GROUPS: i64 = 20;
 }
 
 pub const RESERVED_OBJECT_KEYS: [&str; 6] = ["nav", "templates", "lookup", "formula", "new", "export"];

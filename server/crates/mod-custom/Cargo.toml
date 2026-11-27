@@ -1,6 +1,6 @@
 [package]
 name = "mod-custom"
-description = "Module bảng tuỳ biến (M17): bảng, trường, màn xem, phiên bản cấu trúc, menu, tra cứu."
+description = "Module bảng tuỳ biến (M17, M18): bảng, trường, màn xem, phiên bản cấu trúc, menu, tra cứu, bản ghi, liên kết, xuất tệp."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,11 +10,16 @@ publish.workspace = true
 
 [dependencies]
 axum = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
+regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 tracing = { workspace = true }
+url = { workspace = true }
 trinity-db = { workspace = true }
+trinity-docgen = { workspace = true }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-rbac = { workspace = true }

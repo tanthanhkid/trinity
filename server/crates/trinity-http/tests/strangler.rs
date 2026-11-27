@@ -701,6 +701,51 @@ fn _unused(_: HeaderMap) -> impl IntoResponse {
 }
 
 #[tokio::test]
+async fn web_upstream_trang_sang_next_api_chua_so_huu_sang_node_so_huu_sang_rust() {
+    let next = start_node(Arc::new(AtomicU64::new(NOW))).await;
+    let node = start_node(Arc::new(AtomicU64::new(NOW))).await;
+    let proxy = NodeProxy::new(
+        format!("http://{}", node.addr).parse().unwrap(),
+        Some(format!("http://{}", next.addr).parse().unwrap()),
+        None,
+        timeouts_fast(),
+    );
+    let rust = Router::new().route("/api/v1/rust", get(|| async { "rust" }));
+    let table = OwnershipTable::fixed(initial_from_routes_env(Some("/api/v1/rust")).unwrap());
+    let app = dispatcher(Arc::new(table), rust, proxy, resolver(&[]));
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(trinity_http::serve::serve(
+        listener,
+        app,
+        None,
+        std::future::pending(),
+        Duration::from_secs(1),
+    ));
+    // Trang và `/_next` đi Next.
+    for p in ["/login", "/_next/static/a.js"] {
+        send(addr, "GET", p, &[], b"").await;
+    }
+    assert_eq!(
+        (next.hits.load(Ordering::Relaxed), node.hits.load(Ordering::Relaxed)),
+        (2, 0)
+    );
+    // `/api/v1/...` chưa thuộc Rust đi Node.
+    send(addr, "GET", "/api/v1/contacts", &[], b"").await;
+    assert_eq!(
+        (next.hits.load(Ordering::Relaxed), node.hits.load(Ordering::Relaxed)),
+        (2, 1)
+    );
+    // Route thuộc Rust không chạm upstream nào.
+    let r = send(addr, "GET", "/api/v1/rust", &[], b"").await;
+    assert_eq!((r.status, r.body.as_str()), (200, "rust"));
+    assert_eq!(
+        (next.hits.load(Ordering::Relaxed), node.hits.load(Ordering::Relaxed)),
+        (2, 1)
+    );
+}
+
+#[tokio::test]
 async fn well_known_rewrite_sang_node_va_chi_api_v1_sang_node_khi_co_next() {
     let f = front("", timeouts_fast(), ALL_NODE).await;
     // Rewrite như Next: /.well-known/oauth-protected-resource -> /api/v1/oauth/protected-resource của Node.

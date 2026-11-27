@@ -36,7 +36,12 @@ pub fn specs() -> Vec<RouteSpec> {
     let cfg = Access::Can(&["attendance.config"]);
     vec![
         RouteSpec::new(Method::POST, "/api/v1/management/attendance/check-in", Access::AuthOnly).status_ok(201),
-        RouteSpec::new(Method::POST, "/api/v1/management/attendance/check-out", Access::AuthOnly).status_ok(201),
+        RouteSpec::new(
+            Method::POST,
+            "/api/v1/management/attendance/check-out",
+            Access::AuthOnly,
+        )
+        .status_ok(201),
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/offices", view).status_ok(200),
         RouteSpec::new(Method::POST, "/api/v1/management/attendance/offices", cfg).status_ok(201),
         RouteSpec::new(Method::PATCH, "/api/v1/management/attendance/offices/:id", cfg)

@@ -66,7 +66,10 @@ async fn app() -> Router {
     store.init().await.unwrap();
     let mut env = BTreeMap::new();
     // Chỉ tin proxy ở 127.0.0.1, đọc IP khách từ X-Real-IP do proxy đặt.
-    env.insert("TRUSTED_PROXY".to_owned(), "cidr:127.0.0.1/32;header=x-real-ip".to_owned());
+    env.insert(
+        "TRUSTED_PROXY".to_owned(),
+        "cidr:127.0.0.1/32;header=x-real-ip".to_owned(),
+    );
     let ip = Arc::new(
         ClientIpResolver::from_env(
             &env,
@@ -120,13 +123,7 @@ fn multipart(device: &str, selfie: Option<(&str, &str)>) -> Vec<u8> {
 }
 
 /// Gọi từ `peer` (địa chỉ TCP), kèm header `X-Real-IP` nếu có.
-async fn post(
-    app: &Router,
-    path: &str,
-    peer: [u8; 4],
-    real_ip: Option<&str>,
-    body: Vec<u8>,
-) -> (StatusCode, Value) {
+async fn post(app: &Router, path: &str, peer: [u8; 4], real_ip: Option<&str>, body: Vec<u8>) -> (StatusCode, Value) {
     let mut b = Request::builder()
         .method(Method::POST)
         .uri(path)
@@ -144,11 +141,13 @@ async fn post(
 }
 
 async fn setup() {
-    exec("DELETE FROM attendance_records WHERE user_id BETWEEN 9901 AND 9999;
+    exec(
+        "DELETE FROM attendance_records WHERE user_id BETWEEN 9901 AND 9999;
           DELETE FROM attendance_offices WHERE name LIKE 'm13b%';
           DELETE FROM employees WHERE user_id BETWEEN 9901 AND 9999;
-          DELETE FROM users WHERE id BETWEEN 9901 AND 9999")
-        .await;
+          DELETE FROM users WHERE id BETWEEN 9901 AND 9999",
+    )
+    .await;
     exec(&format!(
         "INSERT INTO users (id, email, password_hash, full_name, status, updated_at)
          VALUES ({EMP}, 'u{EMP}@m13b.test', 'x', 'Nhân viên', 'active', now());
@@ -168,7 +167,14 @@ async fn cham_cong_vao_ra_va_kiem_ip() {
     let jpeg = ("image/jpeg", "fakejpeg");
 
     // Proxy tin cậy (127.0.0.1) báo IP văn phòng: qua.
-    let (s, b) = post(&a, &cin, [127, 0, 0, 1], Some(OFFICE_IP), multipart("dev-1", Some(jpeg))).await;
+    let (s, b) = post(
+        &a,
+        &cin,
+        [127, 0, 0, 1],
+        Some(OFFICE_IP),
+        multipart("dev-1", Some(jpeg)),
+    )
+    .await;
     assert_eq!(s, 201, "{b}");
     assert_eq!(b["already"], false);
     assert_eq!(b["office"], "m13b Hà Nội");
@@ -183,7 +189,14 @@ async fn cham_cong_vao_ra_va_kiem_ip() {
     // Check-out thiếu ảnh ⇒ 400; đủ ảnh ⇒ 201; lần hai ⇒ already.
     let (s, _) = post(&a, &cout, [127, 0, 0, 1], Some(OFFICE_IP), multipart("dev-1", None)).await;
     assert_eq!(s, 400);
-    let (s, b) = post(&a, &cout, [127, 0, 0, 1], Some(OFFICE_IP), multipart("dev-1", Some(jpeg))).await;
+    let (s, b) = post(
+        &a,
+        &cout,
+        [127, 0, 0, 1],
+        Some(OFFICE_IP),
+        multipart("dev-1", Some(jpeg)),
+    )
+    .await;
     assert_eq!(s, 201, "{b}");
     assert_eq!(b["already"], false);
     assert!(b["record"]["check_out_at"].is_string());
@@ -201,12 +214,26 @@ async fn x_real_ip_gia_khong_qua_kiem_ip() {
     let jpeg = ("image/jpeg", "fakejpeg");
 
     // Peer KHÔNG phải proxy tin cậy gửi X-Real-IP = IP văn phòng ⇒ header bị bỏ qua, IP là IP peer ⇒ 400.
-    let (s, b) = post(&a, &cin, [198, 51, 100, 9], Some(OFFICE_IP), multipart("dev-1", Some(jpeg))).await;
+    let (s, b) = post(
+        &a,
+        &cin,
+        [198, 51, 100, 9],
+        Some(OFFICE_IP),
+        multipart("dev-1", Some(jpeg)),
+    )
+    .await;
     assert_eq!(s, 400, "{b}");
     assert!(b["message"].as_str().unwrap_or("").contains("198.51.100.9"), "{b}");
 
     // Proxy tin cậy báo một IP lạ ⇒ 400.
-    let (s, _) = post(&a, &cin, [127, 0, 0, 1], Some("8.8.8.8"), multipart("dev-1", Some(jpeg))).await;
+    let (s, _) = post(
+        &a,
+        &cin,
+        [127, 0, 0, 1],
+        Some("8.8.8.8"),
+        multipart("dev-1", Some(jpeg)),
+    )
+    .await;
     assert_eq!(s, 400);
 
     // Định dạng ảnh sai ⇒ 400; thiếu device_id ⇒ 400.

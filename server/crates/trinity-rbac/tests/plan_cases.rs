@@ -3,7 +3,7 @@
 
 use serde_json::{Value, json};
 use trinity_rbac::plan::{
-    DEFAULT_OFF_FEATURES, ORG_FEATURES, PLAN_GATED_FEATURES, PLAN_KEYS, PlanKey, RETIRED_ORG_FEATURE_KEYS,
+    DEFAULT_OFF_FEATURES, ORG_FEATURES, OrgFeatureKey, PLAN_GATED_FEATURES, PLAN_KEYS, PlanKey, RETIRED_ORG_FEATURE_KEYS,
     apply_plan_to_features, blank_system_features, check_user_slot, require_org_feature, resolve_org_features,
     resolve_plan_for_company,
 };
@@ -92,7 +92,8 @@ fn cong_tinh_nang_tra_403_dung_cau_va_han_muc_nguoi() {
     for r in rows(&t, "gate") {
         let plan = PlanKey::parse(r["plan"].as_str().unwrap()).unwrap();
         let eff = apply_plan_to_features(&resolve_org_features(&r["raw"], None), plan);
-        let got = require_org_feature(&eff, r["key"].as_str().unwrap())
+        let key = OrgFeatureKey::parse(r["key"].as_str().unwrap()).expect("khoá trong danh mục");
+        let got = require_org_feature(&eff, key)
             .err()
             .map(|e| e.to_string());
         assert_eq!(got.map(Value::String).unwrap_or(Value::Null), r["out"], "gate {r}");

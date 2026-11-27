@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
+import { fromBootstrap } from '@/lib/bootstrap'
 import { todayVn } from '@/lib/format'
 import { useCanSeeOverview } from './use-dashboard-overview'
 import { periodRange, type PeriodKey } from './command-center-utils'
@@ -36,8 +37,12 @@ export function useCommandCenter(period: PeriodKey) {
   return useQuery<CommandCenterData>({
     enabled,
     queryKey: ['dashboard-command-center', from, to],
-    queryFn: async () =>
-      (await apiClient.get<CommandCenterData>('/reports/dashboard-command-center', { params: { date_from: from, date_to: to } })).data,
+    queryFn: () => {
+      const call = async () =>
+        (await apiClient.get<CommandCenterData>('/reports/dashboard-command-center', { params: { date_from: from, date_to: to } })).data
+      // Bootstrap chỉ mang kỳ mặc định '7d'; kỳ khác gọi thẳng.
+      return period === '7d' ? fromBootstrap('dashboard_command_center', call) : call()
+    },
     staleTime: 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
     refetchIntervalInBackground: false,

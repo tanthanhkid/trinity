@@ -3,9 +3,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { usePermissions } from '@/lib/rbac'
 import apiClient from '@/lib/api-client'
+import { fromBootstrap } from '@/lib/bootstrap'
 import { todayVn } from '@/lib/format'
 import {
   filterToParams,
+  isEmptyFilter,
   type DashboardFilterRoster,
   type DashboardFilterValue,
 } from './dashboard-filter-utils'
@@ -56,8 +58,12 @@ export function useDashboardOverview(filter: DashboardFilterValue) {
   return useQuery<DashboardOverviewData>({
     enabled,
     queryKey: ['dashboard-overview', todayVn(), filter],
-    queryFn: async () =>
-      (await apiClient.get<DashboardOverviewData>('/reports/dashboard-overview', { params: filterToParams(filter) })).data,
+    // Bootstrap chỉ chứa bản bộ lọc RỖNG; đã chọn lọc thì gọi thẳng.
+    queryFn: () => {
+      const call = async () =>
+        (await apiClient.get<DashboardOverviewData>('/reports/dashboard-overview', { params: filterToParams(filter) })).data
+      return isEmptyFilter(filter) ? fromBootstrap('dashboard_overview', call) : call()
+    },
     staleTime: 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
     refetchIntervalInBackground: false,
@@ -72,8 +78,11 @@ export function useDashboardTasks(filter: DashboardFilterValue) {
   return useQuery<DashboardTasksData>({
     enabled,
     queryKey: ['dashboard-tasks', todayVn(), filter],
-    queryFn: async () =>
-      (await apiClient.get<DashboardTasksData>('/reports/dashboard-tasks', { params: filterToParams(filter) })).data,
+    queryFn: () => {
+      const call = async () =>
+        (await apiClient.get<DashboardTasksData>('/reports/dashboard-tasks', { params: filterToParams(filter) })).data
+      return isEmptyFilter(filter) ? fromBootstrap('dashboard_tasks', call) : call()
+    },
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
     refetchIntervalInBackground: false,
@@ -93,7 +102,8 @@ export function useDashboardFilterRoster() {
   return useQuery<DashboardFilterRoster>({
     enabled,
     queryKey: ['dashboard-filter-roster'],
-    queryFn: async () => (await apiClient.get<DashboardFilterRoster>('/reports/dashboard-filter-roster')).data,
+    queryFn: () =>
+      fromBootstrap('dashboard_filter_roster', async () => (await apiClient.get<DashboardFilterRoster>('/reports/dashboard-filter-roster')).data),
     staleTime: 5 * 60 * 1000,
     retry: false,
   })

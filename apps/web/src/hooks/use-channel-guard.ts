@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import apiClient from "@/lib/api-client"
+import { fromBootstrap } from "@/lib/bootstrap"
 
 export interface ChannelGuardStatus {
   /** false = bản cài một công ty: không có hạn mức/khoá/tạm dừng. */
@@ -37,7 +38,8 @@ export interface ChannelAlerts {
 export function useChannelAlerts() {
   return useQuery<ChannelAlerts>({
     queryKey: ["settings", "channel-guard", "alerts"],
-    queryFn: async () => (await apiClient.get<ChannelAlerts>("/settings/channel-guard/alerts")).data,
+    queryFn: () =>
+      fromBootstrap("channel_guard_alerts", async () => (await apiClient.get<ChannelAlerts>("/settings/channel-guard/alerts")).data),
     staleTime: 60_000,
     refetchInterval: 5 * 60_000,
     retry: false,

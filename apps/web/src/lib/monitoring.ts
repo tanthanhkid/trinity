@@ -1,4 +1,5 @@
 import apiClient from './api-client'
+import { fromBootstrap } from './bootstrap'
 import { getAccessToken } from './token-storage'
 import { scrubBreadcrumb, scrubPostHogEvent, scrubSentryEvent } from './monitoring-filters'
 
@@ -21,7 +22,9 @@ let posthog: PostHogClient | null = null
 async function fetchIdentity(): Promise<string | null> {
   if (!getAccessToken()) return null
   try {
-    const { data } = await apiClient.get<{ user: string | null }>('/telemetry/identity')
+    const data = await fromBootstrap<{ user: string | null }>('telemetry_identity', async () =>
+      (await apiClient.get<{ user: string | null }>('/telemetry/identity')).data,
+    )
     return data?.user ?? null
   } catch {
     return null

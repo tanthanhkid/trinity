@@ -69,11 +69,13 @@ export function useKanbanCardsByColumn(
 export function useKanbanCardsByBoard(
   boardId: number,
   filters: Omit<QueryKanbanCardsParams, "board_id" | "column_id" | "cursor"> = {},
+  /** false = không gọi (dạng Kanban đã tải theo từng cột, khỏi tải toàn board thừa). Mặc định true. */
+  active = true,
 ) {
   return useInfiniteQuery<ListKanbanCardsResult>({
     queryKey: [CARDS_KEY, "board", boardId, filters],
     // boardId chưa chọn (0 — boards đang tải) → KHÔNG gọi: BE trả 400 với board_id=0.
-    enabled: boardId > 0,
+    enabled: active && boardId > 0,
     queryFn: async ({ pageParam }) => {
       const qs = buildQuery({ ...filters, board_id: boardId, cursor: pageParam as number | undefined, limit: 30 })
       const res = await apiClient.get<ListKanbanCardsResult>(`/kanban/cards?${qs}`)

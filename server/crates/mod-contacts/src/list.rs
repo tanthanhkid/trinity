@@ -9,8 +9,11 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use sqlx::{PgConnection, Postgres, QueryBuilder};
+use trinity_db::sync::{self, SyncError, SyncEvent};
 use trinity_db::types::{JsonValue, Timestamp};
+use trinity_db::{CompanyRef, Db};
 use trinity_kernel::error::{AppError, HttpError};
 
 use crate::filter::{ContactFilters, ContactWhere, resolve};
@@ -20,6 +23,8 @@ use crate::{Actor, Scopes, db, http};
 pub const MAX_PAGE_OFFSET: i64 = 2_000;
 pub const DEFAULT_LIMIT: i64 = 50;
 const COUNT_TTL: Duration = Duration::from_secs(60);
+/// Tiền tố khoá cache đếm trong tin `cache` của `trinity_sync` (`COUNT_CACHE_KEY_PREFIX` của `ContactsService`).
+pub const COUNT_PREFIX: &str = "crm:contacts:count:";
 
 /// Query `GET /contacts` (đã qua K15: `limit` 1..200, `page` ≥ 1, `sort_by` ∈ created_at|full_name|id|lead_score…).
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -86,6 +91,46 @@ impl CountCache {
     pub fn clear(&self) {
         if let Ok(mut map) = self.map.lock() {
             map.clear();
+        }
+    }
+
+    /// `invalidatePrefix('crm:contacts:count:')` của TS: xoá ở tiến trình này và phát `NOTIFY cache` (trên `conn`) để tiến
+    /// trình khác xoá theo. Gọi sau khi ghi đã commit.
+    pub async fn invalidate(&self, conn: &mut PgConnection, company: CompanyRef) -> Result<(), SyncError> {
+        self.clear();
+        let mut f = Map::new();
+        f.insert("p".into(), Value::from(COUNT_PREFIX));
+        sync::publish_in_tx(conn, "cache", i64::from(company.id()), &f).await
+    }
+
+    /// Như [`Self::invalidate`] nhưng tự lấy kết nối; lỗi chỉ ghi log (việc chính đã commit). Cache RAM luôn được xoá trước.
+    pub async fn invalidate_with(&self, db: &Db, company: CompanyRef) {
+        self.clear();
+        let sent = async {
+            let tenant = db.tenant(company).await.map_err(|e| e.to_string())?;
+            let mut conn = tenant.acquire().await.map_err(|e| e.to_string())?;
+            self.invalidate(&mut conn, company).await.map_err(|e| e.to_string())
+        }
+        .await;
+        if let Err(e) = sent {
+            tracing::warn!("phát NOTIFY cache đếm khách lỗi: {e}");
+        }
+    }
+
+    /// Xử lý một sự kiện từ `trinity_sync`: tin `cache` của tiến trình khác có tiền tố trùng/bao khoá đếm (`crm:contacts:count:`
+    /// hoặc tiền tố ngắn hơn như `crm:`, rỗng) ⇒ xoá hết; khoá đếm chưa gắn công ty nên xoá của mọi công ty (an toàn, chỉ
+    /// tốn một lần đếm lại). `Resync` (có thể đã lỡ tin) cũng xoá hết. Tin khác hoặc tiền tố khác (`dashboard:`) bỏ qua.
+    pub fn on_sync_event(&self, ev: &SyncEvent) {
+        match ev {
+            SyncEvent::Resync => self.clear(),
+            SyncEvent::Message(env) if env.kind == "cache" => {
+                if let Some(p) = env.fields.get("p").and_then(Value::as_str)
+                    && (COUNT_PREFIX.starts_with(p) || p.starts_with(COUNT_PREFIX))
+                {
+                    self.clear();
+                }
+            }
+            SyncEvent::Message(_) => {}
         }
     }
 }
@@ -384,4 +429,52 @@ pub async fn find_all(
         Meta::Cursor { next_cursor }
     };
     Ok(ContactList { data, meta })
+}
+
+#[cfg(test)]
+mod sync_tests {
+    use super::*;
+    use trinity_db::sync::Envelope;
+
+    fn msg(company: i64, kind: &str, p: Option<&str>) -> SyncEvent {
+        let mut fields = Map::new();
+        if let Some(p) = p {
+            fields.insert("p".into(), Value::from(p));
+        }
+        SyncEvent::Message(Envelope {
+            origin: "o".into(),
+            kind: kind.into(),
+            company,
+            fields,
+        })
+    }
+
+    fn filled() -> CountCache {
+        let c = CountCache {
+            disabled: false,
+            map: Mutex::default(),
+        };
+        c.set("k".into(), 7);
+        c
+    }
+
+    #[test]
+    fn tin_cache_dem_khach_xoa_con_loai_khac_bo_qua() {
+        for (kind, p, cleared) in [
+            ("bell", Some(COUNT_PREFIX), false),
+            ("cache", Some("dashboard:"), false),
+            ("cache", Some("crm:contacts:co"), true),
+            ("cache", Some(COUNT_PREFIX), true),
+            ("cache", Some("crm:contacts:count:abc"), true),
+            ("cache", Some(""), true),
+            ("cache", None, false),
+        ] {
+            let c = filled();
+            c.on_sync_event(&msg(1, kind, p));
+            assert_eq!(c.get("k").is_none(), cleared, "{kind} {p:?}");
+        }
+        let c = filled();
+        c.on_sync_event(&SyncEvent::Resync);
+        assert!(c.get("k").is_none());
+    }
 }

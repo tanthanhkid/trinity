@@ -257,11 +257,12 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     {
         let (slot, reports, db) = (contacts_slot.clone(), reports_ctx.clone(), db.clone());
         let changed: mod_setup::ContactsChanged = Arc::new(move |company: trinity_db::CompanyRef| {
-            if let Some(c) = slot.get() {
-                c.cache.clear();
-            }
+            let slot = slot.clone();
             let (reports, db) = (reports.clone(), db.clone());
             tokio::spawn(async move {
+                if let Some(c) = slot.get() {
+                    c.cache.invalidate_with(&db, company).await;
+                }
                 crate::contacts_hooks::invalidate_dashboard(&db, &reports, company).await;
             });
         });
@@ -682,10 +683,13 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
                 // cho cache số liệu Tổng quan (tin `cache`) và ChannelGuard (tin `graph`).
                 let (fwd_tx, mut fwd_rx) = tokio::sync::mpsc::channel::<trinity_db::sync::SyncEvent>(1024);
                 trinity_realtime::spawn_bell_listener(socket.clone(), db.clone(), rx, Some(fwd_tx));
-                let (reports, guard) = (reports_ctx.clone(), guard.clone());
+                let (reports, guard, contacts) = (reports_ctx.clone(), guard.clone(), contacts_slot.clone());
                 tokio::spawn(async move {
                     while let Some(ev) = fwd_rx.recv().await {
                         reports.cache.on_sync_event(&ev);
+                        if let Some(c) = contacts.get() {
+                            c.cache.on_sync_event(&ev);
+                        }
                         guard.on_sync_event(&ev);
                     }
                 });

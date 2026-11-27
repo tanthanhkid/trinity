@@ -23,11 +23,11 @@ use trinity_kernel::error::{AppError, HttpError};
 use crate::check::{self, CheckCtx, CheckInput, SELFIE_ALLOWED_MIME, SELFIE_MAX_SIZE, SELFIE_MIME_ERROR, Selfie};
 use crate::dto::{
     CreateAttendanceRequestDto, CreateOfficeDto, DeviceCheckDto, PatchAttendanceDto, QueryAttendanceDto,
-    QueryAttendanceRequestsDto, QueryTodaySummaryDto, RejectRequestDto, UpdateAttendanceSettingsDto, UpdateOfficeDto,
-    UpdateRequestConfigDto, UpdateWorkingSaturdaysDto,
+    QueryAttendanceExportDto, QueryAttendanceRequestsDto, QueryTodaySummaryDto, RejectRequestDto,
+    UpdateAttendanceSettingsDto, UpdateOfficeDto, UpdateRequestConfigDto, UpdateWorkingSaturdaysDto,
 };
 use crate::stats::QueryAttendanceStatsDto;
-use crate::{config, offices, records, requests, stats};
+use crate::{config, export, offices, records, requests, stats};
 
 const BASE: &str = "/api/v1/management/attendance";
 const ID: &[&str] = &["param.id:ParseIntPipe"];
@@ -35,11 +35,12 @@ const ID: &[&str] = &["param.id:ParseIntPipe"];
 const REC: &str = "/api/v1/management/attendance/:id(\\d+)";
 const PROOF: &str = "/api/v1/management/attendance/:id(\\d+)/proof/:slot";
 
-/// 32 route của M13a (cấu hình), M13b (chấm công vào/ra) và M14a (đơn từ, thống kê, sổ chấm công) (bảng so với `routes.json` bởi `trinity check-routes`).
+/// 40 route của M13a (cấu hình), M13b (chấm công vào/ra) và M14a (đơn từ, thống kê, sổ chấm công) và M14b (8 tệp xuất xlsx) (bảng so với `routes.json` bởi `trinity check-routes`).
 pub fn specs() -> Vec<RouteSpec> {
     let view = Access::Can(&["attendance.view"]);
     let cfg = Access::Can(&["attendance.config"]);
     let manage = Access::Can(&["attendance.manage"]);
+    let exp = Access::Can(&["attendance.export"]);
     vec![
         RouteSpec::new(Method::GET, "/api/v1/management/attendance", view).status_ok(200),
         RouteSpec::new(Method::GET, REC, view).status_ok(200).param_pipes(ID),
@@ -125,6 +126,27 @@ pub fn specs() -> Vec<RouteSpec> {
             Access::AuthOnly,
         )
         .status_ok(200),
+        // M14b: tệp xuất, trả thẳng bytes xlsx nên không có mã thành công khai ở `routes.json`.
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/export", exp),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/workdays-matrix/export", exp),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/absent-export", exp),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/export-by-team", exp),
+        RouteSpec::new(
+            Method::GET,
+            "/api/v1/management/attendance/stats/export-by-department",
+            exp,
+        ),
+        RouteSpec::new(
+            Method::GET,
+            "/api/v1/management/attendance/stats/export-top-absent",
+            exp,
+        ),
+        RouteSpec::new(
+            Method::GET,
+            "/api/v1/management/attendance/stats/export-top-late-early",
+            exp,
+        ),
+        RouteSpec::new(Method::GET, "/api/v1/management/attendance/stats/export-by-gender", exp),
     ]
 }
 
@@ -439,6 +461,103 @@ async fn workdays_matrix(State(c): S, Extension(u): U, ValidQuery(q): ValidQuery
     ok(records::matrix(&c, &a, &q).await)
 }
 
+// ───────────────────────────── tệp xuất xlsx (M14b) ─────────────────────────────
+
+const XLSX_MIME: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+/// Tệp xlsx tải về: `Content-Type`, `Content-Disposition: attachment`, `Content-Length` như `res.end(buffer)` của bản TS.
+fn xlsx(r: Result<Vec<u8>, AppError>, file_name: &str) -> Response {
+    match r {
+        Ok(bytes) => {
+            let len = bytes.len();
+            let mut resp = Response::new(Body::from(bytes));
+            let h = resp.headers_mut();
+            h.insert(header::CONTENT_TYPE, HeaderValue::from_static(XLSX_MIME));
+            if let Ok(v) = HeaderValue::from_str(&format!("attachment; filename=\"{file_name}\"")) {
+                h.insert(header::CONTENT_DISPOSITION, v);
+            }
+            h.insert(header::CONTENT_LENGTH, HeaderValue::from(len));
+            resp
+        }
+        Err(e) => fail(e),
+    }
+}
+
+async fn export_records(State(c): S, Extension(u): U, ValidQuery(q): ValidQuery<QueryAttendanceExportDto>) -> Response {
+    let a = act!(u);
+    xlsx(export::records_xlsx(&c, &a, &q).await, &export::records_filename())
+}
+
+async fn export_matrix(State(c): S, Extension(u): U, ValidQuery(q): ValidQuery<QueryAttendanceExportDto>) -> Response {
+    let a = act!(u);
+    xlsx(export::matrix_xlsx(&c, &a, &q).await, &export::matrix_filename())
+}
+
+/// Như `absent`: `date`/`sort_by`/`sort_dir` không qua DTO, giá trị không phải chuỗi coi như vắng.
+async fn export_absent(State(c): S, Extension(u): U, uri: Uri) -> Response {
+    let a = act!(u);
+    let q = query_to_json(uri.query().unwrap_or(""));
+    let text = |k: &str| q.get(k).and_then(|v| v.as_str()).map(str::to_owned);
+    let (date, sort_by, sort_dir) = (text("date"), text("sort_by"), text("sort_dir"));
+    match export::absent_xlsx(&c, &a, date.as_deref(), sort_by.as_deref(), sort_dir.as_deref()).await {
+        Ok((bytes, day)) => xlsx(Ok(bytes), &format!("nv-chua-cham-cong_{day}.xlsx")),
+        Err(e) => fail(e),
+    }
+}
+
+async fn export_by_team(State(c): S, Extension(u): U, ValidQuery(q): ValidQuery<QueryAttendanceStatsDto>) -> Response {
+    let a = act!(u);
+    xlsx(
+        export::by_team_xlsx(&c, &a, &q).await,
+        "thong-ke-cham-cong-theo-team.xlsx",
+    )
+}
+
+async fn export_by_department(
+    State(c): S,
+    Extension(u): U,
+    ValidQuery(q): ValidQuery<QueryAttendanceStatsDto>,
+) -> Response {
+    let a = act!(u);
+    xlsx(
+        export::by_department_xlsx(&c, &a, &q).await,
+        "thong-ke-cham-cong-theo-phong-ban.xlsx",
+    )
+}
+
+async fn export_top_absent(
+    State(c): S,
+    Extension(u): U,
+    ValidQuery(q): ValidQuery<QueryAttendanceStatsDto>,
+) -> Response {
+    let a = act!(u);
+    xlsx(export::top_absent_xlsx(&c, &a, &q).await, "top-nv-nghi-nhieu.xlsx")
+}
+
+async fn export_top_late_early(
+    State(c): S,
+    Extension(u): U,
+    ValidQuery(q): ValidQuery<QueryAttendanceStatsDto>,
+) -> Response {
+    let a = act!(u);
+    xlsx(
+        export::top_late_early_xlsx(&c, &a, &q).await,
+        "top-nv-di-muon-ve-som.xlsx",
+    )
+}
+
+async fn export_by_gender(
+    State(c): S,
+    Extension(u): U,
+    ValidQuery(q): ValidQuery<QueryAttendanceStatsDto>,
+) -> Response {
+    let a = act!(u);
+    xlsx(
+        export::by_gender_xlsx(&c, &a, &q).await,
+        "thong-ke-cham-cong-theo-gioi-tinh.xlsx",
+    )
+}
+
 /// Router của M13a (state `Arc<Ctx>` của module nhân sự). Người gọi gắn state khi lắp `serve`.
 pub fn router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
     let s = specs();
@@ -479,6 +598,20 @@ pub fn router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::GET, &p("today")), today)
         .route(spec(&Method::GET, &p("absent")), absent)
         .route(spec(&Method::GET, &p("workdays-matrix")), workdays_matrix)
+        .route(spec(&Method::GET, &p("export")), export_records)
+        .route(spec(&Method::GET, &p("workdays-matrix/export")), export_matrix)
+        .route(spec(&Method::GET, &p("absent-export")), export_absent)
+        .route(spec(&Method::GET, &p("stats/export-by-team")), export_by_team)
+        .route(
+            spec(&Method::GET, &p("stats/export-by-department")),
+            export_by_department,
+        )
+        .route(spec(&Method::GET, &p("stats/export-top-absent")), export_top_absent)
+        .route(
+            spec(&Method::GET, &p("stats/export-top-late-early")),
+            export_top_late_early,
+        )
+        .route(spec(&Method::GET, &p("stats/export-by-gender")), export_by_gender)
 }
 
 // ───────────────────────────── ảnh selfie (M14a) ─────────────────────────────
@@ -639,9 +772,9 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = specs();
-        assert_eq!(table.len(), 32);
+        assert_eq!(table.len(), 40);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 32);
+        assert_eq!(rep.declared, 40);
     }
 }

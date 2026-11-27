@@ -941,7 +941,7 @@ pub async fn remove(ctx: &Ctx, actor: &Actor, id: i32) -> R<OkMessage> {
         .ok_or_else(nf)?;
     drop(conn);
     assert_not_self(actor, user_id)?;
-    assert_users_manage(ctx, actor, user_id).await?;
+    // Khác `lock`/`unlock`: bản Node không đòi `users.manage` khi xoá (chỉ `employees.manage` + không leo thang quyền).
     assert_not_escalating(ctx, actor, user_id).await?;
     let mut tx = ctx.begin(company).await?;
     // Đóng giai đoạn làm việc đang mở (khôi phục hồ sơ sau này không tính lại khoảng đã xoá).

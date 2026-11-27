@@ -364,8 +364,9 @@ async fn kpi_calculate(State(c): St, Extension(u): Cu, JsonBody(b): JsonBody) ->
     let a = act!(u);
     let input = input!(CalculateInput, b);
     let ids = input.employee_ids.as_deref();
-    // Chưa có nguồn số liệu KPI (bộ gom thật thuộc module nguồn): hàm trả 501 như bản đã khai.
-    ok(in_tx!(c, a, tx => kpi::calculate(&mut tx, &input.month, ids, None).await))
+    // Nguồn rỗng như bản Node (`KpiAggregatorService` trả `{}`): chỉ số thực tế là 0 cho tới khi có module cấp số liệu.
+    let source = kpi::EmptyKpiSource;
+    ok(in_tx!(c, a, tx => kpi::calculate(&mut tx, &input.month, ids, Some(&source)).await))
 }
 
 async fn kpi_close_month(State(c): St, Extension(u): Cu, JsonBody(b): JsonBody) -> Response {

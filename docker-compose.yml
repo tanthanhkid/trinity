@@ -7,11 +7,12 @@
 # Web UI + API: http://localhost:3000  (Rust serves the static web app and the routes it owns; the rest goes to `api` inside the
 # same container network namespace, so /api/v1 is on port 3000 too. Swagger at /docs when SWAGGER_ENABLED=true)
 # First admin: SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD from .env (if the password is empty, a random one is
-# printed once in: docker compose logs migrate)
+# printed once in: docker compose logs seed)
 #
 # Services
 #   postgres   PostgreSQL 16
-#   migrate    one-shot job: applies Prisma migrations + seeds (admin, options, optional demo data when SEED_DEMO_DATA=true)
+#   migrate    one-shot job: `trinity migrate` (lịch sử migration Prisma, chạy bằng binary Rust)
+#   seed       one-shot job: `trinity seed` (admin, options, optional demo data when SEED_DEMO_DATA=true)
 #   trinity    Rust binary: public port 3000, static web (WEB_DIR=/srv/web), routes owned by Rust, forwards the rest to `api`
 #   api        NestJS monolith (auth, crm, commerce, payroll, notification); loopback only, shares the network namespace of `trinity`
 #              (W02b: there is no Next server any more, the former `web` service is gone)
@@ -58,22 +59,29 @@ services:
   migrate:
     build:
       context: .
-      target: api
+      target: trinity
     restart: "no"
+    command: ["trinity", "migrate"]
     environment:
-      <<: *api-env
-      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.com}
-      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
-      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
-    command:
-      - sh
-      - -c
-      - >-
-        pnpm --filter @trinity/prisma migrate:deploy &&
-        pnpm --filter @trinity/prisma seed
+      DATABASE_URL: postgresql://${POSTGRES_USER:-trinity}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-trinity}
     depends_on:
       postgres:
         condition: service_healthy
+
+  seed:
+    build:
+      context: .
+      target: trinity
+    restart: "no"
+    command: ["trinity", "seed"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-trinity}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-trinity}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   trinity:
     build:
@@ -112,7 +120,7 @@ services:
       # Cổng công khai duy nhất. WEB_BIND=127.0.0.1 khi có Caddy/nginx trên host (TRUSTED_PROXY=cidr:docker-gateway).
       - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-3000}:3000"
     depends_on:
-      migrate:
+      seed:
         condition: service_completed_successfully
     healthcheck:
       # Đi qua toàn chuỗi: Rust -> Node (/api/v1/health). Image không có shell/node nên dùng lệnh của chính binary.
@@ -142,7 +150,7 @@ services:
     depends_on:
       trinity:
         condition: service_started
-      migrate:
+      seed:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]

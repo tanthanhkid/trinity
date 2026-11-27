@@ -1,4 +1,4 @@
-//! `cargo xtask gen-models`: sinh `crates/trinity-db/src/models.rs` từ `packages/prisma/prisma/schema.prisma`
+//! `cargo xtask gen-models`: sinh `crates/trinity-db/src/models.rs` từ `server/prisma/schema.prisma`
 //! (PLAN 4.4). Mỗi model còn dùng thành một struct (thứ tự trường như schema, cũng là thứ tự khoá JSON của Prisma),
 //! derive `serde::Serialize` + `sqlx::FromRow`, kèm siêu dữ liệu bảng/cột để test pg so với `information_schema`.
 //! Model đã gỡ (thành bảng lưu trữ, PLAN mục 2) không sinh. Test `models_rs_khop_schema` đỏ khi tệp sinh cũ.
@@ -233,7 +233,7 @@ pub fn render(schema: &str) -> Result<String, String> {
     }
     let mut o = String::new();
     o.push_str(
-        "//! SINH TỰ ĐỘNG bởi `cargo xtask gen-models` từ `packages/prisma/prisma/schema.prisma`. KHÔNG SỬA TAY.\n\
+        "//! SINH TỰ ĐỘNG bởi `cargo xtask gen-models` từ `server/prisma/schema.prisma`. KHÔNG SỬA TAY.\n\
          //!\n\
          //! Struct model ứng với model Prisma còn dùng (thứ tự trường như schema = thứ tự khoá JSON của bản Node); kiểu\n\
          //! cột theo [`crate::types`]. Model đã thành bảng lưu trữ không có ở đây.\n\n\
@@ -321,7 +321,7 @@ pub fn render(schema: &str) -> Result<String, String> {
 /// Đường dẫn schema và tệp đích tính từ thư mục `server/`.
 pub fn paths(server: &Path) -> (PathBuf, PathBuf) {
     (
-        server.join("../packages/prisma/prisma/schema.prisma"),
+        server.join("prisma/schema.prisma"),
         server.join("crates/trinity-db/src/models.rs"),
     )
 }

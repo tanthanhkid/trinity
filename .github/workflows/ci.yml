@@ -136,7 +136,7 @@ jobs:
           has() { if echo "$files" | grep -qE "$1"; then echo true; else echo false; fi; }
           {
             echo "rust=$(has '^(server/|\.github/workflows/ci\.yml$)')"
-            echo "rust_pg=$(has '^(server/|packages/prisma/prisma/|\.github/workflows/ci\.yml$)')"
+            echo "rust_pg=$(has '^(server/|\.github/workflows/ci\.yml$)')"
             echo "rust_deps=$(has '^(server/(.*/)?Cargo\.(toml|lock)$|server/deny\.toml$|\.github/workflows/ci\.yml$)')"
           } | tee -a "$GITHUB_OUTPUT"
           sql=$(has '(prisma/migrations/|schema\.prisma$|packages/prisma/src/tenant/platform\.ts$|server/contracts/schema\.sql$|\.(pg|db)\.spec\.ts$|packages/rbac-nest/src/|\.github/workflows/ci\.yml$)')
@@ -470,10 +470,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
-      # packages/prisma build (tsc) cần client đã generate (Prisma.sql, model integrationEvent...); #549.
-      - name: Generate Prisma clients
-        run: pnpm --filter @trinity/prisma generate
-
       - name: Build shared packages
         run: pnpm --filter "./packages/*" --if-present build
 
@@ -604,29 +600,24 @@ jobs:
       # Luôn ghi rõ user trong URL: Prisma không tự lấy user hệ điều hành như libpq (thiếu thì P1010).
       DATABASE_URL: postgresql://test:test@localhost:5432/trinity_rust_test
       TEST_DATABASE_URL: postgresql://test:test@localhost:5432/trinity_rust_test
-      PRISMA_BIN: ${{ github.workspace }}/packages/prisma/node_modules/.bin/prisma
+      PRISMA_BIN: ${{ github.workspace }}/.prisma-cli/node_modules/.bin/prisma
       CARGO_INCREMENTAL: "0"
       CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      # Chỉ cài gói prisma (không build cả monorepo): `prisma migrate deploy` và Prisma CLI cho test.
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
-        with:
-          version: 10.6.5
-
+      # Chỉ cài Prisma CLI (không còn gói prisma trong monorepo): `prisma migrate deploy` và CLI cho test so với Prisma.
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
-          cache: pnpm
 
       - name: Install prisma
         run: |
-          pnpm install --frozen-lockfile --prefer-offline --filter @trinity/prisma
+          npm install --prefix .prisma-cli --no-save --no-audit --no-fund prisma@6.19.3
           "$PRISMA_BIN" --version
 
       - name: Migrate (Prisma)
-        run: pnpm --filter @trinity/prisma exec prisma migrate deploy
+        run: '"$PRISMA_BIN" migrate deploy --schema server/prisma/schema.prisma'
 
       - uses: ./.github/actions/rust-toolchain
 

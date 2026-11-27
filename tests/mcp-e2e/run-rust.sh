@@ -49,7 +49,6 @@ fi
 command -v node >/dev/null 2>&1 || { echo "thiếu node" >&2; exit 1; }
 command -v curl >/dev/null 2>&1 || { echo "thiếu curl" >&2; exit 1; }
 [ -d "$root/node_modules/@modelcontextprotocol" ] || { echo "thiếu SDK MCP: pnpm install ở thư mục gốc repo" >&2; exit 1; }
-[ -d "$root/packages/prisma/node_modules/@prisma" ] || { echo "thiếu @prisma/client (setup-users.mjs cần): pnpm install + prisma generate" >&2; exit 1; }
 if [ "$with_model" = 1 ]; then command -v claude >/dev/null 2>&1 || { echo "--with-model cần lệnh claude" >&2; exit 1; }; fi
 
 # Cổng phải trống: chỉ bật server của mình, không kill tiến trình lạ.

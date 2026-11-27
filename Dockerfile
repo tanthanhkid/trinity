@@ -23,10 +23,7 @@ WORKDIR /app
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile
-# Prisma clients (the schema URL is only needed at runtime, a dummy value is enough here).
-ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
-RUN pnpm --filter @trinity/prisma generate \
- && pnpm --filter "./packages/*" build \
+RUN pnpm --filter "./packages/*" --if-present build \
  && pnpm --filter @trinity/monolith build
 # The browser-side API base URL is inlined by Next at build time.
 ARG NEXT_PUBLIC_API_URL=/api/v1
@@ -56,8 +53,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends pkg-config libssl-dev ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
-# Bộ migration nhúng lúc biên dịch đọc nguyên văn packages/prisma/prisma/migrations (trinity-db/src/migrate.rs).
-COPY packages/prisma/prisma ./packages/prisma/prisma
+# Bộ migration nhúng lúc biên dịch đọc nguyên văn server/prisma/migrations (trinity-db/src/migrate.rs), nằm sẵn trong `server/`.
 COPY server ./server
 RUN --mount=type=cache,id=cargo-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=cargo-target,target=/src/server/target \

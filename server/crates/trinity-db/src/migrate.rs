@@ -25,7 +25,7 @@ pub const LOCK_ATTEMPTS: u32 = 3;
 /// Trần số công ty migrate song song (mỗi công ty một kết nối).
 pub const MAX_CONCURRENCY: usize = 16;
 
-/// Bộ migration nhúng lúc biên dịch (nguyên văn từng byte `packages/prisma/prisma/migrations/*/migration.sql`).
+/// Bộ migration nhúng lúc biên dịch (nguyên văn từng byte `server/prisma/migrations/*/migration.sql`).
 pub fn embedded_migrations() -> Vec<Migration> {
     EMBEDDED
         .iter()
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn nhung_giong_tung_byte_thu_muc() {
-        let dir = std::path::Path::new(&manifest_dir()).join("../../../packages/prisma/prisma/migrations");
+        let dir = std::path::Path::new(&manifest_dir()).join("../../prisma/migrations");
         let on_disk = pm::read_migrations_dir(&dir).unwrap();
         let embedded = embedded_migrations();
         assert_eq!(embedded.len(), on_disk.len());

@@ -12,7 +12,7 @@ use trinity_db::{CompanyRef, Db, DbConfig};
 use trinity_integrations::audit::{self, AuditEntry, AuditQuery, AuditStatus, Channel};
 use trinity_integrations::purge::{self, JOB_OAUTH_PURGE, JOB_OUTBOX_PURGE};
 
-/// Cột và kiểu như `packages/prisma/prisma/schema.prisma` (chỉ phần M33 dùng).
+/// Cột và kiểu như `server/prisma/schema.prisma` (chỉ phần M33 dùng).
 const SETUP: &str = "
 CREATE TABLE integration_audit_logs (
   id bigserial PRIMARY KEY, created_at timestamptz(3) NOT NULL DEFAULT now(), channel varchar(16) NOT NULL,

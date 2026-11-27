@@ -28,7 +28,7 @@ fn url() -> String {
 fn prisma_bin() -> PathBuf {
     std::env::var("PRISMA_BIN")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(manifest_dir()).join("../../../packages/prisma/node_modules/.bin/prisma"))
+        .unwrap_or_else(|_| PathBuf::from(manifest_dir()).join("prisma"))
 }
 
 /// `prisma migrate status` cho một schema: (thành công, đầu ra).
@@ -37,7 +37,7 @@ fn prisma_status(schema: &str) -> (bool, String) {
     let sep = if u.contains('?') { '&' } else { '?' };
     let o = Command::new(prisma_bin())
         .args(["migrate", "status", "--schema"])
-        .arg(PathBuf::from(manifest_dir()).join("../../../packages/prisma/prisma/schema.prisma"))
+        .arg(PathBuf::from(manifest_dir()).join("../../prisma/schema.prisma"))
         .env("DATABASE_URL", format!("{u}{sep}schema={schema}"))
         .env("PRISMA_HIDE_UPDATE_MESSAGE", "1")
         .env("CHECKPOINT_DISABLE", "1")

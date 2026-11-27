@@ -86,7 +86,7 @@ Không ORM, không `sqlx migrate` (lịch sử migration vẫn là thư mục Pr
   Job `Rust unit` (bắt buộc) chạy `cargo test --workspace`, tức mọi test không `#[ignore]` kể cả `tests/` và doctest;
   job `Rust pg tests` chạy `cargo test --workspace --tests -- --ignored` (không doctest) trên Postgres 16 đã migrate.
 - Test pg đặt trong `tests/` của crate, đọc `TEST_DATABASE_URL`; cần Prisma CLI thì đọc `PRISMA_BIN` (mặc định
-  `packages/prisma/node_modules/.bin/prisma`, có sau `pnpm install`).
+  `prisma` trên PATH; CI cài vào `.prisma-cli/`: `npm i --prefix .prisma-cli prisma@6.19.3`).
 - URL DB luôn ghi rõ user (`postgresql://$USER@localhost:5432/...`): Prisma không tự lấy user hệ điều hành như
   `psql`, thiếu user thì `prisma migrate deploy` báo `P1010`.
 
@@ -94,8 +94,8 @@ Khi thêm hoặc sửa một truy vấn tĩnh:
 
 ```sh
 export DATABASE_URL=postgresql://$USER@localhost:5432/trinity_<tên>
-# 1. Migrate DB riêng của mình bằng Prisma (ở gốc repo). Làm lại mỗi khi có migration mới.
-(cd .. && pnpm --filter @trinity/prisma exec prisma migrate deploy)
+# 1. Migrate DB riêng của mình bằng binary Rust (bộ migration nhúng từ server/prisma/migrations). Làm lại mỗi khi có migration mới.
+scripts/cargo-q run -q -p trinity-bin -- migrate
 # 2. Sinh lại dữ liệu kiểm truy vấn (sqlx-cli tự tắt chế độ offline trong lượt này)
 cargo sqlx prepare --workspace
 # 3. Trước khi đẩy: .sqlx/ phải khớp mã

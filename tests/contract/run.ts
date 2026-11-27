@@ -189,8 +189,10 @@ async function main(): Promise<void> {
     SEED_DEMO_DATA: 'false',
     NODE_ENV: 'test',
   }
-  sh('pnpm', ['--filter', '@trinity/prisma', 'exec', 'prisma', 'migrate', 'deploy'], dbEnv)
-  sh('pnpm', ['--filter', '@trinity/prisma', 'seed'], dbEnv)
+  // Migrate + seed bằng chính binary Rust (`trinity migrate`, `trinity seed`), cùng lệnh với server đang được kiểm.
+  const bin = parseCmd('SERVER_CMD', process.env.SERVER_CMD ?? '')
+  sh(bin.cmd, [...bin.args, 'migrate'], dbEnv)
+  sh(bin.cmd, [...bin.args, 'seed'], dbEnv)
 
   // DB mới có `setup_status = chua_dung` (module cứng tắt, menu trống); các ca cần hệ thống đã dựng (như harness e2e cũ).
   const tplClient = new pg.Client({ connectionString: dbUrl(tpl) })

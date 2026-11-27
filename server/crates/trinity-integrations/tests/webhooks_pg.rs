@@ -29,7 +29,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 const KEY: [u8; 32] = [7; 32];
 
-/// Cột và kiểu như `packages/prisma/prisma/schema.prisma` (chỉ phần M34 dùng).
+/// Cột và kiểu như `server/prisma/schema.prisma` (chỉ phần M34 dùng).
 const SETUP: &str = "
 CREATE TABLE integration_audit_logs (
   id bigserial PRIMARY KEY, created_at timestamptz(3) NOT NULL DEFAULT now(), channel varchar(16) NOT NULL,

@@ -83,7 +83,7 @@ Kiểm cấu hình trước khi thay: `TRINITY_OWNERSHIP_FILE=... /opt/trinity/t
 ### 3.2 Thứ tự triển khai
 
 1. Sao lưu `.env` và tệp sở hữu; dump DB nếu có migration (như runbook fast-delivery).
-2. **Migrate (Prisma)**: `pnpm --filter @trinity/prisma migrate:deploy`.
+2. **Migrate (Prisma)**: `trinity migrate`.
 3. **Khởi động Node**, đợi cổng sức khoẻ Node xanh.
 4. **Thay binary Rust**: chuyển liên kết `trinity` sang binary mới rồi khởi động lại. Rust từ chối phục vụ công ty có `migrated_to` cũ hơn bản
    migration nó biên dịch cùng (trả 503), nên phải migrate trước bước này.

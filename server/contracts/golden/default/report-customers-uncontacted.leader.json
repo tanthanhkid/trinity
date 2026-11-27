@@ -1,0 +1,169 @@
+{
+  "status": 200,
+  "body": {
+    "days": 7,
+    "next_cursor": 127,
+    "rows": [
+      {
+        "assigned_to": "<user:1>",
+        "assignee_name": "Contract rp-leader",
+        "created_at": "<time:-12d>",
+        "full_name": "Khách báo cáo hai",
+        "id": "<id:id:1>",
+        "phone": "0933111333"
+      },
+      {
+        "assigned_to": "<user:2>",
+        "assignee_name": "Contract rp-sale",
+        "created_at": "<time:-10d>",
+        "full_name": "Khách báo cáo",
+        "id": "<id:id:2>",
+        "phone": "0933111222"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách tạo, SĐT đầy đủ",
+        "id": "<id:id:3>",
+        "phone": "0912700034"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:4>",
+        "phone": "0912700033"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:5>",
+        "phone": "0912700032"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:6>",
+        "phone": "0912700031"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:7>",
+        "phone": "0912700030"
+      },
+      {
+        "assigned_to": "<user:4>",
+        "assignee_name": "Contract c14b-other",
+        "created_at": "<now>",
+        "full_name": "Khách tra trùng C14b",
+        "id": "<id:id:8>",
+        "phone": "0912700029"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:9>",
+        "phone": "0912700028"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:10>",
+        "phone": "0912700027"
+      },
+      {
+        "assigned_to": "<user:4>",
+        "assignee_name": "Contract c14b-other",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:11>",
+        "phone": "0912700025"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:12>",
+        "phone": "0912700024"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:13>",
+        "phone": "0912700023"
+      },
+      {
+        "assigned_to": "<user:4>",
+        "assignee_name": "Contract c14b-other",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:14>",
+        "phone": "0912700022"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:15>",
+        "phone": "0912700021"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:16>",
+        "phone": "0912700019"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:17>",
+        "phone": "0912700018"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:18>",
+        "phone": "0912700016"
+      },
+      {
+        "assigned_to": "<user:4>",
+        "assignee_name": "Contract c14b-other",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:19>",
+        "phone": "0912700015"
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee_name": "Contract c14b-sale",
+        "created_at": "<now>",
+        "full_name": "Khách C14b",
+        "id": "<id:id:20>",
+        "phone": "0912700014"
+      }
+    ]
+  }
+}

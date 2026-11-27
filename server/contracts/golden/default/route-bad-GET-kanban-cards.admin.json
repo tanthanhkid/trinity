@@ -1,0 +1,10 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": [
+      "board_id không hợp lệ"
+    ],
+    "statusCode": 400
+  }
+}

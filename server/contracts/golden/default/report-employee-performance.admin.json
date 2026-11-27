@@ -1,0 +1,173 @@
+{
+  "status": 200,
+  "body": [
+    {
+      "activities_count": 2,
+      "email": "<email:1>",
+      "full_name": "Quản trị viên",
+      "new_customers": 1,
+      "user_id": "<user:1>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:2>",
+      "full_name": "Contract iso",
+      "new_customers": 1,
+      "user_id": "<user:2>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:3>",
+      "full_name": "Contract trend",
+      "new_customers": 5,
+      "user_id": "<user:3>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:4>",
+      "full_name": "Contract sale",
+      "new_customers": 1,
+      "user_id": "<user:4>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:5>",
+      "full_name": "Contract dbstate",
+      "new_customers": 3,
+      "user_id": "<user:5>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:6>",
+      "full_name": "Contract own",
+      "new_customers": 1,
+      "user_id": "<user:6>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:7>",
+      "full_name": "Contract other",
+      "new_customers": 1,
+      "user_id": "<user:7>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:8>",
+      "full_name": "Contract sub",
+      "new_customers": 1,
+      "user_id": "<user:8>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:9>",
+      "full_name": "Contract outsider",
+      "new_customers": 1,
+      "user_id": "<user:9>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:10>",
+      "full_name": "Contract outsider",
+      "new_customers": 1,
+      "user_id": "<user:10>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:11>",
+      "full_name": "Contract masked",
+      "new_customers": 1,
+      "user_id": "<user:11>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:12>",
+      "full_name": "Contract full",
+      "new_customers": 1,
+      "user_id": "<user:12>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:13>",
+      "full_name": "Contract export",
+      "new_customers": 1,
+      "user_id": "<user:13>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:14>",
+      "full_name": "Contract outsider",
+      "new_customers": 1,
+      "user_id": "<user:14>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:15>",
+      "full_name": "Contract other",
+      "new_customers": 1,
+      "user_id": "<user:15>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:16>",
+      "full_name": "Contract search2",
+      "new_customers": 1,
+      "user_id": "<user:16>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:17>",
+      "full_name": "Contract masked",
+      "new_customers": 1,
+      "user_id": "<user:17>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:18>",
+      "full_name": "Contract full",
+      "new_customers": 1,
+      "user_id": "<user:18>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:19>",
+      "full_name": "Contract other",
+      "new_customers": 1,
+      "user_id": "<user:19>"
+    },
+    {
+      "activities_count": 20,
+      "email": "<email:20>",
+      "full_name": "Contract m",
+      "new_customers": 31,
+      "user_id": "<user:20>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:21>",
+      "full_name": "Contract c14b-sale",
+      "new_customers": 23,
+      "user_id": "<user:21>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:22>",
+      "full_name": "Contract c14b-other",
+      "new_customers": 8,
+      "user_id": "<user:22>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:23>",
+      "full_name": "Contract rp-sale",
+      "new_customers": 1,
+      "user_id": "<user:23>"
+    },
+    {
+      "activities_count": 0,
+      "email": "<email:24>",
+      "full_name": "Contract rp-leader",
+      "new_customers": 1,
+      "user_id": "<user:24>"
+    }
+  ]
+}

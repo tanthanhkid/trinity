@@ -15,6 +15,8 @@ use trinity_testhooks as _;
 mod seed;
 mod serve;
 mod shadow_report;
+#[cfg(feature = "test-hooks")]
+mod test_jobs;
 
 use std::io::Write;
 use std::process::ExitCode;

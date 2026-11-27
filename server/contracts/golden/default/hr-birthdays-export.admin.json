@@ -1,0 +1,48 @@
+{
+  "status": 200,
+  "body": {
+    "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "disposition": true,
+    "sheets": [
+      {
+        "name": "Sinh nhật",
+        "rows": [
+          [
+            "DANH SÁCH SINH NHẬT NHÂN VIÊN",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "Tháng 11 · Tổng 0 nhân viên",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [],
+          [
+            "STT",
+            "Mã NV",
+            "Họ tên",
+            "Ngày sinh",
+            "Chức vụ",
+            "Team",
+            "Phòng ban",
+            "Email",
+            "SĐT"
+          ]
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": [
+      "color phải là mã hex hợp lệ (vd #eb5a46)"
+    ],
+    "statusCode": 400
+  }
+}

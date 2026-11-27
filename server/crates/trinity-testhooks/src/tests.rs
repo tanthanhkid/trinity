@@ -397,3 +397,20 @@ async fn drain_xa_het_hang_doi() {
     let (_, b) = call(&router, "/internal/test/queue/drain", Some(SECRET), None).await;
     assert_eq!(b["processed"].as_i64(), Some(0), "hàng đợi đã rỗng");
 }
+
+#[tokio::test]
+async fn plain_job_chay_theo_ten_va_tu_choi_now() {
+    let hooks = TestHooks::with_company_lookup(auth(), companies(), false)
+        .plain_job("webhook-dispatch", |c, _| async move {
+            Ok(json!({"skipped": null, "company": c.id()}))
+        });
+    let r = hooks.router(env(ON)).expect("bật");
+    let p = "/internal/test/jobs/webhook-dispatch/run";
+    let (s, b) = call(&r, p, Some(SECRET), None).await;
+    assert_eq!(s, StatusCode::OK, "{b}");
+    assert_eq!(b["job"], "webhook-dispatch");
+    assert_eq!(b["result"]["skipped"], Value::Null);
+    // Không nằm trong NOW_JOBS ⇒ `now` bị từ chối như job của scheduler.
+    let (s, _) = call(&r, p, Some(SECRET), Some(json!({"now": "2026-01-01T00:00:00Z"}))).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST);
+}

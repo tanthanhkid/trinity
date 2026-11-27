@@ -1,0 +1,13 @@
+{
+  "status": 201,
+  "body": {
+    "group_key": "e2e_test_group",
+    "id": "<id:id:1>",
+    "is_active": true,
+    "is_system": false,
+    "label": "Nhãn E2E",
+    "metadata": null,
+    "sort_order": 0,
+    "value": "e2e_val"
+  }
+}

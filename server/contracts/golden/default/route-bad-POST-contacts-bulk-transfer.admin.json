@@ -1,0 +1,12 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": [
+      "contact_ids không được để trống",
+      "new_assigned_to phải là số nguyên",
+      "new_assigned_to không được để trống"
+    ],
+    "statusCode": 400
+  }
+}

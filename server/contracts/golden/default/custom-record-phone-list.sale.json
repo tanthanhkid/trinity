@@ -1,0 +1,24 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "code": "HS001",
+        "created_at": "<now>",
+        "created_by": "<user:1>",
+        "data": {
+          "sdt": "***123",
+          "ten": "PH Mẫu"
+        },
+        "id": "<id:id:1>",
+        "owner_id": "<user:1>",
+        "owner_name": "Contract u16",
+        "relations": {},
+        "title": "PH Mẫu",
+        "updated_at": "<now>"
+      }
+    ],
+    "next_cursor": null,
+    "total": 1
+  }
+}

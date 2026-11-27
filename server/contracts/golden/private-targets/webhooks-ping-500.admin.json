@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "body": {
+    "delivery_id": "<uuid:1>",
+    "duration_ms": "<ms>",
+    "error": "http_500",
+    "ok": false,
+    "status_code": 500
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": [
+      "status must be one of the following values: open, won, lost"
+    ],
+    "statusCode": 400
+  }
+}

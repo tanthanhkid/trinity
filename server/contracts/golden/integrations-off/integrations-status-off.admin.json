@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "body": {
+    "mcp_base_url_configured": true,
+    "mcp_enabled": false,
+    "mcp_url": null,
+    "secret_key_configured": true,
+    "webhooks_enabled": false
+  }
+}

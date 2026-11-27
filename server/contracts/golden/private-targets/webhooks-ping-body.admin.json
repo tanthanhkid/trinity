@@ -1,0 +1,11 @@
+{
+  "status": 200,
+  "body": {
+    "created_at": "<now>",
+    "data": {
+      "message": "Trinity webhook test"
+    },
+    "id": "<uuid:1>",
+    "type": "ping"
+  }
+}

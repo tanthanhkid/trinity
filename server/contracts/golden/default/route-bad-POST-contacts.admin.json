@@ -1,0 +1,17 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": [
+      "SĐT không hợp lệ. VD: 0900000001 hoặc +84900000001",
+      "phone must be a string",
+      "SĐT không được để trống",
+      "Họ tên phải từ 1 đến 100 ký tự",
+      "Họ tên không được để trống",
+      "full_name must be a string",
+      "source_id phải là số nguyên",
+      "Vui lòng chọn nguồn"
+    ],
+    "statusCode": 400
+  }
+}

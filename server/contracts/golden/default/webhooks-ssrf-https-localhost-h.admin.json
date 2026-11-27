@@ -1,0 +1,8 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": "Không phân giải được tên miền hoặc địa chỉ không phải IP công cộng",
+    "statusCode": 400
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "status": 200,
+  "body": {
+    "data": [
+      {
+        "attempts": 7,
+        "created_at": "<now>",
+        "delivered_at": null,
+        "endpoint_id": "<id:endpoint_id:1>",
+        "event_id": "<id:event_id:1>",
+        "event_type": "contact.created",
+        "id": "<uuid:1>",
+        "last_error": "http_500",
+        "last_status_code": 500,
+        "next_attempt_at": "<now>",
+        "status": "dead"
+      }
+    ],
+    "meta": {
+      "next_cursor": null
+    }
+  }
+}

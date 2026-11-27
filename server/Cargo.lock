@@ -4983,6 +4983,7 @@ version = "0.3.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
+ "chrono",
  "clap",
  "getrandom 0.4.3",
  "mod-ai-actions",

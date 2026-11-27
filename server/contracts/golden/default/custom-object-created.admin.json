@@ -1,0 +1,20 @@
+{
+  "status": 201,
+  "body": {
+    "code_prefix": "HS",
+    "code_prefix_aliases": [],
+    "created_at": "<now>",
+    "description": null,
+    "fields": [],
+    "icon": "graduation-cap",
+    "id": "<id:id:1>",
+    "is_active": true,
+    "key": "hoc_sinh",
+    "label": "Học sinh",
+    "label_plural": "Học sinh",
+    "nav_order": 1,
+    "show_in_nav": true,
+    "updated_at": "<now>",
+    "visible_role_ids": []
+  }
+}

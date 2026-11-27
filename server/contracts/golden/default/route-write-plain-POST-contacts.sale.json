@@ -1,0 +1,61 @@
+{
+  "status": 201,
+  "body": {
+    "contact": {
+      "assigned_to": "<user:1>",
+      "avatar_url": null,
+      "birthday": null,
+      "code": "KH147",
+      "company_name": null,
+      "contact_status": null,
+      "contact_status_id": null,
+      "created_at": "<now>",
+      "created_by_id": "<user:1>",
+      "creator": {
+        "email": "<email:1>",
+        "full_name": "Contract c14b-sale",
+        "id": "<id:id:1>",
+        "user_roles": [
+          {
+            "role": {
+              "name": "contract-60-routes-khach-deal-kanban-c14b-sale-1"
+            }
+          }
+        ]
+      },
+      "current_address": null,
+      "custom_fields": [],
+      "email": null,
+      "full_name": "Khách tạo, SĐT đầy đủ",
+      "gender": null,
+      "id": "<id:id:2>",
+      "job_title": null,
+      "lead_label": null,
+      "lead_score": null,
+      "lead_score_reasons": null,
+      "lead_scored_at": null,
+      "phone": "0912700034",
+      "phone_2": null,
+      "reminder_at": null,
+      "reminder_notes": null,
+      "source": {
+        "id": "<id:id:3>",
+        "label": "Website",
+        "value": "website"
+      },
+      "source_id": "<id:source_id:1>",
+      "source_locked": false,
+      "stage": {
+        "id": "<id:id:4>",
+        "label": "Mới",
+        "value": "new"
+      },
+      "stage_id": "<id:stage_id:1>",
+      "team_id": null,
+      "updated_at": "<now>",
+      "zalo_account": null
+    },
+    "deal": null,
+    "warning": null
+  }
+}

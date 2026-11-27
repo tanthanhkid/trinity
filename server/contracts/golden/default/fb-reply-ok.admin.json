@@ -3,7 +3,7 @@
   "body": {
     "conversation_id": "<id:conversation_id:1>",
     "direction": "out",
-    "id": "1",
+    "id": "<id:id:1>",
     "mid": "m_0001",
     "sent_at": "<now>",
     "sent_by_user_id": "<id:sent_by_user_id:1>",

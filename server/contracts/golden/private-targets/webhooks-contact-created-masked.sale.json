@@ -1,0 +1,29 @@
+{
+  "status": 200,
+  "body": {
+    "created_at": "<now>",
+    "data": {
+      "contact": {
+        "assigned_to": "<user:1>",
+        "contact_status_id": null,
+        "created_at": "<now>",
+        "created_by_id": "<user:1>",
+        "deleted_at": null,
+        "email": null,
+        "full_name": "Khách A",
+        "id": "<id:id:1>",
+        "phone": "***356",
+        "phone_2": null,
+        "project_id": null,
+        "source_id": null,
+        "stage_id": null,
+        "team_id": null,
+        "updated_at": null,
+        "zalo_account": null
+      },
+      "origin": "manual"
+    },
+    "id": "<uuid:1>",
+    "type": "contact.created"
+  }
+}

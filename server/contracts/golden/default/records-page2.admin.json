@@ -1,0 +1,41 @@
+{
+  "status": 200,
+  "body": {
+    "items": [
+      {
+        "code": "HS003",
+        "created_at": "<now>",
+        "created_by": "<user:1>",
+        "data": {
+          "diem": 6,
+          "sdt": "0900000130",
+          "ten": "Học sinh 3"
+        },
+        "id": "<id:id:1>",
+        "owner_id": "<user:1>",
+        "owner_name": "Contract u",
+        "relations": {},
+        "title": "Học sinh 3",
+        "updated_at": "<now>"
+      },
+      {
+        "code": "HS002",
+        "created_at": "<now>",
+        "created_by": "<user:1>",
+        "data": {
+          "diem": 4,
+          "sdt": "0900000120",
+          "ten": "Học sinh 2"
+        },
+        "id": "<id:id:2>",
+        "owner_id": "<user:1>",
+        "owner_name": "Contract u",
+        "relations": {},
+        "title": "Học sinh 2",
+        "updated_at": "<now>"
+      }
+    ],
+    "next_cursor": "eyJ2IjoiNCIsImlkIjoyfQ",
+    "total": null
+  }
+}

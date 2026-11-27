@@ -1,0 +1,18 @@
+{
+  "status": 200,
+  "body": {
+    "activities": {
+      "current": 22,
+      "delta_abs": 22,
+      "delta_pct": null,
+      "previous": 0
+    },
+    "new_customers": {
+      "current": 90,
+      "delta_abs": 90,
+      "delta_pct": null,
+      "previous": 0
+    },
+    "scope_label": "Toàn công ty"
+  }
+}

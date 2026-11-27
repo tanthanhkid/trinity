@@ -1,0 +1,8 @@
+{
+  "status": 503,
+  "body": {
+    "error": "Internal Server Error",
+    "message": "INTEGRATIONS_SECRET_KEY chưa được cấu hình (cần 32 byte base64)",
+    "statusCode": 503
+  }
+}

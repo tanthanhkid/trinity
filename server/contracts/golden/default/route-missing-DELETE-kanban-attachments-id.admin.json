@@ -1,0 +1,8 @@
+{
+  "status": 404,
+  "body": {
+    "error": "Not Found",
+    "message": "Không tìm thấy đính kèm ID 999999",
+    "statusCode": 404
+  }
+}

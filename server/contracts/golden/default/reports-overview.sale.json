@@ -1,0 +1,18 @@
+{
+  "status": 200,
+  "body": {
+    "activities": {
+      "current": 0,
+      "delta_abs": 0,
+      "delta_pct": null,
+      "previous": 0
+    },
+    "new_customers": {
+      "current": 0,
+      "delta_abs": 0,
+      "delta_pct": null,
+      "previous": 0
+    },
+    "scope_label": "Của mình"
+  }
+}

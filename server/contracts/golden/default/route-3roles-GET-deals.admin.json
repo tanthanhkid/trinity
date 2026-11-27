@@ -1,0 +1,365 @@
+{
+  "status": 200,
+  "body": {
+    "data": [
+      {
+        "assigned_to": "<user:1>",
+        "assignee": {
+          "email": "<email:1>",
+          "full_name": "Contract boss",
+          "id": "<id:id:1>"
+        },
+        "code": "DL012",
+        "contact": null,
+        "contact_id": null,
+        "created_at": "<now>",
+        "created_by": "<user:1>",
+        "creator": {
+          "email": "<email:1>",
+          "full_name": "Contract boss",
+          "id": "<id:id:1>"
+        },
+        "description": null,
+        "id": "<id:id:2>",
+        "note": null,
+        "status": "won",
+        "title": "dữ liệu cũ, thắng từ lâu",
+        "updated_at": "<time:-68d>",
+        "value": 100
+      },
+      {
+        "assigned_to": "<user:1>",
+        "assignee": {
+          "email": "<email:1>",
+          "full_name": "Contract boss",
+          "id": "<id:id:1>"
+        },
+        "code": "DL011",
+        "contact": null,
+        "contact_id": null,
+        "created_at": "<now>",
+        "created_by": "<user:1>",
+        "creator": {
+          "email": "<email:1>",
+          "full_name": "Contract boss",
+          "id": "<id:id:1>"
+        },
+        "description": null,
+        "id": "<id:id:3>",
+        "note": null,
+        "status": "won",
+        "title": "dữ liệu cũ",
+        "updated_at": "<time:-52d>",
+        "value": 100
+      },
+      {
+        "assigned_to": "<user:1>",
+        "assignee": {
+          "email": "<email:1>",
+          "full_name": "Contract boss",
+          "id": "<id:id:1>"
+        },
+        "code": "DL010",
+        "contact": null,
+        "contact_id": null,
+        "created_at": "<now>",
+        "created_by": "<user:1>",
+        "creator": {
+          "email": "<email:1>",
+          "full_name": "Contract boss",
+          "id": "<id:id:1>"
+        },
+        "description": null,
+        "id": "<id:id:4>",
+        "note": null,
+        "status": "won",
+        "title": "thắng cũ, vừa sửa",
+        "updated_at": "<time:-52d>",
+        "value": 100
+      },
+      {
+        "assigned_to": "<user:1>",
+        "assignee": {
+          "email": "<email:1>",
+          "full_name": "Contract boss",
+          "id": "<id:id:1>"
+        },
+        "code": "DL009",
+        "contact": null,
+        "contact_id": null,
+        "created_at": "<now>",
+        "created_by": "<user:1>",
+        "creator": {
+          "email": "<email:1>",
+          "full_name": "Contract boss",
+          "id": "<id:id:1>"
+        },
+        "description": null,
+        "id": "<id:id:5>",
+        "note": null,
+        "status": "won",
+        "title": "qua API",
+        "updated_at": "<now>",
+        "value": 100
+      },
+      {
+        "assigned_to": "<user:2>",
+        "assignee": {
+          "email": "<email:2>",
+          "full_name": "Contract dbstate",
+          "id": "<id:id:6>"
+        },
+        "code": "DL001",
+        "contact": {
+          "assigned_to": "<user:2>",
+          "created_by_id": "<user:2>",
+          "full_name": "DB State Deal",
+          "id": "<id:id:5>",
+          "phone": "0933000222"
+        },
+        "contact_id": "<id:contact_id:1>",
+        "created_at": "<now>",
+        "created_by": "<user:2>",
+        "creator": {
+          "email": "<email:2>",
+          "full_name": "Contract dbstate",
+          "id": "<id:id:6>"
+        },
+        "description": null,
+        "id": "<id:id:7>",
+        "note": null,
+        "status": "won",
+        "title": "Thương vụ DB state",
+        "updated_at": "<now>",
+        "value": 1500000
+      },
+      {
+        "assigned_to": "<user:3>",
+        "assignee": {
+          "email": "<email:3>",
+          "full_name": "Contract c14b-sale",
+          "id": "<id:id:8>"
+        },
+        "code": "DL017",
+        "contact": {
+          "assigned_to": "<user:3>",
+          "created_by_id": "<user:3>",
+          "full_name": "Khách C14b",
+          "id": "<id:id:9>",
+          "phone": "0912700030"
+        },
+        "contact_id": "<id:contact_id:2>",
+        "created_at": "<time:-1d>",
+        "created_by": "<user:3>",
+        "creator": {
+          "email": "<email:3>",
+          "full_name": "Contract c14b-sale",
+          "id": "<id:id:8>"
+        },
+        "description": null,
+        "id": "<id:id:10>",
+        "note": null,
+        "status": "open",
+        "title": "Deal C14b",
+        "updated_at": "<now>",
+        "value": null
+      },
+      {
+        "assigned_to": "<user:4>",
+        "assignee": {
+          "email": "<email:4>",
+          "full_name": "Contract other",
+          "id": "<id:id:11>"
+        },
+        "code": "DL008",
+        "contact": null,
+        "contact_id": null,
+        "created_at": "<time:-1d>",
+        "created_by": "<user:4>",
+        "creator": {
+          "email": "<email:4>",
+          "full_name": "Contract other",
+          "id": "<id:id:11>"
+        },
+        "description": null,
+        "id": "<id:id:6>",
+        "note": null,
+        "status": "open",
+        "title": "E2E deal to delete",
+        "updated_at": "<now>",
+        "value": null
+      },
+      {
+        "assigned_to": "<user:5>",
+        "assignee": {
+          "email": "<email:5>",
+          "full_name": "Contract mixed",
+          "id": "<id:id:12>"
+        },
+        "code": "DL007",
+        "contact": {
+          "assigned_to": "<user:6>",
+          "created_by_id": null,
+          "full_name": "KH deal",
+          "id": "<id:id:13>",
+          "phone": "0900000469"
+        },
+        "contact_id": "<id:contact_id:3>",
+        "created_at": "<time:-1d>",
+        "created_by": "<user:5>",
+        "creator": {
+          "email": "<email:5>",
+          "full_name": "Contract mixed",
+          "id": "<id:id:12>"
+        },
+        "description": null,
+        "id": "<id:id:14>",
+        "note": null,
+        "status": "open",
+        "title": "E2E deal contact người khác",
+        "updated_at": "<now>",
+        "value": null
+      },
+      {
+        "assigned_to": "<user:7>",
+        "assignee": {
+          "email": "<email:6>",
+          "full_name": "Contract full",
+          "id": "<id:id:15>"
+        },
+        "code": "DL006",
+        "contact": {
+          "assigned_to": "<user:7>",
+          "created_by_id": null,
+          "full_name": "KH deal",
+          "id": "<id:id:16>",
+          "phone": "0900000168"
+        },
+        "contact_id": "<id:contact_id:4>",
+        "created_at": "<time:-1d>",
+        "created_by": "<user:7>",
+        "creator": {
+          "email": "<email:6>",
+          "full_name": "Contract full",
+          "id": "<id:id:15>"
+        },
+        "description": null,
+        "id": "<id:id:17>",
+        "note": null,
+        "status": "open",
+        "title": "E2E deal with contact full",
+        "updated_at": "<now>",
+        "value": null
+      },
+      {
+        "assigned_to": "<user:8>",
+        "assignee": {
+          "email": "<email:7>",
+          "full_name": "Contract masked",
+          "id": "<id:id:18>"
+        },
+        "code": "DL005",
+        "contact": {
+          "assigned_to": "<user:8>",
+          "created_by_id": null,
+          "full_name": "KH deal",
+          "id": "<id:id:19>",
+          "phone": "0900000168"
+        },
+        "contact_id": "<id:contact_id:5>",
+        "created_at": "<time:-1d>",
+        "created_by": "<user:8>",
+        "creator": {
+          "email": "<email:7>",
+          "full_name": "Contract masked",
+          "id": "<id:id:18>"
+        },
+        "description": null,
+        "id": "<id:id:20>",
+        "note": null,
+        "status": "open",
+        "title": "E2E deal with contact",
+        "updated_at": "<now>",
+        "value": null
+      },
+      {
+        "assigned_to": "<user:9>",
+        "assignee": {
+          "email": "<email:8>",
+          "full_name": "Contract other",
+          "id": "<id:id:21>"
+        },
+        "code": "DL004",
+        "contact": null,
+        "contact_id": null,
+        "created_at": "<time:-1d>",
+        "created_by": "<user:9>",
+        "creator": {
+          "email": "<email:8>",
+          "full_name": "Contract other",
+          "id": "<id:id:21>"
+        },
+        "description": null,
+        "id": "<id:id:22>",
+        "note": null,
+        "status": "open",
+        "title": "E2E deal outsider",
+        "updated_at": "<now>",
+        "value": null
+      },
+      {
+        "assigned_to": "<user:10>",
+        "assignee": {
+          "email": "<email:9>",
+          "full_name": "Contract other",
+          "id": "<id:id:23>"
+        },
+        "code": "DL003",
+        "contact": null,
+        "contact_id": null,
+        "created_at": "<time:-1d>",
+        "created_by": "<user:10>",
+        "creator": {
+          "email": "<email:9>",
+          "full_name": "Contract other",
+          "id": "<id:id:23>"
+        },
+        "description": null,
+        "id": "<id:id:24>",
+        "note": null,
+        "status": "open",
+        "title": "E2E deal other",
+        "updated_at": "<now>",
+        "value": null
+      },
+      {
+        "assigned_to": "<user:11>",
+        "assignee": {
+          "email": "<email:10>",
+          "full_name": "Contract own",
+          "id": "<id:id:25>"
+        },
+        "code": "DL002",
+        "contact": null,
+        "contact_id": null,
+        "created_at": "<time:-1d>",
+        "created_by": "<user:11>",
+        "creator": {
+          "email": "<email:10>",
+          "full_name": "Contract own",
+          "id": "<id:id:25>"
+        },
+        "description": null,
+        "id": "<id:id:26>",
+        "note": null,
+        "status": "open",
+        "title": "E2E deal mine",
+        "updated_at": "<now>",
+        "value": null
+      }
+    ],
+    "meta": {
+      "next_cursor": null
+    }
+  }
+}

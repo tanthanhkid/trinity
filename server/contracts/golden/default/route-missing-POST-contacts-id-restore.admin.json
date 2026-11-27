@@ -1,0 +1,8 @@
+{
+  "status": 404,
+  "body": {
+    "error": "Not Found",
+    "message": "Không có khách ID 999999 đang chờ khôi phục",
+    "statusCode": 404
+  }
+}

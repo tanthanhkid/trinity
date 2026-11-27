@@ -1,0 +1,10 @@
+{
+  "status": 400,
+  "body": {
+    "error": "Bad Request",
+    "message": [
+      "content không được rỗng"
+    ],
+    "statusCode": 400
+  }
+}

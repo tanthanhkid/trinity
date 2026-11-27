@@ -1,0 +1,60 @@
+{
+  "status": 200,
+  "body": {
+    "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "disposition": true,
+    "sheets": [
+      {
+        "name": "Theo giới tính",
+        "rows": [
+          [
+            "SO SÁNH CHẤM CÔNG THEO GIỚI TÍNH",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [
+            "Từ 01/11/2026 đến 27/11/2026 · 20 ngày làm việc · 2 nhóm",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          [],
+          [
+            "Giới tính",
+            "Tổng nhân sự",
+            "Tổng ngày nghỉ",
+            "Tổng lần đi muộn",
+            "Tổng lần về sớm",
+            "Tỷ lệ đủ công (%)",
+            "Tỷ lệ thiếu công (%)"
+          ],
+          [
+            "Nữ",
+            "1",
+            "17",
+            "0",
+            "3",
+            "15",
+            "85"
+          ],
+          [
+            "Chưa xác định",
+            "12",
+            "240",
+            "0",
+            "0",
+            "0",
+            "100"
+          ]
+        ]
+      }
+    ]
+  }
+}

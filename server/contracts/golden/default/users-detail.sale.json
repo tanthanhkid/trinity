@@ -1,0 +1,20 @@
+{
+  "status": 200,
+  "body": {
+    "avatar_url": null,
+    "created_at": "<now>",
+    "deleted_at": null,
+    "email": "<email:1>",
+    "full_name": "Người dùng ba vai",
+    "id": "<id:id:1>",
+    "manager_id": null,
+    "phone": "***333",
+    "roles": [
+      "contract-61-auth-settings-flows-shape-target-7"
+    ],
+    "status": "active",
+    "team": null,
+    "team_id": null,
+    "updated_at": "<now>"
+  }
+}

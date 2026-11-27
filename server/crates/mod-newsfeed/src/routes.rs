@@ -29,8 +29,8 @@ use trinity_kernel::error::{AppError, HttpError, Message};
 use trinity_storage::{LocalDiskDriver, RangedObject, S3Driver, S3RangedObject, StorageError};
 
 use crate::{
-    Actor, CATEGORIES, COMMENT_MAX_LEN, CONTENT_MAX_LEN, Error, ImageUpload, MAX_IMAGES_PER_POST, MAX_VIDEO_SIZE,
-    MAX_VIDEOS_PER_POST, MediaFile, MediaStore, VideoUpload,
+    Actor, CATEGORIES, COMMENT_MAX_LEN, CONTENT_MAX_LEN, Error, ImageUpload, MAX_IMAGE_SIZE, MAX_IMAGES_PER_POST,
+    MAX_VIDEO_SIZE, MAX_VIDEOS_PER_POST, MediaFile, MediaStore, VideoUpload,
 };
 
 const BASE: &str = "/api/v1/newsfeed";
@@ -725,7 +725,9 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
             .cloned()
             .unwrap_or_else(|| panic!("thiếu spec {m} {p}"))
     };
-    let body_max = MAX_VIDEOS_PER_POST * MAX_VIDEO_SIZE as usize + MAX_IMAGES_PER_POST * UPLOAD_FIELD_MAX + 1024 * 1024;
+    // Trần tổng như Node: ≤ 10 ảnh × 10 MB + ≤ 5 video × 40 MB = 300 MB (+ 1 MB cho trường chữ). Từng tệp do `lib.rs` kiểm theo loại.
+    let body_max =
+        MAX_VIDEOS_PER_POST * MAX_VIDEO_SIZE as usize + MAX_IMAGES_PER_POST * MAX_IMAGE_SIZE as usize + 1024 * 1024;
     ApiRouter::new(deps)
         .route(spec(&Method::GET, BASE), list)
         .route(spec(&Method::POST, BASE), create)

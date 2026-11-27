@@ -19,6 +19,9 @@ use trinity_kernel::error::HttpError;
 pub const JSON_LIMIT: usize = 5 * 1024 * 1024;
 /// Tải lên theo luồng (video, tệp lớn): 200 MB.
 pub const STREAM_LIMIT: usize = 200 * 1024 * 1024;
+/// Trần Content-Length của `multipart/form-data` ở lớp biên: 301 MB (newsfeed: 10 ảnh × 10 MB + 5 video × 40 MB + trường chữ);
+/// hạn mức thật do `DefaultBodyLimit` của từng route.
+pub const MULTIPART_LIMIT: usize = 301 * 1024 * 1024;
 /// Thông điệp của body-parser (`PayloadTooLargeError`).
 pub const TOO_LARGE_MSG: &str = "request entity too large";
 
@@ -54,11 +57,15 @@ pub async fn body_limit_layer(max: usize, mut req: Request, next: Next) -> Respo
 
 /// Hạn mức toàn cục ở lớp biên: 5 MB cho JSON/urlencoded/kiểu khác (như `useBodyParser` của Node). `multipart/form-data`
 /// KHÔNG chịu hạn mức JSON: bản Node chỉ giới hạn từng tệp bằng multer (`limits.fileSize`), nên ở đây chỉ chặn trần
-/// [`STREAM_LIMIT`] (200 MB, video lớn nhất của newsfeed) theo `Content-Length`; hạn mức thật của route do
+/// [`MULTIPART_LIMIT`] (301 MB, trần tổng một bài newsfeed) theo `Content-Length`; hạn mức thật của route do
 /// `DefaultBodyLimit::max(..)` trên route đó (tổng thân) và `read_field_limited` (từng tệp) đảm nhiệm. Route multipart
 /// quên `DefaultBodyLimit` vẫn rơi về mặc định 2 MB của axum, không rộng hơn trước.
 pub async fn json_limit(req: Request, next: Next) -> Response {
-    let max = if is_multipart(req.headers()) { STREAM_LIMIT } else { JSON_LIMIT };
+    let max = if is_multipart(req.headers()) {
+        MULTIPART_LIMIT
+    } else {
+        JSON_LIMIT
+    };
     body_limit_layer(max, req, next).await
 }
 

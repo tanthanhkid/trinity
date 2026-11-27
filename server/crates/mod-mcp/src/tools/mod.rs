@@ -15,6 +15,9 @@ mod records;
 mod schema;
 mod search;
 mod setup;
+mod social;
+
+pub use social::{SocialDeps, register_social};
 
 use std::collections::HashSet;
 use std::sync::Arc;

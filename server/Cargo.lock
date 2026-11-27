@@ -2523,11 +2523,13 @@ dependencies = [
  "mod-contacts",
  "mod-custom",
  "mod-deals",
+ "mod-facebook",
  "mod-kanban",
  "mod-oauth",
  "mod-reports",
  "mod-settings",
  "mod-setup",
+ "mod-social",
  "regex",
  "serde",
  "serde_json",
@@ -2542,6 +2544,7 @@ dependencies = [
  "trinity-integrations",
  "trinity-kernel",
  "trinity-rbac",
+ "trinity-storage",
  "unicode-normalization",
 ]
 

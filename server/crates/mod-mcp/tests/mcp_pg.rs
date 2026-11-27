@@ -960,3 +960,120 @@ async fn tool_ghi_chay_ngay_va_tao_de_xuat_khi_bat_che_do_duyet() {
         1
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn tool_dang_bai_kenh_va_thu_vien_media() {
+    let e = env_with(|r| {
+        let root = std::env::temp_dir().join(format!("m44a_media_{}", std::process::id()));
+        mod_mcp::register_social(
+            r,
+            Arc::new(mod_mcp::SocialDeps {
+                store: mod_social::media::MediaStore::Local(trinity_storage::LocalDiskDriver::new(root)),
+                env: Arc::new(|_: &str| -> Option<String> { None }),
+            }),
+        );
+    })
+    .await;
+    let mut c = e.conn().await;
+    // Nhân viên chỉ xem kênh (social.post), không bật lại kênh (social.manage).
+    exec(
+        &mut c,
+        "INSERT INTO roles (name, is_system, updated_at) VALUES ('nv-m44a', false, now());
+         INSERT INTO role_permissions (role_id, permission, scope)
+           SELECT r.id, p.permission, p.scope FROM roles r, (VALUES
+             ('integrations.ai_connect', NULL), ('social.post', NULL)) AS p(permission, scope) WHERE r.name = 'nv-m44a';
+         INSERT INTO user_roles (user_id, role_id) SELECT u.id, r.id FROM users u, roles r WHERE u.email = 'staff@m39.test' AND r.name = 'nv-m44a';
+         INSERT INTO settings (key, value) VALUES ('org_features', '{\"social_posting\":true}')
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+         INSERT INTO social_accounts (network, external_id, name, access_token_enc, status, connected_by)
+           VALUES ('facebook', 'm44a-1', 'Trang A', 'tok', 'active', (SELECT min(id) FROM users)),
+                  ('facebook', 'm44a-2', 'Trang B', 'tok', 'disabled', (SELECT min(id) FROM users));",
+    )
+    .await;
+    let adm = e
+        .token("quantri", e.admin, "{crm.read,crm.write}", RESOURCE, "1 hour", false)
+        .await;
+    let stf = e
+        .token("nhanvien", e.staff, "{crm.read,crm.write}", RESOURCE, "1 hour", false)
+        .await;
+    let ro = e
+        .token("chidoc", e.admin, "{crm.read}", RESOURCE, "1 hour", false)
+        .await;
+
+    // list_social_accounts: có `removed`, `inbox` (chỉ Fanpage), danh sách mạng.
+    let (err, _, v) = run(&e, &stf, "list_social_accounts", &json!({})).await;
+    assert!(!err, "{v}");
+    let accs = v["data"]["accounts"].as_array().unwrap();
+    assert_eq!(accs.len(), 2, "{v}");
+    assert_eq!(accs[0]["name"], "Trang A");
+    assert_eq!(accs[0]["removed"], false);
+    assert!(accs[0]["inbox"].is_null() && accs[0].get("inbox").is_some(), "{v}");
+    assert_eq!(accs[1]["removed"], true);
+    assert_eq!(v["data"]["networks"][0]["network"], "facebook");
+    assert!(
+        v["data"]["manage_url"]
+            .as_str()
+            .unwrap()
+            .ends_with("/social?tab=channels")
+    );
+
+    // Ghi cần scope crm.write; bật lại kênh cần social.manage.
+    let (err, _, _) = run(&e, &ro, "enable_social_account", &json!({ "account_id": 1 })).await;
+    assert!(err);
+    let (err, _, _) = run(&e, &stf, "enable_social_account", &json!({ "account_id": 1 })).await;
+    assert!(err, "nhân viên thiếu social.manage");
+    let id: i32 = sqlx::query_scalar("SELECT id FROM social_accounts WHERE external_id = 'm44a-2'")
+        .fetch_one(&mut e.conn().await)
+        .await
+        .unwrap();
+    let (err, text, _) = run(&e, &adm, "enable_social_account", &json!({ "account_id": id + 1000 })).await;
+    assert!(err && text.contains("Không tìm thấy kênh"), "{text}");
+    let (err, _, v) = run(&e, &adm, "enable_social_account", &json!({ "account_id": id })).await;
+    assert!(!err && v["data"]["status"] == "active", "{v}");
+    let (err, text, _) = run(&e, &adm, "enable_social_account", &json!({ "account_id": id })).await;
+    assert!(err && text.contains("đang bật"), "{text}");
+
+    // upload_social_media: đúng một trong url/data_base64; base64 hợp lệ vào thư viện (không đăng gì), rồi list_social_media thấy.
+    let (err, text, _) = run(&e, &adm, "upload_social_media", &json!({})).await;
+    assert!(err && text.contains("đúng một trong hai"), "{text}");
+    let (err, text, _) = run(&e, &adm, "upload_social_media", &json!({ "data_base64": "QUJD" })).await;
+    assert!(err && text.contains("file_name"), "{text}");
+    let png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    let (err, text, v) = run(
+        &e,
+        &adm,
+        "upload_social_media",
+        &json!({ "data_base64": png, "file_name": "m44a.png", "name": "Ảnh thử" }),
+    )
+    .await;
+    assert!(!err, "{text}");
+    assert_eq!(v["data"]["type"], "image");
+    assert_eq!(v["data"]["name"], "Ảnh thử");
+    let key = v["data"]["media_key"].as_str().unwrap().to_owned();
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM social_media_assets WHERE source = 'mcp'")
+            .await,
+        1
+    );
+    let (err, _, v) = run(&e, &stf, "list_social_media", &json!({ "type": "image", "q": "Ảnh%" })).await;
+    assert!(!err, "{v}");
+    assert!(
+        v["data"]["files"].as_array().unwrap().is_empty(),
+        "% phải được thoát: {v}"
+    );
+    let (err, _, v) = run(&e, &stf, "list_social_media", &json!({ "type": "image", "q": "Ảnh" })).await;
+    assert!(!err && v["data"]["files"][0]["media_key"] == key.as_str(), "{v}");
+    assert!(v["data"]["next_cursor"].is_null());
+
+    // Tắt tính năng "Đăng đa kênh" ⇒ cả bốn tool báo tắt.
+    exec(
+        &mut e.conn().await,
+        "UPDATE settings SET value = '{\"social_posting\":false}' WHERE key = 'org_features'",
+    )
+    .await;
+    let (err, text, _) = run(&e, &stf, "list_social_accounts", &json!({})).await;
+    assert!(err && text.contains("đang tắt"), "{text}");
+    let (err, text, _) = run(&e, &adm, "list_social_media", &json!({})).await;
+    assert!(err && text.contains("đang tắt"), "{text}");
+}

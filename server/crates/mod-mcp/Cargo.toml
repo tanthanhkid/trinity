@@ -16,11 +16,13 @@ jsonschema = { workspace = true }
 mod-contacts = { workspace = true }
 mod-custom = { workspace = true }
 mod-deals = { workspace = true }
+mod-facebook = { workspace = true }
 mod-kanban = { workspace = true }
 mod-oauth = { workspace = true }
 mod-reports = { workspace = true }
 mod-settings = { workspace = true }
 mod-setup = { workspace = true }
+mod-social = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -38,6 +40,7 @@ unicode-normalization = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }
 trinity-auth = { workspace = true }
+trinity-storage = { workspace = true }
 
 [lints]
 workspace = true

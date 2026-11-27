@@ -1231,7 +1231,7 @@ network namespace với Rust nên đổi sang cổng nội bộ khác (`PORT=300
 | `next/image` (2 file import) | Tối ưu ảnh ở máy chủ | `images.unoptimized = true` |
 | `next/font/google` (Inter, Montserrat) | Tải lúc build | Giữ; font nằm trong bản xuất |
 | Trang `/privacy`, `/terms` đọc `process.env.LEGAL_*` lúc render | Env lúc chạy | Lấy từ `GET /api/v1/site-config` (public) để một binary dùng được cho nhiều bản cài. Cùng đường này trả các cờ hiện là biến lúc build: `NEXT_PUBLIC_REALTIME_MODE`, `NEXT_PUBLIC_DS_V2` (cờ sau hiện là hằng số module, `design-system-flags.ts`: phải nạp cấu hình trước lần vẽ đầu) |
-| `NEXT_PUBLIC_API_URL` | Nhúng lúc build | Cố định `/api/v1` |
+| `NEXT_PUBLIC_API_URL` | Nhúng lúc build | Cố định `/api/v1` (SSR dùng `INTERNAL_API_URL`, mặc định `http://127.0.0.1:4000/api/v1`) |
 | Phụ thuộc `@trinity/monolith`, `lib/nest-bridge.ts`, `nest-loader*.ts`, `serverless-runtime.ts`, `uploads-blob.ts`, `vercel.json` | Đường serverless | Xoá (G11) |
 | CI web dựa trên `.next`: `scripts/route-js-size.mjs` + `route-js-budget.json`; `webServer` của Playwright chạy `next start` | | Đọc từ `out/`; Playwright chạy trên binary (W02a, W04) |
 | `app/page.tsx` gọi `redirect("/login")` ở máy chủ | | Rust xử lý `/` |

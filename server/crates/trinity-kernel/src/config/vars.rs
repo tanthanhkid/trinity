@@ -86,6 +86,7 @@ pub const ENV_VARS: &[EnvVar] = &[
     server("SEED_DEMO_DATA"),
     // 3. Web
     elsewhere("NEXT_PUBLIC_API_URL", WEB),
+    elsewhere("INTERNAL_API_URL", WEB),
     elsewhere("NEXT_PUBLIC_REALTIME_MODE", WEB),
     server("REALTIME_MODE"),
     server("DS_V2_ENABLED"),

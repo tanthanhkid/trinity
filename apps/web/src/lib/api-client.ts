@@ -15,11 +15,18 @@ import {
 import { logFrontendError } from './fe-logger'
 import type { AuthMe, Role, User } from '../types/auth'
 
-// Use relative URL so Next.js rewrites proxy to remote backend (avoids CORS in local dev)
-// In production, NEXT_PUBLIC_API_URL is set to absolute URL directly
-const BASE_URL = typeof window !== 'undefined'
-  ? '/api/v1'
-  : (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1')
+// Trình duyệt: /api/v1 (tương đối, cùng origin, không CORS) — qua route handler của Next (compose cũ) hoặc qua Rust (cấu hình lai).
+// Phía server (SSR) Node fetch không dùng được URL tương đối: dùng INTERNAL_API_URL, rồi NEXT_PUBLIC_API_URL nếu là URL tuyệt đối,
+// cuối cùng http://127.0.0.1:4000/api/v1.
+const SERVER_FALLBACK_URL = 'http://127.0.0.1:4000/api/v1'
+function resolveServerBaseUrl(): string {
+  const internal = process.env.INTERNAL_API_URL
+  if (internal) return internal
+  const pub = process.env.NEXT_PUBLIC_API_URL
+  if (pub && /^https?:\/\//i.test(pub)) return pub
+  return SERVER_FALLBACK_URL
+}
+const BASE_URL = typeof window !== 'undefined' ? '/api/v1' : resolveServerBaseUrl()
 
 const AUTH_SKIP_URLS = ['/auth/login', '/auth/refresh']
 

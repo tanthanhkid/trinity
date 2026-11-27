@@ -930,6 +930,10 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             let (rbac, reports, contacts) = (cache.clone(), reports_ctx.clone(), contacts_slot.clone());
             hooks
                 .on_flush("permissions", move || rbac.clear())
+                // Node trả `rate-limits`: ca chạm trần (vd 10 đề xuất/phút) xả xô đếm rồi thử trần kế tiếp mà không chờ hết cửa sổ.
+                .on_flush("rate-limits", || {
+                    trinity_http::rate_limit::FixedWindowLimiter::reset_all();
+                })
                 .on_flush("reports-cache", move || reports.cache.clear())
                 .on_flush("contacts-cache", move || {
                     if let Some(c) = contacts.get() {

@@ -301,8 +301,7 @@ describe('không có đường nào để AI tự duyệt', () => {
 })
 
 describe('chống lạm dụng', () => {
-// SKIP #605: Rust chưa khớp hợp đồng Node ở ca này (giới hạn 10/phút chặn trước trần 50 đề xuất chờ nên thông điệp khác); bỏ skip khi sửa xong. Danh sách + lý do ở PR #605.
-  it.skip('trần 50 đề xuất chờ/user và 10 đề xuất/phút (prompt injection tạo hàng loạt) — user khác không bị ảnh hưởng', async () => {
+  it('trần 50 đề xuất chờ/user và 10 đề xuất/phút (prompt injection tạo hàng loạt) — user khác không bị ảnh hưởng', async () => {
     const u = await makeUser({ ...WRITER })
     const v = await makeUser({ ...WRITER })
     const t = await connect(u.token, 'crm.read crm.write')
@@ -377,14 +376,17 @@ describe('chống lạm dụng', () => {
     expect((await callTool(t2.access, 'get_action_status', { id })).isError).toBe(true)
   })
 
-// SKIP #605: Rust chưa khớp hợp đồng Node ở ca này (tools/list có thêm export_payslip_excel và tool lương bị cấm trong hợp đồng); bỏ skip khi sửa xong. Danh sách + lý do ở PR #605.
-  it.skip('đã đưa vào tools/list: đủ tool đề xuất với annotations đúng; KHÔNG có tool xoá/xuất/quản trị', async () => {
+  it('đã đưa vào tools/list: đủ tool đề xuất với annotations đúng; KHÔNG có tool xoá/xuất/quản trị', async () => {
     const u = await makeUser({ ...WRITER })
     const t = await connect(u.token, 'crm.read crm.write')
     const tools = (await rpc(t.access, 'tools/list')).body.result.tools as { name: string; annotations: Record<string, boolean> }[]
     const names = tools.map((x) => x.name)
     expect(names).toEqual(expect.arrayContaining(['create_contact', 'add_contact_note', 'update_contact_stage', 'create_task', 'assign_contact', 'get_action_status', 'list_crm_options']))
-    expect(names.filter((n) => /delete|remove|export|download|role|user_|password|approve/i.test(n))).toEqual([])
+    // 6 tool phiếu lương (M31c, #532) nằm trong hợp đồng đóng băng: xuất/mẫu/xem trước chỉ đọc, `apply_payslip_import` là ghi;
+    // quyền `payroll.*` kiểm lúc gọi tool. Mọi tool xoá/xuất/quản trị khác vẫn cấm.
+    const PAYSLIP = ['export_payslip_excel', 'export_payslip_pdf', 'export_payslips_excel', 'get_payslip_import_template', 'preview_payslip_import', 'apply_payslip_import']
+    expect(names.filter((n) => !PAYSLIP.includes(n) && /delete|remove|export|download|role|user_|password|approve/i.test(n))).toEqual([])
+    expect(names.filter((n) => PAYSLIP.includes(n)).sort()).toEqual([...PAYSLIP].sort())
     const writes = tools.filter((x) => ['create_contact', 'add_contact_note', 'update_contact_stage', 'create_task', 'assign_contact'].includes(x.name))
     expect(writes.every((x) => x.annotations.readOnlyHint === false)).toBe(true)
     const byName = Object.fromEntries(tools.map((x) => [x.name, x.annotations]))

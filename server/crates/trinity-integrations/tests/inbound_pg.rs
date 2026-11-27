@@ -351,6 +351,22 @@ async fn quan_tri_nguon_token_phan_quyen_va_xoa() {
         .await
         .unwrap_err();
     assert!(matches!(&err, SourceError::BadRequest(m) if m == "project_id không tồn tại"));
+    // Số ngoài i32 khi khoá có mặt ⇒ 400, không lặng lẽ thành "bỏ qua".
+    let big = json!({ "name": "X", "default_assignee_id": e.sale, "contact_source_id": e.src_opt, "project_id": 99_999_999_999_i64 });
+    assert!(
+        matches!(CreateInboundSource::from_body(&big), Err(SourceError::BadRequest(m)) if m.contains("project_id"))
+    );
+    let big = json!({ "project_id": 99_999_999_999_i64 });
+    assert!(matches!(
+        UpdateInboundSource::from_body(&big),
+        Err(SourceError::BadRequest(_))
+    ));
+    assert_eq!(
+        UpdateInboundSource::from_body(&json!({ "project_id": null }))
+            .unwrap()
+            .project_id,
+        Some(None)
+    );
     // Thiếu khoá mã hoá ⇒ 503.
     let no_key: KeySource = Arc::new(|| {
         Err(KeyError(
@@ -586,6 +602,25 @@ async fn nhan_khach_trung_lap_khong_tao_hai_khach() {
             .await,
         1
     );
+
+    // Nguồn rỗng/khoảng trắng không thêm " ()" vào mô tả.
+    let r = post(
+        &svc,
+        &e,
+        &token,
+        &lead("0912000011", json!({ "source": "   ", "note": "n" })),
+        None,
+    )
+    .await
+    .unwrap();
+    let d: Value = sqlx::query_scalar(AssertSqlSafe(format!(
+        "SELECT details FROM c_2.activities WHERE contact_id = {}",
+        r.contact_id.unwrap()
+    )))
+    .fetch_one(&mut e.conn().await)
+    .await
+    .unwrap();
+    assert_eq!(d["description"], "Tạo từ webhook \"Landing page\" — n");
 
     // Số đã có của người KHÁC ⇒ không tạo khách thứ hai, chỉ ghi dấu vết ngắn (không `extra`, ghi chú cắt 500); phản hồi y hệt.
     let other_c: i32 = sqlx::query_scalar(AssertSqlSafe(format!(
@@ -935,4 +970,47 @@ async fn xac_thuc_chu_ky_han_muc_va_loi() {
         1
     );
     let _ = sid;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn tran_50_nguon_khong_vuot_khi_tao_song_song() {
+    let e = Arc::new(env().await);
+    // 48 nguồn có sẵn; 6 lời tạo song song chỉ vừa thêm 2 (trần 50).
+    sqlx::query(AssertSqlSafe(format!(
+        "INSERT INTO c_2.webhook_inbound_sources (name, token_hash, token_prefix, default_assignee_id, contact_source_id, created_by, updated_at)
+         SELECT 'S' || g, md5(g::text) || md5(g::text), 'whk_xxxxxxxx', {}, {}, {}, now() FROM generate_series(1, 48) g",
+        e.sale, e.src_opt, e.admin
+    )))
+    .execute(&mut e.conn().await)
+    .await
+    .unwrap();
+    let mut hs = Vec::new();
+    for _ in 0..6 {
+        let e = e.clone();
+        hs.push(tokio::spawn(async move {
+            let mut c = e.tdb.acquire().await.unwrap();
+            sources::create(
+                &mut c,
+                &keys(),
+                tenant(&e),
+                &CreateInboundSource {
+                    name: "Đua".into(),
+                    default_assignee_id: e.sale,
+                    contact_source_id: e.src_opt,
+                    project_id: None,
+                    signed: false,
+                },
+                &actor(&e, Some(OwnerIds::All)),
+            )
+            .await
+            .is_ok()
+        }));
+    }
+    let mut ok = 0;
+    for h in hs {
+        ok += usize::from(h.await.unwrap());
+    }
+    assert_eq!(ok, 2);
+    assert_eq!(e.scalar("SELECT count(*) FROM c_2.webhook_inbound_sources").await, 50);
 }

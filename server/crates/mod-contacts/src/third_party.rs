@@ -15,7 +15,7 @@ use crate::snapshot::contact_event;
 pub struct ThirdPartyContact<'a> {
     pub phone: &'a str,
     pub full_name: &'a str,
-    pub source_id: i32,
+    pub source_id: Option<i32>,
     pub email: Option<&'a str>,
     pub project_id: Option<i32>,
 }

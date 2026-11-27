@@ -391,7 +391,7 @@ async fn persist(
                 &ThirdPartyContact {
                     phone: &p.phone,
                     full_name: &p.name,
-                    source_id: src.contact_source_id,
+                    source_id: Some(src.contact_source_id),
                     email: p.email.as_deref(),
                     project_id: src.project_id,
                 },
@@ -439,7 +439,13 @@ fn activity(src: &Source, p: &ParsedInbound, duplicate: bool, foreign: bool) -> 
     } else {
         format!("Tạo từ webhook \"{}\"", src.name)
     };
-    let label = p.source.as_deref().map(|s| format!(" ({s})")).unwrap_or_default();
+    let label = p
+        .source
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| format!(" ({s})"))
+        .unwrap_or_default();
     let note = p
         .note
         .as_deref()

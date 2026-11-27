@@ -93,8 +93,17 @@ fn dto_error(e: AppError) -> SourceError {
     }
 }
 
-fn int(v: &Map<String, Value>, k: &str) -> Option<i32> {
-    v.get(k).and_then(Value::as_i64).and_then(|n| i32::try_from(n).ok())
+/// Số nguyên i32 của khoá `k`: vắng hoặc `null` ⇒ `None`; có mặt mà ngoài khoảng i32 ⇒ 400 (KHÔNG rơi về `None`, kẻo PATCH
+/// xoá `project_id` hay tạo nguồn bỏ dự án một cách lặng lẽ).
+fn int(v: &Map<String, Value>, k: &str) -> Result<Option<i32>, SourceError> {
+    match v.get(k) {
+        None | Some(Value::Null) => Ok(None),
+        Some(x) => x
+            .as_i64()
+            .and_then(|n| i32::try_from(n).ok())
+            .map(Some)
+            .ok_or_else(|| SourceError::BadRequest(format!("{k} must not be greater than {}", i32::MAX))),
+    }
 }
 
 impl CreateInboundSource {
@@ -104,9 +113,9 @@ impl CreateInboundSource {
         let m = v.as_object().cloned().unwrap_or_default();
         Ok(Self {
             name: m.get("name").and_then(Value::as_str).unwrap_or_default().to_owned(),
-            default_assignee_id: int(&m, "default_assignee_id").unwrap_or_default(),
-            contact_source_id: int(&m, "contact_source_id").unwrap_or_default(),
-            project_id: int(&m, "project_id"),
+            default_assignee_id: int(&m, "default_assignee_id")?.unwrap_or_default(),
+            contact_source_id: int(&m, "contact_source_id")?.unwrap_or_default(),
+            project_id: int(&m, "project_id")?,
             signed: m.get("signed").and_then(Value::as_bool).unwrap_or(false),
         })
     }
@@ -119,12 +128,12 @@ impl UpdateInboundSource {
         let m = v.as_object().cloned().unwrap_or_default();
         Ok(Self {
             name: m.get("name").and_then(Value::as_str).map(str::to_owned),
-            default_assignee_id: int(&m, "default_assignee_id"),
-            contact_source_id: int(&m, "contact_source_id"),
+            default_assignee_id: int(&m, "default_assignee_id")?,
+            contact_source_id: int(&m, "contact_source_id")?,
             project_id: match m.get("project_id") {
                 None => None,
                 Some(Value::Null) => Some(None),
-                Some(_) => Some(int(&m, "project_id")),
+                Some(_) => Some(int(&m, "project_id")?),
             },
             is_active: m.get("is_active").and_then(Value::as_bool),
             signed: m.get("signed").and_then(Value::as_bool),
@@ -275,18 +284,23 @@ pub async fn create(
     actor: &Actor,
 ) -> Result<Value, SourceError> {
     let k = key(keys)?;
+    // Đếm và chèn trong MỘT giao dịch có khoá tư vấn: hai request song song không cùng lọt qua trần 50.
+    let mut tx = conn.begin().await?;
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext('webhook_inbound_sources:create'))")
+        .execute(&mut *tx)
+        .await?;
     let n: i64 = sqlx::query_scalar("SELECT count(*) FROM webhook_inbound_sources")
-        .fetch_one(&mut *conn)
+        .fetch_one(&mut *tx)
         .await?;
     if n >= MAX_INBOUND_SOURCES {
         return Err(SourceError::BadRequest(format!(
             "Tối đa {MAX_INBOUND_SOURCES} nguồn webhook vào"
         )));
     }
-    assert_assignable(conn, actor, dto.default_assignee_id).await?;
-    assert_contact_source(conn, dto.contact_source_id).await?;
+    assert_assignable(&mut tx, actor, dto.default_assignee_id).await?;
+    assert_contact_source(&mut tx, dto.contact_source_id).await?;
     if let Some(p) = dto.project_id {
-        assert_project(conn, p).await?;
+        assert_project(&mut tx, p).await?;
     }
     let token = generate_token();
     let signing = dto.signed.then(generate_webhook_secret);
@@ -302,8 +316,9 @@ pub async fn create(
     .bind(dto.contact_source_id)
     .bind(dto.project_id)
     .bind(actor.user_id)
-    .fetch_one(&mut *conn)
+    .fetch_one(&mut *tx)
     .await?;
+    tx.commit().await?;
     let id = row.try_get::<i32, _>("id")?;
     log_ok(
         conn,

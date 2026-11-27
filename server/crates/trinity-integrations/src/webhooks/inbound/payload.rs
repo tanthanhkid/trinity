@@ -31,37 +31,40 @@ pub fn parse_inbound_payload(body: &Value) -> Result<ParsedInbound, Vec<String>>
     if !body.is_object() {
         return Err(vec!["Body phải là object JSON".to_owned()]);
     }
-    let cleaned = match validate_value("InboundContactPayload", body, Mode::Lenient) {
-        Ok(v) => v,
+    // Gom ĐỦ lỗi như Node: lỗi DTO, rồi SĐT (chỉ khi trường phone chưa có lỗi kiểu/độ dài), rồi cỡ `extra`.
+    let (cleaned, mut errors) = match validate_value("InboundContactPayload", body, Mode::Lenient) {
+        Ok(v) => (v.as_object().cloned().unwrap_or_default(), Vec::new()),
         Err(e) => {
             let (_, b) = e.response(false);
-            return Err(match b.message {
+            let msgs = match b.message {
                 Message::Many(m) => m,
                 Message::One(s) => vec![s],
-            });
+            };
+            (body.as_object().cloned().unwrap_or_default(), msgs)
         }
     };
-    let m = cleaned.as_object().cloned().unwrap_or_default();
-    let mut errors = Vec::new();
-    let phone = m.get("phone").and_then(Value::as_str).and_then(normalize_phone);
-    if phone.is_none() {
+    let phone = cleaned
+        .get("phone")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .and_then(normalize_phone);
+    if phone.is_none() && !errors.iter().any(|m| m.starts_with("phone ")) {
         errors.push("phone không hợp lệ (SĐT Việt Nam, vd 0912345678 hoặc +84912345678)".to_owned());
     }
-    let extra = m.get("extra").and_then(Value::as_object).cloned();
-    if let Some(e) = &extra
-        && trinity_kernel::json::js_json(&Value::Object(e.clone())).len() > MAX_EXTRA_BYTES
+    if let Some(x) = cleaned.get("extra")
+        && trinity_kernel::json::js_json(x).len() > MAX_EXTRA_BYTES
     {
         errors.push(format!("extra tối đa {MAX_EXTRA_BYTES} byte"));
     }
     match (phone, errors.is_empty()) {
         (Some(phone), true) => Ok(ParsedInbound {
-            name: opt(&m, "name").unwrap_or_default(),
+            name: opt(&cleaned, "name").unwrap_or_default(),
             phone,
-            email: opt(&m, "email"),
-            note: opt(&m, "note"),
-            source: opt(&m, "source"),
-            external_id: opt(&m, "external_id"),
-            extra,
+            email: opt(&cleaned, "email"),
+            note: opt(&cleaned, "note"),
+            source: opt(&cleaned, "source"),
+            external_id: opt(&cleaned, "external_id"),
+            extra: cleaned.get("extra").and_then(Value::as_object).cloned(),
         }),
         _ => Err(errors),
     }
@@ -128,6 +131,19 @@ mod tests {
             let m = msgs(body.clone());
             assert!(m.contains(want), "{body} => {m}");
         }
+    }
+
+    #[test]
+    fn gom_du_loi_dto_phone_va_extra() {
+        let m = msgs(
+            json!({ "name": "", "phone": "xyz", "email": "sai", "extra": { "big": "x".repeat(MAX_EXTRA_BYTES) } }),
+        );
+        for want in ["name", "phone không hợp lệ", "email", "extra tối đa"] {
+            assert!(m.contains(want), "{want} trong {m}");
+        }
+        // Trường phone đã có lỗi kiểu thì không thêm câu "không hợp lệ".
+        let m = msgs(json!({ "name": "A", "phone": 123 }));
+        assert!(m.contains("phone") && !m.contains("không hợp lệ"), "{m}");
     }
 
     #[test]

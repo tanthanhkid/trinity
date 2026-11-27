@@ -219,6 +219,17 @@ pub fn graph_url(
     ))
 }
 
+/// Chuyển tiếp webhook sang bản Trinity khác (`FACEBOOK_WEBHOOK_FORWARD_URL`, URL `http(s)://` đầy đủ; vì mỗi app Meta chỉ có MỘT
+/// callback cho object Page). Hai bản phải dùng cùng app Meta (cùng app secret): body và chữ ký được chuyển NGUYÊN VĂN.
+pub fn webhook_forward_url(env: &Env) -> Option<String> {
+    let v = env("FACEBOOK_WEBHOOK_FORWARD_URL").unwrap_or_default();
+    let v = v.trim();
+    (v.starts_with("http://") || v.starts_with("https://")).then(|| v.to_owned())
+}
+
+/// Header đánh dấu sự kiện đã được chuyển tiếp một lần: bản nhận không chuyển tiếp nữa (chống vòng lặp).
+pub const FORWARDED_HEADER: &str = "x-trinity-forwarded";
+
 #[cfg(test)]
 mod tests {
     use super::*;

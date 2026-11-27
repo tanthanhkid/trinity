@@ -57,7 +57,7 @@ impl ActionExecutor for Mock {
         let (label, perms, structure) = match tool {
             "ok_tool" => ("Tạo khách", vec!["contacts.create".to_owned()], false),
             "structure_tool" => ("Đổi cấu trúc", vec![], true),
-            "boom" | "refuse" => ("Hỏng", vec![], false),
+            "boom" | "refuse" | "slow" => ("Hỏng", vec![], false),
             _ => return None,
         };
         Some(ToolInfo {
@@ -87,6 +87,10 @@ impl ActionExecutor for Mock {
         Box::pin(async move {
             match tool {
                 "boom" => Err(AppError::internal("lỗi nội bộ có bí mật")),
+                "slow" => {
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    Ok(json!({}))
+                }
                 "refuse" => Err(HttpError::bad_request("SĐT 0901234567 đã tồn tại").into()),
                 _ => {
                     tokio::time::sleep(std::time::Duration::from_millis(150)).await;
@@ -104,6 +108,10 @@ struct App {
 }
 
 async fn app(enabled: bool) -> App {
+    app_t(enabled, std::time::Duration::from_secs(30)).await
+}
+
+async fn app_t(enabled: bool, exec_timeout: std::time::Duration) -> App {
     let db = Db::connect(&DbConfig::new(url())).await.unwrap();
     let platform = Platform::new(&db, None);
     let security = Security::new(db.clone(), platform, false);
@@ -117,6 +125,7 @@ async fn app(enabled: bool) -> App {
         db: db.clone(),
         enabled,
         executor: mock.clone(),
+        exec_timeout,
     });
     let deps = Arc::new(AccessDeps {
         auth: Arc::new(Authenticator::new(security, JWT, &[])),
@@ -663,4 +672,120 @@ async fn job_het_han_ket_qua_khong_ro_va_don() {
     // Job chỉ đăng ký khi OAuth/MCP bật.
     assert!(expiry_job(&a.db, false).unwrap().is_none());
     assert!(expiry_job(&a.db, true).unwrap().is_some());
+}
+
+// ================================================================= theo review #416
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn tu_choi_het_han_la_409_va_danh_dau_expired() {
+    setup().await;
+    let a = app(true).await;
+    let id = draft(A, "ok_tool", "pending", "").await;
+    exec(&format!(
+        "UPDATE ai_action_drafts SET expires_at = now() - interval '1 minute' WHERE id = {id}"
+    ))
+    .await;
+    let r = call(&a, Method::POST, &format!("{P}/{id}/reject"), Some(A), None).await;
+    assert_eq!(
+        (r.status.as_u16(), msg(&r).as_str()),
+        (409, "Đề xuất đã hết hạn (quá 24 giờ) — hãy nhờ AI tạo lại")
+    );
+    assert_eq!(
+        scalar::<String>(&format!("SELECT status FROM ai_action_drafts WHERE id = {id}")).await,
+        "expired"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn duyet_kiem_trang_thai_truoc_xac_nhan_ten_bang() {
+    setup().await;
+    let a = app(true).await;
+    // Đã từ chối + có confirm_label: duyệt không đòi gõ tên bảng mà báo ngay 409.
+    let id = draft(
+        A,
+        "structure_tool",
+        "rejected",
+        ", impact|, '{\"confirm_label\":\"Học sinh\"}'::jsonb",
+    )
+    .await;
+    let r = call(&a, Method::POST, &format!("{P}/{id}/approve"), Some(A), None).await;
+    assert_eq!(
+        (r.status.as_u16(), msg(&r).as_str()),
+        (409, "Đề xuất này đã bị từ chối")
+    );
+    // Hết hạn + confirm_label: 409 hết hạn và đánh expired (không 400 tên bảng).
+    let id = draft(
+        A,
+        "structure_tool",
+        "pending",
+        ", impact|, '{\"confirm_label\":\"Học sinh\"}'::jsonb",
+    )
+    .await;
+    exec(&format!(
+        "UPDATE ai_action_drafts SET expires_at = now() - interval '1 minute' WHERE id = {id}"
+    ))
+    .await;
+    let r = call(&a, Method::POST, &format!("{P}/{id}/approve"), Some(A), None).await;
+    assert_eq!(r.status, 409);
+    assert_eq!(
+        scalar::<String>(&format!("SELECT status FROM ai_action_drafts WHERE id = {id}")).await,
+        "expired"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn thuc_thi_qua_han_bi_dung_va_ghi_failed_con_job_khong_dung_vao_dang_chay() {
+    setup().await;
+    // Hạn thực thi 300 ms (ngắn hơn ngưỡng 5 phút của job): tool chậm bị dừng chờ, đề xuất failed kèm lý do "không rõ kết quả".
+    let a = app_t(true, std::time::Duration::from_millis(300)).await;
+    let id = draft(A, "slow", "pending", "").await;
+    let r = call(&a, Method::POST, &format!("{P}/{id}/approve"), Some(A), None).await;
+    assert_eq!(r.status, 500);
+    let v = call(&a, Method::GET, &format!("{P}/{id}"), Some(A), None).await;
+    assert_eq!(v.body["status"], "failed");
+    assert!(
+        v.body["error"].as_str().unwrap().contains("kết quả không rõ"),
+        "{:?}",
+        v.body
+    );
+    // Đang chạy (approved, chưa có kết quả, dưới 5 phút): job bỏ qua; kết quả ghi muộn sau khi đã failed không đè.
+    let running = draft(A, "ok_tool", "approved", ", decided_at|, now() - interval '4 minutes'").await;
+    let mut c = PgConnection::connect(&url()).await.unwrap();
+    let r = mod_ai_actions::service::expire_overdue(&mut c, chrono::Utc::now())
+        .await
+        .unwrap();
+    assert_eq!(r.stale, 0);
+    assert_eq!(
+        scalar::<String>(&format!("SELECT status FROM ai_action_drafts WHERE id = {running}")).await,
+        "approved"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn duyet_tra_ket_qua_va_ghi_result_dung_mot_lan() {
+    setup().await;
+    let a = app(true).await;
+    let id = draft(A, "ok_tool", "pending", "").await;
+    let r = call(&a, Method::POST, &format!("{P}/{id}/approve"), Some(A), None).await;
+    assert_eq!(r.status, 200);
+    assert_eq!(r.body["result"]["draft"], id);
+    assert_eq!(
+        scalar::<String>(&format!("SELECT result->>'by' FROM ai_action_drafts WHERE id = {id}")).await,
+        A.to_string()
+    );
+    assert_eq!(r.body["client_name"], "Trợ lý M38");
+    // Thứ tự cổng: cờ tắt ⇒ 404 trước cả kiểm thân (thân hỏng).
+    let off = app(false).await;
+    let bad = Request::builder()
+        .method(Method::PATCH)
+        .uri(format!("{P}/settings"))
+        .header("authorization", format!("Bearer {}", token(ADM)))
+        .header("content-type", "application/json")
+        .body(Body::from("{không phải json"))
+        .unwrap();
+    assert_eq!(off.router.clone().oneshot(bad).await.unwrap().status(), 404);
 }

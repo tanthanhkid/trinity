@@ -14,6 +14,7 @@ chrono = { workspace = true }
 mod-mcp = { path = "../mod-mcp" }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
+tokio = { workspace = true }
 tracing = { workspace = true }
 trinity-db = { workspace = true }
 trinity-http = { workspace = true }
@@ -23,7 +24,6 @@ trinity-kernel = { workspace = true }
 trinity-rbac = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true }
 tower = { workspace = true }
 trinity-auth = { workspace = true }
 

@@ -116,4 +116,6 @@ pub struct AiActionsCtx {
     /// `INTEGRATIONS_MCP_ENABLED` + `INTEGRATIONS_PUBLIC_BASE_URL` (`trinity_integrations::status::oauth_enabled`); tắt ⇒ mọi route 404.
     pub enabled: bool,
     pub executor: Arc<dyn ActionExecutor>,
+    /// Hạn một lần thực thi; mặc định [`service::DEFAULT_EXEC_TIMEOUT`] (4 phút, ngắn hơn ngưỡng 5 phút của job "kết quả không rõ").
+    pub exec_timeout: std::time::Duration,
 }

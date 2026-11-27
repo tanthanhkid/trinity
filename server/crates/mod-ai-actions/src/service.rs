@@ -18,6 +18,8 @@ type R<T> = Result<T, AppError>;
 
 /// Quá ngần này mà vẫn `approved` và chưa có `result` ⇒ tiến trình đã chết giữa chừng (khởi động lại/hết bộ nhớ).
 const EXECUTION_STALE: Duration = Duration::minutes(5);
+/// Hạn một lần thực thi (phải < `EXECUTION_STALE`); [`crate::AiActionsCtx::exec_timeout`] mặc định.
+pub const DEFAULT_EXEC_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(4 * 60);
 const STALE_EXECUTION_ERROR: &str = "Không rõ kết quả: máy chủ khởi động lại khi đang thực hiện. Hãy kiểm tra dữ liệu thủ công trước khi nhờ AI đề xuất lại.";
 const STATUSES: [&str; 6] = ["pending", "approved", "executed", "rejected", "expired", "failed"];
 const NOT_FOUND: &str = "Không tìm thấy đề xuất";
@@ -30,7 +32,7 @@ fn bad(msg: &str) -> AppError {
     HttpError::bad_request(msg).into()
 }
 
-#[derive(sqlx::FromRow)]
+#[derive(Clone, sqlx::FromRow)]
 struct Draft {
     id: i32,
     client_id: String,
@@ -236,11 +238,13 @@ impl AiActionsCtx {
     }
 
     pub async fn pending_count(&self, company: CompanyRef, user: i32) -> R<i64> {
+        let now = Utc::now();
         let mut c = self.conn(company).await?;
         sqlx::query_scalar(
-            "SELECT count(*) FROM ai_action_drafts WHERE user_id = $1 AND status = 'pending' AND expires_at > now()",
+            "SELECT count(*) FROM ai_action_drafts WHERE user_id = $1 AND status = 'pending' AND expires_at > $2",
         )
         .bind(user)
+        .bind(now)
         .fetch_one(&mut *c)
         .await
         .map_err(db)
@@ -292,31 +296,68 @@ impl AiActionsCtx {
     }
 
     pub async fn reject(&self, company: CompanyRef, user: i32, id: i32) -> R<Value> {
+        let now = Utc::now();
         let claimed = {
             let mut c = self.conn(company).await?;
-            sqlx::query("UPDATE ai_action_drafts SET status = 'rejected', decided_at = now() WHERE id = $1 AND user_id = $2 AND status = 'pending'")
-                .bind(id)
-                .bind(user)
-                .execute(&mut *c)
-                .await
-                .map_err(db)?
-                .rows_affected()
+            sqlx::query(
+                "UPDATE ai_action_drafts SET status = 'rejected', decided_at = $3 \
+                 WHERE id = $1 AND user_id = $2 AND status = 'pending' AND expires_at > $3",
+            )
+            .bind(id)
+            .bind(user)
+            .bind(now)
+            .execute(&mut *c)
+            .await
+            .map_err(db)?
+            .rows_affected()
         };
         let d = self.own(company, user, id).await?;
         if claimed != 1 {
-            return Err(HttpError::conflict(state_message(&d, Utc::now())).into());
+            // Hết hạn mà chưa được ai xử lý: đánh dấu `expired` như lúc duyệt, không cho từ chối "vượt hạn".
+            if d.status == "pending" {
+                self.mark_expired(company, id, now).await;
+            }
+            return Err(HttpError::conflict(state_message(&d, now)).into());
         }
         self.audit_decision(company, "ai_action.reject", AuditStatus::Ok, &d, user, None)
             .await;
         self.get(company, user, id).await
     }
 
+    /// `pending` quá hạn ⇒ `expired`. Lỗi chỉ ghi log (đã trả 409, job sẽ dọn).
+    async fn mark_expired(&self, company: CompanyRef, id: i32, now: DateTime<Utc>) {
+        match self.conn(company).await {
+            Ok(mut c) => {
+                if let Err(e) = sqlx::query(
+                    "UPDATE ai_action_drafts SET status = 'expired', decided_at = $2 \
+                     WHERE id = $1 AND status = 'pending' AND expires_at <= $2",
+                )
+                .bind(id)
+                .bind(now)
+                .execute(&mut *c)
+                .await
+                {
+                    tracing::warn!("Đánh dấu đề xuất AI #{id} hết hạn lỗi: {e}");
+                }
+            }
+            Err(e) => tracing::warn!("Đánh dấu đề xuất AI #{id} hết hạn: không lấy được kết nối: {e:?}"),
+        }
+    }
+
     /// DUYỆT: chạy qua ĐÚNG service nghiệp vụ với người duyệt (= chủ đề xuất). "Nhận" bằng UPDATE nguyên tử `pending → approved`
     /// (kèm kiểm hạn) TRƯỚC khi chạy nên chỉ một request thắng, thực thi tối đa MỘT lần; quyền kiểm lại ở đây.
     pub async fn approve(&self, user: &ActionUser, id: i32, confirm_text: Option<&str>) -> R<Value> {
         let company = user.company;
-        // Đổi cấu trúc có bản ghi bị ảnh hưởng ⇒ phải gõ ĐÚNG tên bảng (kiểm trước khi nhận duyệt).
+        let now = Utc::now();
         let pre = self.own(company, user.user_id, id).await?;
+        // Trạng thái TRƯỚC (409 đã duyệt/từ chối/hết hạn), rồi mới đến xác nhận tên bảng: đề xuất đã xử lý không đòi gõ lại.
+        if pre.status != "pending" || pre.expires_at <= now {
+            if pre.status == "pending" {
+                self.mark_expired(company, id, now).await;
+            }
+            return Err(HttpError::conflict(state_message(&pre, now)).into());
+        }
+        // Đổi cấu trúc có bản ghi bị ảnh hưởng ⇒ phải gõ ĐÚNG tên bảng (kiểm trước khi nhận duyệt).
         let need = pre
             .impact
             .as_ref()
@@ -333,11 +374,12 @@ impl AiActionsCtx {
         let claimed = {
             let mut c = self.conn(company).await?;
             sqlx::query(
-                "UPDATE ai_action_drafts SET status = 'approved', decided_at = now() \
-                 WHERE id = $1 AND user_id = $2 AND status = 'pending' AND expires_at > now()",
+                "UPDATE ai_action_drafts SET status = 'approved', decided_at = $3 \
+                 WHERE id = $1 AND user_id = $2 AND status = 'pending' AND expires_at > $3",
             )
             .bind(id)
             .bind(user.user_id)
+            .bind(now)
             .execute(&mut *c)
             .await
             .map_err(db)?
@@ -345,15 +387,10 @@ impl AiActionsCtx {
         };
         let row = self.own(company, user.user_id, id).await?;
         if claimed != 1 {
-            if row.status == "pending"
-                && let Ok(mut c) = self.conn(company).await
-            {
-                let _ = sqlx::query("UPDATE ai_action_drafts SET status = 'expired', decided_at = now() WHERE id = $1 AND status = 'pending'")
-                    .bind(id)
-                    .execute(&mut *c)
-                    .await;
+            if row.status == "pending" {
+                self.mark_expired(company, id, now).await;
             }
-            return Err(HttpError::conflict(state_message(&row, Utc::now())).into());
+            return Err(HttpError::conflict(state_message(&row, now)).into());
         }
         let result = match self.run(&row, user).await {
             Ok(r) => r,
@@ -362,19 +399,54 @@ impl AiActionsCtx {
                 return Err(to_http(err));
             }
         };
-        // Đã thực thi xong: lỗi ghi `result`/nhật ký KHÔNG được biến thành "thất bại" (thao tác đã xảy ra).
-        if let Ok(mut c) = self.conn(company).await
-            && let Err(e) = sqlx::query("UPDATE ai_action_drafts SET result = $2::text::jsonb WHERE id = $1")
-                .bind(id)
-                .bind(trinity_kernel::json::js_json(&result))
-                .execute(&mut *c)
-                .await
-        {
-            tracing::error!("Ghi kết quả đề xuất #{id} lỗi: {e}");
-        }
+        // Đã thực thi xong: ghi kết quả có thử lại; lỗi ghi `result`/nhật ký KHÔNG được biến thành "thất bại" (thao tác đã xảy ra).
+        self.record_result(company, id, &result).await;
         self.audit_decision(company, "ai_action.approve", AuditStatus::Ok, &row, user.user_id, None)
             .await;
-        self.get(company, user.user_id, id).await
+        // Trả từ dữ liệu đã có: đọc lại lỗi cũng không biến một thao tác đã chạy thành 500 (AI sẽ đề xuất lại ⇒ ghi hai lần).
+        let mut done = row;
+        done.result = Some(result);
+        let names = self.client_names(std::slice::from_ref(&done)).await.unwrap_or_default();
+        Ok(self.view(&done, names.get(&done.client_id).map(String::as_str), Utc::now()))
+    }
+
+    /// Ghi `result` khi thao tác đã chạy xong. Thử lại vài lần (lấy kết nối/ghi lỗi tạm thời); chỉ ghi khi dòng còn `approved`
+    /// (đã bị đánh `failed` thì không đè). Hết lần thử: ghi log kèm kết quả để người vận hành đối chiếu.
+    async fn record_result(&self, company: CompanyRef, id: i32, result: &Value) {
+        let text = trinity_kernel::json::js_json(result);
+        for (i, wait) in [0u64, 100, 300, 900].into_iter().enumerate() {
+            if wait > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(wait)).await;
+            }
+            let mut c = match self.conn(company).await {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::warn!(
+                        "Ghi kết quả đề xuất #{id} (lần {}): không lấy được kết nối: {e:?}",
+                        i + 1
+                    );
+                    continue;
+                }
+            };
+            match sqlx::query(
+                "UPDATE ai_action_drafts SET result = $2::text::jsonb WHERE id = $1 AND status = 'approved'",
+            )
+            .bind(id)
+            .bind(&text)
+            .execute(&mut *c)
+            .await
+            {
+                Ok(r) if r.rows_affected() == 1 => return,
+                Ok(_) => {
+                    tracing::error!(
+                        "Đề xuất #{id} đã không còn ở trạng thái approved khi ghi kết quả (đã bị đánh failed?): {text}"
+                    );
+                    return;
+                }
+                Err(e) => tracing::warn!("Ghi kết quả đề xuất #{id} (lần {}) lỗi: {e}", i + 1),
+            }
+        }
+        tracing::error!("KHÔNG ghi được kết quả đề xuất #{id} sau nhiều lần thử; thao tác ĐÃ chạy, kết quả: {text}");
     }
 
     async fn run(&self, row: &Draft, user: &ActionUser) -> R<Value> {

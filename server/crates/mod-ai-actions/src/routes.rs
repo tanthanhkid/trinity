@@ -137,14 +137,41 @@ async fn body(req: Request) -> Result<Value, Response> {
     }
 }
 
-/// `Number(s)` của JS cho chuỗi (rỗng ⇒ 0, không đọc được ⇒ NaN).
+/// `Number(s)` của JS cho chuỗi: rỗng ⇒ 0; tiền tố `0x`/`0b`/`0o`; chỉ `Infinity` (không phải `inf`/`nan` của Rust); còn lại NaN.
 fn js_number(s: &str) -> f64 {
-    let t = s.trim();
+    let t = s.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}');
     if t.is_empty() {
-        0.0
-    } else {
-        t.parse::<f64>().unwrap_or(f64::NAN)
+        return 0.0;
     }
+    let (sign, body) = match t.as_bytes()[0] {
+        b'-' => (-1.0, &t[1..]),
+        b'+' => (1.0, &t[1..]),
+        _ => (1.0, t),
+    };
+    if body == "Infinity" {
+        return sign * f64::INFINITY;
+    }
+    let radix = match body.get(..2) {
+        Some("0x" | "0X") => Some(16),
+        Some("0b" | "0B") => Some(2),
+        Some("0o" | "0O") => Some(8),
+        _ => None,
+    };
+    if let Some(r) = radix {
+        // Số có tiền tố không nhận dấu (`-0x1` là NaN).
+        return if t.len() == body.len() && body.len() > 2 {
+            u128::from_str_radix(&body[2..], r).map_or(f64::NAN, |n| n as f64)
+        } else {
+            f64::NAN
+        };
+    }
+    if !body
+        .bytes()
+        .all(|b| b.is_ascii_digit() || matches!(b, b'.' | b'e' | b'E' | b'+' | b'-'))
+    {
+        return f64::NAN;
+    }
+    t.parse::<f64>().unwrap_or(f64::NAN)
 }
 
 async fn list(
@@ -204,13 +231,13 @@ async fn update_settings(
         Ok(x) => x,
         Err(r) => return r,
     };
+    if let Err(r) = gate(&c, None) {
+        return r;
+    }
     let b = match body(req).await {
         Ok(b) => b,
         Err(r) => return r,
     };
-    if let Err(r) = gate(&c, None) {
-        return r;
-    }
     match validate_value("UpdateAiActionSettingsDto", &b, Mode::Strict) {
         Ok(v) => {
             let on = v.get("require_approval").and_then(Value::as_bool).unwrap_or(false);
@@ -259,13 +286,13 @@ async fn approve(
         Ok(x) => x,
         Err(r) => return r,
     };
-    let b = match body(req).await {
-        Ok(b) => b,
-        Err(r) => return r,
-    };
     let id = match gate(&c, Some(&id)) {
         Ok(Some(id)) => id,
         Ok(None) => return not_found(),
+        Err(r) => return r,
+    };
+    let b = match body(req).await {
+        Ok(b) => b,
         Err(r) => return r,
     };
     match validate_value("ApproveAiActionDto", &b, Mode::Strict) {
@@ -321,4 +348,27 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<AiActionsCtx>> {
             spec(&Method::POST, "/api/v1/integrations/ai-actions/:id/reject"),
             reject,
         )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::js_number;
+
+    #[test]
+    fn number_nhu_js() {
+        assert_eq!(js_number(""), 0.0);
+        assert_eq!(js_number("  12 "), 12.0);
+        assert_eq!(js_number("0x10"), 16.0);
+        assert_eq!(js_number("0b11"), 3.0);
+        assert_eq!(js_number("0o7"), 7.0);
+        assert_eq!(js_number("Infinity"), f64::INFINITY);
+        assert_eq!(js_number("-Infinity"), f64::NEG_INFINITY);
+        assert_eq!(js_number("1e2"), 100.0);
+        assert_eq!(js_number(".5"), 0.5);
+        for bad in [
+            "inf", "nan", "NaN", "infinity", "-0x1", "0x", "0xg", "abc", "1_0", "1,5", "12px",
+        ] {
+            assert!(js_number(bad).is_nan(), "{bad}");
+        }
+    }
 }

@@ -7,7 +7,7 @@ use std::collections::HashSet;
 
 use mod_custom::access::{ObjectDef, load_visible_object};
 use mod_custom::fields::{self, CreateField, UpdateField, assert_flags_allowed, build_options, formulas_referencing};
-use mod_custom::objects::{self, CreateObject, Patch, UpdateObject};
+use mod_custom::objects::{self, CreateObject, UpdateObject};
 use mod_custom::types::{
     CUSTOM_ICONS, FIELD_TYPES, FieldDef, Limits, RESERVED_OBJECT_KEYS, TITLE_TYPES, is_field_type, valid_key,
 };
@@ -16,11 +16,10 @@ use serde_json::{Map, Value, json};
 use trinity_kernel::error::AppError;
 
 use super::write::{
-    Detail, Prepared, as_int, assert_confirmed, assert_direct, clean_text, internal, line, opt_clean, run_direct, user,
-    user_err,
+    Detail, as_int, assert_confirmed, clean_text, impact_json, internal, line, opt_clean, prepared, user, user_err,
 };
-use crate::auth::Principal;
-use crate::exec::{ToolCtx, ToolError, ToolOutput};
+use crate::actions::{ActionCx, ActionDef, Prepared};
+use crate::exec::ToolError;
 use crate::protocol::BoxFuture;
 
 const MAX_OBJECTS_PER_CALL: usize = 8;
@@ -303,7 +302,7 @@ pub(super) fn check_fields(
     Ok(())
 }
 
-async fn live_object_keys(ctx: &ToolCtx<'_>) -> Result<Vec<String>, ToolError> {
+async fn live_object_keys(ctx: &ActionCx<'_>) -> Result<Vec<String>, ToolError> {
     let mut c = ctx.deps.conn(ctx.principal.company).await?;
     sqlx::query_scalar("SELECT key FROM custom_objects WHERE deleted_at IS NULL LIMIT 200")
         .fetch_all(&mut *c)
@@ -312,7 +311,7 @@ async fn live_object_keys(ctx: &ToolCtx<'_>) -> Result<Vec<String>, ToolError> {
 }
 
 /// Kiểm cả lô bảng mới: khoá chưa dùng, không vượt trần, liên kết tới bảng có sẵn hoặc cùng lô, mỗi bảng có trường làm tiêu đề.
-pub(super) async fn check_objects(ctx: &ToolCtx<'_>, specs: &[ObjectSpec]) -> Result<(), ToolError> {
+pub(super) async fn check_objects(ctx: &ActionCx<'_>, specs: &[ObjectSpec]) -> Result<(), ToolError> {
     let live = live_object_keys(ctx).await?;
     if i64::try_from(live.len() + specs.len()).unwrap_or(i64::MAX) > Limits::MAX_OBJECTS {
         return Err(user(format!(
@@ -390,11 +389,11 @@ pub(super) fn object_details(specs: &[ObjectSpec]) -> Vec<Detail> {
         .collect()
 }
 
-fn custom_pair(ctx: &ToolCtx<'_>) -> (mod_custom::Ctx, mod_custom::Actor) {
+fn custom_pair(ctx: &ActionCx<'_>) -> (mod_custom::Ctx, mod_custom::Actor) {
     (ctx.deps.custom_ctx(), ctx.deps.custom_actor(ctx.principal))
 }
 
-async fn target_id(ctx: &ToolCtx<'_>, f: &FieldSpec) -> Result<Option<i64>, ToolError> {
+async fn target_id(ctx: &ActionCx<'_>, f: &FieldSpec) -> Result<Option<i64>, ToolError> {
     let Some(t) = f.target_object.as_deref() else {
         return Ok(None);
     };
@@ -412,7 +411,7 @@ async fn target_id(ctx: &ToolCtx<'_>, f: &FieldSpec) -> Result<Option<i64>, Tool
 }
 
 /// Xoá HẲN các bảng vừa tạo trong lượt này (kèm trường/màn, chưa có bản ghi) để không để lại cấu trúc dở dang. Lỗi chỉ ghi log.
-pub(super) async fn purge_created(ctx: &ToolCtx<'_>, keys: &[String]) {
+pub(super) async fn purge_created(ctx: &ActionCx<'_>, keys: &[String]) {
     if keys.is_empty() {
         return;
     }
@@ -435,7 +434,7 @@ pub(super) async fn purge_created(ctx: &ToolCtx<'_>, keys: &[String]) {
 }
 
 /// Ghi thật: tạo bảng rồi trường. Lỗi giữa chừng ⇒ xoá các bảng vừa tạo trong lượt này.
-pub(super) async fn apply_objects(ctx: &ToolCtx<'_>, specs: &[ObjectSpec]) -> Result<Vec<String>, ToolError> {
+pub(super) async fn apply_objects(ctx: &ActionCx<'_>, specs: &[ObjectSpec]) -> Result<Vec<String>, ToolError> {
     let (cctx, actor) = custom_pair(ctx);
     let mut created: Vec<String> = Vec::new();
     let res: Result<(), ToolError> = async {
@@ -471,26 +470,60 @@ pub(super) async fn apply_objects(ctx: &ToolCtx<'_>, specs: &[ObjectSpec]) -> Re
     Ok(created)
 }
 
-fn summarize(specs: &[ObjectSpec]) -> Prepared {
+/// Một vài khoá tuỳ chọn: chỉ chèn khi có giá trị.
+fn put<T: Into<Value>>(m: &mut Map<String, Value>, k: &str, v: Option<T>) {
+    if let Some(v) = v {
+        m.insert(k.to_owned(), v.into());
+    }
+}
+
+/// Trường dạng JSON (khoá như đối số của tool và `ObjectSpec` của bản TS) để lưu vào `params` của đề xuất; `parse_field` đọc lại đúng.
+pub(super) fn field_json(f: &FieldSpec) -> Value {
+    let mut m = Map::new();
+    m.insert("label".into(), json!(f.label));
+    m.insert("type".into(), json!(f.kind));
+    m.insert("key".into(), json!(f.key));
+    put(&mut m, "required", f.required);
+    put(&mut m, "is_unique", f.is_unique);
+    put(&mut m, "is_title", f.is_title);
+    put(&mut m, "show_in_list", f.show_in_list);
+    put(&mut m, "help_text", f.help_text.clone());
+    put(&mut m, "choices", f.choices.clone());
+    put(&mut m, "target_object", f.target_object.clone());
+    put(&mut m, "multiple", f.multiple);
+    put(&mut m, "expression", f.expression.clone());
+    put(&mut m, "format", f.format.clone());
+    put(&mut m, "decimals", f.decimals);
+    Value::Object(m)
+}
+
+/// Bảng dạng JSON để lưu vào `params` (xem [`field_json`]).
+pub(super) fn object_json(s: &ObjectSpec) -> Value {
+    let mut m = Map::new();
+    m.insert("key".into(), json!(s.key));
+    m.insert("label".into(), json!(s.label));
+    m.insert("label_plural".into(), json!(s.label_plural));
+    put(&mut m, "icon", s.icon.clone());
+    put(&mut m, "description", s.description.clone());
+    put(&mut m, "code_prefix", s.code_prefix.clone());
+    m.insert("fields".into(), Value::Array(s.fields.iter().map(field_json).collect()));
+    Value::Object(m)
+}
+
+fn summarize(specs: &[ObjectSpec]) -> (Value, String, Vec<Detail>) {
     let names = specs
         .iter()
         .map(|s| format!("“{}” ({} trường)", s.label, s.fields.len()))
         .collect::<Vec<_>>()
         .join(", ");
-    Prepared {
-        params: json!({ "objects": specs.iter().map(|s| json!({ "key": s.key, "label": s.label, "fields": s.fields.len() })).collect::<Vec<_>>() }),
-        summary: format!("Dựng {} bảng mới: {names}", specs.len()),
-        details: object_details(specs),
-    }
+    (
+        json!({ "objects": specs.iter().map(object_json).collect::<Vec<_>>() }),
+        format!("Dựng {} bảng mới: {names}", specs.len()),
+        object_details(specs),
+    )
 }
 
-async fn create_flow(
-    ctx: &ToolCtx<'_>,
-    tool: &str,
-    raw: &[Value],
-    confirmation: Option<&str>,
-) -> Result<ToolOutput, ToolError> {
-    assert_direct(ctx).await?;
+async fn prepare_create(ctx: &ActionCx<'_>, raw: &[Value], confirmation: Option<&str>) -> Result<Prepared, ToolError> {
     if raw.is_empty() {
         return Err(user("Cần ít nhất một bảng."));
     }
@@ -499,51 +532,85 @@ async fn create_flow(
     }
     let specs = raw.iter().map(parse_object).collect::<Result<Vec<_>, _>>()?;
     check_objects(ctx, &specs).await?;
-    let prepared = summarize(&specs);
-    assert_confirmed(confirmation, &prepared.details)?;
-    run_direct(ctx, tool, true, prepared, async {
-        let created = apply_objects(ctx, &specs).await?;
-        Ok(json!({
-            "created_objects": created,
-            "open_at": created.iter().map(|k| format!("/x/{k}")).collect::<Vec<_>>(),
-        }))
-    })
-    .await
+    let (params, summary, details) = summarize(&specs);
+    assert_confirmed(confirmation, &details)?;
+    Ok(prepared(params, &summary, &details, None))
+}
+
+/// Dựng bảng từ `params` đã lưu (đọc lại bằng chính `parse_object`).
+async fn execute_create(params: &Value, ctx: &ActionCx<'_>) -> Result<Value, ToolError> {
+    let raw = params
+        .get("objects")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let specs = raw.iter().map(parse_object).collect::<Result<Vec<_>, _>>()?;
+    let created = apply_objects(ctx, &specs).await?;
+    Ok(json!({
+        "created_objects": created,
+        "open_at": created.iter().map(|k| format!("/x/{k}")).collect::<Vec<_>>(),
+    }))
 }
 
 fn confirmation_of(args: &Value) -> Option<&str> {
     args.get("confirmed_by_user").and_then(Value::as_str)
 }
 
-pub(super) fn create_objects<'a>(
-    args: &'a Value,
-    ctx: &'a ToolCtx<'a>,
-) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+const MANAGE: &[&str] = &["custom_objects.manage"];
+const MANAGE_FEATURES: &[&str] = &["custom_objects.manage", "settings.features"];
+
+pub(crate) static CREATE_OBJECTS: ActionDef = ActionDef {
+    name: "create_objects",
+    label: "Dựng nhiều bảng tuỳ biến",
+    permissions: MANAGE,
+    prepare: create_objects_prepare,
+    execute: create_execute,
+    structure: true,
+};
+
+pub(crate) static CREATE_OBJECT: ActionDef = ActionDef {
+    name: "create_object",
+    label: "Tạo bảng tuỳ biến",
+    permissions: MANAGE,
+    prepare: create_object_prepare,
+    execute: create_execute,
+    structure: true,
+};
+
+fn create_objects_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
     Box::pin(async move {
         let raw = args
             .get("objects")
             .and_then(Value::as_array)
             .cloned()
             .unwrap_or_default();
-        create_flow(ctx, "create_objects", &raw, confirmation_of(args)).await
+        prepare_create(ctx, &raw, confirmation_of(args)).await
     })
 }
 
-pub(super) fn create_object<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+fn create_object_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
     Box::pin(async move {
         let mut obj = args.clone();
         if let Some(m) = obj.as_object_mut() {
             m.remove("confirmed_by_user");
         }
-        create_flow(ctx, "create_object", &[obj], confirmation_of(args)).await
+        prepare_create(ctx, &[obj], confirmation_of(args)).await
     })
+}
+
+fn create_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
+    Box::pin(execute_create(params, ctx))
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Đọc bảng hiện có
 // ---------------------------------------------------------------------------------------------------------------------
 
-pub(super) async fn load_def(ctx: &ToolCtx<'_>, key: &str) -> Result<ObjectDef, ToolError> {
+pub(super) async fn load_def(ctx: &ActionCx<'_>, key: &str) -> Result<ObjectDef, ToolError> {
     let actor = ctx.deps.custom_actor(ctx.principal);
     let mut c = ctx.deps.conn(ctx.principal.company).await?;
     load_visible_object(&mut c, &actor, key, None)
@@ -561,12 +628,181 @@ fn object_key(args: &Value) -> String {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Đếm bản ghi bị ảnh hưởng (`impact.ts`)
+// ---------------------------------------------------------------------------------------------------------------------
+
+async fn count_records(ctx: &ActionCx<'_>, object_id: i32) -> Result<i64, ToolError> {
+    let mut c = ctx.deps.conn(ctx.principal.company).await?;
+    sqlx::query_scalar("SELECT count(*) FROM custom_records WHERE object_id = $1 AND deleted_at IS NULL")
+        .bind(object_id)
+        .fetch_one(&mut *c)
+        .await
+        .map_err(internal)
+}
+
+/// Số bản ghi ĐANG CÓ giá trị ở trường `key`.
+async fn count_with_value(ctx: &ActionCx<'_>, object_id: i32, key: &str) -> Result<i64, ToolError> {
+    let mut c = ctx.deps.conn(ctx.principal.company).await?;
+    sqlx::query_scalar(
+        "SELECT count(*) FROM custom_records WHERE object_id = $1 AND deleted_at IS NULL \
+         AND data ? $2::text AND data -> $2::text <> 'null'::jsonb",
+    )
+    .bind(object_id)
+    .bind(key)
+    .fetch_one(&mut *c)
+    .await
+    .map_err(internal)
+}
+
+/// Số bản ghi ĐANG DÙNG một trong các lựa chọn `values` của trường select / multi_select.
+async fn count_using_choices(
+    ctx: &ActionCx<'_>,
+    object_id: i32,
+    key: &str,
+    multi: bool,
+    values: &[String],
+) -> Result<i64, ToolError> {
+    if values.is_empty() {
+        return Ok(0);
+    }
+    let mut c = ctx.deps.conn(ctx.principal.company).await?;
+    let q = if multi {
+        sqlx::query_scalar(
+            "SELECT count(*) FROM custom_records WHERE object_id = $1 AND deleted_at IS NULL \
+             AND jsonb_typeof(data -> $2::text) = 'array' AND (data -> $2::text) ?| $3::text[]",
+        )
+    } else {
+        sqlx::query_scalar(
+            "SELECT count(*) FROM custom_records WHERE object_id = $1 AND deleted_at IS NULL \
+             AND (data ->> $2::text) = ANY($3::text[])",
+        )
+    };
+    q.bind(object_id)
+        .bind(key)
+        .bind(values)
+        .fetch_one(&mut *c)
+        .await
+        .map_err(internal)
+}
+
+const DISPLAY_KEYS: [&str; 3] = ["label", "help_text", "show_in_list"];
+
+/// Giá trị (hoặc nhãn) của một lựa chọn trong `options.choices`: chuỗi ⇒ chính nó, object ⇒ `value` rồi `label`.
+fn choice_value(c: &Value) -> String {
+    match c {
+        Value::String(s) => s.clone(),
+        o => o
+            .get("value")
+            .and_then(Value::as_str)
+            .or_else(|| o.get("label").and_then(Value::as_str))
+            .unwrap_or_default()
+            .to_owned(),
+    }
+}
+
+/// Ảnh hưởng của sửa trường (`fieldImpact`): đổi nhãn/ghi chú/hiện cột = 0 bản ghi; bỏ lựa chọn = số bản ghi đang dùng lựa chọn đó;
+/// cờ khác (bắt buộc, duy nhất, tiêu đề, công thức) = số bản ghi có dữ liệu ở trường.
+async fn field_impact(
+    ctx: &ActionCx<'_>,
+    def: &ObjectDef,
+    cur: &FieldDef,
+    patch: &Map<String, Value>,
+) -> Result<Value, ToolError> {
+    if patch.keys().all(|k| DISPLAY_KEYS.contains(&k.as_str())) {
+        return Ok(impact_json(
+            &[],
+            &[format!(
+                "Chỉ đổi cách hiển thị trường “{}”, dữ liệu không đổi.",
+                cur.label
+            )],
+        ));
+    }
+    let mut lines: Vec<String> = Vec::new();
+    let mut affected = 0_i64;
+    let cur_choices = cur.options.get("choices").and_then(Value::as_array);
+    if let (Some(opts), Some(old)) = (patch.get("options"), cur_choices) {
+        let next: Vec<String> = opts
+            .get("choices")
+            .and_then(Value::as_array)
+            .map(|a| a.iter().map(choice_value).collect())
+            .unwrap_or_default();
+        let gone: Vec<&Value> = old
+            .iter()
+            .filter(|c| {
+                let v = c.get("value").and_then(Value::as_str).unwrap_or_default();
+                let l = c.get("label").and_then(Value::as_str).unwrap_or_default();
+                !next.iter().any(|n| n == v) && !next.iter().any(|n| n == l)
+            })
+            .collect();
+        if gone.is_empty() {
+            lines.push(format!(
+                "Chỉ đổi tên/màu/thứ tự lựa chọn của “{}”; dữ liệu không đổi.",
+                cur.label
+            ));
+        } else {
+            let values: Vec<String> = gone
+                .iter()
+                .map(|c| c.get("value").and_then(Value::as_str).unwrap_or_default().to_owned())
+                .collect();
+            affected = count_using_choices(ctx, def.obj.id, &cur.key, cur.kind == "multi_select", &values).await?;
+            let names: Vec<&str> = gone
+                .iter()
+                .map(|c| c.get("label").and_then(Value::as_str).unwrap_or_default())
+                .collect();
+            lines.push(format!(
+                "{affected} bản ghi của “{}” đang dùng lựa chọn bị bỏ: {} (lựa chọn còn bản ghi dùng sẽ bị chặn lúc duyệt).",
+                def.obj.label,
+                names.join(", ")
+            ));
+        }
+    }
+    let formula_edit = cur.kind == "formula" && patch.contains_key("options");
+    if formula_edit
+        || patch
+            .keys()
+            .any(|k| !DISPLAY_KEYS.contains(&k.as_str()) && k != "options")
+    {
+        let with_value = count_with_value(ctx, def.obj.id, &cur.key).await?;
+        affected = affected.max(with_value);
+        lines.insert(
+            0,
+            format!(
+                "{with_value} bản ghi của “{}” đang có dữ liệu ở trường “{}”.",
+                def.obj.label, cur.label
+            ),
+        );
+        if patch.get("required") == Some(&json!(true)) && !cur.required {
+            let total = count_records(ctx, def.obj.id).await?;
+            lines.push(format!(
+                "{} bản ghi đang TRỐNG trường này sẽ bị báo lỗi bắt buộc khi sửa lần sau.",
+                (total - with_value).max(0)
+            ));
+        }
+        if patch.get("is_title") == Some(&json!(true)) {
+            lines.push("Đổi trường tiêu đề: tiêu đề của MỌI bản ghi được tính lại.".to_owned());
+        }
+    }
+    Ok(impact_json(
+        &[(def.obj.key.clone(), def.obj.label.clone(), affected)],
+        &lines,
+    ))
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // update_object
 // ---------------------------------------------------------------------------------------------------------------------
 
-pub(super) fn update_object<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+pub(crate) static UPDATE_OBJECT: ActionDef = ActionDef {
+    name: "update_object",
+    label: "Sửa bảng tuỳ biến",
+    permissions: MANAGE,
+    prepare: update_object_prepare,
+    execute: update_object_execute,
+    structure: true,
+};
+
+fn update_object_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
     Box::pin(async move {
-        assert_direct(ctx).await?;
         let key = object_key(args);
         let def = load_def(ctx, &key).await?;
         let mut patch = Map::new();
@@ -599,23 +835,6 @@ pub(super) fn update_object<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFut
                 CUSTOM_ICONS.join(", ")
             )));
         }
-        let dto = UpdateObject {
-            label: patch.get("label").and_then(Value::as_str).map(str::to_owned),
-            label_plural: patch.get("label_plural").and_then(Value::as_str).map(str::to_owned),
-            icon: patch
-                .get("icon")
-                .and_then(Value::as_str)
-                .map_or(Patch::Keep, |s| Patch::Set(s.to_owned())),
-            description: patch
-                .get("description")
-                .and_then(Value::as_str)
-                .map_or(Patch::Keep, |s| Patch::Set(s.to_owned())),
-            show_in_nav: patch.get("show_in_nav").and_then(Value::as_bool),
-            nav_order: None,
-            visible_role_ids: None,
-            is_active: patch.get("is_active").and_then(Value::as_bool),
-            code_prefix: patch.get("code_prefix").and_then(Value::as_str).map(str::to_owned),
-        };
         let changed: Vec<String> = patch.keys().cloned().collect();
         let new_label = patch.get("label").and_then(Value::as_str).unwrap_or_default();
         let shown_name = if !new_label.is_empty() && new_label != def.obj.label.trim() {
@@ -631,25 +850,57 @@ pub(super) fn update_object<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFut
                 .iter()
                 .filter_map(|(k, v)| line(k, v.as_str().map_or_else(|| v.to_string(), str::to_owned), 600)),
         );
-        let prepared = Prepared {
-            params: json!({ "object": key, "patch": Value::Object(patch.clone()) }),
-            summary: format!(
-                "Sửa bảng “{shown_name}”: {}{}",
-                changed.join(", "),
-                if patch.get("is_active") == Some(&json!(false)) {
-                    " (ẨN bảng)"
-                } else {
-                    ""
-                }
-            ),
-            details,
+        let deactivate = patch.get("is_active") == Some(&json!(false));
+        let hides = deactivate || patch.get("show_in_nav") == Some(&json!(false));
+        let records = if hides {
+            count_records(ctx, def.obj.id).await?
+        } else {
+            0
         };
-        run_direct(ctx, "update_object", true, prepared, async {
-            let (cctx, actor) = custom_pair(ctx);
-            objects::update(&cctx, &actor, &key, &dto).await.map_err(user_err)?;
-            Ok(json!({ "object": key, "updated": changed }))
-        })
-        .await
+        let note = if hides {
+            format!(
+                "{records} bản ghi của “{}” sẽ {}.",
+                def.obj.label,
+                if deactivate {
+                    "bị ẨN với mọi người trừ quản trị viên"
+                } else {
+                    "không còn mục menu (vẫn mở được qua đường dẫn)"
+                }
+            )
+        } else {
+            "Chỉ đổi tên/mô tả/biểu tượng, dữ liệu không đổi.".to_owned()
+        };
+        let impact = impact_json(&[(key.clone(), def.obj.label.clone(), records)], &[note]);
+        let summary = format!(
+            "Sửa bảng “{shown_name}”: {}{}",
+            changed.join(", "),
+            if deactivate { " (ẨN bảng)" } else { "" }
+        );
+        Ok(prepared(
+            json!({ "object": key, "patch": Value::Object(patch) }),
+            &summary,
+            &details,
+            Some(impact),
+        ))
+    })
+}
+
+fn update_object_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
+    Box::pin(async move {
+        let key = params.get("object").and_then(Value::as_str).unwrap_or_default();
+        let patch = params.get("patch").cloned().unwrap_or_else(|| json!({}));
+        let dto = UpdateObject::from_validated(&patch);
+        let (cctx, actor) = custom_pair(ctx);
+        objects::update(&cctx, &actor, key, &dto).await.map_err(user_err)?;
+        let updated: Vec<String> = patch
+            .as_object()
+            .map(|m| m.keys().cloned().collect())
+            .unwrap_or_default();
+        Ok(json!({ "object": key, "updated": updated }))
     })
 }
 
@@ -657,9 +908,17 @@ pub(super) fn update_object<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFut
 // add_field / update_field / archive_field
 // ---------------------------------------------------------------------------------------------------------------------
 
-pub(super) fn add_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+pub(crate) static ADD_FIELD: ActionDef = ActionDef {
+    name: "add_field",
+    label: "Thêm trường",
+    permissions: MANAGE,
+    prepare: add_field_prepare,
+    execute: add_field_execute,
+    structure: true,
+};
+
+fn add_field_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
     Box::pin(async move {
-        assert_direct(ctx).await?;
         let key = object_key(args);
         let def = load_def(ctx, &key).await?;
         let f = parse_field(args)?;
@@ -692,20 +951,30 @@ pub(super) fn add_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<
         ));
         details.extend(line("Liên kết tới", f.target_object.clone().unwrap_or_default(), 600));
         details.extend(line("Công thức", f.expression.clone().unwrap_or_default(), 600));
-        let prepared = Prepared {
-            params: json!({ "object": key, "field": { "key": f.key, "label": f.label, "type": f.kind } }),
-            summary: format!("Thêm trường “{}” ({}) vào bảng “{}”", f.label, f.kind, def.obj.label),
-            details,
-        };
-        run_direct(ctx, "add_field", true, prepared, async {
-            let (cctx, actor) = custom_pair(ctx);
-            let tid = target_id(ctx, &f).await?;
-            let created = fields::create(&cctx, &actor, &key, &to_create_field(&f, tid))
-                .await
-                .map_err(user_err)?;
-            Ok(json!({ "object": key, "field": created.get("key").cloned().unwrap_or_else(|| json!(f.key)) }))
-        })
-        .await
+        let summary = format!("Thêm trường “{}” ({}) vào bảng “{}”", f.label, f.kind, def.obj.label);
+        Ok(prepared(
+            json!({ "object": key, "field": field_json(&f) }),
+            &summary,
+            &details,
+            None,
+        ))
+    })
+}
+
+fn add_field_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
+    Box::pin(async move {
+        let key = params.get("object").and_then(Value::as_str).unwrap_or_default();
+        let f = parse_field(&params["field"])?;
+        let (cctx, actor) = custom_pair(ctx);
+        let tid = target_id(ctx, &f).await?;
+        let created = fields::create(&cctx, &actor, key, &to_create_field(&f, tid))
+            .await
+            .map_err(user_err)?;
+        Ok(json!({ "object": key, "field": created.get("key").cloned().unwrap_or_else(|| json!(f.key)) }))
     })
 }
 
@@ -736,9 +1005,17 @@ fn options_patch(args: &Value, kind: &str) -> Result<Option<Value>, ToolError> {
     Ok(None)
 }
 
-pub(super) fn update_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+pub(crate) static UPDATE_FIELD: ActionDef = ActionDef {
+    name: "update_field",
+    label: "Sửa trường",
+    permissions: MANAGE,
+    prepare: update_field_prepare,
+    execute: update_field_execute,
+    structure: true,
+};
+
+fn update_field_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
     Box::pin(async move {
-        assert_direct(ctx).await?;
         let key = object_key(args);
         let fkey = clean_text(args.get("field"), 48);
         let def = load_def(ctx, &key).await?;
@@ -750,22 +1027,22 @@ pub(super) fn update_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutu
         let label = opt_clean(args.get("label"), 100);
         let help = opt_clean(args.get("help_text"), 300);
         let options = options_patch(args, &cur.kind)?;
-        let mut shown: Vec<(String, String)> = Vec::new();
+        let mut patch = Map::new();
         if let Some(l) = &label {
-            shown.push(("label".into(), l.clone()));
+            patch.insert("label".into(), json!(l));
         }
         for k in ["required", "is_unique", "is_title", "show_in_list"] {
             if let Some(b) = flag(args, k) {
-                shown.push((k.to_owned(), b.to_string()));
+                patch.insert(k.to_owned(), json!(b));
             }
         }
         if let Some(h) = &help {
-            shown.push(("help_text".into(), h.clone()));
+            patch.insert("help_text".into(), json!(h));
         }
         if let Some(o) = &options {
-            shown.push(("options".into(), o.to_string()));
+            patch.insert("options".into(), o.clone());
         }
-        if shown.is_empty() {
+        if patch.is_empty() {
             return Err(user("Không có gì để sửa."));
         }
         if let Some(o) = &options {
@@ -778,16 +1055,6 @@ pub(super) fn update_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutu
             flag(args, "is_title").unwrap_or(cur.is_title),
         )
         .map_err(|e| user(app_msg(e)))?;
-        let dto = UpdateField {
-            label: label.clone(),
-            kind: None,
-            required: flag(args, "required"),
-            is_unique: flag(args, "is_unique"),
-            is_title: flag(args, "is_title"),
-            show_in_list: flag(args, "show_in_list"),
-            options,
-            help_text: help.map_or(Patch::Keep, Patch::Set),
-        };
         let shown_name = match &label {
             Some(l) if l != cur.label.trim() => format!("{} → {l}", cur.label.trim()),
             _ => cur.label.trim().to_owned(),
@@ -795,30 +1062,52 @@ pub(super) fn update_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutu
         let mut details: Vec<Detail> = Vec::new();
         details.extend(line("Bảng", format!("{} [{key}]", def.obj.label), 600));
         details.extend(line("Trường", format!("{} [{fkey}]", cur.label), 600));
-        details.extend(shown.iter().filter_map(|(k, v)| line(k, v.clone(), 600)));
-        let prepared = Prepared {
-            params: json!({ "object": key, "field": fkey, "patch": shown.iter().map(|(k, _)| k.clone()).collect::<Vec<_>>() }),
-            summary: format!(
-                "Sửa trường “{shown_name}” của bảng “{}”: {}",
-                def.obj.label,
-                shown.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>().join(", ")
-            ),
-            details,
-        };
-        run_direct(ctx, "update_field", true, prepared, async {
-            let (cctx, actor) = custom_pair(ctx);
-            fields::update(&cctx, &actor, &key, &fkey, &dto)
-                .await
-                .map_err(user_err)?;
-            Ok(json!({ "object": key, "field": fkey }))
-        })
-        .await
+        details.extend(
+            patch
+                .iter()
+                .filter_map(|(k, v)| line(k, v.as_str().map_or_else(|| v.to_string(), str::to_owned), 600)),
+        );
+        let summary = format!(
+            "Sửa trường “{shown_name}” của bảng “{}”: {}",
+            def.obj.label,
+            patch.keys().map(String::as_str).collect::<Vec<_>>().join(", ")
+        );
+        let impact = field_impact(ctx, &def, cur, &patch).await?;
+        Ok(prepared(
+            json!({ "object": key, "field": fkey, "patch": Value::Object(patch) }),
+            &summary,
+            &details,
+            Some(impact),
+        ))
     })
 }
 
-pub(super) fn archive_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+fn update_field_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
     Box::pin(async move {
-        assert_direct(ctx).await?;
+        let key = params.get("object").and_then(Value::as_str).unwrap_or_default();
+        let fkey = params.get("field").and_then(Value::as_str).unwrap_or_default();
+        let dto = UpdateField::from_validated(&params["patch"]);
+        let (cctx, actor) = custom_pair(ctx);
+        fields::update(&cctx, &actor, key, fkey, &dto).await.map_err(user_err)?;
+        Ok(json!({ "object": key, "field": fkey }))
+    })
+}
+
+pub(crate) static ARCHIVE_FIELD: ActionDef = ActionDef {
+    name: "archive_field",
+    label: "Ẩn trường",
+    permissions: MANAGE,
+    prepare: archive_field_prepare,
+    execute: archive_field_execute,
+    structure: true,
+};
+
+fn archive_field_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
+    Box::pin(async move {
         let key = object_key(args);
         let fkey = clean_text(args.get("field"), 48);
         let def = load_def(ctx, &key).await?;
@@ -839,6 +1128,14 @@ pub(super) fn archive_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFut
                 used.iter().map(|f| f.label.as_str()).collect::<Vec<_>>().join("”, “")
             )));
         }
+        let with_value = count_with_value(ctx, def.obj.id, &fkey).await?;
+        let impact = impact_json(
+            &[(key.clone(), def.obj.label.clone(), with_value)],
+            &[format!(
+                "{with_value} bản ghi của “{}” đang có dữ liệu ở trường “{}” — sẽ KHÔNG còn thấy trên form/danh sách (dữ liệu vẫn giữ, quay lui được).",
+                def.obj.label, cur.label
+            )],
+        );
         let mut details: Vec<Detail> = Vec::new();
         details.extend(line("Bảng", format!("{} [{key}]", def.obj.label), 600));
         details.extend(line("Trường", format!("{} [{fkey}]", cur.label), 600));
@@ -847,20 +1144,30 @@ pub(super) fn archive_field<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFut
             "Trường biến khỏi form/danh sách; dữ liệu cũ vẫn nằm trong bản ghi",
             600,
         ));
-        let prepared = Prepared {
-            params: json!({ "object": key, "field": fkey }),
-            summary: format!(
-                "Ẩn trường “{}” của bảng “{}” (dữ liệu giữ nguyên)",
-                cur.label, def.obj.label
-            ),
-            details,
-        };
-        run_direct(ctx, "archive_field", true, prepared, async {
-            let (cctx, actor) = custom_pair(ctx);
-            fields::remove(&cctx, &actor, &key, &fkey).await.map_err(user_err)?;
-            Ok(json!({ "object": key, "field": fkey, "archived": true }))
-        })
-        .await
+        let summary = format!(
+            "Ẩn trường “{}” của bảng “{}” (dữ liệu giữ nguyên)",
+            cur.label, def.obj.label
+        );
+        Ok(prepared(
+            json!({ "object": key, "field": fkey }),
+            &summary,
+            &details,
+            Some(impact),
+        ))
+    })
+}
+
+fn archive_field_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
+    Box::pin(async move {
+        let key = params.get("object").and_then(Value::as_str).unwrap_or_default();
+        let fkey = params.get("field").and_then(Value::as_str).unwrap_or_default();
+        let (cctx, actor) = custom_pair(ctx);
+        fields::remove(&cctx, &actor, key, fkey).await.map_err(user_err)?;
+        Ok(json!({ "object": key, "field": fkey, "archived": true }))
     })
 }
 
@@ -887,13 +1194,18 @@ fn diff_tables(diff: &Value) -> Vec<(String, String, String, i64)> {
         .unwrap_or_default()
 }
 
-pub(super) fn restore_structure_version<'a>(
-    args: &'a Value,
-    ctx: &'a ToolCtx<'a>,
-) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+pub(crate) static RESTORE_STRUCTURE_VERSION: ActionDef = ActionDef {
+    name: "restore_structure_version",
+    label: "Quay lui cấu trúc",
+    permissions: MANAGE_FEATURES,
+    prepare: restore_prepare,
+    execute: restore_execute,
+    structure: true,
+};
+
+fn restore_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
     Box::pin(async move {
-        assert_direct(ctx).await?;
-        let p: &Principal = ctx.principal;
+        let p = ctx.principal;
         let id = crate::args::opt_int(args.get("version_id"))
             .ok_or_else(|| user("version_id phải là số nguyên dương (lấy từ list_structure_versions)."))?;
         let tables = {
@@ -918,25 +1230,41 @@ pub(super) fn restore_structure_version<'a>(
             .iter()
             .filter_map(|(k, l, ch, n)| line(&format!("{l} [{k}]"), format!("{ch} — {n} bản ghi"), 600))
             .collect();
-        let prepared = Prepared {
-            params: json!({ "version_id": id }),
-            summary: format!(
-                "Quay lui cấu trúc về phiên bản #{id}: {}",
-                tables.iter().map(|t| t.1.as_str()).collect::<Vec<_>>().join(", ")
-            ),
-            details,
-        };
-        run_direct(ctx, "restore_structure_version", true, prepared, async {
-            // Khôi phục phải chạy trong MỘT giao dịch (hàm của mod-custom không tự mở).
-            let cctx = ctx.deps.custom_ctx();
-            let mut tx = cctx.begin(p.company).await.map_err(user_err)?;
-            let r = mod_custom::versions::restore(&mut tx, id, p.user_id)
-                .await
-                .map_err(user_err)?;
-            tx.commit().await.map_err(internal)?;
-            Ok(r)
-        })
-        .await
+        let summary = format!(
+            "Quay lui cấu trúc về phiên bản #{id}: {}",
+            tables.iter().map(|t| t.1.as_str()).collect::<Vec<_>>().join(", ")
+        );
+        let impact = impact_json(
+            &tables
+                .iter()
+                .map(|(k, l, _, n)| (k.clone(), l.clone(), *n))
+                .collect::<Vec<_>>(),
+            &tables
+                .iter()
+                .map(|(_, l, ch, n)| format!("{l}: {ch} ({n} bản ghi)"))
+                .collect::<Vec<_>>(),
+        );
+        Ok(prepared(json!({ "version_id": id }), &summary, &details, Some(impact)))
+    })
+}
+
+fn restore_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
+    Box::pin(async move {
+        let p = ctx.principal;
+        let id = crate::args::opt_int(params.get("version_id"))
+            .ok_or_else(|| user("version_id phải là số nguyên dương."))?;
+        // Khôi phục phải chạy trong MỘT giao dịch (hàm của mod-custom không tự mở).
+        let cctx = ctx.deps.custom_ctx();
+        let mut tx = cctx.begin(p.company).await.map_err(user_err)?;
+        let r = mod_custom::versions::restore(&mut tx, id, p.user_id)
+            .await
+            .map_err(user_err)?;
+        tx.commit().await.map_err(internal)?;
+        Ok(r)
     })
 }
 

@@ -56,6 +56,9 @@ pub struct Prepared {
     pub params: Value,
     pub summary: String,
     pub details: Vec<Value>,
+    /// Đổi cấu trúc: ảnh hưởng tới dữ liệu đang có (`{affected_records, confirm_label, lines, tables}`); có `confirm_label` thì người
+    /// duyệt phải gõ đúng tên bảng. `None` cho thao tác không đổi cấu trúc.
+    pub impact: Option<Value>,
 }
 
 pub type PrepareFn = for<'a> fn(&'a Value, &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>>;
@@ -69,11 +72,16 @@ pub struct ActionDef {
     pub permissions: &'static [&'static str],
     pub prepare: PrepareFn,
     pub execute: ExecuteFn,
+    /// Đổi cấu trúc bảng/màn/menu: chụp phiên bản cấu trúc TRƯỚC khi chạy (`STRUCTURE_TOOLS` của bản TS) để quay lui được.
+    pub structure: bool,
 }
 
 /// Mọi thao tác ghi (cố ý KHÔNG có xoá cứng, xuất file, quản trị người dùng/vai trò).
-pub fn all() -> [&'static ActionDef; 8] {
-    use crate::tools::{act_contacts as c, act_records as r, act_tasks as t};
+pub fn all() -> [&'static ActionDef; 22] {
+    use crate::tools::{
+        act_contacts as c, act_records as r, act_tasks as t, import as i, structure as s, template as tp,
+        view_tools as v,
+    };
     [
         &c::CREATE_CONTACT,
         &c::ADD_CONTACT_NOTE,
@@ -83,6 +91,20 @@ pub fn all() -> [&'static ActionDef; 8] {
         &r::CREATE_RECORD,
         &r::UPDATE_RECORD,
         &r::ARCHIVE_RECORD,
+        &s::CREATE_OBJECTS,
+        &s::CREATE_OBJECT,
+        &s::UPDATE_OBJECT,
+        &s::ADD_FIELD,
+        &s::UPDATE_FIELD,
+        &s::ARCHIVE_FIELD,
+        &tp::INSTALL_OBJECT_TEMPLATE,
+        &tp::SETUP_BUILD,
+        &tp::PROPOSE_WORKSPACE,
+        &i::IMPORT_RECORDS,
+        &v::CREATE_VIEW,
+        &v::UPDATE_VIEW,
+        &v::SET_MENU,
+        &s::RESTORE_STRUCTURE_VERSION,
     ]
 }
 
@@ -93,6 +115,28 @@ pub fn find(name: &str) -> Option<&'static ActionDef> {
 /// Nhãn và quyền của một loại đề xuất (cho `mod-ai-actions`).
 pub fn info(name: &str) -> Option<(&'static str, &'static [&'static str])> {
     find(name).map(|a| (a.label, a.permissions))
+}
+
+/// Loại đề xuất này đổi cấu trúc (cần chụp phiên bản trước khi duyệt).
+pub fn is_structure(name: &str) -> bool {
+    find(name).is_some_and(|d| d.structure)
+}
+
+/// Chụp phiên bản cấu trúc TRƯỚC khi một thao tác cấu trúc chạy (gắn với id đề xuất). Không chụp được ⇒ lỗi và KHÔNG đổi gì.
+pub async fn save_version(
+    deps: &ToolDeps,
+    principal: &Principal,
+    draft_id: i32,
+    tool: &str,
+    summary: &str,
+) -> Result<(), AppError> {
+    let mut c = deps
+        .conn(principal.company)
+        .await
+        .map_err(|e| AppError::internal(format!("{e:?}")))?;
+    mod_custom::versions::save(&mut c, Some(draft_id), tool, summary, principal.user_id)
+        .await
+        .map(|_| ())
 }
 
 /// Chạy đề xuất đã duyệt với người duyệt thật; quyền đã kiểm ở `mod-ai-actions`.
@@ -602,8 +646,8 @@ async fn insert_draft(cx: &ActionCx<'_>, def: &ActionDef, pr: &Prepared) -> Resu
     }
     let summary = slice16(&pr.summary, 1000);
     let (id, expires_at): (i32, DateTime<Utc>) = sqlx::query_as(
-        "INSERT INTO ai_action_drafts (user_id, client_id, tool, params, summary, details, expires_at)
-         VALUES ($1, $2, $3, $4::text::jsonb, $5, $6::text::jsonb, now() + interval '24 hours')
+        "INSERT INTO ai_action_drafts (user_id, client_id, tool, params, summary, details, impact, expires_at)
+         VALUES ($1, $2, $3, $4::text::jsonb, $5, $6::text::jsonb, $7::text::jsonb, now() + interval '24 hours')
          RETURNING id, expires_at",
     )
     .bind(p.user_id)
@@ -612,6 +656,7 @@ async fn insert_draft(cx: &ActionCx<'_>, def: &ActionDef, pr: &Prepared) -> Resu
     .bind(&params)
     .bind(&summary)
     .bind(js_json(&Value::Array(pr.details.clone())))
+    .bind(pr.impact.as_ref().map(js_json))
     .fetch_one(&mut *tx)
     .await
     .map_err(internal)?;
@@ -696,8 +741,8 @@ async fn execute_now(
     let id = {
         let mut c = cx.deps.conn(p.company).await?;
         sqlx::query_scalar::<_, i32>(
-            "INSERT INTO ai_action_drafts (user_id, client_id, tool, params, summary, details, status, decided_at, expires_at)
-             VALUES ($1, $2, $3, $4::text::jsonb, $5, $6::text::jsonb, 'approved', now(), now() + interval '24 hours')
+            "INSERT INTO ai_action_drafts (user_id, client_id, tool, params, summary, details, impact, status, decided_at, expires_at)
+             VALUES ($1, $2, $3, $4::text::jsonb, $5, $6::text::jsonb, $7::text::jsonb, 'approved', now(), now() + interval '24 hours')
              RETURNING id",
         )
         .bind(p.user_id)
@@ -706,10 +751,19 @@ async fn execute_now(
         .bind(js_json(&prepared.params))
         .bind(&summary)
         .bind(js_json(&Value::Array(prepared.details.clone())))
+        .bind(prepared.impact.as_ref().map(js_json))
         .fetch_one(&mut *c)
         .await
         .map_err(internal)?
     };
+    // Chụp cấu trúc TRƯỚC khi đổi để quay lui được; không chụp được thì KHÔNG đổi (như bản TS).
+    if def.structure
+        && let Err(e) = save_version(cx.deps, p, id, def.name, &summary).await
+    {
+        let e = internal(e);
+        mark_failed(cx, def, id, &summary, &e).await;
+        return Err(e);
+    }
     let result = match (def.execute)(&prepared.params, cx, id).await {
         Ok(r) => r,
         Err(e) => {
@@ -728,8 +782,43 @@ async fn execute_now(
     audit_log(cx, &e).await;
     wrapped(&json!({
         "action_id": id, "status": "executed", "summary": summary, "result": result,
-        "message": format!("Đã thực hiện: {summary}"),
+        "message": format!("Đã thực hiện: {summary}{}", row_error_note(&result)),
     }))
+}
+
+/// Vài dòng lỗi đầu của `result.errors` `[{row, reason}]` (import) để nêu ngay trong `message` (`rowErrorNote` của bản TS).
+fn row_error_note(result: &Value) -> String {
+    let Some(errs) = result.get("errors").and_then(Value::as_array).filter(|a| !a.is_empty()) else {
+        return String::new();
+    };
+    let total = result
+        .get("error_total")
+        .and_then(Value::as_u64)
+        .unwrap_or(errs.len() as u64);
+    let mut rows: Vec<(i64, String)> = errs
+        .iter()
+        .map(|e| {
+            let row = e.get("row").and_then(Value::as_i64).unwrap_or(0);
+            let obj = e
+                .get("object")
+                .and_then(Value::as_str)
+                .map(|o| format!("{o} "))
+                .unwrap_or_default();
+            let reason = e.get("reason").and_then(Value::as_str).unwrap_or_default();
+            let reason = if reason.chars().count() > 80 {
+                format!("{}…", reason.chars().take(80).collect::<String>())
+            } else {
+                reason.to_owned()
+            };
+            (row, format!("{obj}dòng {row}: {reason}"))
+        })
+        .collect();
+    rows.sort_by_key(|r| r.0);
+    let preview = rows.iter().take(3).map(|r| r.1.as_str()).collect::<Vec<_>>().join("; ");
+    format!(
+        ". {total} dòng lỗi không ghi: {preview}{}",
+        if total > 3 { " … (xem result.errors)" } else { "" }
+    )
 }
 
 async fn save_result(cx: &ActionCx<'_>, id: i32, result: &Value) {
@@ -873,7 +962,7 @@ mod tests {
     #[test]
     fn khong_co_tool_xoa_va_ten_khong_trung() {
         let names: Vec<&str> = all().iter().map(|a| a.name).collect();
-        assert_eq!(names.len(), 8);
+        assert_eq!(names.len(), 22);
         let mut sorted = names.clone();
         sorted.sort_unstable();
         sorted.dedup();
@@ -931,5 +1020,23 @@ mod tests {
         assert!(covers(Some(&OwnerIds::Ids(vec![1, 5])), 5));
         assert!(!covers(Some(&OwnerIds::Ids(vec![1])), 5));
         assert!(!covers(None, 5));
+    }
+
+    #[test]
+    fn thao_tac_cau_truc_duoc_chup_phien_ban() {
+        let mut st: Vec<&str> = all().iter().filter(|a| a.structure).map(|a| a.name).collect();
+        st.sort_unstable();
+        assert_eq!(st.len(), 13);
+        assert!(is_structure("create_view") && is_structure("restore_structure_version"));
+        // Nhập dữ liệu và thao tác bản ghi/khách/việc không đổi cấu trúc.
+        for n in [
+            "import_records",
+            "create_record",
+            "create_contact",
+            "create_task",
+            "nope",
+        ] {
+            assert!(!is_structure(n), "{n}");
+        }
     }
 }

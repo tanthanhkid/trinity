@@ -96,6 +96,7 @@ pub(crate) static CREATE_CONTACT: ActionDef = ActionDef {
     permissions: &["contacts.create"],
     prepare: create_prepare,
     execute: create_execute,
+    structure: false,
 };
 
 fn create_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
@@ -137,6 +138,7 @@ fn create_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Re
             params,
             summary,
             details,
+            impact: None,
         })
     })
 }
@@ -168,6 +170,7 @@ pub(crate) static ADD_CONTACT_NOTE: ActionDef = ActionDef {
     permissions: &["contacts.update"],
     prepare: note_prepare,
     execute: note_execute,
+    structure: false,
 };
 
 fn note_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
@@ -191,6 +194,7 @@ fn note_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Resu
                 line("Khách hàng", Some(who.as_str()), 600),
                 line("Nội dung ghi chú", Some(note.as_str()), NOTE_MAX),
             ]),
+            impact: None,
         })
     })
 }
@@ -243,6 +247,7 @@ pub(crate) static UPDATE_CONTACT_STAGE: ActionDef = ActionDef {
     permissions: &["contacts.update"],
     prepare: stage_prepare,
     execute: stage_execute,
+    structure: false,
 };
 
 fn stage_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
@@ -266,6 +271,7 @@ fn stage_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Res
                 line("Giai đoạn hiện tại", Some(from.as_str()), 600),
                 line("Giai đoạn mới", Some(to.as_str()), 600),
             ]),
+            impact: None,
         })
     })
 }
@@ -302,6 +308,7 @@ pub(crate) static ASSIGN_CONTACT: ActionDef = ActionDef {
     permissions: &["contacts.transfer"],
     prepare: assign_prepare,
     execute: assign_execute,
+    structure: false,
 };
 
 fn assign_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
@@ -349,6 +356,7 @@ fn assign_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Re
                 line("Người nhận", Some(target_name.as_str()), 600),
                 line("Lý do", Some(reason.as_str()), 600),
             ]),
+            impact: None,
         })
     })
 }

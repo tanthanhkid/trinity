@@ -7,10 +7,9 @@ use mod_custom::views::{self, VIEW_TYPES, ViewSpec};
 use serde_json::{Map, Value, json};
 
 use super::structure::{app_msg, load_def};
-use super::write::{
-    Detail, Prepared, assert_direct, clean_text, fold_words, internal, line, opt_clean, run_direct, user, user_err,
-};
-use crate::exec::{ToolCtx, ToolError, ToolOutput};
+use super::write::{Detail, clean_text, fold_words, impact_json, internal, line, opt_clean, prepared, user, user_err};
+use crate::actions::{ActionCx, ActionDef, Prepared};
+use crate::exec::ToolError;
 use crate::protocol::BoxFuture;
 
 const VIEW_TYPE_WORDS: [(&str, &[&str]); 4] = [
@@ -177,58 +176,115 @@ pub(super) fn describe_view(s: &ViewSpec) -> String {
     }
 }
 
-pub(super) fn create_view<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+/// `ViewSpec` dạng JSON (`{key, label, type, config, icon, show_in_nav}`) để lưu vào `params` của đề xuất.
+pub(super) fn view_spec_json(v: &ViewSpec) -> Value {
+    json!({
+        "key": v.key,
+        "label": v.label,
+        "type": v.kind,
+        "config": v.config,
+        "icon": v.icon,
+        "show_in_nav": v.show_in_nav.unwrap_or(false),
+    })
+}
+
+/// Đọc lại [`view_spec_json`] (chưa kiểm: gọi `views::check` trước khi ghi).
+pub(super) fn view_spec_from_json(v: &Value) -> ViewSpec {
+    let s = |k: &str| v.get(k).and_then(Value::as_str).unwrap_or_default().to_owned();
+    ViewSpec {
+        key: s("key"),
+        label: s("label"),
+        kind: s("type"),
+        config: v.get("config").cloned().unwrap_or_else(|| json!({})),
+        icon: v.get("icon").and_then(Value::as_str).map(str::to_owned),
+        show_in_nav: v.get("show_in_nav").and_then(Value::as_bool),
+    }
+}
+
+pub(crate) static CREATE_VIEW: ActionDef = ActionDef {
+    name: "create_view",
+    label: "Tạo màn xem (danh sách/kanban/lịch/bảng)",
+    permissions: &["custom_objects.manage"],
+    prepare: create_view_prepare,
+    execute: create_view_execute,
+    structure: true,
+};
+
+/// Khoá các màn đang dùng của bảng.
+async fn taken_view_keys(ctx: &ActionCx<'_>, object_id: i32) -> Result<Vec<String>, ToolError> {
+    let mut c = ctx.deps.conn(ctx.principal.company).await?;
+    sqlx::query_scalar("SELECT key FROM custom_views WHERE object_id = $1 AND deleted_at IS NULL")
+        .bind(object_id)
+        .fetch_all(&mut *c)
+        .await
+        .map_err(internal)
+}
+
+fn create_view_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
     Box::pin(async move {
-        assert_direct(ctx).await?;
         let key = clean_text(args.get("object"), 48);
         let def = load_def(ctx, &key).await?;
         let spec = parse_view(args)?;
         let ignore = table_names(&def.obj.key, &def.obj.label, &def.obj.label_plural, Some(&spec.label));
         assert_type_chosen(&spec.kind, args.get("type_words").and_then(Value::as_str), &ignore)?;
-        let taken: Vec<String> = {
-            let mut c = ctx.deps.conn(ctx.principal.company).await?;
-            sqlx::query_scalar("SELECT key FROM custom_views WHERE object_id = $1 AND deleted_at IS NULL")
-                .bind(def.obj.id)
-                .fetch_all(&mut *c)
-                .await
-                .map_err(internal)?
-        };
+        let taken = taken_view_keys(ctx, def.obj.id).await?;
         let ok = views::check(&def, &spec, &taken).map_err(user_err)?;
         let mut details: Vec<Detail> = Vec::new();
         details.extend(line("Bảng", format!("{} [{key}]", def.obj.label), 600));
         details.extend(line("Màn", format!("{} [{}]", ok.label, ok.key), 600));
         details.extend(line("Kiểu", describe_view(&ok), 600));
         details.extend(line("Cấu hình", ok.config.to_string(), 600));
-        let prepared = Prepared {
-            params: json!({ "object": key, "view": { "key": ok.key, "label": ok.label, "type": ok.kind } }),
-            summary: format!(
-                "Tạo màn “{}” cho bảng “{}”: {}",
-                ok.label,
-                def.obj.label,
-                describe_view(&ok)
-            ),
-            details,
-        };
-        run_direct(ctx, "create_view", false, prepared, async {
-            let mut tx = ctx
-                .deps
-                .custom_ctx()
-                .begin(ctx.principal.company)
-                .await
-                .map_err(user_err)?;
-            let v = views::create(&mut tx, &def, &ok, ctx.principal.user_id)
-                .await
-                .map_err(user_err)?;
-            tx.commit().await.map_err(internal)?;
-            Ok(json!({ "view": v.key, "open_at": format!("/x/{}/v/{}", def.obj.key, v.key) }))
-        })
-        .await
+        let summary = format!(
+            "Tạo màn “{}” cho bảng “{}”: {}",
+            ok.label,
+            def.obj.label,
+            describe_view(&ok)
+        );
+        Ok(prepared(
+            json!({ "object": key, "view": view_spec_json(&ok) }),
+            &summary,
+            &details,
+            None,
+        ))
     })
 }
 
-pub(super) fn update_view<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+fn create_view_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
     Box::pin(async move {
-        assert_direct(ctx).await?;
+        let key = params.get("object").and_then(Value::as_str).unwrap_or_default();
+        let def = load_def(ctx, key).await?;
+        let spec = view_spec_from_json(&params["view"]);
+        let taken = taken_view_keys(ctx, def.obj.id).await?;
+        let ok = views::check(&def, &spec, &taken).map_err(user_err)?;
+        let mut tx = ctx
+            .deps
+            .custom_ctx()
+            .begin(ctx.principal.company)
+            .await
+            .map_err(user_err)?;
+        let v = views::create(&mut tx, &def, &ok, ctx.principal.user_id)
+            .await
+            .map_err(user_err)?;
+        tx.commit().await.map_err(internal)?;
+        Ok(json!({ "view": v.key, "open_at": format!("/x/{}/v/{}", def.obj.key, v.key) }))
+    })
+}
+
+pub(crate) static UPDATE_VIEW: ActionDef = ActionDef {
+    name: "update_view",
+    label: "Sửa màn xem",
+    permissions: &["custom_objects.manage"],
+    prepare: update_view_prepare,
+    execute: update_view_execute,
+    structure: true,
+};
+
+fn update_view_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
+    Box::pin(async move {
         let key = clean_text(args.get("object"), 48);
         let view_key = clean_text(args.get("view"), 48);
         let def = load_def(ctx, &key).await?;
@@ -305,25 +361,42 @@ pub(super) fn update_view<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutur
         details.extend(line("Bảng", format!("{} [{key}]", def.obj.label), 600));
         details.extend(line("Màn", format!("{cur_label} [{view_key}]"), 600));
         details.extend(line("Thay đổi", patch.to_string(), 600));
-        let prepared = Prepared {
-            params: json!({ "object": key, "view": view_key, "patch": patch }),
-            summary,
-            details,
+        let note = if remove {
+            format!(
+                "Màn “{cur_label}” sẽ bị xoá khỏi menu và danh sách màn; dữ liệu bản ghi không đổi (quay lui được)."
+            )
+        } else {
+            format!("Đổi cách hiển thị màn “{cur_label}”; dữ liệu bản ghi không đổi.")
         };
-        run_direct(ctx, "update_view", false, prepared, async {
-            let mut tx = ctx
-                .deps
-                .custom_ctx()
-                .begin(ctx.principal.company)
-                .await
-                .map_err(user_err)?;
-            views::update(&mut tx, &def, &view_key, &patch, ctx.principal.user_id)
-                .await
-                .map_err(user_err)?;
-            tx.commit().await.map_err(internal)?;
-            Ok(json!({ "view": view_key, "open_at": format!("/x/{}/v/{view_key}", def.obj.key) }))
-        })
-        .await
+        Ok(prepared(
+            json!({ "object": key, "view": view_key, "patch": patch }),
+            &summary,
+            &details,
+            Some(impact_json(&[], &[note])),
+        ))
+    })
+}
+
+fn update_view_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
+    Box::pin(async move {
+        let key = params.get("object").and_then(Value::as_str).unwrap_or_default();
+        let view_key = params.get("view").and_then(Value::as_str).unwrap_or_default();
+        let def = load_def(ctx, key).await?;
+        let mut tx = ctx
+            .deps
+            .custom_ctx()
+            .begin(ctx.principal.company)
+            .await
+            .map_err(user_err)?;
+        views::update(&mut tx, &def, view_key, &params["patch"], ctx.principal.user_id)
+            .await
+            .map_err(user_err)?;
+        tx.commit().await.map_err(internal)?;
+        Ok(json!({ "view": view_key, "open_at": format!("/x/{}/v/{view_key}", def.obj.key) }))
     })
 }
 
@@ -348,9 +421,37 @@ pub(super) fn parse_menu(raw: Option<&Value>) -> Result<Vec<MenuEntry>, ToolErro
         .collect())
 }
 
-pub(super) fn set_menu<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+/// Mục menu dạng JSON (`{object, view?, roles?}`) để lưu vào `params`; `parse_menu` đọc lại đúng.
+pub(super) fn menu_json(entries: &[MenuEntry]) -> Value {
+    Value::Array(
+        entries
+            .iter()
+            .map(|e| {
+                let mut m = Map::new();
+                m.insert("object".into(), json!(e.object));
+                if let Some(v) = &e.view {
+                    m.insert("view".into(), json!(v));
+                }
+                if let Some(r) = &e.roles {
+                    m.insert("roles".into(), json!(r));
+                }
+                Value::Object(m)
+            })
+            .collect(),
+    )
+}
+
+pub(crate) static SET_MENU: ActionDef = ActionDef {
+    name: "set_menu",
+    label: "Đặt menu",
+    permissions: &["custom_objects.manage"],
+    prepare: set_menu_prepare,
+    execute: set_menu_execute,
+    structure: true,
+};
+
+fn set_menu_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
     Box::pin(async move {
-        assert_direct(ctx).await?;
         let entries = parse_menu(args.get("menu"))?;
         let details: Vec<Detail> = entries
             .iter()
@@ -369,33 +470,62 @@ pub(super) fn set_menu<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'
                 )
             })
             .collect();
-        let prepared = Prepared {
-            params: json!({ "menu": entries.iter().map(|e| json!({ "object": e.object, "view": e.view, "roles": e.roles })).collect::<Vec<_>>() }),
-            summary: format!(
-                "Đặt menu {} mục: {}",
-                entries.len(),
-                entries
-                    .iter()
-                    .map(|e| e.object.as_str())
-                    .collect::<Vec<_>>()
-                    .join(" · ")
-            ),
-            details,
+        let shown_now: Vec<(String, String)> = {
+            let mut c = ctx.deps.conn(ctx.principal.company).await?;
+            sqlx::query_as("SELECT key, label FROM custom_objects WHERE deleted_at IS NULL AND show_in_nav")
+                .fetch_all(&mut *c)
+                .await
+                .map_err(internal)?
         };
-        run_direct(ctx, "set_menu", false, prepared, async {
-            let mut tx = ctx
-                .deps
-                .custom_ctx()
-                .begin(ctx.principal.company)
-                .await
-                .map_err(user_err)?;
-            let r = menu::apply(&mut tx, &entries, ctx.principal.user_id)
-                .await
-                .map_err(user_err)?;
-            tx.commit().await.map_err(internal)?;
-            Ok(r)
-        })
-        .await
+        let hidden: Vec<&str> = shown_now
+            .iter()
+            .filter(|(k, _)| !entries.iter().any(|e| e.object == *k && e.view.is_none()))
+            .map(|(_, l)| l.as_str())
+            .collect();
+        let note = if hidden.is_empty() {
+            "Chỉ đổi thứ tự/vai trò thấy menu.".to_owned()
+        } else {
+            format!(
+                "Bỏ khỏi menu: {} (dữ liệu giữ nguyên, vẫn mở được qua đường dẫn).",
+                hidden.join(", ")
+            )
+        };
+        let summary = format!(
+            "Đặt menu {} mục: {}",
+            entries.len(),
+            entries
+                .iter()
+                .map(|e| e.object.as_str())
+                .collect::<Vec<_>>()
+                .join(" · ")
+        );
+        Ok(prepared(
+            json!({ "menu": menu_json(&entries) }),
+            &summary,
+            &details,
+            Some(impact_json(&[], &[note])),
+        ))
+    })
+}
+
+fn set_menu_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
+    Box::pin(async move {
+        let entries = parse_menu(params.get("menu"))?;
+        let mut tx = ctx
+            .deps
+            .custom_ctx()
+            .begin(ctx.principal.company)
+            .await
+            .map_err(user_err)?;
+        let r = menu::apply(&mut tx, &entries, ctx.principal.user_id)
+            .await
+            .map_err(user_err)?;
+        tx.commit().await.map_err(internal)?;
+        Ok(r)
     })
 }
 
@@ -438,5 +568,32 @@ mod tests {
             (m[0].object.as_str(), m[0].roles.as_ref().map(Vec::len)),
             ("khach", Some(1))
         );
+    }
+
+    #[test]
+    fn man_va_menu_di_qua_params_khong_mat_gi() {
+        let spec = parse_view(&json!({
+            "key": "pipeline", "label": "Pipeline", "type": "kanban", "group_by": "trang_thai",
+            "sort_field": "ten", "sort_dir": "desc", "show_in_nav": true,
+        }))
+        .unwrap();
+        let back = view_spec_from_json(&view_spec_json(&spec));
+        assert_eq!(
+            (back.key.as_str(), back.label.as_str(), back.kind.as_str()),
+            ("pipeline", "Pipeline", "kanban")
+        );
+        assert_eq!(back.config, spec.config);
+        assert_eq!((back.icon, back.show_in_nav), (spec.icon, spec.show_in_nav));
+        let menu = parse_menu(Some(
+            &json!([{ "object": "a", "view": "v", "roles": ["Quản lý"] }, { "object": "b" }]),
+        ))
+        .unwrap();
+        let again = parse_menu(Some(&menu_json(&menu))).unwrap();
+        assert_eq!(again.len(), 2);
+        assert_eq!(
+            (again[0].view.as_deref(), again[0].roles.as_deref().map(<[String]>::len)),
+            (Some("v"), Some(1))
+        );
+        assert_eq!((again[1].view.as_deref(), again[1].roles.is_none()), (None, true));
     }
 }

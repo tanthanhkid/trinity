@@ -140,6 +140,7 @@ pub(crate) static CREATE_TASK: ActionDef = ActionDef {
     permissions: &["kanban.manage"],
     prepare: task_prepare,
     execute: task_execute,
+    structure: false,
 };
 
 fn task_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
@@ -227,6 +228,7 @@ fn task_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Resu
             params,
             summary,
             details,
+            impact: None,
         })
     })
 }

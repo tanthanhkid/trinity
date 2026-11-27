@@ -8,9 +8,10 @@ use serde_json::{Map, Value, json};
 use trinity_rbac::can;
 
 use super::structure::{app_msg, load_def};
-use super::write::{Detail, Prepared, assert_direct, clean_text, line, run_direct, user, user_err};
+use super::write::{Detail, clean_text, line, prepared, user, user_err};
+use crate::actions::{ActionCx, ActionDef, Prepared};
 use crate::args::opt_int;
-use crate::exec::{ToolCtx, ToolError, ToolOutput};
+use crate::exec::ToolError;
 use crate::protocol::BoxFuture;
 
 const MAX_IMPORT_ROWS: usize = 500;
@@ -219,7 +220,7 @@ fn contact_row(row: &Map<String, Value>, source_id: Option<i32>) -> Result<mod_c
 }
 
 async fn write_contacts(
-    ctx: &ToolCtx<'_>,
+    ctx: &ActionCx<'_>,
     rows: &[Map<String, Value>],
     source_id: Option<i32>,
 ) -> Result<Value, ToolError> {
@@ -271,7 +272,7 @@ async fn write_contacts(
     }))
 }
 
-async fn write_table(ctx: &ToolCtx<'_>, t: &TableIn, multi: bool) -> Result<(Value, Vec<RowError>), ToolError> {
+async fn write_table(ctx: &ActionCx<'_>, t: &TableIn, multi: bool) -> Result<(Value, Vec<RowError>), ToolError> {
     let (cctx, actor) = (ctx.deps.custom_ctx(), ctx.deps.custom_actor(ctx.principal));
     let mut codes: Vec<String> = Vec::new();
     let mut errors: Vec<RowError> = Vec::new();
@@ -319,7 +320,7 @@ async fn write_table(ctx: &ToolCtx<'_>, t: &TableIn, multi: bool) -> Result<(Val
     ))
 }
 
-async fn write_custom(ctx: &ToolCtx<'_>, tables: &[TableIn]) -> Result<Value, ToolError> {
+async fn write_custom(ctx: &ActionCx<'_>, tables: &[TableIn]) -> Result<Value, ToolError> {
     let multi = tables.len() > 1;
     let mut done: Vec<Value> = Vec::new();
     let mut all: Vec<Value> = Vec::new();
@@ -343,12 +344,37 @@ async fn write_custom(ctx: &ToolCtx<'_>, tables: &[TableIn]) -> Result<Value, To
     Ok(out)
 }
 
-pub(super) fn import_records<'a>(
-    args: &'a Value,
-    ctx: &'a ToolCtx<'a>,
-) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+pub(crate) static IMPORT_RECORDS: ActionDef = ActionDef {
+    name: "import_records",
+    label: "Nhập dữ liệu hàng loạt",
+    permissions: &["custom_records.manage"],
+    prepare: import_prepare,
+    execute: import_execute,
+    structure: false,
+};
+
+fn assert_can_create_contacts(ctx: &ActionCx<'_>) -> Result<(), ToolError> {
+    if !can(&ctx.principal.grants, "contacts.create", None) {
+        return Err(ToolError::Forbidden(
+            "Bạn không có quyền tạo khách hàng (contacts.create).".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+/// Phần của lời gọi được giữ trong đề xuất: dữ liệu thật (`rows`) phải nằm trong `params` để duyệt xong chạy đúng như đã xem.
+fn import_params(args: &Value) -> Value {
+    let mut m = Map::new();
+    for k in ["object", "rows", "mapping", "tables", "source", "source_id"] {
+        if let Some(v) = args.get(k).filter(|v| !v.is_null()) {
+            m.insert(k.to_owned(), v.clone());
+        }
+    }
+    Value::Object(m)
+}
+
+fn import_prepare<'a>(args: &'a Value, ctx: &'a ActionCx<'a>) -> BoxFuture<'a, Result<Prepared, ToolError>> {
     Box::pin(async move {
-        assert_direct(ctx).await?;
         let tables = read_tables(args)?;
         let source = source_of(args);
         let total_rows: usize = tables.iter().map(|t| t.rows.len()).sum();
@@ -356,11 +382,7 @@ pub(super) fn import_records<'a>(
         let summary;
         let contacts = tables.len() == 1 && tables[0].object == "contacts";
         if contacts {
-            if !can(&ctx.principal.grants, "contacts.create", None) {
-                return Err(ToolError::Forbidden(
-                    "Bạn không có quyền tạo khách hàng (contacts.create).".to_owned(),
-                ));
-            }
+            assert_can_create_contacts(ctx)?;
             summary = format!("Nhập {total_rows} khách hàng từ {source}");
             details.extend(line("Bảng", "Khách hàng [contacts]", 600));
         } else {
@@ -378,22 +400,23 @@ pub(super) fn import_records<'a>(
             let m = mapping_text(&t.mapping, t.rows.first().unwrap_or(&Map::new()));
             details.extend(line("Cột ghép", m, 900));
         }
-        let prepared = Prepared {
-            params: json!({
-                "tables": tables.iter().map(|t| json!({ "object": t.object, "rows": t.rows.len() })).collect::<Vec<_>>(),
-                "source": source,
-            }),
-            summary,
-            details,
-        };
-        run_direct(ctx, "import_records", false, prepared, async {
-            if contacts {
-                write_contacts(ctx, &tables[0].rows, opt_int(args.get("source_id"))).await
-            } else {
-                write_custom(ctx, &tables).await
-            }
-        })
-        .await
+        Ok(prepared(import_params(args), &summary, &details, None))
+    })
+}
+
+fn import_execute<'a>(
+    params: &'a Value,
+    ctx: &'a ActionCx<'a>,
+    _draft_id: i32,
+) -> BoxFuture<'a, Result<Value, ToolError>> {
+    Box::pin(async move {
+        let tables = read_tables(params)?;
+        if tables.len() == 1 && tables[0].object == "contacts" {
+            assert_can_create_contacts(ctx)?;
+            write_contacts(ctx, &tables[0].rows, opt_int(params.get("source_id"))).await
+        } else {
+            write_custom(ctx, &tables).await
+        }
     })
 }
 
@@ -449,5 +472,17 @@ mod tests {
         ];
         assert_eq!(error_preview(&e), "dòng 3: a; dòng 7: b");
         assert_eq!(errors_json(&e, Some("khach"))[0]["row"], 3);
+    }
+
+    #[test]
+    fn de_xuat_giu_du_lieu_that_va_bo_phan_thua() {
+        let args = json!({
+            "object": "khach", "rows": [{ "a": 1 }], "mapping": { "Tên": "ten" }, "source": "file.csv",
+            "confirmed_by_user": "ok", "agent": "claude",
+        });
+        let p = import_params(&args);
+        assert!(p.get("confirmed_by_user").is_none() && p.get("agent").is_none());
+        let t = read_tables(&p).unwrap();
+        assert_eq!((t.len(), t[0].rows.len(), source_of(&p).as_str()), (1, 1, "file.csv"));
     }
 }

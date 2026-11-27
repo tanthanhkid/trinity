@@ -54,6 +54,25 @@ pub fn feature_label(k: &str) -> Option<&'static str> {
     ORG_FEATURES.iter().find(|(key, _, _)| *key == k).map(|(_, l, _)| *l)
 }
 
+/// Khoá tính năng đã kiểm có trong danh mục [`ORG_FEATURES`]: nơi gọi [`require_org_feature`] không thể truyền khoá gõ sai
+/// (lỗi lộ ra ở chỗ dựng khoá, không bị cổng lặng lẽ cho qua).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OrgFeatureKey(&'static str);
+
+impl OrgFeatureKey {
+    /// `None` nếu khoá không có trong danh mục.
+    pub fn parse(k: &str) -> Option<Self> {
+        ORG_FEATURES
+            .iter()
+            .find(|(key, _, _)| *key == k)
+            .map(|(key, _, _)| Self(key))
+    }
+
+    pub fn as_str(self) -> &'static str {
+        self.0
+    }
+}
+
 /// Đủ khoá, mỗi khoá một boolean.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrgFeatures(BTreeMap<&'static str, bool>);
@@ -277,13 +296,14 @@ pub struct FeatureDisabled {
 }
 
 /// `@RequireOrgFeature(key)`: `features` đã tính gói ([`apply_plan_to_features`]). Tắt ⇒ [`FeatureDisabled`] (HTTP 403,
-/// câu tiếng Việt). Khoá không có trong danh mục thì cho qua (guard TS chỉ chặn khi `=== false`).
-pub fn require_org_feature(features: &OrgFeatures, key: &str) -> Result<(), FeatureDisabled> {
-    debug_assert!(is_org_feature_key(key), "khoá tính năng không có trong danh mục: {key}");
-    match (features.get(key), ORG_FEATURES.iter().find(|(k, _, _)| *k == key)) {
-        (Some(false), Some((k, label, _))) => Err(FeatureDisabled { key: k, label }),
-        _ => Ok(()),
+/// câu tiếng Việt). Khoá có kiểu [`OrgFeatureKey`] nên luôn nằm trong danh mục; khoá thiếu trong `features` thì cho qua
+/// (guard TS chỉ chặn khi `=== false`).
+pub fn require_org_feature(features: &OrgFeatures, key: OrgFeatureKey) -> Result<(), FeatureDisabled> {
+    if features.get(key.0) != Some(false) {
+        return Ok(());
     }
+    let label = feature_label(key.0).unwrap_or(key.0);
+    Err(FeatureDisabled { key: key.0, label })
 }
 
 /// Câu báo khi hết chỗ (`userLimitMessage`); dùng chung cho tạo người dùng, mở khoá, tạo/nhận lời mời.
@@ -330,10 +350,19 @@ mod tests {
     }
 
     #[test]
-    #[cfg(debug_assertions)]
-    #[should_panic(expected = "không có trong danh mục")]
-    fn khoa_la_la_loi_lap_trinh() {
-        let f = resolve_org_features(&Value::Null, None);
-        let _ = require_org_feature(&f, "khong_co");
+    fn khoa_tinh_nang_co_kieu() {
+        assert!(OrgFeatureKey::parse("khong_co").is_none());
+        let k = OrgFeatureKey::parse("pos").unwrap();
+        assert_eq!(k.as_str(), "pos");
+        let mut f = resolve_org_features(&Value::Null, None);
+        assert!(require_org_feature(&f, k).is_ok());
+        f.set("pos", false);
+        assert_eq!(
+            require_org_feature(&f, k),
+            Err(FeatureDisabled {
+                key: "pos",
+                label: "Bán hàng (POS)"
+            })
+        );
     }
 }

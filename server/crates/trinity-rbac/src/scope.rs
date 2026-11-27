@@ -1,9 +1,12 @@
 //! Dùng phạm vi dữ liệu (K13): dựng điều kiện SQL từ tập chủ sở hữu, kiểm tài nguyên theo id (404, không 403) và che số
 //! điện thoại. Chuyển từ `packages/rbac-nest/src/scope-where.ts`; tập chủ sở hữu do [`crate::ScopeService::owner_ids`].
 
+use std::collections::HashSet;
+use std::fmt;
+
 use sqlx::{Postgres, QueryBuilder};
 use trinity_db::{CompanyRef, DbError};
-use trinity_kernel::error::HttpError;
+use trinity_kernel::error::{AppError, HttpError};
 
 use crate::grants::Grants;
 use crate::service::{OwnerIds, ScopeService};
@@ -21,18 +24,20 @@ fn is_column(f: &str) -> bool {
 }
 
 /// Ghép điều kiện phạm vi vào truy vấn đang dựng, như `AND: [scopeWhere(...), ...]` của bản TS (luôn là MỘT biểu thức
-/// boolean, nên đặt giữa `AND` được): `All` ⇒ `TRUE`; một cột ⇒ `col = ANY($n)`; nhiều cột ⇒ `(c1 = ANY($n) OR c2 =
-/// ANY($n+1))`. Tập rỗng ⇒ không dòng nào khớp. Cột sai tên ⇒ `FALSE` (đóng, không bao giờ mở rộng quyền xem).
+/// boolean, nên đặt giữa `AND` được): `All` ⇒ `TRUE`; một cột ⇒ `"col" = ANY($n)`; nhiều cột ⇒ `("c1" = ANY($n) OR
+/// "c2" = ANY($n+1))`. Tập rỗng ⇒ không dòng nào khớp. Mỗi đoạn tên cột được đặt trong dấu nháy kép (tên trùng từ khoá
+/// như `user` vẫn chạy). Cột sai tên ⇒ `FALSE` (đóng, không bao giờ mở rộng quyền xem), kiểm TRƯỚC nhánh `All` để lỗi
+/// của nơi gọi lộ ra ở mọi vai, không chỉ ở người bị giới hạn; lỗi chỉ ghi log (cả debug lẫn release cùng một hành vi).
 pub fn push_scope(qb: &mut QueryBuilder<Postgres>, owner: &OwnerIds, fields: &[&str]) {
+    if fields.is_empty() || !fields.iter().all(|f| is_column(f)) {
+        tracing::error!(?fields, "cột phạm vi không hợp lệ, đóng truy vấn");
+        qb.push("FALSE");
+        return;
+    }
     let OwnerIds::Ids(ids) = owner else {
         qb.push("TRUE");
         return;
     };
-    if fields.is_empty() || !fields.iter().all(|f| is_column(f)) {
-        debug_assert!(false, "cột phạm vi không hợp lệ: {fields:?}");
-        qb.push("FALSE");
-        return;
-    }
     if fields.len() > 1 {
         qb.push("(");
     }
@@ -40,11 +45,19 @@ pub fn push_scope(qb: &mut QueryBuilder<Postgres>, owner: &OwnerIds, fields: &[&
         if i > 0 {
             qb.push(" OR ");
         }
-        qb.push(*f).push(" = ANY(").push_bind(ids.clone()).push(")");
+        qb.push(quote_column(f))
+            .push(" = ANY(")
+            .push_bind(ids.clone())
+            .push(")");
     }
     if fields.len() > 1 {
         qb.push(")");
     }
+}
+
+/// `bang.cot` ⇒ `"bang"."cot"`. Chỉ gọi sau [`is_column`] nên không có ký tự nháy bên trong.
+fn quote_column(f: &str) -> String {
+    f.split('.').map(|p| format!("\"{p}\"")).collect::<Vec<_>>().join(".")
 }
 
 impl OwnerIds {
@@ -82,16 +95,32 @@ pub fn mask_phone(phone: Option<&str>) -> Option<String> {
 /// Danh sách dài: lấy tập chủ sở hữu MỘT lần rồi che từng dòng bằng tập đó.
 #[derive(Debug, Clone)]
 pub struct PhoneMasker {
-    allowed: Option<OwnerIds>,
+    allowed: Option<Allowed>,
+}
+
+/// Tập chủ sở hữu dựng một lần thành `HashSet` để mỗi dòng kiểm O(1) (danh sách dài).
+#[derive(Debug, Clone)]
+enum Allowed {
+    All,
+    Ids(HashSet<i32>),
 }
 
 impl PhoneMasker {
     pub fn new(allowed: Option<OwnerIds>) -> Self {
+        let allowed = allowed.map(|a| match a {
+            OwnerIds::All => Allowed::All,
+            OwnerIds::Ids(ids) => Allowed::Ids(ids.into_iter().collect()),
+        });
         Self { allowed }
     }
 
     pub fn mask(&self, owners: &[Option<i32>], phone: Option<&str>) -> Option<String> {
-        if self.allowed.as_ref().is_some_and(|a| a.contains_any(owners)) {
+        let visible = match &self.allowed {
+            None => false,
+            Some(Allowed::All) => true,
+            Some(Allowed::Ids(ids)) => owners.iter().flatten().any(|o| ids.contains(o)),
+        };
+        if visible {
             return phone.map(str::to_owned);
         }
         mask_phone(phone)
@@ -140,6 +169,27 @@ impl From<DbError> for ScopeError {
     }
 }
 
+impl fmt::Display for ScopeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotFound(e) => fmt::Display::fmt(e, f),
+            Self::Db(e) => fmt::Display::fmt(e, f),
+        }
+    }
+}
+
+impl std::error::Error for ScopeError {}
+
+/// 404 giữ nguyên; lỗi DB thành `AppError::Internal` (500).
+impl From<ScopeError> for AppError {
+    fn from(e: ScopeError) -> Self {
+        match e {
+            ScopeError::NotFound(h) => Self::Http(*h),
+            ScopeError::Db(d) => Self::internal(d),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -154,21 +204,29 @@ mod tests {
     fn dieu_kien_sql() {
         assert_eq!(sql(&OwnerIds::All, &["assigned_to"]), "TRUE");
         let ids = OwnerIds::Ids(vec![1, 2]);
-        assert_eq!(sql(&ids, &["assigned_to"]), "assigned_to = ANY($1)");
+        assert_eq!(sql(&ids, &["assigned_to"]), "\"assigned_to\" = ANY($1)");
         assert_eq!(
             sql(&ids, &["c.assigned_to", "created_by_id"]),
-            "(c.assigned_to = ANY($1) OR created_by_id = ANY($2))"
+            "(\"c\".\"assigned_to\" = ANY($1) OR \"created_by_id\" = ANY($2))"
         );
     }
 
     #[test]
-    #[cfg(not(debug_assertions))]
-    fn cot_sai_ten_dong() {
+    fn tu_khoa_duoc_quote() {
+        let ids = OwnerIds::Ids(vec![1]);
+        assert_eq!(sql(&ids, &["user"]), "\"user\" = ANY($1)");
+    }
+
+    #[test]
+    fn cot_sai_ten_dong_ca_debug() {
         let ids = OwnerIds::Ids(vec![1]);
         for bad in ["", "a; DROP TABLE x", "A", "1a", "a.b.c", "a b", "a\"b"] {
             assert_eq!(sql(&ids, &[bad]), "FALSE", "{bad}");
         }
         assert_eq!(sql(&ids, &[]), "FALSE");
+        // Kiểm tên cột cả khi vai `All`: lỗi của nơi gọi không bị che.
+        assert_eq!(sql(&OwnerIds::All, &["a; DROP TABLE x"]), "FALSE");
+        assert_eq!(sql(&OwnerIds::All, &[]), "FALSE");
     }
 
     #[test]

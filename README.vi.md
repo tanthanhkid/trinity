@@ -43,14 +43,14 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 | Mảng | Có gì |
 |---|---|
 | **Điều khiển bằng AI (MCP)** | MCP server có sẵn: kết nối ChatGPT, Claude, Gemini, Cursor, OpenClaw hay bất kỳ trợ lý nào hỗ trợ MCP; đọc và ghi dữ liệu trực tiếp trong phạm vi quyền của người đã kết nối (ghi cần scope `crm.write`; mọi thao tác hiện ở mục Hoạt động AI). Có tuỳ chọn *Yêu cầu duyệt thay đổi do AI*: bật lên thì AI chỉ soạn nháp, người duyệt |
-| **Tổng quan kiểu AI** | Trang đầu cho thấy trợ lý AI nào đang kết nối và đang làm việc, hôm nay AI đã làm gì, và mọi kênh đã nối (Fanpage, Zalo OA, thanh toán, trang bán hàng) kèm trạng thái và số liệu hôm nay. Chưa nối AI thì hướng dẫn nối từng bước |
+| **Tổng quan kiểu AI** | Trang đầu cho thấy trợ lý AI nào đang kết nối và đang làm việc, hôm nay AI đã làm gì, và mọi kênh đã nối (Fanpage, Zalo OA, trang bán hàng) kèm trạng thái và số liệu hôm nay. Chưa nối AI thì hướng dẫn nối từng bước |
 | **Bật/tắt tính năng** | Cài đặt › Tính năng: thẻ chia nhóm (cơ bản, kênh & hộp thư, bán hàng, nhân sự, nâng cao), mỗi tính năng một công tắc. Tắt thì ẩn với mọi người, dữ liệu vẫn giữ. AI cũng xem và bật/tắt được (tắt cần bạn đồng ý) |
-| **Kết nối** | Một menu cho mọi kênh, cổng thanh toán, phần mềm bán hàng và nguồn dữ liệu, chia nhóm, mỗi mục có trạng thái và các bước nối. Nối Fanpage Facebook một lần là có cả nhận tin, bình luận lẫn đăng bài |
+| **Kết nối** | Một menu cho mọi kênh và nguồn dữ liệu (Fanpage Facebook, Zalo OA, trang bán hàng), chia nhóm, mỗi mục có trạng thái và các bước nối. Nối Fanpage Facebook một lần là có cả nhận tin, bình luận lẫn đăng bài |
 | **Tương tác** | Bình luận Fanpage, tin Messenger và Zalo OA trên một dòng thời gian: số liệu hôm nay, luật nào đã xử lý gì, bộ lọc (kênh, Page, chưa trả lời, ngày) và ô trả lời ngay tại chỗ. Bình luận, tin mới rung chuông báo người phụ trách khách và người phụ trách kênh. Trợ lý AI đọc được dòng thời gian và soạn câu trả lời để bạn duyệt |
 | **Hộp thư chung** | Tin Messenger và Zalo OA ở một chỗ, có ô tìm và bộ lọc "Chưa trả lời"; trả lời đúng khung thời gian mỗi nền tảng cho phép (Messenger: 24 giờ; nhân viên tự gõ thì tới 7 ngày, khi app của bạn đã được Meta cấp quyền Human Agent). Mở hội thoại là đọc thêm tin thẳng từ Facebook, không sót tin khi thông báo không về |
 | **Tự động hoá Fanpage** | Luật bình luận theo Page hoặc từng bài (kể cả ảnh bìa): tự trả lời, ẩn bình luận có số điện thoại, nhắn riêng, người bình luận tự gắn với khách hàng; link và mã QR mở thẳng cuộc chat; kịch bản Messenger; gửi tin hàng loạt trong cửa sổ 24 giờ. Luật, kịch bản, gửi hàng loạt cũng tạo và sửa được từ trợ lý AI |
 | **Đăng đa kênh** | Soạn một lần, đăng ngay hoặc hẹn giờ lên Fanpage Facebook; có lịch nội dung, thư viện ảnh/video, số liệu bài. Lưu nháp, hàng đợi theo khung giờ cố định mỗi tuần, bộ hashtag và chữ ký dùng lại, tự gắn UTM vào liên kết, xem trước bài trên từng kênh, nhập nhiều bài từ CSV, bài lặp lại (ngày, tuần, tháng). Video lớn tải lên từng phần; bài bị xoá thẳng trên mạng tự hiện là đã xoá. Mọi việc cũng làm được qua trợ lý AI |
-| **Trang bán hàng** | Trang bán online `/s/<tên>` (hoặc tên miền phụ), 3 giao diện, giỏ hàng, COD hoặc chuyển khoản QR; đơn và người mua vào thẳng CRM. Mặc định tắt |
+| **Trang bán hàng** | Trang bán online `/s/<tên>` (hoặc tên miền phụ), 3 giao diện, giỏ hàng, COD hoặc mã VietQR tĩnh (không qua cổng thanh toán, nhân viên tự xác nhận tiền về); đơn và người mua vào thẳng CRM. Mặc định tắt |
 | **CRM** | Danh bạ với nguồn, giai đoạn, trạng thái do bạn tự đặt, Kanban, mã bản ghi chung và gắn thẻ `@` giữa các màn, bảng tin |
 | **Bán hàng** | Sản phẩm, POS |
 | **Nhân sự** | Hồ sơ, chấm công, lương |
@@ -59,7 +59,7 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 
 ### Đã thử tới đâu
 
-- **Thử trọn vòng trên bản cài mới** (cơ sở dữ liệu Postgres mới; thử trên đường Vercel cũ, chưa thử lại với Docker Compose): đăng nhập lần đầu, nối trợ lý AI, dựng bảng bằng chat, nhập dữ liệu, các tool AI.
+- **Thử trọn vòng trên bản cài mới** (cơ sở dữ liệu Postgres mới; thử trước khi chuyển sang Docker Compose, chưa thử lại): đăng nhập lần đầu, nối trợ lý AI, dựng bảng bằng chat, nhập dữ liệu, các tool AI.
 - **Thử với tài khoản thật**: đăng ngay và hẹn giờ lên Fanpage, tin nhắn Messenger, luật bình luận Fanpage (tự trả lời, ẩn số điện thoại), dòng thời gian Tương tác, tin Zalo OA gửi đến.
 - **Mới thử với dữ liệu mẫu**: hàng đợi đăng bài, bài lặp lại, nhập CSV, dashboard và báo cáo, Tổng quan kiểu AI, bật/tắt tính năng, POS, nhân sự, chấm công, lương, trang bán hàng (cửa hàng mẫu).
 - Các mảng này có test tự động; connector ở bảng dưới.
@@ -70,9 +70,9 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 |---|---|
 | Fanpage Facebook | Với tài khoản thật |
 | Zalo OA | Nhận tin đã thử thật; trả lời + đọc hồ sơ cần OA gói Tier (chưa thử) |
+| Trang bán hàng (VietQR tĩnh + COD) | Mới thử với cửa hàng mẫu; không qua cổng thanh toán, nhân viên tự xác nhận tiền về |
 | n8n | Workflow mẫu chạy thật với máy chủ thử |
 | Zapier, Make | Connector có sẵn, chưa thử với tài khoản thật |
-| iPOS | Chưa làm — chờ iPOS cấp API đối tác |
 
 Chi tiết từng connector: [docs/integrations/status.md](docs/integrations/status.md). Việc sắp làm: [ROADMAP.md](ROADMAP.md).
 

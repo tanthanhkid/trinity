@@ -34,14 +34,18 @@ export function readSettingsTabs(): SettingsTab[] {
     const feature = line.match(/feature:\s*"([^"]+)"/)?.[1] as OrgFeatureKey | undefined
     tabs.push({ value: m[1], label: m[2], description: m[3], permission: perm, anyOf, feature, hidden: /hidden:\s*true/.test(line) })
   }
-  if (tabs.length < 15) throw new Error(`readSettingsTabs: chỉ đọc được ${tabs.length} tab — settings/page.tsx đã đổi định dạng ALL_TABS?`)
+  // Số tab đọc được phải bằng số mục `{ value:` của ALL_TABS (đếm từ chính nguồn, không dùng ngưỡng cứng).
+  const declared = (block.match(/^\s*\{\s*value:/gm) ?? []).length
+  if (tabs.length === 0 || tabs.length !== declared) throw new Error(`readSettingsTabs: đọc được ${tabs.length}/${declared} tab — settings/page.tsx đã đổi định dạng ALL_TABS?`)
   return tabs
 }
 
 export interface ReportTab {
   value: string
   label: string
-  permission: Permission
+  /** Một quyền (`permission`) hoặc có MỘT trong các quyền (`anyPermission`, vd tab Báo cáo tuỳ chỉnh). */
+  permission?: Permission
+  anyOf?: Permission[]
 }
 
 export function readReportTabs(): ReportTab[] {
@@ -49,9 +53,17 @@ export function readReportTabs(): ReportTab[] {
   if (!file) throw new Error('Không thấy report-tabs-config')
   const src = fs.readFileSync(path.join(SRC, 'reports', '_components', file), 'utf8')
   const out: ReportTab[] = []
-  const re = /value:\s*"([^"]+)",\s*label:\s*"([^"]+)"[\s\S]*?permission:\s*"([^"]+)"/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(src))) out.push({ value: m[1], label: m[2], permission: m[3] as Permission })
-  if (out.length < 5) throw new Error(`readReportTabs: chỉ đọc được ${out.length} tab`)
+  // Mỗi tab bắt đầu ở `value: "..", label: ".."`; quyền nằm trước tab kế tiếp: `permission: ".."` hoặc `anyPermission: [..]`.
+  const starts = [...src.matchAll(/value:\s*"([^"]+)",\s*label:\s*"([^"]+)"/g)]
+  starts.forEach((m, i) => {
+    const chunk = src.slice(m.index!, starts[i + 1]?.index ?? src.length)
+    const perm = chunk.match(/\bpermission:\s*"([^"]+)"/)?.[1] as Permission | undefined
+    const anyRaw = chunk.match(/anyPermission:\s*\[([^\]]*)\]/)?.[1]
+    const anyOf = anyRaw ? (anyRaw.match(/"([^"]+)"/g) ?? []).map((x) => x.slice(1, -1) as Permission) : undefined
+    if (!perm && !anyOf) throw new Error(`readReportTabs: tab "${m[1]}" không có permission/anyPermission`)
+    out.push({ value: m[1], label: m[2], permission: perm, anyOf })
+  })
+  const declared = (src.match(/^\s*value:\s*"/gm) ?? []).length
+  if (out.length === 0 || out.length !== declared) throw new Error(`readReportTabs: đọc được ${out.length}/${declared} tab`)
   return out
 }

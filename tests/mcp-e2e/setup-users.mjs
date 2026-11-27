@@ -16,8 +16,8 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../..');
-const req = createRequire(resolve(root, 'packages/prisma/package.json'));
-const { PrismaClient } = req('@prisma/client');
+const req = createRequire(resolve(root, 'tests/contract/package.json'));
+const pg = req('pg');
 const bcrypt = req('bcryptjs');
 
 function dbUrl() {
@@ -31,33 +31,33 @@ function dbUrl() {
 
 const url = dbUrl();
 const host = new URL(url).hostname;
-// Chốt an toàn: chỉ chạy trên DB demo (host Neon). Từ chối mọi host khác.
-if (!/neon\.tech$/.test(host)) throw new Error(`Từ chối: ${host} không phải DB demo (Neon)`);
+// Chốt an toàn: chỉ chạy trên DB demo (host Neon) hoặc máy cục bộ. Từ chối mọi host khác.
+if (!/neon\.tech$/.test(host) && !['localhost', '127.0.0.1'].includes(host)) throw new Error(`Từ chối: ${host} không phải DB demo/cục bộ`);
 
-const prisma = new PrismaClient({ datasources: { db: { url } } });
+const db = new pg.Client({ connectionString: url });
+await db.connect();
 const pw = () => randomBytes(12).toString('base64url');
 
 async function upsertUser(email, fullName, password, roleId) {
   const password_hash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: { password_hash, status: 'active', deleted_at: null, full_name: fullName },
-    create: { email, password_hash, full_name: fullName, status: 'active' },
-  });
-  await prisma.userRole.deleteMany({ where: { user_id: user.id } });
-  await prisma.userRole.create({ data: { user_id: user.id, role_id: roleId } });
-  return user;
+  const { rows } = await db.query(
+    `INSERT INTO users (email, password_hash, full_name, status, updated_at) VALUES ($1, $2, $3, 'active', now())
+     ON CONFLICT (email) DO UPDATE SET password_hash = $2, status = 'active', deleted_at = NULL, full_name = $3, updated_at = now()
+     RETURNING id`, [email, password_hash, fullName]);
+  const id = rows[0].id;
+  await db.query('DELETE FROM user_roles WHERE user_id = $1', [id]);
+  await db.query('INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)', [id, roleId]);
+  return { id };
 }
 
 try {
-  const adminRole = await prisma.role.findFirst({ where: { is_system: true } });
+  const adminRole = (await db.query('SELECT id FROM roles WHERE is_system = true ORDER BY id LIMIT 1')).rows[0];
   if (!adminRole) throw new Error('Không có vai trò hệ thống "Quản trị"');
-  const lowRole = await prisma.role.upsert({ where: { name: 'MCP e2e - chỉ xem' }, update: {}, create: { name: 'MCP e2e - chỉ xem', description: 'Vai trò thử cho e2e MCP' } });
-  await prisma.rolePermission.deleteMany({ where: { role_id: lowRole.id } });
-  await prisma.rolePermission.createMany({ data: [
-    { role_id: lowRole.id, permission: 'integrations.ai_connect', scope: null },
-    { role_id: lowRole.id, permission: 'custom_records.view', scope: 'own' },
-  ] });
+  const lowRole = (await db.query(
+    `INSERT INTO roles (name, description, updated_at) VALUES ('MCP e2e - chỉ xem', 'Vai trò thử cho e2e MCP', now())
+     ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id`)).rows[0];
+  await db.query('DELETE FROM role_permissions WHERE role_id = $1', [lowRole.id]);
+  await db.query(`INSERT INTO role_permissions (role_id, permission, scope) VALUES ($1, 'integrations.ai_connect', NULL), ($1, 'custom_records.view', 'own')`, [lowRole.id]);
   const adminPw = pw(); const lowPw = pw();
   const a = await upsertUser('mcp-test@example.com', 'MCP Test (admin)', adminPw, adminRole.id);
   const l = await upsertUser('mcp-low@example.com', 'MCP Test (ít quyền)', lowPw, lowRole.id);
@@ -71,5 +71,5 @@ try {
   chmodSync(out, 0o600);
   console.log(`OK: admin id=${a.id}, low id=${l.id}; credentials -> ${out}`);
 } finally {
-  await prisma.$disconnect();
+  await db.end();
 }

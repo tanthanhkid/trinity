@@ -1,4 +1,4 @@
-//! SINH TỰ ĐỘNG bởi `cargo xtask gen-models` từ `packages/prisma/prisma/schema.prisma`. KHÔNG SỬA TAY.
+//! SINH TỰ ĐỘNG bởi `cargo xtask gen-models` từ `server/prisma/schema.prisma`. KHÔNG SỬA TAY.
 //!
 //! Struct model ứng với model Prisma còn dùng (thứ tự trường như schema = thứ tự khoá JSON của bản Node); kiểu
 //! cột theo [`crate::types`]. Model đã thành bảng lưu trữ không có ở đây.

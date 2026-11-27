@@ -350,9 +350,8 @@ export function formatEmployeeOption(
  * 12 chữ số `84xxxxxxxxxx`, quốc tế... giữ nguyên — `formatPhone`
  * fallback về chuỗi gốc).
  *
- * ⚠️ GIỮ ĐỒNG BỘ với `normalizePhone` trong `packages/utils/src/index.ts` (logic
- * giống hệt, kể cả regex đầu số mobile `[35789]`). `apps/web` không depend
- * `@trinity/utils` nên phải copy — đổi đầu số mobile thì sửa CẢ HAI nơi.
+ * ⚠️ GIỮ ĐỒNG BỘ với phía Rust (`normalize_phone` trong `server/`): logic
+ * giống hệt, kể cả regex đầu số mobile `[35789]` — đổi đầu số mobile thì sửa CẢ HAI nơi.
  */
 export function toLocalPhone(phone: string): string {
   const cleaned = phone.replace(/\D/g, '')

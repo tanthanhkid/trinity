@@ -14,7 +14,7 @@ server:
 
 database:
   - changed-files:
-      - any-glob-to-any-file: packages/prisma/**
+      - any-glob-to-any-file: server/prisma/**
 ci:
   - changed-files:
       - any-glob-to-any-file: ['.github/**', Dockerfile, .dockerignore]

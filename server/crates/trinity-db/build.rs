@@ -12,9 +12,9 @@ fn main() {
     // có thể là bản đã dựng ở worktree khác, và đường dẫn nướng sẵn trong đó sẽ nhúng nhầm migration của worktree kia.
     let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR");
     let dir = Path::new(&manifest)
-        .join("../../../packages/prisma/prisma/migrations")
+        .join("../../prisma/migrations")
         .canonicalize()
-        .expect("có thư mục packages/prisma/prisma/migrations");
+        .expect("có thư mục server/prisma/migrations");
     println!("cargo::rerun-if-changed={}", dir.display());
     println!("cargo::rerun-if-changed=build.rs");
     // Đường dẫn tuyệt đối vào môi trường của crate: đổi worktree thì giá trị đổi.

@@ -15,42 +15,45 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const req = createRequire(resolve(root, 'packages/prisma/package.json'));
-const { PrismaClient } = req('@prisma/client');
+const req = createRequire(resolve(root, 'tests/contract/package.json'));
+const pg = req('pg');
 const bcrypt = req('bcryptjs');
 
 const readEnv = (f) => Object.fromEntries(readFileSync(f, 'utf8').split('\n').filter((l) => l.includes('=') && !l.startsWith('#')).map((l) => { const i = l.indexOf('='); return [l.slice(0, i), l.slice(i + 1).replace(/^"|"$/g, '')]; }));
 const env = process.env.DEMO_DATABASE_URL ? { DATABASE_URL_UNPOOLED: process.env.DEMO_DATABASE_URL } : readEnv(process.env.DEMO_ENV_FILE ?? '');
 const url = env.DATABASE_URL_UNPOOLED || env.DATABASE_URL;
-if (!url || !/neon\.tech$/.test(new URL(url).hostname)) throw new Error('Từ chối: chỉ chạy trên DB demo (Neon)');
-const prisma = new PrismaClient({ datasources: { db: { url } } });
+if (!url || (!/neon\.tech$/.test(new URL(url).hostname) && !['localhost', '127.0.0.1'].includes(new URL(url).hostname))) throw new Error('Từ chối: chỉ chạy trên DB demo (Neon) hoặc cục bộ');
+const db = new pg.Client({ connectionString: url });
+await db.connect();
 const pw = () => randomBytes(12).toString('base64url');
 
 async function cloneRole(name, source, extra) {
-  const src = await prisma.role.findFirst({ where: { name: source } });
-  const base = src ? await prisma.rolePermission.findMany({ where: { role_id: src.id } }) : [];
-  const role = await prisma.role.upsert({ where: { name }, update: {}, create: { name, description: `Vai trò thử e2e MCP (sao chép "${source}")` } });
+  const src = (await db.query('SELECT id FROM roles WHERE name = $1 LIMIT 1', [source])).rows[0];
+  const base = src ? (await db.query('SELECT permission, scope FROM role_permissions WHERE role_id = $1', [src.id])).rows : [];
+  const role = (await db.query(
+    `INSERT INTO roles (name, description) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
+    [name, `Vai trò thử e2e MCP (sao chép "${source}")`])).rows[0];
   const merged = new Map(base.map((p) => [p.permission, p.scope]));
   for (const [k, v] of Object.entries(extra)) merged.set(k, v);
-  await prisma.rolePermission.deleteMany({ where: { role_id: role.id } });
-  await prisma.rolePermission.createMany({ data: [...merged].map(([permission, scope]) => ({ role_id: role.id, permission, scope })) });
+  await db.query('DELETE FROM role_permissions WHERE role_id = $1', [role.id]);
+  for (const [permission, scope] of merged) await db.query('INSERT INTO role_permissions (role_id, permission, scope) VALUES ($1, $2, $3)', [role.id, permission, scope]);
   return role;
 }
 
 async function upsertUser(email, fullName, password, roleId, managerId) {
   const password_hash = await bcrypt.hash(password, 10);
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: { password_hash, status: 'active', deleted_at: null, full_name: fullName, manager_id: managerId },
-    create: { email, password_hash, full_name: fullName, status: 'active', manager_id: managerId },
-  });
-  await prisma.userRole.deleteMany({ where: { user_id: user.id } });
-  await prisma.userRole.create({ data: { user_id: user.id, role_id: roleId } });
+  const { rows } = await db.query(
+    `INSERT INTO users (email, password_hash, full_name, status, manager_id, updated_at) VALUES ($1, $2, $3, 'active', $4, now())
+     ON CONFLICT (email) DO UPDATE SET password_hash = $2, status = 'active', deleted_at = NULL, full_name = $3, manager_id = $4, updated_at = now()
+     RETURNING id, email, manager_id`, [email, password_hash, fullName, managerId]);
+  const user = rows[0];
+  await db.query('DELETE FROM user_roles WHERE user_id = $1', [user.id]);
+  await db.query('INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)', [user.id, roleId]);
   return user;
 }
 
 try {
-  const admin = await prisma.user.findUnique({ where: { email: 'mcp-test@example.com' } });
+  const admin = (await db.query("SELECT id FROM users WHERE email = 'mcp-test@example.com'")).rows[0];
   if (!admin) throw new Error('Chưa có mcp-test (chạy setup-users.mjs trước)');
   const leadRole = await cloneRole('MCP e2e - Trưởng nhóm', 'Trưởng nhóm', { 'integrations.ai_connect': null, 'contacts.create': null, 'custom_records.view': 'team', 'custom_records.manage': 'team', 'custom_records.delete': 'team' });
   const saleRole = await cloneRole('MCP e2e - Sale', 'Nhân viên kinh doanh', { 'integrations.ai_connect': null, 'contacts.create': null, 'custom_records.view': 'own', 'custom_records.manage': 'own' });
@@ -65,5 +68,5 @@ try {
   chmodSync(out, 0o600);
   console.log(`OK: lead id=${lead.id}, sale id=${sale.id} (manager ${sale.manager_id}), sale2 id=${sale2.id} (manager ${sale2.manager_id}); credentials -> ${out}`);
 } finally {
-  await prisma.$disconnect();
+  await db.end();
 }

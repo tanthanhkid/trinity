@@ -35,7 +35,7 @@ fn repo_root() -> PathBuf {
 }
 
 fn migrations_dir() -> PathBuf {
-    repo_root().join("packages/prisma/prisma/migrations")
+    repo_root().join("server/prisma/migrations")
 }
 
 fn migrations() -> Vec<Migration> {
@@ -60,13 +60,13 @@ fn prisma(args: &[&str], schema: &str, schema_file: Option<&PathBuf>) -> Output 
 fn prisma_bin() -> PathBuf {
     std::env::var("PRISMA_BIN")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| repo_root().join("packages/prisma/node_modules/.bin/prisma"))
+        .unwrap_or_else(|_| PathBuf::from("prisma"))
 }
 
 fn prisma_url(args: &[&str], database_url: &str, schema_file: Option<&PathBuf>) -> Output {
     let file = schema_file
         .cloned()
-        .unwrap_or_else(|| repo_root().join("packages/prisma/prisma/schema.prisma"));
+        .unwrap_or_else(|| repo_root().join("server/prisma/schema.prisma"));
     Command::new(prisma_bin())
         .args(args)
         .arg("--schema")
@@ -351,7 +351,7 @@ async fn failing_case(schema: &str, extra: &[(&str, &str)], failing: &str) {
         std::fs::write(mig.join(name).join("migration.sql"), sql).unwrap();
     }
     let schema_file = tmp.join("schema.prisma");
-    std::fs::copy(repo_root().join("packages/prisma/prisma/schema.prisma"), &schema_file).unwrap();
+    std::fs::copy(repo_root().join("server/prisma/schema.prisma"), &schema_file).unwrap();
 
     let mut c = conn().await;
     drop_schema(&mut c, schema).await;

@@ -38,8 +38,8 @@ const ALLOW = [
   [/^docs\/rust\//, true], // plan docs describe what was removed
   [/^docs\/ci\.md$/, true], // describes this check
   [/^docs\/deployment\.md$/, ['env-serverless', 'vercel']], // migration note "Moving files off Blob storage"
-  [/^packages\/prisma\/prisma\/migrations\//, true], // migrations are immutable history
-  [/^packages\/prisma\/prisma\/schema\.prisma$/, true], // archived models ("LƯU TRỮ" section)
+  [/^server\/prisma\/migrations\//, true], // migrations are immutable history
+  [/^server\/prisma\/schema\.prisma$/, true], // archived models ("LƯU TRỮ" section)
   [/^server\/contracts\/(schema\.sql|openapi\.json|routes\.json|rbac\.json|cases\/|mcp\/)/, true], // frozen contracts (generated)
   [/^server\/xtask\/src\/gen_models\.rs$/, true], // names the archived models
   [/^server\/crates\/trinity-kernel\/src\/config\/vars\.rs$/, true], // list of retired env vars (warn when set)
@@ -70,7 +70,7 @@ const ALLOW = [
 
   // ---- KNOWN LEFTOVERS (real code references still present after G02-G13; follow-up needed, then delete these) ----
   // TRINITY_RUNTIME=serverless still disables the Postgres NOTIFY sync (G11 removed the serverless path itself).
-  [/^(packages\/prisma\/src\/sync\/sync-bus\.ts|server\/crates\/(trinity-db\/src\/sync\.rs|trinity-auth\/src\/(sync\.rs|security\/tests\.rs))|docs\/sync-notify\.md)$/, ['env-serverless']],
+  [/^(server\/crates\/(trinity-db\/src\/sync\.rs|trinity-auth\/src\/(sync\.rs|security\/tests\.rs))|docs\/sync-notify\.md)$/, ['env-serverless']],
   // VERCEL_GIT_COMMIT_SHA still used as release-name fallback.
   [/^server\/crates\/trinity-obs\/src\/monitoring\.rs$/, ['env-serverless']],
   // webhook payload scrubbing still handles the removed payment.received event + fixtures.

@@ -1,4 +1,4 @@
-//! `trinity seed` (K32): dữ liệu khởi tạo, thay `packages/prisma/prisma/seed.ts`. **Chạy lặp lại không đổi dữ liệu**: mọi bước là
+//! `trinity seed` (K32): dữ liệu khởi tạo, thay `server/prisma/seed.ts`. **Chạy lặp lại không đổi dữ liệu**: mọi bước là
 //! "tạo nếu chưa có" hoặc chỉ ghi khi giá trị khác (kể cả `updated_at`), trong một giao dịch.
 //!
 //! Gồm: vai trò hệ thống "Quản trị"; nhóm tuỳ chọn cấu hình (nguồn khách, giai đoạn, trạng thái; không ghi đè `is_active` khi

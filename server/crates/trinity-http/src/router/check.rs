@@ -19,6 +19,15 @@ use crate::validate::{Mode, mode_for_path};
 /// khai trong bảng; thêm route vào đây là quyết định có chủ ý (cần issue nói rõ vì sao bản TS không có).
 pub const RUST_ONLY_ROUTES: &[&str] = &["GET /api/v1/site-config"];
 
+/// Route chỉ có ở Rust và cần đăng nhập + quyền (`access: can`): tải video theo phần của đăng bài (X15a, `mod-social`).
+pub const RUST_ONLY_AUTHED_ROUTES: &[&str] = &[
+    "POST /api/v1/social/media/uploads",
+    "GET /api/v1/social/media/uploads/:id",
+    "PUT /api/v1/social/media/uploads/:id/parts/:index",
+    "POST /api/v1/social/media/uploads/:id/complete",
+    "DELETE /api/v1/social/media/uploads/:id",
+];
+
 /// Hợp đồng nhúng trong binary.
 pub const CONTRACT: &str = include_str!("../../../../contracts/routes.json");
 
@@ -129,6 +138,11 @@ pub fn check(table: &[RouteSpec], contract: &Value, require_all: bool) -> Report
             if RUST_ONLY_ROUTES.contains(&k.as_str()) {
                 if spec.access != super::Access::Public {
                     rep.problems.push(format!("{k}: route chỉ có ở Rust phải là Public"));
+                }
+            } else if RUST_ONLY_AUTHED_ROUTES.contains(&k.as_str()) {
+                if spec.access.kind() != "can" {
+                    rep.problems
+                        .push(format!("{k}: route chỉ có ở Rust phải đòi quyền (can)"));
                 }
             } else {
                 rep.problems.push(format!("{k}: không có trong routes.json"));

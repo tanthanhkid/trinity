@@ -320,6 +320,18 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         )),
     );
 
+    // Đăng đa kênh (M53a/b, M54a, M55a, X15a): kho tệp là thư mục uploads (khoá `social/...`; S3 chưa nối ở đây), Graph theo công ty
+    // dùng chung bộ dựng của Facebook. Route M55b (import CSV, bài lặp) đi qua `PostsAdapter` của M54b.
+    let social_state = Arc::new(mod_social::router::SocialState {
+        db: db.clone(),
+        platform: platform.clone(),
+        env: channel_env.clone(),
+        graph_for: fb_state.graph_for.clone(),
+        guard: guard.clone(),
+        store: mod_social::media::MediaStore::Local(LocalDiskDriver::new(uploads_root.clone())),
+    });
+    app = mount(app, mod_social::router::api_router(deps.clone()), social_state);
+
     let public_ctx = Arc::new(mod_public_api::PublicCtx {
         db: db.clone(),
         platform: platform.clone(),

@@ -17,6 +17,7 @@
 //!   409 khi dữ liệu đổi, từng dòng độc lập). Bài đăng đi qua cổng [`ports::PostsPort`] do M54a cài khi gộp.
 //! - [`publish`], [`multipart`]: đăng bài lên Page (chữ, ảnh, video tải theo phiên qua luồng) và lấy số liệu bài (M54b).
 //! - [`jobs`]: job `social.publish` (đăng, thử lại, dọn việc kẹt) và `social.metrics` (số liệu, bài bị xoá trên mạng) (M54b).
+//! - [`router`]: router axum cho `SocialController` và `SocialPublicController` (mount ở `trinity-bin`).
 //! - [`routes`]: bảng route K14 (tài khoản, media, bài đăng M54a, 12 route M55a, 8 route M55b).
 //!
 //! Token Fanpage mã hoá AES-256-GCM bằng `INTEGRATIONS_SECRET_KEY` (`trinity_integrations::webhooks::secret`), đúng như bản Node.
@@ -47,6 +48,7 @@ pub mod publish;
 pub mod queue;
 pub mod recur;
 pub mod recurrences;
+pub mod router;
 pub mod routes;
 pub mod snippets;
 pub mod state;

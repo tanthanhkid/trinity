@@ -1,11 +1,9 @@
 import type { Metadata } from "next"
-import { LegalPage, legalContact } from "@/components/legal-page"
+import { LegalContact, LegalPage } from "@/components/legal-page"
 
 export const metadata: Metadata = { title: "Chính sách quyền riêng tư — Trinity" }
-export const dynamic = "force-dynamic"
 
 export default function PrivacyPage() {
-  const contact = legalContact()
   return (
     <LegalPage title="Chính sách quyền riêng tư" updated="14/10/2026">
       <p>
@@ -59,14 +57,14 @@ export default function PrivacyPage() {
         <li>Trong Trinity: gỡ kênh hoặc gỡ Trang trong phần Kết nối. Mã truy cập bị xoá ngay; bài hẹn giờ chưa đăng trên kênh đó bị huỷ; Trinity ngừng nhận tin nhắn và bình luận của Trang đó.</li>
         <li>Trên mạng xã hội: thu hồi quyền của ứng dụng trong phần cài đặt ứng dụng của tài khoản (ví dụ Facebook › Cài đặt › Doanh nghiệp tích hợp).</li>
         <li>
-          Khách đã nhắn tin hoặc bình luận trên Trang của một công ty dùng Trinity, muốn xoá dữ liệu của mình: liên hệ công ty đó, hoặc {contact}. Tin
+          Khách đã nhắn tin hoặc bình luận trên Trang của một công ty dùng Trinity, muốn xoá dữ liệu của mình: liên hệ công ty đó, hoặc <LegalContact />. Tin
           nhắn, bình luận và hồ sơ khách liên quan sẽ được xoá khỏi bản cài Trinity của công ty đó.
         </li>
-        <li>Muốn xoá cả lịch sử bài đã đăng trong Trinity: liên hệ {contact}.</li>
+        <li>Muốn xoá cả lịch sử bài đã đăng trong Trinity: liên hệ <LegalContact />.</li>
       </ul>
 
       <h2>Liên hệ</h2>
-      <p>Mọi câu hỏi về quyền riêng tư: {contact}.</p>
+      <p>Mọi câu hỏi về quyền riêng tư: <LegalContact />.</p>
 
       <h2 id="english" lang="en">English summary</h2>
       <div lang="en" className="space-y-3">
@@ -92,7 +90,7 @@ export default function PrivacyPage() {
         <p>
           <b>Deletion.</b> Disconnecting a Page or channel in Trinity deletes its tokens immediately and stops message and comment collection. You can
           also remove the app in Facebook › Settings › Business integrations. People who messaged or commented on a Page can ask the Page owner, or{" "}
-          {contact}, to delete their messages, comments and contact record.
+          <LegalContact />, to delete their messages, comments and contact record.
         </p>
       </div>
     </LegalPage>

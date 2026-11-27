@@ -1,11 +1,9 @@
 import type { Metadata } from "next"
-import { LegalPage, legalContact } from "@/components/legal-page"
+import { LegalContact, LegalPage } from "@/components/legal-page"
 
 export const metadata: Metadata = { title: "Điều khoản sử dụng — Trinity" }
-export const dynamic = "force-dynamic"
 
 export default function TermsPage() {
-  const contact = legalContact()
   return (
     <LegalPage title="Điều khoản sử dụng" updated="14/10/2026">
       <p>
@@ -41,7 +39,7 @@ export default function TermsPage() {
       </p>
 
       <h2>Liên hệ</h2>
-      <p>{contact}.</p>
+      <p><LegalContact />.</p>
     </LegalPage>
   )
 }

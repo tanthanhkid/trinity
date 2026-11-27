@@ -1,13 +1,16 @@
 /**
  * Chế độ thông báo thời gian thực.
- * - không đặt `NEXT_PUBLIC_REALTIME_MODE` → dùng Socket.IO như cũ (pm2/VPS);
+ * - `realtime_mode` của `GET /site-config` (máy chủ đọc `REALTIME_MODE` lúc chạy, nạp sẵn bởi script `<head>`);
+ *   chưa có cấu hình thì lùi về `NEXT_PUBLIC_REALTIME_MODE` lúc build;
+ * - không phải `poll` → dùng Socket.IO như cũ (pm2/VPS);
  * - `poll` → KHÔNG mở socket (vd proxy không cho WebSocket): hỏi API mỗi 30s + khi tab được focus.
- * Biến NEXT_PUBLIC_* được nhúng lúc build nên đọc trực tiếp `process.env` (không đọc qua biến trung gian).
  */
+import { resolvePollMode } from './site-config'
+
 export const NOTIFICATION_POLL_INTERVAL_MS = 60_000
 
 export function isPollMode(): boolean {
-  return process.env.NEXT_PUBLIC_REALTIME_MODE === 'poll'
+  return resolvePollMode()
 }
 
 /**

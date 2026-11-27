@@ -124,7 +124,12 @@
    `data-ds="v2"` gắn trên <html> bởi app/layout.tsx. Cờ tắt → rơi về khối `:root`
    phía trên. Specificity `:root[data-ds="v2"]` (0,2,0) > `:root` (0,1,0) nên LUÔN thắng
    khi có mặt, không phụ thuộc thứ tự khai báo trong file. */
+:root {
+  /* Font theo cờ ds-v2 đọc lúc chạy: layout.tsx gắn cả hai biến, `data-ds` do script <head> gắn. */
+  --font-app: var(--font-inter);
+}
 :root[data-ds="v2"] {
+  --font-app: var(--font-montserrat);
   /* ds-v2: 0.75rem → 0.83rem để scale --radius-sm cascade (input 8px, card 12-20px, dialog ~20px). */
   --radius: 0.83rem;
   /* Hệ shadow ds-v2: card 0 5px 10px, popover/dialog 0 10px 24px; shadow brand-glow nhuộm

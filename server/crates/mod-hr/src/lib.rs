@@ -14,9 +14,12 @@
 //! | `GET /management/teams/for-filter`, `/lead-filter` | [`teams::list_for_filter`], [`teams::list_team_lead_filter`] |
 //! | `GET/POST /management/job-titles` | [`job_titles::find_all`], [`job_titles::create`] |
 //! | `GET/PATCH/DELETE /management/job-titles/:id` | [`job_titles::find_one`], [`job_titles::update`], [`job_titles::remove`] |
+//!
+//! M12 (tuyển dụng, 10 endpoint `/management/recruitment/*`) ở [`recruitment`].
 
 pub mod job_titles;
 mod nullable;
+pub mod recruitment;
 pub mod teams;
 
 /// Độ dài như `String.length` của JS (đơn vị UTF-16), cho `@MinLength`/`@MaxLength`/`@Length`.
@@ -31,6 +34,13 @@ pub struct OkBody {
 }
 
 pub(crate) const OK: OkBody = OkBody { ok: true };
+
+/// `{ ok: true, id }` của `remove` (tuyển dụng).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub struct OkIdBody {
+    pub ok: bool,
+    pub id: i32,
+}
 
 #[allow(clippy::needless_pass_by_value)]
 pub(crate) fn db(e: sqlx::Error) -> trinity_kernel::error::AppError {

@@ -15219,6 +15219,3566 @@
   }
  },
  {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "full_name": null,
+   "phone": null,
+   "email": null,
+   "position": null,
+   "department": null,
+   "source": null,
+   "stage": null,
+   "decision": null,
+   "recruitment_type": null,
+   "applied_date": null,
+   "cost": null,
+   "note": null,
+   "gender": null,
+   "interview_date": null,
+   "interview_time": null,
+   "recruiter_id": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 150 characters",
+    "full_name must be a string",
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "full_name": "",
+   "phone": "",
+   "email": "",
+   "position": "",
+   "department": "",
+   "source": "",
+   "stage": "",
+   "decision": "",
+   "recruitment_type": "",
+   "applied_date": "",
+   "cost": "",
+   "note": "",
+   "gender": "",
+   "interview_date": "",
+   "interview_time": "",
+   "recruiter_id": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "applied_date must be a valid ISO 8601 date string",
+    "cost must not be less than 0",
+    "cost must be an integer number",
+    "gender must be one of the following values: M, F",
+    "interview_date must be a valid ISO 8601 date string",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "full_name": "  x  ",
+   "phone": "  x  ",
+   "email": "  x  ",
+   "position": "  x  ",
+   "department": "  x  ",
+   "source": "  x  ",
+   "stage": "  x  ",
+   "decision": "  x  ",
+   "recruitment_type": "  x  ",
+   "applied_date": "  x  ",
+   "cost": "  x  ",
+   "note": "  x  ",
+   "gender": "  x  ",
+   "interview_date": "  x  ",
+   "interview_time": "  x  ",
+   "recruiter_id": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "applied_date must be a valid ISO 8601 date string",
+    "cost must not be less than 0",
+    "cost must be an integer number",
+    "gender must be one of the following values: M, F",
+    "interview_date must be a valid ISO 8601 date string",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "full_name": 12.5,
+   "phone": 12.5,
+   "email": 12.5,
+   "position": 12.5,
+   "department": 12.5,
+   "source": 12.5,
+   "stage": 12.5,
+   "decision": 12.5,
+   "recruitment_type": 12.5,
+   "applied_date": 12.5,
+   "cost": 12.5,
+   "note": 12.5,
+   "gender": 12.5,
+   "interview_date": 12.5,
+   "interview_time": 12.5,
+   "recruiter_id": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 150 characters",
+    "full_name must be a string",
+    "phone must be shorter than or equal to 20 characters",
+    "phone must be a string",
+    "email must be shorter than or equal to 150 characters",
+    "email must be a string",
+    "position must be shorter than or equal to 150 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 150 characters",
+    "department must be a string",
+    "source must be shorter than or equal to 100 characters",
+    "source must be a string",
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "applied_date must be a valid ISO 8601 date string",
+    "cost must be an integer number",
+    "note must be shorter than or equal to 2000 characters",
+    "note must be a string",
+    "gender must be one of the following values: M, F",
+    "interview_date must be a valid ISO 8601 date string",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "full_name": -1,
+   "phone": -1,
+   "email": -1,
+   "position": -1,
+   "department": -1,
+   "source": -1,
+   "stage": -1,
+   "decision": -1,
+   "recruitment_type": -1,
+   "applied_date": -1,
+   "cost": -1,
+   "note": -1,
+   "gender": -1,
+   "interview_date": -1,
+   "interview_time": -1,
+   "recruiter_id": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 150 characters",
+    "full_name must be a string",
+    "phone must be shorter than or equal to 20 characters",
+    "phone must be a string",
+    "email must be shorter than or equal to 150 characters",
+    "email must be a string",
+    "position must be shorter than or equal to 150 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 150 characters",
+    "department must be a string",
+    "source must be shorter than or equal to 100 characters",
+    "source must be a string",
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "applied_date must be a valid ISO 8601 date string",
+    "cost must not be less than 0",
+    "note must be shorter than or equal to 2000 characters",
+    "note must be a string",
+    "gender must be one of the following values: M, F",
+    "interview_date must be a valid ISO 8601 date string",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "full_name": 0,
+   "phone": 0,
+   "email": 0,
+   "position": 0,
+   "department": 0,
+   "source": 0,
+   "stage": 0,
+   "decision": 0,
+   "recruitment_type": 0,
+   "applied_date": 0,
+   "cost": 0,
+   "note": 0,
+   "gender": 0,
+   "interview_date": 0,
+   "interview_time": 0,
+   "recruiter_id": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 150 characters",
+    "full_name must be a string",
+    "phone must be shorter than or equal to 20 characters",
+    "phone must be a string",
+    "email must be shorter than or equal to 150 characters",
+    "email must be a string",
+    "position must be shorter than or equal to 150 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 150 characters",
+    "department must be a string",
+    "source must be shorter than or equal to 100 characters",
+    "source must be a string",
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "applied_date must be a valid ISO 8601 date string",
+    "note must be shorter than or equal to 2000 characters",
+    "note must be a string",
+    "gender must be one of the following values: M, F",
+    "interview_date must be a valid ISO 8601 date string",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "full_name": true,
+   "phone": true,
+   "email": true,
+   "position": true,
+   "department": true,
+   "source": true,
+   "stage": true,
+   "decision": true,
+   "recruitment_type": true,
+   "applied_date": true,
+   "cost": true,
+   "note": true,
+   "gender": true,
+   "interview_date": true,
+   "interview_time": true,
+   "recruiter_id": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 150 characters",
+    "full_name must be a string",
+    "phone must be shorter than or equal to 20 characters",
+    "phone must be a string",
+    "email must be shorter than or equal to 150 characters",
+    "email must be a string",
+    "position must be shorter than or equal to 150 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 150 characters",
+    "department must be a string",
+    "source must be shorter than or equal to 100 characters",
+    "source must be a string",
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "applied_date must be a valid ISO 8601 date string",
+    "cost must not be less than 0",
+    "cost must be an integer number",
+    "note must be shorter than or equal to 2000 characters",
+    "note must be a string",
+    "gender must be one of the following values: M, F",
+    "interview_date must be a valid ISO 8601 date string",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "full_name": [
+    "a",
+    1
+   ],
+   "phone": [
+    "a",
+    1
+   ],
+   "email": [
+    "a",
+    1
+   ],
+   "position": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "source": [
+    "a",
+    1
+   ],
+   "stage": [
+    "a",
+    1
+   ],
+   "decision": [
+    "a",
+    1
+   ],
+   "recruitment_type": [
+    "a",
+    1
+   ],
+   "applied_date": [
+    "a",
+    1
+   ],
+   "cost": [
+    "a",
+    1
+   ],
+   "note": [
+    "a",
+    1
+   ],
+   "gender": [
+    "a",
+    1
+   ],
+   "interview_date": [
+    "a",
+    1
+   ],
+   "interview_time": [
+    "a",
+    1
+   ],
+   "recruiter_id": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 150 characters",
+    "full_name must be a string",
+    "phone must be shorter than or equal to 20 characters",
+    "phone must be a string",
+    "email must be shorter than or equal to 150 characters",
+    "email must be a string",
+    "position must be shorter than or equal to 150 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 150 characters",
+    "department must be a string",
+    "source must be shorter than or equal to 100 characters",
+    "source must be a string",
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "applied_date must be a valid ISO 8601 date string",
+    "cost must not be less than 0",
+    "cost must be an integer number",
+    "note must be shorter than or equal to 2000 characters",
+    "note must be a string",
+    "gender must be one of the following values: M, F",
+    "interview_date must be a valid ISO 8601 date string",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "full_name": {
+    "a": 1
+   },
+   "phone": {
+    "a": 1
+   },
+   "email": {
+    "a": 1
+   },
+   "position": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "source": {
+    "a": 1
+   },
+   "stage": {
+    "a": 1
+   },
+   "decision": {
+    "a": 1
+   },
+   "recruitment_type": {
+    "a": 1
+   },
+   "applied_date": {
+    "a": 1
+   },
+   "cost": {
+    "a": 1
+   },
+   "note": {
+    "a": 1
+   },
+   "gender": {
+    "a": 1
+   },
+   "interview_date": {
+    "a": 1
+   },
+   "interview_time": {
+    "a": 1
+   },
+   "recruiter_id": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 150 characters",
+    "full_name must be a string",
+    "phone must be shorter than or equal to 20 characters",
+    "phone must be a string",
+    "email must be shorter than or equal to 150 characters",
+    "email must be a string",
+    "position must be shorter than or equal to 150 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 150 characters",
+    "department must be a string",
+    "source must be shorter than or equal to 100 characters",
+    "source must be a string",
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "applied_date must be a valid ISO 8601 date string",
+    "cost must not be less than 0",
+    "cost must be an integer number",
+    "note must be shorter than or equal to 2000 characters",
+    "note must be a string",
+    "gender must be one of the following values: M, F",
+    "interview_date must be a valid ISO 8601 date string",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "full_name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "phone": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "email": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "position": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "source": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "stage": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "decision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "recruitment_type": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "applied_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "cost": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "gender": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "interview_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "interview_time": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "recruiter_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 150 characters",
+    "phone must be shorter than or equal to 20 characters",
+    "email must be shorter than or equal to 150 characters",
+    "position must be shorter than or equal to 150 characters",
+    "department must be shorter than or equal to 150 characters",
+    "source must be shorter than or equal to 100 characters",
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "applied_date must be a valid ISO 8601 date string",
+    "cost must not be less than 0",
+    "cost must be an integer number",
+    "gender must be one of the following values: M, F",
+    "interview_date must be a valid ISO 8601 date string",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "full_name": "2026-11-26T10:00:00Z",
+   "phone": "2026-11-26T10:00:00Z",
+   "email": "2026-11-26T10:00:00Z",
+   "position": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "source": "2026-11-26T10:00:00Z",
+   "stage": "2026-11-26T10:00:00Z",
+   "decision": "2026-11-26T10:00:00Z",
+   "recruitment_type": "2026-11-26T10:00:00Z",
+   "applied_date": "2026-11-26T10:00:00Z",
+   "cost": "2026-11-26T10:00:00Z",
+   "note": "2026-11-26T10:00:00Z",
+   "gender": "2026-11-26T10:00:00Z",
+   "interview_date": "2026-11-26T10:00:00Z",
+   "interview_time": "2026-11-26T10:00:00Z",
+   "recruiter_id": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "cost must not be less than 0",
+    "cost must be an integer number",
+    "gender must be one of the following values: M, F",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "full_name": "123",
+   "phone": "123",
+   "email": "123",
+   "position": "123",
+   "department": "123",
+   "source": "123",
+   "stage": "123",
+   "decision": "123",
+   "recruitment_type": "123",
+   "applied_date": "123",
+   "cost": "123",
+   "note": "123",
+   "gender": "123",
+   "interview_date": "123",
+   "interview_time": "123",
+   "recruiter_id": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "applied_date must be a valid ISO 8601 date string",
+    "cost must not be less than 0",
+    "cost must be an integer number",
+    "gender must be one of the following values: M, F",
+    "interview_date must be a valid ISO 8601 date string",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "full_name": "a@example.com",
+   "phone": "a@example.com",
+   "email": "a@example.com",
+   "position": "a@example.com",
+   "department": "a@example.com",
+   "source": "a@example.com",
+   "stage": "a@example.com",
+   "decision": "a@example.com",
+   "recruitment_type": "a@example.com",
+   "applied_date": "a@example.com",
+   "cost": "a@example.com",
+   "note": "a@example.com",
+   "gender": "a@example.com",
+   "interview_date": "a@example.com",
+   "interview_time": "a@example.com",
+   "recruiter_id": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "applied_date must be a valid ISO 8601 date string",
+    "cost must not be less than 0",
+    "cost must be an integer number",
+    "gender must be one of the following values: M, F",
+    "interview_date must be a valid ISO 8601 date string",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "full_name": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "phone": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "email": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "position": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "source": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "stage": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "decision": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "recruitment_type": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "applied_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "cost": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "note": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "gender": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "interview_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "interview_time": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "recruiter_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "full_name must be shorter than or equal to 150 characters",
+    "full_name must be a string",
+    "phone must be shorter than or equal to 20 characters",
+    "phone must be a string",
+    "email must be shorter than or equal to 150 characters",
+    "email must be a string",
+    "position must be shorter than or equal to 150 characters",
+    "position must be a string",
+    "department must be shorter than or equal to 150 characters",
+    "department must be a string",
+    "source must be shorter than or equal to 100 characters",
+    "source must be a string",
+    "stage must be one of the following values: applied, sent_manager, interview, test, offer, hired",
+    "decision must be one of the following values: pending, hired, rejected",
+    "recruitment_type must be one of the following values: internal, external",
+    "applied_date must be a valid ISO 8601 date string",
+    "cost must not be less than 0",
+    "cost must be an integer number",
+    "note must be shorter than or equal to 2000 characters",
+    "note must be a string",
+    "gender must be one of the following values: M, F",
+    "interview_date must be a valid ISO 8601 date string",
+    "Giờ phỏng vấn phải dạng HH:mm",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "full_name": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCandidateDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "full_name": "x"
+  },
+  "result": {
+   "ok": {
+    "full_name": "x"
+   }
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "job_code": null,
+   "department": null,
+   "team": null,
+   "position_title": null,
+   "headcount": null,
+   "recruiter_id": null,
+   "opened_date": null,
+   "expected_start_date": null,
+   "description": null,
+   "requirements": null,
+   "recruitment_cost": null,
+   "status": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "job_code": "",
+   "department": "",
+   "team": "",
+   "position_title": "",
+   "headcount": "",
+   "recruiter_id": "",
+   "opened_date": "",
+   "expected_start_date": "",
+   "description": "",
+   "requirements": "",
+   "recruitment_cost": "",
+   "status": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "job_code": "  x  ",
+   "department": "  x  ",
+   "team": "  x  ",
+   "position_title": "  x  ",
+   "headcount": "  x  ",
+   "recruiter_id": "  x  ",
+   "opened_date": "  x  ",
+   "expected_start_date": "  x  ",
+   "description": "  x  ",
+   "requirements": "  x  ",
+   "recruitment_cost": "  x  ",
+   "status": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "job_code": 12.5,
+   "department": 12.5,
+   "team": 12.5,
+   "position_title": 12.5,
+   "headcount": 12.5,
+   "recruiter_id": 12.5,
+   "opened_date": 12.5,
+   "expected_start_date": 12.5,
+   "description": 12.5,
+   "requirements": 12.5,
+   "recruitment_cost": 12.5,
+   "status": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must be an integer number",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "job_code": -1,
+   "department": -1,
+   "team": -1,
+   "position_title": -1,
+   "headcount": -1,
+   "recruiter_id": -1,
+   "opened_date": -1,
+   "expected_start_date": -1,
+   "description": -1,
+   "requirements": -1,
+   "recruitment_cost": -1,
+   "status": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "recruiter_id must not be less than 1",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "recruitment_cost must not be less than 0",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "job_code": 0,
+   "department": 0,
+   "team": 0,
+   "position_title": 0,
+   "headcount": 0,
+   "recruiter_id": 0,
+   "opened_date": 0,
+   "expected_start_date": 0,
+   "description": 0,
+   "requirements": 0,
+   "recruitment_cost": 0,
+   "status": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "recruiter_id must not be less than 1",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "job_code": true,
+   "department": true,
+   "team": true,
+   "position_title": true,
+   "headcount": true,
+   "recruiter_id": true,
+   "opened_date": true,
+   "expected_start_date": true,
+   "description": true,
+   "requirements": true,
+   "recruitment_cost": true,
+   "status": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "job_code": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "team": [
+    "a",
+    1
+   ],
+   "position_title": [
+    "a",
+    1
+   ],
+   "headcount": [
+    "a",
+    1
+   ],
+   "recruiter_id": [
+    "a",
+    1
+   ],
+   "opened_date": [
+    "a",
+    1
+   ],
+   "expected_start_date": [
+    "a",
+    1
+   ],
+   "description": [
+    "a",
+    1
+   ],
+   "requirements": [
+    "a",
+    1
+   ],
+   "recruitment_cost": [
+    "a",
+    1
+   ],
+   "status": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "job_code": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "team": {
+    "a": 1
+   },
+   "position_title": {
+    "a": 1
+   },
+   "headcount": {
+    "a": 1
+   },
+   "recruiter_id": {
+    "a": 1
+   },
+   "opened_date": {
+    "a": 1
+   },
+   "expected_start_date": {
+    "a": 1
+   },
+   "description": {
+    "a": 1
+   },
+   "requirements": {
+    "a": 1
+   },
+   "recruitment_cost": {
+    "a": 1
+   },
+   "status": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "job_code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "position_title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "headcount": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "recruiter_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "opened_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "expected_start_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "requirements": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "recruitment_cost": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "department must be shorter than or equal to 100 characters",
+    "team must be shorter than or equal to 100 characters",
+    "position_title must be shorter than or equal to 150 characters",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "job_code": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "team": "2026-11-26T10:00:00Z",
+   "position_title": "2026-11-26T10:00:00Z",
+   "headcount": "2026-11-26T10:00:00Z",
+   "recruiter_id": "2026-11-26T10:00:00Z",
+   "opened_date": "2026-11-26T10:00:00Z",
+   "expected_start_date": "2026-11-26T10:00:00Z",
+   "description": "2026-11-26T10:00:00Z",
+   "requirements": "2026-11-26T10:00:00Z",
+   "recruitment_cost": "2026-11-26T10:00:00Z",
+   "status": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "job_code": "123",
+   "department": "123",
+   "team": "123",
+   "position_title": "123",
+   "headcount": "123",
+   "recruiter_id": "123",
+   "opened_date": "123",
+   "expected_start_date": "123",
+   "description": "123",
+   "requirements": "123",
+   "recruitment_cost": "123",
+   "status": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "job_code": "a@example.com",
+   "department": "a@example.com",
+   "team": "a@example.com",
+   "position_title": "a@example.com",
+   "headcount": "a@example.com",
+   "recruiter_id": "a@example.com",
+   "opened_date": "a@example.com",
+   "expected_start_date": "a@example.com",
+   "description": "a@example.com",
+   "requirements": "a@example.com",
+   "recruitment_cost": "a@example.com",
+   "status": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "job_code": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "position_title": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "headcount": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "recruiter_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "opened_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "expected_start_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "description": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "requirements": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "recruitment_cost": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "job_code": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "CreatePositionDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "job_code": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "job_code": null,
+   "department": null,
+   "team": null,
+   "position_title": null,
+   "headcount": null,
+   "recruiter_id": null,
+   "opened_date": null,
+   "expected_start_date": null,
+   "description": null,
+   "requirements": null,
+   "recruitment_cost": null,
+   "status": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "job_code": "",
+   "department": "",
+   "team": "",
+   "position_title": "",
+   "headcount": "",
+   "recruiter_id": "",
+   "opened_date": "",
+   "expected_start_date": "",
+   "description": "",
+   "requirements": "",
+   "recruitment_cost": "",
+   "status": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "job_code": "  x  ",
+   "department": "  x  ",
+   "team": "  x  ",
+   "position_title": "  x  ",
+   "headcount": "  x  ",
+   "recruiter_id": "  x  ",
+   "opened_date": "  x  ",
+   "expected_start_date": "  x  ",
+   "description": "  x  ",
+   "requirements": "  x  ",
+   "recruitment_cost": "  x  ",
+   "status": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "job_code": 12.5,
+   "department": 12.5,
+   "team": 12.5,
+   "position_title": 12.5,
+   "headcount": 12.5,
+   "recruiter_id": 12.5,
+   "opened_date": 12.5,
+   "expected_start_date": 12.5,
+   "description": 12.5,
+   "requirements": 12.5,
+   "recruitment_cost": 12.5,
+   "status": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must be an integer number",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "job_code": -1,
+   "department": -1,
+   "team": -1,
+   "position_title": -1,
+   "headcount": -1,
+   "recruiter_id": -1,
+   "opened_date": -1,
+   "expected_start_date": -1,
+   "description": -1,
+   "requirements": -1,
+   "recruitment_cost": -1,
+   "status": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "recruiter_id must not be less than 1",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "recruitment_cost must not be less than 0",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "job_code": 0,
+   "department": 0,
+   "team": 0,
+   "position_title": 0,
+   "headcount": 0,
+   "recruiter_id": 0,
+   "opened_date": 0,
+   "expected_start_date": 0,
+   "description": 0,
+   "requirements": 0,
+   "recruitment_cost": 0,
+   "status": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "recruiter_id must not be less than 1",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "job_code": true,
+   "department": true,
+   "team": true,
+   "position_title": true,
+   "headcount": true,
+   "recruiter_id": true,
+   "opened_date": true,
+   "expected_start_date": true,
+   "description": true,
+   "requirements": true,
+   "recruitment_cost": true,
+   "status": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "job_code": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "team": [
+    "a",
+    1
+   ],
+   "position_title": [
+    "a",
+    1
+   ],
+   "headcount": [
+    "a",
+    1
+   ],
+   "recruiter_id": [
+    "a",
+    1
+   ],
+   "opened_date": [
+    "a",
+    1
+   ],
+   "expected_start_date": [
+    "a",
+    1
+   ],
+   "description": [
+    "a",
+    1
+   ],
+   "requirements": [
+    "a",
+    1
+   ],
+   "recruitment_cost": [
+    "a",
+    1
+   ],
+   "status": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "job_code": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "team": {
+    "a": 1
+   },
+   "position_title": {
+    "a": 1
+   },
+   "headcount": {
+    "a": 1
+   },
+   "recruiter_id": {
+    "a": 1
+   },
+   "opened_date": {
+    "a": 1
+   },
+   "expected_start_date": {
+    "a": 1
+   },
+   "description": {
+    "a": 1
+   },
+   "requirements": {
+    "a": 1
+   },
+   "recruitment_cost": {
+    "a": 1
+   },
+   "status": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "job_code": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "position_title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "headcount": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "recruiter_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "opened_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "expected_start_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "requirements": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "recruitment_cost": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "department must be shorter than or equal to 100 characters",
+    "team must be shorter than or equal to 100 characters",
+    "position_title must be shorter than or equal to 150 characters",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "job_code": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "team": "2026-11-26T10:00:00Z",
+   "position_title": "2026-11-26T10:00:00Z",
+   "headcount": "2026-11-26T10:00:00Z",
+   "recruiter_id": "2026-11-26T10:00:00Z",
+   "opened_date": "2026-11-26T10:00:00Z",
+   "expected_start_date": "2026-11-26T10:00:00Z",
+   "description": "2026-11-26T10:00:00Z",
+   "requirements": "2026-11-26T10:00:00Z",
+   "recruitment_cost": "2026-11-26T10:00:00Z",
+   "status": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "job_code": "123",
+   "department": "123",
+   "team": "123",
+   "position_title": "123",
+   "headcount": "123",
+   "recruiter_id": "123",
+   "opened_date": "123",
+   "expected_start_date": "123",
+   "description": "123",
+   "requirements": "123",
+   "recruitment_cost": "123",
+   "status": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "job_code": "a@example.com",
+   "department": "a@example.com",
+   "team": "a@example.com",
+   "position_title": "a@example.com",
+   "headcount": "a@example.com",
+   "recruiter_id": "a@example.com",
+   "opened_date": "a@example.com",
+   "expected_start_date": "a@example.com",
+   "description": "a@example.com",
+   "requirements": "a@example.com",
+   "recruitment_cost": "a@example.com",
+   "status": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "job_code": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "position_title": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "headcount": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "recruiter_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "opened_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "expected_start_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "description": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "requirements": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "recruitment_cost": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "job_code must be shorter than or equal to 50 characters",
+    "job_code must be a string",
+    "department must be shorter than or equal to 100 characters",
+    "department must be a string",
+    "team must be shorter than or equal to 100 characters",
+    "team must be a string",
+    "position_title must be shorter than or equal to 150 characters",
+    "position_title must be a string",
+    "headcount must not be less than 1",
+    "headcount must be an integer number",
+    "recruiter_id must not be less than 1",
+    "recruiter_id must be an integer number",
+    "opened_date must be a valid ISO 8601 date string",
+    "expected_start_date must be a valid ISO 8601 date string",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "requirements must be shorter than or equal to 5000 characters",
+    "requirements must be a string",
+    "recruitment_cost must not be less than 0",
+    "recruitment_cost must be an integer number",
+    "status must be one of the following values: open, closed"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "job_code": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdatePositionDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "job_code": "x"
+  },
+  "result": {
+   "ok": {
+    "job_code": "x"
+   }
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {
+    "page": 1,
+    "page_size": 25
+   }
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "page": null,
+   "page_size": null,
+   "search": null,
+   "stage": null,
+   "source": null,
+   "decision": null,
+   "recruitment_type": null,
+   "sort_by": null,
+   "sort_dir": null
+  },
+  "result": {
+   "ok": {
+    "page": null,
+    "page_size": null,
+    "search": null,
+    "stage": null,
+    "source": null,
+    "decision": null,
+    "recruitment_type": null,
+    "sort_by": null,
+    "sort_dir": null
+   }
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "page": "",
+   "page_size": "",
+   "search": "",
+   "stage": "",
+   "source": "",
+   "decision": "",
+   "recruitment_type": "",
+   "sort_by": "",
+   "sort_dir": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "page": "  x  ",
+   "page_size": "  x  ",
+   "search": "  x  ",
+   "stage": "  x  ",
+   "source": "  x  ",
+   "decision": "  x  ",
+   "recruitment_type": "  x  ",
+   "sort_by": "  x  ",
+   "sort_dir": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "page": 12.5,
+   "page_size": 12.5,
+   "search": 12.5,
+   "stage": 12.5,
+   "source": 12.5,
+   "decision": 12.5,
+   "recruitment_type": 12.5,
+   "sort_by": 12.5,
+   "sort_dir": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must be an integer number",
+    "page_size must be an integer number",
+    "search must be a string",
+    "stage must be a string",
+    "source must be a string",
+    "decision must be a string",
+    "recruitment_type must be a string",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "page": -1,
+   "page_size": -1,
+   "search": -1,
+   "stage": -1,
+   "source": -1,
+   "decision": -1,
+   "recruitment_type": -1,
+   "sort_by": -1,
+   "sort_dir": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "search must be a string",
+    "stage must be a string",
+    "source must be a string",
+    "decision must be a string",
+    "recruitment_type must be a string",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "page": 0,
+   "page_size": 0,
+   "search": 0,
+   "stage": 0,
+   "source": 0,
+   "decision": 0,
+   "recruitment_type": 0,
+   "sort_by": 0,
+   "sort_dir": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "search must be a string",
+    "stage must be a string",
+    "source must be a string",
+    "decision must be a string",
+    "recruitment_type must be a string",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "page": true,
+   "page_size": true,
+   "search": true,
+   "stage": true,
+   "source": true,
+   "decision": true,
+   "recruitment_type": true,
+   "sort_by": true,
+   "sort_dir": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "search must be a string",
+    "stage must be a string",
+    "source must be a string",
+    "decision must be a string",
+    "recruitment_type must be a string",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "page": [
+    "a",
+    1
+   ],
+   "page_size": [
+    "a",
+    1
+   ],
+   "search": [
+    "a",
+    1
+   ],
+   "stage": [
+    "a",
+    1
+   ],
+   "source": [
+    "a",
+    1
+   ],
+   "decision": [
+    "a",
+    1
+   ],
+   "recruitment_type": [
+    "a",
+    1
+   ],
+   "sort_by": [
+    "a",
+    1
+   ],
+   "sort_dir": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "search must be a string",
+    "stage must be a string",
+    "source must be a string",
+    "decision must be a string",
+    "recruitment_type must be a string",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "page": {
+    "a": 1
+   },
+   "page_size": {
+    "a": 1
+   },
+   "search": {
+    "a": 1
+   },
+   "stage": {
+    "a": 1
+   },
+   "source": {
+    "a": 1
+   },
+   "decision": {
+    "a": 1
+   },
+   "recruitment_type": {
+    "a": 1
+   },
+   "sort_by": {
+    "a": 1
+   },
+   "sort_dir": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "search must be a string",
+    "stage must be a string",
+    "source must be a string",
+    "decision must be a string",
+    "recruitment_type must be a string",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "page": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "page_size": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "search": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "stage": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "source": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "decision": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "recruitment_type": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sort_by": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sort_dir": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "page": "2026-11-26T10:00:00Z",
+   "page_size": "2026-11-26T10:00:00Z",
+   "search": "2026-11-26T10:00:00Z",
+   "stage": "2026-11-26T10:00:00Z",
+   "source": "2026-11-26T10:00:00Z",
+   "decision": "2026-11-26T10:00:00Z",
+   "recruitment_type": "2026-11-26T10:00:00Z",
+   "sort_by": "2026-11-26T10:00:00Z",
+   "sort_dir": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "page": "123",
+   "page_size": "123",
+   "search": "123",
+   "stage": "123",
+   "source": "123",
+   "decision": "123",
+   "recruitment_type": "123",
+   "sort_by": "123",
+   "sort_dir": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page_size must not be greater than 100",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "page": "a@example.com",
+   "page_size": "a@example.com",
+   "search": "a@example.com",
+   "stage": "a@example.com",
+   "source": "a@example.com",
+   "decision": "a@example.com",
+   "recruitment_type": "a@example.com",
+   "sort_by": "a@example.com",
+   "sort_dir": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "page": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "page_size": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "search": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "stage": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "source": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "decision": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "recruitment_type": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "sort_by": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "sort_dir": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "search must be a string",
+    "stage must be a string",
+    "source must be a string",
+    "decision must be a string",
+    "recruitment_type must be a string",
+    "sort_by must be one of the following values: full_name, applied_date, cost, stage, decision, source",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "page": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "page must not be less than 1",
+    "page must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryCandidatesDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "page": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "date_from": null,
+   "date_to": null
+  },
+  "result": {
+   "ok": {
+    "date_from": null,
+    "date_to": null
+   }
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "date_from": "",
+   "date_to": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "date_from": "  x  ",
+   "date_to": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "date_from": 12.5,
+   "date_to": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "date_from": -1,
+   "date_to": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "date_from": 0,
+   "date_to": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "date_from": true,
+   "date_to": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "date_from": [
+    "a",
+    1
+   ],
+   "date_to": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "date_from": {
+    "a": 1
+   },
+   "date_to": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "date_from": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "date_to": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "date_from": "2026-11-26T10:00:00Z",
+   "date_to": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "ok": {
+    "date_from": "2026-11-26T10:00:00Z",
+    "date_to": "2026-11-26T10:00:00Z"
+   }
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "date_from": "123",
+   "date_to": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "date_from": "a@example.com",
+   "date_to": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "date_from": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "date_to": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date_from": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "date_from must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryRecruitmentStatsDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date_from": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {
+    "page": 1,
+    "page_size": 25
+   }
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "page": null,
+   "page_size": null,
+   "search": null,
+   "status": null,
+   "department": null,
+   "sort_by": null,
+   "sort_dir": null
+  },
+  "result": {
+   "ok": {
+    "page": null,
+    "page_size": null,
+    "search": null,
+    "status": null,
+    "department": null,
+    "sort_by": null,
+    "sort_dir": null
+   }
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "page": "",
+   "page_size": "",
+   "search": "",
+   "status": "",
+   "department": "",
+   "sort_by": "",
+   "sort_dir": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "page": "  x  ",
+   "page_size": "  x  ",
+   "search": "  x  ",
+   "status": "  x  ",
+   "department": "  x  ",
+   "sort_by": "  x  ",
+   "sort_dir": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "page": 12.5,
+   "page_size": 12.5,
+   "search": 12.5,
+   "status": 12.5,
+   "department": 12.5,
+   "sort_by": 12.5,
+   "sort_dir": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must be an integer number",
+    "page_size must be an integer number",
+    "search must be a string",
+    "status must be a string",
+    "department must be a string",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "page": -1,
+   "page_size": -1,
+   "search": -1,
+   "status": -1,
+   "department": -1,
+   "sort_by": -1,
+   "sort_dir": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "search must be a string",
+    "status must be a string",
+    "department must be a string",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "page": 0,
+   "page_size": 0,
+   "search": 0,
+   "status": 0,
+   "department": 0,
+   "sort_by": 0,
+   "sort_dir": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "search must be a string",
+    "status must be a string",
+    "department must be a string",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "page": true,
+   "page_size": true,
+   "search": true,
+   "status": true,
+   "department": true,
+   "sort_by": true,
+   "sort_dir": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "search must be a string",
+    "status must be a string",
+    "department must be a string",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "page": [
+    "a",
+    1
+   ],
+   "page_size": [
+    "a",
+    1
+   ],
+   "search": [
+    "a",
+    1
+   ],
+   "status": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "sort_by": [
+    "a",
+    1
+   ],
+   "sort_dir": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "search must be a string",
+    "status must be a string",
+    "department must be a string",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "page": {
+    "a": 1
+   },
+   "page_size": {
+    "a": 1
+   },
+   "search": {
+    "a": 1
+   },
+   "status": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "sort_by": {
+    "a": 1
+   },
+   "sort_dir": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "search must be a string",
+    "status must be a string",
+    "department must be a string",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "page": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "page_size": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "search": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sort_by": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sort_dir": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "page": "2026-11-26T10:00:00Z",
+   "page_size": "2026-11-26T10:00:00Z",
+   "search": "2026-11-26T10:00:00Z",
+   "status": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "sort_by": "2026-11-26T10:00:00Z",
+   "sort_dir": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "page": "123",
+   "page_size": "123",
+   "search": "123",
+   "status": "123",
+   "department": "123",
+   "sort_by": "123",
+   "sort_dir": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page_size must not be greater than 100",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "page": "a@example.com",
+   "page_size": "a@example.com",
+   "search": "a@example.com",
+   "status": "a@example.com",
+   "department": "a@example.com",
+   "sort_by": "a@example.com",
+   "sort_dir": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "page": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "page_size": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "search": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "sort_by": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "sort_dir": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "search must be a string",
+    "status must be a string",
+    "department must be a string",
+    "sort_by must be one of the following values: job_code, department, position_title, headcount, opened_date, recruitment_cost, status",
+    "sort_dir must be one of the following values: asc, desc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "page": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "page must not be less than 1",
+    "page must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryPositionsDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "page": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "page must not be less than 1",
+    "page must be an integer number"
+   ]
+  }
+ },
+ {
   "dto": "CreateDealDto",
   "mode": "strict",
   "probe": "valid",

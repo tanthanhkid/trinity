@@ -57,10 +57,7 @@ pub fn push_scope(qb: &mut QueryBuilder<Postgres>, owner: &OwnerIds, fields: &[&
 
 /// `bang.cot` ⇒ `"bang"."cot"`. Chỉ gọi sau [`is_column`] nên không có ký tự nháy bên trong.
 fn quote_column(f: &str) -> String {
-    f.split('.')
-        .map(|p| format!("\"{p}\""))
-        .collect::<Vec<_>>()
-        .join(".")
+    f.split('.').map(|p| format!("\"{p}\"")).collect::<Vec<_>>().join(".")
 }
 
 impl OwnerIds {
@@ -183,12 +180,12 @@ impl fmt::Display for ScopeError {
 
 impl std::error::Error for ScopeError {}
 
-/// 404 giữ nguyên; lỗi DB đi qua `AppError::Db` (đầu ra 500 như mọi lỗi DB khác).
+/// 404 giữ nguyên; lỗi DB thành `AppError::Internal` (500).
 impl From<ScopeError> for AppError {
     fn from(e: ScopeError) -> Self {
         match e {
             ScopeError::NotFound(h) => Self::Http(*h),
-            ScopeError::Db(d) => Self::Db(d),
+            ScopeError::Db(d) => Self::internal(d),
         }
     }
 }

@@ -46,7 +46,7 @@ pub fn list_deals<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Re
             .map(|(d, cid)| {
                 let visible = cid.is_some_and(|c| seen.contains(&c));
                 json!({
-                    "id": d["id"], "code": d["code"], "title": d["title"], "status": d["status"], "value": d["value"],
+                    "id": d["id"], "title": d["title"], "status": d["status"], "value": d["value"],
                     "contact_id": if visible { d["contact_id"].clone() } else { Value::Null },
                     "assignee": d.get("assignee").and_then(|a| s(a, "full_name")), "assigned_to": d["assigned_to"],
                     "created_at": d["created_at"],

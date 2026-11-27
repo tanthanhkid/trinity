@@ -187,6 +187,23 @@ pub fn get_setup_guide<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'
     })
 }
 
+/// `complete_setup`: dang_dung → da_dung (mở CRM cho cả công ty). Chưa dựng (`chua_dung`) thì từ chối như `POST /setup/complete`.
+pub fn complete_setup<'a>(_args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+    Box::pin(async move {
+        let (p, deps) = (ctx.principal, ctx.deps);
+        let mut conn = deps.conn(p.company).await?;
+        if mod_setup::status::get(&mut conn).await == "chua_dung" {
+            return Err(ToolError::User(
+                "Chưa dựng quy trình: hãy propose_workspace và để người dùng duyệt trước. / Nothing built yet: run propose_workspace first.".into(),
+            ));
+        }
+        let st = mod_setup::status::set(&mut conn, "da_dung", Some(p.user_id))
+            .await
+            .map_err(app_err)?;
+        wrapped(&json!({ "status": st }))
+    })
+}
+
 pub fn list_features<'a>(_args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
     Box::pin(async move {
         let (p, deps) = (ctx.principal, ctx.deps);

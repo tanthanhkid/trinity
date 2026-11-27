@@ -928,6 +928,7 @@ fn tool_ghi_khop_hop_dong_va_khong_co_tool_xoa() {
             "archive_field",
             "archive_record",
             "assign_contact",
+            "complete_setup",
             "create_contact",
             "create_object",
             "create_objects",

@@ -1,15 +1,15 @@
-//! Module POS (M26): sơ đồ bàn, tuỳ chọn món, cấu hình quán, menu, ca và báo cáo ngày, chuyển từ
-//! `services/commerce/src/pos` (`pos-layout`, `pos-catalog`, `pos-shifts`, `pos-reports`). Đơn và thanh toán (M27) thuộc
-//! issue khác nhưng dùng chung các bảng `pos_orders`, `pos_payments`.
+//! Module POS (M26 sơ đồ bàn, ca; M27 đơn và thanh toán): sơ đồ bàn, tuỳ chọn món, cấu hình quán, menu, ca và báo cáo ngày, chuyển từ
+//! `services/commerce/src/pos` (`pos-layout`, `pos-catalog`, `pos-shifts`, `pos-reports`, `pos-orders`).
 //!
 //! Mỗi hàm nhận `&mut PgConnection` đã gắn công ty và trả `AppError` của K05; tầng route chỉ việc: extractor K15 →
-//! `normalize()` + `validate()` → hàm ở đây → JSON. Bảng route (K14) ở [`routes`]. 18 endpoint:
+//! `normalize()` + `validate()` → hàm ở đây → JSON. Bảng route (K14) ở [`routes`]. 25 endpoint:
 //!
 //! | Quyền | Endpoint | Hàm |
 //! |---|---|---|
 //! | `pos.sell` | `GET /pos/areas`, `/pos/tables`, `/pos/modifiers`, `/pos/settings`, `/pos/menu` | [`layout`], [`catalog`] |
 //! | `pos.manage` | `POST/PATCH /pos/areas[/:id]`, `/pos/tables[/:id]`, `/pos/modifiers[/:id]`, `PATCH /pos/settings` | [`layout`], [`catalog`] |
 //! | `pos.sell` | `POST /pos/shifts/open`, `GET /pos/shifts[/current]`, `GET /pos/shifts/:id/summary`, `POST /pos/shifts/:id/close` | [`shifts`] |
+//! | `pos.sell` | `POST/GET /pos/orders`, `GET/PATCH /pos/orders/:id`, `POST /pos/orders/:id/pay\|void`, `GET /pos/orders/:id/qr` | [`orders`], [`money`], [`vietqr`] |
 //! | `pos.report` | `GET /pos/reports/daily` | [`reports`] |
 //!
 //! Tiền là số nguyên VND (`i64`), trần [`MAX_MONEY`].
@@ -19,9 +19,12 @@
 
 pub mod catalog;
 pub mod layout;
+pub mod money;
+pub mod orders;
 pub mod reports;
 pub mod routes;
 pub mod shifts;
+pub mod vietqr;
 
 use trinity_kernel::error::HttpError;
 

@@ -42,6 +42,7 @@ mod-payroll = { path = "crates/mod-payroll" }
 mod-pos = { path = "crates/mod-pos" }
 mod-notify = { path = "crates/mod-notify" }
 mod-hr = { path = "crates/mod-hr" }
+mod-leads = { path = "crates/mod-leads" }
 mod-settings = { path = "crates/mod-settings" }
 mod-deals = { path = "crates/mod-deals" }
 

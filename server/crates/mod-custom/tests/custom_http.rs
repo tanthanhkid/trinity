@@ -65,7 +65,7 @@ async fn app() -> App {
         guards: Default::default(),
     });
     let (router, table) = api_router(deps).into_parts();
-    assert_eq!(table.len(), 15);
+    assert_eq!(table.len(), 27);
     App {
         router: router.with_state(ctx.clone()),
         ctx,

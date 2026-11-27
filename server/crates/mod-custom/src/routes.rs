@@ -1,5 +1,6 @@
-//! Bảng route và handler (K14) của 15 route `/api/v1/custom-objects` thuộc M17. Quyền, mã thành công và chế độ kiểm dữ liệu
-//! (strict) khớp `contracts/routes.json`; hai route mẫu bảng (`templates`, `templates/:template/apply`) thuộc M19.
+//! Bảng route và handler (K14): 15 route cấu trúc `/api/v1/custom-objects` (M17), 8 route bản ghi cùng `/custom-objects/:key/...` và
+//! 4 route `/api/v1/refs/*` (M18). Quyền, mã thành công và chế độ kiểm dữ liệu (strict) khớp `contracts/routes.json`; hai route
+//! mẫu bảng (`templates`, `templates/:template/apply`) thuộc M19.
 
 use std::sync::Arc;
 
@@ -10,22 +11,27 @@ use axum::http::{Method, StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
 use serde_json::{Map, Value};
 use trinity_http::router::{Access, AccessDeps, ApiRouter, CurrentUser, RouteSpec};
-use trinity_http::validate::extract::query_to_json;
+use trinity_http::validate::extract::{parse_int_param, query_to_json};
 use trinity_http::validate::{Mode, validate_value};
 use trinity_kernel::error::{AppError, HttpError};
 
 use crate::fields::{CreateField, UpdateField};
 use crate::lookups::LookupQuery;
 use crate::objects::{CreateObject, UpdateObject};
-use crate::{Actor, Ctx, fields, lookups, objects, views};
+use crate::{Actor, Ctx, export, fields, lookups, objects, present, records, refs, views};
 
 const BASE: &str = "/api/v1/custom-objects";
 const MANAGE: Access = Access::Can(&["custom_objects.manage"]);
 const VIEW: Access = Access::Can(&["custom_records.view"]);
 const VIEW_OR_MANAGE: Access = Access::CanAny(&["custom_records.view", "custom_objects.manage"]);
 const LOOKUP: Access = Access::CanAny(&["custom_records.view", "custom_records.manage"]);
+const REC_WRITE: Access = Access::Can(&["custom_records.view", "custom_records.manage"]);
+const REC_DELETE: Access = Access::Can(&["custom_records.view", "custom_records.delete"]);
+const REC_EXPORT: Access = Access::Can(&["custom_records.view", "custom_records.export"]);
+const REFS_READ: Access = Access::CanAny(&["custom_records.view", "contacts.view", "deals.view", "kanban.view"]);
+const ID: &[&str] = &["param.id:ParseIntPipe"];
 
-/// 15 dòng của bảng route, so với `routes.json` bởi `trinity check-routes`.
+/// 27 dòng của bảng route, so với `routes.json` bởi `trinity check-routes`.
 pub fn specs() -> Vec<RouteSpec> {
     let s = |m: Method, p: &'static str, a: Access, ok: u16| RouteSpec::new(m, p, a).status_ok(ok);
     vec![
@@ -54,6 +60,35 @@ pub fn specs() -> Vec<RouteSpec> {
             MANAGE,
             200,
         ),
+        s(Method::GET, "/api/v1/custom-objects/:key/lookup", VIEW, 200),
+        s(Method::GET, "/api/v1/custom-objects/:key/records", VIEW, 200),
+        s(Method::POST, "/api/v1/custom-objects/:key/records", REC_WRITE, 201),
+        s(
+            Method::GET,
+            "/api/v1/custom-objects/:key/records/export",
+            REC_EXPORT,
+            200,
+        ),
+        s(Method::GET, "/api/v1/custom-objects/:key/records/:id", VIEW, 200).param_pipes(ID),
+        s(
+            Method::GET,
+            "/api/v1/custom-objects/:key/records/:id/related",
+            VIEW,
+            200,
+        )
+        .param_pipes(ID),
+        s(Method::PATCH, "/api/v1/custom-objects/:key/records/:id", REC_WRITE, 200).param_pipes(ID),
+        s(
+            Method::DELETE,
+            "/api/v1/custom-objects/:key/records/:id",
+            REC_DELETE,
+            200,
+        )
+        .param_pipes(ID),
+        s(Method::GET, "/api/v1/refs/suggest", REFS_READ, 200),
+        s(Method::GET, "/api/v1/refs/resolve", REFS_READ, 200),
+        s(Method::GET, "/api/v1/refs/:type/:id/backlinks", REFS_READ, 200).param_pipes(ID),
+        s(Method::GET, "/api/v1/refs/:type/:id/preview", REFS_READ, 200).param_pipes(ID),
     ]
 }
 
@@ -253,6 +288,259 @@ async fn remove_field(
     ok(fields::remove(&c, &ac!(u), &key, &field).await)
 }
 
+fn id_param(raw: &str) -> Result<i64, Response> {
+    parse_int_param(raw).map_err(fail)
+}
+
+fn query(uri: &Uri) -> Value {
+    query_to_json(uri.query().unwrap_or(""))
+}
+
+async fn rec_list(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(key): Path<String>,
+    uri: Uri,
+) -> Response {
+    match dto("ListCustomRecordsQueryDto", &query(&uri)) {
+        Ok(q) => ok(records::list(&c, &ac!(u), &key, &q).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn rec_lookup(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(key): Path<String>,
+    uri: Uri,
+) -> Response {
+    match dto("LookupQueryDto", &query(&uri)) {
+        Ok(q) => ok(records::lookup(&c, &ac!(u), &key, &q).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn rec_create(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(key): Path<String>,
+    JsonBody(b): JsonBody,
+) -> Response {
+    match dto("CustomRecordBodyDto", &b) {
+        Ok(v) => ok(records::create(&c, &ac!(u), &key, &v).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn rec_get(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path((key, id)): Path<(String, String)>,
+) -> Response {
+    match id_param(&id) {
+        Ok(id) => ok(records::get_one(&c, &ac!(u), &key, id).await),
+        Err(r) => r,
+    }
+}
+
+async fn rec_related(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path((key, id)): Path<(String, String)>,
+) -> Response {
+    match id_param(&id) {
+        Ok(id) => ok(records::related(&c, &ac!(u), &key, id).await),
+        Err(r) => r,
+    }
+}
+
+async fn rec_update(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path((key, id)): Path<(String, String)>,
+    JsonBody(b): JsonBody,
+) -> Response {
+    let id = match id_param(&id) {
+        Ok(id) => id,
+        Err(r) => return r,
+    };
+    match dto("CustomRecordBodyDto", &b) {
+        Ok(v) => ok(records::update(&c, &ac!(u), &key, id, &v).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn rec_remove(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path((key, id)): Path<(String, String)>,
+) -> Response {
+    match id_param(&id) {
+        Ok(id) => ok(records::remove(&c, &ac!(u), &key, id).await),
+        Err(r) => r,
+    }
+}
+
+/// Đuôi `filename*` như `encodeURIComponent`.
+fn encode_component(s: &str) -> String {
+    s.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'!' | b'~' | b'*' | b'\'' | b'(' | b')' => {
+                char::from(b).to_string()
+            }
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
+async fn rec_export(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(key): Path<String>,
+    uri: Uri,
+) -> Response {
+    let q = match dto("ListCustomRecordsQueryDto", &query(&uri)) {
+        Ok(q) => q,
+        Err(e) => return fail(e),
+    };
+    let actor = ac!(u);
+    let run = async {
+        let scopes = export::ExportScopes::load(&c, &actor).await?;
+        let mut conn = c.conn(actor.company).await?;
+        export::collect(&actor, &mut conn, &scopes, &key, &q).await
+    };
+    match run.await {
+        Ok((def, out)) => {
+            let name = export::filename(&def, "csv");
+            let headers = [
+                (header::CONTENT_TYPE.as_str(), "text/csv; charset=utf-8".to_owned()),
+                (
+                    header::CONTENT_DISPOSITION.as_str(),
+                    format!(
+                        "attachment; filename=\"{name}\"; filename*=UTF-8''{}",
+                        encode_component(&name)
+                    ),
+                ),
+                (header::CACHE_CONTROL.as_str(), "private, no-store".to_owned()),
+                ("x-total-rows", out.total.to_string()),
+                ("x-exported-rows", out.exported.to_string()),
+                ("x-truncated", out.truncated.to_string()),
+                (
+                    "access-control-expose-headers",
+                    "X-Total-Rows, X-Exported-Rows, X-Truncated, Content-Disposition".to_owned(),
+                ),
+            ];
+            (StatusCode::OK, headers, out.csv()).into_response()
+        }
+        Err(e) => fail(e),
+    }
+}
+
+/// Nạp quyền tham chiếu rồi chạy `f` với kết nối (không xin kết nối thứ hai khi đang giữ một).
+macro_rules! with_refs {
+    ($c:expr, $actor:expr, |$conn:ident, $acc:ident| $body:expr) => {{
+        let run = async {
+            let owners = refs::Owners::load(&$c, &$actor).await?;
+            let mut $conn = $c.conn($actor.company).await?;
+            let $acc = refs::RefAccess::build(&mut $conn, &$actor, owners).await?;
+            $body
+        };
+        ok(run.await)
+    }};
+}
+
+async fn refs_suggest(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, uri: Uri) -> Response {
+    let q = match dto("RefSuggestQueryDto", &query(&uri)) {
+        Ok(q) => q,
+        Err(e) => return fail(e),
+    };
+    let actor = ac!(u);
+    let text = q.get("q").and_then(Value::as_str).unwrap_or("").to_owned();
+    let limit = q.get("limit").and_then(Value::as_i64).unwrap_or(8);
+    with_refs!(c, actor, |conn, acc| {
+        let found = refs::suggest(&mut conn, &acc, &text, limit).await?;
+        Ok(Value::Array(found.iter().map(refs::RefView::to_json).collect()))
+    })
+}
+
+async fn refs_resolve(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, uri: Uri) -> Response {
+    let q = match dto("RefResolveQueryDto", &query(&uri)) {
+        Ok(q) => q,
+        Err(e) => return fail(e),
+    };
+    let actor = ac!(u);
+    let codes: Vec<String> = q
+        .get("codes")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .split(',')
+        .map(|c| trinity_kernel::vi::trim_js(c).to_owned())
+        .filter(|c| !c.is_empty())
+        .take(50)
+        .collect();
+    with_refs!(c, actor, |conn, acc| {
+        let map = refs::resolve_codes(&mut conn, &acc, &codes).await?;
+        let mut found: Vec<(String, refs::RefView)> = map.into_iter().collect();
+        // Thứ tự theo mã người gọi nhập (Node trả theo thứ tự chèn của Map).
+        found.sort_by_key(|(code, _)| {
+            codes
+                .iter()
+                .position(|c| refs::parse_code(c).is_some_and(|p| p.code == *code))
+        });
+        Ok(Value::Array(
+            found
+                .into_iter()
+                .map(|(code, v)| {
+                    let mut j = v.to_json();
+                    if let Some(o) = j.as_object_mut() {
+                        o.insert("requested".into(), Value::String(code));
+                    }
+                    j
+                })
+                .collect(),
+        ))
+    })
+}
+
+fn ref_target(ty: &str, id: &str) -> Result<refs::Ref, Response> {
+    let id = id_param(id)?;
+    let ty = refs::RefType::parse(ty).ok_or_else(|| fail(HttpError::bad_request("Loại bản ghi không hợp lệ")))?;
+    let id = i32::try_from(id).map_err(|_| fail(HttpError::not_found("Không tìm thấy bản ghi")))?;
+    Ok(refs::Ref { ty, id })
+}
+
+async fn refs_backlinks(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path((ty, id)): Path<(String, String)>,
+) -> Response {
+    let target = match ref_target(&ty, &id) {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
+    let actor = ac!(u);
+    with_refs!(c, actor, |conn, acc| refs::backlinks(&mut conn, &acc, target).await)
+}
+
+async fn refs_preview(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path((ty, id)): Path<(String, String)>,
+) -> Response {
+    let target = match ref_target(&ty, &id) {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
+    let actor = ac!(u);
+    let run = async {
+        let env = present::Env::load(&c, &actor).await?;
+        let mut conn = c.conn(actor.company).await?;
+        let acc = refs::RefAccess::build(&mut conn, &actor, env.owners.clone()).await?;
+        refs::preview(&actor, &mut conn, &acc, &env, target).await
+    };
+    ok(run.await)
+}
+
 /// Router của module (người gọi gắn state `Arc<Ctx>` khi lắp `serve`).
 pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
     let s = specs();
@@ -287,4 +575,48 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
             spec(&Method::DELETE, "/api/v1/custom-objects/:key/fields/:fieldKey"),
             remove_field,
         )
+        .route(spec(&Method::GET, "/api/v1/custom-objects/:key/lookup"), rec_lookup)
+        .route(spec(&Method::GET, "/api/v1/custom-objects/:key/records"), rec_list)
+        .route(spec(&Method::POST, "/api/v1/custom-objects/:key/records"), rec_create)
+        .route(
+            spec(&Method::GET, "/api/v1/custom-objects/:key/records/export"),
+            rec_export,
+        )
+        .route(spec(&Method::GET, "/api/v1/custom-objects/:key/records/:id"), rec_get)
+        .route(
+            spec(&Method::GET, "/api/v1/custom-objects/:key/records/:id/related"),
+            rec_related,
+        )
+        .route(
+            spec(&Method::PATCH, "/api/v1/custom-objects/:key/records/:id"),
+            rec_update,
+        )
+        .route(
+            spec(&Method::DELETE, "/api/v1/custom-objects/:key/records/:id"),
+            rec_remove,
+        )
+        .route(spec(&Method::GET, "/api/v1/refs/suggest"), refs_suggest)
+        .route(spec(&Method::GET, "/api/v1/refs/resolve"), refs_resolve)
+        .route(spec(&Method::GET, "/api/v1/refs/:type/:id/backlinks"), refs_backlinks)
+        .route(spec(&Method::GET, "/api/v1/refs/:type/:id/preview"), refs_preview)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn khop_hop_dong_routes_json() {
+        let table = specs();
+        assert_eq!(table.len(), 27);
+        let rep = trinity_http::router::check::check_embedded(&table, false);
+        assert!(rep.ok(), "{:#?}", rep.problems);
+        assert_eq!(rep.declared, 27);
+    }
+
+    #[test]
+    fn ma_hoa_ten_tep() {
+        assert_eq!(encode_component("m18_hs-20261127.csv"), "m18_hs-20261127.csv");
+        assert_eq!(encode_component("a b/é"), "a%20b%2F%C3%A9");
+    }
 }

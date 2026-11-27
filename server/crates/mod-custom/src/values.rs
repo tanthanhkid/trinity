@@ -12,7 +12,7 @@ use crate::types::{CHOICE_COLORS, Limits, js_len};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValueError(pub String);
 
-fn err<T>(m: impl Into<String>) -> Result<T, ValueError> {
+pub(crate) fn err<T>(m: impl Into<String>) -> Result<T, ValueError> {
     Err(ValueError(m.into()))
 }
 
@@ -22,7 +22,7 @@ fn has_control(s: &str) -> bool {
         .any(|c| matches!(c, '\u{0}'..='\u{8}' | '\u{b}' | '\u{c}' | '\u{e}'..='\u{1f}' | '\u{7f}'))
 }
 
-fn text(v: &Value, label: &str, max: usize) -> Result<String, ValueError> {
+pub(crate) fn text(v: &Value, label: &str, max: usize) -> Result<String, ValueError> {
     let Some(s) = v.as_str() else {
         return err(format!("“{label}” phải là văn bản"));
     };

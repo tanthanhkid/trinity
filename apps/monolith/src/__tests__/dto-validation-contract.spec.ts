@@ -43,6 +43,7 @@ import * as updateUser from '../../../../services/auth/src/users/dto/update-user
 import * as customObject from '../../../../services/crm/src/custom-objects/dto/custom-object.dto'
 import * as customField from '../../../../services/crm/src/custom-objects/dto/custom-field.dto'
 import * as customRecord from '../../../../services/crm/src/custom-objects/dto/custom-record.dto'
+import * as recordRefs from '../../../../services/crm/src/custom-objects/refs/record-refs.controller'
 import * as sendNotification from '../../../../services/notification/src/notifications/dto/send-notification.dto'
 import * as createEmployee from '../../../../services/crm/src/employees/dto/create-employee.dto'
 import * as updateEmployee from '../../../../services/crm/src/employees/dto/update-employee.dto'
@@ -110,6 +111,11 @@ const SAMPLES: Array<[Cls, Mode]> = [
   [customField.ReorderCustomFieldsDto, 'strict'],
   [customField.FormulaPreviewDto, 'strict'],
   [customRecord.LookupQueryDto, 'strict'],
+  // M18 (bản ghi, liên kết)
+  [customRecord.CustomRecordBodyDto, 'strict'],
+  [customRecord.ListCustomRecordsQueryDto, 'strict'],
+  [recordRefs.RefSuggestQueryDto, 'strict'],
+  [recordRefs.RefResolveQueryDto, 'strict'],
   // M12 (tuyển dụng)
   [updateCandidate.UpdateCandidateDto, 'strict'],
   [createPosition.CreatePositionDto, 'strict'],
@@ -316,6 +322,23 @@ const EXTRA_CASES: Array<[Cls, Mode, string, unknown]> = [
   [customField.FormulaPreviewDto, 'strict', 'sai', { object_key: 'Don Hang', expression: 5, sample: 'x', editing_key: 1 }],
   [customRecord.LookupQueryDto, 'strict', 'valid_query', { q: 'an', limit: '20', for: 'manage' }],
   [customRecord.LookupQueryDto, 'strict', 'query_sai', { q: 'a\u0000', limit: '500', for: 'all', x: '1' }],
+  [customRecord.CustomRecordBodyDto, 'strict', 'valid', { data: { ten: 'A', gia: 5 }, owner_id: 3 }],
+  [customRecord.CustomRecordBodyDto, 'strict', 'valid_min', { data: {} }],
+  [customRecord.CustomRecordBodyDto, 'strict', 'data_proto', JSON.parse('{"data":{"__proto__":{"x":1},"constructor":{"a":1}}}')],
+  [customRecord.CustomRecordBodyDto, 'strict', 'sai', { data: 'x', owner_id: 1.5, la: 1 }],
+  [customRecord.CustomRecordBodyDto, 'strict', 'sai_2', { data: [], owner_id: 0 }],
+  [customRecord.CustomRecordBodyDto, 'strict', 'thieu', {}],
+  [customRecord.CustomRecordBodyDto, 'strict', 'owner_null', { data: {}, owner_id: null }],
+  [customRecord.ListCustomRecordsQueryDto, 'strict', 'valid_query', { q: 'an', limit: '20', cursor: 'abc', page: '2', sort: 'field:gia', dir: 'asc', filter: '{"a":1}' }],
+  [customRecord.ListCustomRecordsQueryDto, 'strict', 'query_sai', { q: 'a\u0000', limit: '101', page: '0', dir: 'up', sort: 'x'.repeat(61), filter: 'y'.repeat(2001), la: '1' }],
+  [customRecord.ListCustomRecordsQueryDto, 'strict', 'query_so', { limit: 'abc', page: '1.5', cursor: 'a\u0000' }],
+  [customRecord.ListCustomRecordsQueryDto, 'strict', 'query_rong', {}],
+  [recordRefs.RefSuggestQueryDto, 'strict', 'valid_query', { q: 'HS', limit: '8' }],
+  [recordRefs.RefSuggestQueryDto, 'strict', 'query_sai', { q: 'x'.repeat(61), limit: '21' }],
+  [recordRefs.RefSuggestQueryDto, 'strict', 'query_rong', {}],
+  [recordRefs.RefResolveQueryDto, 'strict', 'valid_query', { codes: 'HS001,KH002' }],
+  [recordRefs.RefResolveQueryDto, 'strict', 'query_sai', { codes: 'x'.repeat(601), la: '1' }],
+  [recordRefs.RefResolveQueryDto, 'strict', 'thieu', {}],
   [dashboardFilter.DashboardFilterQuery, 'strict', 'valid_query', { dept_head_id: '3', team_lead_id: '4', user_id: '5' }],
   [dashboardFilter.DashboardFilterQuery, 'strict', 'query_sai', { dept_head_id: '0', team_lead_id: 'abc', user_id: '1.5', x: '1' }],
   [reportRange.QueryReportRangeDto, 'strict', 'valid_query', { date_from: '2026-09-01', date_to: '2026-09-26' }],

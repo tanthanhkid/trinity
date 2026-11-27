@@ -205,9 +205,14 @@ async fn register(State(c): S, req: Request) -> Response {
     let i = inp!(c, req);
     match dto::register(&i.body) {
         Ok(d) => {
-            let fut = c
-                .auth
-                .register(&d.company_name, &d.email, &d.password, &d.full_name, i.ip(), i.trusted());
+            let fut = c.auth.register(
+                &d.company_name,
+                &d.email,
+                &d.password,
+                &d.full_name,
+                i.ip(),
+                i.trusted(),
+            );
             res(fut.await)
         }
         Err(e) => fail(e),
@@ -320,10 +325,7 @@ async fn read_avatar(mut mp: Multipart) -> Result<Option<Upload>, HttpError> {
         if f.name() != Some("file") || out.is_some() {
             return Err(HttpError::bad_request("Unexpected field"));
         }
-        let content_type = f
-            .content_type()
-            .unwrap_or("text/plain")
-            .to_owned();
+        let content_type = f.content_type().unwrap_or("text/plain").to_owned();
         let bytes = read_field_limited(&mut f, AVATAR_MAX_BYTES).await?;
         out = Some(Upload {
             bytes: bytes.to_vec(),

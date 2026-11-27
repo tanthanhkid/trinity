@@ -85,10 +85,9 @@ fn ids_of(items: &[TargetItem], scope: &str) -> BTreeSet<i32> {
 /// "Phòng"/"Team" thuần cấu trúc theo cây `manager_id`.
 async fn assert_valid(conn: &mut PgConnection, items: &[TargetItem]) -> Res<()> {
     if !all_valid(conn, VALID_TEAM, &ids_of(items, "team")).await? {
-        return Err(HttpError::bad_request(
-            "Có Team không hợp lệ (đã xoá/khoá/không đang quản lý ai) trong danh sách",
-        )
-        .into());
+        return Err(
+            HttpError::bad_request("Có Team không hợp lệ (đã xoá/khoá/không đang quản lý ai) trong danh sách").into(),
+        );
     }
     if !all_valid(conn, VALID_DEPARTMENT, &ids_of(items, "department")).await? {
         return Err(HttpError::bad_request(

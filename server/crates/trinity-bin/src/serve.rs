@@ -435,8 +435,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         }),
     );
     // Đăng nhập (M01) và API key (M05): chung một AuthService (chung bộ giới hạn tốc độ đăng nhập).
-    let auth_cfg = mod_auth::AuthConfig::from_lookup(lookup)
-        .ok_or_else(|| "thiếu JWT_SECRET".to_owned())?;
+    let auth_cfg = mod_auth::AuthConfig::from_lookup(lookup).ok_or_else(|| "thiếu JWT_SECRET".to_owned())?;
     let auth_svc = Arc::new(mod_auth::AuthService::new(
         db.clone(),
         platform.clone(),

@@ -1,6 +1,7 @@
 //! Kiểm thân request của M01 như class-validator (`services/auth/src/auth/dto/*.ts`). Các DTO này chưa có trong
 //! `contracts/dto/schema.json` nên kiểm tay; câu lỗi và thứ tự giống Nest: theo thứ tự trường, trong một trường theo thứ
 //! tự decorator từ dưới lên.
+#![allow(clippy::result_large_err)]
 
 use serde_json::Value;
 use trinity_kernel::error::HttpError;
@@ -220,8 +221,7 @@ pub fn update_profile(body: &Value) -> Result<Profile, HttpError> {
 
 /// `UpdateLoginWifiCheckDto` / `UpdateSingleSessionDto`.
 pub fn enabled(body: &Value) -> Result<bool, HttpError> {
-    body
-        .get("enabled")
+    body.get("enabled")
         .and_then(Value::as_bool)
         .ok_or_else(|| HttpError::validation(vec!["enabled phải là boolean".to_owned()]))
 }

@@ -67,7 +67,8 @@ fn company_of(u: &CurrentUser) -> Result<CompanyRef, AppError> {
 }
 
 async fn conn(c: &ApiKeysCtx, company: CompanyRef) -> Result<TenantConn, AppError> {
-    Ok(c.db.tenant(company).await?.acquire().await?)
+    let t = c.db.tenant(company).await.map_err(AppError::internal)?;
+    t.acquire().await.map_err(AppError::internal)
 }
 
 fn id_of(raw: &str) -> Result<i32, AppError> {
@@ -184,9 +185,14 @@ async fn public_login(State(c): S, req: Request) -> Response {
         Err(e) => return fail(e),
     };
     let ip = Some(client.rate_key.as_str());
-    let fut = c
-        .auth
-        .login_third_party(key.company, &d.email, &d.password, ip, key.owner_user_id, client.ip.is_some());
+    let fut = c.auth.login_third_party(
+        key.company,
+        &d.email,
+        &d.password,
+        ip,
+        key.owner_user_id,
+        client.ip.is_some(),
+    );
     match fut.await {
         Ok(v) => Json(v).into_response(),
         Err(e) => auth_fail(e),

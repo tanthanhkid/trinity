@@ -8,6 +8,7 @@
       "include-v-in-tag": true,
       "bump-minor-pre-major": true,
       "skip-changelog": true,
+      "extra-files": [{ "type": "generic", "path": "server/Cargo.toml" }],
       "changelog-sections": [
         { "type": "feat", "section": "Tính năng mới" },
         { "type": "fix", "section": "Sửa lỗi" },

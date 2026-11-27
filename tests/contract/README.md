@@ -128,3 +128,18 @@ bốn loại ca: **thành công**, **từ chối** (401 không token; route `can
 Cụm (theo tên controller) và miễn trừ có lý do khai ở `coverage-clusters.json`. File `99-coverage-<cụm>.test.ts` chạy cuối hồ sơ `default` và đỏ nếu còn route thiếu loại ca; báo cáo ghi ở `<out>/coverage/default/<cụm>.report.json`.
 Phải chạy cả hồ sơ (không chạy lẻ file `99-`). Cụm `auth-settings`: 63 route; ca sinh từ metadata ở `60-auth-settings-generated.test.ts`, ca thành công và golden 3 vai (`users.phone_full`) ở `61-auth-settings-flows.test.ts`.
 Khi so hai lượt bằng `diff -r`, thêm `-x coverage` (tên file đo độ phủ theo pid).
+
+## Độ phủ cụm nhân sự và chấm công (C14d)
+- Cụm `hr-attendance` ở `coverage-clusters.json`: 89 route `/management/*` của `AttendanceController`, `ContractsController`, `EmployeesController`
+  (của nhân sự), `JobTitlesController`, `RecruitmentController`, `TeamsController`. Khoá `prefixes` lọc theo đường dẫn vì tên controller trùng
+  giữa các service: `/employees` và `/kpi` (lương, C14e) và `/auth/teams` (auth) KHÔNG thuộc cụm này.
+- `62-hr-attendance-generated`: ca sinh từ `routes.json` (401, 403, id không phải số, thân sai, id không tồn tại); `63-hr-attendance-flows`: ca
+  thành công và vòng đời, kể cả tải tệp (multipart: selfie, hợp đồng, hồ sơ mẫu), tải về byte đúng, ảnh minh chứng; `99-coverage-hr-attendance`:
+  báo cáo độ phủ (chạy cả hồ sơ, không chạy lẻ).
+- Mười route xuất Excel so THEO Ô: `lib/xlsx.ts` đọc zip + XML không cần thư viện, `snapXlsx` ghi golden từng bảng/ô đã chuẩn hoá. Giờ vào/ra của dữ
+  liệu seed cố định theo ngày để hai lượt cho cùng ô (đã kiểm `diff -r` hai lượt `--out`).
+- Cụm không có route đổi hình dạng theo `contacts.phone_full` (`shape_permissions` rỗng) nên không có golden 3 vai.
+- Miễn trừ: `GET`/`DELETE /management/attendance/:id(\d+)` không có ca `invalid` (id không phải số không khớp route, Nest trả 404).
+- Chạy riêng một cụm khi phát triển (cổng và tiền tố riêng):
+  `CONTRACT_PORT=4350 CONTRACT_MOCK_PORT=4351 CONTRACT_DB_PREFIX=trinity_contract_c14d pnpm --filter @trinity/contract-tests contract -- --profile default --no-build --only 10-nhan-su --only 62-hr --only 63-hr --only 99-coverage-hr`
+

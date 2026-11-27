@@ -1009,6 +1009,14 @@ vụ trực tiếp với cùng header (`nosniff`, cache 1 ngày). Driver S3 hỗ
 - `GET /api/v1/telemetry/config`, `/api/build-id`, health giữ nguyên đường dẫn và hình dạng.
 - Tài liệu API `/docs`: phục vụ OpenAPI do `utoipa` sinh, cùng điều kiện bật như hiện tại (ngoài production hoặc
   `SWAGGER_ENABLED=true`).
+- **Đã làm ở K27** (`server/crates/mod-system`): `health`/`ready`/`live` (một bộ, `service: "auth-service"` như monolith Nest), `telemetry/config` và
+  `telemetry/identity` giữ hình dạng bản TS (bảng ca dùng chung `contracts/cases/telemetry.json` do `telemetry-cases.spec.ts` sinh từ
+  `buildTelemetryConfig`, Rust chạy lại ở `tests/shared_cases.rs`), `GET /api/v1/site-config` (chỉ có ở Rust: `legal.*` từ `LEGAL_*`,
+  `realtime_mode` từ `REALTIME_MODE` hoặc `NEXT_PUBLIC_REALTIME_MODE`, `ds_v2` từ `DS_V2_ENABLED` hoặc `NEXT_PUBLIC_DS_V2`; khai ở
+  `RUST_ONLY_ROUTES` của `router::check`, bắt buộc `Public`), `GET /api/build-id` (`TRINITY_BUILD_ID` lúc chạy, rồi lúc biên dịch, rồi
+  `unknown`; `no-store`), `/docs` + `/docs-json` do `utoipa` sinh, bật theo `NODE_ENV != production` hoặc `SWAGGER_ENABLED=true` (404 nếu không).
+  Đợt a trong tệp sở hữu: mẫu `server/contracts/ownership-wave-a.json` (chỉ các route dưới `/api/v1`); `site-config` phải thuộc `rust` vì bản TS không có (có test). `/api/build-id` (Next) và `/docs`, `/docs-json` (Node) KHÔNG vào đợt a: do Next/Node phục vụ tới khi nhả (có test khẳng định chúng thuộc `node`).
+  Chưa nối vào `serve` (chưa có); `trinity-bin` đã lấy `mod_system::routes()` vào `declared_routes()`.
 - Endpoint nội bộ `GET /internal/metrics` (cần `x-service-secret`): RSS, số kết nối pool, độ trễ job, độ dài hàng đợi.
 
 **K25 (đã làm, phần logic thuần):** `trinity_http::rate_limit::FixedWindowLimiter` (RAM, thời gian là tham số, khoá theo công ty) và `trinity_rbac::plan` (khoá/nhãn tính năng, 6 gói, `require_org_feature` trả 403, `check_user_slot` trả 409, `plan_from_setting` có `trim()` kiểu JS còn `resolve_plan_for_company` không trim như TS). Bảng ca dùng chung `server/contracts/cases/plan.json` (cột kết quả sinh bằng `OrgFeatureGuard`, `assertUserSlotAvailable`, `FixedWindowLimiter` thật). **Lệch so với mô tả ban đầu:** chưa có middleware axum, chưa nạp `org_features`/`org_plan` từ DB và chưa đếm người; các limiter cụ thể (MCP, OAuth, API công khai, webhook, trang bán hàng, đăng nhập) do issue của từng route tạo.

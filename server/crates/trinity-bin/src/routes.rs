@@ -8,7 +8,9 @@ use trinity_http::router::RouteSpec;
 use trinity_http::router::check::{Report, check_embedded};
 
 pub fn declared_routes() -> Vec<RouteSpec> {
-    Vec::new()
+    let mut v = Vec::new();
+    v.extend(mod_system::routes());
+    v
 }
 
 /// So bảng đã khai với hợp đồng nhúng. `require_all`: đòi khai đủ mọi route (cổng cuối X06).

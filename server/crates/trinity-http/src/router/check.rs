@@ -15,6 +15,10 @@ use trinity_rbac::catalog;
 use super::RouteSpec;
 use crate::validate::{Mode, mode_for_path};
 
+/// Route chỉ có ở Rust, không có trong `routes.json` (hợp đồng đóng băng từ bản TS). Phải công khai (`Access::Public`) và
+/// khai trong bảng; thêm route vào đây là quyết định có chủ ý (cần issue nói rõ vì sao bản TS không có).
+pub const RUST_ONLY_ROUTES: &[&str] = &["GET /api/v1/site-config"];
+
 /// Hợp đồng nhúng trong binary.
 pub const CONTRACT: &str = include_str!("../../../../contracts/routes.json");
 
@@ -122,7 +126,13 @@ pub fn check(table: &[RouteSpec], contract: &Value, require_all: bool) -> Report
             continue;
         }
         let Some(row) = by_key.get(&k) else {
-            rep.problems.push(format!("{k}: không có trong routes.json"));
+            if RUST_ONLY_ROUTES.contains(&k.as_str()) {
+                if spec.access != super::Access::Public {
+                    rep.problems.push(format!("{k}: route chỉ có ở Rust phải là Public"));
+                }
+            } else {
+                rep.problems.push(format!("{k}: không có trong routes.json"));
+            }
             continue;
         };
         // Route Rust đã khớp một dòng (không deprecated) của hợp đồng: đếm vào "đã khai", dù cột nào lệch thì vẫn là lỗi riêng.

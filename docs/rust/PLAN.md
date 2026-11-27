@@ -1062,7 +1062,7 @@ Giữ nguyên tên biến trong `.env.example`. Biến không còn dùng (`REDIS
 cảnh báo lúc khởi động. Biến mới: `TLS_MODE` (`off | files`), `TLS_CERT_FILE`, `TLS_KEY_FILE`, `FACEBOOK_GRAPH_BASE_URL`,
 `ZALO_OAUTH_BASE_URL`, `ZALO_OPENAPI_BASE_URL`, `ZALO_ZNS_BASE_URL` (thêm ở bản TS trước, G15), `DB_POOL_SIZE`, `WEB_DIR`, `NODE_FALLBACK_URL`, `TRINITY_OWNERSHIP_FILE`
 (đường dẫn tệp sở hữu route và job; `TRINITY_RUST_ROUTES` chỉ là giá trị khởi tạo khi chưa có tệp),
-`SHADOW_SAMPLE_RATE`, `WORKER_THREADS`, `TRINITY_HTTP_PORT`, `COMPAT_API_PORT`, `TRUSTED_PROXY`, `CLOUDFLARE_IP_RANGES`,
+`SHADOW_SAMPLE_RATE`, `SHADOW_REPORT_FILE` (tệp báo cáo shadow, mặc định `./shadow-report.json`), `WORKER_THREADS`, `TRINITY_HTTP_PORT`, `COMPAT_API_PORT`, `TRUSTED_PROXY`, `CLOUDFLARE_IP_RANGES`,
 `SOCIAL_MAX_VIDEO_MB`, `WEB_BIND` (phía host của compose), `HOSTNAME` (địa chỉ nghe của Next, dùng cho tunnel),
 `NODE_OPTIONS` phần web (nạp tệp ghi địa chỉ kết nối). Mỗi biến vào `.env.example` ở issue thêm nó (G15, G16a/b, X06). Kiểm bí mật không an toàn lúc khởi động như
 `insecureSecrets()`. Cổng chính của binary đọc từ `TRINITY_HTTP_PORT` (mặc định 3000). Biến `PORT` của bản Node
@@ -1218,6 +1218,7 @@ network namespace với Rust nên đổi sang cổng nội bộ khác (`PORT=300
   bên (Node bằng `TRINITY_DISABLE_READ_CACHE`, thêm ở G12a). Handler vi phạm (1) hoặc (2) được ghi "không shadow được" và không thử lại. Hai response
   được chuẩn hoá rồi so; chỉ ghi: đường dẫn mẫu (id thay bằng `:id`), mã trạng thái hai bên, danh sách đường dẫn JSON
   khác nhau, và số mẫu theo route. Không ghi giá trị (tránh đưa dữ liệu khách vào log).
+  Đã nối vào `trinity serve`: `SHADOW_SAMPLE_RATE` > 0 dựng shadow từ `routes.json` nhúng và nối vào `dispatcher_with_shadow`; cứ 60 giây `serve` ghi báo cáo (`Shadow::report` kèm `since_unix`, `generated_unix`) ra `SHADOW_REPORT_FILE` (tệp tạm rồi đổi tên); `trinity shadow-report [--file] [--json]` đọc tệp, in từng route (mẫu so với `min_samples`, giống/khác, đường dẫn khác biệt, lý do "không shadow được"), mã thoát 0 khi mọi route đạt, 1 khi còn route chưa đạt, 2 khi không đọc được. Bộ đếm nằm trong bộ nhớ của `serve` nên khởi động lại là đếm lại từ 0 (cửa sổ 48 giờ của 6.5 tính từ `since_unix`).
 
 ## 5. Web: xuất tĩnh
 

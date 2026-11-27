@@ -274,7 +274,7 @@ describe('token / refresh / thu hồi', () => {
     await q(`UPDATE users SET status = 'active' WHERE id = $1`, [u.id])
     expect(await tokenWorks(t.access_token)).toBe(true)
     // gỡ quyền ai_connect (+ xoá cache RBAC bằng API điều khiển) ⇒ refresh bị từ chối
-    await q(`DELETE FROM role_permissions WHERE permission = 'integrations.ai_connect'`)
+    await q(`DELETE FROM role_permissions WHERE permission = 'integrations.ai_connect' AND role_id IN (SELECT role_id FROM user_roles WHERE user_id = $1)`, [u.id])
     expect((await control.flushCache()).status).toBe(200)
     const r = await form('/api/v1/oauth/token', { grant_type: 'refresh_token', refresh_token: t.refresh_token, client_id: c.client_id })
     expect(r.status).toBe(400)

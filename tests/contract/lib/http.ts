@@ -19,6 +19,7 @@ export interface ReqOpts {
 }
 
 export async function call(method: string, path: string, opts: ReqOpts = {}): Promise<Res> {
+  if (opts.form && opts.body !== undefined) throw new Error('call(): chỉ được đặt `form` hoặc `body`, không cả hai')
   const headers: Record<string, string> = { ...opts.headers }
   if (opts.token) headers.authorization = `Bearer ${opts.token}`
   if (opts.body !== undefined) headers['content-type'] = 'application/json'

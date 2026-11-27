@@ -53,6 +53,9 @@ impl MonitoringConfig {
     /// Đọc biến qua `get` (để test không đụng môi trường thật). Giá trị rỗng/khoảng trắng coi như không đặt.
     pub fn from_env(get: impl Fn(&str) -> Option<String>) -> Self {
         let val = |k: &str| get(k).map(|v| v.trim().to_owned()).filter(|v| !v.is_empty());
+        // Khoá băm KHÔNG cắt khoảng trắng: `env.MONITORING_HASH_SECRET || env.JWT_SECRET` của bản TS dùng nguyên chuỗi (chỉ
+        // chuỗi rỗng mới bị bỏ), cắt đi thì mã băm lệch với Node và với `telemetry/identity` của `mod-system`.
+        let raw = |k: &str| get(k).filter(|v| !v.is_empty());
         let rate = val("SENTRY_TRACES_SAMPLE_RATE")
             .and_then(|v| v.parse::<f32>().ok())
             .filter(|r| r.is_finite() && (0.0..=1.0).contains(r))
@@ -65,7 +68,7 @@ impl MonitoringConfig {
             node_env: val("NODE_ENV"),
             release: resolve_release(&get),
             traces_sample_rate: rate,
-            hash_secret: val("MONITORING_HASH_SECRET").or_else(|| val("JWT_SECRET")),
+            hash_secret: raw("MONITORING_HASH_SECRET").or_else(|| raw("JWT_SECRET")),
             posthog_key: val("POSTHOG_KEY"),
             posthog_host: val("POSTHOG_HOST").unwrap_or_else(|| "https://us.i.posthog.com".to_owned()),
         }
@@ -210,6 +213,11 @@ mod tests {
         let c = MonitoringConfig::from_env(env(&[("MONITORING_HASH_SECRET", "m"), ("JWT_SECRET", "j")]));
         assert_eq!(c.hash_secret.as_deref(), Some("m"));
         assert!(format!("{c:?}").find("\"m\"").is_none());
+        // Khoá giữ nguyên khoảng trắng; chuỗi rỗng thì rơi sang `JWT_SECRET`.
+        let c = MonitoringConfig::from_env(env(&[("MONITORING_HASH_SECRET", " m "), ("JWT_SECRET", "j")]));
+        assert_eq!(c.hash_secret.as_deref(), Some(" m "));
+        let c = MonitoringConfig::from_env(env(&[("MONITORING_HASH_SECRET", ""), ("JWT_SECRET", "j")]));
+        assert_eq!(c.hash_secret.as_deref(), Some("j"));
     }
 
     #[test]

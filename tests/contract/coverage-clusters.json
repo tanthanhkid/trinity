@@ -1,0 +1,12 @@
+{
+  "auth-settings": {
+    "controllers": [
+      "ApiKeysController", "AuthController", "InvitationsController", "LoginWifiCheckTargetsController", "PublicAuthController",
+      "RbacAuditController", "RbacCatalogController", "RolesController", "UserRolesController", "PinnedMenuController", "UsersController",
+      "OrgFeaturesController", "SettingsController", "SettingsOptionsController"
+    ],
+    "waivers": {
+      "POST /auth/logout": { "invalid": "không nhận thân và không có tham số: không có đầu vào nào để sai" }
+    }
+  }
+}

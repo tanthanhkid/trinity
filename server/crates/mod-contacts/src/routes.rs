@@ -645,6 +645,7 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         )
         .route(spec(&Method::POST, "/api/v1/contacts/bulk-transfer"), bulk_transfer)
         .route(spec(&Method::GET, "/api/v1/contacts/recent"), recent_list)
+        .route(spec(&Method::GET, "/api/v1/contacts/:contactId/activities"), activities)
         .route(spec(&Method::POST, "/api/v1/contacts/:id/transfer"), transfer_one)
         .route(spec(&Method::POST, "/api/v1/contacts/:id/viewed"), viewed)
         .route(spec(&Method::POST, "/api/v1/contacts/:id/restore"), restore)

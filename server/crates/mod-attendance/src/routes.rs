@@ -43,8 +43,12 @@ pub fn specs() -> Vec<RouteSpec> {
     vec![
         RouteSpec::new(Method::GET, "/api/v1/management/attendance", view).status_ok(200),
         RouteSpec::new(Method::GET, REC, view).status_ok(200).param_pipes(ID),
-        RouteSpec::new(Method::PATCH, REC, manage).status_ok(200).param_pipes(ID),
-        RouteSpec::new(Method::DELETE, REC, manage).status_ok(200).param_pipes(ID),
+        RouteSpec::new(Method::PATCH, REC, manage)
+            .status_ok(200)
+            .param_pipes(ID),
+        RouteSpec::new(Method::DELETE, REC, manage)
+            .status_ok(200)
+            .param_pipes(ID),
         RouteSpec::new(Method::GET, PROOF, view).status_ok(200).param_pipes(ID),
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/absent", view).status_ok(200),
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/today", Access::AuthOnly).status_ok(200),

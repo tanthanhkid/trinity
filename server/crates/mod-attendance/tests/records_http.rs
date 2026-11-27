@@ -20,9 +20,9 @@ use trinity_auth::jwt::{self, Claims};
 use trinity_auth::{Authenticator, Security};
 use trinity_db::platform::Platform;
 use trinity_db::{Db, DbConfig};
+use trinity_http::edge::client_ip::{ClientIpResolver, NetProbe};
 use trinity_http::router::AccessDeps;
 use trinity_rbac::{PermissionService, RbacCache, ScopeService};
-use trinity_http::edge::client_ip::{ClientIpResolver, NetProbe};
 use trinity_storage::{LocalDiskDriver, LocalUploadsStore};
 
 const JWT: &str = "m14a4-jwt-secret-0123456789abcdef0123456789abcdef";
@@ -173,17 +173,34 @@ async fn setup() {
 async fn so_cham_cong_danh_sach_chi_tiet_sua_xoa() {
     setup().await;
     let a = app().await;
-    exec("INSERT INTO attendance_records (user_id, work_date, check_in_at, check_out_at, status, updated_at)
-          VALUES (9832, '2026-06-17', '2026-06-17 01:30:00+00', '2026-06-17 10:30:00+00', 'present', now())")
-        .await;
+    exec(
+        "INSERT INTO attendance_records (user_id, work_date, check_in_at, check_out_at, status, updated_at)
+          VALUES (9832, '2026-06-17', '2026-06-17 01:30:00+00', '2026-06-17 10:30:00+00', 'present', now())",
+    )
+    .await;
     let id: i32 = scalar("SELECT id FROM attendance_records WHERE user_id = 9832 AND work_date = '2026-06-17'").await;
 
     // Không đăng nhập 401; không quyền 403.
     assert_eq!(call(&a, Method::GET, B, None, None).await.status, 401);
     assert_eq!(call(&a, Method::GET, B, Some(EMP), None).await.status, 403);
-    assert_eq!(call(&a, Method::GET, &format!("{B}/{id}"), Some(EMP), None).await.status, 403);
-    assert_eq!(call(&a, Method::DELETE, &format!("{B}/{id}"), Some(EMP), None).await.status, 403);
-    assert_eq!(call(&a, Method::GET, &format!("{B}/workdays-matrix"), Some(EMP), None).await.status, 403);
+    assert_eq!(
+        call(&a, Method::GET, &format!("{B}/{id}"), Some(EMP), None)
+            .await
+            .status,
+        403
+    );
+    assert_eq!(
+        call(&a, Method::DELETE, &format!("{B}/{id}"), Some(EMP), None)
+            .await
+            .status,
+        403
+    );
+    assert_eq!(
+        call(&a, Method::GET, &format!("{B}/workdays-matrix"), Some(EMP), None)
+            .await
+            .status,
+        403
+    );
 
     // Query sai: trường lạ, ngày sai dạng, user_id không phải số ⇒ 400.
     for q in ["la=1", "date_from=17-06-2026", "user_id=abc", "page=x"] {
@@ -192,7 +209,14 @@ async fn so_cham_cong_danh_sach_chi_tiet_sua_xoa() {
     }
 
     // Danh sách: lọc theo user, có phân trang.
-    let l = call(&a, Method::GET, &format!("{B}?user_id=9832&date_from=2026-06-01&date_to=2026-06-30"), Some(MGR), None).await;
+    let l = call(
+        &a,
+        Method::GET,
+        &format!("{B}?user_id=9832&date_from=2026-06-01&date_to=2026-06-30"),
+        Some(MGR),
+        None,
+    )
+    .await;
     assert_eq!(l.status, 200, "{:?}", l.body);
     assert_eq!(l.body["data"].as_array().unwrap().len(), 1);
     assert_eq!(l.body["data"][0]["id"], id);
@@ -202,15 +226,34 @@ async fn so_cham_cong_danh_sach_chi_tiet_sua_xoa() {
     let d = call(&a, Method::GET, &format!("{B}/{id}"), Some(MGR), None).await;
     assert_eq!(d.status, 200, "{:?}", d.body);
     assert_eq!(d.body["id"], id);
-    assert_eq!(call(&a, Method::GET, &format!("{B}/2000000000"), Some(MGR), None).await.status, 404);
-    assert_eq!(call(&a, Method::GET, &format!("{B}/abc"), Some(MGR), None).await.status, 404);
+    assert_eq!(
+        call(&a, Method::GET, &format!("{B}/2000000000"), Some(MGR), None)
+            .await
+            .status,
+        404
+    );
+    assert_eq!(
+        call(&a, Method::GET, &format!("{B}/abc"), Some(MGR), None).await.status,
+        404
+    );
 
     // Sửa: DTO strict (trường lạ, kiểu sai ⇒ 400); sửa ghi chú ⇒ 200.
-    for bad in [json!({ "la": 1 }), json!({ "late_minutes": "x" }), json!({ "status": 5 })] {
+    for bad in [
+        json!({ "la": 1 }),
+        json!({ "late_minutes": "x" }),
+        json!({ "status": 5 }),
+    ] {
         let r = call(&a, Method::PATCH, &format!("{B}/{id}"), Some(MGR), Some(bad.clone())).await;
         assert_eq!(r.status, 400, "{bad}: {:?}", r.body);
     }
-    let p = call(&a, Method::PATCH, &format!("{B}/{id}"), Some(MGR), Some(json!({ "check_in_note": "sửa tay" }))).await;
+    let p = call(
+        &a,
+        Method::PATCH,
+        &format!("{B}/{id}"),
+        Some(MGR),
+        Some(json!({ "check_in_note": "sửa tay" })),
+    )
+    .await;
     assert_eq!(p.status, 200, "{:?}", p.body);
     assert_eq!(p.body["check_in_note"], "sửa tay");
 
@@ -218,7 +261,12 @@ async fn so_cham_cong_danh_sach_chi_tiet_sua_xoa() {
     let del = call(&a, Method::DELETE, &format!("{B}/{id}"), Some(MGR), None).await;
     assert_eq!(del.status, 200, "{:?}", del.body);
     assert_eq!(del.body["ok"], true);
-    assert_eq!(call(&a, Method::DELETE, &format!("{B}/{id}"), Some(MGR), None).await.status, 404);
+    assert_eq!(
+        call(&a, Method::DELETE, &format!("{B}/{id}"), Some(MGR), None)
+            .await
+            .status,
+        404
+    );
     teardown().await;
 }
 
@@ -241,8 +289,18 @@ async fn hom_nay_vang_ma_tran_va_anh() {
     let all = call(&a, Method::GET, &t, Some(MGR), None).await;
     assert_eq!(all.status, 200);
     assert_eq!(all.body["checked_in"], 1);
-    assert_eq!(call(&a, Method::GET, &format!("{B}/today?date=17/06/2026"), Some(MGR), None).await.status, 400);
-    assert_eq!(call(&a, Method::GET, &format!("{B}/today?la=1"), Some(MGR), None).await.status, 400);
+    assert_eq!(
+        call(&a, Method::GET, &format!("{B}/today?date=17/06/2026"), Some(MGR), None)
+            .await
+            .status,
+        400
+    );
+    assert_eq!(
+        call(&a, Method::GET, &format!("{B}/today?la=1"), Some(MGR), None)
+            .await
+            .status,
+        400
+    );
 
     // /absent: 403 không quyền; người chưa chấm (OTHER) nằm trong danh sách, người đã chấm (EMP) thì không; date sai ⇒ hôm nay.
     let ab = format!("{B}/absent?date=2026-06-17");
@@ -256,13 +314,30 @@ async fn hom_nay_vang_ma_tran_va_anh() {
         .iter()
         .filter_map(|e| e["user_id"].as_i64())
         .collect();
-    assert!(ids.contains(&i64::from(OTHER)) && !ids.contains(&i64::from(EMP)), "{ids:?}");
-    let fallback = call(&a, Method::GET, &format!("{B}/absent?date=khong-phai-ngay&sort_by=chen_sql"), Some(MGR), None).await;
+    assert!(
+        ids.contains(&i64::from(OTHER)) && !ids.contains(&i64::from(EMP)),
+        "{ids:?}"
+    );
+    let fallback = call(
+        &a,
+        Method::GET,
+        &format!("{B}/absent?date=khong-phai-ngay&sort_by=chen_sql"),
+        Some(MGR),
+        None,
+    )
+    .await;
     assert_eq!(fallback.status, 200);
     assert_ne!(fallback.body["absent_date"], "khong-phai-ngay");
 
     // /workdays-matrix: 200, có hàng của EMP.
-    let m = call(&a, Method::GET, &format!("{B}/workdays-matrix?date_from=2026-06-01&date_to=2026-06-30&user_id=9832"), Some(MGR), None).await;
+    let m = call(
+        &a,
+        Method::GET,
+        &format!("{B}/workdays-matrix?date_from=2026-06-01&date_to=2026-06-30&user_id=9832"),
+        Some(MGR),
+        None,
+    )
+    .await;
     assert_eq!(m.status, 200, "{:?}", m.body);
     assert_eq!(m.body["rows"].as_array().unwrap().len(), 1);
 

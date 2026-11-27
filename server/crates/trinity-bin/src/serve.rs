@@ -278,8 +278,16 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         store: mod_hr::contracts::ContractStore::Local(LocalDiskDriver::new(uploads_root.join("contracts"))),
         ip: ip.clone(),
     });
-    app = mount(app, mod_attendance::routes::check_router(deps.clone()), attendance_check.clone());
-    app = mount(app, mod_attendance::routes::proof_router(deps.clone()), attendance_check);
+    app = mount(
+        app,
+        mod_attendance::routes::check_router(deps.clone()),
+        attendance_check.clone(),
+    );
+    app = mount(
+        app,
+        mod_attendance::routes::proof_router(deps.clone()),
+        attendance_check,
+    );
     // Facebook (M46, webhook M47a, tin nhắn/Lead Ads M47b) và Zalo OA (M52) dùng chung `ChannelGuard` với router kênh; URL Graph/Zalo
     // và khoá đọc từ env (G15). Chưa có `refreshMissingNames` (M48) sau `check`.
     let guard = mod_channel_guard::ChannelGuard::with_config(

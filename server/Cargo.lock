@@ -2061,6 +2061,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "mod-kanban"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "trinity-db",
+ "trinity-kernel",
+ "uuid",
+]
+
+[[package]]
 name = "mod-newsfeed"
 version = "0.3.0"
 dependencies = [

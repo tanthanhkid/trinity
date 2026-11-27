@@ -1,0 +1,23 @@
+[package]
+name = "mod-kanban"
+description = "Kanban: bảng, cột, nhãn màu và trường tuỳ biến (M15), chuyển từ services/crm/src/kanban."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+trinity-db = { workspace = true }
+trinity-kernel = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+
+[lints]
+workspace = true

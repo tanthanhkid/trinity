@@ -26,13 +26,31 @@ pub(crate) fn len16(s: &str) -> usize {
 
 /// `{ ok: true }` của `remove`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
-pub struct Ok {
+pub struct OkBody {
     pub ok: bool,
 }
 
-pub(crate) const OK: Ok = Ok { ok: true };
+pub(crate) const OK: OkBody = OkBody { ok: true };
 
 #[allow(clippy::needless_pass_by_value)]
 pub(crate) fn db(e: sqlx::Error) -> trinity_kernel::error::AppError {
     trinity_db::pg_error::app_error(&e)
+}
+
+/// `Number(v)` của JS cho giá trị JSON; `None` khi ra NaN (hoặc `null`, vì `@Type` không đổi `null`).
+pub(crate) fn js_number(v: &serde_json::Value) -> Option<f64> {
+    use serde_json::Value;
+    match v {
+        Value::Number(n) => n.as_f64(),
+        Value::String(s) => {
+            let t = s.trim();
+            if t.is_empty() {
+                Some(0.0)
+            } else {
+                t.parse::<f64>().ok().filter(|f| f.is_finite())
+            }
+        }
+        Value::Bool(b) => Some(f64::from(u8::from(*b))),
+        _ => None,
+    }
 }

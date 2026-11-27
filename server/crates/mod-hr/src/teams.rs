@@ -14,7 +14,7 @@ use trinity_kernel::error::{AppError, DbErrorKind, HttpError};
 use trinity_kernel::vi::{Collation, compare, trim_js};
 
 use crate::nullable::some_nullable;
-use crate::{OK, Ok, db, len16};
+use crate::{OK, OkBody, db, len16};
 
 const NOT_FOUND: &str = "Không tìm thấy team";
 const NAME_TAKEN: &str = "Tên team đã tồn tại";
@@ -397,7 +397,7 @@ async fn exists(conn: &mut PgConnection, id: i32) -> Result<(), AppError> {
 }
 
 /// `DELETE /teams/:id`: gỡ `team_id` của nhân viên (giữ `manager_id`/phòng ban của họ) rồi xoá team, trong một giao dịch.
-pub async fn remove(conn: &mut PgConnection, id: i32) -> Result<Ok, AppError> {
+pub async fn remove(conn: &mut PgConnection, id: i32) -> Result<OkBody, AppError> {
     exists(conn, id).await?;
     let mut tx = conn.begin().await.map_err(db)?;
     sqlx::query!("UPDATE employees SET team_id = NULL WHERE team_id = $1", id)
@@ -540,7 +540,7 @@ pub async fn add_members(conn: &mut PgConnection, team_id: i32, user_ids: &[i32]
 }
 
 /// `DELETE /teams/:id/members/:userId`: chỉ khi nhân viên đang thuộc đúng team này.
-pub async fn remove_member(conn: &mut PgConnection, team_id: i32, user_id: i32) -> Result<Ok, AppError> {
+pub async fn remove_member(conn: &mut PgConnection, team_id: i32, user_id: i32) -> Result<OkBody, AppError> {
     let n = sqlx::query!(
         "UPDATE employees SET team_id = NULL WHERE user_id = $1 AND team_id = $2",
         user_id,

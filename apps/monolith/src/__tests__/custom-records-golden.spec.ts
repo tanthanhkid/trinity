@@ -1,9 +1,9 @@
 /**
  * Golden của M18 cho bản Rust (`server/crates/mod-custom`): chạy MÃ NODE THẬT (chuẩn hoá giá trị bản ghi, ô CSV, tiêu đề, thẻ @,
  * mã, tham chiếu, con trỏ, công thức của bản ghi) trên bộ đầu vào dùng chung; Rust phải ra đúng kết quả.
- * Sinh lại (múi giờ UTC, vì chuỗi ngày giờ không có múi giờ hiểu theo giờ máy):
- * `TZ=UTC UPDATE_GOLDEN=1 pnpm --filter @trinity/monolith exec jest src/__tests__/custom-records-golden`.
- * Không có trong bộ: chuỗi ngày kiểu V8 không phải ISO ("March 7, 2026") — Node nhận, Rust từ chối.
+ * Sinh lại: `UPDATE_GOLDEN=1 pnpm --filter @trinity/monolith exec jest src/__tests__/custom-records-golden`.
+ * Không có trong bộ: chuỗi ngày kiểu V8 không phải ISO ("March 7, 2026") — Node nhận, Rust từ chối; và chuỗi ngày giờ KHÔNG có
+ * múi giờ (Node hiểu theo giờ máy, nên kết quả phụ thuộc máy sinh; máy chủ chạy UTC).
  */
 import * as fs from 'fs'
 import * as path from 'path'
@@ -32,7 +32,7 @@ const VALUES: Array<[Field, unknown[]]> = [
   [F('currency'), [5, '1500000', 1.5, -1, 1e13, 10000000000001, 9007199254740993, 0, '10', '-5', 'x', 3.0]],
   [F('percent'), [5, -1000, 1000, 1000.5, -1000.5, '50', 'x', 12.34]],
   [F('date'), ['2026-11-27', '2026-02-30', '0099-01-01', '2026-1-1', '  2026-11-27 ', 5, '2026-11-27T00:00', '2024-02-29', '2025-02-29', '9999-12-31', '0100-01-01']],
-  [F('datetime'), ['2026-11-27T10:30:00+07:00', '2026-11-27', '2026-11-27 10:30', '2026-11-27T10:30:00.123456Z', '1899-12-31T23:59:59Z', '1900-01-01T00:00:00Z', '2200-01-01T00:00:00Z', '2200-01-01T00:00:01Z', 'x', '2026-13-01', '2026-02-30T10:00', '2026-11-27T24:00:00Z', '2026-11-27T10:30', '2026-11-27T10:30:00-0530', '2026', '2026-11', 5]],
+  [F('datetime'), ['2026-11-27T10:30:00+07:00', '2026-11-27', '2026-11-27T10:30:00.123456Z', '1899-12-31T23:59:59Z', '1900-01-01T00:00:00Z', '2200-01-01T00:00:00Z', '2200-01-01T00:00:01Z', 'x', '2026-13-01', '2026-11-27T24:00:00Z', '2026-11-27T10:30:00-0530', '2026', '2026-11', 5]],
   [F('boolean'), [true, false, 'true', 'false', 'TRUE', 1, 0, 'yes', null, '']],
   [F('select', CH), ['moi', ' dk ', 'zzz', 5, '', 'Mới', rep('z', 70)]],
   [F('email'), ['A@B.vn', 'a@b', 'a b@c.vn', ' X@Y.COM ', 'a@b.c', 'a@b.cc', '@b.vn', 'a@@b.vn', `${rep('a', 65)}@b.vn`, `${rep('a', 64)}@b.vn`, 'é@b.vn', 5, 'a@b.vn,c@d.vn']],
@@ -101,7 +101,7 @@ const REFS: unknown[] = ['record:12', ' record:12 ', 'contact:5', 'deal:3', 'tas
 const CODES: string[] = ['hs1', 'HS001', ' hs12 ', 'HS1000', 'hs0', 'h1', 'hsxyz1', 'hs', 'hs1234567890', 'HS-1', '', 'ab999999999']
 const CURSORS: Array<{ v: string | null; id: number }> = [{ v: null, id: 3 }, { v: 'a"b', id: 7 }, { v: 'Nguyễn', id: 1 }, { v: '12.5', id: 99 }, { v: '', id: 0 }]
 const CURSOR_RAW: string[] = ['', '!!!', 'e30', 'eyJpZCI6MX0', 'eyJ2IjpudWxsLCJpZCI6NX0', 'eyJ2IjpudWxsLCJpZCI6NX0=', 'eyJ2IjpudWxsLCJpZCI6MS41fQ', 'eyJ2Ijo1LCJpZCI6MX0', 'eyJ2IjoiYSIsImlkIjoiMSJ9', 'W10', 'bnVsbA']
-const DATES: string[] = ['2026-11-27', '2026-11-27T10:00:00Z', 'xx', '', '2026-11-27 10:00', '2026-11-27T17:30:00.000Z', '2026-12-31T20:00:00Z']
+const DATES: string[] = ['2026-11-27', '2026-11-27T10:00:00Z', 'xx', '', '2026-11-27T17:30:00.000Z', '2026-12-31T20:00:00Z']
 
 function attempt<T>(fn: () => T): { ok: T } | { error: string } {
   try {

@@ -23,10 +23,12 @@ mod search;
 mod setup;
 mod social;
 pub(crate) mod social_act;
+mod social_adapters;
 mod social_ports;
 mod social_read;
 
 pub use social::{SocialDeps, register_social};
+pub use social_adapters::SocialAdapter;
 pub use social_ports::{
     DraftOverrides, DraftPublishPort, ImportPort, MetricsPort, PortFut, PostInfra, RecurrencePort, RefreshReport,
 };

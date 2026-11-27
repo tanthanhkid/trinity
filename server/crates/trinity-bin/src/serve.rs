@@ -494,10 +494,29 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     );
     // M44a (một phần): 4 tool đăng bài. Kho tệp là thư mục `uploads` (khoá `social/u<id>_…`); `LocalDiskDriver` không giữ trạng
     // thái nên router `/social` dựng bản `MediaStore::Local` cùng thư mục là dùng chung dữ liệu.
-    let social_deps = Arc::new(mod_mcp::SocialDeps::new(
-        mod_social::media::MediaStore::Local(LocalDiskDriver::new(uploads_root.clone())),
+    // M44a: tool đăng bài. MỘT `Arc<SocialDeps>` dùng cho cả `register_social` lẫn `ToolDeps.social` (khung duyệt M42 lấy dịch vụ từ
+    // đó). Kho tệp là thư mục `uploads` như router `/social`. Bài lặp và nhập hàng loạt đi qua `SocialAdapter` bọc `mod_social`
+    // (M55b); số liệu (M54b) và đăng nháp trong giao dịch chưa có dịch vụ dùng chung ⇒ `None`, tool trả "chưa có tính năng".
+    let post_infra = mod_mcp::PostInfra {
+        guard: guard.clone(),
+        graph_for: fb_state.graph_for.clone(),
+    };
+    let social_adapter = mod_mcp::SocialAdapter::new(
+        db.clone(),
         channel_env.clone(),
-    ));
+        mod_social::media::MediaStore::Local(LocalDiskDriver::new(uploads_root.clone())),
+        post_infra.clone(),
+    );
+    let social_deps = {
+        let mut d = mod_mcp::SocialDeps::new(
+            mod_social::media::MediaStore::Local(LocalDiskDriver::new(uploads_root.clone())),
+            channel_env.clone(),
+        );
+        d.infra = Some(post_infra);
+        d.recurrences = Some(social_adapter.clone());
+        d.importer = Some(social_adapter);
+        Arc::new(d)
+    };
     mod_mcp::register_social(&mut registry, social_deps.clone());
     // Tool Fanpage (M44b): port bằng dịch vụ thật (`FacebookIngest` dùng chung với router; kho tệp là thư mục `uploads` như router
     // `/social`). Không có `kick` riêng: job `facebook.broadcasts` (60 giây) nhặt lượt gửi mới.

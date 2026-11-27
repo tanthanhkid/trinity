@@ -740,33 +740,33 @@ impl<G: GrantsSource> AuthService<G> {
             password::verify(password_in.to_owned(), DUMMY_HASH.to_owned()).await;
             fail(self);
             self.log_login(company, None, email, false, ip, LoginReason::EmailNotFound)
-                .await?;
+                .await;
             return Err(unauthorized("Email hoặc mật khẩu không đúng"));
         };
         if !password::verify(password_in.to_owned(), user.password_hash.clone()).await {
             fail(self);
             self.log_login(company, Some(user.id), email, false, ip, LoginReason::BadPassword)
-                .await?;
+                .await;
             return Err(unauthorized("Email hoặc mật khẩu không đúng"));
         }
         if user.status != "active" {
             fail(self);
             self.log_login(company, Some(user.id), email, false, ip, LoginReason::AccountLocked)
-                .await?;
+                .await;
             return Err(unauthorized("Tài khoản đã bị khoá"));
         }
         if user.id != expected_owner {
             // Khoá cấp cho owner X chỉ đăng nhập được dưới X: không dùng một khoá để lấy JWT của người khác.
             fail(self);
             self.log_login(company, Some(user.id), email, false, ip, LoginReason::OwnerMismatch)
-                .await?;
+                .await;
             return Err(unauthorized("Email không khớp với owner của API key"));
         }
         let grants = self.grants_of(company, user.id).await?;
         if grants.is_admin || !grants.can("contacts.create") {
             fail(self);
             self.log_login(company, Some(user.id), email, false, ip, LoginReason::RoleNotAllowed)
-                .await?;
+                .await;
             return Err(unauthorized("Tài khoản này không được phép đăng nhập qua public API"));
         }
         {
@@ -777,7 +777,7 @@ impl<G: GrantsSource> AuthService<G> {
             }
         }
         self.log_login(company, Some(user.id), email, true, ip, LoginReason::Ok)
-            .await?;
+            .await;
         self.security.remove_user(company.id(), user.id).await;
         let cid = self.platform.multi_tenant().then(|| i64::from(company.id()));
         let access = Claims::access(i64::from(user.id), &user.email, None, cid, Self::now() / 1000);

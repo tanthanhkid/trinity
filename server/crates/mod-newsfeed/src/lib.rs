@@ -1,6 +1,6 @@
 //! Bảng tin nội bộ (M22): bài đăng theo nhóm, ảnh/video, thích, bình luận, thông báo bài mới.
 //!
-//! Chuyển từ `services/crm/src/newsfeed` (13 endpoint). Router HTTP chưa có (K12 trở đi), nên crate này là lớp logic:
+//! Chuyển từ `services/crm/src/newsfeed` (13 endpoint). Lớp logic nằm ở đây, router axum ở [`routes`]:
 //! mỗi hàm tương ứng một endpoint, nhận [`TenantDb`] của công ty, người gọi ([`Actor`]) và đầu vào đã qua kiểm dữ liệu
 //! (các hàm `validate_*` giữ nguyên câu lỗi của class-validator). Trả JSON đúng hình và thứ tự khoá của bản Node
 //! (`POST_SELECT`/`COMMENT_SELECT` của Prisma), ngày là chuỗi ISO có mili giây.
@@ -22,6 +22,7 @@
 //! Ảnh nén WebP ở `trinity-docgen` (cạnh dài ≤ 1920, chất lượng 80); video lưu nguyên, đọc từ tệp tạm theo luồng
 //! (không nạp cả video vào RAM). Thông báo "bài mới" đi qua cổng chung K36 (`trinity_db::outbox`), không có bản riêng.
 
+pub mod routes;
 mod text;
 
 use std::future::Future;

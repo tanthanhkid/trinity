@@ -1,5 +1,7 @@
-//! Router axum của `/api/v1/notifications` (4 route): danh sách, số chưa đọc (chuông), đánh dấu đã đọc, gửi tay.
-//! `/templates` và `/events` chưa nối router (chưa có trong đợt này).
+//! Router axum của module notify (11 route): `/notifications` (danh sách, số chưa đọc, đánh dấu đã đọc, gửi tay),
+//! `/templates` (CRUD mẫu, cổng `settings.integrations`) và `/events` (2 route `Internal`: phiếu lương duyệt, đẩy chuông WS).
+//! Thân của `/templates` và `/events` kiểm tay ở [`crate::dto`]. `/events` không có người dùng/công ty trong token (khoá nội
+//! bộ) nên chạy trên công ty mặc định như bản Node một-công-ty.
 
 #![allow(clippy::result_large_err)]
 
@@ -20,9 +22,14 @@ use trinity_http::validate::{Dto, Mode, validate_into, validate_value};
 use trinity_kernel::error::{AppError, HttpError};
 
 use crate::delivery::Deliverer;
+use crate::dto;
+use crate::events;
 use crate::notifications::{self, Category, SendNotification};
+use crate::templates;
 
 const BASE: &str = "/api/v1/notifications";
+const TEMPLATES: &str = "/api/v1/templates";
+const TEMPLATE_ID: &str = "/api/v1/templates/:id";
 
 impl Dto for SendNotification {
     const NAME: &'static str = "SendNotificationDto";
@@ -34,7 +41,7 @@ pub struct NotifyState {
     pub deliverer: Deliverer,
 }
 
-/// Bảng route (4 dòng) so với `routes.json`.
+/// Bảng route (11 dòng) so với `routes.json`.
 pub fn specs() -> Vec<RouteSpec> {
     vec![
         RouteSpec::new(Method::GET, BASE, Access::AuthOnly).status_ok(200),
@@ -48,6 +55,19 @@ pub fn specs() -> Vec<RouteSpec> {
             Access::Can(&["settings.integrations"]),
         )
         .status_ok(201),
+        RouteSpec::new(Method::GET, TEMPLATES, Access::Can(&["settings.integrations"])).status_ok(200),
+        RouteSpec::new(Method::POST, TEMPLATES, Access::Can(&["settings.integrations"])).status_ok(201),
+        RouteSpec::new(Method::GET, TEMPLATE_ID, Access::Can(&["settings.integrations"]))
+            .status_ok(200)
+            .param_pipes(&["param.id:ParseIntPipe"]),
+        RouteSpec::new(Method::PATCH, TEMPLATE_ID, Access::Can(&["settings.integrations"]))
+            .status_ok(200)
+            .param_pipes(&["param.id:ParseIntPipe"]),
+        RouteSpec::new(Method::DELETE, TEMPLATE_ID, Access::Can(&["settings.integrations"]))
+            .status_ok(204)
+            .param_pipes(&["param.id:ParseIntPipe"]),
+        RouteSpec::new(Method::POST, "/api/v1/events/payslip-approved", Access::Internal).status_ok(200),
+        RouteSpec::new(Method::POST, "/api/v1/events/notify-ws-emit", Access::Internal).status_ok(200),
     ]
 }
 
@@ -197,7 +217,131 @@ async fn send(
     ok(notifications::send(&t, &s.deliverer, &dto, Utc::now()).await)
 }
 
-/// Router của module (4 route). Người gọi gắn state `Arc<NotifyState>`.
+/// Chuỗi `:id` đã qua `ParseIntPipe`; ngoài int4 thì không có mẫu nào (404 đúng câu của `find_by_id`).
+fn template_id(raw: &str) -> Result<i32, Response> {
+    raw.parse::<i32>()
+        .map_err(|_| fail(HttpError::not_found(format!("Template #{raw} khong ton tai"))))
+}
+
+async fn template_conn(s: &NotifyState, u: &CurrentUser) -> Result<trinity_db::TenantConn, Response> {
+    let t = tenant(s, u).await?;
+    t.acquire().await.map_err(|e| fail(AppError::internal(e)))
+}
+
+async fn templates_list(State(s): State<Arc<NotifyState>>, Extension(u): Extension<CurrentUser>) -> Response {
+    let mut c = match template_conn(&s, &u).await {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    ok(templates::find_all(&mut c).await)
+}
+
+async fn templates_get(
+    State(s): State<Arc<NotifyState>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(id): Path<String>,
+) -> Response {
+    let id = match template_id(&id) {
+        Ok(i) => i,
+        Err(r) => return r,
+    };
+    let mut c = match template_conn(&s, &u).await {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    ok(templates::find_by_id(&mut c, id).await)
+}
+
+async fn templates_create(
+    State(s): State<Arc<NotifyState>>,
+    Extension(u): Extension<CurrentUser>,
+    JsonBody(body): JsonBody,
+) -> Response {
+    let dto = match dto::parse_create_template(&body) {
+        Ok(d) => d,
+        Err(e) => return fail(e),
+    };
+    let mut c = match template_conn(&s, &u).await {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    ok(templates::create(&mut c, &dto).await)
+}
+
+async fn templates_update(
+    State(s): State<Arc<NotifyState>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(id): Path<String>,
+    JsonBody(body): JsonBody,
+) -> Response {
+    let id = match template_id(&id) {
+        Ok(i) => i,
+        Err(r) => return r,
+    };
+    let dto = match dto::parse_update_template(&body) {
+        Ok(d) => d,
+        Err(e) => return fail(e),
+    };
+    let mut c = match template_conn(&s, &u).await {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    ok(templates::update(&mut c, id, &dto).await)
+}
+
+async fn templates_remove(
+    State(s): State<Arc<NotifyState>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(id): Path<String>,
+) -> Response {
+    let id = match template_id(&id) {
+        Ok(i) => i,
+        Err(r) => return r,
+    };
+    let mut c = match template_conn(&s, &u).await {
+        Ok(v) => v,
+        Err(r) => return r,
+    };
+    match templates::remove(&mut c, id).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => fail(e),
+    }
+}
+
+/// Route `Internal` không có người dùng: công ty mặc định.
+async fn default_tenant(s: &NotifyState) -> Result<TenantDb, Response> {
+    s.db.tenant(CompanyRef::DEFAULT)
+        .await
+        .map_err(|e| fail(AppError::internal(e)))
+}
+
+async fn payslip_approved(State(s): State<Arc<NotifyState>>, JsonBody(body): JsonBody) -> Response {
+    let dto = match dto::parse_payslip_approved(&body) {
+        Ok(d) => d,
+        Err(e) => return fail(e),
+    };
+    let t = match default_tenant(&s).await {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
+    events::on_payslip_approved(&t, &s.deliverer, &dto.payload, Utc::now()).await;
+    // Bản Node trả `undefined` ⇒ 200 không body.
+    StatusCode::OK.into_response()
+}
+
+async fn notify_ws_emit(State(s): State<Arc<NotifyState>>, JsonBody(body): JsonBody) -> Response {
+    let dto = match dto::parse_ws_emit(&body) {
+        Ok(d) => d,
+        Err(e) => return fail(e),
+    };
+    let t = match default_tenant(&s).await {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
+    Json(events::emit_ws_notifications(&t, &s.deliverer, &dto.items).await).into_response()
+}
+
+/// Router của module (11 route). Người gọi gắn state `Arc<NotifyState>`.
 pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<NotifyState>> {
     let s = specs();
     let spec = |i: usize| -> RouteSpec { s[i].clone() };
@@ -206,4 +350,26 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<NotifyState>> {
         .route(spec(1), unread_count)
         .route(spec(2), mark_read)
         .route(spec(3), send)
+        .route(spec(4), templates_list)
+        .route(spec(5), templates_create)
+        .route(spec(6), templates_get)
+        .route(spec(7), templates_update)
+        .route(spec(8), templates_remove)
+        .route(spec(9), payslip_approved)
+        .route(spec(10), notify_ws_emit)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bang_route_du_11_dong_khong_trung() {
+        let s = specs();
+        assert_eq!(s.len(), 11);
+        let mut keys: Vec<_> = s.iter().map(|x| format!("{} {}", x.method, x.path)).collect();
+        keys.sort();
+        keys.dedup();
+        assert_eq!(keys.len(), 11);
+    }
 }

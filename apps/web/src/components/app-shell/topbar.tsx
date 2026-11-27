@@ -114,7 +114,7 @@ export function ShellTopbar() {
         className="hidden h-[34px] min-w-0 flex-none items-center gap-[7px] rounded-lg border border-[var(--color-app-line)] bg-card px-3 text-left text-sm font-medium text-foreground shadow-[var(--shadow-card)] transition-colors hover:bg-[var(--color-app-surface-2)] md:flex"
       >
         <Search className="size-[18px] flex-none text-muted-foreground" aria-hidden />
-        <span className="truncate">Tìm hoặc ra lệnh</span>
+        <span className="truncate">Tìm kiếm</span>
         <kbd className="ml-1 rounded-[5px] border border-[var(--color-app-line)] px-1.5 font-sans text-sm font-medium text-muted-foreground">⌘K</kbd>
       </button>
       )}

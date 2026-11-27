@@ -45,7 +45,7 @@ import { cn } from "@/lib/utils"
 
 /**
  * Sidebar theo demo giao diện mới (`trinity-giao-dien-demo`): nền panel, viền 1px.
- * Bố cục từ trên xuống: logo + "Trinity" → ô "Tìm hoặc ra lệnh ⌘K" → menu chính
+ * Bố cục từ trên xuống: logo + "Trinity" → ô "Tìm kiếm ⌘K" → menu chính
  * (có số đếm khi app có sẵn dữ liệu, vd đề xuất AI chờ duyệt) → Bảng tuỳ chỉnh →
  * Đã ghim → Khách gần đây → chân: Cài đặt + người dùng + nút sáng/tối.
  *

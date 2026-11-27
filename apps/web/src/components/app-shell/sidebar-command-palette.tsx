@@ -136,16 +136,16 @@ export function ShellCommandPalette({
         className="top-[14vh] translate-y-0 gap-0 overflow-hidden rounded-[14px] border border-[color:var(--color-app-line)] p-0 shadow-[0_20px_60px_rgba(0,0,0,0.2)] ring-0 sm:max-w-[600px] max-sm:top-[10vh] max-sm:bottom-auto max-sm:left-1/2 max-sm:w-[calc(100%-2rem)] max-sm:-translate-x-1/2 max-sm:rounded-[14px] max-sm:pb-0"
         showCloseButton={false}
       >
-        <DialogTitle className="sr-only">Tìm hoặc ra lệnh</DialogTitle>
+        <DialogTitle className="sr-only">Tìm kiếm</DialogTitle>
         <MotionConfig reducedMotion="user">
-        <Command shouldFilter={false} loop label="Tìm hoặc ra lệnh" value={selected} onValueChange={setSelected} className="flex flex-col">
+        <Command shouldFilter={false} loop label="Tìm kiếm" value={selected} onValueChange={setSelected} className="flex flex-col">
           <div className="flex items-center gap-2.5 border-b border-[color:var(--color-app-line)] px-4 py-3.5">
             <Search className="size-[18px] flex-none text-muted-foreground" aria-hidden />
             <Command.Input
               autoFocus
               value={query}
               onValueChange={setQuery}
-              placeholder="Tìm khách, màn hình… hoặc ra lệnh"
+              placeholder="Tìm khách, màn hình hoặc thao tác…"
               className="w-full bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground"
             />
             <AnimatePresence initial={false}>

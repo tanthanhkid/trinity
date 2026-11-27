@@ -11,7 +11,7 @@ const loadPalette = () => import("@/components/app-shell/sidebar-command-palette
 const ShellCommandPalette = dynamic(() => loadPalette().then((m) => ({ default: m.ShellCommandPalette })))
 
 /**
- * Ô "Tìm hoặc ra lệnh ⌘K" ở đầu sidebar (theo demo giao diện mới). "Thêm khách"
+ * Ô "Tìm kiếm ⌘K" ở đầu sidebar (theo demo giao diện mới). "Thêm khách"
  * (trước là nút + cạnh ô tìm) nay là một lệnh trong bảng ⌘K, vẫn chỉ hiện khi có
  * quyền `contacts.create` + tính năng `contacts` bật.
  */
@@ -48,13 +48,13 @@ export function ShellQuickActions({ navEntries }: { navEntries: FlatMenuEntry[] 
         onClick={() => setPaletteOpen(true)}
         onPointerEnter={() => void loadPalette()}
         onFocus={() => void loadPalette()}
-        title="Tìm hoặc ra lệnh (⌘K)"
+        title="Tìm kiếm (⌘K)"
         aria-label="Tìm kiếm"
         aria-keyshortcuts="Meta+K Control+K"
         className="app-side-search"
       >
         <Search className="size-[18px] flex-none" aria-hidden />
-        <span className="truncate group-data-[collapsible=icon]:hidden">Tìm hoặc ra lệnh</span>
+        <span className="truncate group-data-[collapsible=icon]:hidden">Tìm kiếm</span>
         <kbd className="group-data-[collapsible=icon]:hidden">⌘K</kbd>
       </button>
       {(paletteOpen || paletteUsed) && (

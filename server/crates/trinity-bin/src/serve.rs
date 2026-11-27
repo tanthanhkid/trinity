@@ -468,6 +468,15 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             stale_job_enabled: mod_leads::jobs::stale_enabled(lookup),
         }),
     );
+    app = mount(
+        app,
+        mod_deals::routes::api_router(deps.clone()),
+        Arc::new(mod_deals::routes::Ctx {
+            db: db.clone(),
+            scopes: ScopeService::new(db.clone(), cache.clone()),
+            multi_tenant: platform.multi_tenant(),
+        }),
+    );
     // Payroll: socket `/notif-ws` dựng sau cùng nên điền vào `payroll_socket` ở bước realtime bên dưới.
     let payroll_socket = Arc::new(std::sync::OnceLock::new());
     app = mount(

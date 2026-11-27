@@ -2383,9 +2383,11 @@ dependencies = [
 name = "mod-deals"
 version = "0.3.0"
 dependencies = [
+ "axum",
  "chrono",
  "http",
  "mod-contacts",
+ "mod-settings",
  "serde",
  "serde_json",
  "sqlx",

@@ -28,9 +28,13 @@ fn day_bound(v: Option<&Value>, end: bool) -> Result<Option<DateTime<Utc>>, Tool
     };
     let b = raw.as_bytes();
     let date_only = b.len() == 10
-        && b.iter()
-            .enumerate()
-            .all(|(i, c)| if i == 4 || i == 7 { *c == b'-' } else { c.is_ascii_digit() });
+        && b.iter().enumerate().all(|(i, c)| {
+            if i == 4 || i == 7 {
+                *c == b'-'
+            } else {
+                c.is_ascii_digit()
+            }
+        });
     if date_only {
         let day = NaiveDate::parse_from_str(raw, "%Y-%m-%d").map_err(|_| bad_date(raw))?;
         let time = if end {

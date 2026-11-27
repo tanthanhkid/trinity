@@ -97,12 +97,9 @@ pub fn list_leads_to_score<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutu
                 .push_bind(Utc::now() - Duration::days(STALE_DAYS))
                 .push(")");
         }
-        qb.push(" ORDER BY x.updated_at DESC, x.id DESC LIMIT ").push_bind(limit);
-        let rows: Vec<LeadRow> = qb
-            .build_query_as()
-            .fetch_all(&mut *conn)
-            .await
-            .map_err(internal)?;
+        qb.push(" ORDER BY x.updated_at DESC, x.id DESC LIMIT ")
+            .push_bind(limit);
+        let rows: Vec<LeadRow> = qb.build_query_as().fetch_all(&mut *conn).await.map_err(internal)?;
         let ids: Vec<i32> = rows.iter().map(|r| r.0).collect();
         // Ghi chú: tối đa 5 ghi chú mới nhất của mỗi khách trong MỘT truy vấn.
         let note_rows: Vec<(i32, Option<String>)> = if ids.is_empty() {

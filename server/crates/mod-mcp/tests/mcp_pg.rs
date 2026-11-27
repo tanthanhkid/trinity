@@ -1249,8 +1249,10 @@ async fn tool_cham_y_dinh_lead_hoat_dong_ai_va_tuong_tac() {
     assert_eq!(v["data"]["results"][0]["ok"], false, "{v}");
     assert_eq!(v["data"]["results"][1]["ok"], true, "{v}");
     assert_eq!(
-        e.scalar(&format!("SELECT (intent * 100)::bigint FROM lead_ai_intents WHERE contact_id = {mine}"))
-            .await,
+        e.scalar(&format!(
+            "SELECT (intent * 100)::bigint FROM lead_ai_intents WHERE contact_id = {mine}"
+        ))
+        .await,
         90
     );
 

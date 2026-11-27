@@ -32,9 +32,13 @@ fn internal(e: impl std::fmt::Display) -> ToolError {
 fn parse_day(d: &str) -> Option<NaiveDate> {
     let b = d.as_bytes();
     let shape = b.len() == 10
-        && b.iter()
-            .enumerate()
-            .all(|(i, c)| if i == 4 || i == 7 { *c == b'-' } else { c.is_ascii_digit() });
+        && b.iter().enumerate().all(|(i, c)| {
+            if i == 4 || i == 7 {
+                *c == b'-'
+            } else {
+                c.is_ascii_digit()
+            }
+        });
     shape.then(|| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()).flatten()
 }
 
@@ -51,7 +55,10 @@ fn activity_range(
     let today = vn_date(now).format("%Y-%m-%d").to_string();
     let (from_s, to_s) = (non_empty(from_raw), non_empty(to_raw));
     let f = from_s.or(to_s).map_or_else(|| today.clone(), str::to_owned);
-    let t = to_s.map_or_else(|| if from_s.is_some() { f.clone() } else { today.clone() }, str::to_owned);
+    let t = to_s.map_or_else(
+        || if from_s.is_some() { f.clone() } else { today.clone() },
+        str::to_owned,
+    );
     let mut days = Vec::with_capacity(2);
     for d in [&f, &t] {
         let day = parse_day(d).ok_or_else(|| {
@@ -120,11 +127,7 @@ pub fn list_ai_activity<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<
                 qb.push(" AND id < ").push_bind(c);
             }
             qb.push(" ORDER BY id DESC LIMIT ").push_bind(limit + 1);
-            let mut rows: Vec<DraftRow> = qb
-                .build_query_as()
-                .fetch_all(&mut *conn)
-                .await
-                .map_err(internal)?;
+            let mut rows: Vec<DraftRow> = qb.build_query_as().fetch_all(&mut *conn).await.map_err(internal)?;
             let more = i64::try_from(rows.len()).unwrap_or(i64::MAX) > limit;
             rows.truncate(usize::try_from(limit).unwrap_or(50));
             let mut uids: Vec<i32> = rows.iter().map(|r| r.2).collect();
@@ -162,21 +165,23 @@ pub fn list_ai_activity<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<
         let next_cursor = if more { rows.last().map(|r| r.0) } else { None };
         let items: Vec<Value> = rows
             .iter()
-            .map(|(id, client_id, user_id, tool, summary, st, result, decided_at, expires_at, created_at)| {
-                let status = effective_status(st, result.is_some(), *decided_at, *expires_at, now);
-                let what = info(tool).map_or(tool.as_str(), |(label, _)| label);
-                let result_json = result
-                    .as_deref()
-                    .and_then(|t| serde_json::from_str::<Value>(t).ok())
-                    .unwrap_or(Value::Null);
-                json!({
-                    "action_id": id, "at": vn_iso(&Timestamp(*created_at)),
-                    "user": who.get(user_id).cloned().flatten(), "app": apps.get(client_id),
-                    "tool": tool, "what": what, "summary": summary,
-                    "error": if status == "failed" { json!(FAILED_NOTE) } else { Value::Null },
-                    "status": status, "result": result_json, "open_at": format!("/ai-actions?id={id}"),
-                })
-            })
+            .map(
+                |(id, client_id, user_id, tool, summary, st, result, decided_at, expires_at, created_at)| {
+                    let status = effective_status(st, result.is_some(), *decided_at, *expires_at, now);
+                    let what = info(tool).map_or(tool.as_str(), |(label, _)| label);
+                    let result_json = result
+                        .as_deref()
+                        .and_then(|t| serde_json::from_str::<Value>(t).ok())
+                        .unwrap_or(Value::Null);
+                    json!({
+                        "action_id": id, "at": vn_iso(&Timestamp(*created_at)),
+                        "user": who.get(user_id).cloned().flatten(), "app": apps.get(client_id),
+                        "tool": tool, "what": what, "summary": summary,
+                        "error": if status == "failed" { json!(FAILED_NOTE) } else { Value::Null },
+                        "status": status, "result": result_json, "open_at": format!("/ai-actions?id={id}"),
+                    })
+                },
+            )
             .collect();
         wrapped(&json!({
             "range": label, "timezone": "Asia/Ho_Chi_Minh", "who": if all { "cả công ty" } else { "chính bạn" },

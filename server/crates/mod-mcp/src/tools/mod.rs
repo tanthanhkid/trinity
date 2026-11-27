@@ -8,8 +8,8 @@
 pub(crate) mod act_contacts;
 pub(crate) mod act_records;
 pub(crate) mod act_tasks;
-mod channels;
 mod ai_activity;
+mod channels;
 mod confirm;
 mod contacts;
 mod deals;
@@ -19,6 +19,7 @@ pub(crate) mod import;
 mod inbox;
 mod interactions;
 mod invitations;
+mod lead_intent;
 mod options;
 mod payroll;
 mod records;

@@ -762,6 +762,7 @@ export class AuthService {
     let jpeg: Buffer
     try {
       jpeg = await sharp(file.buffer)
+        .rotate()
         .resize(200, 200, { fit: 'cover' })
         .jpeg({ quality: 80 })
         .toBuffer()

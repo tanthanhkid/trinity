@@ -456,6 +456,7 @@ export class NewsfeedService {
       // Nén ảnh với Sharp: resize + convert WebP. `file.path` (diskStorage
       // controller) — sharp đọc trực tiếp từ đường dẫn file tạm.
       const compressed = await sharp(file.path)
+        .rotate()
         .resize(COMPRESS_MAX_PX, COMPRESS_MAX_PX, {
           fit: 'inside',
           withoutEnlargement: true,

@@ -274,7 +274,10 @@ fn parse_bulk(body: &Value) -> Result<(Vec<i32>, i32, String), AppError> {
         errs.push("contact_ids phải là mảng số nguyên".to_owned());
     }
     if !arr.is_some_and(|a| a.len() <= transfer::BULK_TRANSFER_MAX) {
-        errs.push(format!("Tối đa {} khách hàng mỗi lần chuyển", transfer::BULK_TRANSFER_MAX));
+        errs.push(format!(
+            "Tối đa {} khách hàng mỗi lần chuyển",
+            transfer::BULK_TRANSFER_MAX
+        ));
     }
     if !arr.is_some_and(|a| !a.is_empty()) {
         errs.push("contact_ids không được để trống".to_owned());
@@ -546,8 +549,14 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::POST, BASE), create)
         .route(spec(&Method::GET, "/api/v1/contacts/export"), export_xlsx)
         .route(spec(&Method::GET, "/api/v1/contacts/search"), search)
-        .route(spec(&Method::GET, "/api/v1/contacts/assignable-users"), assignable_users)
-        .route(spec(&Method::GET, "/api/v1/contacts/assignable-sales"), assignable_sales)
+        .route(
+            spec(&Method::GET, "/api/v1/contacts/assignable-users"),
+            assignable_users,
+        )
+        .route(
+            spec(&Method::GET, "/api/v1/contacts/assignable-sales"),
+            assignable_sales,
+        )
         .route(spec(&Method::POST, "/api/v1/contacts/bulk-transfer"), bulk_transfer)
         .route(spec(&Method::GET, "/api/v1/contacts/recent"), recent_list)
         .route(spec(&Method::POST, "/api/v1/contacts/:id/transfer"), transfer_one)

@@ -2336,6 +2336,7 @@ dependencies = [
 name = "mod-contacts"
 version = "0.3.0"
 dependencies = [
+ "axum",
  "chrono",
  "serde",
  "serde_json",
@@ -2343,6 +2344,7 @@ dependencies = [
  "tokio",
  "trinity-db",
  "trinity-docgen",
+ "trinity-http",
  "trinity-kernel",
  "trinity-rbac",
 ]
@@ -2468,6 +2470,7 @@ dependencies = [
 name = "mod-leads"
 version = "0.3.0"
 dependencies = [
+ "axum",
  "chrono",
  "http",
  "serde",
@@ -4956,6 +4959,7 @@ dependencies = [
  "mod-ai-actions",
  "mod-attendance",
  "mod-channel-guard",
+ "mod-contacts",
  "mod-custom",
  "mod-deals",
  "mod-facebook",
@@ -4968,6 +4972,7 @@ dependencies = [
  "mod-pos",
  "mod-public-api",
  "mod-reports",
+ "mod-settings",
  "mod-setup",
  "mod-social",
  "mod-store",

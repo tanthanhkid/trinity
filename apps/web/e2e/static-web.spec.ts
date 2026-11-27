@@ -79,7 +79,10 @@ test.describe('web tĩnh · công khai (chưa đăng nhập)', () => {
     test(`URL sâu ${name}: ${path}`, async ({ page }) => {
       const bad = watchStatic(page)
       const watcher = watchPage(page)
-      const res = await page.goto(path, { waitUntil: 'networkidle' })
+      // `load` + chờ networkidle có hạn: trang công khai gọi API xem trước (token giả) có thể chưa dừng hẳn trên runner CI chậm
+      // (nightly 27/11 treo 45s ở invite); điều cần kiểm là vỏ trang 200 + URL giữ nguyên, không phải mạng yên tĩnh.
+      const res = await page.goto(path, { waitUntil: 'load' })
+      await page.waitForLoadState('networkidle', { timeout: 12_000 }).catch(() => undefined)
       expect(res?.status(), 'trang giữ chỗ phải trả 200 với mọi giá trị tham số').toBe(200)
       expect(new URL(page.url()).pathname).toBe(path)
       expect(new URL(page.url()).search).toBe('')

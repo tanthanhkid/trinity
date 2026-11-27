@@ -1,14 +1,15 @@
-//! Binary `trinity`. Có `check-config`, `migrate` (K07); `seed`, `channel-lock` (K32); `serve`, `healthcheck` thêm ở các
-//! issue sau (docs/rust/PLAN.md mục 4.1).
+//! Binary `trinity`. Có `check-config`, `migrate` (K07); `seed`, `channel-lock` (K32); `serve`, `healthcheck` (docs/rust/PLAN.md
+//! mục 4.1).
 
 mod channel_lock;
 mod migrate;
 mod routes;
 
-// K34: nền móng, chưa mount. `serve` (chưa có) sẽ gọi `trinity_testhooks::TestHooks::router` khi build với `--features test-hooks`.
+// K34: `serve` gọi `trinity_testhooks::TestHooks::router` khi build với `--features test-hooks`.
 #[cfg(feature = "test-hooks")]
 use trinity_testhooks as _;
 mod seed;
+mod serve;
 
 use std::io::Write;
 use std::process::ExitCode;
@@ -48,6 +49,10 @@ enum Command {
     Seed(seed::SeedArgs),
     /// Công tắc khoá kênh gửi ra ngoài của một công ty (chủ nền tảng): list | lock | unlock | resume.
     ChannelLock(channel_lock::ChannelLockArgs),
+    /// Chạy máy chủ HTTP: router mọi module đã chuyển, strangler sang Node cho phần còn lại, `/notif-ws`, scheduler. Ctrl+C hoặc SIGTERM để dừng êm.
+    Serve(serve::ServeArgs),
+    /// GET `/api/v1/health` trên loopback (cổng `TRINITY_HTTP_PORT`): mã 0 khi 200, mã 1 nếu không.
+    Healthcheck,
 }
 
 #[derive(Debug, clap::Args)]
@@ -81,6 +86,8 @@ fn main() -> ExitCode {
         Some(Command::CheckInvariants(args)) => check_invariants(&args),
         Some(Command::Seed(args)) => seed::run(&args),
         Some(Command::ChannelLock(args)) => channel_lock::run(args),
+        Some(Command::Serve(args)) => serve::run(args),
+        Some(Command::Healthcheck) => serve::healthcheck(),
     }
 }
 

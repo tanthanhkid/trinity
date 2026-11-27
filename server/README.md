@@ -133,6 +133,31 @@ URL lấy như máy chủ (`DATABASE_URL`; đa công ty `TENANT_DATABASE_URL`, `
 `ALTER DATABASE <db> SET client_connection_check_interval = '1s'` (Postgres 14+): khi `prisma migrate deploy` hết giờ
 chờ khoá, yêu cầu khoá mồ côi của nó tự hết thay vì chặn các lượt migrate sau.
 
+## Chạy localhost
+
+Cần Postgres đã có DB trống và bản `trinity` đã build (`cargo build -p trinity-bin --release`, binary ở `target/release/trinity`).
+Biến môi trường tối thiểu (cùng tên với bản Node):
+
+| Biến | Ý nghĩa |
+|---|---|
+| `DATABASE_URL` | URL Postgres, ví dụ `postgresql://user:pass@localhost:5432/trinity` |
+| `JWT_SECRET` | khoá ký JWT (production: ≥ 32 ký tự, không để `change-me-*`) |
+| `TRINITY_HTTP_PORT` | cổng nghe (mặc định 3000); `LISTEN_HOST` đổi địa chỉ nghe (mặc định mọi giao diện) |
+| `CORS_ORIGIN` | origin của web (mặc định `http://localhost:3000`; chạy web Next ở cổng khác thì đặt cho khớp) |
+| `UPLOADS_DIR` | thư mục tệp tải lên (mặc định `./uploads`) |
+| `NODE_FALLBACK_URL`, `TRINITY_OWNERSHIP_FILE` | chỉ khi chạy lai với bản Node; không đặt thì Rust nhận mọi route |
+
+```sh
+export DATABASE_URL=postgresql://user:pass@localhost:5432/trinity JWT_SECRET=dev-secret-0123456789abcdef0123456789
+trinity migrate        # tạo/cập nhật schema
+trinity seed           # vai trò Quản trị, cấu hình mặc định, tài khoản admin
+trinity serve          # nghe ở http://localhost:3000 ; Ctrl+C để dừng êm
+trinity healthcheck    # mã 0 nếu GET /api/v1/health trả 200
+```
+
+`trinity serve --port 4000 --host 127.0.0.1` ghi đè cổng và địa chỉ. Module chưa chuyển sang Rust (xem `docs/rust/PLAN.md`, mục "trinity serve")
+trả 404 khi chạy một mình; để dùng chúng, chạy kèm bản Node và đặt `NODE_FALLBACK_URL` cùng tệp sở hữu route.
+
 ## Hàng đợi biên dịch chung
 
 Máy phát triển 16 GB chỉ chịu **một tiến trình biên dịch Rust tại một lúc** (PLAN mục 11). Mọi agent và người dùng

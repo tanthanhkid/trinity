@@ -868,7 +868,7 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   dừng lúc khởi động. `router::check` so bảng đã khai với `routes.json` (`access`, `permissions`, `permission_mode`, `status_ok`, `org_feature`,
   `guards`, `param_pipes`) và tự kiểm hợp đồng (quyền, tính năng có trong catalog; `validation` khớp bảng lenient/strict K15; dòng trùng phải giống hệt:
   health/live/ready lặp 5 lần ở 5 service cũ). Kiểm chạy ở: test đơn vị `trinity-bin` (`routes::tests`), `trinity check-config` (chạy thử lúc khởi động,
-  gọi `routes::boot_check`), `trinity check-routes [--require-all]` / `cargo xtask check-routes`; lệnh `serve` (chưa có) gọi `boot_check` trước khi mở
+  gọi `routes::boot_check`), `trinity check-routes [--require-all]` / `cargo xtask check-routes`; lệnh `serve` gọi `boot_check` trước khi mở
   cổng. CI hiện đã tắt (chủ dự án: tự test local), nên đây là kiểm cục bộ, không phải job CI. `--require-all` là cổng cuối X06. Module nào có route
   đầu tiên thêm `routes()` vào `declared_routes()` của `trinity-bin`. `resolvePublicRouteCompany` chuyển cùng module đầu tiên cần nó.
 - **Đã làm ở M02** (`server/crates/mod-auth/src/invitations.rs`): đăng ký công ty (`register`, dựng schema bằng migrator Rust K07/K09, trả token như đăng nhập) và lời mời nhân viên
@@ -1196,7 +1196,7 @@ network namespace với Rust nên đổi sang cổng nội bộ khác (`PORT=300
   `/notif-ws`, `/uploads`, `/docs` đi Node; `/.well-known/oauth-authorization-server` và `/oauth-protected-resource` được rewrite như `next.config` sang
   `/api/v1/oauth/...` rồi đi Node (Node không có `/.well-known`); còn lại (`/api/build-id`, `/api/fe-logging`, trang) đi Next nếu cấu hình `web`, không thì Node.
   `dispatcher`: `client_ip_layer` một lần ở ngoài cùng; lớp CORS và mọi lớp khác của Rust chỉ nằm trong router thuộc Rust nên route của Node chỉ có CORS của
-  Node. Chưa nối vào binary vì chưa có lệnh `serve`; biến cho địa chỉ Next (`web`) và `ListenerScheme` thêm khi nối.
+  Node. Đã nối vào `trinity serve` (`NODE_FALLBACK_URL`, `ListenerScheme` theo `TLS_MODE`); địa chỉ Next (`web`) chưa có biến, truyền `None`.
 - **Shadow:** chỉ cho route có `safe_for_shadow = true` trong `routes.json` (mặc định `false`; bật từng route sau khi
   rà mã là thuần đọc). Sau khi đã trả response của Node, theo tỉ lệ lấy mẫu, Rust tính response của mình với ba hàng
   rào: (1) phiên DB chỉ đọc, đặt ở mức phiên khi lấy kết nối cho shadow (`default_transaction_read_only = on`), vì
@@ -2033,3 +2033,16 @@ Không có phát hiện nào của lượt 8 bị từ chối.
 
 **Plan chốt ngày 26/11/2026**, sau 8 lượt phản biện. Thay đổi về sau ghi thành lượt mới ở mục này.
 
+
+### `trinity serve` (lắp ráp máy chủ, `trinity-bin/src/serve.rs`)
+
+Lệnh `serve` dựng pool DB, `Security`/`RbacCache`/`PermissionService`/`Authenticator`, rồi **mount router của từng module** bằng `mount`: mỗi
+`ApiRouter` có trạng thái riêng và `fallback` 404 riêng (axum không `merge` hai fallback), nên mỗi route đã khai (`RouteSpec`) được đăng ký
+lên router chung và chuyển nguyên request sang router con (vẫn qua lớp thực thi quyền K14 của nó). Đã mount: system (health, site-config, build-id),
+users, custom, reports, setup, hr (nhân viên, hợp đồng), attendance, channel-guard, public-api, oauth, mcp (nhóm tool 1), ai-actions (`NoTools`).
+Lớp biên: `json_limit` 5 MB, CORS, `/notif-ws` (K33, chuông qua `trinity_sync`); ngoài cùng là `strangler::dispatcher` (K17, IP khách K16).
+Không có tệp sở hữu, `TRINITY_RUST_ROUTES` và `NODE_FALLBACK_URL`: Rust nhận mọi route (chạy localhost một mình). Có một trong ba thì theo bảng sở hữu
+và phần không thuộc Rust đi Node. Scheduler và worker hàng đợi chạy nền (chưa module nào đăng ký job; tự tắt khi bật `test-hooks`, K34); với
+`--features test-hooks` mount `/api/v1/internal/test/*`. Tắt êm khi Ctrl+C/SIGTERM (30 giây). `trinity healthcheck` gọi `GET /api/v1/health` loopback.
+**Chưa làm:** mount leads, deals, kanban, payroll, pos, facebook, store, contacts, commerce, notify, newsfeed, settings, rbac-admin, apikeys, auth
+(chưa có router axum hoặc chưa nối trạng thái); đăng ký job nền của từng module; log từng request; `OrgFeatureGate` thật (`features: None`).

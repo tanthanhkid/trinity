@@ -1011,7 +1011,12 @@ async fn tool_dang_bai_kenh_va_thu_vien_media() {
     assert!(accs[0]["inbox"].is_null() && accs[0].get("inbox").is_some(), "{v}");
     assert_eq!(accs[1]["removed"], true);
     assert_eq!(v["data"]["networks"][0]["network"], "facebook");
-    assert!(v["data"]["manage_url"].as_str().unwrap().ends_with("/social?tab=channels"));
+    assert!(
+        v["data"]["manage_url"]
+            .as_str()
+            .unwrap()
+            .ends_with("/social?tab=channels")
+    );
 
     // Ghi cần scope crm.write; bật lại kênh cần social.manage.
     let (err, _, _) = run(&e, &ro, "enable_social_account", &json!({ "account_id": 1 })).await;
@@ -1046,10 +1051,17 @@ async fn tool_dang_bai_kenh_va_thu_vien_media() {
     assert_eq!(v["data"]["type"], "image");
     assert_eq!(v["data"]["name"], "Ảnh thử");
     let key = v["data"]["media_key"].as_str().unwrap().to_owned();
-    assert_eq!(e.scalar("SELECT count(*) FROM social_media_assets WHERE source = 'mcp'").await, 1);
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM social_media_assets WHERE source = 'mcp'")
+            .await,
+        1
+    );
     let (err, _, v) = run(&e, &stf, "list_social_media", &json!({ "type": "image", "q": "Ảnh%" })).await;
     assert!(!err, "{v}");
-    assert!(v["data"]["files"].as_array().unwrap().is_empty(), "% phải được thoát: {v}");
+    assert!(
+        v["data"]["files"].as_array().unwrap().is_empty(),
+        "% phải được thoát: {v}"
+    );
     let (err, _, v) = run(&e, &stf, "list_social_media", &json!({ "type": "image", "q": "Ảnh" })).await;
     assert!(!err && v["data"]["files"][0]["media_key"] == key.as_str(), "{v}");
     assert!(v["data"]["next_cursor"].is_null());

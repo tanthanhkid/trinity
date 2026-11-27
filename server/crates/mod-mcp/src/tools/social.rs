@@ -41,21 +41,32 @@ impl ToolRunner for SocialTool {
 
 /// Đăng ký 4 tool đăng bài đã có nền vào `r`.
 pub fn register_social(r: &mut ToolRegistry, deps: Arc<SocialDeps>) {
-    let mut reg = |name: &'static str, scope: Option<&'static str>, permissions: &'static [&'static str], run: RunFn| {
-        r.register(ToolSpec {
-            name,
-            scope,
-            permissions,
-            runner: Arc::new(SocialTool {
-                deps: deps.clone(),
-                run,
-            }),
-        });
-    };
+    let mut reg =
+        |name: &'static str, scope: Option<&'static str>, permissions: &'static [&'static str], run: RunFn| {
+            r.register(ToolSpec {
+                name,
+                scope,
+                permissions,
+                runner: Arc::new(SocialTool {
+                    deps: deps.clone(),
+                    run,
+                }),
+            });
+        };
     reg("list_social_accounts", None, &["social.post"], list_social_accounts);
     reg("list_social_media", None, &["social.post"], list_social_media);
-    reg("upload_social_media", Some("crm.write"), &["social.post"], upload_social_media);
-    reg("enable_social_account", Some("crm.write"), &["social.manage"], enable_social_account);
+    reg(
+        "upload_social_media",
+        Some("crm.write"),
+        &["social.post"],
+        upload_social_media,
+    );
+    reg(
+        "enable_social_account",
+        Some("crm.write"),
+        &["social.manage"],
+        enable_social_account,
+    );
 }
 
 /// Lỗi < 500 (và thoả `as_user`) ⇒ `ToolUserError` giữ nguyên câu; còn lại theo `app_err`.
@@ -74,7 +85,8 @@ fn user_if(e: AppError, as_user: impl Fn(u16) -> bool) -> ToolError {
     }
 }
 
-const OFF: &str = "Tính năng \"Đăng đa kênh\" đang tắt (Cài đặt › Tính năng). / Social posting is turned off for this workspace.";
+const OFF: &str =
+    "Tính năng \"Đăng đa kênh\" đang tắt (Cài đặt › Tính năng). / Social posting is turned off for this workspace.";
 
 /// Tính năng `social_posting` đang bật (chỉ `false` tường minh mới tắt).
 async fn ensure_enabled(ctx: &ToolCtx<'_>) -> Result<(), ToolError> {
@@ -157,8 +169,8 @@ fn list_social_media<'a>(
         ensure_enabled(ctx).await?;
         let kind = args.get("type").and_then(Value::as_str);
         let q = args.get("q").and_then(Value::as_str);
-        let mut query = LibraryQuery::from_query(kind, q, None, None)
-            .map_err(|e| ToolError::Internal(format!("{e:?}")))?;
+        let mut query =
+            LibraryQuery::from_query(kind, q, None, None).map_err(|e| ToolError::Internal(format!("{e:?}")))?;
         query.limit = u64::try_from(clamp_limit(args.get("limit"))).unwrap_or(20);
         query.cursor = opt_int(args.get("cursor"));
         let mut conn = ctx.deps.conn(ctx.principal.company).await?;
@@ -186,7 +198,8 @@ fn upload_social_media<'a>(
         let file_name = opt_str(args.get("file_name"), 200).unwrap_or_default();
         if url.is_empty() && file_name.is_empty() {
             return Err(ToolError::User(
-                "Gửi data_base64 thì cần file_name có đuôi (vd banner.png). / file_name is required with data_base64.".to_owned(),
+                "Gửi data_base64 thì cần file_name có đuôi (vd banner.png). / file_name is required with data_base64."
+                    .to_owned(),
             ));
         }
         // `import_*` tự mượn kết nối ngắn: không giữ kết nối nào ở đây, và không gọi HTTP khi đang giữ kết nối.
@@ -220,7 +233,9 @@ fn enable_social_account<'a>(
     Box::pin(async move {
         ensure_enabled(ctx).await?;
         let Some(id) = opt_int(args.get("account_id")) else {
-            return Err(ToolError::User("account_id không hợp lệ. / Invalid account_id.".to_owned()));
+            return Err(ToolError::User(
+                "account_id không hợp lệ. / Invalid account_id.".to_owned(),
+            ));
         };
         let mut conn = ctx.deps.conn(ctx.principal.company).await?;
         let a = mod_social::accounts::enable(&mut conn, id)

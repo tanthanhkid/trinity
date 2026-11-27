@@ -56,6 +56,7 @@ describe('Thực thể tuỳ biến', () => {
     await st(a(t).post(BASE, { key: 'ok', label: 'A', label_plural: 'A', hack: 1 }), 400)
     const o = await mkObject(t, 'hoc_sinh', { icon: 'graduation-cap' })
     expect(o).toMatchObject({ key: 'hoc_sinh', show_in_nav: true, is_active: true, visible_role_ids: [] })
+    // Nhãn vai `admin` = người có `custom_objects.manage` (ALL), không phải vai trò hệ thống; 201 là mã `mkObject` đã khẳng định.
     golden('custom-object-created', 'admin', snap({ status: 201, headers: new Headers(), body: o }))
     await st(a(t).post(BASE, { key: 'hoc_sinh', label: 'B', label_plural: 'B' }), 409)
     await st(a(t).patch(`${BASE}/hoc_sinh`, { label: 'Học viên', key: 'khac' }), 400)
@@ -418,6 +419,7 @@ describe('Thực thể tuỳ biến', () => {
     const e = await st(rec(t, 'hoc_sinh', { gc: big, gc2: big, gc3: big, gc4: big }), 400)
     expect((e.body as Body).errors._data).toBeDefined()
     await st(a(t).post(`${BASE}/hoc_sinh/records`, { data: { gc: 'x'.repeat(10_001) } }), 400)
+    const fieldsBefore = await count('custom_fields')
     let blockedAt = -1
     for (let i = 0; i < 60; i++) {
       const res = await a(t).post(`${BASE}/hoc_sinh/fields`, { label: `T${i}`, key: `t${i}`, type: 'text' })
@@ -425,7 +427,11 @@ describe('Thực thể tuỳ biến', () => {
         blockedAt = i
         break
       }
+      expect(res.status, `trường T${i}`).toBe(201)
     }
+    // Bị chặn rồi thì gọi tiếp vẫn 400 và không tạo thêm trường nào.
+    await st(a(t).post(`${BASE}/hoc_sinh/fields`, { label: 'Thừa', key: 'thua', type: 'text' }), 400)
+    expect(await count('custom_fields')).toBe(fieldsBefore + blockedAt)
     expect(blockedAt, 'phải chặn trước 60 trường').toBeGreaterThanOrEqual(55)
   })
 

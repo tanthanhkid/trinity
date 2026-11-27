@@ -71,6 +71,9 @@ Hồ sơ `production` phía Rust chạy trên binary **phát hành** (không có
   Mỗi ca bắt đầu bằng `resetCustom()` (TRUNCATE `custom_records/fields/objects`, `integration_events`) vì e2e gốc dọn ở `afterEach` và nhiều ca dùng cùng khoá
   thực thể (`hoc_sinh`) và đếm bảng. Các ca đếm bằng `prisma.*.count()` đổi thành SQL. Ca SĐT và danh sách mẫu ghi golden 3 vai (`lib/roles.ts`).
 
+- C09 ghi chú: `STORAGE_LOCAL_ROOT` của bộ chạy theo tiền tố `CONTRACT_DB_PREFIX` (`<tmp>/<tiền tố>-storage-<hồ sơ>`, hai lượt song song không dùng chung thư mục); tiền tố phải khớp `/^[a-z][a-z0-9_]{0,40}$/`.
+  Golden `custom-object-created.admin` là response của người có `custom_objects.manage` (không phải vai trò hệ thống). `lib/custom.ts` `getBytes` đòi 200 trước khi đọc byte.
+
 ## Máy chủ giả Graph và Zalo (C06b)
 
 Bộ chạy mở một máy chủ giả (`mock/channels.ts`, cổng 4311 hoặc `CONTRACT_MOCK_PORT`) và trỏ máy chủ Trinity tới nó bằng

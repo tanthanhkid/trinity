@@ -610,6 +610,11 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         .map_err(|e| e.to_string())?,
     );
     let scheduler = trinity_jobs::Scheduler::new(&db, &platform, (*table.current()).clone(), &node_id);
+    // Facebook (M51): job gửi hàng loạt Messenger, 60 giây một lượt cho từng công ty (`send`/`tick` còn kích chạy nền ngay).
+    scheduler.register(
+        mod_facebook::broadcast::broadcast_job(fb_state.ingest.clone(), Some(Arc::new(guard.clone())))
+            .map_err(|e| format!("job facebook.broadcasts: {e}"))?,
+    );
     let queue = trinity_jobs::Queue::new(&db, &node_id);
     let mut worker = trinity_jobs::Worker::new(&queue, trinity_jobs::WorkerConfig::default());
     // X15b: xuất tệp dài chạy nền (`/api/v1/exports`, loại việc `export.run`). Bảng sở hữu cần tiền tố này thuộc Rust.

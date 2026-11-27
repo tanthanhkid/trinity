@@ -36,6 +36,8 @@ url = { workspace = true }
 
 [dev-dependencies]
 rustls = { workspace = true }
+tower = { workspace = true }
+trinity-auth = { workspace = true }
 wiremock = { workspace = true }
 
 [lints]

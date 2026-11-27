@@ -356,7 +356,9 @@ async fn webhook_receive(State(s): State<Arc<ZaloState>>, headers: HeaderMap, bo
     let signature = headers.get("x-zevent-signature").and_then(|v| v.to_str().ok());
     let raw = (!body.is_empty()).then_some(body.as_ref());
     // Bộ đọc thân JSON của Node từ chối thân hỏng bằng 400 TRƯỚC khi tới kiểm chữ ký.
-    if raw.is_some_and(|r| !matches!(serde_json::from_slice::<serde_json::Value>(r), Ok(v) if v.is_object() || v.is_array())) {
+    if raw.is_some_and(
+        |r| !matches!(serde_json::from_slice::<serde_json::Value>(r), Ok(v) if v.is_object() || v.is_array()),
+    ) {
         return fail(HttpError::bad_request("Thân yêu cầu không phải JSON hợp lệ"));
     }
     let out = webhook::receive(&s.ctx(CompanyRef::DEFAULT), raw, signature, now_ms()).await;

@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use sentry::protocol::{Breadcrumb, Event, User};
 use sentry::{ClientInitGuard, ClientOptions, MaxRequestBodySize};
 
-use crate::{scrub_sentry_event, scrub_url};
+use crate::{scrub_sentry_event, scrub_text, scrub_url};
 
 /// Mặc định 0: SDK Rust không có `before_send_transaction`, nên transaction chưa lọc được; tỉ lệ này chỉ được áp vào
 /// client khi đã có bộ lọc transaction (hiện [`client_options`] chưa áp, kể cả khi `SENTRY_TRACES_SAMPLE_RATE` có giá trị).
@@ -176,6 +176,31 @@ pub fn report_server_error(status: u16, err: &(dyn std::error::Error + 'static),
         },
         || {
             sentry::capture_error(err);
+        },
+    );
+}
+
+/// Báo một lỗi frontend lên Sentry ở mức warning (nguồn: `POST /api/fe-logging`). Không có client Sentry thì không làm gì.
+/// Đã cắt ngắn từ chỗ gọi; URL qua [`scrub_url`].
+pub fn report_frontend_warning(message: &str, level: &str, component: &str, url: &str) {
+    if sentry::Hub::current().client().is_none() {
+        return;
+    }
+    sentry::with_scope(
+        |scope| {
+            scope.set_tag("source", "frontend");
+            if !level.is_empty() {
+                scope.set_tag("fe.level", level);
+            }
+            if !component.is_empty() {
+                scope.set_tag("fe.component", component);
+            }
+            if !url.is_empty() {
+                scope.set_tag("url", scrub_url(url));
+            }
+        },
+        || {
+            sentry::capture_message(&scrub_text(message), sentry::Level::Warning);
         },
     );
 }

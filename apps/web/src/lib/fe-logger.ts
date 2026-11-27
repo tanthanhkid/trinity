@@ -21,7 +21,36 @@ function flush() {
   })
 }
 
+// Chống spam: cùng một message chỉ gửi 1 lần / 60 giây, và tối đa 10 lượt mỗi trang (mỗi lần nạp module).
+export const DEDUPE_WINDOW_MS = 60_000
+export const MAX_SENDS_PER_PAGE = 10
+const recent = new Map<string, number>()
+let sentThisPage = 0
+
+/** Chỉ dùng trong test: đưa bộ chống gửi lặp về trạng thái trang mới. */
+export function resetFeLoggerForTests() {
+  recent.clear()
+  sentThisPage = 0
+  QUEUE.length = 0
+  flushing = false
+}
+
+function allow(entry: Record<string, unknown>): boolean {
+  if (sentThisPage >= MAX_SENDS_PER_PAGE) return false
+  const key = String(entry.message ?? '')
+  const now = Date.now()
+  const last = recent.get(key)
+  if (last !== undefined && now - last < DEDUPE_WINDOW_MS) return false
+  if (recent.size >= 100) {
+    for (const [k, t] of recent) if (now - t >= DEDUPE_WINDOW_MS) recent.delete(k)
+  }
+  recent.set(key, now)
+  sentThisPage += 1
+  return true
+}
+
 function send(entry: Record<string, unknown>) {
+  if (!allow(entry)) return
   QUEUE.push(entry)
   flush()
 }

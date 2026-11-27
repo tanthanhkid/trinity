@@ -239,8 +239,11 @@ async fn social(c: &mut PgConnection, t: VnRange) -> R<Section> {
     .await
     .map_err(db)?;
     let mut available = Vec::new();
-    let accounts: Vec<(i32, String, String, String)> =
-        all.iter().filter(|a| !a.4).map(|a| (a.0, a.1.clone(), a.2.clone(), a.3.clone())).collect();
+    let accounts: Vec<(i32, String, String, String)> = all
+        .iter()
+        .filter(|a| !a.4)
+        .map(|a| (a.0, a.1.clone(), a.2.clone(), a.3.clone()))
+        .collect();
     if all.is_empty() {
         available.push(json!({ "kind": "social", "label": "Kênh đăng bài (Fanpage)", "href": "/social?tab=channels" }));
     }

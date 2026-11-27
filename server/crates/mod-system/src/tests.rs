@@ -227,7 +227,7 @@ fn tep_so_huu_dot_a_giao_route_cua_module_cho_rust() {
     )
     .unwrap();
     for r in routes() {
-        assert_eq!(own.route("GET", r.path).owner, Owner::Rust, "{}", r.path);
+        assert_eq!(own.route(r.method.as_str(), r.path).owner, Owner::Rust, "{}", r.path);
     }
     assert_eq!(own.route("GET", "/api/v1/site-config").owner, Owner::Rust);
     // `/api/build-id` do Next phục vụ và `/docs`, `/docs-json` do Node phục vụ (Swagger của Nest) cho tới khi web/Node nhả: không
@@ -310,4 +310,55 @@ async fn duong_da_go_tra_410_cong_khai() {
             format!("{what} đã ngừng hỗ trợ trên Trinity. / This integration has been removed.")
         );
     }
+}
+
+fn fe_post(body: Vec<u8>) -> Request<Body> {
+    Request::post("/api/fe-logging")
+        .header("content-type", "application/json")
+        .body(Body::from(body))
+        .unwrap()
+}
+
+#[tokio::test]
+async fn fe_logging_204_khong_can_dang_nhap() {
+    let r = full(SystemConfig::from_lookup(env(&[])));
+    let res = r
+        .oneshot(fe_post(
+            br#"{"level":"error","message":"boom","stack":"at x","url":"/a","component":"c"}"#.to_vec(),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::NO_CONTENT);
+}
+
+#[tokio::test]
+async fn fe_logging_than_qua_16kb_bi_tu_choi() {
+    let r = full(SystemConfig::from_lookup(env(&[])));
+    let big = format!(r#"{{"message":"{}"}}"#, "a".repeat(fe_logging::BODY_MAX_BYTES + 1));
+    let res = r.clone().oneshot(fe_post(big.into_bytes())).await.unwrap();
+    assert_eq!(res.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let res = r.oneshot(fe_post(b"[1]".to_vec())).await.unwrap();
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn fe_logging_vuot_30_luot_moi_phut_thi_429() {
+    let r = full(SystemConfig::from_lookup(env(&[])));
+    for _ in 0..fe_logging::PER_MINUTE {
+        let res = r
+            .clone()
+            .oneshot(fe_post(br#"{"message":"x"}"#.to_vec()))
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::NO_CONTENT);
+    }
+    let res = r.oneshot(fe_post(br#"{"message":"x"}"#.to_vec())).await.unwrap();
+    assert_eq!(res.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert!(res.headers().contains_key("retry-after"));
+}
+
+#[test]
+fn fe_logging_cat_chuoi_dai_theo_ky_tu() {
+    assert_eq!(fe_logging::clip("ááááá", 2), "áá…");
+    assert_eq!(fe_logging::clip("ab", 2), "ab");
 }

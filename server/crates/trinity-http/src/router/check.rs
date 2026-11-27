@@ -17,7 +17,7 @@ use crate::validate::{Mode, mode_for_path};
 
 /// Route chỉ có ở Rust, không có trong `routes.json` (hợp đồng đóng băng từ bản TS). Phải công khai (`Access::Public`) và
 /// khai trong bảng; thêm route vào đây là quyết định có chủ ý (cần issue nói rõ vì sao bản TS không có).
-pub const RUST_ONLY_ROUTES: &[&str] = &["GET /api/v1/site-config"];
+pub const RUST_ONLY_ROUTES: &[&str] = &["GET /api/v1/site-config", "POST /api/fe-logging"];
 
 /// Route chỉ có ở Rust và cần đăng nhập + quyền (`access: can`): tải video theo phần của đăng bài (X15a, `mod-social`).
 pub const RUST_ONLY_AUTHED_ROUTES: &[&str] = &[

@@ -30,6 +30,7 @@ trinity-db = { workspace = true }
 mod-custom = { workspace = true }
 mod-users = { workspace = true }
 mod-channel-guard = { workspace = true }
+mod-oauth = { workspace = true }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-ops = { workspace = true }

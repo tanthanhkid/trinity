@@ -44,7 +44,9 @@ describe('khoá API và đăng nhập công khai', () => {
     expect(Array.isArray(list) ? list.length : list.data.length).toBeGreaterThan(0)
     ok(await api.get(`/api-keys/${created.id}`, withToken(admin)), 200, 'chi tiết khoá')
     const rotated = ok<{ plain_key?: string }>(await api.post(`/api-keys/${created.id}/rotate`, withToken(admin)), [200, 201], 'xoay khoá')
-    const key = rotated.plain_key ?? rotated.key ?? rotated.api_key ?? created.key ?? created.api_key
+    const rk = rotated as Record<string, unknown>
+    const ck = created as Record<string, unknown>
+    const key = rotated.plain_key ?? rk.key ?? rk.api_key ?? ck.key ?? ck.api_key
     expect(key, `khoá gốc không có trong ${JSON.stringify(rotated)}`).toBeTypeOf('string')
 
     const login = await call('POST', '/api/v1/public/auth/login', { headers: { 'x-api-key': key as string }, body: { email: owner.email, password: owner.password }, ip: freshIp() })
@@ -107,7 +109,7 @@ describe('hồ sơ cá nhân', () => {
     const { token } = await loginSeeded(u)
     const upload = async (bytes: Uint8Array, type: string, name: string) => {
       const form = new FormData()
-      form.append('file', new Blob([bytes], { type }), name)
+      form.append('file', new Blob([bytes as BlobPart], { type }), name)
       const res = await fetch(`${config.baseUrl}/api/v1/auth/profile/avatar`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'x-real-ip': freshIp() }, body: form })
       recordCall('POST', '/api/v1/auth/profile/avatar', res.status, true)
       return { status: res.status, text: await res.text() }

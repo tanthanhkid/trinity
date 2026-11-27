@@ -68,7 +68,7 @@ describe('thư viện ảnh/video', () => {
     const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'))
     const upload = async (name: string, bytes: Uint8Array): Promise<{ status: number; json: { key?: string } }> => {
       const form = new FormData()
-      form.append('file', new Blob([bytes], { type: 'image/png' }), name)
+      form.append('file', new Blob([bytes as BlobPart], { type: 'image/png' }), name)
       const res = await fetch(`${config.baseUrl}/api/v1/social/media`, { method: 'POST', headers: { authorization: `Bearer ${admin.token}`, 'x-real-ip': freshIp() }, body: form })
       recordCall('POST', '/api/v1/social/media', res.status, true)
       return { status: res.status, json: (await res.json().catch(() => ({}))) as { key?: string } }

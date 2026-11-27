@@ -2161,16 +2161,26 @@ dependencies = [
 name = "mod-hr"
 version = "0.3.0"
 dependencies = [
+ "axum",
+ "base64 0.23.1",
  "chrono",
  "http",
+ "mod-users",
  "regex",
  "serde",
  "serde_json",
  "sqlx",
  "tokio",
+ "tower",
+ "tracing",
+ "trinity-auth",
  "trinity-db",
+ "trinity-docgen",
  "trinity-http",
  "trinity-kernel",
+ "trinity-rbac",
+ "trinity-storage",
+ "uuid",
 ]
 
 [[package]]
@@ -4357,6 +4367,7 @@ dependencies = [
  "mod-channel-guard",
  "mod-custom",
  "mod-deals",
+ "mod-hr",
  "mod-kanban",
  "mod-oauth",
  "mod-pos",

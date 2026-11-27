@@ -9,18 +9,29 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+regex = { workspace = true }
+axum = { workspace = true }
+base64 = { workspace = true }
 chrono = { workspace = true }
 http = { workspace = true }
-regex = { workspace = true }
+mod-users = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+trinity-auth = { workspace = true }
 trinity-db = { workspace = true }
+trinity-docgen = { workspace = true }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
+trinity-rbac = { workspace = true }
+trinity-storage = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tower = { workspace = true }
 
 [lints]
 workspace = true

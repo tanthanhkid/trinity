@@ -876,6 +876,7 @@ tạo chi tiết vận chuyển mà SDK TS đang làm hộ (mục 4.8).
   (`USER_SLOT_LOCK`) là câu ĐẦU của mọi giao dịch đụng lời mời hoặc đếm chỗ; mời lại thay link cũ; luật chống leo thang quyền; phạm vi `users.manage`;
   hàm thu hồi cho đường thêm người, khoá người dùng và xoá vai trò. Lớp logic + DB như M01 (nối route ở router). `invitations.pg.spec` chuyển thành
   `tests/invitations.rs` (10 ca).
+- **Đã làm ở M10** (`server/crates/mod-hr/src/employees*.rs`, `routes.rs`): 12 route `management/employees`; DTO kiểm bằng metadata class-validator thật (`contracts/dto/schema.json`, 5 DTO nhân viên thêm vào `dto-validation-contract.spec.ts`); khoá/mở khoá/xoá/đổi `status` đóng/mở `employment_periods`, khoảng bị khoá không tính lại vào chấm công, lương cũ; ngày nhận đủ dạng `@IsDateString` (`YYYY`, `YYYY-MM`, `HH:MMZ`, `±HHmm`, dấu cách); từ khoá tìm escape `\ % _`; xlsx qua K29 có một dòng trống giữa tiêu đề và tiêu đề cột.
 - `ScopeService` và bộ dựng điều kiện phạm vi chuyển kèm test pg hiện có (`scope.service.spec.ts`).
 - **Đã làm ở K12** (`server/crates/trinity-rbac`): `catalog` (nhúng `contracts/rbac.json`), `grants` (`normalize_grant`, `merge_grants`, `can`,
   `scope_of`, `is_subset`; bảng ca dùng chung `contracts/cases/rbac.json` do `packages/rbac/src/grants-cases.spec.ts` sinh, Rust chạy lại ở

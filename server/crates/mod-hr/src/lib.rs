@@ -1,4 +1,6 @@
-//! Module nhân sự (M09 team và chức danh), chuyển từ `services/crm` (`teams`, `job-titles`).
+//! Module nhân sự (M09 team và chức danh; M10 nhân viên và giai đoạn làm việc), chuyển từ `services/crm` (`teams`,
+//! `job-titles`, `employees`). Nhân viên: [`employees`] (đọc, thống kê), [`employees_write`] (thêm, sửa, khoá, mở khoá, xoá),
+//! [`employees_export`] (xlsx), [`routes`] (12 route `management/employees`, DTO kiểm bằng metadata class-validator thật).
 //!
 //! Mỗi hàm nhận `&mut PgConnection` đã gắn công ty (`TenantConn`/`TenantTx` deref ra kiểu này) và trả `AppError`
 //! của K05; tầng route chỉ việc: extractor K15 → `validate()` → hàm ở đây → JSON. Quyền: `org.manage` cho mọi
@@ -17,9 +19,14 @@
 //!
 //! M12 (tuyển dụng, 10 endpoint `/management/recruitment/*`) ở [`recruitment`].
 
+pub mod employee_dto;
+pub mod employees;
+pub mod employees_export;
+pub mod employees_write;
 pub mod job_titles;
 mod nullable;
 pub mod recruitment;
+pub mod routes;
 pub mod teams;
 
 /// Độ dài như `String.length` của JS (đơn vị UTF-16), cho `@MinLength`/`@MaxLength`/`@Length`.

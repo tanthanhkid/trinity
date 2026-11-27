@@ -44,6 +44,10 @@ import * as customObject from '../../../../services/crm/src/custom-objects/dto/c
 import * as customField from '../../../../services/crm/src/custom-objects/dto/custom-field.dto'
 import * as customRecord from '../../../../services/crm/src/custom-objects/dto/custom-record.dto'
 import * as sendNotification from '../../../../services/notification/src/notifications/dto/send-notification.dto'
+import * as createEmployee from '../../../../services/crm/src/employees/dto/create-employee.dto'
+import * as updateEmployee from '../../../../services/crm/src/employees/dto/update-employee.dto'
+import * as queryEmployees from '../../../../services/crm/src/employees/dto/query-employees.dto'
+import * as employeesStats from '../../../../services/crm/src/employees/dto/employees-stats.dto'
 import * as queryNotification from '../../../../services/notification/src/notifications/dto/query-notification.dto'
 import * as publicCreateContact from '../../../../services/crm/src/public-api/dto/public-create-contact.dto'
 import * as updateCandidate from '../../../../services/crm/src/recruitment/dto/update-candidate.dto'
@@ -95,13 +99,18 @@ const SAMPLES: Array<[Cls, Mode]> = [
   [queryCandidates.QueryCandidatesDto, 'strict'],
   [queryCandidates.QueryRecruitmentStatsDto, 'strict'],
   [queryPositions.QueryPositionsDto, 'strict'],
+  [createEmployee.CreateEmployeeDto, 'strict'],
+  [updateEmployee.UpdateEmployeeDto, 'strict'],
+  [queryEmployees.QueryEmployeesDto, 'strict'],
+  [employeesStats.HrStatsQueryDto, 'strict'],
+  [employeesStats.BirthdayListQueryDto, 'strict'],
 ]
 
 /** Mọi tệp có @Transform (đếm bằng grep trong services/): mỗi class trong đó vào schema và golden @Transform. */
 const TRANSFORM_MODULES: Array<Record<string, unknown>> = [
   listProducts, shiftCatalog, order, queryNotification, attendanceStats, updateContact, createContact,
   publicCreateContact, queryOptions, queryDeal, queryJobTitles, queryAuditLogs, webhookEndpoint, queryDeliveries,
-  inboundPayload, inboundSource, queryCards,
+  inboundPayload, inboundSource, queryCards, queryEmployees, employeesStats,
 ]
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -212,6 +221,14 @@ const FIELD_PROBES: Array<[string, unknown]> = [
 
 /** Payload viết tay: ca hợp lệ (body sau khi chuyển), lỗi lồng, câu tiếng Việt. */
 const EXTRA_CASES: Array<[Cls, Mode, string, unknown]> = [
+  [createEmployee.CreateEmployeeDto, 'strict', 'valid', { email: 'nv@example.vn', full_name: 'Nguyễn Văn A', phone: '+84901234567', team_id: '3', insurance_salary: '5000000', gender: 'M', birth_date: '1990-05-17', joined_at: '2026-01-02' }],
+  [createEmployee.CreateEmployeeDto, 'strict', 'sai_tieng_viet', { email: 'khong-email', full_name: 'A', password: '123', phone: '0123', status: 'nghi', gender: 'X', avatar_url: 5 }],
+  [createEmployee.CreateEmployeeDto, 'strict', 'rong_birth_date', { email: 'nv@example.vn', full_name: 'Trần B', birth_date: '', id_card_issued_date: null }],
+  [updateEmployee.UpdateEmployeeDto, 'strict', 'null_het', { manager_id: null, insurance_salary: null, birth_date: null, avatar_url: null, department: null, full_name: null, status: null }],
+  [updateEmployee.UpdateEmployeeDto, 'strict', 'valid', { full_name: ' Lê C ', manager_id: '4', status: 'resigned', birth_date: '', id_card_number: '0123456789' }],
+  [queryEmployees.QueryEmployeesDto, 'strict', 'valid', { page: '2', page_size: '50', search: 'minh', employment_state: 'active', sort_by: 'joined_at', sort_dir: 'desc', team: 'none' }],
+  [queryEmployees.QueryEmployeesDto, 'strict', 'sai', { page: '0', page_size: '101', employment_state: 'x', sort_by: 'email', sort_dir: 'up' }],
+  [employeesStats.BirthdayListQueryDto, 'strict', 'thang_sai', { month: '13', office_id: 'a' }],
   [createDeal.CreateDealDto, 'strict', 'valid', { title: ' Hợp đồng A ', assigned_to: 3, value: 1500000, status: 'open' }],
   [createDeal.CreateDealDto, 'strict', 'status_sai', { title: 'A', assigned_to: 3, status: 'pending' }],
   [queryContact.QueryContactDto, 'strict', 'valid_query', { page: '2', limit: '50', search: 'An', sort_order: 'desc', created_from: '2026-01-01' }],

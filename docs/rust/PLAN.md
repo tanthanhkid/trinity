@@ -1149,6 +1149,18 @@ network namespace với Rust nên đổi sang cổng nội bộ khác (`PORT=300
 - Cho tới khi K18 bật và W02b xong, đường không phải API (trang, `/uploads`, `/.well-known`) được chuyển tiếp tới Next
   hoặc Node. Cấu hình lai (D01) vì vậy **không cần web tĩnh**. Thứ tự triển khai trong lai: migrate (Prisma) → khởi
   động Node → thay binary Rust, vì Rust trả 503 cho công ty chưa migrate tới bản nó biên dịch cùng.
+- **Đã làm ở K17** (`server/crates/trinity-http/src/strangler`): `OwnershipTable` (tệp `TRINITY_OWNERSHIP_FILE` luôn được giữ đường dẫn; tệp chưa có
+  lúc khởi động thì dùng `TRINITY_RUST_ROUTES` làm giá trị khởi tạo, không lỗi, và `reload` nạp khi tệp xuất hiện; tệp có mà hỏng lúc khởi động thì
+  lỗi, lúc `reload` thì giữ bảng cũ và ghi lỗi; `spawn_sighup_reloader`; `initial_from_routes_env`: danh sách tiền tố thuộc Rust), `NodeProxy`
+  (stream không đệm, giữ nguyên byte, nâng cấp WebSocket hai chiều, timeout 15 giây tính từ lúc request gửi xong và 120 giây cho `/export`, cộng
+  `body_idle` cắt khi một bên im lặng giữa hai mảnh body, 502/504 dạng Nest; pool hyper bỏ kết nối rảnh sau 4 giây, ngắn hơn `keepAliveTimeout` 5 giây của
+  Node). Header: xoá `x-real-ip`, `x-forwarded-for`, `forwarded`, `cf-connecting-ip`, `true-client-ip`, `x-forwarded-proto/host/port`,
+  `x-trinity-client-ip`, `x-trinity-peer-ip` và mọi header `Connection` liệt kê (cả response) của phía kia; đặt lại `x-forwarded-proto` theo listener thật,
+  `x-forwarded-host` và `Host` theo host gốc (HTTP/2 lấy từ authority); gửi `x-trinity-client-ip` ký NGAY lúc gửi header. Định tuyến đích: chỉ `/api/v1`,
+  `/notif-ws`, `/uploads`, `/docs` đi Node; `/.well-known/oauth-authorization-server` và `/oauth-protected-resource` được rewrite như `next.config` sang
+  `/api/v1/oauth/...` rồi đi Node (Node không có `/.well-known`); còn lại (`/api/build-id`, `/api/fe-logging`, trang) đi Next nếu cấu hình `web`, không thì Node.
+  `dispatcher`: `client_ip_layer` một lần ở ngoài cùng; lớp CORS và mọi lớp khác của Rust chỉ nằm trong router thuộc Rust nên route của Node chỉ có CORS của
+  Node. Chưa nối vào binary vì chưa có lệnh `serve`; biến cho địa chỉ Next (`web`) và `ListenerScheme` thêm khi nối.
 - **Shadow:** chỉ cho route có `safe_for_shadow = true` trong `routes.json` (mặc định `false`; bật từng route sau khi
   rà mã là thuần đọc). Sau khi đã trả response của Node, theo tỉ lệ lấy mẫu, Rust tính response của mình với ba hàng
   rào: (1) phiên DB chỉ đọc, đặt ở mức phiên khi lấy kết nối cho shadow (`default_transaction_read_only = on`), vì

@@ -82,7 +82,6 @@ Trinity  ──  CRM · Sales · Zalo · HR · Reports
 | Online store page (static VietQR + COD) | Sample shop only; no payment gateway, staff confirm transfers by hand |
 | n8n | Sample workflows run against a test server |
 | Zapier, Make | Ready — not yet tried with a real account |
-| iPOS | Not built yet — waiting for iPOS's partner API |
 
 Details per connector: [docs/integrations/status.md](docs/integrations/status.md). What comes next: [ROADMAP.md](ROADMAP.md).
 

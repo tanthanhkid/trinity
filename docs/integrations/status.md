@@ -35,7 +35,6 @@ The sales and marketplace connectors (KiotViet, Sapo, WooCommerce, MISA, Shopee,
 | Connector | Status | Notes |
 |---|---|---|
 | Online store page (static VietQR + COD) | Tested with sample data only | No gateway and no outside call: the server builds an EMVCo VietQR string (amount and order code included), the browser draws it, staff confirm the order by hand. See [docs/store](../store/README.md). |
-| iPOS | Not built yet | No code yet. iPOS.vn publishes no public API; waiting for iPOS to provide its partner API documentation. |
 | n8n | Tested in sandbox / simulated webhooks only | No marketplace app: outgoing webhooks + public API with an API key ([guide](zapier-n8n.md), sample n8n workflows in `integrations/n8n`). Tested 2026-10-15 with n8n 2.43 running locally behind a public HTTPS tunnel against the test server: an API key created a deal (with a new customer by phone) and a Kanban task linked to the same customer; Trinity's outgoing webhooks delivered `ping`, `contact.created` and `store_order.created`, the n8n workflows verified the signature and parsed the order; a forged signature was rejected. Zapier steps are written from Zapier's generic Webhooks/Code apps and not yet run in a Zapier account. |
 | Zapier, Make | Ready — not yet tried with a real account | Same webhooks and API key as n8n ([guide](zapier-n8n.md)); the Zapier steps are written from Zapier's generic Webhooks/Code apps |
 

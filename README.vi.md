@@ -73,7 +73,6 @@ Trinity có sẵn **MCP server** ([Model Context Protocol](https://modelcontextp
 | Trang bán hàng (VietQR tĩnh + COD) | Mới thử với cửa hàng mẫu; không qua cổng thanh toán, nhân viên tự xác nhận tiền về |
 | n8n | Workflow mẫu chạy thật với máy chủ thử |
 | Zapier, Make | Connector có sẵn, chưa thử với tài khoản thật |
-| iPOS | Chưa làm — chờ iPOS cấp API đối tác |
 
 Chi tiết từng connector: [docs/integrations/status.md](docs/integrations/status.md). Việc sắp làm: [ROADMAP.md](ROADMAP.md).
 

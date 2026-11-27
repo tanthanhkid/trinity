@@ -34,6 +34,8 @@ const readDeps = allowWrite && phase !== 'flows' ? ['setup', 'seed'] : ['setup']
 const rustServer = process.env.E2E_SERVER === 'rust'
 const rustPort = Number(process.env.E2E_RUST_PORT || 3300)
 const rustUrl = `http://127.0.0.1:${rustPort}`
+// Helper dùng API (`helpers/api.ts`) đọc E2E_BASE_URL từ môi trường: đặt trước khi worker sinh ra.
+if (rustServer && !process.env.E2E_BASE_URL) process.env.E2E_BASE_URL = rustUrl
 const FRAME_KEYS = ['mobile', 'tablet', 'desktop'] as const
 
 export default defineConfig({
@@ -58,6 +60,8 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
     viewport: { width: 1440, height: 900 },
     ...useChannel,
+    // macOS: Chromium headless không được hỏi Keychain («Chromium Safe Storage»).
+    launchOptions: { args: ['--use-mock-keychain'] },
   },
   ...(rustServer
     ? {

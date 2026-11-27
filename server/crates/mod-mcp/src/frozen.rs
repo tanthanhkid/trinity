@@ -150,11 +150,14 @@ impl Frozen {
             .get("tools")
             .and_then(Value::as_array)
             .ok_or("tools.json thiếu mảng tools")?;
-        // Mảng `tools` giữ nguyên văn: từ `[` đầu tiên sau `"tools"` tới `]` cuối cùng của tệp.
-        let key = text.find("\"tools\"").ok_or("không thấy khoá tools")?;
-        let start = key + text[key..].find('[').ok_or("không thấy [")?;
-        let end = text.rfind(']').ok_or("không thấy ]")?;
-        let tools_array = minify(&text[start..=end]);
+        // Mảng `tools` giữ nguyên văn (RawValue: đúng các byte của tệp, không đụng tới trường lạ trong chuỗi), rồi bỏ khoảng trắng.
+        #[derive(serde::Deserialize)]
+        struct Doc<'a> {
+            #[serde(borrow)]
+            tools: &'a serde_json::value::RawValue,
+        }
+        let raw: Doc<'_> = serde_json::from_str(text).map_err(|e| format!("tools.json: {e}"))?;
+        let tools_array = minify(raw.tools.get());
         let mut order = Vec::new();
         let mut tools = HashMap::new();
         for t in list {

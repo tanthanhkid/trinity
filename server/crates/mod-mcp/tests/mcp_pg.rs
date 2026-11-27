@@ -263,7 +263,7 @@ async fn env() -> Env {
         safe_get: None,
         limits: mod_oauth::Limiters::new(),
     });
-    let limits = Arc::new(McpLimits::new());
+    let limits = Arc::new(McpLimits::with_untrusted_peer(oauth.limits.untrusted_peer.clone()));
     let audit = Arc::new(DbAudit { db: db.clone() });
     let mut registry = ToolRegistry::new();
     registry.register(ToolSpec {
@@ -414,6 +414,31 @@ async fn xac_thuc_oauth_that_nhat_ky_va_gui_quyen() {
     assert_eq!(
         e.scalar(&format!("SELECT count(*) FROM integration_audit_logs WHERE channel = 'mcp' AND action = 'auth' AND status = 'denied' AND user_id = {} AND error = 'insufficient_scope'", e.admin)).await,
         1
+    );
+    // Lỗi DB khi đọc quyền ⇒ 500 (không phải 401): không challenge, không nhật ký `denied`.
+    exec(
+        &mut e.conn().await,
+        "INSERT INTO users (email, password_hash, full_name, status, updated_at) VALUES ('hong@m39.test', 'x', 'H', 'active', now())",
+    )
+    .await;
+    let broken_user: i32 = sqlx::query_scalar("SELECT id FROM users WHERE email = 'hong@m39.test'")
+        .fetch_one(&mut e.conn().await)
+        .await
+        .unwrap();
+    let broken = e
+        .token("hong", broken_user, "{crm.read}", RESOURCE, "1 hour", false)
+        .await;
+    exec(&mut e.conn().await, "ALTER TABLE user_roles RENAME TO user_roles_tam").await;
+    let (s, h, v) = e.call(Method::POST, Some(&broken), &call_tool()).await;
+    exec(&mut e.conn().await, "ALTER TABLE user_roles_tam RENAME TO user_roles").await;
+    assert_eq!(s, 500, "{v}");
+    assert!(h.get("www-authenticate").is_none());
+    assert_eq!(
+        e.scalar(&format!(
+            "SELECT count(*) FROM integration_audit_logs WHERE channel = 'mcp' AND user_id = {broken_user}"
+        ))
+        .await,
+        0
     );
     // Người dùng không còn quyền kết nối AI (không vai trò nào) ⇒ 401, có nhật ký.
     let staff = e

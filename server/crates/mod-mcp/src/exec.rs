@@ -127,8 +127,12 @@ pub fn audit_target(args: &Value) -> (Option<String>, Option<String>) {
 /// Lỗi `Error` thường mang nội dung đối số: `/^(query|id|contact_id)\b|SĐT|Không hỗ trợ/`.
 fn is_plain_argument_error(m: &str) -> bool {
     let starts = ["query", "id", "contact_id"].iter().any(|w| {
-        m.strip_prefix(w)
-            .is_some_and(|rest| !rest.chars().next().is_some_and(|c| c.is_alphanumeric() || c == '_'))
+        m.strip_prefix(w).is_some_and(|rest| {
+            !rest
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
+        })
     });
     starts || m.contains("SĐT") || m.contains("Không hỗ trợ")
 }
@@ -289,6 +293,7 @@ mod tests {
             "contact_id sai",
             "Không hỗ trợ kiểu này",
             "Có SĐT trong chuỗi",
+            "queryé sai",
         ] {
             assert!(is_plain_argument_error(m), "{m}");
         }

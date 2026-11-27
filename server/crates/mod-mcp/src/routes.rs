@@ -51,6 +51,10 @@ async fn mcp(State(s): State<Arc<McpState>>, req: Request) -> Response {
                 "{\"statusCode\":413,\"message\":\"request entity too large\",\"error\":\"Payload Too Large\"}",
             ));
             *r.status_mut() = StatusCode::PAYLOAD_TOO_LARGE;
+            r.headers_mut().insert(
+                HeaderName::from_static("content-type"),
+                HeaderValue::from_static("application/json; charset=utf-8"),
+            );
             return r;
         }
     };

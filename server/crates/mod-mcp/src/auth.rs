@@ -15,6 +15,8 @@ pub enum AuthFailure {
     Missing,
     InvalidToken,
     InsufficientScope,
+    /// Lỗi hệ thống khi xác thực (DB lỗi): KHÔNG phải lỗi của người gọi ⇒ 500, không challenge, không đếm, không ghi `denied`.
+    Internal,
 }
 
 impl AuthFailure {
@@ -23,6 +25,7 @@ impl AuthFailure {
             Self::Missing => "missing",
             Self::InvalidToken => "invalid_token",
             Self::InsufficientScope => "insufficient_scope",
+            Self::Internal => "internal",
         }
     }
 }
@@ -111,12 +114,9 @@ impl Identity for OauthIdentity {
                 user_id: v.user_id,
                 client_id: v.client_id.clone(),
             };
-            let g = self.oauth.perms.grants_for(v.company, v.user_id).await.map_err(|_| {
-                AuthError::new(
-                    AuthFailure::InvalidToken,
-                    "Không kiểm được quyền của tài khoản",
-                    Some(who.clone()),
-                )
+            let g = self.oauth.perms.grants_for(v.company, v.user_id).await.map_err(|e| {
+                tracing::error!("MCP: không đọc được quyền của người dùng {}: {e}", who.user_id);
+                AuthError::new(AuthFailure::Internal, "Không kiểm được quyền của tài khoản", None)
             })?;
             if !g.is_admin && !trinity_rbac::can(&g.grants, "integrations.ai_connect", None) {
                 return Err(AuthError::new(

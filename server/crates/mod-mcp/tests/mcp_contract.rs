@@ -502,11 +502,55 @@ async fn origin_batch_co_va_405() {
         registry_all(Arc::new(|_| Ok(ok_output()))),
         false,
     );
-    for m in ["GET", "POST", "DELETE"] {
-        let rep = send(&off, m, b"{}", &[]).await;
+    let rep = send(&off, "POST", b"{}", &[]).await;
+    assert_eq!(rep.status, 404);
+    assert_eq!(rep.body, "{\"statusCode\":404,\"message\":\"Not Found\"}");
+    // GET/DELETE khi tắt: 404 nhưng vẫn là thân JSON-RPC (như bản TS) kèm Allow.
+    for m in ["GET", "DELETE"] {
+        let rep = send(&off, m, b"", &[]).await;
         assert_eq!(rep.status, 404, "{m}");
-        assert_eq!(rep.body, "{\"statusCode\":404,\"message\":\"Not Found\"}");
+        assert_eq!(rep.header("allow"), Some("POST"));
+        assert_eq!(
+            rep.body,
+            "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32000,\"message\":\"Method not allowed\"},\"id\":null}"
+        );
     }
+}
+
+#[tokio::test]
+async fn loi_he_thong_khi_xac_thuc_la_500_khong_challenge_khong_dem_khong_audit() {
+    let who = Some(Who {
+        company: CompanyRef::DEFAULT,
+        user_id: 7,
+        client_id: "c".into(),
+    });
+    let r = rig(
+        Err(AuthError {
+            kind: AuthFailure::Internal,
+            description: "db".into(),
+            who,
+        }),
+        registry_all(Arc::new(|_| Ok(ok_output()))),
+        true,
+    );
+    // 40 lần (> 30 lần xác thực sai/phút) vẫn 500, không bao giờ 429, không có WWW-Authenticate, không có nhật ký.
+    for _ in 0..40 {
+        let rep = post(&r, &rpc("ping", None), &[]).await;
+        assert_eq!(rep.status, 500);
+        assert!(rep.header("www-authenticate").is_none());
+        assert_eq!(rep.body, "{\"statusCode\":500,\"message\":\"Internal server error\"}");
+    }
+    assert!(r.audit.0.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn kiem_hinh_dang_chi_khi_content_type_json() {
+    let r = default_rig();
+    // Content-Type sai + thân mảng ⇒ 415 của vận chuyển, không phải 400 -32600.
+    let rep = send(&r, "POST", b"[1]", &[("content-type", "text/plain")]).await;
+    assert_eq!(rep.status, 415);
+    // Content-Type JSON + thân mảng ⇒ 400 -32600.
+    assert_eq!(send(&r, "POST", b"[1]", &[]).await.status, 400);
 }
 
 #[tokio::test]

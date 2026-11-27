@@ -113,13 +113,10 @@ impl McpEndpoint {
         match req.method.as_str() {
             "POST" => self.post(req).await,
             _ => {
-                let out = if self.config.enabled {
-                    let e = transport_error(405, -32000, "Method not allowed");
-                    HttpOut::json(405, e.body.as_deref().unwrap_or(""))
-                } else {
-                    not_found()
-                };
-                out.with("allow", "POST")
+                // Cờ tắt ⇒ 404 nhưng vẫn là thân JSON-RPC như bản TS (`res.status(enabled ? 405 : 404).json(jsonRpcError)`).
+                let status = if self.config.enabled { 405 } else { 404 };
+                let e = transport_error(status, -32000, "Method not allowed");
+                HttpOut::json(status, e.body.as_deref().unwrap_or("")).with("allow", "POST")
             }
         }
     }
@@ -162,6 +159,11 @@ impl McpEndpoint {
         }
         let principal = match self.identity.authenticate(req.authorization.as_deref()).await {
             Ok(p) => p,
+            Err(err) if err.kind == AuthFailure::Internal => {
+                // Lỗi hệ thống: 500 như mọi lỗi nội bộ, KHÔNG phải 401 (client sẽ xin token lại vô ích); không challenge, không
+                // đếm lần xác thực sai, không ghi `denied`.
+                return HttpOut::json(500, "{\"statusCode\":500,\"message\":\"Internal server error\"}");
+            }
             Err(err) => {
                 if !self
                     .limits
@@ -191,10 +193,16 @@ impl McpEndpoint {
                 .with("retry-after", hit.retry_after_sec.to_string());
         }
         // Thân phải là MỘT thông điệp JSON-RPC (đối tượng): mảng (batch), rỗng, `null`, chuỗi… ⇒ 400. JSON hỏng để vận chuyển báo.
-        let shape_bad = match serde_json::from_slice::<Value>(&req.body) {
-            Ok(v) => !v.is_object(),
-            Err(_) => req.body.iter().all(u8::is_ascii_whitespace),
-        };
+        // Chỉ kiểm khi Content-Type là JSON (body-parser của Node không phân tích kiểu khác); Content-Type sai ⇒ vận chuyển báo 415.
+        let is_json = req
+            .content_type
+            .as_deref()
+            .is_some_and(|c| c.contains("application/json"));
+        let shape_bad = is_json
+            && match serde_json::from_slice::<Value>(&req.body) {
+                Ok(v) => !v.is_object(),
+                Err(_) => req.body.iter().all(u8::is_ascii_whitespace),
+            };
         if shape_bad {
             let e = transport_error(400, -32600, "Body phải là 1 thông điệp JSON-RPC (không hỗ trợ batch)");
             return HttpOut::json(400, e.body.as_deref().unwrap_or(""));

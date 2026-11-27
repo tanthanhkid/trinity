@@ -34,10 +34,38 @@ use crate::field_defs::{CreateFieldDef, ReorderFieldDefs, UpdateFieldDef};
 use crate::labels::{CreateLabel, UpdateLabel};
 use crate::{Access, Actor, activities, attachments, boards, cards, checklist, columns, field_defs, labels, routes};
 
+/// Sự kiện sau khi GHI THÀNH CÔNG (ngoài giao dịch ghi) để nơi lắp ráp đồng bộ thẻ @ (`record_links`).
+pub enum MentionEvent<'a> {
+    /// Sau tạo thẻ: `description` của body.
+    CardCreated { card_id: i32, description: Option<&'a str> },
+    /// Sau sửa thẻ: `None` = không gửi `description`; `Some(None)` = gửi `null`.
+    CardUpdated {
+        card_id: i32,
+        description: Option<&'a Option<String>>,
+    },
+    /// Sau thêm bình luận (`activity_id` = id dòng hoạt động).
+    Comment {
+        card_id: i32,
+        activity_id: i32,
+        content: &'a str,
+    },
+}
+
+/// Cổng nhận [`MentionEvent`]; kanban không phụ thuộc `mod-custom`, `trinity-bin` cắm cài đặt. Lỗi do bên cài đặt tự nuốt + log.
+pub trait MentionSink: Send + Sync {
+    fn notify<'a>(
+        &'a self,
+        user: &'a CurrentUser,
+        event: MentionEvent<'a>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'a>>;
+}
+
 /// Trạng thái dùng chung của router Kanban.
 pub struct Ctx {
     pub db: Db,
     pub scopes: ScopeService,
+    /// `None` = không đồng bộ thẻ @ (test, lắp ráp tối giản).
+    pub mentions: Option<Arc<dyn MentionSink>>,
 }
 
 fn fail(e: impl Into<AppError>) -> Response {
@@ -548,7 +576,19 @@ async fn create_card(
         let company = company_of(&u)?;
         let actor = actor_of(&c, company, &u).await?;
         let mut cn = conn(&c, company).await?;
-        cards::create(&mut cn, &actor, &input).await
+        let card = cards::create(&mut cn, &actor, &input).await?;
+        drop(cn);
+        if let Some(m) = &c.mentions {
+            m.notify(
+                &u,
+                MentionEvent::CardCreated {
+                    card_id: card.id,
+                    description: input.description.as_deref(),
+                },
+            )
+            .await;
+        }
+        Ok(card)
     }
     .await;
     ok(res)
@@ -592,7 +632,19 @@ async fn update_card(
         let company = company_of(&u)?;
         let actor = actor_of(&c, company, &u).await?;
         let mut cn = conn(&c, company).await?;
-        cards::update(&mut cn, &actor, id, &input).await
+        let card = cards::update(&mut cn, &actor, id, &input).await?;
+        drop(cn);
+        if let Some(m) = &c.mentions {
+            m.notify(
+                &u,
+                MentionEvent::CardUpdated {
+                    card_id: id,
+                    description: input.description.as_ref(),
+                },
+            )
+            .await;
+        }
+        Ok(card)
     }
     .await;
     ok(res)
@@ -677,7 +729,20 @@ async fn add_comment(
         let company = company_of(&u)?;
         let actor = actor_of(&c, company, &u).await?;
         let mut cn = conn(&c, company).await?;
-        activities::add_comment(&mut cn, &actor, id, &input).await
+        let activity = activities::add_comment(&mut cn, &actor, id, &input).await?;
+        drop(cn);
+        if let Some(m) = &c.mentions {
+            m.notify(
+                &u,
+                MentionEvent::Comment {
+                    card_id: id,
+                    activity_id: activity.activity.id,
+                    content: &input.content,
+                },
+            )
+            .await;
+        }
+        Ok(activity)
     }
     .await;
     ok(res)

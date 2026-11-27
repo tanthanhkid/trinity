@@ -693,6 +693,12 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         Arc::new(mod_kanban::http::Ctx {
             db: db.clone(),
             scopes: ScopeService::new(db.clone(), cache.clone()),
+            mentions: Some(Arc::new(crate::kanban_mentions::Sink {
+                ctx: mod_custom::Ctx {
+                    db: db.clone(),
+                    scopes: ScopeService::new(db.clone(), cache.clone()),
+                },
+            })),
         }),
     );
     // CHƯA mount: mod-deals, mod-newsfeed (cần multipart/media). Route của chúng thuộc Node. Đã mount: settings,

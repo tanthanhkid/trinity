@@ -136,15 +136,13 @@ async fn seed_contacts(db: &Db, company: CompanyRef, secret: &str) {
     let tdb = db.tenant(company).await.unwrap();
     let mut tx = tdb.begin().await.unwrap();
     for (id, phone) in [(1, "0911000001"), (2, "0911000002")] {
-        sqlx::query(
-            "INSERT INTO contacts (id, phone, full_name, updated_at) VALUES ($1, $2, $3, now())",
-        )
-        .bind(id)
-        .bind(phone)
-        .bind(format!("{secret} {id}"))
-        .execute(&mut *tx)
-        .await
-        .unwrap();
+        sqlx::query("INSERT INTO contacts (id, phone, full_name, updated_at) VALUES ($1, $2, $3, now())")
+            .bind(id)
+            .bind(phone)
+            .bind(format!("{secret} {id}"))
+            .execute(&mut *tx)
+            .await
+            .unwrap();
     }
     tx.commit().await.unwrap();
 }
@@ -176,11 +174,12 @@ async fn a_id_trung_giua_cong_ty_va_b_khong_cham_duoc_dong_cua_a() {
     // B đoán id: sửa, xoá, đếm theo số điện thoại của A đều không trúng dòng của A.
     let tb = db.tenant(b).await.unwrap();
     let mut c = tb.acquire().await.unwrap();
-    let hit = sqlx::query("UPDATE contacts SET full_name = 'hacked' WHERE phone = '0911000001' AND full_name LIKE '%A%'")
-        .execute(&mut *c)
-        .await
-        .unwrap()
-        .rows_affected();
+    let hit =
+        sqlx::query("UPDATE contacts SET full_name = 'hacked' WHERE phone = '0911000001' AND full_name LIKE '%A%'")
+            .execute(&mut *c)
+            .await
+            .unwrap()
+            .rows_affected();
     assert_eq!(hit, 0);
     let hit = sqlx::query("DELETE FROM contacts WHERE full_name LIKE 'Bí mật của A%'")
         .execute(&mut *c)
@@ -226,7 +225,10 @@ async fn b_email_thuoc_cong_ty_khac_bi_tu_choi_va_dang_nhap_dinh_tuyen_dung() {
 
     // Đăng nhập định tuyến theo email, không phân biệt hoa thường và khoảng trắng.
     assert_eq!(platform.company_for_email("chu0@thu.vn").await.unwrap(), Some(a.id()));
-    assert_eq!(platform.company_for_email("  CHU1@thu.VN ").await.unwrap(), Some(b.id()));
+    assert_eq!(
+        platform.company_for_email("  CHU1@thu.VN ").await.unwrap(),
+        Some(b.id())
+    );
     assert_eq!(platform.company_for_email("la@thu.vn").await.unwrap(), None);
 
     // Email của B không dùng được ở A (409 với đúng câu hiện có); email của chính A thì qua.
@@ -264,7 +266,14 @@ async fn c_cong_ty_tam_ngung_va_khong_ton_tai_bi_chan_cong_ty_khac_van_chay() {
     db.close().await;
 
     let mut c = t.conn().await;
-    exec(&mut c, &format!("UPDATE platform.companies SET status = 'suspended' WHERE id = {}", a.id())).await;
+    exec(
+        &mut c,
+        &format!(
+            "UPDATE platform.companies SET status = 'suspended' WHERE id = {}",
+            a.id()
+        ),
+    )
+    .await;
 
     // `Db` mới (cổng kiểm cache theo `Db`) và `Platform` mới (cache công ty).
     let (db, platform) = t.db(4);
@@ -284,13 +293,23 @@ async fn c_cong_ty_tam_ngung_va_khong_ton_tai_bi_chan_cong_ty_khac_van_chay() {
     // Công ty không tồn tại (id giả, id ngoài i32, id không dương).
     assert!(db.tenant(CompanyRef::new(9999).unwrap()).await.is_err());
     assert!(platform.active_company(9999).await.unwrap().is_none());
-    assert!(platform.active_company(i64::from(i32::MAX) + 1).await.unwrap().is_none());
+    assert!(
+        platform
+            .active_company(i64::from(i32::MAX) + 1)
+            .await
+            .unwrap()
+            .is_none()
+    );
     assert!(platform.active_company(0).await.unwrap().is_none());
     assert!(platform.active_company(-3).await.unwrap().is_none());
     assert!(CompanyRef::new(0).is_err());
 
     // Mở lại thì dùng được và dữ liệu còn nguyên.
-    exec(&mut c, &format!("UPDATE platform.companies SET status = 'active' WHERE id = {}", a.id())).await;
+    exec(
+        &mut c,
+        &format!("UPDATE platform.companies SET status = 'active' WHERE id = {}", a.id()),
+    )
+    .await;
     let (db2, _p2) = t.db(4);
     assert_eq!(name_of(&db2, a, 1).await.as_deref(), Some("A 1"));
     db.close().await;

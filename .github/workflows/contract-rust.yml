@@ -1,0 +1,168 @@
+name: Contract (Rust)
+
+# Bộ hợp đồng HTTP hộp đen `tests/contract/` chạy trên binary Rust `trinity serve` và so với kết quả Node cùng lượt (issue K31).
+# Cũng build binary phát hành cho 2 kiến trúc kèm tệp SHA-256. KHÔNG bắt buộc cho merge (không nằm trong `ci-ok`).
+# Kiểm `.sqlx/` không cũ KHÔNG ở đây: nó nằm ở job `Rust pg tests` (`rust-pg` trong ci.yml, K02), cũng ngoài `ci-ok`.
+# Cũng như contract-node.yml: bộ chạy từ chối bắt đầu trong khung 16:50-17:10 UTC, cron đặt ngoài khung, bước "Chờ ngoài khung" đợi.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "server/**"
+      - "tests/contract/**"
+      - ".github/scripts/vmhwm-wrap.sh"
+      - ".github/workflows/contract-rust.yml"
+  push:
+    branches: [main]
+  schedule:
+    - cron: "13 21 * * *" # 04:13 giờ Việt Nam, ngoài khung 16:50-17:10 UTC, lệch contract-node 30 phút
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  CI: "true"
+  TZ: UTC
+  SQLX_OFFLINE: "true"
+  CARGO_INCREMENTAL: "0"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Job 1: hợp đồng trên Rust. Hai binary: bản `test-hooks` (mọi hồ sơ trừ production) và bản phát hành thuần (hồ sơ production).
+  contract-rust:
+    name: Contract suite on Rust
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      CONTRACT_PG_ADMIN_URL: postgresql://test:test@localhost:5432/postgres
+      VMHWM_OUT: /tmp/vmhwm.txt
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/rust-toolchain
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: server
+          save-if: ${{ github.event_name != 'pull_request' }}
+
+      # Cùng profile `release`, hai bộ tính năng; sao chép ngay sau mỗi lần build vì cùng đường dẫn đầu ra.
+      - name: Build bản test-hooks
+        working-directory: server
+        run: |
+          cargo build --release --locked -p trinity-bin --features test-hooks
+          install -D target/release/trinity /tmp/bin/trinity-test-hooks
+      - name: Build bản phát hành (không test-hooks)
+        working-directory: server
+        run: |
+          cargo build --release --locked -p trinity-bin
+          install -D target/release/trinity /tmp/bin/trinity-release
+          /tmp/bin/trinity-release --version
+
+      - name: Chờ ngoài khung 16:50-17:10 UTC
+        run: |
+          m=$((10#$(date -u +%H) * 60 + 10#$(date -u +%M)))
+          if [ "$m" -ge 1010 ] && [ "$m" -lt 1030 ]; then
+            wait=$(( (1031 - m) * 60 ))
+            echo "Đang trong khung bộ hợp đồng từ chối chạy; chờ ${wait}s"
+            sleep "$wait"
+          fi
+
+      # Chuẩn so là kết quả Node của cùng lượt (tests/contract/README.md): ghi trên Node rồi so trên Rust.
+      - name: Hợp đồng trên Node (ghi kết quả chuẩn hoá)
+        run: pnpm --filter @trinity/contract-tests contract -- --mode record --out /tmp/contract-node
+
+      - name: Hợp đồng trên Rust (so với Node; production chạy binary phát hành)
+        env:
+          # Mảng JSON (lệnh + đối số). Bọc bằng vmhwm-wrap.sh để in VmHWM của máy chủ mỗi hồ sơ.
+          # `trinity serve` do issue khác thêm (CLI: serve | migrate | seed); binary đọc cấu hình từ env của hồ sơ.
+          SERVER_CMD: '["bash","${{ github.workspace }}/.github/scripts/vmhwm-wrap.sh","/tmp/bin/trinity-test-hooks","serve"]'
+          SERVER_CMD_PRODUCTION: '["bash","${{ github.workspace }}/.github/scripts/vmhwm-wrap.sh","/tmp/bin/trinity-release","serve"]'
+          VMHWM_LABEL: rust
+        run: |
+          pnpm --filter @trinity/contract-tests contract -- --target cmd --mode compare --baseline /tmp/contract-node --out /tmp/contract-rust
+
+      - name: Bộ nhớ đỉnh VmHWM của máy chủ Rust
+        if: always()
+        run: |
+          {
+            echo "### VmHWM của máy chủ Rust (kB, mỗi dòng một lần khởi động)"
+            echo '```'
+            cat "$VMHWM_OUT" 2>/dev/null || echo "(không có số đo)"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Tải kết quả lên khi lỗi
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: contract-rust-output
+          path: |
+            tests/contract/out
+            /tmp/contract-*
+            /tmp/vmhwm.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Job 2: binary phát hành cho x86_64 và aarch64 Linux. Dùng runner arm gốc `ubuntu-24.04-arm` (như `rust-build` trong ci.yml),
+  # không cần `cross`. Kèm tệp SHA-256 (chữ ký cosign thuộc X08, chưa có ở đây).
+  rust-binaries:
+    name: Rust binary (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            arch: x86_64
+            runner: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/rust-toolchain
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: server
+          key: bin-${{ matrix.arch }}
+          save-if: ${{ github.event_name != 'pull_request' }}
+      - name: cargo build --release (không test-hooks)
+        working-directory: server
+        run: cargo build --release --locked -p trinity-bin
+      - name: Đóng gói và tổng kiểm SHA-256
+        run: |
+          mkdir -p dist
+          name="trinity-linux-${{ matrix.arch }}"
+          cp server/target/release/trinity "dist/$name"
+          file "dist/$name"
+          "./dist/$name" --version
+          (cd dist && sha256sum "$name" | tee "$name.sha256")
+      - name: Tải binary lên
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: contract-rust-bin-${{ matrix.arch }}
+          path: |
+            dist/trinity-linux-${{ matrix.arch }}
+            dist/trinity-linux-${{ matrix.arch }}.sha256
+          if-no-files-found: error
+          retention-days: 14

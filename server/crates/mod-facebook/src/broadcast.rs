@@ -580,6 +580,16 @@ impl FacebookIngest {
         Ok(out)
     }
 
+    /// Kiểm tên, Page và nội dung như lúc tạo (`partial` = như lúc sửa) mà KHÔNG ghi gì: để tool MCP báo lỗi trước khi xin xác nhận.
+    pub async fn check_broadcast(
+        &self,
+        company: CompanyRef,
+        input: &BroadcastInput,
+        partial: bool,
+    ) -> Result<(), AppError> {
+        self.bc_validate(company, input, partial).await.map(|_| ())
+    }
+
     /// `POST /facebook/broadcasts`: tạo bản nháp (201).
     pub async fn create_broadcast(
         &self,

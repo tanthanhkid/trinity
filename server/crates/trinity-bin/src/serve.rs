@@ -278,6 +278,18 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             store: mod_hr::contracts::ContractStore::Local(contract_store),
         }),
     );
+    // Team, chức danh (M09) và tuyển dụng (M12): chung `Ctx` của nhân sự.
+    app = mount(app, mod_hr::org_routes::team_router(deps.clone()), Arc::new(hr_ctx()));
+    app = mount(
+        app,
+        mod_hr::org_routes::job_title_router(deps.clone()),
+        Arc::new(hr_ctx()),
+    );
+    app = mount(
+        app,
+        mod_hr::org_routes::recruitment_router(deps.clone()),
+        Arc::new(hr_ctx()),
+    );
     app = mount(app, mod_attendance::routes::router(deps.clone()), Arc::new(hr_ctx()));
     // Chấm công vào/ra (M13b) và ảnh selfie của sổ chấm công (M14a) dùng chung `CheckCtx`: kho tệp là thư mục `contracts` như
     // hợp đồng (bộ ghi `LocalDiskDriver` không giữ trạng thái, thư mục đã `init` ở trên), IP khách qua `ClientIpResolver` chung.

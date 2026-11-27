@@ -111,3 +111,11 @@ ca sinh từ `routes.json` (`08`), đăng nhập (`02`), health (`01`).
   `13-settings-options` (3), `14-org-features` (4; ca "mặc định bật hết" seed `setup_status=da_dung` vì DB mới ở trạng thái chưa dựng quy trình).
   Ca đọc dữ liệu khách ghi golden 3 vai qua `lib/roles.ts`. Ghi chú đổi so với e2e gốc: `deals` ca "scope own" khẳng định thêm
   KHÔNG thấy deal người khác; ca khoá lạ của `org-features` ghi golden thay vì giả định harness whitelist (máy chủ thật trả 400).
+
+## Độ phủ route theo cụm (C14a)
+
+`call()` ghi mỗi lời gọi vào `<out>/coverage/<hồ sơ>/<pid>.jsonl`; `lib/coverage.ts` ghép với `server/contracts/routes.json` rồi tính, cho từng route của một cụm,
+bốn loại ca: **thành công**, **từ chối** (401 không token; route `can` cần cả 403 thiếu quyền), **đầu vào sai** (400: thân sai hoặc id không phải số), **không tồn tại** (404 với `:id`).
+Cụm (theo tên controller) và miễn trừ có lý do khai ở `coverage-clusters.json`. File `99-coverage-<cụm>.test.ts` chạy cuối hồ sơ `default` và đỏ nếu còn route thiếu loại ca; báo cáo ghi ở `<out>/coverage/default/<cụm>.report.json`.
+Phải chạy cả hồ sơ (không chạy lẻ file `99-`). Cụm `auth-settings`: 63 route; ca sinh từ metadata ở `60-auth-settings-generated.test.ts`, ca thành công và golden 3 vai (`users.phone_full`) ở `61-auth-settings-flows.test.ts`.
+Khi so hai lượt bằng `diff -r`, thêm `-x coverage` (tên file đo độ phủ theo pid).

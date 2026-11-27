@@ -1,5 +1,6 @@
 import { expect } from 'vitest'
 import { config } from './config.js'
+import { recordCall } from './coverage.js'
 
 export interface Res {
   status: number
@@ -31,6 +32,7 @@ export async function call(method: string, path: string, opts: ReqOpts = {}): Pr
     body: opts.form ? new URLSearchParams(opts.form).toString() : opts.body === undefined ? undefined : JSON.stringify(opts.body),
     redirect: 'manual',
   })
+  recordCall(method, path, res.status, Boolean(opts.token))
   const text = await res.text()
   let body: unknown = null
   if (text) {

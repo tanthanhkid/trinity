@@ -18,7 +18,7 @@ Full description: [docs/ci.md](../ci.md). Required to merge: `ci-ok`, `CLA`, `Se
 | CLA | every PR | ~10 s |
 | Build api (monolith) | every PR, not required | ~1 min |
 | Tests with Postgres (migrate + db specs) | PR steps run only when migrations, `schema.prisma`, `*.pg.spec.ts` or `$queryRaw`/`$executeRaw` code changed; always on `main`. Not required | ~2 min |
-| Web build and UI checks | PR steps run only when `apps/web/`, `packages/`, the lockfile or the CI workflow changed; always on `main`. Runs `next build`, starts the standalone server, then the checks in `apps/web/e2e/premium/` (see its README). Not required | ~5 min |
+| Web build and UI checks | PR steps run only when `apps/web/`, `packages/`, the lockfile or the CI workflow changed; always on `main`. Runs `next build` (static export to `apps/web/out`), checks the export, starts the test static server, then the checks in `apps/web/e2e/premium/` (see its README). Not required | ~5 min |
 
 A nightly workflow runs the full test suite, the Playwright e2e and dependency audits.
 

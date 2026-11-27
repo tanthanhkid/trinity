@@ -112,12 +112,11 @@ jobs:
           for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:4000/api/v1/health && exit 0; sleep 2; done
           tail -n 100 /tmp/api.log; exit 1
       - run: pnpm --filter ./apps/web build
-      - name: Start web (standalone)
+      # Máy chủ tĩnh thử phục vụ out/ và chuyển /api/v1, /uploads, /.well-known sang monolith (W04 thay bằng Rust thật).
+      - name: Start web (static export)
         working-directory: apps/web
         run: |
-          cp -r .next/static .next/standalone/apps/web/.next/static
-          if [ -d public ]; then cp -r public .next/standalone/apps/web/public; fi
-          PORT=3000 HOSTNAME=127.0.0.1 MONOLITH_INTERNAL_URL=http://127.0.0.1:4000 BACKEND_URL=http://127.0.0.1:4000 AUTH_SERVICE_URL=http://127.0.0.1:4000 nohup node .next/standalone/apps/web/server.js > /tmp/web.log 2>&1 &
+          PORT=3000 API_PROXY_URL=http://127.0.0.1:4000 nohup node scripts/serve-export.mjs > /tmp/web.log 2>&1 &
           for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3000/login && exit 0; sleep 1; done
           tail -n 100 /tmp/web.log; exit 1
       - name: Playwright

@@ -9,7 +9,11 @@
 //! - [`pages`]: danh sách Page, token mã hoá (`INTEGRATIONS_SECRET_KEY`), kiểm hạn, ngắt kết nối, phần đăng bài của Page.
 //! - [`routes`]: bảng route K14 (7 route; webhook và tin nhắn thuộc M47a/M47b/M48).
 //!
-//! Chưa có ở đây (việc của M47a trở đi): webhook vào, link mở chat, hội thoại, bình luận, luật tự động. Sau `check_token`
+//! - [`webhook`] (M47a): `GET/POST /facebook/webhook`: xác minh, chữ ký `X-Hub-Signature-256`, định tuyến theo Page/công ty,
+//!   chuyển tiếp nguyên byte, cổng tính năng; xử lý từng loại sự kiện đi qua [`webhook::EntryProcessor`] (M47b tin nhắn và Lead Ads,
+//!   M49 bình luận).
+//!
+//! Chưa có ở đây (việc của M47b trở đi): xử lý tin nhắn/leadgen/bình luận, link mở chat, hội thoại, luật tự động. Sau `check_token`
 //! thành công tầng route còn gọi làm mới tên khách thiếu (`refreshMissingNames`, M48).
 
 pub mod config;
@@ -17,3 +21,4 @@ pub mod graph;
 pub mod pages;
 pub mod routes;
 pub mod state;
+pub mod webhook;

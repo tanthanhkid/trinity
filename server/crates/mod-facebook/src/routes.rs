@@ -7,7 +7,7 @@ use trinity_http::router::{Access, RouteSpec};
 
 const ID: &[&str] = &["param.id:ParseIntPipe"];
 
-/// 7 route của `FacebookController` (kết nối) và `FacebookPublicController.callback`.
+/// 7 route của `FacebookController` (kết nối) và `callback`, cộng 2 route webhook (M47a).
 pub fn routes() -> Vec<RouteSpec> {
     let manage = Access::Can(&["integrations.webhooks"]);
     // Tính năng tổ chức `facebook_page` (kèm `OrgFeatureGuard`) áp cho mọi route quản trị; callback công khai không có.
@@ -21,6 +21,9 @@ pub fn routes() -> Vec<RouteSpec> {
         r(Method::POST, "/api/v1/facebook/pages/:id/check", 200).param_pipes(ID),
         r(Method::DELETE, "/api/v1/facebook/pages/:id", 204).param_pipes(ID),
         RouteSpec::new(Method::GET, "/api/v1/facebook/oauth/callback", Access::Public),
+        // Webhook của Meta (M47a): công khai, xác thực bằng verify token (GET) và chữ ký `X-Hub-Signature-256` (POST).
+        RouteSpec::new(Method::GET, "/api/v1/facebook/webhook", Access::Public).status_ok(200),
+        RouteSpec::new(Method::POST, "/api/v1/facebook/webhook", Access::Public).status_ok(200),
     ]
 }
 
@@ -31,9 +34,9 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = routes();
-        assert_eq!(table.len(), 7);
+        assert_eq!(table.len(), 9);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 7);
+        assert_eq!(rep.declared, 9);
     }
 }

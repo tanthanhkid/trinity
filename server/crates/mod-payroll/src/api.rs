@@ -824,8 +824,14 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::PATCH, "/api/v1/employees/:id"), employee_update)
         .route(spec(&Method::GET, "/api/v1/payslips/excel-bulk"), slip_excel_bulk)
         .route(spec(&Method::GET, "/api/v1/payslips/excel-list"), slip_excel_list)
-        .route(spec(&Method::POST, "/api/v1/payslips/excel-list"), slip_excel_list_ordered)
-        .route(spec(&Method::GET, "/api/v1/payslips/import-template"), slip_import_template)
+        .route(
+            spec(&Method::POST, "/api/v1/payslips/excel-list"),
+            slip_excel_list_ordered,
+        )
+        .route(
+            spec(&Method::GET, "/api/v1/payslips/import-template"),
+            slip_import_template,
+        )
         .route(
             spec(&Method::POST, "/api/v1/payslips/import/preview"),
             slip_import_preview.layer(limit()),
@@ -837,6 +843,9 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::GET, "/api/v1/payslips/:id/pdf"), slip_pdf)
         .route(spec(&Method::GET, "/api/v1/payslips/:id/excel"), slip_excel)
         .route(spec(&Method::GET, "/api/v1/reports/summary"), report_summary)
-        .route(spec(&Method::GET, "/api/v1/reports/by-department"), report_by_department)
+        .route(
+            spec(&Method::GET, "/api/v1/reports/by-department"),
+            report_by_department,
+        )
         .route(spec(&Method::GET, "/api/v1/reports/comparison"), report_comparison)
 }

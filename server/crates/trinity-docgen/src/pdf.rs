@@ -362,10 +362,7 @@ impl PdfBuilder {
         let (r, g, b) = rgb_parts(rgb);
         let y = PAGE_H - y_top - h;
         if let Some(page) = self.pages.last_mut() {
-            let _ = writeln!(
-                page,
-                "{r:.3} {g:.3} {b:.3} rg {x:.2} {y:.2} {w:.2} {h:.2} re f"
-            );
+            let _ = writeln!(page, "{r:.3} {g:.3} {b:.3} rg {x:.2} {y:.2} {w:.2} {h:.2} re f");
         }
     }
 
@@ -462,11 +459,7 @@ impl PdfBuilder {
                 &mut offsets,
                 &stream(&format!("/Length1 {}", t.data.len()), t.data),
             );
-            put(
-                &mut out,
-                &mut offsets,
-                &stream("", to_unicode(&f.used).as_bytes()),
-            );
+            put(&mut out, &mut offsets, &stream("", to_unicode(&f.used).as_bytes()));
         }
 
         let resources: String = (0..nf)

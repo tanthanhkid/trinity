@@ -23,7 +23,7 @@ use trinity_kernel::number::js_round;
 use trinity_kernel::vi::trim_js;
 
 use super::{
-    Emp, Manual, MANUAL_COLS, MONTH_MSG, PayslipRow, R, SELECT_P, UpdatePayslip, calc, calc_err, db, employee_code,
+    Emp, MANUAL_COLS, MONTH_MSG, Manual, PayslipRow, R, SELECT_P, UpdatePayslip, calc, calc_err, db, employee_code,
     engine_base, fetch_employees, in_scope, insurance_total, not_found_id, out_of_scope, persist, read_tax, team_order,
 };
 use crate::{finish, is_month, len16};
@@ -252,7 +252,7 @@ fn format_vnd(v: i64) -> String {
     let s = v.unsigned_abs().to_string();
     let mut out = String::new();
     for (i, c) in s.chars().enumerate() {
-        if i > 0 && (s.len() - i) % 3 == 0 {
+        if i > 0 && (s.len() - i).is_multiple_of(3) {
             out.push('.');
         }
         out.push(c);
@@ -307,7 +307,8 @@ impl Slip {
     fn section_money(&mut self, text: &str, v: i64) {
         self.label(text, true, Some(SECTION_FILL));
         let row = self.row();
-        self.g.number(row, 2, v as f64, style(true, Some(SECTION_FILL), true, true));
+        self.g
+            .number(row, 2, v as f64, style(true, Some(SECTION_FILL), true, true));
         self.r += 1;
     }
 
@@ -567,27 +568,47 @@ fn list_columns() -> Vec<ListCol> {
         col(G_EMP, "Team Lead", 18.0, |r| Cellv::Text(r.data.team_name.clone())),
         col(G_EMP, "Phòng ban", 11.0, |r| Cellv::Text(r.department.clone())),
         mcol(G_LCB, "Lương cơ bản", 14.0, |r| Cellv::Money(r.data.base_salary)),
-        mcol(G_LCB, "Lương đóng BHXH", 14.0, |r| Cellv::Money(r.data.insurance_base)),
+        mcol(G_LCB, "Lương đóng BHXH", 14.0, |r| {
+            Cellv::Money(r.data.insurance_base)
+        }),
         col(G_LCB, "Ngày công", 9.0, |r| Cellv::Days(r.data.working_days)),
-        mcol(G_LCB, "Số tiền ngày công", 14.0, |r| Cellv::Money(r.data.don_gia_ngay_cong)),
-        mcol(G_LCB, "Thực lĩnh LCB", 14.0, |r| Cellv::Money(r.data.base_salary_actual)),
+        mcol(G_LCB, "Số tiền ngày công", 14.0, |r| {
+            Cellv::Money(r.data.don_gia_ngay_cong)
+        }),
+        mcol(G_LCB, "Thực lĩnh LCB", 14.0, |r| {
+            Cellv::Money(r.data.base_salary_actual)
+        }),
         col(G_LCB, "Ngày học việc", 10.0, |r| Cellv::Days(r.data.training_days)),
-        mcol(G_LCB, "Lương học việc", 14.0, |r| Cellv::Money(r.data.training_salary)),
-        mcol(G_LCB, "Phụ cấp học việc", 14.0, |r| Cellv::Money(r.data.probation_allowance)),
-        mcol(G_LCB, "Cộng lương cơ bản", 15.0, |r| Cellv::Money(r.data.cong_lcb)),
+        mcol(G_LCB, "Lương học việc", 14.0, |r| {
+            Cellv::Money(r.data.training_salary)
+        }),
+        mcol(G_LCB, "Phụ cấp học việc", 14.0, |r| {
+            Cellv::Money(r.data.probation_allowance)
+        }),
+        mcol(G_LCB, "Cộng lương cơ bản", 15.0, |r| {
+            Cellv::Money(r.data.cong_lcb)
+        }),
         mcol(G_DS, "Doanh số", 15.0, |r| Cellv::Money(r.data.sales_personal)),
         col(G_DS, "% KPI", 9.0, |r| Cellv::Pct(r.data.kpi_percent)),
         col(G_DS, "Hệ số (%)", 9.0, |r| Cellv::Pct(r.data.bonus_rate)),
         mcol(G_DS, "Bonus", 14.0, |r| Cellv::Money(r.data.bonus_sales_personal)),
-        mcol(G_DS, "Vượt mốc cá nhân", 14.0, |r| Cellv::Money(r.data.bonus_milestone)),
+        mcol(G_DS, "Vượt mốc cá nhân", 14.0, |r| {
+            Cellv::Money(r.data.bonus_milestone)
+        }),
         mcol(G_DS, "Contest Team", 14.0, |r| Cellv::Money(r.data.bonus_cskh_team)),
-        mcol(G_DS, "Giới thiệu ứng viên", 14.0, |r| Cellv::Money(r.data.bonus_referral)),
+        mcol(G_DS, "Giới thiệu ứng viên", 14.0, |r| {
+            Cellv::Money(r.data.bonus_referral)
+        }),
         mcol(G_DS, "Thưởng lễ", 13.0, |r| Cellv::Money(r.data.holiday_bonus)),
-        mcol(G_DS, "Cộng doanh số/Thưởng", 15.0, |r| Cellv::Money(r.data.cong_thuong)),
+        mcol(G_DS, "Cộng doanh số/Thưởng", 15.0, |r| {
+            Cellv::Money(r.data.cong_thuong)
+        }),
         mcol(G_GT, "Đã ứng", 13.0, |r| Cellv::Money(r.data.advances)),
         mcol(G_GT, "BHXH", 13.0, |r| Cellv::Money(r.data.insurance_total)),
         mcol(G_GT, "Thuế TNCN", 13.0, |r| Cellv::Money(r.data.tax_total)),
-        mcol(G_GT, "Tổng giảm trừ", 14.0, |r| Cellv::Money(r.data.tong_giam_tru)),
+        mcol(G_GT, "Tổng giảm trừ", 14.0, |r| {
+            Cellv::Money(r.data.tong_giam_tru)
+        }),
         mcol(G_TT, "Thực nhận", 15.0, |r| Cellv::Money(r.data.total)),
         col(G_TT, "Số tài khoản", 18.0, |r| {
             Cellv::Text(r.data.bank_account_number.clone().unwrap_or_default())
@@ -789,7 +810,6 @@ const MARGIN: f64 = 40.0;
 const CONTENT_W: f64 = 515.0;
 const X_LABEL: f64 = 46.0;
 const X_VALUE: f64 = 320.0;
-const W_LABEL: f64 = X_VALUE - X_LABEL - 6.0;
 /// Mép phải của vùng nội dung (`MARGIN + CONTENT_W`).
 const RIGHT: f64 = MARGIN + CONTENT_W;
 const ROW_H: f64 = 16.0;
@@ -816,7 +836,8 @@ impl PdfSlip {
 
     fn center_title(&mut self, text: &str, size: f64) {
         self.ensure(size + 8.0);
-        self.pdf.text_center(self.bold, size, BLACK, MARGIN, CONTENT_W, self.y, text);
+        self.pdf
+            .text_center(self.bold, size, BLACK, MARGIN, CONTENT_W, self.y, text);
         self.y += size + 8.0;
     }
 
@@ -857,7 +878,8 @@ impl PdfSlip {
         self.ensure(SEC_H + 2.0);
         self.pdf.fill_rect(MARGIN, self.y, CONTENT_W, SEC_H, SECTION_FILL);
         self.pdf.text(self.bold, BODY_FS, BLACK, X_LABEL, self.y + 5.0, text);
-        self.pdf.text_right(self.bold, BODY_FS, BLACK, RIGHT, self.y + 5.0, &format_vnd(v));
+        self.pdf
+            .text_right(self.bold, BODY_FS, BLACK, RIGHT, self.y + 5.0, &format_vnd(v));
         self.y += SEC_H + 3.0;
     }
 }
@@ -924,7 +946,8 @@ fn layout_payslip(d: &SlipData) -> Result<PdfBuilder, PdfError> {
 
     s.y += 6.0;
     s.ensure(72.0);
-    s.pdf.text_wrapped(regular, 9.0, 0x444444, X_LABEL, s.y, CONTENT_W - 12.0, 10.5, NOTE_TEXT);
+    s.pdf
+        .text_wrapped(regular, 9.0, 0x444444, X_LABEL, s.y, CONTENT_W - 12.0, 10.5, NOTE_TEXT);
     Ok(s.pdf)
 }
 
@@ -1177,7 +1200,9 @@ fn parse_rows(sheet: &ReadSheet) -> Vec<ImportRow> {
     let mut name_col = None;
     let mut by_col: Vec<(usize, &'static FieldDef)> = Vec::new();
     for c in 0..sheet.row_width(head) {
-        let ReadCell::Text(h) = sheet.cell(head, c) else { continue };
+        let ReadCell::Text(h) = sheet.cell(head, c) else {
+            continue;
+        };
         let h = trim_js(h);
         if is_code_header(sheet.cell(head, c)) {
             code_col = Some(c);
@@ -1315,7 +1340,9 @@ fn template_cell(m: Option<&Manual>, def: &FieldDef) -> Option<Parsed> {
         "kpi_percent" => f(m.kpi_percent),
         "standard_working_days" => Some(Parsed::Int(i64::from(m.standard_working_days))),
         "notes" => m.notes.clone().filter(|s| !s.is_empty()).map(Parsed::Text),
-        _ => Some(current_text(m, def.field)).filter(|t| t.parse::<i64>().is_ok()).map(Parsed::Money),
+        _ => Some(current_text(m, def.field))
+            .filter(|t| t.parse::<i64>().is_ok())
+            .map(Parsed::Money),
     }
 }
 
@@ -1364,7 +1391,11 @@ fn template_sheet(emps: &[TemplateEmp], month: &str) -> GridSheet {
         g.text(r, 1, e.name.as_str(), text_style());
         for (i, d) in FIELDS.iter().enumerate() {
             let c = (2 + i) as u16;
-            let h = if d.kind == Kind::Text { HAlign::General } else { HAlign::Right };
+            let h = if d.kind == Kind::Text {
+                HAlign::General
+            } else {
+                HAlign::Right
+            };
             let style = Style {
                 num_format: (d.kind == Kind::Money).then_some(NUM_FMT),
                 ..bordered(false, None, h)
@@ -1398,7 +1429,10 @@ async fn active_names(conn: &mut PgConnection, by_name: bool) -> R<Vec<EmpName>>
         "SELECT e.id, e.employee_code, u.full_name FROM employees e JOIN users u ON u.id = e.user_id \
          WHERE e.status = 'active' AND e.deleted_at IS NULL ORDER BY e.id ASC"
     };
-    sqlx::query_as::<_, EmpName>(sql).fetch_all(&mut *conn).await.map_err(db)
+    sqlx::query_as::<_, EmpName>(sql)
+        .fetch_all(&mut *conn)
+        .await
+        .map_err(db)
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -1531,7 +1565,12 @@ async fn process_rows(
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
         let Some(emp) = by_code.get(&row.code) else {
-            out.push(skipped_row(&row.code, row.name, None, "Không tìm thấy nhân viên với mã này"));
+            out.push(skipped_row(
+                &row.code,
+                row.name,
+                None,
+                "Không tìm thấy nhân viên với mã này",
+            ));
             continue;
         };
         let name = emp.full_name.clone();
@@ -1577,8 +1616,8 @@ async fn process_rows(
             let base = engine_base(conn, employee).await?;
             let kpi_n = calc::kpi_achieved_count(conn, employee.id, month).await?;
             let manual = slip.manual.merged(&to_update(&row.fields));
-            let computed = calc::compute_payslip(cfg, month, base, kpi_n, &employee.input(), &manual.input())
-                .map_err(calc_err)?;
+            let computed =
+                calc::compute_payslip(cfg, month, base, kpi_n, &employee.input(), &manual.input()).map_err(calc_err)?;
             persist(conn, slip.id, &computed, &manual).await?;
         }
         out.push(ImportPreviewRow {
@@ -1742,8 +1781,14 @@ mod tests {
     fn doc_o_tien() {
         let m = def("advances");
         let text = |s: &str| Raw::Text(s.to_owned());
-        assert_eq!(parse_field(m, &text("1,234,567")), Ok(Some(Parsed::Money("1234567".into()))));
-        assert_eq!(parse_field(m, &Raw::Num(1500.5)), Ok(Some(Parsed::Money("1501".into()))));
+        assert_eq!(
+            parse_field(m, &text("1,234,567")),
+            Ok(Some(Parsed::Money("1234567".into())))
+        );
+        assert_eq!(
+            parse_field(m, &Raw::Num(1500.5)),
+            Ok(Some(Parsed::Money("1501".into())))
+        );
         assert_eq!(parse_field(m, &Raw::Num(0.0)), Ok(Some(Parsed::Money("0".into()))));
         assert_eq!(parse_field(m, &text("-")), Ok(None));
         assert_eq!(parse_field(m, &text("N/A")), Ok(None));
@@ -1764,7 +1809,10 @@ mod tests {
     #[test]
     fn doc_o_so_thuc_va_nguyen() {
         let text = |s: &str| Raw::Text(s.to_owned());
-        assert_eq!(parse_field(def("working_days"), &text("21,5")), Ok(Some(Parsed::Float(21.5))));
+        assert_eq!(
+            parse_field(def("working_days"), &text("21,5")),
+            Ok(Some(Parsed::Float(21.5)))
+        );
         assert_eq!(
             parse_field(def("kpi_percent"), &Raw::Num(1000.0)),
             Err("kpi_percent vượt giới hạn cho phép (tối đa 999.99)".to_owned())
@@ -1894,7 +1942,11 @@ mod tests {
         ];
         let bytes = write_grid(&[template_sheet(&emps, "2026-03")]).unwrap();
         let sheet = read_first_sheet(&bytes).unwrap();
-        assert!(texts(&sheet).iter().any(|t| t == "MẪU NHẬP PHIẾU LƯƠNG — THÁNG 03/2026"));
+        assert!(
+            texts(&sheet)
+                .iter()
+                .any(|t| t == "MẪU NHẬP PHIẾU LƯƠNG — THÁNG 03/2026")
+        );
         let rows = parse_rows(&sheet);
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].code, "NV0001");
@@ -1912,7 +1964,10 @@ mod tests {
         for (f, v) in &rows[0].fields {
             assert_eq!(current_text(&m, f), v.text(), "trường {f}");
         }
-        assert!(rows[1].fields.is_empty(), "nhân viên chưa có phiếu: mẫu để trống các ô nhập");
+        assert!(
+            rows[1].fields.is_empty(),
+            "nhân viên chưa có phiếu: mẫu để trống các ô nhập"
+        );
     }
 
     #[test]
@@ -1920,7 +1975,10 @@ mod tests {
         let mut g = GridSheet::new("Nhập");
         let st = text_style();
         g.text(0, 0, "Tiêu đề bất kỳ", st.clone());
-        for (c, h) in ["Mã nhân viên", "Họ tên", "Đã ứng", "Ghi chú", "Thuế TNCN", "Cột lạ"].iter().enumerate() {
+        for (c, h) in ["Mã nhân viên", "Họ tên", "Đã ứng", "Ghi chú", "Thuế TNCN", "Cột lạ"]
+            .iter()
+            .enumerate()
+        {
             g.text(1, c as u16, *h, st.clone());
         }
         g.text(2, 0, "  NV0001  ", st.clone());

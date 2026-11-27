@@ -93,7 +93,13 @@ async fn xuat_nhap_tep_va_bao_cao() {
     assert_eq!((x.content_type, x.bytes.starts_with(b"PK")), (XLSX_MIME, true));
     let p = files::export_pdf(&mut c, ids[0], None).await.unwrap();
     assert!(p.bytes.starts_with(b"%PDF"));
-    assert!(files::export_bulk(&mut c, MONTH, None).await.unwrap().bytes.starts_with(b"PK"));
+    assert!(
+        files::export_bulk(&mut c, MONTH, None)
+            .await
+            .unwrap()
+            .bytes
+            .starts_with(b"PK")
+    );
     let rev = [ids[1], ids[0]];
     assert!(
         files::export_list(&mut c, MONTH, None, Some(&rev))
@@ -110,7 +116,13 @@ async fn xuat_nhap_tep_va_bao_cao() {
     assert_eq!(status(files::export_pdf(&mut c, 0, None).await.unwrap_err()), 404);
 
     // Mẫu nhập mở lại được.
-    assert!(files::import_template(&mut c, MONTH).await.unwrap().bytes.starts_with(b"PK"));
+    assert!(
+        files::import_template(&mut c, MONTH)
+            .await
+            .unwrap()
+            .bytes
+            .starts_with(b"PK")
+    );
 
     // Nhập: phiếu 2 đã duyệt ⇒ bỏ qua; mã lạ ⇒ bỏ qua; phiếu 1 đổi "Đã ứng".
     exec(
@@ -122,10 +134,7 @@ async fn xuat_nhap_tep_va_bao_cao() {
     let file = import_file(&[(code(e1), 250_000.0), (code(e2), 1.0), ("KHONG-CO".into(), 5.0)]);
     let pre = files::preview_import(&mut c, &file, MONTH).await.unwrap();
     assert_eq!(pre.len(), 3);
-    assert_eq!(
-        pre.iter().map(|r| r.skipped).collect::<Vec<_>>(),
-        [false, true, true]
-    );
+    assert_eq!(pre.iter().map(|r| r.skipped).collect::<Vec<_>>(), [false, true, true]);
     let before = payslips::find_by_id(&mut c, ids[0], None).await.unwrap();
     assert_ne!(before["advances"].as_str(), Some("250000"), "xem trước không ghi");
     let done = files::apply_import(&mut c, &file, MONTH).await.unwrap();
@@ -137,7 +146,11 @@ async fn xuat_nhap_tep_va_bao_cao() {
 
     // Tệp hỏng ⇒ 400.
     assert_eq!(
-        status(files::preview_import(&mut c, b"khong phai xlsx", MONTH).await.unwrap_err()),
+        status(
+            files::preview_import(&mut c, b"khong phai xlsx", MONTH)
+                .await
+                .unwrap_err()
+        ),
         400
     );
 

@@ -187,7 +187,13 @@ mod tests {
 
     #[test]
     fn thang_bao_cao_kiem_nhu_class_validator() {
-        assert!(QuerySummary { month: "2026-03".into() }.validate().is_ok());
+        assert!(
+            QuerySummary {
+                month: "2026-03".into()
+            }
+            .validate()
+            .is_ok()
+        );
         for bad in ["2026-13", "2026-3", "", " 2026-03", "2026-03 "] {
             let err = QuerySummary { month: bad.into() }.validate().unwrap_err();
             let msg = serde_json::to_value(err.body().message).unwrap();
@@ -202,7 +208,10 @@ mod tests {
         assert!(comparison_ok("2026-01, 2026-02,\t2026-03"));
         assert!(!comparison_ok(""));
         assert!(!comparison_ok("2026-01,"));
-        assert!(!comparison_ok("2026-01 ,2026-02"), "khoảng trắng chỉ được đứng sau dấu phẩy");
+        assert!(
+            !comparison_ok("2026-01 ,2026-02"),
+            "khoảng trắng chỉ được đứng sau dấu phẩy"
+        );
         assert!(!comparison_ok("2026-13"));
         assert!(!comparison_ok("2026-01;2026-02"));
         let ok24: Vec<String> = (0..24).map(|i| format!("20{:02}-0{}", 10 + i, 1 + i % 9)).collect();

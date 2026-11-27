@@ -47,6 +47,10 @@ import * as sendNotification from '../../../../services/notification/src/notific
 import * as createEmployee from '../../../../services/crm/src/employees/dto/create-employee.dto'
 import * as updateEmployee from '../../../../services/crm/src/employees/dto/update-employee.dto'
 import * as queryEmployees from '../../../../services/crm/src/employees/dto/query-employees.dto'
+import * as createContract from '../../../../services/crm/src/contracts/dto/create-contract.dto'
+import * as updateContract from '../../../../services/crm/src/contracts/dto/update-contract.dto'
+import * as queryContracts from '../../../../services/crm/src/contracts/dto/query-contracts.dto'
+import * as queryContractStats from '../../../../services/crm/src/contracts/dto/query-contract-stats.dto'
 import * as employeesStats from '../../../../services/crm/src/employees/dto/employees-stats.dto'
 import * as queryNotification from '../../../../services/notification/src/notifications/dto/query-notification.dto'
 import * as publicCreateContact from '../../../../services/crm/src/public-api/dto/public-create-contact.dto'
@@ -109,6 +113,10 @@ const SAMPLES: Array<[Cls, Mode]> = [
   [queryEmployees.QueryEmployeesDto, 'strict'],
   [employeesStats.HrStatsQueryDto, 'strict'],
   [employeesStats.BirthdayListQueryDto, 'strict'],
+  [createContract.CreateContractDto, 'strict'],
+  [updateContract.UpdateContractDto, 'strict'],
+  [queryContracts.QueryContractsDto, 'strict'],
+  [queryContractStats.QueryContractStatsDto, 'strict'],
   [dashboardFilter.DashboardFilterQuery, 'strict'],
   [reportRange.QueryReportRangeDto, 'strict'],
 ]
@@ -236,6 +244,15 @@ const EXTRA_CASES: Array<[Cls, Mode, string, unknown]> = [
   [queryEmployees.QueryEmployeesDto, 'strict', 'valid', { page: '2', page_size: '50', search: 'minh', employment_state: 'active', sort_by: 'joined_at', sort_dir: 'desc', team: 'none' }],
   [queryEmployees.QueryEmployeesDto, 'strict', 'sai', { page: '0', page_size: '101', employment_state: 'x', sort_by: 'email', sort_dir: 'up' }],
   [employeesStats.BirthdayListQueryDto, 'strict', 'thang_sai', { month: '13', office_id: 'a' }],
+  [createContract.CreateContractDto, 'strict', 'valid', { employee_id: 12, contract_type: 'hdld_2', signed_date: '2026-01-01', end_date: '2028-01-01', notes: 'ghi chú', is_terminated: false }],
+  [createContract.CreateContractDto, 'strict', 'sai', { employee_id: 0, contract_type: 'khac', signed_date: 'hôm qua', end_date: 5, notes: 7, is_terminated: 'x' }],
+  [createContract.CreateContractDto, 'strict', 'end_null', { employee_id: 1, signed_date: '2026-01-01', end_date: null, file_url: null, notes: null }],
+  [updateContract.UpdateContractDto, 'strict', 'valid', { contract_type: 'hdld_vo_thoi_han', signed_date: '2026-02-02', end_date: null, is_terminated: true }],
+  [updateContract.UpdateContractDto, 'strict', 'null_het', { contract_type: null, signed_date: null, is_terminated: null, notes: null }],
+  [queryContracts.QueryContractsDto, 'strict', 'valid', { page: '2', page_size: '50', search: 'an', status: 'expiring', contract_type: 'hdld_1', employment_status: 'working', team: '3', sort_by: 'end_date', sort_dir: 'desc' }],
+  [queryContracts.QueryContractsDto, 'strict', 'sai', { page: '0', page_size: '201', status: 'x', contract_type: 'y', employment_status: 'z', sort_by: 'email', sort_dir: 'up' }],
+  [queryContractStats.QueryContractStatsDto, 'strict', 'valid', { date_from: '2026-01-01', date_to: '2026-12-31', department: 'KD', team: '3', employment_status: 'resigned' }],
+  [queryContractStats.QueryContractStatsDto, 'strict', 'sai', { date_from: 'x', employment_status: 'nghi' }],
   [createDeal.CreateDealDto, 'strict', 'valid', { title: ' Hợp đồng A ', assigned_to: 3, value: 1500000, status: 'open' }],
   [createDeal.CreateDealDto, 'strict', 'status_sai', { title: 'A', assigned_to: 3, status: 'pending' }],
   [queryContact.QueryContactDto, 'strict', 'valid_query', { page: '2', limit: '50', search: 'An', sort_order: 'desc', created_from: '2026-01-01' }],

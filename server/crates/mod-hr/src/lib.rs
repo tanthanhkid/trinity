@@ -17,8 +17,13 @@
 //! | `GET/POST /management/job-titles` | [`job_titles::find_all`], [`job_titles::create`] |
 //! | `GET/PATCH/DELETE /management/job-titles/:id` | [`job_titles::find_one`], [`job_titles::update`], [`job_titles::remove`] |
 //!
+//! M11 (hợp đồng và mẫu hợp đồng, 13 endpoint `/management/contracts*`) ở [`contracts`], DTO ở [`contract_dto`], route ở
+//! [`routes::contract_specs`]/[`routes::contract_router`].
+//!
 //! M12 (tuyển dụng, 10 endpoint `/management/recruitment/*`) ở [`recruitment`].
 
+pub mod contract_dto;
+pub mod contracts;
 pub mod employee_dto;
 pub mod employees;
 pub mod employees_export;

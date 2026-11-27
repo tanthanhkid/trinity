@@ -40,8 +40,8 @@ use crate::{chat_links, comments};
 
 const ID: &[&str] = &["param.id:ParseIntPipe"];
 
-/// Mọi route Facebook đã có service (34): kết nối và hộp thư (17), bình luận (7), gửi hàng loạt (9), `tick`. Thiếu 6 route `flows`
-/// (M50 phần 2). `trinity-bin` khai bảng này.
+/// Mọi route Facebook đã có service (34): kết nối và hộp thư (17), bình luận (7), gửi hàng loạt (9), `tick`. 6 route `flows` ở `flows::flow_routes`
+/// (M50b). `trinity-bin` khai bảng này.
 pub fn routes() -> Vec<RouteSpec> {
     let mut v = connect_routes();
     v.extend(comment_routes());
@@ -132,14 +132,10 @@ pub struct FacebookState {
     pub guard: ChannelGuard,
     /// Công ty đang có lượt chạy nền gửi hàng loạt do `send`/`tick` kích (không chồng lượt trong một tiến trình).
     running: Arc<Mutex<HashSet<CompanyRef>>>,
-    /// Lần kiểm `tick` gần nhất của từng công ty (ms), tối đa 20 giây một lần.
-    last_tick: Mutex<HashMap<CompanyRef, i64>>,
 }
 
 /// Quỹ thời gian một lượt chạy nền do `send`/`tick` kích; nhỏ hơn ngân sách job (30 giây).
 const KICK_BUDGET: Duration = Duration::from_secs(25);
-/// Khoảng tối thiểu giữa hai lần `tick` thật sự kiểm DB của một công ty (`kickIfDue`).
-const TICK_MIN_GAP_MS: i64 = 20_000;
 
 impl FacebookState {
     pub fn new(
@@ -176,7 +172,6 @@ impl FacebookState {
             ingest,
             guard,
             running: Arc::new(Mutex::new(HashSet::new())),
-            last_tick: Mutex::new(HashMap::new()),
         }
     }
 
@@ -205,34 +200,6 @@ impl FacebookState {
         });
     }
 
-    /// `POST /facebook/tick`: `{ due, next_at }`. Mỗi công ty kiểm DB tối đa 20 giây một lần; có việc tới giờ thì kích chạy nền.
-    /// TODO(M50 phần 2): gộp `flows.kickIfDue`/`flows.nextDueAt` (`due` = flows hoặc broadcasts, `next_at` = sớm nhất).
-    async fn tick(&self, company: CompanyRef) -> Result<Value, AppError> {
-        let now = Utc::now();
-        let now_ms = now.timestamp_millis();
-        let throttled = {
-            let mut last = self.last_tick.lock().unwrap_or_else(PoisonError::into_inner);
-            let prev = last.get(&company).copied().unwrap_or(0);
-            if now_ms - prev < TICK_MIN_GAP_MS {
-                true
-            } else {
-                last.insert(company, now_ms);
-                false
-            }
-        };
-        let running = self
-            .running
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .contains(&company);
-        let (due, next) = self.ingest.broadcasts_due(company, now).await?;
-        let due = due && !throttled && !running;
-        if due {
-            self.kick_broadcasts(company);
-        }
-        Ok(json!({ "due": due, "next_at": next.map(trinity_db::types::Timestamp) }))
-    }
-
     /// Ngữ cảnh của `pages` cho một công ty; `graph` do người gọi giữ (client Graph của công ty đó).
     fn pages_ctx<'a>(&'a self, graph: &'a GraphClient, company: CompanyRef) -> pages::Ctx<'a> {
         pages::Ctx {
@@ -245,7 +212,7 @@ impl FacebookState {
     }
 }
 
-fn fail(e: impl Into<AppError>) -> Response {
+pub(crate) fn fail(e: impl Into<AppError>) -> Response {
     let (status, body) = e.into().response(true);
     (
         StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -254,7 +221,7 @@ fn fail(e: impl Into<AppError>) -> Response {
         .into_response()
 }
 
-fn ok<T: Serialize>(r: Result<T, AppError>) -> Response {
+pub(crate) fn ok<T: Serialize>(r: Result<T, AppError>) -> Response {
     match r {
         Ok(v) => Json(v).into_response(),
         Err(e) => fail(e),
@@ -264,12 +231,13 @@ fn ok<T: Serialize>(r: Result<T, AppError>) -> Response {
 /// Công ty của token không hợp lệ ⇒ 401 (đóng, không rơi về công ty mặc định).
 macro_rules! company {
     ($u:expr) => {
-        match CompanyRef::new(i64::from($u.user.company_id)) {
+        match trinity_db::CompanyRef::new(i64::from($u.user.company_id)) {
             Ok(c) => c,
             Err(_) => return fail(HttpError::unauthorized("Token không hợp lệ hoặc đã hết hạn")),
         }
     };
 }
+pub(crate) use company;
 
 fn now_ms() -> i64 {
     chrono::Utc::now().timestamp_millis()
@@ -300,7 +268,7 @@ fn found(url: &str) -> Response {
 }
 
 /// Body JSON như `body-parser` của Express: không phải JSON hoặc rỗng ⇒ `{}`.
-struct JsonBody(Value);
+pub(crate) struct JsonBody(pub(crate) Value);
 
 impl<S: Send + Sync> FromRequest<S> for JsonBody {
     type Rejection = Response;
@@ -942,7 +910,7 @@ async fn cancel_broadcast(
 
 async fn tick(State(s): State<Arc<FacebookState>>, Extension(u): Extension<CurrentUser>) -> Response {
     let company = company!(u);
-    ok(s.tick(company).await)
+    ok(s.ingest.facebook_tick(company, chrono::Utc::now()).await)
 }
 
 /// Router của module: 34 route, quyền và mã thành công khớp `routes.json`.

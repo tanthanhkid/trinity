@@ -27,6 +27,7 @@ use crate::csv::{IMPORT_MAX_ROWS, ImportRowInput, parse_csv, parse_vn_time};
 use crate::limits::{MAX_MEDIA_PER_POST, MAX_SCHEDULE_AHEAD_MS, MAX_TARGETS};
 use crate::ports::{CreateFailure, DraftsPort, NO_QUEUE_SLOTS, PostInput, PostsPort, QueuePort, status_of};
 use crate::recur::{MINUTE_MS, TemplateTarget, TemplateUtm};
+use crate::utm::normalize_campaign;
 
 /// Lúc nhập thật: giờ hẹn còn dưới ngần này thì bỏ dòng (tránh `create` coi là đã qua và đăng ngay).
 const IMPORT_MIN_LEAD_MS: i64 = 20_000;
@@ -187,30 +188,6 @@ fn excerpt(s: &str) -> String {
 
 fn head(s: &str, n: usize) -> String {
     s.chars().take(n).collect()
-}
-
-/// `slug` của `social-utm.ts`: bỏ khoảng trắng đầu cuối, khoảng trắng giữa → `-`, 1–100 ký tự, không có `& # = ? % / \`.
-fn utm_slug(v: &str, label: &str) -> Result<String, String> {
-    let s = v.split_whitespace().collect::<Vec<_>>().join("-");
-    let n = s.encode_utf16().count();
-    if n < 1 {
-        return Err(format!("UTM: {label} không được để trống."));
-    }
-    if n > 100 {
-        return Err(format!("UTM: {label} tối đa 100 ký tự."));
-    }
-    if s.contains(['&', '#', '=', '?', '%', '/', '\\']) {
-        return Err(format!("UTM: {label} không được chứa các ký tự & # = ? % /."));
-    }
-    Ok(s)
-}
-
-/// Chuẩn hoá UTM của dòng nhập (`normalizeUtm({ campaign })`). Thay bằng `crate::utm` khi rebase lên M54a.
-fn normalize_campaign(campaign: &str) -> Result<TemplateUtm, String> {
-    Ok(TemplateUtm {
-        campaign: utm_slug(campaign, "tên chiến dịch (campaign)")?,
-        content: None,
-    })
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -420,7 +397,12 @@ fn plan_row(r: &ImportRowInput, mode: ImportMode, now_ms: i64, cx: &Ctx) -> Item
     let mut utm: Option<TemplateUtm> = None;
     if let Some(c) = &r.utm_campaign {
         match normalize_campaign(c) {
-            Ok(u) => utm = Some(u),
+            Ok(campaign) => {
+                utm = Some(TemplateUtm {
+                    campaign,
+                    content: None,
+                })
+            }
             Err(m) => errors.push(m),
         }
     }

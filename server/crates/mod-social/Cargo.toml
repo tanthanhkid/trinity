@@ -28,6 +28,7 @@ tracing = { workspace = true }
 trinity-db = { workspace = true }
 trinity-http = { workspace = true }
 trinity-integrations = { workspace = true }
+trinity-jobs = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-storage = { workspace = true }
 uuid = { workspace = true }

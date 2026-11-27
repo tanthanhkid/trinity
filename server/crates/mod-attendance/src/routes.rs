@@ -72,12 +72,20 @@ pub fn specs() -> Vec<RouteSpec> {
         RouteSpec::new(Method::PATCH, "/api/v1/management/attendance/request-config", cfg).status_ok(200),
         RouteSpec::new(Method::POST, "/api/v1/management/attendance/requests", Access::AuthOnly).status_ok(201),
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/requests", view).status_ok(200),
-        RouteSpec::new(Method::POST, "/api/v1/management/attendance/requests/:id/approve", manage)
-            .status_ok(201)
-            .param_pipes(ID),
-        RouteSpec::new(Method::POST, "/api/v1/management/attendance/requests/:id/reject", manage)
-            .status_ok(201)
-            .param_pipes(ID),
+        RouteSpec::new(
+            Method::POST,
+            "/api/v1/management/attendance/requests/:id/approve",
+            manage,
+        )
+        .status_ok(201)
+        .param_pipes(ID),
+        RouteSpec::new(
+            Method::POST,
+            "/api/v1/management/attendance/requests/:id/reject",
+            manage,
+        )
+        .status_ok(201)
+        .param_pipes(ID),
     ]
 }
 
@@ -274,11 +282,7 @@ async fn request_create(
     respond(requests::create(&c, &a, &dto).await, StatusCode::CREATED)
 }
 
-async fn request_list(
-    State(c): S,
-    Extension(u): U,
-    ValidQuery(q): ValidQuery<QueryAttendanceRequestsDto>,
-) -> Response {
+async fn request_list(State(c): S, Extension(u): U, ValidQuery(q): ValidQuery<QueryAttendanceRequestsDto>) -> Response {
     let a = act!(u);
     ok(requests::list(&c, &a, &q).await)
 }

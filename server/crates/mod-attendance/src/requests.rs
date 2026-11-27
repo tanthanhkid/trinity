@@ -164,8 +164,8 @@ pub fn parse_work_date(s: &str) -> Option<NaiveDate> {
 
 /// Giờ `HH:MM` giờ VN trên ngày `day` sang UTC (`vnTimeToInstant`).
 fn vn_instant(day: NaiveDate, hm: &str) -> R<DateTime<Utc>> {
-    let t = NaiveTime::parse_from_str(hm, "%H:%M")
-        .map_err(|_| AppError::internal(format!("giờ không hợp lệ: {hm}")))?;
+    let t =
+        NaiveTime::parse_from_str(hm, "%H:%M").map_err(|_| AppError::internal(format!("giờ không hợp lệ: {hm}")))?;
     Ok(vn_to_utc(day, t))
 }
 
@@ -209,7 +209,11 @@ async fn assert_monthly_limit(conn: &mut PgConnection, user_id: i32, kind: &str,
     .map_err(db)?;
     if used >= limit {
         let label = first.format("%m/%Y");
-        let what = if forgot { "quên chấm công" } else { "đi trễ/về sớm" };
+        let what = if forgot {
+            "quên chấm công"
+        } else {
+            "đi trễ/về sớm"
+        };
         return Err(bad(format!(
             "Bạn đã dùng hết {limit} lần {what} của tháng {label}. Vui lòng liên hệ quản lý/nhân sự."
         )));
@@ -238,7 +242,7 @@ async fn build_notifications(
     user_name: &str,
     reason: &str,
 ) -> Result<Vec<NewNotification>, sqlx::Error> {
-    let recipients = roster_with_permission(&mut **tx, "attendance.manage").await?;
+    let recipients = roster_with_permission(tx, "attendance.manage").await?;
     let mut parts = work_date.split('-');
     let date_label = match (parts.next(), parts.next(), parts.next()) {
         (Some(y), Some(m), Some(d)) if !y.is_empty() && !m.is_empty() && !d.is_empty() => format!("{d}/{m}/{y}"),
@@ -258,7 +262,7 @@ async fn build_notifications(
 }
 
 /// Chạy một câu lệnh savepoint; `true` nếu thành công.
-async fn savepoint(tx: &mut TenantTx, sql: &str) -> bool {
+async fn savepoint(tx: &mut TenantTx, sql: &'static str) -> bool {
     sqlx::query(sql).execute(&mut **tx).await.is_ok()
 }
 
@@ -292,10 +296,14 @@ async fn notify_created(
 /// `POST /requests` (201): nhân viên gửi đơn của chính mình.
 pub async fn create(ctx: &Ctx, actor: &Actor, dto: &CreateAttendanceRequestDto) -> R<RequestDto> {
     if dto.kind == "forgot_check_in" && dto.requested_check_in.is_none() {
-        return Err(bad("Vui lòng nhập giờ check-in đề nghị (requested_check_in) cho đơn quên check-in."));
+        return Err(bad(
+            "Vui lòng nhập giờ check-in đề nghị (requested_check_in) cho đơn quên check-in.",
+        ));
     }
     if dto.kind == "forgot_check_out" && dto.requested_check_out.is_none() {
-        return Err(bad("Vui lòng nhập giờ check-out đề nghị (requested_check_out) cho đơn quên check-out."));
+        return Err(bad(
+            "Vui lòng nhập giờ check-out đề nghị (requested_check_out) cho đơn quên check-out.",
+        ));
     }
     let day = parse_work_date(&dto.work_date).ok_or_else(|| bad("work_date phải có định dạng YYYY-MM-DD"))?;
     let mut tx = ctx.begin(actor.company).await?;
@@ -338,7 +346,7 @@ fn i32_of(v: i64, name: &str) -> R<i32> {
 }
 
 fn push_filters(
-    qb: &mut QueryBuilder<'_, Postgres>,
+    qb: &mut QueryBuilder<Postgres>,
     owner: &OwnerIds,
     q: &QueryAttendanceRequestsDto,
     team: Option<i32>,
@@ -450,7 +458,8 @@ async fn lock_pending(conn: &mut PgConnection, owner: &OwnerIds, id: i32) -> R<R
     Ok(req)
 }
 
-const EXISTING_SQL: &str = "SELECT check_in_at, check_out_at FROM attendance_records WHERE user_id = $1 AND work_date = $2";
+const EXISTING_SQL: &str =
+    "SELECT check_in_at, check_out_at FROM attendance_records WHERE user_id = $1 AND work_date = $2";
 
 /// Bản ghi chấm công sau khi duyệt đơn quên chấm công: giờ mới, số phút muộn, tổng giờ, trạng thái.
 async fn apply_forgot(conn: &mut PgConnection, req: &ReqRow, employee_id: Option<i32>) -> R<()> {

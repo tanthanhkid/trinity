@@ -111,7 +111,8 @@ async fn call(app: &Router, method: Method, path: &str, user: Option<i32>, body:
 }
 
 async fn teardown() {
-    exec("DELETE FROM attendance_requests WHERE user_id BETWEEN 9821 AND 9829;
+    exec(
+        "DELETE FROM attendance_requests WHERE user_id BETWEEN 9821 AND 9829;
           DELETE FROM attendance_records WHERE user_id BETWEEN 9821 AND 9829;
           DELETE FROM notification_logs WHERE recipient_id BETWEEN 9821 AND 9829;
           DELETE FROM employees WHERE user_id BETWEEN 9821 AND 9829;
@@ -119,8 +120,9 @@ async fn teardown() {
           DELETE FROM role_permissions WHERE role_id BETWEEN 9821 AND 9829;
           DELETE FROM roles WHERE id BETWEEN 9821 AND 9829;
           DELETE FROM settings WHERE key = 'attendance_request_config';
-          DELETE FROM users WHERE id BETWEEN 9821 AND 9829")
-        .await;
+          DELETE FROM users WHERE id BETWEEN 9821 AND 9829",
+    )
+    .await;
 }
 
 async fn setup() {
@@ -244,7 +246,9 @@ async fn don_tu_tao_danh_sach_duyet_tu_choi() {
     );
     for bad in ["page=abc", "page=1.5", "status=xx", "team_id=0", "foo=1"] {
         assert_eq!(
-            call(&a, Method::GET, &format!("{q}?{bad}"), Some(MGR), None).await.status,
+            call(&a, Method::GET, &format!("{q}?{bad}"), Some(MGR), None)
+                .await
+                .status,
             400,
             "{bad}"
         );
@@ -268,9 +272,11 @@ async fn don_tu_tao_danh_sach_duyet_tu_choi() {
     assert_eq!(ap.body["status"], "approved");
     assert_eq!(ap.body["reviewer_name"], "Quản lý");
     let (status, hours): (String, f64) = {
-        let s: String = scalar("SELECT status FROM attendance_records WHERE user_id = 9822 AND work_date = '2026-06-17'").await;
+        let s: String =
+            scalar("SELECT status FROM attendance_records WHERE user_id = 9822 AND work_date = '2026-06-17'").await;
         let h: f64 =
-            scalar("SELECT total_hours FROM attendance_records WHERE user_id = 9822 AND work_date = '2026-06-17'").await;
+            scalar("SELECT total_hours FROM attendance_records WHERE user_id = 9822 AND work_date = '2026-06-17'")
+                .await;
         (s, h)
     };
     assert_eq!((status.as_str(), hours), ("leave", 8.0));
@@ -282,7 +288,10 @@ async fn don_tu_tao_danh_sach_duyet_tu_choi() {
     );
 
     // Duyệt đơn quên check-out: 18:00 giờ VN = 11:00 UTC.
-    let fo: i64 = scalar("SELECT id FROM attendance_requests WHERE user_id = 9823 AND work_date = '2026-06-10' ORDER BY id LIMIT 1").await;
+    let fo: i64 = scalar(
+        "SELECT id FROM attendance_requests WHERE user_id = 9823 AND work_date = '2026-06-10' ORDER BY id LIMIT 1",
+    )
+    .await;
     let ap = call(&a, Method::POST, &format!("{q}/{fo}/approve"), Some(MGR), None).await;
     assert_eq!(ap.status, 201, "{:?}", ap.body);
     let out_utc: String = scalar(
@@ -292,7 +301,8 @@ async fn don_tu_tao_danh_sach_duyet_tu_choi() {
     assert_eq!(out_utc, "11:00");
 
     // Từ chối: ghi chú tối đa 500 ký tự; null/không gửi ⇒ không ghi chú.
-    let other_id: i64 = scalar("SELECT id FROM attendance_requests WHERE user_id = 9823 AND work_date = '2026-07-01'").await;
+    let other_id: i64 =
+        scalar("SELECT id FROM attendance_requests WHERE user_id = 9823 AND work_date = '2026-07-01'").await;
     let long = "x".repeat(501);
     assert_eq!(
         call(

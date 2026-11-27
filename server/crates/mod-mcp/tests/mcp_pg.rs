@@ -617,6 +617,25 @@ async fn tool_doc_nhom_1_theo_pham_vi_va_che_sdt() {
     );
     let (_, _, v) = run(&e, &adm, "list_deals", &json!({ "status": "open" })).await;
     assert_eq!(v["data"]["deals"].as_array().unwrap().len(), 2);
+    // outputSchema đóng băng có additionalProperties:false cho từng deal; khoá thừa (vd `code`) làm client SDK từ chối kết quả (X04).
+    for d in v["data"]["deals"].as_array().unwrap() {
+        for k in d.as_object().unwrap().keys() {
+            assert!(
+                [
+                    "id",
+                    "title",
+                    "status",
+                    "value",
+                    "contact_id",
+                    "assignee",
+                    "assigned_to",
+                    "created_at"
+                ]
+                .contains(&k.as_str()),
+                "khoá thừa trong list_deals: {k}"
+            );
+        }
+    }
     let (_, _, v) = run(&e, &adm, "search", &json!({ "query": "an" })).await;
     let ids: Vec<String> = v["results"]
         .as_array()
@@ -1052,6 +1071,49 @@ async fn tool_cau_truc_chay_ngay_roi_thanh_de_xuat_khi_bat_che_do_duyet() {
             .await,
         2
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn tool_complete_setup_doi_co_dung_va_chan_quyen() {
+    async fn status(c: &mut PgConnection) -> Option<String> {
+        sqlx::query_scalar("SELECT value FROM settings WHERE key = 'setup_status'")
+            .fetch_optional(&mut *c)
+            .await
+            .unwrap()
+    }
+    let e = env_with(mod_mcp::register_group3).await;
+    let mut c = e.conn().await;
+    let adm = e
+        .token("quantri-ct", e.admin, "{crm.read,crm.write}", RESOURCE, "1 hour", false)
+        .await;
+    // Chưa dựng ⇒ từ chối, cờ không đổi.
+    exec(&mut c, "INSERT INTO settings (key, value, updated_at) VALUES ('setup_status', 'chua_dung', now()) ON CONFLICT (key) DO UPDATE SET value = 'chua_dung'").await;
+    let (err, text, _) = run(&e, &adm, "complete_setup", &json!({})).await;
+    assert!(err && text.contains("Chưa dựng"), "{text}");
+    assert_eq!(status(&mut c).await.as_deref(), Some("chua_dung"));
+    // Đang dựng ⇒ đã dùng.
+    exec(
+        &mut c,
+        "UPDATE settings SET value = 'dang_dung' WHERE key = 'setup_status'",
+    )
+    .await;
+    let (err, _, v) = run(&e, &adm, "complete_setup", &json!({})).await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["status"], "da_dung");
+    assert_eq!(status(&mut c).await.as_deref(), Some("da_dung"));
+    // Token chỉ đọc ⇒ thiếu scope ghi, không đổi gì.
+    exec(
+        &mut c,
+        "UPDATE settings SET value = 'dang_dung' WHERE key = 'setup_status'",
+    )
+    .await;
+    let ro = e
+        .token("doc-ct", e.admin, "{crm.read}", RESOURCE, "1 hour", false)
+        .await;
+    let (err, text, _) = run(&e, &ro, "complete_setup", &json!({})).await;
+    assert!(err && text.contains("insufficient_scope"), "{text}");
+    assert_eq!(status(&mut c).await.as_deref(), Some("dang_dung"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

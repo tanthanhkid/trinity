@@ -149,6 +149,13 @@ pub fn register_group3(r: &mut ToolRegistry) {
         });
     }
     reg(r, "get_action_status", &[], actions::get_action_status);
+    // `complete_setup` (`setup-tools.ts`): dang_dung → da_dung, chỉ người dựng được cấu trúc, cần scope ghi.
+    r.register(ToolSpec {
+        name: "complete_setup",
+        scope: Some("crm.write"),
+        permissions: &["custom_objects.manage"],
+        runner: Arc::new(Tool(setup::complete_setup)),
+    });
 }
 
 /// Tool giữ trạng thái riêng của nhóm (`S`): thân chạy nhận `&S` ngoài `args` và `ctx`.

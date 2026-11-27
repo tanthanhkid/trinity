@@ -589,6 +589,153 @@
   },
   "defaults": {}
  },
+ "CreateAttendanceRequestDto": {
+  "declared": [
+   "reason",
+   "requested_check_in",
+   "requested_check_out",
+   "type",
+   "work_date"
+  ],
+  "validated": [
+   "reason",
+   "requested_check_in",
+   "requested_check_out",
+   "type",
+   "work_date"
+  ],
+  "fields": {
+   "reason": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       500
+      ],
+      "message": "Lý do tối đa 500 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "minLength",
+      "constraints": [
+       1
+      ],
+      "message": "Lý do không được để trống",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "requested_check_in": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^([01]d|2[0-3]):[0-5]d$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "requested_check_out": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^([01]d|2[0-3]):[0-5]d$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "requested_check_out phải có định dạng HH:MM (vd 17:30)",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "type": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "forgot_check_in",
+        "forgot_check_out",
+        "late_arrival",
+        "early_leave",
+        "leave",
+        "maternity"
+       ]
+      ],
+      "message": "Loại đơn không hợp lệ",
+      "each": false
+     }
+    ]
+   },
+   "work_date": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^d{4}-d{2}-d{2}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "work_date phải có định dạng YYYY-MM-DD",
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
  "CreateCandidateDto": {
   "declared": [
    "full_name",
@@ -8897,6 +9044,187 @@
   },
   "defaults": {}
  },
+ "QueryAttendanceRequestsDto": {
+  "declared": [
+   "department",
+   "job_title_id",
+   "page",
+   "page_size",
+   "status",
+   "team_id"
+  ],
+  "validated": [
+   "department",
+   "job_title_id",
+   "page",
+   "page_size",
+   "status",
+   "team_id"
+  ],
+  "fields": {
+   "department": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "job_title_id": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "page": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": "page phải là số nguyên",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "page_size": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": "page_size phải là số nguyên",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "status": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "pending",
+        "approved",
+        "rejected"
+       ]
+      ],
+      "message": "status phải là pending, approved hoặc rejected",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "team_id": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   }
+  },
+  "defaults": {}
+ },
  "QueryAttendanceStatsDto": {
   "declared": [
    "date_from",
@@ -12599,6 +12927,48 @@
      }
     ],
     "type": "Number"
+   }
+  },
+  "defaults": {}
+ },
+ "RejectRequestDto": {
+  "declared": [
+   "review_note"
+  ],
+  "validated": [
+   "review_note"
+  ],
+  "fields": {
+   "review_note": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       500
+      ],
+      "message": "review_note tối đa 500 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
    }
   },
   "defaults": {}

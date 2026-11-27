@@ -14,12 +14,20 @@
 
 #![allow(clippy::result_large_err)]
 
+pub mod buckets;
 pub mod cache;
 pub mod channels;
+pub mod custom;
+pub mod custom_def;
+pub mod custom_presets;
+pub mod custom_sources;
+pub mod customers;
 pub mod dashboard;
 pub mod filter;
 pub mod overview;
+pub mod performance;
 pub mod period;
+pub mod recruitment;
 pub mod roster;
 pub mod routes;
 pub mod stats_today;
@@ -47,6 +55,11 @@ impl Ctx {
     pub async fn conn(&self, company: CompanyRef) -> R<trinity_db::TenantConn> {
         let t = self.db.tenant(company).await.map_err(AppError::internal)?;
         t.acquire().await.map_err(AppError::internal)
+    }
+
+    pub async fn begin(&self, company: CompanyRef) -> R<trinity_db::TenantTx> {
+        let t = self.db.tenant(company).await.map_err(AppError::internal)?;
+        t.begin().await.map_err(AppError::internal)
     }
 
     /// Tập chủ sở hữu của một quyền (`None` = không có quyền).

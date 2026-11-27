@@ -70,6 +70,9 @@ import * as createOption from '../../../../services/crm/src/settings-options/dto
 import * as queryOptions from '../../../../services/crm/src/settings-options/dto/query-options.dto'
 import * as dashboardFilter from '../../../../services/crm/src/reports/dashboard-overview.filter'
 import * as reportRange from '../../../../services/crm/src/reports/dto/query-report-range.dto'
+import * as reportUncontacted from '../../../../services/crm/src/reports/dto/query-report-uncontacted.dto'
+import * as reportMarketing from '../../../../services/crm/src/reports/dto/query-marketing-account-report.dto'
+import * as customReports from '../../../../services/crm/src/reports/custom/custom-reports.controller'
 import * as buildSystem from '../../../../services/crm/src/setup/setup-build.dto'
 import * as wizardDto from '../../../../services/crm/src/onboarding/onboarding-wizard.dto'
 
@@ -139,6 +142,10 @@ const SAMPLES: Array<[Cls, Mode]> = [
   [queryContractStats.QueryContractStatsDto, 'strict'],
   [dashboardFilter.DashboardFilterQuery, 'strict'],
   [reportRange.QueryReportRangeDto, 'strict'],
+  [reportUncontacted.QueryReportUncontactedDto, 'strict'],
+  [reportMarketing.QueryMarketingAccountReportDto, 'strict'],
+  [customReports.SaveCustomReportsDto, 'strict'],
+  [customReports.RunCustomReportQueryDto, 'strict'],
   [customObject.ApplyTemplateDto, 'strict'],
   [buildSystem.BuildSystemDto, 'strict'],
   [wizardDto.WizardStepDto, 'strict'],
@@ -344,6 +351,17 @@ const EXTRA_CASES: Array<[Cls, Mode, string, unknown]> = [
   [reportRange.QueryReportRangeDto, 'strict', 'valid_query', { date_from: '2026-09-01', date_to: '2026-09-26' }],
   [reportRange.QueryReportRangeDto, 'strict', 'query_sai', { date_from: '01/09/2026', date_to: '' }],
   [reportRange.QueryReportRangeDto, 'strict', 'thieu', {}],
+  [reportUncontacted.QueryReportUncontactedDto, 'strict', 'valid_query', { days: '14', cursor: '9', limit: '50' }],
+  [reportUncontacted.QueryReportUncontactedDto, 'strict', 'query_sai', { days: '5', cursor: '0', limit: 'x', y: '1' }],
+  [reportUncontacted.QueryReportUncontactedDto, 'strict', 'rong', {}],
+  [reportMarketing.QueryMarketingAccountReportDto, 'strict', 'valid_query', { date_from: '2026-06-01', date_to: '2026-06-30', marketing_user_id: '3' }],
+  [reportMarketing.QueryMarketingAccountReportDto, 'strict', 'query_sai', { date_from: '2026-6-1', date_to: 'abc', marketing_user_id: '0', z: '1' }],
+  [reportMarketing.QueryMarketingAccountReportDto, 'strict', 'rong', {}],
+  [customReports.SaveCustomReportsDto, 'strict', 'valid', { reports: [{ id: 'a' }] }],
+  [customReports.SaveCustomReportsDto, 'strict', 'sai', { reports: 'x', la: 1 }],
+  [customReports.SaveCustomReportsDto, 'strict', 'thieu', {}],
+  [customReports.RunCustomReportQueryDto, 'strict', 'valid_query', { period: 'month:2026-02' }],
+  [customReports.RunCustomReportQueryDto, 'strict', 'query_sai', { period: 'x'.repeat(21), q: '1' }],
   [customObject.ApplyTemplateDto, 'strict', 'valid', { with_sample_data: true }],
   [customObject.ApplyTemplateDto, 'strict', 'sai', { with_sample_data: 'yes', x: 1 }],
   [buildSystem.BuildSystemDto, 'strict', 'valid', { industry: 'clinic', features: ['inbox', 'pos'] }],

@@ -2653,6 +2653,7 @@ version = "0.3.0"
 dependencies = [
  "axum",
  "chrono",
+ "mod-custom",
  "serde_json",
  "sqlx",
  "tokio",
@@ -2660,6 +2661,7 @@ dependencies = [
  "tracing",
  "trinity-auth",
  "trinity-db",
+ "trinity-docgen",
  "trinity-http",
  "trinity-kernel",
  "trinity-rbac",

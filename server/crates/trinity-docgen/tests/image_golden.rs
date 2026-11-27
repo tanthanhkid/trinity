@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use image::ImageFormat;
 use serde_json::Value;
-use trinity_docgen::image::{Encoded, avatar_jpeg, newsfeed_webp};
+use trinity_docgen::image::{Encoded, UPLOAD_MAX_PX, avatar_jpeg, fit_inside, newsfeed_webp};
 
 fn root() -> PathBuf {
     PathBuf::from(manifest_dir()).join("../../..")
@@ -28,6 +28,11 @@ const TOLERANCE: i32 = 10;
 
 /// Đọc lại đầu ra bằng bộ giải mã độc lập với lời khai của hàm: định dạng theo nội dung, kích thước thật.
 fn check(out: &Encoded, want: &Value, label: &str) {
+    check_with(out, want, label, true);
+}
+
+/// `samples`: so cả màu tại các điểm mẫu (chỉ khi kích thước đầu ra giữ nguyên như bản Node).
+fn check_with(out: &Encoded, want: &Value, label: &str, samples: bool) {
     let fmt = image::guess_format(&out.bytes).unwrap();
     let decoded = image::load_from_memory(&out.bytes).unwrap();
     let got = (decoded.width(), decoded.height(), format_name(fmt));
@@ -48,6 +53,9 @@ fn check(out: &Encoded, want: &Value, label: &str) {
         !out.bytes.windows(6).any(|w| w == b"Exif\0\0"),
         "{label}: đầu ra còn EXIF"
     );
+    if !samples {
+        return;
+    }
     let rgba = decoded.to_rgba8();
     for s in want["samples"].as_array().unwrap() {
         let (x, y) = (s["x"].as_u64().unwrap() as u32, s["y"].as_u64().unwrap() as u32);
@@ -80,10 +88,25 @@ fn muoi_anh_mau_khop_ban_node() {
         let file = c["file"].as_str().unwrap();
         let bytes = std::fs::read(dir.join(file)).unwrap();
         check(&avatar_jpeg(&bytes).unwrap(), &c["avatar"], &format!("{file} avatar"));
-        check(
+        // Bảng tin nay thu về tối đa UPLOAD_MAX_PX (1600) thay vì 1920 của bản Node: kích thước tính lại từ kích thước
+        // bản Node (cạnh dài 1920 ⇒ 1600); ảnh vốn ≤ 1600 thì vẫn so cả màu như cũ.
+        let mut want = c["newsfeed"].clone();
+        let (w, h) = (
+            want["width"].as_u64().unwrap() as u32,
+            want["height"].as_u64().unwrap() as u32,
+        );
+        let scaled = w.max(h) > UPLOAD_MAX_PX;
+        if scaled {
+            let src = trinity_docgen::image::decode(&bytes).unwrap();
+            let (nw, nh) = fit_inside(src.width(), src.height(), UPLOAD_MAX_PX);
+            want["width"] = nw.into();
+            want["height"] = nh.into();
+        }
+        check_with(
             &newsfeed_webp(&bytes).unwrap(),
-            &c["newsfeed"],
+            &want,
             &format!("{file} bảng tin"),
+            !scaled,
         );
     }
 }

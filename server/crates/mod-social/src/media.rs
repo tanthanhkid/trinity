@@ -24,10 +24,11 @@ use mod_facebook::graph::utf16_prefix;
 use mod_facebook::state::jwt_secret;
 use serde::Serialize;
 use sqlx::PgConnection;
-use tokio::io::{AsyncRead, ReadBuf};
+use tokio::io::{AsyncRead, AsyncReadExt, ReadBuf};
 use trinity_db::pg_error::app_error;
 use trinity_db::types::Timestamp;
 use trinity_db::{CompanyRef, Db, TenantConn};
+use trinity_docgen::image::{UploadFormat, compress_upload};
 use trinity_http::outbound::safe_get::{SafeGetOptions, safe_get_media};
 use trinity_kernel::error::{AppError, HttpError};
 use trinity_storage::{LocalDiskDriver, S3Driver, StorageError};
@@ -576,6 +577,22 @@ pub struct MediaCtx<'a> {
     pub now_ms: i64,
 }
 
+/// Nén ảnh thư viện media: ảnh này được đăng lên Facebook/Zalo nên bắt buộc JPEG/PNG ⇒ JPEG q75 (cạnh dài ≤ 1600, bỏ EXIF,
+/// PNG trong suốt trải nền trắng), KHÔNG dùng WebP. GIF/ảnh lạ/bản nén không nhỏ hơn ⇒ giữ nguyên byte và đuôi gốc. Trả
+/// (byte, đuôi có dấu chấm, content-type).
+async fn compress_social_image(
+    body: Vec<u8>,
+    ext: &str,
+    content_type: &'static str,
+) -> (Vec<u8>, String, &'static str) {
+    let src = Bytes::from(body);
+    let work = src.clone();
+    match tokio::task::spawn_blocking(move || compress_upload(&work, UploadFormat::Jpeg)).await {
+        Ok(c) if c.recompressed => (c.bytes, format!(".{}", c.ext), c.content_type),
+        _ => (src.to_vec(), ext.to_owned(), content_type),
+    }
+}
+
 /// `POST /social/media` (multipart, trường `file`): `reader` là luồng của trường tệp; thiếu tệp thì route đã trả 400
 /// "Thiếu tệp". Trả `SocialMedia` (không có tên), đã ghi vào thư viện với `source = 'web'`.
 pub async fn upload_stream<R>(c: &MediaCtx<'_>, file_name: &str, reader: R) -> Result<SocialMedia, AppError>
@@ -583,6 +600,31 @@ where
     R: AsyncRead + Unpin + Send,
 {
     let k = kind_of(file_name, max_video_bytes(c.env))?;
+    if k.kind == "image" {
+        // Ảnh ≤ 10 MB: đọc vào RAM để nén rồi mới lưu (video vẫn đi thẳng từ luồng xuống kho).
+        let (mut limited, _, exceeded) = LimitReader::new(reader, k.max);
+        let mut raw = Vec::new();
+        let read = limited.read_to_end(&mut raw).await;
+        if exceeded.load(Ordering::Relaxed) {
+            return Err(HttpError::payload_too_large(too_large(k.max)).into());
+        }
+        read.map_err(AppError::internal)?;
+        let (data, ext, content_type) = compress_social_image(raw, &k.ext, k.content_type).await;
+        let key = new_key(c.user_id, &ext, c.now_ms);
+        c.store
+            .put_bytes(&key, &data, content_type)
+            .await
+            .map_err(AppError::internal)?;
+        let m = SocialMedia {
+            key: key.clone(),
+            r#type: k.kind.to_owned(),
+            content_type: content_type.to_owned(),
+            size: data.len() as u64,
+        };
+        let name = display_name(Some(file_name), &key);
+        record_new(c, &m, &name, "web").await?;
+        return Ok(m);
+    }
     let key = new_key(c.user_id, &k.ext, c.now_ms);
     let (mut limited, count, exceeded) = LimitReader::new(reader, k.max);
     let put = c.store.put_reader(&key, &mut limited, k.content_type).await;
@@ -730,16 +772,21 @@ async fn store_bytes(c: &MediaCtx<'_>, body: &[u8], ext: &str, name: &str) -> Re
     if body.len() as u64 > max {
         return Err(HttpError::bad_request(too_large(max)).into());
     }
-    let key = new_key(c.user_id, &k.ext, c.now_ms);
+    let (data, ext, content_type) = if k.kind == "image" {
+        compress_social_image(body.to_vec(), &k.ext, k.content_type).await
+    } else {
+        (body.to_vec(), k.ext.clone(), k.content_type)
+    };
+    let key = new_key(c.user_id, &ext, c.now_ms);
     c.store
-        .put_bytes(&key, body, k.content_type)
+        .put_bytes(&key, &data, content_type)
         .await
         .map_err(AppError::internal)?;
     let m = SocialMedia {
         key,
         r#type: k.kind.to_owned(),
-        content_type: k.content_type.to_owned(),
-        size: body.len() as u64,
+        content_type: content_type.to_owned(),
+        size: data.len() as u64,
     };
     record_new(c, &m, name, "mcp").await
 }

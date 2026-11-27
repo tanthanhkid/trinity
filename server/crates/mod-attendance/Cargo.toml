@@ -21,6 +21,7 @@ sqlx = { workspace = true }
 tracing = { workspace = true }
 trinity-db = { workspace = true }
 trinity-docgen = { workspace = true }
+tokio = { workspace = true, features = ["rt"] }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-rbac = { workspace = true }

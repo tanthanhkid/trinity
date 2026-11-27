@@ -27,7 +27,7 @@ pub fn routes() -> Vec<RouteSpec> {
         r(Method::POST, "/api/v1/social/media", post, 201),
         r(Method::GET, "/api/v1/social/media/:id/file", post, 200).param_pipes(ID),
         r(Method::POST, "/api/v1/social/media/:id/hide", post, 200).param_pipes(ID),
-        RouteSpec::new(Method::GET, "/api/v1/social/media-link/:token/:name", Access::Public),
+        RouteSpec::new(Method::GET, "/api/v1/social/media-link/:token/:name", Access::Public).status_ok(200),
     ]
 }
 
@@ -37,14 +37,12 @@ pub fn routes() -> Vec<RouteSpec> {
 /// cho chúng (X15a chỉ làm tầng nghiệp vụ; không có router social nào trên `main` để gắn handler).
 pub fn upload_routes() -> Vec<RouteSpec> {
     let post = Access::Can(&["social.post"]);
-    let r = |m: Method, p: &'static str, ok: u16| {
-        RouteSpec::new(m, p, post).status_ok(ok).org_feature("social_posting")
-    };
+    let r =
+        |m: Method, p: &'static str, ok: u16| RouteSpec::new(m, p, post).status_ok(ok).org_feature("social_posting");
     vec![
         r(Method::POST, "/api/v1/social/media/uploads", 201),
         r(Method::GET, "/api/v1/social/media/uploads/:id", 200),
-        r(Method::PUT, "/api/v1/social/media/uploads/:id/parts/:index", 200)
-            .param_pipes(&["param.index:ParseIntPipe"]),
+        r(Method::PUT, "/api/v1/social/media/uploads/:id/parts/:index", 200).param_pipes(&["param.index:ParseIntPipe"]),
         r(Method::POST, "/api/v1/social/media/uploads/:id/complete", 201),
         r(Method::DELETE, "/api/v1/social/media/uploads/:id", 204),
     ]

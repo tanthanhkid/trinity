@@ -62,7 +62,10 @@ impl InitBody {
         // `@IsInt`: số nguyên (5.0 của JS cũng tính), `null`/chuỗi/số lẻ ⇒ lỗi; ngoài int4 ⇒ lỗi.
         let size = o
             .and_then(|o| o.get("size"))
-            .and_then(|n| n.as_i64().or_else(|| n.as_f64().filter(|f| f.fract() == 0.0).map(|f| f as i64)))
+            .and_then(|n| {
+                n.as_i64()
+                    .or_else(|| n.as_f64().filter(|f| f.fract() == 0.0).map(|f| f as i64))
+            })
             .filter(|n| (1..=i64::from(i32::MAX)).contains(n))
             .and_then(|n| u64::try_from(n).ok());
         if size.is_none() {
@@ -160,12 +163,7 @@ async fn read_meta(store: &MediaStore, id: &str) -> Result<Option<Session>, AppE
         Err(StorageError::NotFound(_)) => return Ok(None),
         Err(e) => return Err(AppError::internal(e)),
     };
-    let raw: Vec<Bytes> = f
-        .body
-        .into_stream()
-        .try_collect()
-        .await
-        .map_err(AppError::internal)?;
+    let raw: Vec<Bytes> = f.body.into_stream().try_collect().await.map_err(AppError::internal)?;
     let raw = raw.concat();
     serde_json::from_slice(&raw).map(Some).map_err(AppError::internal)
 }
@@ -423,7 +421,10 @@ mod tests {
             total: 3,
             expires_ms: 0,
         };
-        assert_eq!((s.part_len(0), s.part_len(1), s.part_len(2)), (PART_BYTES, PART_BYTES, 5));
+        assert_eq!(
+            (s.part_len(0), s.part_len(1), s.part_len(2)),
+            (PART_BYTES, PART_BYTES, 5)
+        );
         let one = Session {
             size: PART_BYTES,
             total: 1,
@@ -443,6 +444,6 @@ mod tests {
     #[test]
     fn so_phan_200mb() {
         assert_eq!((200 * 1024 * 1024_u64).div_ceil(PART_BYTES), 13);
-        assert!(MAX_PART_BYTES < 100 * 1024 * 1024 && PART_BYTES <= MAX_PART_BYTES);
+        const _: () = assert!(MAX_PART_BYTES < 100 * 1024 * 1024 && PART_BYTES <= MAX_PART_BYTES);
     }
 }

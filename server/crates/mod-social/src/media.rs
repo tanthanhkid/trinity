@@ -337,6 +337,7 @@ impl<R: AsyncRead + Unpin> AsyncRead for LimitReader<R> {
             let total = self.count.fetch_add(n, Ordering::Relaxed) + n;
             if total > self.max {
                 self.exceeded.store(true, Ordering::Relaxed);
+                buf.set_filled(before);
                 return Poll::Ready(Err(std::io::Error::other("vượt trần kích thước")));
             }
         }
@@ -603,7 +604,12 @@ where
 }
 
 /// Ghi vào thư viện bằng một kết nối riêng; lỗi thì xoá tệp vừa đưa lên kho.
-pub(crate) async fn record_new(c: &MediaCtx<'_>, m: &SocialMedia, name: &str, source: &str) -> Result<LibraryItem, AppError> {
+pub(crate) async fn record_new(
+    c: &MediaCtx<'_>,
+    m: &SocialMedia,
+    name: &str,
+    source: &str,
+) -> Result<LibraryItem, AppError> {
     let rec = async {
         let mut conn = acquire(c.db, c.company).await?;
         record(&mut conn, c.user_id, m, name, source).await

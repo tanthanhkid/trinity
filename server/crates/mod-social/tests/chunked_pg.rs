@@ -77,7 +77,10 @@ async fn tai_video_theo_phan() {
     let dir = |id: &str| root.join("social/chunks").join(id);
 
     // Khai phiên: ảnh ⇒ 400, quá 200 MB ⇒ 413.
-    assert_eq!(status(chunked::init(&me, &body("x15a.png", 10)).await.unwrap_err()).0, 400);
+    assert_eq!(
+        status(chunked::init(&me, &body("x15a.png", 10)).await.unwrap_err()).0,
+        400
+    );
     let (s, msg) = status(
         chunked::init(&me, &body("x15a.mp4", 200 * 1024 * 1024 + 1))
             .await
@@ -116,7 +119,10 @@ async fn tai_video_theo_phan() {
     chunked::put_part(&me, id, 1, &[9_u8; 5][..]).await.unwrap();
     assert_eq!(status_of(&me, id).await, vec![0, 1]);
     let m = chunked::complete(&me, id).await.unwrap();
-    assert_eq!((m.r#type.as_str(), m.content_type.as_str(), m.size), ("video", "video/mp4", total));
+    assert_eq!(
+        (m.r#type.as_str(), m.content_type.as_str(), m.size),
+        ("video", "video/mp4", total)
+    );
     assert_eq!(store.size_of(&m.key).await.unwrap(), total);
     assert!(!dir(id).exists(), "ghép xong thì xoá phiên");
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();

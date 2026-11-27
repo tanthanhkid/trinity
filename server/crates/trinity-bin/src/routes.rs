@@ -22,6 +22,7 @@ pub fn declared_routes() -> Vec<RouteSpec> {
     v.extend(mod_auth::specs());
     v.extend(mod_apikeys::routes::routes());
     v.extend(mod_leads::routes::routes());
+    v.extend(mod_briefings::routes::specs());
     v.extend(mod_facebook::routes::routes());
     v.extend(mod_social::routes::routes());
     v.extend(mod_social::routes::upload_routes());

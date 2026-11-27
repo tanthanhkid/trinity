@@ -483,6 +483,12 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             multi_tenant: platform.multi_tenant(),
         }),
     );
+    // Bản tin sáng/chiều (M23): route `preview`/`run-now` khai `org_feature = ai_briefing` (OrgGate trong `deps`).
+    app = mount(
+        app,
+        mod_briefings::routes::api_router(deps.clone()),
+        Arc::new(mod_briefings::routes::Ctx { db: db.clone() }),
+    );
     // Payroll: socket `/notif-ws` dựng sau cùng nên điền vào `payroll_socket` ở bước realtime bên dưới.
     let payroll_socket = Arc::new(std::sync::OnceLock::new());
     app = mount(
@@ -562,6 +568,20 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     let mut worker = trinity_jobs::Worker::new(&queue, trinity_jobs::WorkerConfig::default());
     // X15b: xuất tệp dài chạy nền (`/api/v1/exports`, loại việc `export.run`). Bảng sở hữu cần tiền tố này thuộc Rust.
     mod_exports::worker::register(&mut worker, &db);
+    // M23: job `briefings.run-due` (mỗi phút), chỉ đăng ký khi `BRIEFING_CRON_ENABLED=true`; `Ports` dựng theo từng công ty.
+    {
+        let multi_tenant = db.multi_tenant();
+        match mod_briefings::job::register_if_enabled(
+            &scheduler,
+            &db,
+            move |company| mod_briefings::ports::RbacPorts::new(company, multi_tenant),
+            lookup,
+        ) {
+            Ok(true) => tracing::info!("đã đăng ký job {}", mod_briefings::job::JOB_NAME),
+            Ok(false) => {}
+            Err(e) => tracing::warn!("không đăng ký được job {}: {e}", mod_briefings::job::JOB_NAME),
+        }
+    }
     app = mount(
         app,
         mod_exports::routes::api_router(deps.clone()),

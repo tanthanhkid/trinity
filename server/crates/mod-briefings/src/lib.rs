@@ -1,8 +1,8 @@
 //! Bản tin sáng chiều (M23): 6 endpoint và job `briefings.run-due`.
 //!
-//! Chuyển từ `services/crm/src/briefings`. Router HTTP chưa có (K12 trở đi), nên crate này là lớp logic: mỗi hàm ở
-//! [`service`] ứng với một endpoint, nhận [`trinity_db::TenantDb`] của công ty. Phần RBAC (người nhận, phạm vi `reports.overview`,
-//! cờ `ai_briefing`) đi qua trait [`Ports`] vì `trinity-rbac` chưa có; thông báo trong app đi qua cổng K36
+//! Chuyển từ `services/crm/src/briefings`. Mỗi hàm ở [`service`] ứng với một endpoint, nhận [`trinity_db::TenantDb`] của
+//! công ty; bảng route và router axum ở [`routes`]. Phần RBAC (người nhận, phạm vi `reports.overview`, cờ `ai_briefing`)
+//! đi qua trait [`Ports`], cài thật ở [`ports::RbacPorts`] (chạy trên kết nối bên gọi đưa vào); thông báo trong app đi qua cổng K36
 //! (`trinity_db::outbox`); job đăng ký với scheduler K20 ([`job`]), chỉ chạy khi bật `BRIEFING_CRON_ENABLED=true`.
 //!
 //! | Endpoint | Hàm |
@@ -19,6 +19,8 @@
 pub mod aggregate;
 pub mod config;
 pub mod job;
+pub mod ports;
+pub mod routes;
 pub mod service;
 pub mod text;
 pub mod time;

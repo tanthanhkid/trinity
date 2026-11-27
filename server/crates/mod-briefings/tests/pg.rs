@@ -56,6 +56,21 @@ impl Ports for TestPorts {
     }
 }
 
+/// Chia sẻ một `TestPorts` cho mọi công ty của job (job dựng `Ports` mới mỗi lượt).
+struct Shared(Arc<TestPorts>);
+
+impl Ports for Shared {
+    async fn feature_on(&self, conn: &mut PgConnection) -> bool {
+        self.0.feature_on(conn).await
+    }
+    async fn recipients(&self, conn: &mut PgConnection) -> Vec<i32> {
+        self.0.recipients(conn).await
+    }
+    async fn owners_for(&self, conn: &mut PgConnection, user_id: i32, email: &str) -> Option<Owners> {
+        self.0.owners_for(conn, user_id, email).await
+    }
+}
+
 async fn exec(c: &mut PgConnection, sql: &str) {
     sqlx::query(sqlx::AssertSqlSafe(sql))
         .execute(&mut *c)
@@ -538,7 +553,8 @@ async fn job_chay_khi_bat_cong_tac_va_den_gio() {
     assert!(runs.is_empty());
 
     // Hàm job do scheduler gọi cho từng công ty: chạy được và không lỗi.
-    let spec = mod_briefings::job::job_spec(db.clone(), ports).unwrap();
+    let shared = Arc::clone(&ports);
+    let spec = mod_briefings::job::job_spec(db.clone(), move |_| Shared(Arc::clone(&shared))).unwrap();
     assert_eq!(spec.name, "briefings.run-due");
     (spec.run)(CompanyRef::new(1).unwrap()).await.unwrap();
 }
@@ -621,6 +637,47 @@ async fn danh_sach_nguoi_nhan_theo_quyen() {
         [1, 2],
         "quản trị luôn có; vai trò có quyền; không có quyền thì không; người bị khoá thì không"
     );
+}
+
+#[tokio::test]
+#[ignore = "cần TEST_DATABASE_URL"]
+async fn rbac_ports_pham_vi_theo_vai_tro_tren_mot_ket_noi() {
+    use mod_briefings::ports::RbacPorts;
+    let (_db, t) = setup().await;
+    let mut c = t.acquire().await.unwrap();
+    exec(&mut c, "INSERT INTO roles (id, name, is_system) VALUES (1, 'Quản trị', true), (2, 'Nhóm', false), (3, 'Cây', false), (4, 'Khác', false)").await;
+    exec(
+        &mut c,
+        "INSERT INTO role_permissions (role_id, permission, scope) VALUES (2, 'reports.overview', 'team'), (3, 'reports.overview', 'subtree'), (4, 'contacts.view', 'all')",
+    )
+    .await;
+    // 2 quản lý 3; 3 quản lý 4. Người 1 quản trị, 2 vai Nhóm, 3 vai Cây, 4 không có quyền xem báo cáo.
+    exec(&mut c, "UPDATE users SET manager_id = 2 WHERE id = 3").await;
+    exec(&mut c, "UPDATE users SET manager_id = 3 WHERE id = 4").await;
+    exec(
+        &mut c,
+        "INSERT INTO user_roles (user_id, role_id) VALUES (1, 1), (2, 2), (3, 3), (4, 4)",
+    )
+    .await;
+    let ports = RbacPorts::new(CompanyRef::new(1).unwrap(), false);
+    let sorted = |o: Option<Owners>| match o {
+        Some(Owners::Users(mut v)) => {
+            v.sort_unstable();
+            Some(Owners::Users(v))
+        }
+        other => other,
+    };
+    assert_eq!(ports.owners_for(&mut c, 1, "u1@example.com").await, Some(Owners::All));
+    assert_eq!(
+        sorted(ports.owners_for(&mut c, 2, "u2@example.com").await),
+        Some(Owners::Users(vec![2, 3]))
+    );
+    assert_eq!(
+        sorted(ports.owners_for(&mut c, 3, "u3@example.com").await),
+        Some(Owners::Users(vec![3, 4]))
+    );
+    assert_eq!(ports.owners_for(&mut c, 4, "u4@example.com").await, None);
+    assert_eq!(ports.recipients(&mut c).await, [1, 2, 3]);
 }
 
 async fn small_pool_db() -> (Db, TenantDb) {

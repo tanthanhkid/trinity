@@ -11,6 +11,7 @@ pub fn declared_routes() -> Vec<RouteSpec> {
     let mut v = Vec::new();
     v.extend(mod_system::routes());
     v.extend(mod_users::specs());
+    v.extend(mod_kanban::routes::routes());
     v
 }
 

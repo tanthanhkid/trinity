@@ -2118,12 +2118,16 @@ dependencies = [
 name = "mod-kanban"
 version = "0.3.0"
 dependencies = [
+ "chrono",
+ "http",
  "serde",
  "serde_json",
  "sqlx",
  "tokio",
  "trinity-db",
+ "trinity-http",
  "trinity-kernel",
+ "trinity-rbac",
  "uuid",
 ]
 
@@ -4246,6 +4250,7 @@ dependencies = [
  "base64 0.23.1",
  "clap",
  "getrandom 0.4.3",
+ "mod-kanban",
  "mod-system",
  "mod-users",
  "serde_json",

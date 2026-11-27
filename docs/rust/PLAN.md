@@ -2064,5 +2064,6 @@ Không có tệp sở hữu, `TRINITY_RUST_ROUTES` và `NODE_FALLBACK_URL`: Rust
 và phần không thuộc Rust đi Node. Scheduler và worker hàng đợi chạy nền (chưa module nào đăng ký job; tự tắt khi bật `test-hooks`, K34); với
 `--features test-hooks` mount `/api/v1/internal/test/*`. Tắt êm khi Ctrl+C/SIGTERM (30 giây). `trinity healthcheck` gọi `GET /api/v1/health` loopback.
 **Đã mount thêm:** settings (12 route, `PlanTokenGuard` đọc `TRINITY_PLAN_ADMIN_TOKEN`), rbac-admin (9 route; `PUT /users/:id/roles` do users giữ), notify (4 route `/notifications`, chuông qua `RealtimeSink`).
-**Chưa làm:** mount deals, kanban, facebook, store, commerce, newsfeed (upload/media), notify `/templates` `/events`, apikeys, auth
+**Chưa làm:** mount deals, kanban, store, commerce, newsfeed (upload/media), notify `/templates` `/events`, apikeys, auth
 (chưa có router axum hoặc chưa nối trạng thái); đăng ký job nền của từng module; log từng request;.
+**Router kênh (đã làm):** `mod-facebook::routes::api_router` (9 route: status, connect-url, pages, PATCH/check/DELETE page, callback OAuth 302, webhook GET/POST; thân thô cho chữ ký, xử lý bằng `FacebookIngest` M47b) và `mod-zalo::routes::api_router` (11 route; webhook đọc `Bytes`). Dùng chung `ChannelGuard` với router kênh; URL Graph/Zalo từ env (G15). `OrgFeatureGate` thật đọc cờ gói từ `mod-settings` (fail-open).

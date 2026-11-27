@@ -319,6 +319,13 @@ async fn team() {
         ("A".to_owned(), 2)
     );
     assert_eq!(teams::parse_create(&json!({"name": 1})).unwrap_err().status(), 400);
+    // Tên thiếu hoặc người dẫn đầu ngoài i32 ⇒ 400 kèm câu như class-validator.
+    let body = |v: Value| serde_json::to_string(&teams::parse_create(&v).unwrap_err().body()).unwrap();
+    assert!(body(json!({"leadUserId": 2})).contains("name must be a string"));
+    assert!(
+        body(json!({"name": "A", "leadUserId": 3_000_000_000_i64})).contains("leadUserId must be an integer number")
+    );
+    assert!(body(json!({"name": "A"})).contains("leadUserId must be an integer number"));
 }
 
 #[tokio::test]
@@ -355,4 +362,37 @@ async fn kiem_dau_vao_nhu_class_validator() {
             .expires_at
             .is_none()
     );
+    // `@IsDateString` cho qua mọi dạng ISO mà `new Date()` đọc được: năm, năm-tháng, dấu cách, múi giờ +0700.
+    for exp in [
+        "2027",
+        "2027-06",
+        "2027-01-01 10:30",
+        "2027-01-01T10:30:15.123+0700",
+        "2027-01-01T10:30:15+07:00",
+    ] {
+        let k = validate_create(&json!({"name": "a", "scopes": ["auth:login"], "owner_user_id": 1, "expires_at": exp}))
+            .unwrap_or_else(|e| panic!("{exp}: {e:?}"));
+        assert!(k.expires_at.is_some(), "{exp}");
+    }
+    let k = validate_create(
+        &json!({"name": "a", "scopes": ["auth:login"], "owner_user_id": 1, "expires_at": "2027-01-01T10:30:00+0700"}),
+    )
+    .unwrap();
+    assert_eq!(k.expires_at.unwrap().to_rfc3339(), "2027-01-01T03:30:00+00:00");
+    // owner_user_id qua `@Type(() => Number)` như Node: chuỗi hex, boolean; ngoài i32 hoặc null thì 400.
+    let owner = |v: Value| {
+        validate_create(&json!({"name": "a", "scopes": ["auth:login"], "owner_user_id": v}))
+            .map(|k| k.owner_user_id)
+            .ok()
+    };
+    assert_eq!(owner(json!(" 12 ")), Some(12));
+    assert_eq!(owner(json!("0x10")), Some(16));
+    assert_eq!(owner(json!(7.0)), Some(7));
+    assert_eq!(owner(json!(true)), Some(1));
+    assert_eq!(owner(json!("")), Some(0));
+    assert_eq!(owner(json!(3_000_000_000_i64)), None);
+    assert_eq!(owner(json!("1e10")), None);
+    assert_eq!(owner(json!("1.5")), None);
+    assert_eq!(owner(json!(null)), None);
+    assert_eq!(owner(json!([5])), None);
 }

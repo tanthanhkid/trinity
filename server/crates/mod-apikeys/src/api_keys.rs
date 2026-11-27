@@ -3,7 +3,7 @@
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -13,6 +13,7 @@ use trinity_db::platform::Platform;
 use trinity_db::types::Timestamp;
 use trinity_db::{CompanyRef, Db};
 use trinity_kernel::error::{AppError, HttpError};
+use trinity_kernel::instant::parse_instant_with;
 use trinity_rbac::{PermissionService, can};
 
 use crate::company_token::{company_id_of_token, company_token_prefix, with_company_prefix};
@@ -59,20 +60,43 @@ pub struct CreateApiKey {
     pub expires_at: Option<DateTime<Utc>>,
 }
 
-/// ISO 8601 như `@IsDateString`: RFC 3339, ngày `YYYY-MM-DD`, hoặc ngày giờ không múi giờ (coi là UTC).
+/// `new Date(str)` cho mọi dạng `@IsDateString` cho qua mà V8 đọc được (`YYYY`, `YYYY-MM`, `YYYY-MM-DD`, `T` hoặc dấu cách rồi
+/// giờ, múi giờ `Z`/`±hh:mm`/`±hhmm`). Không múi giờ = giờ máy chủ (UTC ở bản cài đặt này).
 fn parse_iso(s: &str) -> Option<DateTime<Utc>> {
-    if let Ok(d) = DateTime::parse_from_rfc3339(s) {
-        return Some(d.with_timezone(&Utc));
+    parse_instant_with(s, 0)
+}
+
+/// `Number(chuỗi)` của JS: rỗng là 0; `0x`/`0o`/`0b` là số nguyên hệ 16/8/2 (không dấu); còn lại là số thập phân.
+fn js_number(t: &str) -> Option<f64> {
+    if t.is_empty() {
+        return Some(0.0);
     }
-    if let Ok(d) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
-        return d.and_hms_opt(0, 0, 0).map(|n| n.and_utc());
+    let radix = match t.get(..2) {
+        Some("0x" | "0X") => 16,
+        Some("0o" | "0O") => 8,
+        Some("0b" | "0B") => 2,
+        _ => return t.parse().ok(),
+    };
+    let digits = &t[2..];
+    if digits.starts_with('+') {
+        return None;
     }
-    for f in ["%Y-%m-%dT%H:%M:%S%.f", "%Y-%m-%dT%H:%M"] {
-        if let Ok(n) = NaiveDateTime::parse_from_str(s, f) {
-            return Some(n.and_utc());
-        }
+    u64::from_str_radix(digits, radix).ok().map(|n| n as f64)
+}
+
+/// `@Type(() => Number)` rồi `@IsInt`: số, chuỗi số (như `Number()`), `true`/`false` thành 1/0; còn lại (null, mảng, object) không
+/// phải số nguyên. Ngoài i32 ⇒ `None` (400), không cắt.
+fn coerce_owner_id(v: &Value) -> Option<i32> {
+    let f = match v {
+        Value::Number(n) => n.as_f64()?,
+        Value::String(s) => js_number(s.trim())?,
+        Value::Bool(b) => f64::from(u8::from(*b)),
+        _ => return None,
+    };
+    if !f.is_finite() || f.fract() != 0.0 || f.abs() > f64::from(i32::MAX) {
+        return None;
     }
-    None
+    i32::try_from(f as i64).ok()
 }
 
 /// Kiểm thân request đúng câu của class-validator. Thông báo xếp theo thứ tự đăng ký ngược của decorator.
@@ -115,19 +139,7 @@ pub fn validate_create(body: &Value) -> Result<CreateApiKey, HttpError> {
         }
     }
     // `@Type(() => Number)`: chuỗi số cũng nhận.
-    let owner = body.get("owner_user_id").and_then(|v| match v {
-        Value::Number(n) => n
-            .as_i64()
-            .or_else(|| n.as_f64().filter(|f| f.fract() == 0.0).map(|f| f as i64)),
-        Value::String(s) => s
-            .trim()
-            .parse::<f64>()
-            .ok()
-            .filter(|f| f.is_finite() && f.fract() == 0.0)
-            .map(|f| f as i64),
-        _ => None,
-    });
-    let owner = owner.and_then(|n| i32::try_from(n).ok());
+    let owner = body.get("owner_user_id").and_then(coerce_owner_id);
     if owner.is_none() {
         errors.push("owner_user_id phải là số nguyên".to_owned());
     }
@@ -236,12 +248,13 @@ pub fn hash_key(plain: &str) -> String {
         .collect()
 }
 
-fn generate_plain_key(company_id: i32) -> String {
-    let (a, b) = (uuid::Uuid::new_v4(), uuid::Uuid::new_v4());
+fn generate_plain_key(company_id: i32) -> Result<String, AppError> {
     let mut bytes = [0u8; RANDOM_BYTES];
-    bytes[..16].copy_from_slice(a.as_bytes());
-    bytes[16..].copy_from_slice(&b.as_bytes()[..RANDOM_BYTES - 16]);
-    with_company_prefix(&format!("{KEY_PREFIX}{}", URL_SAFE_NO_PAD.encode(bytes)), company_id)
+    getrandom::fill(&mut bytes).map_err(|e| AppError::internal(e.to_string()))?;
+    Ok(with_company_prefix(
+        &format!("{KEY_PREFIX}{}", URL_SAFE_NO_PAD.encode(bytes)),
+        company_id,
+    ))
 }
 
 /// `[c5.]trinity_live_XXXXXX`: tiền tố công ty + `KEY_PREFIX` + 6 ký tự đầu của phần ngẫu nhiên.
@@ -310,7 +323,7 @@ pub async fn create(
     created_by: i32,
 ) -> Result<Created, AppError> {
     assert_owner(conn, ctx, input.owner_user_id, &input.scopes).await?;
-    let plain = generate_plain_key(ctx.company.id());
+    let plain = generate_plain_key(ctx.company.id())?;
     let row = sqlx::query(concat!(
         "INSERT INTO api_keys (name, prefix, key_hash, scopes, owner_user_id, created_by, expires_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, now()) RETURNING ",
@@ -377,17 +390,19 @@ pub async fn rotate(conn: &mut PgConnection, ctx: &Ctx<'_>, id: i32, rotated_by:
         Some(None) => {}
     }
     // Khoá mới mang tiền tố công ty của người xoay (cùng công ty với khoá, vì dòng nằm trong schema công ty này).
-    let plain = generate_plain_key(ctx.company.id());
+    let plain = generate_plain_key(ctx.company.id())?;
+    // `revoked_at IS NULL` trong chính câu UPDATE: khoá vừa bị thu hồi giữa lúc kiểm và lúc xoay không được sống lại.
     let row = sqlx::query(concat!(
-        "UPDATE api_keys SET prefix = $2, key_hash = $3, updated_at = now() WHERE id = $1 RETURNING ",
+        "UPDATE api_keys SET prefix = $2, key_hash = $3, updated_at = now() WHERE id = $1 AND revoked_at IS NULL RETURNING ",
         key_cols!()
     ))
     .bind(id)
     .bind(extract_prefix(&plain))
     .bind(hash_key(&plain))
-    .fetch_one(conn)
+    .fetch_optional(conn)
     .await
-    .map_err(db)?;
+    .map_err(db)?
+    .ok_or_else(|| bad_request("Khoá đã bị thu hồi, không xoay được"))?;
     tracing::info!("ApiKey rotated id={id} by user {rotated_by}");
     Ok(Rotated {
         key: view(&row),
@@ -408,11 +423,13 @@ pub async fn revoke(conn: &mut PgConnection, id: i32, revoked_by: i32) -> Result
             message: "Khoá đã bị thu hồi trước đó",
         }),
         Some(None) => {
-            sqlx::query("UPDATE api_keys SET revoked_at = now(), updated_at = now() WHERE id = $1")
-                .bind(id)
-                .execute(conn)
-                .await
-                .map_err(db)?;
+            sqlx::query(
+                "UPDATE api_keys SET revoked_at = now(), updated_at = now() WHERE id = $1 AND revoked_at IS NULL",
+            )
+            .bind(id)
+            .execute(conn)
+            .await
+            .map_err(db)?;
             tracing::info!("ApiKey revoked id={id} by user {revoked_by}");
             Ok(Message {
                 message: "Đã thu hồi khoá",
@@ -468,7 +485,7 @@ pub async fn validate(
     tokio::spawn(async move {
         let res = async {
             let mut c = tenant.acquire().await.map_err(|e| e.to_string())?;
-            sqlx::query("UPDATE api_keys SET last_used_at = now(), last_used_ip = $2 WHERE id = $1")
+            sqlx::query("UPDATE api_keys SET last_used_at = now(), last_used_ip = $2, updated_at = now() WHERE id = $1")
                 .bind(id)
                 .bind(ip)
                 .execute(&mut *c)

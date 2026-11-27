@@ -127,5 +127,50 @@
         302
       ]
     }
+  },
+  "sales-payroll": {
+    "controllers": [
+      "ProductsController",
+      "ProductCategoriesController",
+      "ProductAttributeDefsController",
+      "ProjectsController",
+      "PosCatalogController",
+      "PosLayoutController",
+      "PosOrdersController",
+      "PosShiftsController",
+      "StoreController",
+      "PayslipsController",
+      "KpiController",
+      "InsuranceSettingsController",
+      "SalaryComponentsController",
+      "SalaryRulesController",
+      "TaxConfigController",
+      "EmployeesController",
+      "NotificationsController"
+    ],
+    "prefixes": [
+      "/products",
+      "/product-categories",
+      "/product-attribute-defs",
+      "/projects",
+      "/pos",
+      "/store",
+      "/payslips",
+      "/kpi",
+      "/insurance-settings",
+      "/salary-components",
+      "/salary-rules",
+      "/tax-config",
+      "/employees",
+      "/notifications"
+    ],
+    "waivers": {
+      "GET /product-categories/:categoryId/attribute-defs": {
+        "missing": "danh mục không có vẫn trả 200 với danh sách rỗng (không có nhánh 404)"
+      },
+      "POST /product-categories/:categoryId/attribute-defs": {
+        "missing": "danh mục không tồn tại trả 400 (\"Danh mục … không tồn tại\"), đã phủ ở loại invalid; không có nhánh 404"
+      }
+    }
   }
 }

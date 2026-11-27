@@ -6,6 +6,7 @@ pub mod actors;
 pub mod deliveries;
 pub mod dispatcher;
 pub mod endpoints;
+pub mod inbound;
 pub mod payload;
 pub mod retry;
 pub mod secret;

@@ -337,12 +337,36 @@ pub async fn create(db_: &TenantDb, scopes: &Scopes, actor: &Actor, dto: &Create
                 .map_or_else(|| "/contacts".to_owned(), |c| format!("/contacts/{c}")),
         ),
     };
-    let notifications = create_notification(&mut tx, &[item]).await.map_err(internal)?;
+    // Thông báo KHÔNG được làm hỏng việc tạo: chạy trong SAVEPOINT, lỗi thì rollback to savepoint, ghi log và không có thông báo.
+    let notifications = notify_in_savepoint(&mut tx, &item).await;
     tx.commit().await.map_err(internal)?;
     Ok(Created {
         deal: present(row, &scopes.masker()),
         notifications,
     })
+}
+
+async fn notify_in_savepoint(tx: &mut trinity_db::TenantTx, item: &NewNotification) -> Vec<CreatedNotification> {
+    if sqlx::query("SAVEPOINT deal_notify").execute(&mut **tx).await.is_err() {
+        return Vec::new();
+    }
+    match create_notification(tx, std::slice::from_ref(item)).await {
+        Ok(created) => {
+            let _ = sqlx::query("RELEASE SAVEPOINT deal_notify").execute(&mut **tx).await;
+            created
+        }
+        Err(e) => {
+            tracing::warn!(
+                "Gửi thông báo giao thương vụ cho người dùng {} lỗi: {e}",
+                item.recipient_id
+            );
+            let _ = sqlx::query("ROLLBACK TO SAVEPOINT deal_notify")
+                .execute(&mut **tx)
+                .await;
+            let _ = sqlx::query("RELEASE SAVEPOINT deal_notify").execute(&mut **tx).await;
+            Vec::new()
+        }
+    }
 }
 
 async fn snapshot(conn: &mut PgConnection, id: i32) -> Result<Value, AppError> {

@@ -15,8 +15,9 @@
 //! lấy từ `ScopeService` (K13) và trả `AppError`; bảng route ở [`routes`] được `trinity-bin` so với `routes.json` (K14).
 //!
 //! Khác bản TS có chủ đích:
-//! - thông báo "được giao thương vụ" ([`deals::Created::notifications`]) ghi trong CÙNG giao dịch tạo (K36 chạy trong
-//!   savepoint nên lỗi gửi tin không làm hỏng việc tạo); bản TS gửi sau commit. Socket nội bộ do tầng route đẩy;
+//! - thông báo "được giao thương vụ" ([`deals::Created::notifications`]) tạo trong CÙNG giao dịch tạo thương vụ nhưng trong
+//!   SAVEPOINT: lỗi tạo thông báo chỉ rollback phần thông báo (ghi log), thương vụ và sự kiện outbox vẫn commit; bản TS gửi
+//!   sau commit và nuốt lỗi. Socket nội bộ do tầng route đẩy từ danh sách trả về (rỗng khi lỗi);
 //! - công tắc tính năng của tổ chức ([`interactions::Sources`]) tính từ `OrgFeatures` do tầng route nạp (K25), không đọc
 //!   `settings` ở đây.
 

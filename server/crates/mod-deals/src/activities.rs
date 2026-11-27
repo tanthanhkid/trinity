@@ -51,13 +51,26 @@ pub struct Timeline {
     pub next_cursor: Option<i32>,
 }
 
-/// `Number(cursor)` rồi `cursor ? … : undefined`: rỗng, 0, NaN, không phải số nguyên dương ⇒ không có con trỏ.
-fn parse_cursor(raw: Option<&str>) -> Option<i32> {
-    let n: f64 = raw?.trim().parse().ok()?;
-    if n.fract() == 0.0 && n >= 1.0 && n <= f64::from(i32::MAX) {
-        Some(n as i32)
+/// Con trỏ như bản TS (`cursor ? Number(cursor) : undefined`, rồi Prisma tìm dòng có id đó).
+enum Cursor {
+    /// Rỗng, 0 hoặc không đọc được số (NaN): không có con trỏ, trang đầu.
+    None,
+    /// Số nguyên dương trong phạm vi id.
+    At(i32),
+    /// Số âm, lẻ hoặc ngoài phạm vi id: không dòng nào có id đó ⇒ trang rỗng.
+    Missing,
+}
+
+fn parse_cursor(raw: Option<&str>) -> Cursor {
+    let Some(n) = raw.and_then(|s| s.trim().parse::<f64>().ok()).filter(|n| n.is_finite()) else {
+        return Cursor::None;
+    };
+    if n == 0.0 {
+        Cursor::None
+    } else if n.fract() == 0.0 && n >= 1.0 && n <= f64::from(i32::MAX) {
+        Cursor::At(n as i32)
     } else {
-        None
+        Cursor::Missing
     }
 }
 
@@ -95,8 +108,9 @@ pub async fn find_by_contact(
 
     let take = parse_limit(limit);
     let rows: Vec<Row> = match parse_cursor(cursor) {
+        Cursor::Missing => Vec::new(),
         // Con trỏ trỏ vào dòng không tồn tại ⇒ rỗng (Prisma không tìm được điểm bắt đầu).
-        Some(c) => {
+        Cursor::At(c) => {
             let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM activities WHERE id = $1)")
                 .bind(c)
                 .fetch_one(&mut *conn)
@@ -117,7 +131,7 @@ pub async fn find_by_contact(
                 .map_err(db)?
             }
         }
-        None => sqlx::query_as(
+        Cursor::None => sqlx::query_as(
             "SELECT id, contact_id, action, details, metadata, created_by, created_at FROM activities
              WHERE contact_id = $1 ORDER BY id DESC LIMIT $2",
         )
@@ -175,11 +189,14 @@ mod tests {
 
     #[test]
     fn con_tro_va_gioi_han_nhu_js() {
-        assert_eq!(parse_cursor(None), None);
-        assert_eq!(parse_cursor(Some("")), None);
-        assert_eq!(parse_cursor(Some("0")), None);
-        assert_eq!(parse_cursor(Some("abc")), None);
-        assert_eq!(parse_cursor(Some("42")), Some(42));
+        assert!(matches!(parse_cursor(None), Cursor::None));
+        assert!(matches!(parse_cursor(Some("")), Cursor::None));
+        assert!(matches!(parse_cursor(Some("0")), Cursor::None));
+        assert!(matches!(parse_cursor(Some("abc")), Cursor::None));
+        assert!(matches!(parse_cursor(Some("42")), Cursor::At(42)));
+        assert!(matches!(parse_cursor(Some("-5")), Cursor::Missing));
+        assert!(matches!(parse_cursor(Some("2.5")), Cursor::Missing));
+        assert!(matches!(parse_cursor(Some("99999999999")), Cursor::Missing));
         assert_eq!(parse_limit(None), 20);
         assert_eq!(parse_limit(Some("abc")), 20);
         assert_eq!(parse_limit(Some("0")), 20);

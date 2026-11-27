@@ -376,7 +376,7 @@ pub async fn list(conn: &mut PgConnection, src: Sources, q: &InteractionQuery) -
             contact_id: c.contact_id,
             text: c.message.clone(),
             post_url: Some(format!("https://www.facebook.com/{}", c.post_id)),
-            rule_name: rn.map(str::to_owned),
+            rule_name: rn.filter(|n| !n.is_empty()).map(str::to_owned),
             auto_result: auto_result_line(rn, &c.status, a),
             hidden: c.hidden,
             status,

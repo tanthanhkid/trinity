@@ -732,3 +732,72 @@ async fn dong_tuong_tac_gop_thong_ke_va_chuoi_binh_luan() {
         404
     );
 }
+
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn loi_thong_bao_khong_lam_hong_viec_tao_thuong_vu_va_con_tro_am() {
+    let _s = SERIAL.lock().await;
+    let db = tenant().await;
+    let mut c = db.acquire().await.unwrap();
+    clean(&mut c).await;
+    let boss = user(&mut c, 1, "Trưởng phòng").await;
+    let a = user(&mut c, 2, "Sale An").await;
+    let ca = contact(&mut c, "0908000401", "Khách", a).await;
+    sqlx::query("DROP TRIGGER IF EXISTS m08_fail ON notification_logs")
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    sqlx::query("CREATE OR REPLACE FUNCTION m08_fail() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'm08 loi thong bao'; END $$ LANGUAGE plpgsql")
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    sqlx::query("CREATE TRIGGER m08_fail BEFORE INSERT ON notification_logs FOR EACH ROW EXECUTE FUNCTION m08_fail()")
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    let made = create(
+        &db,
+        &all(),
+        &actor(boss),
+        &dto(json!({ "title": "M08 Vẫn tạo", "assigned_to": a, "contact_id": ca })),
+    )
+    .await;
+    sqlx::query("DROP TRIGGER m08_fail ON notification_logs")
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    sqlx::query("DROP FUNCTION m08_fail()").execute(&mut *c).await.unwrap();
+    let made = made.expect("lỗi tạo thông báo không được làm hỏng việc tạo thương vụ");
+    assert!(made.notifications.is_empty());
+    let n: i64 = sqlx::query_scalar("SELECT count(*) FROM deals WHERE id = $1")
+        .bind(made.deal.id)
+        .fetch_one(&mut *c)
+        .await
+        .unwrap();
+    assert_eq!(n, 1);
+    let ev: i64 = sqlx::query_scalar("SELECT count(*) FROM integration_events WHERE resource_id = $1")
+        .bind(made.deal.id.to_string())
+        .fetch_one(&mut *c)
+        .await
+        .unwrap();
+    assert_eq!(ev, 1, "sự kiện deal.created vẫn commit");
+
+    // Con trỏ âm hoặc lẻ ⇒ trang rỗng; không đọc được số ⇒ trang đầu.
+    sqlx::query("INSERT INTO activities (contact_id, action, created_by) VALUES ($1, 'note', $2)")
+        .bind(ca)
+        .bind(a)
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    let sa = own(a);
+    for bad in ["-5", "2.5"] {
+        let t = activities::find_by_contact(&mut c, &sa, ca, Some(bad), None)
+            .await
+            .unwrap();
+        assert!(t.data.is_empty(), "{bad}");
+    }
+    let first = activities::find_by_contact(&mut c, &sa, ca, Some("abc"), None)
+        .await
+        .unwrap();
+    assert_eq!(first.data.len(), 1);
+}

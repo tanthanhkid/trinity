@@ -2150,6 +2150,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tokio",
+ "tracing",
  "trinity-db",
  "trinity-http",
  "trinity-kernel",

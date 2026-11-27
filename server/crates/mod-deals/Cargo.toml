@@ -19,6 +19,7 @@ trinity-db = { workspace = true }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-rbac = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

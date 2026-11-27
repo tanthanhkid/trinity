@@ -15,10 +15,10 @@ const DIR = join(ROOT, 'server/crates/trinity-docgen/tests/fixtures/images');
 const GOLDEN = join(ROOT, 'server/contracts/cases/images.json');
 
 /** `auth.service.ts` (avatar) và `employees.service.ts` (ảnh nhân viên). */
-const avatar = (buf: Buffer) => sharp(buf).resize(200, 200, { fit: 'cover' }).jpeg({ quality: 80 }).toBuffer();
+const avatar = (buf: Buffer) => sharp(buf).rotate().resize(200, 200, { fit: 'cover' }).jpeg({ quality: 80 }).toBuffer();
 /** `newsfeed.service.ts` (ảnh bảng tin). */
 const newsfeed = (buf: Buffer) =>
-  sharp(buf).resize(1920, 1920, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
+  sharp(buf).rotate().resize(1920, 1920, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer();
 
 async function shape(buf: Buffer) {
   const m = await sharp(buf).metadata();
@@ -50,7 +50,7 @@ describe('golden ảnh (sharp ↔ Rust)', () => {
       rows.push({ file, input: await shape(buf), avatar: await out(await avatar(buf)), newsfeed: await out(await newsfeed(buf)) });
     }
     const golden = {
-      _doc: 'K30: kích thước + định dạng đầu ra của sharp (bản Node) trên ảnh mẫu, và màu RGBA (sRGB) tại 5 điểm; Rust (trinity-docgen::image) phải ra cùng kích thước/định dạng và màu lệch không quá ngưỡng (nén có mất dữ liệu). sharp không tự xoay theo EXIF và bỏ EXIF ở đầu ra (orientation null).',
+      _doc: 'K30: kích thước + định dạng đầu ra của sharp (bản Node) trên ảnh mẫu, và màu RGBA (sRGB) tại 5 điểm; Rust (trinity-docgen::image) phải ra cùng kích thước/định dạng và màu lệch không quá ngưỡng (nén có mất dữ liệu). sharp xoay theo EXIF (.rotate(), #310) và bỏ EXIF ở đầu ra (orientation null).',
       cases: rows,
     };
     if (process.env.UPDATE_IMAGE_GOLDEN === '1') writeFileSync(GOLDEN, `${JSON.stringify(golden, null, 1)}\n`);

@@ -1262,6 +1262,7 @@ export class EmployeesService {
     const fileName = `empl_${Date.now()}_${randomBytes(4).toString('hex')}.jpg`;
     try {
       const jpeg = await sharp(buffer)
+        .rotate()
         .resize(200, 200, { fit: 'cover' })
         .jpeg({ quality: 80 })
         .toBuffer();

@@ -5,7 +5,8 @@
 //!   `sharp(path).resize(1920, 1920, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 })`.
 //!
 //! Như sharp mặc định:
-//! - KHÔNG tự xoay theo EXIF Orientation (bản Node không gọi `.rotate()`), không giữ EXIF/ICC ở đầu ra;
+//! - xoay/lật theo EXIF Orientation trước khi cắt/thu nhỏ (như `.rotate()` của sharp, #310 — ảnh điện thoại chụp dọc
+//!   không còn bị lưu nằm ngang), không giữ EXIF/ICC ở đầu ra;
 //! - ảnh có hồ sơ màu ICC RGB (Display P3, Adobe RGB…) được chuyển về sRGB (moxcms);
 //! - thu nhỏ trên màu đã nhân alpha (premultiplied) nên viền trong suốt không bị loang màu; JPEG từ ảnh có alpha
 //!   trải trên nền đen; GIF/WebP động chỉ lấy khung đầu.
@@ -21,6 +22,7 @@ use std::io::Cursor;
 
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::FilterType;
+use image::metadata::Orientation;
 use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, Limits, Pixel, RgbImage, RgbaImage};
 use moxcms::{ColorProfile, DataColorSpace, Layout, TransformOptions};
 
@@ -79,7 +81,7 @@ fn reader(bytes: &[u8]) -> Result<ImageReader<Cursor<&[u8]>>, ImageError> {
 }
 
 /// Giải mã ảnh JPEG/PNG/WebP/GIF theo nội dung (không tin đuôi tệp hay mimetype client khai), kiểm số điểm ảnh từ phần
-/// đầu tệp TRƯỚC khi giải mã, rồi đưa màu về sRGB theo hồ sơ ICC nhúng (nếu có).
+/// đầu tệp TRƯỚC khi giải mã, xoay/lật theo EXIF Orientation, rồi đưa màu về sRGB theo hồ sơ ICC nhúng (nếu có).
 pub fn decode(bytes: &[u8]) -> Result<DynamicImage, ImageError> {
     let (w, h) = reader(bytes)?.into_dimensions().map_err(not_image)?;
     if u64::from(w) * u64::from(h) > MAX_INPUT_PIXELS {
@@ -92,7 +94,10 @@ pub fn decode(bytes: &[u8]) -> Result<DynamicImage, ImageError> {
     limits.max_alloc = Some(MAX_DECODE_BYTES);
     dec.set_limits(limits).map_err(not_image)?;
     let icc = dec.icc_profile().ok().flatten();
-    let img = DynamicImage::from_decoder(dec).map_err(not_image)?;
+    // Không đọc được orientation (EXIF hỏng) ⇒ coi như không có, không làm hỏng việc tải ảnh.
+    let orientation = dec.orientation().unwrap_or(Orientation::NoTransforms);
+    let mut img = DynamicImage::from_decoder(dec).map_err(not_image)?;
+    img.apply_orientation(orientation);
     Ok(match icc {
         Some(p) => to_srgb(img, &p),
         None => img,
@@ -308,6 +313,51 @@ mod tests {
         assert_eq!(img.get_pixel(0, 0).0, [100, 50, 25, 128]);
         unpremultiply(&mut img);
         assert_eq!(img.get_pixel(0, 0).0, [199, 100, 50, 128]);
+    }
+
+    /// JPEG 4×2: nửa trái đỏ, nửa phải xanh, kèm EXIF Orientation `o` (APP1 little-endian, một mục 0x0112).
+    fn jpeg_with_orientation(o: u8) -> Vec<u8> {
+        let img = RgbImage::from_fn(4, 2, |x, _| {
+            if x < 2 { image::Rgb([255, 0, 0]) } else { image::Rgb([0, 0, 255]) }
+        });
+        let mut base = Vec::new();
+        JpegEncoder::new_with_quality(&mut base, 100).encode_image(&img).unwrap();
+        let exif: [u8; 28] = [
+            b'E', b'x', b'i', b'f', 0, 0, b'I', b'I', 42, 0, 8, 0, 0, 0, 1, 0, 0x12, 0x01, 3, 0, 1, 0, 0, 0, o, 0, 0,
+            0,
+        ];
+        // đoạn APP1: FFE1 + độ dài (gồm 2 byte độ dài) + dữ liệu + 4 byte kết thúc IFD (offset kế = 0)
+        let len = (2 + exif.len() + 4) as u16;
+        let mut out = base[..2].to_vec();
+        out.extend_from_slice(&[0xFF, 0xE1]);
+        out.extend_from_slice(&len.to_be_bytes());
+        out.extend_from_slice(&exif);
+        out.extend_from_slice(&[0, 0, 0, 0]);
+        out.extend_from_slice(&base[2..]);
+        out
+    }
+
+    #[test]
+    fn xoay_theo_exif_orientation() {
+        // 6 = xoay 90° theo chiều kim đồng hồ khi hiển thị: 4×2 thành 2×4, nửa trái (đỏ) lên trên.
+        let img = decode(&jpeg_with_orientation(6)).unwrap();
+        assert_eq!((img.width(), img.height()), (2, 4));
+        let rgb = img.to_rgb8();
+        assert!(rgb.get_pixel(0, 0)[0] > 200 && rgb.get_pixel(0, 0)[2] < 60);
+        assert!(rgb.get_pixel(0, 3)[2] > 200 && rgb.get_pixel(0, 3)[0] < 60);
+        // 8 = ngược lại: nửa trái (đỏ) xuống dưới.
+        let img = decode(&jpeg_with_orientation(8)).unwrap();
+        assert_eq!((img.width(), img.height()), (2, 4));
+        assert!(img.to_rgb8().get_pixel(0, 3)[0] > 200);
+        // 1 hoặc không có EXIF ⇒ giữ nguyên.
+        assert_eq!(decode(&jpeg_with_orientation(1)).unwrap().width(), 4);
+    }
+
+    #[test]
+    fn newsfeed_anh_chup_doc_ra_doc() {
+        // 4×2 có orientation 6 nhỏ hơn khung nên không bị thu nhỏ: đầu ra phải là 2×4 (dọc), không phải 4×2.
+        let out = newsfeed_webp(&jpeg_with_orientation(6)).unwrap();
+        assert_eq!((out.width, out.height), (2, 4));
     }
 
     fn crc32(data: &[u8]) -> u32 {

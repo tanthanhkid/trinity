@@ -1,5 +1,5 @@
 {
- "_doc": "K30: kích thước + định dạng đầu ra của sharp (bản Node) trên ảnh mẫu, và màu RGBA (sRGB) tại 5 điểm; Rust (trinity-docgen::image) phải ra cùng kích thước/định dạng và màu lệch không quá ngưỡng (nén có mất dữ liệu). sharp không tự xoay theo EXIF và bỏ EXIF ở đầu ra (orientation null).",
+ "_doc": "K30: kích thước + định dạng đầu ra của sharp (bản Node) trên ảnh mẫu, và màu RGBA (sRGB) tại 5 điểm; Rust (trinity-docgen::image) phải ra cùng kích thước/định dạng và màu lệch không quá ngưỡng (nén có mất dữ liệu). sharp xoay theo EXIF (.rotate(), #310) và bỏ EXIF ở đầu ra (orientation null).",
  "cases": [
   {
    "file": "01-jpeg-4000x3000-exif6.jpg",
@@ -68,14 +68,14 @@
     ]
    },
    "newsfeed": {
-    "width": 1920,
-    "height": 1440,
+    "width": 1440,
+    "height": 1920,
     "format": "webp",
     "orientation": null,
     "samples": [
      {
-      "x": 480,
-      "y": 360,
+      "x": 360,
+      "y": 480,
       "rgba": [
        201,
        50,
@@ -84,8 +84,8 @@
       ]
      },
      {
-      "x": 1440,
-      "y": 360,
+      "x": 1080,
+      "y": 480,
       "rgba": [
        201,
        50,
@@ -94,8 +94,8 @@
       ]
      },
      {
-      "x": 480,
-      "y": 1080,
+      "x": 360,
+      "y": 1440,
       "rgba": [
        201,
        50,
@@ -104,8 +104,8 @@
       ]
      },
      {
-      "x": 1440,
-      "y": 1080,
+      "x": 1080,
+      "y": 1440,
       "rgba": [
        201,
        50,
@@ -114,8 +114,8 @@
       ]
      },
      {
-      "x": 192,
-      "y": 1296,
+      "x": 144,
+      "y": 1728,
       "rgba": [
        201,
        50,
@@ -318,14 +318,14 @@
     ]
    },
    "newsfeed": {
-    "width": 1920,
-    "height": 1081,
+    "width": 1081,
+    "height": 1920,
     "format": "webp",
     "orientation": null,
     "samples": [
      {
-      "x": 480,
-      "y": 270,
+      "x": 270,
+      "y": 480,
       "rgba": [
        50,
        201,
@@ -334,8 +334,8 @@
       ]
      },
      {
-      "x": 1440,
-      "y": 270,
+      "x": 810,
+      "y": 480,
       "rgba": [
        50,
        201,
@@ -344,8 +344,8 @@
       ]
      },
      {
-      "x": 480,
-      "y": 810,
+      "x": 270,
+      "y": 1440,
       "rgba": [
        50,
        201,
@@ -354,8 +354,8 @@
       ]
      },
      {
-      "x": 1440,
-      "y": 810,
+      "x": 810,
+      "y": 1440,
       "rgba": [
        50,
        201,
@@ -364,8 +364,8 @@
       ]
      },
      {
-      "x": 192,
-      "y": 972,
+      "x": 108,
+      "y": 1728,
       "rgba": [
        50,
        201,

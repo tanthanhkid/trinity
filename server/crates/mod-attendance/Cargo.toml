@@ -23,12 +23,12 @@ trinity-db = { workspace = true }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-rbac = { workspace = true }
+trinity-storage = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tower = { workspace = true }
 trinity-auth = { workspace = true }
-trinity-storage = { workspace = true }
 
 [lints]
 workspace = true

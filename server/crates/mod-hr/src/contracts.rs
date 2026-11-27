@@ -75,14 +75,14 @@ pub struct Download {
 }
 
 impl ContractStore {
-    async fn put(&self, key: &str, body: Bytes, content_type: &str) -> Result<(), StorageError> {
+    pub async fn put(&self, key: &str, body: Bytes, content_type: &str) -> Result<(), StorageError> {
         match self {
             Self::Local(d) => d.upload(key, &body, content_type).await.map(drop),
             Self::S3(d) => d.upload(key, body, content_type).await.map(drop),
         }
     }
 
-    async fn remove(&self, key: &str) {
+    pub async fn remove(&self, key: &str) {
         let r = match self {
             Self::Local(d) => d.delete(key).await,
             Self::S3(d) => d.delete(key).await,

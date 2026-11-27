@@ -8,29 +8,35 @@ use std::sync::Arc;
 
 use axum::Json;
 use axum::body::Body;
-use axum::extract::{Extension, Path, State};
+use axum::extract::{DefaultBodyLimit, Extension, FromRequest, Multipart, Path, Request, State};
 use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use mod_hr::employees::Ctx;
 use mod_users::guards::Actor;
 use serde::Serialize;
+use trinity_http::edge::body::read_field_limited;
+use trinity_http::edge::client_ip::resolve_client_ip;
 use trinity_http::router::{Access, AccessDeps, ApiRouter, CurrentUser, RouteSpec};
-use trinity_http::validate::ValidJson;
+use trinity_http::validate::{Mode, ValidJson, validate_into};
 use trinity_kernel::error::{AppError, HttpError};
 
+use crate::check::{self, CheckCtx, CheckInput, SELFIE_ALLOWED_MIME, SELFIE_MAX_SIZE, SELFIE_MIME_ERROR, Selfie};
 use crate::dto::{
-    CreateOfficeDto, UpdateAttendanceSettingsDto, UpdateOfficeDto, UpdateRequestConfigDto, UpdateWorkingSaturdaysDto,
+    CreateOfficeDto, DeviceCheckDto, UpdateAttendanceSettingsDto, UpdateOfficeDto, UpdateRequestConfigDto,
+    UpdateWorkingSaturdaysDto,
 };
 use crate::{config, offices};
 
 const BASE: &str = "/api/v1/management/attendance";
 const ID: &[&str] = &["param.id:ParseIntPipe"];
 
-/// 11 route của phần cấu hình chấm công (bảng so với `routes.json` bởi `trinity check-routes`).
+/// 13 route của M13a (cấu hình) và M13b (chấm công vào/ra) (bảng so với `routes.json` bởi `trinity check-routes`).
 pub fn specs() -> Vec<RouteSpec> {
     let view = Access::Can(&["attendance.view"]);
     let cfg = Access::Can(&["attendance.config"]);
     vec![
+        RouteSpec::new(Method::POST, "/api/v1/management/attendance/check-in", Access::AuthOnly).status_ok(201),
+        RouteSpec::new(Method::POST, "/api/v1/management/attendance/check-out", Access::AuthOnly).status_ok(201),
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/offices", view).status_ok(200),
         RouteSpec::new(Method::POST, "/api/v1/management/attendance/offices", cfg).status_ok(201),
         RouteSpec::new(Method::PATCH, "/api/v1/management/attendance/offices/:id", cfg)
@@ -269,6 +275,120 @@ pub fn router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::PATCH, &p("request-config")), request_config_update)
 }
 
+// ───────────────────────────── chấm công vào/ra (M13b) ─────────────────────────────
+
+type CC = State<Arc<CheckCtx>>;
+
+/// Đọc multipart như `FileInterceptor('selfie')` của multer: tệp duy nhất tên `selfie` (tệp khác tên hoặc thêm một tệp nữa ⇒ 400
+/// `Unexpected field`), loại ngoài danh sách ⇒ 400, quá 5 MB ⇒ 413. Trường chữ gom thành object (trùng tên thành mảng như multer).
+async fn read_check_form(mut mp: Multipart) -> Result<(serde_json::Value, Option<Selfie>), AppError> {
+    let mut fields = serde_json::Map::new();
+    let mut selfie: Option<Selfie> = None;
+    while let Some(mut f) = mp
+        .next_field()
+        .await
+        .map_err(|_| HttpError::bad_request("Bad Request"))?
+    {
+        let name = f.name().unwrap_or("").to_owned();
+        if f.file_name().is_some() {
+            if name != "selfie" || selfie.is_some() {
+                return Err(HttpError::bad_request("Unexpected field").into());
+            }
+            let mime = f
+                .content_type()
+                .unwrap_or("text/plain")
+                .split(';')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_ascii_lowercase();
+            if !SELFIE_ALLOWED_MIME.contains(&mime.as_str()) {
+                return Err(HttpError::bad_request(SELFIE_MIME_ERROR).into());
+            }
+            let data = read_field_limited(&mut f, SELFIE_MAX_SIZE).await?;
+            selfie = Some(Selfie { mime, data });
+        } else {
+            let data = read_field_limited(&mut f, 1024 * 1024).await?;
+            let text = serde_json::Value::String(String::from_utf8_lossy(&data).into_owned());
+            match fields.remove(&name) {
+                None => {
+                    fields.insert(name, text);
+                }
+                Some(serde_json::Value::Array(mut a)) => {
+                    a.push(text);
+                    fields.insert(name, serde_json::Value::Array(a));
+                }
+                Some(prev) => {
+                    fields.insert(name, serde_json::Value::Array(vec![prev, text]));
+                }
+            }
+        }
+    }
+    Ok((serde_json::Value::Object(fields), selfie))
+}
+
+async fn do_check(c: Arc<CheckCtx>, u: CurrentUser, req: Request, checkin: bool) -> Response {
+    let a = act!(u);
+    // IP khách: hàm dùng chung (đọc header theo TRUSTED_PROXY), TRƯỚC khi đọc thân.
+    let client = resolve_client_ip(&c.ip, &req);
+    let mp = match Multipart::from_request(req, &()).await {
+        Ok(m) => m,
+        Err(_) => return fail(HttpError::bad_request("Bad Request")),
+    };
+    let (form, selfie) = match read_check_form(mp).await {
+        Ok(v) => v,
+        Err(e) => return fail(e),
+    };
+    let dto = match validate_into::<DeviceCheckDto>(&form, Mode::Strict) {
+        Ok(d) => d,
+        Err(e) => return fail(e),
+    };
+    let input = CheckInput {
+        user_id: a.user_id,
+        device_id: &dto.device_id,
+        note: dto.note.as_deref(),
+        selfie,
+        is_super_admin: a.is_admin,
+        client_ip: client.ip,
+        now: chrono::Utc::now(),
+    };
+    match c.ctx.conn(a.company).await {
+        Ok(mut conn) => {
+            let r = if checkin {
+                check::check_in(&c, &mut conn, input).await
+            } else {
+                check::check_out(&c, &mut conn, input).await
+            };
+            respond(r, StatusCode::CREATED)
+        }
+        Err(e) => fail(e),
+    }
+}
+
+async fn check_in(State(c): CC, Extension(u): U, req: Request) -> Response {
+    do_check(c, u, req, true).await
+}
+
+async fn check_out(State(c): CC, Extension(u): U, req: Request) -> Response {
+    do_check(c, u, req, false).await
+}
+
+/// Router của chấm công vào/ra (state `Arc<CheckCtx>`). Thân nhận tới 5 MB ảnh + 1 MB trường chữ.
+pub fn check_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<CheckCtx>> {
+    use axum::handler::Handler;
+    let s = specs();
+    let spec = |p: &str| {
+        s.iter()
+            .find(|x| x.method == Method::POST && x.path == p)
+            .cloned()
+            .unwrap_or_else(|| panic!("thiếu spec POST {p}"))
+    };
+    let limit = || DefaultBodyLimit::max(SELFIE_MAX_SIZE + 1024 * 1024);
+    ApiRouter::new(deps)
+        .route(spec(&format!("{BASE}/check-in")), check_in.layer(limit()))
+        .route(spec(&format!("{BASE}/check-out")), check_out.layer(limit()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -276,9 +396,9 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = specs();
-        assert_eq!(table.len(), 11);
+        assert_eq!(table.len(), 13);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 11);
+        assert_eq!(rep.declared, 13);
     }
 }

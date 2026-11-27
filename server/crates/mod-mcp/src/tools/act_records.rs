@@ -280,8 +280,12 @@ fn resolve_item(
             v.ty == RefType::Record && v.table_key.as_ref() == target_key
         }
     });
-    hit.map(|v| json!(v.id))
-        .ok_or_else(|| format!("không tìm thấy {} trong bảng đích (hoặc bạn không có quyền xem)", c.code))
+    hit.map(|v| json!(v.id)).ok_or_else(|| {
+        format!(
+            "không tìm thấy {} trong bảng đích (hoặc bạn không có quyền xem)",
+            c.code
+        )
+    })
 }
 
 /// Liên kết theo mã → id (cùng cơ chế tra mã với `find_by_code`, theo phạm vi XEM của người ghi).
@@ -495,8 +499,7 @@ async fn core_update_prepare(
     if params.is_empty() {
         return Err(ToolError::User("Không có giá trị nào để sửa.".to_owned()));
     }
-    let dto: UpdateCard =
-        serde_json::from_value(Value::Object(params.clone())).map_err(|e| bad(e.to_string()))?;
+    let dto: UpdateCard = serde_json::from_value(Value::Object(params.clone())).map_err(|e| bad(e.to_string()))?;
     dto.validate().map_err(http_err)?;
     let actor = cx.deps.kanban_actor(p).await?;
     let scopes = cx.deps.contact_scopes(p).await?;
@@ -520,7 +523,10 @@ async fn core_update_prepare(
     let mut details = vec![line("Việc", Some(who.as_str()), 600)];
     details.extend(show_params(&params));
     Ok(Prepared {
-        summary: shown(&format!("Sửa việc \"{}\": {}", renamed(title, after), keys_of(&params)), 300),
+        summary: shown(
+            &format!("Sửa việc \"{}\": {}", renamed(title, after), keys_of(&params)),
+            300,
+        ),
         details: lines(details),
         params: json!({ "object": key, "id": id, "values": params }),
     })
@@ -625,7 +631,10 @@ fn create_execute<'a>(
         }
         require_perm(p, "custom_records.manage")?;
         let mut body = Map::new();
-        body.insert("data".into(), params.get("values").cloned().unwrap_or_else(|| json!({})));
+        body.insert(
+            "data".into(),
+            params.get("values").cloned().unwrap_or_else(|| json!({})),
+        );
         if let Some(o) = opt_int(params.get("owner_id")) {
             body.insert("owner_id".into(), json!(o));
         }
@@ -678,7 +687,9 @@ fn update_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Re
         if let (Some((_, cid)), Some(rid)) = (&by_code, raw_id)
             && rid != *cid
         {
-            let shown_code = code.and_then(Value::as_str).map_or_else(String::new, |c| trim_js(c).to_uppercase());
+            let shown_code = code
+                .and_then(Value::as_str)
+                .map_or_else(String::new, |c| trim_js(c).to_uppercase());
             return Err(ToolError::User(format!(
                 "id {rid} và code {shown_code} (bản ghi #{cid}) không cùng một bản ghi — chỉ gửi một trong hai."
             )));
@@ -726,7 +737,10 @@ fn update_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Re
         } else {
             format!(" \"{title}\"")
         };
-        let record = format!("#{id}{}", row_title.as_deref().map_or_else(String::new, |t| format!(" {t}")));
+        let record = format!(
+            "#{id}{}",
+            row_title.as_deref().map_or_else(String::new, |t| format!(" {t}"))
+        );
         let mut details = vec![
             line("Bảng", Some(def.obj.label_plural.as_str()), 600),
             line("Bản ghi", Some(record.as_str()), 600),
@@ -767,7 +781,10 @@ fn update_execute<'a>(
         }
         require_perm(p, "custom_records.manage")?;
         let mut body = Map::new();
-        body.insert("data".into(), params.get("values").cloned().unwrap_or_else(|| json!({})));
+        body.insert(
+            "data".into(),
+            params.get("values").cloned().unwrap_or_else(|| json!({})),
+        );
         if let Some(o) = opt_int(params.get("owner_id")) {
             body.insert("owner_id".into(), json!(o));
         }
@@ -817,7 +834,10 @@ fn archive_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, R
         {
             return Err(ToolError::User(GONE.to_owned()));
         }
-        let name = format!("#{id}{}", row_title.as_deref().map_or_else(String::new, |t| format!(" \"{t}\"")));
+        let name = format!(
+            "#{id}{}",
+            row_title.as_deref().map_or_else(String::new, |t| format!(" \"{t}\""))
+        );
         Ok(Prepared {
             params: json!({ "object": key, "id": id }),
             summary: shown(&format!("Lưu trữ (xoá mềm) {} {name}", def.obj.label), 300),
@@ -883,10 +903,16 @@ mod tests {
         let (k, v, o) = parse_args(&ok).unwrap();
         assert_eq!((k.as_str(), v.len(), o), ("don_hang", 1, Some(4)));
         for (args, msg) in [
-            (json!({ "object": "Sai Khoa", "values": { "a": 1 } }), "object phải là khoá bảng"),
+            (
+                json!({ "object": "Sai Khoa", "values": { "a": 1 } }),
+                "object phải là khoá bảng",
+            ),
             (json!({ "object": "x", "values": [1] }), "values phải là object"),
             (json!({ "object": "x", "values": {} }), "values cần 1-60 trường."),
-            (json!({ "object": "x", "values": { "a": "\u{0}" } }), "values chứa ký tự không hợp lệ."),
+            (
+                json!({ "object": "x", "values": { "a": "\u{0}" } }),
+                "values chứa ký tự không hợp lệ.",
+            ),
         ] {
             let Err(ToolError::User(m)) = parse_args(&args) else {
                 panic!("phải là lỗi người dùng: {args}");
@@ -907,9 +933,15 @@ mod tests {
         let multi = field("multi_select", json!({ "choices": [{ "value": "a", "label": "A" }] }));
         assert_eq!(show_value(&multi, Some(&json!(["a", "b"]))), "A, b");
         assert_eq!(show_value(&field("relation", json!({})), Some(&json!(5))), "#5");
-        assert_eq!(show_value(&field("relation", json!({})), Some(&json!([5, 6]))), "#5, #6");
+        assert_eq!(
+            show_value(&field("relation", json!({})), Some(&json!([5, 6]))),
+            "#5, #6"
+        );
         assert_eq!(show_value(&field("boolean", json!({})), Some(&json!(true))), "Có");
-        assert_eq!(show_value(&field("phone", json!({})), Some(&json!("0901234567"))), "***567");
+        assert_eq!(
+            show_value(&field("phone", json!({})), Some(&json!("0901234567"))),
+            "***567"
+        );
         assert_eq!(show_value(&field("number", json!({})), Some(&json!(1.5))), "1.5");
     }
 
@@ -935,7 +967,10 @@ mod tests {
             ("KH001".to_owned(), view(RefType::Contact, 13, None)),
         ]);
         assert_eq!(resolve_item(&rel, &json!(7), &found, &keys), Ok(json!(7)));
-        assert_eq!(resolve_item(&rel, &json!("record:9"), &found, &keys), Ok(json!("record:9")));
+        assert_eq!(
+            resolve_item(&rel, &json!("record:9"), &found, &keys),
+            Ok(json!("record:9"))
+        );
         assert_eq!(resolve_item(&rel, &json!("@sp1"), &found, &keys), Ok(json!(11)));
         assert!(resolve_item(&rel, &json!("HS002"), &found, &keys).is_err());
         assert!(resolve_item(&rel, &json!("KH001"), &found, &keys).is_err());

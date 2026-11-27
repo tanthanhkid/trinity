@@ -8,7 +8,8 @@ use trinity_kernel::vn_time::{VnDateStyle, format_vn_date};
 use trinity_rbac::OwnerIds;
 
 use crate::actions::{
-    ActionCx, ActionDef, Prepared, bad, clean_value, compact, http_err, int_or_null, internal, line, lines, owner, shown,
+    ActionCx, ActionDef, Prepared, bad, clean_value, compact, http_err, int_or_null, internal, line, lines, owner,
+    shown,
 };
 use crate::args::opt_int;
 use crate::deps::{app_err, to_json};
@@ -203,7 +204,11 @@ fn task_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Resu
                 "Tạo công việc \"{}\" (bảng {}, cột {col_name}{due_part}), giao cho {}",
                 dto.title,
                 board.name,
-                if assignee_id == p.user_id { "bạn" } else { who.as_str() }
+                if assignee_id == p.user_id {
+                    "bạn"
+                } else {
+                    who.as_str()
+                }
             ),
             300,
         );
@@ -280,6 +285,9 @@ mod tests {
         assert!(c.validate().is_ok());
         let sai = json!({ "column_id": 4, "title": "x", "priority": "khong-co" });
         assert!(card_input(&sai, None).unwrap().validate().is_err());
-        assert!(matches!(card_input(&json!({ "column_id": 4 }), None), Err(ToolError::Http { status: 400, .. })));
+        assert!(matches!(
+            card_input(&json!({ "column_id": 4 }), None),
+            Err(ToolError::Http { status: 400, .. })
+        ));
     }
 }

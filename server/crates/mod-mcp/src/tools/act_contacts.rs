@@ -7,8 +7,8 @@ use serde_json::{Map, Value, json};
 use trinity_rbac::mask_phone;
 
 use crate::actions::{
-    ActionCx, ActionDef, NOTE_MAX, Prepared, bad, clean_text, clean_value, compact, covers, int_or_null, internal, line,
-    lines, load_contact, option_label, owner, shown,
+    ActionCx, ActionDef, NOTE_MAX, Prepared, bad, clean_text, clean_value, compact, covers, int_or_null, internal,
+    line, lines, load_contact, option_label, owner, shown,
 };
 use crate::args::opt_int;
 use crate::deps::{app_err, to_json};
@@ -64,10 +64,7 @@ fn validate_contact(p: &Value) -> Result<(), ToolError> {
         e.push("Vui lòng chọn nguồn".to_owned());
         e.push("source_id phải là số nguyên".to_owned());
     }
-    if p.get("email")
-        .and_then(Value::as_str)
-        .is_some_and(|m| !is_email(m))
-    {
+    if p.get("email").and_then(Value::as_str).is_some_and(|m| !is_email(m)) {
         e.push("Email không hợp lệ".to_owned());
     }
     if e.is_empty() { Ok(()) } else { Err(bad(e.join("; "))) }
@@ -119,10 +116,7 @@ fn create_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Re
             None => None,
         };
         let phone = mask_phone(Some(dto.phone.as_str())).unwrap_or_else(|| "***".to_owned());
-        let stage_part = stage
-            .as_ref()
-            .map(|s| format!(", giai đoạn: {s}"))
-            .unwrap_or_default();
+        let stage_part = stage.as_ref().map(|s| format!(", giai đoạn: {s}")).unwrap_or_default();
         let summary = shown(
             &format!(
                 "Tạo khách hàng \"{}\" (SĐT {phone}), nguồn: {source}{stage_part}",
@@ -201,11 +195,7 @@ fn note_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Resu
     })
 }
 
-fn note_execute<'a>(
-    params: &'a Value,
-    cx: &'a ActionCx<'a>,
-    draft_id: i32,
-) -> BoxFuture<'a, Result<Value, ToolError>> {
+fn note_execute<'a>(params: &'a Value, cx: &'a ActionCx<'a>, draft_id: i32) -> BoxFuture<'a, Result<Value, ToolError>> {
     Box::pin(async move {
         let id = opt_int(params.get("contact_id"));
         let note = clean_text(params.get("note").and_then(Value::as_str).unwrap_or(""), NOTE_MAX);
@@ -345,7 +335,10 @@ fn assign_prepare<'a>(args: &'a Value, cx: &'a ActionCx<'a>) -> BoxFuture<'a, Re
         let mut m = Map::new();
         m.insert("contact_id".into(), json!(id));
         m.insert("new_assigned_to".into(), json!(to));
-        m.insert("reason".into(), if reason.is_empty() { Value::Null } else { json!(reason) });
+        m.insert(
+            "reason".into(),
+            if reason.is_empty() { Value::Null } else { json!(reason) },
+        );
         let name = c.full_name.clone().unwrap_or_else(|| format!("#{}", c.id));
         let who = format!("{} (#{})", display_name(c.full_name.as_deref()), c.id);
         Ok(Prepared {
@@ -366,7 +359,10 @@ fn assign_execute<'a>(
     _draft_id: i32,
 ) -> BoxFuture<'a, Result<Value, ToolError>> {
     Box::pin(async move {
-        let (Some(id), Some(to)) = (opt_int(params.get("contact_id")), opt_int(params.get("new_assigned_to"))) else {
+        let (Some(id), Some(to)) = (
+            opt_int(params.get("contact_id")),
+            opt_int(params.get("new_assigned_to")),
+        ) else {
             return Err(bad("Dữ liệu đề xuất không hợp lệ"));
         };
         let extra = clean_value(params.get("reason"), 200);
@@ -413,7 +409,10 @@ mod tests {
             panic!("phải lỗi 400");
         };
         assert_eq!(status, 400);
-        assert!(message.contains("SĐT không được để trống") && message.contains("Vui lòng chọn nguồn"), "{message}");
+        assert!(
+            message.contains("SĐT không được để trống") && message.contains("Vui lòng chọn nguồn"),
+            "{message}"
+        );
         let sai = json!({ "full_name": "A", "phone": "123", "source_id": 3, "email": "x" });
         let Err(ToolError::Http { message, .. }) = validate_contact(&sai) else {
             panic!("phải lỗi 400");

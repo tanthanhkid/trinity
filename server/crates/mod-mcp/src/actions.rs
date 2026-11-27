@@ -194,39 +194,77 @@ fn rule(pattern: &str, f: Fmt) -> Rule {
 /// Thông điệp MẶC ĐỊNH (tiếng Anh) của class-validator → câu tiếng Việt ngắn cho AI (); câu tự viết trong DTO giữ nguyên.
 static VI_RULES: LazyLock<[Rule; 19]> = LazyLock::new(|| {
     [
-        rule(r"^property (\S+) should not exist$", |m| format!("Trường không tồn tại: {}", &m[1])),
-        rule(r"^(\S+) should not be (?:empty|null or undefined)$", |m| format!("{}: bắt buộc", &m[1])),
-        rule(r"^(\S+) must be an integer number$", |m| format!("{}: phải là số nguyên", &m[1])),
-        rule(r"^(\S+) must be a number conforming to the specified constraints$", |m| {
-            format!("{}: phải là số", &m[1])
+        rule(r"^property (\S+) should not exist$", |m| {
+            format!("Trường không tồn tại: {}", &m[1])
         }),
-        rule(r"^(\S+) must be a positive number$", |m| format!("{}: phải là số dương", &m[1])),
+        rule(r"^(\S+) should not be (?:empty|null or undefined)$", |m| {
+            format!("{}: bắt buộc", &m[1])
+        }),
+        rule(r"^(\S+) must be an integer number$", |m| {
+            format!("{}: phải là số nguyên", &m[1])
+        }),
+        rule(
+            r"^(\S+) must be a number conforming to the specified constraints$",
+            |m| format!("{}: phải là số", &m[1]),
+        ),
+        rule(r"^(\S+) must be a positive number$", |m| {
+            format!("{}: phải là số dương", &m[1])
+        }),
         rule(r"^(\S+) must be a string$", |m| format!("{}: phải là chuỗi", &m[1])),
-        rule(r"^(\S+) must be a boolean value$", |m| format!("{}: phải là true/false", &m[1])),
+        rule(r"^(\S+) must be a boolean value$", |m| {
+            format!("{}: phải là true/false", &m[1])
+        }),
         rule(r"^(\S+) must be an array$", |m| format!("{}: phải là danh sách", &m[1])),
-        rule(r"^(\S+) must be an email$", |m| format!("{}: email không hợp lệ", &m[1])),
+        rule(r"^(\S+) must be an email$", |m| {
+            format!("{}: email không hợp lệ", &m[1])
+        }),
         rule(r"^(\S+) must be a valid ISO 8601 date string$", |m| {
             format!("{}: phải là ngày ISO 8601 (vd 2026-12-01T09:00:00Z)", &m[1])
         }),
-        rule(r"^(\S+) must be a Date instance$", |m| format!("{}: phải là ngày", &m[1])),
-        rule(r"^(\S+) must be (longer|shorter) than or equal to (\d+) characters$", |m| {
-            let kind = if &m[2] == "longer" { "tối thiểu" } else { "tối đa" };
-            format!("{}: {kind} {} ký tự", &m[1], &m[3])
+        rule(r"^(\S+) must be a Date instance$", |m| {
+            format!("{}: phải là ngày", &m[1])
         }),
-        rule(r"^(\S+) must not be less than (-?[\d.]+)$", |m| format!("{}: tối thiểu {}", &m[1], &m[2])),
-        rule(r"^(\S+) must not be greater than (-?[\d.]+)$", |m| format!("{}: tối đa {}", &m[1], &m[2])),
+        rule(
+            r"^(\S+) must be (longer|shorter) than or equal to (\d+) characters$",
+            |m| {
+                let kind = if &m[2] == "longer" {
+                    "tối thiểu"
+                } else {
+                    "tối đa"
+                };
+                format!("{}: {kind} {} ký tự", &m[1], &m[3])
+            },
+        ),
+        rule(r"^(\S+) must not be less than (-?[\d.]+)$", |m| {
+            format!("{}: tối thiểu {}", &m[1], &m[2])
+        }),
+        rule(r"^(\S+) must not be greater than (-?[\d.]+)$", |m| {
+            format!("{}: tối đa {}", &m[1], &m[2])
+        }),
         rule(r"^(\S+) must be one of the following values: (.+)$", |m| {
             format!("{}: phải là một trong {}", &m[1], &m[2])
         }),
-        rule(r"^(\S+) must be a valid enum value$", |m| format!("{}: giá trị không hợp lệ", &m[1])),
-        rule(r"^(\S+) must match .+ regular expression$", |m| format!("{}: sai định dạng", &m[1])),
+        rule(r"^(\S+) must be a valid enum value$", |m| {
+            format!("{}: giá trị không hợp lệ", &m[1])
+        }),
+        rule(r"^(\S+) must match .+ regular expression$", |m| {
+            format!("{}: sai định dạng", &m[1])
+        }),
         rule(r"^(\S+) must contain (at least|no more than) (\d+) elements$", |m| {
-            let kind = if &m[2] == "at least" { "tối thiểu" } else { "tối đa" };
+            let kind = if &m[2] == "at least" {
+                "tối thiểu"
+            } else {
+                "tối đa"
+            };
             format!("{}: {kind} {} phần tử", &m[1], &m[3])
         }),
         rule(r"^each value in (\S+) (.+)$", |m| {
             let inner = vi_validation(&format!("x {}", &m[2]));
-            format!("{} (mỗi phần tử): {}", &m[1], inner.strip_prefix("x: ").unwrap_or(&inner))
+            format!(
+                "{} (mỗi phần tử): {}",
+                &m[1],
+                inner.strip_prefix("x: ").unwrap_or(&inner)
+            )
         }),
     ]
 });
@@ -355,12 +393,7 @@ pub struct ContactRow {
 
 /// Khách trong phạm vi quyền `perm`; ngoài phạm vi/không tồn tại ⇒ không thấy. `also_view`: LÚC TẠO NHÁP khách còn phải nằm trong
 /// phạm vi ĐỌC (`contacts.view`): tên khách đi vào `summary` trả cho AI, AI không được biết hơn tool đọc cho phép.
-pub async fn load_contact(
-    cx: &ActionCx<'_>,
-    id: i32,
-    perm: &str,
-    also_view: bool,
-) -> Result<ContactRow, ToolError> {
+pub async fn load_contact(cx: &ActionCx<'_>, id: i32, perm: &str, also_view: bool) -> Result<ContactRow, ToolError> {
     let allowed = owner(cx, perm).await?;
     let view = if also_view {
         Some(owner(cx, "contacts.view").await?)
@@ -368,7 +401,14 @@ pub async fn load_contact(
         None
     };
     let mut conn = cx.deps.conn(cx.principal.company).await?;
-    let row: Option<(i32, Option<String>, Option<i32>, Option<i32>, Option<i32>, Option<String>)> = sqlx::query_as(
+    let row: Option<(
+        i32,
+        Option<String>,
+        Option<i32>,
+        Option<i32>,
+        Option<i32>,
+        Option<String>,
+    )> = sqlx::query_as(
         "SELECT c.id, c.full_name, c.assigned_to, c.created_by_id, c.stage_id, st.label
          FROM contacts c LEFT JOIN setting_options st ON st.id = c.stage_id
          WHERE c.id = $1 AND c.deleted_at IS NULL",
@@ -434,11 +474,7 @@ async fn run_write(def: &'static ActionDef, args: &Value, ctx: &ToolCtx<'_>) -> 
 /// "Yêu cầu duyệt thay đổi do AI": mặc định TẮT. Lỗi đọc ⇒ coi là BẬT (thà chờ duyệt còn hơn ghi nhầm).
 async fn requires_approval(cx: &ActionCx<'_>) -> bool {
     let res: Result<Option<String>, String> = async {
-        let mut c = cx
-            .deps
-            .conn(cx.principal.company)
-            .await
-            .map_err(|e| format!("{e:?}"))?;
+        let mut c = cx.deps.conn(cx.principal.company).await.map_err(|e| format!("{e:?}"))?;
         sqlx::query_scalar::<_, String>("SELECT value FROM settings WHERE key = $1")
             .bind(REQUIRE_APPROVAL_KEY)
             .fetch_optional(&mut *c)
@@ -724,11 +760,18 @@ async fn mark_failed(cx: &ActionCx<'_>, def: &ActionDef, id: i32, summary: &str,
             .execute(&mut *c)
             .await;
     }
-    let denied = matches!(err, ToolError::NotFound | ToolError::Forbidden(_) | ToolError::Http { status: 403, .. });
+    let denied = matches!(
+        err,
+        ToolError::NotFound | ToolError::Forbidden(_) | ToolError::Http { status: 403, .. }
+    );
     let mut e = AuditEntry::new(
         Channel::Mcp,
         "ai_action.execute",
-        if denied { AuditStatus::Denied } else { AuditStatus::Error },
+        if denied {
+            AuditStatus::Denied
+        } else {
+            AuditStatus::Error
+        },
     );
     e.client_id = Some(p.client_id.clone());
     e.user_id = Some(p.user_id);
@@ -764,7 +807,15 @@ fn effective_status(
     status.to_owned()
 }
 
-type StatusRow = (i32, String, String, String, Option<String>, Option<DateTime<Utc>>, DateTime<Utc>);
+type StatusRow = (
+    i32,
+    String,
+    String,
+    String,
+    Option<String>,
+    Option<DateTime<Utc>>,
+    DateTime<Utc>,
+);
 
 /// `get_action_status`: chỉ đề xuất của CHÍNH người dùng + CHÍNH ứng dụng đã tạo nó.
 pub fn get_action_status<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
@@ -778,9 +829,7 @@ pub fn get_action_status<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture
             ));
         };
         if action_id.is_some() && alias.is_some() && action_id != alias {
-            return Err(ToolError::User(
-                "action_id và id khác nhau — chỉ gửi action_id.".into(),
-            ));
+            return Err(ToolError::User("action_id và id khác nhau — chỉ gửi action_id.".into()));
         }
         let row: Option<StatusRow> = {
             let mut c = ctx.deps.conn(p.company).await?;
@@ -859,7 +908,10 @@ mod tests {
             effective_status("approved", false, Some(now - Duration::minutes(6)), later, now),
             "failed"
         );
-        assert_eq!(effective_status("approved", true, Some(earlier), later, now), "approved");
+        assert_eq!(
+            effective_status("approved", true, Some(earlier), later, now),
+            "approved"
+        );
         assert_eq!(effective_status("executed", true, None, earlier, now), "executed");
     }
 

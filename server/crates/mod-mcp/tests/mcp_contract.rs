@@ -926,9 +926,18 @@ fn tool_ghi_khop_hop_dong_va_khong_co_tool_xoa() {
         for w in ["delete", "remove", "destroy", "purge", "drop"] {
             assert!(!n.contains(w), "{n}");
         }
-        let expected = if *n == "get_action_status" { None } else { Some("crm.write") };
+        let expected = if *n == "get_action_status" {
+            None
+        } else {
+            Some("crm.write")
+        };
         assert_eq!(r.get(n).unwrap().scope, expected, "{n}");
     }
     // Cả hợp đồng đóng băng cũng không có tool xoá.
-    assert!(frozen.names().iter().all(|n| !n.contains("delete") && !n.contains("remove")));
+    assert!(
+        frozen
+            .names()
+            .iter()
+            .all(|n| !n.contains("delete") && !n.contains("remove"))
+    );
 }

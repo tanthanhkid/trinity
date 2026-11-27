@@ -840,13 +840,27 @@ async fn tool_ghi_chay_ngay_va_tao_de_xuat_khi_bat_che_do_duyet() {
         .scalar("SELECT id::bigint FROM setting_options WHERE group_key = 'contact_stage' AND value = 'won'")
         .await;
     let write = e
-        .token("quantri-ghi", e.admin, "{crm.read,crm.write}", RESOURCE, "1 hour", false)
+        .token(
+            "quantri-ghi",
+            e.admin,
+            "{crm.read,crm.write}",
+            RESOURCE,
+            "1 hour",
+            false,
+        )
         .await;
     let read_only = e
         .token("quantri-doc", e.admin, "{crm.read}", RESOURCE, "1 hour", false)
         .await;
     let stf = e
-        .token("nhanvien-ghi", e.staff, "{crm.read,crm.write}", RESOURCE, "1 hour", false)
+        .token(
+            "nhanvien-ghi",
+            e.staff,
+            "{crm.read,crm.write}",
+            RESOURCE,
+            "1 hour",
+            false,
+        )
         .await;
 
     // Thiếu scope crm.write ⇒ từ chối; nhân viên thiếu quyền contacts.create ⇒ từ chối.
@@ -926,7 +940,8 @@ async fn tool_ghi_chay_ngay_va_tao_de_xuat_khi_bat_che_do_duyet() {
     assert!(v["data"]["review_url"].as_str().unwrap().starts_with(BASE), "{v}");
     let pid = v["data"]["action_id"].as_i64().unwrap();
     assert_eq!(
-        e.scalar("SELECT count(*) FROM contacts WHERE full_name = 'Khách Chờ'").await,
+        e.scalar("SELECT count(*) FROM contacts WHERE full_name = 'Khách Chờ'")
+            .await,
         0
     );
     let (_, _, again) = run(&e, &write, "create_contact", &args2).await;
@@ -935,7 +950,8 @@ async fn tool_ghi_chay_ngay_va_tao_de_xuat_khi_bat_che_do_duyet() {
     let (_, _, v) = run(&e, &write, "get_action_status", &json!({ "action_id": pid })).await;
     assert_eq!(v["data"]["status"], "pending");
     assert_eq!(
-        e.scalar("SELECT count(*) FROM ai_action_drafts WHERE status = 'pending'").await,
+        e.scalar("SELECT count(*) FROM ai_action_drafts WHERE status = 'pending'")
+            .await,
         1
     );
     assert_eq!(

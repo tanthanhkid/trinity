@@ -41,7 +41,7 @@ T0=$(date +%s.%N)
 UNIT="trinity-x05-$$"
 systemd-run --user --scope --unit "$UNIT" -p MemoryMax="$MEMMAX" -p MemorySwapMax=0 \
   env -i PATH="$PATH" HOME="$HOME" DATABASE_URL="$DATABASE_URL" JWT_SECRET="$JWT" INTERNAL_SERVICE_SECRET="$SVC" \
-  TRINITY_HTTP_PORT="$PORT" MULTI_TENANT=false DB_POOL_MAX="$POOL" WORKER_CONCURRENCY="$WORKERS" \
+  TRINITY_HTTP_PORT="$PORT" MULTI_TENANT=false DB_POOL_SIZE="$POOL" WORKER_THREADS="$WORKERS" \
   FACEBOOK_GRAPH_BASE_URL="http://127.0.0.1:$STUB" STORAGE_LOCAL_ROOT="${TMPDIR:-/tmp}/x05-storage" \
   "$TRINITY_BIN" serve >"${TMPDIR:-/tmp}/x05-trinity.log" 2>&1 &
 PIDS+=($!); sleep 0.3

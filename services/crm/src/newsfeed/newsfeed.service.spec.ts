@@ -12,6 +12,7 @@ import { unlink } from 'fs/promises';
 // thuộc bytes ảnh hợp lệ trên đĩa; test chỉ cần verify luồng gọi storage.
 jest.mock('sharp', () =>
   jest.fn(() => ({
+    rotate: jest.fn().mockReturnThis(),
     resize: jest.fn().mockReturnThis(),
     webp: jest.fn().mockReturnThis(),
     toBuffer: jest.fn().mockResolvedValue(Buffer.from('fake-webp')),

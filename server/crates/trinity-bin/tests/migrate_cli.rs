@@ -29,9 +29,9 @@ fn text(o: &Output) -> String {
 }
 
 fn prisma_bin() -> PathBuf {
-    std::env::var("PRISMA_BIN").map(PathBuf::from).unwrap_or_else(|_| {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../packages/prisma/node_modules/.bin/prisma")
-    })
+    std::env::var("PRISMA_BIN")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(manifest_dir()).join("../../../packages/prisma/node_modules/.bin/prisma"))
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn migrate_mot_schema_roi_prisma_bao_da_cap_nhat() {
     let sep = if url().contains('?') { '&' } else { '?' };
     let p = Command::new(prisma_bin())
         .args(["migrate", "status", "--schema"])
-        .arg(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../packages/prisma/prisma/schema.prisma"))
+        .arg(PathBuf::from(manifest_dir()).join("../../../packages/prisma/prisma/schema.prisma"))
         .env("DATABASE_URL", format!("{}{sep}schema={schema}", url()))
         .env("PRISMA_HIDE_UPDATE_MESSAGE", "1")
         .env("CHECKPOINT_DISABLE", "1")
@@ -117,4 +117,10 @@ fn companies_can_multi_tenant_va_schema_sai_bi_tu_choi() {
     );
     let o = trinity(&["--schema", "pg_catalog"], &[]);
     assert!(!o.status.success() && text(&o).contains("schema"), "{}", text(&o));
+}
+
+/// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+/// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+fn manifest_dir() -> String {
+    std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
 }

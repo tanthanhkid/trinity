@@ -11,7 +11,7 @@ use trinity_kernel::vi::{Collation, SQL_FOLD_FROM, SQL_FOLD_TO, compare, fold_co
 use trinity_kernel::vn_time::{VnDateStyle, VnRangeError, format_vn_date, js_iso_string, parse_vn_date_range_optional};
 
 fn table() -> Value {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../contracts/cases/kernel.json");
+    let path = format!("{}/../../contracts/cases/kernel.json", manifest_dir());
     let text = std::fs::read_to_string(path).expect("đọc kernel.json");
     serde_json::from_str(&text).expect("kernel.json hợp lệ")
 }
@@ -104,4 +104,10 @@ fn bang_ca_dung_chung_khop_ban_ts() {
         })
     });
     assert!(n >= 300, "bảng chỉ có {n} ca");
+}
+
+/// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+/// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+fn manifest_dir() -> String {
+    std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
 }

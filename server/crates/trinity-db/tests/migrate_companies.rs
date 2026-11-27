@@ -26,9 +26,9 @@ fn url() -> String {
 }
 
 fn prisma_bin() -> PathBuf {
-    std::env::var("PRISMA_BIN").map(PathBuf::from).unwrap_or_else(|_| {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../packages/prisma/node_modules/.bin/prisma")
-    })
+    std::env::var("PRISMA_BIN")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(manifest_dir()).join("../../../packages/prisma/node_modules/.bin/prisma"))
 }
 
 /// `prisma migrate status` cho một schema: (thành công, đầu ra).
@@ -37,7 +37,7 @@ fn prisma_status(schema: &str) -> (bool, String) {
     let sep = if u.contains('?') { '&' } else { '?' };
     let o = Command::new(prisma_bin())
         .args(["migrate", "status", "--schema"])
-        .arg(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../packages/prisma/prisma/schema.prisma"))
+        .arg(PathBuf::from(manifest_dir()).join("../../../packages/prisma/prisma/schema.prisma"))
         .env("DATABASE_URL", format!("{u}{sep}schema={schema}"))
         .env("PRISMA_HIDE_UPDATE_MESSAGE", "1")
         .env("CHECKPOINT_DISABLE", "1")
@@ -311,4 +311,10 @@ async fn thu_lai_khi_prisma_dang_giu_khoa() {
     let st = pm::status(&mut w, "c_9310", &ms).await.unwrap();
     assert!(st.up_to_date() && st.exact_checksum == ms.len());
     exec(&mut c, "DROP SCHEMA IF EXISTS c_9310 CASCADE").await;
+}
+
+/// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+/// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+fn manifest_dir() -> String {
+    std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
 }

@@ -259,9 +259,15 @@ pub fn latest_embedded() -> &'static str {
 mod tests {
     use super::*;
 
+    /// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+    /// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+    fn manifest_dir() -> String {
+        std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
+    }
+
     #[test]
     fn nhung_giong_tung_byte_thu_muc() {
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../packages/prisma/prisma/migrations");
+        let dir = std::path::Path::new(&manifest_dir()).join("../../../packages/prisma/prisma/migrations");
         let on_disk = pm::read_migrations_dir(&dir).unwrap();
         let embedded = embedded_migrations();
         assert_eq!(embedded.len(), on_disk.len());

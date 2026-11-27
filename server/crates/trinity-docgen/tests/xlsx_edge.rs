@@ -7,9 +7,7 @@ use rust_xlsxwriter::{Format, Workbook};
 use trinity_docgen::xlsx::{Cell, Column, ReadCell, SheetSpec, XlsxError, read_first_sheet, read_xlsx, write_xlsx};
 
 fn fixture(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures")
-        .join(name)
+    PathBuf::from(manifest_dir()).join("tests/fixtures").join(name)
 }
 
 fn dt(s: &str) -> chrono::NaiveDateTime {
@@ -95,4 +93,10 @@ fn as_trimmed_text_nhu_parse_cell_raw() {
     assert_eq!(ReadCell::Number(85.5).as_trimmed_text().as_deref(), Some("85.5"));
     assert_eq!(ReadCell::Bool(true).as_trimmed_text(), None);
     assert_eq!(ReadCell::DateTime(dt("2026-11-26 00:00:00")).as_trimmed_text(), None);
+}
+
+/// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+/// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+fn manifest_dir() -> String {
+    std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
 }

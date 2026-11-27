@@ -10,7 +10,7 @@ use serde_json::Value;
 use trinity_docgen::image::{Encoded, avatar_jpeg, newsfeed_webp};
 
 fn root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..")
+    PathBuf::from(manifest_dir()).join("../../..")
 }
 
 fn format_name(f: ImageFormat) -> &'static str {
@@ -75,7 +75,7 @@ fn muoi_anh_mau_khop_ban_node() {
             .unwrap();
     let cases = golden["cases"].as_array().unwrap();
     assert_eq!(cases.len(), 11);
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/images");
+    let dir = PathBuf::from(manifest_dir()).join("tests/fixtures/images");
     for c in cases {
         let file = c["file"].as_str().unwrap();
         let bytes = std::fs::read(dir.join(file)).unwrap();
@@ -86,4 +86,10 @@ fn muoi_anh_mau_khop_ban_node() {
             &format!("{file} bảng tin"),
         );
     }
+}
+
+/// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+/// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+fn manifest_dir() -> String {
+    std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
 }

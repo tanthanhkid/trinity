@@ -15,7 +15,7 @@ struct Route {
 
 /// Route để kiểm "đúng một chủ": `server/contracts/routes.json` (C02) khi đã có, không thì bảng mẫu.
 fn routes() -> (Vec<Route>, &'static str) {
-    let contract = concat!(env!("CARGO_MANIFEST_DIR"), "/../../contracts/routes.json");
+    let contract = format!("{}/../../contracts/routes.json", manifest_dir());
     match std::fs::read_to_string(contract) {
         Ok(text) => {
             let v: serde_json::Value = serde_json::from_str(&text).expect("routes.json là JSON");
@@ -179,8 +179,8 @@ fn tep_hong_bi_tu_choi_voi_loi_chi_dong() {
 
 #[test]
 fn doc_tep_va_bao_duong_dan() {
-    let p = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/ownership-sample.json");
-    assert_eq!(Ownership::load(Path::new(p)).unwrap(), sample());
+    let p = format!("{}/tests/fixtures/ownership-sample.json", manifest_dir());
+    assert_eq!(Ownership::load(Path::new(&p)).unwrap(), sample());
     let e = Ownership::load(Path::new("/khong/co/tep.json")).unwrap_err();
     assert!(e.to_string().contains("/khong/co/tep.json"), "{e}");
     let e = Ownership::parse("{\"migrate\": 1}", "own.json").unwrap_err();
@@ -188,4 +188,10 @@ fn doc_tep_va_bao_duong_dan() {
         e.to_string().starts_with("tệp sở hữu own.json hỏng ở dòng 1, cột"),
         "{e}"
     );
+}
+
+/// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+/// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+fn manifest_dir() -> String {
+    std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
 }

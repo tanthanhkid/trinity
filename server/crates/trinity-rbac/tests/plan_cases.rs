@@ -9,7 +9,7 @@ use trinity_rbac::plan::{
 };
 
 fn table() -> Value {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../contracts/cases/plan.json");
+    let path = format!("{}/../../contracts/cases/plan.json", manifest_dir());
     serde_json::from_str(&std::fs::read_to_string(path).expect("đọc plan.json")).expect("plan.json hợp lệ")
 }
 
@@ -105,4 +105,10 @@ fn cong_tinh_nang_tra_403_dung_cau_va_han_muc_nguoi() {
             .map(|e| e.to_string());
         assert_eq!(got.map(Value::String).unwrap_or(Value::Null), r["out"], "slot {r}");
     }
+}
+
+/// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+/// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+fn manifest_dir() -> String {
+    std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
 }

@@ -12,7 +12,7 @@ use tower::ServiceExt;
 use trinity_storage::{LocalDiskDriver, uploads_router};
 
 fn fixtures() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
+    PathBuf::from(manifest_dir()).join("tests/fixtures")
 }
 
 async fn read(d: &LocalDiskDriver, key: &str) -> (Vec<u8>, String) {
@@ -210,4 +210,10 @@ async fn uploads_khong_phuc_vu_tep_tam() {
         assert_eq!(app.clone().oneshot(req).await.unwrap().status(), st, "{uri}");
     }
     let _ = std::fs::remove_dir_all(&root);
+}
+
+/// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+/// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+fn manifest_dir() -> String {
+    std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
 }

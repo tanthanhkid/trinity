@@ -6,7 +6,7 @@ use trinity_http::rate_limit::FixedWindowLimiter;
 
 #[test]
 fn cua_so_co_dinh_khop_ban_ts() {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../contracts/cases/plan.json");
+    let path = format!("{}/../../contracts/cases/plan.json", manifest_dir());
     let t: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("đọc plan.json")).expect("hợp lệ");
     let cases = t["limiter"].as_array().expect("nhóm limiter");
     assert!(cases.len() >= 4);
@@ -26,4 +26,10 @@ fn cua_so_co_dinh_khop_ban_ts() {
             .collect();
         assert_eq!(Value::Array(got), c["out"], "ca {c}");
     }
+}
+
+/// Gốc crate lúc CHẠY: cargo đặt `CARGO_MANIFEST_DIR` khi chạy test. Không nhúng lúc biên dịch, vì các worktree dùng chung
+/// `CARGO_TARGET_DIR` có thể dùng lại tệp thực thi do worktree khác biên dịch (đọc nhầm hợp đồng/migration của cây kia).
+fn manifest_dir() -> String {
+    std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_owned())
 }

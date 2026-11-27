@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useParams, usePathname } from "next/navigation"
 
 /** `true` khi dựng bằng `pnpm build:export` (next.config.ts đặt biến này); bản `standalone` luôn `false`. */
@@ -39,7 +39,11 @@ export function useRouteParams<K extends string>(pattern: string): Record<K, str
   const pathname = usePathname()
   const [mounted, setMounted] = useState(!STATIC_EXPORT)
   useEffect(() => setMounted(true), [])
+  // Ổn định theo (pattern, pathname): trang đưa `route` vào deps của useEffect không bị chạy lại mỗi lần vẽ.
+  const fromPath = useMemo(
+    () => (STATIC_EXPORT && mounted ? (matchRouteParams(pattern, pathname) as Record<K, string> | null) : null),
+    [mounted, pattern, pathname],
+  )
   if (!STATIC_EXPORT) return nextParams as unknown as Record<K, string>
-  if (!mounted) return null
-  return matchRouteParams(pattern, pathname) as Record<K, string> | null
+  return fromPath
 }

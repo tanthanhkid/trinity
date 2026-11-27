@@ -33,6 +33,7 @@ type Phase = { kind: "loading" } | { kind: "ready"; invite: InvitationPreview } 
 /** Trang nhận lời mời (công khai): người được mời đặt tên + mật khẩu, tạo tài khoản trong công ty của người mời. */
 export default function InvitePage() {
   const route = useRouteParams<"token">("/invite/:token")
+  const hasRoute = route !== null
   const token = route ? decodeURIComponent(route.token ?? "") : ""
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -42,7 +43,7 @@ export default function InvitePage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!route) return // bản xuất tĩnh: chưa biết token tới khi mount
+    if (!hasRoute) return // bản xuất tĩnh: chưa biết token tới khi mount
     let alive = true
     previewInvitation(token)
       .then((invite) => alive && setPhase({ kind: "ready", invite }))
@@ -53,7 +54,7 @@ export default function InvitePage() {
     return () => {
       alive = false
     }
-  }, [route, token])
+  }, [hasRoute, token])
 
   const {
     register,

@@ -9,6 +9,7 @@ use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use mod_channel_guard::ChannelGuard;
 use mod_facebook::config::Env;
+use mod_social::jobs::{JobDeps, Runner};
 use mod_social::media::MediaStore;
 use mod_social::router::{SocialState, api_router};
 use serde_json::{Value, json};
@@ -68,6 +69,17 @@ async fn app(feature_on: bool) -> Router {
     let guard = ChannelGuard::new(db.clone(), platform.clone());
     let graph_env = env.clone();
     let graph_guard = guard.clone();
+    // Không đăng nền thật trong test: `owns_publish = false` ⇒ `kick`/`kick_if_due` không làm gì.
+    let runner = Runner::new(JobDeps {
+        db: db.clone(),
+        platform: platform.clone(),
+        env: env.clone(),
+        store: Arc::new(MediaStore::Local(LocalDiskDriver::new(root()))),
+        guard: guard.clone(),
+        graph_for: mod_facebook::routes::graph_factory(graph_env.clone(), graph_guard.clone()),
+        before_publish: None,
+        owns_publish: Some(Arc::new(|| false)),
+    });
     let state = Arc::new(SocialState {
         db: db.clone(),
         platform,
@@ -75,6 +87,7 @@ async fn app(feature_on: bool) -> Router {
         graph_for: mod_facebook::routes::graph_factory(graph_env, graph_guard),
         guard,
         store: MediaStore::Local(local),
+        runner,
     });
     let deps = Arc::new(AccessDeps {
         auth: Arc::new(Authenticator::new(security, JWT, &[])),
@@ -83,7 +96,7 @@ async fn app(feature_on: bool) -> Router {
         guards: Default::default(),
     });
     let (router, table) = api_router(deps).into_parts();
-    assert_eq!(table.len(), 38);
+    assert_eq!(table.len(), 50);
     router.with_state(state)
 }
 
@@ -504,5 +517,113 @@ async fn tai_media_va_tai_theo_phan() {
     .await;
     assert!(r.status == 204 || r.status == 404, "{}", r.status);
     let _ = std::fs::remove_dir_all(root());
+    teardown().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn thong_ke_tick_so_lieu_va_dang_nhap() {
+    setup().await;
+    let a = app(true).await;
+    // Quyền: `social.post` cho cả năm route mới.
+    for (m, p) in [
+        (Method::GET, "/stats"),
+        (Method::POST, "/tick"),
+        (Method::POST, "/posts/sync"),
+        (Method::POST, "/posts/1/metrics"),
+        (Method::POST, "/drafts/1/publish"),
+    ] {
+        let path = format!("{B}{p}");
+        assert_eq!(call(&a, m.clone(), &path, None, None).await.status, 401, "{p}");
+        assert_eq!(call(&a, m, &path, Some(NOBODY), None).await.status, 403, "{p}");
+    }
+    // Thống kê: khoảng không có bài ⇒ số 0, `views` null; khoảng ngược hoặc quá 1 năm ⇒ 400.
+    let r = call(
+        &a,
+        Method::GET,
+        &format!("{B}/stats?from=2000-01-01&to=2000-02-01&top=3"),
+        Some(POSTER),
+        None,
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 200, "{}", r.body);
+    assert_eq!(r.body["totals"]["published"], 0);
+    assert_eq!(r.body["totals"]["views"], Value::Null);
+    assert_eq!(r.body["top"], json!([]));
+    assert_eq!(r.body["by_account"], json!([]));
+    assert_eq!(r.body["updated_at"], Value::Null);
+    assert_eq!(r.body["from"], "2000-01-01T00:00:00.000Z");
+    for q in ["from=2001-01-01&to=2000-01-01", "from=2000-01-01&to=2002-01-01"] {
+        let r = call(&a, Method::GET, &format!("{B}/stats?{q}"), Some(POSTER), None).await;
+        assert_eq!(r.status.as_u16(), 400, "{q}");
+    }
+    // Mặc định 30 ngày gần nhất vẫn trả 200.
+    let r = call(&a, Method::GET, &format!("{B}/stats"), Some(POSTER), None).await;
+    assert_eq!(r.status.as_u16(), 200, "{}", r.body);
+    // `tick`: không đăng nền trong test nên `due` luôn false; `next_at` có khoá (null hoặc giờ ISO).
+    let r = call(&a, Method::POST, &format!("{B}/tick"), Some(POSTER), None).await;
+    assert_eq!(r.status.as_u16(), 200, "{}", r.body);
+    assert_eq!(r.body["due"], false);
+    assert!(r.body.get("next_at").is_some());
+    // `posts/sync` trả hai số đếm.
+    let r = call(&a, Method::POST, &format!("{B}/posts/sync"), Some(POSTER), None).await;
+    assert_eq!(r.status.as_u16(), 200, "{}", r.body);
+    assert!(r.body["checked"].is_u64() && r.body["removed"].is_u64());
+    // Lấy số bài không có ⇒ 404.
+    let r = call(
+        &a,
+        Method::POST,
+        &format!("{B}/posts/2147483000/metrics"),
+        Some(POSTER),
+        None,
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 404);
+    // Đăng nháp: không có nháp ⇒ 404; body sai ⇒ 400; nháp đã đổi so với bản xem ⇒ 409.
+    let none = format!("{B}/drafts/2147483000/publish");
+    assert_eq!(
+        call(&a, Method::POST, &none, Some(POSTER), None).await.status.as_u16(),
+        404
+    );
+    let r = call(
+        &a,
+        Method::POST,
+        &none,
+        Some(POSTER),
+        Some(json!({ "la": 1, "use_queue": "x" })),
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 400);
+    let r = call(
+        &a,
+        Method::POST,
+        &format!("{B}/drafts"),
+        Some(POSTER),
+        Some(json!({ "title": "x53 đăng nháp", "content": "Nội dung thử" })),
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 201, "{}", r.body);
+    let did = r.body["data"]["id"].as_i64().unwrap();
+    let publish = format!("{B}/drafts/{did}/publish");
+    let r = call(
+        &a,
+        Method::POST,
+        &publish,
+        Some(POSTER),
+        Some(json!({ "expected_updated_at": "2000-01-01T00:00:00Z" })),
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 409, "{}", r.body);
+    // Nháp chưa có kênh ⇒ lỗi 4xx của bước kiểm bài, và chỗ giữ được trả lại: nháp vẫn mở, sửa/đăng lại được.
+    let r = call(&a, Method::POST, &publish, Some(POSTER), Some(json!({}))).await;
+    assert!(r.status.is_client_error(), "{} {}", r.status, r.body);
+    assert_ne!(r.status.as_u16(), 409, "{}", r.body);
+    assert_eq!(
+        call(&a, Method::GET, &format!("{B}/drafts/{did}"), Some(POSTER), None)
+            .await
+            .status
+            .as_u16(),
+        200
+    );
     teardown().await;
 }

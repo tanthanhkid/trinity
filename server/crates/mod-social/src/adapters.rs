@@ -177,6 +177,7 @@ impl PostsPort for PostsAdapter<'_> {
         let extra = CreateExtra {
             guard: guard.as_ref(),
             dedupe: true,
+            ..CreateExtra::default()
         };
         create_with(&self.ctx(user_id), &dto, &extra).await
     }

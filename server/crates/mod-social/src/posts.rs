@@ -889,7 +889,7 @@ pub async fn list(conn: &mut PgConnection, q: &ListQuery) -> Result<PostList, Ap
 }
 
 /// Đọc lại bài trên một kết nối mới (sau khi nhả kết nối của bước ghi).
-async fn reload(c: &PostCtx<'_>, id: i32) -> Result<PostView, AppError> {
+pub(crate) async fn reload(c: &PostCtx<'_>, id: i32) -> Result<PostView, AppError> {
     let mut conn = c.conn().await?;
     get(&mut conn, id).await
 }
@@ -936,6 +936,8 @@ async fn prepare_quota(c: &PostCtx<'_>) -> Result<Option<ReserveContext>, AppErr
 pub(crate) struct CreateExtra<'a> {
     pub guard: Option<&'a RecurrenceGuard>,
     pub dedupe: bool,
+    /// Đăng từ nháp: id nháp đang giữ chỗ (`post_id = PUBLISHING`); gắn `post_id` thật NGAY TRONG giao dịch tạo bài.
+    pub draft: Option<i32>,
 }
 
 /// Lỗi của [`insert_post`].
@@ -1020,6 +1022,20 @@ async fn insert_post(
             .execute(&mut *tx)
             .await
             .map_err(db)?;
+    }
+    if let Some(draft_id) = extra.draft {
+        let n =
+            sqlx::query("UPDATE social_drafts SET post_id = $2, publishing_at = NULL WHERE id = $1 AND post_id = $3")
+                .bind(draft_id)
+                .bind(post_id)
+                .bind(crate::drafts::PUBLISHING)
+                .execute(&mut *tx)
+                .await
+                .map_err(db)?
+                .rows_affected();
+        if n != 1 {
+            return Err(AppError::from(HttpError::new(409, "Nháp đang được đăng hoặc đã đăng.")).into());
+        }
     }
     tx.commit().await.map_err(db)?;
     Ok(post_id)

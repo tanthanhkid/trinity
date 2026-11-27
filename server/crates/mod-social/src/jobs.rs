@@ -848,7 +848,7 @@ impl Runner {
     // ─────────────── lịch ───────────────
 
     /// `recurrences::materialize` với cổng bài đăng thật ([`PostsAdapter`]).
-    async fn materialize_recurrences(&self, company: CompanyRef) -> Result<(), String> {
+    pub async fn materialize_recurrences(&self, company: CompanyRef) -> Result<(), String> {
         let tenant = self.deps.db.tenant(company).await.map_err(|e| e.to_string())?;
         let graph = (self.deps.graph_for)(company);
         let posts = PostsAdapter {

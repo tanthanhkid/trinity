@@ -5,8 +5,8 @@
 //!   theo người nên nháp cũng chung cả công ty.
 //! - Tệp kèm nháp được kiểm với thư viện ([`media::resolve`]) qua kết nối riêng; KHÔNG giữ kết nối pool khi gọi hàm đó.
 //! - Sửa luôn đổi `updated_at` (như Prisma `@updatedAt`): `expected_updated_at` của lúc đăng dựa vào đó.
-//! - **Chưa có** `POST /social/drafts/:id/publish`: cần dịch vụ tạo bài (M54a). Hằng [`PUBLISHING`], [`STALE_CLAIM_MS`] và
-//!   [`DRAFT_COLS`] để M54a dùng lại cho bước giữ chỗ.
+//! - `POST /social/drafts/:id/publish` ở [`crate::draft_publish`]. Hằng [`PUBLISHING`], [`STALE_CLAIM_MS`] và [`DRAFT_COLS`]
+//!   dùng cho bước giữ chỗ.
 
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]

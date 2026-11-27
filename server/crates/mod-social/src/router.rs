@@ -1,10 +1,11 @@
 //! Router axum của `SocialController` và `SocialPublicController` (K14): path, method, quyền, mã thành công và `org_feature` lấy
 //! từ [`crate::routes`] (đã so với `contracts/routes.json`).
 //!
-//! Mount: 40 route của [`crate::routes::routes`] (gồm import CSV và bài lặp M55b, nối `PostsAdapter` của M54b) và 5 route
+//! Mount: 45 route của [`crate::routes::routes`] (gồm import CSV và bài lặp M55b, nối `PostsAdapter` của M54b) và 5 route
 //! tải video theo phần ([`crate::routes::upload_routes`]).
 //!
-//! Ngoài bảng route hiện có (chưa port): `POST /social/drafts/:id/publish`, `posts/:id/metrics`, `posts/sync`, `stats`, `tick`.
+//! Cùng bảng còn `POST /social/drafts/:id/publish`, `posts/:id/metrics`, `posts/sync`, `GET stats`, `POST tick` (nối vào
+//! [`crate::draft_publish`], [`crate::stats`] và [`Runner`] của job M54b).
 
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
@@ -34,14 +35,16 @@ use trinity_kernel::error::{AppError, HttpError};
 use trinity_kernel::vn_time::js_iso_string;
 
 use crate::adapters::{DraftsAdapter, PostsAdapter, QueueAdapter};
+use crate::draft_publish;
 use crate::drafts::{self, DraftInput};
-use crate::dto::{PostInput, SocialConnect, parse_reschedule};
+use crate::dto::{PostInput, SocialConnect, parse_draft_publish, parse_reschedule};
 use crate::dto_recur::{ImportBody, ImportPlanBody, RecurrenceBody};
 use crate::import::{self, ImportPorts};
+use crate::jobs::Runner;
 use crate::media::{self, LibraryQuery, MAX_IMAGE_BYTES, MAX_STORED_VIDEO_BYTES, MediaCtx, MediaFile, MediaStore};
 use crate::posts::{self, ListQuery, PostCtx};
 use crate::snippets::{self, SnippetInput};
-use crate::{accounts, chunked, queue, recurrences, routes};
+use crate::{accounts, chunked, queue, recurrences, routes, stats};
 
 /// Thân JSON tối đa (như `body-parser` mặc định của Express).
 const JSON_LIMIT: usize = 5 * 1024 * 1024;
@@ -55,6 +58,8 @@ pub struct SocialState {
     pub graph_for: GraphFactory,
     pub guard: ChannelGuard,
     pub store: MediaStore,
+    /// Bộ chạy job đăng bài và lấy số của M54b (cùng bản dựng đăng ký với scheduler): `tick`, `posts/sync`, đăng ngay sau request.
+    pub runner: Arc<Runner>,
 }
 
 impl SocialState {
@@ -444,6 +449,12 @@ async fn posts_create(State(s): St, Extension(u): Usr, JsonBody(body): JsonBody)
         posts::create(&s.post_ctx(&graph, company, u.user.user_id), &input).await
     }
     .await;
+    // Bài đăng ngay (không hẹn giờ): đăng nền sau request, như `kick()` của Node.
+    if let Ok(v) = &r
+        && v.scheduled_at.is_none()
+    {
+        s.runner.kick(company);
+    }
     ok(r)
 }
 
@@ -517,6 +528,9 @@ async fn target_retry(State(s): St, Extension(u): Usr, Path(id): Path<String>) -
         posts::retry(&s.post_ctx(&graph, company, u.user.user_id), id).await
     }
     .await;
+    if r.is_ok() {
+        s.runner.kick(company);
+    }
     ok(r)
 }
 
@@ -590,6 +604,82 @@ async fn drafts_remove(State(s): St, Extension(u): Usr, Path(id): Path<String>) 
     }
     .await;
     no_content(r)
+}
+
+/// `POST /social/drafts/:id/publish` ⇒ 200 + bài vừa tạo; lỗi thì nháp giữ nguyên.
+async fn drafts_publish(State(s): St, Extension(u): Usr, Path(id): Path<String>, JsonBody(body): JsonBody) -> Response {
+    let company = company!(u);
+    let r = async {
+        let input = parse_draft_publish(&body)?;
+        let id = id_of(&id, "bài nháp")?;
+        let graph = (s.graph_for)(company);
+        draft_publish::publish(&s.post_ctx(&graph, company, u.user.user_id), id, &input).await
+    }
+    .await;
+    if let Ok(v) = &r
+        && v.scheduled_at.is_none()
+    {
+        s.runner.kick(company);
+    }
+    ok(r)
+}
+
+// ───────────────────────────── số liệu, đăng định kỳ ─────────────────────────────
+
+/// `GET /social/stats`: thống kê bài đã đăng trong khoảng ngày (mặc định 30 ngày).
+async fn social_stats(State(s): St, Extension(u): Usr, Query(q): Query<HashMap<String, String>>) -> Response {
+    let company = company!(u);
+    let r = async {
+        let query = stats::parse_stats_query(param(&q, "from"), param(&q, "to"), param(&q, "top"), chrono::Utc::now())?;
+        stats::stats(&s.db, company, &query).await
+    }
+    .await;
+    ok(r)
+}
+
+/// `POST /social/posts/:id/metrics`: lấy ngay số liệu các kênh đã đăng của bài.
+async fn post_metrics(State(s): St, Extension(u): Usr, Path(id): Path<String>) -> Response {
+    let company = company!(u);
+    let r = async {
+        let id = id_of(&id, "bài đăng")?;
+        let graph = (s.graph_for)(company);
+        stats::refresh_post(&s.runner, &s.db, company, &graph, id, now_ms()).await
+    }
+    .await;
+    ok(r)
+}
+
+/// `POST /social/posts/sync`: kiểm bài đã đăng gần đây còn trên mạng không ⇒ `{ checked, removed }`.
+async fn posts_sync(State(s): St, Extension(u): Usr) -> Response {
+    let company = company!(u);
+    let r = s
+        .runner
+        .sync_published(company, now_ms())
+        .await
+        .map(|(checked, removed)| json!({ "checked": checked, "removed": removed }))
+        .map_err(AppError::internal);
+    ok(r)
+}
+
+/// `POST /social/tick`: sinh bài lặp đến hạn, nhặt bài đến giờ hẹn / đến lượt thử lại (web gọi mỗi phút khi job nền không chạy)
+/// ⇒ `{ due, next_at }`.
+async fn social_tick(State(s): St, Extension(u): Usr) -> Response {
+    let company = company!(u);
+    let r = async {
+        // Lỗi sinh bài lặp không chặn việc nhặt bài (Node: `.catch(() => undefined)`).
+        if let Err(e) = s.runner.materialize_recurrences(company).await {
+            tracing::warn!("Sinh bài lặp khi tick lỗi: {e}");
+        }
+        let due = s
+            .runner
+            .kick_if_due(company, now_ms())
+            .await
+            .map_err(AppError::internal)?;
+        let next = s.runner.next_due_at(company).await.map_err(AppError::internal)?;
+        Ok::<_, AppError>(json!({ "due": due, "next_at": next.map(js_iso_string) }))
+    }
+    .await;
+    ok(r)
 }
 
 // ───────────────────────────── mẫu chữ, hàng đợi, bài lặp ─────────────────────────────
@@ -916,6 +1006,10 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<SocialState>> {
         .route(spec(&get, &p("/posts")), posts_list)
         .route(spec(&post, &p("/posts")), posts_create)
         .route(spec(&post, &p("/posts/preview")), posts_preview)
+        .route(spec(&post, &p("/posts/sync")), posts_sync)
+        .route(spec(&get, &p("/stats")), social_stats)
+        .route(spec(&post, &p("/tick")), social_tick)
+        .route(spec(&post, &p("/posts/:id/metrics")), post_metrics)
         .route(spec(&get, &p("/posts/:id")), posts_get)
         .route(spec(&patch, &p("/posts/:id")), posts_update)
         .route(spec(&post, &p("/posts/:id/reschedule")), posts_reschedule)
@@ -927,6 +1021,7 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<SocialState>> {
         .route(spec(&get, &p("/drafts/:id")), drafts_get)
         .route(spec(&patch, &p("/drafts/:id")), drafts_update)
         .route(spec(&delete, &p("/drafts/:id")), drafts_remove)
+        .route(spec(&post, &p("/drafts/:id/publish")), drafts_publish)
         .route(spec(&get, &p("/snippets")), snippets_list)
         .route(spec(&post, &p("/snippets")), snippets_create)
         .route(spec(&patch, &p("/snippets/:id")), snippets_update)

@@ -782,7 +782,10 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
                 .filter(|v| !v.is_empty())
                 .unwrap_or_else(|| "/var/lib/trinity/storage".to_owned());
             let driver = LocalDiskDriver::new(root);
-            driver.init().await.map_err(|e| format!("thư mục newsfeed: {e}"))?;
+            // Như thư mục uploads: không ghi được thì cảnh báo (chạy localhost không đặt STORAGE_LOCAL_ROOT), không dừng serve.
+            if let Err(e) = driver.init().await {
+                tracing::warn!("thư mục newsfeed: {e}");
+            }
             mod_newsfeed::routes::Store::Local(driver)
         }
         Some("s3") => {

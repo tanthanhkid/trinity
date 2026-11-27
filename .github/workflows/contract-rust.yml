@@ -91,8 +91,8 @@ jobs:
         env:
           # Mảng JSON (lệnh + đối số). Bọc bằng vmhwm-wrap.sh để in VmHWM của máy chủ mỗi hồ sơ.
           # `trinity serve` do issue khác thêm (CLI: serve | migrate | seed); binary đọc cấu hình từ env của hồ sơ.
-          SERVER_CMD: '["bash","${{ github.workspace }}/.github/scripts/vmhwm-wrap.sh","/tmp/bin/trinity-test-hooks","serve"]'
-          SERVER_CMD_PRODUCTION: '["bash","${{ github.workspace }}/.github/scripts/vmhwm-wrap.sh","/tmp/bin/trinity-release","serve"]'
+          SERVER_CMD: '["bash","${{ github.workspace }}/.github/scripts/vmhwm-wrap.sh","/tmp/bin/trinity-test-hooks"]'
+          SERVER_CMD_PRODUCTION: '["bash","${{ github.workspace }}/.github/scripts/vmhwm-wrap.sh","/tmp/bin/trinity-release"]'
           VMHWM_LABEL: rust
         run: |
           pnpm --filter @trinity/contract-tests contract -- --target cmd --mode compare --baseline server/contracts/golden --out /tmp/contract-rust

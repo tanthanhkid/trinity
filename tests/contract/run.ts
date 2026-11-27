@@ -130,7 +130,9 @@ function serverCommand(profile: string): { cmd: string; args: string[] } {
   const prod = profile === 'production' ? process.env.SERVER_CMD_PRODUCTION : undefined
   const raw = prod ?? process.env.SERVER_CMD
   if (!raw) throw new Error('cần SERVER_CMD (và SERVER_CMD_PRODUCTION cho hồ sơ production)')
-  return parseCmd(prod ? 'SERVER_CMD_PRODUCTION' : 'SERVER_CMD', raw)
+  const c = parseCmd(prod ? 'SERVER_CMD_PRODUCTION' : 'SERVER_CMD', raw)
+  // SERVER_CMD không chứa lệnh con: bộ chạy tự thêm `migrate`/`seed`/`serve`.
+  return { cmd: c.cmd, args: [...c.args, 'serve'] }
 }
 
 /** Cổng phải trống trước khi khởi động: nếu không, health có thể đến từ tiến trình cũ chứ không phải pid vừa spawn. */
@@ -163,7 +165,7 @@ async function main(): Promise<void> {
   refuseNearVnMidnight()
   const mode = arg('mode')[0] ?? 'record'
   const baseline = arg('baseline')[0]
-  const outDir = path.resolve(arg('out')[0] ?? path.join(here, '.out', new Date().toISOString().replace(/[:.]/g, '-')))
+  const outDir = path.resolve(process.env.INIT_CWD ?? process.cwd(), arg('out')[0] ?? path.join(here, '.out', new Date().toISOString().replace(/[:.]/g, '-')))
   if (mode === 'compare' && !baseline) throw new Error('--mode compare cần --baseline <thư mục record>')
   const wanted = arg('profile', true)
   const profiles = wanted.length
@@ -217,7 +219,8 @@ async function main(): Promise<void> {
         ...cleanBase(),
         ...defaults,
         ...(profile === 'default' ? {} : parseEnvFile(path.join(here, 'profiles', `${profile}.env`))),
-        PORT: String(PORT),
+        TRINITY_HTTP_PORT: String(PORT),
+        COMPAT_API_PORT: String(PORT + 2),
         DATABASE_URL: dbUrl(dbName),
         JWT_SECRET: 'contract-jwt-secret-0123456789abcdef0123456789',
         SERVICE_SECRET,
@@ -268,7 +271,7 @@ async function main(): Promise<void> {
           CONTRACT_ZALO_WEBHOOK_SECRET: env.ZALO_WEBHOOK_SECRET ?? '',
           CONTRACT_MODE: mode,
           CONTRACT_OUT_DIR: outDir,
-          ...(baseline ? { CONTRACT_BASELINE_DIR: path.resolve(baseline) } : {}),
+          ...(baseline ? { CONTRACT_BASELINE_DIR: path.resolve(process.env.INIT_CWD ?? process.cwd(), baseline) } : {}),
           ...(process.env.UPDATE_GOLDEN ? { UPDATE_GOLDEN: process.env.UPDATE_GOLDEN } : {}),
           TZ: 'UTC',
         }

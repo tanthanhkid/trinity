@@ -66,6 +66,10 @@ Hồ sơ `production` phía Rust chạy trên binary **phát hành** (không có
 - C10: `cases/default/10-nhan-su` (nhân sự, chấm công, hợp đồng, tuyển dụng, tổ chức) và `11-kanban-bao-cao-bang-tin` (kanban, báo cáo, bảng tin). `reports/overview`
   có `shape_permissions: contacts.phone_full` nên ghi golden 3 vai; khoảng ngày tính từ hôm nay. Ca sửa `/settings/departments` khôi phục `settings.department_list` ở `afterAll`.
 
+## Ca e2e đã chuyển (C07a)
+- C07a: `cases/default/30-auth-users` (37 ca, từ `auth-users.e2e-spec.ts`): mỗi ca tự seed người dùng + vai trò bằng SQL rồi đăng nhập thật. Ca che SĐT tìm người dùng đích theo email
+  (`/users?search=`), không đọc `limit=200` đầu tiên; ca từ chối PATCH `login-wifi-check` gửi `enabled: false` để cổng quyền hỏng cũng không bật cờ dùng chung.
+
 ## Ca e2e đã chuyển (C09)
 - C09 (22 ca, hồ sơ `default`): `20-custom-objects` (14, từ `custom-objects.e2e-spec.ts`) và `21-custom-object-templates` (8, từ `custom-objects-templates.e2e-spec.ts`).
   Mỗi ca bắt đầu bằng `resetCustom()` (TRUNCATE `custom_records/fields/objects`, `integration_events`) vì e2e gốc dọn ở `afterEach` và nhiều ca dùng cùng khoá

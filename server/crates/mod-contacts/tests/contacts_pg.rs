@@ -854,9 +854,15 @@ fn test_url() -> String {
 }
 
 async fn page_total(c: &mut PgConnection, scopes: &Scopes, who: i32, cache: &CountCache) -> i64 {
-    let l = find_all(c, scopes, &actor(who, false), &q(json!({ "page": 1, "limit": 3 })), cache)
-        .await
-        .unwrap();
+    let l = find_all(
+        c,
+        scopes,
+        &actor(who, false),
+        &q(json!({ "page": 1, "limit": 3 })),
+        cache,
+    )
+    .await
+    .unwrap();
     let Meta::Page { total, .. } = l.meta else {
         panic!("thiếu meta trang")
     };
@@ -878,7 +884,11 @@ async fn tin_cache_cua_tien_trinh_khac_xoa_so_dem_khach() {
     let live = CountCache::new();
     assert_eq!(page_total(&mut c, &scopes, boss, &live).await, 2);
     contact(&mut c, "0907000203", "Khách 3", boss).await;
-    assert_eq!(page_total(&mut c, &scopes, boss, &live).await, 2, "còn số cũ trong cache");
+    assert_eq!(
+        page_total(&mut c, &scopes, boss, &live).await,
+        2,
+        "còn số cũ trong cache"
+    );
 
     let mut rx = sync::listen(DbConfig::new(test_url()).connect_options().unwrap());
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -923,8 +933,5 @@ async fn invalidate_phat_notify_cache_dem_khach() {
         .unwrap();
     let env = sync::parse_payload(n.payload()).expect("payload hợp lệ");
     assert_eq!((env.kind.as_str(), env.company), ("cache", 1));
-    assert_eq!(
-        env.fields.get("p").and_then(Value::as_str),
-        Some("crm:contacts:count:")
-    );
+    assert_eq!(env.fields.get("p").and_then(Value::as_str), Some("crm:contacts:count:"));
 }

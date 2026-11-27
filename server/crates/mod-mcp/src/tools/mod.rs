@@ -337,7 +337,14 @@ pub fn register_payroll(r: &mut ToolRegistry) {
 /// `get_client_ip_status` cần `settings.integrations`; `get_channel_limits` mở cho mọi người (người không có `settings.features`
 /// chỉ thấy cảnh báo); `get_connected_channels` lọc nhóm kênh theo quyền ngay trong hàm báo cáo.
 pub fn register_channels(r: &mut ToolRegistry, deps: Arc<ChannelsDeps>) {
-    reg_state(r, &deps, "get_connected_channels", None, &[], channels::get_connected_channels);
+    reg_state(
+        r,
+        &deps,
+        "get_connected_channels",
+        None,
+        &[],
+        channels::get_connected_channels,
+    );
     reg_state(r, &deps, "get_channel_limits", None, &[], channels::get_channel_limits);
     reg_state(
         r,

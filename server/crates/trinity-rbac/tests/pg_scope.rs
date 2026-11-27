@@ -26,8 +26,8 @@ async fn exec(sql: &str) {
 
 async fn teardown() {
     exec("DELETE FROM contacts WHERE phone LIKE 'k13-%'").await;
-    exec("UPDATE users SET manager_id = NULL WHERE id BETWEEN 9301 AND 9399").await;
-    exec("DELETE FROM users WHERE id BETWEEN 9301 AND 9399").await;
+    exec("UPDATE users SET manager_id = NULL WHERE id BETWEEN 9301 AND 9399 AND email LIKE 'k13-%'").await;
+    exec("DELETE FROM users WHERE id BETWEEN 9301 AND 9399 AND email LIKE 'k13-%'").await;
 }
 
 /// Cây: 9301 quản lý 9302, 9303; 9302 quản lý 9304. Liên hệ: mỗi liên hệ có người phụ trách và người tạo.

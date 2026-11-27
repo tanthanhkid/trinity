@@ -738,12 +738,13 @@ async fn index_duy_nhat_lower_name_chan_ten_khac_hoa_thuong_o_tang_db() {
         .execute(&mut *c)
         .await;
     let e = r.expect_err("index lower(name) phải chặn");
+    assert_eq!(e.as_database_error().and_then(|d| d.code()).as_deref(), Some("23505"));
     assert_eq!(
-        e.as_database_error().and_then(|d| d.code()).as_deref(),
-        Some("23505")
-    );
-    assert_eq!(
-        count(&env, "SELECT count(*) FROM pg_indexes WHERE indexname = 'roles_name_lower_key'").await,
+        count(
+            &env,
+            "SELECT count(*) FROM pg_indexes WHERE indexname = 'roles_name_lower_key'"
+        )
+        .await,
         1
     );
 }

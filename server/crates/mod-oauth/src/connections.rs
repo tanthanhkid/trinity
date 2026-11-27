@@ -38,9 +38,12 @@ impl OauthCtx {
         let heads: Vec<Head> = {
             let mut c = self.conn(company).await?;
             sqlx::query_as(
-                "SELECT family_id, client_id, user_id, COALESCE(scopes, '{}') AS scopes, last_used_at, refresh_expires_at \
-                 FROM oauth_tokens WHERE revoked_at IS NULL AND refresh_used_at IS NULL AND refresh_expires_at > now() \
-                 AND ($1 OR user_id = $2) ORDER BY id DESC LIMIT $3",
+                "SELECT family_id, client_id, user_id, scopes, last_used_at, refresh_expires_at FROM ( \
+                   SELECT DISTINCT ON (family_id) id, family_id, client_id, user_id, COALESCE(scopes, '{}') AS scopes, \
+                     last_used_at, refresh_expires_at \
+                   FROM oauth_tokens WHERE revoked_at IS NULL AND refresh_used_at IS NULL AND refresh_expires_at > now() \
+                   AND ($1 OR user_id = $2) ORDER BY family_id, id DESC) h \
+                 ORDER BY id DESC LIMIT $3",
             )
             .bind(all)
             .bind(user_id)

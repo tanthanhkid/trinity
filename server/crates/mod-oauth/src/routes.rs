@@ -189,6 +189,11 @@ fn hit_by_client(
         .limits
         .untrusted_peer
         .hit(&format!("{prefix}:{}", client.rate_key), now);
+    // Trần peer chặn trước: kẻ lạ dội hết trần thì không còn đụng tới xô theo client_id của client công khai (client_id ai
+    // cũng biết). Xô client còn mang cả khoá peer nên hai nguồn khác nhau không dùng chung xô.
+    if !peer.allowed {
+        return peer;
+    }
     // `own.trim().slice(0, 200)` (đơn vị UTF-16).
     let o = String::from_utf16_lossy(
         &crate::util::js_trim(own.unwrap_or(""))
@@ -204,8 +209,7 @@ fn hit_by_client(
         .chars()
         .take(24)
         .collect();
-    let mine = limiter.hit(&format!("{prefix}:u:{short}"), now);
-    if peer.allowed { mine } else { peer }
+    limiter.hit(&format!("{prefix}:u:{}:{short}", client.rate_key), now)
 }
 
 /// `own` của giới hạn: `body.client_id` nếu là chuỗi.

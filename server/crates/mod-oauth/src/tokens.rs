@@ -48,6 +48,12 @@ struct TokenRow {
     revoked_at: Option<DateTime<Utc>>,
 }
 
+enum RefreshState {
+    Concurrent,
+    Revoked,
+    Reused,
+}
+
 #[derive(Debug, FromRow)]
 struct UsedRow {
     refresh_used_at: Option<DateTime<Utc>>,
@@ -215,6 +221,7 @@ impl OauthCtx {
                 &row.scopes,
                 &row.resource,
                 &row.family_id,
+                false,
             )
             .await?;
         self.audit(
@@ -270,22 +277,13 @@ impl OauthCtx {
             .map_err(|e| OAuthError::internal("xoay refresh", e))?
             .rows_affected()
         };
-        if claimed != 1 && !self.is_concurrent_refresh(company, row.id).await? {
-            self.revoke_family(company, &row.family_id).await?;
-            self.audit(
-                company,
-                Self::entry(
-                    "oauth.refresh_reuse",
-                    AuditStatus::Denied,
-                    &client.client_id,
-                    Some(row.user_id),
-                    json!({ "family_revoked": true }),
-                ),
-            )
-            .await;
-            return Err(invalid_grant(
-                "refresh_token đã được dùng — toàn bộ phiên kết nối đã bị thu hồi để an toàn",
-            ));
+        if claimed != 1 {
+            match self.refresh_state(company, row.id).await? {
+                RefreshState::Concurrent => {}
+                // Thua cuộc đua với một lần thu hồi (người dùng bấm "Thu hồi"): không phải dùng lại ⇒ không ghi nhật ký tấn công.
+                RefreshState::Revoked => return Err(invalid_grant("refresh_token đã bị thu hồi hoặc hết hạn")),
+                RefreshState::Reused => return self.refresh_reused(company, client, &row).await,
+            }
         }
         if !self.user_still_allowed(company, row.user_id).await? {
             self.revoke_family(company, &row.family_id).await?;
@@ -295,10 +293,15 @@ impl OauthCtx {
         // client gửi lại nguyên scope đã xin thì bỏ nó đi, tránh invalid_scope oan. Chỉ còn mỗi nó ⇒ coi như không hỏi.
         let asked: Option<Vec<&str>> = s(body, "scope")
             .map(|v| {
-                split_js_space(v)
-                    .into_iter()
-                    .filter(|x| *x != "offline_access")
-                    .collect::<Vec<_>>()
+                split_js_space(v).into_iter().filter(|x| *x != "offline_access").fold(
+                    Vec::new(),
+                    |mut v: Vec<&str>, x| {
+                        if !v.contains(&x) {
+                            v.push(x);
+                        }
+                        v
+                    },
+                )
             })
             .filter(|v| !v.is_empty());
         let scopes: Vec<String> = match &asked {
@@ -327,6 +330,7 @@ impl OauthCtx {
                 &scopes,
                 &row.resource,
                 &row.family_id,
+                claimed == 1,
             )
             .await?;
         self.audit(
@@ -343,10 +347,34 @@ impl OauthCtx {
         Ok(out)
     }
 
+    /// Dùng lại refresh đã xoay ngoài cửa sổ ⇒ coi là bị đánh cắp ⇒ thu hồi CẢ chuỗi.
+    async fn refresh_reused(
+        &self,
+        company: CompanyRef,
+        client: &crate::clients::OauthClient,
+        row: &TokenRow,
+    ) -> R<Value> {
+        self.revoke_family(company, &row.family_id).await?;
+        self.audit(
+            company,
+            Self::entry(
+                "oauth.refresh_reuse",
+                AuditStatus::Denied,
+                &client.client_id,
+                Some(row.user_id),
+                json!({ "family_revoked": true }),
+            ),
+        )
+        .await;
+        Err(invalid_grant(
+            "refresh_token đã được dùng — toàn bộ phiên kết nối đã bị thu hồi để an toàn",
+        ))
+    }
+
     /// Client gọi song song nhiều request cùng lúc hết hạn ⇒ nhiều lần refresh với CÙNG token trong vài giây. Trong cửa sổ
     /// ngắn sau lần xoay đầu, coi là trùng lặp lành tính (cấp cặp mới cùng chuỗi, không thu hồi). Quá cửa sổ ⇒ dùng lại
     /// là bị đánh cắp.
-    async fn is_concurrent_refresh(&self, company: CompanyRef, id: i64) -> R<bool> {
+    async fn refresh_state(&self, company: CompanyRef, id: i64) -> R<RefreshState> {
         let mut c = self.conn(company).await?;
         let cur: Option<UsedRow> = sqlx::query_as("SELECT refresh_used_at, revoked_at FROM oauth_tokens WHERE id = $1")
             .bind(id)
@@ -355,13 +383,17 @@ impl OauthCtx {
             .map_err(|e| OAuthError::internal("đọc refresh", e))?;
         Ok(match cur {
             Some(UsedRow {
+                revoked_at: Some(_), ..
+            }) => RefreshState::Revoked,
+            Some(UsedRow {
                 refresh_used_at: Some(used),
                 revoked_at: None,
-            }) => (Utc::now() - used).num_milliseconds() < REFRESH_GRACE_MS,
-            _ => false,
+            }) if (Utc::now() - used).num_milliseconds() < REFRESH_GRACE_MS => RefreshState::Concurrent,
+            _ => RefreshState::Reused,
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn issue(
         &self,
         company: CompanyRef,
@@ -370,6 +402,7 @@ impl OauthCtx {
         scopes: &[String],
         resource: &str,
         family_id: &str,
+        burn_siblings: bool,
     ) -> R<Value> {
         let prefix = crate::company_token_prefix(company.id());
         let access = format!("{prefix}trn_at_{}", self.random(32)?);
@@ -401,6 +434,20 @@ impl OauthCtx {
         .fetch_optional(&mut *c)
         .await
         .map_err(|e| OAuthError::internal("kiểm thu hồi", e))?;
+        if dead.is_none() && burn_siblings {
+            // Xoay thường (không phải lần trùng lặp trong cửa sổ): chỉ MỘT đầu refresh còn sống. Hai request song song
+            // trong cửa sổ 10 giây có thể đã cấp hai đầu; đầu còn lại bị đánh dấu đã dùng ngay khi một đầu xoay, nên bên
+            // giữ đầu đó (ví dụ kẻ cầm refresh token cũ) mà dùng sau cửa sổ sẽ bị coi là dùng lại và thu hồi cả chuỗi.
+            sqlx::query(
+                "UPDATE oauth_tokens SET refresh_used_at = now() \
+                 WHERE family_id = $1 AND id <> $2 AND refresh_used_at IS NULL AND revoked_at IS NULL",
+            )
+            .bind(family_id)
+            .bind(created)
+            .execute(&mut *c)
+            .await
+            .map_err(|e| OAuthError::internal("khoá đầu refresh cũ", e))?;
+        }
         drop(c);
         if dead.is_some() {
             self.revoke_family(company, family_id).await?;

@@ -1597,3 +1597,171 @@ async fn ma_va_token_cong_ty_la_khong_dung_duoc() {
     assert!(a.ctx.verify_access_token("c7.trn_at_x").await.is_none());
     assert!(a.ctx.verify_access_token(&"x".repeat(300)).await.is_none());
 }
+
+// ================================================================= theo review #392
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn hai_dau_refresh_chi_mot_dau_song_va_danh_sach_khong_trung() {
+    setup().await;
+    let a = app().await;
+    let c = register(&a, json!({})).await;
+    let cid = c["client_id"].as_str().unwrap().to_owned();
+    let t1 = full_tokens(&a, AIA, &cid, None).await;
+    let refresh = |rt: String| {
+        let (a, cid) = (&a, cid.clone());
+        async move {
+            form(
+                a,
+                "/api/v1/oauth/token",
+                &[
+                    ("grant_type", "refresh_token"),
+                    ("refresh_token", &rt),
+                    ("client_id", &cid),
+                ],
+            )
+            .await
+        }
+    };
+    let r0 = t1["refresh_token"].as_str().unwrap().to_owned();
+    let h1 = refresh(r0.clone()).await; // thắng
+    let h2 = refresh(r0).await; // trùng lặp trong cửa sổ ⇒ đầu thứ hai
+    assert_eq!((h1.status.as_u16(), h2.status.as_u16()), (200, 200));
+    // Danh sách kết nối chỉ một dòng dù chuỗi có hai đầu.
+    let l = send(
+        &a,
+        Method::GET,
+        "/api/v1/integrations/ai-connections",
+        Some(AIA),
+        Payload::None,
+        None,
+    )
+    .await;
+    assert_eq!(l.body["data"].as_array().unwrap().len(), 1, "{:?}", l.body);
+    // Một đầu xoay ⇒ đầu kia bị đánh dấu đã dùng; dùng nó SAU cửa sổ ⇒ coi là dùng lại ⇒ thu hồi cả chuỗi.
+    let h3 = refresh(h1.body["refresh_token"].as_str().unwrap().to_owned()).await;
+    assert_eq!(h3.status, 200, "{:?}", h3.body);
+    exec("UPDATE oauth_tokens SET refresh_used_at = refresh_used_at - interval '1 minute' WHERE refresh_used_at IS NOT NULL").await;
+    let stale = refresh(h2.body["refresh_token"].as_str().unwrap().to_owned()).await;
+    assert_eq!((stale.status.as_u16(), err(&stale)), (400, "invalid_grant"));
+    assert!(
+        a.ctx
+            .verify_access_token(h3.body["access_token"].as_str().unwrap())
+            .await
+            .is_none()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn refresh_bi_thu_hoi_khong_ghi_nhat_ky_dung_lai() {
+    setup().await;
+    let a = app().await;
+    let c = register(&a, json!({})).await;
+    let cid = c["client_id"].as_str().unwrap().to_owned();
+    let t = full_tokens(&a, AIA, &cid, None).await;
+    let rt = t["refresh_token"].as_str().unwrap().to_owned();
+    // Đã dùng + đã thu hồi (người dùng bấm Thu hồi giữa chừng) ⇒ invalid_grant, KHÔNG phải tấn công dùng lại.
+    exec("UPDATE oauth_tokens SET refresh_used_at = now() - interval '1 minute', revoked_at = now()").await;
+    let r = form(
+        &a,
+        "/api/v1/oauth/token",
+        &[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", &rt),
+            ("client_id", &cid),
+        ],
+    )
+    .await;
+    assert_eq!(err(&r), "invalid_grant");
+    assert_eq!(
+        scalar::<i64>("SELECT count(*) FROM integration_audit_logs WHERE action = 'oauth.refresh_reuse'").await,
+        0
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn refresh_scope_trung_lap_duoc_gop() {
+    setup().await;
+    let a = app().await;
+    let c = register(&a, json!({})).await;
+    let cid = c["client_id"].as_str().unwrap().to_owned();
+    let t = full_tokens(&a, AIA, &cid, None).await;
+    let r = form(
+        &a,
+        "/api/v1/oauth/token",
+        &[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", t["refresh_token"].as_str().unwrap()),
+            ("client_id", &cid),
+            ("scope", "crm.read crm.read"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, 200, "{:?}", r.body);
+    assert_eq!(r.body["scope"], "crm.read");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn dcr_tran_5000_client_la_tran_cung_khi_dang_ky_dong_thoi() {
+    setup().await;
+    let a = app().await;
+    exec("INSERT INTO oauth_clients (client_id, kind, name, redirect_uris, token_endpoint_auth_method, metadata)
+          SELECT 'trn_c_fill' || g, 'dcr', 'fill', ARRAY['https://client.example.com/cb'], 'none', '{}'::jsonb FROM generate_series(1, 4999) g").await;
+    let body = |n: u32| json!({ "client_name": format!("c{n}"), "redirect_uris": [REDIRECT] });
+    let (x, y) = tokio::join!(
+        send(
+            &a,
+            Method::POST,
+            "/api/v1/oauth/register",
+            None,
+            Payload::Json(body(1)),
+            None
+        ),
+        send(
+            &a,
+            Method::POST,
+            "/api/v1/oauth/register",
+            None,
+            Payload::Json(body(2)),
+            None
+        ),
+    );
+    let mut st = [x.status.as_u16(), y.status.as_u16()];
+    st.sort_unstable();
+    assert_eq!(st, [201, 503]);
+    assert_eq!(
+        scalar::<i64>("SELECT count(*) FROM oauth_clients WHERE kind = 'dcr'").await,
+        5000
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn cimd_da_luu_nhung_host_ngoai_danh_sach_bi_chan_o_token() {
+    setup().await;
+    let mut env = default_env();
+    env.push(("INTEGRATIONS_OAUTH_CIMD_ALLOWED_HOSTS", "allowed.example"));
+    let a = app_with(&env).await;
+    exec("INSERT INTO oauth_clients (client_id, kind, name, redirect_uris, token_endpoint_auth_method, metadata)
+          VALUES ('https://chatgpt.com/client.json', 'cimd', 'cũ', ARRAY['https://client.example.com/cb'], 'none', '{}'::jsonb)").await;
+    let r = form(
+        &a,
+        "/api/v1/oauth/token",
+        &[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", "x"),
+            ("client_id", "https://chatgpt.com/client.json"),
+        ],
+    )
+    .await;
+    assert_eq!((r.status.as_u16(), err(&r)), (401, "invalid_client"));
+    assert!(
+        r.body["error_description"]
+            .as_str()
+            .unwrap()
+            .contains("danh sách cho phép")
+    );
+}

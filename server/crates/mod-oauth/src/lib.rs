@@ -7,7 +7,7 @@
 //! - [`tokens`]: đổi mã, xoay refresh (cửa sổ đồng thời 10 giây, dùng lại ngoài cửa sổ ⇒ thu hồi cả chuỗi), thu hồi,
 //!   [`OauthCtx::verify_access_token`] cho MCP (M39).
 //! - [`connections`]: danh sách / thu hồi kết nối AI cho màn "Kết nối AI".
-//! - [`routes`]: 8 route (bảng [`routes::specs`], nạp vào `trinity-bin` để so với `routes.json`) và router axum.
+//! - [`routes`]: 9 route (bảng [`routes::specs`], nạp vào `trinity-bin` để so với `routes.json`) và router axum.
 //!
 //! Job dọn định kỳ nằm ở `trinity_integrations::purge::oauth_purge_job` (K35).
 

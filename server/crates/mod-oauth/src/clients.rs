@@ -17,6 +17,8 @@ use crate::util::{js_len, js_trim};
 
 const MAX_REDIRECTS: usize = 10;
 const MAX_DCR_CLIENTS: i64 = 5000;
+/// Khoá advisory (lớp) của trần số client DCR.
+const DCR_LOCK: i32 = 0x4f41;
 const CIMD_MIN_TTL_SEC: u64 = 5 * 60;
 const CIMD_MAX_TTL_SEC: u64 = 24 * 60 * 60;
 const CIMD_DEFAULT_TTL_SEC: u64 = 60 * 60;
@@ -152,7 +154,21 @@ impl OauthCtx {
                 "response_types chỉ hỗ trợ code",
             ));
         }
-        let mut c = self.registry_conn().await?;
+        // Đếm và chèn trong MỘT giao dịch giữ khoá advisory: hai đăng ký cùng lúc ở ngưỡng chỉ một cái qua (trần cứng).
+        let mut c = self
+            .db
+            .tenant(CompanyRef::DEFAULT)
+            .await
+            .map_err(|e| OAuthError::internal("tenant", e))?
+            .begin()
+            .await
+            .map_err(|e| OAuthError::internal("giao dịch", e))?;
+        sqlx::query("SELECT pg_advisory_xact_lock($1::int, $2::int)")
+            .bind(DCR_LOCK)
+            .bind(1)
+            .execute(&mut *c)
+            .await
+            .map_err(|e| OAuthError::internal("khoá đăng ký", e))?;
         let dcr: i64 = sqlx::query_scalar("SELECT count(*) FROM oauth_clients WHERE kind = 'dcr'")
             .fetch_one(&mut *c)
             .await
@@ -193,6 +209,7 @@ impl OauthCtx {
         .fetch_one(&mut *c)
         .await
         .map_err(|e| OAuthError::internal("tạo client", e))?;
+        c.commit().await.map_err(|e| OAuthError::internal("ghi client", e))?;
         let mut out = Map::new();
         out.insert("client_id".into(), json!(client_id));
         out.insert("client_id_issued_at".into(), json!(created.timestamp()));
@@ -237,16 +254,17 @@ impl OauthCtx {
                 _ => Err(invalid("client_id không tồn tại")),
             };
         }
+        // Danh sách tên miền cho phép áp cả khi không được tải (token/revoke): đổi danh sách là cắt luôn client CIMD đã lưu.
+        let url = parse_cimd_client_id(client_id, allow_private)?;
+        let host = url.host_str().unwrap_or("").to_lowercase();
+        if !self.config.cimd_hosts.is_empty() && !self.config.cimd_hosts.contains(&host) {
+            return Err(invalid("Tên miền client không nằm trong danh sách cho phép"));
+        }
         if !allow_fetch {
             return match row {
                 Some(r) if r.kind == "cimd" => Ok(r),
                 _ => Err(invalid("client_id không tồn tại")),
             };
-        }
-        let url = parse_cimd_client_id(client_id, allow_private)?;
-        let host = url.host_str().unwrap_or("").to_lowercase();
-        if !self.config.cimd_hosts.is_empty() && !self.config.cimd_hosts.contains(&host) {
-            return Err(invalid("Tên miền client không nằm trong danh sách cho phép"));
         }
         if let Some(r) = row
             && r.metadata_expires_at.is_some_and(|t| t > Utc::now())

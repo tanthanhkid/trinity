@@ -91,7 +91,7 @@ export const escapeHtml = (s) =>
  * Chèn giá trị lúc phục vụ HTML (đúng việc K18 phải làm cho Rust):
  *  - `slug` (tên miền phụ cửa hàng): `<meta name="store-slug" content="…">`.
  *  - `legal` (đường `/privacy`, `/terms`): thay `__LEGAL_COMPANY_NAME__`, `__LEGAL_CONTACT__` và thêm
- *    `<meta name="trinity-legal" content='JSON'>` (xem src/components/legal-page-export.tsx).
+ *    `<meta name="trinity-legal" content='JSON'>`.
  */
 export function injectHtml(html, { slug, legal } = {}) {
   let out = html

@@ -7,6 +7,7 @@
  *  3. `/privacy`, `/terms` có tên đơn vị ngay trong HTML khi máy chủ thử chèn giá trị; tên miền phụ cho `<meta name="store-slug">`;
  *  4. luật giữ chỗ: payload (`__next*.txt`) của route động cũng được trả.
  */
+import http from 'node:http'
 import { readdirSync, readFileSync, existsSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
 import { createServer, webDir } from './serve-export.mjs'
@@ -51,7 +52,22 @@ const server = createServer({
 await new Promise((r) => server.listen(0, '127.0.0.1', r))
 const base = `http://127.0.0.1:${server.address().port}`
 const fails = []
-const get = (path, headers) => fetch(base + path, { headers, redirect: 'manual' })
+// `fetch` (undici) bỏ header `Host`, mà tên miền phụ cần đúng header này ⇒ dùng http.request khi có `host`.
+const get = (path, headers) => {
+  if (!headers?.host) return fetch(base + path, { headers, redirect: 'manual' })
+  return new Promise((resolve, reject) => {
+    http
+      .get(base + path, { headers }, (res) => {
+        const chunks = []
+        res.on('data', (c) => chunks.push(c))
+        res.on('end', () => {
+          const body = Buffer.concat(chunks)
+          resolve({ status: res.statusCode, headers: new Headers(res.headers), text: async () => body.toString('utf8') })
+        })
+      })
+      .on('error', reject)
+  })
+}
 
 for (const p of pages) {
   const res = await get(p)

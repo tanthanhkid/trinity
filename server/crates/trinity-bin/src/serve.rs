@@ -738,13 +738,11 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     let integ_vars = env.clone();
     let integ_env: trinity_integrations::routes::EnvFn = Arc::new(move |k: &str| integ_vars.get(k).cloned());
     let key_vars = env.clone();
-    let secret_key: trinity_integrations::webhooks::secret::KeySource = Arc::new(move || {
-        trinity_integrations::webhooks::secret::load_secret_key(&|k: &str| key_vars.get(k).cloned())
-    });
+    let secret_key: trinity_integrations::webhooks::secret::KeySource =
+        Arc::new(move || trinity_integrations::webhooks::secret::load_secret_key(&|k: &str| key_vars.get(k).cloned()));
     let inbound_vars = env.clone();
-    let inbound_enabled: Arc<dyn Fn() -> bool + Send + Sync> = Arc::new(move || {
-        trinity_integrations::status::webhooks_enabled(&|k: &str| inbound_vars.get(k).cloned())
-    });
+    let inbound_enabled: Arc<dyn Fn() -> bool + Send + Sync> =
+        Arc::new(move || trinity_integrations::status::webhooks_enabled(&|k: &str| inbound_vars.get(k).cloned()));
     let integ_sender = trinity_integrations::webhooks::sender::Sender::new(
         ssrf_policy,
         Arc::new(trinity_http::outbound::ssrf::SystemResolver),

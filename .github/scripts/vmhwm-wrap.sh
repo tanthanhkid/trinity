@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bọc một tiến trình máy chủ để đo bộ nhớ đỉnh `VmHWM` (kB, /proc/<pid>/status) của chính nó (issue K31).
-# Dùng làm SERVER_CMD của bộ hợp đồng: ["bash", ".github/scripts/vmhwm-wrap.sh", "/đường/dẫn/trinity", "serve"].
+# Dùng làm SERVER_CMD của bộ hợp đồng: ["bash", ".github/scripts/vmhwm-wrap.sh", "/đường/dẫn/trinity"] (bộ chạy tự thêm migrate/seed/serve).
 # Biến: VMHWM_LABEL (nhãn dòng kết quả), VMHWM_OUT (tệp nối thêm dòng "<nhãn> <kB>").
 # Bộ chạy tắt máy chủ bằng SIGTERM: bắt tín hiệu, đọc VmHWM lúc tiến trình còn sống (sau khi thoát /proc không còn), rồi chuyển tiếp.
 set -u

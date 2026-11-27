@@ -15,7 +15,7 @@ component (below). Please re-run the command before every release.
 
 | Component | License | Notes |
 |---|---|---|
-| Tinos font (`services/payroll/src/assets/fonts/Tinos-*.ttf`) | Apache-2.0 | Copyright Google / Steve Matteson (Croscore fonts). Used to render payslip PDFs. License: <https://www.apache.org/licenses/LICENSE-2.0>. |
+| Tinos font (`server/crates/trinity-docgen/assets/fonts/Tinos-*.ttf`) | Apache-2.0 | Copyright Google / Steve Matteson (Croscore fonts). Used to render payslip PDFs. License: <https://www.apache.org/licenses/LICENSE-2.0>. |
 | `sharp` and `@img/sharp-libvips-*` | Apache-2.0 / LGPL-3.0-or-later (libvips) | Image processing. The libvips binaries are LGPL; they are dynamically loaded and unmodified. |
 | `xlsx` (SheetJS community edition) | Apache-2.0 | Spreadsheet import/export. The npm package is no longer maintained upstream; replacing it with `exceljs` (already a dependency) is on the roadmap. |
 | `jszip` | MIT OR GPL-3.0-or-later | Used under the MIT option. |

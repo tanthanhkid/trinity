@@ -5701,6 +5701,117 @@
   },
   "defaults": {}
  },
+ "DashboardFilterQuery": {
+  "declared": [
+   "dept_head_id",
+   "team_lead_id",
+   "user_id"
+  ],
+  "validated": [
+   "dept_head_id",
+   "team_lead_id",
+   "user_id"
+  ],
+  "fields": {
+   "dept_head_id": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "team_lead_id": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "user_id": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   }
+  },
+  "defaults": {}
+ },
  "FormulaPreviewDto": {
   "declared": [
    "object_key",
@@ -9858,6 +9969,71 @@
        }
       ],
       "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
+ "QueryReportRangeDto": {
+  "declared": [
+   "date_from",
+   "date_to"
+  ],
+  "validated": [
+   "date_from",
+   "date_to"
+  ],
+  "fields": {
+   "date_from": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^\\d{4}-\\d{2}-\\d{2}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "date_from phải đúng định dạng YYYY-MM-DD",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isNotEmpty",
+      "constraints": [],
+      "message": "date_from là bắt buộc",
+      "each": false
+     }
+    ]
+   },
+   "date_to": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^\\d{4}-\\d{2}-\\d{2}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "date_to phải đúng định dạng YYYY-MM-DD",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isNotEmpty",
+      "constraints": [],
+      "message": "date_to là bắt buộc",
       "each": false
      }
     ]

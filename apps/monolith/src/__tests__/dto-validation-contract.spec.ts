@@ -57,6 +57,8 @@ import * as queryCandidates from '../../../../services/crm/src/recruitment/dto/q
 import * as queryPositions from '../../../../services/crm/src/recruitment/dto/query-positions.dto'
 import * as createOption from '../../../../services/crm/src/settings-options/dto/create-option.dto'
 import * as queryOptions from '../../../../services/crm/src/settings-options/dto/query-options.dto'
+import * as dashboardFilter from '../../../../services/crm/src/reports/dashboard-overview.filter'
+import * as reportRange from '../../../../services/crm/src/reports/dto/query-report-range.dto'
 
 type Cls = new () => object
 type Mode = 'strict' | 'lenient'
@@ -104,6 +106,8 @@ const SAMPLES: Array<[Cls, Mode]> = [
   [queryEmployees.QueryEmployeesDto, 'strict'],
   [employeesStats.HrStatsQueryDto, 'strict'],
   [employeesStats.BirthdayListQueryDto, 'strict'],
+  [dashboardFilter.DashboardFilterQuery, 'strict'],
+  [reportRange.QueryReportRangeDto, 'strict'],
 ]
 
 /** Mọi tệp có @Transform (đếm bằng grep trong services/): mỗi class trong đó vào schema và golden @Transform. */
@@ -262,6 +266,11 @@ const EXTRA_CASES: Array<[Cls, Mode, string, unknown]> = [
   [customField.FormulaPreviewDto, 'strict', 'sai', { object_key: 'Don Hang', expression: 5, sample: 'x', editing_key: 1 }],
   [customRecord.LookupQueryDto, 'strict', 'valid_query', { q: 'an', limit: '20', for: 'manage' }],
   [customRecord.LookupQueryDto, 'strict', 'query_sai', { q: 'a\u0000', limit: '500', for: 'all', x: '1' }],
+  [dashboardFilter.DashboardFilterQuery, 'strict', 'valid_query', { dept_head_id: '3', team_lead_id: '4', user_id: '5' }],
+  [dashboardFilter.DashboardFilterQuery, 'strict', 'query_sai', { dept_head_id: '0', team_lead_id: 'abc', user_id: '1.5', x: '1' }],
+  [reportRange.QueryReportRangeDto, 'strict', 'valid_query', { date_from: '2026-09-01', date_to: '2026-09-26' }],
+  [reportRange.QueryReportRangeDto, 'strict', 'query_sai', { date_from: '01/09/2026', date_to: '' }],
+  [reportRange.QueryReportRangeDto, 'strict', 'thieu', {}],
   // Body là mảng JSON: Nest kiểm mảng như một đối tượng của DTO (khoá là chỉ số)
   [createContact.CreateContactDto, 'strict', 'array_body', [{ phone: '0901234567', full_name: 'A' }]],
   [createContact.CreateContactDto, 'strict', 'array_body_empty', []],

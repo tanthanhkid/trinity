@@ -10,6 +10,7 @@ use trinity_http::router::check::{Report, check_embedded};
 pub fn declared_routes() -> Vec<RouteSpec> {
     let mut v = Vec::new();
     v.extend(mod_custom::specs());
+    v.extend(mod_reports::specs());
     v.extend(mod_system::routes());
     v.extend(mod_hr::routes::employee_specs());
     v.extend(mod_users::specs());

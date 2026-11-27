@@ -22550,6 +22550,646 @@
   }
  },
  {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "dept_head_id": null,
+   "team_lead_id": null,
+   "user_id": null
+  },
+  "result": {
+   "ok": {
+    "dept_head_id": null,
+    "team_lead_id": null,
+    "user_id": null
+   }
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "dept_head_id": "",
+   "team_lead_id": "",
+   "user_id": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dept_head_id must not be less than 1",
+    "team_lead_id must not be less than 1",
+    "user_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "dept_head_id": "  x  ",
+   "team_lead_id": "  x  ",
+   "user_id": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dept_head_id must not be less than 1",
+    "dept_head_id must be an integer number",
+    "team_lead_id must not be less than 1",
+    "team_lead_id must be an integer number",
+    "user_id must not be less than 1",
+    "user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "dept_head_id": 12.5,
+   "team_lead_id": 12.5,
+   "user_id": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dept_head_id must be an integer number",
+    "team_lead_id must be an integer number",
+    "user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "dept_head_id": -1,
+   "team_lead_id": -1,
+   "user_id": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dept_head_id must not be less than 1",
+    "team_lead_id must not be less than 1",
+    "user_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "dept_head_id": 0,
+   "team_lead_id": 0,
+   "user_id": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dept_head_id must not be less than 1",
+    "team_lead_id must not be less than 1",
+    "user_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "dept_head_id": true,
+   "team_lead_id": true,
+   "user_id": true
+  },
+  "result": {
+   "ok": {
+    "dept_head_id": 1,
+    "team_lead_id": 1,
+    "user_id": 1
+   }
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "dept_head_id": [
+    "a",
+    1
+   ],
+   "team_lead_id": [
+    "a",
+    1
+   ],
+   "user_id": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dept_head_id must not be less than 1",
+    "dept_head_id must be an integer number",
+    "team_lead_id must not be less than 1",
+    "team_lead_id must be an integer number",
+    "user_id must not be less than 1",
+    "user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "dept_head_id": {
+    "a": 1
+   },
+   "team_lead_id": {
+    "a": 1
+   },
+   "user_id": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dept_head_id must not be less than 1",
+    "dept_head_id must be an integer number",
+    "team_lead_id must not be less than 1",
+    "team_lead_id must be an integer number",
+    "user_id must not be less than 1",
+    "user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "dept_head_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team_lead_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "user_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dept_head_id must not be less than 1",
+    "dept_head_id must be an integer number",
+    "team_lead_id must not be less than 1",
+    "team_lead_id must be an integer number",
+    "user_id must not be less than 1",
+    "user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "dept_head_id": "2026-11-26T10:00:00Z",
+   "team_lead_id": "2026-11-26T10:00:00Z",
+   "user_id": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dept_head_id must not be less than 1",
+    "dept_head_id must be an integer number",
+    "team_lead_id must not be less than 1",
+    "team_lead_id must be an integer number",
+    "user_id must not be less than 1",
+    "user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "dept_head_id": "123",
+   "team_lead_id": "123",
+   "user_id": "123"
+  },
+  "result": {
+   "ok": {
+    "dept_head_id": 123,
+    "team_lead_id": 123,
+    "user_id": 123
+   }
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "dept_head_id": "a@example.com",
+   "team_lead_id": "a@example.com",
+   "user_id": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dept_head_id must not be less than 1",
+    "dept_head_id must be an integer number",
+    "team_lead_id must not be less than 1",
+    "team_lead_id must be an integer number",
+    "user_id must not be less than 1",
+    "user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "dept_head_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team_lead_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "user_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dept_head_id must not be less than 1",
+    "dept_head_id must be an integer number",
+    "team_lead_id must not be less than 1",
+    "team_lead_id must be an integer number",
+    "user_id must not be less than 1",
+    "user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "dept_head_id": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "dept_head_id must not be less than 1",
+    "dept_head_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "dept_head_id": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "dept_head_id must not be less than 1",
+    "dept_head_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from là bắt buộc",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to là bắt buộc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "date_from": null,
+   "date_to": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from là bắt buộc",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to là bắt buộc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "date_from": "",
+   "date_to": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from là bắt buộc",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to là bắt buộc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "date_from": "  x  ",
+   "date_to": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "date_from": 12.5,
+   "date_to": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "date_from": -1,
+   "date_to": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "date_from": 0,
+   "date_to": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "date_from": true,
+   "date_to": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "date_from": [
+    "a",
+    1
+   ],
+   "date_to": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "date_from": {
+    "a": 1
+   },
+   "date_to": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "date_from": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "date_to": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "date_from": "2026-11-26T10:00:00Z",
+   "date_to": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "date_from": "123",
+   "date_to": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "date_from": "a@example.com",
+   "date_to": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "date_from": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "date_to": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date_from": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to là bắt buộc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date_from": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to là bắt buộc"
+   ]
+  }
+ },
+ {
   "dto": "CreateEmployeeDto",
   "mode": "strict",
   "probe": "valid",
@@ -23468,6 +24108,91 @@
     "q must match /^[^\\u0000]*$/ regular expression",
     "limit must not be greater than 50",
     "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "valid_query",
+  "input": {
+   "dept_head_id": "3",
+   "team_lead_id": "4",
+   "user_id": "5"
+  },
+  "result": {
+   "ok": {
+    "dept_head_id": 3,
+    "team_lead_id": 4,
+    "user_id": 5
+   }
+  }
+ },
+ {
+  "dto": "DashboardFilterQuery",
+  "mode": "strict",
+  "probe": "query_sai",
+  "input": {
+   "dept_head_id": "0",
+   "team_lead_id": "abc",
+   "user_id": "1.5",
+   "x": "1"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property x should not exist",
+    "dept_head_id must not be less than 1",
+    "team_lead_id must not be less than 1",
+    "team_lead_id must be an integer number",
+    "user_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "valid_query",
+  "input": {
+   "date_from": "2026-09-01",
+   "date_to": "2026-09-26"
+  },
+  "result": {
+   "ok": {
+    "date_from": "2026-09-01",
+    "date_to": "2026-09-26"
+   }
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "query_sai",
+  "input": {
+   "date_from": "01/09/2026",
+   "date_to": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to là bắt buộc"
+   ]
+  }
+ },
+ {
+  "dto": "QueryReportRangeDto",
+  "mode": "strict",
+  "probe": "thieu",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from phải đúng định dạng YYYY-MM-DD",
+    "date_from là bắt buộc",
+    "date_to phải đúng định dạng YYYY-MM-DD",
+    "date_to là bắt buộc"
    ]
   }
  },

@@ -293,16 +293,36 @@ pub fn register_group1(r: &mut ToolRegistry) {
 /// Đăng ký 6 tool phiếu lương (M31c): `export_payslip_excel`, `export_payslip_pdf`, `export_payslips_excel`,
 /// `get_payslip_import_template`, `preview_payslip_import`, `apply_payslip_import`. Không có tool xoá.
 pub fn register_payroll(r: &mut ToolRegistry) {
-    reg(r, "export_payslip_excel", &["payroll.export"], payroll::export_payslip_excel);
-    reg(r, "export_payslip_pdf", &["payroll.export"], payroll::export_payslip_pdf);
-    reg(r, "export_payslips_excel", &["payroll.export"], payroll::export_payslips_excel);
+    reg(
+        r,
+        "export_payslip_excel",
+        &["payroll.export"],
+        payroll::export_payslip_excel,
+    );
+    reg(
+        r,
+        "export_payslip_pdf",
+        &["payroll.export"],
+        payroll::export_payslip_pdf,
+    );
+    reg(
+        r,
+        "export_payslips_excel",
+        &["payroll.export"],
+        payroll::export_payslips_excel,
+    );
     reg(
         r,
         "get_payslip_import_template",
         &["payroll.manage"],
         payroll::get_payslip_import_template,
     );
-    reg(r, "preview_payslip_import", &["payroll.manage"], payroll::preview_payslip_import);
+    reg(
+        r,
+        "preview_payslip_import",
+        &["payroll.manage"],
+        payroll::preview_payslip_import,
+    );
     r.register(ToolSpec {
         name: "apply_payslip_import",
         scope: Some("crm.write"),

@@ -219,10 +219,7 @@ pub fn preview_payslip_import<'a>(
 }
 
 /// Ghi trong MỘT giao dịch như route: lỗi giữa chừng hoàn tác cả lô.
-pub fn apply_payslip_import<'a>(
-    args: &'a Value,
-    ctx: &'a ToolCtx<'a>,
-) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+pub fn apply_payslip_import<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
     Box::pin(async move {
         let month = month_of(args)?;
         let bytes = decode_upload(args)?;

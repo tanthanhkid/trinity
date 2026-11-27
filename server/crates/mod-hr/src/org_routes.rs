@@ -160,7 +160,8 @@ fn is_int(v: &Value) -> bool {
 /// Số nguyên đã qua `IsInt` mà không vừa int4 ⇒ 400 trơn (như `validate_into`).
 fn int4(v: &Value) -> Result<i32, AppError> {
     match v.as_f64() {
-        Some(n) if n.fract() == 0.0 && n >= f64::from(i32::MIN) && n <= f64::from(i32::MAX) => {
+        Some(n) if n.fract() == 0.0 && n >= f64::from(i32::MIN) && n <= f64::from(i32::MAX) =>
+        {
             #[allow(clippy::cast_possible_truncation)]
             Ok(n as i32)
         }
@@ -405,12 +406,7 @@ async fn team_members(State(c): S, Extension(u): U, Path(id): Path<String>) -> R
     ok(r)
 }
 
-async fn team_add_members(
-    State(c): S,
-    Extension(u): U,
-    Path(id): Path<String>,
-    JsonBody(body): JsonBody,
-) -> Response {
+async fn team_add_members(State(c): S, Extension(u): U, Path(id): Path<String>, JsonBody(body): JsonBody) -> Response {
     let a = act!(u);
     let id = match id_of(&id, "team") {
         Ok(i) => i,
@@ -572,7 +568,10 @@ pub fn job_title_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(pick(&s, &Method::POST, JOB_TITLES), jt_create)
         .route(pick(&s, &Method::GET, "/api/v1/management/job-titles/:id"), jt_get)
         .route(pick(&s, &Method::PATCH, "/api/v1/management/job-titles/:id"), jt_update)
-        .route(pick(&s, &Method::DELETE, "/api/v1/management/job-titles/:id"), jt_remove)
+        .route(
+            pick(&s, &Method::DELETE, "/api/v1/management/job-titles/:id"),
+            jt_remove,
+        )
 }
 
 // ───────────────────────────── tuyển dụng ─────────────────────────────
@@ -796,9 +795,15 @@ mod tests {
 
     #[test]
     fn tao_team_loi_theo_thu_tu_class_validator() {
-        let m = msgs(parse_create_team(&json!({"zzz": 1, "color": "red", "team_lead_id": "x"})));
+        let m = msgs(parse_create_team(
+            &json!({"zzz": 1, "color": "red", "team_lead_id": "x"}),
+        ));
         assert_eq!(m[0], "property zzz should not exist");
-        let at = |s: &str| m.iter().position(|x| x == s).unwrap_or_else(|| panic!("thiếu {s}: {m:?}"));
+        let at = |s: &str| {
+            m.iter()
+                .position(|x| x == s)
+                .unwrap_or_else(|| panic!("thiếu {s}: {m:?}"))
+        };
         assert!(at("name must be a string") < at("team_lead_id must be an integer number"));
         assert!(at("team_lead_id must be an integer number") < at(COLOR_MSG));
     }

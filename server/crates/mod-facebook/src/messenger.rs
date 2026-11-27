@@ -116,7 +116,11 @@ pub fn notice_text(channel_name: &str, from_name: Option<&str>, text: Option<&st
         .filter(|s| !s.is_empty())
         .unwrap_or("Khách");
     let flat = text.unwrap_or("").split_whitespace().collect::<Vec<_>>().join(" ");
-    let shown = if flat.is_empty() { "[không có chữ]" } else { flat.as_str() };
+    let shown = if flat.is_empty() {
+        "[không có chữ]"
+    } else {
+        flat.as_str()
+    };
     let body = clip(&format!("{who}: {}", clip(shown, 120)), 280);
     (format!("Tin nhắn mới · {channel_name}"), body)
 }
@@ -178,12 +182,13 @@ async fn link_contact(
         .map_err(db)?;
     let mut contact_id: Option<i32> = None;
     if let Some(p) = &phone {
-        contact_id =
-            sqlx::query_scalar("SELECT id FROM contacts WHERE phone = ANY($1) AND deleted_at IS NULL ORDER BY id ASC LIMIT 1")
-                .bind(phone_variants(p))
-                .fetch_optional(&mut *conn)
-                .await
-                .map_err(db)?;
+        contact_id = sqlx::query_scalar(
+            "SELECT id FROM contacts WHERE phone = ANY($1) AND deleted_at IS NULL ORDER BY id ASC LIMIT 1",
+        )
+        .bind(phone_variants(p))
+        .fetch_optional(&mut *conn)
+        .await
+        .map_err(db)?;
     }
     if contact_id.is_none() {
         let Some(owner) = owner_for(&mut *conn, page).await? else {
@@ -358,7 +363,11 @@ impl FacebookIngest {
         let assigned = assigned_to(&mut tx, contact_id).await?;
         publish_integration_event(
             &mut tx,
-            if echo { "messenger.message_sent" } else { "messenger.message_received" },
+            if echo {
+                "messenger.message_sent"
+            } else {
+                "messenger.message_received"
+            },
             &json!({
                 "conversation_id": conv_id, "page_id": page_id, "contact_id": contact_id,
                 "contact_assigned_to": assigned, "origin": if echo { "page" } else { "customer" },
@@ -392,13 +401,12 @@ impl FacebookIngest {
         }
         tx.commit().await.map_err(platform_db)?;
         // Thông báo chuông: giao dịch riêng, lỗi chỉ ghi log (không hoàn tác tin đã lưu).
-        if !echo {
-            if let Err(e) = self
+        if !echo
+            && let Err(e) = self
                 .notify(company, &page, conv_id, contact_id, name.as_deref(), text.as_deref())
                 .await
-            {
-                tracing::warn!("Thông báo kênh lỗi (messenger.message_received): {e}");
-            }
+        {
+            tracing::warn!("Thông báo kênh lỗi (messenger.message_received): {e}");
         }
         Ok(true)
     }
@@ -425,7 +433,11 @@ impl FacebookIngest {
         let owner = assigned_to(&mut tx, contact_id).await?;
         let managers = roster_with_permission(&mut tx, MANAGER_PERMISSION).await?;
         let mut recipients: Vec<i32> = Vec::new();
-        for id in [owner, Some(page.default_assignee_id)].into_iter().flatten().chain(managers) {
+        for id in [owner, Some(page.default_assignee_id)]
+            .into_iter()
+            .flatten()
+            .chain(managers)
+        {
             if id > 0 && !recipients.contains(&id) {
                 recipients.push(id);
             }
@@ -541,7 +553,10 @@ mod tests {
     #[test]
     fn noi_dung_chuong() {
         let (t, b) = notice_text("Quán A", Some("  Lan "), Some("  xin   chào\n shop "));
-        assert_eq!((t.as_str(), b.as_str()), ("Tin nhắn mới · Quán A", "Lan: xin chào shop"));
+        assert_eq!(
+            (t.as_str(), b.as_str()),
+            ("Tin nhắn mới · Quán A", "Lan: xin chào shop")
+        );
         assert_eq!(notice_text("P", None, None).1, "Khách: [không có chữ]");
         assert_eq!(notice_text("P", Some(" "), Some("a")).1, "Khách: a");
         let long = "x".repeat(200);

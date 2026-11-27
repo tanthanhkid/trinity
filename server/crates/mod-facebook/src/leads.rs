@@ -71,7 +71,11 @@ pub fn parse_lead_fields(field_data: &[LeadField]) -> ParsedLead {
     let (mut first, mut last) = (String::new(), String::new());
     for raw in field_data {
         let key = raw.name.to_lowercase();
-        let value = raw.values.first().map_or("", |v| trinity_kernel::vi::trim_js(v)).to_owned();
+        let value = raw
+            .values
+            .first()
+            .map_or("", |v| trinity_kernel::vi::trim_js(v))
+            .to_owned();
         if key.is_empty() || value.is_empty() {
             continue;
         }
@@ -115,7 +119,12 @@ fn activity_description(page_name: &str, p: &ParsedLead, duplicate: bool) -> Str
     } else {
         format!("Tạo từ form Lead Ads của \"{page_name}\"")
     };
-    let answers = p.others.iter().map(|(n, v)| format!("{n}: {v}")).collect::<Vec<_>>().join("; ");
+    let answers = p
+        .others
+        .iter()
+        .map(|(n, v)| format!("{n}: {v}"))
+        .collect::<Vec<_>>()
+        .join("; ");
     if answers.is_empty() {
         head
     } else {
@@ -130,7 +139,12 @@ fn graph_to_http(e: &GraphApiError) -> AppError {
 impl FacebookIngest {
     /// Một thay đổi `leadgen`. Lỗi tạm (mạng/5xx/giới hạn tần suất của Graph) ⇒ `Err` để webhook trả 5xx, Meta gửi lại. Lỗi vĩnh viễn
     /// ⇒ trả kết quả. `value` là `changes[].value`; thiếu `page_id` thì lấy id của entry.
-    pub async fn handle_lead(&self, company: CompanyRef, entry_page_id: &str, value: &Value) -> Result<LeadResult, AppError> {
+    pub async fn handle_lead(
+        &self,
+        company: CompanyRef,
+        entry_page_id: &str,
+        value: &Value,
+    ) -> Result<LeadResult, AppError> {
         let leadgen_id = str_of(value.get("leadgen_id"));
         let page_id = str_of(value.get("page_id")).unwrap_or_else(|| entry_page_id.to_owned());
         let form_id = str_of(value.get("form_id")).map(|f| utf16_prefix(&f, 40));
@@ -140,11 +154,12 @@ impl FacebookIngest {
         // Bước 1: đã xử lý chưa + Page/token (một kết nối, trả lại trước khi gọi Graph).
         let (received, found) = {
             let mut c = self.acquire(company).await?;
-            let received: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM facebook_lead_receipts WHERE leadgen_id = $1)")
-                .bind(&leadgen_id)
-                .fetch_one(&mut *c)
-                .await
-                .map_err(db)?;
+            let received: bool =
+                sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM facebook_lead_receipts WHERE leadgen_id = $1)")
+                    .bind(&leadgen_id)
+                    .fetch_one(&mut *c)
+                    .await
+                    .map_err(db)?;
             if received {
                 (true, None)
             } else {
@@ -195,11 +210,25 @@ impl FacebookIngest {
         };
         let Some((owner_id, team_id)) = owner else {
             tracing::warn!("Lead {leadgen_id}: người nhận của Page {page_id} không còn hoạt động");
-            self.receipt(company, &leadgen_id, &page_id, form_id.as_deref(), LeadResult::OwnerInactive).await?;
+            self.receipt(
+                company,
+                &leadgen_id,
+                &page_id,
+                form_id.as_deref(),
+                LeadResult::OwnerInactive,
+            )
+            .await?;
             return Ok(LeadResult::OwnerInactive);
         };
         if parsed.phone.is_none() && parsed.email.is_none() {
-            self.receipt(company, &leadgen_id, &page_id, form_id.as_deref(), LeadResult::NoContactInfo).await?;
+            self.receipt(
+                company,
+                &leadgen_id,
+                &page_id,
+                form_id.as_deref(),
+                LeadResult::NoContactInfo,
+            )
+            .await?;
             return Ok(LeadResult::NoContactInfo);
         }
         self.persist_lead(
@@ -208,10 +237,7 @@ impl FacebookIngest {
             &leadgen_id,
             form_id.as_deref(),
             &parsed,
-            &Owner {
-                id: owner_id,
-                team_id,
-            },
+            &Owner { id: owner_id, team_id },
         )
         .await
     }
@@ -315,7 +341,8 @@ impl FacebookIngest {
         if let (Some(f), Some(m)) = (form_id, metadata.as_object_mut()) {
             m.insert("form_id".to_owned(), json!(f));
         }
-        let details = json!({ "description": activity_description(&page.name, p, duplicate), "source": "facebook_lead" });
+        let details =
+            json!({ "description": activity_description(&page.name, p, duplicate), "source": "facebook_lead" });
         sqlx::query(
             "INSERT INTO activities (contact_id, action, details, metadata, created_by) \
              VALUES ($1, 'note', $2::text::jsonb, $3::text::jsonb, NULL)",
@@ -326,7 +353,11 @@ impl FacebookIngest {
         .execute(&mut *tx)
         .await
         .map_err(db)?;
-        let result = if duplicate { LeadResult::Duplicate } else { LeadResult::Created };
+        let result = if duplicate {
+            LeadResult::Duplicate
+        } else {
+            LeadResult::Created
+        };
         sqlx::query("UPDATE facebook_lead_receipts SET contact_id = $2, result = $3 WHERE leadgen_id = $1")
             .bind(leadgen_id)
             .bind(contact_id)
@@ -342,12 +373,13 @@ impl FacebookIngest {
 /// Khử trùng: SĐT (mọi dạng) trước, rồi email (không phân biệt hoa thường); khách cũ nhất trước.
 async fn find_duplicate(conn: &mut PgConnection, p: &ParsedLead) -> Result<Option<i32>, AppError> {
     if let Some(phone) = &p.phone {
-        let by_phone: Option<i32> =
-            sqlx::query_scalar("SELECT id FROM contacts WHERE phone = ANY($1) AND deleted_at IS NULL ORDER BY id ASC LIMIT 1")
-                .bind(phone_variants(phone))
-                .fetch_optional(&mut *conn)
-                .await
-                .map_err(db)?;
+        let by_phone: Option<i32> = sqlx::query_scalar(
+            "SELECT id FROM contacts WHERE phone = ANY($1) AND deleted_at IS NULL ORDER BY id ASC LIMIT 1",
+        )
+        .bind(phone_variants(phone))
+        .fetch_optional(&mut *conn)
+        .await
+        .map_err(db)?;
         if by_phone.is_some() {
             return Ok(by_phone);
         }
@@ -392,12 +424,28 @@ mod tests {
 
     #[test]
     fn ten_ghep_va_gia_tri_dau_tien_thang() {
-        let p = parse_lead_fields(&[f("first_name", &["An"]), f("last_name", &["Lê"]), f("phone", &["abc"]), f("phone_number", &["0912345678"])]);
+        let p = parse_lead_fields(&[
+            f("first_name", &["An"]),
+            f("last_name", &["Lê"]),
+            f("phone", &["abc"]),
+            f("phone_number", &["0912345678"]),
+        ]);
         assert_eq!(p.full_name.as_deref(), Some("Lê An"), "họ trước tên");
         assert_eq!(p.phone.as_deref(), Some("0912345678"), "SĐT hỏng thì lấy trường sau");
-        assert_eq!(parse_lead_fields(&[f("first_name", &["An"])]).full_name.as_deref(), Some("An"));
-        let q = parse_lead_fields(&[f("full_name", &["X"]), f("name", &["Y"]), f("email", &["hong"]), f("work_email", &["w@x.co"])]);
-        assert_eq!((q.full_name.as_deref(), q.email.as_deref()), (Some("X"), Some("w@x.co")));
+        assert_eq!(
+            parse_lead_fields(&[f("first_name", &["An"])]).full_name.as_deref(),
+            Some("An")
+        );
+        let q = parse_lead_fields(&[
+            f("full_name", &["X"]),
+            f("name", &["Y"]),
+            f("email", &["hong"]),
+            f("work_email", &["w@x.co"]),
+        ]);
+        assert_eq!(
+            (q.full_name.as_deref(), q.email.as_deref()),
+            (Some("X"), Some("w@x.co"))
+        );
     }
 
     #[test]
@@ -420,7 +468,10 @@ mod tests {
     #[test]
     fn ghi_chu_lead() {
         let mut p = ParsedLead::default();
-        assert_eq!(activity_description("Quán", &p, false), "Tạo từ form Lead Ads của \"Quán\"");
+        assert_eq!(
+            activity_description("Quán", &p, false),
+            "Tạo từ form Lead Ads của \"Quán\""
+        );
         p.others = vec![("a".to_owned(), "1".to_owned()), ("b".to_owned(), "2".to_owned())];
         assert_eq!(
             activity_description("Quán", &p, true),

@@ -77,7 +77,11 @@ async fn clean(c: &mut PgConnection) {
         "DELETE FROM contacts WHERE phone IN ('0912470001', '0912470002', '0912470003') OR full_name LIKE 'm47b%' OR full_name LIKE 'Khách Messenger %'",
     )
     .await;
-    exec(c, "DELETE FROM notification_logs WHERE action_url LIKE '/inbox?kenh=facebook%'").await;
+    exec(
+        c,
+        "DELETE FROM notification_logs WHERE action_url LIKE '/inbox?kenh=facebook%'",
+    )
+    .await;
     exec(c, "DELETE FROM setting_options WHERE value LIKE 'm47b%'").await;
     exec(c, "DELETE FROM users WHERE email LIKE 'm47b%@test.local'").await;
 }
@@ -161,7 +165,9 @@ async fn tin_nhan_vao_va_lead_ads() {
         .await;
     Mock::given(method("GET"))
         .and(path("/v25.0/9003"))
-        .respond_with(ok(json!({ "id": "x", "field_data": [{ "name": "dich_vu", "values": ["Spa"] }] })))
+        .respond_with(ok(
+            json!({ "id": "x", "field_data": [{ "name": "dich_vu", "values": ["Spa"] }] }),
+        ))
         .mount(&server)
         .await;
     Mock::given(method("GET"))
@@ -187,9 +193,19 @@ async fn tin_nhan_vao_va_lead_ads() {
     assert_eq!(ingest.process(company, &entries2).await.unwrap(), 1);
 
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_messages WHERE mid LIKE 'm47b.%'").await, 2);
+    assert_eq!(
+        count(&mut c, "SELECT count(*) FROM facebook_messages WHERE mid LIKE 'm47b.%'").await,
+        2
+    );
     assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_conversations WHERE page_id = 'm47bp' AND unread_count = 2 AND customer_name = 'm47b Lan'").await, 1);
-    assert_eq!(count(&mut c, "SELECT count(*) FROM contacts WHERE phone = '0912470002' AND full_name = 'm47b Lan'").await, 1);
+    assert_eq!(
+        count(
+            &mut c,
+            "SELECT count(*) FROM contacts WHERE phone = '0912470002' AND full_name = 'm47b Lan'"
+        )
+        .await,
+        1
+    );
     assert_eq!(count(&mut c, "SELECT count(*) FROM integration_events WHERE event_type = 'messenger.message_received' AND payload->>'page_id' = 'm47bp'").await, 2);
     assert_eq!(count(&mut c, "SELECT count(*) FROM integration_events WHERE event_type = 'contact.created' AND payload->>'origin' = 'facebook_messenger'").await, 1);
     assert_eq!(count(&mut c, "SELECT count(*) FROM activities WHERE metadata->>'facebook_page_id' = 'm47bp' AND metadata->>'direction' = 'in'").await, 2);
@@ -203,11 +219,24 @@ async fn tin_nhan_vao_va_lead_ads() {
     }] });
     assert_eq!(ingest.process(company, &[echo]).await.unwrap(), 1);
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_conversations WHERE page_id = 'm47bp' AND unread_count = 2").await, 1);
+    assert_eq!(
+        count(
+            &mut c,
+            "SELECT count(*) FROM facebook_conversations WHERE page_id = 'm47bp' AND unread_count = 2"
+        )
+        .await,
+        1
+    );
     assert_eq!(count(&mut c, "SELECT count(*) FROM integration_events WHERE event_type = 'messenger.message_sent' AND payload->>'page_id' = 'm47bp'").await, 1);
     // Page chưa nối ⇒ bỏ qua.
     drop(c);
-    assert_eq!(ingest.process(company, &[msg("m47bx", "psid1", "m47b.mid9", "x")]).await.unwrap(), 0);
+    assert_eq!(
+        ingest
+            .process(company, &[msg("m47bx", "psid1", "m47b.mid9", "x")])
+            .await
+            .unwrap(),
+        0
+    );
 
     // ── Lead Ads ──
     assert_eq!(ingest.process(company, &[lead("m47bp", "9001")]).await.unwrap(), 1);
@@ -221,13 +250,30 @@ async fn tin_nhan_vao_va_lead_ads() {
     assert!(ingest.process(company, &[lead("m47bp", "9004")]).await.is_err());
 
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
-    assert_eq!(count(&mut c, "SELECT count(*) FROM contacts WHERE phone = '0912470001'").await, 1);
+    assert_eq!(
+        count(&mut c, "SELECT count(*) FROM contacts WHERE phone = '0912470001'").await,
+        1
+    );
     assert_eq!(count(&mut c, "SELECT count(*) FROM integration_events WHERE event_type = 'contact.created' AND payload->>'origin' = 'facebook_lead'").await, 1);
     assert_eq!(
         count(&mut c, "SELECT count(*) FROM facebook_lead_receipts WHERE page_id = 'm47bp' AND ((leadgen_id = '9001' AND result = 'created') OR (leadgen_id = '9002' AND result = 'duplicate') OR (leadgen_id = '9003' AND result = 'no_contact_info'))").await,
         3
     );
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_lead_receipts WHERE leadgen_id = '9004'").await, 0);
-    assert_eq!(count(&mut c, "SELECT count(*) FROM activities WHERE details->>'source' = 'facebook_lead'").await, 2);
+    assert_eq!(
+        count(
+            &mut c,
+            "SELECT count(*) FROM facebook_lead_receipts WHERE leadgen_id = '9004'"
+        )
+        .await,
+        0
+    );
+    assert_eq!(
+        count(
+            &mut c,
+            "SELECT count(*) FROM activities WHERE details->>'source' = 'facebook_lead'"
+        )
+        .await,
+        2
+    );
     clean(&mut c).await;
 }

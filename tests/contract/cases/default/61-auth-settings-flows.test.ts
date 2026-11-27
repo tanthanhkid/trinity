@@ -4,7 +4,7 @@ import { config } from '../../lib/config.js'
 import { recordCall } from '../../lib/coverage.js'
 import { api, call, freshIp, type Res } from '../../lib/http.js'
 import { golden, snap, type Role } from '../../lib/golden.js'
-import { loginAdmin, loginSeeded } from '../../lib/session.js'
+import { loginSeeded } from '../../lib/session.js'
 import { makeUser, type U } from '../../lib/users.js'
 
 afterAll(closeDb)
@@ -34,7 +34,7 @@ describe('khoá API và đăng nhập công khai', () => {
   })
 
   it('tạo, liệt kê, xem, xoay, đăng nhập bằng khoá, xoá', async () => {
-    const created = ok<{ id: number; key?: string; api_key?: string; plain_key?: string }>(
+    const created = ok<{ id: number }>(
       await api.post('/api-keys', { ...withToken(admin), body: { name: 'Contract key', scopes: ['auth:login'], owner_user_id: owner.id } }),
       201,
       'tạo khoá',
@@ -43,7 +43,7 @@ describe('khoá API và đăng nhập công khai', () => {
     const list = ok<unknown[] | { data: unknown[] }>(await api.get('/api-keys', withToken(admin)), 200, 'danh sách khoá')
     expect(Array.isArray(list) ? list.length : list.data.length).toBeGreaterThan(0)
     ok(await api.get(`/api-keys/${created.id}`, withToken(admin)), 200, 'chi tiết khoá')
-    const rotated = ok<{ key?: string; api_key?: string; plain_key?: string }>(await api.post(`/api-keys/${created.id}/rotate`, withToken(admin)), [200, 201], 'xoay khoá')
+    const rotated = ok<{ plain_key?: string }>(await api.post(`/api-keys/${created.id}/rotate`, withToken(admin)), [200, 201], 'xoay khoá')
     const key = rotated.plain_key ?? rotated.key ?? rotated.api_key ?? created.key ?? created.api_key
     expect(key, `khoá gốc không có trong ${JSON.stringify(rotated)}`).toBeTypeOf('string')
 
@@ -146,17 +146,25 @@ describe('hồ sơ cá nhân', () => {
 describe('cài đặt', () => {
   it('âm báo toàn hệ thống: đọc, đổi, giá trị sai → 400', async () => {
     const before = ok<{ sound_id: string }>(await api.get('/settings/notification-sound', withToken(admin)), 200, 'đọc âm báo')
-    ok(await api.patch('/settings/notification-sound', { ...withToken(admin), body: { sound_id: 'chime' } }), 200, 'đổi âm báo')
-    expect((await api.patch('/settings/notification-sound', { ...withToken(admin), body: { sound_id: 'khong-co' } })).status).toBe(400)
-    ok(await api.patch('/settings/notification-sound', { ...withToken(admin), body: { sound_id: before.sound_id } }), 200, 'trả âm báo')
+    try {
+      ok(await api.patch('/settings/notification-sound', { ...withToken(admin), body: { sound_id: 'chime' } }), 200, 'đổi âm báo')
+      expect((await api.patch('/settings/notification-sound', { ...withToken(admin), body: { sound_id: 'khong-co' } })).status).toBe(400)
+    } finally {
+      await api.patch('/settings/notification-sound', { ...withToken(admin), body: { sound_id: before.sound_id } })
+    }
   })
 
   it('cảnh báo IP văn phòng, một phiên, kiểm WiFi đăng nhập', async () => {
     ok(await api.get('/settings/client-ip/alerts', withToken(admin)), 200, 'cảnh báo IP')
     const single = ok<{ enabled: boolean }>(await api.get('/auth/settings/single-session', withToken(admin)), 200, 'đọc một phiên')
     ok(await api.patch('/auth/settings/single-session', { ...withToken(admin), body: { enabled: single.enabled } }), 200, 'giữ nguyên một phiên')
-    ok(await api.get('/auth/settings/login-wifi-check-targets', withToken(admin)), 200, 'đối tượng kiểm WiFi')
-    ok(await api.put('/auth/settings/login-wifi-check-targets', { ...withToken(admin), body: { items: [] } }), 200, 'đặt đối tượng kiểm WiFi')
+    const targets = ok<{ items?: { scope_type: string; target_user_id: number }[] }>(await api.get('/auth/settings/login-wifi-check-targets', withToken(admin)), 200, 'đối tượng kiểm WiFi')
+    const original = (targets.items ?? []).map((i) => ({ scope_type: i.scope_type, target_user_id: i.target_user_id }))
+    try {
+      ok(await api.put('/auth/settings/login-wifi-check-targets', { ...withToken(admin), body: { items: [] } }), 200, 'đặt đối tượng kiểm WiFi')
+    } finally {
+      await api.put('/auth/settings/login-wifi-check-targets', { ...withToken(admin), body: { items: original } })
+    }
     ok(await api.get('/auth/settings/login-wifi-check-targets/roster', withToken(admin)), 200, 'danh sách kiểm WiFi')
   })
 
@@ -190,8 +198,10 @@ describe('danh sách và chi tiết người dùng theo ba vai', () => {
     await q(`UPDATE users SET phone = '0912000333', full_name = 'Người dùng ba vai' WHERE id = $1`, [target.id])
     const leader = await seedUser({ label: 'shape-leader', grants: { 'users.view': 'all', 'users.phone_full': 'all' } })
     const sale = await seedUser({ label: 'shape-sale', grants: { 'users.view': 'all' } })
+    // Vai quản trị của ca là người dùng seed có đủ quyền xem + SĐT, KHÔNG dùng tài khoản gốc (ca khác có thể đổi mật khẩu/phiên của nó).
+    const adminLike = await seedUser({ label: 'shape-admin', grants: { 'users.view': 'all', 'users.manage': 'all', 'users.phone_full': 'all' } })
     const tokens: [Role, string][] = [
-      ['admin', (await loginAdmin()).token],
+      ['admin', (await loginSeeded(adminLike)).token],
       ['leader', (await loginSeeded(leader)).token],
       ['sale', (await loginSeeded(sale)).token],
     ]

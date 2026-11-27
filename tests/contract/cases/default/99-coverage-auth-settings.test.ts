@@ -17,6 +17,7 @@ describe('độ phủ route: cụm auth và cài đặt', () => {
     const waived = rows.reduce((n, r) => n + Object.keys(r.waived).length, 0)
     const done = rows.reduce((n, r) => n + r.covered.length, 0)
     const dir = path.join(config.outDir, 'coverage', config.profile)
+    fs.mkdirSync(dir, { recursive: true })
     fs.writeFileSync(path.join(dir, 'auth-settings.report.json'), `${JSON.stringify({ routes: rows.length, categories_required: need, covered: done, waived, rows }, null, 2)}\n`)
     const gaps = rows.filter((r) => r.missing.length).map((r) => `${r.route}: thiếu ${r.missing.join(', ')}`)
     console.log(`[coverage auth-settings] ${rows.length} route, ${done}/${need} loại ca phủ, ${waived} miễn trừ, ${gaps.length} route còn thiếu`)

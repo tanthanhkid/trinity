@@ -72,10 +72,11 @@ export function matchRoute(routes: RouteRow[], method: string, p: string): Route
   const full = p.startsWith(API) ? p : `${API}${p}`
   let best: { r: RouteRow; literals: number; params: number } | undefined
   for (const r of routes) {
-    if (r.method !== method) continue
+    if (r.method !== method || r.deprecated) continue
     const m = matcher(r)
     if (!m.re.test(full)) continue
     if (!best || m.literals > best.literals || (m.literals === best.literals && m.params < best.params)) best = { r, ...m }
+    else if (m.literals === best.literals && m.params === best.params && best.r.path !== r.path) throw new Error(`Hai route cùng độ cụ thể khớp ${method} ${full}: ${best.r.path} và ${r.path}`)
   }
   return best?.r
 }
@@ -108,18 +109,17 @@ export function requiredCategories(r: RouteRow): Category[] {
 
 function categoriesOf(r: RouteRow, calls: Call[]): Set<Category> {
   const got = new Set<Category>()
+  let unauth401 = false
+  let forbidden403 = false
   for (const c of calls) {
-    if (c.status >= 200 && c.status < 400) got.add('success')
-    else if (c.status === 401 && !c.authed) got.add('deny')
-    else if (c.status === 403) got.add('deny')
+    if (c.status >= 200 && c.status < 300) got.add('success')
+    else if (c.status === 401 && !c.authed) unauth401 = true
+    else if (c.status === 403) forbidden403 = true
     else if (c.status === 400 || c.status === 422) got.add('invalid')
     else if (c.status === 404) got.add('missing')
   }
-  // Route `can` cần cả 401 (không token) lẫn 403 (thiếu quyền): thiếu một nửa thì chưa tính là phủ loại `deny`.
-  if (r.access === 'can' && got.has('deny')) {
-    const s = new Set(calls.map((c) => c.status))
-    if (!(s.has(401) && s.has(403))) got.delete('deny')
-  }
+  // `deny`: 401 phải là lời gọi KHÔNG token thật (401 của token hết hạn không tính); route `can` cần thêm 403 thiếu quyền.
+  if (unauth401 && (r.access !== 'can' || forbidden403)) got.add('deny')
   return got
 }
 

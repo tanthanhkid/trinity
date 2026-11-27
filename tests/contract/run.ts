@@ -214,6 +214,7 @@ async function main(): Promise<void> {
     await assertPortFree(MOCK_PORT, 'CONTRACT_MOCK_PORT')
     mock = await startMock(MOCK_PORT)
     for (const profile of profiles) {
+      fs.rmSync(path.join(outDir, 'coverage', profile), { recursive: true, force: true }) // độ phủ chỉ tính lượt này: không để lượt cũ (cùng --out) làm cổng xanh giả
       mock.resetAll() // mỗi hồ sơ bắt đầu sạch: kịch bản, lời gọi và `unexpected` của hồ sơ trước không lọt sang
       const dbName = `${dbPrefix}_${profile.replace(/[^a-z0-9]/g, '_')}`
       await recreateDb(dbName, tpl)

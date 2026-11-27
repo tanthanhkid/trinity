@@ -15,6 +15,8 @@ import { resolvePayrollCompanyName } from './payslip-company'
 const FONT_DIR_CANDIDATES = [
   join(__dirname, '..', 'assets', 'fonts'),
   join(__dirname, '..', '..', 'src', 'assets', 'fonts'),
+  // Bản dựng của monolith (tsc, không copy tài nguyên): apps/monolith/dist/services/payroll/src/payslips → mã nguồn của gói lương.
+  join(__dirname, '..', '..', '..', '..', '..', '..', '..', 'services', 'payroll', 'src', 'assets', 'fonts'),
 ]
 
 function resolveFontPath(file: string): string {

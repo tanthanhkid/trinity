@@ -37,6 +37,7 @@ pub struct CreateBracket {
 
 /// Body `PATCH /tax-config/brackets/:id`: `upper_bound`/`effective_to` nhận `null` (xoá).
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateBracket {
     #[serde(default, deserialize_with = "not_null")]
     pub bracket_order: Option<i32>,
@@ -129,6 +130,7 @@ pub struct CreateSetting {
 
 /// Body `PATCH /tax-config/settings/:id`.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct UpdateSetting {
     #[serde(default, deserialize_with = "not_null")]
     pub personal_deduction: Option<i64>,

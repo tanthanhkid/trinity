@@ -21,6 +21,8 @@
 //! [`routes::contract_specs`]/[`routes::contract_router`].
 //!
 //! M12 (tuyển dụng, 10 endpoint `/management/recruitment/*`) ở [`recruitment`].
+//!
+//! Route HTTP của team, chức danh và tuyển dụng (24 route) ở [`org_routes`].
 
 pub mod contract_dto;
 pub mod contracts;
@@ -30,6 +32,7 @@ pub mod employees_export;
 pub mod employees_write;
 pub mod job_titles;
 mod nullable;
+pub mod org_routes;
 pub mod recruitment;
 pub mod routes;
 pub mod teams;

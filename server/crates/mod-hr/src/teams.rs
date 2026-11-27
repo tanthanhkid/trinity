@@ -20,7 +20,7 @@ const NOT_FOUND: &str = "Không tìm thấy team";
 const NAME_TAKEN: &str = "Tên team đã tồn tại";
 const NAME_EMPTY: &str = "Tên team không được rỗng";
 const HEAD_INVALID: &str = "Người phụ trách không hợp lệ (không tồn tại hoặc đã bị khoá)";
-const COLOR_MSG: &str = "Màu phải là mã hex hợp lệ (vd: #f59e0b)";
+pub(crate) const COLOR_MSG: &str = "Màu phải là mã hex hợp lệ (vd: #f59e0b)";
 
 /// Một dòng `GET /teams`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -108,7 +108,7 @@ fn max_len(field: &str, v: &str, max: usize, out: &mut Vec<String>) {
 }
 
 /// `#rgb` hoặc `#rrggbb`.
-fn is_hex_color(v: &str) -> bool {
+pub(crate) fn is_hex_color(v: &str) -> bool {
     let Some(h) = v.strip_prefix('#') else { return false };
     matches!(h.len(), 3 | 6) && h.bytes().all(|b| b.is_ascii_hexdigit())
 }

@@ -60,7 +60,7 @@ pub fn employee_specs() -> Vec<RouteSpec> {
     ]
 }
 
-fn fail(e: impl Into<AppError>) -> Response {
+pub(crate) fn fail(e: impl Into<AppError>) -> Response {
     let (status, body) = e.into().response(true);
     (
         StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
@@ -70,7 +70,7 @@ fn fail(e: impl Into<AppError>) -> Response {
 }
 
 /// Người thực hiện; công ty của token không hợp lệ ⇒ 401 (không rơi về công ty mặc định).
-fn actor(u: &CurrentUser) -> Result<Actor, Response> {
+pub(crate) fn actor(u: &CurrentUser) -> Result<Actor, Response> {
     match trinity_db::CompanyRef::new(i64::from(u.user.company_id)) {
         Ok(company) => Ok(Actor {
             user_id: u.user.user_id,
@@ -91,7 +91,7 @@ macro_rules! act {
     };
 }
 
-fn ok<T: Serialize>(r: Result<T, AppError>) -> Response {
+pub(crate) fn ok<T: Serialize>(r: Result<T, AppError>) -> Response {
     match r {
         Ok(v) => match serde_json::to_string(&v) {
             Ok(text) => {

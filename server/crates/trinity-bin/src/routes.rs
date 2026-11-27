@@ -17,6 +17,9 @@ pub fn declared_routes() -> Vec<RouteSpec> {
     v.extend(mod_hr::routes::employee_specs());
     v.extend(mod_attendance::routes::specs());
     v.extend(mod_hr::routes::contract_specs());
+    v.extend(mod_hr::org_routes::team_specs());
+    v.extend(mod_hr::org_routes::job_title_specs());
+    v.extend(mod_hr::org_routes::recruitment_specs());
     v.extend(mod_users::specs());
     v.extend(mod_contacts::routes::specs());
     v.extend(mod_kanban::routes::board_routes());

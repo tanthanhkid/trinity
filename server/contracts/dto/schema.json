@@ -7400,6 +7400,570 @@
   },
   "defaults": {}
  },
+ "PublicCreateDealDto": {
+  "declared": [
+   "contact_phone",
+   "contact_name",
+   "contact_source_id",
+   "title",
+   "value",
+   "status",
+   "description",
+   "note"
+  ],
+  "validated": [
+   "title",
+   "value",
+   "status",
+   "description",
+   "note",
+   "contact_phone",
+   "contact_name",
+   "contact_source_id"
+  ],
+  "fields": {
+   "title": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isLength",
+      "constraints": [
+       1,
+       255
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "value": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "max",
+      "constraints": [
+       1000000000000000
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       0
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "status": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "open",
+        "won",
+        "lost"
+       ]
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "description": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       5000
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "note": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       5000
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "contact_phone": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^(0|\\+84)\\d{9}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "contact_name": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isLength",
+      "constraints": [
+       1,
+       200
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "contact_source_id": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   }
+  },
+  "defaults": {}
+ },
+ "PublicCreateTaskDto": {
+  "declared": [
+   "contact_phone",
+   "contact_name",
+   "contact_source_id",
+   "column_id",
+   "title",
+   "description",
+   "due_at",
+   "priority",
+   "labels",
+   "attributes"
+  ],
+  "validated": [
+   "column_id",
+   "title",
+   "description",
+   "due_at",
+   "priority",
+   "labels",
+   "attributes",
+   "contact_phone",
+   "contact_name",
+   "contact_source_id"
+  ],
+  "fields": {
+   "column_id": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "title": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isLength",
+      "constraints": [
+       1,
+       500
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "description": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       20000
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "due_at": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isDateString",
+      "constraints": [
+       {
+        "$undefined": true
+       }
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "priority": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "low",
+        "normal",
+        "high",
+        "urgent"
+       ]
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "labels": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       50
+      ],
+      "message": null,
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "arrayMaxSize",
+      "constraints": [
+       20
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isArray",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "attributes": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isObject",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "contact_phone": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^(0|\\+84)\\d{9}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "contact_name": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isLength",
+      "constraints": [
+       1,
+       200
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "contact_source_id": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   }
+  },
+  "defaults": {}
+ },
  "QueryAttendanceStatsDto": {
   "declared": [
    "date_from",

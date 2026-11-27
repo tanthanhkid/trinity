@@ -35,6 +35,7 @@ mod-channel-guard = { path = "crates/mod-channel-guard" }
 mod-custom = { path = "crates/mod-custom" }
 mod-oauth = { path = "crates/mod-oauth" }
 mod-reports = { path = "crates/mod-reports" }
+mod-public-api = { path = "crates/mod-public-api" }
 trinity-integrations = { path = "crates/trinity-integrations" }
 mod-commerce = { path = "crates/mod-commerce" }
 mod-kanban = { path = "crates/mod-kanban" }

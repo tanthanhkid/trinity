@@ -11310,6 +11310,1135 @@
   }
  },
  {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 characters",
+    "title must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "title": null,
+   "value": null,
+   "status": null,
+   "description": null,
+   "note": null,
+   "contact_phone": null,
+   "contact_name": null,
+   "contact_source_id": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 characters",
+    "title must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "title": "",
+   "value": "",
+   "status": "",
+   "description": "",
+   "note": "",
+   "contact_phone": "",
+   "contact_name": "",
+   "contact_source_id": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 characters",
+    "status must be one of the following values: open, won, lost",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 characters"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "title": "  x  ",
+   "value": "  x  ",
+   "status": "  x  ",
+   "description": "  x  ",
+   "note": "  x  ",
+   "contact_phone": "  x  ",
+   "contact_name": "  x  ",
+   "contact_source_id": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "value must not be greater than 1000000000000000",
+    "value must not be less than 0",
+    "value must be an integer number",
+    "status must be one of the following values: open, won, lost",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "title": 12.5,
+   "value": 12.5,
+   "status": 12.5,
+   "description": 12.5,
+   "note": 12.5,
+   "contact_phone": 12.5,
+   "contact_name": 12.5,
+   "contact_source_id": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 and shorter than or equal to 255 characters",
+    "title must be a string",
+    "value must be an integer number",
+    "status must be one of the following values: open, won, lost",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "note must be shorter than or equal to 5000 characters",
+    "note must be a string",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 and shorter than or equal to 200 characters",
+    "contact_name must be a string",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "title": -1,
+   "value": -1,
+   "status": -1,
+   "description": -1,
+   "note": -1,
+   "contact_phone": -1,
+   "contact_name": -1,
+   "contact_source_id": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 and shorter than or equal to 255 characters",
+    "title must be a string",
+    "value must not be less than 0",
+    "status must be one of the following values: open, won, lost",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "note must be shorter than or equal to 5000 characters",
+    "note must be a string",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 and shorter than or equal to 200 characters",
+    "contact_name must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "title": 0,
+   "value": 0,
+   "status": 0,
+   "description": 0,
+   "note": 0,
+   "contact_phone": 0,
+   "contact_name": 0,
+   "contact_source_id": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 characters",
+    "title must be a string",
+    "status must be one of the following values: open, won, lost",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "note must be shorter than or equal to 5000 characters",
+    "note must be a string",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 characters",
+    "contact_name must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "title": true,
+   "value": true,
+   "status": true,
+   "description": true,
+   "note": true,
+   "contact_phone": true,
+   "contact_name": true,
+   "contact_source_id": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 and shorter than or equal to 255 characters",
+    "title must be a string",
+    "status must be one of the following values: open, won, lost",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "note must be shorter than or equal to 5000 characters",
+    "note must be a string",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 and shorter than or equal to 200 characters",
+    "contact_name must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "title": [
+    "a",
+    1
+   ],
+   "value": [
+    "a",
+    1
+   ],
+   "status": [
+    "a",
+    1
+   ],
+   "description": [
+    "a",
+    1
+   ],
+   "note": [
+    "a",
+    1
+   ],
+   "contact_phone": [
+    "a",
+    1
+   ],
+   "contact_name": [
+    "a",
+    1
+   ],
+   "contact_source_id": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 and shorter than or equal to 255 characters",
+    "title must be a string",
+    "value must not be greater than 1000000000000000",
+    "value must not be less than 0",
+    "value must be an integer number",
+    "status must be one of the following values: open, won, lost",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "note must be shorter than or equal to 5000 characters",
+    "note must be a string",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 and shorter than or equal to 200 characters",
+    "contact_name must be a string",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "title": {
+    "a": 1
+   },
+   "value": {
+    "a": 1
+   },
+   "status": {
+    "a": 1
+   },
+   "description": {
+    "a": 1
+   },
+   "note": {
+    "a": 1
+   },
+   "contact_phone": {
+    "a": 1
+   },
+   "contact_name": {
+    "a": 1
+   },
+   "contact_source_id": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 and shorter than or equal to 255 characters",
+    "title must be a string",
+    "value must not be greater than 1000000000000000",
+    "value must not be less than 0",
+    "value must be an integer number",
+    "status must be one of the following values: open, won, lost",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "note must be shorter than or equal to 5000 characters",
+    "note must be a string",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 and shorter than or equal to 200 characters",
+    "contact_name must be a string",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "contact_phone": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "contact_name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "contact_source_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be shorter than or equal to 255 characters",
+    "value must not be greater than 1000000000000000",
+    "value must not be less than 0",
+    "value must be an integer number",
+    "status must be one of the following values: open, won, lost",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be shorter than or equal to 200 characters",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "title": "2026-11-26T10:00:00Z",
+   "value": "2026-11-26T10:00:00Z",
+   "status": "2026-11-26T10:00:00Z",
+   "description": "2026-11-26T10:00:00Z",
+   "note": "2026-11-26T10:00:00Z",
+   "contact_phone": "2026-11-26T10:00:00Z",
+   "contact_name": "2026-11-26T10:00:00Z",
+   "contact_source_id": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "value must not be greater than 1000000000000000",
+    "value must not be less than 0",
+    "value must be an integer number",
+    "status must be one of the following values: open, won, lost",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "title": "123",
+   "value": "123",
+   "status": "123",
+   "description": "123",
+   "note": "123",
+   "contact_phone": "123",
+   "contact_name": "123",
+   "contact_source_id": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status must be one of the following values: open, won, lost",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "title": "a@example.com",
+   "value": "a@example.com",
+   "status": "a@example.com",
+   "description": "a@example.com",
+   "note": "a@example.com",
+   "contact_phone": "a@example.com",
+   "contact_name": "a@example.com",
+   "contact_source_id": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "value must not be greater than 1000000000000000",
+    "value must not be less than 0",
+    "value must be an integer number",
+    "status must be one of the following values: open, won, lost",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "title": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "value": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "description": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "note": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "contact_phone": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "contact_name": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "contact_source_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 and shorter than or equal to 255 characters",
+    "title must be a string",
+    "value must not be greater than 1000000000000000",
+    "value must not be less than 0",
+    "value must be an integer number",
+    "status must be one of the following values: open, won, lost",
+    "description must be shorter than or equal to 5000 characters",
+    "description must be a string",
+    "note must be shorter than or equal to 5000 characters",
+    "note must be a string",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 and shorter than or equal to 200 characters",
+    "contact_name must be a string",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "title": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateDealDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "title": "x"
+  },
+  "result": {
+   "ok": {
+    "title": "x"
+   }
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "column_id must be an integer number",
+    "title must be longer than or equal to 1 characters",
+    "title must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "column_id": null,
+   "title": null,
+   "description": null,
+   "due_at": null,
+   "priority": null,
+   "labels": null,
+   "attributes": null,
+   "contact_phone": null,
+   "contact_name": null,
+   "contact_source_id": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "column_id must be an integer number",
+    "title must be longer than or equal to 1 characters",
+    "title must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "column_id": "",
+   "title": "",
+   "description": "",
+   "due_at": "",
+   "priority": "",
+   "labels": "",
+   "attributes": "",
+   "contact_phone": "",
+   "contact_name": "",
+   "contact_source_id": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 characters",
+    "due_at must be a valid ISO 8601 date string",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "labels must contain no more than 20 elements",
+    "labels must be an array",
+    "attributes must be an object",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 characters"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "column_id": "  x  ",
+   "title": "  x  ",
+   "description": "  x  ",
+   "due_at": "  x  ",
+   "priority": "  x  ",
+   "labels": "  x  ",
+   "attributes": "  x  ",
+   "contact_phone": "  x  ",
+   "contact_name": "  x  ",
+   "contact_source_id": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "column_id must be an integer number",
+    "due_at must be a valid ISO 8601 date string",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "labels must contain no more than 20 elements",
+    "labels must be an array",
+    "attributes must be an object",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "column_id": 12.5,
+   "title": 12.5,
+   "description": 12.5,
+   "due_at": 12.5,
+   "priority": 12.5,
+   "labels": 12.5,
+   "attributes": 12.5,
+   "contact_phone": 12.5,
+   "contact_name": 12.5,
+   "contact_source_id": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "column_id must be an integer number",
+    "title must be longer than or equal to 1 and shorter than or equal to 500 characters",
+    "title must be a string",
+    "description must be shorter than or equal to 20000 characters",
+    "description must be a string",
+    "due_at must be a valid ISO 8601 date string",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "each value in labels must be shorter than or equal to 50 characters",
+    "each value in labels must be a string",
+    "labels must contain no more than 20 elements",
+    "labels must be an array",
+    "attributes must be an object",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 and shorter than or equal to 200 characters",
+    "contact_name must be a string",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "column_id": -1,
+   "title": -1,
+   "description": -1,
+   "due_at": -1,
+   "priority": -1,
+   "labels": -1,
+   "attributes": -1,
+   "contact_phone": -1,
+   "contact_name": -1,
+   "contact_source_id": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 and shorter than or equal to 500 characters",
+    "title must be a string",
+    "description must be shorter than or equal to 20000 characters",
+    "description must be a string",
+    "due_at must be a valid ISO 8601 date string",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "each value in labels must be shorter than or equal to 50 characters",
+    "each value in labels must be a string",
+    "labels must contain no more than 20 elements",
+    "labels must be an array",
+    "attributes must be an object",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 and shorter than or equal to 200 characters",
+    "contact_name must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "column_id": 0,
+   "title": 0,
+   "description": 0,
+   "due_at": 0,
+   "priority": 0,
+   "labels": 0,
+   "attributes": 0,
+   "contact_phone": 0,
+   "contact_name": 0,
+   "contact_source_id": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 characters",
+    "title must be a string",
+    "description must be shorter than or equal to 20000 characters",
+    "description must be a string",
+    "due_at must be a valid ISO 8601 date string",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "each value in labels must be shorter than or equal to 50 characters",
+    "each value in labels must be a string",
+    "labels must contain no more than 20 elements",
+    "labels must be an array",
+    "attributes must be an object",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 characters",
+    "contact_name must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "column_id": true,
+   "title": true,
+   "description": true,
+   "due_at": true,
+   "priority": true,
+   "labels": true,
+   "attributes": true,
+   "contact_phone": true,
+   "contact_name": true,
+   "contact_source_id": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "title must be longer than or equal to 1 and shorter than or equal to 500 characters",
+    "title must be a string",
+    "description must be shorter than or equal to 20000 characters",
+    "description must be a string",
+    "due_at must be a valid ISO 8601 date string",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "each value in labels must be shorter than or equal to 50 characters",
+    "each value in labels must be a string",
+    "labels must contain no more than 20 elements",
+    "labels must be an array",
+    "attributes must be an object",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 and shorter than or equal to 200 characters",
+    "contact_name must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "column_id": [
+    "a",
+    1
+   ],
+   "title": [
+    "a",
+    1
+   ],
+   "description": [
+    "a",
+    1
+   ],
+   "due_at": [
+    "a",
+    1
+   ],
+   "priority": [
+    "a",
+    1
+   ],
+   "labels": [
+    "a",
+    1
+   ],
+   "attributes": [
+    "a",
+    1
+   ],
+   "contact_phone": [
+    "a",
+    1
+   ],
+   "contact_name": [
+    "a",
+    1
+   ],
+   "contact_source_id": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "column_id must be an integer number",
+    "title must be longer than or equal to 1 and shorter than or equal to 500 characters",
+    "title must be a string",
+    "description must be shorter than or equal to 20000 characters",
+    "description must be a string",
+    "due_at must be a valid ISO 8601 date string",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "each value in labels must be shorter than or equal to 50 characters",
+    "each value in labels must be a string",
+    "attributes must be an object",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 and shorter than or equal to 200 characters",
+    "contact_name must be a string",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "column_id": {
+    "a": 1
+   },
+   "title": {
+    "a": 1
+   },
+   "description": {
+    "a": 1
+   },
+   "due_at": {
+    "a": 1
+   },
+   "priority": {
+    "a": 1
+   },
+   "labels": {
+    "a": 1
+   },
+   "attributes": {
+    "a": 1
+   },
+   "contact_phone": {
+    "a": 1
+   },
+   "contact_name": {
+    "a": 1
+   },
+   "contact_source_id": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "column_id must be an integer number",
+    "title must be longer than or equal to 1 and shorter than or equal to 500 characters",
+    "title must be a string",
+    "description must be shorter than or equal to 20000 characters",
+    "description must be a string",
+    "due_at must be a valid ISO 8601 date string",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "each value in labels must be shorter than or equal to 50 characters",
+    "each value in labels must be a string",
+    "labels must contain no more than 20 elements",
+    "labels must be an array",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 and shorter than or equal to 200 characters",
+    "contact_name must be a string",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "column_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "due_at": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "priority": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "labels": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "attributes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "contact_phone": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "contact_name": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "contact_source_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "column_id must be an integer number",
+    "due_at must be a valid ISO 8601 date string",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "each value in labels must be shorter than or equal to 50 characters",
+    "labels must contain no more than 20 elements",
+    "labels must be an array",
+    "attributes must be an object",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be shorter than or equal to 200 characters",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "column_id": "2026-11-26T10:00:00Z",
+   "title": "2026-11-26T10:00:00Z",
+   "description": "2026-11-26T10:00:00Z",
+   "due_at": "2026-11-26T10:00:00Z",
+   "priority": "2026-11-26T10:00:00Z",
+   "labels": "2026-11-26T10:00:00Z",
+   "attributes": "2026-11-26T10:00:00Z",
+   "contact_phone": "2026-11-26T10:00:00Z",
+   "contact_name": "2026-11-26T10:00:00Z",
+   "contact_source_id": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "column_id must be an integer number",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "labels must contain no more than 20 elements",
+    "labels must be an array",
+    "attributes must be an object",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "column_id": "123",
+   "title": "123",
+   "description": "123",
+   "due_at": "123",
+   "priority": "123",
+   "labels": "123",
+   "attributes": "123",
+   "contact_phone": "123",
+   "contact_name": "123",
+   "contact_source_id": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "due_at must be a valid ISO 8601 date string",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "labels must contain no more than 20 elements",
+    "labels must be an array",
+    "attributes must be an object",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "column_id": "a@example.com",
+   "title": "a@example.com",
+   "description": "a@example.com",
+   "due_at": "a@example.com",
+   "priority": "a@example.com",
+   "labels": "a@example.com",
+   "attributes": "a@example.com",
+   "contact_phone": "a@example.com",
+   "contact_name": "a@example.com",
+   "contact_source_id": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "column_id must be an integer number",
+    "due_at must be a valid ISO 8601 date string",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "labels must contain no more than 20 elements",
+    "labels must be an array",
+    "attributes must be an object",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "column_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "title": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "description": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "due_at": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "priority": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "labels": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "attributes": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "contact_phone": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "contact_name": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "contact_source_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "column_id must be an integer number",
+    "title must be longer than or equal to 1 and shorter than or equal to 500 characters",
+    "title must be a string",
+    "description must be shorter than or equal to 20000 characters",
+    "description must be a string",
+    "due_at must be a valid ISO 8601 date string",
+    "priority must be one of the following values: low, normal, high, urgent",
+    "each value in labels must be shorter than or equal to 50 characters",
+    "each value in labels must be a string",
+    "attributes must be an object",
+    "contact_phone phải là SĐT Việt Nam 0xxxxxxxxx hoặc +84xxxxxxxxx",
+    "contact_name must be longer than or equal to 1 and shorter than or equal to 200 characters",
+    "contact_name must be a string",
+    "contact_source_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "column_id": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "column_id must be an integer number",
+    "title must be longer than or equal to 1 characters",
+    "title must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "PublicCreateTaskDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "column_id": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "column_id must be an integer number",
+    "title must be longer than or equal to 1 characters",
+    "title must be a string"
+   ]
+  }
+ },
+ {
   "dto": "CreateOptionDto",
   "mode": "strict",
   "probe": "empty_object",

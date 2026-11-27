@@ -11,11 +11,11 @@ use trinity_kernel::vn_time::js_iso_string;
 use crate::db;
 
 /// Cột đủ để dựng `ContactEventSnapshot` (`CONTACT_EVENT_SELECT`).
-pub(crate) const CONTACT_EVENT_COLS: &str = "id, phone, phone_2, full_name, email, zalo_account, source_id, stage_id, \
+pub const CONTACT_EVENT_COLS: &str = "id, phone, phone_2, full_name, email, zalo_account, source_id, stage_id, \
      contact_status_id, assigned_to, team_id, created_by_id, project_id, created_at, updated_at, deleted_at";
 
 #[derive(sqlx::FromRow)]
-pub(crate) struct ContactEventRow {
+pub struct ContactEventRow {
     pub id: i32,
     pub phone: String,
     pub phone_2: Option<String>,
@@ -43,7 +43,7 @@ fn s(v: Option<&str>) -> Value {
 }
 
 impl ContactEventRow {
-    pub(crate) fn snapshot(&self) -> Value {
+    pub fn snapshot(&self) -> Value {
         let mut m = Map::new();
         m.insert("id".into(), self.id.into());
         m.insert("phone".into(), Value::String(self.phone.clone()));
@@ -69,7 +69,7 @@ impl ContactEventRow {
     }
 }
 
-pub(crate) async fn contact_event(conn: &mut PgConnection, id: i32) -> Result<ContactEventRow, AppError> {
+pub async fn contact_event(conn: &mut PgConnection, id: i32) -> Result<ContactEventRow, AppError> {
     sqlx::query_as::<_, ContactEventRow>(sqlx::AssertSqlSafe(format!(
         "SELECT {CONTACT_EVENT_COLS} FROM contacts WHERE id = $1"
     )))

@@ -27,6 +27,7 @@ sqlx = { workspace = true }
 tokio = { workspace = true }
 trinity-auth = { workspace = true }
 trinity-db = { workspace = true }
+mod-custom = { workspace = true }
 mod-users = { workspace = true }
 mod-channel-guard = { workspace = true }
 trinity-http = { workspace = true }

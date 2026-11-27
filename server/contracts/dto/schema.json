@@ -1288,6 +1288,615 @@
   },
   "defaults": {}
  },
+ "CreateCustomFieldDto": {
+  "declared": [
+   "key",
+   "label",
+   "type",
+   "required",
+   "is_unique",
+   "is_title",
+   "show_in_list",
+   "options",
+   "help_text"
+  ],
+  "validated": [
+   "key",
+   "label",
+   "type",
+   "required",
+   "is_unique",
+   "is_title",
+   "show_in_list",
+   "options",
+   "help_text"
+  ],
+  "fields": {
+   "key": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^[a-z][a-z0-9_]{0,47}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "label": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       100
+      ],
+      "message": "Tên trường tối đa 100 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "minLength",
+      "constraints": [
+       1
+      ],
+      "message": "Tên trường không được rỗng",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": "Tên trường phải là chuỗi",
+      "each": false
+     }
+    ]
+   },
+   "type": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "text",
+        "long_text",
+        "number",
+        "currency",
+        "percent",
+        "date",
+        "datetime",
+        "boolean",
+        "select",
+        "multi_select",
+        "email",
+        "phone",
+        "url",
+        "relation",
+        "user",
+        "formula",
+        "link"
+       ]
+      ],
+      "message": "Kiểu trường không hợp lệ",
+      "each": false
+     }
+    ]
+   },
+   "required": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "is_unique": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "is_title": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "show_in_list": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "options": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isObject",
+      "constraints": [],
+      "message": "options phải là object",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Object"
+   },
+   "help_text": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       300
+      ],
+      "message": "Ghi chú tối đa 300 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
+ "CreateCustomObjectDto": {
+  "declared": [
+   "key",
+   "label",
+   "label_plural",
+   "icon",
+   "description",
+   "show_in_nav",
+   "nav_order",
+   "visible_role_ids",
+   "is_active",
+   "code_prefix"
+  ],
+  "validated": [
+   "key",
+   "label",
+   "label_plural",
+   "icon",
+   "description",
+   "show_in_nav",
+   "nav_order",
+   "visible_role_ids",
+   "is_active",
+   "code_prefix"
+  ],
+  "fields": {
+   "key": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^[a-z][a-z0-9_]{0,47}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": "key phải là chuỗi",
+      "each": false
+     }
+    ]
+   },
+   "label": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       100
+      ],
+      "message": "Tên tối đa 100 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "minLength",
+      "constraints": [
+       1
+      ],
+      "message": "Tên không được rỗng",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": "Tên phải là chuỗi",
+      "each": false
+     }
+    ]
+   },
+   "label_plural": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       100
+      ],
+      "message": "Tên số nhiều tối đa 100 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "minLength",
+      "constraints": [
+       1
+      ],
+      "message": "Tên số nhiều không được rỗng",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": "Tên số nhiều phải là chuỗi",
+      "each": false
+     }
+    ]
+   },
+   "icon": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       48
+      ],
+      "message": "icon tối đa 48 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": "icon phải là chuỗi",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "description": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       500
+      ],
+      "message": "Mô tả tối đa 500 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": "Mô tả phải là chuỗi",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "show_in_nav": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": "show_in_nav phải là boolean",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "nav_order": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "max",
+      "constraints": [
+       100000
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       0
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": "nav_order phải là số nguyên",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "visible_role_ids": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": "visible_role_ids chỉ chứa số nguyên",
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "arrayMaxSize",
+      "constraints": [
+       50
+      ],
+      "message": "visible_role_ids tối đa 50 vai trò",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isArray",
+      "constraints": [],
+      "message": "visible_role_ids phải là mảng",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "is_active": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": "is_active phải là boolean",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "code_prefix": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^[A-Za-z]{2,4}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "Tiền tố mã gồm 2–4 chữ cái không dấu",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
  "CreateDealDto": {
   "declared": [
    "title",
@@ -3729,6 +4338,114 @@
   },
   "defaults": {}
  },
+ "FormulaPreviewDto": {
+  "declared": [
+   "object_key",
+   "expression",
+   "sample",
+   "editing_key"
+  ],
+  "validated": [
+   "object_key",
+   "expression",
+   "sample",
+   "editing_key"
+  ],
+  "fields": {
+   "object_key": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^[a-z][a-z0-9_]{0,47}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "expression": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       300
+      ],
+      "message": "Công thức tối đa 300 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "sample": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isObject",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Object"
+   },
+   "editing_key": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
  "InboundContactPayload": {
   "declared": [
    "name",
@@ -4210,6 +4927,135 @@
      {
       "fn": "({ value }) => (typeof value === 'string' ? value.trim() : value)",
       "options": {}
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
+ "LookupQueryDto": {
+  "declared": [
+   "q",
+   "limit",
+   "for"
+  ],
+  "validated": [
+   "q",
+   "limit",
+   "for"
+  ],
+  "fields": {
+   "q": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^[^\\u0000]*$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       100
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "limit": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "max",
+      "constraints": [
+       50
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Number"
+   },
+   "for": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "view",
+        "manage"
+       ]
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
      }
     ]
    }
@@ -6900,6 +7746,53 @@
   },
   "defaults": {}
  },
+ "ReorderCustomFieldsDto": {
+  "declared": [
+   "keys"
+  ],
+  "validated": [
+   "keys"
+  ],
+  "fields": {
+   "keys": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "arrayMaxSize",
+      "constraints": [
+       100
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "arrayMinSize",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isArray",
+      "constraints": [],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
  "SalaryRuleDetailDto": {
   "declared": [
    "component",
@@ -8079,6 +8972,592 @@
     "type": {
      "dto": "ContactCustomFieldDto"
     }
+   }
+  },
+  "defaults": {}
+ },
+ "UpdateCustomFieldDto": {
+  "declared": [
+   "label",
+   "type",
+   "required",
+   "is_unique",
+   "is_title",
+   "show_in_list",
+   "options",
+   "help_text"
+  ],
+  "validated": [
+   "label",
+   "type",
+   "required",
+   "is_unique",
+   "is_title",
+   "show_in_list",
+   "options",
+   "help_text"
+  ],
+  "fields": {
+   "label": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       100
+      ],
+      "message": "Tên trường tối đa 100 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "minLength",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "type": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "text",
+        "long_text",
+        "number",
+        "currency",
+        "percent",
+        "date",
+        "datetime",
+        "boolean",
+        "select",
+        "multi_select",
+        "email",
+        "phone",
+        "url",
+        "relation",
+        "user",
+        "formula",
+        "link"
+       ]
+      ],
+      "message": "Kiểu trường không hợp lệ",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "required": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "is_unique": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "is_title": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "show_in_list": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "options": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isObject",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ],
+    "type": "Object"
+   },
+   "help_text": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       300
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
+ "UpdateCustomObjectDto": {
+  "declared": [
+   "label",
+   "label_plural",
+   "icon",
+   "description",
+   "show_in_nav",
+   "nav_order",
+   "visible_role_ids",
+   "is_active",
+   "code_prefix"
+  ],
+  "validated": [
+   "label",
+   "label_plural",
+   "icon",
+   "description",
+   "show_in_nav",
+   "nav_order",
+   "visible_role_ids",
+   "is_active",
+   "code_prefix"
+  ],
+  "fields": {
+   "label": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       100
+      ],
+      "message": "Tên tối đa 100 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "minLength",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "label_plural": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       100
+      ],
+      "message": "Tên số nhiều tối đa 100 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "minLength",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "icon": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       48
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "description": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       500
+      ],
+      "message": "Mô tả tối đa 500 ký tự",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "show_in_nav": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "nav_order": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "max",
+      "constraints": [
+       100000
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       0
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "visible_role_ids": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "min",
+      "constraints": [
+       1
+      ],
+      "message": null,
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "isInt",
+      "constraints": [],
+      "message": null,
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "arrayMaxSize",
+      "constraints": [
+       50
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isArray",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "is_active": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_o, v) => v !== undefined"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "code_prefix": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "matches",
+      "constraints": [
+       {
+        "$regex": "^[A-Za-z]{2,4}$",
+        "flags": ""
+       },
+       {
+        "$undefined": true
+       }
+      ],
+      "message": "Tiền tố mã gồm 2–4 chữ cái không dấu",
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
    }
   },
   "defaults": {}

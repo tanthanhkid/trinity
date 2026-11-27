@@ -1,0 +1,277 @@
+//! Bảng route và handler (K14) của 15 route `/api/v1/custom-objects` thuộc M17. Quyền, mã thành công và chế độ kiểm dữ liệu
+//! (strict) khớp `contracts/routes.json`; hai route mẫu bảng (`templates`, `templates/:template/apply`) thuộc M19.
+
+use std::sync::Arc;
+
+use axum::Json;
+use axum::body::{Bytes, to_bytes};
+use axum::extract::{Extension, FromRequest, Path, Request, State};
+use axum::http::{Method, StatusCode, Uri, header};
+use axum::response::{IntoResponse, Response};
+use serde_json::{Map, Value};
+use trinity_http::router::{Access, AccessDeps, ApiRouter, CurrentUser, RouteSpec};
+use trinity_http::validate::extract::query_to_json;
+use trinity_http::validate::{Mode, validate_value};
+use trinity_kernel::error::{AppError, HttpError};
+
+use crate::fields::{CreateField, UpdateField};
+use crate::lookups::LookupQuery;
+use crate::objects::{CreateObject, UpdateObject};
+use crate::{Actor, Ctx, fields, lookups, objects, views};
+
+const BASE: &str = "/api/v1/custom-objects";
+const MANAGE: Access = Access::Can(&["custom_objects.manage"]);
+const VIEW: Access = Access::Can(&["custom_records.view"]);
+const VIEW_OR_MANAGE: Access = Access::CanAny(&["custom_records.view", "custom_objects.manage"]);
+const LOOKUP: Access = Access::CanAny(&["custom_records.view", "custom_records.manage"]);
+
+/// 15 dòng của bảng route, so với `routes.json` bởi `trinity check-routes`.
+pub fn specs() -> Vec<RouteSpec> {
+    let s = |m: Method, p: &'static str, a: Access, ok: u16| RouteSpec::new(m, p, a).status_ok(ok);
+    vec![
+        s(Method::GET, BASE, MANAGE, 200),
+        s(Method::POST, BASE, MANAGE, 201),
+        s(Method::GET, "/api/v1/custom-objects/nav", VIEW, 200),
+        s(Method::GET, "/api/v1/custom-objects/lookup/users", LOOKUP, 200),
+        s(Method::GET, "/api/v1/custom-objects/lookup/contacts", LOOKUP, 200),
+        s(Method::POST, "/api/v1/custom-objects/formula/preview", MANAGE, 201),
+        s(Method::GET, "/api/v1/custom-objects/:key", VIEW_OR_MANAGE, 200),
+        s(Method::GET, "/api/v1/custom-objects/:key/views", VIEW, 200),
+        s(Method::GET, "/api/v1/custom-objects/:key/views/:view", VIEW, 200),
+        s(Method::PATCH, "/api/v1/custom-objects/:key", MANAGE, 200),
+        s(Method::DELETE, "/api/v1/custom-objects/:key", MANAGE, 200),
+        s(Method::POST, "/api/v1/custom-objects/:key/fields", MANAGE, 201),
+        s(Method::PUT, "/api/v1/custom-objects/:key/fields/order", MANAGE, 200),
+        s(
+            Method::PATCH,
+            "/api/v1/custom-objects/:key/fields/:fieldKey",
+            MANAGE,
+            200,
+        ),
+        s(
+            Method::DELETE,
+            "/api/v1/custom-objects/:key/fields/:fieldKey",
+            MANAGE,
+            200,
+        ),
+    ]
+}
+
+fn fail(e: impl Into<AppError>) -> Response {
+    let (status, body) = e.into().response(true);
+    (
+        StatusCode::from_u16(status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+        Json(body),
+    )
+        .into_response()
+}
+
+fn ok(r: Result<Value, AppError>) -> Response {
+    match r {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => fail(e),
+    }
+}
+
+fn actor(u: &CurrentUser) -> Actor {
+    Actor {
+        user_id: u.user.user_id,
+        company: trinity_db::CompanyRef::new(i64::from(u.user.company_id)).unwrap_or(trinity_db::CompanyRef::DEFAULT),
+        grants: u.grants.grants.clone(),
+        is_admin: u.grants.is_admin,
+    }
+}
+
+/// Body JSON như `body-parser` của Express: không phải JSON hoặc rỗng ⇒ `{}`.
+struct JsonBody(Value);
+
+impl<S: Send + Sync> FromRequest<S> for JsonBody {
+    type Rejection = Response;
+
+    async fn from_request(req: Request, _s: &S) -> Result<Self, Response> {
+        let is_json = req
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|ct| {
+                ct.split(';')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .eq_ignore_ascii_case("application/json")
+            });
+        let bytes: Bytes = to_bytes(req.into_body(), 5 * 1024 * 1024)
+            .await
+            .map_err(|_| fail(HttpError::payload_too_large("request entity too large")))?;
+        if !is_json || bytes.iter().all(u8::is_ascii_whitespace) {
+            return Ok(Self(Value::Object(Map::new())));
+        }
+        match serde_json::from_slice::<Value>(&bytes) {
+            Ok(v @ (Value::Object(_) | Value::Array(_))) => Ok(Self(v)),
+            _ => Err(fail(HttpError::bad_request("Unexpected token in JSON"))),
+        }
+    }
+}
+
+fn dto(name: &str, body: &Value) -> Result<Value, AppError> {
+    validate_value(name, body, Mode::Strict)
+}
+
+async fn list(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>) -> Response {
+    ok(objects::list(&c, &actor(&u)).await)
+}
+
+async fn create(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, JsonBody(b): JsonBody) -> Response {
+    match dto("CreateCustomObjectDto", &b) {
+        Ok(v) => ok(objects::create(&c, &actor(&u), &CreateObject::from_validated(&v)).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn nav(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>) -> Response {
+    ok(objects::nav(&c, &actor(&u)).await)
+}
+
+async fn lookup_users(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, uri: Uri) -> Response {
+    match dto("LookupQueryDto", &query_to_json(uri.query().unwrap_or(""))) {
+        Ok(v) => ok(lookups::lookup_users(&c, &actor(&u), &LookupQuery::from_validated(&v)).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn lookup_contacts(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, uri: Uri) -> Response {
+    match dto("LookupQueryDto", &query_to_json(uri.query().unwrap_or(""))) {
+        Ok(v) => ok(lookups::lookup_contacts(&c, &actor(&u), &LookupQuery::from_validated(&v)).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn preview(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, JsonBody(b): JsonBody) -> Response {
+    match dto("FormulaPreviewDto", &b) {
+        Ok(v) => ok(fields::preview_formula(&c, &actor(&u), &v).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn get_one(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, Path(key): Path<String>) -> Response {
+    ok(objects::get_definition(&c, &actor(&u), &key).await)
+}
+
+async fn list_views(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(key): Path<String>,
+) -> Response {
+    ok(views::list(&c, &actor(&u), &key).await)
+}
+
+async fn get_view(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path((key, view)): Path<(String, String)>,
+) -> Response {
+    ok(views::get(&c, &actor(&u), &key, &view).await)
+}
+
+async fn update(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(key): Path<String>,
+    JsonBody(b): JsonBody,
+) -> Response {
+    match dto("UpdateCustomObjectDto", &b) {
+        Ok(v) => ok(objects::update(&c, &actor(&u), &key, &UpdateObject::from_validated(&v)).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn remove(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, Path(key): Path<String>) -> Response {
+    ok(objects::remove(&c, &actor(&u), &key).await)
+}
+
+async fn add_field(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(key): Path<String>,
+    JsonBody(b): JsonBody,
+) -> Response {
+    match dto("CreateCustomFieldDto", &b) {
+        Ok(v) => ok(fields::create(&c, &actor(&u), &key, &CreateField::from_validated(&v)).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn reorder(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(key): Path<String>,
+    JsonBody(b): JsonBody,
+) -> Response {
+    match dto("ReorderCustomFieldsDto", &b) {
+        Ok(v) => {
+            let keys: Vec<String> = v
+                .get("keys")
+                .and_then(Value::as_array)
+                .map(|a| a.iter().filter_map(|k| k.as_str().map(str::to_owned)).collect())
+                .unwrap_or_default();
+            ok(fields::reorder(&c, &actor(&u), &key, &keys).await)
+        }
+        Err(e) => fail(e),
+    }
+}
+
+async fn update_field(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path((key, field)): Path<(String, String)>,
+    JsonBody(b): JsonBody,
+) -> Response {
+    match dto("UpdateCustomFieldDto", &b) {
+        Ok(v) => ok(fields::update(&c, &actor(&u), &key, &field, &UpdateField::from_validated(&v)).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn remove_field(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path((key, field)): Path<(String, String)>,
+) -> Response {
+    ok(fields::remove(&c, &actor(&u), &key, &field).await)
+}
+
+/// Router của module (người gọi gắn state `Arc<Ctx>` khi lắp `serve`).
+pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
+    let s = specs();
+    let spec = |m: &Method, p: &str| {
+        s.iter()
+            .find(|x| x.method == *m && x.path == p)
+            .cloned()
+            .unwrap_or_else(|| panic!("thiếu spec {m} {p}"))
+    };
+    ApiRouter::new(deps)
+        .route(spec(&Method::GET, BASE), list)
+        .route(spec(&Method::POST, BASE), create)
+        .route(spec(&Method::GET, "/api/v1/custom-objects/nav"), nav)
+        .route(spec(&Method::GET, "/api/v1/custom-objects/lookup/users"), lookup_users)
+        .route(
+            spec(&Method::GET, "/api/v1/custom-objects/lookup/contacts"),
+            lookup_contacts,
+        )
+        .route(spec(&Method::POST, "/api/v1/custom-objects/formula/preview"), preview)
+        .route(spec(&Method::GET, "/api/v1/custom-objects/:key"), get_one)
+        .route(spec(&Method::GET, "/api/v1/custom-objects/:key/views"), list_views)
+        .route(spec(&Method::GET, "/api/v1/custom-objects/:key/views/:view"), get_view)
+        .route(spec(&Method::PATCH, "/api/v1/custom-objects/:key"), update)
+        .route(spec(&Method::DELETE, "/api/v1/custom-objects/:key"), remove)
+        .route(spec(&Method::POST, "/api/v1/custom-objects/:key/fields"), add_field)
+        .route(spec(&Method::PUT, "/api/v1/custom-objects/:key/fields/order"), reorder)
+        .route(
+            spec(&Method::PATCH, "/api/v1/custom-objects/:key/fields/:fieldKey"),
+            update_field,
+        )
+        .route(
+            spec(&Method::DELETE, "/api/v1/custom-objects/:key/fields/:fieldKey"),
+            remove_field,
+        )
+}

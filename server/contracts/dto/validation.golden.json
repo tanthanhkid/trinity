@@ -11797,6 +11797,3428 @@
   }
  },
  {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key phải là chuỗi",
+    "Tên tối đa 100 ký tự",
+    "Tên không được rỗng",
+    "Tên phải là chuỗi",
+    "Tên số nhiều tối đa 100 ký tự",
+    "Tên số nhiều không được rỗng",
+    "Tên số nhiều phải là chuỗi"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "key": null,
+   "label": null,
+   "label_plural": null,
+   "icon": null,
+   "description": null,
+   "show_in_nav": null,
+   "nav_order": null,
+   "visible_role_ids": null,
+   "is_active": null,
+   "code_prefix": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key phải là chuỗi",
+    "Tên tối đa 100 ký tự",
+    "Tên không được rỗng",
+    "Tên phải là chuỗi",
+    "Tên số nhiều tối đa 100 ký tự",
+    "Tên số nhiều không được rỗng",
+    "Tên số nhiều phải là chuỗi",
+    "show_in_nav phải là boolean",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order phải là số nguyên",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids chỉ chứa số nguyên",
+    "visible_role_ids tối đa 50 vai trò",
+    "visible_role_ids phải là mảng",
+    "is_active phải là boolean"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "key": "",
+   "label": "",
+   "label_plural": "",
+   "icon": "",
+   "description": "",
+   "show_in_nav": "",
+   "nav_order": "",
+   "visible_role_ids": "",
+   "is_active": "",
+   "code_prefix": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "Tên không được rỗng",
+    "Tên số nhiều không được rỗng",
+    "show_in_nav phải là boolean",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order phải là số nguyên",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids chỉ chứa số nguyên",
+    "visible_role_ids tối đa 50 vai trò",
+    "visible_role_ids phải là mảng",
+    "is_active phải là boolean",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "key": "  x  ",
+   "label": "  x  ",
+   "label_plural": "  x  ",
+   "icon": "  x  ",
+   "description": "  x  ",
+   "show_in_nav": "  x  ",
+   "nav_order": "  x  ",
+   "visible_role_ids": "  x  ",
+   "is_active": "  x  ",
+   "code_prefix": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "show_in_nav phải là boolean",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order phải là số nguyên",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids chỉ chứa số nguyên",
+    "visible_role_ids tối đa 50 vai trò",
+    "visible_role_ids phải là mảng",
+    "is_active phải là boolean",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "key": 12.5,
+   "label": 12.5,
+   "label_plural": 12.5,
+   "icon": 12.5,
+   "description": 12.5,
+   "show_in_nav": 12.5,
+   "nav_order": 12.5,
+   "visible_role_ids": 12.5,
+   "is_active": 12.5,
+   "code_prefix": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key phải là chuỗi",
+    "Tên tối đa 100 ký tự",
+    "Tên không được rỗng",
+    "Tên phải là chuỗi",
+    "Tên số nhiều tối đa 100 ký tự",
+    "Tên số nhiều không được rỗng",
+    "Tên số nhiều phải là chuỗi",
+    "icon tối đa 48 ký tự",
+    "icon phải là chuỗi",
+    "Mô tả tối đa 500 ký tự",
+    "Mô tả phải là chuỗi",
+    "show_in_nav phải là boolean",
+    "nav_order phải là số nguyên",
+    "visible_role_ids chỉ chứa số nguyên",
+    "visible_role_ids tối đa 50 vai trò",
+    "visible_role_ids phải là mảng",
+    "is_active phải là boolean",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "key": -1,
+   "label": -1,
+   "label_plural": -1,
+   "icon": -1,
+   "description": -1,
+   "show_in_nav": -1,
+   "nav_order": -1,
+   "visible_role_ids": -1,
+   "is_active": -1,
+   "code_prefix": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key phải là chuỗi",
+    "Tên tối đa 100 ký tự",
+    "Tên không được rỗng",
+    "Tên phải là chuỗi",
+    "Tên số nhiều tối đa 100 ký tự",
+    "Tên số nhiều không được rỗng",
+    "Tên số nhiều phải là chuỗi",
+    "icon tối đa 48 ký tự",
+    "icon phải là chuỗi",
+    "Mô tả tối đa 500 ký tự",
+    "Mô tả phải là chuỗi",
+    "show_in_nav phải là boolean",
+    "nav_order must not be less than 0",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids tối đa 50 vai trò",
+    "visible_role_ids phải là mảng",
+    "is_active phải là boolean",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "key": 0,
+   "label": 0,
+   "label_plural": 0,
+   "icon": 0,
+   "description": 0,
+   "show_in_nav": 0,
+   "nav_order": 0,
+   "visible_role_ids": 0,
+   "is_active": 0,
+   "code_prefix": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key phải là chuỗi",
+    "Tên tối đa 100 ký tự",
+    "Tên không được rỗng",
+    "Tên phải là chuỗi",
+    "Tên số nhiều tối đa 100 ký tự",
+    "Tên số nhiều không được rỗng",
+    "Tên số nhiều phải là chuỗi",
+    "icon tối đa 48 ký tự",
+    "icon phải là chuỗi",
+    "Mô tả tối đa 500 ký tự",
+    "Mô tả phải là chuỗi",
+    "show_in_nav phải là boolean",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids tối đa 50 vai trò",
+    "visible_role_ids phải là mảng",
+    "is_active phải là boolean",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "key": true,
+   "label": true,
+   "label_plural": true,
+   "icon": true,
+   "description": true,
+   "show_in_nav": true,
+   "nav_order": true,
+   "visible_role_ids": true,
+   "is_active": true,
+   "code_prefix": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key phải là chuỗi",
+    "Tên tối đa 100 ký tự",
+    "Tên không được rỗng",
+    "Tên phải là chuỗi",
+    "Tên số nhiều tối đa 100 ký tự",
+    "Tên số nhiều không được rỗng",
+    "Tên số nhiều phải là chuỗi",
+    "icon tối đa 48 ký tự",
+    "icon phải là chuỗi",
+    "Mô tả tối đa 500 ký tự",
+    "Mô tả phải là chuỗi",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order phải là số nguyên",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids chỉ chứa số nguyên",
+    "visible_role_ids tối đa 50 vai trò",
+    "visible_role_ids phải là mảng",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "key": [
+    "a",
+    1
+   ],
+   "label": [
+    "a",
+    1
+   ],
+   "label_plural": [
+    "a",
+    1
+   ],
+   "icon": [
+    "a",
+    1
+   ],
+   "description": [
+    "a",
+    1
+   ],
+   "show_in_nav": [
+    "a",
+    1
+   ],
+   "nav_order": [
+    "a",
+    1
+   ],
+   "visible_role_ids": [
+    "a",
+    1
+   ],
+   "is_active": [
+    "a",
+    1
+   ],
+   "code_prefix": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key phải là chuỗi",
+    "Tên tối đa 100 ký tự",
+    "Tên không được rỗng",
+    "Tên phải là chuỗi",
+    "Tên số nhiều tối đa 100 ký tự",
+    "Tên số nhiều không được rỗng",
+    "Tên số nhiều phải là chuỗi",
+    "icon tối đa 48 ký tự",
+    "icon phải là chuỗi",
+    "Mô tả tối đa 500 ký tự",
+    "Mô tả phải là chuỗi",
+    "show_in_nav phải là boolean",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order phải là số nguyên",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids chỉ chứa số nguyên",
+    "is_active phải là boolean",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "key": {
+    "a": 1
+   },
+   "label": {
+    "a": 1
+   },
+   "label_plural": {
+    "a": 1
+   },
+   "icon": {
+    "a": 1
+   },
+   "description": {
+    "a": 1
+   },
+   "show_in_nav": {
+    "a": 1
+   },
+   "nav_order": {
+    "a": 1
+   },
+   "visible_role_ids": {
+    "a": 1
+   },
+   "is_active": {
+    "a": 1
+   },
+   "code_prefix": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key phải là chuỗi",
+    "Tên tối đa 100 ký tự",
+    "Tên không được rỗng",
+    "Tên phải là chuỗi",
+    "Tên số nhiều tối đa 100 ký tự",
+    "Tên số nhiều không được rỗng",
+    "Tên số nhiều phải là chuỗi",
+    "icon tối đa 48 ký tự",
+    "icon phải là chuỗi",
+    "Mô tả tối đa 500 ký tự",
+    "Mô tả phải là chuỗi",
+    "show_in_nav phải là boolean",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order phải là số nguyên",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids chỉ chứa số nguyên",
+    "visible_role_ids tối đa 50 vai trò",
+    "visible_role_ids phải là mảng",
+    "is_active phải là boolean",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "label_plural": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "icon": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "show_in_nav": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "nav_order": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "visible_role_ids": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "is_active": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "code_prefix": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "Tên tối đa 100 ký tự",
+    "Tên số nhiều tối đa 100 ký tự",
+    "icon tối đa 48 ký tự",
+    "show_in_nav phải là boolean",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order phải là số nguyên",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids chỉ chứa số nguyên",
+    "visible_role_ids tối đa 50 vai trò",
+    "visible_role_ids phải là mảng",
+    "is_active phải là boolean",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "key": "2026-11-26T10:00:00Z",
+   "label": "2026-11-26T10:00:00Z",
+   "label_plural": "2026-11-26T10:00:00Z",
+   "icon": "2026-11-26T10:00:00Z",
+   "description": "2026-11-26T10:00:00Z",
+   "show_in_nav": "2026-11-26T10:00:00Z",
+   "nav_order": "2026-11-26T10:00:00Z",
+   "visible_role_ids": "2026-11-26T10:00:00Z",
+   "is_active": "2026-11-26T10:00:00Z",
+   "code_prefix": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "show_in_nav phải là boolean",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order phải là số nguyên",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids chỉ chứa số nguyên",
+    "visible_role_ids tối đa 50 vai trò",
+    "visible_role_ids phải là mảng",
+    "is_active phải là boolean",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "key": "123",
+   "label": "123",
+   "label_plural": "123",
+   "icon": "123",
+   "description": "123",
+   "show_in_nav": "123",
+   "nav_order": "123",
+   "visible_role_ids": "123",
+   "is_active": "123",
+   "code_prefix": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "show_in_nav phải là boolean",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order phải là số nguyên",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids chỉ chứa số nguyên",
+    "visible_role_ids tối đa 50 vai trò",
+    "visible_role_ids phải là mảng",
+    "is_active phải là boolean",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "key": "a@example.com",
+   "label": "a@example.com",
+   "label_plural": "a@example.com",
+   "icon": "a@example.com",
+   "description": "a@example.com",
+   "show_in_nav": "a@example.com",
+   "nav_order": "a@example.com",
+   "visible_role_ids": "a@example.com",
+   "is_active": "a@example.com",
+   "code_prefix": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "show_in_nav phải là boolean",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order phải là số nguyên",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids chỉ chứa số nguyên",
+    "visible_role_ids tối đa 50 vai trò",
+    "visible_role_ids phải là mảng",
+    "is_active phải là boolean",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "key": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "label": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "label_plural": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "icon": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "description": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "show_in_nav": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "nav_order": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "visible_role_ids": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "is_active": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "code_prefix": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key phải là chuỗi",
+    "Tên tối đa 100 ký tự",
+    "Tên không được rỗng",
+    "Tên phải là chuỗi",
+    "Tên số nhiều tối đa 100 ký tự",
+    "Tên số nhiều không được rỗng",
+    "Tên số nhiều phải là chuỗi",
+    "icon tối đa 48 ký tự",
+    "icon phải là chuỗi",
+    "Mô tả tối đa 500 ký tự",
+    "Mô tả phải là chuỗi",
+    "show_in_nav phải là boolean",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order phải là số nguyên",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids chỉ chứa số nguyên",
+    "is_active phải là boolean",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "key": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "Tên tối đa 100 ký tự",
+    "Tên không được rỗng",
+    "Tên phải là chuỗi",
+    "Tên số nhiều tối đa 100 ký tự",
+    "Tên số nhiều không được rỗng",
+    "Tên số nhiều phải là chuỗi"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "key": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên tối đa 100 ký tự",
+    "Tên không được rỗng",
+    "Tên phải là chuỗi",
+    "Tên số nhiều tối đa 100 ký tự",
+    "Tên số nhiều không được rỗng",
+    "Tên số nhiều phải là chuỗi"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "label": null,
+   "label_plural": null,
+   "icon": null,
+   "description": null,
+   "show_in_nav": null,
+   "nav_order": null,
+   "visible_role_ids": null,
+   "is_active": null,
+   "code_prefix": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Tên số nhiều tối đa 100 ký tự",
+    "label_plural must be longer than or equal to 1 characters",
+    "label_plural must be a string",
+    "show_in_nav must be a boolean value",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must not be less than 1",
+    "each value in visible_role_ids must be an integer number",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array",
+    "is_active must be a boolean value"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "label": "",
+   "label_plural": "",
+   "icon": "",
+   "description": "",
+   "show_in_nav": "",
+   "nav_order": "",
+   "visible_role_ids": "",
+   "is_active": "",
+   "code_prefix": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "label must be longer than or equal to 1 characters",
+    "label_plural must be longer than or equal to 1 characters",
+    "show_in_nav must be a boolean value",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must not be less than 1",
+    "each value in visible_role_ids must be an integer number",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array",
+    "is_active must be a boolean value",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "label": "  x  ",
+   "label_plural": "  x  ",
+   "icon": "  x  ",
+   "description": "  x  ",
+   "show_in_nav": "  x  ",
+   "nav_order": "  x  ",
+   "visible_role_ids": "  x  ",
+   "is_active": "  x  ",
+   "code_prefix": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "show_in_nav must be a boolean value",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must not be less than 1",
+    "each value in visible_role_ids must be an integer number",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array",
+    "is_active must be a boolean value",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "label": 12.5,
+   "label_plural": 12.5,
+   "icon": 12.5,
+   "description": 12.5,
+   "show_in_nav": 12.5,
+   "nav_order": 12.5,
+   "visible_role_ids": 12.5,
+   "is_active": 12.5,
+   "code_prefix": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Tên số nhiều tối đa 100 ký tự",
+    "label_plural must be longer than or equal to 1 characters",
+    "label_plural must be a string",
+    "icon must be shorter than or equal to 48 characters",
+    "icon must be a string",
+    "Mô tả tối đa 500 ký tự",
+    "description must be a string",
+    "show_in_nav must be a boolean value",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must be an integer number",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array",
+    "is_active must be a boolean value",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "label": -1,
+   "label_plural": -1,
+   "icon": -1,
+   "description": -1,
+   "show_in_nav": -1,
+   "nav_order": -1,
+   "visible_role_ids": -1,
+   "is_active": -1,
+   "code_prefix": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Tên số nhiều tối đa 100 ký tự",
+    "label_plural must be longer than or equal to 1 characters",
+    "label_plural must be a string",
+    "icon must be shorter than or equal to 48 characters",
+    "icon must be a string",
+    "Mô tả tối đa 500 ký tự",
+    "description must be a string",
+    "show_in_nav must be a boolean value",
+    "nav_order must not be less than 0",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array",
+    "is_active must be a boolean value",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "label": 0,
+   "label_plural": 0,
+   "icon": 0,
+   "description": 0,
+   "show_in_nav": 0,
+   "nav_order": 0,
+   "visible_role_ids": 0,
+   "is_active": 0,
+   "code_prefix": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Tên số nhiều tối đa 100 ký tự",
+    "label_plural must be longer than or equal to 1 characters",
+    "label_plural must be a string",
+    "icon must be shorter than or equal to 48 characters",
+    "icon must be a string",
+    "Mô tả tối đa 500 ký tự",
+    "description must be a string",
+    "show_in_nav must be a boolean value",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array",
+    "is_active must be a boolean value",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "label": true,
+   "label_plural": true,
+   "icon": true,
+   "description": true,
+   "show_in_nav": true,
+   "nav_order": true,
+   "visible_role_ids": true,
+   "is_active": true,
+   "code_prefix": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Tên số nhiều tối đa 100 ký tự",
+    "label_plural must be longer than or equal to 1 characters",
+    "label_plural must be a string",
+    "icon must be shorter than or equal to 48 characters",
+    "icon must be a string",
+    "Mô tả tối đa 500 ký tự",
+    "description must be a string",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must not be less than 1",
+    "each value in visible_role_ids must be an integer number",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "label": [
+    "a",
+    1
+   ],
+   "label_plural": [
+    "a",
+    1
+   ],
+   "icon": [
+    "a",
+    1
+   ],
+   "description": [
+    "a",
+    1
+   ],
+   "show_in_nav": [
+    "a",
+    1
+   ],
+   "nav_order": [
+    "a",
+    1
+   ],
+   "visible_role_ids": [
+    "a",
+    1
+   ],
+   "is_active": [
+    "a",
+    1
+   ],
+   "code_prefix": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Tên số nhiều tối đa 100 ký tự",
+    "label_plural must be longer than or equal to 1 characters",
+    "label_plural must be a string",
+    "icon must be shorter than or equal to 48 characters",
+    "icon must be a string",
+    "Mô tả tối đa 500 ký tự",
+    "description must be a string",
+    "show_in_nav must be a boolean value",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must not be less than 1",
+    "each value in visible_role_ids must be an integer number",
+    "is_active must be a boolean value",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "label": {
+    "a": 1
+   },
+   "label_plural": {
+    "a": 1
+   },
+   "icon": {
+    "a": 1
+   },
+   "description": {
+    "a": 1
+   },
+   "show_in_nav": {
+    "a": 1
+   },
+   "nav_order": {
+    "a": 1
+   },
+   "visible_role_ids": {
+    "a": 1
+   },
+   "is_active": {
+    "a": 1
+   },
+   "code_prefix": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Tên số nhiều tối đa 100 ký tự",
+    "label_plural must be longer than or equal to 1 characters",
+    "label_plural must be a string",
+    "icon must be shorter than or equal to 48 characters",
+    "icon must be a string",
+    "Mô tả tối đa 500 ký tự",
+    "description must be a string",
+    "show_in_nav must be a boolean value",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must not be less than 1",
+    "each value in visible_role_ids must be an integer number",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array",
+    "is_active must be a boolean value",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "label_plural": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "icon": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "show_in_nav": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "nav_order": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "visible_role_ids": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "is_active": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "code_prefix": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên tối đa 100 ký tự",
+    "Tên số nhiều tối đa 100 ký tự",
+    "icon must be shorter than or equal to 48 characters",
+    "show_in_nav must be a boolean value",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must not be less than 1",
+    "each value in visible_role_ids must be an integer number",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array",
+    "is_active must be a boolean value",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "label": "2026-11-26T10:00:00Z",
+   "label_plural": "2026-11-26T10:00:00Z",
+   "icon": "2026-11-26T10:00:00Z",
+   "description": "2026-11-26T10:00:00Z",
+   "show_in_nav": "2026-11-26T10:00:00Z",
+   "nav_order": "2026-11-26T10:00:00Z",
+   "visible_role_ids": "2026-11-26T10:00:00Z",
+   "is_active": "2026-11-26T10:00:00Z",
+   "code_prefix": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "show_in_nav must be a boolean value",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must not be less than 1",
+    "each value in visible_role_ids must be an integer number",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array",
+    "is_active must be a boolean value",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "label": "123",
+   "label_plural": "123",
+   "icon": "123",
+   "description": "123",
+   "show_in_nav": "123",
+   "nav_order": "123",
+   "visible_role_ids": "123",
+   "is_active": "123",
+   "code_prefix": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "show_in_nav must be a boolean value",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must not be less than 1",
+    "each value in visible_role_ids must be an integer number",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array",
+    "is_active must be a boolean value",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "label": "a@example.com",
+   "label_plural": "a@example.com",
+   "icon": "a@example.com",
+   "description": "a@example.com",
+   "show_in_nav": "a@example.com",
+   "nav_order": "a@example.com",
+   "visible_role_ids": "a@example.com",
+   "is_active": "a@example.com",
+   "code_prefix": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "show_in_nav must be a boolean value",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must not be less than 1",
+    "each value in visible_role_ids must be an integer number",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array",
+    "is_active must be a boolean value",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "label": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "label_plural": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "icon": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "description": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "show_in_nav": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "nav_order": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "visible_role_ids": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "is_active": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "code_prefix": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Tên số nhiều tối đa 100 ký tự",
+    "label_plural must be longer than or equal to 1 characters",
+    "label_plural must be a string",
+    "icon must be shorter than or equal to 48 characters",
+    "icon must be a string",
+    "Mô tả tối đa 500 ký tự",
+    "description must be a string",
+    "show_in_nav must be a boolean value",
+    "nav_order must not be greater than 100000",
+    "nav_order must not be less than 0",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must not be less than 1",
+    "each value in visible_role_ids must be an integer number",
+    "is_active must be a boolean value",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu",
+    "code_prefix must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "label": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "label": "x"
+  },
+  "result": {
+   "ok": {
+    "label": "x"
+   }
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên trường tối đa 100 ký tự",
+    "Tên trường không được rỗng",
+    "Tên trường phải là chuỗi",
+    "Kiểu trường không hợp lệ"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "key": null,
+   "label": null,
+   "type": null,
+   "required": null,
+   "is_unique": null,
+   "is_title": null,
+   "show_in_list": null,
+   "options": null,
+   "help_text": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên trường tối đa 100 ký tự",
+    "Tên trường không được rỗng",
+    "Tên trường phải là chuỗi",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options phải là object"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "key": "",
+   "label": "",
+   "type": "",
+   "required": "",
+   "is_unique": "",
+   "is_title": "",
+   "show_in_list": "",
+   "options": "",
+   "help_text": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "Tên trường không được rỗng",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options phải là object"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "key": "  x  ",
+   "label": "  x  ",
+   "type": "  x  ",
+   "required": "  x  ",
+   "is_unique": "  x  ",
+   "is_title": "  x  ",
+   "show_in_list": "  x  ",
+   "options": "  x  ",
+   "help_text": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options phải là object"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "key": 12.5,
+   "label": 12.5,
+   "type": 12.5,
+   "required": 12.5,
+   "is_unique": 12.5,
+   "is_title": 12.5,
+   "show_in_list": 12.5,
+   "options": 12.5,
+   "help_text": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key must be a string",
+    "Tên trường tối đa 100 ký tự",
+    "Tên trường không được rỗng",
+    "Tên trường phải là chuỗi",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options phải là object",
+    "Ghi chú tối đa 300 ký tự",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "key": -1,
+   "label": -1,
+   "type": -1,
+   "required": -1,
+   "is_unique": -1,
+   "is_title": -1,
+   "show_in_list": -1,
+   "options": -1,
+   "help_text": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key must be a string",
+    "Tên trường tối đa 100 ký tự",
+    "Tên trường không được rỗng",
+    "Tên trường phải là chuỗi",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options phải là object",
+    "Ghi chú tối đa 300 ký tự",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "key": 0,
+   "label": 0,
+   "type": 0,
+   "required": 0,
+   "is_unique": 0,
+   "is_title": 0,
+   "show_in_list": 0,
+   "options": 0,
+   "help_text": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key must be a string",
+    "Tên trường tối đa 100 ký tự",
+    "Tên trường không được rỗng",
+    "Tên trường phải là chuỗi",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options phải là object",
+    "Ghi chú tối đa 300 ký tự",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "key": true,
+   "label": true,
+   "type": true,
+   "required": true,
+   "is_unique": true,
+   "is_title": true,
+   "show_in_list": true,
+   "options": true,
+   "help_text": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key must be a string",
+    "Tên trường tối đa 100 ký tự",
+    "Tên trường không được rỗng",
+    "Tên trường phải là chuỗi",
+    "Kiểu trường không hợp lệ",
+    "options phải là object",
+    "Ghi chú tối đa 300 ký tự",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "key": [
+    "a",
+    1
+   ],
+   "label": [
+    "a",
+    1
+   ],
+   "type": [
+    "a",
+    1
+   ],
+   "required": [
+    "a",
+    1
+   ],
+   "is_unique": [
+    "a",
+    1
+   ],
+   "is_title": [
+    "a",
+    1
+   ],
+   "show_in_list": [
+    "a",
+    1
+   ],
+   "options": [
+    "a",
+    1
+   ],
+   "help_text": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key must be a string",
+    "Tên trường tối đa 100 ký tự",
+    "Tên trường không được rỗng",
+    "Tên trường phải là chuỗi",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options phải là object",
+    "Ghi chú tối đa 300 ký tự",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "key": {
+    "a": 1
+   },
+   "label": {
+    "a": 1
+   },
+   "type": {
+    "a": 1
+   },
+   "required": {
+    "a": 1
+   },
+   "is_unique": {
+    "a": 1
+   },
+   "is_title": {
+    "a": 1
+   },
+   "show_in_list": {
+    "a": 1
+   },
+   "options": {
+    "a": 1
+   },
+   "help_text": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key must be a string",
+    "Tên trường tối đa 100 ký tự",
+    "Tên trường không được rỗng",
+    "Tên trường phải là chuỗi",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "Ghi chú tối đa 300 ký tự",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "type": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "required": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "is_unique": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "is_title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "show_in_list": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "options": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "help_text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "Tên trường tối đa 100 ký tự",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options phải là object"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "key": "2026-11-26T10:00:00Z",
+   "label": "2026-11-26T10:00:00Z",
+   "type": "2026-11-26T10:00:00Z",
+   "required": "2026-11-26T10:00:00Z",
+   "is_unique": "2026-11-26T10:00:00Z",
+   "is_title": "2026-11-26T10:00:00Z",
+   "show_in_list": "2026-11-26T10:00:00Z",
+   "options": "2026-11-26T10:00:00Z",
+   "help_text": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options phải là object"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "key": "123",
+   "label": "123",
+   "type": "123",
+   "required": "123",
+   "is_unique": "123",
+   "is_title": "123",
+   "show_in_list": "123",
+   "options": "123",
+   "help_text": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options phải là object"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "key": "a@example.com",
+   "label": "a@example.com",
+   "type": "a@example.com",
+   "required": "a@example.com",
+   "is_unique": "a@example.com",
+   "is_title": "a@example.com",
+   "show_in_list": "a@example.com",
+   "options": "a@example.com",
+   "help_text": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options phải là object"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "key": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "label": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "type": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "required": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "is_unique": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "is_title": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "show_in_list": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "options": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "help_text": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "key must be a string",
+    "Tên trường tối đa 100 ký tự",
+    "Tên trường không được rỗng",
+    "Tên trường phải là chuỗi",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options phải là object",
+    "Ghi chú tối đa 300 ký tự",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "key": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "Tên trường tối đa 100 ký tự",
+    "Tên trường không được rỗng",
+    "Tên trường phải là chuỗi",
+    "Kiểu trường không hợp lệ"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "key": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên trường tối đa 100 ký tự",
+    "Tên trường không được rỗng",
+    "Tên trường phải là chuỗi",
+    "Kiểu trường không hợp lệ"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "label": null,
+   "type": null,
+   "required": null,
+   "is_unique": null,
+   "is_title": null,
+   "show_in_list": null,
+   "options": null,
+   "help_text": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên trường tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "label": "",
+   "type": "",
+   "required": "",
+   "is_unique": "",
+   "is_title": "",
+   "show_in_list": "",
+   "options": "",
+   "help_text": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "label must be longer than or equal to 1 characters",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "label": "  x  ",
+   "type": "  x  ",
+   "required": "  x  ",
+   "is_unique": "  x  ",
+   "is_title": "  x  ",
+   "show_in_list": "  x  ",
+   "options": "  x  ",
+   "help_text": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "label": 12.5,
+   "type": 12.5,
+   "required": 12.5,
+   "is_unique": 12.5,
+   "is_title": 12.5,
+   "show_in_list": 12.5,
+   "options": 12.5,
+   "help_text": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên trường tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options must be an object",
+    "help_text must be shorter than or equal to 300 characters",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "label": -1,
+   "type": -1,
+   "required": -1,
+   "is_unique": -1,
+   "is_title": -1,
+   "show_in_list": -1,
+   "options": -1,
+   "help_text": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên trường tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options must be an object",
+    "help_text must be shorter than or equal to 300 characters",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "label": 0,
+   "type": 0,
+   "required": 0,
+   "is_unique": 0,
+   "is_title": 0,
+   "show_in_list": 0,
+   "options": 0,
+   "help_text": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên trường tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options must be an object",
+    "help_text must be shorter than or equal to 300 characters",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "label": true,
+   "type": true,
+   "required": true,
+   "is_unique": true,
+   "is_title": true,
+   "show_in_list": true,
+   "options": true,
+   "help_text": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên trường tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Kiểu trường không hợp lệ",
+    "options must be an object",
+    "help_text must be shorter than or equal to 300 characters",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "label": [
+    "a",
+    1
+   ],
+   "type": [
+    "a",
+    1
+   ],
+   "required": [
+    "a",
+    1
+   ],
+   "is_unique": [
+    "a",
+    1
+   ],
+   "is_title": [
+    "a",
+    1
+   ],
+   "show_in_list": [
+    "a",
+    1
+   ],
+   "options": [
+    "a",
+    1
+   ],
+   "help_text": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên trường tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options must be an object",
+    "help_text must be shorter than or equal to 300 characters",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "label": {
+    "a": 1
+   },
+   "type": {
+    "a": 1
+   },
+   "required": {
+    "a": 1
+   },
+   "is_unique": {
+    "a": 1
+   },
+   "is_title": {
+    "a": 1
+   },
+   "show_in_list": {
+    "a": 1
+   },
+   "options": {
+    "a": 1
+   },
+   "help_text": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên trường tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "help_text must be shorter than or equal to 300 characters",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "type": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "required": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "is_unique": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "is_title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "show_in_list": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "options": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "help_text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên trường tối đa 100 ký tự",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "label": "2026-11-26T10:00:00Z",
+   "type": "2026-11-26T10:00:00Z",
+   "required": "2026-11-26T10:00:00Z",
+   "is_unique": "2026-11-26T10:00:00Z",
+   "is_title": "2026-11-26T10:00:00Z",
+   "show_in_list": "2026-11-26T10:00:00Z",
+   "options": "2026-11-26T10:00:00Z",
+   "help_text": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "label": "123",
+   "type": "123",
+   "required": "123",
+   "is_unique": "123",
+   "is_title": "123",
+   "show_in_list": "123",
+   "options": "123",
+   "help_text": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "label": "a@example.com",
+   "type": "a@example.com",
+   "required": "a@example.com",
+   "is_unique": "a@example.com",
+   "is_title": "a@example.com",
+   "show_in_list": "a@example.com",
+   "options": "a@example.com",
+   "help_text": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "label": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "type": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "required": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "is_unique": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "is_title": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "show_in_list": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "options": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "help_text": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Tên trường tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "is_unique must be a boolean value",
+    "is_title must be a boolean value",
+    "show_in_list must be a boolean value",
+    "options must be an object",
+    "help_text must be shorter than or equal to 300 characters",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "label": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "label": "x"
+  },
+  "result": {
+   "ok": {
+    "label": "x"
+   }
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in keys must be a string",
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "keys": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in keys must be a string",
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "keys": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "keys": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "keys": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in keys must be a string",
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "keys": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in keys must be a string",
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "keys": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in keys must be a string",
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "keys": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in keys must be a string",
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "keys": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in keys must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "keys": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in keys must be a string",
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "keys": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "keys": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "keys": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "keys": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "keys": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in keys must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "keys": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "keys": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "keys must contain no more than 100 elements",
+    "keys must contain at least 1 elements",
+    "keys must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "object_key must be a string",
+    "Công thức tối đa 300 ký tự",
+    "expression must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "object_key": null,
+   "expression": null,
+   "sample": null,
+   "editing_key": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "object_key must be a string",
+    "Công thức tối đa 300 ký tự",
+    "expression must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "object_key": "",
+   "expression": "",
+   "sample": "",
+   "editing_key": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "sample must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "object_key": "  x  ",
+   "expression": "  x  ",
+   "sample": "  x  ",
+   "editing_key": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "sample must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "object_key": 12.5,
+   "expression": 12.5,
+   "sample": 12.5,
+   "editing_key": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "object_key must be a string",
+    "Công thức tối đa 300 ký tự",
+    "expression must be a string",
+    "sample must be an object",
+    "editing_key must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "object_key": -1,
+   "expression": -1,
+   "sample": -1,
+   "editing_key": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "object_key must be a string",
+    "Công thức tối đa 300 ký tự",
+    "expression must be a string",
+    "sample must be an object",
+    "editing_key must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "object_key": 0,
+   "expression": 0,
+   "sample": 0,
+   "editing_key": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "object_key must be a string",
+    "Công thức tối đa 300 ký tự",
+    "expression must be a string",
+    "sample must be an object",
+    "editing_key must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "object_key": true,
+   "expression": true,
+   "sample": true,
+   "editing_key": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "object_key must be a string",
+    "Công thức tối đa 300 ký tự",
+    "expression must be a string",
+    "sample must be an object",
+    "editing_key must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "object_key": [
+    "a",
+    1
+   ],
+   "expression": [
+    "a",
+    1
+   ],
+   "sample": [
+    "a",
+    1
+   ],
+   "editing_key": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "object_key must be a string",
+    "Công thức tối đa 300 ký tự",
+    "expression must be a string",
+    "sample must be an object",
+    "editing_key must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "object_key": {
+    "a": 1
+   },
+   "expression": {
+    "a": 1
+   },
+   "sample": {
+    "a": 1
+   },
+   "editing_key": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "object_key must be a string",
+    "Công thức tối đa 300 ký tự",
+    "expression must be a string",
+    "editing_key must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "object_key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "expression": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sample": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "editing_key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "sample must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "object_key": "2026-11-26T10:00:00Z",
+   "expression": "2026-11-26T10:00:00Z",
+   "sample": "2026-11-26T10:00:00Z",
+   "editing_key": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "sample must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "object_key": "123",
+   "expression": "123",
+   "sample": "123",
+   "editing_key": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "sample must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "object_key": "a@example.com",
+   "expression": "a@example.com",
+   "sample": "a@example.com",
+   "editing_key": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "sample must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "object_key": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "expression": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "sample": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "editing_key": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "object_key must be a string",
+    "Công thức tối đa 300 ký tự",
+    "expression must be a string",
+    "sample must be an object",
+    "editing_key must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "object_key": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "Công thức tối đa 300 ký tự",
+    "expression must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "object_key": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "Công thức tối đa 300 ký tự",
+    "expression must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "q": null,
+   "limit": null,
+   "for": null
+  },
+  "result": {
+   "ok": {
+    "q": null,
+    "limit": null,
+    "for": null
+   }
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "q": "",
+   "limit": "",
+   "for": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be less than 1",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "q": "  x  ",
+   "limit": "  x  ",
+   "for": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 50",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "q": 12.5,
+   "limit": 12.5,
+   "for": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must match /^[^\\u0000]*$/ regular expression",
+    "q must be shorter than or equal to 100 characters",
+    "q must be a string",
+    "limit must be an integer number",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "q": -1,
+   "limit": -1,
+   "for": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must match /^[^\\u0000]*$/ regular expression",
+    "q must be shorter than or equal to 100 characters",
+    "q must be a string",
+    "limit must not be less than 1",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "q": 0,
+   "limit": 0,
+   "for": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must match /^[^\\u0000]*$/ regular expression",
+    "q must be shorter than or equal to 100 characters",
+    "q must be a string",
+    "limit must not be less than 1",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "q": true,
+   "limit": true,
+   "for": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must match /^[^\\u0000]*$/ regular expression",
+    "q must be shorter than or equal to 100 characters",
+    "q must be a string",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "q": [
+    "a",
+    1
+   ],
+   "limit": [
+    "a",
+    1
+   ],
+   "for": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must match /^[^\\u0000]*$/ regular expression",
+    "q must be shorter than or equal to 100 characters",
+    "q must be a string",
+    "limit must not be greater than 50",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "q": {
+    "a": 1
+   },
+   "limit": {
+    "a": 1
+   },
+   "for": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must match /^[^\\u0000]*$/ regular expression",
+    "q must be shorter than or equal to 100 characters",
+    "q must be a string",
+    "limit must not be greater than 50",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "q": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "limit": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "for": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must be shorter than or equal to 100 characters",
+    "limit must not be greater than 50",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "q": "2026-11-26T10:00:00Z",
+   "limit": "2026-11-26T10:00:00Z",
+   "for": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 50",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "q": "123",
+   "limit": "123",
+   "for": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 50",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "q": "a@example.com",
+   "limit": "a@example.com",
+   "for": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "limit must not be greater than 50",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "q": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "limit": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "for": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "q must match /^[^\\u0000]*$/ regular expression",
+    "q must be shorter than or equal to 100 characters",
+    "q must be a string",
+    "limit must not be greater than 50",
+    "limit must not be less than 1",
+    "limit must be an integer number",
+    "for must be one of the following values: view, manage"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "q": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "q": "x"
+  },
+  "result": {
+   "ok": {
+    "q": "x"
+   }
+  }
+ },
+ {
   "dto": "CreateDealDto",
   "mode": "strict",
   "probe": "valid",
@@ -12198,6 +15620,341 @@
     "title should not be empty",
     "body must be a string",
     "body should not be empty"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "key": "khach_hang",
+   "label": " Khách ",
+   "label_plural": "Khách",
+   "icon": "users",
+   "show_in_nav": true,
+   "nav_order": 3,
+   "visible_role_ids": [
+    1,
+    2
+   ],
+   "code_prefix": "kh"
+  },
+  "result": {
+   "ok": {
+    "key": "khach_hang",
+    "label": " Khách ",
+    "label_plural": "Khách",
+    "icon": "users",
+    "show_in_nav": true,
+    "nav_order": 3,
+    "visible_role_ids": [
+     1,
+     2
+    ],
+    "code_prefix": "kh"
+   }
+  }
+ },
+ {
+  "dto": "CreateCustomObjectDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "key": "Khach",
+   "label": "",
+   "label_plural": 5,
+   "show_in_nav": "x",
+   "nav_order": -1,
+   "visible_role_ids": [
+    0,
+    "a"
+   ],
+   "code_prefix": "k",
+   "la": 1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property la should not exist",
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "Tên không được rỗng",
+    "Tên số nhiều tối đa 100 ký tự",
+    "Tên số nhiều không được rỗng",
+    "Tên số nhiều phải là chuỗi",
+    "show_in_nav phải là boolean",
+    "nav_order must not be less than 0",
+    "each value in visible_role_ids must not be less than 1",
+    "visible_role_ids chỉ chứa số nguyên",
+    "Tiền tố mã gồm 2–4 chữ cái không dấu"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "label": "Mới",
+   "is_active": false,
+   "icon": null,
+   "description": null
+  },
+  "result": {
+   "ok": {
+    "label": "Mới",
+    "icon": null,
+    "description": null,
+    "is_active": false
+   }
+  }
+ },
+ {
+  "dto": "UpdateCustomObjectDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "label": null,
+   "nav_order": 1.5,
+   "visible_role_ids": "x",
+   "key": "khong-sua-duoc"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property key should not exist",
+    "Tên tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "nav_order must be an integer number",
+    "each value in visible_role_ids must not be less than 1",
+    "each value in visible_role_ids must be an integer number",
+    "visible_role_ids must contain no more than 50 elements",
+    "visible_role_ids must be an array"
+   ]
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "label": "Giá",
+   "type": "currency",
+   "required": true,
+   "options": {
+    "decimals": 0
+   },
+   "help_text": "VND"
+  },
+  "result": {
+   "ok": {
+    "label": "Giá",
+    "type": "currency",
+    "required": true,
+    "options": {
+     "decimals": 0
+    },
+    "help_text": "VND"
+   }
+  }
+ },
+ {
+  "dto": "CreateCustomFieldDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "key": "A b",
+   "label": "",
+   "type": "khac",
+   "required": "x",
+   "options": [],
+   "help_text": 5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "key chỉ gồm a-z, 0-9, _ , bắt đầu bằng chữ, tối đa 48 ký tự",
+    "Tên trường không được rỗng",
+    "Kiểu trường không hợp lệ",
+    "required must be a boolean value",
+    "options phải là object",
+    "Ghi chú tối đa 300 ký tự",
+    "help_text must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "label": "Tên",
+   "type": "text",
+   "is_title": true,
+   "options": {},
+   "help_text": null
+  },
+  "result": {
+   "ok": {
+    "label": "Tên",
+    "type": "text",
+    "is_title": true,
+    "options": {},
+    "help_text": null
+   }
+  }
+ },
+ {
+  "dto": "UpdateCustomFieldDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "label": null,
+   "type": "x",
+   "options": "o",
+   "key": "khong"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property key should not exist",
+    "Tên trường tối đa 100 ký tự",
+    "label must be longer than or equal to 1 characters",
+    "label must be a string",
+    "Kiểu trường không hợp lệ",
+    "options must be an object"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "keys": [
+    "a",
+    "b"
+   ]
+  },
+  "result": {
+   "ok": {
+    "keys": [
+     "a",
+     "b"
+    ]
+   }
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "keys": []
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "keys must contain at least 1 elements"
+   ]
+  }
+ },
+ {
+  "dto": "ReorderCustomFieldsDto",
+  "mode": "strict",
+  "probe": "sai_kieu",
+  "input": {
+   "keys": [
+    1,
+    "a"
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "each value in keys must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "valid",
+  "input": {
+   "object_key": "don_hang",
+   "expression": "{gia}*2",
+   "sample": {
+    "gia": 5
+   },
+   "editing_key": "tong"
+  },
+  "result": {
+   "ok": {
+    "object_key": "don_hang",
+    "expression": "{gia}*2",
+    "sample": {
+     "gia": 5
+    },
+    "editing_key": "tong"
+   }
+  }
+ },
+ {
+  "dto": "FormulaPreviewDto",
+  "mode": "strict",
+  "probe": "sai",
+  "input": {
+   "object_key": "Don Hang",
+   "expression": 5,
+   "sample": "x",
+   "editing_key": 1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "object_key must match /^[a-z][a-z0-9_]{0,47}$/ regular expression",
+    "Công thức tối đa 300 ký tự",
+    "expression must be a string",
+    "sample must be an object",
+    "editing_key must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "valid_query",
+  "input": {
+   "q": "an",
+   "limit": "20",
+   "for": "manage"
+  },
+  "result": {
+   "ok": {
+    "q": "an",
+    "limit": 20,
+    "for": "manage"
+   }
+  }
+ },
+ {
+  "dto": "LookupQueryDto",
+  "mode": "strict",
+  "probe": "query_sai",
+  "input": {
+   "q": "a\u0000",
+   "limit": "500",
+   "for": "all",
+   "x": "1"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property x should not exist",
+    "q must match /^[^\\u0000]*$/ regular expression",
+    "limit must not be greater than 50",
+    "for must be one of the following values: view, manage"
    ]
   }
  },

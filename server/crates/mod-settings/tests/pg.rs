@@ -26,6 +26,13 @@ async fn setup() -> PgConnection {
         "TRUNCATE settings, setting_options, audit_logs, users RESTART IDENTITY CASCADE",
     )
     .await;
+    // Trigger của `users` ghi `platform.company_logins` (khoá ngoại tới công ty 1); DB dựng từ schema.sql chưa có dòng này.
+    sqlx::query(
+        "INSERT INTO platform.companies (id, name, schema_name) VALUES (1, 'c1', 'public') ON CONFLICT DO NOTHING",
+    )
+    .execute(&mut c)
+    .await
+    .expect("platform.companies");
     c
 }
 
@@ -333,7 +340,9 @@ async fn tinh_nang_goi_va_muc_dung() {
 
     // Cập nhật một phần giữ nguyên khoá vắng; khoá đã gỡ nhận rồi bỏ qua; lưu đúng thứ tự khoá.
     let upd = validate_org_features(&json!({"kanban": false, "payments": true, "google_sheets": false})).unwrap();
-    let after = features::update(&mut c, SINGLE, &upd, 3).await.unwrap();
+    let updated = features::update(&mut c, SINGLE, &upd, 3).await.unwrap();
+    let after = updated.features;
+    assert_eq!(updated.changed, [("kanban", false)]);
     assert!(js(&after).contains(r#""kanban":false"#) && !js(&after).contains("payments"));
     let stored = scalar(&mut c, "SELECT value FROM settings WHERE key = 'org_features'").await;
     assert!(
@@ -508,4 +517,134 @@ async fn doi_goi_chi_voi_token_va_khoa_hop_le() {
         assert!(serde_json::to_string(&e.body()).unwrap().contains("Gói không hợp lệ. Chọn một trong: mac_dinh, ket_noi, tro_ly_giam_doc, tro_ly_kinh_doanh, tro_ly_van_hanh, custom"));
     }
     assert_eq!(mod_settings::features::plan_token_denied().status(), 403);
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn ghi_that_bai_khi_doc_loi_va_giao_dich_doi_goi() {
+    let mut c = setup().await;
+    exec(&mut c, "INSERT INTO users (id, email, password_hash, full_name, status, updated_at) VALUES (3, 'c@x.vn', 'x', 'C', 'active', now())").await;
+    features::update(
+        &mut c,
+        SINGLE,
+        &validate_org_features(&json!({"kanban": false})).unwrap(),
+        3,
+    )
+    .await
+    .unwrap();
+    let before = scalar(&mut c, "SELECT value FROM settings WHERE key = 'org_features'").await;
+
+    // Lỗi đọc DB: đường GHI trả 500 và KHÔNG ghi lại từ mặc định; đường ĐỌC fail-open về bật hết.
+    exec(&mut c, "ALTER TABLE settings RENAME TO settings_tam").await;
+    let upd = validate_org_features(&json!({"pos": false})).unwrap();
+    let res = features::update(&mut c, SINGLE, &upd, 3).await;
+    exec(&mut c, "ALTER TABLE settings_tam RENAME TO settings").await;
+    expect_err(res, 500, "Không cập nhật được tính năng của tổ chức");
+    assert_eq!(
+        scalar(&mut c, "SELECT value FROM settings WHERE key = 'org_features'").await,
+        before,
+        "cấu hình thật không bị ghi đè"
+    );
+    exec(&mut c, "ALTER TABLE settings RENAME TO settings_tam").await;
+    let read = features::get(&mut c, SINGLE).await.unwrap();
+    let plan_err = features::set_plan(&mut c, SINGLE, PlanKey::KetNoi, Some(3), "api", None).await;
+    exec(&mut c, "ALTER TABLE settings_tam RENAME TO settings").await;
+    assert!(
+        js(&read).contains(r#""kanban":true"#),
+        "đọc lỗi ⇒ mặc định bật hết (fail-open)"
+    );
+    assert!(plan_err.is_err(), "đổi gói không giả định `custom` khi đọc lỗi");
+    assert_eq!(scalar(&mut c, "SELECT count(*)::text FROM audit_logs").await, "0");
+
+    // Đổi gói trong MỘT giao dịch: nhật ký lỗi (người dùng 999 không có) ⇒ dòng `org_plan` cũng không đổi.
+    let err = features::set_plan(&mut c, SINGLE, PlanKey::KetNoi, Some(999), "api", None).await;
+    assert!(err.is_err());
+    assert_eq!(
+        scalar(&mut c, "SELECT count(*)::text FROM settings WHERE key = 'org_plan'").await,
+        "0"
+    );
+    let ok = features::set_plan(&mut c, SINGLE, PlanKey::KetNoi, Some(3), "api", None)
+        .await
+        .unwrap();
+    assert_eq!((ok.from, ok.to), (PlanKey::Custom, PlanKey::KetNoi));
+    assert_eq!(scalar(&mut c, "SELECT count(*)::text FROM audit_logs").await, "1");
+    // Người gọi đã ở trong giao dịch: rollback bên ngoài huỷ cả hai (savepoint lồng).
+    let mut tx = c.begin().await.unwrap();
+    features::set_plan(&mut tx, SINGLE, PlanKey::MacDinh, Some(3), "api", None)
+        .await
+        .unwrap();
+    tx.rollback().await.unwrap();
+    assert_eq!(
+        scalar(&mut c, "SELECT value FROM settings WHERE key = 'org_plan'").await,
+        "ket_noi"
+    );
+    assert_eq!(scalar(&mut c, "SELECT count(*)::text FROM audit_logs").await, "1");
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn null_dat_lai_mac_dinh_group_rong_khong_loc_sort_order_ngoai_khoang() {
+    let mut c = setup().await;
+    // `null` ở một khoá đặt lại về mặc định: phản hồi `null` (như Node), lưu `null`, đọc lại là mặc định (bật).
+    features::update(
+        &mut c,
+        SINGLE,
+        &validate_org_features(&json!({"kanban": false})).unwrap(),
+        3,
+    )
+    .await
+    .unwrap();
+    let u = features::update(
+        &mut c,
+        SINGLE,
+        &validate_org_features(&json!({"kanban": null, "pos": false})).unwrap(),
+        3,
+    )
+    .await
+    .unwrap();
+    assert!(js(&u.features).contains(r#""kanban":null"#) && js(&u.features).contains(r#""pos":false"#));
+    assert_eq!(u.changed, [("pos", false)]);
+    assert!(
+        scalar(&mut c, "SELECT value FROM settings WHERE key = 'org_features'")
+            .await
+            .contains(r#""kanban":null"#)
+    );
+    assert!(js(&features::get(&mut c, SINGLE).await.unwrap()).contains(r#""kanban":true"#));
+    // Khoá do gói quyết định vẫn bị ép tắt dù `null`.
+    features::set_plan(&mut c, SINGLE, PlanKey::KetNoi, None, "cli", None)
+        .await
+        .unwrap();
+    let forced = features::update(
+        &mut c,
+        SINGLE,
+        &validate_org_features(&json!({"zalo_oa": null})).unwrap(),
+        3,
+    )
+    .await
+    .unwrap();
+    assert!(js(&forced.features).contains(r#""zalo_oa":false"#));
+
+    // `?group=` (rỗng) không lọc, như `if (query.group)` của Node.
+    exec(&mut c, "INSERT INTO setting_options (group_key, value, label, updated_at) VALUES ('a_b', 'x', 'X', now()), ('c_d', 'y', 'Y', now())").await;
+    let all = options::list(
+        &mut c,
+        &QueryOptions {
+            group: Some(String::new()),
+            active: None,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(all.data.len(), 2);
+
+    // `sort_order` ngoài int4: báo phạm vi (400), không về 0 lặng lẽ.
+    let msg = "sort_order phải nằm trong khoảng 0 đến 2147483647";
+    match validate_create_option(
+        &json!({"group_key": "a_b", "value": "z", "label": "Z", "sort_order": 3_000_000_000_i64}),
+    ) {
+        Err(AppError::Http(h)) => assert!(serde_json::to_string(&h.body()).unwrap().contains(msg)),
+        other => panic!("{other:?}"),
+    }
+    let e = validate_update_option(&json!({"sort_order": 3_000_000_000_i64})).unwrap_err();
+    assert!(serde_json::to_string(&e.body()).unwrap().contains(msg));
 }

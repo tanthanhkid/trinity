@@ -5,8 +5,7 @@
 //! (sinh bởi `apps/monolith/src/__tests__/settings-dto-golden.spec.ts`). Mọi route của M06 chạy chế độ strict: khoá lạ ⇒
 //! `property <khoá> should not exist` (xếp TRƯỚC các lỗi luật, như class-validator).
 //!
-//! Khác bản Node đã biết: thứ tự các khoá lạ theo thứ tự chữ cái (serde_json), và `null` ở khoá của
-//! `UpdateOrgFeaturesDto` được coi như vắng (Node lưu `null`).
+//! Khác bản Node đã biết: thứ tự các khoá lạ theo thứ tự chữ cái (serde_json).
 
 use serde_json::{Map, Value};
 use trinity_http::validate::{Mode, validate_value};
@@ -54,6 +53,19 @@ pub struct CreateOption {
     pub metadata: Option<Value>,
 }
 
+/// `sort_order` hợp lệ theo class-validator nhưng ngoài khoảng `int4` của cột: Node để lỗi DB thành 500; Rust báo rõ phạm vi
+/// (400), không lặng lẽ về 0.
+const SORT_ORDER_RANGE_MSG: &str = "sort_order phải nằm trong khoảng 0 đến 2147483647";
+
+fn sort_order_in_range(v: Option<&Value>) -> Result<Option<i32>, HttpError> {
+    match v.and_then(Value::as_i64) {
+        None => Ok(None),
+        Some(n) => i32::try_from(n)
+            .map(Some)
+            .map_err(|_| HttpError::bad_request(SORT_ORDER_RANGE_MSG)),
+    }
+}
+
 pub fn validate_create_option(v: &Value) -> Result<CreateOption, AppError> {
     let out = validate_value("CreateOptionDto", v, Mode::Strict)?;
     let g = |k: &str| out.get(k).and_then(Value::as_str).unwrap_or_default().to_owned();
@@ -61,10 +73,7 @@ pub fn validate_create_option(v: &Value) -> Result<CreateOption, AppError> {
         group_key: g("group_key"),
         value: g("value"),
         label: g("label"),
-        sort_order: out
-            .get("sort_order")
-            .and_then(Value::as_i64)
-            .and_then(|n| i32::try_from(n).ok()),
+        sort_order: sort_order_in_range(out.get("sort_order"))?,
         is_active: out.get("is_active").and_then(Value::as_bool),
         metadata: out.get("metadata").cloned(),
     })
@@ -118,7 +127,7 @@ pub fn validate_update_option(v: &Value) -> Result<UpdateOption, HttpError> {
         }
         match num.filter(|x| x.fract() == 0.0 && x.abs() < 9.0e15) {
             Some(x) if (0.0..=f64::from(i32::MAX)).contains(&x) => out.sort_order = Some(x as i32),
-            Some(x) if x >= 0.0 => e.push("sort_order phải là số nguyên".to_owned()),
+            Some(x) if x >= 0.0 => e.push(SORT_ORDER_RANGE_MSG.to_owned()),
             Some(_) => {}
             None => e.push("sort_order phải là số nguyên".to_owned()),
         }
@@ -232,13 +241,19 @@ pub const ORG_FEATURE_DTO_KEYS: [&str; 22] = [
     "payments",
 ];
 
-/// Cờ đã gửi lên (khoá vắng giữ nguyên).
+/// Cờ đã gửi lên: khoá vắng giữ nguyên; `null` đặt lại về mặc định (Node lưu `null`, lúc đọc rơi về mặc định).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct OrgFeaturesInput(Vec<(&'static str, bool)>);
+pub struct OrgFeaturesInput(Vec<(&'static str, Option<bool>)>);
 
 impl OrgFeaturesInput {
-    pub fn get(&self, key: &str) -> Option<bool> {
+    /// `None` = không gửi; `Some(None)` = `null`; `Some(Some(b))` = giá trị.
+    pub fn sent(&self, key: &str) -> Option<Option<bool>> {
         self.0.iter().find(|(k, _)| *k == key).map(|(_, v)| *v)
+    }
+
+    /// Giá trị boolean đã gửi (`null` và vắng đều là `None`).
+    pub fn get(&self, key: &str) -> Option<bool> {
+        self.sent(key).flatten()
     }
 }
 
@@ -249,8 +264,9 @@ pub fn validate_org_features(v: &Value) -> Result<OrgFeaturesInput, HttpError> {
     let mut out = Vec::new();
     for k in ORG_FEATURE_DTO_KEYS {
         match b.get(k) {
-            None | Some(Value::Null) => {}
-            Some(Value::Bool(x)) => out.push((k, *x)),
+            None => {}
+            Some(Value::Null) => out.push((k, None)),
+            Some(Value::Bool(x)) => out.push((k, Some(*x))),
             Some(_) => e.push(format!("{k} must be a boolean value")),
         }
     }

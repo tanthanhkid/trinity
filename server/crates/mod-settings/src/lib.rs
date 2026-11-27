@@ -20,7 +20,8 @@
 //! và hạn mức nằm ở `trinity-rbac::plan` (K25). Bản Node không có giá gói trong các phản hồi này (giá hiển thị ở web), nên
 //! `GET /settings/usage` chỉ trả `plan`, `plan_label`, `max_users`, `active_users`, `features`.
 //!
-//! Chưa làm: sự kiện đo lường `plan_changed`/`feature_toggled` của `trackProductEvent` (chưa có cổng đo ở Rust).
+//! Đo lường (`trackProductEvent`) CHƯA gọi ở đây: tầng serve gọi `plan_changed` sau [`features::set_plan`] (trả [`features::PlanChange`])
+//! và `feature_toggled` cho từng khoá trong [`features::Updated::changed`] sau [`features::update`].
 //! Khoá của `metadata` trong tuỳ chọn trả theo thứ tự chữ cái (serde_json), bản Node theo thứ tự lưu của jsonb.
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
@@ -82,9 +83,9 @@ pub(crate) async fn write_setting(
     Ok(())
 }
 
-/// Object JSON giữ thứ tự khoá như bản Node (serde_json mặc định sắp theo chữ cái).
+/// Object JSON giữ thứ tự khoá như bản Node (serde_json mặc định sắp theo chữ cái). `None` ra `null`.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Ordered(pub Vec<(&'static str, bool)>);
+pub struct Ordered(pub Vec<(&'static str, Option<bool>)>);
 
 impl Serialize for Ordered {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {

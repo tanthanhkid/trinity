@@ -1,8 +1,8 @@
 //! Tính năng của tổ chức, gói dịch vụ và mức dùng (`org-features.service.ts`, `usage.service.ts`, `usage.controller.ts`).
 
 use serde::Serialize;
-use serde_json::Value;
-use sqlx::PgConnection;
+use serde_json::{Value, json};
+use sqlx::{Connection, PgConnection};
 use subtle::ConstantTimeEq;
 use trinity_kernel::error::{AppError, HttpError};
 use trinity_kernel::vi::trim_js;
@@ -44,48 +44,76 @@ pub fn plan_token_denied() -> HttpError {
 }
 
 fn ordered(f: &OrgFeatures) -> Ordered {
-    Ordered(f.iter().collect())
+    Ordered(f.iter().map(|(k, v)| (k, Some(v))).collect())
+}
+
+fn update_failed() -> AppError {
+    HttpError::new(500, "Không cập nhật được tính năng của tổ chức").into()
 }
 
 /// Hệ thống chưa dựng quy trình (`setup_status = chua_dung`) ⇒ mặc định cho khoá thiếu là tắt hết (trừ `integrations`).
-async fn defaults(conn: &mut PgConnection) -> Result<Option<OrgFeatures>, AppError> {
-    let raw = read_setting(conn, KEY_SETUP).await.unwrap_or(None);
+/// Lỗi DB trả `Err` (`get` nuốt lỗi và fail-open; ghi thì KHÔNG được ghi lại từ mặc định).
+async fn try_defaults(conn: &mut PgConnection) -> Result<Option<OrgFeatures>, AppError> {
+    let raw = read_setting(conn, KEY_SETUP).await?;
     Ok((raw.as_deref().map(trim_js) == Some("chua_dung")).then(blank_system_features))
 }
 
-async fn read_stored(conn: &mut PgConnection) -> Value {
-    read_setting(conn, KEY_FEATURES)
-        .await
-        .ok()
-        .flatten()
+/// Cấu hình đã lưu: lỗi DB ⇒ `Err`; JSON rác ⇒ coi như chưa lưu (như `readStored` của Node).
+async fn try_stored(conn: &mut PgConnection) -> Result<Value, AppError> {
+    Ok(read_setting(conn, KEY_FEATURES)
+        .await?
         .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or(Value::Null)
+        .unwrap_or(Value::Null))
 }
 
-/// Gói hiện tại; dòng vắng hoặc rác ⇒ gói mặc định của công ty; lỗi đọc ⇒ `custom`.
+/// Gói hiện tại, lỗi DB ⇒ `Err` (dùng khi ghi). Dòng vắng hoặc rác ⇒ gói mặc định của công ty.
+async fn try_plan(conn: &mut PgConnection, ctx: Ctx) -> Result<PlanKey, AppError> {
+    Ok(plan_from_setting(
+        read_setting(conn, PLAN_SETTING_KEY).await?.as_deref(),
+        ctx.company_id,
+    ))
+}
+
+/// Gói hiện tại cho đường ĐỌC: lỗi đọc ⇒ `custom` (fail-open như `getPlan` của Node).
 pub async fn get_plan(conn: &mut PgConnection, ctx: Ctx) -> PlanKey {
-    match read_setting(conn, PLAN_SETTING_KEY).await {
-        Ok(raw) => plan_from_setting(raw.as_deref(), ctx.company_id),
-        Err(_) => PlanKey::Custom,
-    }
+    try_plan(conn, ctx).await.unwrap_or(PlanKey::Custom)
 }
 
-/// `GET /settings/org-features`: đủ khoá, đã áp gói. Lỗi đọc ⇒ bật hết (fail-open).
+/// `GET /settings/org-features`: đủ khoá, đã áp gói. Lỗi đọc ⇒ bật hết (fail-open); ghi không bao giờ đi đường này.
 pub async fn get(conn: &mut PgConnection, ctx: Ctx) -> Result<Ordered, AppError> {
     let plan = get_plan(conn, ctx).await;
-    let def = defaults(conn).await?;
-    let features = resolve_org_features(&read_stored(conn).await, def.as_ref());
+    let read = async {
+        let def = try_defaults(conn).await?;
+        let stored = try_stored(conn).await?;
+        Ok::<_, AppError>(resolve_org_features(&stored, def.as_ref()))
+    };
+    let features = match read.await {
+        Ok(f) => f,
+        Err(e) => {
+            tracing::error!("getOrgFeatures failed: {e:?}");
+            resolve_org_features(&Value::Null, None)
+        }
+    };
     Ok(ordered(&apply_plan_to_features(&features, plan)))
 }
 
-/// `PUT /settings/org-features`: cập nhật một phần. Bật khoá do gói quyết định mà gói không có ⇒ 400.
+/// Kết quả `PUT /settings/org-features`: `features` là phản hồi; `changed` cho tầng serve gọi `trackProductEvent`
+/// (`feature_toggled`, `{feature, enabled}`) sau khi ghi (TODO(serve): chưa có cổng đo ở Rust).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Updated {
+    pub features: Ordered,
+    pub changed: Vec<(&'static str, bool)>,
+}
+
+/// `PUT /settings/org-features`: cập nhật một phần. Bật khoá do gói quyết định mà gói không có ⇒ 400. `null` đặt lại khoá
+/// về mặc định. MỌI lỗi đọc DB ⇒ 500 (không ghi lại từ giá trị mặc định, tránh xoá cấu hình thật vì một lần đọc lỗi).
 pub async fn update(
     conn: &mut PgConnection,
     ctx: Ctx,
     dto: &OrgFeaturesInput,
     user_id: i32,
-) -> Result<Ordered, AppError> {
-    let plan = get_plan(conn, ctx).await;
+) -> Result<Updated, AppError> {
+    let plan = try_plan(conn, ctx).await.map_err(|_| update_failed())?;
     let def = plan.def();
     for key in PLAN_GATED_FEATURES {
         if dto.get(key) == Some(true) && !def.features.contains(&key) {
@@ -96,28 +124,67 @@ pub async fn update(
             .into());
         }
     }
-    let defaults = defaults(conn).await?;
-    let mut next = resolve_org_features(&read_stored(conn).await, defaults.as_ref());
+    let defaults = try_defaults(conn).await.map_err(|_| update_failed())?;
+    let stored = try_stored(conn).await.map_err(|_| update_failed())?;
+    let mut next = resolve_org_features(&stored, defaults.as_ref());
+    let mut nulls: Vec<&'static str> = Vec::new();
+    let mut changed = Vec::new();
     for (key, _, _) in ORG_FEATURES {
-        if let Some(v) = dto.get(key) {
-            next.set(key, v);
+        match dto.sent(key) {
+            Some(Some(v)) => {
+                next.set(key, v);
+                changed.push((key, v));
+            }
+            Some(None) => nulls.push(key),
+            None => {}
         }
     }
-    // JSON.stringify theo thứ tự `ORG_FEATURE_KEYS` (serde_json sắp theo chữ cái nên ghép chuỗi tay).
+    // JSON.stringify theo thứ tự `ORG_FEATURE_KEYS` (serde_json sắp theo chữ cái nên ghép chuỗi tay); `null` ghi `null`.
     let body = next
         .iter()
-        .map(|(k, v)| format!("\"{k}\":{v}"))
+        .map(|(k, v)| {
+            if nulls.contains(&k) {
+                format!("\"{k}\":null")
+            } else {
+                format!("\"{k}\":{v}")
+            }
+        })
         .collect::<Vec<_>>()
         .join(",");
     write_setting(conn, KEY_FEATURES, &format!("{{{body}}}"), Some(user_id))
         .await
-        .map_err(|_| AppError::from(HttpError::new(500, "Không cập nhật được tính năng của tổ chức")))?;
+        .map_err(|_| update_failed())?;
     tracing::info!("Org features updated by user {user_id}: {{{body}}}");
-    Ok(ordered(&apply_plan_to_features(&next, plan)))
+    // Phản hồi: khoá `null` ra `null` (Node trả đúng `next` đã áp gói), trừ khoá bị gói ép tắt.
+    let applied = apply_plan_to_features(&next, plan);
+    let features = Ordered(
+        applied
+            .iter()
+            .map(|(k, v)| {
+                let forced_off = PLAN_GATED_FEATURES.contains(&k) && !def.features.contains(&k);
+                (
+                    k,
+                    if nulls.contains(&k) && !forced_off {
+                        None
+                    } else {
+                        Some(v)
+                    },
+                )
+            })
+            .collect(),
+    );
+    Ok(Updated { features, changed })
 }
 
-/// `PUT /settings/plan` phần ghi: đổi gói và ghi `audit_logs` TRONG CÙNG giao dịch (không có nhật ký thì không đổi).
-/// Người gọi truyền kết nối đã mở giao dịch (hoặc chấp nhận hai câu lệnh liên tiếp).
+/// Kết quả [`set_plan`]: tầng serve dùng để gọi `trackProductEvent('plan_changed', user, { plan })` (TODO(serve)).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PlanChange {
+    pub from: PlanKey,
+    pub to: PlanKey,
+}
+
+/// `PUT /settings/plan` phần ghi: đổi gói và ghi `audit_logs` trong MỘT giao dịch (không có nhật ký thì không đổi). Mở giao dịch
+/// ngay trong hàm (là savepoint nếu người gọi đã ở trong giao dịch). Lỗi đọc gói ⇒ lỗi, không giả định `custom`.
 pub async fn set_plan(
     conn: &mut PgConnection,
     ctx: Ctx,
@@ -125,29 +192,26 @@ pub async fn set_plan(
     user_id: Option<i32>,
     source: &str,
     ip: Option<&str>,
-) -> Result<PlanKey, AppError> {
-    let from = get_plan(conn, ctx).await;
-    write_setting(conn, PLAN_SETTING_KEY, plan.as_str(), user_id).await?;
-    let meta = format!(
-        "{{\"from\":\"{}\",\"to\":\"{}\",\"source\":\"{}\"}}",
-        from.as_str(),
-        plan.as_str(),
-        source
-    );
+) -> Result<PlanChange, AppError> {
+    let mut tx = conn.begin().await.map_err(db)?;
+    let from = try_plan(&mut tx, ctx).await?;
+    write_setting(&mut tx, PLAN_SETTING_KEY, plan.as_str(), user_id).await?;
+    let meta = json!({"from": from.as_str(), "to": plan.as_str(), "source": source});
     sqlx::query("INSERT INTO audit_logs (user_id, action, resource, ip_address, metadata) VALUES ($1, 'update', 'org_plan', $2, $3::text::jsonb)")
         .bind(user_id)
         .bind(ip)
-        .bind(meta)
-        .execute(conn)
+        .bind(meta.to_string())
+        .execute(&mut *tx)
         .await
         .map_err(db)?;
+    tx.commit().await.map_err(db)?;
     tracing::info!(
         "Org plan {} -> {} ({source}, user {})",
         from.as_str(),
         plan.as_str(),
         user_id.map_or("-".to_owned(), |u| u.to_string())
     );
-    Ok(plan)
+    Ok(PlanChange { from, to: plan })
 }
 
 /// Phản hồi `GET /settings/usage` và `PUT /settings/plan`.

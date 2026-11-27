@@ -51,12 +51,14 @@ fn view(r: &sqlx::postgres::PgRow) -> Result<OptionView, AppError> {
 /// `GET /settings/options`: mặc định chỉ dòng đang bật (`active=false` mới lấy cả dòng đã ẩn), tối đa 500 dòng.
 pub async fn list(conn: &mut PgConnection, q: &QueryOptions) -> Result<OptionList, AppError> {
     let active_only = q.active != Some(false);
+    // Node: `if (query.group)`: chuỗi rỗng (`?group=`) không lọc.
+    let group = q.group.as_deref().filter(|g| !g.is_empty());
     let rows = sqlx::query(
         "SELECT id, group_key, value, label, sort_order, is_active, is_system, metadata FROM setting_options \
          WHERE ($1::text IS NULL OR group_key = $1) AND (NOT $2 OR is_active) \
          ORDER BY group_key ASC, sort_order ASC, id ASC LIMIT 500",
     )
-    .bind(q.group.as_deref())
+    .bind(group)
     .bind(active_only)
     .fetch_all(conn)
     .await

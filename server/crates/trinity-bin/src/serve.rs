@@ -732,6 +732,37 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             ),
         }),
     );
+    // Integrations (M33/M34): status, nhật ký, webhook ra, nguồn webhook vào và `POST /hooks/in/:token` (công khai theo token).
+    // Chống SSRF dùng chung chính sách với kênh webhook của notify; khoá mã hoá secret là INTEGRATIONS_SECRET_KEY.
+    // Dispatcher/worker gửi webhook ra thuộc job riêng (chưa đăng ký ở đây).
+    let integ_vars = env.clone();
+    let integ_env: trinity_integrations::routes::EnvFn = Arc::new(move |k: &str| integ_vars.get(k).cloned());
+    let key_vars = env.clone();
+    let secret_key: trinity_integrations::webhooks::secret::KeySource = Arc::new(move || {
+        trinity_integrations::webhooks::secret::load_secret_key(&|k: &str| key_vars.get(k).cloned())
+    });
+    let inbound_vars = env.clone();
+    let inbound_enabled: Arc<dyn Fn() -> bool + Send + Sync> = Arc::new(move || {
+        trinity_integrations::status::webhooks_enabled(&|k: &str| inbound_vars.get(k).cloned())
+    });
+    let integ_sender = trinity_integrations::webhooks::sender::Sender::new(
+        ssrf_policy,
+        Arc::new(trinity_http::outbound::ssrf::SystemResolver),
+        secret_key.clone(),
+    )
+    .map_err(|e| format!("webhook ra: {e}"))?;
+    app = mount(
+        app,
+        trinity_integrations::routes::api_router(deps.clone()),
+        Arc::new(trinity_integrations::routes::IntegrationsState {
+            db: db.clone(),
+            platform: platform.clone(),
+            scopes: ScopeService::new(db.clone(), cache.clone()),
+            env: integ_env,
+            sender: integ_sender,
+            inbound: trinity_integrations::webhooks::inbound::receive::InboundService::new(secret_key, inbound_enabled),
+        }),
+    );
 
     // ── Lớp biên rồi strangler
     let production = config.is_production();

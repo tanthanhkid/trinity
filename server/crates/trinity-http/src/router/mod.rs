@@ -30,7 +30,8 @@ use axum::middleware::from_fn_with_state;
 use axum::routing::{MethodFilter, on};
 
 pub use enforce::{
-    AccessDeps, CurrentUser, FeatureFuture, GuardFuture, NamedGuard, OrgFeatureGate, feature_disabled_message,
+    AccessDeps, CurrentUser, FeatureFuture, GuardFuture, KeepStatus, NamedGuard, OrgFeatureGate,
+    feature_disabled_message,
 };
 
 /// Loại truy cập của route, tương ứng `AccessMeta` của `@Can`/`@CanAny`/`@AuthOnly`/`@Public`/`@Internal`.

@@ -288,6 +288,8 @@ thả kết nối DB trước khi chờ HTTP (hạn 10 s), chỉ lấy lại đ�
 trả lại việc đã nhận mà chưa kịp gửi (`attempts` về như cũ). Tắt endpoint commit trước, thông báo cho người tạo ở giao dịch riêng: lỗi
 thông báo không làm mất việc tắt.
 
+**Router integrations (X-router-webhooks).** `trinity-integrations::routes` nối 19 route (status, audit-logs, 10 webhook ra, 6 nguồn webhook vào, `POST /hooks/in/:token`) vào `serve.rs`; cờ `INTEGRATIONS_WEBHOOKS_ENABLED` tắt ⇒ 404 sau bước kiểm DTO. `hooks/in` công khai: công ty theo `?cid=`/`x-trinity-company` (mặc định 1, công ty lạ/treo ⇒ 404), thân đọc nguyên byte để kiểm chữ ký, phản hồi giữ 200 dù `routes.json` ghi 201 (`KeepStatus` ở `trinity-http`).
+
 ### 1.10 Webhook vào
 
 | Đường | Xác thực | Định tuyến công ty |

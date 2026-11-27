@@ -45,6 +45,7 @@ pub fn declared_routes() -> Vec<RouteSpec> {
     v.extend(mod_ai_actions::specs());
     v.extend(mod_deals::routes::routes());
     v.extend(mod_public_api::specs());
+    v.extend(trinity_integrations::routes::specs());
     v
 }
 

@@ -12,6 +12,7 @@ use trinity_rbac::OwnerIds;
 
 use crate::read::UserBrief;
 use crate::snapshot::contact_event;
+use crate::write::{duplicate_count, lock_phone};
 use crate::{Actor, Scopes, covers, db, error_message, http};
 use trinity_db::outbox::publish_integration_event;
 
@@ -100,16 +101,8 @@ pub async fn transfer(
     }
 
     if !phone.is_empty() {
-        let dupe: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM contacts WHERE phone = $1 AND deleted_at IS NULL AND id <> $2 AND assigned_to = $3",
-        )
-        .bind(&phone)
-        .bind(contact_id)
-        .bind(new_assigned_to)
-        .fetch_one(&mut *conn)
-        .await
-        .map_err(db)?;
-        if dupe > 0 {
+        lock_phone(conn, &phone).await?;
+        if duplicate_count(conn, &phone, Some(new_assigned_to), Some(contact_id)).await? > 0 {
             return Err(http(HttpError::conflict(
                 "Người nhận đã có khách hàng trùng số điện thoại với khách này",
             )));
@@ -183,6 +176,11 @@ pub async fn bulk_transfer(
     new_assigned_to: i32,
     reason: &str,
 ) -> Result<BulkResult, AppError> {
+    if contact_ids.len() > BULK_TRANSFER_MAX {
+        return Err(http(HttpError::bad_request(format!(
+            "Chỉ được chuyển tối đa {BULK_TRANSFER_MAX} khách hàng một lần"
+        ))));
+    }
     let mut transferred_ids = Vec::new();
     let mut failed = Vec::new();
     for &contact_id in contact_ids {

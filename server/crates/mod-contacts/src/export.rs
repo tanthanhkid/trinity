@@ -161,16 +161,20 @@ pub async fn export_xlsx(
     let place = placements(conn, &owner_ids).await?;
     let key = |r: &Row| {
         let p = r.assigned_to.and_then(|a| place.get(&a));
-        format!(
-            "{} {} {} {}",
-            p.and_then(|p| p.dept.as_deref()).unwrap_or(SORT_LAST),
-            p.and_then(|p| p.team.as_deref()).unwrap_or(SORT_LAST),
-            r.assignee.as_deref().unwrap_or(SORT_LAST),
-            r.full_name.as_deref().unwrap_or(SORT_LAST)
+        (
+            p.and_then(|p| p.dept.as_deref()).unwrap_or(SORT_LAST).to_owned(),
+            p.and_then(|p| p.team.as_deref()).unwrap_or(SORT_LAST).to_owned(),
+            r.assignee.as_deref().unwrap_or(SORT_LAST).to_owned(),
+            r.full_name.as_deref().unwrap_or(SORT_LAST).to_owned(),
         )
     };
-    let mut keyed: Vec<(String, Row)> = rows.into_iter().map(|r| (key(&r), r)).collect();
-    keyed.sort_by(|a, b| compare(&a.0, &b.0, Collation::Vi));
+    let mut keyed: Vec<((String, String, String, String), Row)> = rows.into_iter().map(|r| (key(&r), r)).collect();
+    keyed.sort_by(|a, b| {
+        compare(&a.0.0, &b.0.0, Collation::Vi)
+            .then_with(|| compare(&a.0.1, &b.0.1, Collation::Vi))
+            .then_with(|| compare(&a.0.2, &b.0.2, Collation::Vi))
+            .then_with(|| compare(&a.0.3, &b.0.3, Collation::Vi))
+    });
 
     let masker = scopes.masker();
     let data: Vec<Vec<Cell>> = keyed

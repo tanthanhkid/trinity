@@ -236,9 +236,13 @@ pub async fn search(conn: &mut PgConnection, scopes: &Scopes, term: &str) -> Res
         "SELECT id, phone, full_name, source_id, assigned_to, created_by_id FROM contacts WHERE deleted_at IS NULL AND ",
     );
     if digits_only {
-        qb.push("phone LIKE ").push_bind(format!("%{digits}%"));
+        qb.push("phone LIKE ")
+            .push_bind(format!("%{digits}%"))
+            .push(" ESCAPE '\\'");
     } else {
-        qb.push("(full_name ILIKE ").push_bind(format!("%{trimmed}%"));
+        qb.push("(full_name ILIKE ")
+            .push_bind(format!("%{}%", crate::filter::escape_like(trimmed)))
+            .push(" ESCAPE '\\'");
         push_folded_ids(&mut qb, trimmed, "");
         qb.push(")");
     }

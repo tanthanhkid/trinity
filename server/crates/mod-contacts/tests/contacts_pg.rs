@@ -757,3 +757,93 @@ async fn chuyen_phu_trach_khach_gan_day_va_xuat_xlsx() {
         "ô bắt đầu bằng = được thêm ': {texts:?}"
     );
 }
+
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn review_381_trung_sdt_escape_like_loc_0_va_khoi_phuc() {
+    let _s = SERIAL.lock().await;
+    let db = tenant().await;
+    let mut c = db.acquire().await.unwrap();
+    clean(&mut c).await;
+    let a = user(&mut c, 1, "Sale A", None).await;
+    let b = user(&mut c, 2, "Sale B", None).await;
+    // B đã có khách +84 cùng SĐT với khách của A (dạng khác nhau) ⇒ chuyển phải thấy là trùng.
+    contact(&mut c, "+84907000401", "B giữ +84", b).await;
+    let c1 = contact(&mut c, "0907000401", "A một", a).await;
+    let c2 = contact(&mut c, "0907000402", "100% _gạch_ \\x", a).await;
+    contact(&mut c, "0907000403", "1000 xgạchx", a).await;
+    let ad = actor(a, false);
+    let scopes = Scopes {
+        transfer: Some(OwnerIds::Ids(vec![a, b])),
+        ..all()
+    };
+    assert_eq!(err(transfer(&db, &scopes, &ad, c1, b, "").await.unwrap_err()).0, 409);
+    // Hàng loạt quá trần ⇒ 400.
+    let many: Vec<i32> = (1..=501).collect();
+    assert_eq!(
+        err(bulk_transfer(&db, &scopes, &ad, &many, b, "").await.unwrap_err()).0,
+        400
+    );
+
+    // PATCH giữ nguyên người phụ trách khi chỉ có contacts.update (không transfer) ⇒ không 403.
+    let no_transfer = Scopes {
+        transfer: None,
+        ..all()
+    };
+    update(&db, &no_transfer, &ad, c2, &patch(json!({ "assigned_to": a })))
+        .await
+        .expect("to == current bỏ qua kiểm transfer");
+    // Bỏ gán khi đã có người, nhóm NULL đã có khách cùng SĐT ⇒ 409.
+    contact_unassigned(&mut c, "0907000402").await;
+    assert_eq!(
+        err(update(&db, &all(), &ad, c2, &patch(json!({ "assigned_to": null })))
+            .await
+            .unwrap_err())
+        .0,
+        409
+    );
+
+    // Tìm: % _ \ khớp theo nghĩa đen.
+    let find = |s: &str| {
+        let db = db.clone();
+        let s = s.to_owned();
+        async move {
+            let mut c = db.acquire().await.unwrap();
+            search(&mut c, &all(), &s).await.unwrap().data.len()
+        }
+    };
+    assert_eq!(find("100%").await, 1);
+    assert_eq!(find("_gạch_").await, 1);
+    assert_eq!(find("\\x").await, 1);
+    assert_eq!(find("%%").await, 0);
+
+    // Lọc id = 0 ⇒ không lọc.
+    let list = find_all(
+        &mut c,
+        &all(),
+        &ad,
+        &q(json!({ "project_id": 0, "creator_id": 0, "team_lead_id": 0, "dept_head_id": 0, "search": "A một" })),
+        &CountCache::disabled(),
+    )
+    .await;
+    assert!(list.is_ok(), "{:?}", list.err().map(err));
+
+    // Khôi phục: khách chưa xoá ⇒ 404; khách đã xoá ⇒ khôi phục được.
+    assert_eq!(err(restore(&db, &all(), &ad, c1).await.unwrap_err()).0, 404);
+    remove(&db, &all(), &ad, c1).await.unwrap();
+    assert_eq!(
+        err(record_view(&mut c, &all(), &ad, c1).await.unwrap_err()).0,
+        404,
+        "record_view bỏ qua khách đã xoá"
+    );
+}
+
+async fn contact_unassigned(c: &mut PgConnection, phone: &str) {
+    sqlx::query(
+        "INSERT INTO contacts (phone, full_name, assigned_to, updated_at) VALUES ($1, 'Chưa gán', NULL, now())",
+    )
+    .bind(phone)
+    .execute(c)
+    .await
+    .unwrap();
+}

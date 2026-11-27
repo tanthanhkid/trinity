@@ -98,10 +98,10 @@ impl ContactWhere {
                 qb.push(format!(" AND {a}{col} = ")).push_bind(v);
             }
         }
-        if let Some(v) = f.project_id {
+        if let Some(v) = f.project_id.filter(|v| *v != 0) {
             qb.push(format!(" AND {a}project_id = ")).push_bind(v);
         }
-        if let Some(v) = f.creator_id {
+        if let Some(v) = f.creator_id.filter(|v| *v != 0) {
             qb.push(format!(" AND {a}created_by_id = ")).push_bind(v);
         }
         if let Some(search) = f.search.as_deref().filter(|s| !s.is_empty()) {
@@ -138,24 +138,40 @@ impl ContactWhere {
         let digits_only = digits.chars().count() >= 6 && digits == term;
         let phone_allowed = self.phone_open || digits.chars().count() >= MIN_MASKED_PHONE_SEARCH_DIGITS;
         if digits_only && phone_allowed {
-            qb.push(format!("{a}phone LIKE ")).push_bind(format!("%{digits}%"));
+            qb.push(format!("{a}phone LIKE "))
+                .push_bind(format!("%{digits}%"))
+                .push(" ESCAPE '\\'");
             return;
         }
         let by_name = |qb: &mut QueryBuilder<Postgres>| {
-            qb.push(format!("({a}full_name ILIKE ")).push_bind(format!("%{term}%"));
+            qb.push(format!("({a}full_name ILIKE "))
+                .push_bind(format!("%{}%", escape_like(term)))
+                .push(" ESCAPE '\\'");
             push_folded_ids(qb, term, a);
             qb.push(")");
         };
         if phone_allowed && !digits_only {
             qb.push(format!("({a}phone LIKE "))
-                .push_bind(format!("%{term}%"))
-                .push(" OR ");
+                .push_bind(format!("%{}%", escape_like(term)))
+                .push(" ESCAPE '\\' OR ");
             by_name(qb);
             qb.push(")");
         } else {
             by_name(qb);
         }
     }
+}
+
+/// Thoát `\`, `%`, `_` để chuỗi người dùng gõ khớp theo nghĩa đen trong `LIKE`/`ILIKE ... ESCAPE '\'`.
+pub(crate) fn escape_like(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        if matches!(c, '\\' | '%' | '_') {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out
 }
 
 /// ` OR id IN (…)`: id khách chưa xoá có tên chứa `term` sau khi bỏ dấu, 5000 khách mới nhất (`foldedIds`). Gập bằng
@@ -178,11 +194,11 @@ pub async fn resolve(
     scopes: &Scopes,
     filters: &ContactFilters,
 ) -> Result<ContactWhere, AppError> {
-    let team_lead_ids = match filters.team_lead_id {
+    let team_lead_ids = match filters.team_lead_id.filter(|v| *v != 0) {
         Some(id) => Some(with_self(id, direct_reports(conn, &[id]).await?)),
         None => None,
     };
-    let dept_head_ids = match filters.dept_head_id {
+    let dept_head_ids = match filters.dept_head_id.filter(|v| *v != 0) {
         Some(id) => {
             let direct = direct_reports(conn, &[id]).await?;
             let second = if direct.is_empty() {

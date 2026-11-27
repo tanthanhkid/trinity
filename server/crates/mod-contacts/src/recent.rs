@@ -29,7 +29,7 @@ pub async fn record_view(
     contact_id: i32,
 ) -> Result<(), AppError> {
     let owners: Option<(Option<i32>, Option<i32>)> =
-        sqlx::query_as("SELECT assigned_to, created_by_id FROM contacts WHERE id = $1")
+        sqlx::query_as("SELECT assigned_to, created_by_id FROM contacts WHERE id = $1 AND deleted_at IS NULL")
             .bind(contact_id)
             .fetch_optional(&mut *conn)
             .await

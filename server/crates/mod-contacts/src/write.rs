@@ -166,8 +166,20 @@ async fn assert_not_resigned(conn: &mut PgConnection, user_id: i32) -> Result<()
     }
 }
 
+/// Khoá advisory theo SĐT chuẩn hoá: mọi đường ghi có kiểm trùng (tạo, sửa, chuyển, khôi phục) lấy khoá này TRƯỚC
+/// [`duplicate_count`], nên hai giao dịch song song cùng SĐT không cùng lọt qua kiểm trùng.
+pub(crate) async fn lock_phone(conn: &mut PgConnection, phone: &str) -> Result<(), AppError> {
+    let key = normalize_phone(phone).unwrap_or_else(|| phone.to_owned());
+    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1))")
+        .bind(key)
+        .execute(conn)
+        .await
+        .map_err(db)?;
+    Ok(())
+}
+
 /// Số khách chưa xoá cùng SĐT (cả dạng `0…` lẫn `+84…`) của người phụ trách (`assigned_to` rỗng = chưa gán).
-async fn duplicate_count(
+pub(crate) async fn duplicate_count(
     conn: &mut PgConnection,
     phone: &str,
     assigned_to: Option<i32>,
@@ -272,11 +284,7 @@ pub async fn create(db_: &TenantDb, scopes: &Scopes, actor: &Actor, dto: &Create
         .as_deref()
         .filter(|p| !p.is_empty())
         .map(|p| normalize_phone(p).unwrap_or_else(|| p.to_owned()));
-    sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1))")
-        .bind(&phone)
-        .execute(&mut *conn)
-        .await
-        .map_err(db)?;
+    lock_phone(conn, &phone).await?;
     if duplicate_count(conn, &phone, Some(assigned_to), None).await? > 0 {
         return Err(http(HttpError::conflict(
             "Khách hàng đã có trong danh sách của bạn. Vui lòng sử dụng khách hàng hiện có hoặc liên hệ quản trị viên nếu cần hỗ trợ.",
@@ -406,9 +414,9 @@ async fn validate_assignment(
                 ));
             }
         }
+        Some(Some(to)) if current == Some(to) => {} // giữ nguyên người phụ trách: không phải chuyển, không kiểm quyền transfer
         Some(Some(to)) => {
             if let Some(cur) = current
-                && cur != to
                 && !covers(transfer, cur)
             {
                 return Err(forbidden(
@@ -511,7 +519,11 @@ pub async fn update(
         normalize_phone(t).unwrap_or_else(|| t.to_owned())
     });
     let phone_changed = new_phone.as_deref().is_some_and(|p| p != existing.phone);
-    let assignee_changed = matches!(dto.assigned_to, Some(Some(to)) if Some(to) != existing.assigned_to);
+    let assignee_changed = match dto.assigned_to {
+        Some(Some(to)) => Some(to) != existing.assigned_to,
+        Some(None) => existing.assigned_to.is_some(), // bỏ gán cũng là đổi nhóm trùng: sang nhóm NULL
+        None => false,
+    };
     if phone_changed || assignee_changed {
         let phone = if phone_changed {
             new_phone.as_deref().unwrap_or(&existing.phone)
@@ -520,8 +532,10 @@ pub async fn update(
         };
         let owner = match dto.assigned_to {
             Some(Some(to)) if assignee_changed => Some(to),
+            Some(None) if assignee_changed => None,
             _ => existing.assigned_to,
         };
+        lock_phone(conn, phone).await?;
         if duplicate_count(conn, phone, owner, Some(id)).await? > 0 {
             return Err(http(HttpError::conflict(format!(
                 "SĐT {} đã có trong danh sách khách của người phụ trách này",
@@ -773,17 +787,25 @@ pub async fn restore(db_: &TenantDb, scopes: &Scopes, actor: &Actor, id: i32) ->
         )));
     }
     assert_in_scope(scopes.delete.as_ref(), &[existing.assigned_to, existing.created_by_id])?;
+    if !existing.phone.is_empty() {
+        lock_phone(conn, &existing.phone).await?;
+    }
     if !existing.phone.is_empty() && duplicate_count(conn, &existing.phone, existing.assigned_to, None).await? > 0 {
         return Err(http(HttpError::conflict(format!(
             "SĐT {} đã có ở một khách khác của người phụ trách — không khôi phục được",
             mask_phone(Some(&existing.phone)).unwrap_or_default()
         ))));
     }
-    sqlx::query("UPDATE contacts SET deleted_at = NULL, deleted_by_id = NULL, updated_at = now() WHERE id = $1")
-        .bind(id)
-        .execute(&mut *conn)
-        .await
-        .map_err(db)?;
+    let restored = sqlx::query(
+        "UPDATE contacts SET deleted_at = NULL, deleted_by_id = NULL, updated_at = now() WHERE id = $1 AND deleted_at IS NOT NULL",
+    )
+    .bind(id)
+    .execute(&mut *conn)
+    .await
+    .map_err(db)?;
+    if restored.rows_affected() == 0 {
+        return Err(not_found(format!("Không có khách ID {id} đang chờ khôi phục")));
+    }
     let snap = contact_event(conn, id).await?.snapshot();
     publish(conn, "contact.restored", &json!({ "contact": snap }), id, actor).await?;
     audit(

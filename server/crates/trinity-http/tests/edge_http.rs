@@ -380,6 +380,60 @@ async fn multipart_tep_trong_han_qua_va_vuot_han_truong_thi_413() {
     assert!(r.body.contains("File too large"));
 }
 
+/// Server dựng như `serve.rs`: `json_limit` toàn cục ngoài cùng, route multipart tự đặt `DefaultBodyLimit` (như newsfeed,
+/// attachments, avatar, xlsx, phiếu lương).
+async fn upload_16mb(mp: Multipart) -> Response {
+    match collect_multipart(mp, 16 * 1024 * 1024).await {
+        Ok(fields) => fields
+            .iter()
+            .map(|(n, f, d)| format!("{n}:{}:{}", f.clone().unwrap_or_default(), d.len()))
+            .collect::<Vec<_>>()
+            .join(",")
+            .into_response(),
+        Err(e) => error_response(&e),
+    }
+}
+
+async fn start_global_limit() -> SocketAddr {
+    let app = Router::new()
+        .route("/json", post(json_handler))
+        .route(
+            "/upload",
+            post(upload_16mb).layer(axum::extract::DefaultBodyLimit::max(16 * 1024 * 1024)),
+        )
+        .layer(from_fn(body::json_limit));
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    addr
+}
+
+#[tokio::test]
+async fn json_toan_cuc_vuot_5mb_thi_413_con_multipart_lon_hon_5mb_duoi_han_route_thi_qua() {
+    let addr = start_global_limit().await;
+    // JSON > 5 MB ⇒ 413
+    let over = vec![b'a'; JSON_LIMIT + 1];
+    let r = send(addr, "POST", "/json", &[("Content-Type", "application/json")], &over).await;
+    assert_eq!(r.status, 413);
+    // multipart ~6 MB (> JSON_LIMIT, < DefaultBodyLimit 16 MB của route) ⇒ qua lớp toàn cục; tệp 6 MB
+    let ct = "multipart/form-data; boundary=XB";
+    let r = send(
+        addr,
+        "POST",
+        "/upload",
+        &[("Content-Type", ct)],
+        &multipart_body("XB", 6 * 1024 * 1024),
+    )
+    .await;
+    assert_eq!((r.status, r.body.as_str()), (200, "title::5,file:a.bin:6291456"));
+    // multipart vượt hạn mức route (16 MB) ⇒ bị DefaultBodyLimit chặn giữa luồng (collect_multipart đổi lỗi đọc thành 400)
+    let huge = multipart_body("XB", 17 * 1024 * 1024);
+    let r = send(addr, "POST", "/upload", &[("Content-Type", ct)], &huge).await;
+    assert!(matches!(r.status, 400 | 413), "status {}", r.status);
+}
+
 // --- Stream 200 MB, RSS ------------------------------------------------------------------------------------------
 
 fn rss_kb() -> u64 {

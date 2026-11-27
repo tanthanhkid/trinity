@@ -535,6 +535,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             }),
         )),
     );
+    mod_mcp::register_payroll(&mut registry);
     let tool_scopes = ScopeService::new(db.clone(), cache.clone());
     let tool_deps = Arc::new(mod_mcp::deps::ToolDeps {
         db: db.clone(),

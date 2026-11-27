@@ -134,6 +134,20 @@ pub fn audit_target(args: &Value) -> (Option<String>, Option<String>) {
     (None, None)
 }
 
+/// Đối số tệp mã hoá (`*_base64`) không ghi vào nhật ký: thay bằng độ dài.
+fn redact_blobs(args: &Value) -> Value {
+    let Value::Object(map) = args else { return args.clone() };
+    let mut out = map.clone();
+    for (k, v) in &mut out {
+        if k.ends_with("_base64")
+            && let Value::String(s) = v
+        {
+            *v = Value::String(format!("<{} ký tự base64>", s.len()));
+        }
+    }
+    Value::Object(out)
+}
+
 /// Lỗi `Error` thường mang nội dung đối số: `/^(query|id|contact_id)\b|SĐT|Không hỗ trợ/`.
 fn is_plain_argument_error(m: &str) -> bool {
     let starts = ["query", "id", "contact_id"].iter().any(|w| {
@@ -175,7 +189,7 @@ impl Executor {
             e.resource_id = target.1.clone();
             e.error = error;
             // Che SĐT / bỏ khoá nhạy cảm trước khi ghi nhật ký (không ghi SĐT thô).
-            e.metadata = Some(json!({ "args": sanitize_for_ai(args, "", 0) }));
+            e.metadata = Some(json!({ "args": sanitize_for_ai(&redact_blobs(args), "", 0) }));
             self.audit.log(p.company, e)
         };
 
@@ -284,6 +298,13 @@ impl ToolHost for BoundExecutor<'_> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn nhat_ky_khong_ghi_tep_base64() {
+        let v = redact_blobs(&json!({ "month": "2026-03", "file_base64": "QUJD" }));
+        assert_eq!(v["month"], "2026-03");
+        assert_eq!(v["file_base64"], "<4 ký tự base64>");
+    }
 
     #[test]
     fn muc_tieu_nhat_ky() {

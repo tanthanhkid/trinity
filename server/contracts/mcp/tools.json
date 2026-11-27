@@ -1,5 +1,5 @@
 {
-  "tool_count": 104,
+  "tool_count": 110,
   "tools": [
     {
       "name": "get_setup_guide",
@@ -9811,6 +9811,338 @@
       },
       "annotations": {
         "title": "Huỷ lời mời nhân viên / Cancel a staff invitation",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "notice": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "notice",
+          "data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "export_payslip_excel",
+      "title": "Xuất phiếu lương ra Excel / Export a payslip to xlsx",
+      "description": "Xuất MỘT phiếu lương ra tệp xlsx theo mẫu kế toán. Cần quyền payroll.export; chỉ phiếu trong phạm vi quyền của người dùng (ngoài phạm vi ⇒ không tìm thấy). Chỉ đọc, không đổi dữ liệu. Trả tệp mã hoá base64 trong data.file_base64 (tối đa khoảng 25 KB; lớn hơn thì tải bằng giao diện web). Dữ liệu lương nhạy cảm. / Returns the file base64-encoded in data.file_base64 (about 25 KB max).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "payslip_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "Id phiếu lương / Payslip id"
+          }
+        },
+        "required": [
+          "payslip_id"
+        ]
+      },
+      "annotations": {
+        "title": "Xuất phiếu lương ra Excel / Export a payslip to xlsx",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "notice": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "notice",
+          "data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "export_payslip_pdf",
+      "title": "Xuất phiếu lương ra PDF / Export a payslip to PDF",
+      "description": "Xuất MỘT phiếu lương ra PDF. Cần quyền payroll.export; chỉ phiếu trong phạm vi quyền của người dùng. Chỉ đọc. Trả tệp mã hoá base64 trong data.file_base64 (tối đa khoảng 25 KB; lớn hơn thì tải bằng giao diện web). Dữ liệu lương nhạy cảm. / Returns the file base64-encoded in data.file_base64 (about 25 KB max).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "payslip_id": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "Id phiếu lương / Payslip id"
+          }
+        },
+        "required": [
+          "payslip_id"
+        ]
+      },
+      "annotations": {
+        "title": "Xuất phiếu lương ra PDF / Export a payslip to PDF",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "notice": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "notice",
+          "data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "export_payslips_excel",
+      "title": "Xuất phiếu lương cả kỳ ra Excel / Export a month of payslips to xlsx",
+      "description": "Xuất phiếu lương của một kỳ (YYYY-MM) ra xlsx. layout=bulk (mặc định): mỗi phiếu một sheet; layout=list: bảng danh sách một sheet, có thể kèm ordered_ids (id phiếu theo thứ tự muốn hiển thị). Cần quyền payroll.export; chỉ gồm phiếu trong phạm vi quyền. Chỉ đọc. Trả tệp mã hoá base64 trong data.file_base64 (tối đa khoảng 25 KB; lớn hơn thì tải bằng giao diện web). Dữ liệu lương nhạy cảm. / Returns the file base64-encoded in data.file_base64 (about 25 KB max).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "description": "Kỳ lương YYYY-MM / Payroll month YYYY-MM"
+          },
+          "layout": {
+            "type": "string",
+            "enum": [
+              "bulk",
+              "list"
+            ],
+            "description": "bulk = mỗi phiếu một sheet (mặc định); list = bảng danh sách / one sheet per payslip, or one list sheet"
+          },
+          "ordered_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 10000,
+            "description": "Chỉ cho layout=list: id phiếu theo thứ tự hiển thị / Only for layout=list: payslip ids in display order"
+          }
+        },
+        "required": [
+          "month"
+        ]
+      },
+      "annotations": {
+        "title": "Xuất phiếu lương cả kỳ ra Excel / Export a month of payslips to xlsx",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "notice": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "notice",
+          "data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "get_payslip_import_template",
+      "title": "Tải mẫu nhập phiếu lương / Download the payslip import template",
+      "description": "Tải tệp xlsx mẫu để nhập các khoản nhập tay của phiếu lương theo kỳ (đã điền sẵn nhân viên và giá trị hiện có). Điền xong dùng preview_payslip_import để xem trước rồi apply_payslip_import để áp dụng. Cần quyền payroll.manage. Chỉ đọc. Trả tệp mã hoá base64 trong data.file_base64 (tối đa khoảng 25 KB; lớn hơn thì tải bằng giao diện web). Dữ liệu lương nhạy cảm. / Returns the file base64-encoded in data.file_base64 (about 25 KB max).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "description": "Kỳ lương YYYY-MM / Payroll month YYYY-MM"
+          }
+        },
+        "required": [
+          "month"
+        ]
+      },
+      "annotations": {
+        "title": "Tải mẫu nhập phiếu lương / Download the payslip import template",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "notice": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "notice",
+          "data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "preview_payslip_import",
+      "title": "Xem trước nhập phiếu lương / Preview a payslip import",
+      "description": "Đọc tệp xlsx (theo mẫu của get_payslip_import_template) và so với phiếu hiện có của kỳ: trả danh sách thay đổi từng ô, dòng bị bỏ qua (phiếu đã duyệt/đã trả, không khớp nhân viên…). KHÔNG ghi gì. Luôn gọi bước này trước apply_payslip_import. Cần quyền payroll.manage. / Dry run: lists the cell changes and skipped rows; writes nothing.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "description": "Kỳ lương YYYY-MM / Payroll month YYYY-MM"
+          },
+          "file_base64": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 28000000,
+            "description": "Nội dung tệp xlsx mã hoá base64 / xlsx file content, base64-encoded"
+          }
+        },
+        "required": [
+          "month",
+          "file_base64"
+        ]
+      },
+      "annotations": {
+        "title": "Xem trước nhập phiếu lương / Preview a payslip import",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "notice": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "notice",
+          "data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "apply_payslip_import",
+      "title": "Áp dụng nhập phiếu lương / Apply a payslip import",
+      "description": "Áp dụng tệp xlsx nhập vào phiếu lương của kỳ: ghi các phiếu có thay đổi và tính lại (bỏ qua phiếu đã duyệt/đã trả); cả lô chạy trong một giao dịch, lỗi thì hoàn tác hết. Chỉ làm khi CHÍNH người dùng yêu cầu và sau khi đã xem preview_payslip_import. Cần scope crm.write và quyền payroll.manage; không xoá phiếu nào. / Applies the import in one transaction (all or nothing); never deletes payslips. Needs scope crm.write.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "description": "Kỳ lương YYYY-MM / Payroll month YYYY-MM"
+          },
+          "file_base64": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 28000000,
+            "description": "Nội dung tệp xlsx mã hoá base64 / xlsx file content, base64-encoded"
+          }
+        },
+        "required": [
+          "month",
+          "file_base64"
+        ]
+      },
+      "annotations": {
+        "title": "Áp dụng nhập phiếu lương / Apply a payslip import",
         "readOnlyHint": false,
         "destructiveHint": false,
         "idempotentHint": false,

@@ -139,7 +139,7 @@ Scope comes from the user's real grants (`own` = own · `team` = self + direct r
 
 ## Full tool index
 
-Every tool the server exposes (112), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
+Every tool the server exposes (118), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
 
 ### Multi-channel posting
 
@@ -209,6 +209,19 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 | `create_invitation` | write (`users.manage`) | One-time invitation link (7 days) for a new staff member of the user's own company; no email is sent, the user hands the link over. Needs a public base URL (otherwise a clear error, no invitation is created). Fails clearly when the plan's `maxUsers` is reached, the email belongs to another company or already has an account, or the role is above the user's own permissions (the AI cannot invite into the system "Quản trị" role) |
 | `list_invitations` | read (`users.manage`) | Pending invitations (status `unusable` = the inviter lost the permission or the role was deleted; all = include used/revoked/expired) and the roles one can invite to, within the user's `users.manage` scope (`all` sees every invitation, a narrow scope only those created by people in it). Links are never shown again |
 | `cancel_invitation` | write (`users.manage`) | Cancels a pending invitation (the link stops working; nothing is deleted), same scope rule. There is deliberately no password-reset tool: the owner resets staff passwords in Settings › Users, so the AI never sees a password |
+
+### Payroll (payslips as files)
+
+Same services and permission checks as the payroll routes (`payslips/*`); files come back base64-encoded in `data.file_base64` (about 25 KB max — larger exports are refused with a message, use the web app). No delete tool.
+
+| Tool | Kind | What it does |
+|---|---|---|
+| `export_payslip_excel` | read (`payroll.export`) | One payslip as xlsx (accounting template); only payslips in the user's `payroll.export` scope |
+| `export_payslip_pdf` | read (`payroll.export`) | One payslip as PDF, same scope rule |
+| `export_payslips_excel` | read (`payroll.export`) | A month (`YYYY-MM`) as xlsx: `layout=bulk` (one sheet per payslip, default) or `list` (one list sheet, optional `ordered_ids`) |
+| `get_payslip_import_template` | read (`payroll.manage`) | The manual-input xlsx template for a month, pre-filled with employees and current values |
+| `preview_payslip_import` | read (`payroll.manage`) | Dry run of an xlsx import (`file_base64`): cell-level changes and skipped rows (approved/paid payslips, unknown employees); writes nothing |
+| `apply_payslip_import` | write (`payroll.manage`) | Applies the import and recomputes totals in one transaction (all or nothing; approved/paid payslips are skipped). Call `preview_payslip_import` first. The base64 file is never written to the audit log (only its length) |
 
 ### Sales & payments
 

@@ -2529,6 +2529,7 @@ name = "mod-mcp"
 version = "0.3.0"
 dependencies = [
  "axum",
+ "base64 0.23.1",
  "chrono",
  "http",
  "jsonschema",
@@ -2540,6 +2541,7 @@ dependencies = [
  "mod-facebook",
  "mod-kanban",
  "mod-oauth",
+ "mod-payroll",
  "mod-reports",
  "mod-settings",
  "mod-setup",

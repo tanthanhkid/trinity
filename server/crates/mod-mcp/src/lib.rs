@@ -35,4 +35,6 @@ pub mod tools;
 pub use endpoint::{HttpIn, HttpOut, McpConfig, McpEndpoint};
 pub use exec::{ToolCtx, ToolError, ToolOutput, ToolRegistry, ToolRunner, ToolSpec};
 pub use routes::{McpState, api_router, specs};
-pub use tools::{SocialDeps, register_group1, register_group2, register_group3, register_social};
+pub use tools::{
+    FanpagePorts, SocialDeps, register_fanpage, register_group1, register_group2, register_group3, register_social,
+};

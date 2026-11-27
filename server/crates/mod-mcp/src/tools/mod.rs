@@ -10,6 +10,7 @@ pub(crate) mod act_records;
 pub(crate) mod act_tasks;
 mod contacts;
 mod deals;
+mod fanpage;
 mod options;
 mod records;
 mod schema;
@@ -32,6 +33,11 @@ use crate::auth::Principal;
 use crate::deps::app_err;
 use crate::exec::{ToolCtx, ToolError, ToolOutput, ToolRegistry, ToolRunner, ToolSpec};
 use crate::protocol::BoxFuture;
+
+pub use fanpage::{
+    BroadcastsPort, ChatLinksPort, CommentQuery, CommentsPort, FanpagePorts, FlowsPort, PageRef, PagesPort,
+    ScheduledPostsPort, register_fanpage,
+};
 
 type RunFn = for<'a> fn(&'a Value, &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>>;
 

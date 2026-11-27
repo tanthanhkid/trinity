@@ -295,16 +295,19 @@ impl Db {
             .acquire_timeout(cfg.acquire_timeout)
             .after_release(|conn, _meta| {
                 Box::pin(async move {
-                    // ROLLBACK: giao dịch còn mở (chỉ là cảnh báo nếu không có). RESET ALL: về giá trị của gói khởi
+                    // ROLLBACK chỉ khi sqlx biết kết nối còn giao dịch mở: gửi khi không có giao dịch làm Postgres
+                    // ghi cảnh báo "there is no transaction in progress" mỗi lần trả kết nối (#572).
+                    // RESET ALL: về giá trị của gói khởi
                     // động (schema không tồn tại, UTC, statement_timeout). DISCARD TEMP: bảng tạm của công ty trước
                     // (pg_temp đứng đầu search_path, sẽ che bảng thật của công ty sau). UNLISTEN *: kênh LISTEN.
                     // Không DISCARD ALL: nó xoá cả prepared statement mà statement cache của sqlx đang giữ.
                     // Lỗi ⇒ đóng kết nối.
-                    let ok =
-                        sqlx::raw_sql("ROLLBACK; RESET ALL; DISCARD TEMP; UNLISTEN *; SELECT pg_advisory_unlock_all()")
-                            .execute(&mut *conn)
-                            .await
-                            .is_ok();
+                    let sql = if sqlx::Connection::is_in_transaction(&*conn) {
+                        "ROLLBACK; RESET ALL; DISCARD TEMP; UNLISTEN *; SELECT pg_advisory_unlock_all()"
+                    } else {
+                        "RESET ALL; DISCARD TEMP; UNLISTEN *; SELECT pg_advisory_unlock_all()"
+                    };
+                    let ok = sqlx::raw_sql(sql).execute(&mut *conn).await.is_ok();
                     Ok(ok)
                 })
             })

@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { CircleAlert, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { acceptInvitation, previewInvitation, type InvitationPreview } from "@/lib/auth-api"
 import { describeError, serverSentence } from "@/lib/error-messages"
 import { setAccessToken, setRefreshToken, clearTokens } from "@/lib/token-storage"
+import { useRouteParams } from "@/lib/route-params"
 import { useAuthStore } from "@/store/auth"
 import { LoginBrandPanel } from "../../login/_components/login-brand-panel"
 
@@ -31,8 +32,8 @@ type Phase = { kind: "loading" } | { kind: "ready"; invite: InvitationPreview } 
 
 /** Trang nhận lời mời (công khai): người được mời đặt tên + mật khẩu, tạo tài khoản trong công ty của người mời. */
 export default function InvitePage() {
-  const params = useParams<{ token: string }>()
-  const token = decodeURIComponent(params.token ?? "")
+  const route = useRouteParams<"token">("/invite/:token")
+  const token = route ? decodeURIComponent(route.token ?? "") : ""
   const router = useRouter()
   const queryClient = useQueryClient()
   const setAuth = useAuthStore((s) => s.setAuth)
@@ -41,6 +42,7 @@ export default function InvitePage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!route) return // bản xuất tĩnh: chưa biết token tới khi mount
     let alive = true
     previewInvitation(token)
       .then((invite) => alive && setPhase({ kind: "ready", invite }))
@@ -51,7 +53,7 @@ export default function InvitePage() {
     return () => {
       alive = false
     }
-  }, [token])
+  }, [route, token])
 
   const {
     register,

@@ -2,7 +2,7 @@
 
 /** Một màn xem (kanban / lịch / bảng / danh sách) của bảng tuỳ biến. BE trả 404 nếu không có / không được thấy. */
 import { Loader2, SearchX } from "lucide-react"
-import { useParams } from "next/navigation"
+import { useRouteParams } from "@/lib/route-params"
 import { PermissionGate } from "@/lib/rbac"
 import { ShellEmptyState } from "@/components/app-shell/empty-state"
 import { CustomObjectGate } from "@/components/custom-objects/custom-object-gate"
@@ -25,7 +25,9 @@ function ViewBody({ def, viewKey }: { def: CustomObjectDef; viewKey: string }) {
 }
 
 export default function CustomViewPage() {
-  const { objectKey, viewKey } = useParams<{ objectKey: string; viewKey: string }>()
+  const route = useRouteParams<"objectKey" | "viewKey">("/x/:objectKey/v/:viewKey")
+  if (!route) return null
+  const { objectKey, viewKey } = route
   return (
     <PermissionGate permission="custom_records.view">
       <CustomObjectGate objectKey={objectKey}>{(def) => <ViewBody def={def} viewKey={viewKey} />}</CustomObjectGate>

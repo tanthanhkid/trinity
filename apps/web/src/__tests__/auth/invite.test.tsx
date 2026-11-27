@@ -18,6 +18,7 @@ vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ clear: vi.fn(
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn() }),
   useParams: () => ({ token: 'c3.AbCd-_9' }),
+  usePathname: () => '/invite/c3.AbCd-_9',
 }))
 vi.mock('../../app/login/_components/login-brand-panel', () => ({ LoginBrandPanel: () => null }))
 

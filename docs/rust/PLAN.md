@@ -1285,6 +1285,16 @@ với 4 trang mô phỏng, chạy bằng máy chủ nhỏ đóng vai Rust, đo b
 - Token mời nằm trong đường dẫn như hiện nay, nên bộ lọc log của Rust phải che đoạn `/invite/<token>` (kể cả trong yêu cầu payload).
   Phương án B giữ token ngoài log bằng `#fragment` nhưng đổi URL mời đã gửi đi.
 
+**Cách W02a làm (hợp đồng cho K18).** `pnpm build:export` (`scripts/build-export.mjs`, biến `NEXT_OUTPUT=export`) ra `apps/web/out/` + `out/export-rules.json`
+(luật giữ chỗ sinh từ tên tệp, thuật toán ở `scripts/export-static.mjs`: tệp đúng tên trước, rồi luật nhiều đoạn chữ nhất trước;
+đoạn bắt đầu bằng `__next` không phải giá trị tham số). `generateStaticParams` đặt ở `layout.tsx` của đoạn động (trang là client
+component), KHÔNG đặt `dynamicParams = false` (chỉ `true` bị `output: export` từ chối) nên bản `standalone` vẫn dựng theo yêu cầu.
+Component đọc tham số bằng `useRouteParams` (`lib/route-params.ts`). Bản xuất bỏ `ts/js` khỏi `pageExtensions` nên `route.ts` và
+`proxy.ts` không vào `out/`; `page.export.tsx` / `page.standalone.tsx` chọn trang `/privacy`, `/terms`. Rust chèn khi phục vụ HTML:
+`<meta name="store-slug">` (tên miền phụ, trang `s/_`); ở `/privacy`, `/terms`: thay `__LEGAL_COMPANY_NAME__` (rỗng nếu không có),
+`__LEGAL_CONTACT__` (không có ⇒ "quản trị viên của hệ thống Trinity bạn đang dùng"), thêm `<meta name="trinity-legal" content="JSON của legal">`
+(đã escape thuộc tính); thiếu meta thì trang gọi `GET /api/v1/site-config`. Máy chủ thử: `serve:export`, kiểm: `check:export`, ngân sách: `size:routes:export`.
+
 Rủi ro còn lại của A: đặt tên tệp payload (`__next.<route>.$d$param...`) là chi tiết nội bộ của Next. Giảm bằng cách ghim phiên bản
 `next` và để W04 (Playwright trên binary) kiểm URL sâu + điều hướng cho 8 trang động mỗi lần nâng cấp. Nếu một lần nâng cấp làm A
 vỡ, chuyển sang B theo thứ tự: đổi sang query, Rust chuyển hướng URL cũ. Chưa đo: `useParams()` trả giá trị gì trong bản xuất,

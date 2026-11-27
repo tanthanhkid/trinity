@@ -22,6 +22,8 @@ vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ user: null, isLoading: fa
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), back: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({ id: "1" }),
+  usePathname: () => "/contacts/1",
 }))
 vi.mock("@/lib/api-client", () => ({ default: { get: vi.fn().mockResolvedValue({ data: [] }), post: vi.fn() } }))
 
@@ -130,7 +132,7 @@ describe("Cổng quyền contacts.view — danh sách + chi tiết", () => {
   })
 
   it("/contacts/:id thiếu contacts.view → <Forbidden /> (không gọi API chi tiết)", () => {
-    renderNew2(<ContactDetailPage params={Promise.resolve({ id: "1" })} />)
+    renderNew2(<ContactDetailPage />)
     expect(screen.getByText("Bạn không có quyền truy cập trang này")).toBeInTheDocument()
   })
 })

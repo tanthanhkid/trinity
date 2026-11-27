@@ -3,8 +3,6 @@ import { Compass, Home } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { cn } from "@/lib/utils"
 
-export const dynamic = "force-dynamic"
-
 export default function NotFound() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 py-12">

@@ -16,7 +16,7 @@ Default **OFF** (invariant #4): needs both `INTEGRATIONS_MCP_ENABLED=true` and `
 | Consent page (Next) | `https://<domain>/oauth/authorize` |
 | DCR / token / revoke | `POST …/api/v1/oauth/register` · `…/token` · `…/revoke` |
 
-If the reverse proxy only forwards `/api/v1/` to the monolith and `/` to the web app, the 2 `/.well-known/*` URLs at the ROOT are forwarded by Next to the monolith via `rewrites()` in `apps/web/next.config.ts` (target `MONOLITH_INTERNAL_URL`, default `http://127.0.0.1:4000`; pointing only at `/api/v1/oauth/*`). No extra reverse-proxy configuration is needed.
+If the reverse proxy only forwards `/api/v1/` to the monolith and `/` to the web app, the 2 `/.well-known/*` URLs at the ROOT are forwarded by the Rust process to the monolith (only to `/api/v1/oauth/*`; the old Next `rewrites()` are gone since W02b). No extra reverse-proxy configuration is needed.
 
 ## Security model
 

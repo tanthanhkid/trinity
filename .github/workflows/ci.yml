@@ -445,31 +445,33 @@ jobs:
       - name: Cache next build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: apps/web/.next/cache
+          path: apps/web/.next-export/cache
           key: next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/web/src/**') }}
           restore-keys: |
             next-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
             next-${{ runner.os }}-
 
-      - name: next build
+      # Web tĩnh (W02b): `next build` xuất ra apps/web/out.
+      - name: next build (xuất tĩnh)
         run: pnpm --filter ./apps/web build
+
+      - name: Kiểm bản xuất tĩnh
+        run: pnpm --filter ./apps/web check:export
 
       # JS tải lần đầu theo route (gzip) so với apps/web/route-js-budget.json — bảng in vào tóm tắt job.
       - name: Route JS budget
         working-directory: apps/web
-        run: node scripts/route-js-size.mjs
+        run: node scripts/route-js-size.mjs --out
 
       - name: Contrast (design tokens)
         working-directory: apps/web
         run: node e2e/premium/contrast.mjs
 
-      # Bản standalone (cách chạy trên máy chủ tự quản): chép static + public cạnh server.js rồi chạy ở cổng 3917.
-      - name: Start web (standalone)
+      # Máy chủ tĩnh thử (serve-export.mjs, đóng vai Rust của K18) phục vụ out/ ở cổng 3917.
+      - name: Start web (static export)
         working-directory: apps/web
         run: |
-          cp -r .next/static .next/standalone/apps/web/.next/static
-          if [ -d public ]; then cp -r public .next/standalone/apps/web/public; fi
-          PORT=3917 HOSTNAME=127.0.0.1 nohup node .next/standalone/apps/web/server.js > /tmp/web.log 2>&1 &
+          PORT=3917 nohup node scripts/serve-export.mjs > /tmp/web.log 2>&1 &
           for i in $(seq 1 60); do curl -sf -o /dev/null http://127.0.0.1:3917/login && exit 0; sleep 1; done
           cat /tmp/web.log; exit 1
 

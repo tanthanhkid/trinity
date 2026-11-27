@@ -1,5 +1,6 @@
 {
   "routes": [],
   "jobs": {},
-  "migrate": "node"
+  "migrate": "node",
+  "web": "rust"
 }

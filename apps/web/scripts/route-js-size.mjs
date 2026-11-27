@@ -131,7 +131,7 @@ if (args.has('--json')) {
 
 if (args.has('--write')) {
   if (fromOut) {
-    console.error('--write chỉ dùng với `.next` (tên route trong ngân sách là của bản standalone); bỏ --out.')
+    console.error('--write chỉ dùng với `.next` (ngân sách ghi theo tên route của `.next`); bỏ --out.')
     process.exit(2)
   }
   const up5 = (n) => Math.ceil((n * 1.05) / 5) * 5

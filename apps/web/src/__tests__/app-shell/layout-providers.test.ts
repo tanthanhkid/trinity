@@ -138,9 +138,8 @@ describe("layout không tự quyết điều hướng", () => {
     expect(layoutCode).not.toMatch(/router\.(replace|push)\(/)
   })
 
-  it("KHÔNG đưa quyết định giao diện vào middleware (nó decode JWT không verify)", () => {
-    const middleware = read("proxy.ts")
-    expect(middleware).not.toMatch(/ui_version|ui-v2|data-ui/)
+  it("không còn proxy.ts của Next (luật điều hướng do Rust làm, K18)", () => {
+    expect(existsSync(join(SRC, "proxy.ts"))).toBe(false)
   })
 })
 

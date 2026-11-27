@@ -1325,6 +1325,20 @@ vỡ, chuyển sang B theo thứ tự: đổi sang query, Rust chuyển hướng
 lượng payload prefetch của A so với B, và 4 trang còn lại trong 8 (`projects/[id]`, `x/[objectKey]`, `x/[objectKey]/[id]`,
 `x/[objectKey]/new`) cùng mẫu với `contacts/[id]` nên suy ra, không đo riêng.
 
+**Đã làm ở W02b** (xếp chồng trên W02a; K18 và W03 là nhánh riêng, chưa vào nhánh này). `next.config.ts` chỉ còn `output: "export"` (`distDir` `.next-export`);
+`pnpm build` = `pnpm build:export` (`scripts/build-export.mjs`, bỏ biến `NEXT_OUTPUT`), `start` bỏ. Xoá `src/proxy.ts`, 4 route handler (`api/v1`, `uploads`,
+`api/build-id`, `api/fe-logging`), `peer-ip.cjs`, `lib/client-ip-headers.ts`, `legal-page.tsx` (bản đọc env), hai `page.standalone.tsx`; `page.export.tsx` đổi tên
+thành `page.tsx` (phần `pageExtensions` bỏ). Test của các thứ đã xoá bỏ theo (proxy API, header IP, preload, rewrites `/.well-known`, route `/uploads`); phần đối chiếu
+preload trong `packages/rbac-nest/src/client-ip.spec.ts` bỏ, hàm phía API giữ nguyên. Việc của `proxy.ts` và `rewrites/redirects/headers` cũ nằm ở K18 (`trinity-http::web::nav`),
+các test tương ứng đi theo K18. `Dockerfile`: bỏ target `web`; target `trinity` chép `out/` vào `/srv/web` và đặt `WEB_DIR=/srv/web`. `docker-compose.yml`: bỏ service `web`,
+gộp cấu hình lai vào đây (`trinity` giữ cổng 3000, `api` chung network namespace, loopback), xoá `docker-compose.hybrid.yml`; `deploy/hybrid/ownership.json` thêm `"web": "rust"`
+(khoá `web` có từ K18, trước đó tệp sẽ bị từ chối vì `deny_unknown_fields`). CI: `web-ui` build xuất tĩnh, `check:export`, `route-js-size --out`, chạy bằng `serve-export.mjs`;
+Nightly e2e chạy `serve-export.mjs` với `API_PROXY_URL` (thay cho Playwright trên Rust, W04). Tài liệu: `deployment.md`, `runbooks/hybrid.md`, `.env.example`.
+Chỗ lệch/chờ: (1) `docker.yml` còn dựng target `web` (đã xoá) nên KHÔNG gắn tag giữa W02b và X06 (đúng tiêu chí issue); X06 đổi sang image `trinity`;
+(2) `/api/fe-logging` bị bỏ (theo quyết định log): `fe-logger.ts` còn POST tới đó, nhận 404 và nuốt lỗi, W03/X06 dọn nốt phía trình duyệt; (3) `WEB_UPSTREAM_URL` còn trong `serve.rs`
+(K18 cũng sửa tệp này, gỡ sau khi cả hai vào `main`); (4) `tests/load/baseline.sh` (R003) còn đòi bản `standalone`, chỉ chạy được trên commit trước W02b;
+(5) `serve-export.mjs` không chuyển hướng chưa đăng nhập như `proxy.ts`, nên e2e đêm cần luật điều hướng của Rust khi W04 thay thế.
+
 **Thứ tự merge để `main` luôn chạy được** (không vòng phụ thuộc):
 
 1. D01: Rust đứng trước, chuyển tiếp cả trang web sang Next. Không cần web tĩnh.

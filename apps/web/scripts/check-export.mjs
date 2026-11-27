@@ -2,8 +2,8 @@
 /**
  * Kiểm bản xuất tĩnh sau `pnpm build:export` (tiêu chí W02a), không cần trình duyệt:
  *   node scripts/check-export.mjs
- *  1. Mọi trang trong src/app (bỏ `page.standalone.tsx`) mở được qua máy chủ tĩnh thử (serve-export.mjs), route động bằng giá trị thật;
- *  2. không tệp nào CÓ TRONG bản xuất còn `force-dynamic` (bỏ `*.standalone.*`, `route.ts`, `proxy.ts`: không vào bản xuất);
+ *  1. Mọi trang trong src/app mở được qua máy chủ tĩnh thử (serve-export.mjs), route động bằng giá trị thật;
+ *  2. không tệp nào CÓ TRONG bản xuất còn `force-dynamic`;
  *  3. `/privacy`, `/terms` có tên đơn vị ngay trong HTML khi máy chủ thử chèn giá trị; tên miền phụ cho `<meta name="store-slug">`;
  *  4. luật giữ chỗ: payload (`__next*.txt`) của route động cũng được trả.
  */
@@ -35,10 +35,10 @@ for (const f of walk(appDir)) {
   const rel = relative(appDir, f).split(sep).join('/')
   const base = rel.split('/').pop()
   if (/\.(test|spec)\./.test(base) || rel.includes('/__tests__/')) continue
-  const inExport = /\.tsx$/.test(base) && !/\.standalone\.tsx$/.test(base) // pageExtensions của bản xuất: export.tsx, tsx
+  const inExport = /\.tsx$/.test(base)
   if (!inExport) continue
   if (/^export const dynamic\s*=\s*['"]force-dynamic['"]/m.test(readFileSync(f, 'utf8'))) forceDynamic.push(rel)
-  if (/^page(\.export)?\.tsx$/.test(base)) {
+  if (/^page\.tsx$/.test(base)) {
     const segs = rel.split('/').slice(0, -1).filter((s) => !/^\(.*\)$/.test(s))
     pages.push('/' + segs.map((s) => (s.startsWith('[') ? SAMPLE[s.slice(1, -1)] ?? '1' : s)).join('/'))
   }

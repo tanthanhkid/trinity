@@ -40,19 +40,13 @@ logs and the online store all use the client's IP. It is determined **once**, by
 connection first (the **edge**), as soon as the headers arrive, and passed inward signed. No header sent by the client is
 trusted unless `TRUSTED_PROXY` says the proxy in front of the edge writes it.
 
-- **Web is the edge** in every normal install (browser → [Caddy/nginx/Cloudflare] → web → API). The preload file
-  `apps/web/peer-ip.cjs` does the work: start the web server with `NODE_OPTIONS=--require <repo>/apps/web/peer-ip.cjs`
-  (the Docker image sets it). It drops every `x-trinity-*` header the client sent, determines the IP from the TCP peer
-  and `TRUSTED_PROXY`, and the `/api/v1` proxy re-signs it right before calling the API. Only `x-trinity-client-ip` and `x-trinity-peer-ip`
-  are removed; other `x-trinity-*` headers (such as `X-Trinity-Signature` on incoming webhooks) pass through. A signed
-  `x-trinity-client-ip` arriving at web is kept only from loopback or a proxy listed in `TRUSTED_PROXY`. The web process needs
-  `TRUSTED_PROXY`, `CLOUDFLARE_IP_RANGES` (optional) and the internal secret (`INTERNAL_SERVICE_SECRET` or
-  `SERVICE_SECRET`, the same value the API has). Without the preload file, or without a secret, the web sends
-  "untrusted" and the API never sees a client-chosen address (the API accepts an unsigned "untrusted" only from
-  loopback or a proxy listed in its own `TRUSTED_PROXY`; from anywhere else it is ignored). The web proxy never forwards `X-Forwarded-For`,
-  `X-Real-IP`, `CF-Connecting-IP`, `Forwarded` or `True-Client-IP` from the browser.
-- **The API** (`resolveClientIp`, `packages/rbac-nest/src/client-ip.ts`) trusts the signed header, and applies its own
-  `TRUSTED_PROXY` only to connections that reach it directly (no signed header).
+- **The Rust process (`trinity serve`) is the edge** (W02b: there is no Next server any more; browser → [Caddy/nginx/Cloudflare] → Rust →
+  API). It drops every `x-trinity-client-ip` / `x-trinity-peer-ip` header the client sent, determines the IP from the TCP peer and
+  `TRUSTED_PROXY`, and signs it right before forwarding to the API (`/api/v1`, `/uploads`, `/notif-ws`, `/.well-known`). Other
+  `x-trinity-*` headers (such as `X-Trinity-Signature` on incoming webhooks) pass through. The Rust process needs `TRUSTED_PROXY`,
+  `CLOUDFLARE_IP_RANGES` (optional) and the internal secret (`INTERNAL_SERVICE_SECRET` or `SERVICE_SECRET`, the same value the API has).
+  The API accepts an unsigned "untrusted" only from loopback or a proxy listed in its own `TRUSTED_PROXY`; from anywhere else it is
+  ignored. Rust never forwards `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`, `Forwarded` or `True-Client-IP` from the browser.
 
 `TRUSTED_PROXY` applies to the **TCP peer** of the edge:
 
@@ -64,19 +58,19 @@ trusted unless `TRUSTED_PROXY` says the proxy in front of the edge writes it.
 | `cidr:<list>` | The **right-most** `X-Forwarded-For` entry, only when the peer is in the list (CIDR or IP, comma-separated; the keyword `docker-gateway` is the container's default gateway read from `/proc/net/route`, only inside a container). `X-Real-IP` only with an explicit `;header=x-real-ip` |
 | `cloudflare-behind:<list>` | Cloudflare → Caddy/nginx → app. When the peer is in the list: take the right-most `X-Forwarded-For` entry (written by that proxy); if it is in `CLOUDFLARE_IP_RANGES` use `CF-Connecting-IP`, otherwise that entry |
 
-| Deployment | `TRUSTED_PROXY` (for web) |
+| Deployment | `TRUSTED_PROXY` (for the Rust process) |
 |---|---|
-| Process manager, Caddy/nginx on the same machine → web → API | `cidr:127.0.0.1/32` |
+| Process manager, Caddy/nginx on the same machine → Rust → API | `cidr:127.0.0.1/32` |
 | Same, with Cloudflare in front of Caddy/nginx | `cloudflare-behind:127.0.0.1/32` |
-| Docker Compose, `web` port published directly | `none` |
-| Docker Compose, Cloudflare connects straight to the `web` port | `cloudflare` |
+| Docker Compose, `trinity` port published directly | `none` |
+| Docker Compose, Cloudflare connects straight to the `trinity` port | `cloudflare` |
 | Docker Compose behind Caddy/nginx on the host | `cidr:docker-gateway` (or `cloudflare-behind:docker-gateway`), and `WEB_BIND=127.0.0.1` |
-| Cloudflare Tunnel, process manager (web on `HOSTNAME=127.0.0.1`) | `cloudflare-tunnel` |
-| Cloudflare Tunnel with Docker Compose | not supported by the stock compose file yet (`cloudflared` must share the `web` container's network namespace so that web can listen on loopback); use one of the other values |
+| Cloudflare Tunnel, process manager (Rust listening on loopback) | `cloudflare-tunnel` |
+| Cloudflare Tunnel with Docker Compose | not supported by the stock compose file yet (`cloudflared` must share the `trinity` container's network namespace so that Rust can listen on loopback); use one of the other values |
 
-In Docker Compose, `web` gets `TRUSTED_PROXY`, `CLOUDFLARE_IP_RANGES` and `INTERNAL_SERVICE_SECRET`
-(`${INTERNAL_SERVICE_SECRET:-${SERVICE_SECRET}}`, as for `api`); the `api` container gets `API_TRUSTED_PROXY`
-(default `none`), which only matters for connections to its loopback port on the host. With a process manager, the API
+In Docker Compose, `trinity` gets `TRUSTED_PROXY`, `CLOUDFLARE_IP_RANGES` and `INTERNAL_SERVICE_SECRET`
+(`${INTERNAL_SERVICE_SECRET:-${SERVICE_SECRET}}`, as for `api`); the `api` container shares its network namespace and always uses
+`TRUSTED_PROXY=none` (its peer is loopback plus the signed header). With a process manager, the API
 reads `TRUSTED_PROXY` too; set `LISTEN_HOST=127.0.0.1` there when the API port should only be reachable locally.
 
 Caddy always writes `X-Forwarded-For` itself. **nginx does not**: every `location` that points at the app needs
@@ -135,8 +129,9 @@ Keep `INTEGRATIONS_SECRET_KEY` somewhere safe: losing it makes stored webhook se
 
 ## Without Docker
 
-Build with `pnpm --filter "./packages/*" build && pnpm --filter @trinity/monolith build && pnpm --filter web build`,
-run `node apps/monolith/dist/apps/monolith/src/main.js` and `NODE_OPTIONS=--require ./apps/web/peer-ip.cjs node apps/web/.next/standalone/apps/web/server.js` (the web process also needs `TRUSTED_PROXY` and the internal secret, see "Client IP") under a
+Build with `pnpm --filter "./packages/*" build && pnpm --filter @trinity/monolith build && pnpm --filter web build` (the web build is a static
+export in `apps/web/out`), run `node apps/monolith/dist/apps/monolith/src/main.js` (`PORT=4000`, `LISTEN_HOST=127.0.0.1`) and
+`WEB_DIR=<repo>/apps/web/out NODE_FALLBACK_URL=http://127.0.0.1:4000 COMPAT_API_PORT=4001 trinity serve` (the Rust process also needs `TRUSTED_PROXY` and the internal secret, see "Client IP") under a
 process manager of your choice (systemd, pm2). Apply migrations with `pnpm --filter @trinity/prisma migrate:deploy`.
 
 **Several API processes.** In-memory state is kept in step across processes (Node with Node, and Node with the Rust
@@ -208,14 +203,14 @@ The Rust rewrite of the backend (`server/`, [docs/rust/PLAN.md](rust/PLAN.md)) i
   serves each route prefix and runs each background job. Format and matching rules (longest prefix, then method; `GET`
   also covers `HEAD`): [server/README.md](../server/README.md#tệp-sở-hữu-trinity_ownership_file).
 
-### Hybrid deployment (Rust in front)
+### Rust in front (the stock compose file)
 
-Maintainers building from `main` can run Rust on the public port 3000 with Node and Next behind it on loopback only
-(`docker-compose.hybrid.yml`: three containers sharing one network namespace; with a process manager, a CI binary checked
-against its SHA-256). Rust is then the only edge process: set `TRUSTED_PROXY` on it, send everything including `/notif-ws/` to
-port 3000 (the old rule pointing `/notif-ws/*` at port 4000 must go), and keep `INTERNAL_SERVICE_SECRET` identical for all
-three processes. Deploy order: Prisma migrate, start Node, swap the Rust binary (it answers 503 for companies not migrated to the
-version it was built with). The public release keeps the stock `docker-compose.yml` until X06. Full procedure, health gates and
+`docker-compose.yml` runs `trinity` (Rust) on the public port 3000 with `api` (Node) behind it on loopback only (two containers sharing one
+network namespace; with a process manager, a CI binary checked against its SHA-256). Rust serves the static web app (`WEB_DIR`, `/srv/web`
+in the image) and forwards what it does not own. It is the only edge process: set `TRUSTED_PROXY` on it, send everything including `/notif-ws/` to
+port 3000 (the old rule pointing `/notif-ws/*` at port 4000 must go), and keep `INTERNAL_SERVICE_SECRET` identical for both
+processes. Deploy order: Prisma migrate, start Node, swap the Rust binary (it answers 503 for companies not migrated to the
+version it was built with). Full procedure, health gates and
 rollback: [runbooks/hybrid.md](runbooks/hybrid.md) (Vietnamese).
 
 ### Reverse proxy for the Rust server (one port)

@@ -150,32 +150,6 @@ describe('bảng ca TRUSTED_PROXY × peer × header', () => {
     expect(ip(req(peer, headers), env({ TRUSTED_PROXY: tp }))).toBe(expected)
   })
 
-  /**
-   * Đối chiếu tệp nạp trước của web (`apps/web/peer-ip.cjs`, JS thuần, chạy trong tiến trình Next) với hàm của API:
-   * web là biên, ký giá trị; API (peer = web trên loopback) kiểm chữ ký rồi áp luật "không tin được" — kết quả cuối
-   * phải trùng bảng ca ở trên.
-   */
-  describe('tệp nạp trước của web cho cùng kết quả', () => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const loadPreload = () => {
-      process.env.TRINITY_PEER_IP_NO_INSTALL = '1'
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      return require('../../../apps/web/peer-ip.cjs') as {
-        prepare(r: ClientIpRequest, e: NodeJS.ProcessEnv): string
-      }
-    }
-    it.each(rows)('%s', (_name, tp, peer, headers, expected) => {
-      const preload = loadPreload()
-      const e = env({ TRUSTED_PROXY: tp, TRINITY_TEST_ROUTE_TABLE: ROUTE_TABLE, TRINITY_TEST_IN_CONTAINER: '1' })
-      const atWeb = req(peer, { ...headers, [CLIENT_IP_HEADER]: 'giả;1;x', 'x-trinity-peer-ip': FAKE })
-      __setClockForTest(null) // preload ký theo đồng hồ thật
-      preload.prepare(atWeb, e)
-      expect(atWeb.headers['x-trinity-peer-ip']).toBeUndefined()
-      const atApi = req('127.0.0.1', atWeb.headers as Record<string, string>)
-      expect(ip(atApi, env({ TRUSTED_PROXY: 'none' }))).toBe(expected)
-    })
-  })
-
   it('CLOUDFLARE_IP_RANGES ghi đè danh sách mặc định (Cloudflare giả trong phòng thử)', () => {
     const e = env({ TRUSTED_PROXY: 'cloudflare', CLOUDFLARE_IP_RANGES: '192.0.2.0/24' })
     expect(ip(req('192.0.2.7', { 'cf-connecting-ip': REAL }), e)).toBe(REAL)

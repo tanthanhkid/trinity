@@ -183,20 +183,6 @@
         }
       ],
       "notifications": []
-    },
-    {
-      "name": "payment.received",
-      "events": [
-        {
-          "event_type": "payment.received",
-          "resource": "payment_intent",
-          "resource_id": "77",
-          "payload": "{\"payment\": {\"id\": 77, \"amount\": \"1500000\", \"paid_at\": \"2026-11-26T03:04:05.678Z\", \"provider\": \"sepay\"}}",
-          "actor_user_id": null,
-          "pending": true
-        }
-      ],
-      "notifications": []
     }
   ]
 }

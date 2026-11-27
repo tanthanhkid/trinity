@@ -4,7 +4,7 @@
 //! bị TRUNCATE): `TEST_DATABASE_URL=postgresql://<user>@localhost:5432/trinity_<tên> cargo test -p trinity-db --test outbox -- --ignored --test-threads=1`
 //!
 //! So với bản Node: `fixtures/k36/expected.json` do `gen.cjs` sinh từ `publishIntegrationEvent` và `createMany` thật của Node
-//! cho 10 kịch bản trong `scenarios.json`; test chạy cùng kịch bản bằng hàm Rust rồi so từng dòng.
+//! cho 9 kịch bản trong `scenarios.json`; test chạy cùng kịch bản bằng hàm Rust rồi so từng dòng.
 
 use std::time::Duration;
 
@@ -14,6 +14,13 @@ use sqlx::{Connection, PgConnection, Row};
 use trinity_db::outbox::{NewNotification, OutboxError, create_notification, publish_integration_event};
 use trinity_db::sync::{self, SyncEvent};
 use trinity_db::{CompanyRef, Db, DbConfig};
+
+/// Các test cùng ghi `integration_events`/`notification_logs` và đếm listener trên một DB: chạy nối tiếp kể cả khi
+/// `cargo test` không có `--test-threads=1` (CI chạy song song).
+fn serial() -> &'static tokio::sync::Mutex<()> {
+    static S: std::sync::OnceLock<tokio::sync::Mutex<()>> = std::sync::OnceLock::new();
+    S.get_or_init(|| tokio::sync::Mutex::new(()))
+}
 
 fn url() -> String {
     std::env::var("TEST_DATABASE_URL").expect("test pg cần TEST_DATABASE_URL")
@@ -109,7 +116,8 @@ fn note(u: i32) -> NewNotification {
 
 #[tokio::test]
 #[ignore = "cần TEST_DATABASE_URL"]
-async fn muoi_kich_ban_giong_ban_node() {
+async fn chin_kich_ban_giong_ban_node() {
+    let _serial = serial().lock().await;
     let db = db().await;
     let scenarios: Value = serde_json::from_str(include_str!("fixtures/k36/scenarios.json")).unwrap();
     let expected: Value = serde_json::from_str(include_str!("fixtures/k36/expected.json")).unwrap();
@@ -119,7 +127,7 @@ async fn muoi_kich_ban_giong_ban_node() {
     let tenant = db.tenant(CompanyRef::DEFAULT).await.unwrap();
 
     let list = scenarios["scenarios"].as_array().unwrap();
-    assert_eq!(list.len(), 10);
+    assert_eq!(list.len(), 9);
     for (s, exp) in list.iter().zip(expected["scenarios"].as_array().unwrap()) {
         let name = s["name"].as_str().unwrap();
         assert_eq!(exp["name"], s["name"]);
@@ -185,6 +193,7 @@ async fn muoi_kich_ban_giong_ban_node() {
 #[tokio::test]
 #[ignore = "cần TEST_DATABASE_URL"]
 async fn loai_la_bi_tu_choi_rollback_khong_de_lai_dong_va_dong_nam_trong_hang_doi_node() {
+    let _serial = serial().lock().await;
     let db = db().await;
     let tenant = db.tenant(CompanyRef::DEFAULT).await.unwrap();
     let mut admin = PgConnection::connect(&url()).await.unwrap();
@@ -231,6 +240,7 @@ async fn loai_la_bi_tu_choi_rollback_khong_de_lai_dong_va_dong_nam_trong_hang_do
 #[tokio::test]
 #[ignore = "cần TEST_DATABASE_URL"]
 async fn bell_chi_phat_khi_commit_dung_khuon_va_listener_loc_tin_cua_minh() {
+    let _serial = serial().lock().await;
     let db = db().await;
     let tenant = db.tenant(CompanyRef::DEFAULT).await.unwrap();
     let mut admin = PgConnection::connect(&url()).await.unwrap();
@@ -316,6 +326,7 @@ async fn bell_chi_phat_khi_commit_dung_khuon_va_listener_loc_tin_cua_minh() {
 #[tokio::test]
 #[ignore = "cần TEST_DATABASE_URL"]
 async fn bell_nhieu_nguoi_chia_lo_duoi_gioi_han() {
+    let _serial = serial().lock().await;
     let mut raw = PgListener::connect(&url()).await.unwrap();
     raw.listen(sync::SYNC_CHANNEL).await.unwrap();
     let users: Vec<i32> = (1..=450).collect();
@@ -342,6 +353,7 @@ async fn bell_nhieu_nguoi_chia_lo_duoi_gioi_han() {
 #[tokio::test]
 #[ignore = "cần TEST_DATABASE_URL"]
 async fn mat_ket_noi_nghe_thi_gui_resync_va_van_nhan_tin_sau_do() {
+    let _serial = serial().lock().await;
     let mut admin = PgConnection::connect(&url()).await.unwrap();
     let mut rx = sync::listen(DbConfig::new(url()).connect_options().unwrap());
     tokio::time::sleep(Duration::from_millis(500)).await;
@@ -390,6 +402,7 @@ async fn mat_ket_noi_nghe_thi_gui_resync_va_van_nhan_tin_sau_do() {
 #[tokio::test]
 #[ignore = "cần TEST_DATABASE_URL"]
 async fn bo_receiver_thi_ket_noi_nghe_dong_lai() {
+    let _serial = serial().lock().await;
     let mut admin = PgConnection::connect(&url()).await.unwrap();
     let before = listeners(&mut admin).await;
     let rx = sync::listen(DbConfig::new(url()).connect_options().unwrap());

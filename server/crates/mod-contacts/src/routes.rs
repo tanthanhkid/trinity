@@ -529,7 +529,7 @@ async fn create(
     }
     .await;
     if let Ok(created) = &res {
-        c.cache.clear();
+        c.cache.invalidate_with(&c.db, r.company).await;
         c.hooks.after_create(r.company, &created.notifications).await;
     }
     ok(res)
@@ -571,7 +571,7 @@ async fn remove(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>,
     }
     .await;
     if res.is_ok() {
-        c.cache.clear();
+        c.cache.invalidate_with(&c.db, r.company).await;
         c.hooks.after_remove_or_restore(r.company).await;
     }
     ok(res)
@@ -589,7 +589,7 @@ async fn restore(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>
     }
     .await;
     if res.is_ok() {
-        c.cache.clear();
+        c.cache.invalidate_with(&c.db, r.company).await;
         c.hooks.after_remove_or_restore(r.company).await;
     }
     ok(res)

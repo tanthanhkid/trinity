@@ -12,6 +12,7 @@ use mod_contacts::write::{CreateContact, UpdateContact, create, remove, restore,
 use mod_contacts::{Actor, Scopes};
 use serde_json::{Value, json};
 use sqlx::PgConnection;
+use trinity_db::sync::{self, SyncEvent};
 use trinity_db::{CompanyRef, Db, DbConfig, TenantDb};
 use trinity_docgen::xlsx::read_first_sheet;
 use trinity_kernel::error::{AppError, Message};
@@ -846,4 +847,91 @@ async fn contact_unassigned(c: &mut PgConnection, phone: &str) {
     .execute(c)
     .await
     .unwrap();
+}
+
+fn test_url() -> String {
+    std::env::var("TEST_DATABASE_URL").expect("test pg cần TEST_DATABASE_URL")
+}
+
+async fn page_total(c: &mut PgConnection, scopes: &Scopes, who: i32, cache: &CountCache) -> i64 {
+    let l = find_all(
+        c,
+        scopes,
+        &actor(who, false),
+        &q(json!({ "page": 1, "limit": 3 })),
+        cache,
+    )
+    .await
+    .unwrap();
+    let Meta::Page { total, .. } = l.meta else {
+        panic!("thiếu meta trang")
+    };
+    total
+}
+
+/// G12b: tin `cache` của tiến trình khác (origin khác) đi qua kênh `trinity_sync` thật làm số đếm cũ bị xoá.
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn tin_cache_cua_tien_trinh_khac_xoa_so_dem_khach() {
+    let _s = SERIAL.lock().await;
+    let db = tenant().await;
+    let mut c = db.acquire().await.unwrap();
+    clean(&mut c).await;
+    let boss = user(&mut c, 1, "Trưởng nhóm", None).await;
+    contact(&mut c, "0907000201", "Khách 1", boss).await;
+    contact(&mut c, "0907000202", "Khách 2", boss).await;
+    let scopes = own(boss);
+    let live = CountCache::new();
+    assert_eq!(page_total(&mut c, &scopes, boss, &live).await, 2);
+    contact(&mut c, "0907000203", "Khách 3", boss).await;
+    assert_eq!(
+        page_total(&mut c, &scopes, boss, &live).await,
+        2,
+        "còn số cũ trong cache"
+    );
+
+    let mut rx = sync::listen(DbConfig::new(test_url()).connect_options().unwrap());
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let mut f = serde_json::Map::new();
+    f.insert("p".into(), Value::from("crm:contacts:count:"));
+    let payload = sync::build_payload("node-9-abcd", "cache", 1, &f).unwrap();
+    sqlx::query("SELECT pg_notify($1, $2)")
+        .bind(sync::SYNC_CHANNEL)
+        .bind(payload)
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    // Nối lại có thể báo thêm Resync trước tin; Resync cũng xoá cache nên chỉ cần đợi tin `cache`.
+    loop {
+        let ev = tokio::time::timeout(std::time::Duration::from_secs(3), rx.recv())
+            .await
+            .expect("có tin")
+            .unwrap();
+        live.on_sync_event(&ev);
+        if matches!(&ev, SyncEvent::Message(e) if e.kind == "cache") {
+            break;
+        }
+    }
+    assert_eq!(page_total(&mut c, &scopes, boss, &live).await, 3, "đã đếm lại từ DB");
+}
+
+/// G12b: `invalidate` xoá cache RAM và phát tin `cache` (`p` = `crm:contacts:count:`) đúng công ty khi commit.
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn invalidate_phat_notify_cache_dem_khach() {
+    let _s = SERIAL.lock().await;
+    let db = tenant().await;
+    let mut c = db.acquire().await.unwrap();
+    clean(&mut c).await;
+    let mut l = sqlx::postgres::PgListener::connect(&test_url()).await.unwrap();
+    l.listen(sync::SYNC_CHANNEL).await.unwrap();
+    let live = CountCache::new();
+    live.invalidate(&mut c, CompanyRef::DEFAULT).await.unwrap();
+    let n = tokio::time::timeout(std::time::Duration::from_secs(3), l.recv())
+        .await
+        .expect("có NOTIFY")
+        .unwrap();
+    let env = sync::parse_payload(n.payload()).expect("payload hợp lệ");
+    assert_eq!((env.kind.as_str(), env.company), ("cache", 1));
+    assert_eq!(env.fields.get("p").and_then(Value::as_str), Some("crm:contacts:count:"));
 }

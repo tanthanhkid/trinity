@@ -24,9 +24,10 @@
 //!   sách trả về;
 //! - việc dọn bản ghi mẫu sau khi có khách thật đầu tiên (`SampleRecordsService.purgeIfReal`), xoá cache dashboard, đồng bộ
 //!   thẻ @ và đẩy socket thuộc module khác: tầng route gọi [`routes::Hooks`] (do `serve` cài) sau [`write::create`] (hàm trả
-//!   `Created`) và các thao tác ghi khác, và gọi [`list::CountCache::clear`] sau khi tạo, xoá, khôi phục;
-//! - cache đếm tổng của danh sách ([`list::CountCache`]) nằm trong RAM từng tiến trình, như `ReadCache` của TS; chưa có
-//!   `NOTIFY cache` giữa các tiến trình (G12b) nên tiến trình khác thấy số cũ tới hết TTL 60 giây.
+//!   `Created`) và các thao tác ghi khác, và gọi [`list::CountCache::invalidate_with`] sau khi tạo, xoá, khôi phục;
+//! - cache đếm tổng của danh sách ([`list::CountCache`]) nằm trong RAM từng tiến trình, như `ReadCache` của TS; ghi thì phát
+//!   `NOTIFY cache` (`p` = `crm:contacts:count:`) và `serve` chuyển tin của tiến trình khác vào
+//!   [`list::CountCache::on_sync_event`] (G12b); mất kết nối ⇒ xoá hết, TTL 60 giây là lưới an toàn.
 
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err, clippy::type_complexity)]

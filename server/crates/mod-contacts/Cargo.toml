@@ -14,6 +14,7 @@ chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
+tracing = { workspace = true }
 trinity-db = { workspace = true }
 trinity-docgen = { workspace = true }
 trinity-http = { workspace = true }

@@ -107,7 +107,9 @@ hmac = "0.13"
 sha2 = "0.11"
 subtle = "2.6"
 garde = "0.23"
-jsonschema = "0.63"
+# Feature mặc định `tls-aws-lc-rs` kéo aws-lc-rs/aws-lc-sys (cmake/C, bị deny.toml cấm); đổi sang `tls-ring` cùng provider với
+# reqwest/sqlx. Giữ nguyên resolve-http/resolve-file/idna của mặc định.
+jsonschema = { version = "0.63", default-features = false, features = ["resolve-http", "resolve-file", "tls-ring", "idna"] }
 rust_decimal = "1.43"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock", "serde"] }
 chrono-tz = "0.10"

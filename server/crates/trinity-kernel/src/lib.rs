@@ -12,6 +12,7 @@
 pub mod config;
 pub mod error;
 pub mod formula;
+pub mod instant;
 pub mod json;
 pub mod number;
 pub mod ownership;

@@ -1,0 +1,32 @@
+[package]
+name = "mod-setup"
+description = "Mẫu bảng dựng sẵn, dựng hệ thống, wizard bắt đầu, trạng thái dựng và dữ liệu mẫu (M19)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum = { workspace = true }
+chrono = { workspace = true }
+mod-custom = { workspace = true }
+mod-settings = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tracing = { workspace = true }
+trinity-db = { workspace = true }
+trinity-http = { workspace = true }
+trinity-integrations = { workspace = true }
+trinity-kernel = { workspace = true }
+trinity-rbac = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tower = { workspace = true }
+trinity-auth = { workspace = true }
+
+[lints]
+workspace = true

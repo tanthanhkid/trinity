@@ -68,6 +68,8 @@ import * as createOption from '../../../../services/crm/src/settings-options/dto
 import * as queryOptions from '../../../../services/crm/src/settings-options/dto/query-options.dto'
 import * as dashboardFilter from '../../../../services/crm/src/reports/dashboard-overview.filter'
 import * as reportRange from '../../../../services/crm/src/reports/dto/query-report-range.dto'
+import * as buildSystem from '../../../../services/crm/src/setup/setup-build.dto'
+import * as wizardDto from '../../../../services/crm/src/onboarding/onboarding-wizard.dto'
 
 type Cls = new () => object
 type Mode = 'strict' | 'lenient'
@@ -128,6 +130,10 @@ const SAMPLES: Array<[Cls, Mode]> = [
   [queryContractStats.QueryContractStatsDto, 'strict'],
   [dashboardFilter.DashboardFilterQuery, 'strict'],
   [reportRange.QueryReportRangeDto, 'strict'],
+  [customObject.ApplyTemplateDto, 'strict'],
+  [buildSystem.BuildSystemDto, 'strict'],
+  [wizardDto.WizardStepDto, 'strict'],
+  [wizardDto.WizardConfigDto, 'strict'],
 ]
 
 /** Mọi tệp có @Transform (đếm bằng grep trong services/): mỗi class trong đó vào schema và golden @Transform. */
@@ -312,6 +318,17 @@ const EXTRA_CASES: Array<[Cls, Mode, string, unknown]> = [
   [reportRange.QueryReportRangeDto, 'strict', 'valid_query', { date_from: '2026-09-01', date_to: '2026-09-26' }],
   [reportRange.QueryReportRangeDto, 'strict', 'query_sai', { date_from: '01/09/2026', date_to: '' }],
   [reportRange.QueryReportRangeDto, 'strict', 'thieu', {}],
+  [customObject.ApplyTemplateDto, 'strict', 'valid', { with_sample_data: true }],
+  [customObject.ApplyTemplateDto, 'strict', 'sai', { with_sample_data: 'yes', x: 1 }],
+  [buildSystem.BuildSystemDto, 'strict', 'valid', { industry: 'clinic', features: ['inbox', 'pos'] }],
+  [buildSystem.BuildSystemDto, 'strict', 'sai', { industry: 'khac', features: ['a', 1, null] }],
+  [buildSystem.BuildSystemDto, 'strict', 'features_qua_nhieu', { industry: 'other', features: Array.from({ length: 40 }, (_, i) => `f${i}`) }],
+  [buildSystem.BuildSystemDto, 'strict', 'thieu', {}],
+  [wizardDto.WizardStepDto, 'strict', 'valid', { step: 'modules' }],
+  [wizardDto.WizardStepDto, 'strict', 'sai', { step: 'khac' }],
+  [wizardDto.WizardConfigDto, 'strict', 'valid', { enabled: false, skippable: ['data', 'post'], exempt_before: '2026-11-01T00:00:00Z' }],
+  [wizardDto.WizardConfigDto, 'strict', 'null_exempt', { exempt_before: null }],
+  [wizardDto.WizardConfigDto, 'strict', 'sai', { enabled: 'x', skippable: ['a', 1], exempt_before: 'hôm qua', y: 1 }],
   // Body là mảng JSON: Nest kiểm mảng như một đối tượng của DTO (khoá là chỉ số)
   [createContact.CreateContactDto, 'strict', 'array_body', [{ phone: '0901234567', full_name: 'A' }]],
   [createContact.CreateContactDto, 'strict', 'array_body_empty', []],

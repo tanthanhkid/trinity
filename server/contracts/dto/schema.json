@@ -1,4 +1,37 @@
 {
+ "ApplyTemplateDto": {
+  "declared": [
+   "with_sample_data"
+  ],
+  "validated": [
+   "with_sample_data"
+  ],
+  "fields": {
+   "with_sample_data": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": "with_sample_data phải là boolean",
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
  "BirthdayListQueryDto": {
   "declared": [
    "office_id",
@@ -145,6 +178,76 @@
      }
     ],
     "type": "Number"
+   }
+  },
+  "defaults": {}
+ },
+ "BuildSystemDto": {
+  "declared": [
+   "industry",
+   "features"
+  ],
+  "validated": [
+   "industry",
+   "features"
+  ],
+  "fields": {
+   "industry": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "education_center",
+        "retail_service",
+        "clinic",
+        "real_estate",
+        "other"
+       ]
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "features": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "arrayMaxSize",
+      "constraints": [
+       19
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isArray",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
    }
   },
   "defaults": {}
@@ -17635,6 +17738,147 @@
      {
       "fn": "({ value }) => (typeof value === 'string' ? value.trim() : value)",
       "options": {}
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
+ "WizardConfigDto": {
+  "declared": [
+   "enabled",
+   "skippable",
+   "exempt_before"
+  ],
+  "validated": [
+   "enabled",
+   "skippable",
+   "exempt_before"
+  ],
+  "fields": {
+   "enabled": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "skippable": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "industry",
+        "modules",
+        "data",
+        "channels",
+        "post"
+       ]
+      ],
+      "message": null,
+      "each": true
+     },
+     {
+      "type": "customValidation",
+      "name": "isArray",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   },
+   "exempt_before": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIso8601",
+      "constraints": [
+       {
+        "$undefined": true
+       }
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": null,
+      "constraints": [
+       {
+        "$fn": "(_, v) => v !== null"
+       }
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
+ "WizardStepDto": {
+  "declared": [
+   "step"
+  ],
+  "validated": [
+   "step"
+  ],
+  "fields": {
+   "step": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isIn",
+      "constraints": [
+       [
+        "industry",
+        "modules",
+        "data",
+        "channels",
+        "post"
+       ]
+      ],
+      "message": null,
+      "each": false
      }
     ]
    }

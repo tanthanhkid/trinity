@@ -208,6 +208,94 @@ await step('refresh keeps the company', async () => {
   expect(r.status === 200 && decode(r.data.access_token).cid === B.cid, `HTTP ${r.status}`);
 });
 
+// ---- X09: ca biên đa công ty (PLAN 10.2), chạy được trên bản Node lẫn bản Rust ----
+
+await step('company A and B both hold a contact with the same number; each sees only its own (id may collide)', async () => {
+  const mk = async (who, name) => {
+    const r = await call('POST', '/contacts', {
+      token: who.token,
+      body: { full_name: name, phone: '0922000777', source_id: await sourceId(who.token) },
+    });
+    expect(r.status === 201 || r.status === 200, `HTTP ${r.status} ${JSON.stringify(r.data)}`);
+    return r.data.contact?.id ?? r.data.id ?? r.data.data?.id;
+  };
+  const idA = await mk(A, 'Trùng số của A');
+  const idB = await mk(B, 'Trùng số của B');
+  const listA = JSON.stringify((await call('GET', '/contacts?search=0922000777', { token: A.token })).data);
+  const listB = JSON.stringify((await call('GET', '/contacts?search=0922000777', { token: B.token })).data);
+  expect(listA.includes('Trùng số của A') && !listA.includes('Trùng số của B'), 'A list mixes companies');
+  expect(listB.includes('Trùng số của B') && !listB.includes('Trùng số của A'), 'B list mixes companies');
+  const cross = await call('GET', `/contacts/${idA}`, { token: B.token });
+  if (idA === idB) {
+    expect(JSON.stringify(cross.data).includes('Trùng số của B'), 'same id must open B own row');
+  } else {
+    expect(cross.status === 404 || cross.status === 403, `HTTP ${cross.status}`);
+  }
+  return `ids A=${idA} B=${idB}`;
+});
+
+await step('a company-A prefix on a company-B invitation / API key token is rejected', async () => {
+  const fake = `c${A.cid}.${(invite.token ?? 'x').split('.').pop()}`;
+  const p = await call('POST', '/auth/invitations/preview', { body: { token: fake } });
+  expect([400, 404, 410].includes(p.status), `forged invite prefix: HTTP ${p.status}`);
+  const noPrefix = await call('POST', '/auth/invitations/preview', { body: { token: 'khong-co-tien-to' } });
+  expect([400, 404, 410].includes(noPrefix.status), `no prefix: HTTP ${noPrefix.status}`);
+  const nonexistent = await call('POST', '/auth/invitations/preview', { body: { token: `c99999999.${stamp}` } });
+  expect([400, 404, 410].includes(nonexistent.status), `unknown company prefix: HTTP ${nonexistent.status}`);
+  const key = await call('GET', '/contacts', { headers: { 'x-api-key': `c${B.cid}.khong-ton-tai-${stamp}` } });
+  expect(key.status === 401 || key.status === 403, `forged api key: HTTP ${key.status}`);
+});
+
+await step('a ?cid= pointing to a company that does not exist does not fall back to another company', async () => {
+  const r = await call('GET', '/auth/signup-enabled?cid=99999999', { headers: { 'x-trinity-company': '99999999' } });
+  expect(r.status !== 500, `HTTP ${r.status}`);
+  const me = await call('GET', '/auth/me?cid=99999999', { token: B.token, headers: { 'x-trinity-company': '99999999' } });
+  expect(me.status === 200 && me.data.company.id === B.cid, `signed-in request must keep its own company: HTTP ${me.status}`);
+  const pub = await call('GET', '/contacts?cid=abc', { token: B.token });
+  expect(pub.status !== 500, `non-numeric cid: HTTP ${pub.status}`);
+});
+
+await step('two sign-ups with the same email at the same time: exactly one wins', async () => {
+  const email = `race-${stamp}@example.test`;
+  const body = (n) => ({ company_name: `Đua ${n} ${stamp}`, full_name: `Đua ${n}`, email, password: 'MatKhau-race-123' });
+  const rs = await Promise.all([1, 2, 3, 4].map((n) => call('POST', '/auth/register', { body: body(n) })));
+  const ok = rs.filter((r) => r.status === 201).length;
+  const taken = rs.filter((r) => r.status === 409).length;
+  expect(ok === 1 && taken === 3, `statuses ${rs.map((r) => r.status).join(',')}`);
+  const login = await call('POST', '/auth/login', { body: { email, password: 'MatKhau-race-123' } });
+  expect(login.status === 200, `login HTTP ${login.status}`);
+});
+
+await step('an abandoned or malformed sign-up leaves no company behind; the email stays usable', async () => {
+  const email = `half-${stamp}@example.test`;
+  const bad = await call('POST', '/auth/register', { body: { company_name: '', full_name: 'X', email, password: 'MatKhau-half-123' } });
+  expect(bad.status === 400, `empty company name: HTTP ${bad.status}`);
+  const badMail = await call('POST', '/auth/register', { body: { company_name: 'X', full_name: 'X', email: 'khong-phai-email', password: 'MatKhau-half-123' } });
+  expect(badMail.status === 400, `bad email: HTTP ${badMail.status}`);
+  const good = await call('POST', '/auth/register', { body: { company_name: `Sau lỗi ${stamp}`, full_name: 'Sau lỗi', email, password: 'MatKhau-half-123' } });
+  expect(good.status === 201, `register after failure: HTTP ${good.status} ${JSON.stringify(good.data)}`);
+});
+
+await step('many companies in a row each keep their own data (more companies than pool connections)', async () => {
+  const crew = [];
+  for (let i = 0; i < 6; i++) crew.push(await signUp(`n${i}`));
+  const src = await Promise.all(crew.map((c) => sourceId(c.token)));
+  await Promise.all(crew.map((c, i) => call('POST', '/contacts', {
+    token: c.token,
+    body: { full_name: `Chỉ của n${i}`, phone: `09330000${i}0`, source_id: src[i] },
+  })));
+  for (let round = 0; round < 3; round++) {
+    const lists = await Promise.all(crew.map((c) => call('GET', '/contacts?limit=100', { token: c.token })));
+    lists.forEach((r, i) => {
+      const text = JSON.stringify(r.data);
+      expect(text.includes(`Chỉ của n${i}`), `n${i} lost its row in round ${round}`);
+      for (let j = 0; j < crew.length; j++) {
+        if (j !== i) expect(!text.includes(`Chỉ của n${j}`), `n${j} leaked into n${i} in round ${round}`);
+      }
+    });
+  }
+});
+
 if (process.env.LEGACY_EMAIL) {
   await step('company 1 (existing data) still logs in and keeps its own data', async () => {
     const r = await call('POST', '/auth/login', { body: { email: process.env.LEGACY_EMAIL, password: process.env.LEGACY_PASSWORD } });

@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use mod_channel_guard::ChannelGuard;
 use serde_json::Value;
 use trinity_db::pg_error::app_error;
 use trinity_db::{CompanyRef, Db, TenantConn};
@@ -59,6 +60,8 @@ pub struct FacebookIngest {
     pub graph_for: GraphFactory,
     /// Lần đồng bộ hội thoại gần nhất (mili giây) theo (công ty, id hội thoại): mỗi hội thoại tối đa một lần mỗi phút (M48).
     pub(crate) last_sync: Mutex<HashMap<(CompanyRef, i32), i64>>,
+    /// Hạn mức trả lời bình luận tự động (M49); `None` = không áp (bản một công ty hoặc test).
+    pub guard: Option<Arc<ChannelGuard>>,
 }
 
 impl FacebookIngest {
@@ -68,7 +71,15 @@ impl FacebookIngest {
             env,
             graph_for,
             last_sync: Mutex::new(HashMap::new()),
+            guard: None,
         }
+    }
+
+    /// Gắn `ChannelGuard` của công ty để luật bình luận giữ chỗ hạn mức trả lời tự động.
+    #[must_use]
+    pub fn with_guard(mut self, guard: Arc<ChannelGuard>) -> Self {
+        self.guard = Some(guard);
+        self
     }
 
     /// Một kết nối đã gắn công ty cho MỘT bước DB; người gọi trả lại (drop) trước khi gọi Graph hoặc xin kết nối khác.
@@ -105,7 +116,15 @@ impl FacebookIngest {
                     let Some(value) = ch.get("value").filter(|v| !v.is_null()) else {
                         continue;
                     };
-                    // `feed` (bình luận) thuộc M49: bỏ qua ở đây.
+                    // `feed` (bình luận, M49): lỗi của MỘT bình luận được ghi log và bỏ qua như tin nhắn.
+                    if field == Some("feed") {
+                        match self.handle_comment(company, &page_id, value).await {
+                            Ok(true) => n += 1,
+                            Ok(false) => {}
+                            Err(e) => tracing::error!("Xử lý bình luận Facebook lỗi: {e}"),
+                        }
+                        continue;
+                    }
                     if field != Some("leadgen") {
                         continue;
                     }

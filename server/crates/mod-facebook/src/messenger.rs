@@ -100,7 +100,7 @@ fn match_phone_at(c: &[char], i: usize) -> Option<usize> {
 }
 
 /// `clip(s, n)` của `ChannelNotificationsService`: dài hơn `n` đơn vị UTF-16 thì cắt `n - 1` rồi thêm `…`.
-fn clip(s: &str, n: usize) -> String {
+pub(crate) fn clip(s: &str, n: usize) -> String {
     if s.encode_utf16().count() > n {
         format!("{}…", utf16_prefix(s, n - 1))
     } else {
@@ -490,7 +490,7 @@ pub(crate) async fn assigned_to(conn: &mut PgConnection, contact_id: Option<i32>
 }
 
 /// Người dùng đang hoạt động giữ một quyền không-scoped (vai trò hệ thống luôn tính), như `findUserIdsWithPermission`.
-async fn roster_with_permission(conn: &mut PgConnection, permission: &str) -> Result<Vec<i32>, AppError> {
+pub(crate) async fn roster_with_permission(conn: &mut PgConnection, permission: &str) -> Result<Vec<i32>, AppError> {
     sqlx::query_scalar(
         "SELECT DISTINCT ur.user_id FROM user_roles ur \
          JOIN users u ON u.id = ur.user_id AND u.status = 'active' AND u.deleted_at IS NULL \
@@ -505,7 +505,7 @@ async fn roster_with_permission(conn: &mut PgConnection, permission: &str) -> Re
 }
 
 /// Thông báo KHÔNG được làm hỏng giao dịch: chạy trong SAVEPOINT, lỗi thì rollback to savepoint và ghi log.
-async fn notify_in_savepoint(tx: &mut TenantTx, items: &[NewNotification]) {
+pub(crate) async fn notify_in_savepoint(tx: &mut TenantTx, items: &[NewNotification]) {
     if sqlx::query("SAVEPOINT fb_notify").execute(&mut **tx).await.is_err() {
         return;
     }

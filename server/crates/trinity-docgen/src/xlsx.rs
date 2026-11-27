@@ -10,7 +10,7 @@
 //! - chuỗi: chống chèn công thức như `csvCell` — ô bắt đầu bằng `=`, `+`, `-`, `@`, tab, CR hoặc LF được thêm `'` và
 //!   luôn ghi kiểu chuỗi (không bao giờ ghi công thức).
 
-use std::io::Cursor;
+use std::io::{Cursor, Read};
 
 use calamine::{Data, Reader, Xlsx, open_workbook_from_rs};
 use chrono::{DateTime, Datelike, FixedOffset, NaiveDate, NaiveDateTime, Timelike, Utc};
@@ -24,6 +24,16 @@ pub const DATETIME_FORMAT: &str = "dd/mm/yyyy hh:mm";
 pub const MAX_ROWS: usize = 1_048_576;
 /// Giới hạn cột của một trang tính Excel (XFD).
 pub const MAX_COLS: usize = 16_384;
+/// Trần số mục trong tệp xlsx (một tệp bình thường chỉ có vài chục mục).
+pub const MAX_READ_ENTRIES: usize = 2_000;
+/// Trần dung lượng sau giải nén của một mục (byte).
+pub const MAX_READ_ENTRY_BYTES: u64 = 64 * 1024 * 1024;
+/// Trần tổng dung lượng sau giải nén của mọi mục (byte).
+pub const MAX_READ_TOTAL_BYTES: u64 = 200 * 1024 * 1024;
+/// Trần số dòng của trang tính khi đọc.
+pub const MAX_READ_ROWS: usize = 200_000;
+/// Trần tổng số ô (kể cả ô trống đệm trong dòng) giữ lại khi đọc một trang tính.
+pub const MAX_READ_CELLS: usize = 2_000_000;
 
 #[derive(Debug, thiserror::Error)]
 pub enum XlsxError {
@@ -37,6 +47,23 @@ pub enum XlsxError {
     TooManyRows,
     #[error("quá {MAX_COLS} cột trong một trang tính")]
     TooManyColumns,
+    #[error("tệp xlsx có quá nhiều mục (tối đa {MAX_READ_ENTRIES})")]
+    TooManyEntries,
+    #[error("tệp xlsx quá lớn sau khi giải nén")]
+    TooLarge,
+    #[error("trang tính quá lớn: tối đa {MAX_READ_ROWS} dòng và {MAX_READ_CELLS} ô")]
+    SheetTooLarge,
+}
+
+impl XlsxError {
+    /// Mã HTTP gợi ý cho chỗ gọi: lỗi do tệp người dùng gửi ⇒ 4xx; lỗi ghi ⇒ 500.
+    pub fn http_status(&self) -> u16 {
+        match self {
+            Self::TooLarge | Self::TooManyEntries | Self::SheetTooLarge => 413,
+            Self::Read(_) | Self::NoSheet | Self::TooManyRows | Self::TooManyColumns => 400,
+            Self::Write(_) => 500,
+        }
+    }
 }
 
 /// Định dạng số của ô.
@@ -448,40 +475,76 @@ fn read_cell(d: &Data) -> ReadCell {
 
 type Book<'a> = Xlsx<Cursor<&'a [u8]>>;
 
+/// Kiểm kích thước sau giải nén theo luồng: mỗi mục đọc tới trần rồi dừng, không tin kích thước khai trong tiêu đề.
+fn check_archive(bytes: &[u8]) -> Result<(), XlsxError> {
+    let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|e| XlsxError::Read(e.to_string()))?;
+    if zip.len() > MAX_READ_ENTRIES {
+        return Err(XlsxError::TooManyEntries);
+    }
+    let mut total: u64 = 0;
+    for i in 0..zip.len() {
+        let entry = zip.by_index(i).map_err(|e| XlsxError::Read(e.to_string()))?;
+        if entry.size() > MAX_READ_ENTRY_BYTES {
+            return Err(XlsxError::TooLarge);
+        }
+        let room = MAX_READ_ENTRY_BYTES.min(MAX_READ_TOTAL_BYTES - total);
+        let mut limited = entry.take(room + 1);
+        let n = std::io::copy(&mut limited, &mut std::io::sink()).map_err(|e| XlsxError::Read(e.to_string()))?;
+        if n > room {
+            return Err(XlsxError::TooLarge);
+        }
+        total += n;
+    }
+    Ok(())
+}
+
 fn open(bytes: &[u8]) -> Result<Book<'_>, XlsxError> {
+    check_archive(bytes)?;
     open_workbook_from_rs(Cursor::new(bytes)).map_err(|e: calamine::XlsxError| XlsxError::Read(e.to_string()))
 }
 
 fn read_sheet(wb: &mut Book<'_>, name: String) -> Result<ReadSheet, XlsxError> {
-    let range = wb.worksheet_range(&name).map_err(|e| XlsxError::Read(e.to_string()))?;
-    let (r0, c0) = range.start().map_or((0, 0), |(r, c)| (r as usize, c as usize));
-    let mut rows: Vec<Vec<ReadCell>> = vec![Vec::new(); r0];
-    let mut lead = usize::MAX;
-    for r in range.rows() {
-        let mut cells: Vec<ReadCell> = r.iter().map(read_cell).collect();
-        while cells.last() == Some(&ReadCell::Empty) {
-            cells.pop();
+    // Đọc theo luồng từng ô, dựng thưa: không để calamine cấp phát vùng chữ nhật đặc theo ô xa nhất.
+    let mut reader = wb
+        .worksheet_cells_reader(&name)
+        .map_err(|e| XlsxError::Read(e.to_string()))?;
+    let mut cells: Vec<(usize, usize, ReadCell)> = Vec::new();
+    let mut min_col = usize::MAX;
+    let mut max_row = 0usize;
+    while let Some(cell) = reader.next_cell().map_err(|e| XlsxError::Read(e.to_string()))? {
+        let (r, c) = cell.get_position();
+        let (r, c) = (r as usize, c as usize);
+        let value = read_cell(&Data::from(cell.get_value().clone()));
+        if value == ReadCell::Empty {
+            continue;
         }
-        if let Some(i) = cells.iter().position(|c| *c != ReadCell::Empty) {
-            lead = lead.min(i);
+        if r >= MAX_READ_ROWS || cells.len() >= MAX_READ_CELLS {
+            return Err(XlsxError::SheetTooLarge);
         }
-        rows.push(cells);
+        if c >= MAX_COLS {
+            return Err(XlsxError::TooManyColumns);
+        }
+        min_col = min_col.min(c);
+        max_row = max_row.max(r);
+        cells.push((r, c, value));
     }
-    while rows.last().is_some_and(Vec::is_empty) {
-        rows.pop();
+    // Bỏ các cột trống chung ở đầu mọi dòng; đệm ô trống trong dòng tính SAU khi bỏ (ô lẻ ở cột xa không làm phình RAM).
+    let lead = if min_col == usize::MAX { 0 } else { min_col };
+    let mut widths = vec![0usize; if cells.is_empty() { 0 } else { max_row + 1 }];
+    for (r, c, _) in &cells {
+        widths[*r] = widths[*r].max(c - lead + 1);
     }
-    // Bỏ các cột trống chung ở đầu mọi dòng và phần dung lượng thừa (tệp có ô lẻ ở cột/dòng rất xa không làm phình RAM).
-    let lead = if lead == usize::MAX { 0 } else { lead };
-    for r in &mut rows {
-        if !r.is_empty() {
-            r.drain(..lead.min(r.len()));
-        }
-        r.shrink_to_fit();
+    if widths.iter().sum::<usize>() > MAX_READ_CELLS {
+        return Err(XlsxError::SheetTooLarge);
+    }
+    let mut rows: Vec<Vec<ReadCell>> = widths.iter().map(|w| vec![ReadCell::Empty; *w]).collect();
+    for (r, c, v) in cells {
+        rows[r][c - lead] = v;
     }
     rows.shrink_to_fit();
     Ok(ReadSheet {
         name,
-        col_offset: c0 + lead,
+        col_offset: lead,
         rows,
     })
 }
@@ -547,5 +610,66 @@ mod tests {
             round_second(parse_iso("2026-11-26T09:05:00.5").unwrap()).to_string(),
             "2026-11-26 09:05:01"
         );
+    }
+
+    /// Tệp zip tự dựng chứa một mục lớn nén được rất tốt.
+    fn zip_with(entries: &[(&str, usize)]) -> Vec<u8> {
+        use std::io::Write;
+        let mut w = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+        for (name, len) in entries {
+            w.start_file(*name, opts).unwrap();
+            let chunk = vec![b'a'; 1 << 20];
+            let mut left = *len;
+            while left > 0 {
+                let n = left.min(chunk.len());
+                w.write_all(&chunk[..n]).unwrap();
+                left -= n;
+            }
+        }
+        w.finish().unwrap().into_inner()
+    }
+
+    #[test]
+    fn tran_giai_nen_mot_muc() {
+        let bytes = zip_with(&[("xl/big.xml", MAX_READ_ENTRY_BYTES as usize + 1)]);
+        assert!(bytes.len() < 1_000_000, "tệp nén phải nhỏ");
+        assert!(matches!(read_xlsx(&bytes), Err(XlsxError::TooLarge)));
+        assert_eq!(XlsxError::TooLarge.http_status(), 413);
+    }
+
+    #[test]
+    fn tran_giai_nen_tong() {
+        let each = MAX_READ_ENTRY_BYTES as usize;
+        let bytes = zip_with(&[("a.xml", each), ("b.xml", each), ("c.xml", each), ("d.xml", each)]);
+        assert!(matches!(read_first_sheet(&bytes), Err(XlsxError::TooLarge)));
+    }
+
+    #[test]
+    fn tran_so_muc() {
+        let names: Vec<String> = (0..=MAX_READ_ENTRIES).map(|i| format!("f{i}.xml")).collect();
+        let entries: Vec<(&str, usize)> = names.iter().map(|n| (n.as_str(), 1)).collect();
+        assert!(matches!(read_xlsx(&zip_with(&entries)), Err(XlsxError::TooManyEntries)));
+    }
+
+    #[test]
+    fn tran_trang_tinh_o_xa() {
+        // Ô duy nhất ở dòng cuối: không được cấp phát vùng đặc, nhưng vượt trần dòng ⇒ lỗi rõ ràng.
+        let mut wb = Workbook::new();
+        wb.add_worksheet().write_string(MAX_READ_ROWS as u32, 0, "x").unwrap();
+        let bytes = wb.save_to_buffer().unwrap();
+        assert!(matches!(read_xlsx(&bytes), Err(XlsxError::SheetTooLarge)));
+    }
+
+    #[test]
+    fn tep_binh_thuong_van_doc_duoc() {
+        let mut wb = Workbook::new();
+        let ws = wb.add_worksheet();
+        ws.write_string(2, 3, "a").unwrap();
+        ws.write_number(3, 5, 7.0).unwrap();
+        let sheets = read_xlsx(&wb.save_to_buffer().unwrap()).unwrap();
+        assert_eq!(sheets[0].cell(2, 3), &ReadCell::Text("a".into()));
+        assert_eq!(sheets[0].cell(3, 5), &ReadCell::Number(7.0));
+        assert_eq!(sheets[0].col_offset, 3);
     }
 }

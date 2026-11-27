@@ -18,14 +18,18 @@
 #![allow(clippy::result_large_err)]
 
 pub mod ai_output;
+pub mod args;
 pub mod auth;
+pub mod deps;
 pub mod endpoint;
 pub mod exec;
 pub mod frozen;
 pub mod limits;
 pub mod protocol;
 pub mod routes;
+pub mod tools;
 
 pub use endpoint::{HttpIn, HttpOut, McpConfig, McpEndpoint};
 pub use exec::{ToolCtx, ToolError, ToolOutput, ToolRegistry, ToolRunner, ToolSpec};
 pub use routes::{McpState, api_router, specs};
+pub use tools::register_group1;

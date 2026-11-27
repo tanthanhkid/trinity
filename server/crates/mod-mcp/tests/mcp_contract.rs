@@ -7,16 +7,20 @@ use std::net::IpAddr;
 use std::sync::{Arc, Mutex};
 
 use mod_mcp::auth::{AuthError, AuthFailure, Identity, Principal, Who};
+use mod_mcp::deps::ToolDeps;
 use mod_mcp::endpoint::{HttpIn, McpConfig, McpEndpoint};
 use mod_mcp::exec::{AuditSink, Executor, ToolCtx, ToolError, ToolOutput, ToolRegistry, ToolRunner, ToolSpec};
 use mod_mcp::frozen::{Frozen, INSTRUCTIONS, TOOLS_JSON, minify};
 use mod_mcp::limits::McpLimits;
 use mod_mcp::protocol::BoxFuture;
 use serde_json::{Value, json};
-use trinity_db::CompanyRef;
+use trinity_auth::Security;
+use trinity_db::platform::Platform;
+use trinity_db::{CompanyRef, Db, DbConfig};
 use trinity_http::edge::client_ip::{ClientIp, Source};
 use trinity_integrations::audit::{AuditEntry, AuditStatus};
 use trinity_rbac::{Grant, Grants, Scope};
+use trinity_rbac::{RbacCache, ScopeService};
 
 const DIR: &str = "../../contracts/mcp";
 const OK_TOOL: &str = "get_setup_guide";
@@ -89,6 +93,19 @@ fn registry_all(run: Arc<Run>) -> ToolRegistry {
     r
 }
 
+/// Phụ thuộc tool giả: DB lười (không bao giờ nối vì các tool giả không đụng DB).
+fn lazy_deps() -> Arc<ToolDeps> {
+    let db = Db::connect_lazy(&DbConfig::new("postgresql://u@127.0.0.1:1/x")).unwrap();
+    let security = Security::new(db.clone(), Platform::new(&db, None), false);
+    let scopes = ScopeService::new(db.clone(), RbacCache::new(security));
+    let reports = Arc::new(mod_reports::Ctx {
+        db: db.clone(),
+        scopes: scopes.clone(),
+        cache: mod_reports::cache::ReadCache::new(true),
+    });
+    Arc::new(ToolDeps { db, scopes, reports })
+}
+
 struct Rig {
     ep: McpEndpoint,
     audit: Arc<VecAudit>,
@@ -110,6 +127,7 @@ fn rig(identity: Result<Principal, AuthError>, registry: ToolRegistry, enabled: 
             registry,
             limits,
             audit: audit.clone(),
+            deps: lazy_deps(),
             base_url: BASE.into(),
         },
         audit: audit.clone(),

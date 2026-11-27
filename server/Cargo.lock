@@ -2481,9 +2481,14 @@ name = "mod-mcp"
 version = "0.3.0"
 dependencies = [
  "axum",
+ "chrono",
  "http",
  "jsonschema",
+ "mod-contacts",
+ "mod-deals",
+ "mod-kanban",
  "mod-oauth",
+ "mod-reports",
  "regex",
  "serde",
  "serde_json",

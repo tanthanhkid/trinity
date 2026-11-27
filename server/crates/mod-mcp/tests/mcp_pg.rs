@@ -177,6 +177,18 @@ impl Env {
 }
 
 async fn env() -> Env {
+    env_with(|r| {
+        r.register(ToolSpec {
+            name: "get_setup_guide",
+            scope: None,
+            permissions: &[],
+            runner: Arc::new(Probe),
+        });
+    })
+    .await
+}
+
+async fn env_with(register: fn(&mut ToolRegistry)) -> Env {
     static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let base = base_url();
     let dbname = base
@@ -238,7 +250,7 @@ async fn env() -> Env {
     };
     let security = Security::new(db.clone(), platform.clone(), true);
     let cache = RbacCache::new(security.clone());
-    let perms = PermissionService::new(db.clone(), cache);
+    let perms = PermissionService::new(db.clone(), cache.clone());
     let mut ip_env = BTreeMap::new();
     ip_env.insert(
         "TRUSTED_PROXY".to_owned(),
@@ -266,11 +278,16 @@ async fn env() -> Env {
     let limits = Arc::new(McpLimits::with_untrusted_peer(oauth.limits.untrusted_peer.clone()));
     let audit = Arc::new(DbAudit { db: db.clone() });
     let mut registry = ToolRegistry::new();
-    registry.register(ToolSpec {
-        name: "get_setup_guide",
-        scope: None,
-        permissions: &[],
-        runner: Arc::new(Probe),
+    register(&mut registry);
+    let scopes = trinity_rbac::ScopeService::new(db.clone(), cache.clone());
+    let tool_deps = Arc::new(mod_mcp::deps::ToolDeps {
+        db: db.clone(),
+        scopes: scopes.clone(),
+        reports: Arc::new(mod_reports::Ctx {
+            db: db.clone(),
+            scopes,
+            cache: mod_reports::cache::ReadCache::new(true),
+        }),
     });
     let endpoint = McpEndpoint {
         config: McpConfig::from_lookup(get),
@@ -281,6 +298,7 @@ async fn env() -> Env {
             registry,
             limits,
             audit: audit.clone(),
+            deps: tool_deps,
             base_url: BASE.into(),
         },
         audit,
@@ -477,4 +495,219 @@ async fn xac_thuc_oauth_that_nhat_ky_va_gui_quyen() {
         ))
         .unwrap();
     assert_eq!(e.router.clone().oneshot(req).await.unwrap().status().as_u16(), 403);
+}
+
+fn tool(name: &str, args: &Value) -> Value {
+    json!({ "jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": { "name": name, "arguments": args } })
+}
+
+/// Kết quả một lần gọi tool: `(isError, text, structuredContent)`.
+async fn run(e: &Env, token: &str, name: &str, args: &Value) -> (bool, String, Value) {
+    let (status, _, v) = e.call(Method::POST, Some(token), &tool(name, args)).await;
+    assert_eq!(status, 200, "{name}: {v}");
+    let r = &v["result"];
+    (
+        r["isError"] == true,
+        r["content"][0]["text"].as_str().unwrap_or("").to_owned(),
+        r["structuredContent"].clone(),
+    )
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn tool_doc_nhom_1_theo_pham_vi_va_che_sdt() {
+    let e = env_with(mod_mcp::register_group1).await;
+    let mut c = e.conn().await;
+    // Vai trò nhân viên: chỉ xem của mình, nhưng CÓ `contacts.phone_full` (AI vẫn không được thấy SĐT thật).
+    exec(
+        &mut c,
+        "INSERT INTO roles (name, is_system, updated_at) VALUES ('nv-m40', false, now());
+         INSERT INTO role_permissions (role_id, permission, scope)
+           SELECT r.id, p.permission, p.scope FROM roles r, (VALUES
+             ('integrations.ai_connect', NULL), ('contacts.view', 'own'), ('contacts.phone_full', 'all'),
+             ('deals.view', 'own'), ('kanban.view', 'own')) AS p(permission, scope) WHERE r.name = 'nv-m40';
+         INSERT INTO user_roles (user_id, role_id) SELECT u.id, r.id FROM users u, roles r WHERE u.email = 'staff@m39.test' AND r.name = 'nv-m40';",
+    )
+    .await;
+    let (admin, staff) = (e.admin, e.staff);
+    exec(
+        &mut c,
+        &format!(
+            "INSERT INTO contacts (phone, full_name, assigned_to, updated_at) VALUES
+               ('0912345001', 'Nguyễn Văn An', {staff}, now()), ('0912345002', 'Trần Thị Bình', {admin}, now()), ('0912345003', 'An Khang', {admin}, now());
+             INSERT INTO deals (title, assigned_to, created_by, contact_id, updated_at)
+               SELECT 'Deal của nhân viên', {staff}, {admin}, id, now() FROM contacts WHERE full_name = 'Nguyễn Văn An';
+             INSERT INTO deals (title, assigned_to, created_by, contact_id, updated_at)
+               SELECT 'Deal của quản trị', {admin}, {admin}, id, now() FROM contacts WHERE full_name = 'Trần Thị Bình';
+             INSERT INTO activities (contact_id, action, details, created_by)
+               SELECT id, 'note', '{{\"description\": \"Gọi 0987 654 321 chốt đơn\"}}'::jsonb, {admin} FROM contacts WHERE full_name = 'Nguyễn Văn An';
+             INSERT INTO kanban_boards (name, updated_at) VALUES ('Việc', now());
+             INSERT INTO kanban_columns (board_id, name, position, updated_at) SELECT id, 'Cần làm', 1, now() FROM kanban_boards WHERE name = 'Việc';"
+        ),
+    )
+    .await;
+    exec(
+        &mut c,
+        &format!(
+            "INSERT INTO kanban_cards (board_id, column_id, title, position, created_by, assignee_id, due_at, updated_at)
+               SELECT b.id, k.id, t.title, t.pos, {admin}, t.assignee, now() + interval '1 day', now()
+               FROM kanban_boards b JOIN kanban_columns k ON k.board_id = b.id AND b.name = 'Việc',
+                    (VALUES ('Gọi lại khách An', 1, {staff}), ('Việc của quản trị', 2, {admin})) AS t(title, pos, assignee);
+             INSERT INTO kanban_cards (board_id, column_id, title, position, created_by, assignee_id, completed_at, updated_at)
+               SELECT b.id, k.id, 'Việc đã xong', 3, {admin}, {staff}, now(), now() FROM kanban_boards b JOIN kanban_columns k ON k.board_id = b.id AND b.name = 'Việc';"
+        ),
+    )
+    .await;
+    let adm = e
+        .token("quantri", e.admin, "{crm.read}", RESOURCE, "1 hour", false)
+        .await;
+    let stf = e
+        .token("nhanvien", e.staff, "{crm.read}", RESOURCE, "1 hour", false)
+        .await;
+
+    // ── Quản trị: thấy cả 3 khách, SĐT luôn che dù có quyền; phân trang bằng con trỏ.
+    let (err, _, v) = run(&e, &adm, "list_contacts", &json!({})).await;
+    assert!(!err);
+    assert_eq!(v["data"]["contacts"].as_array().unwrap().len(), 3);
+    assert!(
+        v["data"]["contacts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|c| c["phone"].as_str().unwrap().starts_with("***")),
+        "{v}"
+    );
+    assert!(v["notice"].as_str().unwrap().contains("SĐT luôn bị che"));
+    let (_, _, p1) = run(&e, &adm, "list_contacts", &json!({ "limit": 2 })).await;
+    assert_eq!(p1["data"]["contacts"].as_array().unwrap().len(), 2);
+    let cur = p1["data"]["next_cursor"].as_i64().unwrap();
+    let (_, _, p2) = run(&e, &adm, "list_contacts", &json!({ "limit": 2, "cursor": cur })).await;
+    assert_eq!(p2["data"]["contacts"].as_array().unwrap().len(), 1);
+    assert!(p2["data"]["next_cursor"].is_null());
+    // Lọc theo tên (không phân biệt hoa/thường); `%` được thoát nên không khớp mọi thứ.
+    let (_, _, v) = run(&e, &adm, "list_contacts", &json!({ "name": "AN" })).await;
+    assert_eq!(v["data"]["contacts"].as_array().unwrap().len(), 2);
+    let (_, _, v) = run(&e, &adm, "list_contacts", &json!({ "name": "%" })).await;
+    assert_eq!(v["data"]["contacts"].as_array().unwrap().len(), 0);
+    // Chống dò chữ số: tìm theo tên có ≥ 4 chữ số bị từ chối.
+    let (err, text, _) = run(&e, &adm, "list_contacts", &json!({ "name": "0912" })).await;
+    assert!(
+        err && text.starts_with("Không hỗ trợ tìm theo chuỗi có nhiều chữ số"),
+        "{text}"
+    );
+    let (err, text, _) = run(&e, &adm, "search", &json!({ "query": "09 12" })).await;
+    assert!(err && text.contains("Không hỗ trợ"), "{text}");
+
+    // ── Chi tiết, hoạt động (SĐT trong nội dung bị che), deal, fetch, search.
+    let an: i64 = e
+        .scalar("SELECT id::bigint FROM contacts WHERE full_name = 'Nguyễn Văn An'")
+        .await;
+    let (err, _, v) = run(&e, &adm, "get_contact", &json!({ "id": an })).await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["phone"], "***001");
+    assert_eq!(v["data"]["deals"].as_array().unwrap().len(), 1);
+    assert!(v["data"].get("current_address").is_none());
+    let (_, _, v) = run(&e, &adm, "list_contact_activities", &json!({ "contact_id": an })).await;
+    let acts = v["data"]["activities"].as_array().unwrap();
+    assert_eq!(acts.len(), 1);
+    assert!(
+        acts[0]["details"].to_string().contains("***321") && !acts[0]["details"].to_string().contains("0987"),
+        "{v}"
+    );
+    let (_, _, v) = run(&e, &adm, "list_deals", &json!({ "status": "open" })).await;
+    assert_eq!(v["data"]["deals"].as_array().unwrap().len(), 2);
+    let (_, _, v) = run(&e, &adm, "search", &json!({ "query": "an" })).await;
+    let ids: Vec<String> = v["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["id"].as_str().unwrap().to_owned())
+        .collect();
+    assert!(
+        ids.contains(&format!("contact:{an}")) && ids.iter().any(|i| i.starts_with("card:")),
+        "{ids:?}"
+    );
+    assert!(v["results"][0]["url"].as_str().unwrap().starts_with(BASE));
+    let (err, _, v) = run(&e, &adm, "fetch", &json!({ "id": format!("contact:{an}") })).await;
+    assert!(!err, "{v}");
+    let text = v["text"].as_str().unwrap();
+    assert!(
+        text.contains("SĐT: ***001") && text.contains("Nguyễn Văn An") && text.contains("Deal:\n  - deal:"),
+        "{text}"
+    );
+    assert!(text.starts_with('[') && !text.contains("0912345001") && v["metadata"]["notice"].is_string());
+    let (err, text, _) = run(&e, &adm, "fetch", &json!({ "id": "contact:abc" })).await;
+    assert!(err);
+    assert!(
+        text.is_empty() || text.contains("Input validation") || text.starts_with("id phải"),
+        "{text}"
+    );
+
+    // ── Nhân viên (chỉ xem của mình, có `contacts.phone_full` nhưng AI vẫn bị che).
+    let (_, _, v) = run(&e, &stf, "list_contacts", &json!({})).await;
+    let cs = v["data"]["contacts"].as_array().unwrap();
+    assert_eq!(cs.len(), 1, "{v}");
+    assert_eq!(cs[0]["phone"], "***001");
+    let other: i64 = e
+        .scalar("SELECT id::bigint FROM contacts WHERE full_name = 'Trần Thị Bình'")
+        .await;
+    let (err, text, _) = run(&e, &stf, "get_contact", &json!({ "id": other })).await;
+    assert!(
+        err && text.starts_with("Không tìm thấy bản ghi hoặc nằm ngoài phạm vi quyền của bạn"),
+        "{text}"
+    );
+    let (err, text, _) = run(&e, &stf, "fetch", &json!({ "id": format!("contact:{other}") })).await;
+    assert!(err && text.starts_with("Không tìm thấy"), "{text}");
+    let (_, _, v) = run(&e, &stf, "list_deals", &json!({})).await;
+    assert_eq!(v["data"]["deals"].as_array().unwrap().len(), 1);
+    let (_, _, v) = run(&e, &stf, "search", &json!({ "query": "an" })).await;
+    assert!(
+        v["results"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|r| !r["id"].as_str().unwrap().starts_with("deal:")
+                || r["title"].as_str().unwrap().contains("nhân viên")),
+        "{v}"
+    );
+    // Việc của tôi: chỉ thẻ của mình và chưa xong.
+    let (_, _, v) = run(&e, &stf, "list_my_tasks", &json!({})).await;
+    let tasks = v["data"]["tasks"].as_array().unwrap();
+    assert_eq!(tasks.len(), 1, "{v}");
+    assert_eq!(tasks[0]["title"], "Gọi lại khách An");
+    // Thiếu quyền của tool ⇒ câu từ chối, có nhật ký `denied`.
+    let (err, text, _) = run(&e, &stf, "get_dashboard_overview", &json!({})).await;
+    assert!(err && text.contains("cần quyền reports.overview"), "{text}");
+    // Danh mục: nhân viên có contacts.view và kanban.view nhưng không có contacts.transfer.
+    let (_, _, v) = run(&e, &stf, "list_crm_options", &json!({})).await;
+    let d = &v["data"];
+    assert!(
+        d["sources"].as_array().is_some_and(|a| !a.is_empty()) && d["stages"].is_array() && d["statuses"].is_array(),
+        "{v}"
+    );
+    let board = d["kanban_boards"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|b| b["name"] == "Việc")
+        .expect("bảng Việc");
+    assert_eq!(board["columns"][0]["name"], "Cần làm");
+    assert!(d.get("assignable_users").is_none());
+    let (_, _, v) = run(&e, &adm, "list_crm_options", &json!({ "user_name": "Quản" })).await;
+    assert!(v["data"]["assignable_users"].is_array(), "{v}");
+    // Tổng quan của quản trị chạy được.
+    let (err, _, v) = run(&e, &adm, "get_dashboard_overview", &json!({})).await;
+    assert!(!err && v["data"].is_object(), "{v}");
+
+    // Nhật ký: mỗi lời gọi một dòng, thành công và bị từ chối.
+    assert!(e.scalar("SELECT count(*) FROM integration_audit_logs WHERE channel = 'mcp' AND action = 'list_contacts' AND status = 'ok'").await >= 5);
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM integration_audit_logs WHERE channel = 'mcp' AND action = 'get_dashboard_overview' AND status = 'denied'").await,
+        1
+    );
+    assert!(
+        e.scalar("SELECT count(*) FROM integration_audit_logs WHERE metadata::text LIKE '%0912345%'")
+            .await
+            == 0
+    );
 }

@@ -1,0 +1,28 @@
+[package]
+name = "mod-custom"
+description = "Module bảng tuỳ biến (M17): bảng, trường, màn xem, phiên bản cấu trúc, menu, tra cứu."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tracing = { workspace = true }
+trinity-db = { workspace = true }
+trinity-http = { workspace = true }
+trinity-kernel = { workspace = true }
+trinity-rbac = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tower = { workspace = true }
+trinity-auth = { workspace = true }
+
+[lints]
+workspace = true

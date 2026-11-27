@@ -67,6 +67,13 @@ pub fn fold_sql(column: SqlIdent, from_param: u32, to_param: u32) -> String {
     format!("translate(lower({}), ${from_param}, ${to_param})", column.as_str())
 }
 
+/// Chuẩn hoá NFC như `String.prototype.normalize('NFC')`.
+pub fn nfc(s: &str) -> String {
+    icu_normalizer::ComposingNormalizerBorrowed::new_nfc()
+        .normalize(s)
+        .into_owned()
+}
+
 /// Thoát `\`, `%`, `_` cho mẫu `LIKE … ESCAPE '\'` (giống `escapeLike` của bản TS).
 pub fn escape_like(s: &str) -> String {
     let mut out = String::with_capacity(s.len());

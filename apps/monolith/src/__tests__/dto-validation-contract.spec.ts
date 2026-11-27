@@ -40,6 +40,9 @@ import * as queryJobTitles from '../../../../services/crm/src/job-titles/dto/que
 import * as createCandidate from '../../../../services/crm/src/recruitment/dto/create-candidate.dto'
 import * as createRule from '../../../../services/payroll/src/salary-rules/dto/create-rule.dto'
 import * as updateUser from '../../../../services/auth/src/users/dto/update-user.dto'
+import * as customObject from '../../../../services/crm/src/custom-objects/dto/custom-object.dto'
+import * as customField from '../../../../services/crm/src/custom-objects/dto/custom-field.dto'
+import * as customRecord from '../../../../services/crm/src/custom-objects/dto/custom-record.dto'
 import * as sendNotification from '../../../../services/notification/src/notifications/dto/send-notification.dto'
 import * as queryNotification from '../../../../services/notification/src/notifications/dto/query-notification.dto'
 import * as publicCreateContact from '../../../../services/crm/src/public-api/dto/public-create-contact.dto'
@@ -73,6 +76,13 @@ const SAMPLES: Array<[Cls, Mode]> = [
   [sendNotification.SendNotificationDto, 'lenient'],
   [publicCreateContact.PublicCreateContactDto, 'strict'],
   [createOption.CreateOptionDto, 'strict'],
+  [customObject.CreateCustomObjectDto, 'strict'],
+  [customObject.UpdateCustomObjectDto, 'strict'],
+  [customField.CreateCustomFieldDto, 'strict'],
+  [customField.UpdateCustomFieldDto, 'strict'],
+  [customField.ReorderCustomFieldsDto, 'strict'],
+  [customField.FormulaPreviewDto, 'strict'],
+  [customRecord.LookupQueryDto, 'strict'],
 ]
 
 /** Mọi tệp có @Transform (đếm bằng grep trong services/): mỗi class trong đó vào schema và golden @Transform. */
@@ -208,6 +218,21 @@ const EXTRA_CASES: Array<[Cls, Mode, string, unknown]> = [
   [webhookEndpoint.CreateWebhookEndpointDto, 'strict', 'url', { url: 'ftp://example.com/hook', events: ['contact.created', 'không-có'] }],
   [webhookEndpoint.CreateWebhookEndpointDto, 'strict', 'url_ok', { url: 'https://hooks.example.com/in?x=1', events: ['contact.created'] }],
   [sendNotification.SendNotificationDto, 'lenient', 'enum', { channel: 'sms', user_ids: [1, 1] }],
+  [customObject.CreateCustomObjectDto, 'strict', 'valid', { key: 'khach_hang', label: ' Khách ', label_plural: 'Khách', icon: 'users', show_in_nav: true, nav_order: 3, visible_role_ids: [1, 2], code_prefix: 'kh' }],
+  [customObject.CreateCustomObjectDto, 'strict', 'sai', { key: 'Khach', label: '', label_plural: 5, show_in_nav: 'x', nav_order: -1, visible_role_ids: [0, 'a'], code_prefix: 'k', la: 1 }],
+  [customObject.UpdateCustomObjectDto, 'strict', 'valid', { label: 'Mới', is_active: false, icon: null, description: null }],
+  [customObject.UpdateCustomObjectDto, 'strict', 'sai', { label: null, nav_order: 1.5, visible_role_ids: 'x', key: 'khong-sua-duoc' }],
+  [customField.CreateCustomFieldDto, 'strict', 'valid', { label: 'Giá', type: 'currency', required: true, options: { decimals: 0 }, help_text: 'VND' }],
+  [customField.CreateCustomFieldDto, 'strict', 'sai', { key: 'A b', label: '', type: 'khac', required: 'x', options: [], help_text: 5 }],
+  [customField.UpdateCustomFieldDto, 'strict', 'valid', { label: 'Tên', type: 'text', is_title: true, options: {}, help_text: null }],
+  [customField.UpdateCustomFieldDto, 'strict', 'sai', { label: null, type: 'x', options: 'o', key: 'khong' }],
+  [customField.ReorderCustomFieldsDto, 'strict', 'valid', { keys: ['a', 'b'] }],
+  [customField.ReorderCustomFieldsDto, 'strict', 'sai', { keys: [] }],
+  [customField.ReorderCustomFieldsDto, 'strict', 'sai_kieu', { keys: [1, 'a'] }],
+  [customField.FormulaPreviewDto, 'strict', 'valid', { object_key: 'don_hang', expression: '{gia}*2', sample: { gia: 5 }, editing_key: 'tong' }],
+  [customField.FormulaPreviewDto, 'strict', 'sai', { object_key: 'Don Hang', expression: 5, sample: 'x', editing_key: 1 }],
+  [customRecord.LookupQueryDto, 'strict', 'valid_query', { q: 'an', limit: '20', for: 'manage' }],
+  [customRecord.LookupQueryDto, 'strict', 'query_sai', { q: 'a\u0000', limit: '500', for: 'all', x: '1' }],
   // Body là mảng JSON: Nest kiểm mảng như một đối tượng của DTO (khoá là chỉ số)
   [createContact.CreateContactDto, 'strict', 'array_body', [{ phone: '0901234567', full_name: 'A' }]],
   [createContact.CreateContactDto, 'strict', 'array_body_empty', []],

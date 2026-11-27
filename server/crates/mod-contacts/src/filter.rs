@@ -298,7 +298,7 @@ mod tests {
         let s = where_of(OwnerIds::Ids(vec![1]), ContactFilters::default(), false);
         assert_eq!(
             s,
-            "(assigned_to = ANY($1) OR created_by_id = ANY($2)) AND deleted_at IS NULL"
+            r#"("assigned_to" = ANY($1) OR "created_by_id" = ANY($2)) AND deleted_at IS NULL"#
         );
         let all = where_of(OwnerIds::All, ContactFilters::default(), false);
         assert!(all.starts_with("TRUE AND deleted_at IS NULL"));

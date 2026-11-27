@@ -4,7 +4,7 @@ web:
       - any-glob-to-any-file: apps/web/**
 api:
   - changed-files:
-      - any-glob-to-any-file: [apps/monolith/**, services/**]
+      - any-glob-to-any-file: [server/**]
 packages:
   - changed-files:
       - any-glob-to-any-file: packages/**

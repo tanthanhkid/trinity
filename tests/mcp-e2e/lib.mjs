@@ -9,7 +9,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const req = createRequire(resolve(root, 'services/crm/package.json'));
+const req = createRequire(resolve(root, 'package.json'));
 const { Client } = req('@modelcontextprotocol/sdk/client/index.js');
 const { StreamableHTTPClientTransport } = req('@modelcontextprotocol/sdk/client/streamableHttp.js');
 

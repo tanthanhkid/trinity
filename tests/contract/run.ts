@@ -2,12 +2,11 @@
  * Bộ chạy test hợp đồng HTTP hộp đen (PLAN mục 6.2). Với mỗi hồ sơ cấu hình (`profiles/*.env`): dựng DB riêng từ mẫu đã
  * migrate + seed, khởi động máy chủ MỘT lần với env của hồ sơ, chạy các ca trong `cases/<hồ sơ>/`, rồi tắt máy chủ.
  *
- *   pnpm --filter @trinity/contract-tests contract                       # Node, mọi hồ sơ có ca
- *   pnpm --filter @trinity/contract-tests contract -- --profile default  # một hồ sơ
+ *   SERVER_CMD='["/đường/dẫn/trinity"]' pnpm --filter @trinity/contract-tests contract                       # mọi hồ sơ có ca
+ *   SERVER_CMD=... pnpm --filter @trinity/contract-tests contract -- --profile default  # một hồ sơ
  *
- * Chọn máy chủ (`--target`):
- *   node (mặc định)  `node apps/monolith/dist/.../main.js` (luôn build trước; `--no-build` để bỏ qua)
- *   cmd              mảng JSON trong `SERVER_CMD` (vd `["/đường/dẫn/trinity"]`), nhận env của hồ sơ; hồ sơ `production` phải trỏ binary phát hành
+ * Máy chủ:
+ *   SERVER_CMD       mảng JSON trong `SERVER_CMD` (vd `["/đường/dẫn/trinity"]`), nhận env của hồ sơ; hồ sơ `production` phải trỏ binary phát hành
  *                    qua `SERVER_CMD_PRODUCTION`
  *
  * So Node với Rust trong CÙNG lượt: `--mode record` (Node, ghi kết quả đã chuẩn hoá vào `--out`), rồi
@@ -126,20 +125,12 @@ function parseCmd(name: string, raw: string): { cmd: string; args: string[] } {
   return { cmd, args }
 }
 
-let built = false
 function serverCommand(profile: string): { cmd: string; args: string[] } {
-  if (arg('target')[0] === 'cmd') {
-    const prod = profile === 'production' ? process.env.SERVER_CMD_PRODUCTION : undefined
-    const raw = prod ?? process.env.SERVER_CMD
-    if (!raw) throw new Error('--target cmd cần SERVER_CMD (và SERVER_CMD_PRODUCTION cho hồ sơ production)')
-    return parseCmd(prod ? 'SERVER_CMD_PRODUCTION' : 'SERVER_CMD', raw)
-  }
-  // Luôn build (tsc ghi đè dist, vài giây): dist cũ sẽ chạy mã không phải của nhánh hiện tại. `--no-build` để bỏ qua có chủ đích.
-  if (!built && !process.argv.includes('--no-build')) {
-    sh('pnpm', ['--filter', '@trinity/monolith', 'build'], {})
-    built = true
-  }
-  return { cmd: process.execPath, args: [path.join(root, 'apps/monolith/dist/apps/monolith/src/main.js')] }
+  // Bản Node đã gỡ (X06): chỉ còn chạy binary Rust qua SERVER_CMD.
+  const prod = profile === 'production' ? process.env.SERVER_CMD_PRODUCTION : undefined
+  const raw = prod ?? process.env.SERVER_CMD
+  if (!raw) throw new Error('cần SERVER_CMD (và SERVER_CMD_PRODUCTION cho hồ sơ production)')
+  return parseCmd(prod ? 'SERVER_CMD_PRODUCTION' : 'SERVER_CMD', raw)
 }
 
 /** Cổng phải trống trước khi khởi động: nếu không, health có thể đến từ tiến trình cũ chứ không phải pid vừa spawn. */
@@ -240,15 +231,6 @@ async function main(): Promise<void> {
       }
       const violationsFile = path.join(os.tmpdir(), `trinity-contract-net-${profile}-${process.pid}.txt`)
       fs.rmSync(violationsFile, { force: true })
-      if (arg('target')[0] !== 'cmd') {
-        // Chặn mạng cho máy chủ Node: mọi kết nối ra ngoài loopback bị từ chối và ghi lại; có vi phạm thì hồ sơ đỏ.
-        // Nối thêm vào NODE_OPTIONS sẵn có (không ghi đè), đường dẫn đặt trong ngoặc kép vì có thể chứa dấu cách.
-        const requireOpt = `--require "${path.join(here, 'mock', 'block-network.cjs')}"`
-        env.NODE_OPTIONS = [env.NODE_OPTIONS, requireOpt].filter(Boolean).join(' ')
-        env.CONTRACT_NET_VIOLATIONS = violationsFile
-        // Postgres không ở loopback (DATABASE_URL của hồ sơ, CONTRACT_PG_ADMIN_URL) vẫn được phép; mọi host khác bị chặn.
-        env.CONTRACT_NET_ALLOW = [env.DATABASE_URL, adminUrl].map((u) => new URL(u).hostname).join(',')
-      }
       for (const [k, v] of Object.entries(env)) {
         if (v === '@BASE@') env[k] = base
         else if (typeof v === 'string' && v.startsWith('@MOCK@')) env[k] = `${mock.url}${v.slice('@MOCK@'.length)}`

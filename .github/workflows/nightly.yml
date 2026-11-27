@@ -67,13 +67,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
       - run: pnpm --filter @trinity/prisma exec prisma migrate deploy
-      - working-directory: services/crm
-        run: npx jest --testRegex '(\.pg\.spec|\.db\.spec)\.ts$' --runInBand
-      - working-directory: services/commerce
-        run: npx jest --testRegex '(\.pg\.spec|pos-flow\.integration\.spec)\.ts$' --runInBand --passWithNoTests
-      - run: |
-          (cd packages/rbac-nest && npx jest --testRegex 'scope\.service\.spec\.ts$' --runInBand)
-          (cd services/auth && npx jest --testRegex 'users-manager-cache-invalidation\.spec\.ts$' --runInBand)
+      - run: (cd packages/rbac-nest && npx jest --testRegex 'scope\.service\.spec\.ts$' --runInBand)
 
   # Job e2e cũ (monolith Node + serve-export.mjs) đã gỡ: đường Node bị bỏ (#264) và monolith không còn khởi động được trên runner
   # (STORAGE_LOCAL_ROOT, #563). Bộ smoke/rbac chạy qua job này, trên binary Rust.

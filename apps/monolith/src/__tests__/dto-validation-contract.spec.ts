@@ -64,6 +64,7 @@ import * as updatePosition from '../../../../services/crm/src/recruitment/dto/up
 import * as queryCandidates from '../../../../services/crm/src/recruitment/dto/query-candidates.dto'
 import * as queryPositions from '../../../../services/crm/src/recruitment/dto/query-positions.dto'
 import * as publicWork from '../../../../services/crm/src/public-api/dto/public-work.dto'
+import * as approveAiAction from '../../../../services/crm/src/integrations/mcp/actions/approve-ai-action.dto'
 import * as createOption from '../../../../services/crm/src/settings-options/dto/create-option.dto'
 import * as queryOptions from '../../../../services/crm/src/settings-options/dto/query-options.dto'
 import * as dashboardFilter from '../../../../services/crm/src/reports/dashboard-overview.filter'
@@ -99,6 +100,8 @@ const SAMPLES: Array<[Cls, Mode]> = [
   [publicCreateContact.PublicCreateContactDto, 'strict'],
   [publicWork.PublicCreateDealDto, 'strict'],
   [publicWork.PublicCreateTaskDto, 'strict'],
+  [approveAiAction.ApproveAiActionDto, 'strict'],
+  [approveAiAction.UpdateAiActionSettingsDto, 'strict'],
   [createOption.CreateOptionDto, 'strict'],
   [customObject.CreateCustomObjectDto, 'strict'],
   [customObject.UpdateCustomObjectDto, 'strict'],

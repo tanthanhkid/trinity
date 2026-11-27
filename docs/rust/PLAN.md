@@ -1495,7 +1495,7 @@ Mỗi file trừ `golden/**` có job CI "sinh lại và so" để không lệch 
   trên Rust không cần sửa.
   **X04 (đã làm):** `tests/mcp-e2e/run-rust.sh` dựng DB thử (migrate, seed, tài khoản thử), bật `trinity serve` ở cổng riêng,
   chạy `run.mjs` + `run-roles.mjs`, thêm `--with-model --runs N` cho `claude-code-roles.mjs` và đếm lời gọi bị từ chối vì
-  schema. Chưa chạy được cho tới khi M40–M42 đăng ký đủ tool vào `ToolRegistry` (M39 để rỗng); chưa chạy thử script.
+  schema. Đã chạy thử trên binary Rust (27/11/2026): kết quả và phần còn đỏ ở [docs/rust/X04.md](X04.md).
 - Test bằng model: `tests/mcp-e2e/claude-code-roles.mjs` chạy một bộ nhiệm vụ cố định trên Node và trên Rust. Kết quả
   của model không tất định, nên **tiêu chí cứng** chỉ là: 0 lời gọi tool bị từ chối vì schema. Tỉ lệ hoàn thành nhiệm
   vụ là số tham khảo: chạy 5 lần mỗi bên, Rust nằm trong khoảng dao động của Node.

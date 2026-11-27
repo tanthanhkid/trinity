@@ -5,6 +5,9 @@
 //! Tool cụ thể (M40–M42, `mod-mcp` các nhóm) đăng ký [`ToolSpec`] vào [`ToolRegistry`]; `tools/list` vẫn lấy từ hợp đồng đóng băng,
 //! nên tool trong hợp đồng chưa đăng ký chạy được báo "chưa chuyển" thay vì biến mất khỏi danh sách.
 
+/// Đầu thông điệp của `require_perm` (act_records/actions): tên quyền thiếu nằm sau đó.
+const NEED_PERM_PREFIX: &str = "Bạn không có quyền thực hiện thao tác này (cần quyền ";
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -261,6 +264,12 @@ impl Executor {
             ToolError::Forbidden(m) => {
                 log(AuditStatus::Denied, Some("forbidden".into())).await;
                 CallResult::error(m)
+            }
+            // `requirePerm` của Node ném ForbiddenException và lớp ngoài trả nguyên `err.message` (có tên quyền thiếu);
+            // 403 khác (từ tầng dịch vụ) vẫn là câu từ chối chung.
+            ToolError::Http { status: 403, message } if message.starts_with(NEED_PERM_PREFIX) => {
+                log(AuditStatus::Denied, Some("forbidden".into())).await;
+                CallResult::error(message)
             }
             ToolError::Http { status: 403, .. } => {
                 log(AuditStatus::Denied, Some("forbidden".into())).await;

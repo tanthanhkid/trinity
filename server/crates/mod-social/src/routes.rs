@@ -22,7 +22,8 @@ pub fn routes() -> Vec<RouteSpec> {
         r(Method::POST, "/api/v1/social/accounts/:id/enable", manage, 200).param_pipes(ID),
         r(Method::DELETE, "/api/v1/social/accounts/:id", manage, 204).param_pipes(ID),
         RouteSpec::new(Method::GET, "/api/v1/social/oauth/callback/:network", Access::Public),
-        // Media (M53b). `POST /social/media/upload-token` đã gỡ cùng Vercel Blob (G11).
+        // Media (M53b). `POST /social/media/upload-token` chỉ còn kiểm trước khi tải (luôn 400/413, #612); phần Vercel Blob đã gỡ (G11).
+        r(Method::POST, "/api/v1/social/media/upload-token", post, 200),
         r(Method::GET, "/api/v1/social/media", post, 200),
         r(Method::POST, "/api/v1/social/media", post, 201),
         r(Method::GET, "/api/v1/social/media/:id/file", post, 200).param_pipes(ID),
@@ -91,10 +92,10 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = routes();
-        assert_eq!(table.len(), 45);
+        assert_eq!(table.len(), 46);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 45);
+        assert_eq!(rep.declared, 46);
     }
 
     #[test]
@@ -112,6 +113,6 @@ mod tests {
         table.extend(upload_routes());
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 45);
+        assert_eq!(rep.declared, 46);
     }
 }

@@ -190,7 +190,7 @@ async fn tu_khoa_nut_bam_roi_het_va_webhook_gui_lai_khong_chay_hai_lan() {
         .and(path("/v25.0/me/messages"))
         .and(body_partial_json(json!({
             "recipient": { "id": "m50a" },
-            "message": { "text": "Chào Khách, bạn cần gì?", "quick_replies": [{ "title": "Khoá học" }] },
+            "message": { "text": "Bạn cần gì nhỉ?", "quick_replies": [{ "title": "Khoá học" }] },
         })))
         .respond_with(MidsRef(Arc::clone(&mids)))
         .expect(1)
@@ -205,7 +205,7 @@ async fn tu_khoa_nut_bam_roi_het_va_webhook_gui_lai_khong_chay_hai_lan() {
         .await;
 
     let steps = json!([
-        { "id": "hoi", "text": "Chào {ten}, bạn cần gì?", "buttons": [{ "title": "Khoá học", "next": "cam_on" }] },
+        { "id": "hoi", "text": "Bạn cần gì nhỉ?", "buttons": [{ "title": "Khoá học", "next": "cam_on" }] },
         { "id": "cam_on", "text": "Cảm ơn bạn!", "next": null },
     ]);
     let flow = ingest

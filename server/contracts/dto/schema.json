@@ -32,6 +32,48 @@
   },
   "defaults": {}
  },
+ "ApproveAiActionDto": {
+  "declared": [
+   "confirm_text"
+  ],
+  "validated": [
+   "confirm_text"
+  ],
+  "fields": {
+   "confirm_text": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "maxLength",
+      "constraints": [
+       200
+      ],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "customValidation",
+      "name": "isString",
+      "constraints": [],
+      "message": null,
+      "each": false
+     },
+     {
+      "type": "conditionalValidation",
+      "name": "isOptional",
+      "constraints": [
+       {
+        "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
+       }
+      ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
  "BirthdayListQueryDto": {
   "declared": [
    "office_id",
@@ -12223,6 +12265,28 @@
         "$fn": "(object, value) => {\n                    return object[propertyName] !== null && object[propertyName] !== undefined;\n                }"
        }
       ],
+      "message": null,
+      "each": false
+     }
+    ]
+   }
+  },
+  "defaults": {}
+ },
+ "UpdateAiActionSettingsDto": {
+  "declared": [
+   "require_approval"
+  ],
+  "validated": [
+   "require_approval"
+  ],
+  "fields": {
+   "require_approval": {
+    "rules": [
+     {
+      "type": "customValidation",
+      "name": "isBoolean",
+      "constraints": [],
       "message": null,
       "each": false
      }

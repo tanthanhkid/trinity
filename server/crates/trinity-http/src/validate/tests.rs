@@ -20,10 +20,10 @@ fn schema_nap_duoc_moi_luat_dieu_kien_transform() {
 }
 
 #[test]
-fn golden_55_dto_khop_validation_pipe() {
+fn golden_57_dto_khop_validation_pipe() {
     let cases: Vec<Value> = serde_json::from_str(VALIDATION).unwrap();
     let dtos: std::collections::BTreeSet<&str> = cases.iter().filter_map(|c| c["dto"].as_str()).collect();
-    assert_eq!(dtos.len(), 55, "{dtos:?}");
+    assert_eq!(dtos.len(), 57, "{dtos:?}");
     let mut fails = Vec::new();
     for c in &cases {
         let mode = if c["mode"] == "strict" {

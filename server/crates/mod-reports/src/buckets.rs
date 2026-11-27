@@ -93,8 +93,13 @@ mod tests {
     use super::*;
     use crate::period::parse_period;
 
+    /// Đồng hồ cố định: test không phụ thuộc giờ thật.
+    fn fixed_now() -> DateTime<Utc> {
+        "2026-06-01T00:00:00Z".parse().unwrap()
+    }
+
     fn period(a: &str, b: &str) -> (DateTime<Utc>, DateTime<Utc>) {
-        let p = parse_period(Some(a), Some(b), Utc::now()).unwrap();
+        let p = parse_period(Some(a), Some(b), fixed_now()).unwrap();
         (p.from, p.to)
     }
 
@@ -123,11 +128,12 @@ mod tests {
         assert_eq!(b.len(), 2);
         assert_eq!(b[1].end, t + Duration::milliseconds(1));
         // Tháng neo theo ngày bắt đầu: 31/01 → 28/02 → 31/03 (không trôi về 28).
+        // Mốc kế tiếp 30/04 vượt cuối kỳ 15/04 nên bucket 31/03 bị cắt ở 15/04, không có bucket thứ 4.
         let (f, t) = period("2026-01-31", "2026-04-15");
         let b = build_buckets(f, t, Granularity::Month);
         assert_eq!(
             b.iter().map(|x| x.label.as_str()).collect::<Vec<_>>(),
-            ["01/2026", "02/2026", "03/2026", "04/2026"]
+            ["01/2026", "02/2026", "03/2026"]
         );
         assert_eq!(vn_date(b[1].start), NaiveDate::from_ymd_opt(2026, 2, 28).unwrap());
         assert_eq!(vn_date(b[2].start), NaiveDate::from_ymd_opt(2026, 3, 31).unwrap());

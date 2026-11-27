@@ -80,7 +80,11 @@ async fn clean(c: &mut PgConnection) {
         "DELETE FROM contacts WHERE phone IN ('0912490001', '0912490002') OR full_name LIKE 'm49%'",
     )
     .await;
-    exec(c, "DELETE FROM notification_logs WHERE action_url = '/inbox?kenh=tuong-tac'").await;
+    exec(
+        c,
+        "DELETE FROM notification_logs WHERE action_url = '/inbox?kenh=tuong-tac'",
+    )
+    .await;
     exec(c, "DELETE FROM setting_options WHERE value LIKE 'm49%'").await;
     exec(c, "DELETE FROM users WHERE email LIKE 'm49%@test.local'").await;
 }
@@ -176,7 +180,7 @@ async fn binh_luan_luat_tu_dong_va_tra_loi_tay() {
 
     // ── Bình luận khớp luật 1, có SĐT: trả lời + nhắn riêng + ẩn, khách mới có SĐT ──
     let first = comment("m49p", "m49c1", "m49p_1", "u1", "Cho em hỏi giá, sđt 0912 490 001");
-    assert_eq!(ingest.process(company, &[first.clone()]).await.unwrap(), 1);
+    assert_eq!(ingest.process(company, std::slice::from_ref(&first)).await.unwrap(), 1);
     // Meta gửi lại cùng `comment_id` ⇒ không tạo thêm, không gọi Graph lần nữa.
     assert_eq!(ingest.process(company, &[first]).await.unwrap(), 0);
     // Bình luận của chính Page ⇒ bỏ qua.
@@ -221,15 +225,39 @@ async fn binh_luan_luat_tu_dong_va_tra_loi_tay() {
     );
 
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_comments WHERE page_id = 'm49p'").await, 4);
+    assert_eq!(
+        count(&mut c, "SELECT count(*) FROM facebook_comments WHERE page_id = 'm49p'").await,
+        4
+    );
     assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_comments WHERE comment_id = 'm49c1' AND status = 'done' AND hidden AND phone = '0912490001' AND rule_id IS NOT NULL AND contact_id IS NOT NULL AND actions->'public_reply'->>'id' = 'm49reply' AND actions->'private_reply'->>'message_id' = 'm49.mid1' AND actions->'public_reply'->>'text' = 'Chào m49 u1!'").await, 1);
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_comments WHERE comment_id = 'm49c2' AND status = 'skipped'").await, 1);
+    assert_eq!(
+        count(
+            &mut c,
+            "SELECT count(*) FROM facebook_comments WHERE comment_id = 'm49c2' AND status = 'skipped'"
+        )
+        .await,
+        1
+    );
     assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_comments WHERE comment_id = 'm49c3' AND status = 'test' AND NOT hidden AND actions->'public_reply'->>'id' IS NULL").await, 1);
     assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_comments WHERE comment_id = 'm49c4' AND status = 'received' AND rule_id IS NULL AND contact_id IS NOT NULL").await, 1);
     // Khách có SĐT từ bình luận, hội thoại Messenger tạo sẵn gắn đúng khách + tin ra của Page.
-    assert_eq!(count(&mut c, "SELECT count(*) FROM contacts WHERE phone = '0912490001' AND full_name = 'm49 u1'").await, 1);
+    assert_eq!(
+        count(
+            &mut c,
+            "SELECT count(*) FROM contacts WHERE phone = '0912490001' AND full_name = 'm49 u1'"
+        )
+        .await,
+        1
+    );
     assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_conversations v JOIN contacts k ON k.id = v.contact_id WHERE v.page_id = 'm49p' AND v.psid = 'm49psid' AND k.phone = '0912490001'").await, 1);
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_messages WHERE mid = 'm49.mid1' AND direction = 'out'").await, 1);
+    assert_eq!(
+        count(
+            &mut c,
+            "SELECT count(*) FROM facebook_messages WHERE mid = 'm49.mid1' AND direction = 'out'"
+        )
+        .await,
+        1
+    );
     // Sự kiện: mỗi bình luận mới một `facebook.comment_received`; tin ra của nhắn riêng một `messenger.message_sent`.
     assert_eq!(count(&mut c, "SELECT count(*) FROM integration_events WHERE event_type = 'facebook.comment_received' AND payload->>'page_id' = 'm49p'").await, 4);
     assert_eq!(count(&mut c, "SELECT count(*) FROM integration_events WHERE event_type = 'messenger.message_sent' AND payload->>'origin' = 'comment_reply'").await, 1);
@@ -282,7 +310,10 @@ async fn binh_luan_luat_tu_dong_va_tra_loi_tay() {
     let r = comments::reply_manually(&ctx, &id, &reply(" Cảm ơn bạn ", "public"), Some(user), now)
         .await
         .unwrap();
-    assert_eq!((r["status"].as_str(), r["answered"].as_bool()), (Some("replied"), Some(true)));
+    assert_eq!(
+        (r["status"].as_str(), r["answered"].as_bool()),
+        (Some("replied"), Some(true))
+    );
     assert_eq!(r["actions"]["manual"][0]["text"], "Cảm ơn bạn");
     assert_eq!(r["actions"]["manual"][0]["id"], "m49reply");
     let r = comments::reply_manually(&ctx, &id, &reply("Nhắn riêng nhé", "private"), Some(user), now)
@@ -293,18 +324,38 @@ async fn binh_luan_luat_tu_dong_va_tra_loi_tay() {
     assert!(again.is_err(), "Facebook chỉ cho nhắn riêng một lần mỗi bình luận");
     // Quá 7 ngày: nhắn riêng bị từ chối, công khai vẫn được.
     let late = now + chrono::Duration::days(8);
-    let c3 = open.iter().find(|v| v["status"] == "test").unwrap()["id"].as_str().unwrap().to_owned();
-    assert!(comments::reply_manually(&ctx, &c3, &reply("x", "private"), None, late).await.is_err());
-    assert!(comments::reply_manually(&ctx, &c3, &reply("x", "public"), None, late).await.is_ok());
+    let c3 = open.iter().find(|v| v["status"] == "test").unwrap()["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(
+        comments::reply_manually(&ctx, &c3, &reply("x", "private"), None, late)
+            .await
+            .is_err()
+    );
+    assert!(
+        comments::reply_manually(&ctx, &c3, &reply("x", "public"), None, late)
+            .await
+            .is_ok()
+    );
     // id không phải số ⇒ 404; nội dung trống ⇒ 400.
-    assert!(comments::reply_manually(&ctx, "abc", &reply("x", "public"), None, now).await.is_err());
-    assert!(comments::reply_manually(&ctx, &id, &reply("   ", "public"), None, now).await.is_err());
+    assert!(
+        comments::reply_manually(&ctx, "abc", &reply("x", "public"), None, now)
+            .await
+            .is_err()
+    );
+    assert!(
+        comments::reply_manually(&ctx, &id, &reply("   ", "public"), None, now)
+            .await
+            .is_err()
+    );
 
     // ── Luật: thử luật, sửa, xoá ──
     let mut c = db.tenant(company).await.unwrap().acquire().await.unwrap();
     let dry = comments::dry_run(
         &mut c,
-        &DryRunInput::from_json(&json!({ "message": "xin giá 0912 490 002", "page_id": "m49p", "from_name": "Lan" })).unwrap(),
+        &DryRunInput::from_json(&json!({ "message": "xin giá 0912 490 002", "page_id": "m49p", "from_name": "Lan" }))
+            .unwrap(),
     )
     .await
     .unwrap();
@@ -312,7 +363,11 @@ async fn binh_luan_luat_tu_dong_va_tra_loi_tay() {
     assert_eq!(dry["phone_found"], "0912490002");
     assert_eq!(dry["actions"]["public_reply"]["text"], "Chào Lan!");
     assert_eq!(dry["actions"]["hide"], json!({}));
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_comments WHERE page_id = 'm49p'").await, 4, "không ghi gì");
+    assert_eq!(
+        count(&mut c, "SELECT count(*) FROM facebook_comments WHERE page_id = 'm49p'").await,
+        4,
+        "không ghi gì"
+    );
     let upd = comments::update_rule(
         &mut c,
         r1.id,
@@ -335,12 +390,27 @@ async fn binh_luan_luat_tu_dong_va_tra_loi_tay() {
             .is_err(),
         "không thấy luật ⇒ 404"
     );
-    assert!(comments::update_rule(&mut c, r1.id, &rule_body(json!({ "name": null }))).await.is_err());
-    assert_eq!(comments::list_rules(&mut c).await.unwrap().iter().filter(|r| r.name.starts_with("m49")).count(), 2);
+    assert!(
+        comments::update_rule(&mut c, r1.id, &rule_body(json!({ "name": null })))
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        comments::list_rules(&mut c)
+            .await
+            .unwrap()
+            .iter()
+            .filter(|r| r.name.starts_with("m49"))
+            .count(),
+        2
+    );
     comments::delete_rule(&mut c, r1.id).await.unwrap();
     comments::delete_rule(&mut c, r2.id).await.unwrap();
     assert!(comments::delete_rule(&mut c, r2.id).await.is_err());
     // Bình luận đã xử lý giữ nguyên sau khi xoá luật.
-    assert_eq!(count(&mut c, "SELECT count(*) FROM facebook_comments WHERE page_id = 'm49p'").await, 4);
+    assert_eq!(
+        count(&mut c, "SELECT count(*) FROM facebook_comments WHERE page_id = 'm49p'").await,
+        4
+    );
     clean(&mut c).await;
 }

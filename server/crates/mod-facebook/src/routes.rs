@@ -105,7 +105,7 @@ impl FacebookState {
         guard: ChannelGuard,
         features: Arc<dyn OrgFeatureGate>,
     ) -> Self {
-        let graph_for = graph_factory(env.clone(), guard);
+        let graph_for = graph_factory(env.clone(), guard.clone());
         let receiver = Receiver {
             env: env.clone(),
             router: Arc::new(PlatformRouter {

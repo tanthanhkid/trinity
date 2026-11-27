@@ -221,7 +221,9 @@ pub fn normalize_post_id(raw: Option<&str>, page_id: Option<&str>) -> Result<Opt
     let Some(v) = raw.map(trim_js).filter(|v| !v.is_empty()) else {
         return Ok(None);
     };
-    let is_pair = v.split_once('_').is_some_and(|(a, b)| all_digits(a, 1) && all_digits(b, 1));
+    let is_pair = v
+        .split_once('_')
+        .is_some_and(|(a, b)| all_digits(a, 1) && all_digits(b, 1));
     if let Some(c) = POST_PAIR_RE.captures(v) {
         return Ok(Some(c[1].to_owned()));
     }
@@ -251,9 +253,7 @@ pub fn to_date(v: Option<&Value>) -> DateTime<Utc> {
         }
     };
     let parsed = match v {
-        Some(Value::Number(n)) => n
-            .as_f64()
-            .and_then(|f| from_ms(if f < 1e12 { f * 1000.0 } else { f })),
+        Some(Value::Number(n)) => n.as_f64().and_then(|f| from_ms(if f < 1e12 { f * 1000.0 } else { f })),
         Some(Value::String(s)) if !s.is_empty() => {
             if s.bytes().all(|b| b.is_ascii_digit()) {
                 s.parse::<f64>().ok().and_then(|f| from_ms(f * 1000.0))
@@ -415,10 +415,7 @@ pub(crate) async fn explain_graph(
             "Không {what} được: ứng dụng Facebook chưa có quyền (cần kết nối lại Fanpage sau khi bật quyền)."
         );
     }
-    format!(
-        "Không {what} được: Facebook báo \"{}\".",
-        utf16_prefix(&e.message, 160)
-    )
+    format!("Không {what} được: Facebook báo \"{}\".", utf16_prefix(&e.message, 160))
 }
 
 async fn mark_invalid(db: &Db, company: CompanyRef, page_id: &str) -> Result<(), AppError> {
@@ -659,10 +656,7 @@ impl FacebookIngest {
             .and_then(|f| f.get("name"))
             .and_then(Value::as_str)
             .map(|n| utf16_prefix(n, 200));
-        let message = v
-            .get("message")
-            .and_then(Value::as_str)
-            .map(|m| utf16_prefix(m, 5000));
+        let message = v.get("message").and_then(Value::as_str).map(|m| utf16_prefix(m, 5000));
         let parent_id = str_of(v.get("parent_id")).filter(|p| *p != post_id);
         let phone = find_vn_phone(message.as_deref());
         let at = to_date(v.get("created_time"));
@@ -1796,7 +1790,11 @@ pub async fn reply_manually(
     let reply_id = match sent {
         Ok(id) => id,
         Err(e) => {
-            let what = if public { "trả lời bình luận" } else { "nhắn riêng" };
+            let what = if public {
+                "trả lời bình luận"
+            } else {
+                "nhắn riêng"
+            };
             let msg = explain_graph(ctx.db, ctx.company, &e, &c.page_id, what).await;
             return Err(HttpError::bad_request(msg).into());
         }
@@ -1886,7 +1884,10 @@ mod tests {
         assert_eq!(normalize_vi("  Giá   ĐẸP  "), "gia dep");
         assert!(matches_keywords(Some("Cho em xin GIÁ nhé"), &s(&["giá"]), &[]));
         assert!(matches_keywords(Some("bất kỳ"), &[], &[]));
-        assert!(matches_keywords(Some("bất kỳ"), &s(&["  "]), &[]), "từ khoá rỗng = mọi bình luận");
+        assert!(
+            matches_keywords(Some("bất kỳ"), &s(&["  "]), &[]),
+            "từ khoá rỗng = mọi bình luận"
+        );
         assert!(!matches_keywords(Some("xin giá"), &s(&["giá"]), &s(&["xin"])));
         assert!(!matches_keywords(Some("hello"), &s(&["giá"]), &[]));
         assert!(!matches_keywords(None, &s(&["giá"]), &[]));
@@ -1946,7 +1947,12 @@ mod tests {
 
     #[test]
     fn ke_hoach_cua_luat() {
-        let a = plan(&rule(&["a {ten}", "b"], Some("riêng {ten}"), true), Some("Lan"), Some("0912345678"), 3);
+        let a = plan(
+            &rule(&["a {ten}", "b"], Some("riêng {ten}"), true),
+            Some("Lan"),
+            Some("0912345678"),
+            3,
+        );
         assert_eq!(a.public_reply.as_ref().map(|p| p.text.as_str()), Some("b"));
         assert_eq!(a.private_reply.as_ref().map(|p| p.text.as_str()), Some("riêng Lan"));
         assert!(a.hide.is_some());
@@ -2022,7 +2028,10 @@ mod tests {
             auto_result_line(Some("R"), "failed", &a).as_deref(),
             Some("Luật \"R\": chưa làm được (1 việc lỗi)")
         );
-        assert_eq!(auto_result_line(Some("R"), "test", &a).as_deref(), Some("Luật \"R\" (chạy thử)"));
+        assert_eq!(
+            auto_result_line(Some("R"), "test", &a).as_deref(),
+            Some("Luật \"R\" (chạy thử)")
+        );
         assert_eq!(auto_result_line(None, "done", &a), None);
     }
 
@@ -2062,7 +2071,11 @@ mod tests {
         let m = |v: Value| validate_rule_body(&v).unwrap();
         // Tạo: thiếu tên ⇒ 400; null trên cờ Boolean thành false.
         assert!(sanitize_rule(&m(json!({})), true).is_err());
-        let d = sanitize_rule(&m(json!({ "name": " Tên ", "once_per_user": null, "mode": "live" })), true).unwrap();
+        let d = sanitize_rule(
+            &m(json!({ "name": " Tên ", "once_per_user": null, "mode": "live" })),
+            true,
+        )
+        .unwrap();
         assert_eq!(d.name.as_deref(), Some("Tên"));
         assert_eq!(d.once_per_user, Some(false));
         assert_eq!(d.mode.as_deref(), Some("live"));

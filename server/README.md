@@ -191,7 +191,7 @@ Binary đọc **cùng tên biến** với bản Node (`.env.example`, PLAN 4.13)
 - **Elsewhere**: thuộc tiến trình khác (web Next, compose, test e2e); binary biết tên, không đọc, không cảnh báo.
 - **Retired**: không còn dùng (`REDIS_URL`, `PORT`, `BACKEND_URL`, biến của serverless, Vercel Blob, Google Sheets,
   YouTube/TikTok, kết nối sàn…). Đặt thì bị bỏ qua kèm một dòng cảnh báo lúc khởi động. Cổng chính đọc từ
-  `TRINITY_HTTP_PORT` (mặc định 3000), cổng tương thích từ `COMPAT_API_PORT` (mặc định 4000); hai cổng trùng là lỗi.
+  `TRINITY_HTTP_PORT` (mặc định 3000), cổng tương thích từ `COMPAT_API_PORT` (không đặt thì không mở cổng thứ hai; compose và `.env.example` đặt 4000); đặt trùng cổng chính hoặc không phải số 1–65535 là lỗi.
 
 Test bảng kiểm mọi biến trong `.env.example` có trong bảng: thêm biến vào `.env.example` thì thêm vào `vars.rs` cùng PR.
 Ở production, thiếu `DATABASE_URL` hoặc secret còn giá trị mẫu `change-me-*` hay ngắn hơn 32 ký tự làm binary dừng với mã khác 0 (cùng câu

@@ -50,8 +50,7 @@ const E2E: &str = "test e2e (Playwright)";
 
 const R_REDIS: &str = "bản Rust không dùng Redis";
 const R_NODE_URL: &str = "địa chỉ nội bộ của bản Node; bản Rust dùng NODE_FALLBACK_URL trong cấu hình lai";
-const R_PORT: &str =
-    "cổng chính đọc từ TRINITY_HTTP_PORT (mặc định 3000), cổng tương thích từ COMPAT_API_PORT (mặc định 4000)";
+const R_PORT: &str = "cổng chính đọc từ TRINITY_HTTP_PORT (mặc định 3000), cổng tương thích từ COMPAT_API_PORT (không đặt = không mở cổng thứ hai)";
 const R_POOL: &str = "bản Rust dùng một pool chung cho mọi công ty (DB_POOL_SIZE)";
 const R_SERVERLESS: &str = "đường chạy Vercel serverless đã bỏ";
 const R_BLOB: &str = "driver lưu trữ Vercel Blob đã bỏ (dùng local hoặc s3)";

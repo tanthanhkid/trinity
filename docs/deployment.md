@@ -196,7 +196,7 @@ update; dump the database only when the update contains a migration (a rollback 
 `trinity` reads its settings from the environment (`.env` for Compose; see `.env.example` for every variable).
 
 - The main port is `TRINITY_HTTP_PORT` (default 3000): pages, `/api/v1`, `/uploads` and `/notif-ws` all use it. `COMPAT_API_PORT`
-  (default 4000) keeps `/notif-ws` and `/api/v1` working for proxies still pointing at the old API port; the two must differ.
+  (not set = no second listener; `.env.example` and Compose set 4000) keeps `/notif-ws` and `/api/v1` working for proxies still pointing at the old API port; the two must differ.
   The old `PORT` variable is ignored (one warning line at startup).
 - Variables that no longer apply (`REDIS_URL`, `BACKEND_URL`, `MONOLITH_INTERNAL_URL`, `AUTH_SERVICE_URL`, serverless and
   Vercel Blob settings, removed connectors, `TENANT_MAX_CLIENTS`, …) are ignored with one warning line each.
@@ -222,7 +222,7 @@ With nginx, one `location /` with `proxy_http_version 1.1`, `proxy_set_header Up
 
 **Compatibility port.** Proxies still configured with the old rule (`/notif-ws/*` to port 4000) must keep working
 through an upgrade, otherwise the bell would stop updating without any error. For that the single-process release
-listens on a second port, `COMPAT_API_PORT` (default 4000), which answers `/notif-ws` and `/api/v1`:
+listens on a second port when `COMPAT_API_PORT` is set (Compose and `.env.example` set 4000). It serves the same router as the main port (`/notif-ws`, `/api/v1`, same client-IP rules) over plain HTTP and stops with the main port on SIGTERM:
 
 - It is a separate variable from `API_PORT`, which keeps its old meaning as the host-side port Compose publishes
   (`127.0.0.1:${API_PORT:-4000}`). It must differ from `TRINITY_HTTP_PORT`.

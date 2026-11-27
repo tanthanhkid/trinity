@@ -119,7 +119,10 @@ fn bien_khong_con_dung_bao_mot_dong_moi_bien() {
     assert!(loaded.warnings[1].starts_with("REDIS_URL không còn dùng"));
     // PORT=4000 của bản Node không đổi cổng chính.
     assert_eq!(loaded.config.http_port, 3000);
-    assert_eq!(loaded.config.compat_api_port, 4000);
+    assert_eq!(
+        loaded.config.compat_api_port, None,
+        "không đặt COMPAT_API_PORT thì không mở cổng thứ hai"
+    );
 }
 
 #[test]
@@ -274,7 +277,7 @@ fn cong_pool_tls_video() {
     let c = load(&good()).config;
     assert_eq!(
         (c.http_port, c.compat_api_port, c.db_pool_size, c.social_max_video_mb),
-        (3000, 4000, 8, 200)
+        (3000, None, 8, 200)
     );
     assert_eq!(c.tls, TlsMode::Off);
     assert!(!c.swagger_enabled, "production mặc định tắt /docs");
@@ -288,8 +291,22 @@ fn cong_pool_tls_video() {
     .config;
     assert_eq!(c.db_pool_size, 12, "DB_POOL_SIZE thắng");
 
-    let probs = err(&with(good(), &[("TRINITY_HTTP_PORT", "4000")]));
+    assert_eq!(
+        load(&with(good(), &[("COMPAT_API_PORT", "4000")]))
+            .config
+            .compat_api_port,
+        Some(4000)
+    );
+    // Trùng cổng chính chỉ lỗi khi COMPAT_API_PORT được đặt thật.
+    let probs = err(&with(
+        good(),
+        &[("TRINITY_HTTP_PORT", "4000"), ("COMPAT_API_PORT", "4000")],
+    ));
     assert!(probs[0].contains("trùng nhau"), "{probs:?}");
+    assert_eq!(
+        load(&with(good(), &[("TRINITY_HTTP_PORT", "4000")])).config.http_port,
+        4000
+    );
     // Cổng sai chỉ báo một lỗi, không kéo theo "trùng nhau".
     assert_eq!(
         err(&with(good(), &[("COMPAT_API_PORT", "0")])),

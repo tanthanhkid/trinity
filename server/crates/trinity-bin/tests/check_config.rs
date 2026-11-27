@@ -123,3 +123,21 @@ fn cloudflare_tunnel_dia_chi_nghe_khong_phai_loopback_khong_khoi_dong() {
     ]));
     assert_eq!(code, 0, "{err}");
 }
+
+#[test]
+fn cong_tuong_thich_duoc_kiem() {
+    let base = [("JWT_SECRET", GOOD_JWT)];
+    let with = |extra: &[(&'static str, &'static str)]| {
+        let mut v = base.to_vec();
+        v.extend_from_slice(extra);
+        run(&v)
+    };
+    assert_eq!(with(&[]).0, 0, "không đặt thì hợp lệ");
+    assert_eq!(with(&[("COMPAT_API_PORT", "4001")]).0, 0);
+    let (code, err) = with(&[("COMPAT_API_PORT", "abc")]);
+    assert_ne!(code, 0);
+    assert!(err.contains("COMPAT_API_PORT=abc không phải số cổng hợp lệ"), "{err}");
+    let (code, err) = with(&[("COMPAT_API_PORT", "3000")]);
+    assert_ne!(code, 0);
+    assert!(err.contains("trùng nhau"), "{err}");
+}

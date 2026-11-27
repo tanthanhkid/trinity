@@ -35,6 +35,31 @@ const HEADER_READ_TIMEOUT: Duration = Duration::from_secs(30);
 const H2_KEEP_ALIVE_INTERVAL: Duration = Duration::from_secs(30);
 const H2_KEEP_ALIVE_TIMEOUT: Duration = Duration::from_secs(20);
 
+/// Địa chỉ nghe của cổng tương thích `COMPAT_API_PORT` (X06, #597): trong container nghe mọi giao diện (compose chỉ công
+/// bố ra loopback của host); ngoài Docker, hoặc khi `TRUSTED_PROXY=cloudflare-tunnel` (tunnel tin `cf-connecting-ip` của
+/// mọi peer, chỉ trỏ cổng chính), chỉ nghe loopback.
+pub fn compat_listen_host(env: &std::collections::BTreeMap<String, String>, in_container: bool) -> &'static str {
+    let tunnel = env
+        .get("TRUSTED_PROXY")
+        .is_some_and(|v| v.trim().eq_ignore_ascii_case("cloudflare-tunnel"));
+    if in_container && !tunnel {
+        "0.0.0.0"
+    } else {
+        "127.0.0.1"
+    }
+}
+
+/// Tiến trình đang chạy trong container (cùng các dấu hiệu với dò mạng của `edge::client_ip`).
+pub fn running_in_container() -> bool {
+    Path::new("/.dockerenv").exists()
+        || Path::new("/run/.containerenv").exists()
+        || std::fs::read_to_string("/proc/1/cgroup").is_ok_and(|c| {
+            ["docker", "kubepods", "containerd", "libpod"]
+                .iter()
+                .any(|k| c.contains(k))
+        })
+}
+
 /// Lỗi nạp chứng chỉ TLS (lỗi cấu hình: tiến trình phải dừng khi khởi động).
 #[derive(Debug, thiserror::Error)]
 pub enum TlsError {

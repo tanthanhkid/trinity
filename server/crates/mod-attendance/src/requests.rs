@@ -135,7 +135,7 @@ async fn display_name(conn: &mut PgConnection, id: i32) -> R<Option<String>> {
 }
 
 /// Phạm vi theo quyền `permission`; không có phạm vi ⇒ rỗng (đóng, không mở rộng).
-async fn owner_of(ctx: &Ctx, actor: &Actor, permission: &str) -> R<OwnerIds> {
+pub(crate) async fn owner_of(ctx: &Ctx, actor: &Actor, permission: &str) -> R<OwnerIds> {
     Ok(ctx
         .scopes
         .owner_ids(actor.company, actor.user_id, &actor.grants, permission)
@@ -334,7 +334,7 @@ pub async fn create(ctx: &Ctx, actor: &Actor, dto: &CreateAttendanceRequestDto) 
 // ───────────────────────────── danh sách ─────────────────────────────
 
 /// Team CHÍNH THỨC: `employees.team_id` → NV là trưởng nhóm → quản lý là trưởng nhóm (alias `e`, `u`).
-const RESOLVED_TEAM_ID: &str = "COALESCE(e.team_id,
+pub(crate) const RESOLVED_TEAM_ID: &str = "COALESCE(e.team_id,
     (SELECT tl.id FROM teams tl WHERE tl.team_lead_id = u.id ORDER BY tl.id LIMIT 1),
     (SELECT tm.id FROM teams tm WHERE tm.team_lead_id = u.manager_id ORDER BY tm.id LIMIT 1))";
 

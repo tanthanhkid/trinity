@@ -92,7 +92,7 @@ impl ContractStore {
         }
     }
 
-    async fn get(&self, key: &str) -> Result<Download, StorageError> {
+    pub async fn get(&self, key: &str) -> Result<Download, StorageError> {
         match self {
             Self::Local(d) => {
                 let o = d.get(key).await?;

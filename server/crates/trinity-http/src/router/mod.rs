@@ -146,7 +146,8 @@ impl RouteSpec {
         self.path
             .split('/')
             .map(|seg| match seg.strip_prefix(':') {
-                Some(name) => format!("{{{name}}}"),
+                // `:id(\d+)` (Express) thành `{id}`; việc kiểm toàn chữ số làm ở lớp thực thi.
+                Some(name) => format!("{{{}}}", name.split('(').next().unwrap_or(name)),
                 None => seg.to_owned(),
             })
             .collect::<Vec<_>>()

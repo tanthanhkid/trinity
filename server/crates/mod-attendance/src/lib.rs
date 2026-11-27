@@ -26,6 +26,7 @@ pub mod check;
 pub mod config;
 pub mod dto;
 pub mod offices;
+pub mod records;
 pub mod requests;
 pub mod routes;
 

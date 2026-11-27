@@ -8,9 +8,12 @@
 pub(crate) mod act_contacts;
 pub(crate) mod act_records;
 pub(crate) mod act_tasks;
+mod confirm;
 mod contacts;
 mod deals;
 mod fanpage;
+mod inbox;
+mod invitations;
 mod options;
 mod records;
 mod schema;
@@ -28,6 +31,9 @@ use trinity_kernel::json::js_json;
 use trinity_rbac::can;
 
 use crate::actions::{self, ActionTool};
+pub use inbox::InboxDeps;
+pub use invitations::{AuthInvitations, InvitationsPort};
+
 use crate::ai_output::wrap_data;
 use crate::auth::Principal;
 use crate::deps::app_err;
@@ -119,6 +125,101 @@ pub fn register_group3(r: &mut ToolRegistry) {
         });
     }
     reg(r, "get_action_status", &[], actions::get_action_status);
+}
+
+/// Tool giữ trạng thái riêng của nhóm (`S`): thân chạy nhận `&S` ngoài `args` và `ctx`.
+struct StateTool<S> {
+    state: Arc<S>,
+    run: for<'a> fn(&'a S, &'a Value, &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>>,
+}
+
+impl<S: Send + Sync + 'static> ToolRunner for StateTool<S> {
+    fn run<'a>(&'a self, args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+        (self.run)(&*self.state, args, ctx)
+    }
+}
+
+fn reg_state<S: Send + Sync + 'static>(
+    r: &mut ToolRegistry,
+    state: &Arc<S>,
+    name: &'static str,
+    scope: Option<&'static str>,
+    permissions: &'static [&'static str],
+    run: for<'a> fn(&'a S, &'a Value, &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>>,
+) {
+    r.register(ToolSpec {
+        name,
+        scope,
+        permissions,
+        runner: Arc::new(StateTool {
+            state: state.clone(),
+            run,
+        }),
+    });
+}
+
+/// Đăng ký 7 tool hộp thư và lời mời (M44c): `list_unanswered_messages`, `list_conversations`, `get_conversation_messages`,
+/// `reply_to_customer` (hộp thư), `list_invitations`, `create_invitation`, `cancel_invitation` (lời mời). Không có tool xoá và không
+/// có tool mật khẩu. Hai tool gửi ra ngoài (`reply_to_customer` hai bước) và hai tool ghi lời mời cần scope `crm.write`.
+pub fn register_inbox_invitations(r: &mut ToolRegistry, inbox: Arc<InboxDeps>, invitations: Arc<dyn InvitationsPort>) {
+    let invitations = Arc::new(invitations);
+    reg_state(
+        r,
+        &inbox,
+        "list_unanswered_messages",
+        None,
+        &["integrations.webhooks"],
+        inbox::list_unanswered_messages,
+    );
+    reg_state(
+        r,
+        &inbox,
+        "list_conversations",
+        None,
+        &["integrations.webhooks"],
+        inbox::list_conversations,
+    );
+    reg_state(
+        r,
+        &inbox,
+        "get_conversation_messages",
+        None,
+        &["integrations.webhooks"],
+        inbox::get_conversation_messages,
+    );
+    reg_state(
+        r,
+        &inbox,
+        "reply_to_customer",
+        Some("crm.write"),
+        &["integrations.webhooks"],
+        inbox::reply_to_customer,
+    );
+    let users_manage: &'static [&'static str] = &["users.manage"];
+    reg_state(
+        r,
+        &invitations,
+        "list_invitations",
+        None,
+        users_manage,
+        invitations::list_invitations,
+    );
+    reg_state(
+        r,
+        &invitations,
+        "create_invitation",
+        Some("crm.write"),
+        users_manage,
+        invitations::create_invitation,
+    );
+    reg_state(
+        r,
+        &invitations,
+        "cancel_invitation",
+        Some("crm.write"),
+        users_manage,
+        invitations::cancel_invitation,
+    );
 }
 
 /// Đăng ký 9 tool đọc của nhóm 2 (M41) vào `r`: `get_setup_guide`, `describe_schema`, `list_records`, `get_record`,

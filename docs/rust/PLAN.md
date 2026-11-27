@@ -1675,6 +1675,16 @@ thực IEEE 754) và 17 chỗ phép toán `Decimal`. Dùng một kiểu duy nh�
    Phát hiện nhờ bảng: `validateFormula` bọc công thức vào `return (…);` nên `1) + (2` hợp lệ; chú thích dòng cuối công thức nuốt
    `);`; hằng regex ở vị trí toán hạng hợp lệ. Bản Rust của M29 đã sửa theo. Biên JS của bộ tính: đọc thuộc tính của `undefined` là lỗi lúc chạy; `obj.tên++` trên hàm hoặc regex cho `NaN`, trên số/chuỗi/`undefined` là lỗi lúc chạy; `...` trên chuỗi cho ký tự đầu `NaN`. Rò trạng thái ở Node: `min.max++` gán vào `Math.min` dùng chung nên các lần sau thấy `NaN`, Rust không rò. Tiền `i64` (tràn ⇒ lỗi), tỷ lệ `f64` đọc từ chuỗi
    `Decimal`, làm tròn bằng `trinity_kernel::number::js_round`.
+8. **Đã làm ở M30b** (`server/crates/mod-payroll/src/{payslips,employees}.rs`, bảng route `routes::payslip_specs`, 13 route: `GET /payslips/me`,
+   `GET /payslips`, `GET /payslips/addable`, `GET /payslips/:id`, `POST /payslips/generate`, `POST /payslips/add-to-period`, `PATCH /payslips/:id`,
+   `PATCH /payslips/:id/approve`, `DELETE /payslips/:id`, `GET/POST /employees`, `GET/PATCH /employees/:id`). Tính phiếu gọi lại
+   `calc::compute_payslip` (không viết lại phép tính); module chỉ đọc/ghi DB. Phạm vi xem/duyệt vào hàm dưới dạng `Option<&[i32]>`
+   (`None` = tất cả) để `mod-payroll` không phụ thuộc `trinity-rbac`; tầng route đổi từ `OwnerIds`. Duyệt bước 2 ghi thông báo
+   `payslip.approved` bằng `trinity_db::outbox::create_notification` (K36) TRONG SAVEPOINT trên giao dịch duyệt: lỗi thông báo không làm mất
+   việc duyệt, `NOTIFY bell` chỉ phát khi commit nên tiến trình khác đẩy socket tới người nhận, còn socket cùng tiến trình do route đẩy từ
+   `Approved::notifications`. Khác bản Node: nội dung mặc định (`Phiếu lương tháng <tháng>: <số tiền> VNĐ`), không qua mẫu thông báo
+   (`render_by_event_type`). Biên giữ nguyên: `team_id` của `GET /payslips` chỉ có tác dụng khi phạm vi là tất cả; `GET /employees` không
+   loại hồ sơ xoá mềm (như TS); `PATCH /employees/:id` với `position`/`status` = `null` ⇒ 400 (cột NOT NULL).
 
 ## 11. Thời gian và nguồn lực
 

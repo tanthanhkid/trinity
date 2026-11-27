@@ -40,9 +40,45 @@ pub fn routes() -> Vec<RouteSpec> {
     ]
 }
 
+/// 13 route của M30b: 9 route phiếu lương không trả tệp (`PayslipsController`) và 4 route `employees` của payroll.
+/// `/payslips/me`, `/addable`, `/generate`, `/add-to-period` là đường tĩnh nên không bị `:id` nuốt (axum ưu tiên đường tĩnh).
+pub fn payslip_specs() -> Vec<RouteSpec> {
+    let view = Access::Can(&["payroll.view"]);
+    let manage = Access::Can(&["payroll.manage"]);
+    let approve = Access::CanAny(&["payroll.approve_team", "payroll.approve_final"]);
+    let emp_view = Access::Can(&["employees.view"]);
+    let emp_manage = Access::Can(&["employees.manage"]);
+    let r = |m: Method, path: &'static str, a: Access, ok: u16| RouteSpec::new(m, path, a).status_ok(ok);
+    let by_id = |m: Method, path: &'static str, a: Access| r(m, path, a, 200).param_pipes(ID);
+    vec![
+        r(Method::GET, "/api/v1/payslips/me", Access::AuthOnly, 200),
+        r(Method::GET, "/api/v1/payslips", view, 200),
+        r(Method::GET, "/api/v1/payslips/addable", manage, 200),
+        by_id(Method::GET, "/api/v1/payslips/:id", view),
+        r(Method::POST, "/api/v1/payslips/generate", manage, 201),
+        r(Method::POST, "/api/v1/payslips/add-to-period", manage, 201),
+        by_id(Method::PATCH, "/api/v1/payslips/:id/approve", approve),
+        by_id(Method::PATCH, "/api/v1/payslips/:id", manage),
+        by_id(Method::DELETE, "/api/v1/payslips/:id", manage),
+        r(Method::GET, "/api/v1/employees", emp_view, 200),
+        r(Method::POST, "/api/v1/employees", emp_manage, 201),
+        by_id(Method::GET, "/api/v1/employees/:id", emp_view),
+        by_id(Method::PATCH, "/api/v1/employees/:id", emp_manage),
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn m30b_khop_hop_dong_routes_json() {
+        let table = payslip_specs();
+        assert_eq!(table.len(), 13);
+        let rep = trinity_http::router::check::check_embedded(&table, false);
+        assert!(rep.ok(), "{:#?}", rep.problems);
+        assert_eq!(rep.declared, 13);
+    }
 
     #[test]
     fn khop_hop_dong_routes_json() {

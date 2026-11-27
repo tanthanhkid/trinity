@@ -6,7 +6,7 @@
 //!   người dùng băm HMAC (không bao giờ id thật; id công ty khác 1 băm kèm công ty như `tenantKey`).
 //! - `GET /api/v1/site-config` (public, **chỉ có ở Rust**): thông tin pháp lý và cờ lúc chạy (`realtime_mode`, `ds_v2`) để một binary
 //!   dùng được cho nhiều bản cài (W03 đọc từ đây thay cho biến lúc build). Route này thuộc đợt a trong tệp sở hữu
-//!   (`server/contracts/ownership-wave-a.json`); không có trong `routes.json` nên được liệt kê ở `trinity_http::router::check::RUST_ONLY_ROUTES`.
+//!   (`server/contracts/ownership-wave-a.json`, chỉ các route dưới `/api/v1`; `/api/build-id` còn do Next và `/docs` do Node phục vụ tới khi nhả); không có trong `routes.json` nên được liệt kê ở `trinity_http::router::check::RUST_ONLY_ROUTES`.
 //! - `GET /api/build-id` (ngoài `/api/v1`): `{"buildId": …}` với `Cache-Control: no-store, must-revalidate`; mã lấy từ
 //!   `TRINITY_BUILD_ID` lúc chạy, rồi lúc biên dịch (`TRINITY_BUILD_ID` khi build), rồi `"unknown"` (client bỏ qua, không bật cảnh báo nhầm).
 //! - `GET /docs` và `/docs-json`: tài liệu OpenAPI do `utoipa` sinh, chỉ khi ngoài production hoặc `SWAGGER_ENABLED=true`
@@ -48,10 +48,25 @@ fn trimmed(get: &impl Fn(&str) -> Option<String>, k: &str) -> Option<String> {
 fn js_number(s: &str) -> f64 {
     let t = s.trim();
     if t.is_empty() {
-        0.0
-    } else {
-        t.parse::<f64>().unwrap_or(f64::NAN)
+        return 0.0;
     }
+    // Số nguyên tiền tố `0x`/`0b`/`0o` (không dấu, không rỗng), như `Number('0x1')`.
+    let radix = match t.get(..2) {
+        Some("0x" | "0X") => Some(16),
+        Some("0b" | "0B") => Some(2),
+        Some("0o" | "0O") => Some(8),
+        _ => None,
+    };
+    if let Some(r) = radix {
+        let digits = &t[2..];
+        return if digits.bytes().all(|b| b.is_ascii_alphanumeric()) {
+            u128::from_str_radix(digits, r).map_or(f64::NAN, |n| n as f64)
+        } else {
+            f64::NAN
+        };
+    }
+    // Rust nhận `inf`/`nan` (không phân biệt hoa thường) còn JS chỉ nhận `Infinity`: cả hai không hữu hạn nên cùng rơi về mặc định.
+    t.parse::<f64>().unwrap_or(f64::NAN)
 }
 
 /// Số JSON như `JSON.stringify`: số nguyên in không có `.0`.
@@ -96,8 +111,11 @@ impl SystemConfig {
             })
         });
         // Khoá băm: `MONITORING_HASH_SECRET`, rồi `JWT_SECRET` (như `monitoring.ts`); rỗng ⇒ identity trả null.
-        let hasher = trimmed(&get, "MONITORING_HASH_SECRET")
-            .or_else(|| trimmed(&get, "JWT_SECRET"))
+        // KHÔNG cắt khoảng trắng: `env.MONITORING_HASH_SECRET || env.JWT_SECRET` của TS dùng nguyên chuỗi (chỉ chuỗi rỗng mới bỏ),
+        // cắt đi thì mã băm lệch với Node và với log/Sentry/PostHog.
+        let hasher = get("MONITORING_HASH_SECRET")
+            .filter(|s| !s.is_empty())
+            .or_else(|| get("JWT_SECRET").filter(|s| !s.is_empty()))
             .and_then(|s| UserIdHasher::new(&s).ok());
 
         let legal = |k: &str| trimmed(&get, k).map_or(Value::Null, Value::String);
@@ -174,6 +192,15 @@ fn spec(path: &str) -> RouteSpec {
     routes().into_iter().find(|r| r.path == path).expect("route đã khai")
 }
 
+/// `tenantKey` của bản Node: id người dùng lặp giữa các công ty ⇒ khoá mang công ty; công ty 1 giữ nguyên mã cũ.
+pub fn tenant_key(company_id: i32, user_id: i32) -> String {
+    if company_id == 1 {
+        user_id.to_string()
+    } else {
+        format!("c{company_id}:{user_id}")
+    }
+}
+
 /// `Date.prototype.toISOString()`: mili giây, hậu tố `Z`.
 fn iso_now() -> String {
     chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()
@@ -201,12 +228,8 @@ pub fn api_router(deps: Arc<AccessDeps>, cfg: Arc<SystemConfig>) -> ApiRouter {
             move |Extension(u): Extension<CurrentUser>| {
                 let hasher = hasher.clone();
                 async move {
-                    // Id người dùng lặp giữa các công ty ⇒ băm kèm công ty (công ty 1 giữ nguyên mã cũ), như `tenantKey`.
-                    let key = if u.user.company_id == 1 {
-                        u.user.user_id.to_string()
-                    } else {
-                        format!("c{}:{}", u.user.company_id, u.user.user_id)
-                    };
+                    // Công ty hiện hành của request (đã xác thực và resolve ở guard, như `currentCompany()`), không phải giá trị tự khai.
+                    let key = tenant_key(u.user.company_id, u.user.user_id);
                     let mut m = Map::new();
                     m.insert(
                         "user".into(),

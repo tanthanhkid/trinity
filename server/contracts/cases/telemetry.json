@@ -193,6 +193,171 @@
     },
     {
       "env": {
+        "SENTRY_DSN_WEB": "d",
+        "SENTRY_TRACES_SAMPLE_RATE": "0x1"
+      },
+      "out": {
+        "sentry": {
+          "dsn": "d",
+          "environment": "production",
+          "release": null,
+          "traces_sample_rate": 1
+        },
+        "posthog": null
+      }
+    },
+    {
+      "env": {
+        "SENTRY_DSN_WEB": "d",
+        "SENTRY_TRACES_SAMPLE_RATE": "0b1"
+      },
+      "out": {
+        "sentry": {
+          "dsn": "d",
+          "environment": "production",
+          "release": null,
+          "traces_sample_rate": 1
+        },
+        "posthog": null
+      }
+    },
+    {
+      "env": {
+        "SENTRY_DSN_WEB": "d",
+        "SENTRY_TRACES_SAMPLE_RATE": "0o1"
+      },
+      "out": {
+        "sentry": {
+          "dsn": "d",
+          "environment": "production",
+          "release": null,
+          "traces_sample_rate": 1
+        },
+        "posthog": null
+      }
+    },
+    {
+      "env": {
+        "SENTRY_DSN_WEB": "d",
+        "SENTRY_TRACES_SAMPLE_RATE": "0x10"
+      },
+      "out": {
+        "sentry": {
+          "dsn": "d",
+          "environment": "production",
+          "release": null,
+          "traces_sample_rate": 0.1
+        },
+        "posthog": null
+      }
+    },
+    {
+      "env": {
+        "SENTRY_DSN_WEB": "d",
+        "SENTRY_TRACES_SAMPLE_RATE": "0x"
+      },
+      "out": {
+        "sentry": {
+          "dsn": "d",
+          "environment": "production",
+          "release": null,
+          "traces_sample_rate": 0.1
+        },
+        "posthog": null
+      }
+    },
+    {
+      "env": {
+        "SENTRY_DSN_WEB": "d",
+        "SENTRY_TRACES_SAMPLE_RATE": " 0.5 "
+      },
+      "out": {
+        "sentry": {
+          "dsn": "d",
+          "environment": "production",
+          "release": null,
+          "traces_sample_rate": 0.5
+        },
+        "posthog": null
+      }
+    },
+    {
+      "env": {
+        "SENTRY_DSN_WEB": "d",
+        "SENTRY_TRACES_SAMPLE_RATE": "1e-1"
+      },
+      "out": {
+        "sentry": {
+          "dsn": "d",
+          "environment": "production",
+          "release": null,
+          "traces_sample_rate": 0.1
+        },
+        "posthog": null
+      }
+    },
+    {
+      "env": {
+        "SENTRY_DSN_WEB": "d",
+        "SENTRY_TRACES_SAMPLE_RATE": ".5"
+      },
+      "out": {
+        "sentry": {
+          "dsn": "d",
+          "environment": "production",
+          "release": null,
+          "traces_sample_rate": 0.5
+        },
+        "posthog": null
+      }
+    },
+    {
+      "env": {
+        "SENTRY_DSN_WEB": "d",
+        "SENTRY_TRACES_SAMPLE_RATE": "+0.5"
+      },
+      "out": {
+        "sentry": {
+          "dsn": "d",
+          "environment": "production",
+          "release": null,
+          "traces_sample_rate": 0.5
+        },
+        "posthog": null
+      }
+    },
+    {
+      "env": {
+        "SENTRY_DSN_WEB": "d",
+        "SENTRY_TRACES_SAMPLE_RATE": "Infinity"
+      },
+      "out": {
+        "sentry": {
+          "dsn": "d",
+          "environment": "production",
+          "release": null,
+          "traces_sample_rate": 0.1
+        },
+        "posthog": null
+      }
+    },
+    {
+      "env": {
+        "SENTRY_DSN_WEB": "d",
+        "SENTRY_TRACES_SAMPLE_RATE": "inf"
+      },
+      "out": {
+        "sentry": {
+          "dsn": "d",
+          "environment": "production",
+          "release": null,
+          "traces_sample_rate": 0.1
+        },
+        "posthog": null
+      }
+    },
+    {
+      "env": {
         "SENTRY_DSN_WEB": "   "
       },
       "out": {

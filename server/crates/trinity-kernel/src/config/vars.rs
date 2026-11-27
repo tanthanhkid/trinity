@@ -133,6 +133,7 @@ pub const ENV_VARS: &[EnvVar] = &[
     retired("TIKTOK_CLIENT_SECRET", R_SOCIAL),
     retired("GOOGLE_BUSINESS_ENABLED", R_SOCIAL),
     retired("INSTAGRAM_PUBLISH_ENABLED", R_SOCIAL),
+    // Rust đọc cho `GET /api/v1/site-config`; web (Next) VẪN đọc cùng các biến này để render `/privacy`, `/terms` tới W03: không đổi tên, không bỏ.
     server("LEGAL_CONTACT_EMAIL"),
     server("LEGAL_COMPANY_NAME"),
     server("LEGAL_COMPANY_NAME_EN"),

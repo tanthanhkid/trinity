@@ -229,10 +229,50 @@ fn tep_so_huu_dot_a_giao_route_cua_module_cho_rust() {
     for r in routes() {
         assert_eq!(own.route("GET", r.path).owner, Owner::Rust, "{}", r.path);
     }
-    for p in ["/api/build-id", "/docs", "/docs-json", "/api/v1/site-config"] {
-        assert_eq!(own.route("GET", p).owner, Owner::Rust, "{p}");
+    assert_eq!(own.route("GET", "/api/v1/site-config").owner, Owner::Rust);
+    // `/api/build-id` do Next phục vụ và `/docs`, `/docs-json` do Node phục vụ (Swagger của Nest) cho tới khi web/Node nhả: không
+    // đưa vào đợt a, nếu không proxy gửi chúng sang Rust và build id/tài liệu API đổi nguồn lặng lẽ.
+    for p in ["/api/build-id", "/docs", "/docs-json"] {
+        assert_eq!(own.route("GET", p).owner, Owner::Node, "{p}");
     }
     // Chỉ các route của đợt này; phần còn lại thuộc Node.
     assert_eq!(own.route("GET", "/api/v1/settings").owner, Owner::Node);
     assert_eq!(own.route("POST", "/api/v1/site-config").owner, Owner::Node);
+}
+
+#[test]
+fn khoa_cong_ty_nhu_tenant_key() {
+    assert_eq!(tenant_key(1, 7), "7");
+    assert_eq!(tenant_key(2, 7), "c2:7");
+    assert_ne!(tenant_key(2, 7), tenant_key(3, 7));
+}
+
+#[test]
+fn khoa_bam_khong_cat_khoang_trang() {
+    let a = SystemConfig::from_lookup(env(&[("JWT_SECRET", "bi-mat")]));
+    let b = SystemConfig::from_lookup(env(&[("JWT_SECRET", " bi-mat ")]));
+    let (ha, hb) = (
+        a.hasher.as_ref().unwrap().hash("7"),
+        b.hasher.as_ref().unwrap().hash("7"),
+    );
+    assert_ne!(ha, hb, "khoá không bị cắt khoảng trắng trước khi băm");
+    let c = SystemConfig::from_lookup(env(&[("MONITORING_HASH_SECRET", "bi-mat"), ("JWT_SECRET", "khac")]));
+    assert_eq!(c.hasher.as_ref().unwrap().hash("7"), ha);
+    let d = SystemConfig::from_lookup(env(&[("MONITORING_HASH_SECRET", ""), ("JWT_SECRET", "bi-mat")]));
+    assert_eq!(d.hasher.as_ref().unwrap().hash("7"), ha);
+    assert!(SystemConfig::from_lookup(env(&[])).hasher.is_none());
+}
+
+#[test]
+fn js_number_tien_to_co_so() {
+    assert_eq!(js_number("0x1"), 1.0);
+    assert_eq!(js_number(" 0X10 "), 16.0);
+    assert_eq!(js_number("0b11"), 3.0);
+    assert_eq!(js_number("0o7"), 7.0);
+    for bad in ["0x", "0xg", "0b2", "0o8", "-0x1", "0x-1", "0x1.5"] {
+        assert!(js_number(bad).is_nan(), "{bad}");
+    }
+    assert_eq!(js_number(""), 0.0);
+    assert_eq!(js_number("1e-1"), 0.1);
+    assert_eq!(js_number(".5"), 0.5);
 }

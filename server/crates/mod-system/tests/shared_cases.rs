@@ -13,7 +13,7 @@ fn telemetry_config_khop_ban_ts() {
     let table: Value = serde_json::from_str(CASES).unwrap();
     let base: BTreeMap<String, String> = serde_json::from_value(table["base"].clone()).unwrap();
     let cases = table["cases"].as_array().unwrap();
-    assert!(cases.len() >= 19, "bảng ca bị cắt");
+    assert!(cases.len() >= 30, "bảng ca bị cắt");
     for (i, c) in cases.iter().enumerate() {
         let mut env = base.clone();
         let extra: BTreeMap<String, String> = serde_json::from_value(c["env"].clone()).unwrap();

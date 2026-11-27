@@ -269,13 +269,44 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         }),
     );
     app = mount(app, mod_attendance::routes::router(deps.clone()), Arc::new(hr_ctx()));
+    // Facebook (M46, webhook M47a, tin nhắn/Lead Ads M47b) và Zalo OA (M52) dùng chung `ChannelGuard` với router kênh; URL Graph/Zalo
+    // và khoá đọc từ env (G15). Chưa có `refreshMissingNames` (M48) sau `check`.
+    let guard = mod_channel_guard::ChannelGuard::with_config(
+        db.clone(),
+        platform.clone(),
+        mod_channel_guard::GraphGuardConfig::from_lookup(lookup),
+    );
     app = mount(
         app,
         mod_channel_guard::api_router(deps.clone()),
-        Arc::new(mod_channel_guard::ChannelGuard::with_config(
+        Arc::new(guard.clone()),
+    );
+    // Route facebook/zalo-oa khai `org_feature`: cần `AccessDeps.features` (OrgGate của feat/x-router-contacts-leads); thiếu thì dừng.
+    let Some(features) = deps.features.clone() else {
+        return Err("thiếu cổng tính năng tổ chức (OrgGate) cho route facebook/zalo-oa".to_owned());
+    };
+    let channel_vars = env.clone();
+    let channel_env: mod_facebook::config::Env = Arc::new(move |k: &str| channel_vars.get(k).cloned());
+    app = mount(
+        app,
+        mod_facebook::routes::api_router(deps.clone()),
+        Arc::new(mod_facebook::routes::FacebookState::new(
             db.clone(),
             platform.clone(),
-            mod_channel_guard::GraphGuardConfig::from_lookup(lookup),
+            channel_env.clone(),
+            ScopeService::new(db.clone(), cache.clone()),
+            guard.clone(),
+            features.clone(),
+        )),
+    );
+    app = mount(
+        app,
+        mod_zalo::routes::api_router(deps.clone()),
+        Arc::new(mod_zalo::routes::ZaloState::new(
+            db.clone(),
+            platform.clone(),
+            channel_env,
+            guard,
         )),
     );
 
@@ -404,7 +435,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         }),
     );
     // CHƯA mount: mod-deals, mod-kanban, mod-newsfeed (cần multipart/media),
-    // mod-facebook, mod-store (chưa có router axum). Route của chúng thuộc Node. Đã mount: settings,
+    // mod-store (chưa có router axum). Route của chúng thuộc Node. Đã mount: settings,
     // rbac-admin (trừ `PUT /users/:id/roles`, do mod-users giữ), notify (4 route `/notifications`) ở sau khối realtime.
 
     // ── Scheduler và worker hàng đợi (nền). Chưa module nào đăng ký job ở đây; khi có, `scheduler.register(..)`.

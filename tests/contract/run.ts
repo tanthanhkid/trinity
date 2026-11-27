@@ -248,7 +248,10 @@ async function main(): Promise<void> {
         // Postgres không ở loopback (DATABASE_URL của hồ sơ, CONTRACT_PG_ADMIN_URL) vẫn được phép; mọi host khác bị chặn.
         env.CONTRACT_NET_ALLOW = [env.DATABASE_URL, adminUrl].map((u) => new URL(u).hostname).join(',')
       }
-      for (const [k, v] of Object.entries(env)) if (v === '@BASE@') env[k] = base
+      for (const [k, v] of Object.entries(env)) {
+        if (v === '@BASE@') env[k] = base
+        else if (typeof v === 'string' && v.startsWith('@MOCK@')) env[k] = `${mock.url}${v.slice('@MOCK@'.length)}`
+      }
       // Hồ sơ ghi đè bí mật (production) thắng giá trị chung.
       for (const k of ['JWT_SECRET', 'SERVICE_SECRET', 'INTERNAL_SERVICE_SECRET']) {
         const own = profile === 'default' ? undefined : parseEnvFile(path.join(here, 'profiles', `${profile}.env`))[k]
@@ -274,6 +277,10 @@ async function main(): Promise<void> {
           CONTRACT_PROFILE: profile,
           CONTRACT_MOCK_URL: mock.url,
           CONTRACT_SECRET_KEY: env.INTEGRATIONS_SECRET_KEY ?? '',
+          CONTRACT_FACEBOOK_APP_SECRET: env.FACEBOOK_APP_SECRET ?? '',
+          CONTRACT_FACEBOOK_VERIFY_TOKEN: env.FACEBOOK_WEBHOOK_VERIFY_TOKEN ?? '',
+          CONTRACT_ZALO_APP_ID: env.ZALO_OA_APP_ID ?? '',
+          CONTRACT_ZALO_WEBHOOK_SECRET: env.ZALO_WEBHOOK_SECRET ?? '',
           CONTRACT_MODE: mode,
           CONTRACT_OUT_DIR: outDir,
           ...(baseline ? { CONTRACT_BASELINE_DIR: path.resolve(baseline) } : {}),

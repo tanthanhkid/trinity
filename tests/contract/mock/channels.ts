@@ -12,7 +12,9 @@ export interface Call {
   method: string
   /** Đường dẫn đã bỏ tiền tố dịch vụ và phiên bản Graph, ví dụ `me/messages`, `v3.0/oa/message/cs`. */
   path: string
-  service: 'graph' | 'zalo-oauth' | 'zalo-api' | 'zalo-zns'
+  service: 'graph' | 'zalo-oauth' | 'zalo-api' | 'zalo-zns' | 'forward'
+  /** Chỉ lời gọi `forward` (webhook Facebook chuyển tiếp): chữ ký, header chống vòng lặp và thân thô đã nhận. */
+  forward?: { signature: string | null; forwarded: string | null; raw: string }
   query: Record<string, string>
   /** Chỉ tên header xác thực có mặt, không ghi giá trị token. */
   auth: { bearer: boolean; access_token: boolean; secret_key: boolean }
@@ -89,6 +91,7 @@ export async function startMock(port: number): Promise<Mock> {
       if (method === 'POST' && /^[^/]+\/comments$/.test(path)) return { status: 200, json: { id: id('c') } }
       if (method === 'GET' && /^\d+$/.test(path)) return { status: 200, json: { name: 'Khách Mock' } }
     }
+    if (c.service === 'forward' && method === 'POST' && path === 'webhook') return { status: 200, json: { status: 'ok' } }
     if (c.service === 'zalo-oauth' && method === 'POST' && path === 'v4/oa/access_token') {
       return { status: 200, json: { access_token: 'zalo-access-mock', refresh_token: 'zalo-refresh-mock', expires_in: '90000' } }
     }
@@ -143,6 +146,7 @@ export async function startMock(port: number): Promise<Mock> {
       else if (p.startsWith('/zoauth/')) (service = 'zalo-oauth'), (path = p.slice(8))
       else if (p.startsWith('/zapi/')) (service = 'zalo-api'), (path = p.slice(6))
       else if (p.startsWith('/zns/')) (service = 'zalo-zns'), (path = p.slice(5))
+      else if (p.startsWith('/fwd/')) (service = 'forward'), (path = p.slice(5))
       const call: Call = {
         n: ++seq,
         method: req.method ?? 'GET',
@@ -155,6 +159,9 @@ export async function startMock(port: number): Promise<Mock> {
           secret_key: Boolean(req.headers.secret_key),
         },
         body: redact(body),
+        ...(service === 'forward'
+          ? { forward: { signature: String(req.headers['x-hub-signature-256'] ?? '') || null, forwarded: String(req.headers['x-trinity-forwarded'] ?? '') || null, raw } }
+          : {}),
       }
       if (!service) {
         unexpected.push(call)

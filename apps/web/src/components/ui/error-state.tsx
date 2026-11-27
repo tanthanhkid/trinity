@@ -1,6 +1,6 @@
 import { AlertTriangle, RotateCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { ERROR_MESSAGES, describeError, errorKind } from "@/lib/error-messages"
 import { cn } from "@/lib/utils"

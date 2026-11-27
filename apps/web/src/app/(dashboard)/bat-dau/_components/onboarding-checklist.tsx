@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { CheckCircle2, Circle, Copy } from "lucide-react"
 import { toast } from "sonner"
 import type { OrgFeatureKey, Permission } from "@trinity/rbac"

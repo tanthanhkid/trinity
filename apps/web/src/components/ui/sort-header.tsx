@@ -6,8 +6,6 @@
  * thay vì đổi icon đột ngột.
  */
 import { ArrowUp, ArrowUpDown } from "lucide-react"
-import { motion } from "motion/react"
-import { motionTokens } from "@/lib/motion-tokens"
 import { cn } from "@/lib/utils"
 
 /** Mũi tên sắp xếp: mờ khi chưa sắp theo cột này, đậm + xoay giữa tăng/giảm khi đang sắp. */
@@ -15,14 +13,12 @@ export function SortArrow({ dir, className }: { dir: "asc" | "desc" | null; clas
   return (
     <span className={cn("inline-grid size-3.5 place-items-center", className)} aria-hidden>
       {dir ? (
-        <motion.span
-          className="inline-grid"
-          initial={false}
-          animate={{ rotate: dir === "asc" ? 0 : 180 }}
-          transition={motionTokens.spring.snappy}
+        <span
+          className="inline-grid transition-transform duration-200 ease-out motion-reduce:transition-none"
+          style={{ transform: dir === "asc" ? "rotate(0deg)" : "rotate(180deg)" }}
         >
           <ArrowUp className="size-3.5" />
-        </motion.span>
+        </span>
       ) : (
         <ArrowUpDown className="size-3.5 opacity-30 transition-opacity group-hover:opacity-70" />
       )}

@@ -22,7 +22,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import apiClient from "@/lib/api-client"
 import { useSettingsOptions } from "@/hooks/use-settings-options"
 import { useAuth } from "@/hooks/use-auth"

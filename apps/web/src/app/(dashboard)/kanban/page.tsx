@@ -6,7 +6,7 @@
  */
 import { Suspense, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { LayoutGrid, Plus, Search, Settings2, Table2 } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { Button } from "@/components/ui/button"

@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, type ReactNode } from "react"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { Loader2, X } from "lucide-react"
 import { useRefPreview } from "@/hooks/refs/use-refs"
 import type { RefView } from "@/lib/refs/mentions"

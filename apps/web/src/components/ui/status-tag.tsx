@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { PlugZap, RotateCw } from "lucide-react"
 import type { ShellBadgeTone } from "@/components/app-shell/badge"
 import { DotTag } from "@/components/app-shell/dot-tag"

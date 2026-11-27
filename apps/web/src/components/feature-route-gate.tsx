@@ -1,7 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { usePathname } from "next/navigation"
 import { ToggleLeft } from "lucide-react"
 import { isOrgFeatureOn, ORG_FEATURES } from "@trinity/rbac"

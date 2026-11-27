@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 
 /**
  * Khối "workspace" ở đỉnh sidebar (demo giao diện mới): logo lục giác + "Trinity"

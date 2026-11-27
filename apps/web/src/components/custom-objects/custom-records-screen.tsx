@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { useRouter } from "next/navigation"
 import { Download, Loader2, Plus, Search, Settings2 } from "lucide-react"
 import { toast } from "sonner"

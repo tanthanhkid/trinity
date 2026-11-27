@@ -114,9 +114,9 @@ html:root[data-ui="app"] {
   --color-app-sidebar-edge: #8a8d96;
 
   /* ---- font: Inter (subset vietnamese) nạp qua next/font ở lib/app-font.ts; biến
-     `--font-app-brand` do class của next/font gắn lên <html> định nghĩa. Fallback
+     `--font-inter` do class của next/font gắn lên <html> định nghĩa. Fallback
      trong var() để 1 nhịp trước khi effect chạy không mất font-family ----- */
-  --font-app: var(--font-app-brand, "Inter"), -apple-system, BlinkMacSystemFont,
+  --font-app: var(--font-inter, "Inter"), -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, sans-serif;
 
   /* ======================================================================

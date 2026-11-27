@@ -4,7 +4,7 @@
  * đóng BHXH trong form) định dạng SỐ (dấu phân cách nghìn), ổn định cross-browser —
  * khác với định dạng NGÀY lệch theo trình duyệt. */
 import { useState, useRef } from "react"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"

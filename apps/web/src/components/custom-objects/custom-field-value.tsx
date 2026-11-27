@@ -1,4 +1,4 @@
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { CHOICE_COLOR_CLASS, resolveChoiceColor } from "@/lib/custom-objects/field-meta"
 import { CustomScalarValue } from "./custom-scalar-chip"
 import { cn } from "@/lib/utils"

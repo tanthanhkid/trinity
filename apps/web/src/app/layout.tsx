@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, Montserrat } from "next/font/google";
+import { Montserrat } from "next/font/google";
+import { appFont as interFont } from "@/lib/app-font";
 import "./globals.css";
 import Providers from "./providers";
 import { SITE_CONFIG_INIT_SCRIPT } from "@/lib/site-config";
@@ -14,10 +15,8 @@ import { THEME_INIT_SCRIPT } from "@/lib/theme-script";
 const montserratFont = Montserrat({
   variable: "--font-montserrat",
   subsets: ["latin", "vietnamese"],
-});
-const interFont = Inter({
-  variable: "--font-inter",
-  subsets: ["latin", "vietnamese"],
+  // Chỉ ds-v2 dùng Montserrat (cờ đọc lúc chạy); mặc định là Inter ⇒ không preload, tải khi thật sự có glyph cần.
+  preload: false,
 });
 
 export const metadata: Metadata = {

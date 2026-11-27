@@ -7,7 +7,7 @@
  * = lịch sử + bình luận.
  */
 import { useEffect, useMemo, useRef, useState } from "react"
-import { MarkdownWithMentions } from "@/components/refs/markdown-with-mentions"
+import dynamic from "next/dynamic"
 import { MentionEditor } from "@/components/refs/mention-editor"
 import { toast } from "sonner"
 import { Eye, Pencil } from "lucide-react"
@@ -42,6 +42,12 @@ import { KanbanLabelPicker } from "./kanban-label-picker"
 import { KanbanChecklistPanel } from "./kanban-checklist-panel"
 import { KanbanAttachmentPanel } from "./kanban-attachment-panel"
 import { KANBAN_PRIORITIES, type KanbanPriority } from "@/types/kanban"
+
+// react-markdown + remark-gfm (~40 kB) chỉ nạp khi dialog thẻ có mô tả cần dựng.
+const MarkdownWithMentions = dynamic(
+  () => import("@/components/refs/markdown-with-mentions").then((m) => m.MarkdownWithMentions),
+  { ssr: false, loading: () => null },
+)
 
 const PRIORITY_LABELS: Record<KanbanPriority, string> = {
   low: "Thấp",

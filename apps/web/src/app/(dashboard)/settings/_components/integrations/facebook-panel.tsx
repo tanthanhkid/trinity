@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { useSearchParams } from "next/navigation"
 import { AlertTriangle, CheckCircle2, Loader2, MessagesSquare, PauseCircle, Plus } from "lucide-react"
 import { toast } from "sonner"

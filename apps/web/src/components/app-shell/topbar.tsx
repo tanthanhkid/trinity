@@ -1,7 +1,7 @@
 "use client"
 
 import { usePathname, useRouter } from "next/navigation"
-import Link from "next/link"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { ChevronDown, ChevronRight, Home, LogOut, PanelLeft, Search } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"

@@ -26,6 +26,11 @@ export function isFilterActive(f: DashboardFilterValue): boolean {
   return f.deptHeadId !== null || f.teamLeadId !== null || f.userId !== null
 }
 
+/** Bộ lọc không chọn gì (BE trả phạm vi mặc định). */
+export function isEmptyFilter(f: DashboardFilterValue): boolean {
+  return Object.keys(filterToParams(f)).length === 0
+}
+
 /** Query string gửi BE — chỉ field có giá trị. */
 export function filterToParams(f: DashboardFilterValue): Record<string, number> {
   const p: Record<string, number> = {}

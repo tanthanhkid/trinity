@@ -14,6 +14,8 @@ import { useQuery } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 import { usePermissions } from '@/lib/rbac'
 import { todayVn } from '@/lib/format'
+import { useUnreadCount } from '@/hooks/use-unread-count'
+import { fromBootstrap } from '@/lib/bootstrap'
 import { AI_ACTIONS_KEY, useAiActionsPendingCount } from '@/hooks/ai-actions/use-ai-actions'
 import type { AiActionPage } from '@/lib/ai-actions'
 import { useAiConnections } from '@/app/(dashboard)/settings/_components/integrations/use-ai-connections'
@@ -21,16 +23,19 @@ import type { NotificationsPage } from '@/hooks/use-notifications-list'
 
 const HOME_LIMIT = 50
 
-async function fetchAiActions(params: Record<string, string | number>): Promise<AiActionPage> {
-  const res = await apiClient.get<AiActionPage>('/integrations/ai-actions', { params })
-  return { data: Array.isArray(res.data?.data) ? res.data.data : [], next_cursor: res.data?.next_cursor ?? null }
+async function fetchAiActions(
+  params: Record<string, string | number>,
+  bootKey: 'ai_actions_home' | 'ai_actions_pending',
+): Promise<AiActionPage> {
+  const body = await fromBootstrap<AiActionPage>(bootKey, async () => (await apiClient.get<AiActionPage>('/integrations/ai-actions', { params })).data)
+  return { data: Array.isArray(body?.data) ? body.data : [], next_cursor: body?.next_cursor ?? null }
 }
 
 /** 50 hoạt động AI mới nhất của mình (mới nhất trước) — trang chủ lọc lấy phần của hôm nay. */
 export function useRecentAiActions() {
   return useQuery<AiActionPage>({
     queryKey: [...AI_ACTIONS_KEY, 'home', todayVn()],
-    queryFn: () => fetchAiActions({ limit: HOME_LIMIT }),
+    queryFn: () => fetchAiActions({ limit: HOME_LIMIT }, 'ai_actions_home'),
     staleTime: 30_000,
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
@@ -42,7 +47,7 @@ export function useRecentAiActions() {
 export function usePendingAiActions() {
   return useQuery<AiActionPage>({
     queryKey: [...AI_ACTIONS_KEY, 'home', 'pending'],
-    queryFn: () => fetchAiActions({ limit: 5, status: 'pending' }),
+    queryFn: () => fetchAiActions({ limit: 5, status: 'pending' }, 'ai_actions_pending'),
     staleTime: 30_000,
     retry: false,
   })
@@ -54,7 +59,8 @@ export { useAiActionsPendingCount }
 export function useUnreadNotifications() {
   return useQuery<NotificationsPage>({
     queryKey: ['notifications', 'home', 'unread'],
-    queryFn: async () => (await apiClient.get<NotificationsPage>('/notifications', { params: { read: false, limit: 20 } })).data,
+    queryFn: () =>
+      fromBootstrap<NotificationsPage>('notifications_home_unread', async () => (await apiClient.get<NotificationsPage>('/notifications', { params: { read: false, limit: 20 } })).data),
     staleTime: 30_000,
     retry: false,
   })
@@ -62,10 +68,8 @@ export function useUnreadNotifications() {
 
 /** Tổng chưa đọc = 2 nhóm của chuông (profile + message) — DÙNG CHUNG cache key với `notifications-bell.tsx`. */
 export function useUnreadNotificationCount(): number | null {
-  const fetchCount = (category: 'profile' | 'message') => async () =>
-    (await apiClient.get<{ count: number }>('/notifications/unread-count', { params: { category } })).data.count
-  const a = useQuery({ queryKey: ['notifications', 'unread-count', 'profile'], queryFn: fetchCount('profile'), retry: false })
-  const b = useQuery({ queryKey: ['notifications', 'unread-count', 'message'], queryFn: fetchCount('message'), retry: false })
+  const a = useUnreadCount('profile')
+  const b = useUnreadCount('message')
   if (a.data === undefined || b.data === undefined) return null
   return a.data + b.data
 }
@@ -105,7 +109,8 @@ export interface HomeChannels {
 export function useDashboardChannels() {
   return useQuery<HomeChannels>({
     queryKey: ['dashboard', 'channels'],
-    queryFn: async () => (await apiClient.get<HomeChannels>('/reports/dashboard-channels')).data,
+    queryFn: () =>
+      fromBootstrap<HomeChannels>('dashboard_channels', async () => (await apiClient.get<HomeChannels>('/reports/dashboard-channels')).data),
     staleTime: 60_000,
     retry: false,
   })

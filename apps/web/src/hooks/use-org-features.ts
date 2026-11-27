@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { isOrgFeatureOn, resolveOrgFeatures } from "@trinity/rbac"
 import type { OrgFeatureKey, OrgFeatures } from "@trinity/rbac"
 import apiClient from "@/lib/api-client"
+import { fromBootstrap } from "@/lib/bootstrap"
 
 /** Phản hồi `GET /settings/org-features`: boolean theo khoá. */
 export type OrgFeaturesPayload = OrgFeatures
@@ -29,7 +30,8 @@ export function useOrgFeatures(): {
 } {
   const { data, isLoading } = useQuery<OrgFeaturesPayload>({
     queryKey: ORG_FEATURES_KEY,
-    queryFn: async () => (await apiClient.get<OrgFeaturesPayload>("/settings/org-features")).data,
+    queryFn: () =>
+      fromBootstrap("org_features", async () => (await apiClient.get<OrgFeaturesPayload>("/settings/org-features")).data),
     staleTime: 60_000,
   })
   // useMemo: giữ tham chiếu ổn định để các useMemo phụ thuộc `features` (sidebar) không tính lại mỗi render.

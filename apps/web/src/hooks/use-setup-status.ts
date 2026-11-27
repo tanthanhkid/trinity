@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { SetupStatus } from "@trinity/rbac"
 import apiClient from "@/lib/api-client"
+import { fromBootstrap } from "@/lib/bootstrap"
 
 /** Phản hồi `GET /setup/status`. */
 export interface SetupStatusPayload {
@@ -24,7 +25,8 @@ export const SETUP_STATUS_KEY = ["setup", "status"] as const
 export function useSetupStatus() {
   const q = useQuery<SetupStatusPayload>({
     queryKey: SETUP_STATUS_KEY,
-    queryFn: async () => (await apiClient.get<SetupStatusPayload>("/setup/status")).data,
+    queryFn: () =>
+      fromBootstrap("setup_status", async () => (await apiClient.get<SetupStatusPayload>("/setup/status")).data),
     staleTime: 30_000,
     retry: 1,
   })

@@ -70,7 +70,7 @@ function KanbanScreen() {
 
   const filters = useMemo(() => (search.trim() ? { search: search.trim() } : {}), [search])
 
-  const listQuery = useKanbanCardsByBoard(boardId ?? 0, filters)
+  const listQuery = useKanbanCardsByBoard(boardId ?? 0, filters, viewMode === "list")
   const listCards = listQuery.data?.pages.flatMap((p) => p.cards) ?? []
 
   const currentBoard = boards.find((b) => b.id === boardId) ?? null

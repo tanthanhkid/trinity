@@ -248,7 +248,12 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     let mut app = Router::new().fallback(not_found);
 
     let system_cfg = Arc::new(mod_system::SystemConfig::from_lookup(lookup));
-    app = mount(app, mod_system::api_router(deps.clone(), system_cfg.clone()), ());
+    let bootstrap_slot = mod_system::bootstrap::new_slot();
+    app = mount(
+        app,
+        mod_system::api_router_with(deps.clone(), system_cfg.clone(), bootstrap_slot.clone()),
+        (),
+    );
     app = app.merge(mod_system::extra_router(&system_cfg));
     app = mount(app, mod_system::retired::api_router(deps.clone()), ());
 
@@ -1009,6 +1014,8 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             cors_layer,
         ))
         .layer(ws_layer);
+    // `GET /bootstrap` gọi lại chính router này (cùng xác thực/quyền) để gộp các lời gọi layout của web.
+    let _ = bootstrap_slot.set(rust.clone());
     let node_url = config
         .var("NODE_FALLBACK_URL")
         .map_or_else(|| "http://127.0.0.1:4000".to_owned(), str::to_owned);

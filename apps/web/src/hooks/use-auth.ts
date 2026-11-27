@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../store/auth'
 import { getMe } from '../lib/auth-api'
+import { fromBootstrap } from '../lib/bootstrap'
 import { getAccessToken } from '../lib/token-storage'
 import { forceLogout } from '../lib/api-client'
 import type { AuthMe, User } from '../types/auth'
@@ -23,7 +24,10 @@ export function useAuth(): UseAuthReturn {
 
   const { data, isLoading, error } = useQuery<AuthMe>({
     queryKey: ['auth', 'me'],
-    queryFn: getMe,
+    queryFn: () =>
+      fromBootstrap<AuthMe>('me', getMe, (raw) =>
+        raw && typeof raw === 'object' && 'user' in raw ? (raw as AuthMe) : undefined,
+      ),
     enabled: _hasHydrated && hasToken,
     retry: false,
     staleTime: 5 * 60 * 1000,

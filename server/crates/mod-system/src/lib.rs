@@ -15,6 +15,7 @@
 //!
 //! `declared_routes()` của `trinity-bin` lấy [`routes`]; chưa có `serve` để lắp, nên `api_router`/`extra_router` được test ở đây.
 
+pub mod bootstrap;
 pub mod fe_logging;
 pub mod retired;
 
@@ -189,6 +190,7 @@ pub fn routes() -> Vec<RouteSpec> {
         RouteSpec::new(Method::GET, "/api/v1/telemetry/config", Access::Public).status_ok(200),
         RouteSpec::new(Method::GET, "/api/v1/telemetry/identity", Access::AuthOnly).status_ok(200),
         RouteSpec::new(Method::GET, "/api/v1/site-config", Access::Public).status_ok(200),
+        RouteSpec::new(Method::GET, "/api/v1/bootstrap", Access::AuthOnly).status_ok(200),
         RouteSpec::new(Method::POST, "/api/fe-logging", Access::Public).status_ok(204),
     ]
 }
@@ -213,6 +215,11 @@ fn iso_now() -> String {
 
 /// Router của các route dưới `/api/v1` (đi qua lớp thực thi quyền như mọi route).
 pub fn api_router(deps: Arc<AccessDeps>, cfg: Arc<SystemConfig>) -> ApiRouter {
+    api_router_with(deps, cfg, bootstrap::new_slot())
+}
+
+/// Như [`api_router`] nhưng `bootstrap` dùng `slot` do tầng serve gắn router đã dựng xong vào.
+pub fn api_router_with(deps: Arc<AccessDeps>, cfg: Arc<SystemConfig>, slot: bootstrap::BootstrapSlot) -> ApiRouter {
     let telemetry = cfg.telemetry.clone();
     let site = cfg.site.clone();
     let hasher = cfg.hasher.clone();
@@ -248,6 +255,9 @@ pub fn api_router(deps: Arc<AccessDeps>, cfg: Arc<SystemConfig>) -> ApiRouter {
         .route(spec("/api/v1/site-config"), move || {
             let v = site.clone();
             async move { Json(v) }
+        })
+        .route(spec("/api/v1/bootstrap"), move |req: Request| {
+            bootstrap::handle(slot.clone(), req)
         })
         .route(
             spec("/api/fe-logging"),
@@ -320,6 +330,9 @@ mod doc {
     /// Cấu hình trang
     #[utoipa::path(get, path = "/api/v1/site-config", tag = "Site", summary = "Thông tin pháp lý và cờ lúc chạy cho web (chỉ có ở bản Rust)", responses((status = 200, description = "Cấu hình trang")))]
     pub fn site_config() {}
+    /// Bootstrap layout
+    #[utoipa::path(get, path = "/api/v1/bootstrap", tag = "Site", summary = "Gộp các lời gọi layout/Tổng quan của web thành một lượt (phần lỗi trả null)", params(("include" = Option<String>, Query, description = "`dashboard` để thêm phần Tổng quan"), ("cc_from" = Option<String>, Query, description = "YYYY-MM-DD, đầu khoảng Trung tâm điều hành"), ("cc_to" = Option<String>, Query, description = "YYYY-MM-DD, cuối khoảng")), responses((status = 200, description = "Object khoá → phản hồi của endpoint gốc hoặc null")))]
+    pub fn bootstrap() {}
     /// Build id
     #[utoipa::path(get, path = "/api/build-id", tag = "Site", summary = "Mã bản dựng của web", responses((status = 200, description = "{buildId}")))]
     pub fn build_id() {}

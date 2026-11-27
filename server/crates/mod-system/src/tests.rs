@@ -209,6 +209,20 @@ async fn identity_can_dang_nhap() {
     assert_eq!(s, StatusCode::UNAUTHORIZED);
 }
 
+#[tokio::test]
+async fn bootstrap_can_dang_nhap_va_thuoc_rust() {
+    use trinity_kernel::ownership::{Owner, Ownership};
+    let r = full(SystemConfig::from_lookup(env(&[("JWT_SECRET", "j")])));
+    let (s, _, _) = get_json(&r, "/api/v1/bootstrap").await;
+    assert_eq!(s, StatusCode::UNAUTHORIZED);
+    let own = Ownership::parse(
+        include_str!("../../../contracts/ownership-wave-a.json"),
+        "ownership-wave-a.json",
+    )
+    .unwrap();
+    assert_eq!(own.route("GET", "/api/v1/bootstrap").owner, Owner::Rust);
+}
+
 #[test]
 fn bang_route_khop_hop_dong() {
     // Mọi route của module khớp `routes.json` (route chỉ có ở Rust nằm ở RUST_ONLY_ROUTES).

@@ -4,6 +4,7 @@ import { useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import apiClient from "@/lib/api-client"
+import { fromBootstrap } from "@/lib/bootstrap"
 
 const PINNED_MENU_QUERY_KEY = ["users", "me", "pinned-menu"] as const
 
@@ -44,6 +45,12 @@ export function usePinnedMenus() {
   const query = useQuery({
     queryKey: PINNED_MENU_QUERY_KEY,
     queryFn: async () => {
+      const boot = await fromBootstrap<PinnedMenuResponse | null>(
+        "pinned_menu",
+        async () => null,
+        (raw) => (isPinnedMenuResponse(raw) ? raw : undefined),
+      )
+      if (boot) return boot
       const res = await apiClient.get<unknown>("/users/me/pinned-menu")
       // Shape lạ PHẢI throw để giữ cache cũ,
       // KHÔNG trả rỗng "thành công" (rỗng thành công sẽ ghi đè ghim đang tốt).

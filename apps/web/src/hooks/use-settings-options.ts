@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import apiClient from '@/lib/api-client'
 
@@ -34,8 +35,13 @@ interface ListResponse {
   cached?: boolean
 }
 
-function buildKey(group: string, activeOnly: boolean): readonly unknown[] {
-  return ['settings-options', group, activeOnly ? 'active' : 'all'] as const
+/**
+ * MỘT khoá cho mọi nhóm: một màn dùng 3 nhóm (bộ lọc/biểu mẫu Danh bạ) trước đây gọi 3 lần `GET /settings/options?group=…`.
+ * Nay cả màn chỉ gọi MỘT lần (không `group` ⇒ BE trả mọi nhóm, ≤500 dòng) và mỗi hook `select` đúng nhóm của nó.
+ */
+const ALL_KEY = 'settings-options'
+function buildKey(activeOnly: boolean): readonly unknown[] {
+  return [ALL_KEY, activeOnly ? 'active' : 'all'] as const
 }
 
 /**
@@ -51,19 +57,21 @@ export function useSettingsOptions(
   opts: { activeOnly?: boolean } = {},
 ) {
   const activeOnly = opts.activeOnly ?? true
+  const select = useCallback((rows: SettingOption[]) => rows.filter((r) => r.group_key === group), [group])
   return useQuery({
-    queryKey: buildKey(group, activeOnly),
+    queryKey: buildKey(activeOnly),
     queryFn: async () => {
       const res = await apiClient.get<ListResponse>('/settings/options', {
-        params: { group, active: activeOnly ? 1 : 0 },
+        params: { active: activeOnly ? 1 : 0 },
       })
       return res.data.data
     },
+    select,
     staleTime: 5 * 60 * 1000,
   })
 }
 
-export function useCreateSettingOption(group: string) {
+export function useCreateSettingOption(_group?: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (payload: CreateOptionPayload) => {
@@ -71,12 +79,12 @@ export function useCreateSettingOption(group: string) {
       return res.data
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['settings-options', group] })
+      qc.invalidateQueries({ queryKey: [ALL_KEY] })
     },
   })
 }
 
-export function useUpdateSettingOption(group: string) {
+export function useUpdateSettingOption(_group?: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, payload }: { id: number; payload: UpdateOptionPayload }) => {
@@ -87,12 +95,12 @@ export function useUpdateSettingOption(group: string) {
       return res.data
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['settings-options', group] })
+      qc.invalidateQueries({ queryKey: [ALL_KEY] })
     },
   })
 }
 
-export function useDeleteSettingOption(group: string) {
+export function useDeleteSettingOption(_group?: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: number) => {
@@ -102,7 +110,7 @@ export function useDeleteSettingOption(group: string) {
       return res.data
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['settings-options', group] })
+      qc.invalidateQueries({ queryKey: [ALL_KEY] })
     },
   })
 }

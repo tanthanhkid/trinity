@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import { Bell, MessageSquare, Inbox } from 'lucide-react'
 import {
@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useUnreadCount } from '@/hooks/use-unread-count'
 import apiClient from '@/lib/api-client'
 import { useRouter } from 'next/navigation'
 import { usePermissions } from '@/lib/rbac'
@@ -118,17 +119,6 @@ interface MarkReadContext {
 // API helpers
 // ---------------------------------------------------------------------------
 
-// badge PHẢI dùng con số THẬT từ BE (COUNT có filter, KHÔNG
-// LIMIT) — category tách 2 icon (Bell="profile" / MessageSquare="message").
-// THROW khi !res.ok (axios tự throw khi status lỗi) — KHÔNG catch nuốt
-// lỗi rồi trả 0 (sẽ làm badge nhảy về 0 sai khi mạng chập chờn).
-async function fetchUnreadCount(category: 'profile' | 'message'): Promise<number> {
-  const res = await apiClient.get<{ count: number }>('/notifications/unread-count', {
-    params: { category },
-  })
-  return res.data.count
-}
-
 // ---------------------------------------------------------------------------
 // NotificationsBell — tab Chưa đọc/Đã đọc + infinite
 // scroll (KHÔNG còn giới hạn 20 thông báo).
@@ -159,23 +149,10 @@ export function NotificationsBell() {
   // quy mô 5-10 user; `refetchIntervalInBackground` mặc định đã là `false`
   // (không cấu hình global khác ở providers.tsx) nên tab ẩn vốn đã KHÔNG poll —
   // đặt tường minh ở đây để không phụ thuộc ngầm vào default của thư viện.
-  const { data: bellUnread = 0 } = useQuery({
-    queryKey: ['notifications', 'unread-count', 'profile'],
-    queryFn: () => fetchUnreadCount('profile'),
-    refetchInterval: POLL_MS,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
-    retry: false,
-  })
-
-  const { data: msgUnread = 0 } = useQuery({
-    queryKey: ['notifications', 'unread-count', 'message'],
-    queryFn: () => fetchUnreadCount('message'),
-    refetchInterval: POLL_MS,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
-    retry: false,
-  })
+  // Dùng chung `useUnreadCount` với Trang chủ (cùng khoá, cùng nguồn) — badge luôn là COUNT thật từ BE, THROW khi lỗi mạng
+  // (không nuốt về 0 làm badge nhảy sai); lượt nạp đầu đi theo `GET /bootstrap`.
+  const { data: bellUnread = 0 } = useUnreadCount('profile', { poll: POLL_MS })
+  const { data: msgUnread = 0 } = useUnreadCount('message', { poll: POLL_MS })
 
   const [bellOpen, setBellOpen] = useState(false)
   const [msgOpen, setMsgOpen] = useState(false)

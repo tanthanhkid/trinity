@@ -66,12 +66,40 @@ trusted unless `TRUSTED_PROXY` says the proxy in front of the edge writes it.
 | Docker Compose, Cloudflare connects straight to the `trinity` port | `cloudflare` |
 | Docker Compose behind Caddy/nginx on the host | `cidr:docker-gateway` (or `cloudflare-behind:docker-gateway`), and `WEB_BIND=127.0.0.1` |
 | Cloudflare Tunnel, process manager (Rust listening on loopback) | `cloudflare-tunnel` |
-| Cloudflare Tunnel with Docker Compose | not supported by the stock compose file yet (`cloudflared` must share the `trinity` container's network namespace so that Rust can listen on loopback); use one of the other values |
+| Cloudflare Tunnel with Docker Compose | `cloudflare-tunnel`, with the extra file `docker-compose.tunnel.yml` (below) |
 
 In Docker Compose, `trinity` gets `TRUSTED_PROXY`, `CLOUDFLARE_IP_RANGES` and `INTERNAL_SERVICE_SECRET`
 (`${INTERNAL_SERVICE_SECRET:-${SERVICE_SECRET}}`, as for `api`); the `api` container shares its network namespace and always uses
 `TRUSTED_PROXY=none` (its peer is loopback plus the signed header). With a process manager, the API
 reads `TRUSTED_PROXY` too; set `LISTEN_HOST=127.0.0.1` there when the API port should only be reachable locally.
+
+**Cloudflare Tunnel with Docker Compose** (needs Docker Compose >= 2.24, because the extra file uses `!reset`; check with
+`docker compose version`). `docker-compose.tunnel.yml` removes the published port of `trinity`, makes it listen on loopback
+only (`LISTEN_HOST=127.0.0.1`) and adds a `cloudflared` service that shares the network namespace of `trinity` (and so of `api`;
+`network_mode: service:trinity`), so only the tunnel can reach the ports. Recreating `trinity` recreates `cloudflared`.
+
+```bash
+cp deploy/cloudflared/config.example.yml deploy/cloudflared/config.yml   # replace crm.example.com with your hostname
+# .env: TRUSTED_PROXY=cloudflare-tunnel
+#       COMPOSE_FILE=docker-compose.yml:docker-compose.tunnel.yml
+#       CLOUDFLARED_TUNNEL_ID=<tunnel uuid>
+#       CLOUDFLARED_CREDENTIALS_FILE=/path/to/<tunnel uuid>.json
+docker compose up -d --build --wait
+```
+
+The ingress file has two rules: `/notif-ws` goes straight to Node (`http://127.0.0.1:4000`, the WebSocket) and everything else to
+`http://127.0.0.1:3000` (Rust). `deploy/cloudflared/config.yml` is git-ignored: it holds your hostname. `./install.sh` writes
+`TRUSTED_PROXY` and `COMPOSE_FILE` for you when you pick the tunnel.
+
+**Health check.** The `trinity` service runs `trinity healthcheck`, which calls `/api/v1/health` through Rust to Node. If the
+internal secret of Rust and API differ, the API answers 400, `trinity` turns unhealthy and `docker compose up --wait` exits
+non-zero, so a script can stop there and go back to the previous version (`git checkout <previous tag>` and
+`docker compose up -d --build --wait` again).
+
+**Setting it up.** `./install.sh` asks how visitors reach Trinity (only when it runs on a terminal; `--trusted-proxy=VALUE`
+skips the question; default `none`) and writes the answer into a **new** `.env`. An existing `.env` is never modified; the
+script prints the suggested lines. For a running install, `scripts/migrate-env.sh` prints the lines that would be added or
+commented out and, with `--write`, applies them after saving `.env.bak.<time>`.
 
 Caddy always writes `X-Forwarded-For` itself. **nginx does not**: every `location` that points at the app needs
 `proxy_set_header X-Forwarded-For $remote_addr;` (overwrite, not append) and `proxy_set_header X-Real-IP "";`; without

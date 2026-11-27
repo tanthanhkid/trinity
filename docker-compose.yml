@@ -15,6 +15,8 @@
 #   trinity    Rust binary: public port 3000, static web (WEB_DIR=/srv/web), routes owned by Rust, forwards the rest to `api`
 #   api        NestJS monolith (auth, crm, commerce, payroll, notification); loopback only, shares the network namespace of `trinity`
 #              (W02b: there is no Next server any more, the former `web` service is gone)
+#
+# Sau Cloudflare Tunnel: thêm tệp ghép docker-compose.tunnel.yml (Compose >= 2.24), xem tệp đó.
 
 name: trinity
 

@@ -17,6 +17,7 @@ serde_json = { workspace = true }
 sqlx = { workspace = true }
 tracing = { workspace = true }
 trinity-db = { workspace = true }
+trinity-docgen = { workspace = true }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-rbac = { workspace = true }

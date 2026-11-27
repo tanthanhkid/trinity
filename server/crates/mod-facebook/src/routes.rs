@@ -412,9 +412,9 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = routes();
-        assert_eq!(table.len(), 12);
+        assert_eq!(table.len(), 17);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 12);
+        assert_eq!(rep.declared, 17);
     }
 }

@@ -323,6 +323,26 @@ async fn default_source_id(conn: &mut PgConnection) -> Result<i32, AppError> {
     })
 }
 
+/// Nguồn khách theo kênh (không cho chọn tay): tạo sẵn option `contact_source` nếu chưa có (idempotent),
+/// luôn trả id option dù chủ công ty đã tắt/sửa nhãn. Page cũ đã chọn nguồn tay bị bỏ qua — cột `contact_source_id`
+/// chỉ còn là giá trị dự phòng, để mọi khách cùng kênh mang cùng một nguồn.
+pub(crate) async fn channel_source_id(
+    conn: &mut PgConnection,
+    value: &str,
+    label: &str,
+) -> Result<i32, AppError> {
+    sqlx::query_scalar(
+        "INSERT INTO setting_options (group_key, value, label, sort_order, is_active, is_system, updated_at) \
+         VALUES ('contact_source', $1, $2, 50, true, false, now()) \
+         ON CONFLICT (group_key, value) DO UPDATE SET group_key = setting_options.group_key RETURNING id",
+    )
+    .bind(value)
+    .bind(label)
+    .fetch_one(conn)
+    .await
+    .map_err(db)
+}
+
 /// Kết quả callback OAuth.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct CallbackResult {

@@ -542,12 +542,13 @@ async fn create_contact(
         .map(trim_js)
         .filter(|n| !n.is_empty())
         .map_or_else(|| placeholder_name(from_id), str::to_owned);
+    let source_id = pages::channel_source_id(&mut *conn, "facebook_comment", "Facebook bình luận").await?;
     let (id, _) = create_contact_in_tx(
         &mut *conn,
         &NewContact {
             phone: phone.unwrap_or(""),
             full_name: Some(&name),
-            source_id: Some(page.contact_source_id),
+            source_id: Some(source_id),
             email: None,
             job_title: None,
             reminder_notes: None,

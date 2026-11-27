@@ -643,7 +643,7 @@ async fn kenh_da_ket_noi() {
     assert_eq!(r["available"], json!([]));
     let ch = r["channels"].as_array().unwrap();
     let kinds: Vec<&str> = ch.iter().map(|x| x["kind"].as_str().unwrap()).collect();
-    assert_eq!(kinds, ["facebook_page", "zalo_oa", "social", "store"]);
+    assert_eq!(kinds, ["facebook_page", "zalo_oa", "store"]);
     let fb = &ch[0];
     assert_eq!(
         (
@@ -656,7 +656,7 @@ async fn kenh_da_ket_noi() {
         (
             json!("Trang m20"),
             json!("ok"),
-            json!("Đang nhận tin · 1 bình luận hôm nay"),
+            json!("Đang nhận tin · đăng bài được · 1 bình luận hôm nay"),
             json!({ "label": "tin nhắn mới", "value": 2 }),
             json!("on")
         )
@@ -666,17 +666,10 @@ async fn kenh_da_ket_noi() {
         (json!("ok"), json!(1))
     );
     assert_eq!(
-        (ch[2]["note"].clone(), ch[2]["today"].clone()),
         (
-            json!("Đăng bài lên Fanpage"),
-            json!({ "label": "bài đã đăng", "value": 1 })
-        )
-    );
-    assert_eq!(
-        (
-            ch[3]["name"].clone(),
-            ch[3]["note"].clone(),
-            ch[3]["today"]["value"].clone()
+            ch[2]["name"].clone(),
+            ch[2]["note"].clone(),
+            ch[2]["today"]["value"].clone()
         ),
         (json!("Quán m20"), json!("Đang mở bán"), json!(1))
     );

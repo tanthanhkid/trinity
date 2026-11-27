@@ -73,12 +73,12 @@ function SetupHelp({ s, admin }: { s: FbStatus; admin: boolean }) {
   )
 }
 
-function PageCard({ p, assignees, sources, canTransfer, onReconnect, reconnecting }: { p: FacebookPageView; assignees: SimpleOption[]; sources: SimpleOption[]; canTransfer: boolean; onReconnect: () => void; reconnecting: boolean }) {
+function PageCard({ p, assignees, canTransfer, onReconnect, reconnecting }: { p: FacebookPageView; assignees: SimpleOption[]; canTransfer: boolean; onReconnect: () => void; reconnecting: boolean }) {
   const m = useFacebookPageMutations()
   const [confirm, setConfirm] = useState(false)
   const opts = (l: SimpleOption[]) => l.map((o) => ({ value: String(o.id), label: o.label }))
   const bad = p.token_status === "invalid" || p.token_status === "expired"
-  const patch = (body: { default_assignee_id?: number; contact_source_id?: number; is_active?: boolean }) =>
+  const patch = (body: { default_assignee_id?: number; is_active?: boolean }) =>
     m.update.mutate({ id: p.id, ...body }, { onSuccess: () => toast.success("Đã lưu"), onError: (e) => toast.error(apiErrorMessage(e, "Không lưu được")) })
   return (
     <Card className={p.is_active ? undefined : "opacity-75"}>
@@ -117,9 +117,8 @@ function PageCard({ p, assignees, sources, canTransfer, onReconnect, reconnectin
         </p>
         )}
         {p.is_active && !p.subscribed && <p className="text-xs text-amber-700">Fanpage này chưa nhận tin nhắn về Trinity. Bấm &quot;Kiểm tra token&quot; để thử lại; vẫn báo thì bấm &quot;Kết nối Fanpage&quot; và cấp đủ quyền quản lý Page.</p>}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="max-w-sm">
           <OptionSelect label="Người nhận khách (Messenger, Lead Ads)" value={String(p.default_assignee_id)} options={opts(assignees)} onChange={(v) => patch({ default_assignee_id: Number(v) })} placeholder="Chọn sale" className="h-9 w-full max-sm:h-11" disabled={!canTransfer && assignees.length <= 1} />
-          <OptionSelect label="Nguồn khách" value={String(p.contact_source_id)} options={opts(sources)} onChange={(v) => patch({ contact_source_id: Number(v) })} placeholder="Chọn nguồn" className="h-9 w-full max-sm:h-11" />
         </div>
         <div className="flex flex-wrap gap-2">
           {!p.disconnected && <Button variant="outline" size="sm" disabled={m.check.isPending} onClick={() => m.check.mutate(p.id, { onSuccess: (r) => toast.success(TOKEN_STATUS_LABELS[r.token_status]), onError: (e) => toast.error(apiErrorMessage(e, "Không kiểm tra được")) })} className="max-sm:h-11">
@@ -202,7 +201,7 @@ export function FacebookPanel() {
           {pages.isError && <ErrorState compact title="Không tải được danh sách Fanpage" error={pages.error} onRetry={() => void pages.refetch()} retrying={pages.isFetching} />}
           {pages.isSuccess && pages.data.length === 0 && <EmptyState icon={MessagesSquare} message='Chưa kết nối Fanpage nào. Bấm "Kết nối Fanpage" rồi chọn Page trong hộp thoại Facebook.' />}
           <div className="grid gap-3 lg:grid-cols-2">
-            {pages.data?.map((p) => <PageCard key={p.id} p={p} assignees={assignees} sources={sources.data ?? []} canTransfer={canTransfer} onReconnect={connect} reconnecting={m.connect.isPending} />)}
+            {pages.data?.map((p) => <PageCard key={p.id} p={p} assignees={assignees} canTransfer={canTransfer} onReconnect={connect} reconnecting={m.connect.isPending} />)}
           </div>
         </>
       )}

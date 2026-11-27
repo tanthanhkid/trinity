@@ -40,6 +40,8 @@ mod-pos = { path = "crates/mod-pos" }
 mod-notify = { path = "crates/mod-notify" }
 mod-hr = { path = "crates/mod-hr" }
 mod-settings = { path = "crates/mod-settings" }
+mod-contacts = { path = "crates/mod-contacts" }
+mod-deals = { path = "crates/mod-deals" }
 
 # Runtime, HTTP
 tokio = { version = "1.54", features = ["rt-multi-thread", "macros", "net", "time", "signal", "sync"] }

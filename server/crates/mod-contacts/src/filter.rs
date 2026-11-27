@@ -260,7 +260,7 @@ fn parse_bound(s: &str, end: bool) -> Option<DateTime<Utc>> {
 }
 
 /// Chuỗi ngày giờ ISO 8601 như `new Date(s)`: có múi giờ thì theo múi giờ, không có thì UTC.
-pub(crate) fn parse_js_instant(s: &str) -> Option<DateTime<Utc>> {
+pub fn parse_js_instant(s: &str) -> Option<DateTime<Utc>> {
     if let Ok(d) = DateTime::parse_from_rfc3339(s) {
         return Some(d.with_timezone(&Utc));
     }

@@ -321,7 +321,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     );
 
     // Đăng đa kênh (M53a/b, M54a, M55a, X15a): kho tệp là thư mục uploads (khoá `social/...`; S3 chưa nối ở đây), Graph theo công ty
-    // dùng chung bộ dựng của Facebook. Route M55b cần `PostsPort` (import CSV, tạo/sửa/tạm dừng bài lặp) chờ nhánh m54b-social-jobs.
+    // dùng chung bộ dựng của Facebook. Route M55b (import CSV, bài lặp) đi qua `PostsAdapter` của M54b.
     let social_state = Arc::new(mod_social::router::SocialState {
         db: db.clone(),
         platform: platform.clone(),

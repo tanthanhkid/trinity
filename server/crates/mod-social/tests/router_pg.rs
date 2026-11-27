@@ -125,7 +125,17 @@ async fn send(app: &Router, method: Method, path: &str, user: Option<i32>, ct: O
 
 async fn call(app: &Router, method: Method, path: &str, user: Option<i32>, body: Option<Value>) -> Res {
     match body {
-        Some(v) => send(app, method, path, user, Some("application/json"), v.to_string().into_bytes()).await,
+        Some(v) => {
+            send(
+                app,
+                method,
+                path,
+                user,
+                Some("application/json"),
+                v.to_string().into_bytes(),
+            )
+            .await
+        }
         None => send(app, method, path, user, None, Vec::new()).await,
     }
 }
@@ -147,14 +157,16 @@ fn multipart(field: &str, file: &str, data: &[u8]) -> Vec<u8> {
 }
 
 async fn teardown() {
-    exec("DELETE FROM social_media_assets WHERE name LIKE 'x53%';
+    exec(
+        "DELETE FROM social_media_assets WHERE name LIKE 'x53%';
           DELETE FROM social_drafts WHERE title LIKE 'x53%';
           DELETE FROM social_snippets WHERE name LIKE 'x53%';
           DELETE FROM user_roles WHERE user_id BETWEEN 9801 AND 9899;
           DELETE FROM role_permissions WHERE role_id BETWEEN 9801 AND 9899;
           DELETE FROM roles WHERE id BETWEEN 9801 AND 9899;
-          DELETE FROM users WHERE id BETWEEN 9801 AND 9899")
-        .await;
+          DELETE FROM users WHERE id BETWEEN 9801 AND 9899",
+    )
+    .await;
 }
 
 async fn setup() {
@@ -178,35 +190,74 @@ async fn setup() {
 async fn quyen_va_tinh_nang_to_chuc() {
     setup().await;
     let a = app(true).await;
-    assert_eq!(call(&a, Method::GET, &format!("{B}/accounts"), None, None).await.status, 401);
     assert_eq!(
-        call(&a, Method::GET, &format!("{B}/accounts"), Some(NOBODY), None).await.status,
+        call(&a, Method::GET, &format!("{B}/accounts"), None, None).await.status,
+        401
+    );
+    assert_eq!(
+        call(&a, Method::GET, &format!("{B}/accounts"), Some(NOBODY), None)
+            .await
+            .status,
         403
     );
     assert_eq!(
-        call(&a, Method::GET, &format!("{B}/accounts"), Some(POSTER), None).await.status,
+        call(&a, Method::GET, &format!("{B}/accounts"), Some(POSTER), None)
+            .await
+            .status,
         200
     );
     // `social.manage` mới được liên kết/gỡ kênh.
     let url = format!("{B}/accounts/connect-url");
     let body = Some(json!({ "network": "facebook" }));
-    assert_eq!(call(&a, Method::POST, &url, Some(POSTER), body.clone()).await.status, 403);
-    let r = call(&a, Method::DELETE, &format!("{B}/targets/0/remote"), Some(MANAGER), None).await;
-    assert_eq!((r.status, r.body["message"].as_str()), (400, Some("id không hợp lệ")));
+    assert_eq!(
+        call(&a, Method::POST, &url, Some(POSTER), body.clone()).await.status,
+        403
+    );
+    let r = call(
+        &a,
+        Method::DELETE,
+        &format!("{B}/targets/0/remote"),
+        Some(MANAGER),
+        None,
+    )
+    .await;
+    assert_eq!(
+        (r.status.as_u16(), r.body["message"].as_str()),
+        (400, Some("id không hợp lệ"))
+    );
     // Tính năng tổ chức tắt ⇒ 403 cho cả người có quyền.
     let off = app(false).await;
     assert_eq!(
-        call(&off, Method::GET, &format!("{B}/accounts"), Some(POSTER), None).await.status,
+        call(&off, Method::GET, &format!("{B}/accounts"), Some(POSTER), None)
+            .await
+            .status,
         403
     );
     // Callback công khai không cần đăng nhập, luôn chuyển hướng về trang kênh.
-    let r = call(&a, Method::GET, &format!("{B}/oauth/callback/facebook?error=access_denied"), None, None).await;
-    assert_eq!(r.status, 302);
+    let r = call(
+        &a,
+        Method::GET,
+        &format!("{B}/oauth/callback/facebook?error=access_denied"),
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 302);
     let loc = r.headers.get("location").unwrap().to_str().unwrap();
-    assert!(loc.contains("/social?tab=channels&social=cancelled&network=facebook"), "{loc}");
+    assert!(
+        loc.contains("/social?tab=channels&social=cancelled&network=facebook"),
+        "{loc}"
+    );
     // Link media sai chữ ký ⇒ 404.
-    let r = call(&a, Method::GET, &format!("{B}/media-link/khong-hop-le/a.png"), None, None).await;
-    assert_eq!(r.status, 404);
+    let r = call(
+        &a,
+        Method::GET,
+        &format!("{B}/media-link/khong-hop-le/a.png"),
+        None,
+        None,
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 404);
     teardown().await;
 }
 
@@ -224,11 +275,24 @@ async fn nhap_mau_chu_va_hang_doi() {
         Some(json!({ "kind": "hashtags", "name": "x53 bộ một", "content": "#mot #hai" })),
     )
     .await;
-    assert_eq!(r.status, 201, "{}", r.body);
+    assert_eq!(r.status.as_u16(), 201, "{}", r.body);
     let id = r.body["data"]["id"].as_i64().unwrap();
-    let r = call(&a, Method::GET, &format!("{B}/snippets?kind=hashtags"), Some(POSTER), None).await;
-    assert_eq!(r.status, 200);
-    assert!(r.body["data"].as_array().unwrap().iter().any(|s| s["id"].as_i64() == Some(id)));
+    let r = call(
+        &a,
+        Method::GET,
+        &format!("{B}/snippets?kind=hashtags"),
+        Some(POSTER),
+        None,
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 200);
+    assert!(
+        r.body["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["id"].as_i64() == Some(id))
+    );
     // Trường lạ ⇒ 400 (whitelist).
     let r = call(
         &a,
@@ -238,13 +302,17 @@ async fn nhap_mau_chu_va_hang_doi() {
         Some(json!({ "la": 1 })),
     )
     .await;
-    assert_eq!(r.status, 400);
+    assert_eq!(r.status.as_u16(), 400);
     assert_eq!(
-        call(&a, Method::DELETE, &format!("{B}/snippets/{id}"), Some(POSTER), None).await.status,
+        call(&a, Method::DELETE, &format!("{B}/snippets/{id}"), Some(POSTER), None)
+            .await
+            .status,
         204
     );
     assert_eq!(
-        call(&a, Method::DELETE, &format!("{B}/snippets/{id}"), Some(POSTER), None).await.status,
+        call(&a, Method::DELETE, &format!("{B}/snippets/{id}"), Some(POSTER), None)
+            .await
+            .status,
         404
     );
     // Nháp được thiếu mọi trường.
@@ -256,14 +324,18 @@ async fn nhap_mau_chu_va_hang_doi() {
         Some(json!({ "title": "x53 nháp" })),
     )
     .await;
-    assert_eq!(r.status, 201, "{}", r.body);
+    assert_eq!(r.status.as_u16(), 201, "{}", r.body);
     let did = r.body["data"]["id"].as_i64().unwrap();
     assert_eq!(
-        call(&a, Method::GET, &format!("{B}/drafts/{did}"), Some(POSTER), None).await.status,
+        call(&a, Method::GET, &format!("{B}/drafts/{did}"), Some(POSTER), None)
+            .await
+            .status,
         200
     );
     assert_eq!(
-        call(&a, Method::DELETE, &format!("{B}/drafts/{did}"), Some(POSTER), None).await.status,
+        call(&a, Method::DELETE, &format!("{B}/drafts/{did}"), Some(POSTER), None)
+            .await
+            .status,
         204
     );
     // Hàng đợi: đặt khung rồi đọc lại; `count` rác ⇒ 1 khung.
@@ -275,8 +347,15 @@ async fn nhap_mau_chu_va_hang_doi() {
         Some(json!({ "slots": [{ "weekday": 1, "minute": 540 }] })),
     )
     .await;
-    assert_eq!(r.status, 200, "{}", r.body);
-    let r = call(&a, Method::GET, &format!("{B}/queue/next?count=abc"), Some(POSTER), None).await;
+    assert_eq!(r.status.as_u16(), 200, "{}", r.body);
+    let r = call(
+        &a,
+        Method::GET,
+        &format!("{B}/queue/next?count=abc"),
+        Some(POSTER),
+        None,
+    )
+    .await;
     assert_eq!(r.body["data"].as_array().map(Vec::len), Some(1));
     call(
         &a,
@@ -288,7 +367,7 @@ async fn nhap_mau_chu_va_hang_doi() {
     .await;
     // Bài lặp: danh sách rỗng được `{ data: [] }`.
     let r = call(&a, Method::GET, &format!("{B}/recurrences"), Some(POSTER), None).await;
-    assert_eq!((r.status, r.body["data"].is_array()), (200, true));
+    assert_eq!((r.status.as_u16(), r.body["data"].is_array()), (200, true));
     teardown().await;
 }
 
@@ -299,26 +378,69 @@ async fn tai_media_va_tai_theo_phan() {
     let a = app(true).await;
     let ct = format!("multipart/form-data; boundary={BOUNDARY}");
     // Thiếu tệp ⇒ 400; đuôi lạ ⇒ 400; ảnh hợp lệ ⇒ 201 + thư viện + xem trước + ẩn.
-    let r = send(&a, Method::POST, &format!("{B}/media"), Some(POSTER), Some(&ct), format!("--{BOUNDARY}--\r\n").into_bytes()).await;
-    assert_eq!((r.status, r.body["message"].as_str()), (400, Some("Thiếu tệp")));
-    let r = send(&a, Method::POST, &format!("{B}/media"), Some(POSTER), Some(&ct), multipart("file", "x53.pdf", b"x")).await;
-    assert_eq!(r.status, 400);
-    let r = send(&a, Method::POST, &format!("{B}/media"), Some(POSTER), Some(&ct), multipart("khac", "x53.png", b"x")).await;
-    assert_eq!((r.status, r.body["message"].as_str()), (400, Some("Unexpected field")));
+    let r = send(
+        &a,
+        Method::POST,
+        &format!("{B}/media"),
+        Some(POSTER),
+        Some(&ct),
+        format!("--{BOUNDARY}--\r\n").into_bytes(),
+    )
+    .await;
+    assert_eq!(
+        (r.status.as_u16(), r.body["message"].as_str()),
+        (400, Some("Thiếu tệp"))
+    );
+    let r = send(
+        &a,
+        Method::POST,
+        &format!("{B}/media"),
+        Some(POSTER),
+        Some(&ct),
+        multipart("file", "x53.pdf", b"x"),
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 400);
+    let r = send(
+        &a,
+        Method::POST,
+        &format!("{B}/media"),
+        Some(POSTER),
+        Some(&ct),
+        multipart("khac", "x53.png", b"x"),
+    )
+    .await;
+    assert_eq!(
+        (r.status.as_u16(), r.body["message"].as_str()),
+        (400, Some("Unexpected field"))
+    );
     let png = vec![7_u8; 1500];
-    let r = send(&a, Method::POST, &format!("{B}/media"), Some(POSTER), Some(&ct), multipart("file", "x53.png", &png)).await;
-    assert_eq!(r.status, 201, "{}", r.body);
-    assert_eq!((r.body["type"].as_str(), r.body["size"].as_u64()), (Some("image"), Some(1500)));
+    let r = send(
+        &a,
+        Method::POST,
+        &format!("{B}/media"),
+        Some(POSTER),
+        Some(&ct),
+        multipart("file", "x53.png", &png),
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 201, "{}", r.body);
+    assert_eq!(
+        (r.body["type"].as_str(), r.body["size"].as_u64()),
+        (Some("image"), Some(1500))
+    );
     let r = call(&a, Method::GET, &format!("{B}/media?q=x53"), Some(POSTER), None).await;
     let id = r.body["data"][0]["id"].as_i64().unwrap();
     let r = call(&a, Method::GET, &format!("{B}/media/{id}/file"), Some(POSTER), None).await;
-    assert_eq!(r.status, 200);
+    assert_eq!(r.status.as_u16(), 200);
     assert_eq!(r.headers.get("content-type").unwrap(), "image/png");
     assert_eq!(r.headers.get("content-length").unwrap(), "1500");
     let r = call(&a, Method::POST, &format!("{B}/media/{id}/hide"), Some(POSTER), None).await;
-    assert_eq!((r.status, r.body["hidden"].as_bool()), (200, Some(true)));
+    assert_eq!((r.status.as_u16(), r.body["hidden"].as_bool()), (200, Some(true)));
     assert_eq!(
-        call(&a, Method::GET, &format!("{B}/media/{id}/file"), Some(POSTER), None).await.status,
+        call(&a, Method::GET, &format!("{B}/media/{id}/file"), Some(POSTER), None)
+            .await
+            .status,
         404
     );
     // Tải theo phần: khai báo ảnh bị từ chối, video thì có phiên; phiên lạ ⇒ 404 hoặc 4xx, không 500.
@@ -330,7 +452,7 @@ async fn tai_media_va_tai_theo_phan() {
         Some(json!({ "file_name": "x53.png", "size": 10 })),
     )
     .await;
-    assert_eq!(r.status, 400, "{}", r.body);
+    assert_eq!(r.status.as_u16(), 400, "{}", r.body);
     let r = call(
         &a,
         Method::POST,
@@ -339,7 +461,7 @@ async fn tai_media_va_tai_theo_phan() {
         Some(json!({ "file_name": "x53.mp4", "size": 5 })),
     )
     .await;
-    assert_eq!(r.status, 201, "{}", r.body);
+    assert_eq!(r.status.as_u16(), 201, "{}", r.body);
     let uid = r.body["upload_id"].as_str().unwrap().to_owned();
     let r = send(
         &a,
@@ -350,12 +472,36 @@ async fn tai_media_va_tai_theo_phan() {
         vec![1_u8; 5],
     )
     .await;
-    assert_eq!((r.status, r.body["size"].as_u64()), (200, Some(5)), "{}", r.body);
+    assert_eq!(
+        (r.status.as_u16(), r.body["size"].as_u64()),
+        (200, Some(5)),
+        "{}",
+        r.body
+    );
     let r = call(&a, Method::GET, &format!("{B}/media/uploads/{uid}"), Some(POSTER), None).await;
     assert_eq!(r.body["received"], json!([0]));
-    let r = call(&a, Method::POST, &format!("{B}/media/uploads/{uid}/complete"), Some(POSTER), None).await;
-    assert_eq!((r.status, r.body["type"].as_str()), (201, Some("video")), "{}", r.body);
-    let r = call(&a, Method::DELETE, &format!("{B}/media/uploads/khong-co"), Some(POSTER), None).await;
+    let r = call(
+        &a,
+        Method::POST,
+        &format!("{B}/media/uploads/{uid}/complete"),
+        Some(POSTER),
+        None,
+    )
+    .await;
+    assert_eq!(
+        (r.status.as_u16(), r.body["type"].as_str()),
+        (201, Some("video")),
+        "{}",
+        r.body
+    );
+    let r = call(
+        &a,
+        Method::DELETE,
+        &format!("{B}/media/uploads/khong-co"),
+        Some(POSTER),
+        None,
+    )
+    .await;
     assert!(r.status == 204 || r.status == 404, "{}", r.status);
     let _ = std::fs::remove_dir_all(root());
     teardown().await;

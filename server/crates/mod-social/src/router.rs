@@ -1,11 +1,9 @@
 //! Router axum của `SocialController` và `SocialPublicController` (K14): path, method, quyền, mã thành công và `org_feature` lấy
 //! từ [`crate::routes`] (đã so với `contracts/routes.json`).
 //!
-//! Mount: 32 route của [`crate::routes::routes`] trừ các route M55b cần `PostsPort`, cộng `GET /social/recurrences` và 5 route
+//! Mount: 40 route của [`crate::routes::routes`] (gồm import CSV và bài lặp M55b, nối `PostsAdapter` của M54b) và 5 route
 //! tải video theo phần ([`crate::routes::upload_routes`]).
 //!
-//! TODO (chờ `PostsPort`/`PostsAdapter` của nhánh m54b-social-jobs; chưa mount, vẫn do Node phục vụ): `POST /social/posts/import/plan`,
-//! `POST /social/posts/import`, `POST|PATCH|DELETE /social/recurrences[/:id]`, `POST /social/recurrences/:id/pause|resume`.
 //! Ngoài bảng route hiện có (chưa port): `POST /social/drafts/:id/publish`, `posts/:id/metrics`, `posts/sync`, `stats`, `tick`.
 
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
@@ -35,11 +33,12 @@ use trinity_http::router::{AccessDeps, ApiRouter, CurrentUser, RouteSpec};
 use trinity_kernel::error::{AppError, HttpError};
 use trinity_kernel::vn_time::js_iso_string;
 
-use crate::dto::{PostInput, SocialConnect, parse_reschedule};
+use crate::adapters::{DraftsAdapter, PostsAdapter, QueueAdapter};
 use crate::drafts::{self, DraftInput};
-use crate::media::{
-    self, LibraryQuery, MAX_IMAGE_BYTES, MAX_STORED_VIDEO_BYTES, MediaCtx, MediaFile, MediaStore,
-};
+use crate::dto::{PostInput, SocialConnect, parse_reschedule};
+use crate::dto_recur::{ImportBody, ImportPlanBody, RecurrenceBody};
+use crate::import::{self, ImportPorts};
+use crate::media::{self, LibraryQuery, MAX_IMAGE_BYTES, MAX_STORED_VIDEO_BYTES, MediaCtx, MediaFile, MediaStore};
 use crate::posts::{self, ListQuery, PostCtx};
 use crate::snippets::{self, SnippetInput};
 use crate::{accounts, chunked, queue, recurrences, routes};
@@ -272,15 +271,7 @@ async fn oauth_callback(
         platform: &s.platform,
         company,
     };
-    let url = accounts::callback_location(
-        &ctx,
-        &network,
-        param(&q, "code"),
-        state,
-        param(&q, "error"),
-        now_ms(),
-    )
-    .await;
+    let url = accounts::callback_location(&ctx, &network, param(&q, "code"), state, param(&q, "error"), now_ms()).await;
     found(&url)
 }
 
@@ -289,7 +280,12 @@ async fn oauth_callback(
 async fn library(State(s): St, Extension(u): Usr, Query(q): Query<HashMap<String, String>>) -> Response {
     let company = company!(u);
     let r = async {
-        let query = LibraryQuery::from_query(param(&q, "type"), param(&q, "q"), param(&q, "limit"), param(&q, "cursor"))?;
+        let query = LibraryQuery::from_query(
+            param(&q, "type"),
+            param(&q, "q"),
+            param(&q, "limit"),
+            param(&q, "cursor"),
+        )?;
         let mut conn = tenant_conn(&s.db, company).await?;
         media::list(&mut conn, &query).await
     }
@@ -330,7 +326,10 @@ fn file_response(f: MediaFile, disposition: Option<&str>, cache: &'static str) -
         h.insert(header::CONTENT_TYPE, v);
     }
     if let Some(d) = disposition {
-        h.insert(header::CONTENT_DISPOSITION, HeaderValue::from_str(d).unwrap_or(HeaderValue::from_static("inline")));
+        h.insert(
+            header::CONTENT_DISPOSITION,
+            HeaderValue::from_str(d).unwrap_or(HeaderValue::from_static("inline")),
+        );
     }
     if let Some(len) = f.content_length
         && let Ok(v) = HeaderValue::from_str(&len.to_string())
@@ -470,12 +469,7 @@ async fn posts_get(State(s): St, Extension(u): Usr, Path(id): Path<String>) -> R
     ok(r)
 }
 
-async fn posts_update(
-    State(s): St,
-    Extension(u): Usr,
-    Path(id): Path<String>,
-    JsonBody(body): JsonBody,
-) -> Response {
+async fn posts_update(State(s): St, Extension(u): Usr, Path(id): Path<String>, JsonBody(body): JsonBody) -> Response {
     let company = company!(u);
     let r = async {
         let input = PostInput::from_json(&body)?;
@@ -576,12 +570,7 @@ async fn drafts_create(State(s): St, Extension(u): Usr, JsonBody(body): JsonBody
     data(r)
 }
 
-async fn drafts_update(
-    State(s): St,
-    Extension(u): Usr,
-    Path(id): Path<String>,
-    JsonBody(body): JsonBody,
-) -> Response {
+async fn drafts_update(State(s): St, Extension(u): Usr, Path(id): Path<String>, JsonBody(body): JsonBody) -> Response {
     let company = company!(u);
     let r = async {
         let input = DraftInput::from_json(&body)?;
@@ -697,6 +686,159 @@ async fn recurrences_list(State(s): St, Extension(u): Usr) -> Response {
     data(r)
 }
 
+/// Chạy `f` với `PostsAdapter` của công ty (M54b) trên kết nối thuê bao.
+macro_rules! with_posts {
+    ($s:expr, $company:expr, $posts:ident, $body:block) => {{
+        let graph = ($s.graph_for)($company);
+        let $posts = PostsAdapter {
+            db: &$s.db,
+            company: $company,
+            env: &$s.env,
+            store: &$s.store,
+            graph: &graph,
+            guard: &$s.guard,
+            now_ms: now_ms(),
+        };
+        $body
+    }};
+}
+
+async fn recurrences_create(State(s): St, Extension(u): Usr, JsonBody(body): JsonBody) -> Response {
+    let company = company!(u);
+    let r = async {
+        let input = RecurrenceBody::from_json(&body)?;
+        let tdb = s.db.tenant(company).await.map_err(AppError::internal)?;
+        with_posts!(s, company, posts, {
+            recurrences::create(&tdb, &posts, u.user.user_id, &input, chrono::Utc::now()).await
+        })
+    }
+    .await;
+    data(r)
+}
+
+async fn recurrences_update(
+    State(s): St,
+    Extension(u): Usr,
+    Path(id): Path<String>,
+    JsonBody(body): JsonBody,
+) -> Response {
+    let company = company!(u);
+    let r = async {
+        let id = id_of(&id, "id")?;
+        let input = RecurrenceBody::from_json(&body)?;
+        let tdb = s.db.tenant(company).await.map_err(AppError::internal)?;
+        with_posts!(s, company, posts, {
+            recurrences::update(&tdb, &posts, u.user.user_id, id, &input, chrono::Utc::now()).await
+        })
+    }
+    .await;
+    data(r)
+}
+
+async fn recurrences_pause(State(s): St, Extension(u): Usr, Path(id): Path<String>) -> Response {
+    let company = company!(u);
+    let r = async {
+        let id = id_of(&id, "id")?;
+        let tdb = s.db.tenant(company).await.map_err(AppError::internal)?;
+        with_posts!(s, company, posts, {
+            recurrences::pause(&tdb, &posts, id, chrono::Utc::now()).await
+        })
+    }
+    .await;
+    data(r)
+}
+
+async fn recurrences_resume(State(s): St, Extension(u): Usr, Path(id): Path<String>) -> Response {
+    let company = company!(u);
+    let r = async {
+        let id = id_of(&id, "id")?;
+        let tdb = s.db.tenant(company).await.map_err(AppError::internal)?;
+        with_posts!(s, company, posts, {
+            recurrences::resume(&tdb, &posts, id, chrono::Utc::now()).await
+        })
+    }
+    .await;
+    data(r)
+}
+
+async fn recurrences_remove(State(s): St, Extension(u): Usr, Path(id): Path<String>) -> Response {
+    let company = company!(u);
+    let r = async {
+        let id = id_of(&id, "id")?;
+        let tdb = s.db.tenant(company).await.map_err(AppError::internal)?;
+        with_posts!(s, company, posts, { recurrences::remove(&tdb, &posts, id).await })
+    }
+    .await;
+    no_content(r)
+}
+
+async fn import_plan(State(s): St, Extension(u): Usr, JsonBody(body): JsonBody) -> Response {
+    let company = company!(u);
+    let r = async {
+        let input = ImportPlanBody::from_json(&body)?;
+        let tdb = s.db.tenant(company).await.map_err(AppError::internal)?;
+        let drafts = DraftsAdapter {
+            db: &s.db,
+            company,
+            store: &s.store,
+            env: &s.env,
+            now_ms: now_ms(),
+        };
+        let queue = QueueAdapter {
+            db: &tdb,
+            now_ms: now_ms(),
+        };
+        with_posts!(s, company, posts, {
+            let ports = ImportPorts {
+                posts: &posts,
+                drafts: &drafts,
+                queue: &queue,
+            };
+            import::plan(&tdb, &ports, u.user.user_id, &input.csv, input.mode, chrono::Utc::now()).await
+        })
+    }
+    .await;
+    data(r)
+}
+
+async fn import_posts(State(s): St, Extension(u): Usr, JsonBody(body): JsonBody) -> Response {
+    let company = company!(u);
+    let r = async {
+        let input = ImportBody::from_json(&body)?;
+        let tdb = s.db.tenant(company).await.map_err(AppError::internal)?;
+        let drafts = DraftsAdapter {
+            db: &s.db,
+            company,
+            store: &s.store,
+            env: &s.env,
+            now_ms: now_ms(),
+        };
+        let queue = QueueAdapter {
+            db: &tdb,
+            now_ms: now_ms(),
+        };
+        with_posts!(s, company, posts, {
+            let ports = ImportPorts {
+                posts: &posts,
+                drafts: &drafts,
+                queue: &queue,
+            };
+            import::import_csv(
+                &tdb,
+                &ports,
+                u.user.user_id,
+                &input.csv,
+                input.mode,
+                &input.plan_hash,
+                chrono::Utc::now(),
+            )
+            .await
+        })
+    }
+    .await;
+    ok(r)
+}
+
 // ───────────────────────────── tải video theo phần (X15a) ─────────────────────────────
 
 async fn upload_init(State(s): St, Extension(u): Usr, JsonBody(body): JsonBody) -> Response {
@@ -754,13 +896,7 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<SocialState>> {
     };
     const B: &str = "/api/v1/social";
     let p = |tail: &str| format!("{B}{tail}");
-    let (get, post, patch, put, delete) = (
-        Method::GET,
-        Method::POST,
-        Method::PATCH,
-        Method::PUT,
-        Method::DELETE,
-    );
+    let (get, post, patch, put, delete) = (Method::GET, Method::POST, Method::PATCH, Method::PUT, Method::DELETE);
     // Tải tệp: ảnh ≤ 10 MB, video ≤ 200 MB; thân nhận tới trần lớn nhất + 1 MB (axum mặc định 2 MB không đủ).
     let cap = |n: u64| usize::try_from(n).unwrap_or(usize::MAX).saturating_add(MIB);
     let upload_limit = move || DefaultBodyLimit::max(cap(MAX_STORED_VIDEO_BYTES.max(MAX_IMAGE_BYTES)));
@@ -799,6 +935,13 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<SocialState>> {
         .route(spec(&put, &p("/queue/slots")), queue_set_slots)
         .route(spec(&get, &p("/queue/next")), queue_next)
         .route(spec(&get, &p("/recurrences")), recurrences_list)
+        .route(spec(&post, &p("/recurrences")), recurrences_create)
+        .route(spec(&patch, &p("/recurrences/:id")), recurrences_update)
+        .route(spec(&delete, &p("/recurrences/:id")), recurrences_remove)
+        .route(spec(&post, &p("/recurrences/:id/pause")), recurrences_pause)
+        .route(spec(&post, &p("/recurrences/:id/resume")), recurrences_resume)
+        .route(spec(&post, &p("/posts/import/plan")), import_plan)
+        .route(spec(&post, &p("/posts/import")), import_posts)
         .route(spec(&post, &p("/media/uploads")), upload_init)
         .route(spec(&get, &p("/media/uploads/:id")), upload_status)
         .route(

@@ -4,6 +4,8 @@
  *  - `instructions.txt`: `instructions` trả về ở `initialize`.
  *  - `transport/*.json`: phản hồi vận chuyển thật (thương lượng protocolVersion, header Mcp-Protocol-Version, 406/415,
  *    resources/list, prompts/list, đối số sai, gọi tool với khoá thừa).
+ * Tool chỉ có ở bản Rust (RUST_ONLY_TOOLS, khai báo tường minh): Node không có; tools.json giữ nguyên mô tả của chúng.
+ * Spec chỉ cho phép đúng các tên đó vắng ở Node; mọi tool khác vẫn phải khớp từng byte với Node.
  * Spec dựng máy chủ HTTP thật (McpServer + StreamableHTTPServerTransport như `McpServerService.handle`) rồi so TỪNG BYTE
  * với tệp đã commit. Sinh lại sau khi đổi tool/SDK: `UPDATE_MCP_CONTRACT=1 npx jest mcp-contract` (trong services/crm).
  */
@@ -18,6 +20,33 @@ import type { McpPrincipal } from '../mcp-auth.service';
 const DIR = path.resolve(__dirname, '../../../../../../server/contracts/mcp');
 const UPDATE = process.env.UPDATE_MCP_CONTRACT === '1';
 const PRINCIPAL = { userId: 1, email: 'a@x.vn', clientId: 'c', scopes: ['crm.read', 'crm.write'], tokenId: BigInt(1), user: { userId: 1, email: 'a@x.vn', isAdmin: true, grants: {} } } as unknown as McpPrincipal;
+
+/**
+ * Tool do bản Rust thêm (M31c, phiếu lương), Node không có và không bổ sung (Node đã gỡ khỏi đường chạy, #264).
+ * Thêm tên vào đây là quyết định có chủ đích; tool Node có mà lệch tools.json vẫn đỏ.
+ */
+const RUST_ONLY_TOOLS = new Set([
+  'export_payslip_excel',
+  'export_payslip_pdf',
+  'export_payslips_excel',
+  'get_payslip_import_template',
+  'preview_payslip_import',
+  'apply_payslip_import',
+]);
+
+interface ToolEntry { name: string }
+
+/** Ghép danh sách tool của Node với các tool chỉ-Rust lấy từ tệp đóng băng, theo đúng thứ tự trong tệp. */
+function withRustOnly(nodeTools: ToolEntry[]): ToolEntry[] {
+  const frozen = (JSON.parse(fs.readFileSync(path.join(DIR, 'tools.json'), 'utf8')) as { tools: ToolEntry[] }).tools;
+  const nodeNames = new Set(nodeTools.map((t) => t.name));
+  for (const n of RUST_ONLY_TOOLS) {
+    expect(nodeNames.has(n)).toBe(false); // đã có ở Node thì bỏ khỏi RUST_ONLY_TOOLS
+    expect(frozen.some((t) => t.name === n)).toBe(true);
+  }
+  const byName = new Map(nodeTools.map((t) => [t.name, t]));
+  return frozen.map((t) => (RUST_ONLY_TOOLS.has(t.name) ? t : (byName.get(t.name) ?? t)));
+}
 
 /** Tham số tool thật nhận được sau khi SDK (zod) đã kiểm/bỏ khoá lạ. */
 const seenArgs: Record<string, unknown>[] = [];
@@ -93,7 +122,10 @@ describe('hợp đồng MCP đóng băng', () => {
     const tools = (r.body as { result: { tools: { name: string }[] } }).result.tools;
     expect(tools).toHaveLength(MCP_TOOLS.length);
     expect(tools.map((t) => t.name)).toEqual(MCP_TOOLS.map((t) => t.name));
-    check('tools.json', json({ tool_count: tools.length, tools }));
+    // Tool Node có mà tệp không có (hoặc ngược lại ngoài RUST_ONLY_TOOLS) ⇒ danh sách tên lệch ⇒ đỏ.
+    const merged = withRustOnly(tools);
+    expect(merged.filter((t) => !RUST_ONLY_TOOLS.has(t.name)).map((t) => t.name)).toEqual(tools.map((t) => t.name));
+    check('tools.json', json({ tool_count: merged.length, tools: merged }));
   });
 
   it('instructions.txt khớp từng byte với initialize', async () => {
@@ -124,6 +156,8 @@ describe('hợp đồng MCP đóng băng', () => {
   for (const [name, run] of Object.entries(cases)) {
     it(`transport/${name}.json`, async () => {
       const r = await run();
+      const result = (r.body as { result?: { tools?: ToolEntry[] } } | undefined)?.result;
+      if (result?.tools) result.tools = withRustOnly(result.tools);
       check(`transport/${name}.json`, json(r));
     });
   }

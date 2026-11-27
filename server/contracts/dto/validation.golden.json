@@ -27381,6 +27381,3238 @@
   }
  },
  {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "device_id must be shorter than or equal to 255 characters",
+    "device_id should not be empty",
+    "device_id must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "device_id": null,
+   "note": null,
+   "selfie": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "device_id must be shorter than or equal to 255 characters",
+    "device_id should not be empty",
+    "device_id must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "device_id": "",
+   "note": "",
+   "selfie": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "device_id should not be empty"
+   ]
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "device_id": "  x  ",
+   "note": "  x  ",
+   "selfie": "  x  "
+  },
+  "result": {
+   "ok": {
+    "device_id": "  x  ",
+    "note": "  x  ",
+    "selfie": "  x  "
+   }
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "device_id": 12.5,
+   "note": 12.5,
+   "selfie": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "device_id must be shorter than or equal to 255 characters",
+    "device_id must be a string",
+    "note must be shorter than or equal to 500 characters",
+    "note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "device_id": -1,
+   "note": -1,
+   "selfie": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "device_id must be shorter than or equal to 255 characters",
+    "device_id must be a string",
+    "note must be shorter than or equal to 500 characters",
+    "note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "device_id": 0,
+   "note": 0,
+   "selfie": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "device_id must be shorter than or equal to 255 characters",
+    "device_id must be a string",
+    "note must be shorter than or equal to 500 characters",
+    "note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "device_id": true,
+   "note": true,
+   "selfie": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "device_id must be shorter than or equal to 255 characters",
+    "device_id must be a string",
+    "note must be shorter than or equal to 500 characters",
+    "note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "device_id": [
+    "a",
+    1
+   ],
+   "note": [
+    "a",
+    1
+   ],
+   "selfie": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "device_id must be shorter than or equal to 255 characters",
+    "device_id must be a string",
+    "note must be shorter than or equal to 500 characters",
+    "note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "device_id": {
+    "a": 1
+   },
+   "note": {
+    "a": 1
+   },
+   "selfie": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "device_id must be shorter than or equal to 255 characters",
+    "device_id must be a string",
+    "note must be shorter than or equal to 500 characters",
+    "note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "device_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "selfie": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "device_id must be shorter than or equal to 255 characters"
+   ]
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "device_id": "2026-11-26T10:00:00Z",
+   "note": "2026-11-26T10:00:00Z",
+   "selfie": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "ok": {
+    "device_id": "2026-11-26T10:00:00Z",
+    "note": "2026-11-26T10:00:00Z",
+    "selfie": "2026-11-26T10:00:00Z"
+   }
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "device_id": "123",
+   "note": "123",
+   "selfie": "123"
+  },
+  "result": {
+   "ok": {
+    "device_id": "123",
+    "note": "123",
+    "selfie": "123"
+   }
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "device_id": "a@example.com",
+   "note": "a@example.com",
+   "selfie": "a@example.com"
+  },
+  "result": {
+   "ok": {
+    "device_id": "a@example.com",
+    "note": "a@example.com",
+    "selfie": "a@example.com"
+   }
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "device_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "note": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "selfie": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "device_id must be shorter than or equal to 255 characters",
+    "device_id must be a string",
+    "note must be shorter than or equal to 500 characters",
+    "note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "device_id": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "DeviceCheckDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "device_id": "x"
+  },
+  "result": {
+   "ok": {
+    "device_id": "x"
+   }
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "Lý do tối đa 500 ký tự",
+    "Lý do không được để trống",
+    "reason must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "work_date": null,
+   "type": null,
+   "requested_check_in": null,
+   "requested_check_out": null,
+   "reason": null
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "Lý do tối đa 500 ký tự",
+    "Lý do không được để trống",
+    "reason must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "work_date": "",
+   "type": "",
+   "requested_check_in": "",
+   "requested_check_out": "",
+   "reason": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)",
+    "Lý do không được để trống"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "work_date": "  x  ",
+   "type": "  x  ",
+   "requested_check_in": "  x  ",
+   "requested_check_out": "  x  ",
+   "reason": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "work_date": 12.5,
+   "type": 12.5,
+   "requested_check_in": 12.5,
+   "requested_check_out": 12.5,
+   "reason": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)",
+    "Lý do tối đa 500 ký tự",
+    "Lý do không được để trống",
+    "reason must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "work_date": -1,
+   "type": -1,
+   "requested_check_in": -1,
+   "requested_check_out": -1,
+   "reason": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)",
+    "Lý do tối đa 500 ký tự",
+    "Lý do không được để trống",
+    "reason must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "work_date": 0,
+   "type": 0,
+   "requested_check_in": 0,
+   "requested_check_out": 0,
+   "reason": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)",
+    "Lý do tối đa 500 ký tự",
+    "Lý do không được để trống",
+    "reason must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "work_date": true,
+   "type": true,
+   "requested_check_in": true,
+   "requested_check_out": true,
+   "reason": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)",
+    "Lý do tối đa 500 ký tự",
+    "Lý do không được để trống",
+    "reason must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "work_date": [
+    "a",
+    1
+   ],
+   "type": [
+    "a",
+    1
+   ],
+   "requested_check_in": [
+    "a",
+    1
+   ],
+   "requested_check_out": [
+    "a",
+    1
+   ],
+   "reason": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)",
+    "Lý do tối đa 500 ký tự",
+    "Lý do không được để trống",
+    "reason must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "work_date": {
+    "a": 1
+   },
+   "type": {
+    "a": 1
+   },
+   "requested_check_in": {
+    "a": 1
+   },
+   "requested_check_out": {
+    "a": 1
+   },
+   "reason": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)",
+    "Lý do tối đa 500 ký tự",
+    "Lý do không được để trống",
+    "reason must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "work_date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "type": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "requested_check_in": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "requested_check_out": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "reason": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "work_date": "2026-11-26T10:00:00Z",
+   "type": "2026-11-26T10:00:00Z",
+   "requested_check_in": "2026-11-26T10:00:00Z",
+   "requested_check_out": "2026-11-26T10:00:00Z",
+   "reason": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "work_date": "123",
+   "type": "123",
+   "requested_check_in": "123",
+   "requested_check_out": "123",
+   "reason": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "work_date": "a@example.com",
+   "type": "a@example.com",
+   "requested_check_in": "a@example.com",
+   "requested_check_out": "a@example.com",
+   "reason": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "work_date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "type": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "requested_check_in": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "requested_check_out": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "reason": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "requested_check_in phải có định dạng HH:MM (vd 08:05)",
+    "requested_check_out phải có định dạng HH:MM (vd 17:30)",
+    "Lý do tối đa 500 ký tự",
+    "Lý do không được để trống",
+    "reason must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "work_date": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "Lý do tối đa 500 ký tự",
+    "Lý do không được để trống",
+    "reason must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "CreateAttendanceRequestDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "work_date": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "work_date phải có định dạng YYYY-MM-DD",
+    "Loại đơn không hợp lệ",
+    "Lý do tối đa 500 ký tự",
+    "Lý do không được để trống",
+    "reason must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "review_note": null
+  },
+  "result": {
+   "ok": {
+    "review_note": null
+   }
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "review_note": ""
+  },
+  "result": {
+   "ok": {
+    "review_note": ""
+   }
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "review_note": "  x  "
+  },
+  "result": {
+   "ok": {
+    "review_note": "  x  "
+   }
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "review_note": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "review_note tối đa 500 ký tự",
+    "review_note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "review_note": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "review_note tối đa 500 ký tự",
+    "review_note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "review_note": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "review_note tối đa 500 ký tự",
+    "review_note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "review_note": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "review_note tối đa 500 ký tự",
+    "review_note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "review_note": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "review_note tối đa 500 ký tự",
+    "review_note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "review_note": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "review_note tối đa 500 ký tự",
+    "review_note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "review_note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "ok": {
+    "review_note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   }
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "review_note": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "ok": {
+    "review_note": "2026-11-26T10:00:00Z"
+   }
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "review_note": "123"
+  },
+  "result": {
+   "ok": {
+    "review_note": "123"
+   }
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "review_note": "a@example.com"
+  },
+  "result": {
+   "ok": {
+    "review_note": "a@example.com"
+   }
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "review_note": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "review_note tối đa 500 ký tự",
+    "review_note must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "review_note": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "RejectRequestDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "review_note": "x"
+  },
+  "result": {
+   "ok": {
+    "review_note": "x"
+   }
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "status": null,
+   "page": null,
+   "page_size": null,
+   "team_id": null,
+   "department": null,
+   "job_title_id": null
+  },
+  "result": {
+   "ok": {
+    "status": null,
+    "page": null,
+    "page_size": null,
+    "team_id": null,
+    "department": null,
+    "job_title_id": null
+   }
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "status": "",
+   "page": "",
+   "page_size": "",
+   "team_id": "",
+   "department": "",
+   "job_title_id": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected",
+    "team_id must not be less than 1",
+    "job_title_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "status": "  x  ",
+   "page": "  x  ",
+   "page_size": "  x  ",
+   "team_id": "  x  ",
+   "department": "  x  ",
+   "job_title_id": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected",
+    "page phải là số nguyên",
+    "page_size phải là số nguyên",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "status": 12.5,
+   "page": 12.5,
+   "page_size": 12.5,
+   "team_id": 12.5,
+   "department": 12.5,
+   "job_title_id": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected",
+    "page phải là số nguyên",
+    "page_size phải là số nguyên",
+    "team_id must be an integer number",
+    "department must be a string",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "status": -1,
+   "page": -1,
+   "page_size": -1,
+   "team_id": -1,
+   "department": -1,
+   "job_title_id": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected",
+    "team_id must not be less than 1",
+    "department must be a string",
+    "job_title_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "status": 0,
+   "page": 0,
+   "page_size": 0,
+   "team_id": 0,
+   "department": 0,
+   "job_title_id": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected",
+    "team_id must not be less than 1",
+    "department must be a string",
+    "job_title_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "status": true,
+   "page": true,
+   "page_size": true,
+   "team_id": true,
+   "department": true,
+   "job_title_id": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected",
+    "department must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "status": [
+    "a",
+    1
+   ],
+   "page": [
+    "a",
+    1
+   ],
+   "page_size": [
+    "a",
+    1
+   ],
+   "team_id": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "job_title_id": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected",
+    "page phải là số nguyên",
+    "page_size phải là số nguyên",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "department must be a string",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "status": {
+    "a": 1
+   },
+   "page": {
+    "a": 1
+   },
+   "page_size": {
+    "a": 1
+   },
+   "team_id": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "job_title_id": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected",
+    "page phải là số nguyên",
+    "page_size phải là số nguyên",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "department must be a string",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "page": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "page_size": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "job_title_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected",
+    "page phải là số nguyên",
+    "page_size phải là số nguyên",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "status": "2026-11-26T10:00:00Z",
+   "page": "2026-11-26T10:00:00Z",
+   "page_size": "2026-11-26T10:00:00Z",
+   "team_id": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "job_title_id": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected",
+    "page phải là số nguyên",
+    "page_size phải là số nguyên",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "status": "123",
+   "page": "123",
+   "page_size": "123",
+   "team_id": "123",
+   "department": "123",
+   "job_title_id": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "status": "a@example.com",
+   "page": "a@example.com",
+   "page_size": "a@example.com",
+   "team_id": "a@example.com",
+   "department": "a@example.com",
+   "job_title_id": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected",
+    "page phải là số nguyên",
+    "page_size phải là số nguyên",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "page": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "page_size": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "job_title_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected",
+    "page phải là số nguyên",
+    "page_size phải là số nguyên",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "department must be a string",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "status": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "status phải là pending, approved hoặc rejected"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceRequestsDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "status": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "status phải là pending, approved hoặc rejected"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {
+    "page": 1,
+    "page_size": 20
+   }
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "date_from": null,
+   "date_to": null,
+   "user_id": null,
+   "page": null,
+   "page_size": null,
+   "sort_by": null,
+   "sort_dir": null,
+   "search": null,
+   "team_id": null,
+   "department": null,
+   "job_title_id": null,
+   "status": null
+  },
+  "result": {
+   "ok": {
+    "date_from": null,
+    "date_to": null,
+    "user_id": null,
+    "page": null,
+    "page_size": null,
+    "sort_by": null,
+    "sort_dir": null,
+    "search": null,
+    "team_id": null,
+    "department": null,
+    "job_title_id": null,
+    "status": null
+   }
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "date_from": "",
+   "date_to": "",
+   "user_id": "",
+   "page": "",
+   "page_size": "",
+   "sort_by": "",
+   "sort_dir": "",
+   "search": "",
+   "team_id": "",
+   "department": "",
+   "job_title_id": "",
+   "status": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_dir must be one of the following values: asc, desc",
+    "team_id must not be less than 1",
+    "job_title_id must not be less than 1",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "date_from": "  x  ",
+   "date_to": "  x  ",
+   "user_id": "  x  ",
+   "page": "  x  ",
+   "page_size": "  x  ",
+   "sort_by": "  x  ",
+   "sort_dir": "  x  ",
+   "search": "  x  ",
+   "team_id": "  x  ",
+   "department": "  x  ",
+   "job_title_id": "  x  ",
+   "status": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_dir must be one of the following values: asc, desc",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "date_from": 12.5,
+   "date_to": 12.5,
+   "user_id": 12.5,
+   "page": 12.5,
+   "page_size": 12.5,
+   "sort_by": 12.5,
+   "sort_dir": 12.5,
+   "search": 12.5,
+   "team_id": 12.5,
+   "department": 12.5,
+   "job_title_id": 12.5,
+   "status": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "page must be an integer number",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string",
+    "search must be a string",
+    "team_id must be an integer number",
+    "department must be a string",
+    "job_title_id must be an integer number",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity",
+    "status must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "date_from": -1,
+   "date_to": -1,
+   "user_id": -1,
+   "page": -1,
+   "page_size": -1,
+   "sort_by": -1,
+   "sort_dir": -1,
+   "search": -1,
+   "team_id": -1,
+   "department": -1,
+   "job_title_id": -1,
+   "status": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string",
+    "search must be a string",
+    "team_id must not be less than 1",
+    "department must be a string",
+    "job_title_id must not be less than 1",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity",
+    "status must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "date_from": 0,
+   "date_to": 0,
+   "user_id": 0,
+   "page": 0,
+   "page_size": 0,
+   "sort_by": 0,
+   "sort_dir": 0,
+   "search": 0,
+   "team_id": 0,
+   "department": 0,
+   "job_title_id": 0,
+   "status": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "page must not be less than 1",
+    "page_size must not be less than 1",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string",
+    "search must be a string",
+    "team_id must not be less than 1",
+    "department must be a string",
+    "job_title_id must not be less than 1",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity",
+    "status must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "date_from": true,
+   "date_to": true,
+   "user_id": true,
+   "page": true,
+   "page_size": true,
+   "sort_by": true,
+   "sort_dir": true,
+   "search": true,
+   "team_id": true,
+   "department": true,
+   "job_title_id": true,
+   "status": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string",
+    "search must be a string",
+    "department must be a string",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity",
+    "status must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "date_from": [
+    "a",
+    1
+   ],
+   "date_to": [
+    "a",
+    1
+   ],
+   "user_id": [
+    "a",
+    1
+   ],
+   "page": [
+    "a",
+    1
+   ],
+   "page_size": [
+    "a",
+    1
+   ],
+   "sort_by": [
+    "a",
+    1
+   ],
+   "sort_dir": [
+    "a",
+    1
+   ],
+   "search": [
+    "a",
+    1
+   ],
+   "team_id": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "job_title_id": [
+    "a",
+    1
+   ],
+   "status": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string",
+    "search must be a string",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "department must be a string",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity",
+    "status must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "date_from": {
+    "a": 1
+   },
+   "date_to": {
+    "a": 1
+   },
+   "user_id": {
+    "a": 1
+   },
+   "page": {
+    "a": 1
+   },
+   "page_size": {
+    "a": 1
+   },
+   "sort_by": {
+    "a": 1
+   },
+   "sort_dir": {
+    "a": 1
+   },
+   "search": {
+    "a": 1
+   },
+   "team_id": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "job_title_id": {
+    "a": 1
+   },
+   "status": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string",
+    "search must be a string",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "department must be a string",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity",
+    "status must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "date_from": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "date_to": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "user_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "page": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "page_size": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sort_by": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "sort_dir": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "search": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "job_title_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_dir must be one of the following values: asc, desc",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "date_from": "2026-11-26T10:00:00Z",
+   "date_to": "2026-11-26T10:00:00Z",
+   "user_id": "2026-11-26T10:00:00Z",
+   "page": "2026-11-26T10:00:00Z",
+   "page_size": "2026-11-26T10:00:00Z",
+   "sort_by": "2026-11-26T10:00:00Z",
+   "sort_dir": "2026-11-26T10:00:00Z",
+   "search": "2026-11-26T10:00:00Z",
+   "team_id": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "job_title_id": "2026-11-26T10:00:00Z",
+   "status": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "user_id must be an integer number",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_dir must be one of the following values: asc, desc",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "date_from": "123",
+   "date_to": "123",
+   "user_id": "123",
+   "page": "123",
+   "page_size": "123",
+   "sort_by": "123",
+   "sort_dir": "123",
+   "search": "123",
+   "team_id": "123",
+   "department": "123",
+   "job_title_id": "123",
+   "status": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "page_size must not be greater than 100",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_dir must be one of the following values: asc, desc",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "date_from": "a@example.com",
+   "date_to": "a@example.com",
+   "user_id": "a@example.com",
+   "page": "a@example.com",
+   "page_size": "a@example.com",
+   "sort_by": "a@example.com",
+   "sort_dir": "a@example.com",
+   "search": "a@example.com",
+   "team_id": "a@example.com",
+   "department": "a@example.com",
+   "job_title_id": "a@example.com",
+   "status": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_dir must be one of the following values: asc, desc",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "date_from": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "date_to": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "user_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "page": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "page_size": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "sort_by": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "sort_dir": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "search": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "job_title_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "page must not be less than 1",
+    "page must be an integer number",
+    "page_size must not be greater than 100",
+    "page_size must not be less than 1",
+    "page_size must be an integer number",
+    "sort_by must be one of the following values: work_date, employee, check_in, check_out, total_hours, status, org",
+    "sort_by must be a string",
+    "sort_dir must be one of the following values: asc, desc",
+    "sort_dir must be a string",
+    "search must be a string",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "department must be a string",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number",
+    "status must be one of the following values: present, late, half_day, insufficient, review, incomplete, leave, maternity",
+    "status must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date_from": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "date_from must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date_from": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "date": null
+  },
+  "result": {
+   "ok": {
+    "date": null
+   }
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "date": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "date": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "date": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "date": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "date": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "date": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "date": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "date": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "date": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "date": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "ok": {
+    "date": "2026-11-26T10:00:00Z"
+   }
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "date": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "date": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "date": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryTodaySummaryDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "date_from": null,
+   "date_to": null,
+   "user_id": null,
+   "team_id": null,
+   "department": null,
+   "job_title_id": null
+  },
+  "result": {
+   "ok": {
+    "date_from": null,
+    "date_to": null,
+    "user_id": null,
+    "team_id": null,
+    "department": null,
+    "job_title_id": null
+   }
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "date_from": "",
+   "date_to": "",
+   "user_id": "",
+   "team_id": "",
+   "department": "",
+   "job_title_id": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "team_id must not be less than 1",
+    "job_title_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "date_from": "  x  ",
+   "date_to": "  x  ",
+   "user_id": "  x  ",
+   "team_id": "  x  ",
+   "department": "  x  ",
+   "job_title_id": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "date_from": 12.5,
+   "date_to": 12.5,
+   "user_id": 12.5,
+   "team_id": 12.5,
+   "department": 12.5,
+   "job_title_id": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "team_id must be an integer number",
+    "department must be a string",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "date_from": -1,
+   "date_to": -1,
+   "user_id": -1,
+   "team_id": -1,
+   "department": -1,
+   "job_title_id": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "team_id must not be less than 1",
+    "department must be a string",
+    "job_title_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "date_from": 0,
+   "date_to": 0,
+   "user_id": 0,
+   "team_id": 0,
+   "department": 0,
+   "job_title_id": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "team_id must not be less than 1",
+    "department must be a string",
+    "job_title_id must not be less than 1"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "date_from": true,
+   "date_to": true,
+   "user_id": true,
+   "team_id": true,
+   "department": true,
+   "job_title_id": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "department must be a string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "date_from": [
+    "a",
+    1
+   ],
+   "date_to": [
+    "a",
+    1
+   ],
+   "user_id": [
+    "a",
+    1
+   ],
+   "team_id": [
+    "a",
+    1
+   ],
+   "department": [
+    "a",
+    1
+   ],
+   "job_title_id": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "department must be a string",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "date_from": {
+    "a": 1
+   },
+   "date_to": {
+    "a": 1
+   },
+   "user_id": {
+    "a": 1
+   },
+   "team_id": {
+    "a": 1
+   },
+   "department": {
+    "a": 1
+   },
+   "job_title_id": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "department must be a string",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "date_from": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "date_to": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "user_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "team_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "department": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "job_title_id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "date_from": "2026-11-26T10:00:00Z",
+   "date_to": "2026-11-26T10:00:00Z",
+   "user_id": "2026-11-26T10:00:00Z",
+   "team_id": "2026-11-26T10:00:00Z",
+   "department": "2026-11-26T10:00:00Z",
+   "job_title_id": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "user_id must be an integer number",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "date_from": "123",
+   "date_to": "123",
+   "user_id": "123",
+   "team_id": "123",
+   "department": "123",
+   "job_title_id": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "date_from": "a@example.com",
+   "date_to": "a@example.com",
+   "user_id": "a@example.com",
+   "team_id": "a@example.com",
+   "department": "a@example.com",
+   "job_title_id": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "date_from": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "date_to": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "user_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "team_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "department": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "job_title_id": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string",
+    "date_to must be a valid ISO 8601 date string",
+    "user_id must be an integer number",
+    "team_id must not be less than 1",
+    "team_id must be an integer number",
+    "department must be a string",
+    "job_title_id must not be less than 1",
+    "job_title_id must be an integer number"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date_from": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist",
+    "date_from must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "QueryAttendanceExportDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "date_from": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "date_from must be a valid ISO 8601 date string"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "empty_object",
+  "input": {},
+  "result": {
+   "ok": {}
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "null",
+  "input": {
+   "check_in_at": null,
+   "check_out_at": null,
+   "check_in_note": null,
+   "check_out_note": null,
+   "total_hours": null,
+   "late_minutes": null,
+   "status": null
+  },
+  "result": {
+   "ok": {
+    "check_in_at": null,
+    "check_out_at": null,
+    "check_in_note": null,
+    "check_out_note": null,
+    "total_hours": null,
+    "late_minutes": null,
+    "status": null
+   }
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "empty",
+  "input": {
+   "check_in_at": "",
+   "check_out_at": "",
+   "check_in_note": "",
+   "check_out_note": "",
+   "total_hours": "",
+   "late_minutes": "",
+   "status": ""
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "total_hours must be a number conforming to the specified constraints",
+    "late_minutes must be a number conforming to the specified constraints",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "spaces",
+  "input": {
+   "check_in_at": "  x  ",
+   "check_out_at": "  x  ",
+   "check_in_note": "  x  ",
+   "check_out_note": "  x  ",
+   "total_hours": "  x  ",
+   "late_minutes": "  x  ",
+   "status": "  x  "
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "total_hours must be a number conforming to the specified constraints",
+    "late_minutes must be a number conforming to the specified constraints",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "float",
+  "input": {
+   "check_in_at": 12.5,
+   "check_out_at": 12.5,
+   "check_in_note": 12.5,
+   "check_out_note": 12.5,
+   "total_hours": 12.5,
+   "late_minutes": 12.5,
+   "status": 12.5
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "check_in_at must be a string",
+    "check_out_at must be a string",
+    "check_in_note must be a string",
+    "check_out_note must be a string",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "negative",
+  "input": {
+   "check_in_at": -1,
+   "check_out_at": -1,
+   "check_in_note": -1,
+   "check_out_note": -1,
+   "total_hours": -1,
+   "late_minutes": -1,
+   "status": -1
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "check_in_at must be a string",
+    "check_out_at must be a string",
+    "check_in_note must be a string",
+    "check_out_note must be a string",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "zero",
+  "input": {
+   "check_in_at": 0,
+   "check_out_at": 0,
+   "check_in_note": 0,
+   "check_out_note": 0,
+   "total_hours": 0,
+   "late_minutes": 0,
+   "status": 0
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "check_in_at must be a string",
+    "check_out_at must be a string",
+    "check_in_note must be a string",
+    "check_out_note must be a string",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "true",
+  "input": {
+   "check_in_at": true,
+   "check_out_at": true,
+   "check_in_note": true,
+   "check_out_note": true,
+   "total_hours": true,
+   "late_minutes": true,
+   "status": true
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "check_in_at must be a string",
+    "check_out_at must be a string",
+    "check_in_note must be a string",
+    "check_out_note must be a string",
+    "total_hours must be a number conforming to the specified constraints",
+    "late_minutes must be a number conforming to the specified constraints",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "mixed_array",
+  "input": {
+   "check_in_at": [
+    "a",
+    1
+   ],
+   "check_out_at": [
+    "a",
+    1
+   ],
+   "check_in_note": [
+    "a",
+    1
+   ],
+   "check_out_note": [
+    "a",
+    1
+   ],
+   "total_hours": [
+    "a",
+    1
+   ],
+   "late_minutes": [
+    "a",
+    1
+   ],
+   "status": [
+    "a",
+    1
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "check_in_at must be a string",
+    "check_out_at must be a string",
+    "check_in_note must be a string",
+    "check_out_note must be a string",
+    "total_hours must be a number conforming to the specified constraints",
+    "late_minutes must be a number conforming to the specified constraints",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "object",
+  "input": {
+   "check_in_at": {
+    "a": 1
+   },
+   "check_out_at": {
+    "a": 1
+   },
+   "check_in_note": {
+    "a": 1
+   },
+   "check_out_note": {
+    "a": 1
+   },
+   "total_hours": {
+    "a": 1
+   },
+   "late_minutes": {
+    "a": 1
+   },
+   "status": {
+    "a": 1
+   }
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "check_in_at must be a string",
+    "check_out_at must be a string",
+    "check_in_note must be a string",
+    "check_out_note must be a string",
+    "total_hours must be a number conforming to the specified constraints",
+    "late_minutes must be a number conforming to the specified constraints",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "long",
+  "input": {
+   "check_in_at": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "check_out_at": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "check_in_note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "check_out_note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "total_hours": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "late_minutes": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "status": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "total_hours must be a number conforming to the specified constraints",
+    "late_minutes must be a number conforming to the specified constraints",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "iso_date",
+  "input": {
+   "check_in_at": "2026-11-26T10:00:00Z",
+   "check_out_at": "2026-11-26T10:00:00Z",
+   "check_in_note": "2026-11-26T10:00:00Z",
+   "check_out_note": "2026-11-26T10:00:00Z",
+   "total_hours": "2026-11-26T10:00:00Z",
+   "late_minutes": "2026-11-26T10:00:00Z",
+   "status": "2026-11-26T10:00:00Z"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "total_hours must be a number conforming to the specified constraints",
+    "late_minutes must be a number conforming to the specified constraints",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "digits",
+  "input": {
+   "check_in_at": "123",
+   "check_out_at": "123",
+   "check_in_note": "123",
+   "check_out_note": "123",
+   "total_hours": "123",
+   "late_minutes": "123",
+   "status": "123"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "total_hours must be a number conforming to the specified constraints",
+    "late_minutes must be a number conforming to the specified constraints",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "email",
+  "input": {
+   "check_in_at": "a@example.com",
+   "check_out_at": "a@example.com",
+   "check_in_note": "a@example.com",
+   "check_out_note": "a@example.com",
+   "total_hours": "a@example.com",
+   "late_minutes": "a@example.com",
+   "status": "a@example.com"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "total_hours must be a number conforming to the specified constraints",
+    "late_minutes must be a number conforming to the specified constraints",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "objects_array",
+  "input": {
+   "check_in_at": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "check_out_at": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "check_in_note": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "check_out_note": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "total_hours": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "late_minutes": [
+    {},
+    {
+     "__la__": 1
+    }
+   ],
+   "status": [
+    {},
+    {
+     "__la__": 1
+    }
+   ]
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "check_in_at must be a string",
+    "check_out_at must be a string",
+    "check_in_note must be a string",
+    "check_out_note must be a string",
+    "total_hours must be a number conforming to the specified constraints",
+    "late_minutes must be a number conforming to the specified constraints",
+    "status must be one of the following values: incomplete, present, late, half_day"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "strict",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "check_in_at": "x"
+  },
+  "result": {
+   "status": 400,
+   "message": [
+    "property __la__ should not exist"
+   ]
+  }
+ },
+ {
+  "dto": "PatchAttendanceDto",
+  "mode": "lenient",
+  "probe": "unknown_field",
+  "input": {
+   "__la__": 1,
+   "check_in_at": "x"
+  },
+  "result": {
+   "ok": {
+    "check_in_at": "x"
+   }
+  }
+ },
+ {
   "dto": "UpdateWorkingSaturdaysDto",
   "mode": "strict",
   "probe": "empty_object",

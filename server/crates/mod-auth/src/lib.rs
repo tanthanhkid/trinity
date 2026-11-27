@@ -153,7 +153,6 @@ struct UserRow {
     manager_id: Option<i32>,
     status: String,
     tokens_valid_after: Option<DateTime<Utc>>,
-    #[allow(dead_code)]
     team_name: Option<String>,
 }
 
@@ -184,6 +183,8 @@ pub enum LoginReason {
     AccountLocked,
     RateLimited,
     WifiBlocked,
+    OwnerMismatch,
+    RoleNotAllowed,
 }
 
 impl LoginReason {
@@ -195,6 +196,8 @@ impl LoginReason {
             Self::AccountLocked => "account_locked",
             Self::RateLimited => "rate_limited",
             Self::WifiBlocked => "wifi_blocked",
+            Self::OwnerMismatch => "owner_mismatch",
+            Self::RoleNotAllowed => "role_not_allowed",
         }
     }
 }
@@ -690,6 +693,124 @@ impl<G: GrantsSource> AuthService<G> {
         };
         self.token_response(company, &user, sid, uuid::Uuid::new_v4().to_string())
             .await
+    }
+
+    /// `POST /public/auth/login` (`loginForThirdParty`): bên thứ ba đăng nhập user bằng email + mật khẩu, đã qua `ApiKeyGuard`
+    /// (scope `auth:login`). `company` và `expected_owner` lấy từ khoá API đã xác thực: chỉ đăng nhập được dưới CHÍNH owner
+    /// của khoá, owner không được là Quản trị và phải có `contacts.create`. Trả access token 15 phút, KHÔNG có refresh token.
+    /// Giới hạn tốc độ luôn bật thật (khoá `public-login:…`), khác nhánh đăng nhập nội bộ.
+    pub async fn login_third_party(
+        &self,
+        company: CompanyRef,
+        email: &str,
+        password_in: &str,
+        ip: Option<&str>,
+        expected_owner: i32,
+        ip_trusted: bool,
+    ) -> Res<Value> {
+        let norm = Self::norm_email(email);
+        let ip_s = ip.unwrap_or("unknown");
+        let key = if ip_trusted {
+            format!("public-login:{ip_s}:{norm}")
+        } else {
+            format!("public-login-untrusted:{ip_s}")
+        };
+        let slow = (!ip_trusted).then(|| format!("login-untrusted-email:{norm}"));
+        for k in std::iter::once(&key).chain(slow.as_ref()) {
+            if let Some(retry) = self.enforce_rate_limit(k) {
+                return Err(self.rate_limited(company, email, ip, retry).await);
+            }
+        }
+        if let Some(slow) = &slow {
+            let n = self.limiter().attempts(slow, Self::now());
+            let delay = untrusted_delay_ms(n);
+            if delay > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
+            }
+        }
+        let fail = |this: &Self| {
+            let now = Self::now();
+            let mut l = this.limiter();
+            l.record_attempt(&key, now);
+            if let Some(s) = &slow {
+                l.record_attempt(s, now);
+            }
+        };
+        let Some(user) = self.find_by_email(company, email).await? else {
+            password::verify(password_in.to_owned(), DUMMY_HASH.to_owned()).await;
+            fail(self);
+            self.log_login(company, None, email, false, ip, LoginReason::EmailNotFound)
+                .await?;
+            return Err(unauthorized("Email hoặc mật khẩu không đúng"));
+        };
+        if !password::verify(password_in.to_owned(), user.password_hash.clone()).await {
+            fail(self);
+            self.log_login(company, Some(user.id), email, false, ip, LoginReason::BadPassword)
+                .await?;
+            return Err(unauthorized("Email hoặc mật khẩu không đúng"));
+        }
+        if user.status != "active" {
+            fail(self);
+            self.log_login(company, Some(user.id), email, false, ip, LoginReason::AccountLocked)
+                .await?;
+            return Err(unauthorized("Tài khoản đã bị khoá"));
+        }
+        if user.id != expected_owner {
+            // Khoá cấp cho owner X chỉ đăng nhập được dưới X: không dùng một khoá để lấy JWT của người khác.
+            fail(self);
+            self.log_login(company, Some(user.id), email, false, ip, LoginReason::OwnerMismatch)
+                .await?;
+            return Err(unauthorized("Email không khớp với owner của API key"));
+        }
+        let grants = self.grants_of(company, user.id).await?;
+        if grants.is_admin || !grants.can("contacts.create") {
+            fail(self);
+            self.log_login(company, Some(user.id), email, false, ip, LoginReason::RoleNotAllowed)
+                .await?;
+            return Err(unauthorized("Tài khoản này không được phép đăng nhập qua public API"));
+        }
+        {
+            let mut l = self.limiter();
+            l.reset_attempts(&key);
+            if let Some(s) = &slow {
+                l.reset_attempts(s);
+            }
+        }
+        self.log_login(company, Some(user.id), email, true, ip, LoginReason::Ok)
+            .await?;
+        self.security.remove_user(company.id(), user.id).await;
+        let cid = self.platform.multi_tenant().then(|| i64::from(company.id()));
+        let access = Claims::access(i64::from(user.id), &user.email, None, cid, Self::now() / 1000);
+        let token = jwt::sign(&access, &self.cfg.jwt_secret).map_err(|e| internal("ký token", e))?;
+        let (team_id, roles) = {
+            let mut c = self.conn(company).await?;
+            let team_id: Option<i32> = sqlx::query_scalar("SELECT team_id FROM users WHERE id = $1")
+                .bind(user.id)
+                .fetch_one(&mut *c)
+                .await
+                .map_err(|e| internal("team", e))?;
+            let roles: Vec<String> = sqlx::query_scalar(
+                "SELECT r.name FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = $1 ORDER BY ur.id",
+            )
+            .bind(user.id)
+            .fetch_all(&mut *c)
+            .await
+            .map_err(|e| internal("vai trò", e))?;
+            (team_id, roles)
+        };
+        Ok(json!({
+            "access_token": token,
+            "token_type": "Bearer",
+            "expires_in": 15 * 60,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "full_name": user.full_name,
+                "roles": roles,
+                "team_id": team_id,
+                "team_name": user.team_name,
+            },
+        }))
     }
 
     // ---------------------------------------------------------------- làm mới, đăng xuất

@@ -90,7 +90,9 @@ async fn vong_doi_xep_viec_dung_tai() {
     let st = s.status(id, 1, 10).await.unwrap().unwrap();
     assert_eq!((st.status.as_str(), st.progress), ("running", 90), "tiến độ chỉ tăng");
 
-    s.finish(id, 1, "khach-hang.xlsx", "application/x", vec![1, 2, 3]).await.unwrap();
+    s.finish(id, 1, "khach-hang.xlsx", "application/x", vec![1, 2, 3])
+        .await
+        .unwrap();
     let st = s.status(id, 1, 10).await.unwrap().unwrap();
     assert_eq!((st.status.as_str(), st.progress, st.size_bytes), ("done", 100, Some(3)));
     assert!(st.finished_at.is_some());
@@ -124,12 +126,18 @@ async fn gioi_han_viec_dang_chay_va_viec_loi() {
         ids.push(s.create(1, 10, "contacts").await.unwrap().unwrap());
     }
     assert!(s.create(1, 10, "contacts").await.unwrap().is_none(), "quá giới hạn");
-    assert!(s.create(1, 11, "contacts").await.unwrap().is_some(), "người khác không bị ảnh hưởng");
+    assert!(
+        s.create(1, 11, "contacts").await.unwrap().is_some(),
+        "người khác không bị ảnh hưởng"
+    );
 
     s.mark_running(ids[0], 1).await.unwrap();
     s.fail(ids[0], 1, &"x".repeat(900)).await.unwrap();
     let st = s.status(ids[0], 1, 10).await.unwrap().unwrap();
     assert_eq!(st.status, "failed");
     assert_eq!(st.error.map(|e| e.chars().count()), Some(500));
-    assert!(s.create(1, 10, "contacts").await.unwrap().is_some(), "việc lỗi không còn tính là đang chạy");
+    assert!(
+        s.create(1, 10, "contacts").await.unwrap().is_some(),
+        "việc lỗi không còn tính là đang chạy"
+    );
 }

@@ -25,7 +25,6 @@ use crate::store::{ExportStatus, Store, StoreError};
 use crate::worker::MAX_ATTEMPTS;
 use crate::{JOB_KIND, contacts};
 
-const BASE: &str = "/api/v1/exports";
 const ID: &[&str] = &["param.id:ParseIntPipe"];
 const CONTACTS_EXPORT: Access = Access::Can(&["contacts.export"]);
 
@@ -152,11 +151,7 @@ async fn get_status(
     }
 }
 
-async fn download(
-    State(c): State<Arc<Ctx>>,
-    Extension(u): Extension<CurrentUser>,
-    Path(id): Path<String>,
-) -> Response {
+async fn download(State(c): State<Arc<Ctx>>, Extension(u): Extension<CurrentUser>, Path(id): Path<String>) -> Response {
     let res = async {
         let st = status_of(&c, &u, &id).await?;
         match st.status.as_str() {
@@ -218,10 +213,14 @@ mod tests {
     fn ba_route_xuat_nen_khai_quyen_dung() {
         let t = specs();
         assert_eq!(t.len(), 3);
-        assert!(t.iter().all(|s| s.path.starts_with(BASE)));
+        assert!(t.iter().all(|s| s.path.starts_with("/api/v1/exports")));
         let post = t.iter().find(|s| s.method == Method::POST).unwrap();
         assert_eq!(post.access, CONTACTS_EXPORT);
-        assert!(t.iter().filter(|s| s.method == Method::GET).all(|s| s.access == Access::AuthOnly));
+        assert!(
+            t.iter()
+                .filter(|s| s.method == Method::GET)
+                .all(|s| s.access == Access::AuthOnly)
+        );
     }
 
     #[test]

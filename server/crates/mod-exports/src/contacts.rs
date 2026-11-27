@@ -130,7 +130,10 @@ mod tests {
         }))
         .unwrap();
         let p = payload(7, &f, &Scopes::default()).unwrap();
-        assert_eq!((p["export_id"].as_i64(), p["kind"].as_str()), (Some(7), Some("contacts")));
+        assert_eq!(
+            (p["export_id"].as_i64(), p["kind"].as_str()),
+            (Some(7), Some("contacts"))
+        );
         let back: ContactFilters = serde_json::from_value(p["filters"].clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), serde_json::to_value(&f).unwrap());
         assert_eq!(back.source_id, Some(4));

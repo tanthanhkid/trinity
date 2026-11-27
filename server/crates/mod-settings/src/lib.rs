@@ -22,8 +22,8 @@
 //! và hạn mức nằm ở `trinity-rbac::plan` (K25). Bản Node không có giá gói trong các phản hồi này (giá hiển thị ở web), nên
 //! `GET /settings/usage` chỉ trả `plan`, `plan_label`, `max_users`, `active_users`, `features`.
 //!
-//! Đo lường (`trackProductEvent`) CHƯA gọi ở đây: tầng serve gọi `plan_changed` sau [`features::set_plan`] (trả [`features::PlanChange`])
-//! và `feature_toggled` cho từng khoá trong [`features::Updated::changed`] sau [`features::update`].
+//! Đo lường (`trackProductEvent`): `api.rs` gửi `plan_changed` sau [`features::set_plan`] và `feature_toggled` cho từng khoá trong
+//! [`features::Updated::changed`] sau [`features::update`], qua `trinity_obs::ProductEvents` ([`SettingsState::events`]).
 //! Khoá của `metadata` trong tuỳ chọn trả theo thứ tự chữ cái (serde_json), bản Node theo thứ tự lưu của jsonb.
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]

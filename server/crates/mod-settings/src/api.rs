@@ -1,5 +1,6 @@
 //! Router axum của M06: nối extractor → `validate_*` → hàm nghiệp vụ → JSON cho 12 route ở [`crate::routes::routes`].
-//! Đo lường sản phẩm (`trackProductEvent`) chưa có ở Rust nên `feature_toggled`/`plan_changed` chưa được gọi.
+//! Đo lường sản phẩm: `feature_toggled` (mỗi khoá có trong body) và `plan_changed` gửi qua `trinity_obs::ProductEvents` sau khi
+//! ghi thành công (bộ tắt thì no-op).
 
 #![allow(clippy::result_large_err)]
 
@@ -17,6 +18,7 @@ use trinity_db::{CompanyRef, Db, TenantConn};
 use trinity_http::edge::client_ip::{ClientIp, ClientIpResolver};
 use trinity_http::router::{AccessDeps, ApiRouter, CurrentUser, GuardFuture, NamedGuard, RouteSpec};
 use trinity_kernel::error::{AppError, HttpError};
+use trinity_obs::{ProductEvent, ProductEvents};
 
 use crate::features::{self, PLAN_TOKEN_HEADER};
 use crate::{
@@ -29,6 +31,8 @@ pub struct SettingsState {
     pub db: Db,
     /// Bộ xác định IP khách dùng chung của tiến trình: nguồn câu cảnh báo TRUSTED_PROXY.
     pub client_ip: Arc<ClientIpResolver>,
+    /// Sự kiện sản phẩm (`ProductEvents::disabled()` khi không cấu hình PostHog).
+    pub events: ProductEvents,
 }
 
 /// `PlanTokenGuard`: `expected` là `TRINITY_PLAN_ADMIN_TOKEN` đọc lúc khởi động (rỗng/thiếu ⇒ khoá với mọi người).
@@ -253,6 +257,18 @@ async fn features_update(
     };
     let (mut c, ctx) = open!(s, u);
     let r = features::update(&mut c, ctx, &dto, u.user.user_id).await;
+    if let Ok(updated) = &r {
+        let uid = u.user.user_id.to_string();
+        for (feature, enabled) in &updated.changed {
+            s.events.track(
+                &ProductEvent::FeatureToggled {
+                    feature,
+                    enabled: *enabled,
+                },
+                Some(&uid),
+            );
+        }
+    }
     ok(r.map(|updated| updated.features))
 }
 
@@ -279,6 +295,10 @@ async fn plan_set(State(s): State<Arc<SettingsState>>, Extension(u): Extension<C
     if let Err(e) = features::set_plan(&mut c, ctx, plan, Some(u.user.user_id), "api", ip.as_deref()).await {
         return fail(e);
     }
+    s.events.track(
+        &ProductEvent::PlanChanged { plan: plan.as_str() },
+        Some(&u.user.user_id.to_string()),
+    );
     ok(features::usage_summary(&mut c, ctx).await)
 }
 

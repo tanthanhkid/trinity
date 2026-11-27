@@ -1,0 +1,37 @@
+[package]
+name = "mod-oauth"
+description = "Máy chủ OAuth 2.1 cho kết nối AI (M37): metadata, DCR, CIMD, consent, token, thu hồi, danh sách kết nối."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+axum = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
+form_urlencoded = { workspace = true }
+getrandom = { workspace = true }
+hmac = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sqlx = { workspace = true }
+subtle = { workspace = true }
+tracing = { workspace = true }
+trinity-db = { workspace = true }
+trinity-http = { workspace = true }
+trinity-integrations = { workspace = true }
+trinity-kernel = { workspace = true }
+trinity-rbac = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["io-util"] }
+tower = { workspace = true }
+trinity-auth = { workspace = true }
+
+[lints]
+workspace = true

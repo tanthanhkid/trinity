@@ -1,0 +1,82 @@
+name: Contract (Node)
+
+# Bộ hợp đồng HTTP hộp đen `tests/contract/` chạy trên bản Node (issue C17). KHÔNG bắt buộc cho merge.
+# Chạy: PR đổi backend / bộ hợp đồng, push main, hằng đêm, chạy tay. Bộ chạy tự build monolith, dựng DB mẫu rồi khởi động
+# máy chủ một lần cho mỗi hồ sơ `profiles/*.env` có thư mục `cases/<hồ sơ>` (TZ=UTC, cổng 4310).
+# Bộ chạy từ chối bắt đầu trong khung 16:50-17:10 UTC (quanh nửa đêm giờ Việt Nam): cron đặt ngoài khung, và bước "Chờ ngoài khung"
+# đợi cho push/PR rơi vào khung đó. Đích thời gian: 20 phút.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/monolith/**"
+      - "services/**"
+      - "packages/**"
+      - "server/contracts/**"
+      - "tests/contract/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/contract-node.yml"
+  push:
+    branches: [main]
+  schedule:
+    - cron: "43 20 * * *" # 03:43 giờ Việt Nam, ngoài khung 16:50-17:10 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  CI: "true"
+  TZ: UTC
+
+jobs:
+  contract-node:
+    name: Contract suite on Node
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Bộ chạy tự tạo/xoá các DB `trinity_contract_*` bằng tài khoản này (cần quyền CREATEDB; `test` là superuser).
+      CONTRACT_PG_ADMIN_URL: postgresql://test:test@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      - name: Chờ ngoài khung 16:50-17:10 UTC
+        run: |
+          m=$((10#$(date -u +%H) * 60 + 10#$(date -u +%M)))
+          if [ "$m" -ge 1010 ] && [ "$m" -lt 1030 ]; then
+            wait=$(( (1031 - m) * 60 ))
+            echo "Đang trong khung bộ hợp đồng từ chối chạy; chờ ${wait}s"
+            sleep "$wait"
+          fi
+      - name: Test đơn vị bộ chuẩn hoá
+        run: pnpm --filter @trinity/contract-tests test
+      - name: Hợp đồng trên Node (mọi hồ sơ)
+        run: pnpm --filter @trinity/contract-tests contract
+      - name: Tải kết quả lên khi lỗi
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: contract-node-output
+          path: |
+            tests/contract/out
+            /tmp/contract-*
+          if-no-files-found: ignore
+          retention-days: 7

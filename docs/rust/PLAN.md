@@ -1480,6 +1480,8 @@ riêng, KHÔNG giữ kết nối pool khi gọi Graph) và 7 route K14. Test dù
 368/551/17/32/4/613/190, subcode 2018278/1545041, HTTP 429): mã lỗi phân loại đúng và khớp phân loại chặn của M45; pool 1 kết nối
 chứng minh không giữ kết nối khi gọi HTTP. Webhook, link mở chat, hội thoại, bình luận, luật tự động thuộc M47a trở đi.
 
+**Đã làm ở M53a** (`server/crates/mod-social`): tài khoản đăng bài Fanpage (`accounts.rs`: danh sách kèm `inbox`, bật lại, gỡ trong một giao dịch có huỷ bài `queued`, URL kết nối, callback OAuth công khai, giải mã token cho job đăng), provider Facebook Page (`provider.rs`, mọi lời gọi Graph đi qua `mod_facebook::graph::GraphClient` nên dùng chung URL gốc đổi được, chống SSRF và quan sát ChannelGuard; không client HTTP mới), `state` ký HMAC riêng cho social (`state.rs`, có vector Node), DTO `connect-url` đúng câu class-validator (`dto.rs`) và 6 route K14 (`networks`, `accounts`, `connect-url`, `:id/enable`, `DELETE :id`, `oauth/callback/:network`). Token mã hoá bằng `INTEGRATIONS_SECRET_KEY` như M46. Bản Node không có route làm mới token (token Page không hết hạn): chỉ có hàm `save_refreshed`/`mark_reauth` cho M54b. Chưa có `.sqlx` (code dùng `sqlx::query` thường, không macro). Bài, nháp, media, mẫu chữ thuộc M53b trở đi.
+
 Giai đoạn lai tốn RAM hơn cả hai đầu: Node (tới 65 kết nối DB theo cấu hình mặc định) + Next + Rust + Postgres. Trong
 lai đặt `TENANT_MAX_CLIENTS` và `TENANT_CONNECTION_LIMIT` của Node thấp, pool Rust 4; máy chạy lai và ngưỡng swap để
 lui được chốt bằng số đo ở R003. Đích 1–2 GB ở mục 9 chỉ áp dụng sau X06.

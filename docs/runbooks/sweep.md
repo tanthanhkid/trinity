@@ -1,5 +1,7 @@
 # Runbook — Quét GET trên bản sao dữ liệu thật (X13)
 
+> **Lưu trữ (X06, 27/11/2026).** Quét này so response của Node với Rust trên cùng bản sao dữ liệu; từ X06 không còn bản Node trong cây nên không còn gì để so cùng lượt. Tài liệu giữ cho lịch sử và cho đường lui 14 ngày (checkout tag trước X06). Chuẩn so hiện hành là golden ghi lần cuối ở X03 (`tests/contract`).
+
 Dùng khi route `safe_for_shadow` chưa đủ `min_samples` sau 48 giờ shadow (`docs/runbooks/cutover.md`, mục 1). Khôi phục bản dump vào một máy
 quét riêng, chạy Node và Rust cùng trỏ vào bản sao đó, gọi mọi route GET `safe_for_shadow` với id lấy từ chính bản sao, so hai response
 **như shadow K28** (`server/crates/trinity-http/src/strangler/shadow.rs`, hàm `compare`; bản TS `tests/contract/sweep/compare.ts`, so chặt,

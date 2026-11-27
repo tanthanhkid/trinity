@@ -1,9 +1,11 @@
 # Bản TS theo tệp sở hữu (T01)
 
+> **Lưu trữ (X06, 27/11/2026).** Bản TS đọc tệp sở hữu đã bị gỡ cùng backend Node; chỉ còn bộ đọc phía Rust. Tài liệu giữ để tham khảo lịch sử.
+
 Trong giai đoạn lai, mỗi job nền chỉ có một chủ (`rust` hoặc `node`) ghi trong tệp `TRINITY_OWNERSHIP_FILE`
 (định dạng và bộ đọc phía Rust: `server/crates/trinity-kernel/src/ownership.rs`, PLAN 4.14).
 
-Phía Node (`packages/rbac-nest/src/ownership.ts`):
+Phía Node (bản TS, đã gỡ ở X06):
 
 - Đọc lại tệp ở **đầu mỗi lượt tick** và so **nội dung** (tệp nhỏ; không dựa vào mtime/kích thước/inode). Job ghi `rust`
   thì Node bỏ lượt (lượt đang chạy dở chạy nốt); không ghi hoặc ghi `node` thì Node chạy.

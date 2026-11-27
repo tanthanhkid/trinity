@@ -107,15 +107,14 @@ git add .sqlx
 đột. Tệp của truy vấn đã xoá được `prepare` dọn đi. Job `Rust pg tests` trên CI migrate một Postgres 16 bằng Prisma,
 chạy `cargo sqlx prepare --workspace --check` trên DB đó (không offline) rồi chạy mọi test `#[ignore]` bằng `--ignored`.
 
-## Bảng ca dùng chung TS ↔ Rust (`contracts/cases/`)
+## Bảng ca đóng băng (`contracts/cases/`)
 
-Hàm thuần chuyển từ bản TS phải khớp từng byte: đầu vào và kết quả nằm trong một tệp JSON, bản TS sinh và kiểm cột
-kết quả, test Rust chạy cùng tệp. `contracts/cases/kernel.json` (K26: bỏ dấu, số điện thoại, khoảng ngày, định dạng
-số và ngày, so sánh chuỗi) chạy ở `services/crm/src/common/helpers/kernel-cases.spec.ts` và
-`crates/trinity-kernel/tests/shared_cases.rs`; cách thêm ca và quyết định từng chỗ: [`docs/rust/locale-vi.md`](../docs/rust/locale-vi.md).
+Hàm thuần chuyển từ bản TS cũ đã khớp từng byte: đầu vào và kết quả nằm trong một tệp JSON đóng băng (cột kết quả do bản TS
+sinh trước khi bản TS bị gỡ ở X06), test Rust chạy cùng tệp và là chuẩn so từ đây. `contracts/cases/kernel.json` (K26: bỏ dấu, số điện thoại, khoảng ngày, định dạng
+số và ngày, so sánh chuỗi) chạy ở `crates/trinity-kernel/tests/shared_cases.rs`; cách thêm ca và quyết định từng chỗ: [`docs/rust/locale-vi.md`](../docs/rust/locale-vi.md).
 `contracts/cases/plan.json` (K25: khoá và nhãn tính năng, gói, cổng tính năng 403, hạn mức người dùng, cửa sổ cố định của giới hạn tốc độ) chạy ở
-`services/crm/src/common/helpers/plan-cases.spec.ts`, `crates/trinity-rbac/tests/plan_cases.rs` và `crates/trinity-http/tests/rate_limit_cases.rs`;
-sinh lại: `UPDATE_PLAN_CASES=1 npx jest plan-cases` trong `services/crm`.
+`crates/trinity-rbac/tests/plan_cases.rs` và `crates/trinity-http/tests/rate_limit_cases.rs`.
+Thêm ca: ghi tay kết quả mong đợi theo luật nghiệp vụ rồi chạy các test trên; ca mới phải được người review xem.
 
 ## Migrate
 

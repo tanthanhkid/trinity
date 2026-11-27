@@ -93,7 +93,7 @@ Chi tiết từng connector: [docs/integrations/status.md](docs/integrations/sta
 
 ## Triển khai
 
-Trinity chạy trên máy chủ của bạn (hoặc laptop) bằng Docker Compose. Cấu hình tối thiểu được hỗ trợ là máy 2 GB RAM.
+Trinity chạy trên máy chủ của bạn (hoặc laptop) bằng Docker Compose. Cấu hình tối thiểu được hỗ trợ là máy 2 GB RAM. Stack gồm `trinity` (ứng dụng) và `postgres`; migrate và seed chạy là các bước ngắn một lần trước khi `trinity` khởi động.
 
 Cần Docker có Compose. Lần build đầu trên laptop mất khoảng 5 phút.
 
@@ -105,20 +105,20 @@ cd trinity
 
 `install.sh` tạo `.env` từ `.env.example` với các secret và mật khẩu admin ngẫu nhiên (không bao giờ ghi đè `.env` có sẵn nên chạy lại an toàn), in thông tin admin một lần, rồi chạy `docker compose up --build -d`. Mở http://localhost:3000 và đăng nhập bằng tài khoản admin vừa in. Mặc định không nạp dữ liệu demo; muốn dữ liệu demo thì đặt `SEED_DEMO_DATA=true` trong `.env` (hoặc chạy `SEED_DEMO_DATA=true ./install.sh`) trước lần khởi động đầu.
 
-Cách thủ công: `cp .env.example .env`, thay mọi giá trị `change-me-*` (`openssl rand -hex 32`), rồi `docker compose up --build -d`. Nếu `SEED_ADMIN_PASSWORD` để trống, mật khẩu sinh ra được in ở `docker compose logs migrate`.
+Cách thủ công: `cp .env.example .env`, thay mọi giá trị `change-me-*` (`openssl rand -hex 32`), rồi `docker compose up --build -d`. Nếu `SEED_ADMIN_PASSWORD` để trống, mật khẩu sinh ra được in một lần ở đầu ra của bước seed (`docker compose logs | grep -A2 "Admin account"`).
 
 Lưu ý:
 
 - Admin đầu tiên chỉ được tạo khi chưa tồn tại; khởi động lại hay nâng cấp không bao giờ ghi đè mật khẩu.
 - Workspace mới cố ý bắt đầu trống: lần đăng nhập đầu tiên đi qua wizard bắt đầu (loại doanh nghiệp, phân hệ, *Dựng hệ thống*, khách đầu tiên) rồi mới vào app; người có tài khoản tạo sau khi hệ thống đã dựng vào thẳng app. Sau khi dựng, bộ cơ bản bật sẵn, phần còn lại là công tắc ở Cài đặt → *Tính năng*; ví dụ Zalo OA chưa bật thì trả 403. Cài đặt chia nhóm *Tính năng & Kết nối*, *Khách hàng*, *Công ty & Nhân sự*, *Cá nhân*; mục nào thuộc tính năng đang tắt thì ẩn.
 
-Mỗi bản phát hành gắn tag đẩy sẵn image lên GitHub Container Registry (`ghcr.io/tanthanhkid/trinity-api`, `ghcr.io/tanthanhkid/trinity-web`). Chi tiết ở [docs/deployment.md](docs/deployment.md).
+Mỗi bản phát hành gắn tag đẩy sẵn image lên GitHub Container Registry (`ghcr.io/tanthanhkid/trinity`) và đính binary `trinity` (linux amd64 và arm64, đã kèm web) vào GitHub Release. Chi tiết ở [docs/deployment.md](docs/deployment.md).
 
 Để trợ lý AI điều khiển Trinity, đặt `INTEGRATIONS_MCP_ENABLED=true`, một `INTEGRATIONS_PUBLIC_BASE_URL` công khai và `INTEGRATIONS_SECRET_KEY` trong `.env`, rồi làm theo [docs/integrations](docs/integrations/).
 
-Phát triển không dùng Docker: `pnpm install && pnpm dev` (cần Node 22 và Postgres chạy cục bộ).
+Phát triển không dùng Docker: chạy backend bằng Rust và Postgres (`cd server && ./scripts/localhost.sh`, xem [docs/rust/localhost.md](docs/rust/localhost.md)); phần web chạy riêng bằng `pnpm --filter web dev` (Node 22) trỏ vào backend đó. Chi tiết: [docs/getting-started.md](docs/getting-started.md).
 
-**Backend đang được viết lại bằng Rust** (`server/`: một binary, không Redis, cùng cơ sở dữ liệu và hợp đồng API). Hướng dẫn ở trên vẫn là bản Node. Trạng thái: [docs/architecture.md](docs/architecture.md#rust-backend-in-progress); kế hoạch: [docs/rust/PLAN.md](docs/rust/PLAN.md); nâng cấp một bản cài sau này: [docs/upgrade-from-node.md](docs/upgrade-from-node.md).
+**Công nghệ.** Backend là một binary Rust `trinity` (`serve`, `migrate`, `seed`, `check-config`); giao diện là Next.js build thành web tĩnh do chính binary phục vụ; PostgreSQL 16 là phụ thuộc duy nhất. Không còn backend Node, Redis hay Prisma lúc chạy. Kiến trúc: [docs/architecture.md](docs/architecture.md); kế hoạch viết lại: [docs/rust/PLAN.md](docs/rust/PLAN.md); chuyển bản cài cũ dùng image Node: [docs/upgrade-from-node.md](docs/upgrade-from-node.md).
 
 ## Vì sao mình làm Trinity
 

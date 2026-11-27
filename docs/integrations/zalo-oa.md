@@ -1,6 +1,6 @@
 # Official Zalo OA + ZNS
 
-Module `services/crm/src/zalo-oa/` (Zalo Official Account + ZNS). Flag/plan `zalo_oa` (`@RequireOrgFeature`).
+Crate `server/crates/mod-zalo` (Zalo Official Account + ZNS). Flag/plan `zalo_oa` (organization feature gate).
 
 ## Official documentation cross-checked
 - OA API overview: https://developers.zalo.me/docs/official-account

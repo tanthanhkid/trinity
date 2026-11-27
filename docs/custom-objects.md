@@ -90,4 +90,4 @@ List: `?q=` (title) · `?sort=id|updated_at|title|field:<key>` · `?dir=` · `?f
 
 ## Deployment
 
-Run `prisma migrate deploy`, then `prisma generate` + build the monolith + web (the proxy has the prefix `/api/v1/custom-objects`). No new cron/flags: the table is empty and nobody has the new permissions until roles are assigned — the feature has no effect until then.
+Run `trinity migrate` (applied automatically by the stock Docker Compose file) and ship the new binary with the new web export. No new cron/flags: the table is empty and nobody has the new permissions until roles are assigned — the feature has no effect until then.

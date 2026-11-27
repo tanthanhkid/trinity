@@ -75,7 +75,7 @@ def verify(secret: str, raw_body: bytes, header: str, tolerance=300) -> bool:
 | Messaging | `zalo_oa.message_received`, `zalo_oa.message_sent`, `messenger.message_received`, `messenger.message_sent`, `messenger.broadcast_finished`, `facebook.comment_received` |
 | Posting | `social_post.published`, `social_post.failed` |
 
-Plus `ping` when "Gửi thử" ("Send test") is clicked (`data: {"message":"Trinity webhook test"}`). The list the app offers comes from `packages/prisma/src/integrations/event-catalog.ts`. Using Zapier, Make or n8n: see [zapier-n8n.md](zapier-n8n.md).
+Plus `ping` when "Gửi thử" ("Send test") is clicked (`data: {"message":"Trinity webhook test"}`). The list the app offers is the event catalog served by `GET /api/v1/integrations/webhooks/events` (`server/crates/trinity-integrations`). Using Zapier, Make or n8n: see [zapier-n8n.md](zapier-n8n.md).
 
 ## Safety limits
 

@@ -229,6 +229,15 @@ async fn email_taken(conn: &mut PgConnection, email: &str) -> Result<Option<i32>
         .await
 }
 
+/// Giờ của DB (`now()`, ổn định suốt giao dịch). Mọi so sánh hạn/ghi `revoked_at`/`accepted_at` dùng MỘT đồng hồ này, cùng đồng
+/// hồ với `expires_at > now()` trong SQL; đồng hồ app lệch DB thì lời mời bị đếm hết hạn ở chỗ này mà còn hạn ở chỗ kia.
+async fn db_now(conn: &mut PgConnection) -> Res<DateTime<Utc>> {
+    sqlx::query_scalar("SELECT now()")
+        .fetch_one(conn)
+        .await
+        .map_err(|e| fail_sql("giờ DB", e))
+}
+
 fn fail_sql(what: &str, e: sqlx::Error) -> AuthFail {
     internal(what, e)
 }
@@ -389,7 +398,7 @@ pub async fn revoke_pending_invitations_for_email(tx: &mut TenantTx, email: &str
     lock_user_slots(tx, company)
         .await
         .map_err(|e| fail_sql("khoá chỗ", e))?;
-    let now = Utc::now();
+    let now = db_now(tx).await?;
     let open: Vec<(i32, Option<i32>, DateTime<Utc>)> = sqlx::query_as(
         "SELECT id, created_by, expires_at FROM user_invitations WHERE email = $1 AND accepted_at IS NULL AND revoked_at IS NULL",
     )
@@ -481,10 +490,11 @@ impl<G: GrantsSource> AuthService<G> {
     pub async fn create_invitation(&self, actor: &Actor, email: &str, role_id: i32, owners: &OwnerIds) -> Res<Value> {
         let company = actor.company;
         let email = email.trim().to_lowercase();
-        let role = {
+        // Kiểm sớm để lỗi vai trò đến trước lỗi email; kiểm lại trong giao dịch (dưới khoá) ngay bên dưới.
+        {
             let mut c = self.conn(company).await?;
-            assert_can_invite_to_role(&mut c, actor, role_id).await?
-        };
+            assert_can_invite_to_role(&mut c, actor, role_id).await?;
+        }
         // Email đã thuộc công ty khác ⇒ báo rõ ngay, đừng đợi tới lúc người ta mở link.
         self.assert_email_available(company, &email).await?;
         {
@@ -499,12 +509,14 @@ impl<G: GrantsSource> AuthService<G> {
         }
         let token = new_invite_token(if self.platform.multi_tenant() { company.id() } else { 1 })
             .map_err(|e| internal("token", e))?;
-        let now = Utc::now();
         let mut tx = self.tenant_tx(company).await?;
         // Khoá TRƯỚC khi đụng lời mời: hai lượt mời cùng email đồng thời không cùng thấy "chưa có lời mời".
         lock_user_slots(&mut tx, company)
             .await
             .map_err(|e| fail_sql("khoá chỗ", e))?;
+        let now = db_now(&mut tx).await?;
+        // Vai trò đọc lại dưới khoá: vai trò vừa bị xoá hoặc đổi quyền giữa lúc kiểm sớm và giờ không lọt qua.
+        let role = assert_can_invite_to_role(&mut tx, actor, role_id).await?;
         let old: Vec<(i32, Option<i32>, DateTime<Utc>)> = sqlx::query_as(
             "SELECT id, created_by, expires_at FROM user_invitations WHERE email = $1 AND accepted_at IS NULL AND revoked_at IS NULL",
         )
@@ -573,8 +585,8 @@ impl<G: GrantsSource> AuthService<G> {
         limit: Option<i64>,
         owners: &OwnerIds,
     ) -> Res<Value> {
-        let now = Utc::now();
         let mut c = self.conn(company).await?;
+        let now = db_now(&mut c).await?;
         let limit = limit.unwrap_or(100).clamp(1, 200);
         let (scope_sql, ids): (&str, Vec<i32>) = match owners {
             OwnerIds::All => ("TRUE", Vec::new()),
@@ -663,7 +675,7 @@ impl<G: GrantsSource> AuthService<G> {
         let Some(row) = row.filter(|r| owner_allows(owners, r.created_by)) else {
             return Err(HttpError::not_found("Không tìm thấy lời mời").into());
         };
-        let now = Utc::now();
+        let now = db_now(&mut tx).await?;
         if invitation_status(row.accepted_at, row.revoked_at, row.expires_at, now) != InvitationStatus::Pending {
             return Err(conflict("Lời mời này không còn hiệu lực để huỷ"));
         }
@@ -689,10 +701,9 @@ impl<G: GrantsSource> AuthService<G> {
         .fetch_optional(&mut *c)
         .await
         .map_err(|e| fail_sql("lời mời", e))?;
-        row.filter(|r| {
-            invitation_status(r.accepted_at, r.revoked_at, r.expires_at, Utc::now()) == InvitationStatus::Pending
-        })
-        .ok_or_else(gone)
+        let now = db_now(&mut c).await?;
+        row.filter(|r| invitation_status(r.accepted_at, r.revoked_at, r.expires_at, now) == InvitationStatus::Pending)
+            .ok_or_else(gone)
     }
 
     /// `POST /auth/invitations/preview` (công khai): tên công ty, email, vai trò. Token sai, hết hạn, đã dùng hay đã huỷ đều
@@ -821,7 +832,7 @@ impl<G: GrantsSource> AuthService<G> {
         lock_user_slots(&mut tx, company)
             .await
             .map_err(|e| fail_sql("khoá chỗ", e))?;
-        let now = Utc::now();
+        let now = db_now(&mut tx).await?;
         // Giành lời mời (một lần; từ đây không còn tính là lời mời đang chờ). Lùi cả giao dịch nếu bước sau lỗi: link còn dùng được.
         let claimed = sqlx::query(
             "UPDATE user_invitations SET accepted_at = $2 WHERE id = $1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > $2",

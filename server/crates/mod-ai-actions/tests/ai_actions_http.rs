@@ -189,7 +189,11 @@ fn msg(r: &Res) -> String {
     }
 }
 
-async fn setup() {
+/// Các test dùng chung một DB (TRUNCATE + id cố định 9901..) nên phải chạy tuần tự: giữ guard tới hết test.
+static SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+async fn setup() -> tokio::sync::MutexGuard<'static, ()> {
+    let guard = SERIAL.lock().await;
     exec("TRUNCATE ai_action_drafts, oauth_clients, integration_audit_logs RESTART IDENTITY;
           DELETE FROM settings WHERE key = 'ai_require_approval';
           DELETE FROM user_roles WHERE user_id BETWEEN 9901 AND 9999; DELETE FROM role_permissions WHERE role_id BETWEEN 9901 AND 9999;
@@ -205,6 +209,7 @@ async fn setup() {
           VALUES ('trn_c_m38', 'dcr', 'Trợ lý M38', ARRAY['https://client.example.com/cb'], 'none', '{}'::jsonb)",
     )
     .await;
+    guard
 }
 
 /// Thêm một đề xuất; trả id.
@@ -223,7 +228,7 @@ async fn draft(user: i32, tool: &str, status: &str, extra: &str) -> i32 {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn co_tat_thi_moi_route_404() {
-    setup().await;
+    let _s = setup().await;
     let a = app(false).await;
     for (m, p) in [
         (Method::GET, P.to_owned()),
@@ -255,7 +260,7 @@ async fn co_tat_thi_moi_route_404() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn danh_sach_chi_cua_minh_loc_trang_thai_va_phan_trang() {
-    setup().await;
+    let _s = setup().await;
     let a = app(true).await;
     let p1 = draft(A, "ok_tool", "pending", "").await;
     let p2 = draft(A, "ok_tool", "pending", "").await;
@@ -344,7 +349,7 @@ async fn danh_sach_chi_cua_minh_loc_trang_thai_va_phan_trang() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn chi_tiet_dem_cho_duyet_va_ranh_gioi_id() {
-    setup().await;
+    let _s = setup().await;
     let a = app(true).await;
     let id = draft(A, "ok_tool", "pending", "").await;
     draft(A, "ok_tool", "pending", "").await;
@@ -385,7 +390,7 @@ async fn chi_tiet_dem_cho_duyet_va_ranh_gioi_id() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn cai_dat_yeu_cau_duyet() {
-    setup().await;
+    let _s = setup().await;
     let a = app(true).await;
     let sp = format!("{P}/settings");
     let get = || call(&a, Method::GET, &sp, Some(B), None);
@@ -421,7 +426,7 @@ async fn cai_dat_yeu_cau_duyet() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn tu_choi() {
-    setup().await;
+    let _s = setup().await;
     let a = app(true).await;
     let id = draft(A, "ok_tool", "pending", "").await;
     assert_eq!(
@@ -453,7 +458,7 @@ async fn tu_choi() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn duyet_chay_dung_mot_lan_ngay_ca_khi_duyet_song_song() {
-    setup().await;
+    let _s = setup().await;
     let a = app(true).await;
     let id = draft(A, "ok_tool", "pending", "").await;
     let path = format!("{P}/{id}/approve");
@@ -489,7 +494,7 @@ async fn duyet_chay_dung_mot_lan_ngay_ca_khi_duyet_song_song() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn duyet_kiem_lai_quyen_loi_chuyen_failed_va_che_sdt() {
-    setup().await;
+    let _s = setup().await;
     let a = app(true).await;
     // Mất quyền nghiệp vụ lúc duyệt ⇒ 403 + failed kèm lý do.
     let id = draft(B, "ok_tool", "pending", "").await; // B không có contacts.create
@@ -534,7 +539,7 @@ async fn duyet_kiem_lai_quyen_loi_chuyen_failed_va_che_sdt() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn duyet_het_han_va_xac_nhan_ten_bang() {
-    setup().await;
+    let _s = setup().await;
     let a = app(true).await;
     // Quá hạn ⇒ 409 và được đánh dấu expired; không chạy.
     let id = draft(A, "ok_tool", "pending", "").await;
@@ -620,7 +625,7 @@ async fn duyet_het_han_va_xac_nhan_ten_bang() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn job_het_han_ket_qua_khong_ro_va_don() {
-    setup().await;
+    let _s = setup().await;
     let a = app(true).await;
     let overdue = draft(A, "ok_tool", "pending", "").await;
     exec(&format!(
@@ -679,7 +684,7 @@ async fn job_het_han_ket_qua_khong_ro_va_don() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn tu_choi_het_han_la_409_va_danh_dau_expired() {
-    setup().await;
+    let _s = setup().await;
     let a = app(true).await;
     let id = draft(A, "ok_tool", "pending", "").await;
     exec(&format!(
@@ -700,7 +705,7 @@ async fn tu_choi_het_han_la_409_va_danh_dau_expired() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn duyet_kiem_trang_thai_truoc_xac_nhan_ten_bang() {
-    setup().await;
+    let _s = setup().await;
     let a = app(true).await;
     // Đã từ chối + có confirm_label: duyệt không đòi gõ tên bảng mà báo ngay 409.
     let id = draft(
@@ -738,7 +743,7 @@ async fn duyet_kiem_trang_thai_truoc_xac_nhan_ten_bang() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn thuc_thi_qua_han_bi_dung_va_ghi_failed_con_job_khong_dung_vao_dang_chay() {
-    setup().await;
+    let _s = setup().await;
     // Hạn thực thi 300 ms (ngắn hơn ngưỡng 5 phút của job): tool chậm bị dừng chờ, đề xuất failed kèm lý do "không rõ kết quả".
     let a = app_t(true, std::time::Duration::from_millis(300)).await;
     let id = draft(A, "slow", "pending", "").await;
@@ -767,7 +772,7 @@ async fn thuc_thi_qua_han_bi_dung_va_ghi_failed_con_job_khong_dung_vao_dang_chay
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "cần Postgres"]
 async fn duyet_tra_ket_qua_va_ghi_result_dung_mot_lan() {
-    setup().await;
+    let _s = setup().await;
     let a = app(true).await;
     let id = draft(A, "ok_tool", "pending", "").await;
     let r = call(&a, Method::POST, &format!("{P}/{id}/approve"), Some(A), None).await;

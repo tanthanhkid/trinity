@@ -3,6 +3,8 @@
 # Dùng thay `cargo`: `scripts/cargo-q check -p trinity-db`. Lệnh chỉ chạy khi giữ được khoá; ai tới sau thì chờ.
 # Khoá là flock trên một tệp, nên tiến trình chết (kể cả bị kill) thì khoá tự nhả.
 set -euo pipefail
+# Mọi worktree dùng chung một thư mục build, tránh mỗi worktree 2–3 GB làm đầy đĩa.
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/trinity/target}"
 lock="${TRINITY_CARGO_LOCK:-$HOME/.cache/trinity/cargo.lock}"
 mkdir -p "$(dirname "$lock")"
 exec perl -MFcntl=:flock -e '

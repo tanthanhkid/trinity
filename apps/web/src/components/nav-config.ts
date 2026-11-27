@@ -17,8 +17,22 @@ import type { OrgFeatureKey, Permission } from "@trinity/rbac"
  * Nguồn quyền THẬT (role nào có quyền gì) là dữ liệu do admin cấu hình ở
  * Cài đặt > Vai trò, KHÔNG hardcode trong file này.
  */
+/** Nhóm nghiệp vụ trên sidebar. Mục KHÔNG khai `group` (Tổng quan, Bắt đầu) đứng đầu, ngoài mọi nhóm; Cài đặt ghim ở đáy. */
+export type NavGroupKey = "ban_hang" | "cham_soc" | "van_hanh" | "nhan_su" | "he_thong"
+
+/** Thứ tự + tiêu đề các nhóm trên sidebar; `order` = thứ tự mục trong nhóm (mục không liệt kê xếp cuối, giữ thứ tự gốc). */
+export const NAV_GROUPS: readonly { key: NavGroupKey; title: string; order: readonly string[] }[] = [
+  { key: "ban_hang", title: "Bán hàng", order: ["contacts", "products", "pos"] },
+  { key: "cham_soc", title: "Chăm sóc", order: ["inbox", "social", "newsfeed"] },
+  { key: "van_hanh", title: "Vận hành", order: ["kanban", "reports"] },
+  { key: "nhan_su", title: "Nhân sự", order: ["attendance", "payroll", "management"] },
+  { key: "he_thong", title: "Hệ thống", order: ["ai_actions", "connections"] },
+]
+
 export interface MenuItem {
   key: string
+  /** Nhóm nghiệp vụ chứa mục này (xem `NavGroupKey`). */
+  group?: NavGroupKey
   title: string
   icon: typeof Gauge
   href?: string
@@ -54,11 +68,11 @@ export interface ChildMenuItem {
 export const menuItems: readonly MenuItem[] = [
   // ── CRM chính ──────────────────────────────────────────────────────────
   { key: "dashboard", title: "Tổng quan", icon: Gauge, href: "/dashboard", iconColor: "text-blue-600 dark:text-blue-400", feature: "dashboard" },
-  { key: "contacts", title: "Khách hàng", icon: ContactRound, href: "/contacts", iconColor: "text-emerald-600 dark:text-emerald-400", permission: "contacts.view", feature: "contacts" },
+  { key: "contacts", group: "ban_hang", title: "Khách hàng", icon: ContactRound, href: "/contacts", iconColor: "text-emerald-600 dark:text-emerald-400", permission: "contacts.view", feature: "contacts" },
   // Menu "Dự án" — ẩn khỏi sidebar để menu gọn hơn. Page /projects vẫn truy cập qua URL trực tiếp.
-  { key: "projects", title: "Dự án", icon: Briefcase, href: "/projects", iconColor: "text-orange-500 dark:text-orange-400", hidden: true, permission: "products.view", feature: "products" },
+  { key: "projects", group: "ban_hang", title: "Dự án", icon: Briefcase, href: "/projects", iconColor: "text-orange-500 dark:text-orange-400", hidden: true, permission: "products.view", feature: "products" },
   {
-    key: "reports",
+    key: "reports", group: "van_hanh",
     title: "Báo cáo",
     icon: ChartPie,
     href: "/reports",
@@ -71,24 +85,24 @@ export const menuItems: readonly MenuItem[] = [
   },
   // ── Khác ───────────────────────────────────────────────────────────────
   // "Bảng tin" — mở cho mọi role đã đăng nhập (mirror @AuthOnly phía BE).
-  { key: "newsfeed", title: "Bảng tin", icon: Newspaper, href: "/newsfeed", iconColor: "text-pink-500 dark:text-pink-400", feature: "newsfeed" },
-  { key: "kanban", title: "Công việc", icon: KanbanSquare, href: "/kanban", iconColor: "text-orange-600 dark:text-orange-400", permission: "kanban.view", feature: "kanban" },
-  { key: "social", title: "Đăng đa kênh", icon: Share2, href: "/social", iconColor: "text-sky-600 dark:text-sky-400", permission: "social.post", feature: "social_posting" },
+  { key: "newsfeed", group: "cham_soc", title: "Bảng tin", icon: Newspaper, href: "/newsfeed", iconColor: "text-pink-500 dark:text-pink-400", feature: "newsfeed" },
+  { key: "kanban", group: "van_hanh", title: "Công việc", icon: KanbanSquare, href: "/kanban", iconColor: "text-orange-600 dark:text-orange-400", permission: "kanban.view", feature: "kanban" },
+  { key: "social", group: "cham_soc", title: "Đăng đa kênh", icon: Share2, href: "/social", iconColor: "text-sky-600 dark:text-sky-400", permission: "social.post", feature: "social_posting" },
   // "Chấm công" — mở cho mọi role đã đăng nhập: mọi nhân viên tự chấm công +
   // xem bản ghi của MÌNH, độc lập với quyền `attendance.view`/`.manage` (chỉ
   // chi phối phạm vi XEM NGƯỜI KHÁC bên trong trang, không chi phối menu).
   {
-    key: "attendance",
+    key: "attendance", group: "nhan_su",
     title: "Chấm công",
     icon: Clock,
     href: "/attendance",
     feature: "attendance",
     iconColor: "text-blue-600 dark:text-blue-400",
   },
-  { key: "payroll", title: "Lương", icon: Wallet, href: "/payroll?tab=reports", iconColor: "text-emerald-600 dark:text-emerald-400", permission: "payroll.view", feature: "payroll" },
+  { key: "payroll", group: "nhan_su", title: "Lương", icon: Wallet, href: "/payroll?tab=reports", iconColor: "text-emerald-600 dark:text-emerald-400", permission: "payroll.view", feature: "payroll" },
   // ── Quản lý (Nhân sự) ────────────────────────────────────────────────
   {
-    key: "management",
+    key: "management", group: "nhan_su",
     title: "Quản lý",
     icon: Users,
     feature: "management",
@@ -102,6 +116,6 @@ export const menuItems: readonly MenuItem[] = [
     ],
   },
   // Kết nối: trợ lý AI, Fanpage, Zalo OA, thanh toán, bán hàng, dữ liệu — tách khỏi Cài đặt cho gọn (nhóm theo loại bên trong).
-  { key: "connections", title: "Kết nối", icon: PlugZap, href: "/connections", iconColor: "text-violet-600 dark:text-violet-400", anyOf: ["integrations.webhooks", "integrations.ai_connect", "integrations.ai_admin", "contacts.update", "deals.view", "pos.manage"], feature: "integrations" },
+  { key: "connections", group: "he_thong", title: "Kết nối", icon: PlugZap, href: "/connections", iconColor: "text-violet-600 dark:text-violet-400", anyOf: ["integrations.webhooks", "integrations.ai_connect", "integrations.ai_admin", "contacts.update", "deals.view", "pos.manage"], feature: "integrations" },
   { key: "settings", title: "Cài đặt", icon: Settings, href: "/settings", iconColor: "text-slate-600 dark:text-slate-400" },
 ] as const

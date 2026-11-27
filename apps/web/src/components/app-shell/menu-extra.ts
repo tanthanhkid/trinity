@@ -27,6 +27,7 @@ import type { MenuItem } from "@/components/nav-config"
  */
 const INBOX_ITEM: MenuItem = {
   key: "inbox",
+  group: "cham_soc",
   title: "Tương tác",
   icon: Inbox,
   href: "/inbox",
@@ -37,6 +38,7 @@ const INBOX_ITEM: MenuItem = {
 
 const PRODUCTS_ITEM: MenuItem = {
   key: "products",
+  group: "ban_hang",
   title: "Sản phẩm",
   icon: Package,
   href: "/products",
@@ -52,6 +54,7 @@ const PRODUCTS_ITEM: MenuItem = {
  */
 const POS_ITEM: MenuItem = {
   key: "pos",
+  group: "ban_hang",
   title: "Bán hàng (POS)",
   icon: Store,
   href: "/pos",
@@ -67,6 +70,7 @@ const POS_ITEM: MenuItem = {
  */
 const AI_ACTIONS_ITEM: MenuItem = {
   key: "ai_actions",
+  group: "he_thong",
   title: "Hoạt động AI",
   icon: Sparkles,
   href: "/ai-actions",

@@ -7,6 +7,7 @@
 //! - `GET /api/v1/site-config` (public, **chỉ có ở Rust**): thông tin pháp lý và cờ lúc chạy (`realtime_mode`, `ds_v2`) để một binary
 //!   dùng được cho nhiều bản cài (W03 đọc từ đây thay cho biến lúc build). Route này thuộc đợt a trong tệp sở hữu
 //!   (`server/contracts/ownership-wave-a.json`, chỉ các route dưới `/api/v1`; `/api/build-id` còn do Next và `/docs` do Node phục vụ tới khi nhả); không có trong `routes.json` nên được liệt kê ở `trinity_http::router::check::RUST_ONLY_ROUTES`.
+//! - `POST /api/fe-logging` (public, ngoài `/api/v1`): nhận lỗi frontend, xem [`fe_logging`].
 //! - `GET /api/build-id` (ngoài `/api/v1`): `{"buildId": …}` với `Cache-Control: no-store, must-revalidate`; mã lấy từ
 //!   `TRINITY_BUILD_ID` lúc chạy, rồi lúc biên dịch (`TRINITY_BUILD_ID` khi build), rồi `"unknown"` (client bỏ qua, không bật cảnh báo nhầm).
 //! - `GET /docs` và `/docs-json`: tài liệu OpenAPI do `utoipa` sinh, chỉ khi ngoài production hoặc `SWAGGER_ENABLED=true`
@@ -14,13 +15,14 @@
 //!
 //! `declared_routes()` của `trinity-bin` lấy [`routes`]; chưa có `serve` để lắp, nên `api_router`/`extra_router` được test ở đây.
 
+pub mod fe_logging;
 pub mod retired;
 
 use std::sync::Arc;
 
 use axum::Json;
 use axum::Router;
-use axum::extract::Extension;
+use axum::extract::{Extension, Request};
 use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
@@ -187,6 +189,7 @@ pub fn routes() -> Vec<RouteSpec> {
         RouteSpec::new(Method::GET, "/api/v1/telemetry/config", Access::Public).status_ok(200),
         RouteSpec::new(Method::GET, "/api/v1/telemetry/identity", Access::AuthOnly).status_ok(200),
         RouteSpec::new(Method::GET, "/api/v1/site-config", Access::Public).status_ok(200),
+        RouteSpec::new(Method::POST, "/api/fe-logging", Access::Public).status_ok(204),
     ]
 }
 
@@ -213,6 +216,7 @@ pub fn api_router(deps: Arc<AccessDeps>, cfg: Arc<SystemConfig>) -> ApiRouter {
     let telemetry = cfg.telemetry.clone();
     let site = cfg.site.clone();
     let hasher = cfg.hasher.clone();
+    let fe_limiter = fe_logging::limiter();
     ApiRouter::new(deps)
         .route(spec("/api/v1/health"), || async {
             Json(json!({"status": "ok", "service": "auth-service", "timestamp": iso_now()}))
@@ -245,6 +249,12 @@ pub fn api_router(deps: Arc<AccessDeps>, cfg: Arc<SystemConfig>) -> ApiRouter {
             let v = site.clone();
             async move { Json(v) }
         })
+        .route(
+            spec("/api/fe-logging"),
+            move |client: Option<Extension<trinity_http::edge::client_ip::ClientIp>>, req: Request| {
+                fe_logging::handle(fe_limiter.clone(), client, req)
+            },
+        )
 }
 
 /// Route ngoài `/api/v1` (không có trong `routes.json`): `/api/build-id`, và `/docs` + `/docs-json` khi được bật. Tất cả công khai.

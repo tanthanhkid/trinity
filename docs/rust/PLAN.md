@@ -1045,6 +1045,7 @@ vụ trực tiếp với cùng header (`nosniff`, cache 1 ngày). Driver S3 hỗ
   `RUST_ONLY_ROUTES` của `router::check`, bắt buộc `Public`), `GET /api/build-id` (`TRINITY_BUILD_ID` lúc chạy, rồi lúc biên dịch, rồi
   `unknown`; `no-store`), `/docs` + `/docs-json` do `utoipa` sinh, bật theo `NODE_ENV != production` hoặc `SWAGGER_ENABLED=true` (404 nếu không).
   Đợt a trong tệp sở hữu: mẫu `server/contracts/ownership-wave-a.json` (chỉ các route dưới `/api/v1`); `site-config` phải thuộc `rust` vì bản TS không có (có test). `/api/build-id` (Next) và `/docs`, `/docs-json` (Node) KHÔNG vào đợt a: do Next/Node phục vụ tới khi nhả (có test khẳng định chúng thuộc `node`).
+  `POST /api/fe-logging` (Public, `mod-system::fe_logging`, thuộc `rust` trong đợt a): nhận lỗi frontend của `fe-logger.ts` (web static export không còn route handler Next); thân JSON ≤ 16 KB (413), 30 lượt/phút/IP (429), ghi `tracing::warn!(target: "fe")` rồi event warning lên Sentry nếu bật, trả 204. Web chống gửi lặp (cùng message 60 giây, tối đa 10 lượt/trang).
   Chưa nối vào `serve` (chưa có); `trinity-bin` đã lấy `mod_system::routes()` vào `declared_routes()`.
 - Endpoint nội bộ `GET /internal/metrics` (cần `x-service-secret`): RSS, số kết nối pool, độ trễ job, độ dài hàng đợi.
 

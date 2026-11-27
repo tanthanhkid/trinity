@@ -2805,6 +2805,7 @@ dependencies = [
  "sqlx",
  "tokio",
  "tower",
+ "tracing",
  "trinity-auth",
  "trinity-db",
  "trinity-http",

@@ -9,7 +9,8 @@ mod redact;
 mod scrub;
 
 pub use monitoring::{
-    ErrorContext, MonitoringConfig, client_options, init_sentry, report_server_error, resolve_release,
+    ErrorContext, MonitoringConfig, client_options, init_sentry, report_frontend_warning, report_server_error,
+    resolve_release,
 };
 pub use product_events::{ProductEvent, ProductEvents, PropValue, sanitize_props};
 pub use redact::{SECRET_QUERY_KEYS, redact_url};

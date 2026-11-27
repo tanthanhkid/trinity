@@ -1,0 +1,40 @@
+# Tệp ghép: Trinity sau Cloudflare Tunnel (G16b, docs/deployment.md mục "Client IP").
+# Cần Docker Compose >= 2.24 (dùng `!reset`). Kiểm tra: docker compose version
+#
+#   cp deploy/cloudflared/config.example.yml deploy/cloudflared/config.yml     # sửa hostname
+#   # .env: TRUSTED_PROXY=cloudflare-tunnel
+#   #       CLOUDFLARED_TUNNEL_ID=<uuid của tunnel>
+#   #       CLOUDFLARED_CREDENTIALS_FILE=/đường/dẫn/tới/<uuid>.json   (tệp do `cloudflared tunnel create` sinh ra)
+#   docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d --build --wait
+#   (hoặc đặt COMPOSE_FILE=docker-compose.yml:docker-compose.tunnel.yml trong .env; install.sh làm việc này khi chọn Tunnel)
+#
+# Cách hoạt động: `trinity` (Rust, biên duy nhất) không công bố cổng nào và chỉ nghe loopback (LISTEN_HOST=127.0.0.1; với
+# cloudflare-tunnel, Rust từ chối khởi động nếu địa chỉ nghe không phải loopback). `cloudflared` dùng chung network
+# namespace với `trinity` (cùng namespace với `api`) nên tới được 127.0.0.1:3000 và 127.0.0.1:4000; không ai khác tới được.
+# Tạo lại `trinity` thì `cloudflared` cũng được tạo lại (network_mode: service:trinity + depends_on.restart).
+
+services:
+  trinity:
+    ports: !reset []
+    environment:
+      LISTEN_HOST: 127.0.0.1
+      TRUSTED_PROXY: cloudflare-tunnel
+
+  cloudflared:
+    image: cloudflare/cloudflared:2025.11.1
+    restart: unless-stopped
+    network_mode: service:trinity
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --config
+      - /etc/cloudflared/config.yml
+      - run
+      - ${CLOUDFLARED_TUNNEL_ID:?set CLOUDFLARED_TUNNEL_ID in .env}
+    volumes:
+      - ./deploy/cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ${CLOUDFLARED_CREDENTIALS_FILE:?set CLOUDFLARED_CREDENTIALS_FILE in .env}:/etc/cloudflared/credentials.json:ro
+    depends_on:
+      trinity:
+        condition: service_healthy
+        restart: true

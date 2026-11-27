@@ -30,3 +30,6 @@ skills-lock.json
 .env.*
 !.env.example
 !.env.*.example
+
+# Cloudflare Tunnel (docker-compose.tunnel.yml): cấu hình ingress thật của người vận hành
+deploy/cloudflared/config.yml

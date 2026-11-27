@@ -2,9 +2,13 @@
 # Trinity installer for the self-hosted (Docker Compose) path.
 #
 #   ./install.sh            create .env with random secrets, then print the next steps
-#   ./install.sh --up       also run `docker compose up --build -d`
+#   ./install.sh --up       also run `docker compose up --build -d --wait`
+#   ./install.sh --trusted-proxy=VALUE
+#                           how Trinity learns the visitor's IP (docs/deployment.md, "Client IP"): none | cloudflare |
+#                           cloudflare-tunnel | cidr:<list> | cloudflare-behind:<list>. Without the flag, the script asks
+#                           which deployment you use, but ONLY when it runs on a terminal (default: none).
 #
-# Idempotent: if .env already exists it is NEVER modified, the script just reminds you what to do next.
+# Idempotent: if .env already exists it is NEVER modified: the script only prints the values it would suggest.
 set -eu
 
 cd "$(dirname "$0")"
@@ -25,11 +29,95 @@ rand_b64_32() { # 32 random bytes, base64 (the format INTEGRATIONS_SECRET_KEY re
   fi
 }
 
+# Replace `KEY=...` (also a commented `# KEY=...` line) in .env, or append it. Only used on a .env this run just created.
+set_kv() { # $1 = key, $2 = value
+  tmp_kv=".env.tmp.kv.$$"
+  awk -v k="$1" -v v="$2" '
+    BEGIN { done = 0 }
+    !done && ($0 ~ "^" k "=" || $0 ~ "^# ?" k "=") { print k "=" v; done = 1; next }
+    { print }
+    END { if (!done) print k "=" v }
+  ' .env > "$tmp_kv"
+  mv "$tmp_kv" .env
+  chmod 600 .env
+}
+
+valid_trusted_proxy() {
+  case "$1" in
+    none | cloudflare | cloudflare-tunnel | cidr:?* | cloudflare-behind:?*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Ask which deployment this is; prints the TRUSTED_PROXY value on stdout (menu goes to stderr).
+ask_trusted_proxy() {
+  {
+    echo "How will visitors reach Trinity?"
+    echo "  1) Directly on this machine's port (default)             -> none"
+    echo "  2) Behind Caddy/nginx installed on this host             -> cidr:docker-gateway"
+    echo "  3) Cloudflare connects straight to this machine's port   -> cloudflare"
+    echo "  4) Cloudflare Tunnel (cloudflared in Docker Compose)     -> cloudflare-tunnel"
+    echo "  5) Type another value (see docs/deployment.md)"
+    printf "Choose [1-5, Enter = 1]: "
+  } >&2
+  read -r choice || choice=""
+  case "$choice" in
+    2) echo "cidr:docker-gateway" ;;
+    3) echo "cloudflare" ;;
+    4) echo "cloudflare-tunnel" ;;
+    5)
+      printf "TRUSTED_PROXY value: " >&2
+      read -r custom || custom=""
+      echo "$custom"
+      ;;
+    *) echo "none" ;;
+  esac
+}
+
 UP=0
-[ "${1:-}" = "--up" ] && UP=1
+TP=""
+for arg in "$@"; do
+  case "$arg" in
+    --up) UP=1 ;;
+    --trusted-proxy=*) TP="${arg#--trusted-proxy=}" ;;
+    *) echo "error: unknown option $arg" >&2; exit 2 ;;
+  esac
+done
+
+if [ -z "$TP" ]; then
+  if [ -t 0 ] && [ -t 1 ]; then
+    TP="$(ask_trusted_proxy)"
+  else
+    TP="none"
+  fi
+fi
+valid_trusted_proxy "$TP" || { echo "error: invalid TRUSTED_PROXY \"$TP\" (none | cloudflare | cloudflare-tunnel | cidr:<list> | cloudflare-behind:<list>)" >&2; exit 2; }
+
+# Companion settings that go with the chosen value.
+WEB_BIND_SUGGEST=""
+COMPOSE_FILE_SUGGEST=""
+case "$TP" in
+  cidr:docker-gateway | cloudflare-behind:docker-gateway) WEB_BIND_SUGGEST="127.0.0.1" ;;
+  cloudflare-tunnel) COMPOSE_FILE_SUGGEST="docker-compose.yml:docker-compose.tunnel.yml" ;;
+esac
+
+print_proxy_values() {
+  echo "  TRUSTED_PROXY=$TP"
+  [ -n "$WEB_BIND_SUGGEST" ] && echo "  WEB_BIND=$WEB_BIND_SUGGEST"
+  if [ -n "$COMPOSE_FILE_SUGGEST" ]; then
+    echo "  COMPOSE_FILE=$COMPOSE_FILE_SUGGEST     (needs Docker Compose >= 2.24)"
+    echo "  CLOUDFLARED_TUNNEL_ID=<tunnel uuid>"
+    echo "  CLOUDFLARED_CREDENTIALS_FILE=<path to the tunnel credentials json>"
+    echo "  and: cp deploy/cloudflared/config.example.yml deploy/cloudflared/config.yml   (edit the hostname)"
+  fi
+  return 0
+}
 
 if [ -f .env ]; then
   echo ".env already exists, leaving it untouched."
+  echo "Suggested client-IP settings for your choice (add them yourself, or run scripts/migrate-env.sh):"
+  print_proxy_values
+  echo
 else
   [ -f .env.example ] || { echo "error: .env.example not found, run this from the repository root" >&2; exit 1; }
 
@@ -59,20 +147,40 @@ else
   mv "$tmp" .env
   chmod 600 .env
 
+  set_kv TRUSTED_PROXY "$TP"
+  [ -n "$WEB_BIND_SUGGEST" ] && set_kv WEB_BIND "$WEB_BIND_SUGGEST"
+  [ -n "$COMPOSE_FILE_SUGGEST" ] && set_kv COMPOSE_FILE "$COMPOSE_FILE_SUGGEST"
+
   ADMIN_EMAIL="$(grep '^SEED_ADMIN_EMAIL=' .env | cut -d= -f2-)"
   echo "Created .env with freshly generated secrets (file mode 600)."
   echo
   echo "  First admin:  ${ADMIN_EMAIL:-admin@example.com}"
   echo "  Password:     $ADMIN_PASS   (also stored as SEED_ADMIN_PASSWORD in .env; change it after login)"
   echo "  Demo data:    $DEMO   (set SEED_DEMO_DATA=true in .env before the first start if you want sample contacts)"
+  echo "  Client IP:    TRUSTED_PROXY=$TP"
+  if [ -n "$COMPOSE_FILE_SUGGEST" ]; then
+    echo "  Tunnel:       fill CLOUDFLARED_TUNNEL_ID and CLOUDFLARED_CREDENTIALS_FILE in .env and create"
+    echo "                deploy/cloudflared/config.yml from deploy/cloudflared/config.example.yml before starting."
+  fi
   echo
 fi
 
 if [ "$UP" = 1 ]; then
-  docker compose up --build -d
+  if grep -q '^TRUSTED_PROXY=cloudflare-tunnel' .env; then
+    for key in CLOUDFLARED_TUNNEL_ID CLOUDFLARED_CREDENTIALS_FILE; do
+      grep -q "^$key=." .env || { echo "error: TRUSTED_PROXY=cloudflare-tunnel needs $key in .env (see docker-compose.tunnel.yml)" >&2; exit 1; }
+    done
+    grep -q '^COMPOSE_FILE=.*docker-compose.tunnel.yml' .env || { echo "error: TRUSTED_PROXY=cloudflare-tunnel needs COMPOSE_FILE=docker-compose.yml:docker-compose.tunnel.yml in .env" >&2; exit 1; }
+    [ -f deploy/cloudflared/config.yml ] || { echo "error: deploy/cloudflared/config.yml is missing (copy deploy/cloudflared/config.example.yml)" >&2; exit 1; }
+  fi
+  # --wait: fails when a service is unhealthy, including the trinity health check that calls /api/v1/health through Rust to Node.
+  docker compose up --build -d --wait --wait-timeout 300 || {
+    echo "error: the stack did not become healthy; see: docker compose ps && docker compose logs trinity api" >&2
+    exit 1
+  }
   echo
   echo "Trinity is starting. Open http://localhost:3000 in a minute or two."
 else
-  echo "Next: docker compose up --build -d    (or re-run ./install.sh --up)"
+  echo "Next: docker compose up --build -d --wait    (or re-run ./install.sh --up)"
   echo "Then open http://localhost:3000"
 fi

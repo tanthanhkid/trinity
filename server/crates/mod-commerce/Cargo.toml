@@ -14,7 +14,9 @@ http = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
 sqlx = { workspace = true }
+tokio = { workspace = true, features = ["rt"] }
 trinity-db = { workspace = true }
+trinity-docgen = { workspace = true }
 trinity-http = { workspace = true }
 trinity-kernel = { workspace = true }
 trinity-storage = { workspace = true }

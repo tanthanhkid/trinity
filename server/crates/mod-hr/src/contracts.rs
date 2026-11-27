@@ -25,6 +25,7 @@ use mod_users::guards::{Actor, db, scope_err};
 use serde::Serialize;
 use sqlx::{AssertSqlSafe, PgConnection, Postgres, QueryBuilder};
 use trinity_db::types::Timestamp;
+use trinity_docgen::image::{UploadFormat, compress_upload};
 use trinity_kernel::error::{AppError, HttpError};
 use trinity_kernel::vi::{Collation, compare, escape_like, trim_js};
 use trinity_kernel::vn_time::vn_date;
@@ -861,6 +862,33 @@ pub struct Upload {
     pub data: Bytes,
 }
 
+/// Ảnh scan hợp đồng/chứng từ: vẫn nén (cạnh dài ≤ 1600, bỏ EXIF) nhưng bằng JPEG q75 để giữ chi tiết và mở được ở mọi nơi,
+/// không dùng WebP. PDF để nguyên. Ảnh đổi định dạng ⇒ đổi cả `mime` và đuôi tên tệp (đuôi quyết định Content-Type khi tải
+/// xuống). Bản nén không nhỏ hơn thì giữ nguyên.
+async fn compress_contract_image(mut file: Upload) -> Upload {
+    if !file.mime.starts_with("image/") {
+        return file;
+    }
+    let data = file.data.clone();
+    let Ok(out) = tokio::task::spawn_blocking(move || compress_upload(&data, UploadFormat::Jpeg)).await else {
+        return file;
+    };
+    if out.recompressed {
+        file.mime = out.content_type.to_owned();
+        file.file_name = file.file_name.map(|n| swap_ext(&n, out.ext));
+        file.data = Bytes::from(out.bytes);
+    }
+    file
+}
+
+/// Thay đuôi tên tệp (không có đuôi ⇒ thêm vào).
+fn swap_ext(name: &str, ext: &str) -> String {
+    match name.rsplit_once('.') {
+        Some((stem, e)) if !stem.is_empty() && e.len() <= 5 => format!("{stem}.{ext}"),
+        _ => format!("{name}.{ext}"),
+    }
+}
+
 /// `POST /management/contracts/:id/file`: lưu tệp, ghi khoá vào `file_url`; DB lỗi ⇒ xoá tệp vừa tải; thay tệp ⇒ xoá tệp cũ.
 pub async fn upload_file(cc: &ContractsCtx, actor: &Actor, id: i32, file: Upload, now: DateTime<Utc>) -> R<Contract> {
     let mut conn = cc.ctx.conn(actor.company).await?;
@@ -873,6 +901,7 @@ pub async fn upload_file(cc: &ContractsCtx, actor: &Actor, id: i32, file: Upload
     let Some((employee_id, _)) = existing else {
         return Err(nf_contract());
     };
+    let file = compress_contract_image(file).await;
     let decoded = decode_multipart_filename(file.file_name.as_deref());
     let safe = safe_name(if decoded.is_empty() { "hop-dong" } else { &decoded });
     let key = format!("contracts/{employee_id}/{id}/{}_{safe}", now.timestamp_millis());

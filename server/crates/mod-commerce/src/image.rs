@@ -8,6 +8,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use trinity_db::CompanyRef;
+use trinity_docgen::image::{UploadFormat, compress_upload};
 use trinity_kernel::error::{AppError, HttpError};
 use trinity_storage::LocalUploadsStore;
 
@@ -93,10 +94,17 @@ pub async fn save_product_image(
         .duration_since(UNIX_EPOCH)
         .map_or(0, |d| d.as_millis());
     let rand = uuid::Uuid::new_v4().simple().to_string();
-    let name = format!("{millis}_{}.{}", &rand[..12], kind.ext);
+    // Nén mạnh (WebP q70, cạnh dài ≤ 1600, bỏ EXIF); GIF/ảnh lạ/bản nén không nhỏ hơn ⇒ giữ nguyên byte và đuôi gốc.
+    // Ảnh sản phẩm chỉ hiển thị trong web/POS, không gửi nguyên tệp sang Facebook/Zalo nên dùng WebP.
+    let src = buf.to_vec();
+    let (data, ext, mime) = match tokio::task::spawn_blocking(move || compress_upload(&src, UploadFormat::WebP)).await {
+        Ok(c) if c.recompressed => (c.bytes, c.ext, c.content_type),
+        _ => (buf.to_vec(), kind.ext, kind.mime),
+    };
+    let name = format!("{millis}_{}.{ext}", &rand[..12]);
     let dir = image_dir(company);
     store
-        .save(&format!("{dir}/{name}"), buf, kind.mime)
+        .save(&format!("{dir}/{name}"), &data, mime)
         .await
         .map_err(AppError::internal)?;
     Ok(format!("/uploads/{dir}/{name}"))

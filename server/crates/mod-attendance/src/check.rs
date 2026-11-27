@@ -20,6 +20,7 @@ use mod_hr::employees::Ctx;
 use serde::Serialize;
 use sqlx::PgConnection;
 use trinity_db::types::{DbDate, Timestamp};
+use trinity_docgen::image::{UploadFormat, compress_upload};
 use trinity_http::edge::client_ip::ClientIpResolver;
 use trinity_http::edge::net::normalize_ip;
 use trinity_kernel::error::{AppError, HttpError};
@@ -266,13 +267,19 @@ fn ip_text(ip: Option<IpAddr>) -> String {
     ip.map_or_else(|| IP_UNVERIFIED.to_owned(), |i| i.to_string())
 }
 
+/// Selfie chấm công chỉ xem trong ứng dụng ⇒ nén mạnh sang WebP q70, cạnh dài ≤ 1600 (bỏ EXIF, đã xoay đúng chiều); bản nén
+/// không nhỏ hơn hoặc ảnh lạ ⇒ giữ nguyên. Đuôi khoá lưu theo định dạng thật của byte được ghi.
 async fn put_selfie(cc: &CheckCtx, user_id: i32, day: NaiveDate, slot: &str, s: Selfie) -> R<String> {
+    let src = s.data.clone();
+    let (data, mime, ext) = match tokio::task::spawn_blocking(move || compress_upload(&src, UploadFormat::WebP)).await {
+        Ok(c) if c.recompressed => (c.bytes.into(), c.content_type.to_owned(), c.ext),
+        _ => (s.data, s.mime.clone(), mime_ext(&s.mime)),
+    };
     let key = format!(
-        "attendance/{user_id}/{day}/{slot}_{}.{}",
-        Utc::now().timestamp_millis(),
-        mime_ext(&s.mime)
+        "attendance/{user_id}/{day}/{slot}_{}.{ext}",
+        Utc::now().timestamp_millis()
     );
-    cc.store.put(&key, s.data, &s.mime).await.map_err(AppError::internal)?;
+    cc.store.put(&key, data, &mime).await.map_err(AppError::internal)?;
     Ok(key)
 }
 

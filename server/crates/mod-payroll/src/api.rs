@@ -614,7 +614,10 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::GET, "/api/v1/insurance-settings"), insurance_list)
         .route(spec(&Method::POST, "/api/v1/insurance-settings"), insurance_create)
         .route(spec(&Method::PATCH, "/api/v1/insurance-settings/:id"), insurance_update)
-        .route(spec(&Method::DELETE, "/api/v1/insurance-settings/:id"), insurance_remove)
+        .route(
+            spec(&Method::DELETE, "/api/v1/insurance-settings/:id"),
+            insurance_remove,
+        )
         .route(spec(&Method::GET, "/api/v1/tax-config"), tax_get)
         .route(spec(&Method::POST, "/api/v1/tax-config/brackets"), bracket_create)
         .route(spec(&Method::PATCH, "/api/v1/tax-config/brackets/:id"), bracket_update)

@@ -2586,15 +2586,19 @@ dependencies = [
 name = "mod-payroll"
 version = "0.3.0"
 dependencies = [
+ "axum",
  "http",
  "rust_decimal",
  "serde",
  "serde_json",
  "sqlx",
  "tokio",
+ "tracing",
  "trinity-db",
  "trinity-http",
  "trinity-kernel",
+ "trinity-rbac",
+ "trinity-realtime",
 ]
 
 [[package]]

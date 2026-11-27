@@ -799,7 +799,7 @@ async fn tool_doc_nhom_2_schema_ma_chung_va_tinh_nang() {
     )
     .await;
     assert!(!err, "{v}");
-    assert_eq!(v["data"]["not_found"], json!(["KH999", "ZZ1"]));
+    assert_eq!(v["data"]["not_found"], json!(["KH999", "ZZ001"]));
     let (err, text, _) = run(&e, &adm, "find_by_code", &json!({ "codes": ["###"] })).await;
     assert!(err && text.contains("không phải mã bản ghi"), "{text}");
 
@@ -845,7 +845,8 @@ async fn tool_ghi_chay_ngay_va_tao_de_xuat_khi_bat_che_do_duyet() {
         "INSERT INTO setting_options (group_key, value, label, sort_order, is_active, is_system, updated_at) VALUES
            ('contact_source', 'web', 'Website', 1, true, false, now()),
            ('contact_stage', 'new', 'Mới', 1, true, false, now()),
-           ('contact_stage', 'won', 'Đã chốt', 2, true, false, now());
+           ('contact_stage', 'won', 'Đã chốt', 2, true, false, now())
+           ON CONFLICT (group_key, value) DO NOTHING;
          INSERT INTO roles (name, is_system, updated_at) VALUES ('nv-m42', false, now());
          INSERT INTO role_permissions (role_id, permission, scope)
            SELECT r.id, p.permission, p.scope FROM roles r, (VALUES
@@ -992,7 +993,13 @@ async fn tool_cau_truc_chay_ngay_roi_thanh_de_xuat_khi_bat_che_do_duyet() {
     let args = |label: &str| json!({ "label": label, "fields": [{ "label": "Mã", "type": "text" }], "confirmed_by_user": "ok tạo đi" });
 
     // Chưa có lời đồng ý ⇒ không tạo gì, không có đề xuất.
-    let (err, text, _) = run(&e, &adm, "create_object", &json!({ "label": "Hợp đồng", "fields": [] })).await;
+    let (err, text, _) = run(
+        &e,
+        &adm,
+        "create_object",
+        &json!({ "label": "Hợp đồng", "fields": [], "confirmed_by_user": "" }),
+    )
+    .await;
     assert!(err && text.contains("Chưa tạo gì"), "{text}");
     assert_eq!(e.scalar("SELECT count(*) FROM custom_objects").await, 0);
 
@@ -1026,7 +1033,7 @@ async fn tool_cau_truc_chay_ngay_roi_thanh_de_xuat_khi_bat_che_do_duyet() {
         &e,
         &adm,
         "update_object",
-        &json!({ "object": "hop_dong", "patch": { "label": "Hợp đồng bán" } }),
+        &json!({ "object": "hop_dong", "label": "Hợp đồng bán" }),
     )
     .await;
     assert!(!err, "{v}");
@@ -1139,7 +1146,7 @@ async fn tool_dang_bai_kenh_va_thu_vien_media() {
            SELECT r.id, p.permission, p.scope FROM roles r, (VALUES
              ('integrations.ai_connect', NULL), ('social.post', NULL)) AS p(permission, scope) WHERE r.name = 'nv-m44a';
          INSERT INTO user_roles (user_id, role_id) SELECT u.id, r.id FROM users u, roles r WHERE u.email = 'staff@m39.test' AND r.name = 'nv-m44a';
-         INSERT INTO settings (key, value) VALUES ('org_features', '{\"social_posting\":true}')
+         INSERT INTO settings (key, value, updated_at) VALUES ('org_features', '{\"social_posting\":true}', now())
            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
          INSERT INTO social_accounts (network, external_id, name, access_token_enc, status, connected_by)
            VALUES ('facebook', 'm44a-1', 'Trang A', 'tok', 'active', (SELECT min(id) FROM users)),
@@ -1244,7 +1251,9 @@ async fn tool_cham_y_dinh_lead_hoat_dong_ai_va_tuong_tac() {
          INSERT INTO role_permissions (role_id, permission, scope)
            SELECT r.id, p.permission, p.scope FROM roles r, (VALUES
              ('integrations.ai_connect', NULL), ('contacts.view', 'own')) AS p(permission, scope) WHERE r.name = 'nv-lead';
-         INSERT INTO user_roles (user_id, role_id) SELECT u.id, r.id FROM users u, roles r WHERE u.email = 'staff@m39.test' AND r.name = 'nv-lead';",
+         INSERT INTO user_roles (user_id, role_id) SELECT u.id, r.id FROM users u, roles r WHERE u.email = 'staff@m39.test' AND r.name = 'nv-lead';
+         INSERT INTO settings (key, value, updated_at) VALUES ('org_features', '{\"lead_scoring\":true}', now())
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;",
     )
     .await;
     let (admin, staff) = (e.admin, e.staff);
@@ -1276,8 +1285,8 @@ async fn tool_cham_y_dinh_lead_hoat_dong_ai_va_tuong_tac() {
         .await;
 
     // Chưa chấm: cả hai khách có mặt, ghi chú có SĐT bị che.
-    let (err, _, v) = run(&e, &write, "list_leads_to_score", &json!({})).await;
-    assert!(!err, "{v}");
+    let (err, text, v) = run(&e, &write, "list_leads_to_score", &json!({})).await;
+    assert!(!err, "{text} {v}");
     let leads = v["data"]["leads"].as_array().unwrap();
     assert_eq!(leads.len(), 2, "{v}");
     let a = leads.iter().find(|l| l["id"] == mine).unwrap();
@@ -1347,4 +1356,86 @@ async fn tool_cham_y_dinh_lead_hoat_dong_ai_va_tuong_tac() {
     assert!(err);
     let (err, _, _) = run(&e, &write, "list_interactions", &json!({ "q": "0912 345" })).await;
     assert!(err);
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn tool_link_records_gan_thay_go_bang_ma() {
+    let e = env_with(mod_mcp::register_group3).await;
+    let mut c = e.conn().await;
+    let adm = e
+        .token("quantri-lk", e.admin, "{crm.read,crm.write}", RESOURCE, "1 hour", false)
+        .await;
+    exec(
+        &mut c,
+        "INSERT INTO contacts (phone, full_name, updated_at) VALUES ('0912345901', 'Khách Liên Kết', now())",
+    )
+    .await;
+    let kh: String = {
+        let id: i64 = e
+            .scalar("SELECT id::bigint FROM contacts WHERE full_name = 'Khách Liên Kết'")
+            .await;
+        format!("KH{id:03}")
+    };
+
+    // Bảng chưa có trường link ⇒ báo cách sửa.
+    let (err, _, v) = run(
+        &e,
+        &adm,
+        "create_object",
+        &json!({ "label": "Lịch hẹn", "fields": [{ "label": "Tên", "type": "text" }], "confirmed_by_user": "ok tạo đi" }),
+    )
+    .await;
+    assert!(!err, "{v}");
+    let (err, _, v) = run(
+        &e,
+        &adm,
+        "create_record",
+        &json!({ "object": "lich_hen", "values": { "ten": "A" } }),
+    )
+    .await;
+    assert!(!err, "{v}");
+    let (err, text, _) = run(&e, &adm, "link_records", &json!({ "source": "LH001", "targets": [kh] })).await;
+    assert!(err && text.contains("chưa có trường kiểu link"), "{text}");
+
+    // Thêm trường link rồi gắn / gắn lại (không đổi) / thay / gỡ.
+    let (err, _, v) = run(
+        &e,
+        &adm,
+        "add_field",
+        &json!({ "object": "lich_hen", "label": "Liên quan", "type": "link", "confirmed_by_user": "ok" }),
+    )
+    .await;
+    assert!(!err, "{v}");
+    let (err, _, v) = run(&e, &adm, "link_records", &json!({ "source": "LH001", "targets": [kh] })).await;
+    assert!(!err, "{v}");
+    assert_eq!(v["data"]["status"], "executed", "{v}");
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM record_links WHERE source_type = 'record'")
+            .await,
+        1
+    );
+    let (err, text, _) = run(&e, &adm, "link_records", &json!({ "source": "LH001", "targets": [kh] })).await;
+    assert!(err && text.contains("Không có thay đổi"), "{text}");
+    let (err, text, _) = run(
+        &e,
+        &adm,
+        "link_records",
+        &json!({ "source": "LH001", "targets": ["KH999"] }),
+    )
+    .await;
+    assert!(err && text.contains("Không tìm thấy"), "{text}");
+    let (err, _, v) = run(
+        &e,
+        &adm,
+        "link_records",
+        &json!({ "source": "LH001", "targets": [kh], "mode": "remove" }),
+    )
+    .await;
+    assert!(!err, "{v}");
+    assert_eq!(
+        e.scalar("SELECT count(*) FROM record_links WHERE source_type = 'record'")
+            .await,
+        0
+    );
 }

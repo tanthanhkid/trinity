@@ -96,7 +96,7 @@ fn total_counts(search: Option<&str>, filter: Option<&str>, total: &Value) -> St
 // mã chung
 
 /// Chuẩn hoá danh sách mã AI gửi: bỏ "@", in hoa, đệm số; sai dạng ⇒ lỗi AI sửa được (`readCodes`).
-fn read_codes(raw: Option<&Value>, max: usize) -> Result<Vec<String>, ToolError> {
+pub(super) fn read_codes(raw: Option<&Value>, max: usize) -> Result<Vec<String>, ToolError> {
     let items: Vec<Value> = match raw {
         Some(Value::Array(a)) => a.clone(),
         Some(Value::String(s)) => s

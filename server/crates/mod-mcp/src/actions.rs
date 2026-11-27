@@ -77,7 +77,7 @@ pub struct ActionDef {
 }
 
 /// Mọi thao tác ghi (cố ý KHÔNG có xoá cứng, xuất file, quản trị người dùng/vai trò).
-pub fn all() -> [&'static ActionDef; 22] {
+pub fn all() -> [&'static ActionDef; 23] {
     use crate::tools::{
         act_contacts as c, act_records as r, act_tasks as t, import as i, structure as s, template as tp,
         view_tools as v,
@@ -91,6 +91,7 @@ pub fn all() -> [&'static ActionDef; 22] {
         &r::CREATE_RECORD,
         &r::UPDATE_RECORD,
         &r::ARCHIVE_RECORD,
+        &r::LINK_RECORDS,
         &s::CREATE_OBJECTS,
         &s::CREATE_OBJECT,
         &s::UPDATE_OBJECT,
@@ -965,7 +966,7 @@ mod tests {
     #[test]
     fn khong_co_tool_xoa_va_ten_khong_trung() {
         let names: Vec<&str> = all().iter().map(|a| a.name).collect();
-        assert_eq!(names.len(), 22);
+        assert_eq!(names.len(), 23);
         let mut sorted = names.clone();
         sorted.sort_unstable();
         sorted.dedup();

@@ -39,5 +39,23 @@
         "missing": "board không có thì thân (id trường) bị kiểm trước và trả 400, không có nhánh 404"
       }
     }
+  },
+  "custom-reports": {
+    "controllers": [
+      "CustomObjectsController",
+      "CustomRecordsController",
+      "RecordRefsController",
+      "CustomReportsController",
+      "DashboardOverviewController",
+      "DashboardTrendController",
+      "ReportCustomersController",
+      "ReportEmployeePerformanceController",
+      "ReportOverviewController"
+    ],
+    "waivers": {
+      "POST /reports/custom/presets/:key/install": {
+        "invalid": "không nhận thân và khoá mẫu lạ trả 404 (đã phủ ở loại missing): không có đầu vào nào trả 400"
+      }
+    }
   }
 }

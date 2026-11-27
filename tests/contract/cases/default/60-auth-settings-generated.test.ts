@@ -1,9 +1,8 @@
-import * as fs from 'node:fs'
-import * as path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { closeDb } from '../../lib/db.js'
-import { loadRoutes, type ClusterDef, type RouteRow } from '../../lib/coverage.js'
+import { type RouteRow } from '../../lib/coverage.js'
 import { call, freshIp } from '../../lib/http.js'
+import { asKey, clusterRoutes, hasBody, sweep } from '../../lib/sweeps.js'
 import { makeUser, type U } from '../../lib/users.js'
 
 afterAll(closeDb)
@@ -13,11 +12,9 @@ afterAll(closeDb)
  * ca bị từ chối (401 không token; 403 thiếu quyền), đầu vào sai (id không phải số, thân sai) và không tồn tại (id lớn) từ chính
  * metadata của route, nên thêm route vào cụm là có ca ngay. Ca thành công cần dữ liệu thật: `61-auth-settings-flows.test.ts`.
  */
-const clusters = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../coverage-clusters.json'), 'utf8')) as Record<string, ClusterDef>
-const routes = loadRoutes().filter((r) => clusters['auth-settings'].controllers.includes(r.controller) && !r.deprecated)
+const routes = clusterRoutes('auth-settings')
 const API = '/api/v1'
 const withId = (r: RouteRow, id: string): string => r.path.replace(/:id/g, id)
-const hasBody = (r: RouteRow): boolean => ['POST', 'PUT', 'PATCH'].includes(r.method)
 /** Route POST không nhận thân (hành động theo id / phiên): không có "thân sai"; đầu vào sai của chúng là id không phải số. */
 const NO_BODY = new Set(['POST /auth/logout', 'POST /api-keys/:id/rotate', 'POST /auth/invitations/:id/revoke', 'POST /roles/:id/clone'])
 /** Thân hợp lệ tối thiểu cho route mà thân rỗng bị 400 trước khi tới bước tìm theo id (ca "id không tồn tại"). */
@@ -34,7 +31,6 @@ const BAD_BODY: Record<string, unknown> = {
   'PATCH /users/:id': { email: 'khong-hop-le' },
   'PATCH /users/:id/reset-password': { password: 123 },
 }
-const asKey = (r: RouteRow): string => `${r.method} ${r.path.replace(API, '')}`
 
 /** Mọi quyền mà route trong cụm đòi, để có người dùng "gần như quản trị" nhưng không phải người dùng gốc (ca không làm hỏng token quản trị). */
 const allPerms = [...new Set(routes.flatMap((r) => r.permissions))]
@@ -44,16 +40,6 @@ beforeAll(async () => {
   power = await makeUser(Object.fromEntries(allPerms.map((p) => [p, true as const])))
   none = await makeUser({})
 })
-
-/** Chạy một ca cho từng route, gom các route sai mã trạng thái rồi khẳng định một lần (lỗi liệt kê hết, không dừng ở route đầu). */
-async function sweep(list: RouteRow[], expected: number[], send: (r: RouteRow) => Promise<{ status: number }>): Promise<void> {
-  const bad: string[] = []
-  for (const r of list) {
-    const res = await send(r)
-    if (!expected.includes(res.status)) bad.push(`${asKey(r)} → ${res.status}`)
-  }
-  expect(bad, `mong đợi ${expected.join('/')}`).toEqual([])
-}
 
 describe('cụm auth-settings: ca sinh từ routes.json', () => {
   it('route cần đăng nhập, không token → 401', async () => {

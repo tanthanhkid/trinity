@@ -46,6 +46,11 @@ import * as customRecord from '../../../../services/crm/src/custom-objects/dto/c
 import * as sendNotification from '../../../../services/notification/src/notifications/dto/send-notification.dto'
 import * as queryNotification from '../../../../services/notification/src/notifications/dto/query-notification.dto'
 import * as publicCreateContact from '../../../../services/crm/src/public-api/dto/public-create-contact.dto'
+import * as updateCandidate from '../../../../services/crm/src/recruitment/dto/update-candidate.dto'
+import * as createPosition from '../../../../services/crm/src/recruitment/dto/create-position.dto'
+import * as updatePosition from '../../../../services/crm/src/recruitment/dto/update-position.dto'
+import * as queryCandidates from '../../../../services/crm/src/recruitment/dto/query-candidates.dto'
+import * as queryPositions from '../../../../services/crm/src/recruitment/dto/query-positions.dto'
 import * as createOption from '../../../../services/crm/src/settings-options/dto/create-option.dto'
 import * as queryOptions from '../../../../services/crm/src/settings-options/dto/query-options.dto'
 
@@ -54,7 +59,7 @@ type Mode = 'strict' | 'lenient'
 
 const OUT = path.resolve(__dirname, '../../../../server/contracts/dto')
 
-/** 20 DTO mẫu và chế độ của route dùng nó (lenient: auth, payroll, notification — xem service-aware-validation.pipe.ts). */
+/** DTO mẫu và chế độ của route dùng nó (lenient: auth, payroll, notification — xem service-aware-validation.pipe.ts). */
 const SAMPLES: Array<[Cls, Mode]> = [
   [createContact.CreateContactDto, 'strict'],
   [updateContact.UpdateContactDto, 'strict'],
@@ -83,6 +88,13 @@ const SAMPLES: Array<[Cls, Mode]> = [
   [customField.ReorderCustomFieldsDto, 'strict'],
   [customField.FormulaPreviewDto, 'strict'],
   [customRecord.LookupQueryDto, 'strict'],
+  // M12 (tuyển dụng)
+  [updateCandidate.UpdateCandidateDto, 'strict'],
+  [createPosition.CreatePositionDto, 'strict'],
+  [updatePosition.UpdatePositionDto, 'strict'],
+  [queryCandidates.QueryCandidatesDto, 'strict'],
+  [queryCandidates.QueryRecruitmentStatsDto, 'strict'],
+  [queryPositions.QueryPositionsDto, 'strict'],
 ]
 
 /** Mọi tệp có @Transform (đếm bằng grep trong services/): mỗi class trong đó vào schema và golden @Transform. */

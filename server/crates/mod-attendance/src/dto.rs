@@ -155,3 +155,71 @@ pub struct QueryAttendanceRequestsDto {
 impl trinity_http::validate::Dto for QueryAttendanceRequestsDto {
     const NAME: &'static str = "QueryAttendanceRequestsDto";
 }
+
+/// Query `GET /management/attendance` và `GET /workdays-matrix` (`QueryAttendanceDto`).
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct QueryAttendanceDto {
+    #[serde(default)]
+    pub date_from: Option<String>,
+    #[serde(default)]
+    pub date_to: Option<String>,
+    #[serde(default)]
+    pub user_id: Option<i64>,
+    #[serde(default)]
+    pub page: Option<i64>,
+    #[serde(default)]
+    pub page_size: Option<i64>,
+    #[serde(default)]
+    pub sort_by: Option<String>,
+    #[serde(default)]
+    pub sort_dir: Option<String>,
+    #[serde(default)]
+    pub search: Option<String>,
+    #[serde(default)]
+    pub team_id: Option<i64>,
+    #[serde(default)]
+    pub department: Option<String>,
+    #[serde(default)]
+    pub job_title_id: Option<i64>,
+    #[serde(default)]
+    pub status: Option<String>,
+}
+
+impl trinity_http::validate::Dto for QueryAttendanceDto {
+    const NAME: &'static str = "QueryAttendanceDto";
+}
+
+/// Query `GET /management/attendance/today` (`QueryTodaySummaryDto`).
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct QueryTodaySummaryDto {
+    #[serde(default)]
+    pub date: Option<String>,
+}
+
+impl trinity_http::validate::Dto for QueryTodaySummaryDto {
+    const NAME: &'static str = "QueryTodaySummaryDto";
+}
+
+/// Body `PATCH /management/attendance/:id` (`PatchAttendanceDto`). Mọi trường là `@IsOptional` nên nhận `null`:
+/// không gửi = `None`, `null` = `Some(None)` như `dto.x !== undefined` của bản TS.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct PatchAttendanceDto {
+    #[serde(default, deserialize_with = "some_nullable")]
+    pub check_in_at: Option<Option<String>>,
+    #[serde(default, deserialize_with = "some_nullable")]
+    pub check_out_at: Option<Option<String>>,
+    #[serde(default, deserialize_with = "some_nullable")]
+    pub check_in_note: Option<Option<String>>,
+    #[serde(default, deserialize_with = "some_nullable")]
+    pub check_out_note: Option<Option<String>>,
+    #[serde(default, deserialize_with = "some_nullable")]
+    pub total_hours: Option<Option<f64>>,
+    #[serde(default, deserialize_with = "some_nullable")]
+    pub late_minutes: Option<Option<i32>>,
+    #[serde(default, deserialize_with = "some_nullable")]
+    pub status: Option<Option<String>>,
+}
+
+impl trinity_http::validate::Dto for PatchAttendanceDto {
+    const NAME: &'static str = "PatchAttendanceDto";
+}

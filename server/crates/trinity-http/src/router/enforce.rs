@@ -131,6 +131,22 @@ pub(super) struct RouteGuard {
     deps: Arc<AccessDeps>,
     guards: Vec<Arc<dyn NamedGuard>>,
     pipes: Vec<(String, Pipe)>,
+    /// Tham số khai `:name(\d+)` (Express): giá trị không toàn chữ số thì route không khớp (404 trước mọi guard).
+    digits: Vec<String>,
+}
+
+/// Chuỗi không rỗng toàn chữ số ASCII.
+fn is_digits(v: &str) -> bool {
+    !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// Tên các tham số khai dạng `:name(\d+)` trong đường dẫn.
+fn digit_params(path: &str) -> Vec<String> {
+    path.split('/')
+        .filter_map(|seg| seg.strip_prefix(':'))
+        .filter_map(|rest| rest.strip_suffix(r"(\d+)"))
+        .map(str::to_owned)
+        .collect()
 }
 
 impl RouteGuard {
@@ -175,6 +191,7 @@ impl RouteGuard {
             deps,
             guards,
             pipes,
+            digits: digit_params(spec.path),
         }
     }
 }
@@ -198,6 +215,15 @@ pub(super) async fn enforce(State(g): State<Arc<RouteGuard>>, mut req: Request, 
     // đã khai thì không phải route này.
     if req.method() != g.method {
         return not_found(req.method(), req.uri().path());
+    }
+    if !g.digits.is_empty() {
+        let (mut parts, body) = req.into_parts();
+        let params = RawPathParams::from_request_parts(&mut parts, &()).await;
+        let mismatch = params.is_ok_and(|p| p.iter().any(|(k, v)| g.digits.iter().any(|d| d == k) && !is_digits(v)));
+        req = Request::from_parts(parts, body);
+        if mismatch {
+            return not_found(req.method(), req.uri().path());
+        }
     }
     let mut company = None;
     match g.access {

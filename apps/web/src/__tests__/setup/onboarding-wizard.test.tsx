@@ -19,6 +19,14 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace, push: vi.fn() }
 vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ clear: vi.fn() }) }))
 vi.mock("@/store/auth", () => ({ useAuthStore: () => ({ clearAuth: vi.fn() }) }))
 vi.mock("@/lib/auth-api", () => ({ logout: vi.fn() }))
+const fbStatus = { data: { configured: true, secret_key_configured: true } as Record<string, unknown> | undefined }
+const fbConnect = vi.fn()
+const goToFacebookDialog = vi.fn()
+vi.mock("@/app/(dashboard)/settings/_components/integrations/use-facebook", () => ({
+  useFacebookStatus: () => fbStatus,
+  useFacebookPageMutations: () => ({ connect: { mutate: fbConnect, isPending: false } }),
+  goToFacebookDialog: (u: string) => goToFacebookDialog(u),
+}))
 vi.mock("@/app/(dashboard)/social/_components/social-channels", () => ({ SocialChannels: () => null }))
 vi.mock("@/app/(dashboard)/social/_components/social-composer", () => ({ SocialComposer: () => null }))
 
@@ -195,5 +203,41 @@ describe("OnboardingWizard", () => {
     fireEvent.change(screen.getByLabelText(/Số điện thoại/), { target: { value: "12345" } })
     fireEvent.click(screen.getByTestId("add-contact"))
     expect((await screen.findByRole("alert")).textContent).toMatch(/\+84 kèm 9 số/)
+  })
+
+  describe("bước Kết nối Facebook (channels)", () => {
+    const atChannels = () => view([step("industry", true), step("modules", true), step("data", true), { ...step("channels"), can_skip: true }, step("post")], "channels", false, "education_center")
+
+    beforeEach(() => { fbConnect.mockReset(); goToFacebookDialog.mockReset(); fbStatus.data = { configured: true, secret_key_configured: true } })
+
+    it("có nút Kết nối Facebook: bấm xin URL rồi chuyển sang hộp thoại Facebook", () => {
+      fbConnect.mockImplementationOnce((_v: unknown, o: { onSuccess: (u: string) => void }) => o.onSuccess("https://www.facebook.com/dialog"))
+      render(<OnboardingWizard wizard={atChannels()} />)
+      fireEvent.click(screen.getByTestId("wizard-facebook-connect"))
+      expect(fbConnect).toHaveBeenCalledTimes(1)
+      expect(goToFacebookDialog).toHaveBeenCalledWith("https://www.facebook.com/dialog")
+    })
+
+    it("nút 'Để sau' bỏ qua bước này", () => {
+      reply({ ok: true, message: null, wizard: view([step("industry", true), step("modules", true), step("data", true), { ...step("channels"), skipped: true }, step("post")], "post") })
+      render(<OnboardingWizard wizard={atChannels()} />)
+      fireEvent.click(screen.getByRole("button", { name: "Để sau" }))
+      expect(mutate.mock.calls[0][0]).toBe("channels")
+    })
+
+    it("máy chủ chưa cấu hình Facebook ⇒ khoá nút, nói bằng lời khách hiểu, không lộ tên biến", () => {
+      fbStatus.data = { configured: false, secret_key_configured: true }
+      const { container } = render(<OnboardingWizard wizard={atChannels()} />)
+      expect((screen.getByTestId("wizard-facebook-connect") as HTMLButtonElement).disabled).toBe(true)
+      expect(screen.getByTestId("wizard-facebook-unavailable")).toBeTruthy()
+      expect(container.textContent).not.toMatch(/FACEBOOK_|app id/i)
+    })
+
+    it("lỗi xin URL ⇒ hiện câu tiếng Việt", () => {
+      fbConnect.mockImplementationOnce((_v: unknown, o: { onError: (e: unknown) => void }) => o.onError(new Error("x")))
+      render(<OnboardingWizard wizard={atChannels()} />)
+      fireEvent.click(screen.getByTestId("wizard-facebook-connect"))
+      expect(screen.getByRole("alert").textContent).toMatch(/Chưa mở được hộp thoại Facebook|x/)
+    })
   })
 })

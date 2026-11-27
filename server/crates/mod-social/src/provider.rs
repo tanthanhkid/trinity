@@ -2,7 +2,7 @@
 //! [`mod_facebook::graph::GraphClient`] (một chỗ duy nhất gọi Meta: URL gốc đổi được bằng `FACEBOOK_GRAPH_BASE_URL`, chống SSRF
 //! ở `api_base_url`, kết quả báo ChannelGuard). Đăng bài, số liệu thuộc M54.
 
-use mod_facebook::config::{Env, FACEBOOK_SOCIAL_SCOPES, form_encode, load_facebook_config};
+use mod_facebook::config::{Env, FACEBOOK_SOCIAL_SCOPES, dialog_auth_params, form_encode, load_facebook_config};
 use mod_facebook::graph::{GraphApiError, GraphClient, GraphPage, utf16_prefix};
 use serde_json::{Map, Value};
 
@@ -22,13 +22,13 @@ pub fn configured(env: &Env) -> bool {
 /// URL hộp thoại đăng nhập (`authorizeUrl`): thứ tự tham số `client_id, redirect_uri, state, scope, response_type`.
 pub fn authorize_url(env: &Env, state: &str, redirect_uri: &str) -> String {
     let c = load_facebook_config(env);
-    let query = vec![
+    let mut query = vec![
         ("client_id".to_owned(), c.app_id.clone()),
         ("redirect_uri".to_owned(), redirect_uri.to_owned()),
         ("state".to_owned(), state.to_owned()),
-        ("scope".to_owned(), FACEBOOK_SOCIAL_SCOPES.join(",")),
-        ("response_type".to_owned(), "code".to_owned()),
     ];
+    let scopes: Vec<String> = FACEBOOK_SOCIAL_SCOPES.iter().map(|s| (*s).to_owned()).collect();
+    query.extend(dialog_auth_params(env, &scopes));
     format!(
         "https://www.facebook.com/{}/dialog/oauth?{}",
         c.graph_version,
@@ -203,6 +203,16 @@ mod tests {
         );
         let none: Env = std::sync::Arc::new(|_| None);
         assert!(!configured(&none));
+        let lb: Env = std::sync::Arc::new(|k| match k {
+            "FACEBOOK_APP_ID" => Some("123".into()),
+            "FACEBOOK_APP_SECRET" => Some("s".into()),
+            "FACEBOOK_LOGIN_CONFIG_ID" => Some("77".into()),
+            _ => None,
+        });
+        assert_eq!(
+            authorize_url(&lb, "st", "https://a.example/cb"),
+            "https://www.facebook.com/v25.0/dialog/oauth?client_id=123&redirect_uri=https%3A%2F%2Fa.example%2Fcb&state=st&config_id=77&response_type=code&override_default_response_type=true"
+        );
     }
 
     fn media(kinds: &[&str]) -> Vec<SocialMedia> {

@@ -19,7 +19,7 @@ Linked channels belong to the company: everyone with `social.post` can post to e
 ## Prerequisites (Facebook Page)
 1. A Meta app with the "Manage everything on your Page" use case and the permissions `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`.
    Page videos are published with `pages_manage_posts` (no `publish_video`).
-2. `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` (shared with the Facebook inbox integration).
+2. `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` (shared with the Facebook inbox integration). Optional `FACEBOOK_LOGIN_CONFIG_ID` switches the login dialog to Facebook Login for Business (`config_id` instead of `scope`).
 3. Valid OAuth redirect URI in the Meta app: `https://<CRM domain>/api/v1/social/oauth/callback/facebook`.
 4. `INTEGRATIONS_PUBLIC_BASE_URL` and `INTEGRATIONS_SECRET_KEY` (tokens are stored AES-256-GCM encrypted).
 5. Public policy pages for app review: `https://<CRM domain>/privacy` (data deletion section `#xoa-du-lieu`) and `/terms`; contact email from `LEGAL_CONTACT_EMAIL`.

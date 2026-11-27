@@ -20,6 +20,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), message: v
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams("") }))
 
 import { FacebookPanel } from "@/app/(dashboard)/settings/_components/integrations/facebook-panel"
+import { facebookResultMessage } from "@/app/(dashboard)/settings/_components/integrations/use-facebook"
 import { FacebookInbox } from "@/app/(dashboard)/settings/_components/integrations/facebook-inbox"
 
 const INITIAL = useAuthStore.getState()
@@ -71,11 +72,12 @@ beforeEach(() => {
 afterEach(() => { useAuthStore.setState(INITIAL, true) })
 
 describe("<FacebookPanel>", () => {
-  it("hiện URL webhook + redirect để dán vào Meta; Page đã kết nối với trạng thái token", async () => {
+  it("đã cấu hình đủ ⇒ ẩn khối hướng dẫn (URL webhook, quyền); Page đã kết nối với trạng thái token", async () => {
     setup()
     renderPanel()
     await waitFor(() => expect(screen.getByText("Trinity Software")).toBeTruthy())
-    expect(screen.getByText("https://crm.example.vn/api/v1/facebook/webhook")).toBeTruthy()
+    expect(screen.queryByText("https://crm.example.vn/api/v1/facebook/webhook")).toBeNull()
+    expect(document.body.textContent).not.toMatch(/Valid OAuth Redirect URI|pages_messaging/)
     expect(screen.getByText(/Token còn hiệu lực/)).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/token_enc|access_token/)
   })
@@ -94,11 +96,21 @@ describe("<FacebookPanel>", () => {
     expect(screen.queryByRole("button", { name: /Kiểm tra token/ })).toBeNull()
   })
 
-  it("thiếu cấu hình máy chủ ⇒ liệt kê biến còn thiếu và khoá nút Kết nối", async () => {
+  it("khách thường thấy máy chủ chưa sẵn sàng ⇒ câu dễ hiểu, không lộ tên biến, nút Kết nối bị khoá", async () => {
     setup({ status: { ...STATUS, configured: false, app_secret_set: false, verify_token_set: false } })
+    renderPanel()
+    await waitFor(() => expect(screen.getByTestId("fb-not-ready")).toBeTruthy())
+    expect(document.body.textContent).not.toMatch(/FACEBOOK_APP_SECRET|webhook/i)
+    expect((screen.getByRole("button", { name: /Kết nối Fanpage/ }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it("quản trị: thiếu cấu hình máy chủ ⇒ liệt kê biến còn thiếu và khoá nút Kết nối; Login for Business ghi chú thay cho danh sách quyền", async () => {
+    useAuthStore.setState({ isAdmin: true })
+    setup({ status: { ...STATUS, configured: false, app_secret_set: false, verify_token_set: false, login_for_business: true } })
     renderPanel()
     await waitFor(() => expect(screen.getByText("FACEBOOK_APP_SECRET")).toBeTruthy())
     expect(screen.getByText("FACEBOOK_WEBHOOK_VERIFY_TOKEN")).toBeTruthy()
+    expect(document.body.textContent).toMatch(/Login for Business/)
     expect((screen.getByRole("button", { name: /Kết nối Fanpage/ }) as HTMLButtonElement).disabled).toBe(true)
   })
 
@@ -159,5 +171,16 @@ describe("<FacebookPanel>", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Khách A/ }))
     await waitFor(() => expect(screen.getByText(/quá 7 ngày kể từ/)).toBeTruthy())
     expect(screen.queryByLabelText("Nội dung trả lời")).toBeNull()
+  })
+})
+
+describe("facebookResultMessage", () => {
+  it("câu tiếng Việt cho huỷ, thiếu quyền admin Page, token hết hạn, không có Page, lỗi chung", () => {
+    expect(facebookResultMessage("cancelled", null)).toMatchObject({ kind: "info", text: expect.stringMatching(/huỷ/) })
+    expect(facebookResultMessage("error", "permission")?.text).toMatch(/quản trị Page/)
+    expect(facebookResultMessage("error", "token")?.text).toMatch(/hết hạn/)
+    expect(facebookResultMessage("error", "no_page")?.text).toMatch(/Page nào/)
+    expect(facebookResultMessage("error", null)?.kind).toBe("error")
+    expect(facebookResultMessage("connected", null)).toBeNull()
   })
 })

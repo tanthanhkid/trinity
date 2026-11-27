@@ -72,6 +72,29 @@ pub fn connect_scopes(env: &Env) -> Vec<String> {
     v
 }
 
+/// `FACEBOOK_LOGIN_CONFIG_ID`: id cấu hình Facebook Login for Business (rỗng/không đặt ⇒ `None`, dùng `scope=` như cũ).
+pub fn login_config_id(env: &Env) -> Option<String> {
+    let v = env("FACEBOOK_LOGIN_CONFIG_ID").unwrap_or_default();
+    let v = v.trim();
+    (!v.is_empty()).then(|| v.to_owned())
+}
+
+/// Phần tham số quyền của URL hộp thoại đăng nhập: có config id ⇒ `config_id` + `response_type=code` +
+/// `override_default_response_type=true` (quyền do cấu hình Login for Business quyết định); không ⇒ `scope` + `response_type`.
+pub fn dialog_auth_params(env: &Env, scopes: &[String]) -> Vec<(String, String)> {
+    match login_config_id(env) {
+        Some(id) => vec![
+            ("config_id".to_owned(), id),
+            ("response_type".to_owned(), "code".to_owned()),
+            ("override_default_response_type".to_owned(), "true".to_owned()),
+        ],
+        None => vec![
+            ("scope".to_owned(), scopes.join(",")),
+            ("response_type".to_owned(), "code".to_owned()),
+        ],
+    }
+}
+
 /// Trường webhook đăng ký cho Page (thêm `feed` khi đã bật bình luận).
 pub fn subscribed_fields(env: &Env) -> Vec<String> {
     let mut v: Vec<String> = SUBSCRIBED_FIELDS.iter().map(|s| (*s).to_owned()).collect();
@@ -289,6 +312,34 @@ mod tests {
             graph_url("v25.0", "x", &[], true, &env(&[])).unwrap(),
             "https://graph-video.facebook.com/v25.0/x"
         );
+    }
+
+    #[test]
+    fn tham_so_hop_thoai_co_va_khong_config_id() {
+        let scopes = vec!["a".to_owned(), "b".to_owned()];
+        let off = dialog_auth_params(&env(&[]), &scopes);
+        assert_eq!(
+            off,
+            [
+                ("scope".to_owned(), "a,b".to_owned()),
+                ("response_type".to_owned(), "code".to_owned())
+            ]
+        );
+        // Giá trị rỗng/chỉ khoảng trắng coi như không đặt.
+        assert_eq!(
+            dialog_auth_params(&env(&[("FACEBOOK_LOGIN_CONFIG_ID", "  ")]), &scopes),
+            off
+        );
+        let on = dialog_auth_params(&env(&[("FACEBOOK_LOGIN_CONFIG_ID", " 42 ")]), &scopes);
+        assert_eq!(
+            on,
+            [
+                ("config_id".to_owned(), "42".to_owned()),
+                ("response_type".to_owned(), "code".to_owned()),
+                ("override_default_response_type".to_owned(), "true".to_owned())
+            ]
+        );
+        assert!(on.iter().all(|(k, _)| k != "scope"));
     }
 
     #[test]

@@ -500,7 +500,7 @@ async fn preview_schedule(
         let mut conn = c.conn().await?;
         let slots = next_free(&mut conn, 1, c.now_ms).await?;
         return Ok(match slots.first() {
-            Some(slot) => (Some(*slot), true),
+            Some(slot) => (Some(slot.timestamp_millis()), true),
             None => {
                 general.push(NO_QUEUE_SLOTS.to_owned());
                 (None, false)
@@ -988,7 +988,7 @@ pub async fn create(c: &PostCtx<'_>, input: &PostInput) -> Result<PostView, AppE
             next_free(&mut conn, 1, c.now_ms).await?
         };
         let slot = slots.first().ok_or_else(|| bad(NO_QUEUE_SLOTS))?;
-        input.scheduled_at = Some(iso(*slot));
+        input.scheduled_at = Some(iso(slot.timestamp_millis()));
     }
     let v = validate(c, &input, None).await?;
     let quota = prepare_quota(c).await?;

@@ -352,6 +352,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     let mcp_audit = Arc::new(mod_mcp::exec::DbAudit { db: db.clone() });
     let mut registry = mod_mcp::ToolRegistry::new();
     mod_mcp::register_group1(&mut registry);
+    mod_mcp::register_group3(&mut registry);
     let tool_scopes = ScopeService::new(db.clone(), cache.clone());
     let tool_deps = Arc::new(mod_mcp::deps::ToolDeps {
         db: db.clone(),
@@ -372,7 +373,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             registry,
             limits: mcp_limits,
             audit: mcp_audit.clone(),
-            deps: tool_deps,
+            deps: tool_deps.clone(),
             base_url: public_base,
         },
         audit: mcp_audit,
@@ -385,7 +386,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
             ip: ip.clone(),
         }),
     );
-    // AI actions: bộ thực thi mặc định `NoTools` (M42/M43 cài tool thật); chỉ bật khi OAuth/MCP bật như `oauth_enabled`.
+    // AI actions: bộ thực thi `McpExecutor` (M42: tool ghi của mod-mcp; M43 thêm tool cấu trúc); chỉ bật khi OAuth/MCP bật như `oauth_enabled`.
     let ai_enabled = lookup("INTEGRATIONS_MCP_ENABLED").is_some_and(|v| v.trim() == "true")
         && lookup("INTEGRATIONS_PUBLIC_BASE_URL").is_some_and(|v| !v.trim().is_empty());
     app = mount(
@@ -394,7 +395,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         Arc::new(mod_ai_actions::AiActionsCtx {
             db: db.clone(),
             enabled: ai_enabled,
-            executor: Arc::new(mod_ai_actions::NoTools),
+            executor: Arc::new(mod_ai_actions::McpExecutor { deps: tool_deps }),
             exec_timeout: Duration::from_secs(240),
         }),
     );

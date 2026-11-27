@@ -49,6 +49,7 @@ pub struct ToolCtx<'a> {
     pub principal: &'a Principal,
     pub deps: &'a ToolDeps,
     pub base_url: &'a str,
+    pub limits: &'a McpLimits,
 }
 
 pub trait ToolRunner: Send + Sync {
@@ -79,6 +80,13 @@ impl ToolRegistry {
 
     pub fn get(&self, name: &str) -> Option<&ToolSpec> {
         self.map.get(name)
+    }
+
+    /// Tên mọi tool đã đăng ký, đã sắp xếp (test liệt kê tên).
+    pub fn names(&self) -> Vec<&'static str> {
+        let mut v: Vec<&'static str> = self.map.keys().copied().collect();
+        v.sort_unstable();
+        v
     }
 
     pub fn len(&self) -> usize {
@@ -203,6 +211,7 @@ impl Executor {
             principal: p,
             deps: &self.deps,
             base_url: &self.base_url,
+            limits: &self.limits,
         };
         match spec.runner.run(args, &ctx).await {
             Ok(out) => {

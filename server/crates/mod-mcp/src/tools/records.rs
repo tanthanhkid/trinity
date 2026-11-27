@@ -18,7 +18,7 @@ use crate::protocol::BoxFuture;
 const TABLE_NOT_FOUND: &str = "Không tìm thấy tính năng này";
 
 /// `^[a-z][a-z0-9_]{0,47}$`.
-fn valid_table_key(k: &str) -> bool {
+pub(super) fn valid_table_key(k: &str) -> bool {
     let mut it = k.chars();
     it.next().is_some_and(|c| c.is_ascii_lowercase())
         && k.len() <= 48
@@ -181,7 +181,7 @@ pub fn find_by_code<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFuture<'a, 
 }
 
 /// `idFromCode`: mã → id (kiểm đúng bảng nếu AI có ghi `object`).
-async fn id_from_code(
+pub(super) async fn id_from_code(
     deps: &ToolDeps,
     p: &Principal,
     raw: &Value,

@@ -900,3 +900,44 @@ async fn cat_40000_utf16_va_ghi_nhat_ky_da_che_sdt() {
     assert!(e.duration_ms.is_some());
     assert_eq!(e.metadata.as_ref().unwrap()["args"]["agent"], "claude");
 }
+
+#[test]
+fn tool_ghi_khop_hop_dong_va_khong_co_tool_xoa() {
+    let mut r = ToolRegistry::new();
+    mod_mcp::register_group3(&mut r);
+    let names = r.names();
+    assert_eq!(
+        names,
+        [
+            "add_contact_note",
+            "archive_record",
+            "assign_contact",
+            "create_contact",
+            "create_record",
+            "create_task",
+            "get_action_status",
+            "update_contact_stage",
+            "update_record",
+        ]
+    );
+    let frozen = Frozen::embedded();
+    for n in &names {
+        assert!(frozen.tool(n).is_some(), "{n}");
+        for w in ["delete", "remove", "destroy", "purge", "drop"] {
+            assert!(!n.contains(w), "{n}");
+        }
+        let expected = if *n == "get_action_status" {
+            None
+        } else {
+            Some("crm.write")
+        };
+        assert_eq!(r.get(n).unwrap().scope, expected, "{n}");
+    }
+    // Cả hợp đồng đóng băng cũng không có tool xoá.
+    assert!(
+        frozen
+            .names()
+            .iter()
+            .all(|n| !n.contains("delete") && !n.contains("remove"))
+    );
+}

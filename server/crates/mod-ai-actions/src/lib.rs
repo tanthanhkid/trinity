@@ -14,13 +14,14 @@
 //! - [`service`]: logic (nhận nguyên tử `pending → approved` trước khi chạy, thực thi tối đa một lần, quyền kiểm lại lúc duyệt,
 //!   `failed` kèm lý do đã che SĐT, trạng thái hiệu lực không phụ thuộc job).
 //! - [`ActionExecutor`]: cổng chạy tool ghi. Danh sách tool, quyền, thực thi và lưu phiên bản cấu trúc là việc của khung thao
-//!   ghi M42/M43; ở đây là một trait để nối vào, mặc định ([`NoTools`]) chưa có tool nào (duyệt đề xuất lạ ⇒ 400).
+//!   ghi M42/M43; ở đây là một trait để nối vào, mặc định ([`NoTools`]) chưa có tool nào; [`McpExecutor`] (M42) chạy các tool ghi của `mod-mcp` (duyệt đề xuất lạ ⇒ 400).
 //! - [`job`]: job `integrations.ai-action-expiry` (10 phút một lượt): hết hạn, kết quả không rõ, dọn.
 //! - [`routes`]: bảng route và router axum.
 
 #![allow(clippy::result_large_err)]
 
 pub mod job;
+pub mod mcp_executor;
 pub mod routes;
 pub mod service;
 
@@ -34,6 +35,7 @@ use trinity_kernel::error::AppError;
 use trinity_rbac::Grants;
 
 pub use job::{JOB_AI_ACTION_EXPIRY, expiry_job};
+pub use mcp_executor::McpExecutor;
 pub use routes::{api_router, specs};
 
 /// Khoá `settings`: `true` ⇒ AI chỉ tạo đề xuất chờ duyệt; vắng hoặc khác ⇒ ghi thẳng.

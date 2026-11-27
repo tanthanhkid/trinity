@@ -14,9 +14,12 @@
 //!
 //! Luật sản phẩm giữ nguyên (và là việc của các nhóm tool): không có tool xoá; hành động công khai cần `confirmed_by_user`.
 
+#![recursion_limit = "256"]
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
+#![allow(clippy::type_complexity)]
 
+pub mod actions;
 pub mod ai_output;
 pub mod args;
 pub mod auth;
@@ -32,4 +35,4 @@ pub mod tools;
 pub use endpoint::{HttpIn, HttpOut, McpConfig, McpEndpoint};
 pub use exec::{ToolCtx, ToolError, ToolOutput, ToolRegistry, ToolRunner, ToolSpec};
 pub use routes::{McpState, api_router, specs};
-pub use tools::{register_group1, register_group2};
+pub use tools::{register_group1, register_group2, register_group3};

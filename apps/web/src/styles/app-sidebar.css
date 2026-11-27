@@ -1,7 +1,7 @@
 /* ============================================================================
    SIDEBAR — theo demo giao diện mới (`trinity-giao-dien-demo`, `.side`/`.nav`)
    ----------------------------------------------------------------------------
-   Bố cục: logo + "Trinity" → ô "Tìm hoặc ra lệnh ⌘K" → menu chính → Bảng tuỳ
+   Bố cục: logo + "Trinity" → ô "Tìm kiếm ⌘K" → menu chính → Bảng tuỳ
    chỉnh → Đã ghim → Khách gần đây → chân: Cài đặt + người dùng + nút sáng/tối.
    Dáng: nền panel, viền phải 1px, mục cao ~35px bo 8px, chữ 14px `--sidebar-foreground`
    (= --ink-2), icon 18px; mục đang mở = nền `--sidebar-primary` (= --sunken) + chữ
@@ -43,7 +43,7 @@ html:root[data-ui="app"] .app-side-ws {
   text-decoration: none;
 }
 
-/* ---- ô "Tìm hoặc ra lệnh ⌘K" (demo `.search`) ---------------------------- */
+/* ---- ô "Tìm kiếm ⌘K" (demo `.search`) ---------------------------- */
 html:root[data-ui="app"] .app-side-search {
   display: flex;
   align-items: center;

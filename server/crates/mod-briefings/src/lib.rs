@@ -14,8 +14,9 @@
 //! | `GET /briefings` | [`list`] |
 //! | `GET /briefings/:id` | [`one`] |
 //!
-//! Tool MCP `get_briefing_data` và `save_briefing` (số liệu chi tiết cho agent, lưu bản do agent viết) thuộc M41.
+//! Tool MCP `get_briefing_data` và `save_briefing`: phần dữ liệu và ghi nằm ở [`agent`] (`mod-mcp` chỉ là lớp gọi).
 
+pub mod agent;
 pub mod aggregate;
 pub mod config;
 pub mod job;

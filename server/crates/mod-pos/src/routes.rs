@@ -6,7 +6,7 @@ use trinity_http::router::{Access, RouteSpec};
 
 const ID: &[&str] = &["param.id:ParseInt4Pipe"];
 
-/// 18 route của `PosLayoutController`, `PosCatalogController` và `PosShiftsController`.
+/// 25 route của `PosLayoutController`, `PosCatalogController`, `PosShiftsController` (M26) và `PosOrdersController` (M27).
 pub fn routes() -> Vec<RouteSpec> {
     let sell = Access::Can(&["pos.sell"]);
     let manage = Access::Can(&["pos.manage"]);
@@ -40,6 +40,23 @@ pub fn routes() -> Vec<RouteSpec> {
             .status_ok(201)
             .param_pipes(ID),
         RouteSpec::new(Method::GET, "/api/v1/pos/reports/daily", report).status_ok(200),
+        RouteSpec::new(Method::GET, "/api/v1/pos/orders", sell).status_ok(200),
+        RouteSpec::new(Method::POST, "/api/v1/pos/orders", sell).status_ok(201),
+        RouteSpec::new(Method::GET, "/api/v1/pos/orders/:id", sell)
+            .status_ok(200)
+            .param_pipes(ID),
+        RouteSpec::new(Method::PATCH, "/api/v1/pos/orders/:id", sell)
+            .status_ok(200)
+            .param_pipes(ID),
+        RouteSpec::new(Method::POST, "/api/v1/pos/orders/:id/pay", sell)
+            .status_ok(201)
+            .param_pipes(ID),
+        RouteSpec::new(Method::GET, "/api/v1/pos/orders/:id/qr", sell)
+            .status_ok(200)
+            .param_pipes(ID),
+        RouteSpec::new(Method::POST, "/api/v1/pos/orders/:id/void", sell)
+            .status_ok(201)
+            .param_pipes(ID),
     ]
 }
 
@@ -50,9 +67,9 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = routes();
-        assert_eq!(table.len(), 18);
+        assert_eq!(table.len(), 25);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 18);
+        assert_eq!(rep.declared, 25);
     }
 }

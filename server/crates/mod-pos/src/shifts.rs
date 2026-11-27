@@ -5,7 +5,7 @@
 #![allow(clippy::result_large_err)]
 
 use serde::{Deserialize, Serialize};
-use sqlx::{PgConnection, Postgres, QueryBuilder};
+use sqlx::{Acquire, PgConnection, Postgres, QueryBuilder};
 use trinity_db::models::PosShift;
 use trinity_db::pg_error::{app_error, db_error};
 use trinity_kernel::error::{AppError, DbErrorKind, HttpError};
@@ -120,6 +120,33 @@ pub async fn require_open_shift(conn: &mut PgConnection, user_id: i32) -> Result
     find_open_shift(conn, user_id)
         .await?
         .ok_or_else(|| HttpError::bad_request("Chưa mở ca. Hãy mở ca (nhập tiền đầu ca) trước khi bán hàng.").into())
+}
+
+/// Kiểu khoá dòng ca.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LockMode {
+    /// `FOR SHARE`: nhiều đơn được tạo song song, nhưng đóng ca phải chờ.
+    Share,
+    /// `FOR UPDATE`: thu tiền và đóng ca nối tiếp nhau.
+    Update,
+}
+
+/// Khoá dòng ca đang mở của người dùng trong giao dịch hiện tại và trả id ca; không có ca mở (kể cả ca vừa bị đóng ở
+/// giao dịch khác trong lúc chờ khoá) ⇒ 400. PHẢI gọi trong giao dịch (khoá nhả khi commit/rollback).
+pub async fn lock_open_shift(conn: &mut PgConnection, user_id: i32, mode: LockMode) -> Result<i32, AppError> {
+    let clause = if mode == LockMode::Update {
+        "FOR UPDATE"
+    } else {
+        "FOR SHARE"
+    };
+    let id: Option<i32> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT id FROM pos_shifts WHERE opened_by = $1 AND status = 'open' ORDER BY id LIMIT 1 {clause}"
+    )))
+    .bind(user_id)
+    .fetch_optional(conn)
+    .await
+    .map_err(db)?;
+    id.ok_or_else(|| HttpError::bad_request("Chưa mở ca. Hãy mở ca (nhập tiền đầu ca) trước khi bán hàng.").into())
 }
 
 /// `POST /pos/shifts/open`: đã có ca mở ⇒ 409 (kể cả hai request đồng thời nhờ unique từng phần `pos_shifts_one_open_per_user`).
@@ -244,6 +271,17 @@ pub async fn close(
     user_id: i32,
     owner: &OwnerIds,
 ) -> Result<ShiftWithSummary, AppError> {
+    // Kiểm phạm vi trước khi khoá: người ngoài phạm vi nhận 404 mà không chiếm khoá dòng ca của người khác.
+    get_owned(&mut *conn, id, owner).await?;
+    // Khoá dòng ca trước khi đọc tổng kết: thu tiền và tạo đơn (M27) khoá cùng dòng này, nên tổng kết và các đơn `open`
+    // đọc ở đây không đổi cho tới khi đóng xong.
+    let mut tx = conn.begin().await.map_err(db)?;
+    let conn = &mut *tx;
+    sqlx::query("SELECT id FROM pos_shifts WHERE id = $1 FOR UPDATE")
+        .bind(id)
+        .fetch_optional(&mut *conn)
+        .await
+        .map_err(db)?;
     let shift = get_owned(&mut *conn, id, owner).await?;
     if shift.status != "open" {
         return Err(HttpError::conflict("Ca đã đóng").into());
@@ -277,7 +315,9 @@ pub async fn close(
     if res.rows_affected() != 1 {
         return Err(HttpError::conflict("Ca đã đóng").into());
     }
-    summary(conn, id, owner).await
+    let out = summary(&mut *conn, id, owner).await?;
+    tx.commit().await.map_err(db)?;
+    Ok(out)
 }
 
 #[cfg(test)]

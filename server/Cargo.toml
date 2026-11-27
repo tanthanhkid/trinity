@@ -36,6 +36,7 @@ mod-oauth = { path = "crates/mod-oauth" }
 trinity-integrations = { path = "crates/trinity-integrations" }
 mod-commerce = { path = "crates/mod-commerce" }
 mod-kanban = { path = "crates/mod-kanban" }
+mod-pos = { path = "crates/mod-pos" }
 mod-notify = { path = "crates/mod-notify" }
 mod-hr = { path = "crates/mod-hr" }
 mod-settings = { path = "crates/mod-settings" }

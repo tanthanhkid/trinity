@@ -18,6 +18,7 @@ test-hooks = ["dep:trinity-testhooks", "trinity-testhooks/test-hooks"]
 
 [dependencies]
 mod-kanban = { workspace = true }
+mod-pos = { workspace = true }
 mod-system = { workspace = true }
 trinity-testhooks = { workspace = true, optional = true }
 base64 = { workspace = true }

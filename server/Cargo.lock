@@ -4336,6 +4336,7 @@ dependencies = [
  "mod-custom",
  "mod-kanban",
  "mod-oauth",
+ "mod-pos",
  "mod-system",
  "mod-users",
  "serde_json",

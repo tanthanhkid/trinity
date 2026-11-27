@@ -95,11 +95,11 @@ pub struct DealEventRow {
     pub updated_at: Timestamp,
 }
 
-pub(crate) const DEAL_EVENT_COLS: &str =
+pub const DEAL_EVENT_COLS: &str =
     "id, title, description, note, value, status, assigned_to, created_by, contact_id, created_at, updated_at";
 
 impl DealEventRow {
-    pub(crate) fn snapshot(&self) -> Value {
+    pub fn snapshot(&self) -> Value {
         let mut m = Map::new();
         m.insert("id".into(), self.id.into());
         m.insert("title".into(), Value::String(self.title.clone()));

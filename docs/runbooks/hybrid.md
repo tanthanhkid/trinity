@@ -42,7 +42,7 @@ docker compose -f docker-compose.yml -f docker-compose.hybrid.yml up -d --build
 Vì chung network namespace nên tên `api` không phân giải được, mọi địa chỉ phía Node và Next đều là `127.0.0.1`. `postgres` vẫn gọi được theo tên.
 
 **Tệp sở hữu** nằm ở `deploy/hybrid/ownership.json` (mặc định `routes: []`, `jobs: {}`, `migrate: "node"`: mọi thứ thuộc Node), gắn vào container
-theo thư mục `./deploy/hybrid:/etc/trinity:ro` để việc đổi tên nguyên tử trên host được thấy trong container. Đổi sở hữu theo runbook X01, rồi
+theo thư mục `./deploy/hybrid:/etc/trinity:ro` để việc đổi tên nguyên tử trên host được thấy trong container. Đổi sở hữu theo runbook X01 (`docs/runbooks/cutover.md`), rồi
 `docker compose kill -s HUP trinity`.
 
 **Thứ tự khởi động.** `migrate` (Prisma) chạy xong, rồi `trinity` và `api` (chung namespace), rồi `web`. Compose không cho `trinity` chờ `api`
@@ -117,7 +117,7 @@ chữ ký của Rust); `fe-logging` giới hạn theo IP thật và không log l
 
 ## 5. Lui về cấu hình cũ (dưới 2 phút)
 
-Nếu tệp sở hữu đã giao route hay job cho Rust thì **trước hết** trả chúng về Node theo X01 (sửa tệp rồi `SIGHUP`). Với tệp mặc định thì không cần.
+Nếu tệp sở hữu đã giao route hay job cho Rust thì **trước hết** trả chúng về Node theo X01 (`docs/runbooks/cutover.md`, mục 4.2: sửa tệp rồi `SIGHUP`). Với tệp mặc định thì không cần.
 
 Docker Compose:
 

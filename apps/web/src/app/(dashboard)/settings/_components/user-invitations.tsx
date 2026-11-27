@@ -96,7 +96,7 @@ export function InviteByLinkButton({
 
   return (
     <>
-      <Button variant={label ? 'default' : 'outline'} className="h-11" onClick={start} disabled={disabled}>
+      <Button variant={label && !prefill ? 'default' : 'outline'} className="h-11" onClick={start} disabled={disabled}>
         <Link2 className="mr-2 h-4 w-4" /> {label ?? (prefill ? 'Tạo link mới' : 'Mời bằng link')}
       </Button>
       <Dialog open={open} onOpenChange={(o) => !o && close()}>

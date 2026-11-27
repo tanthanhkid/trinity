@@ -220,6 +220,7 @@ mod tests {
 
     fn msgs(e: HttpError) -> Value {
         let (_, b) = trinity_kernel::error::AppError::from(e).response(true);
+        // trinity-lint: allow-json-value (thông báo lỗi/giá trị so sánh trong test, không phải model hay cột DB)
         serde_json::to_value(&b.message).unwrap()
     }
 

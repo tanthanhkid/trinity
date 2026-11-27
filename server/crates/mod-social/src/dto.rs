@@ -366,6 +366,7 @@ mod tests {
     fn messages(e: HttpError) -> Vec<String> {
         let (s, b) = trinity_kernel::error::AppError::from(e).response(true);
         assert_eq!(s, 400);
+        // trinity-lint: allow-json-value (thông báo lỗi/giá trị so sánh trong test, không phải model hay cột DB)
         serde_json::from_value(serde_json::to_value(&b.message).unwrap()).unwrap()
     }
 

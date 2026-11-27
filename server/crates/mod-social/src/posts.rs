@@ -22,7 +22,7 @@ use sqlx::PgConnection;
 use trinity_db::models::{SocialAccount, SocialPost, SocialPostTarget};
 use trinity_db::pg_error::app_error;
 use trinity_db::types::Timestamp;
-use trinity_db::{CompanyRef, Db, DbError, TenantConn};
+use trinity_db::{CompanyRef, Db, DbError, TenantConn, select_from};
 use trinity_kernel::error::{AppError, HttpError, Message};
 use trinity_kernel::instant::parse_instant_with;
 use trinity_kernel::vn_time::{from_millis, js_iso_string};
@@ -63,7 +63,7 @@ const INSERT_POST_SQL: &str = "INSERT INTO social_posts (content, media, schedul
      VALUES ($1, $2, $3, $4, $5, $6, now()) RETURNING id";
 const INSERT_TARGET_SQL: &str = "INSERT INTO social_post_targets (post_id, account_id, network, caption, options, next_attempt_at, updated_at) \
      VALUES ($1, $2, $3, $4, $5, $6, now())";
-const LIST_SQL: &str = "SELECT * FROM social_posts WHERE ($1::text IS NULL OR status = $1::text) \
+const LIST_TAIL: &str = " WHERE ($1::text IS NULL OR status = $1::text) \
      AND (($2::timestamptz IS NULL AND $3::timestamptz IS NULL) \
        OR (scheduled_at IS NOT NULL AND ($2::timestamptz IS NULL OR scheduled_at >= $2::timestamptz) \
            AND ($3::timestamptz IS NULL OR scheduled_at <= $3::timestamptz)) \
@@ -244,6 +244,7 @@ fn user_message(e: AppError) -> String {
 }
 
 fn media_json(media: &[SocialMedia]) -> Value {
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     serde_json::to_value(media).unwrap_or_else(|_| Value::Array(Vec::new()))
 }
 
@@ -755,7 +756,7 @@ fn post_view(p: SocialPost, targets: Vec<TargetView>) -> PostView {
 // ───────────────────────────── đọc ─────────────────────────────
 
 async fn find_post(conn: &mut PgConnection, id: i32) -> Result<Option<SocialPost>, AppError> {
-    sqlx::query_as("SELECT * FROM social_posts WHERE id = $1")
+    sqlx::query_as(select_from::<SocialPost>(" WHERE id = $1"))
         .bind(id)
         .fetch_optional(conn)
         .await
@@ -763,7 +764,7 @@ async fn find_post(conn: &mut PgConnection, id: i32) -> Result<Option<SocialPost
 }
 
 async fn find_target(conn: &mut PgConnection, id: i32) -> Result<Option<SocialPostTarget>, AppError> {
-    sqlx::query_as("SELECT * FROM social_post_targets WHERE id = $1")
+    sqlx::query_as(select_from::<SocialPostTarget>(" WHERE id = $1"))
         .bind(id)
         .fetch_optional(conn)
         .await
@@ -771,7 +772,7 @@ async fn find_target(conn: &mut PgConnection, id: i32) -> Result<Option<SocialPo
 }
 
 async fn targets_of(conn: &mut PgConnection, post_id: i32) -> Result<Vec<SocialPostTarget>, AppError> {
-    sqlx::query_as("SELECT * FROM social_post_targets WHERE post_id = $1 ORDER BY id ASC")
+    sqlx::query_as(select_from::<SocialPostTarget>(" WHERE post_id = $1 ORDER BY id ASC"))
         .bind(post_id)
         .fetch_all(conn)
         .await
@@ -784,12 +785,13 @@ async fn with_targets(conn: &mut PgConnection, posts: Vec<SocialPost>) -> Result
         return Ok(Vec::new());
     }
     let post_ids: Vec<i32> = posts.iter().map(|p| p.id).collect();
-    let targets: Vec<SocialPostTarget> =
-        sqlx::query_as("SELECT * FROM social_post_targets WHERE post_id = ANY($1) ORDER BY id ASC")
-            .bind(&post_ids)
-            .fetch_all(&mut *conn)
-            .await
-            .map_err(db)?;
+    let targets: Vec<SocialPostTarget> = sqlx::query_as(select_from::<SocialPostTarget>(
+        " WHERE post_id = ANY($1) ORDER BY id ASC",
+    ))
+    .bind(&post_ids)
+    .fetch_all(&mut *conn)
+    .await
+    .map_err(db)?;
     let account_ids: Vec<i32> = targets
         .iter()
         .map(|t| t.account_id)
@@ -871,7 +873,7 @@ impl ListQuery {
 
 /// `GET /social/posts` ⇒ `{ data, next_cursor }`, mới nhất trước. Lịch: bài hẹn giờ theo giờ hẹn, bài đăng ngay theo giờ tạo.
 pub async fn list(conn: &mut PgConnection, q: &ListQuery) -> Result<PostList, AppError> {
-    let mut rows: Vec<SocialPost> = sqlx::query_as(LIST_SQL)
+    let mut rows: Vec<SocialPost> = sqlx::query_as(select_from::<SocialPost>(LIST_TAIL))
         .bind(&q.status)
         .bind(q.from.map(Timestamp))
         .bind(q.to.map(Timestamp))
@@ -1311,7 +1313,7 @@ pub async fn retry(c: &PostCtx<'_>, target_id: i32) -> Result<PostView, AppError
 }
 
 async fn fetch_account(conn: &mut PgConnection, id: i32) -> Result<Option<SocialAccount>, AppError> {
-    sqlx::query_as("SELECT * FROM social_accounts WHERE id = $1")
+    sqlx::query_as(select_from::<SocialAccount>(" WHERE id = $1"))
         .bind(id)
         .fetch_optional(conn)
         .await

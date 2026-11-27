@@ -280,6 +280,7 @@ pub fn parse_send(v: &Value) -> Result<Option<String>, HttpError> {
 
 /// Bản trả về của một lượt: cột của bảng, `audience` đã làm sạch và `page_name`.
 fn view_json(b: &FacebookBroadcast, names: &HashMap<String, String>) -> Result<Value, AppError> {
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     let mut v = serde_json::to_value(b).map_err(AppError::internal)?;
     v["audience"] = Audience::from_value(&b.audience.0).to_value();
     v["page_name"] = names.get(&b.page_id).map_or(Value::Null, |n| json!(n));
@@ -527,6 +528,7 @@ impl FacebookIngest {
         let by: HashMap<i32, (Option<String>, Option<i32>)> = convs.into_iter().map(|(i, n, c)| (i, (n, c))).collect();
         let mut data = Vec::new();
         for r in &rows {
+            // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
             let mut v = serde_json::to_value(r).map_err(AppError::internal)?;
             let (name, contact) = by.get(&r.conversation_id).cloned().unwrap_or((None, None));
             v["customer_name"] = json!(name);

@@ -134,7 +134,7 @@ async fn teardown() {
 /// Chụp các dòng cấu hình chấm công thật vào bảng phụ (giữ bản cũ nếu lần chạy trước chết giữa chừng) để test trả lại.
 async fn backup_settings() {
     exec(
-        "CREATE TABLE IF NOT EXISTS m13a_settings_bak AS SELECT * FROM settings
+        "CREATE TABLE IF NOT EXISTS m13a_settings_bak AS SELECT * /* trinity-lint: allow-star */ FROM settings
           WHERE key IN ('attendance_shift_config', 'attendance_request_config', 'attendance_working_saturdays')",
     )
     .await;
@@ -143,7 +143,7 @@ async fn backup_settings() {
 /// Trả lại cấu hình đã chụp sau `teardown` cuối test, rồi bỏ bảng phụ.
 async fn restore_settings() {
     exec(
-        "INSERT INTO settings SELECT * FROM m13a_settings_bak ON CONFLICT (key) DO NOTHING;
+        "INSERT INTO settings SELECT * /* trinity-lint: allow-star */ FROM m13a_settings_bak ON CONFLICT (key) DO NOTHING;
           DROP TABLE IF EXISTS m13a_settings_bak",
     )
     .await;

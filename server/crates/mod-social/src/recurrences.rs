@@ -19,7 +19,7 @@ use sqlx::PgConnection;
 use trinity_db::models::SocialRecurrence;
 use trinity_db::pg_error::app_error;
 use trinity_db::types::Timestamp;
-use trinity_db::{TenantConn, TenantDb};
+use trinity_db::{TenantConn, TenantDb, select_from};
 use trinity_kernel::error::{AppError, HttpError, Message};
 use trinity_kernel::vn_time::{from_millis, js_iso_string};
 
@@ -160,7 +160,7 @@ fn view(r: &SocialRecurrence, posts: &[PostRow], now: DateTime<Utc>) -> Result<R
 
 async fn row(db_: &TenantDb, id: i32) -> Result<SocialRecurrence, AppError> {
     let mut c = conn(db_).await?;
-    sqlx::query_as::<_, SocialRecurrence>("SELECT * FROM social_recurrences WHERE id = $1")
+    sqlx::query_as::<_, SocialRecurrence>(select_from::<SocialRecurrence>(" WHERE id = $1"))
         .bind(id)
         .fetch_optional(&mut *c)
         .await
@@ -182,7 +182,7 @@ async fn pending_post(c: &mut PgConnection, id: i32) -> Result<Option<(i32, Stri
 /// `GET /social/recurrences` ⇒ `{ data }`.
 pub async fn list(db_: &TenantDb, now: DateTime<Utc>) -> Result<Vec<RecurrenceView>, AppError> {
     let mut c = conn(db_).await?;
-    let rows = sqlx::query_as::<_, SocialRecurrence>("SELECT * FROM social_recurrences ORDER BY id DESC LIMIT 200")
+    let rows = sqlx::query_as::<_, SocialRecurrence>(select_from::<SocialRecurrence>(" ORDER BY id DESC LIMIT 200"))
         .fetch_all(&mut *c)
         .await
         .map_err(db)?;
@@ -417,7 +417,9 @@ pub async fn create<P: PostsPort>(
     let v = normalized(posts, user_id, input, None).await?;
     let first = first_run(&v.rule, &v.starts_on, v.ends_on.as_deref(), v.max_count, 0, now)
         .ok_or_else(|| bad("Với ngày bắt đầu/kết thúc này không có lần đăng nào trong tương lai."))?;
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     let template = serde_json::to_value(&v.template).map_err(AppError::internal)?;
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     let rule = serde_json::to_value(&v.rule).map_err(AppError::internal)?;
     let id: i32 = {
         let mut c = conn(db_).await?;
@@ -472,7 +474,9 @@ pub async fn update<P: PostsPort>(
         i64::from(fresh.count),
         now,
     );
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     let template = serde_json::to_value(&v.template).map_err(AppError::internal)?;
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     let rule = serde_json::to_value(&v.rule).map_err(AppError::internal)?;
     {
         let mut c = conn(db_).await?;
@@ -665,9 +669,9 @@ pub async fn materialize<P: PostsPort>(
 ) -> Result<MaterializeResult, AppError> {
     let rows = {
         let mut c = conn(db_).await?;
-        sqlx::query_as::<_, SocialRecurrence>(
-            "SELECT * FROM social_recurrences WHERE active AND next_run_at IS NOT NULL ORDER BY id ASC LIMIT 200",
-        )
+        sqlx::query_as::<_, SocialRecurrence>(select_from::<SocialRecurrence>(
+            " WHERE active AND next_run_at IS NOT NULL ORDER BY id ASC LIMIT 200",
+        ))
         .fetch_all(&mut *c)
         .await
         .map_err(db)?
@@ -776,7 +780,7 @@ async fn run_one<P: PostsPort>(
     }
     let fresh = {
         let mut c = conn(db_).await?;
-        sqlx::query_as::<_, SocialRecurrence>("SELECT * FROM social_recurrences WHERE id = $1")
+        sqlx::query_as::<_, SocialRecurrence>(select_from::<SocialRecurrence>(" WHERE id = $1"))
             .bind(r.id)
             .fetch_optional(&mut *c)
             .await

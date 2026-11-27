@@ -29,7 +29,7 @@ use trinity_db::models::{SocialAccount, SocialPost, SocialPostTarget};
 use trinity_db::outbox::publish_integration_event;
 use trinity_db::platform::Platform;
 use trinity_db::types::Timestamp;
-use trinity_db::{CompanyRef, Db};
+use trinity_db::{CompanyRef, Db, select_from};
 use trinity_integrations::webhooks::secret::load_secret_key;
 use trinity_jobs::{JobFn, JobSpec, Scheduler, SchedulerError};
 use trinity_kernel::error::AppError;
@@ -81,12 +81,20 @@ const SWEEP_SQL: &str = "UPDATE social_post_targets SET status = 'failed', last_
      WHERE status = 'publishing' AND next_attempt_at <= now() RETURNING post_id";
 const DUE_SQL: &str = "SELECT id FROM social_post_targets WHERE status IN ('queued', 'publishing') \
      AND next_attempt_at <= now() LIMIT 1";
-const METRICS_ROWS_SQL: &str = "SELECT * FROM social_post_targets WHERE status = 'published' AND network = ANY($1) \
-     AND external_post_id IS NOT NULL AND published_at >= $2 AND (metrics_at IS NULL OR metrics_at < $3) \
-     ORDER BY metrics_at ASC NULLS FIRST, id ASC LIMIT $4";
-const SYNC_ROWS_SQL: &str = "SELECT * FROM social_post_targets WHERE status = 'published' AND network = ANY($1) \
-     AND external_post_id IS NOT NULL AND published_at >= $2 AND (metrics_at IS NULL OR metrics_at < $3) \
-     ORDER BY published_at DESC LIMIT $4";
+fn metrics_rows_sql() -> sqlx::AssertSqlSafe<String> {
+    select_from::<SocialPostTarget>(
+        " WHERE status = 'published' AND network = ANY($1) \
+         AND external_post_id IS NOT NULL AND published_at >= $2 AND (metrics_at IS NULL OR metrics_at < $3) \
+         ORDER BY metrics_at ASC NULLS FIRST, id ASC LIMIT $4",
+    )
+}
+fn sync_rows_sql() -> sqlx::AssertSqlSafe<String> {
+    select_from::<SocialPostTarget>(
+        " WHERE status = 'published' AND network = ANY($1) \
+         AND external_post_id IS NOT NULL AND published_at >= $2 AND (metrics_at IS NULL OR metrics_at < $3) \
+         ORDER BY published_at DESC LIMIT $4",
+    )
+}
 const REQUEUE_SQL: &str = "UPDATE social_post_targets SET status = 'queued', \
      attempts = CASE WHEN $4::bool THEN GREATEST(attempts - 1, 0) ELSE attempts END, \
      next_attempt_at = $2, last_error = $3, updated_at = now() WHERE id = $1";
@@ -431,7 +439,7 @@ impl Runner {
     pub async fn process_one(self: &Arc<Self>, company: CompanyRef, target_id: i32) -> Result<Outcome, String> {
         let (t, post, account) = {
             let mut conn = acquire(&self.deps.db, company).await.map_err(|e| app_err(&e))?;
-            let t: Option<SocialPostTarget> = sqlx::query_as("SELECT * FROM social_post_targets WHERE id = $1")
+            let t: Option<SocialPostTarget> = sqlx::query_as(select_from::<SocialPostTarget>(" WHERE id = $1"))
                 .bind(target_id)
                 .fetch_optional(&mut *conn)
                 .await
@@ -439,12 +447,12 @@ impl Runner {
             let Some(t) = t else {
                 return Ok(Outcome::Failed);
             };
-            let post: Option<SocialPost> = sqlx::query_as("SELECT * FROM social_posts WHERE id = $1")
+            let post: Option<SocialPost> = sqlx::query_as(select_from::<SocialPost>(" WHERE id = $1"))
                 .bind(t.post_id)
                 .fetch_optional(&mut *conn)
                 .await
                 .map_err(|e| sql_err(&e))?;
-            let account: Option<SocialAccount> = sqlx::query_as("SELECT * FROM social_accounts WHERE id = $1")
+            let account: Option<SocialAccount> = sqlx::query_as(select_from::<SocialAccount>(" WHERE id = $1"))
                 .bind(t.account_id)
                 .fetch_optional(&mut *conn)
                 .await
@@ -698,7 +706,7 @@ impl Runner {
     pub async fn fetch_target_metrics(&self, company: CompanyRef, graph: &GraphClient, t: &SocialPostTarget) -> bool {
         let account: Result<Option<SocialAccount>, String> = async {
             let mut conn = acquire(&self.deps.db, company).await.map_err(|e| app_err(&e))?;
-            sqlx::query_as("SELECT * FROM social_accounts WHERE id = $1")
+            sqlx::query_as(select_from::<SocialAccount>(" WHERE id = $1"))
                 .bind(t.account_id)
                 .fetch_optional(&mut *conn)
                 .await
@@ -727,6 +735,7 @@ impl Runner {
         };
         match fetch_metrics(graph, &acc, external).await {
             Ok(m) => {
+                // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
                 let value = serde_json::to_value(&m).unwrap_or(Value::Null);
                 self.store_metrics(company, t.id, &value).await;
                 true
@@ -744,6 +753,7 @@ impl Runner {
                     .clone()
                     .map(|m| m.0)
                     .filter(Value::is_object)
+                    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
                     .unwrap_or_else(|| serde_json::to_value(empty).unwrap_or(Value::Null));
                 if let Some(o) = marked.as_object_mut() {
                     o.insert("removed".to_owned(), Value::Bool(true));
@@ -763,7 +773,7 @@ impl Runner {
     async fn published_rows(
         &self,
         company: CompanyRef,
-        sql: &'static str,
+        sql: sqlx::AssertSqlSafe<String>,
         since_ms: i64,
         not_after_ms: i64,
         limit: i64,
@@ -789,7 +799,7 @@ impl Runner {
         let started = Instant::now();
         let (since, before) = (at_ms - METRICS_WINDOW_MS, at_ms - 60 * MINUTE_MS);
         let rows = self
-            .published_rows(company, METRICS_ROWS_SQL, since, before, METRICS_BATCH)
+            .published_rows(company, metrics_rows_sql(), since, before, METRICS_BATCH)
             .await?;
         let graph = (self.deps.graph_for)(company);
         let mut out = MetricsStats::default();
@@ -819,7 +829,7 @@ impl Runner {
     pub async fn sync_published(&self, company: CompanyRef, at_ms: i64) -> Result<(usize, usize), String> {
         let (since, before) = (at_ms - SYNC_WINDOW_MS, at_ms - SYNC_RECHECK_MS);
         let rows = self
-            .published_rows(company, SYNC_ROWS_SQL, since, before, SYNC_BATCH)
+            .published_rows(company, sync_rows_sql(), since, before, SYNC_BATCH)
             .await?;
         let graph = (self.deps.graph_for)(company);
         let started = Instant::now();

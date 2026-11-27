@@ -673,6 +673,7 @@ mod tests {
             serde_json::to_value(&r).unwrap(),
             json!({"freq":"monthly","interval":1,"month_day":5,"time":"08:00"})
         );
+        // trinity-lint: allow-json-value (thông báo lỗi/giá trị so sánh trong test, không phải model hay cột DB)
         let back: RecurrenceRule = serde_json::from_value(serde_json::to_value(&r).unwrap()).unwrap();
         assert_eq!(back, r);
     }

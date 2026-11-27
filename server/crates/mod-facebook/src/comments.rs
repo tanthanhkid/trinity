@@ -121,6 +121,7 @@ impl PlannedActions {
     }
 
     pub fn to_json(&self) -> Value {
+        // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
         serde_json::to_value(self).unwrap_or_else(|_| json!({}))
     }
 
@@ -1617,6 +1618,7 @@ impl ListQuery {
 }
 
 fn comment_json(row: &FacebookComment, extra: Vec<(&str, Value)>) -> Result<Value, AppError> {
+    // trinity-lint: allow-json-value (model cần vá thêm khoá rồi trả Value (hoặc ghi cột jsonb), giữ hành vi cũ; không phải đường ghi chuỗi JSON thẳng)
     let mut v = serde_json::to_value(row).map_err(AppError::internal)?;
     if let Some(o) = v.as_object_mut() {
         o.insert("id".to_owned(), Value::String(row.id.0.to_string()));

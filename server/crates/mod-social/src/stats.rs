@@ -7,7 +7,7 @@ use chrono::{DateTime, Duration, Utc};
 use mod_facebook::graph::{GraphClient, utf16_prefix};
 use serde_json::{Map, Value, json};
 use trinity_db::models::SocialPostTarget;
-use trinity_db::{CompanyRef, Db};
+use trinity_db::{CompanyRef, Db, select_from};
 use trinity_kernel::error::{AppError, HttpError};
 use trinity_kernel::instant::parse_instant_with;
 use trinity_kernel::vn_time::js_iso_string;
@@ -203,10 +203,9 @@ pub fn build_stats(
 /// `GET /social/stats`: số là lần lấy gần nhất, không gọi mạng. Mỗi bước DB một kết nối.
 pub async fn stats(db: &Db, company: CompanyRef, q: &StatsQuery) -> Result<Value, AppError> {
     let mut conn = acquire(db, company).await?;
-    let targets: Vec<SocialPostTarget> = sqlx::query_as(
-        "SELECT * FROM social_post_targets WHERE status = 'published' AND published_at >= $1 AND published_at <= $2 \
-         ORDER BY published_at DESC",
-    )
+    let targets: Vec<SocialPostTarget> = sqlx::query_as(select_from::<SocialPostTarget>(
+        " WHERE status = 'published' AND published_at >= $1 AND published_at <= $2 ORDER BY published_at DESC",
+    ))
     .bind(q.from)
     .bind(q.to)
     .fetch_all(&mut *conn)
@@ -295,7 +294,7 @@ pub async fn refresh_post_report(
         }
         let row: Option<SocialPostTarget> = {
             let mut conn = acquire(db, company).await?;
-            sqlx::query_as("SELECT * FROM social_post_targets WHERE id = $1")
+            sqlx::query_as(select_from::<SocialPostTarget>(" WHERE id = $1"))
                 .bind(t.id)
                 .fetch_optional(&mut *conn)
                 .await

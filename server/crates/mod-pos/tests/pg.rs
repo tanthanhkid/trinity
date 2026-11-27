@@ -323,7 +323,7 @@ async fn cau_hinh_va_menu() {
     exec(&mut c, "DROP TABLE IF EXISTS m26_settings_bak").await;
     exec(
         &mut c,
-        "CREATE TEMP TABLE m26_settings_bak AS SELECT * FROM pos_settings WHERE id = 1",
+        "CREATE TEMP TABLE m26_settings_bak AS SELECT * /* trinity-lint: allow-star */ FROM pos_settings WHERE id = 1",
     )
     .await;
     exec(&mut c, "UPDATE pos_settings SET menu_category_ids = '{}'").await;

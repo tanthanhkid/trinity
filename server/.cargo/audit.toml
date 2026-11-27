@@ -7,5 +7,7 @@ ignore = [
 ]
 
 [output]
+# Bản cargo-audit mới (2026-11-22) bắt buộc khoá `quiet` trong [output], thiếu là chết ngay khi parse.
+quiet = false
 # Cảnh báo (không còn bảo trì, unsound, bị rút) cũng làm job đỏ, như `yanked = "deny"` của deny.toml.
 deny = ["warnings"]

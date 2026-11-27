@@ -50,7 +50,7 @@ pub use fanpage::{
     BroadcastsPort, ChatLinksPort, CommentQuery, CommentsPort, FanpagePorts, FlowsPort, PageRef, PagesPort,
     ScheduledPostsPort, register_fanpage,
 };
-pub use fanpage_ports::FacebookFanpagePorts;
+pub use fanpage_ports::{FanpageDeps, Kick, PostsDeps, fanpage_deps};
 
 type RunFn = for<'a> fn(&'a Value, &'a ToolCtx<'a>) -> BoxFuture<'a, Result<ToolOutput, ToolError>>;
 

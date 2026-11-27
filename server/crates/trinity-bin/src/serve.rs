@@ -453,18 +453,15 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         }),
         Arc::new(mod_mcp::AuthInvitations(auth_svc.clone())),
     );
-    // M50b: tool Fanpage (M44b) nối link chat và kịch bản vào dịch vụ thật; các port còn lại (M49/M51/M54a) nối khi có.
-    let fanpage_flows = Arc::new(mod_mcp::FacebookFanpagePorts {
-        ingest: fb_state.ingest.clone(),
-        multi_tenant: platform.multi_tenant(),
-    });
+    // Tool Fanpage (M44b): port bằng dịch vụ thật của mod-facebook/mod-social. `kick` và `PostsDeps` nối ở bước nối serve.
     mod_mcp::register_fanpage(
         &mut registry,
-        Arc::new(mod_mcp::FanpagePorts {
-            chat_links: Some(fanpage_flows.clone()),
-            flows: Some(fanpage_flows),
-            ..mod_mcp::FanpagePorts::default()
-        }),
+        Arc::new(mod_mcp::fanpage_deps(
+            fb_state.ingest.clone(),
+            platform.multi_tenant(),
+            None,
+            None,
+        )),
     );
     let tool_scopes = ScopeService::new(db.clone(), cache.clone());
     let tool_deps = Arc::new(mod_mcp::deps::ToolDeps {

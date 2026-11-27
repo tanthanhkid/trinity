@@ -49,3 +49,37 @@ NEXT_PUBLIC_API_URL=/api/v1 pnpm --filter web build
 # DB riêng đã migrate + seed (SEED_DEMO_DATA=true)
 DATABASE_URL=postgresql://u:p@localhost:5432/trinity_baseline EMAIL=... PASSWORD=... tests/load/baseline.sh <nhãn>
 ```
+
+## Rust (X05) — đo trên máy 2 GB và 1 GB
+
+**Trạng thái: chưa đo.** Script đã có; số đo cần máy Linux thật (e2-small 2 GB, e2-micro 1 GB), không đo trên Mac dev. Đích ở PLAN mục 9.
+
+Công cụ (đều trong `tests/load/`):
+
+- `rust-perf.sh <nhãn>`: khởi động binary trong cgroup (`systemd-run`, `MemoryMax`), đo thời gian tới health 200, RSS/PSS/VmHWM lúc rỗi và đỉnh, kết nối Postgres, swap, rồi chạy tuần tự `run.mjs` (50 kết nối) và 3 ca của `perf.mjs`. `PROFILE=2gb|1gb` (1gb: pool 4, 1 worker).
+- `perf.mjs`: `login-graph-treo` (10 request treo ở Graph giả `graph-stub.mjs` cùng lúc với 20 lần đăng nhập, đích p95 < 1 s), `export` (đích < 100 s), `upload-95mb` (tải lên theo phần).
+- `graph-stub.mjs`: nhận kết nối nhưng không trả lời; máy chủ trỏ vào bằng `FACEBOOK_GRAPH_BASE_URL=http://127.0.0.1:9911`.
+
+Chạy:
+
+```bash
+TRINITY_BIN=./trinity DATABASE_URL=postgres://u:p@127.0.0.1:5432/db_rieng EMAIL=... PASSWORD=... \
+  PROFILE=2gb tests/load/rust-perf.sh system      # rồi build lại với mimalloc và chạy nhãn `mimalloc`
+```
+
+Chốt bộ cấp phát: so hai binary (hệ thống và `mimalloc`, đã khai báo ở workspace nhưng chưa gắn `#[global_allocator]`) trên cùng máy, lặp ≥ 3 lần, lấy trung vị; chọn bộ có RSS rỗi và đỉnh thấp hơn mà p95 không xấu hơn. Ghi quyết định vào `DECISIONS.md`.
+
+Bảng kết quả (điền sau khi đo; ghi rõ chỗ chưa đạt):
+
+| Chỉ số | Đích 2 GB | 2 GB system | 2 GB mimalloc | Đích 1 GB | 1 GB system | 1 GB mimalloc |
+|---|---|---|---|---|---|---|
+| RSS rỗi | ≤ 60 MB | | | ≤ 60 MB | | |
+| RSS đỉnh (50 kết nối) | ≤ 200 MB | | | ≤ 150 MB | | |
+| Kết nối Postgres đỉnh | ≤ 8 | | | ≤ 4 | | |
+| Tổng máy | ≤ 1,2 GB | | | ≤ 800 MB | | |
+| Khởi động tới health 200 | ≤ 1 s | | | ≤ 2 s | | |
+| p95 `GET /contacts` | ≤ baseline Node | | | ≤ 2 × máy 2 GB | | |
+| Đăng nhập khi 10 request treo ở Graph | ≤ 1 s | | | ≤ 2 s | | |
+| Tệp xuất lớn nhất | < 100 s | | | | | |
+| Tải lên 95 MB | chạy xong | | | | | |
+| Kích thước binary | ≤ 80 MB | | | | | |

@@ -588,7 +588,7 @@ async fn remember_conversation(
     .fetch_one(&mut *conn)
     .await
     .map_err(db)?;
-    let saved: Option<i32> = sqlx::query_scalar(
+    let saved: Option<i64> = sqlx::query_scalar(
         "INSERT INTO facebook_messages (conversation_id, mid, direction, text, sent_at) \
          VALUES ($1, $2, 'out', $3, $4) ON CONFLICT (mid) DO NOTHING RETURNING id",
     )

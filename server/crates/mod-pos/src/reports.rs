@@ -118,7 +118,7 @@ pub async fn daily(conn: &mut PgConnection, date: Option<&str>, now: DateTime<Ut
     let products: Vec<(i32, String, i64, i64)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT i.product_id, i.product_name, COALESCE(SUM(i.quantity), 0)::int8, COALESCE(SUM(i.line_total), 0)::int8 \
          FROM pos_order_items i JOIN pos_orders o ON o.id = i.order_id WHERE o.status = 'paid' AND {} \
-         GROUP BY i.product_id, i.product_name ORDER BY 4 DESC, i.product_id ASC, i.product_name ASC LIMIT 50",
+         GROUP BY i.product_id, i.product_name ORDER BY 4 DESC, i.product_id ASC, i.product_name ASC LIMIT 51",
         RANGE.replace("paid_at", "o.paid_at")
     )))
     .bind(day)
@@ -133,7 +133,8 @@ pub async fn daily(conn: &mut PgConnection, date: Option<&str>, now: DateTime<Ut
     .fetch_all(conn)
     .await
     .map_err(db)?;
-    let truncated = products.len() == 50;
+    // Lấy 51 dòng để biết còn nữa hay không: đúng 50 sản phẩm không bị báo là cắt bớt.
+    let truncated = products.len() > 50;
     Ok(DailyReport {
         date: day.format("%Y-%m-%d").to_string(),
         order_count,
@@ -151,6 +152,7 @@ pub async fn daily(conn: &mut PgConnection, date: Option<&str>, now: DateTime<Ut
             .collect(),
         by_product: products
             .into_iter()
+            .take(50)
             .map(|(product_id, product_name, quantity, revenue)| ProductTotal {
                 product_id,
                 product_name,

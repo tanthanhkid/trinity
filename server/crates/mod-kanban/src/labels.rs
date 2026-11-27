@@ -58,8 +58,11 @@ pub struct UpdateLabel {
     pub color: Option<Option<String>>,
 }
 
+/// Tên nhãn được cắt khoảng trắng TRƯỚC khi kiểm (như `@Transform(trim)` rồi `@MinLength(1)`): tên toàn khoảng trắng
+/// ⇒ rỗng ⇒ 400, độ dài tính trên chuỗi đã cắt (đúng giá trị sẽ lưu).
 fn label_errors(name: Option<&str>, color: Option<&str>, out: &mut Vec<String>) {
     if let Some(n) = name {
+        let n = trim_js(n);
         if len16(n) > 64 {
             out.push("name tối đa 64 ký tự".to_owned());
         }
@@ -87,6 +90,13 @@ impl UpdateLabel {
     /// Luật của `UpdateKanbanLabelDto`.
     pub fn validate(&self) -> Result<(), HttpError> {
         let mut e = Vec::new();
+        // `null` ở cột NOT NULL không phải "vắng mặt" ⇒ 400.
+        if matches!(self.name, Some(None)) {
+            e.push("name phải là chuỗi".to_owned());
+        }
+        if matches!(self.color, Some(None)) {
+            e.push("color phải là mã hex hợp lệ (vd #eb5a46)".to_owned());
+        }
         label_errors(
             self.name.as_ref().and_then(|v| v.as_deref()),
             self.color.as_ref().and_then(|v| v.as_deref()),
@@ -232,5 +242,21 @@ mod tests {
             .is_err()
         );
         assert!(UpdateLabel::default().validate().is_ok());
+    }
+
+    #[test]
+    fn nhan_toan_khoang_trang_hoac_null_bi_chan() {
+        let ws = CreateLabel {
+            name: "   ".into(),
+            color: "#fff".into(),
+        };
+        assert!(ws.validate().is_err());
+        let padded = CreateLabel {
+            name: format!(" {} ", "a".repeat(64)),
+            color: "#fff".into(),
+        };
+        assert!(padded.validate().is_ok());
+        let nul: UpdateLabel = serde_json::from_str(r#"{"name":null,"color":null}"#).unwrap();
+        assert_eq!(nul.validate().unwrap_err().body().status_code, 400);
     }
 }

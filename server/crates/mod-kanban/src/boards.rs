@@ -271,6 +271,17 @@ pub(crate) async fn assert_exists(conn: &mut PgConnection, id: i32) -> Result<()
     found.map(|_| ()).ok_or_else(|| board_not_found(id))
 }
 
+/// Khoá dòng board chưa xoá mềm (`FOR UPDATE`) trong giao dịch đang mở; không có ⇒ 404.
+pub(crate) async fn lock_board(tx: &mut PgConnection, id: i32) -> Result<(), AppError> {
+    let found =
+        sqlx::query_scalar::<_, i32>("SELECT id FROM kanban_boards WHERE id = $1 AND deleted_at IS NULL FOR UPDATE")
+            .bind(id)
+            .fetch_optional(tx)
+            .await
+            .map_err(db)?;
+    found.map(|_| ()).ok_or_else(|| board_not_found(id))
+}
+
 /// `GET /boards`: board người gọi thấy, theo tên.
 pub async fn find_all_visible(conn: &mut PgConnection, access: &Access) -> Result<Vec<BoardListRow>, AppError> {
     sqlx::query_as::<_, BoardListRow>(
@@ -369,7 +380,7 @@ pub async fn update(conn: &mut PgConnection, id: i32, input: &UpdateBoard) -> Re
                 settings = COALESCE($12, settings),
                 is_active = COALESCE($13, is_active),
                 updated_at = now()
-         WHERE id = $1 RETURNING {BOARD_COLS}"
+         WHERE id = $1 AND deleted_at IS NULL RETURNING {BOARD_COLS}"
     );
     sqlx::query_as::<_, KanbanBoard>(AssertSqlSafe(sql))
         .bind(id)
@@ -385,21 +396,25 @@ pub async fn update(conn: &mut PgConnection, id: i32, input: &UpdateBoard) -> Re
         .bind(prefix)
         .bind(&input.settings)
         .bind(input.is_active)
-        .fetch_one(conn)
+        .fetch_optional(conn)
         .await
-        .map_err(db)
+        .map_err(db)?
+        .ok_or_else(|| board_not_found(id))
 }
 
 /// `DELETE /boards/:id`: xoá mềm (giữ cột/card/lịch sử), trả board đã có `deleted_at`.
 pub async fn remove(conn: &mut PgConnection, id: i32) -> Result<KanbanBoard, AppError> {
     assert_exists(&mut *conn, id).await?;
-    let sql =
-        format!("UPDATE kanban_boards SET deleted_at = now(), updated_at = now() WHERE id = $1 RETURNING {BOARD_COLS}");
+    let sql = format!(
+        "UPDATE kanban_boards SET deleted_at = now(), updated_at = now()
+          WHERE id = $1 AND deleted_at IS NULL RETURNING {BOARD_COLS}"
+    );
     sqlx::query_as::<_, KanbanBoard>(AssertSqlSafe(sql))
         .bind(id)
-        .fetch_one(conn)
+        .fetch_optional(conn)
         .await
-        .map_err(db)
+        .map_err(db)?
+        .ok_or_else(|| board_not_found(id))
 }
 
 /// `GET /boards/templates`.

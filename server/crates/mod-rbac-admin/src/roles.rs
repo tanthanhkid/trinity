@@ -20,6 +20,10 @@ use crate::{Actor, CreateRole, Ctx, UpdateRole};
 /// vai trò phải lấy khoá này trước, như tạo/nhận lời mời.
 const USER_SLOT_LOCK: i32 = 726_354_004;
 
+/// Khoá advisory tuần tự hoá đặt/đổi tên vai trò (đặt/đổi tên hiếm nên khoá chung, không theo công ty): kiểm trùng tên rồi ghi phải nằm cùng một khoá, nếu
+/// không hai request cùng tên (hoa/thường khác nhau) đều qua được bước kiểm.
+const ROLE_NAME_LOCK: i64 = 726_354_005;
+
 fn db(e: sqlx::Error) -> AppError {
     app_error(&e)
 }
@@ -166,6 +170,40 @@ async fn assert_name_free(conn: &mut PgConnection, name: &str, except: Option<i3
     }
 }
 
+async fn lock_role_name(conn: &mut PgConnection) -> Result<(), AppError> {
+    sqlx::query("SELECT pg_advisory_xact_lock($1)")
+        .bind(ROLE_NAME_LOCK)
+        .execute(conn)
+        .await
+        .map_err(db)?;
+    Ok(())
+}
+
+/// Khoá dòng vai trò TRONG giao dịch rồi đọc lại cờ hệ thống và quyền hiện có (đọc trước giao dịch có thể đã cũ: người
+/// khác vừa sửa quyền hoặc gán người vào vai trò). 404 nếu vừa bị xoá.
+async fn lock_role(tx: &mut PgConnection, id: i32) -> Result<(bool, Grants), AppError> {
+    let is_system: Option<bool> = sqlx::query_scalar("SELECT is_system FROM roles WHERE id = $1 FOR UPDATE")
+        .bind(id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(db)?;
+    let is_system = is_system.ok_or_else(|| HttpError::not_found("Không tìm thấy vai trò"))?;
+    let rows: Vec<GrantRow> =
+        sqlx::query("SELECT permission, scope FROM role_permissions WHERE role_id = $1 ORDER BY permission")
+            .bind(id)
+            .fetch_all(&mut *tx)
+            .await
+            .map_err(db)?
+            .iter()
+            .map(|g| GrantRow {
+                permission: g.get("permission"),
+                scope: g.get("scope"),
+            })
+            .collect();
+    let grants = if is_system { admin_grants() } else { rows_to_grants(&rows) };
+    Ok((is_system, grants))
+}
+
 async fn free_copy_name(conn: &mut PgConnection, base: &str) -> Result<String, AppError> {
     for i in 1..100 {
         let name = if i == 1 {
@@ -197,6 +235,8 @@ async fn insert_role(
     grants: &Grants,
 ) -> Result<i32, AppError> {
     let mut tx = conn.begin().await.map_err(db)?;
+    lock_role_name(&mut tx).await?;
+    assert_name_free(&mut tx, name, None).await?;
     let id: Result<i32, sqlx::Error> = sqlx::query_scalar(
         "INSERT INTO roles (name, description, is_system, updated_at) VALUES ($1, $2, false, now()) RETURNING id",
     )
@@ -284,6 +324,10 @@ pub async fn update(
         None => role.summary.description.clone(),
     };
     let mut tx = conn.begin().await.map_err(db)?;
+    lock_role_name(&mut tx).await?;
+    if name.to_lowercase() != role.summary.name.to_lowercase() {
+        assert_name_free(&mut tx, &name, Some(id)).await?;
+    }
     let res = sqlx::query("UPDATE roles SET name = $2, description = $3, updated_at = now() WHERE id = $1")
         .bind(id)
         .bind(&name)
@@ -336,6 +380,10 @@ pub async fn set_grants(
     let next = parse_grants_input(input)?;
     assert_can_edit_role(actor, role.summary.is_system, &next)?;
     let mut tx = conn.begin().await.map_err(db)?;
+    // Đọc lại dưới khoá dòng: quyền/cờ hệ thống có thể đã đổi từ lúc kiểm ngoài giao dịch.
+    let (is_system, before) = lock_role(&mut tx, id).await?;
+    assert_can_modify_existing_role(actor, is_system, &before)?;
+    assert_can_edit_role(actor, is_system, &next)?;
     sqlx::query("DELETE FROM role_permissions WHERE role_id = $1")
         .bind(id)
         .execute(&mut *tx)
@@ -384,6 +432,22 @@ pub async fn remove(conn: &mut PgConnection, ctx: &Ctx, actor: &Actor, id: i32) 
         .execute(&mut *tx)
         .await
         .map_err(db)?;
+    // Kiểm lại dưới khoá dòng (gán người vào vai trò chiếm khoá khoá ngoại nên bị tuần tự hoá với đây).
+    let (is_system, grants) = lock_role(&mut tx, id).await?;
+    if is_system {
+        return Err(conflict("Không thể xoá vai trò hệ thống"));
+    }
+    assert_can_modify_existing_role(actor, false, &grants)?;
+    let members: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM user_roles ur JOIN users u ON u.id = ur.user_id AND u.deleted_at IS NULL WHERE ur.role_id = $1",
+    )
+    .bind(id)
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(db)?;
+    if members > 0 {
+        return Err(conflict(format!("Không thể xoá vai trò đang có {members} người giữ")));
+    }
     sqlx::query("UPDATE user_invitations SET revoked_at = now() WHERE role_id = $1 AND accepted_at IS NULL AND revoked_at IS NULL")
         .bind(id)
         .execute(&mut *tx)

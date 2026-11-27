@@ -72,6 +72,12 @@ fn grants_rule(v: Option<&Value>, out: &mut Vec<String>) -> Option<Map<String, V
     }
 }
 
+/// Tên vai trò được cắt khoảng trắng khi lưu nên độ dài tối thiểu tính SAU khi cắt (tên toàn dấu cách không lọt qua
+/// `MinLength`); không phải chuỗi thì giữ nguyên để báo lỗi kiểu như cũ.
+fn trimmed(v: Option<&Value>) -> Option<Value> {
+    v.map(|x| x.as_str().map_or_else(|| x.clone(), |s| Value::String(s.trim().to_owned())))
+}
+
 const NAME_MIN: &str = "Tên vai trò tối thiểu 2 ký tự";
 const NAME_MAX: &str = "Tên vai trò tối đa 80 ký tự";
 
@@ -86,7 +92,7 @@ pub struct CreateRole {
 pub fn validate_create_role(v: &Value) -> Result<CreateRole, HttpError> {
     let b = body(v);
     let mut errors = Vec::new();
-    text_rule("name", b.get("name"), 2, 80, NAME_MIN, NAME_MAX, &mut errors);
+    text_rule("name", trimmed(b.get("name")).as_ref(), 2, 80, NAME_MIN, NAME_MAX, &mut errors);
     description_rule(b.get("description"), &mut errors);
     let grants = grants_rule(b.get("grants"), &mut errors);
     if !errors.is_empty() {
@@ -111,7 +117,7 @@ pub fn validate_update_role(v: &Value) -> Result<UpdateRole, HttpError> {
     let b = body(v);
     let mut errors = Vec::new();
     if b.contains_key("name") {
-        text_rule("name", b.get("name"), 2, 80, NAME_MIN, NAME_MAX, &mut errors);
+        text_rule("name", trimmed(b.get("name")).as_ref(), 2, 80, NAME_MIN, NAME_MAX, &mut errors);
     }
     description_rule(b.get("description"), &mut errors);
     if !errors.is_empty() {
@@ -186,10 +192,27 @@ pub struct AuditQuery {
     pub limit: Option<i64>,
 }
 
+/// `Number(chuỗi)` của JS: rỗng là 0; `0x`/`0o`/`0b` là số nguyên hệ 16/8/2 (không dấu); còn lại là số thập phân.
+fn js_number(t: &str) -> Option<f64> {
+    if t.is_empty() {
+        return Some(0.0);
+    }
+    let radix = match t.get(..2) {
+        Some("0x" | "0X") => 16,
+        Some("0o" | "0O") => 8,
+        Some("0b" | "0B") => 2,
+        _ => return t.parse().ok(),
+    };
+    let digits = &t[2..];
+    if digits.starts_with('+') {
+        return None;
+    }
+    u64::from_str_radix(digits, radix).ok().map(|n| n as f64)
+}
+
 /// `Number(chuỗi)` của `@Type(() => Number)`: rỗng là 0, rác là NaN; trả `None` nếu không phải số nguyên.
 fn query_int(raw: &str) -> Option<i64> {
-    let t = raw.trim();
-    let n: f64 = if t.is_empty() { 0.0 } else { t.parse().ok()? };
+    let n = js_number(raw.trim())?;
     (n.is_finite() && n.fract() == 0.0 && n.abs() <= 9_007_199_254_740_991.0).then_some(n as i64)
 }
 
@@ -246,4 +269,35 @@ pub fn validate_audit_query(
         page,
         limit,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn query_int_hieu_hex_octal_nhi_phan_nhu_js() {
+        assert_eq!(query_int("0x10"), Some(16));
+        assert_eq!(query_int(" 0XfF "), Some(255));
+        assert_eq!(query_int("0o17"), Some(15));
+        assert_eq!(query_int("0b101"), Some(5));
+        assert_eq!(query_int(""), Some(0));
+        assert_eq!(query_int("12"), Some(12));
+        assert_eq!(query_int("1e3"), Some(1000));
+        assert_eq!(query_int("0x"), None);
+        assert_eq!(query_int("0xZZ"), None);
+        assert_eq!(query_int("0x+1"), None);
+        assert_eq!(query_int("1.5"), None);
+        assert_eq!(query_int("abc"), None);
+    }
+
+    #[test]
+    fn ten_vai_tro_cat_khoang_trang_truoc_khi_kiem_do_dai_toi_thieu() {
+        assert!(validate_create_role(&json!({"name": "   ", "grants": {}})).is_err());
+        assert!(validate_create_role(&json!({"name": " a ", "grants": {}})).is_err());
+        assert!(validate_create_role(&json!({"name": " ab ", "grants": {}})).is_ok());
+        assert!(validate_update_role(&json!({"name": "  "})).is_err());
+        assert!(validate_update_role(&json!({"name": " ab "})).is_ok());
+    }
 }

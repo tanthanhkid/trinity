@@ -10,6 +10,13 @@ use sqlx::types::chrono::{DateTime, Utc};
 use trinity_db::platform::Platform;
 use trinity_db::{CompanyRef, Db, DbConfig};
 
+/// Migration tạo bảng `channel_events`: bản tối thiểu để `resume` chạy được.
+const CHANNEL_EVENTS_MIGRATION: &str = "0020_channel_guard";
+
+/// Khoá advisory (khoá đôi với id công ty) tuần tự hoá đọc-rồi-ghi của `resume`: hai lệnh chạy cùng lúc không ghi hai
+/// dòng `auto_resume`.
+const RESUME_LOCK: i32 = 726_354_032;
+
 #[derive(Debug, Args)]
 pub struct ChannelLockArgs {
     #[command(subcommand)]
@@ -82,6 +89,9 @@ async fn run_inner(action: Action) -> Result<ExitCode, String> {
     })
     .map_err(|e| e.to_string())?;
     cfg.pool_size = 2;
+    // Bản Node (`runWithCompany`) không có cổng migrate: `resume` chỉ cần bảng `channel_events` (migration 0020), nên
+    // công ty đang chờ nâng cấp lên bản mới nhất vẫn mở lại được kênh. Hạ cổng xuống đúng migration đó.
+    cfg.required_migration = CHANNEL_EVENTS_MIGRATION.to_owned();
     let db = Db::connect(&cfg).await.map_err(|e| e.to_string())?;
     let platform = Platform::new(&db, std::env::var("DEFAULT_COMPANY_NAME").ok().as_deref());
     let code = exec(&db, &platform, action).await;
@@ -152,17 +162,23 @@ async fn set(platform: &Platform, id: i64, lock: bool, reason: &str) -> Result<E
 /// Kết thúc sớm lần tạm dừng tự động còn hiệu lực. Chỉ một lần tạm dừng còn ở tương lai: lần đã hết hạn thì đã xong, không có gì
 /// để mở lại. `true` ⇒ đã ghi `auto_resume`.
 async fn resume(db: &Db, company: CompanyRef) -> Result<bool, String> {
-    let mut conn = db
+    let mut tx = db
         .tenant(company)
         .await
         .map_err(|e| e.to_string())?
-        .acquire()
+        .begin()
+        .await
+        .map_err(|e| e.to_string())?;
+    sqlx::query("SELECT pg_advisory_xact_lock($1, $2)")
+        .bind(RESUME_LOCK)
+        .bind(company.id())
+        .execute(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
     let last: Option<(String, Option<String>)> = sqlx::query_as(
         "SELECT kind, meta ->> 'until' FROM channel_events WHERE kind IN ('auto_pause', 'auto_resume') ORDER BY id DESC LIMIT 1",
     )
-    .fetch_optional(&mut *conn)
+    .fetch_optional(&mut *tx)
     .await
     .map_err(|e| e.to_string())?;
     let Some((kind, until)) = last else { return Ok(false) };
@@ -177,8 +193,9 @@ async fn resume(db: &Db, company: CompanyRef) -> Result<bool, String> {
     sqlx::query(
         "INSERT INTO channel_events (kind, message, meta) VALUES ('auto_resume', 'Chủ nền tảng mở lại gửi tự động', '{}'::jsonb)",
     )
-    .execute(&mut *conn)
+    .execute(&mut *tx)
     .await
     .map_err(|e| e.to_string())?;
+    tx.commit().await.map_err(|e| e.to_string())?;
     Ok(true)
 }

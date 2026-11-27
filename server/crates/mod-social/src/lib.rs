@@ -12,7 +12,10 @@
 //! - [`chunked`]: tải video theo phần (X15a) để qua proxy Cloudflare giới hạn 100 MB.
 //! - [`drafts`], [`queue`], [`snippets`] (M55a): bài nháp, khung giờ hàng đợi hằng tuần (giờ Việt Nam), bộ hashtag và chữ ký.
 //!   `POST /social/drafts/:id/publish` chờ dịch vụ tạo bài của M54a.
-//! - [`routes`]: bảng route K14 (tài khoản, media, bài đăng M54a, 12 route M55a; bài lặp và CSV thuộc M55b).
+//! - [`recur`], [`recurrences`], [`dto_recur`], [`csv`], [`import`], [`ports`], [`adapters`] (M55b): bài lặp (daily/weekly/monthly, giờ Việt Nam,
+//!   tạo bài hẹn giờ theo từng lượt, chống trùng bằng khoá `recur:<id>:<ISO>`) và nhập CSV/danh sách dòng (xem trước + `plan_hash`,
+//!   409 khi dữ liệu đổi, từng dòng độc lập). Bài đăng đi qua cổng [`ports::PostsPort`] chờ M54a.
+//! - [`routes`]: bảng route K14 (tài khoản, media, bài đăng M54a, 12 route M55a, 8 route M55b).
 //!
 //! Token Fanpage mã hoá AES-256-GCM bằng `INTEGRATIONS_SECRET_KEY` (`trinity_integrations::webhooks::secret`), đúng như bản Node.
 //! "Làm mới token": token Page lấy từ user token dài hạn không hết hạn nên provider Facebook không có bước làm mới
@@ -21,16 +24,24 @@
 #![allow(clippy::result_large_err)]
 
 pub mod accounts;
+pub mod adapters;
 pub mod chunked;
 pub mod config;
+pub mod csv;
 pub mod drafts;
 pub mod dto;
+pub mod dto_recur;
 pub mod first_comment;
+pub mod import;
+pub mod limits;
 pub mod media;
 pub mod media_link;
+pub mod ports;
 pub mod posts;
 pub mod provider;
 pub mod queue;
+pub mod recur;
+pub mod recurrences;
 pub mod routes;
 pub mod snippets;
 pub mod state;

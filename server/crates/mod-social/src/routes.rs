@@ -1,6 +1,6 @@
 //! Bảng route của M53a (K14): mỗi route khai `Access` bắt buộc; so với `contracts/routes.json` ở test cuối file và ở
 //! `trinity check-routes`. `social.post` cho xem, `social.manage` cho liên kết/bật/gỡ kênh; callback OAuth công khai và xác thực
-//! bằng `state` ký HMAC. Media thuộc M53b; nháp, hàng đợi, mẫu chữ thuộc M55a; bài thuộc M54a, bài lặp và CSV thuộc M55b.
+//! bằng `state` ký HMAC. Media thuộc M53b; nháp, hàng đợi, mẫu chữ thuộc M55a; bài thuộc M54a, bài lặp và CSV thuộc M55b (8 route cuối bảng).
 
 use http::Method;
 use trinity_http::router::{Access, RouteSpec};
@@ -51,6 +51,15 @@ pub fn routes() -> Vec<RouteSpec> {
         r(Method::GET, "/api/v1/social/queue/slots", post, 200),
         r(Method::PUT, "/api/v1/social/queue/slots", post, 200),
         r(Method::GET, "/api/v1/social/queue/next", post, 200),
+        // Bài lặp và nhập CSV (M55b).
+        r(Method::POST, "/api/v1/social/posts/import/plan", post, 200),
+        r(Method::POST, "/api/v1/social/posts/import", post, 200),
+        r(Method::GET, "/api/v1/social/recurrences", post, 200),
+        r(Method::POST, "/api/v1/social/recurrences", post, 201),
+        r(Method::PATCH, "/api/v1/social/recurrences/:id", post, 200).param_pipes(ID),
+        r(Method::DELETE, "/api/v1/social/recurrences/:id", post, 204).param_pipes(ID),
+        r(Method::POST, "/api/v1/social/recurrences/:id/pause", post, 200).param_pipes(ID),
+        r(Method::POST, "/api/v1/social/recurrences/:id/resume", post, 200).param_pipes(ID),
     ]
 }
 
@@ -78,10 +87,10 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = routes();
-        assert_eq!(table.len(), 32);
+        assert_eq!(table.len(), 40);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 32);
+        assert_eq!(rep.declared, 40);
     }
 
     #[test]

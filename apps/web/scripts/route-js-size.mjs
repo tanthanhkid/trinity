@@ -16,7 +16,7 @@
  *   - `page_kb`: phần RIÊNG của trang (bỏ các chunk layout dùng chung) — chỗ thay đổi của từng màn hiện rõ.
  *
  * Bản `out/`: không có manifest, nên đọc thẳng HTML của từng trang — mọi `<script src>` / `<link rel=preload as=script>` trỏ
- * `/_next/static/**.js` là chunk nạp ngay (cùng định nghĩa "tải lần đầu"). Route động là trang giữ chỗ `_` (`contacts/_.html`)
+ * `/_next/static/**.js` là chunk nạp ngay (trừ `<script nomodule>`, polyfill chỉ cho trình duyệt cũ) (cùng định nghĩa "tải lần đầu"). Route động là trang giữ chỗ `_` (`contacts/_.html`)
  * và được gọi bằng tên của ngân sách (`/contacts/[id]`) khi khớp. `page_kb` = chunk chỉ riêng trang đó dùng.
  */
 import { readFileSync, readdirSync, existsSync, writeFileSync, appendFileSync } from 'node:fs'
@@ -75,8 +75,9 @@ function rowsFromOut() {
     }
   }
   walk(outDir)
+  // Bỏ `<script nomodule>` (polyfill ~39 kB gzip): trình duyệt hiện đại không tải; bản đo `.next` cũng không tính nó.
   const chunksOf = (html) =>
-    new Set([...html.matchAll(/["'(]\/(_next\/static\/[^"'()\s]+?\.js)(?=[?"'()\s])/g)].map((m) => m[1]))
+    new Set([...html.replace(/<script\b[^>]*\bnoModule\b[^>]*>(?:\s*<\/script>)?/gi, '').matchAll(/["'(]\/(_next\/static\/[^"'()\s]+?\.js)(?=[?"'()\s])/g)].map((m) => m[1]))
   const perRoute = []
   for (const file of pages) {
     const rel = relative(outDir, file).split(sep).join('/').replace(/\.html$/, '')

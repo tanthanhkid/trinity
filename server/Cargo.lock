@@ -2397,6 +2397,7 @@ dependencies = [
  "hmac",
  "http",
  "mod-channel-guard",
+ "mod-public-api",
  "regex",
  "reqwest",
  "rustls",

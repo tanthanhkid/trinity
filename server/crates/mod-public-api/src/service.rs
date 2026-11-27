@@ -81,6 +81,8 @@ pub struct NewContact<'a> {
     pub reminder_notes: Option<&'a str>,
     /// Id Zalo của khách (webhook Zalo OA tạo khách mới).
     pub zalo_account: Option<&'a str>,
+    /// Dự án của khách (Lead Ads / Messenger lấy từ Page); `None` = không gắn.
+    pub project_id: Option<i32>,
 }
 
 /// LÕI tạo khách của bên thứ ba (`createContactInTx`): gán `assigned_to = owner`, kế thừa `team_id` của owner, ghi outbox
@@ -92,8 +94,8 @@ pub async fn create_contact_in_tx(
     origin: &str,
 ) -> R<(i32, DateTime<Utc>)> {
     let (id, created): (i32, Timestamp) = sqlx::query_as(
-        "INSERT INTO contacts (phone, full_name, source_id, email, job_title, reminder_notes, zalo_account, assigned_to, team_id, updated_at) \
-         VALUES ($1, $2, $3, $4, $5, $6, $9, $7, $8, now()) RETURNING id, created_at",
+        "INSERT INTO contacts (phone, full_name, source_id, email, job_title, reminder_notes, zalo_account, assigned_to, team_id, project_id, updated_at) \
+         VALUES ($1, $2, $3, $4, $5, $6, $9, $7, $8, $10, now()) RETURNING id, created_at",
     )
     .bind(c.phone)
     .bind(c.full_name)
@@ -104,6 +106,7 @@ pub async fn create_contact_in_tx(
     .bind(owner.id)
     .bind(owner.team_id)
     .bind(c.zalo_account)
+    .bind(c.project_id)
     .fetch_one(&mut *conn)
     .await
     .map_err(db)?;
@@ -162,6 +165,7 @@ pub async fn create_contact(ctx: &PublicCtx, key: &KeyInfo, dto: &Map<String, Va
             job_title: job.as_deref(),
             reminder_notes: notes.as_deref(),
             zalo_account: None,
+            project_id: None,
         },
         &owner,
         "public_api",
@@ -355,6 +359,7 @@ pub async fn resolve_contact(ctx: &PublicCtx, a: &Actor, dto: &Map<String, Value
             job_title: None,
             reminder_notes: None,
             zalo_account: None,
+            project_id: None,
         },
         &Owner {
             id: a.user_id,

@@ -2712,7 +2712,9 @@ name = "mod-social"
 version = "0.3.0"
 dependencies = [
  "base64 0.23.1",
+ "bytes",
  "chrono",
+ "futures-util",
  "hmac",
  "http",
  "mod-facebook",
@@ -2723,11 +2725,14 @@ dependencies = [
  "sqlx",
  "subtle",
  "tokio",
+ "tokio-util",
  "tracing",
  "trinity-db",
  "trinity-http",
  "trinity-integrations",
  "trinity-kernel",
+ "trinity-storage",
+ "uuid",
  "wiremock",
 ]
 

@@ -679,7 +679,9 @@ async fn go_vai_tro_quan_tri_cua_nguoi_da_khoa_khong_tinh_la_quan_tri_hoat_dong(
     let mut c = env.t.acquire().await.unwrap();
     // Người 5 bị khoá: Quản trị hoạt động duy nhất còn lại là người 1, nhưng gỡ vai trò của 5 vẫn được phép.
     exec(&mut c, "UPDATE users SET status = 'locked' WHERE id = 5").await;
-    let r = roles::set_user_roles(&mut c, &env.ctx, &admin(1), 5, &[]).await.unwrap();
+    let r = roles::set_user_roles(&mut c, &env.ctx, &admin(1), 5, &[])
+        .await
+        .unwrap();
     assert!(r.roles.is_empty());
     // Còn đúng một Quản trị hoạt động (1): vẫn không tự gỡ mình được.
     expect_err(
@@ -704,13 +706,24 @@ async fn xoa_vai_tro_kiem_lai_nguoi_giu_trong_giao_dich_va_dat_ten_khong_trung_d
     let (t1, t2) = (env.t.clone(), env.t.clone());
     let h1 = tokio::spawn(async move {
         let mut c = t1.acquire().await.unwrap();
-        roles::create(&mut c, &admin(1), &create_input("Song song", json!({}))).await.map(drop)
+        roles::create(&mut c, &admin(1), &create_input("Song song", json!({})))
+            .await
+            .map(drop)
     });
     let h2 = tokio::spawn(async move {
         let mut c = t2.acquire().await.unwrap();
-        roles::create(&mut c, &admin(1), &create_input("SONG SONG", json!({}))).await.map(drop)
+        roles::create(&mut c, &admin(1), &create_input("SONG SONG", json!({})))
+            .await
+            .map(drop)
     });
     let (r1, r2) = (h1.await.unwrap(), h2.await.unwrap());
-    assert_eq!([r1.is_ok(), r2.is_ok()].iter().filter(|x| **x).count(), 1, "{r1:?} / {r2:?}");
-    assert_eq!(count(&env, "SELECT count(*) FROM roles WHERE lower(name) = 'song song'").await, 1);
+    assert_eq!(
+        [r1.is_ok(), r2.is_ok()].iter().filter(|x| **x).count(),
+        1,
+        "{r1:?} / {r2:?}"
+    );
+    assert_eq!(
+        count(&env, "SELECT count(*) FROM roles WHERE lower(name) = 'song song'").await,
+        1
+    );
 }

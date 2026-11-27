@@ -200,7 +200,11 @@ async fn lock_role(tx: &mut PgConnection, id: i32) -> Result<(bool, Grants), App
                 scope: g.get("scope"),
             })
             .collect();
-    let grants = if is_system { admin_grants() } else { rows_to_grants(&rows) };
+    let grants = if is_system {
+        admin_grants()
+    } else {
+        rows_to_grants(&rows)
+    };
     Ok((is_system, grants))
 }
 

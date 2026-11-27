@@ -75,7 +75,10 @@ fn grants_rule(v: Option<&Value>, out: &mut Vec<String>) -> Option<Map<String, V
 /// Tên vai trò được cắt khoảng trắng khi lưu nên độ dài tối thiểu tính SAU khi cắt (tên toàn dấu cách không lọt qua
 /// `MinLength`); không phải chuỗi thì giữ nguyên để báo lỗi kiểu như cũ.
 fn trimmed(v: Option<&Value>) -> Option<Value> {
-    v.map(|x| x.as_str().map_or_else(|| x.clone(), |s| Value::String(s.trim().to_owned())))
+    v.map(|x| {
+        x.as_str()
+            .map_or_else(|| x.clone(), |s| Value::String(s.trim().to_owned()))
+    })
 }
 
 const NAME_MIN: &str = "Tên vai trò tối thiểu 2 ký tự";
@@ -92,7 +95,15 @@ pub struct CreateRole {
 pub fn validate_create_role(v: &Value) -> Result<CreateRole, HttpError> {
     let b = body(v);
     let mut errors = Vec::new();
-    text_rule("name", trimmed(b.get("name")).as_ref(), 2, 80, NAME_MIN, NAME_MAX, &mut errors);
+    text_rule(
+        "name",
+        trimmed(b.get("name")).as_ref(),
+        2,
+        80,
+        NAME_MIN,
+        NAME_MAX,
+        &mut errors,
+    );
     description_rule(b.get("description"), &mut errors);
     let grants = grants_rule(b.get("grants"), &mut errors);
     if !errors.is_empty() {
@@ -117,7 +128,15 @@ pub fn validate_update_role(v: &Value) -> Result<UpdateRole, HttpError> {
     let b = body(v);
     let mut errors = Vec::new();
     if b.contains_key("name") {
-        text_rule("name", trimmed(b.get("name")).as_ref(), 2, 80, NAME_MIN, NAME_MAX, &mut errors);
+        text_rule(
+            "name",
+            trimmed(b.get("name")).as_ref(),
+            2,
+            80,
+            NAME_MIN,
+            NAME_MAX,
+            &mut errors,
+        );
     }
     description_rule(b.get("description"), &mut errors);
     if !errors.is_empty() {

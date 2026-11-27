@@ -78,7 +78,9 @@ async fn load_signals(
     if ids.is_empty() {
         return Ok(Vec::new());
     }
-    let since = now - Duration::milliseconds((rules.interactions.window_days * 86_400_000.0) as i64);
+    let since = Duration::try_milliseconds((rules.interactions.window_days * 86_400_000.0) as i64)
+        .and_then(|d| now.checked_sub_signed(d))
+        .ok_or_else(|| AppError::internal(std::io::Error::other("window_days vượt phạm vi thời gian")))?;
     let contacts: Vec<ContactRow> = sqlx::query_as(
         "SELECT c.id, c.phone, c.product_id, c.created_at, so.value AS source_value, st.value AS stage_value
          FROM contacts c LEFT JOIN setting_options so ON so.id = c.source_id LEFT JOIN setting_options st ON st.id = c.stage_id
@@ -133,7 +135,11 @@ async fn load_signals(
                 last_activity_at: find_ts(&last, c.id),
                 last_response_at: find_ts(&resp, c.id),
                 interactions_in_window: recent.iter().find(|r| r.0 == c.id).map_or(0, |r| r.1),
-                ai_intent: intents.iter().find(|r| r.0 == c.id).map(|r| r.1),
+                ai_intent: intents
+                    .iter()
+                    .find(|r| r.0 == c.id)
+                    .map(|r| r.1)
+                    .filter(|v| v.is_finite()),
                 created_at: c.created_at.0,
             };
             (c.id, signals)
@@ -178,7 +184,19 @@ pub async fn consume_outbox(conn: &mut PgConnection, limit: i64, now: DateTime<U
         put_setting(conn, CURSOR_KEY, &max.unwrap_or(0).to_string(), None).await?;
         return Ok(0);
     };
-    let cursor: i64 = cursor.trim().parse().unwrap_or(0);
+    // Con trỏ hỏng ⇒ về sự kiện mới nhất hiện tại (không về 0, tránh chấm lại cả lịch sử outbox).
+    let cursor: i64 = match cursor.trim().parse() {
+        Ok(c) => c,
+        Err(_) => {
+            let max: Option<i64> = sqlx::query_scalar("SELECT max(id) FROM integration_events")
+                .fetch_one(&mut *conn)
+                .await
+                .map_err(db)?;
+            let max = max.unwrap_or(0);
+            put_setting(conn, CURSOR_KEY, &max.to_string(), None).await?;
+            return Ok(0);
+        }
+    };
     let events: Vec<(i64, String, String, String, JsonValue)> = sqlx::query_as(
         "SELECT id, resource, resource_id, event_type, payload FROM integration_events
          WHERE id > $1 AND resource IN ('contact', 'deal') ORDER BY id LIMIT $2",
@@ -199,7 +217,13 @@ pub async fn consume_outbox(conn: &mut PgConnection, limit: i64, now: DateTime<U
         let id = if resource == "contact" {
             resource_id.parse::<i64>().ok()
         } else {
-            payload.0.get("contact_id").and_then(Value::as_i64)
+            // Sự kiện deal mang khách ở `payload.deal.contact_id`; cũng nhận `payload.contact_id` ở cấp trên cùng.
+            payload
+                .0
+                .get("deal")
+                .and_then(|d| d.get("contact_id"))
+                .and_then(Value::as_i64)
+                .or_else(|| payload.0.get("contact_id").and_then(Value::as_i64))
         };
         if let Some(id) = id.and_then(|i| i32::try_from(i).ok()).filter(|i| *i > 0)
             && !ids.contains(&id)

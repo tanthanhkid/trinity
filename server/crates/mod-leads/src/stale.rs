@@ -360,10 +360,14 @@ pub async fn run_once<F: Features>(
     now: DateTime<Utc>,
     force: bool,
 ) -> Result<Run, AppError> {
-    let mut tx = db_.begin().await.map_err(AppError::internal)?;
-    if !features.enabled(&mut tx, "stale_reminders").await {
-        return Ok(skipped("org-flag-off"));
+    // Kiểm công tắc ngoài giao dịch (một lỗi đọc cờ không được làm hỏng giao dịch gửi, và không giữ khoá hàng khi cờ tắt).
+    {
+        let mut conn = db_.acquire().await.map_err(AppError::internal)?;
+        if !features.enabled(&mut conn, "stale_reminders").await {
+            return Ok(skipped("org-flag-off"));
+        }
     }
+    let mut tx = db_.begin().await.map_err(AppError::internal)?;
     let (hour, date) = vietnam_clock(now);
     let cfg = get_config(&mut tx).await?;
     if !force {

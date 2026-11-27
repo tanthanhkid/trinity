@@ -12,6 +12,8 @@ use serde_json::Value;
 use trinity_kernel::vi::trim_js;
 
 const DAY_MS: f64 = 86_400_000.0;
+/// Trần của `interactions.window_days` (10 năm): số lớn hơn làm tràn phép trừ thời gian.
+pub const MAX_WINDOW_DAYS: f64 = 3650.0;
 
 /// Số JS: nguyên thì ra số nguyên, còn lại giữ số thực.
 fn num_out<S: Serializer>(v: &f64, s: S) -> Result<S::Ok, S::Error> {
@@ -248,7 +250,7 @@ pub fn normalize_rules(raw: &Value) -> LeadScoringRules {
             window_days: if window == 0.0 {
                 d.interactions.window_days
             } else {
-                window
+                window.min(MAX_WINDOW_DAYS)
             },
             per_interaction: num(g("interactions", "per_interaction"), d.interactions.per_interaction),
             max_points: num(g("interactions", "max_points"), d.interactions.max_points),
@@ -399,7 +401,7 @@ pub fn score_lead(s: &LeadSignals, rules: &LeadScoringRules, now: DateTime<Utc>)
         },
     ];
     if rules.ai_intent.enabled
-        && let Some(intent) = s.ai_intent
+        && let Some(intent) = s.ai_intent.filter(|v| v.is_finite())
     {
         reasons.push(LeadReason {
             key: "ai_intent",
@@ -495,6 +497,8 @@ mod tests {
         assert_eq!(n.recency, d.recency);
         assert_eq!(n.response.actions, d.response.actions);
         assert_eq!(n.interactions.window_days, 30.0);
+        let big = normalize_rules(&json!({ "interactions": { "window_days": 1e18 } }));
+        assert_eq!(big.interactions.window_days, MAX_WINDOW_DAYS);
         assert_eq!(n.interactions.per_interaction, 2.0);
         assert_eq!(n.stage.points, map(&[("a", 3.0)]));
         assert!(!n.ai_intent.enabled);

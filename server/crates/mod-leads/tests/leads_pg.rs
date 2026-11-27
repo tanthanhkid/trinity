@@ -223,6 +223,41 @@ async fn cham_diem_quy_tac_tung_khach_outbox_va_job() {
         "không đọc lại sự kiện cũ"
     );
 
+    // Sự kiện deal: khách ở payload.deal.contact_id; con trỏ hỏng ⇒ về sự kiện mới nhất (không chấm lại lịch sử).
+    sqlx::query("UPDATE contacts SET lead_scored_at = now() WHERE id = $1")
+        .bind(fresh)
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO integration_events (event_type, resource, resource_id, payload, actor_user_id) VALUES ('deal.created', 'deal', '1', $1::text::jsonb, $2)")
+        .bind(json!({ "deal": { "contact_id": fresh } }).to_string())
+        .bind(a)
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE contacts SET lead_score = NULL, lead_scored_at = NULL WHERE id = $1")
+        .bind(fresh)
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    assert_eq!(lead::consume_outbox(&mut c, 500, now).await.unwrap(), 1);
+    assert!(
+        ts(&mut c, "SELECT lead_scored_at FROM contacts WHERE id = $1", fresh)
+            .await
+            .is_some(),
+        "deal.created chấm khách trong payload.deal"
+    );
+    sqlx::query("UPDATE settings SET value = 'hỏng' WHERE key = 'lead_scoring_outbox_cursor'")
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    assert_eq!(lead::consume_outbox(&mut c, 500, now).await.unwrap(), 0);
+    let fixed: String = sqlx::query_scalar("SELECT value FROM settings WHERE key = 'lead_scoring_outbox_cursor'")
+        .fetch_one(&mut *c)
+        .await
+        .unwrap();
+    assert!(fixed.parse::<i64>().unwrap() > 0, "con trỏ hỏng về max id hiện tại");
+
     // Job: cờ tổ chức tắt ⇒ bỏ qua; bật ⇒ chạy; khai báo job dựng được.
     let flags = Flags(AtomicBool::new(false));
     assert_eq!(

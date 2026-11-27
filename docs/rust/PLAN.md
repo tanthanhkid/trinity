@@ -1208,6 +1208,24 @@ network namespace với Rust nên đổi sang cổng nội bộ khác (`PORT=300
   `/api/v1/oauth/...` rồi đi Node (Node không có `/.well-known`); còn lại (`/api/build-id`, `/api/fe-logging`, trang) đi Next nếu cấu hình `web`, không thì Node.
   `dispatcher`: `client_ip_layer` một lần ở ngoài cùng; lớp CORS và mọi lớp khác của Rust chỉ nằm trong router thuộc Rust nên route của Node chỉ có CORS của
   Node. Đã nối vào `trinity serve` (`NODE_FALLBACK_URL`, `ListenerScheme` theo `TLS_MODE`); địa chỉ Next (`web`) đọc từ `WEB_UPSTREAM_URL` (không đặt thì `None`, mọi thứ rơi về Node).
+- **Đã làm ở K18** (`server/crates/trinity-http/src/web`): `WebService` phục vụ bản xuất tĩnh từ `WEB_DIR` (thư mục `out/`), bật bằng
+  `"web": "rust"` trong tệp sở hữu (mặc định `node`; `Ownership::web()`; `dispatch` đọc chủ này mỗi request nên `SIGHUP` bật hoặc lui
+  ngay, lui = `"web": "node"` thì trang lại chuyển tiếp sang Next như K17). Chỉ nhận GET/HEAD vào đường dẫn không thuộc `/api`,
+  `/notif-ws`, `/uploads`, `/docs`, `/.well-known`, `/health`, `/ready`, `/live`, `/internal`, `/metrics` (những đường này vẫn đi router
+  của Rust hoặc proxy sang Node); riêng `/api/build-id` do web nhận (trả `SystemConfig::build_id`). Chạy một mình (không tệp sở hữu,
+  không `NODE_FALLBACK_URL`) mà có `WEB_DIR` thì `web` là `rust` ngay. `nav.rs` là bản viết lại thuần của `proxy.ts` (bảng 18 ca trong test:
+  `/` theo cookie `access_token`/`has_session`, trang công khai, `matcher` loại `api`/`_next/static`/`_next/image`/`favicon.ico`/`uploads`/`logo`/`brand`
+  theo tiền tố thuần, `no-store` + `Pragma`, tên miền phụ `{slug}.{STORE_DOMAIN}` ⇒ trang `/s/_`, `/oauth/authorize` chưa đăng nhập ⇒
+  `/login?next=…`) cùng `/assistant` ⇒ `/settings?tab=integrations` (307). Chuyển hướng dùng `Location` tương đối. `assets.rs`: đoạn động thay bằng
+  `_` theo **cấu trúc thư mục** của lần build (tên thật trước, `_` sau, có quay lui; thử `tên`, `tên.html`, `tên/index.html`), nên bảng luật không viết
+  tay; từ chối `..`, `%2f`, `%5c`, NUL. Header: `/_next/static/` immutable 1 năm; svg/jpg/jpeg/png/webp/avif/ico/woff/woff2 một ngày + `stale-while-revalidate`;
+  HTML `no-store`; `X-Content-Type-Options: nosniff`; `/oauth/authorize` thêm `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`;
+  trang không có thì trả `404.html` (mã 404), tài nguyên thiếu trả 404 trơn. `inject.rs` (hợp đồng cho W02a): tên miền phụ chèn
+  `<meta name="store-slug" content="<slug>">`; `/privacy` và `/terms` chèn `<script id="trinity-site-config" type="application/json">` chứa đúng nội dung
+  `GET /api/v1/site-config` (có `legal.*` từ `LEGAL_*`), escape `<`, `>`, `&`, U+2028/9, cùng trước `</head>`; trang đọc khối này trước, lùi về `GET /site-config`.
+  **Lệch kế hoạch:** tệp nhúng vào binary (`rust-embed`) chưa làm, vì `rust-embed` chưa có trong `Cargo.lock` và phiên viết code không chạy `cargo`; bản này đọc
+  `WEB_DIR` trên đĩa (tìm và đọc tệp bằng `spawn_blocking`). Nhúng làm sau bằng một `WebAssets` khác cùng giao diện `find`. `/.well-known` và `/uploads` giữ đường K17 (Node)
+  cho tới khi Rust có handler. **Chờ:** W02a (chưa có `out/`, `apps/web/scripts` chưa có máy chủ tĩnh thử) để chạy Playwright smoke và tiêu chí "phục vụ `/privacy`".
 - **Shadow:** chỉ cho route có `safe_for_shadow = true` trong `routes.json` (mặc định `false`; bật từng route sau khi
   rà mã là thuần đọc). Sau khi đã trả response của Node, theo tỉ lệ lấy mẫu, Rust tính response của mình với ba hàng
   rào: (1) phiên DB chỉ đọc, đặt ở mức phiên khi lấy kết nối cho shadow (`default_transaction_read_only = on`), vì

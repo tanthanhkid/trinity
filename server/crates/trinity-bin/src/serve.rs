@@ -29,9 +29,11 @@ use trinity_http::edge::client_ip::{ClientIpResolver, NetProbe};
 use trinity_http::edge::cors::{CorsConfig, cors_layer};
 use trinity_http::router::{AccessDeps, ApiRouter, NamedGuard};
 use trinity_http::strangler::{
-    ListenerScheme, NodeProxy, OwnershipTable, ProxyTimeouts, dispatcher_with_shadow, initial_from_routes_env,
+    ListenerScheme, NodeProxy, OwnershipTable, ProxyTimeouts, dispatcher_full, initial_from_routes_env,
     spawn_sighup_reloader,
 };
+use trinity_http::web::{WebConfig, WebService};
+use trinity_kernel::ownership::Ownership;
 use trinity_kernel::config::{Config, TlsMode, process_env};
 use trinity_kernel::error::HttpError;
 use trinity_rbac::{PermissionService, RbacCache, ScopeService};
@@ -613,20 +615,43 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
     .with_scheme(scheme);
     // Không có tệp sở hữu và không đặt TRINITY_RUST_ROUTES: chạy localhost một mình, Rust nhận mọi route (không có Node để
     // chuyển tiếp). Đặt `NODE_FALLBACK_URL` hoặc tệp sở hữu để chạy chế độ lai.
-    let table = if config.ownership_file.is_none()
+    // Web tĩnh (K18): `WEB_DIR` trỏ tới `out/` của `next build` (output: export). Bật bằng `"web": "rust"` trong tệp sở hữu.
+    let web = config.var("WEB_DIR").map(|dir| {
+        Arc::new(WebService::new(WebConfig {
+            dir: dir.into(),
+            store_domain: env.get("STORE_DOMAIN").cloned(),
+            site_config: system_cfg.site_config().clone(),
+            build_id: system_cfg.build_id().to_owned(),
+        }))
+    });
+    let standalone = config.ownership_file.is_none()
         && env.get("TRINITY_RUST_ROUTES").is_none_or(|v| v.trim().is_empty())
-        && config.var("NODE_FALLBACK_URL").is_none()
-    {
+        && config.var("NODE_FALLBACK_URL").is_none();
+    let table = if standalone {
         tracing::info!("không có tệp sở hữu và NODE_FALLBACK_URL: Rust nhận mọi route");
-        Arc::new(OwnershipTable::fixed(
-            initial_from_routes_env(Some("/")).map_err(|e| e.to_string())?,
-        ))
+        // Chạy một mình: có WEB_DIR thì Rust phục vụ luôn trang web (không còn Next để chuyển tiếp).
+        let web_owner = if web.is_some() { "rust" } else { "node" };
+        let fixed = Ownership::parse(
+            &format!(r#"{{"routes": [{{"prefix": "/", "owner": "rust"}}], "web": "{web_owner}"}}"#),
+            "standalone",
+        )
+        .map_err(|e| e.to_string())?;
+        Arc::new(OwnershipTable::fixed(fixed))
     } else {
         table
     };
+    match (&web, table.current().web()) {
+        (Some(w), trinity_kernel::ownership::Owner::Rust) => {
+            tracing::info!("web tĩnh do Rust phục vụ từ {}", w.dir().display());
+        }
+        (None, trinity_kernel::ownership::Owner::Rust) => {
+            tracing::warn!("tệp sở hữu ghi web: rust nhưng chưa đặt WEB_DIR: trang vẫn chuyển tiếp sang Next/Node");
+        }
+        _ => {}
+    }
     let _reloader = spawn_sighup_reloader(table.clone()).map_err(|e| format!("SIGHUP: {e}"))?;
     let shadow = crate::shadow_report::init(lookup)?;
-    let app = dispatcher_with_shadow(table, rust, proxy, ip.clone(), shadow);
+    let app = dispatcher_full(table, rust, proxy, ip.clone(), shadow, web);
 
     // ── Mở cổng và chạy
     let tls = match &config.tls {

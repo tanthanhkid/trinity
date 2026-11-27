@@ -91,6 +91,15 @@ fn job_va_migrate() {
     assert_eq!(empty.route("GET", "/api/v1/settings").owner, Owner::Node);
 }
 
+#[test]
+fn web_mac_dinh_node_va_bat_bang_mot_dong() {
+    assert_eq!(Ownership::default().web(), Owner::Node);
+    assert_eq!(Ownership::parse("{}", "x").unwrap().web(), Owner::Node);
+    assert_eq!(Ownership::parse(r#"{"web": "rust"}"#, "x").unwrap().web(), Owner::Rust);
+    assert_eq!(Ownership::parse(r#"{"web": "node"}"#, "x").unwrap().web(), Owner::Node);
+    assert!(Ownership::parse(r#"{"web": "next"}"#, "x").is_err());
+}
+
 fn bad(text: &str) -> (usize, String) {
     match Ownership::parse(text, "own.json") {
         Err(OwnershipError::Invalid { line, message, .. }) => (line, message),

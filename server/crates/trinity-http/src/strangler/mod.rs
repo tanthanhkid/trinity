@@ -6,6 +6,8 @@
 //! - [`NodeProxy`]: truyền body dạng stream không đệm, giữ nguyên từng byte, nâng cấp WebSocket, timeout 15 giây
 //!   (120 giây cho `/export`). Xoá header IP do client gửi rồi chuyển IP đã xác định (K16) bằng `x-trinity-client-ip`
 //!   ký ngay lúc gửi header.
+//! - Trang web: khi tệp sở hữu ghi `"web": "rust"` và có [`WebService`](crate::web::WebService), Rust phục vụ bản xuất
+//!   tĩnh (K18) cho GET/HEAD vào đường dẫn không phải API; `"web": "node"` (mặc định) thì chuyển tiếp sang Next như trước.
 //! - [`dispatcher`]: ghép hai bên. Lớp CORS của Rust chỉ nằm trong `rust` (route thuộc Node tự thêm CORS), nên preflight
 //!   qua proxy chỉ có một `Access-Control-Allow-Origin`.
 
@@ -22,6 +24,7 @@ use axum::response::Response;
 use tower::ServiceExt;
 
 use crate::edge::client_ip::{ClientIpResolver, client_ip_layer};
+use crate::web::WebService;
 
 pub use proxy::{ListenerScheme, NodeProxy, ProxyTimeouts};
 pub use shadow::{Diff, Plan, Shadow, ShadowConfig, ShadowRoutes, clone_get};
@@ -33,6 +36,7 @@ struct Dispatch {
     rust: Router,
     proxy: NodeProxy,
     shadow: Option<Arc<Shadow>>,
+    web: Option<Arc<WebService>>,
 }
 
 /// Router ngoài cùng: xác định IP khách MỘT lần (K16) rồi chia theo bảng sở hữu. `rust` đã gắn sẵn mọi lớp của Rust
@@ -50,11 +54,25 @@ pub fn dispatcher_with_shadow(
     ip: Arc<ClientIpResolver>,
     shadow: Option<Arc<Shadow>>,
 ) -> Router {
+    dispatcher_full(table, rust, proxy, ip, shadow, None)
+}
+
+/// Như [`dispatcher_with_shadow`], thêm web tĩnh (K18). Có `web` mà tệp sở hữu không ghi `"web": "rust"` thì vô hiệu:
+/// mỗi request đọc chủ hiện tại của `web` từ bảng nên `SIGHUP` bật hoặc lui được ngay.
+pub fn dispatcher_full(
+    table: Arc<OwnershipTable>,
+    rust: Router,
+    proxy: NodeProxy,
+    ip: Arc<ClientIpResolver>,
+    shadow: Option<Arc<Shadow>>,
+    web: Option<Arc<WebService>>,
+) -> Router {
     let d = Arc::new(Dispatch {
         table,
         rust,
         proxy,
         shadow,
+        web,
     });
     Router::new()
         .fallback(dispatch)
@@ -63,7 +81,14 @@ pub fn dispatcher_with_shadow(
 }
 
 async fn dispatch(State(d): State<Arc<Dispatch>>, req: Request) -> Response {
-    let owner = d.table.current().route(req.method().as_str(), req.uri().path()).owner;
+    let current = d.table.current();
+    // Trang web (K18): chủ `web` là Rust thì phục vụ trước, kể cả khi bảng route giao `/` cho Rust (chạy một mình).
+    if let Some(web) = &d.web {
+        if current.web() == Owner::Rust && web.handles(req.method(), req.uri().path()) {
+            return web.serve(req).await;
+        }
+    }
+    let owner = current.route(req.method().as_str(), req.uri().path()).owner;
     match owner {
         Owner::Rust => match d.rust.clone().oneshot(req).await {
             Ok(resp) => resp,

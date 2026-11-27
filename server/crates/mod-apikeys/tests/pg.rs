@@ -322,7 +322,9 @@ async fn team() {
     // Tên thiếu hoặc người dẫn đầu ngoài i32 ⇒ 400 kèm câu như class-validator.
     let body = |v: Value| serde_json::to_string(&teams::parse_create(&v).unwrap_err().body()).unwrap();
     assert!(body(json!({"leadUserId": 2})).contains("name must be a string"));
-    assert!(body(json!({"name": "A", "leadUserId": 3_000_000_000_i64})).contains("leadUserId must be an integer number"));
+    assert!(
+        body(json!({"name": "A", "leadUserId": 3_000_000_000_i64})).contains("leadUserId must be an integer number")
+    );
     assert!(body(json!({"name": "A"})).contains("leadUserId must be an integer number"));
 }
 

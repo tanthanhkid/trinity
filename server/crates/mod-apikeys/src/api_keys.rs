@@ -423,11 +423,13 @@ pub async fn revoke(conn: &mut PgConnection, id: i32, revoked_by: i32) -> Result
             message: "Khoá đã bị thu hồi trước đó",
         }),
         Some(None) => {
-            sqlx::query("UPDATE api_keys SET revoked_at = now(), updated_at = now() WHERE id = $1 AND revoked_at IS NULL")
-                .bind(id)
-                .execute(conn)
-                .await
-                .map_err(db)?;
+            sqlx::query(
+                "UPDATE api_keys SET revoked_at = now(), updated_at = now() WHERE id = $1 AND revoked_at IS NULL",
+            )
+            .bind(id)
+            .execute(conn)
+            .await
+            .map_err(db)?;
             tracing::info!("ApiKey revoked id={id} by user {revoked_by}");
             Ok(Message {
                 message: "Đã thu hồi khoá",

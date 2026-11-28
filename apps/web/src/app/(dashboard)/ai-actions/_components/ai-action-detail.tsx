@@ -67,7 +67,7 @@ function ImpactBox({ action, d, mobile }: { action: AiAction; d: Decision; mobil
       {hit && <p className="text-[13px] leading-snug">Trinity đã lưu phiên bản cấu trúc trước khi đổi — có thể nhờ AI quay lui (restore_structure_version).</p>}
       {d.need && (
         <label className="block space-y-1.5">
-          <span className="text-sm font-semibold text-ax-ink">Gõ tên bảng <strong>{d.need}</strong> để xác nhận</span>
+          <span className="block text-sm font-semibold text-ax-ink">Gõ tên bảng <strong>{d.need}</strong> để xác nhận</span>
           <Input variant="ax" value={d.typed} onChange={(e) => d.setTyped(e.target.value)} aria-label={`Gõ tên bảng ${d.need} để xác nhận`} autoComplete="off" className={cn(!mobile && "max-w-80")} />
         </label>
       )}

@@ -652,7 +652,7 @@ async fn sample_data(tx: &mut TenantTx, admin_id: i32, password: &str) -> Result
             let Some(column_id) = column_id else { continue };
             sqlx::query(
                 "INSERT INTO kanban_cards (board_id, column_id, position, title, assignee_id, created_by, priority)
-                 VALUES ($1, $2, $3, $4, $5, $6, 'medium')",
+                 VALUES ($1, $2, $3, $4, $5, $6, 'normal')",
             )
             .bind(board)
             .bind(column_id)

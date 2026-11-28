@@ -31,7 +31,7 @@ function HeroCard({
     <section
       data-slot="hero-card"
       className={cn(
-        "relative isolate overflow-hidden border border-[var(--ax-hero-border)] ax-grad-hero text-[var(--ax-on-hero-ink)] shadow-[var(--ax-shadow-hero)]",
+        "relative isolate min-h-min overflow-hidden border border-[var(--ax-hero-border)] ax-grad-hero text-[var(--ax-on-hero-ink)] shadow-[var(--ax-shadow-hero)]",
         compact ? "rounded-[14px] px-3.5 py-3" : "rounded-[var(--ax-radius-hero)] p-6 max-sm:rounded-[var(--ax-radius-sheet)] max-sm:p-5",
         className,
       )}

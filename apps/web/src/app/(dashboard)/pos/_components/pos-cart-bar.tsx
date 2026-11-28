@@ -9,18 +9,18 @@ interface Props {
   cart: CartState
   busy: boolean
   onOpen: () => void
-  onSave: () => void
   onPay: () => void
 }
 
 /**
  * Thanh dính đáy của tab Bán hàng TRÊN ĐIỆN THOẠI — khối nhấn «Ánh xanh» bo 22 phía trên:
- * "N món · Tổng" (chạm mở giỏ) + "Thanh toán" (chính, cuối) + "Lưu đơn" (phụ). Chỉ là lớp tóm tắt —
+ * "N món · Tổng" (chạm mở giỏ) + "Thanh toán" (chính, cuối) — đúng thiết kế pos-mobile; "Lưu đơn" nằm trong giỏ
+ * (không đặt trên thanh: ba nút làm tổng tiền 7 chữ số bị cắt "2.990…"). Chỉ là lớp tóm tắt —
  * giỏ chi tiết vẫn là `PosCartPanel` (bảng trượt đáy), các nút gọi đúng handler của `PosSell`.
  * Giỏ rỗng: thanh gọn một nút "Chạm món để thêm" (vẫn mở được giỏ để chọn bàn/mang đi).
  * Dòng đệm cuối giữ nội dung danh sách không bị thanh che.
  */
-export function PosCartBar({ cart, busy, onOpen, onSave, onPay }: Props) {
+export function PosCartBar({ cart, busy, onOpen, onPay }: Props) {
   const count = cartCount(cart.lines)
   const shell = "fixed inset-x-0 bottom-0 z-40 rounded-t-[22px] border-t border-[var(--ax-hero-border)] ax-grad-hero text-white shadow-[var(--ax-shadow-hero)]"
   if (cart.lines.length === 0) {
@@ -47,7 +47,6 @@ export function PosCartBar({ cart, busy, onOpen, onSave, onPay }: Props) {
           <span className="ax-amount flex items-center gap-1 text-[13px] text-[var(--ax-on-hero-ink-2)]"><ShoppingCart className="size-3.5" aria-hidden />{count} món<ChevronUp className="size-3.5" aria-hidden /></span>
           <span className="ax-amount max-w-full truncate text-[28px] font-bold leading-[1.15] text-white">{vnd(cartTotals(cart).total)}</span>
         </button>
-        <Button type="button" variant="ax-on-hero-secondary" className="h-14 px-4" disabled={busy} onClick={onSave}>Lưu đơn</Button>
         <Button type="button" variant="ax-on-hero" className="h-14 px-5 text-[17px]" disabled={busy} onClick={onPay}>Thanh toán</Button>
       </div>
     </>

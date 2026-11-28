@@ -5,28 +5,22 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
-import { Send } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { MobileActionBar } from "@/components/app-shell/mobile-action-bar"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { AxField } from "@/components/ui/field"
+import { HeroCard } from "@/components/ui/hero-card"
+import { AX_INPUT_CLASS } from "@/components/ui/input"
+import { StickyActionBar } from "@/components/ui/sticky-action-bar"
+import { cn } from "@/lib/utils"
 import { autoMaskVnDate, parseVnDate, todayVn } from "@/lib/format"
 import {
   REQUEST_TYPE_LABEL,
+  useAttendanceRequests,
   useCreateRequest,
   useRequestConfig,
   type AttendanceRequestType,
 } from "@/hooks/use-attendance"
 import { errorMessage } from "@/lib/error-messages"
+import { quotaFor, quotaGroupOf, QUOTA_GROUP_LABEL } from "./attendance-board-utils"
 
 const REQUEST_TYPES = Object.entries(REQUEST_TYPE_LABEL) as [
   AttendanceRequestType,
@@ -89,15 +83,28 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>
 
-export function AttendanceRequestForm() {
+/**
+ * Form tạo đơn chấm công (thiết kế chamcong-mobile2): khối hạn mức tháng của loại đơn đang chọn,
+ * lưới chọn loại đơn, ngày, giờ bổ sung (quên chấm), lý do; nút «Gửi đơn» ở thanh dính đáy (điện thoại)
+ * / thanh nổi (desktop). Logic kiểm hợp lệ và API giữ nguyên.
+ */
+export function AttendanceRequestForm({
+  userId,
+  onSent,
+}: {
+  userId: number | undefined
+  /** Gọi sau khi gửi đơn thành công (đưa sang màn «Đơn đã gửi»). */
+  onSent?: (info: { typeLabel: string; dateDisplay: string }) => void
+}) {
   const { data: config } = useRequestConfig()
   const createRequest = useCreateRequest()
+  const mine = useAttendanceRequests({ page: 1, page_size: 100 })
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       work_date_display: "",
-      // type không có default — dùng undefined để Select hiện placeholder
+      // type không có default — nhóm chọn chưa có mục nào được đánh dấu
       type: undefined as unknown as AttendanceRequestType,
       check_in_time: "",
       check_out_time: "",
@@ -106,8 +113,10 @@ export function AttendanceRequestForm() {
   })
 
   const watchedType = form.watch("type")
+  const watchedDate = form.watch("work_date_display")
   const showCheckIn = NEEDS_CHECK_IN.includes(watchedType)
   const showCheckOut = NEEDS_CHECK_OUT.includes(watchedType)
+  const errors = form.formState.errors
 
   // Khi chọn loại "quên chấm vào/ra", prefill giờ từ config
   useEffect(() => {
@@ -121,6 +130,20 @@ export function AttendanceRequestForm() {
       form.setValue("check_out_time", config.default_check_out)
     }
   }, [watchedType, config?.default_check_out]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hạn mức tháng của loại đang chọn (tháng theo ngày đã nhập, mặc định tháng này).
+  const group = watchedType ? quotaGroupOf(watchedType) : null
+  const month = (parseVnDate(watchedDate ?? "") ?? todayVn()).slice(0, 7)
+  const quota =
+    group && userId !== undefined
+      ? quotaFor(userId, group, month, mine.data?.data ?? [], config)
+      : null
+  const quotaLabel = group ? QUOTA_GROUP_LABEL[group] : "Hạn mức tháng"
+  const quotaText = !group
+    ? "Chọn loại đơn"
+    : quota && quota.max !== null
+      ? `${quota.used} / ${quota.max} đơn`
+      : "Không giới hạn theo đơn"
 
   function onSubmit(values: FormValues) {
     const work_date = parseVnDate(values.work_date_display)
@@ -141,6 +164,10 @@ export function AttendanceRequestForm() {
       {
         onSuccess: () => {
           toast.success("Đã gửi đơn, chờ duyệt")
+          onSent?.({
+            typeLabel: REQUEST_TYPE_LABEL[values.type] ?? values.type,
+            dateDisplay: values.work_date_display,
+          })
           form.reset()
         },
         onError: (err: unknown) => {
@@ -151,179 +178,118 @@ export function AttendanceRequestForm() {
     )
   }
 
+  const future = !!watchedType && FUTURE_DATE_ALLOWED_TYPES.includes(watchedType)
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Tạo đơn chấm công</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {/* Thông tin hạn mức (informational) */}
-        {config && (
-          <div className="mb-5 rounded-md bg-muted px-4 py-3 text-sm text-muted-foreground">
-            <p>
-              Giờ vào mặc định:{" "}
-              <span className="font-medium text-foreground">{config.default_check_in}</span>
-              {" · "}Giờ ra mặc định:{" "}
-              <span className="font-medium text-foreground">{config.default_check_out}</span>
-            </p>
-            <p className="mt-0.5">
-              Hạn mức tháng — Quên chấm:{" "}
-              <span className="font-medium text-foreground">
-                {config.monthly_forgot_limit} đơn
-              </span>
-              {" · "}Đến muộn / Về sớm:{" "}
-              <span className="font-medium text-foreground">
-                {config.monthly_late_early_limit} đơn
-              </span>
-            </p>
-          </div>
-        )}
+    <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+      <HeroCard compact className="flex items-center justify-between gap-3 rounded-[18px] px-[18px] py-3.5">
+        <span className="text-sm text-[var(--ax-on-hero-ink-2)]">{quotaLabel}</span>
+        <span className="ax-amount text-[17px] font-semibold tracking-[-0.011em] text-white">{quotaText}</span>
+      </HeroCard>
+      {quota?.over && (
+        <p className="-mt-2 px-1 text-[13px] text-ax-warn">
+          Bạn đã dùng hết hạn mức tháng này; đơn mới có thể bị máy chủ từ chối.
+        </p>
+      )}
 
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-4"
-          noValidate
+      <div>
+        <div id="att-type-label" className="sr-only">
+          Loại đơn
+        </div>
+        <div
+          role="radiogroup"
+          aria-labelledby="att-type-label"
+          className="grid grid-cols-2 gap-2 sm:grid-cols-3"
         >
-          {/* Ngày làm việc */}
-          <div className="space-y-1.5">
-            <Label htmlFor="work_date_display">
-              Ngày làm việc <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="work_date_display"
-              placeholder="DD/MM/YYYY"
-              inputMode="numeric"
-              className="max-sm:h-11"
-              {...form.register("work_date_display")}
-              onChange={(e) => {
-                const masked = autoMaskVnDate(e.target.value)
-                form.setValue("work_date_display", masked, { shouldValidate: true })
-              }}
-            />
-            {form.formState.errors.work_date_display && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.work_date_display.message}
-              </p>
-            )}
-          </div>
+          {REQUEST_TYPES.map(([value, label]) => {
+            const on = watchedType === value
+            return (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => {
+                  form.setValue("type", value, { shouldValidate: true })
+                  // Re-check "Ngày làm việc" ngay khi đổi loại đơn — chuyển sang/khỏi "Nghỉ phép"
+                  // phải cập nhật lỗi ngày tương lai tức thì (không đợi tới submit).
+                  if (form.getValues("work_date_display")) void form.trigger("work_date_display")
+                }}
+                className={cn(
+                  "min-h-14 cursor-pointer rounded-[10px] border-2 border-transparent bg-ax-surface px-2 py-1.5 text-[15px] font-semibold text-ax-ink outline-none transition-colors",
+                  "shadow-[var(--ax-shadow-card)] hover:bg-ax-hover focus-visible:shadow-[var(--ax-focus-ring)]",
+                  on && "border-ax-primary bg-[var(--ax-grad-soft)] text-ax-primary-ink",
+                )}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+        {errors.type && (
+          <p role="alert" className="mt-2 px-1 text-sm text-ax-danger">
+            Chọn loại đơn trước.
+          </p>
+        )}
+      </div>
 
-          {/* Loại đơn */}
-          <div className="space-y-1.5">
-            <Label>
-              Loại đơn <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={watchedType}
-              onValueChange={(v) => {
-                form.setValue("type", v as AttendanceRequestType, {
-                  shouldValidate: true,
-                })
-                // Re-check "Ngày làm việc" ngay khi đổi loại đơn — chuyển
-                // sang/khỏi "Nghỉ phép" phải cập nhật lỗi ngày tương lai tức thì
-                // (không đợi tới submit).
-                if (form.getValues("work_date_display")) {
-                  void form.trigger("work_date_display")
-                }
-              }}
-            >
-              <SelectTrigger className="w-full max-sm:h-11">
-                <SelectValue placeholder="Chọn loại đơn">
-                  {(v) => {
-                    if (typeof v !== "string" || !v) return null
-                    return REQUEST_TYPE_LABEL[v] ?? null
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {REQUEST_TYPES.map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.type && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.type.message}
-              </p>
-            )}
-          </div>
+      <AxField
+        label="Ngày áp dụng"
+        placeholder="DD/MM/YYYY"
+        inputMode="numeric"
+        error={errors.work_date_display?.message}
+        hint={future ? "Nghỉ phép được chọn ngày sắp tới." : "Đơn này chỉ cho ngày đã qua, trước hôm nay."}
+        {...form.register("work_date_display")}
+        onChange={(e) => {
+          const masked = autoMaskVnDate(e.target.value)
+          form.setValue("work_date_display", masked, { shouldValidate: true })
+        }}
+      />
 
-          {/* Giờ vào — chỉ hiện khi loại = forgot_check_in */}
-          {showCheckIn && (
-            <div className="space-y-1.5">
-              <Label htmlFor="check_in_time">
-                Giờ vào xin bổ sung <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="check_in_time"
-                type="time"
-                className="max-sm:h-11"
-                {...form.register("check_in_time")}
-              />
-              {form.formState.errors.check_in_time && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.check_in_time.message}
-                </p>
-              )}
-            </div>
-          )}
+      {showCheckIn && (
+        <AxField
+          label="Giờ vào xin bổ sung"
+          type="time"
+          error={errors.check_in_time?.message}
+          hint="Điền sẵn theo ca. Sửa nếu giờ thật khác."
+          {...form.register("check_in_time")}
+        />
+      )}
+      {showCheckOut && (
+        <AxField
+          label="Giờ ra xin bổ sung"
+          type="time"
+          error={errors.check_out_time?.message}
+          hint="Điền sẵn theo ca. Sửa nếu giờ thật khác."
+          {...form.register("check_out_time")}
+        />
+      )}
 
-          {/* Giờ ra — chỉ hiện khi loại = forgot_check_out */}
-          {showCheckOut && (
-            <div className="space-y-1.5">
-              <Label htmlFor="check_out_time">
-                Giờ ra xin bổ sung <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="check_out_time"
-                type="time"
-                className="max-sm:h-11"
-                {...form.register("check_out_time")}
-              />
-              {form.formState.errors.check_out_time && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.check_out_time.message}
-                </p>
-              )}
-            </div>
-          )}
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="att-reason" className="ax-text-label">
+          Lý do
+        </label>
+        <textarea
+          id="att-reason"
+          placeholder="Một hai câu để quản lý duyệt nhanh"
+          rows={3}
+          aria-invalid={errors.reason ? true : undefined}
+          className={cn(AX_INPUT_CLASS, "h-auto min-h-24 resize-none py-3 max-sm:h-auto")}
+          {...form.register("reason")}
+        />
+        {errors.reason && (
+          <p role="alert" className="text-sm text-ax-danger">
+            {errors.reason.message}
+          </p>
+        )}
+      </div>
 
-          {/* Lý do */}
-          <div className="space-y-1.5">
-            <Label htmlFor="reason">
-              Lý do <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              id="reason"
-              placeholder="Nhập lý do..."
-              rows={3}
-              className="max-sm:min-h-24"
-              {...form.register("reason")}
-            />
-            {form.formState.errors.reason && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.reason.message}
-              </p>
-            )}
-          </div>
-
-          {/* <640px — "Gửi đơn" dính đáy, là nút chính DUY NHẤT của tab này
-              (thanh Chấm công vào/ra đã ẩn ở tab Tạo đơn). Desktop giữ outline như cũ;
-              trên điện thoại ép sang nền đặc bằng `max-sm:` để không đổi desktop. */}
-          <MobileActionBar className="sm:mb-0 sm:justify-start">
-            <Button
-              type="submit"
-              variant="outline"
-              disabled={createRequest.isPending}
-              className="w-full max-sm:border-transparent max-sm:bg-primary max-sm:text-primary-foreground max-sm:hover:bg-primary/80 max-sm:hover:text-primary-foreground sm:w-auto"
-            >
-              <Send className="mr-2 h-4 w-4" />
-              {createRequest.isPending ? "Đang gửi..." : "Gửi đơn"}
-            </Button>
-          </MobileActionBar>
-        </form>
-      </CardContent>
-    </Card>
+      {/* Dưới 1024px: thanh đáy điện thoại; từ 1024px: thanh nổi căn phải. */}
+      <StickyActionBar>
+        <Button type="submit" variant="ax-primary" size="ax-lg" className="lg:px-8" disabled={createRequest.isPending}>
+          {createRequest.isPending ? "Đang gửi..." : "Gửi đơn"}
+        </Button>
+      </StickyActionBar>
+    </form>
   )
 }

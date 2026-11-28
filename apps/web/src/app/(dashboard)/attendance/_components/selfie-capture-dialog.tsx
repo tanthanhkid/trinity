@@ -2,13 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AlertTriangle, Camera, Check, Loader2, RefreshCw } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { BottomSheet, BottomSheetContent, BottomSheetFooter } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 
 interface SelfieCaptureDialogProps {
@@ -150,17 +144,13 @@ export function SelfieCaptureDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[92dvh] overflow-y-auto max-w-[95vw] sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-
+    <BottomSheet open={open} onOpenChange={(o) => !o && onClose()}>
+      <BottomSheetContent title={title} description="Đưa mặt vào khung. Ảnh chỉ để quản lý đối chiếu khi cần.">
         {error ? (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
-            <AlertTriangle className="h-10 w-10 text-amber-500" />
-            <p className="text-sm text-muted-foreground">{error}</p>
-            <Button variant="outline" onClick={() => void startCamera()}>
+            <AlertTriangle className="h-10 w-10 text-ax-warn" />
+            <p className="text-sm text-ax-ink-2">{error}</p>
+            <Button variant="ax-secondary" size="ax" onClick={() => void startCamera()}>
               <RefreshCw className="mr-2 h-4 w-4" /> Thử lại
             </Button>
           </div>
@@ -170,19 +160,29 @@ export function SelfieCaptureDialog({
             <img
               src={previewUrl}
               alt="Ảnh selfie chấm công"
-              className="max-h-[60vh] w-auto rounded-lg border object-contain"
+              className="max-h-[50dvh] w-auto rounded-ax-card object-contain"
             />
           </div>
         ) : (
-          <div className="relative overflow-hidden rounded-lg border bg-black">
+          <div className="relative h-[300px] overflow-hidden rounded-ax-card bg-ax-ink">
             {/* mirror hiển thị cho tự nhiên; ảnh canvas lưu KHÔNG mirror (đúng chiều thật) */}
             <video
               ref={videoRef}
               playsInline
               muted
-              className="mx-auto max-h-[55vh] w-full object-contain"
+              className="mx-auto h-full w-full object-contain"
               style={{ transform: "scaleX(-1)" }}
             />
+            <svg
+              aria-hidden
+              viewBox="0 0 140 180"
+              fill="none"
+              className="pointer-events-none absolute top-1/2 left-1/2 h-[180px] w-[140px] -translate-x-1/2 -translate-y-1/2 stroke-[#8A8D96]"
+              strokeWidth="2.5"
+              strokeDasharray="6 6"
+            >
+              <ellipse cx="70" cy="90" rx="58" ry="78" />
+            </svg>
             {starting && (
               <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/50 text-sm text-white">
                 <Loader2 className="h-5 w-5 animate-spin" /> Đang mở camera…
@@ -191,43 +191,33 @@ export function SelfieCaptureDialog({
           </div>
         )}
 
-        <DialogFooter>
+        <BottomSheetFooter className="flex-col">
           {error ? (
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="ax-secondary" size="ax-lg" className="w-full" onClick={onClose}>
               Đóng
             </Button>
           ) : previewUrl ? (
             <>
-              <Button variant="outline" onClick={handleRetake} disabled={pending}>
-                <RefreshCw className="mr-2 h-4 w-4" /> Chụp lại
-              </Button>
-              <Button
-                onClick={handleConfirm}
-                disabled={pending}
-              >
-                {pending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Check className="mr-2 h-4 w-4" />
-                )}
+              <Button variant="ax-primary" size="ax-lg" className="w-full" onClick={handleConfirm} disabled={pending}>
+                {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                 Xác nhận &amp; chấm công
+              </Button>
+              <Button variant="ax-ghost" size="ax-lg" className="w-full" onClick={handleRetake} disabled={pending}>
+                <RefreshCw className="mr-2 h-4 w-4" /> Chụp lại
               </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={onClose}>
-                Huỷ
+              <Button variant="ax-primary" size="ax-lg" className="w-full" onClick={handleCapture} disabled={starting}>
+                <Camera className="mr-2 h-4 w-4" /> Chụp và chấm công
               </Button>
-              <Button
-                onClick={handleCapture}
-                disabled={starting}
-              >
-                <Camera className="mr-2 h-4 w-4" /> Chụp ảnh
+              <Button variant="ax-ghost" size="ax-lg" className="w-full" onClick={onClose}>
+                Huỷ
               </Button>
             </>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </BottomSheetFooter>
+      </BottomSheetContent>
+    </BottomSheet>
   )
 }

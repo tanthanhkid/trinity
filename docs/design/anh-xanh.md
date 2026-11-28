@@ -136,3 +136,11 @@ showUndoToast("Đã lưu số điện thoại", { onUndo: () => save(prev) })
 - Desktop (≥ 1024px): danh sách trái (`AiActionRow`) + chi tiết phải (`AiActionDetailPanel`, khối nhấn ở đầu chi tiết). Điện thoại: đầu trang là khối nhấn có bộ lọc, thẻ `AiActionCard`, bấm thẻ mở chi tiết toàn màn (`AiActionDetailScreen`, thanh đáy dính: Duyệt và thực hiện rồi Từ chối).
 - Chọn bố cục bằng `matchMedia("(min-width: 1024px)")` (render đúng MỘT bố cục, không nhân đôi DOM).
 - Nút Duyệt khi đổi cấu trúc cần gõ tên bảng dùng gradient đỏ 3 điểm của thiết kế (mobile2) đặt bằng `style`, vì `ax-danger` là nút viền trắng chữ đỏ.
+
+## Màn Bảng tin (`/newsfeed`)
+
+- Desktop ≥1024px: mục dọc bên trái (đếm số bài lấy từ danh sách «Tất cả») + cột bài 700px; thanh mời viết là `HeroCard`.
+  Mobile: khối xanh dính đầu trang chứa tab mục, bài full-bleed, nút nổi «Viết bài» mở màn soạn/sửa toàn màn hình.
+- Xoá bài: hỏi xác nhận (desktop) rồi ẩn bài và chờ 5 giây cho «Hoàn tác» mới gọi `DELETE /newsfeed/:id` (không đổi API;
+  rời trang giữa lúc chờ thì xoá ngay). Mobile xoá thẳng từ khay đáy / màn sửa, chỉ có Hoàn tác.
+- Lệch thiết kế: thời gian hiện tương đối («3 giờ trước») như code cũ; màn sửa mobile không có chọn mục vì API `PATCH` chỉ nhận nội dung.

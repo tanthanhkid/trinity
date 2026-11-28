@@ -32,10 +32,12 @@ test('đăng bài và xoá bài', async ({ page }) => {
   })
 
   await page.goto('/newsfeed')
+  // «Ánh xanh»: khung soạn mở từ thanh mời viết (desktop) hoặc nút «Viết bài» (mobile).
+  await page.getByRole('button', { name: /Viết gì đó cho cả công ty|Viết bài/ }).click()
   const editor = page.locator('[contenteditable="true"]').first()
   await editor.click()
   await page.keyboard.type(text)
-  await page.getByRole('button', { name: 'Đăng bài' }).click()
+  await page.getByRole('button', { name: /^(Đăng bài|Đăng)$/ }).click()
   await expect(page.getByText(text).first(), 'Bài vừa đăng phải hiện trong feed').toBeVisible({ timeout: 20_000 })
   await expect
     .poll(async () => {

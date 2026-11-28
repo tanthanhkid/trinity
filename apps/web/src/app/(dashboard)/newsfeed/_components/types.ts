@@ -13,6 +13,29 @@ export const CATEGORY_BADGE: Record<NewsfeedCategory, string> = {
   announcement: 'bg-amber-100 text-amber-700',
 }
 
+/** Chip mục theo «Ánh xanh»: thông báo = hổ phách, đào tạo = xanh, truyền thông = đỏ nhạt. */
+export const CATEGORY_CHIP: Record<
+  NewsfeedCategory,
+  { tone?: 'new' | 'consult'; style?: Record<string, string> }
+> = {
+  announcement: { tone: 'consult' },
+  training: { tone: 'new' },
+  pr: {
+    style: {
+      '--chip-bg': 'var(--ax-danger-soft)',
+      '--chip-ink': '#8a2d28',
+      '--chip-dot': 'var(--ax-danger)',
+    },
+  },
+}
+
+/** Chữ màu của nhãn mục trên mobile (đủ tương phản trên nền trắng). */
+export const CATEGORY_INK: Record<NewsfeedCategory, string> = {
+  announcement: 'text-[var(--ax-stage-consult-ink)]',
+  training: 'text-[var(--ax-stage-new-ink)]',
+  pr: 'text-[#8a2d28]',
+}
+
 export interface NewsfeedAuthor {
   id: number
   full_name: string

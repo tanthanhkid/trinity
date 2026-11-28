@@ -1,15 +1,15 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { CalendarClock, ImagePlus, Images, ListPlus, Loader2, Repeat, Save, Send, X } from "lucide-react"
+import { Check, ChevronLeft, ImagePlus, Images, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { useOffline } from "@/components/offline-banner"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
+import { AX_INPUT_CLASS, Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { buttonVariants } from "@/components/ui/button-variants"
 import { cn } from "@/lib/utils"
@@ -72,7 +72,7 @@ export function scheduleError(value: string, now = Date.now()): string | null {
 
 function Counter({ text, limit }: { text: string; limit: number }) {
   const over = text.length > limit
-  return <span className={over ? "text-destructive" : "text-muted-foreground"}>{text.length.toLocaleString("vi-VN")}/{limit.toLocaleString("vi-VN")}</span>
+  return <span className={over ? "font-medium text-[var(--ax-danger-ink)]" : "text-ax-ink-3"}>{text.length.toLocaleString("vi-VN")}/{limit.toLocaleString("vi-VN")}</span>
 }
 
 /** Soạn một lần, chọn kênh, sửa nội dung riêng từng kênh, đăng ngay. */
@@ -119,8 +119,9 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
   const [utm, setUtm] = useState<UtmChoice>(init?.utm ?? EMPTY_UTM_CHOICE)
   const slotsQ = useQueueSlots()
   const noSlots = slotsQ.isSuccess && slotsQ.data.length === 0
-  /** Cột phải: danh sách kênh hoặc bản xem trước theo kênh. */
-  const [side, setSide] = useState<"channels" | "preview">("channels")
+  /** Điện thoại: bước 1 «Bài mới» (nội dung + kênh) → bước 2 «Xem lại và đăng». Từ 1024px hiện đủ một màn, không dùng. */
+  const [step, setStep] = useState<"edit" | "review">("edit")
+  const [triedNext, setTriedNext] = useState(false)
   const nextQ = useQueueNext(1, useQueue || (slotsQ.data?.length ?? 0) > 0)
   const nextSlot = nextQ.data?.[0]
   /** "Lặp lại": tạo lịch lặp (không tạo bài ngay); máy chủ tự hẹn từng bài kế tiếp. */
@@ -226,6 +227,8 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
         setRecur(emptyRecurrence(todayVn()))
         prefilled.current = false
         setRefill((n) => n + 1)
+        setStep("edit")
+        setTriedNext(false)
         onCreated("recurring")
       },
       (err) => toast.error(getApiErrorMessage(err, "Không tạo được bài lặp lại")),
@@ -261,6 +264,8 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
         // Bài mới kế tiếp: điền lại chữ ký mặc định.
         prefilled.current = false
         setRefill((n) => n + 1)
+        setStep("edit")
+        setTriedNext(false)
         onCreated()
       },
       (err) => toast.error(getApiErrorMessage(err, "Không tạo được bài đăng")),
@@ -281,12 +286,12 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
 
   if (!isLoading && active.length === 0) {
     return (
-      <Card>
-        <CardContent className="space-y-3 p-6 text-sm">
-          <p>Chưa có kênh nào được liên kết. Liên kết Fanpage Facebook trước, rồi quay lại soạn bài.</p>
-          <Button variant="outline" onClick={onGoChannels}>Đến mục Kênh</Button>
-        </CardContent>
-      </Card>
+      <EmptyState
+        variant="ax"
+        title="Chưa có kênh nào được liên kết"
+        message="Liên kết Fanpage Facebook trước, rồi quay lại soạn bài."
+        action={<Button variant="ax-primary" size="ax" onClick={onGoChannels}>Đến mục Kênh</Button>}
+      />
     )
   }
 
@@ -308,25 +313,67 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
   const queueBlock = mode === "queue" && (noSlots || (nextQ.isSuccess && !nextSlot))
   const disabled = create.isPending || createRecurrence.isPending || saveDraft.isPending || publishDraft.isPending || uploading || chosen.length === 0 || empty || tooLong || Boolean(schedErr) || queueBlock || Boolean(recurErr)
 
-  return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <div className="space-y-1.5">
-            <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Viết nội dung bài đăng…" rows={8} className="min-h-48 text-[15px] leading-6" aria-label="Nội dung bài đăng" />
-            <div className="text-right text-xs"><Counter text={content} limit={Math.min(...(chosen.length ? chosen.map((a) => CAPTION_LIMITS[a.network]) : [CAPTION_LIMITS.facebook]))} /></div>
-          </div>
+  const whenText =
+    mode === "now" ? "Đăng ngay"
+    : mode === "queue" ? (nextSlot ? `Hàng đợi · ${queueWhenLabel(nextSlot)}` : "Hàng đợi")
+    : mode === "recurring" ? "Lặp lại"
+    : scheduleAt && !schedErr ? `Hẹn ${formatDateTime(new Date(scheduleAt).toISOString())}` : "Hẹn giờ"
+  const blocker = offline
+    ? "Đang mất mạng — chưa gửi được. Bài đang soạn vẫn giữ nguyên."
+    : uploading ? "Đang tải tệp lên…"
+    : empty ? "Chưa có nội dung."
+    : chosen.length === 0 ? "Chưa chọn kênh."
+    : tooLong ? "Nội dung vượt giới hạn của kênh."
+    : schedErr ?? recurErr ?? (queueBlock ? "Chưa có khung giờ trống." : null)
+  const pending = create.isPending || publishDraft.isPending || createRecurrence.isPending
+  const primaryLabel = mode === "recurring" ? "Tạo bài lặp lại" : mode === "queue" ? "Thêm vào hàng đợi" : mode === "schedule" ? "Hẹn đăng" : "Đăng ngay"
+  const tryNext = () => {
+    setTriedNext(true)
+    if (empty || chosen.length === 0) return
+    setStep("review")
+    window.scrollTo?.({ top: 0 })
+  }
+  const nextHint = triedNext ? (empty ? "Chưa có nội dung" : chosen.length === 0 ? "Chọn ít nhất một kênh" : null) : null
+  const SECTION = "rounded-ax-card border border-ax-line ax-grad-card shadow-ax-card max-lg:rounded-ax-sheet"
+  const H2 = "text-[15px] font-semibold tracking-[-0.011em] text-ax-ink max-lg:text-[11px] max-lg:font-semibold max-lg:tracking-[0.06em] max-lg:uppercase max-lg:text-ax-ink-3"
+  const edit = step === "edit"
 
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-2">
-              <label className={cn(buttonVariants({ variant: "outline" }), "cursor-pointer focus-within:ring-[3px] focus-within:ring-ring/20")}>
-                <ImagePlus className="size-4" /> Thêm ảnh / video
-                <input type="file" multiple accept={ACCEPT} className="sr-only" onChange={(e) => { addFiles(e.target.files); e.target.value = "" }} />
-              </label>
-              <Button type="button" variant="outline" onClick={() => setLibOpen(true)}>
-                <Images className="size-4" /> Chọn từ thư viện
-              </Button>
-              <SnippetMenu onInsert={(c) => setContent((x) => insertSnippet(x, c))} onManage={() => setSnippetsOpen(true)} />
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Điện thoại: thanh tiêu đề của hai bước (từ 1024px không hiện). */}
+      <div className="flex items-center justify-between lg:hidden" data-testid="social-mobile-head">
+        {edit ? (
+          <>
+            <h2 className="ax-text-subhead text-ax-ink">Bài mới</h2>
+            <Button type="button" variant="ax-ghost" size="ax" onClick={tryNext} className="font-bold text-ax-primary-ink">Tiếp</Button>
+          </>
+        ) : (
+          <>
+            <Button type="button" variant="ax-ghost" size="ax" onClick={() => setStep("edit")} aria-label="Quay lại sửa bài" className="-ml-2 text-ax-primary">
+              <ChevronLeft className="size-5" aria-hidden /> Sửa
+            </Button>
+            <h2 className="ax-text-subhead text-ax-ink">Xem lại và đăng</h2>
+            <span aria-hidden className="w-16" />
+          </>
+        )}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(380px,460px)] lg:items-start">
+        <div className="flex min-w-0 flex-col gap-4">
+          <section aria-label="Nội dung bài" className={cn("flex flex-col gap-3.5 border border-ax-line ax-grad-composer p-4 shadow-ax-card rounded-ax-card max-lg:rounded-ax-sheet lg:px-6 lg:py-[22px] focus-within:shadow-[var(--ax-field-focus)]", !edit && "max-lg:hidden")}>
+            <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Viết nội dung bài đăng. Xuống dòng, link và hashtag giữ nguyên." rows={8} className="min-h-48 resize-none border-0 bg-transparent p-0 text-base leading-[1.6] text-ax-ink shadow-none placeholder:text-[var(--ax-placeholder)] focus-visible:ring-0 max-lg:text-[17px] max-lg:leading-[1.55]" aria-label="Nội dung bài đăng" />
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ax-divider pt-3.5">
+              <div className="flex flex-wrap gap-2">
+                <label className={cn(buttonVariants({ variant: "ax-secondary", size: "ax" }), "cursor-pointer focus-within:shadow-[var(--ax-focus-ring)]")}>
+                  <ImagePlus className="size-4 text-ax-primary" aria-hidden /> Thêm ảnh / video
+                  <input type="file" multiple accept={ACCEPT} className="sr-only" onChange={(e) => { addFiles(e.target.files); e.target.value = "" }} />
+                </label>
+                <Button type="button" variant="ax-secondary" size="ax" onClick={() => setLibOpen(true)}>
+                  <Images className="size-4 text-ax-primary" aria-hidden /> Chọn từ thư viện
+                </Button>
+                <SnippetMenu onInsert={(c) => setContent((x) => insertSnippet(x, c))} onManage={() => setSnippetsOpen(true)} />
+              </div>
+              <div className="text-[13px] tabular-nums"><Counter text={content} limit={Math.min(...(chosen.length ? chosen.map((a) => CAPTION_LIMITS[a.network]) : [CAPTION_LIMITS.facebook]))} /></div>
             </div>
             <SocialSnippetsDialog open={snippetsOpen} onOpenChange={setSnippetsOpen} />
             <Dialog open={libOpen} onOpenChange={setLibOpen}>
@@ -339,73 +386,153 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
                   <SocialLibrary pick={{ selected: pickedKeys, onToggle: togglePick }} />
                 </div>
                 <DialogFooter>
-                  <Button type="button" onClick={() => setLibOpen(false)}>Xong{pickedKeys.length ? ` (${pickedKeys.length} tệp)` : ""}</Button>
+                  <Button type="button" variant="ax-primary" size="ax" onClick={() => setLibOpen(false)}>Xong{pickedKeys.length ? ` (${pickedKeys.length} tệp)` : ""}</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
             {uploads.length > 0 && (
-              <ul className="space-y-1 text-sm">
+              <ul className="flex flex-wrap gap-2.5">
                 {uploads.map((u) => (
-                  <li key={u.id} className="flex items-center gap-2">
-                    <span className="truncate">{u.name}</span>
-                    {u.error ? <span className="text-destructive">{u.error}</span> : u.item ? <span className="text-muted-foreground">{u.item.type === "video" ? "video" : "ảnh"}</span> : <span className="text-muted-foreground">{u.pct}%</span>}
-                    <button type="button" aria-label={`Bỏ ${u.name}`} className="ml-auto text-muted-foreground hover:text-foreground" onClick={() => setUploads((x) => x.filter((y) => y.id !== u.id))}>
-                      <X className="size-4" />
+                  <li key={u.id} className="relative flex min-h-24 w-28 flex-col justify-end gap-0.5 rounded-ax-field bg-ax-primary-soft p-2 text-[12px] font-semibold text-ax-primary-ink max-lg:w-24">
+                    <span className="truncate" title={u.name}>{u.name}</span>
+                    {u.error ? <span className="font-normal text-[var(--ax-danger-ink)]">{u.error}</span> : u.item ? <span className="font-normal text-ax-ink-2">{u.item.type === "video" ? "video" : "ảnh"}</span> : <span className="font-normal text-ax-ink-2 tabular-nums">{u.pct}%</span>}
+                    <button type="button" aria-label={`Bỏ ${u.name}`} className="absolute top-0 right-0 flex size-11 cursor-pointer items-start justify-end p-1.5 outline-none focus-visible:[&>span]:shadow-[var(--ax-focus-ring)]" onClick={() => setUploads((x) => x.filter((y) => y.id !== u.id))}>
+                      <span className="flex size-7 items-center justify-center rounded-full bg-ax-surface"><X className="size-3 text-ax-ink-2" aria-hidden /></span>
                     </button>
                   </li>
                 ))}
               </ul>
             )}
-          </div>
+          </section>
 
-          <div className="space-y-2">
-            <div role="radiogroup" aria-label="Thời điểm đăng" className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              {([["now", "Đăng ngay"], ["schedule", "Hẹn giờ"], ["queue", "Vào hàng đợi"], ["recurring", "Lặp lại"]] as const).map(([m, label]) => {
+          <section aria-label="Kênh đăng" className={cn(SECTION, "flex flex-col gap-3 px-6 py-5 max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none max-lg:[background:none]", !edit && "max-lg:hidden")}>
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className={H2}>Đăng lên</h2>
+              <div className="flex items-center gap-3 text-[13px] text-ax-ink-3">
+                <span>{chosen.length} kênh đã chọn</span>
+                {active.length > 1 && (
+                  <button type="button" className="relative cursor-pointer rounded font-semibold text-ax-primary outline-none hover:text-ax-primary-hover focus-visible:shadow-[var(--ax-focus-ring)] after:absolute after:-inset-x-1 after:top-1/2 after:h-11 after:-translate-y-1/2"
+                    onClick={() => setSelected(chosen.length === active.length ? [] : active.map((a) => a.id))}>
+                    {chosen.length === active.length ? "Bỏ chọn" : "Chọn tất cả"}
+                  </button>
+                )}
+              </div>
+            </div>
+            {isLoading && <Loader2 className="size-4 animate-spin text-ax-ink-3" aria-label="Đang tải kênh" />}
+            <div className="flex flex-col gap-2 lg:flex-row lg:flex-wrap lg:gap-2.5">
+              {accounts.map((a) => (
+                <label key={a.id} className={cn(
+                  "relative flex min-h-14 cursor-pointer items-center gap-3 rounded-ax-field border-[1.5px] border-ax-line bg-ax-surface py-1.5 pr-3.5 pl-2 transition-colors duration-150 hover:bg-ax-hover lg:min-h-[52px] lg:gap-2.5",
+                  "has-checked:border-ax-primary has-checked:bg-ax-primary-soft has-focus-visible:shadow-[var(--ax-focus-ring)] has-disabled:cursor-not-allowed has-disabled:opacity-60",
+                )}>
+                  <input type="checkbox" className="peer sr-only" checked={selected.includes(a.id)} disabled={a.status !== "active"} onChange={() => toggle(a)} />
+                  <NetworkMark network={a.network} />
+                  <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                    <span className="truncate text-base font-semibold text-ax-ink lg:text-sm">{a.name}</span>
+                    <span className="text-[13px] text-ax-ink-2 lg:text-[12px]">{NETWORK_META[a.network]?.label ?? a.network}</span>
+                  </span>
+                  <span aria-hidden className="ml-1.5 flex size-5 shrink-0 items-center justify-center rounded-md border-[1.5px] border-ax-field-border bg-ax-surface peer-checked:border-ax-primary peer-checked:bg-ax-primary peer-checked:[&>svg]:opacity-100 max-lg:size-6 max-lg:rounded-full">
+                    <Check className="size-3 text-white opacity-0 lg:size-3" strokeWidth={3.4} />
+                  </span>
+                </label>
+              ))}
+            </div>
+            {accounts.filter((a) => a.status !== "active").map((a) => (
+              <p key={a.id} className="text-[13px] text-ax-warn">{a.name}: kênh {STATUS_LABEL.reauth.toLowerCase()} — vào tab Kênh để kết nối lại</p>
+            ))}
+            {chosen.length > 0 && (
+              <div className="flex flex-col gap-3 border-t border-ax-divider pt-3">
+                {chosen.map((a) => {
+                  const own = Boolean(openCaption[a.id])
+                  const text = own ? captions[a.id] ?? "" : content
+                  return (
+                    <div key={a.id} className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 truncate text-sm text-ax-ink-2">{a.name}: <span className="text-ax-ink-3">{own ? "nội dung riêng" : "dùng nội dung chung"}</span></span>
+                        <Button type="button" variant="ax-ghost" size="ax" className="shrink-0 text-ax-primary" onClick={() => {
+                          setOpenCaption((o) => ({ ...o, [a.id]: !o[a.id] }))
+                          setCaptions((c) => ({ ...c, [a.id]: c[a.id] ?? content }))
+                        }}>
+                          {own ? "Dùng nội dung chung" : "Sửa nội dung riêng cho kênh này"}
+                        </Button>
+                      </div>
+                      {own && (
+                        <Textarea rows={4} value={captions[a.id] ?? ""} onChange={(e) => setCaptions((c) => ({ ...c, [a.id]: e.target.value }))} aria-label={`Nội dung riêng cho ${a.name}`} className={cn(AX_INPUT_CLASS, "h-auto max-sm:h-auto pointer-coarse:h-auto py-2.5 leading-normal")} />
+                      )}
+                      <div className="text-right text-[13px] tabular-nums"><Counter text={withUtm(text, a.network, utmCfg)} limit={CAPTION_LIMITS[a.network]} /></div>
+                      {a.network === "facebook" && (
+                        <div className="space-y-1">
+                          <Textarea rows={2} maxLength={8000} value={fbFirst[a.id] ?? ""} placeholder="Bình luận đầu tiên (tuỳ chọn) — vd link mua hàng, hashtag" aria-label={`Bình luận đầu tiên trên ${a.name}`}
+                            onChange={(e) => setFbFirst((x) => ({ ...x, [a.id]: e.target.value }))} className={cn(AX_INPUT_CLASS, "h-auto max-sm:h-auto pointer-coarse:h-auto py-2.5 leading-normal")} />
+                          <p className="text-[13px] text-ax-ink-2">Fanpage tự bình luận ngay dưới bài vừa đăng. Cần kết nối Fanpage này ở Cài đặt › Kết nối › Fanpage Facebook.</p>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+          <section aria-label="Thời điểm đăng" className={cn(SECTION, "flex flex-col gap-3.5 px-6 py-5 max-lg:p-0 max-lg:overflow-hidden", edit && "max-lg:hidden")}>
+            <h2 className={cn(H2, "max-lg:sr-only")}>Khi nào đăng</h2>
+            <div role="radiogroup" aria-label="Thời điểm đăng" className="grid grid-cols-2 gap-2 xl:grid-cols-4 max-lg:grid-cols-1 max-lg:gap-0 max-lg:divide-y max-lg:divide-ax-divider">
+              {([["now", "Đăng ngay", "Lên kênh trong ít giây"], ["schedule", "Hẹn giờ", "Chọn ngày và giờ"], ["queue", "Vào hàng đợi", "Tự lấy khung trống"], ["recurring", "Lặp lại", "Tự đăng theo lịch"]] as const).map(([m, label, sub]) => {
                 const off = m === "queue" && noSlots
                 return (
-                  <label key={m} className={cn("flex items-center gap-1.5 max-sm:min-h-11", off ? "cursor-not-allowed opacity-60" : "cursor-pointer")}>
-                    <input type="radio" name="social-when" value={m} checked={mode === m} disabled={off} onChange={() => pickMode(m)} className="size-4 accent-primary" />
-                    {label}
-                  </label>
+                  <div key={m} className={cn(
+                    "relative flex min-h-16 flex-col justify-center gap-0.5 rounded-ax-field border-[1.5px] border-ax-line bg-ax-surface px-3.5 py-2.5 transition-colors duration-150 hover:bg-ax-hover",
+                    "has-checked:border-ax-primary has-checked:ax-grad-soft has-focus-visible:shadow-[var(--ax-focus-ring)]",
+                    "max-lg:min-h-14 max-lg:flex-row max-lg:items-center max-lg:gap-3 max-lg:rounded-none max-lg:border-0 max-lg:px-4 max-lg:py-0",
+                    off && "cursor-not-allowed opacity-60",
+                  )}>
+                    <label className={cn("flex items-center gap-3 text-sm font-semibold text-ax-ink after:absolute after:inset-0 max-lg:text-base max-lg:font-medium", off ? "cursor-not-allowed" : "cursor-pointer", mode === m && "text-ax-primary-ink")}>
+                      <input type="radio" name="social-when" value={m} checked={mode === m} disabled={off} onChange={() => pickMode(m)} className="size-4 shrink-0 accent-[var(--ax-primary)] max-lg:size-[22px]" />
+                      {label}
+                    </label>
+                    <span className="pointer-events-none pl-7 text-[12px] text-ax-ink-2 max-lg:ml-auto max-lg:pl-0 max-lg:text-right max-lg:text-[13px] max-lg:text-ax-ink-3">{sub}</span>
+                  </div>
                 )
               })}
             </div>
             {noSlots && (
-              <p className="text-xs text-muted-foreground" data-testid="queue-hint">
+              <p className="text-[13px] text-ax-ink-2 max-lg:px-4" data-testid="queue-hint">
                 Chưa có khung giờ hàng đợi.{" "}
-                {onGoCalendar ? <button type="button" className="text-primary hover:underline" onClick={onGoCalendar}>Đặt khung giờ ở tab Lịch</button> : "Đặt khung giờ ở tab Lịch."}
+                {onGoCalendar ? <button type="button" className="cursor-pointer font-semibold text-ax-primary hover:underline" onClick={onGoCalendar}>Đặt khung giờ ở tab Lịch</button> : "Đặt khung giờ ở tab Lịch."}
               </p>
             )}
             {mode === "queue" && !noSlots && (
-              <p className="text-xs text-muted-foreground" data-testid="queue-next">
+              <p className="ax-sunken px-3.5 py-3 text-sm text-ax-ink-2 max-lg:mx-4 max-lg:mb-4" data-testid="queue-next">
                 {nextQ.isLoading ? "Đang tìm khung trống…" : nextSlot ? `Khung trống gần nhất: ${queueWhenLabel(nextSlot)}` : "Không còn khung trống trong 90 ngày tới."}
               </p>
             )}
-            {mode === "recurring" && <RecurrenceFields value={recur} onChange={setRecur} />}
+            {mode === "recurring" && <div className="max-lg:px-4 max-lg:pb-4"><RecurrenceFields value={recur} onChange={setRecur} /></div>}
             {mode === "schedule" && (
-              <div className="space-y-1">
+              <div className="space-y-1.5 max-lg:px-4 max-lg:pb-4">
                 <Input
                   type="datetime-local"
+                  variant="ax"
                   value={scheduleAt}
                   min={toLocalInput(new Date(Date.now() + 2 * 60_000))}
                   max={toLocalInput(new Date(Date.now() + MAX_SCHEDULE_AHEAD_MS))}
                   onChange={(e) => setScheduleAt(e.target.value)}
                   aria-label="Ngày giờ đăng"
-                  className="w-auto"
+                  className="w-auto max-lg:w-full"
                 />
-                {schedErr ? <p className="text-xs text-destructive">{schedErr}</p> : <p className="text-xs text-muted-foreground">Bài sẽ tự đăng đúng giờ này. Có thể huỷ trong danh sách bài trước giờ đăng.</p>}
+                {schedErr ? <p className="text-[13px] text-[var(--ax-danger-ink)]">{schedErr}</p> : <p className="text-[13px] text-ax-ink-2">Bài sẽ tự đăng đúng giờ này. Có thể huỷ trong danh sách bài trước giờ đăng.</p>}
               </div>
             )}
-          </div>
+          </section>
 
-          <div className="space-y-2">
-            <label className="flex cursor-pointer items-center gap-2 text-sm max-sm:min-h-11">
+          <section aria-label="Gắn UTM" className={cn(SECTION, "space-y-2 px-6 py-4 max-lg:px-4", edit && "max-lg:hidden")}>
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-ax-ink max-sm:min-h-11">
               <Checkbox checked={utm.on} onChange={(e) => setUtm((u) => ({ ...u, on: e.target.checked }))} aria-label="Gắn UTM vào liên kết" />
               Gắn UTM vào liên kết
             </label>
             {utm.on && (
               <div className="space-y-2 pl-6">
                 <Input
+                  variant="ax"
                   value={utm.campaign}
                   maxLength={100}
                   placeholder={defaultCampaign(content)}
@@ -413,9 +540,10 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
                   aria-label="Tên chiến dịch (utm_campaign)"
                   className="max-w-sm"
                 />
-                <details className="text-xs text-muted-foreground">
+                <details className="text-[13px] text-ax-ink-2">
                   <summary className="cursor-pointer select-none">Nâng cao</summary>
                   <Input
+                    variant="ax"
                     value={utm.content}
                     maxLength={100}
                     placeholder="utm_content (tuỳ chọn)"
@@ -424,122 +552,77 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
                     className="mt-2 max-w-sm"
                   />
                 </details>
-                <p className="break-all text-xs text-muted-foreground" data-testid="utm-preview">
+                <p className="break-all text-[13px] text-ax-ink-2" data-testid="utm-preview">
                   {!firstNet
                     ? "Chọn kênh để xem liên kết sau khi gắn UTM."
                     : utmPreview
                       ? `Liên kết đầu tiên: ${utmPreview}`
                       : "Nội dung chưa có liên kết http(s) nên UTM chưa có tác dụng."}
                 </p>
-                <p className="text-xs text-muted-foreground">utm_source là tên mạng, utm_medium=social. Liên kết đã có utm_ giữ nguyên; nội dung lưu trong bài vẫn sạch.</p>
+                <p className="text-[13px] text-ax-ink-2">utm_source là tên mạng, utm_medium=social. Liên kết đã có utm_ giữ nguyên; nội dung lưu trong bài vẫn sạch.</p>
               </div>
             )}
-          </div>
+          </section>
+        </div>
 
-          <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[13px] text-muted-foreground" aria-live="polite">
-              {/* Mất mạng: khoá nút gửi và nói rõ — bài đang soạn vẫn còn nguyên trên màn hình. */}
-              {offline
-                ? "Đang mất mạng — chưa gửi được. Bài đang soạn vẫn giữ nguyên, có mạng lại thì bấm gửi."
-                : chosen.length === 0 ? "Chọn ít nhất một kênh ở bên cạnh." : `Sẽ đăng lên ${chosen.map((a) => a.name).join(", ")}.`}
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-            <Button type="button" variant="outline" onClick={saveAsDraft} disabled={!canSaveDraft || offline} className="max-sm:w-full">
-              {saveDraft.isPending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-              Lưu nháp
-            </Button>
-            <Button onClick={submit} disabled={disabled || offline} className="max-sm:w-full">
-              {create.isPending || publishDraft.isPending || createRecurrence.isPending ? <Loader2 className="size-4 animate-spin" /> : mode === "recurring" ? <Repeat className="size-4" /> : mode === "queue" ? <ListPlus className="size-4" /> : mode === "schedule" ? <CalendarClock className="size-4" /> : <Send className="size-4" />}
-              {mode === "recurring" ? "Tạo bài lặp lại" : mode === "queue" ? "Thêm vào hàng đợi" : mode === "schedule" ? "Hẹn đăng" : "Đăng ngay"}{chosen.length > 0 ? ` (${chosen.length} kênh)` : ""}
-            </Button>
+        {/* Xem trước: desktop = cột phải dính; điện thoại = đầu bước «Xem lại và đăng». */}
+        <aside aria-label="Xem trước" className={cn("flex min-w-0 flex-col gap-3 lg:sticky lg:top-4 max-lg:order-first", edit && "max-lg:hidden")}>
+          <div className={cn(SECTION, "flex flex-col gap-3.5 px-5 py-[18px] max-lg:p-3.5")}>
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="text-[15px] font-semibold tracking-[-0.011em] text-ax-ink">Xem trước</h2>
+              <span className="text-[12px] text-ax-ink-3 tabular-nums">{whenText}</span>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="self-start">
-        <CardContent className="flex flex-col gap-3 p-4">
-          <div role="tablist" aria-label="Cột phải" className="flex gap-1 rounded-lg bg-muted p-0.5 text-sm">
-            {([["channels", "Kênh"], ["preview", "Xem trước"]] as const).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={side === k}
-                className={cn("flex-1 rounded-md px-2 py-1 font-medium transition-colors max-sm:min-h-11", side === k ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
-                onClick={() => setSide(k)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {side === "preview" && (
-            <SocialPreviewPanel
-              libIds={Object.fromEntries(uploads.flatMap((u) => (u.item ? [[u.item.key, u.libId] as const] : [])))}
-              body={{
-                content,
-                media_keys: media.map((m) => m.key),
-                targets: buildTargets(),
-                ...(useQueue ? { use_queue: true } : scheduleOn && !schedErr ? { scheduled_at: new Date(scheduleAt).toISOString() } : {}),
-                ...(utmCfg ? { utm: utmCfg } : {}),
-              }}
-            />
-          )}
-          <div className={cn("flex items-center justify-between gap-2", side === "preview" && "hidden")}>
-            <p className="text-sm font-medium">Đăng lên kênh</p>
-            {active.length > 1 && (
-              <button
-                type="button"
-                className="rounded text-[13px] font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20"
-                onClick={() => setSelected(chosen.length === active.length ? [] : active.map((a) => a.id))}
-              >
-                {chosen.length === active.length ? "Bỏ chọn" : "Chọn tất cả"}
-              </button>
+            {chosen.length > 0 ? (
+              <SocialPreviewPanel
+                libIds={Object.fromEntries(uploads.flatMap((u) => (u.item ? [[u.item.key, u.libId] as const] : [])))}
+                body={{
+                  content,
+                  media_keys: media.map((m) => m.key),
+                  targets: buildTargets(),
+                  ...(useQueue ? { use_queue: true } : scheduleOn && !schedErr ? { scheduled_at: new Date(scheduleAt).toISOString() } : {}),
+                  ...(utmCfg ? { utm: utmCfg } : {}),
+                }}
+              />
+            ) : (
+              <EmptyState variant="ax" message="Chọn ít nhất một kênh để xem trước. Điểm “Xem thêm” là ước lượng, Facebook hiển thị khác nhau tuỳ thiết bị." />
             )}
           </div>
-          {isLoading && side === "channels" && <Loader2 className="size-4 animate-spin" />}
-          <div className={cn("divide-y divide-border overflow-hidden rounded-lg ring-1 ring-border", side === "preview" && "hidden")}>
-          {accounts.map((a) => {
-            const on = selected.includes(a.id)
-            const text = openCaption[a.id] ? captions[a.id] ?? "" : content
-            return (
-              <div key={a.id} className={cn("space-y-2 px-3 py-2.5 transition-colors duration-150", on && "bg-primary/[0.04]")}>
-                <label className={cn("flex min-h-8 items-center gap-2.5 text-sm max-sm:min-h-11", a.status === "active" ? "cursor-pointer" : "opacity-60")}>
-                  <Checkbox checked={on} disabled={a.status !== "active"} onChange={() => toggle(a)} />
-                  <NetworkMark network={a.network} />
-                  <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                    <span className="truncate font-medium">{a.name}</span>
-                    <span className="text-xs text-muted-foreground">{NETWORK_META[a.network]?.label ?? a.network}</span>
-                  </span>
-                </label>
-                {a.status !== "active" && <p className="pl-6 text-xs text-[var(--color-app-tag-amber-ink)]">Kênh {STATUS_LABEL.reauth.toLowerCase()} — vào tab Kênh để kết nối lại</p>}
-                {on && (
-                  <>
-                    <button type="button" className="text-xs text-primary hover:underline" onClick={() => {
-                      setOpenCaption((o) => ({ ...o, [a.id]: !o[a.id] }))
-                      setCaptions((c) => ({ ...c, [a.id]: c[a.id] ?? content }))
-                    }}>
-                      {openCaption[a.id] ? "Dùng nội dung chung" : "Sửa nội dung riêng cho kênh này"}
-                    </button>
-                    {openCaption[a.id] && (
-                      <Textarea rows={4} value={captions[a.id] ?? ""} onChange={(e) => setCaptions((c) => ({ ...c, [a.id]: e.target.value }))} aria-label={`Nội dung riêng cho ${a.name}`} />
-                    )}
-                    <div className="text-right text-xs"><Counter text={withUtm(text, a.network, utmCfg)} limit={CAPTION_LIMITS[a.network]} /></div>
-                    {a.network === "facebook" && (
-                      <div className="space-y-1">
-                        <Textarea rows={2} maxLength={8000} value={fbFirst[a.id] ?? ""} placeholder="Bình luận đầu tiên (tuỳ chọn) — vd link mua hàng, hashtag" aria-label={`Bình luận đầu tiên trên ${a.name}`}
-                          onChange={(e) => setFbFirst((x) => ({ ...x, [a.id]: e.target.value }))} />
-                        <p className="text-xs text-muted-foreground">Fanpage tự bình luận ngay dưới bài vừa đăng. Cần kết nối Fanpage này ở Cài đặt › Kết nối › Fanpage Facebook.</p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )
-          })}
+        </aside>
+      </div>
+
+      {/* Thanh hành động = MỘT khối nhấn của màn. Desktop: nổi, tóm tắt + Lưu nháp + nút chính. Điện thoại: đáy màn,
+          bước 1 chỉ tóm tắt «N kênh · số ký tự», bước 2 nút chính + «Lưu nháp, đăng sau». */}
+      <div
+        data-slot="social-action-bar"
+        className="ax-grad-hero text-[var(--ax-on-hero-ink)] border border-[var(--ax-hero-border)] shadow-[var(--ax-shadow-hero)] max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:rounded-t-[22px] max-lg:border-x-0 max-lg:border-b-0 max-lg:px-5 max-lg:pt-4 max-lg:pb-[calc(16px+env(safe-area-inset-bottom))] lg:sticky lg:bottom-3 lg:z-30 lg:rounded-2xl lg:py-3 lg:pr-3 lg:pl-5"
+      >
+        <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center lg:justify-between lg:gap-3">
+          <div className="min-w-0 text-white">
+            <p className="text-[15px] font-semibold tracking-[-0.011em] tabular-nums max-lg:hidden" aria-live="polite">
+              {chosen.length} kênh · {whenText}
+              {blocker && <span role="status" className="ml-2 text-[13px] font-medium text-[#FFDFA6]">{blocker}</span>}
+            </p>
+            {edit && (
+              <p className="text-base font-semibold tracking-[-0.011em] tabular-nums lg:hidden">
+                {chosen.length} kênh · {content.length.toLocaleString("vi-VN")} ký tự
+                {nextHint && <span role="status" className="ml-2 text-[13px] font-medium text-[#FFDFA6]">{nextHint}</span>}
+              </p>
+            )}
+            {!edit && blocker && <p role="status" className="text-[13px] font-medium text-[#FFDFA6] lg:hidden">{blocker}</p>}
           </div>
-        </CardContent>
-      </Card>
+          <div className={cn("flex flex-col-reverse gap-2 lg:flex-row", edit && "max-lg:hidden")}>
+            <Button type="button" variant="ax-on-hero-secondary" size="ax-lg" onClick={saveAsDraft} disabled={!canSaveDraft || offline}>
+              {saveDraft.isPending && <Loader2 className="size-4 animate-spin" aria-hidden />}
+              <span className="lg:hidden">Lưu nháp, đăng sau</span><span className="max-lg:hidden">Lưu nháp</span>
+            </Button>
+            <Button type="button" variant="ax-on-hero" size="ax-lg" onClick={submit} disabled={disabled || offline} className="lg:min-w-36">
+              {pending && <Loader2 className="size-4 animate-spin" aria-hidden />}
+              {primaryLabel}
+            </Button>
+          </div>
+        </div>
+      </div>
+      <div aria-hidden className="h-24 lg:hidden" />
     </div>
   )
 }

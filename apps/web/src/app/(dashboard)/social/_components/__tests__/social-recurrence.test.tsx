@@ -62,6 +62,9 @@ const state = vi.hoisted(() => ({
 
 vi.mock("@/hooks/use-social", async (orig) => ({
   ...(await orig<typeof import("@/hooks/use-social")>()),
+  // Cột xem trước luôn hiện khi đã chọn kênh (không còn sau tab) — giả lập, test này không kiểm xem trước.
+  useSocialPreview: () => ({ data: undefined, isFetching: false, isError: false }),
+  useSocialMediaPreview: () => ({ url: null }),
   useQueueSlots: () => ({ data: [], isLoading: false, isSuccess: true }),
   useQueueNext: () => ({ data: [], isLoading: false, isSuccess: true }),
   useSocialAccounts: () => ({ data: [{ id: 3, network: "facebook", name: "Fanpage", avatar_url: null, status: "active", last_error: null }], isLoading: false }),

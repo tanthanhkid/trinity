@@ -16,7 +16,8 @@ vi.mock("@/lib/api-client", () => ({
     delete: (...a: unknown[]) => mockDelete(...a),
   },
 }))
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() } }))
+const mockToastCustom = vi.fn()
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), message: vi.fn(), custom: (...a: unknown[]) => mockToastCustom(...a), dismiss: vi.fn() } }))
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams("") }))
 
 import { FacebookPanel } from "@/app/(dashboard)/settings/_components/integrations/facebook-panel"
@@ -86,7 +87,12 @@ describe("<FacebookPanel>", () => {
     setup({ pages: [{ ...PAGE, posting: "on" }, { ...PAGE, id: 2, page_id: "222", name: "Hai", posting: "removed" }, { ...PAGE, id: 3, page_id: "333", name: "Ba" }] })
     renderPanel()
     await waitFor(() => expect(screen.getByText("Trinity Software")).toBeTruthy())
-    expect(screen.getAllByTestId("fb-page-posting").map((e) => e.textContent)).toEqual(["Đăng bài: đã nối", "Đăng bài: đã gỡ", "Đăng bài: chưa nối"])
+    const seen: string[] = []
+    for (const name of ["Trinity Software", "Hai", "Ba"]) {
+      fireEvent.click(screen.getByRole("tab", { name: new RegExp(name) }))
+      seen.push(screen.getByTestId("fb-page-posting").textContent ?? "")
+    }
+    expect(seen).toEqual(["Đăng bài: đã nối", "Đăng bài: đã gỡ", "Đăng bài: chưa nối"])
   })
 
   it("Page đã ngắt (tắt, token rỗng) ⇒ ghi 'kết nối lại để bật', không có nút kiểm tra/ngắt", async () => {
@@ -100,8 +106,8 @@ describe("<FacebookPanel>", () => {
     setup({ status: { ...STATUS, configured: false, app_secret_set: false, verify_token_set: false } })
     renderPanel()
     await waitFor(() => expect(screen.getByTestId("fb-not-ready")).toBeTruthy())
-    expect(document.body.textContent).not.toMatch(/FACEBOOK_APP_SECRET|webhook/i)
-    expect((screen.getByRole("button", { name: /Kết nối Fanpage/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect(document.body.textContent).not.toMatch(/FACEBOOK_APP_SECRET|Callback URL|https?:\/\//i)
+    expect((screen.getByRole("button", { name: /Thêm Fanpage/ }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it("quản trị: thiếu cấu hình máy chủ ⇒ liệt kê biến còn thiếu và khoá nút Kết nối; Login for Business ghi chú thay cho danh sách quyền", async () => {
@@ -111,13 +117,14 @@ describe("<FacebookPanel>", () => {
     await waitFor(() => expect(screen.getByText("FACEBOOK_APP_SECRET")).toBeTruthy())
     expect(screen.getByText("FACEBOOK_WEBHOOK_VERIFY_TOKEN")).toBeTruthy()
     expect(document.body.textContent).toMatch(/Login for Business/)
-    expect((screen.getByRole("button", { name: /Kết nối Fanpage/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole("button", { name: /Thêm Fanpage/ }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it("Page token chết ⇒ cảnh báo cần kết nối lại", async () => {
     setup({ pages: [{ ...PAGE, token_status: "invalid" }] })
     renderPanel()
-    await waitFor(() => expect(screen.getByText(/cần kết nối lại/)).toBeTruthy())
+    await waitFor(() => expect(screen.getByText("Đang không nhận được tin của khách")).toBeTruthy())
+    expect(screen.getByRole("button", { name: "Kết nối lại Fanpage" })).toBeTruthy()
   })
 
   it("bấm Kết nối: xin URL đăng nhập từ BE", async () => {
@@ -154,7 +161,8 @@ describe("<FacebookPanel>", () => {
     setup({ pages: [{ ...PAGE, is_active: false }] })
     renderPanel()
     expect(await screen.findByTestId("fb-page-off")).toBeTruthy()
-    expect(screen.queryByText(/còn hiệu lực/)).toBeNull()
+    expect(screen.getByText("Đang tắt nhận tin")).toBeTruthy()
+    expect(screen.getByText("Bạn đang tắt nhận tin cho Page này.")).toBeTruthy()
   })
 
   it("hộp thư: 24h–7 ngày ⇒ vẫn trả lời được, ghi rõ chỉ nhân viên trong 7 ngày", async () => {
@@ -171,6 +179,88 @@ describe("<FacebookPanel>", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Khách A/ }))
     await waitFor(() => expect(screen.getByText(/quá 7 ngày kể từ/)).toBeTruthy())
     expect(screen.queryByLabelText("Nội dung trả lời")).toBeNull()
+  })
+})
+
+describe("<FacebookPanel> Ánh xanh — desktop", () => {
+  it("sửa cách nhận khách ⇒ hiện thanh lưu; Lưu gửi một PATCH các trường đổi rồi cho Hoàn tác", async () => {
+    setup({ pages: [{ ...PAGE, default_assignee_id: 5 }] })
+    mockGet.mockImplementation(async (url: string) => {
+      if (url === "/facebook/status") return { data: STATUS }
+      if (url === "/facebook/pages") return { data: { data: [{ ...PAGE }] } }
+      if (url === "/settings/options") return { data: { data: [{ id: 3, label: "Facebook" }, { id: 4, label: "Fanpage" }] } }
+      if (url === "/contacts/assignable-sales") return { data: [{ id: 5, full_name: "Tôi", email: "a@x" }, { id: 6, full_name: "Lan Anh", email: "b@x" }] }
+      throw new Error(`unexpected GET ${url}`)
+    })
+    mockPatch.mockResolvedValue({ data: PAGE })
+    useAuthStore.setState({ permissions: { "integrations.webhooks": true, "contacts.transfer": true } as never })
+    renderPanel()
+    expect(await screen.findByRole("heading", { name: "Tình trạng kết nối" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Lưu cấu hình" })).toBeNull()
+    fireEvent.click(await screen.findByRole("radio", { name: /Lan Anh/ }))
+    fireEvent.click(await screen.findByRole("radio", { name: "Fanpage" }))
+    fireEvent.click(screen.getByRole("button", { name: "Lưu cấu hình" }))
+    await waitFor(() => expect(mockPatch).toHaveBeenCalledWith("/facebook/pages/1", { default_assignee_id: 6, contact_source_id: 4 }))
+    await waitFor(() => expect(mockToastCustom).toHaveBeenCalled())
+  })
+
+  it("Bỏ thay đổi ⇒ trả bản nháp về giá trị đang chạy, không gọi API", async () => {
+    setup()
+    renderPanel()
+    const sw = await screen.findByRole("switch")
+    fireEvent.click(sw)
+    expect(sw.getAttribute("aria-checked")).toBe("false")
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ thay đổi" }))
+    expect(screen.getByRole("switch").getAttribute("aria-checked")).toBe("true")
+    expect(mockPatch).not.toHaveBeenCalled()
+  })
+
+  it("Page đã ngắt: hero có Kết nối lại, công tắc khoá, không có nút Ngắt kết nối", async () => {
+    setup({ pages: [{ ...PAGE, is_active: false, disconnected: true }] })
+    renderPanel()
+    expect(await screen.findByText("Page đã ngắt kết nối")).toBeTruthy()
+    expect((screen.getByRole("switch") as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.queryByRole("button", { name: "Ngắt kết nối Page" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Kết nối lại Fanpage" })).toBeTruthy()
+  })
+
+  it("Ngắt kết nối: hỏi xác nhận trong thẻ rồi gọi DELETE", async () => {
+    setup()
+    mockDelete.mockResolvedValue({})
+    renderPanel()
+    fireEvent.click(await screen.findByRole("button", { name: "Ngắt kết nối Page" }))
+    expect(screen.getByRole("alertdialog")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: "Ngắt kết nối" }))
+    await waitFor(() => expect(mockDelete).toHaveBeenCalledWith("/facebook/pages/1"))
+  })
+})
+
+describe("<FacebookPanel> Ánh xanh — điện thoại", () => {
+  beforeEach(() => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 })
+  })
+  afterEach(() => { Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 }); vi.unstubAllGlobals() })
+
+  it("bố cục riêng: công tắc lưu ngay (không thanh Lưu) + Hoàn tác", async () => {
+    setup()
+    mockPatch.mockResolvedValue({ data: PAGE })
+    renderPanel()
+    fireEvent.click(await screen.findByRole("switch"))
+    await waitFor(() => expect(mockPatch).toHaveBeenCalledWith("/facebook/pages/1", { is_active: false }))
+    expect(screen.queryByRole("button", { name: "Lưu cấu hình" })).toBeNull()
+    await waitFor(() => expect(mockToastCustom).toHaveBeenCalled())
+  })
+
+  it("Page token chết: Kết nối lại mở hướng dẫn ba bước, nút Mở Facebook gọi connect-url", async () => {
+    setup({ pages: [{ ...PAGE, token_status: "expired" }] })
+    mockPost.mockResolvedValue({ data: { url: "https://www.facebook.com/v25.0/dialog/oauth?x=1" } })
+    vi.stubGlobal("location", { href: "" })
+    renderPanel()
+    fireEvent.click(await screen.findByRole("button", { name: "Kết nối lại Fanpage" }))
+    expect(screen.getByRole("heading", { name: "Nối lại Fanpage" })).toBeTruthy()
+    expect(screen.getByText("Cho phép đủ quyền")).toBeTruthy()
+    fireEvent.click(screen.getByRole("button", { name: "Mở Facebook để nối lại" }))
+    await waitFor(() => expect(mockPost.mock.calls[0][0]).toBe("/facebook/connect-url"))
   })
 })
 

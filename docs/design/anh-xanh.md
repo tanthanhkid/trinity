@@ -165,3 +165,10 @@ Thiết kế: `cohoi-desktop`, `cohoi-mobile`, `cohoi-mobile2`. Hai bố cục t
 ## Màn Nhân viên (`/management/employees`)
 
 Danh sách + hồ sơ: desktop (≥1024px) hai cột (danh sách 380px | hồ sơ), điện thoại hai màn riêng (danh sách → hồ sơ có nút «‹ Nhân viên»). Thành phần ở `management/employees/_components/employee-detail.tsx`: `EmployeeListItem`, `EmployeeDetail` (HeroCard + nhóm Công việc/Cá nhân/Ngân hàng + khối Hệ thống), `EmployeeStatusChip` (StageChip: active=won, probation=consult, waiting=care, on_leave=quote, resigned/unclassified=neutral). Sửa vẫn mở hộp thoại sửa hiện có (chưa sửa tại chỗ từng nhóm).
+
+## Màn Kết nối › Fanpage Facebook
+
+- **Kết nối › Fanpage Facebook** (`/connections?muc=facebook`, `ketnoi-desktop/mobile/mobile2`): `facebook-page-view.tsx` (hai bố cục
+  tách theo `useIsWide()` = 1024px, không phải CSS co giãn), `facebook-page-state.ts` (trạng thái/ba dòng tình trạng/nhật ký suy từ trường thật của Page).
+  Desktop: khối nhấn trạng thái + «Cách nhận khách» sửa nháp rồi **Lưu cấu hình** (một PATCH) kèm Hoàn tác; điện thoại: công tắc/người nhận lưu ngay + Hoàn tác,
+  hướng dẫn nối lại 3 bước (mobile2); «Thêm Fanpage» (thiết kế điện thoại không vẽ) giữ ở cuối danh sách công cụ. «Gửi hướng dẫn cho quản trị viên Page» chưa có (PR riêng, cần API + tool MCP).

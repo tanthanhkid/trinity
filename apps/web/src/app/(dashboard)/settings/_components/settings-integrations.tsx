@@ -69,6 +69,8 @@ export function SettingsIntegrations() {
   const overview = !found
   const current = found ?? visible[0]
   const standalone = overview || current.value === "facebook" || current.value === "ban-online"
+  // Fanpage Facebook theo thiết kế «Ánh xanh»: toàn chiều rộng, có breadcrumb riêng (không cột nhóm bên trái).
+  const fullWidth = !overview && current.value === "facebook"
   const enabled = !overview && isSectionEnabled(current.flag, status.data)
   const open = (s: IntegrationSection | "overview") => {
     setActive(s)
@@ -94,9 +96,9 @@ export function SettingsIntegrations() {
   )
 
   return (
-    <div className="grid gap-5 md:grid-cols-[208px_minmax(0,1fr)]">
+    <div className={cn("grid gap-5", !fullWidth && "md:grid-cols-[208px_minmax(0,1fr)]")}>
       {/* Cột trái nhóm theo loại. Điện thoại: chỉ hiện ở trang tổng (vào một mục thì có nút quay lại). */}
-      <nav aria-label="Mục kết nối" className={cn("space-y-4 md:sticky md:top-4 md:self-start", !overview && "max-md:hidden")}>
+      <nav aria-label="Mục kết nối" className={cn("space-y-4 md:sticky md:top-4 md:self-start", !overview && "max-md:hidden", fullWidth && "hidden")}>
         {navButton("overview", "Tất cả kết nối", overview, <LayoutGrid className="size-4 shrink-0" aria-hidden />)}
         {groups.map((g) => (
           <div key={g.key} className="space-y-0.5">
@@ -107,7 +109,7 @@ export function SettingsIntegrations() {
       </nav>
 
       <div className="min-w-0 space-y-4">
-      {!overview && (
+      {!overview && !fullWidth && (
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => open("overview")} className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground md:hidden max-md:min-h-11">
             <ArrowLeft className="size-4" aria-hidden /> Tất cả kết nối

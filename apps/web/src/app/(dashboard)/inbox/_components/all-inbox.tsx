@@ -72,7 +72,7 @@ export function AllInbox({ listTop, className }: { listTop?: ReactNode; classNam
   const list = (
     <>
       <InboxListToolbar q={q} onQ={setQ} awaiting={{ on: onlyAwaiting, count: awaitingCount, onChange: setOnlyAwaiting }} />
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {loading && <div className="flex justify-center py-6"><Loader2 className="size-4 animate-spin" /></div>}
         {zaloErr && <ErrorState compact className="px-2 py-2" title="Không tải được hội thoại Zalo OA" error={zalo.error} onRetry={() => void zalo.refetch()} retrying={zalo.isFetching} />}
         {fbErr && <ErrorState compact className="px-2 py-2" title="Không tải được hội thoại Messenger" error={fb.error} onRetry={() => void fb.refetch()} retrying={fb.isFetching} />}
@@ -81,7 +81,7 @@ export function AllInbox({ listTop, className }: { listTop?: ReactNode; classNam
             {onlyAwaiting ? "Không còn hội thoại nào chờ trả lời." : q ? "Không có hội thoại nào khớp." : "Chưa có hội thoại nào. Khi khách nhắn vào Zalo OA hoặc Fanpage đã kết nối, hội thoại sẽ hiện ở đây."}
           </InboxEmpty>
         )}
-        <ul className="space-y-0.5">
+        <ul>
           {rows.map((r) => {
             const open = r.channel === "zalo" ? inConsultWindow(r.source.last_inbound_at) : r.source.can_reply
             const dotLabel =
@@ -106,7 +106,7 @@ export function AllInbox({ listTop, className }: { listTop?: ReactNode; classNam
           })}
         </ul>
         {zalo.hasNextPage && (
-          <Button variant="outline" className="mt-2 w-full text-sm" disabled={zalo.isFetchingNextPage} onClick={() => zalo.fetchNextPage()}>
+          <Button variant="ax-secondary" size="ax" className="m-3 w-[calc(100%-1.5rem)]" disabled={zalo.isFetchingNextPage} onClick={() => zalo.fetchNextPage()}>
             Tải thêm hội thoại Zalo
           </Button>
         )}

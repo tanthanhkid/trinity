@@ -1,10 +1,10 @@
 "use client"
 
 /* =============================================================================
- * Khung hộp thư 3 cột theo bản demo giao diện mới — CHỈ TRÌNH BÀY, không gọi API.
- *   cột trái: danh sách hội thoại (avatar + dấu kênh, xem trước, giờ, chấm trạng thái)
- *   cột giữa: luồng tin (bong bóng khách / nhân viên, vạch ngày) + ô trả lời
- *   cột phải: thông tin khách (chỉ ≥1280px)
+ * Khung hộp thư theo thiết kế «Ánh xanh» (hopthu-desktop / hopthu-mobile) — CHỈ TRÌNH BÀY, không gọi API.
+ *   desktop (≥1024px): ba thẻ rời nhau — danh sách hội thoại · luồng tin + ô trả lời · hồ sơ khách (≥1280px)
+ *   điện thoại (<1024px): MỘT cột tại một lúc (danh sách ⇄ hội thoại); đầu hội thoại là khối nhấn xanh
+ *     có chip SĐT / giai đoạn / hẹn nhắc + nút «Hồ sơ» mở khay đáy
  * Mỗi kênh (Zalo OA, Fanpage Facebook) tự lấy dữ liệu + gửi tin bằng hook sẵn có của nó rồi đổ vào đây.
  * Mọi chuỗi từ khách/BE hiển thị bằng text node của React.
  * ========================================================================== */
@@ -12,22 +12,19 @@
 import { useEffect, useRef, type ReactNode } from "react"
 import { ArrowLeft, Loader2, Search, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { AX_INPUT_CLASS, Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { ShellAvatar } from "@/components/app-shell/avatar"
+import { PersonAvatar } from "@/components/ui/avatar"
+import { HeroCard } from "@/components/ui/hero-card"
 import { formatTimeVn, todayVn, vnDateKey } from "@/lib/format"
-import { BRAND_LOGOS, type BrandKey } from "@/lib/brand-logos"
 import { cn } from "@/lib/utils"
 import { ErrorState } from "@/components/ui/error-state"
 import { useOffline } from "@/components/offline-banner"
 
 export type InboxChannel = "zalo" | "facebook"
 
-/** Dấu kênh = logo chính thức (Messenger cho tin Fanpage). */
-const CHANNEL_MARK: Record<InboxChannel, { label: string; brand: BrandKey }> = {
-  zalo: { label: "Zalo", brand: "zalo" },
-  facebook: { label: "Messenger", brand: "messenger" },
-}
+/** Nhãn kênh dưới tên hội thoại (thiết kế: chữ, không logo). */
+const CHANNEL_LABEL: Record<InboxChannel, string> = { zalo: "Zalo OA", facebook: "Messenger" }
 
 /** Giờ ngắn cho danh sách: hôm nay "09:31", hôm qua "Hôm qua", còn lại "dd/mm". */
 export function inboxTimeLabel(iso: string | null | undefined, today = todayVn()): string {
@@ -52,33 +49,17 @@ export function inboxDayLabel(key: string, today = todayVn()): string {
   return `${d}/${m}/${yy}`
 }
 
-export function InboxAvatar({ name, src, channel, size = "md" }: { name: string; src?: string | null; channel: InboxChannel; size?: "sm" | "md" }) {
-  const mark = CHANNEL_MARK[channel]
-  const box = size === "md" ? "size-10" : "size-8"
-  return (
-    <span className={cn("relative shrink-0", box)}>
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element -- ảnh đại diện từ CDN của kênh (Zalo), không qua next/image
-        <img src={src} alt="" referrerPolicy="no-referrer" className={cn("rounded-full object-cover", box)} />
-      ) : (
-        <ShellAvatar name={name} size={size === "md" ? "lg" : "md"} className="!rounded-full text-sm" />
-      )}
-      <span
-        aria-label={mark.label}
-        title={mark.label}
-        className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-[5px] bg-white ring-2 ring-[var(--card)]"
-        data-brand={mark.brand}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element -- logo tĩnh trong /public */}
-        <img src={BRAND_LOGOS[mark.brand]} alt="" className="size-3 object-contain" />
-      </span>
-    </span>
-  )
+/** Avatar khách «Ánh xanh»: bo 30%, chữ cái đầu; có ảnh từ CDN của kênh thì dùng ảnh. */
+export function InboxAvatar({ name, src, size = "md" }: { name: string; src?: string | null; channel?: InboxChannel; size?: "sm" | "md" | "lg" }) {
+  return <PersonAvatar kind="customer" name={name} src={src ?? undefined} size={size === "md" ? "lg" : size === "lg" ? "xl" : "default"} />
 }
 
+/** Thẻ của một cột trên desktop: gradient nhạt, viền, bo 16 (thiết kế), cuộn trong thẻ. */
+const COL_CARD = "lg:ax-card lg:rounded-[16px] lg:overflow-hidden"
+
 /**
- * Khung 3 cột. Điện thoại/iPad dọc: chỉ một cột tại một lúc (danh sách ⇄ hội thoại);
- * ≥768px: danh sách + hội thoại; ≥1280px: thêm cột thông tin khách.
+ * Khung hộp thư. Dưới 1024px: chỉ một cột tại một lúc (danh sách ⇄ hội thoại), một thẻ liền.
+ * ≥1024px: danh sách 300 + hội thoại; ≥1280px: thêm cột hồ sơ khách (320, ≥1536px: 372) — ba thẻ rời, cách 12.
  */
 export function InboxFrame({
   list,
@@ -100,15 +81,16 @@ export function InboxFrame({
   return (
     <div
       className={cn(
-        "grid h-[min(78dvh,780px)] min-h-[480px] overflow-hidden rounded-xl bg-[var(--card)] ring-1 ring-foreground/8 shadow-[var(--shadow-card)]",
-        "md:grid-cols-[300px_minmax(0,1fr)]",
-        side ? "xl:grid-cols-[300px_minmax(0,1fr)_272px]" : "",
+        "grid h-[min(78dvh,780px)] min-h-[480px] overflow-hidden rounded-[var(--ax-radius-sheet)] ax-card",
+        "lg:gap-3 lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:shadow-none lg:[background:none]",
+        "lg:grid-cols-[300px_minmax(0,1fr)]",
+        side ? "xl:grid-cols-[300px_minmax(0,1fr)_320px] 2xl:grid-cols-[300px_minmax(0,1fr)_372px]" : "",
         className,
       )}
     >
-      <div className={cn("min-h-0 min-w-0 flex-col border-[var(--border)] md:flex md:border-r", threadOpen ? "hidden" : "flex")}>{listTop}{list}</div>
-      <div className={cn("min-h-0 min-w-0 flex-col md:flex", threadOpen ? "flex" : "hidden")}>{thread}</div>
-      {side ? <aside className="hidden min-h-0 min-w-0 overflow-y-auto border-l border-[var(--border)] xl:block">{side}</aside> : null}
+      <section aria-label="Danh sách hội thoại" className={cn("min-h-0 min-w-0 flex-col lg:flex", COL_CARD, threadOpen ? "hidden" : "flex")}>{listTop}{list}</section>
+      <section aria-label="Hội thoại" className={cn("min-h-0 min-w-0 flex-col lg:flex", COL_CARD, threadOpen ? "flex" : "hidden")}>{thread}</section>
+      {side ? <aside aria-label="Hồ sơ khách" className={cn("hidden min-h-0 min-w-0 overflow-y-auto xl:block", COL_CARD)}>{side}</aside> : null}
     </div>
   )
 }
@@ -141,41 +123,42 @@ export function ConversationItem({
       onClick={onClick}
       aria-current={active || undefined}
       className={cn(
-        "relative flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors duration-150 ease-out max-md:min-h-14",
-        "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20",
-        active
-          ? "bg-primary/[0.07] before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-primary"
-          : "hover:bg-[var(--muted)]",
+        "flex min-h-[72px] w-full items-start gap-2.5 border-b border-ax-divider px-3 py-3 text-left transition-colors duration-150 ease-out",
+        "outline-none focus-visible:shadow-[inset_var(--ax-focus-ring)] focus-visible:bg-ax-hover",
+        active ? "bg-ax-primary-soft" : "bg-transparent hover:bg-ax-hover",
       )}
     >
       <InboxAvatar name={name} src={avatarUrl} channel={channel} />
-      <span className="min-w-0 flex-1">
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="flex items-baseline justify-between gap-2">
-          <span className={cn("truncate text-sm text-foreground", unread > 0 ? "font-semibold" : "font-medium")}>{name}</span>
-          <span className={cn("shrink-0 text-xs tabular-nums", unread > 0 ? "font-medium text-primary" : "text-muted-foreground")}>{time}</span>
+          <span className={cn("truncate text-[15px] tracking-[-0.011em]", active ? "text-ax-primary-ink" : "text-ax-ink", unread > 0 ? "font-bold" : "font-semibold")}>{name}</span>
+          <span className={cn("ax-amount shrink-0 text-[12px] font-normal", unread > 0 ? "font-semibold text-ax-primary-ink" : "text-ax-ink-3")}>{time}</span>
         </span>
-        <span className="mt-0.5 flex items-center justify-between gap-2">
-          <span className={cn("truncate text-sm", unread > 0 ? "text-foreground" : "text-muted-foreground")}>{preview}</span>
+        <span className="flex items-center justify-between gap-2">
+          <span className={cn("truncate text-[13px]", unread > 0 ? "font-medium text-ax-ink" : "text-ax-ink-2")}>{preview}</span>
           {unread > 0 ? (
-            <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] px-1.5 text-xs font-semibold tabular-nums text-[var(--primary-foreground)]" aria-label={`${unread} tin chưa đọc`}>
+            <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-ax-primary px-1.5 text-[12px] font-semibold tabular-nums text-white" aria-label={`${unread} tin chưa đọc`}>
               {unread}
             </span>
           ) : dot ? (
             <span
               title={dot.label}
               aria-label={dot.label}
-              className={cn(
-                "size-2 shrink-0 rounded-full",
-                dot.tone === "open" ? "bg-[var(--color-app-green)]" : "border-2 border-[var(--color-app-faint)]",
-              )}
+              className={cn("size-2 shrink-0 rounded-full", dot.tone === "open" ? "bg-[var(--ax-success)]" : "border-2 border-ax-ink-3")}
             />
           ) : null}
         </span>
+        <span className="text-[12px] text-ax-ink-3">{CHANNEL_LABEL[channel]}</span>
       </span>
     </button>
   )
 }
 
+/**
+ * Đầu một hội thoại.
+ *  - desktop: dòng tên + kênh trên nền thẻ, bên phải `aside` (nhãn trạng thái) và nút «Hồ sơ» dưới 1280px
+ *  - điện thoại: khối nhấn xanh (mỗi màn đúng một): quay lại · tên · «Hồ sơ», dưới là hàng chip `chips`
+ */
 export function ThreadHeader({
   name,
   sub,
@@ -183,6 +166,8 @@ export function ThreadHeader({
   avatarUrl,
   onBack,
   aside,
+  chips,
+  onOpenProfile,
 }: {
   name: string
   sub: string
@@ -190,31 +175,76 @@ export function ThreadHeader({
   avatarUrl?: string | null
   onBack: () => void
   aside?: ReactNode
+  /** Hàng chip dưới tên trên điện thoại (SĐT / giai đoạn / hẹn nhắc) — mỗi chip tự là nút. */
+  chips?: ReactNode
+  /** Mở hồ sơ khách ở khay đáy (điện thoại và desktop hẹp, nơi chưa có cột hồ sơ). */
+  onOpenProfile?: () => void
 }) {
   return (
-    <div className="flex items-center gap-3 border-b border-[var(--border)] px-3 py-2.5 sm:px-4">
-      <Button variant="ghost" size="icon" className="shrink-0 md:hidden max-md:size-11" onClick={onBack} aria-label="Quay lại danh sách">
-        <ArrowLeft className="size-4" />
-      </Button>
-      <InboxAvatar name={name} src={avatarUrl} channel={channel} size="sm" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">{name}</p>
-        <p className="truncate text-sm text-muted-foreground">{sub}</p>
+    <>
+      <HeroCard className="rounded-none border-x-0 border-t-0 p-0 px-2 pt-2 pb-0 lg:hidden max-sm:rounded-none max-sm:p-0 max-sm:px-2 max-sm:pt-2">
+        <div className="flex items-center gap-1">
+          <Button variant="ax-on-hero-secondary" size="ax-icon" className="shrink-0 border-0 bg-transparent" onClick={onBack} aria-label="Quay lại danh sách">
+            <ArrowLeft className="size-5" />
+          </Button>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[18px] font-bold tracking-[-0.011em] text-white">{name}</p>
+            <p className="truncate text-[13px] text-[var(--ax-on-hero-ink-2)]">{sub}</p>
+          </div>
+          {onOpenProfile ? (
+            <Button variant="ax-on-hero" size="ax" className="mr-2 shrink-0" onClick={onOpenProfile} aria-label="Mở hồ sơ khách">
+              Hồ sơ
+            </Button>
+          ) : null}
+        </div>
+        {chips ? <div className="flex gap-2 overflow-x-auto px-2 pt-2 pb-2.5">{chips}</div> : <div className="h-2" />}
+      </HeroCard>
+      <div className="hidden items-center justify-between gap-3 border-b border-ax-line px-4 py-3 lg:flex">
+        <div className="flex min-w-0 items-center gap-3">
+          <InboxAvatar name={name} src={avatarUrl} channel={channel} />
+          <div className="min-w-0">
+            <p className="truncate text-[16px] font-bold tracking-[-0.011em] text-ax-ink">{name}</p>
+            <p className="truncate text-[13px] text-ax-ink-2">{sub}</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {aside}
+          {onOpenProfile ? (
+            <Button variant="ax-secondary" size="ax" className="xl:hidden" onClick={onOpenProfile} aria-label="Mở hồ sơ khách">
+              Hồ sơ
+            </Button>
+          ) : null}
+        </div>
       </div>
-      {aside}
-    </div>
+    </>
   )
 }
 
-/** Nhãn nhỏ có chấm (vd "Còn trả lời được" / "Quá 48 giờ"). */
+/** Chip trên khối nhấn ở đầu hội thoại (điện thoại): `solid` nền trắng · `dashed` thiếu thông tin · `glass` nền xanh thẫm trong. */
+export function HeroChip({ tone = "solid", onClick, children }: { tone?: "solid" | "dashed" | "glass"; onClick?: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "h-11 shrink-0 cursor-pointer rounded-full px-3.5 text-[15px] font-semibold tracking-[-0.011em] whitespace-nowrap outline-none transition-colors duration-150 focus-visible:shadow-[0_0_0_2px_#1A3C5D,0_0_0_4px_#fff]",
+        tone === "solid" && "border border-transparent bg-white text-[#17181C] hover:bg-[#EEF4FA]",
+        tone === "dashed" && "border-[1.5px] border-dashed border-white/80 bg-transparent text-white hover:bg-[var(--ax-on-hero-secondary)]",
+        tone === "glass" && "border border-[var(--ax-on-hero-secondary-border)] bg-[var(--ax-on-hero-secondary)] font-normal text-white hover:bg-[var(--ax-on-hero-secondary-hover)]",
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+/** Nhãn nhỏ có chấm (vd "Còn trả lời được" / "Quá 48 giờ"). Màu trạng thái dùng token «Ánh xanh». */
 export function StatusPill({ tone, children }: { tone: "ok" | "warn"; children: ReactNode }) {
   return (
     <span
       className={cn(
-        "hidden shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-sm font-medium sm:inline-flex",
-        tone === "ok"
-          ? "bg-[var(--color-app-tag-green-bg)] text-[var(--color-app-tag-green-ink)]"
-          : "bg-[var(--color-app-tag-amber-bg)] text-[var(--color-app-tag-amber-ink)]",
+        "hidden shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-semibold sm:inline-flex",
+        tone === "ok" ? "bg-[var(--ax-success-soft)] text-[var(--ax-success)]" : "bg-[var(--ax-warn-soft)] text-[var(--ax-warn)]",
       )}
     >
       <span aria-hidden className="size-1.5 rounded-full bg-current" />
@@ -233,29 +263,34 @@ export interface InboxMessage {
   failed?: string | null
 }
 
-/** Luồng tin: vạch ngày + bong bóng khách (trái, nền thẻ) / nhân viên (phải, nền đậm). Tự cuộn xuống tin mới nhất. */
+/**
+ * Luồng tin: vạch ngày + bong bóng khách (trái, nền lõm) / nhân viên (phải, xanh chính). Tự cuộn xuống tin mới nhất.
+ * `afterMessage` = chỗ chừa dưới từng bong bóng cho hành động theo tin (vd nút «Lưu SĐT vào hồ sơ» — chức năng làm ở PR riêng).
+ */
 export function MessageThread({
   messages,
   loading,
   error,
+  afterMessage,
 }: {
   messages: readonly InboxMessage[]
   loading?: boolean
   error?: boolean
+  afterMessage?: (m: InboxMessage) => ReactNode
 }) {
   const endRef = useRef<HTMLDivElement>(null)
   useEffect(() => { endRef.current?.scrollIntoView?.({ block: "end" }) }, [messages.length])
   const today = todayVn()
   const days = messages.map((m) => vnDateKey(m.at))
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--background)] px-3 py-4 sm:px-5">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-ax-surface px-3 py-4 sm:px-4 lg:p-4">
       {loading && (
-        <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+        <div className="flex items-center justify-center gap-2 py-6 text-sm text-ax-ink-2">
           <Loader2 className="size-4 animate-spin" /> Đang tải...
         </div>
       )}
       {error && <ErrorState compact className="py-6" title="Không tải được tin nhắn" message="Kiểm tra Internet rồi mở lại hội thoại; vẫn lỗi thì tải lại trang." />}
-      <div className="space-y-3">
+      <div className="flex flex-col gap-2.5">
         {messages.map((m, i) => {
           const day = days[i]
           // Vạch ngày khi ngày khác tin đứng trước (bỏ qua tin không có ngày hợp lệ).
@@ -263,33 +298,31 @@ export function MessageThread({
           const sep = day && day !== prevDay
           const out = m.direction === "out"
           const time = formatTimeVn(m.at)
+          const failed = m.failed !== undefined && m.failed !== null
           return (
             <div key={m.id}>
               {sep && (
                 <div className="my-2 flex justify-center">
-                  <span className="rounded-full border border-[var(--border)] bg-[var(--card)] px-2.5 py-0.5 text-sm text-muted-foreground">
+                  <span className="rounded-full bg-ax-sunken px-2.5 py-0.5 text-[12px] font-medium text-ax-ink-2">
                     {inboxDayLabel(day, today)}
                   </span>
                 </div>
               )}
-              <div className={cn("flex flex-col", out ? "items-end" : "items-start")}>
+              <div className={cn("flex flex-col gap-1.5", out ? "items-end" : "items-start")}>
                 <div
                   className={cn(
-                    "max-w-[min(80%,34rem)] whitespace-pre-wrap break-words rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
-                    out
-                      ? "bg-[var(--foreground)] text-[var(--background)]"
-                      : "border border-[var(--border)] bg-[var(--card)] text-foreground",
-                    m.failed !== undefined && m.failed !== null && "opacity-60",
+                    "max-w-[82%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-base leading-[1.45] lg:max-w-[72%] lg:rounded-[14px] lg:text-[15px]",
+                    out ? "bg-ax-primary text-white" : "bg-ax-sunken text-ax-ink",
+                    failed && "opacity-60",
                   )}
                 >
                   {m.text}
                 </div>
-                <p className="mt-1 px-1 text-sm text-muted-foreground">
+                <p className="px-1 text-[12px] text-ax-ink-3">
                   {m.who ? `${m.who} · ${time}` : time}
-                  {m.failed !== undefined && m.failed !== null && (
-                    <span className="text-[var(--color-app-tag-red-ink)]"> · Lỗi{m.failed ? `: ${m.failed}` : ""}</span>
-                  )}
+                  {failed && <span className="text-[var(--ax-danger-ink)]"> · Lỗi{m.failed ? `: ${m.failed}` : ""}</span>}
                 </p>
+                {afterMessage?.(m)}
               </div>
             </div>
           )
@@ -299,6 +332,12 @@ export function MessageThread({
     </div>
   )
 }
+
+/** Câu soạn sẵn (chỉ điền vào ô, người dùng đọc lại rồi mới gửi) — thiết kế desktop. */
+const QUICK_REPLIES = [
+  { label: "Xin số điện thoại", text: "Chị cho em xin số điện thoại để em tư vấn kỹ hơn nhé." },
+  { label: "Gửi bảng giá", text: "Em gửi chị bảng giá tham khảo, chị xem giúp em nhé." },
+] as const
 
 /** Ô trả lời: Enter gửi, Shift+Enter xuống dòng. `notice` hiện phía trên khi kênh không cho gửi. */
 export function Composer({
@@ -325,18 +364,32 @@ export function Composer({
   // Mất mạng: vẫn gõ được (giữ nháp) nhưng khoá Gửi và nói rõ — không để tin "gửi" mà không đi.
   const offline = useOffline()
   return (
-    <div className="border-t border-[var(--border)] bg-[var(--card)] p-3">
+    <div className="ax-grad-composer border-t border-ax-line p-2 pb-3 lg:flex lg:flex-col lg:gap-2 lg:p-3">
       {notice}
-      {offline && <p role="status" className="mb-2 text-sm text-[var(--color-app-tag-amber-ink)]">Đang mất mạng — tin chưa gửi được. Nội dung vẫn giữ trong ô, có mạng lại thì bấm Gửi.</p>}
+      {offline && <p role="status" className="mb-2 text-sm text-[var(--ax-warn)]">Đang mất mạng — tin chưa gửi được. Nội dung vẫn giữ trong ô, có mạng lại thì bấm Gửi.</p>}
+      {!disabled && (
+        <div className="hidden flex-wrap gap-2 lg:flex">
+          {QUICK_REPLIES.map((q) => (
+            <button
+              key={q.label}
+              type="button"
+              onClick={() => onChange(value.trim() ? `${value.trimEnd()} ${q.text}` : q.text)}
+              className="relative h-9 cursor-pointer rounded-full border border-ax-btn-border bg-ax-surface px-3 text-[13px] text-ax-ink-2 shadow-[var(--ax-shadow-soft)] outline-none transition-colors duration-150 hover:bg-ax-hover focus-visible:shadow-[var(--ax-focus-ring)]"
+            >
+              {q.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex items-end gap-2">
         <Textarea
           rows={1}
-          aria-label={ariaLabel}
+          aria-label={ariaLabel ?? "Soạn trả lời"}
           value={value}
           disabled={disabled}
           maxLength={maxLength}
           placeholder={placeholder}
-          className="max-h-40 min-h-10 resize-none text-sm"
+          className={cn(AX_INPUT_CLASS, "max-h-40 min-h-12 resize-none rounded-3xl px-4 py-3 text-base leading-snug lg:rounded-[var(--ax-radius-field)] lg:text-[15px]")}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -346,31 +399,32 @@ export function Composer({
           }}
         />
         <Button
-          variant="outline"
-          size="icon"
-          className="size-10 shrink-0 max-sm:size-11"
+          variant="ax-primary"
+          size="ax-lg"
+          className="size-12 shrink-0 rounded-full p-0 lg:w-auto lg:rounded-[var(--ax-radius-field)] lg:px-[22px]"
           disabled={disabled || offline || !value.trim() || pending}
           onClick={onSend}
           aria-label="Gửi"
         >
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+          {pending ? <Loader2 className="size-5 animate-spin" /> : <Send className="size-5 lg:hidden" />}
+          <span className="max-lg:hidden">Gửi</span>
         </Button>
       </div>
     </div>
   )
 }
 
-/** Khối thông tin ở cột phải: tiêu đề nhỏ + các dòng nhãn/giá trị. */
+/** Khối thông tin ở cột phải: tiêu đề nhỏ in hoa + các dòng nhãn/giá trị. */
 export function SideSection({ title, rows, children }: { title: string; rows?: { label: string; value: ReactNode }[]; children?: ReactNode }) {
   return (
-    <section className="border-b border-[var(--border)] px-4 py-4 last:border-b-0">
-      <h3 className="mb-2.5 text-sm font-medium text-muted-foreground">{title}</h3>
+    <section className="border-b border-ax-divider px-4 py-4 last:border-b-0">
+      <h3 className="ax-text-group mb-2.5">{title}</h3>
       {rows && rows.length > 0 && (
-        <dl className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+        <dl className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-2 text-[15px]">
           {rows.map((r) => (
             <div key={r.label} className="contents">
-              <dt className="text-muted-foreground">{r.label}</dt>
-              <dd className="min-w-0 break-words text-foreground">{r.value}</dd>
+              <dt className="text-[13px] text-ax-ink-2">{r.label}</dt>
+              <dd className="min-w-0 break-words text-ax-ink">{r.value}</dd>
             </div>
           ))}
         </dl>
@@ -380,16 +434,14 @@ export function SideSection({ title, rows, children }: { title: string; rows?: {
   )
 }
 
-/** Trạng thái trống trong một cột: icon trong ô tròn, tiêu đề (tuỳ chọn) + lời giải thích. */
+/** Trạng thái trống trong một cột — dáng «Ánh xanh»: khối lõm có quầng, icon nét, tiêu đề + lời nhắn. */
 export function InboxEmpty({ icon, title, children }: { icon?: ReactNode; title?: string; children: ReactNode }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
-      {icon ? (
-        <span className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground [&_svg]:size-5 [&_svg]:opacity-100">{icon}</span>
-      ) : null}
-      <div className="flex max-w-xs flex-col gap-1">
-        {title ? <p className="text-sm font-medium text-foreground">{title}</p> : null}
-        <p className="text-[13px] leading-5 text-muted-foreground">{children}</p>
+    <div className="flex flex-1 flex-col items-center justify-center p-4">
+      <div className="ax-grad-empty flex w-full max-w-xs flex-col items-center gap-2 rounded-[var(--ax-radius-card)] px-5 py-7 text-center shadow-[var(--ax-shadow-inset)]">
+        {icon ? <span className="text-ax-primary-ink [&_svg]:size-5">{icon}</span> : null}
+        {title ? <p className="text-[15px] font-semibold text-ax-ink">{title}</p> : null}
+        <p className="text-[13px] leading-5 text-ax-ink-2">{children}</p>
       </div>
     </div>
   )
@@ -409,17 +461,17 @@ export function InboxListToolbar({ q, onQ, awaiting }: {
 }) {
   const seg = (on: boolean) =>
     cn(
-      "h-7 flex-1 rounded-md px-2.5 text-[13px] font-medium transition-colors duration-150 ease-out outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20 max-sm:h-10",
-      on ? "bg-[var(--card)] text-foreground shadow-[var(--shadow-field)]" : "text-muted-foreground hover:text-foreground",
+      "relative h-9 flex-1 cursor-pointer rounded-[var(--ax-radius-field)] px-2.5 text-[13px] font-semibold outline-none transition-colors duration-150 ease-out focus-visible:shadow-[var(--ax-focus-ring)] max-sm:h-11",
+      on ? "bg-ax-primary-soft text-ax-primary-ink" : "text-ax-ink-2 hover:bg-ax-hover",
     )
   return (
-    <div className="flex flex-col gap-2 border-b border-[var(--border)] p-3">
+    <div className="flex flex-col gap-2 border-b border-ax-line p-3">
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input className="pl-9" placeholder="Tìm theo tên hoặc SĐT" aria-label="Tìm hội thoại" value={q} onChange={(e) => onQ(e.target.value)} />
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ax-ink-3" />
+        <Input variant="ax" className="pl-9" placeholder="Tìm theo tên hoặc SĐT" aria-label="Tìm hội thoại" value={q} onChange={(e) => onQ(e.target.value)} />
       </div>
       {awaiting ? (
-        <div className="flex gap-0.5 rounded-lg bg-muted p-0.5" role="group" aria-label="Lọc hội thoại">
+        <div className="flex gap-1" role="group" aria-label="Lọc hội thoại">
           <button type="button" aria-pressed={!awaiting.on} onClick={() => awaiting.onChange(false)} className={seg(!awaiting.on)}>Tất cả</button>
           <button type="button" aria-pressed={awaiting.on} onClick={() => awaiting.onChange(true)} className={seg(awaiting.on)} data-testid="inbox-awaiting">
             Chưa trả lời{awaiting.count > 0 ? ` (${awaiting.count})` : ""}

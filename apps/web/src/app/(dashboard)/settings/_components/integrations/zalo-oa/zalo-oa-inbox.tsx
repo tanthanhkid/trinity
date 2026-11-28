@@ -1,16 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { Inbox, Loader2 } from "lucide-react"
-import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import apiClient from "@/lib/api-client"
-import { usePermissions } from "@/lib/rbac"
 import { formatDateTimeVn, formatPhone } from "@/lib/format"
+import { CustomerProfile, ProfileSheet, reminderText, useLinkedContact } from "@/components/inbox/customer-profile"
+import { usePermissions } from "@/lib/rbac"
 import {
-  Composer, ConversationItem, InboxEmpty, InboxFrame, InboxListToolbar, awaitingReply, MessageThread, SideSection, StatusPill, ThreadHeader,
+  Composer, ConversationItem, HeroChip, InboxEmpty, InboxFrame, InboxListToolbar, awaitingReply, MessageThread, SideSection, StatusPill, ThreadHeader,
   inboxTimeLabel, type InboxMessage,
 } from "@/components/inbox/inbox-ui"
 import { apiErrorMessage } from "../webhook-types"
@@ -21,60 +19,18 @@ import { ErrorState } from "@/components/ui/error-state"
 
 const messageText = (m: ZaloOaMessage) => m.text ?? (m.kind === "zns" ? "[Tin ZNS]" : "[Tệp đính kèm]")
 
-/** Khách đã ghép (cùng truy vấn với màn chi tiết khách `["contact", id]`) — chỉ khi có quyền xem khách. */
-interface LinkedContact {
-  code?: string | null
-  full_name?: string | null
-  phone?: string | null
-  stage?: string | null
-  assigned_user?: { full_name?: string | null } | null
-}
-
-function useLinkedContact(contactId: number | null, enabled: boolean) {
-  return useQuery<LinkedContact>({
-    queryKey: ["contact", String(contactId)],
-    enabled: enabled && contactId !== null,
-    retry: false,
-    staleTime: 60_000,
-    queryFn: async () => (await apiClient.get<LinkedContact>(`/contacts/${contactId}`)).data,
-  })
-}
-
-/** Cột phải của một hội thoại Zalo OA (dùng chung với màn Hộp thư `/inbox`). */
+/** Cột phải của một hội thoại Zalo OA (dùng chung với màn Hộp thư `/inbox`): hồ sơ khách sửa tại chỗ + thông tin hội thoại. */
 export function ZaloCustomerSide({ thread }: { thread: ZaloOaThread }) {
-  const { can } = usePermissions()
-  const canView = can("contacts.view")
-  const contact = useLinkedContact(thread.contact_id, canView)
-  const c = contact.data && typeof contact.data === "object" ? contact.data : null
   const open = inConsultWindow(thread.last_inbound_at)
-  const str = (v: unknown) => (typeof v === "string" && v.trim() ? v : null)
-
-  const rows: { label: string; value: React.ReactNode }[] = []
-  rows.push({ label: "Điện thoại", value: <span className="tabular-nums">{formatPhone(str(c?.phone) ?? thread.phone) || "Chưa có"}</span> })
-  if (str(c?.stage)) rows.push({ label: "Giai đoạn", value: c?.stage })
-  if (str(c?.assigned_user?.full_name)) rows.push({ label: "Phụ trách", value: c?.assigned_user?.full_name })
-  if (str(c?.code)) rows.push({ label: "Mã", value: c?.code })
-
   return (
     <>
-      <SideSection title="Khách hàng" rows={rows}>
-        <div className="mt-3">
-          {thread.contact_id ? (
-            canView ? (
-              <Link
-                href={`/contacts/${thread.contact_id}`}
-                className="text-sm font-medium text-[var(--color-app-primary-ink)] underline-offset-2 hover:underline"
-              >
-                Mở hồ sơ khách #{thread.contact_id}
-              </Link>
-            ) : (
-              <span className="text-sm text-muted-foreground">Khách #{thread.contact_id}</span>
-            )
-          ) : (
-            <span className="text-sm text-muted-foreground">Chưa ghép với khách nào trong CRM.</span>
-          )}
-        </div>
-      </SideSection>
+      <CustomerProfile
+        contactId={thread.contact_id}
+        fallbackName={threadTitle(thread)}
+        fallbackPhone={thread.phone}
+        avatarUrl={thread.avatar_url}
+        channelLabel="Zalo OA"
+      />
       <SideSection
         title="Hội thoại Zalo OA"
         rows={[
@@ -91,8 +47,14 @@ export function ZaloThreadView({ thread, onBack }: { thread: ZaloOaThread; onBac
   const messages = useZaloOaMessages(thread.id)
   const reply = useReplyZaloOa(thread.id)
   const [text, setText] = useState("")
+  const [sheet, setSheet] = useState(false)
+  const { can } = usePermissions()
+  const contact = useLinkedContact(thread.contact_id, can("contacts.view"))
+  const c = contact.data && typeof contact.data === "object" ? contact.data : null
   const open = inConsultWindow(thread.last_inbound_at)
   const name = threadTitle(thread)
+  const phone = c?.phone || thread.phone
+  const stageLabel = c?.stage_option?.label ?? null
   // BE trả mới nhất trước ⇒ đảo lại cũ → mới.
   const items: InboxMessage[] = [...(messages.data ?? [])].reverse().map((m) => ({
     id: m.id,
@@ -120,7 +82,18 @@ export function ZaloThreadView({ thread, onBack }: { thread: ZaloOaThread; onBac
         avatarUrl={thread.avatar_url}
         onBack={onBack}
         aside={<StatusPill tone={open ? "ok" : "warn"}>{open ? "Trả lời được" : "Quá 48 giờ"}</StatusPill>}
+        onOpenProfile={() => setSheet(true)}
+        chips={
+          <>
+            <HeroChip tone={phone ? "solid" : "dashed"} onClick={() => setSheet(true)}>{phone ? formatPhone(phone) : "Chưa có số điện thoại"}</HeroChip>
+            {stageLabel ? <HeroChip onClick={() => setSheet(true)}>{stageLabel}</HeroChip> : null}
+            {c ? <HeroChip tone="glass" onClick={() => setSheet(true)}>{reminderText(c)}</HeroChip> : null}
+          </>
+        }
       />
+      <ProfileSheet open={sheet} onOpenChange={setSheet}>
+        <CustomerProfile contactId={thread.contact_id} fallbackName={name} fallbackPhone={thread.phone} avatarUrl={thread.avatar_url} channelLabel="Zalo OA" variant="sheet" />
+      </ProfileSheet>
       <MessageThread messages={items} loading={messages.isLoading} error={messages.isError} />
       <Composer
         value={text}
@@ -131,7 +104,7 @@ export function ZaloThreadView({ thread, onBack }: { thread: ZaloOaThread; onBac
         placeholder="Nhập câu trả lời..."
         notice={
           !open ? (
-            <p className="mb-2 text-sm text-[var(--color-app-tag-amber-ink)]">
+            <p className="mb-2 text-sm text-[var(--ax-warn)]">
               Đã quá 48 giờ kể từ tin gần nhất của khách — Zalo không cho gửi tin tư vấn. Hãy dùng ZNS.
             </p>
           ) : null
@@ -167,7 +140,7 @@ export function ZaloOaInbox({ listTop, className, initialOpenId }: { listTop?: R
   const list = (
     <>
       <InboxListToolbar q={q} onQ={setQ} awaiting={{ on: onlyAwaiting, count: awaitingCount, onChange: setOnlyAwaiting }} />
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {threads.isLoading && <div className="flex justify-center py-6"><Loader2 className="size-4 animate-spin" /></div>}
         {threads.isError && !zaloOff && <ErrorState compact className="px-2 py-4" title="Không tải được danh sách hội thoại" error={threads.error} onRetry={() => void threads.refetch()} retrying={threads.isFetching} />}
         {!threads.isLoading && (zaloOff || (!threads.isError && rows.length === 0)) && (
@@ -177,7 +150,7 @@ export function ZaloOaInbox({ listTop, className, initialOpenId }: { listTop?: R
               : onlyAwaiting ? "Không còn hội thoại nào chờ trả lời." : q ? "Không có hội thoại nào khớp." : "Chưa có hội thoại nào. Khi khách nhắn vào Zalo OA đã kết nối, hội thoại sẽ hiện ở đây."}
           </InboxEmpty>
         )}
-        <ul className="space-y-0.5">
+        <ul>
           {rows.map((t) => {
             const open = inConsultWindow(t.last_inbound_at)
             return (
@@ -198,7 +171,7 @@ export function ZaloOaInbox({ listTop, className, initialOpenId }: { listTop?: R
           })}
         </ul>
         {threads.hasNextPage && (
-          <Button variant="outline" className="mt-2 w-full text-sm" disabled={threads.isFetchingNextPage} onClick={() => threads.fetchNextPage()}>
+          <Button variant="ax-secondary" size="ax" className="m-3 w-[calc(100%-1.5rem)]" disabled={threads.isFetchingNextPage} onClick={() => threads.fetchNextPage()}>
             Tải thêm
           </Button>
         )}

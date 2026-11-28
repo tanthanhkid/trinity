@@ -6,6 +6,7 @@ describe("scheduleError — giờ hẹn đăng bài", () => {
   it("trống / sai ⇒ báo lỗi", () => {
     expect(scheduleError("", now)).toBe("Chọn ngày giờ đăng.")
     expect(scheduleError("abc", now)).toBe("Ngày giờ không hợp lệ.")
+    expect(scheduleError("2026-10-25", now)).toBe("Chọn giờ đăng.")
   })
   it("quá khứ hoặc dưới 1 phút ⇒ lỗi", () => {
     expect(scheduleError("2026-10-20T08:00", now)).toMatch(/sau bây giờ/)

@@ -63,6 +63,8 @@ function toLocalInput(d: Date): string {
 /** Lỗi của giờ hẹn (null = hợp lệ). Ô `datetime-local` hiểu theo giờ máy người dùng. */
 export function scheduleError(value: string, now = Date.now()): string | null {
   if (!value) return "Chọn ngày giờ đăng."
+  // Chỉ có ngày (ô Giờ để trống): `new Date("YYYY-MM-DD")` là nửa đêm UTC — không tự đoán giờ.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return "Chọn giờ đăng."
   const t = new Date(value).getTime()
   if (Number.isNaN(t)) return "Ngày giờ không hợp lệ."
   if (t <= now + 60_000) return "Giờ hẹn phải sau bây giờ ít nhất 1 phút."
@@ -510,7 +512,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
             <div role="radiogroup" aria-label="Thời điểm đăng" className="grid grid-cols-2 gap-2 xl:grid-cols-4 max-lg:grid-cols-1 max-lg:gap-0 max-lg:divide-y max-lg:divide-ax-divider">
               {([
                 ["now", "Đăng ngay", chosen.length > 0 ? `Lên ${chosen.length} kênh trong ít giây` : "Lên kênh trong ít giây"],
-                ["schedule", "Hẹn giờ", scheduleAt && !schedErr ? formatDateTime(new Date(scheduleAt).toISOString()) : "Chọn ngày và giờ"],
+                ["schedule", "Hẹn giờ", scheduleAt && !scheduleError(scheduleAt) ? formatDateTime(new Date(scheduleAt).toISOString()) : "Chọn ngày và giờ"],
                 ["queue", "Vào hàng đợi", nextSlot ? `Gần nhất ${queueWhenLabel(nextSlot)}` : "Tự lấy khung trống"],
                 ["recurring", "Lặp lại", "Tự đăng theo lịch"],
               ] as const).map(([m, label, sub]) => {

@@ -188,6 +188,17 @@ describe("«Ánh xanh» — tương phản chữ ≥ 4,5:1", () => {
     expect(ratio(hex(ax("--ax-toast-action")), toastTop)).toBeGreaterThanOrEqual(4.5)
   })
 
+  it("nền trang: chữ chính/chữ phụ đọc được cả ở mép trên đậm nhất của quầng", () => {
+    // Đỉnh khung nội dung (y≈0): quầng desktop còn ~13,7% #3A75A6 trên #F2F6FA; điện thoại ~16,2% trên #F5F5F3.
+    // Chữ NHẠT `--ax-ink-3` ở đây chỉ ~3,8–4,3:1 (≥ 4,5 từ khoảng 120px trở xuống) — ghi ở docs, chờ chủ dự án chốt.
+    const desktopTop = mix(hex(ax("--ax-primary")), 0.137, hex("#f2f6fa"))
+    const mobileTop = mix(hex(ax("--ax-primary")), 0.162, hex(ax("--ax-bg-mobile")))
+    for (const bg of [desktopTop, mobileTop]) {
+      expect(ratio(hex(ax("--ax-ink")), bg)).toBeGreaterThanOrEqual(4.5)
+      expect(ratio(hex(ax("--ax-ink-2")), bg)).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
   it("viền ô nhập ≥ 3:1 (thành phần đồ hoạ)", () => {
     expect(ratio(hex(ax("--ax-field-border")), surface)).toBeGreaterThanOrEqual(3)
   })

@@ -90,9 +90,20 @@ showUndoToast("Đã lưu số điện thoại", { onUndo: () => save(prev) })
 - Hàng/danh sách: hover `--ax-hover`, chọn nền `--ax-primary-soft` + chữ `--ax-primary-ink`; vạch chia `--ax-divider`.
 - Số tiền: đơn vị ₫ nhỏ 0.8em màu `--ax-ink-3`; thời gian tương đối kèm `title` giờ đầy đủ.
 
+## Bẫy cho màn tính năng
+
+- `Card` của shadcn bị một rule ngoài `@layer` ép bo 10px (`app-tokens.css`) — muốn bo 12 của «Ánh xanh» dùng `ax-card`.
+- `[data-slot=button]:active` (globals.css) vẫn thu nhỏ 0.97 cho cả biến thể `ax-*` (thiết kế: lún 0.5px) — lệch nhỏ, cố ý giữ.
+- Audit e2e «một nút chính mỗi màn» (`e2e/design/primary-cta.spec.ts`) đếm theo `background-color` = `bg-primary`;
+  `ax-primary` là gradient nên KHÔNG được đếm — tự giữ quy tắc một nút chính mỗi vùng.
+- `text-xs` của app là 14px (globals.css nâng tối thiểu); chữ 11–13px của thiết kế dùng `text-[12px]`/`text-[13px]` hoặc `ax-text-label`/`ax-text-group`.
+- `size="ax-sm"` (36px) chỉ cho hàng dày đặc trên desktop; nút thường dùng `ax` (40), điện thoại tự lên 44.
+
 ## Chỗ lệch có chủ đích so với bảng thiết kế
 
 - Chữ phụ trên khối nhấn 97% trắng (thiết kế 92%): 92% chỉ đạt 4,24:1 dưới quầng sáng góc phải trên.
 - Chữ gợi ý ô nhập `#6B6F7B` (thiết kế `#8A8D96` = 3,3:1, dưới chuẩn 4,5:1).
 - Chữ nút nguy hiểm lúc hover/nhấn `--ax-danger-ink` `#B0352F` (`#C2413B` trên `#FBEDEC` chỉ 4,48:1).
+- **Chưa chốt** — chữ nhạt `--ax-ink-3`/`--muted-foreground` (#6B6F7B) đặt TRỰC TIẾP trên nền trang ở mép trên
+  (khoảng 0–120px dưới thanh trên) chỉ ~3,8–4,3:1 vì quầng xanh; chữ chính/chữ phụ vẫn đạt. Trong thẻ thì không ảnh hưởng.
 - Bản tối: thiết kế chỉ có bản sáng; khối `.dark` quy đổi tối thiểu về bảng màu tối sẵn có (khối nhấn và toast giữ nguyên).

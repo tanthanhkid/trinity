@@ -83,6 +83,7 @@ export function StageChip({
         type="button"
         data-slot="stage-chip"
         data-tone={dotColor ? "custom" : tone}
+        {...(props as unknown as React.ComponentProps<"button">)}
         aria-pressed={selected}
         disabled={disabled}
         onClick={onClick}

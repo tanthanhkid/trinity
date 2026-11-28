@@ -42,18 +42,18 @@ export const buttonVariants = cva(
         // Tương phản (đo trong __tests__/components/anh-xanh/tokens.test.ts): chữ trắng trên chặng
         // sáng nhất của gradient nút chính #3A75A6 = 4,91:1.
         "ax-primary":
-          "rounded-[var(--ax-radius-field)] border-0 bg-clip-border font-semibold text-white ax-grad-primary shadow-[var(--ax-shadow-primary)] hover:ax-grad-primary-hover active:ax-grad-primary-press",
+          "rounded-[var(--ax-radius-field)] border-0 bg-clip-border font-semibold text-white ax-grad-primary shadow-[var(--ax-shadow-primary)] hover:ax-grad-primary-hover active:ax-grad-primary-press focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[var(--ax-focus-ring)]",
         "ax-secondary":
-          "rounded-[var(--ax-radius-field)] border-0 bg-clip-border bg-ax-surface font-semibold text-ax-ink shadow-[var(--ax-shadow-secondary)] hover:bg-ax-hover active:bg-ax-press",
+          "rounded-[var(--ax-radius-field)] border-0 bg-clip-border bg-ax-surface font-semibold text-ax-ink shadow-[var(--ax-shadow-secondary)] hover:bg-ax-hover active:bg-ax-press focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[var(--ax-focus-ring)]",
         "ax-ghost":
-          "rounded-[var(--ax-radius-field)] border-0 bg-transparent font-semibold text-ax-ink-2 hover:bg-ax-sunken active:bg-ax-press",
+          "rounded-[var(--ax-radius-field)] border-0 bg-transparent font-semibold text-ax-ink-2 hover:bg-ax-sunken active:bg-ax-press focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[var(--ax-focus-ring)]",
         "ax-danger":
-          "rounded-[var(--ax-radius-field)] border-0 bg-clip-border bg-ax-surface font-semibold text-ax-danger shadow-[var(--ax-shadow-danger)] hover:bg-ax-danger-soft hover:text-[var(--ax-danger-ink)] active:bg-[var(--ax-danger-press)] active:text-[var(--ax-danger-ink)]",
+          "rounded-[var(--ax-radius-field)] border-0 bg-clip-border bg-ax-surface font-semibold text-ax-danger shadow-[var(--ax-shadow-danger)] hover:bg-ax-danger-soft hover:text-[var(--ax-danger-ink)] active:bg-[var(--ax-danger-press)] active:text-[var(--ax-danger-ink)] focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[var(--ax-focus-ring)]",
         // Đặt TRÊN khối nhấn (HeroCard): nút chính nền trắng chữ xanh đậm, nút phụ xanh thẫm trong.
         "ax-on-hero":
-          "rounded-[var(--ax-radius-field)] border-0 bg-clip-border bg-[var(--ax-on-hero-primary-bg)] font-semibold text-[var(--ax-on-hero-primary-ink)] shadow-[var(--ax-shadow-on-hero-primary)] hover:bg-[var(--ax-on-hero-primary-hover)]",
+          "rounded-[var(--ax-radius-field)] border-0 bg-clip-border bg-[var(--ax-on-hero-primary-bg)] font-semibold text-[var(--ax-on-hero-primary-ink)] shadow-[var(--ax-shadow-on-hero-primary)] hover:bg-[var(--ax-on-hero-primary-hover)] focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[var(--ax-focus-ring)]",
         "ax-on-hero-secondary":
-          "rounded-[var(--ax-radius-field)] border-[var(--ax-on-hero-secondary-border)] bg-[var(--ax-on-hero-secondary)] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,.08)] hover:bg-[var(--ax-on-hero-secondary-hover)]",
+          "rounded-[var(--ax-radius-field)] border-[var(--ax-on-hero-secondary-border)] bg-[var(--ax-on-hero-secondary)] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,.08)] hover:bg-[var(--ax-on-hero-secondary-hover)] focus-visible:border-transparent focus-visible:ring-0 focus-visible:shadow-[var(--ax-focus-ring)]",
       },
       size: {
         default:
@@ -76,7 +76,7 @@ export const buttonVariants = cva(
           ? "size-7 in-data-[slot=button-group]:rounded-lg"
           : "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
-        // «Ánh xanh»: 36 (gọn) / 40 (thường) desktop; 48 cho điện thoại / nút lớn trên khối nhấn.
+        // «Ánh xanh»: 36 (`ax-sm` — CHỈ cho hàng dày đặc trên desktop, vd nút trong dòng bảng) / 40 (thường) desktop; 48 cho điện thoại / nút lớn trên khối nhấn.
         // Dưới 640px mọi size (trừ xs) tự lên tối thiểu 44px — xem globals.css «Vùng chạm».
         "ax-sm": "h-9 gap-2 px-3 text-sm",
         ax: "h-10 gap-2 px-4 text-sm",

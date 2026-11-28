@@ -45,6 +45,8 @@ describe("Button — biến thể «Ánh xanh»", () => {
     expect(btn).toHaveAttribute("data-size", "ax")
     expect(btn.className).toContain("rounded-[var(--ax-radius-field)]")
     expect(btn.className).not.toMatch(/(^|\s)rounded-(lg|full)(\s|$)/)
+    expect(btn.className).toContain("focus-visible:shadow-[var(--ax-focus-ring)]")
+    expect(btn.className).not.toContain("focus-visible:ring-[3px]")
   })
 
   it.each(["ax-secondary", "ax-ghost", "ax-danger", "ax-on-hero", "ax-on-hero-secondary"] as const)(
@@ -115,6 +117,15 @@ describe("StageChip — chip giai đoạn", () => {
     expect(btn).toHaveAttribute("aria-pressed", "true")
     fireEvent.click(btn)
     expect(pick).toHaveBeenCalledOnce()
+  })
+
+  it("nút chip giữ aria-label / title truyền vào", () => {
+    render(
+      <StageChip tone="new" onClick={() => {}} aria-label="Lọc giai đoạn Mới" title="Mới">
+        Mới
+      </StageChip>,
+    )
+    expect(screen.getByRole("button", { name: "Lọc giai đoạn Mới" })).toHaveAttribute("title", "Mới")
   })
 })
 

@@ -14,6 +14,7 @@ export const UNDO_TOAST_DURATION = 5000
  *
  * Dùng `showUndoToast()` (đi qua `<Toaster>` của sonner sẵn có trong `app/providers.tsx`).
  * Mẫu dùng: lưu NGAY (lạc quan) rồi cho hoàn tác, thay vì hỏi xác nhận trước.
+ * Rộng `w-full` = theo khung toast của sonner (`--width`, 356px; điện thoại gần hết ngang).
  *
  * @example
  * await saveField("phone", next)
@@ -34,7 +35,7 @@ export function UndoToast({
     <div
       data-slot="undo-toast"
       className={cn(
-        "flex w-[min(92vw,420px)] items-center gap-4 rounded-[var(--ax-radius-card)] py-3 pr-2 pl-4 text-white ax-grad-toast shadow-[var(--ax-shadow-float)]",
+        "flex w-full items-center gap-4 rounded-[var(--ax-radius-card)] py-3 pr-2 pl-4 text-white ax-grad-toast shadow-[var(--ax-shadow-float)]",
         className,
       )}
     >

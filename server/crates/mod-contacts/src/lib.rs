@@ -13,11 +13,12 @@
 //! | `POST /contacts`, `PATCH /contacts/:id` | [`write::create`], [`write::update`] |
 //! | `DELETE /contacts/:id`, `POST /contacts/:id/restore` | [`write::remove`], [`write::restore`] |
 //! | `POST /contacts/:id/notes` (ghi chú vào dòng thời gian, chung lõi với tool MCP `add_contact_note`) | [`notes::add_note`] |
+//! | `DELETE /contacts/:id/notes/:noteId` (Hoàn tác ghi chú: người vừa ghi, trong 10 giây; không có tool MCP) | [`notes::revoke_note`] |
 //!
 //! Mỗi hàm nhận kết nối đã gắn công ty (`&mut PgConnection` cho việc đọc, `&TenantDb` cho việc cần giao dịch), [`Actor`]
 //! (người gọi) và [`Scopes`] (tập chủ sở hữu theo từng quyền, do tầng route lấy từ `ScopeService` của K13), và trả
 //! `AppError` của K05, nên tầng route chỉ còn: guard + extractor K15 → hàm ở đây → JSON.
-//! Bảng route (`specs`, 15 route) và `api_router` nằm ở [`routes`]; `trinity-bin` khai vào `declared_routes` và mount ở `serve`.
+//! Bảng route (`specs`, 16 route) và `api_router` nằm ở [`routes`]; `trinity-bin` khai vào `declared_routes` và mount ở `serve`.
 //!
 //! Khác bản TS có chủ đích:
 //! - thông báo "được giao thương vụ" ([`write::Created::notifications`]) ghi trong CÙNG giao dịch tạo khách (K36 chạy trong

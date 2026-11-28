@@ -25,6 +25,7 @@ const ALL: i32 = 9861; // contacts.view + contacts.update phạm vi all
 const OWN: i32 = 9862; // contacts.view + contacts.update phạm vi own
 const VIEW: i32 = 9863; // chỉ contacts.view (all) — không được ghi chú
 const SALE: i32 = 9864; // chủ khách, không quyền gì
+const ALL2: i32 = 9865; // quản lý thứ hai (cùng vai trò ALL) — không phải người ghi ⇒ không hoàn tác được
 
 fn url() -> String {
     std::env::var("TEST_DATABASE_URL").expect("test pg cần TEST_DATABASE_URL")
@@ -48,9 +49,9 @@ async fn scalar<T: for<'r> sqlx::Decode<'r, sqlx::Postgres> + sqlx::Type<sqlx::P
         .expect(sql)
 }
 
-/// Ghi lại các lần `after_note` (đồng bộ thẻ @) để kiểm tầng route gọi đúng khoá.
+/// Ghi lại các lần `after_note` (đồng bộ thẻ @) và `after_note_revoked` để kiểm tầng route gọi đúng khoá.
 #[derive(Default)]
-struct Rec(Mutex<Vec<(i32, i32, String)>>);
+struct Rec(Mutex<Vec<(i32, i32, String)>>, Mutex<Vec<(i32, i32)>>);
 
 impl Hooks for Rec {
     fn after_create<'a>(&'a self, _c: CompanyRef, _n: &'a [CreatedNotification]) -> HookFuture<'a> {
@@ -78,6 +79,17 @@ impl Hooks for Rec {
     ) -> HookFuture<'a> {
         Box::pin(async move {
             self.0.lock().unwrap().push((contact_id, activity_id, note.to_owned()));
+        })
+    }
+    fn after_note_revoked<'a>(
+        &'a self,
+        _c: CompanyRef,
+        _u: &'a CurrentUser,
+        contact_id: i32,
+        activity_id: i32,
+    ) -> HookFuture<'a> {
+        Box::pin(async move {
+            self.1.lock().unwrap().push((contact_id, activity_id));
         })
     }
 }
@@ -122,8 +134,16 @@ struct Res {
 }
 
 async fn post(app: &Router, path: &str, user: Option<i32>, body: Value) -> Res {
+    send(app, Method::POST, path, user, body).await
+}
+
+async fn delete(app: &Router, path: &str, user: Option<i32>) -> Res {
+    send(app, Method::DELETE, path, user, Value::Null).await
+}
+
+async fn send(app: &Router, method: Method, path: &str, user: Option<i32>, body: Value) -> Res {
     let mut b = Request::builder()
-        .method(Method::POST)
+        .method(method)
         .uri(path)
         .header("content-type", "application/json");
     if let Some(u) = user {
@@ -131,7 +151,14 @@ async fn post(app: &Router, path: &str, user: Option<i32>, body: Value) -> Res {
     }
     let resp = app
         .clone()
-        .oneshot(b.body(Body::from(body.to_string())).unwrap())
+        .oneshot(
+            b.body(if body.is_null() {
+                Body::empty()
+            } else {
+                Body::from(body.to_string())
+            })
+            .unwrap(),
+        )
         .await
         .unwrap();
     let status = resp.status();
@@ -170,6 +197,7 @@ async fn setup() {
         (OWN, "Sale hẹp"),
         (VIEW, "Chỉ xem"),
         (SALE, "Chủ khách"),
+        (ALL2, "Quản lý 2"),
     ] {
         exec(&format!(
             "INSERT INTO users (id, email, password_hash, full_name, status, updated_at)
@@ -184,7 +212,7 @@ async fn setup() {
             (9861, 'contacts.view', 'all'), (9861, 'contacts.update', 'all'),
             (9862, 'contacts.view', 'own'), (9862, 'contacts.update', 'own'),
             (9863, 'contacts.view', 'all');
-          INSERT INTO user_roles (user_id, role_id) VALUES (9861, 9861), (9862, 9862), (9863, 9863)",
+          INSERT INTO user_roles (user_id, role_id) VALUES (9861, 9861), (9862, 9862), (9863, 9863), (9865, 9861)",
     )
     .await;
 }
@@ -289,6 +317,71 @@ async fn ghi_chu_khach_qua_http_dung_quyen_va_pham_vi() {
         post(&a, &path(mine), Some(ALL), json!({ "note": "x" })).await.status,
         404
     );
+    assert_eq!(note_count(mine).await, 1);
+    teardown().await;
+}
+
+/// Hoàn tác ghi chú (`DELETE /contacts/:id/notes/:noteId`): chỉ người vừa ghi, trong 10 giây; người khác 403, quá hạn 409,
+/// sai khách / không phải ghi chú / ngoài phạm vi 404; xong thì dòng `activities` mất và hook xoá thẻ @ được gọi.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn hoan_tac_ghi_chu_chi_nguoi_ghi_trong_10_giay() {
+    setup().await;
+    let rec = Arc::new(Rec::default());
+    let a = app(rec.clone()).await;
+    let theirs = contact("0906861011", SALE).await;
+    let other = contact("0906861012", SALE).await;
+    let mine = contact("0906861013", OWN).await;
+    let add = |id: i32| format!("/api/v1/contacts/{id}/notes");
+    let undo = |id: i32, n: i64| format!("/api/v1/contacts/{id}/notes/{n}");
+
+    let r = post(&a, &add(theirs), Some(ALL), json!({ "note": "Hẹn @KH999" })).await;
+    assert_eq!(r.status, 201, "{:?}", r.body);
+    let n = r.body["id"].as_i64().unwrap();
+
+    // Không đăng nhập 401; thiếu contacts.update 403.
+    assert_eq!(delete(&a, &undo(theirs, n), None).await.status, 401);
+    assert_eq!(delete(&a, &undo(theirs, n), Some(VIEW)).await.status, 403);
+    // Phạm vi own, khách người khác ⇒ 404 (không lộ tồn tại).
+    assert_eq!(delete(&a, &undo(theirs, n), Some(OWN)).await.status, 404);
+    // Ghi chú không thuộc khách này / id lạ ⇒ 404.
+    assert_eq!(delete(&a, &undo(other, n), Some(ALL)).await.status, 404);
+    assert_eq!(delete(&a, &undo(theirs, 2_000_000_000), Some(ALL)).await.status, 404);
+    // Không phải ghi chú (vd stage_change) ⇒ 404.
+    let stage: i64 = scalar::<i32>(&format!(
+        "INSERT INTO activities (contact_id, action, details, created_by) VALUES ({theirs}, 'stage_change', '{{}}', {ALL}) RETURNING id"
+    ))
+    .await
+    .into();
+    assert_eq!(delete(&a, &undo(theirs, stage), Some(ALL)).await.status, 404);
+    // Người khác (dù cùng quyền all) ⇒ 403.
+    let r = delete(&a, &undo(theirs, n), Some(ALL2)).await;
+    assert_eq!(r.status, 403, "{:?}", r.body);
+    assert_eq!(note_count(theirs).await, 1);
+    assert!(rec.1.lock().unwrap().is_empty());
+
+    // Người ghi, trong hạn ⇒ 200, mất dòng, hook xoá thẻ @ đúng khoá; lần hai ⇒ 404.
+    let r = delete(&a, &undo(theirs, n), Some(ALL)).await;
+    assert_eq!(r.status, 200, "{:?}", r.body);
+    assert_eq!(r.body["revoked"], true);
+    assert_eq!(note_count(theirs).await, 0);
+    assert_eq!(rec.1.lock().unwrap().clone(), vec![(theirs, i32::try_from(n).unwrap())]);
+    assert_eq!(delete(&a, &undo(theirs, n), Some(ALL)).await.status, 404);
+
+    // Quá 10 giây (lùi created_at bằng SQL) ⇒ 409, không xoá.
+    let r = post(&a, &add(mine), Some(OWN), json!({ "note": "Gọi lần 2" })).await;
+    assert_eq!(r.status, 201, "{:?}", r.body);
+    let m = r.body["id"].as_i64().unwrap();
+    exec(&format!(
+        "UPDATE activities SET created_at = now() - interval '11 seconds' WHERE id = {m}"
+    ))
+    .await;
+    let r = delete(&a, &undo(mine, m), Some(OWN)).await;
+    assert_eq!(r.status, 409, "{:?}", r.body);
+    assert_eq!(note_count(mine).await, 1);
+    // Khách đã xoá mềm ⇒ 404.
+    exec(&format!("UPDATE activities SET created_at = now() WHERE id = {m}; UPDATE contacts SET deleted_at = now() WHERE id = {mine}")).await;
+    assert_eq!(delete(&a, &undo(mine, m), Some(OWN)).await.status, 404);
     assert_eq!(note_count(mine).await, 1);
     teardown().await;
 }

@@ -4,6 +4,7 @@ import { useId, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { showUndoToast } from "@/components/ui/undo-toast"
 import apiClient from "@/lib/api-client"
 import { errorMessage } from "@/lib/error-messages"
 import { cn } from "@/lib/utils"
@@ -14,8 +15,9 @@ export const NOTE_MAX = 2000
 /**
  * «Ghi nhanh cuộc gọi» (khach-desktop) / «Ghi nhanh» (khach-mobile): ghi chú vào dòng thời gian của khách qua
  * `POST /contacts/:id/notes` (quyền `contacts.update`, cùng lõi với tool AI «Thêm ghi chú cho khách»). Nút «Lưu ghi chú»
- * nhạt khi ô trống, chuyển nút chính khi có chữ; lưu xong xoá ô và tải lại Lịch sử. Ẩn cả khối khi thiếu quyền (trang gọi
- * bọc `Can`).
+ * nhạt khi ô trống, chuyển nút chính khi có chữ; lưu xong xoá ô, tải lại Lịch sử và hiện toast «Đã lưu ghi chú» có Hoàn tác
+ * (`DELETE /contacts/:id/notes/:noteId` — chỉ người vừa ghi, trong 10 giây; toast tự ẩn sau 5 giây nên nằm trong hạn). Hoàn
+ * tác xong trả lại chữ vào ô nếu ô đang trống. Ẩn cả khối khi thiếu quyền (trang gọi bọc `Can`).
  */
 export function QuickNoteCard({ contactId, variant }: { contactId: number | string; variant: "desktop" | "mobile" }) {
   const id = String(contactId)
@@ -31,9 +33,24 @@ export function QuickNoteCard({ contactId, variant }: { contactId: number | stri
     if (!ready) return
     setSaving(true)
     try {
-      await apiClient.post(`/contacts/${id}/notes`, { note })
+      const res = await apiClient.post<{ id: number }>(`/contacts/${id}/notes`, { note })
+      const noteId = res.data?.id
       setDraft("")
-      toast.success("Đã lưu ghi chú")
+      showUndoToast("Đã lưu ghi chú", {
+        onUndo:
+          typeof noteId === "number"
+            ? () => {
+                apiClient
+                  .delete(`/contacts/${id}/notes/${noteId}`)
+                  .then(() => {
+                    setDraft((d) => (d.trim() === "" ? note : d))
+                    toast.success("Đã hoàn tác ghi chú")
+                    return queryClient.invalidateQueries({ queryKey: ["contact-activities", id] })
+                  })
+                  .catch((err) => toast.error(errorMessage(err, "Không thể hoàn tác ghi chú")))
+              }
+            : undefined,
+      })
       await queryClient.invalidateQueries({ queryKey: ["contact-activities", id] })
     } catch (err) {
       toast.error(errorMessage(err, "Không thể lưu ghi chú"))

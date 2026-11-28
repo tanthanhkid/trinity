@@ -320,7 +320,7 @@ function ContactDetailContent({ id }: { id: string }) {
         </nav>
         <div className="flex flex-wrap items-start gap-4">
           <div className="flex min-w-[280px] max-w-[340px] flex-[1_1_300px] flex-col gap-4">
-            <ContactHero name={contact.full_name} phone={contact.phone} code={contact.code} avatarUrl={contact.avatar_url} sourceLabel={contact.source?.label} withActions />
+            <ContactHero contactId={id} name={contact.full_name} phone={contact.phone} code={contact.code} avatarUrl={contact.avatar_url} sourceLabel={contact.source?.label} withActions />
             <section aria-labelledby="contact-stage" className="ax-card px-5 py-[18px]">
               <h2 id="contact-stage" className="mb-2.5 text-sm font-bold tracking-[-0.011em]">Giai đoạn</h2>
               <StagePicker contact={contact} layout="list" />
@@ -382,7 +382,7 @@ function ContactDetailContent({ id }: { id: string }) {
           </button>
         </Can>
       </div>
-      <ContactHero name={contact.full_name} phone={contact.phone} code={contact.code} avatarUrl={contact.avatar_url} sourceLabel={contact.source?.label} />
+      <ContactHero contactId={id} name={contact.full_name} phone={contact.phone} code={contact.code} avatarUrl={contact.avatar_url} sourceLabel={contact.source?.label} />
       <div className="-mx-1"><StagePicker contact={contact} layout="chips" /></div>
       <Can perm="contacts.update"><QuickNoteCard contactId={id} variant="mobile" /></Can>
       <section aria-label="Thông tin" className="ax-card px-4 py-1.5">

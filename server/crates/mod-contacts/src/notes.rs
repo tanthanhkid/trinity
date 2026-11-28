@@ -4,6 +4,10 @@
 //!
 //! Quyền: `contacts.update` phủ chủ khách (`assigned_to`, `created_by_id`); khách không có, đã xoá hoặc ngoài phạm vi ⇒ 404
 //! như `PATCH /contacts/:id`.
+//!
+//! Hoàn tác (`DELETE /contacts/:id/notes/:noteId`, nút Hoàn tác của toast «Đã lưu ghi chú»): chỉ NGƯỜI VỪA GHI, trong
+//! [`NOTE_UNDO_SECONDS`] giây theo đồng hồ DB ⇒ xoá hẳn dòng `activities` (bảng không có `deleted_at`). Người khác ⇒ 403,
+//! quá hạn ⇒ 409. Không có tool MCP tương ứng (không tool xoá).
 
 use serde::Serialize;
 use serde_json::{Map, Value, json};
@@ -16,6 +20,9 @@ use crate::{assert_in_scope, db, http};
 
 /// Trần nội dung một ghi chú (bằng `NOTE_MAX` của tool MCP), tính theo ký tự.
 pub const NOTE_MAX: usize = 2000;
+
+/// Cửa sổ Hoàn tác một ghi chú vừa ghi (giây, đồng hồ DB).
+pub const NOTE_UNDO_SECONDS: i32 = 10;
 
 /// Ghi chú vừa tạo.
 #[derive(Debug, Serialize)]
@@ -112,6 +119,56 @@ pub async fn add_note(
         created_by: user_id,
         created_at,
     })
+}
+
+/// Thu hồi (Hoàn tác) ghi chú `note_id` của khách `contact_id`. Thứ tự kiểm để không lộ dữ liệu: khách không có/đã xoá/ngoài
+/// phạm vi `update` ⇒ 404; ghi chú không thuộc khách hoặc không phải `note` ⇒ 404; không phải người ghi ⇒ 403; quá
+/// [`NOTE_UNDO_SECONDS`] giây ⇒ 409. Khoá dòng (`FOR UPDATE`) rồi xoá trong cùng giao dịch.
+pub async fn revoke_note(
+    conn: &mut PgConnection,
+    update: Option<&OwnerIds>,
+    user_id: i32,
+    contact_id: i32,
+    note_id: i32,
+) -> Result<(), AppError> {
+    let owners: Option<(Option<i32>, Option<i32>)> =
+        sqlx::query_as("SELECT assigned_to, created_by_id FROM contacts WHERE id = $1 AND deleted_at IS NULL")
+            .bind(contact_id)
+            .fetch_optional(&mut *conn)
+            .await
+            .map_err(db)?;
+    let (assigned_to, created_by) = owners.ok_or_else(|| http(HttpError::not_found("Không tìm thấy khách hàng")))?;
+    assert_in_scope(update, &[assigned_to, created_by])?;
+
+    let mut tx = sqlx::Connection::begin(&mut *conn).await.map_err(db)?;
+    let row: Option<(Option<i32>, bool)> = sqlx::query_as(
+        "SELECT created_by, created_at < now() - make_interval(secs => $3) FROM activities
+         WHERE id = $1 AND contact_id = $2 AND action = 'note' FOR UPDATE",
+    )
+    .bind(note_id)
+    .bind(contact_id)
+    .bind(f64::from(NOTE_UNDO_SECONDS))
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(db)?;
+    let (author, expired) = row.ok_or_else(|| http(HttpError::not_found("Không tìm thấy ghi chú")))?;
+    if author != Some(user_id) {
+        return Err(http(HttpError::forbidden(
+            "Chỉ người vừa ghi mới hoàn tác được ghi chú này",
+        )));
+    }
+    if expired {
+        return Err(http(HttpError::conflict(format!(
+            "Đã quá {NOTE_UNDO_SECONDS} giây — ghi chú này không hoàn tác được nữa"
+        ))));
+    }
+    sqlx::query("DELETE FROM activities WHERE id = $1")
+        .bind(note_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(db)?;
+    tx.commit().await.map_err(db)?;
+    Ok(())
 }
 
 #[cfg(test)]

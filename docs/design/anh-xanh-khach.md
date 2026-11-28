@@ -12,8 +12,14 @@ Thiết kế: `khach-desktop` · `khach-mobile` · `khach-mobile2` (bổ sung th
 ## Ghi nhanh cuộc gọi (`_components/quick-note-card.tsx`)
 
 - Lưu = `POST /contacts/:id/notes` `{ note }` (quyền `contacts.update`, khách trong phạm vi; 201 trả dòng hoạt động `note`). Cùng lõi `mod_contacts::notes::add_note` với tool MCP `add_contact_note`, thẻ @ đồng bộ như ghi từ AI (khoá `note:<id>`).
-- Nút «Lưu ghi chú» nhạt (nền lõm) khi ô trống, thành nút chính khi có chữ; Ctrl/⌘+Enter lưu. Lưu xong xoá ô, toast «Đã lưu ghi chú», tải lại Lịch sử (`["contact-activities", id]`). Lỗi giữ nguyên chữ đã gõ.
+- Nút «Lưu ghi chú» nhạt (nền lõm) khi ô trống, thành nút chính khi có chữ; Ctrl/⌘+Enter lưu. Lưu xong xoá ô, toast «Đã lưu ghi chú» có **Hoàn tác**, tải lại Lịch sử (`["contact-activities", id]`). Lỗi giữ nguyên chữ đã gõ.
+- Hoàn tác = `DELETE /contacts/:id/notes/:noteId` (`mod_contacts::notes::revoke_note`): chỉ NGƯỜI VỪA GHI, trong 10 giây theo đồng hồ DB (toast tự ẩn sau 5 giây). Người khác ⇒ 403, quá hạn ⇒ 409, sai khách / không phải ghi chú / ngoài phạm vi `contacts.update` ⇒ 404. Xoá hẳn dòng `activities` (bảng không có `deleted_at`) và xoá thẻ @ của ghi chú (hook `after_note_revoked`). Hoàn tác xong trả chữ về ô nếu ô đang trống. **Không có tool MCP** cho việc này (không tool xoá).
 - Không có quyền `contacts.update` ⇒ ẩn cả khối.
+
+## «+ Thêm số điện thoại» trên khối nhấn (`_components/contact-hero.tsx`)
+
+- Khách chưa có SĐT và người xem có `contacts.update` + `contacts.phone_full` ⇒ thay «—» bằng nút viền đứt «+ Thêm số điện thoại» (cao 44 px), bấm mở ô nhập tại chỗ trên khối nhấn; Enter/rời ô lưu `PATCH /contacts/:id {phone}`, Esc huỷ. Thiếu quyền ⇒ vẫn «—».
+- Lưu xong chỉ toast «Đã lưu» — **không Hoàn tác** (chốt 28/11). Lỗi máy chủ (trùng số…) hiện ngay dưới ô, giữ chữ đã gõ. Desktop: bấm vào số đã có để sửa lại; điện thoại sửa lại qua «Sửa».
 
 ## Bổ sung thông tin — điện thoại (`_components/missing-info-sheet.tsx`, `MissingInfoScreen`)
 
@@ -24,7 +30,6 @@ Thiết kế: `khach-desktop` · `khach-mobile` · `khach-mobile2` (bổ sung th
 
 ## Chỗ lệch có chủ đích so với thiết kế
 
-- Toast «Đã lưu ghi chú» không có Hoàn tác: chưa có API xoá hoạt động (và không có tool xoá).
 - Nút «Messenger» (desktop) / biểu tượng nhắn (mobile) chưa làm: hồ sơ khách chưa có liên kết hội thoại Messenger để mở.
 - Ô «Công ty» là chữ tự do (thiết kế ghi «Tìm hoặc tạo công ty» — chưa có danh mục công ty).
 - Dòng Lịch sử chưa hiện tên người ghi như thiết kế (giữ dòng thời gian đang chạy).

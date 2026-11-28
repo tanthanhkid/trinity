@@ -74,7 +74,7 @@ async fn clean(c: &mut PgConnection) {
     exec(c, "DELETE FROM zalo_oa_oauth_states").await;
     exec(
         c,
-        "DELETE FROM contacts WHERE zalo_account LIKE 'm52%' OR phone IN ('0912000111', '0912000222')",
+        "DELETE FROM contacts WHERE zalo_account LIKE 'm52%' OR phone IN ('0912000111', '0912000222', '0987000333', '0912000444', '0987000555')",
     )
     .await;
     exec(c, "DELETE FROM users WHERE email LIKE 'm52%@test.local'").await;
@@ -774,5 +774,139 @@ async fn gui_tin_tu_van_48_gio_va_zns() {
     let mut c = w.conn().await;
     let m = threads::messages(&mut c, t.id, 10, None).await.unwrap();
     assert_eq!((m[0].kind.as_str(), m[0].status.as_str()), ("zns", "failed"));
+    clean(&mut c).await;
+}
+
+/// Một tin vào của khách (ghi thẳng, không qua webhook).
+async fn inbound_text(c: &mut PgConnection, thread: i32, msg_id: &str, text: &str, direction: &'static str) -> i64 {
+    let m = threads::record(
+        c,
+        &threads::RecordMessage {
+            thread_id: thread,
+            direction,
+            kind: "text",
+            msg_id: Some(msg_id),
+            text: Some(text),
+            payload: json!({}),
+            status: if direction == "in" { "received" } else { "sent" },
+            error: None,
+            sent_by: None,
+            at: None,
+        },
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    m.id.0
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn luu_sdt_tu_tin_nhan_vao_ho_so() {
+    let _g = serial().lock().await;
+    let w = World::new().await;
+    let mut c = w.conn().await;
+    let t1 = threads::upsert_thread(&mut c, "m52sp", "m52usp1").await.unwrap();
+    let m1 = inbound_text(&mut c, t1.id, "sp1", "Chào shop, SĐT chị 0987 000 333 nhé", "in").await;
+    let m_out = inbound_text(&mut c, t1.id, "sp2", "Dạ em gọi chị theo 0987 000 333", "out").await;
+    let m_none = inbound_text(&mut c, t1.id, "sp3", "báo giá 18.500.000 ₫ giúp chị", "in").await;
+
+    // Danh sách tin: chỉ tin KHÁCH có số mới có `phones`.
+    let view = threads::messages(&mut c, t1.id, 10, None).await.unwrap();
+    let phones: Vec<(String, Vec<String>)> = view
+        .iter()
+        .map(|m| (m.msg_id.clone().unwrap(), m.phones.clone()))
+        .collect();
+    assert!(phones.contains(&("sp1".into(), vec!["0987000333".into()])));
+    assert!(phones.contains(&("sp2".into(), vec![])) && phones.contains(&("sp3".into(), vec![])));
+
+    // Lỗi đầu vào: tin đi, tin không có số, tin của hội thoại khác, số không có trong tin.
+    for (mid, want, code) in [
+        (m_out, None, 404),
+        (m_none, None, 400),
+        (m1 + 9999, None, 404),
+        (m1, Some("0912000444"), 400),
+    ] {
+        let e = threads::save_phone(&mut c, t1.id, mid, want, w.admin)
+            .await
+            .unwrap_err();
+        assert_eq!(status(e).0, code, "{mid} {want:?}");
+    }
+    let (cid, n): (Option<i32>, i64) = sqlx::query_as("SELECT (SELECT contact_id FROM zalo_oa_threads WHERE id = $1), (SELECT count(*) FROM contacts WHERE phone = '0987000333')")
+        .bind(t1.id)
+        .fetch_one(&mut *c)
+        .await
+        .unwrap();
+    assert_eq!((cid, n), (None, 0), "lỗi đầu vào không được ghi gì");
+
+    // Hội thoại chưa ghép khách ⇒ tạo khách mới, ghép, giao cho người bấm.
+    let r = threads::save_phone(&mut c, t1.id, m1, None, w.admin).await.unwrap();
+    assert_eq!((r.created, r.already, r.phone.as_str()), (true, false, "0987000333"));
+    assert_eq!(
+        (r.thread.contact_id, r.thread.phone.as_deref()),
+        (Some(r.contact_id), Some("84987000333"))
+    );
+    let (phone, source, assigned): (String, Option<String>, Option<i32>) =
+        sqlx::query_as("SELECT c.phone, c.zalo_account, c.assigned_to FROM contacts c WHERE c.id = $1")
+            .bind(r.contact_id)
+            .fetch_one(&mut *c)
+            .await
+            .unwrap();
+    assert_eq!(
+        (phone.as_str(), source.as_deref(), assigned),
+        ("0987000333", Some("m52usp1"), Some(w.admin))
+    );
+    // Bấm lần hai: không tạo thêm, `already`.
+    let again = threads::save_phone(&mut c, t1.id, m1, Some("+84 987 000 333"), w.admin)
+        .await
+        .unwrap();
+    assert_eq!(
+        (again.contact_id, again.created, again.already),
+        (r.contact_id, false, true)
+    );
+
+    // Hội thoại khác, tin có HAI số: phải chọn; chọn số đã là khách khác ⇒ ghép vào khách đó, không tạo trùng.
+    let t2 = threads::upsert_thread(&mut c, "m52sp", "m52usp2").await.unwrap();
+    let m2 = inbound_text(&mut c, t2.id, "sp4", "số 0912 000 444 hoặc 0987.000.333", "in").await;
+    assert_eq!(
+        status(threads::save_phone(&mut c, t2.id, m2, None, w.admin).await.unwrap_err()).0,
+        400
+    );
+    let r2 = threads::save_phone(&mut c, t2.id, m2, Some("0987000333"), w.admin)
+        .await
+        .unwrap();
+    assert_eq!((r2.contact_id, r2.created), (r.contact_id, false));
+
+    // Đã ghép khách mang SỐ KHÁC ⇒ 409, không ghi đè số, không đổi hội thoại.
+    let t3 = threads::upsert_thread(&mut c, "m52sp", "m52usp3").await.unwrap();
+    let m3 = inbound_text(&mut c, t3.id, "sp5", "số mới của chị 0987 000 555", "in").await;
+    threads::update_profile(&mut c, t3.id, None, None, None, Some(r.contact_id))
+        .await
+        .unwrap();
+    let e = threads::save_phone(&mut c, t3.id, m3, None, w.admin).await.unwrap_err();
+    assert_eq!(status(e).0, 409);
+    let (cp, count): (String, i64) = sqlx::query_as(
+        "SELECT (SELECT phone FROM contacts WHERE id = $1), (SELECT count(*) FROM contacts WHERE phone = '0987000555')",
+    )
+    .bind(r.contact_id)
+    .fetch_one(&mut *c)
+    .await
+    .unwrap();
+    assert_eq!((cp.as_str(), count), ("0987000333", 0));
+
+    // Khách đã ghép bị xoá (mềm) ⇒ coi như chưa ghép: tạo khách mới mang số trong tin và ghép lại, không báo 404.
+    let t4 = threads::upsert_thread(&mut c, "m52sp", "m52usp4").await.unwrap();
+    let m4 = inbound_text(&mut c, t4.id, "sp6", "chị đổi sang 0987 000 666", "in").await;
+    threads::update_profile(&mut c, t4.id, None, None, None, Some(r.contact_id))
+        .await
+        .unwrap();
+    sqlx::query("UPDATE contacts SET deleted_at = now() WHERE id = $1")
+        .bind(r.contact_id)
+        .execute(&mut *c)
+        .await
+        .unwrap();
+    let r4 = threads::save_phone(&mut c, t4.id, m4, None, w.admin).await.unwrap();
+    assert!(r4.created && !r4.already && r4.contact_id != r.contact_id);
+    assert_eq!(r4.thread.contact_id, Some(r4.contact_id));
     clean(&mut c).await;
 }

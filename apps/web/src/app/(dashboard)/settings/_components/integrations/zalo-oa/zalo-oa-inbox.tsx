@@ -2,17 +2,20 @@
 
 import { useState } from "react"
 import { Inbox, Loader2 } from "lucide-react"
+import axios from "axios"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { formatDateTimeVn, formatPhone } from "@/lib/format"
 import { CustomerProfile, ProfileSheet, reminderText, useLinkedContact } from "@/components/inbox/customer-profile"
+import { SavePhoneAction, savePhoneState } from "@/components/inbox/save-phone"
+import { showUndoToast } from "@/components/ui/undo-toast"
 import { usePermissions } from "@/lib/rbac"
 import {
   Composer, ConversationItem, HeroChip, InboxEmpty, InboxFrame, InboxListToolbar, awaitingReply, MessageThread, SideSection, StatusPill, ThreadHeader,
   inboxTimeLabel, type InboxMessage,
 } from "@/components/inbox/inbox-ui"
 import { apiErrorMessage } from "../webhook-types"
-import { useMarkReadZaloOa, useReplyZaloOa, useZaloOaMessages, useZaloOaThreads } from "./use-zalo-oa"
+import { useMarkReadZaloOa, useReplyZaloOa, useSavePhoneZaloOa, useZaloOaMessages, useZaloOaThreads } from "./use-zalo-oa"
 import { inConsultWindow, threadTitle, type ZaloOaMessage, type ZaloOaThread } from "./zalo-oa-types"
 import { isChannelOff } from "@/lib/channel-off"
 import { ErrorState } from "@/components/ui/error-state"
@@ -46,6 +49,8 @@ export function ZaloCustomerSide({ thread }: { thread: ZaloOaThread }) {
 export function ZaloThreadView({ thread, onBack }: { thread: ZaloOaThread; onBack: () => void }) {
   const messages = useZaloOaMessages(thread.id)
   const reply = useReplyZaloOa(thread.id)
+  const savePhone = useSavePhoneZaloOa(thread.id)
+  const [savingKey, setSavingKey] = useState<string | null>(null)
   const [text, setText] = useState("")
   const [sheet, setSheet] = useState(false)
   const { can } = usePermissions()
@@ -63,7 +68,38 @@ export function ZaloThreadView({ thread, onBack }: { thread: ZaloOaThread; onBac
     at: m.created_at,
     who: m.direction === "in" ? name : m.kind === "zns" ? "ZNS" : undefined,
     failed: m.status === "failed" ? (m.error ?? "") : null,
+    phones: m.phones ?? [],
   }))
+
+  const canSavePhone = can("contacts.update")
+  const onSavePhone = (messageId: string, p: string) => {
+    setSavingKey(`${messageId}:${p}`)
+    savePhone.mutate(
+      { messageId, phone: p },
+      {
+        onSuccess: (r) => showUndoToast(r.created ? "Đã lưu số điện thoại và tạo khách mới" : "Đã lưu số điện thoại vào hồ sơ"),
+        onError: (e) => toast.error(apiErrorMessage(e, "Không lưu được số điện thoại")),
+        onSettled: () => setSavingKey(null),
+      },
+    )
+  }
+  // Nút dưới bong bóng khách: mỗi số máy chủ dò được một nút/nhãn «Đã lưu». «Đã lưu» chỉ so với SĐT của HỒ SƠ (không lấy
+  // `thread.phone` — số Zalo chia sẻ có thể khác hồ sơ). Khách đã ghép mà hồ sơ không còn (lỗi 404) thì coi như chưa ghép:
+  // máy chủ tự tìm/tạo khách lại. Lỗi khác (403 ngoài phạm vi xem, mạng…) vẫn coi là đã ghép.
+  const contactGone = axios.isAxiosError(contact.error) && contact.error.response?.status === 404
+  const linked = thread.contact_id !== null && !contactGone
+  const profilePhone = c?.phone || null
+  const afterMessage = (m: InboxMessage) =>
+    m.direction === "in" && m.phones?.length ? (
+      <>
+        {m.phones.map((p) => {
+          const state = savePhoneState({ phone: p, linked, profilePhone, canUpdate: canSavePhone })
+          return state === "none" ? null : (
+            <SavePhoneAction key={p} phone={p} state={state} pending={savingKey === `${m.id}:${p}`} disabled={savePhone.isPending} onSave={() => onSavePhone(m.id, p)} />
+          )
+        })}
+      </>
+    ) : null
 
   const send = () => {
     const t = text.trim()
@@ -94,7 +130,7 @@ export function ZaloThreadView({ thread, onBack }: { thread: ZaloOaThread; onBac
       <ProfileSheet open={sheet} onOpenChange={setSheet}>
         <CustomerProfile contactId={thread.contact_id} fallbackName={name} fallbackPhone={thread.phone} avatarUrl={thread.avatar_url} channelLabel="Zalo OA" variant="sheet" />
       </ProfileSheet>
-      <MessageThread messages={items} loading={messages.isLoading} error={messages.isError} />
+      <MessageThread messages={items} loading={messages.isLoading} error={messages.isError} afterMessage={afterMessage} />
       <Composer
         value={text}
         onChange={setText}

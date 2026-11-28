@@ -13,6 +13,7 @@ use trinity_db::outbox::publish_integration_event;
 use trinity_db::pg_error::{app_error, db_error};
 use trinity_db::types::{JsBigInt, JsonValue, Timestamp};
 use trinity_kernel::error::{AppError, DbErrorKind, HttpError};
+use trinity_kernel::phone::{detect_phones, normalize_phone};
 
 use crate::config::to_zalo_phone;
 use crate::contacts::{self, LinkInput};
@@ -255,12 +256,20 @@ pub struct MessageView {
     pub error: Option<String>,
     pub sent_by: Option<i32>,
     pub created_at: Timestamp,
+    /// SĐT (dạng `0xxxxxxxxx`) phát hiện trong tin KHÁCH gửi; rỗng với tin đi hoặc tin không có số. Web dựa vào đây để hiện nút
+    /// «Lưu SĐT vào hồ sơ» (nguồn duy nhất, cùng hàm với `save_phone`).
+    pub phones: Vec<String>,
 }
 
 impl From<ZaloOaMessage> for MessageView {
     fn from(m: ZaloOaMessage) -> Self {
         let JsBigInt(id) = m.id;
+        let phones = match (m.direction.as_str(), m.text.as_deref()) {
+            ("in", Some(t)) if m.status != "failed" => detect_phones(t),
+            _ => Vec::new(),
+        };
         Self {
+            phones,
             id: id.to_string(),
             thread_id: m.thread_id,
             direction: m.direction,
@@ -361,9 +370,169 @@ pub async fn link(
     .map_err(db)
 }
 
+/// Kết quả [`save_phone`].
+#[derive(Debug, Clone, Serialize)]
+pub struct SavedPhone {
+    pub thread: ZaloOaThread,
+    pub contact_id: i32,
+    /// SĐT đã lưu, dạng nội địa `0xxxxxxxxx`.
+    pub phone: String,
+    /// `true` nếu phải TẠO khách mới (chưa có hồ sơ nào mang số này).
+    pub created: bool,
+    /// `true` nếu hội thoại đã ghép sẵn với khách mang đúng số này (không đổi gì).
+    pub already: bool,
+}
+
+/// Chọn số cần lưu trong danh sách `detected` của một tin: `want` (nếu có) phải là một trong số đó; không chọn thì tin phải có
+/// đúng MỘT số.
+pub fn pick_phone(detected: &[String], want: Option<&str>) -> Result<String, HttpError> {
+    if detected.is_empty() {
+        return Err(HttpError::bad_request("Tin này không có số điện thoại"));
+    }
+    if let Some(w) = want {
+        let local = normalize_phone(w).filter(|p| detected.contains(p));
+        return local.ok_or_else(|| HttpError::bad_request("Số này không có trong tin nhắn"));
+    }
+    match detected {
+        [one] => Ok(one.clone()),
+        _ => Err(HttpError::bad_request("Tin có nhiều số điện thoại, hãy chọn một số")),
+    }
+}
+
+/// `POST /zalo-oa/threads/:id/save-phone`: lưu SĐT khách GỬI TRONG MỘT TIN vào hồ sơ khách của hội thoại. Máy chủ tự dò số trong
+/// tin (không tin số do client gửi). Hội thoại chưa ghép khách ⇒ tìm khách theo số, không có thì tạo (người phụ trách là người
+/// bấm, như `link`) rồi ghép. Đã ghép khách mang đúng số ⇒ không đổi gì. Đã ghép khách mang SỐ KHÁC ⇒ 409, KHÔNG ghi đè.
+pub async fn save_phone(
+    conn: &mut PgConnection,
+    thread_id: i32,
+    message_id: i64,
+    want: Option<&str>,
+    user_id: i32,
+) -> Result<SavedPhone, AppError> {
+    // Một giao dịch, khoá dòng hội thoại: hai lần lưu song song (hoặc lưu đua với `link`) chạy lần lượt, lần sau thấy khách đã ghép
+    // nên trả `already`/409 chứ không ghép đè.
+    let mut tx = conn.begin().await.map_err(db)?;
+    let t = sqlx::query_as::<_, ZaloOaThread>(sqlx::AssertSqlSafe(format!(
+        "SELECT {THREAD_COLS} FROM zalo_oa_threads WHERE id = $1 FOR UPDATE"
+    )))
+    .bind(thread_id)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(db)?
+    .ok_or_else(|| AppError::from(HttpError::not_found("Không có hội thoại này")))?;
+    let msg: Option<(Option<String>, String, String)> =
+        sqlx::query_as("SELECT text, direction, status FROM zalo_oa_messages WHERE id = $1 AND thread_id = $2")
+            .bind(message_id)
+            .bind(thread_id)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(db)?;
+    let text = match msg {
+        Some((Some(text), dir, status)) if dir == "in" && status != "failed" => text,
+        _ => return Err(HttpError::not_found("Không có tin này của khách").into()),
+    };
+    let local = pick_phone(&detect_phones(&text), want)?;
+    let conflict =
+        || HttpError::conflict("Hồ sơ khách đã có số điện thoại khác. Hãy sửa ở màn hồ sơ khách nếu cần đổi số");
+    let zphone = to_zalo_phone(&local);
+
+    if let Some(cid) = t.contact_id {
+        let cur: Option<String> = sqlx::query_scalar("SELECT phone FROM contacts WHERE id = $1 AND deleted_at IS NULL")
+            .bind(cid)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(db)?;
+        // Khách đã ghép mà bị xoá (mềm) thì coi như hội thoại chưa ghép: đi tiếp nhánh tìm/tạo khách bên dưới.
+        if let Some(cur) = cur {
+            if !same_phone(&cur, &local) {
+                return Err(conflict().into());
+            }
+            // Đúng số rồi: không đổi gì (không ghi `phone`/`updated_at` của hội thoại).
+            return Ok(SavedPhone {
+                thread: t,
+                contact_id: cid,
+                phone: local,
+                already: true,
+                created: false,
+            });
+        }
+    }
+
+    let linked = contacts::find_or_create_flagged(
+        &mut tx,
+        &LinkInput {
+            zalo_user_id: &t.zalo_user_id,
+            phone: Some(&local),
+            name: t.display_name.as_deref(),
+            owner_user_id: user_id,
+        },
+    )
+    .await?;
+    let Some((cid, created)) = linked else {
+        return Err(HttpError::not_found("Không tìm/tạo được khách (SĐT không hợp lệ?)").into());
+    };
+    // `find` ưu tiên khách theo `zalo_account`: nếu đó là khách mang số khác thì không ghi đè số, báo xung đột.
+    let cur: Option<String> = sqlx::query_scalar("SELECT phone FROM contacts WHERE id = $1")
+        .bind(cid)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(db)?;
+    if !cur.is_some_and(|c| same_phone(&c, &local)) {
+        return Err(conflict().into());
+    }
+    let thread = set_thread_phone(&mut tx, thread_id, cid, zphone).await?;
+    tx.commit().await.map_err(db)?;
+    Ok(SavedPhone {
+        thread,
+        contact_id: cid,
+        phone: local,
+        already: false,
+        created,
+    })
+}
+
+/// SĐT trong hồ sơ (`stored`, có thể lưu `0…`/`84…`/`+84 …`) có phải số nội địa `local` không.
+fn same_phone(stored: &str, local: &str) -> bool {
+    normalize_phone(stored).as_deref() == Some(local)
+}
+
+async fn set_thread_phone(
+    conn: &mut PgConnection,
+    id: i32,
+    contact_id: i32,
+    zphone: Option<String>,
+) -> Result<ZaloOaThread, AppError> {
+    sqlx::query_as::<_, ZaloOaThread>(sqlx::AssertSqlSafe(format!(
+        "UPDATE zalo_oa_threads SET contact_id = $2, phone = COALESCE($3, phone), updated_at = now() WHERE id = $1 RETURNING {THREAD_COLS}"
+    )))
+    .bind(id)
+    .bind(contact_id)
+    .bind(zphone)
+    .fetch_one(conn)
+    .await
+    .map_err(db)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn chon_so_trong_tin() {
+        let one = vec!["0912345678".to_owned()];
+        let two = vec!["0912345678".to_owned(), "0987654321".to_owned()];
+        assert_eq!(pick_phone(&one, None).unwrap(), "0912345678");
+        assert_eq!(pick_phone(&one, Some("+84 912 345 678")).unwrap(), "0912345678");
+        assert_eq!(pick_phone(&two, Some("0987.654.321")).unwrap(), "0987654321");
+        for (d, w) in [
+            (&[][..], None),
+            (&two[..], None),
+            (&one[..], Some("0987654321")),
+            (&one[..], Some("abc")),
+        ] {
+            assert!(pick_phone(d, w).is_err(), "{d:?} {w:?}");
+        }
+    }
 
     #[test]
     fn thoat_like_va_before() {

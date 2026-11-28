@@ -5,7 +5,7 @@
  *   desktop ≥1280px: cột phải — khối nhấn (avatar, tên, giai đoạn · phụ trách) + giai đoạn + trường + hẹn nhắc
  *   điện thoại / desktop hẹp: cùng nội dung trong khay đáy «Hồ sơ khách»
  * Sửa tại chỗ rồi LƯU NGAY + toast «Hoàn tác». Dữ liệu và ghi dùng ĐÚNG API màn chi tiết khách:
- * GET/PATCH /contacts/:id (khoá cache ["contact", id] dùng chung). Không API mới.
+ * GET/PATCH /contacts/:id (khoá cache ["contact", id] dùng chung).
  * ========================================================================== */
 
 import { useState, type ReactNode } from "react"
@@ -235,7 +235,7 @@ export function CustomerProfile({
       </div>
 
       <div className={cn("border-t border-ax-divider px-2 pt-2 pb-1", sheet && "mt-3.5 px-0 pt-0")}>
-        {/* Số điện thoại: chỉ xem. Lưu SĐT phát hiện trong tin nhắn vào hồ sơ làm ở PR riêng (API + tool MCP). */}
+        {/* Số điện thoại: chỉ xem ở đây; lưu SĐT khách nhắn vào hồ sơ = nút dưới bong bóng (`save-phone.tsx`, POST /zalo-oa/threads/:id/save-phone). */}
         <Row label="Số điện thoại">
           <span className={cn("ax-amount", phone ? "font-medium text-ax-ink" : "font-semibold text-ax-primary-ink")}>{formatPhone(phone) || "Chưa có"}</span>
         </Row>

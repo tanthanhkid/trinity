@@ -26,3 +26,15 @@ Note: the docs.zalo site is an SPA, so the full text cannot be read automaticall
 
 ## Access model
 The Zalo OA inbox is an organisation-wide shared inbox: anyone with `contacts.update` (and the `zalo_oa` organisation feature) can list and reply to every conversation, regardless of their own/team data scope on contacts. Grant `contacts.update` only to roles that should see all OA conversations.
+
+## Saving a phone number from a message into the customer record
+Inbox button «Lưu SĐT vào hồ sơ» under a customer bubble, and the MCP tool `save_phone_from_message` (see [mcp.md](mcp.md)).
+
+- `GET /api/v1/zalo-oa/threads/:id/messages` returns `phones` on every message: the Vietnamese mobile numbers (`0xxxxxxxxx`, prefix 03/05/07/08/09) the server found in a message the CUSTOMER sent (`+84`, `84…`, spaces, dots and dashes accepted; amounts, order codes and digit runs glued to letters are ignored). Empty for outgoing messages. The web never detects numbers itself.
+- `POST /api/v1/zalo-oa/threads/:id/save-phone` body `{ "message_id": "<id>", "phone": "<optional>" }`, permission `contacts.update` (same as `link`). The server re-detects the numbers in that message (the client's number is only a choice among them): `phone` is required when the message has several, and must be one of them (400 otherwise; also 400 when the message has none; 404 when the message is not an incoming message of that thread).
+  - Thread not linked to a customer yet: finds the customer carrying that number, or creates one (owner = the user who clicked, source `zalo_oa`), and links the thread (`contact_id`, `phone`).
+  - Thread already linked to a customer carrying that number: nothing changes (`already: true`).
+  - The thread row is locked for the whole save, so two concurrent saves (or a save racing `link`) run one after the other and never relink silently. A thread linked to a customer that was deleted counts as not linked.
+  - Thread linked to a customer carrying a DIFFERENT number: **409**, the number is never overwritten (change it on the customer screen).
+  - Response `{ thread, contact_id, phone, created, already }`. There is no undo and no delete: a created customer stays (delete is a web-app action).
+- Messenger conversations are not linked to customers (the conversation API has no `contact_id`), so the button is Zalo OA only.

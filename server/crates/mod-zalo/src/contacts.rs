@@ -62,8 +62,17 @@ pub struct LinkInput<'a> {
 /// Tìm, không có thì tạo (cần SĐT hợp lệ và người phụ trách còn hoạt động). Trả id khách hoặc `None`. Kiểm trùng và tạo nằm
 /// trong một giao dịch dưới khoá advisory theo (schema, SĐT): hai webhook đồng thời cùng SĐT chỉ tạo một khách.
 pub async fn find_or_create(conn: &mut PgConnection, p: &LinkInput<'_>) -> Result<Option<i32>, AppError> {
+    Ok(find_or_create_flagged(conn, p).await?.map(|(id, _)| id))
+}
+
+/// Như [`find_or_create`], kèm `true` nếu chính lần gọi này TẠO khách (quyết định trong giao dịch có khoá, nên đúng cả khi chạy
+/// song song).
+pub async fn find_or_create_flagged(
+    conn: &mut PgConnection,
+    p: &LinkInput<'_>,
+) -> Result<Option<(i32, bool)>, AppError> {
     if let Some(id) = find(&mut *conn, p.zalo_user_id, p.phone).await? {
-        return Ok(Some(id));
+        return Ok(Some((id, false)));
     }
     let Some(z) = p.phone.and_then(to_zalo_phone) else {
         return Ok(None);
@@ -94,7 +103,7 @@ pub async fn find_or_create(conn: &mut PgConnection, p: &LinkInput<'_>) -> Resul
             .await
             .map_err(db)?;
     if let Some(id) = dup {
-        return Ok(Some(id));
+        return Ok(Some((id, false)));
     }
     let (id, _) = create_contact_in_tx(
         &mut tx,
@@ -113,7 +122,7 @@ pub async fn find_or_create(conn: &mut PgConnection, p: &LinkInput<'_>) -> Resul
     )
     .await?;
     tx.commit().await.map_err(db)?;
-    Ok(Some(id))
+    Ok(Some((id, true)))
 }
 
 /// Người được giao khách (`assigned_to`), hoặc `None`.

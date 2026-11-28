@@ -261,11 +261,13 @@ export interface InboxMessage {
   /** Dòng nhỏ dưới bong bóng, vd "Chị Lan · 09:12" — để trống thì chỉ giờ. */
   who?: string
   failed?: string | null
+  /** SĐT máy chủ dò trong tin khách (Zalo OA) — chỗ bám của nút «Lưu SĐT vào hồ sơ». */
+  phones?: readonly string[]
 }
 
 /**
  * Luồng tin: vạch ngày + bong bóng khách (trái, nền lõm) / nhân viên (phải, xanh chính). Tự cuộn xuống tin mới nhất.
- * `afterMessage` = chỗ chừa dưới từng bong bóng cho hành động theo tin (vd nút «Lưu SĐT vào hồ sơ» — chức năng làm ở PR riêng).
+ * `afterMessage` = chỗ chừa dưới từng bong bóng cho hành động theo tin (vd nút «Lưu SĐT vào hồ sơ», `components/inbox/save-phone.tsx`).
  */
 export function MessageThread({
   messages,

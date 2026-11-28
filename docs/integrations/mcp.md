@@ -140,7 +140,7 @@ Scope comes from the user's real grants (`own` = own · `team` = self + direct r
 
 ## Full tool index
 
-Every tool the server exposes (120), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
+Every tool the server exposes (121), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
 
 ### Multi-channel posting
 
@@ -203,6 +203,7 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 | `list_conversations` | read | List inbox conversations |
 | `list_unanswered_messages` | read | List unanswered customer messages |
 | `reply_to_customer` | write · preview → `confirmed_by_user` | Reply to a customer |
+| `save_phone_from_message` | write (`contacts.update`) | Save a phone number the customer wrote in a Zalo OA conversation into the customer record (same service as the inbox button «Lưu SĐT vào hồ sơ»). The server finds the numbers in the customer's latest messages itself (numbers are always masked, so the AI never types one): a conversation with no customer yet looks the customer up by number and creates one if none exists; a customer already carrying that number changes nothing; a customer carrying a DIFFERENT number is an error, never overwritten. Several distinct numbers ⇒ the tool lists them masked and asks for `index` (1 = the number the customer wrote first among the recent messages; new numbers are appended at the end of the list). Messenger conversations are not linked to customers yet, so not supported |
 
 ### Staff invitations
 

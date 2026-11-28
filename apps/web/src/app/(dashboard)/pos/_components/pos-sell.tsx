@@ -134,7 +134,7 @@ export function PosSell() {
       </div>
       {isPhone && (
         <>
-          <PosCartBar cart={cart} busy={busy} onOpen={() => setCartOpen(true)} onSave={doSave} onPay={doPay} />
+          <PosCartBar cart={cart} busy={busy} onOpen={() => setCartOpen(true)} onPay={doPay} />
           {/* Một hộp thoại con (chọn bàn/sửa món/thanh toán/huỷ) mở thì nhường chỗ — đóng xong giỏ hiện lại. */}
           <Sheet open={cartOpen && !payOrder && !tableOpen && !editing && !voiding} onOpenChange={setCartOpen}>
             <SheetContent side="bottom" className="max-h-[90dvh] gap-0 rounded-t-2xl">

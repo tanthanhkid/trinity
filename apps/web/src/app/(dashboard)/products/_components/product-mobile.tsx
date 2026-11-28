@@ -199,7 +199,11 @@ function MobileEdit({ product, ed, onClose }: { product: Product; ed: ProductEdi
   const { data: defs = [] } = useAttributeDefs(categoryId)
   const [invalidKeys, setInvalidKeys] = useState<Set<string>>(new Set())
   const [tagText, setTagText] = useState(draft.tags.join(", "))
+  // Hai nguồn ảnh như thiết kế sanpham-mobile2: «Chụp ảnh» mở camera sau, «Chọn từ thư viện» mở bộ chọn ảnh thường.
+  const cam = useImagePick((url) => ed.patch({ image_url: url }), { capture: true, testId: "product-edit-capture" })
   const pick = useImagePick((url) => ed.patch({ image_url: url }))
+  const uploading = cam.uploading || pick.uploading
+  const pickError = cam.error || pick.error
   const dirty = ed.changes > 0
 
   function changeCategory(next: string) {
@@ -238,16 +242,18 @@ function MobileEdit({ product, ed, onClose }: { product: Product; ed: ProductEdi
             {draft.image_url ? <ProductCover product={{ ...product, image_url: draft.image_url }} className="size-full" /> : <div className="grid size-full place-items-center text-xs text-ax-ink-2">Chưa có ảnh</div>}
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <Button type="button" variant="ax-on-hero" size="ax-lg" disabled={pick.uploading} onClick={pick.open}>
-              <Camera aria-hidden className="size-[18px]" /> {pick.uploading ? "Đang tải…" : "Chụp ảnh"}
+            <Button type="button" variant="ax-on-hero" size="ax-lg" disabled={uploading} onClick={cam.open}>
+              <Camera aria-hidden className="size-[18px]" /> {uploading ? "Đang tải…" : "Chụp ảnh"}
             </Button>
+            <Button type="button" variant="ax-on-hero-secondary" size="ax" disabled={uploading} onClick={pick.open}>Chọn từ thư viện</Button>
             {draft.image_url ? (
               <Button type="button" variant="ax-on-hero-secondary" size="ax" onClick={() => ed.patch({ image_url: "" })}>Xoá ảnh</Button>
             ) : null}
+            {cam.input}
             {pick.input}
           </div>
         </HeroCard>
-        {pick.error && <p role="alert" className="text-[13px] text-ax-danger">{pick.error}</p>}
+        {pickError && <p role="alert" className="text-[13px] text-ax-danger">{pickError}</p>}
 
         <AxField label="Tên sản phẩm" id="e-name" value={draft.name} error={errors.name} onChange={(e) => ed.patch({ name: e.target.value })} />
         <AxField label="Giá bán (₫)" id="e-price" inputMode="numeric" inputClassName="font-semibold tabular-nums" value={groupDigits(draft.price)} error={errors.price} onChange={(e) => ed.patch({ price: digitsOnly(e.target.value) })} />

@@ -221,7 +221,7 @@ export function KanbanQuickPanel({ cardId, variant, onClose, onOpenFull }: Kanba
                 className={cn(
                   "cursor-pointer rounded-ax-field font-semibold transition-colors duration-150 outline-none focus-visible:shadow-[var(--ax-focus-ring)]",
                   mobile ? "h-12 text-base" : "h-11 text-[13px]",
-                  !checked && "bg-ax-sunken text-ax-ink-2 hover:bg-ax-hover",
+                  !checked && (mobile ? "border border-ax-line bg-ax-surface text-ax-ink-2 hover:border-ax-primary" : "bg-ax-sunken text-ax-ink-2 hover:bg-ax-hover"),
                 )}
               >
                 <span className="block truncate px-1">{col.name}</span>
@@ -326,7 +326,7 @@ export function KanbanQuickPanel({ cardId, variant, onClose, onOpenFull }: Kanba
 
   if (mobile) {
     return (
-      <div className="fixed inset-0 z-40 flex flex-col ax-page" role="dialog" aria-label="Chi tiết thẻ">
+      <div className="fixed inset-0 z-[60] flex flex-col ax-page" role="dialog" aria-label="Chi tiết thẻ">
         <div className="flex h-14 shrink-0 items-center gap-1 border-b border-ax-line bg-ax-surface px-2">
           <button
             type="button"
@@ -368,7 +368,7 @@ export function KanbanQuickPanel({ cardId, variant, onClose, onOpenFull }: Kanba
 
 function PanelFrame({ variant, children }: { variant: "desktop" | "mobile"; children: React.ReactNode }) {
   if (variant === "mobile") {
-    return <div className="fixed inset-0 z-40 overflow-y-auto ax-page">{children}</div>
+    return <div className="fixed inset-0 z-[60] overflow-y-auto ax-page">{children}</div>
   }
   return (
     <aside

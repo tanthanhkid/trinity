@@ -31,14 +31,15 @@ interface KanbanCardContentProps {
 /** Chữ hạn + chấm ưu tiên (dùng chung desktop và điện thoại). */
 export function KanbanCardMeta({ card, className }: { card: KanbanCard; className?: string }) {
   const due = dueMeta(card)
-  const prio = card.priority as KanbanPriority | null
+  // Mức lạ (dữ liệu cũ/nhập ngoài) thì ẩn chấm ưu tiên, không in mã tiếng Anh ra màn.
+  const prio = kanbanPriorityLabel(card.priority) ? (card.priority as KanbanPriority) : null
   return (
     <span className={cn("flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] tabular-nums", className)}>
       <span className={DUE_TONE_CLASS[due.tone]}>{due.text}</span>
       {prio && (
         <span className="flex items-center gap-[5px] text-ax-ink-2">
           <span aria-hidden className="size-2 rounded-full" style={{ background: KANBAN_PRIORITY_DOT[prio] ?? "var(--ax-ink-3)" }} />
-          {kanbanPriorityLabel(prio) ?? prio}
+          {kanbanPriorityLabel(prio)}
         </span>
       )}
     </span>

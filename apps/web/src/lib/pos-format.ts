@@ -1,8 +1,8 @@
 import { formatCurrency } from "@/lib/format"
 import { getApiErrorMessage } from "@/lib/api-client"
 
-/** "35.000đ" — VND không có phần lẻ (POS lưu số nguyên). */
-export const vnd = (n: number | null | undefined): string => `${formatCurrency(n)}đ`
+/** "35.000₫" — VND không có phần lẻ (POS lưu số nguyên). */
+export const vnd = (n: number | null | undefined): string => `${formatCurrency(n)}₫`
 
 /** Thông điệp lỗi API tiếng Việt; NestJS validation trả `message` là MẢNG → nối lại. */
 export function posErrorMessage(err: unknown, fallback = "Chưa thực hiện được"): string {

@@ -90,7 +90,7 @@ describe("hoá đơn / đơn đã lưu", () => {
 
 describe("định dạng & RBAC", () => {
   it("parseMoney bỏ ký tự không phải số; rỗng → null", () => {
-    expect(parseMoney("1.250.000đ")).toBe(1250000)
+    expect(parseMoney("1.250.000₫")).toBe(1250000)
     expect(parseMoney("")).toBeNull()
     expect(parseMoney("abc")).toBeNull()
   })

@@ -36,8 +36,8 @@ describe("PosPaymentDialog", () => {
 
   it("chọn mệnh giá khách đưa → hiện tiền thối và gửi tendered", () => {
     renderDialog()
-    fireEvent.click(screen.getByRole("button", { name: /200\.000đ/ }))
-    expect(screen.getByText(/Tiền thối: 96\.500đ/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /200\.000₫/ }))
+    expect(screen.getByText(/Tiền thối: 96\.500₫/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận thanh toán" }))
     expect(mutate.mock.calls[0][0].payments[0]).toMatchObject({ amount: 103500, tendered: 200000 })
   })
@@ -46,7 +46,7 @@ describe("PosPaymentDialog", () => {
     renderDialog()
     const amount = screen.getAllByRole("textbox")[0]
     fireEvent.change(amount, { target: { value: "63500" } })
-    expect(screen.getByText(/Còn thiếu 40\.000đ/)).toBeInTheDocument()
+    expect(screen.getByText(/Còn thiếu 40\.000₫/)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Xác nhận thanh toán" })).toBeDisabled()
     fireEvent.click(screen.getByRole("button", { name: "+ Chuyển khoản" }))
     await waitFor(() => expect(screen.getByTestId("qr")).toBeInTheDocument())

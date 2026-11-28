@@ -36,6 +36,24 @@ export const buttonVariants = cva(
         // `--color-app-primary-ink` (#1e40af): `text-primary` #2563eb trên
         // nền primary/10 chỉ 4,49:1 (<4,5), ink đạt ~7:1.
         soft: "bg-primary/10 text-[var(--color-app-primary-ink)] hover:bg-primary/15 aria-pressed:bg-primary/15 aria-expanded:bg-primary/15 data-[active=true]:bg-primary/15 dark:bg-primary/20 dark:hover:bg-primary/25",
+        // «Ánh xanh» (docs/design/anh-xanh.md) — biến thể MỚI, thêm vào chứ không đổi biến thể cũ.
+        // Bo 8px + chữ 600 + bóng/viền riêng; `border-0 bg-clip-border` để nền phủ kín tới vòng
+        // bóng-viền (base có `border-transparent bg-clip-padding` sẽ hở 1px). Dùng kèm size `ax*`.
+        // Tương phản (đo trong __tests__/components/anh-xanh/tokens.test.ts): chữ trắng trên chặng
+        // sáng nhất của gradient nút chính #3A75A6 = 4,91:1.
+        "ax-primary":
+          "rounded-[var(--ax-radius-field)] border-0 bg-clip-border font-semibold text-white ax-grad-primary shadow-[var(--ax-shadow-primary)] hover:ax-grad-primary-hover active:ax-grad-primary-press",
+        "ax-secondary":
+          "rounded-[var(--ax-radius-field)] border-0 bg-clip-border bg-ax-surface font-semibold text-ax-ink shadow-[var(--ax-shadow-secondary)] hover:bg-ax-hover active:bg-ax-press",
+        "ax-ghost":
+          "rounded-[var(--ax-radius-field)] border-0 bg-transparent font-semibold text-ax-ink-2 hover:bg-ax-sunken active:bg-ax-press",
+        "ax-danger":
+          "rounded-[var(--ax-radius-field)] border-0 bg-clip-border bg-ax-surface font-semibold text-ax-danger shadow-[var(--ax-shadow-danger)] hover:bg-ax-danger-soft hover:text-[var(--ax-danger-ink)] active:bg-[var(--ax-danger-press)] active:text-[var(--ax-danger-ink)]",
+        // Đặt TRÊN khối nhấn (HeroCard): nút chính nền trắng chữ xanh đậm, nút phụ xanh thẫm trong.
+        "ax-on-hero":
+          "rounded-[var(--ax-radius-field)] border-0 bg-clip-border bg-[var(--ax-on-hero-primary-bg)] font-semibold text-[var(--ax-on-hero-primary-ink)] shadow-[var(--ax-shadow-on-hero-primary)] hover:bg-[var(--ax-on-hero-primary-hover)]",
+        "ax-on-hero-secondary":
+          "rounded-[var(--ax-radius-field)] border-[var(--ax-on-hero-secondary-border)] bg-[var(--ax-on-hero-secondary)] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,.08)] hover:bg-[var(--ax-on-hero-secondary-hover)]",
       },
       size: {
         default:
@@ -58,6 +76,12 @@ export const buttonVariants = cva(
           ? "size-7 in-data-[slot=button-group]:rounded-lg"
           : "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
+        // «Ánh xanh»: 36 (gọn) / 40 (thường) desktop; 48 cho điện thoại / nút lớn trên khối nhấn.
+        // Dưới 640px mọi size (trừ xs) tự lên tối thiểu 44px — xem globals.css «Vùng chạm».
+        "ax-sm": "h-9 gap-2 px-3 text-sm",
+        ax: "h-10 gap-2 px-4 text-sm",
+        "ax-lg": "h-12 gap-2 px-5 text-[15px]",
+        "ax-icon": "size-10",
       },
     },
     defaultVariants: {

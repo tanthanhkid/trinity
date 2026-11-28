@@ -3,6 +3,7 @@ import { CircleAlert } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 
 /**
  * Nhóm trường kiểu shadcn Field: nhãn → 6px → ô → 6px → mô tả/lỗi; giữa hai trường 20px (`FieldGroup`).
@@ -57,4 +58,58 @@ function FieldSet({ className, legend, description, children, ...props }: React.
   )
 }
 
-export { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldSet }
+/**
+ * Ô nhập «Ánh xanh» trọn gói: nhãn 12/500 → ô (`Input variant="ax"`) → gợi ý hoặc lỗi.
+ * Tự nối `htmlFor`/`id`, `aria-invalid`, `aria-describedby`; lỗi THAY chỗ gợi ý.
+ *
+ * @example
+ * <AxField label="Số điện thoại" inputMode="tel" value={phone} onChange={…}
+ *   error={phoneErr ? "Số điện thoại cần đủ 10 chữ số" : undefined} />
+ */
+function AxField({
+  label,
+  hint,
+  error,
+  id,
+  className,
+  inputClassName,
+  ...inputProps
+}: Omit<React.ComponentProps<typeof Input>, "variant"> & {
+  label: React.ReactNode
+  hint?: React.ReactNode
+  error?: React.ReactNode
+  /** class cho khung ngoài là `className`; class cho chính ô nhập là `inputClassName`. */
+  inputClassName?: string
+}) {
+  const autoId = React.useId()
+  const inputId = id ?? autoId
+  const noteId = `${inputId}-note`
+  const hasNote = Boolean(error || hint)
+  return (
+    <div data-slot="ax-field" data-invalid={error ? true : undefined} className={cn("flex flex-col gap-1.5", className)}>
+      <label htmlFor={inputId} className="ax-text-label">
+        {label}
+      </label>
+      <Input
+        id={inputId}
+        variant="ax"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={hasNote ? noteId : undefined}
+        className={inputClassName}
+        {...inputProps}
+      />
+      {error ? (
+        <p id={noteId} role="alert" className="flex items-center gap-1.5 text-[13px] leading-5 text-ax-danger">
+          <CircleAlert className="size-3.5 shrink-0" strokeWidth={2} aria-hidden />
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={noteId} className="text-[13px] leading-5 text-ax-ink-3">
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+export { AxField, Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldSet }

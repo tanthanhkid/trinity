@@ -77,9 +77,10 @@ html:root[data-ui="app"] {
   /* ---- shape: theme dùng radius 14/10/8/18; `@theme inline` của globals
      suy --radius-sm/md/lg từ --radius nên chỉ cần đặt gốc ---------------- */
   --radius: 10px;
-  --shadow-card: 0 1px 2px rgba(20, 22, 30, 0.04);
+  /* «Ánh xanh»: token CŨ map sang cùng giá trị token `--ax-*` (globals.css) — màn chưa chuyển vẫn đồng bộ. */
+  --shadow-card: 0 1px 0 rgba(23, 24, 28, 0.03), 0 1px 3px rgba(23, 24, 28, 0.04); /* = --ax-shadow-card */
   --shadow-field: 0 1px 2px rgba(20, 22, 30, 0.05); /* ô nhập/nút viền — viền vẫn là --input */
-  --shadow-pop: 0 1px 2px rgba(20, 22, 30, 0.04), 0 8px 24px -8px rgba(20, 22, 30, 0.12);
+  --shadow-pop: 0 0 0 1px rgba(23, 24, 28, 0.06), 0 12px 32px -8px rgba(23, 24, 28, 0.18), 0 2px 6px rgba(23, 24, 28, 0.06); /* = --ax-shadow-float */
   --shadow-brand-glow: none;
 
   /* ---- sidebar kiểu Notion — nền sáng ấm, KHÔNG dùng
@@ -177,19 +178,19 @@ html:root[data-ui="app"] {
   /* Mọi comment phía trên phải đóng đúng chỗ: nếu thiếu dấu đóng, các khai báo
      bên dưới bị coi là chú thích và trình duyệt không nhận token. Guard:
      `v2-token-effective.test.ts` (gỡ comment trước rồi mới tìm token). */
-  --color-app-primary-deep: #2f6690;
-  --color-app-primary-soft: #e9f2f9;
-  --color-app-primary-ink: #285f8c;
+  --color-app-primary-deep: #2f6491; /* = --ax-primary-hover */
+  --color-app-primary-soft: #eef4fa; /* = --ax-primary-soft */
+  --color-app-primary-ink: #285680; /* = --ax-primary-ink */
   --color-app-bg: #fbfbfa;
   --color-app-sea: #3f7fb3;
 
   /* ĐIỀU HƯỚNG & LỰA CHỌN (xanh dương hoàng gia) */
   --color-app-blue: #3f7fb3;
-  --color-app-blue-deep: #285f8c;
-  --color-app-blue-soft: #e9f2f9;
+  --color-app-blue-deep: #285680; /* = --ax-primary-press */
+  --color-app-blue-soft: #eef4fa; /* = --ax-primary-soft */
   --color-app-azure: #3f7fb3;
-  --color-app-azure-deep: #285f8c;
-  --color-app-azure-soft: #e9f2f9;
+  --color-app-azure-deep: #285680;
+  --color-app-azure-soft: #eef4fa;
   --color-app-sky: #1ea5f7;
   --color-app-sky-soft: #e2f2fd;
 
@@ -291,7 +292,7 @@ html:root[data-ui="app"] {
      nền). Đo: trắng/primary-deep 5,51 · primary-ink/primary-soft-hover 5,18 ·
      #b13442/red-soft-hover 4,54 · trắng/red-deep 5,26 · trắng/red-deep-hover 6,59.
      `--color-app-red` (#eb4d5c) CHỦ ĐÍCH không dùng làm nền chữ trắng: 3,65:1. */
-  --color-app-primary-soft-hover: #dcebf6;
+  --color-app-primary-soft-hover: #dce8f3; /* = --ax-primary-soft-2 */
   --color-app-red-deep: #c9313f;
   --color-app-red-deep-hover: #b02734;
   --color-app-red-soft-hover: #fbd5d9;
@@ -762,3 +763,4 @@ html:root[data-ui="app"] [data-slot="table-row"],
 html:root[data-ui="app"] [data-slot="table-header"] tr {
   border-color: var(--border);
 }
+

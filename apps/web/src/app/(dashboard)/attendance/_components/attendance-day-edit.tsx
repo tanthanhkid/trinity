@@ -80,7 +80,8 @@ export interface DayAdjust {
  */
 export function useDayAdjust(record: AttendanceRecord | null, personName: string): DayAdjust {
   const adjust = useAdjustAttendance()
-  const [editing, setEditing] = useState(false)
+  // Form mở gắn với id bản ghi: đổi sang bản ghi khác thì form tự đóng (lần sửa đang chờ vẫn gắn với bản ghi cũ).
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [held, setHeld] = useState<Held | null>(null)
   const heldRef = useRef<Held | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -125,10 +126,8 @@ export function useDayAdjust(record: AttendanceRecord | null, personName: string
   )
 
   const recordId = record?.id ?? null
-  // Đổi sang bản ghi khác: đóng form (lần sửa đang chờ vẫn tiếp tục, gắn với bản ghi cũ).
-  useEffect(() => {
-    setEditing(false)
-  }, [recordId])
+  const editing = editingId != null && editingId === recordId
+  const setEditing = useCallback((v: boolean) => setEditingId(v ? recordId : null), [recordId])
 
   const submit = useCallback(
     (body: AdjustAttendanceBody) => {
@@ -154,7 +153,7 @@ export function useDayAdjust(record: AttendanceRecord | null, personName: string
         commit(h)
       }, ADJUST_UNDO_MS)
     },
-    [recordId, personName, commit],
+    [recordId, personName, commit, setEditing],
   )
 
   const mine = held && held.recordId === recordId ? held : null

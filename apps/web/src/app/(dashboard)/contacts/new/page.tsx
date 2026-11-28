@@ -32,6 +32,7 @@ import { DealAssigneePicker } from "./_components/deal-assignee-picker"
 import { VnDateInput } from "@/components/ui/vn-date-input"
 import { VnDateTimeInput } from "@/components/ui/vn-datetime-input"
 import { errorMessage } from "@/lib/error-messages"
+import { CONTACT_GENDERS } from "@/lib/contact-gender"
 
 /**
  * Form tạo contact mới.
@@ -81,10 +82,7 @@ interface CreateContactResponse {
   warning: string | null
 }
 
-const GENDERS = [
-  { value: "nam", label: "Nam" },
-  { value: "nu", label: "Nữ" },
-]
+const GENDERS = CONTACT_GENDERS
 
 function NewContactForm() {
   const router = useRouter()

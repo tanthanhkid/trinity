@@ -73,7 +73,7 @@ Missing permission ⇒ a clear `isError` tool result + a `denied` log entry. To 
 | Tool (scope `crm.write`) | Business permission (checked before executing; in approval mode at draft creation AND at approval) | Executes via | `destructiveHint` |
 |---|---|---|---|
 | `create_contact` | `contacts.create` | `ContactsService.create` (the customer is owned by the connected user; outbox `contact.created`) | false |
-| `add_contact_note` | `contacts.update` + customer in scope | `ActivitiesService.create` (activity `note`, `created_by` = the connected user) | false |
+| `add_contact_note` | `contacts.update` + customer in scope | `mod_contacts::notes::add_note`, the same core as `POST /contacts/:id/notes` (the «Quick call note» box on the customer page): activity `note`, `created_by` = the connected user | false |
 | `update_contact_stage` | `contacts.update` + customer in scope | `ContactsService.update` (outbox `contact.updated` + `contact.stage_changed`) | true |
 | `create_task` | `kanban.manage` + visible board/column | `KanbanCardsService.create` — **always assigned to the connected user**, the AI cannot choose the assignee | false |
 | `assign_contact` | `contacts.transfer` + customer & recipient in scope | `ContactTransferService.transfer` (outbox `contact.assigned`) | true |

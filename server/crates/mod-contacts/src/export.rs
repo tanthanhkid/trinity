@@ -187,6 +187,7 @@ pub async fn export_xlsx(
             let gender = r.gender.as_deref().map(|g| match g {
                 "nam" => "Nam",
                 "nu" => "Nữ",
+                "khac" => "Khác",
                 other => other,
             });
             vec![

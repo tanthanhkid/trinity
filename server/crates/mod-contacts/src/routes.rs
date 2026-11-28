@@ -1,4 +1,5 @@
-//! Bảng route và handler của khách hàng (M07, K14): 14 route `/api/v1/contacts`, quyền và mã thành công khớp
+//! Bảng route và handler của khách hàng (M07, K14): 15 route `/api/v1/contacts` (14 của bản TS + `POST /:id/notes` ghi chú
+//! khách của Ánh xanh), quyền và mã thành công khớp
 //! `contracts/routes.json`. Route `GET /contacts/:contactId/activities` thuộc module hoạt động, không khai ở đây.
 //!
 //! Dữ liệu vào: query của danh sách/xuất và body tạo/sửa đi qua metadata THẬT của class-validator (`ValidQuery`/`ValidJson`
@@ -35,9 +36,10 @@ use trinity_rbac::ScopeService;
 
 use crate::list::{CountCache, ListQuery};
 use crate::write::{CreateContact, UpdateContact};
-use crate::{Actor, Scopes, export, list, read, recent, transfer, write};
+use crate::{Actor, Scopes, export, list, notes, read, recent, transfer, write};
 
 const BASE: &str = "/api/v1/contacts";
+const NOTES: &str = "/api/v1/contacts/:id/notes";
 const ID: &[&str] = &["param.id:ParseIntPipe"];
 const VIEW: Access = Access::Can(&["contacts.view"]);
 const CREATE: Access = Access::Can(&["contacts.create"]);
@@ -66,6 +68,16 @@ pub trait Hooks: Send + Sync {
         contact_id: i32,
         reminder_notes: Option<&'a str>,
     ) -> HookFuture<'a>;
+
+    /// Sau `POST /contacts/:id/notes`: đồng bộ thẻ @ của ghi chú (khoá `note:<activity_id>`, như tool MCP `add_contact_note`).
+    fn after_note<'a>(
+        &'a self,
+        company: CompanyRef,
+        user: &'a CurrentUser,
+        contact_id: i32,
+        activity_id: i32,
+        note: &'a str,
+    ) -> HookFuture<'a>;
 }
 
 /// Không làm gì (test, môi trường chưa nối module phụ).
@@ -89,6 +101,17 @@ impl Hooks for NoHooks {
     ) -> HookFuture<'a> {
         Box::pin(async {})
     }
+
+    fn after_note<'a>(
+        &'a self,
+        _company: CompanyRef,
+        _user: &'a CurrentUser,
+        _contact_id: i32,
+        _activity_id: i32,
+        _note: &'a str,
+    ) -> HookFuture<'a> {
+        Box::pin(async {})
+    }
 }
 
 /// Trạng thái dùng chung của router khách hàng.
@@ -101,7 +124,7 @@ pub struct Ctx {
     pub hooks: Arc<dyn Hooks>,
 }
 
-/// 14 route của `ContactsController` (bảng so với `routes.json` bởi `trinity check-routes`).
+/// 15 route của `ContactsController` (14 của bản TS + `POST /:id/notes`) (bảng so với `routes.json` bởi `trinity check-routes`).
 pub fn specs() -> Vec<RouteSpec> {
     let by_id = |m: Method, suffix: &'static str, a: Access, code: u16| {
         RouteSpec::new(m, suffix, a).status_ok(code).param_pipes(ID)
@@ -116,6 +139,7 @@ pub fn specs() -> Vec<RouteSpec> {
         RouteSpec::new(Method::POST, "/api/v1/contacts/bulk-transfer", TRANSFER).status_ok(201),
         RouteSpec::new(Method::GET, "/api/v1/contacts/recent", VIEW).status_ok(200),
         by_id(Method::POST, "/api/v1/contacts/:id/transfer", TRANSFER, 201),
+        by_id(Method::POST, NOTES, UPDATE, 201),
         by_id(Method::POST, "/api/v1/contacts/:id/viewed", VIEW, 201),
         by_id(Method::POST, "/api/v1/contacts/:id/restore", DELETE, 201),
         by_id(Method::GET, "/api/v1/contacts/:id", VIEW, 200),
@@ -471,6 +495,41 @@ async fn transfer_one(
     ok(res)
 }
 
+async fn add_note(
+    State(c): State<Arc<Ctx>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(id): Path<String>,
+    JsonBody(body): JsonBody,
+) -> Response {
+    let note = match notes::parse_note_body(&body) {
+        Ok(n) => n,
+        Err(e) => return fail(e),
+    };
+    let id = match id_of(&id) {
+        Ok(id) => id,
+        Err(e) => return fail(e),
+    };
+    let r = prep!(c, u);
+    let res = async {
+        let mut cn = conn(&c, r.company).await?;
+        notes::add_note(
+            &mut cn,
+            r.scopes.update.as_ref(),
+            r.actor.user_id,
+            id,
+            &note,
+            Map::new(),
+            None,
+        )
+        .await
+    }
+    .await;
+    if let Ok(a) = &res {
+        c.hooks.after_note(r.company, &u, id, a.id, &note).await;
+    }
+    ok(res)
+}
+
 async fn recent_list(
     State(c): State<Arc<Ctx>>,
     Extension(u): Extension<CurrentUser>,
@@ -620,6 +679,7 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::POST, "/api/v1/contacts/bulk-transfer"), bulk_transfer)
         .route(spec(&Method::GET, "/api/v1/contacts/recent"), recent_list)
         .route(spec(&Method::POST, "/api/v1/contacts/:id/transfer"), transfer_one)
+        .route(spec(&Method::POST, NOTES), add_note)
         .route(spec(&Method::POST, "/api/v1/contacts/:id/viewed"), viewed)
         .route(spec(&Method::POST, "/api/v1/contacts/:id/restore"), restore)
         .route(spec(&Method::GET, "/api/v1/contacts/:id"), get_one)
@@ -646,10 +706,10 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = specs();
-        assert_eq!(table.len(), 14);
+        assert_eq!(table.len(), 15);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 14);
+        assert_eq!(rep.declared, 15);
     }
 
     #[test]

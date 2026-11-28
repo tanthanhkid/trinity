@@ -1440,6 +1440,36 @@
       "controller": "ContactsController",
       "deprecated": false,
       "guards": [],
+      "handler": "addContactNote",
+      "headers": {},
+      "interceptors": [],
+      "method": "POST",
+      "min_samples": 50,
+      "org_feature": null,
+      "param_pipes": [
+        "param.id:ParseIntPipe"
+      ],
+      "path": "/api/v1/contacts/:id/notes",
+      "permission_mode": "all",
+      "permissions": [
+        "contacts.update"
+      ],
+      "raw_response": false,
+      "res_passthrough": false,
+      "safe_for_shadow": false,
+      "shape_permissions": [],
+      "status_ok": 201,
+      "transforms": [],
+      "upload": null,
+      "validation": "strict"
+    },
+    {
+      "access": "can",
+      "body_limit_bytes": 5242880,
+      "cached": false,
+      "controller": "ContactsController",
+      "deprecated": false,
+      "guards": [],
       "handler": "markViewed",
       "headers": {},
       "interceptors": [],

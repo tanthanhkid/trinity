@@ -2,8 +2,9 @@
 
 /**
  * Giao diện «Ánh xanh» cho màn Nhân viên (docs/design/anh-xanh.md; thiết kế nhansu-*.dc.html):
- * danh sách (hàng 64px + chip trạng thái) và hồ sơ (HeroCard + các nhóm thông tin + khối «Hệ thống»).
- * Chỉ trình bày — mọi thao tác (sửa/khoá/xoá/đặt lại thiết bị) do trang gọi qua callback.
+ * danh sách (hàng 64px + chip trạng thái) và hồ sơ (HeroCard + nhóm Công việc / Liên hệ và cá nhân / Giấy tờ và ngân hàng;
+ * cột phải «Vai trò» + «Hệ thống»).
+ * Chỉ trình bày — mọi thao tác (sửa/khoá/xoá/đặt lại thiết bị/gán vai trò) do trang gọi qua callback hoặc `renderRoles`.
  */
 import * as React from "react"
 import { ChevronLeft, Lock, LockOpen, Mail, MessageSquare, Pencil, Phone, Trash2 } from "lucide-react"
@@ -113,48 +114,81 @@ export function EmployeeListItem({
 
 interface Row {
   label: string
+  /** Nhãn ngắn trên điện thoại (cột nhãn hẹp). */
+  short?: string
   value: string | null | undefined
 }
 
-function groups(emp: Employee): { title: string; rows: Row[] }[] {
+export type GroupEdit = "work" | "profile"
+
+interface Group {
+  title: string
+  edit: GroupEdit
+  rows: Row[]
+  /** Nhóm có số nhạy cảm (CCCD, số tài khoản): che mặc định, có nút hiện. */
+  sensitive?: boolean
+}
+
+/** Che số: CCCD giữ 3 số đầu/cuối, số tài khoản giữ 4 số cuối (thiết kế nhansu-desktop). */
+export function maskIdCard(v: string): string {
+  const t = v.replace(/\s/g, "")
+  return t.length > 6 ? `${t.slice(0, 3)} ••• ••• ${t.slice(-3)}` : "•••"
+}
+export function maskAccount(v: string): string {
+  const t = v.replace(/\s/g, "")
+  return t.length > 4 ? `••••••${t.slice(-4)}` : "••••"
+}
+
+export function groups(emp: Employee, reveal = false): Group[] {
+  const status = employeeStatus(emp)
   return [
     {
       title: "Công việc",
+      edit: "work",
       rows: [
-        { label: "Chức vụ", value: emp.position ?? emp.job_title_name },
+        { label: "Trạng thái", value: status ? (STATUS_LABELS[status] ?? status) : null },
+        { label: "Chức danh", value: emp.position ?? emp.job_title_name },
+        { label: "Team / bộ phận", short: "Team", value: emp.team_name },
         { label: "Phòng ban", value: emp.department },
-        { label: "Team", value: emp.team_name },
-        { label: "Cấp quản lý", value: emp.manager_name },
-        { label: "Nơi làm việc", value: emp.office_name },
-        { label: "Ngày vào làm", value: emp.joined_at ? formatDate(emp.joined_at) : null },
+        { label: "Văn phòng chấm công", short: "Văn phòng", value: emp.office_name },
+        { label: "Ngày vào làm", short: "Vào làm", value: emp.joined_at ? formatDate(emp.joined_at) : null },
+        { label: "Quản lý trực tiếp", short: "Quản lý", value: emp.manager_name },
+      ],
+    },
+    {
+      title: "Liên hệ và cá nhân",
+      edit: "profile",
+      rows: [
+        { label: "Giới tính", value: emp.gender ? (GENDER_LABELS[emp.gender] ?? emp.gender) : null },
+        { label: "Số điện thoại", short: "Điện thoại", value: emp.phone },
+        { label: "Ngày sinh", value: emp.birth_date ? formatDate(emp.birth_date) : null },
+        {
+          label: "Trình độ học vấn",
+          short: "Học vấn",
+          value: emp.education_level ? (EDUCATION_LABELS[emp.education_level] ?? emp.education_level) : null,
+        },
         {
           label: "Nguồn tuyển dụng",
+          short: "Nguồn",
           value: emp.recruitment_source ? (RECRUITMENT_LABELS[emp.recruitment_source] ?? emp.recruitment_source) : null,
         },
       ],
     },
     {
-      title: "Cá nhân",
+      title: "Giấy tờ và ngân hàng",
+      edit: "profile",
+      sensitive: Boolean(emp.id_card_number || emp.bank_account_number),
       rows: [
-        { label: "Số điện thoại", value: emp.phone },
-        { label: "Giới tính", value: emp.gender ? (GENDER_LABELS[emp.gender] ?? emp.gender) : null },
-        { label: "Ngày sinh", value: emp.birth_date ? formatDate(emp.birth_date) : null },
-        {
-          label: "Học vấn",
-          value: emp.education_level ? (EDUCATION_LABELS[emp.education_level] ?? emp.education_level) : null,
-        },
-        { label: "Số CCCD", value: emp.id_card_number },
-        { label: "Ngày cấp CCCD", value: emp.id_card_issued_date ? formatDate(emp.id_card_issued_date) : null },
-        { label: "Nơi cấp CCCD", value: emp.id_card_issued_place },
-        { label: "Hộ khẩu thường trú", value: emp.permanent_address },
-        { label: "Chỗ ở hiện tại", value: emp.current_address },
-      ],
-    },
-    {
-      title: "Tài khoản ngân hàng",
-      rows: [
+        { label: "Số CCCD", value: emp.id_card_number && !reveal ? maskIdCard(emp.id_card_number) : emp.id_card_number },
+        { label: "Ngày cấp", value: emp.id_card_issued_date ? formatDate(emp.id_card_issued_date) : null },
+        { label: "Nơi cấp", value: emp.id_card_issued_place },
+        { label: "Hộ khẩu thường trú", short: "Hộ khẩu", value: emp.permanent_address },
+        { label: "Chỗ ở hiện tại", short: "Chỗ ở", value: emp.current_address },
         { label: "Ngân hàng", value: emp.bank_name },
-        { label: "Số tài khoản", value: emp.bank_account_number },
+        {
+          label: "Số tài khoản",
+          value: emp.bank_account_number && !reveal ? maskAccount(emp.bank_account_number) : emp.bank_account_number,
+        },
         { label: "Chủ tài khoản", value: emp.bank_account_holder },
       ],
     },
@@ -169,38 +203,55 @@ function InfoGroup({
   rows,
   canEdit,
   onEdit,
-  onAddEmpty,
+  reveal,
+  onReveal,
 }: {
   title: string
   rows: Row[]
   canEdit: boolean
   onEdit: () => void
-  onAddEmpty: () => void
+  /** Có ⇒ nhóm nhạy cảm, hiện nút «Hiện/Ẩn số…». */
+  reveal?: boolean
+  onReveal?: () => void
 }) {
+  const revealBtn = (cls: string) =>
+    onReveal ? (
+      <button
+        type="button"
+        aria-pressed={reveal}
+        onClick={onReveal}
+        className={cn(
+          "min-h-10 cursor-pointer text-left text-sm font-semibold text-ax-primary-hover hover:underline focus-visible:shadow-[var(--ax-focus-ring)] focus-visible:outline-none max-sm:min-h-11",
+          cls,
+        )}
+      >
+        {reveal ? "Ẩn số CCCD và tài khoản" : "Hiện số CCCD và tài khoản"}
+      </button>
+    ) : null
   return (
     <section aria-label={title} className="max-lg:contents">
       {/* Desktop */}
       <div className={cn(CARD, "max-lg:hidden overflow-hidden")}>
-        <div className="flex items-center justify-between px-6 pt-3.5">
+        <div className="flex min-h-14 items-center justify-between px-6 pt-3">
           <h3 className="text-base font-bold tracking-[-0.011em] text-ax-ink">{title}</h3>
           {canEdit && (
-            <Button variant="ax-secondary" size="ax" onClick={onEdit}>
+            <Button variant="ax-secondary" size="ax" aria-label={`Sửa ${title}`} onClick={onEdit}>
               <Pencil className="size-4" aria-hidden="true" />
               Sửa
             </Button>
           )}
         </div>
-        <dl className="grid grid-cols-2 gap-x-6 px-6 pt-2 pb-4 xl:grid-cols-3">
+        <dl className="grid grid-cols-2 gap-x-6 px-6 pt-1 pb-4">
           {rows.map((r) => (
             <div key={r.label} className="min-w-0 border-b border-ax-divider py-2.5">
-              <dt className="text-xs text-ax-ink-3">{r.label}</dt>
+              <dt className="text-[13px] text-ax-ink-3">{r.label}</dt>
               {r.value ? (
                 <dd className="mt-0.5 text-[15px] font-medium break-words text-ax-ink">{r.value}</dd>
               ) : canEdit ? (
                 <dd>
                   <button
                     type="button"
-                    onClick={onAddEmpty}
+                    onClick={onEdit}
                     className="mt-0.5 min-h-8 cursor-pointer text-left text-[15px] text-ax-primary-hover hover:underline focus-visible:shadow-[var(--ax-focus-ring)] focus-visible:outline-none"
                   >
                     Thêm {r.label.toLowerCase()}
@@ -212,6 +263,7 @@ function InfoGroup({
             </div>
           ))}
         </dl>
+        {revealBtn("mx-6 mb-3")}
       </div>
       {/* Điện thoại */}
       <div className="mt-3 lg:hidden">
@@ -234,7 +286,7 @@ function InfoGroup({
               key={r.label}
               className={cn("flex min-h-[52px] items-center gap-3 px-4 py-2", i > 0 && "border-t border-ax-divider")}
             >
-              <span className="w-28 shrink-0 text-[15px] text-ax-ink-2">{r.label}</span>
+              <span className="w-28 shrink-0 text-[15px] text-ax-ink-2">{r.short ?? r.label}</span>
               <span
                 className={cn(
                   "min-w-0 flex-1 text-right text-[15px] break-words",
@@ -245,10 +297,18 @@ function InfoGroup({
               </span>
             </div>
           ))}
+          {onReveal && <div className="border-t border-ax-divider px-4">{revealBtn("w-full")}</div>}
         </div>
       </div>
     </section>
   )
+}
+
+/** SĐT gọi/nhắn được: bỏ khoảng trắng; SĐT bị che (`*`, `•`, `x`) ⇒ không dùng được. */
+export function dialablePhone(phone: string | null | undefined): string | null {
+  if (!phone || /[*•xX]/.test(phone)) return null
+  const d = phone.replace(/[^\d+]/g, "")
+  return d.length >= 8 ? d : null
 }
 
 export interface EmployeeDetailProps {
@@ -260,10 +320,15 @@ export interface EmployeeDetailProps {
   canDelete: boolean
   isAdmin: boolean
   canResetDevice: boolean
+  /** Nút Sửa nhóm «Liên hệ…», «Giấy tờ…» — hộp thoại sửa hồ sơ đầy đủ. */
   onEdit: () => void
+  /** Nút Sửa nhóm «Công việc» — khay «Sửa công việc». Không truyền ⇒ dùng `onEdit`. */
+  onEditWork?: () => void
   onLock: () => void
   onDelete: () => void
   onResetDevice: () => void
+  /** Khối «Vai trò» (trang dựng — có gọi API theo quyền). Desktop ở cột phải, điện thoại ngay dưới hàng Gọi/Nhắn/Email. */
+  renderRoles?: (variant: "desktop" | "mobile") => React.ReactNode
 }
 
 export function EmployeeDetail({
@@ -275,23 +340,34 @@ export function EmployeeDetail({
   isAdmin,
   canResetDevice,
   onEdit,
+  onEditWork,
   onLock,
   onDelete,
   onResetDevice,
+  renderRoles,
 }: EmployeeDetailProps) {
+  const [reveal, setReveal] = React.useState(false)
+  // Đổi người xem ⇒ che lại số nhạy cảm.
+  const [revealFor, setRevealFor] = React.useState(emp.id)
+  if (revealFor !== emp.id) {
+    setRevealFor(emp.id)
+    setReveal(false)
+  }
   const status = employeeStatus(emp)
   const tenure = tenureText(emp.joined_at)
   const locked = emp.user_status === "locked"
-  const phoneDigits = emp.phone?.replace(/[^\d+]/g, "")
-  const quick = [
-    phoneDigits ? { href: `tel:${phoneDigits}`, label: "Gọi", icon: Phone } : null,
-    phoneDigits ? { href: `sms:${phoneDigits}`, label: "Nhắn", icon: MessageSquare } : null,
-    emp.email ? { href: `mailto:${emp.email}`, label: "Email", icon: Mail } : null,
-  ].filter((x): x is { href: string; label: string; icon: typeof Phone } => x !== null)
+  const phoneDigits = dialablePhone(emp.phone)
+  const quick: { href: string | null; label: string; icon: typeof Phone; missing: string }[] = [
+    { href: phoneDigits ? `tel:${phoneDigits}` : null, label: "Gọi", icon: Phone, missing: "Chưa có số điện thoại" },
+    { href: phoneDigits ? `sms:${phoneDigits}` : null, label: "Nhắn", icon: MessageSquare, missing: "Chưa có số điện thoại" },
+    { href: emp.email ? `mailto:${emp.email}` : null, label: "Email", icon: Mail, missing: "Chưa có email" },
+  ]
 
   const systemCard = (
-    <section aria-label="Hệ thống" className={cn(CARD, "px-6 py-5 max-lg:px-0 max-lg:py-0 max-lg:border-0")}>
-      <h3 className="mb-2 text-base font-bold tracking-[-0.011em] text-ax-ink max-lg:hidden">Hệ thống</h3>
+    <section aria-label="Hệ thống" className={cn(CARD, "px-5 py-4 max-lg:mt-3 max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none")}>
+      <h3 className="mb-2 text-base font-bold tracking-[-0.011em] text-ax-ink max-lg:mx-4 max-lg:mb-1.5 max-lg:text-[11px] max-lg:font-semibold max-lg:tracking-[0.06em] max-lg:text-ax-ink-3 max-lg:uppercase">
+        Hệ thống
+      </h3>
       <div className="max-lg:overflow-hidden max-lg:rounded-ax-card max-lg:bg-ax-surface max-lg:shadow-ax-card">
         <SysRow label="Email đăng nhập" value={emp.email} />
         <SysRow label="Tạo lúc" value={emp.created_at ? formatDate(emp.created_at) : "—"} />
@@ -303,7 +379,7 @@ export function EmployeeDetail({
             </span>
           </div>
           {canResetDevice && emp.registered_device_id && (
-            <Button variant="ax-secondary" size="ax" className="mt-2 max-lg:w-full" onClick={onResetDevice}>
+            <Button variant="ax-secondary" size="ax" className="mt-2 max-lg:mb-1 max-lg:w-full" onClick={onResetDevice}>
               Đặt lại thiết bị
             </Button>
           )}
@@ -313,116 +389,130 @@ export function EmployeeDetail({
   )
 
   return (
-    <div className="flex flex-col gap-4 max-lg:gap-0 max-lg:pb-10">
-      {onBack && (
-        <div className="flex items-center px-2 pt-1 lg:hidden">
-          <button
-            type="button"
-            aria-label="Quay lại danh sách nhân viên"
-            onClick={onBack}
-            className="flex h-11 cursor-pointer items-center gap-0.5 px-2.5 text-base text-ax-primary-press focus-visible:shadow-[var(--ax-focus-ring)] focus-visible:outline-none"
-          >
-            <ChevronLeft className="size-5" aria-hidden="true" />
-            Nhân viên
-          </button>
-        </div>
-      )}
-
-      <HeroCard className="max-lg:mx-4 max-lg:my-2">
-        <div className="flex flex-wrap items-center gap-4 max-lg:flex-col max-lg:items-start max-lg:gap-2">
-          <PersonAvatar kind="staff" size="2xl" name={emp.full_name} src={emp.avatar_url} />
-          <div className="min-w-[220px] flex-1">
-            <h2 className="text-[26px] leading-tight font-bold tracking-[-0.02em] text-white max-lg:text-[25px]">
-              {emp.full_name ?? "Chưa cập nhật"}
-            </h2>
-            <HeroCardLabel className="mt-0.5 text-sm">
-              {[emp.employee_code, emp.position ?? emp.job_title_name].filter(Boolean).join(" · ")}
-            </HeroCardLabel>
-            <div className="mt-2.5 flex flex-wrap items-center gap-2">
-              <EmployeeStatusChip status={status} size="md" />
-              {tenure && <span className="text-[13px] text-[var(--ax-on-hero-ink-2)]">{tenure}</span>}
-            </div>
+    <div className="flex flex-wrap items-start gap-4 max-lg:block max-lg:pb-10">
+      {/* Cột chính: khối nhấn + các nhóm thông tin */}
+      <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-4 max-lg:block">
+        {onBack && (
+          <div className="flex items-center px-2 pt-1 lg:hidden">
+            <button
+              type="button"
+              aria-label="Quay lại danh sách nhân viên"
+              onClick={onBack}
+              className="flex h-11 cursor-pointer items-center gap-0.5 px-2.5 text-base text-ax-primary-press focus-visible:shadow-[var(--ax-focus-ring)] focus-visible:outline-none"
+            >
+              <ChevronLeft className="size-5" aria-hidden="true" />
+              Nhân viên
+            </button>
           </div>
-          {(canLock || canDelete) && (
-            <div className="flex flex-wrap gap-2 max-lg:hidden">
-              {canLock && (
-                <Button
-                  variant="ax-on-hero-secondary"
-                  size="ax"
-                  disabled={locked && !isAdmin}
-                  onClick={onLock}
-                >
+        )}
+
+        <HeroCard className="max-lg:mx-4 max-lg:my-2">
+          <div className="flex flex-wrap items-center gap-4 max-lg:flex-col max-lg:gap-2 max-lg:text-center">
+            <PersonAvatar kind="staff" size="2xl" name={emp.full_name} src={emp.avatar_url} />
+            <div className="min-w-[200px] flex-1 max-lg:flex max-lg:flex-col max-lg:items-center">
+              <h2 className="text-[26px] leading-tight font-bold tracking-[-0.02em] text-white max-lg:text-[25px]">
+                {emp.full_name ?? "Chưa cập nhật"}
+              </h2>
+              <HeroCardLabel className="mt-0.5 text-sm">
+                {[emp.employee_code, emp.position ?? emp.job_title_name].filter(Boolean).join(" · ")}
+              </HeroCardLabel>
+              <div className="mt-2.5 flex flex-wrap items-center gap-2 max-lg:justify-center">
+                <EmployeeStatusChip status={status} size="md" />
+                {tenure && <span className="text-[13px] text-[var(--ax-on-hero-ink-2)]">{tenure}</span>}
+              </div>
+            </div>
+            {canLock && (
+              <div className="flex flex-wrap gap-2 max-lg:hidden">
+                <Button variant="ax-on-hero-secondary" size="ax" disabled={locked && !isAdmin} onClick={onLock}>
                   {locked ? <LockOpen className="size-4" aria-hidden="true" /> : <Lock className="size-4" aria-hidden="true" />}
                   {locked ? (isAdmin ? "Mở khoá" : "Đang bị khoá") : "Khoá tài khoản"}
                 </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </HeroCard>
+              </div>
+            )}
+          </div>
+        </HeroCard>
 
-      {quick.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 px-4 pb-4 lg:hidden">
-          {quick.map((q) => (
-            <a
-              key={q.label}
-              href={q.href}
-              className="flex h-14 flex-col items-center justify-center gap-0.5 rounded-ax-card bg-ax-surface text-sm font-semibold text-ax-primary-press shadow-ax-card focus-visible:shadow-[var(--ax-focus-ring)] focus-visible:outline-none"
-            >
-              <q.icon className="size-5" aria-hidden="true" />
-              {q.label}
-            </a>
-          ))}
+        {/* Điện thoại: Gọi / Nhắn / Email luôn đủ ba ô; thiếu số/email thì ô mờ, không bấm được. */}
+        <div className="grid grid-cols-3 gap-2 px-4 pb-1 lg:hidden">
+          {quick.map((q) =>
+            q.href ? (
+              <a
+                key={q.label}
+                href={q.href}
+                className="flex h-14 flex-col items-center justify-center gap-0.5 rounded-ax-card bg-ax-surface text-sm font-semibold text-ax-primary-press shadow-ax-card focus-visible:shadow-[var(--ax-focus-ring)] focus-visible:outline-none"
+              >
+                <q.icon className="size-5" aria-hidden="true" />
+                {q.label}
+              </a>
+            ) : (
+              <span
+                key={q.label}
+                role="link"
+                aria-disabled="true"
+                title={q.missing}
+                aria-label={`${q.label} — ${q.missing.toLowerCase()}`}
+                className="flex h-14 flex-col items-center justify-center gap-0.5 rounded-ax-card bg-ax-surface text-sm font-semibold text-ax-ink-3 shadow-ax-card"
+              >
+                <q.icon className="size-5" aria-hidden="true" />
+                {q.label}
+              </span>
+            ),
+          )}
         </div>
-      )}
 
-      <div className="flex flex-wrap items-start gap-4 max-lg:block">
-        <div className="flex min-w-0 flex-[1_1_520px] flex-col gap-4 max-lg:block">
-          {groups(emp).map((g) => (
-            <InfoGroup
-              key={g.title}
-              title={g.title}
-              rows={g.rows}
-              canEdit={canEdit}
-              onEdit={onEdit}
-              onAddEmpty={onEdit}
-            />
-          ))}
-        </div>
-        <aside aria-label="Hệ thống và quyền" className="flex min-w-[260px] flex-[1_1_280px] flex-col gap-4 max-lg:mt-3 max-lg:block max-lg:min-w-0 max-lg:px-4">
-          <div className="max-lg:hidden">{systemCard}</div>
-          <div className="lg:hidden">{systemCard}</div>
-          {(canLock || canDelete) && (
-            <div className="flex flex-col gap-2 max-lg:mt-3 lg:hidden">
-              {canLock && (
-                <Button variant="ax-secondary" size="ax-lg" disabled={locked && !isAdmin} onClick={onLock}>
-                  {locked ? (isAdmin ? "Mở khoá tài khoản" : "Đang bị khoá") : "Khoá tài khoản"}
-                </Button>
-              )}
-              {canDelete && (
-                <Button variant="ax-danger" size="ax-lg" onClick={onDelete}>
-                  Xoá nhân viên
-                </Button>
-              )}
-            </div>
-          )}
-          {canDelete && (
-            <Button variant="ax-danger" size="ax" className="max-lg:hidden" onClick={onDelete}>
-              <Trash2 className="size-4" aria-hidden="true" />
-              Xoá nhân viên
-            </Button>
-          )}
-        </aside>
+        {renderRoles && <div className="lg:hidden">{renderRoles("mobile")}</div>}
+
+        {groups(emp, reveal).map((g) => (
+          <InfoGroup
+            key={g.title}
+            title={g.title}
+            rows={g.rows}
+            canEdit={canEdit}
+            onEdit={g.edit === "work" ? (onEditWork ?? onEdit) : onEdit}
+            reveal={g.sensitive ? reveal : undefined}
+            onReveal={g.sensitive ? () => setReveal((v) => !v) : undefined}
+          />
+        ))}
       </div>
+
+      {/* Cột phải desktop: Vai trò + Hệ thống; điện thoại: nối tiếp bên dưới */}
+      <aside
+        aria-label="Vai trò và hệ thống"
+        className="flex w-[300px] flex-[0_0_300px] flex-col gap-4 max-lg:block max-lg:w-auto max-lg:min-w-0 max-lg:px-4"
+      >
+        {renderRoles && <div className="max-lg:hidden">{renderRoles("desktop")}</div>}
+        {systemCard}
+        {(canLock || canDelete) && (
+          <div className="flex flex-col gap-2 max-lg:mt-3 lg:hidden">
+            {canLock && (
+              <Button variant="ax-secondary" size="ax-lg" disabled={locked && !isAdmin} onClick={onLock}>
+                {locked ? (isAdmin ? "Mở khoá tài khoản" : "Đang bị khoá") : "Khoá tài khoản"}
+              </Button>
+            )}
+            {canDelete && (
+              <Button variant="ax-danger" size="ax-lg" onClick={onDelete}>
+                Xoá nhân viên
+              </Button>
+            )}
+          </div>
+        )}
+        {canDelete && (
+          <Button variant="ax-danger" size="ax" className="max-lg:hidden" onClick={onDelete}>
+            <Trash2 className="size-4" aria-hidden="true" />
+            Xoá nhân viên
+          </Button>
+        )}
+      </aside>
     </div>
   )
 }
 
 function SysRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-ax-divider py-2.5 text-sm first:border-t-0 max-lg:min-h-[52px] max-lg:px-4 max-lg:py-2">
-      <span className="text-ax-ink-2 max-lg:text-[15px]">{label}</span>
-      <span className="text-right break-words text-ax-ink max-lg:text-[15px]">{value}</span>
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 border-t border-ax-divider py-2.5 text-sm first:border-t-0 max-lg:min-h-[52px] max-lg:px-4 max-lg:py-2">
+      <span className="shrink-0 text-ax-ink-2 max-lg:text-[15px]">{label}</span>
+      {/* Giá trị dài (email) không vừa cạnh nhãn thì xuống dòng riêng, không bẻ giữa chữ. */}
+      <span className="ml-auto min-w-0 text-right [overflow-wrap:anywhere] text-ax-ink max-lg:text-[15px]">{value}</span>
     </div>
   )
 }

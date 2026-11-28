@@ -33,7 +33,8 @@ pub const RUST_ONLY_AUTHED_ROUTES: &[&str] = &[
 ];
 
 /// Route chỉ có ở Rust, chỉ cần đăng nhập (`access: auth`): `GET /bootstrap` gộp các lời gọi layout của web thành một lượt
-/// (đợt cắt số round trip, 27/11). Không có tool MCP: chỉ là tối ưu truyền tải cho các endpoint đã có.
+/// (đợt cắt số round trip, 27/11) — hai route đầu không có tool MCP vì chỉ là tối ưu truyền tải cho endpoint đã có;
+/// route tính năng thêm vào đây phải có tool MCP riêng (ghi cạnh dòng).
 pub const RUST_ONLY_AUTH_ROUTES: &[&str] = &[
     "GET /api/v1/bootstrap",
     "GET /api/v1/kanban/overview",

@@ -507,7 +507,18 @@ fn my_pdf(p: &PayslipRow) -> R<FileOut> {
 /// `GET /payslips/me/:id/pdf`: PDF phiếu của CHÍNH người gọi (chỉ cần đăng nhập). Phiếu của người khác hoặc đã loại ⇒ 404
 /// như không có (không lộ phiếu tồn tại).
 pub async fn export_my_pdf(conn: &mut PgConnection, user_id: i32, id: i32) -> R<FileOut> {
-    let p = load_for_export(conn, id, Some(&[user_id])).await?;
+    // Lọc cả `id` lẫn chủ phiếu trong một câu và trả MỘT lời 404, để không dò được id nào tồn tại.
+    let mut qb = QueryBuilder::<Postgres>::new(SELECT_P);
+    qb.push(" WHERE p.deleted_at IS NULL AND p.id = ")
+        .push_bind(id)
+        .push(" AND e.user_id = ")
+        .push_bind(user_id);
+    let p = qb
+        .build_query_as::<PayslipRow>()
+        .fetch_optional(&mut *conn)
+        .await
+        .map_err(db)?
+        .ok_or_else(|| HttpError::not_found("Không tìm thấy phiếu lương"))?;
     my_pdf(&p)
 }
 

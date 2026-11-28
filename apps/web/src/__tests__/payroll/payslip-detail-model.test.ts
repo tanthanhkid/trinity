@@ -6,7 +6,7 @@ import {
 import {
   HIDDEN_MASK, buildCalcText, buildMineGroups, maskAmount, minePdfName, mineStatusHint,
 } from "@/app/(dashboard)/payroll/_components/payroll-mine-model"
-import { readHidden } from "@/app/(dashboard)/payroll/_components/payroll-mine-hide"
+import { readHidden, resetHiddenMemory, toggleHidden } from "@/app/(dashboard)/payroll/_components/payroll-mine-hide"
 
 function row(over: Partial<PayslipRow> = {}): PayslipRow {
   return {
@@ -102,6 +102,38 @@ describe("Phiếu của tôi: ẩn số + tải PDF", () => {
       })
       expect(readHidden()).toBe(false)
     } finally {
+      if (real) Object.defineProperty(window, "localStorage", real)
+    }
+  })
+
+  it("ghi localStorage hỏng (đầy/riêng tư) thì công tắc vẫn đổi trong phiên", () => {
+    const real = Object.getOwnPropertyDescriptor(window, "localStorage")
+    const store = new Map<string, string>()
+    const stub = (failSet: boolean) =>
+      Object.defineProperty(window, "localStorage", {
+        configurable: true,
+        value: {
+          getItem: (k: string) => store.get(k) ?? null,
+          setItem: (k: string, v: string) => {
+            if (failSet) throw new Error("QuotaExceededError")
+            store.set(k, v)
+          },
+        },
+      })
+    try {
+      resetHiddenMemory()
+      stub(true)
+      expect(readHidden()).toBe(false)
+      toggleHidden()
+      expect(readHidden()).toBe(true)
+      toggleHidden()
+      expect(readHidden()).toBe(false)
+      stub(false)
+      toggleHidden()
+      expect(readHidden()).toBe(true)
+      expect(store.get("trinity.payroll.hide-amounts")).toBe("1")
+    } finally {
+      resetHiddenMemory()
       if (real) Object.defineProperty(window, "localStorage", real)
     }
   })

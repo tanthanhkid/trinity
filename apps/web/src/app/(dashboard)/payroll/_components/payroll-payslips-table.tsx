@@ -1,13 +1,13 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
+import { StageChip } from "@/components/ui/stage-chip"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Download, CheckCircle, Receipt, Pencil, FileSpreadsheet, ArrowUpDown, ArrowUp, ArrowDown, Trash2 } from "lucide-react"
 import { teamColorClass } from "@/lib/team-style"
 import { cn } from "@/lib/utils"
-import { type PayslipRow, type PayslipTotals, canApproveNow, canEditPayslip, canRemoveFromPeriod, displayRevenue, fmtNum, formatMonth, statusColor, statusLabel } from "./payroll-payslips-shared"
+import { type PayslipRow, type PayslipTotals, canApproveNow, canEditPayslip, canRemoveFromPeriod, displayRevenue, fmtNum, formatMonth, statusLabel, statusTone } from "./payroll-payslips-shared"
 
 // Header cột bấm để sắp xếp (client-side). Icon trung tính / lên / xuống.
 // `inline-flex` button kế thừa text-align của TableHead (right cho cột tiền).
@@ -203,7 +203,7 @@ export function PayslipsDesktopTable({
                   <TableCell className="tabular-nums">{p.employee?.bank_account_number || "—"}</TableCell>
                   <TableCell>{p.employee?.bank_name || "—"}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className={statusColor(p.status)}>{statusLabel(p.status)}</Badge>
+                    <StageChip tone={statusTone(p.status)} size="sm">{statusLabel(p.status)}</StageChip>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">

@@ -17,6 +17,10 @@ const PayrollPayslips = dynamic(
   () => import("./_components/payroll-payslips").then((m) => ({ default: m.PayrollPayslips })),
   { loading: TabSkeleton },
 )
+const PayrollMine = dynamic(
+  () => import("./_components/payroll-mine").then((m) => ({ default: m.PayrollMine })),
+  { loading: TabSkeleton },
+)
 const PayrollReports = dynamic(
   () => import("./_components/payroll-reports").then((m) => ({ default: m.PayrollReports })),
   { loading: TabSkeleton },
@@ -65,6 +69,7 @@ function PayrollTabs() {
         <TabsList layout="wrap">
           {canViewEmployees && <TabsTrigger value="employees">Nhân viên</TabsTrigger>}
           <TabsTrigger value="payslips">Phiếu lương</TabsTrigger>
+          <TabsTrigger value="mine">Phiếu của tôi</TabsTrigger>
           {canManage && <TabsTrigger value="salary-components">Thành phần lương</TabsTrigger>}
           {canManage && <TabsTrigger value="insurance">Bảo hiểm</TabsTrigger>}
           {canManage && <TabsTrigger value="tax">Thuế TNCN</TabsTrigger>}
@@ -77,6 +82,9 @@ function PayrollTabs() {
         )}
         <TabsContent value="payslips" className="mt-4">
           <PayrollPayslips />
+        </TabsContent>
+        <TabsContent value="mine" className="mt-4">
+          <PayrollMine />
         </TabsContent>
         {canManage && (
           <TabsContent value="salary-components" className="mt-4">

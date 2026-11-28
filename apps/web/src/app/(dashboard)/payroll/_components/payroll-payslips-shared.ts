@@ -111,6 +111,14 @@ export function statusLabel(s: string) {
   if (s === "pending_tl") return "Chờ Team Lead duyệt"
   return "Nháp"
 }
+// Tông StageChip «Ánh xanh» theo trạng thái phiếu: nháp = trung tính, chờ duyệt = tư vấn (xanh nhạt),
+// đã duyệt = thắng (xanh lá), đã trả = chăm sóc.
+export function statusTone(s: string): "neutral" | "consult" | "won" | "care" {
+  if (s === "paid") return "care"
+  if (s === "approved") return "won"
+  if (s === "pending_accountant" || s === "pending_tl") return "consult"
+  return "neutral"
+}
 export function fmt(n: number | string | null | undefined) {
   return Number(n ?? 0).toLocaleString("vi-VN") + " đ"
 }

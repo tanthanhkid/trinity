@@ -94,7 +94,12 @@ async fn goc_chuyen_huong_theo_cookie() {
     let r = svc.serve(get("/", "app.test", None)).await;
     assert_eq!(r.status(), StatusCode::TEMPORARY_REDIRECT);
     assert_eq!(header(&r, LOCATION.as_str()), Some("/login"));
-    assert_eq!(header(&r, CACHE_CONTROL.as_str()), Some("no-store, must-revalidate"));
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("private, no-store, must-revalidate")
+    );
+    // 307 phụ thuộc cookie: proxy không được cache (sự cố: CDN giữ 307 → /login cho cả người đã đăng nhập).
+    assert_eq!(header(&r, "vary"), Some("Cookie"));
     let r = svc.serve(get("/", "app.test", Some("has_session=1"))).await;
     assert_eq!(header(&r, LOCATION.as_str()), Some("/dashboard"));
     // Cookie rỗng không tính là đã đăng nhập.
@@ -109,7 +114,10 @@ async fn trang_cong_khai_va_no_store() {
     let r = svc.serve(get("/login", "app.test", None)).await;
     assert_eq!(r.status(), StatusCode::OK);
     assert_eq!(header(&r, "content-type"), Some("text/html; charset=utf-8"));
-    assert_eq!(header(&r, CACHE_CONTROL.as_str()), Some("no-store, must-revalidate"));
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("private, no-store, must-revalidate")
+    );
     assert_eq!(header(&r, "pragma"), Some("no-cache"));
     assert_eq!(header(&r, "x-content-type-options"), Some("nosniff"));
     assert!(text(r).await.contains("login"));
@@ -154,7 +162,10 @@ async fn assistant_va_build_id_va_oauth_authorize() {
     assert_eq!(r.status(), StatusCode::TEMPORARY_REDIRECT);
     assert_eq!(header(&r, LOCATION.as_str()), Some("/settings?tab=integrations"));
     let r = svc.serve(get("/api/build-id", "app.test", None)).await;
-    assert_eq!(header(&r, CACHE_CONTROL.as_str()), Some("no-store, must-revalidate"));
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("private, no-store, must-revalidate")
+    );
     assert_eq!(text(r).await, r#"{"buildId":"abc123"}"#);
     let r = svc.serve(get("/oauth/authorize?client_id=a", "app.test", None)).await;
     assert_eq!(
@@ -178,7 +189,10 @@ async fn ten_mien_phu_chen_slug_vao_html() {
     let (svc, dir) = service("store", Some("Shop.Example.com"));
     let r = svc.serve(get("/", "cua-hang-1.shop.example.com", None)).await;
     assert_eq!(r.status(), StatusCode::OK);
-    assert_eq!(header(&r, CACHE_CONTROL.as_str()), Some("no-store, must-revalidate"));
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("private, no-store, must-revalidate")
+    );
     let html = text(r).await;
     assert!(
         html.contains(r#"<meta name="store-slug" content="cua-hang-1"></head>"#),
@@ -224,5 +238,82 @@ async fn head_khong_co_than_nhung_co_do_dai() {
     let len: usize = header(&r, "content-length").unwrap().parse().unwrap();
     assert!(len > 0);
     assert!(to_bytes(r.into_body(), 1 << 20).await.unwrap().is_empty());
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[tokio::test]
+async fn sw_js_khong_can_cookie_va_khong_cache() {
+    // `sw-kill` nằm cạnh `WEB_DIR` (không trong đó): dựng cây riêng để không đụng test khác.
+    let base = std::env::temp_dir().join(format!("trinity-web-sw-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let dir = base.join("out");
+    std::fs::create_dir_all(&dir).unwrap();
+    let svc = WebService::new(WebConfig {
+        dir: dir.clone(),
+        store_domain: None,
+        site_config: json!({}),
+        build_id: "abc123".to_owned(),
+    });
+    // Chưa có sw.js (build cũ): trả bản tự huỷ để Service Worker đã cài tự gỡ.
+    let r = svc.serve(get("/sw.js", "app.test", None)).await;
+    assert_eq!(r.status(), StatusCode::OK);
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("no-cache, max-age=0, must-revalidate")
+    );
+    assert_eq!(header(&r, "service-worker-allowed"), Some("/"));
+    assert!(text(r).await.contains("unregister"));
+    // Có sw.js: phục vụ nguyên văn, không bị chuyển hướng /login dù không có phiên.
+    std::fs::write(dir.join("sw.js"), "const BUILD_ID='x'").unwrap();
+    let r = svc.serve(get("/sw.js", "app.test", None)).await;
+    assert_eq!(text(r).await, "const BUILD_ID='x'");
+    // Tệp sw-kill cạnh out/ ⇒ tắt khẩn (build xoá out/ nhưng không đụng tệp này).
+    std::fs::write(base.join("sw-kill"), "").unwrap();
+    let r = svc.serve(get("/sw.js", "app.test", None)).await;
+    assert!(text(r).await.contains("unregister"));
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[tokio::test]
+async fn html_co_header_link_preload() {
+    let (svc, dir) = service("link", None);
+    std::fs::write(
+        dir.join("login.html"),
+        r#"<html><head><script src="/_next/static/chunks/m.js" async></script></head></html>"#,
+    )
+    .unwrap();
+    let r = svc.serve(get("/login", "app.test", None)).await;
+    assert_eq!(
+        header(&r, "link"),
+        Some("</_next/static/chunks/m.js>; rel=preload; as=script")
+    );
+    // Tài nguyên không phải HTML thì không có Link.
+    let r = svc.serve(get("/_next/static/a.js", "app.test", None)).await;
+    assert_eq!(header(&r, "link"), None);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[tokio::test]
+async fn trang_phu_thuoc_cookie_co_vary_va_private() {
+    let (svc, dir) = service("vary", None);
+    // Trang cần phiên khi chưa đăng nhập: 307 → /login, `private, no-store`, `Vary: Cookie`.
+    let r = svc.serve(get("/dashboard", "app.test", None)).await;
+    assert_eq!(r.status(), StatusCode::TEMPORARY_REDIRECT);
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("private, no-store, must-revalidate")
+    );
+    assert_eq!(header(&r, "vary"), Some("Cookie"));
+    // Có phiên: HTML 200 cũng private + Vary.
+    let r = svc.serve(get("/dashboard", "app.test", Some("has_session=1"))).await;
+    assert_eq!(r.status(), StatusCode::OK);
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("private, no-store, must-revalidate")
+    );
+    assert_eq!(header(&r, "vary"), Some("Cookie"));
+    // /sw.js luôn 200, không bị chuyển hướng dù không cookie.
+    let r = svc.serve(get("/sw.js", "app.test", None)).await;
+    assert_eq!(r.status(), StatusCode::OK);
     let _ = std::fs::remove_dir_all(dir);
 }

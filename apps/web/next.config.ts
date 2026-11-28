@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
   env: { NEXT_PUBLIC_STATIC_EXPORT: "1" },
   devIndicators: false,
   compress: true,
+  // Chỉ khi phân tích bundle (ANALYZE_BUNDLE=1): xuất source map để source-map-explorer đọc.
+  productionBrowserSourceMaps: process.env.ANALYZE_BUNDLE === "1",
   poweredByHeader: false,
   reactStrictMode: true,
   images: { unoptimized: true },

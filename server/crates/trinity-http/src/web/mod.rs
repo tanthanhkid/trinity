@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::header::{
-    CACHE_CONTROL, CONTENT_LENGTH, CONTENT_SECURITY_POLICY, CONTENT_TYPE, COOKIE, HOST, LOCATION,
+    CACHE_CONTROL, CONTENT_LENGTH, CONTENT_SECURITY_POLICY, CONTENT_TYPE, COOKIE, HOST, LOCATION, VARY,
 };
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use axum::response::Response;
@@ -77,7 +77,22 @@ pub struct WebService {
     build_id: String,
 }
 
-const NO_STORE: &str = "no-store, must-revalidate";
+/// `private` để proxy dùng chung (CDN, Caddy) không giữ: phản hồi của trang phụ thuộc cookie phiên (chuyển hướng /login,
+/// /dashboard), một bản 307 bị cache sẽ đá cả người đã đăng nhập về /login. Kèm `Vary: Cookie`.
+const NO_STORE: &str = "private, no-store, must-revalidate";
+/// Service Worker (`/sw.js`) luôn được trình duyệt hỏi lại. Tắt khẩn: biến môi trường `TRINITY_SW_KILL=1`, hoặc tệp
+/// `sw-kill` NGOÀI `WEB_DIR` (cạnh nó: `<WEB_DIR>/../sw-kill`) — build xoá sạch `out/` nên tệp đặt trong đó sẽ mất.
+const SW_PATH: &str = "/sw.js";
+const SW_KILL_FILE: &str = "sw-kill";
+/// Bản tự huỷ: xoá mọi cache `trinity-*`, huỷ đăng ký, tải lại các tab để về bản không qua Service Worker.
+const SW_KILL_SCRIPT: &str = "self.addEventListener('install',()=>self.skipWaiting());\
+self.addEventListener('activate',e=>e.waitUntil((async()=>{\
+for(const k of await caches.keys())if(k.startsWith('trinity-'))await caches.delete(k);\
+await self.registration.unregister();\
+for(const c of await self.clients.matchAll({type:'window'}))c.navigate(c.url).catch(()=>{});\
+})()));\
+self.addEventListener('fetch',()=>{});\
+";
 const IMMUTABLE: &str = "public, max-age=31536000, immutable";
 const IMAGE_CACHE: &str = "public, max-age=86400, stale-while-revalidate=604800";
 
@@ -110,6 +125,9 @@ impl WebService {
         if path == BUILD_ID_PATH {
             return self.build_id_response(head);
         }
+        if path == SW_PATH {
+            return self.sw_response(head).await;
+        }
         if let Some(to) = assistant_redirect(&path) {
             return redirect(to);
         }
@@ -134,6 +152,30 @@ impl WebService {
         let skipped = matcher_skips(&path);
         self.file_response(lookup, &path, slug.as_deref(), no_store, skipped, head)
             .await
+    }
+
+    /// `/sw.js`: không qua luật chuyển hướng theo cookie (trình duyệt tải script không kèm phiên). Có kill (xem `SW_KILL_FILE`) hoặc không
+    /// có tệp ⇒ trả bản tự huỷ để các Service Worker đã cài tự gỡ.
+    async fn sw_response(&self, head: bool) -> Response {
+        let dir = self.assets.root().to_path_buf();
+        let body = tokio::task::spawn_blocking(move || {
+            let env_kill =
+                std::env::var("TRINITY_SW_KILL").is_ok_and(|v| matches!(v.trim(), "1" | "true" | "yes" | "on"));
+            if env_kill || dir.parent().is_some_and(|p| p.join(SW_KILL_FILE).exists()) {
+                return None;
+            }
+            std::fs::read(dir.join("sw.js")).ok()
+        })
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| SW_KILL_SCRIPT.as_bytes().to_vec());
+        let mut resp = bytes_response(StatusCode::OK, "text/javascript; charset=utf-8", body, head);
+        let h = resp.headers_mut();
+        set(h, CACHE_CONTROL, "no-cache, max-age=0, must-revalidate");
+        set(h, HeaderName::from_static("service-worker-allowed"), "/");
+        set(h, HeaderName::from_static("x-content-type-options"), "nosniff");
+        resp
     }
 
     fn build_id_response(&self, head: bool) -> Response {
@@ -178,11 +220,19 @@ impl WebService {
         } else {
             bytes
         };
+        // Early Hints: CDN đọc `Link: rel=preload` để phát 103 trước khi HTML về. Chỉ trang thật (không phải trang cửa hàng).
+        let link = (is_html && status == StatusCode::OK && slug.is_none())
+            .then(|| std::str::from_utf8(&body).ok().and_then(inject::preload_link_header))
+            .flatten();
         let mut resp = bytes_response(status, ctype, body, head);
         let h = resp.headers_mut();
+        if let Some(v) = link.and_then(|l| HeaderValue::from_str(&l).ok()) {
+            h.insert(HeaderName::from_static("link"), v);
+        }
         set(h, HeaderName::from_static("x-content-type-options"), "nosniff");
         if no_store {
             set(h, CACHE_CONTROL, NO_STORE);
+            set(h, VARY, "Cookie");
             set(h, HeaderName::from_static("pragma"), "no-cache");
         } else if original.starts_with("/_next/static/") {
             set(h, CACHE_CONTROL, IMMUTABLE);
@@ -190,6 +240,7 @@ impl WebService {
             set(h, CACHE_CONTROL, IMAGE_CACHE);
         } else if is_html && !skipped {
             set(h, CACHE_CONTROL, NO_STORE);
+            set(h, VARY, "Cookie");
         }
         if original == "/oauth/authorize" {
             // Màn đồng ý OAuth không được nhúng vào khung của trang khác (clickjacking).
@@ -269,6 +320,7 @@ fn redirect(location: &str) -> Response {
         resp.headers_mut().insert(LOCATION, v);
     }
     set(resp.headers_mut(), CACHE_CONTROL, NO_STORE);
+    set(resp.headers_mut(), VARY, "Cookie");
     set(resp.headers_mut(), HeaderName::from_static("pragma"), "no-cache");
     resp
 }

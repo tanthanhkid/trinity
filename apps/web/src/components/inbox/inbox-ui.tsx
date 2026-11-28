@@ -3,8 +3,8 @@
 /* =============================================================================
  * Khung hộp thư theo thiết kế «Ánh xanh» (hopthu-desktop / hopthu-mobile) — CHỈ TRÌNH BÀY, không gọi API.
  *   desktop (≥1024px): ba thẻ rời nhau — danh sách hội thoại · luồng tin + ô trả lời · hồ sơ khách (≥1280px)
- *   điện thoại (<1024px): MỘT cột tại một lúc (danh sách ⇄ hội thoại); đầu hội thoại là khối nhấn xanh
- *     có chip SĐT / giai đoạn / hẹn nhắc + nút «Hồ sơ» mở khay đáy
+ *   điện thoại (<1024px): MỘT cột tại một lúc (danh sách ⇄ hội thoại); hội thoại mở ra CHIẾM TOÀN MÀN (che thanh đầu app
+ *     và tiêu đề trang, như hopthu-mobile): đầu là khối nhấn xanh có chip SĐT / giai đoạn / hẹn nhắc + nút «Hồ sơ» mở khay đáy
  * Mỗi kênh (Zalo OA, Fanpage Facebook) tự lấy dữ liệu + gửi tin bằng hook sẵn có của nó rồi đổ vào đây.
  * Mọi chuỗi từ khách/BE hiển thị bằng text node của React.
  * ========================================================================== */
@@ -58,7 +58,13 @@ export function InboxAvatar({ name, src, size = "md" }: { name: string; src?: st
 const COL_CARD = "lg:ax-card lg:rounded-[16px] lg:overflow-hidden"
 
 /**
- * Khung hộp thư. Dưới 1024px: chỉ một cột tại một lúc (danh sách ⇄ hội thoại), một thẻ liền.
+ * Hội thoại đang mở dưới 1024px: lớp toàn màn (z-50 như ngăn chi tiết thẻ Kanban — khay «Hồ sơ khách» và toast portal sau nên
+ * vẫn nằm trên), nền trang mobile. ≥1024px không đổi gì.
+ */
+const THREAD_FULLSCREEN = "max-lg:fixed max-lg:inset-0 max-lg:z-50 max-lg:rounded-none max-lg:border-0 max-lg:shadow-none max-lg:ax-page"
+
+/**
+ * Khung hộp thư. Dưới 1024px: chỉ một cột tại một lúc — danh sách trong một thẻ liền; hội thoại mở ra thì toàn màn.
  * ≥1024px: danh sách 300 + hội thoại; ≥1280px: thêm cột hồ sơ khách (320, ≥1536px: 372) — ba thẻ rời, cách 12.
  */
 export function InboxFrame({
@@ -89,7 +95,7 @@ export function InboxFrame({
       )}
     >
       <section aria-label="Danh sách hội thoại" className={cn("min-h-0 min-w-0 flex-col lg:flex", COL_CARD, threadOpen ? "hidden" : "flex")}>{listTop}{list}</section>
-      <section aria-label="Hội thoại" className={cn("min-h-0 min-w-0 flex-col lg:flex", COL_CARD, threadOpen ? "flex" : "hidden")}>{thread}</section>
+      <section aria-label="Hội thoại" data-testid="inbox-thread" className={cn("min-h-0 min-w-0 flex-col lg:flex", COL_CARD, threadOpen ? cn("flex", THREAD_FULLSCREEN) : "hidden")}>{thread}</section>
       {side ? <aside aria-label="Hồ sơ khách" className={cn("hidden min-h-0 min-w-0 overflow-y-auto xl:block", COL_CARD)}>{side}</aside> : null}
     </div>
   )
@@ -157,7 +163,8 @@ export function ConversationItem({
 /**
  * Đầu một hội thoại.
  *  - desktop: dòng tên + kênh trên nền thẻ, bên phải `aside` (nhãn trạng thái) và nút «Hồ sơ» dưới 1280px
- *  - điện thoại: khối nhấn xanh (mỗi màn đúng một): quay lại · tên · «Hồ sơ», dưới là hàng chip `chips`
+ *  - điện thoại: khối nhấn xanh (mỗi màn đúng một): quay lại · tên · «Hồ sơ», dưới là hàng chip `chips`; dòng phụ = `mobileSub`
+ *    (thiết kế: «Kênh · Phụ trách …»), không có thì dùng `sub`
  */
 export function ThreadHeader({
   name,
@@ -168,9 +175,12 @@ export function ThreadHeader({
   aside,
   chips,
   onOpenProfile,
+  mobileSub,
 }: {
   name: string
   sub: string
+  /** Dòng phụ trên điện thoại (thiết kế hopthu-mobile: «Zalo OA · Phụ trách Linh»). */
+  mobileSub?: string
   channel: InboxChannel
   avatarUrl?: string | null
   onBack: () => void
@@ -182,14 +192,14 @@ export function ThreadHeader({
 }) {
   return (
     <>
-      <HeroCard className="rounded-none border-x-0 border-t-0 p-0 px-2 pt-2 pb-0 lg:hidden max-sm:rounded-none max-sm:p-0 max-sm:px-2 max-sm:pt-2">
+      <HeroCard className="shrink-0 rounded-none border-x-0 border-t-0 p-0 px-2 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-0 lg:hidden max-sm:rounded-none max-sm:p-0 max-sm:px-2 max-sm:pt-[calc(0.5rem+env(safe-area-inset-top))]">
         <div className="flex items-center gap-1">
           <Button variant="ax-on-hero-secondary" size="ax-icon" className="shrink-0 border-0 bg-transparent" onClick={onBack} aria-label="Quay lại danh sách">
             <ArrowLeft className="size-5" />
           </Button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[18px] font-bold tracking-[-0.011em] text-white">{name}</p>
-            <p className="truncate text-[13px] text-[var(--ax-on-hero-ink-2)]">{sub}</p>
+            <p className="truncate text-[13px] text-[var(--ax-on-hero-ink-2)]">{mobileSub ?? sub}</p>
           </div>
           {onOpenProfile ? (
             <Button variant="ax-on-hero" size="ax" className="mr-2 shrink-0" onClick={onOpenProfile} aria-label="Mở hồ sơ khách">
@@ -220,7 +230,10 @@ export function ThreadHeader({
   )
 }
 
-/** Chip trên khối nhấn ở đầu hội thoại (điện thoại): `solid` nền trắng · `dashed` thiếu thông tin · `glass` nền xanh thẫm trong. */
+/**
+ * Chip trên khối nhấn ở đầu hội thoại (điện thoại): `solid` nền trắng · `dashed` thiếu thông tin (nền vàng nhạt, viền đứt, chữ
+ * cảnh báo — thiết kế «Thêm số điện thoại») · `glass` nền xanh thẫm trong.
+ */
 export function HeroChip({ tone = "solid", onClick, children }: { tone?: "solid" | "dashed" | "glass"; onClick?: () => void; children: ReactNode }) {
   return (
     <button
@@ -229,7 +242,7 @@ export function HeroChip({ tone = "solid", onClick, children }: { tone?: "solid"
       className={cn(
         "h-11 shrink-0 cursor-pointer rounded-full px-3.5 text-[15px] font-semibold tracking-[-0.011em] whitespace-nowrap outline-none transition-colors duration-150 focus-visible:shadow-[0_0_0_2px_#1A3C5D,0_0_0_4px_#fff]",
         tone === "solid" && "border border-transparent bg-white text-[#17181C] hover:bg-[#EEF4FA]",
-        tone === "dashed" && "border-[1.5px] border-dashed border-white/80 bg-transparent text-white hover:bg-[var(--ax-on-hero-secondary)]",
+        tone === "dashed" && "border-[1.5px] border-dashed border-ax-warn bg-ax-warn-soft text-ax-warn hover:brightness-[.97]",
         tone === "glass" && "border border-[var(--ax-on-hero-secondary-border)] bg-[var(--ax-on-hero-secondary)] font-normal text-white hover:bg-[var(--ax-on-hero-secondary-hover)]",
       )}
     >
@@ -285,7 +298,7 @@ export function MessageThread({
   const today = todayVn()
   const days = messages.map((m) => vnDateKey(m.at))
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-ax-surface px-3 py-4 sm:px-4 lg:p-4">
+    <div className="min-h-0 flex-1 overflow-y-auto bg-ax-surface px-3 py-4 max-lg:bg-transparent sm:px-4 lg:p-4">
       {loading && (
         <div className="flex items-center justify-center gap-2 py-6 text-sm text-ax-ink-2">
           <Loader2 className="size-4 animate-spin" /> Đang tải...
@@ -305,7 +318,7 @@ export function MessageThread({
             <div key={m.id}>
               {sep && (
                 <div className="my-2 flex justify-center">
-                  <span className="rounded-full bg-ax-sunken px-2.5 py-0.5 text-[12px] font-medium text-ax-ink-2">
+                  <span className="rounded-full bg-ax-sunken px-2.5 py-0.5 text-[12px] font-medium text-ax-ink-2 max-lg:bg-ax-surface">
                     {inboxDayLabel(day, today)}
                   </span>
                 </div>
@@ -314,7 +327,7 @@ export function MessageThread({
                 <div
                   className={cn(
                     "max-w-[82%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-base leading-[1.45] lg:max-w-[72%] lg:rounded-[14px] lg:text-[15px]",
-                    out ? "bg-ax-primary text-white" : "bg-ax-sunken text-ax-ink",
+                    out ? "bg-ax-primary text-white" : "bg-ax-sunken text-ax-ink max-lg:bg-ax-surface max-lg:shadow-[var(--ax-shadow-soft)]",
                     failed && "opacity-60",
                   )}
                 >
@@ -366,7 +379,7 @@ export function Composer({
   // Mất mạng: vẫn gõ được (giữ nháp) nhưng khoá Gửi và nói rõ — không để tin "gửi" mà không đi.
   const offline = useOffline()
   return (
-    <div className="ax-grad-composer border-t border-ax-line p-2 pb-3 lg:flex lg:flex-col lg:gap-2 lg:p-3">
+    <div className="ax-grad-composer shrink-0 border-t border-ax-line p-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:flex lg:flex-col lg:gap-2 lg:p-3">
       {notice}
       {offline && <p role="status" className="mb-2 text-sm text-[var(--ax-warn)]">Đang mất mạng — tin chưa gửi được. Nội dung vẫn giữ trong ô, có mạng lại thì bấm Gửi.</p>}
       {!disabled && (

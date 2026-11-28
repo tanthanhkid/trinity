@@ -69,6 +69,8 @@ export interface FacebookConversation {
   page_name: string
   psid: string
   customer_name: string | null
+  /** Khách CRM đã ghép (tin đầu của khách tự tìm/tạo hồ sơ; link chat / bình luận cũng ghép). null = chưa ghép. */
+  contact_id?: number | null
   last_inbound_at: string | null
   last_message_at: string
   last_message_preview: string | null

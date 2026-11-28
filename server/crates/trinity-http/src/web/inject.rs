@@ -43,6 +43,59 @@ pub fn site_config_script(config: &Value) -> String {
     format!(r#"<script id="trinity-site-config" type="application/json">{safe}</script>"#)
 }
 
+/// Trần độ dài header `Link` (CDN và proxy hay cắt header lớn; 3 KB đủ cho ~30 tệp).
+const LINK_HEADER_MAX: usize = 3072;
+
+/// Header `Link: <…>; rel=preload; as=…` cho JS/CSS/font `/_next/static/` mà HTML nạp ngay (Early Hints).
+///
+/// Chỉ đọc đường dẫn bên trong thuộc tính `src`/`href` của thẻ `<script>`/`<link>`, theo thứ tự xuất hiện, bỏ trùng,
+/// bỏ thẻ `nomodule` (polyfill trình duyệt cũ). Đường dẫn chỉ gồm ký tự an toàn (`[A-Za-z0-9._/-]`) nên không cần escape.
+/// HTML tĩnh dùng chung cho mọi người dùng ⇒ header này không chứa dữ liệu riêng. `None` khi không có tệp nào.
+pub fn preload_link_header(html: &str) -> Option<String> {
+    let mut seen: Vec<&str> = Vec::new();
+    let mut out = String::new();
+    let mut rest = html;
+    while let Some(i) = rest.find("\"/_next/static/") {
+        let start = i + 1;
+        let after = &rest[start..];
+        let Some(end) = after.find('"') else { break };
+        let path = &after[..end];
+        let tag_start = rest[..i].rfind('<').unwrap_or(0);
+        let tag_head = &rest[tag_start..i];
+        // Cả thẻ (thuộc tính `nomodule` đứng sau `src`): từ `<` tới `>` đầu tiên sau đường dẫn.
+        let after_path = &rest[start + end..];
+        let tag_end = after_path.find('>').map_or(after_path.len(), |k| k + 1);
+        let nomodule = rest[tag_start..start + end + tag_end]
+            .to_ascii_lowercase()
+            .contains("nomodule");
+        rest = after_path;
+        let attr_ok = tag_head.ends_with("src=") || tag_head.ends_with("href=");
+        let safe = path
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'.' | b'/' | b'-' | b'_'));
+        if !attr_ok || !safe || nomodule || seen.contains(&path) {
+            continue;
+        }
+        let (as_attr, extra) = match path.rsplit_once('.').map(|(_, e)| e) {
+            Some("js") => ("script", ""),
+            Some("css") => ("style", ""),
+            Some("woff2") => ("font", "; crossorigin"),
+            _ => continue,
+        };
+        let item = format!("<{path}>; rel=preload; as={as_attr}{extra}");
+        let sep = if out.is_empty() { 0 } else { 2 };
+        if out.len() + sep + item.len() > LINK_HEADER_MAX {
+            break;
+        }
+        if sep > 0 {
+            out.push_str(", ");
+        }
+        out.push_str(&item);
+        seen.push(path);
+    }
+    (!out.is_empty()).then_some(out)
+}
+
 fn escape_attr(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('"', "&quot;")
@@ -65,6 +118,37 @@ mod tests {
             insert_before_head_end("<p>khong head</p>", "<meta x>"),
             "<p>khong head</p>"
         );
+    }
+
+    #[test]
+    fn link_preload_tu_html() {
+        let html = concat!(
+            r#"<html><head><link rel="preload" href="/_next/static/chunks/a.js" as="script"/>"#,
+            r#"<link rel="stylesheet" href="/_next/static/chunks/s.css"/>"#,
+            r#"<link rel="preload" as="font" href="/_next/static/media/f.woff2" crossorigin=""/>"#,
+            r#"<script src="/_next/static/chunks/a.js" async></script>"#,
+            r#"<script src="/_next/static/chunks/poly.js" nomodule></script>"#,
+            r#"<script>self.__next_f.push(["/_next/static/chunks/inline.js"])</script>"#,
+            r#"<script src="/_next/static/chunks/b.js"></script></head></html>"#,
+        );
+        let got = preload_link_header(html).unwrap();
+        assert_eq!(
+            got,
+            "</_next/static/chunks/a.js>; rel=preload; as=script, </_next/static/chunks/s.css>; rel=preload; as=style, \
+</_next/static/media/f.woff2>; rel=preload; as=font; crossorigin, </_next/static/chunks/b.js>; rel=preload; as=script"
+        );
+        assert_eq!(preload_link_header("<html><head></head></html>"), None);
+    }
+
+    #[test]
+    fn link_preload_co_tran_do_dai() {
+        let mut html = String::new();
+        for i in 0..400 {
+            html.push_str(&format!(r#"<script src="/_next/static/chunks/c{i}.js"></script>"#));
+        }
+        let got = preload_link_header(&html).unwrap();
+        assert!(got.len() <= LINK_HEADER_MAX);
+        assert!(got.matches("rel=preload").count() > 20);
     }
 
     #[test]

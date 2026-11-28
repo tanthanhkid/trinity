@@ -2,6 +2,8 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { prefetchRouteData } from "@/lib/route-prefetch"
 import type { ComponentProps, FocusEvent, MouseEvent } from "react"
 
 /**
@@ -18,10 +20,19 @@ export function HoverLink({ href, onMouseEnter, onFocus, prefetch: _ignored, ...
   } catch {
     router = null
   }
+  // Không có QueryClientProvider (test/Storybook) ⇒ bỏ nạp trước dữ liệu.
+  let qc: ReturnType<typeof useQueryClient> | null = null
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    qc = useQueryClient()
+  } catch {
+    qc = null
+  }
   const warm = () => {
     if (typeof href !== "string" || !href.startsWith("/")) return
     try {
       router?.prefetch(href)
+      if (qc) prefetchRouteData(qc, href)
     } catch {
       /* prefetch chỉ là tối ưu */
     }

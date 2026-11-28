@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 const post = vi.fn()
 const patch = vi.fn()
 const del = vi.fn()
+const get = vi.fn()
 const undoToast = vi.fn()
 const perms = { list: ["contacts.update", "contacts.phone_full"] }
 vi.mock("@/lib/api-client", () => ({
@@ -12,7 +13,11 @@ vi.mock("@/lib/api-client", () => ({
     post: (...a: unknown[]) => post(...a),
     patch: (...a: unknown[]) => patch(...a),
     delete: (...a: unknown[]) => del(...a),
+    get: (...a: unknown[]) => get(...a),
   },
+}))
+vi.mock("@/components/app-shell/hover-link", () => ({
+  HoverLink: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => <a href={href} {...rest}>{children}</a>,
 }))
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }))
 vi.mock("@/components/ui/undo-toast", () => ({ showUndoToast: (...a: unknown[]) => undoToast(...a) }))
@@ -152,6 +157,23 @@ describe("Khối nhấn — «+ Thêm số điện thoại»", () => {
     wrap(<ContactHero contactId={7} name="Hà" phone="" withActions />)
     expect(screen.queryByRole("button", { name: "Thêm số điện thoại" })).toBeNull()
     expect(screen.getByText("—")).toBeTruthy()
+  })
+
+  it("khách có hội thoại Messenger (người xem có quyền hộp thư Messenger): nút «Messenger» mở đúng hội thoại", async () => {
+    perms.list = ["contacts.update", "contacts.phone_full", "integrations.webhooks"]
+    get.mockReset()
+    get.mockImplementation(async (url: string) => (url === "/facebook/conversations" ? { data: { data: [{ id: 42 }] } } : { data: {} }))
+    wrap(<ContactHero contactId={7} name="Hà" phone="0912345678" withActions />)
+    const link = await screen.findByRole("link", { name: "Messenger" })
+    expect(link.getAttribute("href")).toBe("/inbox?kenh=facebook&hoi_thoai=42")
+    expect(get).toHaveBeenCalledWith("/facebook/conversations", { params: { contact_id: 7, limit: 1 } })
+  })
+
+  it("không có quyền hộp thư Messenger: không hỏi máy chủ, không có nút", () => {
+    get.mockReset()
+    wrap(<ContactHero contactId={7} name="Hà" phone="0912345678" withActions />)
+    expect(screen.queryByRole("link", { name: "Messenger" })).toBeNull()
+    expect(get).not.toHaveBeenCalledWith("/facebook/conversations", expect.anything())
   })
 
   it("đã có số (desktop): bấm số để sửa lại", () => {

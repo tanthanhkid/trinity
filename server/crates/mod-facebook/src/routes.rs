@@ -516,7 +516,13 @@ async fn conversations(
 ) -> Response {
     let company = company!(u);
     ok(s.ingest
-        .list_conversations(company, param(&q, "limit"), param(&q, "unanswered"), now_ms())
+        .list_conversations(
+            company,
+            param(&q, "limit"),
+            param(&q, "unanswered"),
+            param(&q, "contact_id"),
+            now_ms(),
+        )
         .await)
 }
 

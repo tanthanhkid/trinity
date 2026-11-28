@@ -105,16 +105,15 @@ export function PosOrderScreen(p: Props) {
             </li>
           )}
           {cart.lines.map((l) => (
-            <li key={l.key} className="flex items-center gap-3 px-4 py-3">
-              <button type="button" onClick={() => p.onEditLine(l.key)} aria-label={`Sửa ${l.name}`} className="min-h-11 min-w-0 flex-1 rounded-md text-left focus-visible:outline-none focus-visible:shadow-[var(--ax-focus-ring)]">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="min-w-0 text-[17px] font-semibold tracking-[-0.011em] text-ax-ink">{l.name}</span>
-                  <span className="ax-amount shrink-0 text-[17px] font-semibold text-ax-ink">{vnd(lineTotal(l))}</span>
-                </div>
-                <div className="text-[14px] text-ax-ink-2">
+            // pos-mobile2: hàng trên tên ··· thành tiền, hàng dưới tuỳ chọn/đơn giá ··· nút số lượng (tên không bị ép hẹp).
+            <li key={l.key} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-3">
+              <button type="button" onClick={() => p.onEditLine(l.key)} aria-label={`Sửa ${l.name}`} className="row-span-2 flex min-h-11 min-w-0 flex-col justify-between gap-2 self-stretch rounded-md text-left focus-visible:outline-none focus-visible:shadow-[var(--ax-focus-ring)]">
+                <span className="text-[17px] font-semibold tracking-[-0.011em] text-ax-ink">{l.name}</span>
+                <span className="text-[14px] text-ax-ink-2">
                   {[...l.options.map((o) => o.name), l.note].filter(Boolean).join(" · ") || `${vnd(lineUnitPrice(l))} / món`}
-                </div>
+                </span>
               </button>
+              <span className="ax-amount justify-self-end text-[17px] font-semibold text-ax-ink">{vnd(lineTotal(l))}</span>
               <div className="flex shrink-0 items-center gap-2">
                 <Button type="button" variant="ax-secondary" className="size-11" aria-label={`Giảm ${l.name}`} onClick={() => setCart((c) => ({ ...c, lines: changeQty(c.lines, l.key, -1) }))}><Minus /></Button>
                 <span className="ax-amount w-6 text-center text-[17px] font-bold">{l.quantity}</span>

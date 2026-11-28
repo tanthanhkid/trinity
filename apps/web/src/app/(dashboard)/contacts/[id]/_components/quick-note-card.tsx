@@ -95,6 +95,7 @@ export function QuickNoteCard({ contactId, variant }: { contactId: number | stri
           }
         }}
         placeholder={mobile ? "Khách nói gì, hẹn gì…" : "Khách hỏi gì, hẹn gì…"}
+        data-show-placeholder
         className={cn(
           "box-border w-full rounded-ax-field border border-ax-field-border bg-ax-surface text-ax-ink outline-none placeholder:text-[var(--ax-placeholder)] hover:border-[var(--ax-field-border-hover)] focus-visible:border-ax-primary focus-visible:shadow-[var(--ax-field-focus)]",
           mobile ? "resize-none px-3.5 py-3 text-base leading-[1.45]" : "resize-y px-3 py-2.5 text-[15px] leading-normal",

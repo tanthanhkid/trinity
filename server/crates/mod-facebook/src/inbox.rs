@@ -114,6 +114,21 @@ pub fn parse_unanswered(raw: Option<&str>) -> bool {
     matches!(raw, Some("1" | "true"))
 }
 
+/// Bộ lọc `contact_id` của `GET /conversations` (nút «Messenger» ở hồ sơ khách): vắng, rỗng hoặc `0` ⇒ không lọc;
+/// không phải số nguyên dương trong i32 ⇒ 400.
+pub fn parse_contact_filter(raw: Option<&str>) -> Result<Option<i32>, HttpError> {
+    let Some(s) = raw.map(str::trim).filter(|s| !s.is_empty()) else {
+        return Ok(None);
+    };
+    match s.parse::<i32>() {
+        Ok(0) => Ok(None),
+        Ok(n) if n > 0 => Ok(Some(n)),
+        _ => Err(HttpError::validation(vec![
+            "contact_id must be a positive integer".to_owned(),
+        ])),
+    }
+}
+
 /// Nội dung `POST /conversations/:id/messages` (`FacebookReplyDto`): `text` là chuỗi, 1 đến 2000 ký tự (đơn vị UTF-16). Báo đủ
 /// lỗi theo thứ tự class-validator chạy decorator (từ dưới lên: `MaxLength`, `MinLength`, `IsString`).
 pub fn parse_reply_text(body: &Value) -> Result<String, HttpError> {
@@ -235,18 +250,29 @@ async fn stop_flow_runs_in_savepoint(tx: &mut TenantTx, conversation_id: i32) {
 impl FacebookIngest {
     /// `GET /facebook/conversations`: hội thoại mới nhất trước kèm tên Page, `can_reply`, `reply_mode`, `awaiting_reply`.
     /// `unanswered`: chỉ hội thoại có tin cuối là của khách (đọc 300 dòng mới nhất rồi lọc).
+    /// `contact_id`: chỉ hội thoại đã ghép với khách đó (nút «Messenger» ở hồ sơ khách mở đúng hội thoại).
     pub async fn list_conversations(
         &self,
         company: CompanyRef,
         limit: Option<&str>,
         unanswered: Option<&str>,
+        contact_id: Option<&str>,
         now_ms: i64,
     ) -> Result<Value, AppError> {
         let take = parse_limit(limit);
         let only_unanswered = parse_unanswered(unanswered);
+        let contact = parse_contact_filter(contact_id)?;
         let (rows, pages) = {
             let mut c = self.acquire(company).await?;
-            let res = if only_unanswered {
+            let res = if let Some(cid) = contact {
+                sqlx::query_as::<_, FacebookConversation>(sqlx::AssertSqlSafe(format!(
+                    "SELECT {CONV_COLS} FROM facebook_conversations WHERE contact_id = $1 \
+                     ORDER BY last_message_at DESC, id DESC LIMIT 300"
+                )))
+                .bind(cid)
+                .fetch_all(&mut *c)
+                .await
+            } else if only_unanswered {
                 sqlx::query_as::<_, FacebookConversation>(sqlx::AssertSqlSafe(format!(
                     "SELECT {CONV_COLS} FROM facebook_conversations WHERE last_inbound_at IS NOT NULL \
                      ORDER BY last_message_at DESC, id DESC LIMIT 300"
@@ -640,6 +666,14 @@ mod tests {
         assert!(parse_unanswered(Some("true")));
         assert!(!parse_unanswered(Some("0")));
         assert!(!parse_unanswered(None));
+        assert_eq!(parse_contact_filter(None).unwrap(), None);
+        assert_eq!(parse_contact_filter(Some("")).unwrap(), None);
+        assert_eq!(parse_contact_filter(Some("0")).unwrap(), None);
+        assert_eq!(parse_contact_filter(Some("12")).unwrap(), Some(12));
+        assert_eq!(parse_contact_filter(Some(" 7 ")).unwrap(), Some(7));
+        for bad in ["-3", "abc", "1.5", "99999999999"] {
+            assert_eq!(parse_contact_filter(Some(bad)).unwrap_err().status(), 400, "{bad}");
+        }
     }
 
     #[test]

@@ -607,6 +607,11 @@ html[data-ui="app"] [data-slot="sidebar-inset"] {
   color: var(--muted-foreground) !important;
   opacity: 1 !important;
 }
+/* Ô «Ghi nhanh cuộc gọi» (khach-desktop/mobile): thiết kế có chữ gợi ý «Khách hỏi gì, hẹn gì…». */
+.hide-placeholders textarea[data-show-placeholder]::placeholder {
+  color: var(--ax-placeholder) !important;
+  opacity: 1 !important;
+}
 .hide-placeholders [data-placeholder] {
   color: transparent !important;
 }

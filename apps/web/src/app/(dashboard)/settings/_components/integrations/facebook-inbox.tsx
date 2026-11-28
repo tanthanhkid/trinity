@@ -59,6 +59,7 @@ export function FacebookThread({ id, onBack }: { id: number; onBack: () => void 
       {conv ? (
         <ProfileSheet open={sheet} onOpenChange={setSheet}>
           <CustomerProfile contactId={contactId} fallbackName={name} channelLabel="Messenger" variant="sheet" />
+          <MessengerInfo c={conv} />
         </ProfileSheet>
       ) : null}
       <MessageThread messages={items} loading={q.isLoading} error={q.isError} />
@@ -98,15 +99,22 @@ export function FacebookCustomerSide({ c }: { c: FacebookConversation }) {
   return (
     <>
       <CustomerProfile contactId={c.contact_id ?? null} fallbackName={facebookCustomerName(c)} channelLabel="Messenger" />
-      <SideSection
-        title="Hội thoại Messenger"
-        rows={[
-          { label: "Fanpage", value: c.page_name },
-          { label: "Tin khách gần nhất", value: c.last_inbound_at ? formatDateTimeVn(c.last_inbound_at) : "—" },
-          { label: "Trả lời", value: messengerReplyLabel(c) },
-        ]}
-      />
+      <MessengerInfo c={c} />
     </>
+  )
+}
+
+/** Thông tin hội thoại Messenger (Fanpage, tin khách gần nhất, cửa sổ trả lời) — dưới hồ sơ ở cột phải và trong khay. */
+function MessengerInfo({ c }: { c: FacebookConversation }) {
+  return (
+    <SideSection
+      title="Hội thoại Messenger"
+      rows={[
+        { label: "Fanpage", value: c.page_name },
+        { label: "Tin khách gần nhất", value: c.last_inbound_at ? formatDateTimeVn(c.last_inbound_at) : "—" },
+        { label: "Trả lời", value: messengerReplyLabel(c) },
+      ]}
+    />
   )
 }
 

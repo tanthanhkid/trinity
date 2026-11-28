@@ -318,7 +318,7 @@ export function MessageThread({
             <div key={m.id}>
               {sep && (
                 <div className="my-2 flex justify-center">
-                  <span className="rounded-full bg-ax-sunken px-2.5 py-0.5 text-[12px] font-medium text-ax-ink-2">
+                  <span className="rounded-full bg-ax-sunken px-2.5 py-0.5 text-[12px] font-medium text-ax-ink-2 max-lg:bg-ax-surface">
                     {inboxDayLabel(day, today)}
                   </span>
                 </div>

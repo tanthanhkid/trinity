@@ -131,7 +131,7 @@ export function PosOrderScreen(p: Props) {
       <div data-slot="pos-order-total" className="flex shrink-0 flex-col gap-3.5 rounded-t-[22px] border-t border-[var(--ax-hero-border)] ax-grad-hero px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-4 text-white shadow-[var(--ax-shadow-hero)]">
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Giảm giá">
           <span className="mr-1 text-[15px] text-[var(--ax-on-hero-ink-2)]">Giảm giá</span>
-          <button type="button" aria-pressed={cart.discountType === "none"} className={chip(cart.discountType === "none")} onClick={() => { setCustom(false); setDiscount("none", 0) }}>Không</button>
+          <button type="button" aria-pressed={cart.discountType === "none" && !showCustom} className={chip(cart.discountType === "none" && !showCustom)} onClick={() => { setCustom(false); setDiscount("none", 0) }}>Không</button>
           {QUICK.map((n) => (
             <button key={n} type="button" aria-pressed={quickOn(n)} className={chip(quickOn(n))} onClick={() => { setCustom(false); setDiscount("percent", n) }}>{n}%</button>
           ))}

@@ -137,4 +137,59 @@ impl Hooks for ContactsHooks {
             mod_custom::refs::sync_mentions(&ctx, &actor, source, "reminder_notes", reminder_notes).await;
         })
     }
+
+    fn after_note<'a>(
+        &'a self,
+        company: CompanyRef,
+        user: &'a CurrentUser,
+        contact_id: i32,
+        activity_id: i32,
+        note: &'a str,
+    ) -> HookFuture<'a> {
+        Box::pin(async move {
+            let ctx = mod_custom::Ctx {
+                db: self.db.clone(),
+                scopes: self.scopes.clone(),
+            };
+            let actor = mod_custom::Actor {
+                user_id: user.user.user_id,
+                company,
+                grants: user.grants.grants.clone(),
+                is_admin: user.grants.is_admin,
+            };
+            let source = Ref {
+                ty: RefType::Contact,
+                id: contact_id,
+            };
+            // Cùng khoá với tool MCP `add_contact_note` ⇒ "Được nhắc tới ở" giống nhau dù ghi từ web hay từ AI.
+            mod_custom::refs::sync_mentions(&ctx, &actor, source, &format!("note:{activity_id}"), Some(note)).await;
+        })
+    }
+
+    fn after_note_revoked<'a>(
+        &'a self,
+        company: CompanyRef,
+        user: &'a CurrentUser,
+        contact_id: i32,
+        activity_id: i32,
+    ) -> HookFuture<'a> {
+        Box::pin(async move {
+            let ctx = mod_custom::Ctx {
+                db: self.db.clone(),
+                scopes: self.scopes.clone(),
+            };
+            let actor = mod_custom::Actor {
+                user_id: user.user.user_id,
+                company,
+                grants: user.grants.grants.clone(),
+                is_admin: user.grants.is_admin,
+            };
+            let source = Ref {
+                ty: RefType::Contact,
+                id: contact_id,
+            };
+            // Ghi chú đã hoàn tác ⇒ văn bản rỗng xoá cạnh thẻ @ cũ của nó.
+            mod_custom::refs::sync_mentions(&ctx, &actor, source, &format!("note:{activity_id}"), None).await;
+        })
+    }
 }

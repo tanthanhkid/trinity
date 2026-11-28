@@ -7,6 +7,7 @@ import { usePermissions } from "@/lib/rbac"
 import { formatBirthday, formatDateTimeVn, formatEmployee } from "@/lib/format"
 import { birthdayDisplayToIso, birthdayIsoToDisplay, formatBirthdayInput } from "@/lib/birthday-format"
 import { useContactPatch } from "./use-contact-patch"
+import { genderLabel } from "@/lib/contact-gender"
 import type { ContactData } from "./contact-info-form"
 
 type TextKey = "email" | "phone_2" | "current_address" | "birthday" | "job_title" | "company_name"
@@ -185,7 +186,7 @@ export function ContactInfoPanel({ contact, assigneeName, assigneeEmail, creator
       ) : null}
       <div className="mt-2 border-t border-ax-divider pt-2">
         <StaticRow label="Phụ trách" value={assigneeName ? formatEmployee({ email: assigneeEmail, full_name: assigneeName }) : null} />
-        <StaticRow label="Giới tính" value={contact.gender === "nam" ? "Nam" : contact.gender === "nu" ? "Nữ" : null} />
+        <StaticRow label="Giới tính" value={genderLabel(contact.gender)} />
         <StaticRow label="Trạng thái chi tiết" value={contact.contact_status?.label} />
         <StaticRow label="Người tạo" value={creatorName} />
       </div>

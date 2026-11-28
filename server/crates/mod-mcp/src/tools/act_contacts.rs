@@ -207,20 +207,24 @@ fn note_execute<'a>(params: &'a Value, cx: &'a ActionCx<'a>, draft_id: i32) -> B
             return Err(bad("Dữ liệu đề xuất không hợp lệ"));
         };
         let p = cx.principal;
-        load_contact(cx, id, "contacts.update", false).await?;
+        // Lõi chung với `POST /contacts/:id/notes`: khách còn + trong phạm vi `contacts.update`, không thì NotFound.
+        let update = owner(cx, "contacts.update").await?;
         let activity: i32 = {
             let mut c = cx.deps.conn(p.company).await?;
-            sqlx::query_scalar(
-                "INSERT INTO activities (contact_id, action, details, metadata, created_by)
-                 VALUES ($1, 'note', $2::text::jsonb, $3::text::jsonb, $4) RETURNING id",
+            let mut extra = Map::new();
+            extra.insert("source".into(), json!("ai_action"));
+            mod_contacts::notes::add_note(
+                &mut c,
+                update.as_ref(),
+                p.user_id,
+                id,
+                &note,
+                extra,
+                Some(json!({ "ai_action_draft_id": draft_id })),
             )
-            .bind(id)
-            .bind(json!({ "description": note, "source": "ai_action" }).to_string())
-            .bind(json!({ "ai_action_draft_id": draft_id }).to_string())
-            .bind(p.user_id)
-            .fetch_one(&mut *c)
             .await
-            .map_err(internal)?
+            .map_err(app_err)?
+            .id
         };
         // Thẻ @ trong ghi chú → "Được nhắc tới ở" của bản ghi được nhắc (theo quyền xem của người duyệt); lỗi chỉ ghi log.
         mod_custom::refs::sync_mentions(

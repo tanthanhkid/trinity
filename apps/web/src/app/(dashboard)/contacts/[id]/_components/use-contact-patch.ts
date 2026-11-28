@@ -30,11 +30,19 @@ export function useContactPatch(contactId: number | string) {
   )
 
   return useCallback(
-    async (message: string, next: ContactPatch, prev: ContactPatch | null): Promise<boolean> => {
+    async (
+      message: string,
+      next: ContactPatch,
+      prev: ContactPatch | null,
+      /** Có ⇒ lỗi đưa về chỗ gọi (hiện tại ô đang sửa) thay vì toast lỗi. */
+      onError?: (message: string) => void,
+    ): Promise<boolean> => {
       try {
         await send(next)
       } catch (err) {
-        toast.error(errorMessage(err, "Không thể cập nhật thông tin"))
+        const msg = errorMessage(err, "Không thể cập nhật thông tin")
+        if (onError) onError(msg)
+        else toast.error(msg)
         return false
       }
       showUndoToast(message, {

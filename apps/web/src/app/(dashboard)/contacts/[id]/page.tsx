@@ -26,7 +26,9 @@ import { ContactHero, callPhone, openZalo } from "./_components/contact-hero"
 import { StagePicker } from "./_components/stage-picker"
 import { ReminderCard } from "./_components/reminder-card"
 import { ContactInfoPanel, INLINE_FIELDS, fieldDisplay, missingCount } from "./_components/info-panel"
-import { MissingInfoSheet } from "./_components/missing-info-sheet"
+import { MissingInfoScreen } from "./_components/missing-info-sheet"
+import { QuickNoteCard } from "./_components/quick-note-card"
+import { genderLabel } from "@/lib/contact-gender"
 import type { LeadLabel } from "@/components/lead-score-badge"
 import { ContactKanbanTab } from "@/components/kanban/contact-kanban-tab"
 import { MentionedIn } from "@/components/refs/mentioned-in"
@@ -318,7 +320,7 @@ function ContactDetailContent({ id }: { id: string }) {
         </nav>
         <div className="flex flex-wrap items-start gap-4">
           <div className="flex min-w-[280px] max-w-[340px] flex-[1_1_300px] flex-col gap-4">
-            <ContactHero name={contact.full_name} phone={contact.phone} code={contact.code} avatarUrl={contact.avatar_url} sourceLabel={contact.source?.label} withActions />
+            <ContactHero contactId={id} name={contact.full_name} phone={contact.phone} code={contact.code} avatarUrl={contact.avatar_url} sourceLabel={contact.source?.label} withActions />
             <section aria-labelledby="contact-stage" className="ax-card px-5 py-[18px]">
               <h2 id="contact-stage" className="mb-2.5 text-sm font-bold tracking-[-0.011em]">Giai đoạn</h2>
               <StagePicker contact={contact} layout="list" />
@@ -327,6 +329,7 @@ function ContactDetailContent({ id }: { id: string }) {
             {leadScore}
           </div>
           <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-4">
+            <Can perm="contacts.update"><QuickNoteCard contactId={id} variant="desktop" /></Can>
             {history}
             {tasks}
             {showFull && fullForm}
@@ -353,13 +356,16 @@ function ContactDetailContent({ id }: { id: string }) {
     )
   }
 
-  // Điện thoại (< 1024px): bố cục RIÊNG — quay lại · khối nhấn · chip giai đoạn · tóm tắt · lịch sử · thanh Gọi/Zalo dính đáy.
+  // Điện thoại (< 1024px): bố cục RIÊNG theo khach-mobile — quay lại · khối nhấn · chip giai đoạn · Ghi nhanh · tóm tắt ·
+  // Lịch sử · thanh Gọi/Zalo dính đáy. Khối thiết kế không vẽ (Hẹn gọi lại, Công việc, chuyển phụ trách, điểm lead…) giữ
+  // chức năng, xếp sau Lịch sử.
   const summary = INLINE_FIELDS
     .map((f) => ({ label: f.label, value: fieldDisplay(f.key, contact) }))
     .filter((r) => r.value !== "")
   if (contact.source?.label) summary.push({ label: "Nguồn", value: contact.source.label })
   if (assignee) summary.push({ label: "Phụ trách", value: assignee })
-  if (contact.gender === "nam" || contact.gender === "nu") summary.push({ label: "Giới tính", value: contact.gender === "nam" ? "Nam" : "Nữ" })
+  const gender = genderLabel(contact.gender)
+  if (gender) summary.push({ label: "Giới tính", value: gender })
   if (contact.contact_status?.label) summary.push({ label: "Trạng thái chi tiết", value: contact.contact_status.label })
   const missing = missingCount(contact)
   const hasPhone = contact.phone.trim().length > 0
@@ -376,9 +382,9 @@ function ContactDetailContent({ id }: { id: string }) {
           </button>
         </Can>
       </div>
-      <ContactHero name={contact.full_name} phone={contact.phone} code={contact.code} avatarUrl={contact.avatar_url} sourceLabel={contact.source?.label} />
+      <ContactHero contactId={id} name={contact.full_name} phone={contact.phone} code={contact.code} avatarUrl={contact.avatar_url} sourceLabel={contact.source?.label} />
       <div className="-mx-1"><StagePicker contact={contact} layout="chips" /></div>
-      <ReminderCard contact={contact} />
+      <Can perm="contacts.update"><QuickNoteCard contactId={id} variant="mobile" /></Can>
       <section aria-label="Thông tin" className="ax-card px-4 py-1.5">
         {summary.map((r, i) => (
           <div key={r.label} className={cn("flex min-h-12 items-center justify-between gap-4", i > 0 && "border-t border-ax-divider")}>
@@ -398,6 +404,9 @@ function ContactDetailContent({ id }: { id: string }) {
           </Can>
         )}
       </section>
+      {history}
+      <ReminderCard contact={contact} />
+      {tasks}
       {/* Chuyển người phụ trách (tự ẩn khi thiếu `contacts.transfer`) — giữ chức năng của bản cũ trên điện thoại. */}
       <ReassignContactSaleButton
         contactId={id}
@@ -406,17 +415,15 @@ function ContactDetailContent({ id }: { id: string }) {
         assigneeName={assignee}
       />
       {leadScore}
-      {history}
-      {tasks}
       {showFull && fullForm}
       <MentionedIn type="contact" id={Number(id)} />
-      <MissingInfoSheet contact={contact} open={showMissing} onOpenChange={setShowMissing} />
+      <MissingInfoScreen contact={contact} open={showMissing} onOpenChange={setShowMissing} />
       {hasPhone && (
-        <StickyActionBar layout="mobile">
-          <Button variant="ax-secondary" size="ax-lg" onClick={() => openZalo(contact.phone)}>Zalo</Button>
-          <Button variant="ax-primary" size="ax-lg" onClick={() => callPhone(contact.phone)}>
+        <StickyActionBar layout="mobile" className="grid grid-cols-[2fr_1fr]">
+          <Button variant="ax-primary" size="ax-lg" className="text-[17px] font-bold" onClick={() => callPhone(contact.phone)}>
             <Phone className="size-5" aria-hidden /> Gọi
           </Button>
+          <Button variant="ax-secondary" size="ax-lg" className="text-base" onClick={() => openZalo(contact.phone)}>Zalo</Button>
         </StickyActionBar>
       )}
     </div>

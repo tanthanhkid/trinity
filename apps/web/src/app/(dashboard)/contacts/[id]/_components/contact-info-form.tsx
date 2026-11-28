@@ -29,11 +29,9 @@ import { MobileActionBar } from "@/components/app-shell/mobile-action-bar"
 import { useSettingsOptions } from "@/hooks/use-settings-options"
 import { VnDateTimeInput } from "@/components/ui/vn-datetime-input"
 import { errorMessage } from "@/lib/error-messages"
+import { CONTACT_GENDERS } from "@/lib/contact-gender"
 
-const GENDERS = [
-  { value: "nam", label: "Nam" },
-  { value: "nu", label: "Nữ" },
-]
+const GENDERS = CONTACT_GENDERS
 
 // Danh sách field CỐ ĐỊNH của mục "Thông tin khách hàng" (nhãn + thứ tự hiển thị).
 const CUSTOMER_FIELDS: ReadonlyArray<{ fieldKey: string; label: string }> = [
@@ -47,7 +45,7 @@ const CUSTOMER_FIELDS: ReadonlyArray<{ fieldKey: string; label: string }> = [
 ]
 
 function labelOfStatic(
-  list: Array<{ value: string; label: string }>,
+  list: ReadonlyArray<{ value: string; label: string }>,
   value: string | null | undefined,
 ): string | null {
   if (!value) return null

@@ -23,6 +23,8 @@ trinity-rbac = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tower = { workspace = true }
+trinity-auth = { workspace = true }
 
 [lints]
 workspace = true

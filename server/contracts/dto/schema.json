@@ -1535,7 +1535,8 @@
       "constraints": [
        [
         "nam",
-        "nu"
+        "nu",
+        "khac"
        ]
       ],
       "message": "Giới tính không hợp lệ",
@@ -15696,7 +15697,8 @@
       "constraints": [
        [
         "nam",
-        "nu"
+        "nu",
+        "khac"
        ]
       ],
       "message": "Giới tính không hợp lệ",

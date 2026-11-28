@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -189,6 +189,11 @@ function ContactDetailContent({ id }: { id: string }) {
   const [showFull, setShowFull] = useState(false)
   const [showMissing, setShowMissing] = useState(false)
   const desktop = useMediaQuery("(min-width: 1024px)")
+  const fullFormRef = useRef<HTMLElement>(null)
+  // «Sửa» / «Chỉnh sửa đầy đủ» mở form ở cuối cột ⇒ cuộn tới để người dùng thấy ngay.
+  useEffect(() => {
+    if (showFull) fullFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }, [showFull])
 
   const { data: contact, isLoading, isError, error: contactError, refetch: refetchContact } = useQuery<ContactDetail, unknown>({
     queryKey: ["contact", id],
@@ -238,7 +243,7 @@ function ContactDetailContent({ id }: { id: string }) {
   )
 
   const fullForm = (
-    <section aria-label="Chỉnh sửa đầy đủ" className="flex flex-col gap-2">
+    <section ref={fullFormRef} aria-label="Chỉnh sửa đầy đủ" className="flex scroll-mt-4 flex-col gap-2">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold tracking-[-0.011em]">Chỉnh sửa đầy đủ</h2>
         <Button variant="ax-ghost" size="ax-sm" onClick={() => setShowFull(false)}>Đóng</Button>
@@ -354,6 +359,8 @@ function ContactDetailContent({ id }: { id: string }) {
     .filter((r) => r.value !== "")
   if (contact.source?.label) summary.push({ label: "Nguồn", value: contact.source.label })
   if (assignee) summary.push({ label: "Phụ trách", value: assignee })
+  if (contact.gender === "nam" || contact.gender === "nu") summary.push({ label: "Giới tính", value: contact.gender === "nam" ? "Nam" : "Nữ" })
+  if (contact.contact_status?.label) summary.push({ label: "Trạng thái chi tiết", value: contact.contact_status.label })
   const missing = missingCount(contact)
   const hasPhone = contact.phone.trim().length > 0
 
@@ -391,6 +398,13 @@ function ContactDetailContent({ id }: { id: string }) {
           </Can>
         )}
       </section>
+      {/* Chuyển người phụ trách (tự ẩn khi thiếu `contacts.transfer`) — giữ chức năng của bản cũ trên điện thoại. */}
+      <ReassignContactSaleButton
+        contactId={id}
+        contactName={contact.full_name}
+        assignedTo={contact.assigned_to}
+        assigneeName={assignee}
+      />
       {leadScore}
       {history}
       {tasks}

@@ -127,6 +127,6 @@ showUndoToast("Đã lưu số điện thoại", { onUndo: () => save(prev) })
 
 ## Màn Khách hàng — chi tiết (`/contacts/<id>`)
 
-- desktop 3 cột (khối nhấn + giai đoạn + hẹn gọi lại | lịch sử + công việc | thông tin sửa tại chỗ), điện thoại một cột
+- Desktop 3 cột (khối nhấn + giai đoạn + hẹn gọi lại | lịch sử + công việc | thông tin sửa tại chỗ), điện thoại một cột
   (chip giai đoạn, tóm tắt, khay «Bổ sung thông tin», thanh Gọi/Zalo dính đáy). Chỉ dựng MỘT bố cục theo `useMediaQuery("(min-width: 1024px)")`.
   Lưu tại chỗ qua `PATCH /contacts/:id` + `showUndoToast` (`_components/use-contact-patch.ts`); form đầy đủ cũ mở bằng «Chỉnh sửa đầy đủ» / «Sửa».

@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { usePermissions } from "@/lib/rbac"
-import { formatBirthday, formatDate, formatDateTimeVn, formatEmployee } from "@/lib/format"
-import { birthdayDisplayToIso, formatBirthdayInput } from "@/lib/birthday-format"
+import { formatBirthday, formatDateTimeVn, formatEmployee } from "@/lib/format"
+import { birthdayDisplayToIso, birthdayIsoToDisplay, formatBirthdayInput } from "@/lib/birthday-format"
 import { useContactPatch } from "./use-contact-patch"
 import type { ContactData } from "./contact-info-form"
 
@@ -31,7 +31,8 @@ export const INLINE_FIELDS: readonly FieldMeta[] = [
 
 /** Giá trị hiển thị của trường (rỗng = chưa có). */
 export function fieldDisplay(key: TextKey, c: ContactData): string {
-  if (key === "birthday") return c.birthday ? formatDate(c.birthday) : ""
+  // Theo chuỗi ngày BE (yyyy-mm-dd), không qua múi giờ — cùng cách form đầy đủ đọc ngày sinh.
+  if (key === "birthday") return birthdayIsoToDisplay(formatBirthday(c.birthday))
   return (c[key] as string | null | undefined) ?? ""
 }
 

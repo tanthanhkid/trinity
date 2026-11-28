@@ -63,6 +63,43 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* «Ánh xanh» → utility Tailwind, CHỈ khoá có tiền tố `ax` (không che `--radius-*`/`--spacing-*`
+   sẵn có): `bg-ax-primary`, `text-ax-ink-3`, `border-ax-line`, `shadow-ax-card`, `rounded-ax-card`… */
+@theme inline {
+  --color-ax-bg: var(--ax-bg);
+  --color-ax-surface: var(--ax-surface);
+  --color-ax-ink: var(--ax-ink);
+  --color-ax-ink-2: var(--ax-ink-2);
+  --color-ax-ink-3: var(--ax-ink-3);
+  --color-ax-line: var(--ax-line);
+  --color-ax-divider: var(--ax-divider);
+  --color-ax-sunken: var(--ax-sunken);
+  --color-ax-hover: var(--ax-hover);
+  --color-ax-press: var(--ax-press);
+  --color-ax-field-border: var(--ax-field-border);
+  --color-ax-btn-border: var(--ax-btn-border);
+  --color-ax-primary: var(--ax-primary);
+  --color-ax-primary-hover: var(--ax-primary-hover);
+  --color-ax-primary-press: var(--ax-primary-press);
+  --color-ax-primary-ink: var(--ax-primary-ink);
+  --color-ax-primary-soft: var(--ax-primary-soft);
+  --color-ax-primary-soft-2: var(--ax-primary-soft-2);
+  --color-ax-danger: var(--ax-danger);
+  --color-ax-danger-soft: var(--ax-danger-soft);
+  --color-ax-warn: var(--ax-warn);
+  --color-ax-warn-soft: var(--ax-warn-soft);
+  --color-ax-success: var(--ax-success);
+  --color-ax-success-soft: var(--ax-success-soft);
+  --shadow-ax-card: var(--ax-shadow-card);
+  --shadow-ax-float: var(--ax-shadow-float);
+  --shadow-ax-inset: var(--ax-shadow-inset);
+  --shadow-ax-hero: var(--ax-shadow-hero);
+  --radius-ax-field: var(--ax-radius-field);
+  --radius-ax-card: var(--ax-radius-card);
+  --radius-ax-sheet: var(--ax-radius-sheet);
+  --radius-ax-hero: var(--ax-radius-hero);
+}
+
 :root {
   --background: #fbfbfa;
   --foreground: #17181c;
@@ -118,6 +155,215 @@
   --shadow-field: 0 1px 2px rgba(20, 22, 30, 0.05);
   --shadow-pop: 0 6px 24px rgba(0, 0, 0, 0.10);
   --shadow-brand-glow: none;
+}
+
+/* ==========================================================================
+   «Ánh xanh» — hệ thiết kế Trinity Premium (token `--ax-*`).
+   Nguồn: bảng hệ thiết kế ds0 (màu, chữ, độ nổi 3 tầng, gradient 2 mức, bo góc,
+   khoảng cách). Tài liệu + bảng tra: `docs/design/anh-xanh.md`.
+
+   Khai MỘT chỗ (khối `:root` riêng này) để mọi trang — cả trang ngoài dashboard —
+   dùng chung; `styles/app-tokens.css` không khai lại mà map token CŨ (`--shadow-card`,
+   `--color-app-primary-*`…) sang cùng giá trị để màn chưa chuyển vẫn đồng bộ.
+   Bản tối: khối `.dark` ngay dưới (thiết kế chỉ có bản sáng — bản tối là quy đổi
+   tối thiểu để không ra mảng trắng chói).
+
+   Gradient chia 2 mức:
+   · Nhấn mạnh (`--ax-grad-hero`): khối xanh đậm có quầng sáng + 2 vòng cung mảnh ở
+     góc phải trên. MỖI MÀN ĐÚNG MỘT khối. Chữ trên đó trắng / trắng 92%.
+   · Nhạt: nền trang, khối phụ, thẻ, ô số liệu, ô soạn, nút chính, avatar.
+   ========================================================================== */
+:root {
+  /* ---- nền, chữ, viền ---- */
+  --ax-bg: #fbfbfa;
+  --ax-bg-mobile: #f5f5f3;
+  --ax-surface: #ffffff;
+  --ax-ink: #17181c;
+  --ax-ink-2: #4a4d57;
+  --ax-ink-3: #6b6f7b;
+  --ax-line: #ebebe8;
+  --ax-divider: #f0f0ed;
+  --ax-sunken: #f5f5f3;
+  --ax-hover: #f7f7f5;
+  --ax-press: #f0f0ed;
+  --ax-field-border: #8a8d96;
+  --ax-field-border-hover: #6b6f7b;
+  --ax-btn-border: #e2e2de;
+  --ax-placeholder: #6b6f7b;
+
+  /* ---- màu chính + trạng thái ---- */
+  --ax-primary: #3a75a6;
+  --ax-primary-hover: #2f6491;
+  --ax-primary-press: #285680;
+  --ax-primary-ink: #285680;
+  --ax-primary-soft: #eef4fa;
+  --ax-primary-soft-2: #dce8f3;
+  --ax-primary-soft-border: #d5e3f0;
+  --ax-hero-1: #33699a;
+  --ax-hero-2: #28567f;
+  --ax-hero-3: #1a3c5d;
+  --ax-hero-border: #214a70;
+  --ax-danger: #c2413b;
+  --ax-danger-soft: #fbedec;
+  --ax-danger-ink: #b0352f; /* chữ nút nguy hiểm lúc hover/nhấn: #C2413B trên #FBEDEC chỉ 4,48:1 */
+  --ax-danger-press: #f6dad8;
+  --ax-danger-border: #e8c4c1;
+  --ax-warn: #a15c07;
+  --ax-warn-soft: #fbf3e4;
+  --ax-success: #2f7a4f;
+  --ax-success-soft: #eaf6ef;
+  --ax-brand-red: #e02020;
+  --ax-toast-action: #bfd6ea;
+  --ax-chip-sheen: #ffffff; /* sắc sáng ở đỉnh gradient chip giai đoạn đang chọn */
+
+  /* ---- màu giai đoạn: chấm · nền nhạt · chữ đậm ---- */
+  --ax-stage-new-dot: #3a75a6;
+  --ax-stage-new-bg: #eef4fa;
+  --ax-stage-new-ink: #285680;
+  --ax-stage-consult-dot: #b7791f;
+  --ax-stage-consult-bg: #fbf3e4;
+  --ax-stage-consult-ink: #7a4f0e;
+  --ax-stage-quote-dot: #7c5cbf;
+  --ax-stage-quote-bg: #f3effa;
+  --ax-stage-quote-ink: #553c8f;
+  --ax-stage-won-dot: #2f7a4f;
+  --ax-stage-won-bg: #eaf6ef;
+  --ax-stage-won-ink: #1f5a39;
+  --ax-stage-care-dot: #5b6170;
+  --ax-stage-care-bg: #f1f2f4;
+  --ax-stage-care-ink: #3e4350;
+
+  /* ---- gradient · nhấn mạnh ---- */
+  --ax-grad-hero: radial-gradient(circle at 100% 0%, transparent 0 119px, rgba(255, 255, 255, 0.09) 120px 121px, transparent 122px 189px, rgba(255, 255, 255, 0.06) 190px 191px, transparent 192px), radial-gradient(340px 230px at 100% 0%, rgba(125, 180, 228, 0.2), transparent 70%), radial-gradient(300px 220px at 0% 100%, rgba(14, 34, 58, 0.45), transparent 72%), linear-gradient(140deg, #33699a 0%, #28567f 42%, #1a3c5d 100%);
+  --ax-on-hero-ink: #ffffff;
+  --ax-on-hero-ink-2: rgba(255, 255, 255, 0.97); /* thiết kế ghi 92% — nâng 97% để đạt 4,5:1 ngay cả dưới quầng sáng góc phải trên */
+  --ax-on-hero-tile: rgba(13, 32, 54, 0.28);
+  --ax-on-hero-secondary: rgba(13, 32, 54, 0.3);
+  --ax-on-hero-secondary-hover: rgba(13, 32, 54, 0.46);
+  --ax-on-hero-secondary-border: rgba(255, 255, 255, 0.26);
+  --ax-grad-on-hero-avatar: linear-gradient(140deg, #ffffff, #e3edf6);
+  --ax-on-hero-primary-bg: #ffffff;
+  --ax-on-hero-primary-ink: #285680;
+  --ax-on-hero-primary-hover: #eef4fa;
+
+  /* ---- gradient · nhạt ---- */
+  --ax-grad-page: radial-gradient(1100px 460px at 10% -12%, rgba(58, 117, 166, 0.22), transparent 62%), radial-gradient(820px 420px at 98% -8%, rgba(111, 163, 207, 0.2), transparent 60%), linear-gradient(180deg, #f2f6fa 0, #fbfbfa 560px), #fbfbfa;
+  --ax-grad-page-mobile: radial-gradient(560px 340px at 88% -90px, rgba(58, 117, 166, 0.26), transparent 70%), radial-gradient(420px 300px at -10% -60px, rgba(111, 163, 207, 0.18), transparent 70%), #f5f5f3;
+  --ax-grad-soft: radial-gradient(420px 240px at 100% 0%, rgba(58, 117, 166, 0.2), transparent 70%), linear-gradient(135deg, #ffffff 0%, #f1f6fb 55%, #e3edf6 100%);
+  --ax-grad-primary: linear-gradient(180deg, #3a75a6 0%, #326a97 55%, #2c5f8b 100%);
+  --ax-grad-primary-hover: linear-gradient(180deg, #336b9b, #285680);
+  --ax-grad-card: linear-gradient(180deg, #ffffff 0%, #fcfcfb 100%);
+  --ax-grad-stat: linear-gradient(160deg, #f6f9fc 0%, #ffffff 70%);
+  --ax-grad-composer: radial-gradient(520px 260px at 100% 0%, rgba(58, 117, 166, 0.12), transparent 70%), #ffffff;
+  --ax-grad-avatar-customer: linear-gradient(140deg, #f1f6fb, #dce8f3);
+  --ax-grad-avatar-staff: linear-gradient(140deg, #f4f4f2, #e6e6e2);
+  --ax-avatar-customer-ink: #285680;
+  --ax-avatar-staff-ink: #3e4350;
+  --ax-grad-toast: linear-gradient(180deg, #26282e, #17181c);
+  --ax-grad-bar: linear-gradient(180deg, rgba(255, 255, 255, 0.86), #ffffff);
+  --ax-grad-empty: radial-gradient(circle at 50% 40%, #eef4fa, transparent 70%), #f5f5f3;
+
+  /* ---- độ nổi 3 tầng + bóng thành phần ---- */
+  --ax-shadow-card: 0 1px 0 rgba(23, 24, 28, 0.03), 0 1px 3px rgba(23, 24, 28, 0.04);
+  --ax-shadow-float: 0 0 0 1px rgba(23, 24, 28, 0.06), 0 12px 32px -8px rgba(23, 24, 28, 0.18), 0 2px 6px rgba(23, 24, 28, 0.06);
+  --ax-shadow-inset: inset 0 1px 2px rgba(23, 24, 28, 0.05);
+  --ax-shadow-soft: inset 0 1px 0 #ffffff, 0 1px 0 rgba(23, 24, 28, 0.03), 0 1px 3px rgba(23, 24, 28, 0.04);
+  --ax-shadow-hero: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 16px 32px -14px rgba(26, 60, 93, 0.55), 0 2px 6px rgba(23, 24, 28, 0.1);
+  --ax-shadow-primary: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 1px 2px rgba(23, 24, 28, 0.14), 0 6px 14px -6px rgba(47, 100, 145, 0.55), 0 0 0 1px #2f6491;
+  --ax-shadow-secondary: 0 0 0 1px #e2e2de, 0 1px 2px rgba(23, 24, 28, 0.05);
+  --ax-shadow-danger: 0 0 0 1px #e8c4c1, 0 1px 2px rgba(23, 24, 28, 0.05);
+  --ax-shadow-on-hero-primary: 0 1px 2px rgba(13, 32, 54, 0.3), 0 6px 14px -6px rgba(13, 32, 54, 0.45);
+  --ax-shadow-avatar: inset 0 0 0 1px rgba(23, 24, 28, 0.06);
+  --ax-focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px rgba(58, 117, 166, 0.5);
+  --ax-field-focus: 0 0 0 3px rgba(58, 117, 166, 0.16);
+  --ax-scrim: rgba(23, 24, 28, 0.4);
+
+  /* ---- bo góc lồng ---- */
+  --ax-radius-xs: 4px;
+  --ax-radius-field: 8px;
+  --ax-radius-card: 12px;
+  --ax-radius-sheet: 16px;
+  --ax-radius-sheet-mobile: 20px;
+  --ax-radius-hero: 20px;
+  --ax-radius-chip: 999px;
+
+  /* ---- khoảng cách (lưới 4/8) ---- */
+  --ax-space-1: 4px;
+  --ax-space-2: 8px;
+  --ax-space-3: 12px;
+  --ax-space-4: 16px;
+  --ax-space-5: 20px;
+  --ax-space-6: 24px;
+  --ax-space-8: 32px;
+  --ax-space-12: 48px;
+
+  /* ---- chữ ---- */
+  --ax-font-features: "cv11", "ss01", "ss03";
+  --ax-duration: 150ms;
+  --ax-duration-enter: 200ms;
+}
+
+/* Bản tối của «Ánh xanh» — quy đổi tối thiểu về bảng màu tối sẵn có của app. Khối
+   nhấn (`--ax-grad-hero`) và toast vốn tối nên giữ nguyên. */
+.dark {
+  --ax-bg: #0d0e11;
+  --ax-bg-mobile: #0d0e11;
+  --ax-surface: #131418;
+  --ax-ink: #eceef2;
+  --ax-ink-2: #b4b8c2;
+  --ax-ink-3: #8d919c;
+  --ax-line: #23252b;
+  --ax-divider: #23252b;
+  --ax-sunken: #18191e;
+  --ax-hover: #1d1f24;
+  --ax-press: #23252b;
+  --ax-field-border: #676b75;
+  --ax-field-border-hover: #8d919c;
+  --ax-btn-border: #30333a;
+  --ax-placeholder: #8d919c;
+  --ax-primary-ink: #a6cbe8;
+  --ax-primary-soft: #1b2733;
+  --ax-primary-soft-2: #223244;
+  --ax-primary-soft-border: #2a3b4d;
+  --ax-danger: #f08b85;
+  --ax-danger-soft: #2c1716;
+  --ax-danger-ink: #f08b85;
+  --ax-danger-press: #3a1d1b;
+  --ax-danger-border: #5a2a27;
+  --ax-warn: #e0a24a;
+  --ax-warn-soft: #2a2114;
+  --ax-success: #7fd3a2;
+  --ax-success-soft: #15261d;
+  --ax-stage-new-bg: #1b2733;
+  --ax-stage-new-ink: #a6cbe8;
+  --ax-stage-consult-bg: #2a2114;
+  --ax-stage-consult-ink: #e0a24a;
+  --ax-stage-quote-bg: #221d3a;
+  --ax-stage-quote-ink: #b3a8f5;
+  --ax-stage-won-bg: #15261d;
+  --ax-stage-won-ink: #7fd3a2;
+  --ax-stage-care-bg: #1d1f24;
+  --ax-stage-care-ink: #b4b8c2;
+  --ax-chip-sheen: #30333a; /* trộn trắng vào nền chip tối làm chữ sáng tụt dưới 4,5:1 */
+  --ax-grad-page: #0d0e11;
+  --ax-grad-page-mobile: #0d0e11;
+  --ax-grad-soft: linear-gradient(135deg, #131418 0%, #172230 100%);
+  --ax-grad-card: #131418;
+  --ax-grad-stat: linear-gradient(160deg, #172230 0%, #131418 70%);
+  --ax-grad-composer: #131418;
+  --ax-grad-avatar-customer: linear-gradient(140deg, #1b2733, #223244);
+  --ax-grad-avatar-staff: linear-gradient(140deg, #1d1f24, #23252b);
+  --ax-avatar-customer-ink: #a6cbe8;
+  --ax-avatar-staff-ink: #b4b8c2;
+  --ax-grad-bar: linear-gradient(180deg, rgba(19, 20, 24, 0.86), #131418);
+  --ax-grad-empty: radial-gradient(circle at 50% 40%, #1b2733, transparent 70%), #18191e;
+  --ax-shadow-card: none;
+  --ax-shadow-soft: none;
+  --ax-shadow-float: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 12px 32px -8px rgba(0, 0, 0, 0.6);
+  --ax-shadow-secondary: 0 0 0 1px #30333a;
+  --ax-shadow-danger: 0 0 0 1px #5a2a27;
+  --ax-focus-ring: 0 0 0 2px #0d0e11, 0 0 0 4px rgba(127, 178, 218, 0.6);
+  --ax-scrim: rgba(0, 0, 0, 0.6);
 }
 
 /* Design system ds-v2 — CHỈ áp khi cờ môi trường NEXT_PUBLIC_DS_V2=true. Attribute
@@ -194,7 +440,8 @@
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: "cv11", "ss01", "ss03", "cv02";
+    font-feature-settings: var(--ax-font-features);
+    font-variant-numeric: tabular-nums;
     text-rendering: optimizeLegibility;
   }
   html {
@@ -220,6 +467,80 @@
   .bg-brand-hover { background-color: var(--brand-green-800); }
   .bg-surface-green { background-color: var(--surface-green-50); }
   .border-brand { border-color: var(--brand-green-700); }
+}
+
+/* «Ánh xanh» — utility gradient + chữ. Tên bắt đầu `ax-` (KHÔNG `bg-…`) để `tailwind-merge`
+   không coi là màu nền rồi gộp mất khi đứng cạnh `bg-card`/`bg-ax-surface`. Dùng được với
+   biến thể: `hover:ax-grad-primary-hover`, `max-lg:ax-page`… */
+@utility ax-grad-hero {
+  background: var(--ax-grad-hero);
+  color: var(--ax-on-hero-ink);
+}
+@utility ax-grad-soft { background: var(--ax-grad-soft); }
+@utility ax-grad-primary { background: var(--ax-grad-primary); }
+@utility ax-grad-primary-hover { background: var(--ax-grad-primary-hover); }
+@utility ax-grad-primary-press { background: var(--ax-primary-press); }
+@utility ax-grad-avatar-customer { background: var(--ax-grad-avatar-customer); }
+@utility ax-grad-avatar-staff { background: var(--ax-grad-avatar-staff); }
+@utility ax-grad-card { background: var(--ax-grad-card); }
+@utility ax-grad-stat { background: var(--ax-grad-stat); }
+@utility ax-grad-composer { background: var(--ax-grad-composer); }
+@utility ax-grad-toast { background: var(--ax-grad-toast); }
+@utility ax-grad-bar { background: var(--ax-grad-bar); }
+@utility ax-grad-empty { background: var(--ax-grad-empty); }
+/* Nền trang: desktop ≥1024px một quầng rộng; dưới 1024px quầng điện thoại trên nền #F5F5F3. */
+@utility ax-page {
+  background: var(--ax-grad-page-mobile);
+  background-repeat: no-repeat;
+  @media (min-width: 1024px) {
+    background: var(--ax-grad-page);
+    background-repeat: no-repeat;
+  }
+}
+/* Ba tầng độ nổi dạng khối hoàn chỉnh (nền + viền + bóng + bo). */
+@utility ax-card {
+  background: var(--ax-grad-card);
+  border: 1px solid var(--ax-line);
+  border-radius: var(--ax-radius-card);
+  box-shadow: var(--ax-shadow-card);
+}
+@utility ax-float {
+  background: var(--ax-surface);
+  border-radius: var(--ax-radius-sheet);
+  box-shadow: var(--ax-shadow-float);
+}
+@utility ax-sunken {
+  background: var(--ax-sunken);
+  border-radius: var(--ax-radius-card);
+  box-shadow: var(--ax-shadow-inset);
+}
+/* Thang chữ (tiêu đề ≥20px: 700, -0.02em; 15–18px: -0.011em). */
+@utility ax-text-display { font-size: 36px; line-height: 1.15; font-weight: 700; letter-spacing: -0.02em; }
+@utility ax-text-title { font-size: 24px; line-height: 1.25; font-weight: 700; letter-spacing: -0.02em; }
+@utility ax-text-heading { font-size: 20px; line-height: 1.3; font-weight: 700; letter-spacing: -0.02em; }
+@utility ax-text-subhead { font-size: 17px; line-height: 1.4; font-weight: 600; letter-spacing: -0.011em; }
+@utility ax-text-label { font-size: 12px; line-height: 1.4; font-weight: 500; color: var(--ax-ink-3); }
+@utility ax-text-group { font-size: 11px; line-height: 1.4; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ax-ink-3); }
+@utility ax-amount { font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+@utility ax-focus {
+  outline: none;
+  &:focus-visible { outline: none; box-shadow: var(--ax-focus-ring); }
+}
+
+/* ============================================================================
+   «Ánh xanh» — nền trang (đặt ở đây vì `app-tokens.css` bị test cấm `@media`) của khung dashboard: quầng xanh nhạt (điện thoại / dưới 1024px:
+   quầng trên nền #F5F5F3; desktop ≥1024px: hai quầng rộng → #FBFBFA). Ngoài `@layer` để
+   thắng `bg-background` sẵn có của `SidebarInset`. Token: `--ax-grad-page(-mobile)`.
+   ============================================================================ */
+html[data-ui="app"] [data-slot="sidebar-inset"] {
+  background: var(--ax-grad-page-mobile);
+  background-repeat: no-repeat;
+}
+@media (min-width: 1024px) {
+  html[data-ui="app"] [data-slot="sidebar-inset"] {
+    background: var(--ax-grad-page);
+    background-repeat: no-repeat;
+  }
 }
 
 /* ── Micro-animation & Reduced-motion ────────────────────────── */
@@ -330,7 +651,7 @@
   :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size]):not([data-size="xs"]):not([data-size="icon-xs"]):not([data-variant="link"]):not([data-slot="input-group"] :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])):not([data-slot="dialog-close"]):not([data-slot="sheet-close"]) {
     min-height: 44px;
   }
-  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])[data-size^="icon"]:not([data-size="icon-xs"]):not([data-slot="input-group"] :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])):not([data-slot="dialog-close"]):not([data-slot="sheet-close"]) {
+  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size]):is([data-size^="icon"], [data-size="ax-icon"]):not([data-size="icon-xs"]):not([data-slot="input-group"] :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])):not([data-slot="dialog-close"]):not([data-slot="sheet-close"]) {
     min-width: 44px;
   }
   :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])[data-size="xs"],

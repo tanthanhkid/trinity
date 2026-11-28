@@ -4,20 +4,34 @@ import * as React from "react"
 import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar"
 
 import { cn } from "@/lib/utils"
+import { shellInitials } from "@/components/app-shell/avatar"
 
+/**
+ * `kind` (thêm cho «Ánh xanh», docs/design/anh-xanh.md) — KHÁCH bo 30% nền xanh nhạt chữ #285680,
+ * NHÂN VIÊN tròn nền trung tính chữ #3E4350; viền là bóng trong 1px. Không truyền `kind` thì
+ * giữ nguyên dáng cũ. Size thêm `xl` (48) / `2xl` (64) cho đầu hồ sơ.
+ *
+ * @example
+ * <Avatar kind="customer" size="lg"><AvatarImage src={c.avatarUrl} /><AvatarFallback>{initials}</AvatarFallback></Avatar>
+ * <PersonAvatar kind="staff" name={user.name} src={user.avatarUrl} />
+ */
 function Avatar({
   className,
   size = "default",
+  kind,
   ...props
 }: AvatarPrimitive.Root.Props & {
-  size?: "default" | "sm" | "lg"
+  size?: "default" | "sm" | "lg" | "xl" | "2xl"
+  kind?: "customer" | "staff"
 }) {
   return (
     <AvatarPrimitive.Root
       data-slot="avatar"
       data-size={size}
+      data-kind={kind}
       className={cn(
-        "group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 dark:after:mix-blend-lighten",
+        "group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 data-[size=xl]:size-12 data-[size=2xl]:size-16 dark:after:mix-blend-lighten",
+        "data-[kind=customer]:rounded-[30%] data-[kind=customer]:after:rounded-[30%] data-[kind]:after:border-0 data-[kind]:after:shadow-[var(--ax-shadow-avatar)] data-[kind]:after:mix-blend-normal",
         className
       )}
       {...props}
@@ -30,7 +44,7 @@ function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
     <AvatarPrimitive.Image
       data-slot="avatar-image"
       className={cn(
-        "aspect-square size-full rounded-full object-cover",
+        "aspect-square size-full rounded-full object-cover group-data-[kind=customer]/avatar:rounded-[30%]",
         className
       )}
       {...props}
@@ -47,6 +61,9 @@ function AvatarFallback({
       data-slot="avatar-fallback"
       className={cn(
         "flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs",
+        "group-data-[kind]/avatar:font-semibold group-data-[size=lg]/avatar:text-[15px] group-data-[size=xl]/avatar:text-base group-data-[size=2xl]/avatar:text-xl",
+        "group-data-[kind=customer]/avatar:rounded-[30%] group-data-[kind=customer]/avatar:ax-grad-avatar-customer group-data-[kind=customer]/avatar:text-[var(--ax-avatar-customer-ink)]",
+        "group-data-[kind=staff]/avatar:ax-grad-avatar-staff group-data-[kind=staff]/avatar:text-[var(--ax-avatar-staff-ink)]",
         className
       )}
       {...props}
@@ -99,6 +116,28 @@ function AvatarGroupCount({
   )
 }
 
+/** Avatar dựng sẵn từ tên + ảnh (chữ cái đầu khi không có ảnh). */
+function PersonAvatar({
+  name,
+  src,
+  kind,
+  size = "default",
+  className,
+}: {
+  name: string | null | undefined
+  src?: string | null
+  kind: "customer" | "staff"
+  size?: "default" | "sm" | "lg" | "xl" | "2xl"
+  className?: string
+}) {
+  return (
+    <Avatar kind={kind} size={size} className={className}>
+      {src ? <AvatarImage src={src} alt={name ?? ""} /> : null}
+      <AvatarFallback>{shellInitials(name)}</AvatarFallback>
+    </Avatar>
+  )
+}
+
 export {
   Avatar,
   AvatarImage,
@@ -106,4 +145,5 @@ export {
   AvatarGroup,
   AvatarGroupCount,
   AvatarBadge,
+  PersonAvatar,
 }

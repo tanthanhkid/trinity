@@ -20,25 +20,26 @@ import {
   type NewsfeedCategory,
   type NewsfeedPost,
 } from './types'
+import { htmlToPlain } from './plain-text'
 
-const MAX_IMAGES = 10
-const MAX_VIDEOS = 5
+export const MAX_IMAGES = 10
+export const MAX_VIDEOS = 5
 // Khớp giới hạn upload của BE: video ≤40MB, chỉ MP4/WebM/MOV.
 // PHẢI đồng bộ UPLOAD_FIELD_SIZE_MAX/MAX_VIDEO_SIZE của BE và giới hạn body của reverse proxy.
-const MAX_VIDEO_BYTES = 40 * 1024 * 1024
+export const MAX_VIDEO_BYTES = 40 * 1024 * 1024
 // Trần TỔNG dung lượng video 1 bài: giới hạn body của reverse proxy áp cho TOÀN
 // request (mọi field cộng lại), KHÔNG per-file — nhiều video mỗi cái ≤40MB
 // nhưng tổng vượt sẽ bị trả 413 với thông báo khó hiểu. Chặn sớm FE.
-const MAX_TOTAL_VIDEO_BYTES = 40 * 1024 * 1024
+export const MAX_TOTAL_VIDEO_BYTES = 40 * 1024 * 1024
 // Trần TOÀN request (ảnh đã nén + video): giới hạn 50MB của proxy trừ headroom overhead
 // multipart. Kiểm SAU khi nén ảnh vì chỉ lúc đó mới biết dung lượng thật.
-const MAX_REQUEST_BYTES = 48 * 1024 * 1024
+export const MAX_REQUEST_BYTES = 48 * 1024 * 1024
 
-const ACCEPT_VIDEO = 'video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov'
+export const ACCEPT_VIDEO = 'video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov'
 
 // Nén ảnh phía client: resize về 1920px + convert JPEG quality 85 bằng canvas.
 // Video KHÔNG nén phía client (gửi nguyên file thẳng BE).
-async function compressImage(file: File): Promise<Blob> {
+export async function compressImage(file: File): Promise<Blob> {
   const MAX_PX = 1920
   const QUALITY = 0.85
   return new Promise((resolve, reject) => {
@@ -84,14 +85,14 @@ async function compressImage(file: File): Promise<Blob> {
 
 // RichTextEditor trả HTML; coi là "rỗng" khi bỏ hết thẻ chỉ còn khoảng trắng.
 function htmlIsEmpty(html: string): boolean {
-  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() === ''
+  return htmlToPlain(html) === ''
 }
 
 // Thông báo lỗi upload rõ ràng theo nguyên nhân ("thông báo lỗi
 // rõ ràng nếu upload thất bại hoặc vượt quá giới hạn"): phân biệt vượt trần
 // dung lượng (413), mất kết nối giữa lúc tải (không có
 // response), và lỗi nghiệp vụ khác (message BE trả về).
-function describeUploadError(err: unknown): string {
+export function describeUploadError(err: unknown, fallback = 'Không đăng được bài'): string {
   if (axios.isAxiosError(err)) {
     if (err.response?.status === 413) {
       return 'Video/ảnh vượt quá giới hạn dung lượng cho phép (tối đa 40MB/video, 48MB/bài)'
@@ -99,9 +100,9 @@ function describeUploadError(err: unknown): string {
     if (!err.response) {
       return 'Mất kết nối trong khi tải lên — vui lòng kiểm tra mạng và thử lại'
     }
-    return getApiErrorMessage(err, 'Không đăng được bài')
+    return getApiErrorMessage(err, fallback)
   }
-  return 'Không đăng được bài'
+  return fallback
 }
 
 export function PostComposer() {

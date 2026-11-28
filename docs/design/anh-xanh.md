@@ -145,7 +145,13 @@ showUndoToast("Đã lưu số điện thoại", { onUndo: () => save(prev) })
   Mobile: khối xanh dính đầu trang chứa tab mục, bài full-bleed, nút nổi «Viết bài» mở màn soạn/sửa toàn màn hình.
 - Xoá bài: hỏi xác nhận (desktop) rồi ẩn bài và chờ 5 giây cho «Hoàn tác» mới gọi `DELETE /newsfeed/:id` (không đổi API;
   rời trang giữa lúc chờ thì xoá ngay). Mobile xoá thẳng từ khay đáy / màn sửa, chỉ có Hoàn tác.
-- Lệch thiết kế: thời gian hiện tương đối («3 giờ trước») như code cũ; màn sửa mobile không có chọn mục vì API `PATCH` chỉ nhận nội dung.
+- Màn sửa mobile (bangtin-mobile2): chọn «Mục», thanh đáy «Thêm ảnh»/«Thêm video» + đếm ký tự (chữ thuần, đã giải mã
+  entity); nút «Lưu» chỉ sáng khi nội dung, mục hoặc tệp mới khác bản đang đăng. Không thêm tệp ⇒ `PATCH /newsfeed/:id`
+  `{content, category?}`; có tệp ⇒ `POST /newsfeed/:id/upload` (multipart `content`, `category`, `images`, `videos`), tệp
+  nối sau tệp cũ, trần 10 ảnh/5 video tính cả tệp đã có (ảnh kiểu cũ `image_url` tính là một). Chỉ tác giả hoặc
+  `newsfeed.moderate` (thêm tệp cần thêm `newsfeed.post`); bài chỉ có ảnh (không chữ) lưu qua route multipart; sửa không gửi lại thông
+  báo «bài mới». Chưa gỡ được tệp cũ khi sửa (thiết kế không có).
+- Lệch thiết kế: thời gian hiện tương đối («3 giờ trước») như code cũ.
 
 ## Màn «Cơ hội» (cohoi) — route `/kanban`
 

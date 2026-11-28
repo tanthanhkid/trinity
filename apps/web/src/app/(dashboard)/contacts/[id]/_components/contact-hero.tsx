@@ -59,6 +59,8 @@ export function ContactHero({ contactId, name, phone, code, avatarUrl, sourceLab
   const canEditPhone = contactId != null && can("contacts.update") && can("contacts.phone_full")
   // Khối nhấn trên điện thoại không có hàng nút (thanh đáy lo) ⇒ chỉ hỏi hội thoại Messenger khi có hàng nút.
   const messengerHref = useContactMessengerHref(withActions ? contactId : undefined)
+  // Đủ ba nút trong khối nhấn (~280 px): bớt đệm ngang + min-w-0 để «Messenger» không tràn khỏi khối.
+  const tight = hasPhone && messengerHref ? "min-w-0 px-2" : undefined
   return (
     <HeroCard aria-label="Thông tin chính" className="flex flex-col gap-4 max-sm:p-4 lg:rounded-[14px] lg:p-5">
       <div className="flex items-center gap-3.5">
@@ -77,19 +79,24 @@ export function ContactHero({ contactId, name, phone, code, avatarUrl, sourceLab
         )}
       </div>
       {withActions && (hasPhone || messengerHref) ? (
-        <div className={cn("grid gap-2", hasPhone && messengerHref ? "grid-cols-[1.1fr_1fr_1.2fr]" : hasPhone ? "grid-cols-[1.1fr_1fr]" : "grid-cols-1")}>
+        <div
+          className={cn(
+            "grid gap-2",
+            hasPhone && messengerHref ? "grid-cols-[1fr_0.85fr_1.35fr]" : hasPhone ? "grid-cols-[1.1fr_1fr]" : "grid-cols-1",
+          )}
+        >
           {hasPhone ? (
             <>
-              <Button variant="ax-on-hero" size="ax-lg" onClick={() => callPhone(phone)}>
+              <Button variant="ax-on-hero" size="ax-lg" className={tight} onClick={() => callPhone(phone)}>
                 <Phone className="size-4" aria-hidden /> Gọi
               </Button>
-              <Button variant="ax-on-hero-secondary" size="ax-lg" onClick={() => openZalo(phone)}>
+              <Button variant="ax-on-hero-secondary" size="ax-lg" className={tight} onClick={() => openZalo(phone)}>
                 Zalo
               </Button>
             </>
           ) : null}
           {messengerHref ? (
-            <Link href={messengerHref} className={buttonVariants({ variant: "ax-on-hero-secondary", size: "ax-lg" })}>
+            <Link href={messengerHref} className={cn(buttonVariants({ variant: "ax-on-hero-secondary", size: "ax-lg" }), tight)}>
               Messenger
             </Link>
           ) : null}

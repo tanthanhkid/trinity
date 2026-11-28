@@ -121,7 +121,11 @@ export function KanbanQuickPanel({ cardId, variant, onClose, onOpenFull }: Kanba
       .then((res) => {
         if (res.wip_warning) toast.warning(res.wip_warning)
         showUndoToast(`Đã chuyển sang “${name ?? "cột mới"}”`, {
-          onUndo: () => moveCard.mutate({ id: card.id, payload: { column_id: from } }),
+          onUndo: () =>
+            moveCard.mutate(
+              { id: card.id, payload: { column_id: from } },
+              { onError: (err) => toast.error(getApiErrorMessage(err, "Không hoàn tác được")) },
+            ),
         })
       })
       .catch((err) => toast.error(getApiErrorMessage(err, "Không chuyển được card")))
@@ -141,6 +145,8 @@ export function KanbanQuickPanel({ cardId, variant, onClose, onOpenFull }: Kanba
   const dueDone = card.due_completed_at != null
   const inDoneColumn = doneColumn != null && card.column_id === doneColumn.id
   const isDone = dueDone || inDoneColumn
+  /** Không hạn và board không có cột «xong» ⇒ nút «Đánh dấu đã xong» không có việc gì để làm — tắt thay vì bấm không phản hồi. */
+  const canMarkDone = card.due_at != null || doneColumn != null
   /** Đánh dấu xong: có hạn ⇒ tích hoàn thành hạn; không hạn ⇒ chuyển sang cột «xong» của board (nếu có). */
   const toggleDone = () => {
     if (card.due_at) {
@@ -341,7 +347,8 @@ export function KanbanQuickPanel({ cardId, variant, onClose, onOpenFull }: Kanba
             variant={isDone ? "ax-secondary" : "ax-primary"}
             size="ax-lg"
             className="w-full text-[17px] font-bold"
-            disabled={isDone && !dueDone}
+            disabled={(isDone && !dueDone) || (!isDone && !canMarkDone)}
+            title={!isDone && !canMarkDone ? "Đặt hạn hoặc thêm cột «xong» cho board để đánh dấu đã xong" : undefined}
             onClick={toggleDone}
           >
             {isDone ? (dueDone ? "Đã xong · bấm để mở lại" : "Đã xong") : "Đánh dấu đã xong"}

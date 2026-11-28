@@ -9,11 +9,13 @@ import { useSyncExternalStore } from "react"
 export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
     (onChange) => {
+      if (typeof window.matchMedia !== "function") return () => {}
       const mql = window.matchMedia(query)
       mql.addEventListener("change", onChange)
       return () => mql.removeEventListener("change", onChange)
     },
-    () => window.matchMedia(query).matches,
+    // jsdom/trình duyệt cũ không có `matchMedia` ⇒ coi như không khớp (bố cục điện thoại), không ném lỗi.
+    () => typeof window.matchMedia === "function" && window.matchMedia(query).matches,
     () => false,
   )
 }

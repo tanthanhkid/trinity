@@ -77,15 +77,15 @@ export function PosItemDialog({ title, basePrice, modifiers, initial, onConfirm,
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold">Số lượng</span>
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" className="size-11" aria-label="Giảm" onClick={() => setQty((q) => Math.max(1, q - 1))}><Minus /></Button>
+              <Button type="button" variant="ax-secondary" className="size-11" aria-label="Giảm" onClick={() => setQty((q) => Math.max(1, q - 1))}><Minus /></Button>
               <span className="w-10 text-center text-lg font-bold tabular-nums" aria-live="polite">{qty}</span>
-              <Button type="button" variant="outline" className="size-11" aria-label="Tăng" onClick={() => setQty((q) => Math.min(MAX_LINE_QTY, q + 1))}><Plus /></Button>
+              <Button type="button" variant="ax-secondary" className="size-11" aria-label="Tăng" onClick={() => setQty((q) => Math.min(MAX_LINE_QTY, q + 1))}><Plus /></Button>
             </div>
           </div>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" className="min-h-11" onClick={onClose}>Huỷ</Button>
-          <Button type="button" className="min-h-11" onClick={() => onConfirm({ options, quantity: qty, note })}>
+          <Button type="button" variant="ax-secondary" className="min-h-11" onClick={onClose}>Huỷ</Button>
+          <Button type="button" variant="ax-primary" size="ax-lg" className="min-h-11" onClick={() => onConfirm({ options, quantity: qty, note })}>
             Thêm · {vnd(unit * qty)}
           </Button>
         </DialogFooter>

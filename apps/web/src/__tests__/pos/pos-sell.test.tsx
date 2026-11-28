@@ -135,4 +135,15 @@ describe("PosSell — điện thoại", () => {
     expect(within(cart).queryByRole("button", { name: "Huỷ đơn này" })).toBeNull()
     expect(within(cart).getByRole("button", { name: "Thao tác khác" })).toBeInTheDocument()
   })
+
+  it("hàng món: hiện số lượng đã chọn, nút − bớt một và biến mất khi về 0", () => {
+    renderSell()
+    fireEvent.click(screen.getByRole("button", { name: /^Cà phê sữa/ }))
+    fireEvent.click(screen.getByRole("button", { name: /^Cà phê sữa/ }))
+    expect(screen.getByLabelText("2 đã chọn")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Giảm Cà phê sữa" }))
+    expect(screen.getByLabelText("1 đã chọn")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Giảm Cà phê sữa" }))
+    expect(screen.queryByRole("button", { name: "Giảm Cà phê sữa" })).toBeNull()
+  })
 })

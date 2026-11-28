@@ -28,9 +28,13 @@
 //! - [`flows`] (M50b): kịch bản nhắn tin nhiều bước (6 route `flows`, phần kịch bản của `tick`, job `facebook.flows`). Tạm dừng kênh chỉ giữ việc
 //!   (hẹn lại tới hết giờ tạm dừng), không huỷ. [`flows_routes`] gắn 6 route kịch bản vào router.
 //!
+//! - [`admin_guide`]: soạn hướng dẫn nối lại Page để gửi cho quản trị viên Page (`POST /facebook/pages/:id/admin-guide`); chỉ soạn,
+//!   không gửi gì ra ngoài, không ghi DB.
+//!
 //! Sau `check_token`
 //! thành công tầng route còn gọi `FacebookIngest::refresh_missing_names` (M48).
 
+pub mod admin_guide;
 pub mod broadcast;
 pub mod chat_links;
 pub mod comments;

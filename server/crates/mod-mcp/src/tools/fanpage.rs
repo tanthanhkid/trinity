@@ -1,4 +1,4 @@
-//! Tool Fanpage (M44b), 15 tool: bình luận (`list_facebook_comments`, `list_facebook_comment_rules`, `create_comment_rule`,
+//! Tool Fanpage (M44b), 15 tool (+ `get_page_admin_guide`, soạn hướng dẫn cho quản trị viên Page, chỉ đọc): bình luận (`list_facebook_comments`, `list_facebook_comment_rules`, `create_comment_rule`,
 //! `update_comment_rule`, `test_comment_rule`), link chat (`list_chat_links`, `create_chat_link`), kịch bản nhắn tin
 //! (`list_message_flows`, `create_message_flow`, `update_message_flow`), gửi hàng loạt (`list_messenger_broadcasts`,
 //! `send_messenger_broadcast`, `update_messenger_broadcast`) và huỷ (`cancel_messenger_broadcast`, `cancel_scheduled_post`).
@@ -114,6 +114,18 @@ pub trait BroadcastsPort: Send + Sync {
     fn cancel_pending(&self, company: CompanyRef, id: i32) -> PortFut<'_, Value>;
 }
 
+/// Hướng dẫn nối lại Fanpage cho quản trị viên Page: chỉ soạn văn bản (không gửi, không ghi). `page_id` là id của Facebook.
+/// Trả `{ page_id, page_name, recipient, steps, permissions, manage_url, text, sent: false }`; Page lạ ⇒ `ToolError::User`.
+pub trait AdminGuidePort: Send + Sync {
+    fn compose<'a>(
+        &'a self,
+        company: CompanyRef,
+        page_id: &'a str,
+        recipient: Option<String>,
+        note: Option<String>,
+    ) -> PortFut<'a, Value>;
+}
+
 /// Bài đăng đa kênh hẹn giờ (M54a): bài có `id, status, content, scheduled_at, targets: [{ status, account_id, account_name }]`.
 pub trait ScheduledPostsPort: Send + Sync {
     fn get(&self, company: CompanyRef, id: i32) -> PortFut<'_, Value>;
@@ -129,6 +141,7 @@ pub struct FanpagePorts {
     pub flows: Option<Arc<dyn FlowsPort>>,
     pub broadcasts: Option<Arc<dyn BroadcastsPort>>,
     pub posts: Option<Arc<dyn ScheduledPostsPort>>,
+    pub admin_guide: Option<Arc<dyn AdminGuidePort>>,
 }
 
 /// Ngữ cảnh chạy của thân tool (không cần DB: test gọi thẳng với port giả).
@@ -208,7 +221,7 @@ fn reg(
     });
 }
 
-/// Đăng ký 15 tool Fanpage vào `r` (mỗi tool một dòng riêng, không đụng nhóm khác).
+/// Đăng ký 16 tool Fanpage vào `r` (mỗi tool một dòng riêng, không đụng nhóm khác).
 pub fn register_fanpage(r: &mut ToolRegistry, ports: Arc<FanpagePorts>) {
     const WEBHOOKS: &[&str] = &["integrations.webhooks"];
     let p = &ports;
@@ -226,6 +239,7 @@ pub fn register_fanpage(r: &mut ToolRegistry, ports: Arc<FanpagePorts>) {
     reg(r, p, "test_comment_rule", false, WEBHOOKS, test_comment_rule);
     reg(r, p, "list_chat_links", false, WEBHOOKS, list_chat_links);
     reg(r, p, "create_chat_link", true, WEBHOOKS, create_chat_link);
+    reg(r, p, "get_page_admin_guide", false, WEBHOOKS, get_page_admin_guide);
     reg(r, p, "list_message_flows", false, WEBHOOKS, list_message_flows);
     reg(r, p, "create_message_flow", true, WEBHOOKS, create_message_flow);
     reg(r, p, "update_message_flow", true, WEBHOOKS, update_message_flow);
@@ -513,6 +527,14 @@ fn comments(p: &FanpagePorts) -> Result<&Arc<dyn CommentsPort>, ToolError> {
         &p.comments,
         "Máy chủ này chưa có tính năng bình luận Fanpage.",
         "Facebook comment automation is not available on this server.",
+    )
+}
+
+fn admin_guide(p: &FanpagePorts) -> Result<&Arc<dyn AdminGuidePort>, ToolError> {
+    need(
+        &p.admin_guide,
+        "Máy chủ này chưa có tính năng hướng dẫn quản trị viên Page.",
+        "Page admin guides are not available on this server.",
     )
 }
 
@@ -1098,6 +1120,28 @@ fn create_chat_link<'a>(
         let mut data = link_for_ai(&l, env.base_url);
         if let Some(m) = data.as_object_mut() {
             m.insert("next_step".into(), json!("Gửi url hoặc mở qr_url để tải mã QR in ấn."));
+        }
+        out(&data)
+    })
+}
+
+fn get_page_admin_guide<'a>(
+    p: &'a FanpagePorts,
+    args: &'a Value,
+    env: &'a Env<'a>,
+) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+    Box::pin(async move {
+        let svc = admin_guide(p)?;
+        let page_id = resolve_page(p, env, args).await?;
+        let opt = |k: &str| s(args, k).map(str::trim).filter(|t| !t.is_empty()).map(str::to_owned);
+        let mut data = svc
+            .compose(env.company, &page_id, opt("recipient"), opt("note"))
+            .await?;
+        if let Some(m) = data.as_object_mut() {
+            m.insert(
+                "next_step".into(),
+                json!("Đưa nguyên văn text cho người dùng để họ tự gửi cho quản trị viên Page. Trinity không gửi gì."),
+            );
         }
         out(&data)
     })

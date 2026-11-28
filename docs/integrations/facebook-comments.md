@@ -27,6 +27,14 @@ while the webhook pointed elsewhere, or while the Page was switched off, can sti
 - The HUMAN_AGENT tag needs the **Human Agent** permission approved by Meta (App Review). Until then Facebook refuses these messages and
   the inbox says "Cần Meta duyệt quyền Human Agent". Conversations and AI tools expose `reply_mode` (`standard` | `human_agent` | `closed`).
 
+## Guide for the Page admin
+When the person who connects Pages is not an admin of the Page, `POST /api/v1/facebook/pages/:id/admin-guide` (permission
+`integrations.webhooks`, body `{ "recipient"?: string ≤120, "note"?: string ≤500 }`) drafts the instructions: the response has `text` (a
+message ready to paste), `steps`, `permissions` (which are required), `manage_url` (the Fanpage screen, only when the public base URL is
+set) and `sent: false`. Trinity never sends it: the person forwards the text through their own channel (the web app uses the phone share
+sheet, or copies it). The Page may be disconnected; unknown id is 404. The AI tool `get_page_admin_guide` returns the same draft. The
+admin still needs a Trinity login to press the connect button; Facebook's dialog only lets a Page admin pick the Page.
+
 ## Turning a Page off, and reconnecting
 Under **Connections › Facebook Page** each Page can be switched off (`is_active = false`): its events are ignored and it is not offered for
 posting comments, messages or broadcasts. **Disconnect** also turns the Page off, clears its token and webhook subscription, and keeps the

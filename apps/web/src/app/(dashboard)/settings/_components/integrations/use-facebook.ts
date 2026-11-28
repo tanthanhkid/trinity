@@ -117,6 +117,27 @@ export function useFacebookPages(enabled: boolean) {
   })
 }
 
+/** Hướng dẫn nối lại Page cho quản trị viên Page (`POST /facebook/pages/:id/admin-guide`): chỉ soạn văn bản, máy chủ không gửi gì. */
+export interface FacebookAdminGuide {
+  page_id: string
+  page_name: string
+  recipient: string | null
+  steps: Array<{ title: string; text: string }>
+  permissions: Array<{ label: string; required: boolean }>
+  manage_url: string | null
+  text: string
+  sent: false
+}
+
+export function useAdminGuide() {
+  return useMutation({
+    mutationFn: async (v: { id: number; recipient?: string; note?: string }) => {
+      const { id, ...body } = v
+      return (await apiClient.post<FacebookAdminGuide>(`/facebook/pages/${id}/admin-guide`, body)).data
+    },
+  })
+}
+
 export function useFacebookPageMutations() {
   const qc = useQueryClient()
   const refresh = () => qc.invalidateQueries({ queryKey: FB_KEYS.pages })

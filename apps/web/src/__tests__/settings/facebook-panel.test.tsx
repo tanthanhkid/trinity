@@ -262,6 +262,37 @@ describe("<FacebookPanel> Ánh xanh — điện thoại", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mở Facebook để nối lại" }))
     await waitFor(() => expect(mockPost.mock.calls[0][0]).toBe("/facebook/connect-url"))
   })
+
+  const GUIDE = { page_id: "111", page_name: "Trinity Software", recipient: null, steps: [], permissions: [], manage_url: null, text: "Chào anh/chị, nhờ nối lại Fanpage", sent: false }
+  async function openGuide() {
+    setup({ pages: [{ ...PAGE, token_status: "expired" }] })
+    renderPanel()
+    fireEvent.click(await screen.findByRole("button", { name: "Kết nối lại Fanpage" }))
+    return screen.getByRole("button", { name: "Gửi hướng dẫn cho quản trị viên Page" })
+  }
+
+  it("Gửi hướng dẫn cho quản trị viên Page: máy chủ chỉ soạn, văn bản đi qua bảng chia sẻ của điện thoại", async () => {
+    mockPost.mockResolvedValue({ data: GUIDE })
+    const share = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal("navigator", { share, clipboard: { writeText: vi.fn() } })
+    fireEvent.click(await openGuide())
+    await waitFor(() => expect(share).toHaveBeenCalledWith({ title: "Nối lại Fanpage Trinity Software", text: GUIDE.text }))
+    expect(mockPost).toHaveBeenCalledWith("/facebook/pages/1/admin-guide", {})
+  })
+
+  it("Gửi hướng dẫn: không có bảng chia sẻ ⇒ chép vào bộ nhớ tạm; đóng bảng chia sẻ ⇒ không chép", async () => {
+    mockPost.mockResolvedValue({ data: GUIDE })
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal("navigator", { clipboard: { writeText } })
+    fireEvent.click(await openGuide())
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(GUIDE.text))
+    const cancelled = vi.fn().mockRejectedValue(new DOMException("x", "AbortError"))
+    const writeText2 = vi.fn()
+    vi.stubGlobal("navigator", { share: cancelled, clipboard: { writeText: writeText2 } })
+    fireEvent.click(screen.getByRole("button", { name: "Gửi hướng dẫn cho quản trị viên Page" }))
+    await waitFor(() => expect(cancelled).toHaveBeenCalled())
+    expect(writeText2).not.toHaveBeenCalled()
+  })
 })
 
 describe("facebookResultMessage", () => {

@@ -363,7 +363,7 @@ async fn xac_thuc_oauth_that_nhat_ky_va_gui_quyen() {
     );
     assert!(row.4["args"].is_object());
 
-    // tools/list nhận cả 110 tool; ping.
+    // tools/list nhận cả 111 tool; ping.
     let (s, _, v) = e
         .call(
             Method::POST,
@@ -371,7 +371,7 @@ async fn xac_thuc_oauth_that_nhat_ky_va_gui_quyen() {
             &json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" }),
         )
         .await;
-    assert_eq!((s, v["result"]["tools"].as_array().map(Vec::len)), (200, Some(110)));
+    assert_eq!((s, v["result"]["tools"].as_array().map(Vec::len)), (200, Some(111)));
 
     // Thiếu token, token rác, công ty lạ ⇒ 401 kèm `WWW-Authenticate`.
     for (tok, header_has_error) in [(None, false), (Some("rac"), true), (Some("c999.khong-co"), true)] {

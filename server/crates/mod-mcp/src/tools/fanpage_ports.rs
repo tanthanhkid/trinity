@@ -11,6 +11,7 @@ use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use mod_channel_guard::ChannelGuard;
+use mod_facebook::admin_guide::{self, GuideInput, PageKey};
 use mod_facebook::broadcast::{Audience, BroadcastInput, send_time};
 use mod_facebook::chat_links::{self, ChatLinkInput, LinkUrls};
 use mod_facebook::comments::{self, DryRunInput, ListQuery};
@@ -27,8 +28,8 @@ use trinity_kernel::instant::parse_instant_with;
 use trinity_kernel::vn_time::js_iso_string;
 
 use super::fanpage::{
-    BroadcastsPort, ChatLinksPort, CommentQuery, CommentsPort, FanpagePorts, FlowsPort, PageRef, PagesPort,
-    ScheduledPostsPort,
+    AdminGuidePort, BroadcastsPort, ChatLinksPort, CommentQuery, CommentsPort, FanpagePorts, FlowsPort, PageRef,
+    PagesPort, ScheduledPostsPort,
 };
 use crate::deps::{app_err, to_json};
 use crate::exec::ToolError;
@@ -66,6 +67,7 @@ pub fn fanpage_deps(
             multi_tenant,
         })),
         flows: Some(Arc::new(FlowsAdapter { ingest: ingest.clone() })),
+        admin_guide: Some(Arc::new(AdminGuideAdapter { ingest: ingest.clone() })),
         broadcasts: Some(Arc::new(BroadcastsAdapter {
             ingest: ingest.clone(),
             kick,
@@ -267,6 +269,31 @@ impl ChatLinksPort for ChatLinksAdapter {
             let urls = self.urls(company);
             let mut c = conn(&self.ingest.db, company).await?;
             chat_links::create(&mut c, &dto, user_id, &urls).await.map_err(port_err)
+        })
+    }
+}
+
+// ------------------------------------------------------------------ hướng dẫn quản trị viên Page
+
+struct AdminGuideAdapter {
+    ingest: Arc<FacebookIngest>,
+}
+
+impl AdminGuidePort for AdminGuideAdapter {
+    fn compose<'a>(
+        &'a self,
+        company: CompanyRef,
+        page_id: &'a str,
+        recipient: Option<String>,
+        note: Option<String>,
+    ) -> PortFut<'a, Value> {
+        Box::pin(async move {
+            let input = GuideInput { recipient, note };
+            let mut c = conn(&self.ingest.db, company).await?;
+            let g = admin_guide::build(&mut c, PageKey::FacebookId(page_id), &input, &self.ingest.env)
+                .await
+                .map_err(port_err)?;
+            to_json(&g)
         })
     }
 }

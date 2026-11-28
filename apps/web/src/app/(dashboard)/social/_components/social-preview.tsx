@@ -106,6 +106,9 @@ export function SocialPreviewPanel({ body, libIds }: { body: SocialPreviewBody; 
   const debounced = useDebounced(key, 400)
   const sent = useMemo(() => JSON.parse(debounced) as SocialPreviewBody, [debounced])
   const q = useSocialPreview(sent, has && sent.targets.length > 0)
+  // Mỗi Page một tab xem trước (chọn tab nào cũng giữ khi bản xem trước tải lại; tab biến mất thì về Page đầu).
+  const [tabId, setTabId] = useState<number | null>(null)
+  const shown = q.data?.targets.find((t) => t.account_id === tabId) ?? q.data?.targets[0]
   if (!has) return <p className="text-sm text-muted-foreground">Chọn ít nhất một kênh để xem trước.</p>
   const d = q.data
   return (
@@ -118,16 +121,41 @@ export function SocialPreviewPanel({ body, libIds }: { body: SocialPreviewBody; 
         </ul>
       ) : null}
       {d && <p className="text-xs text-muted-foreground">{d.scheduled_at ? `${d.from_queue ? "Khung hàng đợi" : "Hẹn"}: ${queueWhenLabel(d.scheduled_at)}` : "Đăng ngay"}</p>}
-      {d?.targets.map((t) => (
-        <PreviewCard
-          key={t.account_id}
-          p={t}
-          renderMedia={(m) => {
-            const id = libIds[m.key]
-            return id ? <LibraryThumb id={id} type={m.type} /> : <MediaBox type={m.type} />
-          }}
-        />
-      ))}
+      {d && d.targets.length > 1 && (
+        <div role="tablist" aria-label="Page xem trước" className="flex gap-1.5 lg:gap-1 lg:rounded-[10px] lg:bg-ax-sunken lg:p-[3px]">
+          {d.targets.map((t) => {
+            const on = t.account_id === shown?.account_id
+            return (
+              <button
+                key={t.account_id}
+                type="button"
+                role="tab"
+                id={`social-prev-tab-${t.account_id}`}
+                aria-selected={on}
+                aria-controls="social-prev-panel"
+                onClick={() => setTabId(t.account_id)}
+                className={cn(
+                  "min-h-11 min-w-0 flex-1 cursor-pointer truncate rounded-lg px-2 text-sm font-semibold outline-none focus-visible:shadow-[var(--ax-focus-ring)] lg:min-h-10",
+                  on ? "bg-ax-primary text-white lg:bg-ax-surface lg:text-ax-ink lg:shadow-[0_1px_2px_rgba(23,24,28,.08),0_0_0_1px_rgba(23,24,28,.04)]" : "bg-ax-sunken text-ax-ink-2 hover:text-ax-ink lg:bg-transparent",
+                )}
+              >
+                {t.account_name}
+              </button>
+            )
+          })}
+        </div>
+      )}
+      {shown && (
+        <div role={d && d.targets.length > 1 ? "tabpanel" : undefined} id="social-prev-panel" aria-labelledby={d && d.targets.length > 1 ? `social-prev-tab-${shown.account_id}` : undefined}>
+          <PreviewCard
+            p={shown}
+            renderMedia={(m) => {
+              const id = libIds[m.key]
+              return id ? <LibraryThumb id={id} type={m.type} /> : <MediaBox type={m.type} />
+            }}
+          />
+        </div>
+      )}
       <p className="text-[11px] text-muted-foreground">Điểm "Xem thêm" là ước lượng — mỗi mạng hiển thị khác nhau tuỳ thiết bị.</p>
     </div>
   )

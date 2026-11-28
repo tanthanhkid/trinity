@@ -47,7 +47,8 @@ const APP_SIDEBAR_STYLE = {
 } as CSSProperties
 
 // pt-5: tiêu đề trang không dính sát viền dưới thanh trên (#29) — áp mọi trang trong dashboard.
-const MAIN_CLASS = "min-w-0 flex-1 overflow-auto px-5 pt-5 pb-6 max-sm:px-4 max-sm:pt-4 max-sm:pb-28"
+// `lg:has-[…]:overflow-visible`: màn có thanh hành động dính đáy khung nhìn (Đăng đa kênh) — `overflow-auto` làm `main` thành khung cuộn riêng nên `sticky` không bao giờ dính.
+const MAIN_CLASS = "min-w-0 flex-1 overflow-auto lg:has-[[data-slot=social-action-bar]]:overflow-visible px-5 pt-5 pb-6 max-sm:px-4 max-sm:pt-4 max-sm:pb-28"
 
 export default function DashboardLayout({
   children,

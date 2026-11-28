@@ -236,7 +236,8 @@ function MobileEdit({ product, ed, onClose }: { product: Product; ed: ProductEdi
           {ed.saving ? "Đang lưu…" : "Lưu"}
         </Button>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto overscroll-contain px-4 pt-4 pb-12">
+      {/* Nhãn ô nhập đậm 14 px như thiết kế (sanpham-mobile2), cùng cỡ với «Danh mục», «Mô tả». */}
+      <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto overscroll-contain px-4 pt-4 pb-12 [&_[data-slot=ax-field]>label]:text-sm [&_[data-slot=ax-field]>label]:font-semibold [&_[data-slot=ax-field]>label]:text-foreground">
         <HeroCard className="flex items-center gap-3.5 max-sm:p-4">
           <div className="size-[100px] shrink-0 overflow-hidden rounded-[12px] bg-ax-sunken shadow-[0_10px_22px_-10px_rgba(13,32,54,.6),0_0_0_1px_rgba(255,255,255,.14)]">
             {draft.image_url ? <ProductCover product={{ ...product, image_url: draft.image_url }} className="size-full" /> : <div className="grid size-full place-items-center text-xs text-ax-ink-2">Chưa có ảnh</div>}
@@ -279,7 +280,7 @@ function MobileEdit({ product, ed, onClose }: { product: Product; ed: ProductEdi
 
         <AxField label="Thương hiệu" id="e-brand" value={draft.brand} onChange={(e) => ed.patch({ brand: e.target.value })} />
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="e-color" className="ax-text-label">Màu (tên hoặc mã hex)</label>
+          <label htmlFor="e-color" className="text-sm font-semibold">Màu (tên hoặc mã hex)</label>
           <div className="flex items-center gap-2">
             <span className="relative size-12 flex-none overflow-hidden rounded-[10px] border border-ax-line">
               <input type="color" aria-label="Chọn màu" value={toPickerHex(draft.color)} onChange={(e) => ed.patch({ color: e.target.value })} className="absolute inset-0 size-full cursor-pointer" />

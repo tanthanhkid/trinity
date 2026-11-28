@@ -4,9 +4,13 @@ import { useEffect, useRef, useState } from "react"
 import { Phone, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button-variants"
+import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { HeroCard, HeroCardLabel, HeroCardValue } from "@/components/ui/hero-card"
 import { usePermissions } from "@/lib/rbac"
 import { useContactPatch } from "./use-contact-patch"
+import { useContactMessengerHref } from "./use-contact-messenger"
+import { cn } from "@/lib/utils"
 import { PersonAvatar } from "@/components/ui/avatar"
 import { formatPhone } from "@/lib/format"
 import { buildZaloDirectUrl, cleanPhone, isMaskedPhone } from "@/lib/zalo"
@@ -19,7 +23,7 @@ interface Props {
   code?: string | null
   avatarUrl?: string | null
   sourceLabel?: string | null
-  /** Desktop: có hàng nút Gọi / Zalo ngay trên khối. Điện thoại: nút nằm ở thanh đáy (`ContactCallBar`). */
+  /** Desktop: có hàng nút Gọi / Zalo / Messenger ngay trên khối. Điện thoại: nút nằm ở thanh đáy của trang. */
   withActions?: boolean
 }
 
@@ -53,6 +57,8 @@ export function ContactHero({ contactId, name, phone, code, avatarUrl, sourceLab
   const { can } = usePermissions()
   // Sửa SĐT cần `contacts.update` + `contacts.phone_full` (BE kiểm phạm vi thật, `PATCH /contacts/:id`).
   const canEditPhone = contactId != null && can("contacts.update") && can("contacts.phone_full")
+  // Khối nhấn trên điện thoại không có hàng nút (thanh đáy lo) ⇒ chỉ hỏi hội thoại Messenger khi có hàng nút.
+  const messengerHref = useContactMessengerHref(withActions ? contactId : undefined)
   return (
     <HeroCard aria-label="Thông tin chính" className="flex flex-col gap-4 max-sm:p-4 lg:rounded-[14px] lg:p-5">
       <div className="flex items-center gap-3.5">
@@ -70,14 +76,23 @@ export function ContactHero({ contactId, name, phone, code, avatarUrl, sourceLab
           <HeroCardValue className="text-[28px] max-sm:text-[32px]">{hasPhone ? formatPhone(phone) : "—"}</HeroCardValue>
         )}
       </div>
-      {withActions && hasPhone ? (
-        <div className="grid grid-cols-[1.1fr_1fr] gap-2">
-          <Button variant="ax-on-hero" size="ax-lg" onClick={() => callPhone(phone)}>
-            <Phone className="size-4" aria-hidden /> Gọi
-          </Button>
-          <Button variant="ax-on-hero-secondary" size="ax-lg" onClick={() => openZalo(phone)}>
-            Zalo
-          </Button>
+      {withActions && (hasPhone || messengerHref) ? (
+        <div className={cn("grid gap-2", hasPhone && messengerHref ? "grid-cols-[1.1fr_1fr_1.2fr]" : hasPhone ? "grid-cols-[1.1fr_1fr]" : "grid-cols-1")}>
+          {hasPhone ? (
+            <>
+              <Button variant="ax-on-hero" size="ax-lg" onClick={() => callPhone(phone)}>
+                <Phone className="size-4" aria-hidden /> Gọi
+              </Button>
+              <Button variant="ax-on-hero-secondary" size="ax-lg" onClick={() => openZalo(phone)}>
+                Zalo
+              </Button>
+            </>
+          ) : null}
+          {messengerHref ? (
+            <Link href={messengerHref} className={buttonVariants({ variant: "ax-on-hero-secondary", size: "ax-lg" })}>
+              Messenger
+            </Link>
+          ) : null}
         </div>
       ) : null}
     </HeroCard>

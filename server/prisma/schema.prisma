@@ -2105,6 +2105,7 @@ model FacebookConversation {
 
   @@unique([page_id, psid], map: "facebook_conversations_page_psid_uniq")
   @@index([last_message_at(sort: Desc)], map: "facebook_conversations_last_idx")
+  @@index([contact_id, last_message_at(sort: Desc)], map: "facebook_conversations_contact_idx")
   @@map("facebook_conversations")
 }
 

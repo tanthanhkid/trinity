@@ -230,7 +230,7 @@ async fn tra_loi_theo_cua_so_24_gio_7_ngay() {
     // Danh sách: `reply_mode` đúng theo thời gian; `unanswered` giữ hội thoại có tin cuối của khách.
     let now_ms = now.timestamp_millis();
     let list = ingest
-        .list_conversations(company, Some("50"), None, now_ms)
+        .list_conversations(company, Some("50"), None, None, now_ms)
         .await
         .unwrap();
     let data = list["data"].as_array().unwrap();
@@ -241,12 +241,24 @@ async fn tra_loi_theo_cua_so_24_gio_7_ngay() {
     assert_eq!(find(within_7d)["reply_mode"], "human_agent");
     assert_eq!(find(within_24h)["reply_mode"], "standard");
     let only = ingest
-        .list_conversations(company, None, Some("1"), now_ms)
+        .list_conversations(company, None, Some("1"), None, now_ms)
         .await
         .unwrap();
     let only = only["data"].as_array().unwrap();
     assert!(only.iter().all(|v| v["awaiting_reply"] == true));
     assert!(only.iter().any(|v| v["id"] == beyond_7d));
+    // Lọc theo khách: khách không có hội thoại ⇒ rỗng; id sai ⇒ 400.
+    let none = ingest
+        .list_conversations(company, None, None, Some("999999999"), now_ms)
+        .await
+        .unwrap();
+    assert!(none["data"].as_array().unwrap().is_empty());
+    assert!(
+        ingest
+            .list_conversations(company, None, None, Some("abc"), now_ms)
+            .await
+            .is_err()
+    );
     assert!(
         !only.iter().any(|v| v["id"] == within_24h),
         "đã trả lời thì không còn chờ"

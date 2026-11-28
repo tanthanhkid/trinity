@@ -204,7 +204,7 @@ pub(crate) fn list_unanswered_messages<'a>(
             if fb_on {
                 let rows = d
                     .facebook
-                    .list_conversations(p.company, Some(limit.to_string().as_str()), Some("1"), now_ms)
+                    .list_conversations(p.company, Some(limit.to_string().as_str()), Some("1"), None, now_ms)
                     .await
                     .map_err(internal_app)?;
                 let data = rows.get("data").and_then(Value::as_array).cloned().unwrap_or_default();

@@ -28,6 +28,7 @@ import { ReminderCard } from "./_components/reminder-card"
 import { ContactInfoPanel, INLINE_FIELDS, fieldDisplay, missingCount } from "./_components/info-panel"
 import { MissingInfoScreen } from "./_components/missing-info-sheet"
 import { QuickNoteCard } from "./_components/quick-note-card"
+import { useContactMessengerHref } from "./_components/use-contact-messenger"
 import { genderLabel } from "@/lib/contact-gender"
 import type { LeadLabel } from "@/components/lead-score-badge"
 import { ContactKanbanTab } from "@/components/kanban/contact-kanban-tab"
@@ -191,6 +192,8 @@ function ContactDetailContent({ id }: { id: string }) {
   const [showFull, setShowFull] = useState(false)
   const [showMissing, setShowMissing] = useState(false)
   const desktop = useMediaQuery("(min-width: 1024px)")
+  // Nút chat ở thanh đáy điện thoại (desktop: hàng nút trên khối nhấn tự hỏi).
+  const messengerHref = useContactMessengerHref(desktop ? undefined : id)
   const fullFormRef = useRef<HTMLElement>(null)
   // «Sửa» / «Chỉnh sửa đầy đủ» mở form ở cuối cột ⇒ cuộn tới để người dùng thấy ngay.
   useEffect(() => {
@@ -357,7 +360,7 @@ function ContactDetailContent({ id }: { id: string }) {
   }
 
   // Điện thoại (< 1024px): bố cục RIÊNG theo khach-mobile — quay lại · khối nhấn · chip giai đoạn · Ghi nhanh · tóm tắt ·
-  // Lịch sử · thanh Gọi/Zalo dính đáy. Khối thiết kế không vẽ (Hẹn gọi lại, Công việc, chuyển phụ trách, điểm lead…) giữ
+  // Lịch sử · thanh Gọi/Zalo/Messenger dính đáy. Khối thiết kế không vẽ (Hẹn gọi lại, Công việc, chuyển phụ trách, điểm lead…) giữ
   // chức năng, xếp sau Lịch sử.
   const summary = INLINE_FIELDS
     .map((f) => ({ label: f.label, value: fieldDisplay(f.key, contact) }))
@@ -418,12 +421,26 @@ function ContactDetailContent({ id }: { id: string }) {
       {showFull && fullForm}
       <MentionedIn type="contact" id={Number(id)} />
       <MissingInfoScreen contact={contact} open={showMissing} onOpenChange={setShowMissing} />
-      {hasPhone && (
-        <StickyActionBar layout="mobile" className="grid grid-cols-[2fr_1fr]">
-          <Button variant="ax-primary" size="ax-lg" className="text-[17px] font-bold" onClick={() => callPhone(contact.phone)}>
-            <Phone className="size-5" aria-hidden /> Gọi
-          </Button>
-          <Button variant="ax-secondary" size="ax-lg" className="text-base" onClick={() => openZalo(contact.phone)}>Zalo</Button>
+      {(hasPhone || messengerHref) && (
+        <StickyActionBar layout="mobile" className={cn("grid", hasPhone ? (messengerHref ? "grid-cols-[2fr_1fr_auto]" : "grid-cols-[2fr_1fr]") : "grid-cols-1")}>
+          {hasPhone && (
+            <>
+              <Button variant="ax-primary" size="ax-lg" className="text-[17px] font-bold" onClick={() => callPhone(contact.phone)}>
+                <Phone className="size-5" aria-hidden /> Gọi
+              </Button>
+              <Button variant="ax-secondary" size="ax-lg" className="text-base" onClick={() => openZalo(contact.phone)}>Zalo</Button>
+            </>
+          )}
+          {messengerHref && (
+            <Link
+              href={messengerHref}
+              aria-label="Nhắn Messenger"
+              className={cn(buttonVariants({ variant: "ax-secondary", size: "ax-lg" }), hasPhone ? "aspect-square px-0" : "text-base")}
+            >
+              <MessageSquare className="size-5" aria-hidden />
+              {!hasPhone && "Messenger"}
+            </Link>
+          )}
         </StickyActionBar>
       )}
     </div>

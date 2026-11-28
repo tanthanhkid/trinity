@@ -85,4 +85,12 @@ describe("/payroll theo quyền", () => {
     expect(screen.queryByText("Báo cáo")).toBeNull()
     expect(screen.queryByText("Thuế TNCN")).toBeNull()
   })
+
+  it("payroll.view phạm vi own (Thành viên) → chỉ «Phiếu của tôi», không có tab quản lý «Phiếu lương»", async () => {
+    const { default: PayrollPage } = await import("../../app/(dashboard)/payroll/page")
+    useAuthStore.setState({ permissions: { "payroll.view": "own" } as never })
+    renderPage(<PayrollPage />)
+    expect(screen.getByRole("tab", { name: "Phiếu của tôi" })).toBeTruthy()
+    expect(screen.queryByRole("tab", { name: "Phiếu lương" })).toBeNull()
+  })
 })

@@ -31,6 +31,9 @@ const NV2: i32 = 9962; // Thành viên khác
 const QL: i32 = 9963; // vai trò quản lý: payroll.view team
 const KT: i32 = 9964; // vai trò kế toán: payroll.view all + payroll.manage + payroll.export all
 
+/// Hai test cùng sửa vai trò Thành viên dùng chung (migration xoá rồi thêm lại `payroll.view`) ⇒ chạy tuần tự.
+static SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 fn url() -> String {
     std::env::var("TEST_DATABASE_URL").expect("test pg cần TEST_DATABASE_URL")
 }
@@ -178,6 +181,7 @@ async fn setup() -> [i64; 4] {
 #[tokio::test]
 #[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
 async fn thanh_vien_chi_xem_phieu_cua_minh_quan_ly_ke_toan_khong_doi() {
+    let _serial = SERIAL.lock().await;
     let [p1, p2, pq, pk] = setup().await;
     // Thành viên mặc định có payroll.view phạm vi own (seed `MEMBER_GRANTS`).
     let scope: Option<String> = scalar(&format!(
@@ -290,6 +294,7 @@ async fn thanh_vien_chi_xem_phieu_cua_minh_quan_ly_ke_toan_khong_doi() {
 #[tokio::test]
 #[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
 async fn migration_bo_sung_payroll_view_own_cho_thanh_vien_cu() {
+    let _serial = SERIAL.lock().await;
     let member = member_role().await;
     let grant = |role: i32| {
         format!(

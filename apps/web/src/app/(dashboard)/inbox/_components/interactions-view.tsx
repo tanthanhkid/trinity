@@ -13,6 +13,9 @@ import { formatDateTimeVn } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { formatNumber } from "@/lib/format"
 import { ErrorState } from "@/components/ui/error-state"
+import { EMPTY_FILTER, fetchInteractionStats, fetchInteractions, interactionListKey, INTERACTION_STATS_KEY, type InteractionFilter, type InteractionStats } from "@/lib/inbox-queries"
+
+export { EMPTY_FILTER, filterParams, type InteractionFilter } from "@/lib/inbox-queries"
 
 /** Khớp `GET /interactions` (services/crm/src/interactions/interactions.service.ts). */
 export interface Interaction {
@@ -32,26 +35,10 @@ export interface Interaction {
   status: "unanswered" | "auto" | "staff" | "answered"
   ref: { comment_id?: string; conversation_id?: number; thread_id?: number }
 }
-interface Stats { messages_today: number; comments_today: number; auto_handled_today: number; unanswered_7d: number }
 interface Thread {
   comments: { id: string; message: string | null; at: string; status: string; hidden: boolean; can_private_reply: boolean; actions: Record<string, unknown> }[]
   conversation: { id: number; customer_name: string | null } | null
   messages: { id: string; direction: "in" | "out"; text: string | null; at: string }[]
-}
-
-export interface InteractionFilter { type: "" | "comment" | "message"; channel: "" | "facebook" | "zalo"; unanswered: boolean; rule: "" | "1" | "0"; from: string; to: string; q: string }
-export const EMPTY_FILTER: InteractionFilter = { type: "", channel: "", unanswered: false, rule: "", from: "", to: "", q: "" }
-
-export function filterParams(f: InteractionFilter): Record<string, string> {
-  const p: Record<string, string> = {}
-  if (f.type) p.type = f.type
-  if (f.channel) p.channel = f.channel
-  if (f.unanswered) p.status = "unanswered"
-  if (f.rule) p.has_rule = f.rule
-  if (f.from) p.from = `${f.from}T00:00:00+07:00`
-  if (f.to) p.to = `${f.to}T23:59:59+07:00`
-  if (f.q.trim()) p.q = f.q.trim()
-  return p
 }
 
 const STATUS: Record<Interaction["status"], { label: string; cls: string }> = {
@@ -68,10 +55,10 @@ export function InteractionsView({ tabs, onOpenConversation }: { tabs?: React.Re
   const qc = useQueryClient()
   const [f, setF] = useState<InteractionFilter>(EMPTY_FILTER)
   const [open, setOpen] = useState<Interaction | null>(null)
-  const stats = useQuery<Stats>({ queryKey: ["interactions", "stats"], queryFn: async () => (await apiClient.get<Stats>("/interactions/stats")).data, staleTime: 30_000, refetchInterval: 60_000 })
+  const stats = useQuery<InteractionStats>({ queryKey: INTERACTION_STATS_KEY, queryFn: fetchInteractionStats, staleTime: 30_000, refetchInterval: 60_000 })
   const list = useQuery<{ data: Interaction[]; next_before: string | null }>({
-    queryKey: ["interactions", "list", f],
-    queryFn: async () => (await apiClient.get("/interactions", { params: { ...filterParams(f), limit: 60 } })).data,
+    queryKey: interactionListKey(f),
+    queryFn: () => fetchInteractions<{ data: Interaction[]; next_before: string | null }>(f),
     staleTime: 15_000,
     refetchInterval: 30_000,
   })

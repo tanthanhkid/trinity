@@ -78,6 +78,18 @@ pub struct WebService {
 }
 
 const NO_STORE: &str = "no-store, must-revalidate";
+/// Service Worker (`/sw.js`) luôn được trình duyệt hỏi lại; tắt khẩn bằng tệp `sw-kill` trong `WEB_DIR`.
+const SW_PATH: &str = "/sw.js";
+const SW_KILL_FILE: &str = "sw-kill";
+/// Bản tự huỷ: xoá mọi cache `trinity-*`, huỷ đăng ký, tải lại các tab để về bản không qua Service Worker.
+const SW_KILL_SCRIPT: &str = "self.addEventListener('install',()=>self.skipWaiting());\
+self.addEventListener('activate',e=>e.waitUntil((async()=>{\
+for(const k of await caches.keys())if(k.startsWith('trinity-'))await caches.delete(k);\
+await self.registration.unregister();\
+for(const c of await self.clients.matchAll({type:'window'}))c.navigate(c.url).catch(()=>{});\
+})()));\
+self.addEventListener('fetch',()=>{});\
+";
 const IMMUTABLE: &str = "public, max-age=31536000, immutable";
 const IMAGE_CACHE: &str = "public, max-age=86400, stale-while-revalidate=604800";
 
@@ -110,6 +122,9 @@ impl WebService {
         if path == BUILD_ID_PATH {
             return self.build_id_response(head);
         }
+        if path == SW_PATH {
+            return self.sw_response(head).await;
+        }
         if let Some(to) = assistant_redirect(&path) {
             return redirect(to);
         }
@@ -134,6 +149,28 @@ impl WebService {
         let skipped = matcher_skips(&path);
         self.file_response(lookup, &path, slug.as_deref(), no_store, skipped, head)
             .await
+    }
+
+    /// `/sw.js`: không qua luật chuyển hướng theo cookie (trình duyệt tải script không kèm phiên). Có `sw-kill` hoặc không
+    /// có tệp ⇒ trả bản tự huỷ để các Service Worker đã cài tự gỡ.
+    async fn sw_response(&self, head: bool) -> Response {
+        let dir = self.assets.root().to_path_buf();
+        let body = tokio::task::spawn_blocking(move || {
+            if dir.join(SW_KILL_FILE).exists() {
+                return None;
+            }
+            std::fs::read(dir.join("sw.js")).ok()
+        })
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| SW_KILL_SCRIPT.as_bytes().to_vec());
+        let mut resp = bytes_response(StatusCode::OK, "text/javascript; charset=utf-8", body, head);
+        let h = resp.headers_mut();
+        set(h, CACHE_CONTROL, "no-cache, max-age=0, must-revalidate");
+        set(h, HeaderName::from_static("service-worker-allowed"), "/");
+        set(h, HeaderName::from_static("x-content-type-options"), "nosniff");
+        resp
     }
 
     fn build_id_response(&self, head: bool) -> Response {
@@ -178,8 +215,15 @@ impl WebService {
         } else {
             bytes
         };
+        // Early Hints: CDN đọc `Link: rel=preload` để phát 103 trước khi HTML về. Chỉ trang thật (không phải trang cửa hàng).
+        let link = (is_html && status == StatusCode::OK && slug.is_none())
+            .then(|| std::str::from_utf8(&body).ok().and_then(inject::preload_link_header))
+            .flatten();
         let mut resp = bytes_response(status, ctype, body, head);
         let h = resp.headers_mut();
+        if let Some(v) = link.and_then(|l| HeaderValue::from_str(&l).ok()) {
+            h.insert(HeaderName::from_static("link"), v);
+        }
         set(h, HeaderName::from_static("x-content-type-options"), "nosniff");
         if no_store {
             set(h, CACHE_CONTROL, NO_STORE);

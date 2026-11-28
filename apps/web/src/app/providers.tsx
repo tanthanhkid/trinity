@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import axios from 'axios'
@@ -12,6 +12,9 @@ import { forceLogout } from '@/lib/api-client'
 import { BuildIdWatcher } from '@/components/build-id-watcher'
 import { ChunkErrorWatcher } from '@/components/chunk-error-watcher'
 import { TokenRefreshScheduler } from '@/components/token-refresh-scheduler'
+import { ServiceWorkerRegister } from '@/components/sw-register'
+import { persistKey, restoreQueries, startPersisting } from '@/lib/query-persist'
+import { onWipe } from '@/lib/local-cache'
 
 function makeQueryClient(): QueryClient {
   return new QueryClient({
@@ -70,6 +73,46 @@ function getQueryClient(): QueryClient {
   return browserQueryClient
 }
 
+/**
+ * Cache dữ liệu trên máy: nạp kết quả query lần trước (IndexedDB, khoá theo người dùng + công ty) ngay sau khi biết ai
+ * đang đăng nhập, rồi ghi tiếp khi query thành công. Đổi/đăng xuất người dùng ⇒ xoá cache trong bộ nhớ.
+ */
+function QueryPersistence({ client }: { client: QueryClient }) {
+  const hydrated = useAuthStore((s: { _hasHydrated: boolean }) => s._hasHydrated)
+  const userId = useAuthStore((s) => s.user?.id ?? null)
+  const companyId = useAuthStore((s) => s.company?.id ?? null)
+  // Token được đặt lại (cùng người dùng, sau lượt xoá) ⇒ chạy lại effect để bật ghi cache.
+  const hasToken = useAuthStore((s) => !!s.accessToken)
+  // Tăng khi có tín hiệu xoá (tab này hoặc tab khác) ⇒ dựng lại phiên cache nếu vẫn còn phiên đăng nhập.
+  const [epoch, setEpoch] = useState(0)
+  const prevKey = useRef<string | null>(null)
+  useEffect(() => onWipe(() => {
+    client.clear()
+    setEpoch((n) => n + 1)
+  }), [client])
+  useEffect(() => {
+    if (!hydrated) return
+    const key = userId == null ? null : persistKey({ userId, companyId })
+    // Đổi danh tính (A→B, đổi công ty, đăng xuất): xoá dữ liệu trong bộ nhớ TRƯỚC khi nạp/ghi cho khoá mới.
+    if (prevKey.current !== key) {
+      if (prevKey.current !== null || key === null) client.clear()
+      prevKey.current = key
+    }
+    if (userId == null || !getAccessToken()) return
+    let cancelled = false
+    let stop: (() => void) | undefined
+    const id = { userId, companyId }
+    void restoreQueries(client, id, () => cancelled).then(() => {
+      if (!cancelled) stop = startPersisting(client, id)
+    })
+    return () => {
+      cancelled = true
+      stop?.()
+    }
+  }, [client, hydrated, userId, companyId, epoch, hasToken])
+  return null
+}
+
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => getQueryClient())
   const hasHydrated = useAuthStore((s: { _hasHydrated: boolean }) => s._hasHydrated)
@@ -112,6 +155,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       <BuildIdWatcher />
       <ChunkErrorWatcher />
       <TokenRefreshScheduler />
+      <QueryPersistence client={queryClient} />
+      <ServiceWorkerRegister />
     </QueryClientProvider>
   )
 }

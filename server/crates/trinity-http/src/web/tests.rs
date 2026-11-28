@@ -226,3 +226,55 @@ async fn head_khong_co_than_nhung_co_do_dai() {
     assert!(to_bytes(r.into_body(), 1 << 20).await.unwrap().is_empty());
     let _ = std::fs::remove_dir_all(dir);
 }
+
+#[tokio::test]
+async fn sw_js_khong_can_cookie_va_khong_cache() {
+    // `sw-kill` nằm cạnh `WEB_DIR` (không trong đó): dựng cây riêng để không đụng test khác.
+    let base = std::env::temp_dir().join(format!("trinity-web-sw-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let dir = base.join("out");
+    std::fs::create_dir_all(&dir).unwrap();
+    let svc = WebService::new(WebConfig {
+        dir: dir.clone(),
+        store_domain: None,
+        site_config: json!({}),
+        build_id: "abc123".to_owned(),
+    });
+    // Chưa có sw.js (build cũ): trả bản tự huỷ để Service Worker đã cài tự gỡ.
+    let r = svc.serve(get("/sw.js", "app.test", None)).await;
+    assert_eq!(r.status(), StatusCode::OK);
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("no-cache, max-age=0, must-revalidate")
+    );
+    assert_eq!(header(&r, "service-worker-allowed"), Some("/"));
+    assert!(text(r).await.contains("unregister"));
+    // Có sw.js: phục vụ nguyên văn, không bị chuyển hướng /login dù không có phiên.
+    std::fs::write(dir.join("sw.js"), "const BUILD_ID='x'").unwrap();
+    let r = svc.serve(get("/sw.js", "app.test", None)).await;
+    assert_eq!(text(r).await, "const BUILD_ID='x'");
+    // Tệp sw-kill cạnh out/ ⇒ tắt khẩn (build xoá out/ nhưng không đụng tệp này).
+    std::fs::write(base.join("sw-kill"), "").unwrap();
+    let r = svc.serve(get("/sw.js", "app.test", None)).await;
+    assert!(text(r).await.contains("unregister"));
+    let _ = std::fs::remove_dir_all(base);
+}
+
+#[tokio::test]
+async fn html_co_header_link_preload() {
+    let (svc, dir) = service("link", None);
+    std::fs::write(
+        dir.join("login.html"),
+        r#"<html><head><script src="/_next/static/chunks/m.js" async></script></head></html>"#,
+    )
+    .unwrap();
+    let r = svc.serve(get("/login", "app.test", None)).await;
+    assert_eq!(
+        header(&r, "link"),
+        Some("</_next/static/chunks/m.js>; rel=preload; as=script")
+    );
+    // Tài nguyên không phải HTML thì không có Link.
+    let r = svc.serve(get("/_next/static/a.js", "app.test", None)).await;
+    assert_eq!(header(&r, "link"), None);
+    let _ = std::fs::remove_dir_all(dir);
+}

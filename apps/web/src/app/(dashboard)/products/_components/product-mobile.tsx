@@ -32,7 +32,7 @@ const money = (digits: string) => (digits ? `${groupDigits(digits)} ₫` : "Chư
 
 export function ProductMobile({ product, canManage, ed }: { product: Product; canManage: boolean; ed: ProductEditor }) {
   const { data: categories = [] } = useProductCategories(true)
-  const { data: attributeDefs = [] } = useAttributeDefs(product.category_id)
+  const { data: attributeDefs = [] } = useAttributeDefs(ed.saved.category_id ? Number(ed.saved.category_id) : null)
   const [editing, setEditing] = useState(false)
   const [priceOpen, setPriceOpen] = useState(false)
   const [priceDraft, setPriceDraft] = useState("")
@@ -149,6 +149,11 @@ export function ProductMobile({ product, canManage, ed }: { product: Product; ca
       </section>
       {saved.description && <p className="mx-7 my-3 text-[15px] leading-[1.55] whitespace-pre-wrap text-ax-ink-2">{saved.description}</p>}
       {photo.error && <p role="alert" className="mx-7 text-[13px] text-ax-danger">{photo.error}</p>}
+      {canManage && ed.changes > 0 && (
+        <p role="status" className="mx-7 my-2 text-[13px] text-ax-ink-2">
+          Có {ed.changes} thay đổi chưa lưu — bấm «Sửa toàn bộ thông tin» để xem và lưu.
+        </p>
+      )}
 
       {canManage && (
         <StickyActionBar layout="mobile">

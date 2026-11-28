@@ -4,7 +4,7 @@
  * Trạng thái sửa một sản phẩm cho cả hai bố cục: bản nháp, bản đã lưu, lưu (kèm Hoàn tác) và lưu nhanh từng trường.
  * Lưu = `PATCH /products/:id` (`useUpdateProduct`) chỉ với các trường đã đổi; Hoàn tác gửi lại giá trị cũ của đúng các trường đó.
  */
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { getApiErrorMessage } from "@/lib/api-client"
 import { showUndoToast } from "@/components/ui/undo-toast"
@@ -18,6 +18,7 @@ import {
   hasErrors,
   mergeIntoDraft,
   pickFields,
+  sameFields,
   validateDraft,
   type ProductDraft,
 } from "./product-draft"
@@ -48,30 +49,46 @@ export function useProductEditor(product: Product) {
     setShowErrors(false)
   }, [saved])
 
-  /** Gửi CHỈ các trường `fields` (giá trị cũ `prev`); thành công ⇒ cập nhật bản đã lưu, áp vào bản nháp (trường đang gõ tiếp thì giữ). */
+  // Bản đã lưu mới nhất cho Hoàn tác (toast sống lâu hơn một lần vẽ).
+  const savedRef = useRef(saved)
+  useEffect(() => {
+    savedRef.current = saved
+  }, [saved])
+
+  /**
+   * Gửi CHỈ các trường `fields`; thành công ⇒ cập nhật bản đã lưu và áp vào bản nháp — trường nào bản nháp đã khác
+   * `expected` (người dùng gõ tiếp trong lúc chờ) thì giữ chữ đang gõ. Dùng `mutateAsync` để MỖI lần gửi đều nhận kết quả
+   * (`mutate` chỉ gọi callback của lần gọi sau cùng).
+   */
   const mutateFields = useCallback(
-    (fields: Partial<ProductDraft>, prev: Partial<ProductDraft>, errorText: string, after?: () => void) => {
-      update.mutate(
-        { id: product.id, payload: fieldsToPayload(saved, fields) },
-        {
-          onSuccess: () => {
-            setSaved((s) => ({ ...s, ...fields }))
-            setDraft((d) => mergeIntoDraft(d, fields, prev))
-            after?.()
-          },
-          onError: (err) => toast.error(getApiErrorMessage(err, errorText)),
+    (fields: Partial<ProductDraft>, expected: Partial<ProductDraft>, errorText: string, after?: () => void) => {
+      update.mutateAsync({ id: product.id, payload: fieldsToPayload(fields) }).then(
+        () => {
+          setSaved((s) => ({ ...s, ...fields }))
+          setDraft((d) => mergeIntoDraft(d, fields, expected))
+          after?.()
         },
+        (err: unknown) => toast.error(getApiErrorMessage(err, errorText)),
       )
     },
-    [product.id, update, saved],
+    [product.id, update],
   )
 
-  /** Lưu `fields` rồi toast Hoàn tác — Hoàn tác chỉ trả lại đúng các trường đó. */
+  /** Lưu `fields` (giá trị cũ `prev`) rồi toast Hoàn tác — Hoàn tác chỉ trả lại đúng các trường đó. */
   const send = useCallback(
-    (fields: Partial<ProductDraft>, prev: Partial<ProductDraft>, message: string, onDone?: () => void) => {
-      mutateFields(fields, prev, "Lưu thất bại, thử lại sau", () => {
+    (fields: Partial<ProductDraft>, prev: Partial<ProductDraft>, expected: Partial<ProductDraft>, message: string, onDone?: () => void) => {
+      mutateFields(fields, expected, "Lưu thất bại, thử lại sau", () => {
         onDone?.()
-        showUndoToast(message, { onUndo: () => mutateFields(prev, fields, "Chưa hoàn tác được") })
+        showUndoToast(message, {
+          onUndo: () => {
+            // Trường đó đã được lưu lại lần nữa sau lần này ⇒ không hoàn tác đè lên bản mới hơn.
+            if (!sameFields(pickFields(savedRef.current, fields), fields)) {
+              toast.error("Đã có thay đổi mới hơn nên không hoàn tác lần lưu này")
+              return
+            }
+            mutateFields(prev, fields, "Chưa hoàn tác được")
+          },
+        })
       })
     },
     [mutateFields],
@@ -87,7 +104,7 @@ export function useProductEditor(product: Product) {
       }
       setShowErrors(false)
       const fields = changedFields(saved, draft)
-      send(fields, pickFields(saved, fields), "Đã lưu sản phẩm", onDone)
+      send(fields, pickFields(saved, fields), fields, "Đã lưu sản phẩm", onDone)
       return true
     },
     [changes, errors, send, draft, saved],
@@ -96,7 +113,8 @@ export function useProductEditor(product: Product) {
   /** Lưu NGAY một vài trường (đổi giá, ẩn/mở bán, ảnh) — chỉ gửi đúng các trường đó, không đụng phần nháp khác. */
   const quickSave = useCallback(
     (p: Partial<ProductDraft>, message: string, onDone?: () => void) => {
-      send(p, pickFields(saved, p), message, onDone)
+      const prev = pickFields(saved, p)
+      send(p, prev, prev, message, onDone)
     },
     [send, saved],
   )

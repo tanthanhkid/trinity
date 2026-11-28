@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { act, render, screen, fireEvent } from "@testing-library/react"
 
 /** Giao diện «Ánh xanh» của trang sản phẩm: bản nháp, thanh lưu desktop, màn xem nhanh điện thoại. */
-const updateMutate = vi.fn()
+const updateMutate = vi.fn((arg: unknown) => Promise.resolve(arg))
 vi.mock("@/hooks/use-projects", () => ({ useActiveProjects: () => ({ data: [] }) }))
 vi.mock("@/hooks/products/use-products", () => ({
-  useUpdateProduct: () => ({ mutate: updateMutate, isPending: false }),
+  useUpdateProduct: () => ({ mutateAsync: updateMutate, isPending: false }),
   useUploadProductImage: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 vi.mock("@/hooks/products/use-product-categories", () => ({
@@ -76,8 +76,8 @@ describe("product-draft", () => {
     expect(changedFields(d, { ...d, price: "990000" })).toEqual({ price: "990000" })
     expect(changedFields(d, { ...d, category_id: "2", attributes: {} })).toEqual({ category_id: "2" , attributes: {} })
     expect(changedFields(d, { ...d, category_id: "" })).toEqual({ category_id: "", attributes: {} })
-    expect(fieldsToPayload(d, { is_active: false })).toEqual({ is_active: false })
-    expect(fieldsToPayload(d, { price: "" })).toEqual({ price: null })
+    expect(fieldsToPayload({ is_active: false })).toEqual({ is_active: false })
+    expect(fieldsToPayload({ price: "" })).toEqual({ price: null })
     const typing = { ...d, name: "Đang gõ tiếp" }
     expect(mergeIntoDraft(typing, { name: "Tên lưu" }, { name: "Tên lưu" }).name).toBe("Đang gõ tiếp")
     expect(mergeIntoDraft(d, { is_active: false }, { is_active: true }).is_active).toBe(false)
@@ -116,15 +116,17 @@ describe("ProductEditorDesktop", () => {
 })
 
 describe("ProductMobile", () => {
-  it("ẩn/mở bán lưu NGAY; chỉ đọc thì không có nút sửa", () => {
+  it("ẩn/mở bán lưu NGAY; chỉ đọc thì không có nút sửa", async () => {
     const { unmount } = render(<ProductMobile product={P} canManage />)
     fireEvent.click(screen.getByRole("switch", { name: "Đang bán" }))
     expect(updateMutate.mock.calls[0][0]).toEqual({ id: 7, payload: { is_active: false } })
-    // Hoàn tác chỉ trả lại đúng trường vừa đổi.
-    updateMutate.mock.calls[0][1].onSuccess()
+    // Hoàn tác chỉ trả lại đúng trường vừa đổi; màn đã theo bản lưu.
+    await act(async () => {})
+    expect(screen.getByText("Đang ẩn khỏi quầy và cửa hàng")).toBeTruthy()
     const undo = undoToast.mock.calls[0][1] as { onUndo: () => void }
-    undo.onUndo()
+    await act(async () => undo.onUndo())
     expect(updateMutate.mock.calls[1][0]).toEqual({ id: 7, payload: { is_active: true } })
+    expect(screen.getByText("Hiện ở quầy và cửa hàng")).toBeTruthy()
     expect(screen.getByRole("button", { name: "Sửa toàn bộ thông tin" })).toBeTruthy()
     unmount()
     render(<ProductMobile product={P} canManage={false} />)

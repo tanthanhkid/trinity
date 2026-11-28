@@ -67,6 +67,15 @@ export function changedFields(from: ProductDraft, to: ProductDraft): Partial<Pro
   return out
 }
 
+export function sameFields(a: Partial<ProductDraft>, b: Partial<ProductDraft>): boolean {
+  return (Object.keys(b) as (keyof ProductDraft)[]).every((k) => sameValue(a[k], b[k]))
+}
+
+const EMPTY_DRAFT: ProductDraft = {
+  name: "", price: "", category_id: "", brand: "", color: "", tags: [], description: "", image_url: "",
+  is_featured: false, is_active: true, attributes: {},
+}
+
 /** Chỉ lấy giá trị cũ của đúng các khoá trong `fields` (để Hoàn tác). */
 export function pickFields(d: ProductDraft, fields: Partial<ProductDraft>): Partial<ProductDraft> {
   const out: Partial<ProductDraft> = {}
@@ -78,18 +87,18 @@ export function pickFields(d: ProductDraft, fields: Partial<ProductDraft>): Part
  * Payload PATCH CHỈ gồm các trường trong `fields` — không gửi lại cả bản (tránh ghi đè sửa của người khác và tránh BE
  * kiểm lại danh mục/thuộc tính khi chỉ đổi giá, ảnh, ẩn/mở bán).
  */
-export function fieldsToPayload(base: ProductDraft, fields: Partial<ProductDraft>): UpdateProductPayload {
-  const full = draftToPayload({ ...base, ...fields }) as Record<string, unknown>
+export function fieldsToPayload(fields: Partial<ProductDraft>): UpdateProductPayload {
+  const full = draftToPayload({ ...EMPTY_DRAFT, ...fields }) as Record<string, unknown>
   const out: Record<string, unknown> = {}
   for (const k of Object.keys(fields)) out[k] = full[k]
   return out as UpdateProductPayload
 }
 
-/** Áp `fields` vào bản nháp đang gõ: trường nào người dùng đã sửa tiếp (khác `prev`) thì giữ chữ đang gõ. */
-export function mergeIntoDraft(d: ProductDraft, fields: Partial<ProductDraft>, prev: Partial<ProductDraft>): ProductDraft {
+/** Áp `fields` vào bản nháp: trường nào bản nháp đã khác `expected` (người dùng gõ tiếp) thì giữ chữ đang gõ. */
+export function mergeIntoDraft(d: ProductDraft, fields: Partial<ProductDraft>, expected: Partial<ProductDraft>): ProductDraft {
   const next = { ...d } as Record<string, unknown>
   for (const k of Object.keys(fields) as (keyof ProductDraft)[]) {
-    if (sameValue(d[k], prev[k])) next[k] = fields[k]
+    if (sameValue(d[k], expected[k])) next[k] = fields[k]
   }
   return next as unknown as ProductDraft
 }

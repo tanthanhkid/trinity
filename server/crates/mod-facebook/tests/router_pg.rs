@@ -74,7 +74,7 @@ async fn app(feature_on: bool) -> Router {
         guards: Default::default(),
     });
     let (router, table) = api_router(deps).into_parts();
-    assert_eq!(table.len(), 34);
+    assert_eq!(table.len(), 35);
     router.with_state(state)
 }
 
@@ -188,6 +188,90 @@ async fn quyen_va_tinh_nang_to_chuc() {
     assert_eq!(r.status.as_u16(), 404);
     let r = call(&a, Method::GET, &format!("{B}/broadcasts/abc"), Some(ADMIN), None).await;
     assert_eq!(r.status.as_u16(), 400);
+    teardown().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres"]
+async fn huong_dan_quan_tri_page_chi_soan_khong_gui() {
+    setup().await;
+    let a = app(true).await;
+    let id: i32 = {
+        let mut c = PgConnection::connect(&url()).await.unwrap();
+        sqlx::query_scalar("SELECT id FROM facebook_pages WHERE page_id = 'xrfp'")
+            .fetch_one(&mut c)
+            .await
+            .unwrap()
+    };
+    let path = format!("{B}/pages/{id}/admin-guide");
+    // Đăng nhập + quyền integrations.webhooks.
+    assert_eq!(call(&a, Method::POST, &path, None, Some(json!({}))).await.status, 401);
+    assert_eq!(
+        call(&a, Method::POST, &path, Some(NOBODY), Some(json!({})))
+            .await
+            .status,
+        403
+    );
+    // Soạn: tên Page thật, lời chào theo người nhận, không gửi gì.
+    let r = call(
+        &a,
+        Method::POST,
+        &path,
+        Some(ADMIN),
+        Some(json!({ "recipient": " Chị Lan ", "note": "Cảm ơn chị." })),
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 200, "{}", r.body);
+    assert_eq!(r.body["sent"], json!(false));
+    assert_eq!(r.body["page_id"], json!("xrfp"));
+    assert_eq!(r.body["recipient"], json!("Chị Lan"));
+    let text = r.body["text"].as_str().unwrap();
+    assert!(
+        text.starts_with("Chào Chị Lan,") && text.contains("\"Quán XRF\""),
+        "{text}"
+    );
+    assert_eq!(r.body["steps"].as_array().unwrap().len(), 3);
+    assert_eq!(r.body["manage_url"], Value::Null);
+    // Không body ⇒ vẫn soạn được; Page đã tắt vẫn soạn được (nối lại là lúc cần).
+    exec("UPDATE facebook_pages SET is_active = false WHERE page_id = 'xrfp'").await;
+    let r = call(&a, Method::POST, &path, Some(ADMIN), None).await;
+    assert_eq!(r.status.as_u16(), 200, "{}", r.body);
+    // Body sai ⇒ 400; Page lạ ⇒ 404; id ngoài int4 ⇒ 404 (như các route Page khác); id chữ ⇒ 400.
+    let r = call(
+        &a,
+        Method::POST,
+        &path,
+        Some(ADMIN),
+        Some(json!({ "recipient": 5, "x": 1 })),
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 400, "{}", r.body);
+    let r = call(
+        &a,
+        Method::POST,
+        &format!("{B}/pages/2147483647/admin-guide"),
+        Some(ADMIN),
+        Some(json!({})),
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 404);
+    let r = call(
+        &a,
+        Method::POST,
+        &format!("{B}/pages/abc/admin-guide"),
+        Some(ADMIN),
+        Some(json!({})),
+    )
+    .await;
+    assert_eq!(r.status.as_u16(), 400);
+    // Tính năng tổ chức tắt ⇒ 403.
+    let off = app(false).await;
+    assert_eq!(
+        call(&off, Method::POST, &path, Some(ADMIN), Some(json!({})))
+            .await
+            .status,
+        403
+    );
     teardown().await;
 }
 

@@ -40,7 +40,7 @@ use crate::{chat_links, comments};
 
 const ID: &[&str] = &["param.id:ParseIntPipe"];
 
-/// Mọi route Facebook đã có service (34): kết nối và hộp thư (17), bình luận (7), gửi hàng loạt (9), `tick`. 6 route `flows` ở `flows::flow_routes`
+/// Mọi route Facebook đã có service (35): kết nối và hộp thư (18), bình luận (7), gửi hàng loạt (9), `tick`. 6 route `flows` ở `flows::flow_routes`
 /// (M50b). `trinity-bin` khai bảng này.
 pub fn routes() -> Vec<RouteSpec> {
     let mut v = connect_routes();
@@ -71,6 +71,7 @@ pub fn connect_routes() -> Vec<RouteSpec> {
         r(Method::GET, "/api/v1/facebook/pages", 200),
         r(Method::PATCH, "/api/v1/facebook/pages/:id", 200).param_pipes(ID),
         r(Method::POST, "/api/v1/facebook/pages/:id/check", 200).param_pipes(ID),
+        r(Method::POST, "/api/v1/facebook/pages/:id/admin-guide", 200).param_pipes(ID),
         r(Method::DELETE, "/api/v1/facebook/pages/:id", 204).param_pipes(ID),
         // Hộp thư Messenger (M48).
         r(Method::GET, "/api/v1/facebook/conversations", 200),
@@ -369,6 +370,30 @@ async fn check(
         let _ = s.ingest.refresh_missing_names(company, &p.page_id).await;
     }
     ok(page)
+}
+
+/// Soạn hướng dẫn nối lại Page cho quản trị viên Page. Không gửi gì ra ngoài: người gọi nhận văn bản rồi tự chuyển đi.
+async fn admin_guide(
+    State(s): State<Arc<FacebookState>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(id): Path<String>,
+    JsonBody(body): JsonBody,
+) -> Response {
+    let company = company!(u);
+    let id = match id_of(&id) {
+        Ok(id) => id,
+        Err(e) => return fail(e),
+    };
+    let input = match crate::admin_guide::GuideInput::from_json(&body) {
+        Ok(i) => i,
+        Err(e) => return fail(e),
+    };
+    let guide = async {
+        let mut conn = tenant_conn(&s.db, company).await?;
+        crate::admin_guide::build(&mut conn, crate::admin_guide::PageKey::Id(id), &input, &s.env).await
+    }
+    .await;
+    ok(guide)
 }
 
 async fn disconnect(
@@ -915,7 +940,7 @@ async fn tick(State(s): State<Arc<FacebookState>>, Extension(u): Extension<Curre
     ok(s.ingest.facebook_tick(company, chrono::Utc::now()).await)
 }
 
-/// Router của module: 34 route, quyền và mã thành công khớp `routes.json`.
+/// Router của module: 35 route, quyền và mã thành công khớp `routes.json`.
 pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<FacebookState>> {
     let table = routes();
     let spec = |m: &Method, p: &str| {
@@ -931,6 +956,7 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<FacebookState>> {
         .route(spec(&Method::GET, "/api/v1/facebook/pages"), list)
         .route(spec(&Method::PATCH, "/api/v1/facebook/pages/:id"), update)
         .route(spec(&Method::POST, "/api/v1/facebook/pages/:id/check"), check)
+        .route(spec(&Method::POST, "/api/v1/facebook/pages/:id/admin-guide"), admin_guide)
         .route(spec(&Method::DELETE, "/api/v1/facebook/pages/:id"), disconnect)
         .route(spec(&Method::GET, "/api/v1/facebook/oauth/callback"), callback)
         .route(spec(&Method::GET, "/api/v1/facebook/webhook"), webhook_verify)
@@ -973,9 +999,9 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = routes();
-        assert_eq!(table.len(), 34);
+        assert_eq!(table.len(), 35);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 34);
+        assert_eq!(rep.declared, 35);
     }
 }

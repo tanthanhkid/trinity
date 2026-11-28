@@ -8,7 +8,7 @@ use serde_json::{Map, Value, json};
 use super::*;
 use crate::frozen::TOOLS_JSON;
 
-const TOOLS: [&str; 15] = [
+const TOOLS: [&str; 16] = [
     "list_facebook_comments",
     "list_facebook_comment_rules",
     "create_comment_rule",
@@ -16,6 +16,7 @@ const TOOLS: [&str; 15] = [
     "test_comment_rule",
     "list_chat_links",
     "create_chat_link",
+    "get_page_admin_guide",
     "list_message_flows",
     "create_message_flow",
     "update_message_flow",
@@ -258,10 +259,10 @@ fn doi_tuong_nhan_va_danh_sach_sach() {
 }
 
 #[test]
-fn dang_ky_dung_15_tool_khong_co_xoa() {
+fn dang_ky_dung_16_tool_khong_co_xoa() {
     let mut r = ToolRegistry::new();
     register_fanpage(&mut r, Arc::new(FanpagePorts::default()));
-    assert_eq!(r.len(), 15);
+    assert_eq!(r.len(), 16);
     let frozen: Value = serde_json::from_str(TOOLS_JSON).unwrap();
     let names: Vec<&str> = frozen["tools"]
         .as_array()
@@ -272,7 +273,7 @@ fn dang_ky_dung_15_tool_khong_co_xoa() {
     for n in TOOLS {
         let spec = r.get(n).unwrap_or_else(|| panic!("thiếu {n}"));
         assert!(names.contains(&n), "{n} không có trong hợp đồng");
-        let read_only = n.starts_with("list_") || n == "test_comment_rule";
+        let read_only = n.starts_with("list_") || n == "test_comment_rule" || n == "get_page_admin_guide";
         assert_eq!(spec.scope.is_none(), read_only, "{n}: scope");
         assert!(!n.contains("delete") && !n.contains("remove"), "{n}");
     }
@@ -281,6 +282,89 @@ fn dang_ky_dung_15_tool_khong_co_xoa() {
         r.get("send_messenger_broadcast").unwrap().permissions,
         &["integrations.webhooks"]
     );
+}
+
+// ------------------------------------------------------------------ hướng dẫn quản trị viên Page
+
+struct FakeGuide(Mutex<Vec<(String, Option<String>, Option<String>)>>);
+
+impl AdminGuidePort for FakeGuide {
+    fn compose<'a>(
+        &'a self,
+        _c: CompanyRef,
+        page_id: &'a str,
+        recipient: Option<String>,
+        note: Option<String>,
+    ) -> PortFut<'a, Value> {
+        self.0
+            .lock()
+            .unwrap()
+            .push((page_id.to_owned(), recipient.clone(), note.clone()));
+        Box::pin(async move { Ok(json!({ "page_id": page_id, "text": "Chào", "sent": false })) })
+    }
+}
+
+#[tokio::test]
+async fn huong_dan_quan_tri_page_chi_soan_khong_gui() {
+    let g = Arc::new(FakeGuide(Mutex::default()));
+    let p = FanpagePorts {
+        pages: Some(Arc::new(FakePages)),
+        admin_guide: Some(g.clone()),
+        ..FanpagePorts::default()
+    };
+    // Một Page đang bật ⇒ không cần page_id; khoảng trắng ở tên/lời nhắn bị bỏ.
+    let d = data(get_page_admin_guide(&p, &json!({ "recipient": " Chị Lan ", "note": "  " }), &env()).await);
+    assert_eq!(d["sent"], json!(false));
+    assert!(d["next_step"].as_str().unwrap().contains("Trinity không gửi gì"));
+    assert_eq!(
+        g.0.lock().unwrap().as_slice(),
+        &[("111".to_owned(), Some("Chị Lan".to_owned()), None)]
+    );
+    // Có page_id thì dùng đúng page_id đó.
+    data(get_page_admin_guide(&p, &json!({ "page_id": "999" }), &env()).await);
+    assert_eq!(g.0.lock().unwrap()[1].0, "999");
+    // Port vắng ⇒ báo chưa có tính năng.
+    let e = get_page_admin_guide(&FanpagePorts::default(), &json!({}), &env())
+        .await
+        .err()
+        .unwrap();
+    assert!(user_msg(e).contains("hướng dẫn quản trị viên Page"));
+}
+
+struct TwoPages;
+
+impl PagesPort for TwoPages {
+    fn pages(&self, _c: CompanyRef) -> PortFut<'_, Vec<PageRef>> {
+        Box::pin(async {
+            Ok(vec![
+                PageRef {
+                    page_id: "111".into(),
+                    name: "Shop A".into(),
+                    is_active: true,
+                },
+                PageRef {
+                    page_id: "222".into(),
+                    name: "Shop B".into(),
+                    is_active: false,
+                },
+            ])
+        })
+    }
+}
+
+#[tokio::test]
+async fn huong_dan_quan_tri_page_khong_tu_chon_khi_co_page_da_ngat() {
+    let g = Arc::new(FakeGuide(Mutex::default()));
+    let p = FanpagePorts {
+        pages: Some(Arc::new(TwoPages)),
+        admin_guide: Some(g.clone()),
+        ..FanpagePorts::default()
+    };
+    // Một Page bật + một Page đã ngắt (chính là Page cần nối lại) ⇒ không đoán, liệt kê cả Page đã ngắt.
+    let e = get_page_admin_guide(&p, &json!({}), &env()).await.err().unwrap();
+    let m = user_msg(e);
+    assert!(m.contains("Shop B = 222 (đã ngắt)"), "{m}");
+    assert!(g.0.lock().unwrap().is_empty());
 }
 
 // ------------------------------------------------------------------ gửi hàng loạt

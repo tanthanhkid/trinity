@@ -21,7 +21,7 @@ import {
   pageState,
   type FbTone,
 } from "./facebook-page-state"
-import { TOKEN_STATUS_LABELS, useFacebookPageMutations, type FacebookPageView } from "./use-facebook"
+import { TOKEN_STATUS_LABELS, useAdminGuide, useFacebookPageMutations, type FacebookAdminGuide, type FacebookPageView } from "./use-facebook"
 import { apiErrorMessage, type SimpleOption } from "./webhook-types"
 
 const TEXT: Record<FbTone | "info", string> = { ok: "text-ax-success", bad: "text-ax-danger", off: "text-ax-ink-2", warn: "text-ax-warn", info: "text-ax-ink-2" }
@@ -289,8 +289,46 @@ const GUIDE_STEPS: Array<[string, string]> = [
 ]
 const GUIDE_PERMS = ["Đọc và trả lời tin nhắn Messenger", "Nhận khách từ Lead Ads", "Đọc bình luận trên bài viết", "Đăng bài lên Page (không bắt buộc)"]
 
-/** ketnoi-mobile2: hướng dẫn ba bước trước khi mở hộp thoại Facebook. (Gửi hướng dẫn cho quản trị viên Page: PR riêng.) */
+/** Mở bảng chia sẻ (gọi ngay trong cú chạm, trước mọi `await`), không có hoặc bị chặn thì chép vào bộ nhớ tạm. */
+async function deliverGuide(g: FacebookAdminGuide) {
+  if (typeof navigator.share === "function") {
+    try {
+      await navigator.share({ title: `Nối lại Fanpage ${g.page_name}`, text: g.text })
+      return
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(g.text)
+    toast.success("Đã chép hướng dẫn. Dán vào Zalo hoặc tin nhắn để gửi cho quản trị viên Page.")
+  } catch {
+    toast.error("Không chép được hướng dẫn. Bạn thử lại hoặc dùng điện thoại khác.")
+  }
+}
+
+/**
+ * «Gửi hướng dẫn cho quản trị viên Page»: máy chủ soạn văn bản (không gửi gì) ngay khi mở màn, điện thoại mở bảng chia sẻ để người
+ * dùng chọn Zalo, Messenger, mail…; không có bảng chia sẻ (hoặc bị chặn) thì chép vào bộ nhớ tạm. Đóng bảng chia sẻ ⇒ không báo gì.
+ */
+function useSendGuide(page: FacebookPageView) {
+  const guide = useAdminGuide(page.id)
+  const send = () => {
+    if (guide.data) {
+      void deliverGuide(guide.data)
+      return
+    }
+    void guide.refetch().then((r) => {
+      if (r.data) void deliverGuide(r.data)
+      else toast.error(apiErrorMessage(r.error, "Chưa soạn được hướng dẫn"))
+    })
+  }
+  return { send, pending: guide.isFetching && !guide.data }
+}
+
+/** ketnoi-mobile2: hướng dẫn ba bước trước khi mở hộp thoại Facebook, kèm gửi hướng dẫn cho quản trị viên Page. */
 function MobileGuide({ page, onBack, onReconnect, reconnecting }: { page: FacebookPageView; onBack: () => void; onReconnect: () => void; reconnecting: boolean }) {
+  const sender = useSendGuide(page)
   return (
     <div data-testid="fb-guide">
       <div className="flex items-center px-2 pt-3">
@@ -318,7 +356,10 @@ function MobileGuide({ page, onBack, onReconnect, reconnecting }: { page: Facebo
       </div>
       <p className="mx-8 mt-3 text-[13px] leading-snug text-ax-ink-3">Thiếu một quyền thì Page vẫn nối được nhưng sẽ không nhận đủ tin. Trinity báo rõ quyền nào thiếu.</p>
       <StickyActionBar layout="mobile">
-        <Button variant="ax-primary" size="ax-lg" onClick={onReconnect} disabled={reconnecting}>{reconnecting && <Spinner />}{reconnecting ? "Đang mở Facebook" : "Mở Facebook để nối lại"}</Button>
+        <div className="flex w-full flex-col gap-1">
+          <Button variant="ax-primary" size="ax-lg" onClick={onReconnect} disabled={reconnecting}>{reconnecting && <Spinner />}{reconnecting ? "Đang mở Facebook" : "Mở Facebook để nối lại"}</Button>
+          <Button variant="ax-ghost" size="ax-lg" onClick={sender.send} disabled={sender.pending} className="h-12 text-[15px] font-normal text-ax-ink-2">{sender.pending && <Spinner />}Gửi hướng dẫn cho quản trị viên Page</Button>
+        </div>
       </StickyActionBar>
     </div>
   )

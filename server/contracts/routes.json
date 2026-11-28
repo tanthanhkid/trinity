@@ -3949,6 +3949,38 @@
       "guards": [
         "OrgFeatureGuard"
       ],
+      "handler": "adminGuide",
+      "headers": {},
+      "interceptors": [],
+      "method": "POST",
+      "min_samples": 50,
+      "org_feature": "facebook_page",
+      "param_pipes": [
+        "param.id:ParseIntPipe"
+      ],
+      "path": "/api/v1/facebook/pages/:id/admin-guide",
+      "permission_mode": "all",
+      "permissions": [
+        "integrations.webhooks"
+      ],
+      "raw_response": false,
+      "res_passthrough": false,
+      "safe_for_shadow": false,
+      "shape_permissions": [],
+      "status_ok": 200,
+      "transforms": [],
+      "upload": null,
+      "validation": "strict"
+    },
+    {
+      "access": "can",
+      "body_limit_bytes": 5242880,
+      "cached": false,
+      "controller": "FacebookController",
+      "deprecated": false,
+      "guards": [
+        "OrgFeatureGuard"
+      ],
       "handler": "check",
       "headers": {},
       "interceptors": [],

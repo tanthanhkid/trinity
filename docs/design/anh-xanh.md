@@ -171,7 +171,7 @@ Danh sách + hồ sơ: desktop (≥1024px) hai cột (danh sách 380px | hồ s�
 - **Kết nối › Fanpage Facebook** (`/connections?muc=facebook`, `ketnoi-desktop/mobile/mobile2`): `facebook-page-view.tsx` (hai bố cục
   tách theo `useIsWide()` = 1024px, không phải CSS co giãn), `facebook-page-state.ts` (trạng thái/ba dòng tình trạng/nhật ký suy từ trường thật của Page).
   Desktop: khối nhấn trạng thái + «Cách nhận khách» sửa nháp rồi **Lưu cấu hình** (một PATCH) kèm Hoàn tác; điện thoại: công tắc/người nhận lưu ngay + Hoàn tác,
-  hướng dẫn nối lại 3 bước (mobile2); «Thêm Fanpage» (thiết kế điện thoại không vẽ) giữ ở cuối danh sách công cụ. «Gửi hướng dẫn cho quản trị viên Page» chưa có (PR riêng, cần API + tool MCP).
+  hướng dẫn nối lại 3 bước (mobile2); «Thêm Fanpage» (thiết kế điện thoại không vẽ) giữ ở cuối danh sách công cụ. «Gửi hướng dẫn cho quản trị viên Page» (mobile2) soạn sẵn bằng `POST /facebook/pages/:id/admin-guide` (`useAdminGuide`) khi mở màn, bấm thì chuyển văn bản qua `navigator.share` hoặc chép vào bộ nhớ tạm; không gửi gì từ máy chủ (docs/integrations/facebook-comments.md).
 
 ## Màn Sản phẩm (`/products`, `/products/[id]`)
 

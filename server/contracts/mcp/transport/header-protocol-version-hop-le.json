@@ -10177,6 +10177,63 @@
             ],
             "additionalProperties": false
           }
+        },
+        {
+          "name": "get_page_admin_guide",
+          "title": "Soạn hướng dẫn nối lại Fanpage cho quản trị viên Page / Compose Page admin guide",
+          "description": "Soạn sẵn lời nhắn hướng dẫn quản trị viên của một Fanpage nối lại Page với Trinity (ba bước và các quyền cần cấp) để người dùng tự gửi cho họ. Chỉ soạn văn bản: Trinity KHÔNG gửi gì cho ai và không ghi dữ liệu nào; hãy đưa nguyên văn text cho người dùng. Bỏ trống page_id khi công ty chỉ có một Fanpage; có nhiều Fanpage thì lỗi trả về liệt kê page_id của từng Page, kể cả Page đã ngắt kết nối. recipient = tên người nhận để chào, note = lời nhắn thêm. / Composes a ready-to-send message that tells a Facebook Page admin how to reconnect the Page to Trinity (three steps and the permissions to grant). It only drafts the text: nothing is sent or stored. Hand the text to the user.",
+          "inputSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "page_id": {
+                "description": "page_id Fanpage; bỏ trống khi công ty chỉ có một Page / Facebook Page id",
+                "type": "string",
+                "maxLength": 40
+              },
+              "recipient": {
+                "description": "Tên người nhận để chào, vd \"Chị Lan\" / Recipient name for the greeting",
+                "type": "string",
+                "maxLength": 120
+              },
+              "note": {
+                "description": "Lời nhắn thêm ở cuối / Extra note appended to the message",
+                "type": "string",
+                "maxLength": 500
+              }
+            }
+          },
+          "annotations": {
+            "title": "Soạn hướng dẫn nối lại Fanpage cho quản trị viên Page / Compose Page admin guide",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          },
+          "outputSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "notice": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "notice",
+              "data"
+            ],
+            "additionalProperties": false
+          }
         }
       ]
     },

@@ -229,6 +229,27 @@ async fn link_chat_tao_va_liet_ke() {
 
 #[tokio::test]
 #[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
+async fn huong_dan_quan_tri_page_soan_theo_page_id_facebook() {
+    let _g = serial().lock().await;
+    let f = setup().await;
+    let ports = fanpage_deps(f.ingest.clone(), false, None, None);
+    let g = ports.admin_guide.as_ref().unwrap();
+    let d = g
+        .compose(f.company, "fp44p", Some("Chị Lan".into()), None)
+        .await
+        .unwrap();
+    assert_eq!(
+        (d["sent"].clone(), d["page_name"].clone()),
+        (json!(false), json!("Quán FP44"))
+    );
+    assert!(d["text"].as_str().unwrap().starts_with("Chào Chị Lan,"));
+    // Page lạ ⇒ câu nghiệp vụ (404 của dịch vụ), không phải lỗi hệ thống.
+    let e = g.compose(f.company, "fp44-khong-co", None, None).await.unwrap_err();
+    assert!(matches!(e, ToolError::User(_)), "{e:?}");
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres: đặt TEST_DATABASE_URL rồi chạy với --ignored"]
 async fn gui_hang_loat_kiem_tao_gui_huy() {
     let _g = serial().lock().await;
     let f = setup().await;

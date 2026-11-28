@@ -21,7 +21,10 @@ describe("make-sw", () => {
 describe("writeServiceWorker", () => {
   it("điền đủ mã build/precache/trang, không sót chỗ giữ chỗ, script hợp lệ", () => {
     const out = mkdtempSync(join(tmpdir(), "sw-out-"))
+    // Thư mục "AAA" (đứng đầu theo thứ tự) không phải build id; chỉ thư mục có _buildManifest.js mới đúng.
+    mkdirSync(join(out, "_next", "static", "AAA"), { recursive: true })
     mkdirSync(join(out, "_next", "static", "BUILDX"), { recursive: true })
+    writeFileSync(join(out, "_next", "static", "BUILDX", "_buildManifest.js"), "")
     writeFileSync(join(out, "dashboard.html"), '<script src="/_next/static/chunks/a.js"></script>')
     writeFileSync(join(out, "login.html"), '<script src="/_next/static/chunks/b.js"></script>')
     const r = writeServiceWorker(out)

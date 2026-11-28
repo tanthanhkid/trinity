@@ -4,11 +4,14 @@
  * và danh sách trang sau `next build` rồi ghi ra `out/sw.js`. Rust phục vụ `/sw.js` với `Cache-Control: no-cache`.
  *
  * - `/_next/static/*` (tên có hash, bất biến): cache-first. Chunk của các màn chính được precache lúc cài.
- * - HTML (điều hướng) và payload RSC `.txt`: stale-while-revalidate — vẽ ngay bản đã lưu, tải bản mới ngầm cho lần sau.
+ * - HTML (điều hướng) và payload RSC `.txt`: mạng trước với hạn ngắn (~1,5 giây) rồi mới tới bản đã lưu — sau deploy luôn
+ *   nhận HTML mới (không trỏ tới chunk đã mất); mạng chậm/đứt thì dùng bản đã lưu. Tối đa 100 mục.
  * - KHÔNG bao giờ đụng `/api`, `/notif-ws`, `/uploads`, `/docs`, `/.well-known`, `/health`... (đi thẳng mạng), và không cache
  *   phản hồi chuyển hướng/lỗi (người chưa đăng nhập bị chuyển về /login không bị kẹt trang cũ).
- * - Bản mới: skipWaiting + clients.claim, xoá mọi cache của bản cũ khi activate (không kẹt bản cũ).
- * - Tắt khẩn: tạo tệp `sw-kill` cạnh `out/` ⇒ Rust trả `/sw.js` dạng tự huỷ (xoá cache, huỷ đăng ký, tải lại tab).
+ * - Bản mới: skipWaiting + clients.claim. Giữ cache chunk của bản LIỀN TRƯỚC (tab cũ còn cần chunk tải lười), chỉ xoá
+ *   các bản cũ hơn; HTML chỉ dùng cache của bản hiện tại.
+ * - Tắt khẩn: đặt `TRINITY_SW_KILL=1` hoặc tạo tệp `sw-kill` CẠNH `out/` (không trong đó: build xoá `out/`) ⇒ Rust trả
+ *   `/sw.js` dạng tự huỷ (xoá cache, huỷ đăng ký, tải lại tab).
  *   Tin nhắn `{type:'clear-pages'}` (gửi khi đăng xuất) xoá bộ nhớ HTML.
  */
 const BUILD_ID = '__BUILD_ID__'
@@ -16,6 +19,9 @@ const PRECACHE = __PRECACHE__
 const PAGES = __PAGES__
 const STATIC = 'trinity-static-' + BUILD_ID
 const PAGE_CACHE = 'trinity-pages-' + BUILD_ID
+const META = 'trinity-meta'
+const NAV_TIMEOUT_MS = 1500
+const PAGE_MAX = 100
 const BYPASS = ['/api', '/notif-ws', '/uploads', '/docs', '/.well-known', '/health', '/ready', '/live', '/internal', '/metrics', '/sw.js', '/sw-kill', '/oauth', '/assistant', '/s']
 
 function bypass(path) {
@@ -51,8 +57,24 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      const keep = new Set([STATIC, PAGE_CACHE])
-      for (const k of await caches.keys()) if (k.startsWith('trinity-') && !keep.has(k)) await caches.delete(k)
+      // Lịch sử build đã kích hoạt (cũ → mới): giữ bản hiện tại + bản liền trước.
+      const meta = await caches.open(META)
+      let hist = []
+      try {
+        const r = await meta.match('history')
+        if (r) hist = await r.json()
+      } catch (e) {
+        hist = []
+      }
+      hist = hist.filter((x) => x !== BUILD_ID).concat(BUILD_ID).slice(-2)
+      await meta.put('history', new Response(JSON.stringify(hist)))
+      const keepStatic = new Set(hist.map((id) => 'trinity-static-' + id))
+      const keepPages = new Set([PAGE_CACHE])
+      for (const k of await caches.keys()) {
+        if (k === META) continue
+        if (k.startsWith('trinity-static-') && !keepStatic.has(k)) await caches.delete(k)
+        else if (k.startsWith('trinity-pages-') && !keepPages.has(k)) await caches.delete(k)
+      }
       await self.clients.claim()
     })(),
   )
@@ -66,7 +88,7 @@ self.addEventListener('message', (event) => {
 
 async function cacheFirst(req) {
   const cache = await caches.open(STATIC)
-  const hit = await cache.match(req)
+  const hit = (await cache.match(req)) || (await caches.match(req))
   if (hit) return hit
   const res = await fetch(req)
   if (res.ok && res.type === 'basic') cache.put(req, res.clone())
@@ -78,24 +100,29 @@ function pageKey(url) {
   return new Request(url.origin + url.pathname)
 }
 
-async function staleWhileRevalidate(event, req, key) {
+async function trimPages(cache) {
+  const keys = await cache.keys()
+  for (let i = 0; i < keys.length - PAGE_MAX; i++) await cache.delete(keys[i])
+}
+
+/** Mạng trước (hạn NAV_TIMEOUT_MS) rồi tới bản đã lưu; lưu bản mới khi mạng trả 200 thật. */
+async function networkFirst(event, req, key) {
   const cache = await caches.open(PAGE_CACHE)
+  const network = fetch(req).then((res) => {
+    // Chỉ lưu trang 200 thật: không lưu chuyển hướng (opaqueredirect), 404, 5xx.
+    if (res.status === 200 && res.type === 'basic') {
+      const copy = res.clone()
+      event.waitUntil(cache.put(key, copy).then(() => trimPages(cache)).catch(() => {}))
+    }
+    return res
+  })
   const cached = await cache.match(key)
-  const network = fetch(req)
-    .then((res) => {
-      // Chỉ lưu trang 200 thật: không lưu chuyển hướng (opaqueredirect), 404, 5xx.
-      if (res.status === 200 && res.type === 'basic') cache.put(key, res.clone())
-      return res
-    })
-    .catch((err) => {
-      if (cached) return cached
-      throw err
-    })
-  if (cached) {
-    event.waitUntil(network.catch(() => {}))
-    return cached
-  }
-  return network
+  if (!cached) return network
+  const timeout = new Promise((resolve) => setTimeout(() => resolve(cached), NAV_TIMEOUT_MS))
+  // Mạng lỗi ⇒ bản đã lưu; mạng quá chậm ⇒ bản đã lưu (mạng vẫn chạy ngầm để làm mới cache).
+  const safe = network.catch(() => cached)
+  event.waitUntil(network.catch(() => {}))
+  return Promise.race([safe, timeout])
 }
 
 self.addEventListener('fetch', (event) => {
@@ -110,11 +137,11 @@ self.addEventListener('fetch', (event) => {
     return
   }
   if (req.mode === 'navigate') {
-    event.respondWith(staleWhileRevalidate(event, req, pageKey(url)))
+    event.respondWith(networkFirst(event, req, pageKey(url)))
     return
   }
   // Payload RSC của điều hướng phía client (`/x/__next.*.txt`): cùng bản build với HTML ⇒ cùng cách.
   if (path.endsWith('.txt') && path.includes('/__next.')) {
-    event.respondWith(staleWhileRevalidate(event, req, new Request(url.origin + path)))
+    event.respondWith(networkFirst(event, req, new Request(url.origin + path)))
   }
 })

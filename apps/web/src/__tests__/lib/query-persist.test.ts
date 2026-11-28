@@ -6,8 +6,9 @@ vi.mock("@/lib/local-cache", () => ({
   idbGet: async (k: string) => store.get(k),
   idbSet: async (k: string, v: unknown) => void store.set(k, v),
   idbDelete: async (k: string) => void store.delete(k),
-  setWipeHook: () => {},
+  onWipe: () => () => {},
 }))
+vi.mock("@/lib/token-storage", () => ({ getAccessToken: () => "tok" }))
 
 import { PERSIST_BUSTER, PERSIST_MAX_AGE_MS, persistKey, restoreQueries, shouldPersistQuery, startPersisting } from "@/lib/query-persist"
 
@@ -53,6 +54,15 @@ describe("query-persist", () => {
     const other = new QueryClient()
     expect(await restoreQueries(other, { userId: 2, companyId: 1 })).toBe(false)
     expect(other.getQueryData(["contacts", "recent"])).toBeUndefined()
+  })
+
+  it("không hydrate khi effect đã dọn (đăng xuất/đổi người giữa chừng)", async () => {
+    store.set("rq:1:1", { buster: PERSIST_BUSTER, savedAt: Date.now(), state: { mutations: [], queries: [{ queryKey: ["x"], queryHash: '["x"]', state: { data: 1, dataUpdateCount: 1, dataUpdatedAt: Date.now(), error: null, errorUpdateCount: 0, errorUpdatedAt: 0, fetchFailureCount: 0, fetchFailureReason: null, fetchMeta: null, isInvalidated: false, status: "success", fetchStatus: "idle" } }] } })
+    const c = new QueryClient()
+    expect(await restoreQueries(c, { userId: 1, companyId: 1 }, () => true)).toBe(false)
+    expect(c.getQueryData(["x"])).toBeUndefined()
+    expect(await restoreQueries(c, { userId: 1, companyId: 1 })).toBe(true)
+    expect(c.getQueryData(["x"])).toBe(1)
   })
 
   it("bỏ cache hết hạn hoặc khác buster", async () => {

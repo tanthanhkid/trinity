@@ -229,7 +229,17 @@ async fn head_khong_co_than_nhung_co_do_dai() {
 
 #[tokio::test]
 async fn sw_js_khong_can_cookie_va_khong_cache() {
-    let (svc, dir) = service("sw", None);
+    // `sw-kill` nằm cạnh `WEB_DIR` (không trong đó): dựng cây riêng để không đụng test khác.
+    let base = std::env::temp_dir().join(format!("trinity-web-sw-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let dir = base.join("out");
+    std::fs::create_dir_all(&dir).unwrap();
+    let svc = WebService::new(WebConfig {
+        dir: dir.clone(),
+        store_domain: None,
+        site_config: json!({}),
+        build_id: "abc123".to_owned(),
+    });
     // Chưa có sw.js (build cũ): trả bản tự huỷ để Service Worker đã cài tự gỡ.
     let r = svc.serve(get("/sw.js", "app.test", None)).await;
     assert_eq!(r.status(), StatusCode::OK);
@@ -243,11 +253,11 @@ async fn sw_js_khong_can_cookie_va_khong_cache() {
     std::fs::write(dir.join("sw.js"), "const BUILD_ID='x'").unwrap();
     let r = svc.serve(get("/sw.js", "app.test", None)).await;
     assert_eq!(text(r).await, "const BUILD_ID='x'");
-    // Tệp sw-kill ⇒ tắt khẩn.
-    std::fs::write(dir.join("sw-kill"), "").unwrap();
+    // Tệp sw-kill cạnh out/ ⇒ tắt khẩn (build xoá out/ nhưng không đụng tệp này).
+    std::fs::write(base.join("sw-kill"), "").unwrap();
     let r = svc.serve(get("/sw.js", "app.test", None)).await;
     assert!(text(r).await.contains("unregister"));
-    let _ = std::fs::remove_dir_all(dir);
+    let _ = std::fs::remove_dir_all(base);
 }
 
 #[tokio::test]

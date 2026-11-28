@@ -78,7 +78,8 @@ pub struct WebService {
 }
 
 const NO_STORE: &str = "no-store, must-revalidate";
-/// Service Worker (`/sw.js`) luôn được trình duyệt hỏi lại; tắt khẩn bằng tệp `sw-kill` trong `WEB_DIR`.
+/// Service Worker (`/sw.js`) luôn được trình duyệt hỏi lại. Tắt khẩn: biến môi trường `TRINITY_SW_KILL=1`, hoặc tệp
+/// `sw-kill` NGOÀI `WEB_DIR` (cạnh nó: `<WEB_DIR>/../sw-kill`) — build xoá sạch `out/` nên tệp đặt trong đó sẽ mất.
 const SW_PATH: &str = "/sw.js";
 const SW_KILL_FILE: &str = "sw-kill";
 /// Bản tự huỷ: xoá mọi cache `trinity-*`, huỷ đăng ký, tải lại các tab để về bản không qua Service Worker.
@@ -151,12 +152,14 @@ impl WebService {
             .await
     }
 
-    /// `/sw.js`: không qua luật chuyển hướng theo cookie (trình duyệt tải script không kèm phiên). Có `sw-kill` hoặc không
+    /// `/sw.js`: không qua luật chuyển hướng theo cookie (trình duyệt tải script không kèm phiên). Có kill (xem `SW_KILL_FILE`) hoặc không
     /// có tệp ⇒ trả bản tự huỷ để các Service Worker đã cài tự gỡ.
     async fn sw_response(&self, head: bool) -> Response {
         let dir = self.assets.root().to_path_buf();
         let body = tokio::task::spawn_blocking(move || {
-            if dir.join(SW_KILL_FILE).exists() {
+            let env_kill =
+                std::env::var("TRINITY_SW_KILL").is_ok_and(|v| matches!(v.trim(), "1" | "true" | "yes" | "on"));
+            if env_kill || dir.parent().is_some_and(|p| p.join(SW_KILL_FILE).exists()) {
                 return None;
             }
             std::fs::read(dir.join("sw.js")).ok()

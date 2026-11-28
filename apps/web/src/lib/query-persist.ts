@@ -1,5 +1,6 @@
 import { dehydrate, hydrate, type Query, type QueryClient } from '@tanstack/react-query'
-import { idbDelete, idbGet, idbSet, setWipeHook } from './local-cache'
+import { idbDelete, idbGet, idbSet, onWipe } from './local-cache'
+import { getAccessToken } from './token-storage'
 
 /**
  * Cache dữ liệu API trên máy (vòng 3): kết quả query lưu vào IndexedDB, lần mở sau vẽ NGAY dữ liệu lần trước rồi
@@ -17,7 +18,16 @@ export const PERSIST_BUSTER = 'v1'
 const THROTTLE_MS = 1500
 const MAX_QUERY_BYTES = 256 * 1024
 const MAX_TOTAL_BYTES = 4 * 1024 * 1024
+const enc = new TextEncoder()
 const DENY = /(api[-_]?key|secret|token|password|oauth|credential|mcp|webhook|inbound-source|2fa|otp)/i
+
+function hasToken(): boolean {
+  try {
+    return !!getAccessToken()
+  } catch {
+    return false
+  }
+}
 
 export interface PersistIdentity {
   userId: number | string
@@ -46,10 +56,18 @@ interface Persisted {
   state: ReturnType<typeof dehydrate>
 }
 
-/** Nạp cache của người dùng vào `client`. `true` khi có hydrate. Không ném lỗi. */
-export async function restoreQueries(client: QueryClient, id: PersistIdentity): Promise<boolean> {
+/**
+ * Nạp cache của người dùng vào `client`. `true` khi có hydrate. Không ném lỗi.
+ * `isCancelled`: effect đã dọn (đăng xuất / đổi người giữa chừng) ⇒ bỏ hydrate, không đổ dữ liệu vào client.
+ */
+export async function restoreQueries(
+  client: QueryClient,
+  id: PersistIdentity,
+  isCancelled: () => boolean = () => false,
+): Promise<boolean> {
   try {
     const saved = await idbGet<Persisted>(persistKey(id))
+    if (isCancelled()) return false
     if (!saved || saved.buster !== PERSIST_BUSTER) return false
     if (Date.now() - saved.savedAt > PERSIST_MAX_AGE_MS) {
       void idbDelete(persistKey(id))
@@ -74,11 +92,13 @@ export function startPersisting(client: QueryClient, id: PersistIdentity): () =>
   const write = () => {
     timer = null
     if (stopped) return
+    // Phiên đã kết thúc (đăng xuất, hoặc tab khác đăng xuất): không ghi nữa dù lượt ghi này đã hẹn từ trước.
+    if (!hasToken()) return
     try {
       const state = dehydrate(client, { shouldDehydrateQuery: shouldPersistQuery })
       // Sắp theo mới nhất, bỏ query quá lớn, cắt khi vượt tổng.
       const sized = state.queries
-        .map((q) => ({ q, n: JSON.stringify(q.state.data).length }))
+        .map((q) => ({ q, n: enc.encode(JSON.stringify(q.state.data)).length }))
         .filter((x) => x.n <= MAX_QUERY_BYTES)
         .sort((a, b) => (b.q.state.dataUpdatedAt ?? 0) - (a.q.state.dataUpdatedAt ?? 0))
       let total = 0
@@ -102,7 +122,9 @@ export function startPersisting(client: QueryClient, id: PersistIdentity): () =>
   const unsubscribe = client.getQueryCache().subscribe((e) => {
     if (e.type === 'updated' && e.action.type === 'success') schedule()
   })
-  setWipeHook(() => {
+  // Tín hiệu xoá (tab này hoặc tab khác): dừng bản ghi này. Bật lại do người gọi dựng `startPersisting` mới
+  // khi có phiên (xem `QueryPersistence` ở providers.tsx).
+  const offWipe = onWipe(() => {
     stopped = true
     if (timer) clearTimeout(timer)
     timer = null
@@ -119,6 +141,6 @@ export function startPersisting(client: QueryClient, id: PersistIdentity): () =>
     if (timer) clearTimeout(timer)
     unsubscribe()
     document.removeEventListener('visibilitychange', flush)
-    setWipeHook(null)
+    offWipe()
   }
 }

@@ -7,7 +7,7 @@
  * - `__PAGES__`: đường dẫn HTML của các màn chính (vỏ trang).
  */
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -25,12 +25,19 @@ export function assetsOfHtml(html) {
 }
 
 export function buildIdOf(outDir, precache) {
+  // 1) Tệp BUILD_ID thật (webpack/Next cũ). 2) Thư mục dưới `_next/static/` chứa `_buildManifest.js` (Turbopack đặt tên
+  // thư mục theo build id). 3) Băm danh sách precache. Không lấy "thư mục đầu tiên theo readdir".
+  const idFile = join(outDir, 'BUILD_ID')
+  if (existsSync(idFile)) {
+    const v = readFileSync(idFile, 'utf8').trim()
+    if (v) return v
+  }
   const base = join(outDir, '_next', 'static')
   if (existsSync(base)) {
-    for (const n of readdirSync(base)) {
-      if (n === 'chunks' || n === 'media') continue
-      if (statSync(join(base, n)).isDirectory()) return n
-    }
+    const hits = readdirSync(base)
+      .filter((n) => n !== 'chunks' && n !== 'media' && existsSync(join(base, n, '_buildManifest.js')))
+      .sort()
+    if (hits.length > 0) return hits[0]
   }
   return createHash('sha1').update(precache.join('\n')).digest('hex').slice(0, 16)
 }

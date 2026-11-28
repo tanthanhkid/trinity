@@ -90,20 +90,65 @@ export async function idbDelete(key: string): Promise<void> {
   })
 }
 
-/** Ngăn lượt ghi đang chờ (throttle) của `query-persist` ghi lại sau khi đã xoá. Đăng ký bởi query-persist. */
-let onWipe: (() => void) | null = null
-export function setWipeHook(fn: (() => void) | null): void {
-  onWipe = fn
+const WIPE_CHANNEL = 'trinity-wipe'
+const WIPE_STORAGE_KEY = 'trinity-wipe-at'
+const wipeListeners = new Set<() => void>()
+let channel: BroadcastChannel | null = null
+let wired = false
+
+function emitLocal(): void {
+  for (const fn of [...wipeListeners]) {
+    try {
+      fn()
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function wire(): void {
+  if (wired || typeof window === 'undefined') return
+  wired = true
+  try {
+    channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(WIPE_CHANNEL) : null
+    if (channel) channel.onmessage = () => emitLocal()
+  } catch {
+    channel = null
+  }
+  // Dự phòng khi không có BroadcastChannel: sự kiện `storage` chỉ bắn ở tab KHÁC.
+  window.addEventListener('storage', (e) => {
+    if (e.key === WIPE_STORAGE_KEY) emitLocal()
+  })
 }
 
 /**
- * Xoá mọi cache trên máy: toàn bộ IndexedDB `trinity-cache` + bộ nhớ HTML của Service Worker.
- * Gọi từ `clearTokens()` (đăng xuất, hết phiên, đổi tài khoản). Không chặn, không ném lỗi.
+ * Đăng ký nhận tín hiệu xoá cache (từ tab này hoặc tab khác). Nhận được thì dừng ghi + xoá cache trong bộ nhớ.
+ * Trả hàm huỷ đăng ký.
+ */
+export function onWipe(fn: () => void): () => void {
+  wire()
+  wipeListeners.add(fn)
+  return () => {
+    wipeListeners.delete(fn)
+  }
+}
+
+/**
+ * Xoá mọi cache trên máy: toàn bộ IndexedDB `trinity-cache` + bộ nhớ HTML của Service Worker, và báo mọi tab khác
+ * (BroadcastChannel + `storage`) để chúng dừng ghi và xoá cache trong bộ nhớ. Gọi từ `clearTokens()`
+ * (đăng xuất, hết phiên, đổi tài khoản). Không chặn, không ném lỗi.
  */
 export function wipeLocalCaches(): void {
   if (typeof window === 'undefined') return
+  wire()
+  emitLocal()
   try {
-    onWipe?.()
+    channel?.postMessage('wipe')
+  } catch {
+    /* ignore */
+  }
+  try {
+    window.localStorage.setItem(WIPE_STORAGE_KEY, String(Date.now()))
   } catch {
     /* ignore */
   }

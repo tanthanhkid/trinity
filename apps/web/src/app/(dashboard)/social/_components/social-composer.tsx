@@ -338,7 +338,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
     bodyRef.current?.scrollTo?.({ top: 0 })
   }
   const nextHint = triedNext ? (empty ? "Chưa có nội dung" : chosen.length === 0 ? "Chọn ít nhất một kênh" : null) : null
-  const hasWork = Boolean(typed) || uploads.length > 0
+  const hasWork = Boolean(typed) || uploads.length > 0 || selected.length > 0 || Object.values(captions).some((c) => c.trim()) || Object.values(fbFirst).some((c) => c.trim())
   const requestClose = () => {
     if (hasWork) setCloseAsk(true)
     else onClose?.()
@@ -568,7 +568,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
                       type="time"
                       variant="ax"
                       value={scheduleAt.slice(11, 16)}
-                      onChange={(e) => setScheduleAt(`${scheduleAt.slice(0, 10) || toLocalInput(new Date()).slice(0, 10)}T${e.target.value || "00:00"}`)}
+                      onChange={(e) => setScheduleAt(e.target.value ? `${scheduleAt.slice(0, 10) || toLocalInput(new Date()).slice(0, 10)}T${e.target.value}` : scheduleAt.slice(0, 10))}
                       aria-label="Giờ đăng"
                       aria-invalid={Boolean(schedErr) || undefined}
                       className="w-auto max-lg:w-full"

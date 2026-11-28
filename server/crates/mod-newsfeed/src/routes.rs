@@ -427,7 +427,20 @@ async fn spool_video(f: &mut Field<'_>, file_name: &str) -> Result<VideoUpload, 
     })
 }
 
-async fn collect_upload(mp: &mut Multipart, up: &mut Upload) -> Result<(), AppError> {
+/// Cách đọc tệp của multipart: đăng bài giữ hành vi multer (tệp sai loại bỏ im lặng); sửa bài báo lỗi tệp sai loại và chặn
+/// tệp ngay từ trường đầu tiên khi người gọi không có `newsfeed.post`.
+#[derive(Clone, Copy)]
+struct FileRules {
+    strict: bool,
+    allow_files: bool,
+}
+
+const CREATE_RULES: FileRules = FileRules {
+    strict: false,
+    allow_files: true,
+};
+
+async fn collect_upload(mp: &mut Multipart, up: &mut Upload, rules: FileRules) -> Result<(), AppError> {
     while let Some(mut f) = mp
         .next_field()
         .await
@@ -439,6 +452,9 @@ async fn collect_upload(mp: &mut Multipart, up: &mut Upload) -> Result<(), AppEr
             up.fields.push((name, String::from_utf8_lossy(&data).into_owned()));
             continue;
         };
+        if !rules.allow_files && matches!(name.as_str(), "images" | "videos") {
+            return Err(HttpError::forbidden("Bạn không có quyền đăng ảnh/video").into());
+        }
         match name.as_str() {
             "images" => {
                 let content_type = mime_of(&f);
@@ -447,6 +463,9 @@ async fn collect_upload(mp: &mut Multipart, up: &mut Upload) -> Result<(), AppEr
                     content_type.as_str(),
                     "image/jpeg" | "image/jpg" | "image/png" | "image/webp"
                 ) {
+                    if rules.strict {
+                        return Err(HttpError::bad_request("Chỉ hỗ trợ JPG, PNG, WEBP").into());
+                    }
                     continue;
                 }
                 if up.images.len() >= MAX_IMAGES_PER_POST {
@@ -464,6 +483,9 @@ async fn collect_upload(mp: &mut Multipart, up: &mut Upload) -> Result<(), AppEr
                     .map(|e| format!(".{}", e.to_string_lossy().to_lowercase()))
                     .unwrap_or_default();
                 if !matches!(ext.as_str(), ".mp4" | ".webm" | ".mov") {
+                    if rules.strict {
+                        return Err(HttpError::bad_request("Chỉ hỗ trợ video MP4, WebM, MOV").into());
+                    }
                     continue;
                 }
                 if up.videos.len() >= MAX_VIDEOS_PER_POST {
@@ -561,7 +583,7 @@ async fn create(State(c): S, Extension(u): U, JsonBody(body): JsonBody) -> Respo
 
 async fn upload(State(c): S, Extension(u): U, mut mp: Multipart) -> Response {
     let mut up = Upload::default();
-    if let Err(e) = collect_upload(&mut mp, &mut up).await {
+    if let Err(e) = collect_upload(&mut mp, &mut up, CREATE_RULES).await {
         cleanup(&up.videos).await;
         return fail(e);
     }
@@ -682,11 +704,16 @@ async fn update_upload(State(c): S, Extension(u): U, Path(id): Path<String>, mut
         Ok(t) => t,
         Err(r) => return r,
     };
-    if let Err(e) = crate::check_can_edit(&t, &actor(&u), id).await {
+    let who = actor(&u);
+    if let Err(e) = crate::check_can_edit(&t, &who, id).await {
         return nf(e);
     }
+    let rules = FileRules {
+        strict: true,
+        allow_files: who.can_post,
+    };
     let mut up = Upload::default();
-    if let Err(e) = collect_upload(&mut mp, &mut up).await {
+    if let Err(e) = collect_upload(&mut mp, &mut up, rules).await {
         cleanup(&up.videos).await;
         return fail(e);
     }

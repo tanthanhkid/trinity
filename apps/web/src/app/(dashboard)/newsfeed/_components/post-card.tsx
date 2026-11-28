@@ -228,7 +228,13 @@ export function PostCard({
       qc.invalidateQueries({ queryKey: ['newsfeed', 'posts'] })
     },
     onError: (err) =>
-      toast.error(err instanceof EditCheckError ? err.message : describeUploadError(err, 'Không lưu được')),
+      toast.error(
+        err instanceof EditCheckError
+          ? err.message
+          : newImages.length > 0 || newVideos.length > 0
+            ? describeUploadError(err, 'Không lưu được')
+            : errorMessage(err, 'Không lưu được'),
+      ),
   })
 
   if (pendingDelete) return null
@@ -499,6 +505,7 @@ export function PostCard({
                     type="button"
                     role="radio"
                     aria-checked={on}
+                    disabled={editMutation.isPending}
                     onClick={() => setEditCategory(c)}
                     className={cn(
                       'h-11 cursor-pointer rounded-full border-[1.5px] px-4 text-[15px] font-semibold transition-colors',
@@ -529,6 +536,7 @@ export function PostCard({
                       <button
                         type="button"
                         aria-label={`Bỏ ${f.name}`}
+                        disabled={editMutation.isPending}
                         onClick={() =>
                           kind === 'image'
                             ? setNewImages((p) => p.filter((_, j) => j !== i))

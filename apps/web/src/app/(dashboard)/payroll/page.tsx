@@ -54,7 +54,10 @@ function PayrollTabs() {
   const canViewEmployees = can("employees.view")
   // Thành phần lương / Bảo hiểm / Thuế / Báo cáo: BE gate `payroll.manage` (cả GET).
   const canManage = can("payroll.manage")
-  const [tab, setTab] = useState(canViewEmployees ? "employees" : "payslips")
+  // `payroll.view` phạm vi `own` (Thành viên mặc định): chỉ có phiếu của chính mình ⇒ vào thẳng «Phiếu của tôi», ẩn
+  // tab quản lý «Phiếu lương» (lọc team, xuất Excel/PDF cần `payroll.export` ⇒ 403).
+  const onlyMine = !can("payroll.view", "team")
+  const [tab, setTab] = useState(canViewEmployees ? "employees" : onlyMine ? "mine" : "payslips")
   // 7 tab cuộn ngang trên điện thoại — đưa tab đang chọn vào giữa khung (chỉ <640px).
   useEffect(() => {
     if (!window.matchMedia("(max-width: 639px)").matches) return
@@ -68,7 +71,7 @@ function PayrollTabs() {
       <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
         <TabsList layout="wrap">
           {canViewEmployees && <TabsTrigger value="employees">Nhân viên</TabsTrigger>}
-          <TabsTrigger value="payslips">Phiếu lương</TabsTrigger>
+          {!onlyMine && <TabsTrigger value="payslips">Phiếu lương</TabsTrigger>}
           <TabsTrigger value="mine">Phiếu của tôi</TabsTrigger>
           {canManage && <TabsTrigger value="salary-components">Thành phần lương</TabsTrigger>}
           {canManage && <TabsTrigger value="insurance">Bảo hiểm</TabsTrigger>}
@@ -80,9 +83,11 @@ function PayrollTabs() {
             <PayrollEmployees />
           </TabsContent>
         )}
-        <TabsContent value="payslips" className="mt-4">
-          <PayrollPayslips />
-        </TabsContent>
+        {!onlyMine && (
+          <TabsContent value="payslips" className="mt-4">
+            <PayrollPayslips />
+          </TabsContent>
+        )}
         <TabsContent value="mine" className="mt-4">
           <PayrollMine />
         </TabsContent>

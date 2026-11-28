@@ -108,3 +108,12 @@ showUndoToast("Đã lưu số điện thoại", { onUndo: () => save(prev) })
 - **Chưa chốt** — chữ nhạt `--ax-ink-3`/`--muted-foreground` (#6B6F7B) đặt TRỰC TIẾP trên nền trang ở mép trên
   (khoảng 0–120px dưới thanh trên) chỉ ~3,8–4,3:1 vì quầng xanh; chữ chính/chữ phụ vẫn đạt. Trong thẻ thì không ảnh hưởng.
 - Bản tối: thiết kế chỉ có bản sáng; khối `.dark` quy đổi tối thiểu về bảng màu tối sẵn có (khối nhấn và toast giữ nguyên).
+
+## Màn «Công việc» — chi tiết một việc (`/kanban/<id>`)
+
+- Trang riêng (link trực tiếp + điện thoại): `app/(dashboard)/kanban/[id]/`, giao diện ở `components/kanban/kanban-card-page.tsx`.
+  Một bộ điều khiển dữ liệu, hai bố cục: desktop ≥1024px (khối nhấn + cột thuộc tính 360px) và điện thoại (danh sách Hạn/Người làm/Ưu tiên,
+  khay đáy cho Hạn và Người làm, thanh «Hoàn thành việc» dính đáy). Hộp thoại ở `/kanban` giữ nguyên, thêm liên kết «Mở trang riêng».
+- «Giai đoạn» của thiết kế = cột của bảng (số cột/tên theo bảng thật, chấm theo màu cột); «Hoàn thành việc» chuyển sang cột đánh dấu xong đầu tiên.
+- Mọi thay đổi lưu ngay + toast Hoàn tác (`showUndoToast`) thay vì nút Lưu; riêng Mô tả có Lưu/Huỷ (soạn nhiều dòng, @ gắn thẻ).
+- Giữ so với hộp thoại cũ: trường tuỳ biến, đính kèm, khách hàng (chọn/đổi), @mention, Markdown mô tả, xoá có Hoàn tác (người tạo/Quản trị).

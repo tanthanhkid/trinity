@@ -167,7 +167,14 @@ export function PostCard({
 
   if (pendingDelete) return null
 
-  const editEmpty = editContent.replace(/<[^>]*>/g, '').trim() === ''
+  const editPlain = editContent
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim()
+  const editEmpty = editPlain === ''
+  // Nút Lưu chỉ sáng khi nội dung khác bản đang đăng.
+  const editDirty = !editEmpty && editContent !== post.content
+  const editCount = [...editPlain].length
   const authorName = post.author.full_name
   const chip = CATEGORY_CHIP[post.category]
   const when = timeAgo(post.created_at)
@@ -297,7 +304,8 @@ export function PostCard({
                 <Button
                   variant="ax-primary"
                   size="ax"
-                  disabled={editMutation.isPending || editEmpty}
+                  disabled={editMutation.isPending || !editDirty}
+              aria-disabled={!editDirty}
                   onClick={() => editMutation.mutate()}
                 >
                   {editMutation.isPending && <Loader2 className="size-4 animate-spin" />}
@@ -372,7 +380,8 @@ export function PostCard({
             <h1 className="text-[17px] font-semibold tracking-[-0.011em]">Sửa bài</h1>
             <button
               type="button"
-              disabled={editMutation.isPending || editEmpty}
+              disabled={editMutation.isPending || !editDirty}
+              aria-disabled={!editDirty}
               onClick={() => editMutation.mutate()}
               className="h-11 px-3.5 text-base font-bold text-ax-primary-hover disabled:text-ax-ink-3"
             >
@@ -409,6 +418,14 @@ export function PostCard({
             <p className="mt-3 text-[13px] leading-normal text-ax-ink-2">
               Lưu xong bài ghi “đã sửa”. Xoá xong còn vài giây để hoàn tác.
             </p>
+          </div>
+          <div className="flex items-center border-t border-ax-divider bg-ax-surface px-2 pt-1.5 pb-[18px]">
+            <span
+              data-testid="edit-char-count"
+              className="ml-auto mr-2 text-[13px] tabular-nums text-ax-ink-2"
+            >
+              {editCount} ký tự
+            </span>
           </div>
         </div>
       )}

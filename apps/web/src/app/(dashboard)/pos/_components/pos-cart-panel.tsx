@@ -32,7 +32,7 @@ interface Props {
 }
 
 const DISCOUNT_TABS: Array<{ v: PosDiscountType; label: string }> = [
-  { v: "none", label: "Không" }, { v: "percent", label: "%" }, { v: "amount", label: "đ" },
+  { v: "none", label: "Không" }, { v: "percent", label: "%" }, { v: "amount", label: "₫" },
 ]
 
 /** Giỏ hàng bên phải: loại đơn/bàn, dòng món (+/−), giảm giá, ghi chú, tổng (xem trước) và các nút thao tác. */

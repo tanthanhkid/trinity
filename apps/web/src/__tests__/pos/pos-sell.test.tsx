@@ -53,11 +53,11 @@ describe("PosSell", () => {
   it("chạm món có tuỳ chọn → hộp thoại chọn size → vào giỏ với giá cộng thêm", () => {
     renderSell()
     fireEvent.click(screen.getByRole("button", { name: /^Cà phê sữa/ }))
-    fireEvent.click(screen.getByRole("button", { name: /^L \(\+5\.000đ\)/ }))
-    fireEvent.click(screen.getByRole("button", { name: /^Thêm · 35\.000đ/ }))
+    fireEvent.click(screen.getByRole("button", { name: /^L \(\+5\.000₫\)/ }))
+    fireEvent.click(screen.getByRole("button", { name: /^Thêm · 35\.000₫/ }))
     const cart = screen.getByRole("complementary", { name: "Giỏ hàng" })
     expect(cart).toHaveTextContent("Cà phê sữa")
-    expect(cart).toHaveTextContent("35.000đ")
+    expect(cart).toHaveTextContent("35.000₫")
   })
 
   it("không có tuỳ chọn nào → thêm thẳng 1 chạm; lọc theo danh mục và tìm nhanh", () => {
@@ -67,7 +67,7 @@ describe("PosSell", () => {
     expect(screen.queryByRole("button", { name: /^Cà phê sữa/ })).toBeNull()
     fireEvent.click(screen.getByRole("button", { name: /Trà đào/ }))
     fireEvent.click(screen.getByRole("button", { name: "Tăng Trà đào" }))
-    expect(screen.getByRole("complementary", { name: "Giỏ hàng" })).toHaveTextContent("90.000đ")
+    expect(screen.getByRole("complementary", { name: "Giỏ hàng" })).toHaveTextContent("90.000₫")
     fireEvent.change(screen.getByLabelText("Tìm món"), { target: { value: "zzz" } })
     expect(screen.getByText("Không có món phù hợp.")).toBeInTheDocument()
   })
@@ -111,7 +111,7 @@ describe("PosSell — điện thoại", () => {
     renderSell()
     fireEvent.click(screen.getByRole("button", { name: /^Cà phê sữa/ }))
     const bar = screen.getByRole("button", { name: /Mở giỏ hàng, 1 món/ })
-    expect(bar).toHaveTextContent("30.000đ")
+    expect(bar).toHaveTextContent("30.000₫")
     expect(screen.getByRole("button", { name: "Thanh toán" })).toBeEnabled()
     fireEvent.click(bar)
     const cart = screen.getByRole("complementary", { name: "Giỏ hàng" })

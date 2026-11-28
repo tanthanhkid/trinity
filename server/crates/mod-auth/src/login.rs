@@ -32,16 +32,26 @@ use crate::{AuthFail, AuthService, GrantsSource, LoginReason, Res, UserRow, comp
 pub const CHALLENGE_TTL_MINUTES: i64 = 10;
 /// Số lần nhập sai tối đa của một lượt.
 pub const MAX_CODE_ATTEMPTS: i32 = 5;
-/// Số thư tối đa cho một email trong [`MAIL_WINDOW_MINUTES`].
+/// Số thư tối đa cho một cặp (IP người yêu cầu, email) trong [`MAIL_WINDOW_MINUTES`]: người lạ ở IP khác không ăn hết
+/// quota của chủ email.
 pub const MAX_MAILS_PER_WINDOW: i64 = 3;
 pub const MAIL_WINDOW_MINUTES: i64 = 15;
-/// Số lần `start` tối đa mỗi IP mỗi giờ.
-pub const MAX_STARTS_PER_IP_HOUR: u32 = 10;
-/// Trần cho xô chung khi IP khách không tin được (mọi người sau proxy chung một khoá).
-pub const MAX_STARTS_UNTRUSTED_HOUR: u32 = 500;
-/// Số lần nhập mã/mở link tối đa mỗi IP mỗi giờ (chặn dò mã trên nhiều email).
-pub const MAX_VERIFIES_PER_IP_HOUR: u32 = 60;
-pub const MAX_VERIFIES_UNTRUSTED_HOUR: u32 = 2000;
+/// Trần tuyệt đối số thư mỗi email mỗi giờ (mọi IP cộng lại).
+pub const MAX_MAILS_PER_EMAIL_HOUR: i64 = 10;
+/// Số lượt mã còn sống tối đa của một email: mã mới KHÔNG làm mã còn hạn mất hiệu lực, chỉ đẩy lượt cũ nhất ra khi quá 3.
+pub const MAX_LIVE_CHALLENGES: i64 = 3;
+/// `start`: giới hạn theo cặp IP + email (như `login()`), và trần riêng theo IP cao hơn nhiều làm chặn cuối — công ty dùng
+/// chung IP văn phòng không bị khoá.
+pub const MAX_STARTS_PER_IP_EMAIL_HOUR: u32 = 10;
+pub const MAX_STARTS_PER_IP_HOUR: u32 = 300;
+/// IP không tin được (mọi người sau proxy chung một khoá): theo email + một trần chung rất cao.
+pub const MAX_STARTS_UNTRUSTED_EMAIL_HOUR: u32 = 20;
+pub const MAX_STARTS_UNTRUSTED_HOUR: u32 = 5000;
+/// Nhập mã / mở link: theo cặp IP + email, trần theo IP, và bản không tin được.
+pub const MAX_VERIFIES_PER_IP_EMAIL_HOUR: u32 = 30;
+pub const MAX_VERIFIES_PER_IP_HOUR: u32 = 600;
+pub const MAX_VERIFIES_UNTRUSTED_EMAIL_HOUR: u32 = 60;
+pub const MAX_VERIFIES_UNTRUSTED_HOUR: u32 = 10_000;
 /// Web cho bấm "Gửi lại" sau bao nhiêu giây.
 pub const RESEND_AFTER_SECS: u64 = 30;
 const HOUR_MS: u64 = 3600 * 1000;
@@ -50,9 +60,8 @@ const TICKET_TTL_MS: u64 = 60 * 1000;
 const MAX_TICKETS: usize = 10_000;
 
 const NOT_ENABLED: &str = "Đăng nhập bằng email chưa được bật trên bản cài đặt này";
-const INVALID_CODE: &str = "Mã không đúng hoặc đã hết hạn. Hãy gửi lại mã mới.";
-const EXPIRED_CODE: &str = "Mã đã hết hạn (10 phút). Hãy gửi lại mã mới.";
-const LOCKED_CODE: &str = "Bạn đã nhập sai quá 5 lần. Hãy gửi lại mã mới.";
+/// MỘT câu cho mọi lần nhập mã không thành công (sai, hết hạn, quá 5 lần, không có mã): không lộ email có tài khoản hay không.
+pub const INVALID_CODE: &str = "Mã không đúng hoặc đã hết hạn. Hãy kiểm tra mã trong thư mới nhất hoặc gửi mã mới.";
 const INVALID_LINK: &str = "Link đăng nhập không hợp lệ, đã dùng hoặc đã hết hạn. Hãy gửi lại mã mới.";
 const START_MESSAGE: &str = "Nếu email này có tài khoản Trinity, mã đăng nhập đã được gửi tới hộp thư.";
 
@@ -264,13 +273,12 @@ struct ChallengeRow {
     id: i32,
     email: String,
     code_hash: String,
-    expires_at: DateTime<Utc>,
     attempts: i32,
-    consumed_at: Option<DateTime<Utc>>,
-    invalidated_at: Option<DateTime<Utc>>,
 }
 
-const CHALLENGE_COLS: &str = "id, email, code_hash, expires_at, attempts, consumed_at, invalidated_at";
+const CHALLENGE_COLS: &str = "id, email, code_hash, attempts";
+/// Lượt còn dùng được: chưa dùng, chưa bị đẩy ra, còn hạn, chưa sai đủ 5 lần.
+const LIVE: &str = "consumed_at IS NULL AND invalidated_at IS NULL AND expires_at > now() AND attempts < 5";
 
 /// Kết quả kiểm mã của một lượt.
 pub(crate) enum CodeCheck {
@@ -318,27 +326,62 @@ impl<G: GrantsSource> AuthService<G> {
         })
     }
 
+    /// Giới hạn theo cặp IP + email và theo IP (IP tin được); IP không tin được: theo email + trần chung.
+    #[allow(clippy::too_many_arguments)]
     fn limit_hit(
         &self,
         kind: &str,
         ip: Option<&str>,
         ip_trusted: bool,
-        trusted_cap: u32,
-        untrusted_cap: u32,
+        email: &str,
+        caps: (u32, u32),
+        untrusted_caps: (u32, u32),
     ) -> Res<()> {
         let ip = ip.unwrap_or("unknown");
-        let (key, cap) = if ip_trusted {
-            (format!("{kind}:{ip}"), trusted_cap)
+        let keys = if ip_trusted {
+            [
+                (format!("{kind}:{ip}:{email}"), caps.0),
+                (format!("{kind}:{ip}"), caps.1),
+            ]
         } else {
-            (format!("{kind}-untrusted:{ip}"), untrusted_cap)
+            [
+                (format!("{kind}-untrusted-email:{email}"), untrusted_caps.0),
+                (format!("{kind}-untrusted-all"), untrusted_caps.1),
+            ]
         };
-        match lock(&self.login.limiter).hit(&key, cap, HOUR_MS, Self::now()) {
-            None => Ok(()),
-            Some(retry) => Err(AuthFail(Box::new(crate::AuthFailBody {
-                error: HttpError::new(429, "Quá nhiều lần thử, vui lòng thử lại sau"),
-                retry_after: Some(retry),
-            }))),
+        let now = Self::now();
+        let mut l = lock(&self.login.limiter);
+        for (key, cap) in &keys {
+            if let Some(retry) = l.hit(key, *cap, HOUR_MS, now) {
+                return Err(AuthFail(Box::new(crate::AuthFailBody {
+                    error: HttpError::new(429, "Quá nhiều lần thử, vui lòng thử lại sau"),
+                    retry_after: Some(retry),
+                })));
+            }
         }
+        Ok(())
+    }
+
+    fn limit_start(&self, ip: Option<&str>, ip_trusted: bool, email: &str) -> Res<()> {
+        self.limit_hit(
+            "email-start",
+            ip,
+            ip_trusted,
+            email,
+            (MAX_STARTS_PER_IP_EMAIL_HOUR, MAX_STARTS_PER_IP_HOUR),
+            (MAX_STARTS_UNTRUSTED_EMAIL_HOUR, MAX_STARTS_UNTRUSTED_HOUR),
+        )
+    }
+
+    fn limit_verify(&self, ip: Option<&str>, ip_trusted: bool, email: &str) -> Res<()> {
+        self.limit_hit(
+            "email-verify",
+            ip,
+            ip_trusted,
+            email,
+            (MAX_VERIFIES_PER_IP_EMAIL_HOUR, MAX_VERIFIES_PER_IP_HOUR),
+            (MAX_VERIFIES_UNTRUSTED_EMAIL_HOUR, MAX_VERIFIES_UNTRUSTED_HOUR),
+        )
     }
 
     /// Gửi thư ở tác vụ nền: lỗi SMTP chỉ ghi log (phản hồi không đổi theo kết quả gửi).
@@ -354,7 +397,9 @@ impl<G: GrantsSource> AuthService<G> {
         });
     }
 
-    /// Tạo một lượt mã mới (vô hiệu lượt cũ cùng email + mục đích). `Ok(None)` khi email đã nhận đủ 3 thư/15 phút.
+    /// Tạo một lượt mã mới. `Ok(None)` khi vượt quota thư (3/15 phút cho cặp IP + email, 10/giờ cho email). Mã mới KHÔNG
+    /// làm mã còn hạn mất hiệu lực (người lạ không khoá được mã chủ email đang dùng); chỉ khi quá 3 lượt sống thì lượt cũ nhất
+    /// bị đẩy ra. `dry_run`: làm đúng các câu khoá + đếm rồi lùi giao dịch (cho email lạ: thời gian trả lời như email thật).
     #[allow(clippy::too_many_arguments)]
     async fn create_challenge(
         &self,
@@ -365,6 +410,7 @@ impl<G: GrantsSource> AuthService<G> {
         with_link: bool,
         ip: Option<&str>,
         user_agent: Option<&str>,
+        dry_run: bool,
     ) -> Res<Option<(String, Option<String>)>> {
         let code = new_code().map_err(|e| internal("sinh mã", e))?;
         let token = if with_link {
@@ -373,37 +419,32 @@ impl<G: GrantsSource> AuthService<G> {
             None
         };
         let h = self.hasher();
+        let ua: Option<String> = user_agent.map(|u| u.chars().take(500).collect());
+        let ip: Option<String> = ip.map(|i| i.chars().take(64).collect());
         let mut tx = self.tenant_tx(company).await?;
-        // Khoá theo email trong giao dịch: hai lượt `start` cùng lúc không vượt trần 3 thư.
+        // Khoá theo email trong giao dịch: hai lượt `start` cùng lúc không vượt quota.
         sqlx::query("SELECT pg_advisory_xact_lock(hashtext('login_challenge:' || $1))")
             .bind(email)
             .execute(&mut *tx)
             .await
             .map_err(|e| internal("khoá lượt mã", e))?;
-        let recent: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM login_challenges WHERE email = $1 AND purpose = $2 \
-             AND created_at > now() - make_interval(mins => $3::int)",
+        let (per_pair, per_hour): (i64, i64) = sqlx::query_as(
+            "SELECT count(*) FILTER (WHERE ip_address IS NOT DISTINCT FROM $3                 AND created_at > now() - make_interval(mins => $4::int)),                 count(*) FILTER (WHERE created_at > now() - interval '1 hour')              FROM login_challenges WHERE email = $1 AND purpose = $2 AND created_at > now() - interval '1 hour'",
         )
         .bind(email)
         .bind(purpose)
+        .bind(ip.as_deref())
         .bind(MAIL_WINDOW_MINUTES as i32)
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| internal("đếm thư", e))?;
-        if recent >= MAX_MAILS_PER_WINDOW {
+        if dry_run {
+            tx.rollback().await.ok();
             return Ok(None);
         }
-        sqlx::query(
-            "UPDATE login_challenges SET invalidated_at = now() WHERE email = $1 AND purpose = $2 \
-             AND consumed_at IS NULL AND invalidated_at IS NULL",
-        )
-        .bind(email)
-        .bind(purpose)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| internal("vô hiệu mã cũ", e))?;
-        let ua: Option<String> = user_agent.map(|u| u.chars().take(500).collect());
-        let ip: Option<String> = ip.map(|i| i.chars().take(64).collect());
+        if per_pair >= MAX_MAILS_PER_WINDOW || per_hour >= MAX_MAILS_PER_EMAIL_HOUR {
+            return Ok(None);
+        }
         sqlx::query(
             "INSERT INTO login_challenges (email, purpose, invitation_id, code_hash, token_hash, expires_at, ip_address, user_agent) \
              VALUES ($1, $2, $3, $4, $5, now() + make_interval(mins => $6::int), $7, $8)",
@@ -419,6 +460,18 @@ impl<G: GrantsSource> AuthService<G> {
         .execute(&mut *tx)
         .await
         .map_err(|e| internal("tạo lượt mã", e))?;
+        // Giữ tối đa 3 lượt sống (mới nhất); lượt cũ hơn mất hiệu lực.
+        sqlx::query(sqlx::AssertSqlSafe(format!(
+            "UPDATE login_challenges SET invalidated_at = now() WHERE id IN (\
+               SELECT id FROM login_challenges WHERE email = $1 AND purpose = $2 AND {LIVE} \
+               ORDER BY id DESC OFFSET $3)"
+        )))
+        .bind(email)
+        .bind(purpose)
+        .bind(MAX_LIVE_CHALLENGES)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| internal("dọn lượt cũ", e))?;
         tx.commit().await.map_err(|e| internal("commit", e))?;
         Ok(Some((code, token)))
     }
@@ -434,21 +487,15 @@ impl<G: GrantsSource> AuthService<G> {
         if !self.email_login_enabled() {
             return Err(HttpError::not_found(NOT_ENABLED).into());
         }
-        self.limit_hit(
-            "email-start",
-            ip,
-            ip_trusted,
-            MAX_STARTS_PER_IP_HOUR,
-            MAX_STARTS_UNTRUSTED_HOUR,
-        )?;
         let norm = Self::norm_email(email);
+        self.limit_start(ip, ip_trusted, &norm)?;
         let company = self.company_of_email(&norm).await?;
         let user = self.find_by_email(company, &norm).await?;
         match user {
             Some(u) if u.status == "active" => {
                 let with_link = self.login.opts.public_url.is_some();
                 match self
-                    .create_challenge(company, &norm, "login", None, with_link, ip, user_agent)
+                    .create_challenge(company, &norm, "login", None, with_link, ip, user_agent, false)
                     .await?
                 {
                     Some((code, token)) => {
@@ -467,13 +514,17 @@ impl<G: GrantsSource> AuthService<G> {
                         ));
                     }
                     None => tracing::warn!(
-                        "[auth] {} đã nhận đủ {MAX_MAILS_PER_WINDOW} mã trong {MAIL_WINDOW_MINUTES} phút: không gửi thêm",
+                        "[auth] {} vượt quota thư (cặp IP+email hoặc trần theo giờ): không gửi thêm",
                         mask_email(&norm)
                     ),
                 }
             }
-            // Email lạ hoặc tài khoản khoá: không gửi gì, phản hồi y hệt.
-            _ => {}
+            // Email lạ hoặc tài khoản khoá: không gửi gì, nhưng làm cùng các câu DB (khoá + đếm) rồi lùi ⇒ phản hồi y hệt,
+            // thời gian tương đương.
+            _ => {
+                self.create_challenge(company, &norm, "login", None, false, ip, user_agent, true)
+                    .await?;
+            }
         }
         Ok(json!({
             "message": START_MESSAGE,
@@ -483,8 +534,9 @@ impl<G: GrantsSource> AuthService<G> {
         }))
     }
 
-    /// Kiểm mã của lượt mới nhất (email + mục đích [+ lời mời]). Sai ⇒ tăng `attempts`; đúng ⇒ CHƯA tiêu thụ (nơi gọi
-    /// tiêu thụ trong giao dịch của mình bằng [`consume_challenge`]).
+    /// Kiểm mã với mọi lượt còn sống (email + mục đích [+ lời mời]). Sai ⇒ tăng `attempts` của các lượt đó (lượt nào đủ 5
+    /// lần thì chỉ lượt đó chết); đúng ⇒ CHƯA tiêu thụ (nơi gọi tiêu thụ trong giao dịch của mình bằng [`consume_challenge`]).
+    /// Mọi thất bại trả cùng MỘT câu ([`INVALID_CODE`]); lý do cụ thể chỉ vào nhật ký.
     pub(crate) async fn check_code(
         &self,
         company: CompanyRef,
@@ -494,60 +546,79 @@ impl<G: GrantsSource> AuthService<G> {
         code: &str,
     ) -> Res<CodeCheck> {
         let mut tx = self.tenant_tx(company).await?;
-        let row: Option<ChallengeRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        let rows: Vec<ChallengeRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
             "SELECT {CHALLENGE_COLS} FROM login_challenges WHERE email = $1 AND purpose = $2 \
-             AND ($3::int IS NULL OR invitation_id = $3) ORDER BY id DESC LIMIT 1 FOR UPDATE"
+             AND ($3::int IS NULL OR invitation_id = $3) AND {LIVE} ORDER BY id DESC FOR UPDATE"
         )))
         .bind(email)
         .bind(purpose)
         .bind(invitation_id)
-        .fetch_optional(&mut *tx)
+        .fetch_all(&mut *tx)
         .await
         .map_err(|e| internal("đọc lượt mã", e))?;
-        let now: DateTime<Utc> = sqlx::query_scalar("SELECT now()")
-            .fetch_one(&mut *tx)
+        if rows.is_empty() {
+            // Phân loại cho nhật ký: lượt mới nhất hết hạn / đã sai đủ / không có.
+            let last: Option<(i32, bool)> = sqlx::query_as(
+                "SELECT attempts, expires_at <= now() FROM login_challenges WHERE email = $1 AND purpose = $2 \
+                 ORDER BY id DESC LIMIT 1",
+            )
+            .bind(email)
+            .bind(purpose)
+            .fetch_optional(&mut *tx)
             .await
-            .map_err(|e| internal("giờ DB", e))?;
-        let Some(row) = row.filter(|r| r.consumed_at.is_none() && r.invalidated_at.is_none()) else {
-            return Ok(CodeCheck::Fail(bad(INVALID_CODE), LoginReason::BadCode));
-        };
-        if row.expires_at <= now {
-            return Ok(CodeCheck::Fail(bad(EXPIRED_CODE), LoginReason::CodeExpired));
+            .map_err(|e| internal("đọc lượt mã", e))?;
+            let reason = match last {
+                Some((a, _)) if a >= MAX_CODE_ATTEMPTS => LoginReason::TooManyAttempts,
+                Some((_, true)) => LoginReason::CodeExpired,
+                _ => LoginReason::BadCode,
+            };
+            return Ok(CodeCheck::Fail(bad(INVALID_CODE), reason));
         }
-        if row.attempts >= MAX_CODE_ATTEMPTS {
-            return Ok(CodeCheck::Fail(bad(LOCKED_CODE), LoginReason::TooManyAttempts));
+        let want = self.hasher().code(purpose, email, code.trim());
+        // So hết mọi lượt (không dừng sớm): thời gian không phụ thuộc lượt nào khớp.
+        let mut hit: Option<i32> = None;
+        for r in &rows {
+            if same_hash(&want, &r.code_hash) && hit.is_none() {
+                hit = Some(r.id);
+            }
         }
-        let want = self.hasher().code(purpose, &row.email, code.trim());
-        if same_hash(&want, &row.code_hash) {
+        if let Some(id) = hit {
             tx.commit().await.map_err(|e| internal("commit", e))?;
-            return Ok(CodeCheck::Ok { id: row.id });
+            return Ok(CodeCheck::Ok { id });
         }
-        sqlx::query("UPDATE login_challenges SET attempts = attempts + 1 WHERE id = $1")
-            .bind(row.id)
+        let ids: Vec<i32> = rows.iter().map(|r| r.id).collect();
+        sqlx::query("UPDATE login_challenges SET attempts = attempts + 1 WHERE id = ANY($1)")
+            .bind(&ids)
             .execute(&mut *tx)
             .await
             .map_err(|e| internal("ghi lần sai", e))?;
         tx.commit().await.map_err(|e| internal("commit", e))?;
-        let left = MAX_CODE_ATTEMPTS - row.attempts - 1;
-        let msg = if left > 0 {
-            format!("Mã không đúng. Bạn còn {left} lần thử.")
-        } else {
-            LOCKED_CODE.to_owned()
-        };
-        Ok(CodeCheck::Fail(bad(&msg), LoginReason::BadCode))
+        Ok(CodeCheck::Fail(bad(INVALID_CODE), LoginReason::BadCode))
     }
 
     /// Tiêu thụ một lượt (một lần): `false` nếu đã bị dùng/vô hiệu bởi lượt song song.
+    /// Đăng nhập xong thì các lượt sống khác của cùng email + mục đích cũng chết.
     pub(crate) async fn consume_challenge(conn: &mut sqlx::PgConnection, id: i32) -> Res<bool> {
         let n = sqlx::query(
             "UPDATE login_challenges SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL \
              AND invalidated_at IS NULL AND expires_at > now()",
         )
         .bind(id)
-        .execute(conn)
+        .execute(&mut *conn)
         .await
         .map_err(|e| internal("tiêu thụ mã", e))?
         .rows_affected();
+        if n == 1 {
+            sqlx::query(
+                "UPDATE login_challenges o SET invalidated_at = now() FROM login_challenges c \
+                 WHERE c.id = $1 AND o.email = c.email AND o.purpose = c.purpose AND o.id <> c.id \
+                 AND o.consumed_at IS NULL AND o.invalidated_at IS NULL",
+            )
+            .bind(id)
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| internal("dọn lượt khác", e))?;
+        }
         Ok(n == 1)
     }
 
@@ -561,14 +632,8 @@ impl<G: GrantsSource> AuthService<G> {
         if !self.email_login_enabled() {
             return Err(HttpError::not_found(NOT_ENABLED).into());
         }
-        self.limit_hit(
-            "email-verify",
-            ip,
-            ip_trusted,
-            MAX_VERIFIES_PER_IP_HOUR,
-            MAX_VERIFIES_UNTRUSTED_HOUR,
-        )?;
         let norm = Self::norm_email(email);
+        self.limit_verify(ip, ip_trusted, &norm)?;
         let company = self.company_of_email(&norm).await?;
         let id = match self.check_code(company, &norm, "login", None, code).await? {
             CodeCheck::Ok { id, .. } => id,
@@ -603,14 +668,10 @@ impl<G: GrantsSource> AuthService<G> {
         if !self.email_login_enabled() {
             return Err(HttpError::not_found(NOT_ENABLED).into());
         }
-        self.limit_hit(
-            "email-verify",
-            ip,
-            ip_trusted,
-            MAX_VERIFIES_PER_IP_HOUR,
-            MAX_VERIFIES_UNTRUSTED_HOUR,
-        )?;
         let token = token.trim();
+        // Link chưa biết email: khoá theo tiền tố của token (cặp IP + token), trần theo IP vẫn áp.
+        let token_key: String = crate::login::sha256_hex(token).chars().take(16).collect();
+        self.limit_verify(ip, ip_trusted, &format!("link:{token_key}"))?;
         let Some(company) = self.token_company(token).await? else {
             return Err(bad(INVALID_LINK));
         };
@@ -719,21 +780,15 @@ impl<G: GrantsSource> AuthService<G> {
         if !self.email_login_enabled() {
             return Err(HttpError::not_found(NOT_ENABLED).into());
         }
-        self.limit_hit(
-            "email-start",
-            ip,
-            ip_trusted,
-            MAX_STARTS_PER_IP_HOUR,
-            MAX_STARTS_UNTRUSTED_HOUR,
-        )?;
         let token = token.trim();
         let Some(company) = self.token_company(token).await? else {
             return Err(HttpError::new(410, crate::INVITATION_GONE_MESSAGE).into());
         };
         let inv = self.find_pending_invitation(company, token).await?;
         let email = Self::norm_email(&inv.email);
+        self.limit_start(ip, ip_trusted, &email)?;
         let Some((code, _)) = self
-            .create_challenge(company, &email, "invite", Some(inv.id), false, ip, ua)
+            .create_challenge(company, &email, "invite", Some(inv.id), false, ip, ua, false)
             .await?
         else {
             return Err(HttpError::new(429, "Bạn vừa yêu cầu nhiều mã. Hãy thử lại sau ít phút.").into());

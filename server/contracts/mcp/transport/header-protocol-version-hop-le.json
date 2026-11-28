@@ -9847,6 +9847,47 @@
           }
         },
         {
+          "name": "auth_login_methods",
+          "title": "Cách đăng nhập của tôi / My sign-in methods",
+          "description": "Cách đăng nhập của CHÍNH người dùng đang kết nối: có mật khẩu chưa, đã liên kết Google chưa (email Google), và bản cài đặt đang bật những cách nào (mã qua email, Google, mật khẩu). Dùng để trả lời \"tôi đăng nhập bằng gì / sao không thấy nút Google\". Chỉ đọc; đổi cách đăng nhập (liên kết/gỡ Google, đặt/bỏ mật khẩu) người dùng tự làm ở Cài đặt › Hồ sơ, AI không làm thay. / The connected user's own sign-in methods (password set, linked Google account) and which methods this install enables. Read-only.",
+          "inputSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {}
+          },
+          "annotations": {
+            "title": "Cách đăng nhập của tôi / My sign-in methods",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          },
+          "outputSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "notice": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "notice",
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
           "name": "export_payslip_excel",
           "title": "Xuất phiếu lương ra Excel / Export a payslip to xlsx",
           "description": "Xuất MỘT phiếu lương ra tệp xlsx theo mẫu kế toán. Cần quyền payroll.export; chỉ phiếu trong phạm vi quyền của người dùng (ngoài phạm vi ⇒ không tìm thấy). Chỉ đọc, không đổi dữ liệu. Trả tệp mã hoá base64 trong data.file_base64 (tối đa khoảng 25 KB; lớn hơn thì tải bằng giao diện web). Dữ liệu lương nhạy cảm. / Returns the file base64-encoded in data.file_base64 (about 25 KB max).",

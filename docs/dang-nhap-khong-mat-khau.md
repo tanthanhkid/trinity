@@ -78,7 +78,20 @@ Thư Trinity gửi có bản chữ + HTML, `Message-ID`, `Date`, `Reply-To` (n�
 
 - DB chỉ lưu HMAC-SHA256 của mã/token (khoá suy từ `JWT_SECRET`, không nằm trong DB), so sánh hằng thời gian. Bảng
   `login_challenges` (từng công ty) ghi email, hạn, số lần sai, thời điểm dùng, IP, user-agent.
-- Giới hạn: 5 lần nhập sai mỗi mã, 3 thư mỗi email mỗi 15 phút, 10 lần gửi mã mỗi IP mỗi giờ; mã mới làm mã cũ mất hiệu lực.
+- Giới hạn: tối đa 3 lượt mã còn sống mỗi email (mã mới KHÔNG làm mã còn hạn mất hiệu lực, chỉ đẩy lượt cũ nhất ra khi quá
+  3); mỗi lần nhập sai trừ lượt của mọi mã đang sống, mã nào sai đủ 5 lần thì chỉ mã đó chết; 3 thư mỗi cặp (IP người yêu
+  cầu, email) mỗi 15 phút và trần tuyệt đối 10 thư mỗi email mỗi giờ; `start` 10 lần/giờ cho mỗi cặp IP + email và 300
+  lần/giờ cho mỗi IP (công ty dùng chung IP văn phòng không bị khoá); nhập mã 30 lần/giờ cho cặp IP + email, 600 lần/giờ
+  cho IP. IP không tin được (sau proxy chưa khai): giới hạn theo email + một trần chung cao.
+- Mọi lần nhập mã không thành công trả MỘT câu chung (không nói còn mấy lần, không phân biệt sai/hết hạn/không có mã) để
+  không dò được email nào có tài khoản; lý do cụ thể chỉ ghi vào nhật ký.
+- **Rủi ro còn lại**: người lạ biết email có thể (1) xin thêm mã từ IP của họ để đẩy mã cũ nhất của chủ email ra (chủ email
+  luôn xin được mã mới từ IP của mình, mã mới nhất không bị đẩy); (2) nhập sai để đốt các mã đang sống — chủ email chỉ cần
+  xin mã mới; (3) làm hộp thư nạn nhân nhận tới 10 thư/giờ. Không lộ mã, không khoá được tài khoản.
+- Bản nhiều công ty: danh tính Google nằm trong schema của công ty và công ty được chọn theo email Google, nên chỉ liên kết
+  được Google có CÙNG email với tài khoản Trinity. Tài khoản đã liên kết một Google khác thì đăng nhập bằng Google mới (cùng
+  email) bị từ chối và ghi nhật ký `identity_conflict`.
+- `PASSWORD_LOGIN_ENABLED=false` tắt mọi đường mật khẩu, kể cả `POST /public/auth/login` của bên thứ ba (403).
 - `POST /auth/email/start` trả cùng một phản hồi dù email có tài khoản hay không; thư gửi ở tác vụ nền nên thời gian trả lời
   cũng như nhau.
 - Link trong thư trỏ về trang web `/auth/email#token=…` (phần sau `#` không tới máy chủ, không vào log/Referer); trang web
@@ -96,4 +109,6 @@ SMTP giả: `brew install mailpit && mailpit` (giao diện http://localhost:8025
 `SMTP_PORT=1025`, `SMTP_SECURITY=none`, `MAIL_FROM=Trinity <no-reply@example.com>`, `APP_PUBLIC_URL=http://localhost:3000`.
 Test tự động dùng SMTP giả trong tiến trình (`trinity_mail::fake_smtp`) và JWKS/id_token giả (wiremock), không gửi thư thật.
 
-Không có tool MCP cho phần này: đăng nhập và quản lý cách đăng nhập là việc của người dùng, không phải của agent.
+Tool MCP `auth_login_methods` (chỉ đọc): cách đăng nhập của chính người dùng đang kết nối (có mật khẩu chưa, Google đã
+liên kết chưa) và cách nào bản cài đặt đang bật. Không có tool đổi cách đăng nhập: liên kết/gỡ Google và đặt/bỏ mật khẩu
+người dùng tự làm ở Cài đặt › Hồ sơ.

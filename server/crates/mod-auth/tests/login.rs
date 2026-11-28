@@ -239,7 +239,7 @@ async fn ma_qua_smtp_gia_dang_nhap_mot_lan() {
 
 #[tokio::test]
 #[ignore = "cần Postgres (TEST_DATABASE_URL)"]
-async fn sai_ma_het_han_ma_moi_va_tran_thu() {
+async fn sai_ma_het_han_nhieu_luot_song_va_tran_thu() {
     let _g = SERIAL.lock().await;
     reset().await;
     let mail = MemoryMailer::default();
@@ -247,58 +247,120 @@ async fn sai_ma_het_han_ma_moi_va_tran_thu() {
     let email = "mot@login.example.org";
     svc.email_start(email, Some("10.0.1.1"), true, None).await.unwrap();
     let code = code_of(&wait_mail(&mail).await);
-    // Sai 5 lần: đếm ngược rồi khoá, kể cả mã đúng sau đó.
-    for left in [4, 3, 2, 1] {
+    // Sai 5 lần: luôn MỘT câu chung (không lộ còn mấy lần / email có tài khoản), rồi lượt đó chết kể cả với mã đúng.
+    for _ in 0..5 {
         let e = svc
             .email_verify(email, &other(&code), Some("10.0.1.2"), true)
             .await
             .unwrap_err();
-        assert_eq!(msg(&e), (400, format!("Mã không đúng. Bạn còn {left} lần thử.")));
+        assert_eq!(msg(&e), (400, mod_auth::login::INVALID_CODE.to_owned()));
     }
-    let e = svc
-        .email_verify(email, &other(&code), Some("10.0.1.2"), true)
-        .await
-        .unwrap_err();
-    assert!(msg(&e).1.contains("quá 5 lần"));
     let e = svc
         .email_verify(email, &code, Some("10.0.1.2"), true)
         .await
         .unwrap_err();
-    assert!(msg(&e).1.contains("quá 5 lần"), "đã khoá thì mã đúng cũng không vào");
+    assert_eq!(
+        msg(&e).1,
+        mod_auth::login::INVALID_CODE,
+        "lượt đã sai đủ 5 lần thì mã đúng cũng không vào"
+    );
+    // Email lạ: cùng câu.
+    let e = svc
+        .email_verify("la@login.example.org", "123456", Some("10.0.1.2"), true)
+        .await
+        .unwrap_err();
+    assert_eq!(msg(&e).1, mod_auth::login::INVALID_CODE);
     assert_eq!(scalar::<i64>("SELECT count(*) FROM audit_logs WHERE metadata->>'reason' = 'bad_code' AND metadata->>'email' = 'mot@login.example.org'").await, 5);
+    assert_eq!(scalar::<i64>("SELECT count(*) FROM audit_logs WHERE metadata->>'reason' = 'too_many_attempts' AND metadata->>'email' = 'mot@login.example.org'").await, 1);
 
-    // Mã mới vô hiệu mã cũ.
+    // Mã mới KHÔNG làm mã còn hạn mất hiệu lực: c2 vẫn dùng được sau khi có c3.
     svc.email_start(email, Some("10.0.1.1"), true, None).await.unwrap();
     let c2 = code_of(&wait_mail(&mail).await);
     svc.email_start(email, Some("10.0.1.1"), true, None).await.unwrap();
     let c3 = code_of(&wait_mail(&mail).await);
-    if c2 != c3 {
-        assert_eq!(
-            svc.email_verify(email, &c2, Some("10.0.1.3"), true)
-                .await
-                .unwrap_err()
-                .error()
-                .status(),
-            400
-        );
-    }
-    // Đã 3 thư/15 phút: lượt thứ 4 trả y hệt nhưng không gửi.
+    // Cặp (IP, email) đã 3 thư/15 phút: lượt thứ 4 trả y hệt nhưng không gửi.
     let r = svc.email_start(email, Some("10.0.1.1"), true, None).await.unwrap();
     assert_eq!(r["email"], "m***@login.example.org");
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-    assert!(mail.take().is_empty(), "quá 3 thư/15 phút thì không gửi");
-    // Quá hạn 10 phút: từ chối.
+    assert!(
+        mail.take().is_empty(),
+        "quá 3 thư/15 phút cho cặp IP+email thì không gửi"
+    );
+    assert!(
+        svc.email_verify(email, &c2, Some("10.0.1.3"), true).await.is_ok(),
+        "mã cũ còn hạn vẫn dùng được"
+    );
+    if c2 != c3 {
+        assert!(
+            svc.email_verify(email, &c3, Some("10.0.1.3"), true).await.is_err(),
+            "đăng nhập xong thì lượt khác chết"
+        );
+    }
+    // IP khác vẫn xin được mã (quota tính theo cặp IP + email). Quá hạn 10 phút: từ chối.
+    svc.email_start(email, Some("10.0.1.9"), true, None).await.unwrap();
+    let c4 = code_of(&wait_mail(&mail).await);
     exec("UPDATE login_challenges SET expires_at = now() - interval '1 second' WHERE email = 'mot@login.example.org' AND consumed_at IS NULL AND invalidated_at IS NULL").await;
-    let e = svc.email_verify(email, &c3, Some("10.0.1.4"), true).await.unwrap_err();
-    assert!(msg(&e).1.contains("hết hạn"), "{:?}", msg(&e));
-    // Cửa sổ 15 phút qua đi thì gửi lại được, mã mới dùng được.
+    let e = svc.email_verify(email, &c4, Some("10.0.1.4"), true).await.unwrap_err();
+    assert_eq!(msg(&e).1, mod_auth::login::INVALID_CODE);
+    assert_eq!(scalar::<i64>("SELECT count(*) FROM audit_logs WHERE metadata->>'reason' = 'code_expired' AND metadata->>'email' = 'mot@login.example.org'").await, 1);
+    // Cửa sổ 15 phút qua đi thì IP cũ gửi lại được, mã mới dùng được.
     exec(
         "UPDATE login_challenges SET created_at = now() - interval '16 minutes' WHERE email = 'mot@login.example.org'",
     )
     .await;
     svc.email_start(email, Some("10.0.1.1"), true, None).await.unwrap();
-    let c4 = code_of(&wait_mail(&mail).await);
-    assert!(svc.email_verify(email, &c4, Some("10.0.1.5"), true).await.is_ok());
+    let c5 = code_of(&wait_mail(&mail).await);
+    assert!(svc.email_verify(email, &c5, Some("10.0.1.5"), true).await.is_ok());
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn nguoi_la_khong_khoa_duoc_email_nguoi_khac() {
+    let _g = SERIAL.lock().await;
+    reset().await;
+    let mail = MemoryMailer::default();
+    let svc = service(mem_opts(&mail)).await;
+    let email = "mot@login.example.org";
+    // Chủ email xin mã từ IP của mình.
+    svc.email_start(email, Some("10.0.8.1"), true, None).await.unwrap();
+    let mine = code_of(&wait_mail(&mail).await);
+    // Người lạ ở IP khác xin 2 mã: mã của chủ email KHÔNG mất hiệu lực (tối đa 3 lượt sống).
+    for _ in 0..2 {
+        svc.email_start(email, Some("10.0.8.66"), true, None).await.unwrap();
+        wait_mail(&mail).await;
+    }
+    assert!(
+        svc.email_verify(email, &mine, Some("10.0.8.1"), true).await.is_ok(),
+        "mã của chủ email còn dùng được"
+    );
+    // Người lạ hết quota của cặp (IP lạ, email): lượt 3 còn gửi, lượt 4 thì không; chủ email vẫn xin được.
+    svc.email_start(email, Some("10.0.8.66"), true, None).await.unwrap();
+    wait_mail(&mail).await;
+    svc.email_start(email, Some("10.0.8.66"), true, None).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+    assert!(mail.take().is_empty());
+    // Người lạ nhập sai: chỉ đốt các lượt đang có, không khoá email — chủ email xin mã mới vẫn vào được.
+    for _ in 0..5 {
+        let _ = svc.email_verify(email, "000000", Some("10.0.8.66"), true).await;
+    }
+    svc.email_start(email, Some("10.0.8.1"), true, None).await.unwrap();
+    let fresh = code_of(&wait_mail(&mail).await);
+    assert!(svc.email_verify(email, &fresh, Some("10.0.8.1"), true).await.is_ok());
+    // Trần tuyệt đối 10 thư/giờ/email dù nhiều IP; tối đa 3 lượt sống.
+    reset().await;
+    for i in 0..5 {
+        for _ in 0..3 {
+            svc.email_start(email, Some(&format!("10.0.9.{i}")), true, None)
+                .await
+                .unwrap();
+        }
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert_eq!(mail.take().len(), 10);
+    assert_eq!(
+        scalar::<i64>("SELECT count(*) FROM login_challenges WHERE email = 'mot@login.example.org' AND consumed_at IS NULL AND invalidated_at IS NULL").await,
+        3
+    );
 }
 
 #[tokio::test]
@@ -404,17 +466,28 @@ async fn khong_smtp_thi_an_luong_email_va_tat_mat_khau() {
             .status(),
         403
     );
+    // Đăng nhập bằng mật khẩu qua khoá API của bên thứ ba cũng tắt theo.
+    assert_eq!(
+        off.login_third_party(CO, "mot@login.example.org", PASS, Some("10.0.3.3"), 9201, true)
+            .await
+            .unwrap_err()
+            .error()
+            .status(),
+        403
+    );
+    assert!(scalar::<i64>("SELECT count(*) FROM audit_logs WHERE metadata->>'reason' = 'password_disabled' AND metadata->>'email' = 'mot@login.example.org'").await >= 2);
 }
 
 #[tokio::test]
 #[ignore = "cần Postgres (TEST_DATABASE_URL)"]
-async fn gioi_han_start_theo_ip() {
+async fn gioi_han_start_theo_ip_email_va_ip() {
     let _g = SERIAL.lock().await;
     reset().await;
     let mail = MemoryMailer::default();
     let svc = service(mem_opts(&mail)).await;
-    for i in 0..10 {
-        svc.email_start(&format!("la{i}@login.example.org"), Some("10.0.4.1"), true, None)
+    // Theo cặp IP + email: 10 lần/giờ.
+    for _ in 0..10 {
+        svc.email_start("la@login.example.org", Some("10.0.4.1"), true, None)
             .await
             .unwrap();
     }
@@ -424,11 +497,30 @@ async fn gioi_han_start_theo_ip() {
         .unwrap_err();
     assert_eq!(e.error().status(), 429);
     assert!(e.retry_after().is_some());
+    // Công ty chung IP văn phòng: email khác cùng IP vẫn được; IP khác cùng email cũng được.
+    assert!(
+        svc.email_start("la2@login.example.org", Some("10.0.4.1"), true, None)
+            .await
+            .is_ok()
+    );
     assert!(
         svc.email_start("la@login.example.org", Some("10.0.4.2"), true, None)
             .await
-            .is_ok(),
-        "IP khác không bị chặn"
+            .is_ok()
+    );
+    // Chặn cuối theo IP: 300/giờ (đã dùng 11 + 1 bị chặn vẫn tính 0 ⇒ còn 289).
+    for i in 0..289 {
+        svc.email_start(&format!("nv{i}@login.example.org"), Some("10.0.4.1"), true, None)
+            .await
+            .unwrap();
+    }
+    assert_eq!(
+        svc.email_start("cuoi@login.example.org", Some("10.0.4.1"), true, None)
+            .await
+            .unwrap_err()
+            .error()
+            .status(),
+        429
     );
 }
 
@@ -601,6 +693,27 @@ async fn google_gan_vao_tai_khoan_trung_email_va_ve_mot_lan() {
             .await,
     );
     assert!(loc.starts_with("/login?error=google"), "{loc}");
+
+    // Một Google KHÁC cùng email: tài khoản đã liên kết Google khác ⇒ từ chối, ghi nhật ký.
+    let (state, nonce) = begin(&svc, None, None);
+    idp.next_token(idp.sign(&claims(&nonce, "g-sub-khac", "mot@login.example.org"), "k1"))
+        .await;
+    let loc = location(
+        svc.google_callback(&cb(&state), Some(&state), Some("10.0.5.1"), true)
+            .await,
+    );
+    assert!(loc.starts_with("/login?error=google"), "{loc}");
+    assert_eq!(
+        scalar::<i64>(
+            "SELECT count(*) FROM audit_logs WHERE user_id = 9201 AND metadata->>'reason' = 'identity_conflict'"
+        )
+        .await,
+        1
+    );
+    assert_eq!(
+        scalar::<i64>("SELECT count(*) FROM user_identities WHERE subject = 'g-sub-khac'").await,
+        0
+    );
 
     // Lần sau: tìm theo danh tính (sub), kể cả khi email Google đã đổi chữ hoa.
     let (state, nonce) = begin(&svc, None, None);

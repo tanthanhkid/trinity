@@ -285,6 +285,13 @@ fn login_error(msg: &str) -> GoogleOutcome {
     GoogleOutcome::Redirect(format!("/login?{q}"))
 }
 
+const IDENTITY_CONFLICT: &str = "Tài khoản Trinity của email này đã liên kết một tài khoản Google khác. Hãy đăng nhập bằng email, rồi đổi liên kết ở Cài đặt.";
+
+/// Nhiều công ty: Google phải cùng email với tài khoản (công ty được chọn theo email). Một công ty: email nào cũng được.
+pub fn link_email_allowed(multi_tenant: bool, user_email: &str, google_email: &str) -> bool {
+    !multi_tenant || user_email.trim().eq_ignore_ascii_case(google_email.trim())
+}
+
 /// Câu lỗi đưa lên URL cho web hiện (lỗi máy chủ thì câu chung).
 fn fail_text(e: &crate::AuthFail) -> String {
     if e.error().status() >= 500 {
@@ -508,8 +515,30 @@ impl<G: GrantsSource> AuthService<G> {
                 Some(id) => self.find_by_id(company, id).await?,
                 None => match self.find_by_email(company, &claims.email).await? {
                     Some(u) => {
-                        // Email Google đã xác minh khớp tài khoản sẵn có ⇒ gắn danh tính vào đúng tài khoản đó.
                         let mut c = self.conn(company).await?;
+                        // Tài khoản đã liên kết MỘT Google khác: không lặng lẽ cho vào bằng Google này (từ chối + nhật ký).
+                        let other: Option<String> = sqlx::query_scalar(
+                            "SELECT subject FROM user_identities WHERE user_id = $1 AND provider = 'google'",
+                        )
+                        .bind(u.id)
+                        .fetch_optional(&mut *c)
+                        .await
+                        .map_err(|e| internal("danh tính Google", e))?;
+                        if other.is_some_and(|o| o != claims.sub) {
+                            drop(c);
+                            self.log_login_via(
+                                company,
+                                Some(u.id),
+                                &claims.email,
+                                false,
+                                ip,
+                                LoginReason::IdentityConflict,
+                                "google",
+                            )
+                            .await;
+                            return Err(trinity_kernel::error::HttpError::conflict(IDENTITY_CONFLICT).into());
+                        }
+                        // Email Google đã xác minh khớp tài khoản sẵn có ⇒ gắn danh tính vào đúng tài khoản đó.
                         sqlx::query(
                             "INSERT INTO user_identities (user_id, provider, subject, email) VALUES ($1, 'google', $2, $3) \
                              ON CONFLICT DO NOTHING",
@@ -565,6 +594,18 @@ impl<G: GrantsSource> AuthService<G> {
 
     /// Gắn Google vào tài khoản đang đăng nhập (thay danh tính Google cũ nếu có). Tài khoản Google đã gắn người khác ⇒ 409.
     async fn link_identity(&self, company: CompanyRef, user_id: i32, claims: &IdClaims) -> Res<()> {
+        // Nhiều công ty: danh tính nằm trong schema của công ty, mà công ty lúc đăng nhập Google được chọn theo EMAIL Google
+        // (chưa có chỉ mục `sub` cấp platform) ⇒ chỉ cho liên kết Google cùng email, nếu không liên kết xong cũng không vào được.
+        let user = self
+            .find_by_id(company, user_id)
+            .await?
+            .ok_or_else(|| trinity_kernel::error::HttpError::not_found("Không tìm thấy người dùng"))?;
+        if !link_email_allowed(self.platform.multi_tenant(), &user.email, &claims.email) {
+            return Err(trinity_kernel::error::HttpError::bad_request(
+                "Bản cài đặt nhiều công ty chỉ liên kết được tài khoản Google có cùng email với tài khoản Trinity.",
+            )
+            .into());
+        }
         let mut tx = self.tenant_tx(company).await?;
         let owner: Option<i32> = sqlx::query_scalar(
             "SELECT user_id FROM user_identities WHERE provider = 'google' AND subject = $1 FOR UPDATE",
@@ -706,6 +747,13 @@ mod tests {
             verify_id_token(&format!("{h}.{p}.x"), &[], "c", "n", 0),
             Err(VerifyError::UnknownKid(Some("k9".into())))
         );
+    }
+
+    #[test]
+    fn nhieu_cong_ty_chi_lien_ket_google_cung_email() {
+        assert!(link_email_allowed(false, "a@x.vn", "canhan@gmail.com"));
+        assert!(link_email_allowed(true, "A@X.vn", "a@x.vn"));
+        assert!(!link_email_allowed(true, "a@x.vn", "canhan@gmail.com"));
     }
 
     #[test]

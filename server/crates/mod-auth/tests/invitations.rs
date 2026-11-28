@@ -293,7 +293,7 @@ async fn nhan_loi_moi_bang_ma_email_khong_can_mat_khau() {
         )
         .await
         .unwrap_err();
-    assert_eq!(err_msg(&wrong), (400, "Mã không đúng. Bạn còn 4 lần thử.".to_owned()));
+    assert_eq!(err_msg(&wrong), (400, mod_auth::login::INVALID_CODE.to_owned()));
     // Đúng mã: tạo tài khoản KHÔNG mật khẩu, đăng nhập luôn.
     let out = e
         .svc

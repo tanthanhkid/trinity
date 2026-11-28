@@ -40,6 +40,9 @@ pub trait InvitationsPort: Send + Sync {
         id: i32,
         owners: &'a OwnerIds,
     ) -> BoxFuture<'a, Result<Value, AuthFail>>;
+
+    /// Cách đăng nhập của chính người dùng (#675, `GET /auth/account`).
+    fn login_methods<'a>(&'a self, company: CompanyRef, user_id: i32) -> BoxFuture<'a, Result<Value, AuthFail>>;
 }
 
 /// Bản cài trên `AuthService` thật.
@@ -72,6 +75,10 @@ impl<G: GrantsSource + 'static> InvitationsPort for AuthInvitations<G> {
         owners: &'a OwnerIds,
     ) -> BoxFuture<'a, Result<Value, AuthFail>> {
         Box::pin(async move { self.0.revoke_invitation(company, id, owners).await })
+    }
+
+    fn login_methods<'a>(&'a self, company: CompanyRef, user_id: i32) -> BoxFuture<'a, Result<Value, AuthFail>> {
+        Box::pin(async move { self.0.account_overview(company, user_id).await })
     }
 }
 
@@ -240,6 +247,37 @@ pub(crate) fn cancel_invitation<'a>(
             .await
             .map_err(|e| auth_err(&e, &[404, 409]))?;
         wrapped(&json!({ "invitation_id": id, "status": "revoked" }))
+    })
+}
+
+/// `auth_login_methods` (#675): chỉ đọc cách đăng nhập của CHÍNH người dùng đang kết nối; không có tool đổi cách đăng nhập.
+pub(crate) fn auth_login_methods<'a>(
+    port: &'a Arc<dyn InvitationsPort>,
+    _args: &'a Value,
+    ctx: &'a ToolCtx<'a>,
+) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+    Box::pin(async move {
+        let p = ctx.principal;
+        let v = port
+            .login_methods(p.company, p.user_id)
+            .await
+            .map_err(|e| auth_err(&e, &[404]))?;
+        wrapped(&json!({
+            "has_password": v.get("has_password"),
+            "google": v.get("identities").and_then(Value::as_array).and_then(|a| {
+                a.iter().find(|i| i.get("provider").and_then(Value::as_str) == Some("google")).map(|i| json!({
+                    "linked": true,
+                    "email": i.get("email"),
+                    "linked_at": i.get("created_at"),
+                }))
+            }).unwrap_or_else(|| json!({ "linked": false })),
+            "install": {
+                "email_code_enabled": v.get("email_login_enabled"),
+                "google_enabled": v.get("google_enabled"),
+                "password_enabled": v.get("password_login_enabled"),
+            },
+            "change_where": "Cài đặt › Hồ sơ › Cách đăng nhập",
+        }))
     })
 }
 

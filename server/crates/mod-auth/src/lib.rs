@@ -221,6 +221,8 @@ pub enum LoginReason {
     NoAccount,
     /// Bản cài đặt đã tắt đăng nhập bằng mật khẩu.
     PasswordDisabled,
+    /// Tài khoản đã liên kết một danh tính ngoài KHÁC (vd Google khác) với danh tính đang đăng nhập.
+    IdentityConflict,
 }
 
 impl LoginReason {
@@ -239,6 +241,7 @@ impl LoginReason {
             Self::TooManyAttempts => "too_many_attempts",
             Self::NoAccount => "no_account",
             Self::PasswordDisabled => "password_disabled",
+            Self::IdentityConflict => "identity_conflict",
         }
     }
 }
@@ -784,6 +787,15 @@ impl<G: GrantsSource> AuthService<G> {
             format!("public-login-untrusted:{ip_s}")
         };
         let slow = (!ip_trusted).then(|| format!("login-untrusted-email:{norm}"));
+        if !self.login.opts.password_login {
+            // `PASSWORD_LOGIN_ENABLED=false` tắt MỌI đường đăng nhập bằng mật khẩu, kể cả qua khoá API của bên thứ ba.
+            self.log_login(company, None, email, false, ip, LoginReason::PasswordDisabled)
+                .await;
+            return Err(HttpError::forbidden(
+                "Bản cài đặt này đã tắt đăng nhập bằng mật khẩu. Hãy đăng nhập bằng email hoặc Google.",
+            )
+            .into());
+        }
         for k in std::iter::once(&key).chain(slow.as_ref()) {
             if let Some(retry) = self.enforce_rate_limit(k) {
                 return Err(self.rate_limited(company, email, ip, retry).await);

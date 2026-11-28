@@ -104,22 +104,45 @@ describe("PosSell — điện thoại", () => {
   it("giỏ rỗng: thanh đáy gọn 'Chạm món để thêm', chưa dựng giỏ chi tiết", () => {
     renderSell()
     expect(screen.getByRole("button", { name: "Mở giỏ hàng" })).toHaveTextContent("Chạm món để thêm")
-    expect(screen.queryByRole("complementary", { name: "Giỏ hàng" })).toBeNull()
+    expect(screen.queryByRole("dialog", { name: "Đơn hàng" })).toBeNull()
   })
 
-  it("thêm món → thanh đáy 'N món · Tổng' + Thanh toán; chạm mở giỏ trong bảng trượt (cùng PosCartPanel)", () => {
+  it("giảm giá nhanh 5%/10% trên khối đáy xanh, Khác mở ô nhập; tổng cập nhật", () => {
+    renderSell()
+    fireEvent.click(screen.getByRole("button", { name: /^Cà phê sữa/ }))
+    fireEvent.click(screen.getByRole("button", { name: /Mở giỏ hàng/ }))
+    const cart = screen.getByRole("dialog", { name: "Đơn hàng" })
+    fireEvent.click(within(cart).getByRole("button", { name: "10%" }))
+    expect(within(cart).getByRole("button", { name: "10%" })).toHaveAttribute("aria-pressed", "true")
+    expect(within(cart).getByText("27.000₫")).toBeInTheDocument()
+    const total = () => cart.querySelector('[data-slot="pos-order-total"]') as HTMLElement
+    expect(total()).toHaveTextContent("27.000₫")
+    fireEvent.click(within(cart).getByRole("button", { name: "Khác" }))
+    expect(within(cart).getByRole("button", { name: "Giảm theo số tiền" })).toBeInTheDocument()
+    // «Khác» bật thì chip 10% không sáng cùng lúc.
+    expect(within(cart).getByRole("button", { name: "10%" })).toHaveAttribute("aria-pressed", "false")
+    fireEvent.click(within(cart).getByRole("button", { name: "Không" }))
+    expect(total()).toHaveTextContent("30.000₫")
+    expect(total()).not.toHaveTextContent("27.000₫")
+  })
+
+  it("thêm món → thanh đáy 'N món · Tổng' + Thanh toán; chạm mở màn đơn toàn phần (PosOrderScreen)", () => {
     renderSell()
     fireEvent.click(screen.getByRole("button", { name: /^Cà phê sữa/ }))
     const bar = screen.getByRole("button", { name: /Mở giỏ hàng, 1 món/ })
     expect(bar).toHaveTextContent("30.000₫")
     expect(screen.getByRole("button", { name: "Thanh toán" })).toBeEnabled()
     fireEvent.click(bar)
-    const cart = screen.getByRole("complementary", { name: "Giỏ hàng" })
+    const cart = screen.getByRole("dialog", { name: "Đơn hàng" })
     expect(cart).toHaveTextContent("Cà phê sữa")
-    expect(within(cart).getByRole("button", { name: "Mới" })).toBeInTheDocument()
+    expect(within(cart).getByRole("button", { name: /Thêm món/ })).toBeInTheDocument()
+    expect(within(cart).getByRole("button", { name: "Thu sau (lưu đơn)" })).toBeEnabled()
+    expect(within(cart).getByRole("button", { name: "Thanh toán" })).toBeEnabled()
+    fireEvent.click(within(cart).getByRole("button", { name: /Thêm món/ }))
+    expect(screen.queryByRole("dialog", { name: "Đơn hàng" })).toBeNull()
   })
 
-  it("'Huỷ đơn này' không còn nằm cạnh nút Thanh toán trong giỏ (vào menu ⋯ khi đã có đơn)", async () => {
+  it("'Huỷ đơn này' không còn nằm cạnh nút Thanh toán trong giỏ (vào menu ⋯ trên đầu màn đơn khi đã có đơn)", async () => {
     created.mockResolvedValue({
       id: 9, code: "20260930-0001", shift_id: 1, table_id: null, order_type: "dine_in", status: "open", note: null,
       subtotal: 30000, discount_type: "none", discount_value: 0, discount_amount: 0, total: 30000,
@@ -131,8 +154,8 @@ describe("PosSell — điện thoại", () => {
     // Thanh đáy chỉ có Tổng + Thanh toán (thiết kế pos-mobile); Lưu đơn nằm trong giỏ.
     expect(screen.queryByRole("button", { name: "Lưu đơn" })).toBeNull()
     fireEvent.click(screen.getByRole("button", { name: /Mở giỏ hàng/ }))
-    const cart = screen.getByRole("complementary", { name: "Giỏ hàng" })
-    fireEvent.click(within(cart).getByRole("button", { name: "Lưu đơn" }))
+    const cart = screen.getByRole("dialog", { name: "Đơn hàng" })
+    fireEvent.click(within(cart).getByRole("button", { name: "Thu sau (lưu đơn)" }))
     await waitFor(() => expect(created).toHaveBeenCalledTimes(1))
     expect(within(cart).queryByRole("button", { name: "Huỷ đơn này" })).toBeNull()
     expect(within(cart).getByRole("button", { name: "Thao tác khác" })).toBeInTheDocument()

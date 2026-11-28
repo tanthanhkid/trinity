@@ -1,33 +1,34 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Phone, ArrowRight, MessageSquare, Mail, Loader2, ShieldOff, AlertCircle, RefreshCcw } from "lucide-react"
+import { Phone, ArrowRight, MessageSquare, Mail, Loader2, ShieldOff, AlertCircle, RefreshCcw, ChevronLeft, History } from "lucide-react"
 import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { ArrowLeft } from "lucide-react"
 import axios from "axios"
 import apiClient from "@/lib/api-client"
-import { formatPhone, formatTimeVn, todayVn, vnDateKey } from "@/lib/format"
+import { formatTimeVn, todayVn, vnDateKey } from "@/lib/format"
 import { cn } from "@/lib/utils"
-import { ShellAvatar } from "@/components/app-shell/avatar"
 import { inboxDayLabel } from "@/components/inbox/inbox-ui"
-import { BOX } from "@/app/(dashboard)/dashboard/_components/home-box"
-import { StagePill } from "@/app/(dashboard)/contacts/_components/contact-row"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouteParams } from "@/lib/route-params"
-import { Forbidden, usePermissions } from "@/lib/rbac"
+import { useMediaQuery } from "@/lib/use-popover-container"
+import { Can, Forbidden, usePermissions } from "@/lib/rbac"
 import { useMarkContactViewed } from "@/hooks/use-mark-contact-viewed"
-import { ZaloPhoneLink } from "@/components/zalo-phone-link"
-import { ZaloActions } from "@/components/zalo-actions"
+import { StickyActionBar } from "@/components/ui/sticky-action-bar"
+import { EmptyState } from "@/components/ui/empty-state"
 import { ContactInfoForm, type ContactData } from "./_components/contact-info-form"
 import { ReassignContactSaleButton } from "./_components/reassign-contact-sale"
 import { LeadScoreCard, type LeadReason } from "./_components/lead-score-card"
+import { ContactHero, callPhone, openZalo } from "./_components/contact-hero"
+import { StagePicker } from "./_components/stage-picker"
+import { ReminderCard } from "./_components/reminder-card"
+import { ContactInfoPanel, INLINE_FIELDS, fieldDisplay, missingCount } from "./_components/info-panel"
+import { MissingInfoSheet } from "./_components/missing-info-sheet"
 import type { LeadLabel } from "@/components/lead-score-badge"
 import { ContactKanbanTab } from "@/components/kanban/contact-kanban-tab"
-import { RecordCode } from "@/components/custom-objects/record-code"
 import { MentionedIn } from "@/components/refs/mentioned-in"
 import { MentionText } from "@/components/refs/mention-text"
 
@@ -73,19 +74,15 @@ function activityText(a: Activity): string {
   return typeof desc === "string" && desc.length > 0 ? desc : a.action
 }
 
-/** Tab trong trang — cùng kiểu tab nhanh của màn Khách hàng (nền xám khi chọn, không gạch chân). */
-const TAB =
-  "h-9 flex-none rounded-lg px-3 text-sm after:hidden data-active:bg-[var(--muted)] data-active:text-foreground hover:bg-[var(--muted)] max-sm:h-11 dark:data-active:bg-[var(--muted)]"
-
 /**
- * Lịch sử thao tác dạng dòng thời gian như Trang chủ: vạch ngày · giờ · biểu tượng · nội dung.
- * Ghi chú vẫn qua `MentionText` (gắn thẻ @), còn lại là text node.
+ * Lịch sử thao tác dạng dòng thời gian: vạch ngày · giờ · biểu tượng · nội dung (ghi chú vẫn qua `MentionText`, gắn thẻ @).
+ * Hàng hover `--ax-hover`, vạch chia `--ax-divider`.
  */
 function ActivityTimeline({ items }: { items: Activity[] }) {
   const today = todayVn()
   const days = items.map((a) => vnDateKey(a.created_at))
   return (
-    <ol className="py-1.5">
+    <ol>
       {items.map((a, i) => {
         const Icon = activityIcon[a.action] ?? MessageSquare
         const day = days[i]
@@ -94,14 +91,14 @@ function ActivityTimeline({ items }: { items: Activity[] }) {
         return (
           <li key={a.id}>
             {sep && (
-              <p className="px-4 pb-1 pt-3 text-sm font-medium text-muted-foreground">{inboxDayLabel(day, today)}</p>
+              <p className="px-1 pb-1 pt-3 text-sm font-medium text-ax-ink-2">{inboxDayLabel(day, today)}</p>
             )}
-            <div className="grid grid-cols-[44px_28px_minmax(0,1fr)] items-start gap-2.5 px-4 py-2.5 hover:bg-[var(--muted)] sm:grid-cols-[52px_28px_minmax(0,1fr)]">
-              <time dateTime={a.created_at} className="pt-1 text-sm tabular-nums text-muted-foreground">{formatTimeVn(a.created_at)}</time>
-              <span className="grid size-7 place-items-center rounded-full border border-[var(--border)] bg-[var(--card)]">
-                <Icon className="size-3.5 text-muted-foreground" aria-hidden />
+            <div className="grid grid-cols-[48px_28px_minmax(0,1fr)] items-start gap-2.5 border-t border-ax-divider px-1 py-3 transition-colors hover:bg-ax-hover sm:grid-cols-[56px_28px_minmax(0,1fr)]">
+              <time dateTime={a.created_at} className="ax-amount pt-0.5 text-[13px] text-ax-ink-3">{formatTimeVn(a.created_at)}</time>
+              <span className="grid size-7 place-items-center rounded-full bg-ax-sunken">
+                <Icon className="size-3.5 text-ax-ink-2" aria-hidden />
               </span>
-              <p className="min-w-0 break-words pt-0.5 text-sm font-medium leading-snug text-foreground">
+              <p className="min-w-0 break-words pt-0.5 text-sm leading-normal text-ax-ink">
                 {a.action === "note" ? <MentionText text={activityText(a)} /> : activityText(a)}
               </p>
             </div>
@@ -189,6 +186,14 @@ export default function ContactDetailPage() {
 }
 
 function ContactDetailContent({ id }: { id: string }) {
+  const [showFull, setShowFull] = useState(false)
+  const [showMissing, setShowMissing] = useState(false)
+  const desktop = useMediaQuery("(min-width: 1024px)")
+  const fullFormRef = useRef<HTMLElement>(null)
+  // «Sửa» / «Chỉnh sửa đầy đủ» mở form ở cuối cột ⇒ cuộn tới để người dùng thấy ngay.
+  useEffect(() => {
+    if (showFull) fullFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }, [showFull])
 
   const { data: contact, isLoading, isError, error: contactError, refetch: refetchContact } = useQuery<ContactDetail, unknown>({
     queryKey: ["contact", id],
@@ -237,111 +242,183 @@ function ContactDetailContent({ id }: { id: string }) {
     <ContactDetailError id={id} status={404} onRetry={refetchContact} />
   )
 
-  const stagePill = {
-    stage: contact.stage ?? "Mới",
-    stage_source: contact.stage_source === "stage" ? ("stage" as const) : ("default" as const),
-    stage_option: contact.stage_option ?? null,
+  const fullForm = (
+    <section ref={fullFormRef} aria-label="Chỉnh sửa đầy đủ" className="flex scroll-mt-4 flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-bold tracking-[-0.011em]">Chỉnh sửa đầy đủ</h2>
+        <Button variant="ax-ghost" size="ax-sm" onClick={() => setShowFull(false)}>Đóng</Button>
+      </div>
+      <ContactInfoForm
+        autoEdit
+        contact={contact}
+        assigneeName={contact.assigned_user?.full_name ?? null}
+        assigneeEmail={contact.assigned_user?.email ?? null}
+        creatorName={contact.creator?.full_name ?? null}
+        createdAt={contact.created_at ?? null}
+      />
+    </section>
+  )
+
+  const history = (
+    <section aria-labelledby="contact-history" className="ax-card px-5 py-[18px] max-sm:px-4">
+      <div className="mb-1.5 flex items-center gap-2.5">
+        <h2 id="contact-history" className="text-sm font-bold tracking-[-0.011em] max-sm:text-[15px]">Lịch sử</h2>
+        {allActivities.length > 0 && (
+          <span className="ml-auto text-sm text-ax-ink-3">{allActivities.length.toLocaleString("vi-VN")}{activitiesQuery.hasNextPage ? "+" : ""} mục</span>
+        )}
+      </div>
+      {activitiesQuery.isLoading ? (
+        <div className="space-y-3 py-2">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 rounded-lg" />)}
+        </div>
+      ) : allActivities.length === 0 ? (
+        <EmptyState variant="ax" icon={History} title="Chưa có hoạt động nào" message="Mọi thay đổi và ghi chú của khách sẽ hiện ở đây." />
+      ) : (
+        <>
+          <ActivityTimeline items={allActivities} />
+          {activitiesQuery.hasNextPage && (
+            <div className="border-t border-ax-divider pt-3 text-center">
+              <Button variant="ax-secondary" size="ax" className="max-sm:w-full" onClick={() => activitiesQuery.fetchNextPage()} disabled={activitiesQuery.isFetchingNextPage}>
+                {activitiesQuery.isFetchingNextPage && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Xem thêm
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  )
+
+  const tasks = (
+    <section aria-labelledby="contact-tasks" className="flex flex-col gap-2">
+      <h2 id="contact-tasks" className="text-sm font-bold tracking-[-0.011em] max-sm:text-[15px]">Công việc</h2>
+      <ContactKanbanTab contactId={Number(id)} contactName={contact.full_name} />
+    </section>
+  )
+
+  const leadScore = (
+    <LeadScoreCard
+      contactId={id}
+      score={contact.lead_score}
+      label={contact.lead_label}
+      reasons={contact.lead_score_reasons}
+      scoredAt={contact.lead_scored_at}
+    />
+  )
+
+  const assignee = contact.assigned_user?.full_name ?? null
+
+  if (desktop) {
+    return (
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-4">
+        <nav aria-label="Vị trí" className="flex items-center gap-2 text-[13px] text-ax-ink-2">
+          <Link href="/contacts" className="hover:text-ax-ink hover:underline">Khách hàng</Link>
+          <span aria-hidden>/</span>
+          <span className="text-ax-ink">{contact.full_name || contact.phone}</span>
+        </nav>
+        <div className="flex flex-wrap items-start gap-4">
+          <div className="flex min-w-[280px] max-w-[340px] flex-[1_1_300px] flex-col gap-4">
+            <ContactHero name={contact.full_name} phone={contact.phone} code={contact.code} avatarUrl={contact.avatar_url} sourceLabel={contact.source?.label} withActions />
+            <section aria-labelledby="contact-stage" className="ax-card px-5 py-[18px]">
+              <h2 id="contact-stage" className="mb-2.5 text-sm font-bold tracking-[-0.011em]">Giai đoạn</h2>
+              <StagePicker contact={contact} layout="list" />
+            </section>
+            <ReminderCard contact={contact} />
+            {leadScore}
+          </div>
+          <div className="flex min-w-0 flex-[3_1_420px] flex-col gap-4">
+            {history}
+            {tasks}
+            {showFull && fullForm}
+            <MentionedIn type="contact" id={Number(id)} />
+          </div>
+          <div className="flex min-w-[280px] max-w-[360px] flex-[2_1_300px] flex-col gap-3">
+            <ContactInfoPanel
+              contact={contact}
+              assigneeName={assignee}
+              assigneeEmail={contact.assigned_user?.email ?? null}
+              creatorName={contact.creator?.full_name ?? null}
+              createdAt={contact.created_at ?? null}
+              onOpenFullForm={() => setShowFull(true)}
+            />
+            <ReassignContactSaleButton
+              contactId={id}
+              contactName={contact.full_name}
+              assignedTo={contact.assigned_to}
+              assigneeName={assignee}
+            />
+          </div>
+        </div>
+      </div>
+    )
   }
 
+  // Điện thoại (< 1024px): bố cục RIÊNG — quay lại · khối nhấn · chip giai đoạn · tóm tắt · lịch sử · thanh Gọi/Zalo dính đáy.
+  const summary = INLINE_FIELDS
+    .map((f) => ({ label: f.label, value: fieldDisplay(f.key, contact) }))
+    .filter((r) => r.value !== "")
+  if (contact.source?.label) summary.push({ label: "Nguồn", value: contact.source.label })
+  if (assignee) summary.push({ label: "Phụ trách", value: assignee })
+  if (contact.gender === "nam" || contact.gender === "nu") summary.push({ label: "Giới tính", value: contact.gender === "nam" ? "Nam" : "Nữ" })
+  if (contact.contact_status?.label) summary.push({ label: "Trạng thái chi tiết", value: contact.contact_status.label })
+  const missing = missingCount(contact)
+  const hasPhone = contact.phone.trim().length > 0
+
   return (
-    <div className="space-y-4">
-      {/* Thanh tiêu đề gọn (breadcrumb đã nằm ở topbar): quay lại · avatar · tên + mã + giai đoạn · SĐT · hành động. */}
-      <section aria-label="Thông tin chính" className={cn(BOX, "flex flex-wrap items-start gap-3 p-3 sm:items-center sm:gap-4 sm:p-4")}>
-        <Link
-          href="/contacts"
-          aria-label="Quay lại khách hàng"
-          title="Quay lại khách hàng"
-          className="grid size-9 shrink-0 place-items-center rounded-lg border border-[var(--input)] text-muted-foreground transition hover:bg-[var(--muted)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] max-sm:size-11"
-        >
-          <ArrowLeft className="size-4" />
+    <div className="-mx-1 flex flex-col gap-3.5">
+      <div className="flex items-center justify-between">
+        <Link href="/contacts" aria-label="Quay lại Khách hàng" className="flex h-11 items-center gap-0.5 rounded-ax-field pr-3 text-base text-ax-primary-ink outline-none focus-visible:shadow-[var(--ax-focus-ring)]">
+          <ChevronLeft className="size-5" aria-hidden /> Khách hàng
         </Link>
-        <ShellAvatar name={contact.full_name || contact.phone} size="lg" className="!rounded-full" />
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h1 className="min-w-0 break-words text-[22px] font-semibold leading-tight tracking-tight text-foreground">
-              {contact.full_name || formatPhone(contact.phone)}
-            </h1>
-            <RecordCode code={contact.code} className="text-sm" />
-            <StagePill c={stagePill} />
+        <Can perm="contacts.update">
+          <button type="button" onClick={() => setShowFull(true)} className="h-11 rounded-ax-field px-3.5 text-base font-semibold text-ax-primary-ink outline-none focus-visible:shadow-[var(--ax-focus-ring)]">
+            Sửa
+          </button>
+        </Can>
+      </div>
+      <ContactHero name={contact.full_name} phone={contact.phone} code={contact.code} avatarUrl={contact.avatar_url} sourceLabel={contact.source?.label} />
+      <div className="-mx-1"><StagePicker contact={contact} layout="chips" /></div>
+      <ReminderCard contact={contact} />
+      <section aria-label="Thông tin" className="ax-card px-4 py-1.5">
+        {summary.map((r, i) => (
+          <div key={r.label} className={cn("flex min-h-12 items-center justify-between gap-4", i > 0 && "border-t border-ax-divider")}>
+            <span className="text-[15px] text-ax-ink-2">{r.label}</span>
+            <span className="ax-amount text-right text-[15px] break-words">{r.value}</span>
           </div>
-          {/* SĐT hiển thị ĐÚNG chuỗi BE trả (BE che theo `contacts.phone_full`) —
-              FE KHÔNG tự che theo vai trò. */}
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
-            <ZaloPhoneLink phone={contact.phone} className="text-muted-foreground max-sm:inline-flex max-sm:min-h-11 max-sm:items-center" />
-            {contact.assigned_user?.full_name && <span>Phụ trách: {contact.assigned_user.full_name}</span>}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
-          <ZaloActions phone={contact.phone} />
-          <ReassignContactSaleButton
-            contactId={id}
-            contactName={contact.full_name}
-            assignedTo={contact.assigned_to}
-            assigneeName={contact.assigned_user?.full_name ?? null}
-          />
-        </div>
+        ))}
+        {missing > 0 && (
+          <Can perm="contacts.update">
+            <button
+              type="button"
+              onClick={() => setShowMissing(true)}
+              className={cn("min-h-12 w-full text-left text-[15px] font-semibold text-ax-primary outline-none focus-visible:shadow-[var(--ax-focus-ring)]", summary.length > 0 && "border-t border-ax-divider")}
+            >
+              Bổ sung {missing} thông tin còn thiếu
+            </button>
+          </Can>
+        )}
       </section>
-
-      <LeadScoreCard
+      {/* Chuyển người phụ trách (tự ẩn khi thiếu `contacts.transfer`) — giữ chức năng của bản cũ trên điện thoại. */}
+      <ReassignContactSaleButton
         contactId={id}
-        score={contact.lead_score}
-        label={contact.lead_label}
-        reasons={contact.lead_score_reasons}
-        scoredAt={contact.lead_scored_at}
+        contactName={contact.full_name}
+        assignedTo={contact.assigned_to}
+        assigneeName={assignee}
       />
-
-      <Tabs defaultValue="info" className="gap-3">
-        <TabsList variant="line" className="h-auto gap-1 p-0">
-          <TabsTrigger value="info" className={TAB}>Thông tin</TabsTrigger>
-          <TabsTrigger value="history" className={TAB}>Lịch sử thao tác</TabsTrigger>
-          <TabsTrigger value="kanban" className={TAB}>Công việc</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="info">
-          <ContactInfoForm
-            contact={contact}
-            assigneeName={contact.assigned_user?.full_name ?? null}
-            assigneeEmail={contact.assigned_user?.email ?? null}
-            creatorName={contact.creator?.full_name ?? null}
-            createdAt={contact.created_at ?? null}
-          />
-        </TabsContent>
-
-        <TabsContent value="history">
-          <section aria-labelledby="contact-history" className={BOX}>
-            <header className="flex items-center gap-2.5 border-b border-[var(--border)] px-4 py-3">
-              <h2 id="contact-history" className="text-[15px] font-semibold text-foreground">Lịch sử thao tác</h2>
-              {allActivities.length > 0 && (
-                <span className="ml-auto text-sm text-muted-foreground">{allActivities.length.toLocaleString("vi-VN")}{activitiesQuery.hasNextPage ? "+" : ""} mục</span>
-              )}
-            </header>
-            {activitiesQuery.isLoading ? (
-              <div className="space-y-3 p-4">
-                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10 rounded-lg" />)}
-              </div>
-            ) : allActivities.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-muted-foreground">Chưa có hoạt động nào</p>
-            ) : (
-              <>
-                <ActivityTimeline items={allActivities} />
-                {activitiesQuery.hasNextPage && (
-                  <div className="border-t border-[var(--border)] p-3 text-center">
-                    <Button variant="outline" size="sm" className="text-sm max-sm:h-11 max-sm:w-full" onClick={() => activitiesQuery.fetchNextPage()} disabled={activitiesQuery.isFetchingNextPage}>
-                      {activitiesQuery.isFetchingNextPage && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Xem thêm
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </section>
-        </TabsContent>
-
-        <TabsContent value="kanban">
-          <ContactKanbanTab contactId={Number(id)} contactName={contact.full_name} />
-        </TabsContent>
-      </Tabs>
+      {leadScore}
+      {history}
+      {tasks}
+      {showFull && fullForm}
       <MentionedIn type="contact" id={Number(id)} />
+      <MissingInfoSheet contact={contact} open={showMissing} onOpenChange={setShowMissing} />
+      {hasPhone && (
+        <StickyActionBar layout="mobile">
+          <Button variant="ax-secondary" size="ax-lg" onClick={() => openZalo(contact.phone)}>Zalo</Button>
+          <Button variant="ax-primary" size="ax-lg" onClick={() => callPhone(contact.phone)}>
+            <Phone className="size-5" aria-hidden /> Gọi
+          </Button>
+        </StickyActionBar>
+      )}
     </div>
   )
 }

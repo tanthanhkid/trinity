@@ -124,3 +124,9 @@ showUndoToast("Đã lưu số điện thoại", { onUndo: () => save(prev) })
 - Soạn bài: desktop một màn (nội dung · kênh · khi nào đăng + cột xem trước dính bên phải + thanh hành động nổi dạng khối nhấn);
   điện thoại hai bước («Bài mới» → «Xem lại và đăng», cùng một DOM, ẩn/hiện bằng `max-lg:hidden`).
 - Thanh hành động tự dựng bằng `ax-grad-hero` (không dùng `StickyActionBar`, vì thiết kế đặt nó là khối nhấn duy nhất của màn).
+
+## Màn Khách hàng — chi tiết (`/contacts/<id>`)
+
+- Desktop 3 cột (khối nhấn + giai đoạn + hẹn gọi lại | lịch sử + công việc | thông tin sửa tại chỗ), điện thoại một cột
+  (chip giai đoạn, tóm tắt, khay «Bổ sung thông tin», thanh Gọi/Zalo dính đáy). Chỉ dựng MỘT bố cục theo `useMediaQuery("(min-width: 1024px)")`.
+  Lưu tại chỗ qua `PATCH /contacts/:id` + `showUndoToast` (`_components/use-contact-patch.ts`); form đầy đủ cũ mở bằng «Chỉnh sửa đầy đủ» / «Sửa».

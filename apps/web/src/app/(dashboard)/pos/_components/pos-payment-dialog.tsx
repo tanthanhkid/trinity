@@ -6,6 +6,7 @@ import QRCode from "react-qr-code"
 import { toast } from "sonner"
 import { Banknote, CheckCircle2, Landmark, Printer, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { HeroCard, HeroCardLabel, HeroCardValue } from "@/components/ui/hero-card"
 import { useOffline } from "@/components/offline-banner"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
@@ -59,15 +60,15 @@ export function PosPaymentDialog({ order, onClose, onPaid, onPrint }: Props) {
     return (
       <Dialog open onOpenChange={(o) => !o && onClose()}>
         <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><CheckCircle2 className="text-emerald-700" aria-hidden /> Đã thanh toán</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><CheckCircle2 className="text-ax-success" aria-hidden /> Đã thanh toán</DialogTitle></DialogHeader>
           <div className="space-y-1 text-center">
             <p className="text-sm text-muted-foreground">Đơn {paid.code}</p>
-            <p className="text-2xl font-bold tabular-nums">{vnd(paid.total)}</p>
+            <p className="ax-amount text-[32px] font-bold">{vnd(paid.total)}</p>
             {change > 0 && <p className="text-lg font-semibold text-foreground">Tiền thối: <span className="tabular-nums">{vnd(change)}</span></p>}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" className="min-h-11 gap-1.5" onClick={() => onPrint(paid)}><Printer aria-hidden /> In hoá đơn</Button>
-            <Button type="button" className="min-h-11" onClick={onClose}>Xong</Button>
+            <Button type="button" variant="ax-secondary" size="ax-lg" className="min-h-11 gap-1.5" onClick={() => onPrint(paid)}><Printer aria-hidden /> In hoá đơn</Button>
+            <Button type="button" variant="ax-primary" size="ax-lg" className="min-h-11" onClick={onClose}>Xong</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -78,14 +79,14 @@ export function PosPaymentDialog({ order, onClose, onPaid, onPrint }: Props) {
     <Dialog open onOpenChange={(o) => !o && !pay.isPending && onClose()}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader><DialogTitle>Thanh toán · {order.code}</DialogTitle></DialogHeader>
-        <div className="flex items-baseline justify-between rounded-lg bg-muted px-3 py-2">
-          <span className="text-sm font-medium">Cần thu</span>
-          <span className="text-2xl font-bold tabular-nums text-foreground">{vnd(order.total)}</span>
-        </div>
+        <HeroCard compact className="px-4 py-3.5">
+          <HeroCardLabel>Cần thu</HeroCardLabel>
+          <HeroCardValue className="text-[36px] max-sm:text-[32px]">{vnd(order.total)}</HeroCardValue>
+        </HeroCard>
         {lines.map((l) => {
           const change = l.method === "cash" ? Math.max(0, (l.tendered ?? l.amount ?? 0) - (l.amount ?? 0)) : 0
           return (
-            <div key={l.id} className="space-y-2 rounded-xl border p-3">
+            <div key={l.id} className="space-y-2 rounded-ax-card border border-ax-line bg-ax-surface p-3 shadow-ax-card">
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                   {l.method === "cash" ? <Banknote className="size-4" aria-hidden /> : <Landmark className="size-4" aria-hidden />}
@@ -97,9 +98,9 @@ export function PosPaymentDialog({ order, onClose, onPaid, onPrint }: Props) {
               {l.method === "cash" && (l.amount ?? 0) > 0 && (
                 <>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant={l.tendered == null ? "soft" : "outline"} aria-pressed={l.tendered == null} className="min-h-11" onClick={() => patch(l.id, { tendered: null })}>Đủ tiền</Button>
+                    <Button type="button" variant={l.tendered == null ? "soft" : "ax-secondary"} aria-pressed={l.tendered == null} className="min-h-11" onClick={() => patch(l.id, { tendered: null })}>Đủ tiền</Button>
                     {cashSuggestions(l.amount!).map((n) => (
-                      <Button key={n} type="button" variant={l.tendered === n ? "soft" : "outline"} aria-pressed={l.tendered === n} className="min-h-11 tabular-nums" onClick={() => patch(l.id, { tendered: n })}>{vnd(n)}</Button>
+                      <Button key={n} type="button" variant={l.tendered === n ? "soft" : "ax-secondary"} aria-pressed={l.tendered === n} className="min-h-11 tabular-nums" onClick={() => patch(l.id, { tendered: n })}>{vnd(n)}</Button>
                     ))}
                   </div>
                   <div className="flex items-center gap-2">
@@ -126,14 +127,14 @@ export function PosPaymentDialog({ order, onClose, onPaid, onPrint }: Props) {
         {remaining > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-destructive">Còn thiếu {vnd(remaining)}</span>
-            <Button type="button" variant="outline" className="min-h-11" onClick={() => add("cash")}>+ Tiền mặt</Button>
-            <Button type="button" variant="outline" className="min-h-11" onClick={() => add("bank_transfer")}>+ Chuyển khoản</Button>
+            <Button type="button" variant="ax-secondary" className="min-h-11" onClick={() => add("cash")}>+ Tiền mặt</Button>
+            <Button type="button" variant="ax-secondary" className="min-h-11" onClick={() => add("bank_transfer")}>+ Chuyển khoản</Button>
           </div>
         )}
         {remaining < 0 && <p role="alert" className="text-sm font-medium text-destructive">Tổng thanh toán vượt {vnd(-remaining)} so với tổng đơn</p>}
         <DialogFooter>
-          <Button type="button" variant="outline" className="min-h-11" disabled={pay.isPending} onClick={onClose}>Quay lại</Button>
-          <Button type="button" className="min-h-11 text-base" disabled={!valid || pay.isPending || offline} onClick={submit}>
+          <Button type="button" variant="ax-secondary" className="min-h-11" disabled={pay.isPending} onClick={onClose}>Quay lại</Button>
+          <Button type="button" variant="ax-primary" size="ax-lg" className="min-h-11 text-base" disabled={!valid || pay.isPending || offline} onClick={submit}>
             {pay.isPending ? "Đang xử lý…" : "Xác nhận thanh toán"}
           </Button>
         </DialogFooter>

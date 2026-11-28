@@ -12,7 +12,7 @@ import {
   useCreateOrder, usePosAreas, usePosMenu, usePosModifiers, usePosTables, useUpdateOrder,
 } from "@/hooks/pos/use-pos"
 import {
-  addLine, cartFromOrder, EMPTY_CART, editLine, toWritePayload, type CartState,
+  addLine, cartFromOrder, changeQty, EMPTY_CART, editLine, toWritePayload, type CartState,
 } from "@/lib/pos-cart"
 import { posErrorMessage } from "@/lib/pos-format"
 import { receiptFromCart, receiptFromOrder } from "@/lib/pos-receipt"
@@ -102,6 +102,12 @@ export function PosSell() {
     setCart((c) => ({ ...c, tableId: t.id, orderType: "dine_in" }))
   }
 
+  /** Điện thoại: "−" trên hàng món bớt một ở dòng thêm gần nhất của món đó. */
+  const decProduct = (productId: number) => setCart((c) => {
+    const last = [...c.lines].reverse().find((l) => l.product_id === productId)
+    return last ? { ...c, lines: changeQty(c.lines, last.key, -1) } : c
+  })
+
   const doSave = async () => { if (await save()) toast.success("Đã lưu đơn") }
   const doPay = async () => { const o = await save(); if (o) setPayOrder(o) }
   const editing = editKey ? cart.lines.find((l) => l.key === editKey) : undefined
@@ -123,7 +129,7 @@ export function PosSell() {
     <div className="flex flex-col gap-3 lg:h-[calc(100vh-15rem)] lg:min-h-[520px]">
       <PosOpenOrdersBar currentId={cart.orderId} tables={tables} onPick={(o) => guardDiscard(() => loadCart(cartFromOrder(o)))} />
       <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
-        <PosMenuGrid menu={menuQ.data} onPick={pick} />
+        <PosMenuGrid menu={menuQ.data} onPick={pick} lines={cart.lines} onDec={decProduct} />
         {!isPhone && cartPanel(false)}
       </div>
       {isPhone && (

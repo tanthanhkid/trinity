@@ -17,12 +17,12 @@ export function PosOpenOrdersBar({ currentId, tables, onPick }: { currentId: num
           <button
             key={o.id} type="button" aria-current={currentId === o.id} onClick={() => onPick(o)}
             className={cn(
-              "flex min-h-11 shrink-0 flex-col items-start rounded-lg border px-3 py-1 text-left text-xs",
-              currentId === o.id ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary" : "bg-card text-foreground hover:bg-muted",
+              "flex min-h-11 shrink-0 flex-col items-start rounded-ax-field border-[1.5px] px-3 py-1 text-left text-[13px] shadow-ax-card focus-visible:outline-none focus-visible:shadow-[var(--ax-focus-ring)]",
+              currentId === o.id ? "border-ax-primary bg-ax-primary-soft text-ax-primary-ink" : "border-ax-line bg-ax-surface text-ax-ink hover:bg-ax-hover",
             )}
           >
             <span className="font-semibold">{o.order_type === "takeaway" ? "Mang đi" : t ? `Bàn ${t.name}` : "Tại quán"} · {o.code.slice(-4)}</span>
-            <span className="tabular-nums">{vnd(o.total)}</span>
+            <span className="ax-amount">{vnd(o.total)}</span>
           </button>
         )
       })}

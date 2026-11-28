@@ -44,13 +44,13 @@ export function PosScreen() {
         {isPhone ? (
           // Điện thoại: bỏ breadcrumb + tên quán, rút pill ca — thao tác bán lên cao.
           <div className="flex items-center justify-between gap-2">
-            <h1 className="text-[20px] font-semibold tracking-tight text-foreground">Bán hàng tại quầy</h1>
-            {open && <span className="rounded-full border border-[var(--border)] bg-card px-3 py-1 text-sm font-medium text-foreground">Ca mở · {vnd(open.opening_cash)}</span>}
+            <h1 className="ax-text-heading text-ax-ink">Bán hàng tại quầy</h1>
+            {open && <span className="rounded-full border border-ax-line bg-ax-surface px-3 py-1 text-[13px] font-medium text-ax-ink-2 shadow-ax-card ax-amount">Ca mở · {vnd(open.opening_cash)}</span>}
           </div>
         ) : (
         <ShellPageHead
           current="Bán hàng (POS)" title="Bán hàng tại quầy" subtitle={settings.data?.store_name}
-          tools={open ? <span className="rounded-full border border-[var(--border)] bg-card px-3 py-1 text-sm font-medium text-foreground">Ca đang mở · đầu ca {vnd(open.opening_cash)}</span> : undefined}
+          tools={open ? <span className="rounded-full border border-ax-line bg-ax-surface px-3 py-1 text-[13px] font-medium text-ax-ink-2 shadow-ax-card ax-amount">Ca đang mở · đầu ca {vnd(open.opening_cash)}</span> : undefined}
         />
         )}
         <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>

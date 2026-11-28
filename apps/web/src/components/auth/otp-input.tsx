@@ -26,37 +26,60 @@ export function OtpInput({
   autoFocus?: boolean
 }) {
   const refs = useRef<(HTMLInputElement | null)[]>([])
-  const digits = Array.from({ length }, (_, i) => value[i] ?? "")
+  // Ô trống giữ chỗ bằng dấu cách: sửa/xoá một ô không làm dồn các ô sau.
+  const digits = Array.from({ length }, (_, i) => (/\d/.test(value[i] ?? "") ? value[i] : ""))
 
-  function commit(next: string) {
-    const clean = next.replace(/\D/g, "").slice(0, length)
-    onChange(clean)
-    if (clean.length === length) onComplete?.(clean)
-    return clean
+  function emit(next: string[]) {
+    const v = next.map((d) => d || " ").join("").replace(/\s+$/, "")
+    onChange(v)
+    if (isCompleteCode(v, length)) onComplete?.(v)
   }
 
   function focus(i: number) {
     refs.current[Math.max(0, Math.min(length - 1, i))]?.focus()
   }
 
+  /** Điền cả chuỗi số từ ô `from` (dán, bàn phím tự điền mã). */
+  function spread(from: number, nums: string) {
+    const next = [...digits]
+    const start = nums.length >= length ? 0 : from
+    for (let k = 0; k < nums.length && start + k < length; k++) next[start + k] = nums[k]
+    emit(next)
+    focus(Math.min(start + nums.length, length - 1))
+  }
+
   function onInput(i: number, raw: string) {
-    const typed = raw.replace(/\D/g, "")
-    if (!typed) return
-    // Gõ một số ⇒ đặt vào ô i; bàn phím điện thoại tự điền cả mã vào một ô ⇒ trải ra các ô sau.
-    const before = value.slice(0, i)
-    const next = commit((before + typed).slice(0, length))
-    focus(Math.min(next.length, length - 1))
+    const nums = raw.replace(/\D/g, "")
+    const next = [...digits]
+    if (!nums) {
+      // Xoá không qua phím Backspace (IME Android, Delete, cắt): xoá đúng ô i.
+      next[i] = ""
+      emit(next)
+      return
+    }
+    if (nums.length > 2) return spread(i, nums)
+    if (nums.length === 2) {
+      // Ô đang có số và con trỏ không chọn hết: lấy ký tự MỚI (khác số cũ), không chèn cả hai.
+      const old = digits[i]
+      next[i] = nums[0] === old ? nums[1] : nums[1] === old ? nums[0] : nums[1]
+    } else {
+      next[i] = nums
+    }
+    emit(next)
+    focus(i + 1)
   }
 
   function onKeyDown(i: number, e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Backspace") {
       e.preventDefault()
+      const next = [...digits]
       if (digits[i]) {
-        commit(value.slice(0, i) + value.slice(i + 1))
+        next[i] = ""
       } else if (i > 0) {
-        commit(value.slice(0, i - 1) + value.slice(i))
+        next[i - 1] = ""
         focus(i - 1)
       }
+      emit(next)
     } else if (e.key === "ArrowLeft") {
       e.preventDefault()
       focus(i - 1)
@@ -66,13 +89,11 @@ export function OtpInput({
     }
   }
 
-  function onPaste(e: ClipboardEvent<HTMLInputElement>) {
-    const text = e.clipboardData.getData("text")
-    const only = text.replace(/\D/g, "")
-    if (!only) return
+  function onPaste(i: number, e: ClipboardEvent<HTMLInputElement>) {
+    const nums = e.clipboardData.getData("text").replace(/\D/g, "")
+    if (!nums) return
     e.preventDefault()
-    const next = commit(only)
-    focus(Math.min(next.length, length - 1))
+    spread(i, nums)
   }
 
   return (
@@ -86,7 +107,7 @@ export function OtpInput({
           value={d}
           onChange={(e) => onInput(i, e.target.value)}
           onKeyDown={(e) => onKeyDown(i, e)}
-          onPaste={onPaste}
+          onPaste={(e) => onPaste(i, e)}
           onFocus={(e) => e.target.select()}
           inputMode="numeric"
           pattern="[0-9]*"
@@ -104,4 +125,9 @@ export function OtpInput({
       ))}
     </div>
   )
+}
+
+/** Đủ `length` chữ số, không ô trống. */
+export function isCompleteCode(v: string, length = 6): boolean {
+  return v.length === length && /^\d+$/.test(v)
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -20,7 +20,7 @@ import {
   type InvitationPreview,
   type LoginResult,
 } from "@/lib/auth-api"
-import { OtpInput } from "@/components/auth/otp-input"
+import { OtpInput, isCompleteCode } from "@/components/auth/otp-input"
 import { describeError, serverSentence } from "@/lib/error-messages"
 import { setAccessToken, setRefreshToken, clearTokens } from "@/lib/token-storage"
 import { useRouteParams } from "@/lib/route-params"
@@ -226,6 +226,8 @@ function CodeJoin({
   const [code, setCode] = useState("")
   const [busy, setBusy] = useState(false)
   const [left, setLeft] = useState(0)
+  /** Khoá đồng bộ chống gửi mã hai lần (tự gửi khi đủ 6 số + bấm nút). */
+  const inFlight = useRef(false)
   const {
     register,
     handleSubmit,
@@ -251,12 +253,14 @@ function CodeJoin({
   }
 
   async function join(value: string) {
-    if (!sent || busy || value.length !== 6) return
+    if (!sent || inFlight.current || !isCompleteCode(value)) return
+    inFlight.current = true
     setBusy(true)
     setError(null)
     try {
       onDone(await acceptInvitationWithCode({ token, full_name: sent.name, code: value }))
     } catch (err: unknown) {
+      inFlight.current = false
       setCode("")
       const msg = serverSentence(err)
       if (msg && /hết hạn|quá 5 lần/i.test(msg)) setLeft(0)
@@ -304,7 +308,7 @@ function CodeJoin({
         >
           <OtpInput value={code} onChange={setCode} onComplete={(v) => void join(v)} disabled={busy} invalid={!!error} autoFocus />
           {error && <InviteError message={error} />}
-          <Button type="submit" disabled={busy || code.length !== 6} className="h-11 w-full rounded-lg text-[15px]">
+          <Button type="submit" disabled={busy || !isCompleteCode(code)} className="h-11 w-full rounded-lg text-[15px]">
             {busy ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />

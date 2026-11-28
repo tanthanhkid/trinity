@@ -7,8 +7,12 @@ import { FakeSmtp, codeOf, linkOf } from './helpers/fake-smtp'
  * Tài khoản: quản trị của `seed` (`E2E_ADMIN_EMAIL`).
  */
 const port = Number(process.env.E2E_SMTP_PORT)
+// Mỗi ca một tài khoản riêng: quota 3 thư/15 phút theo email không bị các ca dùng chung.
 const email = (process.env.E2E_ADMIN_EMAIL ?? 'admin@example.com').toLowerCase()
+const linkEmail = (process.env.E2E_SALE_EMAIL ?? 'sale1@demo.local').toLowerCase()
+const sameEmail = (process.env.E2E_LEAD_EMAIL ?? 'truongnhom@demo.local').toLowerCase()
 const smtp = new FakeSmtp(port)
+test.describe.configure({ retries: 0 })
 
 test.beforeAll(async () => {
   await smtp.start()
@@ -37,10 +41,10 @@ test('mã 6 số: gửi, dán, vào Tổng quan; dùng lần 2 bị từ chối'
 })
 
 test('link một lần trong thư: mở là vào, mở lần 2 báo hết hiệu lực', async ({ browser, request }) => {
-  const before = smtp.count(email)
-  const r = await request.post('/api/v1/auth/email/start', { data: { email } })
+  const before = smtp.count(linkEmail)
+  const r = await request.post('/api/v1/auth/email/start', { data: { email: linkEmail } })
   expect(r.status()).toBe(200)
-  const mail = await smtp.waitFor(email, before + 1)
+  const mail = await smtp.waitFor(linkEmail, before + 1)
   const link = new URL(linkOf(mail.raw))
   const ctx1 = await browser.newContext()
   const p1 = await ctx1.newPage()
@@ -56,7 +60,7 @@ test('link một lần trong thư: mở là vào, mở lần 2 báo hết hiệu
 
 test('start trả cùng phản hồi cho email có và không có tài khoản; email lạ không nhận thư', async ({ request }) => {
   const stranger = `khong-ton-tai-${Date.now()}@example.com`
-  const a = await (await request.post('/api/v1/auth/email/start', { data: { email } })).json()
+  const a = await (await request.post('/api/v1/auth/email/start', { data: { email: sameEmail } })).json()
   const b = await (await request.post('/api/v1/auth/email/start', { data: { email: stranger } })).json()
   expect(Object.keys(a).sort()).toEqual(Object.keys(b).sort())
   expect(a.message).toBe(b.message)

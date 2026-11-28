@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useSyncExternalStore } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -22,7 +22,7 @@ import {
   type LoginResult,
 } from "@/lib/auth-api"
 import { buttonVariants } from "@/components/ui/button-variants"
-import { OtpInput } from "@/components/auth/otp-input"
+import { OtpInput, isCompleteCode } from "@/components/auth/otp-input"
 import { GoogleMark } from "@/components/auth/google-mark"
 import { cn } from "@/lib/utils"
 import { HoverLink as Link } from "@/components/app-shell/hover-link"
@@ -143,7 +143,23 @@ export default function LoginPage() {
 
   // Cách đăng nhập máy chủ bật + đăng ký công ty + lỗi Google trên URL.
   const [signupOpen, setSignupOpen] = useState(false)
-  const [urlError] = useState<string | null>(readUrlError)
+  const [urlError, setUrlError] = useState<string | null>(null)
+  // Lỗi Google trên URL đọc SAU mount (HTML server không có ⇒ không lệch hydrate), rồi bỏ query khỏi thanh địa chỉ
+  // (giữ `history.state` của Next) để tải lại không hiện lại lỗi cũ.
+  useEffect(() => {
+    const e = readUrlError()
+    if (!e) return
+    queueMicrotask(() => setUrlError(e))
+    const u = new URL(window.location.href)
+    u.searchParams.delete("error")
+    u.searchParams.delete("message")
+    window.history.replaceState(window.history.state, "", `${u.pathname}${u.search}${u.hash}`)
+  }, [])
+  /** Người dùng bắt đầu lượt mới ⇒ bỏ cả lỗi Google cũ. */
+  const report = (m: string | null) => {
+    setUrlError(null)
+    setLoginError(m)
+  }
   useEffect(() => {
     let alive = true
     void getLoginMethods().then((m) => {
@@ -203,7 +219,7 @@ export default function LoginPage() {
               mounted={mounted}
               onDone={finish}
               onBack={() => {
-                setLoginError(null)
+                report(null)
                 setStep({ kind: "start" })
               }}
             />
@@ -234,15 +250,15 @@ export default function LoginPage() {
                 <EmailStep
                   mounted={mounted}
                   onSent={(email, masked, resendAfter) => {
-                    setLoginError(null)
+                    report(null)
                     setStep({ kind: "code", email, masked, resendAfter })
                   }}
-                  onError={setLoginError}
+                  onError={report}
                 />
               )}
 
               {showPassword && (
-                <PasswordForm mounted={mounted} onDone={finish} onError={setLoginError} />
+                <PasswordForm mounted={mounted} onDone={finish} onError={report} />
               )}
 
               {methods !== undefined && googleEnabled && (
@@ -269,7 +285,7 @@ export default function LoginPage() {
                       type="button"
                       className="font-medium text-primary hover:underline"
                       onClick={() => {
-                        setLoginError(null)
+                        report(null)
                         setStep({ kind: "start" })
                       }}
                     >
@@ -280,7 +296,7 @@ export default function LoginPage() {
                       type="button"
                       className="font-medium text-primary hover:underline"
                       onClick={() => {
-                        setLoginError(null)
+                        report(null)
                         setStep({ kind: "password" })
                       }}
                     >
@@ -409,6 +425,8 @@ function CodeStep({
   const [busy, setBusy] = useState(false)
   const [left, setLeft] = useState(resendAfter)
   const [sentTo, setSentTo] = useState(masked)
+  // Khoá đồng bộ: đủ 6 số tự gửi + bấm nút cùng lúc không gửi mã hai lần (state `busy` chỉ cập nhật ở lần render sau).
+  const inFlight = useRef(false)
 
   useEffect(() => {
     if (left <= 0) return
@@ -417,13 +435,15 @@ function CodeStep({
   }, [left])
 
   async function submit(value: string) {
-    if (busy || value.length !== 6) return
+    if (inFlight.current || !isCompleteCode(value)) return
+    inFlight.current = true
     setBusy(true)
     setError(null)
     setInfo(null)
     try {
       onDone(await verifyEmailCode(email, value))
     } catch (err: unknown) {
+      inFlight.current = false
       const status = (err as { response?: { status?: number } })?.response?.status
       const msg = serverSentence(err)
       setCode("")
@@ -482,7 +502,7 @@ function CodeStep({
         )}
         <Button
           type="submit"
-          disabled={busy || !mounted || code.length !== 6}
+          disabled={busy || !mounted || !isCompleteCode(code)}
           className="h-11 w-full rounded-lg bg-primary text-[15px] text-primary-foreground hover:bg-primary/90"
         >
           {busy ? (

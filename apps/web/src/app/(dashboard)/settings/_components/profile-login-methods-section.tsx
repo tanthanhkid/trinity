@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -46,7 +46,18 @@ function readGoogleResult(): { ok: boolean; text: string } | null {
 export function ProfileLoginMethodsSection({ email }: { email: string }) {
   const queryClient = useQueryClient()
   const account = useQuery({ queryKey: ACCOUNT_KEY, queryFn: getAccount, retry: false })
-  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(readGoogleResult)
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
+
+  // Kết quả liên kết Google đọc SAU mount (không lệch hydrate), rồi bỏ khỏi URL để tải lại không hiện lại.
+  useEffect(() => {
+    const r = readGoogleResult()
+    if (!r) return
+    queueMicrotask(() => setNotice(r))
+    const u = new URL(window.location.href)
+    u.searchParams.delete('google')
+    u.searchParams.delete('google_error')
+    window.history.replaceState(window.history.state, '', `${u.pathname}${u.search}${u.hash}`)
+  }, [])
   const [linking, setLinking] = useState(false)
   const [unlinkOpen, setUnlinkOpen] = useState(false)
   const [removeOpen, setRemoveOpen] = useState(false)
@@ -117,6 +128,7 @@ export function ProfileLoginMethodsSection({ email }: { email: string }) {
     } catch (err) {
       setNotice({ ok: false, text: errorMessage(err, 'Chưa bỏ được mật khẩu') })
       setRemoveOpen(false)
+      setCurrent('')
     } finally {
       setPending(false)
     }
@@ -243,7 +255,8 @@ export function ProfileLoginMethodsSection({ email }: { email: string }) {
         }
         confirmLabel="Bỏ mật khẩu"
         tone="destructive"
-        pending={pending || current.length === 0}
+        pending={pending}
+        confirmDisabled={current.length === 0}
         onConfirm={doRemove}
       />
     </>

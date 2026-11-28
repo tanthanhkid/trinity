@@ -35,7 +35,7 @@ export function SessionHandoff({ kind }: { kind: "email" | "ticket" }) {
     const frag = new URLSearchParams(window.location.hash.replace(/^#/, ""))
     const secret = frag.get(kind === "email" ? "token" : "ticket")
     const next = safeNextPath(frag.get("next"))
-    window.history.replaceState(null, "", window.location.pathname)
+    window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search)
     if (!secret) {
       queueMicrotask(() => setError("Link đăng nhập không đầy đủ. Hãy mở lại link trong thư hoặc nhập mã 6 số."))
       return

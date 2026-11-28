@@ -37,10 +37,10 @@ test('tạo thẻ, mở chi tiết, checklist, kéo sang cột khác', async ({ 
 
   // TẠO thẻ ở cột đầu (UI)
   await page.goto('/kanban')
-  await page.getByRole('button', { name: 'Thêm card' }).first().click()
-  await page.getByPlaceholder('Tiêu đề card…').fill(title)
+  await page.getByRole('button', { name: /Thêm (thẻ|card)/ }).first().click()
+  await page.getByPlaceholder(/Tiêu đề (thẻ|card)…/).fill(title)
   await page.keyboard.press('Enter')
-  // `.first()` có thể trúng nút "Thêm card" ở đầu trang (mở hộp thoại, Enter không gửi) thay vì ô thêm nhanh trong cột.
+  // `.first()` có thể trúng nút "Thêm thẻ" ở đầu trang (mở hộp thoại, Enter không gửi) thay vì ô thêm nhanh trong cột.
   const dlg = page.getByRole('dialog')
   if (await dlg.isVisible().catch(() => false)) await dlg.getByRole('button', { name: 'Thêm card' }).click()
   await expect

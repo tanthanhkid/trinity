@@ -26,9 +26,12 @@ const card = (id: number, column_id: number): KanbanCard =>
   }) as KanbanCard
 
 const cardsByColumn: Record<number, KanbanCard[]> = {}
+const onOpenCard = vi.fn()
 const move = vi.fn((_vars: unknown) => Promise.resolve({ wip_warning: null }))
 const undoToasts = vi.hoisted(() => ({ list: [] as { message: string; onUndo: () => void }[] }))
-vi.mock("@/lib/undo", () => ({ toastWithUndo: (t: { message: string; onUndo: () => void }) => undoToasts.list.push(t) }))
+vi.mock("@/components/ui/undo-toast", () => ({
+  showUndoToast: (message: string, o: { onUndo: () => void }) => undoToasts.list.push({ message, onUndo: o.onUndo }),
+}))
 vi.mock("@/hooks/kanban/use-kanban-boards", () => ({
   useKanbanBoardDetail: () => ({
     isLoading: false,
@@ -77,20 +80,21 @@ async function dragCard(title: string, to: { x: number; y: number }) {
 
 beforeEach(() => {
   move.mockClear()
+  onOpenCard.mockClear()
   cardsByColumn[10] = [card(1, 10), card(2, 10)]
   cardsByColumn[20] = [card(3, 20), card(4, 20)]
 })
 
 describe("KanbanBoardView kéo thả", () => {
   it("thả giữa hai thẻ của cột khác ⇒ chuyển cột, chèn giữa đúng hai thẻ đó", async () => {
-    render(<KanbanBoardView boardId={1} filters={{}} />)
+    render(<KanbanBoardView boardId={1} filters={{}} onOpenCard={onOpenCard} />)
     await dragCard("Thẻ 1", { x: 400, y: 90 })
     expect(move).toHaveBeenCalledWith({ id: 1, payload: { column_id: 20, before_card_id: 3, after_card_id: 4 } })
   })
 
   it("đổi cột ⇒ toast Hoàn tác; bấm thì đưa card về đúng chỗ cũ (cột cũ, giữa hàng xóm cũ)", async () => {
     undoToasts.list = []
-    render(<KanbanBoardView boardId={1} filters={{}} />)
+    render(<KanbanBoardView boardId={1} filters={{}} onOpenCard={onOpenCard} />)
     await dragCard("Thẻ 1", { x: 400, y: 90 })
     await waitFor(() => expect(undoToasts.list).toHaveLength(1))
     expect(undoToasts.list[0].message).toContain("Thẻ 1")
@@ -100,19 +104,35 @@ describe("KanbanBoardView kéo thả", () => {
   })
 
   it("thả cuối cột ⇒ nằm sau thẻ cuối", async () => {
-    render(<KanbanBoardView boardId={1} filters={{}} />)
+    render(<KanbanBoardView boardId={1} filters={{}} onOpenCard={onOpenCard} />)
     await dragCard("Thẻ 1", { x: 400, y: 700 })
     expect(move).toHaveBeenCalledWith({ id: 1, payload: { column_id: 20, before_card_id: 4, after_card_id: undefined } })
   })
 
   it("thả lại đúng chỗ cũ ⇒ không gọi máy chủ", async () => {
-    render(<KanbanBoardView boardId={1} filters={{}} />)
+    render(<KanbanBoardView boardId={1} filters={{}} onOpenCard={onOpenCard} />)
     await dragCard("Thẻ 1", { x: 40, y: 30 })
     expect(move).not.toHaveBeenCalled()
   })
 
-  it("thẻ hiện mã chung", () => {
-    render(<KanbanBoardView boardId={1} filters={{}} />)
-    expect(screen.getByText("CV001")).toBeTruthy()
+  it("bấm thẻ ⇒ mở ngăn chi tiết; thẻ đang mở có viền chọn", () => {
+    const { rerender } = render(<KanbanBoardView boardId={1} filters={{}} onOpenCard={onOpenCard} selectedCardId={2} />)
+    fireEvent.click(screen.getByText("Thẻ 1"))
+    expect(onOpenCard).toHaveBeenCalledWith(1)
+    expect(screen.getByText("Thẻ 2").closest("[data-selected]")).toBeTruthy()
+    expect(screen.getByText("Thẻ 1").closest("[data-selected]")).toBeNull()
+    rerender(<KanbanBoardView boardId={1} filters={{}} onOpenCard={onOpenCard} selectedCardId={null} />)
+  })
+
+  it("nút «sang cột kế» chuyển thẻ xuống cuối cột kế + Hoàn tác về cột cũ; cột cuối không có nút", async () => {
+    undoToasts.list = []
+    render(<KanbanBoardView boardId={1} filters={{}} onOpenCard={onOpenCard} />)
+    fireEvent.click(screen.getByRole("button", { name: /Chuyển “Thẻ 1” sang “Đang làm”/ }))
+    expect(move).toHaveBeenCalledWith({ id: 1, payload: { column_id: 20 } })
+    expect(onOpenCard).not.toHaveBeenCalled()
+    await waitFor(() => expect(undoToasts.list).toHaveLength(1))
+    undoToasts.list[0].onUndo()
+    expect(move).toHaveBeenLastCalledWith({ id: 1, payload: { column_id: 10 } })
+    expect(screen.queryByRole("button", { name: /Chuyển “Thẻ 3”/ })).toBeNull()
   })
 })

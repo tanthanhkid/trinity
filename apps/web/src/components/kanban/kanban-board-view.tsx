@@ -30,7 +30,7 @@ import { GripVertical } from "lucide-react"
 import { motion, MotionConfig } from "motion/react"
 import { toast } from "sonner"
 import { getApiErrorMessage } from "@/lib/api-client"
-import { toastWithUndo } from "@/lib/undo"
+import { showUndoToast } from "@/components/ui/undo-toast"
 import { ErrorState } from "@/components/ui/error-state"
 import { usePermissions } from "@/lib/rbac"
 import { neighboursAt } from "@/lib/board-drag-target"
@@ -42,13 +42,16 @@ import { useMoveKanbanCard } from "@/hooks/kanban/use-kanban-cards"
 import { useReorderKanbanColumns } from "@/hooks/kanban/use-kanban-columns"
 import { KanbanColumnView } from "./kanban-column-view"
 import { KANBAN_CARD_FRAME, KanbanCardContent } from "./kanban-card-preview"
-import { KanbanCardDialog } from "./kanban-card-dialog"
-import type { KanbanCard, QueryKanbanCardsParams } from "@/types/kanban"
+import type { KanbanCard, KanbanColumn, QueryKanbanCardsParams } from "@/types/kanban"
 import { LoadingBlock } from "@/components/ui/loading-block"
 
 interface KanbanBoardViewProps {
   boardId: number
   filters: Omit<QueryKanbanCardsParams, "board_id" | "column_id" | "cursor">
+  /** Bấm thẻ ⇒ mở ngăn chi tiết (do trang giữ trạng thái). */
+  onOpenCard: (cardId: number) => void
+  /** Thẻ đang mở ở ngăn chi tiết — viền xanh. */
+  selectedCardId?: number | null
 }
 
 /** So tâm 2 hình chữ nhật theo 1 trục — dùng để quyết "thả cột TRƯỚC hay SAU cột đích". */
@@ -63,12 +66,11 @@ function isBeforeOnAxis(
   return activeCenter < overCenter
 }
 
-export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
+export function KanbanBoardView({ boardId, filters, onOpenCard, selectedCardId }: KanbanBoardViewProps) {
   const { can } = usePermissions()
   const { data: board, isLoading, isError, error, refetch, isFetching } = useKanbanBoardDetail(boardId)
   const moveCard = useMoveKanbanCard()
   const reorderColumns = useReorderKanbanColumns(boardId)
-  const [openCardId, setOpenCardId] = useState<number | null>(null)
   const [activeCard, setActiveCard] = useState<KanbanCard | null>(null)
   const [activeColumnId, setActiveColumnId] = useState<number | null>(null)
   const [activeSize, setActiveSize] = useState<{ width: number; height: number } | null>(null)
@@ -139,10 +141,19 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
       .mutateAsync({ id: cardId, payload })
       .then((result) => {
         if (result.wip_warning) toast.warning(result.wip_warning)
-        if (undo) toastWithUndo({ message: undo.message, onUndo: () => submitMove(cardId, undo.payload) })
+        if (undo) showUndoToast(undo.message, { onUndo: () => submitMove(cardId, undo.payload) })
       })
       .catch((err) => toast.error(getApiErrorMessage(err, "Không chuyển được card")))
       .finally(() => setSettling(null))
+  }
+
+  /** Nút «sang cột kế» trên thẻ: chuyển xuống cuối cột kế, có Hoàn tác (về cuối cột cũ). */
+  const moveNext = (card: KanbanCard, to: KanbanColumn) => {
+    submitMove(
+      card.id,
+      { column_id: to.id },
+      { message: `Đã chuyển sang “${to.name}”`, payload: { column_id: card.column_id } },
+    )
   }
 
   const handleColumnDragEnd = (activeId: string, event: DragEndEvent) => {
@@ -177,10 +188,10 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
 
   if (isLoading || !board) {
     return (
-      <div className="flex gap-3 overflow-hidden pb-3" role="status" aria-busy="true">
+      <div className="grid auto-cols-[minmax(220px,1fr)] grid-flow-col gap-3 overflow-hidden pb-1" role="status" aria-busy="true">
         <span className="sr-only">Đang tải board…</span>
         {[0, 1, 2].map((i) => (
-          <div key={i} aria-hidden className="flex w-72 shrink-0 flex-col gap-2 rounded-[var(--radius)] border border-[var(--border)] p-2 max-sm:w-[85vw]">
+          <div key={i} aria-hidden className="flex flex-col gap-2 rounded-ax-sheet bg-ax-sunken p-2.5">
             <div className="h-6 px-1 py-1"><div className="skeleton-calm h-3.5 w-24 rounded-md bg-muted" /></div>
             <LoadingBlock variant="cards" count={3 - i} />
           </div>
@@ -191,7 +202,7 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
 
   if (board.columns.length === 0) {
     return (
-      <p className="p-6 text-sm text-muted-foreground">
+      <p className="p-6 text-sm text-ax-ink-2">
         Board chưa có cột nào — vào “Cấu hình board” để thêm cột.
       </p>
     )
@@ -213,8 +224,8 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
         <MotionConfig reducedMotion="user">
         {/* `relative`: chữ ẩn cho trình đọc màn hình (sr-only, position:absolute) trong cột xa bên phải bám vào khung cuộn này,
             không bám ra `main` — nếu không cả trang cuộn ngang ~290px ở màn 360px (đo bằng e2e/premium/ui-audit.mjs). */}
-        <div ref={boardRef} className="relative flex gap-3 overflow-x-auto pb-3 max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-4">
-          {board.columns.map((column) => (
+        <div ref={boardRef} className="relative grid auto-cols-[minmax(220px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-1">
+          {board.columns.map((column, i) => (
             <KanbanColumnView
               key={column.id}
               boardId={boardId}
@@ -231,7 +242,10 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
                     ? settling
                     : null
               }
-              onOpenCard={setOpenCardId}
+              onOpenCard={onOpenCard}
+              selectedCardId={selectedCardId}
+              nextColumn={board.columns[i + 1] ?? null}
+              onMoveNext={moveNext}
             />
           ))}
         </div>
@@ -255,14 +269,13 @@ export function KanbanBoardView({ boardId, filters }: KanbanBoardViewProps) {
               </motion.div>
             </MotionConfig>
           ) : activeColumnId != null ? (
-            <div className="flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm font-semibold shadow-xl">
+            <div className="flex items-center gap-1.5 rounded-ax-field border border-ax-line bg-ax-surface px-3 py-1.5 text-sm font-semibold shadow-ax-float">
               <GripVertical className="size-3.5 text-muted-foreground" />
               {board.columns.find((c) => c.id === activeColumnId)?.name}
             </div>
           ) : null}
         </DragOverlay>
       </DndContext>
-      <KanbanCardDialog cardId={openCardId} onClose={() => setOpenCardId(null)} />
     </>
   )
 }

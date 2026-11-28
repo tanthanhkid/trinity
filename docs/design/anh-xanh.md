@@ -146,3 +146,18 @@ showUndoToast("Đã lưu số điện thoại", { onUndo: () => save(prev) })
 - Xoá bài: hỏi xác nhận (desktop) rồi ẩn bài và chờ 5 giây cho «Hoàn tác» mới gọi `DELETE /newsfeed/:id` (không đổi API;
   rời trang giữa lúc chờ thì xoá ngay). Mobile xoá thẳng từ khay đáy / màn sửa, chỉ có Hoàn tác.
 - Lệch thiết kế: thời gian hiện tương đối («3 giờ trước») như code cũ; màn sửa mobile không có chọn mục vì API `PATCH` chỉ nhận nội dung.
+
+## Màn «Cơ hội» (cohoi) — route `/kanban`
+
+Thiết kế: `cohoi-desktop`, `cohoi-mobile`, `cohoi-mobile2`. Hai bố cục tách bằng `useIsDesktop()` (`hooks/use-media-query.ts`, ngưỡng 1024px).
+
+| | Desktop (≥ 1024px) | Điện thoại |
+|---|---|---|
+| Danh sách | `KanbanBoardView`: cột lõm `bg-ax-sunken` (bo 16), thẻ `KANBAN_CARD_FRAME`, kéo-thả giữ nguyên; nút «sang cột kế» 40×40 trên thẻ | `KanbanMobileBoard`: khối nhấn (một `HeroCard`) + tab giai đoạn pill 44px + danh sách thẻ, nút «sang <cột kế>» 64px |
+| Chi tiết | `KanbanQuickPanel variant="desktop"`: ngăn sticky 440px bên phải, đầu là khối nhấn | `variant="mobile"`: trang toàn màn hình (`fixed inset-0`), thanh dính «Đánh dấu đã xong» |
+| Hoàn tác | `showUndoToast` (đổi giai đoạn, hạn, ưu tiên, người phụ trách, tiêu đề, mô tả, kéo thẻ sang cột khác) | như desktop |
+
+- Giai đoạn = cột của board; màu chấm lấy `column.color`, thiếu thì tông `ax-stage-*` theo vị trí (`stageToneForColumn`). Cột có `color` tự đặt dùng nền trung tính để giữ tương phản.
+- Hạn nhanh (`lib/kanban-ax.ts`): Hôm nay 17:00 · Ngày mai 09:00 · Tuần sau (+7 ngày) 09:00 · Bỏ hạn, theo giờ VN; hạn tự chọn vẫn ở hộp đầy đủ.
+- Chức năng không có trong thiết kế vẫn giữ ở hộp đầy đủ `KanbanCardDialog` (nút «Mở đầy đủ»): nhãn, khách hàng, trường tuỳ biến, checklist, đính kèm, hoạt động/bình luận, xoá.
+- Trên điện thoại ô chọn board, ô tìm và «Cấu hình board» đặt dưới khối nhấn (thiết kế chỉ có tiêu đề); chế độ «Bảng» chỉ có trên desktop.

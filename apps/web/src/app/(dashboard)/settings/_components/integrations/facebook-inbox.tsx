@@ -11,7 +11,8 @@ import {
 import { messengerReplyLabel, useFacebookConversations, useFacebookMessages, useFacebookReply, type FacebookConversation } from "./use-facebook"
 import { apiErrorMessage } from "./webhook-types"
 import { isChannelOff } from "@/lib/channel-off"
-import { ProfileSheet } from "@/components/inbox/customer-profile"
+import { CustomerProfile, ProfileChips, ProfileSheet, threadMobileSub, useLinkedContact } from "@/components/inbox/customer-profile"
+import { usePermissions } from "@/lib/rbac"
 import { ErrorState } from "@/components/ui/error-state"
 
 /** Tên hiển thị của khách Messenger (chưa có tên ⇒ 6 số cuối PSID). */
@@ -25,6 +26,10 @@ export function FacebookThread({ id, onBack }: { id: number; onBack: () => void 
   const [sheet, setSheet] = useState(false)
   const conv = q.data?.conversation
   const name = conv ? facebookCustomerName(conv) : "Đang tải..."
+  const { can } = usePermissions()
+  const contactId = conv?.contact_id ?? null
+  const contact = useLinkedContact(contactId, can("contacts.view"))
+  const c = contact.data && typeof contact.data === "object" ? contact.data : null
   const items: InboxMessage[] = (q.data?.messages ?? []).map((m) => ({
     id: m.id,
     direction: m.direction,
@@ -44,14 +49,16 @@ export function FacebookThread({ id, onBack }: { id: number; onBack: () => void 
       <ThreadHeader
         name={name}
         sub={conv ? (conv.page_name ? `Messenger · ${conv.page_name}` : "Messenger") : ""}
+        mobileSub={conv ? threadMobileSub("Messenger", c) : undefined}
         channel="facebook"
         onBack={onBack}
         aside={conv ? <StatusPill tone={conv.can_reply && conv.reply_mode !== "human_agent" ? "ok" : "warn"}>{conv.can_reply ? (conv.reply_mode === "human_agent" ? "Trả lời trong 7 ngày (nhân viên)" : "Trả lời được") : "Quá 7 ngày"}</StatusPill> : null}
         onOpenProfile={conv ? () => setSheet(true) : undefined}
+        chips={conv ? <ProfileChips contact={c} phone={c?.phone} onOpen={() => setSheet(true)} /> : undefined}
       />
       {conv ? (
         <ProfileSheet open={sheet} onOpenChange={setSheet}>
-          <FacebookCustomerSide c={conv} />
+          <CustomerProfile contactId={contactId} fallbackName={name} channelLabel="Messenger" variant="sheet" />
         </ProfileSheet>
       ) : null}
       <MessageThread messages={items} loading={q.isLoading} error={q.isError} />
@@ -73,7 +80,7 @@ export function FacebookThread({ id, onBack }: { id: number; onBack: () => void 
           onChange={setText}
           onSend={send}
           pending={reply.isPending}
-          placeholder="Nhập tin nhắn..."
+          placeholder="Soạn trả lời"
           ariaLabel="Nội dung trả lời"
           maxLength={2000}
         />
@@ -83,20 +90,18 @@ export function FacebookThread({ id, onBack }: { id: number; onBack: () => void 
   )
 }
 
-/** Cột phải của một hội thoại Messenger. */
+/**
+ * Cột phải của một hội thoại Messenger: hồ sơ khách SỬA TẠI CHỖ như Zalo OA (cùng `CustomerProfile`, cùng API
+ * GET/PATCH /contacts/:id, quyền `contacts.view` / `contacts.update` + phạm vi xem khách do máy chủ kiểm) + thông tin hội thoại.
+ */
 export function FacebookCustomerSide({ c }: { c: FacebookConversation }) {
   return (
     <>
-      <SideSection
-        title="Khách hàng"
-        rows={[
-          { label: "Tên", value: facebookCustomerName(c) },
-          { label: "Fanpage", value: c.page_name },
-        ]}
-      />
+      <CustomerProfile contactId={c.contact_id ?? null} fallbackName={facebookCustomerName(c)} channelLabel="Messenger" />
       <SideSection
         title="Hội thoại Messenger"
         rows={[
+          { label: "Fanpage", value: c.page_name },
           { label: "Tin khách gần nhất", value: c.last_inbound_at ? formatDateTimeVn(c.last_inbound_at) : "—" },
           { label: "Trả lời", value: messengerReplyLabel(c) },
         ]}

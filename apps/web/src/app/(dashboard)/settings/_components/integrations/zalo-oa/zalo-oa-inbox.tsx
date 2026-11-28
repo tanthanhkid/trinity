@@ -6,12 +6,12 @@ import axios from "axios"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { formatDateTimeVn, formatPhone } from "@/lib/format"
-import { CustomerProfile, ProfileSheet, reminderText, useLinkedContact } from "@/components/inbox/customer-profile"
+import { CustomerProfile, ProfileChips, ProfileSheet, threadMobileSub, useLinkedContact } from "@/components/inbox/customer-profile"
 import { SavePhoneAction, savePhoneState } from "@/components/inbox/save-phone"
 import { showUndoToast } from "@/components/ui/undo-toast"
 import { usePermissions } from "@/lib/rbac"
 import {
-  Composer, ConversationItem, HeroChip, InboxEmpty, InboxFrame, InboxListToolbar, awaitingReply, MessageThread, SideSection, StatusPill, ThreadHeader,
+  Composer, ConversationItem, InboxEmpty, InboxFrame, InboxListToolbar, awaitingReply, MessageThread, SideSection, StatusPill, ThreadHeader,
   inboxTimeLabel, type InboxMessage,
 } from "@/components/inbox/inbox-ui"
 import { apiErrorMessage } from "../webhook-types"
@@ -59,7 +59,6 @@ export function ZaloThreadView({ thread, onBack }: { thread: ZaloOaThread; onBac
   const open = inConsultWindow(thread.last_inbound_at)
   const name = threadTitle(thread)
   const phone = c?.phone || thread.phone
-  const stageLabel = c?.stage_option?.label ?? null
   // BE trả mới nhất trước ⇒ đảo lại cũ → mới.
   const items: InboxMessage[] = [...(messages.data ?? [])].reverse().map((m) => ({
     id: m.id,
@@ -114,18 +113,13 @@ export function ZaloThreadView({ thread, onBack }: { thread: ZaloOaThread; onBac
       <ThreadHeader
         name={name}
         sub={sub}
+        mobileSub={threadMobileSub("Zalo OA", c)}
         channel="zalo"
         avatarUrl={thread.avatar_url}
         onBack={onBack}
         aside={<StatusPill tone={open ? "ok" : "warn"}>{open ? "Trả lời được" : "Quá 48 giờ"}</StatusPill>}
         onOpenProfile={() => setSheet(true)}
-        chips={
-          <>
-            <HeroChip tone={phone ? "solid" : "dashed"} onClick={() => setSheet(true)}>{phone ? formatPhone(phone) : "Chưa có số điện thoại"}</HeroChip>
-            {stageLabel ? <HeroChip onClick={() => setSheet(true)}>{stageLabel}</HeroChip> : null}
-            {c ? <HeroChip tone="glass" onClick={() => setSheet(true)}>{reminderText(c)}</HeroChip> : null}
-          </>
-        }
+        chips={<ProfileChips contact={c} phone={phone} onOpen={() => setSheet(true)} />}
       />
       <ProfileSheet open={sheet} onOpenChange={setSheet}>
         <CustomerProfile contactId={thread.contact_id} fallbackName={name} fallbackPhone={thread.phone} avatarUrl={thread.avatar_url} channelLabel="Zalo OA" variant="sheet" />
@@ -137,7 +131,7 @@ export function ZaloThreadView({ thread, onBack }: { thread: ZaloOaThread; onBac
         onSend={send}
         pending={reply.isPending}
         disabled={!open}
-        placeholder="Nhập câu trả lời..."
+        placeholder="Soạn trả lời"
         notice={
           !open ? (
             <p className="mb-2 text-sm text-[var(--ax-warn)]">

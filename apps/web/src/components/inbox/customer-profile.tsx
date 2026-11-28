@@ -25,6 +25,7 @@ import { HeroCard } from "@/components/ui/hero-card"
 import { StageChip, type StageTone } from "@/components/ui/stage-chip"
 import { showUndoToast } from "@/components/ui/undo-toast"
 import { BottomSheet, BottomSheetClose, BottomSheetContent } from "@/components/ui/bottom-sheet"
+import { HeroChip } from "@/components/inbox/inbox-ui"
 import type { ContactData } from "@/app/(dashboard)/contacts/[id]/_components/contact-info-form"
 
 /** Khách đã ghép với hội thoại: bản ghi chi tiết khách + vài trường BE trả thêm (người phụ trách, ngày tạo). */
@@ -77,6 +78,27 @@ export function reminderPresets(now: Date = new Date()): { label: string; at: Da
 /** Dòng tóm tắt hẹn nhắc cho đầu khay / chip: "Chưa đặt hẹn" hoặc giờ hẹn. */
 export function reminderText(c: LinkedContact | null | undefined): string {
   return c?.reminder_at ? formatDateTimeVn(c.reminder_at) : "Chưa đặt hẹn"
+}
+
+/** Dòng phụ đầu hội thoại trên điện thoại (thiết kế hopthu-mobile): «Kênh · Phụ trách …»; chưa có người phụ trách thì chỉ kênh. */
+export function threadMobileSub(channelLabel: string, c: LinkedContact | null | undefined): string {
+  const owner = c?.assigned_user?.full_name?.trim()
+  return owner ? `${channelLabel} · Phụ trách ${owner}` : channelLabel
+}
+
+/**
+ * Hàng chip trên khối nhấn đầu hội thoại (điện thoại): SĐT (thiếu ⇒ «Thêm số điện thoại» viền đứt) · giai đoạn · hẹn nhắc.
+ * Bấm chip nào cũng mở khay «Hồ sơ khách». Dùng chung cho Zalo OA và Messenger.
+ */
+export function ProfileChips({ contact, phone, onOpen }: { contact: LinkedContact | null; phone: string | null | undefined; onOpen: () => void }) {
+  const stageLabel = contact?.stage_option?.label ?? null
+  return (
+    <>
+      <HeroChip tone={phone ? "solid" : "dashed"} onClick={onOpen}>{phone ? formatPhone(phone) : "Thêm số điện thoại"}</HeroChip>
+      {stageLabel ? <HeroChip onClick={onOpen}>{stageLabel}</HeroChip> : null}
+      {contact ? <HeroChip tone="glass" onClick={onOpen}>{reminderText(contact)}</HeroChip> : null}
+    </>
+  )
 }
 
 type PatchBody = Record<string, string | number | null>

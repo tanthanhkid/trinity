@@ -32,7 +32,7 @@ use trinity_rbac::{can, mask_phone};
 
 use super::confirm::is_user_confirmation;
 use super::wrapped;
-use crate::args::{clamp_limit, opt_str, reject_digit_probe, s};
+use crate::args::{clamp_limit, opt_int, opt_str, reject_digit_probe, s};
 use crate::auth::Principal;
 use crate::exec::{ToolCtx, ToolError, ToolOutput};
 use crate::protocol::BoxFuture;
@@ -287,6 +287,15 @@ pub(crate) fn list_conversations<'a>(
             reject_digit_probe(q)?; // tìm theo tên, không cho dò số điện thoại hay mã
         }
         let pattern = q.as_deref().map(like);
+        // `contact_id`: cùng luật với `GET /facebook/conversations?contact_id=` (số nguyên dương trong i32). Có mà sai ⇒ lỗi
+        // tham số, không bao giờ nới thành danh sách chung của công ty.
+        let contact =
+            match args.get("contact_id") {
+                None | Some(Value::Null) => None,
+                Some(v) => Some(opt_int(Some(v)).ok_or_else(|| {
+                    user("contact_id phải là số nguyên dương. / contact_id must be a positive integer.")
+                })?),
+            };
         let channel = s(args, "channel");
         let want = |c: &str| channel.is_none_or(|x| x == c);
         let now_ms = Utc::now().timestamp_millis();
@@ -302,10 +311,12 @@ pub(crate) fn list_conversations<'a>(
                     let rows = sqlx::query_as::<_, FacebookConversation>(sqlx::AssertSqlSafe(format!(
                         "SELECT {CONV_COLS} FROM facebook_conversations \
                          WHERE ($1::text IS NULL OR customer_name ILIKE $1 ESCAPE '\\') \
+                         AND ($3::int IS NULL OR contact_id = $3) \
                          ORDER BY last_message_at DESC, id DESC LIMIT $2"
                     )))
                     .bind(pattern.as_deref())
                     .bind(limit)
+                    .bind(contact)
                     .fetch_all(&mut *conn)
                     .await
                     .map_err(internal)?;
@@ -349,10 +360,12 @@ pub(crate) fn list_conversations<'a>(
                     sqlx::query_as::<_, ZaloThread>(sqlx::AssertSqlSafe(format!(
                         "SELECT {ZALO_COLS} FROM zalo_oa_threads \
                          WHERE ($1::text IS NULL OR display_name ILIKE $1 ESCAPE '\\') \
+                         AND ($3::int IS NULL OR contact_id = $3) \
                          ORDER BY last_message_at DESC NULLS LAST, id DESC LIMIT $2"
                     )))
                     .bind(pattern.as_deref())
                     .bind(limit)
+                    .bind(contact)
                     .fetch_all(&mut *conn)
                     .await
                     .map_err(internal)?

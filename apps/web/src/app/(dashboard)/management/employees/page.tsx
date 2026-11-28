@@ -1315,7 +1315,7 @@ function EmployeesPageContent() {
       <ShellPageHeader
         title="Nhân viên"
         icon={Users}
-        // Điện thoại đang xem hồ sơ: ẩn đầu trang danh sách (kèm nút nổi «Thêm nhân viên») — hồ sơ là màn riêng.
+        // Điện thoại đang xem hồ sơ: ẩn đầu trang danh sách (kèm nút nổi «Mời nhân viên») — hồ sơ là màn riêng.
         className={cn(showMobileDetail && "max-lg:hidden")}
         description={total > 0 ? `${total} nhân viên` : hasActiveFilters ? "0 nhân viên" : "Chưa có nhân viên"}
         actions={
@@ -1335,7 +1335,7 @@ function EmployeesPageContent() {
                 onClick={() => setShowAddDialog(true)}
               >
                 <UserPlus className="mr-2 h-4 w-4" />
-                Thêm nhân viên
+                Mời nhân viên
               </Button>
             )}
           </>
@@ -1496,11 +1496,11 @@ function EmployeesPageContent() {
                 className="m-4"
                 icon={Users}
                 title="Chưa có nhân viên nào"
-                message="Thêm nhân viên để giao khách, chấm công và tính lương."
+                message="Mời nhân viên để giao khách, chấm công và tính lương."
                 action={canAdd ? (
                   <Button variant="ax-secondary" size="ax" onClick={() => setShowAddDialog(true)}>
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Thêm nhân viên
+                    Mời nhân viên
                   </Button>
                 ) : undefined}
               />
@@ -1545,7 +1545,7 @@ function EmployeesPageContent() {
             </div>
           )}
         </section>
-        {/* Điện thoại: chừa chỗ cho nút nổi «Thêm nhân viên» để không đè hàng phân trang/hàng cuối. */}
+        {/* Điện thoại: chừa chỗ cho nút nổi «Mời nhân viên» để không đè hàng phân trang/hàng cuối. */}
         {canAdd && !showMobileDetail && <div aria-hidden className="h-20 sm:hidden" />}
 
         {/* Hồ sơ — điện thoại: màn riêng, mở khi chọn một người */}

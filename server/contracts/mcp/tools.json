@@ -9222,7 +9222,7 @@
     {
       "name": "list_conversations",
       "title": "Các hội thoại Messenger và Zalo OA / List inbox conversations",
-      "description": "Các hội thoại với khách trong hộp thư chung của Trinity, mới nhắn trước: Messenger của Fanpage (channel = messenger) và Zalo OA (channel = zalo_oa, cần quyền sửa khách hàng). Gồm cả hội thoại đã trả lời; muốn chỉ những tin chưa ai trả lời thì dùng list_unanswered_messages. Mỗi hội thoại có id (dùng cho get_conversation_messages và reply_to_customer), tên khách, tin gần nhất, last_message_at, unread (số tin chưa đọc), awaiting_reply (tin cuối là của khách), can_reply (còn trong cửa sổ kênh: Messenger 7 ngày, quá 24 giờ thì reply_mode = human_agent; Zalo OA 48 giờ), contact_url. search lọc theo tên khách. Chỉ đọc, không đánh dấu đã đọc. / Inbox conversations across Messenger and Zalo OA, newest first, including answered ones; ids work with get_conversation_messages and reply_to_customer. Read-only.",
+      "description": "Các hội thoại với khách trong hộp thư chung của Trinity, mới nhắn trước: Messenger của Fanpage (channel = messenger) và Zalo OA (channel = zalo_oa, cần quyền sửa khách hàng). Gồm cả hội thoại đã trả lời; muốn chỉ những tin chưa ai trả lời thì dùng list_unanswered_messages. Mỗi hội thoại có id (dùng cho get_conversation_messages và reply_to_customer), tên khách, tin gần nhất, last_message_at, unread (số tin chưa đọc), awaiting_reply (tin cuối là của khách), can_reply (còn trong cửa sổ kênh: Messenger 7 ngày, quá 24 giờ thì reply_mode = human_agent; Zalo OA 48 giờ), contact_url. search lọc theo tên khách; contact_id chỉ lấy hội thoại của một khách (như nút Messenger ở hồ sơ khách). Chỉ đọc, không đánh dấu đã đọc. / Inbox conversations across Messenger and Zalo OA, newest first, including answered ones; ids work with get_conversation_messages and reply_to_customer. Read-only.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
@@ -9239,6 +9239,12 @@
             "description": "Tìm theo tên khách / Filter by customer name",
             "type": "string",
             "maxLength": 100
+          },
+          "contact_id": {
+            "description": "Chỉ hội thoại đã ghép với khách này (số nguyên dương) / Only conversations linked to this customer",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
           },
           "limit": {
             "description": "Tối đa mỗi kênh (mặc định 20) / Max per channel",

@@ -139,7 +139,9 @@ showUndoToast("Đã lưu số điện thoại", { onUndo: () => save(prev) })
 
 ## Màn Bảng tin (`/newsfeed`)
 
-- Desktop ≥1024px: mục dọc bên trái (đếm số bài lấy từ danh sách «Tất cả») + cột bài 700px; thanh mời viết là `HeroCard`.
+- Desktop ≥1024px: mục dọc bên trái + cột bài 700px; thanh mời viết là `HeroCard`. Số bài từng mục đếm từ trang «Tất cả»
+  và chỉ hiện khi trang đó đã là toàn bộ bài (`next_cursor` rỗng) — API phân trang, không có tổng, nên quá 1 trang thì ẩn số.
+  Khối xanh mobile và bài full-bleed bù đúng lề `main` (16px dưới 640px, 20px từ 640px).
   Mobile: khối xanh dính đầu trang chứa tab mục, bài full-bleed, nút nổi «Viết bài» mở màn soạn/sửa toàn màn hình.
 - Xoá bài: hỏi xác nhận (desktop) rồi ẩn bài và chờ 5 giây cho «Hoàn tác» mới gọi `DELETE /newsfeed/:id` (không đổi API;
   rời trang giữa lúc chờ thì xoá ngay). Mobile xoá thẳng từ khay đáy / màn sửa, chỉ có Hoàn tác.

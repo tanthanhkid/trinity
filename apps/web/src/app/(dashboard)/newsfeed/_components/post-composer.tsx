@@ -380,7 +380,7 @@ export function PostComposer() {
             onClick={() => setCategory(c)}
             className={cn(
               'cursor-pointer rounded-full border-[1.5px] font-semibold transition-colors',
-              mobile ? 'h-11 px-4 text-[15px]' : 'h-9 px-3 text-[13px]',
+              mobile ? 'h-11 px-4 text-[15px]' : 'h-10 px-3 text-[13px]',
               on
                 ? 'border-ax-primary text-[var(--ax-stage-new-ink)] bg-[image:linear-gradient(180deg,#f5f9fd,#e8f0f8)]'
                 : 'border-ax-line bg-ax-surface text-ax-ink-2 hover:bg-ax-hover',

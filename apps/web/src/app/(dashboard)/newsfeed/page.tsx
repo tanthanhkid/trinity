@@ -28,7 +28,7 @@ const FILTERS: { value: FilterValue; label: string }[] = [
   ...CATEGORY_ORDER.map((c) => ({ value: c as FilterValue, label: CATEGORY_LABEL[c] })),
 ]
 
-async function fetchPosts(filter: FilterValue): Promise<{ data: NewsfeedPost[] }> {
+async function fetchPosts(filter: FilterValue): Promise<{ data: NewsfeedPost[]; next_cursor?: number | null }> {
   const params = filter === ALL ? {} : { category: filter }
   const res = await apiClient.get('/newsfeed', { params })
   return res.data
@@ -52,14 +52,18 @@ function NewsfeedContent() {
   })
   const postsQuery = filter === ALL ? allQuery : filteredQuery
 
+  // API chỉ trả MỘT trang (mặc định 10 bài) và không có tổng ⇒ chỉ đếm khi trang «Tất cả» đã là toàn bộ bài
+  // (`next_cursor` rỗng); còn trang sau thì ẩn số thay vì hiện số sai.
+  const allPage = allQuery.data
+  const exact = allPage != null && allPage.next_cursor == null
   const counts: Record<FilterValue, number | null> = {
-    [ALL]: allQuery.data?.data.length ?? null,
+    [ALL]: exact ? allPage.data.length : null,
     announcement: null,
     training: null,
     pr: null,
   }
   for (const c of NEWSFEED_CATEGORIES) {
-    counts[c] = allQuery.data ? allQuery.data.data.filter((p) => p.category === c).length : null
+    counts[c] = exact ? allPage.data.filter((p) => p.category === c).length : null
   }
 
   const posts = postsQuery.data?.data
@@ -98,7 +102,7 @@ function NewsfeedContent() {
       </aside>
 
       {/* MOBILE: tiêu đề + mục trên khối xanh dính đầu trang */}
-      <div className="sticky top-0 z-10 -mx-4 -mt-4 border-b border-[var(--ax-hero-border)] ax-grad-hero px-4 pt-[18px] pb-0 shadow-[0_14px_26px_-16px_rgba(26,60,93,.75)] lg:hidden">
+      <div className="sticky top-0 z-10 -mx-4 -mt-4 border-b border-[var(--ax-hero-border)] ax-grad-hero px-4 pt-[18px] sm:-mx-5 sm:-mt-5 sm:px-5 pb-0 shadow-[0_14px_26px_-16px_rgba(26,60,93,.75)] lg:hidden">
         <h1 className="mb-3 text-[28px] leading-[1.1] font-bold tracking-[-0.02em] text-white">Bảng tin</h1>
         <div role="tablist" aria-label="Mục" className="flex gap-2 overflow-x-auto pb-3">
           {FILTERS.map((f) => {

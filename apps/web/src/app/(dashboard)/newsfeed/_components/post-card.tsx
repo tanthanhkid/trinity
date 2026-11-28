@@ -80,6 +80,7 @@ export function PostCard({
   // Bài đang chờ xoá (ẩn tạm, còn Hoàn tác).
   const [pendingDelete, setPendingDelete] = useState(false)
   const deleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const undoToastId = useRef<string | number | null>(null)
   // Khi mở bài từ thông báo (?post=<id>) → cuộn tới + làm nổi bài trong ~2.5s.
   const [highlighted, setHighlighted] = useState(false)
 
@@ -127,6 +128,8 @@ export function PostCard({
         clearTimeout(deleteTimer.current)
         deleteTimer.current = null
         runDelete()
+        // Bài đã xoá thật ⇒ gỡ toast, không để «Hoàn tác» còn bấm được mà không làm gì.
+        if (undoToastId.current != null) toast.dismiss(undoToastId.current)
       }
     },
     [runDelete],
@@ -141,7 +144,7 @@ export function PostCard({
       deleteTimer.current = null
       runDelete()
     }, DELETE_UNDO_MS)
-    showUndoToast('Đã xoá bài', {
+    undoToastId.current = showUndoToast('Đã xoá bài', {
       onUndo: () => {
         if (deleteTimer.current) clearTimeout(deleteTimer.current)
         deleteTimer.current = null
@@ -179,7 +182,7 @@ export function PostCard({
   return (
     <article
       id={`newsfeed-post-${post.id}`}
-      className={`relative scroll-mt-24 transition-shadow max-lg:-mx-4 max-lg:bg-ax-surface max-lg:px-4 max-lg:pt-3.5 max-lg:pb-1 lg:ax-card lg:px-5 lg:pt-[18px] lg:pb-2 ${
+      className={`relative scroll-mt-24 transition-shadow max-sm:-mx-4 max-sm:px-4 max-lg:bg-ax-surface sm:max-lg:-mx-5 sm:max-lg:px-5 max-lg:pt-3.5 max-lg:pb-1 lg:ax-card lg:px-5 lg:pt-[18px] lg:pb-2 ${
         highlighted ? 'ring-2 ring-ax-primary ring-offset-2' : ''
       }`}
     >

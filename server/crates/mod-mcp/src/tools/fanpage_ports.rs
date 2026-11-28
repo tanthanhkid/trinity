@@ -288,7 +288,9 @@ impl AdminGuidePort for AdminGuideAdapter {
         note: Option<String>,
     ) -> PortFut<'a, Value> {
         Box::pin(async move {
-            let input = GuideInput { recipient, note };
+            // Cùng kiểm độ dài (UTF-16) và cắt khoảng trắng như route REST: inputSchema `maxLength` không được máy chủ ép.
+            let input = GuideInput::from_json(&serde_json::json!({ "recipient": recipient, "note": note }))
+                .map_err(|e| port_err(e.into()))?;
             let mut c = conn(&self.ingest.db, company).await?;
             let g = admin_guide::build(&mut c, PageKey::FacebookId(page_id), &input, &self.ingest.env)
                 .await

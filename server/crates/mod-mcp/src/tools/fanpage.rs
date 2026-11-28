@@ -598,6 +598,33 @@ async fn resolve_page(p: &FanpagePorts, env: &Env<'_>, args: &Value) -> Result<S
     }
 }
 
+/// Như `resolve_page` nhưng tính cả Page đã ngắt kết nối (nối lại chính là lúc cần hướng dẫn): bỏ trống `page_id` chỉ khi
+/// công ty có đúng một Page; nhiều Page thì liệt kê cả Page đã ngắt để AI chọn.
+async fn resolve_any_page(p: &FanpagePorts, env: &Env<'_>, args: &Value) -> Result<String, ToolError> {
+    if let Some(id) = s(args, "page_id").map(str::trim).filter(|t| !t.is_empty()) {
+        return Ok(id.to_owned());
+    }
+    let all = pages(p)?.pages(env.company).await?;
+    match all.as_slice() {
+        [one] => Ok(one.page_id.clone()),
+        [] => Err(missing(
+            "Chưa kết nối Fanpage nào (Cài đặt › Kết nối & AI › Fanpage Facebook).",
+            "No Facebook Page linked yet.",
+        )),
+        many => Err(ToolError::User(format!(
+            "Có {} Fanpage, cần chọn page_id: {}. / Several Pages — pass page_id.",
+            many.len(),
+            many.iter()
+                .map(|x| {
+                    let off = if x.is_active { "" } else { " (đã ngắt)" };
+                    format!("{} = {}{off}", x.name, x.page_id)
+                })
+                .collect::<Vec<_>>()
+                .join("; ")
+        ))),
+    }
+}
+
 fn str_of<'a>(v: &'a Value, k: &str) -> Option<&'a str> {
     v.get(k).and_then(Value::as_str)
 }
@@ -1132,7 +1159,7 @@ fn get_page_admin_guide<'a>(
 ) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
     Box::pin(async move {
         let svc = admin_guide(p)?;
-        let page_id = resolve_page(p, env, args).await?;
+        let page_id = resolve_any_page(p, env, args).await?;
         let opt = |k: &str| s(args, k).map(str::trim).filter(|t| !t.is_empty()).map(str::to_owned);
         let mut data = svc
             .compose(env.company, &page_id, opt("recipient"), opt("note"))

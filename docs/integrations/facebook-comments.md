@@ -32,7 +32,7 @@ When the person who connects Pages is not an admin of the Page, `POST /api/v1/fa
 `integrations.webhooks`, body `{ "recipient"?: string ≤120, "note"?: string ≤500 }`) drafts the instructions: the response has `text` (a
 message ready to paste), `steps`, `permissions` (which are required), `manage_url` (the Fanpage screen, only when the public base URL is
 set) and `sent: false`. Trinity never sends it: the person forwards the text through their own channel (the web app uses the phone share
-sheet, or copies it). The Page may be disconnected; unknown id is 404. The AI tool `get_page_admin_guide` returns the same draft. The
+sheet, or copies it; the draft is fetched when the guide screen opens so the share sheet can open inside the tap). The Page may be disconnected; unknown id is 404. The AI tool `get_page_admin_guide` returns the same draft. The
 admin still needs a Trinity login to press the connect button; Facebook's dialog only lets a Page admin pick the Page.
 
 ## Turning a Page off, and reconnecting

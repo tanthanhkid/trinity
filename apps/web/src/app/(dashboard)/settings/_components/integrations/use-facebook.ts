@@ -129,12 +129,16 @@ export interface FacebookAdminGuide {
   sent: false
 }
 
-export function useAdminGuide() {
-  return useMutation({
-    mutationFn: async (v: { id: number; recipient?: string; note?: string }) => {
-      const { id, ...body } = v
-      return (await apiClient.post<FacebookAdminGuide>(`/facebook/pages/${id}/admin-guide`, body)).data
-    },
+/**
+ * Soạn sẵn hướng dẫn ngay khi mở màn hướng dẫn (POST nhưng không ghi gì, gọi lại an toàn): bảng chia sẻ của điện thoại chỉ mở
+ * được trong chính cú chạm, nên văn bản phải có sẵn trước khi người dùng bấm «Gửi hướng dẫn».
+ */
+export function useAdminGuide(id: number) {
+  return useQuery({
+    queryKey: ["facebook", "admin-guide", id],
+    queryFn: async () => (await apiClient.post<FacebookAdminGuide>(`/facebook/pages/${id}/admin-guide`, {})).data,
+    staleTime: 5 * 60_000,
+    retry: false,
   })
 }
 

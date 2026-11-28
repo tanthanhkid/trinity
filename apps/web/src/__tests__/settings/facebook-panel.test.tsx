@@ -260,7 +260,7 @@ describe("<FacebookPanel> Ánh xanh — điện thoại", () => {
     expect(screen.getByRole("heading", { name: "Nối lại Fanpage" })).toBeTruthy()
     expect(screen.getByText("Cho phép đủ quyền")).toBeTruthy()
     fireEvent.click(screen.getByRole("button", { name: "Mở Facebook để nối lại" }))
-    await waitFor(() => expect(mockPost.mock.calls[0][0]).toBe("/facebook/connect-url"))
+    await waitFor(() => expect(mockPost.mock.calls.some((c) => c[0] === "/facebook/connect-url")).toBe(true))
   })
 
   const GUIDE = { page_id: "111", page_name: "Trinity Software", recipient: null, steps: [], permissions: [], manage_url: null, text: "Chào anh/chị, nhờ nối lại Fanpage", sent: false }

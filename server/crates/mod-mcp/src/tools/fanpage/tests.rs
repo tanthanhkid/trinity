@@ -331,6 +331,34 @@ async fn huong_dan_quan_tri_page_chi_soan_khong_gui() {
     assert!(user_msg(e).contains("hướng dẫn quản trị viên Page"));
 }
 
+struct TwoPages;
+
+impl PagesPort for TwoPages {
+    fn pages(&self, _c: CompanyRef) -> PortFut<'_, Vec<PageRef>> {
+        Box::pin(async {
+            Ok(vec![
+                PageRef { page_id: "111".into(), name: "Shop A".into(), is_active: true },
+                PageRef { page_id: "222".into(), name: "Shop B".into(), is_active: false },
+            ])
+        })
+    }
+}
+
+#[tokio::test]
+async fn huong_dan_quan_tri_page_khong_tu_chon_khi_co_page_da_ngat() {
+    let g = Arc::new(FakeGuide(Mutex::default()));
+    let p = FanpagePorts {
+        pages: Some(Arc::new(TwoPages)),
+        admin_guide: Some(g.clone()),
+        ..FanpagePorts::default()
+    };
+    // Một Page bật + một Page đã ngắt (chính là Page cần nối lại) ⇒ không đoán, liệt kê cả Page đã ngắt.
+    let e = get_page_admin_guide(&p, &json!({}), &env()).await.err().unwrap();
+    let m = user_msg(e);
+    assert!(m.contains("Shop B = 222 (đã ngắt)"), "{m}");
+    assert!(g.0.lock().unwrap().is_empty());
+}
+
 // ------------------------------------------------------------------ gửi hàng loạt
 
 #[tokio::test]

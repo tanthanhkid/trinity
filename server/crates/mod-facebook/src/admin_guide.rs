@@ -108,6 +108,8 @@ pub fn compose(page_id: &str, page_name: &str, input: &GuideInput, env: &Env) ->
         .map(|&(label, required)| GuidePermission { label, required })
         .collect();
 
+    // Tên trong `text` và trong `page_name` phải là một: cùng cắt 200 đơn vị UTF-16.
+    let page_name = utf16_prefix(page_name, 200);
     let mut t = String::new();
     t.push_str(&match &input.recipient {
         Some(r) => format!("Chào {r},\n\n"),
@@ -136,7 +138,7 @@ pub fn compose(page_id: &str, page_name: &str, input: &GuideInput, env: &Env) ->
     }
     Guide {
         page_id: page_id.to_owned(),
-        page_name: utf16_prefix(page_name, 200),
+        page_name,
         recipient: input.recipient.clone(),
         steps,
         permissions,

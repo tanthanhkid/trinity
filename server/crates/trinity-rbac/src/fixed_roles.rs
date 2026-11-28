@@ -16,7 +16,9 @@ pub const MEMBER_ROLE_MARK: &str = "Vai trò cố định: dùng nghiệp vụ, 
 pub const MEMBER_ROLE_NAME: &str = "Thành viên";
 pub const OWNER_KEY: &str = "owner_user_id";
 
-/// Quyền cố định của Thành viên: dùng nghiệp vụ trong phạm vi của mình, xem chung khách/deal/việc của công ty nhỏ.
+/// Quyền cố định của Thành viên: dùng nghiệp vụ trong phạm vi của mình, xem chung khách/deal/việc của công ty nhỏ, xem phiếu
+/// lương của chính mình (`payroll.view` phạm vi `own`; công ty đã có vai trò này được bổ sung bằng migration
+/// `0031_thanh_vien_xem_phieu_luong`).
 pub const MEMBER_GRANTS: &[(&str, Option<&str>)] = &[
     ("contacts.view", Some("all")),
     ("contacts.create", None),
@@ -29,6 +31,7 @@ pub const MEMBER_GRANTS: &[(&str, Option<&str>)] = &[
     ("kanban.manage", Some("own")),
     ("newsfeed.post", None),
     ("attendance.view", Some("own")),
+    ("payroll.view", Some("own")),
     ("products.view", None),
     ("pos.sell", Some("own")),
     ("custom_records.view", Some("all")),

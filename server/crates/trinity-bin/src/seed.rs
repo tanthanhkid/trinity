@@ -379,7 +379,7 @@ const LEAD_GRANTS: [Grant; 11] = [
     ("users.view", Some("team")),
 ];
 
-const SALE_GRANTS: [Grant; 7] = [
+const SALE_GRANTS: [Grant; 8] = [
     ("contacts.view", Some("own")),
     ("contacts.create", None),
     ("contacts.update", Some("own")),
@@ -387,6 +387,7 @@ const SALE_GRANTS: [Grant; 7] = [
     ("deals.manage", Some("own")),
     ("kanban.view", Some("own")),
     ("kanban.manage", Some("own")),
+    ("payroll.view", Some("own")),
 ];
 
 /// Tạo vai trò (nếu chưa có) và bổ sung quyền còn thiếu; không xoá quyền người dùng đã chỉnh. Trả về id vai trò.

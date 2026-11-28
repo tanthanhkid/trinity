@@ -470,12 +470,14 @@ pub fn team_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
 
 // ───────────────────────────── chức danh ─────────────────────────────
 
-/// `canSeeSalary`: quản trị, hoặc có `org.manage`/`payroll.view`/`payroll.manage`.
+/// `canSeeSalary`: quản trị, hoặc có `org.manage`/`payroll.manage`, hoặc `payroll.view` phạm vi từ `team` trở lên. `payroll.view`
+/// phạm vi `own` (Thành viên xem phiếu của chính mình) KHÔNG mở lương chức danh của cả công ty.
 fn can_see_salary(a: &Actor) -> bool {
     a.is_admin
-        || ["org.manage", "payroll.view", "payroll.manage"]
+        || ["org.manage", "payroll.manage"]
             .iter()
             .any(|p| trinity_rbac::can(&a.grants, p, None))
+        || trinity_rbac::can(&a.grants, "payroll.view", Some(trinity_rbac::Scope::Team))
 }
 
 /// Dòng trả về; người không được xem lương thì ba cột lương thành `null` (`redactSalary`).
@@ -775,6 +777,32 @@ mod tests {
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
         assert_eq!(rep.declared, 5);
+    }
+
+    #[test]
+    fn luong_chuc_danh_khong_mo_cho_payroll_view_own() {
+        let actor = |g: Value| Actor {
+            user_id: 1,
+            company: trinity_db::CompanyRef::DEFAULT,
+            grants: trinity_rbac::grants::grants_from_json(&g),
+            is_admin: false,
+        };
+        // Thành viên chỉ xem phiếu của mình ⇒ không thấy lương chức danh.
+        assert!(!can_see_salary(&actor(json!({"payroll.view": "own"}))));
+        assert!(!can_see_salary(&actor(json!({}))));
+        // Quản lý / kế toán / quản trị tổ chức giữ nguyên.
+        for g in [
+            json!({"payroll.view": "team"}),
+            json!({"payroll.view": "subtree"}),
+            json!({"payroll.view": "all"}),
+            json!({"payroll.manage": true}),
+            json!({"org.manage": true}),
+        ] {
+            assert!(can_see_salary(&actor(g.clone())), "{g}");
+        }
+        let mut admin = actor(json!({}));
+        admin.is_admin = true;
+        assert!(can_see_salary(&admin));
     }
 
     fn msgs(r: Result<impl std::fmt::Debug, AppError>) -> Vec<String> {

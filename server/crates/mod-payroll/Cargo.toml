@@ -25,6 +25,8 @@ trinity-realtime = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+tower = { workspace = true }
+trinity-auth = { workspace = true }
 
 [lints]
 workspace = true

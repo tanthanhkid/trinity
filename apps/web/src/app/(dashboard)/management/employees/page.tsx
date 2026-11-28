@@ -1277,7 +1277,10 @@ function EmployeesPageContent() {
   const canResetDevice = can("employees.manage")
 
   // Desktop luôn có một hồ sơ đang chọn: giữ cái đã chọn nếu còn trong trang, không thì lấy hàng đầu.
-  const current = employees.find((e) => e.id === selectedId) ?? employees[0] ?? null
+  const selected = employees.find((e) => e.id === selectedId) ?? null
+  const current = selected ?? employees[0] ?? null
+  // Điện thoại: người đang xem biến khỏi trang (vừa xoá, đổi lọc) ⇒ về danh sách, KHÔNG lặng lẽ mở hồ sơ người khác.
+  const showMobileDetail = mobileDetail && selected !== null
   function openEmployee(emp: Employee) {
     selectRow(emp.id)
     setSelectedId(emp.id)
@@ -1340,7 +1343,7 @@ function EmployeesPageContent() {
           aria-label="Danh sách nhân viên"
           className={cn(
             "w-[380px] shrink-0 overflow-hidden rounded-ax-card border border-ax-line bg-ax-surface shadow-ax-card max-lg:w-full",
-            mobileDetail && "max-lg:hidden",
+            showMobileDetail && "max-lg:hidden",
           )}
         >
           <div className="p-3 pb-2">
@@ -1540,7 +1543,7 @@ function EmployeesPageContent() {
 
         {/* Hồ sơ — điện thoại: màn riêng, mở khi chọn một người */}
         {current && (
-          <div className={cn("min-w-0 flex-[1_1_640px]", !mobileDetail && "max-lg:hidden")}>
+          <div className={cn("min-w-0 flex-[1_1_640px]", !showMobileDetail && "max-lg:hidden")}>
             <EmployeeDetail
               emp={current}
               onBack={() => setMobileDetail(false)}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AlertTriangle, ChevronLeft, Loader2, ShieldAlert } from "lucide-react"
 import { toast } from "sonner"
 import { HoverLink as Link } from "@/components/app-shell/hover-link"
@@ -54,7 +54,7 @@ function ImpactBox({ action, d, mobile }: { action: AiAction; d: Decision; mobil
       className={cn(
         "space-y-2.5 rounded-ax-field border p-4 text-sm",
         mobile && "text-[15px]",
-        hit ? "border-ax-danger-border bg-ax-danger-soft text-[#8A2D28]" : "border-ax-warn/30 bg-ax-warn-soft text-ax-warn",
+        hit ? "border-ax-danger-border bg-ax-danger-soft text-[#8A2D28] dark:text-[var(--ax-danger-ink)]" : "border-ax-warn/30 bg-ax-warn-soft text-ax-warn",
       )}
     >
       <p className={cn("flex items-center gap-2 text-[15px] font-bold", hit ? "text-[var(--ax-danger-ink)]" : "text-ax-warn")}>
@@ -185,10 +185,19 @@ export function AiActionDetailPanel({ action }: { action: AiAction }) {
 export function AiActionDetailScreen({ action, onBack }: { action: AiAction; onBack: () => void }) {
   const d = useDecision(action, onBack)
   const link = aiActionResultLink(action)
+  const backRef = useRef<HTMLButtonElement>(null)
+  const busy = d.busy
+  // Lớp toàn màn thay Dialog cũ: đưa focus vào lớp khi mở, Esc = quay lại (trừ lúc đang gửi).
+  useEffect(() => { backRef.current?.focus() }, [])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !busy) onBack() }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [busy, onBack])
   return (
     <div role="dialog" aria-modal="true" aria-label={action.tool_label} data-testid="ai-detail" className="fixed inset-0 z-50 flex flex-col bg-[var(--ax-bg-mobile)] ax-page">
       <div className="flex items-center border-b border-ax-line ax-grad-bar px-2 pb-1 pt-2">
-        <button type="button" onClick={onBack} disabled={d.busy} aria-label="Quay lại Hoạt động AI" className="flex h-11 items-center pl-1 pr-2.5 text-base text-ax-primary-ink focus-visible:outline-none focus-visible:shadow-[var(--ax-focus-ring)]">
+        <button ref={backRef} type="button" onClick={onBack} disabled={d.busy} aria-label="Quay lại Hoạt động AI" className="flex h-11 items-center pl-1 pr-2.5 text-base text-ax-primary-ink focus-visible:outline-none focus-visible:shadow-[var(--ax-focus-ring)]">
           <ChevronLeft className="size-5" strokeWidth={1.75} aria-hidden /> Hoạt động AI
         </button>
       </div>

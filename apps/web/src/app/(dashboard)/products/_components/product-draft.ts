@@ -4,7 +4,6 @@
  * `code` và `project_id` không có trong payload sửa (BE khoá) nên không nằm trong bản nháp.
  */
 import type { Product, UpdateProductPayload } from "@/types/product"
-import { commaToArray } from "./product-form-schema"
 
 export const DESCRIPTION_MAX = 2000
 export const PRICE_MAX = 1_000_000_000_000
@@ -54,6 +53,50 @@ export function draftToPayload(d: ProductDraft): UpdateProductPayload {
     is_active: d.is_active,
     attributes: d.attributes,
   }
+}
+
+const sameValue = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b)
+
+/** Các trường khác nhau giữa hai bản nháp. Đổi danh mục ⇒ kèm `attributes` (BE kiểm thuộc tính theo danh mục mới). */
+export function changedFields(from: ProductDraft, to: ProductDraft): Partial<ProductDraft> {
+  const out: Partial<ProductDraft> = {}
+  for (const k of Object.keys(to) as (keyof ProductDraft)[]) {
+    if (!sameValue(from[k], to[k])) (out as Record<string, unknown>)[k] = to[k]
+  }
+  if ("category_id" in out && !("attributes" in out)) out.attributes = to.attributes
+  return out
+}
+
+/** Chỉ lấy giá trị cũ của đúng các khoá trong `fields` (để Hoàn tác). */
+export function pickFields(d: ProductDraft, fields: Partial<ProductDraft>): Partial<ProductDraft> {
+  const out: Partial<ProductDraft> = {}
+  for (const k of Object.keys(fields) as (keyof ProductDraft)[]) (out as Record<string, unknown>)[k] = d[k]
+  return out
+}
+
+/**
+ * Payload PATCH CHỈ gồm các trường trong `fields` — không gửi lại cả bản (tránh ghi đè sửa của người khác và tránh BE
+ * kiểm lại danh mục/thuộc tính khi chỉ đổi giá, ảnh, ẩn/mở bán).
+ */
+export function fieldsToPayload(base: ProductDraft, fields: Partial<ProductDraft>): UpdateProductPayload {
+  const full = draftToPayload({ ...base, ...fields }) as Record<string, unknown>
+  const out: Record<string, unknown> = {}
+  for (const k of Object.keys(fields)) out[k] = full[k]
+  return out as UpdateProductPayload
+}
+
+/** Áp `fields` vào bản nháp đang gõ: trường nào người dùng đã sửa tiếp (khác `prev`) thì giữ chữ đang gõ. */
+export function mergeIntoDraft(d: ProductDraft, fields: Partial<ProductDraft>, prev: Partial<ProductDraft>): ProductDraft {
+  const next = { ...d } as Record<string, unknown>
+  for (const k of Object.keys(fields) as (keyof ProductDraft)[]) {
+    if (sameValue(d[k], prev[k])) next[k] = fields[k]
+  }
+  return next as unknown as ProductDraft
+}
+
+/** Danh mục chọn được: đang hoạt động, cộng danh mục hiện tại của sản phẩm (dù đã ngưng) để còn hiện tên. */
+export function usableCategories<T extends { id: number; is_active?: boolean }>(all: T[], currentId: string): T[] {
+  return all.filter((c) => c.is_active !== false || String(c.id) === currentId)
 }
 
 const SCALAR_KEYS = [
@@ -107,5 +150,3 @@ export function readiness(d: ProductDraft): { label: string; ok: boolean }[] {
     { label: "Có mô tả", ok: d.description.trim() !== "" },
   ]
 }
-
-export { commaToArray }

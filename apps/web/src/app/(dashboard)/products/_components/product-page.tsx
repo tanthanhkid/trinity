@@ -15,6 +15,8 @@ import { useRouteParams } from "@/lib/route-params"
 import { usePermissions } from "@/lib/rbac"
 import { ProductEditorDesktop } from "./product-editor-desktop"
 import { ProductMobile } from "./product-mobile"
+import { useProductEditor } from "./use-product-editor"
+import type { Product } from "@/types/product"
 
 const QUERY = "(min-width: 1024px)"
 
@@ -60,9 +62,15 @@ export function ProductPage() {
     )
   }
   // `key` theo id: đổi sang sản phẩm khác thì dựng lại bản nháp.
+  return <ProductEditorHost key={product.id} product={product} canManage={canManage} isDesktop={isDesktop} />
+}
+
+/** Bản nháp giữ ở đây (trên cả hai bố cục) để xoay máy / đổi khổ qua 1024px không mất thay đổi chưa lưu. */
+function ProductEditorHost({ product, canManage, isDesktop }: { product: Product; canManage: boolean; isDesktop: boolean }) {
+  const ed = useProductEditor(product)
   return isDesktop ? (
-    <ProductEditorDesktop key={product.id} product={product} canManage={canManage} />
+    <ProductEditorDesktop product={product} canManage={canManage} ed={ed} />
   ) : (
-    <ProductMobile key={product.id} product={product} canManage={canManage} />
+    <ProductMobile product={product} canManage={canManage} ed={ed} />
   )
 }

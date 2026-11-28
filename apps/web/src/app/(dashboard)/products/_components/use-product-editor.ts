@@ -2,7 +2,7 @@
 
 /**
  * Trạng thái sửa một sản phẩm cho cả hai bố cục: bản nháp, bản đã lưu, lưu (kèm Hoàn tác) và lưu nhanh từng trường.
- * Lưu = `PATCH /products/:id` (`useUpdateProduct`); Hoàn tác gửi lại bản trước đó.
+ * Lưu = `PATCH /products/:id` (`useUpdateProduct`) chỉ với các trường đã đổi; Hoàn tác gửi lại giá trị cũ của đúng các trường đó.
  */
 import { useCallback, useState } from "react"
 import { toast } from "sonner"
@@ -11,10 +11,13 @@ import { showUndoToast } from "@/components/ui/undo-toast"
 import { useUpdateProduct } from "@/hooks/products/use-products"
 import type { Product } from "@/types/product"
 import {
+  changedFields,
   countChanges,
   draftFromProduct,
-  draftToPayload,
+  fieldsToPayload,
   hasErrors,
+  mergeIntoDraft,
+  pickFields,
   validateDraft,
   type ProductDraft,
 } from "./product-draft"
@@ -45,35 +48,33 @@ export function useProductEditor(product: Product) {
     setShowErrors(false)
   }, [saved])
 
-  /** Gửi `next` lên máy chủ; thành công ⇒ toast Hoàn tác trả về `before`. */
-  const commit = useCallback(
-    (next: ProductDraft, before: ProductDraft, message: string, onDone?: () => void) => {
+  /** Gửi CHỈ các trường `fields` (giá trị cũ `prev`); thành công ⇒ cập nhật bản đã lưu, áp vào bản nháp (trường đang gõ tiếp thì giữ). */
+  const mutateFields = useCallback(
+    (fields: Partial<ProductDraft>, prev: Partial<ProductDraft>, errorText: string, after?: () => void) => {
       update.mutate(
-        { id: product.id, payload: draftToPayload(next) },
+        { id: product.id, payload: fieldsToPayload(saved, fields) },
         {
           onSuccess: () => {
-            setSaved(next)
-            setDraft(next)
-            onDone?.()
-            showUndoToast(message, {
-              onUndo: () =>
-                update.mutate(
-                  { id: product.id, payload: draftToPayload(before) },
-                  {
-                    onSuccess: () => {
-                      setSaved(before)
-                      setDraft(before)
-                    },
-                    onError: (err) => toast.error(getApiErrorMessage(err, "Chưa hoàn tác được")),
-                  },
-                ),
-            })
+            setSaved((s) => ({ ...s, ...fields }))
+            setDraft((d) => mergeIntoDraft(d, fields, prev))
+            after?.()
           },
-          onError: (err) => toast.error(getApiErrorMessage(err, "Lưu thất bại, thử lại sau")),
+          onError: (err) => toast.error(getApiErrorMessage(err, errorText)),
         },
       )
     },
-    [product.id, update],
+    [product.id, update, saved],
+  )
+
+  /** Lưu `fields` rồi toast Hoàn tác — Hoàn tác chỉ trả lại đúng các trường đó. */
+  const send = useCallback(
+    (fields: Partial<ProductDraft>, prev: Partial<ProductDraft>, message: string, onDone?: () => void) => {
+      mutateFields(fields, prev, "Lưu thất bại, thử lại sau", () => {
+        onDone?.()
+        showUndoToast(message, { onUndo: () => mutateFields(prev, fields, "Chưa hoàn tác được") })
+      })
+    },
+    [mutateFields],
   )
 
   /** Lưu cả bản nháp. Trả `false` nếu còn lỗi nhập (hoặc thiếu thuộc tính bắt buộc) — chưa gửi gì. */
@@ -85,18 +86,19 @@ export function useProductEditor(product: Product) {
         return false
       }
       setShowErrors(false)
-      commit(draft, saved, "Đã lưu sản phẩm", onDone)
+      const fields = changedFields(saved, draft)
+      send(fields, pickFields(saved, fields), "Đã lưu sản phẩm", onDone)
       return true
     },
-    [changes, errors, commit, draft, saved],
+    [changes, errors, send, draft, saved],
   )
 
-  /** Lưu NGAY một vài trường (đổi giá, ẩn/mở bán, ảnh) trên nền bản đã lưu — không đụng phần nháp khác. */
+  /** Lưu NGAY một vài trường (đổi giá, ẩn/mở bán, ảnh) — chỉ gửi đúng các trường đó, không đụng phần nháp khác. */
   const quickSave = useCallback(
     (p: Partial<ProductDraft>, message: string, onDone?: () => void) => {
-      commit({ ...saved, ...p }, saved, message, onDone)
+      send(p, pickFields(saved, p), message, onDone)
     },
-    [commit, saved],
+    [send, saved],
   )
 
   return {
@@ -112,3 +114,5 @@ export function useProductEditor(product: Product) {
     saving: update.isPending,
   }
 }
+
+export type ProductEditor = ReturnType<typeof useProductEditor>

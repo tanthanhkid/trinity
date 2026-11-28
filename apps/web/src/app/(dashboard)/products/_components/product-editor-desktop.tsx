@@ -6,7 +6,7 @@
  * + thẻ «Sẵn sàng bán x/4»; thanh tối nổi «Có n thay đổi chưa lưu» (Bỏ thay đổi / Lưu); lưu xong có toast Hoàn tác.
  * Chỉ đọc (không có `products.manage`): ô khoá, không hiện thanh lưu.
  */
-import { useState } from "react"
+import { useId, useState } from "react"
 import { ImagePlus, Trash2, X } from "lucide-react"
 import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { AxField } from "@/components/ui/field"
@@ -24,12 +24,13 @@ import {
   digitsOnly,
   groupDigits,
   readiness,
+  usableCategories,
 } from "./product-draft"
 import { DynamicAttributeFields, findMissingRequiredAttributes } from "./dynamic-attribute-fields"
 import { ProductCover } from "./product-cover"
 import { toPickerHex } from "./product-form-schema"
 import { useImagePick } from "./use-image-pick"
-import { useProductEditor } from "./use-product-editor"
+import type { ProductEditor } from "./use-product-editor"
 
 const CARD = "ax-card p-6 max-xl:p-5"
 const NONE = ""
@@ -42,12 +43,12 @@ function SectionTitle({ id, children }: { id: string; children: React.ReactNode 
   )
 }
 
-export function ProductEditorDesktop({ product, canManage }: { product: Product; canManage: boolean }) {
-  const { data: categories = [] } = useProductCategories(true)
+export function ProductEditorDesktop({ product, canManage, ed }: { product: Product; canManage: boolean; ed: ProductEditor }) {
+  const { data: allCategories = [] } = useProductCategories(true)
   const { data: projects = [] } = useActiveProjects()
   const [invalidKeys, setInvalidKeys] = useState<Set<string>>(new Set())
-  const ed = useProductEditor(product)
   const { draft, errors } = ed
+  const categories = usableCategories(allCategories, ed.saved.category_id)
   const categoryId = draft.category_id ? Number(draft.category_id) : null
   const { data: attributeDefs = [] } = useAttributeDefs(categoryId)
 
@@ -319,13 +320,14 @@ export function ProductEditorDesktop({ product, canManage }: { product: Product;
 }
 
 function SwitchRow({ label, hint, checked, disabled, onChange }: { label: string; hint: string; checked: boolean; disabled: boolean; onChange: (v: boolean) => void }) {
+  const id = useId()
   return (
     <div className="flex min-h-11 items-center justify-between gap-3">
       <div>
-        <div id={`sw-${label}`} className="text-[15px] font-semibold text-ax-ink">{label}</div>
+        <div id={id} className="text-[15px] font-semibold text-ax-ink">{label}</div>
         <div className="text-[13px] text-ax-ink-2">{hint}</div>
       </div>
-      <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} aria-labelledby={`sw-${label}`} />
+      <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} aria-labelledby={id} />
     </div>
   )
 }

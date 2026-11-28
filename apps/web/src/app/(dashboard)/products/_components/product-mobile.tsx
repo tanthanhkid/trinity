@@ -7,7 +7,7 @@
  *  - Sửa toàn bộ: màn riêng Huỷ · Sửa sản phẩm · Lưu, chip danh mục, thuộc tính động, toast Hoàn tác.
  * Thiết kế bỏ thương hiệu / màu / thẻ / nổi bật khỏi màn sửa — giữ chúng ở cuối màn sửa để không mất chức năng.
  */
-import { useState } from "react"
+import { useId, useState } from "react"
 import { Camera, ChevronLeft } from "lucide-react"
 import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { Button } from "@/components/ui/button"
@@ -20,23 +20,23 @@ import { BottomSheet, BottomSheetClose, BottomSheetContent } from "@/components/
 import { useAttributeDefs, useProductCategories } from "@/hooks/products/use-product-categories"
 import { cn } from "@/lib/utils"
 import type { Product } from "@/types/product"
-import { DESCRIPTION_MAX, digitsOnly, groupDigits } from "./product-draft"
+import { DESCRIPTION_MAX, digitsOnly, groupDigits, usableCategories, validateDraft } from "./product-draft"
 import { commaToArray, toPickerHex } from "./product-form-schema"
 import { DynamicAttributeFields, findMissingRequiredAttributes } from "./dynamic-attribute-fields"
 import { formatAttributeValue } from "./product-detail-modal"
 import { ProductCover } from "./product-cover"
 import { useImagePick } from "./use-image-pick"
-import { useProductEditor } from "./use-product-editor"
+import type { ProductEditor } from "./use-product-editor"
 
 const money = (digits: string) => (digits ? `${groupDigits(digits)} ₫` : "Chưa có giá")
 
-export function ProductMobile({ product, canManage }: { product: Product; canManage: boolean }) {
+export function ProductMobile({ product, canManage, ed }: { product: Product; canManage: boolean; ed: ProductEditor }) {
   const { data: categories = [] } = useProductCategories(true)
   const { data: attributeDefs = [] } = useAttributeDefs(product.category_id)
   const [editing, setEditing] = useState(false)
   const [priceOpen, setPriceOpen] = useState(false)
   const [priceDraft, setPriceDraft] = useState("")
-  const ed = useProductEditor(product)
+  const [priceError, setPriceError] = useState("")
   const saved = ed.saved
   const categoryName = categories.find((c) => String(c.id) === saved.category_id)?.name ?? "Chưa phân loại"
 
@@ -57,9 +57,14 @@ export function ProductMobile({ product, canManage }: { product: Product; canMan
   ]
 
   function savePrice() {
+    const invalid = validateDraft({ ...saved, price: priceDraft }).price
+    if (invalid) {
+      setPriceError(invalid)
+      return
+    }
     setPriceOpen(false)
     if (priceDraft !== saved.price) {
-      ed.quickSave({ price: priceDraft }, `Đã đổi giá thành ${money(priceDraft)}`)
+      ed.quickSave({ price: priceDraft }, priceDraft ? `Đã đổi giá thành ${money(priceDraft)}` : "Đã bỏ giá bán")
     }
   }
 
@@ -112,6 +117,7 @@ export function ProductMobile({ product, canManage }: { product: Product; canMan
               size="ax-lg"
               onClick={() => {
                 setPriceDraft(saved.price)
+                setPriceError("")
                 setPriceOpen(true)
               }}
             >
@@ -166,7 +172,11 @@ export function ProductMobile({ product, canManage }: { product: Product; canMan
             inputMode="numeric"
             autoFocus
             value={groupDigits(priceDraft)}
-            onChange={(e) => setPriceDraft(digitsOnly(e.target.value))}
+            error={priceError || undefined}
+            onChange={(e) => {
+              setPriceDraft(digitsOnly(e.target.value))
+              setPriceError("")
+            }}
             onKeyDown={(e) => e.key === "Enter" && savePrice()}
             hint={`Giá cũ ${money(saved.price)}. Lưu xong vẫn hoàn tác được.`}
           />
@@ -176,8 +186,9 @@ export function ProductMobile({ product, canManage }: { product: Product; canMan
   )
 }
 
-function MobileEdit({ product, ed, onClose }: { product: Product; ed: ReturnType<typeof useProductEditor>; onClose: () => void }) {
-  const { data: categories = [] } = useProductCategories(true)
+function MobileEdit({ product, ed, onClose }: { product: Product; ed: ProductEditor; onClose: () => void }) {
+  const { data: allCategories = [] } = useProductCategories(true)
+  const categories = usableCategories(allCategories, ed.saved.category_id)
   const { draft, errors } = ed
   const categoryId = draft.category_id ? Number(draft.category_id) : null
   const { data: defs = [] } = useAttributeDefs(categoryId)
@@ -282,10 +293,11 @@ function MobileEdit({ product, ed, onClose }: { product: Product; ed: ReturnType
 }
 
 function SwitchCard({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  const id = useId()
   return (
     <div className="ax-card flex min-h-14 items-center justify-between px-4">
-      <span id={`sc-${label}`} className="text-base font-semibold">{label}</span>
-      <Switch checked={checked} onCheckedChange={onChange} aria-labelledby={`sc-${label}`} />
+      <span id={id} className="text-base font-semibold">{label}</span>
+      <Switch checked={checked} onCheckedChange={onChange} aria-labelledby={id} />
     </div>
   )
 }

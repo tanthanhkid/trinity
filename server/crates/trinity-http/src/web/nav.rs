@@ -28,7 +28,8 @@ pub enum Nav {
 }
 
 /// Trang công khai (khớp tiền tố, như `PUBLIC_PATHS` của `proxy.ts`).
-const PUBLIC_PREFIXES: [&str; 5] = ["/login", "/register", "/invite/", "/.well-known", "/s/"];
+/// `/auth/` = trang nhận phiên của đăng nhập không mật khẩu (#675: `/auth/email`, `/auth/complete`).
+const PUBLIC_PREFIXES: [&str; 6] = ["/login", "/register", "/invite/", "/.well-known", "/s/", "/auth/"];
 /// Trang công khai khớp nguyên đường dẫn.
 const PUBLIC_EXACT: [&str; 2] = ["/privacy", "/terms"];
 /// Đoạn đầu mà `config.matcher` của `proxy.ts` loại ra: `/((?!api|_next/static|_next/image|favicon.ico|uploads|logo|brand).*)`.
@@ -263,6 +264,21 @@ mod tests {
         assert_eq!(cases.len(), 18);
         for (name, r, want) in cases {
             assert_eq!(decide(&r, DOMAIN), want, "{name}");
+        }
+    }
+
+    #[test]
+    fn trang_nhan_phien_dang_nhap_khong_mat_khau_cong_khai() {
+        // #675: link trong thư (`/auth/email#token=…`) và trang sau Google (`/auth/complete#ticket=…`) mở khi chưa đăng nhập.
+        for path in ["/auth/email", "/auth/complete"] {
+            let r = NavRequest {
+                path,
+                query: None,
+                host: "app.example.com",
+                has_access_token: false,
+                has_session: false,
+            };
+            assert_eq!(decide(&r, None), Nav::Pass { no_store: true }, "{path}");
         }
     }
 

@@ -38,6 +38,8 @@ export interface ConfirmDialogProps {
   tone?: "destructive" | "default"
   /** Đang xử lý: khoá 2 nút + hiện spinner ở nút xác nhận. */
   pending?: boolean
+  /** Chỉ khoá nút xác nhận (vd ô bắt buộc trong hộp còn trống); Huỷ/Esc vẫn đóng được. */
+  confirmDisabled?: boolean
   onConfirm: () => void | Promise<void>
 }
 
@@ -50,6 +52,7 @@ export function ConfirmDialog({
   cancelLabel = "Huỷ",
   tone = "destructive",
   pending = false,
+  confirmDisabled = false,
   onConfirm,
 }: ConfirmDialogProps) {
   const destructive = tone === "destructive"
@@ -79,7 +82,7 @@ export function ConfirmDialog({
           <Button
             type="button"
             variant={destructive ? "destructive" : "default"}
-            disabled={pending}
+            disabled={pending || confirmDisabled}
             onClick={() => void onConfirm()}
           >
             {pending && <Loader2 className="animate-spin" aria-hidden />}

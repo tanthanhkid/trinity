@@ -3,9 +3,15 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 const mockLogin = vi.fn()
 
+// Máy chủ chỉ bật mật khẩu (không SMTP, không Google) ⇒ form mật khẩu là màn chính như trước #675.
 vi.mock('@/lib/auth-api', () => ({
   login: mockLogin,
   isSignupEnabled: () => Promise.resolve(false),
+  getLoginMethods: () =>
+    Promise.resolve({ email_login_enabled: false, google_enabled: false, password_login_enabled: true, signup_enabled: false, code_length: 6, resend_after: 30, expires_in: 600 }),
+  googleStartUrl: () => '/api/v1/auth/google/start',
+  startEmailLogin: vi.fn(),
+  verifyEmailCode: vi.fn(),
 }))
 
 vi.mock('@/lib/token-storage', () => ({
@@ -50,7 +56,7 @@ describe('Login Page', () => {
   it('should render login form', async () => {
     const LoginPage = (await import('@/app/login/page')).default
     render(<LoginPage />)
-    expect(screen.getByRole('button', { name: /đăng nhập/i })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: /đăng nhập/i })).toBeTruthy()
     expect(screen.getByLabelText(/email/i)).toBeTruthy()
     expect(screen.getByLabelText('Mật khẩu')).toBeTruthy()
   })
@@ -64,7 +70,7 @@ describe('Login Page', () => {
     const LoginPage = (await import('@/app/login/page')).default
     render(<LoginPage />)
 
-    fireEvent.change(screen.getByPlaceholderText(/email@congty\.vn/i), {
+    fireEvent.change(await screen.findByPlaceholderText(/email@congty\.vn/i), {
       target: { value: 'admin@example.com' },
     })
     fireEvent.change(screen.getByPlaceholderText(/nhập mật khẩu/i), {
@@ -86,7 +92,7 @@ describe('Login Page', () => {
     const LoginPage = (await import('@/app/login/page')).default
     render(<LoginPage />)
 
-    fireEvent.change(screen.getByPlaceholderText(/email@congty\.vn/i), {
+    fireEvent.change(await screen.findByPlaceholderText(/email@congty\.vn/i), {
       target: { value: 'wrong@example.com' },
     })
     fireEvent.change(screen.getByPlaceholderText(/nhập mật khẩu/i), {
@@ -108,7 +114,7 @@ describe('Login Page', () => {
     const LoginPage = (await import('@/app/login/page')).default
     render(<LoginPage />)
 
-    fireEvent.change(screen.getByPlaceholderText(/email@congty\.vn/i), {
+    fireEvent.change(await screen.findByPlaceholderText(/email@congty\.vn/i), {
       target: { value: 'admin@example.com' },
     })
     fireEvent.change(screen.getByPlaceholderText(/nhập mật khẩu/i), {
@@ -127,7 +133,7 @@ describe('Login Page', () => {
     const LoginPage = (await import('@/app/login/page')).default
     render(<LoginPage />)
 
-    fireEvent.change(screen.getByPlaceholderText(/email@congty\.vn/i), {
+    fireEvent.change(await screen.findByPlaceholderText(/email@congty\.vn/i), {
       target: { value: 'admin@example.com' },
     })
     fireEvent.change(screen.getByPlaceholderText(/nhập mật khẩu/i), {

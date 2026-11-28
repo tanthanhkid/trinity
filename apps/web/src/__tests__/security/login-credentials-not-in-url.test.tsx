@@ -17,7 +17,15 @@ import { render, screen, waitFor } from '@testing-library/react'
 
 const mockLogin = vi.fn()
 
-vi.mock('@/lib/auth-api', () => ({ login: mockLogin, isSignupEnabled: () => Promise.resolve(false) }))
+// `getLoginMethods` trả null = máy chủ cũ ⇒ form mật khẩu (đường cần khoá trong test này).
+vi.mock('@/lib/auth-api', () => ({
+  login: mockLogin,
+  isSignupEnabled: () => Promise.resolve(false),
+  getLoginMethods: () => Promise.resolve(null),
+  googleStartUrl: () => '/api/v1/auth/google/start',
+  startEmailLogin: vi.fn(),
+  verifyEmailCode: vi.fn(),
+}))
 vi.mock('@/lib/token-storage', () => ({
   getAccessToken: vi.fn(() => null),
   setAccessToken: vi.fn(),
@@ -39,7 +47,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), replace: 
 async function renderLogin() {
   const LoginPage = (await import('@/app/login/page')).default
   const view = render(<LoginPage />)
-  const password = screen.getByLabelText('Mật khẩu') as HTMLInputElement
+  const password = (await screen.findByLabelText('Mật khẩu')) as HTMLInputElement
   const form = password.closest('form')
   if (!form) throw new Error('Không tìm thấy <form> bọc ô mật khẩu')
   return { view, form, password }

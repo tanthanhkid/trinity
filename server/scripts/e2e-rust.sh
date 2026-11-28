@@ -65,6 +65,13 @@ node "$SERVER_DIR/scripts/e2e-provision.mjs" "http://127.0.0.1:$PORT" "$SEED_ADM
   || { kill "$SRV_PID" 2>/dev/null; cat "$RUN_DIR/provision.log" | tail -20; exit 1; }
 kill "$SRV_PID" 2>/dev/null; wait "$SRV_PID" 2>/dev/null || true
 
+# 3c. #675: project `email-login` cần máy chủ gửi thư tới SMTP giả do chính Playwright mở (không thư nào ra ngoài).
+if [[ " ${projects[*]} " == *" email-login "* ]]; then
+  export E2E_SMTP_PORT="${E2E_SMTP_PORT:-$((PORT + 25))}"
+  export SMTP_HOST=127.0.0.1 SMTP_PORT="$E2E_SMTP_PORT" SMTP_SECURITY=none MAIL_FROM="Trinity <no-reply@example.com>"
+  export APP_PUBLIC_URL="http://127.0.0.1:$PORT"
+fi
+
 # 4. Playwright. Tài khoản = dữ liệu seed tạm ở trên (xoá cùng DB).
 export E2E_SERVER=rust E2E_RUST_PORT="$PORT"
 export E2E_ADMIN_EMAIL="$SEED_ADMIN_EMAIL" E2E_ADMIN_PASSWORD="$SEED_ADMIN_PASSWORD"

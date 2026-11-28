@@ -15,7 +15,11 @@ for (const role of ROLES) {
     fs.rmSync(storageStatePath(role), { force: true })
 
     await page.goto('/login')
-    await page.waitForSelector('input[name="email"]')
+    // #675: bản cài đặt bật đăng nhập bằng email thì màn đầu là email + Google, mật khẩu là đường phụ.
+    const passwordLink = page.getByRole('button', { name: 'Đăng nhập bằng mật khẩu' })
+    await expect(page.locator('input[name="password"]').or(passwordLink)).toBeVisible()
+    if (await passwordLink.isVisible()) await passwordLink.click()
+    await page.waitForSelector('input[name="password"]')
     await page.fill('input[name="email"]', cred!.email)
     await page.fill('input[name="password"]', cred!.password)
     // Nút submit bị disable tới khi React hydrate xong (chống rò mật khẩu qua URL).

@@ -591,10 +591,12 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
       </div>
 
       {/* Thanh hành động = MỘT khối nhấn của màn. Desktop: nổi, tóm tắt + Lưu nháp + nút chính. Điện thoại: đáy màn,
-          bước 1 chỉ tóm tắt «N kênh · số ký tự», bước 2 nút chính + «Lưu nháp, đăng sau». */}
+          bước 1 chỉ tóm tắt «N kênh · số ký tự», bước 2 nút chính + «Lưu nháp, đăng sau».
+          768–1023px vẫn bố cục hai bước nhưng sidebar (fixed, z-10) đã hiện → thanh dính trong cột nội dung, không
+          `fixed inset-x-0` (sẽ đè chân sidebar). */}
       <div
         data-slot="social-action-bar"
-        className="ax-grad-hero text-[var(--ax-on-hero-ink)] border border-[var(--ax-hero-border)] shadow-[var(--ax-shadow-hero)] max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:rounded-t-[22px] max-lg:border-x-0 max-lg:border-b-0 max-lg:px-5 max-lg:pt-4 max-lg:pb-[calc(16px+env(safe-area-inset-bottom))] lg:sticky lg:bottom-3 lg:z-30 lg:rounded-2xl lg:py-3 lg:pr-3 lg:pl-5"
+        className="ax-grad-hero text-[var(--ax-on-hero-ink)] border border-[var(--ax-hero-border)] shadow-[var(--ax-shadow-hero)] max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-40 max-md:rounded-t-[22px] max-md:border-x-0 max-md:border-b-0 max-md:px-5 max-md:pt-4 max-md:pb-[calc(16px+env(safe-area-inset-bottom))] md:sticky md:bottom-3 md:z-30 md:rounded-2xl md:py-3 md:pr-3 md:pl-5"
       >
         <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center lg:justify-between lg:gap-3">
           <div className="min-w-0 text-white">
@@ -622,7 +624,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
           </div>
         </div>
       </div>
-      <div aria-hidden className="h-24 lg:hidden" />
+      <div aria-hidden className="h-24 md:hidden" />
     </div>
   )
 }

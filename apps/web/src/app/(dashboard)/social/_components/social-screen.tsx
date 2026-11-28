@@ -81,7 +81,7 @@ export function SocialScreen() {
           ))}
         </TabsList>
         <TabsContent value="compose">
-          <SocialComposer key={draft?.id ?? "new"} draft={draft} onCreated={(kind) => { setDraft(undefined); setTab(kind === "recurring" ? "calendar" : "posts") }} onGoChannels={() => setTab("channels")} onGoCalendar={() => setTab("calendar")} preset={preset} />
+          <SocialComposer key={draft?.id ?? "new"} draft={draft} onCreated={(kind) => { setDraft(undefined); setTab(kind === "recurring" ? "calendar" : "posts") }} onGoChannels={() => setTab("channels")} onGoCalendar={() => setTab("calendar")} onClose={() => { setDraft(undefined); setTab("posts") }} preset={preset} />
         </TabsContent>
         <TabsContent value="drafts">
           <SocialDraftsList highlight={draftParam} onOpen={(d) => { setDraft(d); setTab("compose") }} onCompose={() => setTab("compose")} />

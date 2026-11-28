@@ -63,6 +63,8 @@ function toLocalInput(d: Date): string {
 /** Lỗi của giờ hẹn (null = hợp lệ). Ô `datetime-local` hiểu theo giờ máy người dùng. */
 export function scheduleError(value: string, now = Date.now()): string | null {
   if (!value) return "Chọn ngày giờ đăng."
+  // Chỉ có ngày (ô Giờ để trống): `new Date("YYYY-MM-DD")` là nửa đêm UTC — không tự đoán giờ.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return "Chọn giờ đăng."
   const t = new Date(value).getTime()
   if (Number.isNaN(t)) return "Ngày giờ không hợp lệ."
   if (t <= now + 60_000) return "Giờ hẹn phải sau bây giờ ít nhất 1 phút."
@@ -76,7 +78,7 @@ function Counter({ text, limit }: { text: string; limit: number }) {
 }
 
 /** Soạn một lần, chọn kênh, sửa nội dung riêng từng kênh, đăng ngay. */
-export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, draft }: { onCreated: (kind?: "recurring") => void; onGoChannels: () => void; onGoCalendar?: () => void; preset?: { at: string; n: number }; draft?: SocialDraft }) {
+export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, draft, onClose }: { onCreated: (kind?: "recurring") => void; onGoChannels: () => void; onGoCalendar?: () => void; preset?: { at: string; n: number }; draft?: SocialDraft; onClose?: () => void }) {
   const offline = useOffline()
   const accountsQ = useSocialAccounts()
   const { data: accounts = [], isLoading } = accountsQ
@@ -122,6 +124,10 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
   /** Điện thoại: bước 1 «Bài mới» (nội dung + kênh) → bước 2 «Xem lại và đăng». Từ 1024px hiện đủ một màn, không dùng. */
   const [step, setStep] = useState<"edit" | "review">("edit")
   const [triedNext, setTriedNext] = useState(false)
+  /** Điện thoại: bấm ✕ khi còn bài đang soạn ⇒ hỏi giữ nháp hay bỏ. */
+  const [closeAsk, setCloseAsk] = useState(false)
+  /** Vùng cuộn của màn soạn toàn màn (điện thoại) — về đầu khi đổi bước. */
+  const bodyRef = useRef<HTMLDivElement>(null)
   const nextQ = useQueueNext(1, useQueue || (slotsQ.data?.length ?? 0) > 0)
   const nextSlot = nextQ.data?.[0]
   /** "Lặp lại": tạo lịch lặp (không tạo bài ngay); máy chủ tự hẹn từng bài kế tiếp. */
@@ -331,25 +337,45 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
     setTriedNext(true)
     if (empty || chosen.length === 0) return
     setStep("review")
-    window.scrollTo?.({ top: 0 })
+    bodyRef.current?.scrollTo?.({ top: 0 })
   }
   const nextHint = triedNext ? (empty ? "Chưa có nội dung" : chosen.length === 0 ? "Chọn ít nhất một kênh" : null) : null
+  const hasWork = Boolean(typed) || uploads.length > 0 || selected.length > 0 || Object.values(captions).some((c) => c.trim()) || Object.values(fbFirst).some((c) => c.trim())
+  const requestClose = () => {
+    if (hasWork) setCloseAsk(true)
+    else onClose?.()
+  }
+  const saveAndClose = () =>
+    saveDraft.mutate(
+      { id: draftId, body: draftBody() },
+      {
+        onSuccess: () => {
+          toast.success("Đã lưu bài nháp.", { description: "Mở lại ở tab Nháp." })
+          setCloseAsk(false)
+          onClose?.()
+        },
+        onError: (err) => toast.error(getApiErrorMessage(err, "Không lưu được bài nháp")),
+      },
+    )
   const SECTION = "rounded-ax-card border border-ax-line ax-grad-card shadow-ax-card max-lg:rounded-ax-sheet"
   const H2 = "text-[15px] font-semibold tracking-[-0.011em] text-ax-ink max-lg:text-[11px] max-lg:font-semibold max-lg:tracking-[0.06em] max-lg:uppercase max-lg:text-ax-ink-3"
   const edit = step === "edit"
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Điện thoại: thanh tiêu đề của hai bước (từ 1024px không hiện). */}
-      <div className="flex items-center justify-between lg:hidden" data-testid="social-mobile-head">
+    <div className="flex flex-col gap-4 max-lg:fixed max-lg:inset-0 max-lg:z-50 max-lg:gap-0 max-lg:[background:var(--ax-grad-page-mobile)]">
+      {/* Điện thoại: màn soạn TOÀN MÀN, hai bước «✕ Bài mới · Tiếp» → «‹ Sửa · Xem lại và đăng» (từ 1024px không hiện). */}
+      <div className="flex shrink-0 items-center justify-between border-b border-ax-divider bg-ax-surface px-2 pt-[calc(8px+env(safe-area-inset-top))] pb-1 lg:hidden" data-testid="social-mobile-head">
         {edit ? (
           <>
+            <button type="button" aria-label="Đóng, không đăng" onClick={requestClose} className="flex size-11 cursor-pointer items-center justify-center rounded-full text-ax-ink-2 outline-none focus-visible:shadow-[var(--ax-focus-ring)]">
+              <X className="size-[22px]" strokeWidth={1.75} aria-hidden />
+            </button>
             <h2 className="ax-text-subhead text-ax-ink">Bài mới</h2>
             <Button type="button" variant="ax-ghost" size="ax" onClick={tryNext} className="font-bold text-ax-primary-ink">Tiếp</Button>
           </>
         ) : (
           <>
-            <Button type="button" variant="ax-ghost" size="ax" onClick={() => setStep("edit")} aria-label="Quay lại sửa bài" className="-ml-2 text-ax-primary">
+            <Button type="button" variant="ax-ghost" size="ax" onClick={() => { setStep("edit"); bodyRef.current?.scrollTo?.({ top: 0 }) }} aria-label="Quay lại sửa bài" className="-ml-1 text-ax-primary">
               <ChevronLeft className="size-5" aria-hidden /> Sửa
             </Button>
             <h2 className="ax-text-subhead text-ax-ink">Xem lại và đăng</h2>
@@ -358,13 +384,14 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
         )}
       </div>
 
+      <div ref={bodyRef} className="max-lg:min-h-0 max-lg:flex-1 max-lg:overflow-y-auto max-lg:px-4 max-lg:pt-3.5 max-lg:pb-4">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(380px,460px)] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4">
-          <section aria-label="Nội dung bài" className={cn("flex flex-col gap-3.5 border border-ax-line ax-grad-composer p-4 shadow-ax-card rounded-ax-card max-lg:rounded-ax-sheet lg:px-6 lg:py-[22px] focus-within:shadow-[var(--ax-field-focus)]", !edit && "max-lg:hidden")}>
-            <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Viết nội dung bài đăng. Xuống dòng, link và hashtag giữ nguyên." rows={8} className="min-h-48 resize-none border-0 bg-transparent p-0 text-base leading-[1.6] text-ax-ink shadow-none placeholder:text-[var(--ax-placeholder)] focus-visible:ring-0 max-lg:text-[17px] max-lg:leading-[1.55]" aria-label="Nội dung bài đăng" />
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ax-divider pt-3.5">
+          <section aria-label="Nội dung bài" className={cn("flex flex-col gap-3.5 lg:rounded-ax-card lg:border lg:border-ax-line lg:ax-grad-composer lg:px-6 lg:py-[22px] lg:shadow-ax-card lg:focus-within:shadow-[var(--ax-field-focus)]", !edit && "max-lg:hidden")}>
+            <Textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Viết nội dung bài đăng. Xuống dòng, link và hashtag giữ nguyên." rows={8} className="min-h-48 resize-none border-0 bg-transparent p-0 text-base leading-[1.6] text-ax-ink shadow-none placeholder:text-[var(--ax-placeholder)] focus-visible:ring-0 max-lg:order-1 max-lg:min-h-44 max-lg:rounded-ax-sheet max-lg:border max-lg:border-ax-line max-lg:ax-grad-composer max-lg:p-4 max-lg:text-[17px] max-lg:leading-[1.55] max-lg:shadow-ax-card max-lg:focus-visible:shadow-[var(--ax-field-focus)]" aria-label="Nội dung bài đăng" />
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ax-divider pt-3.5 max-lg:order-3 max-lg:border-0 max-lg:pt-0">
               <div className="flex flex-wrap gap-2">
-                <label className={cn(buttonVariants({ variant: "ax-secondary", size: "ax" }), "cursor-pointer focus-within:shadow-[var(--ax-focus-ring)]")}>
+                <label className={cn(buttonVariants({ variant: "ax-secondary", size: "ax" }), "cursor-pointer focus-within:shadow-[var(--ax-focus-ring)] max-lg:hidden")}>
                   <ImagePlus className="size-4 text-ax-primary" aria-hidden /> Thêm ảnh / video
                   <input type="file" multiple accept={ACCEPT} className="sr-only" onChange={(e) => { addFiles(e.target.files); e.target.value = "" }} />
                 </label>
@@ -390,19 +417,25 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            {uploads.length > 0 && (
-              <ul className="flex flex-wrap gap-2.5">
-                {uploads.map((u) => (
-                  <li key={u.id} className="relative flex min-h-24 w-28 flex-col justify-end gap-0.5 rounded-ax-field bg-ax-primary-soft p-2 text-[12px] font-semibold text-ax-primary-ink max-lg:w-24">
-                    <span className="truncate" title={u.name}>{u.name}</span>
-                    {u.error ? <span className="font-normal text-[var(--ax-danger-ink)]">{u.error}</span> : u.item ? <span className="font-normal text-ax-ink-2">{u.item.type === "video" ? "video" : "ảnh"}</span> : <span className="font-normal text-ax-ink-2 tabular-nums">{u.pct}%</span>}
-                    <button type="button" aria-label={`Bỏ ${u.name}`} className="absolute top-0 right-0 flex size-11 cursor-pointer items-start justify-end p-1.5 outline-none focus-visible:[&>span]:shadow-[var(--ax-focus-ring)]" onClick={() => setUploads((x) => x.filter((y) => y.id !== u.id))}>
-                      <span className="flex size-7 items-center justify-center rounded-full bg-ax-surface"><X className="size-3 text-ax-ink-2" aria-hidden /></span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            {/* Điện thoại: hàng ô vuông 84px + ô «Ảnh» nét đứt (cuộn ngang); desktop: thẻ nhỏ trong khung soạn. */}
+            <ul className={cn("flex flex-wrap gap-2.5 max-lg:order-2 max-lg:flex-nowrap max-lg:gap-2 max-lg:overflow-x-auto max-lg:pb-0.5", uploads.length === 0 && "lg:hidden")}>
+              {uploads.map((u) => (
+                <li key={u.id} className="relative flex min-h-24 w-28 flex-col justify-end gap-0.5 rounded-ax-field bg-ax-primary-soft p-2 text-[12px] font-semibold text-ax-primary-ink max-lg:size-[84px] max-lg:min-h-0 max-lg:w-[84px] max-lg:shrink-0">
+                  <span className="truncate" title={u.name}>{u.name}</span>
+                  {u.error ? <span className="font-normal text-[var(--ax-danger-ink)]">{u.error}</span> : u.item ? <span className="font-normal text-ax-ink-2">{u.item.type === "video" ? "video" : "ảnh"}</span> : <span className="font-normal text-ax-ink-2 tabular-nums">{u.pct}%</span>}
+                  <button type="button" aria-label={`Bỏ ${u.name}`} className="absolute top-0 right-0 flex size-11 cursor-pointer items-start justify-end p-1.5 outline-none focus-visible:[&>span]:shadow-[var(--ax-focus-ring)]" onClick={() => setUploads((x) => x.filter((y) => y.id !== u.id))}>
+                    <span className="flex size-7 items-center justify-center rounded-full bg-ax-surface"><X className="size-3 text-ax-ink-2" aria-hidden /></span>
+                  </button>
+                </li>
+              ))}
+              <li className="size-[84px] shrink-0 lg:hidden">
+                <label className="flex size-full cursor-pointer flex-col items-center justify-center gap-1 rounded-ax-field border-[1.5px] border-dashed border-ax-field-border bg-ax-surface text-[12px] font-semibold text-ax-primary focus-within:shadow-[var(--ax-focus-ring)]">
+                  <ImagePlus className="size-[22px]" strokeWidth={1.75} aria-hidden />
+                  Ảnh
+                  <input type="file" multiple accept={ACCEPT} aria-label="Thêm ảnh hoặc video" className="sr-only" onChange={(e) => { addFiles(e.target.files); e.target.value = "" }} />
+                </label>
+              </li>
+            </ul>
           </section>
 
           <section aria-label="Kênh đăng" className={cn(SECTION, "flex flex-col gap-3 px-6 py-5 max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none max-lg:[background:none]", !edit && "max-lg:hidden")}>
@@ -429,7 +462,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
                   <NetworkMark network={a.network} />
                   <span className="flex min-w-0 flex-1 flex-col leading-tight">
                     <span className="truncate text-base font-semibold text-ax-ink lg:text-sm">{a.name}</span>
-                    <span className="text-[13px] text-ax-ink-2 lg:text-[12px]">{NETWORK_META[a.network]?.label ?? a.network}</span>
+                    <span className="text-[13px] text-ax-ink-2 lg:text-[12px]">{a.status !== "active" ? "Cần liên kết lại ở mục Kênh" : NETWORK_META[a.network]?.label ?? a.network}</span>
                   </span>
                   <span aria-hidden className="ml-1.5 flex size-5 shrink-0 items-center justify-center rounded-md border-[1.5px] border-ax-field-border bg-ax-surface peer-checked:border-ax-primary peer-checked:bg-ax-primary peer-checked:[&>svg]:opacity-100 max-lg:size-6 max-lg:rounded-full">
                     <Check className="size-3 text-white opacity-0 lg:size-3" strokeWidth={3.4} />
@@ -477,7 +510,12 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
           <section aria-label="Thời điểm đăng" className={cn(SECTION, "flex flex-col gap-3.5 px-6 py-5 max-lg:p-0 max-lg:overflow-hidden", edit && "max-lg:hidden")}>
             <h2 className={cn(H2, "max-lg:sr-only")}>Khi nào đăng</h2>
             <div role="radiogroup" aria-label="Thời điểm đăng" className="grid grid-cols-2 gap-2 xl:grid-cols-4 max-lg:grid-cols-1 max-lg:gap-0 max-lg:divide-y max-lg:divide-ax-divider">
-              {([["now", "Đăng ngay", "Lên kênh trong ít giây"], ["schedule", "Hẹn giờ", "Chọn ngày và giờ"], ["queue", "Vào hàng đợi", "Tự lấy khung trống"], ["recurring", "Lặp lại", "Tự đăng theo lịch"]] as const).map(([m, label, sub]) => {
+              {([
+                ["now", "Đăng ngay", chosen.length > 0 ? `Lên ${chosen.length} kênh trong ít giây` : "Lên kênh trong ít giây"],
+                ["schedule", "Hẹn giờ", scheduleAt && !scheduleError(scheduleAt) ? formatDateTime(new Date(scheduleAt).toISOString()) : "Chọn ngày và giờ"],
+                ["queue", "Vào hàng đợi", nextSlot ? `Gần nhất ${queueWhenLabel(nextSlot)}` : "Tự lấy khung trống"],
+                ["recurring", "Lặp lại", "Tự đăng theo lịch"],
+              ] as const).map(([m, label, sub]) => {
                 const off = m === "queue" && noSlots
                 return (
                   <div key={m} className={cn(
@@ -509,16 +547,36 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
             {mode === "recurring" && <div className="max-lg:px-4 max-lg:pb-4"><RecurrenceFields value={recur} onChange={setRecur} /></div>}
             {mode === "schedule" && (
               <div className="space-y-1.5 max-lg:px-4 max-lg:pb-4">
-                <Input
-                  type="datetime-local"
-                  variant="ax"
-                  value={scheduleAt}
-                  min={toLocalInput(new Date(Date.now() + 2 * 60_000))}
-                  max={toLocalInput(new Date(Date.now() + MAX_SCHEDULE_AHEAD_MS))}
-                  onChange={(e) => setScheduleAt(e.target.value)}
-                  aria-label="Ngày giờ đăng"
-                  className="w-auto max-lg:w-full"
-                />
+                <div className="flex gap-2.5">
+                  <div className="flex-[1.3]">
+                    <label htmlFor="social-sched-date" className="mb-1.5 block text-[13px] font-semibold text-ax-ink-2">Ngày</label>
+                    <Input
+                      id="social-sched-date"
+                      type="date"
+                      variant="ax"
+                      value={scheduleAt.slice(0, 10)}
+                      min={toLocalInput(new Date(Date.now() + 2 * 60_000)).slice(0, 10)}
+                      max={toLocalInput(new Date(Date.now() + MAX_SCHEDULE_AHEAD_MS)).slice(0, 10)}
+                      onChange={(e) => setScheduleAt(e.target.value ? `${e.target.value}T${scheduleAt.slice(11, 16) || "09:00"}` : "")}
+                      aria-label="Ngày đăng"
+                      aria-invalid={Boolean(schedErr) || undefined}
+                      className="w-auto max-lg:w-full"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label htmlFor="social-sched-time" className="mb-1.5 block text-[13px] font-semibold text-ax-ink-2">Giờ</label>
+                    <Input
+                      id="social-sched-time"
+                      type="time"
+                      variant="ax"
+                      value={scheduleAt.slice(11, 16)}
+                      onChange={(e) => setScheduleAt(e.target.value ? `${scheduleAt.slice(0, 10) || toLocalInput(new Date()).slice(0, 10)}T${e.target.value}` : scheduleAt.slice(0, 10))}
+                      aria-label="Giờ đăng"
+                      aria-invalid={Boolean(schedErr) || undefined}
+                      className="w-auto max-lg:w-full"
+                    />
+                  </div>
+                </div>
                 {schedErr ? <p className="text-[13px] text-[var(--ax-danger-ink)]">{schedErr}</p> : <p className="text-[13px] text-ax-ink-2">Bài sẽ tự đăng đúng giờ này. Có thể huỷ trong danh sách bài trước giờ đăng.</p>}
               </div>
             )}
@@ -567,8 +625,8 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
 
         {/* Xem trước: desktop = cột phải dính; điện thoại = đầu bước «Xem lại và đăng». */}
         <aside aria-label="Xem trước" className={cn("flex min-w-0 flex-col gap-3 lg:sticky lg:top-4 max-lg:order-first", edit && "max-lg:hidden")}>
-          <div className={cn(SECTION, "flex flex-col gap-3.5 px-5 py-[18px] max-lg:p-3.5")}>
-            <div className="flex items-baseline justify-between gap-2">
+          <div className={cn(SECTION, "flex flex-col gap-3.5 px-5 py-[18px] max-lg:gap-2.5 max-lg:border-0 max-lg:p-0 max-lg:shadow-none max-lg:[background:none]")}>
+            <div className="flex items-baseline justify-between gap-2 max-lg:sr-only">
               <h2 className="text-[15px] font-semibold tracking-[-0.011em] text-ax-ink">Xem trước</h2>
               <span className="text-[12px] text-ax-ink-3 tabular-nums">{whenText}</span>
             </div>
@@ -589,14 +647,15 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
           </div>
         </aside>
       </div>
+      </div>
 
       {/* Thanh hành động = MỘT khối nhấn của màn. Desktop: nổi, tóm tắt + Lưu nháp + nút chính. Điện thoại: đáy màn,
           bước 1 chỉ tóm tắt «N kênh · số ký tự», bước 2 nút chính + «Lưu nháp, đăng sau».
-          768–1023px vẫn bố cục hai bước nhưng sidebar (fixed, z-10) đã hiện → thanh dính trong cột nội dung, không
-          `fixed inset-x-0` (sẽ đè chân sidebar). */}
+          Dưới 1024px cả màn là lớp toàn màn (fixed) nên thanh là phần tử cuối của cột flex; từ 1024px thanh `sticky`
+          dính đáy khung nhìn (khung `main` được thả `overflow` ở layout khi có thanh này). */}
       <div
         data-slot="social-action-bar"
-        className="ax-grad-hero text-[var(--ax-on-hero-ink)] border border-[var(--ax-hero-border)] shadow-[var(--ax-shadow-hero)] max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-40 max-md:rounded-t-[22px] max-md:border-x-0 max-md:border-b-0 max-md:px-5 max-md:pt-4 max-md:pb-[calc(16px+env(safe-area-inset-bottom))] md:sticky md:bottom-3 md:z-30 md:rounded-2xl md:py-3 md:pr-3 md:pl-5"
+        className="ax-grad-hero text-[var(--ax-on-hero-ink)] border border-[var(--ax-hero-border)] shadow-[var(--ax-shadow-hero)] max-lg:shrink-0 max-lg:rounded-t-[22px] max-lg:border-x-0 max-lg:border-b-0 max-lg:px-5 max-lg:pt-4 max-lg:pb-[calc(16px+env(safe-area-inset-bottom))] lg:sticky lg:bottom-3 lg:z-30 lg:rounded-2xl lg:py-3 lg:pr-3 lg:pl-5"
       >
         <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center lg:justify-between lg:gap-3">
           <div className="min-w-0 text-white">
@@ -624,7 +683,19 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
           </div>
         </div>
       </div>
-      <div aria-hidden className="h-24 md:hidden" />
+      <Dialog open={closeAsk} onOpenChange={setCloseAsk}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bỏ bài đang soạn?</DialogTitle>
+            <DialogDescription>Lưu nháp để mở lại ở tab Nháp, hoặc bỏ bài này.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="max-sm:flex-col-reverse">
+            <Button type="button" variant="ax-secondary" size="ax" onClick={() => { setCloseAsk(false); onClose?.() }}>Bỏ bài</Button>
+            <Button type="button" variant="ax-secondary" size="ax" onClick={() => setCloseAsk(false)}>Tiếp tục soạn</Button>
+            <Button type="button" variant="ax-primary" size="ax" onClick={saveAndClose} disabled={!canSaveDraft || offline}>Lưu nháp rồi đóng</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

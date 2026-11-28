@@ -29,6 +29,9 @@ function resolveServerBaseUrl(): string {
 const BASE_URL = typeof window !== 'undefined' ? '/api/v1' : resolveServerBaseUrl()
 
 const AUTH_SKIP_URLS = ['/auth/login', '/auth/refresh']
+// Đăng nhập không mật khẩu (#675): 401 ở đây (tài khoản khoá, sai Wi-Fi văn phòng) là câu trả lời cho người đang đăng nhập,
+// KHÔNG phải token hết hạn ⇒ không làm mới token / không đăng xuất cưỡng bức.
+const NO_REFRESH_URLS = ['/auth/email/', '/auth/ticket', '/auth/invitations/accept']
 
 // 🔴 RBAC quyền + phạm vi — `/auth/refresh` nay trả THÊM
 // `user`/`roles`/`permissions`/`isAdmin` (spec §5.2, cùng shape login/`/auth/me`)
@@ -234,7 +237,7 @@ apiClient.interceptors.response.use(
       forceLogout()
       return Promise.reject(error)
     }
-    if (url.endsWith('/auth/login')) {
+    if (url.endsWith('/auth/login') || NO_REFRESH_URLS.some((u) => url.includes(u))) {
       return Promise.reject(error)
     }
 

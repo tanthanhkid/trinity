@@ -14,7 +14,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useUpdateProfile } from '@/hooks/use-profile'
 import { SettingsSectionActions } from './settings-section-header'
 import { ProfileAvatarSection } from './profile-avatar-section'
-import { ProfilePasswordSection } from './profile-password-section'
+import { ProfileLoginMethodsSection } from './profile-login-methods-section'
 import { errorMessage } from '@/lib/error-messages'
 
 const profileSchema = z.object({
@@ -98,7 +98,7 @@ export function SettingsProfile() {
       </Card>
 
       <Separator />
-      <ProfilePasswordSection />
+      <ProfileLoginMethodsSection email={user.email} />
     </div>
   )
 }

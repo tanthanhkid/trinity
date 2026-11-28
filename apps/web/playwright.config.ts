@@ -91,6 +91,9 @@ export default defineConfig({
           { name: 'seed', testMatch: /seed\/seed\.setup\.ts/, dependencies: ['setup'], ...(phase ? {} : { teardown: 'cleanup' }) },
         ]
       : []),
+    // #675: đăng nhập bằng mã/link qua email, đọc thư từ SMTP giả trong tiến trình test (`E2E_SMTP_PORT`, máy chủ chạy với
+    // SMTP_HOST=127.0.0.1 SMTP_SECURITY=none — `server/scripts/e2e-rust.sh email-login` tự đặt). Không thư nào ra ngoài.
+    ...(process.env.E2E_SMTP_PORT ? [{ name: 'email-login', testMatch: /email-login\.spec\.ts/, workers: 1 }] : []),
     // W04: web tĩnh do Rust phục vụ — URL sâu, điều hướng, nút quay lại, prefetch của 8 route động + luật điều hướng.
     { name: 'static-web', testMatch: /static-web\.spec\.ts/, dependencies: ['setup'] },
     ...(phase === 'flows'

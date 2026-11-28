@@ -67,10 +67,6 @@ export function changedFields(from: ProductDraft, to: ProductDraft): Partial<Pro
   return out
 }
 
-export function sameFields(a: Partial<ProductDraft>, b: Partial<ProductDraft>): boolean {
-  return (Object.keys(b) as (keyof ProductDraft)[]).every((k) => sameValue(a[k], b[k]))
-}
-
 const EMPTY_DRAFT: ProductDraft = {
   name: "", price: "", category_id: "", brand: "", color: "", tags: [], description: "", image_url: "",
   is_featured: false, is_active: true, attributes: {},

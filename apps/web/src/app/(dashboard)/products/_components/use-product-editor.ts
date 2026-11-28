@@ -4,7 +4,7 @@
  * Trạng thái sửa một sản phẩm cho cả hai bố cục: bản nháp, bản đã lưu, lưu (kèm Hoàn tác) và lưu nhanh từng trường.
  * Lưu = `PATCH /products/:id` (`useUpdateProduct`) chỉ với các trường đã đổi; Hoàn tác gửi lại giá trị cũ của đúng các trường đó.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
 import { getApiErrorMessage } from "@/lib/api-client"
 import { showUndoToast } from "@/components/ui/undo-toast"
@@ -18,7 +18,6 @@ import {
   hasErrors,
   mergeIntoDraft,
   pickFields,
-  sameFields,
   validateDraft,
   type ProductDraft,
 } from "./product-draft"
@@ -49,11 +48,10 @@ export function useProductEditor(product: Product) {
     setShowErrors(false)
   }, [saved])
 
-  // Bản đã lưu mới nhất cho Hoàn tác (toast sống lâu hơn một lần vẽ).
-  const savedRef = useRef(saved)
-  useEffect(() => {
-    savedRef.current = saved
-  }, [saved])
+  // Mỗi lần lưu thành công tăng «đời» của các trường vừa lưu; Hoàn tác chỉ chạy khi các trường đó chưa được lưu lại lần nữa
+  // (dữ liệu tải lại từ máy chủ không tính) và không có lần lưu nào đang chờ.
+  const generations = useRef<Record<string, number>>({})
+  const inFlight = useRef(0)
 
   /**
    * Gửi CHỈ các trường `fields`; thành công ⇒ cập nhật bản đã lưu và áp vào bản nháp — trường nào bản nháp đã khác
@@ -61,15 +59,23 @@ export function useProductEditor(product: Product) {
    * (`mutate` chỉ gọi callback của lần gọi sau cùng).
    */
   const mutateFields = useCallback(
-    (fields: Partial<ProductDraft>, expected: Partial<ProductDraft>, errorText: string, after?: () => void) => {
-      update.mutateAsync({ id: product.id, payload: fieldsToPayload(fields) }).then(
-        () => {
-          setSaved((s) => ({ ...s, ...fields }))
-          setDraft((d) => mergeIntoDraft(d, fields, expected))
-          after?.()
-        },
-        (err: unknown) => toast.error(getApiErrorMessage(err, errorText)),
-      )
+    (fields: Partial<ProductDraft>, expected: Partial<ProductDraft>, errorText: string, after?: (gen: Record<string, number>) => void) => {
+      inFlight.current += 1
+      update
+        .mutateAsync({ id: product.id, payload: fieldsToPayload(fields) })
+        .finally(() => {
+          inFlight.current -= 1
+        })
+        .then(
+          () => {
+            const gen: Record<string, number> = {}
+            for (const k of Object.keys(fields)) gen[k] = generations.current[k] = (generations.current[k] ?? 0) + 1
+            setSaved((s) => ({ ...s, ...fields }))
+            setDraft((d) => mergeIntoDraft(d, fields, expected))
+            after?.(gen)
+          },
+          (err: unknown) => toast.error(getApiErrorMessage(err, errorText)),
+        )
     },
     [product.id, update],
   )
@@ -77,12 +83,15 @@ export function useProductEditor(product: Product) {
   /** Lưu `fields` (giá trị cũ `prev`) rồi toast Hoàn tác — Hoàn tác chỉ trả lại đúng các trường đó. */
   const send = useCallback(
     (fields: Partial<ProductDraft>, prev: Partial<ProductDraft>, expected: Partial<ProductDraft>, message: string, onDone?: () => void) => {
-      mutateFields(fields, expected, "Lưu thất bại, thử lại sau", () => {
+      mutateFields(fields, expected, "Lưu thất bại, thử lại sau", (gen) => {
         onDone?.()
         showUndoToast(message, {
           onUndo: () => {
-            // Trường đó đã được lưu lại lần nữa sau lần này ⇒ không hoàn tác đè lên bản mới hơn.
-            if (!sameFields(pickFields(savedRef.current, fields), fields)) {
+            if (inFlight.current > 0) {
+              toast.error("Đang lưu thay đổi khác, thử hoàn tác lại sau")
+              return
+            }
+            if (Object.keys(gen).some((k) => generations.current[k] !== gen[k])) {
               toast.error("Đã có thay đổi mới hơn nên không hoàn tác lần lưu này")
               return
             }

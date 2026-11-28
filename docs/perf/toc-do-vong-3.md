@@ -14,3 +14,7 @@ Mục tiêu: các màn chính hiện dữ liệu dưới 1 giây, cả lần đ�
 ## Không làm và lý do
 - **Nhúng dữ liệu bootstrap vào HTML**: HTML có dữ liệu người dùng mà lớp đệm phía trước đặt `s-maxage` cho HTML thì lộ dữ liệu giữa người dùng; rủi ro lớn hơn lợi ích khi đã có cache IndexedDB.
 - **JS màn đầu < 300 KB nén**: gói dùng chung hiện ~326 KB nén (đo bằng `size:routes:export`), trong đó React + Next ≈ 130 KB, `@base-ui/react` ≈ 45 KB, axios ≈ 17 KB, sonner ≈ 11 KB, tailwind-merge ≈ 8 KB; mã ứng dụng dùng chung mỏng. Các thư viện nặng khác (xyflow, dnd-kit, markdown, cmdk, posthog, motion) đã nằm ngoài gói dùng chung. Muốn xuống dưới 300 KB phải thay base-ui hoặc axios (đổi lớn), để vòng sau. Từ lần mở thứ hai, SW phục vụ JS từ máy nên không còn tải lại.
+
+## Ghi chú
+- Migration `0029` tạo chỉ mục không `CONCURRENTLY` (khoá ghi ngắn); chấp nhận được vì bảng tương tác ở prod còn nhỏ. Bảng lớn hơn thì nên đổi sang tạo song song.
+- Cache dữ liệu: loại query có `meta.persist === false`, `gcTime`/`staleTime` vô hạn, dữ liệu chứa URL `blob:`, khoá `media-file`; hạn 24 giờ tính theo `dataUpdatedAt` của từng query (khi ghi và khi nạp). Service Worker không đăng ký ở `/s/*`, `/oauth/*`, `/privacy`, `/terms`, `/invite`, `/register` và host cửa hàng.

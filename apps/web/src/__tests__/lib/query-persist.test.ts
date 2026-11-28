@@ -34,6 +34,20 @@ describe("query-persist", () => {
     expect(shouldPersistQuery(q(["auth", "token"]))).toBe(false)
   })
 
+  it("loại blob:, gcTime/staleTime Infinity, meta.persist=false và dữ liệu quá hạn từng query", () => {
+    const base = (extra: object, data: unknown = { a: 1 }) =>
+      ({ queryKey: ["x"], state: { status: "success", data, dataUpdatedAt: Date.now() }, ...extra }) as never
+    expect(shouldPersistQuery(base({}))).toBe(true)
+    expect(shouldPersistQuery(base({}, "blob:http://x/1"))).toBe(false)
+    expect(shouldPersistQuery(base({}, { url: "blob:http://x/1" }))).toBe(false)
+    expect(shouldPersistQuery(base({ options: { gcTime: Infinity } }))).toBe(false)
+    expect(shouldPersistQuery(base({ options: { staleTime: Infinity } }))).toBe(false)
+    expect(shouldPersistQuery(base({ meta: { persist: false } }))).toBe(false)
+    expect(shouldPersistQuery(q(["social", "media-file", 3]))).toBe(false)
+    const old = { queryKey: ["x"], state: { status: "success", data: 1, dataUpdatedAt: Date.now() - PERSIST_MAX_AGE_MS - 1000 } } as never
+    expect(shouldPersistQuery(old)).toBe(false)
+  })
+
   it("ghi rồi nạp lại đúng người; người khác không thấy", async () => {
     vi.useFakeTimers()
     const a = new QueryClient()

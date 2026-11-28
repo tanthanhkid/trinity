@@ -22,7 +22,7 @@ const PAGE_CACHE = 'trinity-pages-' + BUILD_ID
 const META = 'trinity-meta'
 const NAV_TIMEOUT_MS = 1500
 const PAGE_MAX = 100
-const BYPASS = ['/api', '/notif-ws', '/uploads', '/docs', '/.well-known', '/health', '/ready', '/live', '/internal', '/metrics', '/sw.js', '/sw-kill', '/oauth', '/assistant', '/s']
+const BYPASS = ['/api', '/notif-ws', '/uploads', '/docs', '/.well-known', '/health', '/ready', '/live', '/internal', '/metrics', '/sw.js', '/sw-kill', '/oauth', '/assistant', '/s', '/privacy', '/terms', '/invite', '/register']
 
 function bypass(path) {
   for (const b of BYPASS) if (path === b || path.startsWith(b + '/')) return true

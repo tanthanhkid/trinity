@@ -19,7 +19,7 @@ const THROTTLE_MS = 1500
 const MAX_QUERY_BYTES = 256 * 1024
 const MAX_TOTAL_BYTES = 4 * 1024 * 1024
 const enc = new TextEncoder()
-const DENY = /(api[-_]?key|secret|token|password|oauth|credential|mcp|webhook|inbound-source|2fa|otp)/i
+const DENY = /(media-file|api[-_]?key|secret|token|password|oauth|credential|mcp|webhook|inbound-source|2fa|otp)/i
 
 function hasToken(): boolean {
   try {
@@ -27,6 +27,14 @@ function hasToken(): boolean {
   } catch {
     return false
   }
+}
+
+/** Chuỗi `blob:` (URL chỉ sống trong tab) ở gốc hoặc một cấp trong object/mảng. */
+function containsBlobUrl(d: unknown, depth = 0): boolean {
+  if (typeof d === 'string') return d.startsWith('blob:')
+  if (depth >= 2 || d === null || typeof d !== 'object') return false
+  const vals = Array.isArray(d) ? d : Object.values(d as Record<string, unknown>)
+  return vals.some((v) => containsBlobUrl(v, depth + 1))
 }
 
 export interface PersistIdentity {
@@ -41,6 +49,15 @@ export function persistKey(id: PersistIdentity): string {
 /** Query nào được lưu: thành công, có dữ liệu, khoá không thuộc nhóm nhạy cảm. Xuất để test. */
 export function shouldPersistQuery(query: Pick<Query, 'queryKey' | 'state'>): boolean {
   if (query.state.status !== 'success' || query.state.data === undefined) return false
+  // Tác giả query có thể loại hẳn: `meta: { persist: false }`.
+  if ((query as { meta?: Record<string, unknown> }).meta?.persist === false) return false
+  // Dữ liệu cũ hơn hạn ⇒ không lưu (hạn tính theo TỪNG query, không theo lượt ghi).
+  const updatedAt = query.state.dataUpdatedAt
+  if (typeof updatedAt === 'number' && updatedAt > 0 && Date.now() - updatedAt > PERSIST_MAX_AGE_MS) return false
+  // Query giữ vĩnh viễn (gcTime/staleTime Infinity) thường là tài nguyên cục bộ phiên (vd URL `blob:`): không lưu.
+  const opts = (query as { options?: { gcTime?: number; staleTime?: unknown } }).options
+  if (opts?.gcTime === Infinity || opts?.staleTime === Infinity) return false
+  if (containsBlobUrl(query.state.data)) return false
   let k: string
   try {
     k = JSON.stringify(query.queryKey)
@@ -73,7 +90,8 @@ export async function restoreQueries(
       void idbDelete(persistKey(id))
       return false
     }
-    hydrate(client, saved.state)
+    const fresh = saved.state.queries.filter((q) => Date.now() - (q.state.dataUpdatedAt ?? 0) <= PERSIST_MAX_AGE_MS)
+    hydrate(client, { ...saved.state, queries: fresh })
     return true
   } catch {
     return false

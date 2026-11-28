@@ -115,10 +115,12 @@ function wire(): void {
   } catch {
     channel = null
   }
-  // Dự phòng khi không có BroadcastChannel: sự kiện `storage` chỉ bắn ở tab KHÁC.
-  window.addEventListener('storage', (e) => {
-    if (e.key === WIPE_STORAGE_KEY) emitLocal()
-  })
+  // Chỉ dự phòng khi không có BroadcastChannel (tránh nhận hai lần): `storage` chỉ bắn ở tab KHÁC.
+  if (!channel) {
+    window.addEventListener('storage', (e) => {
+      if (e.key === WIPE_STORAGE_KEY) emitLocal()
+    })
+  }
 }
 
 /**
@@ -138,19 +140,25 @@ export function onWipe(fn: () => void): () => void {
  * (BroadcastChannel + `storage`) để chúng dừng ghi và xoá cache trong bộ nhớ. Gọi từ `clearTokens()`
  * (đăng xuất, hết phiên, đổi tài khoản). Không chặn, không ném lỗi.
  */
-export function wipeLocalCaches(): void {
+export function wipeLocalCaches(opts: { notify?: boolean } = {}): void {
   if (typeof window === 'undefined') return
   wire()
   emitLocal()
-  try {
-    channel?.postMessage('wipe')
-  } catch {
-    /* ignore */
-  }
-  try {
-    window.localStorage.setItem(WIPE_STORAGE_KEY, String(Date.now()))
-  } catch {
-    /* ignore */
+  // Không có phiên trước đó (vd mở /login, /invite) ⇒ không có gì để báo tab khác; vẫn xoá cục bộ.
+  if (opts.notify !== false) {
+    if (channel) {
+      try {
+        channel.postMessage('wipe')
+      } catch {
+        /* ignore */
+      }
+    } else {
+      try {
+        window.localStorage.setItem(WIPE_STORAGE_KEY, String(Date.now()))
+      } catch {
+        /* ignore */
+      }
+    }
   }
   try {
     indexedDB?.deleteDatabase(IDB_NAME)

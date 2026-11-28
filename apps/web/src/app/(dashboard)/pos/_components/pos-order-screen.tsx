@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useRef, type Dispatch, type SetStateAction } from "react"
+import { useRef, type Dispatch, type SetStateAction } from "react"
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { Armchair, ChevronLeft, MoreHorizontal, Minus, Plus, Printer, Receipt, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useOffline } from "@/components/offline-banner"
@@ -18,6 +19,10 @@ interface Props {
   setCart: Dispatch<SetStateAction<CartState>>
   tableName: string | null
   busy: boolean
+  /** Màn đơn đang hiện. */
+  open: boolean
+  /** Một hộp thoại con (bàn/sửa món/thanh toán/huỷ) đang mở — màn đơn tạm ẩn (vẫn gắn: giữ cuộn, trạng thái) và không trả tiêu điểm về thanh giỏ. */
+  yielding: boolean
   /** Chế độ «Khác» của giảm giá — giữ ở `PosSell` vì màn này tạm gỡ khi một hộp thoại con mở. */
   customDiscount: boolean
   setCustomDiscount: (v: boolean) => void
@@ -47,34 +52,27 @@ export function PosOrderScreen(p: Props) {
   const isQuick = cart.discountType === "percent" && (QUICK as readonly number[]).includes(cart.discountValue)
   const setCustom = p.setCustomDiscount
   const showCustom = p.customDiscount || (cart.discountType !== "none" && !isQuick)
+  /** «Khác» bật nhưng chưa nhập: mặc định giảm theo ₫ (chỉ ghi vào giỏ khi gõ số). */
+  const customType = cart.discountType === "none" ? "amount" : cart.discountType
   const quickOn = (n: number) => !showCustom && isQuick && cart.discountValue === n
   const setDiscount = (discountType: CartState["discountType"], discountValue: number) => setCart((c) => ({ ...c, discountType, discountValue }))
   const chip = (on: boolean) =>
     cn("min-h-11 min-w-16 rounded-ax-field border-[1.5px] px-4 text-[15px] font-semibold focus-visible:outline-none focus-visible:shadow-[var(--ax-focus-ring)]",
       on
         ? "border-[var(--ax-on-hero-primary-ink)] bg-[var(--ax-on-hero-primary-hover)] text-[var(--ax-on-hero-primary-ink)]"
-        : "border-[var(--ax-on-hero-primary-bg)] bg-[var(--ax-on-hero-primary-bg)] text-[var(--ax-on-hero-primary-ink)] hover:bg-[var(--ax-on-hero-primary-hover)]")
+        : "border-[var(--ax-on-hero-primary-bg)] bg-[var(--ax-on-hero-primary-bg)] text-[var(--ax-on-hero-primary-ink)]")
   const where = cart.orderType === "takeaway" ? "Mang đi" : cart.tableId && p.tableName ? `Bàn ${p.tableName}` : "Chọn bàn"
   const title = cart.orderCode ? `${where} · ${cart.orderCode}` : where
 
-  // Màn toàn phần thay bảng trượt: tự đưa tiêu điểm vào màn, Esc = «‹ Thêm món», đóng thì trả tiêu điểm về chỗ cũ.
+  // Màn toàn phần dựng trên Dialog base-ui (như bảng trượt cũ): giữ tiêu điểm trong màn, Esc = «‹ Thêm món», khoá cuộn nền.
+  // `keepMounted`: hộp thoại con mở thì màn chỉ ẩn, không gỡ — giữ vị trí cuộn danh sách món.
   const backRef = useRef<HTMLButtonElement>(null)
-  const onBackRef = useRef(p.onBack)
-  useEffect(() => { onBackRef.current = p.onBack })
-  useEffect(() => {
-    const prev = document.activeElement as HTMLElement | null
-    backRef.current?.focus()
-    const onKey = (e: KeyboardEvent) => { // Menu ⋯ / hộp xác nhận đang mở thì Esc là của chúng, không đóng màn đơn.
-      if (e.key !== "Escape" || e.defaultPrevented) return
-      if (document.querySelector('[role="menu"], [role="alertdialog"], [role="dialog"]:not([data-slot="pos-order-screen"])')) return
-      onBackRef.current()
-    }
-    document.addEventListener("keydown", onKey)
-    return () => { document.removeEventListener("keydown", onKey); if (prev?.isConnected) prev.focus() }
-  }, [])
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Đơn hàng" data-slot="pos-order-screen" className="fixed inset-0 z-50 flex flex-col overscroll-contain ax-page text-ax-ink">
+    <DialogPrimitive.Root open={p.open} onOpenChange={(o) => { if (!o) p.onBack() }}>
+      <DialogPrimitive.Portal keepMounted>
+        <DialogPrimitive.Popup aria-label="Đơn hàng" data-slot="pos-order-screen" initialFocus={backRef} finalFocus={() => !p.yielding}
+          className="fixed inset-0 z-50 flex flex-col ax-page text-ax-ink outline-none data-[closed]:hidden">
       <header className="flex min-h-14 shrink-0 items-center justify-between gap-1 border-b border-ax-line ax-grad-bar px-2 pt-[env(safe-area-inset-top)]">
         <Button ref={backRef} type="button" variant="ax-ghost" size="ax" className="gap-0.5 pl-1 text-ax-primary" onClick={p.onBack}><ChevronLeft aria-hidden /> Thêm món</Button>
         <div className="flex min-w-0 items-center">
@@ -137,15 +135,18 @@ export function PosOrderScreen(p: Props) {
           {QUICK.map((n) => (
             <button key={n} type="button" aria-pressed={quickOn(n)} className={chip(quickOn(n))} onClick={() => { setCustom(false); setDiscount("percent", n) }}>{n}%</button>
           ))}
-          <button type="button" aria-pressed={showCustom} className={chip(showCustom)} onClick={() => { setCustom(true); if (cart.discountType === "none") setDiscount("amount", 0) }}>Khác</button>
+          <button type="button" aria-pressed={showCustom} className={chip(showCustom)} onClick={() => setCustom(true)}>Khác</button>
         </div>
         {showCustom && (
           <div className="flex items-center gap-2">
             {(["percent", "amount"] as const).map((k) => (
-              <button key={k} type="button" aria-pressed={cart.discountType === k} aria-label={k === "percent" ? "Giảm theo phần trăm" : "Giảm theo số tiền"} className={chip(cart.discountType === k)} onClick={() => setDiscount(k, cart.discountType === k ? cart.discountValue : 0)}>{k === "percent" ? "%" : "₫"}</button>
+              <button key={k} type="button" aria-pressed={customType === k} aria-label={k === "percent" ? "Giảm theo phần trăm" : "Giảm theo số tiền"} className={chip(customType === k)} onClick={() => setDiscount(k, cart.discountType === k ? cart.discountValue : 0)}>{k === "percent" ? "%" : "₫"}</button>
             ))}
-            <MoneyInput className="flex-1" value={cart.discountValue || null} placeholder={cart.discountType === "percent" ? "0-100" : "0"}
-              onChange={(v) => setCart((c) => ({ ...c, discountValue: Math.min(v ?? 0, c.discountType === "percent" ? 100 : 1_000_000_000) }))} />
+            <MoneyInput className="flex-1" value={cart.discountValue || null} placeholder={customType === "percent" ? "0-100" : "0"}
+              onChange={(v) => setCart((c) => {
+                const type = c.discountType === "none" ? "amount" : c.discountType
+                return { ...c, discountType: type, discountValue: Math.min(v ?? 0, type === "percent" ? 100 : 1_000_000_000) }
+              })} />
           </div>
         )}
         <div className="flex items-baseline justify-between">
@@ -158,6 +159,8 @@ export function PosOrderScreen(p: Props) {
           <Button type="button" variant="ax-on-hero" className="h-14 flex-1 text-[17px]" disabled={empty || p.busy || offline} onClick={p.onPay}>Thanh toán</Button>
         </div>
       </div>
-    </div>
+        </DialogPrimitive.Popup>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   )
 }

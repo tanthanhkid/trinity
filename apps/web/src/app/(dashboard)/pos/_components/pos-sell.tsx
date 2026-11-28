@@ -113,6 +113,8 @@ export function PosSell() {
   const doSave = async () => { if (await save()) toast.success("Đã lưu đơn") }
   const doPay = async () => { const o = await save(); if (o) setPayOrder(o) }
   const editing = editKey ? cart.lines.find((l) => l.key === editKey) : undefined
+  /** Hộp thoại con (kể cả hộp «Bỏ thay đổi chưa lưu?») đang mở ⇒ màn đơn điện thoại tạm ẩn, đóng xong hiện lại. */
+  const childOpen = !!payOrder || tableOpen || !!editing || voiding || pendingDiscard !== null
 
   if (menuQ.isLoading) return <LoadingBlock variant="cards" count={4} label="Đang tải thực đơn…" />
   if (menuQ.isError || !menuQ.data) return <ErrorState title="Không tải được thực đơn" error={menuQ.error} onRetry={() => void menuQ.refetch()} retrying={menuQ.isFetching} />
@@ -136,11 +138,9 @@ export function PosSell() {
       {isPhone && (
         <>
           <PosCartBar cart={cart} busy={busy} onOpen={() => setCartOpen(true)} onPay={doPay} />
-          {/* Màn đơn toàn phần (pos-mobile2). Hộp thoại con (chọn bàn/sửa món/thanh toán/huỷ) mở thì màn đơn nhường chỗ — đóng xong hiện lại. */}
-          {cartOpen && !payOrder && !tableOpen && !editing && !voiding && (
-            <PosOrderScreen {...cartProps} onBack={() => setCartOpen(false)}
-              customDiscount={customDiscount} setCustomDiscount={setCustomDiscount} />
-          )}
+          {/* Màn đơn toàn phần (pos-mobile2). Hộp thoại con (chọn bàn/sửa món/thanh toán/huỷ) mở thì màn đơn tạm ẩn (vẫn gắn) — đóng xong hiện lại. */}
+          <PosOrderScreen {...cartProps} open={cartOpen && !childOpen} yielding={childOpen} onBack={() => setCartOpen(false)}
+            customDiscount={customDiscount} setCustomDiscount={setCustomDiscount} />
         </>
       )}
 

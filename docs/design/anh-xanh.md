@@ -161,3 +161,7 @@ Thiết kế: `cohoi-desktop`, `cohoi-mobile`, `cohoi-mobile2`. Hai bố cục t
 - Hạn nhanh (`lib/kanban-ax.ts`): Hôm nay 17:00 · Ngày mai 09:00 · Tuần sau (+7 ngày) 09:00 · Bỏ hạn, theo giờ VN; hạn tự chọn vẫn ở hộp đầy đủ.
 - Chức năng không có trong thiết kế vẫn giữ ở hộp đầy đủ `KanbanCardDialog` (nút «Mở đầy đủ»): nhãn, khách hàng, trường tuỳ biến, checklist, đính kèm, hoạt động/bình luận, xoá.
 - Trên điện thoại ô chọn board, ô tìm và «Cấu hình board» đặt dưới khối nhấn (thiết kế chỉ có tiêu đề); chế độ «Bảng» chỉ có trên desktop.
+
+## Màn Nhân viên (`/management/employees`)
+
+Danh sách + hồ sơ: desktop (≥1024px) hai cột (danh sách 380px | hồ sơ), điện thoại hai màn riêng (danh sách → hồ sơ có nút «‹ Nhân viên»). Thành phần ở `management/employees/_components/employee-detail.tsx`: `EmployeeListItem`, `EmployeeDetail` (HeroCard + nhóm Công việc/Cá nhân/Ngân hàng + khối Hệ thống), `EmployeeStatusChip` (StageChip: active=won, probation=consult, waiting=care, on_leave=quote, resigned/unclassified=neutral). Sửa vẫn mở hộp thoại sửa hiện có (chưa sửa tại chỗ từng nhóm).

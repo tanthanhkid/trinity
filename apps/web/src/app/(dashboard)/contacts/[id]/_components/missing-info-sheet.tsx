@@ -115,7 +115,7 @@ function MissingInfoForm({ contact, onDone }: { contact: ContactData; onDone: ()
           {saving ? "Đang lưu…" : changed > 0 ? `Lưu (${changed})` : "Lưu"}
         </button>
       </header>
-      <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto overscroll-contain px-4 pt-4 pb-[calc(40px+env(safe-area-inset-bottom))]">
+      <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto overscroll-contain px-4 pt-4 pb-[calc(40px+env(safe-area-inset-bottom))] [&_[data-slot=ax-field]>label]:text-sm [&_[data-slot=ax-field]>label]:font-semibold [&_[data-slot=ax-field]>label]:text-foreground">
         <HeroCard compact className="rounded-[16px] px-[18px] py-4">
           <DialogPrimitive.Description className="text-sm leading-normal">
             <strong className="mb-0.5 block text-[17px] font-semibold tracking-[-0.011em] text-white">

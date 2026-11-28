@@ -1,5 +1,5 @@
 {
-  "tool_count": 115,
+  "tool_count": 116,
   "tools": [
     {
       "name": "get_setup_guide",
@@ -9820,6 +9820,47 @@
         "readOnlyHint": false,
         "destructiveHint": false,
         "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "notice": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "notice",
+          "data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "auth_login_methods",
+      "title": "Cách đăng nhập của tôi / My sign-in methods",
+      "description": "Cách đăng nhập của CHÍNH người dùng đang kết nối: có mật khẩu chưa, đã liên kết Google chưa (email Google), và bản cài đặt đang bật những cách nào (mã qua email, Google, mật khẩu). Dùng để trả lời \"tôi đăng nhập bằng gì / sao không thấy nút Google\". Chỉ đọc; đổi cách đăng nhập (liên kết/gỡ Google, đặt/bỏ mật khẩu) người dùng tự làm ở Cài đặt › Hồ sơ, AI không làm thay. / The connected user's own sign-in methods (password set, linked Google account) and which methods this install enables. Read-only.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {}
+      },
+      "annotations": {
+        "title": "Cách đăng nhập của tôi / My sign-in methods",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false
       },
       "execution": {

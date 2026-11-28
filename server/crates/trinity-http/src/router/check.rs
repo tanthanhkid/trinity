@@ -17,7 +17,19 @@ use crate::validate::{Mode, mode_for_path};
 
 /// Route chỉ có ở Rust, không có trong `routes.json` (hợp đồng đóng băng từ bản TS). Phải công khai (`Access::Public`) và
 /// khai trong bảng; thêm route vào đây là quyết định có chủ ý (cần issue nói rõ vì sao bản TS không có).
-pub const RUST_ONLY_ROUTES: &[&str] = &["GET /api/v1/site-config", "POST /api/fe-logging"];
+pub const RUST_ONLY_ROUTES: &[&str] = &[
+    "GET /api/v1/site-config",
+    "POST /api/fe-logging",
+    // Đăng nhập không mật khẩu (#675, `mod-auth::login_specs`): luồng người dùng, không có tool MCP.
+    "GET /api/v1/auth/methods",
+    "POST /api/v1/auth/email/start",
+    "POST /api/v1/auth/email/verify",
+    "POST /api/v1/auth/email/callback",
+    "GET /api/v1/auth/google/start",
+    "GET /api/v1/auth/google/callback",
+    "POST /api/v1/auth/ticket",
+    "POST /api/v1/auth/invitations/send-code",
+];
 
 /// Route chỉ có ở Rust và cần đăng nhập + quyền (`access: can`): tải video theo phần của đăng bài (X15a, `mod-social`).
 pub const RUST_ONLY_AUTHED_ROUTES: &[&str] = &[
@@ -40,6 +52,13 @@ pub const RUST_ONLY_AUTH_ROUTES: &[&str] = &[
     "GET /api/v1/kanban/overview",
     // Nhân viên tải PDF phiếu lương của chính mình (luong-mobile «Tải phiếu PDF»); tool MCP `export_my_payslip_pdf`.
     "GET /api/v1/payslips/me/:id/pdf",
+    // Cài đặt › Tài khoản (#675): xem/gỡ liên kết Google, đặt/bỏ mật khẩu của chính mình. Không có tool MCP: người dùng tự
+    // quản lý cách đăng nhập, agent không được đổi.
+    "GET /api/v1/auth/account",
+    "POST /api/v1/auth/google/link",
+    "DELETE /api/v1/auth/account/identities/google",
+    "PUT /api/v1/auth/account/password",
+    "DELETE /api/v1/auth/account/password",
 ];
 
 /// Hợp đồng nhúng trong binary.

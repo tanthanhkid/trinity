@@ -468,14 +468,18 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
 
     // Đăng nhập (M01) và API key (M05): chung một AuthService (chung bộ giới hạn tốc độ đăng nhập).
     let auth_cfg = mod_auth::AuthConfig::from_lookup(lookup).ok_or_else(|| "thiếu JWT_SECRET".to_owned())?;
-    let auth_svc = Arc::new(mod_auth::AuthService::new(
+    let auth_svc = Arc::new(
+        mod_auth::AuthService::new(
         db.clone(),
         platform.clone(),
         security.clone(),
         mod_auth::PermGrants(perms.clone()),
         LocalUploadsStore::new(uploads_root.clone()),
         auth_cfg,
-    ));
+    )
+    // Đăng nhập không mật khẩu (#675): SMTP (mã + link qua email) và Google OIDC; thiếu cấu hình thì ẩn luồng đó.
+    .with_login_options(mod_auth::LoginOptions::from_lookup(lookup)?),
+    );
     let mcp_limits = Arc::new(mod_mcp::limits::McpLimits::with_untrusted_peer(
         oauth.limits.untrusted_peer.clone(),
     ));

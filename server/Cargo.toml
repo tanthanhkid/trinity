@@ -28,6 +28,7 @@ trinity-docgen = { path = "crates/trinity-docgen" }
 trinity-obs = { path = "crates/trinity-obs" }
 trinity-ops = { path = "crates/trinity-ops" }
 trinity-testhooks = { path = "crates/trinity-testhooks" }
+trinity-mail = { path = "crates/trinity-mail" }
 mod-system = { path = "crates/mod-system" }
 mod-users = { path = "crates/mod-users" }
 mod-auth = { path = "crates/mod-auth" }
@@ -138,6 +139,12 @@ webp = { version = "0.3", default-features = false }
 moxcms = "0.8"
 handlebars = "6.4"
 rust-embed = "8.14"
+
+# Gửi mail SMTP (#675): bỏ feature mặc định (native-tls/OpenSSL), dùng rustls với provider `ring` như reqwest/sqlx (deny.toml
+# cấm aws-lc), gốc tin cậy webpki-roots (không đọc kho chứng chỉ hệ điều hành).
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "pool", "hostname", "tokio1", "tokio1-rustls", "ring", "webpki-roots"] }
+# Kiểm chữ ký RS256 của id_token Google (#675): `rsa` bị cargo deny chặn (RUSTSEC-2023-0071); ring đã có sẵn trong cây phụ thuộc.
+ring = "0.17"
 
 # Quan sát, CLI, cấp phát
 tracing = "0.1"

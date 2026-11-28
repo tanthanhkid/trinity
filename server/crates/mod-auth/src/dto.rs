@@ -294,10 +294,14 @@ pub fn invitation_token(body: &Value) -> Result<String, HttpError> {
 pub struct Accept {
     pub token: String,
     pub full_name: String,
-    pub password: String,
+    /// Có `code` thì mật khẩu không bắt buộc (bỏ qua nếu gửi kèm).
+    pub password: Option<String>,
+    /// Mã 6 số gửi tới email của lời mời (#675).
+    pub code: Option<String>,
 }
 
-/// `AcceptInvitationDto`: trường của lớp con trước, `token` (lớp cha) sau cùng.
+/// `AcceptInvitationDto`: trường của lớp con trước, `token` (lớp cha) sau cùng. #675: gửi `code` (mã xác nhận email) thì
+/// không cần `password`.
 pub fn accept_invitation(body: &Value) -> Result<Accept, HttpError> {
     let mut e = str_errs(
         body.get("full_name"),
@@ -305,19 +309,90 @@ pub fn accept_invitation(body: &Value) -> Result<Accept, HttpError> {
         Some((2, Some("Họ tên tối thiểu 2 ký tự"))),
         Some((200, None)),
     );
-    e.extend(str_errs(
-        body.get("password"),
-        "password",
-        Some((8, Some("Mật khẩu tối thiểu 8 ký tự"))),
-        Some((200, None)),
-    ));
+    let code = match body.get("code") {
+        None | Some(Value::Null) => None,
+        v => {
+            e.extend(code_errs(v));
+            v.and_then(Value::as_str).map(str::to_owned)
+        }
+    };
+    if code.is_none() {
+        e.extend(str_errs(
+            body.get("password"),
+            "password",
+            Some((8, Some("Mật khẩu tối thiểu 8 ký tự"))),
+            Some((200, None)),
+        ));
+    }
     e.extend(token_errs(body));
     finish(e)?;
     Ok(Accept {
         token: text(body, "token"),
         full_name: text(body, "full_name"),
-        password: text(body, "password"),
+        password: code.is_none().then(|| text(body, "password")),
+        code,
     })
+}
+
+/// Mã 6 chữ số.
+fn code_errs(v: Option<&Value>) -> Vec<String> {
+    match v.and_then(Value::as_str).map(str::trim) {
+        Some(c) if c.len() == 6 && c.bytes().all(|b| b.is_ascii_digit()) => Vec::new(),
+        _ => vec!["Mã gồm 6 chữ số".to_owned()],
+    }
+}
+
+/// `POST /auth/email/start { email }`.
+pub fn email_start(body: &Value) -> Result<String, HttpError> {
+    finish(email_errs(body.get("email"), "email", Some(254)))?;
+    Ok(text(body, "email"))
+}
+
+/// `POST /auth/email/verify { email, code }`.
+pub fn email_verify(body: &Value) -> Result<(String, String), HttpError> {
+    let mut e = email_errs(body.get("email"), "email", Some(254));
+    e.extend(code_errs(body.get("code")));
+    finish(e)?;
+    Ok((text(body, "email"), text(body, "code").trim().to_owned()))
+}
+
+/// `{ <key>: chuỗi bí mật }` (token link, vé): 1..=512 ký tự.
+pub fn secret(body: &Value, key: &str) -> Result<String, HttpError> {
+    match body.get(key).and_then(Value::as_str) {
+        Some(t) if !t.trim().is_empty() && t.len() <= 512 => Ok(t.trim().to_owned()),
+        _ => Err(HttpError::validation(vec![format!("{key} không hợp lệ")])),
+    }
+}
+
+/// `PUT /auth/account/password { new_password, current_password? }`.
+pub fn set_password(body: &Value) -> Result<(Option<String>, String), HttpError> {
+    let mut e = str_errs(
+        body.get("new_password"),
+        "new_password",
+        Some((8, Some("Mật khẩu mới tối thiểu 8 ký tự"))),
+        Some((200, None)),
+    );
+    let current = match body.get("current_password") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(s)) => Some(s.clone()),
+        Some(_) => {
+            e.push("current_password must be a string".to_owned());
+            None
+        }
+    };
+    finish(e)?;
+    Ok((current, text(body, "new_password")))
+}
+
+/// `DELETE /auth/account/password { current_password }`.
+pub fn remove_password(body: &Value) -> Result<String, HttpError> {
+    finish(str_errs(
+        body.get("current_password"),
+        "current_password",
+        Some((1, Some("Vui lòng nhập mật khẩu hiện tại"))),
+        Some((200, None)),
+    ))?;
+    Ok(text(body, "current_password"))
 }
 
 /// Một dòng của danh sách áp dụng Wi-Fi.

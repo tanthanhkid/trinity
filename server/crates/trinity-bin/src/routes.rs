@@ -24,6 +24,7 @@ pub fn declared_routes() -> Vec<RouteSpec> {
     v.extend(mod_contacts::routes::specs());
     v.extend(mod_kanban::routes::board_routes());
     v.extend(mod_auth::specs());
+    v.extend(mod_auth::login_specs());
     v.extend(mod_apikeys::routes::routes());
     v.extend(mod_leads::routes::routes());
     v.extend(mod_briefings::routes::specs());

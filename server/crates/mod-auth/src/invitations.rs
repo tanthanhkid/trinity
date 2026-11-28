@@ -378,9 +378,9 @@ async fn assert_can_invite_to_role(conn: &mut PgConnection, actor: &Actor, role_
 }
 
 #[derive(Debug, sqlx::FromRow)]
-struct InvRow {
-    id: i32,
-    email: String,
+pub(crate) struct InvRow {
+    pub(crate) id: i32,
+    pub(crate) email: String,
     role_id: Option<i32>,
     expires_at: DateTime<Utc>,
     accepted_at: Option<DateTime<Utc>>,
@@ -452,7 +452,7 @@ pub async fn revoke_pending_invitations_for_role(tx: &mut TenantTx, role_id: i32
 }
 
 impl<G: GrantsSource> AuthService<G> {
-    async fn tenant_tx(&self, company: CompanyRef) -> Res<TenantTx> {
+    pub(crate) async fn tenant_tx(&self, company: CompanyRef) -> Res<TenantTx> {
         self.db
             .tenant(company)
             .await
@@ -479,7 +479,7 @@ impl<G: GrantsSource> AuthService<G> {
     }
 
     /// Gắn request vào công ty của token (`enterTokenCompany`); công ty lạ hoặc ngưng hoạt động ⇒ `None`.
-    async fn token_company(&self, raw: &str) -> Res<Option<CompanyRef>> {
+    pub(crate) async fn token_company(&self, raw: &str) -> Res<Option<CompanyRef>> {
         self.platform
             .active_company(company_id_of_token(raw))
             .await
@@ -692,7 +692,7 @@ impl<G: GrantsSource> AuthService<G> {
     }
 
     /// Tìm lời mời còn hiệu lực theo token gốc; không có hoặc không còn hiệu lực ⇒ 410.
-    async fn find_pending_invitation(&self, company: CompanyRef, raw: &str) -> Res<InvRow> {
+    pub(crate) async fn find_pending_invitation(&self, company: CompanyRef, raw: &str) -> Res<InvRow> {
         let mut c = self.conn(company).await?;
         let row: Option<InvRow> = sqlx::query_as(AssertSqlSafe(format!(
             "SELECT {INV_COLS} FROM user_invitations WHERE token_hash = $1"
@@ -750,6 +750,20 @@ impl<G: GrantsSource> AuthService<G> {
         ip: Option<&str>,
         ip_trusted: bool,
     ) -> Res<Value> {
+        self.accept_invitation_with(token, full_name, InviteProof::Password(password_in), ip, ip_trusted)
+            .await
+    }
+
+    /// Nhận lời mời bằng mật khẩu (cũ) hoặc bằng mã 6 số gửi tới email của lời mời (#675: xác nhận email, không bắt đặt
+    /// mật khẩu; tài khoản tạo ra chưa có mật khẩu, `password_hash = ''`).
+    pub async fn accept_invitation_with(
+        &self,
+        token: &str,
+        full_name: &str,
+        proof: InviteProof<'_>,
+        ip: Option<&str>,
+        ip_trusted: bool,
+    ) -> Res<Value> {
         // IP không tin được: không gộp mọi người vào một xô IP peer; khoá theo token (băm) + một trần chung cao hơn.
         let token = token.trim();
         let token_key: String = hash_invite_token(token).chars().take(24).collect();
@@ -783,10 +797,35 @@ impl<G: GrantsSource> AuthService<G> {
             }
         };
         self.assert_email_available(company, &inv.email).await?;
-        let password_hash = password::hash(password_in.to_owned())
+        let (password_hash, challenge) = match proof {
+            InviteProof::Password(p) => (
+                password::hash(p.to_owned())
+                    .await
+                    .map_err(|e| internal("băm mật khẩu", e))?,
+                None,
+            ),
+            InviteProof::Code(code) => {
+                if !self.email_login_enabled() {
+                    return Err(HttpError::bad_request(
+                        "Bản cài đặt này chưa gửi được mail: hãy đặt mật khẩu để nhận lời mời",
+                    )
+                    .into());
+                }
+                let email = Self::norm_email(&inv.email);
+                match self.check_code(company, &email, "invite", Some(inv.id), code).await? {
+                    crate::login::CodeCheck::Ok { id, .. } => (String::new(), Some(id)),
+                    crate::login::CodeCheck::Fail(e, _) => {
+                        record_failure(self);
+                        return Err(e);
+                    }
+                }
+            }
+        };
+        let method = if challenge.is_some() { "email_code" } else { "password" };
+        let user_id = match self
+            .accept_tx(company, &inv, full_name, &password_hash, challenge)
             .await
-            .map_err(|e| internal("băm mật khẩu", e))?;
-        let user_id = match self.accept_tx(company, &inv, full_name, &password_hash).await {
+        {
             Ok(id) => id,
             Err(e) => {
                 if e.error().status() == 410 {
@@ -814,7 +853,7 @@ impl<G: GrantsSource> AuthService<G> {
                 .into());
             }
         }
-        self.log_login(company, Some(user.id), &user.email, true, ip, LoginReason::Ok)
+        self.log_login_via(company, Some(user.id), &user.email, true, ip, LoginReason::Ok, method)
             .await;
         self.security.remove_user(company.id(), user.id).await;
         let sid = if self.single_session_active(company).await {
@@ -826,12 +865,25 @@ impl<G: GrantsSource> AuthService<G> {
             .await
     }
 
-    async fn accept_tx(&self, company: CompanyRef, inv: &InvRow, full_name: &str, password_hash: &str) -> Res<i32> {
+    async fn accept_tx(
+        &self,
+        company: CompanyRef,
+        inv: &InvRow,
+        full_name: &str,
+        password_hash: &str,
+        challenge: Option<i32>,
+    ) -> Res<i32> {
         let mut tx = self.tenant_tx(company).await?;
         // Khoá advisory của công ty là câu ĐẦU của giao dịch: cùng thứ tự với tạo/huỷ/mời lại nên không khoá chéo nhau.
         lock_user_slots(&mut tx, company)
             .await
             .map_err(|e| fail_sql("khoá chỗ", e))?;
+        // Mã xác nhận email tiêu thụ trong CÙNG giao dịch: tạo tài khoản lỗi thì mã còn dùng lại được; hai lần bấm chỉ một lần thắng.
+        if let Some(id) = challenge
+            && !Self::consume_challenge(&mut tx, id).await?
+        {
+            return Err(HttpError::bad_request("Mã không đúng hoặc đã hết hạn. Hãy gửi lại mã mới.").into());
+        }
         let now = db_now(&mut tx).await?;
         // Giành lời mời (một lần; từ đây không còn tính là lời mời đang chờ). Lùi cả giao dịch nếu bước sau lỗi: link còn dùng được.
         let claimed = sqlx::query(
@@ -923,7 +975,8 @@ impl<G: GrantsSource> AuthService<G> {
         .bind(&inv.email)
         .bind(full_name.trim())
         .bind(password_hash)
-        .bind(now)
+        // Tài khoản nhận bằng mã email chưa có mật khẩu: không ghi mốc đặt mật khẩu.
+        .bind((!password_hash.is_empty()).then_some(now))
         .bind(narrow.then_some(inviter_id))
         .bind(team_id)
         .fetch_one(&mut *tx)
@@ -1041,6 +1094,13 @@ impl<G: GrantsSource> AuthService<G> {
         self.token_response(company, &user, None, uuid::Uuid::new_v4().to_string())
             .await
     }
+}
+
+/// Cách người nhận lời mời chứng minh mình: đặt mật khẩu (cũ) hoặc mã gửi tới email của lời mời.
+#[derive(Debug, Clone, Copy)]
+pub enum InviteProof<'a> {
+    Password(&'a str),
+    Code(&'a str),
 }
 
 /// `users.manage` đủ rộng để không cần gắn người mới dưới người mời: `true` hoặc phạm vi `all`.

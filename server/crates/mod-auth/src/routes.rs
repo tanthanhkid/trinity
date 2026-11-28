@@ -243,9 +243,13 @@ async fn accept(State(c): S, req: Request) -> Response {
     let i = inp!(c, req);
     match dto::accept_invitation(&i.body) {
         Ok(d) => {
+            let proof = match (&d.code, &d.password) {
+                (Some(code), _) => crate::InviteProof::Code(code),
+                (None, p) => crate::InviteProof::Password(p.as_deref().unwrap_or("")),
+            };
             let fut = c
                 .auth
-                .accept_invitation(&d.token, &d.full_name, &d.password, i.ip(), i.trusted());
+                .accept_invitation_with(&d.token, &d.full_name, proof, i.ip(), i.trusted());
             res(fut.await)
         }
         Err(e) => fail(e),
@@ -435,9 +439,208 @@ async fn invitation_revoke(State(c): S, Extension(u): U, Path(id): Path<String>)
     res(c.auth.revoke_invitation(co, id, &owners).await)
 }
 
+// ---------------------------------------------------------------- đăng nhập không mật khẩu (#675)
+
+const ACCOUNT_PASSWORD: &str = "/api/v1/auth/account/password";
+
+/// Route đăng nhập không mật khẩu (#675), chỉ có ở bản Rust (`RUST_ONLY_*` của `trinity-http::router::check`). Không có tool
+/// MCP: đây là luồng người dùng tự đăng nhập/tự quản lý cách đăng nhập của mình, không phải tính năng cho agent.
+pub fn login_specs() -> Vec<RouteSpec> {
+    let post = |p: &'static str, a: Access| RouteSpec::new(Method::POST, p, a).status_ok(200);
+    let get = |p: &'static str, a: Access| RouteSpec::new(Method::GET, p, a).status_ok(200);
+    vec![
+        get("/api/v1/auth/methods", Access::Public),
+        post("/api/v1/auth/email/start", Access::Public),
+        post("/api/v1/auth/email/verify", Access::Public),
+        post("/api/v1/auth/email/callback", Access::Public),
+        // Chuyển hướng: handler tự đặt 302.
+        RouteSpec::new(Method::GET, "/api/v1/auth/google/start", Access::Public),
+        RouteSpec::new(Method::GET, "/api/v1/auth/google/callback", Access::Public),
+        post("/api/v1/auth/ticket", Access::Public),
+        post("/api/v1/auth/invitations/send-code", Access::Public),
+        get("/api/v1/auth/account", Access::AuthOnly),
+        post("/api/v1/auth/google/link", Access::AuthOnly),
+        RouteSpec::new(
+            Method::DELETE,
+            "/api/v1/auth/account/identities/google",
+            Access::AuthOnly,
+        )
+        .status_ok(200),
+        RouteSpec::new(Method::PUT, ACCOUNT_PASSWORD, Access::AuthOnly).status_ok(200),
+        RouteSpec::new(Method::DELETE, ACCOUNT_PASSWORD, Access::AuthOnly).status_ok(200),
+    ]
+}
+
+fn user_agent(req: &Request) -> Option<String> {
+    req.headers()
+        .get(header::USER_AGENT)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned)
+}
+
+/// Giá trị một cookie trong header `Cookie`.
+pub fn cookie_value(headers: &axum::http::HeaderMap, name: &str) -> Option<String> {
+    headers
+        .get_all(header::COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .flat_map(|v| v.split(';'))
+        .filter_map(|kv| kv.trim().split_once('='))
+        .find(|(k, _)| *k == name)
+        .map(|(_, v)| v.trim().to_owned())
+}
+
+fn state_cookie(value: &str, max_age: u32, secure: bool) -> String {
+    let secure = if secure { "; Secure" } else { "" };
+    format!(
+        "{}={value}; Path={}; Max-Age={max_age}; HttpOnly; SameSite=Lax{secure}",
+        crate::google::STATE_COOKIE,
+        crate::google::STATE_COOKIE_PATH
+    )
+}
+
+fn redirect(location: &str, cookie: Option<String>) -> Response {
+    let mut r = (StatusCode::FOUND, [(header::LOCATION, location.to_owned())]).into_response();
+    r.headers_mut()
+        .insert(header::CACHE_CONTROL, axum::http::HeaderValue::from_static("no-store"));
+    if let Some(c) = cookie
+        && let Ok(v) = axum::http::HeaderValue::from_str(&c)
+    {
+        r.headers_mut().append(header::SET_COOKIE, v);
+    }
+    r
+}
+
+async fn methods(State(c): S) -> Response {
+    Json(c.auth.login_methods()).into_response()
+}
+
+async fn email_start(State(c): S, req: Request) -> Response {
+    let ua = user_agent(&req);
+    let i = inp!(c, req);
+    match dto::email_start(&i.body) {
+        Ok(email) => res(c.auth.email_start(&email, i.ip(), i.trusted(), ua.as_deref()).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn email_verify(State(c): S, req: Request) -> Response {
+    let i = inp!(c, req);
+    match dto::email_verify(&i.body) {
+        Ok((email, code)) => res(c.auth.email_verify(&email, &code, i.ip(), i.trusted()).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn email_callback(State(c): S, req: Request) -> Response {
+    let i = inp!(c, req);
+    match dto::secret(&i.body, "token") {
+        Ok(token) => res(c.auth.email_link(&token, i.ip(), i.trusted()).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn google_start(State(c): S, Query(q): Query<HashMap<String, String>>) -> Response {
+    match c.auth.google_begin(q.get("next").map(String::as_str), None) {
+        Ok(Some((url, state))) => redirect(&url, Some(state_cookie(&state, 600, c.auth.google_secure_cookie()))),
+        Ok(None) => fail(HttpError::not_found("Đăng nhập bằng Google chưa được bật")),
+        Err(e) => auth_fail(e),
+    }
+}
+
+async fn google_callback(State(c): S, Query(q): Query<HashMap<String, String>>, req: Request) -> Response {
+    let client = resolve_client_ip(&c.ip, &req);
+    let cookie = cookie_value(req.headers(), crate::google::STATE_COOKIE);
+    let crate::google::GoogleOutcome::Redirect(to) = c
+        .auth
+        .google_callback(
+            &q,
+            cookie.as_deref(),
+            Some(client.rate_key.as_str()),
+            client.ip.is_some(),
+        )
+        .await;
+    // Xoá cookie state (dùng một lần).
+    redirect(&to, Some(state_cookie("", 0, c.auth.google_secure_cookie())))
+}
+
+async fn ticket(State(c): S, req: Request) -> Response {
+    let i = inp!(c, req);
+    match dto::secret(&i.body, "ticket") {
+        Ok(t) => res(c.auth.redeem_ticket(&t)),
+        Err(e) => fail(e),
+    }
+}
+
+async fn invitation_send_code(State(c): S, req: Request) -> Response {
+    let ua = user_agent(&req);
+    let i = inp!(c, req);
+    match dto::invitation_token(&i.body) {
+        Ok(token) => res(c
+            .auth
+            .invitation_send_code(&token, i.ip(), i.trusted(), ua.as_deref())
+            .await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn account(State(c): S, Extension(u): U) -> Response {
+    res(c.auth.account_overview(company!(u), u.user.user_id).await)
+}
+
+async fn google_link(State(c): S, Extension(u): U, req: Request) -> Response {
+    let co = company!(u);
+    let i = inp!(c, req);
+    let next = i.body.get("next").and_then(Value::as_str);
+    match c
+        .auth
+        .google_begin(next.or(Some("/settings")), Some((co, u.user.user_id)))
+    {
+        Ok(Some((url, state))) => {
+            let mut r = Json(json!({ "url": url })).into_response();
+            if let Ok(v) = axum::http::HeaderValue::from_str(&state_cookie(&state, 600, c.auth.google_secure_cookie()))
+            {
+                r.headers_mut().append(header::SET_COOKIE, v);
+            }
+            r
+        }
+        Ok(None) => fail(HttpError::not_found("Đăng nhập bằng Google chưa được bật")),
+        Err(e) => auth_fail(e),
+    }
+}
+
+async fn google_unlink(State(c): S, Extension(u): U) -> Response {
+    res(c.auth.unlink_google(company!(u), u.user.user_id).await)
+}
+
+async fn password_set(State(c): S, Extension(u): U, req: Request) -> Response {
+    let co = company!(u);
+    let i = inp!(c, req);
+    match dto::set_password(&i.body) {
+        Ok((current, new)) => res(c
+            .auth
+            .set_account_password(co, u.user.user_id, current.as_deref(), &new, i.ip())
+            .await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn password_remove(State(c): S, Extension(u): U, req: Request) -> Response {
+    let co = company!(u);
+    let i = inp!(c, req);
+    match dto::remove_password(&i.body) {
+        Ok(current) => res(c
+            .auth
+            .remove_account_password(co, u.user.user_id, &current, i.ip())
+            .await),
+        Err(e) => fail(e),
+    }
+}
+
 /// Router của M01 (state `Arc<AuthCtx>`).
 pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<AuthCtx>> {
-    let s = specs();
+    let mut s = specs();
+    s.extend(login_specs());
     let spec = |m: &Method, p: &str| {
         s.iter()
             .find(|x| x.method == *m && x.path == p)
@@ -478,6 +681,25 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<AuthCtx>> {
         )
         .route(spec(&Method::POST, "/api/v1/auth/invitations/preview"), preview)
         .route(spec(&Method::POST, "/api/v1/auth/invitations/accept"), accept)
+        .route(spec(&Method::GET, "/api/v1/auth/methods"), methods)
+        .route(spec(&Method::POST, "/api/v1/auth/email/start"), email_start)
+        .route(spec(&Method::POST, "/api/v1/auth/email/verify"), email_verify)
+        .route(spec(&Method::POST, "/api/v1/auth/email/callback"), email_callback)
+        .route(spec(&Method::GET, "/api/v1/auth/google/start"), google_start)
+        .route(spec(&Method::GET, "/api/v1/auth/google/callback"), google_callback)
+        .route(spec(&Method::POST, "/api/v1/auth/ticket"), ticket)
+        .route(
+            spec(&Method::POST, "/api/v1/auth/invitations/send-code"),
+            invitation_send_code,
+        )
+        .route(spec(&Method::GET, "/api/v1/auth/account"), account)
+        .route(spec(&Method::POST, "/api/v1/auth/google/link"), google_link)
+        .route(
+            spec(&Method::DELETE, "/api/v1/auth/account/identities/google"),
+            google_unlink,
+        )
+        .route(spec(&Method::PUT, ACCOUNT_PASSWORD), password_set)
+        .route(spec(&Method::DELETE, ACCOUNT_PASSWORD), password_remove)
 }
 
 #[cfg(test)]
@@ -492,5 +714,30 @@ mod tests {
         assert!(rep.ok(), "{:#?}", rep.problems);
         assert_eq!(rep.declared, 23);
         assert!(table.iter().all(|r| r.path.starts_with("/api/v1/auth/")));
+    }
+
+    #[test]
+    fn route_dang_nhap_khong_mat_khau_chi_co_o_rust() {
+        let table = login_specs();
+        assert_eq!(table.len(), 13);
+        let rep = trinity_http::router::check::check_embedded(&table, false);
+        assert!(rep.ok(), "{:#?}", rep.problems);
+        assert_eq!(rep.declared, 0, "không trùng route nào trong routes.json");
+    }
+
+    #[test]
+    fn doc_cookie() {
+        let mut h = axum::http::HeaderMap::new();
+        h.insert(header::COOKIE, "a=1; trinity_google_state=abc ; b=2".parse().unwrap());
+        assert_eq!(cookie_value(&h, "trinity_google_state").as_deref(), Some("abc"));
+        assert_eq!(cookie_value(&h, "x"), None);
+        let c = state_cookie("s", 600, true);
+        assert!(
+            c.contains("HttpOnly")
+                && c.contains("SameSite=Lax")
+                && c.contains("Secure")
+                && c.contains("Path=/api/v1/auth/google")
+        );
+        assert!(!state_cookie("s", 600, false).contains("Secure"));
     }
 }

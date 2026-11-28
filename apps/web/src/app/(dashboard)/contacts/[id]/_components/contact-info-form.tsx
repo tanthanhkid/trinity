@@ -93,6 +93,8 @@ interface Props {
   creatorName?: string | null
   /** thời điểm khởi tạo danh bạ (ISO), hiển thị kèm giờ:phút:giây. */
   createdAt?: string | null
+  /** Vào thẳng chế độ sửa (mở từ «Chỉnh sửa đầy đủ» / «Sửa» của màn «Ánh xanh»). */
+  autoEdit?: boolean
 }
 
 interface FormState {
@@ -216,7 +218,7 @@ function toPayload(
  *  - Section 3: Nhắc việc
  */
 export function ContactInfoForm({
-  contact, assigneeName, assigneeEmail, creatorName, createdAt,
+  contact, assigneeName, assigneeEmail, creatorName, createdAt, autoEdit = false,
 }: Props) {
   const assigneeDisplay = formatEmployee({
     email: assigneeEmail ?? null,
@@ -228,7 +230,7 @@ export function ContactInfoForm({
   // Ghi đè họ tên đã có = đặc quyền vai trò hệ thống "Quản trị" (`isAdmin`) —
   // mirror BE `ContactsService.update` (`user.isAdmin`); không có quyền catalog riêng.
   const { isAdmin } = usePermissions()
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState(autoEdit)
   const [form, setForm] = useState<FormState>(toForm(contact))
   const queryClient = useQueryClient()
 
@@ -299,7 +301,7 @@ export function ContactInfoForm({
   ) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
   return (
-    <Card className="rounded-[var(--radius)] border border-[var(--border)] shadow-[var(--shadow-card)] ring-0">
+    <Card className="ax-card ring-0">
       <CardContent className="pt-6">
         {/* Trạng thái */}
         <div>

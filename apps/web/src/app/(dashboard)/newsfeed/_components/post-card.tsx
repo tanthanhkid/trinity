@@ -84,12 +84,15 @@ export function htmlToPlain(html: string): string {
     .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
       if (e[0] === '#') {
         const n = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)
-        return Number.isFinite(n) ? String.fromCodePoint(n) : m
+        return Number.isInteger(n) && n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : m
       }
       return ENTITIES[e.toLowerCase()] ?? m
     })
     .trim()
 }
+
+/** Lỗi kiểm phía client khi lưu (câu tiếng Việt, hiện nguyên văn). */
+class EditCheckError extends Error {}
 
 /** Thời gian chờ trước khi xoá thật — trong lúc đó toast cho Hoàn tác (UI-only, không đổi API). */
 const DELETE_UNDO_MS = 5000
@@ -195,13 +198,14 @@ export function PostCard({
   const editMutation = useMutation({
     mutationFn: async () => {
       const category = editCategory !== post.category ? editCategory : undefined
-      if (newImages.length === 0 && newVideos.length === 0) {
+      // PATCH bắt buộc nội dung; bài chỉ có ảnh/video (nội dung rỗng) hoặc có tệp mới thì đi route multipart.
+      if (newImages.length === 0 && newVideos.length === 0 && htmlToPlain(editContent) !== '') {
         await apiClient.patch(`/newsfeed/${post.id}`, { content: editContent, category })
         return
       }
       const videoBytes = newVideos.reduce((sum, v) => sum + v.size, 0)
       if (videoBytes > MAX_TOTAL_VIDEO_BYTES) {
-        throw new Error(
+        throw new EditCheckError(
           `Tổng dung lượng video vượt quá ${MAX_TOTAL_VIDEO_BYTES / (1024 * 1024)}MB — vui lòng bớt video`,
         )
       }
@@ -210,12 +214,14 @@ export function PostCard({
       if (category) fd.append('category', category)
       let requestBytes = videoBytes
       for (let i = 0; i < newImages.length; i++) {
-        const blob = await compressImage(newImages[i])
+        const blob = await compressImage(newImages[i]).catch(() => {
+          throw new EditCheckError(`Không đọc được ảnh ${newImages[i].name} — chọn ảnh JPG, PNG hoặc WEBP khác`)
+        })
         requestBytes += blob.size
         fd.append('images', blob, `image_${i}.jpg`)
       }
       if (requestBytes > MAX_REQUEST_BYTES) {
-        throw new Error(
+        throw new EditCheckError(
           `Tổng dung lượng ảnh + video vượt quá ${MAX_REQUEST_BYTES / (1024 * 1024)}MB — vui lòng bớt tệp`,
         )
       }
@@ -232,20 +238,17 @@ export function PostCard({
       qc.invalidateQueries({ queryKey: ['newsfeed', 'posts'] })
     },
     onError: (err) =>
-      toast.error(
-        err instanceof Error && !('isAxiosError' in err)
-          ? err.message
-          : describeUploadError(err, 'Không lưu được'),
-      ),
+      toast.error(err instanceof EditCheckError ? err.message : describeUploadError(err, 'Không lưu được')),
   })
 
   if (pendingDelete) return null
 
   const editPlain = editing ? htmlToPlain(editContent) : ''
   const editEmpty = editPlain === ''
-  // Nút Lưu chỉ sáng khi có thay đổi (nội dung, mục hoặc tệp mới) và nội dung không rỗng.
+  const hasMedia = post.images.length > 0 || !!post.image_url || newImages.length > 0 || newVideos.length > 0
+  // Nút Lưu chỉ sáng khi có thay đổi (nội dung, mục hoặc tệp mới); bài phải còn chữ hoặc ảnh/video.
   const editDirty =
-    !editEmpty &&
+    (!editEmpty || hasMedia) &&
     (editContent !== post.content ||
       editCategory !== post.category ||
       newImages.length > 0 ||

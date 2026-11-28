@@ -581,14 +581,25 @@ async fn sua_bai_doi_muc_va_them_anh_video() {
         ),
         403
     );
+    // Không tệp: vẫn sửa được nội dung/mục; nội dung rỗng chỉ được khi bài còn ảnh/video.
+    let up = mod_newsfeed::update_with_media(&db, &store, &a1, post.id, Some("  "), None, vec![], &[])
+        .await
+        .unwrap();
+    assert_eq!(up.content, "");
+    let text_only = create_t(&db, &store, &a1, "pr", "chữ", vec![], &[]).await.unwrap();
     assert_eq!(
         status(
-            mod_newsfeed::update_with_media(&db, &store, &a1, post.id, None, None, vec![], &[])
+            mod_newsfeed::update_with_media(&db, &store, &a1, text_only.id, Some(" "), None, vec![], &[])
                 .await
                 .unwrap_err()
         ),
         400
     );
+    assert_eq!(
+        status(mod_newsfeed::check_can_edit(&db, &a2, post.id).await.unwrap_err()),
+        403
+    );
+    mod_newsfeed::check_can_edit(&db, &admin, post.id).await.unwrap();
     let tmp = std::env::temp_dir().join(format!("m22-edit-{}.mp4", uuid_like()));
     tokio::fs::write(&tmp, b"video").await.unwrap();
     let vid = VideoUpload {

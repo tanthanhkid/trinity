@@ -641,16 +641,7 @@ async fn create_inner<S: MediaStore>(
     if trimmed.is_empty() && images.is_empty() && videos.is_empty() {
         return Err(bad_request("Vui lòng nhập nội dung hoặc đính kèm ảnh/video"));
     }
-    if images.len() > MAX_IMAGES_PER_POST {
-        return Err(Error::Http(Box::new(HttpError::bad_request(format!(
-            "Tối đa {MAX_IMAGES_PER_POST} ảnh mỗi bài"
-        )))));
-    }
-    if videos.len() > MAX_VIDEOS_PER_POST {
-        return Err(Error::Http(Box::new(HttpError::bad_request(format!(
-            "Tối đa {MAX_VIDEOS_PER_POST} video mỗi bài"
-        )))));
-    }
+    check_media_room((0, 0), (images.len(), videos.len()))?;
     let mut uploaded: Vec<(String, &'static str)> = Vec::new();
     let result = async {
         for img in images {
@@ -803,9 +794,21 @@ fn check_media_room(have: (usize, usize), add: (usize, usize)) -> Result<()> {
     Ok(())
 }
 
-/// `POST /newsfeed/:id/upload` (`AuthOnly`; cổng thật: tác giả hoặc `newsfeed.moderate`): sửa bài và thêm ảnh/video vào
-/// cuối bài trong một lần lưu. `content`/`category` là `None` thì giữ nguyên. Trần 10 ảnh, 5 video tính cả tệp đã có. Tệp
-/// tạm của video luôn được dọn; lỗi sau khi đã ghi kho thì gỡ tệp vừa ghi. Không gửi lại thông báo "bài mới".
+/// Cổng sửa bài: tác giả hoặc `newsfeed.moderate` (404 khi không có bài). Router gọi TRƯỚC khi đọc thân multipart, để người
+/// không có quyền không đẩy được hàng trăm MB vào RAM/đĩa tạm.
+pub async fn check_can_edit(db: &TenantDb, actor: &Actor, post_id: i32) -> Result<()> {
+    let mut conn = db.acquire().await?;
+    let author = post_author(&mut conn, post_id).await?;
+    if author != actor.user_id && !actor.can_moderate {
+        return Err(forbidden("Bạn không có quyền sửa bài này"));
+    }
+    Ok(())
+}
+
+/// `POST /newsfeed/:id/upload` (`AuthOnly`; cổng thật: tác giả hoặc `newsfeed.moderate`): sửa bài (nội dung, «Mục») và thêm
+/// ảnh/video vào cuối bài trong một lần lưu. `content`/`category` là `None` thì giữ nguyên; nội dung rỗng chỉ được khi bài
+/// còn ảnh/video (như lúc đăng). Trần 10 ảnh, 5 video tính cả tệp đã có. Tệp tạm của video luôn được dọn; lỗi sau khi đã
+/// ghi kho thì gỡ tệp vừa ghi. Không gửi lại thông báo "bài mới".
 #[allow(clippy::too_many_arguments)] // tương ứng các trường của một lần sửa bài; router dựng từ multipart
 pub async fn update_with_media<S: MediaStore>(
     db: &TenantDb,
@@ -835,19 +838,17 @@ async fn update_with_media_inner<S: MediaStore>(
     images: Vec<ImageUpload>,
     videos: &[VideoUpload],
 ) -> Result<Post> {
-    if images.is_empty() && videos.is_empty() {
-        return Err(bad_request("Vui lòng chọn ảnh hoặc video để thêm"));
-    }
     let add = (images.len(), videos.len());
+    let content = content.map(str::trim);
     // Kiểm quyền và chỗ trống trước khi nén/ghi tệp (rẻ); kiểm lại trong giao dịch có khoá dòng bài.
     {
+        check_can_edit(db, actor, post_id).await?;
         let mut conn = db.acquire().await?;
-        let author = post_author(&mut conn, post_id).await?;
-        if author != actor.user_id && !actor.can_moderate {
-            return Err(forbidden("Bạn không có quyền sửa bài này"));
-        }
         let (i, v, _) = media_counts(&mut conn, post_id).await?;
         check_media_room((i, v), add)?;
+        if content == Some("") && i + v + add.0 + add.1 == 0 {
+            return Err(bad_request("Vui lòng nhập nội dung hoặc đính kèm ảnh/video"));
+        }
     }
     let mut uploaded: Vec<(String, &'static str)> = Vec::new();
     let result = async {
@@ -868,6 +869,9 @@ async fn update_with_media_inner<S: MediaStore>(
         }
         let (i, v, next) = media_counts(&mut tx, post_id).await?;
         check_media_room((i, v), add)?;
+        if content == Some("") && i + v + add.0 + add.1 == 0 {
+            return Err(bad_request("Vui lòng nhập nội dung hoặc đính kèm ảnh/video"));
+        }
         for (k, (key, kind)) in uploaded.iter().enumerate() {
             sqlx::query("INSERT INTO newsfeed_post_images (post_id, image_url, media_type, sort_order) VALUES ($1, $2, $3::text::\"NewsfeedMediaType\", $4)")
                 .bind(post_id)
@@ -882,7 +886,7 @@ async fn update_with_media_inner<S: MediaStore>(
              edited_at = now(), updated_at = now() WHERE id = $1",
         )
         .bind(post_id)
-        .bind(content.map(str::trim))
+        .bind(content)
         .bind(category)
         .execute(&mut *tx)
         .await?;

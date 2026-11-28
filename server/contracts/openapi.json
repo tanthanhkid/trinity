@@ -4489,6 +4489,15 @@
       },
       "UpdatePostDto": {
         "properties": {
+          "category": {
+            "description": "Đổi «Mục» của bài (tuỳ chọn)",
+            "enum": [
+              "announcement",
+              "training",
+              "pr"
+            ],
+            "type": "string"
+          },
           "content": {
             "description": "Nội dung bài đăng (rich text HTML hoặc plain text)",
             "type": "string"
@@ -4497,6 +4506,40 @@
         "required": [
           "content"
         ],
+        "type": "object"
+      },
+      "UpdatePostMultipartDto": {
+        "properties": {
+          "category": {
+            "description": "Đổi «Mục» của bài (tuỳ chọn)",
+            "enum": [
+              "announcement",
+              "training",
+              "pr"
+            ],
+            "type": "string"
+          },
+          "content": {
+            "description": "Nội dung mới (tuỳ chọn; không gửi thì giữ nguyên, rỗng chỉ được khi bài còn ảnh/video)",
+            "type": "string"
+          },
+          "images": {
+            "description": "Ảnh thêm vào cuối bài (tối đa 10 ảnh mỗi bài, tính cả ảnh đã có)",
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "videos": {
+            "description": "Video thêm vào cuối bài (tối đa 5 video mỗi bài, ≤40MB/video)",
+            "items": {
+              "format": "binary",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
         "type": "object"
       },
       "UpdateProductCategoryDto": {
@@ -16537,6 +16580,45 @@
           }
         ],
         "summary": "Like / Unlike bài đăng",
+        "tags": [
+          "Newsfeed"
+        ]
+      }
+    },
+    "/api/v1/newsfeed/{id}/upload": {
+      "post": {
+        "operationId": "NewsfeedController_updateWithMedia",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePostMultipartDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Sửa bài và thêm ảnh/video vào bài đã đăng — tác giả hoặc người có quyền kiểm duyệt",
         "tags": [
           "Newsfeed"
         ]

@@ -104,6 +104,25 @@ describe("PostCard «Sửa bài» mobile", () => {
     expect(patch).not.toHaveBeenCalled()
   })
 
+  it("bài chỉ có ảnh (không chữ): đổi «Mục» vẫn lưu được, đi route multipart", async () => {
+    const images = [{ id: 1, image_url: "k", media_type: "image" as const, sort_order: 0 }]
+    openEditor({ ...base, content: "", images })
+    const save = screen.getByRole("button", { name: "Lưu" }) as HTMLButtonElement
+    expect(save.disabled).toBe(true)
+    fireEvent.click(screen.getByRole("radio", { name: "Đào tạo" }))
+    expect(save.disabled).toBe(false)
+    fireEvent.click(save)
+    await waitFor(() => expect(post).toHaveBeenCalled())
+    const [url, fd] = post.mock.calls[0] as [string, FormData]
+    expect(url).toBe("/newsfeed/9/upload")
+    expect(fd.get("category")).toBe("training")
+    expect(patch).not.toHaveBeenCalled()
+  })
+
+  it("entity ngoài dải Unicode không làm vỡ màn", () => {
+    expect(htmlToPlain("a&#99999999;b&#x110000;")).toBe("a&#99999999;b&#x110000;")
+  })
+
   it("bài đã đủ 10 ảnh thì nút «Thêm ảnh» tắt", () => {
     const images = Array.from({ length: 10 }, (_, i) => ({
       id: i,

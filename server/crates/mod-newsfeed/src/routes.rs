@@ -318,32 +318,9 @@ fn update_dto(body: &Value) -> Result<(String, Option<String>), Response> {
     Ok((text_of(&o, "content"), category))
 }
 
-/// Trường chữ của multipart `POST /newsfeed/:id/upload`: `content`, `category` đều tuỳ chọn (trường lặp: lấy giá trị cuối).
+/// Trường chữ của multipart `POST /newsfeed/:id/upload`: `content`, `category` đều tuỳ chọn.
 fn update_multipart_dto(fields: &[(String, String)]) -> Result<(Option<String>, Option<String>), Response> {
-    let mut errs = Vec::new();
-    let mut seen: Vec<&String> = Vec::new();
-    for (k, _) in fields {
-        if !seen.contains(&k) {
-            seen.push(k);
-        }
-    }
-    unknown_keys(seen.into_iter(), &["category", "content"], &mut errs);
-    let last = |k: &str| fields.iter().rev().find(|(n, _)| n == k).map(|(_, v)| v.clone());
-    let category = last("category");
-    let content = last("content");
-    if let Some(c) = &category {
-        category_msg(Some(&Value::String(c.clone())), &mut errs);
-    }
-    if let Some(c) = &content {
-        let len: usize = c.chars().map(char::len_utf16).sum();
-        if len > CONTENT_MAX_LEN {
-            errs.push(format!(
-                "content must be shorter than or equal to {CONTENT_MAX_LEN} characters"
-            ));
-        }
-    }
-    check(errs)?;
-    Ok((content, category))
+    multipart_fields(fields, false).map(|(category, content)| (content, category))
 }
 
 /// `CreatePostCommentDto`: chỉ `content`.
@@ -356,8 +333,12 @@ fn content_dto(body: &Value, max: usize) -> Result<String, Response> {
     Ok(text_of(&o, "content"))
 }
 
-/// `CreatePostMultipartDto` từ các trường chữ của multipart (trường lặp: lấy giá trị cuối).
-fn multipart_dto(fields: &[(String, String)]) -> Result<(String, String), Response> {
+/// Trường chữ `category`, `content` của multipart (trường lặp: lấy giá trị cuối). `category` bắt buộc khi đăng, tuỳ chọn
+/// khi sửa. Thứ tự câu lỗi: khoá lạ, mục, độ dài nội dung.
+fn multipart_fields(
+    fields: &[(String, String)],
+    category_required: bool,
+) -> Result<(Option<String>, Option<String>), Response> {
     let mut errs = Vec::new();
     let mut seen: Vec<&String> = Vec::new();
     for (k, _) in fields {
@@ -369,7 +350,9 @@ fn multipart_dto(fields: &[(String, String)]) -> Result<(String, String), Respon
     let last = |k: &str| fields.iter().rev().find(|(n, _)| n == k).map(|(_, v)| v.clone());
     let category = last("category");
     let content = last("content");
-    category_msg(category.clone().map(Value::String).as_ref(), &mut errs);
+    if category_required || category.is_some() {
+        category_msg(category.clone().map(Value::String).as_ref(), &mut errs);
+    }
     if let Some(c) = &content {
         let len: usize = c.chars().map(char::len_utf16).sum();
         if len > CONTENT_MAX_LEN {
@@ -379,6 +362,12 @@ fn multipart_dto(fields: &[(String, String)]) -> Result<(String, String), Respon
         }
     }
     check(errs)?;
+    Ok((category, content))
+}
+
+/// `CreatePostMultipartDto`: (category, content).
+fn multipart_dto(fields: &[(String, String)]) -> Result<(String, String), Response> {
+    let (category, content) = multipart_fields(fields, true)?;
     Ok((category.unwrap_or_default(), content.unwrap_or_default()))
 }
 
@@ -682,8 +671,20 @@ async fn update(State(c): S, Extension(u): U, Path(id): Path<String>, JsonBody(b
     ok(crate::update_post(&t, &actor(&u), id, &content, category.as_deref()).await)
 }
 
-/// `POST /newsfeed/:id/upload`: sửa bài (nội dung, «Mục» tuỳ chọn) và thêm ảnh/video vào bài đã đăng.
+/// `POST /newsfeed/:id/upload`: sửa bài (nội dung, «Mục» tuỳ chọn) và thêm ảnh/video vào bài đã đăng. Kiểm quyền sửa
+/// TRƯỚC khi đọc thân multipart.
 async fn update_upload(State(c): S, Extension(u): U, Path(id): Path<String>, mut mp: Multipart) -> Response {
+    let id = match id_of(&id, "Không tìm thấy bài đăng") {
+        Ok(i) => i,
+        Err(r) => return r,
+    };
+    let t = match tenant(&c, &u).await {
+        Ok(t) => t,
+        Err(r) => return r,
+    };
+    if let Err(e) = crate::check_can_edit(&t, &actor(&u), id).await {
+        return nf(e);
+    }
     let mut up = Upload::default();
     if let Err(e) = collect_upload(&mut mp, &mut up).await {
         cleanup(&up.videos).await;
@@ -691,20 +692,6 @@ async fn update_upload(State(c): S, Extension(u): U, Path(id): Path<String>, mut
     }
     let (content, category) = match update_multipart_dto(&up.fields) {
         Ok(v) => v,
-        Err(r) => {
-            cleanup(&up.videos).await;
-            return r;
-        }
-    };
-    let id = match id_of(&id, "Không tìm thấy bài đăng") {
-        Ok(i) => i,
-        Err(r) => {
-            cleanup(&up.videos).await;
-            return r;
-        }
-    };
-    let t = match tenant(&c, &u).await {
-        Ok(t) => t,
         Err(r) => {
             cleanup(&up.videos).await;
             return r;

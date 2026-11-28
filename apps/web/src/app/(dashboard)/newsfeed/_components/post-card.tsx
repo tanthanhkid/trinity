@@ -3,12 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  ImagePlus,
   Loader2,
   MessageCircle,
   MoreHorizontal,
   Pencil,
   ThumbsUp,
   Trash2,
+  Video,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { PersonAvatar } from '@/components/ui/avatar'
@@ -35,12 +38,25 @@ import apiClient from '@/lib/api-client'
 import { useAuthStore } from '@/store/auth'
 import { usePermissions } from '@/lib/rbac'
 import { formatDate } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import {
   CATEGORY_CHIP,
   CATEGORY_INK,
   CATEGORY_LABEL,
+  NEWSFEED_CATEGORIES,
+  type NewsfeedCategory,
   type NewsfeedPost,
 } from './types'
+import {
+  ACCEPT_VIDEO,
+  MAX_IMAGES,
+  MAX_REQUEST_BYTES,
+  MAX_TOTAL_VIDEO_BYTES,
+  MAX_VIDEO_BYTES,
+  MAX_VIDEOS,
+  compressImage,
+  describeUploadError,
+} from './post-composer'
 import { useIsDesktop } from './use-is-desktop'
 import { PostComments } from './post-comments'
 import { PostImageGallery } from './post-image-gallery'
@@ -56,6 +72,23 @@ function timeAgo(iso: string): string {
   const d = Math.floor(h / 24)
   if (d < 7) return `${d} ngày trước`
   return formatDate(new Date(iso))
+}
+
+const ENTITIES: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
+
+/** Chữ thuần của HTML bài (bỏ thẻ, giải mã entity) — để đếm ký tự và kiểm rỗng. */
+export function htmlToPlain(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
+      if (e[0] === '#') {
+        const n = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)
+        return Number.isFinite(n) ? String.fromCodePoint(n) : m
+      }
+      return ENTITIES[e.toLowerCase()] ?? m
+    })
+    .trim()
 }
 
 /** Thời gian chờ trước khi xoá thật — trong lúc đó toast cho Hoàn tác (UI-only, không đổi API). */
@@ -77,6 +110,12 @@ export function PostCard({
   const [sheetOpen, setSheetOpen] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [editContent, setEditContent] = useState(post.content)
+  const [editCategory, setEditCategory] = useState<NewsfeedCategory>(post.category)
+  // Ảnh/video thêm vào bài khi sửa (nối sau tệp đã có).
+  const [newImages, setNewImages] = useState<File[]>([])
+  const [newVideos, setNewVideos] = useState<File[]>([])
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
   // Bài đang chờ xoá (ẩn tạm, còn Hoàn tác).
   const [pendingDelete, setPendingDelete] = useState(false)
   const deleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -155,32 +194,83 @@ export function PostCard({
 
   const editMutation = useMutation({
     mutationFn: async () => {
-      await apiClient.patch(`/newsfeed/${post.id}`, { content: editContent })
+      const category = editCategory !== post.category ? editCategory : undefined
+      if (newImages.length === 0 && newVideos.length === 0) {
+        await apiClient.patch(`/newsfeed/${post.id}`, { content: editContent, category })
+        return
+      }
+      const videoBytes = newVideos.reduce((sum, v) => sum + v.size, 0)
+      if (videoBytes > MAX_TOTAL_VIDEO_BYTES) {
+        throw new Error(
+          `Tổng dung lượng video vượt quá ${MAX_TOTAL_VIDEO_BYTES / (1024 * 1024)}MB — vui lòng bớt video`,
+        )
+      }
+      const fd = new FormData()
+      fd.append('content', editContent)
+      if (category) fd.append('category', category)
+      let requestBytes = videoBytes
+      for (let i = 0; i < newImages.length; i++) {
+        const blob = await compressImage(newImages[i])
+        requestBytes += blob.size
+        fd.append('images', blob, `image_${i}.jpg`)
+      }
+      if (requestBytes > MAX_REQUEST_BYTES) {
+        throw new Error(
+          `Tổng dung lượng ảnh + video vượt quá ${MAX_REQUEST_BYTES / (1024 * 1024)}MB — vui lòng bớt tệp`,
+        )
+      }
+      for (const v of newVideos) fd.append('videos', v, v.name)
+      await apiClient.post(`/newsfeed/${post.id}/upload`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
     },
     onSuccess: () => {
       toast.success('Đã lưu bài')
       setEditing(false)
+      setNewImages([])
+      setNewVideos([])
       qc.invalidateQueries({ queryKey: ['newsfeed', 'posts'] })
     },
-    onError: (err) => toast.error(errorMessage(err, 'Không lưu được')),
+    onError: (err) =>
+      toast.error(
+        err instanceof Error && !('isAxiosError' in err)
+          ? err.message
+          : describeUploadError(err, 'Không lưu được'),
+      ),
   })
 
   if (pendingDelete) return null
 
-  const editPlain = editContent
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .trim()
+  const editPlain = editing ? htmlToPlain(editContent) : ''
   const editEmpty = editPlain === ''
-  // Nút Lưu chỉ sáng khi nội dung khác bản đang đăng.
-  const editDirty = !editEmpty && editContent !== post.content
+  // Nút Lưu chỉ sáng khi có thay đổi (nội dung, mục hoặc tệp mới) và nội dung không rỗng.
+  const editDirty =
+    !editEmpty &&
+    (editContent !== post.content ||
+      editCategory !== post.category ||
+      newImages.length > 0 ||
+      newVideos.length > 0)
   const editCount = [...editPlain].length
+  const haveImages = post.images.filter((m) => (m.media_type ?? 'image') === 'image').length
+  const haveVideos = post.images.length - haveImages
+  const roomImages = Math.max(0, MAX_IMAGES - haveImages - newImages.length)
+  const roomVideos = Math.max(0, MAX_VIDEOS - haveVideos - newVideos.length)
   const authorName = post.author.full_name
   const chip = CATEGORY_CHIP[post.category]
   const when = timeAgo(post.created_at)
+  const openEdit = () => {
+    setEditContent(post.content)
+    setEditCategory(post.category)
+    setNewImages([])
+    setNewVideos([])
+    setEditing(true)
+  }
   const cancelEdit = () => {
     setEditing(false)
     setEditContent(post.content)
+    setEditCategory(post.category)
+    setNewImages([])
+    setNewVideos([])
   }
 
   const menuButtonClass =
@@ -226,7 +316,7 @@ export function PostCard({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="min-w-[170px]">
                     {canEdit && (
-                      <DropdownMenuItem className="h-10" onClick={() => setEditing(true)}>
+                      <DropdownMenuItem className="h-10" onClick={openEdit}>
                         <Pencil className="size-4" /> Sửa bài
                       </DropdownMenuItem>
                     )}
@@ -258,7 +348,7 @@ export function PostCard({
                         className="h-[52px] w-full bg-ax-sunken text-[17px]"
                         onClick={() => {
                           setSheetOpen(false)
-                          setEditing(true)
+                          openEdit()
                         }}
                       >
                         Sửa bài
@@ -305,7 +395,6 @@ export function PostCard({
                   variant="ax-primary"
                   size="ax"
                   disabled={editMutation.isPending || !editDirty}
-              aria-disabled={!editDirty}
                   onClick={() => editMutation.mutate()}
                 >
                   {editMutation.isPending && <Loader2 className="size-4 animate-spin" />}
@@ -381,7 +470,6 @@ export function PostCard({
             <button
               type="button"
               disabled={editMutation.isPending || !editDirty}
-              aria-disabled={!editDirty}
               onClick={() => editMutation.mutate()}
               className="h-11 px-3.5 text-base font-bold text-ax-primary-hover disabled:text-ax-ink-3"
             >
@@ -394,7 +482,7 @@ export function PostCard({
               <div className="leading-snug">
                 <div className="text-[17px] font-semibold tracking-[-0.011em]">{authorName}</div>
                 <div className="text-[13px] text-white/95">
-                  Đăng {when} · {CATEGORY_LABEL[post.category]}
+                  Đăng {when} · cả công ty thấy
                 </div>
               </div>
             </HeroCard>
@@ -405,6 +493,60 @@ export function PostCard({
               className="min-h-[200px]"
               contentClassName="min-h-[170px]"
             />
+            <h2 className="mt-3 mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-ax-ink-2">Mục</h2>
+            <div role="radiogroup" aria-label="Mục" className="flex flex-wrap gap-2">
+              {([...NEWSFEED_CATEGORIES].reverse() as NewsfeedCategory[]).map((c) => {
+                const on = editCategory === c
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => setEditCategory(c)}
+                    className={cn(
+                      'h-11 cursor-pointer rounded-full border-[1.5px] px-4 text-[15px] font-semibold transition-colors',
+                      on
+                        ? 'border-ax-primary text-[var(--ax-stage-new-ink)] bg-[image:linear-gradient(180deg,#f5f9fd,#e8f0f8)]'
+                        : 'border-ax-line bg-ax-surface text-ax-ink-2 hover:bg-ax-hover',
+                    )}
+                  >
+                    {CATEGORY_LABEL[c]}
+                  </button>
+                )
+              })}
+            </div>
+            {(newImages.length > 0 || newVideos.length > 0) && (
+              <ul aria-label="Tệp sẽ thêm" className="mt-3 flex flex-col gap-1.5">
+                {[...newImages.map((f, i) => ['image', f, i] as const), ...newVideos.map((f, i) => ['video', f, i] as const)].map(
+                  ([kind, f, i]) => (
+                    <li
+                      key={`${kind}-${i}-${f.name}`}
+                      className="flex items-center gap-2 rounded-ax-field border border-ax-line px-3 text-sm text-ax-ink-2"
+                    >
+                      {kind === 'image' ? (
+                        <ImagePlus aria-hidden className="size-4 shrink-0 text-ax-primary" strokeWidth={1.75} />
+                      ) : (
+                        <Video aria-hidden className="size-4 shrink-0 text-ax-primary" strokeWidth={1.75} />
+                      )}
+                      <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                      <button
+                        type="button"
+                        aria-label={`Bỏ ${f.name}`}
+                        onClick={() =>
+                          kind === 'image'
+                            ? setNewImages((p) => p.filter((_, j) => j !== i))
+                            : setNewVideos((p) => p.filter((_, j) => j !== i))
+                        }
+                        className="-mr-2 inline-flex size-11 items-center justify-center rounded-ax-field hover:bg-ax-hover"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </li>
+                  ),
+                )}
+              </ul>
+            )}
             {canDelete && (
               <Button
                 variant="ax-danger"
@@ -419,7 +561,55 @@ export function PostCard({
               Lưu xong bài ghi “đã sửa”. Xoá xong còn vài giây để hoàn tác.
             </p>
           </div>
-          <div className="flex items-center border-t border-ax-divider bg-ax-surface px-2 pt-1.5 pb-[18px]">
+          <div className="flex items-center border-t border-ax-divider bg-ax-surface px-2 pt-1.5 pb-[max(18px,env(safe-area-inset-bottom))]">
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? [])
+                if (files.length > roomImages) toast.error(`Bài chỉ nhận tối đa ${MAX_IMAGES} ảnh`)
+                setNewImages((prev) => [...prev, ...files.slice(0, roomImages)])
+                e.target.value = ''
+              }}
+            />
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept={ACCEPT_VIDEO}
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const picked = Array.from(e.target.files ?? [])
+                if (picked.some((f) => f.size > MAX_VIDEO_BYTES)) {
+                  toast.error('Video vượt quá 40MB, vui lòng chọn file nhỏ hơn')
+                }
+                const ok = picked.filter((f) => f.size <= MAX_VIDEO_BYTES)
+                if (ok.length > roomVideos) toast.error(`Bài chỉ nhận tối đa ${MAX_VIDEOS} video`)
+                setNewVideos((prev) => [...prev, ...ok.slice(0, roomVideos)])
+                e.target.value = ''
+              }}
+            />
+            <button
+              type="button"
+              aria-label="Thêm ảnh"
+              disabled={roomImages === 0 || editMutation.isPending}
+              onClick={() => imageInputRef.current?.click()}
+              className="inline-flex size-12 items-center justify-center rounded-ax-field text-ax-primary hover:bg-ax-hover disabled:text-ax-ink-3"
+            >
+              <ImagePlus aria-hidden className="size-6" strokeWidth={1.75} />
+            </button>
+            <button
+              type="button"
+              aria-label="Thêm video"
+              disabled={roomVideos === 0 || editMutation.isPending}
+              onClick={() => videoInputRef.current?.click()}
+              className="inline-flex size-12 items-center justify-center rounded-ax-field text-ax-primary hover:bg-ax-hover disabled:text-ax-ink-3"
+            >
+              <Video aria-hidden className="size-6" strokeWidth={1.75} />
+            </button>
             <span
               data-testid="edit-char-count"
               className="ml-auto mr-2 text-[13px] tabular-nums text-ax-ink-2"

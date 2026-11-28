@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { MentionEditor } from "@/components/refs/mention-editor"
 import { toast } from "sonner"
+import Link from "next/link"
 import { Eye, Pencil } from "lucide-react"
 import {
   Dialog,
@@ -169,6 +170,9 @@ export function KanbanCardDialog({ cardId, onClose }: KanbanCardDialogProps) {
             <DialogHeader className="border-b px-6 pb-3 pt-5">
               <DialogTitle className="flex items-center gap-2">
                 <RecordCode code={card.code} />
+                <Link href={`/kanban/${card.id}`} className="shrink-0 text-sm font-medium text-primary hover:underline">
+                  Mở trang riêng
+                </Link>
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}

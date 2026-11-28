@@ -60,9 +60,11 @@ const PRIORITY_LABELS: Record<KanbanPriority, string> = {
 interface KanbanCardDialogProps {
   cardId: number | null
   onClose: () => void
+  /** Gọi sau khi xoá card (trước `onClose`) — để màn chứa dọn ngăn chi tiết đang mở cùng card. */
+  onDeleted?: (cardId: number) => void
 }
 
-export function KanbanCardDialog({ cardId, onClose }: KanbanCardDialogProps) {
+export function KanbanCardDialog({ cardId, onClose, onDeleted }: KanbanCardDialogProps) {
   const { user } = useAuth()
   const { can, isAdmin } = usePermissions()
   const { data: card, isLoading, isError } = useKanbanCard(cardId)
@@ -145,6 +147,7 @@ export function KanbanCardDialog({ cardId, onClose }: KanbanCardDialogProps) {
     // Xoá ngay (mềm) + toast "Hoàn tác" 5 giây gọi khôi phục phía máy chủ.
     deleteCard(cardId, card?.title)
     setConfirmDelete(false)
+    onDeleted?.(cardId)
     onClose()
   }
 

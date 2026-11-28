@@ -40,6 +40,11 @@ interface KanbanColumnViewProps {
   /** Chỉ có ở cột đích: chèn thẻ đang kéo (ô giữ chỗ) hoặc vừa thả vào vị trí `index`. */
   drop?: { card: KanbanCard; index: number; height: number } | null
   onOpenCard: (cardId: number) => void
+  /** Thẻ đang mở ở ngăn chi tiết (viền xanh). */
+  selectedCardId?: number | null
+  /** Cột kế bên phải (chuyển thẻ bằng một bấm); không có ⇒ cột cuối, ẩn nút. */
+  nextColumn?: KanbanColumn | null
+  onMoveNext?: (card: KanbanCard, to: KanbanColumn) => void
 }
 
 export function KanbanColumnView({
@@ -52,6 +57,9 @@ export function KanbanColumnView({
   hiddenCardId,
   drop,
   onOpenCard,
+  selectedCardId,
+  nextColumn,
+  onMoveNext,
 }: KanbanColumnViewProps) {
   const { setNodeRef, isOver: isOverAny, active } = useDroppable({ id: `column-${column.id}`, data: { column } })
   // Viền "đang trỏ vào" chỉ cho lúc kéo CỘT — kéo thẻ đã có ô giữ chỗ chỉ đích.
@@ -74,7 +82,7 @@ export function KanbanColumnView({
 
   if (isBeingDragged) {
     return (
-      <div className="flex w-72 shrink-0 max-sm:w-[85vw] max-sm:max-w-72 max-sm:snap-start rounded-[var(--radius)] border-2 border-dashed border-primary/40 bg-primary/5" />
+      <div className="flex min-h-[360px] min-w-0 rounded-ax-sheet border-2 border-dashed border-ax-primary/40 bg-ax-primary-soft" />
     )
   }
 
@@ -104,34 +112,36 @@ export function KanbanColumnView({
     <div
       ref={setNodeRef}
       data-board-column={column.id}
-      className={`flex w-72 shrink-0 max-sm:w-[85vw] max-sm:max-w-72 max-sm:snap-start flex-col rounded-[var(--radius)] border border-[var(--border)] bg-[var(--background)] transition-shadow ${
-        isOver ? "ring-2 ring-[var(--ring)]" : ""
+      aria-label={column.name}
+      className={`flex min-h-[360px] min-w-0 flex-col gap-2 rounded-ax-sheet bg-ax-sunken p-2.5 shadow-ax-inset transition-shadow ${
+        isOver ? "ring-2 ring-[var(--ax-primary)]" : ""
       }`}
     >
-      <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5">
+      <div className="flex items-center justify-between gap-2 px-1 pt-0.5">
         <div ref={setDragHandleRef} className="relative after:absolute after:inset-x-0 after:-inset-y-1 after:content-[''] pointer-coarse:sm:after:-inset-y-3 flex min-w-0 items-center gap-1.5 max-sm:min-h-11" {...dragAttributes} {...dragListeners}>
           {canReorder && <GripVertical className="size-3.5 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing" />}
-          <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ backgroundColor: column.color || "var(--color-app-faint)" }} />
-          <h3 className="truncate text-sm font-semibold">{column.name}</h3>
+          <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: column.color || "var(--ax-ink-3)" }} />
+          <h3 className="truncate text-sm font-bold tracking-[-0.011em] text-ax-ink">{column.name}</h3>
         </div>
-        {/* Số đếm luôn kèm đơn vị: "12 card", "12/15 card" (vượt giới hạn WIP ⇒ đỏ). */}
+        {/* Số đếm: "12", "12+" (còn trang sau), "12/15" (có giới hạn WIP; vượt ⇒ đỏ). */}
         <span
           title={column.wip_limit != null ? `Giới hạn ${formatNumber(column.wip_limit)} card` : undefined}
-          className={`shrink-0 text-sm tabular-nums ${wipExceeded ? "font-semibold text-[var(--color-app-tag-red-ink)]" : "text-muted-foreground"}`}
+          aria-label={`${formatNumber(total)}${hasMoreCards ? " trở lên" : ""} thẻ${column.wip_limit != null ? `, giới hạn ${formatNumber(column.wip_limit)}` : ""}`}
+          className={`shrink-0 text-sm tabular-nums ${wipExceeded ? "font-semibold text-[var(--ax-danger)]" : "font-medium text-ax-ink-2"}`}
         >
           {formatNumber(total)}
           {hasMoreCards ? "+" : ""}
-          {column.wip_limit != null ? `/${formatNumber(column.wip_limit)}` : ""} card
+          {column.wip_limit != null ? `/${formatNumber(column.wip_limit)}` : ""}
         </span>
       </div>
 
-      <div data-board-list className="flex flex-1 flex-col gap-2 overflow-y-auto p-2" style={{ maxHeight: "calc(100vh - 320px)" }}>
+      <div data-board-list className="flex flex-1 flex-col gap-2 overflow-y-auto" style={{ maxHeight: "calc(100vh - 320px)" }}>
         {isLoading ? (
           <LoadingBlock variant="cards" count={3} />
         ) : isError && cards.length === 0 ? (
           <ErrorState compact className="p-2" title="Không tải được card" error={error} onRetry={() => void refetch()} retrying={isFetching} />
         ) : cards.length === 0 && !drop ? (
-          <p className="p-2 text-center text-sm text-muted-foreground">Chưa có card</p>
+          <p className="p-2 text-center text-sm text-ax-ink-2">Chưa có thẻ</p>
         ) : (
           withDrop(
             cards.map((card) => (
@@ -140,6 +150,9 @@ export function KanbanColumnView({
                   card={card}
                   labelDefs={labelDefs}
                   assigneeNames={card.assignee_ids.map((uid) => userNames.get(uid) ?? `#${uid}`)}
+                  selected={card.id === selectedCardId}
+                  nextColumnName={nextColumn?.name}
+                  onMoveNext={nextColumn && onMoveNext ? (c) => onMoveNext(c, nextColumn) : undefined}
                   onOpen={onOpenCard}
                 />
               </motion.div>
@@ -160,8 +173,8 @@ export function KanbanColumnView({
 
         {hasNextPage && (
           <Button
-            variant="ghost"
-            size="sm"
+            variant="ax-ghost"
+            size="ax"
             className="text-sm"
             disabled={isFetchingNextPage}
             onClick={() => fetchNextPage()}
@@ -171,13 +184,14 @@ export function KanbanColumnView({
         )}
       </div>
 
-      <div className="border-t border-[var(--border)] p-2">
+      <div>
         {adding ? (
           <div className="flex flex-col gap-1.5">
             <Input
               autoFocus
               value={title}
-              placeholder="Tiêu đề card…"
+              variant="ax"
+              placeholder="Tiêu đề thẻ…"
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") submitNewCard()
@@ -197,13 +211,8 @@ export function KanbanColumnView({
             />
           </div>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-sm text-muted-foreground max-sm:h-11"
-            onClick={() => setAdding(true)}
-          >
-            <Plus className="mr-1 size-3.5" /> Thêm card
+          <Button variant="ax-ghost" size="ax" className="w-full justify-start text-sm" onClick={() => setAdding(true)}>
+            <Plus className="size-3.5" aria-hidden /> Thêm thẻ
           </Button>
         )}
       </div>

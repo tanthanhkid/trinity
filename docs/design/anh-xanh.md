@@ -130,3 +130,9 @@ showUndoToast("Đã lưu số điện thoại", { onUndo: () => save(prev) })
 - Desktop 3 cột (khối nhấn + giai đoạn + hẹn gọi lại | lịch sử + công việc | thông tin sửa tại chỗ), điện thoại một cột
   (chip giai đoạn, tóm tắt, khay «Bổ sung thông tin», thanh Gọi/Zalo dính đáy). Chỉ dựng MỘT bố cục theo `useMediaQuery("(min-width: 1024px)")`.
   Lưu tại chỗ qua `PATCH /contacts/:id` + `showUndoToast` (`_components/use-contact-patch.ts`); form đầy đủ cũ mở bằng «Chỉnh sửa đầy đủ» / «Sửa».
+
+## Màn đã chuyển: Hoạt động AI (`/ai-actions`)
+
+- Desktop (≥ 1024px): danh sách trái (`AiActionRow`) + chi tiết phải (`AiActionDetailPanel`, khối nhấn ở đầu chi tiết). Điện thoại: đầu trang là khối nhấn có bộ lọc, thẻ `AiActionCard`, bấm thẻ mở chi tiết toàn màn (`AiActionDetailScreen`, thanh đáy dính: Duyệt và thực hiện rồi Từ chối).
+- Chọn bố cục bằng `matchMedia("(min-width: 1024px)")` (render đúng MỘT bố cục, không nhân đôi DOM).
+- Nút Duyệt khi đổi cấu trúc cần gõ tên bảng dùng gradient đỏ 3 điểm của thiết kế (mobile2) đặt bằng `style`, vì `ax-danger` là nút viền trắng chữ đỏ.

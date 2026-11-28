@@ -23,6 +23,8 @@ vi.mock("@/lib/api-client", () => ({
 }))
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }))
 vi.mock("sonner", () => ({ toast }))
+// Màn có HAI bố cục: desktop (≥1024px: danh sách + chi tiết cạnh nhau) và điện thoại (thẻ + chi tiết toàn màn). Mặc định điện thoại.
+const vp = vi.hoisted(() => ({ desktop: false }))
 const search = vi.hoisted(() => ({ value: new URLSearchParams() }))
 vi.mock("next/navigation", () => ({ useSearchParams: () => search.value, useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }))
 
@@ -45,6 +47,8 @@ function renderIt() {
 beforeEach(() => {
   mockGet.mockReset(); mockPost.mockReset(); toast.success.mockReset(); toast.error.mockReset()
   search.value = new URLSearchParams()
+  vp.desktop = false
+  window.matchMedia = ((q: string) => ({ matches: vp.desktop && q.includes("min-width: 1024px"), media: q, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia
   cfg.requireApproval = true; cfg.pending = 0
 })
 afterEach(() => { vi.clearAllMocks() })
@@ -55,8 +59,8 @@ describe("<AiActionsScreen>", () => {
     renderIt()
     expect(await screen.findAllByTestId("ai-action-card")).toHaveLength(2)
     expect(mockGet).toHaveBeenCalledWith("/integrations/ai-actions", { params: { limit: 20, status: "pending" } })
-    expect(screen.getAllByRole("button", { name: "Xem & duyệt" })).toHaveLength(2)
-    expect(screen.getAllByText("ChatGPT").length).toBeGreaterThan(0)
+    expect(screen.getAllByRole("button", { name: /Xem và duyệt/ })).toHaveLength(2)
+    expect(screen.getAllByText(/ChatGPT/).length).toBeGreaterThan(0)
   })
 
   it("cài đặt duyệt TẮT (mặc định) ⇒ lịch sử không lọc status, KHÔNG có tab Chờ duyệt, thao tác AI ghi thẳng hiện 'Đã thực hiện' + liên kết kết quả", async () => {
@@ -66,8 +70,8 @@ describe("<AiActionsScreen>", () => {
     await screen.findAllByTestId("ai-action-card")
     expect(mockGet).toHaveBeenCalledWith("/integrations/ai-actions", { params: { limit: 20 } })
     expect(screen.queryByRole("button", { name: "Chờ duyệt" })).toBeNull()
-    expect(screen.getByText("Đã thực hiện")).toBeTruthy()
-    fireEvent.click(screen.getByRole("button", { name: "Xem chi tiết" }))
+    expect(screen.getAllByText("Đã thực hiện").length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByRole("button", { name: /Xem chi tiết/ }))
     const dialog = await screen.findByRole("dialog")
     expect(within(dialog).getByRole("link", { name: "Mở khách hàng" }).getAttribute("href")).toBe("/contacts/77")
     expect(within(dialog).queryByRole("button", { name: /Duyệt và thực hiện/ })).toBeNull()
@@ -85,7 +89,7 @@ describe("<AiActionsScreen>", () => {
   it("không có đề xuất ⇒ thông báo rõ; tab Tất cả không lọc status", async () => {
     mockGet.mockResolvedValue(page([]))
     renderIt()
-    await screen.findByText(/Không có thay đổi nào đang chờ bạn duyệt/)
+    await screen.findByText(/Không còn gì chờ bạn duyệt/)
     fireEvent.click(screen.getByRole("button", { name: "Tất cả" }))
     await screen.findByText(/Chưa có hoạt động nào của AI/)
     expect(mockGet).toHaveBeenLastCalledWith("/integrations/ai-actions", { params: { limit: 20 } })
@@ -95,11 +99,11 @@ describe("<AiActionsScreen>", () => {
     mockGet.mockResolvedValue(page([act(7)]))
     mockPost.mockResolvedValue({ data: act(7, { status: "approved", result: { contact_id: 55 } }) })
     renderIt()
-    fireEvent.click(await screen.findByRole("button", { name: "Xem & duyệt" }))
+    fireEvent.click(await screen.findByRole("button", { name: /Xem và duyệt/ }))
     const dialog = await screen.findByRole("dialog")
     expect(within(dialog).getByText("Họ tên")).toBeTruthy()
     expect(within(dialog).getByText("***321")).toBeTruthy()
-    expect(within(dialog).getByText(/Chưa có gì được thực hiện cho tới khi bạn bấm Duyệt/)).toBeTruthy()
+    expect(within(dialog).getByText(/Chưa có gì được thực hiện/)).toBeTruthy()
     expect(within(dialog).getByRole("button", { name: /Từ chối/ })).toBeTruthy()
     fireEvent.click(within(dialog).getByRole("button", { name: /Duyệt và thực hiện/ }))
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith("/integrations/ai-actions/7/approve"))
@@ -110,7 +114,7 @@ describe("<AiActionsScreen>", () => {
     mockGet.mockResolvedValue(page([act(8)]))
     mockPost.mockResolvedValue({ data: act(8, { status: "rejected" }) })
     renderIt()
-    fireEvent.click(await screen.findByRole("button", { name: "Xem & duyệt" }))
+    fireEvent.click(await screen.findByRole("button", { name: /Xem và duyệt/ }))
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /Từ chối/ }))
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith("/integrations/ai-actions/8/reject"))
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
@@ -120,7 +124,7 @@ describe("<AiActionsScreen>", () => {
     mockGet.mockResolvedValue(page([act(9)]))
     mockPost.mockRejectedValue({ response: { status: 403, data: { message: "Bạn không còn quyền thực hiện thao tác này (cần quyền contacts.create)" } } })
     renderIt()
-    fireEvent.click(await screen.findByRole("button", { name: "Xem & duyệt" }))
+    fireEvent.click(await screen.findByRole("button", { name: /Xem và duyệt/ }))
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /Duyệt và thực hiện/ }))
     expect((await screen.findByRole("alert")).textContent).toContain("cần quyền contacts.create")
     expect(screen.getByRole("dialog")).toBeTruthy()
@@ -130,7 +134,7 @@ describe("<AiActionsScreen>", () => {
     const evil = '<img src=x onerror="alert(1)"><script>alert(2)</script>'
     mockGet.mockResolvedValue(page([act(3, { summary: evil, client_name: evil, details: [{ label: "Ghi chú", value: evil }] })]))
     const { container } = renderIt()
-    fireEvent.click(await screen.findByRole("button", { name: "Xem & duyệt" }))
+    fireEvent.click(await screen.findByRole("button", { name: /Xem và duyệt/ }))
     await screen.findByRole("dialog")
     expect(document.querySelector("img[src='x']")).toBeNull()
     expect(document.querySelector("script")).toBeNull()
@@ -146,7 +150,7 @@ describe("<AiActionsScreen>", () => {
     renderIt()
     await screen.findAllByTestId("ai-action-card")
     expect(screen.getByText("SĐT ***321 đã tồn tại")).toBeTruthy()
-    fireEvent.click(screen.getAllByRole("button", { name: "Xem chi tiết" })[0])
+    fireEvent.click(screen.getAllByRole("button", { name: /Xem chi tiết/ })[0])
     const dialog = await screen.findByRole("dialog")
     const link = within(dialog).getByRole("link", { name: "Mở khách hàng" })
     expect(link.getAttribute("href")).toBe("/contacts/55")
@@ -184,5 +188,39 @@ describe("<AiActionsScreen>", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Xem thêm/ }))
     await waitFor(() => expect(mockGet).toHaveBeenLastCalledWith("/integrations/ai-actions", { params: { limit: 20, status: "pending", cursor: 20 } }))
     await waitFor(() => expect(screen.getAllByTestId("ai-action-card")).toHaveLength(2))
+  })
+
+  describe("desktop (≥1024px): danh sách trái + chi tiết phải", () => {
+    beforeEach(() => { vp.desktop = true })
+
+    it("tự chọn mục đầu danh sách và hiện chi tiết ngay cạnh (không dialog); bấm mục khác ⇒ đổi chi tiết", async () => {
+      mockGet.mockImplementation(async (url: string) => (url.endsWith("/2") ? { data: act(2) } : url.endsWith("/1") ? { data: act(1) } : page([act(1), act(2)])))
+      renderIt()
+      const detail = await screen.findByTestId("ai-detail")
+      expect(within(detail).getByRole("heading", { name: /An 1/ })).toBeTruthy()
+      expect(screen.queryByRole("dialog")).toBeNull()
+      const rows = screen.getAllByTestId("ai-action-card")
+      expect(within(rows[0]).getByRole("button").getAttribute("aria-current")).toBe("true")
+      fireEvent.click(within(rows[1]).getByRole("button"))
+      await waitFor(() => expect(within(screen.getByTestId("ai-detail")).getByRole("heading", { name: /An 2/ })).toBeTruthy())
+    })
+
+    it("Duyệt ngay trên bảng chi tiết ⇒ POST /:id/approve, toast; chỉ một nút Duyệt", async () => {
+      mockGet.mockImplementation(async (url: string) => (url.endsWith("/7") ? { data: act(7) } : page([act(7)])))
+      mockPost.mockResolvedValue({ data: act(7, { status: "approved" }) })
+      renderIt()
+      const detail = await screen.findByTestId("ai-detail")
+      expect(within(detail).getByText("Họ tên")).toBeTruthy()
+      fireEvent.click(within(detail).getByRole("button", { name: /Duyệt và thực hiện/ }))
+      await waitFor(() => expect(mockPost).toHaveBeenCalledWith("/integrations/ai-actions/7/approve"))
+      await waitFor(() => expect(toast.success).toHaveBeenCalled())
+    })
+
+    it("danh sách rỗng ⇒ EmptyState + gợi ý chọn mục", async () => {
+      mockGet.mockResolvedValue(page([]))
+      renderIt()
+      await screen.findByText(/Không còn gì chờ bạn duyệt/)
+      expect(screen.getByText(/Chọn một mục bên trái/)).toBeTruthy()
+    })
   })
 })

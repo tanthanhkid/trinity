@@ -11,10 +11,15 @@ export interface Received {
 
 export class FakeSmtp {
   private server: net.Server
+  private sockets = new Set<net.Socket>()
   readonly inbox: Received[] = []
 
   constructor(readonly port: number) {
-    this.server = net.createServer((sock) => this.session(sock))
+    this.server = net.createServer((sock) => {
+      this.sockets.add(sock)
+      sock.on('close', () => this.sockets.delete(sock))
+      this.session(sock)
+    })
   }
 
   start(): Promise<void> {
@@ -24,7 +29,9 @@ export class FakeSmtp {
     })
   }
 
+  /** Máy chủ giữ kết nối SMTP trong pool: đóng hẳn mọi socket, nếu không `close()` chờ mãi. */
   stop(): Promise<void> {
+    for (const s of this.sockets) s.destroy()
     return new Promise((resolve) => this.server.close(() => resolve()))
   }
 

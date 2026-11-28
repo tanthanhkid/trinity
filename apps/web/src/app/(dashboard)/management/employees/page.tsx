@@ -1560,7 +1560,8 @@ function EmployeesPageContent() {
               isAdmin={isAdmin}
               canResetDevice={canResetDevice}
               onEdit={() => setEditEmployee(current)}
-              onEditWork={() => setWorkTarget(current)}
+              // Khay «Sửa công việc» gọi PATCH cần `users.manage` (máy chủ) ⇒ thiếu thì nhóm Công việc mở hộp sửa hồ sơ như cũ.
+              onEditWork={can("users.manage") ? () => setWorkTarget(current) : undefined}
               renderRoles={(variant) => (
                 <EmployeeRolesCard
                   key={current.user_id}

@@ -127,6 +127,12 @@ describe("khay Sửa công việc — chỉ gửi trường đã đổi", () => 
     expect("patch" in r && r.patch).toEqual({ manager_id: null })
   })
 
+  it("xoá trắng chức danh / ngày vào làm ⇒ lỗi (máy chủ bỏ qua null), không báo «Đã lưu» giả", () => {
+    expect("error" in buildWorkPatch(emp, { ...workDraftOf(emp), job_title_id: null }, name)).toBe(true)
+    expect("error" in buildWorkPatch({ ...emp, job_title_id: null }, { ...workDraftOf({ ...emp, job_title_id: null }), position: " " }, name)).toBe(true)
+    expect("error" in buildWorkPatch(emp, { ...workDraftOf(emp), joined: "" }, name)).toBe(true)
+  })
+
   it("ngày vào làm sai dạng ⇒ lỗi, không gửi", () => {
     expect(buildWorkPatch(emp, { ...workDraftOf(emp), joined: "31/02" }, name)).toEqual({
       error: "Nhập ngày vào làm dạng dd/mm/yyyy.",

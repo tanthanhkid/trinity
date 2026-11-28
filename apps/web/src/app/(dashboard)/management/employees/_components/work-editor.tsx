@@ -90,15 +90,20 @@ export function buildWorkPatch(
     patch.status = draft.status
     if (init.status) undo.status = init.status
   }
+  // Máy chủ chỉ ghi `position`/`joined_at` khi có giá trị (null bị bỏ qua) ⇒ không cho xoá trắng, tránh báo «Đã lưu» mà không đổi gì.
   if (draft.job_title_id !== init.job_title_id) {
+    if (draft.job_title_id === null && init.position.trim()) {
+      return { error: "Chưa bỏ trống chức danh được — chọn một chức danh khác." }
+    }
     patch.job_title_id = draft.job_title_id
     const name = draft.job_title_id !== null ? jobTitleName(draft.job_title_id) : undefined
     if (name) patch.position = name
     undo.job_title_id = init.job_title_id
-    undo.position = emp.position ?? null
+    if (emp.position) undo.position = emp.position
   } else if (draft.position.trim() !== init.position.trim()) {
-    patch.position = draft.position.trim() || null
-    undo.position = emp.position ?? null
+    if (!draft.position.trim()) return { error: "Chưa bỏ trống chức danh được — nhập chức danh mới." }
+    patch.position = draft.position.trim()
+    if (emp.position) undo.position = emp.position
   }
   const teamChanged = draft.team_id !== init.team_id && draft.team_id !== null
   if (teamChanged) patch.team_id = draft.team_id as number
@@ -113,8 +118,9 @@ export function buildWorkPatch(
   if (draft.joined.trim() !== init.joined) {
     const parsed = parseVnDate(draft.joined)
     if (parsed === undefined) return { error: "Nhập ngày vào làm dạng dd/mm/yyyy." }
-    patch.joined_at = parsed ? new Date(`${parsed}T00:00:00+07:00`).toISOString() : null
-    undo.joined_at = emp.joined_at ?? null
+    if (!parsed) return { error: "Chưa bỏ trống ngày vào làm được — nhập ngày dd/mm/yyyy." }
+    patch.joined_at = new Date(`${parsed}T00:00:00+07:00`).toISOString()
+    if (emp.joined_at) undo.joined_at = emp.joined_at
   }
   if (!teamChanged && draft.manager_id !== init.manager_id) {
     patch.manager_id = draft.manager_id
@@ -264,9 +270,10 @@ export function EmployeeWorkEditor({
         onUndo:
           undo && Object.keys(undo).length > 0
             ? () =>
-                update.mutate(undo as UpdateEmployeeDto, {
-                  onError: (err) => toast.error(errorMessage(err, "Chưa hoàn tác được")),
-                })
+                // mutateAsync: khay đã đóng (observer gỡ) nên callback onError của mutate sẽ không chạy.
+                void update
+                  .mutateAsync(undo as UpdateEmployeeDto)
+                  .catch((err) => toast.error(errorMessage(err, "Chưa hoàn tác được")))
             : undefined,
       })
     } catch (err) {

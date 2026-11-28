@@ -391,7 +391,7 @@ export function EmployeeDetail({
   return (
     <div className="flex flex-wrap items-start gap-4 max-lg:block max-lg:pb-10">
       {/* Cột chính: khối nhấn + các nhóm thông tin */}
-      <div className="flex min-w-0 flex-[1_1_420px] flex-col gap-4 max-lg:block">
+      <div className="flex min-w-0 flex-[1000_1_420px] flex-col gap-4 max-lg:block">
         {onBack && (
           <div className="flex items-center px-2 pt-1 lg:hidden">
             <button
@@ -478,7 +478,7 @@ export function EmployeeDetail({
       {/* Cột phải desktop: Vai trò + Hệ thống; điện thoại: nối tiếp bên dưới */}
       <aside
         aria-label="Vai trò và hệ thống"
-        className="flex w-[300px] flex-[0_0_300px] flex-col gap-4 max-lg:block max-lg:w-auto max-lg:min-w-0 max-lg:px-4"
+        className="flex min-w-0 flex-[1_1_300px] flex-col gap-4 max-lg:block max-lg:w-auto max-lg:min-w-0 max-lg:px-4"
       >
         {renderRoles && <div className="max-lg:hidden">{renderRoles("desktop")}</div>}
         {systemCard}

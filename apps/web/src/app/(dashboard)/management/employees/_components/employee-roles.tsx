@@ -7,7 +7,7 @@
  *   (`users.manage`/`roles.manage`), tên vai trò là duy nhất. Thiếu quyền ⇒ KHÔNG gọi API nào (khoá «không request khi thiếu quyền»).
  * - Đổi: `PUT /users/:id/roles` (`users.manage`) THAY toàn bộ tập vai trò ⇒ tập gửi đi = tập đang giữ (id thật từ máy chủ) ± một vai trò.
  *   Chưa tải xong hoặc có tên không ánh xạ được ⇒ khoá chip, tránh một lần bấm xoá mất vai trò khác.
- *   Mỗi lúc một lệnh; lỗi (vd «Phải còn ít nhất 1 Quản trị», chống tự nâng quyền) hiện nguyên lời máy chủ; Hoàn tác gửi lại tập cũ.
+ *   Mỗi lúc một lệnh; lỗi (vd «Phải còn ít nhất 1 Quản trị», chống tự nâng quyền) hiện nguyên lời máy chủ; Hoàn tác đảo đúng vai trò vừa bấm trên tập mới nhất.
  * - Vai trò hệ thống chỉ Quản trị gán/bỏ được (máy chủ cũng chặn). Vai trò vẫn cấu hình ở Cài đặt → Vai trò.
  */
 import * as React from "react"
@@ -134,6 +134,15 @@ export function EmployeeRolesCard({
 }) {
   const st = useEmployeeRoles(userId, { canView, canAssign })
   const setRoles = useSetUserRoles()
+  // Hoàn tác chỉ đảo ĐÚNG vai trò đã bấm, tính trên tập mới nhất lúc bấm Hoàn tác (không ghi đè các lần đổi sau).
+  // Đọc tập qua ref vì toast sống lâu hơn lần render tạo ra nó.
+  const heldRef = React.useRef(st.heldIds)
+  const busyRef = React.useRef(false)
+  React.useEffect(() => {
+    heldRef.current = st.heldIds
+    busyRef.current = setRoles.isPending
+  })
+
   // Ngoài phạm vi `users.view` của người xem (404/403) ⇒ không có gì để hiện, ẩn hẳn khối.
   const outOfScope = isAxiosError(st.error) && [403, 404].includes(st.error.response?.status ?? 0)
   if (!canView || outOfScope) return null
@@ -141,21 +150,17 @@ export function EmployeeRolesCard({
   const busy = setRoles.isPending
   const ready = canAssign && st.heldIds !== null
 
-  function apply(next: number[], prev: number[], message: string) {
-    setRoles.mutate(
-      { userId, roleIds: next },
-      {
-        onSuccess: () =>
-          showUndoToast(message, {
-            onUndo: () =>
-              setRoles.mutate(
-                { userId, roleIds: prev },
-                { onError: (err) => toast.error(errorMessage(err, "Chưa hoàn tác được vai trò")) },
-              ),
-          }),
-        onError: (err) => toast.error(errorMessage(err, "Chưa đổi được vai trò")),
-      },
-    )
+  function undoToggle(roleId: number, wasOn: boolean) {
+    const cur = heldRef.current
+    if (cur === null || busyRef.current) {
+      toast.error("Chưa hoàn tác được vai trò — đợi lệnh trước xong rồi thử lại")
+      return
+    }
+    const next = wasOn ? (cur.includes(roleId) ? cur : [...cur, roleId]) : cur.filter((x) => x !== roleId)
+    // mutateAsync: callback theo lần gọi của mutate không chạy khi khối đã gỡ (đổi nhân viên).
+    void setRoles
+      .mutateAsync({ userId, roleIds: next })
+      .catch((err) => toast.error(errorMessage(err, "Chưa hoàn tác được vai trò")))
   }
 
   function toggle(r: RoleSummary) {
@@ -163,7 +168,16 @@ export function EmployeeRolesCard({
     const prev = st.heldIds
     const on = prev.includes(r.id)
     const next = on ? prev.filter((x) => x !== r.id) : [...prev, r.id]
-    apply(next, prev, `${on ? "Đã bỏ vai trò" : "Đã thêm vai trò"} ${r.name} của ${name}`)
+    setRoles.mutate(
+      { userId, roleIds: next },
+      {
+        onSuccess: () =>
+          showUndoToast(`${on ? "Đã bỏ vai trò" : "Đã thêm vai trò"} ${r.name} của ${name}`, {
+            onUndo: () => undoToggle(r.id, on),
+          }),
+        onError: (err) => toast.error(errorMessage(err, "Chưa đổi được vai trò")),
+      },
+    )
   }
 
   // Người xem chỉ được xem: hiện các vai trò đang giữ (không bấm được).

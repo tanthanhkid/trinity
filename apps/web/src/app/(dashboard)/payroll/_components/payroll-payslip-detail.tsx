@@ -3,7 +3,7 @@
 // Chi tiết phiếu lương «Ánh xanh» (luong-desktop): đường dẫn trên, trạng thái kỳ, nhóm khoản sửa tại chỗ
 // (có Hoàn tác), khối nhấn «Thực nhận» + Lưu/Duyệt ở cột phải. Thay cho hai hộp thoại Sửa phiếu / Chi tiết cũ,
 // giữ nguyên API (`PATCH /payslips/:id`, duyệt, xuất, loại khỏi kỳ) và quyền.
-import { useId, useState } from "react"
+import { useId, useRef, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { ChevronLeft, ChevronRight, Download, FileSpreadsheet, Loader2, Trash2, X } from "lucide-react"
@@ -119,11 +119,15 @@ function EditRow({
   onRemove?: () => void
 }) {
   const [editing, setEditing] = useState(false)
+  // Enter/Escape đã xử lý xong ⇒ bỏ qua blur do ô nhập bị gỡ khỏi DOM (Escape không được lưu nhầm số vừa gõ).
+  const settled = useRef(false)
   const id = useId()
   const changed = value !== saved
   const d = display(spec.kind, value)
   const clean = (raw: string) => (spec.kind === "money" ? digits(raw) : oneDecimalPoint(raw))
   const commit = (raw: string) => {
+    if (settled.current) return
+    settled.current = true
     setEditing(false)
     const next = clean(raw)
     if (next !== value) onCommit(next)
@@ -144,7 +148,10 @@ function EditRow({
           className={cn(AX_INPUT_CLASS, "h-10 w-[170px] text-right text-[15px] max-sm:h-11")}
           onKeyDown={(e) => {
             if (e.key === "Enter") commit(e.currentTarget.value)
-            if (e.key === "Escape") setEditing(false)
+            if (e.key === "Escape") {
+              settled.current = true
+              setEditing(false)
+            }
           }}
           onBlur={(e) => commit(e.currentTarget.value)}
         />
@@ -152,7 +159,10 @@ function EditRow({
         <button
           type="button"
           disabled={!editable}
-          onClick={() => setEditing(true)}
+          onClick={() => {
+            settled.current = false
+            setEditing(true)
+          }}
           aria-label={`Sửa ${spec.label}, hiện ${d.text}${d.unit}`}
           className={cn(
             "min-h-11 min-w-[150px] rounded-ax-field px-3 text-right text-base font-semibold ax-amount",
@@ -440,7 +450,7 @@ export function PayslipDetailView({
               Số tạm tính tại đây. Bảo hiểm và thuế được máy chủ tính lại khi lưu.
             </p>
             {dirty && (
-              <div className="mt-4 rounded-ax-card bg-ax-warn-soft p-3 text-[13px] leading-snug text-[#7A4F0E]">
+              <div className="mt-4 rounded-ax-card bg-[var(--ax-stage-consult-bg)] p-3 text-[13px] leading-snug text-[var(--ax-stage-consult-ink)]">
                 Đã sửa {dirtyKeys.length} khoản. Thực nhận {delta >= 0 ? "tăng" : "giảm"} {fmt(Math.abs(delta))} so với bản đã lưu.
               </div>
             )}

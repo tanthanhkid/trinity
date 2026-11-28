@@ -46,6 +46,7 @@ model User {
   manager                        User?                 @relation("UserManager", fields: [manager_id], references: [id], onDelete: SetNull)
   managed_users                  User[]                @relation("UserManager")
   user_roles                     UserRole[]
+  identities                     UserIdentity[]
   contacts                       Contact[]             @relation("AssignedContacts")
   created_contacts               Contact[]             @relation("CreatedContacts")
   employee                       Employee?
@@ -786,6 +787,43 @@ model UserInvitation {
 
   @@index([email])
   @@map("user_invitations")
+}
+
+/// Một lượt gửi mã đăng nhập qua email (#675): mã 6 số + link một lần, chỉ lưu HMAC. purpose: login | invite.
+model LoginChallenge {
+  id             Int       @id @default(autoincrement())
+  email          String    @db.VarChar(255)
+  purpose        String    @default("login") @db.VarChar(16)
+  invitation_id  Int?
+  code_hash      String    @db.VarChar(64)
+  token_hash     String?   @unique @db.VarChar(64)
+  expires_at     DateTime  @db.Timestamptz(3)
+  attempts       Int       @default(0)
+  consumed_at    DateTime? @db.Timestamptz(3)
+  invalidated_at DateTime? @db.Timestamptz(3)
+  ip_address     String?   @db.VarChar(64)
+  user_agent     String?   @db.VarChar(512)
+  created_at     DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([email, created_at])
+  @@map("login_challenges")
+}
+
+/// Danh tính ngoài (Google OIDC, #675) gắn với người dùng: subject = claim `sub`.
+model UserIdentity {
+  id            Int       @id @default(autoincrement())
+  user_id       Int
+  provider      String    @db.VarChar(32)
+  subject       String    @db.VarChar(255)
+  email         String?   @db.VarChar(255)
+  created_at    DateTime  @default(now()) @db.Timestamptz(3)
+  last_login_at DateTime? @db.Timestamptz(3)
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([provider, subject])
+  @@unique([user_id, provider])
+  @@map("user_identities")
 }
 
 model Setting {

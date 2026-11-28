@@ -6,8 +6,8 @@
 use std::sync::Arc;
 
 use mod_auth::{
-    Actor, AuthConfig, AuthService, GrantsSource, INVITATION_GONE_MESSAGE, UserGrants, assert_user_slot_available,
-    invitation_scope, revoke_pending_invitations_by, revoke_pending_invitations_for_email,
+    Actor, AuthConfig, AuthService, GrantsSource, INVITATION_GONE_MESSAGE, InviteProof, LoginOptions, UserGrants,
+    assert_user_slot_available, invitation_scope, revoke_pending_invitations_by, revoke_pending_invitations_for_email,
 };
 use serde_json::{Value, json};
 use sqlx::{AssertSqlSafe, Connection, PgConnection};
@@ -16,6 +16,7 @@ use trinity_db::platform::Platform;
 use trinity_db::provision::{ProvisionInput, provision_company};
 use trinity_db::{CompanyRef, Db, DbConfig, LATEST_MIGRATION};
 use trinity_kernel::error::Message;
+use trinity_mail::MemoryMailer;
 use trinity_rbac::{OwnerIds, PermissionService, RbacCache, ScopeService, grants::grants_to_json};
 use trinity_storage::LocalUploadsStore;
 
@@ -54,6 +55,8 @@ struct Env {
     email_a: String,
     email_b: String,
     ip: std::sync::atomic::AtomicU32,
+    /// Hộp thư giả của đăng nhập không mật khẩu (#675).
+    mail: MemoryMailer,
 }
 
 async fn tsql(db: &Db, c: CompanyRef, sql: &str) {
@@ -174,6 +177,7 @@ async fn setup_env(signup: bool) -> Env {
     cfg.login_wifi_env = false;
     let dir = std::env::temp_dir().join(format!("m02-uploads-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
+    let mail = MemoryMailer::default();
     let svc = AuthService::new(
         db.clone(),
         platform,
@@ -181,7 +185,12 @@ async fn setup_env(signup: bool) -> Env {
         RealGrants(perms.clone()),
         LocalUploadsStore::new(&dir),
         cfg,
-    );
+    )
+    .with_login_options(LoginOptions {
+        mailer: Some(Arc::new(mail.clone())),
+        public_url: Some("https://crm.example.test".to_owned()),
+        ..LoginOptions::default()
+    });
     Env {
         db,
         svc,
@@ -194,6 +203,7 @@ async fn setup_env(signup: bool) -> Env {
         email_a,
         email_b,
         ip: std::sync::atomic::AtomicU32::new(1),
+        mail,
     }
 }
 
@@ -223,6 +233,133 @@ impl Env {
         let ip = self.ip();
         self.svc.accept_invitation(token, name, pw, Some(&ip), true).await
     }
+}
+
+/// Chờ thư gửi ở tác vụ nền rồi lấy mã 6 số trong tiêu đề.
+async fn wait_code(mail: &MemoryMailer) -> (String, trinity_mail::OutgoingMail) {
+    for _ in 0..100 {
+        let mut got = mail.take();
+        if let Some(m) = got.pop() {
+            let code = m.subject.rsplit(' ').next().unwrap().to_owned();
+            assert_eq!(code.len(), 6, "{}", m.subject);
+            return (code, m);
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    panic!("không có thư");
+}
+
+fn other_code(code: &str) -> String {
+    let n: u32 = code.parse().unwrap();
+    format!("{:06}", (n + 1) % 1_000_000)
+}
+
+#[tokio::test]
+#[ignore = "cần Postgres (TEST_DATABASE_URL), nhiều công ty"]
+async fn nhan_loi_moi_bang_ma_email_khong_can_mat_khau() {
+    let e = setup_env(true).await;
+    let owner = e.actor(e.a, e.owner_a).await;
+    let email = format!("ma-{}@example.com", std::process::id());
+    let inv = e.invite(&owner, &email, e.staff_role_a).await.unwrap();
+    let token = inv["token"].as_str().unwrap().to_owned();
+    let sent = e
+        .svc
+        .invitation_send_code(&token, Some("10.9.0.1"), true, Some("UA"))
+        .await
+        .unwrap();
+    assert_eq!(sent["email"], "m***@example.com");
+    let (code, m) = wait_code(&e.mail).await;
+    assert_eq!(m.to, email);
+    assert!(m.subject.starts_with("Mã xác nhận Trinity: "));
+    assert!(m.text.contains("Công ty A"));
+    // Mã nằm trong schema công ty A, chỉ ở dạng băm.
+    let stored: String = tscalar(
+        &e.db,
+        e.a,
+        "SELECT code_hash FROM login_challenges ORDER BY id DESC LIMIT 1",
+    )
+    .await;
+    assert_eq!(stored.len(), 64);
+    assert!(!stored.contains(&code));
+    // Sai mã: báo còn lượt, chưa tạo tài khoản.
+    let wrong = e
+        .svc
+        .accept_invitation_with(
+            &token,
+            "Nhân Viên Mã",
+            InviteProof::Code(&other_code(&code)),
+            Some("10.9.0.2"),
+            true,
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(err_msg(&wrong), (400, "Mã không đúng. Bạn còn 4 lần thử.".to_owned()));
+    // Đúng mã: tạo tài khoản KHÔNG mật khẩu, đăng nhập luôn.
+    let out = e
+        .svc
+        .accept_invitation_with(&token, "Nhân Viên Mã", InviteProof::Code(&code), Some("10.9.0.3"), true)
+        .await
+        .unwrap();
+    assert!(out["access_token"].is_string());
+    assert_eq!(out["company"]["id"], e.a.id());
+    let hash: String = tscalar(
+        &e.db,
+        e.a,
+        &format!("SELECT password_hash FROM users WHERE email = '{email}'"),
+    )
+    .await;
+    assert_eq!(hash, "", "tài khoản mới không bắt buộc mật khẩu");
+    let method: String = tscalar(
+        &e.db,
+        e.a,
+        &format!("SELECT metadata->>'method' FROM audit_logs WHERE action = 'login' AND metadata->>'email' = '{email}' ORDER BY id DESC LIMIT 1"),
+    )
+    .await;
+    assert_eq!(method, "email_code");
+    // Lời mời và mã đều dùng một lần.
+    let again = e
+        .svc
+        .accept_invitation_with(&token, "Khác", InviteProof::Code(&code), Some("10.9.0.4"), true)
+        .await
+        .unwrap_err();
+    assert_eq!(again.error().status(), 410);
+    // Đăng nhập lại bằng email trong công ty A (email quyết định công ty).
+    e.svc
+        .email_start(&email.to_uppercase(), Some("10.9.0.5"), true, None)
+        .await
+        .unwrap();
+    let (code2, m2) = wait_code(&e.mail).await;
+    assert!(
+        m2.text.contains("https://crm.example.test/auth/email#token=c"),
+        "link có tiền tố công ty: {}",
+        m2.text
+    );
+    let me = e
+        .svc
+        .email_verify(&email, &code2, Some("10.9.0.6"), true)
+        .await
+        .unwrap();
+    assert_eq!(me["company"]["id"], e.a.id());
+    assert_eq!(me["user"]["email"], email.as_str());
+    // Link của thư đó đã chết vì mã đã dùng (cùng một lượt).
+    let link_token = m2
+        .text
+        .split("#token=")
+        .nth(1)
+        .unwrap()
+        .split_whitespace()
+        .next()
+        .unwrap()
+        .to_owned();
+    assert_eq!(
+        e.svc
+            .email_link(&link_token, Some("10.9.0.7"), true)
+            .await
+            .unwrap_err()
+            .error()
+            .status(),
+        400
+    );
 }
 
 fn err_msg(e: &mod_auth::AuthFail) -> (u16, String) {

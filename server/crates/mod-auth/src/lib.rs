@@ -9,7 +9,9 @@
 //! Quyền của người dùng (`grantsFor`) thuộc K12 nên đi qua [`GrantsSource`]; K12 xong thì nối bản thật.
 
 pub mod dto;
+pub mod google;
 mod invitations;
+pub mod login;
 mod rate_limit;
 pub mod routes;
 mod targets;
@@ -30,13 +32,15 @@ use trinity_rbac::PermissionService;
 use trinity_storage::{LocalUploadsStore, UPLOADS_URL_PREFIX, uploads_rel_path_from_url};
 
 pub use invitations::{
-    Actor, INVITATION_GONE_MESSAGE, INVITE_TTL_DAYS, InvitationStatus, USABLE_INVITATION_SQL, USER_SLOT_LOCK,
-    assert_user_slot_available, company_id_of_token, company_token_prefix, hash_invite_token, invitable_roles,
-    invitation_scope, invitation_status, invite_path, lock_user_slots, new_invite_token, revoke_pending_invitations_by,
-    revoke_pending_invitations_for_email, revoke_pending_invitations_for_role, user_limit_message,
+    Actor, INVITATION_GONE_MESSAGE, INVITE_TTL_DAYS, InvitationStatus, InviteProof, USABLE_INVITATION_SQL,
+    USER_SLOT_LOCK, assert_user_slot_available, company_id_of_token, company_token_prefix, hash_invite_token,
+    invitable_roles, invitation_scope, invitation_status, invite_path, lock_user_slots, new_invite_token,
+    revoke_pending_invitations_by, revoke_pending_invitations_for_email, revoke_pending_invitations_for_role,
+    user_limit_message,
 };
+pub use login::{LoginOptions, LoginState, has_usable_password, mask_email, safe_next};
 pub use rate_limit::{RateLimiter, untrusted_delay_ms};
-pub use routes::{AuthCtx, api_router, specs};
+pub use routes::{AuthCtx, api_router, login_specs, specs};
 pub use wifi::{
     TargetSets, bypass_listed, group_targets, is_targeted, is_unusable_login_ip, login_ip_matches_office,
     normalize_login_ip,
@@ -207,6 +211,16 @@ pub enum LoginReason {
     WifiBlocked,
     OwnerMismatch,
     RoleNotAllowed,
+    /// Mã email sai / không còn lượt mã nào dùng được.
+    BadCode,
+    /// Mã/link đã hết hạn hoặc đã dùng.
+    CodeExpired,
+    /// Lượt mã đã nhập sai quá 5 lần.
+    TooManyAttempts,
+    /// Danh tính ngoài (Google) không khớp tài khoản nào.
+    NoAccount,
+    /// Bản cài đặt đã tắt đăng nhập bằng mật khẩu.
+    PasswordDisabled,
 }
 
 impl LoginReason {
@@ -220,6 +234,11 @@ impl LoginReason {
             Self::WifiBlocked => "wifi_blocked",
             Self::OwnerMismatch => "owner_mismatch",
             Self::RoleNotAllowed => "role_not_allowed",
+            Self::BadCode => "bad_code",
+            Self::CodeExpired => "code_expired",
+            Self::TooManyAttempts => "too_many_attempts",
+            Self::NoAccount => "no_account",
+            Self::PasswordDisabled => "password_disabled",
         }
     }
 }
@@ -232,6 +251,8 @@ pub struct AuthService<G> {
     uploads: LocalUploadsStore,
     cfg: AuthConfig,
     limiter: Mutex<RateLimiter>,
+    /// Đăng nhập không mật khẩu (#675): tuỳ chọn + trạng thái RAM (giới hạn, lượt Google, vé).
+    login: LoginState,
 }
 
 impl<G: GrantsSource> AuthService<G> {
@@ -251,6 +272,7 @@ impl<G: GrantsSource> AuthService<G> {
             uploads,
             cfg,
             limiter: Mutex::new(RateLimiter::default()),
+            login: LoginState::default(),
         }
     }
 
@@ -389,6 +411,22 @@ impl<G: GrantsSource> AuthService<G> {
         ip: Option<&str>,
         reason: LoginReason,
     ) {
+        self.log_login_via(company, user_id, email, success, ip, reason, "password")
+            .await;
+    }
+
+    /// Nhật ký đăng nhập kèm phương thức: `password`, `email_code`, `email_link`, `google`.
+    #[allow(clippy::too_many_arguments)]
+    async fn log_login_via(
+        &self,
+        company: CompanyRef,
+        user_id: Option<i32>,
+        email: &str,
+        success: bool,
+        ip: Option<&str>,
+        reason: LoginReason,
+        method: &str,
+    ) {
         // Lỗi ghi nhật ký chỉ ghi log, không làm hỏng đăng nhập/đăng ký đã xong (như `log_password_change`).
         let res = async {
             let mut c = self.conn(company).await?;
@@ -398,7 +436,7 @@ impl<G: GrantsSource> AuthService<G> {
             )
             .bind(user_id)
             .bind(ip)
-            .bind(json!({ "email": email, "success": success, "reason": reason.as_str() }))
+            .bind(json!({ "email": email, "success": success, "reason": reason.as_str(), "method": method }))
             .execute(&mut *c)
             .await
             .map_err(|e| internal("nhật ký đăng nhập", e))?;
@@ -634,6 +672,14 @@ impl<G: GrantsSource> AuthService<G> {
         };
         let slow = (!ip_trusted).then(|| format!("login-untrusted-email:{norm}"));
         let company = self.company_of_email(email).await?;
+        if !self.login.opts.password_login {
+            self.log_login(company, None, email, false, ip, LoginReason::PasswordDisabled)
+                .await;
+            return Err(HttpError::forbidden(
+                "Bản cài đặt này đã tắt đăng nhập bằng mật khẩu. Hãy đăng nhập bằng email hoặc Google.",
+            )
+            .into());
+        }
         if let Some(retry) = self.enforce_rate_limit(&key) {
             return Err(self.rate_limited(company, email, ip, retry).await);
         }
@@ -663,7 +709,7 @@ impl<G: GrantsSource> AuthService<G> {
                 .await;
             return Err(unauthorized("Email hoặc mật khẩu không đúng"));
         };
-        if !password::verify(password_in.to_owned(), user.password_hash.clone()).await {
+        if !login::verify_password(password_in, &user.password_hash).await {
             fail(self);
             self.log_login(company, Some(user.id), email, false, ip, LoginReason::BadPassword)
                 .await;
@@ -765,7 +811,7 @@ impl<G: GrantsSource> AuthService<G> {
                 .await;
             return Err(unauthorized("Email hoặc mật khẩu không đúng"));
         };
-        if !password::verify(password_in.to_owned(), user.password_hash.clone()).await {
+        if !login::verify_password(password_in, &user.password_hash).await {
             fail(self);
             self.log_login(company, Some(user.id), email, false, ip, LoginReason::BadPassword)
                 .await;
@@ -945,7 +991,7 @@ impl<G: GrantsSource> AuthService<G> {
             .find_by_id(company, id)
             .await?
             .ok_or_else(|| HttpError::not_found("Không tìm thấy người dùng"))?;
-        if !password::verify(current.to_owned(), user.password_hash).await {
+        if !login::verify_password(current, &user.password_hash).await {
             return Err(unauthorized("Mật khẩu hiện tại không đúng"));
         }
         Ok(())

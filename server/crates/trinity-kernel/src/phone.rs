@@ -60,9 +60,10 @@ pub fn phone_variants(local: &str) -> Vec<String> {
 }
 
 /// Số điện thoại Việt Nam nằm trong một đoạn văn (tin nhắn của khách), dạng nội địa `0xxxxxxxxx`, theo thứ tự xuất hiện, không
-/// trùng. Nhận `0912 345 678`, `0912.345.678`, `0912-345-678`, `+84 912 345 678`, `84912345678`. Chỉ nhận số có đầu `0`/`84`/`+84`
-/// (KHÔNG nhận 9 số trần như `normalize_phone`, vì "18.500.000" hay "912345678 đồng" là tiền) và đầu số di động hợp lệ
-/// 03/05/07/08/09. Dãy chữ số dính liền chữ cái hoặc dài hơn một SĐT (số tài khoản, mã đơn) thì bỏ qua.
+/// trùng. Nhận `0912 345 678`, `0912.345.678`, `0912-345-678`, `+84 912 345 678`, `84912345678`. Chỉ nhận số có đầu `0`/`+84`/`84`
+/// viết liền (KHÔNG nhận 9 số trần như `normalize_phone`, vì "18.500.000" hay "912345678 đồng" là tiền; "84 912 345 678" không `+`
+/// cũng bỏ vì dễ lẫn tiền) và đầu số di động hợp lệ 03/05/07/08/09. Dãy chữ số VIẾT LIỀN dính chữ cái hoặc dài hơn một SĐT (số tài
+/// khoản, mã đơn) thì bỏ qua; dãy có dấu cách/chấm/gạch thì lấy phần đầu khớp SĐT ("0912 345 678 2 cái" ⇒ `0912345678`).
 pub fn detect_phones(text: &str) -> Vec<String> {
     // Tách thành các "cụm" chữ số nối nhau bằng đúng một dấu cách/chấm/gạch; `+` đứng ngay trước cụm đầu thì giữ lại.
     let chars: Vec<char> = text.chars().collect();

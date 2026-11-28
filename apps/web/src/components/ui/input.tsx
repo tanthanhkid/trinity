@@ -10,7 +10,7 @@ import { DS_V2_ENABLED } from "@/lib/design-system-flags"
  * focus viền xanh + quầng 3px, lỗi viền đỏ. Dùng chung cho `<textarea>` / ô tự dựng.
  */
 export const AX_INPUT_CLASS =
-  "rounded-[var(--ax-radius-field)] h-10 max-sm:h-12 pointer-coarse:h-12 border-ax-field-border bg-ax-surface px-3 text-sm max-sm:text-base text-ax-ink shadow-none placeholder:text-[var(--ax-placeholder)] hover:border-[var(--ax-field-border-hover)] focus-visible:border-ax-primary focus-visible:ring-0 focus-visible:shadow-[var(--ax-field-focus)] aria-invalid:border-ax-danger aria-invalid:ring-0"
+  "rounded-[var(--ax-radius-field)] h-10 max-sm:h-12 pointer-coarse:h-12 border border-ax-field-border bg-ax-surface px-3 text-sm max-sm:text-base text-ax-ink shadow-none placeholder:text-[var(--ax-placeholder)] hover:border-[var(--ax-field-border-hover)] focus-visible:border-ax-primary focus-visible:ring-0 focus-visible:shadow-[var(--ax-field-focus)] aria-invalid:border-ax-danger aria-invalid:ring-0"
 
 function Input({
   className,

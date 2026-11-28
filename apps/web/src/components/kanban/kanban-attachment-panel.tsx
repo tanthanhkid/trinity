@@ -111,7 +111,7 @@ export function KanbanAttachmentPanel({ cardId }: { cardId: number }) {
           type="button"
           variant="ghost"
           size="sm"
-          className="w-fit justify-start text-xs text-muted-foreground"
+          className="h-10 w-fit justify-start text-xs text-muted-foreground"
           onClick={() => setAdding(true)}
         >
           <Plus className="mr-1 size-3.5" /> Đính kèm link

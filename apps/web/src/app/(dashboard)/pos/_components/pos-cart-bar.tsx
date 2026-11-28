@@ -16,7 +16,7 @@ interface Props {
  * Thanh dính đáy của tab Bán hàng TRÊN ĐIỆN THOẠI — khối nhấn «Ánh xanh» bo 22 phía trên:
  * "N món · Tổng" (chạm mở giỏ) + "Thanh toán" (chính, cuối) — đúng thiết kế pos-mobile; "Lưu đơn" nằm trong giỏ
  * (không đặt trên thanh: ba nút làm tổng tiền 7 chữ số bị cắt "2.990…"). Chỉ là lớp tóm tắt —
- * giỏ chi tiết vẫn là `PosCartPanel` (bảng trượt đáy), các nút gọi đúng handler của `PosSell`.
+ * giỏ chi tiết vẫn là `PosCartPanel` (màn đơn toàn phần `PosOrderScreen`), các nút gọi đúng handler của `PosSell`.
  * Giỏ rỗng: thanh gọn một nút "Chạm món để thêm" (vẫn mở được giỏ để chọn bàn/mang đi).
  * Dòng đệm cuối giữ nội dung danh sách không bị thanh che.
  */

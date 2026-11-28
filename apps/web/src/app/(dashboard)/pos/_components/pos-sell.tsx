@@ -5,7 +5,6 @@ import { toast } from "sonner"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadingBlock } from "@/components/ui/loading-block"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { useIsPhone } from "@/hooks/use-is-phone"
 import apiClient from "@/lib/api-client"
 import {
@@ -21,6 +20,7 @@ import { PosCartBar } from "./pos-cart-bar"
 import { PosCartPanel } from "./pos-cart-panel"
 import { PosItemDialog } from "./pos-item-dialog"
 import { PosMenuGrid } from "./pos-menu-grid"
+import { PosOrderScreen } from "./pos-order-screen"
 import { PosOpenOrdersBar } from "./pos-open-orders-bar"
 import { PosPaymentDialog } from "./pos-payment-dialog"
 import { usePosPrint } from "./pos-receipt"
@@ -115,9 +115,9 @@ export function PosSell() {
   if (menuQ.isLoading) return <LoadingBlock variant="cards" count={4} label="Đang tải thực đơn…" />
   if (menuQ.isError || !menuQ.data) return <ErrorState title="Không tải được thực đơn" error={menuQ.error} onRetry={() => void menuQ.refetch()} retrying={menuQ.isFetching} />
 
-  const cartPanel = (inSheet: boolean) => (
+  const cartPanel = () => (
     <PosCartPanel
-      cart={cart} setCart={setCart} tableName={tableName} busy={busy} inSheet={inSheet}
+      cart={cart} setCart={setCart} tableName={tableName} busy={busy}
       onEditLine={setEditKey} onOpenTable={() => setTableOpen(true)} onNew={() => guardDiscard(() => loadCart(EMPTY_CART))}
       onSave={doSave} onPay={doPay}
       onProvisional={() => print(receiptFromCart(cart, tableName))}
@@ -130,18 +130,21 @@ export function PosSell() {
       <PosOpenOrdersBar currentId={cart.orderId} tables={tables} onPick={(o) => guardDiscard(() => loadCart(cartFromOrder(o)))} />
       <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
         <PosMenuGrid menu={menuQ.data} onPick={pick} lines={cart.lines} onDec={decProduct} />
-        {!isPhone && cartPanel(false)}
+        {!isPhone && cartPanel()}
       </div>
       {isPhone && (
         <>
           <PosCartBar cart={cart} busy={busy} onOpen={() => setCartOpen(true)} onPay={doPay} />
-          {/* Một hộp thoại con (chọn bàn/sửa món/thanh toán/huỷ) mở thì nhường chỗ — đóng xong giỏ hiện lại. */}
-          <Sheet open={cartOpen && !payOrder && !tableOpen && !editing && !voiding} onOpenChange={setCartOpen}>
-            <SheetContent side="bottom" className="max-h-[90dvh] gap-0 rounded-t-2xl">
-              <SheetTitle className="sr-only">Giỏ hàng</SheetTitle>
-              {cartPanel(true)}
-            </SheetContent>
-          </Sheet>
+          {/* Màn đơn toàn phần (pos-mobile2). Hộp thoại con (chọn bàn/sửa món/thanh toán/huỷ) mở thì màn đơn nhường chỗ — đóng xong hiện lại. */}
+          {cartOpen && !payOrder && !tableOpen && !editing && !voiding && (
+            <PosOrderScreen
+              cart={cart} setCart={setCart} tableName={tableName} busy={busy} onBack={() => setCartOpen(false)}
+              onEditLine={setEditKey} onOpenTable={() => setTableOpen(true)} onNew={() => guardDiscard(() => loadCart(EMPTY_CART))}
+              onSave={doSave} onPay={doPay}
+              onProvisional={() => print(receiptFromCart(cart, tableName))}
+              onVoid={() => setVoiding(true)}
+            />
+          )}
         </>
       )}
 

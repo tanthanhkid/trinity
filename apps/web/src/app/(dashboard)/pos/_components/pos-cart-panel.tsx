@@ -1,13 +1,10 @@
 "use client"
 
 import type { Dispatch, SetStateAction } from "react"
-import { Armchair, MoreHorizontal, Minus, Plus, Printer, Receipt, ShoppingBag, Trash2 } from "lucide-react"
+import { Armchair, Minus, Plus, Printer, Receipt, ShoppingBag, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { HeroCard } from "@/components/ui/hero-card"
 import { useOffline } from "@/components/offline-banner"
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { vnd } from "@/lib/pos-format"
@@ -27,8 +24,6 @@ interface Props {
   onProvisional: () => void
   onVoid: () => void
   onNew: () => void
-  /** Điện thoại: giỏ nằm trong bảng trượt đáy (CÙNG component này, không nhân bản) — bỏ viền, "Huỷ đơn" vào menu "⋯", chừa chỗ nút đóng của bảng. */
-  inSheet?: boolean
 }
 
 const DISCOUNT_TABS: Array<{ v: PosDiscountType; label: string }> = [
@@ -46,24 +41,14 @@ export function PosCartPanel(p: Props) {
     setCart((c) => ({ ...c, orderType, tableId: orderType === "takeaway" ? null : c.tableId }))
 
   return (
-    <aside aria-label="Giỏ hàng" className={cn("flex min-h-0 w-full flex-col bg-ax-surface lg:w-[420px] lg:shrink-0", p.inSheet ? "flex-1" : "rounded-ax-sheet border border-ax-line ax-grad-card shadow-ax-card overflow-hidden")}>
-      <div className={cn("flex items-center justify-between gap-2 border-b border-ax-divider px-4 py-3.5", p.inSheet && "pr-14")}>
+    <aside aria-label="Giỏ hàng" className="flex min-h-0 w-full flex-col rounded-ax-sheet border border-ax-line bg-ax-surface ax-grad-card shadow-ax-card overflow-hidden lg:w-[420px] lg:shrink-0">
+      <div className="flex items-center justify-between gap-2 border-b border-ax-divider px-4 py-3.5">
         <div className="min-w-0">
           <h2 className="truncate text-[17px] font-bold tracking-[-0.011em] text-ax-ink">{cart.orderCode ? `Đơn ${cart.orderCode}` : "Đơn mới"}</h2>
           <p className="ax-amount text-[13px] text-ax-ink-2">{cartCount(cart.lines)} món</p>
         </div>
         <div className="flex items-center gap-1">
-          <Button type="button" variant="ax-secondary" size="ax" className="min-h-11 text-ax-ink-2" onClick={p.onNew}>{p.inSheet ? "Mới" : "Đơn mới"}</Button>
-          {p.inSheet && cart.orderId != null && (
-            <DropdownMenu>
-              <DropdownMenuTrigger render={<Button type="button" variant="ax-ghost" size="ax-icon" aria-label="Thao tác khác" disabled={p.busy} />}>
-                <MoreHorizontal aria-hidden />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem variant="destructive" className="min-h-11" onClick={p.onVoid}>Huỷ đơn này</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          <Button type="button" variant="ax-secondary" size="ax" className="min-h-11 text-ax-ink-2" onClick={p.onNew}>Đơn mới</Button>
         </div>
       </div>
 
@@ -100,7 +85,7 @@ export function PosCartPanel(p: Props) {
         ))}
       </ul>
 
-      <div className={cn("space-y-2.5 border-t border-ax-divider px-4 pb-4 pt-3", p.inSheet && "pb-[calc(0.75rem+env(safe-area-inset-bottom))]")}>
+      <div className={"space-y-2.5 border-t border-ax-divider px-4 pb-4 pt-3"}>
         <div className="flex items-center gap-2 max-sm:flex-wrap">
           <span className="w-[72px] text-sm text-ax-ink-2">Giảm giá</span>
           <div className="flex gap-1.5" role="group" aria-label="Loại giảm giá">
@@ -134,7 +119,7 @@ export function PosCartPanel(p: Props) {
           <Button type="button" variant="ax-secondary" className="size-11" aria-label="In tạm tính" disabled={empty} onClick={p.onProvisional}><Printer /></Button>
         </div>
         {offline && <p role="status" className="text-sm text-[var(--color-app-tag-amber-ink)]">Đang mất mạng — chưa lưu / thu tiền được. Giỏ hàng vẫn giữ nguyên, có mạng lại thì bấm tiếp.</p>}
-        {cart.orderId != null && !p.inSheet && (
+        {cart.orderId != null && (
           <Button type="button" variant="ax-danger" className="min-h-11 w-full" disabled={p.busy || offline} onClick={p.onVoid}>Huỷ đơn này</Button>
         )}
       </div>

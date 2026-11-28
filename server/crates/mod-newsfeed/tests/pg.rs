@@ -653,6 +653,62 @@ async fn sua_bai_doi_muc_va_them_anh_video() {
             .unwrap()
     };
     assert_eq!(n, 4);
+    // Nội dung chỉ còn thẻ rỗng lưu thành "".
+    let up = mod_newsfeed::update_with_media(&db, &store, &a1, post.id, Some("<p><br></p>"), None, vec![], &[])
+        .await
+        .unwrap();
+    assert_eq!(up.content, "");
+    // Tác giả bị thu quyền đăng: vẫn sửa chữ/mục, không thêm được tệp.
+    let revoked = actor(1, false, false);
+    mod_newsfeed::update_with_media(&db, &store, &revoked, post.id, None, Some("training"), vec![], &[])
+        .await
+        .unwrap();
+    assert_eq!(
+        status(
+            mod_newsfeed::update_with_media(&db, &store, &revoked, post.id, None, None, vec![png()], &[])
+                .await
+                .unwrap_err()
+        ),
+        403
+    );
+    // Bài kiểu cũ chỉ có `image_url`: thêm ảnh thì ảnh cũ thành dòng đầu, không bị che; bài rỗng chữ vẫn đổi mục được.
+    let legacy = create_t(&db, &store, &a1, "pr", "x", vec![], &[]).await.unwrap();
+    {
+        let mut c = db.acquire().await.unwrap();
+        sqlx::query("UPDATE newsfeed_posts SET image_url = 'newsfeed/cu.webp', content = '' WHERE id = $1")
+            .bind(legacy.id)
+            .execute(&mut *c)
+            .await
+            .unwrap();
+    }
+    let up = mod_newsfeed::update_with_media(&db, &store, &a1, legacy.id, Some(""), Some("training"), vec![], &[])
+        .await
+        .unwrap();
+    assert_eq!(
+        (up.category.as_str(), up.image_url.as_deref()),
+        ("training", Some("newsfeed/cu.webp"))
+    );
+    let nine: Vec<ImageUpload> = (0..10).map(|_| png()).collect();
+    assert_eq!(
+        status(
+            mod_newsfeed::update_with_media(&db, &store, &a1, legacy.id, None, None, nine, &[])
+                .await
+                .unwrap_err()
+        ),
+        400,
+        "ảnh cũ tính vào trần 10"
+    );
+    let up = mod_newsfeed::update_with_media(&db, &store, &a1, legacy.id, None, None, vec![png()], &[])
+        .await
+        .unwrap();
+    let j = json(&up);
+    assert!(j["image_url"].is_null());
+    let imgs = j["images"].as_array().unwrap();
+    assert_eq!(imgs.len(), 2);
+    assert_eq!(
+        (imgs[0]["image_url"].as_str(), imgs[0]["sort_order"].as_i64()),
+        (Some("newsfeed/cu.webp"), Some(0))
+    );
     assert_eq!(
         status(
             mod_newsfeed::update_with_media(&db, &store, &a1, 9999, None, None, vec![png()], &[])

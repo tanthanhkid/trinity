@@ -20,6 +20,7 @@ import {
   type NewsfeedCategory,
   type NewsfeedPost,
 } from './types'
+import { htmlToPlain } from './plain-text'
 
 export const MAX_IMAGES = 10
 export const MAX_VIDEOS = 5
@@ -84,7 +85,7 @@ export async function compressImage(file: File): Promise<Blob> {
 
 // RichTextEditor trả HTML; coi là "rỗng" khi bỏ hết thẻ chỉ còn khoảng trắng.
 function htmlIsEmpty(html: string): boolean {
-  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim() === ''
+  return htmlToPlain(html) === ''
 }
 
 // Thông báo lỗi upload rõ ràng theo nguyên nhân ("thông báo lỗi

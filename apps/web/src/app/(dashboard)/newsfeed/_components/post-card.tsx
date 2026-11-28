@@ -58,6 +58,7 @@ import {
   describeUploadError,
 } from './post-composer'
 import { useIsDesktop } from './use-is-desktop'
+import { htmlToPlain } from './plain-text'
 import { PostComments } from './post-comments'
 import { PostImageGallery } from './post-image-gallery'
 import { errorMessage } from '@/lib/error-messages'
@@ -74,22 +75,8 @@ function timeAgo(iso: string): string {
   return formatDate(new Date(iso))
 }
 
-const ENTITIES: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
-
-/** Chữ thuần của HTML bài (bỏ thẻ, giải mã entity) — để đếm ký tự và kiểm rỗng. */
-export function htmlToPlain(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
-      if (e[0] === '#') {
-        const n = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)
-        return Number.isInteger(n) && n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : m
-      }
-      return ENTITIES[e.toLowerCase()] ?? m
-    })
-    .trim()
-}
+/** Trần nội dung của máy chủ (`CONTENT_MAX_LEN`, đếm cả thẻ HTML). */
+const CONTENT_MAX_LEN = 20000
 
 /** Lỗi kiểm phía client khi lưu (câu tiếng Việt, hiện nguyên văn). */
 class EditCheckError extends Error {}
@@ -198,6 +185,9 @@ export function PostCard({
   const editMutation = useMutation({
     mutationFn: async () => {
       const category = editCategory !== post.category ? editCategory : undefined
+      if (editContent.length > CONTENT_MAX_LEN) {
+        throw new EditCheckError('Nội dung quá dài (kể cả định dạng) — vui lòng rút gọn hoặc bớt định dạng')
+      }
       // PATCH bắt buộc nội dung; bài chỉ có ảnh/video (nội dung rỗng) hoặc có tệp mới thì đi route multipart.
       if (newImages.length === 0 && newVideos.length === 0 && htmlToPlain(editContent) !== '') {
         await apiClient.patch(`/newsfeed/${post.id}`, { content: editContent, category })
@@ -254,8 +244,11 @@ export function PostCard({
       newImages.length > 0 ||
       newVideos.length > 0)
   const editCount = [...editPlain].length
-  const haveImages = post.images.filter((m) => (m.media_type ?? 'image') === 'image').length
-  const haveVideos = post.images.length - haveImages
+  // Ảnh kiểu cũ (`image_url`, bài chưa có dòng ảnh nào) tính là một ảnh, như máy chủ.
+  const haveImages =
+    post.images.filter((m) => (m.media_type ?? 'image') === 'image').length +
+    (post.images.length === 0 && post.image_url ? 1 : 0)
+  const haveVideos = post.images.filter((m) => m.media_type === 'video').length
   const roomImages = Math.max(0, MAX_IMAGES - haveImages - newImages.length)
   const roomVideos = Math.max(0, MAX_VIDEOS - haveVideos - newVideos.length)
   const authorName = post.author.full_name

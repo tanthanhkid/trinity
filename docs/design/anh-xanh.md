@@ -148,7 +148,8 @@ showUndoToast("Đã lưu số điện thoại", { onUndo: () => save(prev) })
 - Màn sửa mobile (bangtin-mobile2): chọn «Mục», thanh đáy «Thêm ảnh»/«Thêm video» + đếm ký tự (chữ thuần, đã giải mã
   entity); nút «Lưu» chỉ sáng khi nội dung, mục hoặc tệp mới khác bản đang đăng. Không thêm tệp ⇒ `PATCH /newsfeed/:id`
   `{content, category?}`; có tệp ⇒ `POST /newsfeed/:id/upload` (multipart `content`, `category`, `images`, `videos`), tệp
-  nối sau tệp cũ, trần 10 ảnh/5 video tính cả tệp đã có. Chỉ tác giả hoặc `newsfeed.moderate`; sửa không gửi lại thông
+  nối sau tệp cũ, trần 10 ảnh/5 video tính cả tệp đã có (ảnh kiểu cũ `image_url` tính là một). Chỉ tác giả hoặc
+  `newsfeed.moderate` (thêm tệp cần thêm `newsfeed.post`); bài chỉ có ảnh (không chữ) lưu qua route multipart; sửa không gửi lại thông
   báo «bài mới». Chưa gỡ được tệp cũ khi sửa (thiết kế không có).
 - Lệch thiết kế: thời gian hiện tương đối («3 giờ trước») như code cũ.
 

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { PostCard, htmlToPlain } from "@/app/(dashboard)/newsfeed/_components/post-card"
+import { PostCard } from "@/app/(dashboard)/newsfeed/_components/post-card"
+import { htmlToPlain } from "@/app/(dashboard)/newsfeed/_components/plain-text"
 import type { NewsfeedPost } from "@/app/(dashboard)/newsfeed/_components/types"
 
 const patch = vi.fn()
@@ -117,6 +118,16 @@ describe("PostCard «Sửa bài» mobile", () => {
     expect(url).toBe("/newsfeed/9/upload")
     expect(fd.get("category")).toBe("training")
     expect(patch).not.toHaveBeenCalled()
+  })
+
+  it("bài kiểu cũ có image_url: ảnh cũ tính vào trần 10", () => {
+    openEditor({ ...base, image_url: "newsfeed/cu.webp" })
+    const input = document.querySelector('input[type="file"][accept^="image"]') as HTMLInputElement
+    const files = Array.from({ length: 10 }, (_, i) => new File(["x"], `a${i}.png`, { type: "image/png" }))
+    fireEvent.change(input, { target: { files } })
+    expect(screen.queryByText("a8.png")).toBeTruthy()
+    expect(screen.queryByText("a9.png")).toBeNull()
+    expect((screen.getByRole("button", { name: "Thêm ảnh" }) as HTMLButtonElement).disabled).toBe(true)
   })
 
   it("entity ngoài dải Unicode không làm vỡ màn", () => {

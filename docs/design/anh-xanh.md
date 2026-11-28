@@ -172,3 +172,12 @@ Danh sách + hồ sơ: desktop (≥1024px) hai cột (danh sách 380px | hồ s�
   tách theo `useIsWide()` = 1024px, không phải CSS co giãn), `facebook-page-state.ts` (trạng thái/ba dòng tình trạng/nhật ký suy từ trường thật của Page).
   Desktop: khối nhấn trạng thái + «Cách nhận khách» sửa nháp rồi **Lưu cấu hình** (một PATCH) kèm Hoàn tác; điện thoại: công tắc/người nhận lưu ngay + Hoàn tác,
   hướng dẫn nối lại 3 bước (mobile2); «Thêm Fanpage» (thiết kế điện thoại không vẽ) giữ ở cuối danh sách công cụ. «Gửi hướng dẫn cho quản trị viên Page» chưa có (PR riêng, cần API + tool MCP).
+
+## Màn Sản phẩm (`/products`, `/products/[id]`)
+
+- Danh sách giữ lưới thẻ (thiết kế không có màn danh sách): thẻ `ax-card`, chip trạng thái `StageChip`, nút `ax-*`; bấm
+  «Xem chi tiết»/«Sửa» chuyển sang trang `/products/[id]` (trước đây là hộp thoại). «Thêm sản phẩm» vẫn là hộp thoại.
+- `/products/[id]`: ≥1024px trang sửa hai cột (`product-editor-desktop.tsx`), dưới đó xem + sửa nhanh (`product-mobile.tsx`);
+  chung bản nháp `product-draft.ts` + `use-product-editor.ts`. Lưu = `PATCH /products/:id` chỉ với các trường đã đổi, Hoàn tác trả lại đúng các trường đó (từ chối nếu trường đã được lưu lại sau đó). Bản nháp giữ ở trang nên đổi khổ qua 1024px không mất.
+- Lệch có chủ đích: mã sản phẩm hiện nhưng KHOÁ (BE không cho đổi); thuộc tính động thay hai ô «Chất liệu/Kích thước» mẫu;
+  thêm ô Dự án (chỉ đọc); thương hiệu/màu/thẻ/nổi bật giữ ở cuối màn sửa điện thoại; không có quyền sửa ⇒ chỉ đọc.

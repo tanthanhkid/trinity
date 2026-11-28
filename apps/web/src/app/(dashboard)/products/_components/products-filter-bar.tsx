@@ -96,7 +96,7 @@ export function ProductsFilterBar(p: ProductsFilterBarProps) {
           value={p.search}
           onChange={(e) => p.onSearchChange(e.target.value)}
           placeholder="Tìm mã, tên, thương hiệu…"
-          className="h-10 pl-9 max-sm:h-11"
+          variant="ax" className="pl-9"
         />
       </div>
       <MobileFilterSheet activeCount={activeCount} onReset={resetFilters}>

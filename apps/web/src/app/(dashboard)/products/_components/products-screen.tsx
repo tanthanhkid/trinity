@@ -11,6 +11,7 @@
  */
 import { useMemo, useState } from "react"
 import dynamic from "next/dynamic"
+import { useRouter } from "next/navigation"
 import { Package, Plus, Settings2 } from "lucide-react"
 import { toast } from "sonner"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -32,8 +33,8 @@ import { ALL_SENTINEL, ProductsFilterBar } from "./products-filter-bar"
 
 // Hộp thoại/khối chỉ mở khi người dùng bấm: tách chunk, chỉ tải khi cần (và chỉ gắn vào cây khi đang mở).
 const ProductArchivedList = dynamic(() => import("./product-archived-list").then((m) => ({ default: m.ProductArchivedList })))
+/** Chỉ còn dùng để THÊM mới; xem/sửa một sản phẩm đi sang trang `/products/[id]`. */
 const ProductFormDialog = dynamic(() => import("./product-form-dialog").then((m) => ({ default: m.ProductFormDialog })))
-const ProductDetailModal = dynamic(() => import("./product-detail-modal").then((m) => ({ default: m.ProductDetailModal })))
 const ProductCategoryManagerDialog = dynamic(() =>
   import("./product-category-manager-dialog").then((m) => ({ default: m.ProductCategoryManagerDialog })),
 )
@@ -51,8 +52,7 @@ export function ProductsScreen() {
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_SENTINEL)
   const [showInactive, setShowInactive] = useState(false)
 
-  const [detailProduct, setDetailProduct] = useState<Product | null>(null)
-  const [editProduct, setEditProduct] = useState<Product | undefined>(undefined)
+  const router = useRouter()
   const [showCreate, setShowCreate] = useState(false)
   const [showCategoryManager, setShowCategoryManager] = useState(false)
   const [deleteProduct, setDeleteProduct] = useState<Product | null>(null)
@@ -137,6 +137,10 @@ export function ProductsScreen() {
     setShowInactive(false)
   }
 
+  function openProduct(product: Product) {
+    router.push(`/products/${product.id}`)
+  }
+
   function handleToggleActive(product: Product) {
     setActive(product, !product.is_active)
   }
@@ -148,10 +152,10 @@ export function ProductsScreen() {
         actions={
           canManage && (
             <>
-              <Button variant="outline" onClick={() => setShowCategoryManager(true)}>
+              <Button variant="ax-secondary" size="ax" onClick={() => setShowCategoryManager(true)}>
                 <Settings2 className="mr-1.5 size-4" /> Quản lý danh mục
               </Button>
-              <Button className={MOBILE_FAB_CLASS} onClick={() => setShowCreate(true)}>
+              <Button variant="ax-primary" size="ax" className={MOBILE_FAB_CLASS} onClick={() => setShowCreate(true)}>
                 <Plus className="mr-1.5 size-4" /> Thêm sản phẩm
               </Button>
             </>
@@ -180,20 +184,22 @@ export function ProductsScreen() {
         <ErrorState title="Không tải được danh sách sản phẩm" error={error} onRetry={() => void refetch()} retrying={isFetching} />
       ) : products.length === 0 ? (
         <EmptyState
+          variant="ax"
           icon={Package}
           title="Chưa có sản phẩm nào"
           message="Thêm sản phẩm để bán ở POS, trang bán hàng và gắn vào cơ hội."
           action={canManage ? (
-            <Button variant="outline" onClick={() => setShowCreate(true)}>
+            <Button variant="ax-secondary" size="ax" onClick={() => setShowCreate(true)}>
               <Plus className="mr-1.5 size-4" /> Thêm sản phẩm
             </Button>
           ) : undefined}
         />
       ) : filtered.length === 0 ? (
         <EmptyState
+          variant="ax"
           title="Không có sản phẩm nào khớp bộ lọc"
           message="Thử bỏ bớt điều kiện hoặc tìm bằng tên khác."
-          action={<Button variant="outline" onClick={clearFilters}>Xoá bộ lọc</Button>}
+          action={<Button variant="ax-secondary" size="ax" onClick={clearFilters}>Xoá bộ lọc</Button>}
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -204,8 +210,8 @@ export function ProductsScreen() {
               canEditFull={canManage}
               canDelete={canManage}
               categories={categories}
-              onViewDetail={setDetailProduct}
-              onEdit={setEditProduct}
+              onViewDetail={openProduct}
+              onEdit={openProduct}
               onToggleActive={handleToggleActive}
               onDelete={setDeleteProduct}
             />
@@ -213,21 +219,8 @@ export function ProductsScreen() {
         </div>
       )}
 
-      {detailProduct && (
-        <ProductDetailModal product={detailProduct} open onOpenChange={(o) => !o && setDetailProduct(null)} />
-      )}
-
       {showCreate && (
         <ProductFormDialog open onClose={() => setShowCreate(false)} onSuccess={() => setShowCreate(false)} />
-      )}
-
-      {editProduct && (
-        <ProductFormDialog
-          open
-          product={editProduct}
-          onClose={() => setEditProduct(undefined)}
-          onSuccess={() => setEditProduct(undefined)}
-        />
       )}
 
       {showCategoryManager && <ProductCategoryManagerDialog open onClose={() => setShowCategoryManager(false)} />}

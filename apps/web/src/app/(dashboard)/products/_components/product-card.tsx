@@ -52,7 +52,7 @@ export function ProductCard({
   return (
     <div
       className={cn(
-        "group flex flex-col overflow-hidden rounded-[var(--radius)] border bg-card shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-[var(--color-app-primary)] hover:shadow-md",
+        "group ax-card flex flex-col overflow-hidden transition-[box-shadow,border-color] duration-150 hover:border-ax-primary hover:shadow-[var(--ax-shadow-float)]",
       )}
     >
       {/* Mờ CHỈ ảnh bìa: opacity trên cả thẻ kéo chữ phụ xuống ~3,4:1 (< AA 4.5:1). */}
@@ -69,14 +69,14 @@ export function ProductCard({
 
         <div className="min-w-0 space-y-1">
           <h3 className="truncate text-base font-semibold leading-snug">{product.name}</h3>
-          <div className="truncate text-sm text-muted-foreground">
+          <div className="truncate text-sm text-ax-ink-2">
             {product.brand ?? "—"} · {product.code}
           </div>
         </div>
 
         <div className="space-y-0.5">
-          <div className="text-xs font-medium text-muted-foreground">Giá</div>
-          <div className="text-xl font-bold text-[var(--color-app-primary-ink)]">
+          <div className="ax-text-label">Giá</div>
+          <div className="ax-amount text-xl font-bold text-ax-primary-ink">
             {product.price == null ? "—" : `${formatCurrency(product.price)} đ`}
           </div>
           <div className="truncate text-sm text-muted-foreground">
@@ -105,20 +105,16 @@ export function ProductCard({
         )}
 
         <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
-          <Button variant="outline" className="h-10 flex-1 max-sm:min-w-0" onClick={() => onViewDetail(product)}>
+          <Button variant="ax-secondary" size="ax" className="flex-1 max-sm:min-w-0" onClick={() => onViewDetail(product)}>
             <Eye className="mr-1.5 size-4" /> Xem chi tiết
           </Button>
           {canEditFull && (
-            <Button
-              variant="outline"
-              className="h-10"
-              onClick={() => onEdit(product)}
-            >
+            <Button variant="ax-secondary" size="ax" onClick={() => onEdit(product)}>
               <Pencil className="mr-1 size-3.5" /> Sửa
             </Button>
           )}
           {canEditFull && (
-            <Button size="sm" variant="ghost" className="max-sm:hidden" onClick={() => onToggleActive(product)}>
+            <Button variant="ax-ghost" size="ax-sm" className="max-sm:hidden" onClick={() => onToggleActive(product)}>
               {product.is_active ? (
                 <>
                   <PowerOff className="mr-1 size-3.5" /> Ẩn
@@ -166,8 +162,8 @@ export function ProductCard({
           )}
           {canDelete && (
             <Button
-              size="sm"
-              variant="destructive"
+              size="ax-sm"
+              variant="ax-danger"
               className="max-sm:hidden"
               onClick={() => onDelete(product)}
             >

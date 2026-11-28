@@ -62,6 +62,7 @@ model User {
   attendance_records             AttendanceRecord[]    @relation("AttendanceUser")
   attendance_requests            AttendanceRequest[]   @relation("AttendanceRequestUser")
   reviewed_attendance_requests   AttendanceRequest[]   @relation("AttendanceRequestReviewer")
+  attendance_edits               AttendanceEdit[]      @relation("AttendanceEditEditor")
 
   @@index([team_id, status])
   @@index([manager_id])
@@ -1020,11 +1021,34 @@ model AttendanceRecord {
 
   user     User      @relation("AttendanceUser", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   employee Employee? @relation("AttendanceEmployee", fields: [employee_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  edits    AttendanceEdit[]
 
   @@unique([user_id, work_date])
   @@index([work_date])
   @@index([user_id, work_date])
   @@map("attendance_records")
+}
+
+/// Lịch sử «Sửa giờ công kèm lý do»: mỗi lần quản lý đổi giờ vào/ra của một ngày công (ai sửa, lý do, giờ cũ → giờ mới).
+/// `user_id` = chủ bản ghi (lọc theo phạm vi); xoá bản ghi chấm công thì lịch sử đi theo.
+model AttendanceEdit {
+  id               Int       @id @default(autoincrement())
+  record_id        Int
+  user_id          Int
+  editor_id        Int?
+  old_check_in_at  DateTime? @db.Timestamptz(3)
+  old_check_out_at DateTime? @db.Timestamptz(3)
+  new_check_in_at  DateTime? @db.Timestamptz(3)
+  new_check_out_at DateTime? @db.Timestamptz(3)
+  reason           String
+  created_at       DateTime  @default(now()) @db.Timestamptz(3)
+
+  record AttendanceRecord @relation(fields: [record_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  editor User?            @relation("AttendanceEditEditor", fields: [editor_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([record_id, created_at(sort: Desc)])
+  @@index([user_id])
+  @@map("attendance_edits")
 }
 
 /// Đơn chấm công (attendance adjustment requests) — nhân viên gửi khi quên check-in/check-out,

@@ -38,7 +38,7 @@ pub use routes::{McpState, api_router, specs};
 pub use tools::{
     AuthInvitations, ChannelsDeps, DraftOverrides, DraftPublishPort, FanpageDeps, FanpagePorts, ImportPort, InboxDeps,
     InvitationsPort, Kick, MetricsPort, PortFut, PostInfra, PostsDeps, RecurrencePort, RefreshReport, SettingsDeps,
-    SocialAdapter, SocialDeps, fanpage_deps, register_channels, register_fanpage, register_group1, register_group2,
-    register_group3, register_inbox_invitations, register_payroll, register_report_briefing, register_settings,
-    register_social, register_structure,
+    SocialAdapter, SocialDeps, fanpage_deps, register_attendance, register_channels, register_fanpage, register_group1,
+    register_group2, register_group3, register_inbox_invitations, register_payroll, register_report_briefing,
+    register_settings, register_social, register_structure,
 };

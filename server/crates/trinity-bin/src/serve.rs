@@ -550,6 +550,7 @@ async fn serve(args: ServeArgs) -> Result<(), String> {
         )),
     );
     mod_mcp::register_payroll(&mut registry);
+    mod_mcp::register_attendance(&mut registry);
     mod_mcp::register_channels(
         &mut registry,
         Arc::new(mod_mcp::ChannelsDeps {

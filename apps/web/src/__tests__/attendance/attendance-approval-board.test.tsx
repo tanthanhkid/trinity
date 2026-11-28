@@ -37,6 +37,8 @@ vi.mock("@/hooks/use-attendance", () => ({
   useTodaySummary: () => ({ data: { work_date: "2026-11-28", total: 10, checked_in: 6, present: 5, incomplete: 1, absent: 4 } }),
   useAttendanceList: () => ({ data: { data: [{ id: 1, late_minutes: 12 }, { id: 2, late_minutes: 0 }], pagination: { total: 2 } } }),
   useAttendanceDetail: () => ({ data: undefined }),
+  useAttendanceEdits: () => ({ data: [] }),
+  useAdjustAttendance: () => ({ mutate: vi.fn() }),
   useApproveRequest: () => ({ mutate: approveMutate }),
   useRejectRequest: () => ({ mutate: rejectMutate }),
 }))

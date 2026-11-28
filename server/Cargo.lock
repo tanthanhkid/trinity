@@ -2490,6 +2490,7 @@ dependencies = [
  "chrono",
  "http",
  "jsonschema",
+ "mod-attendance",
  "mod-auth",
  "mod-briefings",
  "mod-channel-guard",

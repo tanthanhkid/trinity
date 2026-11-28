@@ -454,6 +454,56 @@ export function usePatchAttendance(id: number) {
   })
 }
 
+/** Một lần quản lý sửa giờ công (lịch sử «Sửa giờ công kèm lý do»), mới nhất trước. */
+export interface AttendanceEdit {
+  id: number
+  record_id: number
+  editor_id: number | null
+  editor_name: string | null
+  old_check_in_at: string | null
+  old_check_out_at: string | null
+  new_check_in_at: string | null
+  new_check_out_at: string | null
+  reason: string
+  created_at: string
+}
+
+/** Thân sửa giờ: giờ `HH:MM` (giờ VN) chỉ gửi khi đổi; `reason` bắt buộc. */
+export interface AdjustAttendanceBody {
+  check_in?: string
+  check_out?: string
+  reason: string
+}
+
+/** Lịch sử sửa giờ công của một bản ghi (cần `attendance.view`). */
+export function useAttendanceEdits(recordId: number | null) {
+  return useQuery<AttendanceEdit[]>({
+    queryKey: [KEY, "edits", recordId],
+    queryFn: () =>
+      apiClient.get(`/management/attendance/${recordId}/edits`).then((r) => r.data),
+    enabled: recordId != null,
+  })
+}
+
+/**
+ * Sửa giờ công kèm lý do (cần `attendance.manage`). Mutation chỉ xong khi chi tiết, danh sách và lịch sử
+ * đã tải lại — chỗ gọi có thể giữ giá trị lạc quan tới lúc đó.
+ */
+export function useAdjustAttendance() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: number; body: AdjustAttendanceBody }) =>
+      apiClient.post(`/management/attendance/${id}/edits`, body).then((r) => r.data),
+    onSuccess: (_data, { id }) =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: [KEY, "detail", id] }),
+        qc.invalidateQueries({ queryKey: [KEY, "edits", id] }),
+        qc.invalidateQueries({ queryKey: [KEY, "list"] }),
+        qc.invalidateQueries({ queryKey: [KEY, "today"] }),
+      ]),
+  })
+}
+
 /** Xóa bản ghi chấm công (super_admin + quản lý nhân sự) → nhân viên chấm lại được. */
 export function useDeleteAttendance() {
   const qc = useQueryClient()

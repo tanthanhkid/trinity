@@ -20,6 +20,7 @@ use trinity_http::router::{Access, AccessDeps, ApiRouter, CurrentUser, RouteSpec
 use trinity_http::validate::{Mode, ValidJson, ValidQuery, query_to_json, validate_into};
 use trinity_kernel::error::{AppError, HttpError};
 
+use crate::adjust;
 use crate::check::{self, CheckCtx, CheckInput, SELFIE_ALLOWED_MIME, SELFIE_MAX_SIZE, SELFIE_MIME_ERROR, Selfie};
 use crate::dto::{
     CreateAttendanceRequestDto, CreateOfficeDto, DeviceCheckDto, PatchAttendanceDto, QueryAttendanceDto,
@@ -33,9 +34,10 @@ const BASE: &str = "/api/v1/management/attendance";
 const ID: &[&str] = &["param.id:ParseIntPipe"];
 /// Đường dẫn khai dạng Express `:id(\\d+)` như `routes.json`; `ParseIntPipe` vẫn chạy sau khi khớp.
 const REC: &str = "/api/v1/management/attendance/:id(\\d+)";
+const EDITS: &str = "/api/v1/management/attendance/:id(\\d+)/edits";
 const PROOF: &str = "/api/v1/management/attendance/:id(\\d+)/proof/:slot";
 
-/// 40 route của M13a (cấu hình), M13b (chấm công vào/ra) và M14a (đơn từ, thống kê, sổ chấm công) và M14b (8 tệp xuất xlsx) (bảng so với `routes.json` bởi `trinity check-routes`).
+/// 42 route (có 2 route «sửa giờ công kèm lý do») của M13a (cấu hình), M13b (chấm công vào/ra) và M14a (đơn từ, thống kê, sổ chấm công) và M14b (8 tệp xuất xlsx) (bảng so với `routes.json` bởi `trinity check-routes`).
 pub fn specs() -> Vec<RouteSpec> {
     let view = Access::Can(&["attendance.view"]);
     let cfg = Access::Can(&["attendance.config"]);
@@ -49,6 +51,10 @@ pub fn specs() -> Vec<RouteSpec> {
             .param_pipes(ID),
         RouteSpec::new(Method::DELETE, REC, manage)
             .status_ok(200)
+            .param_pipes(ID),
+        RouteSpec::new(Method::GET, EDITS, view).status_ok(200).param_pipes(ID),
+        RouteSpec::new(Method::POST, EDITS, manage)
+            .status_ok(201)
             .param_pipes(ID),
         RouteSpec::new(Method::GET, PROOF, view).status_ok(200).param_pipes(ID),
         RouteSpec::new(Method::GET, "/api/v1/management/attendance/absent", view).status_ok(200),
@@ -434,6 +440,57 @@ async fn record_patch(
     }
 }
 
+/// Body JSON như `body-parser` của Express: không phải JSON hoặc rỗng ⇒ `{}`; gốc phải là `{` hoặc `[`.
+struct JsonBody(serde_json::Value);
+
+impl<S: Send + Sync> FromRequest<S> for JsonBody {
+    type Rejection = Response;
+
+    async fn from_request(req: Request, _s: &S) -> Result<Self, Response> {
+        let is_json = req
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|ct| {
+                ct.split(';')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .eq_ignore_ascii_case("application/json")
+            });
+        let bytes = axum::body::to_bytes(req.into_body(), 64 * 1024)
+            .await
+            .map_err(|_| fail(HttpError::payload_too_large("request entity too large")))?;
+        if !is_json || bytes.iter().all(u8::is_ascii_whitespace) {
+            return Ok(Self(serde_json::Value::Object(serde_json::Map::new())));
+        }
+        match serde_json::from_slice::<serde_json::Value>(&bytes) {
+            Ok(v @ (serde_json::Value::Object(_) | serde_json::Value::Array(_))) => Ok(Self(v)),
+            _ => Err(fail(HttpError::bad_request("Unexpected token in JSON"))),
+        }
+    }
+}
+
+async fn record_edits(State(c): S, Extension(u): U, Path(id): Path<String>) -> Response {
+    let a = act!(u);
+    match id_of(&id, "bản ghi chấm công.") {
+        Ok(id) => ok(adjust::edits_for(&c, &a, id).await),
+        Err(e) => fail(e),
+    }
+}
+
+async fn record_adjust(State(c): S, Extension(u): U, Path(id): Path<String>, JsonBody(body): JsonBody) -> Response {
+    let a = act!(u);
+    let input = match adjust::parse_input(&body) {
+        Ok(i) => i,
+        Err(e) => return fail(e),
+    };
+    match id_of(&id, "bản ghi chấm công.") {
+        Ok(id) => respond(adjust::adjust_for(&c, &a, id, &input).await, StatusCode::CREATED),
+        Err(e) => fail(e),
+    }
+}
+
 async fn record_delete(State(c): S, Extension(u): U, Path(id): Path<String>) -> Response {
     let a = act!(u);
     match id_of(&id, "bản ghi chấm công.") {
@@ -595,6 +652,8 @@ pub fn router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::GET, REC), record_get)
         .route(spec(&Method::PATCH, REC), record_patch)
         .route(spec(&Method::DELETE, REC), record_delete)
+        .route(spec(&Method::GET, EDITS), record_edits)
+        .route(spec(&Method::POST, EDITS), record_adjust)
         .route(spec(&Method::GET, &p("today")), today)
         .route(spec(&Method::GET, &p("absent")), absent)
         .route(spec(&Method::GET, &p("workdays-matrix")), workdays_matrix)
@@ -772,9 +831,9 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = specs();
-        assert_eq!(table.len(), 40);
+        assert_eq!(table.len(), 42);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 40);
+        assert_eq!(rep.declared, 42);
     }
 }

@@ -10234,6 +10234,143 @@
             ],
             "additionalProperties": false
           }
+        },
+        {
+          "name": "adjust_attendance_time",
+          "title": "Sửa giờ công kèm lý do / Adjust attendance time with a reason",
+          "description": "Sửa giờ vào và/hoặc giờ ra (HH:MM, giờ Việt Nam, trên đúng ngày công của bản ghi) của MỘT ngày chấm công, bắt buộc kèm lý do; Trinity tính lại tổng giờ, đi muộn, trạng thái và lưu lịch sử (ai sửa, lý do, giờ cũ → giờ mới) trong cùng một giao dịch. Chỉ định ngày công bằng record_id hoặc cặp user_id + work_date. Cần quyền attendance.manage, chỉ bản ghi của nhân viên trong phạm vi quyền; giờ ra phải sau giờ vào, giờ phải khác hiện tại. Cần scope crm.write. Chỉ ghi khi người dùng đã nói rõ lý do bằng lời của họ. Không có tool xoá. / Changes check-in and/or check-out (HH:MM, Vietnam time, on the record's work date) of ONE attendance day with a mandatory reason; recomputes hours/late/status and stores an edit history row (who, why, old → new) in one transaction. Identify the day by record_id or user_id + work_date. Needs attendance.manage within the user's scope and crm.write.",
+          "inputSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "record_id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647,
+                "description": "Id bản ghi chấm công (nếu biết) / Attendance record id"
+              },
+              "user_id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647,
+                "description": "Id nhân viên, dùng cùng work_date khi không có record_id / Employee user id (with work_date)"
+              },
+              "work_date": {
+                "description": "Ngày công YYYY-MM-DD (giờ VN), dùng cùng user_id / Work date",
+                "type": "string",
+                "maxLength": 10
+              },
+              "check_in": {
+                "description": "Giờ vào mới HH:MM (24h, giờ VN); bỏ trống = giữ nguyên / New check-in time",
+                "type": "string",
+                "maxLength": 5
+              },
+              "check_out": {
+                "description": "Giờ ra mới HH:MM (24h, giờ VN); bỏ trống = giữ nguyên / New check-out time",
+                "type": "string",
+                "maxLength": 5
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500,
+                "description": "Lý do sửa (bắt buộc, lưu vào lịch sử) / Reason for the change (required)"
+              }
+            },
+            "required": [
+              "reason"
+            ]
+          },
+          "annotations": {
+            "title": "Sửa giờ công kèm lý do / Adjust attendance time with a reason",
+            "readOnlyHint": false,
+            "destructiveHint": false,
+            "idempotentHint": false,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          },
+          "outputSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "notice": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "notice",
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        },
+        {
+          "name": "list_attendance_edits",
+          "title": "Lịch sử sửa giờ công / List attendance edits",
+          "description": "Lịch sử các lần sửa giờ công của MỘT ngày chấm công, mới nhất trước: ai sửa, lý do, giờ vào/ra cũ và mới, thời điểm. Chỉ định ngày công bằng record_id hoặc cặp user_id + work_date. Cần quyền attendance.view, chỉ bản ghi trong phạm vi quyền. Chỉ đọc. / Edit history of ONE attendance day, newest first: who, why, old and new times, when. Identify the day by record_id or user_id + work_date. Read-only.",
+          "inputSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "record_id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647,
+                "description": "Id bản ghi chấm công (nếu biết) / Attendance record id"
+              },
+              "user_id": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2147483647,
+                "description": "Id nhân viên, dùng cùng work_date khi không có record_id / Employee user id (with work_date)"
+              },
+              "work_date": {
+                "description": "Ngày công YYYY-MM-DD (giờ VN), dùng cùng user_id / Work date",
+                "type": "string",
+                "maxLength": 10
+              }
+            }
+          },
+          "annotations": {
+            "title": "Lịch sử sửa giờ công / List attendance edits",
+            "readOnlyHint": true,
+            "destructiveHint": false,
+            "idempotentHint": true,
+            "openWorldHint": false
+          },
+          "execution": {
+            "taskSupport": "forbidden"
+          },
+          "outputSchema": {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "type": "object",
+            "properties": {
+              "notice": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "notice",
+              "data"
+            ],
+            "additionalProperties": false
+          }
         }
       ]
     },

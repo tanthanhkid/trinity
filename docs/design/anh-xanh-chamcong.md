@@ -26,5 +26,13 @@ Quản lý trên điện thoại/máy tính bảng hẹp (<1024px) chỉ thấy 
 - Thiết kế mobile ghi «Đang ở Cửa hàng Quận 1 / Ngoài mạng văn phòng» trước khi chấm: máy chủ chưa có API kiểm mạng trước khi chấm, nên không vẽ chip giả.
 - «Gửi nhầm? Rút đơn lại» (mobile2) chưa có API rút đơn → chưa vẽ nút; «Chị Lan Anh sẽ duyệt» bỏ tên cứng.
 - «Phép năm còn: 6 ngày» (mobile2) chưa có dữ liệu → nghỉ phép hiện «Không giới hạn theo đơn».
-- Dòng «Đã sửa tay lúc … Lý do …» và nút «Sửa giờ công» (desktop): thuộc chức năng mới «Sửa giờ công kèm lý do» (API + tool MCP + lịch sử sửa) làm ở PR riêng; thẻ «Công ngày» đã chừa chỗ.
 - Khay chụp selfie dùng `BottomSheet` ở mọi khổ (desktop: tối đa 560px); luồng hai bước chụp → xác nhận giữ nguyên.
+
+## Sửa giờ công kèm lý do (desktop, quản lý)
+
+Thẻ «Công ngày» của đơn đang xem có nút **Sửa giờ công** (chỉ khi nhân viên đó đã có bản ghi chấm công ngày đó và đơn không phải nghỉ phép/thai sản). Bấm mở khung bên dưới hai thẻ: Giờ vào, Giờ ra (24h, ví dụ 08:05; để trống = giữ nguyên), Lý do sửa (bắt buộc, ≤ 500 ký tự), Huỷ / Lưu thay đổi. Lỗi (sai giờ, ra trước vào, chưa đổi gì, thiếu lý do) hiện dưới form với `role="alert"`.
+
+- API: `POST /management/attendance/:id/edits` (`attendance.manage`), `GET …/edits` (`attendance.view`) — hook `useAdjustAttendance`, `useAttendanceEdits` ở `hooks/use-attendance.ts`; mã ở `_components/attendance-day-edit.tsx`.
+- Lịch sử: mỗi lần sửa ghi người sửa, lý do, giờ cũ → mới (`attendance_edits`). Thẻ hiện dòng «Đã sửa tay lúc 08:25 28/11/2026 bởi … Lý do: …» của lần gần nhất, kèm «(N lần sửa)» khi có nhiều lần. Chưa có màn xem toàn bộ lịch sử ngoài dòng này (tool MCP `list_attendance_edits` đọc đủ).
+- **Hoàn tác**: cùng cách với Duyệt/Từ chối — lần sửa được giữ 5 giây (giờ mới hiện ngay) rồi mới gửi; Hoàn tác trong lúc đó = chưa gửi gì, lịch sử không bị bẩn bởi lần sửa đảo; rời trang trong 5 giây = gửi ngay. Hết 5 giây muốn sửa lại thì sửa một lần mới (có lý do mới).
+- Chỗ lệch có chủ đích: `PATCH /management/attendance/:id` cũ (trang Quản lý chấm công) vẫn sửa được giờ nhưng không có lý do nên KHÔNG vào lịch sử; thông báo cho nhân viên «giờ công bị sửa» chưa có (thiết kế chỉ nói «Nhân viên sẽ thấy giờ mới» — giờ mới thấy ngay ở màn của nhân viên).

@@ -13,7 +13,7 @@ import { AX_INPUT_CLASS } from "@/components/ui/input"
 import { showUndoToast } from "@/components/ui/undo-toast"
 import { errorMessage } from "@/lib/error-messages"
 import { cn } from "@/lib/utils"
-import { formatDateTimeVn, formatTimeVn, isoToVnDate, todayVn } from "@/lib/format"
+import { formatDateTimeVn, isoToVnDate, todayVn } from "@/lib/format"
 import {
   REQUEST_TYPE_LABEL,
   useApproveRequest,
@@ -26,6 +26,7 @@ import {
   type AttendanceRequest,
 } from "@/hooks/use-attendance"
 import { askOf, computeQuota, nameInitials } from "./attendance-board-utils"
+import { DayEditControls, DayEditPanel, useDayAdjust } from "./attendance-day-edit"
 import { RequestStatusPill } from "./request-status-pill"
 
 /** Quyết định đã bấm nhưng còn trong 5 giây Hoàn tác — chưa gọi máy chủ. */
@@ -68,7 +69,8 @@ function createdShort(iso: string): string {
  * Hoàn tác: máy chủ không có API "mở lại đơn" nên quyết định được GIỮ 5 giây rồi mới gửi; bấm Hoàn tác
  * trong lúc đó = chưa gửi gì; rời trang trong 5 giây = gửi ngay (không mất quyết định).
  *
- * Chỗ chừa cho «Sửa giờ công kèm lý do» (PR riêng, cần API + tool MCP): thẻ «Công ngày» bên dưới.
+ * «Sửa giờ công kèm lý do» (`attendance-day-edit.tsx`): nút ở thẻ «Công ngày», khung sửa mở bên dưới, lịch sử sửa
+ * (`attendance_edits`) hiện thành dòng «Đã sửa tay lúc …» trong thẻ.
  */
 export function AttendanceApprovalBoard() {
   const requests = useAttendanceRequests({ page: 1, page_size: 1000 })
@@ -141,6 +143,8 @@ export function AttendanceApprovalBoard() {
   const dayRecordId = dayRowOk && dayRow ? dayRow.id : null
   const dayDetail = useAttendanceDetail(dayRecordId)
   const dayRecord = dayRowOk ? (dayDetail.data ?? dayRow ?? null) : null
+  const adjust = useDayAdjust(dayRecord, cur?.user_name ?? "")
+  const leaveDay = cur?.type === "leave" || cur?.type === "maternity"
 
   const clearHeld = useCallback((id: number) => {
     setHeld((h) => {
@@ -422,8 +426,8 @@ export function AttendanceApprovalBoard() {
                   <h3 className="mb-2.5 text-[15px] font-bold tracking-[-0.011em]">
                     Công ngày {isoToVnDate(cur.work_date)}
                   </h3>
-                  <DayRow label="Giờ vào" value={dayRecord?.check_in_at ? formatTimeVn(dayRecord.check_in_at) : "Chưa có"} strong />
-                  <DayRow label="Giờ ra" value={dayRecord?.check_out_at ? formatTimeVn(dayRecord.check_out_at) : "Chưa có"} strong />
+                  <DayRow label="Giờ vào" value={dayRecord ? adjust.inText || "Chưa có" : "Chưa có"} strong />
+                  <DayRow label="Giờ ra" value={dayRecord ? adjust.outText || "Chưa có" : "Chưa có"} strong />
                   <DayRow
                     label="Văn phòng"
                     value={
@@ -432,7 +436,7 @@ export function AttendanceApprovalBoard() {
                         : (dayRecord?.check_in_office_name ?? dayRecord?.check_out_office_name ?? "—")
                     }
                   />
-                  {/* Chỗ chừa: «Sửa giờ công» kèm lý do + lịch sử sửa — làm ở PR riêng (cần API Rust + tool MCP). */}
+                  <DayEditControls record={dayRecord} adjust={adjust} allowEdit={!leaveDay} />
                 </div>
 
                 <div className="ax-card flex-[1_1_280px] px-6 py-5">
@@ -470,6 +474,15 @@ export function AttendanceApprovalBoard() {
                   )}
                 </div>
               </div>
+
+              {adjust.editing && dayRecord && (
+                <DayEditPanel
+                  key={dayRecord.id}
+                  record={dayRecord}
+                  adjust={adjust}
+                  dateLabel={isoToVnDate(cur.work_date)}
+                />
+              )}
 
               {rejecting && isPending && (
                 <div className="rounded-ax-card border border-[var(--ax-danger-border)] bg-ax-surface px-6 py-5">

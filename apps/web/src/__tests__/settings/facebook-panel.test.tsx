@@ -268,7 +268,10 @@ describe("<FacebookPanel> Ánh xanh — điện thoại", () => {
     setup({ pages: [{ ...PAGE, token_status: "expired" }] })
     renderPanel()
     fireEvent.click(await screen.findByRole("button", { name: "Kết nối lại Fanpage" }))
-    return screen.getByRole("button", { name: "Gửi hướng dẫn cho quản trị viên Page" })
+    // Văn bản được soạn sẵn khi mở màn (để bảng chia sẻ mở ngay trong cú chạm); nút bật lại khi đã có.
+    const btn = screen.getByRole("button", { name: "Gửi hướng dẫn cho quản trị viên Page" }) as HTMLButtonElement
+    await waitFor(() => expect(btn.disabled).toBe(false))
+    return btn
   }
 
   it("Gửi hướng dẫn cho quản trị viên Page: máy chủ chỉ soạn, văn bản đi qua bảng chia sẻ của điện thoại", async () => {

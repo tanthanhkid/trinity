@@ -337,8 +337,16 @@ impl PagesPort for TwoPages {
     fn pages(&self, _c: CompanyRef) -> PortFut<'_, Vec<PageRef>> {
         Box::pin(async {
             Ok(vec![
-                PageRef { page_id: "111".into(), name: "Shop A".into(), is_active: true },
-                PageRef { page_id: "222".into(), name: "Shop B".into(), is_active: false },
+                PageRef {
+                    page_id: "111".into(),
+                    name: "Shop A".into(),
+                    is_active: true,
+                },
+                PageRef {
+                    page_id: "222".into(),
+                    name: "Shop B".into(),
+                    is_active: false,
+                },
             ])
         })
     }

@@ -85,7 +85,7 @@ export function PosCartPanel(p: Props) {
         ))}
       </ul>
 
-      <div className={"space-y-2.5 border-t border-ax-divider px-4 pb-4 pt-3"}>
+      <div className="space-y-2.5 border-t border-ax-divider px-4 pb-4 pt-3">
         <div className="flex items-center gap-2 max-sm:flex-wrap">
           <span className="w-[72px] text-sm text-ax-ink-2">Giảm giá</span>
           <div className="flex gap-1.5" role="group" aria-label="Loại giảm giá">

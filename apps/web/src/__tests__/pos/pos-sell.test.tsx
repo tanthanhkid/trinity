@@ -115,10 +115,15 @@ describe("PosSell — điện thoại", () => {
     fireEvent.click(within(cart).getByRole("button", { name: "10%" }))
     expect(within(cart).getByRole("button", { name: "10%" })).toHaveAttribute("aria-pressed", "true")
     expect(within(cart).getByText("27.000₫")).toBeInTheDocument()
+    const total = () => cart.querySelector('[data-slot="pos-order-total"]') as HTMLElement
+    expect(total()).toHaveTextContent("27.000₫")
     fireEvent.click(within(cart).getByRole("button", { name: "Khác" }))
     expect(within(cart).getByRole("button", { name: "Giảm theo số tiền" })).toBeInTheDocument()
+    // «Khác» bật thì chip 10% không sáng cùng lúc.
+    expect(within(cart).getByRole("button", { name: "10%" })).toHaveAttribute("aria-pressed", "false")
     fireEvent.click(within(cart).getByRole("button", { name: "Không" }))
-    expect(within(cart).getAllByText("30.000₫").length).toBeGreaterThan(1)
+    expect(total()).toHaveTextContent("30.000₫")
+    expect(total()).not.toHaveTextContent("27.000₫")
   })
 
   it("thêm món → thanh đáy 'N món · Tổng' + Thanh toán; chạm mở màn đơn toàn phần (PosOrderScreen)", () => {

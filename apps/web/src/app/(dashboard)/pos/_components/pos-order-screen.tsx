@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type Dispatch, type SetStateAction } from "react"
+import { useEffect, useRef, type Dispatch, type SetStateAction } from "react"
 import { Armchair, ChevronLeft, MoreHorizontal, Minus, Plus, Printer, Receipt, ShoppingBag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useOffline } from "@/components/offline-banner"
@@ -18,6 +18,9 @@ interface Props {
   setCart: Dispatch<SetStateAction<CartState>>
   tableName: string | null
   busy: boolean
+  /** Chế độ «Khác» của giảm giá — giữ ở `PosSell` vì màn này tạm gỡ khi một hộp thoại con mở. */
+  customDiscount: boolean
+  setCustomDiscount: (v: boolean) => void
   onBack: () => void
   onEditLine: (key: string) => void
   onOpenTable: () => void
@@ -42,19 +45,38 @@ export function PosOrderScreen(p: Props) {
   const empty = cart.lines.length === 0
   const offline = useOffline()
   const isQuick = cart.discountType === "percent" && (QUICK as readonly number[]).includes(cart.discountValue)
-  const [custom, setCustom] = useState(cart.discountType !== "none" && !isQuick)
-  const showCustom = custom || (cart.discountType !== "none" && !isQuick)
+  const setCustom = p.setCustomDiscount
+  const showCustom = p.customDiscount || (cart.discountType !== "none" && !isQuick)
+  const quickOn = (n: number) => !showCustom && isQuick && cart.discountValue === n
   const setDiscount = (discountType: CartState["discountType"], discountValue: number) => setCart((c) => ({ ...c, discountType, discountValue }))
   const chip = (on: boolean) =>
     cn("min-h-11 min-w-16 rounded-ax-field border-[1.5px] px-4 text-[15px] font-semibold focus-visible:outline-none focus-visible:shadow-[var(--ax-focus-ring)]",
-      on ? "border-white bg-[#EEF4FA] text-[#1A3C5D]" : "border-white/55 bg-white/10 text-white hover:bg-white/20")
+      on
+        ? "border-[var(--ax-on-hero-primary-ink)] bg-[var(--ax-on-hero-primary-hover)] text-[var(--ax-on-hero-primary-ink)]"
+        : "border-[var(--ax-on-hero-primary-bg)] bg-[var(--ax-on-hero-primary-bg)] text-[var(--ax-on-hero-primary-ink)] hover:bg-[var(--ax-on-hero-primary-hover)]")
   const where = cart.orderType === "takeaway" ? "Mang đi" : cart.tableId && p.tableName ? `Bàn ${p.tableName}` : "Chọn bàn"
   const title = cart.orderCode ? `${where} · ${cart.orderCode}` : where
 
+  // Màn toàn phần thay bảng trượt: tự đưa tiêu điểm vào màn, Esc = «‹ Thêm món», đóng thì trả tiêu điểm về chỗ cũ.
+  const backRef = useRef<HTMLButtonElement>(null)
+  const onBackRef = useRef(p.onBack)
+  useEffect(() => { onBackRef.current = p.onBack })
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null
+    backRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => { // Menu ⋯ / hộp xác nhận đang mở thì Esc là của chúng, không đóng màn đơn.
+      if (e.key !== "Escape" || e.defaultPrevented) return
+      if (document.querySelector('[role="menu"], [role="alertdialog"], [role="dialog"]:not([data-slot="pos-order-screen"])')) return
+      onBackRef.current()
+    }
+    document.addEventListener("keydown", onKey)
+    return () => { document.removeEventListener("keydown", onKey); if (prev?.isConnected) prev.focus() }
+  }, [])
+
   return (
-    <div role="dialog" aria-modal="true" aria-label="Đơn hàng" data-slot="pos-order-screen" className="fixed inset-0 z-50 flex flex-col ax-page text-ax-ink">
+    <div role="dialog" aria-modal="true" aria-label="Đơn hàng" data-slot="pos-order-screen" className="fixed inset-0 z-50 flex flex-col overscroll-contain ax-page text-ax-ink">
       <header className="flex min-h-14 shrink-0 items-center justify-between gap-1 border-b border-ax-line ax-grad-bar px-2 pt-[env(safe-area-inset-top)]">
-        <Button type="button" variant="ax-ghost" size="ax" className="gap-0.5 pl-1 text-ax-primary" onClick={p.onBack}><ChevronLeft aria-hidden /> Thêm món</Button>
+        <Button ref={backRef} type="button" variant="ax-ghost" size="ax" className="gap-0.5 pl-1 text-ax-primary" onClick={p.onBack}><ChevronLeft aria-hidden /> Thêm món</Button>
         <div className="flex min-w-0 items-center">
           <Button type="button" variant="ax-ghost" size="ax" className="min-w-0 max-w-[48vw] gap-1.5 text-[16px] font-bold" aria-label={`${title}, đổi bàn`} onClick={p.onOpenTable}>
             {cart.orderType === "takeaway" ? <ShoppingBag aria-hidden /> : <Armchair aria-hidden />}
@@ -70,7 +92,7 @@ export function PosOrderScreen(p: Props) {
               )}
               <DropdownMenuItem className="min-h-11" onClick={p.onNew}>Đơn mới</DropdownMenuItem>
               <DropdownMenuItem className="min-h-11" disabled={empty} onClick={p.onProvisional}><Printer aria-hidden /> In tạm tính</DropdownMenuItem>
-              {cart.orderId != null && <DropdownMenuItem variant="destructive" className="min-h-11" onClick={p.onVoid}>Huỷ đơn này</DropdownMenuItem>}
+              {cart.orderId != null && <DropdownMenuItem variant="destructive" className="min-h-11" disabled={offline} onClick={p.onVoid}>Huỷ đơn này</DropdownMenuItem>}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -113,7 +135,7 @@ export function PosOrderScreen(p: Props) {
           <span className="mr-1 text-[15px] text-[var(--ax-on-hero-ink-2)]">Giảm giá</span>
           <button type="button" aria-pressed={cart.discountType === "none"} className={chip(cart.discountType === "none")} onClick={() => { setCustom(false); setDiscount("none", 0) }}>Không</button>
           {QUICK.map((n) => (
-            <button key={n} type="button" aria-pressed={isQuick && cart.discountValue === n} className={chip(isQuick && cart.discountValue === n)} onClick={() => { setCustom(false); setDiscount("percent", n) }}>{n}%</button>
+            <button key={n} type="button" aria-pressed={quickOn(n)} className={chip(quickOn(n))} onClick={() => { setCustom(false); setDiscount("percent", n) }}>{n}%</button>
           ))}
           <button type="button" aria-pressed={showCustom} className={chip(showCustom)} onClick={() => { setCustom(true); if (cart.discountType === "none") setDiscount("amount", 0) }}>Khác</button>
         </div>

@@ -38,12 +38,14 @@ export function PosSell() {
   const print = usePosPrint()
   const isPhone = useIsPhone()
   const [cartOpen, setCartOpen] = useState(false)
+  /** Điện thoại: chế độ «Khác» của giảm giá trên màn đơn — giữ ở đây vì màn đơn tạm gỡ khi hộp thoại con mở. */
+  const [customDiscount, setCustomDiscount] = useState(false)
 
   const [cart, setCart] = useState<CartState>(EMPTY_CART)
   // Bản chụp giỏ ở lần nạp/lưu gần nhất — lệch với giỏ hiện tại = còn thay đổi chưa lưu.
   const baseline = useRef(JSON.stringify(EMPTY_CART))
   /** Thay giỏ bằng bản mới (đơn đã lưu/giỏ trống) và coi đó là mốc "chưa sửa gì". */
-  const loadCart = (next: CartState) => { baseline.current = JSON.stringify(next); setCart(next) }
+  const loadCart = (next: CartState) => { baseline.current = JSON.stringify(next); setCart(next); setCustomDiscount(false) }
   const [pendingDiscard, setPendingDiscard] = useState<(() => void) | null>(null)
   /** Thay giỏ có thể làm mất thay đổi chưa lưu → hỏi trước (ConfirmDialog); giỏ chưa sửa thì chạy luôn. */
   const guardDiscard = (action: () => void) => {
@@ -115,35 +117,29 @@ export function PosSell() {
   if (menuQ.isLoading) return <LoadingBlock variant="cards" count={4} label="Đang tải thực đơn…" />
   if (menuQ.isError || !menuQ.data) return <ErrorState title="Không tải được thực đơn" error={menuQ.error} onRetry={() => void menuQ.refetch()} retrying={menuQ.isFetching} />
 
-  const cartPanel = () => (
-    <PosCartPanel
-      cart={cart} setCart={setCart} tableName={tableName} busy={busy}
-      onEditLine={setEditKey} onOpenTable={() => setTableOpen(true)} onNew={() => guardDiscard(() => loadCart(EMPTY_CART))}
-      onSave={doSave} onPay={doPay}
-      onProvisional={() => print(receiptFromCart(cart, tableName))}
-      onVoid={() => setVoiding(true)}
-    />
-  )
+  /** Cùng giỏ + cùng handler cho giỏ desktop (`PosCartPanel`) và màn đơn điện thoại (`PosOrderScreen`). */
+  const cartProps = {
+    cart, setCart, tableName, busy,
+    onEditLine: setEditKey, onOpenTable: () => setTableOpen(true), onNew: () => guardDiscard(() => loadCart(EMPTY_CART)),
+    onSave: doSave, onPay: doPay,
+    onProvisional: () => print(receiptFromCart(cart, tableName)),
+    onVoid: () => setVoiding(true),
+  }
 
   return (
     <div className="flex flex-col gap-3 lg:h-[calc(100vh-15rem)] lg:min-h-[520px]">
       <PosOpenOrdersBar currentId={cart.orderId} tables={tables} onPick={(o) => guardDiscard(() => loadCart(cartFromOrder(o)))} />
       <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
         <PosMenuGrid menu={menuQ.data} onPick={pick} lines={cart.lines} onDec={decProduct} />
-        {!isPhone && cartPanel()}
+        {!isPhone && <PosCartPanel {...cartProps} />}
       </div>
       {isPhone && (
         <>
           <PosCartBar cart={cart} busy={busy} onOpen={() => setCartOpen(true)} onPay={doPay} />
           {/* Màn đơn toàn phần (pos-mobile2). Hộp thoại con (chọn bàn/sửa món/thanh toán/huỷ) mở thì màn đơn nhường chỗ — đóng xong hiện lại. */}
           {cartOpen && !payOrder && !tableOpen && !editing && !voiding && (
-            <PosOrderScreen
-              cart={cart} setCart={setCart} tableName={tableName} busy={busy} onBack={() => setCartOpen(false)}
-              onEditLine={setEditKey} onOpenTable={() => setTableOpen(true)} onNew={() => guardDiscard(() => loadCart(EMPTY_CART))}
-              onSave={doSave} onPay={doPay}
-              onProvisional={() => print(receiptFromCart(cart, tableName))}
-              onVoid={() => setVoiding(true)}
-            />
+            <PosOrderScreen {...cartProps} onBack={() => setCartOpen(false)}
+              customDiscount={customDiscount} setCustomDiscount={setCustomDiscount} />
           )}
         </>
       )}

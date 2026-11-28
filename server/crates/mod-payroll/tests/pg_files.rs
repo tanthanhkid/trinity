@@ -115,6 +115,50 @@ async fn xuat_nhap_tep_va_bao_cao() {
     );
     assert_eq!(status(files::export_pdf(&mut c, 0, None).await.unwrap_err()), 404);
 
+    // PDF phiếu của CHÍNH mình: chủ phiếu tải được; người khác (hoặc phiếu không có) ⇒ 404; tool lấy mới nhất.
+    let u1: i32 = sqlx::query_scalar("SELECT user_id FROM employees WHERE id = $1")
+        .bind(e1)
+        .fetch_one(&mut *c)
+        .await
+        .unwrap();
+    let u2: i32 = sqlx::query_scalar("SELECT user_id FROM employees WHERE id = $1")
+        .bind(e2)
+        .fetch_one(&mut *c)
+        .await
+        .unwrap();
+    let mine = files::export_my_pdf(&mut c, u1, ids[0]).await.unwrap();
+    assert!(mine.bytes.starts_with(b"%PDF"));
+    assert_eq!(mine.filename, format!("phieu-luong-{MONTH}.pdf"));
+    assert_eq!(
+        status(files::export_my_pdf(&mut c, u2, ids[0]).await.unwrap_err()),
+        404,
+        "phiếu của người khác"
+    );
+    assert_eq!(status(files::export_my_pdf(&mut c, u1, 0).await.unwrap_err()), 404);
+    let latest = files::export_my_pdf_latest(&mut c, u1, None).await.unwrap();
+    assert!(latest.bytes.starts_with(b"%PDF"));
+    assert!(files::export_my_pdf_latest(&mut c, u1, Some(MONTH)).await.is_ok());
+    assert_eq!(
+        status(
+            files::export_my_pdf_latest(&mut c, u1, Some("2098-01"))
+                .await
+                .unwrap_err()
+        ),
+        404
+    );
+    // Phiếu đã loại (xoá mềm) ⇒ 404.
+    exec(
+        &mut c,
+        &format!("UPDATE payslips SET deleted_at = now() WHERE id = {}", ids[1]),
+    )
+    .await;
+    assert_eq!(status(files::export_my_pdf(&mut c, u2, ids[1]).await.unwrap_err()), 404);
+    exec(
+        &mut c,
+        &format!("UPDATE payslips SET deleted_at = NULL WHERE id = {}", ids[1]),
+    )
+    .await;
+
     // Mẫu nhập mở lại được.
     assert!(
         files::import_template(&mut c, MONTH)

@@ -314,16 +314,16 @@ async fn tools_list_khop_tung_byte() {
     let rep = post(&r, &rpc("tools/list", None), &[]).await;
     assert_eq!(rep.status, 200);
     let tools = &rep.json()["result"]["tools"];
-    assert_eq!(tools.as_array().unwrap().len(), 114);
+    assert_eq!(tools.as_array().unwrap().len(), 115);
     // `tools.json` ghi `{ tool_count, tools }` bằng JSON.stringify(…, null, 2): in đẹp mảng nhận về phải ra đúng tệp.
     let array = rep
         .body
         .strip_prefix("{\"result\":{\"tools\":")
         .and_then(|b| b.strip_suffix("},\"jsonrpc\":\"2.0\",\"id\":2}"))
         .expect("khung tools/list");
-    let rebuilt = pretty(&format!("{{\"tool_count\":114,\"tools\":{array}}}")) + "\n";
+    let rebuilt = pretty(&format!("{{\"tool_count\":115,\"tools\":{array}}}")) + "\n";
     assert_eq!(rebuilt, TOOLS_JSON);
-    assert_eq!(minify(TOOLS_JSON).matches("\"inputSchema\"").count(), 114);
+    assert_eq!(minify(TOOLS_JSON).matches("\"inputSchema\"").count(), 115);
 }
 
 #[tokio::test]

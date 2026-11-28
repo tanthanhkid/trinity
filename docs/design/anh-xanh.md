@@ -185,5 +185,7 @@ Danh sách + hồ sơ: desktop (≥1024px) hai cột (danh sách 380px | hồ s�
 ## Màn «Lương» (`/payroll`)
 
 - Chi tiết phiếu (desktop, `payroll-payslip-detail.tsx`): bấm một phiếu ở tab «Phiếu lương» → đường dẫn, trạng thái, nhóm khoản sửa tại chỗ (Hoàn tác bằng `showUndoToast`), khối nhấn «Thực nhận» (`HeroCard`) kèm Lưu/Duyệt. Thay hai hộp thoại Sửa phiếu / Chi tiết cũ; vẫn gọi `PATCH /payslips/:id`, duyệt, xuất PDF/Excel, loại khỏi kỳ như trước. Phép tính thuần ở `payroll-payslip-form.ts`.
-- «Phiếu của tôi» (mobile, `payroll-mine.tsx`): tab mới, dữ liệu `GET /payslips/me`. Chừa chỗ (PR riêng): nút Ẩn số, Tải phiếu PDF.
+- «Phiếu của tôi» (mobile, `payroll-mine.tsx`): tab mới, dữ liệu `GET /payslips/me`. Có thêm:
+  - «Ẩn số» (`role=switch`, `payroll-mine-hide.ts`): che số bằng `••••••` (thực nhận, tổng nhóm, từng dòng, cách tính; bỏ đơn vị ₫), nhớ theo thiết bị (`localStorage`, lỗi lưu trữ vẫn đổi trong phiên). Chỉ che hiển thị, KHÔNG phải bảo mật dữ liệu nên không có API.
+  - «Tải phiếu PDF»: `GET /payslips/me/:id/pdf` (chỉ cần đăng nhập, chỉ phiếu của chính mình, người khác/đã loại ⇒ 404; khác `GET /payslips/:id/pdf` cần `payroll.export`), tệp `phieu-luong-<tháng>.pdf`. Tool MCP tương ứng `export_my_payslip_pdf` (tuỳ chọn `month`, mặc định phiếu mới nhất; không có tool xoá). Thiết kế báo «Đã lưu vào Tệp» (iOS); bản web báo «Đã tải phiếu tháng N» bằng toast.
 - Lệch có chủ đích: thiết kế có «Chốt kỳ» và «Hoàn tác duyệt» nhưng API chưa có; trạng thái dùng luồng thật (nháp → chờ duyệt → đã duyệt → đã trả).

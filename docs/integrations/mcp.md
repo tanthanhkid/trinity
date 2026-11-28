@@ -230,6 +230,7 @@ Same services and permission checks as the payroll routes (`payslips/*`); files 
 |---|---|---|
 | `export_payslip_excel` | read (`payroll.export`) | One payslip as xlsx (accounting template); only payslips in the user's `payroll.export` scope |
 | `export_payslip_pdf` | read (`payroll.export`) | One payslip as PDF, same scope rule |
+| `export_my_payslip_pdf` | read (signed-in user) | The caller's OWN payslip as PDF (latest, or `month` `YYYY-MM`); never another person's payslip, no permission needed |
 | `export_payslips_excel` | read (`payroll.export`) | A month (`YYYY-MM`) as xlsx: `layout=bulk` (one sheet per payslip, default) or `list` (one list sheet, optional `ordered_ids`) |
 | `get_payslip_import_template` | read (`payroll.manage`) | The manual-input xlsx template for a month, pre-filled with employees and current values |
 | `preview_payslip_import` | read (`payroll.manage`) | Dry run of an xlsx import (`file_base64`): cell-level changes and skipped rows (approved/paid payslips, unknown employees); writes nothing |

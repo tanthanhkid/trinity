@@ -1,5 +1,5 @@
 {
-  "tool_count": 114,
+  "tool_count": 115,
   "tools": [
     {
       "name": "get_setup_guide",
@@ -9913,6 +9913,53 @@
       },
       "annotations": {
         "title": "Xuất phiếu lương ra PDF / Export a payslip to PDF",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "notice": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "notice",
+          "data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "export_my_payslip_pdf",
+      "title": "Xuất PDF phiếu lương của tôi / Export my own payslip to PDF",
+      "description": "Xuất PDF phiếu lương của CHÍNH người dùng (phiếu mới nhất, hoặc của tháng month nếu có). Chỉ cần đăng nhập, không trả phiếu của người khác. Chỉ đọc. Trả tệp mã hoá base64 trong data.file_base64 (tối đa khoảng 25 KB; lớn hơn thì tải bằng giao diện web). Dữ liệu lương nhạy cảm. / Exports the caller's own payslip (latest, or the given month) as base64 PDF in data.file_base64 (about 25 KB max).",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "description": "Tháng YYYY-MM; bỏ trống = phiếu mới nhất / Month YYYY-MM; omit for the latest payslip"
+          }
+        }
+      },
+      "annotations": {
+        "title": "Xuất PDF phiếu lương của tôi / Export my own payslip to PDF",
         "readOnlyHint": true,
         "destructiveHint": false,
         "idempotentHint": true,

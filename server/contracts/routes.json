@@ -10009,6 +10009,36 @@
     },
     {
       "access": "auth",
+      "body_limit_bytes": null,
+      "cached": false,
+      "controller": "NewsfeedController",
+      "deprecated": false,
+      "guards": [],
+      "handler": "updateWithMedia",
+      "headers": {},
+      "interceptors": [
+        "Mixin"
+      ],
+      "method": "POST",
+      "min_samples": 50,
+      "org_feature": null,
+      "param_pipes": [
+        "param.id:ParseIntPipe"
+      ],
+      "path": "/api/v1/newsfeed/:id/upload",
+      "permission_mode": null,
+      "permissions": [],
+      "raw_response": false,
+      "res_passthrough": false,
+      "safe_for_shadow": false,
+      "shape_permissions": [],
+      "status_ok": 201,
+      "transforms": [],
+      "upload": "files",
+      "validation": "strict"
+    },
+    {
+      "access": "auth",
       "body_limit_bytes": 5242880,
       "cached": false,
       "controller": "NewsfeedController",

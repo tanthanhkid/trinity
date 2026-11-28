@@ -523,3 +523,131 @@ async fn kiem_query_danh_sach() {
     );
     assert!(mod_newsfeed::validate_list_query(None, None, Some("")).is_err());
 }
+
+#[tokio::test]
+#[ignore = "cần TEST_DATABASE_URL"]
+async fn sua_bai_doi_muc_va_them_anh_video() {
+    let (db, store) = setup().await;
+    let a1 = actor(1, true, false);
+    let a2 = actor(2, true, false);
+    let admin = actor(4, true, true);
+    let png = || ImageUpload {
+        content_type: "image/png".into(),
+        bytes: PNG.to_vec(),
+    };
+    let post = create_t(&db, &store, &a1, "announcement", "gốc", vec![png()], &[])
+        .await
+        .unwrap();
+
+    // Đổi «Mục» qua PATCH: tác giả được; người khác 403; không gửi lại thông báo.
+    let before: i64 = {
+        let mut c = db.acquire().await.unwrap();
+        sqlx::query_scalar("SELECT count(*) FROM notification_logs")
+            .fetch_one(&mut *c)
+            .await
+            .unwrap()
+    };
+    assert_eq!(
+        status(
+            mod_newsfeed::update_post(&db, &a2, post.id, "x", Some("pr"))
+                .await
+                .unwrap_err()
+        ),
+        403
+    );
+    let up = mod_newsfeed::update_post(&db, &a1, post.id, "sửa", Some("training"))
+        .await
+        .unwrap();
+    assert_eq!((up.category.as_str(), up.content.as_str()), ("training", "sửa"));
+    let kept = mod_newsfeed::update_post(&db, &a1, post.id, "sửa 2", None)
+        .await
+        .unwrap();
+    assert_eq!(kept.category, "training");
+    let after: i64 = {
+        let mut c = db.acquire().await.unwrap();
+        sqlx::query_scalar("SELECT count(*) FROM notification_logs")
+            .fetch_one(&mut *c)
+            .await
+            .unwrap()
+    };
+    assert_eq!(before, after);
+
+    // Thêm ảnh/video: người khác 403 (không ghi tệp), tác giả và người kiểm duyệt được, nối sau tệp cũ.
+    assert_eq!(
+        status(
+            mod_newsfeed::update_with_media(&db, &store, &a2, post.id, None, None, vec![png()], &[])
+                .await
+                .unwrap_err()
+        ),
+        403
+    );
+    assert_eq!(
+        status(
+            mod_newsfeed::update_with_media(&db, &store, &a1, post.id, None, None, vec![], &[])
+                .await
+                .unwrap_err()
+        ),
+        400
+    );
+    let tmp = std::env::temp_dir().join(format!("m22-edit-{}.mp4", uuid_like()));
+    tokio::fs::write(&tmp, b"video").await.unwrap();
+    let vid = VideoUpload {
+        file_name: "c.mp4".into(),
+        size: 5,
+        path: tmp.clone(),
+    };
+    let up = mod_newsfeed::update_with_media(
+        &db,
+        &store,
+        &a1,
+        post.id,
+        Some(" có ảnh "),
+        Some("pr"),
+        vec![png()],
+        &[vid],
+    )
+    .await
+    .unwrap();
+    assert!(!tmp.exists(), "tệp tạm video phải được dọn");
+    assert_eq!((up.category.as_str(), up.content.as_str()), ("pr", "có ảnh"));
+    assert!(up.edited_at.is_some());
+    let j = json(&up);
+    let imgs = j["images"].as_array().unwrap();
+    assert_eq!(imgs.len(), 3);
+    let orders: Vec<i64> = imgs.iter().map(|m| m["sort_order"].as_i64().unwrap()).collect();
+    assert_eq!(orders, [0, 1, 2]);
+    assert_eq!(imgs[2]["media_type"], "video");
+    let up = mod_newsfeed::update_with_media(&db, &store, &admin, post.id, None, None, vec![png()], &[])
+        .await
+        .unwrap();
+    assert_eq!(up.content, "có ảnh");
+    assert_eq!(json(&up)["images"].as_array().unwrap().len(), 4);
+
+    // Trần tính cả tệp đã có: còn 7 chỗ ảnh (đã có 3 ảnh) ⇒ thêm 8 bị chặn, không ghi gì.
+    let eight: Vec<ImageUpload> = (0..8).map(|_| png()).collect();
+    assert_eq!(
+        status(
+            mod_newsfeed::update_with_media(&db, &store, &a1, post.id, None, None, eight, &[])
+                .await
+                .unwrap_err()
+        ),
+        400
+    );
+    let n: i64 = {
+        let mut c = db.acquire().await.unwrap();
+        sqlx::query_scalar("SELECT count(*) FROM newsfeed_post_images WHERE post_id = $1")
+            .bind(post.id)
+            .fetch_one(&mut *c)
+            .await
+            .unwrap()
+    };
+    assert_eq!(n, 4);
+    assert_eq!(
+        status(
+            mod_newsfeed::update_with_media(&db, &store, &a1, 9999, None, None, vec![png()], &[])
+                .await
+                .unwrap_err()
+        ),
+        404
+    );
+}

@@ -13,7 +13,8 @@
 //! | `POST /newsfeed/upload` | [`create`] (ảnh, video) |
 //! | `POST /newsfeed/video-upload-token` | [`video_upload_token_gone`] (luôn 400) |
 //! | `GET /newsfeed/:id/image`, `/images/:index` | [`media`] |
-//! | `PATCH /newsfeed/:id` | [`update`] |
+//! | `PATCH /newsfeed/:id` | [`update`], [`update_post`] (đổi «Mục») |
+//! | `POST /newsfeed/:id/upload` | [`update_with_media`] (sửa bài + thêm ảnh/video) |
 //! | `DELETE /newsfeed/:id` | [`delete`] |
 //! | `POST /newsfeed/:id/like` | [`toggle_like`] |
 //! | `GET/POST /newsfeed/:id/comments` | [`list_comments`], [`create_comment`] |
@@ -745,19 +746,157 @@ async fn post_author(conn: &mut PgConnection, id: i32) -> Result<i32> {
 
 /// `PATCH /newsfeed/:id` (`AuthOnly`; cổng thật: tác giả hoặc `newsfeed.moderate`).
 pub async fn update(db: &TenantDb, actor: &Actor, post_id: i32, content: &str) -> Result<Post> {
+    update_post(db, actor, post_id, content, None).await
+}
+
+/// `PATCH /newsfeed/:id` có thể kèm `category` (đổi «Mục»; đã kiểm thuộc [`CATEGORIES`] ở router). Đổi mục không gửi lại
+/// thông báo "bài mới".
+pub async fn update_post(
+    db: &TenantDb,
+    actor: &Actor,
+    post_id: i32,
+    content: &str,
+    category: Option<&str>,
+) -> Result<Post> {
     let mut conn = db.acquire().await?;
     let author = post_author(&mut conn, post_id).await?;
     if author != actor.user_id && !actor.can_moderate {
         return Err(forbidden("Bạn không có quyền sửa bài này"));
     }
-    sqlx::query("UPDATE newsfeed_posts SET content = $2, edited_at = now(), updated_at = now() WHERE id = $1")
-        .bind(post_id)
-        .bind(content.trim())
-        .execute(&mut *conn)
-        .await?;
+    sqlx::query(
+        "UPDATE newsfeed_posts SET content = $2, category = COALESCE($3, category), edited_at = now(), updated_at = now() \
+         WHERE id = $1",
+    )
+    .bind(post_id)
+    .bind(content.trim())
+    .bind(category)
+    .execute(&mut *conn)
+    .await?;
     post_by_id(&mut conn, post_id)
         .await?
         .ok_or_else(|| not_found("Không tìm thấy bài đăng"))
+}
+
+/// Số ảnh và số video đang gắn với bài.
+async fn media_counts(conn: &mut PgConnection, post_id: i32) -> Result<(usize, usize, i32)> {
+    let (images, videos, next): (i64, i64, i32) = sqlx::query_as(
+        "SELECT count(*) FILTER (WHERE media_type::text = 'image'), count(*) FILTER (WHERE media_type::text = 'video'), \
+         COALESCE(max(sort_order) + 1, 0) FROM newsfeed_post_images WHERE post_id = $1",
+    )
+    .bind(post_id)
+    .fetch_one(&mut *conn)
+    .await?;
+    Ok((images as usize, videos as usize, next))
+}
+
+fn check_media_room(have: (usize, usize), add: (usize, usize)) -> Result<()> {
+    if have.0 + add.0 > MAX_IMAGES_PER_POST {
+        return Err(Error::Http(Box::new(HttpError::bad_request(format!(
+            "Tối đa {MAX_IMAGES_PER_POST} ảnh mỗi bài"
+        )))));
+    }
+    if have.1 + add.1 > MAX_VIDEOS_PER_POST {
+        return Err(Error::Http(Box::new(HttpError::bad_request(format!(
+            "Tối đa {MAX_VIDEOS_PER_POST} video mỗi bài"
+        )))));
+    }
+    Ok(())
+}
+
+/// `POST /newsfeed/:id/upload` (`AuthOnly`; cổng thật: tác giả hoặc `newsfeed.moderate`): sửa bài và thêm ảnh/video vào
+/// cuối bài trong một lần lưu. `content`/`category` là `None` thì giữ nguyên. Trần 10 ảnh, 5 video tính cả tệp đã có. Tệp
+/// tạm của video luôn được dọn; lỗi sau khi đã ghi kho thì gỡ tệp vừa ghi. Không gửi lại thông báo "bài mới".
+#[allow(clippy::too_many_arguments)] // tương ứng các trường của một lần sửa bài; router dựng từ multipart
+pub async fn update_with_media<S: MediaStore>(
+    db: &TenantDb,
+    store: &S,
+    actor: &Actor,
+    post_id: i32,
+    content: Option<&str>,
+    category: Option<&str>,
+    images: Vec<ImageUpload>,
+    videos: &[VideoUpload],
+) -> Result<Post> {
+    let res = update_with_media_inner(db, store, actor, post_id, content, category, images, videos).await;
+    for v in videos {
+        let _ = tokio::fs::remove_file(&v.path).await;
+    }
+    res
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn update_with_media_inner<S: MediaStore>(
+    db: &TenantDb,
+    store: &S,
+    actor: &Actor,
+    post_id: i32,
+    content: Option<&str>,
+    category: Option<&str>,
+    images: Vec<ImageUpload>,
+    videos: &[VideoUpload],
+) -> Result<Post> {
+    if images.is_empty() && videos.is_empty() {
+        return Err(bad_request("Vui lòng chọn ảnh hoặc video để thêm"));
+    }
+    let add = (images.len(), videos.len());
+    // Kiểm quyền và chỗ trống trước khi nén/ghi tệp (rẻ); kiểm lại trong giao dịch có khoá dòng bài.
+    {
+        let mut conn = db.acquire().await?;
+        let author = post_author(&mut conn, post_id).await?;
+        if author != actor.user_id && !actor.can_moderate {
+            return Err(forbidden("Bạn không có quyền sửa bài này"));
+        }
+        let (i, v, _) = media_counts(&mut conn, post_id).await?;
+        check_media_room((i, v), add)?;
+    }
+    let mut uploaded: Vec<(String, &'static str)> = Vec::new();
+    let result = async {
+        for img in images {
+            uploaded.push((put_image(store, img).await?, "image"));
+        }
+        for v in videos {
+            uploaded.push((put_video(store, v).await?, "video"));
+        }
+        let mut tx = db.begin().await?;
+        let author: i32 = sqlx::query_scalar("SELECT author_id FROM newsfeed_posts WHERE id = $1 FOR UPDATE")
+            .bind(post_id)
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or_else(|| not_found("Không tìm thấy bài đăng"))?;
+        if author != actor.user_id && !actor.can_moderate {
+            return Err(forbidden("Bạn không có quyền sửa bài này"));
+        }
+        let (i, v, next) = media_counts(&mut tx, post_id).await?;
+        check_media_room((i, v), add)?;
+        for (k, (key, kind)) in uploaded.iter().enumerate() {
+            sqlx::query("INSERT INTO newsfeed_post_images (post_id, image_url, media_type, sort_order) VALUES ($1, $2, $3::text::\"NewsfeedMediaType\", $4)")
+                .bind(post_id)
+                .bind(key)
+                .bind(*kind)
+                .bind(next + k as i32)
+                .execute(&mut *tx)
+                .await?;
+        }
+        sqlx::query(
+            "UPDATE newsfeed_posts SET content = COALESCE($2, content), category = COALESCE($3, category), \
+             edited_at = now(), updated_at = now() WHERE id = $1",
+        )
+        .bind(post_id)
+        .bind(content.map(str::trim))
+        .bind(category)
+        .execute(&mut *tx)
+        .await?;
+        let post = post_by_id(&mut tx, post_id).await?.ok_or_else(|| not_found("Không tìm thấy bài đăng"))?;
+        tx.commit().await?;
+        Ok::<Post, Error>(post)
+    }
+    .await;
+    if result.is_err() {
+        for (key, _) in &uploaded {
+            let _ = store.remove(key).await;
+        }
+    }
+    result
 }
 
 /// `DELETE /newsfeed/:id`: xoá bài (ảnh, thích, bình luận xoá theo khoá ngoại) rồi xoá tệp khỏi kho, lỗi kho chỉ ghi log.

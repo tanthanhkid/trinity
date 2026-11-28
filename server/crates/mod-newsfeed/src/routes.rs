@@ -1,4 +1,4 @@
-//! Router axum của `/api/v1/newsfeed` (13 route, khớp `contracts/routes.json`): danh sách, quyền của tôi, đăng bài (JSON và
+//! Router axum của `/api/v1/newsfeed` (14 route, khớp `contracts/routes.json`): danh sách, quyền của tôi, đăng bài (JSON và
 //! multipart), phát tệp (ảnh, video có `Range`), sửa/xoá bài, thích, bình luận.
 //!
 //! Thân của `CreatePostDto`, `CreatePostMultipartDto`, `UpdatePostDto`, `CreatePostCommentDto` và query `QueryPostsDto` kiểm
@@ -124,7 +124,7 @@ pub struct Ctx {
 // ---------------------------------------------------------------------------------------------------------------------
 // Bảng route
 
-/// Bảng route (13 dòng) so với `routes.json`.
+/// Bảng route (14 dòng) so với `routes.json`.
 pub fn specs() -> Vec<RouteSpec> {
     let auth = || Access::AuthOnly;
     let id = &["param.id:ParseIntPipe"];
@@ -145,6 +145,9 @@ pub fn specs() -> Vec<RouteSpec> {
             .param_pipes(id),
         RouteSpec::new(Method::DELETE, "/api/v1/newsfeed/:id", auth())
             .status_ok(200)
+            .param_pipes(id),
+        RouteSpec::new(Method::POST, "/api/v1/newsfeed/:id/upload", auth())
+            .status_ok(201)
             .param_pipes(id),
         RouteSpec::new(Method::POST, "/api/v1/newsfeed/:id/like", auth())
             .status_ok(201)
@@ -301,7 +304,49 @@ fn post_dto(body: &Value) -> Result<(String, String), Response> {
     Ok((text_of(&o, "category"), text_of(&o, "content")))
 }
 
-/// `UpdatePostDto` hoặc `CreatePostCommentDto`: chỉ `content`.
+/// `UpdatePostDto`: `content` bắt buộc, `category` tuỳ chọn (đổi «Mục»).
+fn update_dto(body: &Value) -> Result<(String, Option<String>), Response> {
+    let o = object_of(body);
+    let mut errs = Vec::new();
+    unknown_keys(o.keys(), &["category", "content"], &mut errs);
+    if o.contains_key("category") {
+        category_msg(o.get("category"), &mut errs);
+    }
+    content_msgs(o.get("content"), CONTENT_MAX_LEN, &mut errs);
+    check(errs)?;
+    let category = o.get("category").and_then(Value::as_str).map(str::to_owned);
+    Ok((text_of(&o, "content"), category))
+}
+
+/// Trường chữ của multipart `POST /newsfeed/:id/upload`: `content`, `category` đều tuỳ chọn (trường lặp: lấy giá trị cuối).
+fn update_multipart_dto(fields: &[(String, String)]) -> Result<(Option<String>, Option<String>), Response> {
+    let mut errs = Vec::new();
+    let mut seen: Vec<&String> = Vec::new();
+    for (k, _) in fields {
+        if !seen.contains(&k) {
+            seen.push(k);
+        }
+    }
+    unknown_keys(seen.into_iter(), &["category", "content"], &mut errs);
+    let last = |k: &str| fields.iter().rev().find(|(n, _)| n == k).map(|(_, v)| v.clone());
+    let category = last("category");
+    let content = last("content");
+    if let Some(c) = &category {
+        category_msg(Some(&Value::String(c.clone())), &mut errs);
+    }
+    if let Some(c) = &content {
+        let len: usize = c.chars().map(char::len_utf16).sum();
+        if len > CONTENT_MAX_LEN {
+            errs.push(format!(
+                "content must be shorter than or equal to {CONTENT_MAX_LEN} characters"
+            ));
+        }
+    }
+    check(errs)?;
+    Ok((content, category))
+}
+
+/// `CreatePostCommentDto`: chỉ `content`.
 fn content_dto(body: &Value, max: usize) -> Result<String, Response> {
     let o = object_of(body);
     let mut errs = Vec::new();
@@ -622,7 +667,7 @@ async fn image_at(
 }
 
 async fn update(State(c): S, Extension(u): U, Path(id): Path<String>, JsonBody(body): JsonBody) -> Response {
-    let content = match content_dto(&body, CONTENT_MAX_LEN) {
+    let (content, category) = match update_dto(&body) {
         Ok(v) => v,
         Err(r) => return r,
     };
@@ -634,7 +679,48 @@ async fn update(State(c): S, Extension(u): U, Path(id): Path<String>, JsonBody(b
         Ok(t) => t,
         Err(r) => return r,
     };
-    ok(crate::update(&t, &actor(&u), id, &content).await)
+    ok(crate::update_post(&t, &actor(&u), id, &content, category.as_deref()).await)
+}
+
+/// `POST /newsfeed/:id/upload`: sửa bài (nội dung, «Mục» tuỳ chọn) và thêm ảnh/video vào bài đã đăng.
+async fn update_upload(State(c): S, Extension(u): U, Path(id): Path<String>, mut mp: Multipart) -> Response {
+    let mut up = Upload::default();
+    if let Err(e) = collect_upload(&mut mp, &mut up).await {
+        cleanup(&up.videos).await;
+        return fail(e);
+    }
+    let (content, category) = match update_multipart_dto(&up.fields) {
+        Ok(v) => v,
+        Err(r) => {
+            cleanup(&up.videos).await;
+            return r;
+        }
+    };
+    let id = match id_of(&id, "Không tìm thấy bài đăng") {
+        Ok(i) => i,
+        Err(r) => {
+            cleanup(&up.videos).await;
+            return r;
+        }
+    };
+    let t = match tenant(&c, &u).await {
+        Ok(t) => t,
+        Err(r) => {
+            cleanup(&up.videos).await;
+            return r;
+        }
+    };
+    ok(crate::update_with_media(
+        &t,
+        &c.store,
+        &actor(&u),
+        id,
+        content.as_deref(),
+        category.as_deref(),
+        up.images,
+        &up.videos,
+    )
+    .await)
 }
 
 async fn remove(State(c): S, Extension(u): U, Path(id): Path<String>) -> Response {
@@ -715,7 +801,7 @@ async fn comment_remove(State(c): S, Extension(u): U, Path(id): Path<String>) ->
     ok(crate::delete_comment(&t, &actor(&u), id).await)
 }
 
-/// Router của module (13 route). Route multipart nhận thân tới tổng trần của 10 ảnh và 5 video (+ 1 MB), như multer chỉ giới
+/// Router của module (14 route). Route multipart nhận thân tới tổng trần của 10 ảnh và 5 video (+ 1 MB), như multer chỉ giới
 /// hạn từng tệp (mặc định 2 MB của axum không đủ).
 pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
     let s = specs();
@@ -745,6 +831,10 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
         .route(spec(&Method::GET, "/api/v1/newsfeed/:id/images/:index"), image_at)
         .route(spec(&Method::PATCH, "/api/v1/newsfeed/:id"), update)
         .route(spec(&Method::DELETE, "/api/v1/newsfeed/:id"), remove)
+        .route(
+            spec(&Method::POST, "/api/v1/newsfeed/:id/upload"),
+            update_upload.layer(DefaultBodyLimit::max(body_max)),
+        )
         .route(spec(&Method::POST, "/api/v1/newsfeed/:id/like"), like)
         .route(spec(&Method::GET, "/api/v1/newsfeed/:id/comments"), comments)
         .route(spec(&Method::POST, "/api/v1/newsfeed/:id/comments"), comment_create)
@@ -763,12 +853,32 @@ mod tests {
     }
 
     #[test]
-    fn bang_route_du_13_dong_khop_routes_json() {
+    fn bang_route_du_14_dong_khop_routes_json() {
         let table = specs();
-        assert_eq!(table.len(), 13);
+        assert_eq!(table.len(), 14);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
-        assert_eq!(rep.declared, 13);
+        assert_eq!(rep.declared, 14);
+    }
+
+    #[test]
+    fn sua_bai_nhan_muc_tuy_chon() {
+        assert_eq!(update_dto(&json!({"content": "a"})).unwrap(), ("a".to_owned(), None));
+        assert_eq!(
+            update_dto(&json!({"content": "a", "category": "pr"})).unwrap(),
+            ("a".to_owned(), Some("pr".to_owned()))
+        );
+        assert!(update_dto(&json!({"content": "a", "category": "x"})).is_err());
+        assert!(update_dto(&json!({"content": "a", "category": null})).is_err());
+        assert!(update_dto(&json!({"content": "a", "x": 1})).is_err());
+        let f = |k: &str, v: &str| (k.to_owned(), v.to_owned());
+        assert_eq!(update_multipart_dto(&[]).unwrap(), (None, None));
+        assert_eq!(
+            update_multipart_dto(&[f("category", "training"), f("content", "b")]).unwrap(),
+            (Some("b".to_owned()), Some("training".to_owned()))
+        );
+        assert!(update_multipart_dto(&[f("category", "x")]).is_err());
+        assert!(update_multipart_dto(&[f("lạ", "x")]).is_err());
     }
 
     #[test]

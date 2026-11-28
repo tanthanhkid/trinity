@@ -62,7 +62,7 @@ export function ShellPinnedGroup({
                   type="button"
                   onClick={() => onTogglePin(entry.key)}
                   aria-label={`Bỏ ghim ${entry.title}`}
-                  className="absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-0.5 text-[color:var(--color-app-sidebar-muted)] opacity-0 hover:bg-black/10 focus-visible:opacity-100 group-hover/pin:opacity-100"
+                  className="absolute top-1/2 right-1 grid h-10 w-7 -translate-y-1/2 place-items-center rounded text-[color:var(--color-app-sidebar-muted)] opacity-0 hover:bg-black/10 focus-visible:opacity-100 group-hover/pin:opacity-100"
                 >
                   <Pin className="size-3 fill-current" />
                 </button>

@@ -81,7 +81,7 @@ export function ShellTopbar() {
         aria-expanded={navExpanded}
         aria-keyshortcuts="Control+B Meta+B"
         title={navExpanded ? "Thu gọn menu (Ctrl+B)" : "Mở rộng menu (Ctrl+B)"}
-        className="grid size-[34px] flex-none place-items-center rounded-lg max-sm:size-11 text-[var(--color-app-ink-2)] transition-colors hover:bg-[var(--color-app-surface-2)]"
+        className="grid size-10 flex-none place-items-center rounded-lg max-sm:size-11 text-[var(--color-app-ink-2)] transition-colors hover:bg-[var(--color-app-surface-2)]"
       >
         <PanelLeft className="size-[18px]" />
       </button>
@@ -90,7 +90,7 @@ export function ShellTopbar() {
         <Link
           href="/dashboard"
           aria-label="Về Tổng quan"
-          className="touch-target grid size-7 flex-none place-items-center rounded-lg max-sm:hidden text-[var(--color-app-ink-2)] transition-colors hover:bg-[var(--color-app-surface-2)]"
+          className="touch-target grid size-10 flex-none place-items-center rounded-lg max-sm:hidden text-[var(--color-app-ink-2)] transition-colors hover:bg-[var(--color-app-surface-2)]"
         >
           <Home className="size-4" />
         </Link>
@@ -111,7 +111,7 @@ export function ShellTopbar() {
         type="button"
         onClick={openCommandPalette}
         aria-label="Tìm khách hàng hoặc điều hướng"
-        className="hidden h-[34px] min-w-0 flex-none items-center gap-[7px] rounded-lg border border-[var(--color-app-line)] bg-card px-3 text-left text-sm font-medium text-foreground shadow-[var(--shadow-card)] transition-colors hover:bg-[var(--color-app-surface-2)] md:flex"
+        className="hidden h-10 min-w-0 flex-none items-center gap-[7px] rounded-lg border border-[var(--color-app-line)] bg-card px-3 text-left text-sm font-medium text-foreground shadow-[var(--shadow-card)] transition-colors hover:bg-[var(--color-app-surface-2)] md:flex"
       >
         <Search className="size-[18px] flex-none text-muted-foreground" aria-hidden />
         <span className="truncate">Tìm kiếm</span>
@@ -128,7 +128,7 @@ export function ShellTopbar() {
             <button
               type="button"
               title={getUserEmailTooltip(user)}
-              className="flex items-center gap-2.5 rounded-full py-0.5 pr-1.5 pl-0.5 max-sm:size-11 max-sm:justify-center max-sm:p-0 transition-colors hover:bg-[var(--color-app-surface-2)]"
+              className="flex h-10 items-center gap-2.5 rounded-full py-0.5 pr-1.5 pl-0.5 max-sm:size-11 max-sm:justify-center max-sm:p-0 transition-colors hover:bg-[var(--color-app-surface-2)]"
             />
           }
         >

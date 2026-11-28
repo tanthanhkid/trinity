@@ -203,7 +203,7 @@ export function NotificationsBell() {
           Số đếm trên chuông/tin nhắn là NGOẠI LỆ duy nhất của luật chữ >= 14px: huy hiệu nằm đè góc
           nút 32px, chữ 14px ("99+") che mất biểu tượng. Nâng 10px → 12px đậm. */}
       <DropdownMenu onOpenChange={setBellOpen}>
-        <DropdownMenuTrigger className="relative inline-flex size-8 max-sm:size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-sm font-semibold outline-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
+        <DropdownMenuTrigger className="relative inline-flex size-10 max-sm:size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-sm font-semibold outline-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
           <TriggerIcon icon={Bell} open={bellOpen} count={bellUnread} badgeClass="bg-destructive" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-96 max-w-[calc(100vw-1rem)] p-0">
@@ -226,7 +226,7 @@ export function NotificationsBell() {
 
       {/* ---- Icon Tin nhắn: chat tag / mention / internal ---- */}
       <DropdownMenu onOpenChange={setMsgOpen}>
-        <DropdownMenuTrigger className="relative inline-flex size-8 max-sm:size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-sm font-semibold outline-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
+        <DropdownMenuTrigger className="relative inline-flex size-10 max-sm:size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-sm font-semibold outline-none hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50">
           <TriggerIcon icon={MessageSquare} open={msgOpen} count={msgUnread} badgeClass="bg-blue-600" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-96 max-w-[calc(100vw-1rem)] p-0">

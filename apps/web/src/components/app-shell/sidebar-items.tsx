@@ -60,7 +60,7 @@ function PinToggleButton({
       onClick={onTogglePin}
       aria-label={isPinned ? `Bỏ ghim ${title}` : `Ghim ${title}`}
       className={cn(
-        "absolute top-1/2 right-1.5 -translate-y-1/2 rounded p-0.5 text-[color:var(--color-app-sidebar-muted)] hover:bg-black/10 group-data-[collapsible=icon]:hidden",
+        "absolute top-1/2 right-1 grid h-10 w-7 -translate-y-1/2 place-items-center rounded text-[color:var(--color-app-sidebar-muted)] hover:bg-black/10 group-data-[collapsible=icon]:hidden",
         isPinned ? "opacity-100" : "opacity-0 group-hover/item:opacity-100 focus-visible:opacity-100",
       )}
     >

@@ -18,7 +18,7 @@ export const QUICK_TABS_LIST = "h-auto w-full justify-start gap-1 border-0 bg-tr
 
 /** 1 tab nhanh — cùng kiểu tab của chi tiết khách / Khách hàng: nền xám khi chọn, không gạch chân. */
 export const QUICK_TAB =
-  "h-9 flex-none rounded-lg px-3 text-sm font-medium after:hidden data-active:bg-[var(--muted)]! data-active:text-foreground hover:bg-[var(--muted)] max-sm:h-11 dark:data-active:border-transparent"
+  "h-10 flex-none rounded-lg px-3 text-sm font-medium after:hidden data-active:bg-[var(--muted)]! data-active:text-foreground hover:bg-[var(--muted)] max-sm:h-11 dark:data-active:border-transparent"
 
 export const ShellTabs = Tabs
 export const ShellTabsContent = TabsContent

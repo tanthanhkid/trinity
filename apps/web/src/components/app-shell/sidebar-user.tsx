@@ -53,7 +53,7 @@ export function ShellSidebarUser() {
               type="button"
               title={getUserEmailTooltip(user)}
               aria-label={`Tài khoản: ${displayName}`}
-              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1 text-left transition-colors hover:bg-[var(--sidebar-accent)]"
+              className="flex min-h-10 min-w-0 flex-1 items-center gap-2.5 rounded-lg p-1 text-left transition-colors hover:bg-[var(--sidebar-accent)]"
             />
           }
         >

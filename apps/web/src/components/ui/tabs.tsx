@@ -32,7 +32,7 @@ const tabsListVariants = cva(
         line: "gap-1 bg-transparent",
       },
       layout: {
-        compact: "inline-flex w-fit overflow-x-auto max-sm:max-w-full group-data-horizontal/tabs:h-8 max-sm:group-data-horizontal/tabs:h-auto",
+        compact: "inline-flex w-fit overflow-x-auto max-sm:max-w-full group-data-horizontal/tabs:h-10 max-sm:group-data-horizontal/tabs:h-auto",
         wrap: "flex flex-wrap w-full h-auto overflow-visible gap-1 py-1",
       },
     },

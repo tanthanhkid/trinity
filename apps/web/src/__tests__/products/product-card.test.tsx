@@ -36,11 +36,11 @@ describe("badge trạng thái + action", () => {
     rerender(<ProductCard product={{ ...base, is_active: false }} {...props} />)
     expect(screen.getByText("Ngừng bán")).toBeTruthy()
   })
-  it("Xem chi tiết là nút phụ (outline, không nền đặc — chuẩn một hành động chính)", () => {
+  it("Xem chi tiết là nút phụ (ax-secondary, không nền đặc — chuẩn một hành động chính)", () => {
     render(<ProductCard product={base} {...props} />)
     const btn = screen.getByRole("button", { name: /Xem chi tiết/ })
     expect(btn.className).not.toContain("bg-primary")
-    expect(btn.className).toContain("border-input")
+    expect(btn.className).toContain("bg-ax-surface")
   })
 })
 

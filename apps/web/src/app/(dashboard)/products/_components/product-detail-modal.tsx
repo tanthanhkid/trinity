@@ -189,14 +189,14 @@ function AttributeValuesList({
   )
 }
 
-function formatOrphanValue(v: unknown): string {
+export function formatOrphanValue(v: unknown): string {
   if (typeof v === "boolean") return v ? "Có" : "Không"
   if (Array.isArray(v)) return v.map((x) => (typeof x === "object" && x !== null ? JSON.stringify(x) : String(x))).join(", ")
   if (typeof v === "object") return JSON.stringify(v)
   return String(v)
 }
 
-function formatAttributeValue(value: unknown, def: ProductAttributeDef): string {
+export function formatAttributeValue(value: unknown, def: ProductAttributeDef): string {
   if (value === undefined || value === null || value === "") return "—"
   if (def.type === "boolean") return value ? "Có" : "Không"
   // Đổi kiểu def sau khi đã có dữ liệu (vd text → currency): giá trị không phải số

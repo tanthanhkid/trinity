@@ -1,16 +1,15 @@
 import { Star } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { StatusTag } from "@/components/ui/status-tag"
+import { StageChip } from "@/components/ui/stage-chip"
 
-/** Trạng thái dùng chung card + modal — mẫu chung `StatusTag` (đang chạy = xanh, tắt = xám). */
+/** Trạng thái dùng chung card + trang: chip «Ánh xanh» (đang bán = xanh lá, ngừng = trung tính). */
 export function ProductStatusBadge({ active }: { active: boolean }) {
-  return active ? <StatusTag kind="running">Đang mở bán</StatusTag> : <StatusTag kind="off">Ngừng bán</StatusTag>
+  return active ? <StageChip tone="won" size="sm">Đang mở bán</StageChip> : <StageChip tone="neutral" size="sm">Ngừng bán</StageChip>
 }
 
 export function ProductFeaturedBadge() {
   return (
-    <Badge className="gap-1 border-[var(--color-app-primary)] bg-transparent text-[var(--color-app-primary-ink)]">
-      <Star className="size-3" /> Nổi bật
-    </Badge>
+    <StageChip tone="new" size="sm">
+      <Star aria-hidden className="size-3" /> Nổi bật
+    </StageChip>
   )
 }

@@ -140,7 +140,7 @@ export function ZaloOaInbox({ listTop, className, initialOpenId }: { listTop?: R
   const list = (
     <>
       <InboxListToolbar q={q} onQ={setQ} awaiting={{ on: onlyAwaiting, count: awaitingCount, onChange: setOnlyAwaiting }} />
-      <div className="min-h-0 flex-1 overflow-y-auto ">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {threads.isLoading && <div className="flex justify-center py-6"><Loader2 className="size-4 animate-spin" /></div>}
         {threads.isError && !zaloOff && <ErrorState compact className="px-2 py-4" title="Không tải được danh sách hội thoại" error={threads.error} onRetry={() => void threads.refetch()} retrying={threads.isFetching} />}
         {!threads.isLoading && (zaloOff || (!threads.isError && rows.length === 0)) && (

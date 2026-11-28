@@ -228,7 +228,7 @@ export function HeroChip({ tone = "solid", onClick, children }: { tone?: "solid"
       onClick={onClick}
       className={cn(
         "h-11 shrink-0 cursor-pointer rounded-full px-3.5 text-[15px] font-semibold tracking-[-0.011em] whitespace-nowrap outline-none transition-colors duration-150 focus-visible:shadow-[0_0_0_2px_#1A3C5D,0_0_0_4px_#fff]",
-        tone === "solid" && "border border-transparent bg-white text-ax-ink hover:bg-[#EEF4FA]",
+        tone === "solid" && "border border-transparent bg-white text-[#17181C] hover:bg-[#EEF4FA]",
         tone === "dashed" && "border-[1.5px] border-dashed border-white/80 bg-transparent text-white hover:bg-[var(--ax-on-hero-secondary)]",
         tone === "glass" && "border border-[var(--ax-on-hero-secondary-border)] bg-[var(--ax-on-hero-secondary)] font-normal text-white hover:bg-[var(--ax-on-hero-secondary-hover)]",
       )}

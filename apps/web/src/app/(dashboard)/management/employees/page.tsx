@@ -15,7 +15,6 @@ import {
   useUpdateEmployee,
   useLockEmployee,
   useUnlockEmployee,
-  resolveEmployeeDisplayStatus,
   EMPLOYEES_PAGE_SIZE,
 } from "@/hooks/use-employees"
 import type { Employee, CreateEmployeeDto, UpdateEmployeeDto, EmployeesResponse } from "@/hooks/use-employees"
@@ -27,15 +26,6 @@ import { PermissionGate, usePermissions } from "@/lib/rbac"
 import { ShellPageHeader } from "@/components/app-shell/page-header"
 import { MOBILE_FAB_CLASS } from "@/components/app-shell/mobile-primary"
 import { MobileFilterSheet } from "@/components/app-shell/mobile-filter-sheet"
-import { ShellResponsiveList } from "@/components/app-shell/responsive-list"
-import { ShellListCard, ShellListCardRow } from "@/components/app-shell/list-card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { formatDate, autoMaskVnDate, parseVnDate } from "@/lib/format"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -64,31 +54,14 @@ import { useOffline } from "@/components/offline-banner"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadingBlock } from "@/components/ui/loading-block"
-import { Loader2, Eye, Pencil, Lock, LockOpen, Trash2, ChevronLeft, ChevronRight, Camera, RotateCcw, UserPlus, BarChart3, Users, ArrowUpDown, ArrowUp, ArrowDown, MoreHorizontal } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronRight, Camera, RotateCcw, UserPlus, BarChart3, Users } from "lucide-react"
 import { teamColorClass } from "@/lib/team-style"
 import { cn } from "@/lib/utils"
 import { useRowHighlight } from "@/lib/use-row-highlight"
+import { StageChip } from "@/components/ui/stage-chip"
+import { EmployeeDetail, EmployeeListItem, STATUS_LABELS } from "./_components/employee-detail"
 
 // ─── Constants ─────────────────────────────────────────────────────────────
-
-const STATUS_LABELS: Record<string, string> = {
-  // "unclassified" = nhân viên đồng bộ tự động từ tài khoản người dùng, HR chưa phân loại.
-  unclassified: "Chưa phân loại",
-  active: "Đang làm việc",
-  probation: "Thử việc",
-  waiting: "Chờ vào làm",
-  on_leave: "Tạm nghỉ",
-  resigned: "Nghỉ việc",
-}
-
-const STATUS_BADGE_VARIANT: Record<string, string> = {
-  unclassified: "bg-slate-100 text-slate-700",
-  active: "bg-green-100 text-green-800",
-  probation: "bg-blue-100 text-blue-800",
-  waiting: "bg-purple-100 text-purple-800",
-  on_leave: "bg-amber-100 text-amber-800",
-  resigned: "bg-red-100 text-red-800",
-}
 
 const GENDER_LABELS: Record<string, string> = {
   M: "Nam",
@@ -193,30 +166,6 @@ const createSchema = z.object({
 type CreateFormValues = z.infer<typeof createSchema>
 
 // ─── Helper: Avatar Initials ────────────────────────────────────────────────
-
-function AvatarInitials({ name, avatarUrl }: { name: string | null; avatarUrl: string | null }) {
-  if (avatarUrl) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={name ?? "NV"}
-        className="h-8 w-8 rounded-full object-cover"
-        onError={(e) => { e.currentTarget.style.display = "none" }}
-      />
-    )
-  }
-  const initials = (name ?? "?")
-    .split(" ")
-    .filter(Boolean)
-    .slice(-2)
-    .map((s) => s[0].toUpperCase())
-    .join("")
-  return (
-    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-700">
-      {initials}
-    </span>
-  )
-}
 
 // ─── Helper: Avatar Upload ──────────────────────────────────────────────────
 
@@ -339,16 +288,6 @@ function AvatarUpload({
 }
 
 // ─── Helper: Status Badge ────────────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: string | null }) {
-  const label = STATUS_LABELS[status ?? ""] ?? (status ?? "Không rõ")
-  const cls = STATUS_BADGE_VARIANT[status ?? ""] ?? "bg-gray-100 text-gray-700"
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${cls}`}>
-      {label}
-    </span>
-  )
-}
 
 // ─── Edit Employee Dialog ────────────────────────────────────────────────────
 
@@ -1143,68 +1082,6 @@ function AddEmployeeDialog({ onClose }: { onClose: () => void }) {
 
 // ─── View Employee Dialog (read-only) ───────────────────────────────────────
 
-function ViewEmployeeDialog({ employee, onClose }: { employee: Employee; onClose: () => void }) {
-  return (
-    <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="sm:max-w-md flex flex-col max-h-[90vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>Thông tin nhân viên</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 text-sm flex-1 min-h-0 overflow-y-auto">
-          <div className="flex items-center gap-3">
-            <AvatarInitials name={employee.full_name} avatarUrl={employee.avatar_url} />
-            <div>
-              <p className="font-medium">{employee.full_name ?? "Chưa cập nhật"}</p>
-              <p className="text-muted-foreground">{employee.email}</p>
-            </div>
-          </div>
-          <hr />
-          <InfoRow label="Mã NV" value={employee.employee_code} />
-          <InfoRow label="Chức vụ" value={employee.position} />
-          <InfoRow label="Phòng ban" value={employee.department} />
-          <InfoRow label="Giới tính" value={employee.gender ? (GENDER_LABELS[employee.gender] ?? employee.gender) : null} />
-          <InfoRow label="Số điện thoại" value={employee.phone} />
-          <InfoRow label="Team" value={employee.team_name} />
-          <InfoRow label="Trạng thái" value={<StatusBadge status={resolveEmployeeDisplayStatus(employee.status, employee.user_status)} />} />
-          <InfoRow label="Ngày vào làm" value={employee.joined_at ? formatDate(employee.joined_at) : null} />
-          {employee.education_level && (
-            <InfoRow label="Trình độ học vấn" value={EDUCATION_LABELS[employee.education_level] ?? employee.education_level} />
-          )}
-          {employee.recruitment_source && (
-            <InfoRow label="Nguồn tuyển dụng" value={RECRUITMENT_LABELS[employee.recruitment_source] ?? employee.recruitment_source} />
-          )}
-          <InfoRow label="Ngày tạo" value={formatDate(employee.created_at)} />
-          <hr />
-          <p className="text-xs font-semibold text-muted-foreground">Hồ sơ cá nhân</p>
-          <InfoRow label="Ngày sinh" value={employee.birth_date ? formatDate(employee.birth_date) : null} />
-          <InfoRow label="Số CCCD" value={employee.id_card_number} />
-          <InfoRow label="Ngày cấp CCCD" value={employee.id_card_issued_date ? formatDate(employee.id_card_issued_date) : null} />
-          <InfoRow label="Nơi cấp CCCD" value={employee.id_card_issued_place} />
-          <InfoRow label="Hộ khẩu thường trú" value={employee.permanent_address} />
-          <InfoRow label="Chỗ ở hiện tại" value={employee.current_address} />
-          <hr />
-          <p className="text-xs font-semibold text-muted-foreground">Tài khoản ngân hàng</p>
-          <InfoRow label="Số tài khoản" value={employee.bank_account_number} />
-          <InfoRow label="Tên ngân hàng" value={employee.bank_name} />
-          <InfoRow label="Tên chủ tài khoản" value={employee.bank_account_holder} />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Đóng</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function InfoRow({ label, value }: { label: string; value: React.ReactNode | null | undefined }) {
-  return (
-    <div className="flex justify-between gap-2">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium">{value ?? <span className="text-muted-foreground italic">Chưa cập nhật</span>}</span>
-    </div>
-  )
-}
-
 // ─── Lock / Delete Confirm Dialogs ──────────────────────────────────────────
 
 function LockConfirmDialog({ employee, onClose }: { employee: Employee; onClose: () => void }) {
@@ -1319,36 +1196,6 @@ const SORT_OPTIONS = [
   { value: "joined_at:desc", label: "Ngày vào làm (mới nhất)" },
 ]
 
-// Header cột bấm để sắp xếp (server-side). Icon: trung tính / lên / xuống.
-function SortTh({
-  label,
-  field,
-  sortBy,
-  sortDir,
-  onSort,
-}: {
-  label: string
-  field: string
-  sortBy?: string
-  sortDir: "asc" | "desc"
-  onSort: (f: string) => void
-}) {
-  const active = sortBy === field
-  const Icon = active ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown
-  return (
-    <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-      <button
-        type="button"
-        onClick={() => onSort(field)}
-        className="relative after:absolute after:inset-x-0 after:-inset-y-1 after:content-[''] pointer-coarse:sm:after:-inset-y-3 inline-flex items-center gap-1 select-none hover:text-foreground"
-      >
-        {label}
-        <Icon className={`size-3.5 ${active ? "text-foreground" : "opacity-40"}`} />
-      </button>
-    </th>
-  )
-}
-
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 function EmployeesPageContent() {
@@ -1358,7 +1205,6 @@ function EmployeesPageContent() {
   const canEdit = can("employees.manage")
   const canLock = can("users.manage")
   const canDelete = can("users.manage")
-  const isReadOnly = !canAdd && !canEdit && !canLock && !canDelete
 
   const { selectRow, rowHighlightClass } = useRowHighlight<number>()
 
@@ -1373,17 +1219,6 @@ function EmployeesPageContent() {
   const [page, setPage] = useState(1)
   const [sortBy, setSortBy] = useState<string | undefined>(undefined)
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
-
-  // Sắp xếp theo cột (server-side) → về trang đầu. Click cùng cột để đảo chiều.
-  function handleSort(field: string) {
-    if (sortBy === field) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
-    } else {
-      setSortBy(field)
-      setSortDir("asc")
-    }
-    setPage((p) => (p === 1 ? p : 1))
-  }
 
   // Nguồn dropdown "Team" — lấy từ bảng teams (Cài đặt > Team), luôn đồng bộ khi thêm/sửa/xoá team.
   // includeUnled:true để hiện cả team chưa gán Người phụ trách nhưng có NV gán trực tiếp;
@@ -1407,7 +1242,6 @@ function EmployeesPageContent() {
 
   // Dialog state
   const [showAddDialog, setShowAddDialog] = useState(false)
-  const [viewEmployee, setViewEmployee] = useState<Employee | null>(null)
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null)
   const [lockTarget, setLockTarget] = useState<Employee | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null)
@@ -1435,101 +1269,66 @@ function EmployeesPageContent() {
     filterStatus || employmentState !== "active" ? "x" : "",
   ].filter(Boolean).length
 
-  const employeeCards = (
-    <div className="space-y-3">
-      {employees.map((emp) => (
-        <ShellListCard
-          key={emp.id}
-          onClick={() => { selectRow(emp.id); setViewEmployee(emp) }}
-          className={rowHighlightClass(emp.id)}
-        >
-          <div className="flex items-start gap-3">
-            <AvatarInitials name={emp.full_name} avatarUrl={emp.avatar_url} />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="font-medium">{emp.full_name ?? "Chưa cập nhật"}</span>
-                {emp.user_status === "locked" && (
-                  <span className="rounded px-1.5 py-0.5 text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                    Đã nghỉ việc
-                  </span>
-                )}
-              </div>
-              <div className="font-mono text-xs text-muted-foreground">{emp.employee_code}</div>
-            </div>
-            {!isReadOnly && (
-              <div className="-mr-2 -mt-2 flex items-center" onClick={(e) => e.stopPropagation()}>
-                {canEdit && (
-                  <Button variant="ghost" size="icon" aria-label="Sửa thông tin" onClick={() => setEditEmployee(emp)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                )}
-                {(canLock || canDelete) && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Thao tác khác" />}>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      {canLock && (
-                        <DropdownMenuItem
-                          className="gap-2"
-                          disabled={emp.user_status === "locked" && !isAdmin}
-                          onClick={() => setLockTarget(emp)}
-                        >
-                          {emp.user_status === "locked" ? <LockOpen className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                          {emp.user_status === "locked" ? (isAdmin ? "Mở khoá tài khoản" : "Đang bị khoá") : "Khoá tài khoản"}
-                        </DropdownMenuItem>
-                      )}
-                      {canLock && canDelete && <DropdownMenuSeparator />}
-                      {canDelete && (
-                        <DropdownMenuItem variant="destructive" className="gap-2" onClick={() => setDeleteTarget(emp)}>
-                          <Trash2 className="h-4 w-4" />
-                          Xoá nhân viên
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
-            )}
-          </div>
-          <ShellListCardRow label="Chức vụ" value={emp.position ?? "—"} />
-          <ShellListCardRow
-            label="Team"
-            value={
-              emp.team_name ? (
-                <span className={`rounded px-2 py-0.5 text-xs font-medium ${teamColorClass(emp.team_lead_id)}`}>
-                  {emp.team_name}
-                </span>
-              ) : "—"
-            }
-          />
-          <ShellListCardRow
-            label="Trạng thái"
-            value={<StatusBadge status={resolveEmployeeDisplayStatus(emp.status, emp.user_status)} />}
-          />
-          <ShellListCardRow label="Ngày vào làm" value={emp.joined_at ? formatDate(emp.joined_at) : "—"} />
-        </ShellListCard>
-      ))}
-    </div>
-  )
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  // Điện thoại: danh sách và hồ sơ là HAI màn riêng (bố cục khác desktop) — true = đang xem hồ sơ.
+  const [mobileDetail, setMobileDetail] = useState(false)
+  const [resetDeviceTarget, setResetDeviceTarget] = useState<Employee | null>(null)
+  const resetDevice = useResetDevice()
+  const canResetDevice = can("employees.manage")
+
+  // Desktop luôn có một hồ sơ đang chọn: giữ cái đã chọn nếu còn trong trang, không thì lấy hàng đầu.
+  const selected = employees.find((e) => e.id === selectedId) ?? null
+  const current = selected ?? employees[0] ?? null
+  // Điện thoại: người đang xem biến khỏi trang (vừa xoá, đổi lọc) ⇒ về danh sách, KHÔNG lặng lẽ mở hồ sơ người khác.
+  const showMobileDetail = mobileDetail && selected !== null
+  function openEmployee(emp: Employee) {
+    selectRow(emp.id)
+    setSelectedId(emp.id)
+    setMobileDetail(true)
+  }
+
+  // Chip trạng thái ngay dưới ô tìm kiếm — gộp "Trạng thái" + "Tình trạng tài khoản" như bộ lọc cũ.
+  const statusValue =
+    employmentState === "resigned" ? "__resigned__" : employmentState === "all" ? "__all__" : filterStatus || "__active__"
+  function pickStatus(v: string) {
+    if (v === "__resigned__") { setFilterStatus(""); setEmploymentState("resigned") }
+    else if (v === "__all__") { setFilterStatus(""); setEmploymentState("all") }
+    else if (v === "__active__") { setFilterStatus(""); setEmploymentState("active") }
+    else { setFilterStatus(v); setEmploymentState("active") }
+    setPage(1)
+  }
+  const STATUS_CHIPS: { value: string; label: string }[] = [
+    { value: "__active__", label: "Đang làm việc" },
+    { value: "probation", label: "Thử việc" },
+    { value: "waiting", label: "Chờ vào làm" },
+    { value: "on_leave", label: "Tạm nghỉ" },
+    { value: "unclassified", label: "Chưa phân loại" },
+    { value: "__resigned__", label: "Đã nghỉ việc" },
+    { value: "__all__", label: "Tất cả" },
+  ]
 
   return (
     <div className="space-y-4">
       <ShellPageHeader
-        title="Quản lý nhân viên"
+        title="Nhân viên"
         icon={Users}
         description={total > 0 ? `${total} nhân viên` : hasActiveFilters ? "0 nhân viên" : "Chưa có nhân viên"}
         actions={
           <>
             <Link
               href="/management/employees/stats"
-              className={cn(buttonVariants({ variant: "outline" }), "max-sm:min-h-11")}
+              className={cn(buttonVariants({ variant: "ax-secondary", size: "ax" }), "max-sm:min-h-11")}
             >
               <BarChart3 className="mr-2 h-4 w-4" />
               Thống kê
             </Link>
             {canAdd && (
-              <Button className={MOBILE_FAB_CLASS} onClick={() => setShowAddDialog(true)}>
+              <Button
+                variant="ax-primary"
+                size="ax"
+                className={MOBILE_FAB_CLASS}
+                onClick={() => setShowAddDialog(true)}
+              >
                 <UserPlus className="mr-2 h-4 w-4" />
                 Thêm nhân viên
               </Button>
@@ -1538,336 +1337,229 @@ function EmployeesPageContent() {
         }
       />
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3 max-sm:flex-nowrap">
-        <div className="flex flex-col gap-1 max-sm:min-w-0 max-sm:flex-1">
-          <Label className="text-xs text-muted-foreground">Tìm kiếm</Label>
-          <Input
-            placeholder="Tìm theo tên, email, SĐT..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            className="w-60 max-sm:w-full"
-          />
-        </div>
-        <MobileFilterSheet activeCount={sheetActiveCount} onReset={resetFilters}>
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs text-muted-foreground">Phòng ban</Label>
-          <Select
-            value={department || "__all__"}
-            onValueChange={(v) => { setDepartment(v === "__all__" || !v ? "" : v); setPage(1) }}
-          >
-            <SelectTrigger className="w-44 max-sm:w-full">
-              <SelectValue placeholder="Chọn phòng ban">
-                {(v) => (typeof v === "string" && v && v !== "__all__" ? v : "Tất cả phòng ban")}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Tất cả phòng ban</SelectItem>
-              {departments.map((d) => (
-                <SelectItem key={d} value={d}>{d}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs text-muted-foreground">Chức vụ</Label>
-          <Select
-            value={filterPosition || "__all__"}
-            onValueChange={(v) => { setFilterPosition(v === "__all__" || !v ? "" : v); setPage(1) }}
-          >
-            <SelectTrigger className="w-44 max-sm:w-full">
-              <SelectValue placeholder="Chọn chức vụ">
-                {(v) => (typeof v === "string" && v && v !== "__all__" ? v : "Tất cả chức vụ")}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Tất cả chức vụ</SelectItem>
-              {jobTitleOptions.map((j) => (
-                <SelectItem key={j.id} value={j.name}>{j.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs text-muted-foreground">Trạng thái</Label>
-          {/* Gộp "Trạng thái" + "Tình trạng tài khoản" thành 1 dropdown (bỏ trùng lặp):
-              __active__ = đang làm việc (ẩn NV đã nghỉ — mặc định);
-              __resigned__ = đã nghỉ việc (tài khoản khoá — nguồn sự thật);
-              __all__ = tất cả; còn lại = lọc theo HR status trong nhóm đang làm việc. */}
-          <Select
-            value={
-              employmentState === "resigned"
-                ? "__resigned__"
-                : employmentState === "all"
-                  ? "__all__"
-                  : filterStatus || "__active__"
-            }
-            onValueChange={(v) => {
-              if (v === "__resigned__") { setFilterStatus(""); setEmploymentState("resigned") }
-              else if (v === "__all__") { setFilterStatus(""); setEmploymentState("all") }
-              else if (v === "__active__" || !v) { setFilterStatus(""); setEmploymentState("active") }
-              else { setFilterStatus(v); setEmploymentState("active") }
-              setPage(1)
-            }}
-          >
-            <SelectTrigger className="w-48 max-sm:w-full">
-              <SelectValue placeholder="Trạng thái">
-                {(v) => {
-                  if (typeof v !== "string") return null
-                  if (v === "__active__") return "Đang làm việc"
-                  if (v === "__resigned__") return "Đã nghỉ việc"
-                  if (v === "__all__") return "Tất cả"
-                  return STATUS_LABELS[v] ?? v
-                }}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__active__">Đang làm việc</SelectItem>
-              <SelectItem value="probation">Thử việc</SelectItem>
-              <SelectItem value="waiting">Chờ vào làm</SelectItem>
-              <SelectItem value="on_leave">Tạm nghỉ</SelectItem>
-              <SelectItem value="unclassified">Chưa phân loại</SelectItem>
-              <SelectItem value="__resigned__">Đã nghỉ việc</SelectItem>
-              <SelectItem value="__all__">Tất cả</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label className="text-xs text-muted-foreground">Team</Label>
-          <Select
-            value={filterTeam || "__all__"}
-            onValueChange={(v) => { setFilterTeam(v === "__all__" || !v ? "" : v); setPage(1) }}
-          >
-            <SelectTrigger className="w-44 max-sm:w-full">
-              <SelectValue placeholder="Chọn team">
-                {(v) => {
-                  if (typeof v !== "string" || !v || v === "__all__") return "Tất cả team"
-                  // value = id team (KHÔNG team_lead_id — team chưa gán Người phụ trách thì không có team_lead_id).
-                  return teamsForFilter.find((t) => String(t.id) === v)?.name ?? null
-                }}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Tất cả team</SelectItem>
-              {teamsForFilter.map((t) => (
-                <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-1 sm:hidden">
-          <Label className="text-xs text-muted-foreground">Sắp xếp</Label>
-          <Select
-            value={sortBy ? `${sortBy}:${sortDir}` : "__none__"}
-            onValueChange={(v) => {
-              if (!v || v === "__none__") { setSortBy(undefined); setSortDir("asc") }
-              else {
-                const [field, dir] = v.split(":")
-                setSortBy(field)
-                setSortDir(dir === "desc" ? "desc" : "asc")
-              }
-              setPage(1)
-            }}
-          >
-            <SelectTrigger className="max-sm:w-full">
-              <SelectValue placeholder="Mặc định">
-                {(v) => {
-                  if (typeof v !== "string" || v === "__none__") return "Mặc định"
-                  return SORT_OPTIONS.find((o) => o.value === v)?.label ?? null
-                }}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Mặc định</SelectItem>
-              {SORT_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Button
-          variant="outline"
-          className="max-sm:hidden"
-          disabled={!hasActiveFilters}
-          onClick={resetFilters}
+      <div className="flex flex-wrap items-start gap-4 max-lg:block">
+        {/* Danh sách — điện thoại: ẩn khi đang xem hồ sơ */}
+        <section
+          aria-label="Danh sách nhân viên"
+          className={cn(
+            "w-[380px] shrink-0 overflow-hidden rounded-ax-card border border-ax-line bg-ax-surface shadow-ax-card max-lg:w-full",
+            showMobileDetail && "max-lg:hidden",
+          )}
         >
-          <RotateCcw className="mr-2 h-4 w-4" />
-          Đặt lại
-        </Button>
-        </MobileFilterSheet>
-      </div>
-
-      {/* Table */}
-      <div className="rounded-lg border overflow-x-auto max-sm:rounded-none max-sm:border-0">
-        {/* Khung xương chỉ ở lần tải đầu; tải lại nền (đổi trang/lọc) giữ danh sách cũ, không nhảy bố cục. */}
-        {isLoading && <LoadingBlock className="p-4" count={6} label="Đang tải nhân viên…" />}
-        {!isLoading && isError && employees.length === 0 && (
-          // Lỗi tải ≠ chưa có nhân viên.
-          <ErrorState className="m-4" title="Không tải được danh sách nhân viên" error={error} onRetry={() => void refetch()} retrying={isFetching} />
-        )}
-        {!isLoading && !isError && employees.length === 0 && (
-          hasActiveFilters ? (
-            <EmptyState className="m-4" title="Không có nhân viên nào phù hợp với bộ lọc" message="Thử bỏ bớt điều kiện lọc hoặc tìm bằng tên, email khác." />
-          ) : (
-            <EmptyState
-              className="m-4"
-              icon={Users}
-              title="Chưa có nhân viên nào"
-              message="Thêm nhân viên để giao khách, chấm công và tính lương."
-              action={canAdd ? (
-                <Button variant="outline" onClick={() => setShowAddDialog(true)}>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Thêm nhân viên
-                </Button>
-              ) : undefined}
-            />
-          )
-        )}
-        {!isLoading && employees.length > 0 && (
-          <ShellResponsiveList
-            table={
-          <table className="w-full min-w-[1040px] text-sm [&_td]:whitespace-nowrap [&_th]:whitespace-nowrap">
-            <thead>
-              <tr className="border-b bg-muted/40">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Ảnh</th>
-                <SortTh label="Mã NV" field="employee_code" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                <SortTh label="Họ tên" field="full_name" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                <SortTh label="Chức vụ" field="position" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Team</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Số điện thoại</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Email</th>
-                <SortTh label="Trạng thái" field="status" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                <SortTh label="Ngày vào làm" field="joined_at" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                {!isReadOnly && (
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">Thao tác</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((emp) => (
-                <tr
-                  key={emp.id}
-                  onClick={() => selectRow(emp.id)}
-                  className={cn("cursor-pointer border-b last:border-0 hover:bg-muted/20", rowHighlightClass(emp.id))}
+          <div className="p-3 pb-2">
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <Label htmlFor="emp-search" className="sr-only">Tìm nhân viên</Label>
+                <Input
+                  id="emp-search"
+                  variant="ax"
+                  placeholder="Tìm tên, mã, email, SĐT"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+                />
+              </div>
+              <MobileFilterSheet activeCount={sheetActiveCount} onReset={resetFilters}>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">Phòng ban</Label>
+                  <Select
+                    value={department || "__all__"}
+                    onValueChange={(v) => { setDepartment(v === "__all__" || !v ? "" : v); setPage(1) }}
+                  >
+                    <SelectTrigger className="w-44 max-sm:w-full">
+                      <SelectValue placeholder="Chọn phòng ban">
+                        {(v) => (typeof v === "string" && v && v !== "__all__" ? v : "Tất cả phòng ban")}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Tất cả phòng ban</SelectItem>
+                      {departments.map((d) => (
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">Chức vụ</Label>
+                  <Select
+                    value={filterPosition || "__all__"}
+                    onValueChange={(v) => { setFilterPosition(v === "__all__" || !v ? "" : v); setPage(1) }}
+                  >
+                    <SelectTrigger className="w-44 max-sm:w-full">
+                      <SelectValue placeholder="Chọn chức vụ">
+                        {(v) => (typeof v === "string" && v && v !== "__all__" ? v : "Tất cả chức vụ")}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Tất cả chức vụ</SelectItem>
+                      {jobTitleOptions.map((j) => (
+                        <SelectItem key={j.id} value={j.name}>{j.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">Team</Label>
+                  <Select
+                    value={filterTeam || "__all__"}
+                    onValueChange={(v) => { setFilterTeam(v === "__all__" || !v ? "" : v); setPage(1) }}
+                  >
+                    <SelectTrigger className="w-44 max-sm:w-full">
+                      <SelectValue placeholder="Chọn team">
+                        {(v) => {
+                          if (typeof v !== "string" || !v || v === "__all__") return "Tất cả team"
+                          // value = id team (KHÔNG team_lead_id — team chưa gán Người phụ trách thì không có team_lead_id).
+                          return teamsForFilter.find((t) => String(t.id) === v)?.name ?? null
+                        }}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">Tất cả team</SelectItem>
+                      {teamsForFilter.map((t) => (
+                        <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">Sắp xếp</Label>
+                  <Select
+                    value={sortBy ? `${sortBy}:${sortDir}` : "__none__"}
+                    onValueChange={(v) => {
+                      if (!v || v === "__none__") { setSortBy(undefined); setSortDir("asc") }
+                      else {
+                        const [field, dir] = v.split(":")
+                        setSortBy(field)
+                        setSortDir(dir === "desc" ? "desc" : "asc")
+                      }
+                      setPage(1)
+                    }}
+                  >
+                    <SelectTrigger className="w-44 max-sm:w-full">
+                      <SelectValue placeholder="Mặc định">
+                        {(v) => {
+                          if (typeof v !== "string" || v === "__none__") return "Mặc định"
+                          return SORT_OPTIONS.find((o) => o.value === v)?.label ?? null
+                        }}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Mặc định</SelectItem>
+                      {SORT_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="ax-secondary"
+                  size="ax"
+                  className="max-sm:hidden"
+                  disabled={!hasActiveFilters}
+                  onClick={resetFilters}
                 >
-                  <td className="px-4 py-3">
-                    <AvatarInitials name={emp.full_name} avatarUrl={emp.avatar_url} />
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                    {emp.employee_code}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{emp.full_name ?? "Chưa cập nhật"}</span>
-                      {emp.user_status === "locked" && (
-                        <span className="rounded px-1.5 py-0.5 text-sm font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                          Đã nghỉ việc
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{emp.position ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    {emp.team_name ? (
-                      <span className={`rounded px-2 py-0.5 text-xs font-medium ${teamColorClass(emp.team_lead_id)}`}>
-                        {emp.team_name}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{emp.phone ?? "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{emp.email}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={resolveEmployeeDisplayStatus(emp.status, emp.user_status)} />
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{emp.joined_at ? formatDate(emp.joined_at) : "—"}</td>
-                  {!isReadOnly && (
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          title="Xem chi tiết"
-                          onClick={() => setViewEmployee(emp)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {canEdit && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            title="Sửa thông tin"
-                            onClick={() => setEditEmployee(emp)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {canLock && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            title={emp.user_status === "locked" ? (isAdmin ? "Mở khoá tài khoản" : "Đang bị khoá — chỉ Quản trị mở khoá được") : "Khoá tài khoản"}
-                            aria-label={emp.user_status === "locked" ? (isAdmin ? "Mở khoá tài khoản" : "Đang bị khoá") : "Khoá tài khoản"}
-                            disabled={emp.user_status === "locked" && !isAdmin}
-                            onClick={() => setLockTarget(emp)}
-                          >
-                            {emp.user_status === "locked" ? <LockOpen className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                          </Button>
-                        )}
-                        {canDelete && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            title="Xoá nhân viên"
-                            onClick={() => setDeleteTarget(emp)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                </tr>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Đặt lại
+                </Button>
+              </MobileFilterSheet>
+            </div>
+            <div role="group" aria-label="Lọc trạng thái" className="mt-2.5 flex flex-wrap gap-1.5">
+              {STATUS_CHIPS.map((c) => (
+                <StageChip
+                  key={c.value}
+                  tone="neutral"
+                  selected={statusValue === c.value}
+                  onClick={() => pickStatus(c.value)}
+                >
+                  {c.label}
+                </StageChip>
               ))}
-            </tbody>
-          </table>
-            }
-            cards={employeeCards}
-          />
+            </div>
+          </div>
+
+          {/* Khung xương chỉ ở lần tải đầu; tải lại nền (đổi trang/lọc) giữ danh sách cũ, không nhảy bố cục. */}
+          {isLoading && <LoadingBlock className="p-4" count={6} label="Đang tải nhân viên…" />}
+          {!isLoading && isError && employees.length === 0 && (
+            // Lỗi tải ≠ chưa có nhân viên.
+            <ErrorState className="m-4" title="Không tải được danh sách nhân viên" error={error} onRetry={() => void refetch()} retrying={isFetching} />
+          )}
+          {!isLoading && !isError && employees.length === 0 && (
+            hasActiveFilters ? (
+              <EmptyState variant="ax" className="m-4" title="Không có nhân viên nào phù hợp với bộ lọc" message="Thử bỏ bớt điều kiện lọc hoặc tìm bằng tên, email khác." />
+            ) : (
+              <EmptyState
+                variant="ax"
+                className="m-4"
+                icon={Users}
+                title="Chưa có nhân viên nào"
+                message="Thêm nhân viên để giao khách, chấm công và tính lương."
+                action={canAdd ? (
+                  <Button variant="ax-secondary" size="ax" onClick={() => setShowAddDialog(true)}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Thêm nhân viên
+                  </Button>
+                ) : undefined}
+              />
+            )
+          )}
+          {employees.map((emp) => (
+            <EmployeeListItem
+              key={emp.id}
+              emp={emp}
+              current={current?.id === emp.id}
+              onSelect={() => openEmployee(emp)}
+              highlightClass={rowHighlightClass(emp.id)}
+            />
+          ))}
+
+          {total > 0 && (
+            <div className="flex items-center justify-between gap-2 border-t border-ax-divider px-3 py-2 text-[13px] text-ax-ink-2">
+              <span className="tabular-nums">{fromRow}–{toRow} / {total}</span>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="ax-icon"
+                  variant="ax-ghost"
+                  aria-label="Trang trước"
+                  className="pointer-coarse:size-11"
+                  disabled={safePage <= 1 || isFetching}
+                  onClick={() => setPage(safePage - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="px-1 tabular-nums">Trang {safePage}/{totalPages}</span>
+                <Button
+                  size="ax-icon"
+                  variant="ax-ghost"
+                  aria-label="Trang sau"
+                  className="pointer-coarse:size-11"
+                  disabled={safePage >= totalPages || isFetching}
+                  onClick={() => setPage(safePage + 1)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Hồ sơ — điện thoại: màn riêng, mở khi chọn một người */}
+        {current && (
+          <div className={cn("min-w-0 flex-[1_1_640px]", !showMobileDetail && "max-lg:hidden")}>
+            <EmployeeDetail
+              emp={current}
+              onBack={() => setMobileDetail(false)}
+              canEdit={canEdit}
+              canLock={canLock}
+              canDelete={canDelete}
+              isAdmin={isAdmin}
+              canResetDevice={canResetDevice}
+              onEdit={() => setEditEmployee(current)}
+              onLock={() => setLockTarget(current)}
+              onDelete={() => setDeleteTarget(current)}
+              onResetDevice={() => setResetDeviceTarget(current)}
+            />
+          </div>
         )}
       </div>
-
-      {/* Pagination */}
-      {total > 0 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground max-sm:flex-col max-sm:gap-2">
-          <span>
-            Hiển thị {fromRow}–{toRow} trên tổng {total} nhân viên
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={safePage <= 1 || isFetching}
-              onClick={() => setPage(safePage - 1)}
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Trước
-            </Button>
-            <span className="px-2 tabular-nums">Trang {safePage}/{totalPages}</span>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={safePage >= totalPages || isFetching}
-              onClick={() => setPage(safePage + 1)}
-            >
-              Sau
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Dialogs */}
       {showAddDialog && (
@@ -1879,12 +1571,25 @@ function EmployeesPageContent() {
           onClose={() => setEditEmployee(null)}
         />
       )}
-      {viewEmployee && (
-        <ViewEmployeeDialog
-          employee={viewEmployee}
-          onClose={() => setViewEmployee(null)}
-        />
-      )}
+      <ConfirmDialog
+        open={resetDeviceTarget !== null}
+        onOpenChange={(v) => { if (!v) setResetDeviceTarget(null) }}
+        title="Đặt lại thiết bị"
+        description="Nhân viên sẽ đăng ký lại máy ở lần chấm công kế tiếp."
+        tone="default"
+        confirmLabel="Đặt lại thiết bị"
+        pending={resetDevice.isPending}
+        onConfirm={() => {
+          if (!resetDeviceTarget) return
+          resetDevice.mutate(resetDeviceTarget.user_id, {
+            onSuccess: () => {
+              toast.success("Đã đặt lại thiết bị.")
+              setResetDeviceTarget(null)
+            },
+            onError: (err) => toast.error(errorMessage(err, "Đặt lại thiết bị thất bại.")),
+          })
+        }}
+      />
 
       {/* Lock / Delete Confirm */}
       {lockTarget && (

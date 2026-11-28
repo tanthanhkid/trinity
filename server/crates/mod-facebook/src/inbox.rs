@@ -114,14 +114,13 @@ pub fn parse_unanswered(raw: Option<&str>) -> bool {
     matches!(raw, Some("1" | "true"))
 }
 
-/// Bộ lọc `contact_id` của `GET /conversations` (nút «Messenger» ở hồ sơ khách): vắng, rỗng hoặc `0` ⇒ không lọc;
-/// không phải số nguyên dương trong i32 ⇒ 400.
+/// Bộ lọc `contact_id` của `GET /conversations` (nút «Messenger» ở hồ sơ khách): vắng hoặc rỗng ⇒ không lọc; không phải
+/// số nguyên dương trong i32 (kể cả `0`) ⇒ 400 — bộ lọc không bao giờ nới thành danh sách chung của công ty.
 pub fn parse_contact_filter(raw: Option<&str>) -> Result<Option<i32>, HttpError> {
     let Some(s) = raw.map(str::trim).filter(|s| !s.is_empty()) else {
         return Ok(None);
     };
     match s.parse::<i32>() {
-        Ok(0) => Ok(None),
         Ok(n) if n > 0 => Ok(Some(n)),
         _ => Err(HttpError::validation(vec![
             "contact_id must be a positive integer".to_owned(),
@@ -267,9 +266,10 @@ impl FacebookIngest {
             let res = if let Some(cid) = contact {
                 sqlx::query_as::<_, FacebookConversation>(sqlx::AssertSqlSafe(format!(
                     "SELECT {CONV_COLS} FROM facebook_conversations WHERE contact_id = $1 \
-                     ORDER BY last_message_at DESC, id DESC LIMIT 300"
+                     ORDER BY last_message_at DESC, id DESC LIMIT $2"
                 )))
                 .bind(cid)
+                .bind(if only_unanswered { 300 } else { take })
                 .fetch_all(&mut *c)
                 .await
             } else if only_unanswered {
@@ -668,10 +668,9 @@ mod tests {
         assert!(!parse_unanswered(None));
         assert_eq!(parse_contact_filter(None).unwrap(), None);
         assert_eq!(parse_contact_filter(Some("")).unwrap(), None);
-        assert_eq!(parse_contact_filter(Some("0")).unwrap(), None);
         assert_eq!(parse_contact_filter(Some("12")).unwrap(), Some(12));
         assert_eq!(parse_contact_filter(Some(" 7 ")).unwrap(), Some(7));
-        for bad in ["-3", "abc", "1.5", "99999999999"] {
+        for bad in ["0", "-3", "abc", "1.5", "99999999999"] {
             assert_eq!(parse_contact_filter(Some(bad)).unwrap_err().status(), 400, "{bad}");
         }
     }

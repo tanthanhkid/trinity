@@ -134,7 +134,10 @@ export function FacebookInbox({ listTop, className, initialOpenId }: { listTop?:
   const all = (list.data ?? []).filter((c) => !needle || `${facebookCustomerName(c)} ${c.last_message_preview ?? ""}`.toLocaleLowerCase("vi").includes(needle))
   const awaitingCount = all.filter(awaitingReply).length
   const rows = onlyAwaiting ? all.filter(awaitingReply) : all
-  const selected = rows.find((c) => c.id === openId) ?? null
+  // Mở từ hồ sơ khách / thông báo: hội thoại cũ có thể không nằm trong 50 dòng mới nhất ⇒ lấy hồ sơ từ chính truy vấn
+  // tin nhắn của khung chat (cùng khoá, không gọi thêm) để cột hồ sơ khách vẫn hiện.
+  const opened = useFacebookMessages(openId)
+  const selected = rows.find((c) => c.id === openId) ?? (opened.data?.conversation.id === openId ? opened.data.conversation : null)
 
   return (
     <InboxFrame

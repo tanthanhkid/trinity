@@ -10,7 +10,7 @@ vi.mock("@/hooks/ai-actions/use-ai-actions", () => ({
 }))
 vi.mock("next/link", () => ({ default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a> }))
 
-import { AiActionDialog } from "@/app/(dashboard)/ai-actions/_components/ai-action-dialog"
+import { AiActionDetailPanel, AiActionDetailScreen } from "@/app/(dashboard)/ai-actions/_components/ai-action-detail"
 import { confirmMatches } from "@/lib/ai-actions"
 
 const ACTION: AiAction = {
@@ -21,9 +21,9 @@ const ACTION: AiAction = {
 
 beforeEach(() => approve.mockClear())
 
-describe("AiActionDialog — cảnh báo đổi cấu trúc", () => {
+describe("AiActionDetail — cảnh báo đổi cấu trúc", () => {
   it("hộp đỏ có số bản ghi; nút Duyệt khoá tới khi gõ đúng tên bảng", () => {
-    render(<AiActionDialog action={ACTION} onClose={() => undefined} />)
+    render(<AiActionDetailPanel action={ACTION} />)
     expect(screen.getByTestId("impact-box").textContent).toContain("42 bản ghi")
     const btn = screen.getByRole("button", { name: /Duyệt và thực hiện/ }) as HTMLButtonElement
     expect(btn.disabled).toBe(true)
@@ -35,16 +35,16 @@ describe("AiActionDialog — cảnh báo đổi cấu trúc", () => {
     expect(approve).toHaveBeenCalledWith({ id: 5, confirmText: " khách hàng " }, expect.anything())
   })
   it("không có bản ghi bị ảnh hưởng ⇒ không bắt gõ tên", () => {
-    render(<AiActionDialog action={{ ...ACTION, impact: { ...ACTION.impact!, affected_records: 0, confirm_label: null } }} onClose={() => undefined} />)
+    render(<AiActionDetailPanel action={{ ...ACTION, impact: { ...ACTION.impact!, affected_records: 0, confirm_label: null } }} />)
     expect(screen.queryByLabelText(/Gõ tên bảng/)).toBeNull()
     expect((screen.getByRole("button", { name: /Duyệt và thực hiện/ }) as HTMLButtonElement).disabled).toBe(false)
   })
-  it("duyệt thành công ⇒ popup đóng (gọi onClose)", () => {
+  it("duyệt thành công ⇒ màn chi tiết điện thoại đóng (gọi onBack)", () => {
     approve.mockImplementation((_a: unknown, o: { onSuccess?: () => void }) => o.onSuccess?.())
-    const onClose = vi.fn()
-    render(<AiActionDialog action={{ ...ACTION, impact: null }} onClose={onClose} />)
+    const onBack = vi.fn()
+    render(<AiActionDetailScreen action={{ ...ACTION, impact: null }} onBack={onBack} />)
     fireEvent.click(screen.getByRole("button", { name: /Duyệt và thực hiện/ }))
-    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onBack).toHaveBeenCalledTimes(1)
     approve.mockReset()
   })
   it("confirmMatches giống luật BE", () => {

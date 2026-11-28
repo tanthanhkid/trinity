@@ -58,6 +58,9 @@ export function shouldPersistQuery(query: Pick<Query, 'queryKey' | 'state'>): bo
   const opts = (query as { options?: { gcTime?: number; staleTime?: unknown } }).options
   if (opts?.gcTime === Infinity || opts?.staleTime === Infinity) return false
   if (containsBlobUrl(query.state.data)) return false
+  // Phiên/quyền luôn lấy tươi từ máy chủ (không hydrate `['auth', …]`): người dùng không thấy quyền cũ, và
+  // luồng đăng nhập không phụ thuộc dữ liệu cache.
+  if (query.queryKey[0] === 'auth') return false
   let k: string
   try {
     k = JSON.stringify(query.queryKey)

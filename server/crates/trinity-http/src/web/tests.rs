@@ -94,7 +94,12 @@ async fn goc_chuyen_huong_theo_cookie() {
     let r = svc.serve(get("/", "app.test", None)).await;
     assert_eq!(r.status(), StatusCode::TEMPORARY_REDIRECT);
     assert_eq!(header(&r, LOCATION.as_str()), Some("/login"));
-    assert_eq!(header(&r, CACHE_CONTROL.as_str()), Some("no-store, must-revalidate"));
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("private, no-store, must-revalidate")
+    );
+    // 307 phụ thuộc cookie: proxy không được cache (sự cố: CDN giữ 307 → /login cho cả người đã đăng nhập).
+    assert_eq!(header(&r, "vary"), Some("Cookie"));
     let r = svc.serve(get("/", "app.test", Some("has_session=1"))).await;
     assert_eq!(header(&r, LOCATION.as_str()), Some("/dashboard"));
     // Cookie rỗng không tính là đã đăng nhập.
@@ -109,7 +114,10 @@ async fn trang_cong_khai_va_no_store() {
     let r = svc.serve(get("/login", "app.test", None)).await;
     assert_eq!(r.status(), StatusCode::OK);
     assert_eq!(header(&r, "content-type"), Some("text/html; charset=utf-8"));
-    assert_eq!(header(&r, CACHE_CONTROL.as_str()), Some("no-store, must-revalidate"));
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("private, no-store, must-revalidate")
+    );
     assert_eq!(header(&r, "pragma"), Some("no-cache"));
     assert_eq!(header(&r, "x-content-type-options"), Some("nosniff"));
     assert!(text(r).await.contains("login"));
@@ -154,7 +162,10 @@ async fn assistant_va_build_id_va_oauth_authorize() {
     assert_eq!(r.status(), StatusCode::TEMPORARY_REDIRECT);
     assert_eq!(header(&r, LOCATION.as_str()), Some("/settings?tab=integrations"));
     let r = svc.serve(get("/api/build-id", "app.test", None)).await;
-    assert_eq!(header(&r, CACHE_CONTROL.as_str()), Some("no-store, must-revalidate"));
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("private, no-store, must-revalidate")
+    );
     assert_eq!(text(r).await, r#"{"buildId":"abc123"}"#);
     let r = svc.serve(get("/oauth/authorize?client_id=a", "app.test", None)).await;
     assert_eq!(
@@ -178,7 +189,10 @@ async fn ten_mien_phu_chen_slug_vao_html() {
     let (svc, dir) = service("store", Some("Shop.Example.com"));
     let r = svc.serve(get("/", "cua-hang-1.shop.example.com", None)).await;
     assert_eq!(r.status(), StatusCode::OK);
-    assert_eq!(header(&r, CACHE_CONTROL.as_str()), Some("no-store, must-revalidate"));
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("private, no-store, must-revalidate")
+    );
     let html = text(r).await;
     assert!(
         html.contains(r#"<meta name="store-slug" content="cua-hang-1"></head>"#),
@@ -276,5 +290,30 @@ async fn html_co_header_link_preload() {
     // Tài nguyên không phải HTML thì không có Link.
     let r = svc.serve(get("/_next/static/a.js", "app.test", None)).await;
     assert_eq!(header(&r, "link"), None);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[tokio::test]
+async fn trang_phu_thuoc_cookie_co_vary_va_private() {
+    let (svc, dir) = service("vary", None);
+    // Trang cần phiên khi chưa đăng nhập: 307 → /login, `private, no-store`, `Vary: Cookie`.
+    let r = svc.serve(get("/dashboard", "app.test", None)).await;
+    assert_eq!(r.status(), StatusCode::TEMPORARY_REDIRECT);
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("private, no-store, must-revalidate")
+    );
+    assert_eq!(header(&r, "vary"), Some("Cookie"));
+    // Có phiên: HTML 200 cũng private + Vary.
+    let r = svc.serve(get("/dashboard", "app.test", Some("has_session=1"))).await;
+    assert_eq!(r.status(), StatusCode::OK);
+    assert_eq!(
+        header(&r, CACHE_CONTROL.as_str()),
+        Some("private, no-store, must-revalidate")
+    );
+    assert_eq!(header(&r, "vary"), Some("Cookie"));
+    // /sw.js luôn 200, không bị chuyển hướng dù không cookie.
+    let r = svc.serve(get("/sw.js", "app.test", None)).await;
+    assert_eq!(r.status(), StatusCode::OK);
     let _ = std::fs::remove_dir_all(dir);
 }

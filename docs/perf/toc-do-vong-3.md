@@ -18,3 +18,6 @@ Mục tiêu: các màn chính hiện dữ liệu dưới 1 giây, cả lần đ�
 ## Ghi chú
 - Migration `0029` tạo chỉ mục không `CONCURRENTLY` (khoá ghi ngắn); chấp nhận được vì bảng tương tác ở prod còn nhỏ. Bảng lớn hơn thì nên đổi sang tạo song song.
 - Cache dữ liệu: loại query có `meta.persist === false`, `gcTime`/`staleTime` vô hạn, dữ liệu chứa URL `blob:`, khoá `media-file`; hạn 24 giờ tính theo `dataUpdatedAt` của từng query (khi ghi và khi nạp). Service Worker không đăng ký ở `/s/*`, `/oauth/*`, `/privacy`, `/terms`, `/invite`, `/register` và host cửa hàng.
+
+## Triển khai: proxy không được cache 3xx và phản hồi theo cookie
+Trang của Rust phụ thuộc cookie phiên (`/` và trang cần đăng nhập chuyển 307 về `/login` hoặc `/dashboard`). Rust đặt `Cache-Control: private, no-store, must-revalidate` + `Vary: Cookie` cho các phản hồi này. Lớp đệm phía trước (Caddy, CDN) KHÔNG được ghi đè bằng `public`/`s-maxage` cho 3xx: một 307 `→ /login` bị giữ lại sẽ trả cho cả người đã đăng nhập, họ vào `/login`, `clearTokens()` chạy và các API sau đó 401. Chỉ phản hồi 2xx tệp tĩnh (`/_next/static/*`, ảnh, font) mới được cache chung. `/sw.js` luôn 200, `no-cache`.

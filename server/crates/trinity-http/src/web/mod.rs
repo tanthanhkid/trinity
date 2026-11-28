@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::header::{
-    CACHE_CONTROL, CONTENT_LENGTH, CONTENT_SECURITY_POLICY, CONTENT_TYPE, COOKIE, HOST, LOCATION,
+    CACHE_CONTROL, CONTENT_LENGTH, CONTENT_SECURITY_POLICY, CONTENT_TYPE, COOKIE, HOST, LOCATION, VARY,
 };
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use axum::response::Response;
@@ -77,7 +77,9 @@ pub struct WebService {
     build_id: String,
 }
 
-const NO_STORE: &str = "no-store, must-revalidate";
+/// `private` để proxy dùng chung (CDN, Caddy) không giữ: phản hồi của trang phụ thuộc cookie phiên (chuyển hướng /login,
+/// /dashboard), một bản 307 bị cache sẽ đá cả người đã đăng nhập về /login. Kèm `Vary: Cookie`.
+const NO_STORE: &str = "private, no-store, must-revalidate";
 /// Service Worker (`/sw.js`) luôn được trình duyệt hỏi lại. Tắt khẩn: biến môi trường `TRINITY_SW_KILL=1`, hoặc tệp
 /// `sw-kill` NGOÀI `WEB_DIR` (cạnh nó: `<WEB_DIR>/../sw-kill`) — build xoá sạch `out/` nên tệp đặt trong đó sẽ mất.
 const SW_PATH: &str = "/sw.js";
@@ -230,6 +232,7 @@ impl WebService {
         set(h, HeaderName::from_static("x-content-type-options"), "nosniff");
         if no_store {
             set(h, CACHE_CONTROL, NO_STORE);
+            set(h, VARY, "Cookie");
             set(h, HeaderName::from_static("pragma"), "no-cache");
         } else if original.starts_with("/_next/static/") {
             set(h, CACHE_CONTROL, IMMUTABLE);
@@ -237,6 +240,7 @@ impl WebService {
             set(h, CACHE_CONTROL, IMAGE_CACHE);
         } else if is_html && !skipped {
             set(h, CACHE_CONTROL, NO_STORE);
+            set(h, VARY, "Cookie");
         }
         if original == "/oauth/authorize" {
             // Màn đồng ý OAuth không được nhúng vào khung của trang khác (clickjacking).
@@ -316,6 +320,7 @@ fn redirect(location: &str) -> Response {
         resp.headers_mut().insert(LOCATION, v);
     }
     set(resp.headers_mut(), CACHE_CONTROL, NO_STORE);
+    set(resp.headers_mut(), VARY, "Cookie");
     set(resp.headers_mut(), HeaderName::from_static("pragma"), "no-cache");
     resp
 }

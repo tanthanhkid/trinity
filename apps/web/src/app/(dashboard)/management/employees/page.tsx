@@ -60,6 +60,8 @@ import { cn } from "@/lib/utils"
 import { useRowHighlight } from "@/lib/use-row-highlight"
 import { StageChip } from "@/components/ui/stage-chip"
 import { EmployeeDetail, EmployeeListItem, STATUS_LABELS } from "./_components/employee-detail"
+import { EmployeeRolesCard } from "./_components/employee-roles"
+import { EmployeeWorkEditor } from "./_components/work-editor"
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
@@ -301,8 +303,8 @@ export function EditEmployeeDialog({ employee, onClose }: { employee: Employee; 
     ? [...configuredDepartments, employee.department]
     : configuredDepartments
   const { data: offices = [] } = useOffices()
-  // Đổi vai trò + người quản lý trực tiếp KHÔNG còn ở form hồ sơ nhân viên — làm ở
-  // Cài đặt → Người dùng (`users.manage`, có guardrail chống leo thang quyền).
+  // Vai trò đổi ở khối «Vai trò» của hồ sơ; team + quản lý trực tiếp ở khay «Sửa công việc»
+  // (cùng `users.manage` + chốt chống leo thang quyền phía máy chủ). Vai trò vẫn cấu hình ở Cài đặt → Vai trò.
   const canResetDevice = usePermissions().can("employees.manage")
   const [avatarBase64, setAvatarBase64] = useState<string | null>(employee.avatar_url ?? null)
   const [resetDeviceOpen, setResetDeviceOpen] = useState(false)
@@ -433,8 +435,8 @@ export function EditEmployeeDialog({ employee, onClose }: { employee: Employee; 
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Team được suy ra từ người quản lý trực tiếp — chỉnh người quản lý và vai trò
-              trong Cài đặt → Người dùng.
+              Team được suy ra từ người quản lý trực tiếp — đổi team và quản lý ở «Sửa công việc»,
+              vai trò ở khối «Vai trò» của hồ sơ.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -1245,6 +1247,7 @@ function EmployeesPageContent() {
   const [editEmployee, setEditEmployee] = useState<Employee | null>(null)
   const [lockTarget, setLockTarget] = useState<Employee | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null)
+  const [workTarget, setWorkTarget] = useState<Employee | null>(null)
 
   const totalPages = data?.pagination.total_pages ?? 1
   const employees = data?.data ?? []
@@ -1312,6 +1315,8 @@ function EmployeesPageContent() {
       <ShellPageHeader
         title="Nhân viên"
         icon={Users}
+        // Điện thoại đang xem hồ sơ: ẩn đầu trang danh sách (kèm nút nổi «Thêm nhân viên») — hồ sơ là màn riêng.
+        className={cn(showMobileDetail && "max-lg:hidden")}
         description={total > 0 ? `${total} nhân viên` : hasActiveFilters ? "0 nhân viên" : "Chưa có nhân viên"}
         actions={
           <>
@@ -1540,6 +1545,8 @@ function EmployeesPageContent() {
             </div>
           )}
         </section>
+        {/* Điện thoại: chừa chỗ cho nút nổi «Thêm nhân viên» để không đè hàng phân trang/hàng cuối. */}
+        {canAdd && !showMobileDetail && <div aria-hidden className="h-20 sm:hidden" />}
 
         {/* Hồ sơ — điện thoại: màn riêng, mở khi chọn một người */}
         {current && (
@@ -1553,6 +1560,19 @@ function EmployeesPageContent() {
               isAdmin={isAdmin}
               canResetDevice={canResetDevice}
               onEdit={() => setEditEmployee(current)}
+              // Khay «Sửa công việc» gọi PATCH cần `users.manage` (máy chủ) ⇒ thiếu thì nhóm Công việc mở hộp sửa hồ sơ như cũ.
+              onEditWork={can("users.manage") ? () => setWorkTarget(current) : undefined}
+              renderRoles={(variant) => (
+                <EmployeeRolesCard
+                  key={current.user_id}
+                  userId={current.user_id}
+                  name={current.full_name ?? "nhân viên"}
+                  canView={can("users.view")}
+                  canAssign={can("users.manage")}
+                  isAdmin={isAdmin}
+                  variant={variant}
+                />
+              )}
               onLock={() => setLockTarget(current)}
               onDelete={() => setDeleteTarget(current)}
               onResetDevice={() => setResetDeviceTarget(current)}
@@ -1564,6 +1584,14 @@ function EmployeesPageContent() {
       {/* Dialogs */}
       {showAddDialog && (
         <AddEmployeeDialog onClose={() => setShowAddDialog(false)} />
+      )}
+      {workTarget && (
+        <EmployeeWorkEditor
+          key={workTarget.id}
+          emp={workTarget}
+          canChangeManager={can("users.view")}
+          onClose={() => setWorkTarget(null)}
+        />
       )}
       {editEmployee && (
         <EditEmployeeDialog

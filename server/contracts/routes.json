@@ -6940,6 +6940,66 @@
       "controller": "AttendanceController",
       "deprecated": false,
       "guards": [],
+      "handler": "listRecordEdits",
+      "headers": {},
+      "interceptors": [],
+      "method": "GET",
+      "min_samples": 50,
+      "org_feature": null,
+      "param_pipes": [
+        "param.id:ParseIntPipe"
+      ],
+      "path": "/api/v1/management/attendance/:id(\\d+)/edits",
+      "permission_mode": "all",
+      "permissions": [
+        "attendance.view"
+      ],
+      "raw_response": false,
+      "res_passthrough": false,
+      "safe_for_shadow": false,
+      "shape_permissions": [],
+      "status_ok": 200,
+      "transforms": [],
+      "upload": null,
+      "validation": "strict"
+    },
+    {
+      "access": "can",
+      "body_limit_bytes": 5242880,
+      "cached": false,
+      "controller": "AttendanceController",
+      "deprecated": false,
+      "guards": [],
+      "handler": "adjustRecord",
+      "headers": {},
+      "interceptors": [],
+      "method": "POST",
+      "min_samples": 50,
+      "org_feature": null,
+      "param_pipes": [
+        "param.id:ParseIntPipe"
+      ],
+      "path": "/api/v1/management/attendance/:id(\\d+)/edits",
+      "permission_mode": "all",
+      "permissions": [
+        "attendance.manage"
+      ],
+      "raw_response": false,
+      "res_passthrough": false,
+      "safe_for_shadow": false,
+      "shape_permissions": [],
+      "status_ok": 201,
+      "transforms": [],
+      "upload": null,
+      "validation": "strict"
+    },
+    {
+      "access": "can",
+      "body_limit_bytes": 5242880,
+      "cached": false,
+      "controller": "AttendanceController",
+      "deprecated": false,
+      "guards": [],
       "handler": "getProof",
       "headers": {},
       "interceptors": [],

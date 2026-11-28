@@ -9,6 +9,7 @@ pub(crate) mod act_contacts;
 pub(crate) mod act_records;
 pub(crate) mod act_tasks;
 mod ai_activity;
+mod attendance;
 mod channels;
 mod confirm;
 mod contacts;
@@ -318,6 +319,23 @@ pub fn register_group1(r: &mut ToolRegistry) {
     });
     reg(r, "list_ai_activity", &[], ai_activity::list_ai_activity);
     reg(r, "list_interactions", &[], interactions::list_interactions);
+}
+
+/// Đăng ký 2 tool «Sửa giờ công kèm lý do»: `adjust_attendance_time` (ghi, `attendance.manage`, scope `crm.write`) và
+/// `list_attendance_edits` (đọc, `attendance.view`). Không có tool xoá.
+pub fn register_attendance(r: &mut ToolRegistry) {
+    r.register(ToolSpec {
+        name: "adjust_attendance_time",
+        scope: Some("crm.write"),
+        permissions: &["attendance.manage"],
+        runner: Arc::new(Tool(attendance::adjust_attendance_time)),
+    });
+    reg(
+        r,
+        "list_attendance_edits",
+        &["attendance.view"],
+        attendance::list_attendance_edits,
+    );
 }
 
 /// Đăng ký 6 tool phiếu lương (M31c): `export_payslip_excel`, `export_payslip_pdf`, `export_payslips_excel`,

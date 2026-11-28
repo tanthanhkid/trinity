@@ -14,6 +14,7 @@ base64 = { workspace = true }
 chrono = { workspace = true }
 http = { workspace = true }
 jsonschema = { workspace = true }
+mod-attendance = { workspace = true }
 mod-auth = { workspace = true }
 mod-briefings = { workspace = true }
 mod-channel-guard = { workspace = true }

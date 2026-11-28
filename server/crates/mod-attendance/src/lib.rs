@@ -10,6 +10,9 @@
 //! | `GET/PATCH /working-saturdays` | [`config::get_saturdays`], [`config::set_saturdays`] | đăng nhập (xem), `attendance.config` |
 //! | `GET/PATCH /request-config` | [`config::get_request_config`], [`config::update_request_config`] | đăng nhập (xem), `attendance.config` |
 //!
+//! Sửa giờ công kèm lý do ([`adjust`]): `POST /:id/edits` (`attendance.manage`, 201) đổi giờ vào/ra và ghi lịch sử (ai sửa, lý do, giờ cũ/mới) cùng một giao dịch,
+//! `GET /:id/edits` (`attendance.view`) đọc lịch sử; bảng `attendance_edits` (migration 0030). Tool MCP `adjust_attendance_time`, `list_attendance_edits`.
+//!
 //! M14b: xuất xlsx (chấm công theo khoảng ngày, bảng công tháng, nhân viên vắng, 5 tệp thống kê) ở [`export`].
 //!
 //! M13b: `POST /check-in`, `POST /check-out` (đăng nhập; multipart `device_id`, `note`, tệp `selfie`) ở [`check`]: kiểm IP văn phòng bằng IP
@@ -24,6 +27,7 @@
 // AppError/HttpError của kernel là kiểu lỗi chung của handler; giữ nguyên, không bọc Box.
 #![allow(clippy::result_large_err)]
 
+pub mod adjust;
 pub mod check;
 pub mod config;
 pub mod dto;

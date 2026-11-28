@@ -46,11 +46,11 @@ const MATRIX_RECORD_CAP: i64 = 20_000;
 /// Trần số nhân viên vắng nạp một lần.
 const ABSENT_CAP: i64 = 5000;
 
-fn bad(msg: impl Into<String>) -> AppError {
+pub(crate) fn bad(msg: impl Into<String>) -> AppError {
     AppError::Http(HttpError::bad_request(msg.into()))
 }
 
-fn not_found() -> AppError {
+pub(crate) fn not_found() -> AppError {
     AppError::Http(HttpError::not_found(NOT_FOUND))
 }
 
@@ -78,7 +78,7 @@ fn opt_day(s: Option<&str>, name: &str) -> R<Option<NaiveDate>> {
 
 // ───────────────────────────── cột và kiểu dòng ─────────────────────────────
 
-const COLS: [&str; 25] = [
+pub(crate) const COLS: [&str; 25] = [
     "id",
     "user_id",
     "employee_id",
@@ -184,7 +184,7 @@ fn display_hours(
 }
 
 /// `calcLateMinutes`: không có giờ vào thì 0.
-fn late_of(check_in: Option<DateTime<Utc>>, late_after: i64) -> i32 {
+pub(crate) fn late_of(check_in: Option<DateTime<Utc>>, late_after: i64) -> i32 {
     check_in.map_or(0, |t| late_minutes(t, late_after))
 }
 
@@ -610,7 +610,7 @@ pub async fn get(ctx: &Ctx, actor: &Actor, id: i32) -> R<Detail> {
     })
 }
 
-fn in_owner(owner: &OwnerIds, user_id: i32) -> bool {
+pub(crate) fn in_owner(owner: &OwnerIds, user_id: i32) -> bool {
     match owner {
         OwnerIds::All => true,
         OwnerIds::Ids(ids) => ids.contains(&user_id),
@@ -626,6 +626,25 @@ fn instant_of(v: Option<&Option<String>>, name: &str) -> R<Option<DateTime<Utc>>
         Some(Some(s)) => parse_instant_with(s, 0)
             .map(Some)
             .ok_or_else(|| bad(format!("{name} không hợp lệ"))),
+    }
+}
+
+/// Trạng thái khi sửa tay: `calcStatus` của bản TS dùng ngưỡng mặc định 1/4/8 giờ, không dùng ngưỡng cấu hình.
+/// Thiếu giờ vào hoặc giờ ra ⇒ `incomplete`. Dùng chung cho `PATCH /:id` và «Sửa giờ công kèm lý do».
+pub(crate) fn manual_status(
+    cfg: &ShiftConfig,
+    new_in: Option<DateTime<Utc>>,
+    new_out: Option<DateTime<Utc>>,
+) -> String {
+    let fixed = ShiftConfig {
+        review_max_hours: 1.0,
+        half_day_min_hours: 4.0,
+        full_day_min_hours: 8.0,
+        ..cfg.clone()
+    };
+    match new_in.zip(new_out) {
+        Some((i, o)) => calc_status(total_hours(i, o, cfg).unwrap_or(0.0), &fixed).to_owned(),
+        None => "incomplete".to_owned(),
     }
 }
 
@@ -679,19 +698,7 @@ pub async fn patch(ctx: &Ctx, actor: &Actor, id: i32, dto: &PatchAttendanceDto) 
     let status = match &dto.status {
         Some(Some(s)) => s.clone(),
         Some(None) => return Err(bad("status không hợp lệ")),
-        None => {
-            // `calcStatus` của bản TS khi sửa tay dùng ngưỡng mặc định 1/4/8 giờ, không dùng ngưỡng cấu hình.
-            let fixed = ShiftConfig {
-                review_max_hours: 1.0,
-                half_day_min_hours: 4.0,
-                full_day_min_hours: 8.0,
-                ..cfg.clone()
-            };
-            match new_in.zip(new_out) {
-                Some((i, o)) => calc_status(total_hours(i, o, &cfg).unwrap_or(0.0), &fixed).to_owned(),
-                None => "incomplete".to_owned(),
-            }
-        }
+        None => manual_status(&cfg, new_in, new_out),
     };
     qb.push(", status = ").push_bind(status);
     qb.push(" WHERE id = ").push_bind(id);

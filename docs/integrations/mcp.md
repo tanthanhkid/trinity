@@ -140,7 +140,7 @@ Scope comes from the user's real grants (`own` = own · `team` = self + direct r
 
 ## Full tool index
 
-Every tool the server exposes (118), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
+Every tool the server exposes (120), generated from the tool registry. "write" tools need the `crm.write` scope. "preview → `confirmed_by_user`" means the first call only returns a preview and nothing is changed or published until the call is repeated with the user's approval in their own words. There is no delete tool: deleting is done in the web app. Details for posting, Facebook Page and inbox tools: [social.md](social.md).
 
 ### Multi-channel posting
 
@@ -211,6 +211,15 @@ How comment rules, notifications and the Interactions screen behave: [facebook-c
 | `create_invitation` | write (`users.manage`) | One-time invitation link (7 days) for a new staff member of the user's own company; no email is sent, the user hands the link over. Needs a public base URL (otherwise a clear error, no invitation is created). Fails clearly when the plan's `maxUsers` is reached, the email belongs to another company or already has an account, or the role is above the user's own permissions (the AI cannot invite into the system "Quản trị" role) |
 | `list_invitations` | read (`users.manage`) | Pending invitations (status `unusable` = the inviter lost the permission or the role was deleted; all = include used/revoked/expired) and the roles one can invite to, within the user's `users.manage` scope (`all` sees every invitation, a narrow scope only those created by people in it). Links are never shown again |
 | `cancel_invitation` | write (`users.manage`) | Cancels a pending invitation (the link stops working; nothing is deleted), same scope rule. There is deliberately no password-reset tool: the owner resets staff passwords in Settings › Users, so the AI never sees a password |
+
+### Attendance (adjust hours with a reason)
+
+Same service and scope rules as `POST|GET /management/attendance/:id/edits`. Identify the day by `record_id` or by `user_id` + `work_date` (`YYYY-MM-DD`). No delete tool.
+
+| Tool | Kind | What it does |
+|---|---|---|
+| `adjust_attendance_time` | write (`attendance.manage`) | Changes check-in and/or check-out (`HH:MM`, Vietnam time, on the record's work date) of one attendance day. `reason` is required and stored in the edit history with who changed it and the old → new times; hours, late minutes and status are recomputed in the same transaction. Check-out must be after check-in and at least one time must change. Only for employees in the user's `attendance.manage` scope |
+| `list_attendance_edits` | read (`attendance.view`) | Edit history of one attendance day, newest first (who, why, old and new times, when), within the user's `attendance.view` scope |
 
 ### Payroll (payslips as files)
 

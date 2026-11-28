@@ -230,9 +230,9 @@ mod tests {
     }
 
     #[test]
-    fn hop_dong_nhung_dung_111_tool() {
+    fn hop_dong_nhung_dung_113_tool() {
         let f = Frozen::embedded();
-        assert_eq!(f.len(), 111);
+        assert_eq!(f.len(), 113);
         assert!(f.tool("get_setup_guide").is_some());
         assert!(f.tools_array().starts_with("[{\"name\":\"get_setup_guide\""));
         assert!(f.tools_array().ends_with("}]"));

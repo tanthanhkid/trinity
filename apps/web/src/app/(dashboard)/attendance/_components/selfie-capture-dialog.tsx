@@ -209,7 +209,7 @@ export function SelfieCaptureDialog({
           ) : (
             <>
               <Button variant="ax-primary" size="ax-lg" className="w-full" onClick={handleCapture} disabled={starting}>
-                <Camera className="mr-2 h-4 w-4" /> Chụp và chấm công
+                <Camera className="mr-2 h-4 w-4" /> Chụp ảnh
               </Button>
               <Button variant="ax-ghost" size="ax-lg" className="w-full" onClick={onClose}>
                 Huỷ

@@ -41,7 +41,11 @@ vi.mock("@/hooks/use-attendance", () => ({
   useRejectRequest: () => ({ mutate: rejectMutate }),
 }))
 vi.mock("@/components/ui/undo-toast", () => ({ showUndoToast: (...a: unknown[]) => showUndoToast(...a) }))
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }))
+const toastInfo = vi.fn()
+const toastDismiss = vi.fn()
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn(), info: (...a: unknown[]) => toastInfo(...a), dismiss: (...a: unknown[]) => toastDismiss(...a) },
+}))
 
 describe("AttendanceApprovalBoard", () => {
   beforeEach(() => {
@@ -49,6 +53,9 @@ describe("AttendanceApprovalBoard", () => {
     approveMutate.mockClear()
     rejectMutate.mockClear()
     showUndoToast.mockClear()
+    showUndoToast.mockReturnValue("toast-1")
+    toastInfo.mockClear()
+    toastDismiss.mockClear()
   })
   afterEach(() => vi.useRealTimers())
 
@@ -100,5 +107,19 @@ describe("AttendanceApprovalBoard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Duyệt đơn" }))
     unmount()
     expect(approveMutate).toHaveBeenCalledTimes(1)
+  })
+
+  it("hết 5 giây (toast còn mở do rê chuột) thì Hoàn tác không giả vờ mở lại đơn", () => {
+    render(<AttendanceApprovalBoard />)
+    fireEvent.click(screen.getByRole("button", { name: "Duyệt đơn" }))
+    const { onUndo } = showUndoToast.mock.calls[0][1] as { onUndo: () => void }
+    act(() => {
+      vi.advanceTimersByTime(5100)
+    })
+    expect(approveMutate).toHaveBeenCalledTimes(1)
+    expect(toastDismiss).toHaveBeenCalledWith("toast-1")
+    act(() => onUndo())
+    expect(toastInfo).toHaveBeenCalledTimes(1)
+    expect(screen.getByText("Chờ duyệt (1)")).toBeInTheDocument()
   })
 })

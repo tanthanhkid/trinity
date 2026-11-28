@@ -135,9 +135,12 @@ export function AttendanceApprovalBoard() {
     page: 1,
     page_size: 1,
   })
-  const dayRecordId = cur && dayList.data ? (dayList.data.data[0]?.id ?? null) : null
+  // `placeholderData` giữ kết quả của đơn trước khi đổi đơn — chỉ nhận bản ghi đúng người, đúng ngày.
+  const dayRow = dayList.data?.data[0]
+  const dayRowOk = !!cur && !!dayRow && dayRow.user_id === cur.user_id && dayRow.work_date.slice(0, 10) === cur.work_date.slice(0, 10)
+  const dayRecordId = dayRowOk && dayRow ? dayRow.id : null
   const dayDetail = useAttendanceDetail(dayRecordId)
-  const dayRecord = dayDetail.data ?? dayList.data?.data[0] ?? null
+  const dayRecord = dayRowOk ? (dayDetail.data ?? dayRow ?? null) : null
 
   const clearHeld = useCallback((id: number) => {
     setHeld((h) => {
@@ -193,26 +196,32 @@ export function AttendanceApprovalBoard() {
     setSelId(nextPending ? nextPending.id : null)
     setRejecting(false)
     setRejectNote("")
-    timers.current.set(
-      id,
-      setTimeout(() => {
-        timers.current.delete(id)
-        commit(id, d)
-      }, UNDO_WINDOW_MS),
-    )
-    showUndoToast(
+    const toastId = showUndoToast(
       `${status === "approved" ? "Đã duyệt đơn của" : "Đã từ chối đơn của"} ${cur.user_name}`,
       {
         duration: UNDO_WINDOW_MS,
         onUndo: () => {
           const timer = timers.current.get(id)
-          if (timer) clearTimeout(timer)
+          // Hết 5 giây (sonner dừng đếm khi rê chuột lên toast) ⇒ quyết định đã gửi, không còn hoàn tác được.
+          if (!timer) {
+            toast.info("Quyết định đã gửi lên máy chủ, không hoàn tác được nữa.")
+            return
+          }
+          clearTimeout(timer)
           timers.current.delete(id)
           clearHeld(id)
           setTab("pending")
           setSelId(id)
         },
       },
+    )
+    timers.current.set(
+      id,
+      setTimeout(() => {
+        timers.current.delete(id)
+        toast.dismiss(toastId)
+        commit(id, d)
+      }, UNDO_WINDOW_MS),
     )
   }
 

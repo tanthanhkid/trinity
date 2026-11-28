@@ -609,6 +609,12 @@ async fn slip_pdf(State(c): St, Extension(u): Cu, Path(id): Id) -> Response {
     file(on_conn!(c, a, conn => files::export_pdf(&mut conn, id, scope.as_deref()).await))
 }
 
+async fn slip_my_pdf(State(c): St, Extension(u): Cu, Path(id): Id) -> Response {
+    let a = act!(u);
+    let id = pid!(id);
+    file(on_conn!(c, a, conn => files::export_my_pdf(&mut conn, a.user_id, id).await))
+}
+
 async fn slip_excel_bulk(State(c): St, Extension(u): Cu, Query(q): Q) -> Response {
     let a = act!(u);
     let month = month!(q);
@@ -841,6 +847,7 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<Ctx>> {
             spec(&Method::POST, "/api/v1/payslips/import/apply"),
             slip_import_apply.layer(limit()),
         )
+        .route(spec(&Method::GET, "/api/v1/payslips/me/:id/pdf"), slip_my_pdf)
         .route(spec(&Method::GET, "/api/v1/payslips/:id/pdf"), slip_pdf)
         .route(spec(&Method::GET, "/api/v1/payslips/:id/excel"), slip_excel)
         .route(spec(&Method::GET, "/api/v1/reports/summary"), report_summary)

@@ -57,3 +57,24 @@ export function mineStatusHint(row: PayslipRow): string {
   if (row.status === "pending_tl" || row.status === "pending_accountant") return "Phiếu đang chờ duyệt. Số có thể đổi trước khi duyệt."
   return "Kế toán đang soát. Số có thể đổi trước khi duyệt."
 }
+
+/** Số tiền ẩn: sáu chấm thay số, đơn vị bỏ đi (thiết kế luong-mobile). */
+export const HIDDEN_MASK = "••••••"
+
+export function maskAmount(value: string, hidden: boolean): string {
+  return hidden ? HIDDEN_MASK : value
+}
+
+/** Dòng «Cách tính lương theo công»; đang ẩn số thì không lộ số nào. */
+export function buildCalcText(row: PayslipRow, hidden = false): string {
+  if (hidden) return "Số tiền đang ẩn."
+  const base = vn(row.base_salary)
+  const actual = vn(row.base_salary_actual)
+  if (row.working_days === null) return `${base} ₫ × đủ công = ${actual} ₫`
+  return `${base} ₫ × ${row.working_days} / ${row.standard_working_days} ngày = ${actual} ₫`
+}
+
+/** Tên tệp phiếu của mình khi lưu máy: `phieu-luong-2026-11.pdf`. */
+export function minePdfName(month: string): string {
+  return `phieu-luong-${month.replace(/[^0-9-]/g, "")}.pdf`
+}

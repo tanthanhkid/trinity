@@ -3,7 +3,10 @@ import type { PayslipRow } from "@/app/(dashboard)/payroll/_components/payroll-p
 import {
   changedKeys, formFromRow, payloadFromForm, projectTotals, totalsFromForm,
 } from "@/app/(dashboard)/payroll/_components/payroll-payslip-form"
-import { buildMineGroups, mineStatusHint } from "@/app/(dashboard)/payroll/_components/payroll-mine-model"
+import {
+  HIDDEN_MASK, buildCalcText, buildMineGroups, maskAmount, minePdfName, mineStatusHint,
+} from "@/app/(dashboard)/payroll/_components/payroll-mine-model"
+import { readHidden } from "@/app/(dashboard)/payroll/_components/payroll-mine-hide"
 
 function row(over: Partial<PayslipRow> = {}): PayslipRow {
   return {
@@ -64,5 +67,42 @@ describe("phiếu của tôi", () => {
   it("lời nhắn theo trạng thái", () => {
     expect(mineStatusHint(row({ status: "paid" }))).toMatch(/đã trả/)
     expect(mineStatusHint(row({ status: "pending_tl" }))).toMatch(/chờ duyệt/)
+  })
+})
+
+describe("Phiếu của tôi: ẩn số + tải PDF", () => {
+  it("ẩn số: thay bằng sáu chấm, không lộ số nào trong cách tính", () => {
+    expect(maskAmount("10.325.000", true)).toBe(HIDDEN_MASK)
+    expect(maskAmount("10.325.000", false)).toBe("10.325.000")
+    expect(buildCalcText(row(), true)).toBe("Số tiền đang ẩn.")
+    expect(buildCalcText(row(), true)).not.toMatch(/\d/)
+  })
+
+  it("cách tính khi hiện số: theo công hoặc đủ công", () => {
+    expect(buildCalcText(row())).toBe("9.000.000 ₫ × 23 / 24 ngày = 8.625.000 ₫")
+    expect(buildCalcText(row({ working_days: null }))).toBe("9.000.000 ₫ × đủ công = 8.625.000 ₫")
+  })
+
+  it("tên tệp chỉ giữ số và gạch nối", () => {
+    expect(minePdfName("2026-11")).toBe("phieu-luong-2026-11.pdf")
+    expect(minePdfName('20"26-11\n')).toBe("phieu-luong-2026-11.pdf")
+  })
+
+  it("công tắc nhớ theo thiết bị, mặc định hiện, lưu trữ hỏng vẫn không văng", () => {
+    const real = Object.getOwnPropertyDescriptor(window, "localStorage")
+    const stub = (get: () => string | null) =>
+      Object.defineProperty(window, "localStorage", { configurable: true, value: { getItem: get } })
+    try {
+      stub(() => null)
+      expect(readHidden()).toBe(false)
+      stub(() => "1")
+      expect(readHidden()).toBe(true)
+      stub(() => {
+        throw new Error("blocked")
+      })
+      expect(readHidden()).toBe(false)
+    } finally {
+      if (real) Object.defineProperty(window, "localStorage", real)
+    }
   })
 })

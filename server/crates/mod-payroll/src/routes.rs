@@ -67,7 +67,7 @@ pub fn payslip_specs() -> Vec<RouteSpec> {
     ]
 }
 
-/// 8 route xuất/nhập/PDF của `PayslipsController` (M31). Tệp trả về do handler tự đặt mã (`status_ok = null`); hai route nhập
+/// 9 route xuất/nhập/PDF của `PayslipsController` (M31). Tệp trả về do handler tự đặt mã (`status_ok = null`); hai route nhập
 /// (multipart) trả 201 như `@Post`. `excel-bulk`, `excel-list`, `import-template`, `import/*` là đường tĩnh nên không bị `:id`
 /// nuốt (axum ưu tiên đường tĩnh).
 pub fn file_specs() -> Vec<RouteSpec> {
@@ -81,6 +81,7 @@ pub fn file_specs() -> Vec<RouteSpec> {
         raw(Method::GET, "/api/v1/payslips/import-template", manage),
         RouteSpec::new(Method::POST, "/api/v1/payslips/import/preview", manage).status_ok(201),
         RouteSpec::new(Method::POST, "/api/v1/payslips/import/apply", manage).status_ok(201),
+        raw(Method::GET, "/api/v1/payslips/me/:id/pdf", Access::AuthOnly).param_pipes(ID),
         raw(Method::GET, "/api/v1/payslips/:id/pdf", export).param_pipes(ID),
         raw(Method::GET, "/api/v1/payslips/:id/excel", export).param_pipes(ID),
     ]
@@ -113,7 +114,7 @@ mod tests {
     #[test]
     fn m31_khop_hop_dong_routes_json() {
         let files = file_specs();
-        assert_eq!(files.len(), 8);
+        assert_eq!(files.len(), 9);
         let rep = trinity_http::router::check::check_embedded(&files, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
         assert_eq!(rep.declared, 8);

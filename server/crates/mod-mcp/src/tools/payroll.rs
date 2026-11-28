@@ -160,6 +160,25 @@ pub fn export_payslip_pdf<'a>(args: &'a Value, ctx: &'a ToolCtx<'a>) -> BoxFutur
     })
 }
 
+/// Tool `export_my_payslip_pdf`: PDF phiếu lương của CHÍNH người gọi (mới nhất, hoặc của `month`). Chỉ cần đăng nhập vì chỉ trả
+/// phiếu của chính họ (như `GET /payslips/me/:id/pdf`); không có đối số nào chọn phiếu của người khác.
+pub fn export_my_payslip_pdf<'a>(
+    args: &'a Value,
+    ctx: &'a ToolCtx<'a>,
+) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+    Box::pin(async move {
+        let month = match args.get("month") {
+            None | Some(Value::Null) => None,
+            Some(_) => Some(month_of(args)?),
+        };
+        let mut conn = ctx.deps.conn(ctx.principal.company).await?;
+        let f = files::export_my_pdf_latest(&mut conn, ctx.principal.user_id, month.as_deref())
+            .await
+            .map_err(app_err)?;
+        file_result(&f)
+    })
+}
+
 /// Xuất cả kỳ: `layout` `bulk` (mỗi phiếu một sheet, như `excel-bulk`) hoặc `list` (bảng danh sách, như `excel-list`, có thể
 /// kèm `ordered_ids` theo thứ tự màn hình).
 pub fn export_payslips_excel<'a>(

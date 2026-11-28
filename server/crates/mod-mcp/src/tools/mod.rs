@@ -346,7 +346,7 @@ pub fn register_attendance(r: &mut ToolRegistry) {
     );
 }
 
-/// Đăng ký 6 tool phiếu lương (M31c): `export_payslip_excel`, `export_payslip_pdf`, `export_payslips_excel`,
+/// Đăng ký 7 tool phiếu lương (M31c + `export_my_payslip_pdf`): `export_payslip_excel`, `export_payslip_pdf`, `export_payslips_excel`,
 /// `get_payslip_import_template`, `preview_payslip_import`, `apply_payslip_import`. Không có tool xoá.
 pub fn register_payroll(r: &mut ToolRegistry) {
     reg(
@@ -361,6 +361,8 @@ pub fn register_payroll(r: &mut ToolRegistry) {
         &["payroll.export"],
         payroll::export_payslip_pdf,
     );
+    // Phiếu của chính mình: chỉ cần đăng nhập, không phân quyền (không thể chọn phiếu người khác).
+    reg(r, "export_my_payslip_pdf", &[], payroll::export_my_payslip_pdf);
     reg(
         r,
         "export_payslips_excel",

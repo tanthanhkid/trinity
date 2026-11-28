@@ -489,6 +489,46 @@ pub async fn export_pdf(conn: &mut PgConnection, id: i32, scope: Option<&[i32]>)
     })
 }
 
+/// Tên tệp PDF phiếu của chính mình: `phieu-luong-<tháng>.pdf`, chỉ giữ chữ số và gạch nối để an toàn trong header.
+fn my_pdf_name(month: &str) -> String {
+    let safe: String = month.chars().filter(|c| c.is_ascii_digit() || *c == '-').collect();
+    format!("phieu-luong-{safe}.pdf")
+}
+
+fn my_pdf(p: &PayslipRow) -> R<FileOut> {
+    let bytes = build_payslip_pdf(&slip_data(p)).map_err(pdf_err)?;
+    Ok(FileOut {
+        bytes,
+        filename: my_pdf_name(&p.month),
+        content_type: PDF_MIME,
+    })
+}
+
+/// `GET /payslips/me/:id/pdf`: PDF phiếu của CHÍNH người gọi (chỉ cần đăng nhập). Phiếu của người khác hoặc đã loại ⇒ 404
+/// như không có (không lộ phiếu tồn tại).
+pub async fn export_my_pdf(conn: &mut PgConnection, user_id: i32, id: i32) -> R<FileOut> {
+    let p = load_for_export(conn, id, Some(&[user_id])).await?;
+    my_pdf(&p)
+}
+
+/// Tool MCP `export_my_payslip_pdf`: phiếu mới nhất của chính mình (của `month` nếu có). Không có phiếu ⇒ 404.
+pub async fn export_my_pdf_latest(conn: &mut PgConnection, user_id: i32, month: Option<&str>) -> R<FileOut> {
+    let mut qb = QueryBuilder::<Postgres>::new(SELECT_P);
+    qb.push(" WHERE p.deleted_at IS NULL AND e.user_id = ")
+        .push_bind(user_id);
+    if let Some(m) = month {
+        qb.push(" AND p.month = ").push_bind(m.to_owned());
+    }
+    qb.push(" ORDER BY p.month DESC, p.id ASC LIMIT 1");
+    let p = qb
+        .build_query_as::<PayslipRow>()
+        .fetch_optional(&mut *conn)
+        .await
+        .map_err(db)?
+        .ok_or_else(|| HttpError::not_found("Bạn chưa có phiếu lương nào"))?;
+    my_pdf(&p)
+}
+
 /// `GET /payslips/excel-bulk?month=`: mỗi nhân viên một trang; `phieu-luong-ky-<tháng>.xlsx`. Không có phiếu ⇒ 404.
 pub async fn export_bulk(conn: &mut PgConnection, month: &str, scope: Option<&[i32]>) -> R<FileOut> {
     let rows = load_period(conn, month, scope, None).await?;
@@ -1715,6 +1755,12 @@ mod tests {
     fn message(e: AppError) -> String {
         let (_, b) = e.response(true);
         serde_json::to_string(&b.message).unwrap_or_default()
+    }
+
+    #[test]
+    fn ten_tep_pdf_cua_toi_chi_giu_so_va_gach() {
+        assert_eq!(my_pdf_name("2026-03"), "phieu-luong-2026-03.pdf");
+        assert_eq!(my_pdf_name("20\"26-03\r\n"), "phieu-luong-2026-03.pdf");
     }
 
     #[test]

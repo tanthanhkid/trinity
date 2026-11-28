@@ -28,7 +28,7 @@ use trinity_db::platform::Platform;
 use trinity_db::types::Timestamp;
 use trinity_http::router::OrgFeatureGate;
 use trinity_kernel::error::AppError;
-use trinity_rbac::can;
+use trinity_rbac::{can, mask_phone};
 
 use super::confirm::is_user_confirmation;
 use super::wrapped;
@@ -84,14 +84,20 @@ fn can_zalo(p: &Principal) -> bool {
 /// Lỗi của dịch vụ gửi: 400/404 ⇒ lỗi người dùng (câu nguyên văn, như `BadRequestException`/`NotFoundException` bản TS); còn lại
 /// giữ mã để `failure()` quyết định.
 fn send_err(e: AppError) -> ToolError {
+    app_err(e, &[400, 404])
+}
+
+/// `AppError` → `ToolError`: mã trong `user_statuses` là lỗi người dùng (câu nguyên văn), còn lại giữ mã.
+fn app_err(e: AppError, user_statuses: &[u16]) -> ToolError {
     let (status, body) = e.response(true);
     let message = match body.message {
         trinity_kernel::error::Message::One(s) => s,
         trinity_kernel::error::Message::Many(m) => m.join("; "),
     };
-    match status {
-        400 | 404 => ToolError::User(message),
-        s => ToolError::Http { status: s, message },
+    if user_statuses.contains(&status) {
+        ToolError::User(message)
+    } else {
+        ToolError::Http { status, message }
     }
 }
 
@@ -614,9 +620,111 @@ pub(crate) fn reply_to_customer<'a>(
     })
 }
 
+/// Lỗi lưu SĐT: 400/404/409 là lỗi người dùng (câu nguyên văn), còn lại giữ mã.
+fn save_err(e: AppError) -> ToolError {
+    app_err(e, &[400, 404, 409])
+}
+
+/// `save_phone_from_message`: lưu SĐT khách đã NHẮN trong hội thoại Zalo OA vào hồ sơ khách (cùng dịch vụ với nút «Lưu SĐT vào hồ
+/// sơ» ở Hộp thư). Máy chủ tự dò số trong các tin gần nhất của khách; AI chỉ chọn số thứ mấy (số luôn bị che nên AI không gõ số).
+pub(crate) fn save_phone_from_message<'a>(
+    d: &'a InboxDeps,
+    args: &'a Value,
+    ctx: &'a ToolCtx<'a>,
+) -> BoxFuture<'a, Result<ToolOutput, ToolError>> {
+    Box::pin(async move {
+        let (p, base) = (ctx.principal, ctx.base_url);
+        let raw = s(args, "id").unwrap_or("");
+        let Some(("zalo_oa", num)) = parse_id(raw, &["messenger", "zalo_oa"], 9) else {
+            return Err(user(
+                "id phải có dạng zalo_oa:<số> (lấy từ list_conversations); Messenger chưa ghép khách nên chưa lưu được. / id must look like zalo_oa:5.",
+            ));
+        };
+        if !zalo_enabled(d, p).await {
+            return Err(user("Zalo OA chưa bật hoặc chưa kết nối. / Zalo OA is not available."));
+        }
+        if !can_zalo(p) {
+            return Err(user(
+                "Cần quyền sửa khách hàng để lưu SĐT từ Zalo OA. / Missing contacts.update permission.",
+            ));
+        }
+        let not_found = || ToolError::User(format!("Không có hội thoại {raw}. / Conversation not found."));
+        let Some(id) = num.parse::<i32>().ok() else {
+            return Err(not_found());
+        };
+        let mut conn = ctx.deps.conn(p.company).await?;
+        if find_zalo_thread(&mut conn, id).await?.is_none() {
+            return Err(not_found());
+        }
+        // 50 tin gần nhất của khách, duyệt từ CŨ tới mới: số theo thứ tự khách nhắn lần đầu (số mới nhắn thêm vào CUỐI nên index
+        // người dùng đã chọn không bị xô lệch giữa hai lần gọi); mỗi số lấy tin MỚI nhất chứa nó.
+        let rows: Vec<(i64, Option<String>)> = sqlx::query_as(
+            "SELECT id, text FROM zalo_oa_messages WHERE thread_id = $1 AND direction = 'in' AND status <> 'failed' \
+             AND text IS NOT NULL ORDER BY id DESC LIMIT 50",
+        )
+        .bind(id)
+        .fetch_all(&mut *conn)
+        .await
+        .map_err(internal)?;
+        let mut found: Vec<(String, i64)> = Vec::new();
+        for (mid, text) in rows.iter().rev() {
+            for ph in trinity_kernel::phone::detect_phones(text.as_deref().unwrap_or("")) {
+                match found.iter_mut().find(|(x, _)| *x == ph) {
+                    Some(hit) => hit.1 = *mid,
+                    None => found.push((ph, *mid)),
+                }
+            }
+        }
+        if found.is_empty() {
+            return Err(user(
+                "Khách chưa nhắn số điện thoại nào trong hội thoại này. / No phone number in the customer's messages.",
+            ));
+        }
+        let index = match args.get("index") {
+            Some(Value::Number(n)) => n.as_i64().and_then(|n| usize::try_from(n).ok()).filter(|n| *n >= 1),
+            None | Some(Value::Null) => (found.len() == 1).then_some(1),
+            _ => None,
+        };
+        let Some((phone, mid)) = index.and_then(|i| found.get(i - 1)) else {
+            let options: Vec<Value> = found
+                .iter()
+                .enumerate()
+                .map(|(i, (ph, _))| json!({ "index": i + 1, "phone": mask_phone(Some(ph)) }))
+                .collect();
+            return Err(ToolError::User(format!(
+                "Có {} số khác nhau trong tin khách (nhắn sớm nhất trước): {}. Hỏi người dùng chọn số rồi gọi lại với index. / Several numbers found; pass index.",
+                found.len(),
+                Value::Array(options)
+            )));
+        };
+        let saved = mod_zalo::threads::save_phone(&mut conn, id, *mid, Some(phone), p.user_id)
+            .await
+            .map_err(save_err)?;
+        drop(conn);
+        wrapped(&json!({
+            "saved": true,
+            "phone": mask_phone(Some(&saved.phone)),
+            "contact_id": saved.contact_id,
+            "contact_url": contact_url(base, Some(saved.contact_id)),
+            "created_contact": saved.created,
+            "already_saved": saved.already,
+        }))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn loi_luu_sdt_409_la_loi_nguoi_dung() {
+        use trinity_kernel::error::HttpError;
+        assert!(matches!(save_err(HttpError::conflict("x").into()), ToolError::User(m) if m == "x"));
+        assert!(matches!(
+            save_err(HttpError::service_unavailable("z").into()),
+            ToolError::Http { status: 503, .. }
+        ));
+    }
 
     #[test]
     fn id_hop_le() {

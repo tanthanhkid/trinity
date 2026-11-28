@@ -28,6 +28,8 @@ pub const RUST_ONLY_AUTHED_ROUTES: &[&str] = &[
     "DELETE /api/v1/social/media/uploads/:id",
     // Trung tâm điều hành của trang Tổng quan (#606): phễu, nhiệt theo giờ, xếp hạng, tỉ lệ thắng; cần `reports.overview`.
     "GET /api/v1/reports/dashboard-command-center",
+    // Hộp thư «Ánh xanh»: lưu SĐT khách gửi trong tin Zalo OA vào hồ sơ khách (tool MCP `save_phone_from_message`).
+    "POST /api/v1/zalo-oa/threads/:id/save-phone",
 ];
 
 /// Route chỉ có ở Rust, chỉ cần đăng nhập (`access: auth`): `GET /bootstrap` gộp các lời gọi layout của web thành một lượt

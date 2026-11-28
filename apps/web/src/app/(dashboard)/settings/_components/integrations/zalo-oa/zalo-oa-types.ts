@@ -34,6 +34,19 @@ export interface ZaloOaMessage {
   status: "received" | "sent" | "failed"
   error: string | null
   created_at: string
+  /** SĐT (dạng `0xxxxxxxxx`) máy chủ dò trong tin KHÁCH gửi; rỗng với tin đi / tin không có số. */
+  phones?: string[]
+}
+
+/** Trả về của `POST /zalo-oa/threads/:id/save-phone`. */
+export interface ZaloOaSavedPhone {
+  thread: ZaloOaThread
+  contact_id: number
+  phone: string
+  /** Đã TẠO khách mới (chưa hồ sơ nào mang số này). */
+  created: boolean
+  /** Hội thoại đã ghép sẵn với khách mang đúng số này. */
+  already: boolean
 }
 
 export const CONSULT_WINDOW_MS = 48 * 60 * 60 * 1000

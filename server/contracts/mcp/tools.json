@@ -1,5 +1,5 @@
 {
-  "tool_count": 113,
+  "tool_count": 114,
   "tools": [
     {
       "name": "get_setup_guide",
@@ -10338,6 +10338,63 @@
       "annotations": {
         "title": "Lịch sử sửa giờ công / List attendance edits",
         "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "notice": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "notice",
+          "data"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "save_phone_from_message",
+      "title": "Lưu SĐT khách nhắn vào hồ sơ / Save a phone number from a chat to the customer record",
+      "description": "Lưu số điện thoại mà khách ĐÃ NHẮN trong một hội thoại Zalo OA vào hồ sơ khách (giống nút «Lưu SĐT vào hồ sơ» ở Hộp thư). Máy chủ tự dò số trong các tin gần nhất của khách (số luôn bị che nên không cần gõ số): hội thoại chưa ghép khách ⇒ tìm khách theo số, chưa có thì TẠO khách mới (người phụ trách là người dùng) rồi ghép; đã ghép khách mang đúng số ⇒ không đổi gì; khách đang mang SỐ KHÁC ⇒ báo lỗi, không ghi đè. Có nhiều số khác nhau ⇒ báo lỗi kèm danh sách (đã che), hỏi người dùng chọn rồi gọi lại với index (1 = số khách nhắn sớm nhất trong các tin gần đây; số mới nhắn thêm vào cuối danh sách). id dạng zalo_oa:5 lấy từ list_conversations; Messenger chưa ghép khách nên chưa hỗ trợ. Cần quyền sửa khách hàng và scope crm.write. Không có tool xoá. / Saves a phone number the customer wrote in a Zalo OA conversation into the customer record, creating the customer if none has that number. Never overwrites a different number.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40,
+            "description": "id hội thoại, vd \"zalo_oa:5\" / Conversation id"
+          },
+          "index": {
+            "description": "Chọn số thứ mấy khi tin khách có nhiều số khác nhau (1 = số nhắn sớm nhất) / Which number when several",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "annotations": {
+        "title": "Lưu SĐT khách nhắn vào hồ sơ / Save a phone number from a chat to the customer record",
+        "readOnlyHint": false,
         "destructiveHint": false,
         "idempotentHint": true,
         "openWorldHint": false

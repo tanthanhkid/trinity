@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import apiClient from "@/lib/api-client"
-import type { ZaloOaMessage, ZaloOaStatus, ZaloOaThread } from "./zalo-oa-types"
+import type { ZaloOaMessage, ZaloOaSavedPhone, ZaloOaStatus, ZaloOaThread } from "./zalo-oa-types"
 import { pollUnlessChannelOff } from "@/lib/channel-off"
 import { inboxPollMs } from "@/lib/realtime-mode"
 
@@ -69,6 +69,20 @@ export function useReplyZaloOa(threadId: number) {
   return useMutation({
     mutationFn: async (text: string) => (await apiClient.post(`/zalo-oa/threads/${threadId}/messages`, { text })).data,
     onSettled: () => qc.invalidateQueries({ queryKey: ["zalo-oa"] }),
+  })
+}
+
+/** Lưu SĐT khách nhắn trong một tin vào hồ sơ khách (tạo/ghép khách) — làm mới hội thoại và hồ sơ khách. */
+export function useSavePhoneZaloOa(threadId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { messageId: string; phone?: string }) =>
+      (await apiClient.post<ZaloOaSavedPhone>(`/zalo-oa/threads/${threadId}/save-phone`, { message_id: body.messageId, phone: body.phone })).data,
+    onSuccess: (r) => {
+      void qc.invalidateQueries({ queryKey: ["zalo-oa"] })
+      void qc.invalidateQueries({ queryKey: ["contact", String(r.contact_id)] })
+      void qc.invalidateQueries({ queryKey: ["contacts"] })
+    },
   })
 }
 

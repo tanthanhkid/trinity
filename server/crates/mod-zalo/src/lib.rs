@@ -213,6 +213,48 @@ impl LinkThread {
     }
 }
 
+/// Body `POST /zalo-oa/threads/:id/save-phone`: `message_id` = id tin của khách (số nguyên dương ≤ 18 chữ số, hoặc chuỗi số như
+/// `GET …/messages` trả), `phone` (tuỳ chọn, chuỗi ≤ 20) chọn một trong các số của tin khi tin có nhiều số.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SavePhone {
+    pub message_id: i64,
+    pub phone: Option<String>,
+}
+
+impl SavePhone {
+    pub fn from_json(v: &Value) -> Result<Self, HttpError> {
+        let mut e = Vec::new();
+        let message_id = match v.get("message_id") {
+            Some(Value::Number(n)) => n.as_i64().filter(|n| (1..1_000_000_000_000_000_000).contains(n)),
+            Some(Value::String(s)) if (1..=18).contains(&s.len()) && s.bytes().all(|b| b.is_ascii_digit()) => {
+                s.parse::<i64>().ok().filter(|n| *n > 0)
+            }
+            _ => None,
+        };
+        if message_id.is_none() {
+            e.push("message_id must be a positive integer".to_owned());
+        }
+        let phone = match v.get("phone") {
+            None | Some(Value::Null) => None,
+            Some(Value::String(s)) => {
+                if len16(s) > 20 {
+                    e.push("phone must be shorter than or equal to 20 characters".to_owned());
+                }
+                Some(s.clone()).filter(|p| !p.is_empty())
+            }
+            Some(_) => {
+                e.push("phone must be shorter than or equal to 20 characters".to_owned());
+                e.push("phone must be a string".to_owned());
+                None
+            }
+        };
+        match message_id {
+            Some(message_id) if e.is_empty() => Ok(Self { message_id, phone }),
+            _ => Err(validation(e)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -222,6 +264,31 @@ mod tests {
         let (_, b) = trinity_kernel::error::AppError::from(e).response(true);
         // trinity-lint: allow-json-value (thông báo lỗi/giá trị so sánh trong test, không phải model hay cột DB)
         serde_json::to_value(&b.message).unwrap()
+    }
+
+    #[test]
+    fn save_phone_dto() {
+        let ok = |v: Value| SavePhone::from_json(&v).unwrap();
+        assert_eq!(ok(json!({ "message_id": 5 })).message_id, 5);
+        assert_eq!(
+            ok(json!({ "message_id": "12", "phone": "0912345678" }))
+                .phone
+                .as_deref(),
+            Some("0912345678")
+        );
+        assert_eq!(ok(json!({ "message_id": 1, "phone": "" })).phone, None);
+        for bad in [
+            json!({}),
+            json!({ "message_id": 0 }),
+            json!({ "message_id": -3 }),
+            json!({ "message_id": "1a" }),
+            json!({ "message_id": 1.5 }),
+            json!({ "message_id": 1_000_000_000_000_000_000_i64 }),
+            json!({ "message_id": 1, "phone": 5 }),
+            json!({ "message_id": 1, "phone": "1".repeat(21) }),
+        ] {
+            assert!(SavePhone::from_json(&bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

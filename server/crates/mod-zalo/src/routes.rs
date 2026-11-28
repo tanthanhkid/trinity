@@ -29,11 +29,11 @@ use crate::messaging::{self, ZnsInput};
 use crate::threads;
 use crate::token::{self, Ctx, acquire};
 use crate::webhook;
-use crate::{LinkThread, SendText, SendZns, clamp_limit, parse_cursor};
+use crate::{LinkThread, SavePhone, SendText, SendZns, clamp_limit, parse_cursor};
 
 const ID: &[&str] = &["param.id:ParseIntPipe"];
 
-/// 11 route của `ZaloOaController`.
+/// 11 route của `ZaloOaController` + `save-phone` (chỉ có ở Rust, khai ở `RUST_ONLY_AUTHED_ROUTES`).
 pub fn routes() -> Vec<RouteSpec> {
     let inbox = Access::Can(&["contacts.update"]);
     let manage = Access::Can(&["integrations.webhooks"]);
@@ -49,6 +49,7 @@ pub fn routes() -> Vec<RouteSpec> {
         r(Method::POST, "/api/v1/zalo-oa/threads/:id/messages", inbox, 201).param_pipes(ID),
         r(Method::POST, "/api/v1/zalo-oa/threads/:id/read", inbox, 204).param_pipes(ID),
         r(Method::POST, "/api/v1/zalo-oa/threads/:id/link", inbox, 200).param_pipes(ID),
+        r(Method::POST, "/api/v1/zalo-oa/threads/:id/save-phone", inbox, 200).param_pipes(ID),
         r(Method::POST, "/api/v1/zalo-oa/zns", manage, 200),
         RouteSpec::new(Method::POST, "/api/v1/zalo-oa/webhook", Access::Public).status_ok(200),
     ]
@@ -330,6 +331,30 @@ async fn link(
     ok(thread)
 }
 
+async fn save_phone(
+    State(s): State<Arc<ZaloState>>,
+    Extension(u): Extension<CurrentUser>,
+    Path(id): Path<String>,
+    JsonBody(body): JsonBody,
+) -> Response {
+    let company = company!(u);
+    let dto = match SavePhone::from_json(&body) {
+        Ok(d) => d,
+        Err(e) => return fail(e),
+    };
+    let id = match id_of(&id) {
+        Ok(id) => id,
+        Err(e) => return fail(e),
+    };
+    let ctx = s.ctx(company);
+    let saved = async {
+        let mut conn = acquire(&ctx).await?;
+        threads::save_phone(&mut conn, id, dto.message_id, dto.phone.as_deref(), u.user.user_id).await
+    }
+    .await;
+    ok(saved)
+}
+
 async fn zns(
     State(s): State<Arc<ZaloState>>,
     Extension(u): Extension<CurrentUser>,
@@ -365,7 +390,7 @@ async fn webhook_receive(State(s): State<Arc<ZaloState>>, headers: HeaderMap, bo
     ok(out.map(|o| json!({ "ok": o.ok })))
 }
 
-/// Router của module: 11 route, quyền và mã thành công khớp `routes.json`.
+/// Router của module: 12 route, quyền và mã thành công khớp `routes.json`.
 pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<ZaloState>> {
     let table = routes();
     let spec = |m: &Method, p: &str| {
@@ -385,6 +410,10 @@ pub fn api_router(deps: Arc<AccessDeps>) -> ApiRouter<Arc<ZaloState>> {
         .route(spec(&Method::POST, "/api/v1/zalo-oa/threads/:id/messages"), reply)
         .route(spec(&Method::POST, "/api/v1/zalo-oa/threads/:id/read"), read)
         .route(spec(&Method::POST, "/api/v1/zalo-oa/threads/:id/link"), link)
+        .route(
+            spec(&Method::POST, "/api/v1/zalo-oa/threads/:id/save-phone"),
+            save_phone,
+        )
         .route(spec(&Method::POST, "/api/v1/zalo-oa/zns"), zns)
         .route(spec(&Method::POST, "/api/v1/zalo-oa/webhook"), webhook_receive)
 }
@@ -396,9 +425,10 @@ mod tests {
     #[test]
     fn khop_hop_dong_routes_json() {
         let table = routes();
-        assert_eq!(table.len(), 11);
+        assert_eq!(table.len(), 12);
         let rep = trinity_http::router::check::check_embedded(&table, false);
         assert!(rep.ok(), "{:#?}", rep.problems);
+        // `save-phone` chỉ có ở Rust nên không tính vào số route đã khớp routes.json.
         assert_eq!(rep.declared, 11);
     }
 }

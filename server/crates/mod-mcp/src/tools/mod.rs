@@ -190,8 +190,8 @@ fn reg_state<S: Send + Sync + 'static>(
     });
 }
 
-/// Đăng ký 7 tool hộp thư và lời mời (M44c): `list_unanswered_messages`, `list_conversations`, `get_conversation_messages`,
-/// `reply_to_customer` (hộp thư), `list_invitations`, `create_invitation`, `cancel_invitation` (lời mời). Không có tool xoá và không
+/// Đăng ký 8 tool hộp thư và lời mời (M44c): `list_unanswered_messages`, `list_conversations`, `get_conversation_messages`,
+/// `reply_to_customer`, `save_phone_from_message` (hộp thư), `list_invitations`, `create_invitation`, `cancel_invitation` (lời mời). Không có tool xoá và không
 /// có tool mật khẩu. Hai tool gửi ra ngoài (`reply_to_customer` hai bước) và hai tool ghi lời mời cần scope `crm.write`.
 pub fn register_inbox_invitations(r: &mut ToolRegistry, inbox: Arc<InboxDeps>, invitations: Arc<dyn InvitationsPort>) {
     let invitations = Arc::new(invitations);
@@ -226,6 +226,14 @@ pub fn register_inbox_invitations(r: &mut ToolRegistry, inbox: Arc<InboxDeps>, i
         Some("crm.write"),
         &["integrations.webhooks"],
         inbox::reply_to_customer,
+    );
+    reg_state(
+        r,
+        &inbox,
+        "save_phone_from_message",
+        Some("crm.write"),
+        &["contacts.update"],
+        inbox::save_phone_from_message,
     );
     let users_manage: &'static [&'static str] = &["users.manage"];
     reg_state(

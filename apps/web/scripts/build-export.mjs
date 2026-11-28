@@ -9,7 +9,6 @@ import { cpSync, existsSync, rmSync, writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildRules } from './export-static.mjs'
-import { writeServiceWorker } from './make-sw.mjs'
 
 const webDir = join(dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = join(webDir, 'out')
@@ -32,6 +31,4 @@ if (!existsSync(outDir)) {
 }
 const rules = buildRules(outDir)
 writeFileSync(join(outDir, 'export-rules.json'), JSON.stringify(rules, null, 2) + '\n')
-const sw = writeServiceWorker(outDir)
-console.log(`Service Worker: build ${sw.id}, precache ${sw.precache} tệp, ${sw.pages} trang.`)
 console.log(`Đã xuất out/ (${rules.length} luật trang giữ chỗ: ${rules.map((x) => x.pattern).join(', ')}).`)

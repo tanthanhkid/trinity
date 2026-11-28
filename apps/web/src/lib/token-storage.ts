@@ -1,5 +1,3 @@
-import { wipeLocalCaches } from './local-cache'
-
 const ACCESS_TOKEN_KEY = 'trinity_access_token'
 const REFRESH_TOKEN_KEY = 'trinity_refresh_token'
 const COOKIE_ACCESS_TOKEN = 'access_token'
@@ -34,12 +32,9 @@ export function setRefreshToken(token: string): void {
 
 export function clearTokens(): void {
   if (!isClient()) return
-  const hadSession = !!localStorage.getItem(ACCESS_TOKEN_KEY) || !!localStorage.getItem(REFRESH_TOKEN_KEY)
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)
   // Clear the access_token cookie
   document.cookie = `${COOKIE_ACCESS_TOKEN}=; path=/; max-age=0; SameSite=Lax`
   document.cookie = `has_session=; path=/; max-age=0; SameSite=Lax`
-  // Cache dữ liệu/HTML trên máy thuộc về phiên vừa kết thúc: xoá cùng lúc.
-  wipeLocalCaches({ notify: hadSession })
 }

@@ -78,9 +78,9 @@ describe("khoá mã nguồn dialog + topbar", () => {
   })
   it("Topbar: nút thu gọn flex-none, breadcrumb overflow-hidden, ô tìm min-w-0", () => {
     const t = src("components/app-shell/topbar.tsx")
-    expect(t).toContain("size-[34px] flex-none")
+    expect(t).toContain("size-10 flex-none")
     expect(t).toContain("min-w-0 flex-1 overflow-hidden")
     // Giao diện mới: ô tìm là nút gọn "Tìm kiếm ⌘K" (tự co theo chữ) thay ô giả rộng 380px.
-    expect(t).toContain("h-[34px] min-w-0 flex-none")
+    expect(t).toContain("h-10 min-w-0 flex-none")
   })
 })

@@ -456,7 +456,7 @@ function ContactsPageContent() {
             aria-selected={activeTab === t.key}
             onClick={() => pickTab(t.key)}
             className={cn(
-              "h-9 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium transition max-sm:h-11",
+              "h-10 shrink-0 whitespace-nowrap rounded-lg px-3 text-sm font-medium transition max-sm:h-11",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
               activeTab === t.key
                 ? "bg-[var(--muted)] text-foreground"

@@ -14,6 +14,7 @@ import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, ChevronRight, Check, X } from "lucide-react"
 import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
 import { HoverLink as Link } from "@/components/app-shell/hover-link"
 import { MentionEditor } from "@/components/refs/mention-editor"
 import { MentionText } from "@/components/refs/mention-text"
@@ -106,6 +107,7 @@ function initials(name: string): string {
 
 function useCardController(cardId: number) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { user } = useAuth()
   const { can, isAdmin } = usePermissions()
   const cardQ = useKanbanCard(cardId)
@@ -132,12 +134,23 @@ function useCardController(cardId: number) {
   const patch = (payload: Record<string, unknown>, onOk?: () => void) => {
     updateCard.mutate(
       { id: cardId, payload },
-      { onSuccess: onOk, onError: (err) => toast.error(getApiErrorMessage(err, "Không lưu được thay đổi")) },
+      {
+        onSuccess: onOk,
+        onError: (err) => {
+          toast.error(getApiErrorMessage(err, "Không lưu được thay đổi"))
+          void queryClient.invalidateQueries({ queryKey: ["kanban-cards", "detail", cardId] })
+        },
+      },
     )
+  }
+  /** Ghi đè lạc quan cache chi tiết để bấm liên tiếp (người làm, nhãn…) tính trên giá trị mới, không ghi đè lẫn nhau. */
+  const optimistic = (payload: Record<string, unknown>) => {
+    queryClient.setQueryData<KanbanCard>(["kanban-cards", "detail", cardId], (old) => (old ? ({ ...old, ...payload } as KanbanCard) : old))
   }
   /** Lưu NGAY (lạc quan) rồi cho Hoàn tác: `undo` là payload đưa các trường về giá trị cũ. */
   const commit = (payload: Record<string, unknown>, undo: Record<string, unknown>, label: string) => {
-    patch(payload, () => showUndoToast(label, { onUndo: () => patch(undo) }))
+    optimistic(payload)
+    patch(payload, () => showUndoToast(label, { onUndo: () => { optimistic(undo); patch(undo) } }))
   }
 
   const pickColumn = (col: KanbanColumn) => {
@@ -293,8 +306,12 @@ function StageButtons({ c, mobile }: { c: Ctl; mobile?: boolean }) {
 function TitleEditor({ c, className, inputClass }: { c: Ctl; className: string; inputClass: string }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState("")
+  // Enter/Esc đã chốt thì blur (khi ô bị gỡ khỏi DOM) không được lưu lại lần nữa.
+  const closed = useRef(false)
   const done = c.isDone
   const finish = (save: boolean) => {
+    if (closed.current) return
+    closed.current = true
     const v = draft.trim()
     setEditing(false)
     if (save && v && v !== c.card.title) c.commit({ title: v }, { title: c.card.title }, "Đã đổi tên việc")
@@ -317,14 +334,16 @@ function TitleEditor({ c, className, inputClass }: { c: Ctl; className: string; 
     )
   }
   return (
-    <button
-      type="button"
-      aria-label={`Sửa tên việc: ${c.card.title}`}
-      onClick={() => { setDraft(c.card.title); setEditing(true) }}
-      className="block min-h-11 w-full cursor-text text-left outline-none focus-visible:shadow-[0_0_0_2px_rgba(255,255,255,.6)]"
-    >
-      <h1 className={cn(className, done && "line-through")}>{c.card.title}</h1>
-    </button>
+    <h1 className={cn(className, done && "line-through")}>
+      <button
+        type="button"
+        title="Bấm để sửa tên việc"
+        onClick={() => { closed.current = false; setDraft(c.card.title); setEditing(true) }}
+        className="block min-h-11 w-full cursor-text text-left outline-none focus-visible:shadow-[0_0_0_2px_rgba(255,255,255,.6)]"
+      >
+        {c.card.title}
+      </button>
+    </h1>
   )
 }
 
@@ -735,7 +754,7 @@ function DesktopView({ c }: { c: Ctl }) {
         <span className="text-ax-ink">{c.card.code ?? `#${c.card.id}`}</span>
       </nav>
       <div className="flex flex-wrap items-start gap-5">
-        <main className="flex min-w-0 flex-[1_1_620px] flex-col gap-4">
+        <div className="flex min-w-0 flex-[1_1_620px] flex-col gap-4">
           <div className="overflow-hidden rounded-[var(--ax-radius-sheet)] border border-[var(--ax-hero-border)] bg-ax-surface shadow-[var(--ax-shadow-hero)]">
             <HeroCard className="rounded-none border-0 px-6 pt-[22px] pb-5 shadow-none">
               <TitleEditor c={c} className="m-0 text-[28px] leading-tight font-bold tracking-tight text-white" inputClass="h-[52px] text-[22px]" />
@@ -756,7 +775,7 @@ function DesktopView({ c }: { c: Ctl }) {
             <h2 id="dk" className={cn(GROUP, "mb-2")}>Đính kèm</h2>
             <KanbanAttachmentPanel cardId={c.card.id} />
           </section>
-        </main>
+        </div>
 
         <aside aria-label="Thuộc tính" className="sticky top-4 flex max-w-full flex-[0_0_360px] flex-col gap-3">
           <section className={cn("rounded-ax-card border bg-gradient-to-br from-[#F6F9FC] to-white p-4 shadow-ax-card", info.overdue ? "border-ax-danger/40" : "border-ax-line")}>

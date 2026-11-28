@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { KanbanCard } from "@/types/kanban"
 
 const move = vi.fn()
@@ -51,6 +52,9 @@ vi.mock("@/hooks/kanban/use-kanban-user-roster", () => ({
 
 import { KanbanCardPage } from "@/components/kanban/kanban-card-page"
 
+const renderPage = (cardId: number | null) =>
+  render(<QueryClientProvider client={new QueryClient()}><KanbanCardPage cardId={cardId} /></QueryClientProvider>)
+
 function setDesktop(on: boolean) {
   window.matchMedia = ((q: string) => ({ matches: on && q.includes("1024"), media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia
 }
@@ -60,7 +64,7 @@ describe("KanbanCardPage", () => {
 
   it("desktop: tên việc, cột thuộc tính, đổi giai đoạn gọi move", () => {
     setDesktop(true)
-    render(<KanbanCardPage cardId={14} />)
+    renderPage(14)
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Gọi lại anh Bảo")
     expect(screen.getByRole("complementary", { name: "Thuộc tính" })).toBeTruthy()
     expect(screen.getByText("1/2 xong")).toBeTruthy()
@@ -70,7 +74,7 @@ describe("KanbanCardPage", () => {
 
   it("điện thoại: có nút Hoàn thành việc dính đáy, bấm chuyển sang cột xong", () => {
     setDesktop(false)
-    render(<KanbanCardPage cardId={14} />)
+    renderPage(14)
     expect(screen.queryByRole("complementary", { name: "Thuộc tính" })).toBeNull()
     fireEvent.click(screen.getByRole("button", { name: "Hoàn thành việc" }))
     expect(move).toHaveBeenCalledWith({ id: 14, payload: { column_id: 2 } }, expect.anything())
@@ -78,7 +82,7 @@ describe("KanbanCardPage", () => {
 
   it("id sai hiện trạng thái trống, không crash", () => {
     setDesktop(true)
-    render(<KanbanCardPage cardId={null} />)
+    renderPage(null)
     expect(screen.getByText("Không mở được công việc này")).toBeTruthy()
   })
 })

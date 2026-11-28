@@ -385,12 +385,14 @@ html:root[data-ui="app"] [data-slot="sidebar-footer"] {
 /* ---- mini rail (thu gọn còn icon) ----------------------------------------
    🔴 `!important` BẮT BUỘC ở đúng 2 dòng dưới: shadcn ép
    `group-data-[collapsible=icon]:size-8!` + `:p-2!` (32×32, padding 8px) —
-   khớp SẴN với item cao 32px của thiết kế mới nên chỉ cần ép width 100% +
-   bỏ padding/gap, không cần đổi chiều cao như bản 42px cũ. */
+   phải ép lại width 100% + cao 40px (vùng chạm desktop ≥ 40, Ánh xanh vòng 2)
+   và bỏ padding/gap. */
 html:root[data-ui="app"]
   [data-slot="sidebar"][data-collapsible="icon"]
   [data-slot="sidebar-menu-button"] {
   width: 100% !important;
+  height: 40px !important;
+  min-height: 40px;
   justify-content: center;
   padding: 0 !important;
   gap: 0;

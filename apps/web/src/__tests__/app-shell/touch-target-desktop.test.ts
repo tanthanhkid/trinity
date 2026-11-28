@@ -16,6 +16,10 @@ describe("vùng chạm desktop khung app ≥ 40 px", () => {
     expect(css).toMatch(/\.app-side-theme \{[^}]*height: 40px/)
   })
 
+  it("rail thu gọn: mục menu cao 40 (đè size-8! của shadcn)", () => {
+    expect(css).toMatch(/\[data-collapsible="icon"\]\s*\[data-slot="sidebar-menu-button"\] \{[^}]*height: 40px !important/)
+  })
+
   it("sidebar-content tự cuộn khi menu dài hơn màn", () => {
     expect(src("components/ui/sidebar.tsx")).toContain("flex min-h-0 flex-1 flex-col gap-0 overflow-auto")
   })

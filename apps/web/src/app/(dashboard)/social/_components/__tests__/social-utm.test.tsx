@@ -10,6 +10,9 @@ vi.mock("@/hooks/use-social", async (orig) => ({
   ...(await orig<typeof import("@/hooks/use-social")>()),
   useSocialSnippets: () => ({ data: [], isLoading: false, isSuccess: true }),
   useSnippetMutations: () => ({ save: { isPending: false, mutate: vi.fn() }, remove: { isPending: false, mutate: vi.fn() } }),
+  // Cột xem trước luôn hiện khi đã chọn kênh (không còn sau tab) — giả lập, test này không kiểm xem trước.
+  useSocialPreview: () => ({ data: undefined, isFetching: false, isError: false }),
+  useSocialMediaPreview: () => ({ url: null }),
   useQueueSlots: () => ({ data: [], isLoading: false, isSuccess: true }),
   useQueueNext: () => ({ data: [], isLoading: false, isSuccess: true }),
   useSocialAccounts: () => ({

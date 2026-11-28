@@ -117,3 +117,10 @@ showUndoToast("Đã lưu số điện thoại", { onUndo: () => save(prev) })
 - «Giai đoạn» của thiết kế = cột của bảng (số cột/tên theo bảng thật, chấm theo màu cột); «Hoàn thành việc» chuyển sang cột đánh dấu xong đầu tiên.
 - Mọi thay đổi lưu ngay + toast Hoàn tác (`showUndoToast`) thay vì nút Lưu; riêng Mô tả có Lưu/Huỷ (soạn nhiều dòng, @ gắn thẻ).
 - Giữ so với hộp thoại cũ: trường tuỳ biến, đính kèm, khách hàng (chọn/đổi), @mention, Markdown mô tả, xoá có Hoàn tác (người tạo/Quản trị).
+
+## Màn Đăng đa kênh (`/social`)
+
+- Tab dạng viên (khay `ax-sunken`, mục mở là thẻ trắng) thay tab gạch chân; giữ đủ 7 tab (Thống kê, Thư viện còn nguyên dù thiết kế chỉ vẽ 5).
+- Soạn bài: desktop một màn (nội dung · kênh · khi nào đăng + cột xem trước dính bên phải + thanh hành động nổi dạng khối nhấn);
+  điện thoại hai bước («Bài mới» → «Xem lại và đăng», cùng một DOM, ẩn/hiện bằng `max-lg:hidden`).
+- Thanh hành động tự dựng bằng `ax-grad-hero` (không dùng `StickyActionBar`, vì thiết kế đặt nó là khối nhấn duy nhất của màn).

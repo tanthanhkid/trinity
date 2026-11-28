@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Share2 } from "lucide-react"
 import { toast } from "sonner"
-import { ShellPageHeader } from "@/components/app-shell/page-header"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePermissions } from "@/lib/rbac/use-permissions"
-import type { SocialDraft } from "@/hooks/use-social"
+import { useSocialDrafts, type SocialDraft } from "@/hooks/use-social"
 import { SocialCalendar } from "./social-calendar"
 import { SocialChannels } from "./social-channels"
 import { SocialComposer } from "./social-composer"
@@ -23,7 +21,14 @@ type Tab = (typeof TABS)[number]
 const TAB_LABELS: ReadonlyArray<readonly [Tab, string]> = [
   ["compose", "Soạn bài"], ["drafts", "Nháp"], ["calendar", "Lịch"], ["posts", "Bài đã đăng"], ["stats", "Thống kê"], ["library", "Thư viện"], ["channels", "Kênh"],
 ]
-const LINE_TAB = "h-full flex-none rounded-md px-2.5 group-data-horizontal/tabs:after:inset-x-2 group-data-horizontal/tabs:after:bottom-[-1px] after:rounded-full"
+/** Nút tab dạng viên «Ánh xanh»: khay lõm, mục đang mở là thẻ trắng nổi nhẹ. Điện thoại cuộn ngang, cao 44px. */
+const PILL_TAB = "h-9 flex-none gap-1.5 rounded-md px-3.5 text-sm font-medium text-ax-ink-2 after:hidden hover:text-ax-ink data-active:bg-ax-surface data-active:font-semibold data-active:text-ax-ink data-active:shadow-[0_1px_2px_rgba(23,24,28,.08),0_0_0_1px_rgba(23,24,28,.04)] max-sm:h-11"
+
+/** Số nháp cạnh tab «Nháp» (chỉ dựng khi đã qua kiểm quyền, nên không gọi API thừa). */
+function DraftCount() {
+  const n = useSocialDrafts().data?.length ?? 0
+  return n > 0 ? <span className="rounded-full bg-ax-surface px-[7px] py-px text-[12px] tabular-nums">{n}</span> : null
+}
 
 /** Đăng đa kênh: Soạn bài · Nháp · Lịch · Bài đã đăng · Thống kê · Thư viện · Kênh. `?tab=` mở thẳng tab, `?post=` tô sáng một bài, `?draft=` tô sáng một nháp (cùng `?tab=drafts`), `?media=` tô sáng một tệp thư viện, `?social=` là kết quả OAuth. */
 export function SocialScreen() {
@@ -60,12 +65,19 @@ export function SocialScreen() {
 
   return (
     <div className="space-y-4">
-      <ShellPageHeader title="Đăng đa kênh" icon={Share2} description="Soạn một lần, đăng ngay hoặc hẹn giờ ra các kênh đã liên kết" />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="ax-text-title text-ax-ink">Đăng đa kênh</h1>
+          <p className="mt-1 text-sm text-ax-ink-2">Soạn một lần, xem bài hiện ra thế nào trên từng kênh rồi mới đăng hoặc hẹn giờ.</p>
+        </div>
+      </div>
       <Tabs value={tab} onValueChange={(v) => { setTab(v as Tab); if (v !== "compose") setDraft(undefined) }} className="w-full">
-        {/* Tab gạch chân — cùng kiểu Cài đặt › Kết nối & AI. */}
-        <TabsList variant="line" className="mb-2 h-10 w-full justify-start gap-1 rounded-none border-b border-border p-0 max-sm:h-11">
+        <TabsList aria-label="Mục đăng bài" className="h-auto w-auto max-w-full justify-start gap-1 rounded-[10px] bg-ax-sunken p-1 shadow-ax-inset max-sm:w-full">
           {TAB_LABELS.map(([v, label]) => (
-            <TabsTrigger key={v} value={v} className={LINE_TAB}>{label}</TabsTrigger>
+            <TabsTrigger key={v} value={v} className={PILL_TAB}>
+              {label}
+              {v === "drafts" ? <DraftCount /> : null}
+            </TabsTrigger>
           ))}
         </TabsList>
         <TabsContent value="compose">

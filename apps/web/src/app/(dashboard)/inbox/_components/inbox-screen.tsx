@@ -17,13 +17,13 @@ import { InteractionsView, type Interaction } from "./interactions-view"
 import { INBOX_TAB_LABEL, INBOX_TAB_PARAM, inboxChannels, inboxTabs, pickInboxTab, type InboxTab } from "./inbox-access"
 
 /** Khung 3 cột chiếm gần hết chiều cao màn hình (trừ topbar + tiêu đề). */
-const FRAME = "h-[calc(100dvh-11.25rem)] max-h-none min-h-[480px] md:h-[calc(100dvh-10.75rem)]" // +1.25rem: pt-5 của <main> (#29)
+const FRAME = "h-[calc(100dvh-11.25rem)] max-h-none min-h-[480px] lg:h-[calc(100dvh-10.75rem)]" // +1.25rem: pt-5 của <main> (#29)
 
-/** Tab kênh ở đầu cột danh sách — cùng kiểu tab nhanh của màn Khách hàng. */
+/** Tab kênh ở đầu cột danh sách — nút 40px, chọn = nền xanh nhạt + chữ xanh đậm (thiết kế: Tất cả / Zalo / Messenger). */
 function ChannelTabs({ tabs, active, onPick }: { tabs: readonly InboxTab[]; active: InboxTab; onPick: (t: InboxTab) => void }) {
   if (tabs.length < 2) return null
   return (
-    <div className="border-b border-[var(--border)] px-3 pt-2 pb-2">
+    <div className="border-b border-ax-line px-3 pt-3 pb-2">
       <div role="tablist" aria-label="Kênh" className="flex items-center gap-1 overflow-x-auto">
         {tabs.map((t) => (
           <button
@@ -33,10 +33,9 @@ function ChannelTabs({ tabs, active, onPick }: { tabs: readonly InboxTab[]; acti
             aria-selected={active === t}
             onClick={() => onPick(t)}
             className={cn(
-              "relative h-9 shrink-0 whitespace-nowrap rounded-md px-2.5 text-sm font-medium transition-colors duration-150 ease-out max-sm:h-11",
-              "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/20",
-              "after:absolute after:inset-x-2 after:-bottom-2 after:h-0.5 after:rounded-full after:transition-opacity after:duration-150",
-              active === t ? "text-foreground after:bg-foreground after:opacity-100" : "text-muted-foreground after:opacity-0 hover:text-foreground",
+              "relative h-10 shrink-0 cursor-pointer whitespace-nowrap rounded-[var(--ax-radius-field)] px-3 text-sm transition-colors duration-150 ease-out max-sm:h-11",
+              "outline-none focus-visible:shadow-[var(--ax-focus-ring)]",
+              active === t ? "bg-ax-primary-soft font-semibold text-ax-primary-ink" : "text-ax-ink-2 hover:bg-ax-hover",
             )}
           >
             {INBOX_TAB_LABEL[t]}
@@ -76,11 +75,13 @@ export function InboxScreen() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-foreground">Tương tác</h1>
-          <p className="text-[13px] text-muted-foreground">Bình luận Fanpage, tin nhắn Messenger và Zalo OA ở một chỗ, trả lời ngay tại đây.</p>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h1 className="text-[22px] font-[650] leading-tight tracking-[-0.02em] text-ax-ink">Tương tác</h1>
+            <p className="text-[13px] text-ax-ink-2 max-lg:hidden">Bình luận Fanpage, tin nhắn Messenger và Zalo OA ở một chỗ; hồ sơ khách nằm ngay cạnh cuộc chat, sửa xong vẫn đang ở đúng tin nhắn đó.</p>
+          </div>
         </div>
         {canSettings && active !== null && (
-          <Link href="/connections" className={cn(buttonVariants({ variant: "outline" }), "ml-auto max-sm:h-11")}>
+          <Link href="/connections" className={cn(buttonVariants({ variant: "ax-secondary", size: "ax" }), "ml-auto")}>
             <Settings2 className="size-4" aria-hidden />
             Kết nối kênh
           </Link>
@@ -88,7 +89,7 @@ export function InboxScreen() {
       </div>
 
       {active === null ? (
-        <EmptyState icon={Inbox} message="Bạn chưa có quyền xem hộp thư Zalo OA hay Messenger." />
+        <EmptyState variant="ax" icon={Inbox} message="Bạn chưa có quyền xem hộp thư Zalo OA hay Messenger." />
       ) : active === "interactions" ? (
         <InteractionsView key="interactions" tabs={<ChannelTabs tabs={tabs} active={active} onPick={pick} />} onOpenConversation={openConversation} />
       ) : active === "all" ? (

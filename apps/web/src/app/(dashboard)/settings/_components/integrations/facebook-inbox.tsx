@@ -11,6 +11,7 @@ import {
 import { messengerReplyLabel, useFacebookConversations, useFacebookMessages, useFacebookReply, type FacebookConversation } from "./use-facebook"
 import { apiErrorMessage } from "./webhook-types"
 import { isChannelOff } from "@/lib/channel-off"
+import { ProfileSheet } from "@/components/inbox/customer-profile"
 import { ErrorState } from "@/components/ui/error-state"
 
 /** Tên hiển thị của khách Messenger (chưa có tên ⇒ 6 số cuối PSID). */
@@ -21,6 +22,7 @@ export function FacebookThread({ id, onBack }: { id: number; onBack: () => void 
   const q = useFacebookMessages(id)
   const reply = useFacebookReply(id)
   const [text, setText] = useState("")
+  const [sheet, setSheet] = useState(false)
   const conv = q.data?.conversation
   const name = conv ? facebookCustomerName(conv) : "Đang tải..."
   const items: InboxMessage[] = (q.data?.messages ?? []).map((m) => ({
@@ -45,18 +47,24 @@ export function FacebookThread({ id, onBack }: { id: number; onBack: () => void 
         channel="facebook"
         onBack={onBack}
         aside={conv ? <StatusPill tone={conv.can_reply && conv.reply_mode !== "human_agent" ? "ok" : "warn"}>{conv.can_reply ? (conv.reply_mode === "human_agent" ? "Trả lời trong 7 ngày (nhân viên)" : "Trả lời được") : "Quá 7 ngày"}</StatusPill> : null}
+        onOpenProfile={conv ? () => setSheet(true) : undefined}
       />
+      {conv ? (
+        <ProfileSheet open={sheet} onOpenChange={setSheet}>
+          <FacebookCustomerSide c={conv} />
+        </ProfileSheet>
+      ) : null}
       <MessageThread messages={items} loading={q.isLoading} error={q.isError} />
       {conv && !conv.can_reply ? (
         <div className="border-t border-[var(--border)] bg-[var(--card)] px-4 py-3">
-          <p className="text-sm text-[var(--color-app-tag-amber-ink)]">
+          <p className="text-sm text-[var(--ax-warn)]">
             Đã quá 7 ngày kể từ tin nhắn gần nhất của khách — Messenger không cho gửi tin chủ động. Có thể trả lời khi khách nhắn lại (hoặc trả lời trong Inbox của Fanpage).
           </p>
         </div>
       ) : (
         <>
         {conv?.reply_mode === "human_agent" && (
-          <p className="border-t border-[var(--border)] bg-[var(--card)] px-4 pt-2 text-xs text-[var(--color-app-tag-amber-ink)]">
+          <p className="border-t border-[var(--border)] bg-[var(--card)] px-4 pt-2 text-xs text-[var(--ax-warn)]">
             Khách nhắn đã quá 24 giờ: chỉ nhân viên trả lời trực tiếp, trong 7 ngày kể từ tin cuối của khách.
           </p>
         )}
@@ -123,7 +131,7 @@ export function FacebookInbox({ listTop, className, initialOpenId }: { listTop?:
       list={
         <>
         <InboxListToolbar q={q} onQ={setQ} awaiting={{ on: onlyAwaiting, count: awaitingCount, onChange: setOnlyAwaiting }} />
-        <div className="min-h-0 flex-1 overflow-y-auto p-2">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {list.isLoading && <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang tải...</div>}
           {list.isError && !fbOff && <ErrorState compact className="px-2 py-4" title="Không tải được hộp thư" error={list.error} onRetry={() => void list.refetch()} retrying={list.isFetching} />}
           {(fbOff || (list.isSuccess && rows.length === 0)) && (
@@ -137,7 +145,7 @@ export function FacebookInbox({ listTop, className, initialOpenId }: { listTop?:
                     : "Chưa có tin nhắn nào. Khi khách nhắn tin vào Fanpage đã kết nối, hội thoại sẽ hiện ở đây."}
             </InboxEmpty>
           )}
-          <ul className="space-y-0.5">
+          <ul>
             {rows.map((c) => (
               <li key={c.id}>
                 <ConversationItem

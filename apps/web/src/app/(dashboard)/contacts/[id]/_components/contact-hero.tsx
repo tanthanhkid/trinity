@@ -96,6 +96,8 @@ function HeroPhoneEditor({ contactId, phone, allowReedit }: { contactId: number 
   const [saving, setSaving] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const done = useRef(false)
+  // Giá trị vừa bị máy chủ từ chối — rời ô với đúng giá trị đó thì không gửi lại (tránh PATCH lặp mỗi lần blur).
+  const failed = useRef<string | null>(null)
   const patch = useContactPatch(contactId)
 
   useEffect(() => {
@@ -104,6 +106,7 @@ function HeroPhoneEditor({ contactId, phone, allowReedit }: { contactId: number 
 
   const start = () => {
     done.current = false
+    failed.current = null
     setError(null)
     setEditing(true)
   }
@@ -116,11 +119,18 @@ function HeroPhoneEditor({ contactId, phone, allowReedit }: { contactId: number 
       setEditing(false)
       return
     }
+    if (next === failed.current) {
+      done.current = false
+      return
+    }
     setSaving(true)
     const ok = await patch("Đã lưu", { phone: next }, null, (msg) => setError(msg))
     setSaving(false)
     if (ok) setEditing(false)
-    else done.current = false
+    else {
+      failed.current = next
+      done.current = false
+    }
   }
 
   if (editing) {
@@ -136,7 +146,7 @@ function HeroPhoneEditor({ contactId, phone, allowReedit }: { contactId: number 
           aria-describedby="hero-phone-hint"
           placeholder="Nhập số điện thoại"
           defaultValue={phone}
-          disabled={saving}
+          readOnly={saving}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault()
@@ -170,7 +180,8 @@ function HeroPhoneEditor({ contactId, phone, allowReedit }: { contactId: number 
     )
   }
 
-  return allowReedit ? (
+  // Số bị che (thiếu phạm vi `phone_full` với khách này) ⇒ không mở sửa lại với chuỗi đã che.
+  return allowReedit && !isMaskedPhone(phone) ? (
     <button
       type="button"
       onClick={start}

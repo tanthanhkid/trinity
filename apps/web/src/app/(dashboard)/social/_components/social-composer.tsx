@@ -536,7 +536,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
             {noSlots && (
               <p className="text-[13px] text-ax-ink-2 max-lg:px-4" data-testid="queue-hint">
                 Chưa có khung giờ hàng đợi.{" "}
-                {onGoCalendar ? <button type="button" className="cursor-pointer font-semibold text-ax-primary hover:underline" onClick={onGoCalendar}>Đặt khung giờ ở tab Lịch</button> : "Đặt khung giờ ở tab Lịch."}
+                {onGoCalendar ? <button type="button" className="relative cursor-pointer font-semibold text-ax-primary hover:underline after:absolute after:-inset-x-1 after:top-1/2 after:h-11 after:-translate-y-1/2" onClick={onGoCalendar}>Đặt khung giờ ở tab Lịch</button> : "Đặt khung giờ ở tab Lịch."}
               </p>
             )}
             {mode === "queue" && !noSlots && (
@@ -679,6 +679,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
             <Button type="button" variant="ax-on-hero" size="ax-lg" onClick={submit} disabled={disabled || offline} className="lg:min-w-36">
               {pending && <Loader2 className="size-4 animate-spin" aria-hidden />}
               {primaryLabel}
+              {mode === "schedule" && scheduleAt && !schedErr && <span className="lg:hidden"> lúc {scheduleAt.slice(11, 16)}</span>}
             </Button>
           </div>
         </div>

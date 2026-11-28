@@ -189,6 +189,11 @@ async fn env() -> Env {
 }
 
 async fn env_with(register: fn(&mut ToolRegistry)) -> Env {
+    env_with_db(move |r, _, _| register(r)).await
+}
+
+/// Như `env_with`, nhưng bộ đăng ký nhận `Db` và `Platform` của công ty thử (tool cần phụ thuộc riêng, như hộp thư).
+async fn env_with_db(register: impl FnOnce(&mut ToolRegistry, &Db, &Platform)) -> Env {
     static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let base = base_url();
     let dbname = base
@@ -268,7 +273,7 @@ async fn env_with(register: fn(&mut ToolRegistry)) -> Env {
     );
     let oauth = Arc::new(OauthCtx {
         db: db.clone(),
-        platform,
+        platform: platform.clone(),
         perms: perms.clone(),
         config: OauthConfig::from_lookup(get),
         ip: ip.clone(),
@@ -278,7 +283,7 @@ async fn env_with(register: fn(&mut ToolRegistry)) -> Env {
     let limits = Arc::new(McpLimits::with_untrusted_peer(oauth.limits.untrusted_peer.clone()));
     let audit = Arc::new(DbAudit { db: db.clone() });
     let mut registry = ToolRegistry::new();
-    register(&mut registry);
+    register(&mut registry, &db, &platform);
     let scopes = trinity_rbac::ScopeService::new(db.clone(), cache.clone());
     let tool_deps = Arc::new(mod_mcp::deps::ToolDeps {
         db: db.clone(),
@@ -1438,4 +1443,137 @@ async fn tool_link_records_gan_thay_go_bang_ma() {
             .await,
         0
     );
+}
+
+/// Cổng tính năng thử: mọi tính năng đều bật.
+struct AllOn;
+
+impl trinity_http::router::OrgFeatureGate for AllOn {
+    fn enabled<'a>(
+        &'a self,
+        _company: trinity_db::CompanyRef,
+        _feature: &'a str,
+    ) -> trinity_http::router::FeatureFuture<'a> {
+        Box::pin(async { true })
+    }
+}
+
+/// Cổng lời mời thử: bộ test này không gọi tới.
+struct NoInvitations;
+
+impl mod_mcp::InvitationsPort for NoInvitations {
+    fn list<'a>(
+        &'a self,
+        _c: trinity_db::CompanyRef,
+        _p: bool,
+        _o: &'a trinity_rbac::OwnerIds,
+    ) -> BoxFuture<'a, Result<Value, mod_auth::AuthFail>> {
+        unimplemented!("không dùng")
+    }
+
+    fn create<'a>(
+        &'a self,
+        _a: &'a mod_auth::Actor,
+        _e: &'a str,
+        _r: i32,
+        _o: &'a trinity_rbac::OwnerIds,
+    ) -> BoxFuture<'a, Result<Value, mod_auth::AuthFail>> {
+        unimplemented!("không dùng")
+    }
+
+    fn revoke<'a>(
+        &'a self,
+        _c: trinity_db::CompanyRef,
+        _i: i32,
+        _o: &'a trinity_rbac::OwnerIds,
+    ) -> BoxFuture<'a, Result<Value, mod_auth::AuthFail>> {
+        unimplemented!("không dùng")
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "cần Postgres (TEST_DATABASE_URL)"]
+async fn tool_list_conversations_loc_theo_khach() {
+    // reqwest dùng `rustls-no-provider`: cài `ring` trước khi dựng client Graph/Zalo (cài lần hai chỉ trả Err, bỏ qua).
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let e = env_with_db(|r, db, platform| {
+        let env: mod_facebook::config::Env = Arc::new(|_: &str| -> Option<String> { None });
+        let guard = mod_channel_guard::ChannelGuard::new(db.clone(), platform.clone());
+        let zalo_env: mod_zalo::config::Env = Arc::new(|_: &str| -> Option<String> { None });
+        mod_mcp::register_inbox_invitations(
+            r,
+            Arc::new(mod_mcp::InboxDeps {
+                features: Arc::new(AllOn),
+                facebook: Arc::new(mod_facebook::ingest::FacebookIngest::new(
+                    db.clone(),
+                    env.clone(),
+                    mod_facebook::routes::graph_factory(env, guard.clone()),
+                )),
+                guard,
+                zalo_client: mod_zalo::client::ZaloClient::new(zalo_env.clone()),
+                zalo_env,
+                platform: platform.clone(),
+            }),
+            Arc::new(NoInvitations),
+        );
+    })
+    .await;
+    let mut c = e.conn().await;
+    exec(
+        &mut c,
+        "INSERT INTO contacts (phone, full_name, updated_at)
+           VALUES ('0912345801', 'Khách An', now()), ('0912345802', 'Khách Bình', now());
+         INSERT INTO facebook_conversations (page_id, psid, customer_name, contact_id)
+           SELECT 'pg-lc', p.psid, p.name, ct.id
+           FROM (VALUES ('ps-1', 'Chị An FB', 'Khách An'), ('ps-2', 'Anh Bình FB', 'Khách Bình'), ('ps-3', 'Người lạ FB', NULL)) AS p(psid, name, cname)
+           LEFT JOIN contacts ct ON ct.full_name = p.cname;
+         INSERT INTO zalo_oa_threads (oa_id, zalo_user_id, display_name, contact_id, updated_at)
+           SELECT 'oa-lc', p.uid, p.name, ct.id, now()
+           FROM (VALUES ('zu-1', 'Chị An Zalo', 'Khách An'), ('zu-2', 'Anh Bình Zalo', 'Khách Bình')) AS p(uid, name, cname)
+           LEFT JOIN contacts ct ON ct.full_name = p.cname;",
+    )
+    .await;
+    let an: i64 = e.scalar("SELECT id::bigint FROM contacts WHERE full_name = 'Khách An'").await;
+    let adm = e
+        .token("quantri-lc", e.admin, "{crm.read}", RESOURCE, "1 hour", false)
+        .await;
+
+    let customers = |v: &Value, ch: &str| -> Vec<String> {
+        v["data"][ch]
+            .as_array()
+            .unwrap_or(&vec![])
+            .iter()
+            .map(|x| x["customer"].as_str().unwrap().to_owned())
+            .collect()
+    };
+    // Không lọc: đủ cả hai kênh.
+    let (err, _, v) = run(&e, &adm, "list_conversations", &json!({})).await;
+    assert!(!err, "{v}");
+    assert_eq!(customers(&v, "messenger").len(), 3, "{v}");
+    assert_eq!(customers(&v, "zalo_oa").len(), 2, "{v}");
+    // Lọc theo khách: chỉ hội thoại ghép với khách đó, cả hai kênh.
+    let (err, _, v) = run(&e, &adm, "list_conversations", &json!({ "contact_id": an })).await;
+    assert!(!err, "{v}");
+    assert_eq!(customers(&v, "messenger"), ["Chị An FB"], "{v}");
+    assert_eq!(customers(&v, "zalo_oa"), ["Chị An Zalo"], "{v}");
+    // Kết hợp với kênh; khách không có hội thoại ⇒ danh sách rỗng (không nới thành chung).
+    let (_, _, v) = run(
+        &e,
+        &adm,
+        "list_conversations",
+        &json!({ "contact_id": an, "channel": "messenger" }),
+    )
+    .await;
+    assert_eq!(customers(&v, "messenger"), ["Chị An FB"], "{v}");
+    assert!(v["data"]["zalo_oa"].is_null(), "{v}");
+    let (err, _, v) = run(&e, &adm, "list_conversations", &json!({ "contact_id": 2_000_000_000 })).await;
+    assert!(
+        !err && customers(&v, "messenger").is_empty() && customers(&v, "zalo_oa").is_empty(),
+        "{v}"
+    );
+    // Không phải số nguyên dương ⇒ lỗi tham số (schema chặn trước, hoặc câu lỗi của tool).
+    for bad in [json!(0), json!(-3), json!("abc"), json!(1.5), json!(2_147_483_648_i64)] {
+        let (err, text, _) = run(&e, &adm, "list_conversations", &json!({ "contact_id": bad })).await;
+        assert!(err, "{bad}: {text}");
+    }
 }

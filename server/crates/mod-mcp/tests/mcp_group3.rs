@@ -80,6 +80,13 @@ fn doi_so_theo_schema() {
         "list_conversations",
         json!({ "channel": "zalo_oa", "search": "Lan", "limit": 1 })
     ));
+    assert!(ok(
+        "list_conversations",
+        json!({ "contact_id": 12, "channel": "messenger" })
+    ));
+    for bad in [json!(0), json!(-1), json!("12"), json!(1.5), json!(2_147_483_648_i64)] {
+        assert!(!ok("list_conversations", json!({ "contact_id": bad })), "{bad}");
+    }
     assert!(!ok("list_conversations", json!({ "channel": "facebook_comment" })));
     assert!(!ok("list_conversations", json!({ "search": "x".repeat(101) })));
     assert!(ok("get_conversation_messages", json!({ "id": "messenger:12" })));

@@ -55,7 +55,7 @@ const ACTIONS: Action[] = [
   { where: '/products', perm: 'products.manage', name: 'Quản lý danh mục', pageNeed: 'products.view' },
   { where: '/kanban', perm: 'kanban.boards', name: 'Cấu hình board', kind: 'link', pageNeed: 'kanban.view' },
   { where: '/newsfeed', perm: 'newsfeed.post', name: 'Đăng bài' },
-  { where: '/management/employees', perm: 'employees.manage', name: 'Thêm nhân viên', pageNeed: 'employees.view' },
+  { where: '/management/employees', perm: 'employees.manage', name: 'Mời nhân viên', pageNeed: 'employees.view' },
   { where: '/management/contracts', perm: 'contracts.manage', name: 'Thêm hợp đồng', pageNeed: 'contracts.view' },
   { where: '/settings?tab=users', perm: 'users.manage', name: 'Thêm người dùng', pageNeed: 'users.view' },
   { where: '/settings?tab=users', perm: 'users.export', name: 'Xuất Excel', pageNeed: 'users.view' },

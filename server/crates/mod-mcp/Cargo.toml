@@ -46,6 +46,7 @@ trinity-rbac = { workspace = true }
 unicode-normalization = { workspace = true }
 
 [dev-dependencies]
+rustls = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }
 trinity-auth = { workspace = true }

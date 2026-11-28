@@ -12,7 +12,7 @@ const ROLE = 'ADMIN' as const
 const DIALOGS: { path: string; button: string; kind?: 'button' | 'link' }[] = [
   { path: '/products', button: 'Thêm sản phẩm' },
   { path: '/settings?tab=roles', button: 'Tạo vai trò' },
-  { path: '/management/employees', button: 'Thêm nhân viên' },
+  { path: '/management/employees', button: 'Mời nhân viên' },
   { path: '/management/contracts', button: 'Thêm hợp đồng' },
   { path: '/management/recruitment', button: 'Thêm ứng viên' },
   { path: '/settings?tab=users', button: 'Thêm người dùng' },

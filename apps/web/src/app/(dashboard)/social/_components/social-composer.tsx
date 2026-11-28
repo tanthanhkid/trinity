@@ -679,7 +679,7 @@ export function SocialComposer({ onCreated, onGoChannels, onGoCalendar, preset, 
             <Button type="button" variant="ax-on-hero" size="ax-lg" onClick={submit} disabled={disabled || offline} className="lg:min-w-36">
               {pending && <Loader2 className="size-4 animate-spin" aria-hidden />}
               {primaryLabel}
-              {mode === "schedule" && scheduleAt && !schedErr && <span className="lg:hidden"> lúc {scheduleAt.slice(11, 16)}</span>}
+              {mode === "schedule" && scheduleAt && !schedErr && <span className="lg:hidden">lúc {scheduleAt.slice(11, 16)}</span>}
             </Button>
           </div>
         </div>

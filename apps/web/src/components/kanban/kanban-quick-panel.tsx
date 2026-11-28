@@ -326,7 +326,7 @@ export function KanbanQuickPanel({ cardId, variant, onClose, onOpenFull }: Kanba
 
   if (mobile) {
     return (
-      <div className="fixed inset-0 z-[60] flex flex-col ax-page" role="dialog" aria-label="Chi tiết thẻ">
+      <div className="fixed inset-0 z-50 flex flex-col ax-page" role="dialog" aria-label="Chi tiết thẻ">
         <div className="flex h-14 shrink-0 items-center gap-1 border-b border-ax-line bg-ax-surface px-2">
           <button
             type="button"
@@ -368,7 +368,7 @@ export function KanbanQuickPanel({ cardId, variant, onClose, onOpenFull }: Kanba
 
 function PanelFrame({ variant, children }: { variant: "desktop" | "mobile"; children: React.ReactNode }) {
   if (variant === "mobile") {
-    return <div className="fixed inset-0 z-[60] overflow-y-auto ax-page">{children}</div>
+    return <div className="fixed inset-0 z-50 overflow-y-auto ax-page">{children}</div>
   }
   return (
     <aside

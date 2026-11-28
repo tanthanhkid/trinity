@@ -52,7 +52,7 @@ describe("PosSell", () => {
 
   it("chạm món có tuỳ chọn → hộp thoại chọn size → vào giỏ với giá cộng thêm", () => {
     renderSell()
-    fireEvent.click(screen.getByRole("button", { name: /Cà phê sữa/ }))
+    fireEvent.click(screen.getByRole("button", { name: /^Cà phê sữa/ }))
     fireEvent.click(screen.getByRole("button", { name: /^L \(\+5\.000đ\)/ }))
     fireEvent.click(screen.getByRole("button", { name: /^Thêm · 35\.000đ/ }))
     const cart = screen.getByRole("complementary", { name: "Giỏ hàng" })
@@ -64,7 +64,7 @@ describe("PosSell", () => {
     mods = []
     renderSell()
     fireEvent.click(screen.getByRole("tab", { name: "Trà" }))
-    expect(screen.queryByRole("button", { name: /Cà phê sữa/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /^Cà phê sữa/ })).toBeNull()
     fireEvent.click(screen.getByRole("button", { name: /Trà đào/ }))
     fireEvent.click(screen.getByRole("button", { name: "Tăng Trà đào" }))
     expect(screen.getByRole("complementary", { name: "Giỏ hàng" })).toHaveTextContent("90.000đ")
@@ -81,7 +81,7 @@ describe("PosSell", () => {
       items: [{ id: 1, product_id: 1, product_name: "Cà phê sữa", unit_price: 30000, quantity: 1, options: [], note: null, line_total: 30000 }], payments: [],
     })
     renderSell()
-    fireEvent.click(screen.getByRole("button", { name: /Cà phê sữa/ }))
+    fireEvent.click(screen.getByRole("button", { name: /^Cà phê sữa/ }))
     fireEvent.click(screen.getByRole("button", { name: "Lưu đơn" }))
     await waitFor(() => expect(created).toHaveBeenCalledTimes(1))
     const body = created.mock.calls[0][0]
@@ -109,7 +109,7 @@ describe("PosSell — điện thoại", () => {
 
   it("thêm món → thanh đáy 'N món · Tổng' + Thanh toán; chạm mở giỏ trong bảng trượt (cùng PosCartPanel)", () => {
     renderSell()
-    fireEvent.click(screen.getByRole("button", { name: /Cà phê sữa/ }))
+    fireEvent.click(screen.getByRole("button", { name: /^Cà phê sữa/ }))
     const bar = screen.getByRole("button", { name: /Mở giỏ hàng, 1 món/ })
     expect(bar).toHaveTextContent("30.000đ")
     expect(screen.getByRole("button", { name: "Thanh toán" })).toBeEnabled()
@@ -127,7 +127,7 @@ describe("PosSell — điện thoại", () => {
       items: [{ id: 1, product_id: 1, product_name: "Cà phê sữa", unit_price: 30000, quantity: 1, options: [], note: null, line_total: 30000 }], payments: [],
     })
     renderSell()
-    fireEvent.click(screen.getByRole("button", { name: /Cà phê sữa/ }))
+    fireEvent.click(screen.getByRole("button", { name: /^Cà phê sữa/ }))
     fireEvent.click(screen.getByRole("button", { name: "Lưu đơn" }))
     await waitFor(() => expect(created).toHaveBeenCalledTimes(1))
     fireEvent.click(screen.getByRole("button", { name: /Mở giỏ hàng/ }))
@@ -139,7 +139,7 @@ describe("PosSell — điện thoại", () => {
   it("hàng món: hiện số lượng đã chọn, nút − bớt một và biến mất khi về 0", () => {
     renderSell()
     fireEvent.click(screen.getByRole("button", { name: /^Cà phê sữa/ }))
-    fireEvent.click(screen.getByRole("button", { name: /^Cà phê sữa/ }))
+    fireEvent.click(screen.getByRole("button", { name: "Thêm Cà phê sữa" }))
     expect(screen.getByLabelText("2 đã chọn")).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Giảm Cà phê sữa" }))
     expect(screen.getByLabelText("1 đã chọn")).toBeInTheDocument()

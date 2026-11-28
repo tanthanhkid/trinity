@@ -87,7 +87,7 @@ export function PosMenuGrid({ menu, onPick, lines = [], onDec }: Props) {
                     <span className="ax-amount w-6 text-center text-lg font-bold" aria-label={`${n} đã chọn`}>{n}</span>
                   </>
                 )}
-                <span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-[10px] text-white ax-grad-primary shadow-[var(--ax-shadow-primary)]" onClick={() => onPick(p)}><Plus className="size-5" /></span>
+                <button type="button" aria-label={`Thêm ${p.name}`} onClick={() => onPick(p)} className="grid size-12 shrink-0 place-items-center rounded-[10px] text-white ax-grad-primary shadow-[var(--ax-shadow-primary)] focus-visible:outline-none focus-visible:shadow-[var(--ax-focus-ring)]"><Plus className="size-5" aria-hidden /></button>
               </li>
             )
           })}

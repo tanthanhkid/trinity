@@ -68,7 +68,7 @@ export function StageChip({
     "bg-[color:var(--chip-bg)] text-[var(--chip-ink)]",
     size === "sm" ? "h-6 px-2.5 text-[12px]" : "h-7 px-3 text-[13px]",
     selected &&
-      "bg-[image:linear-gradient(180deg,color-mix(in_srgb,#ffffff_45%,var(--chip-bg))_0%,var(--chip-bg)_100%)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--chip-dot)_45%,transparent)]",
+      "bg-[image:linear-gradient(180deg,color-mix(in_srgb,var(--ax-chip-sheen)_45%,var(--chip-bg))_0%,var(--chip-bg)_100%)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--chip-dot)_45%,transparent)]",
     className,
   )
   const content = (

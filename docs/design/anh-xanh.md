@@ -85,7 +85,8 @@ showUndoToast("Đã lưu số điện thoại", { onUndo: () => save(prev) })
 - Chữ trên khối nhấn trắng hoặc `--ax-on-hero-ink-2`; không tô gradient lên chữ; không gradient tím/loang nhiều màu,
   không glassmorphism, không viền trái màu.
 - Tương phản chữ ≥ 4,5:1 đo trên điểm sáng/tối nhất của nền gradient; vùng chạm ≥ 44px trên điện thoại
-  (nút `Button` tự lên 44px dưới 640px; chip, nút toast mở rộng bằng `::after`).
+  (nút `Button` tự lên 44px dưới 640px, `ax-icon` lên 44×44; chip, nút toast mở rộng bằng `::after`).
+  Chip `selected` lấy sắc đỉnh gradient từ `--ax-chip-sheen` (bản tối không trộn trắng để chữ sáng giữ ≥ 4,5:1).
 - Khách = avatar bo 30%; nhân viên = tròn.
 - Hàng/danh sách: hover `--ax-hover`, chọn nền `--ax-primary-soft` + chữ `--ax-primary-ink`; vạch chia `--ax-divider`.
 - Số tiền: đơn vị ₫ nhỏ 0.8em màu `--ax-ink-3`; thời gian tương đối kèm `title` giờ đầy đủ.

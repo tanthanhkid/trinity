@@ -214,6 +214,7 @@
   --ax-success-soft: #eaf6ef;
   --ax-brand-red: #e02020;
   --ax-toast-action: #bfd6ea;
+  --ax-chip-sheen: #ffffff; /* sắc sáng ở đỉnh gradient chip giai đoạn đang chọn */
 
   /* ---- màu giai đoạn: chấm · nền nhạt · chữ đậm ---- */
   --ax-stage-new-dot: #3a75a6;
@@ -343,6 +344,7 @@
   --ax-stage-won-ink: #7fd3a2;
   --ax-stage-care-bg: #1d1f24;
   --ax-stage-care-ink: #b4b8c2;
+  --ax-chip-sheen: #30333a; /* trộn trắng vào nền chip tối làm chữ sáng tụt dưới 4,5:1 */
   --ax-grad-page: #0d0e11;
   --ax-grad-page-mobile: #0d0e11;
   --ax-grad-soft: linear-gradient(135deg, #131418 0%, #172230 100%);
@@ -649,7 +651,7 @@ html[data-ui="app"] [data-slot="sidebar-inset"] {
   :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size]):not([data-size="xs"]):not([data-size="icon-xs"]):not([data-variant="link"]):not([data-slot="input-group"] :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])):not([data-slot="dialog-close"]):not([data-slot="sheet-close"]) {
     min-height: 44px;
   }
-  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])[data-size^="icon"]:not([data-size="icon-xs"]):not([data-slot="input-group"] :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])):not([data-slot="dialog-close"]):not([data-slot="sheet-close"]) {
+  :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size]):is([data-size^="icon"], [data-size="ax-icon"]):not([data-size="icon-xs"]):not([data-slot="input-group"] :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])):not([data-slot="dialog-close"]):not([data-slot="sheet-close"]) {
     min-width: 44px;
   }
   :is([data-slot="button"], :is(button, a, [role="button"])[data-variant][data-size])[data-size="xs"],

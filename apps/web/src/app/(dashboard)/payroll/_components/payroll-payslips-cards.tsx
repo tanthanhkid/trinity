@@ -1,12 +1,12 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
+import { StageChip } from "@/components/ui/stage-chip"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ShellListCard } from "@/components/app-shell/list-card"
 import { CheckCircle, Download, FileSpreadsheet, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
-import { type PayslipRow, canApproveNow, canEditPayslip, canRemoveFromPeriod, fmt, formatMonth, statusColor, statusLabel } from "./payroll-payslips-shared"
+import { type PayslipRow, canApproveNow, canEditPayslip, canRemoveFromPeriod, fmt, formatMonth, statusLabel, statusTone } from "./payroll-payslips-shared"
 
 interface Actions {
   can: (p: "payroll.approve_team" | "payroll.approve_final") => boolean
@@ -82,7 +82,7 @@ function PayslipCard({ p, a }: { p: PayslipRow; a: Actions }) {
           <PayslipCardMenu p={p} a={a} />
         </div>
       </div>
-      <Badge variant="secondary" className={statusColor(p.status)}>{statusLabel(p.status)}</Badge>
+      <StageChip tone={statusTone(p.status)} size="sm">{statusLabel(p.status)}</StageChip>
       <div>
         <p className="text-xs text-muted-foreground">Thực nhận</p>
         <p className="text-xl font-semibold tabular-nums text-[var(--color-app-primary-ink)]">{fmt(p.total)}</p>

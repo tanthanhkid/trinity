@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { UserPlus, Loader2 } from "lucide-react"
 import apiClient from "@/lib/api-client"
-import { PayslipRow, COMPONENT_TYPE_META, formatMonth, fmt } from "./payroll-payslips-shared"
+import { PayslipRow, formatMonth } from "./payroll-payslips-shared"
 
 // ============ Dialog Thêm người vào kỳ lương ============
 interface AddableEmployee {
@@ -127,92 +127,6 @@ export function AddToPeriodDialog({ month, onClose }: { month: string; onClose: 
     </Dialog>
   )
 }
-
-// ============ Dialog Chi tiết (phụ cấp / bảo hiểm / thuế) ============
-export function PayslipDetailDialog({ row, onClose }: { row: PayslipRow | null; onClose: () => void }) {
-  return (
-    <Dialog open={row !== null} onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent className="rounded-2xl sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Chi tiết khấu trừ / phụ cấp — {row?.employee?.user?.full_name ?? ""}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 py-1">
-          {row && !row.components_json?.length && !row.insurance_json?.length && !row?.tax_json && Number(row?.insurance_base ?? 0) <= 0 && (
-            <p className="text-sm text-muted-foreground">Phiếu này chưa có khoản phụ cấp / bảo hiểm / thuế chi tiết.</p>
-          )}
-          {!!row?.components_json?.length && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground">Phụ cấp / Thưởng / Khấu trừ</p>
-              {row.components_json.map((c) => (
-                <div key={c.code} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${COMPONENT_TYPE_META[c.component_type].cls}`}>
-                      {COMPONENT_TYPE_META[c.component_type].label}
-                    </span>
-                    <span>{c.name}</span>
-                  </span>
-                  <span className={c.component_type === "deduction" ? "font-medium text-rose-600" : "font-medium"}>
-                    {c.component_type === "deduction" ? "−" : "+"}{fmt(c.amount)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-          {Number(row?.insurance_base ?? 0) > 0 && (
-            <div className="space-y-2 border-t pt-3">
-              <p className="text-xs font-semibold text-muted-foreground">Cơ cấu lương cơ bản</p>
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">Lương đóng BHXH</span>
-                <span className="font-medium">{fmt(row?.insurance_base ?? "0")}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground">Phụ cấp xăng xe/ăn ca</span>
-                <span className="font-medium">{fmt(row?.phu_cap_xang_xe ?? "0")}</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                BHXH tính trên mức cố định theo chức vụ; phần chênh so với lương cơ bản chuyển thành phụ cấp.
-              </p>
-            </div>
-          )}
-          {!!row?.insurance_json?.length && (
-            <div className="space-y-2 border-t pt-3">
-              <p className="text-xs font-semibold text-muted-foreground">Bảo hiểm (NLĐ đóng)</p>
-              {row.insurance_json.map((i) => (
-                <div key={i.code} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">{i.rate}%</span>
-                    <span>{i.name}</span>
-                  </span>
-                  <span className="font-medium text-rose-600">−{fmt(i.amount)}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {!!row?.tax_json && (
-            <div className="space-y-2 border-t pt-3">
-              <p className="text-xs font-semibold text-muted-foreground">Thuế TNCN (lũy tiến từng phần)</p>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Thu nhập tính thuế</span>
-                <span>{fmt(row.tax_json.taxable_income)}</span>
-              </div>
-              {row.tax_json.brackets.map((b, idx) => (
-                <div key={idx} className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                  <span>{fmt(b.portion)} × {b.rate}%</span>
-                  <span>−{fmt(b.tax)}</span>
-                </div>
-              ))}
-              <div className="flex items-center justify-between border-t pt-1 text-sm">
-                <span className="font-medium">Tổng thuế</span>
-                <span className="font-medium text-rose-600">−{fmt(row.tax_json.tax)}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 
 // ============ Dialog xác nhận loại khỏi kỳ ============
 export function RemovePayslipDialog({

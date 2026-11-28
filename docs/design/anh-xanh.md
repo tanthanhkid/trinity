@@ -181,3 +181,9 @@ Danh sách + hồ sơ: desktop (≥1024px) hai cột (danh sách 380px | hồ s�
   chung bản nháp `product-draft.ts` + `use-product-editor.ts`. Lưu = `PATCH /products/:id` chỉ với các trường đã đổi, Hoàn tác trả lại đúng các trường đó (từ chối nếu trường đã được lưu lại sau đó). Bản nháp giữ ở trang nên đổi khổ qua 1024px không mất.
 - Lệch có chủ đích: mã sản phẩm hiện nhưng KHOÁ (BE không cho đổi); thuộc tính động thay hai ô «Chất liệu/Kích thước» mẫu;
   thêm ô Dự án (chỉ đọc); thương hiệu/màu/thẻ/nổi bật giữ ở cuối màn sửa điện thoại; không có quyền sửa ⇒ chỉ đọc.
+
+## Màn «Lương» (`/payroll`)
+
+- Chi tiết phiếu (desktop, `payroll-payslip-detail.tsx`): bấm một phiếu ở tab «Phiếu lương» → đường dẫn, trạng thái, nhóm khoản sửa tại chỗ (Hoàn tác bằng `showUndoToast`), khối nhấn «Thực nhận» (`HeroCard`) kèm Lưu/Duyệt. Thay hai hộp thoại Sửa phiếu / Chi tiết cũ; vẫn gọi `PATCH /payslips/:id`, duyệt, xuất PDF/Excel, loại khỏi kỳ như trước. Phép tính thuần ở `payroll-payslip-form.ts`.
+- «Phiếu của tôi» (mobile, `payroll-mine.tsx`): tab mới, dữ liệu `GET /payslips/me`. Chừa chỗ (PR riêng): nút Ẩn số, Tải phiếu PDF.
+- Lệch có chủ đích: thiết kế có «Chốt kỳ» và «Hoàn tác duyệt» nhưng API chưa có; trạng thái dùng luồng thật (nháp → chờ duyệt → đã duyệt → đã trả).

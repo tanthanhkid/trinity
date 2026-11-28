@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { HeroCard, HeroCardLabel, HeroCardValue } from "@/components/ui/hero-card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -18,12 +19,12 @@ import { useRowHighlight } from "@/lib/use-row-highlight"
 import { ShellResponsiveList } from "@/components/app-shell/responsive-list"
 import { MobileFilterSheet } from "@/components/app-shell/mobile-filter-sheet"
 import { MOBILE_FAB_CLASS } from "@/components/app-shell/mobile-primary"
-import { type PayslipRow, MONTHS_VI, displayRevenue, fmt, formatMonth, getCurrentMonth } from "./payroll-payslips-shared"
+import { type PayslipRow, MONTHS_VI, displayRevenue, formatMonth, getCurrentMonth } from "./payroll-payslips-shared"
 import { PayslipsDesktopTable } from "./payroll-payslips-table"
 import { PayslipsMobileList } from "./payroll-payslips-cards"
-import { AddToPeriodDialog, PayslipDetailDialog, RemovePayslipDialog } from "./payroll-payslips-dialogs"
+import { AddToPeriodDialog, RemovePayslipDialog } from "./payroll-payslips-dialogs"
 import { ImportPayslipsDialog } from "./payroll-payslips-import-dialog"
-import { PayslipEditDialog } from "./payroll-payslips-edit-dialog"
+import { PayslipDetailView } from "./payroll-payslip-detail"
 import { errorMessage } from "@/lib/error-messages"
 
 // Test `payroll-payslip-gates` import các hàm gate từ file này — giữ re-export.
@@ -69,8 +70,8 @@ export function PayrollPayslips() {
   const [filterTeam, setFilterTeam] = useState("")
   const [search, setSearch] = useState("")
   const { selectRow, rowHighlightClass } = useRowHighlight<number>()
-  const [detailRow, setDetailRow] = useState<PayslipRow | null>(null)
-  const [editRow, setEditRow] = useState<PayslipRow | null>(null)
+  // Phiếu đang mở ở màn chi tiết (thay hộp thoại Sửa phiếu + Chi tiết cũ). Mở theo id để số liệu luôn là bản mới nhất.
+  const [openId, setOpenId] = useState<number | null>(null)
   const [removeRow, setRemoveRow] = useState<PayslipRow | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -125,6 +126,7 @@ export function PayrollPayslips() {
       void qc.invalidateQueries({ queryKey: ["payroll-payslips", month] })
       toast.success("Đã loại nhân viên khỏi kỳ lương này.")
       setRemoveRow(null)
+      setOpenId(null)
     },
     onError: () =>
       toast.error(
@@ -326,6 +328,38 @@ export function PayrollPayslips() {
     }
   }, [payslips])
   const canGenerate = canManage
+  const openRow = openId === null ? null : (payslips.find((p) => p.id === openId) ?? allPayslips.find((p) => p.id === openId) ?? null)
+  const openIdx = openRow ? payslips.findIndex((p) => p.id === openRow.id) : -1
+  if (openRow) {
+    return (
+      <>
+        <PayslipDetailView
+          key={openRow.id}
+          row={openRow}
+          position={openIdx >= 0 ? openIdx + 1 : 1}
+          count={openIdx >= 0 ? payslips.length : 1}
+          can={can}
+          canManage={canManage}
+          approving={approveMutation.isPending}
+          onBack={() => setOpenId(null)}
+          onPrev={openIdx > 0 ? () => setOpenId(payslips[openIdx - 1].id) : null}
+          onNext={openIdx >= 0 && openIdx < payslips.length - 1 ? () => setOpenId(payslips[openIdx + 1].id) : null}
+          onApprove={(id) => approveMutation.mutate(id)}
+          onDownload={downloadFile}
+          onRemove={setRemoveRow}
+        />
+        {removeRow && (
+          <RemovePayslipDialog
+            row={removeRow}
+            month={month}
+            pending={removeMutation.isPending}
+            onClose={() => setRemoveRow(null)}
+            onConfirm={() => removeMutation.mutate(removeRow.id)}
+          />
+        )}
+      </>
+    )
+  }
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -481,13 +515,15 @@ export function PayrollPayslips() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Tìm theo tên nhân viên…"
-            className="h-11 w-56 rounded-xl max-sm:order-last max-sm:w-full"
+            variant="ax"
+            className="h-10 w-56 max-sm:order-last max-sm:h-11 max-sm:w-full"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2 max-sm:contents">
           <Button
-            variant="outline"
-            className="h-11 max-sm:hidden"
+            variant="ax-secondary"
+            size="ax"
+            className="max-sm:hidden"
             onClick={() => void downloadEmployeeListExcel()}
             disabled={listExporting || allPayslips.length === 0}
             title="Xuất Excel danh sách nhân viên (1 sheet, nhóm theo Phòng ban → Team Lead → Nhân viên)"
@@ -500,8 +536,9 @@ export function PayrollPayslips() {
             Xuất Excel danh sách nhân viên
           </Button>
           <Button
-            variant="outline"
-            className="h-11 max-sm:hidden"
+            variant="ax-secondary"
+            size="ax"
+            className="max-sm:hidden"
             onClick={() => void downloadBulkExcel()}
             disabled={bulkExporting || allPayslips.length === 0}
             title="Xuất Excel tất cả phiếu lương trong kỳ (mỗi nhân viên 1 sheet)"
@@ -515,8 +552,9 @@ export function PayrollPayslips() {
           </Button>
           {canGenerate && (
             <Button
-              variant="outline"
-              className="h-11 max-sm:hidden"
+              variant="ax-secondary"
+              size="ax"
+              className="max-sm:hidden"
               onClick={() => setAddOpen(true)}
               title="Thêm 1 nhân viên vào kỳ lương đang xem"
             >
@@ -526,8 +564,9 @@ export function PayrollPayslips() {
           )}
           {canGenerate && (
             <Button
-              variant="outline"
-              className="h-11 max-sm:hidden"
+              variant="ax-secondary"
+              size="ax"
+              className="max-sm:hidden"
               onClick={() => setImportOpen(true)}
               title="Nhập phiếu lương từ file Excel theo Template — xác định NV theo Mã nhân viên"
             >
@@ -537,7 +576,9 @@ export function PayrollPayslips() {
           )}
           {canGenerate && (
             <Button
-              className={cn("h-11", MOBILE_FAB_CLASS)}
+              variant="ax-primary"
+              size="ax"
+              className={cn(MOBILE_FAB_CLASS)}
               onClick={() => generateMutation.mutate()}
               disabled={generateMutation.isPending}
             >
@@ -553,19 +594,19 @@ export function PayrollPayslips() {
         </div>
       </div>
 
-      {!isLoading && !isError && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground max-sm:hidden">
-          <span>
-            <strong className="text-foreground">{payslips.length}</strong> phiếu
-            {(filterTeam || search) && allPayslips.length !== payslips.length
-              ? ` (lọc từ ${allPayslips.length})`
-              : ""}
-          </span>
-          <span>
-            Tổng thực nhận:{" "}
-            <strong className="text-[var(--color-app-primary-ink)]">{fmt(totals.total)}</strong>
-          </span>
-        </div>
+      {!isLoading && !isError && allPayslips.length > 0 && (
+        <HeroCard className="max-sm:hidden">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <HeroCardLabel>Tổng thực nhận tháng {formatMonth(month)}</HeroCardLabel>
+              <HeroCardValue unit="₫" className="mt-1">{totals.total.toLocaleString("vi-VN")}</HeroCardValue>
+            </div>
+            <p className="text-sm text-[var(--ax-on-hero-ink-2)]">
+              <strong className="text-white">{payslips.length}</strong> phiếu
+              {(filterTeam || search) && allPayslips.length !== payslips.length ? ` (lọc từ ${allPayslips.length})` : ""}
+            </p>
+          </div>
+        </HeroCard>
       )}
 
       <ShellResponsiveList
@@ -583,8 +624,8 @@ export function PayrollPayslips() {
             canManage={canManage}
             approving={approveMutation.isPending}
             onApprove={(id) => approveMutation.mutate(id)}
-            onEdit={setEditRow}
-            onDetail={setDetailRow}
+            onEdit={(p) => setOpenId(p.id)}
+            onDetail={(p) => setOpenId(p.id)}
             onRemove={setRemoveRow}
             onDownload={downloadFile}
             rowHighlightClass={rowHighlightClass}
@@ -603,27 +644,13 @@ export function PayrollPayslips() {
             canManage={canManage}
             approving={approveMutation.isPending}
             onApprove={(id) => approveMutation.mutate(id)}
-            onEdit={setEditRow}
-            onDetail={setDetailRow}
+            onEdit={(p) => setOpenId(p.id)}
+            onDetail={(p) => setOpenId(p.id)}
             onRemove={setRemoveRow}
             onDownload={downloadFile}
           />
         }
       />
-
-      {editRow && (
-        <PayslipEditDialog
-          row={editRow}
-          month={month}
-          onClose={() => setEditRow(null)}
-          onSaved={() => {
-            void qc.invalidateQueries({ queryKey: ["payroll-payslips", month] })
-            setEditRow(null)
-          }}
-        />
-      )}
-
-      <PayslipDetailDialog row={detailRow} onClose={() => setDetailRow(null)} />
 
       {removeRow && (
         <RemovePayslipDialog
